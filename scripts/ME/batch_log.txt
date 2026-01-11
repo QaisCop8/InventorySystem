@@ -1,0 +1,55 @@
+CREATE TABLE IF NOT EXISTS public.stock_batch_log
+(
+    id SERIAL PRIMARY KEY,
+    product_id INTEGER NOT NULL,
+    stock_batch_id INTEGER,
+    user_id character varying(255),
+    status INTEGER,
+    log_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+
+CREATE TABLE IF NOT EXISTS public.voucher_types
+(
+    id INTEGER NOT NULL,
+    name character varying(50) NOT NULL,
+    status INTEGER DEFAULT 1,
+    CONSTRAINT voucher_types_pkey PRIMARY KEY (id)
+);
+
+
+CREATE TABLE IF NOT EXISTS public.vouchers_log
+(
+    id SERIAL PRIMARY KEY,
+
+    voucher_id INTEGER NOT NULL,
+
+    voucher_type INTEGER NOT NULL,
+    CONSTRAINT vouchers_log_voucher_type_fkey
+        FOREIGN KEY (voucher_type)
+        REFERENCES public.voucher_types (id)
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+
+    user_id character varying(255),
+
+    status_id INTEGER,
+
+    log_date TIMESTAMP WITHOUT TIME ZONE
+        NOT NULL
+        DEFAULT CURRENT_TIMESTAMP
+);
+
+
+INSERT INTO public.voucher_types (id, name, status)
+VALUES
+(1, 'طلبية مبيعات', 1),
+(2, 'طلبية مشتريات', 1),
+(3, 'إرسالية مبيعات', 1),
+(4, 'إرسالية مشتريات', 1),
+(5, 'فاتورة مبيعات', 1),
+(6, 'فاتورة مشتريات', 1),
+(7, 'سند قيد', 1),
+(8, 'سند قبض', 1),
+(9, 'سند صرف', 1)
+ON CONFLICT (id) DO NOTHING;

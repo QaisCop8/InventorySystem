@@ -73,6 +73,7 @@
     "lucide-react": "^0.454.0",
     "next": "^14.2.35",
     "next-themes": "latest",
+    "odbc": "^2.4.9",
     "openai": "^6.8.1",
     "path": "latest",
     "pg": "^8.16.3",

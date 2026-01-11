@@ -1,0 +1,5 @@
+ALTER TABLE public.user_access
+DROP CONSTRAINT fk_user_access_user;
+
+ALTER TABLE public.user_access
+ALTER COLUMN user_id TYPE VARCHAR(255);

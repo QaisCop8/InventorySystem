@@ -19,6 +19,7 @@ const COLUMNS = [
     { id: "code", label: "رقم الصنف" },
     { id: "store", label: "المستودع" },
     { id: "batch", label: "الرقم التشغيلي" },
+    { id: "price", label: "السعر" },
     { id: "unit", label: "الوحدة" },
     { id: "bonus", label: "البونص" },
     { id: "discount", label: "الخصم" },

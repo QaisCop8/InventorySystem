@@ -9,6 +9,26 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-}
 
-export default nextConfig
+
+  webpack: (config, { isServer }) => {
+
+    if (isServer) {
+      config.externals = config.externals || [];
+      
+
+      config.externals.push(
+        'odbc',
+        '@mapbox/node-pre-gyp', 
+
+        'encoding', 
+        'iconv-lite' 
+      );
+    }
+
+    return config;
+  },
+
+};
+
+export default nextConfig;

@@ -270,6 +270,8 @@ interface OrderFormData {
   customer_phone?: string | null
   order_source: string,
   vch_book: string
+  received_by?: string | null,
+  customer_order_no?: string | null,
 }
 
 const initialFormData: OrderFormData = {
@@ -312,7 +314,9 @@ const initialFormData: OrderFormData = {
   customer_number: "",
   customer_phone: "",
   order_source: "manual",
-  vch_book: "0"
+  vch_book: "0",
+  received_by: "",
+  customer_order_no: "",
 }
 
 
@@ -915,7 +919,7 @@ function UnifiedSalesOrder({
         item.has_batch_number = ii.has_batch_number;
         item.batch = setFromExcelRef.current ? ii.batch + '' : '';
         item.qnty = setFromExcelRef.current ? ii.qnty : items.length > 1 ? 1 : '';
-        item.amount = items.length > 1 ? (() => {
+        item.amount = setFromExcelRef.current ? ii.qnty * ii.price : items.length > 1 ? (() => {
           const p = ii.price ? ii.price / state.formData.exchange_rate : NaN;
           const fallback = ii.first_price ? ii.first_price / state.formData.exchange_rate : NaN;
           return isNaN(p) ? (isNaN(fallback) ? 0 : fallback) : p;
@@ -1260,7 +1264,7 @@ function UnifiedSalesOrder({
           header: "الحالة", name: "item_status", width: 100, visible: false,
         },
         {
-          header: "الباركود", name: "barcode", width: 120
+          header: "الباركود", name: "barcode", width: 120, visible: Util.getVoucherSettingScreenData(vch_type, 'barcode')
         },
         {
           header: "رقم الصنف", name: "code", width: 120, maxLength: 8, visible: Util.getVoucherSettingScreenData(vch_type, 'code')
@@ -1287,7 +1291,7 @@ function UnifiedSalesOrder({
         },
 
         {
-          header: "اسم الصنف", name: "name", width: "*", minWidth: 200, maxLength: 100
+          header: "اسم الصنف", name: "name", width: "*", minWidth: 150, maxLength: 100
         },
         { header: "رقم المستودع", name: "store_id", width: 150, visible: false },
         { header: "المستودع", name: "store_name", width: 100, visible: Util.getVoucherSettingScreenData(vch_type, 'store') },
@@ -1611,7 +1615,7 @@ function UnifiedSalesOrder({
   }
 
   const printOrder = (order: any, items: any[], settings: PrintSettings = {}) => {
-    const { pageType = "custom", width = "210mm", height = "297mm" } = settings;
+    const { pageType = "custom", width = "100mm", height = "100mm" } = settings;
 
     const html = `
     <html>
@@ -1635,7 +1639,7 @@ function UnifiedSalesOrder({
 
           .order-page {
             width: ${pageType === "custom" ? width : "100mm"};
-            min-height: ${pageType === "custom" ? height : "120mm"};
+            min-height: ${pageType === "custom" ? height : "100mm"};
             padding: 20px;
             box-sizing: border-box;
           }
@@ -1644,7 +1648,7 @@ function UnifiedSalesOrder({
             display: flex;
             justify-content: space-between;
             margin-bottom: 10px;
-            font-size: 24px; /* increased header font size */
+            font-size: 16px; /* increased header font size */
             font-weight: bold;
           }
 
@@ -1654,8 +1658,15 @@ function UnifiedSalesOrder({
             margin-top: 10px;
           }
 
-          table, th, td {
-            border: 1px solid black;
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            border: 3px solid black; /* outer border */
+          }
+
+          th, td {
+            border: 2px solid black; /* inner grid lines */
+            padding: 6px 8px;
             font-size: 20px;
           }
 
@@ -1683,12 +1694,12 @@ function UnifiedSalesOrder({
       <body>
         <div class="order-page">
           <div class="header">
-            <div>Order </div>
+            <div>Order ${order.order_number}</div>
             <div>No: ${order.reference_number}</div>
           </div>
           <div class="header">
           <div>Date: ${order.order_date}</div>
-            <div>Order No: ${order.order_number}</div>
+            <div>Order No: ${order.customer_order_no}</div>
             
           </div>
           <div class="header">
@@ -1738,7 +1749,16 @@ function UnifiedSalesOrder({
     // Validation
     if (!validateOrder()) return;
 
-
+    const savedUser = localStorage.getItem("erp_user") || sessionStorage.getItem("erp_user")
+    if (!savedUser) {
+      Util.showErrorMessage(message, 'المستخدم غير معرف يرجى تسجيل الدخول من جديد')
+      return
+    }
+    const user = JSON.parse(savedUser)
+    if (!user || !user.id) {
+      Util.showErrorMessage(message, 'المستخدم غير معرف يرجى تسجيل الدخول من جديد')
+      return
+    }
     const orderData = {
       id: state.formData.id,
       order_number: state.formData.order_number,
@@ -1765,6 +1785,9 @@ function UnifiedSalesOrder({
       general_notes: state.formData.general_notes || "",
       internal_notes: state.formData.internal_notes || "",
       delivery_notes: state.formData.delivery_notes || "",
+      received_by: state.formData.received_by || "",
+      customer_order_no: state.formData.customer_order_no || "",
+      user_id: user.id,
     }
     const items = CollectionView.items
 
@@ -1840,7 +1863,7 @@ function UnifiedSalesOrder({
       toast.current?.show({
         severity: 'warn',
         summary: 'تنبيه',
-        detail: 'لا يوجد صنف لحذفه',
+        detail: 'لا يوجد طلبية لحذفها',
         life: 3000
       });
       return;
@@ -1860,11 +1883,25 @@ function UnifiedSalesOrder({
     if (!state.formData || !state.formData.id) {
       throw new Error("لا توجد طلبية محددة للحذف")
     }
+     const savedUser = localStorage.getItem("erp_user") || sessionStorage.getItem("erp_user")
+    if (!savedUser) {
+      Util.showErrorMessage(message, 'المستخدم غير معرف يرجى تسجيل الدخول من جديد')
+      return
+    }
+    const user = JSON.parse(savedUser)
+    if (!user || !user.id) {
+      Util.showErrorMessage(message, 'المستخدم غير معرف يرجى تسجيل الدخول من جديد')
+      return
+    }
     setLoading(true)
+
     const response = await fetch(`/api/orders/sales/${state.formData.id}`, {
       method: "DELETE",
-    })
-
+      headers: {
+        "Content-Type": "application/json",
+        "x-user-id": user.id, // <-- هنا تمرر user_id
+      },
+    });
     if (!response.ok) {
       setLoading(false)
       throw new Error("فشل في حذف الطلبية")
@@ -2307,7 +2344,6 @@ function UnifiedSalesOrder({
       exchange_rate: state.formData.exchange_rate,
       total: totals.total,
     };
-    console.log("newFormData ", newFormData)
     const currentHash = getFormDataHash(newFormData);
     if (checkUnsaved === true && currentHash !== initialHash.current) {
       setShowUnsaved(true)
@@ -2467,13 +2503,15 @@ function UnifiedSalesOrder({
     doHotKeys.current = true
 
   };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange || handleCancel}>
-      <DialogContent className="max-w-full h-[95vh] p-0 gap-0 flex flex-col"
+      <DialogContent className="max-w-[135vh] h-[95vh] p-0 gap-0 flex flex-col"
         onPointerDownOutside={(event) => event.preventDefault()}
         onEscapeKeyDown={(event) => { if (!doHotKeys.current) event.preventDefault() }}
 
       >
+
         <div className="flex-shrink-0">
           <UniversalToolbar
             currentRecord={currentIndex}
@@ -2992,6 +3030,7 @@ function UnifiedSalesOrder({
                       <Label>هاتف الزبون</Label>
                       <Input
                         value={state.formData.customer_phone ?? ""}
+                        maxLength={15}
                         onChange={(e) =>
                           setState(prev => ({
                             ...prev,
@@ -3000,7 +3039,34 @@ function UnifiedSalesOrder({
                         }
                       />
                     </div>
-
+                    {/* استلمت بواسطة */}
+                    <div className="col-span-4">
+                      <Label>استلمت بواسطة</Label>
+                      <Input
+                        value={state.formData.received_by ?? ""}
+                        maxLength={30}
+                        onChange={(e) =>
+                          setState(prev => ({
+                            ...prev,
+                            formData: { ...prev.formData, received_by: e.target.value }
+                          }))
+                        }
+                      />
+                    </div>
+                    {/* رقم طلبية الزبون */}
+                    <div className="col-span-4">
+                      <Label>رقم طلبية الزبون</Label>
+                      <Input
+                        value={state.formData.customer_order_no ?? ""}
+                        maxLength={15}
+                        onChange={(e) =>
+                          setState(prev => ({
+                            ...prev,
+                            formData: { ...prev.formData, customer_order_no: e.target.value }
+                          }))
+                        }
+                      />
+                    </div>
                     {/* عنوان التسليم */}
                     <div className="col-span-12">
                       <Label>عنوان التسليم</Label>
@@ -3008,6 +3074,16 @@ function UnifiedSalesOrder({
                         value={state.formData.delivery_address ?? ""}
                         rows={3}
                         className="resize-none"
+                        maxLength={150}
+                        onChange={(e) =>
+                          setState((prev) => ({
+                            ...prev,
+                            formData: {
+                              ...prev.formData,
+                              delivery_address: e.target.value,
+                            },
+                          }))
+                        }
                       />
                     </div>
 
@@ -3018,7 +3094,70 @@ function UnifiedSalesOrder({
 
             </div>
 
-
+            <Accordion type="single" collapsible className="w-full">
+              <AccordionItem value="notes" className="border rounded-lg">
+                <Card className="border-0">
+                  <AccordionTrigger className="px-6 py-4 hover:no-underline">
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <MessageSquare className="h-5 w-5 text-primary" />
+                      الملاحظات
+                    </CardTitle>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <CardContent className="space-y-6 pt-0">
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium">ملاحظات عامة</Label>
+                        <Textarea
+                          value={state.formData.general_notes ?? ""}
+                          onChange={(e) =>
+                            setState((prev) => ({
+                              ...prev,
+                              formData: { ...prev.formData, general_notes: e.target.value },
+                            }))
+                          }
+                          className="text-right min-h-[100px] resize-none"
+                          rows={4}
+                          placeholder="ملاحظات للعميل"
+                          dir="rtl"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium">ملاحظات داخلية</Label>
+                        <Textarea
+                          value={state.formData.internal_notes ?? ""}
+                          onChange={(e) =>
+                            setState((prev) => ({
+                              ...prev,
+                              formData: { ...prev.formData, internal_notes: e.target.value },
+                            }))
+                          }
+                          className="text-right min-h-[100px] resize-none"
+                          rows={4}
+                          placeholder="ملاحظات للاستخدام الداخلي فقط"
+                          dir="rtl"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium">ملاحظات التسليم</Label>
+                        <Textarea
+                          value={state.formData.delivery_notes ?? ""}
+                          onChange={(e) =>
+                            setState((prev) => ({
+                              ...prev,
+                              formData: { ...prev.formData, delivery_notes: e.target.value },
+                            }))
+                          }
+                          className="text-right min-h-[100px] resize-none"
+                          rows={4}
+                          placeholder="ملاحظات خاصة بالتسليم"
+                          dir="rtl"
+                        />
+                      </div>
+                    </CardContent>
+                  </AccordionContent>
+                </Card>
+              </AccordionItem>
+            </Accordion>
             <Card>
               <CardHeader className="pb-4">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
@@ -3031,6 +3170,7 @@ function UnifiedSalesOrder({
               </CardHeader>
               <CardContent>
                 <DataGridView
+                  style={{ maxHeight: '280px' }}
                   ref={gridRef}
                   idProperty="ser"
                   scheme={getScheme()}
@@ -3203,70 +3343,7 @@ function UnifiedSalesOrder({
               </Card>
             </div>
 
-            <Accordion type="single" collapsible className="w-full">
-              <AccordionItem value="notes" className="border rounded-lg">
-                <Card className="border-0">
-                  <AccordionTrigger className="px-6 py-4 hover:no-underline">
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      <MessageSquare className="h-5 w-5 text-primary" />
-                      الملاحظات
-                    </CardTitle>
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    <CardContent className="space-y-6 pt-0">
-                      <div className="space-y-2">
-                        <Label className="text-sm font-medium">ملاحظات عامة</Label>
-                        <Textarea
-                          value={state.formData.general_notes ?? ""}
-                          onChange={(e) =>
-                            setState((prev) => ({
-                              ...prev,
-                              formData: { ...prev.formData, general_notes: e.target.value },
-                            }))
-                          }
-                          className="text-right min-h-[100px] resize-none"
-                          rows={4}
-                          placeholder="ملاحظات للعميل"
-                          dir="rtl"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label className="text-sm font-medium">ملاحظات داخلية</Label>
-                        <Textarea
-                          value={state.formData.internal_notes ?? ""}
-                          onChange={(e) =>
-                            setState((prev) => ({
-                              ...prev,
-                              formData: { ...prev.formData, internal_notes: e.target.value },
-                            }))
-                          }
-                          className="text-right min-h-[100px] resize-none"
-                          rows={4}
-                          placeholder="ملاحظات للاستخدام الداخلي فقط"
-                          dir="rtl"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label className="text-sm font-medium">ملاحظات التسليم</Label>
-                        <Textarea
-                          value={state.formData.delivery_notes ?? ""}
-                          onChange={(e) =>
-                            setState((prev) => ({
-                              ...prev,
-                              formData: { ...prev.formData, delivery_notes: e.target.value },
-                            }))
-                          }
-                          className="text-right min-h-[100px] resize-none"
-                          rows={4}
-                          placeholder="ملاحظات خاصة بالتسليم"
-                          dir="rtl"
-                        />
-                      </div>
-                    </CardContent>
-                  </AccordionContent>
-                </Card>
-              </AccordionItem>
-            </Accordion>
+
           </div>
         </div>
 

@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { updateSalesOrder, deleteSalesOrder } from "@/lib/orders"
+import sql, { updateSalesOrder, deleteSalesOrder } from "@/lib/orders"
 
 export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
   try {
@@ -57,29 +57,49 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
   }
 }
 
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
   try {
-    console.log("[v0] DELETE /api/orders/sales/[id] - Starting request processing")
+    console.log("[v0] DELETE /api/orders/sales/[id] - Starting request processing");
 
-    const orderId = Number.parseInt(params.id)
+    const orderId = Number.parseInt(params.id);
     if (Number.isNaN(orderId)) {
-      return NextResponse.json({ error: "رقم الطلبية غير صحيح" }, { status: 400 })
+      return NextResponse.json(
+        { error: "رقم الطلبية غير صحيح" },
+        { status: 400 }
+      );
     }
 
-    await deleteSalesOrder(orderId)
+    // احصل على userId من الجلسة أو request headers (مثال)
+    const userId = request.headers.get("x-user-id") || "";
 
-    return NextResponse.json({ message: "تم حذف الطلبية بنجاح" })
+    // احصل على order_type إذا تريد استخدامه كـ voucherType
+    const orderData = await sql`SELECT order_type FROM orders WHERE id = ${orderId}`;
+    if (!orderData || orderData.length === 0) {
+      return NextResponse.json(
+        { error: "الطلبية غير موجودة" },
+        { status: 404 }
+      );
+    }
+
+    const voucherType = orderData[0].order_type;
+    await deleteSalesOrder(orderId, voucherType, userId);
+
+    return NextResponse.json({ message: "تم حذف الطلبية بنجاح" });
   } catch (error: any) {
-    console.error("[v0] Delete sales order API error:", error)
-    console.error("[v0] Error stack:", error.stack)
+    console.error("[v0] Delete sales order API error:", error);
+    console.error("[v0] Error stack:", error.stack);
 
-    const errorMessage = error.message || "حدث خطأ في حذف طلبية المبيعات"
+    const errorMessage = error.message || "حدث خطأ في حذف طلبية المبيعات";
     return NextResponse.json(
       {
         error: errorMessage,
         details: process.env.NODE_ENV === "development" ? error.stack : undefined,
       },
-      { status: 500 },
-    )
+      { status: 500 }
+    );
   }
 }
+

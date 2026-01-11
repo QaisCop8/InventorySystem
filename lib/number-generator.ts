@@ -103,9 +103,12 @@ export async function generateSalesOrderNumber(
   return await getNextSequentialNumber("O"+vchBook, "orders", "order_number");
 }
 
-export async function generatePurchaseOrderNumber(): Promise<string> {
-  return await getNextSequentialNumber("T", "purchase_orders", "order_number")
+export async function generatePurchaseOrderNumber(
+  vchBook: string
+): Promise<string> {
+  return await getNextSequentialNumber("T"+vchBook, "orders", "order_number");
 }
+
 
 export async function generateItemGroupNumber(): Promise<string> {
   const prefix = await getPrefixFromSettings("item_group")

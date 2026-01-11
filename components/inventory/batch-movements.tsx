@@ -300,7 +300,7 @@ export function BatchMovements() {
     await fetch(`/api/inventory/batch-movements/batch-status/${batchId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status_id: statusId })
+      body: JSON.stringify({ status_id: statusId ,user_id: user?.id }),
     });
   }
 

@@ -1,5 +1,6 @@
 
 import { generateSalesOrderNumber } from "./number-generator"
+import { generatePurchaseOrderNumber } from "./number-generator"
 import { type NextRequest, NextResponse } from "next/server"
 import { neon } from "@neondatabase/serverless"
 import { Pool } from "pg"
@@ -74,6 +75,9 @@ export interface SalesOrder {
   general_notes: string;
   internal_notes: string;
   delivery_notes: string;
+  received_by: string;
+  customer_order_no?: string;
+  user_id: string;
 }
 
 
@@ -321,14 +325,15 @@ export async function createOrder(
     const vchBook = orderData.order_number?.[1] ?? "O";
     // Generate order number if missing
     if (!orderData.order_number) {
-      orderData.order_number = await generateSalesOrderNumber(vchBook);
+      if(orderData.order_type === 1)orderData.order_number = await generateSalesOrderNumber(vchBook);
+      else orderData.order_number = await generatePurchaseOrderNumber(vchBook);
     }
 
     for (const item of items) {
       if (item.batch_number && item.batch_number.trim() !== "") {
         const batchExists = await client.query(
           `SELECT id FROM order_items WHERE batch_number = $1 and order_id <> $2 LIMIT 1`,
-          [item.batch_number.trim(),orderData.id]
+          [item.batch_number.trim(), orderData.id]
         );
 
         if (batchExists.rows.length > 0) {
@@ -353,7 +358,8 @@ export async function createOrder(
 
       // Generate new order number if missing or already exists
       if (!orderData.order_number || orderData.order_number.length < 2 || exists) {
-        orderData.order_number = await generateSalesOrderNumber(vchBook);
+        if(orderData.order_type === 1)orderData.order_number = await generateSalesOrderNumber(vchBook);
+        else orderData.order_number = await generatePurchaseOrderNumber(vchBook);
       }
     }
 
@@ -391,8 +397,10 @@ export async function createOrder(
     general_notes = $22,
     internal_notes = $23,
     delivery_notes = $24,
+    received_by = $25,
+    customer_order_no= $26,
     updated_at = NOW()
-  WHERE id = $25
+  WHERE id = $27
   RETURNING *;
 `;
 
@@ -422,6 +430,8 @@ export async function createOrder(
         orderData.general_notes || "",
         orderData.internal_notes || "",
         orderData.delivery_notes || "",
+        orderData.received_by || "",
+        orderData.customer_order_no || "",
         orderData.id, // WHERE id
       ];
 
@@ -456,12 +466,17 @@ export async function createOrder(
           general_notes,
           internal_notes,
           delivery_notes,
+          received_by,
+          customer_order_no,
+          user_id,
+          printed,
+          printed_count,
           created_at,
           updated_at
         ) VALUES (
           $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,
           $11,$12,$13,$14,$15,$16,$17,$18,$19,$20,
-          $21,$22,$23,$24,
+          $21,$22,$23,$24,$25,$26,$27,$28,$29,
           NOW(),NOW()
         )
         RETURNING *;
@@ -493,6 +508,11 @@ export async function createOrder(
         orderData.general_notes || "",
         orderData.internal_notes || "",
         orderData.delivery_notes || "",
+        orderData.received_by || "",
+        orderData.customer_order_no || "",
+        orderData.user_id || "",
+        "0",
+        "0",
       ];
 
 
@@ -541,15 +561,9 @@ export async function createOrder(
       await client.query(itemInsertQuery, itemValues);
     }
 
-
     if (orderData.order_type === 2) {
       for (const item of items) {
-        if (
-          !item.batch_number ||
-          item.batch_number.trim() === ""
-        ) {
-          continue;
-        }
+        if (!item.batch_number || item.batch_number.trim() === "") continue;
 
         const qty = Number(item.quantity || 0);
         const bonus = Number(item.bonus || 0);
@@ -557,26 +571,64 @@ export async function createOrder(
 
         if (total <= 0) continue;
 
+        // Insert into stock_batch
         const insertBatchQuery = `
-          INSERT INTO stock_batch (
-            product_id,
-            order_id,
-            batch_number,
-            status_id
-          )
-          VALUES ($1, $2, $3, $4)
-        `;
+      INSERT INTO stock_batch (
+        product_id,
+        order_id,
+        batch_number,
+        status_id
+      )
+      VALUES ($1, $2, $3, $4)
+      RETURNING id
+    `;
+        const batchResult = await client.query(insertBatchQuery, [
+          item.product_id,
+          order.id,
+          item.batch_number,
+          1, // default status
+        ]);
 
-        for (let i = 0; i < total; i++) {
-          await client.query(insertBatchQuery, [
-            item.product_id,
-            order.id,
-            item.batch_number,
-            1, // default status (e.g. available)
-          ]);
-        }
+        const batchId = batchResult.rows[0].id;
+
+        // Insert into stock_batch_log
+        const insertLogQuery = `
+      INSERT INTO stock_batch_log (
+        product_id,
+        stock_batch_id,
+        user_id,
+        status
+      )
+      VALUES ($1, $2, $3, $4)
+    `;
+        await client.query(insertLogQuery, [
+          item.product_id,
+          batchId,
+          orderData.user_id || '', // use the current user, fallback to 'system'
+          1                               // same status as stock_batch
+        ]);
       }
     }
+
+    const statusId = order.id && order.id > 0 ? 2 : 1;
+
+        const insertVoucherLogQuery = `
+      INSERT INTO vouchers_log (
+        voucher_id,
+        voucher_type,
+        user_id,
+        status_id
+      )
+      VALUES ($1, $2, $3, $4)
+    `;
+
+    await client.query(insertVoucherLogQuery, [
+      order.id,
+      orderData.order_type,          // تأكد أنها موجودة
+      orderData.user_id || null,   // أو 'system'
+      statusId
+    ]);
+
 
     await client.query("COMMIT");
     console.log("[v0] Order and items inserted successfully");
@@ -843,15 +895,48 @@ export async function updateSalesOrder(orderId: number, orderData: Partial<Sales
   }
 }
 
-export async function deleteSalesOrder(orderId: number) {
+export async function deleteSalesOrder(
+  orderId: number,
+  voucherType: number,
+  userId: string | null
+) {
+  const client = await pool.connect(); // افترض أنك عندك pool
   try {
+    await client.query('BEGIN'); // بدء المعاملة
 
-    await sql`UPDATE orders set deleted = true WHERE id = ${orderId}`
+    // 1️⃣ تحديث الطلب ليصبح محذوف (soft delete)
+    await client.query(
+      `UPDATE orders
+       SET deleted = true
+       WHERE id = $1`,
+      [orderId]
+    );
 
+    // 2️⃣ إدراج سجل الحذف في vouchers_log
+    const insertVoucherLogQuery = `
+      INSERT INTO vouchers_log (
+        voucher_id,
+        voucher_type,
+        user_id,
+        status_id
+      )
+      VALUES ($1, $2, $3, $4)
+    `;
+    await client.query(insertVoucherLogQuery, [
+      orderId,       // voucher_id
+      voucherType,   // order_type / voucher_type
+      userId,        // المستخدم
+      2              // status_id = حذف
+    ]);
 
-    return { success: true }
+    await client.query('COMMIT'); // إنهاء المعاملة بنجاح
+    return { success: true };
   } catch (error) {
-    console.error("Error deleting sales order:", error)
-    throw error
+    await client.query('ROLLBACK'); // تراجع إذا حصل خطأ
+    console.error("Error deleting sales order:", error);
+    throw error;
+  } finally {
+    client.release(); // تحرير الاتصال من pool
   }
 }
+

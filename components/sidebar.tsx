@@ -113,6 +113,7 @@ export function Sidebar({
       submenu: [
         { title: "تقارير الطلبيات", section: "order-reports", icon: BarChart3 },
         { title: "تقارير الأصناف", section: "product-reports", icon: Package },
+        { title: "أرشفة الرقم التشغيلي", section: "batch-log-report", icon: Package },
       ],
     },
     {
@@ -126,6 +127,14 @@ export function Sidebar({
         { title: "إعدادات الطباعة", section: "print-settings", icon: Printer },
         { title: "إعدادات السندات وطباعتها", section: "voucher-settings", icon: Printer },
         { title: "إعدادات API", section: "api-settings", icon: Database },
+      ],
+    },
+    {
+      id: "postings",
+      title: "التكامل مع الأنظمة الأخرى",
+      icon: DollarSign,
+      submenu: [
+        { title: "ترحيل الطلبيات", section: "orders-migration", icon: UserCheck },
       ],
     },
   ]

@@ -54,8 +54,8 @@ interface SalesOrder {
   priority_level?: string
   order_source?: string
   order_decision?: string
-  delivery_date : string,
-  currency_id : number
+  delivery_date: string,
+  currency_id: number
 }
 
 interface OrderAnalytics {
@@ -115,8 +115,7 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
 
 
   const filteredOrders = useMemo(() => {
-    console.log("state.salesOrders ",state.salesOrders)
-    console.log("state.filters ",state.filters)
+
     const filtered = state.salesOrders.filter((order) => {
       if (
         state.filters.search &&
@@ -171,6 +170,25 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
 
     return filtered
   }, [state.salesOrders, state.filters, state.sortBy, state.sortOrder])
+
+  useEffect(() => {
+
+    const orders = state.salesOrders || [];
+    console.log("Calculating first order date from orders:", orders);
+    if (orders.length === 0) return;
+    const firstDate = new Date(
+      Math.min(...orders.map(o => new Date(o.order_date).getTime()))
+    )
+      .toISOString()
+      .split("T")[0];
+    console.log("First order date calculated:", firstDate);
+    
+    setState((prev) => ({
+      ...prev,
+      filters: { ...prev.filters, dateFrom: firstDate },
+    }))
+  }, [state.salesOrders]);
+
 
   const analytics = useMemo((): OrderAnalytics => {
     const totalOrders = state.salesOrders.length

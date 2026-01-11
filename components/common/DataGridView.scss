@@ -1,75 +1,81 @@
 /* ===============================
-   WIJMO FLEXGRID - Baseline styles (reverted)
-   This file was reverted to a conservative baseline to remove
-   experimental/override rules and button color variants.
+   WIJMO FLEXGRID - Modern Clean Styles
 ================================ */
 
 .wj-flexgrid {
   width: 100%;
   height: 500px;
-  font-family: Arial, sans-serif;
-  font-size: 18px;
-  border: 1px solid #e0e0e0;
-  background: #fff;
+  font-family: 'Arial', sans-serif;
+  font-size: 16px;
+  border: 1px solid #d1d1d1;
+  border-radius: 6px;
+  background: #ffffff;
   box-sizing: border-box;
+  overflow: hidden;
 }
 
-/* Header */
 .wj-flexgrid .wj-header {
-  /* light gray header for a neutral, clean look */
-  background: #d4d4d4;
-  color: #333;
-  font-weight: 700;
-  padding: 6px 8px;
-  border-bottom: 1px solid #e6e6e6;
-  text-align: center;
+  background: #2c3e50;       /* Dark, modern header */
+  color: #ffffff;
+  font-weight: 800;
+  padding: 8px 12px;
+  border-bottom: 2px solid #1a252f;
+  text-align: center;        /* horizontal fallback */
+  display: flex;             /* use flex for perfect centering */
+  justify-content: center;   /* horizontal centering */
+  align-items: center;       /* vertical centering */
+  letter-spacing: 0.5px;
 }
 
 /* Cells */
 .wj-flexgrid .wj-cell {
-  padding: 8px 10px;
+  padding: 8px 12px;
   border-bottom: 1px solid #eee;
   white-space: nowrap;
   text-align: left;
+  transition: background 0.2s, color 0.2s;
 }
 
 /* Alternating rows */
 .wj-flexgrid .wj-row:nth-child(even) .wj-cell {
-  //background: #fafafa;
+  background: #f9f9f9;
 }
 
-/* Selected state: use button-like green and ensure selected cell/row match */
-.wj-flexgrid .wj-state-selected,
-.wj-flexgrid .wj-row .wj-cell.wj-state-selected,
-.wj-flexgrid .wj-cell.wj-state-selected {
-  /* lighter success green for selection with darker text for contrast */
-  background: #e6f6ea !important; /* light green */
-  color: #155724 !important; /* dark green text for readability */
+/* Hover effect on body rows */
+.wj-flexgrid .wj-row:hover .wj-cell:not(.wj-header) {
+  background: #f1f9f5;
+}
+
+/* Selected state (body cells only, exclude header) */
+.wj-flexgrid .wj-state-selected:not(.wj-header),
+.wj-flexgrid .wj-row .wj-cell.wj-state-selected:not(.wj-header),
+.wj-flexgrid .wj-cell.wj-state-selected:not(.wj-header) {
+  background: #d4f2d7 !important; /* light green */
+  color: #155724 !important;      /* dark green text */
   border-color: transparent !important;
 }
 
-/* Focused cell should look the same as a selected cell */
-.wj-flexgrid .wj-cell:focus {
+/* Focused body cells ONLY (exclude header) */
+.wj-flexgrid .wj-cell:focus:not(.wj-header) {
   outline: none;
-  background: #e6f6ea !important;
-  color: #155724 !important;
+  background: #d4f2d7 !important; /* light green */
+  color: #155724 !important;      /* dark green text */
 }
 
-/* Ensure icons inherit the selected text color */
+/* Ensure icons inherit selected/focus text color */
 .wj-flexgrid .wj-cell.wj-state-selected i,
 .wj-flexgrid .wj-state-selected i {
   color: inherit !important;
 }
 
-/* Group header */
+/* Group header rows */
 .wj-flexgrid .wj-group-row {
-  background: #fafafa;
-  font-weight: 600;
-  padding: 6px 8px;
+  background: #ecf0f1;
+  font-weight: 700;
+  padding: 6px 12px;
+  border-left: 4px solid #2ecc71;
+  color: #2c3e50;
 }
-
-/* Minimal button defaults (kept simple on purpose) */
-
 
 /* RTL support */
 html[dir="rtl"] .wj-flexgrid .wj-cell,

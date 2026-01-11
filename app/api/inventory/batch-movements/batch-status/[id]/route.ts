@@ -53,9 +53,26 @@ export async function PATCH(
     const body = await request.json();
     const statusId = Number(body.status_id);
 
+    const userId = body.user_id ? Number(body.user_id) : null;
+
+    const batchRows = await sql`
+      SELECT product_id, batch_number
+      FROM stock_batch
+      WHERE id = ${batchId}
+    `;
+
+    if (batchRows.length === 0) {
+      return NextResponse.json(
+        { success: false, error: "الرقم التشغيلي غير موجود" },
+        { status: 404 }
+      );
+    }
+
+    const { product_id, batch_number } = batchRows[0];
+
     if (!batchId || !statusId) {
       return NextResponse.json(
-        { success: false, error: "batchId and status_id are required" },
+        { success: false, error: "الرقم التشغيلي والحالة خطأ" },
         { status: 400 }
       );
     }
@@ -66,6 +83,12 @@ export async function PATCH(
       WHERE id = ${batchId}
     `;
 
+     await sql`
+      INSERT INTO stock_batch_log
+        (product_id, stock_batch_id, user_id, status, log_date)
+      VALUES
+        (${product_id}, ${batchId}, ${userId}, ${statusId}, CURRENT_TIMESTAMP)
+    `;
     return NextResponse.json({ success: true });
   } catch (err: any) {
     console.error("[v0] Failed to update batch status:", err);
