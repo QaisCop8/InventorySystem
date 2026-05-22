@@ -132,6 +132,7 @@ interface UnifiedSalesOrderProps {
   onOpenChange?: (open: boolean) => void
   vch_type?: number
   fromSearch?: boolean
+  dialogTitle?: string
 }
 
 interface Customer {
@@ -297,6 +298,7 @@ function UnifiedSalesOrder({
   onOpenChange,
   vch_type,
   fromSearch = false,
+  dialogTitle,
 }: UnifiedSalesOrderProps) {
   const {
     settings,
@@ -2813,6 +2815,11 @@ function UnifiedSalesOrder({
         onEscapeKeyDown={(event) => { if (!doHotKeys.current) event.preventDefault() }}
 
       >
+        {dialogTitle ? (
+          <div className="px-6 py-3 border-b bg-slate-50 text-right">
+            <h2 className="text-lg font-semibold text-slate-800">{dialogTitle}</h2>
+          </div>
+        ) : null}
 
         <div className="flex-shrink-0">
           <UniversalToolbar

@@ -32,6 +32,7 @@ import { formatDateToBritish } from "@/lib/utils"
 import Util from "../common/Util"
 interface OrdersProps {
   isPurchase?: boolean;
+  isInvoice?: boolean;
 }
 interface SalesOrder {
   id: number
@@ -74,10 +75,27 @@ interface OrderAnalytics {
   monthlyGrowth: number
 }
 
-export function SalesOrders({ isPurchase }: OrdersProps) {
+export function SalesOrders({ isPurchase, isInvoice }: OrdersProps) {
   const { user } = useAuth()
   type ViewType = "grid" | "list" | "kanban";
   const savedView = localStorage.getItem("currentView") as ViewType | null;
+
+  const isInvoiceMode = !isPurchase && !!isInvoice;
+  const orderType = isPurchase ? 2 : 1;
+  const screenTitle = isPurchase ? "طلبيات المشتريات" : isInvoiceMode ? "فاتورة مبيعات" : "طلبيات المبيعات";
+  const screenSubtitle = isPurchase
+    ? "إدارة وتتبع جميع طلبيات المشتريات بكفاءة عالية"
+    : isInvoiceMode
+      ? "إدارة وتتبع جميع فواتير المبيعات بكفاءة عالية"
+      : "إدارة وتتبع جميع طلبيات المبيعات بكفاءة عالية";
+  const loadingText = isPurchase ? "جاري تحميل طلبيات المشتريات..." : isInvoiceMode ? "جاري تحميل فواتير المبيعات..." : "جاري تحميل طلبيات المبيعات...";
+  const fetchErrorText = isPurchase ? "فشل في تحميل طلبيات المشتريات" : isInvoiceMode ? "فشل في تحميل فواتير المبيعات" : "فشل في تحميل طلبيات المبيعات";
+  const listTitle = isInvoiceMode ? "قائمة الفواتير" : "قائمة الطلبيات";
+  const emptyTitle = isInvoiceMode ? "لا توجد فواتير" : "لا توجد طلبيات";
+  const emptyDescription = isInvoiceMode ? "لم يتم العثور على أي فواتير تطابق معايير البحث" : "لم يتم العثور على أي طلبات تطابق معايير البحث";
+  const newRecordLabel = isInvoiceMode ? "فاتورة جديدة" : "طلبية جديدة";
+  const createNewRecordLabel = isInvoiceMode ? "إنشاء فاتورة جديدة" : "إنشاء طلبية جديدة";
+  const numberLabel = isInvoiceMode ? "رقم الفاتورة" : "رقم الطلبية";
 
   const [state, setState] = useState<{
     fromSearch: boolean | undefined
@@ -101,6 +119,7 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
     sortBy: string;
     sortOrder: "asc" | "desc";
   }>({
+    fromSearch: undefined,
     salesOrders: [],
     loading: true,
     error: null, // ✅ string or null
@@ -254,12 +273,10 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
     setState(prev => ({ ...prev, loading: true, error: null }));
 
     try {
-      const response = await fetch(`/api/orders/sales?type=${isPurchase ? 2 : 1}`);
+      const response = await fetch(`/api/orders/sales?type=${orderType}`);
       console.log("response  ", response)
       if (!response.ok) {
-        throw new Error(
-          !isPurchase ? "فشل في تحميل طلبيات المبيعات" : "فشل في تحميل طلبيات المشتريات"
-        );
+        throw new Error(fetchErrorText);
       }
 
       const data: SalesOrder[] = await response.json();
@@ -471,9 +488,7 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
       <div className="flex items-center justify-center min-h-[400px]" dir="rtl">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">
-            {isPurchase ? "جاري تحميل طلبيات المشتريات..." : "جاري تحميل طلبيات المبيعات..."}
-          </p>
+          <p className="text-muted-foreground">{loadingText}</p>
         </div>
       </div>
     )
@@ -485,13 +500,9 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-            {isPurchase ? "طلبيات المشتريات" : "طلبيات المبيعات"}
+            {screenTitle}
           </h1>
-          <p className="text-slate-600 mt-2 text-lg">
-            {isPurchase
-              ? "إدارة وتتبع جميع طلبيات المشتريات بكفاءة عالية"
-              : "إدارة وتتبع جميع طلبيات المبيعات بكفاءة عالية"}
-          </p>
+          <p className="text-slate-600 mt-2 text-lg">{screenSubtitle}</p>
         </div>
         <div className="flex gap-3">
 
@@ -500,7 +511,7 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
             onClick={() => setState((prev) => ({ ...prev, showNewOrderDialog: true, selectedOrder: null, fromSearch: false }))}
           >
             <Plus className="ml-2 h-4 w-4" />
-            طلبية جديدة
+            {newRecordLabel}
           </Button>
         </div>
       </div>
@@ -723,9 +734,9 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
         <CardHeader>
           <div className="flex justify-between items-center">
             <div>
-              <CardTitle className="text-slate-800">قائمة الطلبيات</CardTitle>
+              <CardTitle className="text-slate-800">{listTitle}</CardTitle>
               <CardDescription className="text-slate-600">
-                عرض {filteredOrders.length} من أصل {state.salesOrders.length} طلبية
+                عرض {filteredOrders.length} من أصل {state.salesOrders.length} {isInvoiceMode ? "فاتورة" : "طلبية"}
               </CardDescription>
             </div>
             <div className="flex gap-2">
@@ -757,10 +768,8 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
               <div className="mx-auto h-24 w-24 bg-slate-100 rounded-full flex items-center justify-center mb-6">
                 <ShoppingCart className="h-12 w-12 text-slate-400" />
               </div>
-              <h3 className="text-xl font-semibold text-slate-800 mb-2">لا توجد طلبيات</h3>
-              <p className="text-slate-600 mb-6">
-                لم يتم العثور على أي طلبات تطابق معايير البحث
-              </p>
+              <h3 className="text-xl font-semibold text-slate-800 mb-2">{emptyTitle}</h3>
+              <p className="text-slate-600 mb-6">{emptyDescription}</p>
               <Button
                 className="bg-gradient-to-r from-blue-600 to-purple-600"
                 onClick={() =>
@@ -773,7 +782,7 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
                 }
               >
                 <Plus className="ml-2 h-4 w-4" />
-                إنشاء طلبية جديدة
+                {createNewRecordLabel}
               </Button>
             </div>
           ) : state.currentView === "grid" ? (
@@ -897,7 +906,7 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
                   <thead>
                     <tr className="border-b border-slate-200 bg-slate-50">
                       <th className="text-right p-4">##</th>
-                      <th className="text-right p-4">رقم الطلبية</th>
+                      <th className="text-right p-4">{numberLabel}</th>
                       <th className="text-right p-4">التاريخ</th>
                       <th className="text-right p-4">الزبون</th>
                       <th className="text-right p-4">الحالة</th>
@@ -1006,8 +1015,9 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
           order={state.selectedOrder}
           fromSearch={state.fromSearch}
           allOrders={[]}
-          onOrderSaved={null}
-          vch_type={isPurchase ? 2 : 1}
+          onOrderSaved={undefined}
+          vch_type={orderType}
+          dialogTitle={isInvoiceMode ? "فاتورة مبيعات" : undefined}
           onCancel={() => {
             setState((prev) => ({
               ...prev,

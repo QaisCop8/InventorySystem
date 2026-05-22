@@ -41,32 +41,19 @@ export async function GET(request: NextRequest) {
 
     const prefix = settings.purchase_prefix || "P"
 
-    // Get the latest order number with this prefix
+    // Compute from the true max numeric suffix for this prefix.
     const result = await sql`
-      SELECT order_number 
-      FROM purchase_orders 
+      SELECT COALESCE(MAX(
+        CAST(NULLIF(regexp_replace(SUBSTRING(order_number FROM ${prefix.length + 1}), '[^0-9]', '', 'g'), '') AS INTEGER)
+      ), 0) AS max_number
+      FROM purchase_orders
       WHERE order_number LIKE ${prefix + "%"}
-      ORDER BY id DESC 
-      LIMIT 1
     `
 
     console.log("[v0] API: Query result:", result)
 
-    let nextNumber = 1
-
-    if (result.length > 0 && result[0].order_number) {
-      const lastOrderNumber = result[0].order_number
-      console.log("[v0] API: Found existing code:", lastOrderNumber)
-
-      // Extract the numeric part after prefix
-      const numericPart = lastOrderNumber.substring(prefix.length)
-      const parsedNumber = Number.parseInt(numericPart, 10)
-
-      if (!isNaN(parsedNumber)) {
-        nextNumber = parsedNumber + 1
-        console.log("[v0] API: Next number:", nextNumber)
-      }
-    }
+    const maxNumber = Number(result?.[0]?.max_number ?? 0)
+    const nextNumber = Number.isFinite(maxNumber) ? maxNumber + 1 : 1
 
     // Generate new order number with prefix and sequential number
     const paddedNumber = nextNumber.toString().padStart(7, "0")

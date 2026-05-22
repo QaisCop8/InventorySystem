@@ -59,50 +59,37 @@ export async function GET(request: NextRequest) {
     
    
 
-    const prefix =  vch_type === 1 ? "O" + vch_book : "T" + vch_book
+    const prefix = vch_type === 1 ? "O" + vch_book : "T" + vch_book
 
-    // Get the latest order number with this prefix
+    // Compute from the true max numeric suffix for this prefix.
     const result = await sql`
-      SELECT order_number
-      FROM orders 
-      WHERE order_number LIKE ${prefix + "%"} 
-      order by order_number desc LIMIT 1
+      SELECT COALESCE(MAX(
+        CAST(NULLIF(regexp_replace(SUBSTRING(order_number FROM ${prefix.length + 1}), '[^0-9]', '', 'g'), '') AS INTEGER)
+      ), 0) AS max_number
+      FROM orders
+      WHERE order_number LIKE ${prefix + "%"}
     `
 
     console.log("[v0] API: Query result:", result)
-    let orderNumber = "";
-    let nextNumber = 1
-    if (result.length > 0 && result[0].order_number) {
-      const currentCode = result[0].order_number as string
-      // Extract numeric part after prefix
-      const numericPart = currentCode.substring(prefix.length)
-      const parsedNumber = Number.parseInt(numericPart, 10)
 
-      if (!isNaN(parsedNumber)) {
-        nextNumber = parsedNumber + 1
-        console.log("[v0] API: Found existing code:", currentCode, "next number:", nextNumber)
-      }
-      const paddedNumber = nextNumber.toString().padStart(6, "0")
-      orderNumber = `${prefix}${paddedNumber}`
-
-    } else {
-      const paddedNumber = nextNumber.toString().padStart(6, "0")
-      orderNumber = `${prefix}${paddedNumber}`
-    }
-
-    //const paddedNumber = nextNumber.toString().padStart(6, "0")
-    //const orderNumber = `${prefix}${paddedNumber}`
-
+    const maxNumber = Number(result?.[0]?.max_number ?? 0)
+    const nextNumber = Number.isFinite(maxNumber) ? maxNumber + 1 : 1
+    const paddedNumber = nextNumber.toString().padStart(6, "0")
+    const orderNumber = `${prefix}${paddedNumber}`
 
     return NextResponse.json({
       orderNumber,
       autoNumbering: true,
-      prefix: prefix,
+      prefix,
     })
   } catch (error) {
     console.error("[v0] API: Error generating sales order number:", error)
 
-    const fallbackNumber = "O0000001"
+    const catchParams = new URL(request.url).searchParams
+    const fallbackBook = catchParams.get("vch_book") ?? "0"
+    const fallbackType = Number(catchParams.get("vch_type") ?? 1)
+    const fallbackPrefix = fallbackType === 1 ? `O${fallbackBook}` : `T${fallbackBook}`
+    const fallbackNumber = `${fallbackPrefix}000001`
 
     console.log("[v0] API: Using fallback number:", fallbackNumber)
 

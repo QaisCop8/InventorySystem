@@ -20,6 +20,7 @@ import dynamic from "next/dynamic"
 // Dynamically import heavy client-only components to avoid pulling browser-only
 // libraries (e.g. @grapecity/wijmo) into the server prerender bundle.
 const SalesOrders = dynamic(() => import("@/components/orders/sales-orders").then(mod => mod.SalesOrders), { ssr: false })
+const InvoicePage = dynamic(() => import("@/components/orders/invoice").then(mod => mod.InvoicePage), { ssr: false })
 const Products = dynamic(() => import("@/components/products/products").then(mod => mod.Products), { ssr: false })
 const Customers = dynamic(() => import("@/components/products/customers"), { ssr: false })
 import ProductGroups from "@/components/products/product-groups"
@@ -71,6 +72,7 @@ const componentMap: Record<string, React.ComponentType<any>> = {
   "batch-log-report": BatchLogReport,
   "batch-reports": BatchReports,
   "sales-orders": SalesOrders,
+  invoice: InvoicePage,
   "purchase-orders": (props: any) => <SalesOrders {...props} isPurchase={true} />,
   "batch-movements": BatchMovements,
   products: Products,
@@ -214,6 +216,7 @@ export default function HomePage() {
 
       const sectionTitles: Record<string, string> = {
         "sales-orders": "طلبيات المبيعات",
+        invoice: "الفواتير",
         "purchase-orders": "طلبيات المشتريات",
         products: "المنتجات",
         customers: "العملاء",
@@ -305,6 +308,7 @@ useEffect(() => {
 
     const shouldOpenInTab = [
       "sales-orders",
+      "invoice",
       "purchase-orders",
       "products",
       "customers",
@@ -320,6 +324,7 @@ useEffect(() => {
     if (shouldOpenInTab) {
       const sectionTitles: Record<string, string> = {
         "sales-orders": "طلبيات المبيعات",
+        invoice: "الفواتير",
         "purchase-orders": "طلبيات المشتريات",
         products: "المنتجات",
         customers: "العملاء",
