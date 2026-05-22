@@ -40,7 +40,8 @@ const OrderSearchPopup: React.FC<OrderSearchPopupProps> = ({ visible, onClose, o
             let cancelled = false;
 
             try {
-                const response = await fetch(`/api/orders/sales?type=${type}`);
+                const endpoint = type >= 3 ? `/api/vouchers/sales?type=${type}` : `/api/orders/sales?type=${type}`;
+                const response = await fetch(endpoint);
                 const data = await response.json();
                 console.log("Fetched orders data:", data);
                 if (!cancelled) {
@@ -48,7 +49,7 @@ const OrderSearchPopup: React.FC<OrderSearchPopupProps> = ({ visible, onClose, o
                     const allRecords = Array.isArray(data) ? data : data || [];
                     console.log("All orders records:", allRecords);
                     // Filter by type: 1 = customer, 2 = supplier
-                    const filtered = type === -1
+                    const filtered = type === -1 || type >= 3
                         ? allRecords
                         : allRecords.filter((c: any) => Number(c.order_type) === type);
 
@@ -82,7 +83,7 @@ const OrderSearchPopup: React.FC<OrderSearchPopupProps> = ({ visible, onClose, o
         return () => {
             cancelled = true;
         };
-    }, [visible]);
+    }, [visible, type]);
 
     // Focus search input
     useEffect(() => {
@@ -118,14 +119,14 @@ const OrderSearchPopup: React.FC<OrderSearchPopupProps> = ({ visible, onClose, o
         isReport: true,
         columns: [
             { header: "##", name: "ser", width: 50 },
-            { header: "رقم الطلبية", name: "order_number", width: 120 },
-            { header: "تاريخ الطلبية", name: "order_date", width: 130 },
+            { header: type === 3 ? "رقم الفاتورة" : "رقم الطلبية", name: "order_number", width: 120 },
+            { header: type === 3 ? "تاريخ الفاتورة" : "تاريخ الطلبية", name: "order_date", width: 130 },
             { header: "اسم الزبون", name: "customer_name", width: "*" },
             { header: "السند اليدوي", name: "reference_number", width: 130 },
             { header: "رقم طلبية الزبون", name: "customer_order_no", width: 130 },
             { header: "المبلغ", name: "amount", width: 110 },
         ],
-    }), []);
+    }), [type]);
 
     // Row click / double click
     const handleRowClick = useCallback((order: Order) => setSelectedOrder(order), []);
@@ -166,12 +167,12 @@ const OrderSearchPopup: React.FC<OrderSearchPopupProps> = ({ visible, onClose, o
                 style={{ height: "700px" }}
             >
                 <h3 className="text-lg font-semibold mb-4 text-right">
-                    {type === 1 ? "بحث طلبيات المبيعات" : "بحث طلبيات المشتريات'"}
+                    {type === 3 ? "بحث الفواتير" : type === 1 ? "بحث طلبيات المبيعات" : "بحث طلبيات المشتريات"}
                 </h3>
 
                 <Input
                     type="text"
-                    placeholder={"ابحث عن طلبية..."}
+                    placeholder={type === 3 ? "ابحث عن فاتورة..." : "ابحث عن طلبية..."}
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="mb-4 p-2 border border-gray-300 rounded w-full text-right"
@@ -190,8 +191,8 @@ const OrderSearchPopup: React.FC<OrderSearchPopupProps> = ({ visible, onClose, o
 
                                     columns: [
                                         { header: "##", name: "ser", width: 50,isReadOnly:true },
-                                        { header: "رقم الطلبية", name: "order_number", width: 120,isReadOnly:true },
-                                        { header: "تاريخ الطلبية", name: "order_date", width: 130 ,isReadOnly:true},
+                                        { header: type === 3 ? "رقم الفاتورة" : "رقم الطلبية", name: "order_number", width: 120,isReadOnly:true },
+                                        { header: type === 3 ? "تاريخ الفاتورة" : "تاريخ الطلبية", name: "order_date", width: 130 ,isReadOnly:true},
                                         { header: "اسم الزبون", name: "customer_name", width: "*" ,isReadOnly:true},
                                         { header: "السند اليدوي", name: "reference_number", width: 130,isReadOnly:true },
                                         { header: "رقم طلبية الزبون", name: "customer_order_no", width: 130,isReadOnly:true },

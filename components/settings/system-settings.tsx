@@ -69,6 +69,11 @@ export function SystemSettings() {
   const [initialLoading, setInitialLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [hasTransactions, setHasTransactions] = useState(false)
+  const [numberingLocks, setNumberingLocks] = useState({
+    invoice: false,
+    order: false,
+    purchase: false,
+  })
 
   useEffect(() => {
     loadSettings()
@@ -81,6 +86,13 @@ export function SystemSettings() {
       if (response.ok) {
         const data = await response.json()
         setHasTransactions(data.hasTransactions)
+        if (data?.locks) {
+          setNumberingLocks({
+            invoice: Boolean(data.locks.invoice),
+            order: Boolean(data.locks.order),
+            purchase: Boolean(data.locks.purchase),
+          })
+        }
       }
     } catch (err) {
       console.error("Error checking transactions:", err)
@@ -168,14 +180,50 @@ export function SystemSettings() {
       setLoading(true)
       setError(null)
 
+      const isValidPrefix = (value: string) => /^[A-Z]{1,3}$/.test(value.trim())
+      const isValidStart = (value: number) => Number.isInteger(value) && value > 0 && value < 1000
+
       // Validation
       if (!settings.companyName.trim()) {
         setError("اسم الشركة مطلوب")
         return
       }
 
+      const prefixes = [
+        { label: "بادئة فواتير المبيعات", value: settings.invoicePrefix },
+        { label: "بادئة طلبات المبيعات", value: settings.orderPrefix },
+        { label: "بادئة طلبات الشراء", value: settings.purchasePrefix },
+        { label: "بادئة العملاء", value: settings.customerPrefix },
+        { label: "بادئة الموردين", value: settings.supplierPrefix },
+        { label: "بادئة مجموعات الأصناف", value: settings.itemGroupPrefix },
+      ]
+
+      for (const prefix of prefixes) {
+        if (!isValidPrefix(prefix.value)) {
+          setError(`${prefix.label}: مسموح فقط بحروف إنجليزية كبيرة A-Z وبحد أقصى 3 أحرف`)
+          return
+        }
+      }
+
+      const starts = [
+        { label: "بداية ترقيم فواتير المبيعات", value: settings.invoiceStart },
+        { label: "بداية ترقيم طلبات المبيعات", value: settings.orderStart },
+        { label: "بداية ترقيم طلبات الشراء", value: settings.purchaseStart },
+        { label: "بداية ترقيم العملاء", value: settings.customerStart },
+        { label: "بداية ترقيم الموردين", value: settings.supplierStart },
+        { label: "بداية ترقيم مجموعات الأصناف", value: settings.itemGroupStart },
+        { label: "بداية ترقيم الأصناف", value: settings.itemStart },
+      ]
+
+      for (const start of starts) {
+        if (!isValidStart(start.value)) {
+          setError(`${start.label}: يجب أن تكون رقمًا صحيحًا من 1 إلى 999`)
+          return
+        }
+      }
+
       if (!settings.invoiceStart || settings.invoiceStart < 1) {
-        setError("بداية ترقيم الفواتير مطلوبة ويجب أن تكون أكبر من صفر")
+        setError("بداية ترقيم فواتير المبيعات مطلوبة ويجب أن تكون أكبر من صفر")
         return
       }
       if (!settings.orderStart || settings.orderStart < 1) {
@@ -202,12 +250,12 @@ export function SystemSettings() {
           tax_number: settings.taxNumber,
           commercial_register: settings.commercialRegister,
           default_currency: settings.defaultCurrency,
-          invoice_prefix: settings.invoicePrefix,
-          order_prefix: settings.orderPrefix,
-          purchase_prefix: settings.purchasePrefix,
-          customer_prefix: settings.customerPrefix,
-          supplier_prefix: settings.supplierPrefix,
-          item_group_prefix: settings.itemGroupPrefix,
+          invoice_prefix: settings.invoicePrefix.trim().toUpperCase(),
+          order_prefix: settings.orderPrefix.trim().toUpperCase(),
+          purchase_prefix: settings.purchasePrefix.trim().toUpperCase(),
+          customer_prefix: settings.customerPrefix.trim().toUpperCase(),
+          supplier_prefix: settings.supplierPrefix.trim().toUpperCase(),
+          item_group_prefix: settings.itemGroupPrefix.trim().toUpperCase(),
           invoice_start: settings.invoiceStart,
           order_start: settings.orderStart,
           purchase_start: settings.purchaseStart,
@@ -666,7 +714,7 @@ export function SystemSettings() {
                 <div className="bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded flex items-start gap-2">
                   <AlertCircle className="h-5 w-5 mt-0.5 flex-shrink-0" />
                   <div className="text-sm">
-                    <strong>تنبيه:</strong> لا يمكن تعديل بداية ترقيم السندات بعد إدخال حركات في النظام
+                    <strong>تنبيه:</strong> لا يمكن تعديل إعدادات ترقيم السندات التي لديها حركات محفوظة
                   </div>
                 </div>
               )}
@@ -676,7 +724,7 @@ export function SystemSettings() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <Label htmlFor="invoicePrefix" className="text-right block">
-                      بادئة الفواتير *
+                      بادئة فواتير المبيعات *
                     </Label>
                     <Input
                       id="invoicePrefix"
@@ -685,11 +733,12 @@ export function SystemSettings() {
                       className="text-right"
                       dir="rtl"
                       required
+                      disabled={numberingLocks.invoice}
                     />
                   </div>
                   <div>
                     <Label htmlFor="invoiceStart" className="text-right block">
-                      بداية ترقيم الفواتير *
+                      بداية ترقيم فواتير المبيعات *
                     </Label>
                     <Input
                       id="invoiceStart"
@@ -703,7 +752,7 @@ export function SystemSettings() {
                       className="text-right"
                       dir="rtl"
                       required
-                      disabled={hasTransactions}
+                      disabled={numberingLocks.invoice}
                     />
                   </div>
                   <div className="flex items-end">
@@ -724,6 +773,7 @@ export function SystemSettings() {
                       className="text-right"
                       dir="rtl"
                       required
+                      disabled={numberingLocks.order}
                     />
                   </div>
                   <div>
@@ -742,7 +792,7 @@ export function SystemSettings() {
                       className="text-right"
                       dir="rtl"
                       required
-                      disabled={hasTransactions}
+                      disabled={numberingLocks.order}
                     />
                   </div>
                   <div className="flex items-end">
@@ -763,6 +813,7 @@ export function SystemSettings() {
                       className="text-right"
                       dir="rtl"
                       required
+                      disabled={numberingLocks.purchase}
                     />
                   </div>
                   <div>
@@ -781,7 +832,7 @@ export function SystemSettings() {
                       className="text-right"
                       dir="rtl"
                       required
-                      disabled={hasTransactions}
+                      disabled={numberingLocks.purchase}
                     />
                   </div>
                   <div className="flex items-end">

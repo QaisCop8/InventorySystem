@@ -33,6 +33,7 @@ import {
 } from "lucide-react"
 import { useDocumentSettings } from "@/hooks/use-document-settings"
 import { LotSelector } from "@/components/inventory/lot-selector"
+import { Dropdown as PrimeDropdown } from "primereact/dropdown"
 import ProductSearchPopup from "../products/ProductSearchPopup"
 import * as wjGrid from "@grapecity/wijmo.grid";
 import DataGridView from "../common/DataGridView"
@@ -42,7 +43,6 @@ import UnitsSearchPopup from "../products/UnitsSearchPopup"
 import StoresSearchPopup from "../products/StoresSearchPopup"
 import { adjustStock } from "@/lib/inventory"
 import { maxLength } from "zod/v4"
-import Dropdown from "../common/Dropdown"
 import CustomerSearchPopup from "../products/CustomerSearchPopup"
 import ProgressSpinner from "../ProgressSpinner/ProgressSpinner"
 import OrderSearchPopup from "./OrderSearchPopup"
@@ -50,6 +50,27 @@ import ConfirmDialogYesNo from "../ui/ConfirmDialogYesNo"
 import { stat } from "fs"
 import { set } from "date-fns"
 import React from "react"
+
+// Inject CSS styles for dropdown visibility fix
+if (typeof document !== 'undefined') {
+  const styleSheet = document.createElement('style')
+  styleSheet.textContent = `
+    .invoice-currency-dropdown-wrap {
+      overflow: visible !important;
+      position: relative;
+    }
+    .invoice-currency-dropdown-panel {
+      z-index: 9999 !important;
+      position: absolute !important;
+      top: 100% !important;
+      left: 0 !important;
+    }
+    .p-dropdown-panel {
+      z-index: 9999 !important;
+    }
+  `
+  document.head.appendChild(styleSheet)
+}
 const InlineProductSearch = ({ onSelect, onClose, products }: any) => {
   const [searchTerm, setSearchTerm] = useState("")
 
@@ -103,6 +124,7 @@ interface SalesOrder {
   id: number
   order_number: string
   order_date: string
+  reference_number_date?: string
   customer_name: string
   customer_id: number
   order_status: number
@@ -119,6 +141,7 @@ interface SalesOrder {
   updated_at: string
   printed: number
   is_exported: number
+  exported_sales?: boolean
   items?: OrderItem[] // Assuming order items are nested
 }
 
@@ -195,6 +218,7 @@ interface OrderFormData {
   order_date: string | null
   invoice_number: string | null
   reference_number: string | null
+  reference_number_date: string | null
   customer_id: number | null
   customer_name: string | null
   customer_code: string | null
@@ -211,7 +235,6 @@ interface OrderFormData {
   delivery_notes: string | null
   order_status: number
   financial_status: string
-  order_decision: number,
   order_status2: number
   source: string
   general_notes: string | null
@@ -235,6 +258,11 @@ interface OrderFormData {
   customer_order_no?: string | null,
   printed: number | null,
   is_exported: number | null,
+  exported_sales: boolean,
+  tax_classification: number | null,
+  invoice_type: number | null,
+  is_offset: boolean,
+  offset_code: number | null,
 
 }
 
@@ -244,6 +272,7 @@ const initialFormData: OrderFormData = {
   order_date: new Date().toISOString().split("T")[0],
   invoice_number: "",
   reference_number: "",
+  reference_number_date: new Date().toISOString().split("T")[0],
   customer_id: 0,
   customer_name: "",
   customer_code: "",
@@ -261,7 +290,6 @@ const initialFormData: OrderFormData = {
   order_status: 1,
   order_status2: 1,
   financial_status: "unpaid",
-  order_decision: 1,
   source: "مباشر",
   general_notes: "",
   internal_notes: "",
@@ -284,10 +312,15 @@ const initialFormData: OrderFormData = {
   customer_order_no: "",
   printed: 0,
   is_exported: 0,
+  exported_sales: false,
+  tax_classification: 1,
+  invoice_type: 1,
+  is_offset: false,
+  offset_code: null,
 }
 
 
-function UnifiedSalesOrder({
+function UnifiedSaleInvoices({
   order,
   allOrders = [],
   onOrderSaved,
@@ -338,6 +371,7 @@ function UnifiedSalesOrder({
   const toast = useRef<Toast | null>(null);
   const message = useRef(Messages);
   const [loading, setLoading] = useState(false);
+  const [voucherBookLocked, setVoucherBookLocked] = useState(false)
   const setFromExcelRef = useRef(false);
   const priceCategoryIdRef = useRef(1)
   const [definitions, setDefinitions] = useState({
@@ -387,6 +421,38 @@ function UnifiedSalesOrder({
   const customerNameRef = useRef<HTMLInputElement>(null);
   const referenceNumberRef = useRef<HTMLInputElement>(null);
   const [lastFilledRow, setLastFilledRow] = useState(null);
+  const normalizedCurrencies = useMemo(
+    () =>
+      (definitionsRef.current.currencies ?? []).map((currency: any) => ({
+        currency_id: Number(currency.currency_id ?? currency.id ?? 0),
+        currency_name: currency.currency_name ?? currency.name ?? "",
+      })),
+    [definitions.currencies],
+  )
+  const taxClassificationOptions = useMemo(
+    () => [
+      { label: "ضريبية", value: 1 },
+      { label: "معفاه", value: 2 },
+      { label: "صفرية", value: 3 },
+    ],
+    [],
+  )
+  const invoiceTypeOptions = useMemo(
+    () => [
+      { label: "للتجارة", value: 1 },
+      { label: "خدمات", value: 2 },
+      { label: "أصول", value: 3 },
+    ],
+    [],
+  )
+  const offsetCodeOptions = useMemo(
+    () => [
+      { label: "تجارية", value: 1 },
+      { label: "أصول", value: 2 },
+      { label: "خدمات", value: 3 },
+    ],
+    [],
+  )
   const [showUnsaved, setShowUnsaved] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [showAlert, setShowAlert] = useState(false);
@@ -434,6 +500,8 @@ function UnifiedSalesOrder({
 
     printed: 0,
     is_exported: 0,
+    exported_sales: false,
+    reference_number_date: new Date().toISOString().split("T")[0],
 
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -530,6 +598,7 @@ function UnifiedSalesOrder({
 
         // Wait for definitions to load
         await fetchDefinitions();
+        await checkVoucherBookLock();
 
         // Set order statuses
         setOrderStatusList([
@@ -590,6 +659,17 @@ function UnifiedSalesOrder({
     }
 
     return definitionsObj
+  }
+
+  const checkVoucherBookLock = async () => {
+    try {
+      const response = await fetch("/api/settings/check-transactions")
+      if (!response.ok) return
+      const data = await response.json()
+      setVoucherBookLocked(Boolean(data?.locks?.invoice))
+    } catch (error) {
+      console.error("Failed to check voucher book lock:", error)
+    }
   }
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -667,11 +747,12 @@ function UnifiedSalesOrder({
     }
   }
 
-  const generateOrderNumber = async () => {
+  const generateOrderNumber = async (bookOverride?: string) => {
     try {
-      const vchBook = state.formData.vch_book ?? "0";
+      const vchBook = String(bookOverride ?? state.formData.vch_book ?? "R").trim().toUpperCase();
       const response = await fetch(
-        `/api/orders/generate-number?vch_book=${encodeURIComponent(vchBook)}&vch_type=${encodeURIComponent(vch_type ?? 1)}`
+        `/api/vouchers/generate-number?vch_book=${encodeURIComponent(vchBook)}&vch_type=${encodeURIComponent(vch_type ?? 5)}`,
+        { cache: "no-store" }
       );
 
       if (!response.ok) {
@@ -705,7 +786,7 @@ function UnifiedSalesOrder({
 
       setState((prev) => ({
         ...prev,
-        formData: { ...prev.formData, order_number: `O${lastSeven}` },
+        formData: { ...prev.formData, order_number: `I${lastSeven}` },
       }));
     }
   };
@@ -745,7 +826,7 @@ function UnifiedSalesOrder({
         params.append("customer_id", state.formData.customer_id.toString());
       }
 
-      const response = await fetch(`/api/orders/check-reference-duplicate?${params.toString()}`);
+      const response = await fetch(`/api/vouchers/check-reference-duplicate?${params.toString()}`);
       const data = await response.json();
 
       if (
@@ -765,18 +846,13 @@ function UnifiedSalesOrder({
   const handleOrderCodeBlur = async () => {
     const { order_number } = state.formData;
 
-    // Remove all non-alphanumeric characters
-    let cleaned = (order_number || "").replace(/[^a-zA-Z0-9]/g, "");
-
-    // Force first letter based on vch_type
-    const firstLetter = vch_type === 1 ? "O" : "T";
-
-    // Ensure first character is replaced
-
-    // Adjust length using your adjustCode function
-    cleaned = adjustCode(cleaned, 8);
-
-    let order_num = firstLetter + (cleaned.slice(1) || "");
+    const cleaned = (order_number || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+    const book = String(state.formData.vch_book || "R").trim().toUpperCase();
+    const basePrefix = vch_type === 1 ? "ORD" : vch_type === 2 ? "PUR" : "INV";
+    const prefix = `${basePrefix}${book}`;
+    const seqMatch = cleaned.match(/(\d+)$/);
+    const seq = (seqMatch?.[1] || "1").slice(-5).padStart(5, "0");
+    const order_num = `${prefix}${seq}`;
 
 
     console.log("order_num ", order_num);
@@ -787,7 +863,6 @@ function UnifiedSalesOrder({
       formData: {
         ...prev.formData,
         order_number: order_num,
-        vch_book: order_num[1] ?? "R", // second character
       },
     }));
 
@@ -795,24 +870,27 @@ function UnifiedSalesOrder({
       order_number: order_num,
     });
 
-    const res = await fetch(`/api/orders/getorderbycode?${params.toString()}`);
-    const data = await res.json();
-    if (!res.ok) {
-      reset_order()
-    }
-    else {
-      if (!data) reset_order()
-      else {
-        if (data.deleted === true) {
-          Util.showErrorMessage(message, 'الطلبية محذوفة لا يمكن عرضها')
-          reset_order();
-          return
-        }
-
-        loadOrderData('Byid', data.id)
+    try {
+      const res = await fetch(`/api/vouchers/getorderbycode?${params.toString()}`);
+      const data = await res.json();
+      if (!res.ok) {
+        reset_order()
       }
+      else {
+        if (!data) reset_order()
+        else {
+          if (data.deleted === true) {
+            Util.showErrorMessage(message, 'الفاتورة محذوفة لا يمكن عرضها')
+            reset_order();
+            return
+          }
+
+          loadOrderData('Byid', data.id)
+        }
+      }
+    } finally {
+      fromBlurRef.current = false
     }
-    //fromBlurRef.current = false
   };
 
 
@@ -1620,7 +1698,7 @@ function UnifiedSalesOrder({
     message.current?.clear()
     console.log("state.formData ", state.formData)
     if (!state.formData.order_number) {
-      Util.showErrorMessage(message, 'رقم الطلبية فارغ لا يمكن الاستمرار')
+      Util.showErrorMessage(message, 'رقم الفاتورة فارغ لا يمكن الاستمرار')
       return false
     }
     if (state.formData.currency_id === 0) {
@@ -1645,7 +1723,7 @@ function UnifiedSalesOrder({
       return false
     }
     if (Number(totals.total) < 0) {
-      Util.showErrorMessage(message, 'مجموع الطلبية غير منطقي يرجى التأكد من المدخلات')
+      Util.showErrorMessage(message, 'مجموع الفاتورة غير منطقي يرجى التأكد من المدخلات')
       return false
     }
     // Assuming collectionView is your CollectionView instance
@@ -1712,7 +1790,7 @@ function UnifiedSalesOrder({
       });
 
 
-      const response = await fetch(`/api/orders/check-printed-order?${params.toString()}`);
+      const response = await fetch(`/api/vouchers/check-printed-order?${params.toString()}`);
       const data = await response.json();
 
       if (data.exists) {
@@ -1844,7 +1922,7 @@ function UnifiedSalesOrder({
 
     // Update printed status in backend
     console.log("order order ", order)
-    await fetch(`/api/orders/sales/${order.id}`, {
+    await fetch(`/api/vouchers/sales/${order.id}`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
@@ -1923,11 +2001,13 @@ function UnifiedSalesOrder({
         vat_amount: totals.tax,
         vat_percent: state.formData.vat_percent,
         total_amount: totals.total,
-        order_type: vch_type,
+        order_type: vch_type ?? 5,
         reference_number: state.formData.reference_number,
+        reference_number_date: state.formData.reference_number_date
+          ? new Date(state.formData.reference_number_date).toISOString()
+          : (state.formData.order_date ? new Date(state.formData.order_date).toISOString() : null),
         order_status: state.formData.order_status || 1,
         order_status2: state.formData.order_status2 || 1,
-        order_decision: state.formData.order_decision || 1,
         delivery_address: state.formData.delivery_address || "",
         shipping_cost: state.formData.shipping_cost || 0,
         other_charges: state.formData.other_charges || 0,
@@ -1936,6 +2016,13 @@ function UnifiedSalesOrder({
         delivery_notes: state.formData.delivery_notes || "",
         received_by: state.formData.received_by || "",
         customer_order_no: state.formData.customer_order_no || "",
+        tax_classification: Number(state.formData.tax_classification || 1),
+        invoice_type: Number(state.formData.invoice_type || 1),
+        exported_sales: !!state.formData.exported_sales,
+        is_offset: !!state.formData.is_offset,
+        offset_code: state.formData.is_offset
+          ? Number(state.formData.offset_code || 1)
+          : null,
         user_id: user.id,
       };
 
@@ -1956,7 +2043,7 @@ function UnifiedSalesOrder({
         name: item.name,
       }));
 
-      const response = await fetch("/api/orders/sales", {
+      const response = await fetch("/api/vouchers/sales", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -1977,7 +2064,7 @@ function UnifiedSalesOrder({
 
         Util.showErrorMessage(
           message,
-          errorData.error || "فشل في حفظ طلبية المبيعات"
+          errorData.error || "فشل في حفظ فاتورة المبيعات"
         );
         return;
       }
@@ -1996,7 +2083,7 @@ function UnifiedSalesOrder({
       Util.showSuccessMessage(message);
       lastVchBook.current = state.formData.vch_book;
       popupHasCalled();
-      setAlertMessage("هل تريد طباعة الطلبية؟");
+      setAlertMessage("هل تريد طباعة الفاتورة؟");
 
       setState((prev) => ({
         ...prev,
@@ -2034,24 +2121,18 @@ function UnifiedSalesOrder({
       toast.current?.show({
         severity: 'warn',
         summary: 'تنبيه',
-        detail: 'لا يوجد طلبية لحذفها',
+        detail: 'لا توجد فاتورة لحذفها',
         life: 3000
       });
       return;
     }
     message.current?.clear();
     if (state.formData.is_exported) {
-      Util.showErrorMessage(message, "الطلبية مرحلة الى النظام المحاسبي لن تتم عملية الحذف");
+      Util.showErrorMessage(message, "الفاتورة مرحلة الى النظام المحاسبي لن تتم عملية الحذف");
 
       //Util.showInfoToast(toast.current, "الطلبية مرحلة الى النظام المحاسبي لن تتم عملية الحفظ");
       return;
     }
-    if (state.formData.id > 0 && state.formData.order_decision >= 4) {
-      Util.showErrorMessage(message, "الطلبية معتمدة/مدققة لن تتم عملية الحذف");
-
-      return;
-    }
-
     setShowConfirm(true);
     popupHasCalled()
   };
@@ -2073,7 +2154,7 @@ function UnifiedSalesOrder({
   }, [state.formData]);
   async function handleDeleteOrder(orderToDelete: SalesOrder): Promise<void> {
     if (!state.formData || !state.formData.id) {
-      throw new Error("لا توجد طلبية محددة للحذف")
+      throw new Error("لا توجد فاتورة محددة للحذف")
     }
     const savedUser = localStorage.getItem("erp_user") || sessionStorage.getItem("erp_user")
     if (!savedUser) {
@@ -2087,7 +2168,7 @@ function UnifiedSalesOrder({
     }
     setLoading(true)
 
-    const response = await fetch(`/api/orders/sales/${state.formData.id}`, {
+    const response = await fetch(`/api/vouchers/sales/${state.formData.id}`, {
       method: "DELETE",
       headers: {
         "Content-Type": "application/json",
@@ -2096,9 +2177,9 @@ function UnifiedSalesOrder({
     });
     if (!response.ok) {
       setLoading(false)
-      throw new Error("فشل في حذف الطلبية")
+      throw new Error("فشل في حذف الفاتورة")
     }
-    Util.showSuccessMessage(message, 'تم حذف الطلبية بنجاح ✅')
+    Util.showSuccessMessage(message, 'تم حذف الفاتورة بنجاح ✅')
     reset_order()
     setLoading(false)
 
@@ -2132,14 +2213,9 @@ function UnifiedSalesOrder({
     message.current?.clear();
 
     if (state.formData.is_exported) {
-      Util.showErrorMessage(message, "الطلبية مرحلة الى النظام المحاسبي لن تتم عملية الحفظ");
+      Util.showErrorMessage(message, "الفاتورة مرحلة الى النظام المحاسبي لن تتم عملية الحفظ");
 
       //Util.showInfoToast(toast.current, "الطلبية مرحلة الى النظام المحاسبي لن تتم عملية الحفظ");
-      return;
-    }
-    if (state.formData.id > 0 && state.formData.order_decision >= 4) {
-      Util.showErrorMessage(message, "الطلبية معتمدة/مدققة لن تتم عملية التعديل");
-
       return;
     }
     setState((prev) => ({ ...prev, isSaving: true }))
@@ -2200,14 +2276,9 @@ function UnifiedSalesOrder({
   const handleDelete = async () => {
     message.current?.clear();
     if (state.formData.is_exported) {
-      Util.showErrorMessage(message, "الطلبية مرحلة الى النظام المحاسبي لن تتم عملية الحذف");
+      Util.showErrorMessage(message, "الفاتورة مرحلة الى النظام المحاسبي لن تتم عملية الحذف");
 
       //Util.showInfoToast(toast.current, "الطلبية مرحلة الى النظام المحاسبي لن تتم عملية الحفظ");
-      return;
-    }
-    if (state.formData.id > 0 && state.formData.order_decision >= 4) {
-      Util.showErrorMessage(message, "الطلبية معتمدة/مدققة لن تتم عملية الحذف");
-
       return;
     }
     setState((prev) => ({ ...prev, isDeleting: true }))
@@ -2215,7 +2286,7 @@ function UnifiedSalesOrder({
       // The deleteRecord from useRecordNavigation hook handles the deletion logic
       // It expects the currentRecord to be passed or it uses the internally tracked current record.
       await deleteRecord()
-      alert("تم حذف الطلبية بنجاح")
+      alert("تم حذف الفاتورة بنجاح")
 
       // Close the dialog after deletion
       if (onOpenChange) {
@@ -2244,8 +2315,10 @@ function UnifiedSalesOrder({
         order_number: order_num, // generate new number
         order_date: new Date().toISOString().split("T")[0], // today
         delivery_date: new Date().toISOString().split("T")[0], // today
+        reference_number_date: new Date().toISOString().split("T")[0], // today
         printed: 0,
-        is_exported: 0
+        is_exported: 0,
+        exported_sales: false,
       };
 
       // 2️⃣ Reset any collection views/items if needed
@@ -2514,12 +2587,12 @@ function UnifiedSalesOrder({
       }*/
 
       const url = new URL(
-        `/api/orders/navigation/${navigationType}`,
+        `/api/vouchers/navigation/${navigationType}`,
         location.origin
       );
       url.searchParams.set("currentId", state.formData.order_number.toString());
       url.searchParams.set("vch_book", state.formData.vch_book.toString());
-      url.searchParams.set("order_type", vch_type?.toString() ?? "1");
+      url.searchParams.set("order_type", vch_type?.toString() ?? "3");
       // ---- navigation params ----
       if (navigationType === "Byid" && orderId) {
         url.searchParams.set("id", String(orderId));
@@ -2533,9 +2606,17 @@ function UnifiedSalesOrder({
       const res = await fetch(url.toString());
       const order = await res.json();
       if (!order?.id || order.id === currentOrderId) {
-        Util.showErrorToast(toast.current, navigationType === "previous" || navigationType === "first"
-          ? "بداية السجلات"
-          : "نهاية السجلات");
+        const isStartBoundary = navigationType === "previous" || navigationType === "first"
+        const boundaryText = isStartBoundary ? "بداية السجلات" : "نهاية السجلات"
+        const boundaryHint = isStartBoundary ? "لا توجد فواتير أقدم" : "لا توجد فواتير أحدث"
+
+        toast.current?.show({
+          severity: "warn",
+          summary: boundaryText,
+          detail: boundaryHint,
+          life: 2600,
+          className: "!border-0 !shadow-xl !rounded-xl !bg-gradient-to-l !from-amber-50 !to-orange-50",
+        })
 
         setLoading(false)
         return;
@@ -2558,6 +2639,9 @@ function UnifiedSalesOrder({
       // Usage
       const onlyOrderDate = toLocalDateString(order.order_date);
       const onlyDeliveryDate = toLocalDateString(order.delivery_date);
+      const onlyReferenceNumberDate = order.reference_number_date
+        ? toLocalDateString(order.reference_number_date)
+        : onlyOrderDate;
 
       setState((prev) => ({
         ...prev,
@@ -2566,7 +2650,9 @@ function UnifiedSalesOrder({
           ...order,
           order_date: onlyOrderDate, // only date part
           delivery_date: onlyDeliveryDate,
-          vch_book: mappedOrder.order_number[1],
+          reference_number_date: onlyReferenceNumberDate,
+          exported_sales: Boolean(order.exported_sales),
+          vch_book: mappedOrder.vch_book || prev.formData.vch_book || "R",
           salesman: mappedOrder.salesman_id ? mappedOrder.salesman_id : "-1",
           discount_type: mappedOrder.discount_type === 1 ? "percentage" : "amount",
           discount_amount: mappedOrder.discount_type === 1 ? Number(mappedOrder.discount_amount) * 100 / (Number(mappedOrder.total_amount) + Number(mappedOrder.discount_amount) - Number(mappedOrder.vat_amount)) : mappedOrder.discount_amount
@@ -2783,7 +2869,7 @@ function UnifiedSalesOrder({
   }
 
   const reportColumns = [
-    { key: "order_number", label: "رقم الطلبية", width: "120px" },
+    { key: "order_number", label: "رقم الفاتورة", width: "120px" },
     { key: "order_date", label: "التاريخ", width: "100px" },
     { key: "customer_name", label: "اسم الزبون", width: "200px" },
 
@@ -2892,7 +2978,7 @@ function UnifiedSalesOrder({
             <CustomerSearchPopup
               visible={showCustomerSearch}
               type={-1}
-              vch_type={vch_type ?? 1}
+              vch_type={vch_type ?? 5}
               onClose={() => {
                 popupHasClosed()
                 setShowCustomerSearch(false)
@@ -2992,7 +3078,7 @@ function UnifiedSalesOrder({
             />
             <OrderSearchPopup
               visible={showOrderSearch}
-              type={vch_type ?? 0}
+              type={vch_type ?? 5}
 
               onClose={() => { popupHasCalled(); setShowOrderSearch(false); setTimeout(() => referenceNumberRef.current?.focus(), 50) }}
               onSelect={(order) => {
@@ -3044,7 +3130,7 @@ function UnifiedSalesOrder({
                 <div className="flex flex-wrap items-center justify-between gap-4">
                   <div className="flex items-center gap-2">
                     <TrendingUp className="h-5 w-5 text-primary" />
-                    <span className="text-sm font-medium">ملخص الطلبية</span>
+                    <span className="text-sm font-medium">ملخص الفاتورة</span>
                   </div>
                   <div className="flex flex-wrap items-center gap-6 text-sm">
                     <div className="flex flex-col items-end">
@@ -3071,13 +3157,13 @@ function UnifiedSalesOrder({
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-6" dir="rtl">
 
               {/* ===================== */}
-              {/* معلومات الطلبية (يمين) */}
+              {/* معلومات الفاتورة (يمين) */}
               {/* ===================== */}
               <Card className="h-full">
                 <CardHeader className="pb-4">
                   <CardTitle className="text-lg flex items-center gap-2">
                     <FileText className="h-5 w-5 text-primary" />
-                    معلومات الطلبية الأساسية
+                    معلومات الفاتورة الأساسية
                   </CardTitle>
                 </CardHeader>
 
@@ -3090,12 +3176,16 @@ function UnifiedSalesOrder({
                       <Label>دفتر السندات</Label>
                       <Select
                         value={String(state.formData.vch_book ?? "R")}
-                        onValueChange={(value) =>
+                        disabled={voucherBookLocked}
+                        onValueChange={(value) => {
+                          const normalized = String(value).trim().toUpperCase()
                           setState(prev => ({
                             ...prev,
-                            formData: { ...prev.formData, vch_book: value }
+                            formData: { ...prev.formData, vch_book: normalized }
                           }))
-                        }
+                          fromBlurRef.current = false
+                          generateOrderNumber(normalized)
+                        }}
                       >
                         <SelectTrigger className="h-11">
                           <SelectValue />
@@ -3108,10 +3198,10 @@ function UnifiedSalesOrder({
                       </Select>
                     </div>
 
-                    {/* رقم الطلبية */}
+                    {/* رقم الفاتورة */}
                     <div className="space-y-2">
                       <Label className="text-sm font-medium">
-                        {"رقم الطلبية"} <span className="text-red-500 mr-1">*</span>
+                        {"رقم الفاتورة"} <span className="text-red-500 mr-1">*</span>
                       </Label>
 
                       <div className="flex flex-row-reverse gap-2 items-center">
@@ -3140,14 +3230,14 @@ function UnifiedSalesOrder({
                           dir="rtl"
                           placeholder={""}
                           onBlur={handleOrderCodeBlur}
-                          maxLength={8}
+                          maxLength={9}
                         />
                       </div>
                     </div>
 
-                    {/* تاريخ الطلبية */}
+                    {/* تاريخ الفاتورة */}
                     <div>
-                      <Label>تاريخ الطلبية</Label>
+                      <Label>تاريخ الفاتورة</Label>
                       <Input
                         ref={orderdateRef}
                         type="date"
@@ -3175,46 +3265,63 @@ function UnifiedSalesOrder({
                   {/* الصف الثاني */}
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     {/* العملة */}
-                    <div>
+                    <div className="invoice-currency-dropdown-wrap">
                       <Label>العملة</Label>
-                      <Select
-                        value={String(state.formData.currency_id ?? "-1")}
-                        onValueChange={async (value) => {
-                          const selected = definitionsRef.current.currencies.find(
-                            (c) => String(c.currency_id) === value
-                          );
+                      <PrimeDropdown
+                        id="currency_id"
+                        value={state.formData.currency_id ? Number(state.formData.currency_id) : null}
+                        options={normalizedCurrencies}
+                        optionLabel="currency_name"
+                        optionValue="currency_id"
+                        placeholder="اختر العملة"
+                        filter={true}
+                        className="invoice-currency-dropdown"
+                        panelClassName="invoice-currency-dropdown-panel"
+                        appendTo="self"
+                        filterInputAutoFocus={true}
+                        onShow={() => {
+                          setTimeout(() => {
+                            const filterInput = document.querySelector(
+                              ".invoice-currency-dropdown-panel .p-dropdown-filter",
+                            ) as HTMLInputElement | null
+                            filterInput?.focus()
+                            filterInput?.select()
+                          }, 0)
+                        }}
+                        onChange={async (e: any) => {
+                          const nextCurrencyId = Number(e.value ?? 0)
+                          const selected = normalizedCurrencies.find(
+                            (c) => c.currency_id === nextCurrencyId,
+                          )
 
-                          if (!selected) return;
+                          if (!selected) return
 
-                          let rate = 1; // default for base currency
+                          setState((prev) => ({
+                            ...prev,
+                            formData: {
+                              ...prev.formData,
+                              currency_id: nextCurrencyId,
+                              currency_name: selected.currency_name,
+                              exchange_rate: nextCurrencyId === 1 ? 1 : prev.formData.exchange_rate,
+                            },
+                          }))
 
-                          if (selected.currency_id !== 1) {
-                            rate = await getCurrencyRate(selected.currency_id, state.formData.order_date);
+                          let rate = 1
+                          if (nextCurrencyId !== 1) {
+                            rate = await getCurrencyRate(nextCurrencyId, state.formData.order_date)
                           }
 
                           setState((prev) => ({
                             ...prev,
                             formData: {
                               ...prev.formData,
-                              currency_id: selected.currency_id,                 // ✅ API
-                              currency_name: selected.currency_name,    // ✅ UI
-                              exchange_rate: rate,                      // ✅ from DB
+                              currency_id: nextCurrencyId,
+                              currency_name: selected.currency_name,
+                              exchange_rate: rate,
                             },
-                          }));
+                          }))
                         }}
-
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="اختر العملة" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {definitionsRef.current.currencies.map(c => (
-                            <SelectItem key={c.currency_id} value={String(c.currency_id)}>
-                              {c.currency_name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      />
                     </div>
 
                     {/* سعر الصرف */}
@@ -3226,61 +3333,8 @@ function UnifiedSalesOrder({
                       />
                     </div>
 
-                    {/* حالة الطلبية */}
                     <div>
-                      <Label>حالة الطلبية</Label>
-                      <Select
-                        value={String(state.formData.order_status ?? "1")}
-                        onValueChange={(v) =>
-                          setState(prev => ({
-                            ...prev,
-                            formData: { ...prev.formData, order_status: v }
-                          }))
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="1">غير جاهزة</SelectItem>
-                          <SelectItem value="2">جاهزة</SelectItem>
-                          <SelectItem value="3">مرسلة جزئيا</SelectItem>
-                          <SelectItem value="4">مرسلة كليا</SelectItem>
-                          <SelectItem value="5">ملغاة</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    {/*2 حالة الطلبية */}
-                    <div>
-                      <Label>حالة التسليم</Label>
-                      <Select
-                        value={String(state.formData.order_status2 ?? "1")}
-                        onValueChange={(v) =>
-                          setState(prev => ({
-                            ...prev,
-                            formData: { ...prev.formData, order_status2: v }
-                          }))
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="1">غير مسلم</SelectItem>
-                          <SelectItem value="2">مسلم</SelectItem>
-                          <SelectItem value="3">ملغي</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                      <Label className="text-sm font-medium">
-                        {"السند اليدوي"}
-                      </Label>
+                      <Label className="text-sm font-medium">{"السند اليدوي"}</Label>
                       <Input
                         ref={referenceNumberRef}
                         value={state.formData.reference_number ?? ""}
@@ -3298,9 +3352,123 @@ function UnifiedSalesOrder({
                         maxLength={7}
                       />
                     </div>
+
+                    <div>
+                      <Label className="text-sm font-medium">{"تاريخ السند اليدوي"}</Label>
+                      <Input
+                        type="date"
+                        value={state.formData.reference_number_date ?? state.formData.order_date ?? ""}
+                        onChange={(e) =>
+                          setState((prev) => ({
+                            ...prev,
+                            formData: { ...prev.formData, reference_number_date: e.target.value },
+                          }))
+                        }
+                        className="text-right h-11"
+                        dir="rtl"
+                      />
+                    </div>
+
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    {/* التصنيف الضريبي */}
+                    <div className="invoice-currency-dropdown-wrap">
+                      <Label>التصنيف الضريبي</Label>
+                      <PrimeDropdown
+                        value={state.formData.tax_classification || 1}
+                        options={taxClassificationOptions}
+                        optionLabel="label"
+                        optionValue="value"
+                        className="invoice-currency-dropdown"
+                        panelClassName="invoice-currency-dropdown-panel"
+                        appendTo="self"
+                        onChange={(e: any) =>
+                          setState((prev) => ({
+                            ...prev,
+                            formData: { ...prev.formData, tax_classification: Number(e.value) || 1 },
+                          }))
+                        }
+                      />
+                    </div>
+
+                    {/* النوع */}
+                    <div className="invoice-currency-dropdown-wrap">
+                      <Label>النوع</Label>
+                      <PrimeDropdown
+                        value={state.formData.invoice_type || 1}
+                        options={invoiceTypeOptions}
+                        optionLabel="label"
+                        optionValue="value"
+                        className="invoice-currency-dropdown"
+                        panelClassName="invoice-currency-dropdown-panel"
+                        appendTo="self"
+                        onChange={(e: any) =>
+                          setState((prev) => ({
+                            ...prev,
+                            formData: { ...prev.formData, invoice_type: Number(e.value) || 1 },
+                          }))
+                        }
+                      />
+                    </div>
+
+                    {/* مقاصة */}
+                    <div>
+                      <Label>مقاصة</Label>
+                      <label className="invoice-offset-toggle" htmlFor="is_offset">
+                        <span className="invoice-offset-toggle-text">
+                          {state.formData.is_offset ? "مفعلة" : "غير مفعلة"}
+                        </span>
+                        <input
+                          id="is_offset"
+                          type="checkbox"
+                          checked={!!state.formData.is_offset}
+                          onChange={(e) =>
+                            setState((prev) => ({
+                              ...prev,
+                              formData: {
+                                ...prev.formData,
+                                is_offset: e.target.checked,
+                                offset_code: e.target.checked
+                                  ? (prev.formData.offset_code || 1)
+                                  : null,
+                              },
+                            }))
+                          }
+                        />
+                        <span className="invoice-offset-toggle-track">
+                          <span className="invoice-offset-toggle-thumb" />
+                        </span>
+                      </label>
+                    </div>
+
+                    {/* كود المقاصة */}
+                    <div className="invoice-currency-dropdown-wrap">
+                      <Label>كود المقاصة</Label>
+                      <PrimeDropdown
+                        value={state.formData.offset_code}
+                        options={offsetCodeOptions}
+                        optionLabel="label"
+                        optionValue="value"
+                        className="invoice-currency-dropdown"
+                        panelClassName="invoice-currency-dropdown-panel"
+                        appendTo="self"
+                        onChange={(e: any) =>
+                          setState((prev) => ({
+                            ...prev,
+                            formData: { ...prev.formData, offset_code: Number(e.value) || null },
+                          }))
+                        }
+                        disabled={!state.formData.is_offset}
+                        placeholder="اختر"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div>
                       <Label className="text-sm font-medium">
-                        {"تاريخ التسليم"}
+                        {"تاريخ التسديد"}
                       </Label>
                       <Input
                         type="date"
@@ -3315,31 +3483,31 @@ function UnifiedSalesOrder({
                         dir="rtl"
                       />
                     </div>
+
                     <div>
-                      <Label className="text-sm font-medium">
-                        {"قرار الإدارة"}
-                      </Label>
-                      <Select
-                        value={String(state.formData.order_decision ?? "1")}
-                        onValueChange={(value) =>
-                          setState((prev) => ({
-                            ...prev,
-                            formData: { ...prev.formData, order_decision: value },
-                          }))
-                        }
-                        disabled={state.formData.order_decision > 3}
-                      >
-                        <SelectTrigger className="h-11">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="1">مقبول</SelectItem>
-                          <SelectItem value="2">مرفوض</SelectItem>
-                          <SelectItem value="3">مؤجل</SelectItem>
-                          <SelectItem value="4">معتمدة</SelectItem>
-                          <SelectItem value="5">مدققة</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <Label className="text-sm font-medium">مبيعات مصدرة</Label>
+                      <label className="invoice-offset-toggle" htmlFor="exported_sales_toggle">
+                        <span className="invoice-offset-toggle-text">
+                          {state.formData.exported_sales ? "مفعلة" : "غير مفعلة"}
+                        </span>
+                        <input
+                          id="exported_sales_toggle"
+                          type="checkbox"
+                          checked={!!state.formData.exported_sales}
+                          onChange={(e) =>
+                            setState((prev) => ({
+                              ...prev,
+                              formData: {
+                                ...prev.formData,
+                                exported_sales: e.target.checked,
+                              },
+                            }))
+                          }
+                        />
+                        <span className="invoice-offset-toggle-track">
+                          <span className="invoice-offset-toggle-thumb" />
+                        </span>
+                      </label>
                     </div>
                   </div>
 
@@ -3513,7 +3681,7 @@ function UnifiedSalesOrder({
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                   <CardTitle className="text-lg flex items-center gap-2">
                     <Package className="h-5 w-5 text-primary" />
-                    أصناف الطلبية
+                    أصناف الفاتورة
                   </CardTitle>
 
                 </div>
@@ -3769,7 +3937,7 @@ function UnifiedSalesOrder({
         )}
 
         <ReportGenerator
-          title={vch_type === 1 ? "تقرير طلبيات المبيعات" : "تقرير طلبيات المشتريات"}
+          title={vch_type === 2 ? "تقرير فواتير المشتريات" : "تقرير فواتير المبيعات"}
           data={allOrders}
           columns={reportColumns}
           isOpen={showReport}
@@ -3780,5 +3948,5 @@ function UnifiedSalesOrder({
   )
 }
 
-export { UnifiedSalesOrder }
-export default UnifiedSalesOrder
+export { UnifiedSaleInvoices }
+export default UnifiedSaleInvoices

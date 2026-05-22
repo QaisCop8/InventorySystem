@@ -67,6 +67,27 @@ CREATE TABLE IF NOT EXISTS print_settings (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- توافق مع قواعد بيانات قديمة: إضافة الأعمدة المطلوبة إذا كانت غير موجودة
+ALTER TABLE print_settings
+    ADD COLUMN IF NOT EXISTS setting_type VARCHAR(50);
+
+ALTER TABLE print_settings
+    ADD COLUMN IF NOT EXISTS document_type VARCHAR(50);
+
+ALTER TABLE print_settings
+    ADD COLUMN IF NOT EXISTS paper_size VARCHAR(20) DEFAULT 'A4';
+
+ALTER TABLE print_settings
+    ADD COLUMN IF NOT EXISTS orientation VARCHAR(20) DEFAULT 'portrait';
+
+UPDATE print_settings
+SET setting_type = COALESCE(setting_type, 'documents')
+WHERE setting_type IS NULL;
+
+UPDATE print_settings
+SET document_type = COALESCE(document_type, 'invoice')
+WHERE document_type IS NULL;
+
 -- جدول الإعدادات العامة
 CREATE TABLE IF NOT EXISTS general_settings (
     id SERIAL PRIMARY KEY,

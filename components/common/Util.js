@@ -1196,6 +1196,7 @@ const exportDefault = {
         summary: msgTitle ? msgTitle : '',
         detail: msgText,
         life: 3000,
+        className: 'erp-toast erp-toast-info',
       });
     } catch (e) { }
   },
@@ -1207,6 +1208,7 @@ const exportDefault = {
         summary: msgTitle ? msgTitle : '',
         detail: msgText,
         life: 6000,
+        className: 'erp-toast erp-toast-error',
       });
     } catch (e) { }
   },
@@ -1218,6 +1220,7 @@ const exportDefault = {
         summary: msgTitle ? msgTitle : '',
         detail: msgText,
         life: 3000,
+        className: 'erp-toast erp-toast-success',
       });
     } catch (e) { }
   },
@@ -1229,6 +1232,7 @@ const exportDefault = {
         summary: msgTitle ? msgTitle : '',
         detail: msgText,
         life: 3000,
+        className: 'erp-toast erp-toast-warning',
       });
     } catch (e) { }
   },

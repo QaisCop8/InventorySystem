@@ -55,7 +55,6 @@ export function Sidebar({
   const handleItemClick = (item: any) => {
     // OPEN ALL ITEMS IN TAB
     openWindow({
-      id: item.section,
       title: item.title,
       component: item.section,
       type: "tab",
@@ -91,6 +90,7 @@ export function Sidebar({
       submenu: [
         { title: "طلبيات المشتريات", section: "purchase-orders", icon: Truck },
         { title: "طلبيات المبيعات", section: "sales-orders", icon: ShoppingCart },
+        { title: "فواتير المبيعات", section: "sale-invoices", icon: FileText },
         { title: "معالجة حالة الطلبيات", section: "order-management", icon: Package },
       ],
       

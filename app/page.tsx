@@ -20,6 +20,7 @@ import dynamic from "next/dynamic"
 // Dynamically import heavy client-only components to avoid pulling browser-only
 // libraries (e.g. @grapecity/wijmo) into the server prerender bundle.
 const SalesOrders = dynamic(() => import("@/components/orders/sales-orders").then(mod => mod.SalesOrders), { ssr: false })
+const SaleInvoices = dynamic(() => import("@/components/orders/sale-invoices").then(mod => mod.SaleInvoices), { ssr: false })
 const Products = dynamic(() => import("@/components/products/products").then(mod => mod.Products), { ssr: false })
 const Customers = dynamic(() => import("@/components/products/customers"), { ssr: false })
 import ProductGroups from "@/components/products/product-groups"
@@ -71,6 +72,7 @@ const componentMap: Record<string, React.ComponentType<any>> = {
   "batch-log-report": BatchLogReport,
   "batch-reports": BatchReports,
   "sales-orders": SalesOrders,
+  "sale-invoices": SaleInvoices,
   "purchase-orders": (props: any) => <SalesOrders {...props} isPurchase={true} />,
   "batch-movements": BatchMovements,
   products: Products,
@@ -214,6 +216,7 @@ export default function HomePage() {
 
       const sectionTitles: Record<string, string> = {
         "sales-orders": "طلبيات المبيعات",
+        "sale-invoices": "فواتير المبيعات",
         "purchase-orders": "طلبيات المشتريات",
         products: "المنتجات",
         customers: "العملاء",
@@ -272,6 +275,7 @@ useEffect(() => {
     );
     const sectionTitles: Record<string, string> = {
         "sales-orders": "طلبيات المبيعات",
+        "sale-invoices": "فواتير المبيعات",
         "purchase-orders": "طلبيات المشتريات",
         products: "الأصناف",
         customers: "الزبائن",
@@ -305,6 +309,7 @@ useEffect(() => {
 
     const shouldOpenInTab = [
       "sales-orders",
+      "sale-invoices",
       "purchase-orders",
       "products",
       "customers",
@@ -320,6 +325,7 @@ useEffect(() => {
     if (shouldOpenInTab) {
       const sectionTitles: Record<string, string> = {
         "sales-orders": "طلبيات المبيعات",
+        "sale-invoices": "فواتير المبيعات",
         "purchase-orders": "طلبيات المشتريات",
         products: "المنتجات",
         customers: "العملاء",

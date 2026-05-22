@@ -1,0 +1,28 @@
+/* Fix dropdown visibility in dialog - prevent portal escaping */
+
+.invoice-currency-dropdown-wrap {
+  overflow: visible !important;
+  position: relative;
+}
+
+/* Ensure dropdown panel stays visible */
+.invoice-currency-dropdown-panel {
+  z-index: 1200 !important;
+  overflow: visible !important;
+}
+
+/* High z-index for PrimeReact dropdown panels */
+.p-dropdown-panel {
+  z-index: 1200 !important;
+  overflow: visible !important;
+}
+
+/* Dialog content should allow overflow for nested dropdowns */
+.p-dialog-content {
+  overflow: visible !important;
+}
+
+/* Grid container should not clip overflow */
+.grid {
+  overflow: visible !important;
+}

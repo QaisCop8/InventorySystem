@@ -5,17 +5,42 @@ const sql = neon(process.env.DATABASE_URL!)
 
 export async function GET() {
   try {
-    // Check if there are any transactions in the system
-    const [invoices] = await sql`SELECT COUNT(*) as count FROM invoices LIMIT 1`
-    const [orders] = await sql`SELECT COUNT(*) as count FROM sales_orders LIMIT 1`
-    const [purchases] = await sql`SELECT COUNT(*) as count FROM purchase_orders LIMIT 1`
+    const [salesInvoices] = await sql`
+      SELECT COUNT(*) as count
+      FROM vouchers
+      WHERE vch_type = 5 AND deleted = false
+    `
 
-    const hasTransactions =
-      Number.parseInt(invoices.count) > 0 || Number.parseInt(orders.count) > 0 || Number.parseInt(purchases.count) > 0
+    const [salesOrders] = await sql`
+      SELECT COUNT(*) as count
+      FROM vouchers
+      WHERE vch_type = 1 AND deleted = false
+    `
 
-    return NextResponse.json({ hasTransactions })
+    const [purchaseOrders] = await sql`
+      SELECT COUNT(*) as count
+      FROM vouchers
+      WHERE vch_type = 2 AND deleted = false
+    `
+
+    const locks = {
+      invoice: Number.parseInt(salesInvoices.count) > 0,
+      order: Number.parseInt(salesOrders.count) > 0,
+      purchase: Number.parseInt(purchaseOrders.count) > 0,
+    }
+
+    return NextResponse.json({
+      hasTransactions: locks.invoice || locks.order || locks.purchase,
+      locks,
+    })
   } catch (error) {
     console.error("Error checking transactions:", error)
-    return NextResponse.json({ hasTransactions: false }, { status: 500 })
+    return NextResponse.json(
+      {
+        hasTransactions: false,
+        locks: { invoice: false, order: false, purchase: false },
+      },
+      { status: 500 },
+    )
   }
 }
