@@ -89,6 +89,7 @@ export async function GET(request: NextRequest) {
       SELECT 
         sb.id,
         sb.batch_number,
+        sb.quantity,
         sb.created_at,
         CASE 
           WHEN sb.status_id = 1 THEN 'new'
@@ -100,7 +101,8 @@ export async function GET(request: NextRequest) {
         o.order_number,
         o.order_date,
         o.customer_name,
-        o.reference_number
+        o.reference_number,
+        (select log_date from stock_batch_log where stock_batch_log.stock_batch_id = sb.id order by stock_batch_log.id limit 1 ) as last_batch_date
       FROM stock_batch sb
       JOIN products p ON p.id = sb.product_id
       JOIN orders o ON o.id = sb.order_id

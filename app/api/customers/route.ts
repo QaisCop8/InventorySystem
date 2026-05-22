@@ -43,21 +43,37 @@ try {
 export default sql
 
 
-export async function GET() {
+
+export async function GET(request: NextRequest) {
   try {
     console.log("[v0] GET /api/customers - Fetching customers with portal info")
 
-    const customers = await sql`
-      SELECT 
-        c.*,
-        COUNT(cu.id) as user_count,
-        CASE WHEN COUNT(cu.id) > 0 THEN true ELSE false END as portal_enabled
-      FROM customers c
-      LEFT JOIN customer_users cu ON c.id = cu.customer_id AND cu.is_active = true
-      where c.isDeleted = false
-      GROUP BY c.id
-      ORDER BY c.created_at DESC
-    `
+    const typeParam = request.nextUrl.searchParams.get("type");
+    const typeFilter = typeParam === "1" || typeParam === "2" ? Number(typeParam) : null;
+
+    const customers = typeFilter
+      ? await sql`
+          SELECT 
+            c.*,
+            COUNT(cu.id) as user_count,
+            CASE WHEN COUNT(cu.id) > 0 THEN true ELSE false END as portal_enabled
+          FROM customers c
+          LEFT JOIN customer_users cu ON c.id = cu.customer_id AND cu.is_active = true
+          WHERE c.isDeleted = false AND c.type = ${typeFilter}
+          GROUP BY c.id
+          ORDER BY c.created_at DESC
+        `
+      : await sql`
+          SELECT 
+            c.*,
+            COUNT(cu.id) as user_count,
+            CASE WHEN COUNT(cu.id) > 0 THEN true ELSE false END as portal_enabled
+          FROM customers c
+          LEFT JOIN customer_users cu ON c.id = cu.customer_id AND cu.is_active = true
+          WHERE c.isDeleted = false
+          GROUP BY c.id
+          ORDER BY c.created_at DESC
+        `
 
     console.log("[v0] Customers fetched:", {
       count: customers.length,
@@ -71,7 +87,52 @@ export async function GET() {
         : null,
     })
 
-    return NextResponse.json({ customers })
+    const customerIds = customers.map((c: { id: any; }) => c.id);
+    type VoucherItem = {
+      book_name: string;
+      type_id: number;
+    };
+    const vouchersMap: Record<number, VoucherItem[]> = {};
+    if (customerIds.length > 0) {
+      const vouchers = await sql`
+        SELECT 
+        cv.customer_id,
+        cv.voucher_id as type_id ,
+        vb.name AS book_name
+        FROM customer_vouchers cv
+        LEFT JOIN voucher_books vb ON cv.book_id = vb.id
+         WHERE cv.customer_id = ANY(${customerIds}::int[])
+        ORDER BY cv.customer_id, cv.id ASC
+      `;
+
+
+
+
+
+
+      // Group vouchers by customer_id
+      vouchers.forEach((v: any) => {
+        const customerId = Number(v.customer_id); // ensure number
+        if (!vouchersMap[customerId]) vouchersMap[customerId] = [];
+        vouchersMap[customerId].push({
+          book_name: v.book_name,
+          type_id: v.type_id
+        });
+      });
+    }
+
+    //
+
+    const result = customers.map((c: { id: string | number }) => {
+      const customerId = Number(c.id); // ensure numeric key
+      return {
+        ...c,
+        voucherType: vouchersMap[customerId] || [],
+      };
+    });
+
+
+    return NextResponse.json({ customers: result })
   } catch (error) {
     console.error("[v0] Error fetching customers:", error)
     return NextResponse.json({ error: "Failed to fetch customers" }, { status: 500 })
@@ -84,26 +145,28 @@ export async function POST(request: NextRequest) {
     console.log("[v0] Creating customer with data:", data)
 
     // Check if customer code already exists
-    if (data.customer_code) {
-      const existingCustomer = await sql`
+    if (data.id === 0) {
+
+      if (data.customer_code) {
+        const existingCustomer = await sql`
         SELECT id FROM customers WHERE customer_code = ${data.customer_code}
       `
 
-      if (existingCustomer.length > 0) {
+        if (existingCustomer.length > 0) {
 
-        const customerNumber = await generateCustomerNumber(data.type === 2 ? true : false);
-        data.customer_code = customerNumber;
-        const existingCust = await sql`
+          const customerNumber = await generateCustomerNumber(data.type === 2 ? true : false);
+          data.customer_code = customerNumber;
+          const existingCust = await sql`
         SELECT id FROM customers WHERE customer_code = ${data.customer_code}
       `
 
-        if (existingCust.length > 0) {
-          return NextResponse.json({ error: "رقم العميل موجود مسبقاً، يرجى اختيار رقم آخر" }, { status: 400 })
+          if (existingCust.length > 0) {
+            return NextResponse.json({ error: "رقم العميل موجود مسبقاً، يرجى اختيار رقم آخر" }, { status: 400 })
+          }
         }
       }
-    }
 
-    const result = await sql`
+      const result = await sql`
   INSERT INTO customers (
     customer_code,
     name,
@@ -150,19 +213,38 @@ export async function POST(request: NextRequest) {
   RETURNING *;
 `;
 
+      const customer = result[0];
 
-    console.log("[v0] Customer created successfully:", result[0])
-    return NextResponse.json(result[0], { status: 201 })
+      console.log("[v0] Customer created successfully:", customer);
+
+      // 3️⃣ Save voucherType array (customer_vouchers)
+      if (Array.isArray(data.voucher) && data.voucher.length > 0) {
+        // Use a transaction if supported
+        for (const v of data.voucher) {
+          await sql`
+          INSERT INTO customer_vouchers (customer_id, voucher_id, book_id)
+          VALUES (${customer.id}, ${v.type_id}, ${v.book_id});
+        `;
+        }
+        console.log("[v0] Customer vouchers saved:", data.voucher);
+      }
+
+      return NextResponse.json(customer, { status: 201 });
+
+      console.log("[v0] Customer created successfully:", result[0])
+      return NextResponse.json(result[0], { status: 201 })
+    }
   } catch (error) {
     console.error("Error creating customer:", error)
     return NextResponse.json({ error: "Failed to create customer" }, { status: 500 })
   }
+
 }
 
 export async function PUT(request: NextRequest) {
   try {
     const data = await request.json()
-    const { id, ...updateData } = data
+    const { id, voucher, ...updateData } = data
 
     const fieldsToUpdate = {
       name: updateData.customer_name || updateData.name,
@@ -201,12 +283,38 @@ export async function PUT(request: NextRequest) {
     values.push(id);
 
     const query = `
-  UPDATE customers
-  SET ${setClauses.join(', ')}
-  WHERE id = $${i}
-  RETURNING *
-`;
+      UPDATE customers
+      SET ${setClauses.join(', ')}
+      WHERE id = $${i}
+      RETURNING *
+    `;
     const result = await sql.query(query, values);
+
+    if (Array.isArray(voucher) && voucher.length > 0) {
+      // Delete old vouchers for this customer
+      await sql`
+        DELETE FROM customer_vouchers
+        WHERE customer_id = ${id};
+      `;
+
+      // Get the current max id from the table
+      const result = await sql`
+        SELECT COALESCE(MAX(id), 0) AS max_id
+        FROM customer_vouchers
+      `;
+      let nextId = result[0].max_id + 1;
+
+      // Build VALUES string for bulk insert
+      const values = voucher.map(v => `(${nextId++}, ${id}, ${v.type_id}, ${v.book_id})`).join(',');
+
+      // Insert all vouchers in one query
+      await sql`
+        INSERT INTO customer_vouchers (id, customer_id, voucher_id, book_id)
+        VALUES ${sql.raw(values)}
+      `;
+
+      console.log(`[v0] Updated vouchers for customer ${id}`);
+    }
     return NextResponse.json(result[0])
   } catch (error) {
     console.error("Error updating customer:", error)

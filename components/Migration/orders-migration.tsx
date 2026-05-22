@@ -7,6 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import DataGridView from "../common/DataGridView"
 import { is } from "date-fns/locale"
 import { Upload } from "lucide-react"
+import ProgressSpinner from "../ProgressSpinner/ProgressSpinner"
+import Util from "../common/Util"
 interface OrderMigrateRow {
     id: any
     ser: number
@@ -21,14 +23,25 @@ interface OrderMigrateRow {
 }
 
 export function OrderMigrate() {
+    type ViewType = "all" | "sales" | "purchase";
+    type Filters = {
+        order_number: string
+        from_date: string
+        to_date: string
+        order_type: ViewType
+        currentView: ViewType
+    }
+
+    const savedView = localStorage.getItem("currentType") as ViewType | null;
     const [data, setData] = useState<OrderMigrateRow[]>([])
     const [loading, setLoading] = useState(false)
     const showErrors = React.useRef(false);
-    const [filters, setFilters] = useState({
+    const [filters, setFilters] = useState<Filters>({
         order_number: "",
         from_date: "",
         to_date: "",
-        order_type: "all", // all | sales | purchase
+        order_type: savedView ?? "sales", // all | sales | purchase
+        currentView: savedView ?? "sales",
     })
 
     useEffect(() => {
@@ -36,11 +49,10 @@ export function OrderMigrate() {
     }, [])
 
     const orderDecisionMap: Record<string | number, string> = {
-        1: "مقبول",
-        2: "مرفوض",
-        3: "مؤجل",
-        4: "معتمدة",
-        5: "مدققة",
+        1: "غير مسلم",
+        2: "مسلم",
+        3: "ملغي",
+
     }
     const fetchOrders = async () => {
         setLoading(true)
@@ -59,12 +71,13 @@ export function OrderMigrate() {
                 ser: i + 1,
                 selected: false,
                 ...r,
-                order_decision: orderDecisionMap[r.order_decision] || "غير محدد",
+                order_status2: orderDecisionMap[r.order_status2] || "غير محدد",
             }))
             setData(mappedData)
         } catch (err) {
             console.error("Failed to fetch orders:", err)
             setData([])
+
         } finally {
             setLoading(false)
         }
@@ -89,9 +102,10 @@ export function OrderMigrate() {
 
     const handleMigrate = async () => {
         showErrors.current = false;
+
         const selectedOrders = data.filter(d => d.selected);
         if (selectedOrders.length === 0) return alert("اختر طلبية واحدة على الأقل");
-
+        setLoading(true)
         try {
             const res = await fetch("/api/migration/post-orders", {
                 method: "POST",
@@ -118,7 +132,7 @@ export function OrderMigrate() {
                 setData(updatedData); // Update grid state
 
                 if (failedOrders.length > 0) {
-                    if(successOrders.length > 0)
+                    if (successOrders.length > 0)
                         alert(`تم ترحيل بعض الطلبيات بنجاح، والبعض فشل. تحقق من عمود الخطأ.`);
                     else
                         alert(`فشل ترحيل جميع الطلبيات. تحقق من عمود الخطأ.`);
@@ -133,10 +147,15 @@ export function OrderMigrate() {
             console.error(err);
             alert("حدث خطأ أثناء الترحيل");
         }
+        finally {
+            setLoading(false)
+        }
     };
 
 
-
+    const handleViewChange = (view: "all" | "sales" | "purchase") => {
+        localStorage.setItem("currentType", view);
+    };
     const getScheme = () => ({
         name: "OrderMigrateTable",
         filter: false,
@@ -151,16 +170,27 @@ export function OrderMigrate() {
             { header: "تاريخ الطلبية", name: "order_date", width: 150, isReadOnly: true },
             { header: "نوع الطلبية", name: "order_type", width: 140, isReadOnly: true },
             { header: "المبلغ", name: "total_amount", width: 120, isReadOnly: true },
-            { header: "قرار الإدارة", name: "order_decision", width: 140, isReadOnly: true },
+            { header: "حالة التسليم", name: "order_status2", width: 140, isReadOnly: true },
             { header: "رقم الزبون", name: "customer_code", width: 120, isReadOnly: true },
             { header: "اسم الزبون", name: "customer_name", width: "*", isReadOnly: true },
             { header: "الخطأ", name: "error", width: 250, isReadOnly: true, visible: showErrors.current },
 
         ],
     })
-
+    if (!Util.checkUserAccess(14)) {
+        return (
+            <div className="flex items-center justify-center h-64">
+                <div className="text-center">
+                    <h2 className="text-2xl font-semibold mb-2 text-red-600">لا يوجد صلاحية</h2>
+                    <p className="text-muted-foreground">ليس لديك صلاحية للوصول إلى هذه الصفحة</p>
+                </div>
+            </div>
+        )
+    }
     return (
+
         <div className="space-y-6">
+            <ProgressSpinner loading={loading} />
             <Card>
                 <CardHeader>
                     <CardTitle>ترحيل الطلبيات</CardTitle>
@@ -209,9 +239,11 @@ export function OrderMigrate() {
                             <label className="text-sm mb-1">نوع الطلبية</label>
                             <select
                                 value={filters.order_type}
-                                onChange={(e) =>
-                                    setFilters(prev => ({ ...prev, order_type: e.target.value }))
-                                }
+                                onChange={(e) => {
+                                    const view = e.target.value as ViewType;
+                                    setFilters(prev => ({ ...prev, order_type: view, currentView: view }))
+                                    handleViewChange(view)
+                                }}
                                 className="h-11 border rounded px-2"
                             >
                                 <option value="all">الكل</option>

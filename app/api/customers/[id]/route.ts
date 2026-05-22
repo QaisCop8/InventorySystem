@@ -106,7 +106,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     }
 
     const data = await request.json()
-
+    const { voucher } = data
     console.log("[v0] Updating customer with ID:", id)
     console.log("[v0] Update data received:", data)
 
@@ -140,10 +140,24 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       return NextResponse.json({ error: "Customer not found" }, { status: 404 })
     }
 
+    if (Array.isArray(voucher)) {
+      // Delete old vouchers for this customer
+      await sql`DELETE FROM customer_vouchers WHERE customer_id = ${id}`;
+
+      // Insert new ones
+      for (const v of voucher) {
+        await sql`
+          INSERT INTO customer_vouchers (customer_id, voucher_id, book_id)
+          VALUES (${id}, ${v.type_id}, ${v.book_id});
+        `;
+      }
+      console.log(`[v0] Updated vouchers for customer ${id}`);
+    }
+
     return NextResponse.json(result[0])
   } catch (error) {
     console.error("[v0] Error updating customer:", error)
-    return NextResponse.json({ error: "Failed to update customer" }, { status: 500 })
+    return NextResponse.json({ error: "Failed to update customer " + error }, { status: 500 })
   }
 }
 

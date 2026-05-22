@@ -5,9 +5,10 @@ import { Pool } from "pg"
    CONFIG
 ====================================================== */
 
-const ODBC_CONNECTION_STRING =
-  process.env.PERVASIVE_DSN ??
-  "DSN=Houji64;UID=Shamel;PWD=IS011197;";
+const dsn = process.env.PERVASIVE_DSN ?? "Data64";
+
+const ODBC_CONNECTION_STRING = `DSN=${dsn};UID=Shamel;PWD=IS011197;`;
+
 
 /* ======================================================
    TYPES
@@ -51,6 +52,8 @@ interface OrderPayload {
   general_notes: string;
   order_type_id: number;
   is_exported: number;
+  customer_order_no: string;
+  received_by: string;
 }
 
 /* ======================================================
@@ -196,7 +199,8 @@ export async function insertCPage(
   voucherId: string,
   order: OrderPayload,
   insertOrder: number,
-  userId: number
+  userId: number,
+  total_amount: number,
 ) {
   const now = new Date();
   const orderDateStr = formatDate(new Date(order.order_date));
@@ -204,7 +208,12 @@ export async function insertCPage(
   const insertTimeStr = formatTime(now);
   const manualDateStr = formatDate(new Date(order.order_date));
   const manualVch = order.reference_number ?? "";
-  const note = (order.general_notes ?? "").slice(0, 80);
+  const note = (
+    (order.received_by ?? "") + " " +
+    (order.customer_order_no ?? "") + " " +
+    (order.general_notes ?? "")
+
+  ).slice(0, 80);
 
   const sql = `
 INSERT INTO cpage (
@@ -219,7 +228,7 @@ INSERT INTO cpage (
   Manual_Date, ManualVch
 ) VALUES (
   '${voucherId}', '${orderDateStr}', '${order.customer_name}', '${order.customer_code}', '${order.order_number}', '',
-  '${order.currency}', ${order.exchange_rate}, ${order.total_amount}, '', '', 0, ${userId}, 0,
+  '${order.currency}', ${order.exchange_rate}, ${total_amount}, '', '', 0, ${userId}, 0,
   0, 0, 0, 0, '', ${insertOrder},
   '${insertDateStr}', '${insertTimeStr}', '${insertDateStr}', '${insertTimeStr}', ${userId},
   '', 0, 0, 0,
@@ -244,7 +253,7 @@ export async function insertStrans(
   insertOrder: number,
   userId: number,
   pos: number
-) {
+): Promise<number> {
   const now = new Date();
 
   // Format dates
@@ -254,15 +263,30 @@ export async function insertStrans(
   const vat_amount = order.vat_amount ?? 0;
   const discount = order.discount_amount ?? 0;
   let Balance = Number(order.total_amount) - Number(vat_amount) + Number(discount);
+  if (order.customer_code != "") {
+    const cust_price = await getcustPriceIfExists(connection, order.customer_code, item.product_code);
+    if (cust_price > 0) {
+      item.price = cust_price
+    }
+  }
   let vat = 0;
   if (order.vat_amount && Balance > 0) {
     vat = (item.quantity * item.price - (item.discount || 0)) * (order.vat_amount / Balance);
   }
-  const price = item.price * (1 - (Number(discount) / Balance));
+  const priceValue = Number(item.price) || 0;
+  const balanceValue = Number(Balance) || 0;
+  const discountValue = Number(discount) || 0;
+
+  const price =
+    priceValue *
+    (1 - (balanceValue > 0 ? discountValue / balanceValue : 0));
+  const lineTotal =
+    item.quantity * price - (item.discount ?? 0) + vat;
+
   // Prepare note
   const note = item.product_name.replace(/'/g, "''"); // Escape single quotes
   const store_id = (item.store_id != null ? item.store_id - 1 : 0);
-  const unit_id = (item.unit_id != null ? item.unit_id - 1 : 1);
+  const unit_id = (item.unit_id != null ? item.unit_id - 1 : 0);
   const sql = `
 INSERT INTO strans (
   "Voucher ID", "Pos", "Date", "SCode", "UnitNum", "Stat", "Store", "Measure", "Color",
@@ -290,8 +314,59 @@ INSERT INTO strans (
 `;
 
   await connection.query(sql);
+  return lineTotal;
 }
 
+export async function updateSitems(
+  connection: odbc.Connection,
+  order: OrderPayload,
+  item: OrderItem,
+  orderTypeId: number
+) {
+  let qty = (item.quantity || 0) + (item.bonus || 0);
+  if(orderTypeId === 1) {
+    qty = -qty; 
+  }
+  // 1. Try UPDATE
+  const updateResult: any = await connection.query(
+    `
+    UPDATE sitems
+    SET Qnty = Qnty + 
+      CASE 
+        WHEN ? = 1 THEN ?
+        ELSE -?
+      END
+    WHERE Code = ? AND Store = ?
+    `,
+    [order.order_type_id, qty, qty, item.product_code, item.store_id != null ? item.store_id - 1 : 0]
+  );
+
+  const affected =
+    updateResult?.count ??
+    updateResult?.affectedRows ??
+    updateResult?.rowsAffected ??
+    0;
+
+  // 2. If not exists → INSERT
+  if (affected === 0) {
+    await connection.query(
+      `
+      INSERT INTO sitems (
+        Code, Store, Measure, Color, Pos,
+        "Any trans", "St Qnty", Qnty,
+        "Min Qnty", "Max Qnty", "Count Qnty",
+        "Not used 1", ColRow, PostToShamel
+      )
+      VALUES (?, ?, -1, -1, -1, 0, 0, ?, 0, 0, 0, 0, '', 0)
+      `,
+      [
+        item.product_code ?? '',
+        item.store_id != null ? item.store_id - 1 : 0,
+        qty
+      ]
+    );
+  }
+}
 export async function insertCtrans(
   connection: odbc.Connection,
   voucherId: string,
@@ -331,7 +406,8 @@ export async function insertSPage(
   connection: odbc.Connection,
   voucherId: string,
   order: OrderPayload,
-  insertOrder: number
+  insertOrder: number,
+  total_amount: number
 ) {
   const now = new Date();
 
@@ -344,7 +420,7 @@ export async function insertSPage(
   const rate = order.exchange_rate ?? 1;
   const vat = order.vat_amount ?? 0;
   const discount = order.discount_amount ?? 0;
-  let Balance = Number(order.total_amount) - Number(vat) + Number(discount);
+  let Balance = Number(total_amount) - Number(vat) + Number(discount);
   const sql = `
 INSERT INTO spage (
   "Voucher ID", "Date", "SuppInvDate", "Vat due date", "Vch time", "Curr",
@@ -411,6 +487,46 @@ async function checkStockExists(connection: odbc.Connection, productCode: string
     [productCode]
   );
   return result.length > 0 && Number(result[0].exist) > 0;
+}
+
+async function checkManualExists(
+  connection: odbc.Connection,
+  manualVoucher: string
+): Promise<string | null> {
+
+  const result = await connection.query<{ VoucherID: string }>(
+    `SELECT VoucherID 
+     FROM cpage 
+     WHERE rtrim(ltrim(ManualVch)) = ?`,
+    [`${manualVoucher}`]
+  );
+
+  if (result.length > 0) {
+    return result[0].VoucherID;
+  }
+
+  return null;
+}
+
+
+async function getcustPriceIfExists(
+  connection: odbc.Connection,
+  cs_code: string,
+  productCode: string
+): Promise<number> {
+
+  const result = await connection.query<{ price: number }>(
+    `SELECT sp_price1 AS price 
+     FROM custpric
+     WHERE cs_code = ? AND st_code = ?`,
+    [cs_code, productCode]
+  );
+
+  if (result.length > 0 && Number(result[0].price) > 0) {
+    return Number(result[0].price);
+  }
+
+  return 0;
 }
 
 type AccountBalance = {
@@ -500,8 +616,10 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
-
+    console.log(`Starting migration of ${orders.length} orders...`);
+    console.log("Connecting to Pervasive database...");
     connection = await odbc.connect(ODBC_CONNECTION_STRING);
+
 
     const results: {
       order_id: number;
@@ -525,26 +643,49 @@ export async function POST(req: NextRequest) {
           });
           continue;
         }
+        /* ===============================
+     1️⃣ Check if manual voucher exists
+  =============================== */
+        if (order.reference_number !== "") {
+          const existingVoucherId = await checkManualExists(connection, order.reference_number);
+
+          if (existingVoucherId) {
+            results.push({
+              order_id: order.id,
+              order_number: order.order_number,
+              status: "skipped",
+              reason: `رقم السند اليدوي موجود مسبقا (${existingVoucherId})`,
+            });
+            continue;
+          }
+        }
+        if (!order.discount_amount) order.discount_amount = 0;
+        console.log("Processing order:", order.order_number);
         const items = await getOrderItems(order.id);
         const missingItems: string[] = [];
         const missingAccounts: string[] = [];
-
+        console.log("Migrating order:", order.order_number, "with items:", items.length);
         const Accounts: string[] = [];
+
+        const Amounts: number[] = [];
 
         for (const item of items) {
           // 1️⃣ Check if item exists in stock
+          console.log("Checking stock for item:", item.product_code);
           const exists = await checkStockExists(connection, item.product_code);
+          console.log("Stock exists:", exists);
           if (!exists) missingItems.push(item.product_code);
 
           // 2️⃣ Check item account
           let itemAccount;
           if (exists == true) {
+            console.log("Checking account for item:", item.product_code);
             if (order.order_type_id === 1) {
               itemAccount = await getItemAccount_sales(connection, item.product_code);
             } else {
               itemAccount = await getItemAccount_purchase(connection, item.product_code);
             }
-
+            console.log("Item account:", itemAccount);
             if (!itemAccount) missingAccounts.push(item.product_code);
           }
         }
@@ -571,26 +712,24 @@ export async function POST(req: NextRequest) {
         /* ===============================
            1️⃣ Generate VoucherID
         =============================== */
+        console.log(`Before getNextVoucherID...`);
         const voucherId = await getNextVoucherID(
           connection,
           order.order_number,
           order.order_type_id
         );
+        console.log(`After getNextVoucherID...`);
 
-        /* ===============================
-           2️⃣ Insert cpage
-        =============================== */
-        await insertCPage(connection, voucherId, order, 1, 0);
 
         /* ===============================
            3️⃣ Insert strans
         =============================== */
-
+        console.log(`Before insertStrans...`);
         let pos = 0;
         let insertOrder = 1;
-
+        let total_amount = 0;
         for (const item of items) {
-          await insertStrans(
+          const lineAmount = await insertStrans(
             connection,
             voucherId,
             order,
@@ -599,7 +738,24 @@ export async function POST(req: NextRequest) {
             0,
             pos++
           );
+          total_amount += lineAmount;
+          Amounts.push(total_amount)
+          await updateSitems(
+            connection,
+            order,
+            item,
+            order.order_type_id
+          );
+
         }
+        console.log(`After insertStrans...`);
+        /* ===============================
+           2️⃣ Insert cpage
+        =============================== */
+        console.log(`Before insertCPage...`);
+        await insertCPage(connection, voucherId, order, 1, 0, total_amount);
+        console.log(`After insertCPage...`);
+
 
         /* ===============================
            4️⃣ Insert ctrans
@@ -611,7 +767,7 @@ export async function POST(req: NextRequest) {
           connection,
           voucherId,
           order,
-          order.total_amount,
+          total_amount,
           insertOrder++,
           0,
           order.order_type_id === 1 ? 1 : 2,
@@ -621,18 +777,19 @@ export async function POST(req: NextRequest) {
         // VAT
         const vatAccount = await getVatAccount(connection, order.order_type_id);
         const vat = Math.max(order.vat_amount || 0, 0);
-
-        await insertCtrans(
-          connection,
-          voucherId,
-          order,
-          vat,
-          insertOrder++,
-          1,
-          order.order_type_id === 1 ? 2 : 1,
-          vatAccount
-        );
-        Accounts.push(vatAccount);
+        if (vat > 0) {
+          await insertCtrans(
+            connection,
+            voucherId,
+            order,
+            vat,
+            insertOrder++,
+            1,
+            order.order_type_id === 1 ? 2 : 1,
+            vatAccount
+          );
+          Accounts.push(vatAccount);
+        }
         // Items
         let accPos = 2;
         for (const item of items) {
@@ -650,7 +807,7 @@ export async function POST(req: NextRequest) {
             connection,
             voucherId,
             order,
-            amount,
+            Amounts[accPos - 2],
             insertOrder++,
             accPos++,
             order.order_type_id === 1 ? 2 : 1,
@@ -662,7 +819,7 @@ export async function POST(req: NextRequest) {
         /* ===============================
            5️⃣ Insert spage
         =============================== */
-        await insertSPage(connection, voucherId, order, 1);
+        await insertSPage(connection, voucherId, order, 1, total_amount);
         await recalcualateAccounts(connection, Accounts);
         await connection.commit();
         const client = await pool.connect();
@@ -703,7 +860,7 @@ export async function POST(req: NextRequest) {
     console.error("Migration failed:", error);
 
     return NextResponse.json(
-      { error: "Migration failed" },
+      { error: "حدث خطأ في ترحيل الطلبيات " + error },
       { status: 500 }
     );
   } finally {

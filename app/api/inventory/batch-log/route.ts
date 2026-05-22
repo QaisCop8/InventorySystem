@@ -50,7 +50,12 @@ export async function GET(request: NextRequest) {
 
     const product_id = searchParams.get("product_id") || ""
     const from_date = searchParams.get("from_date") || ""
-    const to_date = searchParams.get("to_date") || ""
+    let to_date = searchParams.get("to_date") || ""
+    if (to_date) {
+      const dateObj = new Date(to_date); // creates date at 00:00:00
+      dateObj.setHours(23, 59, 59, 999); // set time to 23:59:59.999
+      to_date = dateObj.toISOString(); // "2026-01-15T23:59:59.999Z"
+    }
     const batchNumber = searchParams.get("batch_number")
 
     // بناء query ديناميكي

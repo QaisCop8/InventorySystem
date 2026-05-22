@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useRef } from "react"
 import { useAuth } from "@/components/auth/auth-context"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -29,6 +29,7 @@ import {
   FileText,
 } from "lucide-react"
 import { formatDateToBritish } from "@/lib/utils"
+import Util from "../common/Util"
 interface OrdersProps {
   isPurchase?: boolean;
 }
@@ -55,7 +56,11 @@ interface SalesOrder {
   order_source?: string
   order_decision?: string
   delivery_date: string,
-  currency_id: number
+  currency_id: number,
+  reference_number: string,
+  received_by: string,
+  customer_order_no: string,
+  ser: number
 }
 
 interface OrderAnalytics {
@@ -71,7 +76,11 @@ interface OrderAnalytics {
 
 export function SalesOrders({ isPurchase }: OrdersProps) {
   const { user } = useAuth()
+  type ViewType = "grid" | "list" | "kanban";
+  const savedView = localStorage.getItem("currentView") as ViewType | null;
+
   const [state, setState] = useState<{
+    fromSearch: boolean | undefined
     salesOrders: SalesOrder[];
     loading: boolean;
     error: string | null;
@@ -96,7 +105,7 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
     loading: true,
     error: null, // ✅ string or null
     selectedOrder: null,
-    currentView: "grid",
+    currentView: savedView || "list",
     showNewOrderDialog: false,
     filters: {
       search: "",
@@ -120,7 +129,10 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
       if (
         state.filters.search &&
         !order.customer_name?.toLowerCase().includes(state.filters.search.toLowerCase()) &&
-        !order.order_number?.toLowerCase().includes(state.filters.search.toLowerCase())
+        !order.order_number?.toLowerCase().includes(state.filters.search.toLowerCase()) &&
+        !order.reference_number?.toLowerCase().includes(state.filters.search.toLowerCase()) &&
+        !order.received_by?.toLowerCase().includes(state.filters.search.toLowerCase()) &&
+        !order.customer_order_no?.toLowerCase().includes(state.filters.search.toLowerCase())
       ) {
         return false
       }
@@ -133,11 +145,21 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
       if (state.filters.salesman !== "all" && order.salesman !== state.filters.salesman) {
         return false
       }
-      if (state.filters.dateFrom && order.order_date < state.filters.dateFrom) {
-        return false
+      const orderDate = new Date(order.order_date);
+      const fromDate = state.filters.dateFrom ? new Date(state.filters.dateFrom) : null;
+      const toDate = state.filters.dateTo ? new Date(state.filters.dateTo) : null;
+
+      // remove time part
+      orderDate.setHours(0, 0, 0, 0);
+      if (fromDate) fromDate.setHours(0, 0, 0, 0);
+      if (toDate) toDate.setHours(0, 0, 0, 0);
+
+      if (fromDate && orderDate < fromDate) {
+        return false;
       }
-      if (state.filters.dateTo && order.order_date > state.filters.dateTo) {
-        return false
+
+      if (toDate && orderDate > toDate) {
+        return false;
       }
       if (state.filters.order_source !== "0" && Number(order.order_decision) !== Number(state.filters.order_source)) {
         return false
@@ -174,15 +196,13 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
   useEffect(() => {
 
     const orders = state.salesOrders || [];
-    console.log("Calculating first order date from orders:", orders);
     if (orders.length === 0) return;
     const firstDate = new Date(
       Math.min(...orders.map(o => new Date(o.order_date).getTime()))
     )
       .toISOString()
       .split("T")[0];
-    console.log("First order date calculated:", firstDate);
-    
+
     setState((prev) => ({
       ...prev,
       filters: { ...prev.filters, dateFrom: firstDate },
@@ -219,10 +239,17 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
       monthlyGrowth,
     }
   }, [state.salesOrders])
-
+  const hasFetched = useRef(false);
   useEffect(() => {
+    if (hasFetched.current) return;
+    hasFetched.current = true;
     fetchSalesOrders()
+    console.log("AAAAA")
   }, [])
+  useEffect(() => {
+    if (state.showNewOrderDialog === false) fetchSalesOrders()
+  }, [state.showNewOrderDialog])
+
   const fetchSalesOrders = async () => {
     setState(prev => ({ ...prev, loading: true, error: null }));
 
@@ -236,11 +263,14 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
       }
 
       const data: SalesOrder[] = await response.json();
-
+      const numberedData = Array.isArray(data)
+        ? data.map((order, index) => ({ ...order, ser: index + 1 }))
+        : [];
       setState(prev => ({
         ...prev,
-        salesOrders: Array.isArray(data) ? data : [],
+        salesOrders: numberedData,
       }));
+
     } catch (err) {
       setState(prev => ({
         ...prev,
@@ -257,26 +287,48 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
 
   const getStatusBadge = (status: string) => {
     const statusConfig = {
-      pending: {
-        label: "قيد التنفيذ",
+      notCompleted: {
+        label: "غير جاهزة",
         variant: "secondary",
         className: "bg-amber-100 text-amber-800 border-amber-200",
       },
-      completed: {
-        label: "مكتملة",
+      Completed: {
+        label: "جاهزة",
         variant: "secondary",
         className: "bg-emerald-100 text-emerald-800 border-emerald-200",
       },
       cancelled: { label: "ملغاة", variant: "secondary", className: "bg-red-100 text-red-800 border-red-200" },
-      processing: {
-        label: "قيد المعالجة",
+      sentPartially: {
+        label: "مرسلة جزئيا",
+        variant: "secondary",
+        className: "bg-blue-100 text-blue-800 border-blue-200",
+      },
+      sent: {
+        label: "مرسلة كليا",
         variant: "secondary",
         className: "bg-blue-100 text-blue-800 border-blue-200",
       },
     }
+    let status_name = ''
+    if (status === '1') {
+      status_name = 'notCompleted'
 
-    const config = statusConfig[status as keyof typeof statusConfig] || {
-      label: status,
+    }
+    else if (status === '2') {
+      status_name = 'Completed'
+
+    }
+    else if (status === '3') {
+      status_name = 'sentPartially'
+    }
+    else if (status === '4') {
+      status_name = 'sent'
+    }
+    else if (status === '5') {
+      status_name = 'cancelled'
+    }
+    const config = statusConfig[status_name as keyof typeof statusConfig] || {
+      label: status_name,
       variant: "secondary",
       className: "",
     }
@@ -361,7 +413,10 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
     if (amount > 5000) return "text-amber-600"
     return "text-green-600"
   }
-
+  const handleViewChange = (view: "grid" | "list") => {
+    setState((prev) => ({ ...prev, currentView: view }));
+    localStorage.setItem("currentView", view);
+  };
   const resetFilters = () => {
     setState((prev) => ({
       ...prev,
@@ -384,9 +439,33 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
       ...prev,
       showNewOrderDialog: true,
       selectedOrder: order,
+      fromSearch: true,
     }))
   }
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 9; // adjust as needed
 
+  const totalPages = Math.ceil(filteredOrders.length / pageSize);
+
+  const paginatedOrders = filteredOrders.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize
+  );
+
+  // reset page when filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filteredOrders]);
+  if (isPurchase && !Util.checkUserAccess(12)) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <h2 className="text-2xl font-semibold mb-2 text-red-600">لا يوجد صلاحية</h2>
+          <p className="text-muted-foreground">ليس لديك صلاحية للوصول إلى طلبيات المشتريات</p>
+        </div>
+      </div>
+    )
+  }
   if (state.loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]" dir="rtl">
@@ -418,7 +497,7 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
 
           <Button
             className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg"
-            onClick={() => setState((prev) => ({ ...prev, showNewOrderDialog: true, selectedOrder: null }))}
+            onClick={() => setState((prev) => ({ ...prev, showNewOrderDialog: true, selectedOrder: null, fromSearch: false }))}
           >
             <Plus className="ml-2 h-4 w-4" />
             طلبية جديدة
@@ -518,7 +597,7 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
               <div className="relative">
                 <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
                 <Input
-                  placeholder="رقم الطلبية، اسم الزبون، أو المندوب..."
+                  placeholder="رقم الطلبية، اسم الزبون، السند اليدوي , استلمت بواسطة..."
                   value={state.filters.search}
                   onChange={(e) =>
                     setState((prev) => ({
@@ -619,14 +698,14 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
               <Button
                 variant={state.currentView === "grid" ? "default" : "outline"}
                 size="sm"
-                onClick={() => setState((prev) => ({ ...prev, currentView: "grid" }))}
+                onClick={() => handleViewChange("grid")}
               >
                 شبكة
               </Button>
               <Button
                 variant={state.currentView === "list" ? "default" : "outline"}
                 size="sm"
-                onClick={() => setState((prev) => ({ ...prev, currentView: "list" }))}
+                onClick={() => handleViewChange("list")}
               >
                 قائمة
               </Button>
@@ -644,7 +723,7 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
         <CardHeader>
           <div className="flex justify-between items-center">
             <div>
-              <CardTitle className="text-slate-800">قائمة الطلبات</CardTitle>
+              <CardTitle className="text-slate-800">قائمة الطلبيات</CardTitle>
               <CardDescription className="text-slate-600">
                 عرض {filteredOrders.length} من أصل {state.salesOrders.length} طلبية
               </CardDescription>
@@ -678,140 +757,112 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
               <div className="mx-auto h-24 w-24 bg-slate-100 rounded-full flex items-center justify-center mb-6">
                 <ShoppingCart className="h-12 w-12 text-slate-400" />
               </div>
-              <h3 className="text-xl font-semibold text-slate-800 mb-2">لا توجد طلبات</h3>
-              <p className="text-slate-600 mb-6">لم يتم العثور على أي طلبات تطابق معايير البحث</p>
+              <h3 className="text-xl font-semibold text-slate-800 mb-2">لا توجد طلبيات</h3>
+              <p className="text-slate-600 mb-6">
+                لم يتم العثور على أي طلبات تطابق معايير البحث
+              </p>
               <Button
                 className="bg-gradient-to-r from-blue-600 to-purple-600"
-                onClick={() => setState((prev) => ({ ...prev, showNewOrderDialog: true, selectedOrder: null }))}
+                onClick={() =>
+                  setState((prev) => ({
+                    ...prev,
+                    showNewOrderDialog: true,
+                    selectedOrder: null,
+                    fromSearch: false,
+                  }))
+                }
               >
                 <Plus className="ml-2 h-4 w-4" />
                 إنشاء طلبية جديدة
               </Button>
             </div>
           ) : state.currentView === "grid" ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredOrders.map((order) => (
-                <Card
-                  key={order.id}
-                  className="bg-white border border-slate-200 hover:shadow-lg transition-all duration-200 hover:border-blue-300"
-                >
-                  <CardContent className="p-6">
-                    <div className="flex justify-between items-start mb-4">
-                      <div>
-                        <h3 className="font-bold text-slate-800 text-lg">{order.order_number}</h3>
-                        <p className="text-slate-600 text-sm">{formatDateToBritish(order.order_date)}</p>
-                      </div>
-                      <div className="flex flex-col gap-2">
-                        {getStatusBadge(String(order.order_status))}
-                        {order.financial_status && getFinancialStatusBadge(order.financial_status)}
-                        {order.workflow_status && getWorkflowStatusBadge(order.workflow_status)}
-                        {order.priority_level && getPriorityBadge(order.priority_level)}
-                        {order.order_source && getOrderSourceBadge(order.order_source)}
-                      </div>
-                    </div>
-
-                    <div className="space-y-3">
-                      <div className="flex items-center gap-2">
-                        <User className="h-4 w-4 text-slate-500" />
-                        <span className="text-slate-700 font-medium">{order.customer_name}</span>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <DollarSign className="h-4 w-4 text-slate-500" />
-                        <span className={`font-bold text-lg ${getPriorityColor(order.total_amount)}`}>
-                          {order.total_amount?.toLocaleString()} {order.currency_code || ""}
-                        </span>
-                      </div>
-
-                      {order.salesman && (
-                        <div className="flex items-center gap-2">
-                          <Avatar className="h-6 w-6">
-                            <AvatarFallback className="text-xs bg-blue-100 text-blue-700">
-                              {order.salesman.charAt(0)}
-                            </AvatarFallback>
-                          </Avatar>
-                          <span className="text-slate-600 text-sm">{order.salesman}</span>
+            <>
+              {/* GRID VIEW */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {paginatedOrders.map((order) => (
+                  <Card
+                    key={order.id}
+                    className="bg-white border border-slate-200 hover:shadow-lg transition-all duration-200 hover:border-blue-300"
+                  >
+                    <CardContent className="p-6">
+                      <div className="flex justify-between items-start mb-4">
+                        <div>
+                          <h3 className="font-bold text-slate-800 text-lg">
+                            {order.order_number}
+                          </h3>
+                          <p className="text-slate-600 text-sm">
+                            {formatDateToBritish(order.order_date)}
+                          </p>
                         </div>
-                      )}
 
-                      {order.delivery_datetime && (
+                        <div className="flex flex-col gap-2">
+                          {getStatusBadge(String(order.order_status))}
+                          {order.financial_status &&
+                            getFinancialStatusBadge(order.financial_status)}
+                          {order.workflow_status &&
+                            getWorkflowStatusBadge(order.workflow_status)}
+                          {order.priority_level &&
+                            getPriorityBadge(order.priority_level)}
+                          {order.order_source &&
+                            getOrderSourceBadge(order.order_source)}
+                        </div>
+                      </div>
+
+                      <div className="space-y-3">
                         <div className="flex items-center gap-2">
-                          <Calendar className="h-4 w-4 text-slate-500" />
-                          <span className="text-slate-600 text-sm">
-                            تسليم: {formatDateToBritish(order.delivery_datetime)}
+                          <User className="h-4 w-4 text-slate-500" />
+                          <span className="text-slate-700 font-medium">
+                            {order.customer_name}
                           </span>
                         </div>
-                      )}
 
-                      {order.current_stage && (
                         <div className="flex items-center gap-2">
-                          <Clock className="h-4 w-4 text-slate-500" />
-                          <span className="text-slate-600 text-sm">المرحلة: {order.current_stage}</span>
+                          <DollarSign className="h-4 w-4 text-slate-500" />
+                          <span
+                            className={`font-bold text-lg ${getPriorityColor(
+                              order.total_amount
+                            )}`}
+                          >
+                            {order.total_amount?.toLocaleString()}{" "}
+                            {order.currency_code || ""}
+                          </span>
                         </div>
-                      )}
-                    </div>
 
-                    <div className="flex justify-between items-center mt-6 pt-4 border-t border-slate-100">
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="bg-white"
-                          onClick={() => handleSearchOrder(order)}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="bg-white"
-                          onClick={() => handleSearchOrder(order)}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
+                        {order.salesman && (
+                          <div className="flex items-center gap-2">
+                            <Avatar className="h-6 w-6">
+                              <AvatarFallback className="text-xs bg-blue-100 text-blue-700">
+                                {order.salesman.charAt(0)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="text-slate-600 text-sm">
+                              {order.salesman}
+                            </span>
+                          </div>
+                        )}
+
+                        {order.delivery_datetime && (
+                          <div className="flex items-center gap-2">
+                            <Calendar className="h-4 w-4 text-slate-500" />
+                            <span className="text-slate-600 text-sm">
+                              تسليم: {formatDateToBritish(order.delivery_datetime)}
+                            </span>
+                          </div>
+                        )}
+
+                        {order.current_stage && (
+                          <div className="flex items-center gap-2">
+                            <Clock className="h-4 w-4 text-slate-500" />
+                            <span className="text-slate-600 text-sm">
+                              المرحلة: {order.current_stage}
+                            </span>
+                          </div>
+                        )}
                       </div>
-                      <Button variant="ghost" size="sm">
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          ) : (
-            // List View
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-slate-200 bg-slate-50">
-                    <th className="text-right p-4 font-semibold text-slate-700">رقم الطلبية</th>
-                    <th className="text-right p-4 font-semibold text-slate-700">التاريخ</th>
-                    <th className="text-right p-4 font-semibold text-slate-700">الزبون</th>
-                    <th className="text-right p-4 font-semibold text-slate-700">الحالة</th>
-                    <th className="text-right p-4 font-semibold text-slate-700">الأولوية</th>
-                    <th className="text-right p-4 font-semibold text-slate-700">المصدر</th>
-                    <th className="text-right p-4 font-semibold text-slate-700">المبلغ</th>
-                    <th className="text-right p-4 font-semibold text-slate-700">المندوب</th>
-                    <th className="text-center p-4 font-semibold text-slate-700">الإجراءات</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredOrders.map((order) => (
-                    <tr key={order.id} className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors">
-                      <td className="p-4 font-medium text-slate-800">{order.order_number}</td>
-                      <td className="p-4 text-slate-600">{formatDateToBritish(order.order_date)}</td>
-                      <td className="p-4 text-slate-700">{order.customer_name}</td>
-                      <td className="p-4">{getStatusBadge(String(order.order_status))}</td>
-                      <td className="p-4">{order.priority_level && getPriorityBadge(order.priority_level)}</td>
-                      <td className="p-4">{order.order_source && getOrderSourceBadge(order.order_source)}</td>
-                      <td className="p-4">
-                        <span className={`font-bold ${getPriorityColor(order.total_amount)}`}>
-                          {order.total_amount?.toLocaleString()} {order.currency_code || ""}
-                        </span>
-                      </td>
-                      <td className="p-4 text-slate-600">{order.salesman}</td>
-                      <td className="p-4">
-                        <div className="flex justify-center gap-2">
+
+                      <div className="flex justify-between items-center mt-6 pt-4 border-t border-slate-100">
+                        <div className="flex gap-2">
                           <Button
                             variant="outline"
                             size="sm"
@@ -828,30 +879,145 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
                           >
                             <Edit className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="sm">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
                         </div>
-                      </td>
+                        <Button variant="ghost" size="sm">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </>
+          ) : (
+            <>
+              {/* LIST VIEW */}
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-slate-200 bg-slate-50">
+                      <th className="text-right p-4">##</th>
+                      <th className="text-right p-4">رقم الطلبية</th>
+                      <th className="text-right p-4">التاريخ</th>
+                      <th className="text-right p-4">الزبون</th>
+                      <th className="text-right p-4">الحالة</th>
+                      <th className="text-right p-4">السند اليدوي</th>
+                      <th className="text-right p-4">رقم طلبية الزبون</th>
+                      <th className="text-right p-4">المبلغ</th>
+                      <th className="text-right p-4">استلمت بواسطة</th>
+                      <th className="text-center p-4">الإجراءات</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+
+                  <tbody>
+                    {paginatedOrders.map((order) => (
+                      <tr
+                        key={order.id}
+                        className="border-b border-slate-100 hover:bg-slate-50/50"
+                      >
+                        <td className="p-4">{order.ser}</td>
+                        <td className="p-4">{order.order_number}</td>
+                        <td className="p-4">
+                          {formatDateToBritish(order.order_date)}
+                        </td>
+                        <td className="p-4">{order.customer_name}</td>
+                        <td className="p-4">
+                          {getStatusBadge(String(order.order_status))}
+                        </td>
+                        <td className="p-4">{order.reference_number}</td>
+                        <td className="p-4">{order.customer_order_no}</td>
+                        <td className="p-4">
+                          <span
+                            className={`font-bold ${getPriorityColor(
+                              order.total_amount
+                            )}`}
+                          >
+                            {order.total_amount?.toLocaleString()}{" "}
+                            {order.currency_code || ""}
+                          </span>
+                        </td>
+                        <td className="p-4">{order.received_by}</td>
+
+                        <td className="p-4">
+                          <div className="flex justify-center gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleSearchOrder(order)}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleSearchOrder(order)}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
+
+          {/* PAGINATION CONTROLS */}
+          {filteredOrders.length > pageSize && (
+            <div className="flex justify-center items-center gap-3 mt-6">
+              <Button
+                variant="outline"
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage((p) => p - 1)}
+              >
+                السابق
+              </Button>
+
+              <div className="text-sm text-slate-600">
+                صفحة {currentPage} من {totalPages}
+              </div>
+
+              <Button
+                variant="outline"
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage((p) => p + 1)}
+              >
+                التالي
+              </Button>
             </div>
           )}
         </CardContent>
       </Card>
 
       {/* New Order Dialog */}
-      <UnifiedSalesOrder
-        open={state.showNewOrderDialog}
-        onOpenChange={(open) => setState((prev) => ({ ...prev, showNewOrderDialog: open, selectedOrder: null }))}
-        order={state.selectedOrder}
-        allOrders={state.salesOrders ?? []}
-        onOrderSaved={fetchSalesOrders}
-        vch_type={isPurchase ? 2 : 1}
-        onCancel={() => setState((prev) => ({ ...prev, showNewOrderDialog: false, selectedOrder: null }))}
-      />
+      {state.showNewOrderDialog && (
+        <UnifiedSalesOrder
+          open={state.showNewOrderDialog}
+          onOpenChange={(open) =>
+            setState((prev) => ({
+              ...prev,
+              showNewOrderDialog: open,
+              selectedOrder: null,
+              fromSearch: false,
+            }))
+          }
+          order={state.selectedOrder}
+          fromSearch={state.fromSearch}
+          allOrders={[]}
+          onOrderSaved={null}
+          vch_type={isPurchase ? 2 : 1}
+          onCancel={() => {
+            setState((prev) => ({
+              ...prev,
+              showNewOrderDialog: false,
+              selectedOrder: null,
+              fromSearch: false,
+            }));
+          }}
+        />
+      )}
     </div>
   )
 }

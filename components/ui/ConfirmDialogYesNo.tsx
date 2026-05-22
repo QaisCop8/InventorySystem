@@ -49,12 +49,13 @@ const ConfirmDialogYesNo: React.FC<ConfirmDialogProps> = ({
   const footer = (
     <div className="flex justify-center gap-3 mt-5">
       <Button
-        onClick={onConfirm}
-        className={`px-6 py-2 text-base rounded-xl shadow-lg ${
-          showBack
+        onClick={() => {
+          onConfirm();
+        }}
+        className={`px-6 py-2 text-base rounded-xl shadow-lg ${showBack
             ? "bg-blue-600 hover:bg-blue-700 text-white"
             : "bg-red-600 hover:bg-red-700 text-white"
-        }`}
+          }`}
       >
         نعم (F3)
       </Button>
@@ -64,7 +65,7 @@ const ConfirmDialogYesNo: React.FC<ConfirmDialogProps> = ({
         variant="outline"
         className="px-6 py-2 text-base rounded-xl border-gray-400"
       >
-        {showBack ?" لا" :" لا (ESC)"}
+        {showBack ? " لا" : " لا (ESC)"}
       </Button>
 
       {showBack && onBack && (
@@ -85,9 +86,8 @@ const ConfirmDialogYesNo: React.FC<ConfirmDialogProps> = ({
       footer={footer}
       modal
       closable={false}
-      className={`rounded-3xl shadow-2xl border-2 ${
-        showBack ? "border-blue-400" : "border-red-400"
-      } backdrop-blur-xl`}
+      className={`rounded-3xl shadow-2xl border-2 ${showBack ? "border-blue-400" : "border-red-400"
+        } backdrop-blur-xl`}
       style={{
         width: "420px",
         direction: "rtl",
@@ -97,9 +97,8 @@ const ConfirmDialogYesNo: React.FC<ConfirmDialogProps> = ({
     >
       <div className="flex flex-col items-center py-4">
         <div
-          className={`bg-white border-2 p-4 rounded-full shadow-md ${
-            showBack ? "border-blue-400" : "border-red-400"
-          }`}
+          className={`bg-white border-2 p-4 rounded-full shadow-md ${showBack ? "border-blue-400" : "border-red-400"
+            }`}
         >
           {showBack ? (
             <SaveAll className="text-blue-600" size={30} />
@@ -109,11 +108,9 @@ const ConfirmDialogYesNo: React.FC<ConfirmDialogProps> = ({
         </div>
 
         <h2
-          className={`text-xl font-bold mt-4 ${
-            showBack ? "text-blue-700" : "text-gray-800"
-          }`}
+          className={`text-xl font-bold mt-4 ${showBack ? "text-blue-700" : "text-gray-800"
+            }`}
         >
-          {showBack ? "حفظ التغييرات" : "تأكيد الحذف"}
         </h2>
 
         <p className="text-gray-600 mt-2 px-4 text-[15px]">{message}</p>

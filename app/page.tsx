@@ -55,6 +55,7 @@ import FontSettings from "@/components/settings/font-settings"
 import QADashboard from "@/components/qa-dashboard"
 import PervasiveSettings from "@/app/settings/pervasive/page"
 import { OrderMigrate } from "@/components/Migration/orders-migration"
+import  {OrderManagement} from "@/components/orders/order-management"
 const componentMap: Record<string, React.ComponentType<any>> = {
   dashboard: Dashboard,
   "inventory-analytics": InventoryAnalytics,
@@ -94,6 +95,7 @@ const componentMap: Record<string, React.ComponentType<any>> = {
   "smart-analytics": SmartAnalyticsDashboard,
   "smart-inventory": SmartInventoryRecommendations,
   "orders-migration": OrderMigrate,
+  "order-management": OrderManagement
 }
 
 export default function HomePage() {
@@ -182,7 +184,122 @@ export default function HomePage() {
       </div>
     )
   }
+  /*useEffect(() => {
+  try {
+    // prevent reopening
+    const alreadyHandled = sessionStorage.getItem(
+      "default_screen_opened"
+    );
+    console.log("alreadyHandled ",alreadyHandled)
+    if (alreadyHandled === "1") return;
 
+    const storedUser =
+      localStorage.getItem("erp_user") ||
+      sessionStorage.getItem("erp_user");
+
+    if (!storedUser) return;
+
+    const user = JSON.parse(storedUser);
+
+    const defaultScreen =
+      user?.dashboard_layout?.default_screen;
+
+    if (!defaultScreen) return;
+
+    const alreadyOpened = windows.some(
+      (w) => w.component === defaultScreen
+    );
+
+    if (!alreadyOpened) {
+
+      const sectionTitles: Record<string, string> = {
+        "sales-orders": "طلبيات المبيعات",
+        "purchase-orders": "طلبيات المشتريات",
+        products: "المنتجات",
+        customers: "العملاء",
+        suppliers: "الموردين",
+        "order-reports": "تقارير الطلبيات",
+        "product-reports": "تقارير المنتجات",
+        "whatsapp-notifications": "إعدادات إشعارات WhatsApp",
+        "ai-assistant": "المساعد الذكي",
+        "smart-analytics": "التحليلات الذكية",
+        "smart-inventory": "توصيات المخزون الذكية",
+        "order-management": "إدارة الطلبات",
+        "orders-migration": "ترحيل الطلبيات",
+        "batch-movements":"معالجة حركات الرقم"
+      };
+
+      openWindow({
+        title: sectionTitles[defaultScreen] || defaultScreen,
+        component: defaultScreen,
+        type: "tab",
+      });
+    }
+
+    // mark as handled
+    sessionStorage.setItem("default_screen_opened", "1");
+
+  } catch (err) {
+    console.error("Failed to open default screen", err);
+  }
+}, []);*/
+const [user, setUser] = useState<any>(null);
+useEffect(() => {
+  const storedUser =
+    localStorage.getItem("erp_user") ||
+    sessionStorage.getItem("erp_user");
+
+  if (storedUser) {
+    setUser(JSON.parse(storedUser));
+  }
+}, []);
+useEffect(() => {
+  const handler = () => {
+    const storedUser =
+      localStorage.getItem("erp_user") ||
+      sessionStorage.getItem("erp_user");
+
+    if (!storedUser) return;
+    const user = JSON.parse(storedUser);
+    const defaultScreen =
+      user?.dashboard_layout?.default_screen;
+    
+
+    if (!defaultScreen) return;
+
+    const alreadyOpened = windows.some(
+      (w) => w.component === defaultScreen
+    );
+    const sectionTitles: Record<string, string> = {
+        "sales-orders": "طلبيات المبيعات",
+        "purchase-orders": "طلبيات المشتريات",
+        products: "الأصناف",
+        customers: "الزبائن",
+        suppliers: "الموردين",
+        "order-reports": "تقارير الطلبيات",
+        "product-reports": "تقارير المنتجات",
+        "whatsapp-notifications": "إعدادات إشعارات WhatsApp",
+        "ai-assistant": "المساعد الذكي",
+        "smart-analytics": "التحليلات الذكية",
+        "smart-inventory": "توصيات المخزون الذكية",
+         "order-management": "إدارة الطلبات",
+        "orders-migration": "ترحيل الطلبيات",
+        "batch-movements":"معالجة الرقم التشغيلي"
+      }
+    if (!alreadyOpened && defaultScreen !== "dashboard") {
+      openWindow({
+        title: sectionTitles[defaultScreen],
+        component: defaultScreen,
+        type: "tab",
+      });
+    }
+  };
+
+  window.addEventListener("OPEN_DEFAULT_SCREEN", handler);
+
+  return () =>
+    window.removeEventListener("OPEN_DEFAULT_SCREEN", handler);
+}, [user, windows]);
   const handleSectionChange = (section: string) => {
     console.log("[v0] Section change requested:", section)
 
@@ -214,7 +331,7 @@ export default function HomePage() {
         "smart-analytics": "التحليلات الذكية",
         "smart-inventory": "توصيات المخزون الذكية",
       }
-
+      
       openWindow({
         title: sectionTitles[section] || section,
         component: section,

@@ -1,5 +1,7 @@
 import { neon } from "@neondatabase/serverless"
+import { JsConfig } from "next/dist/build/load-jsconfig"
 import { Pool } from "pg"
+import { Json } from "twilio/lib/interfaces"
 
 let sql: any = null
 
@@ -52,7 +54,8 @@ export interface User {
   permissions: string[]
   organizationId: number
   isActive: boolean
-  lastLogin?: Date
+  lastLogin?: Date,
+  dashboard_layout?: JsConfig
 }
 
 export interface LoginCredentials {
@@ -117,7 +120,8 @@ export async function authenticateUser(credentials: LoginCredentials): Promise<A
           password_hash,
           is_active as "isActive",
           organization_id as "organizationId",
-          permissions
+          permissions,
+          dashboard_layout
         FROM user_settings 
         WHERE (username = ${credentials.username} OR email = ${credentials.username})
         AND is_active = true
@@ -221,6 +225,7 @@ export async function authenticateUser(credentials: LoginCredentials): Promise<A
         organizationId: dbUser.organizationId,
         isActive: dbUser.isActive,
         lastLogin: new Date(),
+        dashboard_layout: dbUser.dashboard_layout
       }
 
       try {

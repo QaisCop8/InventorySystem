@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -36,6 +36,7 @@ import { useAuth } from "@/components/auth/auth-context"
 import { formatDateToBritish } from "@/lib/utils"
 import ProductCodeInput from "../products/ProductCodeInput"
 import ProductSearchPopup from "../products/ProductSearchPopup"
+import Util from "../common/Util"
 
 interface BatchMovement {
   id: number
@@ -55,6 +56,7 @@ interface BatchMovement {
   order_number?: string
   customer_name?: string
   status?: string
+  last_batch_date?: string
 }
 
 interface ProductLot {
@@ -107,18 +109,59 @@ export function BatchMovements() {
     notes: "",
     new_status: "" as ProductLot["status"] | "",
   })
-
+  const year = new Date().getFullYear() - 1;
   // Filter states
   const [filters, setFilters] = useState({
     product_id: "",
     product_Name: "",
     lot_number: "",
     transaction_type: "0",
-    date_from: new Date(new Date().getFullYear(), 0, 1).toISOString().split("T")[0], // بداية العام الحالي
+    date_from: `${year}-01-01`, // بداية العام الحالي
     date_to: new Date().toISOString().split("T")[0], // تاريخ اليوم
     status: "",
   })
+  const PAGE_SIZE = 10;
+  const [currentPage, setCurrentPage] = useState(1);
+  const totalPages = Math.ceil(movements.length / PAGE_SIZE);
+  const paginatedData = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE;
+    return movements.slice(start, start + PAGE_SIZE);
+  }, [movements, currentPage]);
 
+  const getPages = (currentPage: number, totalPages: number) => {
+    const delta = 1; // how many pages around current
+
+    const range = [];
+
+    for (
+      let i = Math.max(2, currentPage - delta);
+      i <= Math.min(totalPages - 1, currentPage + delta);
+      i++
+    ) {
+      range.push(i);
+    }
+
+    if (currentPage - delta > 2) {
+      range.unshift("...");
+    }
+
+    if (currentPage + delta < totalPages - 1) {
+      range.push("...");
+    }
+
+    range.unshift(1);
+
+    if (totalPages > 1) {
+      range.push(totalPages);
+    }
+
+    return range;
+  };
+  const pages = getPages(currentPage, totalPages);
+  const handlePageChange = (page: number) => {
+    if (page < 1 || page > totalPages) return;
+    setCurrentPage(page);
+  };
   useEffect(() => {
     fetchMovements()
   }, [])
@@ -295,31 +338,50 @@ export function BatchMovements() {
       </div>
     )
   }
-
+  const getStatusName = (status: any) => {
+  switch (status) {
+    case 1: return "new";
+    case 2: return "inUse";
+    case 3: return "closed";
+    case 4: return "damaged";
+    default: return "";
+  }
+};
   async function updateBatchStatus(batchId: number, statusId: number) {
+
     await fetch(`/api/inventory/batch-movements/batch-status/${batchId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status_id: statusId ,user_id: user?.id }),
+      body: JSON.stringify({ status_id: statusId, user_id: user?.id }),
     });
   }
 
+  const handleStatusChange = async (id: number, newStatus: number) => {
+    await updateBatchStatus(id, newStatus);
 
- const setRowStatus = async (batchId: number, newStatus: string) => {
-  try {
-    setMovements((prev) =>
-      prev.map((row) =>
-        row.id === batchId
-          ? { ...row, status: newStatus }
-          : row
+    setMovements(prev =>
+      prev.map(item =>
+        item.id === id
+          ? { ...item, status: getStatusName(newStatus) }
+          : item
       )
     );
+  };
+  const setRowStatus = async (batchId: number, newStatus: string) => {
+    try {
+      setMovements((prev) =>
+        prev.map((row) =>
+          row.id === batchId
+            ? { ...row, status: newStatus }
+            : row
+        )
+      );
 
-    
-  } catch (err) {
-    console.error("Failed to update batch status:", err);
-  }
-};
+
+    } catch (err) {
+      console.error("Failed to update batch status:", err);
+    }
+  };
 
 
 
@@ -485,12 +547,15 @@ export function BatchMovements() {
           </Card>
 
           <Card className="bg-gradient-to-br from-white to-gray-50/30 border-gray-200 shadow-lg">
+
+            {/* HEADER */}
             <CardHeader className="bg-gradient-to-r from-gray-700 to-gray-800 text-white rounded-t-lg">
               <div className="flex justify-between items-center">
                 <CardTitle className="flex items-center gap-2">
                   <Package className="h-5 w-5" />
-                  سجل حركات الدفعات
+                  سجل حركات الأرقام التشغيلية
                 </CardTitle>
+
                 <Button
                   variant="outline"
                   size="sm"
@@ -501,125 +566,193 @@ export function BatchMovements() {
                 </Button>
               </div>
             </CardHeader>
+
+            {/* TABLE */}
             <CardContent className="p-0">
               <div className="overflow-x-auto">
                 <table className="w-full">
+
+                  {/* HEADER */}
                   <thead className="bg-gradient-to-r from-gray-50 to-blue-50/50">
                     <tr>
-                      <th className="text-right p-4 font-semibold text-gray-700">التاريخ</th>
-                      <th className="text-right p-4 font-semibold text-gray-700">الصنف</th>
-                      <th className="text-right p-4 font-semibold text-gray-700">الرقم التشغيلي</th>
-                      <th className="text-right p-4 font-semibold text-gray-700">الحالة</th>
-                      <th className="text-right p-4 font-semibold text-gray-700">رقم الحركة</th>
-                      <th className="text-right p-4 font-semibold text-gray-700">المورد</th>
-                      <th className="text-right p-4 font-semibold text-gray-700">السند اليدوي</th>
-                      <th className="text-right p-4 font-semibold text-gray-700">اجراءات</th>
+                      <th className="p-2 text-right">##</th>
+                      <th className="p-4 text-right">التاريخ</th>
+                      <th className="p-4 text-right">الصنف</th>
+                      <th className="p-4 text-right">الكمية</th>
+                      <th className="p-4 text-right">الرقم التشغيلي</th>
+                      <th className="p-4 text-right">الحالة</th>
+                      <th className="p-4 text-right">رقم الحركة</th>
+                      {Util.checkUserAccess(11) && <th className="p-4 text-right">المورد</th>}
+                      <th className="p-4 text-right">السند اليدوي</th>
+                      <th className="p-4 text-right">تاريخ اخر حركة</th>
+                      <th className="p-4 text-right">اجراءات</th>
                     </tr>
                   </thead>
+
+                  {/* BODY */}
                   <tbody>
-                    {Array.isArray(movements) && movements.length > 0 ? (
-                      movements.map((movement) => (
-                        <tr
-                          key={movement.id}
-                          className="border-b border-blue-100/50 hover:bg-blue-50/30 transition-colors"
-                        >
-                          <td className="p-4">{formatDateToBritish(movement.created_at)}</td>
-                          <td className="p-4">
-                            <div>
-                              <div className="font-medium text-gray-900">{movement.product_name}</div>
-                              <div className="text-sm text-blue-600">{movement.product_code}</div>
-                            </div>
-                          </td>
-                          <td className="p-4">
-                            <Badge variant="outline" className="border-blue-200 text-blue-700 bg-blue-50">
-                              {movement.batch_number}
-                            </Badge>
-                          </td>
-                          <td className="p-4">
-                            <div className="flex items-center gap-2">
+                    {paginatedData.length > 0 ? (
+                      paginatedData.map((movement, index) => {
+                        const rowIndex =
+                          (currentPage - 1) * PAGE_SIZE + index + 1;
+
+                        return (
+                          <tr
+                            key={movement.id}
+                            className="border-b hover:bg-blue-50/30"
+                          >
+                            <td className="p-4">{rowIndex}</td>
+
+                            <td className="p-4">
+                              {formatDateToBritish(movement.created_at)}
+                            </td>
+
+                            <td className="p-4">
+                              <div>
+                                <div className="font-medium">
+                                  {movement.product_name}
+                                </div>
+                                <div className="text-sm text-blue-600">
+                                  {movement.product_code}
+                                </div>
+                              </div>
+                            </td>
+
+                            <td className="p-4">
+                              <Badge>{movement.quantity}</Badge>
+                            </td>
+
+                            <td className="p-4">
+                              <Badge>{movement.batch_number}</Badge>
+                            </td>
+
+                            <td className="p-4 flex gap-2">
                               {getMovementIcon(String(movement.status))}
                               {getMovementBadge(String(movement.status))}
-                            </div>
-                          </td>
-                          <td className="p-4">
-                            <div>
-                              <div className="font-medium text-gray-900">{movement.order_number}</div>
-                            </div>
-                          </td>
-                          <td className="p-4">
-                            <div>
-                              <div className="font-medium text-gray-900">{movement.customer_name}</div>
-                            </div>
-                          </td>
-                          <td className="p-4">
-                            <div>
-                              <div className="font-medium text-gray-900">{movement.reference_number}</div>
-                            </div>
-                          </td>
-                          <td className="p-4">
-                            <div className="flex gap-1">
-                              <StatusButton
-                                value="new"
-                                active={status === 'new'}
-                                icon={<RefreshCcw className="h-4 w-4 text-gray-700" />}
-                                 onClick={async () => {
-                                  //setRowStatus(movement.id, 'inUse'); // update local UI
-                                  await updateBatchStatus(movement.id, 1); // update DB
-                                  setRowStatus(movement.id, 'new');
-                                }}
-                                tooltip="تحويل الى جديد"
-                              />
+                            </td>
+
+                            <td className="p-4">{movement.order_number}</td>
+
+                            {Util.checkUserAccess(11) && (
+                              <td className="p-4">{movement.customer_name}</td>
+                            )}
+
+                            <td className="p-4">
+                              {movement.reference_number}
+                            </td>
+
+                            <td className="p-4">
+                              {movement.last_batch_date
+                                ? new Date(
+                                  movement.last_batch_date
+                                ).toLocaleString()
+                                : ""}
+                            </td>
+
+                            {/* ACTIONS */}
+                            <td className="p-4 flex gap-1">
 
                               <StatusButton
                                 value="inUse"
-                                active={status === 'inUse'}
+                                active={movement.status === "inUse"}
                                 icon={<Edit className="h-4 w-4" />}
                                 onClick={async () => {
-                                  
-                                  await updateBatchStatus(movement.id, 2); // update DB
-                                  setRowStatus(movement.id, 'inUse'); // update local UI
+                                  if (movement.status === "inUse") return;
+                                  handleStatusChange(movement.id, 2);
+
                                 }}
-                                tooltip="تحويل الى قيد الاستخدام"
                               />
 
                               <StatusButton
                                 value="closed"
-                                active={status === 'closed'}
+                                active={movement.status === "closed"}
                                 icon={<Lock className="h-4 w-4" />}
-                                 onClick={async () => {
-                                  //setRowStatus(movement.id, 'inUse'); // update local UI
-                                  await updateBatchStatus(movement.id, 3); // update DB
-                                  setRowStatus(movement.id, 'closed');
+                                onClick={async () => {
+                                  if (movement.status === "closed") return;
+                                  handleStatusChange(movement.id, 3);
                                 }}
-                                tooltip="تحويل الى مغلق"
                               />
 
                               <StatusButton
                                 value="damaged"
-                                active={status === 'damaged'}
-                                icon={<AlertTriangle className="h-4 w-4 text-red-500" />}
-                                 onClick={async () => {
-                                  //setRowStatus(movement.id, 'inUse'); // update local UI
-                                  await updateBatchStatus(movement.id, 4); // update DB
-                                  setRowStatus(movement.id, 'damaged');
+                                active={movement.status === "damaged"}
+                                icon={
+                                  <AlertTriangle className="h-4 w-4 text-red-500" />
+                                }
+                                onClick={async () => {
+                                  if (movement.status === "damaged") return;
+                                  handleStatusChange(movement.id, 4);
                                 }}
-                                tooltip="تحويل الى تالف"
                               />
-                            </div>
 
-                          </td>
-                        </tr>
-                      ))
+                              {Util.checkUserAccess(13) && (
+                                <StatusButton
+                                  value="new"
+                                  active={movement.status === "new"}
+                                  icon={
+                                    <AlertTriangle className="h-4 w-4 text-yellow-500" />
+                                  }
+                                  onClick={async () => {
+                                    if (movement.status === "new") return;
+                                    handleStatusChange(movement.id, 1);
+                                  }}
+                                />
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })
                     ) : (
                       <tr>
-                        <td colSpan={9} className="p-8 text-center text-gray-500">
-                          لا توجد ارقام تشغيلية للعرض
+                        <td colSpan={11} className="p-8 text-center text-gray-500">
+                          لا توجد بيانات
                         </td>
                       </tr>
                     )}
                   </tbody>
                 </table>
               </div>
+
+              {/* PAGINATION */}
+              <div className="flex justify-between items-center p-4 border-t">
+
+                <div>
+                  صفحة {currentPage} من {totalPages}
+                </div>
+
+                <div className="flex gap-2">
+
+                  <Button
+                    disabled={currentPage === 1}
+                    onClick={() => handlePageChange(currentPage - 1)}
+                  >
+                    السابق
+                  </Button>
+
+                  {pages.map((page, index) =>
+                    page === "..." ? (
+                      <span key={index} className="px-2">...</span>
+                    ) : (
+                      <Button
+                        key={index}
+                        variant={currentPage === (page as number) ? "default" : "outline"}
+                        onClick={() => handlePageChange(page as number)}
+                      >
+                        {page}
+                      </Button>
+                    )
+                  )}
+
+                  <Button
+                    disabled={currentPage === totalPages}
+                    onClick={() => handlePageChange(currentPage + 1)}
+                  >
+                    التالي
+                  </Button>
+
+                </div>
+              </div>
+
             </CardContent>
           </Card>
         </TabsContent>

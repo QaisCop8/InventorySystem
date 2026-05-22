@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
-import sql, { updateSalesOrder, deleteSalesOrder } from "@/lib/orders"
+import sql, { updateSalesOrder, deleteSalesOrder,updatePrintSalesOrder } from "@/lib/orders"
 
-export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT_old(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     console.log("[v0] PUT /api/orders/sales/[id] - Starting request processing")
 
@@ -93,6 +93,53 @@ export async function DELETE(
     console.error("[v0] Error stack:", error.stack);
 
     const errorMessage = error.message || "حدث خطأ في حذف طلبية المبيعات";
+    return NextResponse.json(
+      {
+        error: errorMessage,
+        details: process.env.NODE_ENV === "development" ? error.stack : undefined,
+      },
+      { status: 500 }
+    );
+  }
+}
+
+
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    console.log("[v0] Print /api/orders/sales/[id] - Starting request processing");
+
+    const orderId = Number.parseInt(params.id);
+    if (Number.isNaN(orderId)) {
+      return NextResponse.json(
+        { error: "رقم الطلبية غير صحيح" },
+        { status: 400 }
+      );
+    }
+
+    // احصل على userId من الجلسة أو request headers (مثال)
+    const userId = request.headers.get("x-user-id") || "";
+
+    // احصل على order_type إذا تريد استخدامه كـ voucherType
+    const orderData = await sql`SELECT order_type FROM orders WHERE id = ${orderId}`;
+    if (!orderData || orderData.length === 0) {
+      return NextResponse.json(
+        { error: "الطلبية غير موجودة" },
+        { status: 404 }
+      );
+    }
+
+    const voucherType = orderData[0].order_type;
+    await updatePrintSalesOrder(orderId, voucherType, userId);
+
+    return NextResponse.json({ message: "" });
+  } catch (error: any) {
+    console.error("[v0] Delete sales order API error:", error);
+    console.error("[v0] Error stack:", error.stack);
+
+    const errorMessage = error.message || "حدث خطأ في طباعة الطلبية ";
     return NextResponse.json(
       {
         error: errorMessage,

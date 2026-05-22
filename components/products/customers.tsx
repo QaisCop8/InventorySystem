@@ -36,6 +36,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useAuth } from "../auth/auth-context"
 import CustomerSearchPopup from "./CustomerSearchPopup"
 import ConfirmDialogYesNo from "../ui/ConfirmDialogYesNo"
+import DataGrid from "../common/DataGrid"
+import * as wjGrid from "@grapecity/wijmo.grid";
+import DataGridView from "../common/DataGridView"
+import Util from "../common/Util"
 interface CustomersProps {
   isSupplier?: boolean;
 }
@@ -85,6 +89,14 @@ interface Salesman {
   department?: string
   is_active: boolean
 }
+interface VoucherItem {
+  ser: number;
+  type_id: number;
+  type_name: string;
+  book_id: number;
+  book_name: string;
+  [key: string]: any;
+}
 
 interface CustomerFormData {
   id: number,
@@ -111,7 +123,8 @@ interface CustomerFormData {
   credit_limit: string
   payment_terms: string
   discount_percentage: string,
-  pricecategory: number
+  pricecategory: number,
+  voucherType?: VoucherItem[],
 }
 
 interface CustomerUser {
@@ -148,7 +161,7 @@ interface NotificationSettings {
 export default function Customers({ isSupplier }: CustomersProps) {
   const [customers, setCustomers] = useState<Customer[]>([])
   const [isloading, setIsLoading] = useState(false)
-  const toast = useRef<Toast>(null);
+  const toast = useRef(null);
   const [currentIndex, setCurrentIndex] = useState(0)
   const [showCustomerDialog, setShowCustomerDialog] = useState(false)
   const [showNewCustomerDialog, setShowNewCustomerDialog] = useState(false)
@@ -166,6 +179,7 @@ export default function Customers({ isSupplier }: CustomersProps) {
   const [showConfirm, setShowConfirm] = useState(false);
   const [showUnsaved, setShowUnsaved] = useState(false);
   const [nextFunction, setNextFunction] = useState<(() => void) | null>(null);
+  const bookGridRef = useRef<wjGrid.FlexGrid>(null);
   const [newUserData, setNewUserData] = useState({
     username: "",
     password: "",
@@ -214,7 +228,8 @@ export default function Customers({ isSupplier }: CustomersProps) {
     credit_limit: "",
     payment_terms: "نقدي",
     discount_percentage: "",
-    pricecategory: 0
+    pricecategory: 0,
+    voucherType: []
   })
 
   const [searchFilters, setSearchFilters] = useState({
@@ -223,6 +238,9 @@ export default function Customers({ isSupplier }: CustomersProps) {
     status: "",
     salesman: "",
   })
+
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pageSize, setPageSize] = useState(20)
 
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -243,10 +261,175 @@ export default function Customers({ isSupplier }: CustomersProps) {
     })
   }, [customers, searchFilters])
 
+  const totalPages = Math.max(1, Math.ceil(filteredCustomers.length / pageSize))
+  const pageStart = filteredCustomers.length === 0 ? 0 : (currentPage - 1) * pageSize + 1
+  const pageEnd = Math.min(currentPage * pageSize, filteredCustomers.length)
+
+  const pagedCustomers = useMemo(() => {
+    const start = (currentPage - 1) * pageSize
+    return filteredCustomers.slice(start, start + pageSize)
+  }, [filteredCustomers, currentPage, pageSize])
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [filteredCustomers, pageSize])
+
   const currentCustomer = useMemo(() => {
     console.log("customers[currentIndex] ", customers[currentIndex])
     return customers[currentIndex] || null
   }, [customers, currentIndex])
+
+  const handleAddRow = () => {
+    setFormData(prev => {
+      const voucherTypes = prev.voucherType || [];
+      const maxSer = voucherTypes.reduce((max, row) => (row.ser > max ? row.ser : max), 0);
+
+      const firstType = definitionsRef.current.voucher_types[0] || { type_id: 0, type_name: "" }; // fallback
+      const firstBook = definitionsRef.current.voucher_books[0] || { book_id: 0, book_name: "" };
+      const newType: VoucherItem = {
+        type_id: firstType.id,                       // temporary unique id
+        type_name: firstType.name,              // default value
+        book_id: firstBook.id,                       // temporary unique id
+        book_name: firstBook.name,
+        ser: maxSer + 1,
+
+      };
+      console.log("newType ", newType)
+      return {
+        ...prev,
+        voucherType: [...voucherTypes, newType],
+      };
+    });
+  };
+  const handleDeleteRow = (index: number) => {
+    setFormData((prev) => {
+      const rows = [...(prev.voucherType ?? [])];
+      if (index >= 0 && index < rows.length) {
+        rows.splice(index, 1);
+      }
+      return { ...prev, voucherType: rows };
+    });
+  };
+  const getScheme = () => {
+    let scheme = {
+      name: 'UnitsScheme_Table',
+      filter: false,
+      showFooter: false,
+      sortable: true,
+      allowGrouping: false,
+      responsiveColumnIndex: 2,
+      columns: [
+        {
+          header: "##", name: "ser", width: 65, visible: true
+        },
+
+        { header: "id", name: "id", width: 150, visible: false },
+
+        {
+          header: "نوع السند",
+          name: "type_name",
+          width: "*",
+          minWidth: 150,
+
+          editor: (cell: any) => (
+            <select
+              value={cell.row.dataItem.type_id ?? 0}
+              onChange={(e) => {
+                const typeId = Number(e.target.value);
+
+                const selectedType = definitions.voucher_types.find(
+                  (t: any) => t.id === typeId
+                );
+
+                // ✅ Update React state
+                setFormData(prev => {
+                  const rows = [...(prev.voucherType ?? [])];
+                  const rowIndex = cell.row.index;
+
+                  rows[rowIndex] = {
+                    ...rows[rowIndex],
+                    type_id: typeId,
+                    type_name: selectedType?.name || "",
+                  };
+
+                  return { ...prev, voucherType: rows };
+                });
+
+                // ✅ Update grid row immediately
+                cell.row.dataItem.type_id = typeId;
+                cell.row.dataItem.type_name = selectedType?.name || "";
+              }}
+              className="px-2 py-1 w-full"
+            >
+              {(definitions.voucher_types ?? []).map((t: any) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
+          ),
+        },
+
+        { header: "type_id", name: "type_id", width: 150, visible: false },
+        {
+          header: "دفتر السندات",
+          name: "book_name",
+          width: 250,
+          visible: true,
+
+          editor: (cell: any) => (
+            <select
+              value={cell.row.dataItem.book_id ?? 0} // use book_id for value
+              onChange={(e) => {
+                const bookId = Number(e.target.value);
+
+                // Find the selected book from definitions
+                const selectedBook = definitions.voucher_books.find(
+                  (b: any) => b.id === bookId
+                );
+
+                // ✅ Update formData.voucherType state
+                setFormData((prev) => {
+                  const rows = [...(prev.voucherType ?? [])];
+                  const rowIndex = cell.row.index;
+
+                  rows[rowIndex] = {
+                    ...rows[rowIndex],
+                    book_id: bookId,
+                    book_name: selectedBook?.name || "",
+                  };
+
+                  return { ...prev, voucherType: rows };
+                });
+
+                // ✅ Update grid row immediately
+                cell.row.dataItem.book_id = bookId;
+                cell.row.dataItem.book_name = selectedBook?.name || "";
+              }}
+              className="px-2 py-1 w-full"
+            >
+              {(definitions.voucher_books ?? []).map((b: any) => (
+                <option key={b.id} value={b.id}>
+                  {b.name}
+                </option>
+              ))}
+            </select>
+          ),
+        },
+
+        { header: "book_id", name: "book_id", width: 150, visible: false },
+        {
+          header: " ",
+          name: "delete",
+          width: 80,
+          buttonBody: "button",
+          iconType: "trash",
+          onClick: (item: { ser: number }) => handleDeleteRow(item.ser - 1)
+        }
+      ],
+    }
+    return scheme;
+  }
 
   const fetchPortalUsers = useCallback(async (customerId: number) => {
     try {
@@ -490,34 +673,35 @@ export default function Customers({ isSupplier }: CustomersProps) {
   const updateFormData = useCallback((customer: Customer | null) => {
     if (!customer) {
       const emptyCustomer: CustomerFormData = {
-      id: 0,
-      customer_code: "",
-      name: "",
-      mobile1: "",
-      mobile2: "",
-      whatsapp1: "",
-      whatsapp2: "",
-      city: "",
-      address: "",
-      email: "",
-      status: "نشط",
-      business_nature: "",
-      salesman: "",
-      classification: "",
-      registration_date: new Date().toISOString().split("T")[0],
-      web_username: "",
-      web_password: "",
-      transaction_notes: "",
-      general_notes: "",
-      tax_number: "",
-      commercial_registration: "",
-      credit_limit: "",
-      payment_terms: "نقدي",
-      discount_percentage: "",
-      pricecategory: pricecategory?.[0]?.id || 0,
-    }
+        id: 0,
+        customer_code: "",
+        name: "",
+        mobile1: "",
+        mobile2: "",
+        whatsapp1: "",
+        whatsapp2: "",
+        city: "",
+        address: "",
+        email: "",
+        status: "نشط",
+        business_nature: "",
+        salesman: "",
+        classification: "",
+        registration_date: new Date().toISOString().split("T")[0],
+        web_username: "",
+        web_password: "",
+        transaction_notes: "",
+        general_notes: "",
+        tax_number: "",
+        commercial_registration: "",
+        credit_limit: "",
+        payment_terms: "نقدي",
+        discount_percentage: "",
+        pricecategory: pricecategory?.[0]?.id || 0,
+        voucherType: []
+      }
 
-    setFormData(emptyCustomer)
+      setFormData(emptyCustomer)
       return
     }
 
@@ -550,34 +734,38 @@ export default function Customers({ isSupplier }: CustomersProps) {
       pricecategory: (customer as any).pricecategory || 0,
     })
   }, [])
+  const [definitions, setDefinitions] = useState({
+    voucher_types: [] as Array<{ id: number; name: string }>,
+    voucher_books: [] as Array<{ id: number; name: string }>,
 
+  })
+  const definitionsRef = useRef({
+    voucher_types: [] as Array<{ id: number; name: string }>,
+    voucher_books: [] as Array<{ id: number; name: string; }>,
+
+  });
   const [currentCustomerId, setCurrentCustomerId] = useState<number>(0);
 
   const loadData = async (
-    navigationType: "first" | "previous" | "next" | "last" | "ById",
+    navigationType: "first" | "previous" | "next" | "last" | "ById" | "ByIdEdit",
     customerId?: number,
     isSupplier: boolean = false,
     checkUnsaved: boolean = true
   ) => {
     const currentHash = getFormDataHash(formData);
 
-    if (checkUnsaved && currentHash !== initialHash.current) {
+    if (false && checkUnsaved && currentHash !== initialHash.current && initialHash.current !== 0) {
       setShowUnsaved(true);
       setNextFunction(() => () => loadData(navigationType, customerId, isSupplier, false));
       return;
     }
 
     try {
-      /*if (!hasPermission(isSupplier ? "suppliers-view" : "customers-view")) {
-        toast.current?.show({
-          severity: 'error',
-          summary: '',
-          detail: isSupplier ? 'لا يوجد لديك استعلام مورد' : 'لا يوجد لديك استعلام زبون',
-          life: 3000
-        });
-        return;
-      }*/
-
+      let dont_check = false;
+      if (navigationType === "ByIdEdit") {
+        dont_check = true;
+        navigationType = "ById"
+      }
       const url = new URL(`/api/customer/navigations/${navigationType}`, location.origin);
 
       // Determine ID for navigation
@@ -593,16 +781,13 @@ export default function Customers({ isSupplier }: CustomersProps) {
       const res = await fetch(url.toString());
       console.log("res res ", url)
       const customer = await res.json();
-      console.log("customer ", customer)
-      if (!customer.id || customer.id === currentCustomerId) {
-        toast.current?.show({
-          severity: 'error',
-          summary: '',
-          detail: navigationType === "previous" || navigationType === "first"
-            ? 'بداية السجلات'
-            : 'نهاية السجلات',
-          life: 3000
-        });
+      console.log("navigationType ", navigationType)
+      if (!customer.id || (customer.id === currentCustomerId && !dont_check)) {
+
+        let msg = navigationType === "previous" || navigationType === "first"
+          ? 'بداية السجلات'
+          : 'نهاية السجلات';
+        Util.showErrorToast(toast.current, msg);
         return;
       }
 
@@ -611,13 +796,13 @@ export default function Customers({ isSupplier }: CustomersProps) {
         ...customer
       };
       setFormData(customer);
-      console.log("newFormData ",newFormData)
+      console.log("newFormData ", newFormData)
 
       setTimeout(() => {
-      customer_name.current?.focus();
-      initialHash.current = getFormDataHash(formData)
-      setCurrentCustomerId(customer.id)
-    }, 200);
+        customer_name.current?.focus();
+        initialHash.current = getFormDataHash(formData)
+        setCurrentCustomerId(customer.id)
+      }, 200);
 
     } catch (err) {
       console.error("Error loading customer:", err);
@@ -689,7 +874,7 @@ export default function Customers({ isSupplier }: CustomersProps) {
       errors.customer_name = "اسم الزبون مطلوب"
     }
 
-    if (!formData.mobile1.trim()) {
+    /*if (!formData.mobile1.trim()) {
       errors.mobile1 = "رقم الجوال مطلوب"
     } else if (!/^\d{10}$/.test(formData.mobile1.replace(/\s/g, ""))) {
       errors.mobile1 = "رقم الجوال يجب أن يكون 10 أرقام"
@@ -697,7 +882,18 @@ export default function Customers({ isSupplier }: CustomersProps) {
 
     if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       errors.email = "البريد الإلكتروني غير صحيح"
-    }
+    }*/
+
+    const typeSet = new Set<number>();
+    (formData.voucherType ?? []).forEach((v, index) => {
+      if (typeSet.has(v.type_id)) {
+
+        Util.showErrorToast(toast.current, 'لا يمكن تكرار نفس نوع السند في دفاتر السندات الافتراضية للزبون');
+        errors.vocherType = "ا يمكن تكرار نفس نوع السند في دفاتر السندات الافتراضية للزبون"
+      } else {
+        typeSet.add(v.type_id);
+      }
+    });
 
     setValidationErrors(errors)
     return Object.keys(errors).length === 0
@@ -709,23 +905,20 @@ export default function Customers({ isSupplier }: CustomersProps) {
         setIsLoading(true);
         setError(null);
 
-        // Fetch all from the same API and filter by type
-        const response = await fetch("/api/customers"); // same table endpoint
+        const url = `/api/customers?type=${isSupplier ? 2 : 1}`;
+        const response = await fetch(url);
 
         if (response.ok) {
           const data = await response.json();
           const allRecords = Array.isArray(data) ? data : data.customers || [];
-          console.log("allRecords ", allRecords)
-          // Filter by type
           const filteredRecords = allRecords.filter((record: { type: number }) =>
             isSupplier ? record.type === 2 : record.type === 1
           );
-          console.log("isSupplier ", isSupplier)
           filteredRecords.sort((a: Customer, b: Customer) => a.id - b.id);
           setCustomers(filteredRecords);
 
-          if (filteredRecords.length > 0 && currentIndex >= filteredRecords.length) {
-            setCurrentIndex(0);
+          if (filteredRecords.length > 0) {
+            setCurrentIndex((prevIndex) => (prevIndex >= filteredRecords.length ? 0 : prevIndex));
           }
         } else {
           setError(isSupplier ? "فشل في تحميل بيانات الموردين" : "فشل في تحميل بيانات الزبائن");
@@ -737,7 +930,7 @@ export default function Customers({ isSupplier }: CustomersProps) {
         setIsLoading(false);
       }
     },
-    [currentIndex]
+    [isSupplier]
   );
 
 
@@ -827,6 +1020,66 @@ export default function Customers({ isSupplier }: CustomersProps) {
     },
     [updateField]
   );
+
+  const adjustCode = (code: string, codeLen: number = 8): string => {
+    if (!code || !code.trim()) return '';
+
+    code = code.trim().toUpperCase();
+
+    // Separate prefix (letters) and numeric part
+    const match = code.match(/^([A-Z]*)(\d*)$/);
+    if (!match) return code; // invalid pattern (contains symbols)
+
+    let [, prefix, numPart] = match;
+    const padLen = Math.max(codeLen - prefix.length, 0);
+    const paddedNum = numPart.padStart(padLen, '0');
+
+    return `${prefix}${paddedNum}`;
+  };
+
+
+  const handleCustomerBlur = async (value: string) => {
+    if (!value) return;
+
+    const adjustedCode = adjustCode(value);
+    if (adjustedCode !== formData.customer_code) {
+      updateField("customer_code", adjustedCode);
+    }
+
+    // Search for customer by code
+    try {
+      const response = await fetch(`/api/customers/by-code/${encodeURIComponent(adjustedCode)}`);
+      const data = await response.json();
+      console.log("Search by code response:", data);
+      if (data.found) {
+        // Load the customer data
+        if(isSupplier && data.customer.type !== 2) {
+          await reset_fields();
+          Util.showErrorToast(toast.current, "الرقم المدخل  لزبون وليس مورد")
+          return
+        }
+        else if(!isSupplier && data.customer.type !== 1) {  
+          await reset_fields();
+          Util.showErrorToast(toast.current, "الرقم المدخل  لمورد وليس زبون")
+          return
+        }
+        setFormData((prev) => ({
+          ...prev,
+          id: Number(data.customer.id), // use customer.id
+        }));
+        loadData("ById", data.customer.id);
+
+      } else {
+        // Reset the form since customer not found
+        await reset_fields(1, adjustedCode);
+      }
+    } catch (error) {
+      console.error("Error searching customer by code:", error);
+      // Optionally show error message
+      setError("حدث خطأ في البحث عن العميل");
+    }
+  }
+
   const handleSaveCustomer = (
     customerData: CustomerFormData
   ) => {
@@ -842,6 +1095,12 @@ export default function Customers({ isSupplier }: CustomersProps) {
           : "/api/customers";
 
       const method = currentCustomerId > 0 ? "PUT" : "POST";
+
+      const voucher = (customerData.voucherType ?? []).map((v) => ({
+        type_id: v.type_id,
+        book_id: v.book_id,
+        ser: v.ser,
+      }));
 
       const dataToSend = {
         id: customerData.id,
@@ -870,6 +1129,8 @@ export default function Customers({ isSupplier }: CustomersProps) {
         discount_percentage: customerData.discount_percentage,
         type: isSupplier ? 2 : 1,
         pricecategory: customerData.pricecategory,
+        voucher,
+
       };
 
       console.log("[v0] Sending customer data:", dataToSend);
@@ -1060,19 +1321,23 @@ export default function Customers({ isSupplier }: CustomersProps) {
     editingCustomerRef.current = false
     setValidationErrors({})
     setShowNewCustomerDialog(true)
-    await generateCustomerNumber()
+    if (from_code == 0) {
+      await generateCustomerNumber()
+    }
+    else updateField("customer_code", code);
     setIsLoading(false)
 
 
-   
+
     setTimeout(() => {
       customer_name.current?.focus();
-    initialHash.current = getFormDataHash(formData)
-    
+      initialHash.current = getFormDataHash(formData)
+
     }, 200);
     setCurrentCustomerId(0)
   }
   const handleNewCustomer = async (checkUnsaved: any) => {
+
     const currentHash = getFormDataHash(formData);
     if (checkUnsaved === true && currentHash !== initialHash.current) {
       setShowUnsaved(true)
@@ -1085,21 +1350,62 @@ export default function Customers({ isSupplier }: CustomersProps) {
 
   }
 
+  const fetch_Definitions = async () => {
+    try {
+      const definitionsObj: any = {}
+
+      const voucherTypesResponse = await fetch("/api/vouchers/voucher-types");
+      console.log("voucherTypesResponse ", voucherTypesResponse)
+      if (voucherTypesResponse.ok) {
+        const voucherTypesData = await voucherTypesResponse.json();
+        definitionsObj.voucherTypes = voucherTypesData;
+        definitionsRef.current.voucher_types = voucherTypesData;
+        setDefinitions(prev => ({ ...prev, voucher_types: voucherTypesData }));
+      }
+
+      const voucherBooksResponse = await fetch("/api/vouchers/voucher-books");
+      console.log("voucherBooksResponse ", voucherBooksResponse)
+      if (voucherBooksResponse.ok) {
+        const voucherBooksData = await voucherBooksResponse.json();
+        definitionsObj.voucherBooks = voucherBooksData;
+        definitionsRef.current.voucher_books = voucherBooksData;
+        setDefinitions(prev => ({ ...prev, voucher_books: voucherBooksData }));
+      }
+
+      return definitionsObj
+    } catch (error) {
+      console.error("Error fetching definitions:", error)
+      return {}
+    }
+  }
   useEffect(() => {
-    if (showNewCustomerDialog) {
+    if (!showNewCustomerDialog) return;
+    const load = async () => {
+      await fetch_Definitions();
+
       // Wait for the input to mount
       setTimeout(() => {
         customer_name.current?.focus();
       }, 100);
-    }
+    };
+
+    load();
   }, [showNewCustomerDialog]);
+
+
   const handleEditCustomer = useCallback(
     (customer: Customer) => {
       updateFormData(customer)
+      setCurrentCustomerId(customer.id)
       setEditingCustomer(true)
       editingCustomerRef.current = true
       setValidationErrors({})
       setShowNewCustomerDialog(true)
+      console.log("customer customer ", customer)
+      setTimeout(() => {
+        loadData("ByIdEdit", customer.id);
+      }, 200);
+
     },
     [updateFormData],
   )
@@ -1183,6 +1489,17 @@ export default function Customers({ isSupplier }: CustomersProps) {
       </div>
     )
   }*/
+  if ((!isSupplier && !Util.checkUserAccess(15)) || (isSupplier && !Util.checkUserAccess(16))) {
+
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <h2 className="text-2xl font-semibold mb-2 text-red-600">لا يوجد صلاحية</h2>
+          <p className="text-muted-foreground">ليس لديك صلاحية للوصول إلى هذه الصفحة</p>
+        </div>
+      </div>
+    )
+  }
   return (
 
     <div className="container mx-auto p-6 space-y-6" dir="rtl">
@@ -1216,7 +1533,7 @@ export default function Customers({ isSupplier }: CustomersProps) {
         </div>
       )}
       <ProgressSpinner loading={isloading} />
-      <Toast ref={toast} position="top-left" className="custom-toast" />
+      <Toast ref={toast} position={'top-left'} style={{ top: 100, whiteSpace: 'pre-line' }} />
       {/* Error Message */}
       {error && <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">{error}</div>}
 
@@ -1426,7 +1743,7 @@ export default function Customers({ isSupplier }: CustomersProps) {
                 </tr>
               </thead>
               <tbody>
-                {filteredCustomers.map((customer) => (
+                {pagedCustomers.map((customer) => (
                   <tr key={customer.id} className="hover:bg-gray-50">
                     <td className="border border-gray-300 px-4 py-2">{customer.customer_code}</td>
                     <td className="border border-gray-300 px-4 py-2">{customer.name}</td>
@@ -1457,6 +1774,39 @@ export default function Customers({ isSupplier }: CustomersProps) {
                 ))}
               </tbody>
             </table>
+            <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="text-sm text-muted-foreground">
+                عرض {pageStart} إلى {pageEnd} من {filteredCustomers.length}
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                >
+                  السابق
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={currentPage === totalPages}
+                  onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                >
+                  التالي
+                </Button>
+                <Select value={String(pageSize)} onValueChange={(value) => setPageSize(Number(value))}>
+                  <SelectTrigger className="h-10 w-24">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[10, 20, 50, 100].map((size) => (
+                      <SelectItem key={size} value={String(size)}>{size}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -1479,6 +1829,7 @@ export default function Customers({ isSupplier }: CustomersProps) {
           <CustomerSearchPopup
             visible={showCustomerSearch}
             type={isSupplier ? 2 : 1}
+            vch_type={0}
             onClose={() => setShowCustomerSearch(false)}
             onSelect={(customer) => {   // customer: Customer
               setFormData((prev) => ({
@@ -1557,10 +1908,16 @@ export default function Customers({ isSupplier }: CustomersProps) {
                             <Input
                               id="customer_code"
                               value={formData.customer_code}
-                              onChange={(e) => updateField("customer_code", e.target.value)}
+                              onChange={(e) => {
+                                const value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+                                updateField("customer_code", value);
+                              }}
+                              onBlur={async (e) => {
+                                await handleCustomerBlur(e.target.value);
+                              }}
                               className="text-right"
                               placeholder={isSupplier ? ' رقم المورد' : 'رقم الزبون '}
-                              readOnly
+                              maxLength={8}
                             />
                             <Button type="button" onClick={() => setShowCustomerSearch(true)}>
                               🔍
@@ -1811,7 +2168,7 @@ export default function Customers({ isSupplier }: CustomersProps) {
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div>
                           <Label htmlFor="business_nature" className="text-sm font-medium">
                             طبيعة العمل
@@ -1848,6 +2205,24 @@ export default function Customers({ isSupplier }: CustomersProps) {
                               )}
                             </SelectContent>
                           </Select>
+                        </div>
+                        <div>
+                          <Label htmlFor="voucher_book" className="text-sm font-medium">
+                            تحديد دفتر السندات الافتراضي حسب نوع السند
+                          </Label>
+                          <button type="button"
+                            className="flex items-center gap-1 bg-primary text-white px-3 py-1 rounded hover:bg-blue-600 transition"
+                            onClick={handleAddRow}
+                          >
+                            <Plus className="h-4 w-4" />
+                            إضافة
+                          </button>
+                          <DataGrid
+
+                            ref={bookGridRef}
+                            dataSource={formData.voucherType ?? []}
+                            scheme={getScheme()}
+                          />
                         </div>
                       </div>
                     </CardContent>
@@ -2589,7 +2964,7 @@ export default function Customers({ isSupplier }: CustomersProps) {
       </Dialog>
 
       <ExcelImport
-        entityType={isSupplier ? "suppliers":"customers"}
+        entityType={isSupplier ? "suppliers" : "customers"}
         isOpen={showImportDialog}
         onClose={() => setShowImportDialog(false)}
         onImportComplete={() => {

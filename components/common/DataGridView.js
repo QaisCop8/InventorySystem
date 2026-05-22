@@ -803,6 +803,30 @@ createButtonTemplate = (col) => (ctx) => {
           }
         }
 
+        // Apply row styling for reports (odd/even rows with better styling)
+        if (this.props.isReport && e.panel === s.cells) {
+          const rowIndex = e.row;
+          const isOddRow = rowIndex % 2 === 0; // 0-based index, so even index = odd row number
+          
+          // Apply alternating row colors with better contrast
+          if (isOddRow) {
+            e.cell.classList.add('wj-report-row-odd');
+            e.cell.style.backgroundColor = '#f8f9fa';
+          } else {
+            e.cell.classList.add('wj-report-row-even');
+            e.cell.style.backgroundColor = '#ffffff';
+          }
+          
+          // Enhance selected row styling for reports
+          if (s.selection && s.selection.row === rowIndex) {
+            e.cell.classList.add('wj-report-row-selected');
+            e.cell.style.backgroundColor = '#e3f2fd';
+            e.cell.style.borderLeft = '4px solid #1976d2';
+            e.cell.style.fontWeight = '500';
+            e.cell.style.color = '#0d47a1';
+          }
+        }
+
         if (this.props.showStaticFooter && e.panel == s.columnFooters) {
           let columnFooter = schemePtr.columns.find((col) => col.name === e.getColumn().name && col.staticFooter);
           if (columnFooter) {

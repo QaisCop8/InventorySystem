@@ -91,6 +91,7 @@ export function Sidebar({
       submenu: [
         { title: "طلبيات المشتريات", section: "purchase-orders", icon: Truck },
         { title: "طلبيات المبيعات", section: "sales-orders", icon: ShoppingCart },
+        { title: "معالجة حالة الطلبيات", section: "order-management", icon: Package },
       ],
       
     },

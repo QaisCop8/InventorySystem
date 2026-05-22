@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import DataGridView from "../common/DataGridView";
 import * as wjGrid from "@grapecity/wijmo.grid";
-
+import { useTranslation } from 'react-i18next';
 // -----------------------
 // Types
 // -----------------------
@@ -34,15 +34,26 @@ interface ProductSearchPopupProps {
   onSelect: (products: Product[]) => void;
   priceCategoryId: number;
   ShowSelect: boolean;
+  searchText: string;
 }
 
-const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClose, onSelect, priceCategoryId, ShowSelect }) => {
+const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClose, onSelect, priceCategoryId, ShowSelect, searchText }) => {
   const [products, setProducts] = useState<Product[]>([]);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchCode, setSearchCode] = useState("");
+  const [searchName, setSearchName] = useState("");
+  const [searchPrice, setSearchPrice] = useState("");
+  const [searchBarcode, setSearchBarcode] = useState("");
+  const searchCodeRef = useRef<HTMLInputElement>(null);
+  const searchNameRef = useRef<HTMLInputElement>(null);
+  const searchPriceRef = useRef<HTMLInputElement>(null);
+  const searchBarcodeRef = useRef<HTMLInputElement>(null);
+
   const gridProductsRef = useRef<wjGrid.FlexGrid | null>(null);
   const gridUnitsRef = useRef<wjGrid.FlexGrid | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const searchTextRef = useRef<HTMLInputElement>(null);
+  const ws = useRef<WebSocket | null>(null);
+  const { t, i18n } = useTranslation();
   // -----------------------
   // Fetch products when popup opens
   // -----------------------
@@ -63,9 +74,21 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
     };
 
     fetchProducts();
-    searchTextRef.current?.focus()
+    console.log("searchText ", searchText)
+    //setSearchTerm(searchText || "");
+    
+    setSearchCode("")
+    setSearchName("")
+    setSearchBarcode("")
+    setSearchPrice("")
+    setTimeout(() => searchNameRef.current?.focus(), 100);
+    ws.current = new WebSocket("ws://localhost:33333/ws");
+    ws.current.onopen = () => {
+      ws.current?.send(JSON.stringify({ type: "changeLang", language: "1" }));
+    };
     return () => {
       cancelled = true;
+      if (ws.current) ws.current.close();
     };
   }, [visible]);
 
@@ -98,14 +121,41 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
   // -----------------------
   // Filtered products
   // -----------------------
+  const searchWordsMatch = (text: string, searchQuery: string) => {
+    const words = searchQuery
+      .trim()
+      .toLowerCase()
+      .split(/\s+/);
+
+    const normalizedText = text.toLowerCase();
+    return words.every(word => normalizedText.includes(word));
+  };
+
+
+
   const filteredProducts = useMemo(() => {
-    if (!searchTerm.trim()) return products;
-    const q = searchTerm.toLowerCase();
-    return products.filter(p =>
-      p.product_name.toLowerCase().includes(q) ||
-      p.product_code.toLowerCase().includes(q)
-    );
-  }, [products, searchTerm]);
+    return products.filter(p => {
+
+      const matchCode =
+        !searchCode ||
+        p.product_code?.toLowerCase().includes(searchCode.toLowerCase());
+
+      const matchName =
+        !searchName ||
+        searchWordsMatch(p.product_name || "", searchName);
+
+      const matchPrice =
+        !searchPrice ||
+        String(p.first_price).includes(searchPrice);
+
+      const matchBarcode =
+        !searchBarcode ||
+        p.first_barcode?.toLowerCase().includes(searchBarcode.toLowerCase());
+
+      return matchCode && matchName && matchPrice && matchBarcode;
+
+    });
+  }, [products, searchCode, searchName, searchPrice, searchBarcode]);
 
   // -----------------------
   // Select product row
@@ -116,7 +166,7 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
 
   const handleProductDoubleClick = useCallback((product: Product) => {
     if (!product) return;
-
+    console.log("product ", product)
     // Automatically select first unit if available
     const selectedUnit = product.units?.[0];
     const updatedProduct: Product = { ...product, selected_unit: selectedUnit, selected: true };
@@ -200,34 +250,85 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
     onClose();
   };
 
+  const focusFirstGridRow = () => {
+    const grid = gridProductsRef.current;
+    if (!grid) return;
+
+    grid?.focus();
+    grid.select(0, 0); // first row, first column
+  };
 
   useEffect(() => {
-    if (!visible) return;
+  if (!visible) return;
 
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        e.preventDefault();
-        onClose();
+  const handleKeyDown = (e: KeyboardEvent) => {
+    const active = document.activeElement;
+
+    if (e.key === "Escape") {
+      e.preventDefault();
+      onClose();
+      return;
+    }
+
+    if (e.key === "Enter") {
+      e.preventDefault();
+
+      if (active === searchCodeRef.current) {
+        searchNameRef.current?.focus();
+      } else if (active === searchNameRef.current) {
+        searchPriceRef.current?.focus();
+      } else if (active === searchPriceRef.current) {
+        searchBarcodeRef.current?.focus();
+      } else if (active === searchBarcodeRef.current) {
+        focusFirstGridRow(); // Focus first row of products grid
       }
-      if (e.key === "ArrowDown" && document.activeElement === searchTextRef.current) {
-        gridProductsRef.current?.focus();
+    }
+
+    if (e.key === "ArrowDown") {
+      if (active === searchCodeRef.current ||
+          active === searchNameRef.current ||
+          active === searchPriceRef.current ||
+          active === searchBarcodeRef.current) {
+        focusFirstGridRow();
         e.preventDefault();
       }
+    }
+  };
 
-      if (e.key === "Enter") {
-        e.preventDefault();
-        if (selectedProduct) {
-          handleConfirm(); // Accept selected order
-        }
+  window.addEventListener("keydown", handleKeyDown, true);
+
+  return () => {
+    window.removeEventListener("keydown", handleKeyDown, true);
+  };
+}, [visible, onClose]);
+
+
+  const onKeyDownGrid = async (grid: any, e: KeyboardEvent) => {
+    // Make sure grid and selection exist
+    if (!grid || !grid.selection) return;
+    const sel = grid.selection;
+    const row = sel.row;
+
+    if (e.keyCode === 13) {
+      const rowIndex = grid.selection?.row ?? -1;
+      if (rowIndex < 0) return;
+
+      const item = grid.rows[rowIndex]?.dataItem as Product;
+      console.log("item ", item)
+      try {
+        const response = await fetch(`/api/products/${item.id}/units`);
+        const units: Unit[] = await response.json();
+        setSelectedProduct({ ...item, units });
+        const selectedItem = item
+        handleProductDoubleClick(selectedItem)
+      } catch (err) {
+        console.error("Error fetching units:", err);
       }
-    };
+      e.preventDefault();
 
-    window.addEventListener("keydown", handleKeyDown, true);
-
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown, true);
-    };
-  }, [visible, onClose, handleConfirm]);
+      return;
+    }
+  }
   if (!visible) return null;
 
   const gridStyleUnits = {
@@ -244,14 +345,43 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
       <div className="bg-white rounded-lg shadow-2xl border p-6 flex flex-col w-full max-w-4xl h-[800px]  w-[95vw] max-w-7xl" dir="rtl">
         <h3 className="text-lg font-semibold mb-4 text-right">بحث الأصناف</h3>
 
-        <Input
-          ref={searchTextRef}
-          type="text"
-          placeholder="ابحث عن صنف..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="mb-4 p-2 border border-gray-300 rounded w-full text-right"
-        />
+        <div className="grid grid-cols-8 gap-1 mb-4">
+
+
+            <Input
+              ref={searchCodeRef}
+              className="col-span-1"
+              placeholder="رقم الصنف"
+              value={searchCode}
+              onChange={(e) => setSearchCode(e.target.value)}
+            />
+
+            <Input
+              ref={searchNameRef}
+              className="col-span-5"
+              placeholder="اسم الصنف"
+              value={searchName}
+              onChange={(e) => setSearchName(e.target.value)}
+            />
+
+            <Input
+              ref={searchPriceRef} 
+              className="col-span-1"
+              placeholder="السعر"
+              value={searchPrice}
+              onChange={(e) => setSearchPrice(e.target.value)}
+            />
+
+            <Input
+              ref={searchBarcodeRef}
+              className="col-span-1"
+              placeholder="الباركود"
+              value={searchBarcode}
+              onChange={(e) => setSearchBarcode(e.target.value)}
+            />
+
+          </div>
+
 
         <div className="flex-1 flex flex-col gap-4 overflow-hidden">
           {/* Products DataGrid (2/3) */}
@@ -263,6 +393,8 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
               scheme={productScheme}
               onRowDoubleClick={handleProductDoubleClick}
               selectionChanged={selectionChanged}
+              onKeyDown={(s: any, e: any) => onKeyDownGrid(s, e)}
+              keyActionEnter="None"
             />
           </div>
 

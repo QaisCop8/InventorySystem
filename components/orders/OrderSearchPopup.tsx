@@ -13,6 +13,8 @@ interface Order {
     order_number: string;
     order_date: Date;
     amount: string;
+    reference_number: string;
+    customer_order_no: string;
 }
 
 interface OrderSearchPopupProps {
@@ -62,7 +64,9 @@ const OrderSearchPopup: React.FC<OrderSearchPopupProps> = ({ visible, onClose, o
                         order_number: c.order_number,
                         order_date: new Date(c.order_date),
                         customer_name: c.customer_name,
-                        amount: c.total_amount
+                        amount: c.total_amount,
+                        reference_number: c.reference_number,
+                        customer_order_no: c.customer_order_no
                     }));
                     console.log("Mapped orders data:", mapped);
                     setOrders(mapped);
@@ -73,7 +77,7 @@ const OrderSearchPopup: React.FC<OrderSearchPopupProps> = ({ visible, onClose, o
             }
         };
 
-
+        setSearchTerm("")
         fetchOrders();
         return () => {
             cancelled = true;
@@ -100,22 +104,25 @@ const OrderSearchPopup: React.FC<OrderSearchPopupProps> = ({ visible, onClose, o
             (c) =>
                 searchWordsMatch(c.customer_name, searchTerm) ||
                 searchWordsMatch(c.order_number, searchTerm) ||
-                searchWordsMatch(c.amount, searchTerm)
+                searchWordsMatch(c.amount, searchTerm) ||
+                searchWordsMatch(c.reference_number, searchTerm) ||
+                searchWordsMatch(c.customer_order_no, searchTerm)
+
         );
     }, [orders, searchTerm]);
 
     // DataGrid scheme
     const OrdersScheme = useMemo(() => ({
         name: "OrdersScheme",
-        filter: false,
-        showFooter: true,
-        sortable: true,
-        allowGrouping: false,
+
+        isReport: true,
         columns: [
             { header: "##", name: "ser", width: 50 },
             { header: "رقم الطلبية", name: "order_number", width: 120 },
             { header: "تاريخ الطلبية", name: "order_date", width: 130 },
             { header: "اسم الزبون", name: "customer_name", width: "*" },
+            { header: "السند اليدوي", name: "reference_number", width: 130 },
+            { header: "رقم طلبية الزبون", name: "customer_order_no", width: 130 },
             { header: "المبلغ", name: "amount", width: 110 },
         ],
     }), []);
@@ -175,10 +182,22 @@ const OrderSearchPopup: React.FC<OrderSearchPopupProps> = ({ visible, onClose, o
                     <div className="flex-1 border rounded shadow-sm p-2">
                         <div className="min-w-max">
                             <DataGridView
-                                ref={gridRef}
-                                isReport={true}
+                                ref={(g: any) => (gridRef.current = g?.control ?? g ?? null)}
+                                
                                 dataSource={filteredOrders}
-                                scheme={OrdersScheme}
+                                scheme={{
+                                    isReport: false,
+
+                                    columns: [
+                                        { header: "##", name: "ser", width: 50,isReadOnly:true },
+                                        { header: "رقم الطلبية", name: "order_number", width: 120,isReadOnly:true },
+                                        { header: "تاريخ الطلبية", name: "order_date", width: 130 ,isReadOnly:true},
+                                        { header: "اسم الزبون", name: "customer_name", width: "*" ,isReadOnly:true},
+                                        { header: "السند اليدوي", name: "reference_number", width: 130,isReadOnly:true },
+                                        { header: "رقم طلبية الزبون", name: "customer_order_no", width: 130,isReadOnly:true },
+                                        { header: "المبلغ", name: "amount", width: 110 },
+                                    ],
+                                }}
                                 onRowClick={handleRowClick}
                                 onRowDoubleClick={handleRowDoubleClick}
                             />

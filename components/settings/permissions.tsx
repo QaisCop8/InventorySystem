@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import Messages from "../common/Messages"
 import {
   Pagination,
   PaginationContent,
@@ -89,6 +90,7 @@ export default function Permissions() {
   const [error, setError] = useState("")
   const [activeTab, setActiveTab] = useState("users")
   const toast = useRef(null);
+    const message = useRef(Messages);
   const [searchTerm, setSearchTerm] = useState("")
   const [currentPage, setCurrentPage] = useState(1)
   const [usersPerPage] = useState(10)
@@ -199,14 +201,16 @@ export default function Permissions() {
 
     const data = await res.json()
     if (!res.ok) {
-      Util.showErrorToast(toast.current, 'حدث خطأ في حفظ الصلاحيات');
+      //Util.showErrorToast(toast.current, 'حدث خطأ في حفظ الصلاحيات');
+      Util.showErrorMessage(message, 'حدث خطأ في حفظ الصلاحيات ')
     } else {
-      Util.showSuccessToast(toast.current, 'تم تحديث الصلاحيات بنجاح');
+      //Util.showSuccessToast(toast.current, 'تم تحديث الصلاحيات بنجاح');
+      Util.showSuccessMessage(message)
       const savedUserStr = localStorage.getItem("erp_user") || sessionStorage.getItem("erp_user")
       const savedUser = savedUserStr ? JSON.parse(savedUserStr) : { id: 0 }
 
       if (selectedUser === savedUser.id) {
-        localStorage.setItem('user_Access_List', JSON.stringify(userAccess))
+        await refreshUserPermissions(selectedUser);
       }
 
     }
@@ -431,7 +435,7 @@ export default function Permissions() {
           </Button>
         </div>
       </div>
-
+      <Messages innerRef={message} />
       <div className="flex-1 overflow-auto">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full h-full">
           <TabsList className="grid w-full grid-cols-3 flex-shrink-0">
@@ -897,3 +901,29 @@ export default function Permissions() {
     </div>
   )
 }
+interface AccessItem {
+    access_name: any
+    id: number
+    name: string
+    category_name: string
+    is_granted?: boolean,
+    access_id: number
+  }
+const refreshUserPermissions = async (userId: string) => {
+    try {
+      localStorage.removeItem('user_Access_List');
+       const res = await fetch(`/api/settings/user/user-access?userId=${userId}`)
+      const data: AccessItem[] = await res.json()
+      console.log("[v0] Fetched user permissions:", data)
+      const ua: Record<string, Record<string, boolean>> = {}
+      data.forEach(item => {
+        const key = item.access_id
+        ua[key] = { view: !!item.is_granted } // extend for more actions if needed
+      })
+      localStorage.setItem('user_Access_List', JSON.stringify(data))
+    } catch (error) {
+      console.error("[v0] Failed to refresh permissions:", error)
+      throw error
+    }
+  }
+

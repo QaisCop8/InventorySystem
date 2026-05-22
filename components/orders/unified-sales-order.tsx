@@ -49,51 +49,7 @@ import OrderSearchPopup from "./OrderSearchPopup"
 import ConfirmDialogYesNo from "../ui/ConfirmDialogYesNo"
 import { stat } from "fs"
 import { set } from "date-fns"
-const InlineCustomerSearch = ({ onSelect, onClose, customers }: any) => {
-  const [searchTerm, setSearchTerm] = useState("")
-
-  const safeCustomers = Array.isArray(customers) ? customers : []
-
-  const filteredCustomers = safeCustomers.filter(
-    (customer: any) =>
-      customer.customer_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      customer.customer_code?.toLowerCase().includes(searchTerm.toLowerCase()),
-  )
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-      <div className="bg-white p-4 rounded-lg shadow-lg max-w-md w-full">
-        <h3 className="text-lg font-semibold mb-4">بحث العملاء</h3>
-        <input
-          type="text"
-          placeholder="ابحث عن عميل..."
-          className="mb-4 p-2 border rounded w-full text-right"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          dir="rtl"
-        />
-        <div className="space-y-2 max-h-60 overflow-y-auto">
-          {filteredCustomers.map((customer: any) => (
-            <button
-              key={customer.id}
-              onClick={() => onSelect(customer)}
-              className="block w-full text-right p-2 hover:bg-gray-100 rounded"
-            >
-              {customer.customer_name} ({customer.customer_code})
-            </button>
-          ))}
-          {filteredCustomers.length === 0 && <div className="text-center text-gray-500 py-4">لا توجد نتائج</div>}
-        </div>
-        <div className="flex justify-end mt-4">
-          <Button variant="outline" onClick={onClose}>
-            إغلاق
-          </Button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
+import React from "react"
 const InlineProductSearch = ({ onSelect, onClose, products }: any) => {
   const [searchTerm, setSearchTerm] = useState("")
 
@@ -150,6 +106,7 @@ interface SalesOrder {
   customer_name: string
   customer_id: number
   order_status: number
+  order_status2: number
   financial_status: string
   total_amount: number
   salesman: string
@@ -160,6 +117,8 @@ interface SalesOrder {
   notes: string
   created_at: string
   updated_at: string
+  printed: number
+  is_exported: number
   items?: OrderItem[] // Assuming order items are nested
 }
 
@@ -172,6 +131,7 @@ interface UnifiedSalesOrderProps {
   open?: boolean
   onOpenChange?: (open: boolean) => void
   vch_type?: number
+  fromSearch?: boolean
 }
 
 interface Customer {
@@ -251,7 +211,8 @@ interface OrderFormData {
   delivery_notes: string | null
   order_status: number
   financial_status: string
-  order_decision: number
+  order_decision: number,
+  order_status2: number
   source: string
   general_notes: string | null
   internal_notes: string | null
@@ -272,6 +233,9 @@ interface OrderFormData {
   vch_book: string
   received_by?: string | null,
   customer_order_no?: string | null,
+  printed: number | null,
+  is_exported: number | null,
+
 }
 
 const initialFormData: OrderFormData = {
@@ -295,6 +259,7 @@ const initialFormData: OrderFormData = {
   delivery_address: "",
   delivery_notes: "",
   order_status: 1,
+  order_status2: 1,
   financial_status: "unpaid",
   order_decision: 1,
   source: "مباشر",
@@ -314,9 +279,11 @@ const initialFormData: OrderFormData = {
   customer_number: "",
   customer_phone: "",
   order_source: "manual",
-  vch_book: "0",
+  vch_book: "R",
   received_by: "",
   customer_order_no: "",
+  printed: 0,
+  is_exported: 0,
 }
 
 
@@ -329,6 +296,7 @@ function UnifiedSalesOrder({
   open = true,
   onOpenChange,
   vch_type,
+  fromSearch = false,
 }: UnifiedSalesOrderProps) {
   const {
     settings,
@@ -343,7 +311,7 @@ function UnifiedSalesOrder({
     customers: [] as Customer[],
     products: [] as Product[],
     formData: order ? { ...initialFormData, ...order } : initialFormData,
-
+    FormDataBackup: null as OrderFormData | null,
     customerSearch: "",
     productSearch: "",
     showCustomerDropdown: false,
@@ -362,8 +330,12 @@ function UnifiedSalesOrder({
     isSaving: false,
     isDeleting: false,
   })
+  const isSaving = useRef(false)
+  const isHandlingSave = useRef(false)
+  const isDeleting = useRef(false)
+  const lastVchBook = useRef<string | null>(null)
   const doHotKeys = useRef(true)
-  const toast = useRef(null);
+  const toast = useRef<Toast | null>(null);
   const message = useRef(Messages);
   const [loading, setLoading] = useState(false);
   const setFromExcelRef = useRef(false);
@@ -399,6 +371,7 @@ function UnifiedSalesOrder({
   };
   const [salesmen, setSalesmen] = useState<Salesman[]>([])
   const [showItemSearch, setItemSearch] = useState(false)
+  const searchTextRef = useRef("")
   const [showUnitsSearch, setUnitsSearch] = useState(false)
   const [selectedIndex, setSelectedIndex] = useState(0)
   const [orderStatusList, setOrderStatusList] = useState<OrderStatus[]>([]);
@@ -412,33 +385,62 @@ function UnifiedSalesOrder({
   const orderdateRef = useRef<HTMLInputElement>(null);
   const orderNumberRef = useRef<HTMLInputElement>(null);
   const customerNameRef = useRef<HTMLInputElement>(null);
+  const referenceNumberRef = useRef<HTMLInputElement>(null);
   const [lastFilledRow, setLastFilledRow] = useState(null);
   const [showUnsaved, setShowUnsaved] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [showAlert, setShowAlert] = useState(false);
+  const [alertMessage, setAlertMessage] = useState("");
   const [nextFunction, setNextFunction] = useState<(() => void) | null>(null);
+  const [showPrintRefConfirm, setShowPrintRefConfirm] = useState(false);
+  const [showDuplicateRefConfirm, setShowDuplicateRefConfirm] = useState(false);
+  const [isDuplicateRefConfirmed, setIsDuplicateRefConfirmed] = useState(false);
+  const duplicateRefDismissedValueRef = useRef<string>("");
+  const skipNextEnterRef = useRef(false)
+  const suppressEnterUntilRef = useRef(0)
   const [data, setData] = useState([{
     ser: 1, unit_id: 0, unit_name: '', units: [], name: '', discount: 0, batch: '', expiry_date: '1900-01-01', item_status: 1,
     barcode: '', id: 0, code: '', price: 0, qnty: 0, bonus: 0, amount: 0, to_main_unit_qty: 0, store_id: 0, store_name: ''
   }]);
   const [CollectionView] = useState(() => new wjcCore.CollectionView(data));
+  const CollectionViewBackupRef = useRef(null as any);
   const createNewOrder = (): SalesOrder => ({
     id: 0,
+
     order_number: "",
-    order_date: new Date().toISOString().split("T")[0],
-    customer_name: "",
+
+    // keep ISO format for filtering/sorting
+    order_date: new Date().toISOString(),
+
     customer_id: 0,
-    order_status: 1,
-    financial_status: "unpaid",
+    customer_name: "",
+
+    order_status: 1, // default: غير جاهزة
+    order_status2: 1,
+    financial_status: "pending",
+
     total_amount: 0,
+
     salesman: "",
-    delivery_date: new Date().toISOString().split("T")[0],
+
+    delivery_date: "",
+
     workflow_sequence_id: 0,
-    currency_id: 1,
+
+    currency_id: 1, // default currency id
     exchange_rate: 1,
+
     notes: "",
+
+    printed: 0,
+    is_exported: 0,
+
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
-  })
+
+    items: [],
+  });
+
 
   const {
     currentRecord,
@@ -496,9 +498,11 @@ function UnifiedSalesOrder({
     const { vch_book } = state.formData;
 
     // Optional: only generate if vch_book has a value
-    if (vch_book != null && !fromBlurRef.current) {
+    console.log("vch_book changed999999:", vch_book, "fromBlurRef:", fromBlurRef.current, "fromSearch:", fromSearch)
+    if (vch_book != null && !fromBlurRef.current && !fromSearch) {
       generateOrderNumber();
     }
+    fromSearch = false
   }, [state.formData.vch_book]);
   const currencies = [
     { code: "SAR", name: "ريال سعودي" },
@@ -539,6 +543,7 @@ function UnifiedSalesOrder({
         // Initialize new record
         if (order) {
           loadOrderData("Byid", order.id)
+          //fromSearch = false
         }
         else reset_order();
       } catch (error) {
@@ -721,6 +726,42 @@ function UnifiedSalesOrder({
 
     return `${prefix}${paddedNum}`;
   };
+  const handleReferenceNumberBlur = async () => {
+    const refNum = state.formData.reference_number?.trim();
+
+    // Skip check if reference number is empty
+    if (!refNum) return;
+
+    try {
+      // Build query params based on whether it's purchase or sale order
+      const params = new URLSearchParams({
+        reference_number: refNum,
+        order_id: state.formData.id?.toString() || "0", // Exclude current order
+        is_purchase: vch_type === 2 ? "true" : "false",
+      });
+
+      // Add customer filter if it's a purchase order
+      if (vch_type === 2 && state.formData.customer_id) {
+        params.append("customer_id", state.formData.customer_id.toString());
+      }
+
+      const response = await fetch(`/api/orders/check-reference-duplicate?${params.toString()}`);
+      const data = await response.json();
+
+      if (
+        data.exists &&
+        !isDuplicateRefConfirmed &&
+        duplicateRefDismissedValueRef.current !== refNum
+      ) {
+        // Show confirmation dialog for duplicate
+        popupHasCalled();
+        setShowDuplicateRefConfirm(true);
+      }
+    } catch (error) {
+      console.error("Error checking reference number:", error);
+    }
+  };
+
   const handleOrderCodeBlur = async () => {
     const { order_number } = state.formData;
 
@@ -746,7 +787,7 @@ function UnifiedSalesOrder({
       formData: {
         ...prev.formData,
         order_number: order_num,
-        vch_book: order_num[1] ?? "0", // second character
+        vch_book: order_num[1] ?? "R", // second character
       },
     }));
 
@@ -871,7 +912,7 @@ function UnifiedSalesOrder({
             return isNaN(p) ? (isNaN(fallback) ? 0 : fallback) : p;
           })(),
           unit_id: ii.unit_id,
-          unit_name: ii.unit_name || ii.main_unit,
+          unit_name: ii.first_unit || ii.unit_name || ii.main_unit,
           store_id: ii.store_id ?? definitionsRef.current?.warehouses?.[0]?.id,
           store_name: ii.store_name || definitionsRef.current?.warehouses?.[0]?.warehouse_name,
           to_main_unit_qty: ii.to_main_unit_qty ?? 1,
@@ -903,7 +944,7 @@ function UnifiedSalesOrder({
         item.id = ii.id;
         item.name = ii.product_name;
         item.unit_id = ii.unit_id;
-        item.unit_name = ii.unit_name || ii.main_unit;
+        item.unit_name = ii.first_unit || ii.unit_name || ii.main_unit;
         item.price = setFromExcelRef.current ? ii.price : (() => {
           const p = ii.price ? ii.price / state.formData.exchange_rate : NaN;
           const fallback = ii.first_price ? ii.first_price / state.formData.exchange_rate : NaN;
@@ -941,7 +982,13 @@ function UnifiedSalesOrder({
       //await recalculate_invoice(false);
       let lastRowIndex = selectedIndexL
       if (items.length > 1) lastRowIndex = CollectionView.items.length - 1;
-      const itemNoColIndex = grid.columns.findIndex((col: { binding: string }) => col.binding === 'qnty');
+      let itemNoColIndex = grid.columns.findIndex((col: { binding: string }) => col.binding === 'name');
+      if (itemNoColIndex < 0) {
+        itemNoColIndex = grid.columns.findIndex((col: { binding: string }) => col.binding === 'store_name');
+      }
+      if (itemNoColIndex < 0) {
+        itemNoColIndex = grid.columns.findIndex((col: { binding: string }) => col.binding === 'qnty');
+      }
       if (lastRowIndex >= 0 && itemNoColIndex >= 0) {
         grid.focus()
         grid.select(new wjGrid.CellRange(lastRowIndex, itemNoColIndex));
@@ -959,7 +1006,7 @@ function UnifiedSalesOrder({
 
 
 
-  const validateAddNewRow = (currentRow: number) => {
+  const validateAddNewRow = (currentRow: number, grid: { focus: () => { (): any; new(): any; select: { (arg0: number, arg1: string): void; new(): any } } } | undefined) => {
     console.log("currentRow ", currentRow)
     if (currentRow >= 0) {
       const item = CollectionView.items[currentRow];
@@ -967,8 +1014,8 @@ function UnifiedSalesOrder({
       console.log("itemValid itemValid ", itemValid)
       if (!itemValid || (itemValid + '').trim() === '' || (itemValid + '').trim() === '0') {
         Util.showErrorToast(toast.current, 'يجب ادخال رقم الصنف');
-        gridRef.current?.focus();
-        gridRef.current?.select(currentRow, 'code');
+        grid.focus();
+        grid.select(currentRow, 'code');
         return false;
       }
 
@@ -976,15 +1023,14 @@ function UnifiedSalesOrder({
       let bonusValid = item?.bonus;
       if (quantityValid === undefined || quantityValid === null || (quantityValid + '').trim() === '' || (quantityValid + '').trim() === '0') {
         if (bonusValid === undefined || bonusValid === null || (bonusValid + '').trim() === '' || (bonusValid + '').trim() === '0') {
-          let msg = 'يجب ادخال الكمية او البونص' + ' ' + data[currentRow].name;
+          let msg = 'يجب ادخال الكمية او البونص' + ' ' + item.name;
           Util.showErrorToast(toast.current, msg);
-          gridRef.current?.focus();
-          gridRef.current?.select(currentRow, 'quantity');
+          grid.focus();
+          grid.select(currentRow, 'quantity');
           return false;
         }
       }
       let has_batch_number = item?.has_batch_number;
-      console.log("has_batch_number ", has_batch_number, " item?.batch ", item?.batch)
       if (has_batch_number === true && item?.batch + '' === '' && vch_type === 2) {
         let msg = 'يجب ادخال الرقم التشغيلي' + ' ' + data[currentRow].name;
         Util.showErrorToast(toast.current, msg);
@@ -1183,7 +1229,7 @@ function UnifiedSalesOrder({
           setItemSearch(true);
 
         }
-        if (colName === 'store_name') {
+        if (colName === 'store_name' || colName === 'btnSearchStores') {
           e.preventDefault();
           popupHasCalled()
           setStoresSearch(true);
@@ -1200,45 +1246,55 @@ function UnifiedSalesOrder({
       case Util.keyboardKeys.Enter:
       case Util.keyboardKeys.Tab: {
         if (row === grid.rows.length - 1 && (colName === 'amount')) {
-          if (validateAddNewRow(row)/* && this.state.dataObject.vch_status_id + '' !== '2' && this.state.dataObject.status !== 3*/) {
+          if (validateAddNewRow(row, grid)/* && this.state.dataObject.vch_status_id + '' !== '2' && this.state.dataObject.status !== 3*/) {
             grid.collectionView.addNew({});
             grid.collectionView.commitNew();
             grid.finishEditing(true);
             CollectionView.items[grid.rows.length - 1].ser = grid.rows.length;
             //setData(newData);
 
-            grid.focus();
-            grid.select(grid.rows.length - 1, 'barcode');
-            grid.focus();
+            if (grid) grid.focus();
+            if (Util.getVoucherSettingScreenData(vch_type, 'barcode')) grid.select(grid.rows.length - 1, 'barcode');
+            else if (Util.getVoucherSettingScreenData(vch_type, 'code')) grid.select(grid.rows.length - 1, 'code');
+
+            e.preventDefault();
+            return;
+          }
+          else {
+            if (grid) grid.focus();
+            grid.select(row, 'amount');
             e.preventDefault();
             return;
           }
         } else {
-          grid.focus();
+          if (grid) grid.focus();
           if (colName === 'amount') {
             if (validateAddNewRow(col)) {
               grid.select(row + 1, 'barcode');
             }
+            else {
+              if (grid) grid.focus();
+              grid.select(row, 'amount');
+              e.preventDefault();
+              return;
+            }
 
           } else if (colName === 'code') {
-            console.log("item_id ", item_id)
             if (!item_id || item_id + '' === '0') {
               e.preventDefault();
               popupHasCalled()
+              searchTextRef.current = value
               setItemSearch(true);
+              if (grid) grid.focus();
             }
             else grid.select(row, 'qnty');
+          } else if (colName === 'store_name' || colName === 'btnSearchStores') {
+            grid.select(row, 'qnty');
           }
-          else if (colName === 'qnty') grid.select(row, 'bonus');
-          else if (colName === 'bonus') grid.select(row, 'batch');
-          else if (colName === 'batch') grid.select(row, 'price');
-          else if (colName === 'price') grid.select(row, 'discount');
-          else if (colName === 'discount') grid.select(row, 'amount');
-          else if (colName === 'name') grid.select(row, 'qnty');
-          else if (colName === 'code') grid.select(row, 'qnty');
-          else if (colName === 'barcode') grid.select(row, 'code');
-          else if (colName === 'unit_name') grid.select(row, 'qnty');
-
+          else {
+            const colIndex = grid.columns.indexOf(grid.columns.getColumn(colName));
+            moveToNextVisibleColumn(grid, row, colIndex);
+          }
           e.preventDefault();
           break;
         }
@@ -1246,6 +1302,26 @@ function UnifiedSalesOrder({
     }
   };
 
+  const moveToNextVisibleColumn = (grid: { columns: any; select: (arg0: any, arg1: number) => void; focus: () => void }, row: number, colIndex: number) => {
+    const cols = grid.columns;
+
+    for (let i = colIndex + 1; i < cols.length; i++) {
+      if (cols[i].visible && !cols[i].isReadOnly) {
+        grid.select(row, i);
+        grid.focus();
+        return;
+      }
+    }
+
+    // Optional: move to first visible column in next row
+    for (let i = 0; i < cols.length; i++) {
+      if (cols[i].visible && !cols[i].isReadOnly) {
+        grid.select(row + 1, i);
+        grid.focus();
+        return;
+      }
+    }
+  };
 
   const getScheme = () => {
     let scheme = {
@@ -1398,21 +1474,27 @@ function UnifiedSalesOrder({
   }
 
   const handleCustomerSelect = (customer: any) => {
-    console.log("customer customer customer ", customer)
+    const allowedVoucherBooks = ["L", "P", "M", "R"]
+    const customerVoucherBook = customer.vch_book?.toString().trim().toUpperCase()
+    const book = allowedVoucherBooks.includes(customerVoucherBook)
+      ? customerVoucherBook
+      : state.formData.vch_book
+
     setState((prev) => ({
       ...prev,
       formData: {
         ...prev.formData,
         customer_id: customer.id,
+        customer_name: customer.customer_name || customer.name,
         customer_code: customer.customer_code,
-        name: customer.name,
-        customer_address: customer.address || "", // Use address from customer data
+        customer_address: customer.address || "",
         customer_tax_number: customer.tax_number || "",
         payment_terms: customer.payment_terms || "نقدي",
         customer_phone: customer.mobile1 || "",
+        vch_book: book,
       },
-      customerSearch: customer.name, // Update customerSearch for consistency
-      showCustomerSearch: false,
+      customerSearch: customer.customer_name || customer.name,
+      showCustomerDropdown: false,
     }))
   }
 
@@ -1427,6 +1509,12 @@ function UnifiedSalesOrder({
   }
 
   const selectCustomer = (customer: Customer) => {
+    const allowedVoucherBooks = ["L", "P", "M", "R"]
+    const customerVoucherBook = (customer as any).vch_book?.toString().trim().toUpperCase()
+    const book = allowedVoucherBooks.includes(customerVoucherBook)
+      ? customerVoucherBook
+      : undefined
+
     setState((prev) => ({
       ...prev,
       formData: {
@@ -1438,6 +1526,7 @@ function UnifiedSalesOrder({
         customer_tax_number: customer.tax_number || "",
         payment_terms: customer.payment_terms || "نقدي",
         customer_phone: customer.mobile1 || "",
+        ...(book ? { vch_book: book } : {}),
       },
       customerSearch: customer.customer_name,
       showCustomerDropdown: false,
@@ -1494,22 +1583,19 @@ function UnifiedSalesOrder({
       const discount = Number(item.discount ?? 0);
       return sum + quantity * price - discount;
     }, 0);
-
+    if (!state.formData.discount_amount) state.formData.discount_amount = 0.0;
     // Calculate discount
-    const discountValue = Number(state.formData.discount_amount ?? 0);
+    const discountValue = parseFloat(state.formData.discount_amount ?? 0);
     const discount =
       state.formData.discount_type === "percentage"
         ? (subtotal * discountValue) / 100
         : discountValue;
-
     // Calculate tax
-    const taxPercentage = Number(state.formData.vat_percent ?? 0);
+    const taxPercentage = parseFloat(state.formData.vat_percent ?? 0);
     const tax = ((subtotal - discount) * taxPercentage) / 100;
-
     // Shipping and other charges
-    const shippingCost = Number(state.formData.shipping_cost ?? 0);
-    const otherCharges = Number(state.formData.other_charges ?? 0);
-
+    const shippingCost = parseFloat(state.formData.shipping_cost ?? 0);
+    const otherCharges = parseFloat(state.formData.other_charges ?? 0);
     // Calculate total
     const total = subtotal - discount + tax + shippingCost + otherCharges;
 
@@ -1526,6 +1612,7 @@ function UnifiedSalesOrder({
     state.formData.vat_percent,
     state.formData.shipping_cost,
     state.formData.other_charges,
+    CollectionView?.items,
   ]);
 
 
@@ -1614,8 +1701,32 @@ function UnifiedSalesOrder({
     height?: string;  // e.g., '297mm'
   }
 
-  const printOrder = (order: any, items: any[], settings: PrintSettings = {}) => {
-    const { pageType = "custom", width = "100mm", height = "100mm" } = settings;
+  const printOrder = async (order: any, items: any[], settings: PrintSettings = {}, showMsg = false) => {
+
+    if (showMsg) {
+
+      // Build query params based on whether it's purchase or sale order
+      const params = new URLSearchParams({
+
+        order_id: state.formData.id?.toString() || "0",
+      });
+
+
+      const response = await fetch(`/api/orders/check-printed-order?${params.toString()}`);
+      const data = await response.json();
+
+      if (data.exists) {
+        // Show confirmation dialog for duplicate
+        setShowPrintRefConfirm(true)
+        return;
+      }
+
+
+
+    }
+
+    setLoading(true)
+    const { pageType = "custom", width = "120mm", height = "100mm" } = settings;
 
     const html = `
     <html>
@@ -1624,7 +1735,7 @@ function UnifiedSalesOrder({
         <style>
           @media print {
             @page {
-              margin-top: 10mm; /* default page margins */
+              margin: 0; /* remove browser header/footer */
             }
             body {
               margin: 0;
@@ -1638,7 +1749,7 @@ function UnifiedSalesOrder({
           }
 
           .order-page {
-            width: ${pageType === "custom" ? width : "100mm"};
+            width: ${pageType === "custom" ? width : "120mm"};
             min-height: ${pageType === "custom" ? height : "100mm"};
             padding: 20px;
             box-sizing: border-box;
@@ -1646,9 +1757,10 @@ function UnifiedSalesOrder({
 
           .header {
             display: flex;
+            flex-wrap: wrap;
             justify-content: space-between;
             margin-bottom: 10px;
-            font-size: 16px; /* increased header font size */
+            font-size: 16px;
             font-weight: bold;
           }
 
@@ -1656,28 +1768,17 @@ function UnifiedSalesOrder({
             width: 100%;
             border-collapse: collapse;
             margin-top: 10px;
-          }
-
-          table {
-            width: 100%;
-            border-collapse: collapse;
-            border: 3px solid black; /* outer border */
+            border: 3px solid black;
           }
 
           th, td {
-            border: 2px solid black; /* inner grid lines */
+            border: 2px solid black;
             padding: 6px 8px;
             font-size: 20px;
           }
 
           th {
-            padding: 6px 8px;
             text-align: left;
-          }
-
-          td {
-            padding: 6px 8px;
-             /* make table data bold */
           }
 
           /* column widths */
@@ -1687,15 +1788,16 @@ function UnifiedSalesOrder({
 
           .notes {
             margin-top: 20px;
-            font-size: 14px;
+            font-size: 16px;
+            font-weight: bold;
           }
         </style>
       </head>
       <body>
         <div class="order-page">
           <div class="header">
-            <div>Order ${order.order_number}</div>
-            <div>No: ${order.reference_number}</div>
+            <div>Reference: ${order.reference_number}</div>
+            <div></div>
           </div>
           <div class="header">
           <div>Date: ${order.order_date}</div>
@@ -1720,7 +1822,7 @@ function UnifiedSalesOrder({
                 <tr>
                   <td class="col-index">${idx + 1}</td>
                   <td class="col-item">${item.name}</td>
-                  <td class="col-quantity">${item.quantity + item.bonus}</td>
+                  <td class="col-quantity">${item.quantity + (item.bonus || 0)}</td>
                 </tr>
               `).join("")}
             </tbody>
@@ -1734,64 +1836,110 @@ function UnifiedSalesOrder({
     </html>
   `;
 
-    const printWindow = window.open("", "_blank");
-    if (!printWindow) return;
-    printWindow.document.write(html);
-    printWindow.document.close();
-    printWindow.focus();
-    printWindow.print();
-    printWindow.close();
+    // Get saved user
+    const savedUser = localStorage.getItem("erp_user") || sessionStorage.getItem("erp_user");
+    if (!savedUser) return;
+    const user = JSON.parse(savedUser);
+    if (!user?.id) return;
+
+    // Update printed status in backend
+    console.log("order order ", order)
+    await fetch(`/api/orders/sales/${order.id}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        "x-user-id": user.id,
+      },
+      body: JSON.stringify({ printed: 1 }),
+    });
+
+    // Use iframe to print without opening about:blank
+    const iframe = document.createElement("iframe");
+    iframe.style.position = "absolute";
+    iframe.style.width = "0";
+    iframe.style.height = "0";
+    iframe.style.border = "0";
+    document.body.appendChild(iframe);
+    const doc = iframe.contentDocument || iframe.contentWindow?.document;
+    if (!doc) return;
+    doc.open();
+    doc.write(html);
+    doc.close();
+    iframe.contentWindow?.focus();
+    iframe.contentWindow?.print();
+    document.body.removeChild(iframe);
+    setState((prev) => ({
+      ...prev,
+      formData: { ...prev.formData, printed: 1 },
+    }))
+    setLoading(false)
+    setTimeout(() => {
+      referenceNumberRef.current?.focus();
+    }, 1000)
   };
 
-  async function handleSaveOrder(orderToSave: SalesOrder, isNewRecord: boolean): Promise<void> {
-    console.log("[v0] Starting save process...")
+  async function handleSaveOrder(orderToSave: any, isNewRecord: boolean): Promise<void> {
 
-    // Validation
-    if (!validateOrder()) return;
+    // ✅ HARD LOCK FIRST
+    if (isSaving.current) return;
+    isSaving.current = true;
 
-    const savedUser = localStorage.getItem("erp_user") || sessionStorage.getItem("erp_user")
-    if (!savedUser) {
-      Util.showErrorMessage(message, 'المستخدم غير معرف يرجى تسجيل الدخول من جديد')
-      return
-    }
-    const user = JSON.parse(savedUser)
-    if (!user || !user.id) {
-      Util.showErrorMessage(message, 'المستخدم غير معرف يرجى تسجيل الدخول من جديد')
-      return
-    }
-    const orderData = {
-      id: state.formData.id,
-      order_number: state.formData.order_number,
-      order_date: state.formData.order_date,
-      customer_id: state.formData.customer_id,
-      customer_name: state.formData.customer_name,
-      customer_phone: state.formData.customer_phone,
-      salesman_id: state.formData.salesman || null,
-      currency_id: state.formData.currency_id || 0,
-      exchange_rate: state.formData.exchange_rate || 1.0,
-      delivery_date: state.formData.delivery_date ? new Date(state.formData.delivery_date).toISOString() : null,
-      discount_amount: totals.discount,
-      discount_type: state.formData.discount_type === "percentage" ? 1 : 2,
-      vat_amount: totals.tax,
-      vat_percent: state.formData.vat_percent,
-      total_amount: totals.total,
-      order_type: vch_type,
-      reference_number: state.formData.reference_number,
-      order_status: state.formData.order_status || 1,
-      order_decision: state.formData.order_decision || 1,
-      delivery_address: state.formData.delivery_address || "",
-      shipping_cost: state.formData.shipping_cost || 0,
-      other_charges: state.formData.other_charges || 0,
-      general_notes: state.formData.general_notes || "",
-      internal_notes: state.formData.internal_notes || "",
-      delivery_notes: state.formData.delivery_notes || "",
-      received_by: state.formData.received_by || "",
-      customer_order_no: state.formData.customer_order_no || "",
-      user_id: user.id,
-    }
-    const items = CollectionView.items
+    try {
+      console.log("[v0] Starting save process...");
 
-      .map((item) => ({
+      if (!validateOrder()) return;
+
+      const savedUser =
+        localStorage.getItem("erp_user") ||
+        sessionStorage.getItem("erp_user");
+
+      if (!savedUser) {
+        Util.showErrorMessage(message, "المستخدم غير معرف يرجى تسجيل الدخول من جديد");
+        return;
+      }
+
+      const user = JSON.parse(savedUser);
+
+      if (!user?.id) {
+        Util.showErrorMessage(message, "المستخدم غير معرف يرجى تسجيل الدخول من جديد");
+        return;
+      }
+
+      const orderData = {
+        id: state.formData.id,
+        order_number: state.formData.order_number,
+        order_date: state.formData.order_date,
+        customer_id: state.formData.customer_id,
+        customer_name: state.formData.customer_name,
+        customer_phone: state.formData.customer_phone,
+        salesman_id: state.formData.salesman || null,
+        currency_id: state.formData.currency_id || 0,
+        exchange_rate: state.formData.exchange_rate || 1.0,
+        delivery_date: state.formData.delivery_date
+          ? new Date(state.formData.delivery_date).toISOString()
+          : null,
+        discount_amount: totals.discount,
+        discount_type: state.formData.discount_type === "percentage" ? 1 : 2,
+        vat_amount: totals.tax,
+        vat_percent: state.formData.vat_percent,
+        total_amount: totals.total,
+        order_type: vch_type,
+        reference_number: state.formData.reference_number,
+        order_status: state.formData.order_status || 1,
+        order_status2: state.formData.order_status2 || 1,
+        order_decision: state.formData.order_decision || 1,
+        delivery_address: state.formData.delivery_address || "",
+        shipping_cost: state.formData.shipping_cost || 0,
+        other_charges: state.formData.other_charges || 0,
+        general_notes: state.formData.general_notes || "",
+        internal_notes: state.formData.internal_notes || "",
+        delivery_notes: state.formData.delivery_notes || "",
+        received_by: state.formData.received_by || "",
+        customer_order_no: state.formData.customer_order_no || "",
+        user_id: user.id,
+      };
+
+      const items = CollectionView.items.map((item) => ({
         product_id: item.id,
         product_name: item.name,
         quantity: Number(item.qnty) || 0,
@@ -1805,42 +1953,65 @@ function UnifiedSalesOrder({
         expiry_date: item.expiry_date || null,
         batch_number: item.batch || null,
         item_status: item.item_status,
+        name: item.name,
       }));
 
-    const method = "POST"
-    const url = "/api/orders/sales"
+      const response = await fetch("/api/orders/sales", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({ orderData, items }),
+      });
 
-    const response = await fetch(url, {
-      method,
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-      body: JSON.stringify({ orderData, items }),
-    })
+      if (!response.ok) {
+        const responseText = await response.text();
 
+        let errorData;
+        try {
+          errorData = JSON.parse(responseText);
+        } catch {
+          errorData = { error: `HTTP ${response.status}: ${responseText}` };
+        }
 
-    if (!response.ok) {
-      const responseText = await response.text()
-
-      let errorData
-      try {
-        errorData = JSON.parse(responseText)
-      } catch {
-        errorData = { error: `HTTP ${response.status}: ${responseText}` }
+        Util.showErrorMessage(
+          message,
+          errorData.error || "فشل في حفظ طلبية المبيعات"
+        );
+        return;
       }
-      Util.showErrorMessage(message, errorData.error || "فشل في حفظ طلبية المبيعات")
-      return
 
+      const result = await response.json();
+
+      const id = result.id;
+
+      const orderDataBackup = {
+        ...state.formData,
+        id,
+      };
+
+      const itemsBackup = items.map((item) => ({ ...item }));
+
+      Util.showSuccessMessage(message);
+      lastVchBook.current = state.formData.vch_book;
+      popupHasCalled();
+      setAlertMessage("هل تريد طباعة الطلبية؟");
+
+      setState((prev) => ({
+        ...prev,
+        FormDataBackup: orderDataBackup,
+      }));
+
+      CollectionViewBackupRef.current = itemsBackup;
+      setShowAlert(true);
+
+      reset_order();
+
+    } finally {
+      // ✅ ALWAYS RELEASE LOCK
+      isSaving.current = false;
     }
-
-
-    const result = await response.json()
-    Util.showSuccessMessage(message)
-    reset_order()
-    /* if (onOrderSaved) {
-       onOrderSaved(result)
-     }*/
   }
 
   const handleDeleteClick = (checkUnsaved: any) => {
@@ -1848,10 +2019,10 @@ function UnifiedSalesOrder({
       order_date: state.formData.order_date,
       customer_id: state.formData.customer_id,
       customer_name: state.formData.customer_name,
-      delivery_date: state.formData.delivery_date,
+
       currency_id: state.formData.currency_id,
       exchange_rate: state.formData.exchange_rate,
-      total: totals.total,
+      //total: totals.total,
     };
     const currentHash = getFormDataHash(newFormData);
     if (checkUnsaved === true && currentHash !== initialHash.current) {
@@ -1868,22 +2039,43 @@ function UnifiedSalesOrder({
       });
       return;
     }
+    message.current?.clear();
+    if (state.formData.is_exported) {
+      Util.showErrorMessage(message, "الطلبية مرحلة الى النظام المحاسبي لن تتم عملية الحذف");
 
+      //Util.showInfoToast(toast.current, "الطلبية مرحلة الى النظام المحاسبي لن تتم عملية الحفظ");
+      return;
+    }
+    if (state.formData.id > 0 && state.formData.order_decision >= 4) {
+      Util.showErrorMessage(message, "الطلبية معتمدة/مدققة لن تتم عملية الحذف");
+
+      return;
+    }
 
     setShowConfirm(true);
     popupHasCalled()
   };
 
-  const confirmDelete = async () => {
+  const confirmDelete = React.useCallback(async () => {
+    console.log("CONFIRM CLICKED");
+
     setShowConfirm(false);
-    popupHasClosed()
-    await deleteRecord(); // your existing function
-  };
+    popupHasClosed();
+
+    if (isDeleting.current) return;
+    isDeleting.current = true;
+
+    try {
+      await handleDeleteOrder(state.formData);
+    } finally {
+      isDeleting.current = false;
+    }
+  }, [state.formData]);
   async function handleDeleteOrder(orderToDelete: SalesOrder): Promise<void> {
     if (!state.formData || !state.formData.id) {
       throw new Error("لا توجد طلبية محددة للحذف")
     }
-     const savedUser = localStorage.getItem("erp_user") || sessionStorage.getItem("erp_user")
+    const savedUser = localStorage.getItem("erp_user") || sessionStorage.getItem("erp_user")
     if (!savedUser) {
       Util.showErrorMessage(message, 'المستخدم غير معرف يرجى تسجيل الدخول من جديد')
       return
@@ -1935,6 +2127,21 @@ function UnifiedSalesOrder({
 
 
   const handleSave = async () => {
+    if (isHandlingSave.current) return;
+    isHandlingSave.current = true;
+    message.current?.clear();
+
+    if (state.formData.is_exported) {
+      Util.showErrorMessage(message, "الطلبية مرحلة الى النظام المحاسبي لن تتم عملية الحفظ");
+
+      //Util.showInfoToast(toast.current, "الطلبية مرحلة الى النظام المحاسبي لن تتم عملية الحفظ");
+      return;
+    }
+    if (state.formData.id > 0 && state.formData.order_decision >= 4) {
+      Util.showErrorMessage(message, "الطلبية معتمدة/مدققة لن تتم عملية التعديل");
+
+      return;
+    }
     setState((prev) => ({ ...prev, isSaving: true }))
     try {
       // Check if it's an existing order or a new one
@@ -1951,8 +2158,9 @@ function UnifiedSalesOrder({
         customer_id: state.formData.customer_id || 0,
         total_amount: totals.total,
         order_status: state.formData.order_status,
+        order_status2: state.formData.order_status2,
         financial_status: state.formData.financial_status,
-        delivery_date: state.formData.delivery_date ? new Date(state.formData.delivery_date).toISOString() : null,
+        delivery_date: state.formData.delivery_date ? new Date(state.formData.delivery_date) : new Date(),
         salesman: state.formData.salesman,
         currency_id: state.formData.currency_id,
         exchange_rate: state.formData.exchange_rate,
@@ -1960,7 +2168,7 @@ function UnifiedSalesOrder({
         // Add other relevant fields if needed by useRecordNavigation for its save logic
       }
 
-      await saveRecord(currentOrderForNavigation, isNewRecord)
+      await handleSaveOrder(currentOrderForNavigation, isNewRecord)
       //alert("تم حفظ الطلبية بنجاح")
 
       // After successful save, update the state with the latest data if it was a new record
@@ -1984,10 +2192,24 @@ function UnifiedSalesOrder({
       alert(err.message || "حدث خطأ أثناء حفظ البيانات")
     } finally {
       setState((prev) => ({ ...prev, isSaving: false }))
-    }
+      isHandlingSave.current = false;
+    } 
   }
+  
 
   const handleDelete = async () => {
+    message.current?.clear();
+    if (state.formData.is_exported) {
+      Util.showErrorMessage(message, "الطلبية مرحلة الى النظام المحاسبي لن تتم عملية الحذف");
+
+      //Util.showInfoToast(toast.current, "الطلبية مرحلة الى النظام المحاسبي لن تتم عملية الحفظ");
+      return;
+    }
+    if (state.formData.id > 0 && state.formData.order_decision >= 4) {
+      Util.showErrorMessage(message, "الطلبية معتمدة/مدققة لن تتم عملية الحذف");
+
+      return;
+    }
     setState((prev) => ({ ...prev, isDeleting: true }))
     try {
       // The deleteRecord from useRecordNavigation hook handles the deletion logic
@@ -2022,6 +2244,8 @@ function UnifiedSalesOrder({
         order_number: order_num, // generate new number
         order_date: new Date().toISOString().split("T")[0], // today
         delivery_date: new Date().toISOString().split("T")[0], // today
+        printed: 0,
+        is_exported: 0
       };
 
       // 2️⃣ Reset any collection views/items if needed
@@ -2034,7 +2258,7 @@ function UnifiedSalesOrder({
       }));
 
       // 4️⃣ Focus on first input (order date)
-      orderdateRef.current?.focus();
+      setTimeout(() => referenceNumberRef.current?.focus(), 50)
     } catch (err) {
       console.error("Failed to clone order:", err);
     } finally {
@@ -2042,12 +2266,79 @@ function UnifiedSalesOrder({
     }
   };
 
+  const popupHasCalled = () => {
+    doHotKeys.current = false
+  };
+  const popupHasClosed = () => {
+    doHotKeys.current = true
 
+  };
+
+  const focusReferenceThenNext = () => {
+    setTimeout(() => {
+      const current = referenceNumberRef.current
+      if (!current) return
+
+      current.focus()
+      current.select?.()
+
+      const focusable = Array.from(
+        document.querySelectorAll<HTMLElement>(
+          'input:not([disabled]):not([readonly]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        )
+      ).filter((el) => el.offsetParent !== null)
+
+      const index = focusable.indexOf(current)
+      if (index !== -1) {
+        const next = focusable[index + 1] || focusable[0]
+        next.focus()
+        if (next instanceof HTMLInputElement || next instanceof HTMLTextAreaElement) {
+          next.select()
+        }
+      }
+    }, 50)
+  }
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (!doHotKeys.current) return;
 
+      if (e.key === "Enter" && skipNextEnterRef.current) {
+        e.preventDefault();
+        e.stopPropagation();
+        skipNextEnterRef.current = false;
+        return;
+      }
+
+      if (e.key === "Enter" && Date.now() < suppressEnterUntilRef.current) {
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+
+      const target = e.target as HTMLElement;
+      const tag = target?.tagName;
+      if (e.key === "Enter") {
+        // Allow Enter in textarea
+        if (tag === "TEXTAREA") return;
+
+        e.preventDefault();
+
+        const focusable = Array.from(
+          document.querySelectorAll<HTMLElement>(
+            'input:not([disabled]):not([readonly]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]), [tabindex]:not([tabindex="-1"])'
+          )
+        ).filter(el => el.offsetParent !== null); // visible only
+
+        const index = focusable.indexOf(document.activeElement as HTMLElement);
+
+        if (index !== -1) {
+          const next = focusable[index + 1] || focusable[0]; // 🔁 loop
+          next.focus();
+          next.select?.(); // auto-select text if input
+        }
+        return;
+      }
       if (e.key === "F3") {
         e.preventDefault();
 
@@ -2090,7 +2381,7 @@ function UnifiedSalesOrder({
       delivery_date: state.formData.delivery_date,
       currency_id: state.formData.currency_id,
       exchange_rate: state.formData.exchange_rate,
-      total: totals.total,
+      //total: totals.total,
     };
     const currentHash = getFormDataHash(newFormData);
     if (checkUnsaved && currentHash !== initialHash.current && initialHash.current != 0) {
@@ -2200,7 +2491,7 @@ function UnifiedSalesOrder({
       delivery_date: state.formData.delivery_date,
       currency_id: state.formData.currency_id,
       exchange_rate: state.formData.exchange_rate,
-      total: totals.total,
+      //total: totals.total,
     };
     const currentHash = getFormDataHash(newFormData);
     console.log("loadOrderData currentHash ", currentHash, " initialHash ", initialHash.current)
@@ -2256,6 +2547,7 @@ function UnifiedSalesOrder({
         items: order.items ?? [],
         payments: order.payments ?? [],
       };
+      console.log("order ", order)
       function toLocalDateString(dateStr: string) {
         const date = new Date(dateStr);
         const offset = date.getTimezoneOffset() * 60000; // convert offset to ms
@@ -2266,7 +2558,7 @@ function UnifiedSalesOrder({
       // Usage
       const onlyOrderDate = toLocalDateString(order.order_date);
       const onlyDeliveryDate = toLocalDateString(order.delivery_date);
-      console.log("order.order_date ", order.order_date)
+
       setState((prev) => ({
         ...prev,
         formData: {
@@ -2282,6 +2574,7 @@ function UnifiedSalesOrder({
 
       }));
       priceCategoryIdRef.current = mappedOrder.pricecategory
+
       if (mappedOrder.items?.length) {
         let ser = 1;
         const updatedItems = mappedOrder.items.map((item: any) => ({
@@ -2315,7 +2608,7 @@ function UnifiedSalesOrder({
         delivery_date: mappedOrder.delivery_date,
         currency_id: mappedOrder.currency_id,
         exchange_rate: mappedOrder.exchange_rate,
-        total: Number(mappedOrder.total_amount),
+        //total: Number(mappedOrder.total_amount),
       };
       const newHash = getFormDataHash(newFormData);
       console.log("newFormData ", newFormData)
@@ -2327,7 +2620,9 @@ function UnifiedSalesOrder({
     }
     finally {
       setLoading(false)
-      orderdateRef.current?.focus()
+      setTimeout(() => {
+        referenceNumberRef.current?.focus();
+      }, 50)
 
     }
   };
@@ -2342,7 +2637,7 @@ function UnifiedSalesOrder({
       delivery_date: state.formData.delivery_date,
       currency_id: state.formData.currency_id,
       exchange_rate: state.formData.exchange_rate,
-      total: totals.total,
+      //total: totals.total,
     };
     const currentHash = getFormDataHash(newFormData);
     if (checkUnsaved === true && currentHash !== initialHash.current) {
@@ -2359,7 +2654,7 @@ function UnifiedSalesOrder({
     setLoading(true)
     setState((prev) => ({
       ...prev, // Keep existing states like customers, products etc.
-      formData: initialFormData,
+      formData: { ...initialFormData, vch_book: lastVchBook.current || initialFormData.vch_book },
       customerSearch: "",
       activeTab: "basic", // Reset to basic tab
       showCustomerSearch: false,
@@ -2377,7 +2672,7 @@ function UnifiedSalesOrder({
     setTimeout(() => {
       focusGrid()
     }, 10)
-
+    console.log("initialFormData before reset ", initialFormData)
     generateOrderNumber()
     setLoading(false)
     const orderDate = new Date(initialFormData.order_date ?? new Date());
@@ -2390,11 +2685,14 @@ function UnifiedSalesOrder({
       delivery_date: initialFormData.delivery_date,
       currency_id: initialFormData.currency_id,
       exchange_rate: initialFormData.exchange_rate,
-      total: 0
+      //total: 0
     };
     const currentHash = getFormDataHash(newFormData);
     initialHash.current = currentHash;
-    orderdateRef.current?.focus();
+
+    setTimeout(() => {
+      referenceNumberRef.current?.focus();
+    }, 50)
     setCurrentOrderId(0)
     priceCategoryIdRef.current = 1
   }
@@ -2480,8 +2778,8 @@ function UnifiedSalesOrder({
     setShowReport(true)
   }
 
-  const handlePrint = () => {
-    printOrder(state.formData, CollectionView.items)
+  const handlePrint = (showMsg = true) => {
+    printOrder(state.formData, CollectionView.items, {}, showMsg)
   }
 
   const reportColumns = [
@@ -2496,17 +2794,21 @@ function UnifiedSalesOrder({
 
 
 
-  const popupHasCalled = () => {
-    doHotKeys.current = false
-  };
-  const popupHasClosed = () => {
-    doHotKeys.current = true
-
-  };
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange || handleCancel}>
-      <DialogContent className="max-w-[135vh] h-[95vh] p-0 gap-0 flex flex-col"
+      <DialogContent className="
+          w-full
+          max-w-[95vw]
+          sm:max-w-[90vw]
+          md:max-w-[80vw]
+          lg:max-w-[135vh]
+          h-[95vh]
+          max-h-[95vh]
+          p-0
+          gap-0
+          flex
+          flex-col
+        "
         onPointerDownOutside={(event) => event.preventDefault()}
         onEscapeKeyDown={(event) => { if (!doHotKeys.current) event.preventDefault() }}
 
@@ -2547,10 +2849,11 @@ function UnifiedSalesOrder({
 
             <ProductSearchPopup
               visible={showItemSearch}
-              onClose={() => { setItemSearch(false); popupHasClosed() }}
-              onSelect={(obj) => { setItemSearch(false); popupHasClosed(); FillItem(obj) }}
+              onClose={() => { setItemSearch(false); searchTextRef.current = ""; popupHasClosed() }}
+              onSelect={(obj) => { setItemSearch(false); searchTextRef.current = ""; popupHasClosed(); FillItem(obj) }}
               priceCategoryId={priceCategoryIdRef.current}
               ShowSelect={true}
+              searchText={searchTextRef.current}
             />
             <UnitsSearchPopup
               visible={showUnitsSearch}
@@ -2589,6 +2892,7 @@ function UnifiedSalesOrder({
             <CustomerSearchPopup
               visible={showCustomerSearch}
               type={-1}
+              vch_type={vch_type ?? 1}
               onClose={() => {
                 popupHasClosed()
                 setShowCustomerSearch(false)
@@ -2596,13 +2900,21 @@ function UnifiedSalesOrder({
               }
               }
               onSelect={(customer) => {   // customer: Customer
-                console.log("customer customer ", customer)
+                const allowedVoucherBooks = ["L", "P", "M", "R"]
+                const customerVoucherBook = customer.vch_book?.toString().trim().toUpperCase()
+                const book = allowedVoucherBooks.includes(customerVoucherBook)
+                  ? customerVoucherBook
+                  : state.formData.vch_book
+
                 setState((prev) => ({
                   ...prev,
                   formData: {
-                    ...prev.formData, customer_id: customer.id,
+                    ...prev.formData,
+                    customer_id: customer.id,
                     customer_code: customer.customer_code,
-                    customer_name: customer.name, customer_phone: customer.mobile1
+                    customer_name: customer.name,
+                    customer_phone: customer.mobile1,
+                    vch_book: book,
                   },
                 }))
                 priceCategoryIdRef.current = customer.pricecategory
@@ -2622,7 +2934,7 @@ function UnifiedSalesOrder({
                 }
               }}
               message="تم تعديل السجل هل تريد الحفظ؟"
-              onBack={() => { setShowUnsaved(false); popupHasClosed(); }}
+              onBack={() => { setShowUnsaved(false); popupHasClosed(); setLoading(false) }}
               showBack={true}
             />
             <ConfirmDialogYesNo
@@ -2631,11 +2943,58 @@ function UnifiedSalesOrder({
               onCancel={() => { setShowConfirm(false); popupHasClosed() }}
               message="هل أنت متأكد من حذف السجل؟"
             />
+            <ConfirmDialogYesNo
+              visible={showAlert}
+              onConfirm={async () => {
+                await printOrder(state.FormDataBackup, CollectionViewBackupRef.current, {}, true); setShowAlert(false); popupHasClosed();
+                setTimeout(() => referenceNumberRef.current?.focus(), 50)
+              }}
+              onCancel={() => { setShowAlert(false); popupHasClosed(); setTimeout(() => referenceNumberRef.current?.focus(), 50) }}
+              message={alertMessage}
+            />
+            <ConfirmDialogYesNo
+              visible={showPrintRefConfirm}
+              onConfirm={() => { setShowPrintRefConfirm(false); popupHasClosed(); handlePrint(false); setTimeout(() => referenceNumberRef.current?.focus(), 50) }}
+              onCancel={() => { setShowPrintRefConfirm(false); popupHasClosed(); setTimeout(() => referenceNumberRef.current?.focus(), 50) }}
+              message="تمت طباعة السند مسبقا هل تريد الطباعة مرة أخرى؟"
+            />
+            <ConfirmDialogYesNo
+              visible={showDuplicateRefConfirm}
+              onConfirm={() => {
+                setIsDuplicateRefConfirmed(true)
+                duplicateRefDismissedValueRef.current = ""
+                setShowDuplicateRefConfirm(false)
+                popupHasClosed()
+                focusReferenceThenNext()
+              }}
+              onCancel={() => {
+                setIsDuplicateRefConfirmed(false)
+                duplicateRefDismissedValueRef.current = ""
+                skipNextEnterRef.current = true
+                suppressEnterUntilRef.current = Date.now() + 700
+                setState((prev) => ({
+                  ...prev,
+                  formData: { ...prev.formData, reference_number: "" },
+                }))
+                setShowDuplicateRefConfirm(false)
+                popupHasCalled()
+                setTimeout(() => {
+                  referenceNumberRef.current?.focus()
+                  referenceNumberRef.current?.select?.()
+                }, 80)
+                setTimeout(() => {
+                  referenceNumberRef.current?.focus()
+                  referenceNumberRef.current?.select?.()
+                  popupHasClosed()
+                }, 220)
+              }}
+              message="رقم السند اليدوي مستخدم مسبقا، هل تريد المتابعة؟"
+            />
             <OrderSearchPopup
               visible={showOrderSearch}
               type={vch_type ?? 0}
 
-              onClose={() => { popupHasCalled(); setShowOrderSearch(false); orderdateRef.current?.focus() }}
+              onClose={() => { popupHasCalled(); setShowOrderSearch(false); setTimeout(() => referenceNumberRef.current?.focus(), 50) }}
               onSelect={(order) => {
                 setState((prev) => ({
                   ...prev,
@@ -2645,7 +3004,7 @@ function UnifiedSalesOrder({
                   },
                 }));
                 popupHasClosed()
-                orderdateRef.current?.focus()
+                setTimeout(() => referenceNumberRef.current?.focus(), 50)
                 fromBlurRef.current = true
                 loadOrderData('Byid', order.id);
               }}
@@ -2730,7 +3089,7 @@ function UnifiedSalesOrder({
                     <div>
                       <Label>دفتر السندات</Label>
                       <Select
-                        value={String(state.formData.vch_book ?? "0")}
+                        value={String(state.formData.vch_book ?? "R")}
                         onValueChange={(value) =>
                           setState(prev => ({
                             ...prev,
@@ -2742,7 +3101,7 @@ function UnifiedSalesOrder({
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          {"0ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").map(l => (
+                          {"LMPR".split("").map(l => (
                             <SelectItem key={l} value={l}>{l}</SelectItem>
                           ))}
                         </SelectContent>
@@ -2756,7 +3115,7 @@ function UnifiedSalesOrder({
                       </Label>
 
                       <div className="flex flex-row-reverse gap-2 items-center">
-                        <Button type="button" onClick={() => setShowOrderSearch(true)}>
+                        <Button type="button" onClick={() => { popupHasCalled(); setShowOrderSearch(true) }}>
                           🔍
                         </Button>
                         <Input
@@ -2814,7 +3173,7 @@ function UnifiedSalesOrder({
                   </div>
 
                   {/* الصف الثاني */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     {/* العملة */}
                     <div>
                       <Label>العملة</Label>
@@ -2891,6 +3250,30 @@ function UnifiedSalesOrder({
                         </SelectContent>
                       </Select>
                     </div>
+
+                    {/*2 حالة الطلبية */}
+                    <div>
+                      <Label>حالة التسليم</Label>
+                      <Select
+                        value={String(state.formData.order_status2 ?? "1")}
+                        onValueChange={(v) =>
+                          setState(prev => ({
+                            ...prev,
+                            formData: { ...prev.formData, order_status2: v }
+                          }))
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="1">غير مسلم</SelectItem>
+                          <SelectItem value="2">مسلم</SelectItem>
+                          <SelectItem value="3">ملغي</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -2899,15 +3282,20 @@ function UnifiedSalesOrder({
                         {"السند اليدوي"}
                       </Label>
                       <Input
+                        ref={referenceNumberRef}
                         value={state.formData.reference_number ?? ""}
-                        onChange={(e) =>
+                        onChange={(e) => {
+                          setIsDuplicateRefConfirmed(false)
+                          duplicateRefDismissedValueRef.current = ""
                           setState((prev) => ({
                             ...prev,
                             formData: { ...prev.formData, reference_number: e.target.value },
                           }))
-                        }
+                        }}
+                        onBlur={handleReferenceNumberBlur}
                         className="text-right h-11"
                         dir="rtl"
+                        maxLength={7}
                       />
                     </div>
                     <div>
@@ -2939,6 +3327,7 @@ function UnifiedSalesOrder({
                             formData: { ...prev.formData, order_decision: value },
                           }))
                         }
+                        disabled={state.formData.order_decision > 3}
                       >
                         <SelectTrigger className="h-11">
                           <SelectValue />
@@ -2953,8 +3342,6 @@ function UnifiedSalesOrder({
                       </Select>
                     </div>
                   </div>
-
-
 
                 </CardContent>
               </Card>
@@ -2993,7 +3380,7 @@ function UnifiedSalesOrder({
                           onKeyDown={(e) => {
                             // Allow Enter
                             if (e.key === "F10") {
-                              popupHasCalled();
+                              e.preventDefault();
                               setShowCustomerSearch(true)
                               return;
                             }
@@ -3001,7 +3388,7 @@ function UnifiedSalesOrder({
                           }
                           className="text-right"
                           placeholder={'رقم الزبون '}
-                          readOnly
+
                         />
                         <Button type="button" onClick={() => setShowCustomerSearch(true)}>
                           🔍
@@ -3070,9 +3457,8 @@ function UnifiedSalesOrder({
                     {/* عنوان التسليم */}
                     <div className="col-span-12">
                       <Label>عنوان التسليم</Label>
-                      <Textarea
+                      <Input
                         value={state.formData.delivery_address ?? ""}
-                        rows={3}
                         className="resize-none"
                         maxLength={150}
                         onChange={(e) =>
@@ -3086,13 +3472,72 @@ function UnifiedSalesOrder({
                         }
                       />
                     </div>
-
+                    {/* ملاحظة عامة */}
+                    <div className="col-span-12">
+                      <Label>ملاحظة عامة</Label>
+                      <Input
+                        value={state.formData.general_notes ?? ""}
+                        className="resize-none"
+                        maxLength={150}
+                        onChange={(e) =>
+                          setState((prev) => ({
+                            ...prev,
+                            formData: {
+                              ...prev.formData,
+                              general_notes: e.target.value,
+                            },
+                          }))
+                        }
+                      />
+                    </div>
                   </div>
 
                 </CardContent>
               </Card>
 
             </div>
+            {state.formData?.id > 0 && state.formData?.printed === 1 && (
+              <div className="px-6 py-2 bg-green-100 text-green-800 font-semibold rounded-b-lg text-center text-xl">
+                تمت الطباعة
+              </div>
+
+            )}
+            {state.formData?.is_exported === 1 && (
+              <div className="px-6 py-2 bg-green-100 text-blue-800 font-semibold rounded-b-lg text-center text-xl">
+                مرحلة
+              </div>
+
+            )}
+            <Card>
+              <CardHeader className="pb-4">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Package className="h-5 w-5 text-primary" />
+                    أصناف الطلبية
+                  </CardTitle>
+
+                </div>
+              </CardHeader>
+              <CardContent>
+                <DataGridView
+                  style={{ maxHeight: '280px' }}
+                  ref={gridRef}
+                  idProperty="ser"
+                  scheme={getScheme()}
+                  dataSource={CollectionView}
+                  onKeyDown={(s: any, e: any) => onKeyDownGrid(s, e)}
+                  cellEditEnded={(s: any, e: any) => onCellEditEnded(s, e)}
+                  showContextMenu={false}
+                  copyItemStoreDown={true}
+                  dontConvertToCards={true}
+                  isReport={false}
+                  hideSearch={true}
+                  allowSorting={false}
+                  keyActionEnter="None"
+                />
+
+              </CardContent>
+            </Card>
 
             <Accordion type="single" collapsible className="w-full">
               <AccordionItem value="notes" className="border rounded-lg">
@@ -3105,22 +3550,7 @@ function UnifiedSalesOrder({
                   </AccordionTrigger>
                   <AccordionContent>
                     <CardContent className="space-y-6 pt-0">
-                      <div className="space-y-2">
-                        <Label className="text-sm font-medium">ملاحظات عامة</Label>
-                        <Textarea
-                          value={state.formData.general_notes ?? ""}
-                          onChange={(e) =>
-                            setState((prev) => ({
-                              ...prev,
-                              formData: { ...prev.formData, general_notes: e.target.value },
-                            }))
-                          }
-                          className="text-right min-h-[100px] resize-none"
-                          rows={4}
-                          placeholder="ملاحظات للعميل"
-                          dir="rtl"
-                        />
-                      </div>
+
                       <div className="space-y-2">
                         <Label className="text-sm font-medium">ملاحظات داخلية</Label>
                         <Textarea
@@ -3158,37 +3588,6 @@ function UnifiedSalesOrder({
                 </Card>
               </AccordionItem>
             </Accordion>
-            <Card>
-              <CardHeader className="pb-4">
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <Package className="h-5 w-5 text-primary" />
-                    أصناف الطلبية
-                  </CardTitle>
-
-                </div>
-              </CardHeader>
-              <CardContent>
-                <DataGridView
-                  style={{ maxHeight: '280px' }}
-                  ref={gridRef}
-                  idProperty="ser"
-                  scheme={getScheme()}
-                  dataSource={CollectionView}
-                  onKeyDown={(s: any, e: any) => onKeyDownGrid(s, e)}
-                  cellEditEnded={(s: any, e: any) => onCellEditEnded(s, e)}
-                  showContextMenu={false}
-                  copyItemStoreDown={true}
-                  dontConvertToCards={true}
-                  isReport={false}
-                  hideSearch={true}
-                  allowSorting={false}
-                  keyActionEnter="None"
-                />
-
-              </CardContent>
-            </Card>
-
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <Card>
                 <CardHeader className="pb-4">
@@ -3350,14 +3749,6 @@ function UnifiedSalesOrder({
 
 
         {/* Search dialogs and other modals remain the same */}
-        {state.showCustomerSearch && (
-          <InlineCustomerSearch
-            customers={state.customers}
-            onSelect={handleCustomerSelect}
-            onClose={() => setState((prev) => ({ ...prev, showCustomerSearch: false }))}
-          />
-        )}
-
         {state.showProductSearch && (
           <InlineProductSearch
             products={state.products}

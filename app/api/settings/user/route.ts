@@ -188,7 +188,17 @@ export async function PUT(request: NextRequest) {
     if (!data.username || !data.email) {
       return NextResponse.json({ error: "Username and email are required" }, { status: 400 })
     }
-    data.password_hash = await hashPassword(data.password_hash)
+
+    // Update password only when a new non-empty password is explicitly provided.
+    const rawPassword =
+      typeof data.password_hash === "string" && data.password_hash.trim().length > 0
+        ? data.password_hash
+        : typeof data.password === "string" && data.password.trim().length > 0
+          ? data.password
+          : null
+
+    const passwordHash = rawPassword ? await hashPassword(rawPassword) : null
+
     const result = await sql`
       UPDATE user_settings 
       SET 
@@ -211,7 +221,7 @@ export async function PUT(request: NextRequest) {
         dashboard_layout = ${JSON.stringify(data.dashboard_layout || {})},
         permissions = ${JSON.stringify(data.permissions || {})},
         is_active = ${data.is_active},
-        password_hash = ${data.password_hash},
+        password_hash = COALESCE(${passwordHash}, password_hash),
         updated_at = CURRENT_TIMESTAMP
       WHERE user_id = ${data.user_id}
       RETURNING *

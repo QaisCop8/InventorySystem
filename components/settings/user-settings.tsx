@@ -32,16 +32,15 @@ const defaultScreens = [
   { value: "sales-orders", label: "طلبيات المبيعات", roles: ["مدير النظام", "مدير المبيعات", "مندوب مبيعات"] },
   { value: "purchase-orders", label: "طلبيات المشتريات", roles: ["مدير النظام", "مدير المشتريات"] },
   {
-    value: "order-tracking",
-    label: "متابعة الطلبيات",
+    value: "batch-movements",
+    label: "حركات الرقم التشغيلي",
     roles: ["مدير النظام", "مدير المبيعات", "مدير المشتريات", "مندوب مبيعات"],
   },
   { value: "customers", label: "إدارة العملاء", roles: ["مدير النظام", "مدير المبيعات", "مندوب مبيعات"] },
   { value: "suppliers", label: "إدارة الموردين", roles: ["مدير النظام", "مدير المشتريات"] },
   { value: "products", label: "إدارة الأصناف", roles: ["مدير النظام", "موظف مخازن"] },
-  { value: "inventory", label: "إدارة المخزون", roles: ["مدير النظام", "موظف مخازن"] },
-  { value: "reports", label: "التقارير", roles: ["مدير النظام", "محاسب"] },
-  { value: "settings", label: "الإعدادات", roles: ["مدير النظام"] },
+  { value: "orders-migration", label: "ترحيل الطلبيات", roles: ["مدير النظام", "موظف مخازن"] },
+  { value: "order-management", label: "معالجة حالة الطلبيات", roles: ["مدير النظام", "موظف مخازن"] },
 ]
 
 export function UserSettings() {

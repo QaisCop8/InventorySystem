@@ -61,6 +61,7 @@ export async function GET(request: NextRequest) {
         orders.exchange_rate,
         to_char(order_date, 'YYYY-MM-DD') as order_date,
         order_decision,
+        order_status2,
         customers.customer_code,
         orders.customer_name,
         total_amount,
@@ -70,6 +71,8 @@ export async function GET(request: NextRequest) {
         orders.general_notes,
         reference_number,
         is_exported,
+        received_by,
+        customer_order_no,
         CASE order_type 
           WHEN 1 THEN 'طلبية مبيعات'
           WHEN 2 THEN 'طلبية مشتريات'
@@ -81,7 +84,6 @@ export async function GET(request: NextRequest) {
       INNER JOIN customers ON orders.customer_id = customers.id
       INNER JOIN currency ON orders.currency_id = currency.id
       WHERE deleted = false
-      AND order_decision = 4
       AND is_exported = 0
     `
         const params: any[] = []
@@ -113,7 +115,7 @@ export async function GET(request: NextRequest) {
             }
         }
 
-        query += ` ORDER BY order_date DESC, id DESC`
+        query += ` ORDER BY reference_number,order_date`
 
         const { rows } = await pool.query(query, params)
 

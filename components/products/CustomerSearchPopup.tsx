@@ -14,6 +14,7 @@ interface Customer {
     mobile1: string;
     general_notes: string;
     pricecategory: number;
+    vch_book: string
 }
 
 interface CustomerSearchPopupProps {
@@ -21,15 +22,16 @@ interface CustomerSearchPopupProps {
     onClose: () => void;
     onSelect: (customer: Customer) => void;
     type: number;
+    vch_type: number
 }
 
-const CustomerSearchPopup: React.FC<CustomerSearchPopupProps> = ({ visible, onClose, onSelect, type }) => {
+const CustomerSearchPopup: React.FC<CustomerSearchPopupProps> = ({ visible, onClose, onSelect, type, vch_type }) => {
     const [customers, setCustomers] = useState<Customer[]>([]);
     const [searchTerm, setSearchTerm] = useState("");
     const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
     const gridRef = useRef<wjGrid.FlexGrid | null>(null);
     const searchInputRef = useRef<HTMLInputElement>(null);
-
+    const ws = useRef<WebSocket | null>(null);
     // Load customers
     useEffect(() => {
         if (!visible) return;
@@ -55,17 +57,26 @@ const CustomerSearchPopup: React.FC<CustomerSearchPopupProps> = ({ visible, onCl
                     filtered.sort((a: any, b: any) =>
                         a.customer_code.localeCompare(b.customer_code)
                     );
-
                     // Map to match grid column names
-                    const mapped = filtered.map((c: any, index: number) => ({
-                        ser: index + 1,
-                        id: c.id,
-                        customer_code: c.customer_code,
-                        name: c.name,
-                        mobile1: c.mobile1,
-                        general_notes: c.general_notes || "",
-                        pricecategory: c.pricecategory || 1
-                    }));
+                    const voucherTypeId = Number(vch_type ?? 1)
+                    const mapped = filtered.map((c: any, index: number) => {
+                        const matchingVoucher = (c.voucherType || []).find(
+                            (v: any) => Number(v.type_id) === voucherTypeId
+                        );
+
+                        return {
+                            ser: index + 1,
+                            id: c.id,
+                            customer_code: c.customer_code,
+                            name: c.name,
+                            mobile1: c.mobile1,
+                            general_notes: c.general_notes || "",
+                            pricecategory: c.pricecategory || 1,
+                            vch_book: matchingVoucher ? matchingVoucher.book_name.trim() : "0", // only matching type
+                        };
+                    });
+
+
 
                     setCustomers(mapped);
                 }
@@ -75,7 +86,7 @@ const CustomerSearchPopup: React.FC<CustomerSearchPopupProps> = ({ visible, onCl
             }
         };
 
-
+        setSearchTerm("")
         fetchCustomers();
         return () => {
             cancelled = true;
@@ -84,9 +95,48 @@ const CustomerSearchPopup: React.FC<CustomerSearchPopupProps> = ({ visible, onCl
 
     // Focus search input
     useEffect(() => {
-        if (visible) setTimeout(() => searchInputRef.current?.focus(), 0);
+        if (visible) {
+            setTimeout(() => searchInputRef.current?.focus(), 0);
+
+            ws.current = new WebSocket("ws://localhost:33333/ws");
+            ws.current.onopen = () => {
+                ws.current?.send(JSON.stringify({ type: "changeLang",language : "2"  }));
+            }
+        };
     }, [visible]);
 
+
+    const focusFirstGridRow = () => {
+        const grid = gridRef.current;
+        console.log("grid ", grid)
+        if (!grid) return;
+
+        grid?.focus();
+        grid.select(0, 0);
+    };
+
+    useEffect(() => {
+        if (!visible) return;
+
+        const handleKeyDown = (e: KeyboardEvent) => {
+            const active = document.activeElement;
+            if (e.key === "Escape") {
+                e.preventDefault();
+                onClose();
+            }
+            if ((e.key === "ArrowDown" /*|| e.key === "Enter"*/) && document.activeElement === searchInputRef.current) {
+                gridRef.current?.focus();
+                gridRef.current?.select(0, 0);
+                e.preventDefault();
+            }
+        };
+
+        window.addEventListener("keydown", handleKeyDown, true);
+
+        return () => {
+            window.removeEventListener("keydown", handleKeyDown, true);
+        };
+    }, [visible, onClose]);
 
     // Search filter
     const searchWordsMatch = (text: string, query: string) => {
@@ -112,12 +162,13 @@ const CustomerSearchPopup: React.FC<CustomerSearchPopupProps> = ({ visible, onCl
         showFooter: true,
         sortable: true,
         allowGrouping: false,
+        isReport: true,
         columns: [
-            { header: "##", name: "ser", width: 50 },
+            { header: "##", name: "ser", width: 70 },
             { header: type === 1 || type === -1 ? "رقم الزبون" : "رقم المورد", name: "customer_code", width: 120 },
             { header: type === 1 || type === -1 ? "اسم الزبون" : "اسم المورد", name: "name", width: "*" },
-            { header: "الجوال", name: "mobile1", width: 130 },
-            { header: "ملاحظات", name: "general_notes", width: 200 },
+            { header: "الجوال", name: "mobile1", width: 120 },
+            { header: "ملاحظات", name: "general_notes", width: 180 },
         ],
     }), []);
 
@@ -125,8 +176,18 @@ const CustomerSearchPopup: React.FC<CustomerSearchPopupProps> = ({ visible, onCl
     const handleRowClick = useCallback((customer: Customer) => setSelectedCustomer(customer), []);
     const handleRowDoubleClick = useCallback((customer: Customer) => { onSelect(customer); onClose(); }, [onSelect, onClose]);
     const handleAccept = useCallback(() => { if (selectedCustomer) { onSelect(selectedCustomer); onClose(); } }, [selectedCustomer, onSelect, onClose]);
+    const selectionChanged = useCallback((grid: wjGrid.FlexGrid) => {
+        const rowIndex = grid?.selection?.row ?? -1;
+        if (rowIndex < 0) return;
+        const item = grid.rows[rowIndex]?.dataItem as Customer | undefined;
+        if (!item) return;
 
-    useEffect(() => {
+        setSelectedCustomer(prev =>
+            prev?.id === item.id ? prev : { ...item }
+        );
+    }, []);
+
+    /*useEffect(() => {
         if (!visible) return;
 
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -147,7 +208,32 @@ const CustomerSearchPopup: React.FC<CustomerSearchPopupProps> = ({ visible, onCl
         return () => {
             window.removeEventListener("keydown", handleKeyDown, true);
         };
-    }, [visible, onClose, handleRowDoubleClick, selectedCustomer]);
+    }, [visible, onClose, handleRowDoubleClick, selectedCustomer]);*/
+
+    const onKeyDownGrid = async (grid: any, e: KeyboardEvent) => {
+        // Make sure grid and selection exist
+        if (!grid || !grid.selection) return;
+        const sel = grid.selection;
+        const row = sel.row;
+
+        if (e.keyCode === 13) {
+            const rowIndex = grid.selection?.row ?? -1;
+            if (rowIndex < 0) return;
+
+            const item = grid.rows[rowIndex]?.dataItem as Customer;
+            try {
+                setSelectedCustomer(prev =>
+                    prev?.id === item.id ? prev : { ...item }
+                );
+                const selectedItem = item
+                handleRowDoubleClick(selectedItem)
+            } catch (err) {
+            }
+            e.preventDefault();
+
+            return;
+        }
+    }
     if (!visible) return null;
 
     return (
@@ -175,11 +261,22 @@ const CustomerSearchPopup: React.FC<CustomerSearchPopupProps> = ({ visible, onCl
                         <div className="min-w-max overflow-x-auto">
                             <DataGridView
                                 ref={(g: any) => (gridRef.current = g?.control ?? g ?? null)}
-                                isReport={true}
                                 dataSource={filteredCustomers}
-                                scheme={customerScheme}
+                                scheme={{
+                                    isReport: false,
+                                    columns: [
+                                        { header: "##", name: "ser", width: 70 },
+                                        { header: type === 1 || type === -1 ? "رقم الزبون" : "رقم المورد", name: "customer_code", width: 120 },
+                                        { header: type === 1 || type === -1 ? "اسم الزبون" : "اسم المورد", name: "name", width: "*" },
+                                        { header: "الجوال", name: "mobile1", width: 120 },
+                                        { header: "ملاحظات", name: "general_notes", width: 180 },
+                                    ],
+                                }}
                                 onRowClick={handleRowClick}
                                 onRowDoubleClick={handleRowDoubleClick}
+                                selectionChanged={selectionChanged}
+                                style={{ maxHeight: '400px' }}
+                                onKeyDown={(s: any, e: any) => onKeyDownGrid(s, e)}
 
                             />
                         </div>

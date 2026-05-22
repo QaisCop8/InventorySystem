@@ -92,7 +92,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
             // Refresh user permissions from database
             try {
-             
+
             } catch (permError) {
             }
           } else {
@@ -101,7 +101,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         } else {
           clearAuthData()
         }
-        
+
       } catch (error) {
         console.error("[v0] Auth initialization error:", error)
         clearAuthData()
@@ -121,6 +121,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     sessionStorage.removeItem("erp_user")
     sessionStorage.removeItem("erp_token")
     sessionStorage.removeItem("erp_session")
+    sessionStorage.removeItem("default_screen_opened");
     setUser(null)
     setIsAuthenticated(false)
   }
@@ -136,7 +137,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const refreshUserPermissions = async (userId: string) => {
     try {
       localStorage.removeItem('user_Access_List');
-       const res = await fetch(`/api/settings/user/user-access?userId=${userId}`)
+      const res = await fetch(`/api/settings/user/user-access?userId=${userId}`)
       const data: AccessItem[] = await res.json()
       console.log("[v0] Fetched user permissions:", data)
       const ua: Record<string, Record<string, boolean>> = {}
@@ -151,7 +152,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   }
 
-  
+
 
   const login = async (credentials: { username: string; password: string; rememberMe: boolean }) => {
     console.log("[v0] Login attempt for:", credentials.username)
@@ -187,15 +188,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
         } catch (storageError) {
           console.error("[v0] Failed to save session data:", storageError)
         }
-
-        // Navigate to default screen if specified
-        const defaultScreen = result.user.defaultScreen || getDefaultScreenForRole(result.user.role)
-        if (defaultScreen && defaultScreen !== "dashboard") {
-          setTimeout(() => {
-            window.location.href = `/${defaultScreen}`
-          }, 100)
-        }
-
+        console.log("result result result login ", result)
+        // Navigate to dashboard_layout after login
+        /*setTimeout(() => {
+          window.location.href = "/dashboard_layout"
+        }, 100)*/
+        setTimeout(() => {
+          window.dispatchEvent(new CustomEvent("OPEN_DEFAULT_SCREEN"));
+        }, 100);
         fetchSettings();
         await refreshUserPermissions(result.user.id)
       } else {
@@ -208,24 +208,24 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }
 
   const fetchSettings = async () => {
-        try {
-            const screenRes = await fetch(
-                `/api/voucher-settings?target=screen`
-            );
-            const printRes = await fetch(
-                `/api/voucher-settings?&target=print`
-            );
+    try {
+      const screenRes = await fetch(
+        `/api/voucher-settings?target=screen`
+      );
+      const printRes = await fetch(
+        `/api/voucher-settings?&target=print`
+      );
 
-            const screenData = await screenRes.json();
-            const printData = await printRes.json();
-            
-            localStorage.setItem('screenData', JSON.stringify(screenData))
-            localStorage.setItem('printData', JSON.stringify(printData))
-        } catch (err) {
-            console.error(err);
-        } finally {
-        }
-    };
+      const screenData = await screenRes.json();
+      const printData = await printRes.json();
+
+      localStorage.setItem('screenData', JSON.stringify(screenData))
+      localStorage.setItem('printData', JSON.stringify(printData))
+    } catch (err) {
+      console.error(err);
+    } finally {
+    }
+  };
   const logout = async () => {
     try {
       await fetch("/api/auth/logout", {
@@ -262,7 +262,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const [module, act] = modulePermission.split("-"); // e.g., "customers-view"
     const permModule = user.permissions[module];
     if (!permModule) return false;
-    
+
     return permModule[act] === true;
   };
 

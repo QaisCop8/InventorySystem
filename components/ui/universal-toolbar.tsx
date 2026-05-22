@@ -101,29 +101,29 @@ export function UniversalToolbar({
   const { toast } = useToast();
 
   const handleFirst = () => {
-    if (!hasRecords) {
+    /*if (!hasRecords) {
       toast({
         title: "لا توجد سجلات",
         description: "لا يوجد سجلات لعرضها.",
         variant: "default",
       });
       return;
-    }
+    }*/
     onFirst?.();
   };
 
   const handlePrevious = () => {
-    if (!hasRecords) return;
+    //if (!hasRecords) return;
     onPrevious?.();
   };
 
   const handleNext = () => {
-    if (!hasRecords) return;
+    //if (!hasRecords) return;
     onNext?.();
   };
 
   const handleLast = () => {
-    if (!hasRecords) return;
+    //if (!hasRecords) return;
     onLast?.();
   };
 
@@ -162,7 +162,7 @@ export function UniversalToolbar({
             variant="destructive"
             size="sm"
             onClick={onDelete}
-            disabled={isLoading || !canDelete || !hasRecords}
+            disabled={isLoading || !canDelete}
             className="flex items-center gap-1 px-4 py-2 rounded-lg hover:bg-red-600 hover:text-white transition text-sm"
           >
             <Trash2 className="h-4 w-4" />
@@ -230,7 +230,7 @@ export function UniversalToolbar({
         {onClone && (
           <Button
             onClick={onClone}
-            disabled={isLoading || !canClone || !hasRecords}
+            disabled={isLoading || !canClone }
             className="flex items-center gap-1 px-3 py-2 rounded-lg hover:bg-gray-100 transition text-sm"
           >
 

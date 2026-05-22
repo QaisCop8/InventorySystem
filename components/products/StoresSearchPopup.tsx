@@ -25,8 +25,24 @@ const StoresSearchPopup: React.FC<StoresSearchPopupProps> = ({
     stores,
 }) => {
     const [selectedStore, setSelectedStore] = useState<Store | null>(null);
-    const gridRef = useRef<wjGrid.FlexGrid | null>(null);
+    const selectedStoreRef = useRef<Store | null>(null);
+    const gridRef = useRef<any>(null);
+    const popupRef = useRef<HTMLDivElement | null>(null);
 
+    const getGridInstance = useCallback((): wjGrid.FlexGrid | null => {
+        return (gridRef.current?.flex ?? gridRef.current ?? null) as wjGrid.FlexGrid | null;
+    }, []);
+
+    const confirmSelection = useCallback(() => {
+        const grid = getGridInstance();
+        const rowIndex = grid?.selection?.row ?? -1;
+        const currentRowStore = rowIndex >= 0 ? (grid?.rows?.[rowIndex]?.dataItem as Store | undefined) : undefined;
+        const storeToSelect = selectedStoreRef.current || currentRowStore || stores?.[0] || null;
+
+        if (!storeToSelect) return;
+        onSelect(storeToSelect);
+        onClose();
+    }, [getGridInstance, stores, onSelect, onClose]);
 
 
     const handleRowDoubleClick = useCallback(
@@ -44,14 +60,38 @@ const StoresSearchPopup: React.FC<StoresSearchPopupProps> = ({
         const item = grid.rows[rowIndex]?.dataItem as Store | undefined;
         if (!item) return;
         setSelectedStore(item);
+        selectedStoreRef.current = item;
     }, []);
     useEffect(() => {
         if (!visible) return;
+
+        setSelectedStore(stores?.[0] ?? null);
+        selectedStoreRef.current = stores?.[0] ?? null;
+
+        setTimeout(() => {
+            const grid = getGridInstance();
+            if (!grid) return;
+
+            grid.focus();
+            if (grid.rows.length > 0) {
+                grid.select(new wjGrid.CellRange(0, 0));
+            }
+        }, 50);
 
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.key === "Escape") {
                 e.preventDefault();
                 onClose();
+                return;
+            }
+
+            if (e.key === "Enter") {
+                const active = document.activeElement as HTMLElement | null;
+                if (active && popupRef.current?.contains(active)) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    confirmSelection();
+                }
             }
 
         };
@@ -61,11 +101,12 @@ const StoresSearchPopup: React.FC<StoresSearchPopupProps> = ({
         return () => {
             window.removeEventListener("keydown", handleKeyDown, true);
         };
-    }, [visible, onClose]);
+    }, [visible, onClose, getGridInstance]);
     if (!visible) return null;
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
             <div
+                ref={popupRef}
                 className="bg-white rounded-lg shadow-2xl border p-6 w-full max-w-4xl"
                 dir="rtl"
                 style={{ height: "650px" }}
@@ -92,11 +133,7 @@ const StoresSearchPopup: React.FC<StoresSearchPopupProps> = ({
                     <Button
                         className="erp-btn-primary"
                         disabled={!selectedStore}
-                        onClick={() => {
-                            if (!selectedStore) return;
-                            onSelect(selectedStore);
-                            onClose();
-                        }}
+                        onClick={confirmSelection}
                     >
                         موافق
                     </Button>

@@ -50,7 +50,7 @@
 .wj-flexgrid .wj-state-selected:not(.wj-header),
 .wj-flexgrid .wj-row .wj-cell.wj-state-selected:not(.wj-header),
 .wj-flexgrid .wj-cell.wj-state-selected:not(.wj-header) {
-  background: #d4f2d7 !important; /* light green */
+  background: #6fe27b !important; /* light green */
   color: #155724 !important;      /* dark green text */
   border-color: transparent !important;
 }
@@ -58,19 +58,20 @@
 /* Focused body cells ONLY (exclude header) */
 .wj-flexgrid .wj-cell:focus:not(.wj-header) {
   outline: none;
-  background: #d4f2d7 !important; /* light green */
-  color: #155724 !important;      /* dark green text */
+  background: #90f199 !important; /* light green */
+  color: #198332 !important;      /* dark green text */
 }
 
 /* Ensure icons inherit selected/focus text color */
 .wj-flexgrid .wj-cell.wj-state-selected i,
 .wj-flexgrid .wj-state-selected i {
   color: inherit !important;
+  background: #90f199 !important;
 }
 
 /* Group header rows */
 .wj-flexgrid .wj-group-row {
-  background: #ecf0f1;
+  background: #7adef7;
   font-weight: 700;
   padding: 6px 12px;
   border-left: 4px solid #2ecc71;

@@ -1,0 +1,12 @@
+ALTER TABLE public.orders
+ADD COLUMN order_status2 integer NOT NULL DEFAULT 1;
+
+ALTER TABLE public.orders
+ALTER COLUMN order_date SET DEFAULT CURRENT_TIMESTAMP;
+
+
+
+UPDATE public.orders
+SET order_date = date_trunc('day', order_date) + interval '6 hours';
+
+

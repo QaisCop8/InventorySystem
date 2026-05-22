@@ -1,0 +1,28 @@
+CREATE TABLE voucher_books (
+    id SERIAL PRIMARY KEY,
+    name CHAR(2) NOT NULL
+);
+
+INSERT INTO voucher_books (name) VALUES
+('A'), ('B'), ('C'), ('D'), ('E'), ('F'), ('G'),
+('H'), ('I'), ('J'), ('K'), ('L'), ('M'),
+('N'), ('O'), ('P'), ('Q'), ('R'), ('S'),
+('T'), ('U'), ('V'), ('W'), ('X'), ('Y'), ('Z');
+
+
+CREATE TABLE IF NOT EXISTS customer_vouchers (
+    id SERIAL PRIMARY KEY,       -- unique row id
+    customer_id INTEGER NOT NULL,
+    voucher_id INTEGER NOT NULL,
+    book_id INTEGER NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW(),
+    CONSTRAINT fk_customer FOREIGN KEY (customer_id)
+        REFERENCES customers(id) ON DELETE CASCADE,
+    CONSTRAINT fk_voucher FOREIGN KEY (voucher_id)
+        REFERENCES voucher_types(id) ON DELETE CASCADE,
+    CONSTRAINT fk_book FOREIGN KEY (book_id)
+        REFERENCES voucher_books(id) ON DELETE CASCADE,
+    CONSTRAINT unique_customer_voucher UNIQUE (customer_id, voucher_id, book_id)
+);
+

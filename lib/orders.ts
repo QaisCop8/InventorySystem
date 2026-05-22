@@ -50,7 +50,7 @@ export default sql
 export interface SalesOrder {
   id: number;
   order_number: string;
-  order_date: Date;
+  order_date: string;
   customer_id: number;
   customer_name: string;
   customer_phone?: string | null;
@@ -78,13 +78,14 @@ export interface SalesOrder {
   received_by: string;
   customer_order_no?: string;
   user_id: string;
+  order_status2: number;
 }
 
 
 export interface PurchaseOrder {
   id: number
   order_number: string
-  order_date: Date
+  order_date: string
   supplier_id: number
   supplier_name: string
   salesman: string
@@ -152,7 +153,7 @@ export async function getSalesOrders(filters: any = {}) {
   let paramIndex = 1;
 
   whereClauses.push(` deleted = false `);
-  if (order_type !== null) {
+  if (order_type !== null && order_type != -1) {
     whereClauses.push(`order_type = $${paramIndex}`);
     params.push(order_type);
     paramIndex++;
@@ -325,14 +326,34 @@ export async function createOrder(
     const vchBook = orderData.order_number?.[1] ?? "O";
     // Generate order number if missing
     if (!orderData.order_number) {
-      if(orderData.order_type === 1)orderData.order_number = await generateSalesOrderNumber(vchBook);
+      if (orderData.order_type === 1) orderData.order_number = await generateSalesOrderNumber(vchBook);
       else orderData.order_number = await generatePurchaseOrderNumber(vchBook);
+    }
+
+    // Check for duplicate reference number
+    if (orderData.reference_number && orderData.reference_number.trim() !== "") {
+      let queryText = `SELECT id FROM orders WHERE reference_number = $1 AND deleted = false AND id != $2`;
+      let params: (string | number)[] = [orderData.reference_number.trim(), orderData.id || 0];
+
+      // For purchase orders, also check customer_id
+      if (orderData.order_type === 2 && orderData.customer_id) {
+        queryText += ` AND customer_id = $3`;
+        params.push(orderData.customer_id);
+      }
+
+      const refExists = await client.query(queryText, params);
+      if (refExists.rows.length > 0) {
+        throw new Error(
+          `السند اليدوي ${orderData.reference_number} موجود مسبقا. يرجى التحقق من البيانات وإعادة المحاولة.`
+        );
+      }
     }
 
     for (const item of items) {
       if (item.batch_number && item.batch_number.trim() !== "") {
         const batchExists = await client.query(
-          `SELECT id FROM order_items WHERE batch_number = $1 and order_id <> $2 LIMIT 1`,
+          `SELECT order_items.id FROM order_items INNER JOIN orders on orders.id = order_items.order_id
+           WHERE batch_number = $1 and order_id <> $2 AND orders.deleted = false LIMIT 1`,
           [item.batch_number.trim(), orderData.id]
         );
 
@@ -343,31 +364,29 @@ export async function createOrder(
         }
       }
     }
-
+    if(!orderData.discount_amount)orderData.discount_amount = 0
     if (orderData.id === 0) {
-      let exists = false;
-
-      if (orderData.order_number && orderData.order_number.length >= 2) {
-        // Check DB if this order_number already exists
-        const res = await pool.query(
-          `SELECT id FROM orders WHERE order_number = $1 LIMIT 1`,
-          [orderData.order_number]
-        );
-        exists = res.rows.length > 0;
-      }
-
-      // Generate new order number if missing or already exists
-      if (!orderData.order_number || orderData.order_number.length < 2 || exists) {
-        if(orderData.order_type === 1)orderData.order_number = await generateSalesOrderNumber(vchBook);
-        else orderData.order_number = await generatePurchaseOrderNumber(vchBook);
-      }
+      
     }
 
     console.log("[v0] Creating order with data:", orderData);
 
     // Insert order
     let order;
+    const baseDate = new Date(orderData.order_date || new Date());
+    const now = new Date();
 
+    // Replace time part with current time
+    baseDate.setHours(
+      now.getHours(),
+      now.getMinutes(),
+      now.getSeconds(),
+      now.getMilliseconds()
+    );
+
+    const updatedDate = baseDate;
+
+    orderData.order_date = updatedDate.toISOString();
     if (orderData.id && orderData.id > 0) {
       // UPDATE existing order
       const orderUpdateQuery = `
@@ -399,8 +418,9 @@ export async function createOrder(
     delivery_notes = $24,
     received_by = $25,
     customer_order_no= $26,
+    order_status2 = $27,
     updated_at = NOW()
-  WHERE id = $27
+  WHERE id = $28
   RETURNING *;
 `;
 
@@ -420,7 +440,7 @@ export async function createOrder(
         orderData.vat_percent || 0,
         orderData.total_amount || 0,
         orderData.order_type || 1,
-        orderData.order_status || 0,
+        orderData.order_status || 1,
         orderData.order_decision || 0,
         orderData.delivery_address || "",
         orderData.reference_number || "",
@@ -432,6 +452,7 @@ export async function createOrder(
         orderData.delivery_notes || "",
         orderData.received_by || "",
         orderData.customer_order_no || "",
+        orderData.order_status2 || 1,
         orderData.id, // WHERE id
       ];
 
@@ -440,6 +461,22 @@ export async function createOrder(
 
     } else {
       // INSERT new order
+      let exists = false;
+
+      if (orderData.order_number && orderData.order_number.length >= 2) {
+        // Check DB if this order_number already exists
+        const res = await pool.query(
+          `SELECT id FROM orders WHERE order_number = $1 LIMIT 1`,
+          [orderData.order_number]
+        );
+        exists = res.rows.length > 0;
+      }
+
+      // Generate new order number if missing or already exists
+      if (!orderData.order_number || orderData.order_number.length < 2 || exists) {
+        if (orderData.order_type === 1) orderData.order_number = await generateSalesOrderNumber(vchBook);
+        else orderData.order_number = await generatePurchaseOrderNumber(vchBook);
+      }
       const orderInsertQuery = `
         INSERT INTO orders (
           order_number,
@@ -471,12 +508,13 @@ export async function createOrder(
           user_id,
           printed,
           printed_count,
+          order_status2,
           created_at,
           updated_at
         ) VALUES (
           $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,
           $11,$12,$13,$14,$15,$16,$17,$18,$19,$20,
-          $21,$22,$23,$24,$25,$26,$27,$28,$29,
+          $21,$22,$23,$24,$25,$26,$27,$28,$29,$30,
           NOW(),NOW()
         )
         RETURNING *;
@@ -513,6 +551,7 @@ export async function createOrder(
         orderData.user_id || "",
         "0",
         "0",
+        orderData.order_status2 || 0,
       ];
 
 
@@ -577,9 +616,10 @@ export async function createOrder(
         product_id,
         order_id,
         batch_number,
-        status_id
+        status_id,
+        quantity
       )
-      VALUES ($1, $2, $3, $4)
+      VALUES ($1, $2, $3, $4, $5)
       RETURNING id
     `;
         const batchResult = await client.query(insertBatchQuery, [
@@ -587,6 +627,7 @@ export async function createOrder(
           order.id,
           item.batch_number,
           1, // default status
+          item.quantity
         ]);
 
         const batchId = batchResult.rows[0].id;
@@ -612,7 +653,7 @@ export async function createOrder(
 
     const statusId = order.id && order.id > 0 ? 2 : 1;
 
-        const insertVoucherLogQuery = `
+    const insertVoucherLogQuery = `
       INSERT INTO vouchers_log (
         voucher_id,
         voucher_type,
@@ -706,7 +747,7 @@ export async function updateOrderStatus(
   orderId: number,
   orderType: "sales" | "purchase",
   status: string,
-  userId: string,
+  userId: string
 ) {
   try {
     const table = orderType === "sales" ? "sales_orders" : "purchase_orders"
@@ -940,3 +981,109 @@ export async function deleteSalesOrder(
   }
 }
 
+
+export async function updatePrintSalesOrder(
+  orderId: number,
+  voucherType: number,
+  userId: string | null
+) {
+  const client = await pool.connect(); // افترض أنك عندك pool
+  try {
+    await client.query('BEGIN'); // بدء المعاملة
+
+    // 1️⃣ تحديث الطلب ليصبح محذوف (soft delete)
+    await client.query(
+      `UPDATE orders
+        SET 
+            printed = 1,
+            printed_count = COALESCE(printed_count, 0) + 1
+        WHERE id = $1;`,
+      [orderId]
+    );
+
+    // 2️⃣ إدراج سجل الحذف في vouchers_log
+    const insertVoucherLogQuery = `
+      INSERT INTO vouchers_log (
+        voucher_id,
+        voucher_type,
+        user_id,
+        status_id
+      )
+      VALUES ($1, $2, $3, $4)
+    `;
+    await client.query(insertVoucherLogQuery, [
+      orderId,       // voucher_id
+      voucherType,   // order_type / voucher_type
+      userId,        // المستخدم
+      3              // status_id = طباعة '
+    ]);
+
+    await client.query('COMMIT'); // إنهاء المعاملة بنجاح
+    return { success: true };
+  } catch (error) {
+    await client.query('ROLLBACK'); // تراجع إذا حصل خطأ
+    console.error("Error deleting sales order:", error);
+    throw error;
+  } finally {
+    client.release(); // تحرير الاتصال من pool
+  }
+}
+
+export async function UpdateOrderStatus(
+  orderId: number,
+  statusOrDecision: number,
+  voucherType: number,
+  userId: string | null,
+  received_by: string | null
+) {
+  const client = await pool.connect(); // افترض أنك عندك pool
+  try {
+    await client.query('BEGIN'); // بدء المعاملة
+
+    // 1️⃣ تحديث الطلب ليصبح محذوف (soft delete)
+    if (statusOrDecision === 1)
+      await client.query(
+        `UPDATE orders
+        SET 
+            order_status = 2
+        WHERE id = $1;`,
+        [orderId]
+      );
+    else
+      await client.query(
+        `UPDATE orders
+        SET 
+            order_status2 = 2,
+            received_by = $2
+            
+        WHERE id = $1;`,
+        [orderId, received_by]
+      );
+
+    // 2️⃣ إدراج سجل الحذف في vouchers_log
+    const insertVoucherLogQuery = `
+      INSERT INTO vouchers_log (
+        voucher_id,
+        voucher_type,
+        user_id,
+        status_id
+      )
+      VALUES ($1, $2, $3, $4)
+    `;
+    await client.query(insertVoucherLogQuery, [
+      orderId,       // voucher_id
+      voucherType,   // order_type / voucher_type
+      userId,        // المستخدم
+      2              // status_id = طباعة '
+    ]);
+
+    await client.query('COMMIT'); // إنهاء المعاملة بنجاح
+    return { success: true };
+  } catch (error) {
+    await client.query('ROLLBACK'); // تراجع إذا حصل خطأ
+    console.error("Error deleting sales order:", error);
+    throw error;
+  } finally {
+    client.release(); // تحرير الاتصال من pool
+  }
+}

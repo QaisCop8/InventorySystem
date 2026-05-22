@@ -1,0 +1,1 @@
+Alter TABLE public.stock_batch ADD COLUMN quantity FLOAT
