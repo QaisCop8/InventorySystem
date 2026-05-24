@@ -5,7 +5,7 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
 
-    const type = searchParams.get("type") || "5"
+    const type = searchParams.get("voucher_type") || searchParams.get("vch_type") || searchParams.get("type") || "5"
     const filters = {
       search: searchParams.get("search") || undefined,
       status: searchParams.get("status") || undefined,
@@ -13,6 +13,7 @@ export async function GET(request: NextRequest) {
       dateFrom: searchParams.get("dateFrom") || undefined,
       dateTo: searchParams.get("dateTo") || undefined,
       customerId: searchParams.get("customerId") ? Number.parseInt(searchParams.get("customerId")!) : undefined,
+      voucher_type: type,
       vch_type: type,
     }
 
@@ -31,6 +32,10 @@ export async function POST(request: NextRequest) {
 
     const voucherData = od || rest
     const items = it || requestData.items || []
+
+    if (voucherData && voucherData.voucher_type == null) {
+      voucherData.voucher_type = voucherData.vch_type ?? voucherData.order_type ?? 5
+    }
 
     if (!voucherData) {
       return NextResponse.json({ error: "بيانات الفاتورة مطلوبة" }, { status: 400 })

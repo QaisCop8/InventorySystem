@@ -55,10 +55,97 @@ import React from "react"
 if (typeof document !== 'undefined') {
   const styleSheet = document.createElement('style')
   styleSheet.textContent = `
+    .invoice-inline-labels .space-y-2:has(> label):has(> input, > textarea, > .p-dropdown, > .flex, > .invoice-offset-toggle),
+    .invoice-inline-labels .grid > div:has(> label):has(> input, > textarea, > .p-dropdown, > .flex, > .invoice-offset-toggle) {
+      display: grid !important;
+      grid-template-columns: clamp(78px, 10vw, 108px) minmax(0, 1fr);
+      align-items: center;
+      gap: 0.45rem 0.2rem;
+    }
+
+    .invoice-inline-labels .space-y-2:has(> label):has(> input, > textarea, > .p-dropdown, > .flex, > .invoice-offset-toggle) > label,
+    .invoice-inline-labels .grid > div:has(> label):has(> input, > textarea, > .p-dropdown, > .flex, > .invoice-offset-toggle) > label {
+      margin: 0 !important;
+      white-space: nowrap;
+      line-height: 1.2;
+    }
+
+    .invoice-inline-labels .space-y-2:has(> label):has(> input, > textarea, > .p-dropdown, > .flex, > .invoice-offset-toggle) > .flex,
+    .invoice-inline-labels .grid > div:has(> label):has(> input, > textarea, > .p-dropdown, > .flex, > .invoice-offset-toggle) > .flex {
+      width: 100%;
+    }
+
+    .invoice-inline-labels .invoice-offset-toggle {
+      width: fit-content;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      cursor: pointer;
+      position: relative;
+    }
+
+    .invoice-inline-labels .invoice-offset-toggle input {
+      position: absolute;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .invoice-inline-labels .invoice-offset-toggle-track {
+      width: 2.75rem;
+      height: 1.5rem;
+      border-radius: 9999px;
+      background: rgb(203 213 225);
+      position: relative;
+      transition: background-color 0.2s ease;
+      flex-shrink: 0;
+    }
+
+    .invoice-inline-labels .invoice-offset-toggle-thumb {
+      position: absolute;
+      top: 0.2rem;
+      left: 0.2rem;
+      width: 1.1rem;
+      height: 1.1rem;
+      border-radius: 9999px;
+      background: #fff;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.2);
+      transition: transform 0.2s ease;
+    }
+
+    .invoice-inline-labels .invoice-offset-toggle input:checked + .invoice-offset-toggle-track {
+      background: #16a34a;
+    }
+
+    .invoice-inline-labels .invoice-offset-toggle input:checked + .invoice-offset-toggle-track .invoice-offset-toggle-thumb {
+      transform: translateX(1.25rem);
+    }
+
+    @media (max-width: 768px) {
+      .invoice-inline-labels .space-y-2:has(> label):has(> input, > textarea, > .p-dropdown, > .flex, > .invoice-offset-toggle),
+      .invoice-inline-labels .grid > div:has(> label):has(> input, > textarea, > .p-dropdown, > .flex, > .invoice-offset-toggle) {
+        grid-template-columns: 84px minmax(0, 1fr);
+      }
+    }
+
     .invoice-currency-dropdown-wrap {
       overflow: visible !important;
       position: relative;
     }
+
+    .invoice-inline-labels input,
+    .invoice-inline-labels textarea,
+    .invoice-inline-labels .p-dropdown,
+    .invoice-inline-labels .p-inputtext,
+    .invoice-inline-labels [role="combobox"] {
+      background-color: #ecfdf5 !important;
+    }
+
+    .invoice-inline-labels input:disabled,
+    .invoice-inline-labels textarea:disabled,
+    .invoice-inline-labels .p-disabled {
+      background-color: #d1fae5 !important;
+    }
+
     .invoice-currency-dropdown-panel {
       z-index: 9999 !important;
       position: absolute !important;
@@ -263,6 +350,7 @@ interface OrderFormData {
   invoice_type: number | null,
   is_offset: boolean,
   offset_code: number | null,
+  invoice_source_type: string,
 
 }
 
@@ -317,6 +405,7 @@ const initialFormData: OrderFormData = {
   invoice_type: 1,
   is_offset: false,
   offset_code: null,
+  invoice_source_type: "normal",
 }
 
 
@@ -416,10 +505,10 @@ function UnifiedSaleInvoices({
   const [showOrderSearch, setShowOrderSearch] = useState(false);
   const gridRef = useRef<wjGrid.FlexGrid | null>(null);
   const fromBlurRef = useRef(false);
-  const orderdateRef = useRef<HTMLInputElement>(null);
   const orderNumberRef = useRef<HTMLInputElement>(null);
   const customerNameRef = useRef<HTMLInputElement>(null);
   const referenceNumberRef = useRef<HTMLInputElement>(null);
+  const customerSelectHandledRef = useRef(false);
   const [lastFilledRow, setLastFilledRow] = useState(null);
   const normalizedCurrencies = useMemo(
     () =>
@@ -451,6 +540,19 @@ function UnifiedSaleInvoices({
       { label: "أصول", value: 2 },
       { label: "خدمات", value: 3 },
     ],
+    [],
+  )
+  const voucherTypeOptions = useMemo(
+    () => [
+      { label: "عادية", value: "normal" },
+      { label: "من طلبية", value: "from_order" },
+      { label: "من ارسالية", value: "from_delivery" },
+      { label: "من عرض سعر", value: "from_quotation" },
+    ],
+    [],
+  )
+  const voucherBookOptions = useMemo(
+    () => "LMPR".split("").map((book) => ({ label: book, value: book })),
     [],
   )
   const [showUnsaved, setShowUnsaved] = useState(false);
@@ -2347,6 +2449,51 @@ function UnifiedSaleInvoices({
 
   };
 
+  const closeCustomerSearchPopup = (focusCustomerName = true) => {
+    const grid: any = gridRef.current;
+
+    try {
+      if (grid?.finishEditing) {
+        grid.finishEditing(false);
+      }
+    } catch (error) {
+      console.error("Failed to finish grid editing before closing customer search:", error);
+    }
+
+    popupHasClosed();
+    setShowCustomerSearch(false);
+
+    if (focusCustomerName) {
+      setTimeout(() => {
+        customerNameRef.current?.focus();
+      }, 0);
+    }
+  };
+
+  const openOrderSearchPopup = () => {
+    popupHasCalled()
+    setShowOrderSearch(true)
+  }
+
+  const openCustomerSearchPopup = () => {
+    popupHasCalled()
+    setShowCustomerSearch(true)
+  }
+
+  const selectedCustomerBalance = useMemo(() => {
+    const selectedCustomer = state.customers.find((customer) =>
+      Number(customer.id) === Number(state.formData.customer_id),
+    )
+    return Number(selectedCustomer?.credit_limit ?? 0)
+  }, [state.customers, state.formData.customer_id])
+
+  const refocusDropdownInput = (inputId: string) => {
+    setTimeout(() => {
+      const element = document.getElementById(inputId) as HTMLElement | null
+      element?.focus()
+    }, 0)
+  }
+
   const focusReferenceThenNext = () => {
     setTimeout(() => {
       const current = referenceNumberRef.current
@@ -2883,6 +3030,7 @@ function UnifiedSaleInvoices({
   return (
     <Dialog open={open} onOpenChange={onOpenChange || handleCancel}>
       <DialogContent className="
+          invoice-inline-labels
           w-full
           max-w-[95vw]
           sm:max-w-[90vw]
@@ -2980,12 +3128,16 @@ function UnifiedSaleInvoices({
               type={-1}
               vch_type={vch_type ?? 5}
               onClose={() => {
-                popupHasClosed()
-                setShowCustomerSearch(false)
-                customerNameRef.current?.focus()
+                if (customerSelectHandledRef.current) {
+                  customerSelectHandledRef.current = false
+                  return
+                }
+
+                closeCustomerSearchPopup(true)
               }
               }
               onSelect={(customer) => {   // customer: Customer
+                customerSelectHandledRef.current = true
                 const allowedVoucherBooks = ["L", "P", "M", "R"]
                 const customerVoucherBook = customer.vch_book?.toString().trim().toUpperCase()
                 const book = allowedVoucherBooks.includes(customerVoucherBook)
@@ -3004,8 +3156,7 @@ function UnifiedSaleInvoices({
                   },
                 }))
                 priceCategoryIdRef.current = customer.pricecategory
-                customerNameRef.current?.focus()
-                popupHasClosed()
+                closeCustomerSearchPopup(true)
               }}
             />
             <ConfirmDialogYesNo
@@ -3154,7 +3305,7 @@ function UnifiedSaleInvoices({
                 </div>
               </CardContent>
             </Card>
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6" dir="rtl">
+            <div className="grid grid-cols-1 gap-6" dir="rtl">
 
               {/* ===================== */}
               {/* معلومات الفاتورة (يمين) */}
@@ -3170,14 +3321,24 @@ function UnifiedSaleInvoices({
                 <CardContent className="space-y-10">
 
                   {/* الصف الأول */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     {/* دفتر السندات */}
-                    <div>
+                    <div className="invoice-currency-dropdown-wrap">
                       <Label>دفتر السندات</Label>
-                      <Select
+                      <PrimeDropdown
+                        inputId="vch_book"
                         value={String(state.formData.vch_book ?? "R")}
+                        options={voucherBookOptions}
+                        optionLabel="label"
+                        optionValue="value"
+                        className="invoice-currency-dropdown"
+                        style={{ width: "100%" }}
+                        panelClassName="invoice-currency-dropdown-panel"
+                        appendTo="self"
+                        panelStyle={{ zIndex: 10000 }}
                         disabled={voucherBookLocked}
-                        onValueChange={(value) => {
+                        onChange={(e: any) => {
+                          const value = e.value
                           const normalized = String(value).trim().toUpperCase()
                           setState(prev => ({
                             ...prev,
@@ -3185,17 +3346,9 @@ function UnifiedSaleInvoices({
                           }))
                           fromBlurRef.current = false
                           generateOrderNumber(normalized)
+                          refocusDropdownInput("vch_book")
                         }}
-                      >
-                        <SelectTrigger className="h-11">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {"LMPR".split("").map(l => (
-                            <SelectItem key={l} value={l}>{l}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      />
                     </div>
 
                     {/* رقم الفاتورة */}
@@ -3205,7 +3358,7 @@ function UnifiedSaleInvoices({
                       </Label>
 
                       <div className="flex flex-row-reverse gap-2 items-center">
-                        <Button type="button" onClick={() => { popupHasCalled(); setShowOrderSearch(true) }}>
+                        <Button type="button" size="sm" onClick={openOrderSearchPopup}>
                           🔍
                         </Button>
                         <Input
@@ -3214,8 +3367,7 @@ function UnifiedSaleInvoices({
                           onKeyDown={(e) => {
                             // Allow Enter
                             if (e.key === "F10") {
-                              popupHasCalled();
-                              setShowOrderSearch(true)
+                              openOrderSearchPopup()
                               return;
                             }
                           }
@@ -3226,7 +3378,7 @@ function UnifiedSaleInvoices({
                               formData: { ...prev.formData, order_number: e.target.value },
                             }))
                           }
-                          className="text-right font-medium h-11 flex-1"
+                          className="text-right font-medium text-sm h-9"
                           dir="rtl"
                           placeholder={""}
                           onBlur={handleOrderCodeBlur}
@@ -3239,36 +3391,60 @@ function UnifiedSaleInvoices({
                     <div>
                       <Label>تاريخ الفاتورة</Label>
                       <Input
-                        ref={orderdateRef}
                         type="date"
                         value={state.formData.order_date ?? ""}
                         onChange={async (e) => {
-                          const newDate = e.target.value; // capture value immediately
-                          let rate = state.formData.exchange_rate;
+                          const newDate = e.target.value
+                          if (!newDate) return
 
+                          let rate = state.formData.exchange_rate
                           if (state.formData.currency_id !== 1) {
-                            rate = await getCurrencyRate(state.formData.currency_id, newDate);
+                            rate = await getCurrencyRate(state.formData.currency_id, newDate)
                           }
 
                           setState((prev) => ({
                             ...prev,
                             formData: { ...prev.formData, order_date: newDate, exchange_rate: rate },
-                          }));
+                          }))
                         }}
-
-
                         className="h-11"
                       />
                     </div>
+
+                    <div className="invoice-currency-dropdown-wrap">
+                      <Label>نوع الفاتورة</Label>
+                      <PrimeDropdown
+                        inputId="invoice_source_type"
+                        value={state.formData.invoice_source_type || "normal"}
+                        options={voucherTypeOptions}
+                        optionLabel="label"
+                        optionValue="value"
+                        className="invoice-currency-dropdown h-11"
+                        panelClassName="invoice-currency-dropdown-panel"
+                        appendTo="self"
+                        baseZIndex={10000}
+                        panelStyle={{ zIndex: 10000 }}
+                        onChange={(e: any) =>
+                          setState((prev) => ({
+                            ...prev,
+                            formData: { ...prev.formData, invoice_source_type: e.value || "normal" },
+                          }))
+                        }
+                        onHide={() => refocusDropdownInput("invoice_source_type")}
+                      />
+                    </div>
+
                   </div>
 
                   {/* الصف الثاني */}
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+
                     {/* العملة */}
                     <div className="invoice-currency-dropdown-wrap">
                       <Label>العملة</Label>
                       <PrimeDropdown
                         id="currency_id"
+                        inputId="currency_id"
                         value={state.formData.currency_id ? Number(state.formData.currency_id) : null}
                         options={normalizedCurrencies}
                         optionLabel="currency_name"
@@ -3278,6 +3454,8 @@ function UnifiedSaleInvoices({
                         className="invoice-currency-dropdown"
                         panelClassName="invoice-currency-dropdown-panel"
                         appendTo="self"
+                        baseZIndex={10000}
+                        panelStyle={{ zIndex: 10000 }}
                         filterInputAutoFocus={true}
                         onShow={() => {
                           setTimeout(() => {
@@ -3320,6 +3498,7 @@ function UnifiedSaleInvoices({
                               exchange_rate: rate,
                             },
                           }))
+                          refocusDropdownInput("currency_id")
                         }}
                       />
                     </div>
@@ -3330,6 +3509,7 @@ function UnifiedSaleInvoices({
                       <Input
                         value={state.formData.exchange_rate ?? 1}
                         disabled={state.formData.currency_id === 1}
+                        className="h-11"
                       />
                     </div>
 
@@ -3371,146 +3551,6 @@ function UnifiedSaleInvoices({
 
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    {/* التصنيف الضريبي */}
-                    <div className="invoice-currency-dropdown-wrap">
-                      <Label>التصنيف الضريبي</Label>
-                      <PrimeDropdown
-                        value={state.formData.tax_classification || 1}
-                        options={taxClassificationOptions}
-                        optionLabel="label"
-                        optionValue="value"
-                        className="invoice-currency-dropdown"
-                        panelClassName="invoice-currency-dropdown-panel"
-                        appendTo="self"
-                        onChange={(e: any) =>
-                          setState((prev) => ({
-                            ...prev,
-                            formData: { ...prev.formData, tax_classification: Number(e.value) || 1 },
-                          }))
-                        }
-                      />
-                    </div>
-
-                    {/* النوع */}
-                    <div className="invoice-currency-dropdown-wrap">
-                      <Label>النوع</Label>
-                      <PrimeDropdown
-                        value={state.formData.invoice_type || 1}
-                        options={invoiceTypeOptions}
-                        optionLabel="label"
-                        optionValue="value"
-                        className="invoice-currency-dropdown"
-                        panelClassName="invoice-currency-dropdown-panel"
-                        appendTo="self"
-                        onChange={(e: any) =>
-                          setState((prev) => ({
-                            ...prev,
-                            formData: { ...prev.formData, invoice_type: Number(e.value) || 1 },
-                          }))
-                        }
-                      />
-                    </div>
-
-                    {/* مقاصة */}
-                    <div>
-                      <Label>مقاصة</Label>
-                      <label className="invoice-offset-toggle" htmlFor="is_offset">
-                        <span className="invoice-offset-toggle-text">
-                          {state.formData.is_offset ? "مفعلة" : "غير مفعلة"}
-                        </span>
-                        <input
-                          id="is_offset"
-                          type="checkbox"
-                          checked={!!state.formData.is_offset}
-                          onChange={(e) =>
-                            setState((prev) => ({
-                              ...prev,
-                              formData: {
-                                ...prev.formData,
-                                is_offset: e.target.checked,
-                                offset_code: e.target.checked
-                                  ? (prev.formData.offset_code || 1)
-                                  : null,
-                              },
-                            }))
-                          }
-                        />
-                        <span className="invoice-offset-toggle-track">
-                          <span className="invoice-offset-toggle-thumb" />
-                        </span>
-                      </label>
-                    </div>
-
-                    {/* كود المقاصة */}
-                    <div className="invoice-currency-dropdown-wrap">
-                      <Label>كود المقاصة</Label>
-                      <PrimeDropdown
-                        value={state.formData.offset_code}
-                        options={offsetCodeOptions}
-                        optionLabel="label"
-                        optionValue="value"
-                        className="invoice-currency-dropdown"
-                        panelClassName="invoice-currency-dropdown-panel"
-                        appendTo="self"
-                        onChange={(e: any) =>
-                          setState((prev) => ({
-                            ...prev,
-                            formData: { ...prev.formData, offset_code: Number(e.value) || null },
-                          }))
-                        }
-                        disabled={!state.formData.is_offset}
-                        placeholder="اختر"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <div>
-                      <Label className="text-sm font-medium">
-                        {"تاريخ التسديد"}
-                      </Label>
-                      <Input
-                        type="date"
-                        value={state.formData.delivery_date ?? ""}
-                        onChange={(e) =>
-                          setState((prev) => ({
-                            ...prev,
-                            formData: { ...prev.formData, delivery_date: e.target.value },
-                          }))
-                        }
-                        className="text-right h-11"
-                        dir="rtl"
-                      />
-                    </div>
-
-                    <div>
-                      <Label className="text-sm font-medium">مبيعات مصدرة</Label>
-                      <label className="invoice-offset-toggle" htmlFor="exported_sales_toggle">
-                        <span className="invoice-offset-toggle-text">
-                          {state.formData.exported_sales ? "مفعلة" : "غير مفعلة"}
-                        </span>
-                        <input
-                          id="exported_sales_toggle"
-                          type="checkbox"
-                          checked={!!state.formData.exported_sales}
-                          onChange={(e) =>
-                            setState((prev) => ({
-                              ...prev,
-                              formData: {
-                                ...prev.formData,
-                                exported_sales: e.target.checked,
-                              },
-                            }))
-                          }
-                        />
-                        <span className="invoice-offset-toggle-track">
-                          <span className="invoice-offset-toggle-thumb" />
-                        </span>
-                      </label>
-                    </div>
-                  </div>
-
                 </CardContent>
               </Card>
 
@@ -3549,7 +3589,7 @@ function UnifiedSaleInvoices({
                             // Allow Enter
                             if (e.key === "F10") {
                               e.preventDefault();
-                              setShowCustomerSearch(true)
+                              openCustomerSearchPopup()
                               return;
                             }
                           }
@@ -3558,7 +3598,7 @@ function UnifiedSaleInvoices({
                           placeholder={'رقم الزبون '}
 
                         />
-                        <Button type="button" onClick={() => setShowCustomerSearch(true)}>
+                        <Button type="button" onClick={openCustomerSearchPopup}>
                           🔍
                         </Button>
                       </div>
@@ -3581,7 +3621,7 @@ function UnifiedSaleInvoices({
                     </div>
 
                     {/* هاتف */}
-                    <div className="col-span-4">
+                    <div className="col-span-12 md:col-span-6">
                       <Label>هاتف الزبون</Label>
                       <Input
                         value={state.formData.customer_phone ?? ""}
@@ -3594,74 +3634,175 @@ function UnifiedSaleInvoices({
                         }
                       />
                     </div>
-                    {/* استلمت بواسطة */}
-                    <div className="col-span-4">
-                      <Label>استلمت بواسطة</Label>
+
+                    <div className="col-span-12 md:col-span-6">
+                      <Label>رصيده</Label>
                       <Input
-                        value={state.formData.received_by ?? ""}
-                        maxLength={30}
-                        onChange={(e) =>
-                          setState(prev => ({
-                            ...prev,
-                            formData: { ...prev.formData, received_by: e.target.value }
-                          }))
-                        }
-                      />
-                    </div>
-                    {/* رقم طلبية الزبون */}
-                    <div className="col-span-4">
-                      <Label>رقم طلبية الزبون</Label>
-                      <Input
-                        value={state.formData.customer_order_no ?? ""}
-                        maxLength={15}
-                        onChange={(e) =>
-                          setState(prev => ({
-                            ...prev,
-                            formData: { ...prev.formData, customer_order_no: e.target.value }
-                          }))
-                        }
-                      />
-                    </div>
-                    {/* عنوان التسليم */}
-                    <div className="col-span-12">
-                      <Label>عنوان التسليم</Label>
-                      <Input
-                        value={state.formData.delivery_address ?? ""}
-                        className="resize-none"
-                        maxLength={150}
-                        onChange={(e) =>
-                          setState((prev) => ({
-                            ...prev,
-                            formData: {
-                              ...prev.formData,
-                              delivery_address: e.target.value,
-                            },
-                          }))
-                        }
-                      />
-                    </div>
-                    {/* ملاحظة عامة */}
-                    <div className="col-span-12">
-                      <Label>ملاحظة عامة</Label>
-                      <Input
-                        value={state.formData.general_notes ?? ""}
-                        className="resize-none"
-                        maxLength={150}
-                        onChange={(e) =>
-                          setState((prev) => ({
-                            ...prev,
-                            formData: {
-                              ...prev.formData,
-                              general_notes: e.target.value,
-                            },
-                          }))
-                        }
+                        value={selectedCustomerBalance.toFixed(2)}
+                        readOnly
+                        className="bg-muted"
                       />
                     </div>
                   </div>
 
                 </CardContent>
               </Card>
+
+              <Accordion type="single" collapsible className="w-full">
+                <AccordionItem value="tax-info" className="border rounded-lg">
+                  <AccordionTrigger className="px-4 py-3 hover:no-underline text-base font-semibold bg-primary/10 text-primary rounded-t-lg border-b border-primary/20">
+                    <span className="inline-flex items-center gap-2">
+                      <Percent className="h-4 w-4 text-primary" />
+                      <span>معلومات الضريبة</span>
+                    </span>
+                  </AccordionTrigger>
+                  <AccordionContent className="px-4 pt-4 pb-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="invoice-currency-dropdown-wrap">
+                        <Label>التصنيف الضريبي</Label>
+                        <PrimeDropdown
+                          inputId="tax_classification"
+                          value={state.formData.tax_classification || 1}
+                          options={taxClassificationOptions}
+                          optionLabel="label"
+                          optionValue="value"
+                          className="invoice-currency-dropdown"
+                          panelClassName="invoice-currency-dropdown-panel"
+                          appendTo="self"
+                          baseZIndex={10000}
+                          panelStyle={{ zIndex: 10000 }}
+                          onChange={(e: any) =>
+                            setState((prev) => ({
+                              ...prev,
+                              formData: { ...prev.formData, tax_classification: Number(e.value) || 1 },
+                            }))
+                          }
+                          onHide={() => refocusDropdownInput("tax_classification")}
+                        />
+                      </div>
+
+                      <div className="invoice-currency-dropdown-wrap">
+                        <Label>النوع</Label>
+                        <PrimeDropdown
+                          inputId="invoice_type"
+                          value={state.formData.invoice_type || 1}
+                          options={invoiceTypeOptions}
+                          optionLabel="label"
+                          optionValue="value"
+                          className="invoice-currency-dropdown"
+                          panelClassName="invoice-currency-dropdown-panel"
+                          appendTo="self"
+                          baseZIndex={10000}
+                          panelStyle={{ zIndex: 10000 }}
+                          onChange={(e: any) =>
+                            setState((prev) => ({
+                              ...prev,
+                              formData: { ...prev.formData, invoice_type: Number(e.value) || 1 },
+                            }))
+                          }
+                          onHide={() => refocusDropdownInput("invoice_type")}
+                        />
+                      </div>
+
+                      <div>
+                        <Label className="text-sm font-medium">{"تاريخ التسديد"}</Label>
+                        <Input
+                          type="date"
+                          value={state.formData.delivery_date ?? ""}
+                          onChange={(e) =>
+                            setState((prev) => ({
+                              ...prev,
+                              formData: { ...prev.formData, delivery_date: e.target.value },
+                            }))
+                          }
+                          className="text-right h-11"
+                          dir="rtl"
+                        />
+                      </div>
+
+                      <div>
+                        <Label>مقاصة</Label>
+                        <label className="invoice-offset-toggle" htmlFor="is_offset">
+                          <span className="invoice-offset-toggle-text">
+                            {state.formData.is_offset ? "مفعلة" : "غير مفعلة"}
+                          </span>
+                          <input
+                            id="is_offset"
+                            type="checkbox"
+                            checked={!!state.formData.is_offset}
+                            onChange={(e) =>
+                              setState((prev) => ({
+                                ...prev,
+                                formData: {
+                                  ...prev.formData,
+                                  is_offset: e.target.checked,
+                                  offset_code: e.target.checked
+                                    ? (prev.formData.offset_code || 1)
+                                    : null,
+                                },
+                              }))
+                            }
+                          />
+                          <span className="invoice-offset-toggle-track">
+                            <span className="invoice-offset-toggle-thumb" />
+                          </span>
+                        </label>
+                      </div>
+
+                      <div className="invoice-currency-dropdown-wrap">
+                        <Label>كود المقاصة</Label>
+                        <PrimeDropdown
+                          inputId="offset_code"
+                          value={state.formData.offset_code}
+                          options={offsetCodeOptions}
+                          optionLabel="label"
+                          optionValue="value"
+                          className="invoice-currency-dropdown"
+                          panelClassName="invoice-currency-dropdown-panel"
+                          appendTo="self"
+                          baseZIndex={10000}
+                          panelStyle={{ zIndex: 10000 }}
+                          onChange={(e: any) =>
+                            setState((prev) => ({
+                              ...prev,
+                              formData: { ...prev.formData, offset_code: Number(e.value) || null },
+                            }))
+                          }
+                          disabled={!state.formData.is_offset}
+                          placeholder="اختر"
+                          onHide={() => refocusDropdownInput("offset_code")}
+                        />
+                      </div>
+
+                      <div>
+                        <Label className="text-sm font-medium">مبيعات مصدرة</Label>
+                        <label className="invoice-offset-toggle" htmlFor="exported_sales_toggle">
+                          <span className="invoice-offset-toggle-text">
+                            {state.formData.exported_sales ? "مفعلة" : "غير مفعلة"}
+                          </span>
+                          <input
+                            id="exported_sales_toggle"
+                            type="checkbox"
+                            checked={!!state.formData.exported_sales}
+                            onChange={(e) =>
+                              setState((prev) => ({
+                                ...prev,
+                                formData: {
+                                  ...prev.formData,
+                                  exported_sales: e.target.checked,
+                                },
+                              }))
+                            }
+                          />
+                          <span className="invoice-offset-toggle-track">
+                            <span className="invoice-offset-toggle-thumb" />
+                          </span>
+                        </label>
+                      </div>
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
 
             </div>
             {state.formData?.id > 0 && state.formData?.printed === 1 && (
@@ -3710,14 +3851,31 @@ function UnifiedSaleInvoices({
             <Accordion type="single" collapsible className="w-full">
               <AccordionItem value="notes" className="border rounded-lg">
                 <Card className="border-0">
-                  <AccordionTrigger className="px-6 py-4 hover:no-underline">
+                  <AccordionTrigger className="px-6 py-4 hover:no-underline bg-primary/10 text-primary rounded-t-lg border-b border-primary/20">
                     <CardTitle className="text-lg flex items-center gap-2">
                       <MessageSquare className="h-5 w-5 text-primary" />
                       الملاحظات
                     </CardTitle>
                   </AccordionTrigger>
-                  <AccordionContent>
+                  <AccordionContent className="pt-4">
                     <CardContent className="space-y-6 pt-0">
+
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium">ملاحظة عامة</Label>
+                        <Textarea
+                          value={state.formData.general_notes ?? ""}
+                          onChange={(e) =>
+                            setState((prev) => ({
+                              ...prev,
+                              formData: { ...prev.formData, general_notes: e.target.value },
+                            }))
+                          }
+                          className="text-right min-h-[90px] resize-none"
+                          rows={3}
+                          placeholder="ملاحظة عامة على الفاتورة"
+                          dir="rtl"
+                        />
+                      </div>
 
                       <div className="space-y-2">
                         <Label className="text-sm font-medium">ملاحظات داخلية</Label>

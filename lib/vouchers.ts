@@ -84,16 +84,19 @@ export async function getSalesVouchers(filters: any = {}) {
 		dateFrom = null,
 		dateTo = null,
 		customerId = null,
+		voucher_type = null,
 		vch_type = null,
 	} = filters
+
+	const normalizedVoucherType = voucher_type ?? vch_type
 
 	const whereClauses: string[] = ["v.deleted = false"]
 	const params: any[] = []
 	let paramIndex = 1
 
-	if (vch_type !== null && vch_type !== undefined) {
+	if (normalizedVoucherType !== null && normalizedVoucherType !== undefined) {
 		whereClauses.push(`v.vch_type = $${paramIndex}`)
-		params.push(Number(vch_type))
+		params.push(Number(normalizedVoucherType))
 		paramIndex++
 	}
 
@@ -136,6 +139,7 @@ export async function getSalesVouchers(filters: any = {}) {
 	const queryText = `
 		SELECT
 			v.*,
+			v.vch_type AS voucher_type,
 			v.voucher_code AS order_number,
 			v.voucher_date AS order_date,
 			v.vch_status AS order_status,
@@ -197,7 +201,7 @@ export async function createVoucher(voucherData: any, items: any[]) {
 			ADD COLUMN IF NOT EXISTS offset_code integer
 		`)
 
-		const vchType = Number(voucherData.vch_type ?? voucherData.order_type ?? 5)
+		const vchType = Number(voucherData.voucher_type ?? voucherData.vch_type ?? voucherData.order_type ?? 5)
 		const vchBook = String(voucherData.vch_book ?? "R").trim().toUpperCase()
 
 		if (voucherData.reference_number && voucherData.reference_number.trim() !== "") {
@@ -367,7 +371,7 @@ export async function createVoucher(voucherData: any, items: any[]) {
 			]
 
 			const result = await client.query(updateQuery, updateValues)
-			voucher = result.rows[0]
+			voucher = { ...result.rows[0], voucher_type: result.rows[0]?.vch_type }
 		} else {
 			const insertQuery = `
 				INSERT INTO vouchers (
@@ -429,7 +433,7 @@ export async function createVoucher(voucherData: any, items: any[]) {
 			]
 
 			const result = await client.query(insertQuery, insertValues)
-			voucher = result.rows[0]
+			voucher = { ...result.rows[0], voucher_type: result.rows[0]?.vch_type }
 		}
 
 		await client.query("DELETE FROM voucher_items WHERE voucher_id = $1", [voucher.id])

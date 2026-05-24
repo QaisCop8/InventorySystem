@@ -66,7 +66,7 @@ export function Header({ onMenuClick, activeSection, onProfileClick, onSettingsC
           <Icons.Menu />
         </RefButton>
         <h1 className="text-sm md:text-xl font-semibold text-card-foreground truncate">
-          {sectionTitles[activeSection] || "نظام إدارة المخزون والطلبيات"}
+          {sectionTitles[activeSection] || "نظام رؤيا للحلول المحاسبية"}
         </h1>
       </div>
 

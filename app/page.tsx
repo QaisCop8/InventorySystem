@@ -142,9 +142,15 @@ export default function HomePage() {
         <div className="flex items-center justify-center h-full" dir="rtl">
           <div className="text-center space-y-4 max-w-md">
             <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center mx-auto">
-              <span className="text-4xl font-bold text-primary">ERP</span>
+              <svg viewBox="0 0 24 24" className="h-12 w-12 text-primary" aria-hidden="true">
+                <path
+                  d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3zm0 2.3L6 8.2v7.6l6 2.9 6-2.9V8.2l-6-2.9z"
+                  fill="currentColor"
+                />
+                <path d="M12 8.8l3.4 1.9v3.8L12 16.4l-3.4-1.9v-3.8L12 8.8z" fill="currentColor" opacity="0.6" />
+              </svg>
             </div>
-            <h2 className="text-3xl font-bold text-foreground">مرحباً بك في نظام إدارة الموارد</h2>
+            <h2 className="text-3xl font-bold text-foreground">Welcome to Ro'ya Accounting System</h2>
             <p className="text-muted-foreground text-lg">اختر قسماً من القائمة الجانبية للبدء في العمل</p>
             <div className="pt-4 space-y-2 text-sm text-muted-foreground">
 

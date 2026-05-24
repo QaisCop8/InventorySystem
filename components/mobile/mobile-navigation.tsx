@@ -35,10 +35,16 @@ export function MobileNavigation({ activeSection, onSectionChange }: MobileNavig
         <div className="flex items-center justify-between" dir="rtl">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-sm">ERP</span>
+              <svg viewBox="0 0 24 24" className="h-5 w-5 text-white" aria-hidden="true">
+                <path
+                  d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3zm0 2.3L6 8.2v7.6l6 2.9 6-2.9V8.2l-6-2.9z"
+                  fill="currentColor"
+                />
+                <path d="M12 8.8l3.4 1.9v3.8L12 16.4l-3.4-1.9v-3.8L12 8.8z" fill="currentColor" opacity="0.6" />
+              </svg>
             </div>
             <div>
-              <h1 className="text-lg font-bold text-foreground">نظام المخزون</h1>
+              <h1 className="text-lg font-bold text-foreground">Ro'ya Accounting System</h1>
             </div>
           </div>
 
@@ -60,11 +66,17 @@ export function MobileNavigation({ activeSection, onSectionChange }: MobileNavig
                 <div className="p-6 border-b border-border bg-primary">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center">
-                      <span className="text-primary font-bold">ERP</span>
+                      <svg viewBox="0 0 24 24" className="h-6 w-6 text-primary" aria-hidden="true">
+                        <path
+                          d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3zm0 2.3L6 8.2v7.6l6 2.9 6-2.9V8.2l-6-2.9z"
+                          fill="currentColor"
+                        />
+                        <path d="M12 8.8l3.4 1.9v3.8L12 16.4l-3.4-1.9v-3.8L12 8.8z" fill="currentColor" opacity="0.6" />
+                      </svg>
                     </div>
                     <div>
-                      <h2 className="text-lg font-semibold text-white">نظام إدارة المخزون</h2>
-                      <p className="text-xs text-primary-foreground/80">إدارة متكاملة</p>
+                      <h2 className="text-lg font-semibold text-white">Ro'ya Accounting System</h2>
+                      <p className="text-xs text-primary-foreground/80">Ro'ya Accounting System</p>
                     </div>
                   </div>
                 </div>

@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Edit, Building, MapPin, Package, Users, CreditCard, Settings } from "lucide-react"
+import { Plus, Edit, Building, MapPin, Package, Users, CreditCard, Settings, Trash2 } from "lucide-react"
 import { UniversalToolbar } from "@/components/ui/universal-toolbar"
 import { WorkflowStagesManagement } from "@/components/workflow/workflow-stages-management"
 import { WorkflowSequencesManagement } from "@/components/workflow/workflow-sequences-management"
@@ -90,6 +90,55 @@ interface Price {
   name_en: string,
   description: string,
   is_active: boolean
+}
+
+interface IncomeStatementItem {
+  id: number
+  name: string
+  status: number
+}
+
+interface BalanceSheetAssetItem {
+  id: number
+  name: string
+  status: number
+}
+
+interface BalanceSheetLiabilityItem {
+  id: number
+  name: string
+  status: number
+}
+
+interface CostCenterType {
+  id: number
+  name: string
+  status: number
+}
+
+interface CostCenter {
+  id: number
+  name: string
+  cost_type_id: number
+  cost_type_name?: string
+  parent_id?: number | null
+  parent_name?: string | null
+  level: number
+  status: number
+}
+
+interface AccountClassificationType {
+  id: number
+  name: string
+  status: number
+}
+
+interface AccountClassification {
+  id: number
+  name: string
+  classification_type_id: number
+  classification_type_name?: string
+  status: number
 }
 
 const cities_initial = [
@@ -228,10 +277,49 @@ function Definitions() {
   const [unitForm, setUnitForm] = useState({ unit_name: "", unit_name_e: "", description: "" })
   const [showUnitForm, setShowUnitForm] = useState(false)
   const [showPriceForm, setShowPriceForm] = useState(false)
+  const [showIncomeStatementItemForm, setShowIncomeStatementItemForm] = useState(false)
+  const [showBalanceSheetAssetItemForm, setShowBalanceSheetAssetItemForm] = useState(false)
+  const [showBalanceSheetLiabilityItemForm, setShowBalanceSheetLiabilityItemForm] = useState(false)
+  const [showCostCenterTypeForm, setShowCostCenterTypeForm] = useState(false)
+  const [showCostCenterForm, setShowCostCenterForm] = useState(false)
+  const [showAccountClassificationTypeForm, setShowAccountClassificationTypeForm] = useState(false)
+  const [showAccountClassificationForm, setShowAccountClassificationForm] = useState(false)
   const [currentUnitIndex, setCurrentUnitIndex] = useState(0)
   const [currentPriceIndex, setCurrentPriceIndex] = useState(0)
+  const [currentIncomeStatementItemIndex, setCurrentIncomeStatementItemIndex] = useState(0)
+  const [currentBalanceSheetAssetItemIndex, setCurrentBalanceSheetAssetItemIndex] = useState(0)
+  const [currentBalanceSheetLiabilityItemIndex, setCurrentBalanceSheetLiabilityItemIndex] = useState(0)
+  const [currentCostCenterTypeIndex, setCurrentCostCenterTypeIndex] = useState(0)
+  const [currentCostCenterIndex, setCurrentCostCenterIndex] = useState(0)
+  const [currentAccountClassificationTypeIndex, setCurrentAccountClassificationTypeIndex] = useState(0)
+  const [currentAccountClassificationIndex, setCurrentAccountClassificationIndex] = useState(0)
   const [editingUnitId, setEditingUnitId] = useState<number | null>(null)
   const [editingPriceId, setEditingPriceId] = useState<number | null>(null)
+  const [incomeStatementItems, setIncomeStatementItems] = useState<IncomeStatementItem[]>([])
+  const [balanceSheetAssetItems, setBalanceSheetAssetItems] = useState<BalanceSheetAssetItem[]>([])
+  const [balanceSheetLiabilityItems, setBalanceSheetLiabilityItems] = useState<BalanceSheetLiabilityItem[]>([])
+  const [costCenterTypes, setCostCenterTypes] = useState<CostCenterType[]>([])
+  const [costCenters, setCostCenters] = useState<CostCenter[]>([])
+  const [accountClassificationTypes, setAccountClassificationTypes] = useState<AccountClassificationType[]>([])
+  const [accountClassifications, setAccountClassifications] = useState<AccountClassification[]>([])
+  const [incomeStatementItemForm, setIncomeStatementItemForm] = useState({ id: 0, name: "", status: 1 })
+  const [balanceSheetAssetItemForm, setBalanceSheetAssetItemForm] = useState({ id: 0, name: "", status: 1 })
+  const [balanceSheetLiabilityItemForm, setBalanceSheetLiabilityItemForm] = useState({ id: 0, name: "", status: 1 })
+  const [costCenterTypeForm, setCostCenterTypeForm] = useState({ id: 0, name: "", status: 1 })
+  const [costCenterForm, setCostCenterForm] = useState({
+    id: 0,
+    name: "",
+    cost_type_id: "",
+    parent_id: "none",
+    status: 1,
+  })
+  const [accountClassificationTypeForm, setAccountClassificationTypeForm] = useState({ id: 0, name: "", status: 1 })
+  const [accountClassificationForm, setAccountClassificationForm] = useState({
+    id: 0,
+    name: "",
+    classification_type_id: "",
+    status: 1,
+  })
   const { toast } = useToast()
 
   useEffect(() => {
@@ -242,7 +330,7 @@ function Definitions() {
     setLoading(true)
     try {
       await Promise.all([fetchCities(), fetchWarehouses(), fetchBranches(), fetchDepartments(), fetchCurrencies(), fetchCustomerCategories(),
-      fetchsupplierCategories(), fetchUnits(), fetchProductCategories(), fetchPrices()])
+      fetchsupplierCategories(), fetchUnits(), fetchProductCategories(), fetchPrices(), fetchIncomeStatementItems(), fetchBalanceSheetAssetItems(), fetchBalanceSheetLiabilityItems(), fetchCostCenterTypes(), fetchCostCenters(), fetchAccountClassificationTypes(), fetchAccountClassifications()])
     } catch (error) {
       console.error("Error fetching data:", error)
     } finally {
@@ -309,6 +397,111 @@ function Definitions() {
     } catch (error) {
       console.error("Error fetching price categories:", error)
       setPrices([])
+    }
+  }
+
+  const fetchIncomeStatementItems = async () => {
+    try {
+      const response = await fetch("/api/income-statement-items")
+      if (response.ok) {
+        const data = await response.json()
+        setIncomeStatementItems(data)
+      } else {
+        setIncomeStatementItems([])
+      }
+    } catch (error) {
+      console.error("Error fetching income statement items:", error)
+      setIncomeStatementItems([])
+    }
+  }
+
+  const fetchBalanceSheetAssetItems = async () => {
+    try {
+      const response = await fetch("/api/balance-sheet-assets-items")
+      if (response.ok) {
+        const data = await response.json()
+        setBalanceSheetAssetItems(data)
+      } else {
+        setBalanceSheetAssetItems([])
+      }
+    } catch (error) {
+      console.error("Error fetching balance sheet asset items:", error)
+      setBalanceSheetAssetItems([])
+    }
+  }
+
+  const fetchBalanceSheetLiabilityItems = async () => {
+    try {
+      const response = await fetch("/api/balance-sheet-liabilities-items")
+      if (response.ok) {
+        const data = await response.json()
+        setBalanceSheetLiabilityItems(data)
+      } else {
+        setBalanceSheetLiabilityItems([])
+      }
+    } catch (error) {
+      console.error("Error fetching balance sheet liability items:", error)
+      setBalanceSheetLiabilityItems([])
+    }
+  }
+
+  const fetchCostCenterTypes = async () => {
+    try {
+      const response = await fetch("/api/cost-center-types")
+      if (response.ok) {
+        const data = await response.json()
+        setCostCenterTypes(data)
+      } else {
+        setCostCenterTypes([])
+      }
+    } catch (error) {
+      console.error("Error fetching cost center types:", error)
+      setCostCenterTypes([])
+    }
+  }
+
+  const fetchCostCenters = async () => {
+    try {
+      const response = await fetch("/api/cost-centers")
+      if (response.ok) {
+        const data = await response.json()
+        setCostCenters(data)
+      } else {
+        setCostCenters([])
+      }
+    } catch (error) {
+      console.error("Error fetching cost centers:", error)
+      setCostCenters([])
+    }
+  }
+
+  const fetchAccountClassificationTypes = async () => {
+    try {
+      const response = await fetch("/api/account-classification-types")
+      if (response.ok) {
+        const data = await response.json()
+        setAccountClassificationTypes(data)
+      } else {
+        setAccountClassificationTypes([])
+      }
+    } catch (error) {
+      console.error("Error fetching account classification types:", error)
+      setAccountClassificationTypes([])
+    }
+  }
+
+  const fetchAccountClassifications = async () => {
+    try {
+      const response = await fetch("/api/account-classifications")
+      if (response.ok) {
+        const data = await response.json()
+        setAccountClassifications(data)
+      } else {
+        setAccountClassifications([])
+      }
+    } catch (error) {
+      console.error("Error fetching account classifications:", error)
+      setAccountClassifications([])
     }
   }
   const fetchCustomerCategories = async () => {
@@ -785,6 +978,763 @@ function Definitions() {
     setShowPriceForm(true)
   }
 
+  const handleSaveIncomeStatementItem = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    if (!incomeStatementItemForm.name.trim()) {
+      toast({
+        title: "خطأ",
+        description: "يرجى إدخال اسم البند",
+        variant: "destructive",
+      })
+      return
+    }
+
+    try {
+      const isEditing = incomeStatementItemForm.id > 0
+      const url = isEditing
+        ? `/api/income-statement-items/${incomeStatementItemForm.id}`
+        : "/api/income-statement-items"
+      const method = isEditing ? "PUT" : "POST"
+
+      const response = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: incomeStatementItemForm.name,
+          status: incomeStatementItemForm.status,
+        }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || "فشل في حفظ البند")
+      }
+
+      await fetchIncomeStatementItems()
+      setIncomeStatementItemForm({ id: 0, name: "", status: 1 })
+      setShowIncomeStatementItemForm(false)
+      toast({
+        title: "تم الحفظ بنجاح",
+        description: isEditing ? "تم تعديل بند قائمة الدخل" : "تم إضافة بند قائمة الدخل",
+      })
+    } catch (error) {
+      toast({
+        title: "فشل الحفظ",
+        description: error instanceof Error ? error.message : "حدث خطأ أثناء حفظ البند",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleEditIncomeStatementItem = (item: IncomeStatementItem) => {
+    setIncomeStatementItemForm({ id: item.id, name: item.name, status: item.status })
+    setShowIncomeStatementItemForm(true)
+  }
+
+  const handleStopIncomeStatementItem = async (item: IncomeStatementItem) => {
+    try {
+      const response = await fetch(`/api/income-statement-items/${item.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: item.name, status: 2 }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || "فشل في تجميد البند")
+      }
+
+      await fetchIncomeStatementItems()
+      toast({
+        title: "تم التجميد",
+        description: "تم تجميد بند قائمة الدخل",
+      })
+    } catch (error) {
+      toast({
+        title: "فشل التجميد",
+        description: error instanceof Error ? error.message : "تعذر تجميد البند",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleDeleteIncomeStatementItem = async (itemId: number) => {
+    try {
+      const response = await fetch(`/api/income-statement-items/${itemId}`, {
+        method: "DELETE",
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || "فشل في حذف البند")
+      }
+
+      await fetchIncomeStatementItems()
+      toast({
+        title: "تم الحذف",
+        description: "تم حذف بند قائمة الدخل",
+      })
+    } catch (error) {
+      toast({
+        title: "فشل الحذف",
+        description: error instanceof Error ? error.message : "تعذر حذف البند",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleSaveBalanceSheetAssetItem = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    if (!balanceSheetAssetItemForm.name.trim()) {
+      toast({
+        title: "خطأ",
+        description: "يرجى إدخال اسم البند",
+        variant: "destructive",
+      })
+      return
+    }
+
+    try {
+      const isEditing = balanceSheetAssetItemForm.id > 0
+      const url = isEditing
+        ? `/api/balance-sheet-assets-items/${balanceSheetAssetItemForm.id}`
+        : "/api/balance-sheet-assets-items"
+      const method = isEditing ? "PUT" : "POST"
+
+      const response = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: balanceSheetAssetItemForm.name,
+          status: balanceSheetAssetItemForm.status,
+        }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || "فشل في حفظ البند")
+      }
+
+      await fetchBalanceSheetAssetItems()
+      setBalanceSheetAssetItemForm({ id: 0, name: "", status: 1 })
+      setShowBalanceSheetAssetItemForm(false)
+      toast({
+        title: "تم الحفظ بنجاح",
+        description: isEditing ? "تم تعديل بند أصول الميزانية" : "تم إضافة بند أصول الميزانية",
+      })
+    } catch (error) {
+      toast({
+        title: "فشل الحفظ",
+        description: error instanceof Error ? error.message : "حدث خطأ أثناء حفظ البند",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleEditBalanceSheetAssetItem = (item: BalanceSheetAssetItem) => {
+    setBalanceSheetAssetItemForm({ id: item.id, name: item.name, status: item.status })
+    setShowBalanceSheetAssetItemForm(true)
+  }
+
+  const handleStopBalanceSheetAssetItem = async (item: BalanceSheetAssetItem) => {
+    try {
+      const response = await fetch(`/api/balance-sheet-assets-items/${item.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: item.name, status: 2 }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || "فشل في تجميد البند")
+      }
+
+      await fetchBalanceSheetAssetItems()
+      toast({
+        title: "تم التجميد",
+        description: "تم تجميد بند أصول الميزانية",
+      })
+    } catch (error) {
+      toast({
+        title: "فشل التجميد",
+        description: error instanceof Error ? error.message : "تعذر تجميد البند",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleDeleteBalanceSheetAssetItem = async (itemId: number) => {
+    try {
+      const response = await fetch(`/api/balance-sheet-assets-items/${itemId}`, {
+        method: "DELETE",
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || "فشل في حذف البند")
+      }
+
+      await fetchBalanceSheetAssetItems()
+      toast({
+        title: "تم الحذف",
+        description: "تم حذف بند أصول الميزانية",
+      })
+    } catch (error) {
+      toast({
+        title: "فشل الحذف",
+        description: error instanceof Error ? error.message : "تعذر حذف البند",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleSaveBalanceSheetLiabilityItem = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    if (!balanceSheetLiabilityItemForm.name.trim()) {
+      toast({
+        title: "خطأ",
+        description: "يرجى إدخال اسم البند",
+        variant: "destructive",
+      })
+      return
+    }
+
+    try {
+      const isEditing = balanceSheetLiabilityItemForm.id > 0
+      const url = isEditing
+        ? `/api/balance-sheet-liabilities-items/${balanceSheetLiabilityItemForm.id}`
+        : "/api/balance-sheet-liabilities-items"
+      const method = isEditing ? "PUT" : "POST"
+
+      const response = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: balanceSheetLiabilityItemForm.name,
+          status: balanceSheetLiabilityItemForm.status,
+        }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || "فشل في حفظ البند")
+      }
+
+      await fetchBalanceSheetLiabilityItems()
+      setBalanceSheetLiabilityItemForm({ id: 0, name: "", status: 1 })
+      setShowBalanceSheetLiabilityItemForm(false)
+      toast({
+        title: "تم الحفظ بنجاح",
+        description: isEditing ? "تم تعديل بند خصوم الميزانية" : "تم إضافة بند خصوم الميزانية",
+      })
+    } catch (error) {
+      toast({
+        title: "فشل الحفظ",
+        description: error instanceof Error ? error.message : "حدث خطأ أثناء حفظ البند",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleEditBalanceSheetLiabilityItem = (item: BalanceSheetLiabilityItem) => {
+    setBalanceSheetLiabilityItemForm({ id: item.id, name: item.name, status: item.status })
+    setShowBalanceSheetLiabilityItemForm(true)
+  }
+
+  const handleStopBalanceSheetLiabilityItem = async (item: BalanceSheetLiabilityItem) => {
+    try {
+      const response = await fetch(`/api/balance-sheet-liabilities-items/${item.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: item.name, status: 2 }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || "فشل في تجميد البند")
+      }
+
+      await fetchBalanceSheetLiabilityItems()
+      toast({
+        title: "تم التجميد",
+        description: "تم تجميد بند خصوم الميزانية",
+      })
+    } catch (error) {
+      toast({
+        title: "فشل التجميد",
+        description: error instanceof Error ? error.message : "تعذر تجميد البند",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleDeleteBalanceSheetLiabilityItem = async (itemId: number) => {
+    try {
+      const response = await fetch(`/api/balance-sheet-liabilities-items/${itemId}`, {
+        method: "DELETE",
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || "فشل في حذف البند")
+      }
+
+      await fetchBalanceSheetLiabilityItems()
+      toast({
+        title: "تم الحذف",
+        description: "تم حذف بند خصوم الميزانية",
+      })
+    } catch (error) {
+      toast({
+        title: "فشل الحذف",
+        description: error instanceof Error ? error.message : "تعذر حذف البند",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleSaveCostCenterType = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    if (!costCenterTypeForm.name.trim()) {
+      toast({
+        title: "خطأ",
+        description: "يرجى إدخال اسم النوع",
+        variant: "destructive",
+      })
+      return
+    }
+
+    try {
+      const isEditing = costCenterTypeForm.id > 0
+      const url = isEditing ? `/api/cost-center-types/${costCenterTypeForm.id}` : "/api/cost-center-types"
+      const method = isEditing ? "PUT" : "POST"
+
+      const response = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: costCenterTypeForm.name,
+          status: costCenterTypeForm.status,
+        }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || "فشل في حفظ النوع")
+      }
+
+      await fetchCostCenterTypes()
+      setCostCenterTypeForm({ id: 0, name: "", status: 1 })
+      setShowCostCenterTypeForm(false)
+      toast({
+        title: "تم الحفظ بنجاح",
+        description: isEditing ? "تم تعديل نوع مركز التكلفة" : "تم إضافة نوع مركز التكلفة",
+      })
+    } catch (error) {
+      toast({
+        title: "فشل الحفظ",
+        description: error instanceof Error ? error.message : "حدث خطأ أثناء حفظ النوع",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleEditCostCenterType = (item: CostCenterType) => {
+    setCostCenterTypeForm({ id: item.id, name: item.name, status: item.status })
+    setShowCostCenterTypeForm(true)
+  }
+
+  const handleFreezeCostCenterType = async (item: CostCenterType) => {
+    try {
+      const response = await fetch(`/api/cost-center-types/${item.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: item.name, status: 2 }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || "فشل في تجميد النوع")
+      }
+
+      await fetchCostCenterTypes()
+      toast({
+        title: "تم التجميد",
+        description: "تم تجميد نوع مركز التكلفة",
+      })
+    } catch (error) {
+      toast({
+        title: "فشل التجميد",
+        description: error instanceof Error ? error.message : "تعذر تجميد النوع",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleDeleteCostCenterType = async (itemId: number) => {
+    try {
+      const response = await fetch(`/api/cost-center-types/${itemId}`, {
+        method: "DELETE",
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || "فشل في حذف النوع")
+      }
+
+      await fetchCostCenterTypes()
+      toast({
+        title: "تم الحذف",
+        description: "تم حذف نوع مركز التكلفة",
+      })
+    } catch (error) {
+      toast({
+        title: "فشل الحذف",
+        description: error instanceof Error ? error.message : "تعذر حذف النوع",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleSaveCostCenter = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    if (!costCenterForm.name.trim()) {
+      toast({
+        title: "خطأ",
+        description: "يرجى إدخال اسم مركز التكلفة",
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (!costCenterForm.cost_type_id) {
+      toast({
+        title: "خطأ",
+        description: "يرجى اختيار نوع مركز التكلفة",
+        variant: "destructive",
+      })
+      return
+    }
+
+    try {
+      const isEditing = costCenterForm.id > 0
+      const url = isEditing ? `/api/cost-centers/${costCenterForm.id}` : "/api/cost-centers"
+      const method = isEditing ? "PUT" : "POST"
+
+      const response = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: costCenterForm.name,
+          cost_type_id: Number.parseInt(costCenterForm.cost_type_id),
+          parent_id: costCenterForm.parent_id !== "none" ? Number.parseInt(costCenterForm.parent_id) : null,
+          status: costCenterForm.status,
+        }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || "فشل في حفظ مركز التكلفة")
+      }
+
+      await fetchCostCenters()
+      setCostCenterForm({ id: 0, name: "", cost_type_id: "", parent_id: "none", status: 1 })
+      setShowCostCenterForm(false)
+      toast({
+        title: "تم الحفظ بنجاح",
+        description: isEditing ? "تم تعديل مركز التكلفة" : "تم إضافة مركز التكلفة",
+      })
+    } catch (error) {
+      toast({
+        title: "فشل الحفظ",
+        description: error instanceof Error ? error.message : "حدث خطأ أثناء حفظ مركز التكلفة",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleEditCostCenter = (item: CostCenter) => {
+    setCostCenterForm({
+      id: item.id,
+      name: item.name,
+      cost_type_id: item.cost_type_id.toString(),
+      parent_id: item.parent_id ? item.parent_id.toString() : "none",
+      status: item.status,
+    })
+    setShowCostCenterForm(true)
+  }
+
+  const handleFreezeCostCenter = async (item: CostCenter) => {
+    try {
+      const response = await fetch(`/api/cost-centers/${item.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: item.name,
+          cost_type_id: item.cost_type_id,
+          parent_id: item.parent_id ?? null,
+          status: 2,
+        }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || "فشل في تجميد مركز التكلفة")
+      }
+
+      await fetchCostCenters()
+      toast({
+        title: "تم التجميد",
+        description: "تم تجميد مركز التكلفة",
+      })
+    } catch (error) {
+      toast({
+        title: "فشل التجميد",
+        description: error instanceof Error ? error.message : "تعذر تجميد مركز التكلفة",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleDeleteCostCenter = async (itemId: number) => {
+    try {
+      const response = await fetch(`/api/cost-centers/${itemId}`, {
+        method: "DELETE",
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || "فشل في حذف مركز التكلفة")
+      }
+
+      await fetchCostCenters()
+      toast({
+        title: "تم الحذف",
+        description: "تم حذف مركز التكلفة",
+      })
+    } catch (error) {
+      toast({
+        title: "فشل الحذف",
+        description: error instanceof Error ? error.message : "تعذر حذف مركز التكلفة",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleSaveAccountClassificationType = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    if (!accountClassificationTypeForm.name.trim()) {
+      toast({ title: "خطأ", description: "يرجى إدخال اسم النوع", variant: "destructive" })
+      return
+    }
+
+    try {
+      const isEditing = accountClassificationTypeForm.id > 0
+      const url = isEditing
+        ? `/api/account-classification-types/${accountClassificationTypeForm.id}`
+        : "/api/account-classification-types"
+      const method = isEditing ? "PUT" : "POST"
+
+      const response = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: accountClassificationTypeForm.name,
+          status: accountClassificationTypeForm.status,
+        }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || "فشل في حفظ نوع تصنيف الحساب")
+      }
+
+      await fetchAccountClassificationTypes()
+      setAccountClassificationTypeForm({ id: 0, name: "", status: 1 })
+      setShowAccountClassificationTypeForm(false)
+      toast({ title: "تم الحفظ بنجاح", description: isEditing ? "تم تعديل نوع التصنيف" : "تم إضافة نوع التصنيف" })
+    } catch (error) {
+      toast({
+        title: "فشل الحفظ",
+        description: error instanceof Error ? error.message : "حدث خطأ أثناء حفظ نوع التصنيف",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleEditAccountClassificationType = (item: AccountClassificationType) => {
+    setAccountClassificationTypeForm({ id: item.id, name: item.name, status: item.status })
+    setShowAccountClassificationTypeForm(true)
+  }
+
+  const handleFreezeAccountClassificationType = async (item: AccountClassificationType) => {
+    try {
+      const response = await fetch(`/api/account-classification-types/${item.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: item.name, status: 2 }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || "فشل في تجميد نوع التصنيف")
+      }
+
+      await fetchAccountClassificationTypes()
+      toast({ title: "تم التجميد", description: "تم تجميد نوع تصنيف الحساب" })
+    } catch (error) {
+      toast({
+        title: "فشل التجميد",
+        description: error instanceof Error ? error.message : "تعذر تجميد نوع تصنيف الحساب",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleDeleteAccountClassificationType = async (itemId: number) => {
+    try {
+      const response = await fetch(`/api/account-classification-types/${itemId}`, { method: "DELETE" })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || "فشل في حذف نوع التصنيف")
+      }
+
+      await fetchAccountClassificationTypes()
+      toast({ title: "تم الحذف", description: "تم حذف نوع تصنيف الحساب" })
+    } catch (error) {
+      toast({
+        title: "فشل الحذف",
+        description: error instanceof Error ? error.message : "تعذر حذف نوع تصنيف الحساب",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleSaveAccountClassification = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    if (!accountClassificationForm.name.trim()) {
+      toast({ title: "خطأ", description: "يرجى إدخال اسم التصنيف", variant: "destructive" })
+      return
+    }
+
+    if (!accountClassificationForm.classification_type_id) {
+      toast({ title: "خطأ", description: "يرجى اختيار نوع التصنيف", variant: "destructive" })
+      return
+    }
+
+    try {
+      const isEditing = accountClassificationForm.id > 0
+      const url = isEditing
+        ? `/api/account-classifications/${accountClassificationForm.id}`
+        : "/api/account-classifications"
+      const method = isEditing ? "PUT" : "POST"
+
+      const response = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: accountClassificationForm.name,
+          classification_type_id: Number.parseInt(accountClassificationForm.classification_type_id),
+          status: accountClassificationForm.status,
+        }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || "فشل في حفظ التصنيف")
+      }
+
+      await fetchAccountClassifications()
+      setAccountClassificationForm({ id: 0, name: "", classification_type_id: "", status: 1 })
+      setShowAccountClassificationForm(false)
+      toast({ title: "تم الحفظ بنجاح", description: isEditing ? "تم تعديل تصنيف الحساب" : "تم إضافة تصنيف الحساب" })
+    } catch (error) {
+      toast({
+        title: "فشل الحفظ",
+        description: error instanceof Error ? error.message : "حدث خطأ أثناء حفظ التصنيف",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleEditAccountClassification = (item: AccountClassification) => {
+    setAccountClassificationForm({
+      id: item.id,
+      name: item.name,
+      classification_type_id: item.classification_type_id.toString(),
+      status: item.status,
+    })
+    setShowAccountClassificationForm(true)
+  }
+
+  const handleFreezeAccountClassification = async (item: AccountClassification) => {
+    try {
+      const response = await fetch(`/api/account-classifications/${item.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: item.name,
+          classification_type_id: item.classification_type_id,
+          status: 2,
+        }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || "فشل في تجميد التصنيف")
+      }
+
+      await fetchAccountClassifications()
+      toast({ title: "تم التجميد", description: "تم تجميد تصنيف الحساب" })
+    } catch (error) {
+      toast({
+        title: "فشل التجميد",
+        description: error instanceof Error ? error.message : "تعذر تجميد تصنيف الحساب",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleDeleteAccountClassification = async (itemId: number) => {
+    try {
+      const response = await fetch(`/api/account-classifications/${itemId}`, { method: "DELETE" })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || "فشل في حذف التصنيف")
+      }
+
+      await fetchAccountClassifications()
+      toast({ title: "تم الحذف", description: "تم حذف تصنيف الحساب" })
+    } catch (error) {
+      toast({
+        title: "فشل الحذف",
+        description: error instanceof Error ? error.message : "تعذر حذف تصنيف الحساب",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const getIncomeStatementStatusLabel = (status: number) => {
+    if (status === 1) return "نشط"
+    if (status === 2) return "مجمد"
+    return "محذوف"
+  }
+
+  const getIncomeStatementStatusVariant = (status: number): "default" | "secondary" | "destructive" => {
+    if (status === 1) return "default"
+    if (status === 2) return "secondary"
+    return "destructive"
+  }
+
 
 
 
@@ -968,15 +1918,19 @@ function Definitions() {
         </Badge>
       </div>
 
-      <Tabs defaultValue="departments" className="w-full" dir="rtl">
-        <TabsList className="grid w-full grid-cols-4 mb-6">
-          <TabsTrigger value="departments" className="flex items-center gap-2">
-            <Building className="h-4 w-4" />
-            الأقسام والفروع
-          </TabsTrigger>
+      <Tabs defaultValue="definitions" className="w-full" dir="rtl">
+        <TabsList className="grid w-full grid-cols-5 mb-6">
           <TabsTrigger value="definitions" className="flex items-center gap-2">
             <Package className="h-4 w-4" />
             التعريفات الأساسية
+          </TabsTrigger>
+          <TabsTrigger value="financial-definitions" className="flex items-center gap-2">
+            <CreditCard className="h-4 w-4" />
+            التعريفات المالية
+          </TabsTrigger>
+          <TabsTrigger value="departments" className="flex items-center gap-2">
+            <Building className="h-4 w-4" />
+            الأقسام والفروع
           </TabsTrigger>
           <TabsTrigger value="workflow-stages" className="flex items-center gap-2">
             <Settings className="h-4 w-4" />
@@ -1264,6 +2218,7 @@ function Definitions() {
                 </div>
               </CardContent>
             </Card>
+
           </div>
         </TabsContent>
 
@@ -2065,6 +3020,905 @@ function Definitions() {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="financial-definitions" className="space-y-6">
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+            <Card dir="rtl">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    <CreditCard className="h-5 w-5 text-primary" />
+                    بنود قائمة الدخل ({incomeStatementItems.length})
+                  </CardTitle>
+                  <Button
+                    className="erp-btn-primary"
+                    size="sm"
+                    onClick={() => {
+                      setIncomeStatementItemForm({ id: 0, name: "", status: 1 })
+                      setShowIncomeStatementItemForm(!showIncomeStatementItemForm)
+                    }}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    إضافة بند
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {showIncomeStatementItemForm && (
+                  <div className="bg-muted/30 rounded-lg p-4 border" dir="rtl">
+                    <h3 className="font-heading font-semibold mb-4 text-right">
+                      {incomeStatementItemForm.id > 0 ? "تعديل بند قائمة الدخل" : "إضافة بند جديد"}
+                    </h3>
+                    <form className="space-y-4" onSubmit={handleSaveIncomeStatementItem}>
+                      <div className="text-right">
+                        <Label className="erp-label text-right block">اسم البند *</Label>
+                        <Input
+                          required
+                          className="erp-input text-right"
+                          placeholder="مثال: إيرادات المبيعات"
+                          dir="rtl"
+                          maxLength={100}
+                          value={incomeStatementItemForm.name}
+                          onChange={(e) => setIncomeStatementItemForm({ ...incomeStatementItemForm, name: e.target.value })}
+                        />
+                      </div>
+
+                      <div className="text-right">
+                        <Label className="erp-label text-right block">الحالة</Label>
+                        <Select
+                          dir="rtl"
+                          value={incomeStatementItemForm.status.toString()}
+                          onValueChange={(value) => setIncomeStatementItemForm({ ...incomeStatementItemForm, status: Number.parseInt(value) })}
+                        >
+                          <SelectTrigger className="erp-input text-right">
+                            <SelectValue placeholder="اختر الحالة" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="1">نشط</SelectItem>
+                            <SelectItem value="2">مجمد</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="flex justify-start gap-2 pt-2">
+                        <Button type="submit" className="erp-btn-primary" size="sm">
+                          حفظ البند
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setShowIncomeStatementItemForm(false)
+                            setIncomeStatementItemForm({ id: 0, name: "", status: 1 })
+                          }}
+                        >
+                          إلغاء
+                        </Button>
+                      </div>
+                    </form>
+                  </div>
+                )}
+
+                <div className="space-y-3">
+                  {incomeStatementItems.map((item, index) => (
+                    <div
+                      key={item.id}
+                      className={cn(
+                        "p-4 rounded-lg border transition-all cursor-pointer",
+                        index === currentIncomeStatementItemIndex
+                          ? "bg-primary/10 border-primary shadow-sm"
+                          : "bg-background hover:bg-muted/50",
+                      )}
+                      onClick={() => setCurrentIncomeStatementItemIndex(index)}
+                      dir="rtl"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="space-y-1 text-right">
+                          <h4 className="font-heading font-semibold">{item.name}</h4>
+                          <p className="text-xs text-muted-foreground">ID: {item.id}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button variant="outline" size="sm" onClick={() => handleEditIncomeStatementItem(item)}>
+                            <Edit className="h-3 w-3" />
+                          </Button>
+                          {item.status === 1 && (
+                            <Button variant="outline" size="sm" onClick={() => handleStopIncomeStatementItem(item)}>
+                              تجميد
+                            </Button>
+                          )}
+                          <Button variant="destructive" size="sm" onClick={() => handleDeleteIncomeStatementItem(item.id)}>
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                          <Badge variant={getIncomeStatementStatusVariant(item.status)}>
+                            {getIncomeStatementStatusLabel(item.status)}
+                          </Badge>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card dir="rtl">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    <CreditCard className="h-5 w-5 text-primary" />
+                    بنود أصول الميزانية ({balanceSheetAssetItems.length})
+                  </CardTitle>
+                  <Button
+                    className="erp-btn-primary"
+                    size="sm"
+                    onClick={() => {
+                      setBalanceSheetAssetItemForm({ id: 0, name: "", status: 1 })
+                      setShowBalanceSheetAssetItemForm(!showBalanceSheetAssetItemForm)
+                    }}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    إضافة بند
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {showBalanceSheetAssetItemForm && (
+                  <div className="bg-muted/30 rounded-lg p-4 border" dir="rtl">
+                    <h3 className="font-heading font-semibold mb-4 text-right">
+                      {balanceSheetAssetItemForm.id > 0 ? "تعديل بند أصول الميزانية" : "إضافة بند جديد"}
+                    </h3>
+                    <form className="space-y-4" onSubmit={handleSaveBalanceSheetAssetItem}>
+                      <div className="text-right">
+                        <Label className="erp-label text-right block">اسم البند *</Label>
+                        <Input
+                          required
+                          className="erp-input text-right"
+                          placeholder="مثال: الصندوق"
+                          dir="rtl"
+                          maxLength={100}
+                          value={balanceSheetAssetItemForm.name}
+                          onChange={(e) => setBalanceSheetAssetItemForm({ ...balanceSheetAssetItemForm, name: e.target.value })}
+                        />
+                      </div>
+
+                      <div className="text-right">
+                        <Label className="erp-label text-right block">الحالة</Label>
+                        <Select
+                          dir="rtl"
+                          value={balanceSheetAssetItemForm.status.toString()}
+                          onValueChange={(value) => setBalanceSheetAssetItemForm({ ...balanceSheetAssetItemForm, status: Number.parseInt(value) })}
+                        >
+                          <SelectTrigger className="erp-input text-right">
+                            <SelectValue placeholder="اختر الحالة" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="1">نشط</SelectItem>
+                            <SelectItem value="2">مجمد</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="flex justify-start gap-2 pt-2">
+                        <Button type="submit" className="erp-btn-primary" size="sm">
+                          حفظ البند
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setShowBalanceSheetAssetItemForm(false)
+                            setBalanceSheetAssetItemForm({ id: 0, name: "", status: 1 })
+                          }}
+                        >
+                          إلغاء
+                        </Button>
+                      </div>
+                    </form>
+                  </div>
+                )}
+
+                <div className="space-y-3">
+                  {balanceSheetAssetItems.map((item, index) => (
+                    <div
+                      key={item.id}
+                      className={cn(
+                        "p-4 rounded-lg border transition-all cursor-pointer",
+                        index === currentBalanceSheetAssetItemIndex
+                          ? "bg-primary/10 border-primary shadow-sm"
+                          : "bg-background hover:bg-muted/50",
+                      )}
+                      onClick={() => setCurrentBalanceSheetAssetItemIndex(index)}
+                      dir="rtl"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="space-y-1 text-right">
+                          <h4 className="font-heading font-semibold">{item.name}</h4>
+                          <p className="text-xs text-muted-foreground">ID: {item.id}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button variant="outline" size="sm" onClick={() => handleEditBalanceSheetAssetItem(item)}>
+                            <Edit className="h-3 w-3" />
+                          </Button>
+                          {item.status === 1 && (
+                            <Button variant="outline" size="sm" onClick={() => handleStopBalanceSheetAssetItem(item)}>
+                              تجميد
+                            </Button>
+                          )}
+                          <Button variant="destructive" size="sm" onClick={() => handleDeleteBalanceSheetAssetItem(item.id)}>
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                          <Badge variant={getIncomeStatementStatusVariant(item.status)}>
+                            {getIncomeStatementStatusLabel(item.status)}
+                          </Badge>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card dir="rtl">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    <CreditCard className="h-5 w-5 text-primary" />
+                    بنود خصوم الميزانية ({balanceSheetLiabilityItems.length})
+                  </CardTitle>
+                  <Button
+                    className="erp-btn-primary"
+                    size="sm"
+                    onClick={() => {
+                      setBalanceSheetLiabilityItemForm({ id: 0, name: "", status: 1 })
+                      setShowBalanceSheetLiabilityItemForm(!showBalanceSheetLiabilityItemForm)
+                    }}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    إضافة بند
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {showBalanceSheetLiabilityItemForm && (
+                  <div className="bg-muted/30 rounded-lg p-4 border" dir="rtl">
+                    <h3 className="font-heading font-semibold mb-4 text-right">
+                      {balanceSheetLiabilityItemForm.id > 0 ? "تعديل بند خصوم الميزانية" : "إضافة بند جديد"}
+                    </h3>
+                    <form className="space-y-4" onSubmit={handleSaveBalanceSheetLiabilityItem}>
+                      <div className="text-right">
+                        <Label className="erp-label text-right block">اسم البند *</Label>
+                        <Input
+                          required
+                          className="erp-input text-right"
+                          placeholder="مثال: ذمم دائنة"
+                          dir="rtl"
+                          maxLength={100}
+                          value={balanceSheetLiabilityItemForm.name}
+                          onChange={(e) => setBalanceSheetLiabilityItemForm({ ...balanceSheetLiabilityItemForm, name: e.target.value })}
+                        />
+                      </div>
+
+                      <div className="text-right">
+                        <Label className="erp-label text-right block">الحالة</Label>
+                        <Select
+                          dir="rtl"
+                          value={balanceSheetLiabilityItemForm.status.toString()}
+                          onValueChange={(value) => setBalanceSheetLiabilityItemForm({ ...balanceSheetLiabilityItemForm, status: Number.parseInt(value) })}
+                        >
+                          <SelectTrigger className="erp-input text-right">
+                            <SelectValue placeholder="اختر الحالة" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="1">نشط</SelectItem>
+                            <SelectItem value="2">مجمد</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="flex justify-start gap-2 pt-2">
+                        <Button type="submit" className="erp-btn-primary" size="sm">
+                          حفظ البند
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setShowBalanceSheetLiabilityItemForm(false)
+                            setBalanceSheetLiabilityItemForm({ id: 0, name: "", status: 1 })
+                          }}
+                        >
+                          إلغاء
+                        </Button>
+                      </div>
+                    </form>
+                  </div>
+                )}
+
+                <div className="space-y-3">
+                  {balanceSheetLiabilityItems.map((item, index) => (
+                    <div
+                      key={item.id}
+                      className={cn(
+                        "p-4 rounded-lg border transition-all cursor-pointer",
+                        index === currentBalanceSheetLiabilityItemIndex
+                          ? "bg-primary/10 border-primary shadow-sm"
+                          : "bg-background hover:bg-muted/50",
+                      )}
+                      onClick={() => setCurrentBalanceSheetLiabilityItemIndex(index)}
+                      dir="rtl"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="space-y-1 text-right">
+                          <h4 className="font-heading font-semibold">{item.name}</h4>
+                          <p className="text-xs text-muted-foreground">ID: {item.id}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button variant="outline" size="sm" onClick={() => handleEditBalanceSheetLiabilityItem(item)}>
+                            <Edit className="h-3 w-3" />
+                          </Button>
+                          {item.status === 1 && (
+                            <Button variant="outline" size="sm" onClick={() => handleStopBalanceSheetLiabilityItem(item)}>
+                              تجميد
+                            </Button>
+                          )}
+                          <Button variant="destructive" size="sm" onClick={() => handleDeleteBalanceSheetLiabilityItem(item.id)}>
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                          <Badge variant={getIncomeStatementStatusVariant(item.status)}>
+                            {getIncomeStatementStatusLabel(item.status)}
+                          </Badge>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            <div className="xl:col-span-3 grid grid-cols-1 xl:grid-cols-2 gap-6">
+            <Card dir="rtl">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    <CreditCard className="h-5 w-5 text-primary" />
+                    أنواع مراكز التكلفة ({costCenterTypes.length})
+                  </CardTitle>
+                  <Button
+                    className="erp-btn-primary"
+                    size="sm"
+                    onClick={() => {
+                      setCostCenterTypeForm({ id: 0, name: "", status: 1 })
+                      setShowCostCenterTypeForm(!showCostCenterTypeForm)
+                    }}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    إضافة نوع
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {showCostCenterTypeForm && (
+                  <div className="bg-muted/30 rounded-lg p-4 border" dir="rtl">
+                    <h3 className="font-heading font-semibold mb-4 text-right">
+                      {costCenterTypeForm.id > 0 ? "تعديل نوع مركز التكلفة" : "إضافة نوع جديد"}
+                    </h3>
+                    <form className="space-y-4" onSubmit={handleSaveCostCenterType}>
+                      <div className="text-right">
+                        <Label className="erp-label text-right block">اسم النوع *</Label>
+                        <Input
+                          required
+                          className="erp-input text-right"
+                          placeholder="مثال: مركز تكلفة إداري"
+                          dir="rtl"
+                          maxLength={100}
+                          value={costCenterTypeForm.name}
+                          onChange={(e) => setCostCenterTypeForm({ ...costCenterTypeForm, name: e.target.value })}
+                        />
+                      </div>
+
+                      <div className="text-right">
+                        <Label className="erp-label text-right block">الحالة</Label>
+                        <Select
+                          dir="rtl"
+                          value={costCenterTypeForm.status.toString()}
+                          onValueChange={(value) => setCostCenterTypeForm({ ...costCenterTypeForm, status: Number.parseInt(value) })}
+                        >
+                          <SelectTrigger className="erp-input text-right">
+                            <SelectValue placeholder="اختر الحالة" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="1">نشط</SelectItem>
+                            <SelectItem value="2">مجمد</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="flex justify-start gap-2 pt-2">
+                        <Button type="submit" className="erp-btn-primary" size="sm">
+                          حفظ النوع
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setShowCostCenterTypeForm(false)
+                            setCostCenterTypeForm({ id: 0, name: "", status: 1 })
+                          }}
+                        >
+                          إلغاء
+                        </Button>
+                      </div>
+                    </form>
+                  </div>
+                )}
+
+                <div className="space-y-3">
+                  {costCenterTypes.map((item, index) => (
+                    <div
+                      key={item.id}
+                      className={cn(
+                        "p-4 rounded-lg border transition-all cursor-pointer",
+                        index === currentCostCenterTypeIndex
+                          ? "bg-primary/10 border-primary shadow-sm"
+                          : "bg-background hover:bg-muted/50",
+                      )}
+                      onClick={() => setCurrentCostCenterTypeIndex(index)}
+                      dir="rtl"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="space-y-1 text-right">
+                          <h4 className="font-heading font-semibold">{item.name}</h4>
+                          <p className="text-xs text-muted-foreground">ID: {item.id}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button variant="outline" size="sm" onClick={() => handleEditCostCenterType(item)}>
+                            <Edit className="h-3 w-3" />
+                          </Button>
+                          {item.status === 1 && (
+                            <Button variant="outline" size="sm" onClick={() => handleFreezeCostCenterType(item)}>
+                              تجميد
+                            </Button>
+                          )}
+                          <Button variant="destructive" size="sm" onClick={() => handleDeleteCostCenterType(item.id)}>
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                          <Badge variant={getIncomeStatementStatusVariant(item.status)}>
+                            {getIncomeStatementStatusLabel(item.status)}
+                          </Badge>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card dir="rtl">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    <CreditCard className="h-5 w-5 text-primary" />
+                    مراكز التكلفة ({costCenters.length})
+                  </CardTitle>
+                  <Button
+                    className="erp-btn-primary"
+                    size="sm"
+                    onClick={() => {
+                      setCostCenterForm({ id: 0, name: "", cost_type_id: "", parent_id: "none", status: 1 })
+                      setShowCostCenterForm(!showCostCenterForm)
+                    }}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    إضافة مركز
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {showCostCenterForm && (
+                  <div className="bg-muted/30 rounded-lg p-4 border" dir="rtl">
+                    <h3 className="font-heading font-semibold mb-4 text-right">
+                      {costCenterForm.id > 0 ? "تعديل مركز التكلفة" : "إضافة مركز تكلفة جديد"}
+                    </h3>
+                    <form className="space-y-4" onSubmit={handleSaveCostCenter}>
+                      <div className="text-right">
+                        <Label className="erp-label text-right block">اسم المركز *</Label>
+                        <Input
+                          required
+                          className="erp-input text-right"
+                          placeholder="مثال: إدارة المبيعات"
+                          dir="rtl"
+                          maxLength={100}
+                          value={costCenterForm.name}
+                          onChange={(e) => setCostCenterForm({ ...costCenterForm, name: e.target.value })}
+                        />
+                      </div>
+
+                      <div className="text-right">
+                        <Label className="erp-label text-right block">نوع مركز التكلفة *</Label>
+                        <Select
+                          dir="rtl"
+                          value={costCenterForm.cost_type_id}
+                          onValueChange={(value) => setCostCenterForm({ ...costCenterForm, cost_type_id: value })}
+                        >
+                          <SelectTrigger className="erp-input text-right">
+                            <SelectValue placeholder="اختر النوع" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {costCenterTypes.map((type) => (
+                              <SelectItem key={type.id} value={type.id.toString()}>
+                                {type.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="text-right">
+                        <Label className="erp-label text-right block">المركز الأب (اختياري)</Label>
+                        <Select
+                          dir="rtl"
+                          value={costCenterForm.parent_id}
+                          onValueChange={(value) => setCostCenterForm({ ...costCenterForm, parent_id: value })}
+                        >
+                          <SelectTrigger className="erp-input text-right">
+                            <SelectValue placeholder="بدون مركز أب" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">بدون مركز أب</SelectItem>
+                            {costCenters
+                              .filter((center) => center.id !== costCenterForm.id)
+                              .map((center) => (
+                                <SelectItem key={center.id} value={center.id.toString()}>
+                                  {center.name}
+                                </SelectItem>
+                              ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="text-right">
+                        <Label className="erp-label text-right block">الحالة</Label>
+                        <Select
+                          dir="rtl"
+                          value={costCenterForm.status.toString()}
+                          onValueChange={(value) => setCostCenterForm({ ...costCenterForm, status: Number.parseInt(value) })}
+                        >
+                          <SelectTrigger className="erp-input text-right">
+                            <SelectValue placeholder="اختر الحالة" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="1">نشط</SelectItem>
+                            <SelectItem value="2">مجمد</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="flex justify-start gap-2 pt-2">
+                        <Button type="submit" className="erp-btn-primary" size="sm">
+                          حفظ المركز
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setShowCostCenterForm(false)
+                            setCostCenterForm({ id: 0, name: "", cost_type_id: "", parent_id: "none", status: 1 })
+                          }}
+                        >
+                          إلغاء
+                        </Button>
+                      </div>
+                    </form>
+                  </div>
+                )}
+
+                <div className="space-y-3 max-h-[330px] overflow-y-auto pr-1">
+                  {costCenters.map((item, index) => (
+                    <div
+                      key={item.id}
+                      className={cn(
+                        "p-4 rounded-lg border transition-all cursor-pointer",
+                        index === currentCostCenterIndex
+                          ? "bg-primary/10 border-primary shadow-sm"
+                          : "bg-background hover:bg-muted/50",
+                      )}
+                      onClick={() => setCurrentCostCenterIndex(index)}
+                      dir="rtl"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="space-y-1 text-right">
+                          <h4 className="font-heading font-semibold">{item.name}</h4>
+                          <p className="text-xs text-muted-foreground">النوع: {item.cost_type_name || "-"}</p>
+                          <p className="text-xs text-muted-foreground">الأب: {item.parent_name || "-"}</p>
+                          <p className="text-xs text-muted-foreground">المستوى: {item.level}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button variant="outline" size="sm" onClick={() => handleEditCostCenter(item)}>
+                            <Edit className="h-3 w-3" />
+                          </Button>
+                          {item.status === 1 && (
+                            <Button variant="outline" size="sm" onClick={() => handleFreezeCostCenter(item)}>
+                              تجميد
+                            </Button>
+                          )}
+                          <Button variant="destructive" size="sm" onClick={() => handleDeleteCostCenter(item.id)}>
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                          <Badge variant={getIncomeStatementStatusVariant(item.status)}>
+                            {getIncomeStatementStatusLabel(item.status)}
+                          </Badge>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+            </div>
+
+            <div className="xl:col-span-3 grid grid-cols-1 xl:grid-cols-2 gap-6">
+            <Card dir="rtl">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    <CreditCard className="h-5 w-5 text-primary" />
+                    أنواع تصنيفات الحسابات ({accountClassificationTypes.length})
+                  </CardTitle>
+                  <Button
+                    className="erp-btn-primary"
+                    size="sm"
+                    onClick={() => {
+                      setAccountClassificationTypeForm({ id: 0, name: "", status: 1 })
+                      setShowAccountClassificationTypeForm(!showAccountClassificationTypeForm)
+                    }}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    إضافة نوع
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {showAccountClassificationTypeForm && (
+                  <div className="bg-muted/30 rounded-lg p-4 border" dir="rtl">
+                    <h3 className="font-heading font-semibold mb-4 text-right">
+                      {accountClassificationTypeForm.id > 0 ? "تعديل نوع التصنيف" : "إضافة نوع جديد"}
+                    </h3>
+                    <form className="space-y-4" onSubmit={handleSaveAccountClassificationType}>
+                      <div className="text-right">
+                        <Label className="erp-label text-right block">اسم النوع *</Label>
+                        <Input
+                          required
+                          className="erp-input text-right"
+                          placeholder="مثال: تصنيف أصول"
+                          dir="rtl"
+                          maxLength={100}
+                          value={accountClassificationTypeForm.name}
+                          onChange={(e) => setAccountClassificationTypeForm({ ...accountClassificationTypeForm, name: e.target.value })}
+                        />
+                      </div>
+
+                      <div className="text-right">
+                        <Label className="erp-label text-right block">الحالة</Label>
+                        <Select
+                          dir="rtl"
+                          value={accountClassificationTypeForm.status.toString()}
+                          onValueChange={(value) => setAccountClassificationTypeForm({ ...accountClassificationTypeForm, status: Number.parseInt(value) })}
+                        >
+                          <SelectTrigger className="erp-input text-right">
+                            <SelectValue placeholder="اختر الحالة" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="1">نشط</SelectItem>
+                            <SelectItem value="2">مجمد</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="flex justify-start gap-2 pt-2">
+                        <Button type="submit" className="erp-btn-primary" size="sm">
+                          حفظ النوع
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setShowAccountClassificationTypeForm(false)
+                            setAccountClassificationTypeForm({ id: 0, name: "", status: 1 })
+                          }}
+                        >
+                          إلغاء
+                        </Button>
+                      </div>
+                    </form>
+                  </div>
+                )}
+
+                <div className="space-y-3">
+                  {accountClassificationTypes.map((item, index) => (
+                    <div
+                      key={item.id}
+                      className={cn(
+                        "p-4 rounded-lg border transition-all cursor-pointer",
+                        index === currentAccountClassificationTypeIndex
+                          ? "bg-primary/10 border-primary shadow-sm"
+                          : "bg-background hover:bg-muted/50",
+                      )}
+                      onClick={() => setCurrentAccountClassificationTypeIndex(index)}
+                      dir="rtl"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="space-y-1 text-right">
+                          <h4 className="font-heading font-semibold">{item.name}</h4>
+                          <p className="text-xs text-muted-foreground">ID: {item.id}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button variant="outline" size="sm" onClick={() => handleEditAccountClassificationType(item)}>
+                            <Edit className="h-3 w-3" />
+                          </Button>
+                          {item.status === 1 && (
+                            <Button variant="outline" size="sm" onClick={() => handleFreezeAccountClassificationType(item)}>
+                              تجميد
+                            </Button>
+                          )}
+                          <Button variant="destructive" size="sm" onClick={() => handleDeleteAccountClassificationType(item.id)}>
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                          <Badge variant={getIncomeStatementStatusVariant(item.status)}>
+                            {getIncomeStatementStatusLabel(item.status)}
+                          </Badge>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card dir="rtl">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    <CreditCard className="h-5 w-5 text-primary" />
+                    تصنيفات الحسابات ({accountClassifications.length})
+                  </CardTitle>
+                  <Button
+                    className="erp-btn-primary"
+                    size="sm"
+                    onClick={() => {
+                      setAccountClassificationForm({ id: 0, name: "", classification_type_id: "", status: 1 })
+                      setShowAccountClassificationForm(!showAccountClassificationForm)
+                    }}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    إضافة تصنيف
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {showAccountClassificationForm && (
+                  <div className="bg-muted/30 rounded-lg p-4 border" dir="rtl">
+                    <h3 className="font-heading font-semibold mb-4 text-right">
+                      {accountClassificationForm.id > 0 ? "تعديل تصنيف الحساب" : "إضافة تصنيف جديد"}
+                    </h3>
+                    <form className="space-y-4" onSubmit={handleSaveAccountClassification}>
+                      <div className="text-right">
+                        <Label className="erp-label text-right block">اسم التصنيف *</Label>
+                        <Input
+                          required
+                          className="erp-input text-right"
+                          placeholder="مثال: حسابات العملاء"
+                          dir="rtl"
+                          maxLength={100}
+                          value={accountClassificationForm.name}
+                          onChange={(e) => setAccountClassificationForm({ ...accountClassificationForm, name: e.target.value })}
+                        />
+                      </div>
+
+                      <div className="text-right">
+                        <Label className="erp-label text-right block">نوع التصنيف *</Label>
+                        <Select
+                          dir="rtl"
+                          value={accountClassificationForm.classification_type_id}
+                          onValueChange={(value) => setAccountClassificationForm({ ...accountClassificationForm, classification_type_id: value })}
+                        >
+                          <SelectTrigger className="erp-input text-right">
+                            <SelectValue placeholder="اختر النوع" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {accountClassificationTypes.map((type) => (
+                              <SelectItem key={type.id} value={type.id.toString()}>
+                                {type.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="text-right">
+                        <Label className="erp-label text-right block">الحالة</Label>
+                        <Select
+                          dir="rtl"
+                          value={accountClassificationForm.status.toString()}
+                          onValueChange={(value) => setAccountClassificationForm({ ...accountClassificationForm, status: Number.parseInt(value) })}
+                        >
+                          <SelectTrigger className="erp-input text-right">
+                            <SelectValue placeholder="اختر الحالة" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="1">نشط</SelectItem>
+                            <SelectItem value="2">مجمد</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="flex justify-start gap-2 pt-2">
+                        <Button type="submit" className="erp-btn-primary" size="sm">
+                          حفظ التصنيف
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setShowAccountClassificationForm(false)
+                            setAccountClassificationForm({ id: 0, name: "", classification_type_id: "", status: 1 })
+                          }}
+                        >
+                          إلغاء
+                        </Button>
+                      </div>
+                    </form>
+                  </div>
+                )}
+
+                <div className="space-y-3 max-h-[330px] overflow-y-auto pr-1">
+                  {accountClassifications.map((item, index) => (
+                    <div
+                      key={item.id}
+                      className={cn(
+                        "p-4 rounded-lg border transition-all cursor-pointer",
+                        index === currentAccountClassificationIndex
+                          ? "bg-primary/10 border-primary shadow-sm"
+                          : "bg-background hover:bg-muted/50",
+                      )}
+                      onClick={() => setCurrentAccountClassificationIndex(index)}
+                      dir="rtl"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="space-y-1 text-right">
+                          <h4 className="font-heading font-semibold">{item.name}</h4>
+                          <p className="text-xs text-muted-foreground">النوع: {item.classification_type_name || "-"}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button variant="outline" size="sm" onClick={() => handleEditAccountClassification(item)}>
+                            <Edit className="h-3 w-3" />
+                          </Button>
+                          {item.status === 1 && (
+                            <Button variant="outline" size="sm" onClick={() => handleFreezeAccountClassification(item)}>
+                              تجميد
+                            </Button>
+                          )}
+                          <Button variant="destructive" size="sm" onClick={() => handleDeleteAccountClassification(item.id)}>
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                          <Badge variant={getIncomeStatementStatusVariant(item.status)}>
+                            {getIncomeStatementStatusLabel(item.status)}
+                          </Badge>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+            </div>
+          </div>
         </TabsContent>
 
         {/* Workflow Stages Management Tab */}

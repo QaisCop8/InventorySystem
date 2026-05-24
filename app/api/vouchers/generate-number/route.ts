@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const vchBook = (searchParams.get("vch_book") ?? "").trim().toUpperCase()
-    const vchType = Number(searchParams.get("vch_type") ?? 5)
+    const vchType = Number(searchParams.get("voucher_type") ?? searchParams.get("vch_type") ?? 5)
 
     if (!vchBook || vchBook === "0") {
       return NextResponse.json(
@@ -95,6 +95,7 @@ export async function GET(request: NextRequest) {
       {
         voucherCode,
         orderNumber: voucherCode,
+        voucher_type: vchType,
         autoNumbering: true,
         prefix,
         vch_book: vchBook,
@@ -109,7 +110,7 @@ export async function GET(request: NextRequest) {
     console.error("Error generating voucher number:", error)
     const { searchParams } = new URL(request.url)
     const vchBook = (searchParams.get("vch_book") ?? "R").trim().toUpperCase()
-    const vchType = Number(searchParams.get("vch_type") ?? 5)
+    const vchType = Number(searchParams.get("voucher_type") ?? searchParams.get("vch_type") ?? 5)
     const settingsResult = await pool.query(
       `
         SELECT invoice_prefix, order_prefix, purchase_prefix
@@ -134,6 +135,7 @@ export async function GET(request: NextRequest) {
       {
         voucherCode: fallbackCode,
         orderNumber: fallbackCode,
+        voucher_type: vchType,
         autoNumbering: true,
         warning: "Generated fallback number due to database error",
       },

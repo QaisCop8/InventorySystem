@@ -315,6 +315,10 @@
     z-index: 20;
   }
 
+  .invoice-currency-dropdown-wrap:focus-within {
+    z-index: 200;
+  }
+
   .invoice-currency-dropdown:not(.p-disabled):hover {
     border-color: #0f9f6e !important;
   }

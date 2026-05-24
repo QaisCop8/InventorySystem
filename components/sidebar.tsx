@@ -153,16 +153,28 @@ export function Sidebar({
         {isOpen ? (
           <div className="flex items-center gap-2 flex-row-reverse">
             <div className="text-right">
-              <h2 className="text-base font-semibold text-white">نظام إدارة المخزون والطلبيات</h2>
-              <p className="text-xs text-white/80">إدارة متكاملة</p>
+              <h2 className="text-base font-semibold text-white">Ro'ya Accounting System</h2>
+              <p className="text-xs text-white/80">Ro'ya Accounting System</p>
             </div>
             <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
-              <span className="text-primary font-bold text-sm">ERP</span>
+              <svg viewBox="0 0 24 24" className="h-5 w-5 text-primary" aria-hidden="true">
+                <path
+                  d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3zm0 2.3L6 8.2v7.6l6 2.9 6-2.9V8.2l-6-2.9z"
+                  fill="currentColor"
+                />
+                <path d="M12 8.8l3.4 1.9v3.8L12 16.4l-3.4-1.9v-3.8L12 8.8z" fill="currentColor" opacity="0.6" />
+              </svg>
             </div>
           </div>
         ) : (
           <div className="w-full flex justify-center">
-            <span className="text-white font-bold">E</span>
+            <svg viewBox="0 0 24 24" className="h-5 w-5 text-white" aria-hidden="true">
+              <path
+                d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3zm0 2.3L6 8.2v7.6l6 2.9 6-2.9V8.2l-6-2.9z"
+                fill="currentColor"
+              />
+              <path d="M12 8.8l3.4 1.9v3.8L12 16.4l-3.4-1.9v-3.8L12 8.8z" fill="currentColor" opacity="0.6" />
+            </svg>
           </div>
         )}
         <Button

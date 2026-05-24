@@ -36,7 +36,9 @@ export async function GET(
   try {
     const { searchParams } = new URL(request.url)
     const nav = params.navigationType
-    const vchType = Number(searchParams.get("order_type") ?? 5)
+    const vchType = Number(
+      searchParams.get("voucher_type") ?? searchParams.get("vch_type") ?? searchParams.get("order_type") ?? 5,
+    )
     const vchBook = (searchParams.get("vch_book") ?? "0").trim().toUpperCase()
 
     await pool.query(`
@@ -54,7 +56,7 @@ export async function GET(
     switch (nav) {
       case "first":
         query = `
-          SELECT v.*, v.voucher_code AS order_number, v.voucher_date::date::text AS order_date, v.vch_status AS order_status, v.vch_status AS order_status2, 0 AS order_decision, v.voucher_date::date::text AS voucher_date,
+          SELECT v.*, v.vch_type AS voucher_type, v.voucher_code AS order_number, v.voucher_date::date::text AS order_date, v.vch_status AS order_status, v.vch_status AS order_status2, 0 AS order_decision, v.voucher_date::date::text AS voucher_date,
                  v.delivery_date::date::text AS delivery_date,
                  c.name AS customer_name, c.pricecategory, c.customer_code
           FROM vouchers v
@@ -70,7 +72,7 @@ export async function GET(
         break
       case "last":
         query = `
-          SELECT v.*, v.voucher_code AS order_number, v.voucher_date::date::text AS order_date, v.vch_status AS order_status, v.vch_status AS order_status2, 0 AS order_decision, v.voucher_date::date::text AS voucher_date,
+          SELECT v.*, v.vch_type AS voucher_type, v.voucher_code AS order_number, v.voucher_date::date::text AS order_date, v.vch_status AS order_status, v.vch_status AS order_status2, 0 AS order_decision, v.voucher_date::date::text AS voucher_date,
                  v.delivery_date::date::text AS delivery_date,
                  c.name AS customer_name, c.pricecategory, c.customer_code
           FROM vouchers v
@@ -88,7 +90,7 @@ export async function GET(
         const currentId = searchParams.get("currentId")
         if (!currentId) return NextResponse.json({ error: "currentId required" }, { status: 400 })
         query = `
-          SELECT v.*, v.voucher_code AS order_number, v.voucher_date::date::text AS order_date, v.vch_status AS order_status, v.vch_status AS order_status2, 0 AS order_decision, v.voucher_date::date::text AS voucher_date,
+          SELECT v.*, v.vch_type AS voucher_type, v.voucher_code AS order_number, v.voucher_date::date::text AS order_date, v.vch_status AS order_status, v.vch_status AS order_status2, 0 AS order_decision, v.voucher_date::date::text AS voucher_date,
                  v.delivery_date::date::text AS delivery_date,
                  c.name AS customer_name, c.pricecategory, c.customer_code
           FROM vouchers v
@@ -108,7 +110,7 @@ export async function GET(
         const currentId = searchParams.get("currentId")
         if (!currentId) return NextResponse.json({ error: "currentId required" }, { status: 400 })
         query = `
-          SELECT v.*, v.voucher_code AS order_number, v.voucher_date::date::text AS order_date, v.vch_status AS order_status, v.vch_status AS order_status2, 0 AS order_decision, v.voucher_date::date::text AS voucher_date,
+          SELECT v.*, v.vch_type AS voucher_type, v.voucher_code AS order_number, v.voucher_date::date::text AS order_date, v.vch_status AS order_status, v.vch_status AS order_status2, 0 AS order_decision, v.voucher_date::date::text AS voucher_date,
                  v.delivery_date::date::text AS delivery_date,
                  c.name AS customer_name, c.pricecategory, c.customer_code
           FROM vouchers v
@@ -128,7 +130,7 @@ export async function GET(
         const id = Number(searchParams.get("id"))
         if (!id) return NextResponse.json({ error: "id required" }, { status: 400 })
         query = `
-          SELECT v.*, v.voucher_code AS order_number, v.voucher_date::date::text AS order_date, v.vch_status AS order_status, v.vch_status AS order_status2, 0 AS order_decision, v.voucher_date::date::text AS voucher_date,
+          SELECT v.*, v.vch_type AS voucher_type, v.voucher_code AS order_number, v.voucher_date::date::text AS order_date, v.vch_status AS order_status, v.vch_status AS order_status2, 0 AS order_decision, v.voucher_date::date::text AS voucher_date,
                  v.delivery_date::date::text AS delivery_date,
                  c.customer_code, c.pricecategory
           FROM vouchers v
