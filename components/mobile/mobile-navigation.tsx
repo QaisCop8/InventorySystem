@@ -44,7 +44,7 @@ export function MobileNavigation({ activeSection, onSectionChange }: MobileNavig
               </svg>
             </div>
             <div>
-              <h1 className="text-lg font-bold text-foreground">Ro'ya Accounting System</h1>
+              <h1 className="text-lg font-bold text-foreground">أساس (Asas) Accounting System</h1>
             </div>
           </div>
 
@@ -75,8 +75,8 @@ export function MobileNavigation({ activeSection, onSectionChange }: MobileNavig
                       </svg>
                     </div>
                     <div>
-                      <h2 className="text-lg font-semibold text-white">Ro'ya Accounting System</h2>
-                      <p className="text-xs text-primary-foreground/80">Ro'ya Accounting System</p>
+                      <h2 className="text-lg font-semibold text-white">أساس (Asas) Accounting System</h2>
+                      <p className="text-xs text-primary-foreground/80">أساس (Asas) Accounting System</p>
                     </div>
                   </div>
                 </div>

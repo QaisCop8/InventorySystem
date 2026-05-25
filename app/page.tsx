@@ -36,6 +36,7 @@ import { LotOpener } from "@/components/inventory/lot-opener"
 import { LotStatusManager } from "@/components/inventory/lot-status-manager"
 import { CustomerPortalAdmin } from "@/components/customer-portal/customer-portal-admin"
 import { WhatsAppNotificationSettings } from "@/components/inventory/whatsapp-notification-settings"
+import Accounts from "@/components/accounts"
 
 import { AIChat } from "@/components/ai-assistant/ai-chat"
 import { SmartAnalyticsDashboard } from "@/components/ai-analytics/smart-analytics-dashboard"
@@ -80,6 +81,7 @@ const componentMap: Record<string, React.ComponentType<any>> = {
   suppliers: (props: any) => <Customers {...props} isSupplier={true} />,
   "product-groups": ProductGroups,
   definitions: Definitions,
+  accounts: Accounts,
   "print-settings": PrintSettings,
   "voucher-settings": VoucherSettings,
   "document-settings": DocumentSettings,
@@ -150,7 +152,7 @@ export default function HomePage() {
                 <path d="M12 8.8l3.4 1.9v3.8L12 16.4l-3.4-1.9v-3.8L12 8.8z" fill="currentColor" opacity="0.6" />
               </svg>
             </div>
-            <h2 className="text-3xl font-bold text-foreground">Welcome to Ro'ya Accounting System</h2>
+            <h2 className="text-3xl font-bold text-foreground">Welcome to أساس (Asas) Accounting System</h2>
             <p className="text-muted-foreground text-lg">اختر قسماً من القائمة الجانبية للبدء في العمل</p>
             <div className="pt-4 space-y-2 text-sm text-muted-foreground">
 
@@ -294,6 +296,7 @@ useEffect(() => {
         "smart-inventory": "توصيات المخزون الذكية",
          "order-management": "إدارة الطلبات",
         "orders-migration": "ترحيل الطلبيات",
+        "accounts": "الحسابات المحاسبية",
         "batch-movements":"معالجة الرقم التشغيلي"
       }
     if (!alreadyOpened && defaultScreen !== "dashboard") {

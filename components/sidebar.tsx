@@ -76,6 +76,7 @@ export function Sidebar({
       title: "الملفات والتعريفات",
       icon: Users,
       submenu: [
+        { title: "الحسابات المحاسبية", section: "accounts", icon: Settings },
         { title: "الزبائن", section: "customers", icon: Users },
         { title: "الموردين", section: "suppliers", icon: Truck },
         { title: "الأصناف والخدمات", section: "products", icon: Package },
@@ -153,8 +154,8 @@ export function Sidebar({
         {isOpen ? (
           <div className="flex items-center gap-2 flex-row-reverse">
             <div className="text-right">
-              <h2 className="text-base font-semibold text-white">Ro'ya Accounting System</h2>
-              <p className="text-xs text-white/80">Ro'ya Accounting System</p>
+              <h2 className="text-base font-semibold text-white">أساس (Asas) Accounting System</h2>
+              <p className="text-xs text-white/80">أساس (Asas) Accounting System</p>
             </div>
             <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
               <svg viewBox="0 0 24 24" className="h-5 w-5 text-primary" aria-hidden="true">

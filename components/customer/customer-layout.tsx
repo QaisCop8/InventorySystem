@@ -15,7 +15,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { LayoutDashboard, ShoppingCart, Package, LogOut, Menu, Loader2 } from "lucide-react"
+import { LayoutDashboard, ShoppingCart, Package, BookOpen, LogOut, Menu, Loader2 } from "lucide-react"
 import type { CustomerSession } from "@/lib/customer-auth"
 
 interface CustomerLayoutProps {
@@ -68,6 +68,12 @@ export function CustomerLayout({ children }: CustomerLayoutProps) {
       label: "لوحة التحكم",
       icon: LayoutDashboard,
       show: true,
+    },
+    {
+      href: "/customer/accounts",
+      label: "الحسابات المحاسبية",
+      icon: BookOpen,
+      show: session?.permissions.can_view_accounts ?? true,
     },
     {
       href: "/customer/orders",

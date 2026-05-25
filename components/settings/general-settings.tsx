@@ -265,7 +265,7 @@ export default function GeneralSettings() {
                       <Input
                         value={state.companyName}
                         onChange={(e) => setState((prev) => ({ ...prev, companyName: e.target.value }))}
-                        placeholder="نظام رؤيا للحلول المحاسبية"
+                        placeholder="نظام أساس للحلول المحاسبية"
                         className="text-right"
                         dir="rtl"
                       />

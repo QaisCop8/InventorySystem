@@ -78,11 +78,11 @@ export function LoginPage({ onLogin }: LoginPageProps) {
               </div>
               <div>
                 <p className="text-xs tracking-[0.2em] text-slate-100/90">SYSTEM</p>
-                <p className="text-lg font-semibold">Ro'ya Accounting System</p>
+                <p className="text-lg font-semibold">أساس (Asas) Accounting System</p>
               </div>
             </div>
 
-            <h1 className="max-w-md text-4xl font-bold leading-tight">Welcome to Ro'ya Accounting System</h1>
+            <h1 className="max-w-md text-4xl font-bold leading-tight">Welcome to أساس (Asas) Accounting System</h1>
             <p className="mt-4 max-w-md text-base text-slate-100/90">منصة متكاملة لإدارة العمليات اليومية بواجهة واضحة، سريعة، وآمنة.</p>
           </div>
 
@@ -108,7 +108,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
                     <path d="M12 8.8l3.4 1.9v3.8L12 16.4l-3.4-1.9v-3.8L12 8.8z" fill="currentColor" opacity="0.6" />
                   </svg>
                 </div>
-                <p className="text-xs tracking-[0.18em] text-green-700">RO'YA ACCOUNTING SYSTEM</p>
+                <p className="text-xs tracking-[0.18em] text-green-700">أساس (ASAS) Accounting System</p>
                 <h2 className="mt-1 text-3xl font-extrabold text-slate-800">تسجيل الدخول</h2>
                 <p className="mt-2 text-sm text-slate-600">استخدم بيانات حسابك للمتابعة إلى لوحة النظام</p>
               </div>
@@ -202,13 +202,13 @@ export function LoginPage({ onLogin }: LoginPageProps) {
                   ) : (
                     <div className="flex items-center gap-2">
                       <LogIn className="w-4 h-4" />
-                      Sign in to Ro'ya Accounting System
+                      Sign in to أساس (Asas) Accounting System
                     </div>
                   )}
                 </Button>
               </form>
               <div className="mt-6 border-t border-slate-200 pt-4 text-center text-sm text-slate-500">
-                Ro'ya Accounting System
+                أساس (Asas) Accounting System
               </div>
             </CardContent> 
           </Card>

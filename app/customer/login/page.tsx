@@ -86,11 +86,11 @@ export default function CustomerLoginPage() {
               </div>
               <div>
                 <p className="text-xs tracking-[0.2em] text-slate-100/90">SYSTEM</p>
-                <p className="text-lg font-semibold">Ro'ya Accounting System</p>
+                <p className="text-lg font-semibold">أساس (Asas) Accounting System</p>
               </div>
             </div>
 
-            <h1 className="max-w-md text-4xl font-bold leading-tight">Ro'ya Accounting System</h1>
+            <h1 className="max-w-md text-4xl font-bold leading-tight">أساس (Asas) Accounting System</h1>
             <p className="mt-4 max-w-md text-base text-slate-100/90">
               تجربة دخول سريعة وآمنة بواجهة عصرية تساعدك على متابعة الطلبات والحسابات بسهولة.
             </p>
@@ -117,11 +117,11 @@ export default function CustomerLoginPage() {
                 </svg>
               </div>
               <div>
-                <p className="text-xs tracking-[0.18em] text-green-700">RO'YA ACCOUNTING SYSTEM</p>
+                <p className="text-xs tracking-[0.18em] text-green-700">أساس (ASAS) Accounting System</p>
                 <CardTitle className="mt-1 text-3xl font-extrabold text-slate-800">تسجيل الدخول</CardTitle>
               </div>
               <CardDescription className="text-base text-slate-600">
-                Sign in to access Ro'ya Accounting System
+                Sign in to access أساس (Asas) Accounting System
               </CardDescription>
             </CardHeader>
 
@@ -194,7 +194,7 @@ export default function CustomerLoginPage() {
                   ) : (
                     <>
                       <LogIn className="ml-2 h-5 w-5" />
-                      Sign in to Ro'ya Accounting System
+                      Sign in to أساس (Asas) Accounting System
                     </>
                   )}
                 </Button>
@@ -204,7 +204,7 @@ export default function CustomerLoginPage() {
                 <p className="text-sm text-slate-500">
                   هل تواجه مشكلة في تسجيل الدخول؟
                   <br />
-                  Contact Ro'ya Accounting System support
+                  Contact أساس (Asas) Accounting System support
                 </p>
               </div>
             </CardContent>

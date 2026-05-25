@@ -3554,110 +3554,110 @@ function UnifiedSaleInvoices({
                 </CardContent>
               </Card>
 
-              {/* ===================== */}
-              {/* معلومات الزبون (يسار) */}
-              {/* ===================== */}
-              <Card className="h-full">
-                <CardHeader className="pb-4">
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <User className="h-5 w-5 text-primary" />
-                    معلومات الزبون
-                  </CardTitle>
-                </CardHeader>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6" dir="rtl">
+                {/* ===================== */}
+                {/* معلومات الزبون (يمين) */}
+                {/* ===================== */}
+                <Card className="h-full">
+                  <CardHeader className="pb-4">
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <User className="h-5 w-5 text-primary" />
+                      معلومات الزبون
+                    </CardTitle>
+                  </CardHeader>
 
-                <CardContent className="space-y-6">
+                  <CardContent className="space-y-6">
 
-                  <div className="grid grid-cols-12 gap-4">
+                    <div className="grid grid-cols-12 gap-4">
 
-                    {/* رقم الزبون */}
-                    <div className="col-span-12 md:col-span-4">
-                      <Label htmlFor="customer_code" className="text-sm font-medium">
-                        {'رقم الزبون *'}
-                      </Label>
-                      <div className="flex gap-2">
+                      {/* رقم الزبون */}
+                      <div className="col-span-12 md:col-span-5">
+                        <Label htmlFor="customer_code" className="text-sm font-medium">
+                          {'رقم الزبون *'}
+                        </Label>
+                        <div className="flex gap-2">
+                          <Input
+
+                            id="customer_code"
+                            value={state.formData.customer_code}
+                            onChange={(e) =>
+                              setState((prev) => ({
+                                ...prev,
+                                formData: { ...prev.formData, customer_code: e.target.value },
+                              }))
+                            }
+                            onKeyDown={(e) => {
+                              // Allow Enter
+                              if (e.key === "F10") {
+                                e.preventDefault();
+                                openCustomerSearchPopup()
+                                return;
+                              }
+                            }
+                            }
+                            className="text-right h-11 text-base font-medium"
+                            placeholder={''}
+
+                          />
+                          <Button type="button" onClick={openCustomerSearchPopup}>
+                            🔍
+                          </Button>
+                        </div>
+                      </div>
+
+
+                      {/* اسم الزبون */}
+                      <div className="col-span-7">
+                        <Label>اسم الزبون *</Label>
                         <Input
-
-                          id="customer_code"
-                          value={state.formData.customer_code}
+                          ref={customerNameRef}
+                          value={state.formData.customer_name ?? ""}
                           onChange={(e) =>
-                            setState((prev) => ({
+                            setState(prev => ({
                               ...prev,
-                              formData: { ...prev.formData, customer_code: e.target.value },
+                              formData: { ...prev.formData, customer_name: e.target.value }
                             }))
                           }
-                          onKeyDown={(e) => {
-                            // Allow Enter
-                            if (e.key === "F10") {
-                              e.preventDefault();
-                              openCustomerSearchPopup()
-                              return;
-                            }
-                          }
-                          }
-                          className="text-right"
-                          placeholder={'رقم الزبون '}
-
                         />
-                        <Button type="button" onClick={openCustomerSearchPopup}>
-                          🔍
-                        </Button>
+                      </div>
+
+                      {/* هاتف */}
+                      <div className="col-span-12 md:col-span-6">
+                        <Label>هاتف الزبون</Label>
+                        <Input
+                          value={state.formData.customer_phone ?? ""}
+                          maxLength={15}
+                          onChange={(e) =>
+                            setState(prev => ({
+                              ...prev,
+                              formData: { ...prev.formData, customer_phone: e.target.value }
+                            }))
+                          }
+                        />
+                      </div>
+
+                      <div className="col-span-12 md:col-span-6">
+                        <Label>رصيده</Label>
+                        <Input
+                          value={selectedCustomerBalance.toFixed(2)}
+                          readOnly
+                          className="bg-muted"
+                        />
                       </div>
                     </div>
 
+                  </CardContent>
+                </Card>
 
-                    {/* اسم الزبون */}
-                    <div className="col-span-8">
-                      <Label>اسم الزبون *</Label>
-                      <Input
-                        ref={customerNameRef}
-                        value={state.formData.customer_name ?? ""}
-                        onChange={(e) =>
-                          setState(prev => ({
-                            ...prev,
-                            formData: { ...prev.formData, customer_name: e.target.value }
-                          }))
-                        }
-                      />
-                    </div>
-
-                    {/* هاتف */}
-                    <div className="col-span-12 md:col-span-6">
-                      <Label>هاتف الزبون</Label>
-                      <Input
-                        value={state.formData.customer_phone ?? ""}
-                        maxLength={15}
-                        onChange={(e) =>
-                          setState(prev => ({
-                            ...prev,
-                            formData: { ...prev.formData, customer_phone: e.target.value }
-                          }))
-                        }
-                      />
-                    </div>
-
-                    <div className="col-span-12 md:col-span-6">
-                      <Label>رصيده</Label>
-                      <Input
-                        value={selectedCustomerBalance.toFixed(2)}
-                        readOnly
-                        className="bg-muted"
-                      />
-                    </div>
-                  </div>
-
-                </CardContent>
-              </Card>
-
-              <Accordion type="single" collapsible className="w-full">
-                <AccordionItem value="tax-info" className="border rounded-lg">
-                  <AccordionTrigger className="px-4 py-3 hover:no-underline text-base font-semibold bg-primary/10 text-primary rounded-t-lg border-b border-primary/20">
-                    <span className="inline-flex items-center gap-2">
-                      <Percent className="h-4 w-4 text-primary" />
-                      <span>معلومات الضريبة</span>
-                    </span>
-                  </AccordionTrigger>
-                  <AccordionContent className="px-4 pt-4 pb-4">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Card className="h-full">
+                  <CardHeader className="pb-4">
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <Percent className="h-5 w-5 text-primary" />
+                      معلومات الضريبة
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-6 min-h-[180px]">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="invoice-currency-dropdown-wrap">
                         <Label>التصنيف الضريبي</Label>
                         <PrimeDropdown
@@ -3800,9 +3800,9 @@ function UnifiedSaleInvoices({
                         </label>
                       </div>
                     </div>
-                  </AccordionContent>
-                </AccordionItem>
-              </Accordion>
+                  </CardContent>
+                </Card>
+              </div>
 
             </div>
             {state.formData?.id > 0 && state.formData?.printed === 1 && (
