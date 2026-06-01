@@ -11,7 +11,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { UniversalToolbar } from "@/components/ui/universal-toolbar"
-import { AlertCircle } from "lucide-react"
+import { Plus, AlertCircle } from "lucide-react"
 
 interface AccountType {
   id: number

@@ -36,7 +36,7 @@ import { LotOpener } from "@/components/inventory/lot-opener"
 import { LotStatusManager } from "@/components/inventory/lot-status-manager"
 import { CustomerPortalAdmin } from "@/components/customer-portal/customer-portal-admin"
 import { WhatsAppNotificationSettings } from "@/components/inventory/whatsapp-notification-settings"
-import Accounts from "@/components/accounts"
+import UnifiedAccounts from "@/components/customer/unified-accounts"
 
 import { AIChat } from "@/components/ai-assistant/ai-chat"
 import { SmartAnalyticsDashboard } from "@/components/ai-analytics/smart-analytics-dashboard"
@@ -81,7 +81,7 @@ const componentMap: Record<string, React.ComponentType<any>> = {
   suppliers: (props: any) => <Customers {...props} isSupplier={true} />,
   "product-groups": ProductGroups,
   definitions: Definitions,
-  accounts: Accounts,
+  accounts: UnifiedAccounts,
   "print-settings": PrintSettings,
   "voucher-settings": VoucherSettings,
   "document-settings": DocumentSettings,
