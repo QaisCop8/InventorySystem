@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { Plus, RefreshCw } from "lucide-react"
 import DataGridView from "@/components/common/DataGridView"
+import UnifiedAccounts from "@/components/customer/unified-accounts-refactored"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -57,6 +58,7 @@ interface FormState {
 
 export default function Accounts() {
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [showUnifiedPopup, setShowUnifiedPopup] = useState(false)
   const [accounts, setAccounts] = useState<Account[]>([])
   const [types, setTypes] = useState<AccountType[]>([])
   const [loading, setLoading] = useState(true)
@@ -183,11 +185,11 @@ export default function Accounts() {
   }
 
   const handleNew = () => {
-    resetForm()
-    setError("")
-    setMessage("")
-    setDialogOpen(true)
+    // Open unified accounts as a local dialog (like فاتورة جديدة)
+    setShowUnifiedPopup(true)
   }
+
+  
 
   const handleEdit = (account: Account) => {
     setFormData({
@@ -399,12 +401,15 @@ export default function Accounts() {
               </div>
               <div>
                 <Label className="mb-2 block text-sm">النوع</Label>
-                <Select value={filterType} onValueChange={setFilterType}>
+                <Select
+                  value={filterType || "__all_types__"}
+                  onValueChange={(value) => setFilterType(value === "__all_types__" ? "" : value)}
+                >
                   <SelectTrigger className="h-10">
                     <SelectValue placeholder="كل الأنواع" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">كل الأنواع</SelectItem>
+                    <SelectItem value="__all_types__">كل الأنواع</SelectItem>
                     {types.map((type) => (
                       <SelectItem key={type.id} value={String(type.id)}>
                         {type.name}
@@ -415,12 +420,15 @@ export default function Accounts() {
               </div>
               <div>
                 <Label className="mb-2 block text-sm">الحالة</Label>
-                <Select value={filterStatus} onValueChange={setFilterStatus}>
+                <Select
+                  value={filterStatus || "__all_statuses__"}
+                  onValueChange={(value) => setFilterStatus(value === "__all_statuses__" ? "" : value)}
+                >
                   <SelectTrigger className="h-10">
                     <SelectValue placeholder="كل الحالات" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">كل الحالات</SelectItem>
+                    <SelectItem value="__all_statuses__">كل الحالات</SelectItem>
                     <SelectItem value="نشط">نشط</SelectItem>
                     <SelectItem value="موقوف">موقوف</SelectItem>
                   </SelectContent>
@@ -450,6 +458,14 @@ export default function Accounts() {
             </div>
           </CardContent>
         </Card>
+        {/* Unified accounts opened as local popup (like فاتورة جديدة) */}
+        <Dialog open={showUnifiedPopup} onOpenChange={setShowUnifiedPopup}>
+          <DialogContent className="w-full max-w-[95vw] sm:max-w-[90vw] md:max-w-[85vw] lg:max-w-[100vh] h-[95vh] max-h-[95vh] p-0 gap-0 flex flex-col overflow-hidden" dir="rtl">
+            {showUnifiedPopup && (
+              <UnifiedAccounts action="new" inWindowManager closeWindow={() => setShowUnifiedPopup(false)} />
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   )

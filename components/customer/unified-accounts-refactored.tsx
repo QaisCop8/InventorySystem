@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { UniversalToolbar } from "@/components/ui/universal-toolbar"
 import { Plus, AlertCircle } from "lucide-react"
 
@@ -82,15 +83,33 @@ interface FormState {
   status: string
 }
 
-export default function UnifiedAccounts() {
+interface UnifiedAccountsProps {
+  action?: "new"
+  onOpenChange?: (open: boolean) => void
+  inWindowManager?: boolean
+  closeWindow?: () => void
+}
+
+export default function UnifiedAccounts({ action, onOpenChange, inWindowManager, closeWindow }: UnifiedAccountsProps) {
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [activeTab, setActiveTab] = useState("main")
   const [accounts, setAccounts] = useState<AccountItem[]>([])
   const [types, setTypes] = useState<AccountType[]>([])
+  const [currencies, setCurrencies] = useState<any[]>([])
+  const [companies, setCompanies] = useState<any[]>([])
+  const [costCenters, setCostCenters] = useState<any[]>([])
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
+  const [imageFile, setImageFile] = useState<File | null>(null)
   const [currentIndex, setCurrentIndex] = useState(0)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
   const [message, setMessage] = useState("")
+  const [financialListType, setFinancialListType] = useState("") // ط§ظ„ظ…ظٹط²ط§ظ†ظٹط© ط§ظ„ط¹ظ…ظˆظ…ظٹط©, ظ‚ط§ط¦ظ…ط© ط§ظ„ط¯ط®ظ„, طھظ‚ظٹظٹظ… ط¨ط¶ط§ط¹ط©
+  const [balanceSheetAssets, setBalanceSheetAssets] = useState<any[]>([])
+  const [balanceSheetLiabilities, setBalanceSheetLiabilities] = useState<any[]>([])
+  const [incomeStatementAccounts, setIncomeStatementAccounts] = useState<any[]>([])
+  const [merchandiseAccounts, setMerchandiseAccounts] = useState<any[]>([])
 
   const [formData, setFormData] = useState<FormState>({
     code: "",
@@ -118,7 +137,7 @@ export default function UnifiedAccounts() {
     unified_report_group_code: "",
     notes: "",
     show_notes_in_transactions_soa: false,
-    status: "نشط",
+    status: "ظ†ط´ط·",
   })
 
   useEffect(() => {
@@ -141,6 +160,21 @@ export default function UnifiedAccounts() {
 
       const typesData = await typesRes.json()
       const accountsData = await accountsRes.json()
+      let currenciesData: any[] = []
+      let companiesData: any[] = []
+      let costCentersData: any[] = []
+      try {
+        const curRes = await fetch("/api/currencies")
+        if (curRes.ok) currenciesData = await curRes.json()
+      } catch (_) { }
+      try {
+        const compRes = await fetch("/api/companies")
+        if (compRes.ok) companiesData = await compRes.json()
+      } catch (_) { }
+      try {
+        const ccRes = await fetch("/api/cost-centers")
+        if (ccRes.ok) costCentersData = await ccRes.json()
+      } catch (_) { }
 
       setTypes(Array.isArray(typesData) ? typesData : [])
       setAccounts(
@@ -153,6 +187,9 @@ export default function UnifiedAccounts() {
           finanical_list_id: Number(item.finanical_list_id || 1),
         })),
       )
+      setCurrencies(Array.isArray(currenciesData) ? currenciesData : [])
+      setCompanies(Array.isArray(companiesData) ? companiesData : [])
+      setCostCenters(Array.isArray(costCentersData) ? costCentersData : [])
       setCurrentIndex(0)
     } catch (err) {
       console.error(err)
@@ -191,8 +228,14 @@ export default function UnifiedAccounts() {
       unified_report_group_code: account.unified_report_group_code || "",
       notes: account.notes || "",
       show_notes_in_transactions_soa: Boolean(account.show_notes_in_transactions_soa),
-      status: account.status || "نشط",
+      status: account.status || "ظ†ط´ط·",
     })
+    // set preview if account has image url
+    if ((account as any).image_url) {
+      setImagePreview((account as any).image_url)
+    } else {
+      setImagePreview(null)
+    }
   }, [])
 
   const handleNew = () => {
@@ -222,10 +265,25 @@ export default function UnifiedAccounts() {
       unified_report_group_code: "",
       notes: "",
       show_notes_in_transactions_soa: false,
-      status: "نشط",
+      status: "ظ†ط´ط·",
     })
     setDialogOpen(true)
+    setActiveTab("main")
   }
+
+  useEffect(() => {
+    console.log("[unified-refactored] mount/effect action:", action)
+    if (action === "new") {
+      setActiveTab("main")
+      setDialogOpen(true)
+      console.log("[unified-refactored] set dialogOpen true due to action=new")
+    }
+  }, [action])
+
+  useEffect(() => {
+    console.log("[unified-refactored] dialogOpen changed:", dialogOpen)
+    if (onOpenChange) onOpenChange(dialogOpen)
+  }, [dialogOpen, onOpenChange])
 
   const handleSave = async () => {
     setError("")
@@ -241,6 +299,8 @@ export default function UnifiedAccounts() {
       const isEdit = currentAccount?.id != null
       const url = isEdit ? `/api/accounts/${currentAccount.id}` : "/api/accounts"
       const method = isEdit ? "PUT" : "POST"
+      // prepare image base64 if available
+      const imageBase64 = imagePreview && imagePreview.startsWith("data:") ? imagePreview.split(",")[1] : null
 
       const payload = {
         code: formData.code.trim(),
@@ -269,6 +329,7 @@ export default function UnifiedAccounts() {
         notes: formData.notes.trim() || null,
         show_notes_in_transactions_soa: formData.show_notes_in_transactions_soa,
         status: formData.status,
+        image_base64: imageBase64,
       }
 
       const response = await fetch(url, {
@@ -349,260 +410,347 @@ export default function UnifiedAccounts() {
       loadAccountToForm(currentAccount)
     }
     setDialogOpen(true)
+    setActiveTab("main")
   }
 
   if (loading) {
     return <div className="p-6 text-center">Loading...</div>
   }
 
-  return (
-    <div className="space-y-4 p-4 lg:p-6" dir="rtl">
-      <div className="sticky top-2 z-20 rounded-xl border bg-white/95 p-4 shadow-sm backdrop-blur">
-        <UniversalToolbar
-          currentRecord={accounts.length > 0 ? currentIndex + 1 : 0}
-          totalRecords={accounts.length}
-          onNew={handleNew}
-          onSave={() => {
-            if (!dialogOpen) handleOpenDialog()
-            else void handleSave()
-          }}
-          onDelete={handleDelete}
-          onFirst={handleFirst}
-          onPrevious={handlePrevious}
-          onNext={handleNext}
-          onLast={handleLast}
-          canDelete={currentAccount?.id != null}
-        />
-      </div>
+  if (inWindowManager) {
+    return (
+      <div className="w-full h-full p-0 gap-0 flex flex-col overflow-hidden" dir="rtl">
+        <div className="flex items-center justify-between border-b bg-gradient-to-r from-blue-50 to-slate-50 px-6 py-4">
+          <h2 className="text-xl font-semibold">{currentAccount?.id ? `Edit Account: ${currentAccount.code}` : "New Account"}</h2>
+          <Button variant="ghost" onClick={() => closeWindow && closeWindow()}>
+            âœ•
+          </Button>
+        </div>
 
-      <Card>
-        <CardContent className="p-6">
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold">Accounts List</h3>
-            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-              {accounts.map((account, idx) => (
-                <Button
-                  key={account.id}
-                  variant={currentIndex === idx ? "default" : "outline"}
-                  className="text-left h-auto p-3"
-                  onClick={() => {
-                    setCurrentIndex(idx)
-                    loadAccountToForm(account)
-                  }}
-                >
+        <div className="border-b bg-white/95 px-4 py-2">
+          <UniversalToolbar
+            currentRecord={accounts.length > 0 ? currentIndex + 1 : 0}
+            totalRecords={accounts.length}
+            onNew={handleNew}
+            onSave={() => void handleSave()}
+            onDelete={handleDelete}
+            onFirst={handleFirst}
+            onPrevious={handlePrevious}
+            onNext={handleNext}
+            onLast={handleLast}
+            canDelete={currentAccount?.id != null}
+            isSaving={saving}
+          />
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+          {error && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+          {message && (
+            <Alert className="bg-green-50 border-green-200">
+              <AlertDescription className="text-green-800">{message}</AlertDescription>
+            </Alert>
+          )}
+
+
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+            <TabsList className="h-auto w-full justify-start overflow-x-auto rounded-md bg-slate-100 p-1">
+              <TabsTrigger value="main">الرئيسية</TabsTrigger>
+              <TabsTrigger value="additional-data">بيانات إضافية</TabsTrigger>
+              <TabsTrigger value="cost-centers">مراكز الكلفة</TabsTrigger>
+              <TabsTrigger value="classification">تصنيفات الحساب</TabsTrigger>
+              <TabsTrigger value="stop-transactions">إيقاف الحركات على الحساب</TabsTrigger>
+              <TabsTrigger value="constraints">محددات الحساب</TabsTrigger>
+              <TabsTrigger value="flags">إعدادات الحركة</TabsTrigger>
+              <TabsTrigger value="extra">بيانات إضافية أخرى</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="main" className="space-y-6">
+              {/* Basic Information */}
+              <div className="space-y-4 border-b pb-6">
+                <h4 className="font-semibold text-base">ط§ظ„ظ…ط¹ظ„ظˆظ…ط§طھ ط§ظ„ط£ط³ط§ط³ظٹط©</h4>
+                <div className="grid gap-4 md:grid-cols-2">
                   <div>
-                    <div className="font-semibold">{account.code}</div>
-                    <div className="text-sm opacity-75">{account.name}</div>
+                    <Label className="mb-2 block text-sm font-medium">ط±ظ‚ظ… ط§ظ„ط­ط³ط§ط¨ *</Label>
+                    <Input value={formData.code} onChange={(e) => setFormData({ ...formData, code: e.target.value })} placeholder="ط±ظ‚ظ… ط§ظ„ط­ط³ط§ط¨" className="text-right" />
                   </div>
-                </Button>
-              ))}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+                  <div>
+                    <Label className="mb-2 block text-sm font-medium">ط§ط³ظ… ط§ظ„ط­ط³ط§ط¨ (AR) *</Label>
+                    <Input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="ط§ط³ظ… ط§ظ„ط­ط³ط§ط¨" className="text-right" />
+                  </div>
+                  <div>
+                    <Label className="mb-2 block text-sm font-medium">ط§ط³ظ… ط§ظ„ط­ط³ط§ط¨ (EN)</Label>
+                    <Input value={formData.name_lang2} onChange={(e) => setFormData({ ...formData, name_lang2: e.target.value })} placeholder="Account name in English" className="text-right" />
+                  </div>
+                  <div>
+                    <Label className="mb-2 block text-sm font-medium">ظ†ظˆط¹ ط§ظ„ط­ط³ط§ط¨</Label>
+                    <Select value={formData.type} onValueChange={(val) => setFormData({ ...formData, type: val })}>
+                      <SelectTrigger className="text-right">
+                        <SelectValue placeholder="ط§ط®طھط± ط§ظ„ظ†ظˆط¹" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {types.map((t) => (
+                          <SelectItem key={t.id} value={String(t.id)}>
+                            {t.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label className="mb-2 block text-sm font-medium">ط§ظ„ط­ط³ط§ط¨ ط§ظ„ط±ط¦ظٹط³ظٹ (ط£ط¨)</Label>
+                    <Select
+                      value={formData.father_id || "__no_parent__"}
+                      onValueChange={(val) => setFormData({ ...formData, father_id: val === "__no_parent__" ? "" : val })}
+                    >
+                      <SelectTrigger className="text-right">
+                        <SelectValue placeholder="ط¨ط¯ظˆظ†" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__no_parent__">ط¨ط¯ظˆظ†</SelectItem>
+                        {accounts.map((acc) => (
+                          <SelectItem key={acc.id} value={String(acc.id)}>
+                            {acc.code} - {acc.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label className="mb-2 block text-sm font-medium">ط§ظ„ظ…ط³طھظˆظ‰</Label>
+                    <Input type="number" value={formData.level_no} onChange={(e) => setFormData({ ...formData, level_no: e.target.value })} placeholder="1" className="text-right" />
+                  </div>
+                </div>
+              </div>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent
-          className="w-full max-w-[95vw] sm:max-w-[90vw] md:max-w-[85vw] lg:max-w-[100vh] h-[95vh] max-h-[95vh] p-0 gap-0 flex flex-col overflow-hidden"
-          dir="rtl"
-          onPointerDownOutside={(e) => e.preventDefault()}
-        >
-          <div className="flex items-center justify-between border-b bg-gradient-to-r from-blue-50 to-slate-50 px-6 py-4">
-            <h2 className="text-xl font-semibold">{currentAccount?.id ? `Edit Account: ${currentAccount.code}` : "New Account"}</h2>
-            <Button variant="ghost" onClick={() => setDialogOpen(false)}>
-              ✕
-            </Button>
-          </div>
+              {/* Currency and Financial Settings */}
+              <div className="space-y-4 border-b pb-6">
+                <h4 className="font-semibold text-base">ط§ظ„ط¥ط¹ط¯ط§ط¯ط§طھ ط§ظ„ظ…ط§ظ„ظٹط©</h4>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div>
+                    <Label className="mb-2 block text-sm font-medium">ط§ظ„ط¹ظ…ظ„ط©</Label>
+                    <Select value={formData.currency_id || "__no_currency__"} onValueChange={(val) => setFormData({ ...formData, currency_id: val === "__no_currency__" ? "" : val })}>
+                      <SelectTrigger className="text-right">
+                        <SelectValue placeholder="ط§ط®طھط± ط§ظ„ط¹ظ…ظ„ط©" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__no_currency__">ط¨ط¯ظˆظ†</SelectItem>
+                        {currencies.map((c) => (
+                          <SelectItem key={c.id || c.currency_id} value={String(c.id ?? c.currency_id)}>
+                            {c.name || c.currency_name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label className="mb-2 block text-sm font-medium">ط§ظ„ظ‚ط§ط¦ظ…ط© ط§ظ„ظ…ط§ظ„ظٹط© *</Label>
+                    <Select value={financialListType} onValueChange={(val) => {
+                      setFinancialListType(val)
+                      setFormData({ ...formData, finanical_list_id: val })
+                    }}>
+                      <SelectTrigger className="text-right">
+                        <SelectValue placeholder="ط§ط®طھط± ط§ظ„ظ‚ط§ط¦ظ…ط©" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1">ط§ظ„ظ…ظٹط²ط§ظ†ظٹط© ط§ظ„ط¹ظ…ظˆظ…ظٹط©</SelectItem>
+                        <SelectItem value="2">ظ‚ط§ط¦ظ…ط© ط§ظ„ط¯ط®ظ„</SelectItem>
+                        <SelectItem value="3">طھظ‚ظٹظٹظ… ط¨ط¶ط§ط¹ط©</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-          <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
-            {error && (
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-            {message && (
-              <Alert className="bg-green-50 border-green-200">
-                <AlertDescription className="text-green-800">{message}</AlertDescription>
-              </Alert>
-            )}
+                  {/* Conditional dropdowns for Balance Sheet */}
+                  {financialListType === "1" && (
+                    <>
+                      <div>
+                        <Label className="mb-2 block text-sm font-medium">ط§طµظˆظ„ ط§ظ„ظ…ظٹط²ط§ظ†ظٹط©</Label>
+                        <Select value={formData.finanical_list_assests_id || ""} onValueChange={(val) => setFormData({ ...formData, finanical_list_assests_id: val })}>
+                          <SelectTrigger className="text-right">
+                            <SelectValue placeholder="ط§ط®طھط± ط§ظ„ط£طµظˆظ„" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="">ط¨ط¯ظˆظ†</SelectItem>
+                            {balanceSheetAssets.map((asset) => (
+                              <SelectItem key={asset.id} value={String(asset.id)}>
+                                {asset.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label className="mb-2 block text-sm font-medium">ط®طµظ…ظˆظ… ط§ظ„ظ…ظٹط²ط§ظ†ظٹط©</Label>
+                        <Select value={formData.finanical_list_liabilities_id || ""} onValueChange={(val) => setFormData({ ...formData, finanical_list_liabilities_id: val })}>
+                          <SelectTrigger className="text-right">
+                            <SelectValue placeholder="ط§ط®طھط± ط§ظ„ط®طµظˆظ…" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="">ط¨ط¯ظˆظ†</SelectItem>
+                            {balanceSheetLiabilities.map((liability) => (
+                              <SelectItem key={liability.id} value={String(liability.id)}>
+                                {liability.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </>
+                  )}
 
-            <div className="grid gap-4 md:grid-cols-2">
-              <div>
-                <Label className="mb-2 block">Code *</Label>
-                <Input
-                  value={formData.code}
-                  onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-                  placeholder="Account code"
-                />
-              </div>
-              <div>
-                <Label className="mb-2 block">Name (AR) *</Label>
-                <Input
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="Account name"
-                />
-              </div>
-              <div>
-                <Label className="mb-2 block">Name (EN)</Label>
-                <Input
-                  value={formData.name_lang2}
-                  onChange={(e) => setFormData({ ...formData, name_lang2: e.target.value })}
-                  placeholder="English name"
-                />
-              </div>
-              <div>
-                <Label className="mb-2 block">Type</Label>
-                <Select value={formData.type} onValueChange={(val) => setFormData({ ...formData, type: val })}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {types.map((t) => (
-                      <SelectItem key={t.id} value={String(t.id)}>
-                        {t.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label className="mb-2 block">Parent Account</Label>
-                <Select value={formData.father_id} onValueChange={(val) => setFormData({ ...formData, father_id: val })}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="None" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">None</SelectItem>
-                    {accounts.map((acc) => (
-                      <SelectItem key={acc.id} value={String(acc.id)}>
-                        {acc.code} - {acc.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label className="mb-2 block">Level</Label>
-                <Input
-                  type="number"
-                  value={formData.level_no}
-                  onChange={(e) => setFormData({ ...formData, level_no: e.target.value })}
-                />
-              </div>
-              <div>
-                <Label className="mb-2 block">Financial List ID</Label>
-                <Input
-                  type="number"
-                  value={formData.finanical_list_id}
-                  onChange={(e) => setFormData({ ...formData, finanical_list_id: e.target.value })}
-                />
-              </div>
-              <div>
-                <Label className="mb-2 block">Currency ID</Label>
-                <Input
-                  type="number"
-                  value={formData.currency_id}
-                  onChange={(e) => setFormData({ ...formData, currency_id: e.target.value })}
-                />
-              </div>
-              <div>
-                <Label className="mb-2 block">Transaction Type</Label>
-                <Input
-                  type="number"
-                  value={formData.transaction_type}
-                  onChange={(e) => setFormData({ ...formData, transaction_type: e.target.value })}
-                />
-              </div>
-              <div>
-                <Label className="mb-2 block">Max Transaction Amount</Label>
-                <Input
-                  type="number"
-                  value={formData.max_transaction_amount}
-                  onChange={(e) => setFormData({ ...formData, max_transaction_amount: e.target.value })}
-                />
-              </div>
-              <div>
-                <Label className="mb-2 block">Max Balance Amount</Label>
-                <Input
-                  type="number"
-                  value={formData.max_balance_amount}
-                  onChange={(e) => setFormData({ ...formData, max_balance_amount: e.target.value })}
-                />
-              </div>
-              <div>
-                <Label className="mb-2 block">Unified Report Account No</Label>
-                <Input
-                  value={formData.unified_report_account_no}
-                  onChange={(e) => setFormData({ ...formData, unified_report_account_no: e.target.value })}
-                />
-              </div>
-              <div>
-                <Label className="mb-2 block">Status</Label>
-                <Select value={formData.status} onValueChange={(val) => setFormData({ ...formData, status: val })}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="نشط">نشط</SelectItem>
-                    <SelectItem value="موقوف">موقوف</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+                  {/* Conditional dropdown for Income Statement */}
+                  {financialListType === "2" && (
+                    <div>
+                      <Label className="mb-2 block text-sm font-medium">ظ‚ط§ط¦ظ…ط© ط§ظ„ط¯ط®ظ„</Label>
+                      <Select value={formData.finanical_list_income_id || ""} onValueChange={(val) => setFormData({ ...formData, finanical_list_income_id: val })}>
+                        <SelectTrigger className="text-right">
+                          <SelectValue placeholder="ط§ط®طھط± ظ…ظ† ظ‚ط§ط¦ظ…ط© ط§ظ„ط¯ط®ظ„" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">ط¨ط¯ظˆظ†</SelectItem>
+                          {incomeStatementAccounts.map((income) => (
+                            <SelectItem key={income.id} value={String(income.id)}>
+                              {income.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
 
-            <div className="space-y-2 border-t pt-4">
-              <h4 className="font-semibold">Flags</h4>
-              <div className="flex flex-wrap gap-4">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <Checkbox
-                    checked={formData.allow_trans_with_diff_curr}
-                    onCheckedChange={(checked) => setFormData({ ...formData, allow_trans_with_diff_curr: Boolean(checked) })}
-                  />
-                  <span className="text-sm">Allow Transactions with Different Currency</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <Checkbox
-                    checked={formData.iscalc_curr_diff_rates}
-                    onCheckedChange={(checked) => setFormData({ ...formData, iscalc_curr_diff_rates: Boolean(checked) })}
-                  />
-                  <span className="text-sm">Calculate Currency Difference Rates</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <Checkbox
-                    checked={formData.show_notes_in_transactions_soa}
-                    onCheckedChange={(checked) => setFormData({ ...formData, show_notes_in_transactions_soa: Boolean(checked) })}
-                  />
-                  <span className="text-sm">Show Notes in Transactions</span>
-                </label>
+                  {/* Conditional dropdowns for Merchandise Valuation */}
+                  {financialListType === "3" && (
+                    <>
+                      <div className="md:col-span-2">
+                        <Label className="mb-2 block text-sm font-medium">طھظ‚ظٹظٹظ… ط§ظ„ط¨ط¶ط§ط¹ط©</Label>
+                        <Select value={formData.finanical_list_assests_id || ""} onValueChange={(val) => setFormData({ ...formData, finanical_list_assests_id: val })}>
+                          <SelectTrigger className="text-right">
+                            <SelectValue placeholder="ط§ط®طھط± ط·ط±ظٹظ‚ط© ط§ظ„طھظ‚ظٹظٹظ…" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="">ط¨ط¯ظˆظ†</SelectItem>
+                            {merchandiseAccounts.map((merc) => (
+                              <SelectItem key={merc.id} value={String(merc.id)}>
+                                {merc.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </>
+                  )}
+
+                  <div>
+                    <Label className="mb-2 block text-sm font-medium">ط§ظ„ط³ظ…ط§ط­ ط¨ط¹ظ…ظ„ ط­ط±ظƒط© ط¨ط؛ظٹط± ط¹ظ…ظ„طھظ‡</Label>
+                    <Select value={String(formData.allow_trans_with_diff_curr || 0)} onValueChange={(val) => setFormData({ ...formData, allow_trans_with_diff_curr: val === "1" })}>
+                      <SelectTrigger className="text-right">
+                        <SelectValue placeholder="ط§ط®طھط± ط§ظ„ط®ظٹط§ط±" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="0">ظ…ط³ظ…ظˆط­ ط¨ط¯ظˆظ† طھط³ظٹط©</SelectItem>
+                        <SelectItem value="1">ظ…ط³ظ…ظˆط­ ظ…ط¹ طھط³ظٹط©</SelectItem>
+                        <SelectItem value="2">ط؛ظٹط± ظ…ط³ظ…ظˆط­</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label className="mb-2 block text-sm font-medium">ط­ط³ط§ط¨ ط§ظ„ط±ط¨ط­ ظˆط§ظ„ط®ط³ط§ط±ط© ظ…ظ† ظپط±ظˆظ‚ ط§ظ„ط¹ظ…ظ„ط§طھ</Label>
+                    <div className="flex items-center gap-2 mt-2">
+                      <Checkbox
+                        checked={formData.iscalc_curr_diff_rates}
+                        onCheckedChange={(checked) => setFormData({ ...formData, iscalc_curr_diff_rates: checked as boolean })}
+                      />
+                      <span className="text-sm">ظ†ط¹ظ…</span>
+                    </div>
+                  </div>
+                </div>
               </div>
-            </div>
 
-            <div>
-              <Label className="mb-2 block">Notes</Label>
-              <Textarea
-                value={formData.notes}
-                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                placeholder="Notes"
-                className="h-20"
-              />
-            </div>
-          </div>
+              {/* Additional Information */}
+              <div className="space-y-4">
+                <h4 className="font-semibold text-base">ط¨ظٹط§ظ†ط§طھ ط¥ط¶ط§ظپظٹط©</h4>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div>
+                    <Label className="mb-2 block text-sm font-medium">ط§ظ„ط´ط±ظƒط©</Label>
+                    <Select value={(formData as any).company_id || "__no_company__"} onValueChange={(val) => setFormData({ ...formData, ...({ company_id: val === "__no_company__" ? "" : val } as any) })}>
+                      <SelectTrigger className="text-right">
+                        <SelectValue placeholder="ط§ط®طھط± ط§ظ„ط´ط±ظƒط©" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__no_company__">ط¨ط¯ظˆظ†</SelectItem>
+                        {companies.map((c) => (
+                          <SelectItem key={c.id} value={String(c.id)}>
+                            {c.name || c.company_name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label className="mb-2 block text-sm font-medium">ظ…ط±ظƒط² ط§ظ„ظƒظ„ظپط© ط§ظ„ط§ظپطھط±ط§ط¶ظٹ</Label>
+                    <Select value={(formData as any).cost_center_id || "__no_cost_center__"} onValueChange={(val) => setFormData({ ...formData, ...({ cost_center_id: val === "__no_cost_center__" ? "" : val } as any) })}>
+                      <SelectTrigger className="text-right">
+                        <SelectValue placeholder="ط§ط®طھط± ظ…ط±ظƒط² ط§ظ„ظƒظ„ظپط©" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__no_cost_center__">ط¨ط¯ظˆظ†</SelectItem>
+                        {costCenters.map((cc) => (
+                          <SelectItem key={cc.id} value={String(cc.id)}>
+                            {cc.name || cc.center_name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label className="mb-2 block text-sm font-medium">ط±ظ‚ظ… ط§ظ„ط­ط³ط§ط¨ ظپظٹ ط§ظ„طھظ‚ط±ظٹط± ط§ظ„ظ…ظˆط­ط¯</Label>
+                    <Input value={formData.unified_report_account_no} onChange={(e) => setFormData({ ...formData, unified_report_account_no: e.target.value })} placeholder="ط±ظ‚ظ… ط§ظ„ط­ط³ط§ط¨" className="text-right" />
+                  </div>
+                  <div>
+                    <Label className="mb-2 block text-sm font-medium">طµظˆط±ط© ط§ظ„ط­ط³ط§ط¨ (ط§ط®طھظٹط§ط±ظٹ)</Label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const f = e.target.files && e.target.files[0]
+                          if (f) {
+                            setImageFile(f)
+                            const reader = new FileReader()
+                            reader.onload = () => setImagePreview(String(reader.result))
+                            reader.readAsDataURL(f)
+                          }
+                        }}
+                        className="text-sm"
+                      />
+                      {imagePreview && (
+                        <img src={imagePreview} alt="preview" className="h-12 w-12 object-cover rounded border" />
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </TabsContent>
+          </Tabs>
+        </div>
 
-          <div className="flex justify-end gap-2 border-t bg-slate-50 px-6 py-4">
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={handleDelete} disabled={!currentAccount?.id}>
-              Delete
-            </Button>
-            <Button onClick={handleSave} disabled={saving}>
-              {saving ? "Saving..." : "Save"}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-    </div>
-  )
+        <div className="flex justify-end gap-2 border-t bg-slate-50 px-6 py-4">
+          <Button variant="outline" onClick={() => setDialogOpen(false)}>
+            إلغاء
+          </Button>
+          <Button variant="destructive" onClick={handleDelete} disabled={!currentAccount?.id}>
+            حذف
+          </Button>
+          <Button onClick={handleSave} disabled={saving}>
+            {saving ? "جاري الحفظ..." : "حفظ"}
+          </Button>
+        </div>
+      </div>
+    )
+  }
 }

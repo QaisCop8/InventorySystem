@@ -17,6 +17,7 @@ import { ProductReports } from "@/components/reports/product-reports"
 import DocumentSettings from "@/components/settings/document-settings"
 import GeneralSettings from "@/components/settings/general-settings"
 import PervasiveSettings from "@/app/settings/pervasive/page"
+import UnifiedAccounts from "@/components/customer/unified-accounts-refactored"
 
 const componentMap: Record<string, React.ComponentType<any>> = {
   dashboard: Dashboard,
@@ -29,10 +30,11 @@ const componentMap: Record<string, React.ComponentType<any>> = {
   "document-settings": DocumentSettings,
   "general-settings": GeneralSettings,
   "pervasive-settings": PervasiveSettings,
+  "unified-accounts": UnifiedAccounts,
 }
 
 export function WindowRenderer() {
-  const { windows } = useWindowManager()
+  const { windows, closeWindow } = useWindowManager()
 
 
   return (
@@ -52,7 +54,7 @@ export function WindowRenderer() {
         if (window.type === "modal") {
           return (
             <ModalWindow key={window.id} window={window}>
-              <Component {...(window.data || {})} />
+              <Component {...(window.data || {})} inWindowManager closeWindow={() => closeWindow(window.id)} />
             </ModalWindow>
           )
         }

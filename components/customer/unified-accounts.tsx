@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useMemo, useCallback } from "react"
+import { useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
@@ -82,8 +83,15 @@ interface FormState {
   status: string
 }
 
-export default function UnifiedAccounts() {
+interface UnifiedAccountsProps {
+  action?: "new"
+  onOpenChange?: (open: boolean) => void
+}
+
+export default function UnifiedAccounts({ action, onOpenChange }: UnifiedAccountsProps) {
+  const searchParams = useSearchParams()
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [autoOpenedFromQuery, setAutoOpenedFromQuery] = useState(false)
   const [accounts, setAccounts] = useState<AccountItem[]>([])
   const [types, setTypes] = useState<AccountType[]>([])
   const [currentIndex, setCurrentIndex] = useState(0)
@@ -226,6 +234,20 @@ export default function UnifiedAccounts() {
     })
     setDialogOpen(true)
   }
+
+  useEffect(() => {
+    if (loading || autoOpenedFromQuery) return
+
+    const queryAction = searchParams.get("action")
+    if (action === "new" || queryAction === "new") {
+      handleNew()
+      setAutoOpenedFromQuery(true)
+    }
+  }, [loading, autoOpenedFromQuery, searchParams, action])
+
+  useEffect(() => {
+    if (onOpenChange) onOpenChange(dialogOpen)
+  }, [dialogOpen, onOpenChange])
 
   const handleSave = async () => {
     setError("")
@@ -469,12 +491,15 @@ export default function UnifiedAccounts() {
               </div>
               <div>
                 <Label className="mb-2 block">Parent Account</Label>
-                <Select value={formData.father_id} onValueChange={(val) => setFormData({ ...formData, father_id: val })}>
+                <Select
+                  value={formData.father_id || "__no_parent__"}
+                  onValueChange={(val) => setFormData({ ...formData, father_id: val === "__no_parent__" ? "" : val })}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="None" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">None</SelectItem>
+                    <SelectItem value="__no_parent__">None</SelectItem>
                     {accounts.map((acc) => (
                       <SelectItem key={acc.id} value={String(acc.id)}>
                         {acc.code} - {acc.name}
