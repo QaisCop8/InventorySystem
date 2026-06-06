@@ -51,7 +51,7 @@ const ensureAccountsTable = async () => {
       finanical_list_liabilities_id INTEGER,
       finanical_list_income_id INTEGER,
       currency_id INTEGER,
-      allow_trans_with_diff_curr BOOLEAN NOT NULL,
+      allow_trans_with_diff_curr INTEGER NOT NULL,
       iscalc_curr_diff_rates BOOLEAN NOT NULL,
       transaction_type INTEGER NOT NULL,
       transaction_type_action INTEGER NOT NULL,
@@ -70,6 +70,22 @@ const ensureAccountsTable = async () => {
       last_update_date TIMESTAMPTZ,
       UNIQUE (code)
     )
+  `
+
+  await sql`
+    DO $$
+    BEGIN
+      IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'account_tbl'
+          AND column_name = 'allow_trans_with_diff_curr'
+          AND data_type = 'boolean'
+      ) THEN
+        ALTER TABLE account_tbl
+        ALTER COLUMN allow_trans_with_diff_curr TYPE INTEGER
+        USING CASE WHEN allow_trans_with_diff_curr THEN 1 ELSE 0 END;
+      END IF;
+    END$$;
   `
 }
 
@@ -105,7 +121,7 @@ const ensureAccountRelatedTables = async () => {
 const mapAccountRow = (row: any) => ({
   ...row,
   status: statusCodeToLabel(Number(row.status ?? 1)),
-  allow_trans_with_diff_curr: toBool(row.allow_trans_with_diff_curr),
+  allow_trans_with_diff_curr: row.allow_trans_with_diff_curr != null ? Number(row.allow_trans_with_diff_curr) : 0,
   iscalc_curr_diff_rates: toBool(row.iscalc_curr_diff_rates),
   show_notes_in_transactions_soa: toBool(row.show_notes_in_transactions_soa),
 })
@@ -133,7 +149,10 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     const financialLiabilitiesId = toNullableInt(data.finanical_list_liabilities_id)
     const financialIncomeId = toNullableInt(data.finanical_list_income_id)
     const currencyId = toNullableInt(data.currency_id)
-    const allowTransWithDiffCurr = toBool(data.allow_trans_with_diff_curr, false)
+    let allowTransWithDiffCurr = Number(data.allow_trans_with_diff_curr ?? 0)
+    if (!Number.isFinite(allowTransWithDiffCurr) || ![0, 1, 2].includes(allowTransWithDiffCurr)) {
+      allowTransWithDiffCurr = 0
+    }
     const isCalcCurrDiffRates = toBool(data.iscalc_curr_diff_rates, false)
     const transactionType = Number(data.transaction_type ?? 0)
     const transactionTypeAction = Number(data.transaction_type_action ?? 0)

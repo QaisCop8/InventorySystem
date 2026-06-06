@@ -1,57 +1,32 @@
 "use client"
 
-import { useState, useEffect, useMemo, useCallback } from "react"
+import { useState, useEffect, useMemo, useCallback, useRef } from "react"
 import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import AccountSearchDialog, { AccountItem } from "@/components/customer/account-search-dialog"
+import SearchCostCenterDialog from "@/components/customer/search-cost-center-dialog"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog"
 import { UniversalToolbar } from "@/components/ui/universal-toolbar"
-import { Plus, AlertCircle } from "lucide-react"
+import { Plus, AlertCircle, Search, X } from "lucide-react"
+import { Dropdown as PrimeDropdown } from "primereact/dropdown"
+import DataGridView from "../common/DataGridView"
 
 interface AccountType {
   id: number
   name: string
-}
-
-interface AccountItem {
-  id: number
-  code: string
-  name: string
-  name_lang2?: string | null
-  type?: number | null
-  type_name?: string
-  father_id?: number | null
-  father_name?: string
-  level_no: number
-  finanical_list_id: number
-  finanical_list_assests_id?: number | null
-  finanical_list_liabilities_id?: number | null
-  finanical_list_income_id?: number | null
-  currency_id?: number | null
-  currency_code?: string
-  allow_trans_with_diff_curr: boolean
-  iscalc_curr_diff_rates: boolean
-  transaction_type: number
-  transaction_type_action: number
-  max_transaction_amount: number
-  max_transaction_amount_action: number
-  max_balance_amount: number
-  max_balance_action?: number | null
-  budget_exceeding_perc?: number | null
-  budget_exceeding_action?: number | null
-  unified_report_account_no?: string | null
-  unified_report_group_code?: string | null
-  notes?: string | null
-  show_notes_in_transactions_soa: boolean
-  status: string
-  created_at?: string
-  updated_at?: string
 }
 
 interface FormState {
@@ -66,7 +41,7 @@ interface FormState {
   finanical_list_liabilities_id: string
   finanical_list_income_id: string
   currency_id: string
-  allow_trans_with_diff_curr: boolean
+  allow_trans_with_diff_curr: string
   iscalc_curr_diff_rates: boolean
   transaction_type: string
   transaction_type_action: string
@@ -105,11 +80,27 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
   const [message, setMessage] = useState("")
-  const [financialListType, setFinancialListType] = useState("") // ط§ظ„ظ…ظٹط²ط§ظ†ظٹط© ط§ظ„ط¹ظ…ظˆظ…ظٹط©, ظ‚ط§ط¦ظ…ط© ط§ظ„ط¯ط®ظ„, طھظ‚ظٹظٹظ… ط¨ط¶ط§ط¹ط©
+  const [financialListType, setFinancialListType] = useState("1") // الميزانية العمومية, قائمة الدخل, تقييم بضاعة
   const [balanceSheetAssets, setBalanceSheetAssets] = useState<any[]>([])
   const [balanceSheetLiabilities, setBalanceSheetLiabilities] = useState<any[]>([])
   const [incomeStatementAccounts, setIncomeStatementAccounts] = useState<any[]>([])
   const [merchandiseAccounts, setMerchandiseAccounts] = useState<any[]>([])
+  const [costCenterTypes, setCostCenterTypes] = useState<any[]>([])
+  const [showCostCenterTypeForm, setShowCostCenterTypeForm] = useState(false)
+  const [newCostCenterTypeName, setNewCostCenterTypeName] = useState("")
+  const [costCenterTypeError, setCostCenterTypeError] = useState("")
+  const [costCenterTypeMessage, setCostCenterTypeMessage] = useState("")
+  const [searchCostCenterOpen, setSearchCostCenterOpen] = useState(false)
+  const [selectedCostCenterType, setSelectedCostCenterType] = useState<any | null>(null)
+  const [selectedCostCenterTypeIndex, setSelectedCostCenterTypeIndex] = useState<number>(-1)
+
+  // Search Modal States
+  const [searchModalOpen, setSearchModalOpen] = useState(false)
+  const [searchTarget, setSearchTarget] = useState<"father" | "code">("father")
+  const [fatherAccountName, setFatherAccountName] = useState("")
+
+  // Refs
+  const costCenterTypeGridRef = useRef<any>(null)
 
   const [formData, setFormData] = useState<FormState>({
     code: "",
@@ -123,7 +114,7 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
     finanical_list_liabilities_id: "",
     finanical_list_income_id: "",
     currency_id: "",
-    allow_trans_with_diff_curr: false,
+    allow_trans_with_diff_curr: "0",
     iscalc_curr_diff_rates: false,
     transaction_type: "0",
     transaction_type_action: "0",
@@ -137,7 +128,7 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
     unified_report_group_code: "",
     notes: "",
     show_notes_in_transactions_soa: false,
-    status: "ظ†ط´ط·",
+    status: "نشط",
   })
 
   useEffect(() => {
@@ -154,7 +145,9 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
       ])
 
       if (!typesRes.ok || !accountsRes.ok) {
-        setError("Failed to load data")
+        const statusMsg = !typesRes.ok ? `Types API (${typesRes.status})` : `Accounts API (${accountsRes.status})`
+        setError(`Failed to load data: ${statusMsg}`)
+        console.error(`API Error: ${statusMsg}`)
         return
       }
 
@@ -162,19 +155,95 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
       const accountsData = await accountsRes.json()
       let currenciesData: any[] = []
       let companiesData: any[] = []
+      let costCenterTypesData: any[] = []
       let costCentersData: any[] = []
+      let balanceSheetAssetsData: any[] = []
+      let balanceSheetLiabilitiesData: any[] = []
+      let incomeStatementData: any[] = []
+
       try {
-        const curRes = await fetch("/api/currencies")
-        if (curRes.ok) currenciesData = await curRes.json()
-      } catch (_) { }
+        const ratesRes = await fetch("/api/exchange-rates")
+        if (ratesRes.ok) {
+          const ratesJson = await ratesRes.json()
+          currenciesData = Array.isArray(ratesJson?.rates) ? ratesJson.rates : []
+        }
+      } catch (_) {
+        try {
+          const curRes = await fetch("/api/currencies")
+          if (curRes.ok) currenciesData = await curRes.json()
+        } catch (_) {}
+      }
+
       try {
-        const compRes = await fetch("/api/companies")
-        if (compRes.ok) companiesData = await compRes.json()
-      } catch (_) { }
+        const typesRes = await fetch("/api/cost-center-types")
+        if (typesRes.ok) {
+          costCenterTypesData = await typesRes.json()
+        }
+      } catch (_) {}
       try {
-        const ccRes = await fetch("/api/cost-centers")
-        if (ccRes.ok) costCentersData = await ccRes.json()
-      } catch (_) { }
+        const centersRes = await fetch("/api/cost-centers")
+        if (centersRes.ok) {
+          costCentersData = await centersRes.json()
+          // Sort by ID in ascending order
+          if (Array.isArray(costCentersData)) {
+            costCentersData.sort((a, b) => (a.id || 0) - (b.id || 0))
+          }
+        }
+      } catch (_) {}
+
+      try {
+        const assetsRes = await fetch("/api/balance-sheet-assets-items")
+
+        if (assetsRes.ok) {
+          const json = await assetsRes.json()
+          console.log("Fetched balance sheet assets:", json)
+          balanceSheetAssetsData = Array.isArray(json)
+            ? json.map((item: any) => ({
+                ...item,
+                id: item.id != null ? Number(item.id) : item.id,
+                name: item.name ?? item.asset_name ?? item.label ?? "",
+              }))
+            : []
+        } else {
+          console.warn(`Balance sheet assets API returned ${assetsRes.status}`)
+        }
+      } catch (err) {
+        console.warn("Error fetching balance sheet assets:", err)
+      }
+      try {
+        const liabilitiesRes = await fetch("/api/balance-sheet-liabilities-items")
+        if (liabilitiesRes.ok) {
+          const json = await liabilitiesRes.json()
+          balanceSheetLiabilitiesData = Array.isArray(json)
+            ? json.map((item: any) => ({
+                ...item,
+                id: item.id != null ? Number(item.id) : item.id,
+                name: item.name ?? item.asset_name ?? item.label ?? "",
+              }))
+            : []
+        } else {
+          console.warn(`Balance sheet liabilities API returned ${liabilitiesRes.status}`)
+        }
+      } catch (err) {
+        console.warn("Error fetching balance sheet liabilities:", err)
+      }
+      try {
+        const incomeRes = await fetch("/api/income-statement-items")
+        if (incomeRes.ok) {
+          const json = await incomeRes.json()
+          incomeStatementData = Array.isArray(json)
+            ? json.map((item: any) => ({
+                ...item,
+                id: item.id != null ? Number(item.id) : item.id,
+                name: item.name ?? item.asset_name ?? item.label ?? "",
+              }))
+            : []
+        } else {
+          console.warn(`Income statement API returned ${incomeRes.status}`)
+        }
+      } catch (err) {
+        console.warn("Error fetching income statement:", err)
+      }
 
       setTypes(Array.isArray(typesData) ? typesData : [])
       setAccounts(
@@ -189,17 +258,187 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
       )
       setCurrencies(Array.isArray(currenciesData) ? currenciesData : [])
       setCompanies(Array.isArray(companiesData) ? companiesData : [])
+      // Map state_status to status_id (1=اختياري, 2=اجباري, 3=ممنوع)
+      const mappedCostCenterTypes = Array.isArray(costCenterTypesData)
+        ? costCenterTypesData.map((type: any) => {
+            const statusMap: { [key: string]: number } = {
+              'اختياري': 1,
+              'اجباري': 2,
+              'ممنوع': 3
+            }
+            const state_status = type.state_status || 'اختياري'
+            const status_id = statusMap[state_status] || 1
+            return { ...type, state_status, status_id }
+          })
+        : []
+      // Sort by ID in ascending order
+      if (Array.isArray(mappedCostCenterTypes)) {
+        mappedCostCenterTypes.sort((a, b) => (a.id || 0) - (b.id || 0))
+      }
+      setCostCenterTypes(mappedCostCenterTypes)
       setCostCenters(Array.isArray(costCentersData) ? costCentersData : [])
+      setBalanceSheetAssets(Array.isArray(balanceSheetAssetsData) ? balanceSheetAssetsData : [])
+      setBalanceSheetLiabilities(Array.isArray(balanceSheetLiabilitiesData) ? balanceSheetLiabilitiesData : [])
+      setIncomeStatementAccounts(Array.isArray(incomeStatementData) ? incomeStatementData : [])
       setCurrentIndex(0)
     } catch (err) {
-      console.error(err)
-      setError("Error loading data")
+      const errorMsg = err instanceof Error ? err.message : String(err)
+      console.error("Error loading data:", err)
+      setError(`Error loading data: ${errorMsg}`)
     } finally {
       setLoading(false)
     }
   }
 
   const currentAccount = useMemo(() => accounts[currentIndex] || null, [accounts, currentIndex])
+
+  // Get leaf cost centers (not parents of any other cost center)
+  const leafCostCenters = useMemo(() => {
+    const parentIds = new Set(
+      costCenters
+        .map((cc: any) => cc.parent_id)
+        .filter((parentId: any) => parentId != null && parentId !== "")
+    )
+    return costCenters.filter((cc: any) => !parentIds.has(cc.id))
+  }, [costCenters])
+
+  const costCenterScheme = useMemo(
+    () => ({
+      name: "CostCenterScheme",
+      columns: [
+        { header: "الرقم", name: "id", width: 80, isReadOnly: true },
+        { header: "اسم مركز الكلفة", name: "name", width: 240, isReadOnly: true },
+        { header: "نوع مركز الكلفة", name: "cost_type_name", width: 180, isReadOnly: true },
+        { header: "المركز الرئيسي", name: "parent_name", width: 180, isReadOnly: true },
+        { header: "المستوى", name: "level", width: 120, isReadOnly: true },
+        { header: "الحالة", name: "status", width: 120, isReadOnly: true },
+      ],
+    }),
+    [],
+  )
+
+  const handleCostCenterTypeSearchClick = useCallback((rowIndex: number) => {
+    setSelectedCostCenterTypeIndex(rowIndex)
+    setSelectedCostCenterType(costCenterTypes[rowIndex])
+    setSearchCostCenterOpen(true)
+  }, [costCenterTypes])
+
+  const handleCostCenterTypeDeleteClick = useCallback((rowIndex: number) => {
+    if (!window.confirm("هل تريد حذف مركز التكلفة؟")) return
+    const updatedList = costCenterTypes.map((type, idx) => {
+      if (idx === rowIndex) {
+        return {
+          ...type,
+          cost_center_id: null,
+          cost_center_name: ""
+        }
+      }
+      return type
+    })
+    setCostCenterTypes(updatedList)
+    setCostCenterTypeMessage("تم حذف مركز التكلفة بنجاح")
+  }, [costCenterTypes])
+
+  const handleCostCenterTypeStatusChange = useCallback((rowIndex: number) => {
+    const statusValues = ["اختياري", "اجباري", "ممنوع"]
+    const statusIds = [1, 2, 3] // Corresponding IDs for database
+    setCostCenterTypes((prevCostCenterTypes) => {
+      const updatedList = prevCostCenterTypes.map((type, idx) => {
+        if (idx === rowIndex) {
+          const currentStatus = type.state_status || "اختياري"
+          const currentIndex = statusValues.indexOf(currentStatus)
+          const nextIndex = (currentIndex + 1) % statusValues.length
+          // Only update status and status_id, preserve all other data including cost center
+          return {
+            ...type,
+            state_status: statusValues[nextIndex],
+            status_id: statusIds[nextIndex]
+          }
+        }
+        return type
+      })
+      return updatedList
+    })
+  }, [costCenterTypes])
+
+  const costCenterTypeScheme = useMemo(
+    () => ({
+      name: "CostCenterTypeScheme",
+      columns: [
+        { header: "الرقم", name: "id", width: 80, isReadOnly: true },
+        { header: "اسم نوع مركز الكلفة", name: "name", width: "*", minWidth: 250, isReadOnly: true },
+        { header: "الحالة", name: "state_status", width: 150, isReadOnly: true },
+        { header: "Status ID", name: "status_id", width: 0, isReadOnly: true, visible: false },
+        {
+          name: 'btnStatusChange',
+          header: ' ',
+          width: 80,
+          buttonBody: 'button',
+          align: 'center',
+          title: 'تغيير الحالة',
+          iconType: 'edit',
+          className: 'btn-status',
+          isReadOnly: true,
+          onClick: (e: any, ctx: any) => {
+            e.stopPropagation()
+            handleCostCenterTypeStatusChange(ctx.row.index)
+          },
+          visible: true,
+          visibleInColumnChooser: true
+        },
+        { header: "مركز التكلفة", name: "cost_center_name", width: 200, isReadOnly: true },
+        {
+          name: 'btnSearch',
+          header: ' ',
+          width: 65,
+          buttonBody: 'button',
+          align: 'center',
+          title: 'بحث',
+          iconType: 'search',
+          className: 'btn-search',
+          isReadOnly: true,
+          onClick: (e: any, ctx: any) => {
+            e.stopPropagation()
+            handleCostCenterTypeSearchClick(ctx.row.index)
+          },
+          visible: true,
+          visibleInColumnChooser: true
+        },
+        {
+          name: 'btnDelete',
+          header: ' ',
+          width: 65,
+          buttonBody: 'button',
+          align: 'center',
+          title: 'حذف',
+          iconType: 'delete',
+          className: 'btn-delete',
+          isReadOnly: true,
+          onClick: (e: any, ctx: any) => {
+            e.stopPropagation()
+            handleCostCenterTypeDeleteClick(ctx.row.index)
+          },
+          visible: true,
+          visibleInColumnChooser: true
+        },
+      ],
+    }),
+    [handleCostCenterTypeSearchClick, handleCostCenterTypeDeleteClick, handleCostCenterTypeStatusChange, costCenterTypes],
+  )
+
+  const focusPrimeDropdownRoot = (e: any) => {
+    const target = e?.originalEvent?.target || e?.target
+    const dropdownRoot = target?.closest?.(".p-dropdown") as HTMLElement | null
+    if (!dropdownRoot) return
+    setTimeout(() => dropdownRoot.focus(), 0)
+  }
+
+  const refocusDropdownInput = (inputId: string) => {
+    setTimeout(() => {
+      const element = document.getElementById(inputId) as HTMLElement | null
+      element?.focus()
+    }, 0)
+  }
 
   const loadAccountToForm = useCallback((account: AccountItem) => {
     setFormData({
@@ -214,7 +453,7 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
       finanical_list_liabilities_id: account.finanical_list_liabilities_id ? String(account.finanical_list_liabilities_id) : "",
       finanical_list_income_id: account.finanical_list_income_id ? String(account.finanical_list_income_id) : "",
       currency_id: account.currency_id ? String(account.currency_id) : "",
-      allow_trans_with_diff_curr: Boolean(account.allow_trans_with_diff_curr),
+      allow_trans_with_diff_curr: account.allow_trans_with_diff_curr != null ? String(account.allow_trans_with_diff_curr) : "0",
       iscalc_curr_diff_rates: Boolean(account.iscalc_curr_diff_rates),
       transaction_type: String(account.transaction_type || 0),
       transaction_type_action: String(account.transaction_type_action || 0),
@@ -228,17 +467,26 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
       unified_report_group_code: account.unified_report_group_code || "",
       notes: account.notes || "",
       show_notes_in_transactions_soa: Boolean(account.show_notes_in_transactions_soa),
-      status: account.status || "ظ†ط´ط·",
+      status: account.status || "نشط",
     })
+    setFinancialListType(String(account.finanical_list_id || 1))
+    // Set father account name
+    if (account.father_id) {
+      const father = accounts.find((a) => a.id === account.father_id)
+      setFatherAccountName(father ? `${father.code} ${father.name}` : "")
+    } else {
+      setFatherAccountName("")
+    }
     // set preview if account has image url
     if ((account as any).image_url) {
       setImagePreview((account as any).image_url)
     } else {
       setImagePreview(null)
     }
-  }, [])
+  }, [accounts])
 
   const handleNew = () => {
+    const defaultCurrencyId = currencies[0] ? String(currencies[0].currency_id ?? currencies[0].id ?? "") : ""
     setFormData({
       code: "",
       name: "",
@@ -250,8 +498,8 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
       finanical_list_assests_id: "",
       finanical_list_liabilities_id: "",
       finanical_list_income_id: "",
-      currency_id: "",
-      allow_trans_with_diff_curr: false,
+      currency_id: defaultCurrencyId,
+      allow_trans_with_diff_curr: "0",
       iscalc_curr_diff_rates: false,
       transaction_type: "0",
       transaction_type_action: "0",
@@ -265,10 +513,33 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
       unified_report_group_code: "",
       notes: "",
       show_notes_in_transactions_soa: false,
-      status: "ظ†ط´ط·",
+      status: "نشط",
     })
+    setFinancialListType("1")
     setDialogOpen(true)
     setActiveTab("main")
+  }
+
+  const handleOpenSearchModal = (target: "father" | "code") => {
+    setSearchTarget(target)
+    setSearchModalOpen(true)
+  }
+
+  const handleSelectSearchResult = (account: AccountItem) => {
+    if (searchTarget === "father") {
+      setFormData({
+        ...formData,
+        father_id: String(account.id),
+      })
+      setFatherAccountName(`${account.code} ${account.name}`)
+    } else {
+      const foundIndex = accounts.findIndex((item) => item.id === account.id)
+      if (foundIndex >= 0) {
+        setCurrentIndex(foundIndex)
+      }
+      loadAccountToForm(account)
+    }
+    setSearchModalOpen(false)
   }
 
   useEffect(() => {
@@ -284,6 +555,35 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
     console.log("[unified-refactored] dialogOpen changed:", dialogOpen)
     if (onOpenChange) onOpenChange(dialogOpen)
   }, [dialogOpen, onOpenChange])
+
+  useEffect(() => {
+    if (dialogOpen) {
+      loadData()
+    }
+  }, [dialogOpen])
+
+  useEffect(() => {
+    // Monitor row selection in cost center types grid
+    if (costCenterTypeGridRef.current && costCenterTypeGridRef.current.flex) {
+      const flex = costCenterTypeGridRef.current.flex
+      const handleSelectionChange = () => {
+        const selectedRow = flex.selection.row
+        if (selectedRow >= 0 && selectedRow < costCenterTypes.length) {
+          setSelectedCostCenterTypeIndex(selectedRow)
+          setSelectedCostCenterType(costCenterTypes[selectedRow])
+        } else {
+          setSelectedCostCenterTypeIndex(-1)
+          setSelectedCostCenterType(null)
+        }
+      }
+      flex.addEventListener('selectionChanged', handleSelectionChange)
+      return () => {
+        try {
+          flex.removeEventListener('selectionChanged', handleSelectionChange)
+        } catch (_) {}
+      }
+    }
+  }, [costCenterTypes])
 
   const handleSave = async () => {
     setError("")
@@ -314,7 +614,7 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
         finanical_list_liabilities_id: formData.finanical_list_liabilities_id ? Number(formData.finanical_list_liabilities_id) : null,
         finanical_list_income_id: formData.finanical_list_income_id ? Number(formData.finanical_list_income_id) : null,
         currency_id: formData.currency_id ? Number(formData.currency_id) : null,
-        allow_trans_with_diff_curr: formData.allow_trans_with_diff_curr,
+        allow_trans_with_diff_curr: Number(formData.allow_trans_with_diff_curr || "0"),
         iscalc_curr_diff_rates: formData.iscalc_curr_diff_rates,
         transaction_type: Number(formData.transaction_type || 0),
         transaction_type_action: Number(formData.transaction_type_action || 0),
@@ -413,6 +713,116 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
     setActiveTab("main")
   }
 
+  const handleDeleteCostCenterType = async () => {
+    if (selectedCostCenterTypeIndex < 0 || !costCenterTypes[selectedCostCenterTypeIndex]) return
+
+    try {
+      const typeToDelete = costCenterTypes[selectedCostCenterTypeIndex]
+      const response = await fetch(`/api/cost-center-types/${typeToDelete.id}`, { method: "DELETE" })
+      if (!response.ok) {
+        setCostCenterTypeError("Failed to delete cost center type")
+        return
+      }
+      setCostCenterTypeMessage("Cost center type deleted successfully")
+      setSelectedCostCenterTypeIndex(-1)
+      setSelectedCostCenterType(null)
+      await loadData()
+    } catch (err) {
+      console.error(err)
+      setCostCenterTypeError("Error deleting cost center type")
+    }
+  }
+
+  const handleAddCostCenterType = () => {
+    setNewCostCenterTypeName("")
+    setShowCostCenterTypeForm(true)
+    setCostCenterTypeError("")
+    setCostCenterTypeMessage("")
+  }
+
+  const handleSaveCostCenterType = async () => {
+    if (!newCostCenterTypeName.trim()) {
+      setCostCenterTypeError("Cost center type name is required")
+      return
+    }
+
+    try {
+      const payload = {
+        name: newCostCenterTypeName.trim(),
+        status: "نشط",
+        state_status: "اختياري",
+        status_id: 1,
+      }
+
+      const response = await fetch("/api/cost-center-types", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        setCostCenterTypeError(data.error || "Failed to save cost center type")
+        return
+      }
+
+      setCostCenterTypeMessage("Cost center type created successfully")
+      setShowCostCenterTypeForm(false)
+      setNewCostCenterTypeName("")
+      await loadData()
+    } catch (err) {
+      console.error(err)
+      setCostCenterTypeError("Error saving cost center type")
+    }
+  }
+
+  const handleSearchCostCenter = () => {
+    setSearchCostCenterOpen(true)
+  }
+
+  const handleSelectCostCenter = (center: any) => {
+    // Update the selected cost center type row with the selected center
+    if (selectedCostCenterTypeIndex >= 0 && selectedCostCenterTypeIndex < costCenterTypes.length) {
+      const updatedList = costCenterTypes.map((type, idx) => {
+        if (idx === selectedCostCenterTypeIndex) {
+          return {
+            ...type,
+            cost_center_id: center.id,
+            cost_center_name: center.name,
+            state_status: "اختياري", // Reset to default when new center selected
+            status_id: 1 // Reset to default when new center selected
+          }
+        }
+        return type
+      })
+      setCostCenterTypes(updatedList)
+      setCostCenterTypeMessage("تم تحديث مركز التكلفة بنجاح")
+      // Reset selection state
+      setSelectedCostCenterTypeIndex(-1)
+      setSelectedCostCenterType(null)
+      // Close the search dialog explicitly
+      setSearchCostCenterOpen(false)
+    }
+  }
+
+  const handleDeleteCostCenter = (index: number) => {
+    // Remove cost center from the specific row
+    if (index >= 0 && index < costCenterTypes.length) {
+      const updatedList = costCenterTypes.map((type, idx) => {
+        if (idx === index) {
+          return {
+            ...type,
+            cost_center_id: null,
+            cost_center_name: ""
+          }
+        }
+        return type
+      })
+      setCostCenterTypes(updatedList)
+      setCostCenterTypeMessage("تم حذف مركز التكلفة")
+    }
+  }
+
   if (loading) {
     return <div className="p-6 text-center">Loading...</div>
   }
@@ -457,8 +867,61 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
           )}
 
 
+          <div className="space-y-4 border-b pb-4">
+            <div className="grid gap-4 md:grid-cols-2 items-end">
+              <div>
+                <Label className="mb-2 block text-sm font-medium">رقم الحساب *</Label>
+                <div className="flex gap-2 items-center">
+                  <Input
+                    value={formData.code}
+                    onChange={(e) => setFormData({ ...formData, code: e.target.value })}
+                    placeholder="رقم الحساب"
+                    className="text-right flex-1"
+                  />
+                  <Button 
+                    variant="default" 
+                    onClick={() => handleOpenSearchModal("code")} 
+                    className="px-4 flex items-center gap-2"
+                    title="بحث عن حساب"
+                  >
+                    <Search className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+              <div className="flex flex-col">
+                <Label className="mb-2 block text-sm font-medium">المستوى</Label>
+                <Input
+                  value={formData.level_no}
+                  onChange={(e) => setFormData({ ...formData, level_no: e.target.value })}
+                  placeholder="المستوى"
+                  className="text-right"
+                />
+              </div>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div>
+                <Label className="mb-2 block text-sm font-medium">اسم الحساب (AR) *</Label>
+                <Input
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  placeholder="اسم الحساب"
+                  className="text-right"
+                />
+              </div>
+              <div>
+                <Label className="mb-2 block text-sm font-medium">اسم الحساب (EN)</Label>
+                <Input
+                  value={formData.name_lang2}
+                  onChange={(e) => setFormData({ ...formData, name_lang2: e.target.value })}
+                  placeholder="Account name in English"
+                  className="text-right"
+                />
+              </div>
+            </div>
+          </div>
+
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-            <TabsList className="h-auto w-full justify-start overflow-x-auto rounded-md bg-slate-100 p-1">
+            <TabsList dir="rtl" className="h-auto w-full justify-start overflow-x-auto rounded-md bg-slate-100 p-1">
               <TabsTrigger value="main">الرئيسية</TabsTrigger>
               <TabsTrigger value="additional-data">بيانات إضافية</TabsTrigger>
               <TabsTrigger value="cost-centers">مراكز الكلفة</TabsTrigger>
@@ -470,134 +933,172 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
             </TabsList>
 
             <TabsContent value="main" className="space-y-6">
-              {/* Basic Information */}
-              <div className="space-y-4 border-b pb-6">
-                <h4 className="font-semibold text-base">ط§ظ„ظ…ط¹ظ„ظˆظ…ط§طھ ط§ظ„ط£ط³ط§ط³ظٹط©</h4>
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div>
-                    <Label className="mb-2 block text-sm font-medium">ط±ظ‚ظ… ط§ظ„ط­ط³ط§ط¨ *</Label>
-                    <Input value={formData.code} onChange={(e) => setFormData({ ...formData, code: e.target.value })} placeholder="ط±ظ‚ظ… ط§ظ„ط­ط³ط§ط¨" className="text-right" />
-                  </div>
-                  <div>
-                    <Label className="mb-2 block text-sm font-medium">ط§ط³ظ… ط§ظ„ط­ط³ط§ط¨ (AR) *</Label>
-                    <Input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="ط§ط³ظ… ط§ظ„ط­ط³ط§ط¨" className="text-right" />
-                  </div>
-                  <div>
-                    <Label className="mb-2 block text-sm font-medium">ط§ط³ظ… ط§ظ„ط­ط³ط§ط¨ (EN)</Label>
-                    <Input value={formData.name_lang2} onChange={(e) => setFormData({ ...formData, name_lang2: e.target.value })} placeholder="Account name in English" className="text-right" />
-                  </div>
-                  <div>
-                    <Label className="mb-2 block text-sm font-medium">ظ†ظˆط¹ ط§ظ„ط­ط³ط§ط¨</Label>
-                    <Select value={formData.type} onValueChange={(val) => setFormData({ ...formData, type: val })}>
-                      <SelectTrigger className="text-right">
-                        <SelectValue placeholder="ط§ط®طھط± ط§ظ„ظ†ظˆط¹" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {types.map((t) => (
-                          <SelectItem key={t.id} value={String(t.id)}>
-                            {t.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label className="mb-2 block text-sm font-medium">ط§ظ„ط­ط³ط§ط¨ ط§ظ„ط±ط¦ظٹط³ظٹ (ط£ط¨)</Label>
-                    <Select
-                      value={formData.father_id || "__no_parent__"}
-                      onValueChange={(val) => setFormData({ ...formData, father_id: val === "__no_parent__" ? "" : val })}
-                    >
-                      <SelectTrigger className="text-right">
-                        <SelectValue placeholder="ط¨ط¯ظˆظ†" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__no_parent__">ط¨ط¯ظˆظ†</SelectItem>
-                        {accounts.map((acc) => (
-                          <SelectItem key={acc.id} value={String(acc.id)}>
-                            {acc.code} - {acc.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label className="mb-2 block text-sm font-medium">ط§ظ„ظ…ط³طھظˆظ‰</Label>
-                    <Input type="number" value={formData.level_no} onChange={(e) => setFormData({ ...formData, level_no: e.target.value })} placeholder="1" className="text-right" />
-                  </div>
-                </div>
-              </div>
-
               {/* Currency and Financial Settings */}
               <div className="space-y-4 border-b pb-6">
-                <h4 className="font-semibold text-base">ط§ظ„ط¥ط¹ط¯ط§ط¯ط§طھ ط§ظ„ظ…ط§ظ„ظٹط©</h4>
+                <h4 className="font-semibold text-base">الإعدادات المالية</h4>
                 <div className="grid gap-4 md:grid-cols-2">
                   <div>
-                    <Label className="mb-2 block text-sm font-medium">ط§ظ„ط¹ظ…ظ„ط©</Label>
-                    <Select value={formData.currency_id || "__no_currency__"} onValueChange={(val) => setFormData({ ...formData, currency_id: val === "__no_currency__" ? "" : val })}>
-                      <SelectTrigger className="text-right">
-                        <SelectValue placeholder="ط§ط®طھط± ط§ظ„ط¹ظ…ظ„ط©" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__no_currency__">ط¨ط¯ظˆظ†</SelectItem>
-                        {currencies.map((c) => (
-                          <SelectItem key={c.id || c.currency_id} value={String(c.id ?? c.currency_id)}>
-                            {c.name || c.currency_name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Label className="mb-2 block text-sm font-medium">الحساب الرئيسي (تابع ل)</Label>
+                    <div className="flex gap-2 items-center">
+                      <Input 
+                        value={fatherAccountName} 
+                        readOnly
+                        placeholder="اختر الحساب الرئيسي" 
+                        className="text-right flex-1" 
+                      />
+                      <Button 
+                        variant="default" 
+                        onClick={() => handleOpenSearchModal("father")}
+                        className="px-4 flex items-center gap-2"
+                        title="بحث عن الحساب الرئيسي"
+                      >
+                        <Search className="w-4 h-4" />
+                      </Button>
+                      {formData.father_id && (
+                        <Button 
+                          variant="destructive" 
+                          onClick={() => {
+                            setFormData({ ...formData, father_id: "" })
+                            setFatherAccountName("")
+                          }}
+                          className="px-3 hover:bg-red-700 transition-colors duration-200 flex items-center gap-1"
+                          title="مسح"
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </div>
                   </div>
                   <div>
-                    <Label className="mb-2 block text-sm font-medium">ط§ظ„ظ‚ط§ط¦ظ…ط© ط§ظ„ظ…ط§ظ„ظٹط© *</Label>
-                    <Select value={financialListType} onValueChange={(val) => {
-                      setFinancialListType(val)
-                      setFormData({ ...formData, finanical_list_id: val })
-                    }}>
-                      <SelectTrigger className="text-right">
-                        <SelectValue placeholder="ط§ط®طھط± ط§ظ„ظ‚ط§ط¦ظ…ط©" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="1">ط§ظ„ظ…ظٹط²ط§ظ†ظٹط© ط§ظ„ط¹ظ…ظˆظ…ظٹط©</SelectItem>
-                        <SelectItem value="2">ظ‚ط§ط¦ظ…ط© ط§ظ„ط¯ط®ظ„</SelectItem>
-                        <SelectItem value="3">طھظ‚ظٹظٹظ… ط¨ط¶ط§ط¹ط©</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <Label className="mb-2 block text-sm font-medium">العملة</Label>
+                    <PrimeDropdown
+                      inputId="currency_id"
+                      value={formData.currency_id ? Number(formData.currency_id) : null}
+                      options={
+                        currencies.map((c) => ({
+                          label: c.currency_name || c.name || c.currency_code || "غير محدد",
+                          value: c.currency_id ?? c.id,
+                        }))
+                      }
+                      optionLabel="label"
+                      optionValue="value"
+                      placeholder="اختر العملة"
+                      filter={true}
+                      filterInputAutoFocus={true}
+                      className="invoice-currency-dropdown w-full"
+                      panelClassName="invoice-currency-dropdown-panel"
+                      appendTo="self"
+                      onChange={(e: any) => {
+                        setFormData({ ...formData, currency_id: e.value ? String(e.value) : "" })
+                        focusPrimeDropdownRoot(e)
+                      }}
+                      onHide={() => refocusDropdownInput("currency_id")}
+                    />
+                  </div>
+                  <div>
+                    <Label className="mb-2 block text-sm font-medium">القائمة المالية *</Label>
+                    <PrimeDropdown
+                      inputId="financial_list_id"
+                      value={financialListType}
+                      options={[
+                        { label: "الميزانية العمومية", value: "1" },
+                        { label: "قائمة الدخل", value: "2" },
+                        { label: "تقييم بضاعة", value: "3" },
+                      ]}
+                      optionLabel="label"
+                      optionValue="value"
+                      placeholder="اختر القائمة"
+                      className="invoice-currency-dropdown w-full"
+                      panelClassName="invoice-currency-dropdown-panel"
+                      appendTo="self"
+                      onChange={(e: any) => {
+                        setFinancialListType(e.value)
+                        setFormData({ ...formData, finanical_list_id: e.value })
+                        focusPrimeDropdownRoot(e)
+                      }}
+                      onHide={() => refocusDropdownInput("financial_list_id")}
+                    />
+                  </div>
+                  <div>
+                    <Label className="mb-2 block text-sm font-medium">السماح بعمل حركة على الحساب بغير عملته</Label>
+                    <PrimeDropdown
+                      inputId="allow_trans_with_diff_curr"
+                      value={formData.allow_trans_with_diff_curr}
+                      options={[
+                        { label: "مسموح بدون تنبيه", value: "0" },
+                        { label: "مسموح مع تنبيه", value: "1" },
+                        { label: "ممنوع", value: "2" },
+                      ]}
+                      optionLabel="label"
+                      optionValue="value"
+                      placeholder="اختر الخيار"
+                      className="invoice-currency-dropdown w-full"
+                      panelClassName="invoice-currency-dropdown-panel"
+                      appendTo="self"
+                      onChange={(e: any) => {
+                        setFormData({ ...formData, allow_trans_with_diff_curr: e.value ?? "0" })
+                        focusPrimeDropdownRoot(e)
+                      }}
+                      onHide={() => refocusDropdownInput("allow_trans_with_diff_curr")}
+                    />
                   </div>
 
                   {/* Conditional dropdowns for Balance Sheet */}
                   {financialListType === "1" && (
                     <>
                       <div>
-                        <Label className="mb-2 block text-sm font-medium">ط§طµظˆظ„ ط§ظ„ظ…ظٹط²ط§ظ†ظٹط©</Label>
-                        <Select value={formData.finanical_list_assests_id || ""} onValueChange={(val) => setFormData({ ...formData, finanical_list_assests_id: val })}>
-                          <SelectTrigger className="text-right">
-                            <SelectValue placeholder="ط§ط®طھط± ط§ظ„ط£طµظˆظ„" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="">ط¨ط¯ظˆظ†</SelectItem>
-                            {balanceSheetAssets.map((asset) => (
-                              <SelectItem key={asset.id} value={String(asset.id)}>
-                                {asset.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <Label className="mb-2 block text-sm font-medium">أصول الميزانية</Label>
+                        <PrimeDropdown
+                          inputId="financial_list_assets_id"
+                          value={formData.finanical_list_assests_id || null}
+                          options={[
+                            { label: "عدم الاظهار", value: null },
+                            ...balanceSheetAssets.map((asset) => ({
+                              label: asset.name,
+                              value: String(asset.id),
+                            })),
+                          ]}
+                          optionLabel="label"
+                          optionValue="value"
+                          placeholder="اختر الأصل"
+                          filter={true}
+                          filterInputAutoFocus={true}
+                          className="invoice-currency-dropdown w-full"
+                          panelClassName="invoice-currency-dropdown-panel"
+                          appendTo="self"
+                          onChange={(e: any) => {
+                            setFormData({ ...formData, finanical_list_assests_id: e.value ? String(e.value) : "" })
+                            focusPrimeDropdownRoot(e)
+                          }}
+                          onHide={() => refocusDropdownInput("financial_list_assets_id")}
+                        />
                       </div>
                       <div>
-                        <Label className="mb-2 block text-sm font-medium">ط®طµظ…ظˆظ… ط§ظ„ظ…ظٹط²ط§ظ†ظٹط©</Label>
-                        <Select value={formData.finanical_list_liabilities_id || ""} onValueChange={(val) => setFormData({ ...formData, finanical_list_liabilities_id: val })}>
-                          <SelectTrigger className="text-right">
-                            <SelectValue placeholder="ط§ط®طھط± ط§ظ„ط®طµظˆظ…" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="">ط¨ط¯ظˆظ†</SelectItem>
-                            {balanceSheetLiabilities.map((liability) => (
-                              <SelectItem key={liability.id} value={String(liability.id)}>
-                                {liability.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <Label className="mb-2 block text-sm font-medium">خصوم الميزانية</Label>
+                        <PrimeDropdown
+                          inputId="financial_list_liabilities_id"
+                          value={formData.finanical_list_liabilities_id || null}
+                          options={[
+                            { label: "عدم الاظهار", value: null },
+                            ...balanceSheetLiabilities.map((liability) => ({
+                              label: liability.name,
+                              value: String(liability.id),
+                            })),
+                          ]}
+                          optionLabel="label"
+                          optionValue="value"
+                          placeholder="اختر الخصوم"
+                          filter={true}
+                          filterInputAutoFocus={true}
+                          className="invoice-currency-dropdown w-full"
+                          panelClassName="invoice-currency-dropdown-panel"
+                          appendTo="self"
+                          onChange={(e: any) => {
+                            setFormData({ ...formData, finanical_list_liabilities_id: e.value ? String(e.value) : "" })
+                            focusPrimeDropdownRoot(e)
+                          }}
+                          onHide={() => refocusDropdownInput("financial_list_liabilities_id")}
+                        />
                       </div>
                     </>
                   )}
@@ -605,151 +1106,238 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
                   {/* Conditional dropdown for Income Statement */}
                   {financialListType === "2" && (
                     <div>
-                      <Label className="mb-2 block text-sm font-medium">ظ‚ط§ط¦ظ…ط© ط§ظ„ط¯ط®ظ„</Label>
-                      <Select value={formData.finanical_list_income_id || ""} onValueChange={(val) => setFormData({ ...formData, finanical_list_income_id: val })}>
-                        <SelectTrigger className="text-right">
-                          <SelectValue placeholder="ط§ط®طھط± ظ…ظ† ظ‚ط§ط¦ظ…ط© ط§ظ„ط¯ط®ظ„" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="">ط¨ط¯ظˆظ†</SelectItem>
-                          {incomeStatementAccounts.map((income) => (
-                            <SelectItem key={income.id} value={String(income.id)}>
-                              {income.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <Label className="mb-2 block text-sm font-medium">قائمة الدخل</Label>
+                      <PrimeDropdown
+                        inputId="financial_list_income_id"
+                        value={formData.finanical_list_income_id || null}
+                        options={
+                          incomeStatementAccounts.map((income) => ({
+                            label: income.name,
+                            value: String(income.id),
+                          }))
+                        }
+                        optionLabel="label"
+                        optionValue="value"
+                        placeholder="اختر من قائمة الدخل"
+                        filter={true}
+                        filterInputAutoFocus={true}
+                        className="invoice-currency-dropdown w-full"
+                        panelClassName="invoice-currency-dropdown-panel"
+                        appendTo="self"
+                        onChange={(e: any) => {
+                          setFormData({ ...formData, finanical_list_income_id: e.value ? String(e.value) : "" })
+                          focusPrimeDropdownRoot(e)
+                        }}
+                        onHide={() => refocusDropdownInput("financial_list_income_id")}
+                      />
                     </div>
                   )}
 
-                  {/* Conditional dropdowns for Merchandise Valuation */}
+                  {/* Conditional dropdowns for Merchandise Valuation => show Balance Sheet Assets + Income Statement */}
                   {financialListType === "3" && (
                     <>
-                      <div className="md:col-span-2">
-                        <Label className="mb-2 block text-sm font-medium">طھظ‚ظٹظٹظ… ط§ظ„ط¨ط¶ط§ط¹ط©</Label>
-                        <Select value={formData.finanical_list_assests_id || ""} onValueChange={(val) => setFormData({ ...formData, finanical_list_assests_id: val })}>
-                          <SelectTrigger className="text-right">
-                            <SelectValue placeholder="ط§ط®طھط± ط·ط±ظٹظ‚ط© ط§ظ„طھظ‚ظٹظٹظ…" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="">ط¨ط¯ظˆظ†</SelectItem>
-                            {merchandiseAccounts.map((merc) => (
-                              <SelectItem key={merc.id} value={String(merc.id)}>
-                                {merc.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                      <div>
+                        <Label className="mb-2 block text-sm font-medium">أصول الميزانية</Label>
+                        <PrimeDropdown
+                          inputId="financial_list_assets_id"
+                          value={formData.finanical_list_assests_id || null}
+                          options={[
+                            { label: "عدم الاظهار", value: null },
+                            ...balanceSheetAssets.map((asset) => ({
+                              label: asset.name,
+                              value: String(asset.id),
+                            })),
+                          ]}
+                          optionLabel="label"
+                          optionValue="value"
+                          placeholder="اختر الأصل"
+                          filter={true}
+                          filterInputAutoFocus={true}
+                          className="invoice-currency-dropdown w-full"
+                          panelClassName="invoice-currency-dropdown-panel"
+                          appendTo="self"
+                          onChange={(e: any) => {
+                            setFormData({ ...formData, finanical_list_assests_id: e.value ? String(e.value) : "" })
+                            focusPrimeDropdownRoot(e)
+                          }}
+                          onHide={() => refocusDropdownInput("financial_list_assets_id")}
+                        />
+                      </div>
+                      <div>
+                        <Label className="mb-2 block text-sm font-medium">قائمة الدخل</Label>
+                        <PrimeDropdown
+                          inputId="financial_list_income_id"
+                          value={formData.finanical_list_income_id || null}
+                          options={
+                            incomeStatementAccounts.map((income) => ({
+                              label: income.name,
+                              value: String(income.id),
+                            }))
+                          }
+                          optionLabel="label"
+                          optionValue="value"
+                          placeholder="اختر من قائمة الدخل"
+                          filter={true}
+                          filterInputAutoFocus={true}
+                          className="invoice-currency-dropdown w-full"
+                          panelClassName="invoice-currency-dropdown-panel"
+                          appendTo="self"
+                          onChange={(e: any) => {
+                            setFormData({ ...formData, finanical_list_income_id: e.value ? String(e.value) : "" })
+                            focusPrimeDropdownRoot(e)
+                          }}
+                          onHide={() => refocusDropdownInput("financial_list_income_id")}
+                        />
                       </div>
                     </>
                   )}
 
-                  <div>
-                    <Label className="mb-2 block text-sm font-medium">ط§ظ„ط³ظ…ط§ط­ ط¨ط¹ظ…ظ„ ط­ط±ظƒط© ط¨ط؛ظٹط± ط¹ظ…ظ„طھظ‡</Label>
-                    <Select value={String(formData.allow_trans_with_diff_curr || 0)} onValueChange={(val) => setFormData({ ...formData, allow_trans_with_diff_curr: val === "1" })}>
-                      <SelectTrigger className="text-right">
-                        <SelectValue placeholder="ط§ط®طھط± ط§ظ„ط®ظٹط§ط±" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="0">ظ…ط³ظ…ظˆط­ ط¨ط¯ظˆظ† طھط³ظٹط©</SelectItem>
-                        <SelectItem value="1">ظ…ط³ظ…ظˆط­ ظ…ط¹ طھط³ظٹط©</SelectItem>
-                        <SelectItem value="2">ط؛ظٹط± ظ…ط³ظ…ظˆط­</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <Label className="mb-2 block text-sm font-medium">ط­ط³ط§ط¨ ط§ظ„ط±ط¨ط­ ظˆط§ظ„ط®ط³ط§ط±ط© ظ…ظ† ظپط±ظˆظ‚ ط§ظ„ط¹ظ…ظ„ط§طھ</Label>
-                    <div className="flex items-center gap-2 mt-2">
-                      <Checkbox
-                        checked={formData.iscalc_curr_diff_rates}
-                        onCheckedChange={(checked) => setFormData({ ...formData, iscalc_curr_diff_rates: checked as boolean })}
-                      />
-                      <span className="text-sm">ظ†ط¹ظ…</span>
-                    </div>
-                  </div>
+                </div>
+                <div className="mt-4">
+                  <label className="flex items-center gap-2 text-sm">
+                    <Checkbox
+                      checked={formData.iscalc_curr_diff_rates}
+                      onCheckedChange={(checked) => setFormData({ ...formData, iscalc_curr_diff_rates: checked as boolean })}
+                    />
+                    <span>الحساب يخضع لفرق العملة</span>
+                  </label>
                 </div>
               </div>
 
-              {/* Additional Information */}
               <div className="space-y-4">
-                <h4 className="font-semibold text-base">ط¨ظٹط§ظ†ط§طھ ط¥ط¶ط§ظپظٹط©</h4>
-                <div className="grid gap-4 md:grid-cols-2">
+                <h4 className="font-semibold text-base">بيانات إضافية</h4>
+                <div className="grid gap-4 md:grid-cols-1">
                   <div>
-                    <Label className="mb-2 block text-sm font-medium">ط§ظ„ط´ط±ظƒط©</Label>
-                    <Select value={(formData as any).company_id || "__no_company__"} onValueChange={(val) => setFormData({ ...formData, ...({ company_id: val === "__no_company__" ? "" : val } as any) })}>
-                      <SelectTrigger className="text-right">
-                        <SelectValue placeholder="ط§ط®طھط± ط§ظ„ط´ط±ظƒط©" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__no_company__">ط¨ط¯ظˆظ†</SelectItem>
-                        {companies.map((c) => (
-                          <SelectItem key={c.id} value={String(c.id)}>
-                            {c.name || c.company_name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Label className="mb-2 block text-sm font-medium">ملاحظات</Label>
+                    <Textarea value={formData.notes} onChange={(e) => setFormData({ ...formData, notes: e.target.value })} className="text-right" rows={4} />
                   </div>
-                  <div>
-                    <Label className="mb-2 block text-sm font-medium">ظ…ط±ظƒط² ط§ظ„ظƒظ„ظپط© ط§ظ„ط§ظپطھط±ط§ط¶ظٹ</Label>
-                    <Select value={(formData as any).cost_center_id || "__no_cost_center__"} onValueChange={(val) => setFormData({ ...formData, ...({ cost_center_id: val === "__no_cost_center__" ? "" : val } as any) })}>
-                      <SelectTrigger className="text-right">
-                        <SelectValue placeholder="ط§ط®طھط± ظ…ط±ظƒط² ط§ظ„ظƒظ„ظپط©" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__no_cost_center__">ط¨ط¯ظˆظ†</SelectItem>
-                        {costCenters.map((cc) => (
-                          <SelectItem key={cc.id} value={String(cc.id)}>
-                            {cc.name || cc.center_name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label className="mb-2 block text-sm font-medium">ط±ظ‚ظ… ط§ظ„ط­ط³ط§ط¨ ظپظٹ ط§ظ„طھظ‚ط±ظٹط± ط§ظ„ظ…ظˆط­ط¯</Label>
-                    <Input value={formData.unified_report_account_no} onChange={(e) => setFormData({ ...formData, unified_report_account_no: e.target.value })} placeholder="ط±ظ‚ظ… ط§ظ„ط­ط³ط§ط¨" className="text-right" />
-                  </div>
-                  <div>
-                    <Label className="mb-2 block text-sm font-medium">طµظˆط±ط© ط§ظ„ط­ط³ط§ط¨ (ط§ط®طھظٹط§ط±ظٹ)</Label>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => {
-                          const f = e.target.files && e.target.files[0]
-                          if (f) {
-                            setImageFile(f)
-                            const reader = new FileReader()
-                            reader.onload = () => setImagePreview(String(reader.result))
-                            reader.readAsDataURL(f)
-                          }
-                        }}
-                        className="text-sm"
-                      />
-                      {imagePreview && (
-                        <img src={imagePreview} alt="preview" className="h-12 w-12 object-cover rounded border" />
-                      )}
-                    </div>
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      checked={formData.show_notes_in_transactions_soa}
+                      onCheckedChange={(checked) => setFormData({ ...formData, show_notes_in_transactions_soa: checked as boolean })}
+                    />
+                    <span className="text-sm">إظهار ملاحظة الحساب في الحركات و طباعة كشف الحساب</span>
                   </div>
                 </div>
+              </div>
+            </TabsContent>
+            <TabsContent value="cost-centers" className="space-y-4" dir="rtl">
+              <div className="space-y-4">
+                {/* Header Section */}
+                <div className="flex items-center justify-between gap-4 bg-gradient-to-r from-blue-50 to-slate-50 p-4 rounded-md border border-slate-200">
+                  <div className="flex-1">
+                    <h4 className="font-semibold text-base">مراكز الكلفة</h4>
+                    <p className="text-sm text-slate-500">أنواع مراكز الكلفة المتاحة من قاعدة البيانات.</p>
+                  </div>
+                  <Button 
+                    variant="default" 
+                    size="sm"
+                    onClick={handleAddCostCenterType}
+                    className="flex items-center gap-2 whitespace-nowrap bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white transition-all duration-200 shadow-md hover:shadow-lg"
+                  >
+                    <Plus className="w-4 h-4" />
+                    اضافة نوع مركز تكلفة جديد
+                  </Button>
+                </div>
+
+                {/* Alert Messages */}
+                {costCenterTypeError && (
+                  <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>{costCenterTypeError}</AlertDescription>
+                  </Alert>
+                )}
+                {costCenterTypeMessage && (
+                  <Alert className="bg-green-50 border-green-200">
+                    <AlertDescription className="text-green-800">{costCenterTypeMessage}</AlertDescription>
+                  </Alert>
+                )}
+
+                {/* Data Grid */}
+                <div className="rounded-md border border-slate-300 overflow-hidden" dir="rtl">
+                  {costCenterTypes && costCenterTypes.length > 0 ? (
+                    <div className="h-[250px] min-h-[200px] overflow-y-auto [&::-webkit-scrollbar]:w-0 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-transparent scrollbar-hide">
+                      <DataGridView 
+                        scheme={costCenterTypeScheme} 
+                        dataSource={costCenterTypes} 
+                        innerRef={costCenterTypeGridRef}
+                      />
+                    </div>
+                  ) : (
+                    <div className="h-[250px] flex items-center justify-center bg-slate-50">
+                      <p className="text-slate-500 text-sm">لا توجد بيانات - قم بإضافة نوع مركز تكلفة جديد</p>
+                    </div>
+                  )}
+                </div>
+
               </div>
             </TabsContent>
           </Tabs>
         </div>
 
-        <div className="flex justify-end gap-2 border-t bg-slate-50 px-6 py-4">
-          <Button variant="outline" onClick={() => setDialogOpen(false)}>
-            إلغاء
-          </Button>
-          <Button variant="destructive" onClick={handleDelete} disabled={!currentAccount?.id}>
-            حذف
-          </Button>
-          <Button onClick={handleSave} disabled={saving}>
-            {saving ? "جاري الحفظ..." : "حفظ"}
-          </Button>
-        </div>
+        <AccountSearchDialog
+          open={searchModalOpen}
+          onOpenChange={setSearchModalOpen}
+          accounts={accounts}
+          onSelect={handleSelectSearchResult}
+        />
+
+        <SearchCostCenterDialog
+          open={searchCostCenterOpen}
+          onOpenChange={setSearchCostCenterOpen}
+          type={selectedCostCenterType}
+          costCenters={costCenters}
+          onSelect={handleSelectCostCenter}
+        />
+
+        <Dialog open={showCostCenterTypeForm} onOpenChange={setShowCostCenterTypeForm}>
+          <DialogContent className="max-w-md" dir="rtl">
+            <DialogHeader>
+              <DialogTitle>إضافة نوع مركز كلفة جديد</DialogTitle>
+              <DialogDescription>
+                أدخل اسم نوع مركز الكلفة الجديد
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              {costCenterTypeError && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{costCenterTypeError}</AlertDescription>
+                </Alert>
+              )}
+              <div>
+                <Label htmlFor="costCenterTypeName" className="mb-2 block text-sm font-medium">
+                  اسم نوع مركز الكلفة *
+                </Label>
+                <Input
+                  id="costCenterTypeName"
+                  value={newCostCenterTypeName}
+                  onChange={(e) => setNewCostCenterTypeName(e.target.value)}
+                  placeholder="أدخل اسم النوع"
+                  className="text-right"
+                  autoFocus
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setShowCostCenterTypeForm(false)
+                  setNewCostCenterTypeName("")
+                  setCostCenterTypeError("")
+                }}
+              >
+                إلغاء
+              </Button>
+              <Button 
+                onClick={handleSaveCostCenterType}
+              >
+                حفظ
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     )
   }

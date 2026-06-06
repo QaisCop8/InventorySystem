@@ -284,10 +284,10 @@ const CustomerSearchPopup: React.FC<CustomerSearchPopupProps> = ({ visible, onCl
                 </div>
 
                 <div className="flex justify-center gap-2 mt-4">
-                    <Button className="erp-btn-primary" onClick={() => selectedCustomer && handleRowDoubleClick(selectedCustomer)} >
+                    <Button className="erp-btn-primary search-button" onClick={() => selectedCustomer && handleRowDoubleClick(selectedCustomer)} >
                         موافق
                     </Button>
-                    <Button variant="outline" onClick={onClose}>إغلاق</Button>
+                    <Button variant="outline" onClick={onClose} className="search-button">إغلاق</Button>
                 </div>
             </div>
         </div>

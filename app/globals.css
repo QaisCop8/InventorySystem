@@ -324,8 +324,8 @@
   }
 
   .invoice-currency-dropdown.p-focus {
-    border-color: #0f9f6e !important;
-    box-shadow: 0 0 0 3px rgba(15, 159, 110, 0.14) !important;
+    border-color: #1f2937 !important;
+    box-shadow: 0 0 0 3px rgba(31, 41, 55, 0.14) !important;
   }
 
   .invoice-currency-dropdown .p-dropdown-label {
@@ -1168,4 +1168,20 @@
     @apply bg-muted/30 scale-95;
     transition: all 0.1s ease;
   }
+}
+
+/* Search and Dialog Button Styles - Unified Styling */
+.search-button,
+.dialog-button {
+  border-radius: 0 !important;
+  outline: none !important;
+}
+
+.search-button:focus,
+.search-button:focus-visible,
+.dialog-button:focus,
+.dialog-button:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+  ring: 0 !important;
 }

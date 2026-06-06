@@ -131,13 +131,13 @@ const StoresSearchPopup: React.FC<StoresSearchPopupProps> = ({
 
                 <div className="flex justify-center gap-3 mt-4">
                     <Button
-                        className="erp-btn-primary"
+                        className="erp-btn-primary search-button"
                         disabled={!selectedStore}
                         onClick={confirmSelection}
                     >
                         موافق
                     </Button>
-                    <Button className="erp-btn-primary" variant="outline" onClick={onClose}>
+                    <Button className="erp-btn-primary search-button" variant="outline" onClick={onClose}>
                         إغلاق
                     </Button>
                 </div>

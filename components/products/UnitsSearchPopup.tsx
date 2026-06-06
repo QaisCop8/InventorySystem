@@ -90,7 +90,7 @@ const UnitsSearchPopup: React.FC<UnitsSearchPopupProps> = ({
 
         <div className="flex justify-center gap-2 mt-4">
           <Button
-            className="erp-btn-primary"
+            className="erp-btn-primary search-button"
             disabled={!selectedUnit}
             onClick={() => {
               console.log("selectedUnit ", selectedUnit)
@@ -102,7 +102,7 @@ const UnitsSearchPopup: React.FC<UnitsSearchPopupProps> = ({
             موافق
           </Button>
 
-          <Button variant="outline" className="erp-btn-primary" onClick={onClose}>إغلاق</Button>
+          <Button variant="outline" className="erp-btn-primary search-button" onClick={onClose}>إغلاق</Button>
         </div>
       </div>
     </div>

@@ -163,6 +163,10 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
       let currenciesData: any[] = []
       let companiesData: any[] = []
       let costCentersData: any[] = []
+      let balanceSheetAssetsData: any[] = []
+      let balanceSheetLiabilitiesData: any[] = []
+      let incomeStatementData: any[] = []
+
       try {
         const curRes = await fetch("/api/currencies")
         if (curRes.ok) currenciesData = await curRes.json()
@@ -174,6 +178,45 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
       try {
         const ccRes = await fetch("/api/cost-centers")
         if (ccRes.ok) costCentersData = await ccRes.json()
+      } catch (_) {}
+      try {
+        const assetsRes = await fetch("/api/balance-sheet-assets-items")
+        if (assetsRes.ok) {
+          const json = await assetsRes.json()
+          balanceSheetAssetsData = Array.isArray(json)
+            ? json.map((item: any) => ({
+                ...item,
+                id: item.id != null ? Number(item.id) : item.id,
+                name: item.name ?? item.asset_name ?? item.label ?? "",
+              }))
+            : []
+        }
+      } catch (_) {}
+      try {
+        const liabilitiesRes = await fetch("/api/balance-sheet-liabilities-items")
+        if (liabilitiesRes.ok) {
+          const json = await liabilitiesRes.json()
+          balanceSheetLiabilitiesData = Array.isArray(json)
+            ? json.map((item: any) => ({
+                ...item,
+                id: item.id != null ? Number(item.id) : item.id,
+                name: item.name ?? item.asset_name ?? item.label ?? "",
+              }))
+            : []
+        }
+      } catch (_) {}
+      try {
+        const incomeRes = await fetch("/api/income-statement-items")
+        if (incomeRes.ok) {
+          const json = await incomeRes.json()
+          incomeStatementData = Array.isArray(json)
+            ? json.map((item: any) => ({
+                ...item,
+                id: item.id != null ? Number(item.id) : item.id,
+                name: item.name ?? item.asset_name ?? item.label ?? "",
+              }))
+            : []
+        }
       } catch (_) {}
 
       setTypes(Array.isArray(typesData) ? typesData : [])
@@ -190,6 +233,9 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
       setCurrencies(Array.isArray(currenciesData) ? currenciesData : [])
       setCompanies(Array.isArray(companiesData) ? companiesData : [])
       setCostCenters(Array.isArray(costCentersData) ? costCentersData : [])
+      setBalanceSheetAssets(Array.isArray(balanceSheetAssetsData) ? balanceSheetAssetsData : [])
+      setBalanceSheetLiabilities(Array.isArray(balanceSheetLiabilitiesData) ? balanceSheetLiabilitiesData : [])
+      setIncomeStatementAccounts(Array.isArray(incomeStatementData) ? incomeStatementData : [])
       setCurrentIndex(0)
     } catch (err) {
       console.error(err)
@@ -283,6 +329,12 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
     console.log("[unified-refactored] dialogOpen changed:", dialogOpen)
     if (onOpenChange) onOpenChange(dialogOpen)
   }, [dialogOpen, onOpenChange])
+
+  useEffect(() => {
+    if (dialogOpen) {
+      loadData()
+    }
+  }, [dialogOpen])
 
   const handleSave = async () => {
     setError("")
@@ -559,12 +611,12 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
                     <>
                       <div>
                         <Label className="mb-2 block text-sm font-medium">اصول الميزانية</Label>
-                        <Select value={formData.finanical_list_assests_id || ""} onValueChange={(val) => setFormData({ ...formData, finanical_list_assests_id: val })}>
+                        <Select value={formData.finanical_list_assests_id || "__no_selection__"} onValueChange={(val) => setFormData({ ...formData, finanical_list_assests_id: val === "__no_selection__" ? "" : val })}>
                           <SelectTrigger className="text-right">
                             <SelectValue placeholder="اختر الأصول" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="">بدون</SelectItem>
+                            <SelectItem value="__no_selection__">بدون</SelectItem>
                             {balanceSheetAssets.map((asset) => (
                               <SelectItem key={asset.id} value={String(asset.id)}>
                                 {asset.name}
@@ -575,12 +627,12 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
                       </div>
                       <div>
                         <Label className="mb-2 block text-sm font-medium">خصموم الميزانية</Label>
-                        <Select value={formData.finanical_list_liabilities_id || ""} onValueChange={(val) => setFormData({ ...formData, finanical_list_liabilities_id: val })}>
+                        <Select value={formData.finanical_list_liabilities_id || "__no_selection__"} onValueChange={(val) => setFormData({ ...formData, finanical_list_liabilities_id: val === "__no_selection__" ? "" : val })}>
                           <SelectTrigger className="text-right">
                             <SelectValue placeholder="اختر الخصوم" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="">بدون</SelectItem>
+                            <SelectItem value="__no_selection__">بدون</SelectItem>
                             {balanceSheetLiabilities.map((liability) => (
                               <SelectItem key={liability.id} value={String(liability.id)}>
                                 {liability.name}
@@ -595,12 +647,12 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
                   {financialListType === "2" && (
                     <div>
                       <Label className="mb-2 block text-sm font-medium">قائمة الدخل</Label>
-                      <Select value={formData.finanical_list_income_id || ""} onValueChange={(val) => setFormData({ ...formData, finanical_list_income_id: val })}>
+                      <Select value={formData.finanical_list_income_id || "__no_selection__"} onValueChange={(val) => setFormData({ ...formData, finanical_list_income_id: val === "__no_selection__" ? "" : val })}>
                         <SelectTrigger className="text-right">
                           <SelectValue placeholder="اختر من قائمة الدخل" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">بدون</SelectItem>
+                          <SelectItem value="__no_selection__">بدون</SelectItem>
                           {incomeStatementAccounts.map((income) => (
                             <SelectItem key={income.id} value={String(income.id)}>
                               {income.name}
@@ -614,12 +666,12 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
                   {financialListType === "3" && (
                     <div className="md:col-span-2">
                       <Label className="mb-2 block text-sm font-medium">تقييم البضاعة</Label>
-                      <Select value={formData.finanical_list_assests_id || ""} onValueChange={(val) => setFormData({ ...formData, finanical_list_assests_id: val })}>
+                      <Select value={formData.finanical_list_assests_id || "__no_selection__"} onValueChange={(val) => setFormData({ ...formData, finanical_list_assests_id: val === "__no_selection__" ? "" : val })}>
                         <SelectTrigger className="text-right">
                           <SelectValue placeholder="اختر طريقة التقييم" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">بدون</SelectItem>
+                          <SelectItem value="__no_selection__">بدون</SelectItem>
                           {merchandiseAccounts.map((merc) => (
                             <SelectItem key={merc.id} value={String(merc.id)}>
                               {merc.name}
@@ -1050,12 +1102,12 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
                       <>
                         <div>
                           <Label className="mb-2 block text-sm font-medium">اصول الميزانية</Label>
-                          <Select value={formData.finanical_list_assests_id || ""} onValueChange={(val) => setFormData({ ...formData, finanical_list_assests_id: val })}>
+                          <Select value={formData.finanical_list_assests_id || "__no_selection__"} onValueChange={(val) => setFormData({ ...formData, finanical_list_assests_id: val === "__no_selection__" ? "" : val })}>
                             <SelectTrigger className="text-right">
                               <SelectValue placeholder="اختر الأصول" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="">بدون</SelectItem>
+                              <SelectItem value="__no_selection__">بدون</SelectItem>
                               {balanceSheetAssets.map((asset) => (
                                 <SelectItem key={asset.id} value={String(asset.id)}>
                                   {asset.name}
@@ -1066,12 +1118,12 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
                         </div>
                         <div>
                           <Label className="mb-2 block text-sm font-medium">خصموم الميزانية</Label>
-                          <Select value={formData.finanical_list_liabilities_id || ""} onValueChange={(val) => setFormData({ ...formData, finanical_list_liabilities_id: val })}>
+                          <Select value={formData.finanical_list_liabilities_id || "__no_selection__"} onValueChange={(val) => setFormData({ ...formData, finanical_list_liabilities_id: val === "__no_selection__" ? "" : val })}>
                             <SelectTrigger className="text-right">
                               <SelectValue placeholder="اختر الخصوم" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="">بدون</SelectItem>
+                              <SelectItem value="__no_selection__">بدون</SelectItem>
                               {balanceSheetLiabilities.map((liability) => (
                                 <SelectItem key={liability.id} value={String(liability.id)}>
                                   {liability.name}
@@ -1086,12 +1138,12 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
                     {financialListType === "2" && (
                       <div>
                         <Label className="mb-2 block text-sm font-medium">قائمة الدخل</Label>
-                        <Select value={formData.finanical_list_income_id || ""} onValueChange={(val) => setFormData({ ...formData, finanical_list_income_id: val })}>
+                        <Select value={formData.finanical_list_income_id || "__no_selection__"} onValueChange={(val) => setFormData({ ...formData, finanical_list_income_id: val === "__no_selection__" ? "" : val })}>
                           <SelectTrigger className="text-right">
                             <SelectValue placeholder="اختر من قائمة الدخل" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="">بدون</SelectItem>
+                            <SelectItem value="__no_selection__">بدون</SelectItem>
                             {incomeStatementAccounts.map((income) => (
                               <SelectItem key={income.id} value={String(income.id)}>
                                 {income.name}
@@ -1105,12 +1157,12 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
                     {financialListType === "3" && (
                       <div className="md:col-span-2">
                         <Label className="mb-2 block text-sm font-medium">تقييم البضاعة</Label>
-                        <Select value={formData.finanical_list_assests_id || ""} onValueChange={(val) => setFormData({ ...formData, finanical_list_assests_id: val })}>
+                        <Select value={formData.finanical_list_assests_id || "__no_selection__"} onValueChange={(val) => setFormData({ ...formData, finanical_list_assests_id: val === "__no_selection__" ? "" : val })}>
                           <SelectTrigger className="text-right">
                             <SelectValue placeholder="اختر طريقة التقييم" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="">بدون</SelectItem>
+                            <SelectItem value="__no_selection__">بدون</SelectItem>
                             {merchandiseAccounts.map((merc) => (
                               <SelectItem key={merc.id} value={String(merc.id)}>
                                 {merc.name}

@@ -57,7 +57,7 @@ export function SearchButton({
       onSelectPurchaseOrder={onSelectPurchaseOrder || onSelect}
       onSelectMovement={onSelectMovement || onSelect}
       trigger={
-        <Button variant={variant} size={size} className={`gap-2 ${className}`}>
+        <Button variant={variant} size={size} className={`gap-2 search-button ${className}`}>
           <Search className="h-4 w-4" />
           {getButtonText()}
         </Button>

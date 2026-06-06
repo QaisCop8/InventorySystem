@@ -29,7 +29,7 @@ interface Account {
   level_no: number
   finanical_list_id: number
   currency_id?: number | null
-  allow_trans_with_diff_curr: boolean
+  allow_trans_with_diff_curr: number
   iscalc_curr_diff_rates: boolean
   transaction_type: number
   max_transaction_amount: number

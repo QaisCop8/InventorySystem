@@ -52,6 +52,40 @@ export function Sidebar({
     )
   }
 
+  const getSectionUrl = (section: string): string => {
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || ""
+    const sectionRoutes: Record<string, string> = {
+      dashboard: "/admin",
+      accounts: "/admin/accounts",
+      customers: "/customers",
+      suppliers: "/admin/suppliers",
+      products: "/products",
+      "product-groups": "/admin/product-groups",
+      definitions: "/admin/definitions",
+      "purchase-orders": "/admin/purchase-orders",
+      "sales-orders": "/admin/sales-orders",
+      "sale-invoices": "/admin/sale-invoices",
+      "order-management": "/admin/order-management",
+      "batch-movements": "/admin/batch-movements",
+      "order-reports": "/reports/orders",
+      "product-reports": "/reports/products",
+      "batch-log-report": "/reports/batch-log",
+      "user-settings": "/settings/users",
+      permissions: "/settings/permissions",
+      "system-settings": "/settings/system",
+      "print-settings": "/settings/print",
+      "voucher-settings": "/settings/vouchers",
+      "api-settings": "/settings/api",
+      "orders-migration": "/admin/orders-migration",
+      "smart-analytics": "/smart-analytics",
+      "smart-inventory": "/smart-inventory",
+      "inventory-analytics": "/admin/inventory-analytics",
+      "order-tracking": "/admin/order-tracking",
+      "exchange-rates": "/admin/exchange-rates",
+    }
+    return sectionRoutes[section] || "/admin"
+  }
+
   const handleItemClick = (item: any) => {
     // OPEN ALL ITEMS IN TAB
     openWindow({
@@ -60,6 +94,12 @@ export function Sidebar({
       type: "tab",
       size: { width: 1000, height: 700 },
     })
+  }
+
+  const handleContextMenu = (e: React.MouseEvent<HTMLButtonElement>, item: any) => {
+    e.preventDefault()
+    const url = getSectionUrl(item.section)
+    window.open(url, "_blank")
   }
 
   const menuItems = [
@@ -197,7 +237,9 @@ export function Sidebar({
               className={`w-full justify-between text-right p-2 ${!isOpen ? "flex items-center justify-center" : ""
                 }`}
               onClick={() => (item.submenu ? toggleMenu(item.id) : handleItemClick(item))}
+              onContextMenu={(e) => !item.submenu && handleContextMenu(e, item)}
               dir="rtl"
+              title="Right-click to open in new tab"
             >
               <div className={`flex items-center gap-2 ${!isOpen ? "justify-center" : ""}`}>
                 <item.icon className="h-5 w-5" />
@@ -220,7 +262,9 @@ export function Sidebar({
                     size="sm"
                     className="w-full justify-start text-right text-sm p-2 hover:bg-sidebar-accent/10"
                     onClick={() => handleItemClick(subItem)}
+                    onContextMenu={(e) => handleContextMenu(e, subItem)}
                     dir="rtl"
+                    title="Right-click to open in new tab"
                   >
                     <div className="flex items-center gap-2">
                       <subItem.icon className="h-4 w-4" />

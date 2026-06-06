@@ -207,10 +207,10 @@ const OrderSearchPopup: React.FC<OrderSearchPopupProps> = ({ visible, onClose, o
                 </div>
 
                 <div className="flex justify-center gap-2 mt-4">
-                    <Button className="erp-btn-primary" onClick={() => selectedOrder && handleRowDoubleClick(selectedOrder)} >
+                    <Button className="erp-btn-primary search-button" onClick={() => selectedOrder && handleRowDoubleClick(selectedOrder)} >
                         موافق
                     </Button>
-                    <Button variant="outline" onClick={onClose}>إغلاق</Button>
+                    <Button variant="outline" onClick={onClose} className="search-button">إغلاق</Button>
                 </div>
             </div>
         </div>

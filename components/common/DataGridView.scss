@@ -83,3 +83,109 @@ html[dir="rtl"] .wj-flexgrid .wj-cell,
 html[dir="rtl"] .wj-flexgrid .wj-header {
   text-align: right;
 }
+
+/* Button Styling - Grid Buttons */
+.wj-flexgrid button,
+.wj-cell-maker-btn {
+  padding: 8px 12px;
+  border-radius: 0;
+  border: none;
+  outline: none;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  color: white !important;
+  min-width: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  background-color: #bfdbfe !important;
+  color: #1e40af !important;
+}
+
+.wj-flexgrid button:hover,
+.wj-cell-maker-btn:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  transform: translateY(-2px);
+  background-color: #93c5fd !important;
+}
+
+.wj-flexgrid button:active,
+.wj-cell-maker-btn:active {
+  transform: translateY(0);
+}
+
+.wj-flexgrid button:disabled,
+.wj-cell-maker-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* DELETE BUTTONS - Light Red (pi-trash icon) */
+.wj-flexgrid button.pi-trash,
+.wj-cell-maker-btn.pi-trash,
+.wj-flexgrid button[title*="حذف"],
+.wj-flexgrid button.btn-delete {
+  background-color: #fecaca !important;
+  color: #7f1d1d !important;
+}
+
+.wj-flexgrid button.pi-trash:hover,
+.wj-cell-maker-btn.pi-trash:hover,
+.wj-flexgrid button[title*="حذف"]:hover,
+.wj-flexgrid button.btn-delete:hover {
+  background-color: #fca5a5 !important;
+  color: #7f1d1d !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
+  transform: translateY(-2px) !important;
+}
+
+/* SEARCH BUTTONS - Light Blue (pi-search icon) */
+.wj-flexgrid button.pi-search,
+.wj-cell-maker-btn.pi-search,
+.wj-flexgrid button[title*="بحث"],
+.wj-flexgrid button.btn-search {
+  background-color: #bfdbfe !important;
+  color: #1e40af !important;
+}
+
+.wj-flexgrid button.pi-search:hover,
+.wj-cell-maker-btn.pi-search:hover,
+.wj-flexgrid button[title*="بحث"]:hover,
+.wj-flexgrid button.btn-search:hover {
+  background-color: #93c5fd !important;
+  color: #1e40af !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
+  transform: translateY(-2px) !important;
+}
+
+/* EDIT BUTTONS - Light Blue (pi-pencil icon) */
+.wj-flexgrid button.pi-pencil,
+.wj-cell-maker-btn.pi-pencil,
+.wj-flexgrid button[title*="تغيير"],
+.wj-flexgrid button.btn-status {
+  background-color: #bfdbfe !important;
+  color: #1e40af !important;
+}
+
+.wj-flexgrid button.pi-pencil:hover,
+.wj-cell-maker-btn.pi-pencil:hover,
+.wj-flexgrid button[title*="تغيير"]:hover,
+.wj-flexgrid button.btn-status:hover {
+  background-color: #93c5fd !important;
+  color: #1e40af !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
+  transform: translateY(-2px) !important;
+}
+
+/* Ensure all button text and icons are styled appropriately */
+.wj-flexgrid button i,
+.wj-flexgrid button svg,
+.wj-cell-maker-btn i,
+.wj-cell-maker-btn svg {
+  color: inherit !important;
+  fill: inherit !important;
+}

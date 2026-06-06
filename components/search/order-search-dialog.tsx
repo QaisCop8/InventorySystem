@@ -162,7 +162,7 @@ export function OrderSearchDialog({ open, onOpenChange, onOrderSelect, orderType
                       </TableCell>
                       <TableCell>{getStatusBadge(order)}</TableCell>
                       <TableCell>
-                        <Button size="sm" variant="outline" onClick={() => handleOrderSelect(order)}>
+                        <Button size="sm" variant="outline" onClick={() => handleOrderSelect(order)} className="search-button">
                           اختيار
                         </Button>
                       </TableCell>
@@ -190,7 +190,7 @@ export function OrderSearchDialog({ open, onOpenChange, onOrderSelect, orderType
         </div>
 
         <div className="flex justify-end gap-2 border-t pt-4">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" onClick={() => onOpenChange(false)} className="search-button">
             إغلاق
           </Button>
         </div>

@@ -140,7 +140,7 @@ export function SearchModal({
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         {trigger || (
-          <Button variant="outline" className="gap-2 bg-transparent">
+          <Button variant="outline" className="gap-2 bg-transparent search-button">
             <Search className="h-4 w-4" />
             {getTriggerText()}
           </Button>

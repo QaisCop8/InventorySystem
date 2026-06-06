@@ -415,10 +415,10 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
 
 
         <div className="flex justify-center gap-2 mt-4">
-          <Button className="erp-btn-primary" onClick={handleConfirm}>
+          <Button className="erp-btn-primary search-button" onClick={handleConfirm}>
             موافق
           </Button>
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" onClick={onClose} className="search-button">
             إغلاق
           </Button>
         </div>
