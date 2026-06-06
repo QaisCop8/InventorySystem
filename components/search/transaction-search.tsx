@@ -542,13 +542,13 @@ const TransactionSearch = ({
             variant="outline"
             size="sm"
             onClick={() => setShowFilters(!showFilters)}
-            className="flex items-center gap-2"
+            className="flex items-center gap-2 search-button"
           >
             <Filter className="h-4 w-4" />
             فلاتر
           </Button>
           {isModal && onClose && (
-            <Button variant="ghost" size="sm" onClick={onClose}>
+            <Button variant="ghost" size="sm" onClick={onClose} className="search-button">
               <X className="h-4 w-4" />
             </Button>
           )}
@@ -623,7 +623,7 @@ const TransactionSearch = ({
               </div>
             </div>
             <div className="mt-4">
-              <Button variant="outline" onClick={clearFilters} className="w-full bg-transparent">
+              <Button variant="outline" onClick={clearFilters} className="w-full bg-transparent search-button">
                 مسح الفلاتر
               </Button>
             </div>
