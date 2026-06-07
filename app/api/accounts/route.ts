@@ -135,55 +135,108 @@ const mapAccountRow = (row: any) => ({
   show_notes_in_transactions_soa: toBool(row.show_notes_in_transactions_soa),
 })
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     await ensureAccountsTable()
     await ensureAccountRelatedTables()
 
-    const rows = await sql`
-      SELECT
-        a.id,
-        a.company_id,
-        a.code AS account_code,
-        a.type AS classification_type_id,
-        t.name AS classification_type_name,
-        a.name AS account_name,
-        a.name_lang2,
-        a.father_id AS parent_account_id,
-        pa.name AS parent_account_name,
-        a.level_no,
-        a.finanical_list_id,
-        a.finanical_list_assests_id,
-        a.finanical_list_liabilities_id,
-        a.finanical_list_income_id,
-        a.currency_id,
-        a.allow_trans_with_diff_curr,
-        a.iscalc_curr_diff_rates,
-        a.transaction_type,
-        a.transaction_type_action,
-        a.max_transaction_amount,
-        a.max_transaction_amount_action,
-        a.max_balance_amount,
-        a.max_balance_action,
-        a.budget_exceeding_perc,
-        a.budget_exceeding_action,
-        a.unified_report_account_no,
-        a.unified_report_group_code,
-        a.notes AS description,
-        a.show_notes_in_transactions_soa,
-        a.status,
-        a.insert_date AS created_at,
-        a.last_update_date AS updated_at,
-        0::NUMERIC AS opening_balance,
-        0::NUMERIC AS debit_amount,
-        0::NUMERIC AS credit_amount,
-        0::NUMERIC AS balance
-      FROM account_tbl a
-      LEFT JOIN account_classification_types t ON t.id = a.type
-      LEFT JOIN account_tbl pa ON pa.id = a.father_id
-      WHERE COALESCE(a.status, 1) IN (1, 2)
-      ORDER BY a.code ASC
-    `
+    // Get query parameters
+    const { searchParams } = new URL(request.url)
+    const typeParam = searchParams.get('type')
+    const typeFilter = typeParam ? parseInt(typeParam, 10) : null
+
+    let rows
+    if (typeFilter !== null) {
+      rows = await sql`
+        SELECT
+          a.id,
+          a.company_id,
+          a.code AS account_code,
+          a.type AS classification_type_id,
+          t.name AS classification_type_name,
+          a.name AS account_name,
+          a.name_lang2,
+          a.father_id AS parent_account_id,
+          pa.name AS parent_account_name,
+          a.level_no,
+          a.finanical_list_id,
+          a.finanical_list_assests_id,
+          a.finanical_list_liabilities_id,
+          a.finanical_list_income_id,
+          a.currency_id,
+          a.allow_trans_with_diff_curr,
+          a.iscalc_curr_diff_rates,
+          a.transaction_type,
+          a.transaction_type_action,
+          a.max_transaction_amount,
+          a.max_transaction_amount_action,
+          a.max_balance_amount,
+          a.max_balance_action,
+          a.budget_exceeding_perc,
+          a.budget_exceeding_action,
+          a.unified_report_account_no,
+          a.unified_report_group_code,
+          a.notes AS description,
+          a.show_notes_in_transactions_soa,
+          a.status,
+          a.insert_date AS created_at,
+          a.last_update_date AS updated_at,
+          0::NUMERIC AS opening_balance,
+          0::NUMERIC AS debit_amount,
+          0::NUMERIC AS credit_amount,
+          0::NUMERIC AS balance
+        FROM account_tbl a
+        LEFT JOIN account_classification_types t ON t.id = a.type
+        LEFT JOIN account_tbl pa ON pa.id = a.father_id
+        WHERE COALESCE(a.status, 1) IN (1, 2) AND a.type = ${typeFilter}
+        ORDER BY a.code ASC
+      `
+    } else {
+      rows = await sql`
+        SELECT
+          a.id,
+          a.company_id,
+          a.code AS account_code,
+          a.type AS classification_type_id,
+          t.name AS classification_type_name,
+          a.name AS account_name,
+          a.name_lang2,
+          a.father_id AS parent_account_id,
+          pa.name AS parent_account_name,
+          a.level_no,
+          a.finanical_list_id,
+          a.finanical_list_assests_id,
+          a.finanical_list_liabilities_id,
+          a.finanical_list_income_id,
+          a.currency_id,
+          a.allow_trans_with_diff_curr,
+          a.iscalc_curr_diff_rates,
+          a.transaction_type,
+          a.transaction_type_action,
+          a.max_transaction_amount,
+          a.max_transaction_amount_action,
+          a.max_balance_amount,
+          a.max_balance_action,
+          a.budget_exceeding_perc,
+          a.budget_exceeding_action,
+          a.unified_report_account_no,
+          a.unified_report_group_code,
+          a.notes AS description,
+          a.show_notes_in_transactions_soa,
+          a.status,
+          a.insert_date AS created_at,
+          a.last_update_date AS updated_at,
+          0::NUMERIC AS opening_balance,
+          0::NUMERIC AS debit_amount,
+          0::NUMERIC AS credit_amount,
+          0::NUMERIC AS balance
+        FROM account_tbl a
+        LEFT JOIN account_classification_types t ON t.id = a.type
+        LEFT JOIN account_tbl pa ON pa.id = a.father_id
+        WHERE COALESCE(a.status, 1) IN (1, 2)
+        ORDER BY a.code ASC
+      `
+    }
 
     const stopRows = await sql`
       SELECT id, account_id, voucher_types_id, stop_date
@@ -249,8 +302,9 @@ export async function POST(request: NextRequest) {
     await ensureAccountRelatedTables()
 
     const data = await request.json()
-    const accountCode = String(data.account_code ?? "").trim()
-    const accountName = String(data.account_name ?? "").trim()
+    // Support both naming conventions: account_code/account_name (API) and code/name (frontend)
+    const accountCode = String(data.account_code ?? data.code ?? "").trim()
+    const accountName = String(data.account_name ?? data.name ?? "").trim()
     const classificationTypeId = toNullableInt(data.classification_type_id)
     const parentAccountId = toNullableInt(data.parent_account_id)
     const companyId = Number(data.company_id ?? 1)
@@ -297,9 +351,30 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "نوع الحساب مطلوب" }, { status: 400 })
     }
 
+    let finalAccountCode = accountCode
     const existingCode = await sql`SELECT id FROM account_tbl WHERE LOWER(code) = LOWER(${accountCode})`
     if (existingCode.length > 0) {
-      return NextResponse.json({ error: "رقم الحساب موجود مسبقاً" }, { status: 400 })
+      // Auto-generate the next sequential code
+      const match = accountCode.match(/^([A-Za-z]*)(\d+)$/)
+      if (match) {
+        const prefix = match[1]
+        const currentNumber = parseInt(match[2], 10)
+        const nextNumber = currentNumber + 1
+        const numberLength = match[2].length
+        finalAccountCode = prefix + String(nextNumber).padStart(numberLength, '0')
+      } else {
+        // If code doesn't have numeric pattern, append _1
+        let counter = 1
+        let newCode = `${accountCode}_${counter}`
+        while (true) {
+          const checkCode = await sql`SELECT id FROM account_tbl WHERE LOWER(code) = LOWER(${newCode})`
+          if (checkCode.length === 0) {
+            finalAccountCode = newCode
+            break
+          }
+          counter++
+        }
+      }
     }
 
     const typeExists = await sql`SELECT id FROM account_classification_types WHERE id = ${classificationTypeId}`
@@ -347,7 +422,7 @@ export async function POST(request: NextRequest) {
         last_update_date
       ) VALUES (
         ${companyId},
-        ${accountCode},
+        ${finalAccountCode},
         ${classificationTypeId},
         ${accountName},
         ${nameLang2},

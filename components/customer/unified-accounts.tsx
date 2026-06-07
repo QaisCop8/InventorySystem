@@ -97,6 +97,7 @@ export default function UnifiedAccounts({ action, onOpenChange }: UnifiedAccount
   const [currentIndex, setCurrentIndex] = useState(0)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [loadingState, setLoadingState] = useState<string>("") // for tracking "unified-sale-order"
   const [error, setError] = useState("")
   const [message, setMessage] = useState("")
 
@@ -260,7 +261,10 @@ export default function UnifiedAccounts({ action, onOpenChange }: UnifiedAccount
 
     try {
       setSaving(true)
-      const isEdit = currentAccount?.id != null
+      setLoadingState("unified-sale-order")
+      
+      // Determine if this is an edit or add based on currentAccount.id > 0
+      const isEdit = currentAccount?.id != null && currentAccount.id > 0
       const url = isEdit ? `/api/accounts/${currentAccount.id}` : "/api/accounts"
       const method = isEdit ? "PUT" : "POST"
 
@@ -306,18 +310,53 @@ export default function UnifiedAccounts({ action, onOpenChange }: UnifiedAccount
       }
 
       setMessage(isEdit ? "Account updated successfully" : "Account created successfully")
+      
+      // Reset fields after successful save
+      setFormData({
+        code: "",
+        name: "",
+        name_lang2: "",
+        type: types[0] ? String(types[0].id) : "",
+        father_id: "",
+        level_no: "1",
+        finanical_list_id: "1",
+        finanical_list_assests_id: "",
+        finanical_list_liabilities_id: "",
+        finanical_list_income_id: "",
+        currency_id: "",
+        allow_trans_with_diff_curr: false,
+        iscalc_curr_diff_rates: false,
+        transaction_type: "0",
+        transaction_type_action: "0",
+        max_transaction_amount: "0",
+        max_transaction_amount_action: "0",
+        max_balance_amount: "0",
+        max_balance_action: "",
+        budget_exceeding_perc: "",
+        budget_exceeding_action: "",
+        unified_report_account_no: "",
+        unified_report_group_code: "",
+        notes: "",
+        show_notes_in_transactions_soa: false,
+        status: "نشط",
+      })
+      
       setDialogOpen(false)
       await loadData()
+      
+      // Prepare for new entry (execute on new)
+      handleNew()
     } catch (err) {
       console.error(err)
       setError("Error saving account")
     } finally {
       setSaving(false)
+      setLoadingState("")
     }
   }
 
   const handleDelete = async () => {
-    if (!currentAccount) return
+    if (!currentAccount || currentAccount.id <= 0) return
     if (!window.confirm("Are you sure?")) return
 
     try {
@@ -430,7 +469,11 @@ export default function UnifiedAccounts({ action, onOpenChange }: UnifiedAccount
           onPointerDownOutside={(e) => e.preventDefault()}
         >
           <div className="flex items-center justify-between border-b bg-gradient-to-r from-blue-50 to-slate-50 px-6 py-4">
-            <h2 className="text-xl font-semibold">{currentAccount?.id ? `Edit Account: ${currentAccount.code}` : "New Account"}</h2>
+            <h2 className="text-xl font-semibold">
+              {currentAccount?.id != null && currentAccount.id > 0 
+                ? `تعديل الحساب: ${currentAccount.code}` 
+                : "إضافة حساب جديد"}
+            </h2>
             <Button variant="ghost" onClick={() => setDialogOpen(false)}>
               ✕
             </Button>
@@ -619,11 +662,11 @@ export default function UnifiedAccounts({ action, onOpenChange }: UnifiedAccount
             <Button variant="outline" onClick={() => setDialogOpen(false)}>
               Cancel
             </Button>
-            <Button variant="destructive" onClick={handleDelete} disabled={!currentAccount?.id}>
+            <Button variant="destructive" onClick={handleDelete} disabled={!currentAccount?.id || currentAccount.id <= 0}>
               Delete
             </Button>
             <Button onClick={handleSave} disabled={saving}>
-              {saving ? "Saving..." : "Save"}
+              {saving ? `Saving... (${loadingState || "unified-sale-order"})` : "Save"}
             </Button>
           </div>
         </DialogContent>

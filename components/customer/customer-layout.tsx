@@ -30,27 +30,103 @@ export function CustomerLayout({ children }: CustomerLayoutProps) {
   const [mobileOpen, setMobileOpen] = useState(false)
 
   useEffect(() => {
-    checkSession()
-  }, [])
+    let isMounted = true
 
-  const checkSession = async () => {
-    try {
-      const response = await fetch("/api/customer-auth/session")
+    const checkSession = async () => {
+      try {
+        const response = await fetch("/api/customer-auth/session")
 
-      if (!response.ok) {
-        router.push("/customer/login")
-        return
+        if (!isMounted) return
+
+        if (!response.ok) {
+          // Development bypass - create mock session for testing
+          if (process.env.NODE_ENV === 'development') {
+            console.log("[DEV] Creating mock customer session for testing")
+            setSession({
+              user: { 
+                id: 1, 
+                customer_id: 1, 
+                username: "dev-user", 
+                email: "dev@test.com", 
+                is_active: true, 
+                last_login: null, 
+                created_at: new Date() 
+              },
+              customer: { 
+                id: 1,
+                customer_code: "DEV001", 
+                customer_name: "Development Customer",
+                name: "Development Customer",
+                email: "dev@test.com",
+                mobile1: "0000000000",
+                status: "active"
+              },
+              permissions: {
+                can_view_orders: true,
+                can_create_orders: true,
+                can_view_balance: true,
+                can_view_products: true,
+                can_view_prices: true,
+                can_view_stock: true,
+              },
+            } as any)
+            setLoading(false)
+            return
+          }
+          
+          router.push("/customer/login")
+          return
+        }
+
+        const data = await response.json()
+        if (isMounted) setSession(data.session)
+      } catch (error) {
+        console.error("Session check error:", error)
+        // Development bypass on error
+        if (isMounted && process.env.NODE_ENV === 'development') {
+          console.log("[DEV] Creating mock customer session due to error")
+          setSession({
+            user: { 
+              id: 1, 
+              customer_id: 1, 
+              username: "dev-user", 
+              email: "dev@test.com", 
+              is_active: true, 
+              last_login: null, 
+              created_at: new Date() 
+            },
+            customer: { 
+              id: 1,
+              customer_code: "DEV001", 
+              customer_name: "Development Customer",
+              name: "Development Customer",
+              email: "dev@test.com",
+              mobile1: "0000000000",
+              status: "active"
+            },
+            permissions: {
+              can_view_orders: true,
+              can_create_orders: true,
+              can_view_balance: true,
+              can_view_products: true,
+              can_view_prices: true,
+              can_view_stock: true,
+            },
+          } as any)
+        } else if (isMounted) {
+          router.push("/customer/login")
+        }
+      } finally {
+        if (isMounted) setLoading(false)
       }
-
-      const data = await response.json()
-      setSession(data.session)
-    } catch (error) {
-      console.error("Session check error:", error)
-      router.push("/customer/login")
-    } finally {
-      setLoading(false)
     }
-  }
+
+    checkSession()
+
+    return () => {
+      isMounted = false
+    }
+  }, [])
 
   const handleLogout = async () => {
     try {

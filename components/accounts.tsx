@@ -261,6 +261,7 @@ export default function Accounts() {
       }
 
       setMessage(isEdit ? "تم تعديل الحساب بنجاح" : "تم إنشاء الحساب بنجاح")
+      resetForm()
       setDialogOpen(false)
       await loadData()
     } catch (err) {
@@ -323,7 +324,7 @@ export default function Accounts() {
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogContent className="w-full max-w-2xl max-h-[90vh] overflow-y-auto" dir="rtl">
             <DialogHeader>
-              <DialogTitle>{editingId ? "تعديل حساب" : "إضافة حساب محاسبي جديد"}</DialogTitle>
+              <DialogTitle>اضافة حساب او تعديل حساب</DialogTitle>
             </DialogHeader>
 
             <div className="space-y-6">
@@ -378,7 +379,7 @@ export default function Accounts() {
             </div>
 
             <DialogFooter>
-              <Button variant="outline" onClick={() => setDialogOpen(false)}>
+              <Button variant="outline" onClick={() => setDialogOpen(false)} disabled={saving}>
                 إلغاء
               </Button>
               <Button onClick={handleSave} disabled={saving}>

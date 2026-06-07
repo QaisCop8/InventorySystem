@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import AccountSearchDialog, { AccountItem } from "@/components/customer/account-search-dialog"
 import SearchCostCenterDialog from "@/components/customer/search-cost-center-dialog"
+import SearchAccountClassificationDialog from "@/components/customer/search-account-classification-dialog"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -19,10 +20,12 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog"
+import ConfirmDialogYesNo from "@/components/ui/ConfirmDialogYesNo"
 import { UniversalToolbar } from "@/components/ui/universal-toolbar"
 import { Plus, AlertCircle, Search, X } from "lucide-react"
 import { Dropdown as PrimeDropdown } from "primereact/dropdown"
 import DataGridView from "../common/DataGridView"
+import { toast } from "@/hooks/use-toast"
 
 interface AccountType {
   id: number
@@ -30,6 +33,7 @@ interface AccountType {
 }
 
 interface FormState {
+  id: number
   code: string
   name: string
   name_lang2: string
@@ -93,6 +97,26 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
   const [searchCostCenterOpen, setSearchCostCenterOpen] = useState(false)
   const [selectedCostCenterType, setSelectedCostCenterType] = useState<any | null>(null)
   const [selectedCostCenterTypeIndex, setSelectedCostCenterTypeIndex] = useState<number>(-1)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [deleteConfirmIndex, setDeleteConfirmIndex] = useState<number>(-1)
+
+  // Account Classification States
+  const [classificationTypes, setClassificationTypes] = useState<any[]>([])
+  const [accountClassifications, setAccountClassifications] = useState<any[]>([])
+  const [allClassifications, setAllClassifications] = useState<any[]>([])
+  const [showClassificationTypeForm, setShowClassificationTypeForm] = useState(false)
+  const [newClassificationTypeName, setNewClassificationTypeName] = useState("")
+  const [classificationTypeError, setClassificationTypeError] = useState("")
+  const [classificationTypeMessage, setClassificationTypeMessage] = useState("")
+  const [showClassificationForm, setShowClassificationForm] = useState(false)
+  const [newClassificationTypeId, setNewClassificationTypeId] = useState<string | null>(null)
+  const [newClassificationName, setNewClassificationName] = useState("")
+  const [classificationError, setClassificationError] = useState("")
+  const [searchAccountClassificationOpen, setSearchAccountClassificationOpen] = useState(false)
+  const [selectedClassificationType, setSelectedClassificationType] = useState<any | null>(null)
+  const [selectedClassificationTypeIndex, setSelectedClassificationTypeIndex] = useState<number>(-1)
+  const [showDeleteClassificationConfirm, setShowDeleteClassificationConfirm] = useState(false)
+  const [deleteClassificationConfirmIndex, setDeleteClassificationConfirmIndex] = useState<number>(-1)
 
   // Search Modal States
   const [searchModalOpen, setSearchModalOpen] = useState(false)
@@ -101,8 +125,12 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
 
   // Refs
   const costCenterTypeGridRef = useRef<any>(null)
+  const classificationTypeGridRef = useRef<any>(null)
+  const accountClassificationGridRef = useRef<any>(null)
+  const accountNameInputRef = useRef<HTMLInputElement>(null)
 
   const [formData, setFormData] = useState<FormState>({
+    id: 0,
     code: "",
     name: "",
     name_lang2: "",
@@ -157,6 +185,8 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
       let companiesData: any[] = []
       let costCenterTypesData: any[] = []
       let costCentersData: any[] = []
+      let classificationTypesData: any[] = []
+      let classificationsData: any[] = []
       let balanceSheetAssetsData: any[] = []
       let balanceSheetLiabilitiesData: any[] = []
       let incomeStatementData: any[] = []
@@ -187,6 +217,24 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
           // Sort by ID in ascending order
           if (Array.isArray(costCentersData)) {
             costCentersData.sort((a, b) => (a.id || 0) - (b.id || 0))
+          }
+        }
+      } catch (_) {}
+
+      try {
+        const classTypesRes = await fetch("/api/account-classification-types")
+        if (classTypesRes.ok) {
+          classificationTypesData = await classTypesRes.json()
+        }
+      } catch (_) {}
+
+      try {
+        const classificationsRes = await fetch("/api/account-classifications")
+        if (classificationsRes.ok) {
+          classificationsData = await classificationsRes.json()
+          // Sort by ID in ascending order
+          if (Array.isArray(classificationsData)) {
+            classificationsData.sort((a, b) => (a.id || 0) - (b.id || 0))
           }
         }
       } catch (_) {}
@@ -277,6 +325,9 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
       }
       setCostCenterTypes(mappedCostCenterTypes)
       setCostCenters(Array.isArray(costCentersData) ? costCentersData : [])
+      setClassificationTypes(Array.isArray(classificationTypesData) ? classificationTypesData : [])
+      setAllClassifications(Array.isArray(classificationsData) ? classificationsData : [])
+      setAccountClassifications(Array.isArray(classificationsData) ? classificationsData : [])
       setBalanceSheetAssets(Array.isArray(balanceSheetAssetsData) ? balanceSheetAssetsData : [])
       setBalanceSheetLiabilities(Array.isArray(balanceSheetLiabilitiesData) ? balanceSheetLiabilitiesData : [])
       setIncomeStatementAccounts(Array.isArray(incomeStatementData) ? incomeStatementData : [])
@@ -324,20 +375,35 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
   }, [costCenterTypes])
 
   const handleCostCenterTypeDeleteClick = useCallback((rowIndex: number) => {
-    if (!window.confirm("هل تريد حذف مركز التكلفة؟")) return
-    const updatedList = costCenterTypes.map((type, idx) => {
-      if (idx === rowIndex) {
-        return {
-          ...type,
-          cost_center_id: null,
-          cost_center_name: ""
+    setDeleteConfirmIndex(rowIndex)
+    setShowDeleteConfirm(true)
+  }, [])
+
+  const handleConfirmDelete = useCallback(() => {
+    if (deleteConfirmIndex >= 0 && deleteConfirmIndex < costCenterTypes.length) {
+      const typeToDelete = costCenterTypes[deleteConfirmIndex]
+      const hasCostCenter = typeToDelete?.cost_center_name && typeToDelete.cost_center_name.trim() !== ""
+      
+      const updatedList = costCenterTypes.map((type, idx) => {
+        if (idx === deleteConfirmIndex) {
+          return {
+            ...type,
+            cost_center_id: null,
+            cost_center_name: ""
+          }
         }
+        return type
+      })
+      setCostCenterTypes(updatedList)
+      
+      // Only show success message if there was a cost center to delete
+      if (hasCostCenter) {
+        setCostCenterTypeMessage("تم حذف مركز التكلفة بنجاح")
       }
-      return type
-    })
-    setCostCenterTypes(updatedList)
-    setCostCenterTypeMessage("تم حذف مركز التكلفة بنجاح")
-  }, [costCenterTypes])
+    }
+    setShowDeleteConfirm(false)
+    setDeleteConfirmIndex(-1)
+  }, [deleteConfirmIndex, costCenterTypes])
 
   const handleCostCenterTypeStatusChange = useCallback((rowIndex: number) => {
     const statusValues = ["اختياري", "اجباري", "ممنوع"]
@@ -360,6 +426,13 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
       return updatedList
     })
   }, [costCenterTypes])
+
+  const handleDeleteClassificationType = useCallback((rowIndex: number) => {
+    if (rowIndex >= 0 && rowIndex < classificationTypes.length) {
+      const updatedList = classificationTypes.filter((_, idx) => idx !== rowIndex)
+      setClassificationTypes(updatedList)
+    }
+  }, [classificationTypes])
 
   const costCenterTypeScheme = useMemo(
     () => ({
@@ -426,6 +499,34 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
     [handleCostCenterTypeSearchClick, handleCostCenterTypeDeleteClick, handleCostCenterTypeStatusChange, costCenterTypes],
   )
 
+  const classificationTypeScheme = useMemo(
+    () => ({
+      name: "ClassificationTypeScheme",
+      columns: [
+        { header: "الرقم", name: "id", width: 80, isReadOnly: true },
+        { header: "اسم نوع التصنيف", name: "name", width: "*", minWidth: 250, isReadOnly: true },
+        {
+          name: 'btnDelete',
+          header: ' ',
+          width: 65,
+          buttonBody: 'button',
+          align: 'center',
+          title: 'حذف',
+          iconType: 'delete',
+          className: 'btn-delete',
+          isReadOnly: true,
+          onClick: (e: any, ctx: any) => {
+            e.stopPropagation()
+            handleDeleteClassificationType(ctx.row.index)
+          },
+          visible: true,
+          visibleInColumnChooser: true
+        },
+      ],
+    }),
+    [handleDeleteClassificationType, classificationTypes],
+  )
+
   const focusPrimeDropdownRoot = (e: any) => {
     const target = e?.originalEvent?.target || e?.target
     const dropdownRoot = target?.closest?.(".p-dropdown") as HTMLElement | null
@@ -442,6 +543,7 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
 
   const loadAccountToForm = useCallback((account: AccountItem) => {
     setFormData({
+      id: account.id || 0,
       code: account.code || "",
       name: account.name || "",
       name_lang2: account.name_lang2 || "",
@@ -485,10 +587,58 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
     }
   }, [accounts])
 
-  const handleNew = () => {
+  const handleNew = async () => {
     const defaultCurrencyId = currencies[0] ? String(currencies[0].currency_id ?? currencies[0].id ?? "") : ""
+    
+    // Generate next account code - get max code from ALL accounts (not just type=1)
+    let nextCode = ""
+    try {
+      // Fetch ALL accounts to find the max code
+      const accountsRes = await fetch("/api/accounts")
+      if (accountsRes.ok) {
+        const data = await accountsRes.json()
+        const allAccounts = Array.isArray(data) ? data : []
+        
+        // Fetch system settings for prefix and start number
+        const settingsRes = await fetch("/api/settings/system")
+        let prefix = "A"
+        let accountStart = 1
+        
+        if (settingsRes.ok) {
+          const settingsData = await settingsRes.json()
+          prefix = settingsData.accountPrefix || "A"
+          accountStart = settingsData.accountStart || 1
+        }
+        
+        // Get max code from ALL accounts
+        let maxNumber = accountStart - 1
+        if (allAccounts.length > 0) {
+          allAccounts.forEach((acc: any) => {
+            const code = acc.code || acc.account_code || ""
+            // Extract numeric part from code
+            const match = code.match(/\d+$/)
+            if (match) {
+              const num = parseInt(match[0], 10)
+              if (num > maxNumber) {
+                maxNumber = num
+              }
+            }
+          })
+        }
+        
+        // Generate next code - 8 characters total (prefix + 7 digits)
+        const nextNumber = (maxNumber + 1).toString().padStart(7, "0")
+        nextCode = prefix + nextNumber
+      }
+    } catch (err) {
+      console.error("Error fetching next account code:", err)
+      // Fallback to default (8 characters total)
+      nextCode = "A0000001"
+    }
+    
     setFormData({
-      code: "",
+      id: 0,
+      code: nextCode,
       name: "",
       name_lang2: "",
       type: types[0] ? String(types[0].id) : "",
@@ -518,6 +668,11 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
     setFinancialListType("1")
     setDialogOpen(true)
     setActiveTab("main")
+    
+    // Focus on Arabic name input after dialog opens
+    setTimeout(() => {
+      accountNameInputRef.current?.focus()
+    }, 100)
   }
 
   const handleOpenSearchModal = (target: "father" | "code") => {
@@ -540,6 +695,104 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
       loadAccountToForm(account)
     }
     setSearchModalOpen(false)
+  }
+
+  // Adjust account code to 8 characters (pad with zeros)
+  const adjustCode = (code: string, codeLen: number = 8): string => {
+    if (!code || !code.trim()) return ''
+
+    code = code.trim().toUpperCase()
+
+    // Separate prefix (letters) and numeric part
+    const match = code.match(/^([A-Z]*)(\d*)$/)
+    if (!match) return code // invalid pattern (contains symbols)
+
+    let [, prefix, numPart] = match
+    const padLen = Math.max(codeLen - prefix.length, 0)
+    const paddedNum = numPart.padStart(padLen, '0')
+
+    return `${prefix}${paddedNum}`
+  }
+
+  // Reset fields but keep the code (similar to handleNew but preserves code)
+  const resetFieldsWithCode = (codeToKeep: string) => {
+    const defaultCurrencyId = currencies[0] ? String(currencies[0].currency_id ?? currencies[0].id ?? "") : ""
+    
+    setFormData({
+      id: 0,
+      code: codeToKeep,
+      name: "",
+      name_lang2: "",
+      type: types[0] ? String(types[0].id) : "",
+      father_id: "",
+      level_no: "1",
+      finanical_list_id: "1",
+      finanical_list_assests_id: "",
+      finanical_list_liabilities_id: "",
+      finanical_list_income_id: "",
+      currency_id: defaultCurrencyId,
+      allow_trans_with_diff_curr: "0",
+      iscalc_curr_diff_rates: false,
+      transaction_type: "0",
+      transaction_type_action: "0",
+      max_transaction_amount: "0",
+      max_transaction_amount_action: "0",
+      max_balance_amount: "0",
+      max_balance_action: "",
+      budget_exceeding_perc: "",
+      budget_exceeding_action: "",
+      unified_report_account_no: "",
+      unified_report_group_code: "",
+      notes: "",
+      show_notes_in_transactions_soa: false,
+      status: "نشط",
+    })
+    setFinancialListType("1")
+    setImagePreview(null)
+    setImageFile(null)
+    setFatherAccountName("")
+  }
+
+  // Search for account by code
+  const searchAccountByCode = async (code: string) => {
+    if (!code || code.length === 0) return
+
+    try {
+      setError("")
+      
+      const response = await fetch(`/api/accounts/search?code=${encodeURIComponent(code)}`)
+      if (response.ok) {
+        const account = await response.json()
+        if (account && account.id) {
+          // Account found - load it
+          setCurrentIndex(accounts.findIndex((a) => a.id === account.id))
+          loadAccountToForm(account)
+        }
+      } else if (response.status === 404) {
+        // Account not found - reset fields but keep code
+        resetFieldsWithCode(code)
+      } else if (response.status === 403) {
+        setError('الحساب محذوف لا يمكن عرض بياناته')
+        resetFieldsWithCode(code)
+      }
+    } catch (error) {
+      console.error("Error searching for account:", error)
+      setError("حدث خطأ أثناء البحث عن الحساب")
+    }
+  }
+
+  // Handle account code input change - validate and clean
+  const handleAccountCodeChange = (value: string) => {
+    // Allow only A-Za-z0-9, max 8 characters
+    const cleanValue = value.replace(/[^A-Za-z0-9]/g, "").slice(0, 8)
+    setFormData({ ...formData, code: cleanValue.toUpperCase() })
+  }
+
+  // Handle account code blur - adjust and search
+  const handleAccountCodeBlur = () => {
+    const adjustedCode = adjustCode(formData.code)
+    setFormData({ ...formData, code: adjustedCode })
+    searchAccountByCode(adjustedCode)
   }
 
   useEffect(() => {
@@ -589,8 +842,31 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
     setError("")
     setMessage("")
 
-    if (!formData.code.trim() || !formData.name.trim()) {
-      setError("Code and Name are required")
+    // Get and clean the form data
+    const trimmedCode = formData.code.trim().toUpperCase()
+    const trimmedName = formData.name.trim()
+    
+    // Validate that both fields are filled
+    if (!trimmedCode) {
+      setError("يجب ملء رقم الحساب")
+      return
+    }
+    
+    if (!trimmedName) {
+      setError("يجب ملء اسم الحساب")
+      return
+    }
+
+    // Adjust code if not already adjusted (ensure it's 8 characters)
+    let finalCode = trimmedCode
+    if (finalCode.length !== 8) {
+      finalCode = adjustCode(finalCode)
+    }
+
+    // Validate account code length - must have 7 digit part (total 8 characters)
+    const codeNumericPart = finalCode.match(/\d+$/)
+    if (!codeNumericPart || codeNumericPart[0].length !== 7) {
+      setError("طول رقم الحساب غير صحيح - يجب أن يكون الكود 8 أحرف (حرف واحد + 7 أرقام)")
       return
     }
 
@@ -603,7 +879,8 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
       const imageBase64 = imagePreview && imagePreview.startsWith("data:") ? imagePreview.split(",")[1] : null
 
       const payload = {
-        code: formData.code.trim(),
+        id: formData.id || 0,
+        code: finalCode,
         name: formData.name.trim(),
         name_lang2: formData.name_lang2.trim() || null,
         type: formData.type ? Number(formData.type) : null,
@@ -631,7 +908,7 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
         status: formData.status,
         image_base64: imageBase64,
       }
-
+      console.log("Saving account with payload:", payload)
       const response = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
@@ -640,16 +917,35 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
 
       if (!response.ok) {
         const data = await response.json()
-        setError(data.error || "Failed to save account")
+        setError(data.error || "فشل حفظ الحساب")
         return
       }
 
-      setMessage(isEdit ? "Account updated successfully" : "Account created successfully")
-      setDialogOpen(false)
-      await loadData()
+      const savedAccount = await response.json()
+      const savedCode = savedAccount?.code || savedAccount?.account_code || finalCode
+      const codeWasChanged = savedCode !== finalCode
+      
+      let messageText = isEdit ? "الحساب تم تحديثه بنجاح" : "الحساب تم إنشاؤه بنجاح"
+      if (codeWasChanged && !isEdit) {
+        messageText += ` (رقم الحساب: ${savedCode})`
+      }
+      
+      // Show toast notification
+      toast({
+        title: "نجاح",
+        description: messageText,
+      })
+      
+      // If new account, reset form for next entry, otherwise close dialog
+      if (!isEdit) {
+        await handleNew()
+      } else {
+        setDialogOpen(false)
+        await loadData()
+      }
     } catch (err) {
       console.error(err)
-      setError("Error saving account")
+      setError("خطأ في حفظ الحساب")
     } finally {
       setSaving(false)
     }
@@ -662,15 +958,15 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
     try {
       const response = await fetch(`/api/accounts/${currentAccount.id}`, { method: "DELETE" })
       if (!response.ok) {
-        setError("Failed to delete account")
+        setError("فشل حذف الحساب")
         return
       }
-      setMessage("Account deleted successfully")
+      setMessage("الحساب تم حذفه بنجاح")
       setDialogOpen(false)
       await loadData()
     } catch (err) {
       console.error(err)
-      setError("Error deleting account")
+      setError("خطأ في حذف الحساب")
     }
   }
 
@@ -749,9 +1045,7 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
     try {
       const payload = {
         name: newCostCenterTypeName.trim(),
-        status: "نشط",
-        state_status: "اختياري",
-        status_id: 1,
+        status: 1,
       }
 
       const response = await fetch("/api/cost-center-types", {
@@ -766,10 +1060,45 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
         return
       }
 
-      setCostCenterTypeMessage("Cost center type created successfully")
       setShowCostCenterTypeForm(false)
       setNewCostCenterTypeName("")
-      await loadData()
+      
+      // Reload only cost center types grid
+      try {
+        const typesRes = await fetch("/api/cost-center-types")
+        if (typesRes.ok) {
+          const typesData = await typesRes.json()
+          const mappedTypes = Array.isArray(typesData)
+            ? typesData.map((type: any) => {
+                const statusMap: { [key: string]: number } = {
+                  'اختياري': 1,
+                  'اجباري': 2,
+                  'ممنوع': 3
+                }
+                const state_status = type.state_status || 'اختياري'
+                const status_id = statusMap[state_status] || 1
+                
+                // Preserve existing cost center selection from previous state
+                const existingType = costCenterTypes.find((t: any) => t.id === type.id)
+                
+                return {
+                  id: type.id,
+                  name: type.name,
+                  status: type.status,
+                  state_status,
+                  status_id,
+                  cost_center_id: existingType?.cost_center_id || null,
+                  cost_center_name: existingType?.cost_center_name || "",
+                  created_at: type.created_at,
+                  updated_at: type.updated_at,
+                }
+              }).sort((a, b) => a.id - b.id)
+            : []
+          setCostCenterTypes(mappedTypes)
+        }
+      } catch (_) {
+        console.error("Error reloading cost center types")
+      }
     } catch (err) {
       console.error(err)
       setCostCenterTypeError("Error saving cost center type")
@@ -823,6 +1152,157 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
     }
   }
 
+  // Account Classification Handlers
+  const handleAddClassificationType = () => {
+    setNewClassificationTypeName("")
+    setShowClassificationTypeForm(true)
+    setClassificationTypeError("")
+    setClassificationTypeMessage("")
+  }
+
+  const handleSaveClassificationType = async () => {
+    if (!newClassificationTypeName.trim()) {
+      setClassificationTypeError("اسم النوع مطلوب")
+      return
+    }
+
+    try {
+      const payload = {
+        name: newClassificationTypeName.trim(),
+        status: 1,
+      }
+
+      const response = await fetch("/api/account-classification-types", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        setClassificationTypeError(data.error || "Failed to save classification type")
+        return
+      }
+
+      setShowClassificationTypeForm(false)
+      setNewClassificationTypeName("")
+      
+      // Reload classification types grid
+      try {
+        const typesRes = await fetch("/api/account-classification-types")
+        if (typesRes.ok) {
+          const typesData = await typesRes.json()
+          const mappedTypes = Array.isArray(typesData)
+            ? typesData.map((type: any) => {
+                const existingType = classificationTypes.find((t: any) => t.id === type.id)
+                return {
+                  id: type.id,
+                  name: type.name,
+                  status: type.status,
+                  classification_id: existingType?.classification_id || null,
+                  classification_name: existingType?.classification_name || "",
+                  created_at: type.created_at,
+                  updated_at: type.updated_at,
+                }
+              }).sort((a, b) => a.id - b.id)
+            : []
+          setClassificationTypes(mappedTypes)
+        }
+      } catch (_) {
+        console.error("Error reloading classification types")
+      }
+    } catch (err) {
+      console.error(err)
+      setClassificationTypeError("Error saving classification type")
+    }
+  }
+
+  const handleAddClassificationRow = () => {
+    setNewClassificationTypeId(null)
+    setNewClassificationName("")
+    setClassificationError("")
+    setShowClassificationForm(true)
+  }
+
+  const handleSaveClassification = () => {
+    if (!newClassificationTypeId) {
+      setClassificationError("يجب اختيار نوع التصنيف")
+      return
+    }
+    if (!newClassificationName.trim()) {
+      setClassificationError("اسم التصنيف مطلوب")
+      return
+    }
+
+    const selectedType = classificationTypes.find((t: any) => t.id === Number(newClassificationTypeId))
+    if (!selectedType) {
+      setClassificationError("نوع التصنيف غير صحيح")
+      return
+    }
+
+    const newRow = {
+      classification_type_id: selectedType.id,
+      classification_type_name: selectedType.name,
+      classification_id: null,
+      classification_name: newClassificationName.trim(),
+    }
+    setAccountClassifications([...accountClassifications, newRow])
+    setShowClassificationForm(false)
+    setNewClassificationTypeId(null)
+    setNewClassificationName("")
+    setClassificationError("")
+  }
+
+  const handleSelectClassificationType = (index: number) => {
+    if (index >= 0 && index < classificationTypes.length) {
+      const selectedItem = classificationTypes[index]
+      setSelectedClassificationTypeIndex(index)
+      setSelectedClassificationType(selectedItem)
+    }
+  }
+
+  const handleSelectAccountClassification = (classification: any) => {
+    if (selectedClassificationTypeIndex >= 0 && selectedClassificationTypeIndex < classificationTypes.length) {
+      const updatedList = classificationTypes.map((item, idx) => {
+        if (idx === selectedClassificationTypeIndex) {
+          return {
+            ...item,
+            classification_id: classification.id,
+            classification_name: classification.name,
+          }
+        }
+        return item
+      })
+      setClassificationTypes(updatedList)
+      setSelectedClassificationTypeIndex(-1)
+      setSelectedClassificationType(null)
+      setSearchAccountClassificationOpen(false)
+    }
+  }
+
+  const handleDeleteAccountClassification = (index: number) => {
+    setDeleteClassificationConfirmIndex(index)
+    setShowDeleteClassificationConfirm(true)
+  }
+
+  const handleConfirmDeleteClassification = useCallback(() => {
+    if (deleteClassificationConfirmIndex >= 0 && deleteClassificationConfirmIndex < classificationTypes.length) {
+      const updatedList = classificationTypes.map((item, idx) => {
+        if (idx === deleteClassificationConfirmIndex) {
+          return {
+            ...item,
+            classification_id: null,
+            classification_name: ""
+          }
+        }
+        return item
+      })
+      setClassificationTypes(updatedList)
+    }
+    setShowDeleteClassificationConfirm(false)
+    setDeleteClassificationConfirmIndex(-1)
+  }, [deleteClassificationConfirmIndex, classificationTypes])
+
   if (loading) {
     return <div className="p-6 text-center">Loading...</div>
   }
@@ -831,9 +1311,9 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
     return (
       <div className="w-full h-full p-0 gap-0 flex flex-col overflow-hidden" dir="rtl">
         <div className="flex items-center justify-between border-b bg-gradient-to-r from-blue-50 to-slate-50 px-6 py-4">
-          <h2 className="text-xl font-semibold">{currentAccount?.id ? `Edit Account: ${currentAccount.code}` : "New Account"}</h2>
+          <h2 className="text-xl font-semibold">اضافة حساب او تعديل حساب</h2>
           <Button variant="ghost" onClick={() => closeWindow && closeWindow()}>
-            âœ•
+            ✕
           </Button>
         </div>
 
@@ -870,13 +1350,16 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
           <div className="space-y-4 border-b pb-4">
             <div className="grid gap-4 md:grid-cols-2 items-end">
               <div>
-                <Label className="mb-2 block text-sm font-medium">رقم الحساب *</Label>
+                <Label className="mb-2 block text-sm font-medium">رقم الحساب * (إنجليزي وأرقام فقط، حد أقصى 8 أحرف)</Label>
                 <div className="flex gap-2 items-center">
                   <Input
                     value={formData.code}
-                    onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-                    placeholder="رقم الحساب"
-                    className="text-right flex-1"
+                    onChange={(e) => handleAccountCodeChange(e.target.value)}
+                    onBlur={handleAccountCodeBlur}
+                    placeholder=""
+                    className="text-right flex-1 font-mono"
+                    maxLength={8}
+                    title="أدخل رقم الحساب بالحروف الإنجليزية والأرقام فقط"
                   />
                   <Button 
                     variant="default" 
@@ -902,6 +1385,7 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
               <div>
                 <Label className="mb-2 block text-sm font-medium">اسم الحساب (AR) *</Label>
                 <Input
+                  ref={accountNameInputRef}
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   placeholder="اسم الحساب"
@@ -921,15 +1405,15 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
           </div>
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-            <TabsList dir="rtl" className="h-auto w-full justify-start overflow-x-auto rounded-md bg-slate-100 p-1">
-              <TabsTrigger value="main">الرئيسية</TabsTrigger>
-              <TabsTrigger value="additional-data">بيانات إضافية</TabsTrigger>
-              <TabsTrigger value="cost-centers">مراكز الكلفة</TabsTrigger>
-              <TabsTrigger value="classification">تصنيفات الحساب</TabsTrigger>
-              <TabsTrigger value="stop-transactions">إيقاف الحركات على الحساب</TabsTrigger>
-              <TabsTrigger value="constraints">محددات الحساب</TabsTrigger>
-              <TabsTrigger value="flags">إعدادات الحركة</TabsTrigger>
-              <TabsTrigger value="extra">بيانات إضافية أخرى</TabsTrigger>
+            <TabsList dir="rtl" className="h-auto w-full justify-start overflow-x-auto rounded-xl bg-gradient-to-r from-slate-50 via-blue-50 to-slate-50 p-2 shadow-md border border-slate-200/60 backdrop-blur-sm">
+              <TabsTrigger value="main" className="rounded-lg px-4 py-2 font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">الرئيسية</TabsTrigger>
+              <TabsTrigger value="additional-data" className="rounded-lg px-4 py-2 font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-purple-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">بيانات إضافية</TabsTrigger>
+              <TabsTrigger value="cost-centers" className="rounded-lg px-4 py-2 font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-emerald-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">مراكز التكلفة</TabsTrigger>
+              <TabsTrigger value="classification" className="rounded-lg px-4 py-2 font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-orange-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">تصنيفات الحساب</TabsTrigger>
+              <TabsTrigger value="stop-transactions" className="rounded-lg px-4 py-2 font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-red-500 data-[state=active]:to-red-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">إيقاف الحركات</TabsTrigger>
+              <TabsTrigger value="constraints" className="rounded-lg px-4 py-2 font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-cyan-500 data-[state=active]:to-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">محددات الحساب</TabsTrigger>
+              <TabsTrigger value="flags" className="rounded-lg px-4 py-2 font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-indigo-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">إعدادات الحركة</TabsTrigger>
+              <TabsTrigger value="extra" className="rounded-lg px-4 py-2 font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-pink-500 data-[state=active]:to-pink-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">بيانات إضافية أخرى</TabsTrigger>
             </TabsList>
 
             <TabsContent value="main" className="space-y-6">
@@ -1226,8 +1710,7 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
                 {/* Header Section */}
                 <div className="flex items-center justify-between gap-4 bg-gradient-to-r from-blue-50 to-slate-50 p-4 rounded-md border border-slate-200">
                   <div className="flex-1">
-                    <h4 className="font-semibold text-base">مراكز الكلفة</h4>
-                    <p className="text-sm text-slate-500">أنواع مراكز الكلفة المتاحة من قاعدة البيانات.</p>
+                    <h4 className="font-semibold text-base">مراكز التكلفة</h4>
                   </div>
                   <Button 
                     variant="default" 
@@ -1256,7 +1739,7 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
                 {/* Data Grid */}
                 <div className="rounded-md border border-slate-300 overflow-hidden" dir="rtl">
                   {costCenterTypes && costCenterTypes.length > 0 ? (
-                    <div className="h-[250px] min-h-[200px] overflow-y-auto [&::-webkit-scrollbar]:w-0 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-transparent scrollbar-hide">
+                    <div className="h-[500px] min-h-[300px] overflow-y-auto [&::-webkit-scrollbar]:w-0 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-transparent scrollbar-hide">
                       <DataGridView 
                         scheme={costCenterTypeScheme} 
                         dataSource={costCenterTypes} 
@@ -1264,12 +1747,120 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
                       />
                     </div>
                   ) : (
-                    <div className="h-[250px] flex items-center justify-center bg-slate-50">
+                    <div className="h-[500px] flex items-center justify-center bg-slate-50">
                       <p className="text-slate-500 text-sm">لا توجد بيانات - قم بإضافة نوع مركز تكلفة جديد</p>
                     </div>
                   )}
                 </div>
 
+              </div>
+            </TabsContent>
+
+            <TabsContent value="classification" className="space-y-4" dir="rtl">
+              <div className="space-y-4">
+                {/* Unified Classification Section */}
+                
+                {/* Header with Two Action Buttons */}
+                <div className="flex items-center justify-end gap-3 bg-gradient-to-r from-orange-50 via-blue-50 to-slate-50 p-4 rounded-md border border-slate-200">
+                  <Button 
+                    variant="default" 
+                    size="sm"
+                    onClick={handleAddClassificationRow}
+                    className="flex items-center gap-2 whitespace-nowrap bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white transition-all duration-200 shadow-md hover:shadow-lg"
+                  >
+                    <Plus className="w-4 h-4" />
+                    اضافة تصنيف جديد
+                  </Button>
+                  
+                  <Button 
+                    variant="default" 
+                    size="sm"
+                    onClick={handleAddClassificationType}
+                    className="flex items-center gap-2 whitespace-nowrap bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white transition-all duration-200 shadow-md hover:shadow-lg"
+                  >
+                    <Plus className="w-4 h-4" />
+                    اضافة نوع جديد
+                  </Button>
+                </div>
+
+                {/* Alert Messages */}
+                {classificationTypeError && (
+                  <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>{classificationTypeError}</AlertDescription>
+                  </Alert>
+                )}
+                {classificationTypeMessage && (
+                  <Alert className="bg-green-50 border-green-200">
+                    <AlertDescription className="text-green-800">{classificationTypeMessage}</AlertDescription>
+                  </Alert>
+                )}
+
+                {/* Unified Classifications Grid */}
+                <div className="rounded-md border border-slate-300 overflow-hidden" dir="rtl">
+                  {classificationTypes && classificationTypes.length > 0 ? (
+                    <div className="h-[600px] min-h-[300px] overflow-y-auto [&::-webkit-scrollbar]:w-0 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-transparent scrollbar-hide">
+                      <DataGridView 
+                        scheme={{
+                          name: "AccountClassificationScheme",
+                          columns: [
+                            { header: "##", name: "__index__", width: 50, isReadOnly: true, visible: true },
+                            { header: "معرف نوع التصنيف", name: "id", width: 120, isReadOnly: true, visible: false },
+                            { header: "نوع التصنيف", name: "name", width: 200, isReadOnly: true, visible: true },
+                            { header: "معرف التصنيف", name: "classification_id", width: 120, isReadOnly: true, visible: false },
+                            { header: "التصنيف", name: "classification_name", width: "*", minWidth: 200, isReadOnly: true, visible: true },
+                            {
+                              name: 'btnSearchClassification',
+                              header: ' ',
+                              width: 65,
+                              buttonBody: 'button',
+                              align: 'center',
+                              title: 'بحث',
+                              iconType: 'search',
+                              className: 'btn-search',
+                              isReadOnly: true,
+                              onClick: (e: any, ctx: any) => {
+                                e.stopPropagation()
+                                handleSelectClassificationType(ctx.row.index)
+                                setSearchAccountClassificationOpen(true)
+                              },
+                              visible: true,
+                              visibleInColumnChooser: true
+                            },
+                            {
+                              name: 'btnDelete',
+                              header: ' ',
+                              width: 65,
+                              buttonBody: 'button',
+                              align: 'center',
+                              title: 'حذف',
+                              iconType: 'delete',
+                              className: 'btn-delete',
+                              isReadOnly: true,
+                              onClick: (e: any, ctx: any) => {
+                                e.stopPropagation()
+                                handleDeleteAccountClassification(ctx.row.index)
+                              },
+                              visible: true,
+                              visibleInColumnChooser: true
+                            },
+                          ],
+                        }}
+                        dataSource={classificationTypes
+                          .sort((a: any, b: any) => (a.id || 0) - (b.id || 0))
+                          .map((item: any, index: number) => ({
+                            ...item,
+                            __index__: index + 1
+                          }))}
+                        innerRef={accountClassificationGridRef}
+                      />
+                    </div>
+                  ) : (
+                    <div className="h-[600px] flex items-center justify-center bg-slate-50">
+                      <p className="text-slate-500 text-sm">لا توجد أنواع تصنيفات - قم بإضافة نوع جديد</p>
+                    </div>
+                  )}
+                </div>
               </div>
             </TabsContent>
           </Tabs>
@@ -1289,6 +1880,163 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
           costCenters={costCenters}
           onSelect={handleSelectCostCenter}
         />
+
+        <SearchAccountClassificationDialog
+          open={searchAccountClassificationOpen}
+          onOpenChange={setSearchAccountClassificationOpen}
+          type={selectedClassificationType?.id ? { 
+            id: selectedClassificationType.id, 
+            name: selectedClassificationType.name || "" 
+          } : undefined}
+          classifications={allClassifications}
+          onSelect={handleSelectAccountClassification}
+        />
+
+        <ConfirmDialogYesNo
+          visible={showDeleteConfirm}
+          message="هل تريد حذف مركز التكلفة؟"
+          onConfirm={handleConfirmDelete}
+          onCancel={() => {
+            setShowDeleteConfirm(false)
+            setDeleteConfirmIndex(-1)
+          }}
+          isCompact={true}
+        />
+
+        <ConfirmDialogYesNo
+          visible={showDeleteClassificationConfirm}
+          message="هل تريد حذف التصنيف؟"
+          onConfirm={handleConfirmDeleteClassification}
+          onCancel={() => {
+            setShowDeleteClassificationConfirm(false)
+            setDeleteClassificationConfirmIndex(-1)
+          }}
+          isCompact={true}
+        />
+
+        <Dialog open={showClassificationTypeForm} onOpenChange={setShowClassificationTypeForm}>
+          <DialogContent className="max-w-md" dir="rtl">
+            <DialogHeader>
+              <DialogTitle>إضافة نوع تصنيف جديد</DialogTitle>
+              <DialogDescription>
+                أدخل اسم نوع التصنيف الجديد
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              {classificationTypeError && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{classificationTypeError}</AlertDescription>
+                </Alert>
+              )}
+              <div>
+                <Label htmlFor="classificationTypeName" className="mb-2 block text-sm font-medium">
+                  اسم النوع *
+                </Label>
+                <Input
+                  id="classificationTypeName"
+                  value={newClassificationTypeName}
+                  onChange={(e) => setNewClassificationTypeName(e.target.value)}
+                  placeholder="أدخل اسم النوع"
+                  className="text-right"
+                  autoFocus
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setShowClassificationTypeForm(false)
+                  setNewClassificationTypeName("")
+                  setClassificationTypeError("")
+                }}
+              >
+                إلغاء
+              </Button>
+              <Button 
+                onClick={handleSaveClassificationType}
+              >
+                حفظ
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={showClassificationForm} onOpenChange={setShowClassificationForm}>
+          <DialogContent className="max-w-md" dir="rtl">
+            <DialogHeader>
+              <DialogTitle>إضافة تصنيف جديد</DialogTitle>
+              <DialogDescription>
+                حدد نوع التصنيف واسم التصنيف
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              {classificationError && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{classificationError}</AlertDescription>
+                </Alert>
+              )}
+              <div>
+                <Label htmlFor="classificationTypeSelect" className="mb-2 block text-sm font-medium">
+                  نوع التصنيف *
+                </Label>
+                <PrimeDropdown
+                  inputId="classificationTypeSelect"
+                  value={newClassificationTypeId}
+                  options={classificationTypes.map((type: any) => ({
+                    label: type.name,
+                    value: String(type.id),
+                  }))}
+                  optionLabel="label"
+                  optionValue="value"
+                  placeholder="اختر نوع التصنيف"
+                  filter={true}
+                  filterInputAutoFocus={true}
+                  className="invoice-currency-dropdown w-full"
+                  panelClassName="invoice-currency-dropdown-panel"
+                  appendTo="self"
+                  onChange={(e: any) => {
+                    setNewClassificationTypeId(e.value)
+                    focusPrimeDropdownRoot(e)
+                  }}
+                  onHide={() => refocusDropdownInput("classificationTypeSelect")}
+                />
+              </div>
+              <div>
+                <Label htmlFor="classificationNameInput" className="mb-2 block text-sm font-medium">
+                  اسم التصنيف *
+                </Label>
+                <Input
+                  id="classificationNameInput"
+                  value={newClassificationName}
+                  onChange={(e) => setNewClassificationName(e.target.value)}
+                  placeholder="أدخل اسم التصنيف"
+                  className="text-right"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setShowClassificationForm(false)
+                  setNewClassificationTypeId(null)
+                  setNewClassificationName("")
+                  setClassificationError("")
+                }}
+              >
+                إلغاء
+              </Button>
+              <Button 
+                onClick={handleSaveClassification}
+              >
+                حفظ
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         <Dialog open={showCostCenterTypeForm} onOpenChange={setShowCostCenterTypeForm}>
           <DialogContent className="max-w-md" dir="rtl">

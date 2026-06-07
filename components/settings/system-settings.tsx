@@ -48,6 +48,7 @@ export function SystemSettings() {
     customerPrefix: "C",
     supplierPrefix: "S",
     itemGroupPrefix: "G",
+    accountPrefix: "A",
     autoNumbering: true,
 
     invoiceStart: 1,
@@ -57,6 +58,7 @@ export function SystemSettings() {
     supplierStart: 1,
     itemGroupStart: 1,
     itemStart: 1,
+    accountStart: 1,
 
     // Print Settings
     defaultPrinter: "HP LaserJet",
@@ -327,6 +329,7 @@ export function SystemSettings() {
         customerPrefix: "C",
         supplierPrefix: "S",
         itemGroupPrefix: "G",
+        accountPrefix: "A",
         autoNumbering: true,
         invoiceStart: 1,
         orderStart: 1,
@@ -335,6 +338,7 @@ export function SystemSettings() {
         supplierStart: 1,
         itemGroupStart: 1,
         itemStart: 1,
+        accountStart: 1,
         defaultPrinter: "HP LaserJet",
         paperSize: "A4",
         printLogo: true,
@@ -848,6 +852,44 @@ export function SystemSettings() {
                 <h3 className="text-lg font-semibold mb-4 text-right">إعدادات التعريفات (اختيارية)</h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
+                    <Label htmlFor="accountPrefix" className="text-right block">
+                      بادئة الحسابات المحاسبية
+                    </Label>
+                    <Input
+                      id="accountPrefix"
+                      value={settings.accountPrefix}
+                      onChange={(e) => setSettings({ ...settings, accountPrefix: e.target.value })}
+                      className="text-right"
+                      dir="rtl"
+                      placeholder="A"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="accountStart" className="text-right block">
+                      بداية ترقيم الحسابات المحاسبية
+                    </Label>
+                    <Input
+                      id="accountStart"
+                      type="number"
+                      min="1"
+                      value={settings.accountStart}
+                      onChange={(e) => {
+                        const value = e.target.value === "" ? 1 : Number.parseInt(e.target.value)
+                        setSettings({ ...settings, accountStart: value })
+                      }}
+                      className="text-right"
+                      dir="rtl"
+                      placeholder="1"
+                    />
+                  </div>
+                  <div className="flex items-end">
+                    <div className="text-sm text-muted-foreground">
+                      مثال: {settings.accountPrefix}
+                      {String(settings.accountStart).padStart(4, "0")}
+                    </div>
+                  </div>
+
+                  <div>
                     <Label htmlFor="customerPrefix" className="text-right block">
                       بادئة الزبائن
                     </Label>
@@ -979,22 +1021,6 @@ export function SystemSettings() {
                       placeholder="1"
                     />
                   </div>
-                </div>
-              </div>
-
-              <div className="border-t pt-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label htmlFor="autoNumbering" className="text-right block font-semibold">
-                      الترقيم التلقائي
-                    </Label>
-                    <p className="text-sm text-muted-foreground mt-1">تفعيل الترقيم التلقائي للسندات والتعريفات</p>
-                  </div>
-                  <Switch
-                    id="autoNumbering"
-                    checked={settings.autoNumbering}
-                    onCheckedChange={(checked) => setSettings({ ...settings, autoNumbering: checked })}
-                  />
                 </div>
               </div>
             </CardContent>
