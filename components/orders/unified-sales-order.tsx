@@ -881,6 +881,27 @@ function UnifiedSalesOrder({
     const grid = gridRef.current?.flex;
     if (!grid) return;
 
+    const resolveProductStore = (product: any) => {
+      const defaultStoreId = Number(product.default_store ?? product.store_id ?? 0) || 0;
+      const defaultStoreName =
+        product.default_store_name ||
+        product.store_name ||
+        definitionsRef.current?.warehouses?.find((warehouse: any) => warehouse.id === defaultStoreId)?.warehouse_name ||
+        "";
+
+      if (defaultStoreId > 0) {
+        return {
+          store_id: defaultStoreId,
+          store_name: defaultStoreName || definitionsRef.current?.warehouses?.[0]?.warehouse_name || "",
+        };
+      }
+
+      return {
+        store_id: definitionsRef.current?.warehouses?.[0]?.id ?? 0,
+        store_name: definitionsRef.current?.warehouses?.[0]?.warehouse_name ?? "",
+      };
+    };
+
     let selectedIndexL = grid?.selection?.row;
     const lastRowIndex = CollectionView.items.length - 1;
     if (setFromExcelRef.current) {
@@ -897,6 +918,7 @@ function UnifiedSalesOrder({
       const units: Unit[] = await response.json();
 
       // Validate price
+      const resolvedStore = resolveProductStore(ii);
 
       if (!item) {
         // Add new item
@@ -913,8 +935,8 @@ function UnifiedSalesOrder({
           })(),
           unit_id: ii.unit_id,
           unit_name: ii.first_unit || ii.unit_name || ii.main_unit,
-          store_id: ii.store_id ?? definitionsRef.current?.warehouses?.[0]?.id,
-          store_name: ii.store_name || definitionsRef.current?.warehouses?.[0]?.warehouse_name,
+          store_id: resolvedStore.store_id,
+          store_name: resolvedStore.store_name,
           to_main_unit_qty: ii.to_main_unit_qty ?? 1,
           units: units,
           has_batch_number: ii.has_batch_number,
@@ -952,8 +974,8 @@ function UnifiedSalesOrder({
         })();
         item.qnty = setFromExcelRef.current ? ii.qnty : '';
         item.bonus = setFromExcelRef.current ? ii.bonus : '';
-        item.store_id = ii.store_id ?? definitionsRef.current?.warehouses?.[0]?.id;
-        item.store_name = ii.store_name ?? definitionsRef.current?.warehouses?.[0]?.warehouse_name;
+        item.store_id = resolvedStore.store_id;
+        item.store_name = resolvedStore.store_name;
         item.barcode = ii.barcode || ii.first_barcode;
         item.to_main_unit_qty = ii.to_main_unit_qty ?? 1;
         item.units = units;

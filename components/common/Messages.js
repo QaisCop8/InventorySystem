@@ -7,9 +7,10 @@ import { Toast as PrimeToast } from 'primereact/toast';
 
 export default class Messages extends React.Component {
   render() {
+    const { innerRef, isSaving, ...passThroughProps } = this.props;
     return (
-      <PrimeMessages id="messages-feldArea" ref={this.props.innerRef} className={styles.messageBar} {...this.props} transitionOptions={null} />
-      //<PrimeGrowl ref={this.props.innerRef} className={styles.messageBar} {...this.props} position="top-left"/>
+      <PrimeMessages id="messages-feldArea" ref={innerRef} className={styles.messageBar} {...passThroughProps} transitionOptions={null} />
+      //<PrimeGrowl ref={innerRef} className={styles.messageBar} {...passThroughProps} position="top-left"/>
     );
   }
 }

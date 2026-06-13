@@ -1,59 +1,106 @@
 .messageBar {
+  margin: 0.5rem 0 0.75rem;
   transition: none !important;
+
+  :global(.p-messages) {
+    display: block;
+  }
 
   /* =========================
      Global PrimeReact overrides
      ========================= */
   :global(.p-message) {
-    border-radius: 3px !important;
-    color: white !important;
+    position: relative;
+    overflow: hidden;
+    border: 0 !important;
+    border-radius: 14px !important;
+    color: #fff !important;
+    box-shadow: 0 14px 34px rgba(15, 23, 42, 0.16) !important;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
   }
 
   :global(.p-message .p-message-wrapper) {
-    padding: 0.4rem 1.5rem !important;
+    padding: 0.85rem 1rem 0.85rem 3rem !important;
+    gap: 0.75rem;
+    align-items: center;
   }
 
   /* ====== Colors by severity ====== */
   :global(.p-message.p-message-error) {
-    background-color: #f44336 !important; /* red */
+    background: linear-gradient(135deg, #fca5a5 0%, #ef4444 100%) !important;
   }
 
   :global(.p-message.p-message-success) {
-    background-color: #4caf50 !important; /* green */
+    background: linear-gradient(135deg, #22c55e 0%, #15803d 100%) !important;
   }
 
   :global(.p-message.p-message-info) {
-    background-color: #2196f3 !important; /* blue */
+    background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%) !important;
   }
 
   :global(.p-message.p-message-warn) {
-    background-color: #ff9800 !important; /* orange */
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%) !important;
   }
 
   :global(.p-message-detail) {
-    font-size: 22px !important;
+    font-size: 18px !important;
+    font-weight: 700;
+    line-height: 1.5;
+    letter-spacing: 0.01em;
   }
 
-  /* ====== Close button on the left ====== */
-  :global(.p-message .p-messages-close) {
+  :global(.p-message-icon) {
+    font-size: 1.15rem;
+    margin-inline-end: 0.5rem;
+  }
+
+  /* ====== Close button stays on the left ====== */
+  :global(.p-message .p-message-close) {
+    position: absolute !important;
     right: auto !important;
-    left: 0.5rem !important;
+    left: 0.35rem !important;
+    top: 0.35rem !important;
+    width: 2rem;
+    height: 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2;
   }
 
-  :global(.p-message .p-messages-close .p-link) {
+  :global(.p-message .p-message-close .p-link) {
     margin-left: 0 !important;
     margin-right: auto !important;
+    color: #f97316 !important;
+    width: 2rem;
+    height: 2rem;
+    padding: 0 !important;
+    opacity: 0.95;
+  }
+
+  :global(.p-message .p-message-close .p-link svg),
+  :global(.p-message .p-message-close .p-link i),
+  :global(.p-message .p-message-close .p-link span) {
+    color: #f97316 !important;
+    fill: #f97316 !important;
+    stroke: #f97316 !important;
+    font-size: 1.3rem;
+    font-weight: 900;
   }
 
   /* ====== RTL/LTR adjustments ====== */
   :global(#app[dir="rtl"]) {
-    :global(.p-message .p-messages-close) {
-      left: auto !important;
-      right: 0.5rem !important;
+    :global(.p-message .p-message-close) {
+      left: 0.5rem !important;
+      right: auto !important;
     }
-    :global(.p-message .p-messages-close .p-link) {
-      margin-left: auto !important;
-      margin-right: 0 !important;
+    :global(.p-message .p-message-close .p-link) {
+      margin-left: 0 !important;
+      margin-right: auto !important;
+    }
+    :global(.p-message .p-message-wrapper) {
+      padding: 0.85rem 1rem 0.85rem 3rem !important;
     }
   }
 

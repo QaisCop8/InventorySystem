@@ -37,7 +37,7 @@ import { LotStatusManager } from "@/components/inventory/lot-status-manager"
 import { CustomerPortalAdmin } from "@/components/customer-portal/customer-portal-admin"
 import { WhatsAppNotificationSettings } from "@/components/inventory/whatsapp-notification-settings"
 import Accounts from "@/components/accounts"
-import UnifiedAccounts from "@/components/customer/unified-accounts"
+import UnifiedAccounts from "@/components/customer/unified-accounts-refactored"
 
 import { AIChat } from "@/components/ai-assistant/ai-chat"
 import { SmartAnalyticsDashboard } from "@/components/ai-analytics/smart-analytics-dashboard"

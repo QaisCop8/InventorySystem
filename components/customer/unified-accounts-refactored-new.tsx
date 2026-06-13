@@ -779,29 +779,38 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
                 <h4 className="font-semibold text-base">محددات الحساب الإضافية</h4>
                 <div className="grid gap-4 md:grid-cols-2">
                   <div>
-                    <Label className="mb-2 block text-sm font-medium">نوع الحركة</Label>
-                    <Select value={formData.transaction_type} onValueChange={(val) => setFormData({ ...formData, transaction_type: val })}>
-                      <SelectTrigger className="text-right">
-                        <SelectValue placeholder="اختر النوع" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="0">عام</SelectItem>
-                        <SelectItem value="1">دائن</SelectItem>
-                        <SelectItem value="2">مدين</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
                     <Label className="mb-2 block text-sm font-medium">الحد الأقصى للحركة</Label>
                     <Input type="number" value={formData.max_transaction_amount} onChange={(e) => setFormData({ ...formData, max_transaction_amount: e.target.value })} placeholder="0" className="text-right" />
+                  </div>
+                  <div>
+                    <Label className="mb-2 block text-sm font-medium">إجراء تجاوز الحد الأقصى للحركة</Label>
+                    <Select value={formData.max_transaction_amount_action || "0"} onValueChange={(val) => setFormData({ ...formData, max_transaction_amount_action: val })}>
+                      <SelectTrigger className="text-right">
+                        <SelectValue placeholder="اختر الإجراء" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="0">تحذير</SelectItem>
+                        <SelectItem value="1">منع</SelectItem>
+                        <SelectItem value="2">السماح</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div>
                     <Label className="mb-2 block text-sm font-medium">الحد الأقصى للرصيد</Label>
                     <Input type="number" value={formData.max_balance_amount} onChange={(e) => setFormData({ ...formData, max_balance_amount: e.target.value })} placeholder="0" className="text-right" />
                   </div>
                   <div>
-                    <Label className="mb-2 block text-sm font-medium">نسبة تجاوز الميزانية (%)</Label>
-                    <Input type="number" value={formData.budget_exceeding_perc} onChange={(e) => setFormData({ ...formData, budget_exceeding_perc: e.target.value })} placeholder="0" className="text-right" />
+                    <Label className="mb-2 block text-sm font-medium">إجراء تجاوز الحد الأقصى للرصيد</Label>
+                    <Select value={formData.max_balance_action || "0"} onValueChange={(val) => setFormData({ ...formData, max_balance_action: val })}>
+                      <SelectTrigger className="text-right">
+                        <SelectValue placeholder="اختر الإجراء" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="0">تحذير</SelectItem>
+                        <SelectItem value="1">منع</SelectItem>
+                        <SelectItem value="2">السماح</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
                 <div>
@@ -847,30 +856,8 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
                 <h4 className="font-semibold text-base">الحدود المالية والإجراءات</h4>
                 <div className="grid gap-4 md:grid-cols-2">
                   <div>
-                    <Label className="mb-2 block text-sm font-medium">إجراء تجاوز الحد الأقصى للحركة</Label>
-                    <Select value={formData.max_transaction_amount_action || "0"} onValueChange={(val) => setFormData({ ...formData, max_transaction_amount_action: val })}>
-                      <SelectTrigger className="text-right">
-                        <SelectValue placeholder="اختر الإجراء" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="0">تحذير</SelectItem>
-                        <SelectItem value="1">منع</SelectItem>
-                        <SelectItem value="2">السماح</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label className="mb-2 block text-sm font-medium">إجراء تجاوز الحد الأقصى للرصيد</Label>
-                    <Select value={formData.max_balance_action || "0"} onValueChange={(val) => setFormData({ ...formData, max_balance_action: val })}>
-                      <SelectTrigger className="text-right">
-                        <SelectValue placeholder="اختر الإجراء" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="0">تحذير</SelectItem>
-                        <SelectItem value="1">منع</SelectItem>
-                        <SelectItem value="2">السماح</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <Label className="mb-2 block text-sm font-medium">نسبة تجاوز الميزانية (%)</Label>
+                    <Input type="number" value={formData.budget_exceeding_perc} onChange={(e) => setFormData({ ...formData, budget_exceeding_perc: e.target.value })} placeholder="0" className="text-right" />
                   </div>
                   <div>
                     <Label className="mb-2 block text-sm font-medium">إجراء تجاوز الميزانية</Label>
@@ -1270,29 +1257,38 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
                   <h4 className="font-semibold text-base">محددات الحساب الإضافية</h4>
                   <div className="grid gap-4 md:grid-cols-2">
                     <div>
-                      <Label className="mb-2 block text-sm font-medium">نوع الحركة</Label>
-                      <Select value={formData.transaction_type} onValueChange={(val) => setFormData({ ...formData, transaction_type: val })}>
-                        <SelectTrigger className="text-right">
-                          <SelectValue placeholder="اختر النوع" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="0">عام</SelectItem>
-                          <SelectItem value="1">دائن</SelectItem>
-                          <SelectItem value="2">مدين</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
                       <Label className="mb-2 block text-sm font-medium">الحد الأقصى للحركة</Label>
                       <Input type="number" value={formData.max_transaction_amount} onChange={(e) => setFormData({ ...formData, max_transaction_amount: e.target.value })} placeholder="0" className="text-right" />
+                    </div>
+                    <div>
+                      <Label className="mb-2 block text-sm font-medium">إجراء تجاوز الحد الأقصى للحركة</Label>
+                      <Select value={formData.max_transaction_amount_action || "0"} onValueChange={(val) => setFormData({ ...formData, max_transaction_amount_action: val })}>
+                        <SelectTrigger className="text-right">
+                          <SelectValue placeholder="اختر الإجراء" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="0">تحذير</SelectItem>
+                          <SelectItem value="1">منع</SelectItem>
+                          <SelectItem value="2">السماح</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div>
                       <Label className="mb-2 block text-sm font-medium">الحد الأقصى للرصيد</Label>
                       <Input type="number" value={formData.max_balance_amount} onChange={(e) => setFormData({ ...formData, max_balance_amount: e.target.value })} placeholder="0" className="text-right" />
                     </div>
                     <div>
-                      <Label className="mb-2 block text-sm font-medium">نسبة تجاوز الميزانية (%)</Label>
-                      <Input type="number" value={formData.budget_exceeding_perc} onChange={(e) => setFormData({ ...formData, budget_exceeding_perc: e.target.value })} placeholder="0" className="text-right" />
+                      <Label className="mb-2 block text-sm font-medium">إجراء تجاوز الحد الأقصى للرصيد</Label>
+                      <Select value={formData.max_balance_action || "0"} onValueChange={(val) => setFormData({ ...formData, max_balance_action: val })}>
+                        <SelectTrigger className="text-right">
+                          <SelectValue placeholder="اختر الإجراء" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="0">تحذير</SelectItem>
+                          <SelectItem value="1">منع</SelectItem>
+                          <SelectItem value="2">السماح</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
                   <div>

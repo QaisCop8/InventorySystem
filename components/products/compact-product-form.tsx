@@ -38,6 +38,7 @@ interface ProductFormData {
   description: string
   category_id: number
   main_stock_id: number
+  default_store: number
   brand: string
   model: string
   measurment_unit: number
@@ -79,6 +80,7 @@ export const initialFormData: ProductFormData = {
   description: "",
   category_id: 0,
   main_stock_id: 0,
+  default_store: 0,
   brand: "",
   model: "",
   measurment_unit: 1,
@@ -509,7 +511,8 @@ export function CompactProductForm({
         ...product,
         units: unitsWithNames,
         prices: pricesWithNames,
-        stores: storesWithNames
+        stores: storesWithNames,
+        default_store: product.default_store ?? 0,
       };
       setFormData(newFormData);
       const currentHash = getFormDataHash(newFormData);
@@ -1916,6 +1919,29 @@ export function CompactProductForm({
                       onChange={(e) => updateFormData("factory_number", e.target.value)}
                       className="text-right"
                     />
+                  </div>
+                  <div>
+                    <Label htmlFor="default_store" className="text-sm font-medium">
+                      المستودع الافتراضي
+                    </Label>
+                    <Select
+                      value={formData.default_store ? String(formData.default_store) : "__none__"}
+                      onValueChange={(value) =>
+                        updateFormData("default_store", value === "__none__" ? 0 : Number(value))
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="بلا تحديد" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">بلا تحديد</SelectItem>
+                        {(definitions.warehouses || []).map((warehouse: any) => (
+                          <SelectItem key={warehouse.id} value={warehouse.id.toString()}>
+                            {warehouse.warehouse_name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
 
                 </div>

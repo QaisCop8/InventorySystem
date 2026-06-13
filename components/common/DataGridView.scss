@@ -11,7 +11,8 @@
   border-radius: 6px;
   background: #ffffff;
   box-sizing: border-box;
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 
 .wj-flexgrid .wj-header {
@@ -46,6 +47,22 @@
   background: #f1f9f5;
 }
 
+/* Keep selected rows visually stable on hover */
+.wj-flexgrid .wj-report-row-selected:hover .wj-cell,
+.wj-flexgrid .wj-report-row-selected:hover .wj-cell:hover,
+.wj-flexgrid .wj-state-selected:hover:not(.wj-header),
+.wj-flexgrid .wj-row .wj-cell.wj-state-selected:hover:not(.wj-header),
+.wj-flexgrid .wj-cell.wj-state-selected:hover:not(.wj-header) {
+  background: #6fe27b !important;
+  color: #155724 !important;
+}
+
+.wj-flexgrid .wj-report-row-selected:hover .wj-cell,
+.wj-flexgrid .wj-report-row-selected:hover .wj-cell:hover {
+  background: #e3f2fd !important;
+  color: #0d47a1 !important;
+}
+
 /* Selected state (body cells only, exclude header) */
 .wj-flexgrid .wj-state-selected:not(.wj-header),
 .wj-flexgrid .wj-row .wj-cell.wj-state-selected:not(.wj-header),
@@ -76,6 +93,23 @@
   padding: 6px 12px;
   border-left: 4px solid #2ecc71;
   color: #2c3e50;
+}
+
+/* Report row selection: color the full row, not only the active cell */
+.wj-flexgrid .wj-report-row-selected .wj-cell {
+  background: #e3f2fd !important;
+  color: #0d47a1 !important;
+  font-weight: 500 !important;
+  border-top-color: #90caf9 !important;
+  border-bottom-color: #90caf9 !important;
+}
+
+.wj-flexgrid .wj-report-row-selected .wj-cell:first-child {
+  border-right: 4px solid #1976d2 !important;
+}
+
+.wj-flexgrid .wj-report-row-selected .wj-cell i {
+  color: inherit !important;
 }
 
 /* RTL support */

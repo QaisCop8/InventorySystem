@@ -12,6 +12,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import ProgressSpinner from "../ProgressSpinner/ProgressSpinner"
 import {
   Dialog,
   DialogContent,
@@ -25,7 +26,9 @@ import { UniversalToolbar } from "@/components/ui/universal-toolbar"
 import { Plus, AlertCircle, Search, X } from "lucide-react"
 import { Dropdown as PrimeDropdown } from "primereact/dropdown"
 import DataGridView from "../common/DataGridView"
+import Messages from "../common/Messages"
 import { toast } from "@/hooks/use-toast"
+import { isSameDay } from "date-fns"
 
 interface AccountType {
   id: number
@@ -64,26 +67,30 @@ interface FormState {
 
 interface UnifiedAccountsProps {
   action?: "new"
+  accountId?: number | null
   onOpenChange?: (open: boolean) => void
   inWindowManager?: boolean
   closeWindow?: () => void
+  onDirtyChange?: (dirty: boolean) => void
 }
 
-export default function UnifiedAccounts({ action, onOpenChange, inWindowManager, closeWindow }: UnifiedAccountsProps) {
+export default function UnifiedAccounts({ action, accountId, onOpenChange, inWindowManager, closeWindow, onDirtyChange }: UnifiedAccountsProps) {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [activeTab, setActiveTab] = useState("main")
   const [accounts, setAccounts] = useState<AccountItem[]>([])
   const [types, setTypes] = useState<AccountType[]>([])
+  const [voucherTypes, setVoucherTypes] = useState<any[]>([])
   const [currencies, setCurrencies] = useState<any[]>([])
   const [companies, setCompanies] = useState<any[]>([])
   const [costCenters, setCostCenters] = useState<any[]>([])
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [imageFile, setImageFile] = useState<File | null>(null)
+  const [stopTransactionRows, setStopTransactionRows] = useState<any[]>([])
   const [currentIndex, setCurrentIndex] = useState(0)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
-  const [message, setMessage] = useState("")
+  const [statusMessage, setMessage] = useState("")
   const [financialListType, setFinancialListType] = useState("1") // الميزانية العمومية, قائمة الدخل, تقييم بضاعة
   const [balanceSheetAssets, setBalanceSheetAssets] = useState<any[]>([])
   const [balanceSheetLiabilities, setBalanceSheetLiabilities] = useState<any[]>([])
@@ -102,6 +109,8 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
 
   // Account Classification States
   const [classificationTypes, setClassificationTypes] = useState<any[]>([])
+  const classificationTypesRef = useRef<any[]>([])
+  const [defaultClassificationTypes, setDefaultClassificationTypes] = useState<any[]>([]) 
   const [accountClassifications, setAccountClassifications] = useState<any[]>([])
   const [allClassifications, setAllClassifications] = useState<any[]>([])
   const [showClassificationTypeForm, setShowClassificationTypeForm] = useState(false)
@@ -117,6 +126,8 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
   const [selectedClassificationTypeIndex, setSelectedClassificationTypeIndex] = useState<number>(-1)
   const [showDeleteClassificationConfirm, setShowDeleteClassificationConfirm] = useState(false)
   const [deleteClassificationConfirmIndex, setDeleteClassificationConfirmIndex] = useState<number>(-1)
+  const [showAccountDeleteConfirm, setShowAccountDeleteConfirm] = useState(false)
+  const [showUnsavedConfirm, setShowUnsavedConfirm] = useState(false)
 
   // Search Modal States
   const [searchModalOpen, setSearchModalOpen] = useState(false)
@@ -128,6 +139,72 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
   const classificationTypeGridRef = useRef<any>(null)
   const accountClassificationGridRef = useRef<any>(null)
   const accountNameInputRef = useRef<HTMLInputElement>(null)
+  const messagesRef = useRef<any>(null)
+  const fetchingNextCodeRef = useRef(false)
+  const dialogWasOpenRef = useRef(false)
+  const dirtySnapshotRef = useRef("")
+
+  const serializeAccountSnapshot = useCallback(
+    (values: {
+      formData: FormState
+      financialListType: string
+      fatherAccountName: string
+      stopTransactionRows: any[]
+      costCenterTypes: any[]
+      accountClassifications: any[]
+    }) =>
+      JSON.stringify({
+        formData: {
+          id: values.formData.id,
+          code: values.formData.code,
+          name: values.formData.name,
+          name_lang2: values.formData.name_lang2,
+          type: values.formData.type,
+          father_id: values.formData.father_id,
+          level_no: values.formData.level_no,
+          finanical_list_id: values.formData.finanical_list_id,
+          finanical_list_assests_id: values.formData.finanical_list_assests_id,
+          finanical_list_liabilities_id: values.formData.finanical_list_liabilities_id,
+          finanical_list_income_id: values.formData.finanical_list_income_id,
+          currency_id: values.formData.currency_id,
+          allow_trans_with_diff_curr: values.formData.allow_trans_with_diff_curr,
+          iscalc_curr_diff_rates: values.formData.iscalc_curr_diff_rates,
+          transaction_type: values.formData.transaction_type,
+          transaction_type_action: values.formData.transaction_type_action,
+          max_transaction_amount: values.formData.max_transaction_amount,
+          max_transaction_amount_action: values.formData.max_transaction_amount_action,
+          max_balance_amount: values.formData.max_balance_amount,
+          max_balance_action: values.formData.max_balance_action,
+          budget_exceeding_perc: values.formData.budget_exceeding_perc,
+          budget_exceeding_action: values.formData.budget_exceeding_action,
+          unified_report_account_no: values.formData.unified_report_account_no,
+          unified_report_group_code: values.formData.unified_report_group_code,
+          notes: values.formData.notes,
+          show_notes_in_transactions_soa: values.formData.show_notes_in_transactions_soa,
+          status: values.formData.status,
+        },
+        financialListType: values.financialListType,
+        fatherAccountName: values.fatherAccountName,
+        stopTransactionRows: values.stopTransactionRows.map((row) => ({
+          voucher_types_id: row.voucher_types_id,
+          is_stopped: Boolean(row.is_stopped),
+          stop_date: row.stop_date || "",
+        })),
+        costCenterTypes: values.costCenterTypes.map((type) => ({
+          id: type.id,
+          required_in_transactions: type.required_in_transactions ?? 1,
+          default_cost_center_id: type.default_cost_center_id ?? null,
+          cost_center_name: type.cost_center_name || "",
+        })),
+        accountClassifications: values.accountClassifications.map((item) => ({
+          id: item.id ?? null,
+          classification_type_id: item.classification_type_id ?? null,
+          classification_id: item.classification_id ?? null,
+          classification_name: item.classification_name || "",
+        })),
+      }),
+    [],
+  )
 
   const [formData, setFormData] = useState<FormState>({
     id: 0,
@@ -159,30 +236,45 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
     status: "نشط",
   })
 
+  const currentSnapshot = useMemo(
+    () =>
+      serializeAccountSnapshot({
+        formData,
+        financialListType,
+        fatherAccountName,
+        stopTransactionRows,
+        costCenterTypes,
+        accountClassifications,
+      }),
+    [serializeAccountSnapshot, formData, financialListType, fatherAccountName, stopTransactionRows, costCenterTypes, accountClassifications],
+  )
+
+  useEffect(() => {
+    if (onDirtyChange) {
+      onDirtyChange(currentSnapshot !== dirtySnapshotRef.current)
+    }
+  }, [currentSnapshot, onDirtyChange])
+
   useEffect(() => {
     loadData()
   }, [])
 
   const loadData = async () => {
-    setLoading(true)
     setError("")
     try {
-      const [typesRes, accountsRes] = await Promise.all([
-        fetch("/api/account-classification-types"),
-        fetch("/api/accounts"),
-      ])
+      const [typesRes, accountsRes] = await Promise.all([fetch("/api/account-classification-types"), fetch("/api/accounts")])
 
       if (!typesRes.ok || !accountsRes.ok) {
         const statusMsg = !typesRes.ok ? `Types API (${typesRes.status})` : `Accounts API (${accountsRes.status})`
         setError(`Failed to load data: ${statusMsg}`)
         console.error(`API Error: ${statusMsg}`)
-        return
       }
 
       const typesData = await typesRes.json()
       const accountsData = await accountsRes.json()
       let currenciesData: any[] = []
       let companiesData: any[] = []
+      let voucherTypesData: any[] = []
       let costCenterTypesData: any[] = []
       let costCentersData: any[] = []
       let classificationTypesData: any[] = []
@@ -208,6 +300,12 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
         const typesRes = await fetch("/api/cost-center-types")
         if (typesRes.ok) {
           costCenterTypesData = await typesRes.json()
+        }
+      } catch (_) {}
+      try {
+        const voucherTypesRes = await fetch("/api/vouchers/voucher-types")
+        if (voucherTypesRes.ok) {
+          voucherTypesData = await voucherTypesRes.json()
         }
       } catch (_) {}
       try {
@@ -295,17 +393,20 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
 
       setTypes(Array.isArray(typesData) ? typesData : [])
       setAccounts(
-        (Array.isArray(accountsData) ? accountsData : []).map((item: any) => ({
-          ...item,
-          code: item.code || item.account_code || "",
-          name: item.name || item.account_name || "",
-          type: Number(item.type || item.classification_type_id || 0),
-          level_no: Number(item.level_no || 1),
-          finanical_list_id: Number(item.finanical_list_id || 1),
-        })),
+        (Array.isArray(accountsData) ? accountsData : [])
+          .map((item: any) => ({
+            ...item,
+            code: item.code || item.account_code || "",
+            name: item.name || item.account_name || "",
+            type: Number(item.type || item.classification_type_id || 0),
+            level_no: Number(item.level_no || 1),
+            finanical_list_id: Number(item.finanical_list_id || 1),
+          }))
+          .filter((item: any) => Number(item.status ?? 1) !== 3),
       )
       setCurrencies(Array.isArray(currenciesData) ? currenciesData : [])
       setCompanies(Array.isArray(companiesData) ? companiesData : [])
+      setVoucherTypes(Array.isArray(voucherTypesData) ? voucherTypesData : [])
       // Map state_status to status_id (1=اختياري, 2=اجباري, 3=ممنوع)
       const mappedCostCenterTypes = Array.isArray(costCenterTypesData)
         ? costCenterTypesData.map((type: any) => {
@@ -315,8 +416,8 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
               'ممنوع': 3
             }
             const state_status = type.state_status || 'اختياري'
-            const status_id = statusMap[state_status] || 1
-            return { ...type, state_status, status_id }
+            const required_in_transactions = statusMap[state_status] || 1
+            return { ...type, state_status, required_in_transactions }
           })
         : []
       // Sort by ID in ascending order
@@ -326,6 +427,8 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
       setCostCenterTypes(mappedCostCenterTypes)
       setCostCenters(Array.isArray(costCentersData) ? costCentersData : [])
       setClassificationTypes(Array.isArray(classificationTypesData) ? classificationTypesData : [])
+      classificationTypesRef.current = Array.isArray(classificationTypesData) ? classificationTypesData : []
+      //setDefaultClassificationTypes(Array.isArray(classificationTypesData) ? classificationTypesData : [])
       setAllClassifications(Array.isArray(classificationsData) ? classificationsData : [])
       setAccountClassifications(Array.isArray(classificationsData) ? classificationsData : [])
       setBalanceSheetAssets(Array.isArray(balanceSheetAssetsData) ? balanceSheetAssetsData : [])
@@ -336,12 +439,50 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
       const errorMsg = err instanceof Error ? err.message : String(err)
       console.error("Error loading data:", err)
       setError(`Error loading data: ${errorMsg}`)
-    } finally {
-      setLoading(false)
     }
   }
 
-  const currentAccount = useMemo(() => accounts[currentIndex] || null, [accounts, currentIndex])
+  const activeAccounts = useMemo(
+    () => accounts.filter((account) => Number(account.status ?? 1) !== 3),
+    [accounts],
+  )
+
+  const currentAccount = useMemo(() => activeAccounts[currentIndex] || null, [activeAccounts, currentIndex])
+
+  const buildStopTransactionRows = useCallback((voucherTypesList: any[], stopRows: any[] = []) => {
+    const stopByVoucherType = new Map<number, any>()
+    stopRows.forEach((row) => {
+      const voucherTypeId = Number(row?.voucher_types_id)
+      if (!Number.isNaN(voucherTypeId) && voucherTypeId > 0) {
+        stopByVoucherType.set(voucherTypeId, row)
+      }
+    })
+
+    return voucherTypesList.map((voucherType) => {
+      const voucherTypeId = Number(voucherType.id)
+      const stopRow = stopByVoucherType.get(voucherTypeId)
+      return {
+        voucher_types_id: voucherTypeId,
+        voucher_type_name: voucherType.name || "",
+        is_stopped: Boolean(stopRow),
+        stop_date: stopRow?.stop_date ? String(stopRow.stop_date).slice(0, 10) : "",
+      }
+    })
+  }, [])
+
+  useEffect(() => {
+    if (!currentAccount) return
+    setStopTransactionRows(buildStopTransactionRows(voucherTypes, (currentAccount as any).stop_transactions || []))
+  }, [currentAccount, voucherTypes, buildStopTransactionRows])
+
+  const visibleStopTransactionRows = useMemo(() => {
+    const hiddenNames = ["طلبية مبيعات", "طلبية مشتريات", "إرسالية مبيعات", "إرسالية مشتريات"]
+
+    return stopTransactionRows.filter((row) => {
+      const voucherTypeName = String(row?.voucher_type_name || "")
+      return !hiddenNames.some((hiddenName) => voucherTypeName.includes(hiddenName))
+    })
+  }, [stopTransactionRows])
 
   // Get leaf cost centers (not parents of any other cost center)
   const leafCostCenters = useMemo(() => {
@@ -388,7 +529,7 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
         if (idx === deleteConfirmIndex) {
           return {
             ...type,
-            cost_center_id: null,
+            default_cost_center_id: null,
             cost_center_name: ""
           }
         }
@@ -418,7 +559,7 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
           return {
             ...type,
             state_status: statusValues[nextIndex],
-            status_id: statusIds[nextIndex]
+            required_in_transactions: statusIds[nextIndex]
           }
         }
         return type
@@ -441,7 +582,7 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
         { header: "الرقم", name: "id", width: 80, isReadOnly: true },
         { header: "اسم نوع مركز الكلفة", name: "name", width: "*", minWidth: 250, isReadOnly: true },
         { header: "الحالة", name: "state_status", width: 150, isReadOnly: true },
-        { header: "Status ID", name: "status_id", width: 0, isReadOnly: true, visible: false },
+        { header: "Required in Transactions", name: "required_in_transactions", width: 0, isReadOnly: true, visible: true },
         {
           name: 'btnStatusChange',
           header: ' ',
@@ -527,6 +668,70 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
     [handleDeleteClassificationType, classificationTypes],
   )
 
+  const stopTransactionScheme = useMemo(
+    () => ({
+      name: "StopTransactionScheme",
+      columns: [
+        {
+          header: "إيقاف الحركات",
+          name: "is_stopped",
+          width: 120,
+          align: "center",
+          isReadOnly: true,
+          body: (cell: any) => (
+            <div className="flex h-full items-center justify-center">
+              <Checkbox
+                checked={Boolean(cell.row.dataItem.is_stopped)}
+                className="size-3.5 rounded-sm border-slate-400 data-[state=checked]:border-blue-600 data-[state=checked]:bg-blue-600"
+                onCheckedChange={(checked) => {
+                  const nextValue = Boolean(checked)
+                  setStopTransactionRows((prev) =>
+                    prev.map((row) =>
+                      row.voucher_types_id === cell.row.dataItem.voucher_types_id
+                        ? {
+                            ...row,
+                            is_stopped: nextValue,
+                            stop_date: nextValue ? row.stop_date || new Date().toISOString().slice(0, 10) : "",
+                          }
+                        : row,
+                    ),
+                  )
+                }}
+              />
+            </div>
+          ),
+        },
+        { header: "نوع الحركة", name: "voucher_type_name", width: "*", minWidth: 260, isReadOnly: true },
+        {
+          header: "تاريخ إيقاف الحركة",
+          name: "stop_date",
+          width: 140,
+          align: "center",
+          isReadOnly: true,
+          body: (cell: any) => (
+            <Input
+              type="date"
+              value={cell.row.dataItem.stop_date || ""}
+              disabled={!cell.row.dataItem.is_stopped}
+              onChange={(e) => {
+                const value = e.target.value
+                setStopTransactionRows((prev) =>
+                  prev.map((row) =>
+                    row.voucher_types_id === cell.row.dataItem.voucher_types_id
+                      ? { ...row, stop_date: value }
+                      : row,
+                  ),
+                )
+              }}
+              className="h-9 text-right"
+            />
+          ),
+        },
+      ],
+    }),
+    [],
+  )
+
   const focusPrimeDropdownRoot = (e: any) => {
     const target = e?.originalEvent?.target || e?.target
     const dropdownRoot = target?.closest?.(".p-dropdown") as HTMLElement | null
@@ -541,7 +746,55 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
     }, 0)
   }
 
+  const formatAccountLabel = useCallback((account: Partial<AccountItem> & { id?: number | null; code?: string; name?: string }) => {
+    return [account.id != null ? String(account.id) : "", account.code || "", account.name || ""]
+      .filter((part) => part.trim())
+      .join(" - ")
+  }, [])
+
+  const resolveFatherAccountLabel = useCallback(
+    (account: AccountItem) => {
+      if (!account.father_id) return ""
+
+      const parentAccount = activeAccounts.find((item) => Number(item.id) === Number(account.father_id))
+      if (parentAccount) {
+        return formatAccountLabel(parentAccount)
+      }
+
+      const fallbackParent = account as AccountItem & {
+        parent_account_id?: number | null
+        parent_account_code?: string | null
+        parent_account_name?: string | null
+        father_name?: string | null
+      }
+
+      return [
+        fallbackParent.parent_account_id != null ? String(fallbackParent.parent_account_id) : String(account.father_id),
+        fallbackParent.parent_account_code || "",
+        fallbackParent.parent_account_name || fallbackParent.father_name || "",
+      ]
+        .filter((part) => part.trim())
+        .join(" - ")
+    },
+    [activeAccounts, formatAccountLabel],
+  )
+
   const loadAccountToForm = useCallback((account: AccountItem) => {
+    const assignedCostCenters = Array.isArray((account as any).cost_centers) ? (account as any).cost_centers : []
+    const nextCostCenterTypes = costCenterTypes.map((type) => {
+      const assignment = assignedCostCenters.find((row: any) => Number(row?.cost_center_type_id) === Number(type.id))
+      const selectedCostCenterId = assignment?.default_cost_center_id != null ? Number(assignment.default_cost_center_id) : null
+      const selectedCostCenter = selectedCostCenterId != null ? costCenters.find((center: any) => Number(center?.id) === selectedCostCenterId) : null
+
+      return {
+        ...type,
+        required_in_transactions: assignment?.required_in_transactions ?? type.required_in_transactions ?? 1,
+        default_cost_center_id: selectedCostCenterId,
+        cost_center_name: selectedCostCenter?.name || "",
+      }
+    })
+    const nextAccountClassifications = Array.isArray((account as any).account_classifications) ? (account as any).account_classifications : []
+    const nextFatherName = resolveFatherAccountLabel(account)
     setFormData({
       id: account.id || 0,
       code: account.code || "",
@@ -572,76 +825,126 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
       status: account.status || "نشط",
     })
     setFinancialListType(String(account.finanical_list_id || 1))
+    setCostCenterTypes(nextCostCenterTypes)
+    setAccountClassifications(nextAccountClassifications)
     // Set father account name
-    if (account.father_id) {
-      const father = accounts.find((a) => a.id === account.father_id)
-      setFatherAccountName(father ? `${father.code} ${father.name}` : "")
-    } else {
-      setFatherAccountName("")
-    }
+    setFatherAccountName(nextFatherName)
     // set preview if account has image url
     if ((account as any).image_url) {
       setImagePreview((account as any).image_url)
     } else {
       setImagePreview(null)
     }
-  }, [accounts])
+    setStopTransactionRows(buildStopTransactionRows(voucherTypes, (account as any).stop_transactions || []))
+    dirtySnapshotRef.current = serializeAccountSnapshot({
+      formData: {
+        id: account.id || 0,
+        code: account.code || "",
+        name: account.name || "",
+        name_lang2: account.name_lang2 || "",
+        type: String(account.type || ""),
+        father_id: account.father_id ? String(account.father_id) : "",
+        level_no: String(account.level_no || 1),
+        finanical_list_id: String(account.finanical_list_id || 1),
+        finanical_list_assests_id: account.finanical_list_assests_id ? String(account.finanical_list_assests_id) : "",
+        finanical_list_liabilities_id: account.finanical_list_liabilities_id ? String(account.finanical_list_liabilities_id) : "",
+        finanical_list_income_id: account.finanical_list_income_id ? String(account.finanical_list_income_id) : "",
+        currency_id: account.currency_id ? String(account.currency_id) : "",
+        allow_trans_with_diff_curr: account.allow_trans_with_diff_curr != null ? String(account.allow_trans_with_diff_curr) : "0",
+        iscalc_curr_diff_rates: Boolean(account.iscalc_curr_diff_rates),
+        transaction_type: String(account.transaction_type || 0),
+        transaction_type_action: String(account.transaction_type_action || 0),
+        max_transaction_amount: String(account.max_transaction_amount || 0),
+        max_transaction_amount_action: String(account.max_transaction_amount_action || 0),
+        max_balance_amount: String(account.max_balance_amount || 0),
+        max_balance_action: account.max_balance_action ? String(account.max_balance_action) : "",
+        budget_exceeding_perc: account.budget_exceeding_perc ? String(account.budget_exceeding_perc) : "",
+        budget_exceeding_action: account.budget_exceeding_action ? String(account.budget_exceeding_action) : "",
+        unified_report_account_no: account.unified_report_account_no || "",
+        unified_report_group_code: account.unified_report_group_code || "",
+        notes: account.notes || "",
+        show_notes_in_transactions_soa: Boolean(account.show_notes_in_transactions_soa),
+        status: account.status || "نشط",
+      },
+      financialListType: String(account.finanical_list_id || 1),
+      fatherAccountName: nextFatherName,
+      stopTransactionRows: buildStopTransactionRows(voucherTypes, (account as any).stop_transactions || []),
+      costCenterTypes: nextCostCenterTypes,
+      accountClassifications: nextAccountClassifications,
+    })
+  }, [activeAccounts, resolveFatherAccountLabel, voucherTypes, buildStopTransactionRows, costCenters])
 
   const handleNew = async () => {
-    const defaultCurrencyId = currencies[0] ? String(currencies[0].currency_id ?? currencies[0].id ?? "") : ""
+    await reset_fields()
+    setDialogOpen(true)
+    setActiveTab("main")
     
-    // Generate next account code - get max code from ALL accounts (not just type=1)
-    let nextCode = ""
-    try {
-      // Fetch ALL accounts to find the max code
-      const accountsRes = await fetch("/api/accounts")
-      if (accountsRes.ok) {
-        const data = await accountsRes.json()
-        const allAccounts = Array.isArray(data) ? data : []
-        
-        // Fetch system settings for prefix and start number
-        const settingsRes = await fetch("/api/settings/system")
-        let prefix = "A"
-        let accountStart = 1
-        
-        if (settingsRes.ok) {
-          const settingsData = await settingsRes.json()
-          prefix = settingsData.accountPrefix || "A"
-          accountStart = settingsData.accountStart || 1
-        }
-        
-        // Get max code from ALL accounts
-        let maxNumber = accountStart - 1
-        if (allAccounts.length > 0) {
-          allAccounts.forEach((acc: any) => {
-            const code = acc.code || acc.account_code || ""
-            // Extract numeric part from code
-            const match = code.match(/\d+$/)
-            if (match) {
-              const num = parseInt(match[0], 10)
-              if (num > maxNumber) {
-                maxNumber = num
-              }
-            }
-          })
-        }
-        
-        // Generate next code - 8 characters total (prefix + 7 digits)
-        const nextNumber = (maxNumber + 1).toString().padStart(7, "0")
-        nextCode = prefix + nextNumber
+    // Focus on Arabic name input after dialog opens
+    
+  }
+
+  const handleOpenSearchModal = (target: "father" | "code") => {
+    setSearchTarget(target)
+    setSearchModalOpen(true)
+  }
+
+  const handleSelectSearchResult = (account: AccountItem) => {
+    if (searchTarget === "father") {
+      setFormData({
+        ...formData,
+        father_id: String(account.id),
+      })
+      setFatherAccountName(formatAccountLabel(account))
+    } else {
+      const foundIndex = activeAccounts.findIndex((item) => item.id === account.id)
+      if (foundIndex >= 0) {
+        setCurrentIndex(foundIndex)
       }
-    } catch (err) {
-      console.error("Error fetching next account code:", err)
-      // Fallback to default (8 characters total)
-      nextCode = "A0000001"
+      loadAccountToForm(account)
     }
+    setSearchModalOpen(false)
+  }
+
+  // Adjust account code to 8 characters (pad with zeros)
+  const adjustCode = (code: string, codeLen: number = 8): string => {
+    if (!code || !code.trim()) return ''
+
+    return code
+      .trim()
+      .replace(/[^A-Za-z0-9]/g, "")
+      .slice(0, codeLen)
+      .toUpperCase()
+  }
+
+  // Reset all fields to blank/default (for new account entry)
+  const reset_fields = useCallback(async () => {
+    const defaultCurrencyId = currencies && currencies.length > 0 ? String(currencies[0].currency_id ?? currencies[0].id ?? "") : "1"
     
+    // Fetch next account code from API - prevent concurrent calls
+    let nextCode = "A0000001"
+    if (!fetchingNextCodeRef.current) {
+      fetchingNextCodeRef.current = true
+      try {
+        const response = await fetch("/api/accounts/next-code")
+        console.log("Next code API response:", response)
+        if (response.ok) {
+          const data = await response.json()
+          nextCode = data.code || "A0000001"
+        }
+      } catch (err) {
+        console.error("Error fetching next account code:", err)
+        nextCode = "A0000001"
+      } finally {
+        fetchingNextCodeRef.current = false
+      }
+    }
+    console.log("defaultCurrencyId:")
     setFormData({
       id: 0,
       code: nextCode,
       name: "",
       name_lang2: "",
-      type: types[0] ? String(types[0].id) : "",
+      type: types && types.length > 0 ? String(types[0].id) : "",
       father_id: "",
       level_no: "1",
       finanical_list_id: "1",
@@ -666,53 +969,95 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
       status: "نشط",
     })
     setFinancialListType("1")
-    setDialogOpen(true)
-    setActiveTab("main")
+    setFatherAccountName("")
+    setImagePreview(null)
+    setImageFile(null)
+    setStopTransactionRows(buildStopTransactionRows(voucherTypes, []))
+    setError("")
+    setMessage("")
     
-    // Focus on Arabic name input after dialog opens
+    // Clear cost center selections (but keep the available types list)
+    setCostCenterTypes((prevTypes) =>
+      prevTypes.map((type) => ({
+        ...type,
+        cost_center_id: null,
+        default_cost_center_id: null,
+        cost_center_name: "",
+      }))
+    )
+    
+    // Clear all classification selections - reset to defaults
+    console.log("Resetting classifications to default types:", classificationTypesRef.current)
+    setClassificationTypes(classificationTypesRef.current || [])
+    setAccountClassifications(classificationTypesRef.current || [])
+    
+    setSelectedCostCenterType(null)
+    setSelectedCostCenterTypeIndex(-1)
+    setShowDeleteConfirm(false)
+    setDeleteConfirmIndex(-1)
+    setShowCostCenterTypeForm(false)
+    setNewCostCenterTypeName("")
+    setCostCenterTypeError("")
+    setCostCenterTypeMessage("")
+    setSearchCostCenterOpen(false)
+    
+    // Clear classifications
+    setSelectedClassificationType(null)
+    setSelectedClassificationTypeIndex(-1)
+    setShowDeleteClassificationConfirm(false)
+    setDeleteClassificationConfirmIndex(-1)
+    setShowClassificationForm(false)
+    setNewClassificationTypeId(null)
+    setNewClassificationName("")
+    setClassificationError("")
+    setSearchAccountClassificationOpen(false)
+
+    dirtySnapshotRef.current = serializeAccountSnapshot({
+      formData: {
+        id: 0,
+        code: nextCode,
+        name: "",
+        name_lang2: "",
+        type: types && types.length > 0 ? String(types[0].id) : "",
+        father_id: "",
+        level_no: "1",
+        finanical_list_id: "1",
+        finanical_list_assests_id: "",
+        finanical_list_liabilities_id: "",
+        finanical_list_income_id: "",
+        currency_id: defaultCurrencyId,
+        allow_trans_with_diff_curr: "0",
+        iscalc_curr_diff_rates: false,
+        transaction_type: "0",
+        transaction_type_action: "0",
+        max_transaction_amount: "0",
+        max_transaction_amount_action: "0",
+        max_balance_amount: "0",
+        max_balance_action: "",
+        budget_exceeding_perc: "",
+        budget_exceeding_action: "",
+        unified_report_account_no: "",
+        unified_report_group_code: "",
+        notes: "",
+        show_notes_in_transactions_soa: false,
+        status: "نشط",
+      },
+      financialListType: "1",
+      fatherAccountName: "",
+      stopTransactionRows: buildStopTransactionRows(voucherTypes, []),
+      costCenterTypes: costCenterTypes.map((type) => ({
+        ...type,
+        cost_center_id: null,
+        default_cost_center_id: null,
+        cost_center_name: "",
+      })),
+      accountClassifications: classificationTypesRef.current || [],
+    })
+    
     setTimeout(() => {
       accountNameInputRef.current?.focus()
     }, 100)
-  }
-
-  const handleOpenSearchModal = (target: "father" | "code") => {
-    setSearchTarget(target)
-    setSearchModalOpen(true)
-  }
-
-  const handleSelectSearchResult = (account: AccountItem) => {
-    if (searchTarget === "father") {
-      setFormData({
-        ...formData,
-        father_id: String(account.id),
-      })
-      setFatherAccountName(`${account.code} ${account.name}`)
-    } else {
-      const foundIndex = accounts.findIndex((item) => item.id === account.id)
-      if (foundIndex >= 0) {
-        setCurrentIndex(foundIndex)
-      }
-      loadAccountToForm(account)
-    }
-    setSearchModalOpen(false)
-  }
-
-  // Adjust account code to 8 characters (pad with zeros)
-  const adjustCode = (code: string, codeLen: number = 8): string => {
-    if (!code || !code.trim()) return ''
-
-    code = code.trim().toUpperCase()
-
-    // Separate prefix (letters) and numeric part
-    const match = code.match(/^([A-Z]*)(\d*)$/)
-    if (!match) return code // invalid pattern (contains symbols)
-
-    let [, prefix, numPart] = match
-    const padLen = Math.max(codeLen - prefix.length, 0)
-    const paddedNum = numPart.padStart(padLen, '0')
-
-    return `${prefix}${paddedNum}`
-  }
+  }, [currencies, types, voucherTypes, buildStopTransactionRows])
 
   // Reset fields but keep the code (similar to handleNew but preserves code)
   const resetFieldsWithCode = (codeToKeep: string) => {
@@ -764,16 +1109,27 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
       if (response.ok) {
         const account = await response.json()
         if (account && account.id) {
+          if (Number(account.status ?? 1) === 3) {
+            toast({
+              title: "تنبيه",
+              description: "الحساب المختار محذوف لا يمكن عرض تفاصيله",
+            })
+            await reset_fields()
+            return
+          }
           // Account found - load it
-          setCurrentIndex(accounts.findIndex((a) => a.id === account.id))
+          setCurrentIndex(activeAccounts.findIndex((a) => a.id === account.id))
           loadAccountToForm(account)
         }
       } else if (response.status === 404) {
         // Account not found - reset fields but keep code
         resetFieldsWithCode(code)
       } else if (response.status === 403) {
-        setError('الحساب محذوف لا يمكن عرض بياناته')
-        resetFieldsWithCode(code)
+        toast({
+          title: "تنبيه",
+          description: "الحساب المختار محذوف لا يمكن عرض تفاصيله",
+        })
+        await reset_fields()
       }
     } catch (error) {
       console.error("Error searching for account:", error)
@@ -783,9 +1139,9 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
 
   // Handle account code input change - validate and clean
   const handleAccountCodeChange = (value: string) => {
-    // Allow only A-Za-z0-9, max 8 characters
-    const cleanValue = value.replace(/[^A-Za-z0-9]/g, "").slice(0, 8)
-    setFormData({ ...formData, code: cleanValue.toUpperCase() })
+    // Allow only English letters and digits, then force uppercase
+    const cleanValue = value.replace(/[^A-Za-z0-9]/g, "").slice(0, 8).toUpperCase()
+    setFormData({ ...formData, code: cleanValue })
   }
 
   // Handle account code blur - adjust and search
@@ -797,23 +1153,75 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
 
   useEffect(() => {
     console.log("[unified-refactored] mount/effect action:", action)
-    if (action === "new") {
+    if (action === "new" && !dialogOpen) {
       setActiveTab("main")
       setDialogOpen(true)
-      console.log("[unified-refactored] set dialogOpen true due to action=new")
     }
-  }, [action])
+  }, [action, dialogOpen])
 
   useEffect(() => {
-    console.log("[unified-refactored] dialogOpen changed:", dialogOpen)
+    if (accountId == null) return
+    setLoading(true)
+    setActiveTab("main")
+    setDialogOpen(true)
+  }, [accountId])
+
+  useEffect(() => {
     if (onOpenChange) onOpenChange(dialogOpen)
   }, [dialogOpen, onOpenChange])
 
   useEffect(() => {
-    if (dialogOpen) {
-      loadData()
+    if (!dialogOpen) {
+      dialogWasOpenRef.current = false
+      return
     }
-  }, [dialogOpen])
+
+    if (dialogWasOpenRef.current) return
+    dialogWasOpenRef.current = true
+
+    console.log("[unified-refactored] dialogOpen changed:", dialogOpen)
+    const init = async () => {
+      try {
+        setLoading(true)
+
+        // Wait for definitions to load
+        await loadData()
+
+        // Only reset the form when the dialog is opened for a new account.
+        // When `accountId` is set, the dedicated accountId effect loads the row.
+        if (accountId == null) {
+          // New account entry
+          await handleNew()
+          // Completely clear classifications grid for new account
+          setAccountClassifications([])
+        }
+      } catch (error) {
+        console.error("Failed to fetch definitions:", error)
+      } finally {
+        // Keep loading on until the selected account is applied.
+        if (accountId == null) {
+          setLoading(false)
+        }
+      }
+    }
+
+    init()
+  }, [dialogOpen, accountId, loadAccountToForm, handleNew])
+
+  useEffect(() => {
+    if (!dialogOpen || accountId == null || activeAccounts.length === 0) return
+
+    const targetIndex = activeAccounts.findIndex((item) => item.id === accountId)
+    if (targetIndex < 0) {
+      setLoading(false)
+      return
+    }
+
+    const targetAccount = activeAccounts[targetIndex]
+    setCurrentIndex(targetIndex)
+    loadAccountToForm(targetAccount)
+    setLoading(false)
+  }, [dialogOpen, accountId, activeAccounts, loadAccountToForm])
 
   useEffect(() => {
     // Monitor row selection in cost center types grid
@@ -838,9 +1246,10 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
     }
   }, [costCenterTypes])
 
-  const handleSave = async () => {
+  const handleSave = async (options?: { closeAfterSave?: boolean }): Promise<boolean> => {
     setError("")
     setMessage("")
+    messagesRef.current?.clear?.()
 
     // Get and clean the form data
     const trimmedCode = formData.code.trim().toUpperCase()
@@ -849,42 +1258,148 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
     // Validate that both fields are filled
     if (!trimmedCode) {
       setError("يجب ملء رقم الحساب")
-      return
+      return false
     }
     
     if (!trimmedName) {
       setError("يجب ملء اسم الحساب")
-      return
+      return false
     }
 
-    // Adjust code if not already adjusted (ensure it's 8 characters)
+    if (!/^[A-Z0-9]{8}$/.test(trimmedCode)) {
+      setError("يجب أن يكون رقم الحساب 8 أحرف إنجليزية أو أرقام وبحروف كبيرة")
+      return false
+    }
+
+    if (trimmedName.length > 150) {
+      setError("اسم الحساب يجب ألا يتجاوز 150 حرفاً")
+      return false
+    }
+
+    const trimmedEnglishName = formData.name_lang2.trim()
+    if (trimmedEnglishName.length > 150) {
+      setError("اسم الحساب بالإنجليزية يجب ألا يتجاوز 150 حرفاً")
+      return false
+    }
+
+    const duplicateAccount = activeAccounts.find((account) => {
+      if (Number(account.id) === Number(formData.id)) return false
+      return String(account.name || "").trim() === trimmedName
+    })
+    if (duplicateAccount) {
+      toast({
+        title: "تنبيه",
+        description: `اسم الحساب مكرر. الكود: ${duplicateAccount.code}`,
+        variant: "destructive",
+      })
+      return false
+    }
+
+    if (financialListType === "1") {
+      const hasAssets = Boolean(formData.finanical_list_assests_id)
+      const hasLiabilities = Boolean(formData.finanical_list_liabilities_id)
+      if (!hasAssets || !hasLiabilities) {
+        messagesRef.current?.show({
+          severity: "error",
+          summary: "",
+          detail: "يجب تحديد أصول الميزانية وخصومها",
+          sticky: true,
+          life: 3000,
+        })
+        setError("يجب تحديد أصول الميزانية وخصومها")
+        return false
+      }
+    }
+
+    if (financialListType === "2" || financialListType === "3") {
+      if (!formData.finanical_list_income_id) {
+        setError("يجب تحديد بند قائمة الدخل")
+        return false
+      }
+    }
+
+    // Validate currency is selected
+    const currencyId = formData.currency_id ? Number(formData.currency_id) : 0
+    if (!currencyId || currencyId <= 0) {
+      setError("يجب تحديد العملة")
+      return false
+    }
+
+    // Adjust code if not already adjusted (ensure it's 8 uppercase alphanumeric characters)
     let finalCode = trimmedCode
     if (finalCode.length !== 8) {
       finalCode = adjustCode(finalCode)
     }
 
-    // Validate account code length - must have 7 digit part (total 8 characters)
-    const codeNumericPart = finalCode.match(/\d+$/)
-    if (!codeNumericPart || codeNumericPart[0].length !== 7) {
-      setError("طول رقم الحساب غير صحيح - يجب أن يكون الكود 8 أحرف (حرف واحد + 7 أرقام)")
-      return
+    // Validate account code length - must be exactly 8 uppercase English alphanumeric characters
+    if (!/^[A-Z0-9]{8}$/.test(finalCode)) {
+      setError("طول رقم الحساب غير صحيح - يجب أن يكون 8 أحرف إنجليزية أو أرقام وبحروف كبيرة")
+      return false
+    }
+
+    const resolveFatherId = () => {
+      const trimmedFather = String(formData.father_id ?? "").trim()
+      if (!trimmedFather) return null
+
+      const numericFatherId = Number(trimmedFather)
+      if (Number.isFinite(numericFatherId)) {
+        const matchedById = activeAccounts.find((account) => Number(account.id) === numericFatherId)
+        if (matchedById) return matchedById.id
+      }
+
+      const normalizedFatherCode = trimmedFather.replace(/\s+/g, "").toUpperCase()
+      const matchedByCode = activeAccounts.find((account) => String(account.code ?? "").replace(/\s+/g, "").toUpperCase() === normalizedFatherCode)
+      if (matchedByCode) return matchedByCode.id
+
+      return null
     }
 
     try {
       setSaving(true)
-      const isEdit = currentAccount?.id != null
-      const url = isEdit ? `/api/accounts/${currentAccount.id}` : "/api/accounts"
-      const method = isEdit ? "PUT" : "POST"
+      // Detect if new or edit based on formData.id
+      const isNewAccount = formData.id === 0
+      const url = isNewAccount ? "/api/accounts" : `/api/accounts/${formData.id}`
+      const method = isNewAccount ? "POST" : "PUT"
       // prepare image base64 if available
       const imageBase64 = imagePreview && imagePreview.startsWith("data:") ? imagePreview.split(",")[1] : null
+
+      // Extract cost centers from grid state
+      let costCentersData: any[] = []
+      if (Array.isArray(costCenterTypes)) {
+        costCentersData = costCenterTypes
+          .filter((row) => row.default_cost_center_id != null && row.default_cost_center_id !== "")
+          .map((row) => ({
+          cost_center_type_id: row.id || null,
+          cost_center_id: row.default_cost_center_id || null,
+          required_in_transactions: row.required_in_transactions || row.status_id,
+          default_cost_center_id: row.default_cost_center_id || null,
+        }))
+      }
+
+      // Extract classifications from grid state
+      let classificationsData: any[] = []
+      if (Array.isArray(accountClassifications)) {
+        classificationsData = accountClassifications.map((row) => ({
+          classification_id: row.classification_id || row.id || null,
+        }))
+      }
+
+      const stopTransactionsData = Array.isArray(stopTransactionRows)
+        ? stopTransactionRows
+            .filter((row) => row.is_stopped)
+            .map((row) => ({
+              voucher_types_id: row.voucher_types_id,
+              stop_date: row.stop_date || null,
+            }))
+        : []
 
       const payload = {
         id: formData.id || 0,
         code: finalCode,
-        name: formData.name.trim(),
-        name_lang2: formData.name_lang2.trim() || null,
-        type: formData.type ? Number(formData.type) : null,
-        father_id: formData.father_id ? Number(formData.father_id) : null,
+        name: trimmedName,
+        name_lang2: trimmedEnglishName || trimmedName,
+        type: 1,
+        father_id: resolveFatherId(),
         level_no: Number(formData.level_no || 1),
         finanical_list_id: Number(formData.finanical_list_id || 1),
         finanical_list_assests_id: formData.finanical_list_assests_id ? Number(formData.finanical_list_assests_id) : null,
@@ -907,6 +1422,9 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
         show_notes_in_transactions_soa: formData.show_notes_in_transactions_soa,
         status: formData.status,
         image_base64: imageBase64,
+        stop_transactions: stopTransactionsData,
+        cost_centers: costCentersData,
+        account_classifications: classificationsData,
       }
       console.log("Saving account with payload:", payload)
       const response = await fetch(url, {
@@ -918,15 +1436,15 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
       if (!response.ok) {
         const data = await response.json()
         setError(data.error || "فشل حفظ الحساب")
-        return
+        return false
       }
 
       const savedAccount = await response.json()
       const savedCode = savedAccount?.code || savedAccount?.account_code || finalCode
       const codeWasChanged = savedCode !== finalCode
       
-      let messageText = isEdit ? "الحساب تم تحديثه بنجاح" : "الحساب تم إنشاؤه بنجاح"
-      if (codeWasChanged && !isEdit) {
+      let messageText = isNewAccount ? "الحساب تم إنشاؤه بنجاح" : "الحساب تم تحديثه بنجاح"
+      if (codeWasChanged && isNewAccount) {
         messageText += ` (رقم الحساب: ${savedCode})`
       }
       
@@ -936,16 +1454,24 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
         description: messageText,
       })
       
+      // Refresh the in-memory list so the search dialog sees the new record immediately.
+      await loadData()
+      dirtySnapshotRef.current = currentSnapshot
+
       // If new account, reset form for next entry, otherwise close dialog
-      if (!isEdit) {
-        await handleNew()
+      if (isNewAccount) {
+        await reset_fields()
       } else {
         setDialogOpen(false)
-        await loadData()
       }
+      if (options?.closeAfterSave && closeWindow) {
+        closeWindow()
+      }
+      return true
     } catch (err) {
       console.error(err)
       setError("خطأ في حفظ الحساب")
+      return false
     } finally {
       setSaving(false)
     }
@@ -953,7 +1479,13 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
 
   const handleDelete = async () => {
     if (!currentAccount) return
-    if (!window.confirm("Are you sure?")) return
+    setShowAccountDeleteConfirm(true)
+  }
+
+  const handleConfirmDeleteAccount = useCallback(async () => {
+    if (!currentAccount) return
+    setShowAccountDeleteConfirm(false)
+    setLoading(true)
 
     try {
       const response = await fetch(`/api/accounts/${currentAccount.id}`, { method: "DELETE" })
@@ -962,42 +1494,59 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
         return
       }
       setMessage("الحساب تم حذفه بنجاح")
-      setDialogOpen(false)
       await loadData()
+      await reset_fields()
+      setDialogOpen(true)
+      setActiveTab("main")
     } catch (err) {
       console.error(err)
       setError("خطأ في حذف الحساب")
+    } finally {
+      setLoading(false)
     }
-  }
+  }, [currentAccount])
 
   const handleFirst = () => {
-    if (accounts.length) {
+    if (activeAccounts.length) {
       setCurrentIndex(0)
-      loadAccountToForm(accounts[0])
+      loadAccountToForm(activeAccounts[0])
     }
   }
 
   const handlePrevious = () => {
-    if (currentIndex > 0) {
-      const newIndex = currentIndex - 1
-      setCurrentIndex(newIndex)
-      loadAccountToForm(accounts[newIndex])
+    if (!activeAccounts.length) return
+
+    if (formData.id === 0) {
+      const lastIndex = activeAccounts.length - 1
+      setCurrentIndex(lastIndex)
+      loadAccountToForm(activeAccounts[lastIndex])
+      return
     }
+
+    const newIndex = currentIndex > 0 ? currentIndex - 1 : activeAccounts.length - 1
+    setCurrentIndex(newIndex)
+    loadAccountToForm(activeAccounts[newIndex])
   }
 
   const handleNext = () => {
-    if (currentIndex < accounts.length - 1) {
-      const newIndex = currentIndex + 1
-      setCurrentIndex(newIndex)
-      loadAccountToForm(accounts[newIndex])
+    if (!activeAccounts.length) return
+
+    if (formData.id === 0) {
+      setCurrentIndex(0)
+      loadAccountToForm(activeAccounts[0])
+      return
     }
+
+    const newIndex = currentIndex < activeAccounts.length - 1 ? currentIndex + 1 : 0
+    setCurrentIndex(newIndex)
+    loadAccountToForm(activeAccounts[newIndex])
   }
 
   const handleLast = () => {
-    if (accounts.length) {
-      const lastIndex = accounts.length - 1
+    if (activeAccounts.length) {
+      const lastIndex = activeAccounts.length - 1
       setCurrentIndex(lastIndex)
-      loadAccountToForm(accounts[lastIndex])
+      loadAccountToForm(activeAccounts[lastIndex])
     }
   }
 
@@ -1007,6 +1556,17 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
     }
     setDialogOpen(true)
     setActiveTab("main")
+  }
+
+  const handleRequestClose = async () => {
+    if (currentSnapshot !== dirtySnapshotRef.current) {
+      setShowUnsavedConfirm(true)
+      return
+    }
+
+    if (closeWindow) {
+      closeWindow()
+    }
   }
 
   const handleDeleteCostCenterType = async () => {
@@ -1076,7 +1636,7 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
                   'ممنوع': 3
                 }
                 const state_status = type.state_status || 'اختياري'
-                const status_id = statusMap[state_status] || 1
+                const required_in_transactions = statusMap[state_status] || 1
                 
                 // Preserve existing cost center selection from previous state
                 const existingType = costCenterTypes.find((t: any) => t.id === type.id)
@@ -1086,8 +1646,8 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
                   name: type.name,
                   status: type.status,
                   state_status,
-                  status_id,
-                  cost_center_id: existingType?.cost_center_id || null,
+                  required_in_transactions,
+                  default_cost_center_id: existingType?.default_cost_center_id || null,
                   cost_center_name: existingType?.cost_center_name || "",
                   created_at: type.created_at,
                   updated_at: type.updated_at,
@@ -1116,10 +1676,10 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
         if (idx === selectedCostCenterTypeIndex) {
           return {
             ...type,
-            cost_center_id: center.id,
+            default_cost_center_id: center.id,
             cost_center_name: center.name,
             state_status: "اختياري", // Reset to default when new center selected
-            status_id: 1 // Reset to default when new center selected
+            required_in_transactions: 1 // Reset to default when new center selected
           }
         }
         return type
@@ -1303,24 +1863,24 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
     setDeleteClassificationConfirmIndex(-1)
   }, [deleteClassificationConfirmIndex, classificationTypes])
 
-  if (loading) {
+  /*if (loading) {
     return <div className="p-6 text-center">Loading...</div>
-  }
+  }*/
 
   if (inWindowManager) {
     return (
-      <div className="w-full h-full p-0 gap-0 flex flex-col overflow-hidden" dir="rtl">
+      <div className="w-full h-full p-0 gap-0 flex flex-col overflow-hidden text-base" dir="rtl">
         <div className="flex items-center justify-between border-b bg-gradient-to-r from-blue-50 to-slate-50 px-6 py-4">
-          <h2 className="text-xl font-semibold">اضافة حساب او تعديل حساب</h2>
-          <Button variant="ghost" onClick={() => closeWindow && closeWindow()}>
+          <h2 className="text-2xl font-bold">{formData.id === 0 ? "إضافة حساب جديد" : "تعديل حساب"}</h2>
+          <Button variant="ghost" onClick={() => void handleRequestClose()}>
             ✕
           </Button>
         </div>
 
         <div className="border-b bg-white/95 px-4 py-2">
           <UniversalToolbar
-            currentRecord={accounts.length > 0 ? currentIndex + 1 : 0}
-            totalRecords={accounts.length}
+            currentRecord={activeAccounts.length > 0 ? currentIndex + 1 : 0}
+            totalRecords={activeAccounts.length}
             onNew={handleNew}
             onSave={() => void handleSave()}
             onDelete={handleDelete}
@@ -1328,46 +1888,47 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
             onPrevious={handlePrevious}
             onNext={handleNext}
             onLast={handleLast}
-            canDelete={currentAccount?.id != null}
-            isSaving={saving}
+            canDelete={formData.id !== 0}
+            isSaving={loading}
           />
+          <Messages innerRef={messagesRef} />
         </div>
 
         <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
           {error && (
             <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
+            isSaving={saving}
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
-          {message && (
+          {statusMessage && (
             <Alert className="bg-green-50 border-green-200">
-              <AlertDescription className="text-green-800">{message}</AlertDescription>
+              <AlertDescription className="text-green-800">{statusMessage}</AlertDescription>
             </Alert>
           )}
 
-
+          <ProgressSpinner loading={loading} />
           <div className="space-y-4 border-b pb-4">
             <div className="grid gap-4 md:grid-cols-2 items-end">
               <div>
-                <Label className="mb-2 block text-sm font-medium">رقم الحساب * (إنجليزي وأرقام فقط، حد أقصى 8 أحرف)</Label>
+                <Label className="mb-2 block text-sm font-medium">رقم الحساب * (8 أحرف إنجليزية أو أرقام، بحروف كبيرة)</Label>
                 <div className="flex gap-2 items-center">
                   <Input
                     value={formData.code}
                     onChange={(e) => handleAccountCodeChange(e.target.value)}
                     onBlur={handleAccountCodeBlur}
                     placeholder=""
-                    className="text-right flex-1 font-mono"
+                    className="text-right flex-1 font-mono text-lg font-semibold tracking-widest"
                     maxLength={8}
-                    title="أدخل رقم الحساب بالحروف الإنجليزية والأرقام فقط"
                   />
                   <Button 
                     variant="default" 
                     onClick={() => handleOpenSearchModal("code")} 
-                    className="px-4 flex items-center gap-2"
+                    size="sm"
+                    className="px-3 h-8 flex items-center gap-1.5"
                     title="بحث عن حساب"
                   >
-                    <Search className="w-4 h-4" />
+                    <Search className="w-3.5 h-3.5" />
                   </Button>
                 </div>
               </div>
@@ -1389,7 +1950,7 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   placeholder="اسم الحساب"
-                  className="text-right"
+                  className="text-right text-lg"
                 />
               </div>
               <div>
@@ -1398,7 +1959,7 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
                   value={formData.name_lang2}
                   onChange={(e) => setFormData({ ...formData, name_lang2: e.target.value })}
                   placeholder="Account name in English"
-                  className="text-right"
+                  className="text-right text-lg"
                 />
               </div>
             </div>
@@ -1407,13 +1968,10 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
             <TabsList dir="rtl" className="h-auto w-full justify-start overflow-x-auto rounded-xl bg-gradient-to-r from-slate-50 via-blue-50 to-slate-50 p-2 shadow-md border border-slate-200/60 backdrop-blur-sm">
               <TabsTrigger value="main" className="rounded-lg px-4 py-2 font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">الرئيسية</TabsTrigger>
-              <TabsTrigger value="additional-data" className="rounded-lg px-4 py-2 font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-purple-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">بيانات إضافية</TabsTrigger>
               <TabsTrigger value="cost-centers" className="rounded-lg px-4 py-2 font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-emerald-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">مراكز التكلفة</TabsTrigger>
               <TabsTrigger value="classification" className="rounded-lg px-4 py-2 font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-orange-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">تصنيفات الحساب</TabsTrigger>
               <TabsTrigger value="stop-transactions" className="rounded-lg px-4 py-2 font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-red-500 data-[state=active]:to-red-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">إيقاف الحركات</TabsTrigger>
               <TabsTrigger value="constraints" className="rounded-lg px-4 py-2 font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-cyan-500 data-[state=active]:to-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">محددات الحساب</TabsTrigger>
-              <TabsTrigger value="flags" className="rounded-lg px-4 py-2 font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-indigo-500 data-[state=active]:to-indigo-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">إعدادات الحركة</TabsTrigger>
-              <TabsTrigger value="extra" className="rounded-lg px-4 py-2 font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-pink-500 data-[state=active]:to-pink-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">بيانات إضافية أخرى</TabsTrigger>
             </TabsList>
 
             <TabsContent value="main" className="space-y-6">
@@ -1433,10 +1991,11 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
                       <Button 
                         variant="default" 
                         onClick={() => handleOpenSearchModal("father")}
-                        className="px-4 flex items-center gap-2"
+                        size="sm"
+                        className="px-3 h-8 flex items-center gap-1.5"
                         title="بحث عن الحساب الرئيسي"
                       >
-                        <Search className="w-4 h-4" />
+                        <Search className="w-3.5 h-3.5" />
                       </Button>
                       {formData.father_id && (
                         <Button 
@@ -1458,12 +2017,22 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
                     <PrimeDropdown
                       inputId="currency_id"
                       value={formData.currency_id ? Number(formData.currency_id) : null}
-                      options={
-                        currencies.map((c) => ({
+                      options={(() => {
+                        const options = currencies.map((c) => ({
                           label: c.currency_name || c.name || c.currency_code || "غير محدد",
                           value: c.currency_id ?? c.id,
                         }))
-                      }
+                        // Sort options: selected currency first
+                        if (formData.currency_id) {
+                          const selectedId = Number(formData.currency_id)
+                          options.sort((a, b) => {
+                            if (a.value === selectedId) return -1
+                            if (b.value === selectedId) return 1
+                            return 0
+                          })
+                        }
+                        return options
+                      })()}
                       optionLabel="label"
                       optionValue="value"
                       placeholder="اختر العملة"
@@ -1683,25 +2252,119 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
                       checked={formData.iscalc_curr_diff_rates}
                       onCheckedChange={(checked) => setFormData({ ...formData, iscalc_curr_diff_rates: checked as boolean })}
                     />
-                    <span>الحساب يخضع لفرق العملة</span>
+                      <span className="text-lg font-medium">الحساب يخضع لفرق العملة</span>
                   </label>
                 </div>
               </div>
 
+            </TabsContent>
+              <TabsContent value="constraints" className="space-y-4" dir="rtl">
+                <div className="space-y-4">
+                  <h4 className="font-semibold text-base">الحدود المالية والإجراءات</h4>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div>
+                      <Label className="mb-2 block text-sm font-medium">الحد الأقصى للحركة</Label>
+                      <Input
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={9}
+                        value={formData.max_transaction_amount}
+                        onChange={(e) => setFormData({ ...formData, max_transaction_amount: e.target.value.replace(/\D/g, "").slice(0, 9) })}
+                        placeholder="0"
+                        className="text-right"
+                      />
+                    </div>
+                    <div>
+                      <Label className="mb-2 block text-sm font-medium">إجراء تجاوز الحد الأقصى للحركة</Label>
+                      <PrimeDropdown
+                        inputId="max_transaction_amount_action"
+                        value={formData.max_transaction_amount_action || "0"}
+                        options={[
+                          { label: "تحذير", value: "0" },
+                          { label: "منع", value: "1" },
+                          { label: "السماح", value: "2" },
+                        ]}
+                        optionLabel="label"
+                        optionValue="value"
+                        placeholder="اختر الإجراء"
+                        className="invoice-currency-dropdown w-full"
+                        panelClassName="invoice-currency-dropdown-panel"
+                        appendTo="self"
+                        onChange={(e: any) => {
+                          setFormData({ ...formData, max_transaction_amount_action: e.value ?? "0" })
+                          focusPrimeDropdownRoot(e)
+                        }}
+                        onHide={() => refocusDropdownInput("max_transaction_amount_action")}
+                      />
+                    </div>
+                    <div>
+                      <Label className="mb-2 block text-sm font-medium">الحد الأقصى للرصيد</Label>
+                      <Input
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={9}
+                        value={formData.max_balance_amount}
+                        onChange={(e) => setFormData({ ...formData, max_balance_amount: e.target.value.replace(/\D/g, "").slice(0, 9) })}
+                        placeholder="0"
+                        className="text-right"
+                      />
+                    </div>
+                    <div>
+                      <Label className="mb-2 block text-sm font-medium">إجراء تجاوز الحد الأقصى للرصيد</Label>
+                      <PrimeDropdown
+                        inputId="max_balance_action"
+                        value={formData.max_balance_action || "0"}
+                        options={[
+                          { label: "تحذير", value: "0" },
+                          { label: "منع", value: "1" },
+                          { label: "السماح", value: "2" },
+                        ]}
+                        optionLabel="label"
+                        optionValue="value"
+                        placeholder="اختر الإجراء"
+                        className="invoice-currency-dropdown w-full"
+                        panelClassName="invoice-currency-dropdown-panel"
+                        appendTo="self"
+                        onChange={(e: any) => {
+                          setFormData({ ...formData, max_balance_action: e.value ?? "0" })
+                          focusPrimeDropdownRoot(e)
+                        }}
+                        onHide={() => refocusDropdownInput("max_balance_action")}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </TabsContent>
+            <TabsContent value="stop-transactions" className="space-y-4" dir="rtl">
               <div className="space-y-4">
-                <h4 className="font-semibold text-base">بيانات إضافية</h4>
-                <div className="grid gap-4 md:grid-cols-1">
-                  <div>
-                    <Label className="mb-2 block text-sm font-medium">ملاحظات</Label>
-                    <Textarea value={formData.notes} onChange={(e) => setFormData({ ...formData, notes: e.target.value })} className="text-right" rows={4} />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Checkbox
-                      checked={formData.show_notes_in_transactions_soa}
-                      onCheckedChange={(checked) => setFormData({ ...formData, show_notes_in_transactions_soa: checked as boolean })}
-                    />
-                    <span className="text-sm">إظهار ملاحظة الحساب في الحركات و طباعة كشف الحساب</span>
-                  </div>
+                <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-gradient-to-r from-red-50 to-white px-4 py-3">
+                  <Checkbox
+                    checked={visibleStopTransactionRows.length > 0 && visibleStopTransactionRows.every((row) => row.is_stopped)}
+                    className="size-3 rounded-[3px] border-slate-300 bg-white shadow-sm transition-all duration-150 hover:scale-105 hover:border-blue-500 data-[state=checked]:border-blue-600 data-[state=checked]:bg-blue-600 data-[state=checked]:shadow-blue-200 [&_svg]:size-2.5"
+                    onCheckedChange={(checked) => {
+                      const nextValue = Boolean(checked)
+                      setStopTransactionRows((prev) =>
+                        prev.map((row) => ({
+                          ...row,
+                          is_stopped: nextValue,
+                          stop_date: nextValue ? row.stop_date || new Date().toISOString().slice(0, 10) : "",
+                        })),
+                      )
+                    }}
+                  />
+                  <Label className="cursor-pointer text-sm font-medium">إيقاف كافة الحركات على الحساب</Label>
+                </div>
+
+                <div className="rounded-md border border-slate-300 overflow-hidden bg-white" dir="rtl">
+                  {visibleStopTransactionRows.length > 0 ? (
+                    <div className="h-[600px] min-h-[300px] overflow-y-auto [&::-webkit-scrollbar]:w-0 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-transparent scrollbar-hide">
+                      <DataGridView scheme={stopTransactionScheme} dataSource={visibleStopTransactionRows} />
+                    </div>
+                  ) : (
+                    <div className="h-[600px] flex items-center justify-center bg-slate-50">
+                      <p className="text-slate-500 text-sm">لا توجد أنواع حركات</p>
+                    </div>
+                  )}
                 </div>
               </div>
             </TabsContent>
@@ -1869,7 +2532,7 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
         <AccountSearchDialog
           open={searchModalOpen}
           onOpenChange={setSearchModalOpen}
-          accounts={accounts}
+          accounts={activeAccounts}
           onSelect={handleSelectSearchResult}
         />
 
@@ -1912,6 +2575,13 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
             setDeleteClassificationConfirmIndex(-1)
           }}
           isCompact={true}
+        />
+
+        <ConfirmDialogYesNo
+          visible={showAccountDeleteConfirm}
+          message="هل أنت متأكد من حذف السجل؟"
+          onConfirm={handleConfirmDeleteAccount}
+          onCancel={() => setShowAccountDeleteConfirm(false)}
         />
 
         <Dialog open={showClassificationTypeForm} onOpenChange={setShowClassificationTypeForm}>
@@ -2086,6 +2756,23 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        <ConfirmDialogYesNo
+          visible={showUnsavedConfirm}
+          message="تم تعديل السجل هل تريد الحفظ؟"
+          onConfirm={async () => {
+            setShowUnsavedConfirm(false)
+            await handleSave({ closeAfterSave: true })
+          }}
+          onCancel={() => {
+            setShowUnsavedConfirm(false)
+            if (closeWindow) {
+              closeWindow()
+            }
+          }}
+          onBack={() => setShowUnsavedConfirm(false)}
+          showBack={true}
+        />
       </div>
     )
   }

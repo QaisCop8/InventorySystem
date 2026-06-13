@@ -16,6 +16,7 @@ import { WorkflowStagesManagement } from "@/components/workflow/workflow-stages-
 import { WorkflowSequencesManagement } from "@/components/workflow/workflow-sequences-management"
 import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
+import { LoadingCard } from "@/components/ui/loading-spinner"
 import salesmen from "../salesmen/Salesmen"
 import Salesmen from "../salesmen/Salesmen"
 
@@ -215,7 +216,6 @@ function Definitions() {
   const [branches, setBranches] = useState<Branch[]>([])
   const [departments, setDepartments] = useState<Department[]>([])
   const [currencies, setCurrencies] = useState<Currency[]>([])
-  const [loading, setLoading] = useState(false)
   const [editingBranchId, setEditingBranchId] = useState<number | null>(null);
   const [showCityForm, setShowCityForm] = useState(false)
   const [showWarehouseForm, setShowWarehouseForm] = useState(false)
@@ -321,10 +321,7 @@ function Definitions() {
     status: 1,
   })
   const { toast } = useToast()
-
-  useEffect(() => {
-    fetchAllData()
-  }, [])
+  const [loading, setLoading] = useState(true)
 
   const fetchAllData = async () => {
     setLoading(true)
@@ -337,6 +334,10 @@ function Definitions() {
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    fetchAllData()
+  }, [])
 
   const fetchCities = async () => {
     try {
@@ -504,6 +505,7 @@ function Definitions() {
       setAccountClassifications([])
     }
   }
+
   const fetchCustomerCategories = async () => {
     try {
       const response = await fetch("/api/customer-categories")
@@ -1733,6 +1735,10 @@ function Definitions() {
     if (status === 1) return "default"
     if (status === 2) return "secondary"
     return "destructive"
+  }
+
+  if (loading) {
+    return <LoadingCard title="جاري تحميل التعريفات..." description="يرجى الانتظار حتى تكتمل تهيئة الصفحة" />
   }
 
 
@@ -3456,7 +3462,7 @@ function Definitions() {
                   </div>
                 )}
 
-                <div className="space-y-3">
+                <div className="h-[360px] overflow-y-auto space-y-3 pr-1">
                   {costCenterTypes.map((item, index) => (
                     <div
                       key={item.id}

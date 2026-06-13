@@ -140,8 +140,8 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     // Support both naming conventions: account_code/account_name (API) and code/name (frontend)
     let accountCode = String(data.account_code ?? data.code ?? "").trim()
     const accountName = String(data.account_name ?? data.name ?? "").trim()
-    const classificationTypeId = toNullableInt(data.classification_type_id)
-    const parentAccountId = toNullableInt(data.parent_account_id)
+    const TypeId = 1
+    const parentAccountId = toNullableInt(data.parent_account_id ?? data.father_id)
     const companyId = Number(data.company_id ?? 1)
     const nameLang2 = String(data.name_lang2 ?? "").trim() || null
     const levelNo = Number(data.level_no ?? (parentAccountId ? 2 : 1))
@@ -234,7 +234,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       SET
         company_id = ${companyId},
         code = ${accountCode},
-        type = ${classificationTypeId},
+        type = ${TypeId},
         name = ${accountName},
         name_lang2 = ${nameLang2},
         father_id = ${parentAccountId},
@@ -286,7 +286,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       const costCenterTypeId = toNullableInt(row?.cost_center_type_id)
       const requiredInTransactions = toNullableInt(row?.required_in_transactions)
       const defaultCostCenterId = toNullableInt(row?.default_cost_center_id)
-      if (!costCenterTypeId && !defaultCostCenterId) continue
+      if (!costCenterTypeId || !defaultCostCenterId) continue
       await sql`
         INSERT INTO account_costcenters_tbl (account_id, cost_center_type_id, required_in_transactions, default_cost_center_id)
         VALUES (${id}, ${costCenterTypeId}, ${requiredInTransactions}, ${defaultCostCenterId})
@@ -391,7 +391,7 @@ export async function POST(request: NextRequest) {
     let accountCode = String(data.account_code ?? data.code ?? "").trim()
     const accountName = String(data.account_name ?? data.name ?? "").trim()
     const classificationTypeId = toNullableInt(data.classification_type_id)
-    const parentAccountId = toNullableInt(data.parent_account_id)
+    const parentAccountId = toNullableInt(data.parent_account_id ?? data.father_id)
     const companyId = Number(data.company_id ?? 1)
     const nameLang2 = String(data.name_lang2 ?? "").trim() || null
     const levelNo = Number(data.level_no ?? (parentAccountId ? 2 : 1))

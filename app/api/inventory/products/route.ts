@@ -42,14 +42,37 @@ try {
 
 export default sql
 
+async function hasDefaultStoreColumn() {
+  if (!sql) return false
+
+  try {
+    const result = await sql`
+      SELECT EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_name = 'products'
+          AND column_name = 'default_store'
+      ) AS has_column
+    `
+
+    return Boolean(result?.[0]?.has_column)
+  } catch (error) {
+    console.error("[v0] Failed to detect default_store column:", error)
+    return false
+  }
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const organizationId = Number.parseInt(searchParams.get("organizationId") || "1");
     const priceCategoryId = Number.parseInt(searchParams.get("priceCategoryId") || "1");
-    const products = await sql`
+    const hasDefaultStore = await hasDefaultStoreColumn()
+    const products = hasDefaultStore
+      ? await sql`
       SELECT 
         p.*,
+        COALESCE(w.warehouse_name, 'بلا تحديد') AS default_store_name,
         false as selected,
         ROW_NUMBER() OVER (ORDER BY p.product_code desc) AS ser,
         -- ✅ Stock columns
@@ -112,6 +135,62 @@ export async function GET(request: NextRequest) {
 
       LEFT JOIN pricecategory pc ON pc.id = pr.price_category_id
       LEFT JOIN currency c ON c.id = pr.currency_id
+      LEFT JOIN warehouses w ON w.id = p.default_store
+
+      WHERE (p.deleted IS NULL OR p.deleted = false)
+      ORDER BY p.product_code DESC;
+    `
+      : await sql`
+      SELECT 
+        p.*,
+        'بلا تحديد' AS default_store_name,
+        false as selected,
+        ROW_NUMBER() OVER (ORDER BY p.product_code desc) AS ser,
+        COALESCE(ps.current_stock, 0) AS current_stock,
+        COALESCE(ps.reserved_stock, 0) AS reserved_stock,
+        COALESCE(ps.available_stock, 0) AS available_stock,
+        COALESCE(ps.reorder_level, 0) AS min_stock_level,
+        ps.max_stock_level,
+        ps.last_updated AS stock_last_updated,
+        CASE 
+          WHEN COALESCE(ps.current_stock, 0) <= COALESCE(ps.reorder_level, 0) AND COALESCE(ps.current_stock, 0) > 0 
+            THEN 'low'
+          WHEN COALESCE(ps.current_stock, 0) = 0 
+            THEN 'out'
+          ELSE 'available'
+        END AS stock_status,
+        u.unit_name AS first_unit,
+        u.id AS unit_id,
+        pu.first_barcode,
+        pr.price AS first_price,
+        pc.name AS first_price_name,
+        c.currency_name AS currency_name
+
+      FROM products p
+      LEFT JOIN product_stock ps 
+        ON p.id = ps.product_id
+        AND ps.organization_id = ${organizationId}
+      LEFT JOIN LATERAL (
+        SELECT pu.*, pub.barcode AS first_barcode
+        FROM product_units pu
+        LEFT JOIN product_unit_barcodes pub
+          ON pub.product_id = pu.product_id
+          AND pub.unit_id = pu.id
+        WHERE pu.product_id = p.id
+        ORDER BY pu.id ASC
+        LIMIT 1
+      ) pu ON TRUE
+      LEFT JOIN units u ON pu.unit_id = u.id
+      LEFT JOIN LATERAL (
+        SELECT pr.*
+        FROM product_prices pr
+        WHERE pr.product_id = p.id
+        AND pr.price_category_id = ${priceCategoryId}
+        ORDER BY pr.price_category_id ASC
+        LIMIT 1
+      ) pr ON TRUE
+      LEFT JOIN pricecategory pc ON pc.id = pr.price_category_id
+      LEFT JOIN currency c ON c.id = pr.currency_id
 
       WHERE (p.deleted IS NULL OR p.deleted = false)
       ORDER BY p.product_code DESC;
@@ -123,6 +202,7 @@ export async function GET(request: NextRequest) {
       status: product.status === 1 ? "نشط" : product.status === 2 ? "غير نشط" : "متوقف",
       batch_tracking: product.has_batch,
       expiry_tracking: product.has_expiry,
+      default_store_name: product.default_store_name || "بلا تحديد",
     }));
 
     return NextResponse.json(mappedProducts);
@@ -147,6 +227,15 @@ export async function POST(request: NextRequest) {
   try {
     const productData = await request.json();
     const organizationId = 1; // replace with auth context
+    const hasDefaultStore = await client.query(
+      `SELECT EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_name = 'products'
+          AND column_name = 'default_store'
+      ) AS has_column`
+    );
+    const canSaveDefaultStore = Boolean(hasDefaultStore.rows[0]?.has_column);
 
     await client.query("BEGIN");
 
@@ -207,59 +296,178 @@ export async function POST(request: NextRequest) {
     if (update === true) {
       productId = existingProduct.rows[0].id;
 
-      // Update all product fields
-      await client.query(
-        `UPDATE products SET
-      product_code=$1,
-      product_name=$2,
-      product_name_en=$3,
-      description=$4,
-      category_id=$5,
-      main_stock_id=$6,
-      brand=$7,
-      model=$8,
-      factory_number=$9,
-      original_number=$10,
-      measurment_unit=$11,
-      last_purchase_price=$12,
-      currency_id=$13,
-      tax_rate=$14,
-      discount_rate=$15,
-      location=$16,
-      has_expiry_date=$17,
-      has_batch_number=$18,
-      serial_tracking=$19,
-      status=$20,
-      length=$21,
-      width=$22,
-      height=$23,
-      density=$24,
-      color=$25,
-      size=$26,
-      notes=$27,
-      manufacturer_company=$28,
-      updated_at=NOW()
-     WHERE id=$29`,
-        [
+      const updateQuery = canSaveDefaultStore
+        ? `UPDATE products SET
+          product_code=$1,
+          product_name=$2,
+          product_name_en=$3,
+          description=$4,
+          category_id=$5,
+          main_stock_id=$6,
+          default_store=$7,
+          brand=$8,
+          model=$9,
+          factory_number=$10,
+          original_number=$11,
+          measurment_unit=$12,
+          last_purchase_price=$13,
+          currency_id=$14,
+          tax_rate=$15,
+          discount_rate=$16,
+          location=$17,
+          has_expiry_date=$18,
+          has_batch_number=$19,
+          serial_tracking=$20,
+          status=$21,
+          length=$22,
+          width=$23,
+          height=$24,
+          density=$25,
+          color=$26,
+          size=$27,
+          notes=$28,
+          manufacturer_company=$29,
+          updated_at=NOW()
+         WHERE id=$30`
+        : `UPDATE products SET
+          product_code=$1,
+          product_name=$2,
+          product_name_en=$3,
+          description=$4,
+          category_id=$5,
+          main_stock_id=$6,
+          brand=$7,
+          model=$8,
+          factory_number=$9,
+          original_number=$10,
+          measurment_unit=$11,
+          last_purchase_price=$12,
+          currency_id=$13,
+          tax_rate=$14,
+          discount_rate=$15,
+          location=$16,
+          has_expiry_date=$17,
+          has_batch_number=$18,
+          serial_tracking=$19,
+          status=$20,
+          length=$21,
+          width=$22,
+          height=$23,
+          density=$24,
+          color=$25,
+          size=$26,
+          notes=$27,
+          manufacturer_company=$28,
+          updated_at=NOW()
+         WHERE id=$29`
+
+      const updateValues = canSaveDefaultStore
+        ? [
+            productData.product_code,
+            productData.product_name,
+            productData.product_name_en,
+            productData.description,
+            productData.category_id || null,
+            productData.main_stock_id || null,
+            productData.default_store || null,
+            productData.brand,
+            productData.model,
+            productData.factory_number,
+            productData.original_number,
+            productData.measurment_unit,
+            productData.last_purchase_price,
+            productData.currency_id || null,
+            productData.tax_rate,
+            productData.discount_rate,
+            productData.location,
+            productData.expiry_tracking,
+            productData.batch_tracking,
+            productData.serial_tracking,
+            productData.status,
+            productData.length,
+            productData.width,
+            productData.height,
+            productData.density,
+            productData.color,
+            productData.size,
+            productData.notes,
+            productData.manufacturer_company,
+            productId,
+          ]
+        : [
+            productData.product_code,
+            productData.product_name,
+            productData.product_name_en,
+            productData.description,
+            productData.category_id || null,
+            productData.main_stock_id || null,
+            productData.brand,
+            productData.model,
+            productData.factory_number,
+            productData.original_number,
+            productData.measurment_unit,
+            productData.last_purchase_price,
+            productData.currency_id || null,
+            productData.tax_rate,
+            productData.discount_rate,
+            productData.location,
+            productData.expiry_tracking,
+            productData.batch_tracking,
+            productData.serial_tracking,
+            productData.status,
+            productData.length,
+            productData.width,
+            productData.height,
+            productData.density,
+            productData.color,
+            productData.size,
+            productData.notes,
+            productData.manufacturer_company,
+            productId,
+          ]
+
+      await client.query(updateQuery, updateValues)
+      await client.query(`DELETE FROM product_units WHERE product_id=$1`, [productId]);
+      await client.query(`DELETE FROM product_unit_barcodes WHERE product_id=$1`, [productId]);
+      await client.query(`DELETE FROM product_prices WHERE product_id=$1`, [productId]);
+      await client.query(`DELETE FROM product_warehouses WHERE product_id=$1`, [productId]);
+
+    } else {
+      const insertColumns = canSaveDefaultStore
+        ? `product_code, product_name, product_name_en, description,
+      category_id, main_stock_id, default_store, brand, model,
+      factory_number, original_number, measurment_unit,
+      last_purchase_price, currency_id, tax_rate, discount_rate,
+      location, has_expiry_date, has_batch_number, status,
+      length, width, height, density, color, size, notes,serial_tracking,manufacturer_company`
+        : `product_code, product_name, product_name_en, description,
+      category_id, main_stock_id, brand, model,
+      factory_number, original_number, measurment_unit,
+      last_purchase_price, currency_id, tax_rate, discount_rate,
+      location, has_expiry_date, has_batch_number, status,
+      length, width, height, density, color, size, notes,serial_tracking,manufacturer_company`
+
+      const insertValues = canSaveDefaultStore
+        ? [
           productData.product_code,
           productData.product_name,
           productData.product_name_en,
           productData.description,
-          productData.category_id || null,
+          productData.category_id,
           productData.main_stock_id || null,
+          productData.default_store || null,
           productData.brand,
           productData.model,
           productData.factory_number,
           productData.original_number,
           productData.measurment_unit,
           productData.last_purchase_price,
-          productData.currency_id || null,
+          productData.currency_id,
           productData.tax_rate,
           productData.discount_rate,
           productData.location,
           productData.expiry_tracking,
           productData.batch_tracking,
-          productData.serial_tracking,
           productData.status,
           productData.length,
           productData.width,
@@ -268,33 +476,10 @@ export async function POST(request: NextRequest) {
           productData.color,
           productData.size,
           productData.notes,
-          productData.manufacturer_company,
-          productId
+          productData.serial_tracking,
+          productData.manufacturer_company
         ]
-      );
-      await client.query(`DELETE FROM product_units WHERE product_id=$1`, [productId]);
-      await client.query(`DELETE FROM product_unit_barcodes WHERE product_id=$1`, [productId]);
-      await client.query(`DELETE FROM product_prices WHERE product_id=$1`, [productId]);
-      await client.query(`DELETE FROM product_warehouses WHERE product_id=$1`, [productId]);
-
-    } else {
-      const result = await client.query(
-        `INSERT INTO products
-    (
-      product_code, product_name, product_name_en, description,
-      category_id, main_stock_id, brand, model,
-      factory_number, original_number, measurment_unit,
-      last_purchase_price, currency_id, tax_rate, discount_rate,
-      location, has_expiry_date, has_batch_number, status,
-      length, width, height, density, color, size, notes,serial_tracking,manufacturer_company
-    )
-   VALUES
-    (
-      $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,
-      $12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28
-    )
-   RETURNING id`,
-        [
+        : [
           productData.product_code,
           productData.product_name,
           productData.product_name_en,
@@ -324,6 +509,18 @@ export async function POST(request: NextRequest) {
           productData.serial_tracking,
           productData.manufacturer_company
         ]
+
+      const result = await client.query(
+        `INSERT INTO products
+    (
+      ${insertColumns}
+    )
+   VALUES
+    (
+      ${canSaveDefaultStore ? "$1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29" : "$1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28"}
+    )
+   RETURNING id`,
+        insertValues
       );
 
 

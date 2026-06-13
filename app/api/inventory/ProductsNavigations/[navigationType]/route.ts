@@ -4,6 +4,24 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
 });
 
+async function hasDefaultStoreColumn() {
+  const client = await pool.connect();
+  try {
+    const result = await client.query(`
+      SELECT EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_name = 'products'
+          AND column_name = 'default_store'
+      ) AS has_column
+    `)
+
+    return Boolean(result.rows[0]?.has_column)
+  } finally {
+    client.release();
+  }
+}
+
 export async function GET(
   req: NextRequest,
   { params }: { params: { navigationType: string, id: string } }
@@ -13,32 +31,65 @@ export async function GET(
   let values: any[] = [];
 
   try {
+    const canJoinDefaultStore = await hasDefaultStoreColumn();
+
     switch (navigationType) {
       case "first":
-        productQuery = `
-          SELECT * FROM products
-          WHERE deleted IS NULL OR deleted = false
-          ORDER BY id ASC
+        productQuery = canJoinDefaultStore
+          ? `
+          SELECT p.*, COALESCE(w.warehouse_name, 'بلا تحديد') AS default_store_name
+          FROM products p
+          LEFT JOIN warehouses w ON w.id = p.default_store
+          WHERE p.deleted IS NULL OR p.deleted = false
+          ORDER BY p.id ASC
+          LIMIT 1
+        `
+          : `
+          SELECT p.*, 'بلا تحديد' AS default_store_name
+          FROM products p
+          WHERE p.deleted IS NULL OR p.deleted = false
+          ORDER BY p.id ASC
           LIMIT 1
         `;
         break;
 
       case "last":
-        productQuery = `
-          SELECT * FROM products
-          WHERE deleted IS NULL OR deleted = false
-          ORDER BY id DESC
+        productQuery = canJoinDefaultStore
+          ? `
+          SELECT p.*, COALESCE(w.warehouse_name, 'بلا تحديد') AS default_store_name
+          FROM products p
+          LEFT JOIN warehouses w ON w.id = p.default_store
+          WHERE p.deleted IS NULL OR p.deleted = false
+          ORDER BY p.id DESC
+          LIMIT 1
+        `
+          : `
+          SELECT p.*, 'بلا تحديد' AS default_store_name
+          FROM products p
+          WHERE p.deleted IS NULL OR p.deleted = false
+          ORDER BY p.id DESC
           LIMIT 1
         `;
         break;
 
       case "previous": {
         const currentId = Number(req.nextUrl.searchParams.get("currentId") || 0);
-        productQuery = `
-          SELECT * FROM products
-          WHERE id < $1
-          AND (deleted IS NULL OR deleted = false)
-          ORDER BY id DESC
+        productQuery = canJoinDefaultStore
+          ? `
+          SELECT p.*, COALESCE(w.warehouse_name, 'بلا تحديد') AS default_store_name
+          FROM products p
+          LEFT JOIN warehouses w ON w.id = p.default_store
+          WHERE p.id < $1
+          AND (p.deleted IS NULL OR p.deleted = false)
+          ORDER BY p.id DESC
+          LIMIT 1
+        `
+          : `
+          SELECT p.*, 'بلا تحديد' AS default_store_name
+          FROM products p
+          WHERE p.id < $1
+          AND (p.deleted IS NULL OR p.deleted = false)
+          ORDER BY p.id DESC
           LIMIT 1
         `;
         values = [currentId];
@@ -47,11 +98,22 @@ export async function GET(
 
       case "next": {
         const currentId = Number(req.nextUrl.searchParams.get("currentId") || 0);
-        productQuery = `
-          SELECT * FROM products
-          WHERE id > $1
-          AND (deleted IS NULL OR deleted = false)
-          ORDER BY id ASC
+        productQuery = canJoinDefaultStore
+          ? `
+          SELECT p.*, COALESCE(w.warehouse_name, 'بلا تحديد') AS default_store_name
+          FROM products p
+          LEFT JOIN warehouses w ON w.id = p.default_store
+          WHERE p.id > $1
+          AND (p.deleted IS NULL OR p.deleted = false)
+          ORDER BY p.id ASC
+          LIMIT 1
+        `
+          : `
+          SELECT p.*, 'بلا تحديد' AS default_store_name
+          FROM products p
+          WHERE p.id > $1
+          AND (p.deleted IS NULL OR p.deleted = false)
+          ORDER BY p.id ASC
           LIMIT 1
         `;
         values = [currentId];
@@ -63,10 +125,19 @@ export async function GET(
         if (!id) {
           return NextResponse.json({ error: "ID is required" }, { status: 400 });
         }
-        productQuery = `
-          SELECT * FROM products
-          WHERE id = $1
-          AND (deleted IS NULL OR deleted = false)
+        productQuery = canJoinDefaultStore
+          ? `
+          SELECT p.*, COALESCE(w.warehouse_name, 'بلا تحديد') AS default_store_name
+          FROM products p
+          LEFT JOIN warehouses w ON w.id = p.default_store
+          WHERE p.id = $1
+          AND (p.deleted IS NULL OR p.deleted = false)
+        `
+          : `
+          SELECT p.*, 'بلا تحديد' AS default_store_name
+          FROM products p
+          WHERE p.id = $1
+          AND (p.deleted IS NULL OR p.deleted = false)
         `;
         values = [Number(id)];
         break;

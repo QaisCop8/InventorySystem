@@ -157,6 +157,7 @@ export async function GET(request: NextRequest) {
           a.name AS account_name,
           a.name_lang2,
           a.father_id AS parent_account_id,
+          pa.code AS parent_account_code,
           pa.name AS parent_account_name,
           a.level_no,
           a.finanical_list_id,
@@ -202,6 +203,7 @@ export async function GET(request: NextRequest) {
           a.name AS account_name,
           a.name_lang2,
           a.father_id AS parent_account_id,
+          pa.code AS parent_account_code,
           pa.name AS parent_account_name,
           a.level_no,
           a.finanical_list_id,
@@ -305,11 +307,11 @@ export async function POST(request: NextRequest) {
     // Support both naming conventions: account_code/account_name (API) and code/name (frontend)
     const accountCode = String(data.account_code ?? data.code ?? "").trim()
     const accountName = String(data.account_name ?? data.name ?? "").trim()
-    const classificationTypeId = toNullableInt(data.classification_type_id)
-    const parentAccountId = toNullableInt(data.parent_account_id)
+    const TypeId = 1 // Default to 1 if not provided, since it's required
+    const parentCode = String(data.parent_code ?? data.father_code ?? "").trim()
+    let parentAccountId = toNullableInt(data.parent_account_id ?? data.father_id)
     const companyId = Number(data.company_id ?? 1)
     const nameLang2 = String(data.name_lang2 ?? "").trim() || null
-    const levelNo = Number(data.level_no ?? (parentAccountId ? 2 : 1))
     const financialListId = Number(data.finanical_list_id ?? 1)
     const financialAssetsId = toNullableInt(data.finanical_list_assests_id)
     const financialLiabilitiesId = toNullableInt(data.finanical_list_liabilities_id)
@@ -347,9 +349,26 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "اسم الحساب مطلوب" }, { status: 400 })
     }
 
-    if (!classificationTypeId) {
-      return NextResponse.json({ error: "نوع الحساب مطلوب" }, { status: 400 })
+    if (parentAccountId === null && parentCode) {
+      const parentByCode = await sql`
+        SELECT id, level_no
+        FROM account_tbl
+        WHERE LOWER(code) = LOWER(${parentCode})
+        LIMIT 1
+      `
+
+      if (parentByCode.length === 0) {
+        return NextResponse.json({ error: "الحساب الرئيسي غير موجود" }, { status: 400 })
+      }
+
+      parentAccountId = Number(parentByCode[0].id)
     }
+
+    const levelNo = Number(data.level_no ?? (parentAccountId ? 2 : 1))
+
+    /*if (!classificationTypeId) {
+      return NextResponse.json({ error: "نوع الحساب مطلوب" }, { status: 400 })
+    }*/
 
     let finalAccountCode = accountCode
     const existingCode = await sql`SELECT id FROM account_tbl WHERE LOWER(code) = LOWER(${accountCode})`
@@ -377,10 +396,10 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const typeExists = await sql`SELECT id FROM account_classification_types WHERE id = ${classificationTypeId}`
+    /*const typeExists = await sql`SELECT id FROM account_classification_types WHERE id = ${classificationTypeId}`
     if (typeExists.length === 0) {
       return NextResponse.json({ error: "نوع الحساب غير موجود" }, { status: 400 })
-    }
+    }*/
 
     if (parentAccountId !== null) {
       const parentExists = await sql`SELECT id FROM account_tbl WHERE id = ${parentAccountId}`
@@ -423,7 +442,7 @@ export async function POST(request: NextRequest) {
       ) VALUES (
         ${companyId},
         ${finalAccountCode},
-        ${classificationTypeId},
+        ${TypeId},
         ${accountName},
         ${nameLang2},
         ${parentAccountId},
@@ -468,9 +487,10 @@ export async function POST(request: NextRequest) {
 
     for (const row of costCenters) {
       const costCenterTypeId = toNullableInt(row?.cost_center_type_id)
-      const requiredInTransactions = toNullableInt(row?.required_in_transactions)
+      const costCenterId = toNullableInt(row?.cost_center_id)
+      const requiredInTransactions = toNullableInt(row?.required_in_transactions || row?.status_id)
       const defaultCostCenterId = toNullableInt(row?.default_cost_center_id)
-      if (!costCenterTypeId && !defaultCostCenterId) continue
+      if (!costCenterTypeId || !defaultCostCenterId) continue
       await sql`
         INSERT INTO account_costcenters_tbl (account_id, cost_center_type_id, required_in_transactions, default_cost_center_id)
         VALUES (${accountId}, ${costCenterTypeId}, ${requiredInTransactions}, ${defaultCostCenterId})

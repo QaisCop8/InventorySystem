@@ -5,6 +5,19 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
 });
 
+async function hasDefaultStoreColumn(client: any) {
+  const result = await client.query(`
+    SELECT EXISTS (
+      SELECT 1
+      FROM information_schema.columns
+      WHERE table_name = 'products'
+        AND column_name = 'default_store'
+    ) AS has_column
+  `)
+
+  return Boolean(result.rows[0]?.has_column)
+}
+
 export async function GET(request: NextRequest) {
   try {
     let is_barcode = false;
@@ -16,10 +29,20 @@ export async function GET(request: NextRequest) {
     }
 
     const client = await pool.connect();
+    const canJoinDefaultStore = await hasDefaultStoreColumn(client)
 
     // 1️⃣ Get product by product_code OR first barcode (from product_unit_barcodes)
-    const productQuery = `
-      SELECT p.* FROM products p
+    const productQuery = canJoinDefaultStore
+      ? `
+      SELECT p.*, COALESCE(w.warehouse_name, 'بلا تحديد') AS default_store_name
+      FROM products p
+      LEFT JOIN warehouses w ON w.id = p.default_store
+      WHERE p.product_code = $1 
+      LIMIT 1
+    `
+      : `
+      SELECT p.*, 'بلا تحديد' AS default_store_name
+      FROM products p
       WHERE p.product_code = $1 
       LIMIT 1
     `;
@@ -40,9 +63,16 @@ export async function GET(request: NextRequest) {
       }
       else {
         const productQuery = `
-        SELECT p.* FROM products p
-      WHERE p.id = $1 
-      LIMIT 1
+        ${canJoinDefaultStore
+          ? `SELECT p.*, COALESCE(w.warehouse_name, 'بلا تحديد') AS default_store_name
+        FROM products p
+        LEFT JOIN warehouses w ON w.id = p.default_store
+        WHERE p.id = $1 
+        LIMIT 1`
+          : `SELECT p.*, 'بلا تحديد' AS default_store_name
+        FROM products p
+        WHERE p.id = $1 
+        LIMIT 1`}
       `;
         productResult = await client.query(productQuery, [barcodeResult.rows[0].product_id]);
         is_barcode = true;
@@ -97,22 +127,8 @@ export async function GET(request: NextRequest) {
         product.barcode = query
       }
     }
-    const storeQuery = `
-  SELECT id AS store_id, warehouse_name AS store_name
-  FROM warehouses
-  ORDER BY id
-  LIMIT 1
-`;
-
-    const storeResult = await client.query(storeQuery);
-
-    product.store_id = storeResult.rows.length
-      ? storeResult.rows[0].store_id
-      : null;
-
-    product.store_name = storeResult.rows.length
-      ? storeResult.rows[0].store_name
-      : null;
+    product.store_id = product.default_store ?? null;
+    product.store_name = product.default_store_name || "بلا تحديد";
     client.release();
     return NextResponse.json(product);
 

@@ -1,11 +1,12 @@
 "use client"
 
 import { useState } from "react"
+import * as XLSX from "xlsx"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Download, Printer } from "lucide-react"
 import { formatDateToBritish } from "@/lib/utils"
+import DataGridView from "@/components/common/DataGridView"
 
 interface ReportGeneratorProps {
   title: string
@@ -18,36 +19,63 @@ interface ReportGeneratorProps {
 export function ReportGenerator({ title, data, columns, isOpen, onClose }: ReportGeneratorProps) {
   const [isExporting, setIsExporting] = useState(false)
   const [isPrinting, setIsPrinting] = useState(false)
+  const gridScheme = {
+    isReport: true,
+    columns: columns.map((col) => ({
+      header: col.label,
+      name: col.key,
+      width: col.width || "*",
+      isReadOnly: true,
+      filterable: true,
+    })),
+  }
 
   const exportToExcel = async () => {
     setIsExporting(true)
     try {
-      // Create CSV content
-      const headers = columns.map((col) => col.label).join(",")
-      const rows = data.map((row) =>
-        columns
-          .map((col) => {
-            const value = row[col.key] || ""
-            // Escape commas and quotes in CSV
-            return typeof value === "string" && (value.includes(",") || value.includes('"'))
-              ? `"${value.replace(/"/g, '""')}"`
-              : value
-          })
-          .join(","),
+      const formatCellValue = (value: any) => {
+        if (value === null || value === undefined) return ""
+        if (value instanceof Date) return formatDateToBritish(value)
+        if (typeof value === "object") return JSON.stringify(value)
+        return value
+      }
+
+      const worksheetData = data.map((row) =>
+        columns.reduce((acc, col) => {
+          acc[col.label] = formatCellValue(row[col.key])
+          return acc
+        }, {} as Record<string, any>),
       )
 
-      const csvContent = [headers, ...rows].join("\n")
+      const worksheet = XLSX.utils.json_to_sheet(worksheetData)
 
-      // Create and download file
-      const blob = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8;" })
+      const columnWidths = columns.map((col) => {
+        const values = data.map((row) => String(formatCellValue(row[col.key]) ?? ""))
+        const longestValue = values.reduce((max, value) => Math.max(max, value.length), col.label.length)
+        return { wch: Math.min(Math.max(longestValue + 2, 12), 40) }
+      })
+
+      worksheet["!cols"] = columnWidths
+      if (worksheet["!ref"]) {
+        worksheet["!autofilter"] = { ref: worksheet["!ref"] }
+      }
+
+      const workbook = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(workbook, worksheet, title.slice(0, 31) || "Report")
+
+      const buffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" })
+      const blob = new Blob([buffer], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      })
       const link = document.createElement("a")
       const url = URL.createObjectURL(blob)
       link.setAttribute("href", url)
-      link.setAttribute("download", `${title}_${formatDateToBritish(new Date())}.csv`)
+      link.setAttribute("download", `${title}_${formatDateToBritish(new Date())}.xlsx`)
       link.style.visibility = "hidden"
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
+      URL.revokeObjectURL(url)
     } catch (error) {
       console.error("Error exporting to Excel:", error)
     } finally {
@@ -135,29 +163,21 @@ export function ReportGenerator({ title, data, columns, isOpen, onClose }: Repor
           </DialogTitle>
         </DialogHeader>
 
-        <div className="flex-1 overflow-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                {columns.map((col, index) => (
-                  <TableHead key={index} className="text-right" style={{ width: col.width }}>
-                    {col.label}
-                  </TableHead>
-                ))}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {data.map((row, index) => (
-                <TableRow key={index}>
-                  {columns.map((col, colIndex) => (
-                    <TableCell key={colIndex} className="text-right">
-                      {row[col.key] || ""}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+        <div className="flex-1 overflow-auto p-4">
+          <div className="min-w-max">
+            <DataGridView
+              style={{ maxHeight: "100%", minHeight: "50vh" }}
+              idProperty="ser"
+              scheme={gridScheme}
+              dataSource={data}
+              showContextMenu={false}
+              copyItemStoreDown={true}
+              dontConvertToCards={true}
+              isReport={true}
+              hideSearch={true}
+              allowSorting={true}
+            />
+          </div>
 
           {data.length === 0 && <div className="text-center py-8 text-muted-foreground">لا توجد بيانات للعرض</div>}
         </div>

@@ -96,6 +96,7 @@ CREATE TABLE IF NOT EXISTS products (
   max_stock INTEGER DEFAULT 0,
   order_quantity INTEGER DEFAULT 0,
   status VARCHAR(20) DEFAULT 'نشط',
+  default_store INTEGER,
   supplier_id INTEGER REFERENCES suppliers(id),
   product_type VARCHAR(20) DEFAULT 'عادي',
   has_expiry_date BOOLEAN DEFAULT false,

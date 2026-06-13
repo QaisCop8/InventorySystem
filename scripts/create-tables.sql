@@ -67,6 +67,7 @@ CREATE TABLE IF NOT EXISTS products (
     min_stock INTEGER DEFAULT 0,
     max_stock INTEGER DEFAULT 0,
     current_stock INTEGER DEFAULT 0,
+    default_store INTEGER,
     barcode VARCHAR(100),
     image_url TEXT,
     status VARCHAR(20) DEFAULT 'active',

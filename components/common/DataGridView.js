@@ -157,6 +157,11 @@ createButtonsColumns = () => {
     return buttonsColumns;
   };
 
+  getSerialTemplate = (context) => {
+    const rowIndex = context?.row?.index ?? context?.row?.dataIndex ?? context?.row?.rowIndex ?? 0;
+    return <span style={{ display: 'block', width: '100%', textAlign: 'center', fontWeight: '600' }}>{rowIndex + 1}</span>;
+  };
+
 
   dooo = () => {
     this.loadGridState();
@@ -179,9 +184,21 @@ createButtonsColumns = () => {
     if (this.state.columns) {
       columns = this.state.columns;
     }
+    const serialColumn = {
+      name: '__serial',
+      header: '##',
+      width: 60,
+      isReadOnly: true,
+      sortable: false,
+      filterable: false,
+      visible: true,
+      align: 'center',
+      body: 'serial',
+    };
+    columns = [serialColumn, ...columns.filter((col) => col.name !== '__serial')];
     this.filterColumns = [];
     columns.forEach((element) => {
-      if (element.filterable !== false) this.filterColumns.push(element.name);
+      if (element.name !== '__serial' && element.filterable !== false) this.filterColumns.push(element.name);
     });
 
     if (this.props.isReport && this.props.pageId) {
@@ -194,7 +211,7 @@ createButtonsColumns = () => {
       this.state.columnChooserItemsSource && this.state.columnChooserItemsSource.length > 0
         ? this.state.columnChooserItemsSource.filter((item) => item.header.toLowerCase().includes(this.state.searchText.toLowerCase()))
         : [];
-    const height = {}; //this.props.isReportNotQuery ? {height:'100%'} : {};
+    const height = this.props.containerStyle || {};
     return (
       <div style={height}>
         {this.state.hasError && (
@@ -282,7 +299,8 @@ createButtonsColumns = () => {
                 footerCustomValue={col.footerCustomValue}
                 allowMerging={this.props.allowMerging ? true : false}
               >
-                {col.body && <FlexGridCellTemplate cellType="Cell" template={col.body} />}
+                {col.body && col.body === 'serial' && <FlexGridCellTemplate cellType="Cell" template={this.getSerialTemplate} />}
+                {col.body && col.body !== 'serial' && <FlexGridCellTemplate cellType="Cell" template={col.body} />}
                 {!col.body && this.isStatusColumn(col.name) && (
                   <FlexGridCellTemplate cellType="Cell" template={(cell) => this.getTemplate(cell, col.name)} />
                 )}
@@ -702,10 +720,7 @@ createButtonTemplate = (col) => (ctx) => {
     if (this.flex) {
       try {
       this.flex.rowHeaders.columns[0].allowResizing = false;
-      this.flex.selectionMode = wjcCore.asEnum(3, wjGrid.SelectionMode);
-      if (!this.props.isReport) {
-        this.flex.selectionMode = wjcCore.asEnum(1, wjGrid.SelectionMode);
-      }
+      this.flex.selectionMode = this.props.isReport ? wjGrid.SelectionMode.Row : wjGrid.SelectionMode.Cell;
       if (this.props.columnHeaderHeight) this.flex.columnHeaders.rows[0].height = this.props.columnHeaderHeight;
       else this.flex.columnHeaders.rows[0].height = 40;
       this.flex.columns.height = 150;
@@ -806,24 +821,24 @@ createButtonTemplate = (col) => (ctx) => {
         // Apply row styling for reports (odd/even rows with better styling)
         if (this.props.isReport && e.panel === s.cells) {
           const rowIndex = e.row;
+          const row = s.rows && s.rows[rowIndex];
+          const isSelectedRow = !!(row && row.isSelected);
           const isOddRow = rowIndex % 2 === 0; // 0-based index, so even index = odd row number
-          
-          // Apply alternating row colors with better contrast
-          if (isOddRow) {
+          const rowElement = e.cell && e.cell.parentElement;
+
+          e.cell.classList.remove('wj-report-row-odd', 'wj-report-row-even', 'wj-report-row-selected');
+
+          if (rowElement) {
+            rowElement.classList.remove('wj-report-row-selected');
+          }
+
+          if (isSelectedRow) {
+            e.cell.classList.add('wj-report-row-selected');
+            if (rowElement) rowElement.classList.add('wj-report-row-selected');
+          } else if (isOddRow) {
             e.cell.classList.add('wj-report-row-odd');
-            e.cell.style.backgroundColor = '#f8f9fa';
           } else {
             e.cell.classList.add('wj-report-row-even');
-            e.cell.style.backgroundColor = '#ffffff';
-          }
-          
-          // Enhance selected row styling for reports
-          if (s.selection && s.selection.row === rowIndex) {
-            e.cell.classList.add('wj-report-row-selected');
-            e.cell.style.backgroundColor = '#e3f2fd';
-            e.cell.style.borderLeft = '4px solid #1976d2';
-            e.cell.style.fontWeight = '500';
-            e.cell.style.color = '#0d47a1';
           }
         }
 

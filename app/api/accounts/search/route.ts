@@ -54,6 +54,13 @@ export async function GET(request: NextRequest) {
 
     const account = result[0]
 
+    const stopRows = await sql`
+      SELECT id, account_id, voucher_types_id, stop_date
+      FROM account_stop_transactions_tbl
+      WHERE account_id = ${account.id}
+      ORDER BY id ASC
+    `
+
     // If account status is 3 (محذوف - deleted), return 403
     if (account.status === 3) {
       return NextResponse.json({ error: "Account deleted" }, { status: 403 })
@@ -88,6 +95,7 @@ export async function GET(request: NextRequest) {
       notes: account.notes,
       show_notes_in_transactions_soa: account.show_notes_in_transactions_soa,
       status: account.status,
+      stop_transactions: stopRows,
     })
   } catch (error) {
     console.error("Error searching account:", error)

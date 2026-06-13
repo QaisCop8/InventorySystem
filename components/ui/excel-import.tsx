@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Progress } from "@/components/ui/progress"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import DataGridView from "@/components/common/DataGridView"
 import { Upload, Download, FileSpreadsheet, AlertCircle, CheckCircle } from "lucide-react"
 
 interface ExcelImportProps {
@@ -105,6 +105,29 @@ export function ExcelImport({ entityType, isOpen, onClose, onImportComplete }: E
       { key: "email", label: "البريد الإلكتروني" },
       { key: "classifications", label: "التصنيف" },
       { key: "priceClass", label: "فئة السعر" },
+    ],
+  }
+
+  const previewGridData = previewData.map((row) => ({
+    ...row,
+    errorsText: row.errors && row.errors.length > 0 ? row.errors.join(", ") : "-",
+  }))
+
+  const previewGridScheme = {
+    isReport: true,
+    columns: [
+      ...templateColumns[entityType].map((col) => ({
+        header: col.label,
+        name: col.key,
+        width: "*",
+        isReadOnly: true,
+      })),
+      {
+        header: "الأخطاء",
+        name: "errorsText",
+        width: "2*",
+        isReadOnly: true,
+      },
     ],
   }
 
@@ -375,7 +398,31 @@ export function ExcelImport({ entityType, isOpen, onClose, onImportComplete }: E
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
+      <DialogContent
+        className="excel-import-dialog max-h-[90vh] overflow-hidden flex flex-col p-4 sm:p-6"
+        dir="rtl"
+        style={{ width: "96vw", maxWidth: "96vw" }}
+      >
+        <style>{`
+          .excel-import-dialog .wj-flexgrid {
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 0 !important;
+          }
+
+          .excel-import-dialog .wj-flexgrid .wj-rowheaders {
+            width: 0 !important;
+            min-width: 0 !important;
+            display: none !important;
+          }
+
+          .excel-import-dialog .wj-flexgrid .wj-cells {
+            width: 100% !important;
+          }
+          .excel-import-dialog .wj-flexgrid .wj-cells .wj-cell {
+            width: 100% !important;
+          }
+        `}</style>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileSpreadsheet className="h-5 w-5" />
@@ -385,7 +432,7 @@ export function ExcelImport({ entityType, isOpen, onClose, onImportComplete }: E
 
         <ProgressSpinner loading={loading} />
 
-        <div className="flex-1 overflow-auto">
+        <div className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden" dir="rtl">
           {/* UPLOAD STEP */}
           {step === "upload" && (
             <div className="space-y-6">
@@ -428,7 +475,7 @@ export function ExcelImport({ entityType, isOpen, onClose, onImportComplete }: E
 
           {/* PREVIEW STEP */}
           {step === "preview" && (
-            <div className="space-y-6 overflow-auto">
+            <div className="space-y-6 min-w-0 w-full overflow-hidden">
               <Alert>
                 <CheckCircle className="h-4 w-4" />
                 <AlertDescription>
@@ -436,39 +483,19 @@ export function ExcelImport({ entityType, isOpen, onClose, onImportComplete }: E
                 </AlertDescription>
               </Alert>
 
-              <div className="border rounded-lg max-h-[70vh] overflow-auto">
-                {/* Outer scroll container for vertical scroll */}
-                <div className="w-full overflow-x"> {/* horizontal scroll */}
-                  <table className="min-w-[1200px] table-auto border-collapse">
-                    <thead className="bg-gray-100">
-                      <tr>
-                        {templateColumns[entityType].map((col, index) => (
-                          <th
-                            key={index}
-                            className="px-2 py-1 border text-right whitespace-nowrap"
-                          >
-                            {col.label}
-                          </th>
-                        ))}
-                        <th className="px-2 py-1 border text-right whitespace-nowrap">الأخطاء</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {previewData.map((row, index) => (
-                        <tr key={index} className="hover:bg-gray-50">
-                          {templateColumns[entityType].map((col, ci) => (
-                            <td key={ci} className="px-2 py-1 border text-right whitespace-nowrap">
-                              {row[col.key] || "-"}
-                            </td>
-                          ))}
-                          <td className="px-2 py-1 border text-right text-red-600 whitespace-nowrap">
-                            {row.errors && row.errors.length > 0 ? row.errors.join(", ") : "-"}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+              <div className="w-full min-w-0 border rounded-lg overflow-hidden">
+                <DataGridView
+                  style={{ maxHeight: "70vh", minHeight: "50vh", width: "100%", overflowX: "hidden" }}
+                  idProperty="rowIndex"
+                  scheme={previewGridScheme}
+                  dataSource={previewGridData}
+                  showContextMenu={false}
+                  copyItemStoreDown={true}
+                  dontConvertToCards={true}
+                  isReport={true}
+                  hideSearch={true}
+                  allowSorting={true}
+                />
                 {previewData.length > 10000 && (
                   <div className="p-3 bg-gray-50 text-center text-sm text-gray-600">
                     وعرض {previewData.length - 10000} سجل إضافي...

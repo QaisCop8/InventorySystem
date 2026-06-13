@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS products (
     product_type VARCHAR(50),
     brand VARCHAR(100),
     model VARCHAR(100),
+    default_store INTEGER,
     manufacturer_number VARCHAR(100),
     original_number VARCHAR(100),
     supplier_id INTEGER REFERENCES suppliers(id),

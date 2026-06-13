@@ -1,10 +1,19 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { neon } from "@neondatabase/serverless"
-
-const sql = neon(process.env.DATABASE_URL!)
+import sql from "@/lib/database"
 
 export async function GET(request: NextRequest) {
   try {
+    if (!sql) {
+      console.error("[accounts/next-code] Database client not initialized")
+      return NextResponse.json(
+        {
+          error: "Database connection failed",
+          code: "A0000001",
+        },
+        { status: 500 }
+      )
+    }
+
     // Get settings
     const settingsResult = await sql`
       SELECT 
@@ -22,27 +31,31 @@ export async function GET(request: NextRequest) {
       startNumber = settingsResult[0].account_start || 1
     }
 
-    // Get max account number
+    // Get max account number - extract numeric part correctly for 8-char codes
     const accountsResult = await sql`
-      SELECT code FROM accounts ORDER BY code DESC LIMIT 1
+      SELECT code FROM account_tbl 
+      WHERE code IS NOT NULL AND code != ''
+      ORDER BY code DESC 
+      LIMIT 1
     `
 
     let nextNumber = startNumber
 
     if (accountsResult && accountsResult.length > 0) {
       const lastCode = accountsResult[0].code
-      // Extract number from code (e.g., "A0001" -> 1)
+      // Extract numeric part from code (e.g., "A0000006" -> 6)
       const match = lastCode.match(/\d+$/)
       if (match) {
-        const lastNumber = parseInt(match[0])
+        const lastNumber = parseInt(match[0], 10)
         nextNumber = lastNumber + 1
       }
     }
 
-    const nextCode = prefix + String(nextNumber).padStart(4, "0")
+    // Pad to 7 digits (8 chars total with prefix)
+    const nextCode = prefix + String(nextNumber).padStart(7, "0")
 
     return NextResponse.json({
-      nextCode,
+      code: nextCode,
       prefix,
       nextNumber,
     })
@@ -51,7 +64,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       {
         error: "Failed to generate next account code",
-        nextCode: "A0001", // Fallback
+        code: "A0000001", // Fallback
       },
       { status: 500 }
     )

@@ -66,6 +66,8 @@ interface Product {
   reserved_stock?: number
   available_stock?: number
   location?: string
+  default_store?: number | null
+  default_store_name?: string | null
   shelf_life?: number
   expiry_tracking: boolean
   batch_tracking: boolean
@@ -185,6 +187,7 @@ export function Products() {
     products: [] as Product[],
     categories: [] as Array<{ id: number; name: string }>,
     units: [] as Array<{ id: number; unit_name: string; unit_code: string }>, // Added units from API
+    warehouses: [] as Array<{ id: number; warehouse_name: string }>,
     suppliers: [] as Array<{ id: number; name: string }>,
     loading: true,
     error: null as string | null,
@@ -314,6 +317,12 @@ export function Products() {
       if (unitsResponse.ok) {
         const unitsData = await unitsResponse.json()
         setState((prev) => ({ ...prev, units: unitsData }))
+      }
+
+      const warehousesResponse = await fetch("/api/warehouses")
+      if (warehousesResponse.ok) {
+        const warehousesData = await warehousesResponse.json()
+        setState((prev) => ({ ...prev, warehouses: warehousesData }))
       }
     } catch (error) {
       console.error("[v0] Error fetching definitions:", error)
@@ -840,6 +849,7 @@ export function Products() {
                       <TableHead className="text-right">اسم الصنف</TableHead>
                       <TableHead className="text-right">التصنيف</TableHead>
                       <TableHead className="text-right">الوحدة</TableHead>
+                      <TableHead className="text-right">المستودع الافتراضي</TableHead>
                       <TableHead className="text-right">المخزون الحالي</TableHead>
                       <TableHead className="text-right">نقطة إعادة الطلب</TableHead>
                       <TableHead className="text-right">آخر سعر شراء</TableHead>
@@ -865,6 +875,7 @@ export function Products() {
                         </TableCell>
                         <TableCell>{product.category}</TableCell>
                         <TableCell>{product.main_unit}</TableCell>
+                        <TableCell>{product.default_store_name || "بلا تحديد"}</TableCell>
                         <TableCell className="font-medium">{product.current_stock}</TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
