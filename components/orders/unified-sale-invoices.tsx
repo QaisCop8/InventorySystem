@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Separator } from "@/components/ui/separator"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { UniversalToolbar } from "@/components/ui/universal-toolbar"
 import { ReportGenerator } from "@/components/ui/report-generator"
 import { useRecordNavigation } from "@/hooks/use-record-navigation"
@@ -50,6 +51,8 @@ import ConfirmDialogYesNo from "../ui/ConfirmDialogYesNo"
 import { stat } from "fs"
 import { set } from "date-fns"
 import React from "react"
+import AutoCompleteAccount from "@/components/customer/auto-complete-account"
+import type { AccountItem } from "@/components/customer/account-search-dialog"
 
 // Inject CSS styles for dropdown visibility fix
 if (typeof document !== 'undefined') {
@@ -503,6 +506,9 @@ function UnifiedSaleInvoices({
   const [showStoresSearch, setStoresSearch] = useState(false)
   const [showCustomerSearch, setShowCustomerSearch] = useState(false);
   const [showOrderSearch, setShowOrderSearch] = useState(false);
+  const [selectedCustomerAccount, setSelectedCustomerAccount] = useState<any | null>(null)
+  const [costCenterAccountCode, setCostCenterAccountCode] = useState("")
+  const [costCenterAccount, setCostCenterAccount] = useState<AccountItem | null>(null)
   const gridRef = useRef<wjGrid.FlexGrid | null>(null);
   const fromBlurRef = useRef(false);
   const orderNumberRef = useRef<HTMLInputElement>(null);
@@ -3554,255 +3560,290 @@ function UnifiedSaleInvoices({
                 </CardContent>
               </Card>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6" dir="rtl">
-                {/* ===================== */}
-                {/* معلومات الزبون (يمين) */}
-                {/* ===================== */}
-                <Card className="h-full">
-                  <CardHeader className="pb-4">
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      <User className="h-5 w-5 text-primary" />
-                      معلومات الزبون
-                    </CardTitle>
-                  </CardHeader>
+              <Card className="h-full" dir="rtl">
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <User className="h-5 w-5 text-primary" />
+                    تفاصيل الزبون ومعلومات الضريبة
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Tabs defaultValue="customer" className="space-y-6">
+                    <TabsList className="grid h-auto w-full grid-cols-2 gap-1.5 rounded-2xl border border-slate-200 bg-slate-50 p-1.5 shadow-sm">
+                      <TabsTrigger
+                        value="customer"
+                        className="rounded-xl px-4 py-2.5 text-sm font-medium transition-colors duration-200 data-[state=inactive]:text-slate-600 data-[state=inactive]:hover:bg-white data-[state=inactive]:hover:text-slate-900 data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-sm"
+                      >
+                        تفاصيل الزبون
+                      </TabsTrigger>
+                      <TabsTrigger
+                        value="tax"
+                        className="rounded-xl px-4 py-2.5 text-sm font-medium transition-colors duration-200 data-[state=inactive]:text-slate-600 data-[state=inactive]:hover:bg-white data-[state=inactive]:hover:text-slate-900 data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-sm"
+                      >
+                        معلومات الضريبة
+                      </TabsTrigger>
+                    </TabsList>
 
-                  <CardContent className="space-y-6">
+                    <TabsContent value="customer" className="space-y-4 mt-0">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+                        <AutoCompleteAccount
+                          label="الزبون"
+                          value={state.formData.customer_code ?? ""}
+                          placeholder="اختر الزبون"
+                          leafOnly
+                          displayNameFirst
+                          requiredTypeValues={[1,2, 3]}
+                          searchDefaultTypeValue="2"
+                          showFinancialListFilter={false}
+                          showSearchButton={true}
+                          showClearButton={true}
+                          onValueChange={(value) => {
+                            setSelectedCustomerAccount(null)
+                            setState((prev) => ({
+                              ...prev,
+                              formData: {
+                                ...prev.formData,
+                                customer_code: value,
+                                customer_id: null,
+                              },
+                            }))
+                          }}
+                          onAccountSelect={(account) => {
+                            setSelectedCustomerAccount(account)
+                            setState((prev) => ({
+                              ...prev,
+                              formData: {
+                                ...prev.formData,
+                                customer_id: account ? account.id : null,
+                                customer_code: account ? account.code : null,
+                                customer_name: account ? account.name : null,
+                              },
+                            }))
+                          }}
+                        />
 
-                    <div className="grid grid-cols-12 gap-4">
+                        <div className="space-y-2">
+                          <Label className="text-sm font-medium">اسم الدافع</Label>
+                          <div className="flex gap-2">
+                            <Input
+                              ref={customerNameRef}
+                              value={state.formData.customer_name ?? ""}
+                              onChange={(e) =>
+                                setState((prev) => ({
+                                  ...prev,
+                                  formData: { ...prev.formData, customer_name: e.target.value },
+                                }))
+                              }
+                              className="text-right h-11 flex-1"
+                            />
+                          </div>
+                        </div>
 
-                      {/* رقم الزبون */}
-                      <div className="col-span-12 md:col-span-5">
-                        <Label htmlFor="customer_code" className="text-sm font-medium">
-                          {'رقم الزبون *'}
-                        </Label>
-                        <div className="flex gap-2">
+                        <div className="space-y-2">
+                          <Label className="text-sm font-medium">المنطقة</Label>
                           <Input
+                            value={state.formData.customer_address ?? ""}
+                            readOnly
+                            className="text-right h-11 bg-muted"
+                          />
+                        </div>
 
-                            id="customer_code"
-                            value={state.formData.customer_code}
+                        <div className="space-y-2">
+                          <Label className="text-sm font-medium">الرصيد</Label>
+                          <Input
+                            value={selectedCustomerBalance.toFixed(2)}
+                            readOnly
+                            className="text-right h-11 bg-muted"
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label className="text-sm font-medium">مشغل مرخص للزبون</Label>
+                          <Input
+                            value={state.formData.sales_representative ?? ""}
                             onChange={(e) =>
                               setState((prev) => ({
                                 ...prev,
-                                formData: { ...prev.formData, customer_code: e.target.value },
+                                formData: { ...prev.formData, sales_representative: e.target.value },
                               }))
                             }
-                            onKeyDown={(e) => {
-                              // Allow Enter
-                              if (e.key === "F10") {
-                                e.preventDefault();
-                                openCustomerSearchPopup()
-                                return;
-                              }
-                            }
-                            }
-                            className="text-right h-11 text-base font-medium"
-                            placeholder={''}
-
+                            className="text-right h-11"
                           />
-                          <Button type="button" onClick={openCustomerSearchPopup}>
-                            🔍
-                          </Button>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label className="text-sm font-medium">المندوب</Label>
+                          <PrimeDropdown
+                            inputId="salesman"
+                            value={state.formData.salesman || "-1"}
+                            options={salesmen.map((salesman) => ({ label: salesman.name, value: String(salesman.id) }))}
+                            optionLabel="label"
+                            optionValue="value"
+                            className="invoice-currency-dropdown"
+                            panelClassName="invoice-currency-dropdown-panel"
+                            appendTo="self"
+                            baseZIndex={10000}
+                            panelStyle={{ zIndex: 10000 }}
+                            onChange={(e: any) =>
+                              setState((prev) => ({
+                                ...prev,
+                                formData: { ...prev.formData, salesman: String(e.value || "-1") },
+                              }))
+                            }
+                            onHide={() => refocusDropdownInput("salesman")}
+                          />
                         </div>
                       </div>
+                    </TabsContent>
 
+                    <TabsContent value="tax" className="space-y-6 mt-0">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="invoice-currency-dropdown-wrap">
+                          <Label>التصنيف الضريبي</Label>
+                          <PrimeDropdown
+                            inputId="tax_classification"
+                            value={state.formData.tax_classification || 1}
+                            options={taxClassificationOptions}
+                            optionLabel="label"
+                            optionValue="value"
+                            className="invoice-currency-dropdown"
+                            panelClassName="invoice-currency-dropdown-panel"
+                            appendTo="self"
+                            baseZIndex={10000}
+                            panelStyle={{ zIndex: 10000 }}
+                            onChange={(e: any) =>
+                              setState((prev) => ({
+                                ...prev,
+                                formData: { ...prev.formData, tax_classification: Number(e.value) || 1 },
+                              }))
+                            }
+                            onHide={() => refocusDropdownInput("tax_classification")}
+                          />
+                        </div>
 
-                      {/* اسم الزبون */}
-                      <div className="col-span-7">
-                        <Label>اسم الزبون *</Label>
-                        <Input
-                          ref={customerNameRef}
-                          value={state.formData.customer_name ?? ""}
-                          onChange={(e) =>
-                            setState(prev => ({
-                              ...prev,
-                              formData: { ...prev.formData, customer_name: e.target.value }
-                            }))
-                          }
-                        />
-                      </div>
+                        <div className="invoice-currency-dropdown-wrap">
+                          <Label>النوع</Label>
+                          <PrimeDropdown
+                            inputId="invoice_type"
+                            value={state.formData.invoice_type || 1}
+                            options={invoiceTypeOptions}
+                            optionLabel="label"
+                            optionValue="value"
+                            className="invoice-currency-dropdown"
+                            panelClassName="invoice-currency-dropdown-panel"
+                            appendTo="self"
+                            baseZIndex={10000}
+                            panelStyle={{ zIndex: 10000 }}
+                            onChange={(e: any) =>
+                              setState((prev) => ({
+                                ...prev,
+                                formData: { ...prev.formData, invoice_type: Number(e.value) || 1 },
+                              }))
+                            }
+                            onHide={() => refocusDropdownInput("invoice_type")}
+                          />
+                        </div>
 
-                      {/* هاتف */}
-                      <div className="col-span-12 md:col-span-6">
-                        <Label>هاتف الزبون</Label>
-                        <Input
-                          value={state.formData.customer_phone ?? ""}
-                          maxLength={15}
-                          onChange={(e) =>
-                            setState(prev => ({
-                              ...prev,
-                              formData: { ...prev.formData, customer_phone: e.target.value }
-                            }))
-                          }
-                        />
-                      </div>
-
-                      <div className="col-span-12 md:col-span-6">
-                        <Label>رصيده</Label>
-                        <Input
-                          value={selectedCustomerBalance.toFixed(2)}
-                          readOnly
-                          className="bg-muted"
-                        />
-                      </div>
-                    </div>
-
-                  </CardContent>
-                </Card>
-
-                <Card className="h-full">
-                  <CardHeader className="pb-4">
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      <Percent className="h-5 w-5 text-primary" />
-                      معلومات الضريبة
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-6 min-h-[180px]">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="invoice-currency-dropdown-wrap">
-                        <Label>التصنيف الضريبي</Label>
-                        <PrimeDropdown
-                          inputId="tax_classification"
-                          value={state.formData.tax_classification || 1}
-                          options={taxClassificationOptions}
-                          optionLabel="label"
-                          optionValue="value"
-                          className="invoice-currency-dropdown"
-                          panelClassName="invoice-currency-dropdown-panel"
-                          appendTo="self"
-                          baseZIndex={10000}
-                          panelStyle={{ zIndex: 10000 }}
-                          onChange={(e: any) =>
-                            setState((prev) => ({
-                              ...prev,
-                              formData: { ...prev.formData, tax_classification: Number(e.value) || 1 },
-                            }))
-                          }
-                          onHide={() => refocusDropdownInput("tax_classification")}
-                        />
-                      </div>
-
-                      <div className="invoice-currency-dropdown-wrap">
-                        <Label>النوع</Label>
-                        <PrimeDropdown
-                          inputId="invoice_type"
-                          value={state.formData.invoice_type || 1}
-                          options={invoiceTypeOptions}
-                          optionLabel="label"
-                          optionValue="value"
-                          className="invoice-currency-dropdown"
-                          panelClassName="invoice-currency-dropdown-panel"
-                          appendTo="self"
-                          baseZIndex={10000}
-                          panelStyle={{ zIndex: 10000 }}
-                          onChange={(e: any) =>
-                            setState((prev) => ({
-                              ...prev,
-                              formData: { ...prev.formData, invoice_type: Number(e.value) || 1 },
-                            }))
-                          }
-                          onHide={() => refocusDropdownInput("invoice_type")}
-                        />
-                      </div>
-
-                      <div>
-                        <Label className="text-sm font-medium">{"تاريخ التسديد"}</Label>
-                        <Input
-                          type="date"
-                          value={state.formData.delivery_date ?? ""}
-                          onChange={(e) =>
-                            setState((prev) => ({
-                              ...prev,
-                              formData: { ...prev.formData, delivery_date: e.target.value },
-                            }))
-                          }
-                          className="text-right h-11"
-                          dir="rtl"
-                        />
-                      </div>
-
-                      <div>
-                        <Label>مقاصة</Label>
-                        <label className="invoice-offset-toggle" htmlFor="is_offset">
-                          <span className="invoice-offset-toggle-text">
-                            {state.formData.is_offset ? "مفعلة" : "غير مفعلة"}
-                          </span>
-                          <input
-                            id="is_offset"
-                            type="checkbox"
-                            checked={!!state.formData.is_offset}
+                        <div>
+                          <Label className="text-sm font-medium">{"تاريخ التسديد"}</Label>
+                          <Input
+                            type="date"
+                            value={state.formData.delivery_date ?? ""}
                             onChange={(e) =>
                               setState((prev) => ({
                                 ...prev,
-                                formData: {
-                                  ...prev.formData,
-                                  is_offset: e.target.checked,
-                                  offset_code: e.target.checked
-                                    ? (prev.formData.offset_code || 1)
-                                    : null,
-                                },
+                                formData: { ...prev.formData, delivery_date: e.target.value },
                               }))
                             }
+                            className="text-right h-11"
+                            dir="rtl"
                           />
-                          <span className="invoice-offset-toggle-track">
-                            <span className="invoice-offset-toggle-thumb" />
-                          </span>
-                        </label>
-                      </div>
+                        </div>
 
-                      <div className="invoice-currency-dropdown-wrap">
-                        <Label>كود المقاصة</Label>
-                        <PrimeDropdown
-                          inputId="offset_code"
-                          value={state.formData.offset_code}
-                          options={offsetCodeOptions}
-                          optionLabel="label"
-                          optionValue="value"
-                          className="invoice-currency-dropdown"
-                          panelClassName="invoice-currency-dropdown-panel"
-                          appendTo="self"
-                          baseZIndex={10000}
-                          panelStyle={{ zIndex: 10000 }}
-                          onChange={(e: any) =>
-                            setState((prev) => ({
-                              ...prev,
-                              formData: { ...prev.formData, offset_code: Number(e.value) || null },
-                            }))
-                          }
-                          disabled={!state.formData.is_offset}
-                          placeholder="اختر"
-                          onHide={() => refocusDropdownInput("offset_code")}
-                        />
-                      </div>
+                        <div>
+                          <Label>مقاصة</Label>
+                          <label className="invoice-offset-toggle" htmlFor="is_offset">
+                            <span className="invoice-offset-toggle-text">
+                              {state.formData.is_offset ? "مفعلة" : "غير مفعلة"}
+                            </span>
+                            <input
+                              id="is_offset"
+                              type="checkbox"
+                              checked={!!state.formData.is_offset}
+                              onChange={(e) =>
+                                setState((prev) => ({
+                                  ...prev,
+                                  formData: {
+                                    ...prev.formData,
+                                    is_offset: e.target.checked,
+                                    offset_code: e.target.checked
+                                      ? (prev.formData.offset_code || 1)
+                                      : null,
+                                  },
+                                }))
+                              }
+                            />
+                            <span className="invoice-offset-toggle-track">
+                              <span className="invoice-offset-toggle-thumb" />
+                            </span>
+                          </label>
+                        </div>
 
-                      <div>
-                        <Label className="text-sm font-medium">مبيعات مصدرة</Label>
-                        <label className="invoice-offset-toggle" htmlFor="exported_sales_toggle">
-                          <span className="invoice-offset-toggle-text">
-                            {state.formData.exported_sales ? "مفعلة" : "غير مفعلة"}
-                          </span>
-                          <input
-                            id="exported_sales_toggle"
-                            type="checkbox"
-                            checked={!!state.formData.exported_sales}
-                            onChange={(e) =>
+                        <div className="invoice-currency-dropdown-wrap">
+                          <Label>كود المقاصة</Label>
+                          <PrimeDropdown
+                            inputId="offset_code"
+                            value={state.formData.offset_code}
+                            options={offsetCodeOptions}
+                            optionLabel="label"
+                            optionValue="value"
+                            className="invoice-currency-dropdown"
+                            panelClassName="invoice-currency-dropdown-panel"
+                            appendTo="self"
+                            baseZIndex={10000}
+                            panelStyle={{ zIndex: 10000 }}
+                            onChange={(e: any) =>
                               setState((prev) => ({
                                 ...prev,
-                                formData: {
-                                  ...prev.formData,
-                                  exported_sales: e.target.checked,
-                                },
+                                formData: { ...prev.formData, offset_code: Number(e.value) || null },
                               }))
                             }
+                            disabled={!state.formData.is_offset}
+                            placeholder="اختر"
+                            onHide={() => refocusDropdownInput("offset_code")}
                           />
-                          <span className="invoice-offset-toggle-track">
-                            <span className="invoice-offset-toggle-thumb" />
-                          </span>
-                        </label>
+                        </div>
+
+                        <div>
+                          <Label className="text-sm font-medium">مبيعات مصدرة</Label>
+                          <label className="invoice-offset-toggle" htmlFor="exported_sales_toggle">
+                            <span className="invoice-offset-toggle-text">
+                              {state.formData.exported_sales ? "مفعلة" : "غير مفعلة"}
+                            </span>
+                            <input
+                              id="exported_sales_toggle"
+                              type="checkbox"
+                              checked={!!state.formData.exported_sales}
+                              onChange={(e) =>
+                                setState((prev) => ({
+                                  ...prev,
+                                  formData: {
+                                    ...prev.formData,
+                                    exported_sales: e.target.checked,
+                                  },
+                                }))
+                              }
+                            />
+                            <span className="invoice-offset-toggle-track">
+                              <span className="invoice-offset-toggle-thumb" />
+                            </span>
+                          </label>
+                        </div>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
+                    </TabsContent>
+                  </Tabs>
+                </CardContent>
+              </Card>
 
             </div>
             {state.formData?.id > 0 && state.formData?.printed === 1 && (

@@ -1,11 +1,12 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { Search, X } from "lucide-react"
+import { Search, X, CircleDollarSign } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import AccountSearchDialog, { AccountItem } from "@/components/customer/account-search-dialog"
+import AccountCostCenters from "@/components/customer/account-cost-centers"
 
 interface AutoCompleteAccountProps {
   value: string
@@ -16,11 +17,27 @@ interface AutoCompleteAccountProps {
   disabled?: boolean
   className?: string
   inputClassName?: string
+  showCostCenterButton?: boolean
+  costCenterButtonDisabled?: boolean
+  showCostCenterDialog?: boolean
+  leafOnly?: boolean
+  displayNameFirst?: boolean
+  showSearchButton?: boolean
+  showClearButton?: boolean
+  requiredTypeValues?: number[]
+  searchAllowedTypeValues?: number[]
+  searchDefaultTypeValue?: string
+  showFinancialListFilter?: boolean
+  showTypeFilter?: boolean
 }
 
 const normalizeAccountCode = (value: string) => value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 8)
 
-const formatAccountLabel = (account: AccountItem) => `${account.code} - ${account.name}`
+const formatAccountLabel = (account: AccountItem, displayNameFirst = false) =>
+  displayNameFirst ? `${account.name} / ${account.code}` : `${account.code} - ${account.name}`
+
+const isLeafAccount = (account: AccountItem, allAccounts: AccountItem[]) =>
+  !allAccounts.some((candidate) => Number(candidate.father_id ?? 0) === Number(account.id))
 
 const mapAccount = (item: any): AccountItem => ({
   id: Number(item.id),
@@ -58,6 +75,7 @@ const mapAccount = (item: any): AccountItem => ({
   notes: item.notes || null,
   show_notes_in_transactions_soa: Boolean(item.show_notes_in_transactions_soa),
   status: item.status || "نشط",
+  cost_centers: Array.isArray(item.cost_centers) ? item.cost_centers : [],
   created_at: item.created_at || undefined,
   updated_at: item.updated_at || undefined,
 })
@@ -71,10 +89,23 @@ export default function AutoCompleteAccount({
   disabled = false,
   className = "",
   inputClassName = "",
+  showCostCenterButton = true,
+  costCenterButtonDisabled = false,
+  showCostCenterDialog = true,
+  leafOnly = false,
+  displayNameFirst = false,
+  showSearchButton = true,
+  showClearButton = true,
+  requiredTypeValues,
+  searchAllowedTypeValues,
+  searchDefaultTypeValue,
+  showFinancialListFilter,
+  showTypeFilter = true,
 }: AutoCompleteAccountProps) {
   const [accounts, setAccounts] = useState<AccountItem[]>([])
   const [selectedAccount, setSelectedAccount] = useState<AccountItem | null>(null)
   const [searchDialogOpen, setSearchDialogOpen] = useState(false)
+  const [costCentersOpen, setCostCentersOpen] = useState(false)
   const [loadingAccounts, setLoadingAccounts] = useState(false)
   const [isFocused, setIsFocused] = useState(false)
   const [displayValue, setDisplayValue] = useState(value)
@@ -82,9 +113,9 @@ export default function AutoCompleteAccount({
   const normalizedValue = useMemo(() => normalizeAccountCode(value), [value])
   const resolvedDisplayValue = useMemo(() => {
     if (isFocused) return value
-    if (selectedAccount) return formatAccountLabel(selectedAccount)
+    if (selectedAccount) return formatAccountLabel(selectedAccount, displayNameFirst)
     return value
-  }, [isFocused, selectedAccount, value])
+  }, [displayNameFirst, isFocused, selectedAccount, value])
 
   const notifySelection = useCallback(
     (account: AccountItem | null) => {
@@ -109,12 +140,14 @@ export default function AutoCompleteAccount({
         .map(mapAccount)
         .filter((account: AccountItem) => Number(account.status ?? 1) !== 3)
 
-      setAccounts(mappedAccounts)
-      return mappedAccounts
+      const nextAccounts = leafOnly ? mappedAccounts.filter((account) => isLeafAccount(account, mappedAccounts)) : mappedAccounts
+
+      setAccounts(nextAccounts)
+      return nextAccounts
     } finally {
       setLoadingAccounts(false)
     }
-  }, [accounts, loadingAccounts])
+  }, [accounts, leafOnly, loadingAccounts])
 
   const resolveAccountByCode = useCallback(
     async (code: string) => {
@@ -195,7 +228,7 @@ export default function AutoCompleteAccount({
   const handleSelectFromSearch = (account: AccountItem) => {
     onValueChange(normalizeAccountCode(account.code))
     notifySelection(account)
-    setDisplayValue(formatAccountLabel(account))
+    setDisplayValue(formatAccountLabel(account, displayNameFirst))
     setSearchDialogOpen(false)
   }
 
@@ -203,9 +236,18 @@ export default function AutoCompleteAccount({
     onValueChange("")
     setDisplayValue("")
     notifySelection(null)
+    setCostCentersOpen(false)
   }
 
-  const showActions = Boolean(selectedAccount || normalizedValue)
+  const handleOpenCostCenters = () => {
+    if (disabled || costCenterButtonDisabled || !selectedAccount) return
+    setCostCentersOpen(true)
+  }
+
+  const showSearchAction = showSearchButton
+  const showCostCenterAction = showCostCenterButton && Boolean(selectedAccount || normalizedValue)
+  const showClearAction = showClearButton && Boolean(selectedAccount)
+  const showAnyAction = showSearchAction || showCostCenterAction || showClearAction
 
   return (
     <div className={className} dir="rtl">
@@ -232,25 +274,40 @@ export default function AutoCompleteAccount({
           autoComplete="off"
           inputMode="text"
         />
-        {showActions && (
+        {showAnyAction && (
           <div className="flex items-center gap-2 shrink-0">
-            <Button
-              type="button"
-              variant="default"
-              size="sm"
-              className="h-9 px-3"
-              onClick={() => void handleOpenSearch()}
-              disabled={disabled}
-              title="بحث عن الحساب"
-            >
-              <Search className="h-4 w-4" />
-            </Button>
-            {selectedAccount && (
+            {showSearchAction && (
               <Button
                 type="button"
-                variant="destructive"
+                variant="outline"
                 size="sm"
-                className="h-9 px-3"
+                className="h-9 px-3 border-slate-200 bg-slate-50 text-slate-700 hover:bg-blue-50 hover:text-blue-700"
+                onClick={() => void handleOpenSearch()}
+                disabled={disabled}
+                title="بحث عن الحساب"
+              >
+                <Search className="h-4 w-4" />
+              </Button>
+            )}
+            {showCostCenterAction && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-9 px-3 border-slate-200 bg-slate-50 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800"
+                onClick={handleOpenCostCenters}
+                disabled={disabled || costCenterButtonDisabled || !selectedAccount}
+                title="مراكز الكلفة"
+              >
+                <CircleDollarSign className="h-4 w-4" />
+              </Button>
+            )}
+            {showClearAction && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-9 px-3 border-slate-200 bg-slate-50 text-rose-600 hover:bg-rose-50 hover:text-rose-700"
                 onClick={handleClear}
                 disabled={disabled}
                 title="مسح"
@@ -260,7 +317,7 @@ export default function AutoCompleteAccount({
             )}
           </div>
         )}
-        {!showActions && (
+        {!showAnyAction && (
           <Button
             type="button"
             variant="default"
@@ -280,7 +337,19 @@ export default function AutoCompleteAccount({
         onOpenChange={setSearchDialogOpen}
         accounts={accounts}
         onSelect={handleSelectFromSearch}
+        allowedTypeValues={requiredTypeValues ?? searchAllowedTypeValues}
+        defaultTypeValue={searchDefaultTypeValue}
+        showFinancialListFilter={showFinancialListFilter}
+        showTypeFilter={showTypeFilter}
       />
+
+      {showCostCenterDialog && (
+        <AccountCostCenters
+          open={costCentersOpen}
+          onOpenChange={setCostCentersOpen}
+          account={selectedAccount}
+        />
+      )}
     </div>
   )
 }

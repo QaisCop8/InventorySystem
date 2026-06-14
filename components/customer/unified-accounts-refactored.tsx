@@ -652,6 +652,13 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
     [handleCostCenterTypeSearchClick, handleCostCenterTypeDeleteClick, handleCostCenterTypeStatusChange, costCenterTypes],
   )
 
+  const getCostCenterStateStatus = useCallback((value: number | string | null | undefined) => {
+    const normalized = Number(value ?? 0)
+    if (normalized === 2) return "اجباري"
+    if (normalized === 3) return "ممنوع"
+    return "اختياري"
+  }, [])
+
   const classificationTypeScheme = useMemo(
     () => ({
       name: "ClassificationTypeScheme",
@@ -797,10 +804,12 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
       const assignment = assignedCostCenters.find((row: any) => Number(row?.cost_center_type_id) === Number(type.id))
       const selectedCostCenterId = assignment?.default_cost_center_id != null ? Number(assignment.default_cost_center_id) : null
       const selectedCostCenter = selectedCostCenterId != null ? costCenters.find((center: any) => Number(center?.id) === selectedCostCenterId) : null
+      const requiredInTransactions = Number(assignment?.required_in_transactions ?? type.required_in_transactions ?? 1)
 
       return {
         ...type,
-        required_in_transactions: assignment?.required_in_transactions ?? type.required_in_transactions ?? 1,
+        required_in_transactions: requiredInTransactions,
+        state_status: getCostCenterStateStatus(requiredInTransactions),
         default_cost_center_id: selectedCostCenterId,
         cost_center_name: selectedCostCenter?.name || "",
       }
@@ -1077,14 +1086,21 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
 
   // Reset fields but keep the code (similar to handleNew but preserves code)
   const resetFieldsWithCode = (codeToKeep: string) => {
-    const defaultCurrencyId = currencies[0] ? String(currencies[0].currency_id ?? currencies[0].id ?? "") : ""
-    
+    const defaultCurrencyId = currencies && currencies.length > 0 ? String(currencies[0].currency_id ?? currencies[0].id ?? "") : "1"
+    const resetCostCenterTypes = costCenterTypes.map((type) => ({
+      ...type,
+      cost_center_id: null,
+      default_cost_center_id: null,
+      cost_center_name: "",
+    }))
+
+    messagesRef.current?.clear?.()
     setFormData({
       id: 0,
       code: codeToKeep,
       name: "",
       name_lang2: "",
-      type: types[0] ? String(types[0].id) : "",
+      type: types && types.length > 0 ? String(types[0].id) : "",
       father_id: "",
       level_no: "1",
       finanical_list_id: "1",
@@ -1109,10 +1125,71 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
       status: "نشط",
     })
     setFinancialListType("1")
-    setImagePreview(null)
-    setImageFile(null)
     setFatherAccountCode("")
     setFatherAccountName("")
+    setImagePreview(null)
+    setImageFile(null)
+    setStopTransactionRows(buildStopTransactionRows(voucherTypes, []))
+    setError("")
+    setMessage("")
+    setCostCenterTypes(resetCostCenterTypes)
+    setClassificationTypes(classificationTypesRef.current || [])
+    setAccountClassifications(classificationTypesRef.current || [])
+    setSelectedCostCenterType(null)
+    setSelectedCostCenterTypeIndex(-1)
+    setShowDeleteConfirm(false)
+    setDeleteConfirmIndex(-1)
+    setShowCostCenterTypeForm(false)
+    setNewCostCenterTypeName("")
+    setCostCenterTypeError("")
+    setCostCenterTypeMessage("")
+    setSearchCostCenterOpen(false)
+    setSelectedClassificationType(null)
+    setSelectedClassificationTypeIndex(-1)
+    setShowDeleteClassificationConfirm(false)
+    setDeleteClassificationConfirmIndex(-1)
+    setShowClassificationForm(false)
+    setNewClassificationTypeId(null)
+    setNewClassificationName("")
+    setClassificationError("")
+    setSearchAccountClassificationOpen(false)
+
+    dirtySnapshotRef.current = serializeAccountSnapshot({
+      formData: {
+        id: 0,
+        code: codeToKeep,
+        name: "",
+        name_lang2: "",
+        type: types && types.length > 0 ? String(types[0].id) : "",
+        father_id: "",
+        level_no: "1",
+        finanical_list_id: "1",
+        finanical_list_assests_id: "",
+        finanical_list_liabilities_id: "",
+        finanical_list_income_id: "",
+        currency_id: defaultCurrencyId,
+        allow_trans_with_diff_curr: "0",
+        iscalc_curr_diff_rates: false,
+        transaction_type: "0",
+        transaction_type_action: "0",
+        max_transaction_amount: "0",
+        max_transaction_amount_action: "0",
+        max_balance_amount: "0",
+        max_balance_action: "",
+        budget_exceeding_perc: "",
+        budget_exceeding_action: "",
+        unified_report_account_no: "",
+        unified_report_group_code: "",
+        notes: "",
+        show_notes_in_transactions_soa: false,
+        status: "نشط",
+      },
+      financialListType: "1",
+      fatherAccountName: "",
+      stopTransactionRows: buildStopTransactionRows(voucherTypes, []),
+      costCenterTypes: resetCostCenterTypes,
+      accountClassifications: classificationTypesRef.current || [],
+    })
   }
 
   // Search for account by code
@@ -1173,7 +1250,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
   const handleAccountCodeBlur = () => {
     const adjustedCode = adjustCode(formData.code)
     setFormData({ ...formData, code: adjustedCode })
-    searchAccountByCode(adjustedCode)
+    void searchAccountByCode(adjustedCode)
   }
 
   useEffect(() => {
@@ -1391,6 +1468,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
     }
 
     try {
+      setLoading(true)
       setSaving(true)
       // Detect if new or edit based on formData.id
       const isNewAccount = formData.id === 0
@@ -1407,7 +1485,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
           .map((row) => ({
           cost_center_type_id: row.id || null,
           cost_center_id: row.default_cost_center_id || null,
-          required_in_transactions: row.required_in_transactions || row.status_id,
+          required_in_transactions: row.required_in_transactions ?? row.status_id ?? 1,
           default_cost_center_id: row.default_cost_center_id || null,
         }))
       }
@@ -1515,6 +1593,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
       return false
     } finally {
       setSaving(false)
+      setLoading(false)
     }
   }
 
@@ -1719,8 +1798,6 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
             ...type,
             default_cost_center_id: center.id,
             cost_center_name: center.name,
-            state_status: "اختياري", // Reset to default when new center selected
-            required_in_transactions: 1 // Reset to default when new center selected
           }
         }
         return type
@@ -1930,7 +2007,20 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
             onNext={handleNext}
             onLast={handleLast}
             canDelete={formData.id !== 0}
-            isSaving={loading}
+            isSaving={saving}
+            labels={{
+              new: "جديد",
+              save: saving ? "جاري الحفظ" : "حفظ",
+              previous: "السابق",
+              next: "التالي",
+              first: "الأول",
+              last: "الأخير",
+              delete: "حذف",
+              report: "استعلام",
+              exportExcel: "تصدير إكسل",
+              print: "طباعة",
+              clone: "نسخ",
+            }}
           />
           <Messages innerRef={messagesRef} />
         </div>

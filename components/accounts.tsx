@@ -247,6 +247,24 @@ export default function Accounts() {
       id: 1,
     }
   }
+  
+  const normalizeAccountRecord = (item: any): Account => ({
+    ...item,
+    code: item.code || item.account_code || "",
+    name: item.name || item.account_name || "",
+    type: Number(item.type || 0),
+    level_no: Number(item.level_no || 1),
+    finanical_list_id: Number(item.finanical_list_id || 1),
+    finanical_list_name:
+      item.finanical_list_name ||
+      (Number(item.finanical_list_id || 1) === 1
+        ? "الميزانية العمومية"
+        : Number(item.finanical_list_id || 1) === 2
+          ? "قائمة الدخل"
+          : Number(item.finanical_list_id || 1) === 3
+            ? "تقييم بضاعة"
+            : ""),
+  })
 
   const normalizeAccountCode = (value: string) => {
     const cleaned = String(value ?? "")
@@ -1140,30 +1158,29 @@ export default function Accounts() {
       setBalanceSheetAssets(Array.isArray(assetsData) ? assetsData : [])
       setBalanceSheetLiabilities(Array.isArray(liabilitiesData) ? liabilitiesData : [])
       setIncomeStatementItems(Array.isArray(incomeData) ? incomeData : [])
-      setAccounts(
-        (Array.isArray(accountsData) ? accountsData : []).map((item: any) => ({
-          ...item,
-          code: item.code || item.account_code || "",
-          name: item.name || item.account_name || "",
-          type: Number(item.type || 0),
-          level_no: Number(item.level_no || 1),
-          finanical_list_id: Number(item.finanical_list_id || 1),
-          finanical_list_name:
-            item.finanical_list_name ||
-            (Number(item.finanical_list_id || 1) === 1
-              ? "الميزانية العمومية"
-              : Number(item.finanical_list_id || 1) === 2
-                ? "قائمة الدخل"
-                : Number(item.finanical_list_id || 1) === 3
-                  ? "تقييم بضاعة"
-                  : ""),
-        })),
-      )
+      setAccounts((Array.isArray(accountsData) ? accountsData : []).map(normalizeAccountRecord))
     } catch (err) {
       console.error(err)
       setError("Error loading data")
     } finally {
       setLoading(false)
+    }
+  }
+
+  const refreshAccounts = async () => {
+    setError("")
+    try {
+      const response = await fetch("/api/accounts")
+      if (!response.ok) {
+        setError("Failed to load accounts")
+        return
+      }
+
+      const accountsData = await response.json()
+      setAccounts((Array.isArray(accountsData) ? accountsData : []).map(normalizeAccountRecord))
+    } catch (err) {
+      console.error(err)
+      setError("Error loading accounts")
     }
   }
 
@@ -1317,10 +1334,58 @@ export default function Accounts() {
         return
       }
 
-      setMessage(isEdit ? "تم تعديل الحساب بنجاح" : "تم إنشاء الحساب بنجاح")
+      let savedAccount: any = {}
+      try {
+        savedAccount = await response.json()
+      } catch {
+        savedAccount = {}
+      }
+
+      const accountId = Number(savedAccount?.id ?? editingId ?? 0)
+      const nextAccount: Account = {
+        ...(editingId != null ? accounts.find((item) => Number(item.id) === Number(editingId)) : {}),
+        ...savedAccount,
+        id: accountId,
+        code: savedAccount?.code || savedAccount?.account_code || formData.code.trim(),
+        name: savedAccount?.name || savedAccount?.account_name || formData.name.trim(),
+        name_lang2: savedAccount?.name_lang2 || formData.name_lang2.trim() || null,
+        type: Number(savedAccount?.type ?? formData.type ?? 0),
+        father_id: savedAccount?.father_id ?? (formData.father_id ? Number(formData.father_id) : null),
+        level_no: Number(savedAccount?.level_no ?? formData.level_no ?? 1),
+        finanical_list_id: Number(savedAccount?.finanical_list_id ?? formData.finanical_list_id ?? 1),
+        finanical_list_name:
+          savedAccount?.finanical_list_name ||
+          (Number(savedAccount?.finanical_list_id ?? formData.finanical_list_id ?? 1) === 1
+            ? "الميزانية العمومية"
+            : Number(savedAccount?.finanical_list_id ?? formData.finanical_list_id ?? 1) === 2
+              ? "قائمة الدخل"
+              : Number(savedAccount?.finanical_list_id ?? formData.finanical_list_id ?? 1) === 3
+                ? "تقييم بضاعة"
+                : ""),
+        currency_id: savedAccount?.currency_id ?? (formData.currency_id ? Number(formData.currency_id) : null),
+        allow_trans_with_diff_curr: Number(savedAccount?.allow_trans_with_diff_curr ?? (formData.allow_trans_with_diff_curr ? 1 : 0)),
+        iscalc_curr_diff_rates: Boolean(savedAccount?.iscalc_curr_diff_rates ?? formData.iscalc_curr_diff_rates),
+        transaction_type: Number(savedAccount?.transaction_type ?? formData.transaction_type ?? 0),
+        max_transaction_amount: Number(savedAccount?.max_transaction_amount ?? formData.max_transaction_amount ?? 0),
+        max_balance_amount: Number(savedAccount?.max_balance_amount ?? formData.max_balance_amount ?? 0),
+        notes: savedAccount?.notes ?? (formData.notes.trim() || null),
+        status: savedAccount?.status || formData.status,
+      }
+
+      setAccounts((prev) => {
+        const next = [...prev]
+        const index = next.findIndex((item) => Number(item.id) === accountId)
+        if (index >= 0) {
+          next[index] = nextAccount
+        } else {
+          next.unshift(nextAccount)
+        }
+        return next
+      })
+
       resetForm()
       setDialogOpen(false)
-      await loadData()
+      setMessage(isEdit ? "تم تعديل الحساب بنجاح" : "تم إنشاء الحساب بنجاح")
     } catch (err) {
       console.error(err)
       setError("Error saving account")
@@ -1339,7 +1404,7 @@ export default function Accounts() {
         return
       }
       setMessage("تم حذف الحساب بنجاح")
-      await loadData()
+      setAccounts((prev) => prev.filter((item) => Number(item.id) !== Number(id)))
     } catch (err) {
       console.error(err)
       setError("Error deleting account")
@@ -1668,7 +1733,7 @@ export default function Accounts() {
                 </Select>
               </div>
               <div className="flex items-end">
-                <Button variant="secondary" className="h-10 w-full" onClick={loadData}>
+                <Button variant="secondary" className="h-10 w-full" onClick={refreshAccounts}>
                   <RefreshCw className="mr-2 h-4 w-4" /> تحديث
                 </Button>
               </div>
