@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import AutoCompleteAccount from "@/components/customer/auto-complete-account"
 import AccountSearchDialog, { AccountItem } from "@/components/customer/account-search-dialog"
 import SearchCostCenterDialog from "@/components/customer/search-cost-center-dialog"
 import SearchAccountClassificationDialog from "@/components/customer/search-account-classification-dialog"
@@ -27,7 +28,6 @@ import { Plus, AlertCircle, Search, X } from "lucide-react"
 import { Dropdown as PrimeDropdown } from "primereact/dropdown"
 import DataGridView from "../common/DataGridView"
 import Messages from "../common/Messages"
-import { toast } from "@/hooks/use-toast"
 import { isSameDay } from "date-fns"
 
 interface AccountType {
@@ -132,6 +132,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
   // Search Modal States
   const [searchModalOpen, setSearchModalOpen] = useState(false)
   const [searchTarget, setSearchTarget] = useState<"father" | "code">("father")
+  const [fatherAccountCode, setFatherAccountCode] = useState("")
   const [fatherAccountName, setFatherAccountName] = useState("")
 
   // Refs
@@ -235,6 +236,15 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
     show_notes_in_transactions_soa: false,
     status: "نشط",
   })
+
+  const clearBudgetSelectionMessage = useCallback(() => {
+    if (formData.finanical_list_assests_id || formData.finanical_list_liabilities_id) {
+      if (error === "يجب تحديد أصول الميزانية وخصومها") {
+        setError("")
+      }
+      messagesRef.current?.clear?.()
+    }
+  }, [error, formData.finanical_list_assests_id, formData.finanical_list_liabilities_id])
 
   const currentSnapshot = useMemo(
     () =>
@@ -398,6 +408,8 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
             ...item,
             code: item.code || item.account_code || "",
             name: item.name || item.account_name || "",
+            father_id: item.father_id != null ? Number(item.father_id) : item.parent_account_id != null ? Number(item.parent_account_id) : null,
+            father_name: item.father_name || item.parent_account_name || "",
             type: Number(item.type || item.classification_type_id || 0),
             level_no: Number(item.level_no || 1),
             finanical_list_id: Number(item.finanical_list_id || 1),
@@ -795,6 +807,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
     })
     const nextAccountClassifications = Array.isArray((account as any).account_classifications) ? (account as any).account_classifications : []
     const nextFatherName = resolveFatherAccountLabel(account)
+    const nextFatherAccount = account.father_id ? activeAccounts.find((item) => Number(item.id) === Number(account.father_id)) : null
     setFormData({
       id: account.id || 0,
       code: account.code || "",
@@ -829,6 +842,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
     setAccountClassifications(nextAccountClassifications)
     // Set father account name
     setFatherAccountName(nextFatherName)
+    setFatherAccountCode(nextFatherAccount?.code || "")
     // set preview if account has image url
     if ((account as any).image_url) {
       setImagePreview((account as any).image_url)
@@ -894,6 +908,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
         ...formData,
         father_id: String(account.id),
       })
+      setFatherAccountCode(account.code)
       setFatherAccountName(formatAccountLabel(account))
     } else {
       const foundIndex = activeAccounts.findIndex((item) => item.id === account.id)
@@ -919,7 +934,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
   // Reset all fields to blank/default (for new account entry)
   const reset_fields = useCallback(async () => {
     const defaultCurrencyId = currencies && currencies.length > 0 ? String(currencies[0].currency_id ?? currencies[0].id ?? "") : "1"
-    
+    messagesRef.current?.clear?.()
     // Fetch next account code from API - prevent concurrent calls
     let nextCode = "A0000001"
     if (!fetchingNextCodeRef.current) {
@@ -969,6 +984,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
       status: "نشط",
     })
     setFinancialListType("1")
+    setFatherAccountCode("")
     setFatherAccountName("")
     setImagePreview(null)
     setImageFile(null)
@@ -1095,6 +1111,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
     setFinancialListType("1")
     setImagePreview(null)
     setImageFile(null)
+    setFatherAccountCode("")
     setFatherAccountName("")
   }
 
@@ -1110,9 +1127,13 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
         const account = await response.json()
         if (account && account.id) {
           if (Number(account.status ?? 1) === 3) {
-            toast({
-              title: "تنبيه",
-              description: "الحساب المختار محذوف لا يمكن عرض تفاصيله",
+            messagesRef.current?.clear?.()
+            messagesRef.current?.show({
+              severity: "warn",
+              summary: "",
+              detail: "الحساب المختار محذوف لا يمكن عرض تفاصيله",
+              sticky: false,
+              life: 3000,
             })
             await reset_fields()
             return
@@ -1125,9 +1146,13 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
         // Account not found - reset fields but keep code
         resetFieldsWithCode(code)
       } else if (response.status === 403) {
-        toast({
-          title: "تنبيه",
-          description: "الحساب المختار محذوف لا يمكن عرض تفاصيله",
+        messagesRef.current?.clear?.()
+        messagesRef.current?.show({
+          severity: "warn",
+          summary: "",
+          detail: "الحساب المختار محذوف لا يمكن عرض تفاصيله",
+          sticky: false,
+          life: 3000,
         })
         await reset_fields()
       }
@@ -1251,34 +1276,45 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
     setMessage("")
     messagesRef.current?.clear?.()
 
+    const showValidationMessage = (detail: string) => {
+      messagesRef.current?.clear?.()
+      messagesRef.current?.show({
+        severity: "error",
+        summary: "",
+        detail,
+        sticky: false,
+        life: 3000,
+      })
+    }
+
     // Get and clean the form data
     const trimmedCode = formData.code.trim().toUpperCase()
     const trimmedName = formData.name.trim()
     
     // Validate that both fields are filled
     if (!trimmedCode) {
-      setError("يجب ملء رقم الحساب")
+      showValidationMessage("يجب ملء رقم الحساب")
       return false
     }
     
     if (!trimmedName) {
-      setError("يجب ملء اسم الحساب")
+      showValidationMessage("يجب ملء اسم الحساب")
       return false
     }
 
     if (!/^[A-Z0-9]{8}$/.test(trimmedCode)) {
-      setError("يجب أن يكون رقم الحساب 8 أحرف إنجليزية أو أرقام وبحروف كبيرة")
+      showValidationMessage("يجب أن يكون رقم الحساب 8 أحرف إنجليزية أو أرقام وبحروف كبيرة")
       return false
     }
 
     if (trimmedName.length > 150) {
-      setError("اسم الحساب يجب ألا يتجاوز 150 حرفاً")
+      showValidationMessage("اسم الحساب يجب ألا يتجاوز 150 حرفاً")
       return false
     }
 
     const trimmedEnglishName = formData.name_lang2.trim()
     if (trimmedEnglishName.length > 150) {
-      setError("اسم الحساب بالإنجليزية يجب ألا يتجاوز 150 حرفاً")
+      showValidationMessage("اسم الحساب بالإنجليزية يجب ألا يتجاوز 150 حرفاً")
       return false
     }
 
@@ -1287,33 +1323,22 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
       return String(account.name || "").trim() === trimmedName
     })
     if (duplicateAccount) {
-      toast({
-        title: "تنبيه",
-        description: `اسم الحساب مكرر. الكود: ${duplicateAccount.code}`,
-        variant: "destructive",
-      })
+      showValidationMessage(`اسم الحساب مكرر. الكود: ${duplicateAccount.code}`)
       return false
     }
 
     if (financialListType === "1") {
       const hasAssets = Boolean(formData.finanical_list_assests_id)
       const hasLiabilities = Boolean(formData.finanical_list_liabilities_id)
-      if (!hasAssets || !hasLiabilities) {
-        messagesRef.current?.show({
-          severity: "error",
-          summary: "",
-          detail: "يجب تحديد أصول الميزانية وخصومها",
-          sticky: true,
-          life: 3000,
-        })
-        setError("يجب تحديد أصول الميزانية وخصومها")
+      if (!hasAssets && !hasLiabilities) {
+        showValidationMessage("يجب تحديد أصول الميزانية وخصومها")
         return false
       }
     }
 
     if (financialListType === "2" || financialListType === "3") {
       if (!formData.finanical_list_income_id) {
-        setError("يجب تحديد بند قائمة الدخل")
+        showValidationMessage("يجب تحديد بند قائمة الدخل")
         return false
       }
     }
@@ -1321,7 +1346,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
     // Validate currency is selected
     const currencyId = formData.currency_id ? Number(formData.currency_id) : 0
     if (!currencyId || currencyId <= 0) {
-      setError("يجب تحديد العملة")
+      showValidationMessage("يجب تحديد العملة")
       return false
     }
 
@@ -1333,25 +1358,36 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
 
     // Validate account code length - must be exactly 8 uppercase English alphanumeric characters
     if (!/^[A-Z0-9]{8}$/.test(finalCode)) {
-      setError("طول رقم الحساب غير صحيح - يجب أن يكون 8 أحرف إنجليزية أو أرقام وبحروف كبيرة")
+      showValidationMessage("طول رقم الحساب غير صحيح - يجب أن يكون 8 أحرف إنجليزية أو أرقام وبحروف كبيرة")
       return false
     }
 
-    const resolveFatherId = () => {
+    const resolveFatherAccount = () => {
       const trimmedFather = String(formData.father_id ?? "").trim()
       if (!trimmedFather) return null
 
       const numericFatherId = Number(trimmedFather)
       if (Number.isFinite(numericFatherId)) {
         const matchedById = activeAccounts.find((account) => Number(account.id) === numericFatherId)
-        if (matchedById) return matchedById.id
+        if (matchedById) return matchedById
       }
 
       const normalizedFatherCode = trimmedFather.replace(/\s+/g, "").toUpperCase()
       const matchedByCode = activeAccounts.find((account) => String(account.code ?? "").replace(/\s+/g, "").toUpperCase() === normalizedFatherCode)
-      if (matchedByCode) return matchedByCode.id
+      if (matchedByCode) return matchedByCode
 
       return null
+    }
+
+    const fatherAccount = resolveFatherAccount()
+    if (fatherAccount) {
+      const sameFatherId = Number(fatherAccount.id) === Number(formData.id) && Number(formData.id) !== 0
+      const sameFatherCode = String(fatherAccount.code ?? "").toUpperCase() === finalCode
+
+      if (sameFatherId || sameFatherCode) {
+        showValidationMessage("لا يمكن ان يكون الحساب تابع لنفسه")
+        return false
+      }
     }
 
     try {
@@ -1399,7 +1435,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
         name: trimmedName,
         name_lang2: trimmedEnglishName || trimmedName,
         type: 1,
-        father_id: resolveFatherId(),
+        father_id: fatherAccount ? fatherAccount.id : null,
         level_no: Number(formData.level_no || 1),
         finanical_list_id: Number(formData.finanical_list_id || 1),
         finanical_list_assests_id: formData.finanical_list_assests_id ? Number(formData.finanical_list_assests_id) : null,
@@ -1443,27 +1479,32 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
       const savedCode = savedAccount?.code || savedAccount?.account_code || finalCode
       const codeWasChanged = savedCode !== finalCode
       
-      let messageText = isNewAccount ? "الحساب تم إنشاؤه بنجاح" : "الحساب تم تحديثه بنجاح"
+      let messageText = isNewAccount ? " تم حفظ الحساب بنجاح" : " تم تعديل الحساب بنجاح"
       if (codeWasChanged && isNewAccount) {
         messageText += ` (رقم الحساب: ${savedCode})`
       }
       
-      // Show toast notification
-      toast({
-        title: "نجاح",
-        description: messageText,
+      messagesRef.current?.clear?.()
+      messagesRef.current?.show({
+        severity: "success",
+        summary: "",
+        detail: messageText,
+        sticky: false,
+        life: 3000,
       })
+      setError("")
       
       // Refresh the in-memory list so the search dialog sees the new record immediately.
       await loadData()
       dirtySnapshotRef.current = currentSnapshot
 
       // If new account, reset form for next entry, otherwise close dialog
-      if (isNewAccount) {
+      /*if (isNewAccount) {
         await reset_fields()
       } else {
         setDialogOpen(false)
-      }
+      }*/
+     await reset_fields()
       if (options?.closeAfterSave && closeWindow) {
         closeWindow()
       }
@@ -1897,15 +1938,10 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
         <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
           {error && (
             <Alert variant="destructive">
-            isSaving={saving}
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
-          {statusMessage && (
-            <Alert className="bg-green-50 border-green-200">
-              <AlertDescription className="text-green-800">{statusMessage}</AlertDescription>
-            </Alert>
-          )}
+          {statusMessage && null}
 
           <ProgressSpinner loading={loading} />
           <div className="space-y-4 border-b pb-4">
@@ -1980,37 +2016,23 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
                 <h4 className="font-semibold text-base">الإعدادات المالية</h4>
                 <div className="grid gap-4 md:grid-cols-2">
                   <div>
-                    <Label className="mb-2 block text-sm font-medium">الحساب الرئيسي (تابع ل)</Label>
-                    <div className="flex gap-2 items-center">
-                      <Input 
-                        value={fatherAccountName} 
-                        readOnly
-                        placeholder="اختر الحساب الرئيسي" 
-                        className="text-right flex-1" 
-                      />
-                      <Button 
-                        variant="default" 
-                        onClick={() => handleOpenSearchModal("father")}
-                        size="sm"
-                        className="px-3 h-8 flex items-center gap-1.5"
-                        title="بحث عن الحساب الرئيسي"
-                      >
-                        <Search className="w-3.5 h-3.5" />
-                      </Button>
-                      {formData.father_id && (
-                        <Button 
-                          variant="destructive" 
-                          onClick={() => {
-                            setFormData({ ...formData, father_id: "" })
-                            setFatherAccountName("")
-                          }}
-                          className="px-3 hover:bg-red-700 transition-colors duration-200 flex items-center gap-1"
-                          title="مسح"
-                        >
-                          <X className="w-4 h-4" />
-                        </Button>
-                      )}
-                    </div>
+                    <AutoCompleteAccount
+                      label="الحساب الرئيسي (تابع ل)"
+                      value={fatherAccountCode}
+                      placeholder="اختر الحساب الرئيسي"
+                      onValueChange={(nextCode) => {
+                        setFatherAccountCode(nextCode)
+                        if (!nextCode) {
+                          setFormData({ ...formData, father_id: "" })
+                          setFatherAccountName("")
+                        }
+                      }}
+                      onAccountSelect={(account) => {
+                        setFormData({ ...formData, father_id: account ? String(account.id) : "" })
+                        setFatherAccountName(account ? `${account.code} - ${account.name}` : "")
+                        setFatherAccountCode(account ? account.code : "")
+                      }}
+                    />
                   </div>
                   <div>
                     <Label className="mb-2 block text-sm font-medium">العملة</Label>
@@ -2121,6 +2143,9 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
                           appendTo="self"
                           onChange={(e: any) => {
                             setFormData({ ...formData, finanical_list_assests_id: e.value ? String(e.value) : "" })
+                            if (e.value || formData.finanical_list_liabilities_id) {
+                              clearBudgetSelectionMessage()
+                            }
                             focusPrimeDropdownRoot(e)
                           }}
                           onHide={() => refocusDropdownInput("financial_list_assets_id")}
@@ -2148,6 +2173,9 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
                           appendTo="self"
                           onChange={(e: any) => {
                             setFormData({ ...formData, finanical_list_liabilities_id: e.value ? String(e.value) : "" })
+                            if (e.value || formData.finanical_list_assests_id) {
+                              clearBudgetSelectionMessage()
+                            }
                             focusPrimeDropdownRoot(e)
                           }}
                           onHide={() => refocusDropdownInput("financial_list_liabilities_id")}

@@ -314,6 +314,17 @@ export default function Accounts() {
     return null
   }
 
+  const getExcelFatherSelfError = (code: string, fatherReference: string) => {
+    const normalizedCode = normalizeAccountCode(code)
+    const normalizedFather = normalizeAccountCode(fatherReference)
+
+    if (normalizedCode && normalizedFather && normalizedCode === normalizedFather) {
+      return "لا يمكن ان يكون الحساب تابع لنفسه"
+    }
+
+    return null
+  }
+
   const mapFinancialList = (value: string) => {
     const normalized = normalizeLookupValue(value)
     if (!normalized) return null
@@ -368,6 +379,8 @@ export default function Accounts() {
       if (!code) errors.push("رقم الحساب مطلوب")
       if (!name) errors.push("اسم الحساب مطلوب")
       if (!finanical_list_id) errors.push("القائمة المالية مطلوبة")
+      const fatherSelfError = getExcelFatherSelfError(code, rawFather)
+      if (fatherSelfError) errors.push(fatherSelfError)
       if (!rawCurrency) {
         errors.push("العملة مطلوبة")
       } else if (!currencyMatch) {
@@ -382,14 +395,22 @@ export default function Accounts() {
         const assetSource = rawBalanceSheetAssets || rawBalanceSheetItem
         const liabilitySource = rawBalanceSheetLiabilities || rawBalanceSheetItem
 
-        if (!assetSource || !liabilitySource) {
-          errors.push("أصول وخصوم الميزانية مطلوب")
+        if (!assetSource && !liabilitySource) {
+          errors.push("يجب تحديد أصول الميزانية وخصومها")
         } else {
           const assetMatch = assetSource ? resolveByIdOrName(assetSource, balanceSheetAssets) : null
           const liabilityMatch = liabilitySource ? resolveByIdOrName(liabilitySource, balanceSheetLiabilities) : null
 
+          if (assetSource && !assetMatch) {
+            errors.push(`أصول الميزانية غير موجودة: ${assetSource}`)
+          }
+
           if (assetMatch) {
             finanical_list_assests_id = assetMatch?.id ?? null
+          }
+
+          if (liabilitySource && !liabilityMatch) {
+            errors.push(`خصوم الميزانية غير موجودة: ${liabilitySource}`)
           }
 
           if (liabilityMatch) {
@@ -403,6 +424,9 @@ export default function Accounts() {
           errors.push("بند قائمة الدخل مطلوب")
         } else {
           const incomeMatch = resolveByIdOrName(rawIncomeItem, incomeStatementItems)
+          if (!incomeMatch) {
+            errors.push(`بند قائمة الدخل غير موجود: ${rawIncomeItem}`)
+          }
           if (incomeMatch) {
             finanical_list_income_id = incomeMatch.id
           }
@@ -551,11 +575,32 @@ export default function Accounts() {
     const code = normalizeAccountCode(String(exportRow.code ?? ""))
     const name = String(exportRow.name ?? "").trim()
     const errors: string[] = []
+    const fatherReference = normalizeFatherCodeFromJson(exportRow.father_code || exportRow.father_account_code || exportRow.father || exportRow.father_id || "")
 
     if (!code) errors.push("رقم الحساب مطلوب")
     if (!name) errors.push("اسم الحساب مطلوب")
     const duplicateError = getExcelDuplicateError(code, name, excelValidationAccounts)
     if (duplicateError) errors.push(duplicateError)
+    const fatherSelfError = getExcelFatherSelfError(code, fatherReference)
+    if (fatherSelfError) errors.push(fatherSelfError)
+
+    const financialListId = Number(exportRow.financial_list ?? exportRow.finanical_list_id ?? 1) || 1
+    if (financialListId === 1) {
+      const assetValue = String(exportRow.finanical_list_assests_id ?? exportRow.financial_list_assests ?? exportRow.financial_list_assests_id ?? "").trim()
+      const liabilityValue = String(exportRow.finanical_list_liabilities_id ?? exportRow.financial_list_liabilities ?? exportRow.financial_list_liabilities_id ?? "").trim()
+      const combinedValue = String(exportRow.balance_sheet_item ?? "").trim()
+
+      if (!assetValue && !liabilityValue && !combinedValue) {
+        errors.push("يجب تحديد أصول الميزانية وخصومها")
+      }
+    }
+
+    if (financialListId === 2 || financialListId === 3) {
+      const incomeValue = String(exportRow.finanical_list_income_id ?? exportRow.financial_list_income ?? exportRow.financial_list_income_id ?? "").trim()
+      if (!incomeValue) {
+        errors.push("بند قائمة الدخل مطلوب")
+      }
+    }
 
     return {
       ...exportRow,
@@ -581,8 +626,37 @@ export default function Accounts() {
   const buildPreviewGridRow = (row: any) => {
     const previewRow: any = row
     const currencyDisplay = getCurrencyDisplay(previewRow.currency_id)
+    const fatherReference = normalizeFatherCodeFromJson(previewRow.father_code || previewRow.father_account_code || previewRow.father || previewRow.father_id || "")
+    const code = normalizeAccountCode(String(previewRow.code ?? ""))
+    const name = String(previewRow.name ?? previewRow.name_lang2 ?? "").trim()
+    const errors: string[] = Array.isArray(previewRow.errors) ? [...previewRow.errors] : []
+
+    const duplicateError = getExcelDuplicateError(code, name, excelValidationAccounts)
+    if (duplicateError && !errors.includes(duplicateError)) errors.push(duplicateError)
+    const fatherSelfError = getExcelFatherSelfError(code, fatherReference)
+    if (fatherSelfError && !errors.includes(fatherSelfError)) errors.push(fatherSelfError)
+
+    const financialListId = Number(previewRow.financial_list ?? previewRow.finanical_list_id ?? 1) || 1
+    if (financialListId === 1) {
+      const assetValue = String(previewRow.finanical_list_assests_id ?? previewRow.financial_list_assests_id ?? "").trim()
+      const liabilityValue = String(previewRow.finanical_list_liabilities_id ?? previewRow.financial_list_liabilities_id ?? "").trim()
+      const combinedValue = String(previewRow.balance_sheet_item ?? "").trim()
+      if (!assetValue && !liabilityValue && !combinedValue) {
+        errors.push("يجب تحديد أصول الميزانية وخصومها")
+      }
+    }
+
+    if (financialListId === 2 || financialListId === 3) {
+      const incomeValue = String(previewRow.finanical_list_income_id ?? previewRow.financial_list_income_id ?? "").trim()
+      if (!incomeValue) {
+        errors.push("بند قائمة الدخل مطلوب")
+      }
+    }
+
     return {
       ...previewRow,
+      code,
+      name,
       father_code: normalizeFatherCodeFromJson(previewRow.father_code || previewRow.father_account_code || previewRow.father || previewRow.father_id || ""),
       currency_id: currencyDisplay.currency_id,
       currency_name: currencyDisplay.currency_name,
@@ -592,7 +666,7 @@ export default function Accounts() {
       finanical_list_assests_id: previewRow.finanical_list_assests_id || previewRow.financial_list_assests_id || "",
       finanical_list_liabilities_id: previewRow.finanical_list_liabilities_id || previewRow.financial_list_liabilities_id || "",
       finanical_list_income_id: previewRow.finanical_list_income_id || previewRow.financial_list_income_id || "",
-      validation_text: previewRow.isValid ? "صالح" : previewRow.errors[0] || "غير صالح",
+      validation_text: errors.length === 0 ? "صالح" : errors[0],
     }
   }
 
@@ -601,19 +675,40 @@ export default function Accounts() {
     const code = normalizeAccountCode(String(row.code ?? ""))
     const name = String(row.name ?? "").trim()
     const errors: string[] = []
+    const fatherReference = normalizeFatherCodeFromJson(row.father_code ?? row.father_account_code ?? row.father ?? row.father_id ?? "")
 
     if (!code) errors.push("رقم الحساب مطلوب")
     if (!name) errors.push("اسم الحساب مطلوب")
     const duplicateError = getExcelDuplicateError(code, name, excelValidationAccounts)
     if (duplicateError) errors.push(duplicateError)
+    const fatherSelfError = getExcelFatherSelfError(code, fatherReference)
+    if (fatherSelfError) errors.push(fatherSelfError)
+
+    const finanical_list_id = Number(row.financial_list ?? row.finanical_list_id ?? 1) || 1
+    if (finanical_list_id === 1) {
+      const assetValue = String(row.finanical_list_assests_id ?? row.financial_list_assests ?? row.financial_list_assests_id ?? "").trim()
+      const liabilityValue = String(row.finanical_list_liabilities_id ?? row.financial_list_liabilities ?? row.financial_list_liabilities_id ?? "").trim()
+      const combinedValue = String(row.balance_sheet_item ?? "").trim()
+
+      if (!assetValue && !liabilityValue && !combinedValue) {
+        errors.push("يجب تحديد أصول الميزانية وخصومها")
+      }
+    }
+
+    if (finanical_list_id === 2 || finanical_list_id === 3) {
+      const incomeValue = String(row.finanical_list_income_id ?? row.financial_list_income ?? row.financial_list_income_id ?? "").trim()
+      if (!incomeValue) {
+        errors.push("بند قائمة الدخل مطلوب")
+      }
+    }
 
     return {
       rowIndex: index + 1,
       code,
       name,
       name_lang2: name,
-      father_reference: normalizeFatherCodeFromJson(row.father_code ?? row.father_account_code ?? row.father ?? row.father_id ?? ""),
-      finanical_list_id: Number(row.financial_list ?? row.finanical_list_id ?? 1) || 1,
+      father_reference: fatherReference,
+      finanical_list_id,
       finanical_list_name: getFinancialListLabel(row.financial_list ?? row.finanical_list_id ?? row.finanical_list_name),
       currency_id: currencyDisplay.currency_id,
       currency_name: currencyDisplay.currency_name,
