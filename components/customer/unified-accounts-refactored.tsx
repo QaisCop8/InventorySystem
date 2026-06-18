@@ -2674,6 +2674,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
           open={searchModalOpen}
           onOpenChange={setSearchModalOpen}
           accounts={activeAccounts}
+          allowedTypeValues={[1]}
           onSelect={handleSelectSearchResult}
         />
 

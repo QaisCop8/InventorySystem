@@ -8,6 +8,8 @@ import { Label } from "@/components/ui/label"
 import AccountSearchDialog, { AccountItem } from "@/components/customer/account-search-dialog"
 import AccountCostCenters from "@/components/customer/account-cost-centers"
 
+const accountApiUrl = "/api/accounts"
+
 interface AutoCompleteAccountProps {
   value: string
   onValueChange: (value: string) => void
@@ -142,7 +144,7 @@ export default function AutoCompleteAccount({
 
     setLoadingAccounts(true)
     try {
-      const response = await fetch("/api/accounts?type=1")
+      const response = await fetch(accountApiUrl)
       if (!response.ok) {
         throw new Error(`Failed to load accounts: ${response.status}`)
       }
@@ -166,13 +168,10 @@ export default function AutoCompleteAccount({
       const normalizedCode = normalizeAccountCode(code)
       if (!normalizedCode) return null
 
-      const cachedMatch = accounts.find((account) => normalizeAccountCode(account.code) === normalizedCode)
-      if (cachedMatch) return cachedMatch
-
       const loadedAccounts = await loadAccounts()
       return loadedAccounts.find((account) => normalizeAccountCode(account.code) === normalizedCode) || null
     },
-    [accounts, loadAccounts],
+    [loadAccounts],
   )
 
   const resolveAccountById = useCallback(
@@ -180,13 +179,10 @@ export default function AutoCompleteAccount({
       const numericId = Number(id)
       if (!Number.isInteger(numericId) || numericId <= 0) return null
 
-      const cachedMatch = accounts.find((account) => Number(account.id) === numericId)
-      if (cachedMatch) return cachedMatch
-
       const loadedAccounts = await loadAccounts()
       return loadedAccounts.find((account) => Number(account.id) === numericId) || null
     },
-    [accounts, loadAccounts],
+    [loadAccounts],
   )
 
   useEffect(() => {

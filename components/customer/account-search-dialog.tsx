@@ -15,6 +15,8 @@ export interface AccountItem {
   name_lang2?: string | null
   type?: number | null
   type_name?: string
+  classification_type_id?: number | null
+  classification_type_name?: string
   father_id?: number | null
   father_name?: string
   level_no: number
@@ -55,11 +57,31 @@ interface AccountSearchDialogProps {
   showTypeFilter?: boolean
 }
 
+const API_URL = "/api/accounts"
+
 const ACCOUNT_TYPE_OPTIONS = [
   { label: "حساب محاسبي", value: "1" },
   { label: "زبون", value: "2" },
   { label: "مورد", value: "3" },
 ]
+
+const getAccountTypeId = (account: Pick<AccountItem, "type" | "classification_type_id">) =>
+  Number(account.type ?? account.classification_type_id ?? 0)
+
+const getFinancialListId = (account: Pick<AccountItem, "finanical_list_id"> & Record<string, any>) =>
+  Number(account.finanical_list_id ?? account.financial_list_id ?? 1)
+
+const getAccountTypeLabel = (
+  account: Pick<AccountItem, "type" | "type_name" | "classification_type_id" | "classification_type_name">,
+) => {
+  const typeId = getAccountTypeId(account)
+
+  return (
+    account.type_name ||
+    account.classification_type_name ||
+    (typeId === 1 ? "حساب محاسبي" : typeId === 2 ? "زبون" : typeId === 3 ? "مورد" : "أخرى")
+  )
+}
 
 export default function AccountSearchDialog({
   open,
@@ -72,7 +94,9 @@ export default function AccountSearchDialog({
   showTypeFilter = true,
 }: AccountSearchDialogProps) {
   const [searchResults, setSearchResults] = useState<AccountItem[]>([])
+  const [allAccounts, setAllAccounts] = useState<AccountItem[]>([])
   const [selectedAccount, setSelectedAccount] = useState<AccountItem | null>(null)
+  const [loading, setLoading] = useState(false)
   const [searchFilters, setSearchFilters] = useState({
     accountNumber: "",
     accountName: "",
@@ -83,11 +107,11 @@ export default function AccountSearchDialog({
 
   const visibleAccounts = useMemo(() => {
     if (!allowedTypeValues || allowedTypeValues.length === 0) {
-      return accounts
+      return allAccounts
     }
 
-    return accounts.filter((account) => allowedTypeValues.includes(Number(account.type ?? 0)))
-  }, [accounts, allowedTypeValues])
+    return allAccounts.filter((account) => allowedTypeValues.includes(getAccountTypeId(account)))
+  }, [allAccounts, allowedTypeValues])
 
   const typeOptions = useMemo(() => {
     const filteredTypes = allowedTypeValues && allowedTypeValues.length > 0
@@ -124,15 +148,14 @@ export default function AccountSearchDialog({
     () =>
       searchResults.map((account) => ({
         ...account,
-        type_name:
-          account.type_name ||
-          (account.type === 1 ? "حساب محاسبي" : account.type === 2 ? "زبون" : account.type === 3 ? "مورد" : "أخرى"),
+        type: getAccountTypeId(account),
+        type_name: getAccountTypeLabel(account),
         finanical_list_id:
-          account.finanical_list_id === 1
+          getFinancialListId(account) === 1
             ? "الميزانية العمومية"
-            : account.finanical_list_id === 2
+            : getFinancialListId(account) === 2
               ? "قائمة الدخل"
-              : account.finanical_list_id === 3
+              : getFinancialListId(account) === 3
                 ? "تقييم بضاعة"
                 : "",
       })),
@@ -142,6 +165,7 @@ export default function AccountSearchDialog({
   useEffect(() => {
     if (!open) {
       setSearchResults([])
+      setAllAccounts([])
       setSelectedAccount(null)
       setSearchFilters({
         accountNumber: "",
@@ -158,9 +182,45 @@ export default function AccountSearchDialog({
       financialList: "__all__",
       type: defaultTypeValue,
     }
-    setSearchFilters(nextFilters)
-    applySearchFilters(nextFilters)
-  }, [open, defaultTypeValue, visibleAccounts])
+
+    const loadFreshAccounts = async () => {
+      setLoading(true)
+      try {
+        const response = await fetch(API_URL)
+        if (!response.ok) return
+
+        const data = await response.json()
+        const nextAccounts = (Array.isArray(data) ? data : []).map((account: AccountItem) => ({
+          ...account,
+          id: Number(account.id),
+          code: String((account as any).code || (account as any).account_code || ""),
+          name: String((account as any).name || (account as any).account_name || ""),
+          father_id:
+            (account as any).father_id != null
+              ? Number((account as any).father_id)
+              : (account as any).parent_account_id != null
+                ? Number((account as any).parent_account_id)
+                : null,
+          type:
+            account.type != null
+              ? Number(account.type)
+              : (account as any).classification_type_id != null
+                ? Number((account as any).classification_type_id)
+                : null,
+          type_name: account.type_name || (account as any).classification_type_name || undefined,
+          finanical_list_id: Number(account.finanical_list_id ?? (account as any).financial_list_id ?? 1),
+        }))
+
+        setAllAccounts(nextAccounts)
+        setSearchFilters(nextFilters)
+        applySearchFilters(nextFilters, nextAccounts)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    void loadFreshAccounts()
+  }, [open, defaultTypeValue, allowedTypeValues])
 
   const handleSearchAccounts = () => {
     const results = visibleAccounts.filter((account) => {
@@ -170,13 +230,13 @@ export default function AccountSearchDialog({
       if (searchFilters.accountName && !account.name.toLowerCase().includes(searchFilters.accountName.toLowerCase())) {
         return false
       }
-      if (searchFilters.financialList !== "__all__" && String(account.finanical_list_id) !== searchFilters.financialList) {
+      if (searchFilters.financialList !== "__all__" && String(getFinancialListId(account)) !== searchFilters.financialList) {
         return false
       }
       if (searchFilters.type !== "__all__") {
-        if (searchFilters.type === "1" && account.type !== 1) return false
-        if (searchFilters.type === "2" && account.type !== 2) return false
-        if (searchFilters.type === "3" && account.type !== 3) return false
+        if (searchFilters.type === "1" && getAccountTypeId(account) !== 1) return false
+        if (searchFilters.type === "2" && getAccountTypeId(account) !== 2) return false
+        if (searchFilters.type === "3" && getAccountTypeId(account) !== 3) return false
       }
       return true
     })
@@ -184,22 +244,23 @@ export default function AccountSearchDialog({
     setSelectedAccount(null)
   }
 
-  const applySearchFilters = (nextFilters?: typeof searchFilters) => {
+  const applySearchFilters = (nextFilters?: typeof searchFilters, sourceAccounts?: AccountItem[]) => {
     const filters = nextFilters || searchFilters
-    const results = visibleAccounts.filter((account) => {
+    const list = sourceAccounts || visibleAccounts
+    const results = list.filter((account) => {
       if (filters.accountNumber && !account.code.includes(filters.accountNumber)) {
         return false
       }
       if (filters.accountName && !account.name.toLowerCase().includes(filters.accountName.toLowerCase())) {
         return false
       }
-      if (filters.financialList !== "__all__" && String(account.finanical_list_id) !== filters.financialList) {
+      if (filters.financialList !== "__all__" && String(getFinancialListId(account)) !== filters.financialList) {
         return false
       }
       if (filters.type !== "__all__") {
-        if (filters.type === "1" && account.type !== 1) return false
-        if (filters.type === "2" && account.type !== 2) return false
-        if (filters.type === "3" && account.type !== 3) return false
+        if (filters.type === "1" && getAccountTypeId(account) !== 1) return false
+        if (filters.type === "2" && getAccountTypeId(account) !== 2) return false
+        if (filters.type === "3" && getAccountTypeId(account) !== 3) return false
       }
       return true
     })
@@ -232,19 +293,21 @@ export default function AccountSearchDialog({
   }
 
   const filterGridClassName = showFinancialListFilter
-    ? "grid gap-3 grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 border-b pb-3 sm:pb-4"
-    : "grid gap-3 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 border-b pb-3 sm:pb-4"
+    ? "grid gap-2 grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 border-b border-slate-200 pb-3 sm:pb-4"
+    : "grid gap-2 grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 border-b border-slate-200 pb-3 sm:pb-4"
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent hideCloseButton className="w-[98vw] max-w-7xl h-auto max-h-[80vh] overflow-hidden p-3 sm:p-4" dir="rtl">
+      <DialogContent hideCloseButton className="w-[94vw] max-w-6xl h-auto max-h-[76vh] overflow-hidden rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-2xl backdrop-blur sm:p-4" dir="rtl">
         <div className="flex flex-col gap-3 sm:gap-4">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <h2 className="text-lg sm:text-xl font-bold text-center sm:text-right">بحث الحسابات</h2>
+          <div className="flex flex-col gap-2 rounded-xl bg-gradient-to-r from-slate-50 via-white to-blue-50/60 px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-4">
+            <div>
+              <h2 className="text-lg sm:text-xl font-extrabold tracking-tight text-slate-900 text-center sm:text-right">بحث الحسابات</h2>
+            </div>
             <Button
               variant="ghost"
               onClick={() => onOpenChange(false)}
-              className="mx-auto h-8 w-8 rounded-full p-0 text-slate-500 hover:bg-slate-100 sm:mx-0"
+              className="mx-auto h-8 w-8 rounded-full border border-slate-200 bg-white p-0 text-slate-500 shadow-sm hover:bg-slate-100 sm:mx-0"
               aria-label="إغلاق"
               title="إغلاق"
             >
@@ -259,7 +322,7 @@ export default function AccountSearchDialog({
                 value={searchFilters.accountNumber}
                 onChange={(e) => setSearchFilters({ ...searchFilters, accountNumber: e.target.value })}
                 placeholder="ابحث برقم الحساب"
-                className="text-right"
+                className="h-10 rounded-xl border border-slate-200 bg-white text-right shadow-sm focus:border-blue-300 focus:bg-white"
                 onKeyDown={handleCodeOrNameKeyDown}
                 onBlur={handleCodeOrNameBlur}
               />
@@ -270,7 +333,7 @@ export default function AccountSearchDialog({
                 value={searchFilters.accountName}
                 onChange={(e) => setSearchFilters({ ...searchFilters, accountName: e.target.value })}
                 placeholder="ابحث باسم الحساب"
-                className="text-right"
+                className="h-10 rounded-xl border border-slate-200 bg-white text-right shadow-sm focus:border-blue-300 focus:bg-white"
                 onKeyDown={handleCodeOrNameKeyDown}
                 onBlur={handleCodeOrNameBlur}
               />
@@ -284,7 +347,8 @@ export default function AccountSearchDialog({
                   optionLabel="label"
                   optionValue="value"
                   placeholder="اختر القائمة المالية"
-                  className="w-full"
+                  className="w-full min-h-10 rounded-xl border border-slate-200 bg-white shadow-sm"
+                  style={{ minHeight: "40px", borderRadius: "14px", backgroundColor: "#fff" }}
                   panelClassName="invoice-currency-dropdown-panel"
                   appendTo="self"
                   onChange={(e: any) => {
@@ -304,8 +368,8 @@ export default function AccountSearchDialog({
                   optionLabel="label"
                   optionValue="value"
                   placeholder="اختر النوع"
-                  className="w-full h-11"
-                  style={{ height: "44px" }}
+                  className="w-full min-h-10 rounded-xl border border-slate-200 bg-white shadow-sm"
+                  style={{ height: "40px", borderRadius: "14px", backgroundColor: "#fff" }}
                   panelClassName="invoice-currency-dropdown-panel"
                   appendTo="self"
                   onChange={(e: any) => {
@@ -317,19 +381,19 @@ export default function AccountSearchDialog({
               </div>
             ) : null}
             <div className="flex items-end">
-              <Button onClick={handleSearchAccounts} size="sm" className="search-button w-full px-4">
+              <Button onClick={handleSearchAccounts} size="sm" className="w-full rounded-xl border-0 bg-blue-600 px-4 text-white shadow-md hover:bg-blue-700">
                 بحث
               </Button>
             </div>
           </div>
 
-          <div className="rounded-lg border overflow-hidden" style={{ height: '560px' }}>
+          <div className="rounded-xl border border-slate-200 overflow-hidden bg-white shadow-sm" style={{ height: '460px' }}>
             {searchResults.length > 0 ? (
               <DataGridView
                 innerRef={gridRef}
                 containerStyle={{ height: '100%', minHeight: 0, maxHeight: '100%' }}
                 style={{ height: '100%', minHeight: 0, maxHeight: '100%' }}
-                defaultRowHeight={50}
+                defaultRowHeight={42}
                 autoRowHeights={false}
                 wordWrap={false}
                 dataSource={gridDataSource}
@@ -338,17 +402,17 @@ export default function AccountSearchDialog({
                 onRowDoubleClick={handleRowDoubleClick}
               />
             ) : (
-              <div className="flex h-full min-h-[420px] items-center justify-center bg-slate-50 text-slate-500 text-sm">
-                لا توجد نتائج. قم بالبحث لعرض النتائج
+              <div className="flex h-full min-h-[360px] items-center justify-center bg-gradient-to-b from-slate-50 to-white text-slate-500 text-sm">
+                {loading ? "جاري تحميل البيانات مباشرة من قاعدة البيانات..." : "لا توجد نتائج. قم بالبحث لعرض النتائج"}
               </div>
             )}
           </div>
 
-          <div className="flex justify-center gap-2 border-t pt-4">
-            <Button onClick={handleConfirm} disabled={!selectedAccount} className="search-button">
+          <div className="flex justify-center gap-2 border-t border-slate-200 pt-4">
+            <Button onClick={handleConfirm} disabled={!selectedAccount} className="search-button shadow-sm">
               موافق
             </Button>
-            <Button variant="outline" onClick={() => onOpenChange(false)} className="search-button">
+            <Button variant="outline" onClick={() => onOpenChange(false)} className="search-button shadow-sm">
               إغلاق
             </Button>
           </div>
