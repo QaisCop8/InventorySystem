@@ -300,7 +300,7 @@ export default function Accounts() {
   }
 
   const loadExcelValidationAccounts = async () => {
-    const response = await fetch("/api/accounts")
+    const response = await fetch("/api/accounts?type=1")
     if (!response.ok) {
       throw new Error("فشل تحميل الحسابات للتحقق من التكرار")
     }
@@ -1134,7 +1134,7 @@ export default function Accounts() {
     try {
       const [typesRes, accountsRes, assetsRes, liabilitiesRes, incomeRes, currenciesRes] = await Promise.all([
         fetch("/api/account-classification-types"),
-        fetch("/api/accounts"),
+        fetch("/api/accounts?type=1"),
         fetch("/api/balance-sheet-assets-items"),
         fetch("/api/balance-sheet-liabilities-items"),
         fetch("/api/income-statement-items"),
@@ -1158,7 +1158,11 @@ export default function Accounts() {
       setBalanceSheetAssets(Array.isArray(assetsData) ? assetsData : [])
       setBalanceSheetLiabilities(Array.isArray(liabilitiesData) ? liabilitiesData : [])
       setIncomeStatementItems(Array.isArray(incomeData) ? incomeData : [])
-      setAccounts((Array.isArray(accountsData) ? accountsData : []).map(normalizeAccountRecord))
+      setAccounts(
+        (Array.isArray(accountsData) ? accountsData : [])
+          .map(normalizeAccountRecord)
+          .filter((account) => Number(account.type ?? 0) === 1),
+      )
     } catch (err) {
       console.error(err)
       setError("Error loading data")
@@ -1170,7 +1174,7 @@ export default function Accounts() {
   const refreshAccounts = async () => {
     setError("")
     try {
-      const response = await fetch("/api/accounts")
+      const response = await fetch("/api/accounts?type=1")
       if (!response.ok) {
         setError("Failed to load accounts")
         return

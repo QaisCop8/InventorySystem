@@ -52,6 +52,12 @@ interface Supplier {
   account_opening_date?: string
   movement_notes?: string
   classifications?: string
+  account_id?: number | null
+  father_id?: string | null
+  currency_id?: string | null
+  allow_trans_with_diff_curr?: string | null
+  iscalc_curr_diff_rates?: boolean | null
+  level_no?: number | null
 }
 
 interface SupplierFormData {
@@ -73,6 +79,12 @@ interface SupplierFormData {
   web_password: string
   transaction_notes: string
   general_notes: string
+  account_id?: number | null
+  father_id?: string
+  currency_id?: string
+  allow_trans_with_diff_curr?: string
+  iscalc_curr_diff_rates?: boolean
+  level_no?: number
 }
 
 export default function Suppliers() {
@@ -104,6 +116,12 @@ export default function Suppliers() {
     web_password: "",
     transaction_notes: "",
     general_notes: "",
+    account_id: null,
+    father_id: "",
+    currency_id: "",
+    allow_trans_with_diff_curr: "0",
+    iscalc_curr_diff_rates: false,
+    level_no: 1,
   })
 
   const [searchFilters, setSearchFilters] = useState({
@@ -156,6 +174,12 @@ export default function Suppliers() {
         web_password: "",
         transaction_notes: "",
         general_notes: "",
+        account_id: null,
+        father_id: "",
+        currency_id: "",
+        allow_trans_with_diff_curr: "0",
+        iscalc_curr_diff_rates: false,
+        level_no: 1,
       })
       return
     }
@@ -181,6 +205,12 @@ export default function Suppliers() {
       web_password: supplier.web_password || "",
       transaction_notes: supplier.movement_notes || supplier.transaction_notes || "",
       general_notes: supplier.general_notes || "",
+      account_id: supplier.account_id ?? null,
+      father_id: supplier.father_id ? String(supplier.father_id) : "",
+      currency_id: supplier.currency_id ? String(supplier.currency_id) : "",
+      allow_trans_with_diff_curr: supplier.allow_trans_with_diff_curr != null ? String(supplier.allow_trans_with_diff_curr) : "0",
+      iscalc_curr_diff_rates: Boolean(supplier.iscalc_curr_diff_rates),
+      level_no: supplier.level_no ? Number(supplier.level_no) : 1,
     })
   }, [])
 
@@ -376,6 +406,12 @@ export default function Suppliers() {
           account_opening_date: supplierData.registration_date,
           movement_notes: supplierData.transaction_notes,
           general_notes: supplierData.general_notes,
+          account_id: supplierData.account_id,
+          currency_id: supplierData.currency_id,
+          allow_trans_with_diff_curr: supplierData.allow_trans_with_diff_curr,
+          iscalc_curr_diff_rates: supplierData.iscalc_curr_diff_rates,
+          father_id: supplierData.father_id,
+          level_no: supplierData.father_id ? undefined : 1,
         }
 
         console.log("[v0] Sending supplier data:", dataToSend)

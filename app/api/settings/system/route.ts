@@ -101,8 +101,63 @@ function isValidStart(value: number): boolean {
   return Number.isInteger(value) && value > 0 && value < 1000
 }
 
+async function resolveAccountId(value: unknown): Promise<number | null> {
+  if (value === null || value === undefined || value === "") return null
+
+  const numericValue = Number(value)
+  if (Number.isInteger(numericValue) && numericValue > 0) return numericValue
+
+  const code = String(value).trim()
+  if (!code) return null
+
+  const rows = await sql`
+    SELECT id
+    FROM account_tbl
+    WHERE LOWER(code) = LOWER(${code})
+    LIMIT 1
+  `
+
+  return rows.length > 0 ? Number(rows[0].id) : null
+}
+
+async function ensureDefaultAccountColumns(): Promise<void> {
+  await sql`
+    ALTER TABLE system_settings
+    ADD COLUMN IF NOT EXISTS default_customer_parent_account INTEGER,
+    ADD COLUMN IF NOT EXISTS default_customer_credit_account INTEGER,
+    ADD COLUMN IF NOT EXISTS default_sales_tax_account INTEGER,
+    ADD COLUMN IF NOT EXISTS default_currency_transfer_account INTEGER,
+    ADD COLUMN IF NOT EXISTS default_earned_discount_account INTEGER,
+    ADD COLUMN IF NOT EXISTS default_exchange_gain_loss_account INTEGER,
+    ADD COLUMN IF NOT EXISTS default_salesman_parent_account INTEGER,
+    ADD COLUMN IF NOT EXISTS default_supplier_parent_account INTEGER,
+    ADD COLUMN IF NOT EXISTS default_customer_subscription_account INTEGER,
+    ADD COLUMN IF NOT EXISTS default_purchase_tax_account INTEGER,
+    ADD COLUMN IF NOT EXISTS default_new_employee_account INTEGER,
+    ADD COLUMN IF NOT EXISTS default_allowed_discount_account INTEGER
+  `
+
+  await sql`
+    UPDATE system_settings
+    SET default_customer_parent_account = NULLIF(default_customer_parent_account, '')::INTEGER,
+        default_customer_credit_account = NULLIF(default_customer_credit_account, '')::INTEGER,
+        default_sales_tax_account = NULLIF(default_sales_tax_account, '')::INTEGER,
+        default_currency_transfer_account = NULLIF(default_currency_transfer_account, '')::INTEGER,
+        default_earned_discount_account = NULLIF(default_earned_discount_account, '')::INTEGER,
+        default_exchange_gain_loss_account = NULLIF(default_exchange_gain_loss_account, '')::INTEGER,
+        default_salesman_parent_account = NULLIF(default_salesman_parent_account, '')::INTEGER,
+        default_supplier_parent_account = NULLIF(default_supplier_parent_account, '')::INTEGER,
+        default_customer_subscription_account = NULLIF(default_customer_subscription_account, '')::INTEGER,
+        default_purchase_tax_account = NULLIF(default_purchase_tax_account, '')::INTEGER,
+        default_new_employee_account = NULLIF(default_new_employee_account, '')::INTEGER,
+        default_allowed_discount_account = NULLIF(default_allowed_discount_account, '')::INTEGER
+    WHERE id = 1
+  `
+}
+
 export async function GET() {
   try {
+    await ensureDefaultAccountColumns()
     const settings = await sql`
       SELECT * FROM system_settings 
       ORDER BY id DESC 
@@ -149,8 +204,22 @@ export async function PUT(request: NextRequest) {
       ADD COLUMN IF NOT EXISTS paper_size VARCHAR(20) DEFAULT 'A4',
       ADD COLUMN IF NOT EXISTS print_logo BOOLEAN DEFAULT true,
       ADD COLUMN IF NOT EXISTS print_footer BOOLEAN DEFAULT true,
-      ADD COLUMN IF NOT EXISTS auto_numbering BOOLEAN DEFAULT true
+      ADD COLUMN IF NOT EXISTS auto_numbering BOOLEAN DEFAULT true,
+      ADD COLUMN IF NOT EXISTS default_customer_parent_account INTEGER,
+      ADD COLUMN IF NOT EXISTS default_customer_credit_account INTEGER,
+      ADD COLUMN IF NOT EXISTS default_sales_tax_account INTEGER,
+      ADD COLUMN IF NOT EXISTS default_currency_transfer_account INTEGER,
+      ADD COLUMN IF NOT EXISTS default_earned_discount_account INTEGER,
+      ADD COLUMN IF NOT EXISTS default_exchange_gain_loss_account INTEGER,
+      ADD COLUMN IF NOT EXISTS default_salesman_parent_account INTEGER,
+      ADD COLUMN IF NOT EXISTS default_supplier_parent_account INTEGER,
+      ADD COLUMN IF NOT EXISTS default_customer_subscription_account INTEGER,
+      ADD COLUMN IF NOT EXISTS default_purchase_tax_account INTEGER,
+      ADD COLUMN IF NOT EXISTS default_new_employee_account INTEGER,
+      ADD COLUMN IF NOT EXISTS default_allowed_discount_account INTEGER
     `
+
+    await ensureDefaultAccountColumns()
 
     await sql`
       INSERT INTO system_settings (id)
@@ -198,6 +267,18 @@ export async function PUT(request: NextRequest) {
       print_logo: toBool(data.print_logo ?? data.printLogo, true),
       print_footer: toBool(data.print_footer ?? data.printFooter, true),
       auto_numbering: toBool(data.auto_numbering ?? data.autoNumbering, true),
+      default_customer_parent_account: await resolveAccountId(data.default_customer_parent_account ?? data.customerParentAccount),
+      default_customer_credit_account: await resolveAccountId(data.default_customer_credit_account ?? data.customerCreditAccount),
+      default_sales_tax_account: await resolveAccountId(data.default_sales_tax_account ?? data.salesTaxAccount),
+      default_currency_transfer_account: await resolveAccountId(data.default_currency_transfer_account ?? data.currencyTransferAccount),
+      default_earned_discount_account: await resolveAccountId(data.default_earned_discount_account ?? data.earnedDiscountAccount),
+      default_exchange_gain_loss_account: await resolveAccountId(data.default_exchange_gain_loss_account ?? data.exchangeGainLossAccount),
+      default_salesman_parent_account: await resolveAccountId(data.default_salesman_parent_account ?? data.salesmanParentAccount),
+      default_supplier_parent_account: await resolveAccountId(data.default_supplier_parent_account ?? data.supplierParentAccount),
+      default_customer_subscription_account: await resolveAccountId(data.default_customer_subscription_account ?? data.customerSubscriptionAccount),
+      default_purchase_tax_account: await resolveAccountId(data.default_purchase_tax_account ?? data.purchaseTaxAccount),
+      default_new_employee_account: await resolveAccountId(data.default_new_employee_account ?? data.newEmployeeAccount),
+      default_allowed_discount_account: await resolveAccountId(data.default_allowed_discount_account ?? data.allowedDiscountAccount),
     }
 
     const prefixEntries: Array<[string, string]> = [
@@ -285,6 +366,18 @@ export async function PUT(request: NextRequest) {
         print_logo = ${payload.print_logo},
         print_footer = ${payload.print_footer},
         auto_numbering = ${payload.auto_numbering},
+        default_customer_parent_account = ${payload.default_customer_parent_account},
+        default_customer_credit_account = ${payload.default_customer_credit_account},
+        default_sales_tax_account = ${payload.default_sales_tax_account},
+        default_currency_transfer_account = ${payload.default_currency_transfer_account},
+        default_earned_discount_account = ${payload.default_earned_discount_account},
+        default_exchange_gain_loss_account = ${payload.default_exchange_gain_loss_account},
+        default_salesman_parent_account = ${payload.default_salesman_parent_account},
+        default_supplier_parent_account = ${payload.default_supplier_parent_account},
+        default_customer_subscription_account = ${payload.default_customer_subscription_account},
+        default_purchase_tax_account = ${payload.default_purchase_tax_account},
+        default_new_employee_account = ${payload.default_new_employee_account},
+        default_allowed_discount_account = ${payload.default_allowed_discount_account},
         updated_at = CURRENT_TIMESTAMP
       WHERE id = 1
       RETURNING *

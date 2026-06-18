@@ -36,7 +36,6 @@ export default function SearchAccountClassificationDialog({
 }: SearchAccountClassificationDialogProps) {
   const [filter, setFilter] = useState("")
   const [selectedClassification, setSelectedClassification] = useState<AccountClassificationItem | null>(null)
-  const [displayClassifications, setDisplayClassifications] = useState<AccountClassificationItem[]>([])
   const gridRef = useRef<any>(null)
 
   useEffect(() => {
@@ -54,10 +53,6 @@ export default function SearchAccountClassificationDialog({
     filtered.sort((a, b) => (a.id || 0) - (b.id || 0))
     return filtered
   }, [classifications, filter, type])
-
-  useEffect(() => {
-    setDisplayClassifications(filteredClassifications)
-  }, [filteredClassifications])
 
   const classificationScheme = useMemo(
     () => ({
@@ -117,11 +112,11 @@ export default function SearchAccountClassificationDialog({
           </div>
 
           <div className="rounded-md border border-slate-300 overflow-hidden" dir="rtl">
-            {displayClassifications.length > 0 ? (
+            {filteredClassifications.length > 0 ? (
               <div className="h-[400px] min-h-[320px] overflow-auto">
                 <DataGridView 
                   scheme={classificationScheme} 
-                  dataSource={displayClassifications}
+                  dataSource={filteredClassifications}
                   innerRef={gridRef}
                   onRowDoubleClick={handleRowDoubleClick}
                   onRowClick={handleRowClick}

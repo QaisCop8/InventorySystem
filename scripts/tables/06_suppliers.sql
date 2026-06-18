@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS suppliers (
     general_notes TEXT,
     movement_notes TEXT,
     attachments TEXT,
+    account_id INTEGER REFERENCES account_tbl(id),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

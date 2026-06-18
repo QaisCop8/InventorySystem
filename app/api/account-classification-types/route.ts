@@ -22,7 +22,7 @@ export async function GET() {
       SELECT id, name, status, created_at, updated_at
       FROM account_classification_types
       WHERE status IN (1, 2)
-      ORDER BY id DESC
+      ORDER BY id ASC
     `
 
     return NextResponse.json(items)

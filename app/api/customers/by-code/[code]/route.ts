@@ -41,8 +41,17 @@ try {
 
 export default sql
 
+const ensureCustomerCompatibilityColumns = async () => {
+  await sql`
+    ALTER TABLE customers
+      ADD COLUMN IF NOT EXISTS type INTEGER DEFAULT 1,
+      ADD COLUMN IF NOT EXISTS isDeleted BOOLEAN DEFAULT false
+  `
+}
+
 export async function GET(request: NextRequest, { params }: { params: { code: string } }) {
   try {
+    await ensureCustomerCompatibilityColumns()
     const { code } = params
     const { searchParams } = new URL(request.url)
     const type = searchParams.get('type') || '1' // default to customer (1), supplier (2)

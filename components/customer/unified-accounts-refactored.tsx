@@ -447,10 +447,14 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
       setBalanceSheetLiabilities(Array.isArray(balanceSheetLiabilitiesData) ? balanceSheetLiabilitiesData : [])
       setIncomeStatementAccounts(Array.isArray(incomeStatementData) ? incomeStatementData : [])
       setCurrentIndex(0)
+      
+      // Return voucher types data for immediate use
+      return Array.isArray(voucherTypesData) ? voucherTypesData : []
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : String(err)
       console.error("Error loading data:", err)
       setError(`Error loading data: ${errorMsg}`)
+      return []
     }
   }
 
@@ -482,10 +486,13 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
     })
   }, [])
 
+  const stopTransactionRowsMatch = useCallback((left: any[], right: any[]) => JSON.stringify(left) === JSON.stringify(right), [])
+
   useEffect(() => {
     if (!currentAccount) return
-    setStopTransactionRows(buildStopTransactionRows(voucherTypes, (currentAccount as any).stop_transactions || []))
-  }, [currentAccount, voucherTypes, buildStopTransactionRows])
+    const nextRows = buildStopTransactionRows(voucherTypes, (currentAccount as any).stop_transactions || [])
+    setStopTransactionRows((prev) => (stopTransactionRowsMatch(prev, nextRows) ? prev : nextRows))
+  }, [currentAccount, voucherTypes, buildStopTransactionRows, stopTransactionRowsMatch])
 
   const visibleStopTransactionRows = useMemo(() => {
     const hiddenNames = ["طلبية مبيعات", "طلبية مشتريات", "إرسالية مبيعات", "إرسالية مشتريات"]
@@ -731,7 +738,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
             <Input
               type="date"
               value={cell.row.dataItem.stop_date || ""}
-              disabled={!cell.row.dataItem.is_stopped}
+              disabled={true}
               onChange={(e) => {
                 const value = e.target.value
                 setStopTransactionRows((prev) =>
@@ -858,7 +865,8 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
     } else {
       setImagePreview(null)
     }
-    setStopTransactionRows(buildStopTransactionRows(voucherTypes, (account as any).stop_transactions || []))
+    const nextStopRows = buildStopTransactionRows(voucherTypes, (account as any).stop_transactions || [])
+    setStopTransactionRows((prev) => (stopTransactionRowsMatch(prev, nextStopRows) ? prev : nextStopRows))
     dirtySnapshotRef.current = serializeAccountSnapshot({
       formData: {
         id: account.id || 0,
@@ -1286,14 +1294,16 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
       try {
         setLoading(true)
 
-        // Wait for definitions to load
-        await loadData()
+        // Wait for definitions to load and get voucher types
+        const loadedVoucherTypes = await loadData()
 
         // Only reset the form when the dialog is opened for a new account.
         // When `accountId` is set, the dedicated accountId effect loads the row.
         if (accountId == null) {
           // New account entry
           await handleNew()
+          // Populate stopTransactionRows with loaded voucher types immediately
+          setStopTransactionRows(buildStopTransactionRows(loadedVoucherTypes, []))
           // Completely clear classifications grid for new account
           setAccountClassifications([])
         }
@@ -1308,7 +1318,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
     }
 
     init()
-  }, [dialogOpen, accountId, loadAccountToForm, handleNew])
+  }, [dialogOpen, accountId, loadAccountToForm, handleNew, buildStopTransactionRows])
 
   useEffect(() => {
     if (!dialogOpen || accountId == null || activeAccounts.length === 0) return
@@ -1670,9 +1680,21 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
     }
   }
 
-  const handleOpenDialog = () => {
-    if (currentAccount) {
-      loadAccountToForm(currentAccount)
+  const handleOpenDialog = async () => {
+    setLoading(true)
+    try {
+      // Ensure data is loaded before opening dialog
+      const loadedVoucherTypes = await loadData()
+      if (currentAccount) {
+        loadAccountToForm(currentAccount)
+      } else {
+        // For new accounts, populate stopTransactionRows with loaded voucherTypes
+        setStopTransactionRows(buildStopTransactionRows(loadedVoucherTypes, []))
+      }
+    } catch (err) {
+      console.error("Error loading data in handleOpenDialog:", err)
+    } finally {
+      setLoading(false)
     }
     setDialogOpen(true)
     setActiveTab("main")
@@ -2117,6 +2139,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
                           setFatherAccountName("")
                         }
                       }}
+                      showCostCenterButton={false}
                       onAccountSelect={(account) => {
                         setFormData({ ...formData, father_id: account ? String(account.id) : "" })
                         setFatherAccountName(account ? `${account.code} - ${account.name}` : "")

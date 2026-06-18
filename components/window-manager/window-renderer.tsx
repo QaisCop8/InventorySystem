@@ -12,6 +12,7 @@ import {SalesOrders} from "@/components/orders/sales-orders"
 const PurchaseOrders = dynamic(() => import("@/components/orders/purchase-orders").then((m) => m.PurchaseOrders), { ssr: false })
 const Products = dynamic(() => import("@/components/products/products").then((m) => m.Products), { ssr: false })
 const Customers = dynamic(() => import("@/components/products/customers").then((m) => m.default), { ssr: false })
+const UnifiedCustomers = dynamic(() => import("@/components/products/unified-customers").then((m) => m.default), { ssr: false })
 import { OrderReports } from "@/components/reports/order-reports"
 import { ProductReports } from "@/components/reports/product-reports"
 import DocumentSettings from "@/components/settings/document-settings"
@@ -25,6 +26,7 @@ const componentMap: Record<string, React.ComponentType<any>> = {
   "purchase-orders": PurchaseOrders,
   products: Products,
   customers: Customers,
+  "unified-customers": UnifiedCustomers,
   "order-reports": OrderReports,
   "product-reports": ProductReports,
   "document-settings": DocumentSettings,

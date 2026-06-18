@@ -51,7 +51,7 @@ export async function GET() {
       JOIN account_classification_types t ON t.id = a.classification_type_id
       LEFT JOIN account_classifications pa ON pa.id = a.parent_account_id
       WHERE a.status IN (1, 2)
-      ORDER BY a.id DESC
+      ORDER BY a.id ASC
     `
 
     return NextResponse.json(items)

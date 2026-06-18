@@ -40,6 +40,7 @@ import DataGrid from "../common/DataGrid"
 import * as wjGrid from "@grapecity/wijmo.grid";
 import DataGridView from "../common/DataGridView"
 import Util from "../common/Util"
+import UnifiedCustomers from "./unified-customers"
 interface CustomersProps {
   isSupplier?: boolean;
 }
@@ -70,6 +71,7 @@ interface Customer {
   payment_terms?: string
   discount_percentage?: string,
   type?: number
+  account_id?: number | null
 }
 
 interface Classification {
@@ -124,6 +126,14 @@ interface CustomerFormData {
   payment_terms: string
   discount_percentage: string,
   pricecategory: number,
+  account_id?: number | null,
+  father_id?: string,
+  finanical_list_id?: string,
+  currency_id?: string,
+  allow_trans_with_diff_curr?: string,
+  iscalc_curr_diff_rates?: boolean,
+  cost_centers?: Array<{ id: number; name: string; state_status: string; required_in_transactions: number; cost_center_name?: string; default_cost_center_id?: number | null }>,
+  stop_transactions?: Array<{ voucher_types_id: number; voucher_type_name: string; is_stopped: boolean; stop_date: string }>,
   voucherType?: VoucherItem[],
 }
 
@@ -200,6 +210,7 @@ export default function Customers({ isSupplier }: CustomersProps) {
 
   const [classifications, setClassifications] = useState<Classification[]>([])
   const [pricecategory, setPriceCategory] = useState<priceCategory[]>([])
+  const [customerAccountClassifications, setCustomerAccountClassifications] = useState<Array<{ id: number; name: string; classification_id: number | null; classification_name: string }>>([])
 
   const [salesmen, setSalesmen] = useState<Salesman[]>([])
 
@@ -229,14 +240,17 @@ export default function Customers({ isSupplier }: CustomersProps) {
     payment_terms: "نقدي",
     discount_percentage: "",
     pricecategory: 0,
+    account_id: null,
+    cost_centers: [],
+    stop_transactions: [],
     voucherType: []
   })
 
   const [searchFilters, setSearchFilters] = useState({
     name: "",
-    city: "",
-    status: "",
-    salesman: "",
+    city: "__all__",
+    status: "__all__",
+    salesman: "__all__",
   })
 
   const [currentPage, setCurrentPage] = useState(1)
@@ -251,12 +265,16 @@ export default function Customers({ isSupplier }: CustomersProps) {
   const [showSuccessMessage, setShowSuccessMessage] = useState(false)
 
   const filteredCustomers = useMemo(() => {
+    const cityFilter = searchFilters.city === "__all__" ? "" : searchFilters.city
+    const statusFilter = searchFilters.status === "__all__" ? "" : searchFilters.status
+    const salesmanFilter = searchFilters.salesman === "__all__" ? "" : searchFilters.salesman
+
     return customers.filter((customer) => {
       return (
         (!searchFilters.name || customer.name?.toLowerCase().includes(searchFilters.name.toLowerCase())) &&
-        (!searchFilters.city || customer.city === searchFilters.city) &&
-        (!searchFilters.status || customer.status === searchFilters.status) &&
-        (!searchFilters.salesman || customer.salesman === searchFilters.salesman)
+        (!cityFilter || customer.city === cityFilter) &&
+        (!statusFilter || customer.status === statusFilter) &&
+        (!salesmanFilter || customer.salesman === salesmanFilter)
       )
     })
   }, [customers, searchFilters])
@@ -698,6 +716,9 @@ export default function Customers({ isSupplier }: CustomersProps) {
         payment_terms: "نقدي",
         discount_percentage: "",
         pricecategory: pricecategory?.[0]?.id || 0,
+        account_id: null,
+        cost_centers: [],
+        stop_transactions: [],
         voucherType: []
       }
 
@@ -732,6 +753,7 @@ export default function Customers({ isSupplier }: CustomersProps) {
       payment_terms: (customer as any).payment_terms || "نقدي",
       discount_percentage: (customer as any).discount_percentage || "",
       pricecategory: (customer as any).pricecategory || 0,
+      account_id: (customer as any).account_id || null,
     })
   }, [])
   const [definitions, setDefinitions] = useState({
@@ -965,17 +987,23 @@ export default function Customers({ isSupplier }: CustomersProps) {
 
   const fetchSalesmen = useCallback(async () => {
     try {
-      // For now, we'll use hardcoded salesmen until we have a proper API
-      const hardcodedSalesmen = [
-        { id: 1, name: "أحمد محمد", department: "المبيعات", is_active: true },
-        { id: 2, name: "محمد علي", department: "المبيعات", is_active: true },
-        { id: 3, name: "علي أحمد", department: "المبيعات", is_active: true },
-        { id: 4, name: "فاطمة سالم", department: "المبيعات", is_active: true },
-        { id: 5, name: "خديجة يوسف", department: "المبيعات", is_active: true },
-      ]
-      setSalesmen(hardcodedSalesmen)
+      const response = await fetch("/api/salesmen")
+
+      if (!response.ok) {
+        throw new Error("Failed to load salesmen")
+      }
+
+      const data = await response.json()
+      const definedSalesmen = Array.isArray(data.data) ? data.data : []
+
+      setSalesmen(
+        definedSalesmen
+          .filter((item: Salesman) => item.is_active !== false)
+          .sort((a: Salesman, b: Salesman) => a.id - b.id)
+      )
     } catch (error) {
       console.error("Error fetching salesmen:", error)
+      setSalesmen([])
     }
   }, [])
 
@@ -1081,7 +1109,8 @@ export default function Customers({ isSupplier }: CustomersProps) {
   }
 
   const handleSaveCustomer = (
-    customerData: CustomerFormData
+    customerData: CustomerFormData,
+    accountClassifications = customerAccountClassifications,
   ) => {
     if (!validateForm()) return;
 
@@ -1129,6 +1158,15 @@ export default function Customers({ isSupplier }: CustomersProps) {
         discount_percentage: customerData.discount_percentage,
         type: isSupplier ? 2 : 1,
         pricecategory: customerData.pricecategory,
+        account_id: customerData.account_id,
+        cost_centers: customerData.cost_centers || [],
+        stop_transactions: customerData.stop_transactions || [],
+        currency_id: customerData.currency_id,
+        allow_trans_with_diff_curr: customerData.allow_trans_with_diff_curr,
+        iscalc_curr_diff_rates: customerData.iscalc_curr_diff_rates,
+        father_id: customerData.father_id,
+        level_no: customerData.father_id ? undefined : 1,
+        account_classifications: accountClassifications.filter((row) => row.classification_id != null),
         voucher,
 
       };
@@ -1314,8 +1352,8 @@ export default function Customers({ isSupplier }: CustomersProps) {
     customer_name.current?.focus();
   }, [updateFormData, generateCustomerNumber])
 */
-  const reset_fields = async (from_code = 0, code = "") => {
-    setIsLoading(true)
+  const reset_fields = async (from_code = 0, code = "", showLoading = true) => {
+    if (showLoading) setIsLoading(true)
     updateFormData(null)
     setEditingCustomer(false)
     editingCustomerRef.current = false
@@ -1325,7 +1363,7 @@ export default function Customers({ isSupplier }: CustomersProps) {
       await generateCustomerNumber()
     }
     else updateField("customer_code", code);
-    setIsLoading(false)
+    if (showLoading) setIsLoading(false)
 
 
 
@@ -1344,9 +1382,9 @@ export default function Customers({ isSupplier }: CustomersProps) {
       setNextFunction(() => () => reset_fields());
       return
     }
-    setIsLoading(true)
-    await reset_fields()
-    setIsLoading(false)
+    setShowNewCustomerDialog(true)
+    setCustomerAccountClassifications([])
+    await reset_fields(0, "", false)
 
   }
 
@@ -1381,8 +1419,6 @@ export default function Customers({ isSupplier }: CustomersProps) {
   useEffect(() => {
     if (!showNewCustomerDialog) return;
     const load = async () => {
-      await fetch_Definitions();
-
       // Wait for the input to mount
       setTimeout(() => {
         customer_name.current?.focus();
@@ -1490,7 +1526,6 @@ export default function Customers({ isSupplier }: CustomersProps) {
     )
   }*/
   if ((!isSupplier && !Util.checkUserAccess(15)) || (isSupplier && !Util.checkUserAccess(16))) {
-
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
@@ -1655,13 +1690,13 @@ export default function Customers({ isSupplier }: CustomersProps) {
               <Label htmlFor="search-city">المدينة</Label>
               <Select
                 value={searchFilters.city}
-                onValueChange={(value) => setSearchFilters((prev) => ({ ...prev, city: value === "all" ? "" : value }))}
+                onValueChange={(value) => setSearchFilters((prev) => ({ ...prev, city: value }))}
               >
                 <SelectTrigger className="text-right">
                   <SelectValue placeholder="اختر المدينة" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">جميع المدن</SelectItem>
+                  <SelectItem value="__all__">جميع المدن</SelectItem>
                   <SelectItem value="الرياض">الرياض</SelectItem>
                   <SelectItem value="جدة">جدة</SelectItem>
                   <SelectItem value="الدمام">الدمام</SelectItem>
@@ -1680,14 +1715,14 @@ export default function Customers({ isSupplier }: CustomersProps) {
               <Select
                 value={searchFilters.status}
                 onValueChange={(value) =>
-                  setSearchFilters((prev) => ({ ...prev, status: value === "all" ? "" : value }))
+                  setSearchFilters((prev) => ({ ...prev, status: value }))
                 }
               >
                 <SelectTrigger className="text-right">
                   <SelectValue placeholder="اختر الحالة" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">جميع الحالات</SelectItem>
+                  <SelectItem value="__all__">جميع الحالات</SelectItem>
                   <SelectItem value="نشط">نشط</SelectItem>
                   <SelectItem value="غير نشط">غير نشط</SelectItem>
                 </SelectContent>
@@ -1698,14 +1733,14 @@ export default function Customers({ isSupplier }: CustomersProps) {
               <Select
                 value={searchFilters.salesman}
                 onValueChange={(value) =>
-                  setSearchFilters((prev) => ({ ...prev, salesman: value === "all" ? "" : value }))
+                  setSearchFilters((prev) => ({ ...prev, salesman: value }))
                 }
               >
                 <SelectTrigger className="text-right">
                   <SelectValue placeholder="اختر المندوب" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">جميع المندوبين</SelectItem>
+                  <SelectItem value="__all__">جميع المندوبين</SelectItem>
                   {salesmen.map((salesman) => (
                     <SelectItem key={salesman.id} value={salesman.name}>
                       {salesman.name}
@@ -1822,577 +1857,51 @@ export default function Customers({ isSupplier }: CustomersProps) {
           }
         }}
       >
-        <DialogContent className="max-w-[95vw] max-h-[95vh] overflow-hidden p-0" dir="rtl"
+        <DialogContent className="max-w-[75vw] sm:max-w-[70vw] md:max-w-[62vw] lg:max-w-[110vh] max-h-[95vh] overflow-hidden p-0" dir="rtl"
           onPointerDownOutside={(event) => event.preventDefault()}
           onEscapeKeyDown={(event) => event.preventDefault()}
         >
-          <CustomerSearchPopup
-            visible={showCustomerSearch}
-            type={isSupplier ? 2 : 1}
-            vch_type={0}
-            onClose={() => setShowCustomerSearch(false)}
-            onSelect={(customer) => {   // customer: Customer
-              setFormData((prev) => ({
-                ...prev,
-                id: Number(customer.id), // use customer.id
-              }));
-              loadData("ById", customer.id); // pass the numeric id
-            }}
-          />
-          <div className="h-screen flex flex-col bg-background">
-            {/* Universal Toolbar - Fixed at top */}
-            <div className="flex-shrink-0">
-              <UniversalToolbar
-                onFirst={async () => { await loadData('first', 0, isSupplier) }}
-                onPrevious={async () => { await loadData('previous', 0, isSupplier) }}
-                onNext={async () => { await loadData('next', 0, isSupplier) }}
-                onLast={async () => { await loadData('last', 0, isSupplier) }}
-                onNew={() => handleNewCustomer(true)}
-                onSave={() => handleSaveCustomer(formData)}
-                onDelete={currentCustomerId > 0 ? () => handleDeleteClick(true) : undefined}
-                currentRecord={currentIndex + 1}
-                totalRecords={customers.length}
-                isFirstRecord={currentIndex === 0}
-                isLastRecord={currentIndex === customers.length - 1}
-                isSaving={saving}
-                onReport={() => console.log("Generate customer report")}
-                onExportExcel={() => console.log("Export to Excel")}
-                onPrint={() => console.log("Print customer")}
-                canSave={true}
-                canDelete={!!currentCustomer}
-              />
-            </div>
-
-            <div className="flex-1 overflow-y-auto">
-              <div className="space-y-6 p-6">
-                {/* Header */}
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h1 className="text-2xl font-bold text-foreground flex items-center gap-3">
-                      <Plus className="h-7 w-7 text-primary" />
-                      {currentCustomerId === 0
-                        ? (isSupplier ? "مورد جديد" : "زبون جديد")
-                        : (isSupplier ? "تعديل مورد" : "تعديل زبون")}
-                    </h1>
-
-                  </div>
-                </div>
-
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault()
-                    handleSaveCustomer(formData)
-                  }}
-                  className="space-y-6"
-                >
-                  {/* المعلومات الأساسية والتعريف */}
-                  <Card>
-                    <CardHeader className="pb-4">
-                      <CardTitle className="flex items-center gap-2 text-lg">
-                        <Plus className="h-5 w-5 text-primary" />
-                        المعلومات الأساسية والتعريف
-                      </CardTitle>
-                    </CardHeader>
-
-                    <CardContent className="space-y-6">
-
-                      {/* ================= ROW 1: Code + Name ================= */}
-                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-
-                        {/* Code (1/4) */}
-                        <div className="col-span-1">
-                          <Label htmlFor="customer_code" className="text-sm font-medium">
-                            {isSupplier ? ' رقم المورد *' : 'رقم الزبون *'}
-                          </Label>
-                          <div className="flex gap-2">
-                            <Input
-                              id="customer_code"
-                              value={formData.customer_code}
-                              onChange={(e) => {
-                                const value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
-                                updateField("customer_code", value);
-                              }}
-                              onBlur={async (e) => {
-                                await handleCustomerBlur(e.target.value);
-                              }}
-                              className="text-right"
-                              placeholder={isSupplier ? ' رقم المورد' : 'رقم الزبون '}
-                              maxLength={8}
-                            />
-                            <Button type="button" onClick={() => setShowCustomerSearch(true)}>
-                              🔍
-                            </Button>
-                          </div>
-                        </div>
-
-                        {/* Name (3/4) */}
-                        <div className="col-span-1 md:col-span-3">
-                          <Label htmlFor="customer_name" className="text-sm font-medium">
-                            {isSupplier ? ' اسم المورد *' : 'اسم الزبون *'}
-                          </Label>
-                          <Input
-                            id="customer_name"
-                            ref={customer_name}
-                            value={formData.name}
-                            onChange={(e) => updateField("name", e.target.value)}
-                            className={`text-right ${validationErrors.name ? "border-red-500" : ""
-                              }`}
-                            placeholder=''
-                            required
-                          />
-                          {validationErrors.name && (
-                            <p className="text-red-500 text-xs mt-1">
-                              {validationErrors.name}
-                            </p>
-                          )}
-                        </div>
-
-                      </div>
-
-                      {/* ================ ROW 2: Selects ==================== */}
-                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-
-                        {/* Status */}
-                        <div>
-                          <Label htmlFor="status" className="text-sm font-medium">
-                            حالة الزبون
-                          </Label>
-                          <Select
-                            value={formData.status}
-                            disabled={currentCustomerId === 0}
-                            onValueChange={(value) => updateField("status", value)}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="اختر الحالة" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="نشط">نشط</SelectItem>
-                              <SelectItem value="غير نشط">غير نشط</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        {/* Classification */}
-                        <div>
-                          <Label htmlFor="classification" className="text-sm font-medium">
-                            التصنيف
-                          </Label>
-                          <Select
-                            value={formData.classification}
-                            onValueChange={(value) => updateField("classification", value)}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="اختر التصنيف" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {classifications.map((c) => (
-                                <SelectItem key={c.id} value={c.name}>
-                                  {c.name}
-                                </SelectItem>
-                              ))}
-
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        {/* Classification */}
-                        <div>
-                          <Label htmlFor="pricecategory" className="text-sm font-medium">
-                            فئة السعر
-                          </Label>
-                          <Select
-                            value={formData.pricecategory != null ? formData.pricecategory.toString() : ""}
-                            onValueChange={(value) => updateField("pricecategory", Number(value))}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="فئة السعر" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {pricecategory?.map((c) => (
-                                <SelectItem key={c.id} value={c.id.toString()}>
-                                  {c.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        {/* Registration Date */}
-                        <div>
-                          <Label htmlFor="registration_date" className="text-sm font-medium">
-                            تاريخ التسجيل
-                          </Label>
-                          <Input
-                            id="registration_date"
-                            type="date"
-                            disabled={true}
-                            value={formData.registration_date}
-                            onChange={(e) => updateField("registration_date", e.target.value)}
-                            className="text-right"
-                          />
-                        </div>
-
-                      </div>
-
-                    </CardContent>
-                  </Card>
-
-
-                  {/* معلومات الاتصال */}
-                  <Card>
-                    <CardHeader className="pb-4">
-                      <CardTitle className="flex items-center gap-2 text-lg">
-                        <Plus className="h-5 w-5 text-primary" />
-                        معلومات الاتصال
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                        <div>
-                          <Label htmlFor="mobile1" className="text-sm font-medium">
-                            الجوال الأول *
-                          </Label>
-                          <Input
-                            id="mobile1"
-                            value={formData.mobile1}
-                            onChange={(e) => updateField("mobile1", e.target.value)}
-                            className={`text-right ${validationErrors.mobile1 ? "border-red-500" : ""}`}
-                            placeholder="رقم الجوال الأول"
-                            required
-                          />
-                          {validationErrors.mobile1 && (
-                            <p className="text-red-500 text-xs mt-1">{validationErrors.mobile1}</p>
-                          )}
-                        </div>
-                        <div>
-                          <Label htmlFor="mobile2" className="text-sm font-medium">
-                            الجوال الثاني
-                          </Label>
-                          <Input
-                            id="mobile2"
-                            value={formData.mobile2}
-                            onChange={(e) => updateField("mobile2", e.target.value)}
-                            className="text-right"
-                            placeholder="رقم الجوال الثاني"
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor="whatsapp1" className="text-sm font-medium">
-                            واتساب الأول
-                          </Label>
-                          <Input
-                            id="whatsapp1"
-                            value={formData.whatsapp1}
-                            onChange={(e) => updateField("whatsapp1", e.target.value)}
-                            className="text-right"
-                            placeholder="رقم واتساب الأول"
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor="whatsapp2" className="text-sm font-medium">
-                            واتساب الثاني
-                          </Label>
-                          <Input
-                            id="whatsapp2"
-                            value={formData.whatsapp2}
-                            onChange={(e) => updateField("whatsapp2", e.target.value)}
-                            className="text-right"
-                            placeholder="رقم واتساب الثاني"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 gap-4 mt-4">
-                        <div>
-                          <Label htmlFor="email" className="text-sm font-medium">
-                            البريد الإلكتروني
-                          </Label>
-                          <Input
-                            id="email"
-                            type="email"
-                            value={formData.email}
-                            onChange={(e) => updateField("email", e.target.value)}
-                            className={`text-right ${validationErrors.email ? "border-red-500" : ""}`}
-                            placeholder="البريد الإلكتروني"
-                          />
-                          {validationErrors.email && (
-                            <p className="text-red-500 text-xs mt-1">{validationErrors.email}</p>
-                          )}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  {/* العنوان والموقع */}
-                  <Card>
-                    <CardHeader className="pb-4">
-                      <CardTitle className="flex items-center gap-2 text-lg">
-                        <Plus className="h-5 w-5 text-primary" />
-                        العنوان والموقع
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <Label htmlFor="city" className="text-sm font-medium">
-                            المدينة
-                          </Label>
-                          <Input
-                            id="city"
-                            value={formData.city}
-                            onChange={(e) => updateField("city", e.target.value)}
-                            className="text-right"
-                            placeholder="المدينة"
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor="address" className="text-sm font-medium">
-                            العنوان التفصيلي
-                          </Label>
-                          <Input
-                            id="address"
-                            value={formData.address}
-                            onChange={(e) => updateField("address", e.target.value)}
-                            className="text-right"
-                            placeholder="العنوان التفصيلي"
-                          />
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  {/* معلومات العمل والمبيعات */}
-                  <Card>
-                    <CardHeader className="pb-4">
-                      <CardTitle className="flex items-center gap-2 text-lg">
-                        <Plus className="h-5 w-5 text-primary" />
-                        معلومات العمل والمبيعات
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div>
-                          <Label htmlFor="business_nature" className="text-sm font-medium">
-                            طبيعة العمل
-                          </Label>
-                          <Input
-                            id="business_nature"
-                            value={formData.business_nature}
-                            onChange={(e) => updateField("business_nature", e.target.value)}
-                            className="text-right"
-                            placeholder="طبيعة العمل"
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor="salesman" className="text-sm font-medium">
-                            المندوب
-                          </Label>
-                          <Select value={formData.salesman} onValueChange={(value) => updateField("salesman", value)}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="اختر المندوب" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {salesmen.map((salesman) => (
-                                <SelectItem key={salesman.id} value={salesman.name}>
-                                  {salesman.name}
-                                </SelectItem>
-                              ))}
-                              {/* Fallback options if no salesmen loaded */}
-                              {salesmen.length === 0 && (
-                                <>
-                                  <SelectItem value="أحمد">أحمد</SelectItem>
-                                  <SelectItem value="محمد">محمد</SelectItem>
-                                  <SelectItem value="علي">علي</SelectItem>
-                                </>
-                              )}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div>
-                          <Label htmlFor="voucher_book" className="text-sm font-medium">
-                            تحديد دفتر السندات الافتراضي حسب نوع السند
-                          </Label>
-                          <button type="button"
-                            className="flex items-center gap-1 bg-primary text-white px-3 py-1 rounded hover:bg-blue-600 transition"
-                            onClick={handleAddRow}
-                          >
-                            <Plus className="h-4 w-4" />
-                            إضافة
-                          </button>
-                          <DataGrid
-
-                            ref={bookGridRef}
-                            dataSource={formData.voucherType ?? []}
-                            scheme={getScheme()}
-                          />
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <Card>
-                    <CardHeader className="pb-4">
-                      <CardTitle className="flex items-center gap-2 text-lg">
-                        <Plus className="h-5 w-5 text-primary" />
-                        المعلومات المالية والضريبية
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <Label htmlFor="tax_number" className="text-sm font-medium">
-                            الرقم الضريبي
-                          </Label>
-                          <Input
-                            id="tax_number"
-                            value={formData.tax_number}
-                            onChange={(e) => updateField("tax_number", e.target.value)}
-                            className="text-right"
-                            placeholder="أدخل الرقم الضريبي"
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor="commercial_registration" className="text-sm font-medium">
-                            السجل التجاري
-                          </Label>
-                          <Input
-                            id="commercial_registration"
-                            value={formData.commercial_registration}
-                            onChange={(e) => updateField("commercial_registration", e.target.value)}
-                            className="text-right"
-                            placeholder="أدخل رقم السجل التجاري"
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor="credit_limit" className="text-sm font-medium">
-                            حد الائتمان
-                          </Label>
-                          <Input
-                            id="credit_limit"
-                            type="number"
-                            value={formData.credit_limit}
-                            onChange={(e) => updateField("credit_limit", e.target.value)}
-                            className="text-right"
-                            placeholder="0.00"
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor="payment_terms" className="text-sm font-medium">
-                            شروط الدفع
-                          </Label>
-                          <Select
-                            value={formData.payment_terms}
-                            onValueChange={(value) => updateField("payment_terms", value)}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="اختر شروط الدفع" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="نقدي">نقدي</SelectItem>
-                              <SelectItem value="آجل 7 أيام">آجل 7 أيام</SelectItem>
-                              <SelectItem value="آجل 15 يوم">آجل 15 يوم</SelectItem>
-                              <SelectItem value="آجل 30 يوم">آجل 30 يوم</SelectItem>
-                              <SelectItem value="آجل 60 يوم">آجل 60 يوم</SelectItem>
-                              <SelectItem value="آجل 90 يوم">آجل 90 يوم</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div>
-                          <Label htmlFor="discount_percentage" className="text-sm font-medium">
-                            نسبة الخصم %
-                          </Label>
-                          <Input
-                            id="discount_percentage"
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            max="100"
-                            value={formData.discount_percentage}
-                            onChange={(e) => updateField("discount_percentage", e.target.value)}
-                            className="text-right"
-                            placeholder="0.00"
-                          />
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  {/* بيانات الموقع الإلكتروني */}
-                  <Card>
-                    <CardHeader className="pb-4">
-                      <CardTitle className="flex items-center gap-2 text-lg">
-                        <Plus className="h-5 w-5 text-primary" />
-                        بيانات الموقع الإلكتروني
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <Label htmlFor="web_username" className="text-sm font-medium">
-                            اسم المستخدم للموقع
-                          </Label>
-                          <Input
-                            id="web_username"
-                            value={formData.web_username}
-                            onChange={(e) => updateField("web_username", e.target.value)}
-                            className="text-right"
-                            placeholder="اسم المستخدم"
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor="web_password" className="text-sm font-medium">
-                            كلمة المرور للموقع
-                          </Label>
-                          <Input
-                            id="web_password"
-                            type="password"
-                            value={formData.web_password}
-                            onChange={(e) => updateField("web_password", e.target.value)}
-                            className="text-right"
-                            placeholder="كلمة المرور"
-                          />
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  {/* ملاحظات وتفاصيل إضافية */}
-                  <Card>
-                    <CardHeader className="pb-4">
-                      <CardTitle className="text-lg">ملاحظات وتفاصيل إضافية</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div>
-                        <Label htmlFor="transaction_notes" className="text-sm font-medium">
-                          ملاحظات الحركة
-                        </Label>
-                        <Textarea
-                          id="transaction_notes"
-                          value={formData.transaction_notes}
-                          onChange={(e) => updateField("transaction_notes", e.target.value)}
-                          className="text-right"
-                          placeholder="ملاحظات خاصة بالحركة المالية"
-                          rows={3}
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="general_notes" className="text-sm font-medium">
-                          الملاحظات العامة
-                        </Label>
-                        <Textarea
-                          id="general_notes"
-                          value={formData.general_notes}
-                          onChange={(e) => updateField("general_notes", e.target.value)}
-                          className="text-right"
-                          placeholder="ملاحظات عامة"
-                          rows={3}
-                        />
-                      </div>
-                    </CardContent>
-                  </Card>
-
-
-                </form>
-              </div>
-            </div>
+          <div className="h-screen flex flex-col bg-background p-6 overflow-y-auto">
+            <UnifiedCustomers
+              open={showNewCustomerDialog}
+              onOpenChange={setShowNewCustomerDialog}
+              isSupplier={!!isSupplier}
+              showCustomerSearch={showCustomerSearch}
+              setShowCustomerSearch={setShowCustomerSearch}
+              formData={formData}
+              updateField={updateField as any}
+              validationErrors={validationErrors}
+              classifications={classifications}
+              pricecategory={pricecategory}
+              salesmen={salesmen}
+              currentCustomerId={currentCustomerId}
+              currentIndex={currentIndex}
+              totalRecords={customers.length}
+              isSaving={saving}
+              onFirst={async () => { await loadData('first', 0, isSupplier) }}
+              onPrevious={async () => { await loadData('previous', 0, isSupplier) }}
+              onNext={async () => { await loadData('next', 0, isSupplier) }}
+              onLast={async () => { await loadData('last', 0, isSupplier) }}
+              onNew={() => handleNewCustomer(true)}
+              onSave={() => handleSaveCustomer(formData)}
+              onDelete={currentCustomerId > 0 ? () => handleDeleteClick(true) : undefined}
+              onReport={() => console.log("Generate customer report")}
+              onExportExcel={() => console.log("Export to Excel")}
+              onPrint={() => console.log("Print customer")}
+              onCustomerSelect={(customer) => {
+                setFormData((prev) => ({
+                  ...prev,
+                  id: Number(customer.id),
+                  account_id: customer.account_id ?? null,
+                }))
+                loadData("ById", customer.id)
+              }}
+              onClassificationRowsChange={setCustomerAccountClassifications}
+              onCostCenterRowsChange={(rows) => setFormData((prev) => ({ ...prev, cost_centers: rows }))}
+              onStopTransactionRowsChange={(rows) => setFormData((prev) => ({ ...prev, stop_transactions: rows }))}
+              onCustomerCodeBlur={handleCustomerBlur}
+              customerNameRef={customer_name}
+            />
           </div>
         </DialogContent>
       </Dialog>

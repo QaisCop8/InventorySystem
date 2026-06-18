@@ -41,7 +41,6 @@ export default function SearchCostCenterDialog({
 }: SearchCostCenterDialogProps) {
   const [filter, setFilter] = useState("")
   const [selectedCenter, setSelectedCenter] = useState<CostCenterItem | null>(null)
-  const [displayCenters, setDisplayCenters] = useState<CostCenterItem[]>([])
   const gridRef = useRef<any>(null)
 
   useEffect(() => {
@@ -60,10 +59,6 @@ export default function SearchCostCenterDialog({
     filtered.sort((a, b) => (a.id || 0) - (b.id || 0))
     return filtered
   }, [costCenters, filter, type])
-
-  useEffect(() => {
-    setDisplayCenters(filteredCenters)
-  }, [filteredCenters])
 
  
 
@@ -127,11 +122,11 @@ export default function SearchCostCenterDialog({
           </div>
 
           <div className="rounded-md border border-slate-300 overflow-hidden" dir="rtl">
-            {displayCenters.length > 0 ? (
+            {filteredCenters.length > 0 ? (
               <div className="h-[400px] min-h-[320px] overflow-auto">
                 <DataGridView 
                   scheme={costCenterScheme} 
-                  dataSource={displayCenters}
+                  dataSource={filteredCenters}
                   innerRef={gridRef}
                   onRowDoubleClick={handleRowDoubleClick}
                   onRowClick={handleRowClick}

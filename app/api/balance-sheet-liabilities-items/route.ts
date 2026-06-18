@@ -21,7 +21,7 @@ export async function GET() {
       SELECT id, name, status, created_at, updated_at
       FROM balance_sheet_liabilities_items
       WHERE status IN (1, 2)
-      ORDER BY id DESC
+      ORDER BY id ASC
     `
 
     return NextResponse.json(items)

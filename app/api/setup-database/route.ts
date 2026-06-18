@@ -27,9 +27,12 @@ export async function POST() {
         web_username VARCHAR(100),
         web_password VARCHAR(100),
         api_number VARCHAR(100),
+        account_id INTEGER REFERENCES account_tbl(id),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `
+
+    await sql`ALTER TABLE customers ADD COLUMN IF NOT EXISTS account_id INTEGER REFERENCES account_tbl(id)`
 
     await sql`
       CREATE TABLE IF NOT EXISTS suppliers (
@@ -54,9 +57,12 @@ export async function POST() {
         web_username VARCHAR(100),
         web_password VARCHAR(100),
         api_number VARCHAR(100),
+        account_id INTEGER REFERENCES account_tbl(id),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `
+
+    await sql`ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS account_id INTEGER REFERENCES account_tbl(id)`
 
     await sql`
       CREATE TABLE IF NOT EXISTS products (

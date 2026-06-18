@@ -9,7 +9,41 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import AutoCompleteAccount from "@/components/customer/auto-complete-account"
 import { Save, Settings, Building2, Globe, Shield, Printer, FileText, Loader2, AlertCircle } from "lucide-react"
+
+const defaultAccountFields = [
+  { key: "customerParentAccount", label: "حساب اب الزبائن في ملف تعريف الزبائن" },
+  { key: "customerCreditAccount", label: "حساب اب عملاء الاعتمادات في ملف تعريف عملاء الاعتمادات" },
+  { key: "salesTaxAccount", label: "حساب الضريبة على المبيعات" },
+  { key: "currencyTransferAccount", label: "حساب تحويلات عملة" },
+  { key: "earnedDiscountAccount", label: "حساب الخصم المكتسب" },
+  { key: "exchangeGainLossAccount", label: "حساب ارباح وخسائر فروقات العملة" },
+  { key: "salesmanParentAccount", label: "حساب اب المندوبين في ملف تعريف المندوبين" },
+  { key: "supplierParentAccount", label: "حساب اب الموردين في ملف تعريف الموردين" },
+  { key: "customerSubscriptionAccount", label: "حساب اب المشتركين في ملف تعريف المشتركين" },
+  { key: "purchaseTaxAccount", label: "حساب الضريبة على المشتريات" },
+  { key: "newEmployeeAccount", label: "حساب الاب الافتراضي عند تعريف موظف جديد" },
+  { key: "allowedDiscountAccount", label: "حساب خصم مسموح به" },
+] as const
+
+type DefaultAccountFieldKey = (typeof defaultAccountFields)[number]["key"]
+
+const defaultAccountFieldKeys = defaultAccountFields.map((field) => field.key)
+
+const toAccountIdString = (value: unknown) => {
+  if (value === null || value === undefined || value === "") return ""
+  const numericValue = Number(value)
+  return Number.isInteger(numericValue) && numericValue > 0 ? String(numericValue) : String(value)
+}
+
+const emptyDefaultAccountValues = defaultAccountFields.reduce(
+  (accumulator, field) => {
+    accumulator[field.key] = ""
+    return accumulator
+  },
+  {} as Record<DefaultAccountFieldKey, string>,
+)
 
 export function SystemSettings() {
   const [settings, setSettings] = useState({
@@ -59,6 +93,9 @@ export function SystemSettings() {
     itemGroupStart: 1,
     itemStart: 1,
     accountStart: 1,
+
+    // Default Accounts
+    ...emptyDefaultAccountValues,
 
     // Print Settings
     defaultPrinter: "HP LaserJet",
@@ -167,6 +204,18 @@ export function SystemSettings() {
             printLogo: data.print_logo !== false,
             printFooter: data.print_footer !== false,
             autoNumbering: data.auto_numbering !== false,
+            customerParentAccount: toAccountIdString(data.default_customer_parent_account ?? prev.customerParentAccount),
+            customerCreditAccount: toAccountIdString(data.default_customer_credit_account ?? prev.customerCreditAccount),
+            salesTaxAccount: toAccountIdString(data.default_sales_tax_account ?? prev.salesTaxAccount),
+            currencyTransferAccount: toAccountIdString(data.default_currency_transfer_account ?? prev.currencyTransferAccount),
+            earnedDiscountAccount: toAccountIdString(data.default_earned_discount_account ?? prev.earnedDiscountAccount),
+            exchangeGainLossAccount: toAccountIdString(data.default_exchange_gain_loss_account ?? prev.exchangeGainLossAccount),
+            salesmanParentAccount: toAccountIdString(data.default_salesman_parent_account ?? prev.salesmanParentAccount),
+            supplierParentAccount: toAccountIdString(data.default_supplier_parent_account ?? prev.supplierParentAccount),
+            customerSubscriptionAccount: toAccountIdString(data.default_customer_subscription_account ?? prev.customerSubscriptionAccount),
+            purchaseTaxAccount: toAccountIdString(data.default_purchase_tax_account ?? prev.purchaseTaxAccount),
+            newEmployeeAccount: toAccountIdString(data.default_new_employee_account ?? prev.newEmployeeAccount),
+            allowedDiscountAccount: toAccountIdString(data.default_allowed_discount_account ?? prev.allowedDiscountAccount),
           }))
         }
       }
@@ -282,6 +331,18 @@ export function SystemSettings() {
           printLogo: settings.printLogo,
           printFooter: settings.printFooter,
           autoNumbering: settings.autoNumbering,
+          default_customer_parent_account: settings.customerParentAccount ? Number(settings.customerParentAccount) : null,
+          default_customer_credit_account: settings.customerCreditAccount ? Number(settings.customerCreditAccount) : null,
+          default_sales_tax_account: settings.salesTaxAccount ? Number(settings.salesTaxAccount) : null,
+          default_currency_transfer_account: settings.currencyTransferAccount ? Number(settings.currencyTransferAccount) : null,
+          default_earned_discount_account: settings.earnedDiscountAccount ? Number(settings.earnedDiscountAccount) : null,
+          default_exchange_gain_loss_account: settings.exchangeGainLossAccount ? Number(settings.exchangeGainLossAccount) : null,
+          default_salesman_parent_account: settings.salesmanParentAccount ? Number(settings.salesmanParentAccount) : null,
+          default_supplier_parent_account: settings.supplierParentAccount ? Number(settings.supplierParentAccount) : null,
+          default_customer_subscription_account: settings.customerSubscriptionAccount ? Number(settings.customerSubscriptionAccount) : null,
+          default_purchase_tax_account: settings.purchaseTaxAccount ? Number(settings.purchaseTaxAccount) : null,
+          default_new_employee_account: settings.newEmployeeAccount ? Number(settings.newEmployeeAccount) : null,
+          default_allowed_discount_account: settings.allowedDiscountAccount ? Number(settings.allowedDiscountAccount) : null,
         }),
       })
 
@@ -339,6 +400,7 @@ export function SystemSettings() {
         itemGroupStart: 1,
         itemStart: 1,
         accountStart: 1,
+        ...emptyDefaultAccountValues,
         defaultPrinter: "HP LaserJet",
         paperSize: "A4",
         printLogo: true,
@@ -396,10 +458,11 @@ export function SystemSettings() {
 
       {/* Settings Tabs */}
       <Tabs defaultValue="company" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className="grid w-full grid-cols-7">
           <TabsTrigger value="company">معلومات الشركة</TabsTrigger>
           <TabsTrigger value="system">إعدادات النظام</TabsTrigger>
           <TabsTrigger value="business">إعدادات العمل</TabsTrigger>
+          <TabsTrigger value="accounts">الحسابات الافتراضية</TabsTrigger>
           <TabsTrigger value="security">الأمان</TabsTrigger>
           <TabsTrigger value="documents">السندات</TabsTrigger>
           <TabsTrigger value="printing">الطباعة</TabsTrigger>
@@ -640,6 +703,45 @@ export function SystemSettings() {
                     dir="rtl"
                   />
                 </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="accounts" className="space-y-4">
+          <Card className="erp-card">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-right">
+                <Building2 className="h-5 w-5" />
+                الحسابات الافتراضية
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {defaultAccountFields.map((field) => (
+                  <div key={field.key} className="space-y-2">
+                    <Label className="text-right block">{field.label}</Label>
+                    <AutoCompleteAccount
+                      value={settings[field.key as DefaultAccountFieldKey]}
+                      valueMode="id"
+                      onValueChange={(value) =>
+                        setSettings({
+                          ...settings,
+                          [field.key]: value,
+                        })
+                      }
+                      onAccountSelect={(account) =>
+                        setSettings({
+                          ...settings,
+                          [field.key]: account ? String(account.id) : "",
+                        })
+                      }
+                      placeholder="اختر الحساب"
+                      className="w-full"
+                      showCostCenterButton={false}
+                    />
+                  </div>
+                ))}
               </div>
             </CardContent>
           </Card>

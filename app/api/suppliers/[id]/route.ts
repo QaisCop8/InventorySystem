@@ -44,10 +44,172 @@ try {
 
 export default sql
 
+const ensureSupplierAccount = async ({
+  accountId,
+  code,
+  name,
+  currencyId = 1,
+}: {
+  accountId?: number | null
+  code: string
+  name: string
+  currencyId?: number | null
+}) => {
+  const normalizedCode = String(code || "").trim()
+  const normalizedName = String(name || "").trim()
+
+  if (!normalizedCode || !normalizedName) {
+    throw new Error("رقم واسم الحساب مطلوبان")
+  }
+
+  const finalCurrencyId = Number(currencyId || 1) || 1
+
+  if (accountId) {
+    await sql`
+      UPDATE account_tbl
+      SET
+        code = ${normalizedCode},
+        name = ${normalizedName},
+        type = 3,
+        finanical_list_id = 1,
+        finanical_list_assests_id = 2,
+        finanical_list_liabilities_id = 0,
+        finanical_list_income_id = 0,
+        currency_id = ${finalCurrencyId},
+        allow_trans_with_diff_curr = 0,
+        iscalc_curr_diff_rates = false,
+        transaction_type = 0,
+        transaction_type_action = 0,
+        max_transaction_amount = 0,
+        max_transaction_amount_action = 0,
+        max_balance_amount = 0,
+        max_balance_action = NULL,
+        budget_exceeding_perc = NULL,
+        budget_exceeding_action = NULL,
+        unified_report_account_no = NULL,
+        unified_report_group_code = NULL,
+        notes = NULL,
+        show_notes_in_transactions_soa = false,
+        status = 1,
+        last_update_date = CURRENT_TIMESTAMP
+      WHERE id = ${accountId}
+    `
+
+    return accountId
+  }
+
+  const existingAccount = await sql`
+    SELECT id
+    FROM account_tbl
+    WHERE LOWER(code) = LOWER(${normalizedCode})
+    LIMIT 1
+  `
+
+  if (existingAccount.length > 0) {
+    const existingId = Number(existingAccount[0].id)
+    await sql`
+      UPDATE account_tbl
+      SET
+        name = ${normalizedName},
+        type = 3,
+        finanical_list_id = 1,
+        finanical_list_assests_id = 2,
+        finanical_list_liabilities_id = 0,
+        finanical_list_income_id = 0,
+        currency_id = ${finalCurrencyId},
+        allow_trans_with_diff_curr = 0,
+        iscalc_curr_diff_rates = false,
+        status = 1,
+        last_update_date = CURRENT_TIMESTAMP
+      WHERE id = ${existingId}
+    `
+    return existingId
+  }
+
+  const created = await sql`
+    INSERT INTO account_tbl (
+      company_id,
+      code,
+      type,
+      name,
+      name_lang2,
+      father_id,
+      level_no,
+      finanical_list_id,
+      finanical_list_assests_id,
+      finanical_list_liabilities_id,
+      finanical_list_income_id,
+      currency_id,
+      allow_trans_with_diff_curr,
+      iscalc_curr_diff_rates,
+      transaction_type,
+      transaction_type_action,
+      max_transaction_amount,
+      max_transaction_amount_action,
+      max_balance_amount,
+      max_balance_action,
+      budget_exceeding_perc,
+      budget_exceeding_action,
+      unified_report_account_no,
+      unified_report_group_code,
+      notes,
+      show_notes_in_transactions_soa,
+      status,
+      insert_date,
+      last_update_date
+    ) VALUES (
+      3,
+      ${normalizedCode},
+      1,
+      ${normalizedName},
+      NULL,
+      NULL,
+      1,
+      1,
+      2,
+      0,
+      0,
+      ${finalCurrencyId},
+      0,
+      false,
+      0,
+      0,
+      0,
+      0,
+      0,
+      NULL,
+      NULL,
+      NULL,
+      NULL,
+      NULL,
+      false,
+      1,
+      CURRENT_DATE,
+      CURRENT_TIMESTAMP
+    )
+    RETURNING id
+  `
+
+  return Number(created[0].id)
+}
+
 export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const { id } = params
     const data = await request.json()
+
+    const existingSupplier = await sql`
+      SELECT account_id
+      FROM suppliers
+      WHERE id = ${id}
+      LIMIT 1
+    `
+    const accountId = await ensureSupplierAccount({
+      accountId: existingSupplier[0]?.account_id ? Number(existingSupplier[0].account_id) : null,
+      code: data.supplier_code || data.code || "",
+      name: data.supplier_name || data.name || "",
+      currencyId: 1,
+    })
 
     const result = await sql`
       UPDATE suppliers 
@@ -69,7 +231,8 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
         general_notes = ${data.general_notes},
         web_username = ${data.web_username},
         web_password = ${data.web_password},
-        api_key = ${data.api_number || ""}
+        api_key = ${data.api_number || ""},
+        account_id = ${accountId}
       WHERE id = ${id}
       RETURNING *
     `

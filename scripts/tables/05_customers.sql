@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS customers (
     general_notes TEXT,
     movement_notes TEXT,
     attachments TEXT,
+    account_id INTEGER REFERENCES account_tbl(id),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

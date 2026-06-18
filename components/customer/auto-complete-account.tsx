@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Search, X, CircleDollarSign } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -12,6 +12,7 @@ interface AutoCompleteAccountProps {
   value: string
   onValueChange: (value: string) => void
   onAccountSelect?: (account: AccountItem | null) => void
+  valueMode?: "code" | "id"
   label?: string
   placeholder?: string
   disabled?: boolean
@@ -29,13 +30,17 @@ interface AutoCompleteAccountProps {
   searchDefaultTypeValue?: string
   showFinancialListFilter?: boolean
   showTypeFilter?: boolean
+  displayIdOnly?: boolean
 }
 
 const normalizeAccountCode = (value: string) => value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 8)
 
-const formatAccountLabel = (account: AccountItem, displayNameFirst = false) =>
-  displayNameFirst ? `${account.name} / ${account.code}` : `${account.code} - ${account.name}`
-
+const formatAccountLabel = (account: AccountItem, displayNameFirst = false, displayIdOnly = false) =>
+  displayIdOnly
+    ? String(account.id)
+    : displayNameFirst
+      ? `${account.name} / ${account.code}`
+      : `${account.code} - ${account.name}`
 const isLeafAccount = (account: AccountItem, allAccounts: AccountItem[]) =>
   !allAccounts.some((candidate) => Number(candidate.father_id ?? 0) === Number(account.id))
 
@@ -84,6 +89,7 @@ export default function AutoCompleteAccount({
   value,
   onValueChange,
   onAccountSelect,
+  valueMode = "code",
   label = "الحساب",
   placeholder = "أدخل كود الحساب",
   disabled = false,
@@ -101,6 +107,7 @@ export default function AutoCompleteAccount({
   searchDefaultTypeValue,
   showFinancialListFilter,
   showTypeFilter = true,
+  displayIdOnly = false,
 }: AutoCompleteAccountProps) {
   const [accounts, setAccounts] = useState<AccountItem[]>([])
   const [selectedAccount, setSelectedAccount] = useState<AccountItem | null>(null)
@@ -109,13 +116,14 @@ export default function AutoCompleteAccount({
   const [loadingAccounts, setLoadingAccounts] = useState(false)
   const [isFocused, setIsFocused] = useState(false)
   const [displayValue, setDisplayValue] = useState(value)
+  const onValueChangeRef = useRef(onValueChange)
 
-  const normalizedValue = useMemo(() => normalizeAccountCode(value), [value])
+  const normalizedValue = useMemo(() => (valueMode === "id" ? String(value).trim() : normalizeAccountCode(value)), [value, valueMode])
   const resolvedDisplayValue = useMemo(() => {
     if (isFocused) return value
-    if (selectedAccount) return formatAccountLabel(selectedAccount, displayNameFirst)
+    if (selectedAccount) return formatAccountLabel(selectedAccount, displayNameFirst, displayIdOnly)
     return value
-  }, [displayNameFirst, isFocused, selectedAccount, value])
+  }, [displayIdOnly, displayNameFirst, isFocused, selectedAccount, value])
 
   const notifySelection = useCallback(
     (account: AccountItem | null) => {
@@ -125,12 +133,16 @@ export default function AutoCompleteAccount({
     [onAccountSelect],
   )
 
+  useEffect(() => {
+    onValueChangeRef.current = onValueChange
+  }, [onValueChange])
+
   const loadAccounts = useCallback(async () => {
-    if (loadingAccounts || accounts.length > 0) return accounts
+    if (loadingAccounts) return accounts
 
     setLoadingAccounts(true)
     try {
-      const response = await fetch("/api/accounts")
+      const response = await fetch("/api/accounts?type=1")
       if (!response.ok) {
         throw new Error(`Failed to load accounts: ${response.status}`)
       }
@@ -163,6 +175,20 @@ export default function AutoCompleteAccount({
     [accounts, loadAccounts],
   )
 
+  const resolveAccountById = useCallback(
+    async (id: string) => {
+      const numericId = Number(id)
+      if (!Number.isInteger(numericId) || numericId <= 0) return null
+
+      const cachedMatch = accounts.find((account) => Number(account.id) === numericId)
+      if (cachedMatch) return cachedMatch
+
+      const loadedAccounts = await loadAccounts()
+      return loadedAccounts.find((account) => Number(account.id) === numericId) || null
+    },
+    [accounts, loadAccounts],
+  )
+
   useEffect(() => {
     let cancelled = false
 
@@ -172,10 +198,16 @@ export default function AutoCompleteAccount({
         return
       }
 
-      const nextSelected = await resolveAccountByCode(normalizedValue)
+      const nextSelected =
+        valueMode === "id"
+          ? (await resolveAccountById(normalizedValue)) || (await resolveAccountByCode(normalizedValue))
+          : await resolveAccountByCode(normalizedValue)
       if (cancelled) return
 
       setSelectedAccount(nextSelected)
+      if (valueMode === "id" && nextSelected && String(nextSelected.id) !== value) {
+        onValueChangeRef.current(String(nextSelected.id))
+      }
     }
 
     void syncSelectedAccount()
@@ -183,7 +215,7 @@ export default function AutoCompleteAccount({
     return () => {
       cancelled = true
     }
-  }, [normalizedValue, resolveAccountByCode])
+  }, [normalizedValue, resolveAccountByCode, resolveAccountById, value, valueMode])
 
   useEffect(() => {
     setDisplayValue(resolvedDisplayValue)
@@ -191,10 +223,10 @@ export default function AutoCompleteAccount({
 
   useEffect(() => {
     void loadAccounts()
-  }, [loadAccounts])
+  }, [])
 
   const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const nextValue = normalizeAccountCode(event.target.value)
+    const nextValue = valueMode === "id" ? event.target.value : normalizeAccountCode(event.target.value)
     setDisplayValue(nextValue)
     onValueChange(nextValue)
     notifySelection(null)
@@ -202,21 +234,25 @@ export default function AutoCompleteAccount({
 
   const handleBlur = async () => {
     setIsFocused(false)
-    const normalizedCode = normalizeAccountCode(value)
-    if (normalizedCode !== value) {
-      onValueChange(normalizedCode)
+    const normalizedInput = valueMode === "id" ? String(value).trim() : normalizeAccountCode(value)
+    if (normalizedInput !== value) {
+      onValueChange(normalizedInput)
     }
 
-    if (!normalizedCode) {
+    if (!normalizedInput) {
       notifySelection(null)
       return
     }
 
-    const account = await resolveAccountByCode(normalizedCode)
+    const account =
+      valueMode === "id"
+        ? (await resolveAccountById(normalizedInput)) || (await resolveAccountByCode(normalizedInput))
+        : await resolveAccountByCode(normalizedInput)
     notifySelection(account)
 
     if (account) {
-      onValueChange(account.code)
+      onValueChange(valueMode === "id" ? String(account.id) : account.code)
+      setDisplayValue(formatAccountLabel(account, displayNameFirst, displayIdOnly))
     }
   }
 
@@ -226,9 +262,9 @@ export default function AutoCompleteAccount({
   }
 
   const handleSelectFromSearch = (account: AccountItem) => {
-    onValueChange(normalizeAccountCode(account.code))
+    onValueChange(valueMode === "id" ? String(account.id) : normalizeAccountCode(account.code))
     notifySelection(account)
-    setDisplayValue(formatAccountLabel(account, displayNameFirst))
+    setDisplayValue(formatAccountLabel(account, displayNameFirst, displayIdOnly))
     setSearchDialogOpen(false)
   }
 

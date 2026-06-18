@@ -150,7 +150,7 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
     try {
       const [typesRes, accountsRes] = await Promise.all([
         fetch("/api/account-classification-types"),
-        fetch("/api/accounts"),
+        fetch("/api/accounts?type=1"),
       ])
 
       if (!typesRes.ok || !accountsRes.ok) {
@@ -221,14 +221,16 @@ export default function UnifiedAccounts({ action, onOpenChange, inWindowManager,
 
       setTypes(Array.isArray(typesData) ? typesData : [])
       setAccounts(
-        (Array.isArray(accountsData) ? accountsData : []).map((item: any) => ({
-          ...item,
-          code: item.code || item.account_code || "",
-          name: item.name || item.account_name || "",
-          type: Number(item.type || item.classification_type_id || 0),
-          level_no: Number(item.level_no || 1),
-          finanical_list_id: Number(item.finanical_list_id || 1),
-        })),
+        (Array.isArray(accountsData) ? accountsData : [])
+          .map((item: any) => ({
+            ...item,
+            code: item.code || item.account_code || "",
+            name: item.name || item.account_name || "",
+            type: Number(item.type || item.classification_type_id || 0),
+            level_no: Number(item.level_no || 1),
+            finanical_list_id: Number(item.finanical_list_id || 1),
+          }))
+          .filter((item: any) => Number(item.type || 0) === 1),
       )
       setCurrencies(Array.isArray(currenciesData) ? currenciesData : [])
       setCompanies(Array.isArray(companiesData) ? companiesData : [])
