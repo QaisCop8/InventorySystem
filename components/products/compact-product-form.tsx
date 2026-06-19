@@ -38,6 +38,7 @@ interface ProductFormData {
   description: string
   category_id: number
   main_stock_id: number
+  default_store: number
   brand: string
   model: string
   measurment_unit: number
@@ -79,6 +80,7 @@ export const initialFormData: ProductFormData = {
   description: "",
   category_id: 0,
   main_stock_id: 0,
+  default_store: 0,
   brand: "",
   model: "",
   measurment_unit: 1,
@@ -684,6 +686,7 @@ export function CompactProductForm({
       units: [newUnit],
       prices: [newPrice],
       stores: [newStore],
+      default_store: firstStore.id,
     };
 
     if (definitionsRef.current.currencies.length > 0) {
@@ -1247,6 +1250,7 @@ export function CompactProductForm({
             ...product,
             units: unitsWithNames,
             prices: pricesWithNames,
+            default_store: Number(product.default_store ?? 0),
 
           });
           setCurrentProductId(product.id);
@@ -1916,6 +1920,30 @@ export function CompactProductForm({
                       onChange={(e) => updateFormData("factory_number", e.target.value)}
                       className="text-right"
                     />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="default_store" className="text-sm font-medium">
+                      المستودع الافتراضي في الحركات
+                    </Label>
+                    <Select
+                      value={formData.default_store ? String(formData.default_store) : "__none__"}
+                      onValueChange={(value) =>
+                        updateFormData("default_store", value === "__none__" ? 0 : Number(value))
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="اختر المستودع" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">بلا</SelectItem>
+                        {definitions.warehouses.map((warehouse) => (
+                          <SelectItem key={warehouse.id} value={String(warehouse.id)}>
+                            {warehouse.warehouse_name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
 
                 </div>

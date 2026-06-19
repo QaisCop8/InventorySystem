@@ -161,6 +161,8 @@ interface Product {
   selling_price?: number
   current_stock: number
   first_barcode?: string
+  default_store?: number | null
+  default_store_name?: string | null
   units?: []
 }
 
@@ -393,9 +395,11 @@ function UnifiedSalesOrder({
   const [alertMessage, setAlertMessage] = useState("");
   const [nextFunction, setNextFunction] = useState<(() => void) | null>(null);
   const [showPrintRefConfirm, setShowPrintRefConfirm] = useState(false);
+  const [showPostPrintConfirm, setShowPostPrintConfirm] = useState(false);
   const [showDuplicateRefConfirm, setShowDuplicateRefConfirm] = useState(false);
   const [isDuplicateRefConfirmed, setIsDuplicateRefConfirmed] = useState(false);
   const duplicateRefDismissedValueRef = useRef<string>("");
+  const pendingPrintedOrderIdRef = useRef<number | null>(null);
   const skipNextEnterRef = useRef(false)
   const suppressEnterUntilRef = useRef(0)
   const [data, setData] = useState([{
@@ -888,9 +892,17 @@ function UnifiedSalesOrder({
     }
     for (let i = 0; i < items.length; i++) {
       const ii = items[i];
-      console.log("ii ", ii)
       const index = selectedIndexL + i; // new row index
       let item = CollectionView.items[index];
+      const defaultStoreId = Number(ii?.default_store ?? 0) || 0;
+      const defaultStoreName = String(ii?.default_store_name ?? "").trim();
+      const matchedWarehouse =
+        defaultStoreId > 0 || defaultStoreName
+          ? definitionsRef.current?.warehouses?.find((warehouse: any) => Number(warehouse.id) === defaultStoreId) ||
+            definitionsRef.current?.warehouses?.find((warehouse: any) => String(warehouse.warehouse_name).trim() === defaultStoreName)
+          : null;
+      const resolvedStoreId = matchedWarehouse?.id ?? defaultStoreId;
+      const resolvedStoreName = matchedWarehouse?.warehouse_name ?? defaultStoreName;
 
       const response = await fetch(`/api/products/${ii.id}/units`);
       if (!response.ok) throw new Error("Failed to fetch units");
@@ -913,8 +925,8 @@ function UnifiedSalesOrder({
           })(),
           unit_id: ii.unit_id,
           unit_name: ii.first_unit || ii.unit_name || ii.main_unit,
-          store_id: ii.store_id ?? definitionsRef.current?.warehouses?.[0]?.id,
-          store_name: ii.store_name || definitionsRef.current?.warehouses?.[0]?.warehouse_name,
+          store_id: ii.store_id ?? 0,
+          store_name: ii.store_name || "",
           to_main_unit_qty: ii.to_main_unit_qty ?? 1,
           units: units,
           has_batch_number: ii.has_batch_number,
@@ -952,8 +964,14 @@ function UnifiedSalesOrder({
         })();
         item.qnty = setFromExcelRef.current ? ii.qnty : '';
         item.bonus = setFromExcelRef.current ? ii.bonus : '';
-        item.store_id = ii.store_id ?? definitionsRef.current?.warehouses?.[0]?.id;
-        item.store_name = ii.store_name ?? definitionsRef.current?.warehouses?.[0]?.warehouse_name;
+        if (resolvedStoreId > 0 || resolvedStoreName) {
+          item.store_id = ii.store_id ?? resolvedStoreId;
+          item.store_name = ii.store_name ?? resolvedStoreName;
+        }
+        else {
+          item.store_id = ii.store_id ?? definitionsRef.current?.warehouses?.[0]?.id ?? 0;
+          item.store_name = ii.store_name ?? definitionsRef.current?.warehouses?.[0]?.warehouse_name ?? "";
+        }
         item.barcode = ii.barcode || ii.first_barcode;
         item.to_main_unit_qty = ii.to_main_unit_qty ?? 1;
         item.units = units;
@@ -1701,6 +1719,54 @@ function UnifiedSalesOrder({
     height?: string;  // e.g., '297mm'
   }
 
+  const markOrderAsPrinted = async (orderId: number) => {
+    const savedUser = localStorage.getItem("erp_user") || sessionStorage.getItem("erp_user");
+    if (!savedUser) return;
+
+    const user = JSON.parse(savedUser);
+    if (!user?.id) return;
+
+    await fetch(`/api/orders/sales/${orderId}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        "x-user-id": user.id,
+      },
+      body: JSON.stringify({ printed: 1 }),
+    });
+
+    setState((prev) => ({
+      ...prev,
+      formData: { ...prev.formData, printed: 1 },
+    }))
+  }
+
+  const confirmPrintedOrder = async () => {
+    const orderId = pendingPrintedOrderIdRef.current;
+    pendingPrintedOrderIdRef.current = null;
+    setShowPostPrintConfirm(false);
+    popupHasClosed();
+
+    if (!orderId) return;
+
+    try {
+      await markOrderAsPrinted(orderId);
+    } finally {
+      setTimeout(() => {
+        referenceNumberRef.current?.focus();
+      }, 50)
+    }
+  }
+
+  const cancelPrintedOrderConfirmation = () => {
+    pendingPrintedOrderIdRef.current = null;
+    setShowPostPrintConfirm(false);
+    popupHasClosed();
+    setTimeout(() => {
+      referenceNumberRef.current?.focus();
+    }, 50)
+  }
+
   const printOrder = async (order: any, items: any[], settings: PrintSettings = {}, showMsg = false) => {
 
     if (showMsg) {
@@ -1836,23 +1902,6 @@ function UnifiedSalesOrder({
     </html>
   `;
 
-    // Get saved user
-    const savedUser = localStorage.getItem("erp_user") || sessionStorage.getItem("erp_user");
-    if (!savedUser) return;
-    const user = JSON.parse(savedUser);
-    if (!user?.id) return;
-
-    // Update printed status in backend
-    console.log("order order ", order)
-    await fetch(`/api/orders/sales/${order.id}`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        "x-user-id": user.id,
-      },
-      body: JSON.stringify({ printed: 1 }),
-    });
-
     // Use iframe to print without opening about:blank
     const iframe = document.createElement("iframe");
     iframe.style.position = "absolute";
@@ -1868,10 +1917,8 @@ function UnifiedSalesOrder({
     iframe.contentWindow?.focus();
     iframe.contentWindow?.print();
     document.body.removeChild(iframe);
-    setState((prev) => ({
-      ...prev,
-      formData: { ...prev.formData, printed: 1 },
-    }))
+    pendingPrintedOrderIdRef.current = order.id;
+    setShowPostPrintConfirm(true);
     setLoading(false)
     setTimeout(() => {
       referenceNumberRef.current?.focus();
@@ -2957,6 +3004,12 @@ function UnifiedSalesOrder({
               onConfirm={() => { setShowPrintRefConfirm(false); popupHasClosed(); handlePrint(false); setTimeout(() => referenceNumberRef.current?.focus(), 50) }}
               onCancel={() => { setShowPrintRefConfirm(false); popupHasClosed(); setTimeout(() => referenceNumberRef.current?.focus(), 50) }}
               message="تمت طباعة السند مسبقا هل تريد الطباعة مرة أخرى؟"
+            />
+            <ConfirmDialogYesNo
+              visible={showPostPrintConfirm}
+              onConfirm={confirmPrintedOrder}
+              onCancel={cancelPrintedOrderConfirmation}
+              message=" هل تمت عملية الطباعة بنجاح؟"
             />
             <ConfirmDialogYesNo
               visible={showDuplicateRefConfirm}

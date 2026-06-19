@@ -71,6 +71,8 @@ interface Product {
   batch_tracking: boolean
   serial_tracking: boolean
   status: string
+  default_store?: number
+  default_store_name?: string
   supplier_id?: number
   supplier_name?: string
   supplier_code?: string
@@ -840,6 +842,7 @@ export function Products() {
                       <TableHead className="text-right">اسم الصنف</TableHead>
                       <TableHead className="text-right">التصنيف</TableHead>
                       <TableHead className="text-right">الوحدة</TableHead>
+                      <TableHead className="text-right">المستودع الافتراضي</TableHead>
                       <TableHead className="text-right">المخزون الحالي</TableHead>
                       <TableHead className="text-right">نقطة إعادة الطلب</TableHead>
                       <TableHead className="text-right">آخر سعر شراء</TableHead>
@@ -865,6 +868,7 @@ export function Products() {
                         </TableCell>
                         <TableCell>{product.category}</TableCell>
                         <TableCell>{product.main_unit}</TableCell>
+                        <TableCell>{product.default_store_name || "-"}</TableCell>
                         <TableCell className="font-medium">{product.current_stock}</TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
