@@ -152,7 +152,7 @@ export function UniversalToolbar({
             disabled={isSaving || !canSave}
           >
             <Save className="h-4 w-4" />
-            {labels.save}
+            {isSaving ? "جاري الحفظ" : labels.save}
           </Button>
         )}
 

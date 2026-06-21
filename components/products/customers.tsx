@@ -258,6 +258,7 @@ export default function Customers({ isSupplier }: CustomersProps) {
 
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const savingRef = useRef(false)
   const [generatingNumber, setGeneratingNumber] = useState(false)
   const [editingCustomer, setEditingCustomer] = useState(false)
   const editingCustomerRef = useRef(false)
@@ -754,6 +755,9 @@ export default function Customers({ isSupplier }: CustomersProps) {
       discount_percentage: (customer as any).discount_percentage || "",
       pricecategory: (customer as any).pricecategory || 0,
       account_id: (customer as any).account_id || null,
+      cost_centers: Array.isArray((customer as any).cost_centers) ? (customer as any).cost_centers : [],
+      stop_transactions: Array.isArray((customer as any).stop_transactions) ? (customer as any).stop_transactions : [],
+      voucherType: Array.isArray((customer as any).voucherType) ? (customer as any).voucherType : [],
     })
   }, [])
   const [definitions, setDefinitions] = useState({
@@ -817,7 +821,7 @@ export default function Customers({ isSupplier }: CustomersProps) {
       const newFormData = {
         ...customer
       };
-      setFormData(customer);
+      updateFormData(customer as any)
       console.log("newFormData ", newFormData)
 
       setTimeout(() => {
@@ -1108,21 +1112,20 @@ export default function Customers({ isSupplier }: CustomersProps) {
     }
   }
 
-  const handleSaveCustomer = (
+  const handleSaveCustomer = async (
     customerData: CustomerFormData,
     accountClassifications = customerAccountClassifications,
   ) => {
-    if (!validateForm()) return;
+    if (!validateForm()) return false;
+
+    if (savingRef.current) return false;
+
+    savingRef.current = true;
+    setSaving(true);
+    setError(null);
 
     try {
-      setSaving(true);
-      setError(null);
-
-      const url =
-        currentCustomerId > 0
-          ? `/api/customers/${currentCustomerId}`
-          : "/api/customers";
-
+      const url = currentCustomerId > 0 ? `/api/customers/${currentCustomerId}` : "/api/customers";
       const method = currentCustomerId > 0 ? "PUT" : "POST";
 
       const voucher = (customerData.voucherType ?? []).map((v) => ({
@@ -1130,6 +1133,25 @@ export default function Customers({ isSupplier }: CustomersProps) {
         book_id: v.book_id,
         ser: v.ser,
       }));
+
+      const costCenters = Array.isArray(customerData.cost_centers)
+        ? customerData.cost_centers
+            .map((row: any) => {
+              const defaultCostCenterId = row?.default_cost_center_id != null && row.default_cost_center_id !== ""
+                ? Number(row.default_cost_center_id)
+                : null;
+
+              if (defaultCostCenterId == null || Number.isNaN(defaultCostCenterId)) return null;
+
+              return {
+                cost_center_type_id: row.id || null,
+                cost_center_id: defaultCostCenterId,
+                required_in_transactions: row.required_in_transactions ?? 1,
+                default_cost_center_id: defaultCostCenterId,
+              };
+            })
+            .filter(Boolean)
+        : [];
 
       const dataToSend = {
         id: customerData.id,
@@ -1149,8 +1171,6 @@ export default function Customers({ isSupplier }: CustomersProps) {
         account_opening_date: customerData.registration_date,
         movement_notes: customerData.transaction_notes,
         general_notes: customerData.general_notes,
-
-        // NEW FIELDS
         tax_number: customerData.tax_number,
         commercial_registration: customerData.commercial_registration,
         credit_limit: customerData.credit_limit,
@@ -1159,7 +1179,7 @@ export default function Customers({ isSupplier }: CustomersProps) {
         type: isSupplier ? 2 : 1,
         pricecategory: customerData.pricecategory,
         account_id: customerData.account_id,
-        cost_centers: customerData.cost_centers || [],
+        cost_centers: costCenters,
         stop_transactions: customerData.stop_transactions || [],
         currency_id: customerData.currency_id,
         allow_trans_with_diff_curr: customerData.allow_trans_with_diff_curr,
@@ -1168,113 +1188,101 @@ export default function Customers({ isSupplier }: CustomersProps) {
         level_no: customerData.father_id ? undefined : 1,
         account_classifications: accountClassifications.filter((row) => row.classification_id != null),
         voucher,
-
       };
 
       console.log("[v0] Sending customer data:", dataToSend);
 
-      fetch(url, {
+      const response = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(dataToSend),
-      })
-        .then(async (response) => {
-          if (response.ok) {
-            return response.json();
-          } else {
-            let errorMessage = response.statusText;
-            try {
-              const errorData = await response.json();
-              if (errorData?.message) errorMessage = errorData.message;
-            } catch (err) {
-              // ignore
-            }
+      });
 
-            toast.current?.show({
-              severity: "error",
-              summary: "",
-              detail: errorMessage,
-              life: 3000,
-            });
+      if (!response.ok) {
+        let errorMessage = response.statusText;
+        try {
+          const errorData = await response.json();
+          if (errorData?.message) errorMessage = errorData.message;
+        } catch (err) {
+          // ignore
+        }
 
-            throw new Error(errorMessage);
-          }
-        })
-        .then((savedCustomer) => {
-          console.log("[v0] Customer saved successfully:", savedCustomer);
-
-          setShowSuccessMessage(true);
-          setTimeout(() => setShowSuccessMessage(false), 3000);
-
-          setEditingCustomer(false);
-          editingCustomerRef.current = false;
-          reset_fields();
-        })
-        .catch((errorDataOrError) => {
-          if (
-            typeof errorDataOrError === "object" &&
-            errorDataOrError !== null &&
-            "error" in errorDataOrError
-          ) {
-            console.error("[v0] Save error:", errorDataOrError);
-            setError(
-              errorDataOrError.error ||
-              errorDataOrError.message ||
-              "فشل في حفظ البيانات"
-            );
-          } else {
-            console.error("[v0] Unexpected error during save:", errorDataOrError);
-            setError("فشل في حفظ البيانات - خطأ غير متوقع");
-          }
-        })
-        .finally(() => {
-          setSaving(false);
+        toast.current?.show({
+          severity: "error",
+          summary: "",
+          detail: errorMessage,
+          life: 3000,
         });
-    } catch (err) {
-      console.error("[v0] Error saving customer:", err);
-      setError("حدث خطأ في حفظ البيانات");
+
+        throw new Error(errorMessage);
+      }
+
+      const savedCustomer = await response.json();
+
+      if (savedCustomer?.success === false) {
+        const message = savedCustomer?.message || "حدث خطأ أثناء حفظ بيانات العميل";
+        throw new Error(message);
+      }
+
+      console.log("[v0] Customer saved successfully:", savedCustomer);
+
+      setShowSuccessMessage(true);
+      setTimeout(() => setShowSuccessMessage(false), 3000);
+
+      setEditingCustomer(false);
+      editingCustomerRef.current = false;
+
+      if (savedCustomer?.data?.id) {
+        setCurrentCustomerId(Number(savedCustomer.data.id));
+        await loadData("ById", savedCustomer.data.id);
+      } else {
+        reset_fields();
+      }
+
+      return true;
+    } catch (errorDataOrError) {
+      if (typeof errorDataOrError === "object" && errorDataOrError !== null && "message" in errorDataOrError) {
+        toast.current?.show({
+          severity: "error",
+          summary: "",
+          detail: (errorDataOrError as Error).message,
+          life: 3000,
+        });
+      } else {
+        toast.current?.show({
+          severity: "error",
+          summary: "",
+          detail: "حدث خطأ أثناء حفظ بيانات العميل",
+          life: 3000,
+        });
+      }
+
+      return false;
+    } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   };
 
-
-  const confirmDelete = async () => {
-    setShowConfirm(false);
-    popupHasClosed()
-    await handleDeleteCustomer(); // your existing function
-  };
-
-
-  const handleDeleteClick = (checkUnsaved: any) => {
-
-    /*const currentHash = getFormDataHash(formData);
-    if (checkUnsaved === true && currentHash !== initialHash.current) {
-      setShowUnsaved(true)
-      return
-    }
-*/
-    if (!formData.id) {
+  const handleDeleteClick = (checkPermission = true) => {
+    if (checkPermission && !hasPermission("products-edit")) {
       toast.current?.show({
-        severity: 'warn',
-        summary: 'تنبيه',
-        detail: 'لا يوجد سجل لحذفه',
-        life: 3000
+        severity: "error",
+        summary: "",
+        detail: "لا يوجد لديك صلاحية حذف زبون",
+        life: 3000,
       });
       return;
     }
 
-    /*if (!hasPermission("products-edit")) {
-      toast.current?.show({
-        severity: 'error',
-        summary: '',
-        detail: 'لا يوجد لديك صلاحية حذف زبون',
-        life: 3000
-      });
-      return
-    }*/
-
     setShowConfirm(true);
-    popupHasCalled()
+    popupHasCalled();
+  };
+
+  const confirmDelete = async () => {
+    setShowConfirm(false);
+    popupHasClosed();
+    await handleDeleteCustomer();
   };
 
   const handleDeleteCustomer = async () => {
@@ -1883,8 +1891,8 @@ export default function Customers({ isSupplier }: CustomersProps) {
               onNext={async () => { await loadData('next', 0, isSupplier) }}
               onLast={async () => { await loadData('last', 0, isSupplier) }}
               onNew={() => handleNewCustomer(true)}
-              onSave={() => handleSaveCustomer(formData)}
-              onDelete={currentCustomerId > 0 ? () => handleDeleteClick(true) : undefined}
+              onSave={fetchCustomers}
+              onDelete={fetchCustomers}
               onReport={() => console.log("Generate customer report")}
               onExportExcel={() => console.log("Export to Excel")}
               onPrint={() => console.log("Print customer")}

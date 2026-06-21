@@ -112,8 +112,6 @@ interface UnifiedCustomersProps {
   onNext?: () => void
   onLast?: () => void
   onNew?: () => void
-  onSave?: () => void
-  onDelete?: () => void
   onReport?: () => void
   onExportExcel?: () => void
   onPrint?: () => void
@@ -122,6 +120,8 @@ interface UnifiedCustomersProps {
   onClassificationRowsChange?: (rows: Array<{ id: number; name: string; classification_id: number | null; classification_name: string }>) => void
   onCostCenterRowsChange?: (rows: Array<{ id: number; name: string; state_status: string; required_in_transactions: number; cost_center_name?: string; default_cost_center_id?: number | null }>) => void
   onStopTransactionRowsChange?: (rows: Array<{ voucher_types_id: number; voucher_type_name: string; is_stopped: boolean; stop_date: string }>) => void
+  onSave?: () => void | Promise<void>
+  onDelete?: () => void | Promise<void>
   customerNameRef?: RefObject<HTMLInputElement>
 }
 
@@ -208,6 +208,7 @@ export default function UnifiedCustomers({
   const [voucherBooks, setVoucherBooks] = useState<any[]>([])
   const [stopTransactionRows, setStopTransactionRows] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
+  const [saving, setSaving] = useState(false)
   const [classificationTypes, setClassificationTypes] = useState<any[]>([])
   const [allClassifications, setAllClassifications] = useState<any[]>([])
   const [classificationRows, setClassificationRows] = useState<ClassificationTypeRow[]>([])
@@ -238,7 +239,11 @@ export default function UnifiedCustomers({
   const [selectedCostCenterTypeIndex, setSelectedCostCenterTypeIndex] = useState(-1)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [deleteConfirmIndex, setDeleteConfirmIndex] = useState(-1)
+  const [showCustomerDeleteConfirm, setShowCustomerDeleteConfirm] = useState(false)
+  const [customerActionError, setCustomerActionError] = useState("")
+  const [customerActionMessage, setCustomerActionMessage] = useState("")
   const costCenterTypeGridRef = useRef<any>(null)
+  const savingRef = useRef(false)
   const dialogWasOpenRef = useRef(false)
   const lastClassificationRowsSentRef = useRef("[]")
   const lastCostCenterRowsSentRef = useRef("[]")
@@ -443,7 +448,7 @@ export default function UnifiedCustomers({
       setFatherAccountName("")
       setAllowTransWithDiffCurr("0")
       setIscalcCurrDiffRates(false)
-      setStopTransactionRows(buildStopTransactionRows(voucherTypesSource, (formData as any).stop_transactions || []))
+      setStopTransactionRows(buildStopTransactionRows(voucherTypesSource, []))
       setClassificationRows(
         classificationTypesSource.map((type: any) => ({
           id: Number(type.id),
@@ -548,7 +553,7 @@ export default function UnifiedCustomers({
     }
     // Update stopTransactionRows when formData changes and we have voucherTypes
     if (voucherTypes.length > 0) {
-      const stopTransData = (formData as any).stop_transactions || []
+      const stopTransData = formData.id ? ((formData as any).stop_transactions || []) : []
       const nextStopTransactionRows = buildStopTransactionRows(voucherTypes, stopTransData)
       if (!rowsMatch(nextStopTransactionRows, stopTransactionRows)) {
         setStopTransactionRows(nextStopTransactionRows)
@@ -597,6 +602,11 @@ export default function UnifiedCustomers({
       return !hiddenNames.some((hiddenName) => voucherTypeName.includes(hiddenName))
     })
   }, [stopTransactionRows])
+
+  const visibleStopTransactionRowIds = useMemo(
+    () => new Set(visibleStopTransactionRows.map((row) => Number(row?.voucher_types_id))),
+    [visibleStopTransactionRows],
+  )
 
   const voucherTypeRows = useMemo(() => {
     return Array.isArray(formData.voucherType) ? formData.voucherType : []
@@ -806,6 +816,178 @@ export default function UnifiedCustomers({
   const handleNew = useCallback(() => {
     void reset_fields()
   }, [reset_fields])
+
+  const handleSaveCustomer = useCallback(async () => {
+    if (savingRef.current) return false
+
+    const trimmedCode = String(formData.customer_code || "").trim().toUpperCase()
+    const trimmedName = String(formData.name || "").trim()
+    if (!trimmedCode) {
+      setCustomerActionError("يجب ملء رقم الزبون")
+      return false
+    }
+
+    if (!trimmedName) {
+      setCustomerActionError("يجب ملء اسم الزبون")
+      return false
+    }
+
+    if (!/^[A-Z0-9]{8}$/.test(trimmedCode)) {
+      setCustomerActionError("يجب أن يكون رقم الزبون 8 أحرف إنجليزية أو أرقام وبحروف كبيرة")
+      return false
+    }
+
+    savingRef.current = true
+    setSaving(true)
+    setCustomerActionError("")
+    setCustomerActionMessage("")
+    setLoading(true)
+    try {
+      const url = Number(formData.id) > 0 ? `/api/customers/${formData.id}` : "/api/customers"
+      const method = Number(formData.id) > 0 ? "PUT" : "POST"
+      const voucher = Array.isArray(formData.voucherType)
+        ? formData.voucherType.map((item) => ({ type_id: item.type_id, book_id: item.book_id, ser: item.ser }))
+        : []
+      const costCenters = Array.isArray(costCenterTypes)
+        ? costCenterTypes
+            .map((row) => {
+              const defaultCostCenterId = Number(row?.default_cost_center_id ?? 0)
+
+              if (!defaultCostCenterId || Number.isNaN(defaultCostCenterId)) return null
+
+              return {
+                cost_center_type_id: row.id || null,
+                cost_center_id: defaultCostCenterId,
+                required_in_transactions: row.required_in_transactions ?? 1,
+                default_cost_center_id: defaultCostCenterId,
+              }
+            })
+            .filter(Boolean)
+        : []
+
+      const stopTransactions = Array.isArray(stopTransactionRows)
+        ? stopTransactionRows
+            .filter((row) => row.is_stopped)
+            .map((row) => ({ voucher_types_id: row.voucher_types_id, stop_date: row.stop_date || null }))
+        : []
+
+      const accountClassifications = Array.isArray(classificationRows)
+        ? classificationRows
+            .filter((row) => row.classification_id != null)
+            .map((row) => ({ classification_id: row.classification_id }))
+        : []
+
+      const response = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: Number(formData.id) || 0,
+          customer_code: trimmedCode,
+          customer_name: trimmedName,
+          name: trimmedName,
+          mobile1: formData.mobile1,
+          mobile2: formData.mobile2,
+          whatsapp1: formData.whatsapp1,
+          whatsapp2: formData.whatsapp2,
+          city: formData.city,
+          address: formData.address,
+          email: formData.email,
+          status: formData.status,
+          business_nature: formData.business_nature,
+          salesman: formData.salesman,
+          classifications: formData.classification,
+          classification: formData.classification,
+          account_opening_date: formData.registration_date,
+          registration_date: formData.registration_date,
+          movement_notes: formData.transaction_notes,
+          transaction_notes: formData.transaction_notes,
+          general_notes: formData.general_notes,
+          tax_number: formData.tax_number,
+          commercial_registration: formData.commercial_registration,
+          credit_limit: formData.credit_limit,
+          payment_terms: formData.payment_terms,
+          discount_percentage: formData.discount_percentage,
+          type: isSupplier ? 2 : 1,
+          pricecategory: formData.pricecategory,
+          account_id: formData.account_id,
+          cost_centers: costCenters,
+          stop_transactions: stopTransactions,
+          currency_id: formData.currency_id,
+          allow_trans_with_diff_curr: formData.allow_trans_with_diff_curr,
+          iscalc_curr_diff_rates: formData.iscalc_curr_diff_rates,
+          father_id: formData.father_id,
+          level_no: formData.father_id ? undefined : 1,
+          account_classifications: accountClassifications,
+          voucher,
+        }),
+      })
+
+      if (!response.ok) {
+        let message = response.statusText || "فشل في حفظ بيانات الزبون"
+        try {
+          const errorData = await response.json()
+          message = errorData?.error || errorData?.message || message
+        } catch (_) {}
+        setCustomerActionError(message)
+        return false
+      }
+
+      const savedCustomer = await response.json()
+      const savedCustomerId = Number(savedCustomer?.id ?? savedCustomer?.data?.id ?? formData.id ?? 0)
+      if (savedCustomerId > 0 && savedCustomerId !== Number(formData.id)) {
+        updateField("id" as keyof UnifiedCustomerFormData, savedCustomerId as any)
+      }
+
+      setCustomerActionMessage(Number(formData.id) > 0 ? "تم تعديل الزبون بنجاح" : "تم حفظ الزبون بنجاح")
+      await onSave?.()
+      await reset_fields()
+      return true
+    } catch (error) {
+      console.error("Error saving customer in UnifiedCustomers:", error)
+      setCustomerActionError("حدث خطأ أثناء حفظ بيانات الزبون")
+      return false
+    } finally {
+      savingRef.current = false
+      setSaving(false)
+      setLoading(false)
+    }
+  }, [classificationRows, costCenterTypes, formData, isSupplier, onSave, reset_fields, stopTransactionRows, updateField])
+
+  const handleDeleteCustomerRequest = useCallback(() => {
+    if (Number(formData.id) <= 0) return
+    setShowCustomerDeleteConfirm(true)
+  }, [formData.id])
+
+  const handleDeleteCustomerConfirm = useCallback(async () => {
+    if (Number(formData.id) <= 0) return
+
+    setShowCustomerDeleteConfirm(false)
+    setSaving(true)
+    setCustomerActionError("")
+    setCustomerActionMessage("")
+
+    try {
+      const response = await fetch(`/api/customers/${formData.id}`, { method: "DELETE" })
+      if (!response.ok) {
+        let message = "فشل في حذف السجل"
+        try {
+          const errorData = await response.json()
+          message = errorData?.error || errorData?.message || message
+        } catch (_) {}
+        setCustomerActionError(message)
+        return
+      }
+
+      setCustomerActionMessage("تم حذف السجل بنجاح")
+      await onDelete?.()
+      await reset_fields()
+    } catch (error) {
+      console.error("Error deleting customer in UnifiedCustomers:", error)
+      setCustomerActionError("حدث خطأ أثناء حذف السجل")
+    } finally {
+      setSaving(false)
+    }
+  }, [formData.id, onDelete, reset_fields])
 
   const handleSaveClassification = useCallback(async () => {
     if (!newClassificationTypeId) {
@@ -1030,7 +1212,18 @@ export default function UnifiedCustomers({
   return (
     <div className="relative space-y-4">
       
-      <ProgressSpinner loading={loading} />
+      <ProgressSpinner loading={loading || saving} />
+      {customerActionError && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{customerActionError}</AlertDescription>
+        </Alert>
+      )}
+      {customerActionMessage && (
+        <Alert className="bg-green-50 border-green-200">
+          <AlertDescription className="text-green-800">{customerActionMessage}</AlertDescription>
+        </Alert>
+      )}
       <CustomerSearchPopup
         visible={showCustomerSearch}
         type={isSupplier ? 2 : 1}
@@ -1045,16 +1238,16 @@ export default function UnifiedCustomers({
         onNext={onNext}
         onLast={onLast}
         onNew={handleNew}
-        onSave={onSave}
-        onDelete={onDelete}
+        onSave={handleSaveCustomer}
+        onDelete={handleDeleteCustomerRequest}
         currentRecord={currentIndex + 1}
         totalRecords={totalRecords}
         isFirstRecord={currentIndex === 0}
         isLastRecord={currentIndex === Math.max(totalRecords - 1, 0)}
-        isSaving={isSaving}
+        isSaving={saving || isSaving}
         onExportExcel={onExportExcel}
         canSave={true}
-        canDelete={!!onDelete}
+        canDelete={Number(formData.id) > 0}
       />
 
       <Card>
@@ -1521,11 +1714,15 @@ export default function UnifiedCustomers({
                 onCheckedChange={(checked) => {
                   const nextValue = Boolean(checked)
                   setStopTransactionRows((prev) =>
-                    prev.map((row) => ({
-                      ...row,
-                      is_stopped: nextValue,
-                      stop_date: nextValue ? row.stop_date || new Date().toISOString().slice(0, 10) : "",
-                    })),
+                    prev.map((row) =>
+                      visibleStopTransactionRowIds.has(Number(row?.voucher_types_id))
+                        ? {
+                            ...row,
+                            is_stopped: nextValue,
+                            stop_date: nextValue ? row.stop_date || new Date().toISOString().slice(0, 10) : "",
+                          }
+                        : row,
+                    ),
                   )
                 }}
               />
@@ -1582,6 +1779,14 @@ export default function UnifiedCustomers({
           setShowDeleteClassificationConfirm(false)
           setDeleteClassificationConfirmIndex(-1)
         }}
+        isCompact={true}
+      />
+
+      <ConfirmDialogYesNo
+        visible={showCustomerDeleteConfirm}
+        message="هل تريد حذف هذا الزبون؟"
+        onConfirm={handleDeleteCustomerConfirm}
+        onCancel={() => setShowCustomerDeleteConfirm(false)}
         isCompact={true}
       />
 

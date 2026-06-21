@@ -22,27 +22,156 @@ export async function GET(
     switch (navigationType) {
       case "first":
         query = `
-          SELECT * FROM customers
-          WHERE type=$1 AND (isDeleted IS NULL OR isDeleted = false)
-          ORDER BY id ASC
+          SELECT
+            c.*,
+            acc.father_id,
+            acc.finanical_list_id,
+            acc.finanical_list_assests_id,
+            acc.finanical_list_liabilities_id,
+            acc.finanical_list_income_id,
+            acc.currency_id,
+            acc.allow_trans_with_diff_curr,
+            acc.iscalc_curr_diff_rates,
+            acc.level_no,
+            COALESCE(accct.cost_centers, '[]'::json) AS cost_centers,
+            COALESCE(ast.stop_transactions, '[]'::json) AS stop_transactions
+          FROM customers c
+          INNER JOIN account_tbl acc ON acc.id = c.account_id
+          INNER JOIN (
+            SELECT
+              account_id,
+              json_agg(
+                json_build_object(
+                  'cost_center_type_id', cost_center_type_id,
+                  'required_in_transactions', required_in_transactions,
+                  'default_cost_center_id', default_cost_center_id,
+                  'cost_center_name', cc.name
+                )
+                ORDER BY id ASC
+              ) AS cost_centers
+            FROM account_costcenters_tbl accct
+            LEFT JOIN cost_centers cc ON cc.id = accct.default_cost_center_id
+            GROUP BY account_id
+          ) accct ON accct.account_id = c.account_id
+          INNER JOIN (
+            SELECT
+              account_id,
+              json_agg(
+                json_build_object(
+                  'voucher_types_id', voucher_types_id,
+                  'stop_date', stop_date
+                )
+                ORDER BY id ASC
+              ) AS stop_transactions
+            FROM account_stop_transactions_tbl
+            GROUP BY account_id
+          ) ast ON ast.account_id = c.account_id
+          WHERE c.type=$1 AND (c.isDeleted IS NULL OR c.isDeleted = false)
+          ORDER BY c.id ASC
           LIMIT 1
         `;
         break;
 
       case "last":
         query = `
-          SELECT * FROM customers
-          WHERE type=$1 AND (isDeleted IS NULL OR isDeleted = false)
-          ORDER BY id DESC
+          SELECT
+            c.*,
+            acc.father_id,
+            acc.finanical_list_id,
+            acc.finanical_list_assests_id,
+            acc.finanical_list_liabilities_id,
+            acc.finanical_list_income_id,
+            acc.currency_id,
+            acc.allow_trans_with_diff_curr,
+            acc.iscalc_curr_diff_rates,
+            acc.level_no,
+            COALESCE(accct.cost_centers, '[]'::json) AS cost_centers,
+            COALESCE(ast.stop_transactions, '[]'::json) AS stop_transactions
+          FROM customers c
+          INNER JOIN account_tbl acc ON acc.id = c.account_id
+          INNER JOIN (
+            SELECT
+              account_id,
+              json_agg(
+                json_build_object(
+                  'cost_center_type_id', cost_center_type_id,
+                  'required_in_transactions', required_in_transactions,
+                  'default_cost_center_id', default_cost_center_id,
+                  'cost_center_name', cc.name
+                )
+                ORDER BY id ASC
+              ) AS cost_centers
+            FROM account_costcenters_tbl accct
+            LEFT JOIN cost_centers cc ON cc.id = accct.default_cost_center_id
+            GROUP BY account_id
+          ) accct ON accct.account_id = c.account_id
+          INNER JOIN (
+            SELECT
+              account_id,
+              json_agg(
+                json_build_object(
+                  'voucher_types_id', voucher_types_id,
+                  'stop_date', stop_date
+                )
+                ORDER BY id ASC
+              ) AS stop_transactions
+            FROM account_stop_transactions_tbl
+            GROUP BY account_id
+          ) ast ON ast.account_id = c.account_id
+          WHERE c.type=$1 AND (c.isDeleted IS NULL OR c.isDeleted = false)
+          ORDER BY c.id DESC
           LIMIT 1
         `;
         break;
 
       case "previous":
         query = `
-          SELECT * FROM customers
-          WHERE type=$1 AND id < $2 AND (isDeleted IS NULL OR isDeleted = false)
-          ORDER BY id DESC
+          SELECT
+            c.*,
+            acc.father_id,
+            acc.finanical_list_id,
+            acc.finanical_list_assests_id,
+            acc.finanical_list_liabilities_id,
+            acc.finanical_list_income_id,
+            acc.currency_id,
+            acc.allow_trans_with_diff_curr,
+            acc.iscalc_curr_diff_rates,
+            acc.level_no,
+            COALESCE(accct.cost_centers, '[]'::json) AS cost_centers,
+            COALESCE(ast.stop_transactions, '[]'::json) AS stop_transactions
+          FROM customers c
+          INNER JOIN account_tbl acc ON acc.id = c.account_id
+          INNER JOIN (
+            SELECT
+              account_id,
+              json_agg(
+                json_build_object(
+                  'cost_center_type_id', cost_center_type_id,
+                  'required_in_transactions', required_in_transactions,
+                  'default_cost_center_id', default_cost_center_id,
+                  'cost_center_name', cc.name
+                )
+                ORDER BY id ASC
+              ) AS cost_centers
+            FROM account_costcenters_tbl accct
+            LEFT JOIN cost_centers cc ON cc.id = accct.default_cost_center_id
+            GROUP BY account_id
+          ) accct ON accct.account_id = c.account_id
+          INNER JOIN (
+            SELECT
+              account_id,
+              json_agg(
+                json_build_object(
+                  'voucher_types_id', voucher_types_id,
+                  'stop_date', stop_date
+                )
+                ORDER BY id ASC
+              ) AS stop_transactions
+            FROM account_stop_transactions_tbl
+            GROUP BY account_id
+          ) ast ON ast.account_id = c.account_id
+          WHERE c.type=$1 AND c.id < $2 AND (c.isDeleted IS NULL OR c.isDeleted = false)
+          ORDER BY c.id DESC
           LIMIT 1
         `;
         values.push(currentId);
@@ -50,9 +179,52 @@ export async function GET(
 
       case "next":
         query = `
-          SELECT * FROM customers
-          WHERE type=$1 AND id > $2 AND (isDeleted IS NULL OR isDeleted = false)
-          ORDER BY id ASC
+          SELECT
+            c.*,
+            acc.father_id,
+            acc.finanical_list_id,
+            acc.finanical_list_assests_id,
+            acc.finanical_list_liabilities_id,
+            acc.finanical_list_income_id,
+            acc.currency_id,
+            acc.allow_trans_with_diff_curr,
+            acc.iscalc_curr_diff_rates,
+            acc.level_no,
+            COALESCE(accct.cost_centers, '[]'::json) AS cost_centers,
+            COALESCE(ast.stop_transactions, '[]'::json) AS stop_transactions
+          FROM customers c
+          INNER JOIN account_tbl acc ON acc.id = c.account_id
+          INNER JOIN (
+            SELECT
+              account_id,
+              json_agg(
+                json_build_object(
+                  'cost_center_type_id', cost_center_type_id,
+                  'required_in_transactions', required_in_transactions,
+                  'default_cost_center_id', default_cost_center_id,
+                  'cost_center_name', cc.name
+                )
+                ORDER BY id ASC
+              ) AS cost_centers
+            FROM account_costcenters_tbl accct
+            LEFT JOIN cost_centers cc ON cc.id = accct.default_cost_center_id
+            GROUP BY account_id
+          ) accct ON accct.account_id = c.account_id
+          INNER JOIN (
+            SELECT
+              account_id,
+              json_agg(
+                json_build_object(
+                  'voucher_types_id', voucher_types_id,
+                  'stop_date', stop_date
+                )
+                ORDER BY id ASC
+              ) AS stop_transactions
+            FROM account_stop_transactions_tbl
+            GROUP BY account_id
+          ) ast ON ast.account_id = c.account_id
+          WHERE c.type=$1 AND c.id > $2 AND (c.isDeleted IS NULL OR c.isDeleted = false)
+          ORDER BY c.id ASC
           LIMIT 1
         `;
         values.push(currentId);
@@ -63,8 +235,51 @@ export async function GET(
           return NextResponse.json({ error: "ID is required" }, { status: 400 });
         }
         query = `
-          SELECT * FROM customers
-          WHERE type=$1 AND id=$2 AND (isDeleted IS NULL OR isDeleted = false)
+          SELECT
+            c.*,
+            acc.father_id,
+            acc.finanical_list_id,
+            acc.finanical_list_assests_id,
+            acc.finanical_list_liabilities_id,
+            acc.finanical_list_income_id,
+            acc.currency_id,
+            acc.allow_trans_with_diff_curr,
+            acc.iscalc_curr_diff_rates,
+            acc.level_no,
+            COALESCE(accct.cost_centers, '[]'::json) AS cost_centers,
+            COALESCE(ast.stop_transactions, '[]'::json) AS stop_transactions
+          FROM customers c
+          INNER JOIN account_tbl acc ON acc.id = c.account_id
+          INNER JOIN (
+            SELECT
+              account_id,
+              json_agg(
+                json_build_object(
+                  'cost_center_type_id', cost_center_type_id,
+                  'required_in_transactions', required_in_transactions,
+                  'default_cost_center_id', default_cost_center_id,
+                  'cost_center_name', cc.name
+                )
+                ORDER BY id ASC
+              ) AS cost_centers
+            FROM account_costcenters_tbl accct
+            LEFT JOIN cost_centers cc ON cc.id = accct.default_cost_center_id
+            GROUP BY account_id
+          ) accct ON accct.account_id = c.account_id
+          INNER JOIN (
+            SELECT
+              account_id,
+              json_agg(
+                json_build_object(
+                  'voucher_types_id', voucher_types_id,
+                  'stop_date', stop_date
+                )
+                ORDER BY id ASC
+              ) AS stop_transactions
+            FROM account_stop_transactions_tbl
+            GROUP BY account_id
+          ) ast ON ast.account_id = c.account_id
+          WHERE c.type=$1 AND c.id=$2 AND (c.isDeleted IS NULL OR c.isDeleted = false)
         `;
         values.push(byId);
         break;
@@ -110,6 +325,8 @@ export async function GET(
       book_name: v.book_name,
       ser: v.ser,
     }));
+    customer.cost_centers = Array.isArray(customer.cost_centers) ? customer.cost_centers : [];
+    customer.stop_transactions = Array.isArray(customer.stop_transactions) ? customer.stop_transactions : [];
     // Optional: add serial number or other computed fields
     customer.ser = 1;
 

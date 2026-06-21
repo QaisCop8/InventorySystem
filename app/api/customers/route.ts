@@ -326,23 +326,61 @@ export async function GET(request: NextRequest) {
       ? await sql`
           SELECT 
             c.*,
+            acc.father_id AS father_id,
+            acc.finanical_list_id AS finanical_list_id,
+            acc.finanical_list_assests_id AS finanical_list_assests_id,
+            acc.finanical_list_liabilities_id AS finanical_list_liabilities_id,
+            acc.finanical_list_income_id AS finanical_list_income_id,
+            acc.currency_id AS currency_id,
+            acc.allow_trans_with_diff_curr AS allow_trans_with_diff_curr,
+            acc.iscalc_curr_diff_rates AS iscalc_curr_diff_rates,
+            acc.level_no AS level_no,
             COUNT(cu.id) as user_count,
             CASE WHEN COUNT(cu.id) > 0 THEN true ELSE false END as portal_enabled
           FROM customers c
+          LEFT JOIN account_tbl acc ON acc.id = c.account_id
           LEFT JOIN customer_users cu ON c.id = cu.customer_id AND cu.is_active = true
           WHERE c.isDeleted = false AND c.type = ${typeFilter}
           GROUP BY c.id
+                   , acc.father_id
+                   , acc.finanical_list_id
+                   , acc.finanical_list_assests_id
+                   , acc.finanical_list_liabilities_id
+                   , acc.finanical_list_income_id
+                   , acc.currency_id
+                   , acc.allow_trans_with_diff_curr
+                   , acc.iscalc_curr_diff_rates
+                   , acc.level_no
           ORDER BY c.created_at DESC
         `
       : await sql`
           SELECT 
             c.*,
+            acc.father_id AS father_id,
+            acc.finanical_list_id AS finanical_list_id,
+            acc.finanical_list_assests_id AS finanical_list_assests_id,
+            acc.finanical_list_liabilities_id AS finanical_list_liabilities_id,
+            acc.finanical_list_income_id AS finanical_list_income_id,
+            acc.currency_id AS currency_id,
+            acc.allow_trans_with_diff_curr AS allow_trans_with_diff_curr,
+            acc.iscalc_curr_diff_rates AS iscalc_curr_diff_rates,
+            acc.level_no AS level_no,
             COUNT(cu.id) as user_count,
             CASE WHEN COUNT(cu.id) > 0 THEN true ELSE false END as portal_enabled
           FROM customers c
+          LEFT JOIN account_tbl acc ON acc.id = c.account_id
           LEFT JOIN customer_users cu ON c.id = cu.customer_id AND cu.is_active = true
           WHERE c.isDeleted = false
           GROUP BY c.id
+                   , acc.father_id
+                   , acc.finanical_list_id
+                   , acc.finanical_list_assests_id
+                   , acc.finanical_list_liabilities_id
+                   , acc.finanical_list_income_id
+                   , acc.currency_id
+                   , acc.allow_trans_with_diff_curr
+                   , acc.iscalc_curr_diff_rates
+                   , acc.level_no
           ORDER BY c.created_at DESC
         `
 
