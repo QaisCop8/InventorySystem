@@ -395,11 +395,9 @@ function UnifiedSalesOrder({
   const [alertMessage, setAlertMessage] = useState("");
   const [nextFunction, setNextFunction] = useState<(() => void) | null>(null);
   const [showPrintRefConfirm, setShowPrintRefConfirm] = useState(false);
-  const [showPostPrintConfirm, setShowPostPrintConfirm] = useState(false);
   const [showDuplicateRefConfirm, setShowDuplicateRefConfirm] = useState(false);
   const [isDuplicateRefConfirmed, setIsDuplicateRefConfirmed] = useState(false);
   const duplicateRefDismissedValueRef = useRef<string>("");
-  const pendingPrintedOrderIdRef = useRef<number | null>(null);
   const skipNextEnterRef = useRef(false)
   const suppressEnterUntilRef = useRef(0)
   const [data, setData] = useState([{
@@ -1741,32 +1739,6 @@ function UnifiedSalesOrder({
     }))
   }
 
-  const confirmPrintedOrder = async () => {
-    const orderId = pendingPrintedOrderIdRef.current;
-    pendingPrintedOrderIdRef.current = null;
-    setShowPostPrintConfirm(false);
-    popupHasClosed();
-
-    if (!orderId) return;
-
-    try {
-      await markOrderAsPrinted(orderId);
-    } finally {
-      setTimeout(() => {
-        referenceNumberRef.current?.focus();
-      }, 50)
-    }
-  }
-
-  const cancelPrintedOrderConfirmation = () => {
-    pendingPrintedOrderIdRef.current = null;
-    setShowPostPrintConfirm(false);
-    popupHasClosed();
-    setTimeout(() => {
-      referenceNumberRef.current?.focus();
-    }, 50)
-  }
-
   const printOrder = async (order: any, items: any[], settings: PrintSettings = {}, showMsg = false) => {
 
     if (showMsg) {
@@ -1917,8 +1889,15 @@ function UnifiedSalesOrder({
     iframe.contentWindow?.focus();
     iframe.contentWindow?.print();
     document.body.removeChild(iframe);
-    pendingPrintedOrderIdRef.current = order.id;
-    setShowPostPrintConfirm(true);
+
+    if (order?.id) {
+      try {
+        await markOrderAsPrinted(order.id);
+      } catch (error) {
+        console.error("Failed to mark order as printed:", error);
+      }
+    }
+
     setLoading(false)
     setTimeout(() => {
       referenceNumberRef.current?.focus();
@@ -3004,12 +2983,6 @@ function UnifiedSalesOrder({
               onConfirm={() => { setShowPrintRefConfirm(false); popupHasClosed(); handlePrint(false); setTimeout(() => referenceNumberRef.current?.focus(), 50) }}
               onCancel={() => { setShowPrintRefConfirm(false); popupHasClosed(); setTimeout(() => referenceNumberRef.current?.focus(), 50) }}
               message="تمت طباعة السند مسبقا هل تريد الطباعة مرة أخرى؟"
-            />
-            <ConfirmDialogYesNo
-              visible={showPostPrintConfirm}
-              onConfirm={confirmPrintedOrder}
-              onCancel={cancelPrintedOrderConfirmation}
-              message=" هل تمت عملية الطباعة بنجاح؟"
             />
             <ConfirmDialogYesNo
               visible={showDuplicateRefConfirm}
