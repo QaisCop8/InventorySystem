@@ -371,27 +371,35 @@ export async function POST(request: NextRequest) {
     }*/
 
     let finalAccountCode = accountCode
-    const existingCode = await sql`SELECT id FROM account_tbl WHERE LOWER(code) = LOWER(${accountCode})`
+    const existingCode = await sql`SELECT id FROM account_tbl WHERE LOWER(code) = LOWER(${accountCode}) AND STATUS IN (1, 2) LIMIT 1`
     if (existingCode.length > 0) {
-      // Auto-generate the next sequential code
-      const match = accountCode.match(/^([A-Za-z]*)(\d+)$/)
+      // Auto-generate the next available sequential code
+      const match = accountCode.match(/^(.*?)(\d+)$/)
       if (match) {
         const prefix = match[1]
-        const currentNumber = parseInt(match[2], 10)
-        const nextNumber = currentNumber + 1
+        let nextNumber = parseInt(match[2], 10)
         const numberLength = match[2].length
-        finalAccountCode = prefix + String(nextNumber).padStart(numberLength, '0')
+        while (true) {
+          nextNumber += 1
+          const candidateCode = prefix + String(nextNumber).padStart(numberLength, '0')
+          const checkCode = await sql`SELECT id FROM account_tbl WHERE LOWER(code) = LOWER(${candidateCode}) AND STATUS IN (1, 2) LIMIT 1`
+          if (checkCode.length === 0) {
+            finalAccountCode = candidateCode
+            break
+          }
+        }
       } else {
         // If code doesn't have numeric pattern, append _1
         let counter = 1
         let newCode = `${accountCode}_${counter}`
         while (true) {
-          const checkCode = await sql`SELECT id FROM account_tbl WHERE LOWER(code) = LOWER(${newCode})`
+          const checkCode = await sql`SELECT id FROM account_tbl WHERE LOWER(code) = LOWER(${newCode}) AND STATUS IN (1, 2) LIMIT 1`
           if (checkCode.length === 0) {
             finalAccountCode = newCode
             break
           }
           counter++
+          newCode = `${accountCode}_${counter}`
         }
       }
     }

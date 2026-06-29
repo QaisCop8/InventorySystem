@@ -140,7 +140,7 @@ export default function UnifiedAccounts({ action, onOpenChange }: UnifiedAccount
     try {
       const [typesRes, accountsRes] = await Promise.all([
         fetch("/api/account-classification-types"),
-        fetch("/api/accounts"),
+        fetch("/api/accounts?type=1"),
       ])
 
       if (!typesRes.ok || !accountsRes.ok) {
@@ -153,14 +153,16 @@ export default function UnifiedAccounts({ action, onOpenChange }: UnifiedAccount
 
       setTypes(Array.isArray(typesData) ? typesData : [])
       setAccounts(
-        (Array.isArray(accountsData) ? accountsData : []).map((item: any) => ({
-          ...item,
-          code: item.code || item.account_code || "",
-          name: item.name || item.account_name || "",
-          type: Number(item.type || item.classification_type_id || 0),
-          level_no: Number(item.level_no || 1),
-          finanical_list_id: Number(item.finanical_list_id || 1),
-        })),
+        (Array.isArray(accountsData) ? accountsData : [])
+          .map((item: any) => ({
+            ...item,
+            code: item.code || item.account_code || "",
+            name: item.name || item.account_name || "",
+            type: Number(item.type || item.classification_type_id || 0),
+            level_no: Number(item.level_no || 1),
+            finanical_list_id: Number(item.finanical_list_id || 1),
+          }))
+          .filter((item) => item.type === 1),
       )
       setCurrentIndex(0)
     } catch (err) {
@@ -172,6 +174,23 @@ export default function UnifiedAccounts({ action, onOpenChange }: UnifiedAccount
   }
 
   const currentAccount = useMemo(() => accounts[currentIndex] || null, [accounts, currentIndex])
+
+  const selectedParentAccount = useMemo(() => {
+    if (!formData.father_id) return null
+    return accounts.find((account) => Number(account.id) === Number(formData.father_id)) ?? null
+  }, [accounts, formData.father_id])
+
+  useEffect(() => {
+    if (!selectedParentAccount) return
+
+    setFormData((prev) => ({
+      ...prev,
+      finanical_list_id: String(selectedParentAccount.finanical_list_id || 1),
+      finanical_list_assests_id: selectedParentAccount.finanical_list_assests_id ? String(selectedParentAccount.finanical_list_assests_id) : "",
+      finanical_list_liabilities_id: selectedParentAccount.finanical_list_liabilities_id ? String(selectedParentAccount.finanical_list_liabilities_id) : "",
+      finanical_list_income_id: selectedParentAccount.finanical_list_income_id ? String(selectedParentAccount.finanical_list_income_id) : "",
+    }))
+  }, [selectedParentAccount])
 
   const loadAccountToForm = useCallback((account: AccountItem) => {
     setFormData({
@@ -560,11 +579,39 @@ export default function UnifiedAccounts({ action, onOpenChange }: UnifiedAccount
                 />
               </div>
               <div>
-                <Label className="mb-2 block">Financial List ID</Label>
+                <Label className="mb-2 block">القائمة المالية</Label>
                 <Input
                   type="number"
                   value={formData.finanical_list_id}
+                  disabled={Boolean(formData.father_id)}
                   onChange={(e) => setFormData({ ...formData, finanical_list_id: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label className="mb-2 block">أصول الميزانية</Label>
+                <Input
+                  type="number"
+                  value={formData.finanical_list_assests_id}
+                  disabled={Boolean(formData.father_id)}
+                  onChange={(e) => setFormData({ ...formData, finanical_list_assests_id: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label className="mb-2 block">خصوم الميزانية</Label>
+                <Input
+                  type="number"
+                  value={formData.finanical_list_liabilities_id}
+                  disabled={Boolean(formData.father_id)}
+                  onChange={(e) => setFormData({ ...formData, finanical_list_liabilities_id: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label className="mb-2 block">قائمة الدخل</Label>
+                <Input
+                  type="number"
+                  value={formData.finanical_list_income_id}
+                  disabled={Boolean(formData.father_id)}
+                  onChange={(e) => setFormData({ ...formData, finanical_list_income_id: e.target.value })}
                 />
               </div>
               <div>

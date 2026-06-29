@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Textarea } from "@/components/ui/textarea"
+import { Dropdown as PrimeDropdown } from "primereact/dropdown"
 import * as XLSX from "xlsx"
 
 interface AccountType {
@@ -248,23 +249,31 @@ export default function Accounts() {
     }
   }
   
-  const normalizeAccountRecord = (item: any): Account => ({
-    ...item,
-    code: item.code || item.account_code || "",
-    name: item.name || item.account_name || "",
-    type: Number(item.type || 0),
-    level_no: Number(item.level_no || 1),
-    finanical_list_id: Number(item.finanical_list_id || 1),
-    finanical_list_name:
-      item.finanical_list_name ||
-      (Number(item.finanical_list_id || 1) === 1
-        ? "الميزانية العمومية"
-        : Number(item.finanical_list_id || 1) === 2
-          ? "قائمة الدخل"
-          : Number(item.finanical_list_id || 1) === 3
-            ? "تقييم بضاعة"
-            : ""),
-  })
+  const normalizeAccountRecord = (item: any): Account => {
+    const finanicalListId = Number(item.finanical_list_id ?? item.financial_list_id ?? 1) || 1
+    const statusValue = item.status ?? item.account_status ?? "نشط"
+    const normalizedStatus = typeof statusValue === "number" ? String(statusValue) : String(statusValue || "نشط")
+
+    return {
+      ...item,
+      code: item.code || item.account_code || "",
+      name: item.name || item.account_name || "",
+      type: Number(item.type || 0),
+      level_no: Number(item.level_no || 1),
+      finanical_list_id: finanicalListId,
+      finanical_list_name:
+        item.finanical_list_name ||
+        item.financial_list_name ||
+        (finanicalListId === 1
+          ? "الميزانية العمومية"
+          : finanicalListId === 2
+            ? "قائمة الدخل"
+            : finanicalListId === 3
+              ? "تقييم بضاعة"
+              : ""),
+      status: normalizedStatus,
+    }
+  }
 
   const normalizeAccountCode = (value: string) => {
     const cleaned = String(value ?? "")
@@ -1503,6 +1512,47 @@ export default function Accounts() {
                 </div>
               </div>
 
+              <div className="grid gap-4 lg:grid-cols-2">
+                <div>
+                  <Label className="mb-2 block">القائمة المالية</Label>
+                  <PrimeDropdown
+                    inputId="financial_list_id"
+                    value={formData.finanical_list_id}
+                    options={[
+                      { label: "الميزانية العمومية", value: "1" },
+                      { label: "قائمة الدخل", value: "2" },
+                      { label: "تقييم بضاعة", value: "3" },
+                    ]}
+                    optionLabel="label"
+                    optionValue="value"
+                    placeholder="اختر القائمة المالية"
+                    className="invoice-currency-dropdown w-full"
+                    panelClassName="invoice-currency-dropdown-panel"
+                    appendTo="self"
+                    onChange={(e: any) => setFormData({ ...formData, finanical_list_id: e.value })}
+                  />
+                </div>
+                <div>
+                  <Label className="mb-2 block">الحالة</Label>
+                  <PrimeDropdown
+                    inputId="status"
+                    value={formData.status}
+                    options={[
+                      { label: "نشط", value: "نشط" },
+                      { label: "موقوف", value: "موقوف" },
+                      { label: "محذوف", value: "محذوف" },
+                    ]}
+                    optionLabel="label"
+                    optionValue="value"
+                    placeholder="اختر الحالة"
+                    className="invoice-currency-dropdown w-full"
+                    panelClassName="invoice-currency-dropdown-panel"
+                    appendTo="self"
+                    onChange={(e: any) => setFormData({ ...formData, status: e.value })}
+                  />
+                </div>
+              </div>
+
               <div>
                 <Label className="mb-2 block">ملاحظات</Label>
                 <Textarea value={formData.notes} onChange={(e) => setFormData({ ...formData, notes: e.target.value })} className="h-24" />
@@ -1705,36 +1755,42 @@ export default function Accounts() {
               </div>
               <div>
                 <Label className="mb-2 block text-sm">القائمة المالية</Label>
-                <Select
-                  value={filterFinancialList || "__all_financial_lists__"}
-                  onValueChange={(value) => setFilterFinancialList(value === "__all_financial_lists__" ? "" : value)}
-                >
-                  <SelectTrigger className="h-10">
-                    <SelectValue placeholder="كل القوائم المالية" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__all_financial_lists__">كل القوائم المالية</SelectItem>
-                    <SelectItem value="1">الميزانية العمومية</SelectItem>
-                    <SelectItem value="2">قائمة الدخل</SelectItem>
-                    <SelectItem value="3">تقييم بضاعة</SelectItem>
-                  </SelectContent>
-                </Select>
+                <PrimeDropdown
+                  inputId="filterFinancialList"
+                  value={filterFinancialList || ""}
+                  options={[
+                    { label: "كل القوائم المالية", value: "" },
+                    { label: "الميزانية العمومية", value: "1" },
+                    { label: "قائمة الدخل", value: "2" },
+                    { label: "تقييم بضاعة", value: "3" },
+                  ]}
+                  optionLabel="label"
+                  optionValue="value"
+                  placeholder="كل القوائم المالية"
+                  className="invoice-currency-dropdown w-full"
+                  panelClassName="invoice-currency-dropdown-panel"
+                  appendTo="self"
+                  onChange={(e: any) => setFilterFinancialList(String(e.value ?? ""))}
+                />
               </div>
               <div>
                 <Label className="mb-2 block text-sm">الحالة</Label>
-                <Select
-                  value={filterStatus || "__all_statuses__"}
-                  onValueChange={(value) => setFilterStatus(value === "__all_statuses__" ? "" : value)}
-                >
-                  <SelectTrigger className="h-10">
-                    <SelectValue placeholder="كل الحالات" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__all_statuses__">كل الحالات</SelectItem>
-                    <SelectItem value="نشط">نشط</SelectItem>
-                    <SelectItem value="موقوف">موقوف</SelectItem>
-                  </SelectContent>
-                </Select>
+                <PrimeDropdown
+                  inputId="filterStatus"
+                  value={filterStatus || ""}
+                  options={[
+                    { label: "كل الحالات", value: "" },
+                    { label: "نشط", value: "نشط" },
+                    { label: "موقوف", value: "موقوف" },
+                  ]}
+                  optionLabel="label"
+                  optionValue="value"
+                  placeholder="كل الحالات"
+                  className="invoice-currency-dropdown w-full"
+                  panelClassName="invoice-currency-dropdown-panel"
+                  appendTo="self"
+                  onChange={(e: any) => setFilterStatus(String(e.value ?? ""))}
+                />
               </div>
               <div className="flex items-end">
                 <Button variant="secondary" className="h-10 w-full" onClick={refreshAccounts}>

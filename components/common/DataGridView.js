@@ -27,7 +27,15 @@ import './DataGridView.scss';
 import * as wjSpark from '@grapecity/wijmo.chart.finance.analytics';
 // import './DataGridView.css';
 
-const $ = typeof window !== 'undefined' ? window.$ : { strings: {} };
+const defaultStrings = {
+  active: 'نشط',
+  inactive: 'موقوف',
+  status: 'الحالة',
+  postVouchers: { canceled: 'محذوف' },
+};
+
+const $ = typeof window !== 'undefined' ? window.$ || { strings: defaultStrings } : { strings: defaultStrings };
+$.strings = $.strings || defaultStrings;
 
 export default class DataGridView extends React.Component {
   constructor(props) {
@@ -1770,17 +1778,19 @@ createButtonTemplate = (col) => (ctx) => {
 
   // Set the template as per the condition.
   getTemplate = (context, binding) => {
+    const rawValue = (context.item && context.item[binding] != null) ? String(context.item[binding]) : '';
+    const activeLabel = ($?.strings?.active) || 'نشط';
+    const inactiveLabel = ($?.strings?.inactive) || 'موقوف';
+    const isActive = rawValue === '1' || rawValue === activeLabel;
+    const isInactive = rawValue === '2' || rawValue === inactiveLabel;
+    const statusLabel = Util.getStatusName(rawValue) || rawValue || '';
+    const color = isActive ? 'limegreen' : isInactive ? 'red' : 'orange';
+
     return (
       <React.Fragment>
-        {context.item[binding] + '' === '1' ? (
-          <span style={{ color: 'limegreen', fontWeight: 'bold' }}>
-            {Util.getStatusName(context.item[binding])} <FaFlag />
-          </span>
-        ) : (
-          <span style={{ color: 'red', fontWeight: 'bold' }}>
-            {Util.getStatusName(context.item[binding])} <FaFlag />
-          </span>
-        )}
+        <span style={{ color, fontWeight: 'bold' }}>
+          {statusLabel} <FaFlag />
+        </span>
       </React.Fragment>
     );
   };

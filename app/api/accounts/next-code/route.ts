@@ -40,19 +40,19 @@ export async function GET(request: NextRequest) {
     `
 
     let nextNumber = startNumber
+    let nextCode = prefix + String(startNumber).padStart(7, "0")
 
     if (accountsResult && accountsResult.length > 0) {
       const lastCode = accountsResult[0].code
-      // Extract numeric part from code (e.g., "A0000006" -> 6)
-      const match = lastCode.match(/\d+$/)
+      const match = lastCode.match(/^(.*?)(\d+)$/)
       if (match) {
-        const lastNumber = parseInt(match[0], 10)
+        const codePrefix = match[1] || ""
+        const numericPart = match[2]
+        const lastNumber = parseInt(numericPart, 10)
         nextNumber = lastNumber + 1
+        nextCode = codePrefix + String(nextNumber).padStart(numericPart.length, "0")
       }
     }
-
-    // Pad to 7 digits (8 chars total with prefix)
-    const nextCode = prefix + String(nextNumber).padStart(7, "0")
 
     return NextResponse.json({
       code: nextCode,

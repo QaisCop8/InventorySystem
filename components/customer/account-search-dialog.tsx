@@ -76,11 +76,10 @@ const getAccountTypeLabel = (
 ) => {
   const typeId = getAccountTypeId(account)
 
-  return (
-    account.type_name ||
-    account.classification_type_name ||
-    (typeId === 1 ? "حساب محاسبي" : typeId === 2 ? "زبون" : typeId === 3 ? "مورد" : "أخرى")
-  )
+  if (typeId === 1) return "حساب محاسبي"
+  if (typeId === 2) return "زبون"
+  if (typeId === 3) return "مورد"
+  return "أخرى"
 }
 
 export default function AccountSearchDialog({
@@ -222,6 +221,18 @@ export default function AccountSearchDialog({
     void loadFreshAccounts()
   }, [open, defaultTypeValue, allowedTypeValues])
 
+  const matchesTypeFilter = (account: AccountItem, filterValue: string) => {
+    if (filterValue === "__all__") {
+      if (allowedTypeValues && allowedTypeValues.length > 0) {
+        return allowedTypeValues.includes(getAccountTypeId(account))
+      }
+      return true
+    }
+
+    const typeFilter = Number(filterValue)
+    return getAccountTypeId(account) === typeFilter
+  }
+
   const handleSearchAccounts = () => {
     const results = visibleAccounts.filter((account) => {
       if (searchFilters.accountNumber && !account.code.includes(searchFilters.accountNumber)) {
@@ -233,10 +244,8 @@ export default function AccountSearchDialog({
       if (searchFilters.financialList !== "__all__" && String(getFinancialListId(account)) !== searchFilters.financialList) {
         return false
       }
-      if (searchFilters.type !== "__all__") {
-        if (searchFilters.type === "1" && getAccountTypeId(account) !== 1) return false
-        if (searchFilters.type === "2" && getAccountTypeId(account) !== 2) return false
-        if (searchFilters.type === "3" && getAccountTypeId(account) !== 3) return false
+      if (!matchesTypeFilter(account, searchFilters.type)) {
+        return false
       }
       return true
     })
@@ -257,10 +266,8 @@ export default function AccountSearchDialog({
       if (filters.financialList !== "__all__" && String(getFinancialListId(account)) !== filters.financialList) {
         return false
       }
-      if (filters.type !== "__all__") {
-        if (filters.type === "1" && getAccountTypeId(account) !== 1) return false
-        if (filters.type === "2" && getAccountTypeId(account) !== 2) return false
-        if (filters.type === "3" && getAccountTypeId(account) !== 3) return false
+      if (!matchesTypeFilter(account, filters.type)) {
+        return false
       }
       return true
     })
@@ -347,7 +354,10 @@ export default function AccountSearchDialog({
                   optionLabel="label"
                   optionValue="value"
                   placeholder="اختر القائمة المالية"
-                  className="w-full min-h-10 rounded-xl border border-slate-200 bg-white shadow-sm"
+                  className="invoice-currency-dropdown w-full"
+                  valueTemplate={(option) => (
+                    <div className="text-right w-full">{option?.label ?? "اختر القائمة المالية"}</div>
+                  )}
                   style={{ minHeight: "40px", borderRadius: "14px", backgroundColor: "#fff" }}
                   panelClassName="invoice-currency-dropdown-panel"
                   appendTo="self"
@@ -368,7 +378,10 @@ export default function AccountSearchDialog({
                   optionLabel="label"
                   optionValue="value"
                   placeholder="اختر النوع"
-                  className="w-full min-h-10 rounded-xl border border-slate-200 bg-white shadow-sm"
+                  className="invoice-currency-dropdown w-full"
+                  valueTemplate={(option) => (
+                    <div className="text-right w-full">{option?.label ?? "اختر النوع"}</div>
+                  )}
                   style={{ height: "40px", borderRadius: "14px", backgroundColor: "#fff" }}
                   panelClassName="invoice-currency-dropdown-panel"
                   appendTo="self"
@@ -381,7 +394,7 @@ export default function AccountSearchDialog({
               </div>
             ) : null}
             <div className="flex items-end">
-              <Button onClick={handleSearchAccounts} size="sm" className="w-full rounded-xl border-0 bg-blue-600 px-4 text-white shadow-md hover:bg-blue-700">
+              <Button onClick={handleSearchAccounts} size="sm" className="w-full rounded-xl border-0 bg-emerald-600 px-4 text-white shadow-md hover:bg-emerald-700">
                 بحث
               </Button>
             </div>
@@ -403,7 +416,7 @@ export default function AccountSearchDialog({
               />
             ) : (
               <div className="flex h-full min-h-[360px] items-center justify-center bg-gradient-to-b from-slate-50 to-white text-slate-500 text-sm">
-                {loading ? "جاري تحميل البيانات مباشرة من قاعدة البيانات..." : "لا توجد نتائج. قم بالبحث لعرض النتائج"}
+                {loading ? "جاري تحميل البيانات ..." : "لا توجد نتائج. قم بالبحث لعرض النتائج"}
               </div>
             )}
           </div>

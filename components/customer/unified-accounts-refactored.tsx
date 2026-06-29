@@ -110,7 +110,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
   // Account Classification States
   const [classificationTypes, setClassificationTypes] = useState<any[]>([])
   const classificationTypesRef = useRef<any[]>([])
-  const [defaultClassificationTypes, setDefaultClassificationTypes] = useState<any[]>([]) 
+  const [defaultClassificationTypes, setDefaultClassificationTypes] = useState<any[]>([])
   const [accountClassifications, setAccountClassifications] = useState<any[]>([])
   const [allClassifications, setAllClassifications] = useState<any[]>([])
   const [showClassificationTypeForm, setShowClassificationTypeForm] = useState(false)
@@ -139,6 +139,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
   const costCenterTypeGridRef = useRef<any>(null)
   const classificationTypeGridRef = useRef<any>(null)
   const accountClassificationGridRef = useRef<any>(null)
+  const accountCodeInputRef = useRef<HTMLInputElement>(null)
   const accountNameInputRef = useRef<HTMLInputElement>(null)
   const messagesRef = useRef<any>(null)
   const fetchingNextCodeRef = useRef(false)
@@ -265,6 +266,25 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
     }
   }, [currentSnapshot, onDirtyChange])
 
+  const selectedParentAccount = useMemo(() => {
+    const fatherId = Number(formData.father_id || 0)
+    if (fatherId <= 0) return null
+    return accounts.find((account) => Number(account.id) === fatherId) ?? null
+  }, [accounts, formData.father_id])
+
+  useEffect(() => {
+    if (!selectedParentAccount) return
+
+    setFormData((prev) => ({
+      ...prev,
+      finanical_list_id: String(selectedParentAccount.finanical_list_id || 1),
+      finanical_list_assests_id: selectedParentAccount.finanical_list_assests_id ? String(selectedParentAccount.finanical_list_assests_id) : "",
+      finanical_list_liabilities_id: selectedParentAccount.finanical_list_liabilities_id ? String(selectedParentAccount.finanical_list_liabilities_id) : "",
+      finanical_list_income_id: selectedParentAccount.finanical_list_income_id ? String(selectedParentAccount.finanical_list_income_id) : "",
+    }))
+    setFinancialListType(String(selectedParentAccount.finanical_list_id || 1))
+  }, [selectedParentAccount])
+
   useEffect(() => {
     loadData()
   }, [])
@@ -303,7 +323,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
         try {
           const curRes = await fetch("/api/currencies")
           if (curRes.ok) currenciesData = await curRes.json()
-        } catch (_) {}
+        } catch (_) { }
       }
 
       try {
@@ -311,13 +331,13 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
         if (typesRes.ok) {
           costCenterTypesData = await typesRes.json()
         }
-      } catch (_) {}
+      } catch (_) { }
       try {
         const voucherTypesRes = await fetch("/api/vouchers/voucher-types")
         if (voucherTypesRes.ok) {
           voucherTypesData = await voucherTypesRes.json()
         }
-      } catch (_) {}
+      } catch (_) { }
       try {
         const centersRes = await fetch("/api/cost-centers")
         if (centersRes.ok) {
@@ -327,14 +347,14 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
             costCentersData.sort((a, b) => (a.id || 0) - (b.id || 0))
           }
         }
-      } catch (_) {}
+      } catch (_) { }
 
       try {
         const classTypesRes = await fetch("/api/account-classification-types")
         if (classTypesRes.ok) {
           classificationTypesData = await classTypesRes.json()
         }
-      } catch (_) {}
+      } catch (_) { }
 
       try {
         const classificationsRes = await fetch("/api/account-classifications")
@@ -345,7 +365,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
             classificationsData.sort((a, b) => (a.id || 0) - (b.id || 0))
           }
         }
-      } catch (_) {}
+      } catch (_) { }
 
       try {
         const assetsRes = await fetch("/api/balance-sheet-assets-items")
@@ -355,10 +375,10 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
           console.log("Fetched balance sheet assets:", json)
           balanceSheetAssetsData = Array.isArray(json)
             ? json.map((item: any) => ({
-                ...item,
-                id: item.id != null ? Number(item.id) : item.id,
-                name: item.name ?? item.asset_name ?? item.label ?? "",
-              }))
+              ...item,
+              id: item.id != null ? Number(item.id) : item.id,
+              name: item.name ?? item.asset_name ?? item.label ?? "",
+            }))
             : []
         } else {
           console.warn(`Balance sheet assets API returned ${assetsRes.status}`)
@@ -372,10 +392,10 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
           const json = await liabilitiesRes.json()
           balanceSheetLiabilitiesData = Array.isArray(json)
             ? json.map((item: any) => ({
-                ...item,
-                id: item.id != null ? Number(item.id) : item.id,
-                name: item.name ?? item.asset_name ?? item.label ?? "",
-              }))
+              ...item,
+              id: item.id != null ? Number(item.id) : item.id,
+              name: item.name ?? item.asset_name ?? item.label ?? "",
+            }))
             : []
         } else {
           console.warn(`Balance sheet liabilities API returned ${liabilitiesRes.status}`)
@@ -389,10 +409,10 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
           const json = await incomeRes.json()
           incomeStatementData = Array.isArray(json)
             ? json.map((item: any) => ({
-                ...item,
-                id: item.id != null ? Number(item.id) : item.id,
-                name: item.name ?? item.asset_name ?? item.label ?? "",
-              }))
+              ...item,
+              id: item.id != null ? Number(item.id) : item.id,
+              name: item.name ?? item.asset_name ?? item.label ?? "",
+            }))
             : []
         } else {
           console.warn(`Income statement API returned ${incomeRes.status}`)
@@ -422,15 +442,15 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
       // Map state_status to status_id (1=اختياري, 2=اجباري, 3=ممنوع)
       const mappedCostCenterTypes = Array.isArray(costCenterTypesData)
         ? costCenterTypesData.map((type: any) => {
-            const statusMap: { [key: string]: number } = {
-              'اختياري': 1,
-              'اجباري': 2,
-              'ممنوع': 3
-            }
-            const state_status = type.state_status || 'اختياري'
-            const required_in_transactions = statusMap[state_status] || 1
-            return { ...type, state_status, required_in_transactions }
-          })
+          const statusMap: { [key: string]: number } = {
+            'اختياري': 1,
+            'اجباري': 2,
+            'ممنوع': 3
+          }
+          const state_status = type.state_status || 'اختياري'
+          const required_in_transactions = statusMap[state_status] || 1
+          return { ...type, state_status, required_in_transactions }
+        })
         : []
       // Sort by ID in ascending order
       if (Array.isArray(mappedCostCenterTypes)) {
@@ -447,7 +467,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
       setBalanceSheetLiabilities(Array.isArray(balanceSheetLiabilitiesData) ? balanceSheetLiabilitiesData : [])
       setIncomeStatementAccounts(Array.isArray(incomeStatementData) ? incomeStatementData : [])
       setCurrentIndex(0)
-      
+
       // Return voucher types data for immediate use
       return Array.isArray(voucherTypesData) ? voucherTypesData : []
     } catch (err) {
@@ -543,7 +563,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
     if (deleteConfirmIndex >= 0 && deleteConfirmIndex < costCenterTypes.length) {
       const typeToDelete = costCenterTypes[deleteConfirmIndex]
       const hasCostCenter = typeToDelete?.cost_center_name && typeToDelete.cost_center_name.trim() !== ""
-      
+
       const updatedList = costCenterTypes.map((type, idx) => {
         if (idx === deleteConfirmIndex) {
           return {
@@ -555,7 +575,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
         return type
       })
       setCostCenterTypes(updatedList)
-      
+
       // Only show success message if there was a cost center to delete
       if (hasCostCenter) {
         setCostCenterTypeMessage("تم حذف مركز التكلفة بنجاح")
@@ -715,10 +735,10 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
                     prev.map((row) =>
                       row.voucher_types_id === cell.row.dataItem.voucher_types_id
                         ? {
-                            ...row,
-                            is_stopped: nextValue,
-                            stop_date: nextValue ? row.stop_date || new Date().toISOString().slice(0, 10) : "",
-                          }
+                          ...row,
+                          is_stopped: nextValue,
+                          stop_date: nextValue ? row.stop_date || new Date().toISOString().slice(0, 10) : "",
+                        }
                         : row,
                     ),
                   )
@@ -824,6 +844,12 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
     const nextAccountClassifications = Array.isArray((account as any).account_classifications) ? (account as any).account_classifications : []
     const nextFatherName = resolveFatherAccountLabel(account)
     const nextFatherAccount = account.father_id ? activeAccounts.find((item) => Number(item.id) === Number(account.father_id)) : null
+    const nextFinancialListId = Number(account.finanical_list_id ?? (account as any).financial_list_id ?? 0)
+    const safeFinancialListId = Number.isFinite(nextFinancialListId) && nextFinancialListId > 0 ? nextFinancialListId : 1
+    const nextFinancialListAssetsId = account.finanical_list_assests_id ?? (account as any).financial_list_assests_id ?? ""
+    const nextFinancialListLiabilitiesId = account.finanical_list_liabilities_id ?? (account as any).financial_list_liabilities_id ?? ""
+    const nextFinancialListIncomeId = account.finanical_list_income_id ?? (account as any).financial_list_income_id ?? ""
+
     setFormData({
       id: account.id || 0,
       code: account.code || "",
@@ -832,10 +858,10 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
       type: String(account.type || ""),
       father_id: account.father_id ? String(account.father_id) : "",
       level_no: String(account.level_no || 1),
-      finanical_list_id: String(account.finanical_list_id || 1),
-      finanical_list_assests_id: account.finanical_list_assests_id ? String(account.finanical_list_assests_id) : "",
-      finanical_list_liabilities_id: account.finanical_list_liabilities_id ? String(account.finanical_list_liabilities_id) : "",
-      finanical_list_income_id: account.finanical_list_income_id ? String(account.finanical_list_income_id) : "",
+      finanical_list_id: String(safeFinancialListId),
+      finanical_list_assests_id: nextFinancialListAssetsId ? String(nextFinancialListAssetsId) : "",
+      finanical_list_liabilities_id: nextFinancialListLiabilitiesId ? String(nextFinancialListLiabilitiesId) : "",
+      finanical_list_income_id: nextFinancialListIncomeId ? String(nextFinancialListIncomeId) : "",
       currency_id: account.currency_id ? String(account.currency_id) : "",
       allow_trans_with_diff_curr: account.allow_trans_with_diff_curr != null ? String(account.allow_trans_with_diff_curr) : "0",
       iscalc_curr_diff_rates: Boolean(account.iscalc_curr_diff_rates),
@@ -853,7 +879,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
       show_notes_in_transactions_soa: Boolean(account.show_notes_in_transactions_soa),
       status: account.status || "نشط",
     })
-    setFinancialListType(String(account.finanical_list_id || 1))
+    setFinancialListType(String(safeFinancialListId))
     setCostCenterTypes(nextCostCenterTypes)
     setAccountClassifications(nextAccountClassifications)
     // Set father account name
@@ -909,9 +935,9 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
     await reset_fields()
     setDialogOpen(true)
     setActiveTab("main")
-    
+
     // Focus on Arabic name input after dialog opens
-    
+
   }
 
   const handleOpenSearchModal = (target: "father" | "code") => {
@@ -937,15 +963,41 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
     setSearchModalOpen(false)
   }
 
-  // Adjust account code to 8 characters (pad with zeros)
+  // Adjust account code to 8 characters using letters prefix + padded digits
   const adjustCode = (code: string, codeLen: number = 8): string => {
     if (!code || !code.trim()) return ''
 
-    return code
-      .trim()
-      .replace(/[^A-Za-z0-9]/g, "")
-      .slice(0, codeLen)
-      .toUpperCase()
+    const cleaned = code.trim().replace(/[^A-Za-z0-9]/g, "").toUpperCase()
+    const match = cleaned.match(/^([A-Z]*)(\d*)$/)
+    if (!match) {
+      return cleaned.slice(0, codeLen).padEnd(codeLen, '0')
+    }
+
+    const [, prefix, numPart] = match
+    const padLen = Math.max(codeLen - prefix.length, 0)
+    const paddedNumber = numPart.padStart(padLen, '0')
+    return `${prefix}${paddedNumber}`.slice(0, codeLen)
+  }
+
+  const handleAccountCodeKeyDown = async (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      const adjustedCode = adjustCode(formData.code)
+      setFormData((prev) => ({ ...prev, code: adjustedCode }))
+      const result = await searchAccountByCode(adjustedCode)
+      if (result === 'found') {
+        accountNameInputRef.current?.focus()
+      }
+      return
+    }
+
+    if (e.key === 'Tab') {
+      const adjustedCode = adjustCode(formData.code)
+      if (adjustedCode !== formData.code) {
+        setFormData({ ...formData, code: adjustedCode })
+      }
+      return
+    }
   }
 
   // Reset all fields to blank/default (for new account entry)
@@ -1008,7 +1060,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
     setStopTransactionRows(buildStopTransactionRows(voucherTypes, []))
     setError("")
     setMessage("")
-    
+
     // Clear cost center selections (but keep the available types list)
     setCostCenterTypes((prevTypes) =>
       prevTypes.map((type) => ({
@@ -1018,12 +1070,12 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
         cost_center_name: "",
       }))
     )
-    
+
     // Clear all classification selections - reset to defaults
     console.log("Resetting classifications to default types:", classificationTypesRef.current)
     setClassificationTypes(classificationTypesRef.current || [])
     setAccountClassifications(classificationTypesRef.current || [])
-    
+
     setSelectedCostCenterType(null)
     setSelectedCostCenterTypeIndex(-1)
     setShowDeleteConfirm(false)
@@ -1033,7 +1085,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
     setCostCenterTypeError("")
     setCostCenterTypeMessage("")
     setSearchCostCenterOpen(false)
-    
+
     // Clear classifications
     setSelectedClassificationType(null)
     setSelectedClassificationTypeIndex(-1)
@@ -1086,7 +1138,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
       })),
       accountClassifications: classificationTypesRef.current || [],
     })
-    
+
     setTimeout(() => {
       accountNameInputRef.current?.focus()
     }, 100)
@@ -1201,50 +1253,65 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
   }
 
   // Search for account by code
-  const searchAccountByCode = async (code: string) => {
-    if (!code || code.length === 0) return
+  const searchAccountByCode = async (code: string): Promise<'deleted' | 'invalid-type' | 'found' | 'not-found' | 'error'> => {
+    if (!code || code.length === 0) return 'not-found'
 
     try {
       setError("")
-      
+
       const response = await fetch(`/api/accounts/search?code=${encodeURIComponent(code)}`)
       if (response.ok) {
         const account = await response.json()
         if (account && account.id) {
           if (Number(account.status ?? 1) === 3) {
+            
             messagesRef.current?.clear?.()
             messagesRef.current?.show({
-              severity: "warn",
+              severity: "error",
               summary: "",
-              detail: "الحساب المختار محذوف لا يمكن عرض تفاصيله",
+              detail: "لا يمكن عرض حساب محذوف",
               sticky: false,
-              life: 3000,
+              life: 5000,
             })
-            await reset_fields()
-            return
+            accountCodeInputRef.current?.focus()
+            return 'deleted'
           }
+
+          if (Number(account.type ?? 0) !== 1) {
+            await resetFieldsWithCode(code)
+            messagesRef.current?.clear?.()
+            messagesRef.current?.show({
+              severity: "error",
+              summary: "",
+              detail: "لا يمكن عرض الحساب يجب ان يكون من نوع حساب محاسبي فقط",
+              sticky: false,
+              life: 5000,
+            })
+            accountCodeInputRef.current?.focus()
+            return 'invalid-type'
+          }
+
           // Account found - load it
           setCurrentIndex(activeAccounts.findIndex((a) => a.id === account.id))
           loadAccountToForm(account)
+          return 'found'
         }
       } else if (response.status === 404) {
         // Account not found - reset fields but keep code
         resetFieldsWithCode(code)
+        return 'not-found'
       } else if (response.status === 403) {
-        messagesRef.current?.clear?.()
-        messagesRef.current?.show({
-          severity: "warn",
-          summary: "",
-          detail: "الحساب المختار محذوف لا يمكن عرض تفاصيله",
-          sticky: false,
-          life: 3000,
-        })
-        await reset_fields()
+        resetFieldsWithCode(code)
+        
+        accountNameInputRef.current?.focus()
+        return 'not-found'
       }
     } catch (error) {
       console.error("Error searching for account:", error)
       setError("حدث خطأ أثناء البحث عن الحساب")
+      return 'error'
     }
+    return 'error'
   }
 
   // Handle account code input change - validate and clean
@@ -1255,10 +1322,13 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
   }
 
   // Handle account code blur - adjust and search
-  const handleAccountCodeBlur = () => {
+  const handleAccountCodeBlur = async () => {
     const adjustedCode = adjustCode(formData.code)
     setFormData({ ...formData, code: adjustedCode })
-    void searchAccountByCode(adjustedCode)
+    const result = await searchAccountByCode(adjustedCode)
+    if (result === 'found') {
+      accountNameInputRef.current?.focus()
+    }
   }
 
   useEffect(() => {
@@ -1353,7 +1423,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
       return () => {
         try {
           flex.removeEventListener('selectionChanged', handleSelectionChange)
-        } catch (_) {}
+        } catch (_) { }
       }
     }
   }, [costCenterTypes])
@@ -1377,13 +1447,13 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
     // Get and clean the form data
     const trimmedCode = formData.code.trim().toUpperCase()
     const trimmedName = formData.name.trim()
-    
+
     // Validate that both fields are filled
     if (!trimmedCode) {
       showValidationMessage("يجب ملء رقم الحساب")
       return false
     }
-    
+
     if (!trimmedName) {
       showValidationMessage("يجب ملء اسم الحساب")
       return false
@@ -1405,9 +1475,10 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
       return false
     }
 
+    const normalizedName = trimmedName.toLowerCase()
     const duplicateAccount = activeAccounts.find((account) => {
       if (Number(account.id) === Number(formData.id)) return false
-      return String(account.name || "").trim() === trimmedName
+      return String(account.name || "").trim().toLowerCase() === normalizedName
     })
     if (duplicateAccount) {
       showValidationMessage(`اسم الحساب مكرر. الكود: ${duplicateAccount.code}`)
@@ -1472,9 +1543,14 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
       const sameFatherCode = String(fatherAccount.code ?? "").toUpperCase() === finalCode
 
       if (sameFatherId || sameFatherCode) {
-        showValidationMessage("لا يمكن ان يكون الحساب تابع لنفسه")
+        showValidationMessage("لا يمكن ان يكون الحساب اب لنفسه")
         return false
       }
+    }
+
+    const finalNameLang2 = trimmedEnglishName || trimmedName
+    if (!trimmedEnglishName) {
+      setFormData((prev) => ({ ...prev, name_lang2: trimmedName }))
     }
 
     try {
@@ -1493,11 +1569,11 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
         costCentersData = costCenterTypes
           .filter((row) => row.default_cost_center_id != null && row.default_cost_center_id !== "")
           .map((row) => ({
-          cost_center_type_id: row.id || null,
-          cost_center_id: row.default_cost_center_id || null,
-          required_in_transactions: row.required_in_transactions ?? row.status_id ?? 1,
-          default_cost_center_id: row.default_cost_center_id || null,
-        }))
+            cost_center_type_id: row.id || null,
+            cost_center_id: row.default_cost_center_id || null,
+            required_in_transactions: row.required_in_transactions ?? row.status_id ?? 1,
+            default_cost_center_id: row.default_cost_center_id || null,
+          }))
       }
 
       // Extract classifications from grid state
@@ -1510,18 +1586,18 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
 
       const stopTransactionsData = Array.isArray(stopTransactionRows)
         ? stopTransactionRows
-            .filter((row) => row.is_stopped)
-            .map((row) => ({
-              voucher_types_id: row.voucher_types_id,
-              stop_date: row.stop_date || null,
-            }))
+          .filter((row) => row.is_stopped)
+          .map((row) => ({
+            voucher_types_id: row.voucher_types_id,
+            stop_date: row.stop_date || null,
+          }))
         : []
 
       const payload = {
         id: formData.id || 0,
         code: finalCode,
         name: trimmedName,
-        name_lang2: trimmedEnglishName || trimmedName,
+        name_lang2: finalNameLang2,
         type: 1,
         father_id: fatherAccount ? fatherAccount.id : null,
         level_no: Number(formData.level_no || 1),
@@ -1566,12 +1642,12 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
       const savedAccount = await response.json()
       const savedCode = savedAccount?.code || savedAccount?.account_code || finalCode
       const codeWasChanged = savedCode !== finalCode
-      
+
       let messageText = isNewAccount ? " تم حفظ الحساب بنجاح" : " تم تعديل الحساب بنجاح"
       if (codeWasChanged && isNewAccount) {
         messageText += ` (رقم الحساب: ${savedCode})`
       }
-      
+
       messagesRef.current?.clear?.()
       messagesRef.current?.show({
         severity: "success",
@@ -1581,7 +1657,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
         life: 3000,
       })
       setError("")
-      
+
       // Refresh the in-memory list so the search dialog sees the new record immediately.
       await loadData()
       dirtySnapshotRef.current = currentSnapshot
@@ -1592,7 +1668,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
       } else {
         setDialogOpen(false)
       }*/
-     await reset_fields()
+      await reset_fields()
       if (options?.closeAfterSave && closeWindow) {
         closeWindow()
       }
@@ -1609,6 +1685,20 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
 
   const handleDelete = async () => {
     if (!currentAccount) return
+
+    const isParentAccount = accounts.some((account) => Number(account.father_id ?? 0) === Number(currentAccount.id))
+    if (isParentAccount) {
+      messagesRef.current?.clear?.()
+      messagesRef.current?.show({
+        severity: "error",
+        summary: "",
+        detail: "لا يمكن حذف الحساب لأنه أب لحساب آخر",
+        sticky: false,
+        life: 5000,
+      })
+      return
+    }
+
     setShowAccountDeleteConfirm(true)
   }
 
@@ -1764,7 +1854,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
 
       setShowCostCenterTypeForm(false)
       setNewCostCenterTypeName("")
-      
+
       // Reload only cost center types grid
       try {
         const typesRes = await fetch("/api/cost-center-types")
@@ -1772,29 +1862,29 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
           const typesData = await typesRes.json()
           const mappedTypes = Array.isArray(typesData)
             ? typesData.map((type: any) => {
-                const statusMap: { [key: string]: number } = {
-                  'اختياري': 1,
-                  'اجباري': 2,
-                  'ممنوع': 3
-                }
-                const state_status = type.state_status || 'اختياري'
-                const required_in_transactions = statusMap[state_status] || 1
-                
-                // Preserve existing cost center selection from previous state
-                const existingType = costCenterTypes.find((t: any) => t.id === type.id)
-                
-                return {
-                  id: type.id,
-                  name: type.name,
-                  status: type.status,
-                  state_status,
-                  required_in_transactions,
-                  default_cost_center_id: existingType?.default_cost_center_id || null,
-                  cost_center_name: existingType?.cost_center_name || "",
-                  created_at: type.created_at,
-                  updated_at: type.updated_at,
-                }
-              }).sort((a, b) => a.id - b.id)
+              const statusMap: { [key: string]: number } = {
+                'اختياري': 1,
+                'اجباري': 2,
+                'ممنوع': 3
+              }
+              const state_status = type.state_status || 'اختياري'
+              const required_in_transactions = statusMap[state_status] || 1
+
+              // Preserve existing cost center selection from previous state
+              const existingType = costCenterTypes.find((t: any) => t.id === type.id)
+
+              return {
+                id: type.id,
+                name: type.name,
+                status: type.status,
+                state_status,
+                required_in_transactions,
+                default_cost_center_id: existingType?.default_cost_center_id || null,
+                cost_center_name: existingType?.cost_center_name || "",
+                created_at: type.created_at,
+                updated_at: type.updated_at,
+              }
+            }).sort((a, b) => a.id - b.id)
             : []
           setCostCenterTypes(mappedTypes)
         }
@@ -1886,7 +1976,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
 
       setShowClassificationTypeForm(false)
       setNewClassificationTypeName("")
-      
+
       // Reload classification types grid
       try {
         const typesRes = await fetch("/api/account-classification-types")
@@ -1894,17 +1984,17 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
           const typesData = await typesRes.json()
           const mappedTypes = Array.isArray(typesData)
             ? typesData.map((type: any) => {
-                const existingType = classificationTypes.find((t: any) => t.id === type.id)
-                return {
-                  id: type.id,
-                  name: type.name,
-                  status: type.status,
-                  classification_id: existingType?.classification_id || null,
-                  classification_name: existingType?.classification_name || "",
-                  created_at: type.created_at,
-                  updated_at: type.updated_at,
-                }
-              }).sort((a, b) => a.id - b.id)
+              const existingType = classificationTypes.find((t: any) => t.id === type.id)
+              return {
+                id: type.id,
+                name: type.name,
+                status: type.status,
+                classification_id: existingType?.classification_id || null,
+                classification_name: existingType?.classification_name || "",
+                created_at: type.created_at,
+                updated_at: type.updated_at,
+              }
+            }).sort((a, b) => a.id - b.id)
             : []
           setClassificationTypes(mappedTypes)
         }
@@ -2059,19 +2149,21 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
           <div className="space-y-4 border-b pb-4">
             <div className="grid gap-4 md:grid-cols-2 items-end">
               <div>
-                <Label className="mb-2 block text-sm font-medium">رقم الحساب * (8 أحرف إنجليزية أو أرقام، بحروف كبيرة)</Label>
+                <Label className="mb-2 block text-sm font-medium">رقم الحساب * </Label>
                 <div className="flex gap-2 items-center">
                   <Input
+                    ref={accountCodeInputRef}
                     value={formData.code}
                     onChange={(e) => handleAccountCodeChange(e.target.value)}
                     onBlur={handleAccountCodeBlur}
+                    onKeyDown={handleAccountCodeKeyDown}
                     placeholder=""
                     className="text-right flex-1 font-mono text-lg font-semibold tracking-widest"
                     maxLength={8}
                   />
-                  <Button 
-                    variant="default" 
-                    onClick={() => handleOpenSearchModal("code")} 
+                  <Button
+                    variant="default"
+                    onClick={() => handleOpenSearchModal("code")}
                     size="sm"
                     className="px-3 h-8 flex items-center gap-1.5"
                     title="بحث عن حساب"
@@ -2141,6 +2233,21 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
                       }}
                       showCostCenterButton={false}
                       onAccountSelect={(account) => {
+                        if (account && formData.id && Number(account.id) === Number(formData.id)) {
+                          messagesRef.current?.clear?.()
+                          messagesRef.current?.show({
+                            severity: "error",
+                            summary: "",
+                            detail: "لا يمكن ان يكون الحساب اب لنفسه",
+                            sticky: false,
+                            life: 4000,
+                          })
+                          setFormData({ ...formData, father_id: "" })
+                          setFatherAccountName("")
+                          setFatherAccountCode("")
+                          return
+                        }
+
                         setFormData({ ...formData, father_id: account ? String(account.id) : "" })
                         setFatherAccountName(account ? `${account.code} - ${account.name}` : "")
                         setFatherAccountCode(account ? account.code : "")
@@ -2188,6 +2295,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
                     <PrimeDropdown
                       inputId="financial_list_id"
                       value={financialListType}
+                      disabled={Number(formData.father_id || 0) > 0}
                       options={[
                         { label: "الميزانية العمومية", value: "1" },
                         { label: "قائمة الدخل", value: "2" },
@@ -2239,6 +2347,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
                         <PrimeDropdown
                           inputId="financial_list_assets_id"
                           value={formData.finanical_list_assests_id || null}
+                          disabled={Number(formData.father_id || 0) > 0}
                           options={[
                             { label: "عدم الاظهار", value: null },
                             ...balanceSheetAssets.map((asset) => ({
@@ -2269,6 +2378,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
                         <PrimeDropdown
                           inputId="financial_list_liabilities_id"
                           value={formData.finanical_list_liabilities_id || null}
+                          disabled={Number(formData.father_id || 0) > 0}
                           options={[
                             { label: "عدم الاظهار", value: null },
                             ...balanceSheetLiabilities.map((liability) => ({
@@ -2304,6 +2414,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
                       <PrimeDropdown
                         inputId="financial_list_income_id"
                         value={formData.finanical_list_income_id || null}
+                        disabled={Number(formData.father_id || 0) > 0}
                         options={
                           incomeStatementAccounts.map((income) => ({
                             label: income.name,
@@ -2362,6 +2473,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
                         <PrimeDropdown
                           inputId="financial_list_income_id"
                           value={formData.finanical_list_income_id || null}
+                          disabled={Number(formData.father_id || 0) > 0}
                           options={
                             incomeStatementAccounts.map((income) => ({
                               label: income.name,
@@ -2393,89 +2505,89 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
                       checked={formData.iscalc_curr_diff_rates}
                       onCheckedChange={(checked) => setFormData({ ...formData, iscalc_curr_diff_rates: checked as boolean })}
                     />
-                      <span className="text-lg font-medium">الحساب يخضع لفرق العملة</span>
+                    <span className="text-lg font-medium">الحساب يخضع لفرق العملة</span>
                   </label>
                 </div>
               </div>
 
             </TabsContent>
-              <TabsContent value="constraints" className="space-y-4" dir="rtl">
-                <div className="space-y-4">
-                  <h4 className="font-semibold text-base">الحدود المالية والإجراءات</h4>
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div>
-                      <Label className="mb-2 block text-sm font-medium">الحد الأقصى للحركة</Label>
-                      <Input
-                        type="text"
-                        inputMode="numeric"
-                        maxLength={9}
-                        value={formData.max_transaction_amount}
-                        onChange={(e) => setFormData({ ...formData, max_transaction_amount: e.target.value.replace(/\D/g, "").slice(0, 9) })}
-                        placeholder="0"
-                        className="text-right"
-                      />
-                    </div>
-                    <div>
-                      <Label className="mb-2 block text-sm font-medium">إجراء تجاوز الحد الأقصى للحركة</Label>
-                      <PrimeDropdown
-                        inputId="max_transaction_amount_action"
-                        value={formData.max_transaction_amount_action || "0"}
-                        options={[
-                          { label: "تحذير", value: "0" },
-                          { label: "منع", value: "1" },
-                          { label: "السماح", value: "2" },
-                        ]}
-                        optionLabel="label"
-                        optionValue="value"
-                        placeholder="اختر الإجراء"
-                        className="invoice-currency-dropdown w-full"
-                        panelClassName="invoice-currency-dropdown-panel"
-                        appendTo="self"
-                        onChange={(e: any) => {
-                          setFormData({ ...formData, max_transaction_amount_action: e.value ?? "0" })
-                          focusPrimeDropdownRoot(e)
-                        }}
-                        onHide={() => refocusDropdownInput("max_transaction_amount_action")}
-                      />
-                    </div>
-                    <div>
-                      <Label className="mb-2 block text-sm font-medium">الحد الأقصى للرصيد</Label>
-                      <Input
-                        type="text"
-                        inputMode="numeric"
-                        maxLength={9}
-                        value={formData.max_balance_amount}
-                        onChange={(e) => setFormData({ ...formData, max_balance_amount: e.target.value.replace(/\D/g, "").slice(0, 9) })}
-                        placeholder="0"
-                        className="text-right"
-                      />
-                    </div>
-                    <div>
-                      <Label className="mb-2 block text-sm font-medium">إجراء تجاوز الحد الأقصى للرصيد</Label>
-                      <PrimeDropdown
-                        inputId="max_balance_action"
-                        value={formData.max_balance_action || "0"}
-                        options={[
-                          { label: "تحذير", value: "0" },
-                          { label: "منع", value: "1" },
-                          { label: "السماح", value: "2" },
-                        ]}
-                        optionLabel="label"
-                        optionValue="value"
-                        placeholder="اختر الإجراء"
-                        className="invoice-currency-dropdown w-full"
-                        panelClassName="invoice-currency-dropdown-panel"
-                        appendTo="self"
-                        onChange={(e: any) => {
-                          setFormData({ ...formData, max_balance_action: e.value ?? "0" })
-                          focusPrimeDropdownRoot(e)
-                        }}
-                        onHide={() => refocusDropdownInput("max_balance_action")}
-                      />
-                    </div>
+            <TabsContent value="constraints" className="space-y-4" dir="rtl">
+              <div className="space-y-4">
+                <h4 className="font-semibold text-base">الحدود المالية والإجراءات</h4>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div>
+                    <Label className="mb-2 block text-sm font-medium">الحد الأقصى للحركة</Label>
+                    <Input
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={9}
+                      value={formData.max_transaction_amount}
+                      onChange={(e) => setFormData({ ...formData, max_transaction_amount: e.target.value.replace(/\D/g, "").slice(0, 9) })}
+                      placeholder="0"
+                      className="text-right"
+                    />
+                  </div>
+                  <div>
+                    <Label className="mb-2 block text-sm font-medium">إجراء تجاوز الحد الأقصى للحركة</Label>
+                    <PrimeDropdown
+                      inputId="max_transaction_amount_action"
+                      value={formData.max_transaction_amount_action || "0"}
+                      options={[
+                        { label: "تحذير", value: "0" },
+                        { label: "منع", value: "1" },
+                        { label: "السماح", value: "2" },
+                      ]}
+                      optionLabel="label"
+                      optionValue="value"
+                      placeholder="اختر الإجراء"
+                      className="invoice-currency-dropdown w-full"
+                      panelClassName="invoice-currency-dropdown-panel"
+                      appendTo="self"
+                      onChange={(e: any) => {
+                        setFormData({ ...formData, max_transaction_amount_action: e.value ?? "0" })
+                        focusPrimeDropdownRoot(e)
+                      }}
+                      onHide={() => refocusDropdownInput("max_transaction_amount_action")}
+                    />
+                  </div>
+                  <div>
+                    <Label className="mb-2 block text-sm font-medium">الحد الأقصى للرصيد</Label>
+                    <Input
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={9}
+                      value={formData.max_balance_amount}
+                      onChange={(e) => setFormData({ ...formData, max_balance_amount: e.target.value.replace(/\D/g, "").slice(0, 9) })}
+                      placeholder="0"
+                      className="text-right"
+                    />
+                  </div>
+                  <div>
+                    <Label className="mb-2 block text-sm font-medium">إجراء تجاوز الحد الأقصى للرصيد</Label>
+                    <PrimeDropdown
+                      inputId="max_balance_action"
+                      value={formData.max_balance_action || "0"}
+                      options={[
+                        { label: "تحذير", value: "0" },
+                        { label: "منع", value: "1" },
+                        { label: "السماح", value: "2" },
+                      ]}
+                      optionLabel="label"
+                      optionValue="value"
+                      placeholder="اختر الإجراء"
+                      className="invoice-currency-dropdown w-full"
+                      panelClassName="invoice-currency-dropdown-panel"
+                      appendTo="self"
+                      onChange={(e: any) => {
+                        setFormData({ ...formData, max_balance_action: e.value ?? "0" })
+                        focusPrimeDropdownRoot(e)
+                      }}
+                      onHide={() => refocusDropdownInput("max_balance_action")}
+                    />
                   </div>
                 </div>
-              </TabsContent>
+              </div>
+            </TabsContent>
             <TabsContent value="stop-transactions" className="space-y-4" dir="rtl">
               <div className="space-y-4">
                 <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-gradient-to-r from-red-50 to-white px-4 py-3">
@@ -2516,8 +2628,8 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
                   <div className="flex-1">
                     <h4 className="font-semibold text-base">مراكز التكلفة</h4>
                   </div>
-                  <Button 
-                    variant="default" 
+                  <Button
+                    variant="default"
                     size="sm"
                     onClick={handleAddCostCenterType}
                     className="flex items-center gap-2 whitespace-nowrap bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white transition-all duration-200 shadow-md hover:shadow-lg"
@@ -2544,9 +2656,9 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
                 <div className="rounded-md border border-slate-300 overflow-hidden" dir="rtl">
                   {costCenterTypes && costCenterTypes.length > 0 ? (
                     <div className="h-[500px] min-h-[300px] overflow-y-auto [&::-webkit-scrollbar]:w-0 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-transparent scrollbar-hide">
-                      <DataGridView 
-                        scheme={costCenterTypeScheme} 
-                        dataSource={costCenterTypes} 
+                      <DataGridView
+                        scheme={costCenterTypeScheme}
+                        dataSource={costCenterTypes}
                         innerRef={costCenterTypeGridRef}
                       />
                     </div>
@@ -2563,11 +2675,11 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
             <TabsContent value="classification" className="space-y-4" dir="rtl">
               <div className="space-y-4">
                 {/* Unified Classification Section */}
-                
+
                 {/* Header with Two Action Buttons */}
                 <div className="flex items-center justify-end gap-3 bg-gradient-to-r from-orange-50 via-blue-50 to-slate-50 p-4 rounded-md border border-slate-200">
-                  <Button 
-                    variant="default" 
+                  <Button
+                    variant="default"
                     size="sm"
                     onClick={handleAddClassificationRow}
                     className="flex items-center gap-2 whitespace-nowrap bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white transition-all duration-200 shadow-md hover:shadow-lg"
@@ -2575,9 +2687,9 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
                     <Plus className="w-4 h-4" />
                     اضافة تصنيف جديد
                   </Button>
-                  
-                  <Button 
-                    variant="default" 
+
+                  <Button
+                    variant="default"
                     size="sm"
                     onClick={handleAddClassificationType}
                     className="flex items-center gap-2 whitespace-nowrap bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white transition-all duration-200 shadow-md hover:shadow-lg"
@@ -2604,7 +2716,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
                 <div className="rounded-md border border-slate-300 overflow-hidden" dir="rtl">
                   {classificationTypes && classificationTypes.length > 0 ? (
                     <div className="h-[600px] min-h-[300px] overflow-y-auto [&::-webkit-scrollbar]:w-0 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-transparent scrollbar-hide">
-                      <DataGridView 
+                      <DataGridView
                         scheme={{
                           name: "AccountClassificationScheme",
                           columns: [
@@ -2689,9 +2801,9 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
         <SearchAccountClassificationDialog
           open={searchAccountClassificationOpen}
           onOpenChange={setSearchAccountClassificationOpen}
-          type={selectedClassificationType?.id ? { 
-            id: selectedClassificationType.id, 
-            name: selectedClassificationType.name || "" 
+          type={selectedClassificationType?.id ? {
+            id: selectedClassificationType.id,
+            name: selectedClassificationType.name || ""
           } : undefined}
           classifications={allClassifications}
           onSelect={handleSelectAccountClassification}
@@ -2756,8 +2868,8 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
               </div>
             </div>
             <DialogFooter>
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 onClick={() => {
                   setShowClassificationTypeForm(false)
                   setNewClassificationTypeName("")
@@ -2766,7 +2878,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
               >
                 إلغاء
               </Button>
-              <Button 
+              <Button
                 onClick={handleSaveClassificationType}
               >
                 حفظ
@@ -2830,8 +2942,8 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
               </div>
             </div>
             <DialogFooter>
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 onClick={() => {
                   setShowClassificationForm(false)
                   setNewClassificationTypeId(null)
@@ -2841,7 +2953,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
               >
                 إلغاء
               </Button>
-              <Button 
+              <Button
                 onClick={handleSaveClassification}
               >
                 حفظ
@@ -2880,8 +2992,8 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
               </div>
             </div>
             <DialogFooter>
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 onClick={() => {
                   setShowCostCenterTypeForm(false)
                   setNewCostCenterTypeName("")
@@ -2890,7 +3002,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
               >
                 إلغاء
               </Button>
-              <Button 
+              <Button
                 onClick={handleSaveCostCenterType}
               >
                 حفظ
