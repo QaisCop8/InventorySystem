@@ -5,12 +5,87 @@
 /* ---------- Base ---------- */
 .multiselect {
   width: 100% !important;
+  position: relative;
 
   /* PrimeReact MultiSelect base overrides */
   :global(.p-multiselect) {
     width: 100% !important;
     min-width: 150px !important;
     outline: none !important;
+    position: relative !important;
+  }
+
+  /* Dropdown panel styling */
+  :global(.invoice-currency-dropdown-panel.p-multiselect-panel) {
+    position: absolute !important;
+    top: calc(100% + 0.25rem) !important;
+    left: auto !important;
+    right: 0 !important;
+    direction: rtl !important;
+    text-align: right !important;
+    border-radius: 0.75rem !important;
+    box-shadow: 0 20px 60px rgba(15, 23, 42, 0.15) !important;
+    border: 1px solid rgba(148, 163, 184, 0.24) !important;
+    background: #ffffff !important;
+    min-width: 100% !important;
+    overflow: hidden !important;
+    z-index: 2000 !important;
+  }
+
+  :global(.p-multiselect-item) {
+    display: flex !important;
+    flex-direction: row-reverse !important;
+    direction: rtl !important;
+    justify-content: flex-start !important;
+    align-items: center !important;
+    gap: 0.75rem !important;
+    text-align: right !important;
+    font-size: 1rem !important;
+    line-height: 1.75rem !important;
+    padding: 0.9rem 1rem !important;
+    text-decoration: none !important;
+    border-bottom: none !important;
+  }
+
+  :global(.p-multiselect-item),
+  :global(.p-multiselect-item *) {
+    direction: rtl !important;
+    text-align: right !important;
+  }
+
+  :global(.p-multiselect-item > :not(.p-checkbox)) {
+    width: 100% !important;
+  }
+
+  :global(.p-multiselect-item:hover),
+  :global(.p-multiselect-item.p-highlight) {
+    text-decoration: none !important;
+    border-bottom: none !important;
+  }
+
+  :global(.p-multiselect-item::before),
+  :global(.p-multiselect-item::after),
+  :global(.p-multiselect-item.p-highlight::before),
+  :global(.p-multiselect-item.p-highlight::after) {
+    display: none !important;
+    content: none !important;
+  }
+
+  :global(.p-multiselect-item .p-checkbox),
+  :global(.p-multiselect-item .p-checkbox-box),
+  :global(.p-multiselect-item .p-checkbox .p-checkbox-icon) {
+    order: 0 !important;
+    margin-right: 0 !important;
+    margin-left: 0 !important;
+    margin-inline-start: 0 !important;
+    margin-inline-end: 0.75rem !important;
+    left: auto !important;
+    right: 0 !important;
+    direction: rtl !important;
+  }
+
+  :global(.p-multiselect-item > :not(.p-checkbox)) {
+    order: 1 !important;
   }
 
   /* Error field styling */
@@ -40,6 +115,13 @@
 /* ---------- Panel Right (RTL) ---------- */
 .panelClassRight {
   direction: rtl !important;
+  text-align: right !important;
+  left: auto !important;
+  right: 0 !important;
+
+  :global(.p-multiselect-items-wrapper) {
+    direction: rtl !important;
+  }
 
   :global(.p-multiselect-close) {
     margin-left: 0 !important;
@@ -47,6 +129,8 @@
 
   :global(.p-multiselect-item .p-checkbox) {
     margin: 0 0.5em !important;
+    margin-right: 0.75rem !important;
+    margin-left: 0 !important;
   }
 
   :global(.p-multiselect-filter-container) {

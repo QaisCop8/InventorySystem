@@ -47,6 +47,7 @@ import { WindowManagerProvider } from "@/contexts/window-manager-context"
 import { Toaster } from "@/components/ui/toaster"
 import { GlobalSearchProvider } from "@/components/global-search-provider"
 import { GlobalShortcuts } from "@/components/global-shortcuts"
+import { PrimeReactProvider } from "primereact/api"
 import "./globals.css"
 
 const inter = Inter({
@@ -108,11 +109,13 @@ export default function RootLayout({
             >
               <ThemeSettingsProvider>
                 <WindowManagerProvider>
-                  <GlobalSearchProvider>
-                    <GlobalShortcuts />
-                    <Suspense fallback={null}>{children}</Suspense>
-                    <Toaster />
-                  </GlobalSearchProvider>
+                  <PrimeReactProvider>
+                    <GlobalSearchProvider>
+                      <GlobalShortcuts />
+                      <Suspense fallback={null}>{children}</Suspense>
+                      <Toaster />
+                    </GlobalSearchProvider>
+                  </PrimeReactProvider>
                 </WindowManagerProvider>
               </ThemeSettingsProvider>
             </ThemeProvider>

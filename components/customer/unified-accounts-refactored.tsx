@@ -842,6 +842,23 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
       }
     })
     const nextAccountClassifications = Array.isArray((account as any).account_classifications) ? (account as any).account_classifications : []
+    const classificationByType = new Map<number, any>()
+    nextAccountClassifications.forEach((row: any) => {
+      const classificationId = Number(row?.classification_id)
+      if (!classificationId) return
+      const classification = allClassifications.find((item) => Number(item.id) === classificationId)
+      if (classification && classification.classification_type_id != null) {
+        classificationByType.set(Number(classification.classification_type_id), classification)
+      }
+    })
+    const nextClassificationTypes = classificationTypesRef.current.map((type) => {
+      const selectedClassification = classificationByType.get(Number(type.id))
+      return {
+        ...type,
+        classification_id: selectedClassification?.id ?? null,
+        classification_name: selectedClassification?.name ?? "",
+      }
+    })
     const nextFatherName = resolveFatherAccountLabel(account)
     const nextFatherAccount = account.father_id ? activeAccounts.find((item) => Number(item.id) === Number(account.father_id)) : null
     const nextFinancialListId = Number(account.finanical_list_id ?? (account as any).financial_list_id ?? 0)
@@ -882,6 +899,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
     setFinancialListType(String(safeFinancialListId))
     setCostCenterTypes(nextCostCenterTypes)
     setAccountClassifications(nextAccountClassifications)
+    setClassificationTypes(nextClassificationTypes)
     // Set father account name
     setFatherAccountName(nextFatherName)
     setFatherAccountCode(nextFatherAccount?.code || "")
@@ -1577,12 +1595,11 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
       }
 
       // Extract classifications from grid state
-      let classificationsData: any[] = []
-      if (Array.isArray(accountClassifications)) {
-        classificationsData = accountClassifications.map((row) => ({
-          classification_id: row.classification_id || row.id || null,
-        }))
-      }
+      const classificationsData: any[] = Array.isArray(classificationTypes)
+        ? classificationTypes
+            .filter((row) => row.classification_id != null)
+            .map((row) => ({ classification_id: row.classification_id }))
+        : []
 
       const stopTransactionsData = Array.isArray(stopTransactionRows)
         ? stopTransactionRows
@@ -2030,13 +2047,17 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
       return
     }
 
-    const newRow = {
-      classification_type_id: selectedType.id,
-      classification_type_name: selectedType.name,
-      classification_id: null,
-      classification_name: newClassificationName.trim(),
-    }
-    setAccountClassifications([...accountClassifications, newRow])
+    const updatedRows = classificationTypes.map((item) => {
+      if (Number(item.id) === Number(selectedType.id)) {
+        return {
+          ...item,
+          classification_id: null,
+          classification_name: newClassificationName.trim(),
+        }
+      }
+      return item
+    })
+    setClassificationTypes(updatedRows)
     setShowClassificationForm(false)
     setNewClassificationTypeId(null)
     setNewClassificationName("")

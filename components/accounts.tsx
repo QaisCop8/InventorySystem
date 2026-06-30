@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Textarea } from "@/components/ui/textarea"
 import { Dropdown as PrimeDropdown } from "primereact/dropdown"
+import MultiSelect from "@/components/common/MultiSelect"
 import * as XLSX from "xlsx"
 
 interface AccountType {
@@ -105,7 +106,7 @@ export default function Accounts() {
   const [message, setMessage] = useState("")
   const [editingId, setEditingId] = useState<number | null>(null)
   const [search, setSearch] = useState("")
-  const [filterFinancialList, setFilterFinancialList] = useState("")
+  const [filterFinancialList, setFilterFinancialList] = useState<string[]>([])
   const [filterStatus, setFilterStatus] = useState("")
   const [excelFile, setExcelFile] = useState<File | null>(null)
   const [excelRows, setExcelRows] = useState<ExcelAccountRow[]>([])
@@ -1216,7 +1217,7 @@ export default function Accounts() {
         !search ||
         account.code.toLowerCase().includes(search.toLowerCase()) ||
         account.name.toLowerCase().includes(search.toLowerCase())
-      const matchFinancialList = !filterFinancialList || String(account.finanical_list_id) === filterFinancialList
+      const matchFinancialList = !filterFinancialList.length || filterFinancialList.includes(String(account.finanical_list_id))
       const matchStatus = !filterStatus || account.status === filterStatus
       return matchSearch && matchFinancialList && matchStatus
     })
@@ -1754,12 +1755,11 @@ export default function Accounts() {
                 <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="ابحث برقم أو اسم الحساب" className="h-10" />
               </div>
               <div>
-                <Label className="mb-2 block text-sm">القائمة المالية</Label>
-                <PrimeDropdown
+                <MultiSelect
+                  caption="القائمة المالية"
                   inputId="filterFinancialList"
-                  value={filterFinancialList || ""}
+                  value={filterFinancialList}
                   options={[
-                    { label: "كل القوائم المالية", value: "" },
                     { label: "الميزانية العمومية", value: "1" },
                     { label: "قائمة الدخل", value: "2" },
                     { label: "تقييم بضاعة", value: "3" },
@@ -1767,10 +1767,10 @@ export default function Accounts() {
                   optionLabel="label"
                   optionValue="value"
                   placeholder="كل القوائم المالية"
-                  className="invoice-currency-dropdown w-full"
-                  panelClassName="invoice-currency-dropdown-panel"
-                  appendTo="self"
-                  onChange={(e: any) => setFilterFinancialList(String(e.value ?? ""))}
+                  showFilter={true}
+                  showCheck={true}
+                  showMultiSelect={true}
+                  onChange={(e: any) => setFilterFinancialList(Array.isArray(e.value) ? e.value.map(String) : [])}
                 />
               </div>
               <div>

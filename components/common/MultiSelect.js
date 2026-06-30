@@ -26,11 +26,20 @@ const $ = typeof window !== 'undefined' ? window.$ : { strings: {} };
 export default class MultiSelect extends React.Component {
   constructor(props) {
     super(props);
+    this.wrapperRef = React.createRef();
     this.state = {
       floatLabel: false,
       isAllSelected: false,
-      filteredItems: this.props.options
+      filteredItems: this.props.options,
+      appendToContainer: null
     };
+  }
+
+  componentDidMount() {
+    const container = this.wrapperRef.current;
+    if (container && !this.props.appendTo) {
+      this.setState({ appendToContainer: container });
+    }
   }
   truncatedLabel = (option) => {
 
@@ -54,7 +63,7 @@ export default class MultiSelect extends React.Component {
   }
 
   render() {
-    const panelClassName = styles.panelClassRight ;
+    const panelClassName = `${styles.panelClassRight} ${this.props.panelClassName ?? 'invoice-currency-dropdown-panel'}`.trim();
     // const SELECTALLMAXLIMIT = 5000;
     let divlabelStyle = {};
     if (this.props.isReportFilter) divlabelStyle = { display: 'flex', width: '100%', overflow: 'hidden' };
@@ -65,12 +74,14 @@ export default class MultiSelect extends React.Component {
         maxWidth: this.props.maxLabelWidth ? this.props.maxLabelWidth : '100px', height: !this.props.maxLabelheight ? 16.2 : this.props.maxLabelheight
       };
 
+    const wrapperStyle = { ...divlabelStyle, position: 'relative' }
     return (
-      <div style={divlabelStyle}>
+      <div style={wrapperStyle} ref={this.wrapperRef}>
         {this.props.caption && (
           <Label
             htmlFor={this.props.htmlFor}
             isRequired={this.props.isrequired}
+            className="mb-2 block text-sm"
             style={labelStyle}
           >
             {this.props.caption}
@@ -80,7 +91,8 @@ export default class MultiSelect extends React.Component {
         {this.props.withgroup && (
           <div className="p-inputgroup">
             <PrimeMultiSelect
-              style={{ flex: '2', overflow: 'hidden' }}
+              style={{ flex: '2', overflow: 'hidden', direction: 'rtl' }}
+              dir="rtl"
               id="float-input"
               onShow={() => {
                 let x = document.querySelector('.p-inputtext.p-component.p-multiselect-filter');
@@ -93,13 +105,13 @@ export default class MultiSelect extends React.Component {
               virtualScroll={true}
               virtualScrollerOptions={{ itemSize: 35 }}
               title={this.props.tooltip}
-              //className={`${styles.multiselect} ${this.props.innerClass || ''}`}
+              className={`${styles.multiselect} invoice-currency-dropdown w-full ${this.props.className || this.props.innerClass || ''}`.trim()}
               {...this.props}
+              appendTo={this.props.appendTo ?? this.state.appendToContainer ?? 'self'}
               // showSelectAll={this.props.options&&this.props.options.length>SELECTALLMAXLIMIT && !this.props.showSelectAllAlways ?false:true}
               tooltipOptions={{ position: 'bottom', style: { direction: 'rtl' } }}
               panelClassName={panelClassName}
               itemTemplate={this.itemsTemplate}
-              selectedItemsLabel={this.props.value ? '$.strings.items.selectedItemsLabel' + ' ' + this.props.value.length : ''}
               resetFilterOnHide={true}
               onSelectAll={this.props.handleSelectAll ? this.props.handleSelectAll : this.props.parent ? this.handleSelectAll : undefined}
               //options={this.state.filteredItems ?? this.props.options}
@@ -130,7 +142,8 @@ export default class MultiSelect extends React.Component {
 
         {!this.props.withgroup && (
           <PrimeMultiSelect
-            style={{ flex: '1' }}
+            style={{ flex: '1', position: 'relative', direction: 'rtl' }}
+            dir="rtl"
             id="float-input"
             onShow={() => {
               let x = document.querySelector('.p-inputtext.p-component.p-multiselect-filter');
@@ -143,19 +156,18 @@ export default class MultiSelect extends React.Component {
             virtualScroll={true}
             virtualScrollerOptions={{ itemSize: 35 }}
             title={this.props.tooltip}
-            className={`${styles.multiselect} ${this.props.innerClass || ''}`}
+            className={`${styles.multiselect} invoice-currency-dropdown w-full ${this.props.className || this.props.innerClass || ''}`.trim()}
             {...this.props}
+            appendTo={this.props.appendTo ?? this.state.appendToContainer ?? 'self'}
+            filter={this.props.showFilter ?? this.props.filter}
+            showSelectAll={this.props.showCheck ?? this.props.showSelectAll}
+            display={this.props.showMultiSelect ? 'chip' : this.props.display}
             tooltipOptions={{ position: 'bottom', style: { direction: 'rtl' } }}
             panelClassName={panelClassName}
-            // showSelectAll={this.props.options&&this.props.options.length>SELECTALLMAXLIMIT && !this.props.showSelectAllAlways?false:true}
             itemTemplate={this.itemsTemplate}
             selectedItemsLabel={this.props.value ? '$.strings.items.selectedItemsLabel' + ' ' + this.props.value.length : ''}
             resetFilterOnHide={true}
             onSelectAll={this.props.handleSelectAll ? this.props.handleSelectAll : this.props.parent ? this.handleSelectAll : undefined}
-            //options={this.state.filteredItems}
-            //onFilter={this.onFilter}
-            //options={this.state.filteredItems ?? this.props.options}
-            //onFilter={this.onFilter}
           >
             {this.props.children}
           </PrimeMultiSelect>
@@ -206,7 +218,7 @@ export default class MultiSelect extends React.Component {
     let statusColor = option.status && option.status !== 1 ? 'red' : '';
 
     return (
-      <div style={{ color: statusColor }} dir={'rtl'}>
+      <div style={{ color: statusColor, direction: 'rtl', textAlign: 'right' }}>
         {option_new}
       </div>
     );
