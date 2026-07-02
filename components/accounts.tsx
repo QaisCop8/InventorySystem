@@ -4,6 +4,8 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { AlertCircle, CheckCircle, Download, FileSpreadsheet, Plus, RefreshCw, Upload } from "lucide-react"
 import DataGridView from "@/components/common/DataGridView"
 import UnifiedAccounts from "@/components/customer/unified-accounts-refactored"
+import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion"
+
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -121,6 +123,7 @@ export default function Accounts() {
   const [excelExportError, setExcelExportError] = useState("")
   const [excelValidationAccounts, setExcelValidationAccounts] = useState<Array<{ code: string; name: string }>>([])
   const excelInputRef = useRef<HTMLInputElement>(null)
+  
 
   const [formData, setFormData] = useState<FormState>({
     code: "",
@@ -1449,17 +1452,26 @@ export default function Accounts() {
           </div>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {stats.map((stat) => (
-            <Card key={stat.label} className={stat.color}>
-              <CardContent className="p-6 text-right">
-                <p className="text-sm font-medium text-slate-600">{stat.label}</p>
-                <p className="mt-2 text-3xl font-semibold">{stat.value}</p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        {/* Stats Cards (now collapsible) */}
+        <Accordion type="single" collapsible className="w-full">
+          <AccordionItem value="stats">
+            <AccordionTrigger className="text-sm font-medium">الاحصائيات</AccordionTrigger>
+            <AccordionContent>
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                {stats.map((stat) => (
+                  <Card key={stat.label} className={stat.color}>
+                    <CardContent className="p-6 text-right">
+                      <p className="text-sm font-medium text-slate-600">{stat.label}</p>
+                      <p className="mt-2 text-3xl font-semibold">{stat.value}</p>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
+
+        
 
         {/* Dialog */}
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>

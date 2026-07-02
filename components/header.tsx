@@ -32,6 +32,7 @@ export function Header({ onMenuClick, activeSection, onProfileClick, onSettingsC
   const [search, setSearch] = useState("");
 
   const sectionTitles: Record<string, string> = {
+    "home-dashboard": "الرئيسية",
     dashboard: "لوحة التحكم الرئيسية",
     "order-tracking": "متابعة الطلبيات",
     customers: "إدارة الزبائن",

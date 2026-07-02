@@ -103,6 +103,7 @@ export function Sidebar({
   }
 
   const menuItems = [
+    { id: "home-dashboard", title: "الرئيسية", icon: LayoutDashboard, section: "home-dashboard" },
     { id: "dashboard", title: "لوحة التحكم", icon: LayoutDashboard, section: "dashboard" },
     //{ id: "ai-assistant", title: "المساعد الذكي", icon: Sparkles, section: "ai-assistant" },
     { id: "smart-analytics", title: "التحليلات الذكية", icon: BarChart3, section: "smart-analytics" },
@@ -183,22 +184,22 @@ export function Sidebar({
 
   return (
     <div
-      className={`fixed top-0 right-0 h-screen bg-background border-l border-sidebar-border flex flex-col transition-all duration-300
+      className={`fixed top-0 right-0 h-screen flex flex-col border-l border-slate-200/80 bg-gradient-to-b from-slate-50 via-white to-slate-100 shadow-[0_0_40px_rgba(15,23,42,0.08)] transition-all duration-300
         ${isMobile ? "w-72 z-50" : isOpen ? "w-72" : "w-16"}
         ${isMobile && !isOpen ? "translate-x-full" : "translate-x-0"}
       `}
       dir="rtl"
     >
       {/* Header */}
-      <div className="p-4 border-b border-sidebar-border bg-primary flex items-center justify-between">
+      <div className="border-b border-slate-200/80 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-700 p-4">
         {isOpen ? (
           <div className="flex items-center gap-2 flex-row-reverse">
             <div className="text-right">
               <h2 className="text-base font-semibold text-white">أساس (Asas) Accounting System</h2>
-              <p className="text-xs text-white/80">أساس (Asas) Accounting System</p>
+              <p className="text-xs text-slate-300">نظام إدارة متكامل</p>
             </div>
-            <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
-              <svg viewBox="0 0 24 24" className="h-5 w-5 text-primary" aria-hidden="true">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/10 shadow-inner ring-1 ring-white/20">
+              <svg viewBox="0 0 24 24" className="h-5 w-5 text-emerald-300" aria-hidden="true">
                 <path
                   d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3zm0 2.3L6 8.2v7.6l6 2.9 6-2.9V8.2l-6-2.9z"
                   fill="currentColor"
@@ -222,27 +223,29 @@ export function Sidebar({
           variant="ghost"
           size="icon"
           onClick={onToggle}
-          className="text-white hover:bg-white/10"
+          className="rounded-xl text-white hover:bg-white/10"
         >
           <ChevronRight className={`h-4 w-4 transition-transform ${isOpen ? "rotate-180" : ""}`} />
         </Button>
       </div>
 
       {/* Menu */}
-      <div className="flex-1 overflow-y-auto p-2 space-y-1">
+      <div className="flex-1 overflow-y-auto p-2 space-y-1.5">
         {menuItems.map((item) => (
           <div key={item.id}>
             <Button
               variant={activeSection === item.section ? "secondary" : "ghost"}
-              className={`w-full justify-between text-right p-2 ${!isOpen ? "flex items-center justify-center" : ""
-                }`}
+              className={`w-full justify-between rounded-2xl border border-transparent p-2.5 text-right shadow-sm transition-all duration-200 ${!isOpen ? "flex items-center justify-center" : ""
+                } ${activeSection === item.section ? "bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-lg shadow-emerald-200" : "bg-white/80 text-slate-700 hover:bg-gradient-to-r hover:from-emerald-50 hover:to-sky-50 hover:text-slate-900 hover:shadow-md"}`}
               onClick={() => (item.submenu ? toggleMenu(item.id) : handleItemClick(item))}
               onContextMenu={(e) => !item.submenu && handleContextMenu(e, item)}
               dir="rtl"
               title="Right-click to open in new tab"
             >
               <div className={`flex items-center gap-2 ${!isOpen ? "justify-center" : ""}`}>
-                <item.icon className="h-5 w-5" />
+                <div className={`rounded-xl p-1.5 transition-all duration-200 ${activeSection === item.section ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600 group-hover:bg-emerald-100 group-hover:text-emerald-700"}`}>
+                  <item.icon className="h-4 w-4" />
+                </div>
                 {isOpen && <span className="font-medium">{item.title}</span>}
               </div>
               {isOpen && item.submenu && (
@@ -254,13 +257,13 @@ export function Sidebar({
             </Button>
 
             {isOpen && item.submenu && expandedMenus.includes(item.id) && (
-              <div className="mr-4 mt-1 space-y-1 border-r-2 border-sidebar-border pr-2" dir="rtl">
+              <div className="mr-3 mt-2 space-y-1 rounded-2xl border border-slate-200/80 bg-slate-50/90 p-2 shadow-sm" dir="rtl">
                 {item.submenu.map((subItem) => (
                   <Button
                     key={subItem.section}
                     variant={activeSection === subItem.section ? "secondary" : "ghost"}
                     size="sm"
-                    className="w-full justify-start text-right text-sm p-2 hover:bg-sidebar-accent/10"
+                    className={`w-full justify-start rounded-xl p-2 text-right text-sm transition-all ${activeSection === subItem.section ? "bg-emerald-100 text-emerald-700" : "text-slate-600 hover:bg-gradient-to-r hover:from-white hover:to-emerald-50 hover:text-slate-900 hover:shadow-sm"}`}
                     onClick={() => handleItemClick(subItem)}
                     onContextMenu={(e) => handleContextMenu(e, subItem)}
                     dir="rtl"

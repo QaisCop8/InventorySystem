@@ -89,6 +89,8 @@ export interface UnifiedCustomerFormData {
   allow_trans_with_diff_curr?: string
   iscalc_curr_diff_rates?: boolean
   voucherType?: VoucherItem[]
+  cost_centers?: Array<{ id: number; name: string; state_status: string; required_in_transactions: number; cost_center_name?: string; default_cost_center_id?: number | null }>
+  stop_transactions?: Array<{ voucher_types_id: number; voucher_type_name: string; is_stopped: boolean; stop_date: string }>
 }
 
 interface UnifiedCustomersProps {
@@ -157,6 +159,8 @@ const defaultFormData: UnifiedCustomerFormData = {
   allow_trans_with_diff_curr: "0",
   iscalc_curr_diff_rates: false,
   voucherType: [],
+  cost_centers: [],
+  stop_transactions: [],
 }
 
 interface ClassificationTypeRow {
@@ -272,6 +276,23 @@ export default function UnifiedCustomers({
       customerNameRef?.current?.focus()
     }, 0)
   }, [customerNameRef])
+
+  const adjustCustomerCode = useCallback((value: string, codeLen = 8) => {
+    const trimmed = String(value ?? "").trim().toUpperCase()
+    if (!trimmed) return ""
+
+    const normalized = trimmed.replace(/[^A-Z0-9]/g, "")
+    if (!normalized) return ""
+
+    const match = normalized.match(/^([A-Z]*)(\d*)$/)
+    if (!match) return normalized
+
+    const [, prefix, numPart] = match
+    const padLen = Math.max(codeLen - prefix.length, 0)
+    const paddedNum = numPart.padStart(padLen, "0")
+
+    return `${prefix}${paddedNum}`
+  }, [])
 
   const buildStopTransactionRows = useCallback((voucherTypesList: any[], stopRows: any[] = []) => {
     const stopByVoucherType = new Map<number, any>()
@@ -401,13 +422,81 @@ export default function UnifiedCustomers({
     }
   }, [])
 
+  const applyCustomerRecord = useCallback(
+    (customer: any) => {
+      const nextCostCenterAssignments = Array.isArray(customer?.cost_centers) ? customer.cost_centers : []
+      const nextStopTransactions = Array.isArray(customer?.stop_transactions) ? customer.stop_transactions : []
+
+      updateField("id" as keyof UnifiedCustomerFormData, Number(customer?.id || 0) as any)
+      updateField("customer_code" as keyof UnifiedCustomerFormData, String(customer?.customer_code || "") as any)
+      updateField("name" as keyof UnifiedCustomerFormData, String(customer?.name || customer?.customer_name || "") as any)
+      updateField("mobile1" as keyof UnifiedCustomerFormData, String(customer?.mobile1 || "") as any)
+      updateField("mobile2" as keyof UnifiedCustomerFormData, String(customer?.mobile2 || "") as any)
+      updateField("whatsapp1" as keyof UnifiedCustomerFormData, String(customer?.whatsapp1 || "") as any)
+      updateField("whatsapp2" as keyof UnifiedCustomerFormData, String(customer?.whatsapp2 || "") as any)
+      updateField("city" as keyof UnifiedCustomerFormData, String(customer?.city || "") as any)
+      updateField("address" as keyof UnifiedCustomerFormData, String(customer?.address || "") as any)
+      updateField("email" as keyof UnifiedCustomerFormData, String(customer?.email || "") as any)
+      updateField("status" as keyof UnifiedCustomerFormData, String(customer?.status || "نشط") as any)
+      updateField("business_nature" as keyof UnifiedCustomerFormData, String(customer?.business_nature || "") as any)
+      updateField("salesman" as keyof UnifiedCustomerFormData, String(customer?.salesman || "") as any)
+      updateField("classification" as keyof UnifiedCustomerFormData, String(customer?.classification || "") as any)
+      updateField("registration_date" as keyof UnifiedCustomerFormData, String(customer?.registration_date || customer?.account_opening_date || "") as any)
+      updateField("web_username" as keyof UnifiedCustomerFormData, String(customer?.web_username || "") as any)
+      updateField("web_password" as keyof UnifiedCustomerFormData, String(customer?.web_password || "") as any)
+      updateField("transaction_notes" as keyof UnifiedCustomerFormData, String(customer?.transaction_notes || "") as any)
+      updateField("general_notes" as keyof UnifiedCustomerFormData, String(customer?.general_notes || "") as any)
+      updateField("tax_number" as keyof UnifiedCustomerFormData, String(customer?.tax_number || "") as any)
+      updateField("commercial_registration" as keyof UnifiedCustomerFormData, String(customer?.commercial_registration || "") as any)
+      updateField("credit_limit" as keyof UnifiedCustomerFormData, String(customer?.credit_limit || "") as any)
+      updateField("payment_terms" as keyof UnifiedCustomerFormData, String(customer?.payment_terms || "") as any)
+      updateField("discount_percentage" as keyof UnifiedCustomerFormData, String(customer?.discount_percentage || "") as any)
+      updateField("pricecategory" as keyof UnifiedCustomerFormData, Number(customer?.pricecategory || 0) as any)
+      updateField("account_id" as keyof UnifiedCustomerFormData, customer?.account_id ?? null as any)
+      updateField("father_id" as keyof UnifiedCustomerFormData, String(customer?.father_id || "") as any)
+      updateField("finanical_list_id" as keyof UnifiedCustomerFormData, String(customer?.finanical_list_id || "1") as any)
+      updateField("currency_id" as keyof UnifiedCustomerFormData, String(customer?.currency_id || "") as any)
+      updateField("allow_trans_with_diff_curr" as keyof UnifiedCustomerFormData, String(customer?.allow_trans_with_diff_curr ?? "0") as any)
+      updateField("iscalc_curr_diff_rates" as keyof UnifiedCustomerFormData, Boolean(customer?.iscalc_curr_diff_rates) as any)
+      updateField("voucherType" as keyof UnifiedCustomerFormData, Array.isArray(customer?.voucherType) ? customer.voucherType : [] as any)
+      updateField("cost_centers" as keyof UnifiedCustomerFormData, nextCostCenterAssignments as any)
+      updateField("stop_transactions" as keyof UnifiedCustomerFormData, nextStopTransactions as any)
+
+      if (voucherTypes.length > 0) {
+        setStopTransactionRows(buildStopTransactionRows(voucherTypes, nextStopTransactions))
+      }
+
+      if ((costCenterTypes.length > 0 || costCenters.length > 0) && Array.isArray(nextCostCenterAssignments)) {
+        setCostCenterTypes(buildCostCenterRows(costCenterTypes, nextCostCenterAssignments, costCenters))
+      }
+
+      if (Array.isArray(customer?.account_classifications) && classificationTypes.length > 0) {
+        const mappedRows = classificationTypes.map((type: any) => {
+          const matched = (customer.account_classifications as any[]).find((item: any) => Number(item.classification_type_id) === Number(type.id))
+          return {
+            id: Number(type.id),
+            name: type.name ?? "",
+            classification_id: matched?.classification_id ?? null,
+            classification_name: matched?.classification_name ?? "",
+          }
+        })
+        setClassificationRows(mappedRows)
+      }
+    },
+    [buildCostCenterRows, buildStopTransactionRows, costCenterTypes, costCenters, classificationTypes, updateField, voucherTypes],
+  )
+
   const reset_fields = useCallback(
-    async (definitions?: { voucherTypes: any[]; sortedClassificationTypes: any[]; costCenterTypes?: any[]; costCenters?: any[] }) => {
+    async (
+      definitions?: { voucherTypes: any[]; sortedClassificationTypes: any[]; costCenterTypes?: any[]; costCenters?: any[] },
+      options?: { preserveCode?: string },
+    ) => {
       const voucherTypesSource = definitions?.voucherTypes ?? voucherTypes
       const classificationTypesSource = definitions?.sortedClassificationTypes ?? classificationTypes
       const costCenterTypesSource = definitions?.costCenterTypes ?? costCenterTypes
       const costCentersSource = definitions?.costCenters ?? costCenters
-      const nextCustomerCode = await generateCustomerCode()
+      const preservedCode = options?.preserveCode ? adjustCustomerCode(options.preserveCode) : ""
+      const nextCustomerCode = preservedCode || (await generateCustomerCode())
       const nextCostCenterRows = buildCostCenterRows(costCenterTypesSource, (formData as any).cost_centers || [], costCentersSource)
 
       updateField("id" as keyof UnifiedCustomerFormData, 0 as any)
@@ -442,6 +531,8 @@ export default function UnifiedCustomers({
       updateField("allow_trans_with_diff_curr" as keyof UnifiedCustomerFormData, "0" as any)
       updateField("iscalc_curr_diff_rates" as keyof UnifiedCustomerFormData, false as any)
       updateField("voucherType" as keyof UnifiedCustomerFormData, [] as any)
+      updateField("cost_centers" as keyof UnifiedCustomerFormData, [] as any)
+      updateField("stop_transactions" as keyof UnifiedCustomerFormData, [] as any)
 
       setActiveTab("address-location")
       setFatherAccountCode("")
@@ -489,7 +580,50 @@ export default function UnifiedCustomers({
         })),
       )
     },
-    [buildCostCenterRows, buildStopTransactionRows, classificationTypes, costCenterTypes, costCenters, focusCustomerName, formData, generateCustomerCode, onClassificationRowsChange, updateField, voucherTypes],
+    [adjustCustomerCode, buildCostCenterRows, buildStopTransactionRows, classificationTypes, costCenterTypes, costCenters, focusCustomerName, formData, generateCustomerCode, onClassificationRowsChange, updateField, voucherTypes],
+  )
+
+  const handleCustomerSelect = useCallback(
+    async (customer: any) => {
+      if (!customer?.id) return
+      applyCustomerRecord(customer)
+      await onCustomerSelect?.(customer)
+    },
+    [applyCustomerRecord, onCustomerSelect],
+  )
+
+  const handleCustomerCodeBlur = useCallback(
+    async (value: string) => {
+      const adjustedCode = adjustCustomerCode(value)
+      if (!adjustedCode) return
+
+      updateField("customer_code" as keyof UnifiedCustomerFormData, adjustedCode as any)
+
+      try {
+        const response = await fetch(`/api/customers/by-code/${encodeURIComponent(adjustedCode)}`)
+        if (!response.ok) {
+          await reset_fields(undefined, { preserveCode: adjustedCode })
+          return
+        }
+
+        const data = await response.json()
+        if (data?.found && data.customer) {
+          applyCustomerRecord(data.customer)
+          setCustomerActionError("")
+          setCustomerActionMessage("تم العثور على الزبون")
+        } else {
+          await reset_fields(undefined, { preserveCode: adjustedCode })
+          setCustomerActionError("لم يتم العثور على زبون بهذا الرقم")
+          setCustomerActionMessage("")
+        }
+      } catch (error) {
+        console.error("Error searching customer by code in UnifiedCustomers:", error)
+        setCustomerActionError("حدث خطأ أثناء البحث عن الزبون")
+      } finally {
+        await onCustomerCodeBlur?.(adjustedCode)
+      }
+    },
+    [adjustCustomerCode, applyCustomerRecord, onCustomerCodeBlur, reset_fields, updateField],
   )
 
   useEffect(() => {
@@ -584,15 +718,17 @@ export default function UnifiedCustomers({
     const serializedRows = JSON.stringify(costCenterTypes)
     if (serializedRows === lastCostCenterRowsSentRef.current) return
     lastCostCenterRowsSentRef.current = serializedRows
+    updateField("cost_centers" as keyof UnifiedCustomerFormData, costCenterTypes as any)
     onCostCenterRowsChangeRef.current?.(costCenterTypes)
-  }, [costCenterTypes])
+  }, [costCenterTypes, updateField])
 
   useEffect(() => {
     const serializedRows = JSON.stringify(stopTransactionRows)
     if (serializedRows === lastStopTransactionRowsSentRef.current) return
     lastStopTransactionRowsSentRef.current = serializedRows
+    updateField("stop_transactions" as keyof UnifiedCustomerFormData, stopTransactionRows as any)
     onStopTransactionRowsChangeRef.current?.(stopTransactionRows)
-  }, [stopTransactionRows])
+  }, [stopTransactionRows, updateField])
 
   const visibleStopTransactionRows = useMemo(() => {
     const hiddenNames = ["طلبية مبيعات", "طلبية مشتريات", "إرسالية مبيعات", "إرسالية مشتريات"]
@@ -1229,7 +1365,7 @@ export default function UnifiedCustomers({
         type={isSupplier ? 2 : 1}
         vch_type={0}
         onClose={() => setShowCustomerSearch(false)}
-        onSelect={onCustomerSelect || (() => undefined)}
+        onSelect={handleCustomerSelect}
       />
 
       <UniversalToolbar
@@ -1269,7 +1405,7 @@ export default function UnifiedCustomers({
                   value={formData.customer_code}
                   onChange={(e) => updateField("customer_code", e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))}
                   onBlur={async (e) => {
-                    await onCustomerCodeBlur?.(e.target.value)
+                    await handleCustomerCodeBlur(e.target.value)
                   }}
                   className="text-right"
                   placeholder={isSupplier ? "رقم المورد" : "رقم الزبون"}

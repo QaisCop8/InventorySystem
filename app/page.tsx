@@ -56,6 +56,7 @@ import { ThemeCustomization } from "@/components/settings/theme-customization"
 import { Definitions } from "@/components/settings/definitions"
 import FontSettings from "@/components/settings/font-settings"
 import QADashboard from "@/components/qa-dashboard"
+import WelcomeDashboard from "@/components/dashboard/welcome-dashboard"
 import PervasiveSettings from "@/app/settings/pervasive/page"
 import { OrderMigrate } from "@/components/Migration/orders-migration"
 import  {OrderManagement} from "@/components/orders/order-management"
@@ -95,6 +96,7 @@ const componentMap: Record<string, React.ComponentType<any>> = {
   "user-settings": UserSettings,
   "font-settings": FontSettings,
   "qa-dashboard": QADashboard,
+  "home-dashboard": WelcomeDashboard,
   "pervasive-settings": PervasiveSettings,
   "customer-portal-admin": CustomerPortalAdmin,
   "ai-assistant": AIChat,
@@ -142,26 +144,11 @@ export default function HomePage() {
     }
 
     if (!activeSection && windows.filter((w) => w.type === "tab").length === 0) {
-      return (
-        <div className="flex items-center justify-center h-full" dir="rtl">
-          <div className="text-center space-y-4 max-w-md">
-            <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center mx-auto">
-              <svg viewBox="0 0 24 24" className="h-12 w-12 text-primary" aria-hidden="true">
-                <path
-                  d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3zm0 2.3L6 8.2v7.6l6 2.9 6-2.9V8.2l-6-2.9z"
-                  fill="currentColor"
-                />
-                <path d="M12 8.8l3.4 1.9v3.8L12 16.4l-3.4-1.9v-3.8L12 8.8z" fill="currentColor" opacity="0.6" />
-              </svg>
-            </div>
-            <h2 className="text-3xl font-bold text-foreground">Welcome to أساس (Asas) Accounting System</h2>
-            <p className="text-muted-foreground text-lg">اختر قسماً من القائمة الجانبية للبدء في العمل</p>
-            <div className="pt-4 space-y-2 text-sm text-muted-foreground">
+      return <WelcomeDashboard onOpenSection={handleSectionChange} />
+    }
 
-            </div>
-          </div>
-        </div>
-      )
+    if (activeSection === "home-dashboard") {
+      return <WelcomeDashboard onOpenSection={handleSectionChange} />
     }
 
     if (activeSection) {
@@ -187,14 +174,7 @@ export default function HomePage() {
       )
     }
 
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <h2 className="text-2xl font-semibold mb-2">قريباً</h2>
-          <p className="text-muted-foreground">هذا القسم قيد التطوير</p>
-        </div>
-      </div>
-    )
+    return <WelcomeDashboard onOpenSection={handleSectionChange} />
   }
   /*useEffect(() => {
   try {
@@ -318,6 +298,11 @@ useEffect(() => {
   const handleSectionChange = (section: string) => {
     console.log("[v0] Section change requested:", section)
 
+    if (section === "home-dashboard" || section === "dashboard") {
+      setActiveSection("home-dashboard")
+      return
+    }
+
     const shouldOpenInTab = [
       "sales-orders",
       "sale-invoices",
@@ -355,7 +340,7 @@ useEffect(() => {
         type: "tab",
       })
     } else {
-      setActiveSection(section)
+      setActiveSection(componentMap[section] ? section : "home-dashboard")
     }
   }
 

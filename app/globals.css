@@ -476,7 +476,7 @@
     flex-direction: row-reverse !important;
     direction: rtl !important;
     justify-content: flex-start !important;
-    align-items: center !important;
+    align-items: flex-start !important;
     gap: 0.75rem !important;
     padding: 12px 16px !important;
     color: #1f2937 !important;
@@ -484,6 +484,7 @@
     text-align: right !important;
     text-decoration: none !important;
     border-bottom: none !important;
+    white-space: normal !important;
   }
 
   .invoice-currency-dropdown-panel .p-multiselect-item,
@@ -493,7 +494,10 @@
   }
 
   .invoice-currency-dropdown-panel .p-multiselect-item > :not(.p-checkbox) {
-    width: 100% !important;
+    order: 1 !important;
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    width: auto !important;
   }
 
   .invoice-currency-dropdown-panel .p-multiselect-item:hover,
@@ -520,10 +524,12 @@
     align-items: center !important;
   }
 
+  .invoice-currency-dropdown-panel .p-multiselect-item .p-multiselect-checkbox,
   .invoice-currency-dropdown-panel .p-multiselect-item .p-checkbox,
   .invoice-currency-dropdown-panel .p-multiselect-item .p-checkbox-box,
   .invoice-currency-dropdown-panel .p-multiselect-item .p-checkbox .p-checkbox-icon {
     order: 0 !important;
+    flex: 0 0 auto !important;
     margin-right: 0 !important;
     margin-left: 0 !important;
     margin-inline-start: 0 !important;
@@ -533,8 +539,12 @@
     direction: rtl !important;
   }
 
-  .invoice-currency-dropdown-panel .p-multiselect-item > :not(.p-checkbox) {
+  .invoice-currency-dropdown-panel .p-multiselect-item > :not(.p-multiselect-checkbox) {
     order: 1 !important;
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    width: auto !important;
+    white-space: normal !important;
   }
 
   .invoice-currency-dropdown-panel .p-multiselect-item:hover {

@@ -1896,18 +1896,6 @@ export default function Customers({ isSupplier }: CustomersProps) {
               onReport={() => console.log("Generate customer report")}
               onExportExcel={() => console.log("Export to Excel")}
               onPrint={() => console.log("Print customer")}
-              onCustomerSelect={(customer) => {
-                setFormData((prev) => ({
-                  ...prev,
-                  id: Number(customer.id),
-                  account_id: customer.account_id ?? null,
-                }))
-                loadData("ById", customer.id)
-              }}
-              onClassificationRowsChange={setCustomerAccountClassifications}
-              onCostCenterRowsChange={(rows) => setFormData((prev) => ({ ...prev, cost_centers: rows }))}
-              onStopTransactionRowsChange={(rows) => setFormData((prev) => ({ ...prev, stop_transactions: rows }))}
-              onCustomerCodeBlur={handleCustomerBlur}
               customerNameRef={customer_name}
             />
           </div>

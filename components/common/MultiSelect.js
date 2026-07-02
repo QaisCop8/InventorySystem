@@ -107,7 +107,7 @@ export default class MultiSelect extends React.Component {
               title={this.props.tooltip}
               className={`${styles.multiselect} invoice-currency-dropdown w-full ${this.props.className || this.props.innerClass || ''}`.trim()}
               {...this.props}
-              appendTo={this.props.appendTo ?? this.state.appendToContainer ?? 'self'}
+              appendTo={this.props.appendTo ?? this.state.appendToContainer}
               // showSelectAll={this.props.options&&this.props.options.length>SELECTALLMAXLIMIT && !this.props.showSelectAllAlways ?false:true}
               tooltipOptions={{ position: 'bottom', style: { direction: 'rtl' } }}
               panelClassName={panelClassName}
@@ -158,7 +158,7 @@ export default class MultiSelect extends React.Component {
             title={this.props.tooltip}
             className={`${styles.multiselect} invoice-currency-dropdown w-full ${this.props.className || this.props.innerClass || ''}`.trim()}
             {...this.props}
-            appendTo={this.props.appendTo ?? this.state.appendToContainer ?? 'self'}
+            appendTo={this.props.appendTo ?? this.state.appendToContainer}
             filter={this.props.showFilter ?? this.props.filter}
             showSelectAll={this.props.showCheck ?? this.props.showSelectAll}
             display={this.props.showMultiSelect ? 'chip' : this.props.display}
