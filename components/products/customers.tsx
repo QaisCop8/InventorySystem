@@ -171,7 +171,7 @@ interface NotificationSettings {
 export default function Customers({ isSupplier }: CustomersProps) {
   const [customers, setCustomers] = useState<Customer[]>([])
   const [isloading, setIsLoading] = useState(false)
-  const toast = useRef(null);
+  const toast = useRef<Toast | null>(null)
   const [currentIndex, setCurrentIndex] = useState(0)
   const [showCustomerDialog, setShowCustomerDialog] = useState(false)
   const [showNewCustomerDialog, setShowNewCustomerDialog] = useState(false)
@@ -187,8 +187,6 @@ export default function Customers({ isSupplier }: CustomersProps) {
   const customer_name = useRef<HTMLInputElement>(null);
   const [showCustomerSearch, setShowCustomerSearch] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
-  const [showUnsaved, setShowUnsaved] = useState(false);
-  const [nextFunction, setNextFunction] = useState<(() => void) | null>(null);
   const bookGridRef = useRef<wjGrid.FlexGrid>(null);
   const [newUserData, setNewUserData] = useState({
     username: "",
@@ -771,69 +769,7 @@ export default function Customers({ isSupplier }: CustomersProps) {
 
   });
   const [currentCustomerId, setCurrentCustomerId] = useState<number>(0);
-
-  const loadData = async (
-    navigationType: "first" | "previous" | "next" | "last" | "ById" | "ByIdEdit",
-    customerId?: number,
-    isSupplier: boolean = false,
-    checkUnsaved: boolean = true
-  ) => {
-    const currentHash = getFormDataHash(formData);
-
-    if (false && checkUnsaved && currentHash !== initialHash.current && initialHash.current !== 0) {
-      setShowUnsaved(true);
-      setNextFunction(() => () => loadData(navigationType, customerId, isSupplier, false));
-      return;
-    }
-
-    try {
-      let dont_check = false;
-      if (navigationType === "ByIdEdit") {
-        dont_check = true;
-        navigationType = "ById"
-      }
-      const url = new URL(`/api/customer/navigations/${navigationType}`, location.origin);
-
-      // Determine ID for navigation
-      if (navigationType === "ById" && customerId) {
-        url.searchParams.set("id", String(customerId));
-      } else if (navigationType === "previous" || navigationType === "next") {
-        url.searchParams.set("currentId", currentCustomerId.toString());
-      }
-
-      // Pass type (customer/supplier)
-      url.searchParams.set("type", isSupplier ? "2" : "1");
-
-      const res = await fetch(url.toString());
-      console.log("res res ", url)
-      const customer = await res.json();
-      console.log("navigationType ", navigationType)
-      if (!customer.id || (customer.id === currentCustomerId && !dont_check)) {
-
-        let msg = navigationType === "previous" || navigationType === "first"
-          ? 'بداية السجلات'
-          : 'نهاية السجلات';
-        Util.showErrorToast(toast.current, msg);
-        return;
-      }
-
-
-      const newFormData = {
-        ...customer
-      };
-      updateFormData(customer as any)
-      console.log("newFormData ", newFormData)
-
-      setTimeout(() => {
-        customer_name.current?.focus();
-        initialHash.current = getFormDataHash(formData)
-        setCurrentCustomerId(customer.id)
-      }, 200);
-
-    } catch (err) {
-      console.error("Error loading customer:", err);
-    }
-  };
+  const unifiedCustomerLoadDataRef = useRef<((navigationType: "first" | "previous" | "next" | "last" | "ById" | "ByIdEdit", customerId?: number, isSupplier?: boolean, checkUnsaved?: boolean) => Promise<void>) | null>(null);
 
   const handleFirst = useCallback(() => {
     if (customers.length > 0) {
@@ -1099,7 +1035,7 @@ export default function Customers({ isSupplier }: CustomersProps) {
           ...prev,
           id: Number(data.customer.id), // use customer.id
         }));
-        loadData("ById", data.customer.id);
+        await unifiedCustomerLoadDataRef.current?.("ById", data.customer.id, isSupplier);
 
       } else {
         // Reset the form since customer not found
@@ -1234,7 +1170,7 @@ export default function Customers({ isSupplier }: CustomersProps) {
 
       if (savedCustomer?.data?.id) {
         setCurrentCustomerId(Number(savedCustomer.data.id));
-        await loadData("ById", savedCustomer.data.id);
+        await unifiedCustomerLoadDataRef.current?.("ById", savedCustomer.data.id, isSupplier);
       } else {
         reset_fields();
       }
@@ -1333,33 +1269,19 @@ export default function Customers({ isSupplier }: CustomersProps) {
 
 
 
-  const initialHash = useRef(0);
-  const hashCode = (str: string) => {
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-      const chr = str.charCodeAt(i);
-      hash = (hash << 5) - hash + chr;
-      hash |= 0; // Convert to 32bit integer
-    }
-    return hash;
-  };
-  const getFormDataHash = (data: any) => {
-    return hashCode(JSON.stringify(data));
-  };
-
-  /*const handleNewCustomer = useCallback(() => {
+  const handleNewCustomer = useCallback((openDialog = true) => {
     console.log("AAAAa")
-    setLoading(true)
-    updateFormData(null)
     setEditingCustomer(false)
     editingCustomerRef.current = false
     setValidationErrors({})
-    setShowNewCustomerDialog(true)
+    if (openDialog) {
+      setShowNewCustomerDialog(true)
+    }
+    updateFormData(null)
     generateCustomerNumber()
-    setLoading(false)
-    customer_name.current?.focus();
+    customer_name.current?.focus()
   }, [updateFormData, generateCustomerNumber])
-*/
+
   const reset_fields = async (from_code = 0, code = "", showLoading = true) => {
     if (showLoading) setIsLoading(true)
     updateFormData(null)
@@ -1377,23 +1299,8 @@ export default function Customers({ isSupplier }: CustomersProps) {
 
     setTimeout(() => {
       customer_name.current?.focus();
-      initialHash.current = getFormDataHash(formData)
-
     }, 200);
     setCurrentCustomerId(0)
-  }
-  const handleNewCustomer = async (checkUnsaved: any) => {
-
-    const currentHash = getFormDataHash(formData);
-    if (checkUnsaved === true && currentHash !== initialHash.current) {
-      setShowUnsaved(true)
-      setNextFunction(() => () => reset_fields());
-      return
-    }
-    setShowNewCustomerDialog(true)
-    setCustomerAccountClassifications([])
-    await reset_fields(0, "", false)
-
   }
 
   const fetch_Definitions = async () => {
@@ -1447,11 +1354,11 @@ export default function Customers({ isSupplier }: CustomersProps) {
       setShowNewCustomerDialog(true)
       console.log("customer customer ", customer)
       setTimeout(() => {
-        loadData("ByIdEdit", customer.id);
+        void unifiedCustomerLoadDataRef.current?.("ByIdEdit", customer.id, isSupplier)
       }, 200);
 
     },
-    [updateFormData],
+    [updateFormData, isSupplier],
   )
 
   const handleManagePortal = useCallback(
@@ -1554,21 +1461,6 @@ export default function Customers({ isSupplier }: CustomersProps) {
         message="هل تريد حذف هذا السجل؟"
       />
 
-      <ConfirmDialogYesNo
-        visible={showUnsaved}
-        onConfirm={() => { setShowUnsaved(false); handleSaveCustomer(formData) }}
-        onCancel={async () => {
-          setShowUnsaved(false); popupHasClosed();
-          if (nextFunction) {
-            nextFunction();
-            setNextFunction(null);
-
-          }
-        }}
-        message="تم تعديل السجل هل تريد الحفظ؟"
-        onBack={() => { setShowUnsaved(false); popupHasClosed(); }}
-        showBack={true}
-      />
       {showSuccessMessage && (
         <div className="fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg flex items-center gap-2 z-50">
           <CheckCircle className="h-4 w-4" />
@@ -1886,10 +1778,7 @@ export default function Customers({ isSupplier }: CustomersProps) {
               currentIndex={currentIndex}
               totalRecords={customers.length}
               isSaving={saving}
-              onFirst={async () => { await loadData('first', 0, isSupplier) }}
-              onPrevious={async () => { await loadData('previous', 0, isSupplier) }}
-              onNext={async () => { await loadData('next', 0, isSupplier) }}
-              onLast={async () => { await loadData('last', 0, isSupplier) }}
+              loadDataRef={unifiedCustomerLoadDataRef}
               onNew={() => handleNewCustomer(true)}
               onSave={fetchCustomers}
               onDelete={fetchCustomers}
@@ -1897,6 +1786,9 @@ export default function Customers({ isSupplier }: CustomersProps) {
               onExportExcel={() => console.log("Export to Excel")}
               onPrint={() => console.log("Print customer")}
               customerNameRef={customer_name}
+              customers={customers}
+              setCurrentIndex={setCurrentIndex}
+              setCurrentCustomerId={setCurrentCustomerId}
             />
           </div>
         </DialogContent>

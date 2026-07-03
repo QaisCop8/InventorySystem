@@ -4,10 +4,6 @@ import type React from "react"
 import { useState, useEffect } from "react"
 import { ProtectedRoute } from "@/components/auth/protected-route"
 import { ERPLayout } from "@/components/erp-layout"
-import { useWindowManager } from "@/contexts/window-manager-context"
-import { TabBar } from "@/components/window-manager/tab-bar"
-import { WindowRenderer } from "@/components/window-manager/window-renderer"
-import { Taskbar } from "@/components/window-manager/taskbar"
 
 
 // Import all components
@@ -108,7 +104,6 @@ const componentMap: Record<string, React.ComponentType<any>> = {
 
 export default function HomePage() {
   const [activeSection, setActiveSection] = useState<string | null>(null)
-  const { windows, activeWindowId, openWindow } = useWindowManager()
 
   useEffect(() => {
     const removeWijmoEval = () => {
@@ -131,19 +126,7 @@ export default function HomePage() {
     return () => observer.disconnect();
   }, []);
   const renderContent = () => {
-    const activeTabWindow = windows.find((w) => w.id === activeWindowId && w.type === "tab")
-    if (activeTabWindow) {
-      const Component = componentMap[activeTabWindow.component]
-      if (Component) {
-        // Runtime sanity check: ensure we're rendering a component, not a module object
-        if (typeof Component !== 'function') {
-          console.error('[v0] Invalid component type detected for', activeTabWindow.component, Component)
-        }
-        return <Component {...(activeTabWindow.data || {})} />
-      }
-    }
-
-    if (!activeSection && windows.filter((w) => w.type === "tab").length === 0) {
+    if (!activeSection) {
       return <WelcomeDashboard onOpenSection={handleSectionChange} />
     }
 
@@ -176,125 +159,39 @@ export default function HomePage() {
 
     return <WelcomeDashboard onOpenSection={handleSectionChange} />
   }
-  /*useEffect(() => {
-  try {
-    // prevent reopening
-    const alreadyHandled = sessionStorage.getItem(
-      "default_screen_opened"
-    );
-    console.log("alreadyHandled ",alreadyHandled)
-    if (alreadyHandled === "1") return;
+  const [user, setUser] = useState<any>(null)
 
+  useEffect(() => {
     const storedUser =
       localStorage.getItem("erp_user") ||
-      sessionStorage.getItem("erp_user");
+      sessionStorage.getItem("erp_user")
 
-    if (!storedUser) return;
+    if (storedUser) {
+      setUser(JSON.parse(storedUser))
+    }
+  }, [])
 
-    const user = JSON.parse(storedUser);
+  useEffect(() => {
+    const handler = () => {
+      const storedUser =
+        localStorage.getItem("erp_user") ||
+        sessionStorage.getItem("erp_user")
 
-    const defaultScreen =
-      user?.dashboard_layout?.default_screen;
+      if (!storedUser) return
 
-    if (!defaultScreen) return;
+      const user = JSON.parse(storedUser)
+      const defaultScreen = user?.dashboard_layout?.default_screen
 
-    const alreadyOpened = windows.some(
-      (w) => w.component === defaultScreen
-    );
+      if (!defaultScreen || defaultScreen === "dashboard") return
 
-    if (!alreadyOpened) {
-
-      const sectionTitles: Record<string, string> = {
-        "sales-orders": "طلبيات المبيعات",
-        "sale-invoices": "فواتير المبيعات",
-        "purchase-orders": "طلبيات المشتريات",
-        products: "المنتجات",
-        customers: "العملاء",
-        suppliers: "الموردين",
-        "order-reports": "تقارير الطلبيات",
-        "product-reports": "تقارير المنتجات",
-        "whatsapp-notifications": "إعدادات إشعارات WhatsApp",
-        "ai-assistant": "المساعد الذكي",
-        "smart-analytics": "التحليلات الذكية",
-        "smart-inventory": "توصيات المخزون الذكية",
-        "order-management": "إدارة الطلبات",
-        "orders-migration": "ترحيل الطلبيات",
-        "batch-movements":"معالجة حركات الرقم"
-      };
-
-      openWindow({
-        title: sectionTitles[defaultScreen] || defaultScreen,
-        component: defaultScreen,
-        type: "tab",
-      });
+      setActiveSection(componentMap[defaultScreen] ? defaultScreen : "home-dashboard")
     }
 
-    // mark as handled
-    sessionStorage.setItem("default_screen_opened", "1");
+    window.addEventListener("OPEN_DEFAULT_SCREEN", handler)
 
-  } catch (err) {
-    console.error("Failed to open default screen", err);
-  }
-}, []);*/
-const [user, setUser] = useState<any>(null);
-useEffect(() => {
-  const storedUser =
-    localStorage.getItem("erp_user") ||
-    sessionStorage.getItem("erp_user");
+    return () => window.removeEventListener("OPEN_DEFAULT_SCREEN", handler)
+  }, [user])
 
-  if (storedUser) {
-    setUser(JSON.parse(storedUser));
-  }
-}, []);
-useEffect(() => {
-  const handler = () => {
-    const storedUser =
-      localStorage.getItem("erp_user") ||
-      sessionStorage.getItem("erp_user");
-
-    if (!storedUser) return;
-    const user = JSON.parse(storedUser);
-    const defaultScreen =
-      user?.dashboard_layout?.default_screen;
-    
-
-    if (!defaultScreen) return;
-
-    const alreadyOpened = windows.some(
-      (w) => w.component === defaultScreen
-    );
-    const sectionTitles: Record<string, string> = {
-        "sales-orders": "طلبيات المبيعات",
-        "sale-invoices": "فواتير المبيعات",
-        "purchase-orders": "طلبيات المشتريات",
-        products: "الأصناف",
-        customers: "الزبائن",
-        suppliers: "الموردين",
-        "order-reports": "تقارير الطلبيات",
-        "product-reports": "تقارير المنتجات",
-        "whatsapp-notifications": "إعدادات إشعارات WhatsApp",
-        "ai-assistant": "المساعد الذكي",
-        "smart-analytics": "التحليلات الذكية",
-        "smart-inventory": "توصيات المخزون الذكية",
-         "order-management": "إدارة الطلبات",
-        "orders-migration": "ترحيل الطلبيات",
-        "accounts": "الحسابات المحاسبية",
-        "batch-movements":"معالجة الرقم التشغيلي"
-      }
-    if (!alreadyOpened && defaultScreen !== "dashboard") {
-      openWindow({
-        title: sectionTitles[defaultScreen],
-        component: defaultScreen,
-        type: "tab",
-      });
-    }
-  };
-
-  window.addEventListener("OPEN_DEFAULT_SCREEN", handler);
-
-  return () =>
-    window.removeEventListener("OPEN_DEFAULT_SCREEN", handler);
-}, [user, windows]);
   const handleSectionChange = (section: string) => {
     console.log("[v0] Section change requested:", section)
 
@@ -303,54 +200,13 @@ useEffect(() => {
       return
     }
 
-    const shouldOpenInTab = [
-      "sales-orders",
-      "sale-invoices",
-      "purchase-orders",
-      "products",
-      "customers",
-      "suppliers",
-      "order-reports",
-      "product-reports",
-      "whatsapp-notifications",
-      "ai-assistant",
-      "smart-analytics",
-      "smart-inventory",
-    ].includes(section)
-
-    if (shouldOpenInTab) {
-      const sectionTitles: Record<string, string> = {
-        "sales-orders": "طلبيات المبيعات",
-        "sale-invoices": "فواتير المبيعات",
-        "purchase-orders": "طلبيات المشتريات",
-        products: "المنتجات",
-        customers: "العملاء",
-        suppliers: "الموردين",
-        "order-reports": "تقارير الطلبيات",
-        "product-reports": "تقارير المنتجات",
-        "whatsapp-notifications": "إعدادات إشعارات WhatsApp",
-        "ai-assistant": "المساعد الذكي",
-        "smart-analytics": "التحليلات الذكية",
-        "smart-inventory": "توصيات المخزون الذكية",
-      }
-      
-      openWindow({
-        title: sectionTitles[section] || section,
-        component: section,
-        type: "tab",
-      })
-    } else {
-      setActiveSection(componentMap[section] ? section : "home-dashboard")
-    }
+    setActiveSection(componentMap[section] ? section : "home-dashboard")
   }
 
   return (
     <ProtectedRoute>
       <ERPLayout activeSection={activeSection || ""} onSectionChange={handleSectionChange}>
-        <TabBar />
         <div className="flex-1 overflow-auto">{renderContent()}</div>
-        <WindowRenderer />
-        <Taskbar />
       </ERPLayout>
     </ProtectedRoute>
   )

@@ -87,19 +87,17 @@ export function Sidebar({
   }
 
   const handleItemClick = (item: any) => {
-    // OPEN ALL ITEMS IN TAB
-    openWindow({
-      title: item.title,
-      component: item.section,
-      type: "tab",
-      size: { width: 1000, height: 700 },
-    })
+    if (item.submenu) {
+      toggleMenu(item.id)
+      return
+    }
+
+    onSectionChange(item.section)
   }
 
   const handleContextMenu = (e: React.MouseEvent<HTMLButtonElement>, item: any) => {
     e.preventDefault()
-    const url = getSectionUrl(item.section)
-    window.open(url, "_blank")
+    onSectionChange(item.section)
   }
 
   const menuItems = [
@@ -110,7 +108,6 @@ export function Sidebar({
     { id: "smart-inventory", title: "توصيات المخزون الذكية", icon: Lightbulb, section: "smart-inventory" },
     { id: "inventory-analytics", title: "تحليلات المخزون", icon: TrendingUp, section: "inventory-analytics" },
     { id: "order-tracking", title: "متابعة الطلبيات", icon: GitBranch, section: "order-tracking" },
-    { id: "exchange-rates", title: "أسعار صرف العملات", icon: GitBranch, section: "exchange-rates" },
     //{ id: "lot-opener", title: "فتح الدفعات", icon: Unlock, section: "lot-opener" },
     {
       id: "definitions",
@@ -123,6 +120,7 @@ export function Sidebar({
         { title: "الأصناف والخدمات", section: "products", icon: Package },
         { title: "مجموعات الأصناف", section: "product-groups", icon: Package },
         { title: "التعريفات", section: "definitions", icon: Settings },
+        { title: "العملات", section: "exchange-rates", icon: DollarSign },
       ],
     },
     {

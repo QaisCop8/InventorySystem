@@ -17,7 +17,7 @@ import DataGridView from "../common/DataGridView"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Plus, AlertCircle } from "lucide-react"
-import { RefObject, useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { MutableRefObject, RefObject, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Dropdown as PrimeDropdown } from "primereact/dropdown"
 import ProgressSpinner from "../ProgressSpinner/ProgressSpinner"
 interface Classification {
@@ -105,14 +105,14 @@ interface UnifiedCustomersProps {
   classifications?: Classification[]
   pricecategory?: PriceCategory[]
   salesmen?: Salesman[]
+  customers?: any[]
   currentCustomerId?: number
   currentIndex?: number
   totalRecords?: number
   isSaving?: boolean
-  onFirst?: () => void
-  onPrevious?: () => void
-  onNext?: () => void
-  onLast?: () => void
+  loadDataRef?: MutableRefObject<((navigationType: "first" | "previous" | "next" | "last" | "ById" | "ByIdEdit", customerId?: number, isSupplier?: boolean, checkUnsaved?: boolean) => Promise<void>) | null>
+  setCurrentIndex?: (index: number) => void
+  setCurrentCustomerId?: (id: number) => void
   onNew?: () => void
   onReport?: () => void
   onExportExcel?: () => void
@@ -186,10 +186,10 @@ export default function UnifiedCustomers({
   currentIndex = 0,
   totalRecords = 0,
   isSaving = false,
-  onFirst = () => undefined,
-  onPrevious = () => undefined,
-  onNext = () => undefined,
-  onLast = () => undefined,
+  customers = [],
+  loadDataRef,
+  setCurrentIndex = () => undefined,
+  setCurrentCustomerId = () => undefined,
   onNew = () => undefined,
   onSave = () => undefined,
   onDelete,
@@ -213,11 +213,26 @@ export default function UnifiedCustomers({
   const [stopTransactionRows, setStopTransactionRows] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [showUnsaved, setShowUnsaved] = useState(false)
+  const [nextFunction, setNextFunction] = useState<(() => void) | null>(null)
   const [classificationTypes, setClassificationTypes] = useState<any[]>([])
   const [allClassifications, setAllClassifications] = useState<any[]>([])
   const [classificationRows, setClassificationRows] = useState<ClassificationTypeRow[]>([])
   const [showClassificationTypeForm, setShowClassificationTypeForm] = useState(false)
   const [showClassificationForm, setShowClassificationForm] = useState(false)
+  const initialHash = useRef(0)
+  const hashCode = (str: string) => {
+    let hash = 0
+    for (let i = 0; i < str.length; i++) {
+      const chr = str.charCodeAt(i)
+      hash = (hash << 5) - hash + chr
+      hash |= 0
+    }
+    return hash
+  }
+  const getFormDataHash = (data: any) => {
+    return hashCode(JSON.stringify(data))
+  }
   const [newClassificationTypeName, setNewClassificationTypeName] = useState("")
   const [newClassificationTypeId, setNewClassificationTypeId] = useState<string | null>(null)
   const [newClassificationName, setNewClassificationName] = useState("")
@@ -347,7 +362,7 @@ export default function UnifiedCustomers({
     })
   }, [])
 
-  const loadData = useCallback(async () => {
+  const fetchDefinitions = useCallback(async () => {
     setLoading(true)
     try {
       const [voucherTypesResponse, voucherBooksResponse, currenciesResponse, citiesResponse, costCenterTypesResponse, costCentersResponse, classTypesResponse, classificationsResponse] = await Promise.all([
@@ -600,9 +615,11 @@ export default function UnifiedCustomers({
       updateField("customer_code" as keyof UnifiedCustomerFormData, adjustedCode as any)
 
       try {
+        setLoading(true)
         const response = await fetch(`/api/customers/by-code/${encodeURIComponent(adjustedCode)}`)
         if (!response.ok) {
           await reset_fields(undefined, { preserveCode: adjustedCode })
+        
           return
         }
 
@@ -621,6 +638,7 @@ export default function UnifiedCustomers({
         setCustomerActionError("حدث خطأ أثناء البحث عن الزبون")
       } finally {
         await onCustomerCodeBlur?.(adjustedCode)
+        setLoading(false)
       }
     },
     [adjustCustomerCode, applyCustomerRecord, onCustomerCodeBlur, reset_fields, updateField],
@@ -666,7 +684,7 @@ export default function UnifiedCustomers({
     const init = async () => {
       try {
         setLoading(true)
-        const definitions = await loadData()
+        const definitions = await fetchDefinitions()
         await reset_fields(definitions)
       } catch (error) {
         console.error("Failed to initialize unified customers popup:", error)
@@ -676,7 +694,87 @@ export default function UnifiedCustomers({
     }
 
     void init()
-  }, [loadData, open, reset_fields])
+  }, [open, reset_fields, fetchDefinitions])
+
+  const loadData = useCallback(
+    async (
+      navigationType: "first" | "previous" | "next" | "last" | "ById" | "ByIdEdit",
+      customerId?: number,
+      isSupplierArg: boolean = false,
+      checkUnsaved: boolean = true,
+    ) => {
+      const currentHash = getFormDataHash(formData)
+
+      if (checkUnsaved && currentHash !== initialHash.current && initialHash.current !== 0) {
+        setShowUnsaved(true)
+        setNextFunction(() => () => loadData(navigationType, customerId, isSupplierArg, false))
+        return
+      }
+
+      try {
+        let dont_check = false
+        if (navigationType === "ByIdEdit") {
+          dont_check = true
+          navigationType = "ById"
+        }
+
+        const url = new URL(`/api/customer/navigations/${navigationType}`, location.origin)
+
+        if (navigationType === "ById" && customerId) {
+          url.searchParams.set("id", String(customerId))
+        } else if (navigationType === "previous" || navigationType === "next") {
+          url.searchParams.set("currentId", String(currentCustomerId))
+        }
+
+        url.searchParams.set("type", isSupplierArg ? "2" : "1")
+
+        const res = await fetch(url.toString())
+        const customer = await res.json()
+        if (!customer.id || (customer.id === currentCustomerId && !dont_check)) {
+          const msg = navigationType === "previous" || navigationType === "first" ? "بداية السجلات" : "نهاية السجلات"
+          setCustomerActionError(msg)
+          return
+        }
+
+        applyCustomerRecord(customer)
+
+        setTimeout(() => {
+          focusCustomerName()
+          initialHash.current = getFormDataHash(formData)
+          setCurrentCustomerId(customer.id)
+        }, 200)
+      } catch (err) {
+        console.error("Error loading customer:", err)
+      }
+    },
+    [applyCustomerRecord, currentCustomerId, focusCustomerName, formData, setCurrentCustomerId],
+  )
+
+  useEffect(() => {
+    if (loadDataRef) {
+      loadDataRef.current = loadData
+      return () => {
+        if (loadDataRef) loadDataRef.current = null
+      }
+    }
+    return undefined
+  }, [loadDataRef, loadData])
+
+  const handleFirst = useCallback(async () => {
+    await loadData("first", undefined, isSupplier)
+  }, [isSupplier, loadData])
+
+  const handlePrevious = useCallback(async () => {
+    await loadData("previous", undefined, isSupplier)
+  }, [isSupplier, loadData])
+
+  const handleNext = useCallback(async () => {
+    await loadData("next", undefined, isSupplier)
+  }, [isSupplier, loadData])
+
+  const handleLast = useCallback(async () => {
+    await loadData("last", undefined, isSupplier)
+  }, [isSupplier, loadData])
 
   useEffect(() => {
     if (!formData.id && !formData.currency_id && currencies.length > 0) {
@@ -1369,10 +1467,10 @@ export default function UnifiedCustomers({
       />
 
       <UniversalToolbar
-        onFirst={onFirst}
-        onPrevious={onPrevious}
-        onNext={onNext}
-        onLast={onLast}
+        onFirst={handleFirst}
+        onPrevious={handlePrevious}
+        onNext={handleNext}
+        onLast={handleLast}
         onNew={handleNew}
         onSave={handleSaveCustomer}
         onDelete={handleDeleteCustomerRequest}
