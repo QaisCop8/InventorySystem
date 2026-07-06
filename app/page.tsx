@@ -18,7 +18,7 @@ import dynamic from "next/dynamic"
 const SalesOrders = dynamic(() => import("@/components/orders/sales-orders").then(mod => mod.SalesOrders), { ssr: false })
 const SaleInvoices = dynamic(() => import("@/components/orders/sale-invoices").then(mod => mod.SaleInvoices), { ssr: false })
 const Products = dynamic(() => import("@/components/products/products").then(mod => mod.Products), { ssr: false })
-const Customers = dynamic(() => import("@/components/products/customers"), { ssr: false })
+import Customers from "@/components/products/customers"
 import ProductGroups from "@/components/products/product-groups"
 import { ExchangeRates } from "@/components/data/exchange-rates"
 import { BatchMovements } from "@/components/inventory/batch-movements"

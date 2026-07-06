@@ -14,21 +14,19 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Get settings
     const settingsResult = await sql`
-      SELECT 
-        account_prefix,
-        account_start
+      SELECT id, value
       FROM system_settings
-      LIMIT 1
+      WHERE id IN ('account_prefix', 'account_start')
     `
 
     let prefix = "A"
     let startNumber = 1
 
     if (settingsResult && settingsResult.length > 0) {
-      prefix = settingsResult[0].account_prefix || "A"
-      startNumber = settingsResult[0].account_start || 1
+      const settings = Object.fromEntries(settingsResult.map((row: any) => [row.id, row.value]))
+      prefix = settings.account_prefix || "A"
+      startNumber = settings.account_start || 1
     }
 
     // Get max account number - extract numeric part correctly for 8-char codes

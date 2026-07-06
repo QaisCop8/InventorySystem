@@ -35,14 +35,13 @@ export async function GET(request: NextRequest) {
 
     const settingsResult = await pool.query(
       `
-        SELECT invoice_prefix, invoice_start, order_prefix, order_start, purchase_prefix, purchase_start
+        SELECT id, value
         FROM system_settings
-        WHERE id = 1
-        LIMIT 1
+        WHERE id IN ('invoice_prefix', 'invoice_start', 'order_prefix', 'order_start', 'purchase_prefix', 'purchase_start')
       `,
     )
 
-    const settings = settingsResult.rows?.[0] ?? {}
+    const settings = Object.fromEntries((settingsResult.rows ?? []).map((row) => [row.id, row.value]))
     const configuredPrefix =
       vchType === 5
         ? settings.invoice_prefix
@@ -113,13 +112,12 @@ export async function GET(request: NextRequest) {
     const vchType = Number(searchParams.get("voucher_type") ?? searchParams.get("vch_type") ?? 5)
     const settingsResult = await pool.query(
       `
-        SELECT invoice_prefix, order_prefix, purchase_prefix
+        SELECT id, value
         FROM system_settings
-        WHERE id = 1
-        LIMIT 1
+        WHERE id IN ('invoice_prefix', 'order_prefix', 'purchase_prefix')
       `,
     )
-    const settings = settingsResult.rows?.[0] ?? {}
+    const settings = Object.fromEntries((settingsResult.rows ?? []).map((row) => [row.id, row.value]))
     const configuredPrefix =
       vchType === 5
         ? settings.invoice_prefix

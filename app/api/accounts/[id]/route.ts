@@ -381,6 +381,99 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
   }
 }
 
+export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+  try {
+    await ensureAccountsTable()
+    await ensureAccountRelatedTables()
+
+    const id = Number.parseInt(params.id, 10)
+    if (Number.isNaN(id)) {
+      return NextResponse.json({ error: "معرف غير صالح" }, { status: 400 })
+    }
+
+    const rows = await sql`
+      SELECT
+        a.id,
+        a.company_id,
+        a.code AS account_code,
+        a.type AS classification_type_id,
+        t.name AS classification_type_name,
+        a.name AS account_name,
+        a.name_lang2,
+        a.father_id AS parent_account_id,
+        pa.name AS parent_account_name,
+        a.level_no,
+        a.finanical_list_id,
+        a.finanical_list_assests_id,
+        a.finanical_list_liabilities_id,
+        a.finanical_list_income_id,
+        a.currency_id,
+        a.allow_trans_with_diff_curr,
+        a.iscalc_curr_diff_rates,
+        a.transaction_type,
+        a.transaction_type_action,
+        a.max_transaction_amount,
+        a.max_transaction_amount_action,
+        a.max_balance_amount,
+        a.max_balance_action,
+        a.budget_exceeding_perc,
+        a.budget_exceeding_action,
+        a.unified_report_account_no,
+        a.unified_report_group_code,
+        a.notes AS description,
+        a.show_notes_in_transactions_soa,
+        a.status,
+        a.insert_date AS created_at,
+        a.last_update_date AS updated_at,
+        0::NUMERIC AS opening_balance,
+        0::NUMERIC AS debit_amount,
+        0::NUMERIC AS credit_amount,
+        0::NUMERIC AS balance
+      FROM account_tbl a
+      LEFT JOIN account_classification_types t ON t.id = a.type
+      LEFT JOIN account_tbl pa ON pa.id = a.father_id
+      WHERE a.id = ${id}
+    `
+
+    if (rows.length === 0) {
+      return NextResponse.json({ error: "الحساب غير موجود" }, { status: 404 })
+    }
+
+    const stopRows = await sql`
+      SELECT id, account_id, voucher_types_id, stop_date
+      FROM account_stop_transactions_tbl
+      WHERE account_id = ${id}
+      ORDER BY id ASC
+    `
+
+    const costRows = await sql`
+      SELECT id, account_id, cost_center_type_id, required_in_transactions, default_cost_center_id
+      FROM account_costcenters_tbl
+      WHERE account_id = ${id}
+      ORDER BY id ASC
+    `
+
+    const classRows = await sql`
+      SELECT id, account_id, classification_id
+      FROM account_classifications_tbl
+      WHERE account_id = ${id}
+      ORDER BY id ASC
+    `
+
+    return NextResponse.json(
+      mapAccountRow({
+        ...rows[0],
+        stop_transactions: stopRows,
+        cost_centers: costRows,
+        account_classifications: classRows,
+      }),
+    )
+  } catch (error) {
+    console.error("Error fetching account:", error)
+    return NextResponse.json({ error: "Failed to fetch account" }, { status: 500 })
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     await ensureAccountsTable()

@@ -161,6 +161,8 @@ export default function AccountSearchDialog({
     [searchResults],
   )
 
+  const allowedTypeValuesKey = allowedTypeValues ? allowedTypeValues.join(",") : ""
+
   useEffect(() => {
     if (!open) {
       setSearchResults([])
@@ -219,7 +221,7 @@ export default function AccountSearchDialog({
     }
 
     void loadFreshAccounts()
-  }, [open, defaultTypeValue, allowedTypeValues])
+  }, [open, defaultTypeValue, allowedTypeValuesKey])
 
   const matchesTypeFilter = (account: AccountItem, filterValue: string) => {
     if (filterValue === "__all__") {

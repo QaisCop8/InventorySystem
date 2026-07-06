@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -10,6 +10,8 @@ import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import AutoCompleteAccount from "@/components/customer/auto-complete-account"
+import Messages from "@/components/common/Messages"
+import Util from "@/components/common/Util"
 import { Save, Settings, Building2, Globe, Shield, Printer, FileText, Loader2, AlertCircle } from "lucide-react"
 
 const defaultAccountFields = [
@@ -107,6 +109,7 @@ export function SystemSettings() {
   const [loading, setLoading] = useState(false)
   const [initialLoading, setInitialLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const message = useRef<any>(null)
   const [hasTransactions, setHasTransactions] = useState(false)
   const [numberingLocks, setNumberingLocks] = useState({
     invoice: false,
@@ -145,77 +148,75 @@ export function SystemSettings() {
 
       if (response.ok) {
         const data = await response.json()
-        if (data && Object.keys(data).length > 0) {
+        const settingsPayload = data?.settings ?? data
+        if (settingsPayload && Object.keys(settingsPayload).length > 0) {
           setSettings((prev) => ({
             ...prev,
-            companyName: data.company_name || prev.companyName,
-            companyNameEn: data.company_name_en || prev.companyNameEn,
-            address: data.company_address || prev.address,
-            phone: data.company_phone || prev.phone,
-            email: data.company_email || prev.email,
-            website: data.company_website || prev.website,
-            taxNumber: data.tax_number || prev.taxNumber,
-            commercialRegister: data.commercial_register || prev.commercialRegister,
-            defaultCurrency: data.default_currency || prev.defaultCurrency,
-            invoicePrefix: data.invoice_prefix || prev.invoicePrefix,
-            orderPrefix: data.order_prefix || prev.orderPrefix,
-            purchasePrefix: data.purchase_prefix || prev.purchasePrefix,
-            customerPrefix: data.customer_prefix || prev.customerPrefix,
-            supplierPrefix: data.supplier_prefix || prev.supplierPrefix,
-            itemGroupPrefix: data.item_group_prefix || prev.itemGroupPrefix,
-            invoiceStart: data.invoice_start ?? prev.invoiceStart,
-            orderStart: data.order_start ?? prev.orderStart,
-            purchaseStart: data.purchase_start ?? prev.purchaseStart,
-            customerStart: data.customer_start ?? prev.customerStart,
-            supplierStart: data.supplier_start ?? prev.supplierStart,
-            itemGroupStart: data.item_group_start ?? prev.itemGroupStart,
-            itemStart: data.item_start ?? prev.itemStart,
-            fiscalYearStart: data.fiscal_year_start || prev.fiscalYearStart,
-            language: data.language || prev.language,
-            timezone: data.timezone || prev.timezone,
-            dateFormat: data.date_format || prev.dateFormat,
-            timeFormat: data.time_format || prev.timeFormat,
-            workingDays: data.working_days
+            companyName: settingsPayload.company_name || prev.companyName,
+            companyNameEn: settingsPayload.company_name_en || prev.companyNameEn,
+            address: settingsPayload.company_address || prev.address,
+            phone: settingsPayload.company_phone || prev.phone,
+            email: settingsPayload.company_email || prev.email,
+            website: settingsPayload.company_website || prev.website,
+            taxNumber: settingsPayload.tax_number || prev.taxNumber,
+            commercialRegister: settingsPayload.commercial_register || prev.commercialRegister,
+            defaultCurrency: settingsPayload.default_currency || prev.defaultCurrency,
+            invoicePrefix: settingsPayload.invoice_prefix || prev.invoicePrefix,
+            orderPrefix: settingsPayload.order_prefix || prev.orderPrefix,
+            purchasePrefix: settingsPayload.purchase_prefix || prev.purchasePrefix,
+            customerPrefix: settingsPayload.customer_prefix || prev.customerPrefix,
+            supplierPrefix: settingsPayload.supplier_prefix || prev.supplierPrefix,
+            itemGroupPrefix: settingsPayload.item_group_prefix || prev.itemGroupPrefix,
+            invoiceStart: settingsPayload.invoice_start ?? prev.invoiceStart,
+            orderStart: settingsPayload.order_start ?? prev.orderStart,
+            purchaseStart: settingsPayload.purchase_start ?? prev.purchaseStart,
+            customerStart: settingsPayload.customer_start ?? prev.customerStart,
+            supplierStart: settingsPayload.supplier_start ?? prev.supplierStart,
+            itemGroupStart: settingsPayload.item_group_start ?? prev.itemGroupStart,
+            itemStart: settingsPayload.item_start ?? prev.itemStart,
+            fiscalYearStart: settingsPayload.fiscal_year_start || prev.fiscalYearStart,
+            language: settingsPayload.language || prev.language,
+            timezone: settingsPayload.timezone || prev.timezone,
+            dateFormat: settingsPayload.date_format || prev.dateFormat,
+            timeFormat: settingsPayload.time_format || prev.timeFormat,
+            workingDays: settingsPayload.working_days
               ? (() => {
                   try {
-                    // If it's already an array, return it
-                    if (Array.isArray(data.working_days)) {
-                      return data.working_days
+                    if (Array.isArray(settingsPayload.working_days)) {
+                      return settingsPayload.working_days
                     }
-                    // If it's a string, try to parse it as JSON
-                    if (typeof data.working_days === "string") {
-                      return JSON.parse(data.working_days)
+                    if (typeof settingsPayload.working_days === "string") {
+                      return JSON.parse(settingsPayload.working_days)
                     }
-                    // Fallback to default
                     return prev.workingDays
                   } catch (e) {
-                    console.warn("Failed to parse working_days:", data.working_days)
+                    console.warn("Failed to parse working_days:", settingsPayload.working_days)
                     return prev.workingDays
                   }
                 })()
               : prev.workingDays,
-            workingHours: data.working_hours || prev.workingHours,
-            sessionTimeout: data.session_timeout ?? prev.sessionTimeout,
-            passwordPolicy: data.password_policy === "strong",
-            twoFactorAuth: data.two_factor_auth || prev.twoFactorAuth,
-            auditLog: data.audit_log !== false,
-            defaultPrinter: data.default_printer || prev.defaultPrinter,
-            paperSize: data.paper_size || prev.paperSize,
-            printLogo: data.print_logo !== false,
-            printFooter: data.print_footer !== false,
-            autoNumbering: data.auto_numbering !== false,
-            customerParentAccount: toAccountIdString(data.default_customer_parent_account ?? prev.customerParentAccount),
-            customerCreditAccount: toAccountIdString(data.default_customer_credit_account ?? prev.customerCreditAccount),
-            salesTaxAccount: toAccountIdString(data.default_sales_tax_account ?? prev.salesTaxAccount),
-            currencyTransferAccount: toAccountIdString(data.default_currency_transfer_account ?? prev.currencyTransferAccount),
-            earnedDiscountAccount: toAccountIdString(data.default_earned_discount_account ?? prev.earnedDiscountAccount),
-            exchangeGainLossAccount: toAccountIdString(data.default_exchange_gain_loss_account ?? prev.exchangeGainLossAccount),
-            salesmanParentAccount: toAccountIdString(data.default_salesman_parent_account ?? prev.salesmanParentAccount),
-            supplierParentAccount: toAccountIdString(data.default_supplier_parent_account ?? prev.supplierParentAccount),
-            customerSubscriptionAccount: toAccountIdString(data.default_customer_subscription_account ?? prev.customerSubscriptionAccount),
-            purchaseTaxAccount: toAccountIdString(data.default_purchase_tax_account ?? prev.purchaseTaxAccount),
-            newEmployeeAccount: toAccountIdString(data.default_new_employee_account ?? prev.newEmployeeAccount),
-            allowedDiscountAccount: toAccountIdString(data.default_allowed_discount_account ?? prev.allowedDiscountAccount),
+            workingHours: settingsPayload.working_hours || prev.workingHours,
+            sessionTimeout: settingsPayload.session_timeout ?? prev.sessionTimeout,
+            passwordPolicy: settingsPayload.password_policy === "strong",
+            twoFactorAuth: settingsPayload.two_factor_auth || prev.twoFactorAuth,
+            auditLog: settingsPayload.audit_log !== false,
+            defaultPrinter: settingsPayload.default_printer || prev.defaultPrinter,
+            paperSize: settingsPayload.paper_size || prev.paperSize,
+            printLogo: settingsPayload.print_logo !== false,
+            printFooter: settingsPayload.print_footer !== false,
+            autoNumbering: settingsPayload.auto_numbering !== false,
+            customerParentAccount: toAccountIdString(settingsPayload.default_customer_parent_account ?? prev.customerParentAccount),
+            customerCreditAccount: toAccountIdString(settingsPayload.default_customer_credit_account ?? prev.customerCreditAccount),
+            salesTaxAccount: toAccountIdString(settingsPayload.default_sales_tax_account ?? prev.salesTaxAccount),
+            currencyTransferAccount: toAccountIdString(settingsPayload.default_currency_transfer_account ?? prev.currencyTransferAccount),
+            earnedDiscountAccount: toAccountIdString(settingsPayload.default_earned_discount_account ?? prev.earnedDiscountAccount),
+            exchangeGainLossAccount: toAccountIdString(settingsPayload.default_exchange_gain_loss_account ?? prev.exchangeGainLossAccount),
+            salesmanParentAccount: toAccountIdString(settingsPayload.default_salesman_parent_account ?? prev.salesmanParentAccount),
+            supplierParentAccount: toAccountIdString(settingsPayload.default_supplier_parent_account ?? prev.supplierParentAccount),
+            customerSubscriptionAccount: toAccountIdString(settingsPayload.default_customer_subscription_account ?? prev.customerSubscriptionAccount),
+            purchaseTaxAccount: toAccountIdString(settingsPayload.default_purchase_tax_account ?? prev.purchaseTaxAccount),
+            newEmployeeAccount: toAccountIdString(settingsPayload.default_new_employee_account ?? prev.newEmployeeAccount),
+            allowedDiscountAccount: toAccountIdString(settingsPayload.default_allowed_discount_account ?? prev.allowedDiscountAccount),
           }))
         }
       }
@@ -352,10 +353,12 @@ export function SystemSettings() {
 
       const result = await response.json()
       console.log("تم حفظ الإعدادات بنجاح:", result)
-      alert("تم حفظ الإعدادات بنجاح")
+      Util.showSuccessMessage(message, "تم حفظ الإعدادات بنجاح")
     } catch (err) {
       console.error("Error saving settings:", err)
-      setError(err instanceof Error ? err.message : "حدث خطأ أثناء حفظ الإعدادات")
+      const errorMessage = err instanceof Error ? err.message : "حدث خطأ أثناء حفظ الإعدادات"
+      setError(errorMessage)
+      Util.showErrorMessage(message, errorMessage)
     } finally {
       setLoading(false)
     }
@@ -421,6 +424,7 @@ export function SystemSettings() {
 
   return (
     <div className="space-y-6" dir="rtl">
+      <Messages innerRef={message} />
       {/* Header */}
       <Card className="erp-card">
         <CardHeader>
@@ -448,11 +452,6 @@ export function SystemSettings() {
               </Button>
             </div>
           </div>
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mt-4 text-right">
-              {error}
-            </div>
-          )}
         </CardHeader>
       </Card>
 
@@ -739,6 +738,8 @@ export function SystemSettings() {
                       placeholder="اختر الحساب"
                       className="w-full"
                       showCostCenterButton={false}
+                      requiredTypeValues={[1]}
+                      leafOnly
                     />
                   </div>
                 ))}

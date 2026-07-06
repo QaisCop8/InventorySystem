@@ -22,12 +22,15 @@ import * as wjGrid from "@grapecity/wijmo.grid";
 import { readonly } from "zod/v4"
 import ProductBarcodes from "./ProductBarcodes"
 import { Toast } from 'primereact/toast';
+import { Dropdown as PrimeDropdown } from 'primereact/dropdown'
 import './compact-product-form.css'
 import ProgressSpinner from "../ProgressSpinner/ProgressSpinner"
 import ConfirmDialogYesNo from "../ui/ConfirmDialogYesNo"
 import { useAuth } from "../auth/auth-context"
 import ProductCodeInput from "./ProductCodeInput"
 import Util from "../common/Util"
+import sharedDropdownStyles from "../common/Dropdown.module.scss"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 
 interface ProductFormData {
@@ -188,9 +191,16 @@ export function CompactProductForm({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+  const [activeTab, setActiveTab] = useState<string>("prices");
   const product_code = useRef<HTMLInputElement>(null);
   const product_name = useRef<HTMLInputElement>(null);
   const initialized = useRef(false);
+  useEffect(() => {
+    // When the dialog opens or mode changes, default to prices for new records
+    if (visible) {
+      setActiveTab(editingProduct ? "brand" : "prices");
+    }
+  }, [visible, editingProduct]);
   const validateProduct = () => {
     if (formData.product_code === "") {
       toast.current?.show({
@@ -968,8 +978,7 @@ export function CompactProductForm({
                 </option>
               ))}
             </select>
-          )
-
+          ),
         },
         { header: "العلاقة بالرئيسية", name: "to_main_qnty", width: 150, visible: true },
         {
@@ -1015,9 +1024,7 @@ export function CompactProductForm({
       allowGrouping: false,
       responsiveColumnIndex: 2,
       columns: [
-        {
-          header: "##", name: "ser", width: 50
-        },
+        { header: "##", name: "ser", width: 50 },
         { header: "رقم الفئة", name: "price_category_id", width: 150, visible: false },
         {
           header: "فئة السعر",
@@ -1029,36 +1036,24 @@ export function CompactProductForm({
               onChange={(e) => {
                 const newValue = e.target.value;
                 cell.row.dataItem.price_name = newValue;
-
                 const selectedPrice = definitions.price_category.find((u: any) => u.name === newValue);
 
                 setFormData(prev => {
                   const updatedPrices = (prev.prices || []).map((row, i) =>
                     i === cell.row.index
-                      ? {
-                        ...row,
-                        price_name: newValue,
-                        price_category_id: selectedPrice ? selectedPrice.id : 0
-                      }
+                      ? { ...row, price_name: newValue, price_category_id: selectedPrice ? selectedPrice.id : 0 }
                       : row
                   );
-
-                  return {
-                    ...prev,
-                    prices: updatedPrices,
-                  };
+                  return { ...prev, prices: updatedPrices };
                 });
               }}
               className="px-2 py-1 w-full"
             >
               {(definitions.price_category || []).map((u: any) => (
-                <option key={u.id} value={u.name}>
-                  {u.name}
-                </option>
+                <option key={u.id} value={u.name}>{u.name}</option>
               ))}
             </select>
           ),
-
         },
         { header: "رقم الوحدة", name: "unit_id", width: 150, visible: false },
         {
@@ -1071,31 +1066,21 @@ export function CompactProductForm({
               onChange={(e) => {
                 const newValue = e.target.value;
                 cell.row.dataItem.unit_name = newValue;
-
                 const selectedUnit = definitions.units.find((u: any) => u.unit_name === newValue);
+
                 setFormData(prev => {
                   const updatedPrices = (prev.prices || []).map((row, i) =>
                     i === cell.row.index
-                      ? {
-                        ...row,
-                        unit_name: newValue,
-                        unit_id: selectedUnit ? selectedUnit.id : 0 // fallback to 0
-                      }
+                      ? { ...row, unit_name: newValue, unit_id: selectedUnit ? selectedUnit.id : 0 }
                       : row
                   );
-
-                  return {
-                    ...prev,
-                    prices: updatedPrices,
-                  };
+                  return { ...prev, prices: updatedPrices };
                 });
               }}
               className="px-2 py-1 w-full"
             >
               {(definitions.units || []).map((u: any) => (
-                <option key={u.id} value={u.unit_name}>
-                  {u.unit_name}
-                </option>
+                <option key={u.id} value={u.unit_name}>{u.unit_name}</option>
               ))}
             </select>
           ),
@@ -1103,47 +1088,34 @@ export function CompactProductForm({
         { header: "السعر شامل الضريبة", name: "price", width: 150 },
         { header: "رقم العملة", name: "currency_id", width: 150, visible: false },
         {
-          header: "عملة البيع", name: "currency", width: 150,
+          header: "عملة البيع",
+          name: "currency",
+          width: 150,
           editor: (cell: any) => (
             <select
               value={cell.row.dataItem.currency_name || ""}
               onChange={(e) => {
                 const newValue = e.target.value;
                 cell.row.dataItem.currency_name = newValue;
-
-                const selectedCurrency = definitions.currencies.find(
-                  (u: any) => u.currency_name === newValue
-                );
+                const selectedCurrency = definitions.currencies.find((u: any) => u.currency_name === newValue);
 
                 setFormData(prev => {
                   const updatedPrices = (prev.prices || []).map((row, i) =>
                     i === cell.row.index
-                      ? {
-                        ...row,
-                        currency_name: newValue,
-                        currency_id: selectedCurrency ? selectedCurrency.id : 0 // fallback
-                      }
+                      ? { ...row, currency_name: newValue, currency_id: selectedCurrency ? selectedCurrency.id : 0 }
                       : row
                   );
-
-                  return {
-                    ...prev,
-                    prices: updatedPrices,
-                  };
+                  return { ...prev, prices: updatedPrices };
                 });
               }}
               className="px-2 py-1 w-full"
             >
               {(definitions.currencies || []).map((u: any) => (
-                <option key={u.id} value={u.currency_name}>
-                  {u.currency_name}
-                </option>
+                <option key={u.id} value={u.currency_name}>{u.currency_name}</option>
               ))}
             </select>
           ),
-
         },
-
         {
           header: " ",
           name: "delete",
@@ -1153,9 +1125,9 @@ export function CompactProductForm({
           onClick: (item: { ser: number }) => handleDeletePrice(item.ser - 1)
         }
       ],
-    }
+    };
     return scheme;
-  }
+  };
   const getStoresScheme = () => ({
     name: "warehouseInventory",
     responsiveColumnIndex: 0,
@@ -1438,14 +1410,10 @@ export function CompactProductForm({
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* المعلومات الأساسية والتعريف */}
+            <div className="mb-4">
+              <h2 className="text-xl font-semibold text-foreground">المعلومات الأساسية والتعريف</h2>
+            </div>
             <Card>
-              <CardHeader className="pb-4">
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <Info className="h-5 w-5 text-primary" />
-                  المعلومات الأساسية والتعريف
-                </CardTitle>
-              </CardHeader>
               <CardContent className="space-y-4">
                 {/* الصف الأول: الأكواد والتعريف */}
                 <div className="grid grid-cols-12 gap-4">
@@ -1573,6 +1541,7 @@ export function CompactProductForm({
                       </SelectContent>
                     </Select>
                   </div>
+
                 </div>
 
                 {/* الوصف */}
@@ -1589,10 +1558,60 @@ export function CompactProductForm({
                     placeholder="وصف مفصل للصنف"
                   />
                 </div>
+
+                {/* خيارات التتبع */}
+                <div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="flex items-center space-x-2 space-x-reverse">
+                      <Checkbox
+                        id="expiry_tracking"
+                        checked={formData.expiry_tracking}
+                        onCheckedChange={(checked) => updateFormData("expiry_tracking", checked)}
+                      />
+                      <Label htmlFor="expiry_tracking" className="text-sm">
+                        له تاريخ صلاحية
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-2 space-x-reverse">
+                      <Checkbox
+                        id="batch_tracking"
+                        checked={formData.batch_tracking}
+                        onCheckedChange={(checked) => updateFormData("batch_tracking", checked)}
+                      />
+                      <Label htmlFor="batch_tracking" className="text-sm font-medium">
+                        له رقم تشغيلي
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-2 space-x-reverse">
+                      <Checkbox
+                        id="serial_tracking"
+                        checked={formData.serial_tracking}
+                        onCheckedChange={(checked) => updateFormData("serial_tracking", checked)}
+                      />
+                      <Label htmlFor="serial_tracking" className="text-sm">
+                        له سيريال
+                      </Label>
+                    </div>
+                  </div>
+                </div>
               </CardContent>
             </Card>
 
+            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v)} dir="rtl">
+              <TabsList className="h-auto w-full flex justify-start gap-2 overflow-x-auto rounded-xl bg-gradient-to-r from-slate-50 via-blue-50 to-slate-50 p-2 shadow-md border border-slate-200/60 backdrop-blur-sm" style={{ direction: "rtl" }}>
+                <TabsTrigger value="prices" className="rounded-lg px-4 py-2 font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">اسعار البيع</TabsTrigger>
+                <TabsTrigger value="units" className="rounded-lg px-4 py-2 font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-emerald-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">الوحدات</TabsTrigger>
+                <TabsTrigger value="brand" className="rounded-lg px-4 py-2 font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-orange-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">العلامة التجارية</TabsTrigger>
+                <TabsTrigger value="measurements" className="rounded-lg px-4 py-2 font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-red-500 data-[state=active]:to-red-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">القياسات</TabsTrigger>
+                <TabsTrigger value="pricing" className="rounded-lg px-4 py-2 font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-cyan-500 data-[state=active]:to-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">سعر الشراء والضريبة</TabsTrigger>
+                <TabsTrigger value="additional" className="rounded-lg px-4 py-2 font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-violet-500 data-[state=active]:to-violet-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">معلومات إضافية</TabsTrigger>
+                <TabsTrigger value="stores" className="rounded-lg px-4 py-2 font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-amber-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">تفاصيل المستودعات</TabsTrigger>
+                <TabsTrigger value="notes" className="rounded-lg px-4 py-2 font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-slate-600 data-[state=active]:to-slate-700 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">ملاحظات</TabsTrigger>
+              </TabsList>
+
             {/* التصنيف والعلامة التجارية */}
+            <TabsContent value="brand">
             <Card>
               <CardHeader className="pb-4">
                 <CardTitle className="flex items-center gap-2 text-lg">
@@ -1644,8 +1663,10 @@ export function CompactProductForm({
                 </div>
               </CardContent>
             </Card>
+            </TabsContent>
 
             {/* الوحدات والقياسات */}
+            <TabsContent value="measurements">
             <Card>
               <CardHeader className="pb-4">
                 <CardTitle className="flex items-center gap-2 text-lg">
@@ -1743,6 +1764,8 @@ export function CompactProductForm({
 
               </CardContent>
             </Card>
+            </TabsContent>
+            <TabsContent value="units">
             <Card>
               <CardHeader className="pb-2 flex items-center justify-between">
                 <CardTitle className="flex items-center gap-2 text-lg">
@@ -1784,8 +1807,9 @@ export function CompactProductForm({
               </CardContent>
 
             </Card>
+            </TabsContent>
 
-
+            <TabsContent value="prices">
             <Card>
               <CardHeader className="pb-2 flex items-center justify-between">
                 <CardTitle className="flex items-center gap-2 text-lg">
@@ -1800,9 +1824,6 @@ export function CompactProductForm({
                   إضافة
                 </button>
               </CardHeader>
-
-
-
               <CardContent>
                 <div className="grid grid-cols-12 gap-4">
                   <div className="col-span-12 md:col-span-12">
@@ -1813,8 +1834,10 @@ export function CompactProductForm({
                 </div>
               </CardContent>
             </Card>
+            </TabsContent>
 
             {/* الأسعار والعملة */}
+            <TabsContent value="pricing">
             <Card>
               <CardHeader className="pb-4">
                 <CardTitle className="flex items-center gap-2 text-lg">
@@ -1884,8 +1907,10 @@ export function CompactProductForm({
                 <Separator className="my-4" />
               </CardContent>
             </Card>
+            </TabsContent>
 
             {/* إدارة المخزون */}
+            <TabsContent value="additional">
             <Card>
               <CardHeader className="pb-4">
                 <CardTitle className="flex items-center gap-2 text-lg">
@@ -1920,105 +1945,80 @@ export function CompactProductForm({
                       className="text-right"
                     />
                   </div>
-                  <div>
-                    <Label htmlFor="default_store" className="text-sm font-medium">
-                      المستودع الافتراضي
-                    </Label>
-                    <Select
-                      value={formData.default_store ? String(formData.default_store) : "__none__"}
-                      onValueChange={(value) =>
-                        updateFormData("default_store", value === "__none__" ? 0 : Number(value))
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="بلا تحديد" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__none__">بلا تحديد</SelectItem>
-                        {(definitions.warehouses || []).map((warehouse: any) => (
-                          <SelectItem key={warehouse.id} value={warehouse.id.toString()}>
-                            {warehouse.warehouse_name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                </div>
-
-                <Separator className="my-10" />
-
-                {/* خيارات التتبع */}
-                <div>
-                  <Label className="text-sm font-medium mb-3 block"></Label>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="flex items-center space-x-2 space-x-reverse">
-                      <Checkbox
-                        id="expiry_tracking"
-                        checked={formData.expiry_tracking}
-                        onCheckedChange={(checked) => updateFormData("expiry_tracking", checked)}
-                      />
-                      <Label htmlFor="expiry_tracking" className="text-sm">
-                        له تاريخ صلاحية
-                      </Label>
-                    </div>
-                    <div className="flex items-center space-x-2 space-x-reverse">
-                      <Checkbox
-                        id="batch_tracking"
-                        checked={formData.batch_tracking}
-                        onCheckedChange={(checked) => updateFormData("batch_tracking", checked)}
-                      />
-                      <Label htmlFor="batch_tracking" className="text-sm font-medium">
-                        له رقم تشغيلي
-                      </Label>
-
-                    </div>
-                    <div className="flex items-center space-x-2 space-x-reverse">
-                      <Checkbox
-                        id="serial_tracking"
-                        checked={formData.serial_tracking}
-                        onCheckedChange={(checked) => updateFormData("serial_tracking", checked)}
-                      />
-                      <Label htmlFor="serial_tracking" className="text-sm">
-                        له سيريال
-                      </Label>
-                    </div>
-                  </div>
 
                 </div>
               </CardContent>
             </Card>
+            </TabsContent>
 
-            <Card>
-              <CardHeader className="pb-2 flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <Package className="h-5 w-5 text-primary" />
-                  تفاصيل المستودعات
-                </CardTitle>
-                <button type="button"
-                  className="flex items-center gap-1 bg-primary text-white px-3 py-1 rounded hover:bg-blue-600 transition"
-                  onClick={() => handleAddStoreRow()}
-                >
-                  <Plus className="h-4 w-4" />
-                  إضافة
-                </button>
-              </CardHeader>
+            <TabsContent value="stores">
+              <Card>
+                <CardHeader className="pb-2 flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <Warehouse className="h-5 w-5 text-primary" />
+                    تفاصيل المستودعات
+                  </CardTitle>
+                  <button type="button"
+                    className="flex items-center gap-1 bg-primary text-white px-3 py-1 rounded hover:bg-blue-600 transition"
+                    onClick={() => handleAddStoreRow()}
+                  >
+                    <Plus className="h-4 w-4" />
+                    إضافة
+                  </button>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                      <Label htmlFor="default_store" className="text-sm font-medium">
+                        المستودع الافتراضي في الحركات
+                      </Label>
+                      <div className={sharedDropdownStyles.dropDownWrapper}>
+                        <PrimeDropdown
+                          inputId="default_store"
+                          value={formData.default_store ? Number(formData.default_store) : null}
+                          className={`${sharedDropdownStyles.dropDown} w-full`}
+                          panelClassName={sharedDropdownStyles.dropDownPanel}
+                          options={(() => {
+                            const options = [
+                              { label: "بلا تحديد", value: null },
+                              ...((definitions.warehouses || []).map((warehouse: any) => ({
+                                label: warehouse.warehouse_name,
+                                value: Number(warehouse.id),
+                              })))
+                            ]
 
+                            if (formData.default_store) {
+                              const selectedId = Number(formData.default_store)
+                              options.sort((a, b) => {
+                                if (a.value === selectedId) return -1
+                                if (b.value === selectedId) return 1
+                                return 0
+                              })
+                            }
 
-
-              <CardContent>
-                <div className="grid grid-cols-12 gap-4">
-                  <div className="col-span-12 md:col-span-12">
-                    <DataGrid dataSource={formData.stores ?? []}
-                      scheme={getStoresScheme()}
-                    />
+                            return options
+                          })()}
+                          optionLabel="label"
+                          optionValue="value"
+                          placeholder="اختر المستودع"
+                          filter={true}
+                          filterInputAutoFocus={true}
+                          onChange={(e) => updateFormData("default_store", e.value ?? 0)}
+                        />
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-
+                  <div className="grid grid-cols-12 gap-4">
+                    <div className="col-span-12 md:col-span-12">
+                      <DataGrid dataSource={formData.stores ?? []} scheme={getStoresScheme()} />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
 
             {/* ملاحظات إضافية */}
+            <TabsContent value="notes">
             <Card>
               <CardHeader className="pb-4">
                 <CardTitle className="text-lg">ملاحظات وتفاصيل إضافية</CardTitle>
@@ -2039,9 +2039,11 @@ export function CompactProductForm({
                 </div>
               </CardContent>
             </Card>
+            </TabsContent>
 
             {/* أزرار الحفظ والإلغاء */}
 
+            </Tabs>
           </form>
         </div>
       </div>

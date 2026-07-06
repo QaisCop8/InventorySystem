@@ -37,7 +37,7 @@ export async function GET(
             COALESCE(ast.stop_transactions, '[]'::json) AS stop_transactions
           FROM customers c
           INNER JOIN account_tbl acc ON acc.id = c.account_id
-          INNER JOIN (
+          LEFT JOIN (
             SELECT
               account_id,
               json_agg(
@@ -47,13 +47,13 @@ export async function GET(
                   'default_cost_center_id', default_cost_center_id,
                   'cost_center_name', cc.name
                 )
-                ORDER BY id ASC
+                ORDER BY accct.id ASC
               ) AS cost_centers
             FROM account_costcenters_tbl accct
             LEFT JOIN cost_centers cc ON cc.id = accct.default_cost_center_id
             GROUP BY account_id
           ) accct ON accct.account_id = c.account_id
-          INNER JOIN (
+          LEFT JOIN (
             SELECT
               account_id,
               json_agg(
@@ -61,7 +61,7 @@ export async function GET(
                   'voucher_types_id', voucher_types_id,
                   'stop_date', stop_date
                 )
-                ORDER BY id ASC
+                ORDER BY account_stop_transactions_tbl.id ASC
               ) AS stop_transactions
             FROM account_stop_transactions_tbl
             GROUP BY account_id
@@ -89,7 +89,7 @@ export async function GET(
             COALESCE(ast.stop_transactions, '[]'::json) AS stop_transactions
           FROM customers c
           INNER JOIN account_tbl acc ON acc.id = c.account_id
-          INNER JOIN (
+          LEFT JOIN (
             SELECT
               account_id,
               json_agg(
@@ -99,13 +99,13 @@ export async function GET(
                   'default_cost_center_id', default_cost_center_id,
                   'cost_center_name', cc.name
                 )
-                ORDER BY id ASC
+                ORDER BY accct.id ASC
               ) AS cost_centers
             FROM account_costcenters_tbl accct
             LEFT JOIN cost_centers cc ON cc.id = accct.default_cost_center_id
             GROUP BY account_id
           ) accct ON accct.account_id = c.account_id
-          INNER JOIN (
+          LEFT JOIN (
             SELECT
               account_id,
               json_agg(
@@ -113,7 +113,7 @@ export async function GET(
                   'voucher_types_id', voucher_types_id,
                   'stop_date', stop_date
                 )
-                ORDER BY id ASC
+                ORDER BY account_stop_transactions_tbl.id ASC
               ) AS stop_transactions
             FROM account_stop_transactions_tbl
             GROUP BY account_id
@@ -141,7 +141,7 @@ export async function GET(
             COALESCE(ast.stop_transactions, '[]'::json) AS stop_transactions
           FROM customers c
           INNER JOIN account_tbl acc ON acc.id = c.account_id
-          INNER JOIN (
+          LEFT JOIN (
             SELECT
               account_id,
               json_agg(
@@ -151,7 +151,7 @@ export async function GET(
                   'default_cost_center_id', default_cost_center_id,
                   'cost_center_name', cc.name
                 )
-                ORDER BY id ASC
+                ORDER BY accct.id ASC
               ) AS cost_centers
             FROM account_costcenters_tbl accct
             LEFT JOIN cost_centers cc ON cc.id = accct.default_cost_center_id
@@ -165,7 +165,7 @@ export async function GET(
                   'voucher_types_id', voucher_types_id,
                   'stop_date', stop_date
                 )
-                ORDER BY id ASC
+                ORDER BY account_stop_transactions_tbl.id ASC
               ) AS stop_transactions
             FROM account_stop_transactions_tbl
             GROUP BY account_id
@@ -194,7 +194,7 @@ export async function GET(
             COALESCE(ast.stop_transactions, '[]'::json) AS stop_transactions
           FROM customers c
           INNER JOIN account_tbl acc ON acc.id = c.account_id
-          INNER JOIN (
+          LEFT JOIN (
             SELECT
               account_id,
               json_agg(
@@ -204,13 +204,13 @@ export async function GET(
                   'default_cost_center_id', default_cost_center_id,
                   'cost_center_name', cc.name
                 )
-                ORDER BY id ASC
+                ORDER BY accct.id ASC
               ) AS cost_centers
             FROM account_costcenters_tbl accct
             LEFT JOIN cost_centers cc ON cc.id = accct.default_cost_center_id
             GROUP BY account_id
           ) accct ON accct.account_id = c.account_id
-          INNER JOIN (
+          LEFT JOIN (
             SELECT
               account_id,
               json_agg(
@@ -218,7 +218,7 @@ export async function GET(
                   'voucher_types_id', voucher_types_id,
                   'stop_date', stop_date
                 )
-                ORDER BY id ASC
+                ORDER BY account_stop_transactions_tbl.id ASC
               ) AS stop_transactions
             FROM account_stop_transactions_tbl
             GROUP BY account_id
@@ -250,7 +250,7 @@ export async function GET(
             COALESCE(ast.stop_transactions, '[]'::json) AS stop_transactions
           FROM customers c
           INNER JOIN account_tbl acc ON acc.id = c.account_id
-          INNER JOIN (
+          LEFT JOIN (
             SELECT
               account_id,
               json_agg(
@@ -260,13 +260,13 @@ export async function GET(
                   'default_cost_center_id', default_cost_center_id,
                   'cost_center_name', cc.name
                 )
-                ORDER BY id ASC
+                ORDER BY accct.id ASC
               ) AS cost_centers
             FROM account_costcenters_tbl accct
             LEFT JOIN cost_centers cc ON cc.id = accct.default_cost_center_id
             GROUP BY account_id
           ) accct ON accct.account_id = c.account_id
-          INNER JOIN (
+          LEFT JOIN (
             SELECT
               account_id,
               json_agg(
@@ -274,7 +274,7 @@ export async function GET(
                   'voucher_types_id', voucher_types_id,
                   'stop_date', stop_date
                 )
-                ORDER BY id ASC
+                ORDER BY account_stop_transactions_tbl.id ASC
               ) AS stop_transactions
             FROM account_stop_transactions_tbl
             GROUP BY account_id

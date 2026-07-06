@@ -122,8 +122,8 @@ export default function AutoCompleteAccount({
 
   const normalizedValue = useMemo(() => (valueMode === "id" ? String(value).trim() : normalizeAccountCode(value)), [value, valueMode])
   const resolvedDisplayValue = useMemo(() => {
-    if (isFocused) return value
     if (selectedAccount) return formatAccountLabel(selectedAccount, displayNameFirst, displayIdOnly)
+    if (isFocused) return value
     return value
   }, [displayIdOnly, displayNameFirst, isFocused, selectedAccount, value])
 
@@ -140,8 +140,6 @@ export default function AutoCompleteAccount({
   }, [onValueChange])
 
   const loadAccounts = useCallback(async () => {
-    if (loadingAccounts) return accounts
-
     setLoadingAccounts(true)
     try {
       const response = await fetch(accountApiUrl)
@@ -161,7 +159,19 @@ export default function AutoCompleteAccount({
     } finally {
       setLoadingAccounts(false)
     }
-  }, [accounts, leafOnly, loadingAccounts])
+  }, [leafOnly])
+
+  const fetchAccountById = useCallback(async (numericId: number) => {
+    try {
+      const response = await fetch(`${accountApiUrl}/${numericId}`)
+      if (!response.ok) return null
+      const data = await response.json()
+      return mapAccount(data)
+    } catch (error) {
+      console.error("Failed to fetch account by id:", error)
+      return null
+    }
+  }, [])
 
   const resolveAccountByCode = useCallback(
     async (code: string) => {
@@ -179,10 +189,13 @@ export default function AutoCompleteAccount({
       const numericId = Number(id)
       if (!Number.isInteger(numericId) || numericId <= 0) return null
 
+      const fetchedAccount = await fetchAccountById(numericId)
+      if (fetchedAccount) return fetchedAccount
+
       const loadedAccounts = await loadAccounts()
       return loadedAccounts.find((account) => Number(account.id) === numericId) || null
     },
-    [loadAccounts],
+    [fetchAccountById, loadAccounts],
   )
 
   useEffect(() => {
@@ -191,6 +204,7 @@ export default function AutoCompleteAccount({
     const syncSelectedAccount = async () => {
       if (!normalizedValue) {
         setSelectedAccount(null)
+        setDisplayValue("")
         return
       }
 
@@ -201,8 +215,13 @@ export default function AutoCompleteAccount({
       if (cancelled) return
 
       setSelectedAccount(nextSelected)
-      if (valueMode === "id" && nextSelected && String(nextSelected.id) !== value) {
-        onValueChangeRef.current(String(nextSelected.id))
+      if (nextSelected) {
+        setDisplayValue(formatAccountLabel(nextSelected, displayNameFirst, displayIdOnly))
+        if (valueMode === "id" && String(nextSelected.id) !== value) {
+          onValueChangeRef.current(String(nextSelected.id))
+        }
+      } else {
+        setDisplayValue(value)
       }
     }
 
@@ -278,7 +297,7 @@ export default function AutoCompleteAccount({
 
   const showSearchAction = showSearchButton
   const showCostCenterAction = showCostCenterButton && Boolean(selectedAccount || normalizedValue)
-  const showClearAction = showClearButton && Boolean(selectedAccount)
+  const showClearAction = showClearButton && Boolean(selectedAccount || normalizedValue)
   const showAnyAction = showSearchAction || showCostCenterAction || showClearAction
 
   return (
@@ -291,7 +310,7 @@ export default function AutoCompleteAccount({
           onBlur={handleBlur}
           onFocus={() => {
             setIsFocused(true)
-            setDisplayValue(value)
+            setDisplayValue(selectedAccount ? formatAccountLabel(selectedAccount, displayNameFirst, displayIdOnly) : value)
           }}
           onKeyDown={(event) => {
             if (event.key === "Enter") {

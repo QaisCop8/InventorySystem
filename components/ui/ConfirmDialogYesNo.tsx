@@ -54,20 +54,20 @@ const ConfirmDialogYesNo: React.FC<ConfirmDialogProps> = ({
         onClick={() => {
           onConfirm();
         }}
-        className={`${isCompact ? "px-4 py-1 text-sm" : "px-6 py-2 text-base"} rounded-xl shadow-lg ${showBack
+        className={`${isCompact ? "px-5 py-2 text-base" : "px-7 py-3 text-lg"} rounded-xl shadow-lg ${showBack
             ? "bg-blue-600 hover:bg-blue-700 text-white"
             : "bg-red-600 hover:bg-red-700 text-white"
           }`}
       >
-        {isCompact ? "حذف" : "نعم (F3)"}
+        {showBack ? "نعم" : isCompact ? "حذف" : "نعم (F3)"}
       </Button>
 
       <Button
         onClick={onCancel}
         variant="outline"
-        className={`${isCompact ? "px-4 py-1 text-sm" : "px-6 py-2 text-base"} rounded-xl border-gray-400`}
+        className={`${isCompact ? "px-5 py-2 text-base" : "px-7 py-3 text-lg"} rounded-xl border-gray-400`}
       >
-        {showBack ? " لا" : isCompact ? "إلغاء" : " لا (ESC)"}
+        {showBack ? "لا" : isCompact ? "إلغاء" : "لا (ESC)"}
       </Button>
 
       {showBack && onBack && (
@@ -75,7 +75,7 @@ const ConfirmDialogYesNo: React.FC<ConfirmDialogProps> = ({
           onClick={onBack}
           className={`${isCompact ? "px-3 py-1 text-xs" : "px-4 py-1.5 text-sm"} rounded-xl bg-gray-300 hover:bg-gray-400 text-black`}
         >
-          إلغاء (Esc)
+          إلغاء
         </Button>
       )}
     </div>
@@ -91,7 +91,7 @@ const ConfirmDialogYesNo: React.FC<ConfirmDialogProps> = ({
       className={`rounded-3xl shadow-2xl border-2 ${showBack ? "border-blue-400" : "border-red-400"
         } backdrop-blur-xl`}
       style={{
-        width: isCompact ? "350px" : "420px",
+        width: isCompact ? "420px" : "520px",
         direction: "rtl",
         textAlign: "center",
         background: "rgba(255, 255, 255, 0.95)",
@@ -110,12 +110,12 @@ const ConfirmDialogYesNo: React.FC<ConfirmDialogProps> = ({
         </div>
 
         <h2
-          className={`font-bold ${isCompact ? "text-sm mt-2" : "text-xl mt-4"} ${showBack ? "text-blue-700" : "text-gray-800"
+          className={`font-bold ${isCompact ? "text-base mt-2" : "text-2xl mt-4"} ${showBack ? "text-blue-700" : "text-gray-800"
             }`}
         >
         </h2>
 
-        <p className={`${isCompact ? "text-xs mt-1 px-3" : "text-gray-600 mt-2 px-4 text-[15px]"} text-gray-600`}>{message}</p>
+        <p className={`${isCompact ? "text-sm mt-2 px-3" : "text-gray-600 mt-3 px-4 text-lg"} text-gray-600`}>{message}</p>
       </div>
     </Dialog>
   );

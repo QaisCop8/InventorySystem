@@ -436,11 +436,25 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     await sql`DELETE FROM customer_vouchers WHERE customer_id = ${id}`
 
     if (Array.isArray(voucher) && voucher.length > 0) {
-      await sql`
-        INSERT INTO customer_vouchers (customer_id, voucher_id, book_id)
-        SELECT ${id}, v.type_id, v.book_id
-        FROM jsonb_to_recordset(${JSON.stringify(voucher)}::jsonb) AS v(type_id int, book_id int, ser int)
-      `
+      const uniqueVoucherRows = Array.from(
+        new Map(
+          voucher.map((item: any) => [
+            `${Number(item?.type_id ?? 0)}:${Number(item?.book_id ?? 0)}`,
+            {
+              type_id: Number(item?.type_id ?? 0),
+              book_id: Number(item?.book_id ?? 0),
+            },
+          ]),
+        ).values(),
+      )
+
+      if (uniqueVoucherRows.length > 0) {
+        await sql`
+          INSERT INTO customer_vouchers (customer_id, voucher_id, book_id)
+          SELECT ${id}, v.type_id, v.book_id
+          FROM jsonb_to_recordset(${JSON.stringify(uniqueVoucherRows)}::jsonb) AS v(type_id int, book_id int)
+        `
+      }
       console.log(`[v0] Updated vouchers for customer ${id}`)
     }
 

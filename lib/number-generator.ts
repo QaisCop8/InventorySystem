@@ -51,33 +51,27 @@ export default sql
 async function getPrefixFromSettings(type: "customer" | "supplier" | "item_group"): Promise<string> {
   try {
     if (!process.env.DATABASE_URL) {
-      // Return default prefixes if database is not available
       return type === "customer" ? "C" : type === "supplier" ? "S" : "G"
     }
 
-    //const sql = neon(process.env.DATABASE_URL)
-    
     const result = await sql`
-      SELECT customer_prefix, supplier_prefix, item_group_prefix 
-      FROM system_settings 
-      LIMIT 1
+      SELECT id, value
+      FROM system_settings
+      WHERE id IN (${["customer_prefix", "supplier_prefix", "item_group_prefix"]})
+      ORDER BY id ASC
     `
 
-    if (result.length > 0) {
-      const prefix =
-        type === "customer"
-          ? result[0].customer_prefix
-          : type === "supplier"
-            ? result[0].supplier_prefix
-            : result[0].item_group_prefix
-      return prefix || (type === "customer" ? "C" : type === "supplier" ? "S" : "G")
-    }
+    const prefixMap = Object.fromEntries(result.map((row: any) => [row.id, row.value]))
+    const prefix =
+      type === "customer"
+        ? prefixMap.customer_prefix
+        : type === "supplier"
+          ? prefixMap.supplier_prefix
+          : prefixMap.item_group_prefix
 
-    // Return default if no settings found
-    return type === "customer" ? "C" : type === "supplier" ? "S" : "G"
+    return String(prefix || (type === "customer" ? "C" : type === "supplier" ? "S" : "G"))
   } catch (error) {
     console.error("[v0] Error fetching prefix from settings:", error)
-    // Return default prefix on error
     return type === "customer" ? "C" : type === "supplier" ? "S" : "G"
   }
 }

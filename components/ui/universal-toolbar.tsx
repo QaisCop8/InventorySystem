@@ -12,7 +12,6 @@ import {
   Trash2,
   FileText,
   Download,
-  Printer,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -216,17 +215,6 @@ export function UniversalToolbar({
         </DropdownMenu>
 */}
 
-        {onPrint && (
-          <Button
-            onClick={onPrint}
-            disabled={isLoading || isSaving || !canPrint}
-            className="text-sm flex items-center gap-2"
-          >
-            <Printer className="h-4 w-4" />
-            {labels.print}
-          </Button>
-        )}
-        
         {onClone && (
           <Button
             onClick={onClone}
@@ -236,15 +224,6 @@ export function UniversalToolbar({
 
             <Copy className="h-4 w-4" />
             <span>{labels.clone}</span>
-          </Button>
-        )}
-        {onReport && (
-          <Button
-            onClick={onReport}
-            className="text-sm flex items-center gap-2"
-          >
-            <Printer className="h-4 w-4" />
-            {labels.report}
           </Button>
         )}
         {/* Navigation */}

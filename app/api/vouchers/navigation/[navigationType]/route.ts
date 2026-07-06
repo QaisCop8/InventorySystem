@@ -15,14 +15,13 @@ function getPrefix(vchType: number, vchBook: string) {
 async function getConfiguredPrefix(vchType: number) {
   const result = await pool.query(
     `
-      SELECT invoice_prefix, order_prefix, purchase_prefix
+      SELECT id, value
       FROM system_settings
-      WHERE id = 1
-      LIMIT 1
+      WHERE id IN ('invoice_prefix', 'order_prefix', 'purchase_prefix')
     `,
   )
 
-  const settings = result.rows?.[0] ?? {}
+  const settings = Object.fromEntries((result.rows ?? []).map((row) => [row.id, row.value]))
   if (vchType === 5) return settings.invoice_prefix
   if (vchType === 1) return settings.order_prefix
   if (vchType === 2) return settings.purchase_prefix

@@ -962,7 +962,7 @@ export function Products() {
       </Card>
 
       <Dialog open={state.showDialog} onOpenChange={(open) => setState((prev) => ({ ...prev, showDialog: open }))} >
-        <DialogContent className="max-w-[75vw] max-h-[65vh] overflow-hidden p-0" dir="rtl" 
+        <DialogContent className="max-w-[75vw] sm:max-w-[70vw] md:max-w-[62vw] lg:max-w-[110vh] max-h-[95vh] overflow-hidden p-0" dir="rtl" 
         onPointerDownOutside={(event) => event.preventDefault()}
         onEscapeKeyDown={(event) => event.preventDefault()}
         >

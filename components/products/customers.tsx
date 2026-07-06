@@ -1476,7 +1476,7 @@ export default function Customers({ isSupplier }: CustomersProps) {
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">{isSupplier ? "إدارة الموردين" : "إدارة الزبائن"} </h1>
         <div className="flex gap-2">
-          <Button onClick={() => handleNewCustomer(false)} className="flex items-center gap-2">
+          <Button onClick={() => handleNewCustomer(true)} className="flex items-center gap-2">
             <Plus className="h-4 w-4" />
             {isSupplier ? "مورد جديد" : "زبون جديد"}
           </Button>
@@ -1750,10 +1750,8 @@ export default function Customers({ isSupplier }: CustomersProps) {
       <Dialog
         open={showNewCustomerDialog}
         onOpenChange={(open) => {
-          setShowNewCustomerDialog(open);
-          if (!open) {
-            // fetch customers after dialog is closed
-            fetchCustomers();
+          if (open) {
+            setShowNewCustomerDialog(true)
           }
         }}
       >
@@ -1764,7 +1762,9 @@ export default function Customers({ isSupplier }: CustomersProps) {
           <div className="h-screen flex flex-col bg-background p-6 overflow-y-auto">
             <UnifiedCustomers
               open={showNewCustomerDialog}
-              onOpenChange={setShowNewCustomerDialog}
+              onOpenChange={(nextOpen: boolean) => {
+                setShowNewCustomerDialog(nextOpen)
+              }}
               isSupplier={!!isSupplier}
               showCustomerSearch={showCustomerSearch}
               setShowCustomerSearch={setShowCustomerSearch}
@@ -1780,7 +1780,9 @@ export default function Customers({ isSupplier }: CustomersProps) {
               isSaving={saving}
               loadDataRef={unifiedCustomerLoadDataRef}
               onNew={() => handleNewCustomer(true)}
-              onSave={fetchCustomers}
+              onSave={async () => {
+                await fetchCustomers()
+              }}
               onDelete={fetchCustomers}
               onReport={() => console.log("Generate customer report")}
               onExportExcel={() => console.log("Export to Excel")}

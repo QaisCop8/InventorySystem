@@ -15,22 +15,22 @@ export async function GET(request: NextRequest) {
     console.log("[v0] API: DATABASE_URL found, creating connection")
 
     const systemSettings = await sql`
-      SELECT purchase_prefix, auto_numbering, numbering_system
-      FROM system_settings 
-      ORDER BY id DESC 
-      LIMIT 1
+      SELECT id, value
+      FROM system_settings
+      WHERE id IN ('purchase_prefix', 'auto_numbering', 'numbering_system')
     `
 
-    const settings = systemSettings[0] || {
-      purchase_prefix: "P",
-      auto_numbering: true,
-      numbering_system: "sequential",
+    const settings = Object.fromEntries((systemSettings ?? []).map((row: any) => [row.id, row.value]))
+    const normalizedSettings = {
+      purchase_prefix: settings.purchase_prefix ?? "P",
+      auto_numbering: settings.auto_numbering ?? true,
+      numbering_system: settings.numbering_system ?? "sequential",
     }
 
     console.log("[v0] API: System settings:", settings)
 
     // If auto_numbering is disabled, return empty to let user enter manually
-    if (!settings.auto_numbering) {
+    if (!normalizedSettings.auto_numbering) {
       console.log("[v0] API: Auto numbering is disabled")
       return NextResponse.json({
         orderNumber: "",
@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    const prefix = settings.purchase_prefix || "P"
+    const prefix = normalizedSettings.purchase_prefix || "P"
 
     // Get the latest order number with this prefix
     const result = await sql`

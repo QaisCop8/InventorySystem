@@ -13,11 +13,13 @@ import SearchAccountClassificationDialog from "@/components/customer/search-acco
 import CustomerSearchPopup from "./CustomerSearchPopup"
 import SearchCostCenterDialog, { type CostCenterItem } from "@/components/customer/search-cost-center-dialog"
 import ConfirmDialogYesNo from "@/components/ui/ConfirmDialogYesNo"
+import Util from "../common/Util"
+import { Toast } from 'primereact/toast'
 import DataGridView from "../common/DataGridView"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Plus, AlertCircle } from "lucide-react"
-import { MutableRefObject, RefObject, useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { MutableRefObject, RefObject, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 import { Dropdown as PrimeDropdown } from "primereact/dropdown"
 import ProgressSpinner from "../ProgressSpinner/ProgressSpinner"
 interface Classification {
@@ -95,7 +97,6 @@ export interface UnifiedCustomerFormData {
 
 interface UnifiedCustomersProps {
   open?: boolean
-  onOpenChange?: (open: boolean) => void
   isSupplier?: boolean
   showCustomerSearch?: boolean
   setShowCustomerSearch?: (open: boolean) => void
@@ -124,6 +125,7 @@ interface UnifiedCustomersProps {
   onStopTransactionRowsChange?: (rows: Array<{ voucher_types_id: number; voucher_type_name: string; is_stopped: boolean; stop_date: string }>) => void
   onSave?: () => void | Promise<void>
   onDelete?: () => void | Promise<void>
+  onOpenChange?: (open: boolean) => void
   customerNameRef?: RefObject<HTMLInputElement>
 }
 
@@ -172,7 +174,6 @@ interface ClassificationTypeRow {
 
 export default function UnifiedCustomers({
   open = false,
-  onOpenChange = () => undefined,
   isSupplier = false,
   showCustomerSearch = false,
   setShowCustomerSearch = () => undefined,
@@ -193,6 +194,7 @@ export default function UnifiedCustomers({
   onNew = () => undefined,
   onSave = () => undefined,
   onDelete,
+  onOpenChange,
   onReport,
   onExportExcel,
   onPrint,
@@ -213,14 +215,17 @@ export default function UnifiedCustomers({
   const [stopTransactionRows, setStopTransactionRows] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
+  const toast = useRef<Toast | null>(null)
   const [showUnsaved, setShowUnsaved] = useState(false)
-  const [nextFunction, setNextFunction] = useState<(() => void) | null>(null)
+  const [nextFunction, setNextFunction] = useState<(() => Promise<void> | void) | null>(null)
   const [classificationTypes, setClassificationTypes] = useState<any[]>([])
   const [allClassifications, setAllClassifications] = useState<any[]>([])
   const [classificationRows, setClassificationRows] = useState<ClassificationTypeRow[]>([])
   const [showClassificationTypeForm, setShowClassificationTypeForm] = useState(false)
   const [showClassificationForm, setShowClassificationForm] = useState(false)
   const initialHash = useRef(0)
+  const formDataRef = useRef(formData)
+  const isInitializingRef = useRef(false)
   const hashCode = (str: string) => {
     let hash = 0
     for (let i = 0; i < str.length; i++) {
@@ -230,9 +235,44 @@ export default function UnifiedCustomers({
     }
     return hash
   }
-  const getFormDataHash = (data: any) => {
-    return hashCode(JSON.stringify(data))
-  }
+  const getEditableFormSnapshot = useCallback((data: any = {}) => ({
+    id: Number(data?.id ?? 0),
+    customer_code: String(data?.customer_code ?? ""),
+    name: String(data?.name ?? data?.customer_name ?? ""),
+    mobile1: String(data?.mobile1 ?? ""),
+    mobile2: String(data?.mobile2 ?? ""),
+    whatsapp1: String(data?.whatsapp1 ?? ""),
+    whatsapp2: String(data?.whatsapp2 ?? ""),
+    city: String(data?.city ?? ""),
+    address: String(data?.address ?? ""),
+    email: String(data?.email ?? ""),
+    status: String(data?.status ?? "نشط"),
+    business_nature: String(data?.business_nature ?? ""),
+    salesman: String(data?.salesman ?? ""),
+    classification: String(data?.classification ?? ""),
+    registration_date: String(data?.registration_date ?? data?.account_opening_date ?? ""),
+    web_username: String(data?.web_username ?? ""),
+    web_password: String(data?.web_password ?? ""),
+    transaction_notes: String(data?.transaction_notes ?? ""),
+    general_notes: String(data?.general_notes ?? ""),
+    tax_number: String(data?.tax_number ?? ""),
+    commercial_registration: String(data?.commercial_registration ?? ""),
+    credit_limit: String(data?.credit_limit ?? ""),
+    payment_terms: String(data?.payment_terms ?? ""),
+    discount_percentage: String(data?.discount_percentage ?? ""),
+    pricecategory: Number(data?.pricecategory ?? 0),
+    father_id: String(data?.father_id ?? ""),
+    allow_trans_with_diff_curr: String(data?.allow_trans_with_diff_curr ?? "0"),
+    iscalc_curr_diff_rates: Boolean(data?.iscalc_curr_diff_rates),
+  }), [])
+  const getFormDataHash = useCallback((data: any) => {
+    return hashCode(JSON.stringify(getEditableFormSnapshot(data)))
+  }, [getEditableFormSnapshot])
+
+  useEffect(() => {
+    formDataRef.current = formData
+  }, [formData])
+
   const [newClassificationTypeName, setNewClassificationTypeName] = useState("")
   const [newClassificationTypeId, setNewClassificationTypeId] = useState<string | null>(null)
   const [newClassificationName, setNewClassificationName] = useState("")
@@ -512,8 +552,9 @@ export default function UnifiedCustomers({
       const costCentersSource = definitions?.costCenters ?? costCenters
       const preservedCode = options?.preserveCode ? adjustCustomerCode(options.preserveCode) : ""
       const nextCustomerCode = preservedCode || (await generateCustomerCode())
-      const nextCostCenterRows = buildCostCenterRows(costCenterTypesSource, (formData as any).cost_centers || [], costCentersSource)
+      const nextCostCenterRows = buildCostCenterRows(costCenterTypesSource, [], costCentersSource)
 
+      isInitializingRef.current = true
       updateField("id" as keyof UnifiedCustomerFormData, 0 as any)
       updateField("customer_code" as keyof UnifiedCustomerFormData, nextCustomerCode as any)
       updateField("name" as keyof UnifiedCustomerFormData, "" as any)
@@ -585,7 +626,19 @@ export default function UnifiedCustomers({
       setShowClassificationTypeForm(false)
       setShowClassificationForm(false)
       setShowCustomerSearch(false)
-      focusCustomerName()
+      setCurrentCustomerId(0)
+      initialHash.current = 0
+      formDataRef.current = getEditableFormSnapshot({
+        ...defaultFormData,
+        customer_code: nextCustomerCode,
+        father_id: "",
+        allow_trans_with_diff_curr: "0",
+        iscalc_curr_diff_rates: false,
+      })
+      setTimeout(() => {
+        focusCustomerName()
+        isInitializingRef.current = false
+      }, 0)
       onClassificationRowsChange?.(
         classificationTypesSource.map((type: any) => ({
           id: Number(type.id),
@@ -626,12 +679,9 @@ export default function UnifiedCustomers({
         const data = await response.json()
         if (data?.found && data.customer) {
           applyCustomerRecord(data.customer)
-          setCustomerActionError("")
-          setCustomerActionMessage("تم العثور على الزبون")
+          
         } else {
           await reset_fields(undefined, { preserveCode: adjustedCode })
-          setCustomerActionError("لم يتم العثور على زبون بهذا الرقم")
-          setCustomerActionMessage("")
         }
       } catch (error) {
         console.error("Error searching customer by code in UnifiedCustomers:", error)
@@ -672,7 +722,7 @@ export default function UnifiedCustomers({
     void syncFatherAccount()
   }, [formData.father_id, formData.allow_trans_with_diff_curr, formData.iscalc_curr_diff_rates])
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!open) {
       dialogWasOpenRef.current = false
       return
@@ -705,13 +755,28 @@ export default function UnifiedCustomers({
     ) => {
       const currentHash = getFormDataHash(formData)
 
-      if (checkUnsaved && currentHash !== initialHash.current && initialHash.current !== 0) {
+      if (isInitializingRef.current) {
+        return
+      }
+
+      if (checkUnsaved && initialHash.current !== 0 && currentHash !== initialHash.current) {
         setShowUnsaved(true)
         setNextFunction(() => () => loadData(navigationType, customerId, isSupplierArg, false))
         return
       }
 
+      const hasRealCurrentRecord = Number(currentCustomerId) > 0 || Number(formData.id) > 0
+      if (!hasRealCurrentRecord && navigationType === "next") {
+        await loadData("first", undefined, isSupplierArg, false)
+        return
+      }
+      if (!hasRealCurrentRecord && navigationType === "previous" ) {
+        await loadData("last", undefined, isSupplierArg, false)
+        return
+      }
+
       try {
+        setLoading(true)
         let dont_check = false
         if (navigationType === "ByIdEdit") {
           dont_check = true
@@ -729,22 +794,45 @@ export default function UnifiedCustomers({
         url.searchParams.set("type", isSupplierArg ? "2" : "1")
 
         const res = await fetch(url.toString())
+        console.log("Fetch response status:", res.status, "URL:", url.toString())
         const customer = await res.json()
-        if (!customer.id || (customer.id === currentCustomerId && !dont_check)) {
+        console.log("Loaded customer:", customer, "Navigation type:", navigationType, "Current ID:", currentCustomerId)
+        if (!customer?.id) {
+          const fallbackNavigation = navigationType === "next" ? "first" : "last"
+          await loadData(fallbackNavigation, undefined, isSupplierArg, false)
+          return
+        }
+
+        if (hasRealCurrentRecord && Number(customer.id) === Number(currentCustomerId) && !dont_check) {
           const msg = navigationType === "previous" || navigationType === "first" ? "بداية السجلات" : "نهاية السجلات"
-          setCustomerActionError(msg)
+          Util.showErrorToast(toast.current, msg)
           return
         }
 
         applyCustomerRecord(customer)
 
+        const loadedSnapshot = getEditableFormSnapshot({
+          ...customer,
+          customer_code: customer?.customer_code ?? customer?.customerCode ?? "",
+          name: customer?.name ?? customer?.customer_name ?? "",
+          registration_date: customer?.registration_date ?? customer?.account_opening_date ?? "",
+        })
+        formDataRef.current = loadedSnapshot
+
         setTimeout(() => {
           focusCustomerName()
-          initialHash.current = getFormDataHash(formData)
-          setCurrentCustomerId(customer.id)
-        }, 200)
+          initialHash.current = getFormDataHash(loadedSnapshot)
+          const nextCustomerId = Number(customer.id) || 0
+          setCurrentCustomerId(nextCustomerId)
+          if (typeof setCurrentIndex === "function" && nextCustomerId > 0) {
+            setCurrentIndex(Math.max(0, currentIndex))
+          }
+        }, 0)
       } catch (err) {
         console.error("Error loading customer:", err)
+      }
+      finally{
+        setLoading(false)
       }
     },
     [applyCustomerRecord, currentCustomerId, focusCustomerName, formData, setCurrentCustomerId],
@@ -773,6 +861,7 @@ export default function UnifiedCustomers({
   }, [isSupplier, loadData])
 
   const handleLast = useCallback(async () => {
+    console.log("handleLast called")
     await loadData("last", undefined, isSupplier)
   }, [isSupplier, loadData])
 
@@ -1048,8 +1137,9 @@ export default function UnifiedCustomers({
   }, [])
 
   const handleNew = useCallback(() => {
+    onOpenChange?.(true)
     void reset_fields()
-  }, [reset_fields])
+  }, [onOpenChange, reset_fields])
 
   const handleSaveCustomer = useCallback(async () => {
     if (savingRef.current) return false
@@ -1163,6 +1253,7 @@ export default function UnifiedCustomers({
           message = errorData?.error || errorData?.message || message
         } catch (_) {}
         setCustomerActionError(message)
+        Util.showErrorToast(toast.current, message)
         return false
       }
 
@@ -1173,19 +1264,38 @@ export default function UnifiedCustomers({
       }
 
       setCustomerActionMessage(Number(formData.id) > 0 ? "تم تعديل الزبون بنجاح" : "تم حفظ الزبون بنجاح")
+      Util.showSuccessToast(toast.current, Number(formData.id) > 0 ? "تم تعديل الزبون بنجاح" : "تم حفظ الزبون بنجاح")
+      onOpenChange?.(true)
       await onSave?.()
-      await reset_fields()
-      return true
+      if (savedCustomerId > 0) {
+        updateField("id" as keyof UnifiedCustomerFormData, savedCustomerId as any)
+        setCurrentCustomerId(savedCustomerId)
+      }
+
+      const persistedSnapshot = getEditableFormSnapshot({
+        ...formData,
+        id: savedCustomerId || Number(formData.id) || 0,
+        customer_code: trimmedCode,
+        name: trimmedName,
+        registration_date: formData.registration_date,
+      })
+      formDataRef.current = persistedSnapshot
+      initialHash.current = getFormDataHash(persistedSnapshot)
+
+      setTimeout(() => {
+        focusCustomerName()
+      }, 0)
+      return { success: true, savedCustomerId }
     } catch (error) {
       console.error("Error saving customer in UnifiedCustomers:", error)
       setCustomerActionError("حدث خطأ أثناء حفظ بيانات الزبون")
-      return false
+      return { success: false, savedCustomerId: 0 }
     } finally {
       savingRef.current = false
       setSaving(false)
       setLoading(false)
     }
-  }, [classificationRows, costCenterTypes, formData, isSupplier, onSave, reset_fields, stopTransactionRows, updateField])
+  }, [classificationRows, costCenterTypes, formData, isSupplier, onSave, reset_fields, setCurrentCustomerId, stopTransactionRows, updateField])
 
   const handleDeleteCustomerRequest = useCallback(() => {
     if (Number(formData.id) <= 0) return
@@ -1213,8 +1323,12 @@ export default function UnifiedCustomers({
       }
 
       setCustomerActionMessage("تم حذف السجل بنجاح")
+      onOpenChange?.(true)
       await onDelete?.()
-      await reset_fields()
+      setCurrentCustomerId(0)
+      setTimeout(() => {
+        focusCustomerName()
+      }, 0)
     } catch (error) {
       console.error("Error deleting customer in UnifiedCustomers:", error)
       setCustomerActionError("حدث خطأ أثناء حذف السجل")
@@ -1447,6 +1561,7 @@ export default function UnifiedCustomers({
     <div className="relative space-y-4">
       
       <ProgressSpinner loading={loading || saving} />
+      <Toast ref={toast} position={'top-left'} className="erp-toast-host" style={{ top: 100, whiteSpace: 'pre-line' }} />
       {customerActionError && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
@@ -2018,9 +2133,36 @@ export default function UnifiedCustomers({
 
       <ConfirmDialogYesNo
         visible={showCustomerDeleteConfirm}
-        message="هل تريد حذف هذا الزبون؟"
+        message="هل أنت متأكد من حذف السجل؟ لا يمكن التراجع عن هذا الإجراء."
         onConfirm={handleDeleteCustomerConfirm}
         onCancel={() => setShowCustomerDeleteConfirm(false)}
+        isCompact={true}
+      />
+
+      <ConfirmDialogYesNo
+        visible={showUnsaved}
+        message="هناك تغييرات غير محفوظة. هل ترغب في حفظ السجل؟"
+        onConfirm={async () => {
+          setShowUnsaved(false)
+          const fn = nextFunction
+          setNextFunction(null)
+          const saveResult = await handleSaveCustomer()
+          const didSave = saveResult !== false && saveResult?.success === true
+          if (didSave && fn) {
+            await fn()
+          }
+        }}
+        onCancel={() => {
+          setShowUnsaved(false)
+          const fn = nextFunction
+          setNextFunction(null)
+          void fn?.()
+        }}
+        onBack={() => {
+          setShowUnsaved(false)
+          setNextFunction(null)
+        }}
+        showBack={true}
         isCompact={true}
       />
 

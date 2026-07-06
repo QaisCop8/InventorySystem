@@ -34,137 +34,254 @@ try {
   sql = null
 }
 
-function toInt(value: unknown, fallback: number): number {
-  if (typeof value === "number" && Number.isFinite(value)) return Math.trunc(value)
-  if (typeof value === "string") {
-    const parsed = Number.parseInt(value, 10)
-    if (Number.isFinite(parsed)) return parsed
-  }
-  return fallback
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
 }
 
-function toBool(value: unknown, fallback: boolean): boolean {
-  if (typeof value === "boolean") return value
-  if (typeof value === "string") {
-    if (value.toLowerCase() === "true") return true
-    if (value.toLowerCase() === "false") return false
-  }
-  return fallback
+function serializeSettingValue(value: unknown): string | null {
+  if (value === null || value === undefined) return null
+  if (typeof value === "string") return value
+  if (typeof value === "number" || typeof value === "boolean") return String(value)
+  return JSON.stringify(value)
 }
 
-function normalizeWorkingDays(value: unknown): string[] {
-  if (Array.isArray(value)) return value.map((v) => String(v))
+function deserializeSettingValue(value: unknown): unknown {
+  if (value === null || value === undefined) return null
+
   if (typeof value === "string") {
+    const trimmed = value.trim()
+    if (!trimmed) return ""
+
+    if (trimmed === "true") return true
+    if (trimmed === "false") return false
+
+    if (/^-?\d+$/.test(trimmed)) {
+      return Number.parseInt(trimmed, 10)
+    }
+
     try {
-      const parsed = JSON.parse(value)
-      if (Array.isArray(parsed)) return parsed.map((v) => String(v))
+      const parsed = JSON.parse(trimmed)
+      return parsed
     } catch {
-      return []
-    }
-  }
-  return []
-}
-
-function normalizeFiscalYearStart(value: unknown): string {
-  // Accept ISO date directly.
-  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    return value
-  }
-
-  // Accept month/day values (e.g. 01/01) and map to current year.
-  if (typeof value === "string") {
-    const md = value.match(/^(\d{1,2})\/(\d{1,2})$/)
-    if (md) {
-      const month = Math.min(12, Math.max(1, Number.parseInt(md[1], 10)))
-      const day = Math.min(31, Math.max(1, Number.parseInt(md[2], 10)))
-      const year = new Date().getFullYear()
-      const mm = String(month).padStart(2, "0")
-      const dd = String(day).padStart(2, "0")
-      return `${year}-${mm}-${dd}`
+      return trimmed
     }
   }
 
-  return `${new Date().getFullYear()}-01-01`
+  return value
 }
 
-function normalizePrefix(value: unknown, fallback: string): string {
-  const raw = (value ?? fallback).toString().trim().toUpperCase()
-  return raw
+function pickValue(data: Record<string, unknown>, aliases: string[]): unknown {
+  for (const alias of aliases) {
+    if (alias in data && data[alias] !== undefined) {
+      return data[alias]
+    }
+  }
+  return undefined
 }
 
-function isValidPrefix(value: string): boolean {
-  // Uppercase English letters only, 1..3 chars.
-  return /^[A-Z]{1,3}$/.test(value)
+function normalizePayload(data: unknown): Record<string, unknown> {
+  if (isObject(data) && isObject(data.settings)) {
+    data = data.settings
+  }
+
+  if (!isObject(data)) {
+    return {}
+  }
+
+  const payload = data as Record<string, unknown>
+  const entries = Object.entries(payload)
+  const normalized: Record<string, unknown> = {}
+
+  const aliasMap: Record<string, string[]> = {
+    company_name: ["company_name", "companyName"],
+    company_name_en: ["company_name_en", "companyNameEn"],
+    company_address: ["company_address", "companyAddress", "address"],
+    company_phone: ["company_phone", "companyPhone", "phone"],
+    company_email: ["company_email", "companyEmail", "email"],
+    company_website: ["company_website", "companyWebsite", "website"],
+    tax_number: ["tax_number", "taxNumber"],
+    commercial_register: ["commercial_register", "commercialRegister"],
+    default_currency: ["default_currency", "defaultCurrency"],
+    invoice_prefix: ["invoice_prefix", "invoicePrefix"],
+    order_prefix: ["order_prefix", "orderPrefix"],
+    purchase_prefix: ["purchase_prefix", "purchasePrefix"],
+    customer_prefix: ["customer_prefix", "customerPrefix"],
+    supplier_prefix: ["supplier_prefix", "supplierPrefix"],
+    item_group_prefix: ["item_group_prefix", "itemGroupPrefix"],
+    invoice_start: ["invoice_start", "invoiceStart"],
+    order_start: ["order_start", "orderStart"],
+    purchase_start: ["purchase_start", "purchaseStart"],
+    customer_start: ["customer_start", "customerStart"],
+    supplier_start: ["supplier_start", "supplierStart"],
+    item_group_start: ["item_group_start", "itemGroupStart"],
+    item_start: ["item_start", "itemStart"],
+    fiscal_year_start: ["fiscal_year_start", "fiscalYearStart"],
+    numbering_system: ["numbering_system", "numberingSystem"],
+    language: ["language"],
+    timezone: ["timezone"],
+    date_format: ["date_format", "dateFormat"],
+    time_format: ["time_format", "timeFormat"],
+    working_days: ["working_days", "workingDays"],
+    working_hours: ["working_hours", "workingHours"],
+    session_timeout: ["session_timeout", "sessionTimeout"],
+    password_policy: ["password_policy", "passwordPolicy"],
+    two_factor_auth: ["two_factor_auth", "twoFactorAuth"],
+    audit_log: ["audit_log", "auditLog"],
+    default_printer: ["default_printer", "defaultPrinter"],
+    paper_size: ["paper_size", "paperSize"],
+    print_logo: ["print_logo", "printLogo"],
+    print_footer: ["print_footer", "printFooter"],
+    auto_numbering: ["auto_numbering", "autoNumbering"],
+    default_customer_parent_account: ["default_customer_parent_account", "customerParentAccount"],
+    default_customer_credit_account: ["default_customer_credit_account", "customerCreditAccount"],
+    default_sales_tax_account: ["default_sales_tax_account", "salesTaxAccount"],
+    default_currency_transfer_account: ["default_currency_transfer_account", "currencyTransferAccount"],
+    default_earned_discount_account: ["default_earned_discount_account", "earnedDiscountAccount"],
+    default_exchange_gain_loss_account: ["default_exchange_gain_loss_account", "exchangeGainLossAccount"],
+    default_salesman_parent_account: ["default_salesman_parent_account", "salesmanParentAccount"],
+    default_supplier_parent_account: ["default_supplier_parent_account", "supplierParentAccount"],
+    default_customer_subscription_account: ["default_customer_subscription_account", "customerSubscriptionAccount"],
+    default_purchase_tax_account: ["default_purchase_tax_account", "purchaseTaxAccount"],
+    default_new_employee_account: ["default_new_employee_account", "newEmployeeAccount"],
+    default_allowed_discount_account: ["default_allowed_discount_account", "allowedDiscountAccount"],
+  }
+
+  for (const [key, aliases] of Object.entries(aliasMap)) {
+    const value = pickValue(payload, aliases)
+    if (value !== undefined) {
+      normalized[key] = value
+    }
+  }
+
+  for (const [key, value] of entries) {
+    if (!(key in aliasMap) && value !== undefined) {
+      normalized[key] = value
+    }
+  }
+
+  return normalized
 }
 
-function isValidStart(value: number): boolean {
-  return Number.isInteger(value) && value > 0 && value < 1000
+async function ensureSettingsTable(): Promise<void> {
+  if (!sql) return
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS system_settings (
+      id VARCHAR(100) PRIMARY KEY,
+      description TEXT,
+      value TEXT
+    )
+  `
+
+  await sql`ALTER TABLE system_settings ALTER COLUMN id TYPE VARCHAR(100) USING id::TEXT`
+  await sql`ALTER TABLE system_settings ALTER COLUMN id DROP DEFAULT`
+  await sql`ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS description TEXT`
+  await sql`ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS value TEXT`
+
+  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS organization_id`
+  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS company_name`
+  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS company_name_en`
+  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS company_email`
+  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS company_phone`
+  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS company_address`
+  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS company_website`
+  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS tax_number`
+  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS commercial_register`
+  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS default_currency`
+  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS language`
+  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS timezone`
+  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS date_format`
+  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS time_format`
+  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS fiscal_year_start`
+  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS auto_numbering`
+  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS numbering_system`
+  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS invoice_prefix`
+  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS invoice_start`
+  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS order_prefix`
+  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS order_start`
+  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS purchase_prefix`
+  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS purchase_start`
+  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS customer_prefix`
+  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS customer_start`
+  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS supplier_prefix`
+  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS supplier_start`
+  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS item_prefix`
+  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS item_start`
+  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS item_group_prefix`
+  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS item_group_start`
+  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS default_customer_parent_account`
+  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS default_customer_credit_account`
+  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS default_sales_tax_account`
+  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS default_currency_transfer_account`
+  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS default_earned_discount_account`
+  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS default_exchange_gain_loss_account`
+  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS default_salesman_parent_account`
+  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS default_supplier_parent_account`
+  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS default_customer_subscription_account`
+  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS default_purchase_tax_account`
+  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS default_new_employee_account`
+  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS default_allowed_discount_account`
+  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS paper_size`
+  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS print_logo`
+  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS print_footer`
+  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS default_printer`
+  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS working_days`
+  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS working_hours`
+  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS session_timeout`
+  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS two_factor_auth`
+  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS password_policy`
+  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS audit_log`
+  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS account_prefix`
+  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS account_start`
+  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS created_at`
+  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS updated_at`
 }
 
-async function resolveAccountId(value: unknown): Promise<number | null> {
-  if (value === null || value === undefined || value === "") return null
+async function loadStoredSettings(): Promise<Record<string, unknown>> {
+  if (!sql) return {}
 
-  const numericValue = Number(value)
-  if (Number.isInteger(numericValue) && numericValue > 0) return numericValue
-
-  const code = String(value).trim()
-  if (!code) return null
+  await ensureSettingsTable()
 
   const rows = await sql`
-    SELECT id
-    FROM account_tbl
-    WHERE LOWER(code) = LOWER(${code})
-    LIMIT 1
+    SELECT id, description, value
+    FROM system_settings
+    ORDER BY id ASC
   `
 
-  return rows.length > 0 ? Number(rows[0].id) : null
+  const settings: Record<string, unknown> = {}
+
+  for (const row of rows) {
+    const key = row.id ?? row.description
+    if (!key) continue
+    settings[String(key)] = deserializeSettingValue(row.value)
+  }
+
+  return settings
 }
 
-async function ensureDefaultAccountColumns(): Promise<void> {
-  await sql`
-    ALTER TABLE system_settings
-    ADD COLUMN IF NOT EXISTS default_customer_parent_account INTEGER,
-    ADD COLUMN IF NOT EXISTS default_customer_credit_account INTEGER,
-    ADD COLUMN IF NOT EXISTS default_sales_tax_account INTEGER,
-    ADD COLUMN IF NOT EXISTS default_currency_transfer_account INTEGER,
-    ADD COLUMN IF NOT EXISTS default_earned_discount_account INTEGER,
-    ADD COLUMN IF NOT EXISTS default_exchange_gain_loss_account INTEGER,
-    ADD COLUMN IF NOT EXISTS default_salesman_parent_account INTEGER,
-    ADD COLUMN IF NOT EXISTS default_supplier_parent_account INTEGER,
-    ADD COLUMN IF NOT EXISTS default_customer_subscription_account INTEGER,
-    ADD COLUMN IF NOT EXISTS default_purchase_tax_account INTEGER,
-    ADD COLUMN IF NOT EXISTS default_new_employee_account INTEGER,
-    ADD COLUMN IF NOT EXISTS default_allowed_discount_account INTEGER
-  `
+async function saveSettingsPayload(payload: Record<string, unknown>): Promise<Record<string, unknown>> {
+  if (!sql) return {}
 
-  await sql`
-    UPDATE system_settings
-    SET default_customer_parent_account = NULLIF(default_customer_parent_account, '')::INTEGER,
-        default_customer_credit_account = NULLIF(default_customer_credit_account, '')::INTEGER,
-        default_sales_tax_account = NULLIF(default_sales_tax_account, '')::INTEGER,
-        default_currency_transfer_account = NULLIF(default_currency_transfer_account, '')::INTEGER,
-        default_earned_discount_account = NULLIF(default_earned_discount_account, '')::INTEGER,
-        default_exchange_gain_loss_account = NULLIF(default_exchange_gain_loss_account, '')::INTEGER,
-        default_salesman_parent_account = NULLIF(default_salesman_parent_account, '')::INTEGER,
-        default_supplier_parent_account = NULLIF(default_supplier_parent_account, '')::INTEGER,
-        default_customer_subscription_account = NULLIF(default_customer_subscription_account, '')::INTEGER,
-        default_purchase_tax_account = NULLIF(default_purchase_tax_account, '')::INTEGER,
-        default_new_employee_account = NULLIF(default_new_employee_account, '')::INTEGER,
-        default_allowed_discount_account = NULLIF(default_allowed_discount_account, '')::INTEGER
-    WHERE id = 1
-  `
+  await ensureSettingsTable()
+
+  for (const [key, value] of Object.entries(payload)) {
+    const serializedValue = serializeSettingValue(value)
+    await sql`
+      INSERT INTO system_settings (id, description, value)
+      VALUES (${key}, ${key}, ${serializedValue})
+      ON CONFLICT (id) DO UPDATE SET
+        description = EXCLUDED.description,
+        value = EXCLUDED.value
+    `
+  }
+
+  return loadStoredSettings()
 }
 
 export async function GET() {
   try {
-    await ensureDefaultAccountColumns()
-    const settings = await sql`
-      SELECT * FROM system_settings 
-      ORDER BY id DESC 
-      LIMIT 1
-    `
-
-    return NextResponse.json(settings[0] || {})
+    const settings = await loadStoredSettings()
+    return NextResponse.json(settings)
   } catch (error) {
     console.error("Database query error:", error)
     return NextResponse.json({ error: "Failed to fetch system settings" }, { status: 500 })
@@ -174,216 +291,9 @@ export async function GET() {
 export async function PUT(request: NextRequest) {
   try {
     const data = await request.json()
-
-    // Migration-safe schema sync for older databases.
-    await sql`
-      ALTER TABLE system_settings
-      ADD COLUMN IF NOT EXISTS company_name_en VARCHAR(255) DEFAULT '',
-      ADD COLUMN IF NOT EXISTS purchase_prefix VARCHAR(10) DEFAULT 'PO',
-      ADD COLUMN IF NOT EXISTS customer_prefix VARCHAR(10) DEFAULT 'C',
-      ADD COLUMN IF NOT EXISTS supplier_prefix VARCHAR(10) DEFAULT 'S',
-      ADD COLUMN IF NOT EXISTS item_group_prefix VARCHAR(10) DEFAULT 'G',
-      ADD COLUMN IF NOT EXISTS invoice_start INTEGER DEFAULT 1,
-      ADD COLUMN IF NOT EXISTS order_start INTEGER DEFAULT 1,
-      ADD COLUMN IF NOT EXISTS purchase_start INTEGER DEFAULT 1,
-      ADD COLUMN IF NOT EXISTS customer_start INTEGER DEFAULT 1,
-      ADD COLUMN IF NOT EXISTS supplier_start INTEGER DEFAULT 1,
-      ADD COLUMN IF NOT EXISTS item_group_start INTEGER DEFAULT 1,
-      ADD COLUMN IF NOT EXISTS item_start INTEGER DEFAULT 1,
-      ADD COLUMN IF NOT EXISTS language VARCHAR(10) DEFAULT 'ar',
-      ADD COLUMN IF NOT EXISTS timezone VARCHAR(50) DEFAULT 'Asia/Jerusalem',
-      ADD COLUMN IF NOT EXISTS date_format VARCHAR(20) DEFAULT 'DD/MM/YYYY',
-      ADD COLUMN IF NOT EXISTS time_format VARCHAR(20) DEFAULT '24h',
-      ADD COLUMN IF NOT EXISTS working_days JSONB DEFAULT '[]'::jsonb,
-      ADD COLUMN IF NOT EXISTS working_hours VARCHAR(50) DEFAULT '08:00-17:00',
-      ADD COLUMN IF NOT EXISTS session_timeout INTEGER DEFAULT 30,
-      ADD COLUMN IF NOT EXISTS password_policy VARCHAR(100) DEFAULT 'medium',
-      ADD COLUMN IF NOT EXISTS two_factor_auth BOOLEAN DEFAULT false,
-      ADD COLUMN IF NOT EXISTS audit_log BOOLEAN DEFAULT true,
-      ADD COLUMN IF NOT EXISTS default_printer VARCHAR(100) DEFAULT '',
-      ADD COLUMN IF NOT EXISTS paper_size VARCHAR(20) DEFAULT 'A4',
-      ADD COLUMN IF NOT EXISTS print_logo BOOLEAN DEFAULT true,
-      ADD COLUMN IF NOT EXISTS print_footer BOOLEAN DEFAULT true,
-      ADD COLUMN IF NOT EXISTS auto_numbering BOOLEAN DEFAULT true,
-      ADD COLUMN IF NOT EXISTS default_customer_parent_account INTEGER,
-      ADD COLUMN IF NOT EXISTS default_customer_credit_account INTEGER,
-      ADD COLUMN IF NOT EXISTS default_sales_tax_account INTEGER,
-      ADD COLUMN IF NOT EXISTS default_currency_transfer_account INTEGER,
-      ADD COLUMN IF NOT EXISTS default_earned_discount_account INTEGER,
-      ADD COLUMN IF NOT EXISTS default_exchange_gain_loss_account INTEGER,
-      ADD COLUMN IF NOT EXISTS default_salesman_parent_account INTEGER,
-      ADD COLUMN IF NOT EXISTS default_supplier_parent_account INTEGER,
-      ADD COLUMN IF NOT EXISTS default_customer_subscription_account INTEGER,
-      ADD COLUMN IF NOT EXISTS default_purchase_tax_account INTEGER,
-      ADD COLUMN IF NOT EXISTS default_new_employee_account INTEGER,
-      ADD COLUMN IF NOT EXISTS default_allowed_discount_account INTEGER
-    `
-
-    await ensureDefaultAccountColumns()
-
-    await sql`
-      INSERT INTO system_settings (id)
-      VALUES (1)
-      ON CONFLICT (id) DO NOTHING
-    `
-
-    const payload = {
-      company_name: data.company_name ?? data.companyName ?? 'شركة النظام المتكامل',
-      company_name_en: data.company_name_en ?? data.companyNameEn ?? '',
-      company_address: data.company_address ?? data.companyAddress ?? '',
-      company_phone: data.company_phone ?? data.companyPhone ?? '',
-      company_email: data.company_email ?? data.companyEmail ?? '',
-      company_website: data.company_website ?? data.companyWebsite ?? '',
-      tax_number: data.tax_number ?? data.taxNumber ?? '',
-      commercial_register: data.commercial_register ?? data.commercialRegister ?? '',
-      numbering_system: data.numbering_system ?? data.numberingSystem ?? 'auto',
-      invoice_prefix: normalizePrefix(data.invoice_prefix ?? data.invoicePrefix, 'INV'),
-      order_prefix: normalizePrefix(data.order_prefix ?? data.orderPrefix, 'SO'),
-      purchase_prefix: normalizePrefix(data.purchase_prefix ?? data.purchasePrefix, 'PO'),
-      customer_prefix: normalizePrefix(data.customer_prefix ?? data.customerPrefix, 'C'),
-      supplier_prefix: normalizePrefix(data.supplier_prefix ?? data.supplierPrefix, 'S'),
-      item_group_prefix: normalizePrefix(data.item_group_prefix ?? data.itemGroupPrefix, 'G'),
-      invoice_start: Math.max(1, toInt(data.invoice_start ?? data.invoiceStart, 1)),
-      order_start: Math.max(1, toInt(data.order_start ?? data.orderStart, 1)),
-      purchase_start: Math.max(1, toInt(data.purchase_start ?? data.purchaseStart, 1)),
-      customer_start: Math.max(1, toInt(data.customer_start ?? data.customerStart, 1)),
-      supplier_start: Math.max(1, toInt(data.supplier_start ?? data.supplierStart, 1)),
-      item_group_start: Math.max(1, toInt(data.item_group_start ?? data.itemGroupStart, 1)),
-      item_start: Math.max(1, toInt(data.item_start ?? data.itemStart, 1)),
-      fiscal_year_start: normalizeFiscalYearStart(data.fiscal_year_start ?? data.fiscalYearStart),
-      default_currency: data.default_currency ?? data.defaultCurrency ?? 'SAR',
-      language: data.language ?? 'ar',
-      timezone: data.timezone ?? 'Asia/Jerusalem',
-      date_format: data.date_format ?? data.dateFormat ?? 'DD/MM/YYYY',
-      time_format: data.time_format ?? data.timeFormat ?? '24h',
-      working_days: normalizeWorkingDays(data.working_days ?? data.workingDays),
-      working_hours: data.working_hours ?? data.workingHours ?? '08:00-17:00',
-      session_timeout: Math.max(1, toInt(data.session_timeout ?? data.sessionTimeout, 30)),
-      password_policy: data.password_policy ?? data.passwordPolicy ?? 'medium',
-      two_factor_auth: toBool(data.two_factor_auth ?? data.twoFactorAuth, false),
-      audit_log: toBool(data.audit_log ?? data.auditLog, true),
-      default_printer: data.default_printer ?? data.defaultPrinter ?? '',
-      paper_size: data.paper_size ?? data.paperSize ?? 'A4',
-      print_logo: toBool(data.print_logo ?? data.printLogo, true),
-      print_footer: toBool(data.print_footer ?? data.printFooter, true),
-      auto_numbering: toBool(data.auto_numbering ?? data.autoNumbering, true),
-      default_customer_parent_account: await resolveAccountId(data.default_customer_parent_account ?? data.customerParentAccount),
-      default_customer_credit_account: await resolveAccountId(data.default_customer_credit_account ?? data.customerCreditAccount),
-      default_sales_tax_account: await resolveAccountId(data.default_sales_tax_account ?? data.salesTaxAccount),
-      default_currency_transfer_account: await resolveAccountId(data.default_currency_transfer_account ?? data.currencyTransferAccount),
-      default_earned_discount_account: await resolveAccountId(data.default_earned_discount_account ?? data.earnedDiscountAccount),
-      default_exchange_gain_loss_account: await resolveAccountId(data.default_exchange_gain_loss_account ?? data.exchangeGainLossAccount),
-      default_salesman_parent_account: await resolveAccountId(data.default_salesman_parent_account ?? data.salesmanParentAccount),
-      default_supplier_parent_account: await resolveAccountId(data.default_supplier_parent_account ?? data.supplierParentAccount),
-      default_customer_subscription_account: await resolveAccountId(data.default_customer_subscription_account ?? data.customerSubscriptionAccount),
-      default_purchase_tax_account: await resolveAccountId(data.default_purchase_tax_account ?? data.purchaseTaxAccount),
-      default_new_employee_account: await resolveAccountId(data.default_new_employee_account ?? data.newEmployeeAccount),
-      default_allowed_discount_account: await resolveAccountId(data.default_allowed_discount_account ?? data.allowedDiscountAccount),
-    }
-
-    const prefixEntries: Array<[string, string]> = [
-      ["invoice_prefix", payload.invoice_prefix],
-      ["order_prefix", payload.order_prefix],
-      ["purchase_prefix", payload.purchase_prefix],
-      ["customer_prefix", payload.customer_prefix],
-      ["supplier_prefix", payload.supplier_prefix],
-      ["item_group_prefix", payload.item_group_prefix],
-    ]
-
-    for (const [field, value] of prefixEntries) {
-      if (!isValidPrefix(value)) {
-        return NextResponse.json(
-          {
-            error: "Invalid prefix format",
-            details: `${field} must contain only uppercase English letters and be at most 3 characters`,
-          },
-          { status: 400 },
-        )
-      }
-    }
-
-    const startEntries: Array<[string, number]> = [
-      ["invoice_start", payload.invoice_start],
-      ["order_start", payload.order_start],
-      ["purchase_start", payload.purchase_start],
-      ["customer_start", payload.customer_start],
-      ["supplier_start", payload.supplier_start],
-      ["item_group_start", payload.item_group_start],
-      ["item_start", payload.item_start],
-    ]
-
-    for (const [field, value] of startEntries) {
-      if (!isValidStart(value)) {
-        return NextResponse.json(
-          {
-            error: "Invalid start value",
-            details: `${field} must be an integer between 1 and 999`,
-          },
-          { status: 400 },
-        )
-      }
-    }
-
-    const result = await sql`
-      UPDATE system_settings 
-      SET 
-        company_name = ${payload.company_name},
-        company_name_en = ${payload.company_name_en},
-        company_address = ${payload.company_address},
-        company_phone = ${payload.company_phone},
-        company_email = ${payload.company_email},
-        company_website = ${payload.company_website},
-        tax_number = ${payload.tax_number},
-        commercial_register = ${payload.commercial_register},
-        numbering_system = ${payload.numbering_system},
-        invoice_prefix = ${payload.invoice_prefix},
-        order_prefix = ${payload.order_prefix},
-        purchase_prefix = ${payload.purchase_prefix},
-        customer_prefix = ${payload.customer_prefix},
-        supplier_prefix = ${payload.supplier_prefix},
-        item_group_prefix = ${payload.item_group_prefix},
-        invoice_start = ${payload.invoice_start},
-        order_start = ${payload.order_start},
-        purchase_start = ${payload.purchase_start},
-        customer_start = ${payload.customer_start},
-        supplier_start = ${payload.supplier_start},
-        item_group_start = ${payload.item_group_start},
-        item_start = ${payload.item_start},
-        fiscal_year_start = ${payload.fiscal_year_start},
-        default_currency = ${payload.default_currency},
-        language = ${payload.language},
-        timezone = ${payload.timezone},
-        date_format = ${payload.date_format},
-        time_format = ${payload.time_format},
-        working_days = ${JSON.stringify(payload.working_days)}::jsonb,
-        working_hours = ${payload.working_hours},
-        session_timeout = ${payload.session_timeout},
-        password_policy = ${payload.password_policy},
-        two_factor_auth = ${payload.two_factor_auth},
-        audit_log = ${payload.audit_log},
-        default_printer = ${payload.default_printer},
-        paper_size = ${payload.paper_size},
-        print_logo = ${payload.print_logo},
-        print_footer = ${payload.print_footer},
-        auto_numbering = ${payload.auto_numbering},
-        default_customer_parent_account = ${payload.default_customer_parent_account},
-        default_customer_credit_account = ${payload.default_customer_credit_account},
-        default_sales_tax_account = ${payload.default_sales_tax_account},
-        default_currency_transfer_account = ${payload.default_currency_transfer_account},
-        default_earned_discount_account = ${payload.default_earned_discount_account},
-        default_exchange_gain_loss_account = ${payload.default_exchange_gain_loss_account},
-        default_salesman_parent_account = ${payload.default_salesman_parent_account},
-        default_supplier_parent_account = ${payload.default_supplier_parent_account},
-        default_customer_subscription_account = ${payload.default_customer_subscription_account},
-        default_purchase_tax_account = ${payload.default_purchase_tax_account},
-        default_new_employee_account = ${payload.default_new_employee_account},
-        default_allowed_discount_account = ${payload.default_allowed_discount_account},
-        updated_at = CURRENT_TIMESTAMP
-      WHERE id = 1
-      RETURNING *
-    `
-
-    return NextResponse.json(result[0])
+    const payload = normalizePayload(data)
+    const saved = await saveSettingsPayload(payload)
+    return NextResponse.json(saved)
   } catch (error) {
     console.error("Database update error:", error)
     return NextResponse.json(
