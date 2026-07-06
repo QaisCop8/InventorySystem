@@ -49,6 +49,7 @@ export function SystemSettings() {
     supplierPrefix: "S",
     itemGroupPrefix: "G",
     autoNumbering: true,
+    allowDuplicateBatchNumber: false,
 
     invoiceStart: 1,
     orderStart: 1,
@@ -153,6 +154,7 @@ export function SystemSettings() {
             printLogo: data.print_logo !== false,
             printFooter: data.print_footer !== false,
             autoNumbering: data.auto_numbering !== false,
+            allowDuplicateBatchNumber: data.allow_duplicate_batch_number ?? data.allowDuplicateBatchNumber ?? prev.allowDuplicateBatchNumber,
           }))
         }
       }
@@ -232,6 +234,7 @@ export function SystemSettings() {
           printLogo: settings.printLogo,
           printFooter: settings.printFooter,
           autoNumbering: settings.autoNumbering,
+          allow_duplicate_batch_number: settings.allowDuplicateBatchNumber,
         }),
       })
 
@@ -280,6 +283,7 @@ export function SystemSettings() {
         supplierPrefix: "S",
         itemGroupPrefix: "G",
         autoNumbering: true,
+        allowDuplicateBatchNumber: false,
         invoiceStart: 1,
         orderStart: 1,
         purchaseStart: 1,
@@ -931,7 +935,7 @@ export function SystemSettings() {
                 </div>
               </div>
 
-              <div className="border-t pt-6">
+              <div className="border-t pt-6 space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
                     <Label htmlFor="autoNumbering" className="text-right block font-semibold">
@@ -943,6 +947,20 @@ export function SystemSettings() {
                     id="autoNumbering"
                     checked={settings.autoNumbering}
                     onCheckedChange={(checked) => setSettings({ ...settings, autoNumbering: checked })}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label htmlFor="allowDuplicateBatchNumber" className="text-right block font-semibold">
+                      السماح بتكرار الرقم التشغيلي
+                    </Label>
+                    <p className="text-sm text-muted-foreground mt-1">السماح بوجود نفس الرقم التشغيلي في الطلبيات</p>
+                  </div>
+                  <Switch
+                    id="allowDuplicateBatchNumber"
+                    checked={settings.allowDuplicateBatchNumber}
+                    onCheckedChange={(checked) => setSettings({ ...settings, allowDuplicateBatchNumber: checked })}
                   />
                 </div>
               </div>

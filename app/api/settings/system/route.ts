@@ -3,8 +3,14 @@ import { neon } from "@neondatabase/serverless"
 
 const sql = neon(process.env.DATABASE_URL!)
 
+const ensureSettingsColumns = async () => {
+  await sql`ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS allow_duplicate_batch_number BOOLEAN DEFAULT false`
+}
+
 export async function GET() {
   try {
+    await ensureSettingsColumns()
+
     const settings = await sql`
       SELECT * FROM system_settings 
       ORDER BY id DESC 
@@ -20,6 +26,8 @@ export async function GET() {
 
 export async function PUT(request: NextRequest) {
   try {
+    await ensureSettingsColumns()
+
     const data = await request.json()
 
     const result = await sql`
@@ -64,6 +72,7 @@ export async function PUT(request: NextRequest) {
         print_logo = ${data.print_logo || true},
         print_footer = ${data.print_footer || true},
         auto_numbering = ${data.auto_numbering || true},
+        allow_duplicate_batch_number = ${data.allow_duplicate_batch_number ?? data.allowDuplicateBatchNumber ?? false},
         updated_at = CURRENT_TIMESTAMP
       WHERE id = 1
       RETURNING *

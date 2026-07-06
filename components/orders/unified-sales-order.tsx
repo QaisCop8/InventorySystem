@@ -396,6 +396,7 @@ function UnifiedSalesOrder({
   const [nextFunction, setNextFunction] = useState<(() => void) | null>(null);
   const [showPrintRefConfirm, setShowPrintRefConfirm] = useState(false);
   const [showDuplicateRefConfirm, setShowDuplicateRefConfirm] = useState(false);
+  const [allowDuplicateBatchNumber, setAllowDuplicateBatchNumber] = useState(false)
   const [isDuplicateRefConfirmed, setIsDuplicateRefConfirmed] = useState(false);
   const duplicateRefDismissedValueRef = useRef<string>("");
   const skipNextEnterRef = useRef(false)
@@ -523,6 +524,24 @@ function UnifiedSalesOrder({
 
     }
   }, [order])
+
+  useEffect(() => {
+    const loadSystemSettings = async () => {
+      try {
+        const response = await fetch("/api/settings/system")
+        if (!response.ok) return
+
+        const data = await response.json()
+        setAllowDuplicateBatchNumber(
+          data?.allow_duplicate_batch_number ?? data?.allowDuplicateBatchNumber ?? false,
+        )
+      } catch (error) {
+        console.error("Failed to load system settings for sales order:", error)
+      }
+    }
+
+    loadSystemSettings()
+  }, [])
 
   useEffect(() => {
     if (!open) return;
@@ -1697,7 +1716,7 @@ function UnifiedSalesOrder({
       if (item.has_batch_number && item.batch) {
         const batchNo = item.batch.toString().trim();
 
-        if (usedBatches.has(batchNo)) {
+        if (!allowDuplicateBatchNumber && usedBatches.has(batchNo)) {
           Util.showErrorMessage(
             message,
             'يوجد رقم تشغيلي مكرر مع اكثر من صنف : ' + batchNo
@@ -1705,7 +1724,9 @@ function UnifiedSalesOrder({
           return false;
         }
 
-        usedBatches.add(batchNo);
+        if (!allowDuplicateBatchNumber) {
+          usedBatches.add(batchNo);
+        }
       }
     }
 

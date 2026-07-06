@@ -3,8 +3,14 @@ import { neon } from "@neondatabase/serverless"
 
 const sql = neon(process.env.DATABASE_URL!)
 
+const ensureSettingsColumns = async () => {
+  await sql`ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS allow_duplicate_batch_number BOOLEAN DEFAULT false`
+}
+
 export async function POST(request: NextRequest) {
   try {
+    await ensureSettingsColumns()
+
     const settings = await request.json()
 
     console.log("[v0] Received settings data:", settings)
@@ -22,7 +28,7 @@ export async function POST(request: NextRequest) {
         default_currency, date_format, time_format, language, timezone, 
         fiscal_year_start, working_days, working_hours, session_timeout, 
         password_policy, two_factor_auth, audit_log, invoice_prefix, 
-        order_prefix, purchase_prefix, auto_numbering, default_printer, 
+        order_prefix, purchase_prefix, auto_numbering, allow_duplicate_batch_number, default_printer, 
         paper_size, print_logo, print_footer, updated_at
       ) VALUES (
         1, ${settings.companyName || settings.company_name}, 
@@ -49,6 +55,7 @@ export async function POST(request: NextRequest) {
         ${settings.orderPrefix || settings.order_prefix || "O"}, 
         ${settings.purchasePrefix || settings.purchase_prefix || "T"}, 
         ${settings.autoNumbering || settings.auto_numbering || true},
+        ${settings.allowDuplicateBatchNumber ?? settings.allow_duplicate_batch_number ?? false},
         ${settings.defaultPrinter || settings.default_printer}, 
         ${settings.paperSize || settings.paper_size || "A4"}, 
         ${settings.printLogo || settings.print_logo || true},
@@ -80,6 +87,7 @@ export async function POST(request: NextRequest) {
         order_prefix = EXCLUDED.order_prefix,
         purchase_prefix = EXCLUDED.purchase_prefix,
         auto_numbering = EXCLUDED.auto_numbering,
+        allow_duplicate_batch_number = EXCLUDED.allow_duplicate_batch_number,
         default_printer = EXCLUDED.default_printer,
         paper_size = EXCLUDED.paper_size,
         print_logo = EXCLUDED.print_logo,
@@ -102,6 +110,8 @@ export async function POST(request: NextRequest) {
 
 export async function GET() {
   try {
+    await ensureSettingsColumns()
+
     const settings = await sql`
       SELECT * FROM system_settings ORDER BY id DESC LIMIT 1
     `
