@@ -4,6 +4,23 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
 });
 
+async function ensureProductCostCentersTable() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS product_costcenters_tbl (
+      id SERIAL PRIMARY KEY,
+      product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+      cost_center_type_id INTEGER,
+      required_in_transactions INTEGER,
+      default_cost_center_id INTEGER
+    )
+  `)
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_product_costcenters_product_id
+    ON product_costcenters_tbl(product_id)
+  `)
+}
+
 async function hasDefaultStoreColumn() {
   const client = await pool.connect();
   try {
@@ -31,6 +48,7 @@ export async function GET(
   let values: any[] = [];
 
   try {
+    await ensureProductCostCentersTable()
     const canJoinDefaultStore = await hasDefaultStoreColumn();
 
     switch (navigationType) {
@@ -192,6 +210,12 @@ export async function GET(
       [product.id]
     );
     product.stores = storesResult.rows;
+
+    const costCentersResult = await pool.query(
+      "SELECT id, product_id, cost_center_type_id, required_in_transactions, default_cost_center_id FROM product_costcenters_tbl WHERE product_id=$1 ORDER BY id",
+      [product.id]
+    );
+    product.cost_centers = costCentersResult.rows;
 
     return NextResponse.json(product);
   } catch (error) {

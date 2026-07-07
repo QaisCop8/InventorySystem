@@ -11,7 +11,7 @@ import { ref } from "process";
 interface Column {
     name: string;
     header: string;
-    width?: number;
+    width?: number | string;
     minWidth?: number;
     visible?: boolean;
     isRequired?: boolean;
@@ -25,15 +25,17 @@ interface Column {
     cellTemplateType?: "button" | "status" | "custom";
     onClick?: (item: any) => void;
     body?: (cell: any) => JSX.Element;
-    buttonBody?: "button";
+    buttonBody?: "button" | string;
     className?: string;
     iconType?: string;
     title?: string;
+    readonly?: boolean;
 }
 
 interface CustomFlexGridProps {
     dataSource: any[];
     scheme: { columns: Column[] };
+    [key: string]: any;
     allowDragging?: "Rows" | "Columns" | "Both";
     isReport?: boolean;
     headersVisibility?: "All" | "Column" | "Row" | "None";
@@ -58,10 +60,13 @@ export default function CustomFlexGrid({
     cellEditStarting,
     beginningEdit,
     selectionChanged,
-    onRowDoubleClick
+    onRowDoubleClick,
+    ref: forwardedRef
 }: CustomFlexGridProps) {
 
     const flexRef = React.useRef<wjGrid.FlexGrid | null>(null);
+
+    React.useImperativeHandle(forwardedRef, () => flexRef.current, []);
 
 
     const handleInitialized = (grid: wjGrid.FlexGrid) => {

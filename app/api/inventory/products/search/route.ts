@@ -5,6 +5,23 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
 });
 
+async function ensureProductCostCentersTable(client: any) {
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS product_costcenters_tbl (
+      id SERIAL PRIMARY KEY,
+      product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+      cost_center_type_id INTEGER,
+      required_in_transactions INTEGER,
+      default_cost_center_id INTEGER
+    )
+  `)
+
+  await client.query(`
+    CREATE INDEX IF NOT EXISTS idx_product_costcenters_product_id
+    ON product_costcenters_tbl(product_id)
+  `)
+}
+
 async function hasDefaultStoreColumn(client: any) {
   const result = await client.query(`
     SELECT EXISTS (
@@ -29,6 +46,7 @@ export async function GET(request: NextRequest) {
     }
 
     const client = await pool.connect();
+    await ensureProductCostCentersTable(client)
     const canJoinDefaultStore = await hasDefaultStoreColumn(client)
 
     // 1️⃣ Get product by product_code OR first barcode (from product_unit_barcodes)
@@ -127,6 +145,15 @@ export async function GET(request: NextRequest) {
         product.barcode = query
       }
     }
+    const costCentersResult = await client.query(
+      `SELECT id, product_id, cost_center_type_id, required_in_transactions, default_cost_center_id
+       FROM product_costcenters_tbl
+       WHERE product_id = $1
+       ORDER BY id`,
+      [product.id]
+    );
+    product.cost_centers = costCentersResult.rows;
+
     product.store_id = product.default_store ?? null;
     product.store_name = product.default_store_name || "بلا تحديد";
     client.release();

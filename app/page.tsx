@@ -18,6 +18,7 @@ import dynamic from "next/dynamic"
 const SalesOrders = dynamic(() => import("@/components/orders/sales-orders").then(mod => mod.SalesOrders), { ssr: false })
 const SaleInvoices = dynamic(() => import("@/components/orders/sale-invoices").then(mod => mod.SaleInvoices), { ssr: false })
 const Products = dynamic(() => import("@/components/products/products").then(mod => mod.Products), { ssr: false })
+const Services = dynamic(() => import("@/components/products/services").then(mod => mod.Services), { ssr: false })
 import Customers from "@/components/products/customers"
 import ProductGroups from "@/components/products/product-groups"
 import { ExchangeRates } from "@/components/data/exchange-rates"
@@ -75,6 +76,7 @@ const componentMap: Record<string, React.ComponentType<any>> = {
   "purchase-orders": (props: any) => <SalesOrders {...props} isPurchase={true} />,
   "batch-movements": BatchMovements,
   products: Products,
+  services: Services,
   customers: Customers,
   suppliers: (props: any) => <Customers {...props} isSupplier={true} />,
   "product-groups": ProductGroups,

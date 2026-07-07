@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -17,12 +17,14 @@ import { WarehouseInventoryTable } from "./warehouse-inventory-table"
 import { BatchTrackingTable } from "./batch-tracking-table"
 import { UNITS } from "@/lib/constants"
 import DataGrid from "../common/DataGrid"
+import DataGridView from "@/components/common/DataGridView"
 import * as wjcInput from '@grapecity/wijmo.input';
 import * as wjGrid from "@grapecity/wijmo.grid";
 import { readonly } from "zod/v4"
 import ProductBarcodes from "./ProductBarcodes"
 import { Toast } from 'primereact/toast';
 import { Dropdown as PrimeDropdown } from 'primereact/dropdown'
+import SearchCostCenterDialog from "@/components/customer/search-cost-center-dialog"
 import './compact-product-form.css'
 import ProgressSpinner from "../ProgressSpinner/ProgressSpinner"
 import ConfirmDialogYesNo from "../ui/ConfirmDialogYesNo"
@@ -32,6 +34,16 @@ import Util from "../common/Util"
 import sharedDropdownStyles from "../common/Dropdown.module.scss"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
+
+interface ProductCostCenterItem {
+  id?: number
+  product_id?: number
+  cost_center_type_id: number | null
+  required_in_transactions?: number | null
+  default_cost_center_id?: number | null
+  cost_center_type_name?: string
+  cost_center_name?: string
+}
 
 interface ProductFormData {
   id: number
@@ -59,6 +71,8 @@ interface ProductFormData {
   batch_tracking: boolean
   serial_tracking: boolean
   status: number
+  type: number
+  service_type: number
 
   manufacturer_company: string
   length: number
@@ -74,6 +88,7 @@ interface ProductFormData {
   units?: UnitItem[],
   prices?: PriceItem[],
   stores?: StoreItem[],
+  cost_centers?: ProductCostCenterItem[],
 }
 export const initialFormData: ProductFormData = {
   id: 0,
@@ -101,6 +116,8 @@ export const initialFormData: ProductFormData = {
   batch_tracking: false,
   serial_tracking: false,
   status: 1,
+  type: 1,
+  service_type: 0,
 
   manufacturer_company: "",
   length: 0,
@@ -115,15 +132,17 @@ export const initialFormData: ProductFormData = {
 
   units: [],
   prices: [],
-  stores: []
+  stores: [],
+  cost_centers: []
 };
 
-interface CompactProductFormProps {
+export interface CompactProductFormProps {
   visible?: any,
   editingProduct?: any
   onHideDialog: (e: any) => void
   onSuccess?: () => void
   isSubmitting?: boolean
+  entityType?: "products" | "services"
 }
 interface UnitItem {
   id: number;
@@ -151,7 +170,9 @@ export function CompactProductForm({
   editingProduct,
   onHideDialog,
   onSuccess,
+  entityType = "products",
 }: CompactProductFormProps) {
+  const isService = entityType === "services"
   const toast = useRef<Toast>(null);
   const [formData, setFormData] = useState<ProductFormData>(initialFormData)
   const [isSearching, setIsSearching] = useState(false)
@@ -168,6 +189,8 @@ export function CompactProductForm({
     currencies: [] as Array<{ id: number; currency_name: string }>,
     price_category: [] as Array<{ id: number; name: string }>,
     product_category: [] as Array<{ id: number; name: string }>,
+    cost_center_types: [] as Array<{ id: number; name: string }>,
+    cost_centers: [] as Array<{ id: number; name: string; cost_type_id?: number; parent_id?: number | null }>,
   })
   const definitionsRef = useRef({
     categories: [] as Array<{ id: number; group_name: string }>,
@@ -177,12 +200,19 @@ export function CompactProductForm({
     currencies: [] as Array<{ id: number; currency_name: string }>,
     price_category: [] as Array<{ id: number; name: string }>,
     product_category: [] as Array<{ id: number; name: string }>,
+    cost_center_types: [] as Array<{ id: number; name: string }>,
+    cost_centers: [] as Array<{ id: number; name: string; cost_type_id?: number; parent_id?: number | null }>,
   });
   const unitGridRef = useRef<wjGrid.FlexGrid>(null);
   const [prices_data, setPricesData] = useState<PriceItem[]>([]);
   const [units_data, setUnitsData] = useState<UnitItem[]>([]);
   const [stores_data, setStoresData] = useState<StoreItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const [costCenterTypes, setCostCenterTypes] = useState<Array<{ id: number; name: string }>>([]);
+  const [costCenters, setCostCenters] = useState<Array<{ id: number; name: string; cost_type_id?: number; parent_id?: number | null }>>([]);
+  const [costCenterSearchOpen, setCostCenterSearchOpen] = useState(false)
+  const [selectedCostCenterRowIndex, setSelectedCostCenterRowIndex] = useState<number | null>(null)
+  const [selectedCostCenterType, setSelectedCostCenterType] = useState<{ id: number; name: string } | null>(null)
 
   const [unitCurrentRow, setUnitCurrentRow] = useState(0)
   const [barcodeDialogOpen, setBarcodeDialogOpen] = useState(false);
@@ -191,16 +221,16 @@ export function CompactProductForm({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<string>("prices");
+  const [activeTab, setActiveTab] = useState<string>("units");
   const product_code = useRef<HTMLInputElement>(null);
   const product_name = useRef<HTMLInputElement>(null);
   const initialized = useRef(false);
   useEffect(() => {
-    // When the dialog opens or mode changes, default to prices for new records
+    // When the dialog opens or mode changes, default to the units tab
     if (visible) {
-      setActiveTab(editingProduct ? "brand" : "prices");
+      setActiveTab("units");
     }
-  }, [visible, editingProduct]);
+  }, [visible]);
   const validateProduct = () => {
     if (formData.product_code === "") {
       toast.current?.show({
@@ -319,10 +349,15 @@ export function CompactProductForm({
         return
       }
 
+      const requestMethod = formData.id ? "PUT" : "POST"
       const response = await fetch("/api/inventory/products", {
-        method: "POST", // ✅ always create new record
+        method: requestMethod,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          type: isService ? 2 : 1,
+          service_type: isService ? 1 : 0,
+        }),
       })
 
       const responseData = await response.json()
@@ -330,7 +365,7 @@ export function CompactProductForm({
         throw new Error(responseData.error || "فشل في حفظ المنتج")
       }
 
-      setSuccess("تم إنشاء المنتج بنجاح ✅")
+      setSuccess(formData.id ? "تم تحديث المنتج بنجاح ✅" : "تم إنشاء المنتج بنجاح ✅")
       toast.current?.show({
         severity: 'success',
         summary: 'نجاح',
@@ -338,6 +373,7 @@ export function CompactProductForm({
         life: 3000
       });
       await reset_fields()
+      onSuccess?.()
 
     } catch (err) {
       console.error("[ProductDialog] Error saving product:", err)
@@ -517,11 +553,14 @@ export function CompactProductForm({
         };
       });
 
+      const costCenterRows = buildCostCenterRows(product.cost_centers ?? [], definitionsRef.current.cost_center_types, definitionsRef.current.cost_centers);
+
       const newFormData = {
         ...product,
         units: unitsWithNames,
         prices: pricesWithNames,
         stores: storesWithNames,
+        cost_centers: costCenterRows,
         default_store: product.default_store ?? 0,
       };
       setFormData(newFormData);
@@ -691,12 +730,17 @@ export function CompactProductForm({
     };
 
     // --- Build new form data ---
+    const costCenterRows = buildCostCenterRows([], definitionsRef.current.cost_center_types, definitionsRef.current.cost_centers);
+
     let newFormData = {
       ...initialFormData,
       product_code: newCode,
       units: [newUnit],
       prices: [newPrice],
       stores: [newStore],
+      cost_centers: costCenterRows,
+      type: isService ? 2 : 1,
+      service_type: isService ? 1 : 0,
     };
 
     if (definitionsRef.current.currencies.length > 0) {
@@ -705,6 +749,7 @@ export function CompactProductForm({
 
     setFormData(newFormData);
     setCurrentProductId(0);
+    setActiveTab("units");
 
     const currentHash = getFormDataHash(newFormData);
     initialHash.current = currentHash;
@@ -942,7 +987,7 @@ export function CompactProductForm({
         {
           header: "اسم الوحدة",
           name: "unit_name",
-          width: "*",
+          width: 220,
           editor: (cell: any) => (
             <select
               value={cell.row.dataItem.unit_name || ""}
@@ -984,7 +1029,7 @@ export function CompactProductForm({
         {
           header: "الباركود",
           name: "barcode",
-          buttonBody: "button",
+          buttonBody: "button" as const,
           width: 100,
           iconType: "barcode",
           readonly: true,
@@ -1006,7 +1051,7 @@ export function CompactProductForm({
           header: " ",
           name: "delete",
           width: 80,
-          buttonBody: "button",
+          buttonBody: "button" as const,
           iconType: "trash",
           onClick: (item: { ser: number }) => handleDeleteUnit(item.ser - 1)
         }
@@ -1029,7 +1074,7 @@ export function CompactProductForm({
         {
           header: "فئة السعر",
           name: "price_name",
-          width: "*",
+          width: 220,
           editor: (cell: any) => (
             <select
               value={cell.row.dataItem.price_name || ""}
@@ -1059,7 +1104,7 @@ export function CompactProductForm({
         {
           header: "اسم الوحدة",
           name: "unit_name",
-          width: "*",
+          width: 220,
           editor: (cell: any) => (
             <select
               value={cell.row.dataItem.unit_name || ""}
@@ -1120,7 +1165,7 @@ export function CompactProductForm({
           header: " ",
           name: "delete",
           width: 80,
-          buttonBody: "button",
+          buttonBody: "button" as const,
           iconType: "trash",
           onClick: (item: { ser: number }) => handleDeletePrice(item.ser - 1)
         }
@@ -1136,7 +1181,7 @@ export function CompactProductForm({
       {
         name: "warehouse_id",
         header: "المستودع",
-        width: '*',
+        width: 220,
         editor: (cell: any) => (
           <select
             value={cell.row.dataItem.store_name || ""}
@@ -1178,7 +1223,7 @@ export function CompactProductForm({
       {
         name: "actions",
         header: " ",
-        buttonBody: "button",
+        buttonBody: "button" as const,
         iconType: "trash",
         width: 100,
         onClick: (item: { ser: number }) => handleDeleteStore(item.ser - 1)
@@ -1218,10 +1263,13 @@ export function CompactProductForm({
             };
           });
 
+          const costCenterRows = buildCostCenterRows(product.cost_centers ?? [], definitionsRef.current.cost_center_types, definitionsRef.current.cost_centers);
+
           setFormData({
             ...product,
             units: unitsWithNames,
             prices: pricesWithNames,
+            cost_centers: costCenterRows,
 
           });
           setCurrentProductId(product.id);
@@ -1263,6 +1311,35 @@ export function CompactProductForm({
     formData.product_code = adjustCode(formData.product_code)
     searchProductByCode(formData.product_code)
     // }
+  }
+
+  const buildCostCenterRows = (assignedRows: any[] = [], types: any[] = [], centers: any[] = []) => {
+    return (types || []).map((type: any) => {
+      const assignment = (assignedRows || []).find((row: any) => Number(row?.cost_center_type_id) === Number(type.id))
+      const selectedId = assignment?.default_cost_center_id != null ? Number(assignment.default_cost_center_id) : null
+      const requiredValue = Number(assignment?.required_in_transactions ?? 1)
+      const requiredLabel = costCenterStatusOptions.find((option) => option.value === requiredValue)?.label || "اختياري"
+      return {
+        id: assignment?.id ?? 0,
+        product_id: assignment?.product_id ?? 0,
+        cost_center_type_id: Number(type.id),
+        cost_center_type_name: type.name || "",
+        required_in_transactions: requiredValue,
+        required_label: requiredLabel,
+        default_cost_center_id: selectedId,
+        cost_center_name: selectedId != null
+          ? centers.find((center: any) => Number(center.id) === selectedId)?.name || ""
+          : "",
+      }
+    })
+  }
+
+  const updateCostCenterRow = (index: number, field: string, value: any) => {
+    setFormData((prev) => {
+      const rows = [...(prev.cost_centers ?? [])]
+      rows[index] = { ...rows[index], [field]: value }
+      return { ...prev, cost_centers: rows }
+    })
   }
 
   const fetchDefinitions = async () => {
@@ -1329,6 +1406,24 @@ export function CompactProductForm({
         definitionsRef.current.product_category = productCategory.categories
         setDefinitions((prev) => ({ ...prev, product_category: productCategory.categories }))
       }
+
+      const costCenterTypeResponse = await fetch("/api/cost-center-types")
+      if (costCenterTypeResponse.ok) {
+        const costCenterTypesData = await costCenterTypeResponse.json()
+        definitionsObj.costCenterTypes = costCenterTypesData
+        definitionsRef.current.cost_center_types = costCenterTypesData
+        setCostCenterTypes(costCenterTypesData)
+        setDefinitions((prev) => ({ ...prev, cost_center_types: costCenterTypesData }))
+      }
+
+      const costCentersResponse = await fetch("/api/cost-centers")
+      if (costCentersResponse.ok) {
+        const costCentersData = await costCentersResponse.json()
+        definitionsObj.costCenters = costCentersData
+        definitionsRef.current.cost_centers = costCentersData
+        setCostCenters(costCentersData)
+        setDefinitions((prev) => ({ ...prev, cost_centers: costCentersData }))
+      }
       return definitionsObj
     } catch (error) {
       console.error("Error fetching definitions:", error)
@@ -1346,8 +1441,101 @@ export function CompactProductForm({
     }));
   }
 
+  const costCenterStatusOptions = [
+    { label: "اختياري", value: 1 },
+    { label: "إجباري", value: 2 },
+    { label: "ممنوع", value: 3 },
+  ]
+
+  const costCenterScheme = useMemo(() => ({
+    name: "ProductCostCenterScheme",
+    columns: [
+      { header: "نوع مركز التكلفة", name: "cost_center_type_name", width: 220, minWidth: 180, isReadOnly: true },
+      {
+        header: "الحالة",
+        name: "required_label",
+        width: 140,
+        minWidth: 120,
+        editor: (cell: any) => {
+          const editorHost = document.createElement("div")
+          const select = document.createElement("select")
+          select.className = "w-full rounded border border-input bg-background px-2 py-1 text-sm"
+          select.value = String(cell.row.dataItem.required_in_transactions ?? 1)
+
+          costCenterStatusOptions.forEach((option) => {
+            const optionEl = document.createElement("option")
+            optionEl.value = String(option.value)
+            optionEl.textContent = option.label
+            select.appendChild(optionEl)
+          })
+
+          select.onchange = (event) => {
+            const nextValue = Number((event.target as HTMLSelectElement).value || 1)
+            const nextLabel = costCenterStatusOptions.find((option) => option.value === nextValue)?.label || "اختياري"
+            cell.row.dataItem.required_in_transactions = nextValue
+            cell.row.dataItem.required_label = nextLabel
+            updateCostCenterRow(cell.row.index, "required_in_transactions", nextValue)
+            updateCostCenterRow(cell.row.index, "required_label", nextLabel)
+          }
+
+          editorHost.appendChild(select)
+          return editorHost
+        },
+      },
+      {
+        header: "مركز التكلفة",
+        name: "cost_center_name",
+        width: 260,
+        minWidth: 220,
+        isReadOnly: true,
+      },
+      {
+        name: "btnSearch",
+        header: " ",
+        width: 56,
+        buttonBody: "button",
+        align: "center",
+        title: "بحث",
+        iconType: "search",
+        className: "btn-search",
+        isReadOnly: true,
+        onClick: (e: any, ctx: any) => {
+          e.stopPropagation()
+          const rowIndex = ctx.row.index
+          const row = formData.cost_centers?.[rowIndex]
+          if (!row) return
+          setSelectedCostCenterRowIndex(rowIndex)
+          setSelectedCostCenterType({ id: Number(row.cost_center_type_id), name: row.cost_center_type_name || "" })
+          setCostCenterSearchOpen(true)
+        },
+        visible: true,
+        visibleInColumnChooser: true,
+      },
+      {
+        name: "btnDelete",
+        header: " ",
+        width: 56,
+        buttonBody: "button",
+        align: "center",
+        title: "حذف",
+        iconType: "delete",
+        className: "btn-delete",
+        isReadOnly: true,
+        onClick: (e: any, ctx: any) => {
+          e.stopPropagation()
+          const rowIndex = ctx.row.index
+          updateCostCenterRow(rowIndex, "default_cost_center_id", null)
+          updateCostCenterRow(rowIndex, "cost_center_name", "")
+          updateCostCenterRow(rowIndex, "required_label", costCenterStatusOptions.find((option) => option.value === (formData.cost_centers?.[rowIndex]?.required_in_transactions ?? 1))?.label || "اختياري")
+        },
+        visible: true,
+        visibleInColumnChooser: true,
+      },
+    ],
+  }), [costCenterStatusOptions, formData.cost_centers])
+
   return (
-    <div className="h-screen flex flex-col bg-background" dir="rtl">
+    <div className="h-screen flex flex-col bg-background overflow-hidden" dir="rtl">
       {/* Universal Toolbar - Fixed at top */}
       <div className="flex-shrink-0">
         <UniversalToolbar
@@ -1396,12 +1584,12 @@ export function CompactProductForm({
 
       <Toast ref={toast} position="top-left" className="custom-toast" />
       <ProgressSpinner loading={loading} />
-      <div className="flex-1 overflow-y-auto">
-        <div className="space-y-6 p-6">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden">
+        <div className="mx-auto w-full max-w-7xl space-y-4 p-3 pb-8 sm:space-y-6 sm:p-4 sm:pb-10 lg:p-6 lg:pb-12">
           {/* Header */}
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-foreground flex items-center gap-3">
+              <h1 className="text-xl font-bold text-foreground flex items-center gap-3 sm:text-2xl">
                 <Package className="h-7 w-7 text-primary" />
                 {editingProduct ? "تعديل " : "صنف جديد"}
               </h1>
@@ -1411,30 +1599,32 @@ export function CompactProductForm({
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="mb-4">
-              <h2 className="text-xl font-semibold text-foreground">المعلومات الأساسية والتعريف</h2>
+              <h2 className="text-lg font-semibold text-foreground sm:text-xl">المعلومات الأساسية والتعريف</h2>
             </div>
             <Card>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-4 p-4 sm:p-6">
                 {/* الصف الأول: الأكواد والتعريف */}
-                <div className="grid grid-cols-12 gap-4">
+                <div className="grid grid-cols-1 xl:grid-cols-12 gap-4">
                   {/* Product Code - 2 columns */}
 
 
-                  <ProductCodeInput
-                    formData={formData}
-                    handleProductCodeChange={(code) => setFormData((prev) => ({ ...prev, product_code: code }))}
-                    onSelectProductId={(id) => {
-                      setFormData((prev) => ({
-                        ...prev,
-                        id: Number(id), // convert string → number
-                      }))
-                      loadData("Byid", id);
+                  <div className="col-span-1 xl:col-span-2 w-full">
+                    <ProductCodeInput
+                      formData={formData}
+                      handleProductCodeChange={(code) => setFormData((prev) => ({ ...prev, product_code: code }))}
+                      onSelectProductId={(id) => {
+                        setFormData((prev) => ({
+                          ...prev,
+                          id: Number(id), // convert string → number
+                        }))
+                        loadData("Byid", id);
 
-                    }}
-                    visible={true}
-                  />
+                      }}
+                      visible={true}
+                    />
+                  </div>
                   {/* Arabic Name - 5 columns */}
-                  <div className="col-span-12 md:col-span-5">
+                  <div className="col-span-1 lg:col-span-5 xl:col-span-5">
                     <Label htmlFor="product_name" className="text-sm font-medium">
                       اسم الصنف *
                     </Label>
@@ -1454,7 +1644,7 @@ export function CompactProductForm({
                   </div>
 
                   {/* English Name - 5 columns */}
-                  <div className="col-span-12 md:col-span-5">
+                  <div className="col-span-1 lg:col-span-5 xl:col-span-5">
                     <Label htmlFor="product_name_en" className="text-sm font-medium">
                       اسم الصنف بالإنجليزية
                     </Label>
@@ -1469,9 +1659,9 @@ export function CompactProductForm({
                 </div>
 
 
-                <div className="grid grid-cols-12 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
                   {/* Product Code - 2 columns */}
-                  <div className="col-span-12 md:col-span-2">
+                  <div>
                     <Label htmlFor="category" className="text-sm font-medium">
                       التصنيف
                     </Label>
@@ -1499,7 +1689,7 @@ export function CompactProductForm({
                     </Select>
 
                   </div>
-                  <div className="col-span-12 md:col-span-2">
+                  <div>
                     <Label htmlFor="category" className="text-sm font-medium">
                       مجموعة الصنف
                     </Label>
@@ -1526,7 +1716,7 @@ export function CompactProductForm({
                     </Select>
                   </div>
 
-                  <div className="col-span-12 md:col-span-2">
+                  <div>
                     <Label htmlFor="status" className="text-sm font-medium">
                       حالة الصنف
                     </Label>
@@ -1562,7 +1752,7 @@ export function CompactProductForm({
                 {/* خيارات التتبع */}
                 <div>
                   
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div className="flex items-center space-x-2 space-x-reverse">
                       <Checkbox
                         id="expiry_tracking"
@@ -1599,15 +1789,16 @@ export function CompactProductForm({
             </Card>
 
             <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v)} dir="rtl">
-              <TabsList className="h-auto w-full flex justify-start gap-2 overflow-x-auto rounded-xl bg-gradient-to-r from-slate-50 via-blue-50 to-slate-50 p-2 shadow-md border border-slate-200/60 backdrop-blur-sm" style={{ direction: "rtl" }}>
-                <TabsTrigger value="prices" className="rounded-lg px-4 py-2 font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">اسعار البيع</TabsTrigger>
-                <TabsTrigger value="units" className="rounded-lg px-4 py-2 font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-emerald-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">الوحدات</TabsTrigger>
-                <TabsTrigger value="brand" className="rounded-lg px-4 py-2 font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-orange-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">العلامة التجارية</TabsTrigger>
-                <TabsTrigger value="measurements" className="rounded-lg px-4 py-2 font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-red-500 data-[state=active]:to-red-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">القياسات</TabsTrigger>
-                <TabsTrigger value="pricing" className="rounded-lg px-4 py-2 font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-cyan-500 data-[state=active]:to-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">سعر الشراء والضريبة</TabsTrigger>
-                <TabsTrigger value="additional" className="rounded-lg px-4 py-2 font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-violet-500 data-[state=active]:to-violet-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">معلومات إضافية</TabsTrigger>
-                <TabsTrigger value="stores" className="rounded-lg px-4 py-2 font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-amber-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">تفاصيل المستودعات</TabsTrigger>
-                <TabsTrigger value="notes" className="rounded-lg px-4 py-2 font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-slate-600 data-[state=active]:to-slate-700 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">ملاحظات</TabsTrigger>
+              <TabsList className="h-auto w-full flex flex-wrap justify-start gap-2 overflow-x-auto rounded-xl bg-gradient-to-r from-slate-50 via-blue-50 to-slate-50 p-2 shadow-md border border-slate-200/60 backdrop-blur-sm" style={{ direction: "rtl" }}>
+                <TabsTrigger value="units" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-emerald-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">الوحدات</TabsTrigger>
+                <TabsTrigger value="prices" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">اسعار البيع</TabsTrigger>
+                <TabsTrigger value="brand" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-orange-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">العلامة التجارية</TabsTrigger>
+                <TabsTrigger value="measurements" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-red-500 data-[state=active]:to-red-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">القياسات</TabsTrigger>
+                <TabsTrigger value="pricing" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-cyan-500 data-[state=active]:to-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">سعر الشراء والضريبة</TabsTrigger>
+                <TabsTrigger value="additional" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-violet-500 data-[state=active]:to-violet-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">معلومات إضافية</TabsTrigger>
+                <TabsTrigger value="stores" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-amber-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">تفاصيل المستودعات</TabsTrigger>
+                <TabsTrigger value="costcenters" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-fuchsia-500 data-[state=active]:to-fuchsia-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">مراكز التكلفة</TabsTrigger>
+                <TabsTrigger value="notes" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-slate-600 data-[state=active]:to-slate-700 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">ملاحظات</TabsTrigger>
               </TabsList>
 
             {/* التصنيف والعلامة التجارية */}
@@ -1620,7 +1811,7 @@ export function CompactProductForm({
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
 
                   <div>
                     <Label htmlFor="brand" className="text-sm font-medium">
@@ -1675,7 +1866,7 @@ export function CompactProductForm({
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6 gap-4">
                   <div>
                     <Label htmlFor="main_unit" className="text-sm font-medium">
                       نوع القياس
@@ -1784,13 +1975,15 @@ export function CompactProductForm({
               <CardContent>
                 <div className="grid grid-cols-12 gap-4">
                   <div className="col-span-12 md:col-span-12">
-                    <DataGrid
-                      ref={unitGridRef}
-                      dataSource={formData.units ?? []}
-                      scheme={getScheme()}
-                      selectionChanged={selectionChanged}
-                      cellEditEnded={(s: any, e: any) => cellEditEnded(s, e)}
-                    />
+                    <div className="w-full overflow-x-auto">
+                      <DataGrid
+                        ref={unitGridRef}
+                        dataSource={formData.units ?? []}
+                        scheme={getScheme()}
+                        selectionChanged={selectionChanged}
+                        cellEditEnded={(s: any, e: any) => cellEditEnded(s, e)}
+                      />
+                    </div>
                     <ProductBarcodes
                       open={barcodeDialogOpen}
                       onOpenChange={(open) => {
@@ -1827,9 +2020,11 @@ export function CompactProductForm({
               <CardContent>
                 <div className="grid grid-cols-12 gap-4">
                   <div className="col-span-12 md:col-span-12">
-                    <DataGrid dataSource={formData.prices ?? []}
-                      scheme={getPricesScheme()}
-                    />
+                    <div className="w-full overflow-x-auto">
+                      <DataGrid dataSource={formData.prices ?? []}
+                        scheme={getPricesScheme()}
+                      />
+                    </div>
                   </div>
                 </div>
               </CardContent>
@@ -1846,7 +2041,7 @@ export function CompactProductForm({
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6 gap-4">
                   <div>
                     <Label htmlFor="last_purchase_price" className="text-sm font-medium">
                       آخر سعر شراء
@@ -1919,7 +2114,7 @@ export function CompactProductForm({
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
                   <div>
                     <Label htmlFor="original_number" className="text-sm font-medium">
@@ -1967,7 +2162,7 @@ export function CompactProductForm({
                   </button>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                     <div>
                       <Label htmlFor="default_store" className="text-sm font-medium">
                         المستودع الافتراضي في الحركات
@@ -2008,9 +2203,31 @@ export function CompactProductForm({
                       </div>
                     </div>
                   </div>
-                  <div className="grid grid-cols-12 gap-4">
-                    <div className="col-span-12 md:col-span-12">
+                  <div className="grid grid-cols-1 gap-4">
+                    <div className="w-full overflow-x-auto">
                       <DataGrid dataSource={formData.stores ?? []} scheme={getStoresScheme()} />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="costcenters">
+              <Card>
+                <CardHeader className="pb-4">
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <Settings className="h-5 w-5 text-primary" />
+                    مراكز التكلفة
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="overflow-hidden rounded-lg border">
+                    <div className="h-[420px] min-h-[320px] overflow-auto">
+                      <DataGridView
+                        scheme={costCenterScheme}
+                        dataSource={formData.cost_centers ?? []}
+                        defaultRowHeight={44}
+                      />
                     </div>
                   </div>
                 </CardContent>
@@ -2047,6 +2264,28 @@ export function CompactProductForm({
           </form>
         </div>
       </div>
+      {costCenterSearchOpen && selectedCostCenterType && (
+        <SearchCostCenterDialog
+          open={costCenterSearchOpen}
+          onOpenChange={(open) => {
+            setCostCenterSearchOpen(open)
+            if (!open) {
+              setSelectedCostCenterRowIndex(null)
+              setSelectedCostCenterType(null)
+            }
+          }}
+          type={selectedCostCenterType}
+          costCenters={costCenters as any}
+          onSelect={(center) => {
+            if (selectedCostCenterRowIndex == null) return
+            updateCostCenterRow(selectedCostCenterRowIndex, "default_cost_center_id", Number(center.id))
+            updateCostCenterRow(selectedCostCenterRowIndex, "cost_center_name", center.name || "")
+            setSelectedCostCenterRowIndex(null)
+            setSelectedCostCenterType(null)
+            setCostCenterSearchOpen(false)
+          }}
+        />
+      )}
     </div >
   )
 }

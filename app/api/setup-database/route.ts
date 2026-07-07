@@ -81,6 +81,8 @@ export async function POST() {
         category VARCHAR(255),
         status VARCHAR(50) DEFAULT 'نشط',
         product_type VARCHAR(50) DEFAULT 'صنف',
+        type INTEGER DEFAULT 1,
+        service_type INTEGER DEFAULT 0,
         has_expiry BOOLEAN DEFAULT false,
         has_batch BOOLEAN DEFAULT false,
         has_colors BOOLEAN DEFAULT false,
@@ -94,6 +96,9 @@ export async function POST() {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `
+
+    await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS type INTEGER DEFAULT 1`
+    await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS service_type INTEGER DEFAULT 0`
 
     await sql`
       CREATE TABLE IF NOT EXISTS exchange_rates (

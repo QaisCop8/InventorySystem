@@ -182,7 +182,12 @@ const initialFormData: ProductFormData = {
   notes: "",
 }
 
-export function Products() {
+interface ProductsProps {
+  entityType?: "products" | "services"
+}
+
+export function Products({ entityType = "products" }: ProductsProps) {
+  const isService = entityType === "services"
   const [state, setState] = useState({
     products: [] as Product[],
     categories: [] as Array<{ id: number; name: string }>,
@@ -285,8 +290,11 @@ export function Products() {
     try {
       setState((prev) => ({ ...prev, loading: true, error: null }))
       const response = await fetch("/api/inventory/products")
-      if (!response.ok) throw new Error("فشل في تحميل المنتجات")
-      const data = await response.json()
+      const data = await response.json().catch(() => null)
+      if (!response.ok) {
+        const errorMessage = data?.error || "فشل في تحميل المنتجات"
+        throw new Error(errorMessage)
+      }
       setState((prev) => ({ ...prev, products: Array.isArray(data) ? data : [] }))
     } catch (err) {
       setState((prev) => ({

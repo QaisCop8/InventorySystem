@@ -62,11 +62,132 @@ async function hasDefaultStoreColumn() {
   }
 }
 
+async function ensureProductTypeColumns() {
+  if (!sql) return
+
+  try {
+    await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS type INTEGER DEFAULT 1`
+    await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS service_type INTEGER DEFAULT 0`
+  } catch (error) {
+    console.error("[v0] Failed to ensure product type columns:", error)
+  }
+}
+
+function safeText(value: any, fallback = "") {
+  if (value == null) return fallback
+  return typeof value === "string" ? value : String(value)
+}
+
+function safeNumber(value: any, fallback = 0) {
+  if (value == null || value === "") return fallback
+  const numericValue = typeof value === "number" ? value : Number(value)
+  return Number.isFinite(numericValue) ? numericValue : fallback
+}
+
+function safeBoolean(value: any, fallback = false) {
+  if (typeof value === "boolean") return value
+  if (value == null) return fallback
+  return Boolean(value)
+}
+
+function normalizeProductPayload(productData: any) {
+  const normalizedUnits = Array.isArray(productData?.units)
+    ? productData.units.map((unit: any) => ({
+        ...unit,
+        unit_id: safeNumber(unit?.unit_id, 0),
+        to_main_qnty: safeNumber(unit?.to_main_qnty, 1),
+        barcode_list: Array.isArray(unit?.barcode_list)
+          ? unit.barcode_list.map((barcode: any) => safeText(barcode, ""))
+          : [],
+      }))
+    : []
+
+  const normalizedPrices = Array.isArray(productData?.prices)
+    ? productData.prices.map((price: any) => ({
+        ...price,
+        price_category_id: safeNumber(price?.price_category_id, 0),
+        unit_id: safeNumber(price?.unit_id, 0),
+        price: safeNumber(price?.price, 0),
+        currency_id: safeNumber(price?.currency_id, 0),
+      }))
+    : []
+
+  const normalizedStores = Array.isArray(productData?.stores)
+    ? productData.stores.map((store: any) => ({
+        ...store,
+        store_id: safeNumber(store?.store_id, 0),
+        shelf: safeText(store?.shelf, ""),
+        reorder_quantity: safeNumber(store?.reorder_quantity, 0),
+        min_quantity: safeNumber(store?.min_quantity, 0),
+        max_quantity: safeNumber(store?.max_quantity, 0),
+      }))
+    : []
+
+  const normalizedCostCenters = Array.isArray(productData?.cost_centers)
+    ? productData.cost_centers.map((row: any) => ({
+        ...row,
+        cost_center_type_id: safeNumber(row?.cost_center_type_id, 0),
+        required_in_transactions: safeNumber(row?.required_in_transactions, 1),
+        default_cost_center_id:
+          row?.default_cost_center_id == null || row?.default_cost_center_id === ""
+            ? null
+            : safeNumber(row.default_cost_center_id, null as any),
+      }))
+    : []
+
+  return {
+    ...productData,
+    id: safeNumber(productData?.id, 0),
+    product_code: safeText(productData?.product_code, ""),
+    product_name: safeText(productData?.product_name, ""),
+    product_name_en: safeText(productData?.product_name_en, ""),
+    description: safeText(productData?.description, ""),
+    category_id: safeNumber(productData?.category_id, 0),
+    main_stock_id: safeNumber(productData?.main_stock_id, 0),
+    default_store: safeNumber(productData?.default_store, 0),
+    brand: safeText(productData?.brand, ""),
+    model: safeText(productData?.model, ""),
+    factory_number: safeText(productData?.factory_number, ""),
+    original_number: safeText(productData?.original_number, ""),
+    measurment_unit: safeNumber(productData?.measurment_unit, 1),
+    last_purchase_price: safeNumber(productData?.last_purchase_price, 0),
+    currency_id: safeNumber(productData?.currency_id, 0),
+    tax_rate: safeNumber(productData?.tax_rate, 0),
+    discount_rate: safeNumber(productData?.discount_rate, 0),
+    location: safeText(productData?.location, ""),
+    expiry_tracking: safeBoolean(productData?.expiry_tracking, false),
+    batch_tracking: safeBoolean(productData?.batch_tracking, false),
+    serial_tracking: safeBoolean(productData?.serial_tracking, false),
+    status: safeNumber(productData?.status, 1),
+    type: safeNumber(productData?.type, 1),
+    service_type: safeNumber(productData?.service_type, 0),
+    length: safeNumber(productData?.length, 0),
+    width: safeNumber(productData?.width, 0),
+    height: safeNumber(productData?.height, 0),
+    density: safeNumber(productData?.density, 0),
+    color: safeText(productData?.color, ""),
+    size: safeText(productData?.size, ""),
+    notes: safeText(productData?.notes, ""),
+    manufacturer_company: safeText(productData?.manufacturer_company, ""),
+    units: normalizedUnits,
+    prices: normalizedPrices,
+    stores: normalizedStores,
+    cost_centers: normalizedCostCenters,
+  }
+}
+
 export async function GET(request: NextRequest) {
+  if (!sql) {
+    return NextResponse.json({ error: "قاعدة البيانات غير متاحة" }, { status: 500 });
+  }
+
+  await ensureProductTypeColumns()
+
   try {
     const { searchParams } = new URL(request.url);
     const organizationId = Number.parseInt(searchParams.get("organizationId") || "1");
     const priceCategoryId = Number.parseInt(searchParams.get("priceCategoryId") || "1");
+    const requestedType = searchParams.get("type") || null;
     const hasDefaultStore = await hasDefaultStoreColumn()
     const products = hasDefaultStore
       ? await sql`
@@ -138,6 +259,7 @@ export async function GET(request: NextRequest) {
       LEFT JOIN warehouses w ON w.id = p.default_store
 
       WHERE (p.deleted IS NULL OR p.deleted = false)
+        AND (${requestedType} IS NULL OR ${requestedType} = '' OR (${requestedType} = 'services' AND p.type = 2) OR (${requestedType} = 'products' AND p.type = 1))
       ORDER BY p.product_code DESC;
     `
       : await sql`
@@ -193,6 +315,7 @@ export async function GET(request: NextRequest) {
       LEFT JOIN currency c ON c.id = pr.currency_id
 
       WHERE (p.deleted IS NULL OR p.deleted = false)
+        AND (${requestedType} IS NULL OR ${requestedType} = '' OR (${requestedType} = 'services' AND p.type = 2) OR (${requestedType} = 'products' AND p.type = 1))
       ORDER BY p.product_code DESC;
     `;
 
@@ -209,7 +332,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error("Products API error:", error);
     return NextResponse.json(
-      { error: "حدث خطأ في جلب البيانات" },
+      { error: error instanceof Error ? error.message : "حدث خطأ في جلب البيانات" },
       { status: 500 }
     );
   }
@@ -221,11 +344,54 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
 });
 
+async function ensureProductCostCentersTable(client: any = pool) {
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS product_costcenters_tbl (
+      id SERIAL PRIMARY KEY,
+      product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+      cost_center_type_id INTEGER,
+      required_in_transactions INTEGER,
+      default_cost_center_id INTEGER
+    )
+  `)
+
+  await client.query(`
+    CREATE INDEX IF NOT EXISTS idx_product_costcenters_product_id
+    ON product_costcenters_tbl(product_id)
+  `)
+}
+
+async function persistProductCostCenters(client: any, productId: number, rows: any[] | undefined) {
+  await client.query(`DELETE FROM product_costcenters_tbl WHERE product_id = $1`, [productId])
+
+  if (!Array.isArray(rows)) return
+
+  for (const row of rows) {
+    const costCenterTypeId = Number(row?.cost_center_type_id ?? row?.id ?? 0)
+    const requiredInTransactions = Number(row?.required_in_transactions ?? 1)
+    const defaultCostCenterId = row?.default_cost_center_id != null && row.default_cost_center_id !== ""
+      ? Number(row.default_cost_center_id)
+      : null
+
+    if (!costCenterTypeId) continue
+
+    await client.query(
+      `INSERT INTO product_costcenters_tbl (product_id, cost_center_type_id, required_in_transactions, default_cost_center_id)
+       VALUES ($1, $2, $3, $4)`,
+      [productId, costCenterTypeId, requiredInTransactions, defaultCostCenterId]
+    )
+  }
+}
+
 export async function POST(request: NextRequest) {
   const client = await pool.connect();
 
   try {
-    const productData = await request.json();
+    await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS type INTEGER DEFAULT 1`)
+    await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS service_type INTEGER DEFAULT 0`)
+    await ensureProductCostCentersTable(client)
+
+    const productData = normalizeProductPayload(await request.json());
     const organizationId = 1; // replace with auth context
     const hasDefaultStore = await client.query(
       `SELECT EXISTS (
@@ -319,16 +485,18 @@ export async function POST(request: NextRequest) {
           has_batch_number=$19,
           serial_tracking=$20,
           status=$21,
-          length=$22,
-          width=$23,
-          height=$24,
-          density=$25,
-          color=$26,
-          size=$27,
-          notes=$28,
-          manufacturer_company=$29,
+          type=$22,
+          service_type=$23,
+          length=$24,
+          width=$25,
+          height=$26,
+          density=$27,
+          color=$28,
+          size=$29,
+          notes=$30,
+          manufacturer_company=$31,
           updated_at=NOW()
-         WHERE id=$30`
+         WHERE id=$32`
         : `UPDATE products SET
           product_code=$1,
           product_name=$2,
@@ -350,16 +518,18 @@ export async function POST(request: NextRequest) {
           has_batch_number=$18,
           serial_tracking=$19,
           status=$20,
-          length=$21,
-          width=$22,
-          height=$23,
-          density=$24,
-          color=$25,
-          size=$26,
-          notes=$27,
-          manufacturer_company=$28,
+          type=$21,
+          service_type=$22,
+          length=$23,
+          width=$24,
+          height=$25,
+          density=$26,
+          color=$27,
+          size=$28,
+          notes=$29,
+          manufacturer_company=$30,
           updated_at=NOW()
-         WHERE id=$29`
+         WHERE id=$31`
 
       const updateValues = canSaveDefaultStore
         ? [
@@ -384,6 +554,8 @@ export async function POST(request: NextRequest) {
             productData.batch_tracking,
             productData.serial_tracking,
             productData.status,
+            productData.type || 1,
+            productData.service_type || 0,
             productData.length,
             productData.width,
             productData.height,
@@ -415,6 +587,8 @@ export async function POST(request: NextRequest) {
             productData.batch_tracking,
             productData.serial_tracking,
             productData.status,
+            productData.type || 1,
+            productData.service_type || 0,
             productData.length,
             productData.width,
             productData.height,
@@ -431,6 +605,7 @@ export async function POST(request: NextRequest) {
       await client.query(`DELETE FROM product_unit_barcodes WHERE product_id=$1`, [productId]);
       await client.query(`DELETE FROM product_prices WHERE product_id=$1`, [productId]);
       await client.query(`DELETE FROM product_warehouses WHERE product_id=$1`, [productId]);
+      await client.query(`DELETE FROM product_costcenters_tbl WHERE product_id=$1`, [productId]);
 
     } else {
       const insertColumns = canSaveDefaultStore
@@ -439,12 +614,14 @@ export async function POST(request: NextRequest) {
       factory_number, original_number, measurment_unit,
       last_purchase_price, currency_id, tax_rate, discount_rate,
       location, has_expiry_date, has_batch_number, status,
+      type, service_type,
       length, width, height, density, color, size, notes,serial_tracking,manufacturer_company`
         : `product_code, product_name, product_name_en, description,
       category_id, main_stock_id, brand, model,
       factory_number, original_number, measurment_unit,
       last_purchase_price, currency_id, tax_rate, discount_rate,
       location, has_expiry_date, has_batch_number, status,
+      type, service_type,
       length, width, height, density, color, size, notes,serial_tracking,manufacturer_company`
 
       const insertValues = canSaveDefaultStore
@@ -469,6 +646,8 @@ export async function POST(request: NextRequest) {
           productData.expiry_tracking,
           productData.batch_tracking,
           productData.status,
+          productData.type || 1,
+          productData.service_type || 0,
           productData.length,
           productData.width,
           productData.height,
@@ -499,6 +678,8 @@ export async function POST(request: NextRequest) {
           productData.expiry_tracking,
           productData.batch_tracking,
           productData.status,
+          productData.type || 1,
+          productData.service_type || 0,
           productData.length,
           productData.width,
           productData.height,
@@ -517,7 +698,7 @@ export async function POST(request: NextRequest) {
     )
    VALUES
     (
-      ${canSaveDefaultStore ? "$1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29" : "$1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28"}
+      ${canSaveDefaultStore ? "$1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31" : "$1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30"}
     )
    RETURNING id`,
         insertValues
@@ -586,6 +767,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    await persistProductCostCenters(client, productId, productData.cost_centers)
 
     await client.query("COMMIT");
     return NextResponse.json({ success: true, productId });
@@ -602,38 +784,47 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
+  if (!sql) {
+    return NextResponse.json({ error: "قاعدة البيانات غير متاحة" }, { status: 500 });
+  }
+
+  await ensureProductTypeColumns()
+
   try {
-    const productData = await request.json()
+    const productData = normalizeProductPayload(await request.json())
     const { id, ...updateData } = productData
+    const normalizedId = safeNumber(id, 0)
 
     console.log("[v0] PUT request - received data:", JSON.stringify(updateData, null, 2))
 
     const result = await sql`
       UPDATE products SET
-        product_name = ${updateData.product_name || updateData.product_name_en || ""},
-        barcode = ${updateData.barcode || ""},
-        description = ${updateData.description || ""},
-        category = ${updateData.category || ""},
-        main_unit = ${updateData.main_unit || "قطعة"},
-        secondary_unit = ${updateData.secondary_unit || ""},
-        conversion_factor = ${updateData.conversion_factor || 1},
-        last_purchase_price = ${updateData.last_purchase_price || updateData.selling_price || 0},
-        currency = ${updateData.currency || "ريال سعودي"},
-        general_notes = ${updateData.notes || updateData.description || ""},
-        product_type = ${updateData.product_type || "منتج نهائي"},
-        classifications = ${updateData.classifications || updateData.category || ""},
-        order_quantity = ${updateData.order_quantity || 1},
-        original_number = ${updateData.original_number || updateData.product_code || ""},
-        factory_number = ${updateData.factory_number || updateData.product_code || ""},
-        has_colors = ${updateData.has_colors || false},
-        has_expiry = ${updateData.has_expiry || updateData.expiry_tracking || false},
-        has_batch = ${updateData.has_batch || updateData.batch_tracking || false},
-        status = ${updateData.status || "نشط"},
-        max_quantity = ${updateData.max_stock_level || updateData.max_quantity || 0},
-        product_image = ${updateData.image_url || updateData.product_image || ""},
-        attachments = ${updateData.attachments || ""},
-        entry_date = ${updateData.entry_date || new Date().toISOString().split("T")[0]}
-      WHERE id = ${id}
+        product_name = ${safeText(updateData.product_name, "")},
+        barcode = ${safeText(updateData.barcode, "")},
+        description = ${safeText(updateData.description, "")},
+        category = ${safeText(updateData.category, "")},
+        main_unit = ${safeText(updateData.main_unit, "قطعة")},
+        secondary_unit = ${safeText(updateData.secondary_unit, "")},
+        conversion_factor = ${safeNumber(updateData.conversion_factor, 1)},
+        last_purchase_price = ${safeNumber(updateData.last_purchase_price, safeNumber(updateData.selling_price, 0))},
+        currency = ${safeText(updateData.currency, "ريال سعودي")},
+        general_notes = ${safeText(updateData.notes, safeText(updateData.description, ""))},
+        product_type = ${safeText(updateData.product_type, "منتج نهائي")},
+        type = ${safeNumber(updateData.type, 1)},
+        service_type = ${safeNumber(updateData.service_type, 0)},
+        classifications = ${safeText(updateData.classifications, safeText(updateData.category, ""))},
+        order_quantity = ${safeNumber(updateData.order_quantity, 1)},
+        original_number = ${safeText(updateData.original_number, safeText(updateData.product_code, ""))},
+        factory_number = ${safeText(updateData.factory_number, safeText(updateData.product_code, ""))},
+        has_colors = ${safeBoolean(updateData.has_colors, false)},
+        has_expiry = ${safeBoolean(updateData.has_expiry, safeBoolean(updateData.expiry_tracking, false))},
+        has_batch = ${safeBoolean(updateData.has_batch, safeBoolean(updateData.batch_tracking, false))},
+        status = ${safeText(updateData.status, "نشط")},
+        max_quantity = ${safeNumber(updateData.max_stock_level, safeNumber(updateData.max_quantity, 0))},
+        product_image = ${safeText(updateData.image_url, safeText(updateData.product_image, ""))},
+        attachments = ${safeText(updateData.attachments, "")},
+        entry_date = ${safeText(updateData.entry_date, new Date().toISOString().split("T")[0])}
+      WHERE id = ${normalizedId}
       RETURNING *
     `
 
@@ -642,10 +833,10 @@ export async function PUT(request: NextRequest) {
     // Update main product stock
     await sql`
       UPDATE product_stock SET
-        reorder_level = ${updateData.reorder_point || updateData.min_stock_level || 0},
-        max_stock_level = ${updateData.max_stock_level || null},
+        reorder_level = ${safeNumber(updateData.reorder_point, safeNumber(updateData.min_stock_level, 0))},
+        max_stock_level = ${safeNumber(updateData.max_stock_level, 0)},
         updated_at = CURRENT_TIMESTAMP
-      WHERE product_id = ${id}
+      WHERE product_id = ${normalizedId}
     `
 
     console.log("[v0] PUT request - stock updated")
@@ -656,7 +847,7 @@ export async function PUT(request: NextRequest) {
 
       // Get warehouse ID by name
       const warehouse = await sql`
-        SELECT id FROM warehouses WHERE warehouse_name = ${warehouseName} LIMIT 1
+        SELECT id FROM warehouses WHERE warehouse_name = ${safeText(warehouseName, "المستودع الرئيسي")} LIMIT 1
       `
 
       if (warehouse.length > 0) {
@@ -665,7 +856,7 @@ export async function PUT(request: NextRequest) {
         // Check if product warehouse record exists
         const existingStock = await sql`
           SELECT id FROM product_warehouses 
-          WHERE product_id = ${id} AND warehouse_id = ${warehouseId}
+          WHERE product_id = ${normalizedId} AND warehouse_id = ${warehouseId}
         `
 
         if (existingStock.length > 0) {

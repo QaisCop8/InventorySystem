@@ -61,7 +61,12 @@ const ProductCodeInput = ({
             try {
                 const res = await fetch("/api/inventory/products");
                 const data = await res.json();
-                setProducts(data || []);
+                if (!res.ok) {
+                    console.error("Failed fetching products:", data);
+                    setProducts([]);
+                    return;
+                }
+                setProducts(Array.isArray(data) ? data : []);
             } catch (err) {
                 console.error(err);
                 setProducts([]);
