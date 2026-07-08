@@ -46,6 +46,12 @@ export async function GET(
   const { navigationType, id } = params;
   let productQuery = "";
   let values: any[] = [];
+  const requestedType = req.nextUrl.searchParams.get("type") || "";
+  const typeCondition = requestedType === "services"
+    ? " AND p.type = 2"
+    : requestedType === "products"
+      ? " AND p.type = 1"
+      : "";
 
   try {
     await ensureProductCostCentersTable()
@@ -58,14 +64,14 @@ export async function GET(
           SELECT p.*, COALESCE(w.warehouse_name, 'بلا تحديد') AS default_store_name
           FROM products p
           LEFT JOIN warehouses w ON w.id = p.default_store
-          WHERE p.deleted IS NULL OR p.deleted = false
+          WHERE (p.deleted IS NULL OR p.deleted = false)${typeCondition}
           ORDER BY p.id ASC
           LIMIT 1
         `
           : `
           SELECT p.*, 'بلا تحديد' AS default_store_name
           FROM products p
-          WHERE p.deleted IS NULL OR p.deleted = false
+          WHERE (p.deleted IS NULL OR p.deleted = false)${typeCondition}
           ORDER BY p.id ASC
           LIMIT 1
         `;
@@ -77,14 +83,14 @@ export async function GET(
           SELECT p.*, COALESCE(w.warehouse_name, 'بلا تحديد') AS default_store_name
           FROM products p
           LEFT JOIN warehouses w ON w.id = p.default_store
-          WHERE p.deleted IS NULL OR p.deleted = false
+          WHERE (p.deleted IS NULL OR p.deleted = false)${typeCondition}
           ORDER BY p.id DESC
           LIMIT 1
         `
           : `
           SELECT p.*, 'بلا تحديد' AS default_store_name
           FROM products p
-          WHERE p.deleted IS NULL OR p.deleted = false
+          WHERE (p.deleted IS NULL OR p.deleted = false)${typeCondition}
           ORDER BY p.id DESC
           LIMIT 1
         `;
@@ -98,7 +104,7 @@ export async function GET(
           FROM products p
           LEFT JOIN warehouses w ON w.id = p.default_store
           WHERE p.id < $1
-          AND (p.deleted IS NULL OR p.deleted = false)
+          AND (p.deleted IS NULL OR p.deleted = false)${typeCondition}
           ORDER BY p.id DESC
           LIMIT 1
         `
@@ -106,7 +112,7 @@ export async function GET(
           SELECT p.*, 'بلا تحديد' AS default_store_name
           FROM products p
           WHERE p.id < $1
-          AND (p.deleted IS NULL OR p.deleted = false)
+          AND (p.deleted IS NULL OR p.deleted = false)${typeCondition}
           ORDER BY p.id DESC
           LIMIT 1
         `;
@@ -122,7 +128,7 @@ export async function GET(
           FROM products p
           LEFT JOIN warehouses w ON w.id = p.default_store
           WHERE p.id > $1
-          AND (p.deleted IS NULL OR p.deleted = false)
+          AND (p.deleted IS NULL OR p.deleted = false)${typeCondition}
           ORDER BY p.id ASC
           LIMIT 1
         `
@@ -130,7 +136,7 @@ export async function GET(
           SELECT p.*, 'بلا تحديد' AS default_store_name
           FROM products p
           WHERE p.id > $1
-          AND (p.deleted IS NULL OR p.deleted = false)
+          AND (p.deleted IS NULL OR p.deleted = false)${typeCondition}
           ORDER BY p.id ASC
           LIMIT 1
         `;
@@ -149,13 +155,13 @@ export async function GET(
           FROM products p
           LEFT JOIN warehouses w ON w.id = p.default_store
           WHERE p.id = $1
-          AND (p.deleted IS NULL OR p.deleted = false)
+          AND (p.deleted IS NULL OR p.deleted = false)${typeCondition}
         `
           : `
           SELECT p.*, 'بلا تحديد' AS default_store_name
           FROM products p
           WHERE p.id = $1
-          AND (p.deleted IS NULL OR p.deleted = false)
+          AND (p.deleted IS NULL OR p.deleted = false)${typeCondition}
         `;
         values = [Number(id)];
         break;

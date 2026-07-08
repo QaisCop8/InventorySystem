@@ -102,11 +102,8 @@ export function Sidebar({
 
   const menuItems = [
     { id: "home-dashboard", title: "الرئيسية", icon: LayoutDashboard, section: "home-dashboard" },
-    { id: "dashboard", title: "لوحة التحكم", icon: LayoutDashboard, section: "dashboard" },
     //{ id: "ai-assistant", title: "المساعد الذكي", icon: Sparkles, section: "ai-assistant" },
     { id: "smart-analytics", title: "التحليلات الذكية", icon: BarChart3, section: "smart-analytics" },
-    { id: "smart-inventory", title: "توصيات المخزون الذكية", icon: Lightbulb, section: "smart-inventory" },
-    { id: "inventory-analytics", title: "تحليلات المخزون", icon: TrendingUp, section: "inventory-analytics" },
     { id: "order-tracking", title: "متابعة الطلبيات", icon: GitBranch, section: "order-tracking" },
     //{ id: "lot-opener", title: "فتح الدفعات", icon: Unlock, section: "lot-opener" },
     {
@@ -125,16 +122,36 @@ export function Sidebar({
       ],
     },
     {
-      id: "transactions",
-      title: "الحركات",
+      id: "orders",
+      title: "الطلبيات",
       icon: ShoppingCart,
       submenu: [
-        { title: "طلبيات المشتريات", section: "purchase-orders", icon: Truck },
-        { title: "طلبيات المبيعات", section: "sales-orders", icon: ShoppingCart },
-        { title: "فواتير المبيعات", section: "sale-invoices", icon: FileText },
-        { title: "معالجة حالة الطلبيات", section: "order-management", icon: Package },
+        {
+          title: "الحركات",
+          section: "transactions",
+          icon: ShoppingCart,
+          submenu: [
+            { title: "طلبيات المشتريات", section: "purchase-orders", icon: Truck },
+            { title: "طلبيات المبيعات", section: "sales-orders", icon: ShoppingCart },
+            { title: "معالجة حالة الطلبيات", section: "order-management", icon: Package },
+          ],
+        },
       ],
-      
+    },
+    {
+      id: "invoices",
+      title: "الفواتير",
+      icon: FileText,
+      submenu: [
+        {
+          title: "الحركات",
+          section: "invoice-transactions",
+          icon: FileText,
+          submenu: [
+            { title: "فواتير المبيعات", section: "sale-invoices", icon: FileText },
+          ],
+        },
+      ],
     },
     {
           id: "batch",
@@ -183,101 +200,115 @@ export function Sidebar({
 
   return (
     <div
-      className={`fixed top-0 right-0 h-screen flex flex-col border-l border-slate-200/80 bg-gradient-to-b from-slate-50 via-white to-slate-100 shadow-[0_0_40px_rgba(15,23,42,0.08)] transition-all duration-300
-        ${isMobile ? "w-72 z-50" : isOpen ? "w-72" : "w-16"}
-        ${isMobile && !isOpen ? "translate-x-full" : "translate-x-0"}
-      `}
+      className={`fixed top-0 right-0 h-screen flex flex-col bg-slate-100 shadow-md transition-all duration-300 ${isMobile ? "w-96 z-50" : isOpen ? "w-96" : "w-28"} ${isMobile && !isOpen ? "translate-x-full" : "translate-x-0"}`}
       dir="rtl"
     >
-      {/* Header */}
-      <div className="border-b border-slate-200/80 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-700 p-4">
-        {isOpen ? (
-          <div className="flex items-center gap-2 flex-row-reverse">
-            <div className="text-right">
-              <h2 className="text-base font-semibold text-white">أساس (Asas) Accounting System</h2>
-              <p className="text-xs text-slate-300">نظام إدارة متكامل</p>
+      <div className="border-b border-slate-200 bg-white/90 px-4 py-4 shadow-sm">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-900 text-white shadow-sm">
+              <Sparkles className="h-5 w-5" />
             </div>
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/10 shadow-inner ring-1 ring-white/20">
-              <svg viewBox="0 0 24 24" className="h-5 w-5 text-emerald-300" aria-hidden="true">
-                <path
-                  d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3zm0 2.3L6 8.2v7.6l6 2.9 6-2.9V8.2l-6-2.9z"
-                  fill="currentColor"
-                />
-                <path d="M12 8.8l3.4 1.9v3.8L12 16.4l-3.4-1.9v-3.8L12 8.8z" fill="currentColor" opacity="0.6" />
-              </svg>
-            </div>
-          </div>
-        ) : (
-          <div className="w-full flex justify-center">
-            <svg viewBox="0 0 24 24" className="h-5 w-5 text-white" aria-hidden="true">
-              <path
-                d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3zm0 2.3L6 8.2v7.6l6 2.9 6-2.9V8.2l-6-2.9z"
-                fill="currentColor"
-              />
-              <path d="M12 8.8l3.4 1.9v3.8L12 16.4l-3.4-1.9v-3.8L12 8.8z" fill="currentColor" opacity="0.6" />
-            </svg>
-          </div>
-        )}
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={onToggle}
-          className="rounded-xl text-white hover:bg-white/10"
-        >
-          <ChevronRight className={`h-4 w-4 transition-transform ${isOpen ? "rotate-180" : ""}`} />
-        </Button>
-      </div>
-
-      {/* Menu */}
-      <div className="flex-1 overflow-y-auto p-2 space-y-1.5">
-        {menuItems.map((item) => (
-          <div key={item.id}>
-            <Button
-              variant={activeSection === item.section ? "secondary" : "ghost"}
-              className={`w-full justify-between rounded-2xl border border-transparent p-2.5 text-right shadow-sm transition-all duration-200 ${!isOpen ? "flex items-center justify-center" : ""
-                } ${activeSection === item.section ? "bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-lg shadow-emerald-200" : "bg-white/80 text-slate-700 hover:bg-gradient-to-r hover:from-emerald-50 hover:to-sky-50 hover:text-slate-900 hover:shadow-md"}`}
-              onClick={() => (item.submenu ? toggleMenu(item.id) : handleItemClick(item))}
-              onContextMenu={(e) => !item.submenu && handleContextMenu(e, item)}
-              dir="rtl"
-              title="Right-click to open in new tab"
-            >
-              <div className={`flex items-center gap-2 ${!isOpen ? "justify-center" : ""}`}>
-                <div className={`rounded-xl p-1.5 transition-all duration-200 ${activeSection === item.section ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600 group-hover:bg-emerald-100 group-hover:text-emerald-700"}`}>
-                  <item.icon className="h-4 w-4" />
-                </div>
-                {isOpen && <span className="font-medium">{item.title}</span>}
-              </div>
-              {isOpen && item.submenu && (
-                <ChevronDown
-                  className={`h-4 w-4 transition-transform ${expandedMenus.includes(item.id) ? "rotate-180" : ""
-                    }`}
-                />
-              )}
-            </Button>
-
-            {isOpen && item.submenu && expandedMenus.includes(item.id) && (
-              <div className="mr-3 mt-2 space-y-1 rounded-2xl border border-slate-200/80 bg-slate-50/90 p-2 shadow-sm" dir="rtl">
-                {item.submenu.map((subItem) => (
-                  <Button
-                    key={subItem.section}
-                    variant={activeSection === subItem.section ? "secondary" : "ghost"}
-                    size="sm"
-                    className={`w-full justify-start rounded-xl p-2 text-right text-sm transition-all ${activeSection === subItem.section ? "bg-emerald-100 text-emerald-700" : "text-slate-600 hover:bg-gradient-to-r hover:from-white hover:to-emerald-50 hover:text-slate-900 hover:shadow-sm"}`}
-                    onClick={() => handleItemClick(subItem)}
-                    onContextMenu={(e) => handleContextMenu(e, subItem)}
-                    dir="rtl"
-                    title="Right-click to open in new tab"
-                  >
-                    <div className="flex items-center gap-2">
-                      <subItem.icon className="h-4 w-4" />
-                      <span>{subItem.title}</span>
-                    </div>
-                  </Button>
-                ))}
+            {isOpen && (
+              <div>
+                <p className="text-xs uppercase tracking-[0.3em] text-slate-500">Menu</p>
+                <h2 className="text-sm font-semibold text-slate-900">القائمة</h2>
               </div>
             )}
           </div>
-        ))}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onToggle}
+            className="rounded-xl text-slate-600 hover:bg-slate-200"
+          >
+            <ChevronRight className={`h-4 w-4 transition-transform ${isOpen ? "rotate-180" : ""}`} />
+          </Button>
+        </div>
+      </div>
+
+      {/* Menu */}
+      <div className="flex-1 overflow-y-auto px-3 py-4">
+        <div className="rounded-[2rem] bg-white shadow-sm ring-1 ring-slate-200/80 px-3 py-4">
+          {menuItems.map((item) => {
+            const ItemIcon = item.icon
+            return (
+              <div key={item.id} className="mb-2 last:mb-0">
+                <button
+                  type="button"
+                  className={`group flex w-full items-center justify-between gap-3 rounded-3xl px-4 py-3 text-right text-sm font-medium transition-all duration-200 ${activeSection === item.section ? "!bg-emerald-100 !text-emerald-900 shadow-lg shadow-emerald-200/70 ring-1 ring-emerald-200" : "bg-slate-50 text-slate-700 hover:bg-slate-200 hover:text-slate-900"}`}
+                  onClick={() => (item.submenu ? toggleMenu(item.id) : handleItemClick(item))}
+                >
+                  <div className="flex items-center gap-3">
+                    <span className={`flex h-10 w-10 items-center justify-center rounded-2xl transition ${activeSection === item.section ? "!bg-emerald-200 !text-emerald-900" : "bg-slate-100 text-slate-700 group-hover:bg-slate-200"}`}>
+                      <ItemIcon className="h-5 w-5" />
+                    </span>
+                    {isOpen && <span>{item.title}</span>}
+                  </div>
+                  {isOpen && item.submenu && (
+                    <span className={`flex h-8 w-8 items-center justify-center rounded-full transition ${expandedMenus.includes(item.id) ? "bg-slate-200" : "bg-slate-100"}`}>
+                      <ChevronDown className={`h-4 w-4 transition-transform ${expandedMenus.includes(item.id) ? "-rotate-180" : ""}`} />
+                    </span>
+                  )}
+                </button>
+
+                {isOpen && item.submenu && expandedMenus.includes(item.id) && (
+                  <div className="mt-2 ml-4 rounded-3xl border border-slate-200 bg-slate-50 px-3 py-3 shadow-sm">
+                    <div className="relative pl-4">
+                      <span className="absolute left-2 top-3 h-full w-px bg-slate-300"></span>
+                      <div className="space-y-1">
+                        {item.submenu.map((subItem) => {
+                          const SubItemIcon = subItem.icon
+                          const hasNestedSubmenu = Boolean(subItem.submenu)
+                          return (
+                            <div key={subItem.section} className="space-y-1">
+                              <button
+                                type="button"
+                                className={`flex w-full items-center gap-3 rounded-2xl px-3 py-2 text-right text-sm transition-all duration-200 ${activeSection === subItem.section ? "!bg-emerald-100 !text-emerald-900 shadow ring-1 ring-emerald-200" : "text-slate-600 hover:bg-slate-200 hover:text-slate-900"}`}
+                                onClick={() => (hasNestedSubmenu ? toggleMenu(subItem.section) : handleItemClick(subItem))}
+                              >
+                                <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-slate-100 text-slate-700">
+                                  <SubItemIcon className="h-4 w-4" />
+                                </span>
+                                <span>{subItem.title}</span>
+                                {hasNestedSubmenu && (
+                                  <span className="mr-auto flex h-7 w-7 items-center justify-center rounded-full bg-slate-100">
+                                    <ChevronDown className={`h-4 w-4 transition-transform ${expandedMenus.includes(subItem.section) ? "-rotate-180" : ""}`} />
+                                  </span>
+                                )}
+                              </button>
+
+                              {hasNestedSubmenu && expandedMenus.includes(subItem.section) && (
+                                <div className="ml-4 space-y-1 rounded-2xl border border-slate-200 bg-white px-2 py-2">
+                                  {subItem.submenu.map((nestedItem) => {
+                                    const NestedItemIcon = nestedItem.icon
+                                    return (
+                                      <button
+                                        key={nestedItem.section}
+                                        type="button"
+                                        className={`flex w-full items-center gap-3 rounded-xl px-3 py-2 text-right text-sm transition-all duration-200 ${activeSection === nestedItem.section ? "!bg-emerald-100 !text-emerald-900 shadow ring-1 ring-emerald-200" : "text-slate-600 hover:bg-slate-200 hover:text-slate-900"}`}
+                                        onClick={() => handleItemClick(nestedItem)}
+                                      >
+                                        <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-100 text-slate-700">
+                                          <NestedItemIcon className="h-4 w-4" />
+                                        </span>
+                                        <span>{nestedItem.title}</span>
+                                      </button>
+                                    )
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
       </div>
     </div>
   )

@@ -2121,8 +2121,8 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
   if (inWindowManager) {
     return (
       <div className="w-full h-full p-0 gap-0 flex flex-col overflow-hidden text-base" dir="rtl">
-        <div className="flex items-center justify-between border-b bg-gradient-to-r from-blue-50 to-slate-50 px-6 py-4">
-          <h2 className="text-2xl font-bold">{formData.id === 0 ? "إضافة حساب جديد" : "تعديل حساب"}</h2>
+        <div className="flex items-center justify-between border-b bg-white px-6 py-3">
+          <div className="flex-1"></div>
           <Button variant="ghost" onClick={() => void handleRequestClose()}>
             ✕
           </Button>
@@ -2156,6 +2156,10 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
             }}
           />
           <Messages innerRef={messagesRef} />
+        </div>
+
+        <div className="border-b bg-slate-50 px-6 py-3">
+          <h2 className="text-2xl font-bold">{formData.id === 0 ? "إضافة حساب جديد" : "تعديل حساب"}</h2>
         </div>
 
         <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">

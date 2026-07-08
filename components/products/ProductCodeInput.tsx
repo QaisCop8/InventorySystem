@@ -24,9 +24,11 @@ interface ProductCodeInputProps {
         stores?: any[];
         [key: string]: any;
     };
-    visible: any,
+    visible: any;
     handleProductCodeChange: (code: string) => void;
     onSelectProductId?: (id: number) => void; // <-- new callback
+    codeLabel?: string;
+    searchTitle?: string;
 }
 
 const ProductCodeInput = ({
@@ -34,6 +36,8 @@ const ProductCodeInput = ({
     visible,
     handleProductCodeChange,
     onSelectProductId,
+    codeLabel,
+    searchTitle,
 }: ProductCodeInputProps) => {
     const [products, setProducts] = useState<Product[]>([]);
     const [searchTerm, setSearchTerm] = useState("");
@@ -117,7 +121,7 @@ const ProductCodeInput = ({
     return (
         <div className="col-span-12 md:col-span-2 relative">
             <Label htmlFor="product_code" className="text-sm font-medium">
-                رقم الصنف *
+                {codeLabel ?? "رقم الصنف *"}
             </Label>
 
             <div className="flex gap-2">
@@ -143,7 +147,7 @@ const ProductCodeInput = ({
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
                     <div className="bg-white w-full max-w-lg rounded-lg shadow-2xl border border-gray-300 p-6"
                         dir="rtl">
-                        <h3 className="text-lg font-semibold mb-4 text-right">بحث الأصناف</h3>
+                        <h3 className="text-lg font-semibold mb-4 text-right">{searchTitle ?? "بحث الأصناف"}</h3>
 
                         <Input
                             type="text"

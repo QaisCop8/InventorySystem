@@ -31,6 +31,7 @@ export function ERPLayout({ children, activeSection, onSectionChange }: ERPLayou
 
   const handleProfileClick = () => onSectionChange("user-profile");
   const handleSettingsClick = () => onSectionChange("user-settings");
+  const sidebarOffset = isMobile ? 0 : sidebarOpen ? 384 : 112;
 
   return (
     <div className="flex h-screen bg-background" dir="rtl">
@@ -67,7 +68,7 @@ export function ERPLayout({ children, activeSection, onSectionChange }: ERPLayou
       <div
         className="flex-1 flex flex-col overflow-hidden transition-all duration-300"
         style={{
-          marginRight: !isMobile && sidebarOpen ? 320 : !isMobile ? 64 : 0,
+          marginRight: sidebarOffset,
           marginLeft: 0,
         }}
       >

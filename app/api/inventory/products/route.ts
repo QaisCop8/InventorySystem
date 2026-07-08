@@ -185,9 +185,15 @@ export async function GET(request: NextRequest) {
 
   try {
     const { searchParams } = new URL(request.url);
-    const organizationId = Number.parseInt(searchParams.get("organizationId") || "1");
-    const priceCategoryId = Number.parseInt(searchParams.get("priceCategoryId") || "1");
-    const requestedType = searchParams.get("type") || null;
+    const organizationId = Number.parseInt(searchParams.get("organizationId") || "1", 10);
+    const priceCategoryId = Number.parseInt(searchParams.get("priceCategoryId") || "1", 10);
+    const requestedType = safeText(searchParams.get("type"), "").trim();
+    const requestedTypeFilter = requestedType === "services" || requestedType === "products" ? requestedType : "";
+    const typeFilterClause = requestedTypeFilter === ""
+      ? ""
+      : requestedTypeFilter === "services"
+        ? " AND p.type = 2"
+        : " AND p.type = 1";
     const hasDefaultStore = await hasDefaultStoreColumn()
     const products = hasDefaultStore
       ? await sql`
@@ -258,8 +264,7 @@ export async function GET(request: NextRequest) {
       LEFT JOIN currency c ON c.id = pr.currency_id
       LEFT JOIN warehouses w ON w.id = p.default_store
 
-      WHERE (p.deleted IS NULL OR p.deleted = false)
-        AND (${requestedType} IS NULL OR ${requestedType} = '' OR (${requestedType} = 'services' AND p.type = 2) OR (${requestedType} = 'products' AND p.type = 1))
+      WHERE (p.deleted IS NULL OR p.deleted = false)${typeFilterClause}
       ORDER BY p.product_code DESC;
     `
       : await sql`
@@ -314,8 +319,7 @@ export async function GET(request: NextRequest) {
       LEFT JOIN pricecategory pc ON pc.id = pr.price_category_id
       LEFT JOIN currency c ON c.id = pr.currency_id
 
-      WHERE (p.deleted IS NULL OR p.deleted = false)
-        AND (${requestedType} IS NULL OR ${requestedType} = '' OR (${requestedType} = 'services' AND p.type = 2) OR (${requestedType} = 'products' AND p.type = 1))
+      WHERE (p.deleted IS NULL OR p.deleted = false)${typeFilterClause}
       ORDER BY p.product_code DESC;
     `;
 
@@ -377,7 +381,7 @@ async function persistProductCostCenters(client: any, productId: number, rows: a
 
     await client.query(
       `INSERT INTO product_costcenters_tbl (product_id, cost_center_type_id, required_in_transactions, default_cost_center_id)
-       VALUES ($1, $2, $3, $4)`,
+       VALUES ($1::int, $2::int, $3::int, $4::int)`,
       [productId, costCenterTypeId, requiredInTransactions, defaultCostCenterId]
     )
   }
@@ -407,8 +411,12 @@ export async function POST(request: NextRequest) {
 
 
     const nameCheck = await client.query(
-      `SELECT id FROM products WHERE product_name = $1 and product_code <> $2`,
-      [productData.product_name, productData.product_code]
+      productData.id > 0
+        ? `SELECT id FROM products WHERE product_name = $1 AND id <> $2`
+        : `SELECT id FROM products WHERE product_name = $1 AND product_code <> $2`,
+      productData.id > 0
+        ? [productData.product_name, productData.id]
+        : [productData.product_name, productData.product_code]
     );
     if (nameCheck.rows.length > 0) {
       await client.query("ROLLBACK");
@@ -436,12 +444,11 @@ export async function POST(request: NextRequest) {
 
     let productId: number;
     let unitId: number;
-    const existingProduct = await client.query(
-      "SELECT id FROM products WHERE product_code = $1",
-      [productData.product_code]
-    );
-    let update = false
-    if (existingProduct.rows.length > 0) update = true
+    const existingProduct = productData.id > 0
+      ? await client.query("SELECT id FROM products WHERE id = $1", [productData.id])
+      : await client.query("SELECT id FROM products WHERE product_code = $1", [productData.product_code])
+
+    let update = existingProduct.rows.length > 0
     if (update === true && productData.id === 0) {
       try {
         const res = await getLastProductCode();
@@ -464,72 +471,72 @@ export async function POST(request: NextRequest) {
 
       const updateQuery = canSaveDefaultStore
         ? `UPDATE products SET
-          product_code=$1,
-          product_name=$2,
-          product_name_en=$3,
-          description=$4,
-          category_id=$5,
-          main_stock_id=$6,
-          default_store=$7,
-          brand=$8,
-          model=$9,
-          factory_number=$10,
-          original_number=$11,
-          measurment_unit=$12,
-          last_purchase_price=$13,
-          currency_id=$14,
-          tax_rate=$15,
-          discount_rate=$16,
-          location=$17,
-          has_expiry_date=$18,
-          has_batch_number=$19,
-          serial_tracking=$20,
-          status=$21,
-          type=$22,
-          service_type=$23,
-          length=$24,
-          width=$25,
-          height=$26,
-          density=$27,
-          color=$28,
-          size=$29,
-          notes=$30,
-          manufacturer_company=$31,
+          product_code=$1::text,
+          product_name=$2::text,
+          product_name_en=$3::text,
+          description=$4::text,
+          category_id=$5::int,
+          main_stock_id=$6::int,
+          default_store=$7::int,
+          brand=$8::text,
+          model=$9::text,
+          factory_number=$10::text,
+          original_number=$11::text,
+          measurment_unit=$12::int,
+          last_purchase_price=$13::numeric,
+          currency_id=$14::int,
+          tax_rate=$15::numeric,
+          discount_rate=$16::numeric,
+          location=$17::text,
+          has_expiry_date=$18::boolean,
+          has_batch_number=$19::boolean,
+          serial_tracking=$20::boolean,
+          status=$21::int,
+          type=$22::int,
+          service_type=$23::int,
+          length=$24::numeric,
+          width=$25::numeric,
+          height=$26::numeric,
+          density=$27::numeric,
+          color=$28::text,
+          size=$29::text,
+          notes=$30::text,
+          manufacturer_company=$31::text,
           updated_at=NOW()
-         WHERE id=$32`
+         WHERE id=$32::int`
         : `UPDATE products SET
-          product_code=$1,
-          product_name=$2,
-          product_name_en=$3,
-          description=$4,
-          category_id=$5,
-          main_stock_id=$6,
-          brand=$7,
-          model=$8,
-          factory_number=$9,
-          original_number=$10,
-          measurment_unit=$11,
-          last_purchase_price=$12,
-          currency_id=$13,
-          tax_rate=$14,
-          discount_rate=$15,
-          location=$16,
-          has_expiry_date=$17,
-          has_batch_number=$18,
-          serial_tracking=$19,
-          status=$20,
-          type=$21,
-          service_type=$22,
-          length=$23,
-          width=$24,
-          height=$25,
-          density=$26,
-          color=$27,
-          size=$28,
-          notes=$29,
-          manufacturer_company=$30,
+          product_code=$1::text,
+          product_name=$2::text,
+          product_name_en=$3::text,
+          description=$4::text,
+          category_id=$5::int,
+          main_stock_id=$6::int,
+          brand=$7::text,
+          model=$8::text,
+          factory_number=$9::text,
+          original_number=$10::text,
+          measurment_unit=$11::int,
+          last_purchase_price=$12::numeric,
+          currency_id=$13::int,
+          tax_rate=$14::numeric,
+          discount_rate=$15::numeric,
+          location=$16::text,
+          has_expiry_date=$17::boolean,
+          has_batch_number=$18::boolean,
+          serial_tracking=$19::boolean,
+          status=$20::int,
+          type=$21::int,
+          service_type=$22::int,
+          length=$23::numeric,
+          width=$24::numeric,
+          height=$25::numeric,
+          density=$26::numeric,
+          color=$27::text,
+          size=$28::text,
+          notes=$29::text,
+          manufacturer_company=$30::text,
           updated_at=NOW()
-         WHERE id=$31`
+         WHERE id=$31::int`
 
       const updateValues = canSaveDefaultStore
         ? [
@@ -609,20 +616,71 @@ export async function POST(request: NextRequest) {
 
     } else {
       const insertColumns = canSaveDefaultStore
-        ? `product_code, product_name, product_name_en, description,
-      category_id, main_stock_id, default_store, brand, model,
-      factory_number, original_number, measurment_unit,
-      last_purchase_price, currency_id, tax_rate, discount_rate,
-      location, has_expiry_date, has_batch_number, status,
-      type, service_type,
-      length, width, height, density, color, size, notes,serial_tracking,manufacturer_company`
-        : `product_code, product_name, product_name_en, description,
-      category_id, main_stock_id, brand, model,
-      factory_number, original_number, measurment_unit,
-      last_purchase_price, currency_id, tax_rate, discount_rate,
-      location, has_expiry_date, has_batch_number, status,
-      type, service_type,
-      length, width, height, density, color, size, notes,serial_tracking,manufacturer_company`
+        ? [
+          'product_code',
+          'product_name',
+          'product_name_en',
+          'description',
+          'category_id',
+          'main_stock_id',
+          'default_store',
+          'brand',
+          'model',
+          'factory_number',
+          'original_number',
+          'measurment_unit',
+          'last_purchase_price',
+          'currency_id',
+          'tax_rate',
+          'discount_rate',
+          'location',
+          'has_expiry_date',
+          'has_batch_number',
+          'status',
+          'type',
+          'service_type',
+          'length',
+          'width',
+          'height',
+          'density',
+          'color',
+          'size',
+          'notes',
+          'serial_tracking',
+          'manufacturer_company',
+        ]
+        : [
+          'product_code',
+          'product_name',
+          'product_name_en',
+          'description',
+          'category_id',
+          'main_stock_id',
+          'brand',
+          'model',
+          'factory_number',
+          'original_number',
+          'measurment_unit',
+          'last_purchase_price',
+          'currency_id',
+          'tax_rate',
+          'discount_rate',
+          'location',
+          'has_expiry_date',
+          'has_batch_number',
+          'status',
+          'type',
+          'service_type',
+          'length',
+          'width',
+          'height',
+          'density',
+          'color',
+          'size',
+          'notes',
+          'serial_tracking',
+          'manufacturer_company',
+        ]
 
       const insertValues = canSaveDefaultStore
         ? [
@@ -656,7 +714,7 @@ export async function POST(request: NextRequest) {
           productData.size,
           productData.notes,
           productData.serial_tracking,
-          productData.manufacturer_company
+          productData.manufacturer_company,
         ]
         : [
           productData.product_code,
@@ -688,19 +746,13 @@ export async function POST(request: NextRequest) {
           productData.size,
           productData.notes,
           productData.serial_tracking,
-          productData.manufacturer_company
+          productData.manufacturer_company,
         ]
 
+      const insertPlaceholders = insertColumns.map((_, index) => `$${index + 1}`).join(",")
+
       const result = await client.query(
-        `INSERT INTO products
-    (
-      ${insertColumns}
-    )
-   VALUES
-    (
-      ${canSaveDefaultStore ? "$1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31" : "$1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30"}
-    )
-   RETURNING id`,
+        `INSERT INTO products (${insertColumns.join(", ")}) VALUES (${insertPlaceholders}) RETURNING id`,
         insertValues
       );
 
@@ -714,8 +766,8 @@ export async function POST(request: NextRequest) {
       for (const unit of productData.units) {
         const unitResult = await client.query(
           `INSERT INTO product_units (product_id, unit_id, to_main_qnty)
-           VALUES ($1,$2,$3)  RETURNING id`,
-          [productId, unit.unit_id, unit.to_main_qnty || 1]
+           VALUES ($1::int, $2::int, $3::int) RETURNING id`,
+          [productId, Number(unit.unit_id || 0), Number(unit.to_main_qnty || 1)]
         );
         unitId = unitResult.rows[0].id;
         // 4️⃣ Insert barcodes for this unit
@@ -723,8 +775,8 @@ export async function POST(request: NextRequest) {
           for (const barcode of unit.barcode_list) {
             await client.query(
               `INSERT INTO product_unit_barcodes (product_id, unit_id, barcode)
-               VALUES ($1,$2,$3)`,
-              [productId, unitId, barcode]
+               VALUES ($1::int, $2::int, $3::text)`,
+              [productId, unitId, String(barcode)]
             );
           }
         }
@@ -737,14 +789,14 @@ export async function POST(request: NextRequest) {
         await client.query(
           `INSERT INTO product_warehouses 
        (product_id, warehouse_id, shelf, reorder_quantity, max_quantity, min_quantity)
-       VALUES ($1, $2, $3, $4, $5, $6)`,
+       VALUES ($1::int, $2::int, $3::text, $4::int, $5::int, $6::int)`,
           [
-            productId,                       // product_id
-            store.store_id,              // warehouse_id
-            store.shelf || "",               // shelf, default empty string
-            store.reorder_quantity || 0,     // reorder_quantity
-            store.max_quantity || 0,         // max_quantity
-            store.min_quantity || 0,         // min_quantity
+            productId,
+            Number(store.store_id || 0),
+            String(store.shelf || ""),
+            Number(store.reorder_quantity || 0),
+            Number(store.max_quantity || 0),
+            Number(store.min_quantity || 0),
           ]
         );
       }
@@ -755,13 +807,13 @@ export async function POST(request: NextRequest) {
         await client.query(
           `INSERT INTO product_prices
         (product_id, price_category_id, unit_id, price, currency_id)
-       VALUES ($1, $2, $3, $4, $5)`,
+       VALUES ($1::int, $2::int, $3::int, $4::numeric, $5::int)`,
           [
-            productId,                       // product_id from inserted product
-            price.price_category_id,          // must exist in pricecategory table
-            price.unit_id,                    // must exist in units table
-            price.price || 0,                 // numeric price value, default 0
-            price.currency_id          // optional currency_id
+            productId,
+            Number(price.price_category_id || 0),
+            Number(price.unit_id || 0),
+            Number(price.price || 0),
+            Number(price.currency_id || 0)
           ]
         );
       }
@@ -773,7 +825,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true, productId });
   } catch (err) {
     await client.query("ROLLBACK");
-    console.error(err);
+    console.error("Products POST error:", err instanceof Error ? err.message : err, err)
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Unexpected error" },
       { status: 500 }

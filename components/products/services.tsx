@@ -361,6 +361,7 @@ export function Services() {
               editingProduct: null,
               formData: initialFormData,
               error: null,
+              successMessage: null,
             }))}
             className="bg-primary hover:bg-primary/90 text-primary-foreground"
           >
@@ -459,13 +460,16 @@ export function Services() {
         </CardContent>
       </Card>
 
-      <Dialog open={state.showDialog} onOpenChange={(open) => setState((prev) => ({ ...prev, showDialog: open }))}>
+      <Dialog open={state.showDialog} onOpenChange={(open) => setState((prev) => ({ ...prev, showDialog: open, error: null, ...(open ? {} : { editingProduct: null, formData: initialFormData }) }))}>
         <DialogContent className="max-w-[75vw] sm:max-w-[70vw] md:max-w-[62vw] lg:max-w-[110vh] max-h-[95vh] overflow-hidden p-0" dir="rtl" onPointerDownOutside={(event) => event.preventDefault()} onEscapeKeyDown={(event) => event.preventDefault()}>
           <CompactServiceForm
-            visible={true}
+            visible={state.showDialog}
             editingProduct={state.editingProduct}
-            onHideDialog={(close) => { if (close) { setState((prev) => ({ ...prev, showDialog: false, error: null })) } }}
-            onSuccess={fetchProducts}
+            onHideDialog={(close) => { if (close) { setState((prev) => ({ ...prev, showDialog: false, error: null, editingProduct: null, formData: initialFormData })) } }}
+            onSuccess={() => {
+              fetchProducts()
+              setState((prev) => ({ ...prev, error: null, editingProduct: null, formData: initialFormData }))
+            }}
             isSubmitting={state.isSubmitting}
           />
         </DialogContent>

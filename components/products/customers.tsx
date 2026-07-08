@@ -1755,44 +1755,39 @@ export default function Customers({ isSupplier }: CustomersProps) {
           }
         }}
       >
-        <DialogContent className="max-w-[75vw] sm:max-w-[70vw] md:max-w-[62vw] lg:max-w-[110vh] max-h-[95vh] overflow-hidden p-0" dir="rtl"
-          onPointerDownOutside={(event) => event.preventDefault()}
-          onEscapeKeyDown={(event) => event.preventDefault()}
-        >
-          <div className="h-screen flex flex-col bg-background p-6 overflow-y-auto">
-            <UnifiedCustomers
-              open={showNewCustomerDialog}
-              onOpenChange={(nextOpen: boolean) => {
-                setShowNewCustomerDialog(nextOpen)
-              }}
-              isSupplier={!!isSupplier}
-              showCustomerSearch={showCustomerSearch}
-              setShowCustomerSearch={setShowCustomerSearch}
-              formData={formData}
-              updateField={updateField as any}
-              validationErrors={validationErrors}
-              classifications={classifications}
-              pricecategory={pricecategory}
-              salesmen={salesmen}
-              currentCustomerId={currentCustomerId}
-              currentIndex={currentIndex}
-              totalRecords={customers.length}
-              isSaving={saving}
-              loadDataRef={unifiedCustomerLoadDataRef}
-              onNew={() => handleNewCustomer(true)}
-              onSave={async () => {
-                await fetchCustomers()
-              }}
-              onDelete={fetchCustomers}
-              onReport={() => console.log("Generate customer report")}
-              onExportExcel={() => console.log("Export to Excel")}
-              onPrint={() => console.log("Print customer")}
-              customerNameRef={customer_name}
-              customers={customers}
-              setCurrentIndex={setCurrentIndex}
-              setCurrentCustomerId={setCurrentCustomerId}
-            />
-          </div>
+        <DialogContent hideCloseButton className="max-w-[75vw] sm:max-w-[70vw] md:max-w-[62vw] lg:max-w-[110vh] max-h-[95vh] overflow-hidden p-0" dir="rtl">
+          <UnifiedCustomers
+            open={showNewCustomerDialog}
+            onOpenChange={(nextOpen: boolean) => {
+              setShowNewCustomerDialog(nextOpen)
+            }}
+            isSupplier={!!isSupplier}
+            showCustomerSearch={showCustomerSearch}
+            setShowCustomerSearch={setShowCustomerSearch}
+            formData={formData}
+            updateField={updateField as any}
+            validationErrors={validationErrors}
+            classifications={classifications}
+            pricecategory={pricecategory}
+            salesmen={salesmen}
+            currentCustomerId={currentCustomerId}
+            currentIndex={currentIndex}
+            totalRecords={customers.length}
+            isSaving={saving}
+            loadDataRef={unifiedCustomerLoadDataRef}
+            onNew={() => handleNewCustomer(true)}
+            onSave={async () => {
+              await fetchCustomers()
+            }}
+            onDelete={fetchCustomers}
+            onReport={() => console.log("Generate customer report")}
+            onExportExcel={() => console.log("Export to Excel")}
+            onPrint={() => console.log("Print customer")}
+            customerNameRef={customer_name}
+            customers={customers}
+            setCurrentIndex={setCurrentIndex}
+            setCurrentCustomerId={setCurrentCustomerId}
+          />
         </DialogContent>
       </Dialog>
 

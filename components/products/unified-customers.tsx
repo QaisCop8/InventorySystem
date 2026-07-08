@@ -18,7 +18,7 @@ import { Toast } from 'primereact/toast'
 import DataGridView from "../common/DataGridView"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Plus, AlertCircle } from "lucide-react"
+import { Plus, AlertCircle, X } from "lucide-react"
 import { MutableRefObject, RefObject, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 import { Dropdown as PrimeDropdown } from "primereact/dropdown"
 import ProgressSpinner from "../ProgressSpinner/ProgressSpinner"
@@ -1558,46 +1558,72 @@ export default function UnifiedCustomers({
   )
 
   return (
-    <div className="relative space-y-4">
-      
-      <ProgressSpinner loading={loading || saving} />
-      <Toast ref={toast} position={'top-left'} className="erp-toast-host" style={{ top: 100, whiteSpace: 'pre-line' }} />
-      {customerActionError && (
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>{customerActionError}</AlertDescription>
-        </Alert>
-      )}
-      {customerActionMessage && (
-        <Alert className="bg-green-50 border-green-200">
-          <AlertDescription className="text-green-800">{customerActionMessage}</AlertDescription>
-        </Alert>
-      )}
-      <CustomerSearchPopup
-        visible={showCustomerSearch}
-        type={isSupplier ? 2 : 1}
-        vch_type={0}
-        onClose={() => setShowCustomerSearch(false)}
-        onSelect={handleCustomerSelect}
-      />
+    <div className="w-full h-full p-0 gap-0 flex flex-col overflow-hidden text-base" dir="rtl">
+      <div className="border-b bg-slate-50 px-6 py-3">
+        <div className="flex items-center justify-between">
+          <div className="w-7" />
+          <h2 className="text-2xl font-bold text-center flex-1">
+            {formData.id === 0
+              ? isSupplier
+                ? "إضافة مورد جديد"
+                : "إضافة زبون جديد"
+              : isSupplier
+                ? "تعديل مورد"
+                : "تعديل زبون"}
+          </h2>
+          <div className="flex-shrink-0">
+            <Button variant="ghost" size="sm" onClick={() => onOpenChange?.(false)} className="h-7 w-7 p-0" aria-label="Close" title="إغلاق">
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      </div>
 
-      <UniversalToolbar
-        onFirst={handleFirst}
-        onPrevious={handlePrevious}
-        onNext={handleNext}
-        onLast={handleLast}
-        onNew={handleNew}
-        onSave={handleSaveCustomer}
-        onDelete={handleDeleteCustomerRequest}
-        currentRecord={currentIndex + 1}
-        totalRecords={totalRecords}
-        isFirstRecord={currentIndex === 0}
-        isLastRecord={currentIndex === Math.max(totalRecords - 1, 0)}
-        isSaving={saving || isSaving}
-        onExportExcel={onExportExcel}
-        canSave={true}
-        canDelete={Number(formData.id) > 0}
-      />
+      <div className="px-4 py-2">
+        <Card className="shadow-sm">
+          <CardHeader className="py-2 px-4">
+            <UniversalToolbar
+              onFirst={handleFirst}
+              onPrevious={handlePrevious}
+              onNext={handleNext}
+              onLast={handleLast}
+              onNew={handleNew}
+              onSave={handleSaveCustomer}
+              onDelete={handleDeleteCustomerRequest}
+              currentRecord={currentIndex + 1}
+              totalRecords={totalRecords}
+              isFirstRecord={currentIndex === 0}
+              isLastRecord={currentIndex === Math.max(totalRecords - 1, 0)}
+              isSaving={saving || isSaving}
+              onExportExcel={onExportExcel}
+              canSave={true}
+              canDelete={Number(formData.id) > 0}
+            />
+          </CardHeader>
+        </Card>
+      </div>
+
+      <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+        <ProgressSpinner loading={loading || saving} />
+        <Toast ref={toast} position={'top-left'} className="erp-toast-host" style={{ top: 100, whiteSpace: 'pre-line' }} />
+        {customerActionError && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{customerActionError}</AlertDescription>
+          </Alert>
+        )}
+        {customerActionMessage && (
+          <Alert className="bg-green-50 border-green-200">
+            <AlertDescription className="text-green-800">{customerActionMessage}</AlertDescription>
+          </Alert>
+        )}
+        <CustomerSearchPopup
+          visible={showCustomerSearch}
+          type={isSupplier ? 2 : 1}
+          vch_type={0}
+          onClose={() => setShowCustomerSearch(false)}
+          onSelect={handleCustomerSelect}
+        />
 
       <Card>
         <CardHeader className="pb-4">
@@ -2270,6 +2296,7 @@ export default function UnifiedCustomers({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      </div>
     </div>
   )
 }

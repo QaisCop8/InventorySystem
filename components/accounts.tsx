@@ -1823,13 +1823,63 @@ export default function Accounts() {
             )}
 
             {/* Table */}
-            <div className="h-[520px] min-h-[260px] overflow-x-auto overflow-y-hidden rounded-md border border-muted">
-              <DataGridView
-                scheme={accountScheme}
-                dataSource={filteredAccounts}
-                dontConvertToCards={true}
-                onRowDoubleClick={(item: Account) => handleOpenUnifiedAccount(item)}
-              />
+            <div className="overflow-x-auto rounded-md border border-slate-200 bg-white">
+              <table className="w-full text-right text-sm">
+                <thead className="bg-slate-50 border-b border-slate-200">
+                  <tr>
+                    <th className="px-4 py-3 font-semibold text-slate-700 w-12">##</th>
+                    <th className="px-4 py-3 font-semibold text-slate-700 min-w-[120px]">رقم الحساب</th>
+                    <th className="px-4 py-3 font-semibold text-slate-700 min-w-[200px]">اسم الحساب</th>
+                    <th className="px-4 py-3 font-semibold text-slate-700 min-w-[150px]">القائمة المالية</th>
+                    <th className="px-4 py-3 font-semibold text-slate-700 min-w-[100px]">الحالة</th>
+                    <th className="px-4 py-3 font-semibold text-slate-700 w-20">الإجراءات</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200">
+                  {filteredAccounts.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="px-4 py-8 text-center text-slate-500">
+                        لا توجد حسابات متطابقة
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredAccounts.map((account, index) => (
+                      <tr
+                        key={account.id}
+                        className="hover:bg-slate-50 transition-colors cursor-pointer border-slate-100"
+                        onDoubleClick={() => handleOpenUnifiedAccount(account)}
+                      >
+                        <td className="px-4 py-3 text-slate-700 font-medium">{index + 1}</td>
+                        <td className="px-4 py-3 text-slate-700">{account.code}</td>
+                        <td className="px-4 py-3 text-slate-900 font-medium">{account.name}</td>
+                        <td className="px-4 py-3 text-slate-700">{account.finanical_list_name || "-"}</td>
+                        <td className="px-4 py-3">
+                          <span
+                            className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${
+                              account.status === "نشط"
+                                ? "bg-emerald-100 text-emerald-700"
+                                : account.status === "موقوف"
+                                  ? "bg-amber-100 text-amber-700"
+                                  : "bg-slate-100 text-slate-700"
+                            }`}
+                          >
+                            {account.status}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 flex gap-2 justify-end">
+                          <button
+                            onClick={() => handleOpenUnifiedAccount(account)}
+                            className="p-1.5 hover:bg-blue-100 rounded text-blue-600 transition"
+                            title="تفاصيل"
+                          >
+                            <CheckCircle className="h-4 w-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
             </div>
           </CardContent>
         </Card>

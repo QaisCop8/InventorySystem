@@ -30,6 +30,7 @@ import ProgressSpinner from "../ProgressSpinner/ProgressSpinner"
 import ConfirmDialogYesNo from "../ui/ConfirmDialogYesNo"
 import { useAuth } from "../auth/auth-context"
 import ProductCodeInput from "./ProductCodeInput"
+import AutoCompleteAccount from "@/components/customer/auto-complete-account"
 import Util from "../common/Util"
 import sharedDropdownStyles from "../common/Dropdown.module.scss"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -84,6 +85,11 @@ interface ProductFormData {
   size: string
 
   notes: string
+  entry_date: string
+  revenue_account_id: number
+  revenue_account_code: string
+  purchase_account_id: number
+  purchase_account_code: string
 
   units?: UnitItem[],
   prices?: PriceItem[],
@@ -129,6 +135,11 @@ export const initialFormData: ProductFormData = {
   size: "",
 
   notes: "",
+  entry_date: new Date().toISOString().split("T")[0],
+  revenue_account_id: 0,
+  revenue_account_code: "",
+  purchase_account_id: 0,
+  purchase_account_code: "",
 
   units: [],
   prices: [],
@@ -236,7 +247,7 @@ export function CompactProductForm({
       toast.current?.show({
         severity: 'error',
         summary: 'خطأ',
-        detail: 'يجب ادخال رقم الصنف',
+        detail: isService ? 'يجب ادخال رقم الخدمة' : 'يجب ادخال رقم الصنف',
         life: 1500
       });
       product_code.current?.focus();
@@ -246,7 +257,7 @@ export function CompactProductForm({
       toast.current?.show({
         severity: 'error',
         summary: 'خطأ',
-        detail: 'يجب ادخال اسم الصنف',
+        detail: isService ? 'يجب ادخال اسم الخدمة' : 'يجب ادخال اسم الصنف',
         life: 1500
       });
       product_name.current?.focus();
@@ -349,9 +360,8 @@ export function CompactProductForm({
         return
       }
 
-      const requestMethod = formData.id ? "PUT" : "POST"
       const response = await fetch("/api/inventory/products", {
-        method: requestMethod,
+        method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...formData,
@@ -503,6 +513,7 @@ export function CompactProductForm({
 
       setLoading(true)
       let url = new URL(`/api/inventory/ProductsNavigations/${navigationType}`, location.origin);
+      url.searchParams.set("type", isService ? "services" : "products");
 
       // Determine ID to use
       if (navigationType === "Byid" && productId) {
@@ -1535,7 +1546,7 @@ export function CompactProductForm({
   }), [costCenterStatusOptions, formData.cost_centers])
 
   return (
-    <div className="h-screen flex flex-col bg-background overflow-hidden" dir="rtl">
+    <div className="h-screen flex flex-col bg-background overflow-hidden text-lg" dir="rtl">
       {/* Universal Toolbar - Fixed at top */}
       <div className="flex-shrink-0">
         <UniversalToolbar
@@ -1591,9 +1602,8 @@ export function CompactProductForm({
             <div>
               <h1 className="text-xl font-bold text-foreground flex items-center gap-3 sm:text-2xl">
                 <Package className="h-7 w-7 text-primary" />
-                {editingProduct ? "تعديل " : "صنف جديد"}
+                {isService ? (editingProduct ? "تعديل خدمة" : "خدمة جديدة") : (editingProduct ? "تعديل صنف" : "صنف جديد")}
               </h1>
-
             </div>
           </div>
 
@@ -1621,12 +1631,14 @@ export function CompactProductForm({
 
                       }}
                       visible={true}
+                      codeLabel={isService ? "رقم الخدمة *" : "رقم الصنف *"}
+                      searchTitle={isService ? "بحث الخدمات" : "بحث الأصناف"}
                     />
                   </div>
                   {/* Arabic Name - 5 columns */}
                   <div className="col-span-1 lg:col-span-5 xl:col-span-5">
                     <Label htmlFor="product_name" className="text-sm font-medium">
-                      اسم الصنف *
+                      {isService ? "اسم الخدمة *" : "اسم الصنف *"}
                     </Label>
                     <Input
                       ref={product_name}
@@ -1646,7 +1658,7 @@ export function CompactProductForm({
                   {/* English Name - 5 columns */}
                   <div className="col-span-1 lg:col-span-5 xl:col-span-5">
                     <Label htmlFor="product_name_en" className="text-sm font-medium">
-                      اسم الصنف بالإنجليزية
+                      {isService ? "اسم الخدمة بالإنجليزية" : "اسم الصنف بالإنجليزية"}
                     </Label>
                     <Input
                       id="product_name_en"
@@ -1660,65 +1672,95 @@ export function CompactProductForm({
 
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-                  {/* Product Code - 2 columns */}
-                  <div>
-                    <Label htmlFor="category" className="text-sm font-medium">
-                      التصنيف
-                    </Label>
-                    <Select
-                      value={formData?.category_id != null ? formData.category_id.toString() : ""} // convert number → string
-                      onValueChange={(value) =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          category_id: Number(value), // convert string → number
-                        }))
-                      }
-                    >
+                  {!isService && (
+                    <>
+                      <div>
+                        <Label htmlFor="category" className="text-sm font-medium">
+                          التصنيف
+                        </Label>
+                        <Select
+                          value={formData?.category_id != null ? formData.category_id.toString() : ""} // convert number → string
+                          onValueChange={(value) =>
+                            setFormData((prev) => ({
+                              ...prev,
+                              category_id: Number(value), // convert string → number
+                            }))
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="اختر التصنيف" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="-1">بلا</SelectItem>
+                            {definitions.product_category.map((category) => (
+                              <SelectItem key={category.id} value={String(category.id)}>
+                                {category.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
 
-                      <SelectTrigger>
-                        <SelectValue placeholder="اختر التصنيف" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="-1">بلا</SelectItem>
-                        {definitions.product_category.map((category) => (
-                          <SelectItem key={category.id} value={String(category.id)}>
-                            {category.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      <div>
+                        <Label htmlFor="category" className="text-sm font-medium">
+                          مجموعة الصنف
+                        </Label>
+                        <Select
+                          value={formData?.main_stock_id != null ? formData.main_stock_id.toString() : ""}
+                          onValueChange={(value: string) => {
+                            setFormData(prev => ({
+                              ...prev,
+                              main_stock_id:parseInt(value, 10) || 0,
+                            }));
+                          }}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="اختر المجموعة" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="-1">بلا</SelectItem>
+                            {definitions.categories.map((category) => (
+                              <SelectItem key={category.id} value={String(category.id)}>
+                                {category.group_name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </>
+                  )}
 
-                  </div>
-                  <div>
-                    <Label htmlFor="category" className="text-sm font-medium">
-                      مجموعة الصنف
-                    </Label>
-                    <Select
-                      value={formData?.main_stock_id != null ? formData.main_stock_id.toString() : ""}
-                      onValueChange={(value: string) => {
-                        setFormData(prev => ({
-                          ...prev,
-                          main_stock_id:parseInt(value, 10) || 0,
-                        }));
-                      }}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="اختر المجموعة" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="-1">بلا</SelectItem>
-                        {definitions.categories.map((category) => (
-                          <SelectItem key={category.id} value={String(category.id)}>
-                            {category.group_name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  {isService && (
+                    <div className="xl:col-span-2">
+                      <Label className="text-sm font-medium">نوع الخدمة</Label>
+                      <div className="mt-2 flex flex-wrap items-center gap-4">
+                        <label className="flex items-center gap-2 text-sm">
+                          <input
+                            type="radio"
+                            name="service_type"
+                            value="1"
+                            checked={formData.service_type === 1}
+                            onChange={() => updateFormData("service_type", 1)}
+                          />
+                          خدمة مقدمة
+                        </label>
+                        <label className="flex items-center gap-2 text-sm">
+                          <input
+                            type="radio"
+                            name="service_type"
+                            value="0"
+                            checked={formData.service_type === 0}
+                            onChange={() => updateFormData("service_type", 0)}
+                          />
+                          خدمة متلقاة
+                        </label>
+                      </div>
+                    </div>
+                  )}
 
                   <div>
                     <Label htmlFor="status" className="text-sm font-medium">
-                      حالة الصنف
+                      {isService ? "حالة الخدمة" : "حالة الصنف"}
                     </Label>
                     <Select disabled={formData.id === 0} value={formData?.status != null ? formData.status.toString() : "1"} onValueChange={(value) => updateFormData("status", value)}>
                       <SelectTrigger>
@@ -1731,60 +1773,23 @@ export function CompactProductForm({
                       </SelectContent>
                     </Select>
                   </div>
-
                 </div>
 
-                {/* الوصف */}
-                <div>
-                  <Label htmlFor="description" className="text-sm font-medium">
-                    وصف الصنف
-                  </Label>
-                  <Textarea
-                    id="description"
-                    value={formData.description}
-                    onChange={(e) => updateFormData("description", e.target.value)}
-                    className="text-right"
-                    rows={2}
-                    placeholder="وصف مفصل للصنف"
-                  />
-                </div>
-
-                {/* خيارات التتبع */}
-                <div>
-                  
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <div className="flex items-center space-x-2 space-x-reverse">
-                      <Checkbox
-                        id="expiry_tracking"
-                        checked={formData.expiry_tracking}
-                        onCheckedChange={(checked) => updateFormData("expiry_tracking", checked)}
-                      />
-                      <Label htmlFor="expiry_tracking" className="text-sm">
-                        له تاريخ صلاحية
-                      </Label>
-                    </div>
-                    <div className="flex items-center space-x-2 space-x-reverse">
-                      <Checkbox
-                        id="batch_tracking"
-                        checked={formData.batch_tracking}
-                        onCheckedChange={(checked) => updateFormData("batch_tracking", checked)}
-                      />
-                      <Label htmlFor="batch_tracking" className="text-sm font-medium">
-                        له رقم تشغيلي
-                      </Label>
-                    </div>
-                    <div className="flex items-center space-x-2 space-x-reverse">
-                      <Checkbox
-                        id="serial_tracking"
-                        checked={formData.serial_tracking}
-                        onCheckedChange={(checked) => updateFormData("serial_tracking", checked)}
-                      />
-                      <Label htmlFor="serial_tracking" className="text-sm">
-                        له سيريال
-                      </Label>
-                    </div>
+                {!isService && (
+                  <div>
+                    <Label htmlFor="description" className="text-sm font-medium">
+                      وصف الصنف
+                    </Label>
+                    <Textarea
+                      id="description"
+                      value={formData.description}
+                      onChange={(e) => updateFormData("description", e.target.value)}
+                      className="text-right"
+                      rows={2}
+                      placeholder="وصف مفصل للصنف"
+                    />
                   </div>
-                </div>
+                )}
               </CardContent>
             </Card>
 
@@ -1792,474 +1797,508 @@ export function CompactProductForm({
               <TabsList className="h-auto w-full flex flex-wrap justify-start gap-2 overflow-x-auto rounded-xl bg-gradient-to-r from-slate-50 via-blue-50 to-slate-50 p-2 shadow-md border border-slate-200/60 backdrop-blur-sm" style={{ direction: "rtl" }}>
                 <TabsTrigger value="units" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-emerald-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">الوحدات</TabsTrigger>
                 <TabsTrigger value="prices" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">اسعار البيع</TabsTrigger>
-                <TabsTrigger value="brand" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-orange-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">العلامة التجارية</TabsTrigger>
-                <TabsTrigger value="measurements" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-red-500 data-[state=active]:to-red-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">القياسات</TabsTrigger>
-                <TabsTrigger value="pricing" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-cyan-500 data-[state=active]:to-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">سعر الشراء والضريبة</TabsTrigger>
-                <TabsTrigger value="additional" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-violet-500 data-[state=active]:to-violet-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">معلومات إضافية</TabsTrigger>
-                <TabsTrigger value="stores" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-amber-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">تفاصيل المستودعات</TabsTrigger>
-                <TabsTrigger value="costcenters" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-fuchsia-500 data-[state=active]:to-fuchsia-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">مراكز التكلفة</TabsTrigger>
-                <TabsTrigger value="notes" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-slate-600 data-[state=active]:to-slate-700 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">ملاحظات</TabsTrigger>
+                {isService ? (
+                  <TabsTrigger value="accounts" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-emerald-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">الحسابات المحاسبية</TabsTrigger>
+                ) : (
+                  <>
+                    <TabsTrigger value="brand" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-orange-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">العلامة التجارية</TabsTrigger>
+                    <TabsTrigger value="measurements" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-red-500 data-[state=active]:to-red-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">القياسات</TabsTrigger>
+                    <TabsTrigger value="pricing" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-cyan-500 data-[state=active]:to-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">سعر الشراء والضريبة</TabsTrigger>
+                    <TabsTrigger value="additional" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-violet-500 data-[state=active]:to-violet-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">معلومات إضافية</TabsTrigger>
+                    <TabsTrigger value="stores" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-amber-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">تفاصيل المستودعات</TabsTrigger>
+                    <TabsTrigger value="costcenters" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-fuchsia-500 data-[state=active]:to-fuchsia-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">مراكز التكلفة</TabsTrigger>
+                    <TabsTrigger value="notes" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-slate-600 data-[state=active]:to-slate-700 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">ملاحظات</TabsTrigger>
+                  </>
+                )}
               </TabsList>
 
-            {/* التصنيف والعلامة التجارية */}
-            <TabsContent value="brand">
-            <Card>
-              <CardHeader className="pb-4">
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <Settings className="h-5 w-5 text-primary" />
-                  العلامة التجارية
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
+              <TabsContent value="units">
+                <Card>
+                  <CardHeader className="pb-2 flex items-center justify-between">
+                    <CardTitle className="flex items-center gap-2 text-lg">
+                      <Package className="h-5 w-5 text-primary" />
+                      الوحدات
+                    </CardTitle>
+                    {!isService && (
+                      <button type="button"
+                        className="flex items-center gap-1 bg-primary text-white px-3 py-1 rounded hover:bg-blue-600 transition"
+                        onClick={() => handleAddUnit()}
+                      >
+                        <Plus className="h-4 w-4" />
+                        إضافة
+                      </button>
+                    )}
+                  </CardHeader>
 
-                  <div>
-                    <Label htmlFor="brand" className="text-sm font-medium">
-                      العلامة التجارية
-                    </Label>
-                    <Input
-                      id="brand"
-                      value={formData.brand}
-                      onChange={(e) => updateFormData("brand", e.target.value)}
-                      className="text-right"
-                      placeholder="اسم العلامة التجارية"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="model" className="text-sm font-medium">
-                      الموديل
-                    </Label>
-                    <Input
-                      id="model"
-                      value={formData.model}
-                      onChange={(e) => updateFormData("model", e.target.value)}
-                      className="text-right"
-                      placeholder="رقم أو اسم الموديل"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="manufacturer_company" className="text-sm font-medium">
-                      الشركة المصنعة
-                    </Label>
-                    <Input
-                      id="manufacturer_company"
-                      value={formData.manufacturer_company}
-                      onChange={(e) => updateFormData("manufacturer_company", e.target.value)}
-                      className="text-right"
-                      placeholder="اسم الشركة المصنعة"
-                    />
-                  </div>
-
-
-                </div>
-              </CardContent>
-            </Card>
-            </TabsContent>
-
-            {/* الوحدات والقياسات */}
-            <TabsContent value="measurements">
-            <Card>
-              <CardHeader className="pb-4">
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <Package className="h-5 w-5 text-primary" />
-                  القياسات
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6 gap-4">
-                  <div>
-                    <Label htmlFor="main_unit" className="text-sm font-medium">
-                      نوع القياس
-                    </Label>
-                    <Select value={formData?.measurment_unit != null ? formData.measurment_unit.toString() : '1'} onValueChange={(value) => updateFormData("measurment_unit", value)}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-
-                        <SelectItem value="1">عادي</SelectItem>
-                        <SelectItem value="2">مساحة</SelectItem>
-                        <SelectItem value="3">حجم</SelectItem>
-                        <SelectItem value="4">وزن</SelectItem>
-                        <SelectItem value="5">بروفيل</SelectItem>
-
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="length" className="text-sm font-medium">
-                      الطول
-                    </Label>
-                    <Input
-                      id="length"
-                      type="number"
-                      step="0.01"
-                      value={formData.length}
-                      onChange={(e) => updateFormData("length", Number.parseFloat(e.target.value) || 1)}
-                      className="text-right"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="width" className="text-sm font-medium">
-                      العرض
-                    </Label>
-                    <Input
-                      id="width"
-                      type="number"
-                      step="0.01"
-                      value={formData.width}
-                      onChange={(e) => updateFormData("width", Number.parseFloat(e.target.value) || 0)}
-                      className="text-right"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="height" className="text-sm font-medium">
-                      الارتفاع
-                    </Label>
-                    <Input
-                      id="height"
-                      value={formData.height}
-                      onChange={(e) => updateFormData("height", e.target.value)}
-                      className="text-right"
-                      placeholder=""
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="density" className="text-sm font-medium">
-                      الكثافة
-                    </Label>
-                    <Input
-                      id="density"
-                      value={formData.density}
-                      onChange={(e) => updateFormData("density", e.target.value)}
-                      className="text-right"
-                      placeholder=""
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="color" className="text-sm font-medium">
-                      اللون
-                    </Label>
-                    <Input
-                      id="color"
-                      value={formData.color}
-                      onChange={(e) => updateFormData("color", e.target.value)}
-                      className="text-right"
-                      placeholder="لون الصنف"
-                    />
-                  </div>
-                </div>
-
-              </CardContent>
-            </Card>
-            </TabsContent>
-            <TabsContent value="units">
-            <Card>
-              <CardHeader className="pb-2 flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <Package className="h-5 w-5 text-primary" />
-                  الوحدات
-                </CardTitle>
-                <button type="button"
-                  className="flex items-center gap-1 bg-primary text-white px-3 py-1 rounded hover:bg-blue-600 transition"
-                  onClick={() => handleAddUnit()}
-                >
-                  <Plus className="h-4 w-4" />
-                  إضافة
-                </button>
-              </CardHeader>
-
-              <CardContent>
-                <div className="grid grid-cols-12 gap-4">
-                  <div className="col-span-12 md:col-span-12">
-                    <div className="w-full overflow-x-auto">
-                      <DataGrid
-                        ref={unitGridRef}
-                        dataSource={formData.units ?? []}
-                        scheme={getScheme()}
-                        selectionChanged={selectionChanged}
-                        cellEditEnded={(s: any, e: any) => cellEditEnded(s, e)}
-                      />
-                    </div>
-                    <ProductBarcodes
-                      open={barcodeDialogOpen}
-                      onOpenChange={(open) => {
-                        if (!open) handleCloseBarcodeDialog();
-                        setBarcodeDialogOpen(open);
-                      }}
-
-                      unitName={dialogUnitName}
-                      barcodes={dialogBarcodes}
-                      onUpdateBarcodes={(newBarcodes) => setDialogBarcodes(newBarcodes)}
-                    />
-                  </div>
-                </div>
-              </CardContent>
-
-            </Card>
-            </TabsContent>
-
-            <TabsContent value="prices">
-            <Card>
-              <CardHeader className="pb-2 flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <Package className="h-5 w-5 text-primary" />
-                  اسعار البيع
-                </CardTitle>
-                <button type="button"
-                  className="flex items-center gap-1 bg-primary text-white px-3 py-1 rounded hover:bg-blue-600 transition"
-                  onClick={() => handleAddPriceRow()}
-                >
-                  <Plus className="h-4 w-4" />
-                  إضافة
-                </button>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-12 gap-4">
-                  <div className="col-span-12 md:col-span-12">
-                    <div className="w-full overflow-x-auto">
-                      <DataGrid dataSource={formData.prices ?? []}
-                        scheme={getPricesScheme()}
-                      />
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            </TabsContent>
-
-            {/* الأسعار والعملة */}
-            <TabsContent value="pricing">
-            <Card>
-              <CardHeader className="pb-4">
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <DollarSign className="h-5 w-5 text-primary" />
-                  سعر الشراء والضريبة
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6 gap-4">
-                  <div>
-                    <Label htmlFor="last_purchase_price" className="text-sm font-medium">
-                      آخر سعر شراء
-                    </Label>
-                    <Input
-                      id="last_purchase_price"
-                      type="number"
-                      step="0.01"
-                      value={formData.last_purchase_price}
-                      onChange={(e) => updateFormData("last_purchase_price", Number.parseFloat(e.target.value) || 0)}
-                      className="text-right"
-                      disabled
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="currency" className="text-sm font-medium">
-                      عملة الشراء
-                    </Label>
-
-                    <Select
-                      value={formData.currency_id?.toString() || ""}
-                      onValueChange={(value) => {
-                        // value is string, convert to number
-                        updateFormData("currency_id", Number(value));
-                      }}
-                    >
-                      <SelectTrigger>
-                        <span>
-                          {definitions.currencies.find(c => c.id === formData.currency_id)?.currency_name || "اختر العملة"}
-                        </span>
-                      </SelectTrigger>
-                      <SelectContent>
-                        {definitions.currencies.map((currency) => (
-                          <SelectItem key={currency.id} value={currency.id.toString()}>
-                            {currency.currency_name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-
-                  </div>
-
-                  <div>
-                    <Label htmlFor="tax_rate" className="text-sm font-medium">
-                      نسبة الضريبة (%)
-                    </Label>
-                    <Input
-                      id="tax_rate"
-                      type="number"
-                      step="0.01"
-                      value={formData.tax_rate}
-                      onChange={(e) => updateFormData("tax_rate", Number.parseFloat(e.target.value) || 0)}
-                      className="text-right"
-                    />
-                  </div>
-                </div>
-                <Separator className="my-4" />
-              </CardContent>
-            </Card>
-            </TabsContent>
-
-            {/* إدارة المخزون */}
-            <TabsContent value="additional">
-            <Card>
-              <CardHeader className="pb-4">
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <Warehouse className="h-5 w-5 text-primary" />
-                  معلومات إضافية
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-
-                  <div>
-                    <Label htmlFor="original_number" className="text-sm font-medium">
-                      الرقم الأصلي
-                    </Label>
-                    <Input
-                      id="original_number"
-                      type="number"
-                      value={formData.original_number}
-                      onChange={(e) => updateFormData("original_number", e.target.value)}
-                      className="text-right"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="factory_number" className="text-sm font-medium">
-                      رقم المصنع
-                    </Label>
-                    <Input
-                      id="factory_number"
-                      type="number"
-                      value={formData.factory_number}
-                      onChange={(e) => updateFormData("factory_number", e.target.value)}
-                      className="text-right"
-                    />
-                  </div>
-
-                </div>
-              </CardContent>
-            </Card>
-            </TabsContent>
-
-            <TabsContent value="stores">
-              <Card>
-                <CardHeader className="pb-2 flex items-center justify-between">
-                  <CardTitle className="flex items-center gap-2 text-lg">
-                    <Warehouse className="h-5 w-5 text-primary" />
-                    تفاصيل المستودعات
-                  </CardTitle>
-                  <button type="button"
-                    className="flex items-center gap-1 bg-primary text-white px-3 py-1 rounded hover:bg-blue-600 transition"
-                    onClick={() => handleAddStoreRow()}
-                  >
-                    <Plus className="h-4 w-4" />
-                    إضافة
-                  </button>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-                    <div>
-                      <Label htmlFor="default_store" className="text-sm font-medium">
-                        المستودع الافتراضي في الحركات
-                      </Label>
-                      <div className={sharedDropdownStyles.dropDownWrapper}>
-                        <PrimeDropdown
-                          inputId="default_store"
-                          value={formData.default_store ? Number(formData.default_store) : null}
-                          className={`${sharedDropdownStyles.dropDown} w-full`}
-                          panelClassName={sharedDropdownStyles.dropDownPanel}
-                          options={(() => {
-                            const options = [
-                              { label: "بلا تحديد", value: null },
-                              ...((definitions.warehouses || []).map((warehouse: any) => ({
-                                label: warehouse.warehouse_name,
-                                value: Number(warehouse.id),
-                              })))
-                            ]
-
-                            if (formData.default_store) {
-                              const selectedId = Number(formData.default_store)
-                              options.sort((a, b) => {
-                                if (a.value === selectedId) return -1
-                                if (b.value === selectedId) return 1
-                                return 0
-                              })
-                            }
-
-                            return options
-                          })()}
-                          optionLabel="label"
-                          optionValue="value"
-                          placeholder="اختر المستودع"
-                          filter={true}
-                          filterInputAutoFocus={true}
-                          onChange={(e) => updateFormData("default_store", e.value ?? 0)}
+                  <CardContent>
+                    <div className="grid grid-cols-12 gap-4">
+                      <div className="col-span-12 md:col-span-12">
+                        <div className="w-full overflow-x-auto">
+                          <DataGrid
+                            ref={unitGridRef}
+                            dataSource={formData.units ?? []}
+                            scheme={getScheme()}
+                            selectionChanged={selectionChanged}
+                            cellEditEnded={(s: any, e: any) => cellEditEnded(s, e)}
+                          />
+                        </div>
+                        <ProductBarcodes
+                          open={barcodeDialogOpen}
+                          onOpenChange={(open) => {
+                            if (!open) handleCloseBarcodeDialog();
+                            setBarcodeDialogOpen(open);
+                          }}
+                          unitName={dialogUnitName}
+                          barcodes={dialogBarcodes}
+                          onUpdateBarcodes={(newBarcodes) => setDialogBarcodes(newBarcodes)}
                         />
                       </div>
                     </div>
-                  </div>
-                  <div className="grid grid-cols-1 gap-4">
-                    <div className="w-full overflow-x-auto">
-                      <DataGrid dataSource={formData.stores ?? []} scheme={getStoresScheme()} />
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="prices">
+                <Card>
+                  <CardHeader className="pb-2 flex items-center justify-between">
+                    <CardTitle className="flex items-center gap-2 text-lg">
+                      <Package className="h-5 w-5 text-primary" />
+                      اسعار البيع
+                    </CardTitle>
+                    <button type="button"
+                      className="flex items-center gap-1 bg-primary text-white px-3 py-1 rounded hover:bg-blue-600 transition"
+                      onClick={() => handleAddPriceRow()}
+                    >
+                      <Plus className="h-4 w-4" />
+                      إضافة
+                    </button>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-12 gap-4">
+                      <div className="col-span-12 md:col-span-12">
+                        <div className="w-full overflow-x-auto">
+                          <DataGrid dataSource={formData.prices ?? []}
+                            scheme={getPricesScheme()}
+                          />
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
+                  </CardContent>
+                </Card>
+              </TabsContent>
 
-            <TabsContent value="costcenters">
-              <Card>
-                <CardHeader className="pb-4">
-                  <CardTitle className="flex items-center gap-2 text-lg">
-                    <Settings className="h-5 w-5 text-primary" />
-                    مراكز التكلفة
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="overflow-hidden rounded-lg border">
-                    <div className="h-[420px] min-h-[320px] overflow-auto">
-                      <DataGridView
-                        scheme={costCenterScheme}
-                        dataSource={formData.cost_centers ?? []}
-                        defaultRowHeight={44}
-                      />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
+              {isService && (
+                <TabsContent value="accounts">
+                  <Card>
+                    <CardHeader className="pb-4">
+                      <CardTitle className="flex items-center gap-2 text-lg">
+                        <Currency className="h-5 w-5 text-primary" />
+                        الحسابات المحاسبية
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor="revenue_account" className="text-sm font-medium">
+                            حساب الإيرادات
+                          </Label>
+                          <AutoCompleteAccount
+                            value={formData.revenue_account_code}
+                            onValueChange={(value) => updateFormData("revenue_account_code", value)}
+                            onAccountSelect={(account) => updateFormData("revenue_account_id", account?.id ?? 0)}
+                            label="حساب الإيرادات"
+                            placeholder="اختر حساب الإيرادات"
+                            showClearButton={true}
+                            showSearchButton={true}
+                            className="w-full"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="purchase_account" className="text-sm font-medium">
+                            حساب المشتريات
+                          </Label>
+                          <AutoCompleteAccount
+                            value={formData.purchase_account_code}
+                            onValueChange={(value) => updateFormData("purchase_account_code", value)}
+                            onAccountSelect={(account) => updateFormData("purchase_account_id", account?.id ?? 0)}
+                            label="حساب المشتريات"
+                            placeholder="اختر حساب المشتريات"
+                            showClearButton={true}
+                            showSearchButton={true}
+                            className="w-full"
+                          />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+              )}
 
-            {/* ملاحظات إضافية */}
-            <TabsContent value="notes">
-            <Card>
-              <CardHeader className="pb-4">
-                <CardTitle className="text-lg">ملاحظات وتفاصيل إضافية</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div>
-                  <Label htmlFor="notes" className="text-sm font-medium">
-                    ملاحظات
-                  </Label>
-                  <Textarea
-                    id="notes"
-                    value={formData.notes}
-                    onChange={(e) => updateFormData("notes", e.target.value)}
-                    className="text-right"
-                    rows={3}
-                    placeholder="أي ملاحظات أو تفاصيل إضافية حول الصنف"
-                  />
-                </div>
-              </CardContent>
-            </Card>
-            </TabsContent>
+              {!isService && (
+                <>
+                  <TabsContent value="brand">
+                    <Card>
+                      <CardHeader className="pb-4">
+                        <CardTitle className="flex items-center gap-2 text-lg">
+                          <Settings className="h-5 w-5 text-primary" />
+                          العلامة التجارية
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
+                          <div>
+                            <Label htmlFor="brand" className="text-sm font-medium">
+                              العلامة التجارية
+                            </Label>
+                            <Input
+                              id="brand"
+                              value={formData.brand}
+                              onChange={(e) => updateFormData("brand", e.target.value)}
+                              className="text-right"
+                              placeholder="اسم العلامة التجارية"
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor="model" className="text-sm font-medium">
+                              الموديل
+                            </Label>
+                            <Input
+                              id="model"
+                              value={formData.model}
+                              onChange={(e) => updateFormData("model", e.target.value)}
+                              className="text-right"
+                              placeholder="رقم أو اسم الموديل"
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor="manufacturer_company" className="text-sm font-medium">
+                              الشركة المصنعة
+                            </Label>
+                            <Input
+                              id="manufacturer_company"
+                              value={formData.manufacturer_company}
+                              onChange={(e) => updateFormData("manufacturer_company", e.target.value)}
+                              className="text-right"
+                              placeholder="اسم الشركة المصنعة"
+                            />
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
 
-            {/* أزرار الحفظ والإلغاء */}
+                  <TabsContent value="measurements">
+                    <Card>
+                      <CardHeader className="pb-4">
+                        <CardTitle className="flex items-center gap-2 text-lg">
+                          <Package className="h-5 w-5 text-primary" />
+                          القياسات
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6 gap-4">
+                          <div>
+                            <Label htmlFor="main_unit" className="text-sm font-medium">
+                              نوع القياس
+                            </Label>
+                            <Select value={formData?.measurment_unit != null ? formData.measurment_unit.toString() : '1'} onValueChange={(value) => updateFormData("measurment_unit", value)}>
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="1">عادي</SelectItem>
+                                <SelectItem value="2">مساحة</SelectItem>
+                                <SelectItem value="3">حجم</SelectItem>
+                                <SelectItem value="4">وزن</SelectItem>
+                                <SelectItem value="5">بروفيل</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div>
+                            <Label htmlFor="length" className="text-sm font-medium">
+                              الطول
+                            </Label>
+                            <Input
+                              id="length"
+                              type="number"
+                              step="0.01"
+                              value={formData.length}
+                              onChange={(e) => updateFormData("length", Number.parseFloat(e.target.value) || 1)}
+                              className="text-right"
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor="width" className="text-sm font-medium">
+                              العرض
+                            </Label>
+                            <Input
+                              id="width"
+                              type="number"
+                              step="0.01"
+                              value={formData.width}
+                              onChange={(e) => updateFormData("width", Number.parseFloat(e.target.value) || 0)}
+                              className="text-right"
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor="height" className="text-sm font-medium">
+                              الارتفاع
+                            </Label>
+                            <Input
+                              id="height"
+                              value={formData.height}
+                              onChange={(e) => updateFormData("height", e.target.value)}
+                              className="text-right"
+                              placeholder=""
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor="density" className="text-sm font-medium">
+                              الكثافة
+                            </Label>
+                            <Input
+                              id="density"
+                              value={formData.density}
+                              onChange={(e) => updateFormData("density", e.target.value)}
+                              className="text-right"
+                              placeholder=""
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor="color" className="text-sm font-medium">
+                              اللون
+                            </Label>
+                            <Input
+                              id="color"
+                              value={formData.color}
+                              onChange={(e) => updateFormData("color", e.target.value)}
+                              className="text-right"
+                              placeholder="لون الصنف"
+                            />
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
 
+                  <TabsContent value="pricing">
+                    <Card>
+                      <CardHeader className="pb-4">
+                        <CardTitle className="flex items-center gap-2 text-lg">
+                          <DollarSign className="h-5 w-5 text-primary" />
+                          سعر الشراء والضريبة
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6 gap-4">
+                          <div>
+                            <Label htmlFor="last_purchase_price" className="text-sm font-medium">
+                              آخر سعر شراء
+                            </Label>
+                            <Input
+                              id="last_purchase_price"
+                              type="number"
+                              step="0.01"
+                              value={formData.last_purchase_price}
+                              onChange={(e) => updateFormData("last_purchase_price", Number.parseFloat(e.target.value) || 0)}
+                              className="text-right"
+                              disabled
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor="currency" className="text-sm font-medium">
+                              عملة الشراء
+                            </Label>
+                            <Select
+                              value={formData.currency_id?.toString() || ""}
+                              onValueChange={(value) => {
+                                updateFormData("currency_id", Number(value));
+                              }}
+                            >
+                              <SelectTrigger>
+                                <span>
+                                  {definitions.currencies.find(c => c.id === formData.currency_id)?.currency_name || "اختر العملة"}
+                                </span>
+                              </SelectTrigger>
+                              <SelectContent>
+                                {definitions.currencies.map((currency) => (
+                                  <SelectItem key={currency.id} value={currency.id.toString()}>
+                                    {currency.currency_name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div>
+                            <Label htmlFor="tax_rate" className="text-sm font-medium">
+                              نسبة الضريبة (%)
+                            </Label>
+                            <Input
+                              id="tax_rate"
+                              type="number"
+                              step="0.01"
+                              value={formData.tax_rate}
+                              onChange={(e) => updateFormData("tax_rate", Number.parseFloat(e.target.value) || 0)}
+                              className="text-right"
+                            />
+                          </div>
+                        </div>
+                        <Separator className="my-4" />
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
+
+                  <TabsContent value="additional">
+                    <Card>
+                      <CardHeader className="pb-4">
+                        <CardTitle className="flex items-center gap-2 text-lg">
+                          <Warehouse className="h-5 w-5 text-primary" />
+                          معلومات إضافية
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div>
+                            <Label htmlFor="original_number" className="text-sm font-medium">
+                              الرقم الأصلي
+                            </Label>
+                            <Input
+                              id="original_number"
+                              type="number"
+                              value={formData.original_number}
+                              onChange={(e) => updateFormData("original_number", e.target.value)}
+                              className="text-right"
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor="factory_number" className="text-sm font-medium">
+                              رقم المصنع
+                            </Label>
+                            <Input
+                              id="factory_number"
+                              type="number"
+                              value={formData.factory_number}
+                              onChange={(e) => updateFormData("factory_number", e.target.value)}
+                              className="text-right"
+                            />
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
+
+                  <TabsContent value="stores">
+                    <Card>
+                      <CardHeader className="pb-2 flex items-center justify-between">
+                        <CardTitle className="flex items-center gap-2 text-lg">
+                          <Warehouse className="h-5 w-5 text-primary" />
+                          تفاصيل المستودعات
+                        </CardTitle>
+                        <button type="button"
+                          className="flex items-center gap-1 bg-primary text-white px-3 py-1 rounded hover:bg-blue-600 transition"
+                          onClick={() => handleAddStoreRow()}
+                        >
+                          <Plus className="h-4 w-4" />
+                          إضافة
+                        </button>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                          <div>
+                            <Label htmlFor="default_store" className="text-sm font-medium">
+                              المستودع الافتراضي في الحركات
+                            </Label>
+                            <div className={sharedDropdownStyles.dropDownWrapper}>
+                              <PrimeDropdown
+                                inputId="default_store"
+                                value={formData.default_store ? Number(formData.default_store) : null}
+                                className={`${sharedDropdownStyles.dropDown} w-full`}
+                                panelClassName={sharedDropdownStyles.dropDownPanel}
+                                options={(() => {
+                                  const options = [
+                                    { label: "بلا تحديد", value: null },
+                                    ...((definitions.warehouses || []).map((warehouse: any) => ({
+                                      label: warehouse.warehouse_name,
+                                      value: Number(warehouse.id),
+                                    })))
+                                  ]
+
+                                  if (formData.default_store) {
+                                    const selectedId = Number(formData.default_store)
+                                    options.sort((a, b) => {
+                                      if (a.value === selectedId) return -1
+                                      if (b.value === selectedId) return 1
+                                      return 0
+                                    })
+                                  }
+
+                                  return options
+                                })()}
+                                optionLabel="label"
+                                optionValue="value"
+                                placeholder="اختر المستودع"
+                                filter={true}
+                                filterInputAutoFocus={true}
+                                onChange={(e) => updateFormData("default_store", e.value ?? 0)}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-1 gap-4">
+                          <div className="w-full overflow-x-auto">
+                            <DataGrid dataSource={formData.stores ?? []} scheme={getStoresScheme()} />
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
+
+                  <TabsContent value="costcenters">
+                    <Card>
+                      <CardHeader className="pb-4">
+                        <CardTitle className="flex items-center gap-2 text-lg">
+                          <Settings className="h-5 w-5 text-primary" />
+                          مراكز التكلفة
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="overflow-hidden rounded-lg border">
+                          <div className="h-[420px] min-h-[320px] overflow-auto">
+                            <DataGridView
+                              scheme={costCenterScheme}
+                              dataSource={formData.cost_centers ?? []}
+                              defaultRowHeight={44}
+                            />
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
+
+                  <TabsContent value="notes">
+                    <Card>
+                      <CardHeader className="pb-4">
+                        <CardTitle className="text-lg">ملاحظات وتفاصيل إضافية</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div>
+                          <Label htmlFor="notes" className="text-sm font-medium">
+                            ملاحظات
+                          </Label>
+                          <Textarea
+                            id="notes"
+                            value={formData.notes}
+                            onChange={(e) => updateFormData("notes", e.target.value)}
+                            className="text-right"
+                            rows={3}
+                            placeholder="أي ملاحظات أو تفاصيل إضافية حول الصنف"
+                          />
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
+                </>
+              )}
             </Tabs>
           </form>
         </div>
@@ -2286,6 +2325,6 @@ export function CompactProductForm({
           }}
         />
       )}
-    </div >
+    </div>
   )
 }
