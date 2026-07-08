@@ -532,6 +532,7 @@ function UnifiedSalesOrder({
         if (!response.ok) return
 
         const data = await response.json()
+        console.log("System settings loaded:", data)
         setAllowDuplicateBatchNumber(
           data?.allow_duplicate_batch_number ?? data?.allowDuplicateBatchNumber ?? false,
         )
@@ -1984,6 +1985,7 @@ function UnifiedSalesOrder({
         received_by: state.formData.received_by || "",
         customer_order_no: state.formData.customer_order_no || "",
         user_id: user.id,
+        allow_duplicate_batch_number: allowDuplicateBatchNumber,
       };
 
       const items = CollectionView.items.map((item) => ({

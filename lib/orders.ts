@@ -79,6 +79,8 @@ export interface SalesOrder {
   customer_order_no?: string;
   user_id: string;
   order_status2: number;
+  allow_duplicate_batch_number?: boolean;
+  allowDuplicateBatchNumber?: boolean;
 }
 
 
@@ -349,18 +351,23 @@ export async function createOrder(
       }
     }
 
-    for (const item of items) {
-      if (item.batch_number && item.batch_number.trim() !== "") {
-        const batchExists = await client.query(
-          `SELECT order_items.id FROM order_items INNER JOIN orders on orders.id = order_items.order_id
-           WHERE batch_number = $1 and order_id <> $2 AND orders.deleted = false LIMIT 1`,
-          [item.batch_number.trim(), orderData.id]
-        );
+    const allowDuplicateBatchNumber =
+      orderData.allow_duplicate_batch_number ?? orderData.allowDuplicateBatchNumber ?? false;
 
-        if (batchExists.rows.length > 0) {
-          throw new Error(
-            `الرقم التشغيلي ${item.batch_number}   موجود مسبقا. يرجى التحقق من البيانات وإعادة المحاولة.`
+    if (!allowDuplicateBatchNumber) {
+      for (const item of items) {
+        if (item.batch_number && item.batch_number.trim() !== "") {
+          const batchExists = await client.query(
+            `SELECT order_items.id FROM order_items INNER JOIN orders on orders.id = order_items.order_id
+             WHERE batch_number = $1 and order_id <> $2 AND orders.deleted = false LIMIT 1`,
+            [item.batch_number.trim(), orderData.id]
           );
+
+          if (batchExists.rows.length > 0) {
+            throw new Error(
+              `الرقم التشغيلي ${item.batch_number}   موجود مسبقا. يرجى التحقق من البيانات وإعادة المحاولة.`
+            );
+          }
         }
       }
     }

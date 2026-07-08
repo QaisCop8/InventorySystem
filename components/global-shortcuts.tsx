@@ -53,14 +53,6 @@ export function GlobalShortcuts() {
               description: "تم فتح شاشة الأصناف",
             })
             break
-          case "c":
-            event.preventDefault()
-            router.push("/customers/new")
-            toast({
-              title: "تعريف زبون جديد",
-              description: "تم فتح شاشة تعريف زبون جديد",
-            })
-            break
         }
       } else if (altKey && !ctrlKey) {
         switch (key.toLowerCase()) {
@@ -105,9 +97,6 @@ export function ShortcutsHelp() {
     { key: "Ctrl + O", description: "طلبية المبيعات" },
     { key: "Ctrl + T", description: "طلبية المشتريات" },
     { key: "Ctrl + S", description: "شاشة الأصناف" },
-    { key: "Ctrl + C", description: "تعريف زبون جديد" },
-    { key: "Alt + T", description: "البحث عن الزبائن والموردين" },
-    { key: "Alt + S", description: "البحث عن الأصناف" },
   ]
 
   return (

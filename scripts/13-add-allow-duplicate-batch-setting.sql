@@ -9,3 +9,4 @@ SET allow_duplicate_batch_number = COALESCE(allow_duplicate_batch_number, FALSE)
 WHERE id = 1;
 
 COMMENT ON COLUMN system_settings.allow_duplicate_batch_number IS 'السماح بتكرار الرقم التشغيلي في أكثر من سطر عند الحاجة';
+ 
