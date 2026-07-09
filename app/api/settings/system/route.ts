@@ -165,76 +165,97 @@ function normalizePayload(data: unknown): Record<string, unknown> {
 async function ensureSettingsTable(): Promise<void> {
   if (!sql) return
 
-  await sql`
+  // Create a minimal key/value table if it doesn't exist. Many installations
+  // previously used a simple integer id PK with description/value columns.
+  // We avoid throwing on ALTER failures so older schemas remain usable.
+  const execSafe = async (q: any) => {
+    try {
+      await q
+    } catch (err) {
+      console.warn("[v0] Non-fatal schema change failed:", err instanceof Error ? err.message : String(err))
+    }
+  }
+
+  await execSafe(sql`
     CREATE TABLE IF NOT EXISTS system_settings (
       id VARCHAR(100) PRIMARY KEY,
       description TEXT,
       value TEXT
     )
-  `
+  `)
 
-  await sql`ALTER TABLE system_settings ALTER COLUMN id TYPE VARCHAR(100) USING id::TEXT`
-  await sql`ALTER TABLE system_settings ALTER COLUMN id DROP DEFAULT`
-  await sql`ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS description TEXT`
-  await sql`ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS value TEXT`
+  // Many databases contain id as integer; attempts to ALTER may fail with
+  // insufficient privileges — ignore those errors and proceed.
+  await execSafe(sql`ALTER TABLE system_settings ALTER COLUMN id TYPE VARCHAR(100) USING id::TEXT`)
+  await execSafe(sql`ALTER TABLE system_settings ALTER COLUMN id DROP DEFAULT`)
+  await execSafe(sql`ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS description TEXT`)
+  await execSafe(sql`ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS value TEXT`)
 
-  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS organization_id`
-  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS company_name`
-  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS company_name_en`
-  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS company_email`
-  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS company_phone`
-  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS company_address`
-  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS company_website`
-  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS tax_number`
-  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS commercial_register`
-  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS default_currency`
-  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS language`
-  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS timezone`
-  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS date_format`
-  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS time_format`
-  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS fiscal_year_start`
-  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS auto_numbering`
-  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS numbering_system`
-  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS invoice_prefix`
-  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS invoice_start`
-  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS order_prefix`
-  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS order_start`
-  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS purchase_prefix`
-  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS purchase_start`
-  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS customer_prefix`
-  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS customer_start`
-  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS supplier_prefix`
-  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS supplier_start`
-  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS item_prefix`
-  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS item_start`
-  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS item_group_prefix`
-  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS item_group_start`
-  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS default_customer_parent_account`
-  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS default_customer_credit_account`
-  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS default_sales_tax_account`
-  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS default_currency_transfer_account`
-  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS default_earned_discount_account`
-  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS default_exchange_gain_loss_account`
-  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS default_salesman_parent_account`
-  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS default_supplier_parent_account`
-  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS default_customer_subscription_account`
-  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS default_purchase_tax_account`
-  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS default_new_employee_account`
-  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS default_allowed_discount_account`
-  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS paper_size`
-  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS print_logo`
-  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS print_footer`
-  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS default_printer`
-  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS working_days`
-  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS working_hours`
-  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS session_timeout`
-  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS two_factor_auth`
-  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS password_policy`
-  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS audit_log`
-  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS account_prefix`
-  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS account_start`
-  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS created_at`
-  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS updated_at`
+  const dropColumns = [
+    "organization_id",
+    "company_name",
+    "company_name_en",
+    "company_email",
+    "company_phone",
+    "company_address",
+    "company_website",
+    "tax_number",
+    "commercial_register",
+    "default_currency",
+    "language",
+    "timezone",
+    "date_format",
+    "time_format",
+    "fiscal_year_start",
+    "auto_numbering",
+    "numbering_system",
+    "invoice_prefix",
+    "invoice_start",
+    "order_prefix",
+    "order_start",
+    "purchase_prefix",
+    "purchase_start",
+    "customer_prefix",
+    "customer_start",
+    "supplier_prefix",
+    "supplier_start",
+    "item_prefix",
+    "item_start",
+    "item_group_prefix",
+    "item_group_start",
+    "default_customer_parent_account",
+    "default_customer_credit_account",
+    "default_sales_tax_account",
+    "default_currency_transfer_account",
+    "default_earned_discount_account",
+    "default_exchange_gain_loss_account",
+    "default_salesman_parent_account",
+    "default_supplier_parent_account",
+    "default_customer_subscription_account",
+    "default_purchase_tax_account",
+    "default_new_employee_account",
+    "default_allowed_discount_account",
+    "paper_size",
+    "print_logo",
+    "print_footer",
+    "default_printer",
+    "working_days",
+    "working_hours",
+    "session_timeout",
+    "two_factor_auth",
+    "password_policy",
+    "audit_log",
+    "account_prefix",
+    "account_start",
+    "created_at",
+    "updated_at",
+  ]
+
+  for (const col of dropColumns) {
+    // ignore failures
+    // eslint-disable-next-line no-await-in-loop
+    await execSafe(sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS ${col}`)
+  }
 }
 
 async function loadStoredSettings(): Promise<Record<string, unknown>> {
@@ -250,8 +271,24 @@ async function loadStoredSettings(): Promise<Record<string, unknown>> {
 
   const settings: Record<string, unknown> = {}
 
+  // Detect if the existing table uses an integer id PK (legacy). If so,
+  // prefer the `description` column as the settings key.
+  let idIsInteger = false
+  try {
+    const info = await sql`
+      SELECT data_type
+      FROM information_schema.columns
+      WHERE table_name = 'system_settings' AND column_name = 'id'
+      LIMIT 1
+    `
+    const dt = info?.[0]?.data_type
+    if (typeof dt === "string" && /int/i.test(dt)) idIsInteger = true
+  } catch (err) {
+    // ignore
+  }
+
   for (const row of rows) {
-    const key = row.id ?? row.description
+    const key = idIsInteger ? row.description ?? String(row.id) : row.id ?? row.description
     if (!key) continue
     settings[String(key)] = deserializeSettingValue(row.value)
   }
@@ -264,15 +301,47 @@ async function saveSettingsPayload(payload: Record<string, unknown>): Promise<Re
 
   await ensureSettingsTable()
 
+  // If the table has an integer `id` PK (legacy), store settings by
+  // `description`/`value`. Otherwise use `id` as the key.
+  let idIsInteger = false
+  try {
+    const info = await sql`
+      SELECT data_type
+      FROM information_schema.columns
+      WHERE table_name = 'system_settings' AND column_name = 'id'
+      LIMIT 1
+    `
+    const dt = info?.[0]?.data_type
+    if (typeof dt === "string" && /int/i.test(dt)) idIsInteger = true
+  } catch (err) {
+    // ignore and proceed with id as string
+  }
+
   for (const [key, value] of Object.entries(payload)) {
     const serializedValue = serializeSettingValue(value)
-    await sql`
-      INSERT INTO system_settings (id, description, value)
-      VALUES (${key}, ${key}, ${serializedValue})
-      ON CONFLICT (id) DO UPDATE SET
-        description = EXCLUDED.description,
-        value = EXCLUDED.value
-    `
+    if (idIsInteger) {
+      // Upsert by description
+      await sql`
+        INSERT INTO system_settings (description, value)
+        VALUES (${key}, ${serializedValue})
+      `
+        .catch(async () => {
+          // If insert fails (unique constraints or other), try update
+          await sql`
+            UPDATE system_settings
+            SET value = ${serializedValue}, description = ${key}
+            WHERE description = ${key}
+          `
+        })
+    } else {
+      await sql`
+        INSERT INTO system_settings (id, description, value)
+        VALUES (${key}, ${key}, ${serializedValue})
+        ON CONFLICT (id) DO UPDATE SET
+          description = EXCLUDED.description,
+          value = EXCLUDED.value
+      `
+    }
   }
 
   return loadStoredSettings()

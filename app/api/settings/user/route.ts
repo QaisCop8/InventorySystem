@@ -166,12 +166,15 @@ export async function PUT(request: NextRequest) {
   try {
     const data = await request.json()
     console.log("[v0] PUT request data:", data)
-    
+
+    if (!data?.user_id) {
+      return NextResponse.json({ error: "User ID is required" }, { status: 400 })
+    }
+
     if (data.permissions && Object.keys(data).length === 2 && data.user_id) {
-      // Only update permissions
       const result = await sql`
-        UPDATE user_settings 
-        SET 
+        UPDATE user_settings
+        SET
           permissions = ${JSON.stringify(data.permissions)},
           updated_at = CURRENT_TIMESTAMP
         WHERE user_id = ${data.user_id}
@@ -185,11 +188,69 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json(result[0])
     }
 
-    if (!data.username || !data.email) {
-      return NextResponse.json({ error: "Username and email are required" }, { status: 400 })
+    if (data.language !== undefined && Object.keys(data).filter((key) => key !== "user_id" && key !== "language").length === 0) {
+      const result = await sql`
+        UPDATE user_settings
+        SET
+          language = ${data.language},
+          updated_at = CURRENT_TIMESTAMP
+        WHERE user_id = ${data.user_id}
+        RETURNING *
+      `
+
+      if (result.length === 0) {
+        return NextResponse.json({ error: "User not found" }, { status: 404 })
+      }
+
+      return NextResponse.json({ success: true, user: result[0] })
     }
 
-    // Update password only when a new non-empty password is explicitly provided.
+    if (data.avatar_url !== undefined && Object.keys(data).filter((key) => key !== "user_id" && key !== "avatar_url").length === 0) {
+      const result = await sql`
+        UPDATE user_settings
+        SET
+          avatar_url = ${data.avatar_url},
+          updated_at = CURRENT_TIMESTAMP
+        WHERE user_id = ${data.user_id}
+        RETURNING *
+      `
+
+      if (result.length === 0) {
+        return NextResponse.json({ error: "User not found" }, { status: 404 })
+      }
+
+      return NextResponse.json({ success: true, user: result[0] })
+    }
+
+    const hasProfileFields =
+      data.username !== undefined ||
+      data.email !== undefined ||
+      data.full_name !== undefined ||
+      data.role !== undefined ||
+      data.department !== undefined ||
+      data.phone !== undefined ||
+      data.password_hash !== undefined ||
+      data.password !== undefined
+
+    const hasPreferenceFields =
+      data.avatar_url !== undefined ||
+      data.language !== undefined ||
+      data.timezone !== undefined ||
+      data.date_format !== undefined ||
+      data.time_format !== undefined ||
+      data.notifications_enabled !== undefined ||
+      data.email_notifications !== undefined ||
+      data.sms_notifications !== undefined ||
+      data.theme_preference !== undefined ||
+      data.sidebar_collapsed !== undefined ||
+      data.dashboard_layout !== undefined ||
+      data.permissions !== undefined ||
+      data.is_active !== undefined
+
+    if (!hasProfileFields && !hasPreferenceFields) {
+      return NextResponse.json({ error: "No updatable fields provided" }, { status: 400 })
+    }
+
     const rawPassword =
       typeof data.password_hash === "string" && data.password_hash.trim().length > 0
         ? data.password_hash
@@ -200,28 +261,28 @@ export async function PUT(request: NextRequest) {
     const passwordHash = rawPassword ? await hashPassword(rawPassword) : null
 
     const result = await sql`
-      UPDATE user_settings 
-      SET 
-        username = ${data.username},
-        email = ${data.email},
-        full_name = ${data.full_name},
-        role = ${data.role},
-        department = ${data.department},
-        phone = ${data.phone},
-        avatar_url = ${data.avatar_url},
-        language = ${data.language},
-        timezone = ${data.timezone},
-        date_format = ${data.date_format},
-        time_format = ${data.time_format},
-        notifications_enabled = ${data.notifications_enabled},
-        email_notifications = ${data.email_notifications},
-        sms_notifications = ${data.sms_notifications},
-        theme_preference = ${data.theme_preference},
-        sidebar_collapsed = ${data.sidebar_collapsed},
-        dashboard_layout = ${JSON.stringify(data.dashboard_layout || {})},
-        permissions = ${JSON.stringify(data.permissions || {})},
-        is_active = ${data.is_active},
-        password_hash = COALESCE(${passwordHash}, password_hash),
+      UPDATE user_settings
+      SET
+        username = ${data.username ?? null},
+        email = ${data.email ?? null},
+        full_name = ${data.full_name ?? null},
+        role = ${data.role ?? null},
+        department = ${data.department ?? null},
+        phone = ${data.phone ?? null},
+        avatar_url = ${data.avatar_url ?? null},
+        language = ${data.language ?? null},
+        timezone = ${data.timezone ?? null},
+        date_format = ${data.date_format ?? null},
+        time_format = ${data.time_format ?? null},
+        notifications_enabled = ${data.notifications_enabled ?? null},
+        email_notifications = ${data.email_notifications ?? null},
+        sms_notifications = ${data.sms_notifications ?? null},
+        theme_preference = ${data.theme_preference ?? null},
+        sidebar_collapsed = ${data.sidebar_collapsed ?? null},
+        dashboard_layout = ${data.dashboard_layout ? JSON.stringify(data.dashboard_layout) : null},
+        permissions = ${data.permissions ? JSON.stringify(data.permissions) : null},
+        is_active = ${data.is_active ?? null},
+        password_hash = ${passwordHash ?? null},
         updated_at = CURRENT_TIMESTAMP
       WHERE user_id = ${data.user_id}
       RETURNING *
@@ -231,13 +292,16 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "User not found" }, { status: 404 })
     }
 
-     return NextResponse.json({
-      success: true,
-      user: result[0],
-    });
+    return NextResponse.json({ success: true, user: result[0] })
   } catch (error) {
     console.error("Database update error:", error)
-    return NextResponse.json({ error: "Failed to update user settings" }, { status: 500 })
+    return NextResponse.json(
+      {
+        error: "Failed to update user settings",
+        details: error instanceof Error ? error.message : String(error),
+      },
+      { status: 500 },
+    )
   }
 }
 

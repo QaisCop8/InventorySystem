@@ -189,11 +189,7 @@ export async function GET(request: NextRequest) {
     const priceCategoryId = Number.parseInt(searchParams.get("priceCategoryId") || "1", 10);
     const requestedType = safeText(searchParams.get("type"), "").trim();
     const requestedTypeFilter = requestedType === "services" || requestedType === "products" ? requestedType : "";
-    const typeFilterClause = requestedTypeFilter === ""
-      ? ""
-      : requestedTypeFilter === "services"
-        ? " AND p.type = 2"
-        : " AND p.type = 1";
+    const typeParam: number | null = requestedTypeFilter === "services" ? 2 : requestedTypeFilter === "products" ? 1 : null;
     const hasDefaultStore = await hasDefaultStoreColumn()
     const products = hasDefaultStore
       ? await sql`
@@ -264,7 +260,8 @@ export async function GET(request: NextRequest) {
       LEFT JOIN currency c ON c.id = pr.currency_id
       LEFT JOIN warehouses w ON w.id = p.default_store
 
-      WHERE (p.deleted IS NULL OR p.deleted = false)${typeFilterClause}
+      WHERE (p.deleted IS NULL OR p.deleted = false)
+        AND (${typeParam}::int IS NULL OR p.type = ${typeParam}::int)
       ORDER BY p.product_code DESC;
     `
       : await sql`
@@ -319,7 +316,8 @@ export async function GET(request: NextRequest) {
       LEFT JOIN pricecategory pc ON pc.id = pr.price_category_id
       LEFT JOIN currency c ON c.id = pr.currency_id
 
-      WHERE (p.deleted IS NULL OR p.deleted = false)${typeFilterClause}
+      WHERE (p.deleted IS NULL OR p.deleted = false)
+        AND (${typeParam}::int IS NULL OR p.type = ${typeParam}::int)
       ORDER BY p.product_code DESC;
     `;
 
@@ -607,6 +605,14 @@ export async function POST(request: NextRequest) {
             productId,
           ]
 
+      // Validate that the update query placeholders match the supplied values
+      const placeholderMatch = Array.from(updateQuery.matchAll(/\$(\d+)/g)).map(m => Number(m[1]))
+      const maxPlaceholder = placeholderMatch.length ? Math.max(...placeholderMatch) : 0
+      if (maxPlaceholder !== updateValues.length) {
+        console.error(`[v0] Placeholder count mismatch for updateQuery: max=$${maxPlaceholder} values=${updateValues.length}`)
+        throw new Error(`SQL placeholders ($1..$${maxPlaceholder}) do not match provided values (${updateValues.length})`)
+      }
+
       await client.query(updateQuery, updateValues)
       await client.query(`DELETE FROM product_units WHERE product_id=$1`, [productId]);
       await client.query(`DELETE FROM product_unit_barcodes WHERE product_id=$1`, [productId]);
@@ -750,6 +756,13 @@ export async function POST(request: NextRequest) {
         ]
 
       const insertPlaceholders = insertColumns.map((_, index) => `$${index + 1}`).join(",")
+
+      // Validate insert placeholders vs values for easier debugging
+      const insertMax = insertColumns.length
+      if (insertMax !== insertValues.length) {
+        console.error(`[v0] Insert placeholder count mismatch: columns=${insertMax} values=${insertValues.length}`)
+        throw new Error(`Insert columns (${insertMax}) do not match insert values (${insertValues.length})`)
+      }
 
       const result = await client.query(
         `INSERT INTO products (${insertColumns.join(", ")}) VALUES (${insertPlaceholders}) RETURNING id`,

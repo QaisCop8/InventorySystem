@@ -192,7 +192,7 @@ createButtonsColumns = () => {
     if (this.state.columns) {
       columns = this.state.columns;
     }
-    const serialColumn = {
+    /*const serialColumn = {
       name: '__serial',
       header: '##',
       width: 60,
@@ -203,7 +203,7 @@ createButtonsColumns = () => {
       align: 'center',
       body: 'serial',
     };
-    columns = [serialColumn, ...columns.filter((col) => col.name !== '__serial')];
+    columns = [serialColumn, ...columns.filter((col) => col.name !== '__serial')];*/
     this.filterColumns = [];
     columns.forEach((element) => {
       if (element.name !== '__serial' && element.filterable !== false) this.filterColumns.push(element.name);
