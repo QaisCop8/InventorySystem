@@ -372,8 +372,8 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
           </div>
 
           <div className="grid gap-4 xl:grid-cols-[320px_minmax(0,_1fr)]">
-            <div className="rounded-2xl bg-white p-3 shadow-sm">
-              <label htmlFor="productTypeFilter" className="mb-2 block text-sm font-medium text-slate-700 text-right">
+            <div className="rounded-2xl bg-white p-3 shadow-sm space-y-1">
+              <label htmlFor="productTypeFilter" className="block text-xs font-semibold text-slate-700 text-right">
                 نوع الصنف
               </label>
               <MultiSelect

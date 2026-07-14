@@ -86,10 +86,24 @@ interface ProductFormData {
 
   notes: string
   entry_date: string
-  revenue_account_id: number
-  revenue_account_code: string
+  selling_account_id: number
+  selling_account_code: string
   purchase_account_id: number
   purchase_account_code: string
+  selling_returns_account_id: number
+  selling_returns_account_code: string
+  purchase_returns_account_id: number
+  purchase_returns_account_code: string
+  stock_end_account_id: number
+  stock_end_account_code: string
+  stock_start_account_id: number
+  stock_start_account_code: string
+  production_account_id: number
+  production_account_code: string
+  municipality_service_account_id: number
+  municipality_service_account_code: string
+  lsti3mal_account_id: number
+  lsti3mal_account_code: string
 
   units?: UnitItem[],
   prices?: PriceItem[],
@@ -136,10 +150,24 @@ export const initialFormData: ProductFormData = {
 
   notes: "",
   entry_date: new Date().toISOString().split("T")[0],
-  revenue_account_id: 0,
-  revenue_account_code: "",
+  selling_account_id: 0,
+  selling_account_code: "",
   purchase_account_id: 0,
   purchase_account_code: "",
+  selling_returns_account_id: 0,
+  selling_returns_account_code: "",
+  purchase_returns_account_id: 0,
+  purchase_returns_account_code: "",
+  stock_end_account_id: 0,
+  stock_end_account_code: "",
+  stock_start_account_id: 0,
+  stock_start_account_code: "",
+  production_account_id: 0,
+  production_account_code: "",
+  municipality_service_account_id: 0,
+  municipality_service_account_code: "",
+  lsti3mal_account_id: 0,
+  lsti3mal_account_code: "",
 
   units: [],
   prices: [],
@@ -523,7 +551,9 @@ export function CompactProductForm({
       }
 
       const res = await fetch(url.toString());
+      console.log("loadData response:", res);
       const product = await res.json();
+      console.log("loadData product:", product);
       if (!product.id || product.id === currentProductId) {
         toast.current?.show({
           severity: 'error',
@@ -1827,9 +1857,8 @@ export function CompactProductForm({
               <TabsList className="h-auto w-full flex flex-wrap justify-start gap-2 overflow-x-auto rounded-xl bg-gradient-to-r from-slate-50 via-blue-50 to-slate-50 p-2 shadow-md border border-slate-200/60 backdrop-blur-sm" style={{ direction: "rtl" }}>
                 <TabsTrigger value="units" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-emerald-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">الوحدات</TabsTrigger>
                 <TabsTrigger value="prices" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">اسعار البيع</TabsTrigger>
-                {isService ? (
-                  <TabsTrigger value="accounts" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-emerald-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">الحسابات المحاسبية</TabsTrigger>
-                ) : (
+                <TabsTrigger value="accounts" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-emerald-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">{isService ? 'الحسابات المحاسبية' : 'الحسابات'}</TabsTrigger>
+                {isService ? null : (
                   <>
                     <TabsTrigger value="brand" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-orange-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">العلامة التجارية</TabsTrigger>
                     <TabsTrigger value="measurements" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-red-500 data-[state=active]:to-red-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">القياسات</TabsTrigger>
@@ -1917,52 +1946,133 @@ export function CompactProductForm({
                 </Card>
               </TabsContent>
 
-              {isService && (
-                <TabsContent value="accounts">
-                  <Card>
-                    <CardHeader className="pb-4">
-                      <CardTitle className="flex items-center gap-2 text-lg">
-                        <Currency className="h-5 w-5 text-primary" />
-                        الحسابات المحاسبية
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                          <Label htmlFor="revenue_account" className="text-sm font-medium">
-                            حساب الإيرادات
-                          </Label>
-                          <AutoCompleteAccount
-                            value={formData.revenue_account_code}
-                            onValueChange={(value) => updateFormData("revenue_account_code", value)}
-                            onAccountSelect={(account) => updateFormData("revenue_account_id", account?.id ?? 0)}
-                            label="حساب الإيرادات"
-                            placeholder="اختر حساب الإيرادات"
-                            showClearButton={true}
-                            showSearchButton={true}
-                            className="w-full"
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor="purchase_account" className="text-sm font-medium">
-                            حساب المشتريات
-                          </Label>
-                          <AutoCompleteAccount
-                            value={formData.purchase_account_code}
-                            onValueChange={(value) => updateFormData("purchase_account_code", value)}
-                            onAccountSelect={(account) => updateFormData("purchase_account_id", account?.id ?? 0)}
-                            label="حساب المشتريات"
-                            placeholder="اختر حساب المشتريات"
-                            showClearButton={true}
-                            showSearchButton={true}
-                            className="w-full"
-                          />
-                        </div>
+              <TabsContent value="accounts">
+                <Card>
+                  <CardHeader className="pb-4">
+                    <CardTitle className="flex items-center gap-2 text-lg">
+                      <Currency className="h-5 w-5 text-primary" />
+                      الحسابات
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                      <div>
+                        <AutoCompleteAccount
+                          value={formData.selling_account_code}
+                          onValueChange={(value) => updateFormData("selling_account_code", value)}
+                          onAccountSelect={(account) => updateFormData("selling_account_id", account?.id ?? 0)}
+                          label="حساب المبيعات"
+                          placeholder="اختر حساب المبيعات"
+                          showClearButton={true}
+                          showSearchButton={true}
+                          className="w-full"
+                          showCostCenterDialog={true}
+                          leafOnly
+                        />
                       </div>
-                    </CardContent>
-                  </Card>
-                </TabsContent>
-              )}
+                      <div>
+                        <AutoCompleteAccount
+                          value={formData.purchase_account_code}
+                          onValueChange={(value) => updateFormData("purchase_account_code", value)}
+                          onAccountSelect={(account) => updateFormData("purchase_account_id", account?.id ?? 0)}
+                          label="حساب المشتريات"
+                          placeholder="اختر حساب المشتريات"
+                          showClearButton={true}
+                          showSearchButton={true}
+                          className="w-full"
+                          showCostCenterDialog={true}
+                          leafOnly
+                        />
+                      </div>
+                      <div>
+                        <AutoCompleteAccount
+                          value={formData.selling_returns_account_code}
+                          onValueChange={(value) => updateFormData("selling_returns_account_code", value)}
+                          onAccountSelect={(account) => updateFormData("selling_returns_account_id", account?.id ?? 0)}
+                          label="حساب مرتجعات المبيعات"
+                          placeholder="اختر حساب مرتجعات المبيعات"
+                          showClearButton={true}
+                          showSearchButton={true}
+                          className="w-full"
+                          showCostCenterDialog={true}
+                          leafOnly
+                        />
+                      </div>
+                      <div>
+                        <AutoCompleteAccount
+                          value={formData.purchase_returns_account_code}
+                          onValueChange={(value) => updateFormData("purchase_returns_account_code", value)}
+                          onAccountSelect={(account) => updateFormData("purchase_returns_account_id", account?.id ?? 0)}
+                          label="حساب مرتجعات المشتريات"
+                          placeholder="اختر حساب مرتجعات المشتريات"
+                          showClearButton={true}
+                          showSearchButton={true}
+                          className="w-full"
+                          showCostCenterDialog={true}
+                          leafOnly
+                        />
+                      </div>
+                      <div>
+                        <AutoCompleteAccount
+                          value={formData.stock_end_account_code}
+                          onValueChange={(value) => updateFormData("stock_end_account_code", value)}
+                          onAccountSelect={(account) => updateFormData("stock_end_account_id", account?.id ?? 0)}
+                          label="حساب تقييم بضاعة آخر المدة"
+                          placeholder="اختر حساب تقييم بضاعة آخر المدة"
+                          showClearButton={true}
+                          showSearchButton={true}
+                          className="w-full"
+                          showCostCenterDialog={true}
+                          leafOnly
+                        />
+                      </div>
+                      <div>
+                        <AutoCompleteAccount
+                          value={formData.stock_start_account_code}
+                          onValueChange={(value) => updateFormData("stock_start_account_code", value)}
+                          onAccountSelect={(account) => updateFormData("stock_start_account_id", account?.id ?? 0)}
+                          label="حساب تقييم بضاعة أول المدة"
+                          placeholder="اختر حساب تقييم بضاعة أول المدة"
+                          showClearButton={true}
+                          showSearchButton={true}
+                          className="w-full"
+                          showCostCenterDialog={true}
+                          leafOnly
+                        />
+                      </div>
+                      <div>
+                        <AutoCompleteAccount
+                          value={formData.production_account_code}
+                          onValueChange={(value) => updateFormData("production_account_code", value)}
+                          onAccountSelect={(account) => updateFormData("production_account_id", account?.id ?? 0)}
+                          label="حساب الإنتاج"
+                          placeholder="اختر حساب الإنتاج"
+                          showClearButton={true}
+                          showSearchButton={true}
+                          className="w-full"
+                          showCostCenterDialog={true}
+                          leafOnly
+                        />
+                      </div>
+                      
+                      <div>
+                        <AutoCompleteAccount
+                          value={formData.lsti3mal_account_code}
+                          onValueChange={(value) => updateFormData("lsti3mal_account_code", value)}
+                          onAccountSelect={(account) => updateFormData("lsti3mal_account_id", account?.id ?? 0)}
+                          label="حساب المصروف في سند الاستعمال"
+                          placeholder="اختر حساب المصروف في سند الاستعمال"
+                          showClearButton={true}
+                          showSearchButton={true}
+                          className="w-full"
+                          showCostCenterDialog={true}
+                          leafOnly
+                        />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
 
               {!isService && (
                 <>

@@ -66,7 +66,7 @@ export default class MultiSelect extends React.Component {
     const panelClassName = `${styles.panelClassRight} ${this.props.panelClassName ?? 'invoice-currency-dropdown-panel'}`.trim();
     // const SELECTALLMAXLIMIT = 5000;
     let divlabelStyle = {};
-    if (this.props.isReportFilter) divlabelStyle = { display: 'flex', width: '100%', overflow: 'hidden' };
+    if (this.props.isReportFilter) divlabelStyle = { display: 'flex', flexDirection: 'column', width: '100%', overflow: 'hidden' };
     let labelStyle = { width: !this.props.ignoreWidth ? 'auto' : '', minWidth: this.props.minLabelWidth ? this.props.minLabelWidth : '100px' };
     if (this.props.isReportFilter)
       labelStyle = {
@@ -76,7 +76,7 @@ export default class MultiSelect extends React.Component {
 
     const wrapperStyle = { ...divlabelStyle, position: 'relative' }
     return (
-      <div style={wrapperStyle} ref={this.wrapperRef}>
+      <div style={wrapperStyle} className={styles.multiselectRoot} ref={this.wrapperRef}>
         {this.props.caption && (
           <Label
             htmlFor={this.props.htmlFor}

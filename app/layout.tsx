@@ -41,13 +41,13 @@ import { Inter } from "next/font/google"
 import { Suspense } from "react"
 import { AuthProvider } from "@/components/auth/auth-context"
 import { FontProvider } from "@/components/settings/font-settings"
+import dynamic from "next/dynamic"
 import { ThemeProvider } from "@/components/theme-provider"
 import { ThemeSettingsProvider } from "@/contexts/theme-context"
 import { WindowManagerProvider } from "@/contexts/window-manager-context"
 import { Toaster } from "@/components/ui/toaster"
-import { GlobalSearchProvider } from "@/components/global-search-provider"
-import { GlobalShortcuts } from "@/components/global-shortcuts"
-import { PrimeReactProvider } from "primereact/api"
+// Load client-only providers dynamically to avoid server imports
+const ClientProviders = dynamic(() => import("@/components/ClientProviders").then((m) => m.default), { ssr: false })
 import "./globals.css"
 
 const inter = Inter({
@@ -109,13 +109,9 @@ export default function RootLayout({
             >
               <ThemeSettingsProvider>
                 <WindowManagerProvider>
-                  <PrimeReactProvider>
-                    <GlobalSearchProvider>
-                      <GlobalShortcuts />
+                    <ClientProviders>
                       <Suspense fallback={null}>{children}</Suspense>
-                      <Toaster />
-                    </GlobalSearchProvider>
-                  </PrimeReactProvider>
+                    </ClientProviders>
                 </WindowManagerProvider>
               </ThemeSettingsProvider>
             </ThemeProvider>
