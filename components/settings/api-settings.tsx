@@ -47,26 +47,26 @@ const endpoints = [
   {
     method: "GET",
     path: "/customers",
-    description: "الحصول على قائمة الزبائن",
+    description: "الحصول على قائمة الالعملاء",
     params: "page, limit, search, status",
     status: "متاح",
   },
-  { method: "GET", path: "/customers/{id}", description: "الحصول على زبون محدد", params: "id", status: "متاح" },
+  { method: "GET", path: "/customers/{id}", description: "الحصول على عميل محدد", params: "id", status: "متاح" },
   {
     method: "POST",
     path: "/customers",
-    description: "إضافة زبون جديد",
+    description: "إضافة عميل جديد",
     params: "body: customer object",
     status: "متاح",
   },
   {
     method: "PUT",
     path: "/customers/{id}",
-    description: "تحديث بيانات زبون",
+    description: "تحديث بيانات عميل",
     params: "id, body: customer object",
     status: "متاح",
   },
-  { method: "DELETE", path: "/customers/{id}", description: "حذف زبون", params: "id", status: "محدود" },
+  { method: "DELETE", path: "/customers/{id}", description: "حذف عميل", params: "id", status: "محدود" },
 ]
 
 const webhooks = [
@@ -241,7 +241,7 @@ export default function APISettings() {
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-gray-50 rounded-lg">
                           <label className="flex items-center gap-2">
                             <input type="checkbox" defaultChecked className="rounded" />
-                            <span className="text-sm">الزبائن</span>
+                            <span className="text-sm">الالعملاء</span>
                           </label>
                           <label className="flex items-center gap-2">
                             <input type="checkbox" defaultChecked className="rounded" />
@@ -389,7 +389,7 @@ export default function APISettings() {
 
               <div className="space-y-6">
                 <div>
-                  <h3 className="font-semibold mb-3">🔷 إدارة الزبائن</h3>
+                  <h3 className="font-semibold mb-3">🔷 إدارة الالعملاء</h3>
                   <div className="overflow-x-auto">
                     <table className="w-full">
                       <thead>

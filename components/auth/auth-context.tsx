@@ -22,17 +22,24 @@ interface User {
   isActive: boolean
   lastLogin?: Date
   defaultScreen?: string
+  branchId?: number
+  branchName?: string
 }
 
 interface AuthContextType {
   user: User | null
   isAuthenticated: boolean
   isLoading: boolean
+  activeBranchId: number | null
+  activeBranchName: string | null
+  activeDepartment: string | null
   login: (credentials: { username: string; password: string; rememberMe: boolean }) => Promise<void>
   logout: () => void
   hasPermission: (permission: string) => boolean
   refreshUser: () => Promise<void>
   getDefaultScreen: () => string
+  setActiveBranchContext: (branch: { id: number; name: string } | null) => void
+  setActiveDepartmentContext: (department: string | null) => void
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -53,6 +60,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
+  const [activeBranchId, setActiveBranchId] = useState<number | null>(null)
+  const [activeBranchName, setActiveBranchName] = useState<string | null>(null)
+  const [activeDepartment, setActiveDepartment] = useState<string | null>(null)
 
   useEffect(() => {
     console.log("[v0] useEffect triggered!")
@@ -70,7 +80,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
         const savedUser = localStorage.getItem("erp_user") || sessionStorage.getItem("erp_user")
         const savedToken = localStorage.getItem("erp_token") || sessionStorage.getItem("erp_token")
         let savedSession = localStorage.getItem("erp_session") || sessionStorage.getItem("erp_session")
-
+        const savedBranch = localStorage.getItem("erp_active_branch") || sessionStorage.getItem("erp_active_branch")
+        const savedDepartment = localStorage.getItem("erp_active_department") || sessionStorage.getItem("erp_active_department")
 
         if (savedUser && savedToken) {
 
@@ -89,6 +100,23 @@ export function AuthProvider({ children }: AuthProviderProps) {
             const userData = JSON.parse(savedUser)
             setUser(userData)
             setIsAuthenticated(true)
+
+            if (savedBranch) {
+              try {
+                const parsedBranch = JSON.parse(savedBranch)
+                setActiveBranchId(parsedBranch?.id ?? null)
+                setActiveBranchName(parsedBranch?.name ?? null)
+              } catch {
+                setActiveBranchId(null)
+                setActiveBranchName(null)
+              }
+            }
+
+            if (savedDepartment) {
+              setActiveDepartment(savedDepartment)
+            } else if (userData?.department) {
+              setActiveDepartment(userData.department)
+            }
 
             // Refresh user permissions from database
             try {
@@ -121,9 +149,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
     sessionStorage.removeItem("erp_user")
     sessionStorage.removeItem("erp_token")
     sessionStorage.removeItem("erp_session")
+    sessionStorage.removeItem("erp_active_branch")
+    sessionStorage.removeItem("erp_active_department")
     sessionStorage.removeItem("default_screen_opened");
+    localStorage.removeItem("erp_active_branch")
+    localStorage.removeItem("erp_active_department")
     setUser(null)
     setIsAuthenticated(false)
+    setActiveBranchId(null)
+    setActiveBranchName(null)
+    setActiveDepartment(null)
   }
 
   interface AccessItem {
@@ -133,6 +168,38 @@ export function AuthProvider({ children }: AuthProviderProps) {
     category_name: string
     is_granted?: boolean,
     access_id: number
+  }
+
+  const persistBranchContext = (branch: { id: number; name: string } | null, department: string | null) => {
+    if (typeof window === "undefined") return
+
+    if (branch) {
+      const branchValue = JSON.stringify(branch)
+      localStorage.setItem("erp_active_branch", branchValue)
+      sessionStorage.setItem("erp_active_branch", branchValue)
+    } else {
+      localStorage.removeItem("erp_active_branch")
+      sessionStorage.removeItem("erp_active_branch")
+    }
+
+    if (department) {
+      localStorage.setItem("erp_active_department", department)
+      sessionStorage.setItem("erp_active_department", department)
+    } else {
+      localStorage.removeItem("erp_active_department")
+      sessionStorage.removeItem("erp_active_department")
+    }
+  }
+
+  const setActiveBranchContext = (branch: { id: number; name: string } | null) => {
+    setActiveBranchId(branch?.id ?? null)
+    setActiveBranchName(branch?.name ?? null)
+    persistBranchContext(branch, activeDepartment)
+  }
+
+  const setActiveDepartmentContext = (department: string | null) => {
+    setActiveDepartment(department)
+    persistBranchContext(activeBranchId ? { id: activeBranchId, name: activeBranchName || "" } : null, department)
   }
   const refreshUserPermissions = async (userId: string) => {
     try {
@@ -169,6 +236,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
       if (result.success && result.user) {
         setUser(result.user)
         setIsAuthenticated(true)
+
+        if (result.user.department) {
+          setActiveDepartment(result.user.department)
+        }
 
         const sessionData = {
           timestamp: new Date().getTime(),
@@ -290,11 +361,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
         user,
         isAuthenticated,
         isLoading,
+        activeBranchId,
+        activeBranchName,
+        activeDepartment,
         login,
         logout,
         hasPermission,
         refreshUser,
         getDefaultScreen,
+        setActiveBranchContext,
+        setActiveDepartmentContext,
       }}
     >
       {isAuthenticated && user && <ThemeLoader userId={user.id} />}

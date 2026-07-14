@@ -83,7 +83,7 @@ const productMovement = [
     balance: "45",
     price: "3,200",
     total: "16,000",
-    notes: "زبون: أحمد علي",
+    notes: "عميل: أحمد علي",
   },
 ]
 

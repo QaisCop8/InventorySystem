@@ -82,7 +82,7 @@ export function QuickSalesOrder({ open, onOpenChange }: QuickSalesOrderProps) {
 
     // Validation
     if (!orderForm.customerName.trim()) {
-      alert("اسم الزبون مطلوب")
+      alert("اسم العميل مطلوب")
       return
     }
 
@@ -186,7 +186,7 @@ export function QuickSalesOrder({ open, onOpenChange }: QuickSalesOrderProps) {
                 F2: بحث أصناف
               </Badge>
               <Badge variant="outline" className="text-xs">
-                F3: بحث زبائن
+                F3: بحث العملاء
               </Badge>
               <SearchButton type="products" onSelect={handleProductSelect} variant="outline" size="sm" />
               <SearchButton type="customers" onSelect={handleCustomerSelect} variant="outline" size="sm" />
@@ -197,13 +197,13 @@ export function QuickSalesOrder({ open, onOpenChange }: QuickSalesOrderProps) {
           {/* Basic Info */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <Label className="text-right block mb-2">اسم الزبون *</Label>
+              <Label className="text-right block mb-2">اسم العميل *</Label>
               <Select
                 value={orderForm.customerName}
                 onValueChange={(value) => setOrderForm({ ...orderForm, customerName: value })}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="-- اختر الزبون --" />
+                  <SelectValue placeholder="-- اختر العميل --" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="أحمد محمد علي">أحمد محمد علي</SelectItem>

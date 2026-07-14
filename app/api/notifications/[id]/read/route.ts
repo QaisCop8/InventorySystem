@@ -1,22 +1,27 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { markNotificationAsRead } from "@/lib/notifications"
+import { sendWhatsApp } from "@/lib/twilio"
 
-export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(request: NextRequest) {
   try {
-    const notificationId = Number.parseInt(params.id)
+    const { phone, message } = await request.json()
 
-    if (isNaN(notificationId)) {
-      return NextResponse.json({ error: "معرف التنبيه غير صحيح" }, { status: 400 })
+    if (!phone || !message) {
+      return NextResponse.json({ message: "رقم الهاتف والرسالة مطلوبان" }, { status: 400 })
     }
 
-    const notification = await markNotificationAsRead(notificationId)
+    const result = await sendWhatsApp(phone, message)
 
-    return NextResponse.json({
-      success: true,
-      notification,
-    })
+    if (result.success) {
+      return NextResponse.json({
+        message: "تم إرسال رسالة واتساب بنجاح",
+        sid: result.sid,
+      })
+    } else {
+      return NextResponse.json({ message: result.error || "فشل إرسال رسالة واتساب" }, { status: 500 })
+    }
   } catch (error) {
-    console.error("Error marking notification as read:", error)
-    return NextResponse.json({ error: "فشل في تحديث التنبيه" }, { status: 500 })
+    console.error("[v0] Error sending WhatsApp:", error)
+    return NextResponse.json({ message: "حدث خطأ في إرسال رسالة واتساب" }, { status: 500 })
   }
 }
+

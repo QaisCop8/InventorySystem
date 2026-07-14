@@ -3,15 +3,17 @@ import { neon } from "@neondatabase/serverless"
 
 const sql = neon(process.env.DATABASE_URL!)
 
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest) {
   try {
-    const lotId = params.id
+    const { searchParams } = new URL(request.url)
+    const barcode = searchParams.get("barcode")
+    const lotNumber = searchParams.get("lot_number")
 
-    if (!lotId) {
-      return NextResponse.json({ error: "معرف الباتش مطلوب" }, { status: 400 })
+    if (!barcode && !lotNumber) {
+      return NextResponse.json({ error: "يجب تحديد الباركود أو رقم الباتش" }, { status: 400 })
     }
 
-    const result = await sql`
+    let query = `
       SELECT 
         pl.id as lot_id,
         pl.lot_number,
@@ -46,17 +48,29 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       LEFT JOIN product_warehouse_stock pws ON p.id = pws.product_id AND pl.lot_number = pws.batch_number
       LEFT JOIN warehouses w ON pws.warehouse_name = w.warehouse_name
       LEFT JOIN suppliers s ON pl.supplier_id = s.id
-      WHERE pl.id = ${lotId}
-      LIMIT 1
+      WHERE 1=1
     `
 
-    if (result.length === 0) {
-      return NextResponse.json({ error: "لم يتم العثور على الباتش" }, { status: 404 })
+    const params: any[] = []
+
+    if (barcode) {
+      query += ` AND (p.barcode = $${params.length + 1} OR pl.lot_number ILIKE $${params.length + 2})`
+      params.push(barcode, `%${barcode}%`)
     }
 
-    return NextResponse.json(result[0])
+    if (lotNumber) {
+      query += ` AND pl.lot_number ILIKE $${params.length + 1}`
+      params.push(`%${lotNumber}%`)
+    }
+
+    query += ` ORDER BY pl.created_at DESC LIMIT 10`
+
+    const result = await sql.unsafe(query, params)
+
+    return NextResponse.json(result)
   } catch (error) {
-    console.error("Error fetching batch details:", error)
-    return NextResponse.json({ error: "فشل في تحميل تفاصيل الباتش" }, { status: 500 })
+    console.error("Error searching batch details:", error)
+    return NextResponse.json({ error: "فشل في البحث عن تفاصيل الباتش" }, { status: 500 })
   }
 }
+

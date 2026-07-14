@@ -32,7 +32,12 @@ export function OrderMigrate() {
         currentView: ViewType
     }
 
-    const savedView = localStorage.getItem("currentType") as ViewType | null;
+    const getSavedView = (): ViewType => {
+        if (typeof window === "undefined") return "sales"
+        const saved = window.localStorage.getItem("currentType") as ViewType | null
+        return saved === "all" || saved === "sales" || saved === "purchase" ? saved : "sales"
+    }
+
     const [data, setData] = useState<OrderMigrateRow[]>([])
     const [loading, setLoading] = useState(false)
     const showErrors = React.useRef(false);
@@ -40,8 +45,8 @@ export function OrderMigrate() {
         order_number: "",
         from_date: "",
         to_date: "",
-        order_type: savedView ?? "sales", // all | sales | purchase
-        currentView: savedView ?? "sales",
+        order_type: getSavedView(), // all | sales | purchase
+        currentView: getSavedView(),
     })
 
     useEffect(() => {
@@ -171,8 +176,8 @@ export function OrderMigrate() {
             { header: "نوع الطلبية", name: "order_type", width: 140, isReadOnly: true },
             { header: "المبلغ", name: "total_amount", width: 120, isReadOnly: true },
             { header: "حالة التسليم", name: "order_status2", width: 140, isReadOnly: true },
-            { header: "رقم الزبون", name: "customer_code", width: 120, isReadOnly: true },
-            { header: "اسم الزبون", name: "customer_name", width: "*", isReadOnly: true },
+            { header: "رقم العميل", name: "customer_code", width: 120, isReadOnly: true },
+            { header: "اسم العميل", name: "customer_name", width: "*", isReadOnly: true },
             { header: "الخطأ", name: "error", width: 250, isReadOnly: true, visible: showErrors.current },
 
         ],

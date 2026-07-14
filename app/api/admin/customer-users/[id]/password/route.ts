@@ -1,39 +1,34 @@
 import { NextRequest, NextResponse } from "next/server"
-import { updateCustomerPassword } from "@/lib/customer-auth"
+import fs from "fs"
+import path from "path"
 
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+const SOURCE_FILE_PATH = path.join(process.cwd(), "data", "accounts.json")
+
+const typeMap: Record<string, string | null> = {
+  none: null,
+  commercial: "1",
+  commercial_continuous_inventory: "2",
+  services: "3",
+}
+
+export async function GET(request: NextRequest) {
   try {
-    const userId = Number(params.id)
+    const typeId = request.nextUrl.searchParams.get("type") || "none"
+    const selectedType = typeMap[typeId] ?? null
 
-    if (Number.isNaN(userId)) {
-      return NextResponse.json(
-        { error: "معرّف المستخدم غير صالح" },
-        { status: 400 }
-      )
+    if (!fs.existsSync(SOURCE_FILE_PATH)) {
+      return NextResponse.json({ error: "accounts.json not found" }, { status: 404 })
     }
 
-    const body = await request.json()
-    const { password } = body
+    const rawContent = fs.readFileSync(SOURCE_FILE_PATH, "utf8")
+    const parsed = JSON.parse(rawContent)
+    const rows = Array.isArray(parsed?.Sheet1) ? parsed.Sheet1 : []
 
-    if (!password || typeof password !== "string") {
-      return NextResponse.json(
-        { error: "كلمة المرور مطلوبة" },
-        { status: 400 }
-      )
-    }
+    const filteredRows = selectedType ? rows.filter((row: any) => String(row?.type ?? "") === selectedType) : rows
 
-    await updateCustomerPassword(userId, password)
-
-    return NextResponse.json({ success: true })
+    return NextResponse.json({ rows: filteredRows })
   } catch (error) {
-    console.error("Update password error:", error)
-
-    return NextResponse.json(
-      { error: "حدث خطأ أثناء تغيير كلمة المرور" },
-      { status: 500 }
-    )
+    console.error("Failed to load accounts export source:", error)
+    return NextResponse.json({ error: "Failed to load accounts export source" }, { status: 500 })
   }
 }

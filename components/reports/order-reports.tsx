@@ -240,13 +240,13 @@ export function OrderReports() {
               />
             </div>
             <div>
-              <label className="text-sm font-medium mb-2 block text-gray-700">الزبون:</label>
+              <label className="text-sm font-medium mb-2 block text-gray-700">العميل:</label>
               <Select value={state.filters.customer} onValueChange={(value) => handleFilterChange("customer", value)}>
                 <SelectTrigger className="focus:ring-2 focus:ring-blue-500">
-                  <SelectValue placeholder="جميع الزبائن" />
+                  <SelectValue placeholder="جميع الالعملاء" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">جميع الزبائن</SelectItem>
+                  <SelectItem value="all">جميع الالعملاء</SelectItem>
                   <SelectItem value="ahmed">أحمد محمد علي</SelectItem>
                   <SelectItem value="success">شركة النجاح التجارية</SelectItem>
                 </SelectContent>
@@ -353,7 +353,7 @@ export function OrderReports() {
                     <tr>
                       <th className="text-right p-3 font-semibold text-gray-700">رقم الطلبية</th>
                       <th className="text-right p-3 font-semibold text-gray-700">التاريخ</th>
-                      <th className="text-right p-3 font-semibold text-gray-700">الزبون</th>
+                      <th className="text-right p-3 font-semibold text-gray-700">العميل</th>
                       <th className="text-right p-3 font-semibold text-gray-700">المندوب</th>
                       <th className="text-right p-3 font-semibold text-gray-700">المبلغ</th>
                       <th className="text-right p-3 font-semibold text-gray-700">تاريخ التسليم</th>

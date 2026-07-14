@@ -1819,11 +1819,11 @@ function UnifiedSaleInvoices({
     }
 
     if (state.formData.customer_id === 0) {
-      Util.showErrorMessage(message, 'يجب ادخال الزبون')
+      Util.showErrorMessage(message, 'يجب ادخال العميل')
       return false
     }
     if (!state.formData.customer_name.trim()) {
-      Util.showErrorMessage(message, 'يجب ادخال اسم الزبون')
+      Util.showErrorMessage(message, 'يجب ادخال اسم العميل')
       return false
     }
     if (CollectionView.items.length === 0 || !CollectionView?.items[0]?.id) {
@@ -3024,7 +3024,7 @@ function UnifiedSaleInvoices({
   const reportColumns = [
     { key: "order_number", label: "رقم الفاتورة", width: "120px" },
     { key: "order_date", label: "التاريخ", width: "100px" },
-    { key: "customer_name", label: "اسم الزبون", width: "200px" },
+    { key: "customer_name", label: "اسم العميل", width: "200px" },
 
     { key: "total_amount", label: "المبلغ", width: "100px" },
     { key: "salesman", label: "المندوب", width: "120px" },
@@ -3564,7 +3564,7 @@ function UnifiedSaleInvoices({
                 <CardHeader className="pb-4">
                   <CardTitle className="text-lg flex items-center gap-2">
                     <User className="h-5 w-5 text-primary" />
-                    تفاصيل الزبون ومعلومات الضريبة
+                    تفاصيل العميل ومعلومات الضريبة
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -3574,7 +3574,7 @@ function UnifiedSaleInvoices({
                         value="customer"
                         className="rounded-xl px-4 py-2.5 text-sm font-medium transition-colors duration-200 data-[state=inactive]:text-slate-600 data-[state=inactive]:hover:bg-white data-[state=inactive]:hover:text-slate-900 data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-sm"
                       >
-                        تفاصيل الزبون
+                        تفاصيل العميل
                       </TabsTrigger>
                       <TabsTrigger
                         value="tax"
@@ -3587,9 +3587,9 @@ function UnifiedSaleInvoices({
                     <TabsContent value="customer" className="space-y-4 mt-0">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
                         <AutoCompleteAccount
-                          label="الزبون"
+                          label="العميل"
                           value={state.formData.customer_code ?? ""}
-                          placeholder="اختر الزبون"
+                          placeholder="اختر العميل"
                           leafOnly
                           displayNameFirst
                           requiredTypeValues={[1,2, 3]}
@@ -3658,7 +3658,7 @@ function UnifiedSaleInvoices({
                         </div>
 
                         <div className="space-y-2">
-                          <Label className="text-sm font-medium">مشغل مرخص للزبون</Label>
+                          <Label className="text-sm font-medium">مشغل مرخص للعميل</Label>
                           <Input
                             value={state.formData.sales_representative ?? ""}
                             onChange={(e) =>

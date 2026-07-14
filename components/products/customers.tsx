@@ -833,7 +833,7 @@ export default function Customers({ isSupplier }: CustomersProps) {
     const errors: Record<string, string> = {}
 
     if (!formData.name.trim()) {
-      errors.customer_name = "اسم الزبون مطلوب"
+      errors.customer_name = "اسم العميل مطلوب"
     }
 
     /*if (!formData.mobile1.trim()) {
@@ -850,8 +850,8 @@ export default function Customers({ isSupplier }: CustomersProps) {
     (formData.voucherType ?? []).forEach((v, index) => {
       if (typeSet.has(v.type_id)) {
 
-        Util.showErrorToast(toast.current, 'لا يمكن تكرار نفس نوع السند في دفاتر السندات الافتراضية للزبون');
-        errors.vocherType = "ا يمكن تكرار نفس نوع السند في دفاتر السندات الافتراضية للزبون"
+        Util.showErrorToast(toast.current, 'لا يمكن تكرار نفس نوع السند في دفاتر السندات الافتراضية للعميل');
+        errors.vocherType = "ا يمكن تكرار نفس نوع السند في دفاتر السندات الافتراضية للعميل"
       } else {
         typeSet.add(v.type_id);
       }
@@ -883,11 +883,11 @@ export default function Customers({ isSupplier }: CustomersProps) {
             setCurrentIndex((prevIndex) => (prevIndex >= filteredRecords.length ? 0 : prevIndex));
           }
         } else {
-          setError(isSupplier ? "فشل في تحميل بيانات الموردين" : "فشل في تحميل بيانات الزبائن");
+          setError(isSupplier ? "فشل في تحميل بيانات الموردين" : "فشل في تحميل بيانات الالعملاء");
         }
       } catch (error) {
         console.error("Error fetching data:", error);
-        setError(isSupplier ? "حدث خطأ في تحميل الموردين" : "حدث خطأ في تحميل الزبائن");
+        setError(isSupplier ? "حدث خطأ في تحميل الموردين" : "حدث خطأ في تحميل الالعملاء");
       } finally {
         setIsLoading(false);
       }
@@ -1023,12 +1023,12 @@ export default function Customers({ isSupplier }: CustomersProps) {
         // Load the customer data
         if(isSupplier && data.customer.type !== 2) {
           await reset_fields();
-          Util.showErrorToast(toast.current, "الرقم المدخل  لزبون وليس مورد")
+          Util.showErrorToast(toast.current, "الرقم المدخل  لعميل وليس مورد")
           return
         }
         else if(!isSupplier && data.customer.type !== 1) {  
           await reset_fields();
-          Util.showErrorToast(toast.current, "الرقم المدخل  لمورد وليس زبون")
+          Util.showErrorToast(toast.current, "الرقم المدخل  لمورد وليس عميل")
           return
         }
         setFormData((prev) => ({
@@ -1205,7 +1205,7 @@ export default function Customers({ isSupplier }: CustomersProps) {
       toast.current?.show({
         severity: "error",
         summary: "",
-        detail: "لا يوجد لديك صلاحية حذف زبون",
+        detail: "لا يوجد لديك صلاحية حذف عميل",
         life: 3000,
       });
       return;
@@ -1474,11 +1474,11 @@ export default function Customers({ isSupplier }: CustomersProps) {
 
       {/* Header */}
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">{isSupplier ? "إدارة الموردين" : "إدارة الزبائن"} </h1>
+        <h1 className="text-3xl font-bold">{isSupplier ? "إدارة الموردين" : "إدارة الالعملاء"} </h1>
         <div className="flex gap-2">
           <Button onClick={() => handleNewCustomer(true)} className="flex items-center gap-2">
             <Plus className="h-4 w-4" />
-            {isSupplier ? "مورد جديد" : "زبون جديد"}
+            {isSupplier ? "مورد جديد" : "عميل جديد"}
           </Button>
           <Button
             variant="outline"
@@ -1497,7 +1497,7 @@ export default function Customers({ isSupplier }: CustomersProps) {
             </DialogTrigger>
             <DialogContent className="max-w-4xl">
               <DialogHeader>
-                <DialogTitle>تقارير الزبائن</DialogTitle>
+                <DialogTitle>تقارير الالعملاء</DialogTitle>
               </DialogHeader>
               <div className="p-4">
                 <p>سيتم إضافة التقارير هنا</p>
@@ -1513,7 +1513,7 @@ export default function Customers({ isSupplier }: CustomersProps) {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-blue-700">{isSupplier ? "إجمالي الموردين" : "إجمالي الزبائن"}</p>
+                <p className="text-sm font-medium text-blue-700">{isSupplier ? "إجمالي الموردين" : "إجمالي الالعملاء"}</p>
                 <p className="text-3xl font-bold text-blue-900">{statistics.total}</p>
               </div>
               <div className="h-10 w-10 bg-blue-200 rounded-full flex items-center justify-center">
@@ -1527,7 +1527,7 @@ export default function Customers({ isSupplier }: CustomersProps) {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-green-700"> {isSupplier ? "الموردين النشطين" : "الزبائن النشطين"}</p>
+                <p className="text-sm font-medium text-green-700"> {isSupplier ? "الموردين النشطين" : "الالعملاء النشطين"}</p>
                 <p className="text-3xl font-bold text-green-900">{statistics.active}</p>
               </div>
               <div className="h-10 w-10 bg-green-200 rounded-full flex items-center justify-center">
@@ -1541,7 +1541,7 @@ export default function Customers({ isSupplier }: CustomersProps) {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-red-700">{isSupplier ? "الموردين غير النشطين" : "الزبائن غير النشطين"}</p>
+                <p className="text-sm font-medium text-red-700">{isSupplier ? "الموردين غير النشطين" : "الالعملاء غير النشطين"}</p>
                 <p className="text-3xl font-bold text-red-900">{statistics.inactive}</p>
               </div>
               <div className="h-10 w-10 bg-red-200 rounded-full flex items-center justify-center">
@@ -1555,7 +1555,7 @@ export default function Customers({ isSupplier }: CustomersProps) {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-purple-700">{isSupplier ? "مورّدين VIP" : "زبائن VIP"}</p>
+                <p className="text-sm font-medium text-purple-700">{isSupplier ? "مورّدين VIP" : "العملاء VIP"}</p>
                 <p className="text-3xl font-bold text-purple-900">{statistics.vip}</p>
               </div>
               <div className="h-10 w-10 bg-purple-200 rounded-full flex items-center justify-center">
@@ -1577,7 +1577,7 @@ export default function Customers({ isSupplier }: CustomersProps) {
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
-              <Label htmlFor="search-name"> {isSupplier ? "اسم المورد" : "اسم الزبون"}</Label>
+              <Label htmlFor="search-name"> {isSupplier ? "اسم المورد" : "اسم العميل"}</Label>
               <Input
                 id="search-name"
                 value={searchFilters.name}
@@ -1657,7 +1657,7 @@ export default function Customers({ isSupplier }: CustomersProps) {
       <Card>
         <CardHeader>
           <CardTitle>
-            {isSupplier ? `قائمة الموردين (${filteredCustomers.length})` : `قائمة الزبائن (${filteredCustomers.length})`}
+            {isSupplier ? `قائمة الموردين (${filteredCustomers.length})` : `قائمة الالعملاء (${filteredCustomers.length})`}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -1666,10 +1666,10 @@ export default function Customers({ isSupplier }: CustomersProps) {
               <thead>
                 <tr className="bg-gray-50">
                   <th className="border border-gray-300 px-4 py-2 text-right">
-                    {isSupplier ? "رقم المورد" : "رقم الزبون"}
+                    {isSupplier ? "رقم المورد" : "رقم العميل"}
                   </th>
                   <th className="border border-gray-300 px-4 py-2 text-right">
-                    {isSupplier ? "اسم المورد" : "اسم الزبون"}
+                    {isSupplier ? "اسم المورد" : "اسم العميل"}
                   </th>
                   <th className="border border-gray-300 px-4 py-2 text-right">الجوال</th>
                   <th className="border border-gray-300 px-4 py-2 text-right">المدينة</th>

@@ -61,7 +61,7 @@ export function GlobalShortcuts() {
             const customerSupplierEvent = new CustomEvent("openCustomerSupplierSearch")
             window.dispatchEvent(customerSupplierEvent)
             toast({
-              title: "البحث عن الزبائن والموردين",
+              title: "البحث عن الالعملاء والموردين",
               description: "تم فتح شاشة البحث",
             })
             break
@@ -97,7 +97,7 @@ export function ShortcutsHelp() {
     { key: "Ctrl + O", description: "طلبية المبيعات" },
     { key: "Ctrl + T", description: "طلبية المشتريات" },
     { key: "Ctrl + S", description: "شاشة الأصناف" },
-    { key: "Alt + T", description: "البحث عن الزبائن والموردين" },
+    { key: "Alt + T", description: "البحث عن الالعملاء والموردين" },
     { key: "Alt + S", description: "البحث عن الأصناف" },
   ]
 

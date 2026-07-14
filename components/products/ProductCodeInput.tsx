@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Search } from "lucide-react";
+import ProductSearchPopup from "./ProductSearchPopup";
 
 interface Product {
     id: number;
@@ -26,74 +28,44 @@ interface ProductCodeInputProps {
     };
     visible: any;
     handleProductCodeChange: (code: string) => void;
-    onSelectProductId?: (id: number) => void; // <-- new callback
+    onBlur?: () => void | Promise<void>;
+    onSelectProductId?: (id: number) => void;
     codeLabel?: string;
     searchTitle?: string;
+    priceCategoryId?: number;
+    productTypes?: number[];
 }
 
 const ProductCodeInput = ({
     formData,
     visible,
     handleProductCodeChange,
+    onBlur,
     onSelectProductId,
     codeLabel,
     searchTitle,
+    priceCategoryId = 1,
+    productTypes,
 }: ProductCodeInputProps) => {
-    const [products, setProducts] = useState<Product[]>([]);
-    const [searchTerm, setSearchTerm] = useState("");
     const [showDialog, setShowDialog] = useState(false);
-    const [isLoading, setIsLoading] = useState(false);
 
     useEffect(() => {
-        if (!visible) return; // attach only when dialog is open
-
-        const handler = (e: KeyboardEvent) => {
-            if (e.key === "Escape") {
-                e.preventDefault();
-                setShowDialog(false) // close only your nested popup
-            }
-
-        };
-
-        window.addEventListener("keydown", handler, true); // ✅ capture phase
-        return () => window.removeEventListener("keydown", handler, true);
+        if (!visible) {
+            setShowDialog(false);
+        }
     }, [visible]);
 
-    useEffect(() => {
-        const fetchProducts = async () => {
-            setIsLoading(true);
-            try {
-                const res = await fetch("/api/inventory/products");
-                const data = await res.json();
-                if (!res.ok) {
-                    console.error("Failed fetching products:", data);
-                    setProducts([]);
-                    return;
-                }
-                setProducts(Array.isArray(data) ? data : []);
-            } catch (err) {
-                console.error(err);
-                setProducts([]);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-        fetchProducts();
-    }, []);
+    const handleSelectProduct = (selectedProducts: Product[]) => {
+        const product = Array.isArray(selectedProducts) ? selectedProducts[0] : undefined;
+        if (!product) return;
 
-    const filteredProducts = products.filter(
-        (p) =>
-            p.product_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            p.product_code?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-
-    const handleSelectProduct = (product: Product) => {
-
-        // Return the selected product id to parent
-        if (onSelectProductId) onSelectProductId(product.id);
-
+        if (product.product_code) {
+            handleProductCodeChange(product.product_code);
+        }
+        if (onSelectProductId) {
+            onSelectProductId(product.id);
+        }
         setShowDialog(false);
-        setSearchTerm("");
     };
 
     const adjustCode = (code: string, codeLen: number = 8): string => {
@@ -111,11 +83,13 @@ const ProductCodeInput = ({
 
         return `${prefix}${paddedNum}`;
     };
-    const handleProductCodeBlur = () => {
-        console.log("formData.product_code ", formData.product_code)
+    const handleProductCodeBlur = async () => {
         if (formData.product_code != null) {
-            formData.product_code = adjustCode(formData.product_code ?? "")
-            handleProductCodeChange(formData.product_code)
+            const adjusted = adjustCode(formData.product_code ?? "")
+            handleProductCodeChange(adjusted)
+            if (onBlur) {
+                await onBlur()
+            }
         }
     }
     return (
@@ -133,59 +107,26 @@ const ProductCodeInput = ({
                         handleProductCodeChange(cleanValue.toUpperCase())
                     }
                     }
-                    placeholder="أرقام وحروف إنجليزية فقط"
+                    placeholder=""
                     className="text-right w-full"
                     maxLength={8}
                     onBlur={handleProductCodeBlur}
                 />
                 <Button type="button" onClick={() => setShowDialog(true)}>
-                    🔍
+                    <Search className="w-4 h-4" />
                 </Button>
             </div>
 
-            {showDialog && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-                    <div className="bg-white w-full max-w-lg rounded-lg shadow-2xl border border-gray-300 p-6"
-                        dir="rtl">
-                        <h3 className="text-lg font-semibold mb-4 text-right">{searchTitle ?? "بحث الأصناف"}</h3>
-
-                        <Input
-                            type="text"
-                            placeholder="ابحث عن صنف..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="mb-4 p-2 border border-gray-300 rounded w-full text-right"
-                        />
-
-                        <div className="space-y-2 max-h-64 overflow-y-auto border border-gray-200 rounded p-1">
-                            {isLoading ? (
-                                <div className="text-center p-3 text-gray-500">جاري التحميل...</div>
-                            ) : filteredProducts.length > 0 ? (
-                                filteredProducts.map((product) => (
-                                    <button
-                                        key={product.id}
-                                        onMouseDown={() => handleSelectProduct(product)}
-                                        className="w-full text-right p-2 rounded hover:bg-blue-100 transition"
-                                    >
-                                        <div className="font-medium">{product.product_code} - {product.product_name}</div>
-                                        <div className="text-sm text-gray-500">
-                                            {product.first_price} -{" "} {product.currency_name}
-                                        </div>
-                                    </button>
-                                ))
-                            ) : (
-                                <div className="text-center text-gray-500 p-3">لا توجد نتائج</div>
-                            )}
-                        </div>
-
-                        <div className="flex justify-end mt-4">
-                            <Button variant="outline" onClick={() => setShowDialog(false)}>
-                                إغلاق
-                            </Button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            <ProductSearchPopup
+                visible={showDialog}
+                onClose={() => setShowDialog(false)}
+                onSelect={handleSelectProduct}
+                priceCategoryId={priceCategoryId}
+                ShowSelect={false}
+                searchText={formData.product_code || ""}
+                productTypes={productTypes}
+                title={searchTitle}
+            />
         </div>
     );
 };

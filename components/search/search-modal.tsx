@@ -70,11 +70,11 @@ export function SearchModal({
       case "products":
         return "البحث عن الأصناف"
       case "customers":
-        return "البحث عن الزبائن"
+        return "البحث عن الالعملاء"
       case "suppliers":
         return "البحث عن الموردين"
       case "both":
-        return "البحث عن الزبائن والموردين"
+        return "البحث عن الالعملاء والموردين"
       case "transactions":
         return "البحث عن الحركات والمعاملات"
       case "sales":
@@ -93,11 +93,11 @@ export function SearchModal({
       case "products":
         return "البحث عن صنف"
       case "customers":
-        return "البحث عن زبون"
+        return "البحث عن عميل"
       case "suppliers":
         return "البحث عن مورد"
       case "both":
-        return "البحث عن زبون/مورد"
+        return "البحث عن عميل/مورد"
       case "transactions":
         return "البحث عن حركة"
       case "sales":

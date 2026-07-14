@@ -93,7 +93,7 @@ const data = {
           url: "/sales-invoices",
         },
         {
-          title: "إدارة الزبائن",
+          title: "إدارة الالعملاء",
           url: "/customers",
         },
       ],
@@ -146,7 +146,7 @@ const data = {
           url: "/search?type=products",
         },
         {
-          title: "البحث عن الزبائن والموردين",
+          title: "البحث عن الالعملاء والموردين",
           url: "/search?type=customers",
         },
       ],

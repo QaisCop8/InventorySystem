@@ -371,7 +371,7 @@
 
 ### 1. مصدر الطلبية (Order Source)
 - ✅ إدخال يدوي (Manual Entry)
-- ✅ من الزبائن عبر الويب (Customer Web Portal)
+- ✅ من الالعملاء عبر الويب (Customer Web Portal)
 - ✅ استيراد من API (API Import)
 - ✅ تصفية حسب المصدر
 - ✅ إحصائيات حسب المصدر

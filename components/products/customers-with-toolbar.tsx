@@ -35,15 +35,15 @@ interface Customer {
 }
 
 const customerSummary = [
-  { title: "إجمالي الزبائن", value: "342", icon: Users, color: "text-primary" },
-  { title: "زبائن نشطون", value: "298", icon: Users, color: "text-success" },
-  { title: "زبائن جدد هذا الشهر", value: "23", icon: Users, color: "text-accent" },
+  { title: "إجمالي الالعملاء", value: "342", icon: Users, color: "text-primary" },
+  { title: "العملاء نشطون", value: "298", icon: Users, color: "text-success" },
+  { title: "العملاء جدد هذا الشهر", value: "23", icon: Users, color: "text-accent" },
   { title: "إجمالي المبيعات", value: "1,245,800 شيكل", icon: Users, color: "text-chart-2" },
 ]
 
 const reportColumns = [
-  { key: "customer_code", label: "رقم الزبون", width: "120px" },
-  { key: "name", label: "اسم الزبون", width: "200px" },
+  { key: "customer_code", label: "رقم العميل", width: "120px" },
+  { key: "name", label: "اسم العميل", width: "200px" },
   { key: "mobile1", label: "الموبايل", width: "120px" },
   { key: "city", label: "المدينة", width: "100px" },
   { key: "business_nature", label: "النشاط", width: "150px" },
@@ -127,7 +127,7 @@ function CustomersWithToolbar() {
         }
       } else {
         setCustomers([])
-        setError("فشل في تحميل بيانات الزبائن")
+        setError("فشل في تحميل بيانات الالعملاء")
       }
     } catch (error) {
       console.error("Error fetching customers:", error)
@@ -140,11 +140,11 @@ function CustomersWithToolbar() {
 
   async function handleSaveCustomer(customer: Customer, isNewRecord: boolean): Promise<void> {
     if (!customer.name.trim()) {
-      throw new Error("اسم الزبون مطلوب")
+      throw new Error("اسم العميل مطلوب")
     }
 
     if (!customer.customer_code.trim()) {
-      throw new Error("رقم الزبون مطلوب")
+      throw new Error("رقم العميل مطلوب")
     }
 
     const method = isNewRecord ? "POST" : "PUT"
@@ -160,14 +160,14 @@ function CustomersWithToolbar() {
 
     if (!response.ok) {
       const errorData = await response.json()
-      throw new Error(errorData.message || "فشل في حفظ بيانات الزبون")
+      throw new Error(errorData.message || "فشل في حفظ بيانات العميل")
     }
 
     await fetchCustomers()
   }
 
   async function handleDeleteCustomer(customer: Customer): Promise<void> {
-    if (!confirm("هل أنت متأكد من حذف هذا الزبون؟")) {
+    if (!confirm("هل أنت متأكد من حذف هذا العميل؟")) {
       throw new Error("تم إلغاء العملية")
     }
 
@@ -176,7 +176,7 @@ function CustomersWithToolbar() {
     })
 
     if (!response.ok) {
-      throw new Error("فشل في حذف الزبون")
+      throw new Error("فشل في حذف العميل")
     }
 
     await fetchCustomers()
@@ -195,7 +195,7 @@ function CustomersWithToolbar() {
       }
     } catch (error) {
       console.error("Error generating customer number:", error)
-      setError("خطأ في توليد رقم الزبون")
+      setError("خطأ في توليد رقم العميل")
     } finally {
       setGeneratingNumber(false)
     }
@@ -218,7 +218,7 @@ function CustomersWithToolbar() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-lg">جاري تحميل بيانات الزبائن...</div>
+        <div className="text-lg">جاري تحميل بيانات الالعملاء...</div>
       </div>
     )
   }
@@ -278,7 +278,7 @@ function CustomersWithToolbar() {
       <Card className="erp-card">
         <CardHeader className="py-1 px-3">
           <CardTitle className="text-sm">
-            {isNew ? "زبون جديد" : `تعديل الزبون: ${currentRecord.customer_code}`}
+            {isNew ? "عميل جديد" : `تعديل العميل: ${currentRecord.customer_code}`}
           </CardTitle>
         </CardHeader>
         <CardContent className="px-3 pb-2">
@@ -289,12 +289,12 @@ function CustomersWithToolbar() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-1.5">
               <div>
                 <Label htmlFor="customerId" className="text-xs">
-                  رقم الزبون *
+                  رقم العميل *
                 </Label>
                 <div className="flex gap-1.5">
                   <Input
                     id="customerId"
-                    placeholder="أدخل رقم الزبون أو اضغط جديد"
+                    placeholder="أدخل رقم العميل أو اضغط جديد"
                     value={currentRecord.customer_code}
                     onChange={(e) => updateRecord({ customer_code: e.target.value })}
                     className="h-7 text-xs"
@@ -312,11 +312,11 @@ function CustomersWithToolbar() {
               </div>
               <div>
                 <Label htmlFor="customerName" className="text-xs">
-                  اسم الزبون *
+                  اسم العميل *
                 </Label>
                 <Input
                   id="customerName"
-                  placeholder="أدخل اسم الزبون"
+                  placeholder="أدخل اسم العميل"
                   required
                   value={currentRecord.name}
                   onChange={(e) => updateRecord({ name: e.target.value })}
@@ -392,7 +392,7 @@ function CustomersWithToolbar() {
                 </Label>
                 <Textarea
                   id="generalNotes"
-                  placeholder="ملاحظات عامة عن الزبون"
+                  placeholder="ملاحظات عامة عن العميل"
                   value={currentRecord.general_notes}
                   onChange={(e) => updateRecord({ general_notes: e.target.value })}
                   className="text-xs min-h-[40px]"
@@ -406,7 +406,7 @@ function CustomersWithToolbar() {
 
       {/* Report Generator */}
       <ReportGenerator
-        title="تقرير الزبائن"
+        title="تقرير الالعملاء"
         data={customers}
         columns={reportColumns}
         isOpen={showReport}

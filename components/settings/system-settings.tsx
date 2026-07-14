@@ -15,7 +15,7 @@ import Util from "@/components/common/Util"
 import { Save, Settings, Building2, Globe, Shield, Printer, FileText, Loader2, AlertCircle } from "lucide-react"
 
 const defaultAccountFields = [
-  { key: "customerParentAccount", label: "حساب اب الزبائن في ملف تعريف الزبائن" },
+  { key: "customerParentAccount", label: "حساب اب الالعملاء في ملف تعريف الالعملاء" },
   { key: "customerCreditAccount", label: "حساب اب عملاء الاعتمادات في ملف تعريف عملاء الاعتمادات" },
   { key: "salesTaxAccount", label: "حساب الضريبة على المبيعات" },
   { key: "currencyTransferAccount", label: "حساب تحويلات عملة" },
@@ -994,7 +994,7 @@ export function SystemSettings() {
 
                   <div>
                     <Label htmlFor="customerPrefix" className="text-right block">
-                      بادئة الزبائن
+                      بادئة الالعملاء
                     </Label>
                     <Input
                       id="customerPrefix"
@@ -1007,7 +1007,7 @@ export function SystemSettings() {
                   </div>
                   <div>
                     <Label htmlFor="customerStart" className="text-right block">
-                      بداية ترقيم الزبائن
+                      بداية ترقيم الالعملاء
                     </Label>
                     <Input
                       id="customerStart"

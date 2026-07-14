@@ -371,7 +371,7 @@ const TransactionSearch = ({
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div className="flex items-center gap-2">
               <User className="h-3 w-3 text-muted-foreground" />
-              <span className="search-result-subtitle">الزبون: {order.customer_name}</span>
+              <span className="search-result-subtitle">العميل: {order.customer_name}</span>
             </div>
 
             <div className="flex items-center gap-2">
@@ -560,7 +560,7 @@ const TransactionSearch = ({
         <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
           type="text"
-          placeholder="ابحث برقم الطلب، اسم الزبون/المورد، أو الصنف..."
+          placeholder="ابحث برقم الطلب، اسم العميل/المورد، أو الصنف..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="search-input pr-10"

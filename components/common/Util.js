@@ -424,7 +424,7 @@ const exportDefault = {
       { label: $.strings.all, value: -1 },
       { label: 'الحسابات المحاسبية', value: 0 },
       { label: 'الحسابات غير المحاسبية', value: 1 },
-      { label: 'الزبائن', value: 2 },
+      { label: 'الالعملاء', value: 2 },
       { label: 'الموردين', value: 3 },
       { label: 'المندوبين', value: 4 },
       { label: 'المشتركين', value: 5 },
@@ -805,12 +805,23 @@ const exportDefault = {
     return values;
   },
   checkUserAccess(accessId) {
-    let userAccessList = JSON.parse(localStorage.getItem('user_Access_List'));
-    const savedUser = localStorage.getItem("erp_user") || sessionStorage.getItem("erp_user")
-    if (userAccessList) {
-      let userAccess = userAccessList.find((e) => e.access_id + '' === accessId + '' && e.is_granted === true);
-      return userAccess ? true : false;
+    if (typeof window === "undefined") {
+      return false;
     }
+
+    try {
+      const accessListRaw = localStorage.getItem('user_Access_List');
+      const userAccessList = accessListRaw ? JSON.parse(accessListRaw) : null;
+      const savedUser = localStorage.getItem("erp_user") || sessionStorage.getItem("erp_user")
+
+      if (userAccessList) {
+        const userAccess = userAccessList.find((e) => e.access_id + '' === accessId + '' && e.is_granted === true);
+        return userAccess ? true : false;
+      }
+    } catch (error) {
+      console.warn("[Util] Failed to resolve user access", error);
+    }
+
     return false;
   },
   getUserSetting(settingId) {
@@ -3376,9 +3387,9 @@ const exportDefault = {
         { id: 5, name: $.strings.chequesOperations.returnChequesFromBank }, // 615 ارجاع شيك من البنك
         { id: 6, name: $.strings.chequesOperations.transferEndorsementCheques }, // 613 تحويل / تجيير شيك
         { id: 7, name: $.strings.chequesOperations.returnTransferedCheques }, // 614 ارجاع شيك محول أو مجير
-        { id: 8, name: $.strings.chequesOperations.retrievingChequesFromCustomer }, // 617 استرجاع شيك من زبون
+        { id: 8, name: $.strings.chequesOperations.retrievingChequesFromCustomer }, // 617 استرجاع شيك من عميل
         { id: 9, name: $.strings.chequesOperations.transferChequesToCollectionAccount }, // 611 تحويل شيك الى حساب التحصيل
-        { id: 10, name: $.strings.chequesOperations.withdrawCustomerChequesForCash }, // 612 سحب شيك زبون نقدا
+        { id: 10, name: $.strings.chequesOperations.withdrawCustomerChequesForCash }, // 612 سحب شيك عميل نقدا
         { id: 11, name: $.strings.chequesOperations.transferChequesToOtherAccount }, // 618 تحويل شيك الى حساب اخر
       ];
     } else {
@@ -4534,10 +4545,10 @@ const exportDefault = {
   async onViewCustomer(cust_id, cust_type) {
     console.log(cust_id, cust_type)
     switch (
-    cust_type + '' // نوع الزبون من جدول object_type_captions_tbl وليس من جدول accounts_types_captions_tbl
+    cust_type + '' // نوع العميل من جدول object_type_captions_tbl وليس من جدول accounts_types_captions_tbl
     ) {
       case '0': {
-        // زبون
+        // عميل
         this.goToNewTab('Files/ChartOfAccount/' + cust_id);
         break;
       }
@@ -4547,7 +4558,7 @@ const exportDefault = {
         break;
       }
       case '2': {
-        // زبون
+        // عميل
         this.goToNewTab('Files/Customers/' + cust_id);
         break;
       }
@@ -4572,7 +4583,7 @@ const exportDefault = {
         break;
       }
       case '7': {
-        // زبون اعتمادات
+        // عميل اعتمادات
         this.goToNewTab('Files/CustomersCredits/' + cust_id);
         break;
       }
@@ -4799,14 +4810,14 @@ const exportDefault = {
   },
   getQrBarCode(qRBarCodeInfo, obj) {
     if (!qRBarCodeInfo) qRBarCodeInfo = '';
-    // qRBarCodeInfo ='اسم المؤسسة: شركة اسراء,رقم الفاتورة: فاتورة مبيعات ضريبية رقم (I00000052),اسم الزبون: السادة: zead/000000002';
+    // qRBarCodeInfo ='اسم المؤسسة: شركة اسراء,رقم الفاتورة: فاتورة مبيعات ضريبية رقم (I00000052),اسم العميل: السادة: zead/000000002';
     // اسم المؤسسة [company_name]
     qRBarCodeInfo = qRBarCodeInfo.replace('[company_name]', obj.company_name);
     // رقم الفاتورة [invoice_code]
     qRBarCodeInfo = qRBarCodeInfo.replace('[invoice_code]', obj.invoice_code);
-    // اسم الزبون ورقمه [customer_name]
+    // اسم العميل ورقمه [customer_name]
     qRBarCodeInfo = qRBarCodeInfo.replace('[customer_name]', obj.customer_name);
-    // رقم المشتغل المرخص للزبون [vatreg]
+    // رقم المشتغل المرخص للعميل [vatreg]
     qRBarCodeInfo = qRBarCodeInfo.replace('[vatreg]', obj.vatreg);
     // تاريخ ووقت الفاتورة [invoice_datetime]
     qRBarCodeInfo = qRBarCodeInfo.replace('[invoice_datetime]', obj.invoice_datetime);
@@ -4823,7 +4834,7 @@ const exportDefault = {
     //qRBarCodeInfo += "\n ";
     // qRBarCodeInfo +="johar50000000000055555555555555555555555555555555555555";
     //qRBarCodeInfo +="رقم الفاتورة:"+obj.invoice_code;
-    //qRBarCodeInfo +=" رقم الزبون:"+obj.customer_name;
+    //qRBarCodeInfo +=" رقم العميل:"+obj.customer_name;
     return qRBarCodeInfo;
   },
   connectedVatEnum: {

@@ -1,39 +1,50 @@
-import { type NextRequest, NextResponse } from "next/server"
+import { NextResponse } from "next/server"
 import { neon } from "@neondatabase/serverless"
 
 const sql = neon(process.env.DATABASE_URL!)
 
-export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET() {
   try {
-    const stageId = Number.parseInt(params.id)
-    const body = await request.json()
-
-    await sql`
-      INSERT INTO stage_flexibility_settings (
-        stage_id, is_optional, requires_approval, requires_previous_approval,
-        can_skip, skip_conditions, max_duration_hours, warning_hours,
-        escalation_hours, escalation_to_department, updated_at
-      ) VALUES (
-        ${stageId}, ${body.isOptional}, ${body.requiresApproval}, ${body.requiresPreviousApproval},
-        ${body.canSkip}, ${body.skipConditions}, ${body.maxDurationHours}, ${body.warningHours},
-        ${body.escalationHours}, ${body.escalationToDepartment}, NOW()
-      )
-      ON CONFLICT (stage_id) DO UPDATE SET
-        is_optional = EXCLUDED.is_optional,
-        requires_approval = EXCLUDED.requires_approval,
-        requires_previous_approval = EXCLUDED.requires_previous_approval,
-        can_skip = EXCLUDED.can_skip,
-        skip_conditions = EXCLUDED.skip_conditions,
-        max_duration_hours = EXCLUDED.max_duration_hours,
-        warning_hours = EXCLUDED.warning_hours,
-        escalation_hours = EXCLUDED.escalation_hours,
-        escalation_to_department = EXCLUDED.escalation_to_department,
-        updated_at = NOW()
+    const stages = await sql`
+      SELECT 
+        sf.id,
+        sf.stage_id,
+        ws.stage_name,
+        ws.stage_code,
+        sf.is_optional,
+        sf.requires_approval,
+        sf.requires_previous_approval,
+        sf.can_skip,
+        sf.skip_conditions,
+        sf.max_duration_hours,
+        sf.warning_hours,
+        sf.escalation_hours,
+        sf.escalation_to_department
+      FROM stage_flexibility_settings sf
+      JOIN workflow_stages ws ON sf.stage_id = ws.id
+      ORDER BY ws.stage_order
     `
 
-    return NextResponse.json({ success: true })
+    return NextResponse.json(
+      stages.map((stage) => ({
+        id: stage.id,
+        stageId: stage.stage_id,
+        stageName: stage.stage_name,
+        stageCode: stage.stage_code,
+        isOptional: stage.is_optional,
+        requiresApproval: stage.requires_approval,
+        requiresPreviousApproval: stage.requires_previous_approval,
+        canSkip: stage.can_skip,
+        skipConditions: stage.skip_conditions,
+        maxDurationHours: stage.max_duration_hours,
+        warningHours: stage.warning_hours,
+        escalationHours: stage.escalation_hours,
+        escalationToDepartment: stage.escalation_to_department,
+      })),
+    )
   } catch (error) {
-    console.error("Error updating stage flexibility settings:", error)
-    return NextResponse.json({ error: "Failed to update stage flexibility settings" }, { status: 500 })
+    console.error("Error fetching stage flexibility settings:", error)
+    return NextResponse.json({ error: "Failed to fetch stage flexibility settings" }, { status: 500 })
   }
 }
+

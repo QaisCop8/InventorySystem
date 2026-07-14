@@ -1,100 +1,96 @@
-import { NextRequest, NextResponse } from "next/server"
-
+import { type NextRequest, NextResponse } from "next/server"
 import { neon } from "@neondatabase/serverless"
-import { Pool } from "pg"
 
-let sql: any = null
+const sql = neon(process.env.DATABASE_URL!)
 
-try {
-  if (!process.env.DATABASE_URL) {
-    console.error("[v0] DATABASE_URL environment variable is not set")
-  } else {
-    const dbUrl = process.env.DATABASE_URL
-
-    if (dbUrl.includes("localhost") || dbUrl.includes("127.0.0.1")) {
-      const pool = new Pool({ connectionString: dbUrl })
-      sql = async (strings: TemplateStringsArray, ...values: any[]) => {
-        const client = await pool.connect()
-        try {
-          const query =
-            strings.reduce(
-              (prev, curr, i) =>
-                prev + curr + (i < values.length ? `$${i + 1}` : ""),
-              ""
-            )
-          const result = await client.query(query, values)
-          return result.rows
-        } finally {
-          client.release()
-        }
-      }
-    } else {
-      console.log("[v0] Using Neon serverless client")
-      sql = neon(dbUrl)
-    }
-
-    console.log("[v0] Database client initialized successfully")
-  }
-} catch (error) {
-  console.error("[v0] Failed to initialize DB client:", error)
-  sql = null
-}
-
-export default sql
-
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function GET(request: NextRequest) {
   try {
-    const batchId = Number(params.id);
+    const { searchParams } = new URL(request.url)
+    const productId = searchParams.get("product_id")
+    const status = searchParams.get("status")
+    const expiryStatus = searchParams.get("expiry_status")
+    const activeOnly = searchParams.get("active_only") === "true"
 
-    // Get JSON body
-    const body = await request.json();
-    const statusId = Number(body.status_id);
+    const whereConditions = ["1=1"]
+    const params: any[] = []
 
-    const userId = body.user_id ? Number(body.user_id) : null;
-
-    const batchRows = await sql`
-      SELECT product_id, batch_number
-      FROM stock_batch
-      WHERE id = ${batchId}
-    `;
-
-    if (batchRows.length === 0) {
-      return NextResponse.json(
-        { success: false, error: "الرقم التشغيلي غير موجود" },
-        { status: 404 }
-      );
+    if (productId && productId !== "all") {
+      whereConditions.push(`pl.product_id = $${params.length + 1}`)
+      params.push(Number.parseInt(productId))
     }
 
-    const { product_id, batch_number } = batchRows[0];
-
-    if (!batchId || !statusId) {
-      return NextResponse.json(
-        { success: false, error: "الرقم التشغيلي والحالة خطأ" },
-        { status: 400 }
-      );
+    if (status && status !== "all") {
+      whereConditions.push(`pl.status = $${params.length + 1}`)
+      params.push(status)
     }
 
-    await sql`
-      UPDATE stock_batch
-      SET status_id = ${statusId}, updated_at = CURRENT_TIMESTAMP
-      WHERE id = ${batchId}
-    `;
+    if (activeOnly) {
+      whereConditions.push(`pl.status IN ('new', 'in_use') AND pl.current_quantity > 0`)
+    }
 
-     await sql`
-      INSERT INTO stock_batch_log
-        (product_id, stock_batch_id, user_id, status, log_date)
-      VALUES
-        (${product_id}, ${batchId}, ${userId}, ${statusId}, CURRENT_TIMESTAMP)
-    `;
-    return NextResponse.json({ success: true });
-  } catch (err: any) {
-    console.error("[v0] Failed to update batch status:", err);
-    return NextResponse.json(
-      { success: false, error: err.message },
-      { status: 500 }
-    );
+    if (expiryStatus) {
+      if (expiryStatus === "expired") {
+        whereConditions.push(`pl.expiry_date < CURRENT_DATE`)
+      } else if (expiryStatus === "expiring_soon") {
+        whereConditions.push(`pl.expiry_date <= CURRENT_DATE + INTERVAL '30 days' AND pl.expiry_date >= CURRENT_DATE`)
+      } else if (expiryStatus === "valid") {
+        whereConditions.push(`(pl.expiry_date IS NULL OR pl.expiry_date > CURRENT_DATE + INTERVAL '30 days')`)
+      }
+    }
+
+    const whereClause = whereConditions.join(" AND ")
+
+    const query = `
+      SELECT 
+        pl.id,
+        pl.product_id,
+        p.product_name,
+        p.product_code,
+        pl.lot_number,
+        pl.manufacturing_date,
+        pl.expiry_date,
+        CASE 
+          WHEN pl.expiry_date IS NULL THEN 'صالح'
+          WHEN pl.expiry_date < CURRENT_DATE THEN 'منتهي الصلاحية'
+          WHEN pl.expiry_date <= CURRENT_DATE + INTERVAL '30 days' THEN 'قريب الانتهاء'
+          ELSE 'صالح'
+        END as expiry_status,
+        pl.supplier_id,
+        s.supplier_name,
+        pl.initial_quantity,
+        pl.current_quantity,
+        pl.reserved_quantity,
+        pl.available_quantity,
+        pl.unit_cost,
+        pl.status,
+        CASE 
+          WHEN pl.status = 'new' THEN 'جديد'
+          WHEN pl.status = 'in_use' THEN 'قيد الاستخدام'
+          WHEN pl.status = 'finished' THEN 'منتهي'
+          WHEN pl.status = 'damaged' THEN 'تالف'
+          ELSE pl.status
+        END as status_display,
+        pl.status_changed_at,
+        pl.status_changed_by,
+        pl.status_notes,
+        pl.created_at,
+        pl.updated_at
+      FROM product_lots pl
+      JOIN products p ON pl.product_id = p.id
+      LEFT JOIN suppliers s ON pl.supplier_id = s.id
+      WHERE ${whereClause}
+      ORDER BY 
+        CASE WHEN pl.expiry_date IS NULL THEN 1 ELSE 0 END,
+        pl.expiry_date ASC,
+        p.product_name,
+        pl.created_at DESC
+    `
+
+    const result = await sql.unsafe(query, params)
+    return NextResponse.json(result)
+  } catch (error) {
+    console.error("[v0] Error fetching batch lots:", error)
+    return NextResponse.json({ error: "فشل في تحميل الدفعات" }, { status: 500 })
   }
 }
+

@@ -400,7 +400,7 @@ export const OrderManagement: React.FC = () => {
               <div className="relative">
                 <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                 <Input
-                  placeholder="رقم الطلبية، اسم الزبون..."
+                  placeholder="رقم الطلبية، اسم العميل..."
                   value={state.filters.search}
                   onChange={e =>
                     setState(prev => ({ ...prev, filters: { ...prev.filters, search: e.target.value } }))
@@ -546,11 +546,11 @@ export const OrderManagement: React.FC = () => {
                   <th className="p-4 text-right font-semibold text-slate-700">التاريخ</th>
                   <th className="p-4 text-right font-semibold text-slate-700">تجهيز الطلبية</th>
                   <th className="p-4 text-right font-semibold text-slate-700">تسليم الطلبية</th>
-                  <th className="p-4 text-right font-semibold text-slate-700">الزبون</th>
+                  <th className="p-4 text-right font-semibold text-slate-700">العميل</th>
                   <th className="p-4 text-right font-semibold text-slate-700">الحالة</th>
                   <th className="p-4 text-right font-semibold text-slate-700"> حالة التسليم</th>
                   <th className="p-4 text-right font-semibold text-slate-700">السند اليدوي</th>
-                  <th className="p-4 text-right font-semibold text-slate-700">رقم طلبية الزبون</th>
+                  <th className="p-4 text-right font-semibold text-slate-700">رقم طلبية العميل</th>
                   <th className="p-4 text-right font-semibold text-slate-700">المبلغ</th>
                   <th className="p-4 text-right font-semibold text-slate-700">استلمت بواسطة</th>
                 </tr>

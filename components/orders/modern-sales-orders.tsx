@@ -302,7 +302,7 @@ export function ModernSalesOrders() {
               <div className="relative">
                 <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="رقم الطلبية، اسم الزبون، أو المندوب..."
+                  placeholder="رقم الطلبية، اسم العميل، أو المندوب..."
                   value={state.filters.search}
                   onChange={(e) =>
                     setState((prev) => ({
@@ -521,7 +521,7 @@ export function ModernSalesOrders() {
                       <tr>
                         <th className="text-right p-4 font-semibold text-slate-700 border-b">رقم الطلبية</th>
                         <th className="text-right p-4 font-semibold text-slate-700 border-b">التاريخ</th>
-                        <th className="text-right p-4 font-semibold text-slate-700 border-b">اسم الزبون</th>
+                        <th className="text-right p-4 font-semibold text-slate-700 border-b">اسم العميل</th>
                         <th className="text-right p-4 font-semibold text-slate-700 border-b">الحالة</th>
                         <th className="text-right p-4 font-semibold text-slate-700 border-b">الأولوية</th>
                         <th className="text-right p-4 font-semibold text-slate-700 border-b">المبلغ الإجمالي</th>

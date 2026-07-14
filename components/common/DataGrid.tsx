@@ -88,6 +88,7 @@ export default function CustomFlexGrid({
         <div className={styles.customFlexgrid}>
             <FlexGrid
                 ref={flexRef}
+                style={{ width: '100%', minWidth: 0 }}
                 itemsSource={dataSource}
                 headersVisibility={headersVisibility || "Column"}
                 isReadOnly={isReport || false}

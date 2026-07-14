@@ -1,11 +1,11 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { ArrowRight, BarChart3, BellRing, CircleDollarSign, Clock3, Package, Sparkles, TrendingUp, Users2, Wallet2 } from "lucide-react"
+import { ArrowRight, BarChart3, BellRing, CircleDollarSign, Clock3, Package, Sparkles, TrendingUp, Users2, Wallet2, CreditCard, FilePlus, ShoppingCart, UserPlus, PieChart as PieChartIcon } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { ResponsiveContainer, BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts"
+import { ResponsiveContainer, BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell, Legend } from "recharts"
 
 interface WelcomeDashboardProps {
   onOpenSection?: (section: string) => void
@@ -305,253 +305,180 @@ export default function WelcomeDashboard({ onOpenSection }: WelcomeDashboardProp
     },
   ]
 
+  const homeActions = [
+    { label: "إضافة عميل", section: "customers", icon: UserPlus, tone: "from-sky-500 to-blue-600" },
+    { label: "إنشاء فاتورة", section: "sale-invoices", icon: FilePlus, tone: "from-emerald-500 to-teal-600" },
+    { label: "إنشاء طلب", section: "sales-orders", icon: ShoppingCart, tone: "from-orange-500 to-amber-600" },
+    { label: "إدخال منتج", section: "products", icon: Package, tone: "from-violet-500 to-fuchsia-600" },
+    { label: "إدخال دفع", section: "accounts", icon: CreditCard, tone: "from-emerald-500 to-green-600" },
+    { label: "الحسابات", section: "accounts", icon: Wallet2, tone: "from-sky-500 to-indigo-600" },
+    { label: "تقارير المبيعات", section: "order-reports", icon: BarChart3, tone: "from-amber-500 to-orange-500" },
+    { label: "عملاء نشطون", section: "customers", icon: TrendingUp, tone: "from-pink-500 to-rose-500" },
+  ]
+
+  const pieDataCategories = [
+    { name: "استثماري", value: 40 },
+    { name: "تشغيل", value: 25 },
+    { name: "صيانة", value: 20 },
+    { name: "أخرى", value: 15 },
+  ]
+
+  const pieDataCustomers = [
+    { name: "العملاء نشطون", value: 45 },
+    { name: "العملاء جدد", value: 30 },
+    { name: "العملاء متكررون", value: 25 },
+  ]
+
+  const pieColors = ["#0ea5e9", "#10b981", "#f59e0b", "#d946ef"]
+
   return (
     <div className="min-h-full rounded-[28px] border border-border/60 bg-white p-4 text-slate-900 shadow-sm sm:p-6 lg:p-8" dir="rtl">
-      <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+      <div className="grid gap-6">
         <Card className="border-border/60 bg-white shadow-sm">
           <CardContent className="space-y-6 p-6 sm:p-8">
-            <div className="flex flex-wrap items-center gap-3">
-              <Badge className="rounded-full border-border/60 bg-slate-100 px-3 py-1 text-sm text-slate-700">
-                <Sparkles className="ml-1 h-4 w-4" />
-                لوحة تحكم حديثة
-              </Badge>
-              <Badge variant="secondary" className="rounded-full bg-emerald-50 text-emerald-700">
-                نظام أساسي متكامل
-              </Badge>
-            </div>
-
-            <div className="space-y-3">
-              <h2 className="text-3xl font-bold sm:text-4xl">مرحبًا بك في أساس Accounting System</h2>
-              <p className="max-w-2xl text-sm leading-7 text-slate-600 sm:text-base">
-                راقب الأداء المالي والمخزني والعمليات التشغيلية من شاشة واحدة، وابدأ أي مهمة من خلال أزرار الوصول السريع.
-              </p>
-            </div>
-
-            <div className="flex flex-wrap gap-3">
-              <Button
-                onClick={() => onOpenSection?.("sales-orders")}
-                className="bg-white text-slate-900 hover:bg-slate-100"
-              >
-                فتح المبيعات
-                <ArrowRight className="mr-2 h-4 w-4" />
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => onOpenSection?.("products")}
-                className="border-border/60 bg-slate-50 text-slate-700 hover:bg-slate-100"
-              >
-                إدارة الأصناف
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-border/60 bg-slate-50 shadow-sm">
-          <CardContent className="space-y-4 p-6">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div>
-                <p className="text-sm text-slate-500">اليوم</p>
-                <h3 className="text-xl font-semibold">{new Date().toLocaleDateString("ar-SA", { weekday: "long", day: "numeric", month: "long" })}</h3>
+                <Badge className="rounded-full border-border/60 bg-slate-100 px-3 py-1 text-sm text-slate-700">
+                  <Sparkles className="ml-1 h-4 w-4" />
+                  لوحة تحكم الأساس
+                </Badge>
+                <h2 className="mt-3 text-3xl font-bold text-slate-900 sm:text-4xl">رأس الصفحة الرئيسية</h2>
+                <p className="mt-2 max-w-2xl text-sm leading-7 text-slate-600 sm:text-base">
+                  تصفح أهم العمليات التشغيلية والمبيعات والمخزون من لوحة واحدة مع الوصول السريع للأقسام الرئيسية.
+                </p>
               </div>
-              <div className="rounded-2xl bg-emerald-50 p-3 text-emerald-600">
-                <BellRing className="h-5 w-5" />
+
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                {homeActions.slice(0, 4).map((action) => {
+                  const Icon = action.icon
+                  return (
+                    <button
+                      key={action.label}
+                      type="button"
+                      onClick={() => onOpenSection?.(action.section)}
+                      className="flex flex-col items-center justify-center gap-2 rounded-3xl border border-border/60 bg-slate-50 px-4 py-4 text-center text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-100"
+                    >
+                      <span className={`inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br ${action.tone} text-white`}>
+                        <Icon className="h-5 w-5" />
+                      </span>
+                      {action.label}
+                    </button>
+                  )
+                })}
               </div>
             </div>
 
-            <div className="rounded-2xl border border-border/60 bg-white p-4">
-              <p className="text-sm text-slate-500">أهم التحديثات</p>
-              <ul className="mt-3 space-y-2 text-sm text-slate-700">
-                <li className="flex items-center justify-between">
-                  <span>تحديثات المخزون</span>
-                  <span className="text-emerald-600">محدث</span>
-                </li>
-                <li className="flex items-center justify-between">
-                  <span>الطلبات المعلقة</span>
-                  <span className="text-amber-600">18</span>
-                </li>
-                <li className="flex items-center justify-between">
-                  <span>التحليلات المالية</span>
-                  <span className="text-sky-600">جاهز</span>
-                </li>
-              </ul>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {statCards.map((card) => {
+                const Icon = card.icon
+                return (
+                  <Card key={card.title} className="border-border/60 bg-slate-50 shadow-sm">
+                    <CardContent className="p-4">
+                      <div className={`inline-flex rounded-2xl bg-gradient-to-r ${card.tone} p-2 text-white`}>
+                        <Icon className="h-5 w-5" />
+                      </div>
+                      <div className="mt-4">
+                        <p className="text-sm text-slate-600">{card.title}</p>
+                        <div className="mt-1 flex items-end justify-between gap-2">
+                          <span className="text-2xl font-bold">{card.value}</span>
+                          <span className="text-sm text-emerald-600">{card.change}</span>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )
+              })}
             </div>
           </CardContent>
         </Card>
-      </div>
 
-      <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {statCards.map((card) => {
-          const Icon = card.icon
-          return (
-            <Card key={card.title} className="border-border/60 bg-white shadow-sm">
-              <CardContent className="p-4">
-                <div className={`inline-flex rounded-2xl bg-gradient-to-r ${card.tone} p-2 text-white`}>
-                  <Icon className="h-5 w-5" />
-                </div>
-                <div className="mt-4">
-                  <p className="text-sm text-slate-600">{card.title}</p>
-                  <div className="mt-1 flex items-end justify-between gap-2">
-                    <span className="text-2xl font-bold">{card.value}</span>
-                    <span className="text-sm text-emerald-600">{card.change}</span>
+        <div className="grid gap-6 xl:grid-cols-[1.3fr_0.7fr]">
+          <Card className="border-border/60 bg-white shadow-sm">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-slate-900">
+                <BarChart3 className="h-5 w-5 text-slate-800" />
+                نظرة عامة على المبيعات
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="h-72">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={monthlySalesData} margin={{ left: 0, right: 0, top: 10, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                  <XAxis dataKey="month" tickLine={false} axisLine={false} tick={{ fill: "#64748b", fontSize: 12 }} />
+                  <YAxis tickLine={false} axisLine={false} tick={{ fill: "#64748b", fontSize: 12 }} />
+                  <Tooltip />
+                  <Bar dataKey="sales" fill="#2563eb" radius={[8, 8, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          <Card className="border-border/60 bg-white shadow-sm">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-slate-900">
+                <PieChartIcon className="h-5 w-5 text-slate-800" />
+                توزيع النشاط
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="h-72">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={pieDataCategories} innerRadius={52} outerRadius={90} dataKey="value" stroke="none">
+                    {pieDataCategories.map((entry, index) => (
+                      <Cell key={entry.name} fill={pieColors[index % pieColors.length]} />
+                    ))}
+                  </Pie>
+                  <Legend verticalAlign="bottom" align="center" iconType="circle" />
+                </PieChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="grid gap-6 xl:grid-cols-2">
+          <Card className="border-border/60 bg-white shadow-sm">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-slate-900">
+                <TrendingUp className="h-5 w-5 text-slate-800" />
+                أعلى العملاء نشاطًا
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="grid gap-3 p-6">
+              {pieDataCustomers.map((item, index) => (
+                <div key={item.name} className="rounded-3xl border border-border/60 bg-slate-50 p-4">
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <p className="text-sm text-slate-500">{item.name}</p>
+                      <p className="mt-2 text-xl font-semibold text-slate-900">{item.value}%</p>
+                    </div>
+                    <div className={`h-3 w-16 rounded-full bg-gradient-to-r ${pieColors[index % pieColors.length]} `} />
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-          )
-        })}
-      </div>
+              ))}
+            </CardContent>
+          </Card>
 
-      <div className="mt-6 grid gap-6 xl:grid-cols-2">
-        <Card className="border-border/60 bg-white shadow-sm">
-          <CardHeader>
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <CardTitle className="flex items-center gap-2 text-slate-800">
-                <BarChart3 className="h-5 w-5 text-emerald-600" />
-                {ordersDailyView ? `تفاصيل الأيام - ${ordersSelectedMonthLabel}` : "الطلبات حسب الشهر"}
+          <Card className="border-border/60 bg-slate-50 shadow-sm">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-slate-900">
+                <BellRing className="h-5 w-5 text-slate-800" />
+                تحديثات عاجلة
               </CardTitle>
-              <div className="flex items-center gap-2">
-                {ordersDailyView && (
-                  <Button variant="outline" size="sm" onClick={() => setOrdersDailyView(false)} className="border-border/60 bg-white text-slate-700 hover:bg-slate-100">
-                    العودة للشهر
-                  </Button>
-                )}
-                <select
-                  value={ordersSelectedMonth || ""}
-                  onChange={(event) => handleOrdersMonthSelect(event.target.value || null)}
-                  className="rounded-lg border border-border/60 bg-white px-3 py-2 text-sm text-slate-700"
-                >
-                  {monthlyOrdersData.map((item) => (
-                    <option key={item.key} value={item.key}>
-                      {item.month}
-                    </option>
-                  ))}
-                </select>
+            </CardHeader>
+            <CardContent className="space-y-3 p-6">
+              <div className="rounded-3xl border border-border/60 bg-white p-4">
+                <h3 className="text-sm font-semibold text-slate-900">الطلبات المعلقة</h3>
+                <p className="mt-1 text-3xl font-bold text-orange-600">{pendingOrders}</p>
+                <p className="text-sm text-slate-500">طلبات لم يتم الانتهاء منها بعد</p>
               </div>
-            </div>
-          </CardHeader>
-          <CardContent className="h-72">
-            <ResponsiveContainer width="100%" height="100%">
-              {ordersDailyView ? (
-                <BarChart data={dailyOrdersData}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                  <XAxis dataKey="day" tickLine={false} axisLine={false} tick={{ fill: "#64748b", fontSize: 12 }} />
-                  <YAxis tickLine={false} axisLine={false} tick={{ fill: "#64748b", fontSize: 12 }} />
-                  <Tooltip />
-                  <Bar dataKey="orders" fill="#10b981" radius={[8, 8, 0, 0]} />
-                </BarChart>
-              ) : (
-                <BarChart data={monthlyOrdersData}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                  <XAxis dataKey="month" tickLine={false} axisLine={false} tick={{ fill: "#64748b", fontSize: 12 }} />
-                  <YAxis tickLine={false} axisLine={false} tick={{ fill: "#64748b", fontSize: 12 }} />
-                  <Tooltip />
-                  <Bar dataKey="orders" fill="#10b981" radius={[8, 8, 0, 0]} onClick={(payload) => handleOrdersMonthSelect(payload?.payload?.key || null)} />
-                </BarChart>
-              )}
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        <Card className="border-border/60 bg-white shadow-sm">
-          <CardHeader>
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <CardTitle className="flex items-center gap-2 text-slate-800">
-                <TrendingUp className="h-5 w-5 text-sky-600" />
-                {salesDailyView ? `تفاصيل الأيام - ${salesSelectedMonthLabel}` : "المبيعات حسب الشهر"}
-              </CardTitle>
-              <div className="flex items-center gap-2">
-                {salesDailyView && (
-                  <Button variant="outline" size="sm" onClick={() => setSalesDailyView(false)} className="border-border/60 bg-white text-slate-700 hover:bg-slate-100">
-                    العودة للشهر
-                  </Button>
-                )}
-                <span className="text-sm text-slate-500">{salesSelectedMonthLabel ? `تفاصيل ${salesSelectedMonthLabel}` : "اختر شهراً"}</span>
+              <div className="rounded-3xl border border-border/60 bg-white p-4">
+                <h3 className="text-sm font-semibold text-slate-900">الإيرادات اليوم</h3>
+                <p className="mt-1 text-3xl font-bold text-emerald-600">{formatCurrency(salesToday)} ر.س</p>
+                <p className="text-sm text-slate-500">إجمالي السندات لهذا اليوم</p>
               </div>
-            </div>
-          </CardHeader>
-          <CardContent className="h-72">
-            <ResponsiveContainer width="100%" height="100%">
-              {salesDailyView ? (
-                <LineChart data={dailySalesData}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                  <XAxis dataKey="day" tickLine={false} axisLine={false} tick={{ fill: "#64748b", fontSize: 12 }} />
-                  <YAxis tickLine={false} axisLine={false} tick={{ fill: "#64748b", fontSize: 12 }} />
-                  <Tooltip />
-                  <Line type="monotone" dataKey="sales" stroke="#2563eb" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
-                </LineChart>
-              ) : (
-                <LineChart data={monthlySalesData}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                  <XAxis dataKey="month" tickLine={false} axisLine={false} tick={{ fill: "#64748b", fontSize: 12 }} />
-                  <YAxis tickLine={false} axisLine={false} tick={{ fill: "#64748b", fontSize: 12 }} />
-                  <Tooltip />
-                  <Line
-                    type="monotone"
-                    dataKey="sales"
-                    stroke="#2563eb"
-                    strokeWidth={3}
-                    dot={(props) => (
-                      <circle
-                        {...props}
-                        r={4}
-                        onClick={() => handleSalesMonthSelect(props.payload?.key || null)}
-                        className="cursor-pointer"
-                      />
-                    )}
-                    activeDot={{ r: 6, onClick: (props: any) => handleSalesMonthSelect(props.payload?.key || null) }}
-                  />
-                </LineChart>
-              )}
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="mt-6 grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
-        <Card className="border-border/60 bg-slate-50 shadow-sm">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-slate-800">
-              <BarChart3 className="h-5 w-5 text-sky-600" />
-              النشاط الأخير
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {activityItems.map((item) => (
-              <div key={item.title} className="flex items-center gap-3 rounded-2xl border border-border/60 bg-white p-3">
-                <div className={`mt-1 h-2.5 w-2.5 rounded-full ${item.accent}`} />
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-slate-800">{item.title}</p>
-                  <p className="text-xs text-slate-500">{item.time}</p>
-                </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-
-        <Card className="border-border/60 bg-white shadow-sm">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-slate-800">
-              <TrendingUp className="h-5 w-5 text-emerald-600" />
-              الوصول السريع
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-3 sm:grid-cols-2">
-            {quickActions.map((action) => {
-              const Icon = action.icon
-              return (
-                <Button
-                  key={action.section}
-                  variant="outline"
-                  onClick={() => onOpenSection?.(action.section)}
-                  className="flex h-20 items-center justify-between border-border/60 bg-slate-50 text-right text-slate-700 hover:bg-slate-100"
-                >
-                  <span className="text-sm font-medium">{action.label}</span>
-                  <Icon className="h-5 w-5 text-slate-300" />
-                </Button>
-              )
-            })}
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   )

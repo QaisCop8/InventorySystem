@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from "react"
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import DataGridView from "../common/DataGridView";
+import MultiSelect from "../common/MultiSelect";
 import * as wjGrid from "@grapecity/wijmo.grid";
 import { useTranslation } from 'react-i18next';
 // -----------------------
@@ -35,14 +36,21 @@ interface ProductSearchPopupProps {
   priceCategoryId: number;
   ShowSelect: boolean;
   searchText: string;
+  productTypes?: number[];
+  title?: string;
 }
 
-const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClose, onSelect, priceCategoryId, ShowSelect, searchText }) => {
+const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClose, onSelect, priceCategoryId, ShowSelect, searchText, productTypes, title }) => {
   const [products, setProducts] = useState<Product[]>([]);
   const [searchCode, setSearchCode] = useState("");
   const [searchName, setSearchName] = useState("");
   const [searchPrice, setSearchPrice] = useState("");
   const [searchBarcode, setSearchBarcode] = useState("");
+  const [selectedTypes, setSelectedTypes] = useState<number[]>(() =>
+    Array.isArray(productTypes) && productTypes.length > 0
+      ? Array.from(new Set(productTypes))
+      : [1, 2]
+  );
   const searchCodeRef = useRef<HTMLInputElement>(null);
   const searchNameRef = useRef<HTMLInputElement>(null);
   const searchPriceRef = useRef<HTMLInputElement>(null);
@@ -64,7 +72,11 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
 
     const fetchProducts = async () => {
       try {
-        const res = await fetch(`/api/inventory/products?priceCategoryId=${priceCategoryId}`);
+        let url = `/api/inventory/products?priceCategoryId=${priceCategoryId}`;
+        if (selectedTypes.length === 1) {
+          url += selectedTypes[0] === 2 ? `&type=services` : `&type=products`;
+        }
+        const res = await fetch(url);
         const data = await res.json();
         if (!cancelled) setProducts(data || []);
       } catch (err) {
@@ -74,13 +86,10 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
     };
 
     fetchProducts();
-    console.log("searchText ", searchText)
-    //setSearchTerm(searchText || "");
-    
-    setSearchCode("")
-    setSearchName("")
-    setSearchBarcode("")
-    setSearchPrice("")
+    setSearchCode("");
+    setSearchName(searchText || "");
+    setSearchBarcode("");
+    setSearchPrice("");
     setTimeout(() => searchNameRef.current?.focus(), 100);
     ws.current = new WebSocket("ws://localhost:33333/ws");
     ws.current.onopen = () => {
@@ -90,7 +99,16 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
       cancelled = true;
       if (ws.current) ws.current.close();
     };
-  }, [visible]);
+  }, [visible, priceCategoryId, selectedTypes, searchText]);
+
+  useEffect(() => {
+    if (!visible) return;
+    setSelectedTypes(
+      Array.isArray(productTypes) && productTypes.length > 0
+        ? Array.from(new Set(productTypes))
+        : [1, 2]
+    );
+  }, [visible, productTypes]);
 
   // -----------------------
   // Products grid scheme
@@ -332,60 +350,103 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
   if (!visible) return null;
 
   const gridStyleUnits = {
-    maxHeight: '20vh',
-    minHeight: '20vh',
+    maxHeight: '16vh',
+    minHeight: '16vh',
   };
 
   const gridStyleItems = {
-    maxHeight: '30vh',
-    minHeight: '30vh',
+    maxHeight: '24vh',
+    minHeight: '24vh',
   };
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-white rounded-lg shadow-2xl border p-6 flex flex-col w-full max-w-4xl h-[800px]  w-[95vw] max-w-7xl" dir="rtl">
-        <h3 className="text-lg font-semibold mb-4 text-right">بحث الأصناف</h3>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-6">
+      <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 p-5 flex flex-col w-full max-w-6xl max-h-[84vh] overflow-hidden" dir="rtl">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <h3 className="text-xl font-semibold text-slate-900">{title || "بحث الأصناف"}</h3>
+        </div>
 
-        <div className="grid grid-cols-8 gap-1 mb-4">
-
-
-            <Input
-              ref={searchCodeRef}
-              className="col-span-1"
-              placeholder="رقم الصنف"
-              value={searchCode}
-              onChange={(e) => setSearchCode(e.target.value)}
-            />
-
-            <Input
-              ref={searchNameRef}
-              className="col-span-5"
-              placeholder="اسم الصنف"
-              value={searchName}
-              onChange={(e) => setSearchName(e.target.value)}
-            />
-
-            <Input
-              ref={searchPriceRef} 
-              className="col-span-1"
-              placeholder="السعر"
-              value={searchPrice}
-              onChange={(e) => setSearchPrice(e.target.value)}
-            />
-
-            <Input
-              ref={searchBarcodeRef}
-              className="col-span-1"
-              placeholder="الباركود"
-              value={searchBarcode}
-              onChange={(e) => setSearchBarcode(e.target.value)}
-            />
-
+        <div className="mt-4 rounded-3xl border border-slate-200 bg-slate-50 p-4 shadow-sm">
+          <div className="mb-4 text-right">
+            <p className="text-sm font-semibold text-slate-900">الفلاتر</p>
+            <p className="text-sm text-slate-500">استعمل هذه الفلاتر لتضييق نتائج البحث</p>
           </div>
 
+          <div className="grid gap-4 xl:grid-cols-[320px_minmax(0,_1fr)]">
+            <div className="rounded-2xl bg-white p-3 shadow-sm">
+              <label htmlFor="productTypeFilter" className="mb-2 block text-sm font-medium text-slate-700 text-right">
+                نوع الصنف
+              </label>
+              <MultiSelect
+                inputId="productTypeFilter"
+                value={selectedTypes}
+                options={[
+                  { label: "الأصناف", value: 1 },
+                  { label: "الخدمات", value: 2 },
+                ]}
+                optionLabel="label"
+                optionValue="value"
+                placeholder="اختر النوع"
+                showFilter={false}
+                showCheck={true}
+                showMultiSelect={true}
+                className="w-full"
+                appendTo="self"
+                onChange={(e: any) => {
+                  const values = Array.isArray(e.value) ? e.value.map(Number) : [];
+                  setSelectedTypes(values.length > 0 ? values : [1, 2]);
+                }}
+              />
+            </div>
 
-        <div className="flex-1 flex flex-col gap-4 overflow-hidden">
-          {/* Products DataGrid (2/3) */}
-          <div className="flex-[4] overflow-none border rounded shadow-sm p-2">
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="space-y-1">
+                <label className="block text-xs font-semibold text-slate-700 text-right">رقم الصنف</label>
+                <Input
+                  ref={searchCodeRef}
+                  className="w-full"
+                  placeholder="رقم الصنف"
+                  value={searchCode}
+                  onChange={(e) => setSearchCode(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="block text-xs font-semibold text-slate-700 text-right">اسم الصنف</label>
+                <Input
+                  ref={searchNameRef}
+                  className="w-full"
+                  placeholder="اسم الصنف"
+                  value={searchName}
+                  onChange={(e) => setSearchName(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="block text-xs font-semibold text-slate-700 text-right">السعر</label>
+                <Input
+                  ref={searchPriceRef}
+                  className="w-full"
+                  placeholder="السعر"
+                  value={searchPrice}
+                  onChange={(e) => setSearchPrice(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="block text-xs font-semibold text-slate-700 text-right">الباركود</label>
+                <Input
+                  ref={searchBarcodeRef}
+                  className="w-full"
+                  placeholder="الباركود"
+                  value={searchBarcode}
+                  onChange={(e) => setSearchBarcode(e.target.value)}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+
+        <div className="flex-1 flex flex-col gap-4 overflow-hidden mt-2">
+          <div className="rounded-3xl border border-slate-200 bg-white shadow-sm p-3">
+            <h4 className="text-sm font-semibold mb-3 text-slate-700 text-right">نتائج البحث</h4>
             <DataGridView
               style={gridStyleItems}
               ref={gridProductsRef}
@@ -398,13 +459,10 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
             />
           </div>
 
-          {/* Units DataGrid (1/3) */}
-          <div className="flex-[3] overflow-hidden border rounded shadow-sm p-2 mt-2">
-            <h4 className="font-medium mb-2 text-right">
-              وحدات الصنف: {selectedProduct?.product_name || "لا يوجد صنف محدد"}
-            </h4>
+          <div className="rounded-3xl border border-slate-200 bg-white shadow-sm p-3">
+            <h4 className="text-sm font-semibold mb-3 text-slate-700 text-right">وحدات الصنف</h4>
+            <div className="text-sm text-slate-500 mb-3 text-right">{selectedProduct?.product_name || "لا يوجد صنف محدد"}</div>
             <DataGridView
-              //style={gridStyleUnits}
               innerRef={gridUnitsRef}
               dataSource={selectedProduct?.units || []}
               scheme={unitScheme}
@@ -413,12 +471,11 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
           </div>
         </div>
 
-
-        <div className="flex justify-center gap-2 mt-4">
-          <Button className="erp-btn-primary search-button" onClick={handleConfirm}>
+        <div className="flex justify-center gap-3 mt-5">
+          <Button className="erp-btn-primary search-button min-w-[120px]" onClick={handleConfirm}>
             موافق
           </Button>
-          <Button variant="outline" onClick={onClose} className="search-button">
+          <Button variant="outline" onClick={onClose} className="search-button min-w-[120px]">
             إغلاق
           </Button>
         </div>

@@ -685,7 +685,7 @@ export default function UnifiedCustomers({
         }
       } catch (error) {
         console.error("Error searching customer by code in UnifiedCustomers:", error)
-        setCustomerActionError("حدث خطأ أثناء البحث عن الزبون")
+        setCustomerActionError("حدث خطأ أثناء البحث عن العميل")
       } finally {
         await onCustomerCodeBlur?.(adjustedCode)
         setLoading(false)
@@ -1147,17 +1147,17 @@ export default function UnifiedCustomers({
     const trimmedCode = String(formData.customer_code || "").trim().toUpperCase()
     const trimmedName = String(formData.name || "").trim()
     if (!trimmedCode) {
-      setCustomerActionError("يجب ملء رقم الزبون")
+      setCustomerActionError("يجب ملء رقم العميل")
       return false
     }
 
     if (!trimmedName) {
-      setCustomerActionError("يجب ملء اسم الزبون")
+      setCustomerActionError("يجب ملء اسم العميل")
       return false
     }
 
     if (!/^[A-Z0-9]{8}$/.test(trimmedCode)) {
-      setCustomerActionError("يجب أن يكون رقم الزبون 8 أحرف إنجليزية أو أرقام وبحروف كبيرة")
+      setCustomerActionError("يجب أن يكون رقم العميل 8 أحرف إنجليزية أو أرقام وبحروف كبيرة")
       return false
     }
 
@@ -1247,7 +1247,7 @@ export default function UnifiedCustomers({
       })
 
       if (!response.ok) {
-        let message = response.statusText || "فشل في حفظ بيانات الزبون"
+        let message = response.statusText || "فشل في حفظ بيانات العميل"
         try {
           const errorData = await response.json()
           message = errorData?.error || errorData?.message || message
@@ -1263,8 +1263,8 @@ export default function UnifiedCustomers({
         updateField("id" as keyof UnifiedCustomerFormData, savedCustomerId as any)
       }
 
-      setCustomerActionMessage(Number(formData.id) > 0 ? "تم تعديل الزبون بنجاح" : "تم حفظ الزبون بنجاح")
-      Util.showSuccessToast(toast.current, Number(formData.id) > 0 ? "تم تعديل الزبون بنجاح" : "تم حفظ الزبون بنجاح")
+      setCustomerActionMessage(Number(formData.id) > 0 ? "تم تعديل العميل بنجاح" : "تم حفظ العميل بنجاح")
+      Util.showSuccessToast(toast.current, Number(formData.id) > 0 ? "تم تعديل العميل بنجاح" : "تم حفظ العميل بنجاح")
       onOpenChange?.(true)
       await onSave?.()
       if (savedCustomerId > 0) {
@@ -1288,7 +1288,7 @@ export default function UnifiedCustomers({
       return { success: true, savedCustomerId }
     } catch (error) {
       console.error("Error saving customer in UnifiedCustomers:", error)
-      setCustomerActionError("حدث خطأ أثناء حفظ بيانات الزبون")
+      setCustomerActionError("حدث خطأ أثناء حفظ بيانات العميل")
       return { success: false, savedCustomerId: 0 }
     } finally {
       savingRef.current = false
@@ -1566,10 +1566,10 @@ export default function UnifiedCustomers({
             {formData.id === 0
               ? isSupplier
                 ? "إضافة مورد جديد"
-                : "إضافة زبون جديد"
+                : "إضافة عميل جديد"
               : isSupplier
                 ? "تعديل مورد"
-                : "تعديل زبون"}
+                : "تعديل عميل"}
           </h2>
           <div className="flex-shrink-0">
             <Button variant="ghost" size="sm" onClick={() => onOpenChange?.(false)} className="h-7 w-7 p-0" aria-label="Close" title="إغلاق">
@@ -1636,7 +1636,7 @@ export default function UnifiedCustomers({
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="col-span-1">
               <Label htmlFor="customer_code" className="text-sm font-medium">
-                {isSupplier ? "رقم المورد *" : "رقم الزبون *"}
+                {isSupplier ? "رقم المورد *" : "رقم العميل *"}
               </Label>
               <div className="flex gap-2">
                 <Input
@@ -1647,7 +1647,7 @@ export default function UnifiedCustomers({
                     await handleCustomerCodeBlur(e.target.value)
                   }}
                   className="text-right"
-                  placeholder={isSupplier ? "رقم المورد" : "رقم الزبون"}
+                  placeholder={isSupplier ? "رقم المورد" : "رقم العميل"}
                   maxLength={8}
                 />
                 <Button type="button" onClick={() => setShowCustomerSearch(true)}>
@@ -1658,7 +1658,7 @@ export default function UnifiedCustomers({
 
             <div className="col-span-1 md:col-span-3">
               <Label htmlFor="customer_name" className="text-sm font-medium">
-                {isSupplier ? "اسم المورد *" : "اسم الزبون *"}
+                {isSupplier ? "اسم المورد *" : "اسم العميل *"}
               </Label>
               <Input
                 id="customer_name"
@@ -1692,14 +1692,14 @@ export default function UnifiedCustomers({
               />
             </div>
             <div>
-                  <Label htmlFor="classification" className="text-sm font-medium">تصنيف الزبون</Label>
+                  <Label htmlFor="classification" className="text-sm font-medium">تصنيف العميل</Label>
                   <PrimeDropdown
                     inputId="classification"
                     value={formData.classification || null}
                     options={classifications.map((item) => ({ label: item.group_name || item.name || "", value: item.group_name || item.name || "" }))}
                     optionLabel="label"
                     optionValue="value"
-                    placeholder={isSupplier ? "اختر تصنيف المورد" : "اختر تصنيف الزبون"}
+                    placeholder={isSupplier ? "اختر تصنيف المورد" : "اختر تصنيف العميل"}
                     filter={true}
                     className="invoice-currency-dropdown w-full"
                     panelClassName="invoice-currency-dropdown-panel"

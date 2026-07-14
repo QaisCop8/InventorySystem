@@ -1,50 +1,41 @@
-import { type NextRequest, NextResponse } from "next/server"
-import { deleteSalesVoucher, updatePrintSalesVoucher } from "@/lib/vouchers"
+import { NextResponse } from "next/server"
+import { Pool } from "pg"
 
-export async function DELETE(
-  _request: NextRequest,
-  { params }: { params: { id: string } },
-) {
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+})
+
+export async function GET(request: Request) {
   try {
-    const voucherId = Number.parseInt(params.id)
-    if (Number.isNaN(voucherId)) {
-      return NextResponse.json({ error: "رقم الفاتورة غير صحيح" }, { status: 400 })
+    const { searchParams } = new URL(request.url)
+    const voucherCode = searchParams.get("voucher_code") || searchParams.get("order_number")
+
+    if (!voucherCode) {
+      return NextResponse.json({ error: "voucher_code is required" }, { status: 400 })
     }
 
-    await deleteSalesVoucher(voucherId)
-    return NextResponse.json({ message: "تم حذف الفاتورة بنجاح" })
-  } catch (error: any) {
-    console.error("Delete sales voucher API error:", error)
-    return NextResponse.json(
-      {
-        error: error.message || "حدث خطأ في حذف الفاتورة",
-        details: process.env.NODE_ENV === "development" ? error.stack : undefined,
-      },
-      { status: 500 },
+    const result = await pool.query(
+      `
+        SELECT
+          v.*,
+          v.voucher_code AS order_number,
+          v.voucher_date AS order_date,
+          v.vch_status AS order_status,
+          v.vch_status AS order_status2,
+          0 AS order_decision,
+          COALESCE(c.name, '') AS customer_name
+        FROM vouchers v
+        LEFT JOIN customers c ON v.customer_id = c.id
+        WHERE v.voucher_code = $1
+        LIMIT 1
+      `,
+      [voucherCode],
     )
+
+    return NextResponse.json(result.rows[0] ?? null, { status: 200 })
+  } catch (error) {
+    console.error("getorderbycode vouchers error:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
 
-export async function PUT(
-  _request: NextRequest,
-  { params }: { params: { id: string } },
-) {
-  try {
-    const voucherId = Number.parseInt(params.id)
-    if (Number.isNaN(voucherId)) {
-      return NextResponse.json({ error: "رقم الفاتورة غير صحيح" }, { status: 400 })
-    }
-
-    await updatePrintSalesVoucher(voucherId)
-    return NextResponse.json({ message: "" })
-  } catch (error: any) {
-    console.error("Print sales voucher API error:", error)
-    return NextResponse.json(
-      {
-        error: error.message || "حدث خطأ في تحديث حالة الطباعة",
-        details: process.env.NODE_ENV === "development" ? error.stack : undefined,
-      },
-      { status: 500 },
-    )
-  }
-}

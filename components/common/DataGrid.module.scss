@@ -1,4 +1,6 @@
 .customFlexgrid {
+  width: 100%;
+  min-width: 0;
   font-family: "Segoe UI", system-ui, sans-serif;
   font-size: 15px;
   border-radius: 10px;
@@ -9,6 +11,12 @@
 
   /* set grid RTL for cell text */
   direction: rtl;
+
+  :global(.wj-flexgrid) {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
 
   /* make row height larger */
   :global(.wj-cell) {

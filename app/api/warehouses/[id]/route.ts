@@ -1,6 +1,6 @@
-import { type NextRequest, NextResponse } from "next/server"
-import { neon } from "@neondatabase/serverless"
+import { NextRequest, NextResponse } from "next/server"
 
+import { neon } from "@neondatabase/serverless"
 import { Pool } from "pg"
 
 let sql: any = null
@@ -12,7 +12,6 @@ try {
     const dbUrl = process.env.DATABASE_URL
 
     if (dbUrl.includes("localhost") || dbUrl.includes("127.0.0.1")) {
-      console.log("[v0] Using local PostgreSQL with pg Pool")
       const pool = new Pool({ connectionString: dbUrl })
       sql = async (strings: TemplateStringsArray, ...values: any[]) => {
         const client = await pool.connect()
@@ -42,59 +41,24 @@ try {
 }
 
 export default sql
-type Warehouse = {
-  id: number
-  warehouse_code: string
-  warehouse_name: string
-  warehouse_name_en?: string
-  description?: string
-  location?: string
-  is_active: boolean
-  created_at: string
-  updated_at: string
-}
-export async function PUT(request: NextRequest) {
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL
+});
+export async function GET(request: NextRequest) {
+  
   try {
-    const data = await request.json();
+    const query = `
+      SELECT id, name, status
+       FROM voucher_types
+       WHERE status = 1
+       ORDER BY id`
+    ;
 
-    if (!data.id) {
-      return NextResponse.json({ error: "معرف المستودع مطلوب" }, { status: 400 });
-    }
-
-    if (!data.warehouse_name?.trim() || !data.warehouse_code?.trim()) {
-      return NextResponse.json({ error: "اسم المستودع ورمزه مطلوبان" }, { status: 400 });
-    }
-
-    // Optional: check if the new warehouse_code is already used by another warehouse
-    const existing = await sql`
-      SELECT id FROM warehouses
-      WHERE warehouse_code = ${data.warehouse_code} AND id != ${data.id}
-    `;
-    if (existing.length > 0) {
-      return NextResponse.json({ error: "رمز المستودع موجود مسبقاً" }, { status: 400 });
-    }
-
-    const result: Warehouse[] = await sql`
-      UPDATE warehouses
-      SET
-        warehouse_code = ${data.warehouse_code.trim()},
-        warehouse_name = ${data.warehouse_name.trim()},
-        warehouse_name_en = ${data.warehouse_name_en?.trim() || ""},
-        description = ${data.description?.trim() || ""},
-        location = ${data.location?.trim() || ""},
-        is_active = ${data.is_active !== false},
-        updated_at = CURRENT_TIMESTAMP
-      WHERE id = ${data.id}
-      RETURNING *
-    `;
-
-    if (result.length === 0) {
-      return NextResponse.json({ error: "المستودع غير موجود" }, { status: 404 });
-    }
-
-    return NextResponse.json({ ...result[0], name: result[0].warehouse_name });
-  } catch (error) {
-    console.error("Error updating warehouse:", error);
-    return NextResponse.json({ error: "حدث خطأ أثناء تحديث المستودع" }, { status: 500 });
+  const result = await pool.query(query);
+  return NextResponse.json(result.rows)
+  } catch (err: any) {
+    console.error("voucher-types error:", err);
+    return NextResponse.json({ success: false, error: err.message }, { status: 500 })
   }
 }
+

@@ -121,9 +121,9 @@ const OrderSearchPopup: React.FC<OrderSearchPopupProps> = ({ visible, onClose, o
             { header: "##", name: "ser", width: 50 },
             { header: type === 3 ? "رقم الفاتورة" : "رقم الطلبية", name: "order_number", width: 120 },
             { header: type === 3 ? "تاريخ الفاتورة" : "تاريخ الطلبية", name: "order_date", width: 130 },
-            { header: "اسم الزبون", name: "customer_name", width: "*" },
+            { header: "اسم العميل", name: "customer_name", width: "*" },
             { header: "السند اليدوي", name: "reference_number", width: 130 },
-            { header: "رقم طلبية الزبون", name: "customer_order_no", width: 130 },
+            { header: "رقم طلبية العميل", name: "customer_order_no", width: 130 },
             { header: "المبلغ", name: "amount", width: 110 },
         ],
     }), [type]);
@@ -193,9 +193,9 @@ const OrderSearchPopup: React.FC<OrderSearchPopupProps> = ({ visible, onClose, o
                                         { header: "##", name: "ser", width: 50,isReadOnly:true },
                                         { header: type === 3 ? "رقم الفاتورة" : "رقم الطلبية", name: "order_number", width: 120,isReadOnly:true },
                                         { header: type === 3 ? "تاريخ الفاتورة" : "تاريخ الطلبية", name: "order_date", width: 130 ,isReadOnly:true},
-                                        { header: "اسم الزبون", name: "customer_name", width: "*" ,isReadOnly:true},
+                                        { header: "اسم العميل", name: "customer_name", width: "*" ,isReadOnly:true},
                                         { header: "السند اليدوي", name: "reference_number", width: 130,isReadOnly:true },
-                                        { header: "رقم طلبية الزبون", name: "customer_order_no", width: 130,isReadOnly:true },
+                                        { header: "رقم طلبية العميل", name: "customer_order_no", width: 130,isReadOnly:true },
                                         { header: "المبلغ", name: "amount", width: 110 },
                                     ],
                                 }}

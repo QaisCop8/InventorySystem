@@ -28,7 +28,7 @@ interface InlineCustomerSearchProps {
 export function InlineCustomerSearch({
   value,
   onSelect,
-  placeholder = "ابحث عن الزبون...",
+  placeholder = "ابحث عن العميل...",
   className,
 }: InlineCustomerSearchProps) {
   const [searchTerm, setSearchTerm] = useState(value)

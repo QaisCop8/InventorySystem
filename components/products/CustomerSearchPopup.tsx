@@ -165,8 +165,8 @@ const CustomerSearchPopup: React.FC<CustomerSearchPopupProps> = ({ visible, onCl
         isReport: true,
         columns: [
             { header: "##", name: "ser", width: 70 },
-            { header: type === 1 || type === -1 ? "رقم الزبون" : "رقم المورد", name: "customer_code", width: 120 },
-            { header: type === 1 || type === -1 ? "اسم الزبون" : "اسم المورد", name: "name", width: "*" },
+            { header: type === 1 || type === -1 ? "رقم العميل" : "رقم المورد", name: "customer_code", width: 120 },
+            { header: type === 1 || type === -1 ? "اسم العميل" : "اسم المورد", name: "name", width: "*" },
             { header: "الجوال", name: "mobile1", width: 120 },
             { header: "ملاحظات", name: "general_notes", width: 180 },
         ],
@@ -244,12 +244,12 @@ const CustomerSearchPopup: React.FC<CustomerSearchPopupProps> = ({ visible, onCl
                 style={{ height: "600px" }}
             >
                 <h3 className="text-lg font-semibold mb-4 text-right">
-                    {type === 1 || type === -1 ? "بحث الزبائن" : "بحث الموردين"}
+                    {type === 1 || type === -1 ? "بحث الالعملاء" : "بحث الموردين"}
                 </h3>
 
                 <Input
                     type="text"
-                    placeholder={type === 1 || type === -1 ? "ابحث عن زبون..." : "ابحث عن مورد"}
+                    placeholder={type === 1 || type === -1 ? "ابحث عن عميل..." : "ابحث عن مورد"}
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="mb-4 p-2 border border-gray-300 rounded w-full text-right"
@@ -266,8 +266,8 @@ const CustomerSearchPopup: React.FC<CustomerSearchPopupProps> = ({ visible, onCl
                                     isReport: false,
                                     columns: [
                                         { header: "##", name: "ser", width: 70 },
-                                        { header: type === 1 || type === -1 ? "رقم الزبون" : "رقم المورد", name: "customer_code", width: 120 },
-                                        { header: type === 1 || type === -1 ? "اسم الزبون" : "اسم المورد", name: "name", width: "*" },
+                                        { header: type === 1 || type === -1 ? "رقم العميل" : "رقم المورد", name: "customer_code", width: 120 },
+                                        { header: type === 1 || type === -1 ? "اسم العميل" : "اسم المورد", name: "name", width: "*" },
                                         { header: "الجوال", name: "mobile1", width: 120 },
                                         { header: "ملاحظات", name: "general_notes", width: 180 },
                                     ],

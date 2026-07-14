@@ -52,7 +52,7 @@ export function GlobalSearchProvider({ children }: GlobalSearchProviderProps) {
   }
 
   const handleCustomerSelect = (customer: any) => {
-    // في البحث العام، نفتح صفحة تفاصيل الزبون
+    // في البحث العام، نفتح صفحة تفاصيل العميل
     window.open(`/customers/${customer.id}`, "_blank")
     closeSearch()
   }
@@ -79,11 +79,11 @@ export function GlobalSearchProvider({ children }: GlobalSearchProviderProps) {
         </DialogContent>
       </Dialog>
 
-      {/* نافذة البحث عن الزبائن والموردين */}
+      {/* نافذة البحث عن الالعملاء والموردين */}
       <Dialog open={searchType === "customers-suppliers"} onOpenChange={(open) => !open && closeSearch()}>
         <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden">
           <DialogHeader>
-            <DialogTitle className="text-right">البحث عن الزبائن والموردين</DialogTitle>
+            <DialogTitle className="text-right">البحث عن الالعملاء والموردين</DialogTitle>
           </DialogHeader>
           <div className="overflow-y-auto max-h-[75vh]">
             <CustomerSupplierSearch

@@ -998,7 +998,8 @@ export function CompactProductForm({
         {
           header: "اسم الوحدة",
           name: "unit_name",
-          width: 220,
+          width: "*",
+          minWidth: 180,
           editor: (cell: any) => (
             <select
               value={cell.row.dataItem.unit_name || ""}
@@ -1085,7 +1086,8 @@ export function CompactProductForm({
         {
           header: "فئة السعر",
           name: "price_name",
-          width: 220,
+          width: "*",
+          minWidth: 180,
           editor: (cell: any) => (
             <select
               value={cell.row.dataItem.price_name || ""}
@@ -1115,7 +1117,8 @@ export function CompactProductForm({
         {
           header: "اسم الوحدة",
           name: "unit_name",
-          width: 220,
+          width: "*",
+          minWidth: 150,
           editor: (cell: any) => (
             <select
               value={cell.row.dataItem.unit_name || ""}
@@ -1192,7 +1195,8 @@ export function CompactProductForm({
       {
         name: "warehouse_id",
         header: "المستودع",
-        width: 220,
+        width: "*",
+        minWidth: 180,
         editor: (cell: any) => (
           <select
             value={cell.row.dataItem.store_name || ""}
@@ -1252,6 +1256,27 @@ export function CompactProductForm({
       if (response.ok) {
         const product = await response.json()
         if (product && product.id) {
+          const isProductServiceType = Number(product.type) === 2
+          if (isService && !isProductServiceType) {
+            toast.current?.show({
+              severity: 'error',
+              summary: 'خطأ',
+              detail: 'الرقم المدخل رقم صنف لا يمكن عرض تفاصيله',
+              life: 2500,
+            })
+            await reset_fields()
+            return
+          }
+          if (!isService && isProductServiceType) {
+            toast.current?.show({
+              severity: 'error',
+              summary: 'خطأ',
+              detail: 'الرقم المدخل رقم خدمة لا يمكن عرض التفاصيل',
+              life: 2500,
+            })
+            await reset_fields()
+            return
+          }
 
           const unitsWithNames = (product.units ?? []).map((unit: any) => {
             const unitDef = definitions.units.find((u: any) => u.id === unit.unit_id);
@@ -1317,11 +1342,10 @@ export function CompactProductForm({
     updateFormData("product_code", cleanValue)
   }
 
-  const handleProductCodeBlur = () => {
-    //if (formData.product_code && validateProductCode(formData.product_code)) {
-    formData.product_code = adjustCode(formData.product_code)
-    searchProductByCode(formData.product_code)
-    // }
+  const handleProductCodeBlur = async () => {
+    const adjustedCode = adjustCode(formData.product_code)
+    updateFormData("product_code", adjustedCode)
+    await searchProductByCode(adjustedCode)
   }
 
   const buildCostCenterRows = (assignedRows: any[] = [], types: any[] = [], centers: any[] = []) => {
@@ -1546,7 +1570,7 @@ export function CompactProductForm({
   }), [costCenterStatusOptions, formData.cost_centers])
 
   return (
-    <div className="h-screen flex flex-col bg-background overflow-hidden text-lg" dir="rtl">
+    <div className="h-full min-h-[70vh] min-w-0 flex flex-col bg-background overflow-hidden text-lg compact-product-form-root" dir="rtl">
       {/* Universal Toolbar - Fixed at top */}
       <div className="flex-shrink-0">
         <UniversalToolbar
@@ -1595,8 +1619,8 @@ export function CompactProductForm({
 
       <Toast ref={toast} position="top-left" className="custom-toast" />
       <ProgressSpinner loading={loading} />
-      <div className="flex-1 overflow-y-auto overflow-x-hidden">
-        <div className="mx-auto w-full max-w-7xl space-y-4 p-3 pb-8 sm:space-y-6 sm:p-4 sm:pb-10 lg:p-6 lg:pb-12">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0">
+        <div className="mx-auto w-full max-w-full space-y-4 p-2 pb-8 sm:space-y-6 sm:p-4 sm:pb-10 lg:p-6 lg:pb-12">
           {/* Header */}
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -1622,15 +1646,21 @@ export function CompactProductForm({
                     <ProductCodeInput
                       formData={formData}
                       handleProductCodeChange={(code) => setFormData((prev) => ({ ...prev, product_code: code }))}
+                      onBlur={async () => {
+                        const adjustedCode = adjustCode(formData.product_code || "")
+                        setFormData((prev) => ({ ...prev, product_code: adjustedCode }))
+                        await searchProductByCode(adjustedCode)
+                      }}
                       onSelectProductId={(id) => {
                         setFormData((prev) => ({
                           ...prev,
                           id: Number(id), // convert string → number
                         }))
-                        loadData("Byid", id);
-
+                        loadData("Byid", id)
                       }}
                       visible={true}
+                      priceCategoryId={1}
+                      productTypes={isService ? [2] : [1]}
                       codeLabel={isService ? "رقم الخدمة *" : "رقم الصنف *"}
                       searchTitle={isService ? "بحث الخدمات" : "بحث الأصناف"}
                     />

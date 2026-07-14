@@ -1655,11 +1655,11 @@ function UnifiedSalesOrder({
     }
 
     if (state.formData.customer_id === 0) {
-      Util.showErrorMessage(message, 'يجب ادخال الزبون')
+      Util.showErrorMessage(message, 'يجب ادخال العميل')
       return false
     }
     if (!state.formData.customer_name.trim()) {
-      Util.showErrorMessage(message, 'يجب ادخال اسم الزبون')
+      Util.showErrorMessage(message, 'يجب ادخال اسم العميل')
       return false
     }
     if (CollectionView.items.length === 0 || !CollectionView?.items[0]?.id) {
@@ -2807,7 +2807,7 @@ function UnifiedSalesOrder({
   const reportColumns = [
     { key: "order_number", label: "رقم الطلبية", width: "120px" },
     { key: "order_date", label: "التاريخ", width: "100px" },
-    { key: "customer_name", label: "اسم الزبون", width: "200px" },
+    { key: "customer_name", label: "اسم العميل", width: "200px" },
 
     { key: "total_amount", label: "المبلغ", width: "100px" },
     { key: "salesman", label: "المندوب", width: "120px" },
@@ -3369,13 +3369,13 @@ function UnifiedSalesOrder({
               </Card>
 
               {/* ===================== */}
-              {/* معلومات الزبون (يسار) */}
+              {/* معلومات العميل (يسار) */}
               {/* ===================== */}
               <Card className="h-full">
                 <CardHeader className="pb-4">
                   <CardTitle className="text-lg flex items-center gap-2">
                     <User className="h-5 w-5 text-primary" />
-                    معلومات الزبون
+                    معلومات العميل
                   </CardTitle>
                 </CardHeader>
 
@@ -3383,10 +3383,10 @@ function UnifiedSalesOrder({
 
                   <div className="grid grid-cols-12 gap-4">
 
-                    {/* رقم الزبون */}
+                    {/* رقم العميل */}
                     <div className="col-span-12 md:col-span-4">
                       <Label htmlFor="customer_code" className="text-sm font-medium">
-                        {'رقم الزبون *'}
+                        {'رقم العميل *'}
                       </Label>
                       <div className="flex gap-2">
                         <Input
@@ -3409,7 +3409,7 @@ function UnifiedSalesOrder({
                           }
                           }
                           className="text-right"
-                          placeholder={'رقم الزبون '}
+                          placeholder={'رقم العميل '}
 
                         />
                         <Button type="button" onClick={() => setShowCustomerSearch(true)}>
@@ -3419,9 +3419,9 @@ function UnifiedSalesOrder({
                     </div>
 
 
-                    {/* اسم الزبون */}
+                    {/* اسم العميل */}
                     <div className="col-span-8">
-                      <Label>اسم الزبون *</Label>
+                      <Label>اسم العميل *</Label>
                       <Input
                         ref={customerNameRef}
                         value={state.formData.customer_name ?? ""}
@@ -3436,7 +3436,7 @@ function UnifiedSalesOrder({
 
                     {/* هاتف */}
                     <div className="col-span-4">
-                      <Label>هاتف الزبون</Label>
+                      <Label>هاتف العميل</Label>
                       <Input
                         value={state.formData.customer_phone ?? ""}
                         maxLength={15}
@@ -3462,9 +3462,9 @@ function UnifiedSalesOrder({
                         }
                       />
                     </div>
-                    {/* رقم طلبية الزبون */}
+                    {/* رقم طلبية العميل */}
                     <div className="col-span-4">
-                      <Label>رقم طلبية الزبون</Label>
+                      <Label>رقم طلبية العميل</Label>
                       <Input
                         value={state.formData.customer_order_no ?? ""}
                         maxLength={15}

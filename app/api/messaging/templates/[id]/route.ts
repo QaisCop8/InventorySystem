@@ -3,52 +3,60 @@ import { neon } from "@neondatabase/serverless"
 
 const sql = neon(process.env.DATABASE_URL!)
 
-export async function PUT(request: Request, { params }: { params: { id: string } }) {
+export async function GET(request: Request) {
   try {
-    const body = await request.json()
-    const { template_name, template_code, template_category, message_content } = body
+    const { searchParams } = new URL(request.url)
+    const period = searchParams.get("period") || "week"
 
-    // استخراج المتغيرات من محتوى الرسالة
-    const extractedVariables = message_content.match(/\{([^}]+)\}/g)?.map((v: string) => v.slice(1, -1)) || []
+    let days = 7
+    if (period === "month") days = 30
+    else if (period === "quarter") days = 90
+    else if (period === "year") days = 365
 
-    const result = await sql`
-      UPDATE message_templates
-      SET 
-        template_name = ${template_name},
-        template_code = ${template_code},
-        template_category = ${template_category},
-        message_content = ${message_content},
-        variables = ${JSON.stringify(extractedVariables)},
-        updated_at = CURRENT_TIMESTAMP
-      WHERE id = ${params.id}
-      RETURNING *
+    // البيانات اليومية
+    const dailyStats = await sql`
+      SELECT 
+        stat_date::text as date,
+        SUM(total_sent) as total_sent,
+        SUM(total_delivered) as total_delivered,
+        SUM(total_failed) as total_failed,
+        AVG(success_rate) as success_rate
+      FROM message_statistics
+      WHERE stat_date >= CURRENT_DATE - INTERVAL '${days} days'
+      GROUP BY stat_date
+      ORDER BY stat_date DESC
     `
 
-    return NextResponse.json(result[0])
+    // الإحصائيات الإجمالية للأسبوع
+    const weeklyStats = await sql`
+      SELECT 
+        COALESCE(SUM(total_sent), 0) as total_sent,
+        COALESCE(SUM(total_delivered), 0) as total_delivered,
+        COALESCE(SUM(total_failed), 0) as total_failed,
+        COALESCE(AVG(success_rate), 0) as success_rate
+      FROM message_statistics
+      WHERE stat_date >= CURRENT_DATE - INTERVAL '7 days'
+    `
+
+    // الإحصائيات الإجمالية للشهر
+    const monthlyStats = await sql`
+      SELECT 
+        COALESCE(SUM(total_sent), 0) as total_sent,
+        COALESCE(SUM(total_delivered), 0) as total_delivered,
+        COALESCE(SUM(total_failed), 0) as total_failed,
+        COALESCE(AVG(success_rate), 0) as success_rate
+      FROM message_statistics
+      WHERE stat_date >= CURRENT_DATE - INTERVAL '30 days'
+    `
+
+    return NextResponse.json({
+      daily: dailyStats,
+      weekly: weeklyStats[0],
+      monthly: monthlyStats[0],
+    })
   } catch (error) {
-    console.error("[v0] Error updating template:", error)
-    return NextResponse.json({ error: "فشل في تحديث القالب" }, { status: 500 })
+    console.error("[v0] Error fetching statistics:", error)
+    return NextResponse.json({ error: "فشل في جلب الإحصائيات" }, { status: 500 })
   }
 }
 
-export async function DELETE(request: Request, { params }: { params: { id: string } }) {
-  try {
-    // التحقق من أن القالب ليس نظامياً
-    const template = await sql`
-      SELECT is_system FROM message_templates WHERE id = ${params.id}
-    `
-
-    if (template[0]?.is_system) {
-      return NextResponse.json({ error: "لا يمكن حذف القوالب النظامية" }, { status: 400 })
-    }
-
-    await sql`
-      DELETE FROM message_templates WHERE id = ${params.id}
-    `
-
-    return NextResponse.json({ success: true })
-  } catch (error) {
-    console.error("[v0] Error deleting template:", error)
-    return NextResponse.json({ error: "فشل في حذف القالب" }, { status: 500 })
-  }
-}

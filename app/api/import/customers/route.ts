@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
 
         // Required field check
         if (!item.customer_name) {
-          errors.push(`السطر ${rowIndex}: اسم الزبون مطلوب`);
+          errors.push(`السطر ${rowIndex}: اسم العميل مطلوب`);
           failed++;
           continue;
         }
@@ -160,6 +160,6 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error("Error importing customers:", error)
-    return NextResponse.json({ error: "خطأ في استيراد الزبائن" }, { status: 500 })
+    return NextResponse.json({ error: "خطأ في استيراد الالعملاء" }, { status: 500 })
   }
 }

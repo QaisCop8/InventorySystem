@@ -61,7 +61,7 @@ const API_URL = "/api/accounts"
 
 const ACCOUNT_TYPE_OPTIONS = [
   { label: "حساب محاسبي", value: "1" },
-  { label: "زبون", value: "2" },
+  { label: "عميل", value: "2" },
   { label: "مورد", value: "3" },
 ]
 
@@ -77,7 +77,7 @@ const getAccountTypeLabel = (
   const typeId = getAccountTypeId(account)
 
   if (typeId === 1) return "حساب محاسبي"
-  if (typeId === 2) return "زبون"
+  if (typeId === 2) return "عميل"
   if (typeId === 3) return "مورد"
   return "أخرى"
 }

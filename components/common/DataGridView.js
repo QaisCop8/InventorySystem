@@ -19,6 +19,13 @@ import * as schemeHelper from './SchemeHelper';
 import Input from './Input';
 import Util from './Util';
 import { ArabicToLatinNumbers } from './ArabicToLatinNumbers';
+
+const createScheme = (scheme) => {
+  if (!scheme || !Array.isArray(scheme.columns)) {
+    return { name: 'default', columns: [] };
+  }
+  return schemeHelper.create(scheme);
+};
 //import GridGlobalization from './GridGlobalization';
 import { FaFlag,FaFlagCheckered } from 'react-icons/fa';
 import { Toast } from 'primereact/toast';
@@ -41,16 +48,19 @@ export default class DataGridView extends React.Component {
   constructor(props) {
     super(props);
     let dir = "rtl";
-    this.columnTooltips = new Tooltip({
-      position: PopupPosition.Above,
-      showAtMouse: true,
-      showDelay: 600,
-      cssClass: 'rtl',
-    });
+    this.columnTooltips = typeof window !== 'undefined'
+      ? new Tooltip({
+          position: PopupPosition.Above,
+          showAtMouse: true,
+          showDelay: 600,
+          cssClass: 'rtl',
+        })
+      : null;
+    const schemePtr = createScheme(props.scheme);
     this.state = {
-      defaultValueFilters: schemeHelper.createFilters(props.scheme),
-      summaryReducer: schemeHelper.createSummaryReducer(props.scheme),
-      footerRows: schemeHelper.createFooterRows(props.scheme),
+      defaultValueFilters: schemeHelper.createFilters(schemePtr),
+      summaryReducer: schemeHelper.createSummaryReducer(schemePtr),
+      footerRows: schemeHelper.createFooterRows(schemePtr),
       //groupColumn: schemeHelper.createGroupColumn(props.scheme, props.scheme.allowGrouping),
       selection: undefined,
       currentSelection: null,
@@ -63,7 +73,7 @@ export default class DataGridView extends React.Component {
       progress: 0,
       selectedItems: undefined,
       buttonsColumns: this.createButtonsColumns(this.props.scheme),
-      isDesktop: window.innerWidth > 800,
+      isDesktop: typeof window !== 'undefined' ? window.innerWidth > 800 : false,
       hasError: false,
       errorInfo: null,
       searchText: '',
@@ -147,7 +157,7 @@ export default class DataGridView extends React.Component {
     this.setState({ isDesktop: window.innerWidth > 800 });
   };
 createButtonsColumns = () => {
-    let schemePtr = schemeHelper.create(this.props.scheme);
+    const schemePtr = createScheme(this.props.scheme);
     let columns = schemePtr.columns.filter((col) => !col.visible || col.visible === true);
     let buttonsColumns = [];
     columns.map((col) => {
@@ -187,7 +197,16 @@ createButtonsColumns = () => {
   };
 
   render = () => {
-    let schemePtr = schemeHelper.create(this.props.scheme);
+    if (!this.props.scheme || !Array.isArray(this.props.scheme.columns)) {
+      return (
+        <div className="p-4 bg-red-50 border border-red-200 rounded text-sm text-red-700">
+          <strong>خطأ في تحميل الجدول</strong>
+          <div>DataGridView: لم يتم توفير مخطط صالح للجدول.</div>
+        </div>
+      );
+    }
+
+    const schemePtr = createScheme(this.props.scheme);
     let columns = schemePtr.columns.filter((col) => !col.visible || col.visible === true);
     if (this.state.columns) {
       columns = this.state.columns;

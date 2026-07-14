@@ -34,7 +34,7 @@ export function SearchButton({
       case "products":
         return "بحث عن صنف"
       case "customers":
-        return "بحث عن زبون/مورد"
+        return "بحث عن عميل/مورد"
       case "transactions":
         return "بحث عن حركة"
       case "sales":

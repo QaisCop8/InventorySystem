@@ -27,7 +27,7 @@ import {
 } from "lucide-react"
 
 const systemLabels = [
-  { id: "customer", defaultLabel: "زبون", currentLabel: "عميل", module: "الزبائن" },
+  { id: "customer", defaultLabel: "عميل", currentLabel: "عميل", module: "الالعملاء" },
   { id: "supplier", defaultLabel: "مورد", currentLabel: "مورد", module: "الموردين" },
   { id: "product", defaultLabel: "صنف", currentLabel: "منتج", module: "الأصناف" },
   { id: "order", defaultLabel: "طلبية", currentLabel: "أمر شراء", module: "الطلبيات" },
@@ -479,7 +479,7 @@ export default function GeneralSettings() {
                         <Label className="text-gray-700 font-medium">قالب رسالة الطلبية</Label>
                         <Textarea
                           rows={3}
-                          placeholder="مرحباً {اسم_الزبون}، تم إنشاء طلبيتك رقم {رقم_الطلبية} بنجاح. إجمالي المبلغ: {المبلغ}"
+                          placeholder="مرحباً {اسم_العميل}، تم إنشاء طلبيتك رقم {رقم_الطلبية} بنجاح. إجمالي المبلغ: {المبلغ}"
                           className="focus:ring-2 focus:ring-green-500"
                         />
                       </div>
@@ -574,7 +574,7 @@ export default function GeneralSettings() {
                         <Label className="text-gray-700 font-medium">قالب إيميل الفاتورة</Label>
                         <Textarea
                           rows={4}
-                          placeholder="عزيزي {اسم_الزبون}، نرفق لك فاتورتك رقم {رقم_الفاتورة}. مع تحيات فريق العمل."
+                          placeholder="عزيزي {اسم_العميل}، نرفق لك فاتورتك رقم {رقم_الفاتورة}. مع تحيات فريق العمل."
                           className="focus:ring-2 focus:ring-blue-500"
                         />
                       </div>

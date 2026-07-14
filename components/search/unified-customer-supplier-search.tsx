@@ -272,7 +272,7 @@ const UnifiedCustomerSupplierSearch = ({
 
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div className="flex items-center gap-2">
-              <span className="search-result-subtitle">رقم الزبون: {customer.customer_code}</span>
+              <span className="search-result-subtitle">رقم العميل: {customer.customer_code}</span>
             </div>
 
             {customer.city && (
@@ -375,10 +375,10 @@ const UnifiedCustomerSupplierSearch = ({
           <Users className="h-5 w-5 text-primary" />
           <h2 className="search-title">
             {searchType === "customers"
-              ? "البحث عن الزبائن"
+              ? "البحث عن الالعملاء"
               : searchType === "suppliers"
                 ? "البحث عن الموردين"
-                : "البحث عن الزبائن والموردين"}
+                : "البحث عن الالعملاء والموردين"}
           </h2>
         </div>
         <div className="flex items-center gap-2">
@@ -511,14 +511,14 @@ const UnifiedCustomerSupplierSearch = ({
       {searchType === "both" ? (
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="customers">الزبائن</TabsTrigger>
+            <TabsTrigger value="customers">الالعملاء</TabsTrigger>
             <TabsTrigger value="suppliers">الموردين</TabsTrigger>
           </TabsList>
 
           <TabsContent value="customers" className="space-y-4">
             <div className="flex items-center justify-between">
               <p className="text-sm text-muted-foreground">
-                {loading ? "جاري البحث..." : `تم العثور على ${filteredCustomers.length} زبون`}
+                {loading ? "جاري البحث..." : `تم العثور على ${filteredCustomers.length} عميل`}
               </p>
               {debouncedSearchTerm && (
                 <Badge variant="secondary" className="flex items-center gap-1">
@@ -536,7 +536,7 @@ const UnifiedCustomerSupplierSearch = ({
               ) : filteredCustomers.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>لم يتم العثور على زبائن مطابقين</p>
+                  <p>لم يتم العثور على العملاء مطابقين</p>
                 </div>
               ) : (
                 filteredCustomers.map(renderCustomerCard)
@@ -581,7 +581,7 @@ const UnifiedCustomerSupplierSearch = ({
               {loading
                 ? "جاري البحث..."
                 : searchType === "customers"
-                  ? `تم العثور على ${filteredCustomers.length} زبون`
+                  ? `تم العثور على ${filteredCustomers.length} عميل`
                   : `تم العثور على ${filteredSuppliers.length} مورد`}
             </p>
             {debouncedSearchTerm && (

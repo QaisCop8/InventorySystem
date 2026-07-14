@@ -65,7 +65,7 @@ export function ExcelImport({ entityType, isOpen, onClose, onImportComplete }: E
 
   const entityLabels = {
     products: "الأصناف",
-    customers: "الزبائن",
+    customers: "الالعملاء",
     suppliers: "الموردين",
   }
 
@@ -83,8 +83,8 @@ export function ExcelImport({ entityType, isOpen, onClose, onImportComplete }: E
       { key: "currency", label: "العملة" },
     ],
     customers: [
-      { key: "customer_code", label: "رقم الزبون" },
-      { key: "customer_name", label: "اسم الزبون" },
+      { key: "customer_code", label: "رقم العميل" },
+      { key: "customer_name", label: "اسم العميل" },
       { key: "mobile1", label: "الجوال الأول" },
       { key: "mobile2", label: "الجوال الثاني" },
       { key: "whatsapp1", label: "واتساب الأول" },
@@ -95,8 +95,8 @@ export function ExcelImport({ entityType, isOpen, onClose, onImportComplete }: E
       { key: "priceClass", label: "فئة السعر" },
     ],
     suppliers: [
-      { key: "customer_code", label: "رقم الزبون" },
-      { key: "customer_name", label: "اسم الزبون" },
+      { key: "customer_code", label: "رقم العميل" },
+      { key: "customer_name", label: "اسم العميل" },
       { key: "mobile1", label: "الجوال الأول" },
       { key: "mobile2", label: "الجوال الثاني" },
       { key: "whatsapp1", label: "واتساب الأول" },
@@ -252,8 +252,8 @@ export function ExcelImport({ entityType, isOpen, onClose, onImportComplete }: E
             rowIndex: index + 2,
             errors: [],
             isValid: true,
-            customer_code: row["رقم الزبون"] || row["customer_code"] || "",
-            customer_name: row["اسم الزبون"] || row["customer_name"] || "",
+            customer_code: row["رقم العميل"] || row["customer_code"] || "",
+            customer_name: row["اسم العميل"] || row["customer_name"] || "",
             mobile1: row["الجوال الأول"] || row["mobile1"] || "",
             mobile2: row["الجوال الثاني"] || row["mobile2"] || "",
             whatsapp1: row["واتساب الأول"] || row["whatsapp1"] || "",
@@ -266,8 +266,8 @@ export function ExcelImport({ entityType, isOpen, onClose, onImportComplete }: E
           };
 
           // Validation
-          if (!customer.customer_code.trim()) customer.errors.push("رقم الزبون مطلوب");
-          if (!customer.customer_name.trim()) customer.errors.push("اسم الزبون مطلوب");
+          if (!customer.customer_code.trim()) customer.errors.push("رقم العميل مطلوب");
+          if (!customer.customer_name.trim()) customer.errors.push("اسم العميل مطلوب");
 
           // City validation if not empty
           if (customer.city.trim()) {

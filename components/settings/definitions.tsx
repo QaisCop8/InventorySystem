@@ -170,9 +170,9 @@ const warehouses_initial = [
 ]
 
 const customerCategories_initial = [
-  { id: 1, name: "زبائن VIP", discount: 15 },
-  { id: 2, name: "زبائن عاديين", discount: 5 },
-  { id: 3, name: "زبائن الجملة", discount: 20 },
+  { id: 1, name: "العملاء VIP", discount: 15 },
+  { id: 2, name: "العملاء عاديين", discount: 5 },
+  { id: 3, name: "العملاء الجملة", discount: 20 },
 ]
 const colors = ["#10B981", "#6B7280", "#3B82F6", "#F59E0B", "#EF4444"];
 const supplierCategories_initial = [
@@ -2650,7 +2650,7 @@ function Definitions() {
                 <div className="flex items-center justify-between">
                   <CardTitle className="flex items-center gap-2 text-base">
                     <Users className="h-4 w-4 text-primary" />
-                    تصنيفات الزبائن
+                    تصنيفات الالعملاء
                   </CardTitle>
                   <Button
                     size="sm"
@@ -2667,7 +2667,7 @@ function Definitions() {
                     <form className="space-y-3" onSubmit={handleAddCustomerCategories}>
                       <div className="text-right">
                         <Label className="erp-label text-sm text-right block">اسم التصنيف</Label>
-                        <Input className="erp-input text-right" placeholder="مثال: زبائن الجملة" dir="rtl"
+                        <Input className="erp-input text-right" placeholder="مثال: العملاء الجملة" dir="rtl"
                           value={customercategoryForm.name}
                           onChange={(e) => setCustomercategoryForm({ ...customercategoryForm, name: e.target.value })}
                         />

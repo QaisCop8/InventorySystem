@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
 
     console.log("[v0] Searching with term:", searchTerm)
 
-    // البحث في الزبائن
+    // البحث في الالعملاء
     try {
       const customers = await sql`
         SELECT id, customer_name as title, 
@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
           type: "customer",
           url: `/customers?id=${customer.id}`,
           metadata: {
-            "كود الزبون": customer.customer_code,
+            "كود العميل": customer.customer_code,
             المدينة: customer.city,
           },
         })
@@ -144,7 +144,7 @@ export async function POST(request: NextRequest) {
           type: "sales_order",
           url: `/orders/sales?id=${order.id}`,
           metadata: {
-            الزبون: order.customer_name,
+            العميل: order.customer_name,
             المبلغ: `${order.total_amount} ${order.currency_code}`,
           },
         })

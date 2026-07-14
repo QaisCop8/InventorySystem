@@ -1,90 +1,52 @@
-import { NextRequest, NextResponse } from "next/server"
-import sql from "@/lib/database"
+"use client"
+import { AIChat } from "@/components/ai-assistant/ai-chat"
 
-const ensureAccountClassificationTypesTable = async () => {
-  await sql`
-    CREATE TABLE IF NOT EXISTS account_classification_types (
-      id SERIAL PRIMARY KEY,
-      name VARCHAR(100) NOT NULL,
-      status INTEGER NOT NULL DEFAULT 1 CHECK (status IN (1, 2, 3)),
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      CONSTRAINT account_classification_types_name_unique UNIQUE (name)
-    )
-  `
+export default function AIAssistantPage() {
+  return (
+    <div className="container mx-auto p-6">
+      <div className="max-w-4xl mx-auto">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold mb-2">المساعد الذكي</h1>
+          <p className="text-muted-foreground">اسأل المساعد الذكي عن أي شيء يتعلق بالنظام أو البيانات</p>
+        </div>
+
+        <div className="grid gap-6 md:grid-cols-2 mb-8">
+          <div className="p-6 border rounded-lg">
+            <h3 className="font-semibold mb-2">📊 التحليلات والإحصائيات</h3>
+            <p className="text-sm text-muted-foreground">احصل على تقارير فورية عن المبيعات، المشتريات، والمخزون</p>
+          </div>
+
+          <div className="p-6 border rounded-lg">
+            <h3 className="font-semibold mb-2">🔍 البحث الذكي</h3>
+            <p className="text-sm text-muted-foreground">ابحث عن المنتجات، العملاء، والطلبيات باللغة الطبيعية</p>
+          </div>
+
+          <div className="p-6 border rounded-lg">
+            <h3 className="font-semibold mb-2">💡 التوصيات</h3>
+            <p className="text-sm text-muted-foreground">احصل على توصيات ذكية لتحسين المخزون والمبيعات</p>
+          </div>
+
+          <div className="p-6 border rounded-lg">
+            <h3 className="font-semibold mb-2">❓ المساعدة</h3>
+            <p className="text-sm text-muted-foreground">اسأل عن كيفية استخدام أي ميزة في النظام</p>
+          </div>
+        </div>
+
+        <div className="p-6 border rounded-lg bg-muted/50">
+          <h3 className="font-semibold mb-4">أمثلة على الأسئلة:</h3>
+          <ul className="space-y-2 text-sm">
+            <li>• كم عدد الطلبيات المعلقة اليوم؟</li>
+            <li>• ما هي المنتجات التي تحتاج إعادة طلب؟</li>
+            <li>• أعطني تقرير عن أفضل 10 منتجات مبيعاً هذا الشهر</li>
+            <li>• ما هي حالة المخزون للمنتج X؟</li>
+            <li>• كم عدد العملاء الجدد هذا الأسبوع؟</li>
+            <li>• ما هي الطلبيات المتأخرة في سير العمل؟</li>
+          </ul>
+        </div>
+      </div>
+
+      <AIChat />
+    </div>
+  )
 }
 
-export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
-  try {
-    await ensureAccountClassificationTypesTable()
-
-    const id = Number.parseInt(params.id, 10)
-    if (Number.isNaN(id)) {
-      return NextResponse.json({ error: "معرف غير صالح" }, { status: 400 })
-    }
-
-    const data = await request.json()
-    const name = String(data.name ?? "").trim()
-    const status = Number(data.status ?? 1)
-
-    if (!name) {
-      return NextResponse.json({ error: "اسم النوع مطلوب" }, { status: 400 })
-    }
-
-    if (![1, 2, 3].includes(status)) {
-      return NextResponse.json({ error: "الحالة يجب أن تكون 1 أو 2 أو 3" }, { status: 400 })
-    }
-
-    const existing = await sql`
-      SELECT id FROM account_classification_types
-      WHERE LOWER(name) = LOWER(${name}) AND id <> ${id}
-    `
-
-    if (existing.length > 0) {
-      return NextResponse.json({ error: "اسم النوع موجود مسبقاً" }, { status: 400 })
-    }
-
-    const result = await sql`
-      UPDATE account_classification_types
-      SET name = ${name}, status = ${status}, updated_at = CURRENT_TIMESTAMP
-      WHERE id = ${id}
-      RETURNING id, name, status, created_at, updated_at
-    `
-
-    if (result.length === 0) {
-      return NextResponse.json({ error: "النوع غير موجود" }, { status: 404 })
-    }
-
-    return NextResponse.json(result[0])
-  } catch (error) {
-    console.error("Error updating account classification type:", error)
-    return NextResponse.json({ error: "Failed to update account classification type" }, { status: 500 })
-  }
-}
-
-export async function DELETE(_: NextRequest, { params }: { params: { id: string } }) {
-  try {
-    await ensureAccountClassificationTypesTable()
-
-    const id = Number.parseInt(params.id, 10)
-    if (Number.isNaN(id)) {
-      return NextResponse.json({ error: "معرف غير صالح" }, { status: 400 })
-    }
-
-    const result = await sql`
-      UPDATE account_classification_types
-      SET status = 3, updated_at = CURRENT_TIMESTAMP
-      WHERE id = ${id}
-      RETURNING id
-    `
-
-    if (result.length === 0) {
-      return NextResponse.json({ error: "النوع غير موجود" }, { status: 404 })
-    }
-
-    return NextResponse.json({ success: true })
-  } catch (error) {
-    console.error("Error deleting account classification type:", error)
-    return NextResponse.json({ error: "Failed to delete account classification type" }, { status: 500 })
-  }
-}

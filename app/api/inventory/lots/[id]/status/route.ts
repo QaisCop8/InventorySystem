@@ -1,25 +1,68 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { changeLotStatus } from "@/lib/lot-management"
+import { getAvailableBatches, calculateFIFOAllocation, reserveBatches } from "@/lib/batch-utils"
 
-export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest) {
   try {
-    const lotId = Number.parseInt(params.id)
-    if (isNaN(lotId)) {
-      return NextResponse.json({ error: "معرف الدفعة غير صحيح" }, { status: 400 })
+    const { searchParams } = new URL(request.url)
+    const productId = searchParams.get("product_id")
+    const requestedQuantity = Number(searchParams.get("quantity")) || 0
+
+    if (!productId) {
+      return NextResponse.json({ error: "Product ID is required" }, { status: 400 })
     }
 
-    const body = await request.json()
-    const { status, notes, changed_by } = body
+    const lots = await getAvailableBatches(Number(productId))
 
-    if (!status || !["new", "in_use", "finished", "damaged"].includes(status)) {
-      return NextResponse.json({ error: "حالة الدفعة غير صحيحة" }, { status: 400 })
+    if (requestedQuantity > 0) {
+      const allocation = await calculateFIFOAllocation(Number(productId), requestedQuantity)
+      return NextResponse.json({
+        lots,
+        allocation,
+        totalAvailable: lots.reduce((sum, lot) => sum + lot.availableQuantity, 0),
+      })
     }
 
-    await changeLotStatus(lotId, status, notes, changed_by)
-
-    return NextResponse.json({ success: true, message: "تم تغيير حالة الدفعة بنجاح" })
+    return NextResponse.json({
+      lots,
+      totalAvailable: lots.reduce((sum, lot) => sum + lot.availableQuantity, 0),
+    })
   } catch (error) {
-    console.error("Error changing lot status:", error)
-    return NextResponse.json({ error: "فشل في تغيير حالة الدفعة" }, { status: 500 })
+    console.error("[v0] Error fetching available lots:", error)
+    return NextResponse.json({ error: "Failed to fetch available lots" }, { status: 500 })
   }
 }
+
+export async function POST(request: NextRequest) {
+  try {
+    const { product_id, quantity, sales_order_id, created_by } = await request.json()
+
+    if (!product_id || !quantity) {
+      return NextResponse.json({ error: "Product ID and quantity are required" }, { status: 400 })
+    }
+
+    const allocation = await calculateFIFOAllocation(product_id, quantity)
+
+    if (!allocation.canFulfill) {
+      return NextResponse.json(
+        {
+          error: "Insufficient stock",
+          available: allocation.totalAllocated,
+          needed: quantity,
+        },
+        { status: 400 },
+      )
+    }
+
+    await reserveBatches(allocation.allocations, "sales_order", sales_order_id, created_by || "system")
+
+    return NextResponse.json({
+      success: true,
+      reservations: allocation.allocations,
+      message: "Lots reserved successfully using FIFO method",
+    })
+  } catch (error) {
+    console.error("[v0] Error reserving lots:", error)
+    return NextResponse.json({ error: "Failed to reserve lots" }, { status: 500 })
+  }
+}
+

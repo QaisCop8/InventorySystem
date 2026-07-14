@@ -252,7 +252,7 @@ function CustomerSupplierSearch({
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div className="flex items-center gap-2">
               <User className="h-3 w-3 text-muted-foreground" />
-              <span className="search-result-subtitle">رقم الزبون: {customer.customer_code}</span>
+              <span className="search-result-subtitle">رقم العميل: {customer.customer_code}</span>
             </div>
 
             {customer.city && (
@@ -343,7 +343,7 @@ function CustomerSupplierSearch({
       <div className="search-header">
         <div className="flex items-center gap-2">
           <Users className="h-5 w-5 text-primary" />
-          <h2 className="search-title">البحث عن الزبائن والموردين</h2>
+          <h2 className="search-title">البحث عن الالعملاء والموردين</h2>
         </div>
         <div className="flex items-center gap-2">
           <Button
@@ -473,14 +473,14 @@ function CustomerSupplierSearch({
       {/* Tabs for Customers and Suppliers */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="customers">الزبائن</TabsTrigger>
+          <TabsTrigger value="customers">الالعملاء</TabsTrigger>
           <TabsTrigger value="suppliers">الموردين</TabsTrigger>
         </TabsList>
 
         <TabsContent value="customers" className="space-y-4">
           <div className="flex items-center justify-between">
             <p className="text-sm text-muted-foreground">
-              {loading ? "جاري البحث..." : `تم العثور على ${filteredCustomers.length} زبون`}
+              {loading ? "جاري البحث..." : `تم العثور على ${filteredCustomers.length} عميل`}
             </p>
             {debouncedSearchTerm && (
               <Badge variant="secondary" className="flex items-center gap-1">
@@ -498,7 +498,7 @@ function CustomerSupplierSearch({
             ) : filteredCustomers.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>لم يتم العثور على زبائن مطابقين</p>
+                <p>لم يتم العثور على العملاء مطابقين</p>
               </div>
             ) : (
               filteredCustomers.map(renderCustomerCard)

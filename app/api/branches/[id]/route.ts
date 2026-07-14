@@ -1,79 +1,69 @@
-import { type NextRequest, NextResponse } from "next/server"
-import { neon } from "@neondatabase/serverless"
+import { NextRequest, NextResponse } from "next/server"
+import sql from "@/lib/database"
 
-import { Pool } from "pg"
-
-let sql: any = null
-
-try {
-  if (!process.env.DATABASE_URL) {
-    console.error("[v0] DATABASE_URL environment variable is not set")
-  } else {
-    const dbUrl = process.env.DATABASE_URL
-
-    if (dbUrl.includes("localhost") || dbUrl.includes("127.0.0.1")) {
-      const pool = new Pool({ connectionString: dbUrl })
-      sql = async (strings: TemplateStringsArray, ...values: any[]) => {
-        const client = await pool.connect()
-        try {
-          const query =
-            strings.reduce(
-              (prev, curr, i) =>
-                prev + curr + (i < values.length ? `$${i + 1}` : ""),
-              ""
-            )
-          const result = await client.query(query, values)
-          return result.rows
-        } finally {
-          client.release()
-        }
-      }
-    } else {
-      console.log("[v0] Using Neon serverless client")
-      sql = neon(dbUrl)
-    }
-
-    console.log("[v0] Database client initialized successfully")
-  }
-} catch (error) {
-  console.error("[v0] Failed to initialize DB client:", error)
-  sql = null
+const ensureBalanceSheetLiabilitiesItemsTable = async () => {
+  await sql`
+    CREATE TABLE IF NOT EXISTS balance_sheet_liabilities_items (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(100) NOT NULL,
+      status INTEGER NOT NULL DEFAULT 1 CHECK (status IN (1, 2, 3)),
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `
 }
 
-export default sql
-export async function PUT(request: NextRequest) {
+export async function GET() {
   try {
-    const data = await request.json();
+    await ensureBalanceSheetLiabilitiesItemsTable()
 
-    if (!data.id) {
-      return NextResponse.json({ error: "معرف الفرع مطلوب" }, { status: 400 });
-    }
+    const items = await sql`
+      SELECT id, name, status, created_at, updated_at
+      FROM balance_sheet_liabilities_items
+      WHERE status IN (1, 2)
+      ORDER BY id ASC
+    `
 
-    if (!data.branch_name?.trim()) {
-      return NextResponse.json({ error: "اسم الفرع مطلوب" }, { status: 400 });
-    }
-
-    const result: any[] = await sql`
-      UPDATE branches
-      SET 
-        branch_code = ${data.branch_code.trim()},
-        branch_name = ${data.branch_name.trim()},
-        address = ${data.address?.trim() || ""},
-        manager = ${data.manager?.trim() || ""},
-        phone = ${data.phone?.trim() || ""},
-        is_active = ${data.is_active !== false},
-        updated_at = CURRENT_TIMESTAMP
-      WHERE id = ${data.id}
-      RETURNING *
-    `;
-
-    if (result.length === 0) {
-      return NextResponse.json({ error: "الفرع غير موجود" }, { status: 404 });
-    }
-
-    return NextResponse.json(result[0]);
+    return NextResponse.json(items)
   } catch (error) {
-    console.error("Error updating branch:", error);
-    return NextResponse.json({ error: "حدث خطأ أثناء تحديث الفرع" }, { status: 500 });
+    console.error("Error fetching balance sheet liabilities items:", error)
+    return NextResponse.json({ error: "Failed to fetch balance sheet liabilities items" }, { status: 500 })
   }
 }
+
+export async function POST(request: NextRequest) {
+  try {
+    await ensureBalanceSheetLiabilitiesItemsTable()
+
+    const data = await request.json()
+
+    if (!data.name || !String(data.name).trim()) {
+      return NextResponse.json({ error: "اسم البند مطلوب" }, { status: 400 })
+    }
+
+    const status = Number(data.status ?? 1)
+    if (![1, 2, 3].includes(status)) {
+      return NextResponse.json({ error: "الحالة يجب أن تكون 1 أو 2 أو 3" }, { status: 400 })
+    }
+
+    const existing = await sql`
+      SELECT id FROM balance_sheet_liabilities_items WHERE LOWER(name) = LOWER(${String(data.name).trim()})
+    `
+
+    if (existing.length > 0) {
+      return NextResponse.json({ error: "اسم البند موجود مسبقاً" }, { status: 400 })
+    }
+
+    const result = await sql`
+      INSERT INTO balance_sheet_liabilities_items (name, status)
+      VALUES (${String(data.name).trim()}, ${status})
+      RETURNING id, name, status, created_at, updated_at
+    `
+
+    return NextResponse.json(result[0], { status: 201 })
+  } catch (error) {
+    console.error("Error creating balance sheet liabilities item:", error)
+    return NextResponse.json({ error: "Failed to create balance sheet liabilities item" }, { status: 500 })
+  }
+}
+

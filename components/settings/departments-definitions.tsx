@@ -37,8 +37,8 @@ const warehouses = [
 ]
 
 const customerCategories = [
-  { id: "CC001", name: "زبائن VIP", customers: ["أحمد محمد", "علي حسن"] },
-  { id: "CC002", name: "زبائن عاديين", customers: ["محمد علي", "خالد أحمد"] },
+  { id: "CC001", name: "العملاء VIP", customers: ["أحمد محمد", "علي حسن"] },
+  { id: "CC002", name: "العملاء عاديين", customers: ["محمد علي", "خالد أحمد"] },
 ]
 
 const supplierCategories = [
@@ -361,14 +361,14 @@ function DepartmentsDefinitions() {
 
             {/* Customer Classifications */}
             <div className="mb-6">
-              <h3 className="text-md font-heading font-medium mb-3">تصنيفات الزبائن</h3>
+              <h3 className="text-md font-heading font-medium mb-3">تصنيفات الالعملاء</h3>
               <div className="overflow-x-auto">
                 <table className="w-full mb-4">
                   <thead>
                     <tr className="bg-gray-50">
                       <th className="text-right p-3 font-heading font-semibold text-gray-700">الرقم</th>
                       <th className="text-right p-3 font-heading font-semibold text-gray-700">اسم التصنيف</th>
-                      <th className="text-right p-3 font-heading font-semibold text-gray-700">الزبائن التابعين</th>
+                      <th className="text-right p-3 font-heading font-semibold text-gray-700">الالعملاء التابعين</th>
                       <th className="text-right p-3 font-heading font-semibold text-gray-700">الإجراءات</th>
                     </tr>
                   </thead>

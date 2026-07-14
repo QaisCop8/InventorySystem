@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, forwardRef } from "react";
+import { useEffect, useState, forwardRef } from "react";
 import { Input } from "@/components/ui/input";
 import { NotificationCenter } from "@/components/notifications/notification-center";
 import { useAuth } from "@/components/auth/auth-context";
@@ -28,14 +28,53 @@ const RefButton = forwardRef<HTMLButtonElement, React.ButtonHTMLAttributes<HTMLB
 RefButton.displayName = "RefButton";
 
 export function Header({ onMenuClick, activeSection, onProfileClick, onSettingsClick }: HeaderProps) {
-  const { user, logout } = useAuth();
+  const {
+    user,
+    logout,
+    activeBranchId,
+    activeBranchName,
+    activeDepartment,
+    setActiveBranchContext,
+    setActiveDepartmentContext,
+  } = useAuth();
   const [search, setSearch] = useState("");
+  const [branches, setBranches] = useState<Array<{ id: number; branch_name: string }>>([]);
+  const [isLoadingBranches, setIsLoadingBranches] = useState(false);
+
+  useEffect(() => {
+    const fetchBranches = async () => {
+      try {
+        setIsLoadingBranches(true);
+        const response = await fetch("/api/branches");
+        if (!response.ok) throw new Error("فشل في تحميل الفروع");
+        const data = await response.json();
+        const normalized = Array.isArray(data) ? data : [];
+        setBranches(normalized);
+
+        if (!activeBranchId && normalized[0]) {
+          setActiveBranchContext({ id: normalized[0].id, name: normalized[0].branch_name });
+        }
+      } catch (error) {
+        console.error("Failed to load branches", error);
+      } finally {
+        setIsLoadingBranches(false);
+      }
+    };
+
+    fetchBranches();
+  }, [activeBranchId, setActiveBranchContext]);
+
+  useEffect(() => {
+    if (!activeDepartment && user?.department) {
+      setActiveDepartmentContext(user.department);
+    }
+  }, [activeDepartment, setActiveDepartmentContext, user?.department]);
 
   const sectionTitles: Record<string, string> = {
     "home-dashboard": "الرئيسية",
     dashboard: "لوحة التحكم الرئيسية",
     "order-tracking": "متابعة الطلبيات",
-    customers: "إدارة الزبائن",
+    customers: "إدارة الالعملاء",
     suppliers: "إدارة الموردين",
     products: "الأصناف",
     services: "الخدمات",
@@ -74,6 +113,34 @@ export function Header({ onMenuClick, activeSection, onProfileClick, onSettingsC
 
       {/* Right: Search, notifications, user */}
       <div className="flex items-center gap-2 md:gap-4 shrink-0">
+        {/* Branch / Department context */}
+        <div className="hidden md:flex items-center gap-2 rounded-md border border-border bg-muted/50 px-2 py-1.5">
+          <select
+            className="bg-transparent text-sm text-right outline-none min-w-[140px]"
+            value={activeBranchId?.toString() || ""}
+            onChange={(event) => {
+              const selected = branches.find((branch) => branch.id === Number(event.target.value));
+              if (selected) {
+                setActiveBranchContext({ id: selected.id, name: selected.branch_name });
+              }
+            }}
+            disabled={isLoadingBranches || branches.length === 0}
+          >
+            {branches.length === 0 ? (
+              <option value="">لا توجد فروع</option>
+            ) : (
+              branches.map((branch) => (
+                <option key={branch.id} value={branch.id}>
+                  {branch.branch_name}
+                </option>
+              ))
+            )}
+          </select>
+          <span className="text-xs text-muted-foreground">
+            {activeDepartment || user?.department || "القسم"}
+          </span>
+        </div>
+
         {/* Search */}
         <div className="relative hidden lg:block">
           <Input

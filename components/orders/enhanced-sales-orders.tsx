@@ -412,7 +412,7 @@ export function EnhancedSalesOrders() {
               <div className="relative">
                 <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
                 <Input
-                  placeholder="رقم الطلبية، اسم الزبون، أو المندوب..."
+                  placeholder="رقم الطلبية، اسم العميل، أو المندوب..."
                   value={state.filters.search}
                   onChange={(e) =>
                     setState((prev) => ({
@@ -578,8 +578,8 @@ export function EnhancedSalesOrders() {
                   <SelectItem value="created_at-asc">الأقدم أولاً</SelectItem>
                   <SelectItem value="total_amount-desc">الأعلى قيمة</SelectItem>
                   <SelectItem value="total_amount-asc">الأقل قيمة</SelectItem>
-                  <SelectItem value="customer_name-asc">اسم الزبون أ-ي</SelectItem>
-                  <SelectItem value="customer_name-desc">اسم الزبون ي-أ</SelectItem>
+                  <SelectItem value="customer_name-asc">اسم العميل أ-ي</SelectItem>
+                  <SelectItem value="customer_name-desc">اسم العميل ي-أ</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -688,7 +688,7 @@ export function EnhancedSalesOrders() {
                   <tr className="border-b border-slate-200 bg-slate-50">
                     <th className="text-right p-4 font-semibold text-slate-700">رقم الطلبية</th>
                     <th className="text-right p-4 font-semibold text-slate-700">التاريخ</th>
-                    <th className="text-right p-4 font-semibold text-slate-700">الزبون</th>
+                    <th className="text-right p-4 font-semibold text-slate-700">العميل</th>
                     <th className="text-right p-4 font-semibold text-slate-700">الحالة</th>
                     <th className="text-right p-4 font-semibold text-slate-700">الحالة المالية</th>
                     <th className="text-right p-4 font-semibold text-slate-700">سير العمل</th>

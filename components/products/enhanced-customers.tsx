@@ -153,7 +153,7 @@ export function EnhancedCustomers() {
       setState((prev) => ({ ...prev, loading: true, error: null }))
       const response = await fetch("/api/customers")
       if (!response.ok) {
-        throw new Error("فشل في تحميل الزبائن")
+        throw new Error("فشل في تحميل الالعملاء")
       }
       const data = await response.json()
       setState((prev) => ({ ...prev, customers: Array.isArray(data) ? data : [] }))
@@ -203,7 +203,7 @@ export function EnhancedCustomers() {
       <div className="flex items-center justify-center min-h-[400px]" dir="rtl">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">جاري تحميل الزبائن...</p>
+          <p className="text-muted-foreground">جاري تحميل الالعملاء...</p>
         </div>
       </div>
     )
@@ -215,9 +215,9 @@ export function EnhancedCustomers() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-            إدارة الزبائن
+            إدارة الالعملاء
           </h1>
-          <p className="text-slate-600 mt-2 text-lg">إدارة شاملة لقاعدة بيانات الزبائن وعلاقاتهم التجارية</p>
+          <p className="text-slate-600 mt-2 text-lg">إدارة شاملة لقاعدة بيانات الالعملاء وعلاقاتهم التجارية</p>
         </div>
         <div className="flex gap-3">
           <Button variant="outline" className="bg-white shadow-sm">
@@ -226,7 +226,7 @@ export function EnhancedCustomers() {
           </Button>
           <Button className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow-lg">
             <Plus className="ml-2 h-4 w-4" />
-            زبون جديد
+            عميل جديد
           </Button>
         </div>
       </div>
@@ -237,7 +237,7 @@ export function EnhancedCustomers() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-blue-100 text-sm font-medium">إجمالي الزبائن</p>
+                <p className="text-blue-100 text-sm font-medium">إجمالي الالعملاء</p>
                 <p className="text-3xl font-bold">{analytics.totalCustomers}</p>
                 <div className="flex items-center mt-2">
                   <Users className="h-4 w-4 text-blue-200 ml-1" />
@@ -255,7 +255,7 @@ export function EnhancedCustomers() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-emerald-100 text-sm font-medium">الزبائن النشطين</p>
+                <p className="text-emerald-100 text-sm font-medium">الالعملاء النشطين</p>
                 <p className="text-3xl font-bold">{analytics.activeCustomers}</p>
                 <div className="flex items-center mt-2">
                   <Activity className="h-4 w-4 text-emerald-200 ml-1" />
@@ -317,7 +317,7 @@ export function EnhancedCustomers() {
               <div className="relative">
                 <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
                 <Input
-                  placeholder="اسم الزبون، الجوال، أو البريد الإلكتروني..."
+                  placeholder="اسم العميل، الجوال، أو البريد الإلكتروني..."
                   value={state.filters.search}
                   onChange={(e) =>
                     setState((prev) => ({
@@ -410,9 +410,9 @@ export function EnhancedCustomers() {
             <CardHeader>
               <div className="flex justify-between items-center">
                 <div>
-                  <h3 className="text-xl font-bold text-slate-800">بطاقات الزبائن</h3>
+                  <h3 className="text-xl font-bold text-slate-800">بطاقات الالعملاء</h3>
                   <p className="text-slate-600">
-                    عرض {filteredCustomers.length} من أصل {state.customers.length} زبون
+                    عرض {filteredCustomers.length} من أصل {state.customers.length} عميل
                   </p>
                 </div>
                 <Select
@@ -440,11 +440,11 @@ export function EnhancedCustomers() {
                   <div className="mx-auto h-24 w-24 bg-slate-100 rounded-full flex items-center justify-center mb-6">
                     <Users className="h-12 w-12 text-slate-400" />
                   </div>
-                  <h3 className="text-xl font-semibold text-slate-800 mb-2">لا يوجد زبائن</h3>
-                  <p className="text-slate-600 mb-6">لم يتم العثور على أي زبائن تطابق معايير البحث</p>
+                  <h3 className="text-xl font-semibold text-slate-800 mb-2">لا يوجد العملاء</h3>
+                  <p className="text-slate-600 mb-6">لم يتم العثور على أي العملاء تطابق معايير البحث</p>
                   <Button className="bg-gradient-to-r from-indigo-600 to-purple-600">
                     <Plus className="ml-2 h-4 w-4" />
-                    إضافة زبون جديد
+                    إضافة عميل جديد
                   </Button>
                 </div>
               ) : (
@@ -543,15 +543,15 @@ export function EnhancedCustomers() {
         <TabsContent value="list" className="space-y-6">
           <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
             <CardHeader>
-              <h3 className="text-xl font-bold text-slate-800">قائمة الزبائن التفصيلية</h3>
+              <h3 className="text-xl font-bold text-slate-800">قائمة الالعملاء التفصيلية</h3>
             </CardHeader>
             <CardContent>
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-slate-200 bg-slate-50">
-                      <th className="text-right p-4 font-semibold text-slate-700">الزبون</th>
-                      <th className="text-right p-4 font-semibold text-slate-700">رقم الزبون</th>
+                      <th className="text-right p-4 font-semibold text-slate-700">العميل</th>
+                      <th className="text-right p-4 font-semibold text-slate-700">رقم العميل</th>
                       <th className="text-right p-4 font-semibold text-slate-700">الجوال</th>
                       <th className="text-right p-4 font-semibold text-slate-700">البريد الإلكتروني</th>
                       <th className="text-right p-4 font-semibold text-slate-700">المدينة</th>
@@ -619,7 +619,7 @@ export function EnhancedCustomers() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
               <CardHeader>
-                <CardTitle className="text-slate-800">توزيع الزبائن حسب المدينة</CardTitle>
+                <CardTitle className="text-slate-800">توزيع الالعملاء حسب المدينة</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
@@ -632,7 +632,7 @@ export function EnhancedCustomers() {
                         <div className="flex justify-between">
                           <span className="text-slate-700 font-medium">{city}</span>
                           <span className="text-slate-600">
-                            {count} زبون ({percentage.toFixed(1)}%)
+                            {count} عميل ({percentage.toFixed(1)}%)
                           </span>
                         </div>
                         <div className="w-full bg-slate-200 rounded-full h-2">
@@ -650,7 +650,7 @@ export function EnhancedCustomers() {
 
             <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
               <CardHeader>
-                <CardTitle className="text-slate-800">إحصائيات الزبائن</CardTitle>
+                <CardTitle className="text-slate-800">إحصائيات الالعملاء</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-6">

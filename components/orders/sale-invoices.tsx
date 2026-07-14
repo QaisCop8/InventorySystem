@@ -77,7 +77,11 @@ interface OrderAnalytics {
 export function SaleInvoices({ isPurchase }: OrdersProps) {
   const { user } = useAuth()
   type ViewType = "grid" | "list" | "kanban";
-  const savedView = localStorage.getItem("currentView") as ViewType | null;
+  const getSavedView = (): ViewType => {
+    if (typeof window === "undefined") return "list"
+    const saved = window.localStorage.getItem("currentView") as ViewType | null
+    return saved === "grid" || saved === "list" || saved === "kanban" ? saved : "list"
+  }
 
   const [state, setState] = useState<{
     fromSearch: boolean | undefined
@@ -105,7 +109,7 @@ export function SaleInvoices({ isPurchase }: OrdersProps) {
     loading: true,
     error: null, // ✅ string or null
     selectedOrder: null,
-    currentView: savedView || "list",
+    currentView: getSavedView(),
     showNewOrderDialog: false,
     filters: {
       search: "",
@@ -392,7 +396,7 @@ export function SaleInvoices({ isPurchase }: OrdersProps) {
   const getOrderSourceBadge = (source: string) => {
     const sourceConfig = {
       manual: { label: "إدخال يدوي", className: "bg-blue-100 text-blue-800 border-blue-200" },
-      customer_portal: { label: "من الزبائن", className: "bg-green-100 text-green-800 border-green-200" },
+      customer_portal: { label: "من الالعملاء", className: "bg-green-100 text-green-800 border-green-200" },
       api_import: { label: "استيراد API", className: "bg-purple-100 text-purple-800 border-purple-200" },
     }
 
@@ -597,7 +601,7 @@ export function SaleInvoices({ isPurchase }: OrdersProps) {
               <div className="relative">
                 <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
                 <Input
-                  placeholder="رقم الفاتورة، اسم الزبون، السند اليدوي , استلمت بواسطة..."
+                  placeholder="رقم الفاتورة، اسم العميل، السند اليدوي , استلمت بواسطة..."
                   value={state.filters.search}
                   onChange={(e) =>
                     setState((prev) => ({
@@ -744,8 +748,8 @@ export function SaleInvoices({ isPurchase }: OrdersProps) {
                   <SelectItem value="created_at-asc">الأقدم أولاً</SelectItem>
                   <SelectItem value="total_amount-desc">الأعلى قيمة</SelectItem>
                   <SelectItem value="total_amount-asc">الأقل قيمة</SelectItem>
-                  <SelectItem value="customer_name-asc">اسم الزبون أ-ي</SelectItem>
-                  <SelectItem value="customer_name-desc">اسم الزبون ي-أ</SelectItem>
+                  <SelectItem value="customer_name-asc">اسم العميل أ-ي</SelectItem>
+                  <SelectItem value="customer_name-desc">اسم العميل ي-أ</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -899,10 +903,10 @@ export function SaleInvoices({ isPurchase }: OrdersProps) {
                       <th className="text-right p-4">##</th>
                       <th className="text-right p-4">رقم الفاتورة</th>
                       <th className="text-right p-4">التاريخ</th>
-                      <th className="text-right p-4">الزبون</th>
+                      <th className="text-right p-4">العميل</th>
                       <th className="text-right p-4">الحالة</th>
                       <th className="text-right p-4">السند اليدوي</th>
-                      <th className="text-right p-4">رقم طلبية الزبون</th>
+                      <th className="text-right p-4">رقم طلبية العميل</th>
                       <th className="text-right p-4">المبلغ</th>
                       <th className="text-right p-4">استلمت بواسطة</th>
                       <th className="text-center p-4">الإجراءات</th>

@@ -43,8 +43,8 @@ export async function POST(request: NextRequest) {
         العملة: "currency",
       },
       customers: {
-        "رقم الزبون": "customer_code",
-        "اسم الزبون": "customer_name",
+        "رقم العميل": "customer_code",
+        "اسم العميل": "customer_name",
         "الجوال الأول": "phone1",
         "الجوال الثاني": "phone2",
         "واتساب الأول": "whatsapp1",

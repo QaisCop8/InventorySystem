@@ -3,93 +3,94 @@ import { neon } from "@neondatabase/serverless"
 
 const sql = neon(process.env.DATABASE_URL!)
 
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest) {
   try {
-    const movementId = Number.parseInt(params.id)
+    const { searchParams } = new URL(request.url)
+    const productId = searchParams.get("product_id")
+    const status = searchParams.get("status")
+    const expiryStatus = searchParams.get("expiry_status")
+    const activeOnly = searchParams.get("active_only") === "true"
 
-    const result = await sql`
+    const whereConditions = ["1=1"]
+    const params: any[] = []
+
+    if (productId && productId !== "all") {
+      whereConditions.push(`pl.product_id = $${params.length + 1}`)
+      params.push(Number.parseInt(productId))
+    }
+
+    if (status && status !== "all") {
+      whereConditions.push(`pl.status = $${params.length + 1}`)
+      params.push(status)
+    }
+
+    if (activeOnly) {
+      whereConditions.push(`pl.status IN ('new', 'in_use') AND pl.current_quantity > 0`)
+    }
+
+    if (expiryStatus) {
+      if (expiryStatus === "expired") {
+        whereConditions.push(`pl.expiry_date < CURRENT_DATE`)
+      } else if (expiryStatus === "expiring_soon") {
+        whereConditions.push(`pl.expiry_date <= CURRENT_DATE + INTERVAL '30 days' AND pl.expiry_date >= CURRENT_DATE`)
+      } else if (expiryStatus === "valid") {
+        whereConditions.push(`(pl.expiry_date IS NULL OR pl.expiry_date > CURRENT_DATE + INTERVAL '30 days')`)
+      }
+    }
+
+    const whereClause = whereConditions.join(" AND ")
+
+    const query = `
       SELECT 
-        lt.*,
-        pl.lot_number,
+        pl.id,
         pl.product_id,
         p.product_name,
         p.product_code,
-        p.main_unit,
+        pl.lot_number,
+        pl.manufacturing_date,
+        pl.expiry_date,
+        CASE 
+          WHEN pl.expiry_date IS NULL THEN 'صالح'
+          WHEN pl.expiry_date < CURRENT_DATE THEN 'منتهي الصلاحية'
+          WHEN pl.expiry_date <= CURRENT_DATE + INTERVAL '30 days' THEN 'قريب الانتهاء'
+          ELSE 'صالح'
+        END as expiry_status,
+        pl.supplier_id,
+        s.supplier_name,
+        pl.initial_quantity,
         pl.current_quantity,
+        pl.reserved_quantity,
         pl.available_quantity,
+        pl.unit_cost,
         pl.status,
-        s.supplier_name
-      FROM lot_transactions lt
-      JOIN product_lots pl ON lt.lot_id = pl.id
+        CASE 
+          WHEN pl.status = 'new' THEN 'جديد'
+          WHEN pl.status = 'in_use' THEN 'قيد الاستخدام'
+          WHEN pl.status = 'finished' THEN 'منتهي'
+          WHEN pl.status = 'damaged' THEN 'تالف'
+          ELSE pl.status
+        END as status_display,
+        pl.status_changed_at,
+        pl.status_changed_by,
+        pl.status_notes,
+        pl.created_at,
+        pl.updated_at
+      FROM product_lots pl
       JOIN products p ON pl.product_id = p.id
       LEFT JOIN suppliers s ON pl.supplier_id = s.id
-      WHERE lt.id = ${movementId}
+      WHERE ${whereClause}
+      ORDER BY 
+        CASE WHEN pl.expiry_date IS NULL THEN 1 ELSE 0 END,
+        pl.expiry_date ASC,
+        p.product_name,
+        pl.created_at DESC
     `
 
-    if (result.length === 0) {
-      return NextResponse.json({ error: "حركة الدفعة غير موجودة" }, { status: 404 })
-    }
-
-    return NextResponse.json(result[0])
+    const result = await sql.unsafe(query, params)
+    return NextResponse.json(result)
   } catch (error) {
-    console.error("[v0] Error fetching batch movement:", error)
-    return NextResponse.json({ error: "فشل في تحميل حركة الدفعة" }, { status: 500 })
+    console.error("[v0] Error fetching batch lots:", error)
+    return NextResponse.json({ error: "فشل في تحميل الدفعات" }, { status: 500 })
   }
 }
 
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
-  try {
-    const movementId = Number.parseInt(params.id)
-
-    // Get movement details before deletion
-    const movement = await sql`
-      SELECT * FROM lot_transactions WHERE id = ${movementId}
-    `
-
-    if (movement.length === 0) {
-      return NextResponse.json({ error: "حركة الدفعة غير موجودة" }, { status: 404 })
-    }
-
-    // Check if this is the latest movement for the lot
-    const latestMovement = await sql`
-      SELECT id FROM lot_transactions 
-      WHERE lot_id = ${movement[0].lot_id}
-      ORDER BY created_at DESC 
-      LIMIT 1
-    `
-
-    if (latestMovement[0]?.id !== movementId) {
-      return NextResponse.json({ error: "يمكن حذف آخر حركة فقط للدفعة" }, { status: 400 })
-    }
-
-    // Reverse the movement effect on lot quantities
-    const movementData = movement[0]
-    if (movementData.transaction_type !== "status_change") {
-      let quantityAdjustment = 0
-
-      if (["purchase", "return", "adjustment"].includes(movementData.transaction_type)) {
-        quantityAdjustment = -movementData.quantity // Reverse increase
-      } else if (["sale", "transfer", "damage"].includes(movementData.transaction_type)) {
-        quantityAdjustment = movementData.quantity // Reverse decrease
-      }
-
-      if (quantityAdjustment !== 0) {
-        await sql`
-          UPDATE product_lots 
-          SET 
-            current_quantity = current_quantity + ${quantityAdjustment},
-            updated_at = CURRENT_TIMESTAMP
-          WHERE id = ${movementData.lot_id}
-        `
-      }
-    }
-
-    // Delete the movement
-    await sql`DELETE FROM lot_transactions WHERE id = ${movementId}`
-
-    return NextResponse.json({ message: "تم حذف حركة الدفعة بنجاح" })
-  } catch (error) {
-    console.error("[v0] Error deleting batch movement:", error)
-    return NextResponse.json({ error: "فشل في حذف حركة الدفعة" }, { status: 500 })
-  }
-}
