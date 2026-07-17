@@ -253,7 +253,7 @@ export function Sidebar({
                     }`}>
                       <ItemIcon className="h-5 w-5" />
                     </span>
-                    {isOpen && <span className="text-right">{item.title}</span>}
+                    {isOpen && <span className="text-right text-base font-semibold text-slate-900">{item.title}</span>}
                   </div>
                   {isOpen && item.submenu && (
                     <span className={`flex h-6 w-6 items-center justify-center rounded transition-all ${
@@ -290,7 +290,7 @@ export function Sidebar({
                             }`}>
                               <SubItemIcon className="h-4 w-4" />
                             </span>
-                            <span className="text-right flex-1">{subItem.title}</span>
+                            <span className="text-right flex-1 text-sm font-semibold text-slate-900">{subItem.title}</span>
                             {hasNestedSubmenu && (
                               <span className="ml-auto">
                                 <ChevronDown className={`h-3 w-3 transition-transform duration-300 ${
@@ -323,7 +323,7 @@ export function Sidebar({
                                     }`}>
                                       <NestedItemIcon className="h-3 w-3" />
                                     </span>
-                                    <span className="text-right flex-1">{nestedItem.title}</span>
+                                    <span className="text-right flex-1 text-sm font-semibold text-slate-900">{nestedItem.title}</span>
                                   </button>
                                 )
                               })}

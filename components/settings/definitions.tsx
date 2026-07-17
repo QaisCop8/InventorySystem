@@ -24,6 +24,7 @@ import Salesmen from "../salesmen/Salesmen"
 interface City {
   id: number
   name: string
+  status: number
 }
 
 interface Warehouse {
@@ -91,7 +92,7 @@ interface Price {
   name: string,
   name_en: string,
   description: string,
-  is_active: boolean
+  status: number
 }
 
 interface IncomeStatementItem {
@@ -144,11 +145,11 @@ interface AccountClassification {
 }
 
 const cities_initial = [
-  { id: 1, name: "نابلس" },
-  { id: 2, name: "رام الله" },
-  { id: 3, name: "الخليل" },
-  { id: 4, name: "بيت لحم" },
-  { id: 5, name: "جنين" },
+  { id: 1, name: "نابلس", status: 1 },
+  { id: 2, name: "رام الله", status: 1 },
+  { id: 3, name: "الخليل", status: 1 },
+  { id: 4, name: "بيت لحم", status: 1 },
+  { id: 5, name: "جنين", status: 1 },
 ]
 
 const warehouses_initial = [
@@ -246,7 +247,7 @@ function Definitions() {
   const [currentCityIndex, setCurrentCityIndex] = useState(0)
   const [currentWarehouseIndex, setCurrentWarehouseIndex] = useState(0)
 
-  const [cityForm, setCityForm] = useState({ id: 0, name: "" })
+  const [cityForm, setCityForm] = useState({ id: 0, name: "", status: 1 })
   const [warehouseForm, setWarehouseForm] = useState({
     id: 0,
     warehouse_code: "",
@@ -290,7 +291,7 @@ function Definitions() {
   })
   const [units, setUnits] = useState<Unit[]>([])
   const [prices, setPrices] = useState<Price[]>([])
-  const [priceForm, setPriceForm] = useState({ name: "", name_en: "", description: "" })
+  const [priceForm, setPriceForm] = useState({ name: "", name_en: "", description: "", status: 1 })
   const [unitForm, setUnitForm] = useState({ unit_name: "", unit_name_e: "", description: "", status: 1 })
   const [showUnitForm, setShowUnitForm] = useState(false)
   const [showPriceForm, setShowPriceForm] = useState(false)
@@ -457,7 +458,7 @@ function Definitions() {
       const response = await fetch("/api/cities")
       if (response.ok) {
         const data = await response.json()
-        setCities(data)
+        setCities(data.filter((city: City) => city.status !== 3))
       } else {
         // Fallback to initial data if API fails
         setCities(cities_initial)
@@ -504,7 +505,7 @@ function Definitions() {
       if (response.ok) {
         const data = await response.json()
         console.log("data ", data)
-        setPrices(data)
+        setPrices(data.filter((price: Price) => price.status !== 3))
       } else {
         setPrices([])
       }
@@ -753,7 +754,7 @@ function Definitions() {
           description: isEditing ? "تم تعديل المدينة بنجاح" : "تم إضافة المدينة بنجاح",
         });
         await fetchCities(); // refresh list
-        setCityForm({ id: 0, name: "" });
+        setCityForm({ id: 0, name: "", status: 1 });
         setShowCityForm(false);
       } else {
         const error = await response.json();
@@ -1086,10 +1087,57 @@ function Definitions() {
     setShowDepartmentForm(true); // show the form for editing
   };
 
-  const handleEditCity = (city: { id: number; name: string }) => {
-    setCityForm({ id: city.id, name: city.name }); // populate form
-    setShowCityForm(true);            // show the form
+  const handleEditCity = (city: City) => {
+    setCityForm({ id: city.id, name: city.name, status: city.status ?? 1 });
+    setShowCityForm(true);
   };
+
+  const handleFreezeCity = async (city: City) => {
+    const nextStatus = getToggledStatus(city.status)
+    try {
+      const response = await fetch(`/api/cities/${city.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: city.name, status: nextStatus }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || "فشل في تحديث حالة المدينة")
+      }
+
+      await fetchCities()
+      toast({
+        title: nextStatus === 2 ? "تم التجميد" : "تم إلغاء التجميد",
+        description: nextStatus === 2 ? "تم تجميد المدينة" : "تم إلغاء تجميد المدينة",
+      })
+    } catch (error) {
+      toast({
+        title: nextStatus === 2 ? "فشل التجميد" : "فشل إلغاء التجميد",
+        description: error instanceof Error ? error.message : "تعذر تحديث حالة المدينة",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleDeleteCity = async (cityId: number) => {
+    try {
+      const response = await fetch(`/api/cities/${cityId}`, { method: "DELETE" })
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || "فشل في حذف المدينة")
+      }
+      await fetchCities()
+      toast({ title: "تم الحذف", description: "تم حذف المدينة" })
+    } catch (error) {
+      toast({
+        title: "فشل الحذف",
+        description: error instanceof Error ? error.message : "تعذر حذف المدينة",
+        variant: "destructive",
+      })
+    }
+  }
+
   const handleEditWarehouse = (warehouse: {
     id: number;
     warehouse_code: string;
@@ -1189,35 +1237,82 @@ function Definitions() {
       }
 
       if (editingPriceId) {
-        // Update local state
-        setPrices((prev) =>
-          prev.map((u) => (u.id === editingPriceId ? result : u))
-        )
+        setPrices((prev) => prev.map((u) => (u.id === editingPriceId ? result : u)))
       } else {
         setPrices((prev) => [...prev, result])
       }
       toast({
         title: "تم الحفظ بنجاح",
-        description: "تم إضافة الفئة بنجاح",
+        description: editingPriceId ? "تم تحديث الفئة بنجاح" : "تم إضافة الفئة بنجاح",
       })
-      // Reset form
       await fetchPrices()
-      setPriceForm({ name: "", name_en: "", description: "" })
+      setPriceForm({ name: "", name_en: "", description: "", status: 1 })
       setShowPriceForm(false)
       setEditingPriceId(null)
-      setCurrentPriceIndex(prices.length) // select the new price
+      setCurrentPriceIndex(prices.length)
     } catch (err) {
       console.error(err)
       alert("فشل حفظ فئة السعر")
     }
   }
 
-  // Prefill form for editing
+  const handleFreezePrice = async (price: Price) => {
+    const nextStatus = getToggledStatus(price.status)
+    try {
+      const response = await fetch(`/api/pricecategory/${price.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: price.name,
+          name_en: price.name_en || "",
+          description: price.description || "",
+          status: nextStatus,
+        }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || "فشل في تحديث حالة الفئة")
+      }
+
+      await fetchPrices()
+      toast({
+        title: nextStatus === 2 ? "تم التجميد" : "تم إلغاء التجميد",
+        description: nextStatus === 2 ? "تم تجميد الفئة" : "تم إلغاء تجميد الفئة",
+      })
+    } catch (error) {
+      toast({
+        title: nextStatus === 2 ? "فشل التجميد" : "فشل إلغاء التجميد",
+        description: error instanceof Error ? error.message : "تعذر تحديث حالة الفئة",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleDeletePrice = async (priceId: number) => {
+    try {
+      const response = await fetch(`/api/pricecategory/${priceId}`, { method: "DELETE" })
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || "فشل في حذف الفئة")
+      }
+      await fetchPrices()
+      toast({ title: "تم الحذف", description: "تم حذف الفئة" })
+    } catch (error) {
+      toast({
+        title: "فشل الحذف",
+        description: error instanceof Error ? error.message : "تعذر حذف الفئة",
+        variant: "destructive",
+      })
+    }
+  }
+
   const handleEditPrice = (price: Price) => {
     setPriceForm({
       name: price.name,
       name_en: price.name_en,
       description: price.description || "",
+      status: price.status ?? 1,
     })
     setEditingPriceId(price.id)
     setShowPriceForm(true)
@@ -2865,7 +2960,10 @@ function Definitions() {
                         <Button type="submit" className="erp-btn-primary" size="sm">
                           حفظ المدينة
                         </Button>
-                        <Button type="button" variant="outline" size="sm" onClick={() => setShowCityForm(false)}>
+                        <Button type="button" variant="outline" size="sm" onClick={() => {
+                          setShowCityForm(false)
+                          setCityForm({ id: 0, name: "", status: 1 })
+                        }}>
                           إلغاء
                         </Button>
                       </div>
@@ -2888,9 +2986,28 @@ function Definitions() {
                         <div className="text-right">
                           <h4 className="font-medium">{city.name}</h4>
                         </div>
-                        <Button variant="outline" size="sm" onClick={() => handleEditCity(city)}>
-                          <Edit className="h-3 w-3" />
-                        </Button>
+                        <div className="flex items-center gap-2">
+                          <Button variant="outline" size="sm" onClick={() => handleEditCity(city)}>
+                            <Edit className="h-3 w-3" />
+                          </Button>
+                          {city.status !== 3 && (
+                            <Button variant="outline" size="sm" onClick={() => handleFreezeCity(city)}>
+                              {getToggleStatusLabel(city.status)}
+                            </Button>
+                          )}
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => openDeleteConfirm("هل أنت متأكد من حذف هذه المدينة؟", () => handleDeleteCity(city.id))}
+                            aria-label="حذف المدينة"
+                            title="حذف المدينة"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                          <Badge variant={getStatusBadgeVariant(city.status)}>
+                            {getStatusLabel(city.status)}
+                          </Badge>
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -2906,18 +3023,19 @@ function Definitions() {
                     فئات الأسعار
                   </CardTitle>
                   <Button
+                    className="erp-btn-primary"
                     size="sm"
-                    variant="outline"
                     onClick={() => {
                       const show = !showPriceForm
                       setShowPriceForm(show)
                       if (show) {
-                        setPriceForm({ name: "", name_en: "", description: "" })
+                        setPriceForm({ name: "", name_en: "", description: "", status: 1 })
                         setEditingPriceId(null)
                       }
                     }}
                   >
-                    <Plus className="h-3 w-3" />
+                    <Plus className="h-4 w-4 mr-2" />
+                    اضافة فئة
                   </Button>
                 </div>
               </CardHeader>
@@ -2970,7 +3088,7 @@ function Definitions() {
                         </Button>
                         <Button type="button" variant="outline" size="sm" onClick={() => {
                           setShowPriceForm(false);
-                          setPriceForm({ name: "", name_en: "", description: "" })
+                          setPriceForm({ name: "", name_en: "", description: "", status: 1 })
                           setShowPriceForm(false)
                           setEditingPriceId(null)
                         }}>
@@ -3005,8 +3123,22 @@ function Definitions() {
                           <Button variant="outline" size="sm" onClick={() => handleEditPrice(price)}>
                             <Edit className="h-3 w-3" />
                           </Button>
-                          <Badge variant={price.is_active ? "default" : "secondary"}>
-                            {price.is_active ? "نشط" : "غير نشط"}
+                          {price.status !== 3 && (
+                            <Button variant="outline" size="sm" onClick={() => handleFreezePrice(price)}>
+                              {getToggleStatusLabel(price.status)}
+                            </Button>
+                          )}
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => openDeleteConfirm("هل أنت متأكد من حذف هذه الفئة؟", () => handleDeletePrice(price.id))}
+                            aria-label="حذف الفئة"
+                            title="حذف الفئة"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                          <Badge variant={getStatusBadgeVariant(price.status)}>
+                            {getStatusLabel(price.status)}
                           </Badge>
                         </div>
                       </div>
