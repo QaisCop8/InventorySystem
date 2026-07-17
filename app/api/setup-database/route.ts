@@ -80,7 +80,7 @@ export async function POST() {
         currency VARCHAR(10) DEFAULT 'USD',
         category VARCHAR(255),
         status VARCHAR(50) DEFAULT 'نشط',
-        product_type VARCHAR(50) DEFAULT 'صنف',
+        product_type INTEGER DEFAULT 1,
         type INTEGER DEFAULT 1,
         service_type INTEGER DEFAULT 0,
         has_expiry BOOLEAN DEFAULT false,
@@ -91,6 +91,7 @@ export async function POST() {
         product_image TEXT,
         general_notes TEXT,
         classifications VARCHAR(255),
+        tax_classification_id INTEGER,
         entry_date DATE DEFAULT CURRENT_DATE,
         attachments TEXT,
         selling_account_id INTEGER,
@@ -137,6 +138,17 @@ export async function POST() {
         group_name VARCHAR(100) NOT NULL,
         description TEXT,
         status VARCHAR(20) DEFAULT 'نشط',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `
+
+    await sql`
+      CREATE TABLE IF NOT EXISTS tax_classifications (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(255) NOT NULL UNIQUE,
+        tax_percent DECIMAL(5,2) DEFAULT 0,
+        status INTEGER DEFAULT 1,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )

@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
@@ -361,14 +361,14 @@ function DepartmentsDefinitions() {
 
             {/* Customer Classifications */}
             <div className="mb-6">
-              <h3 className="text-md font-heading font-medium mb-3">تصنيفات الالعملاء</h3>
+              <h3 className="text-md font-heading font-medium mb-3">تصنيفات العملاء</h3>
               <div className="overflow-x-auto">
                 <table className="w-full mb-4">
                   <thead>
                     <tr className="bg-gray-50">
                       <th className="text-right p-3 font-heading font-semibold text-gray-700">الرقم</th>
                       <th className="text-right p-3 font-heading font-semibold text-gray-700">اسم التصنيف</th>
-                      <th className="text-right p-3 font-heading font-semibold text-gray-700">الالعملاء التابعين</th>
+                      <th className="text-right p-3 font-heading font-semibold text-gray-700">العملاء التابعين</th>
                       <th className="text-right p-3 font-heading font-semibold text-gray-700">الإجراءات</th>
                     </tr>
                   </thead>
@@ -495,3 +495,6 @@ function DepartmentsDefinitions() {
 
 export { DepartmentsDefinitions }
 export default DepartmentsDefinitions
+
+
+

@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useState, useEffect, useMemo, useRef } from "react"
 import { Button } from "@/components/ui/button"
@@ -55,7 +55,7 @@ const activityLogs: ActivityLog[] = [
     datetime: "2024/01/15 14:30:25",
     user: "محمد أحمد",
     action: "إضافة",
-    module: "الالعملاء",
+    module: "العملاء",
     details: "إضافة عميل جديد: أحمد محمد علي",
     ip: "192.168.1.100",
     status: "نجح",
@@ -926,4 +926,7 @@ const refreshUserPermissions = async (userId: string) => {
       throw error
     }
   }
+
+
+
 

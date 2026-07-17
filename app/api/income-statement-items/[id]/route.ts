@@ -1,85 +1,106 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { neon } from "@neondatabase/serverless"
-import { generateSupplierNumber } from "@/lib/number-generator"
+import sql from "@/lib/database"
 
-const sql = neon(process.env.DATABASE_URL!)
+const ensureIncomeStatementItemsTable = async () => {
+  await sql`
+    CREATE TABLE IF NOT EXISTS income_statement_items (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(100) NOT NULL,
+      status INTEGER NOT NULL DEFAULT 1 CHECK (status IN (1, 2, 3)),
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `
+}
 
-export async function POST(request: NextRequest) {
+export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const { data } = await request.json()
+    await ensureIncomeStatementItemsTable()
 
-    if (!Array.isArray(data) || data.length === 0) {
-      return NextResponse.json({ error: "لا توجد بيانات للاستيراد" }, { status: 400 })
+    const itemId = Number(params.id)
+    if (!itemId) {
+      return NextResponse.json({ error: "معرف البند غير صالح" }, { status: 400 })
     }
 
-    let success = 0
-    let failed = 0
-    let duplicates = 0
-    const errors: string[] = []
+    const result = await sql`
+      SELECT id, name, status, created_at, updated_at
+      FROM income_statement_items
+      WHERE id = ${itemId}
+    `
 
-    for (const item of data) {
-      try {
-        // Check for required fields
-        if (!item.supplier_name) {
-          errors.push(`السطر ${data.indexOf(item) + 1}: اسم المورد مطلوب`)
-          failed++
-          continue
-        }
-
-        // Generate supplier code if not provided
-        let supplierCode = item.supplier_code
-        if (!supplierCode) {
-          supplierCode = await generateSupplierNumber()
-        }
-
-        // Check for duplicates
-        const existing = await sql`
-          SELECT id FROM suppliers WHERE supplier_code = ${supplierCode}
-        `
-
-        if (existing.length > 0) {
-          duplicates++
-          continue
-        }
-
-        // Insert the supplier
-        await sql`
-          INSERT INTO suppliers (
-            supplier_code, supplier_name, phone1, phone2, whatsapp1,
-            city, address, email, status, business_nature,
-            classification, account_opening_date
-          ) VALUES (
-            ${supplierCode},
-            ${item.supplier_name},
-            ${item.phone1 || ""},
-            ${item.phone2 || ""},
-            ${item.whatsapp1 || ""},
-            ${item.city || ""},
-            ${item.address || ""},
-            ${item.email || ""},
-            ${item.status || "نشط"},
-            ${item.business_nature || ""},
-            ${item.classification || "عادي"},
-            ${new Date().toISOString()}
-          )
-        `
-        success++
-      } catch (error) {
-        console.error(`Error importing supplier ${item.supplier_name}:`, error)
-        errors.push(`السطر ${data.indexOf(item) + 1}: ${error.message}`)
-        failed++
-      }
+    if (!result.length) {
+      return NextResponse.json({ error: "البند غير موجود" }, { status: 404 })
     }
 
-    return NextResponse.json({
-      success,
-      failed,
-      duplicates,
-      errors: errors.slice(0, 10),
-    })
+    return NextResponse.json(result[0])
   } catch (error) {
-    console.error("Error importing suppliers:", error)
-    return NextResponse.json({ error: "خطأ في استيراد الموردين" }, { status: 500 })
+    console.error("Error fetching income statement item:", error)
+    return NextResponse.json({ error: "فشل في جلب البند" }, { status: 500 })
+  }
+}
+
+export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+  try {
+    await ensureIncomeStatementItemsTable()
+
+    const itemId = Number(params.id)
+    if (!itemId) {
+      return NextResponse.json({ error: "معرف البند غير صالح" }, { status: 400 })
+    }
+
+    const data = await request.json()
+    const name = String(data.name || "").trim()
+    if (!name) {
+      return NextResponse.json({ error: "اسم البند مطلوب" }, { status: 400 })
+    }
+
+    const status = Number(data.status ?? 1)
+    if (![1, 2, 3].includes(status)) {
+      return NextResponse.json({ error: "الحالة يجب أن تكون 1 أو 2 أو 3" }, { status: 400 })
+    }
+
+    const result = await sql`
+      UPDATE income_statement_items
+      SET name = ${name}, status = ${status}, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ${itemId}
+      RETURNING id, name, status, created_at, updated_at
+    `
+
+    if (!result.length) {
+      return NextResponse.json({ error: "البند غير موجود" }, { status: 404 })
+    }
+
+    return NextResponse.json(result[0])
+  } catch (error) {
+    console.error("Error updating income statement item:", error)
+    return NextResponse.json({ error: "فشل في تحديث البند" }, { status: 500 })
+  }
+}
+
+export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+  try {
+    await ensureIncomeStatementItemsTable()
+
+    const itemId = Number(params.id)
+    if (!itemId) {
+      return NextResponse.json({ error: "معرف البند غير صالح" }, { status: 400 })
+    }
+
+    const result = await sql`
+      UPDATE income_statement_items
+      SET status = 3, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ${itemId}
+      RETURNING id, name, status, created_at, updated_at
+    `
+
+    if (!result.length) {
+      return NextResponse.json({ error: "البند غير موجود" }, { status: 404 })
+    }
+
+    return NextResponse.json(result[0])
+  } catch (error) {
+    console.error("Error deleting income statement item:", error)
+    return NextResponse.json({ error: "فشل في حذف البند" }, { status: 500 })
   }
 }
 

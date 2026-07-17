@@ -6,47 +6,95 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const code = searchParams.get("code")
 
-    if (!code) {
-      return NextResponse.json({ error: "Code is required" }, { status: 400 })
-    }
+    // Try to extract numeric id from the path if present (e.g. /api/accounts/1715)
+    const pathname = new URL(request.url).pathname
+    const pathSegments = pathname.split("/").filter(Boolean)
+    const lastSegment = pathSegments[pathSegments.length - 1]
+    const numericId = lastSegment && /^[0-9]+$/.test(lastSegment) ? Number(lastSegment) : null
 
-    // Search for account by code
-    const result = await sql`
-      SELECT
-        a.id,
-        a.company_id,
-        a.code,
-        a.type,
-        a.name,
-        a.name_lang2,
-        a.father_id,
-        a.level_no,
-        a.finanical_list_id,
-        a.finanical_list_assests_id,
-        a.finanical_list_liabilities_id,
-        a.finanical_list_income_id,
-        a.currency_id,
-        a.allow_trans_with_diff_curr,
-        a.iscalc_curr_diff_rates,
-        a.transaction_type,
-        a.transaction_type_action,
-        a.max_transaction_amount,
-        a.max_transaction_amount_action,
-        a.max_balance_amount,
-        a.max_balance_action,
-        a.budget_exceeding_perc,
-        a.budget_exceeding_action,
-        a.unified_report_account_no,
-        a.unified_report_group_code,
-        a.notes,
-        a.show_notes_in_transactions_soa,
-        a.status,
-        a.insert_date,
-        a.last_update_date
-      FROM account_tbl a
-      WHERE a.code = ${code}
-      LIMIT 1
-    `
+    let result
+
+    if (numericId) {
+      // Search by numeric id
+      result = await sql`
+        SELECT
+          a.id,
+          a.company_id,
+          a.code,
+          a.type,
+          a.name,
+          a.name_lang2,
+          a.father_id,
+          a.level_no,
+          a.finanical_list_id,
+          a.finanical_list_assests_id,
+          a.finanical_list_liabilities_id,
+          a.finanical_list_income_id,
+          a.currency_id,
+          a.allow_trans_with_diff_curr,
+          a.iscalc_curr_diff_rates,
+          a.transaction_type,
+          a.transaction_type_action,
+          a.max_transaction_amount,
+          a.max_transaction_amount_action,
+          a.max_balance_amount,
+          a.max_balance_action,
+          a.budget_exceeding_perc,
+          a.budget_exceeding_action,
+          a.unified_report_account_no,
+          a.unified_report_group_code,
+          a.notes,
+          a.show_notes_in_transactions_soa,
+          a.status,
+          a.insert_date,
+          a.last_update_date
+        FROM account_tbl a
+        WHERE a.id = ${numericId}
+        LIMIT 1
+      `
+    } else {
+      if (!code) {
+        return NextResponse.json({ error: "Code or id is required" }, { status: 400 })
+      }
+
+      // Search for account by code
+      result = await sql`
+        SELECT
+          a.id,
+          a.company_id,
+          a.code,
+          a.type,
+          a.name,
+          a.name_lang2,
+          a.father_id,
+          a.level_no,
+          a.finanical_list_id,
+          a.finanical_list_assests_id,
+          a.finanical_list_liabilities_id,
+          a.finanical_list_income_id,
+          a.currency_id,
+          a.allow_trans_with_diff_curr,
+          a.iscalc_curr_diff_rates,
+          a.transaction_type,
+          a.transaction_type_action,
+          a.max_transaction_amount,
+          a.max_transaction_amount_action,
+          a.max_balance_amount,
+          a.max_balance_action,
+          a.budget_exceeding_perc,
+          a.budget_exceeding_action,
+          a.unified_report_account_no,
+          a.unified_report_group_code,
+          a.notes,
+          a.show_notes_in_transactions_soa,
+          a.status,
+          a.insert_date,
+          a.last_update_date
+        FROM account_tbl a
+        WHERE a.code = ${code}
+        LIMIT 1
+      `
+    }
 
     if (!result || result.length === 0) {
       return NextResponse.json({ error: "Account not found" }, { status: 404 })

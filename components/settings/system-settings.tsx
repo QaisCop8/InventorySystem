@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useState, useEffect, useRef } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -15,7 +15,7 @@ import Util from "@/components/common/Util"
 import { Save, Settings, Building2, Globe, Shield, Printer, FileText, Loader2, AlertCircle } from "lucide-react"
 
 const defaultAccountFields = [
-  { key: "customerParentAccount", label: "حساب اب الالعملاء في ملف تعريف الالعملاء" },
+  { key: "customerParentAccount", label: "حساب اب العملاء في ملف تعريف العملاء" },
   { key: "customerCreditAccount", label: "حساب اب عملاء الاعتمادات في ملف تعريف عملاء الاعتمادات" },
   { key: "salesTaxAccount", label: "حساب الضريبة على المبيعات" },
   { key: "currencyTransferAccount", label: "حساب تحويلات عملة" },
@@ -33,6 +33,20 @@ type DefaultAccountFieldKey = (typeof defaultAccountFields)[number]["key"]
 
 const defaultAccountFieldKeys = defaultAccountFields.map((field) => field.key)
 
+const productAccountFields = [
+  { key: "sellingAccount", label: "حساب المبيعات الافتراضي" },
+  { key: "purchaseAccount", label: "حساب المشتريات الافتراضي" },
+  { key: "sellingReturnsAccount", label: "حساب مرتجعات المبيعات الافتراضي" },
+  { key: "purchaseReturnsAccount", label: "حساب مرتجعات المشتريات الافتراضي" },
+  { key: "stockEndAccount", label: "حساب تقييم بضاعة آخر المدة الافتراضي" },
+  { key: "stockStartAccount", label: "حساب تقييم بضاعة أول المدة الافتراضي" },
+  { key: "productionAccount", label: "حساب الإنتاج الافتراضي" },
+  { key: "municipalityServiceAccount", label: "حساب المصاريف البلدية الافتراضي" },
+  { key: "lsti3malAccount", label: "حساب المصروف في سند الاستعمال الافتراضي" },
+] as const
+
+type ProductAccountFieldKey = (typeof productAccountFields)[number]["key"]
+
 const toAccountIdString = (value: unknown) => {
   if (value === null || value === undefined || value === "") return ""
   const numericValue = Number(value)
@@ -45,6 +59,14 @@ const emptyDefaultAccountValues = defaultAccountFields.reduce(
     return accumulator
   },
   {} as Record<DefaultAccountFieldKey, string>,
+)
+
+const emptyProductAccountValues = productAccountFields.reduce(
+  (accumulator, field) => {
+    accumulator[field.key] = ""
+    return accumulator
+  },
+  {} as Record<ProductAccountFieldKey, string>,
 )
 
 export function SystemSettings() {
@@ -98,6 +120,7 @@ export function SystemSettings() {
 
     // Default Accounts
     ...emptyDefaultAccountValues,
+    ...emptyProductAccountValues,
 
     // Print Settings
     defaultPrinter: "HP LaserJet",
@@ -217,6 +240,15 @@ export function SystemSettings() {
             purchaseTaxAccount: toAccountIdString(settingsPayload.default_purchase_tax_account ?? prev.purchaseTaxAccount),
             newEmployeeAccount: toAccountIdString(settingsPayload.default_new_employee_account ?? prev.newEmployeeAccount),
             allowedDiscountAccount: toAccountIdString(settingsPayload.default_allowed_discount_account ?? prev.allowedDiscountAccount),
+            sellingAccount: toAccountIdString(settingsPayload.default_selling_account_id ?? prev.sellingAccount),
+            purchaseAccount: toAccountIdString(settingsPayload.default_purchase_account_id ?? prev.purchaseAccount),
+            sellingReturnsAccount: toAccountIdString(settingsPayload.default_selling_returns_account_id ?? prev.sellingReturnsAccount),
+            purchaseReturnsAccount: toAccountIdString(settingsPayload.default_purchase_returns_account_id ?? prev.purchaseReturnsAccount),
+            stockEndAccount: toAccountIdString(settingsPayload.default_stock_end_account_id ?? prev.stockEndAccount),
+            stockStartAccount: toAccountIdString(settingsPayload.default_stock_start_account_id ?? prev.stockStartAccount),
+            productionAccount: toAccountIdString(settingsPayload.default_production_account_id ?? prev.productionAccount),
+            municipalityServiceAccount: toAccountIdString(settingsPayload.default_municipality_service_account_id ?? prev.municipalityServiceAccount),
+            lsti3malAccount: toAccountIdString(settingsPayload.default_lsti3mal_account_id ?? prev.lsti3malAccount),
           }))
         }
       }
@@ -344,6 +376,15 @@ export function SystemSettings() {
           default_purchase_tax_account: settings.purchaseTaxAccount ? Number(settings.purchaseTaxAccount) : null,
           default_new_employee_account: settings.newEmployeeAccount ? Number(settings.newEmployeeAccount) : null,
           default_allowed_discount_account: settings.allowedDiscountAccount ? Number(settings.allowedDiscountAccount) : null,
+          default_selling_account_id: settings.sellingAccount ? Number(settings.sellingAccount) : null,
+          default_purchase_account_id: settings.purchaseAccount ? Number(settings.purchaseAccount) : null,
+          default_selling_returns_account_id: settings.sellingReturnsAccount ? Number(settings.sellingReturnsAccount) : null,
+          default_purchase_returns_account_id: settings.purchaseReturnsAccount ? Number(settings.purchaseReturnsAccount) : null,
+          default_stock_end_account_id: settings.stockEndAccount ? Number(settings.stockEndAccount) : null,
+          default_stock_start_account_id: settings.stockStartAccount ? Number(settings.stockStartAccount) : null,
+          default_production_account_id: settings.productionAccount ? Number(settings.productionAccount) : null,
+          default_municipality_service_account_id: settings.municipalityServiceAccount ? Number(settings.municipalityServiceAccount) : null,
+          default_lsti3mal_account_id: settings.lsti3malAccount ? Number(settings.lsti3malAccount) : null,
         }),
       })
 
@@ -404,6 +445,7 @@ export function SystemSettings() {
         itemStart: 1,
         accountStart: 1,
         ...emptyDefaultAccountValues,
+        ...emptyProductAccountValues,
         defaultPrinter: "HP LaserJet",
         paperSize: "A4",
         printLogo: true,
@@ -457,14 +499,15 @@ export function SystemSettings() {
 
       {/* Settings Tabs */}
       <Tabs defaultValue="company" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-7">
-          <TabsTrigger value="company">معلومات الشركة</TabsTrigger>
-          <TabsTrigger value="system">إعدادات النظام</TabsTrigger>
-          <TabsTrigger value="business">إعدادات العمل</TabsTrigger>
-          <TabsTrigger value="accounts">الحسابات الافتراضية</TabsTrigger>
-          <TabsTrigger value="security">الأمان</TabsTrigger>
-          <TabsTrigger value="documents">السندات</TabsTrigger>
-          <TabsTrigger value="printing">الطباعة</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-8 text-lg font-semibold text-foreground">
+          <TabsTrigger className="text-lg font-semibold text-foreground" value="company">معلومات الشركة</TabsTrigger>
+          <TabsTrigger className="text-lg font-semibold text-foreground" value="system">إعدادات النظام</TabsTrigger>
+          <TabsTrigger className="text-lg font-semibold text-foreground" value="business">إعدادات العمل</TabsTrigger>
+          <TabsTrigger className="text-lg font-semibold text-foreground" value="accounts">الحسابات الافتراضية</TabsTrigger>
+          <TabsTrigger className="text-lg font-semibold text-foreground" value="product_accounts">الحسابات الافتراضية للاصناف</TabsTrigger>
+          <TabsTrigger className="text-lg font-semibold text-foreground" value="security">الأمان</TabsTrigger>
+          <TabsTrigger className="text-lg font-semibold text-foreground" value="documents">السندات</TabsTrigger>
+          <TabsTrigger className="text-lg font-semibold text-foreground" value="printing">الطباعة</TabsTrigger>
         </TabsList>
 
         <TabsContent value="company" className="space-y-4">
@@ -748,6 +791,47 @@ export function SystemSettings() {
           </Card>
         </TabsContent>
 
+        <TabsContent value="product_accounts" className="space-y-4">
+          <Card className="erp-card">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-right">
+                <Building2 className="h-5 w-5" />
+                الحسابات الافتراضية للاصناف
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {productAccountFields.map((field) => (
+                  <div key={field.key} className="space-y-2">
+                    <Label className="text-right block">{field.label}</Label>
+                    <AutoCompleteAccount
+                      value={settings[field.key as ProductAccountFieldKey]}
+                      valueMode="id"
+                      onValueChange={(value) =>
+                        setSettings({
+                          ...settings,
+                          [field.key]: value,
+                        })
+                      }
+                      onAccountSelect={(account) =>
+                        setSettings({
+                          ...settings,
+                          [field.key]: account ? String(account.id) : "",
+                        })
+                      }
+                      placeholder=""
+                      className="w-full"
+                      showCostCenterButton={false}
+                      requiredTypeValues={[1]}
+                      leafOnly
+                    />
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         <TabsContent value="security" className="space-y-4">
           <Card className="erp-card">
             <CardHeader>
@@ -994,7 +1078,7 @@ export function SystemSettings() {
 
                   <div>
                     <Label htmlFor="customerPrefix" className="text-right block">
-                      بادئة الالعملاء
+                      بادئة العملاء
                     </Label>
                     <Input
                       id="customerPrefix"
@@ -1007,7 +1091,7 @@ export function SystemSettings() {
                   </div>
                   <div>
                     <Label htmlFor="customerStart" className="text-right block">
-                      بداية ترقيم الالعملاء
+                      بداية ترقيم العملاء
                     </Label>
                     <Input
                       id="customerStart"
@@ -1204,3 +1288,6 @@ export function SystemSettings() {
     </div>
   )
 }
+
+
+

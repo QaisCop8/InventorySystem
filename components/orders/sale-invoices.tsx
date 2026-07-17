@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useState, useEffect, useMemo, useRef } from "react"
 import { useAuth } from "@/components/auth/auth-context"
@@ -396,7 +396,7 @@ export function SaleInvoices({ isPurchase }: OrdersProps) {
   const getOrderSourceBadge = (source: string) => {
     const sourceConfig = {
       manual: { label: "إدخال يدوي", className: "bg-blue-100 text-blue-800 border-blue-200" },
-      customer_portal: { label: "من الالعملاء", className: "bg-green-100 text-green-800 border-green-200" },
+      customer_portal: { label: "من العملاء", className: "bg-green-100 text-green-800 border-green-200" },
       api_import: { label: "استيراد API", className: "bg-purple-100 text-purple-800 border-purple-200" },
     }
 
@@ -1025,3 +1025,6 @@ export function SaleInvoices({ isPurchase }: OrdersProps) {
     </div>
   )
 }
+
+
+

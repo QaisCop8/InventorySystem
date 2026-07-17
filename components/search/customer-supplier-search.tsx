@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useState, useEffect, useMemo } from "react"
 import { Search, Filter, X, Users, MapPin, Phone, Mail, User } from "lucide-react"
@@ -343,7 +343,7 @@ function CustomerSupplierSearch({
       <div className="search-header">
         <div className="flex items-center gap-2">
           <Users className="h-5 w-5 text-primary" />
-          <h2 className="search-title">البحث عن الالعملاء والموردين</h2>
+          <h2 className="search-title">البحث عن العملاء والموردين</h2>
         </div>
         <div className="flex items-center gap-2">
           <Button
@@ -473,7 +473,7 @@ function CustomerSupplierSearch({
       {/* Tabs for Customers and Suppliers */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="customers">الالعملاء</TabsTrigger>
+          <TabsTrigger value="customers">العملاء</TabsTrigger>
           <TabsTrigger value="suppliers">الموردين</TabsTrigger>
         </TabsList>
 
@@ -553,3 +553,6 @@ function CustomerSupplierSearch({
 
 export { CustomerSupplierSearch }
 export default CustomerSupplierSearch
+
+
+

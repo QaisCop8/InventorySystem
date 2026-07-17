@@ -1,4 +1,4 @@
-import { type NextRequest, NextResponse } from "next/server"
+﻿import { type NextRequest, NextResponse } from "next/server"
 import { neon } from "@neondatabase/serverless"
 
 const sql = neon(process.env.DATABASE_URL!)
@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
 
     console.log("[v0] Searching with term:", searchTerm)
 
-    // البحث في الالعملاء
+    // البحث في العملاء
     try {
       const customers = await sql`
         SELECT id, customer_name as title, 
@@ -201,3 +201,6 @@ export async function POST(request: NextRequest) {
     )
   }
 }
+
+
+

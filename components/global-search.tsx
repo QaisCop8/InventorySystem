@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useState, useEffect, useRef } from "react"
 import { Search, X, FileText, Users, Package, ShoppingCart, Building2, Settings, ArrowRight } from "lucide-react"
@@ -168,7 +168,7 @@ export function GlobalSearch() {
               <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 ref={inputRef}
-                placeholder="ابحث في الالعملاء، المنتجات، الطلبيات، الإعدادات..."
+                placeholder="ابحث في العملاء، المنتجات، الطلبيات، الإعدادات..."
                 value={query}
                 onChange={(e) => {
                   console.log("[v0] Search query changed:", e.target.value)
@@ -245,7 +245,7 @@ export function GlobalSearch() {
                   <Search className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                   <p className="text-sm text-muted-foreground">ابدأ بكتابة كلمة البحث</p>
                   <div className="flex flex-wrap justify-center gap-2 mt-4">
-                    <Badge variant="outline">الالعملاء</Badge>
+                    <Badge variant="outline">العملاء</Badge>
                     <Badge variant="outline">المنتجات</Badge>
                     <Badge variant="outline">الطلبيات</Badge>
                     <Badge variant="outline">الموردين</Badge>
@@ -260,3 +260,6 @@ export function GlobalSearch() {
     </>
   )
 }
+
+
+

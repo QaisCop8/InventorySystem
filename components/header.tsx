@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState, forwardRef } from "react";
 import { Input } from "@/components/ui/input";
@@ -74,7 +74,7 @@ export function Header({ onMenuClick, activeSection, onProfileClick, onSettingsC
     "home-dashboard": "الرئيسية",
     dashboard: "لوحة التحكم الرئيسية",
     "order-tracking": "متابعة الطلبيات",
-    customers: "إدارة الالعملاء",
+    customers: "إدارة العملاء",
     suppliers: "إدارة الموردين",
     products: "الأصناف",
     services: "الخدمات",
@@ -210,3 +210,6 @@ export function Header({ onMenuClick, activeSection, onProfileClick, onSettingsC
     </header>
   );
 }
+
+
+

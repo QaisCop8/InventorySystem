@@ -144,6 +144,44 @@ export async function GET(
     );
     product.stores = storesResult.rows;
 
+    // fetch related accounts for autocomplete display (if present)
+    const accountFields = [
+      'selling_account_id',
+      'purchase_account_id',
+      'selling_returns_account_id',
+      'purchase_returns_account_id',
+      'stock_end_account_id',
+      'stock_start_account_id',
+      'production_account_id',
+      'municipality_service_account_id',
+      'lsti3mal_account_id',
+    ];
+
+    for (const field of accountFields) {
+      const accId = product[field];
+      if (accId && Number(accId) > 0) {
+        try {
+          const accRes = await pool.query(
+            'SELECT id, code, name FROM account_tbl WHERE id = $1 LIMIT 1',
+            [Number(accId)]
+          );
+          const acc = accRes.rows[0] || null;
+          const baseName = field.replace(/_id$/, '');
+          product[baseName] = acc;
+          product[`${baseName}_code`] = acc?.code || null;
+        } catch (err) {
+          // ignore account fetch errors
+          const baseName = field.replace(/_id$/, '');
+          product[baseName] = null;
+          product[`${baseName}_code`] = null;
+        }
+      } else {
+        const baseName = field.replace(/_id$/, '');
+        product[baseName] = null;
+        product[`${baseName}_code`] = null;
+      }
+    }
+
     // fetch cost centers (optional table)
     try {
       const ccResult = await pool.query(

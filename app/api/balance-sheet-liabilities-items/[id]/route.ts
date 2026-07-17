@@ -1,9 +1,9 @@
-import { NextRequest, NextResponse } from "next/server"
+import { type NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
 
-const ensureBalanceSheetAssetsItemsTable = async () => {
+const ensureBalanceSheetLiabilitiesItemsTable = async () => {
   await sql`
-    CREATE TABLE IF NOT EXISTS balance_sheet_assets_items (
+    CREATE TABLE IF NOT EXISTS balance_sheet_liabilities_items (
       id SERIAL PRIMARY KEY,
       name VARCHAR(100) NOT NULL,
       status INTEGER NOT NULL DEFAULT 1 CHECK (status IN (1, 2, 3)),
@@ -13,31 +13,44 @@ const ensureBalanceSheetAssetsItemsTable = async () => {
   `
 }
 
-export async function GET() {
+export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    await ensureBalanceSheetAssetsItemsTable()
+    await ensureBalanceSheetLiabilitiesItemsTable()
 
-    const items = await sql`
+    const itemId = Number(params.id)
+    if (!itemId) {
+      return NextResponse.json({ error: "معرف البند غير صالح" }, { status: 400 })
+    }
+
+    const result = await sql`
       SELECT id, name, status, created_at, updated_at
-      FROM balance_sheet_assets_items
-      WHERE status IN (1, 2)
-      ORDER BY id ASC
+      FROM balance_sheet_liabilities_items
+      WHERE id = ${itemId}
     `
 
-    return NextResponse.json(items)
+    if (!result.length) {
+      return NextResponse.json({ error: "البند غير موجود" }, { status: 404 })
+    }
+
+    return NextResponse.json(result[0])
   } catch (error) {
-    console.error("Error fetching balance sheet assets items:", error)
-    return NextResponse.json({ error: "Failed to fetch balance sheet assets items" }, { status: 500 })
+    console.error("Error fetching balance sheet liability item:", error)
+    return NextResponse.json({ error: "فشل في جلب البند" }, { status: 500 })
   }
 }
 
-export async function POST(request: NextRequest) {
+export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    await ensureBalanceSheetAssetsItemsTable()
+    await ensureBalanceSheetLiabilitiesItemsTable()
+
+    const itemId = Number(params.id)
+    if (!itemId) {
+      return NextResponse.json({ error: "معرف البند غير صالح" }, { status: 400 })
+    }
 
     const data = await request.json()
-
-    if (!data.name || !String(data.name).trim()) {
+    const name = String(data.name || "").trim()
+    if (!name) {
       return NextResponse.json({ error: "اسم البند مطلوب" }, { status: 400 })
     }
 
@@ -46,24 +59,48 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "الحالة يجب أن تكون 1 أو 2 أو 3" }, { status: 400 })
     }
 
-    const existing = await sql`
-      SELECT id FROM balance_sheet_assets_items WHERE LOWER(name) = LOWER(${String(data.name).trim()})
-    `
-
-    if (existing.length > 0) {
-      return NextResponse.json({ error: "اسم البند موجود مسبقاً" }, { status: 400 })
-    }
-
     const result = await sql`
-      INSERT INTO balance_sheet_assets_items (name, status)
-      VALUES (${String(data.name).trim()}, ${status})
+      UPDATE balance_sheet_liabilities_items
+      SET name = ${name}, status = ${status}, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ${itemId}
       RETURNING id, name, status, created_at, updated_at
     `
 
-    return NextResponse.json(result[0], { status: 201 })
+    if (!result.length) {
+      return NextResponse.json({ error: "البند غير موجود" }, { status: 404 })
+    }
+
+    return NextResponse.json(result[0])
   } catch (error) {
-    console.error("Error creating balance sheet assets item:", error)
-    return NextResponse.json({ error: "Failed to create balance sheet assets item" }, { status: 500 })
+    console.error("Error updating balance sheet liability item:", error)
+    return NextResponse.json({ error: "فشل في تحديث البند" }, { status: 500 })
+  }
+}
+
+export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+  try {
+    await ensureBalanceSheetLiabilitiesItemsTable()
+
+    const itemId = Number(params.id)
+    if (!itemId) {
+      return NextResponse.json({ error: "معرف البند غير صالح" }, { status: 400 })
+    }
+
+    const result = await sql`
+      UPDATE balance_sheet_liabilities_items
+      SET status = 3, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ${itemId}
+      RETURNING id, name, status, created_at, updated_at
+    `
+
+    if (!result.length) {
+      return NextResponse.json({ error: "البند غير موجود" }, { status: 404 })
+    }
+
+    return NextResponse.json(result[0])
+  } catch (error) {
+    console.error("Error deleting balance sheet liability item:", error)
+    return NextResponse.json({ error: "فشل في حذف البند" }, { status: 500 })
   }
 }
 

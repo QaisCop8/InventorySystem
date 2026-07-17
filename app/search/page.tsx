@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useState } from "react"
 import { Package, Users } from "lucide-react"
@@ -14,7 +14,7 @@ export default function SearchPage() {
     <div className="container mx-auto p-6 space-y-6" dir="rtl">
       <div className="text-center space-y-4">
         <h1 className="text-3xl font-bold text-foreground">البحث المتقدم</h1>
-        <p className="text-muted-foreground">ابحث عن الأصناف والالعملاء والموردين بسهولة وذكاء</p>
+        <p className="text-muted-foreground">ابحث عن الأصناف والعملاء والموردين بسهولة وذكاء</p>
       </div>
 
       {!activeSearch && (
@@ -45,14 +45,14 @@ export default function SearchPage() {
               <div className="mx-auto w-16 h-16 bg-secondary/10 rounded-full flex items-center justify-center mb-4">
                 <Users className="h-8 w-8 text-secondary" />
               </div>
-              <CardTitle>البحث عن الالعملاء والموردين</CardTitle>
+              <CardTitle>البحث عن العملاء والموردين</CardTitle>
             </CardHeader>
             <CardContent className="text-center">
               <p className="text-muted-foreground mb-4">
-                ابحث عن الالعملاء والموردين بالاسم، الرقم، المدينة مع فلاتر للتصنيف والمندوب والحالة
+                ابحث عن العملاء والموردين بالاسم، الرقم، المدينة مع فلاتر للتصنيف والمندوب والحالة
               </p>
               <Button variant="secondary" className="w-full">
-                ابدأ البحث عن الالعملاء والموردين
+                ابدأ البحث عن العملاء والموردين
               </Button>
             </CardContent>
           </Card>
@@ -79,3 +79,6 @@ export default function SearchPage() {
     </div>
   )
 }
+
+
+

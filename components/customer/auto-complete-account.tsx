@@ -124,6 +124,8 @@ export default function AutoCompleteAccount({
   const resolvedDisplayValue = useMemo(() => {
     if (selectedAccount) return formatAccountLabel(selectedAccount, displayNameFirst, displayIdOnly)
     if (isFocused) return value
+    // When using id mode, avoid showing the raw numeric id while async resolving
+    if (valueMode === "id") return ""
     return value
   }, [displayIdOnly, displayNameFirst, isFocused, selectedAccount, value])
 

@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import { Button } from "@/components/ui/button"
@@ -883,11 +883,11 @@ export default function Customers({ isSupplier }: CustomersProps) {
             setCurrentIndex((prevIndex) => (prevIndex >= filteredRecords.length ? 0 : prevIndex));
           }
         } else {
-          setError(isSupplier ? "فشل في تحميل بيانات الموردين" : "فشل في تحميل بيانات الالعملاء");
+          setError(isSupplier ? "فشل في تحميل بيانات الموردين" : "فشل في تحميل بيانات العملاء");
         }
       } catch (error) {
         console.error("Error fetching data:", error);
-        setError(isSupplier ? "حدث خطأ في تحميل الموردين" : "حدث خطأ في تحميل الالعملاء");
+        setError(isSupplier ? "حدث خطأ في تحميل الموردين" : "حدث خطأ في تحميل العملاء");
       } finally {
         setIsLoading(false);
       }
@@ -1424,8 +1424,11 @@ export default function Customers({ isSupplier }: CustomersProps) {
   const { isAuthenticated, hasPermission } = useAuth()
   if (isloading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-lg">جاري التحميل...</div>
+      <div className="flex items-center justify-center min-h-[400px]" dir="rtl">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">{isSupplier ? "جاري تحميل الموردين..." : "جاري تحميل العملاء..."}</p>
+        </div>
       </div>
     )
   }
@@ -1474,7 +1477,7 @@ export default function Customers({ isSupplier }: CustomersProps) {
 
       {/* Header */}
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">{isSupplier ? "إدارة الموردين" : "إدارة الالعملاء"} </h1>
+        <h1 className="text-3xl font-bold">{isSupplier ? "إدارة الموردين" : "إدارة العملاء"} </h1>
         <div className="flex gap-2">
           <Button onClick={() => handleNewCustomer(true)} className="flex items-center gap-2">
             <Plus className="h-4 w-4" />
@@ -1497,7 +1500,7 @@ export default function Customers({ isSupplier }: CustomersProps) {
             </DialogTrigger>
             <DialogContent className="max-w-4xl">
               <DialogHeader>
-                <DialogTitle>تقارير الالعملاء</DialogTitle>
+                <DialogTitle>تقارير العملاء</DialogTitle>
               </DialogHeader>
               <div className="p-4">
                 <p>سيتم إضافة التقارير هنا</p>
@@ -1513,7 +1516,7 @@ export default function Customers({ isSupplier }: CustomersProps) {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-blue-700">{isSupplier ? "إجمالي الموردين" : "إجمالي الالعملاء"}</p>
+                <p className="text-sm font-medium text-blue-700">{isSupplier ? "إجمالي الموردين" : "إجمالي العملاء"}</p>
                 <p className="text-3xl font-bold text-blue-900">{statistics.total}</p>
               </div>
               <div className="h-10 w-10 bg-blue-200 rounded-full flex items-center justify-center">
@@ -1527,7 +1530,7 @@ export default function Customers({ isSupplier }: CustomersProps) {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-green-700"> {isSupplier ? "الموردين النشطين" : "الالعملاء النشطين"}</p>
+                <p className="text-sm font-medium text-green-700"> {isSupplier ? "الموردين النشطين" : "العملاء النشطين"}</p>
                 <p className="text-3xl font-bold text-green-900">{statistics.active}</p>
               </div>
               <div className="h-10 w-10 bg-green-200 rounded-full flex items-center justify-center">
@@ -1541,7 +1544,7 @@ export default function Customers({ isSupplier }: CustomersProps) {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-red-700">{isSupplier ? "الموردين غير النشطين" : "الالعملاء غير النشطين"}</p>
+                <p className="text-sm font-medium text-red-700">{isSupplier ? "الموردين غير النشطين" : "العملاء غير النشطين"}</p>
                 <p className="text-3xl font-bold text-red-900">{statistics.inactive}</p>
               </div>
               <div className="h-10 w-10 bg-red-200 rounded-full flex items-center justify-center">
@@ -1657,7 +1660,7 @@ export default function Customers({ isSupplier }: CustomersProps) {
       <Card>
         <CardHeader>
           <CardTitle>
-            {isSupplier ? `قائمة الموردين (${filteredCustomers.length})` : `قائمة الالعملاء (${filteredCustomers.length})`}
+            {isSupplier ? `قائمة الموردين (${filteredCustomers.length})` : `قائمة العملاء (${filteredCustomers.length})`}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -1749,13 +1752,13 @@ export default function Customers({ isSupplier }: CustomersProps) {
       {/* Customer Form Dialog */}
       <Dialog
         open={showNewCustomerDialog}
-        onOpenChange={(open) => {
-          if (open) {
-            setShowNewCustomerDialog(true)
-          }
-        }}
+        onOpenChange={setShowNewCustomerDialog}
       >
-        <DialogContent hideCloseButton className="max-w-[75vw] sm:max-w-[70vw] md:max-w-[62vw] lg:max-w-[110vh] max-h-[95vh] overflow-hidden p-0" dir="rtl">
+        <DialogContent className="max-w-[95vw] sm:max-w-[90vw] md:max-w-[80vw] lg:max-w-[70vw] max-h-[95vh] overflow-hidden p-0" dir="rtl"
+          onPointerDownOutside={(event) => event.preventDefault()}
+          onEscapeKeyDown={(event) => event.preventDefault()}
+        >
+          
           <UnifiedCustomers
             open={showNewCustomerDialog}
             onOpenChange={(nextOpen: boolean) => {
@@ -1813,7 +1816,12 @@ export default function Customers({ isSupplier }: CustomersProps) {
               </CardHeader>
               <CardContent className="space-y-6">
                 {loadingNotificationSettings ? (
-                  <div className="text-center py-4 text-muted-foreground">جاري التحميل...</div>
+                  <div className="flex items-center justify-center min-h-[160px]" dir="rtl">
+                    <div className="text-center">
+                      <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary mx-auto mb-3"></div>
+                      <p className="text-muted-foreground">{isSupplier ? "جاري تحميل الموردين..." : "جاري تحميل العملاء..."}</p>
+                    </div>
+                  </div>
                 ) : notificationSettings ? (
                   <>
                     {/* طريقة الإرسال ورقم الهاتف */}
@@ -2034,7 +2042,12 @@ export default function Customers({ isSupplier }: CustomersProps) {
 
             {/* Users Table */}
             {loadingPortalUsers ? (
-              <div className="text-center py-8 text-muted-foreground">جاري التحميل...</div>
+              <div className="flex items-center justify-center min-h-[240px]" dir="rtl">
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary mx-auto mb-3"></div>
+                  <p className="text-muted-foreground">{isSupplier ? "جاري تحميل الموردين..." : "جاري تحميل العملاء..."}</p>
+                </div>
+              </div>
             ) : portalUsers.length === 0 ? (
               <Card className="bg-blue-50 border-blue-200">
                 <CardContent className="p-6 text-center">
@@ -2369,3 +2382,6 @@ export default function Customers({ isSupplier }: CustomersProps) {
     </div>
   )
 }
+
+
+

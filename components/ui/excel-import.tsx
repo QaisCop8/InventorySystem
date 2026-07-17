@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import React, { useState, useRef, useEffect } from "react"
 import * as XLSX from "xlsx"
@@ -65,7 +65,7 @@ export function ExcelImport({ entityType, isOpen, onClose, onImportComplete }: E
 
   const entityLabels = {
     products: "الأصناف",
-    customers: "الالعملاء",
+    customers: "العملاء",
     suppliers: "الموردين",
   }
 
@@ -555,3 +555,6 @@ export function ExcelImport({ entityType, isOpen, onClose, onImportComplete }: E
     </Dialog >
   )
 }
+
+
+

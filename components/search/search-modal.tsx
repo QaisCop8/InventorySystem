@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import type React from "react"
 
@@ -70,11 +70,11 @@ export function SearchModal({
       case "products":
         return "البحث عن الأصناف"
       case "customers":
-        return "البحث عن الالعملاء"
+        return "البحث عن العملاء"
       case "suppliers":
         return "البحث عن الموردين"
       case "both":
-        return "البحث عن الالعملاء والموردين"
+        return "البحث عن العملاء والموردين"
       case "transactions":
         return "البحث عن الحركات والمعاملات"
       case "sales":
@@ -155,3 +155,6 @@ export function SearchModal({
     </Dialog>
   )
 }
+
+
+

@@ -18,7 +18,7 @@ import { Toast } from 'primereact/toast'
 import DataGridView from "../common/DataGridView"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Plus, AlertCircle, X } from "lucide-react"
+import { Plus, AlertCircle, X,Package } from "lucide-react"
 import { MutableRefObject, RefObject, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 import { Dropdown as PrimeDropdown } from "primereact/dropdown"
 import ProgressSpinner from "../ProgressSpinner/ProgressSpinner"
@@ -434,12 +434,12 @@ export default function UnifiedCustomers({
       const statusMap: Record<string, number> = { "اختياري": 1, "اجباري": 2, "ممنوع": 3 }
       const mappedCostCenterTypes = Array.isArray(nextCostCenterTypes)
         ? nextCostCenterTypes.map((item: any) => ({
-            ...item,
-            state_status: item.state_status || (item.status === 2 ? "اجباري" : item.status === 3 ? "ممنوع" : "اختياري"),
-            required_in_transactions: statusMap[item.state_status || "اختياري"] || (item.status === 2 ? 2 : item.status === 3 ? 3 : 1),
-            cost_center_name: item.cost_center_name || "",
-            default_cost_center_id: item.default_cost_center_id ?? null,
-          }))
+          ...item,
+          state_status: item.state_status || (item.status === 2 ? "اجباري" : item.status === 3 ? "ممنوع" : "اختياري"),
+          required_in_transactions: statusMap[item.state_status || "اختياري"] || (item.status === 2 ? 2 : item.status === 3 ? 3 : 1),
+          cost_center_name: item.cost_center_name || "",
+          default_cost_center_id: item.default_cost_center_id ?? null,
+        }))
         : []
       mappedCostCenterTypes.sort((a: CostCenterTypeRow, b: CostCenterTypeRow) => (a.id || 0) - (b.id || 0))
       setCostCenterTypes(mappedCostCenterTypes)
@@ -672,14 +672,14 @@ export default function UnifiedCustomers({
         const response = await fetch(`/api/customers/by-code/${encodeURIComponent(adjustedCode)}`)
         if (!response.ok) {
           await reset_fields(undefined, { preserveCode: adjustedCode })
-        
+
           return
         }
 
         const data = await response.json()
         if (data?.found && data.customer) {
           applyCustomerRecord(data.customer)
-          
+
         } else {
           await reset_fields(undefined, { preserveCode: adjustedCode })
         }
@@ -770,7 +770,7 @@ export default function UnifiedCustomers({
         await loadData("first", undefined, isSupplierArg, false)
         return
       }
-      if (!hasRealCurrentRecord && navigationType === "previous" ) {
+      if (!hasRealCurrentRecord && navigationType === "previous") {
         await loadData("last", undefined, isSupplierArg, false)
         return
       }
@@ -831,7 +831,7 @@ export default function UnifiedCustomers({
       } catch (err) {
         console.error("Error loading customer:", err)
       }
-      finally{
+      finally {
         setLoading(false)
       }
     },
@@ -991,10 +991,10 @@ export default function UnifiedCustomers({
                     prev.map((row) =>
                       row.voucher_types_id === cell.row.dataItem.voucher_types_id
                         ? {
-                            ...row,
-                            is_stopped: nextValue,
-                            stop_date: nextValue ? row.stop_date || new Date().toISOString().slice(0, 10) : "",
-                          }
+                          ...row,
+                          is_stopped: nextValue,
+                          stop_date: nextValue ? row.stop_date || new Date().toISOString().slice(0, 10) : "",
+                        }
                         : row,
                     ),
                   )
@@ -1174,31 +1174,31 @@ export default function UnifiedCustomers({
         : []
       const costCenters = Array.isArray(costCenterTypes)
         ? costCenterTypes
-            .map((row) => {
-              const defaultCostCenterId = Number(row?.default_cost_center_id ?? 0)
+          .map((row) => {
+            const defaultCostCenterId = Number(row?.default_cost_center_id ?? 0)
 
-              if (!defaultCostCenterId || Number.isNaN(defaultCostCenterId)) return null
+            if (!defaultCostCenterId || Number.isNaN(defaultCostCenterId)) return null
 
-              return {
-                cost_center_type_id: row.id || null,
-                cost_center_id: defaultCostCenterId,
-                required_in_transactions: row.required_in_transactions ?? 1,
-                default_cost_center_id: defaultCostCenterId,
-              }
-            })
-            .filter(Boolean)
+            return {
+              cost_center_type_id: row.id || null,
+              cost_center_id: defaultCostCenterId,
+              required_in_transactions: row.required_in_transactions ?? 1,
+              default_cost_center_id: defaultCostCenterId,
+            }
+          })
+          .filter(Boolean)
         : []
 
       const stopTransactions = Array.isArray(stopTransactionRows)
         ? stopTransactionRows
-            .filter((row) => row.is_stopped)
-            .map((row) => ({ voucher_types_id: row.voucher_types_id, stop_date: row.stop_date || null }))
+          .filter((row) => row.is_stopped)
+          .map((row) => ({ voucher_types_id: row.voucher_types_id, stop_date: row.stop_date || null }))
         : []
 
       const accountClassifications = Array.isArray(classificationRows)
         ? classificationRows
-            .filter((row) => row.classification_id != null)
-            .map((row) => ({ classification_id: row.classification_id }))
+          .filter((row) => row.classification_id != null)
+          .map((row) => ({ classification_id: row.classification_id }))
         : []
 
       const response = await fetch(url, {
@@ -1251,7 +1251,7 @@ export default function UnifiedCustomers({
         try {
           const errorData = await response.json()
           message = errorData?.error || errorData?.message || message
-        } catch (_) {}
+        } catch (_) { }
         setCustomerActionError(message)
         Util.showErrorToast(toast.current, message)
         return false
@@ -1317,7 +1317,7 @@ export default function UnifiedCustomers({
         try {
           const errorData = await response.json()
           message = errorData?.error || errorData?.message || message
-        } catch (_) {}
+        } catch (_) { }
         setCustomerActionError(message)
         return
       }
@@ -1378,10 +1378,10 @@ export default function UnifiedCustomers({
         prev.map((row) =>
           Number(row.id) === Number(selectedType.id)
             ? {
-                ...row,
-                classification_id: saved.id != null ? Number(saved.id) : row.classification_id,
-                classification_name: saved.name ?? newClassificationName.trim(),
-              }
+              ...row,
+              classification_id: saved.id != null ? Number(saved.id) : row.classification_id,
+              classification_name: saved.name ?? newClassificationName.trim(),
+            }
             : row,
         ),
       )
@@ -1389,10 +1389,10 @@ export default function UnifiedCustomers({
         classificationRows.map((row) =>
           Number(row.id) === Number(selectedType.id)
             ? {
-                ...row,
-                classification_id: saved.id != null ? Number(saved.id) : row.classification_id,
-                classification_name: saved.name ?? newClassificationName.trim(),
-              }
+              ...row,
+              classification_id: saved.id != null ? Number(saved.id) : row.classification_id,
+              classification_name: saved.name ?? newClassificationName.trim(),
+            }
             : row,
         ),
       )
@@ -1413,10 +1413,10 @@ export default function UnifiedCustomers({
         prev.map((row, index) =>
           index === selectedClassificationTypeIndex
             ? {
-                ...row,
-                classification_id: Number(classification.id),
-                classification_name: classification.name || row.classification_name,
-              }
+              ...row,
+              classification_id: Number(classification.id),
+              classification_name: classification.name || row.classification_name,
+            }
             : row,
         ),
       )
@@ -1558,49 +1558,42 @@ export default function UnifiedCustomers({
   )
 
   return (
-    <div className="w-full h-full p-0 gap-0 flex flex-col overflow-hidden text-base" dir="rtl">
-      <div className="border-b bg-slate-50 px-6 py-3">
-        <div className="flex items-center justify-between">
-          <div className="w-7" />
-          <h2 className="text-2xl font-bold text-center flex-1">
-            {formData.id === 0
-              ? isSupplier
-                ? "إضافة مورد جديد"
-                : "إضافة عميل جديد"
-              : isSupplier
-                ? "تعديل مورد"
-                : "تعديل عميل"}
-          </h2>
-          <div className="flex-shrink-0">
-            <Button variant="ghost" size="sm" onClick={() => onOpenChange?.(false)} className="h-7 w-7 p-0" aria-label="Close" title="إغلاق">
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
+    <div className="h-full min-h-[70vh] min-w-0 flex flex-col bg-background overflow-hidden text-lg compact-product-form-root" dir="rtl">
+      {/* Universal Toolbar - Fixed at top */}
+      <div className="flex-shrink-0">
+
+        <UniversalToolbar
+          onFirst={handleFirst}
+          onPrevious={handlePrevious}
+          onNext={handleNext}
+          onLast={handleLast}
+          onNew={handleNew}
+          onSave={handleSaveCustomer}
+          onDelete={handleDeleteCustomerRequest}
+          currentRecord={currentIndex + 1}
+          totalRecords={totalRecords}
+          isFirstRecord={currentIndex === 0}
+          isLastRecord={currentIndex === Math.max(totalRecords - 1, 0)}
+          isSaving={saving || isSaving}
+          onExportExcel={onExportExcel}
+          canSave={true}
+          canDelete={Number(formData.id) > 0}
+        />
       </div>
 
-      <div className="px-4 py-2">
-        <Card className="shadow-sm">
-          <CardHeader className="py-2 px-4">
-            <UniversalToolbar
-              onFirst={handleFirst}
-              onPrevious={handlePrevious}
-              onNext={handleNext}
-              onLast={handleLast}
-              onNew={handleNew}
-              onSave={handleSaveCustomer}
-              onDelete={handleDeleteCustomerRequest}
-              currentRecord={currentIndex + 1}
-              totalRecords={totalRecords}
-              isFirstRecord={currentIndex === 0}
-              isLastRecord={currentIndex === Math.max(totalRecords - 1, 0)}
-              isSaving={saving || isSaving}
-              onExportExcel={onExportExcel}
-              canSave={true}
-              canDelete={Number(formData.id) > 0}
-            />
-          </CardHeader>
-        </Card>
+      <div className="px-6 py-3">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h1 className="text-xl font-bold text-foreground flex items-center gap-3 sm:text-2xl">
+                <Package className="h-7 w-7 text-primary" />
+                {isSupplier ? (formData.id === 0 ? "إضافة مورد جديد" : "تعديل مورد") : (formData.id === 0 ? "إضافة عميل جديد" : "تعديل عميل")}
+              </h1>
+            </div>
+          </div>
+          
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
@@ -1625,677 +1618,677 @@ export default function UnifiedCustomers({
           onSelect={handleCustomerSelect}
         />
 
-      <Card>
-        <CardHeader className="pb-4">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Plus className="h-5 w-5 text-primary" />
-            المعلومات الأساسية والتعريف
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="col-span-1">
-              <Label htmlFor="customer_code" className="text-sm font-medium">
-                {isSupplier ? "رقم المورد *" : "رقم العميل *"}
-              </Label>
-              <div className="flex gap-2">
+        <Card>
+          <CardHeader className="pb-4">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Plus className="h-5 w-5 text-primary" />
+              المعلومات الأساسية والتعريف
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="col-span-1">
+                <Label htmlFor="customer_code" className="text-sm font-medium">
+                  {isSupplier ? "رقم المورد *" : "رقم العميل *"}
+                </Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="customer_code"
+                    value={formData.customer_code}
+                    onChange={(e) => updateField("customer_code", e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))}
+                    onBlur={async (e) => {
+                      await handleCustomerCodeBlur(e.target.value)
+                    }}
+                    className="text-right"
+                    placeholder={isSupplier ? "رقم المورد" : "رقم العميل"}
+                    maxLength={8}
+                  />
+                  <Button type="button" onClick={() => setShowCustomerSearch(true)}>
+                    🔍
+                  </Button>
+                </div>
+              </div>
+
+              <div className="col-span-1 md:col-span-3">
+                <Label htmlFor="customer_name" className="text-sm font-medium">
+                  {isSupplier ? "اسم المورد *" : "اسم العميل *"}
+                </Label>
                 <Input
-                  id="customer_code"
-                  value={formData.customer_code}
-                  onChange={(e) => updateField("customer_code", e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))}
-                  onBlur={async (e) => {
-                    await handleCustomerCodeBlur(e.target.value)
-                  }}
-                  className="text-right"
-                  placeholder={isSupplier ? "رقم المورد" : "رقم العميل"}
-                  maxLength={8}
+                  id="customer_name"
+                  ref={customerNameRef}
+                  value={formData.name}
+                  onChange={(e) => updateField("name", e.target.value)}
+                  className={`text-right ${validationErrors.name ? "border-red-500" : ""}`}
+                  placeholder=""
+                  required
                 />
-                <Button type="button" onClick={() => setShowCustomerSearch(true)}>
-                  🔍
+                {validationErrors.name && <p className="text-red-500 text-xs mt-1">{validationErrors.name}</p>}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="salesman" className="text-sm font-medium">المندوب</Label>
+                <PrimeDropdown
+                  inputId="salesman"
+                  value={formData.salesman || null}
+                  options={salesmen.map((item) => ({ label: item.name, value: item.name }))}
+                  optionLabel="label"
+                  optionValue="value"
+                  placeholder="اختر المندوب"
+                  filter={true}
+                  className="invoice-currency-dropdown w-full"
+                  panelClassName="invoice-currency-dropdown-panel"
+                  appendTo="self"
+                  filterInputAutoFocus={true}
+                  onChange={(e: any) => updateField("salesman", e.value || "")}
+                />
+              </div>
+              <div>
+                <Label htmlFor="classification" className="text-sm font-medium">تصنيف العميل</Label>
+                <PrimeDropdown
+                  inputId="classification"
+                  value={formData.classification || null}
+                  options={classifications.map((item) => ({ label: item.group_name || item.name || "", value: item.group_name || item.name || "" }))}
+                  optionLabel="label"
+                  optionValue="value"
+                  placeholder={isSupplier ? "اختر تصنيف المورد" : "اختر تصنيف العميل"}
+                  filter={true}
+                  className="invoice-currency-dropdown w-full"
+                  panelClassName="invoice-currency-dropdown-panel"
+                  appendTo="self"
+                  filterInputAutoFocus={true}
+                  onChange={(e: any) => updateField("classification", e.value || "")}
+                />
+              </div>
+
+            </div>
+
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+              <div>
+                <Label htmlFor="status" className="text-sm font-medium">
+                  الحالة
+                </Label>
+                <PrimeDropdown
+                  inputId="status"
+                  value={formData.status || "نشط"}
+                  options={[
+                    { label: "نشط", value: "نشط" },
+                    { label: "غير نشط", value: "غير نشط" },
+                  ]}
+                  optionLabel="label"
+                  optionValue="value"
+                  placeholder="اختر الحالة"
+                  filter={false}
+                  className="invoice-currency-dropdown w-full"
+                  panelClassName="invoice-currency-dropdown-panel"
+                  appendTo="self"
+                  onChange={(e: any) => updateField("status", e.value || "نشط")}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="registration_date" className="text-sm font-medium">
+                  تاريخ التسجيل
+                </Label>
+                <Input
+                  id="registration_date"
+                  type="date"
+                  disabled
+                  value={formData.registration_date}
+                  onChange={(e) => updateField("registration_date", e.target.value)}
+                  className="text-right"
+                />
+              </div>
+
+            </div>
+          </CardContent>
+        </Card>
+
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4" dir="rtl">
+          <TabsList className="h-auto w-full justify-start overflow-x-auto rounded-xl bg-gradient-to-r from-slate-50 via-blue-50 to-slate-50 p-2 shadow-md border border-slate-200/60 backdrop-blur-sm">
+            <TabsTrigger value="address-location" className="rounded-lg px-4 py-2 font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">العنوان والموقع</TabsTrigger>
+            <TabsTrigger value="financial-tax" className="rounded-lg px-4 py-2 font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-red-500 data-[state=active]:to-red-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">المعلومات المالية والضريبية</TabsTrigger>
+            <TabsTrigger value="default-voucher-books" className="rounded-lg px-4 py-2 font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-amber-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">دفاتر السندات الافتراضية</TabsTrigger>
+            <TabsTrigger value="cost-centers" className="rounded-lg px-4 py-2 font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-emerald-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">مراكز التكلفة</TabsTrigger>
+            <TabsTrigger value="stop-transactions" className="rounded-lg px-4 py-2 font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-red-500 data-[state=active]:to-red-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">إيقاف الحركات</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="address-location" className="space-y-4" dir="rtl">
+            <Card>
+              <CardHeader className="pb-4">
+                <CardTitle className="text-lg">العنوان والموقع</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="city" className="text-sm font-medium">المدينة</Label>
+                    <PrimeDropdown
+                      inputId="city"
+                      value={formData.city || null}
+                      options={cities.map((city: any) => ({ label: city.name || city.city_name || city.name_ar || city.name_en || "", value: city.name || city.city_name || city.name_ar || city.name_en || "" }))}
+                      optionLabel="label"
+                      optionValue="value"
+                      placeholder="اختر المدينة"
+                      filter={true}
+                      className="invoice-currency-dropdown w-full"
+                      panelClassName="invoice-currency-dropdown-panel"
+                      appendTo="self"
+                      filterInputAutoFocus={true}
+                      onChange={(e: any) => updateField("city", e.value || "")}
+                    />
+                  </div>
+
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="mobile1" className="text-sm font-medium">الجوال الأول</Label>
+                    <Input id="mobile1" value={formData.mobile1} onChange={(e) => updateField("mobile1", e.target.value)} className="text-right" />
+                  </div>
+                  <div>
+                    <Label htmlFor="mobile2" className="text-sm font-medium">الجوال الثاني</Label>
+                    <Input id="mobile2" value={formData.mobile2} onChange={(e) => updateField("mobile2", e.target.value)} className="text-right" />
+                  </div>
+                  <div>
+                    <Label htmlFor="whatsapp1" className="text-sm font-medium">واتساب الأول</Label>
+                    <Input id="whatsapp1" value={formData.whatsapp1} onChange={(e) => updateField("whatsapp1", e.target.value)} className="text-right" />
+                  </div>
+                  <div>
+                    <Label htmlFor="whatsapp2" className="text-sm font-medium">واتساب الثاني</Label>
+                    <Input id="whatsapp2" value={formData.whatsapp2} onChange={(e) => updateField("whatsapp2", e.target.value)} className="text-right" />
+                  </div>
+                  <div className="md:col-span-2">
+                    <Label htmlFor="email" className="text-sm font-medium">البريد الإلكتروني</Label>
+                    <Input id="email" type="email" value={formData.email} onChange={(e) => updateField("email", e.target.value)} className="text-right" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="financial-tax" className="space-y-4" dir="rtl">
+            <Card>
+              <CardHeader className="pb-4">
+                <CardTitle className="text-lg">المعلومات المالية والضريبية</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <AutoCompleteAccount
+                      label="الحساب الرئيسي (تابع ل)"
+                      value={fatherAccountCode}
+                      placeholder="اختر الحساب الرئيسي"
+                      showCostCenterButton={false}
+                      onValueChange={(nextCode) => {
+                        setFatherAccountCode(nextCode)
+                        if (!nextCode) {
+                          updateField("father_id" as keyof UnifiedCustomerFormData, "" as any)
+                          setFatherAccountName("")
+                        }
+                      }}
+                      onAccountSelect={(account) => {
+                        setFatherAccountName(account ? `${account.code} - ${account.name}` : "")
+                        setFatherAccountCode(account ? account.code : "")
+                        updateField("father_id" as keyof UnifiedCustomerFormData, account ? String(account.id) : "" as any)
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <Label className="mb-2 block text-sm font-medium">العملة</Label>
+                    <PrimeDropdown
+                      inputId="currency_id"
+                      value={formData.currency_id ? Number(formData.currency_id) : null}
+                      options={currencies.map((currency: any) => ({
+                        label: currency.currency_name || currency.name || currency.currency_code || "غير محدد",
+                        value: Number(currency.currency_id ?? currency.id ?? 0),
+                      }))}
+                      optionLabel="label"
+                      optionValue="value"
+                      placeholder="اختر العملة"
+                      filter={true}
+                      className="invoice-currency-dropdown w-full"
+                      panelClassName="invoice-currency-dropdown-panel"
+                      appendTo="self"
+                      filterInputAutoFocus={true}
+                      onChange={(e: any) => updateField("currency_id" as keyof UnifiedCustomerFormData, e.value ? String(e.value) : "" as any)}
+                    />
+                  </div>
+                  <div>
+                    <Label className="mb-2 block text-sm font-medium">السماح بعمل حركة على الحساب بغير عملته</Label>
+                    <PrimeDropdown
+                      inputId="allow_trans_with_diff_curr"
+                      value={allowTransWithDiffCurr}
+                      options={[
+                        { label: "مسموح بدون تنبيه", value: "0" },
+                        { label: "مسموح مع تنبيه", value: "1" },
+                        { label: "ممنوع", value: "2" },
+                      ]}
+                      optionLabel="label"
+                      optionValue="value"
+                      placeholder="اختر الخيار"
+                      filter={false}
+                      className="invoice-currency-dropdown w-full"
+                      panelClassName="invoice-currency-dropdown-panel"
+                      appendTo="self"
+                      onChange={(e: any) => {
+                        const nextValue = String(e.value ?? "0")
+                        setAllowTransWithDiffCurr(nextValue)
+                        updateField("allow_trans_with_diff_curr" as keyof UnifiedCustomerFormData, nextValue as any)
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="tax_number" className="text-sm font-medium">الرقم الضريبي</Label>
+                    <Input id="tax_number" value={formData.tax_number} onChange={(e) => updateField("tax_number", e.target.value)} className="text-right" />
+                  </div>
+                  <div>
+                    <Label htmlFor="commercial_registration" className="text-sm font-medium">السجل التجاري</Label>
+                    <Input id="commercial_registration" value={formData.commercial_registration} onChange={(e) => updateField("commercial_registration", e.target.value)} className="text-right" />
+                  </div>
+                  <div>
+                    <Label htmlFor="credit_limit" className="text-sm font-medium">حد الائتمان</Label>
+                    <Input id="credit_limit" type="number" value={formData.credit_limit} onChange={(e) => updateField("credit_limit", e.target.value)} className="text-right" />
+                  </div>
+                  <div>
+                    <Label htmlFor="payment_terms" className="text-sm font-medium">شروط الدفع</Label>
+                    <PrimeDropdown
+                      inputId="payment_terms"
+                      value={formData.payment_terms || "نقدي"}
+                      options={[
+                        { label: "نقدي", value: "نقدي" },
+                        { label: "آجل 7 أيام", value: "آجل 7 أيام" },
+                        { label: "آجل 15 يوم", value: "آجل 15 يوم" },
+                        { label: "آجل 30 يوم", value: "آجل 30 يوم" },
+                        { label: "آجل 60 يوم", value: "آجل 60 يوم" },
+                        { label: "آجل 90 يوم", value: "آجل 90 يوم" },
+                      ]}
+                      optionLabel="label"
+                      optionValue="value"
+                      placeholder="اختر شروط الدفع"
+                      filter={false}
+                      className="invoice-currency-dropdown w-full"
+                      panelClassName="invoice-currency-dropdown-panel"
+                      appendTo="self"
+                      onChange={(e: any) => updateField("payment_terms", e.value || "نقدي")}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="discount_percentage" className="text-sm font-medium">نسبة الخصم %</Label>
+                    <Input id="discount_percentage" type="number" step="0.01" min="0" max="100" value={formData.discount_percentage} onChange={(e) => updateField("discount_percentage", e.target.value)} className="text-right" />
+                  </div>
+                </div>
+                <div className="pt-1">
+                  <label className="flex items-center gap-2 text-sm">
+                    <Checkbox
+                      checked={iscalcCurrDiffRates}
+                      onCheckedChange={(checked) => {
+                        const nextValue = Boolean(checked)
+                        setIscalcCurrDiffRates(nextValue)
+                        updateField("iscalc_curr_diff_rates" as keyof UnifiedCustomerFormData, nextValue as any)
+                      }}
+                    />
+                    <span className="text-base font-medium">الحساب يخضع لفرق العملة</span>
+                  </label>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="default-voucher-books" className="space-y-4" dir="rtl">
+            <Card>
+              <CardHeader className="pb-4">
+                <div className="flex items-center justify-between gap-4">
+                  <CardTitle className="text-lg">دفاتر السندات الافتراضية</CardTitle>
+                  <Button
+                    type="button"
+                    variant="default"
+                    size="sm"
+                    onClick={handleAddVoucherTypeRow}
+                    className="flex items-center gap-2 whitespace-nowrap bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white transition-all duration-200 shadow-md hover:shadow-lg"
+                  >
+                    <Plus className="w-4 h-4" />
+                    اضافة سطر جديد
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {voucherTypeRows.length > 0 ? (
+                    voucherTypeRows.map((row, index) => (
+                      <div key={row.ser ?? index} className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                        <div>
+                          <Label className="mb-2 block text-sm font-medium">نوع السند</Label>
+                          <PrimeDropdown
+                            value={row.type_id ? Number(row.type_id) : null}
+                            options={voucherTypes.map((item: any) => ({ label: item.name || "", value: Number(item.id) }))}
+                            optionLabel="label"
+                            optionValue="value"
+                            placeholder="اختر نوع السند"
+                            filter={true}
+                            className="invoice-currency-dropdown w-full"
+                            panelClassName="invoice-currency-dropdown-panel"
+                            appendTo="self"
+                            filterInputAutoFocus={true}
+                            onChange={(e: any) => {
+                              const selected = voucherTypes.find((item: any) => Number(item.id) === Number(e.value))
+                              handleUpdateVoucherTypeRow(index, {
+                                type_id: Number(e.value) || 0,
+                                type_name: selected?.name || "",
+                              })
+                            }}
+                          />
+                        </div>
+                        <div>
+                          <Label className="mb-2 block text-sm font-medium">دفتر السند</Label>
+                          <PrimeDropdown
+                            value={row.book_id ? Number(row.book_id) : null}
+                            options={voucherBooks.map((item: any) => ({ label: item.name || "", value: Number(item.id) }))}
+                            optionLabel="label"
+                            optionValue="value"
+                            placeholder="اختر دفتر السند"
+                            filter={true}
+                            className="invoice-currency-dropdown w-full"
+                            panelClassName="invoice-currency-dropdown-panel"
+                            appendTo="self"
+                            filterInputAutoFocus={true}
+                            onChange={(e: any) => {
+                              const selected = voucherBooks.find((item: any) => Number(item.id) === Number(e.value))
+                              handleUpdateVoucherTypeRow(index, {
+                                book_id: Number(e.value) || 0,
+                                book_name: selected?.name || "",
+                              })
+                            }}
+                          />
+                        </div>
+                        <div className="flex items-end">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => handleDeleteVoucherTypeRow(index)}
+                            className="w-full md:w-auto"
+                          >
+                            حذف
+                          </Button>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
+                      لا توجد دفاتر سندات افتراضية. أضف سطراً جديداً للبدء.
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+
+          <TabsContent value="cost-centers" className="space-y-4" dir="rtl">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between gap-4 bg-gradient-to-r from-blue-50 to-slate-50 p-4 rounded-md border border-slate-200">
+                <div className="flex-1">
+                  <h4 className="font-semibold text-base">مراكز التكلفة</h4>
+                </div>
+                <Button
+                  variant="default"
+                  size="sm"
+                  className="flex items-center gap-2 whitespace-nowrap bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white transition-all duration-200 shadow-md hover:shadow-lg"
+                >
+                  <Plus className="w-4 h-4" />
+                  اضافة نوع مركز تكلفة جديد
                 </Button>
               </div>
-            </div>
 
-            <div className="col-span-1 md:col-span-3">
-              <Label htmlFor="customer_name" className="text-sm font-medium">
-                {isSupplier ? "اسم المورد *" : "اسم العميل *"}
-              </Label>
-              <Input
-                id="customer_name"
-                ref={customerNameRef}
-                value={formData.name}
-                onChange={(e) => updateField("name", e.target.value)}
-                className={`text-right ${validationErrors.name ? "border-red-500" : ""}`}
-                placeholder=""
-                required
-              />
-              {validationErrors.name && <p className="text-red-500 text-xs mt-1">{validationErrors.name}</p>}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="salesman" className="text-sm font-medium">المندوب</Label>
-              <PrimeDropdown
-                inputId="salesman"
-                value={formData.salesman || null}
-                options={salesmen.map((item) => ({ label: item.name, value: item.name }))}
-                optionLabel="label"
-                optionValue="value"
-                placeholder="اختر المندوب"
-                filter={true}
-                className="invoice-currency-dropdown w-full"
-                panelClassName="invoice-currency-dropdown-panel"
-                appendTo="self"
-                filterInputAutoFocus={true}
-                onChange={(e: any) => updateField("salesman", e.value || "")}
-              />
-            </div>
-            <div>
-                  <Label htmlFor="classification" className="text-sm font-medium">تصنيف العميل</Label>
-                  <PrimeDropdown
-                    inputId="classification"
-                    value={formData.classification || null}
-                    options={classifications.map((item) => ({ label: item.group_name || item.name || "", value: item.group_name || item.name || "" }))}
-                    optionLabel="label"
-                    optionValue="value"
-                    placeholder={isSupplier ? "اختر تصنيف المورد" : "اختر تصنيف العميل"}
-                    filter={true}
-                    className="invoice-currency-dropdown w-full"
-                    panelClassName="invoice-currency-dropdown-panel"
-                    appendTo="self"
-                    filterInputAutoFocus={true}
-                    onChange={(e: any) => updateField("classification", e.value || "")}
-                  />
-                </div>
-
-          </div>
-
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                            <div>
-              <Label htmlFor="status" className="text-sm font-medium">
-                الحالة
-              </Label>
-              <PrimeDropdown
-                inputId="status"
-                value={formData.status || "نشط"}
-                options={[
-                  { label: "نشط", value: "نشط" },
-                  { label: "غير نشط", value: "غير نشط" },
-                ]}
-                optionLabel="label"
-                optionValue="value"
-                placeholder="اختر الحالة"
-                filter={false}
-                className="invoice-currency-dropdown w-full"
-                panelClassName="invoice-currency-dropdown-panel"
-                appendTo="self"
-                onChange={(e: any) => updateField("status", e.value || "نشط")}
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="registration_date" className="text-sm font-medium">
-                تاريخ التسجيل
-              </Label>
-              <Input
-                id="registration_date"
-                type="date"
-                disabled
-                value={formData.registration_date}
-                onChange={(e) => updateField("registration_date", e.target.value)}
-                className="text-right"
-              />
-            </div>
-                
-              </div>
-        </CardContent>
-      </Card>
-
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4" dir="rtl">
-        <TabsList className="h-auto w-full justify-start overflow-x-auto rounded-xl bg-gradient-to-r from-slate-50 via-blue-50 to-slate-50 p-2 shadow-md border border-slate-200/60 backdrop-blur-sm">
-          <TabsTrigger value="address-location" className="rounded-lg px-4 py-2 font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">العنوان والموقع</TabsTrigger>
-          <TabsTrigger value="financial-tax" className="rounded-lg px-4 py-2 font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-red-500 data-[state=active]:to-red-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">المعلومات المالية والضريبية</TabsTrigger>
-          <TabsTrigger value="default-voucher-books" className="rounded-lg px-4 py-2 font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-amber-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">دفاتر السندات الافتراضية</TabsTrigger>
-          <TabsTrigger value="cost-centers" className="rounded-lg px-4 py-2 font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-emerald-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">مراكز التكلفة</TabsTrigger>
-          <TabsTrigger value="stop-transactions" className="rounded-lg px-4 py-2 font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-red-500 data-[state=active]:to-red-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">إيقاف الحركات</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="address-location" className="space-y-4" dir="rtl">
-          <Card>
-            <CardHeader className="pb-4">
-              <CardTitle className="text-lg">العنوان والموقع</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="city" className="text-sm font-medium">المدينة</Label>
-                  <PrimeDropdown
-                    inputId="city"
-                    value={formData.city || null}
-                    options={cities.map((city: any) => ({ label: city.name || city.city_name || city.name_ar || city.name_en || "", value: city.name || city.city_name || city.name_ar || city.name_en || "" }))}
-                    optionLabel="label"
-                    optionValue="value"
-                    placeholder="اختر المدينة"
-                    filter={true}
-                    className="invoice-currency-dropdown w-full"
-                    panelClassName="invoice-currency-dropdown-panel"
-                    appendTo="self"
-                    filterInputAutoFocus={true}
-                    onChange={(e: any) => updateField("city", e.value || "")}
-                  />
-                </div>
-                
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="mobile1" className="text-sm font-medium">الجوال الأول</Label>
-                  <Input id="mobile1" value={formData.mobile1} onChange={(e) => updateField("mobile1", e.target.value)} className="text-right" />
-                </div>
-                <div>
-                  <Label htmlFor="mobile2" className="text-sm font-medium">الجوال الثاني</Label>
-                  <Input id="mobile2" value={formData.mobile2} onChange={(e) => updateField("mobile2", e.target.value)} className="text-right" />
-                </div>
-                <div>
-                  <Label htmlFor="whatsapp1" className="text-sm font-medium">واتساب الأول</Label>
-                  <Input id="whatsapp1" value={formData.whatsapp1} onChange={(e) => updateField("whatsapp1", e.target.value)} className="text-right" />
-                </div>
-                <div>
-                  <Label htmlFor="whatsapp2" className="text-sm font-medium">واتساب الثاني</Label>
-                  <Input id="whatsapp2" value={formData.whatsapp2} onChange={(e) => updateField("whatsapp2", e.target.value)} className="text-right" />
-                </div>
-                <div className="md:col-span-2">
-                  <Label htmlFor="email" className="text-sm font-medium">البريد الإلكتروني</Label>
-                  <Input id="email" type="email" value={formData.email} onChange={(e) => updateField("email", e.target.value)} className="text-right" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="financial-tax" className="space-y-4" dir="rtl">
-          <Card>
-            <CardHeader className="pb-4">
-              <CardTitle className="text-lg">المعلومات المالية والضريبية</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <AutoCompleteAccount
-                    label="الحساب الرئيسي (تابع ل)"
-                    value={fatherAccountCode}
-                    placeholder="اختر الحساب الرئيسي"
-                    showCostCenterButton={false}
-                    onValueChange={(nextCode) => {
-                      setFatherAccountCode(nextCode)
-                      if (!nextCode) {
-                        updateField("father_id" as keyof UnifiedCustomerFormData, "" as any)
-                        setFatherAccountName("")
-                      }
-                    }}
-                    onAccountSelect={(account) => {
-                      setFatherAccountName(account ? `${account.code} - ${account.name}` : "")
-                      setFatherAccountCode(account ? account.code : "")
-                      updateField("father_id" as keyof UnifiedCustomerFormData, account ? String(account.id) : "" as any)
-                    }}
-                  />
-                </div>
-                <div>
-                  <Label className="mb-2 block text-sm font-medium">العملة</Label>
-                  <PrimeDropdown
-                    inputId="currency_id"
-                    value={formData.currency_id ? Number(formData.currency_id) : null}
-                    options={currencies.map((currency: any) => ({
-                      label: currency.currency_name || currency.name || currency.currency_code || "غير محدد",
-                      value: Number(currency.currency_id ?? currency.id ?? 0),
-                    }))}
-                    optionLabel="label"
-                    optionValue="value"
-                    placeholder="اختر العملة"
-                    filter={true}
-                    className="invoice-currency-dropdown w-full"
-                    panelClassName="invoice-currency-dropdown-panel"
-                    appendTo="self"
-                    filterInputAutoFocus={true}
-                    onChange={(e: any) => updateField("currency_id" as keyof UnifiedCustomerFormData, e.value ? String(e.value) : "" as any)}
-                  />
-                </div>
-                <div>
-                  <Label className="mb-2 block text-sm font-medium">السماح بعمل حركة على الحساب بغير عملته</Label>
-                  <PrimeDropdown
-                    inputId="allow_trans_with_diff_curr"
-                    value={allowTransWithDiffCurr}
-                    options={[
-                      { label: "مسموح بدون تنبيه", value: "0" },
-                      { label: "مسموح مع تنبيه", value: "1" },
-                      { label: "ممنوع", value: "2" },
-                    ]}
-                    optionLabel="label"
-                    optionValue="value"
-                    placeholder="اختر الخيار"
-                    filter={false}
-                    className="invoice-currency-dropdown w-full"
-                    panelClassName="invoice-currency-dropdown-panel"
-                    appendTo="self"
-                    onChange={(e: any) => {
-                      const nextValue = String(e.value ?? "0")
-                      setAllowTransWithDiffCurr(nextValue)
-                      updateField("allow_trans_with_diff_curr" as keyof UnifiedCustomerFormData, nextValue as any)
-                    }}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="tax_number" className="text-sm font-medium">الرقم الضريبي</Label>
-                  <Input id="tax_number" value={formData.tax_number} onChange={(e) => updateField("tax_number", e.target.value)} className="text-right" />
-                </div>
-                <div>
-                  <Label htmlFor="commercial_registration" className="text-sm font-medium">السجل التجاري</Label>
-                  <Input id="commercial_registration" value={formData.commercial_registration} onChange={(e) => updateField("commercial_registration", e.target.value)} className="text-right" />
-                </div>
-                <div>
-                  <Label htmlFor="credit_limit" className="text-sm font-medium">حد الائتمان</Label>
-                  <Input id="credit_limit" type="number" value={formData.credit_limit} onChange={(e) => updateField("credit_limit", e.target.value)} className="text-right" />
-                </div>
-                <div>
-                  <Label htmlFor="payment_terms" className="text-sm font-medium">شروط الدفع</Label>
-                  <PrimeDropdown
-                    inputId="payment_terms"
-                    value={formData.payment_terms || "نقدي"}
-                    options={[
-                      { label: "نقدي", value: "نقدي" },
-                      { label: "آجل 7 أيام", value: "آجل 7 أيام" },
-                      { label: "آجل 15 يوم", value: "آجل 15 يوم" },
-                      { label: "آجل 30 يوم", value: "آجل 30 يوم" },
-                      { label: "آجل 60 يوم", value: "آجل 60 يوم" },
-                      { label: "آجل 90 يوم", value: "آجل 90 يوم" },
-                    ]}
-                    optionLabel="label"
-                    optionValue="value"
-                    placeholder="اختر شروط الدفع"
-                    filter={false}
-                    className="invoice-currency-dropdown w-full"
-                    panelClassName="invoice-currency-dropdown-panel"
-                    appendTo="self"
-                    onChange={(e: any) => updateField("payment_terms", e.value || "نقدي")}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="discount_percentage" className="text-sm font-medium">نسبة الخصم %</Label>
-                  <Input id="discount_percentage" type="number" step="0.01" min="0" max="100" value={formData.discount_percentage} onChange={(e) => updateField("discount_percentage", e.target.value)} className="text-right" />
-                </div>
-              </div>
-              <div className="pt-1">
-                <label className="flex items-center gap-2 text-sm">
-                  <Checkbox
-                    checked={iscalcCurrDiffRates}
-                    onCheckedChange={(checked) => {
-                      const nextValue = Boolean(checked)
-                      setIscalcCurrDiffRates(nextValue)
-                      updateField("iscalc_curr_diff_rates" as keyof UnifiedCustomerFormData, nextValue as any)
-                    }}
-                  />
-                  <span className="text-base font-medium">الحساب يخضع لفرق العملة</span>
-                </label>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="default-voucher-books" className="space-y-4" dir="rtl">
-                      <Card>
-                        <CardHeader className="pb-4">
-                          <div className="flex items-center justify-between gap-4">
-                            <CardTitle className="text-lg">دفاتر السندات الافتراضية</CardTitle>
-                            <Button
-                              type="button"
-                              variant="default"
-                              size="sm"
-                              onClick={handleAddVoucherTypeRow}
-                              className="flex items-center gap-2 whitespace-nowrap bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white transition-all duration-200 shadow-md hover:shadow-lg"
-                            >
-                              <Plus className="w-4 h-4" />
-                              اضافة سطر جديد
-                            </Button>
-                          </div>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="space-y-3">
-                            {voucherTypeRows.length > 0 ? (
-                              voucherTypeRows.map((row, index) => (
-                                <div key={row.ser ?? index} className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
-                                  <div>
-                                    <Label className="mb-2 block text-sm font-medium">نوع السند</Label>
-                                    <PrimeDropdown
-                                      value={row.type_id ? Number(row.type_id) : null}
-                                      options={voucherTypes.map((item: any) => ({ label: item.name || "", value: Number(item.id) }))}
-                                      optionLabel="label"
-                                      optionValue="value"
-                                      placeholder="اختر نوع السند"
-                                      filter={true}
-                                      className="invoice-currency-dropdown w-full"
-                                      panelClassName="invoice-currency-dropdown-panel"
-                                      appendTo="self"
-                                      filterInputAutoFocus={true}
-                                      onChange={(e: any) => {
-                                        const selected = voucherTypes.find((item: any) => Number(item.id) === Number(e.value))
-                                        handleUpdateVoucherTypeRow(index, {
-                                          type_id: Number(e.value) || 0,
-                                          type_name: selected?.name || "",
-                                        })
-                                      }}
-                                    />
-                                  </div>
-                                  <div>
-                                    <Label className="mb-2 block text-sm font-medium">دفتر السند</Label>
-                                    <PrimeDropdown
-                                      value={row.book_id ? Number(row.book_id) : null}
-                                      options={voucherBooks.map((item: any) => ({ label: item.name || "", value: Number(item.id) }))}
-                                      optionLabel="label"
-                                      optionValue="value"
-                                      placeholder="اختر دفتر السند"
-                                      filter={true}
-                                      className="invoice-currency-dropdown w-full"
-                                      panelClassName="invoice-currency-dropdown-panel"
-                                      appendTo="self"
-                                      filterInputAutoFocus={true}
-                                      onChange={(e: any) => {
-                                        const selected = voucherBooks.find((item: any) => Number(item.id) === Number(e.value))
-                                        handleUpdateVoucherTypeRow(index, {
-                                          book_id: Number(e.value) || 0,
-                                          book_name: selected?.name || "",
-                                        })
-                                      }}
-                                    />
-                                  </div>
-                                  <div className="flex items-end">
-                                    <Button
-                                      type="button"
-                                      variant="outline"
-                                      onClick={() => handleDeleteVoucherTypeRow(index)}
-                                      className="w-full md:w-auto"
-                                    >
-                                      حذف
-                                    </Button>
-                                  </div>
-                                </div>
-                              ))
-                            ) : (
-                              <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
-                                لا توجد دفاتر سندات افتراضية. أضف سطراً جديداً للبدء.
-                              </div>
-                            )}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </TabsContent>
-
-
-        <TabsContent value="cost-centers" className="space-y-4" dir="rtl">
-          <div className="space-y-4">
-            <div className="flex items-center justify-between gap-4 bg-gradient-to-r from-blue-50 to-slate-50 p-4 rounded-md border border-slate-200">
-              <div className="flex-1">
-                <h4 className="font-semibold text-base">مراكز التكلفة</h4>
-              </div>
-              <Button
-                variant="default"
-                size="sm"
-                className="flex items-center gap-2 whitespace-nowrap bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white transition-all duration-200 shadow-md hover:shadow-lg"
-              >
-                <Plus className="w-4 h-4" />
-                اضافة نوع مركز تكلفة جديد
-              </Button>
-            </div>
-
-            {costCenterTypeError && (
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{costCenterTypeError}</AlertDescription>
-              </Alert>
-            )}
-            {costCenterTypeMessage && (
-              <Alert className="bg-green-50 border-green-200">
-                <AlertDescription className="text-green-800">{costCenterTypeMessage}</AlertDescription>
-              </Alert>
-            )}
-
-            <div className="rounded-md border border-slate-300 overflow-hidden" dir="rtl">
-              {costCenterTypes.length > 0 ? (
-                <div className="h-[500px] min-h-[300px] overflow-y-auto [&::-webkit-scrollbar]:w-0 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-transparent scrollbar-hide">
-                  <DataGridView
-                    scheme={costCenterTypeScheme}
-                    dataSource={costCenterTypes}
-                    innerRef={costCenterTypeGridRef}
-                  />
-                </div>
-              ) : (
-                <div className="h-[500px] flex items-center justify-center bg-slate-50">
-                  <p className="text-slate-500 text-sm">لا توجد بيانات - قم بإضافة نوع مركز تكلفة جديد</p>
-                </div>
+              {costCenterTypeError && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{costCenterTypeError}</AlertDescription>
+                </Alert>
               )}
+              {costCenterTypeMessage && (
+                <Alert className="bg-green-50 border-green-200">
+                  <AlertDescription className="text-green-800">{costCenterTypeMessage}</AlertDescription>
+                </Alert>
+              )}
+
+              <div className="rounded-md border border-slate-300 overflow-hidden" dir="rtl">
+                {costCenterTypes.length > 0 ? (
+                  <div className="h-[500px] min-h-[300px] overflow-y-auto [&::-webkit-scrollbar]:w-0 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-transparent scrollbar-hide">
+                    <DataGridView
+                      scheme={costCenterTypeScheme}
+                      dataSource={costCenterTypes}
+                      innerRef={costCenterTypeGridRef}
+                    />
+                  </div>
+                ) : (
+                  <div className="h-[500px] flex items-center justify-center bg-slate-50">
+                    <p className="text-slate-500 text-sm">لا توجد بيانات - قم بإضافة نوع مركز تكلفة جديد</p>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        </TabsContent>
+          </TabsContent>
 
 
 
-        <TabsContent value="stop-transactions" className="space-y-4" dir="rtl">
-          <div className="space-y-4">
-            <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-gradient-to-r from-red-50 to-white px-4 py-3">
-              <Checkbox
-                checked={visibleStopTransactionRows.length > 0 && visibleStopTransactionRows.every((row) => row.is_stopped)}
-                className="size-3 rounded-[3px] border-slate-300 bg-white shadow-sm transition-all duration-150 hover:scale-105 hover:border-blue-500 data-[state=checked]:border-blue-600 data-[state=checked]:bg-blue-600 data-[state=checked]:shadow-blue-200 [&_svg]:size-2.5"
-                onCheckedChange={(checked) => {
-                  const nextValue = Boolean(checked)
-                  setStopTransactionRows((prev) =>
-                    prev.map((row) =>
-                      visibleStopTransactionRowIds.has(Number(row?.voucher_types_id))
-                        ? {
+          <TabsContent value="stop-transactions" className="space-y-4" dir="rtl">
+            <div className="space-y-4">
+              <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-gradient-to-r from-red-50 to-white px-4 py-3">
+                <Checkbox
+                  checked={visibleStopTransactionRows.length > 0 && visibleStopTransactionRows.every((row) => row.is_stopped)}
+                  className="size-3 rounded-[3px] border-slate-300 bg-white shadow-sm transition-all duration-150 hover:scale-105 hover:border-blue-500 data-[state=checked]:border-blue-600 data-[state=checked]:bg-blue-600 data-[state=checked]:shadow-blue-200 [&_svg]:size-2.5"
+                  onCheckedChange={(checked) => {
+                    const nextValue = Boolean(checked)
+                    setStopTransactionRows((prev) =>
+                      prev.map((row) =>
+                        visibleStopTransactionRowIds.has(Number(row?.voucher_types_id))
+                          ? {
                             ...row,
                             is_stopped: nextValue,
                             stop_date: nextValue ? row.stop_date || new Date().toISOString().slice(0, 10) : "",
                           }
-                        : row,
-                    ),
-                  )
-                }}
-              />
-              <Label className="cursor-pointer text-sm font-medium">إيقاف كافة الحركات على الحساب</Label>
-            </div>
+                          : row,
+                      ),
+                    )
+                  }}
+                />
+                <Label className="cursor-pointer text-sm font-medium">إيقاف كافة الحركات على الحساب</Label>
+              </div>
 
-            <div className="rounded-md border border-slate-300 overflow-hidden bg-white" dir="rtl">
-              {visibleStopTransactionRows.length > 0 ? (
-                <div className="h-[600px] min-h-[300px] overflow-y-auto [&::-webkit-scrollbar]:w-0 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-transparent scrollbar-hide">
-                  <DataGridView scheme={stopTransactionScheme} dataSource={visibleStopTransactionRows} />
-                </div>
-              ) : (
-                <div className="h-[600px] flex items-center justify-center bg-slate-50">
-                  <p className="text-slate-500 text-sm">لا توجد أنواع حركات</p>
-                </div>
+              <div className="rounded-md border border-slate-300 overflow-hidden bg-white" dir="rtl">
+                {visibleStopTransactionRows.length > 0 ? (
+                  <div className="h-[600px] min-h-[300px] overflow-y-auto [&::-webkit-scrollbar]:w-0 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-transparent scrollbar-hide">
+                    <DataGridView scheme={stopTransactionScheme} dataSource={visibleStopTransactionRows} />
+                  </div>
+                ) : (
+                  <div className="h-[600px] flex items-center justify-center bg-slate-50">
+                    <p className="text-slate-500 text-sm">لا توجد أنواع حركات</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </TabsContent>
+        </Tabs>
+
+        <SearchCostCenterDialog
+          open={searchCostCenterOpen}
+          onOpenChange={setSearchCostCenterOpen}
+          type={selectedCostCenterType ? { id: selectedCostCenterType.id, name: selectedCostCenterType.name } : undefined}
+          costCenters={costCenters}
+          onSelect={handleSelectCostCenter}
+        />
+
+        <SearchAccountClassificationDialog
+          open={searchAccountClassificationOpen}
+          onOpenChange={setSearchAccountClassificationOpen}
+          type={selectedClassificationType || undefined}
+          classifications={allClassifications}
+          onSelect={handleSelectAccountClassification}
+        />
+
+        <ConfirmDialogYesNo
+          visible={showDeleteConfirm}
+          message="هل تريد حذف مركز التكلفة؟"
+          onConfirm={handleConfirmDelete}
+          onCancel={() => {
+            setShowDeleteConfirm(false)
+            setDeleteConfirmIndex(-1)
+          }}
+          isCompact={true}
+        />
+
+        <ConfirmDialogYesNo
+          visible={showDeleteClassificationConfirm}
+          message="هل تريد حذف التصنيف؟"
+          onConfirm={handleConfirmDeleteClassification}
+          onCancel={() => {
+            setShowDeleteClassificationConfirm(false)
+            setDeleteClassificationConfirmIndex(-1)
+          }}
+          isCompact={true}
+        />
+
+        <ConfirmDialogYesNo
+          visible={showCustomerDeleteConfirm}
+          message="هل أنت متأكد من حذف السجل؟ لا يمكن التراجع عن هذا الإجراء."
+          onConfirm={handleDeleteCustomerConfirm}
+          onCancel={() => setShowCustomerDeleteConfirm(false)}
+          isCompact={true}
+        />
+
+        <ConfirmDialogYesNo
+          visible={showUnsaved}
+          message="هناك تغييرات غير محفوظة. هل ترغب في حفظ السجل؟"
+          onConfirm={async () => {
+            setShowUnsaved(false)
+            const fn = nextFunction
+            setNextFunction(null)
+            const saveResult = await handleSaveCustomer()
+            const didSave = saveResult !== false && saveResult?.success === true
+            if (didSave && fn) {
+              await fn()
+            }
+          }}
+          onCancel={() => {
+            setShowUnsaved(false)
+            const fn = nextFunction
+            setNextFunction(null)
+            void fn?.()
+          }}
+          onBack={() => {
+            setShowUnsaved(false)
+            setNextFunction(null)
+          }}
+          showBack={true}
+          isCompact={true}
+        />
+
+        <Dialog open={showClassificationTypeForm} onOpenChange={setShowClassificationTypeForm}>
+          <DialogContent className="max-w-md" dir="rtl">
+            <DialogHeader>
+              <DialogTitle>إضافة نوع تصنيف جديد</DialogTitle>
+              <DialogDescription>أدخل اسم نوع التصنيف الجديد</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              {classificationTypeError && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{classificationTypeError}</AlertDescription>
+                </Alert>
               )}
+              <div>
+                <Label htmlFor="classificationTypeName" className="mb-2 block text-sm font-medium">
+                  اسم النوع *
+                </Label>
+                <Input
+                  id="classificationTypeName"
+                  value={newClassificationTypeName}
+                  onChange={(e) => setNewClassificationTypeName(e.target.value)}
+                  placeholder="أدخل اسم النوع"
+                  className="text-right"
+                  autoFocus
+                />
+              </div>
             </div>
-          </div>
-        </TabsContent>
-      </Tabs>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowClassificationTypeForm(false)
+                  setNewClassificationTypeName("")
+                  setClassificationTypeError("")
+                }}
+              >
+                إلغاء
+              </Button>
+              <Button onClick={handleSaveClassificationType}>حفظ</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
-      <SearchCostCenterDialog
-        open={searchCostCenterOpen}
-        onOpenChange={setSearchCostCenterOpen}
-        type={selectedCostCenterType ? { id: selectedCostCenterType.id, name: selectedCostCenterType.name } : undefined}
-        costCenters={costCenters}
-        onSelect={handleSelectCostCenter}
-      />
-
-      <SearchAccountClassificationDialog
-        open={searchAccountClassificationOpen}
-        onOpenChange={setSearchAccountClassificationOpen}
-        type={selectedClassificationType || undefined}
-        classifications={allClassifications}
-        onSelect={handleSelectAccountClassification}
-      />
-
-      <ConfirmDialogYesNo
-        visible={showDeleteConfirm}
-        message="هل تريد حذف مركز التكلفة؟"
-        onConfirm={handleConfirmDelete}
-        onCancel={() => {
-          setShowDeleteConfirm(false)
-          setDeleteConfirmIndex(-1)
-        }}
-        isCompact={true}
-      />
-
-      <ConfirmDialogYesNo
-        visible={showDeleteClassificationConfirm}
-        message="هل تريد حذف التصنيف؟"
-        onConfirm={handleConfirmDeleteClassification}
-        onCancel={() => {
-          setShowDeleteClassificationConfirm(false)
-          setDeleteClassificationConfirmIndex(-1)
-        }}
-        isCompact={true}
-      />
-
-      <ConfirmDialogYesNo
-        visible={showCustomerDeleteConfirm}
-        message="هل أنت متأكد من حذف السجل؟ لا يمكن التراجع عن هذا الإجراء."
-        onConfirm={handleDeleteCustomerConfirm}
-        onCancel={() => setShowCustomerDeleteConfirm(false)}
-        isCompact={true}
-      />
-
-      <ConfirmDialogYesNo
-        visible={showUnsaved}
-        message="هناك تغييرات غير محفوظة. هل ترغب في حفظ السجل؟"
-        onConfirm={async () => {
-          setShowUnsaved(false)
-          const fn = nextFunction
-          setNextFunction(null)
-          const saveResult = await handleSaveCustomer()
-          const didSave = saveResult !== false && saveResult?.success === true
-          if (didSave && fn) {
-            await fn()
-          }
-        }}
-        onCancel={() => {
-          setShowUnsaved(false)
-          const fn = nextFunction
-          setNextFunction(null)
-          void fn?.()
-        }}
-        onBack={() => {
-          setShowUnsaved(false)
-          setNextFunction(null)
-        }}
-        showBack={true}
-        isCompact={true}
-      />
-
-      <Dialog open={showClassificationTypeForm} onOpenChange={setShowClassificationTypeForm}>
-        <DialogContent className="max-w-md" dir="rtl">
-          <DialogHeader>
-            <DialogTitle>إضافة نوع تصنيف جديد</DialogTitle>
-            <DialogDescription>أدخل اسم نوع التصنيف الجديد</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            {classificationTypeError && (
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{classificationTypeError}</AlertDescription>
-              </Alert>
-            )}
-            <div>
-              <Label htmlFor="classificationTypeName" className="mb-2 block text-sm font-medium">
-                اسم النوع *
-              </Label>
-              <Input
-                id="classificationTypeName"
-                value={newClassificationTypeName}
-                onChange={(e) => setNewClassificationTypeName(e.target.value)}
-                placeholder="أدخل اسم النوع"
-                className="text-right"
-                autoFocus
-              />
+        <Dialog open={showClassificationForm} onOpenChange={setShowClassificationForm}>
+          <DialogContent className="max-w-md" dir="rtl">
+            <DialogHeader>
+              <DialogTitle>إضافة تصنيف جديد</DialogTitle>
+              <DialogDescription>حدد نوع التصنيف واسم التصنيف</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              {classificationError && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{classificationError}</AlertDescription>
+                </Alert>
+              )}
+              <div>
+                <Label htmlFor="classificationTypeSelect" className="mb-2 block text-sm font-medium">
+                  نوع التصنيف *
+                </Label>
+                <PrimeDropdown
+                  inputId="classificationTypeSelect"
+                  value={newClassificationTypeId}
+                  options={classificationTypes.map((type: any) => ({ label: type.name, value: String(type.id) }))}
+                  optionLabel="label"
+                  optionValue="value"
+                  placeholder="اختر نوع التصنيف"
+                  filter={true}
+                  className="invoice-currency-dropdown w-full"
+                  panelClassName="invoice-currency-dropdown-panel"
+                  appendTo="self"
+                  filterInputAutoFocus={true}
+                  onChange={(e: any) => setNewClassificationTypeId(e.value)}
+                />
+              </div>
+              <div>
+                <Label htmlFor="classificationNameInput" className="mb-2 block text-sm font-medium">
+                  اسم التصنيف *
+                </Label>
+                <Input
+                  id="classificationNameInput"
+                  value={newClassificationName}
+                  onChange={(e) => setNewClassificationName(e.target.value)}
+                  placeholder="أدخل اسم التصنيف"
+                  className="text-right"
+                />
+              </div>
             </div>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setShowClassificationTypeForm(false)
-                setNewClassificationTypeName("")
-                setClassificationTypeError("")
-              }}
-            >
-              إلغاء
-            </Button>
-            <Button onClick={handleSaveClassificationType}>حفظ</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={showClassificationForm} onOpenChange={setShowClassificationForm}>
-        <DialogContent className="max-w-md" dir="rtl">
-          <DialogHeader>
-            <DialogTitle>إضافة تصنيف جديد</DialogTitle>
-            <DialogDescription>حدد نوع التصنيف واسم التصنيف</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            {classificationError && (
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{classificationError}</AlertDescription>
-              </Alert>
-            )}
-            <div>
-              <Label htmlFor="classificationTypeSelect" className="mb-2 block text-sm font-medium">
-                نوع التصنيف *
-              </Label>
-              <PrimeDropdown
-                inputId="classificationTypeSelect"
-                value={newClassificationTypeId}
-                options={classificationTypes.map((type: any) => ({ label: type.name, value: String(type.id) }))}
-                optionLabel="label"
-                optionValue="value"
-                placeholder="اختر نوع التصنيف"
-                filter={true}
-                className="invoice-currency-dropdown w-full"
-                panelClassName="invoice-currency-dropdown-panel"
-                appendTo="self"
-                filterInputAutoFocus={true}
-                onChange={(e: any) => setNewClassificationTypeId(e.value)}
-              />
-            </div>
-            <div>
-              <Label htmlFor="classificationNameInput" className="mb-2 block text-sm font-medium">
-                اسم التصنيف *
-              </Label>
-              <Input
-                id="classificationNameInput"
-                value={newClassificationName}
-                onChange={(e) => setNewClassificationName(e.target.value)}
-                placeholder="أدخل اسم التصنيف"
-                className="text-right"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setShowClassificationForm(false)
-                setNewClassificationTypeId(null)
-                setNewClassificationName("")
-                setClassificationError("")
-              }}
-            >
-              إلغاء
-            </Button>
-            <Button onClick={handleSaveClassification}>حفظ</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowClassificationForm(false)
+                  setNewClassificationTypeId(null)
+                  setNewClassificationName("")
+                  setClassificationError("")
+                }}
+              >
+                إلغاء
+              </Button>
+              <Button onClick={handleSaveClassification}>حفظ</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   )

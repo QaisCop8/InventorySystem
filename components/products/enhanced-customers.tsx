@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useState, useEffect, useMemo } from "react"
 import { Button } from "@/components/ui/button"
@@ -153,7 +153,7 @@ export function EnhancedCustomers() {
       setState((prev) => ({ ...prev, loading: true, error: null }))
       const response = await fetch("/api/customers")
       if (!response.ok) {
-        throw new Error("فشل في تحميل الالعملاء")
+        throw new Error("فشل في تحميل العملاء")
       }
       const data = await response.json()
       setState((prev) => ({ ...prev, customers: Array.isArray(data) ? data : [] }))
@@ -203,7 +203,7 @@ export function EnhancedCustomers() {
       <div className="flex items-center justify-center min-h-[400px]" dir="rtl">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">جاري تحميل الالعملاء...</p>
+          <p className="text-muted-foreground">جاري تحميل العملاء...</p>
         </div>
       </div>
     )
@@ -215,9 +215,9 @@ export function EnhancedCustomers() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-            إدارة الالعملاء
+            إدارة العملاء
           </h1>
-          <p className="text-slate-600 mt-2 text-lg">إدارة شاملة لقاعدة بيانات الالعملاء وعلاقاتهم التجارية</p>
+          <p className="text-slate-600 mt-2 text-lg">إدارة شاملة لقاعدة بيانات العملاء وعلاقاتهم التجارية</p>
         </div>
         <div className="flex gap-3">
           <Button variant="outline" className="bg-white shadow-sm">
@@ -237,7 +237,7 @@ export function EnhancedCustomers() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-blue-100 text-sm font-medium">إجمالي الالعملاء</p>
+                <p className="text-blue-100 text-sm font-medium">إجمالي العملاء</p>
                 <p className="text-3xl font-bold">{analytics.totalCustomers}</p>
                 <div className="flex items-center mt-2">
                   <Users className="h-4 w-4 text-blue-200 ml-1" />
@@ -255,7 +255,7 @@ export function EnhancedCustomers() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-emerald-100 text-sm font-medium">الالعملاء النشطين</p>
+                <p className="text-emerald-100 text-sm font-medium">العملاء النشطين</p>
                 <p className="text-3xl font-bold">{analytics.activeCustomers}</p>
                 <div className="flex items-center mt-2">
                   <Activity className="h-4 w-4 text-emerald-200 ml-1" />
@@ -410,7 +410,7 @@ export function EnhancedCustomers() {
             <CardHeader>
               <div className="flex justify-between items-center">
                 <div>
-                  <h3 className="text-xl font-bold text-slate-800">بطاقات الالعملاء</h3>
+                  <h3 className="text-xl font-bold text-slate-800">بطاقات العملاء</h3>
                   <p className="text-slate-600">
                     عرض {filteredCustomers.length} من أصل {state.customers.length} عميل
                   </p>
@@ -543,7 +543,7 @@ export function EnhancedCustomers() {
         <TabsContent value="list" className="space-y-6">
           <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
             <CardHeader>
-              <h3 className="text-xl font-bold text-slate-800">قائمة الالعملاء التفصيلية</h3>
+              <h3 className="text-xl font-bold text-slate-800">قائمة العملاء التفصيلية</h3>
             </CardHeader>
             <CardContent>
               <div className="overflow-x-auto">
@@ -619,7 +619,7 @@ export function EnhancedCustomers() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
               <CardHeader>
-                <CardTitle className="text-slate-800">توزيع الالعملاء حسب المدينة</CardTitle>
+                <CardTitle className="text-slate-800">توزيع العملاء حسب المدينة</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
@@ -650,7 +650,7 @@ export function EnhancedCustomers() {
 
             <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
               <CardHeader>
-                <CardTitle className="text-slate-800">إحصائيات الالعملاء</CardTitle>
+                <CardTitle className="text-slate-800">إحصائيات العملاء</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-6">
@@ -688,3 +688,6 @@ export function EnhancedCustomers() {
     </div>
   )
 }
+
+
+

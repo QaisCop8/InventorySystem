@@ -1,6 +1,6 @@
-import { type NextRequest, NextResponse } from "next/server"
+import { type NextRequest } from "next/server"
+import { NextResponse } from "next/server"
 import { neon } from "@neondatabase/serverless"
-
 import { Pool } from "pg"
 
 let sql: any = null
@@ -41,8 +41,6 @@ try {
   sql = null
 }
 
-export default sql
-
 type Warehouse = {
   id: number
   warehouse_code: string
@@ -51,12 +49,13 @@ type Warehouse = {
   description?: string
   location?: string
   is_active: boolean
+  status: number
   created_at: string
   updated_at: string
 }
+
 export async function GET() {
   try {
-    // Check if warehouses table exists, if not create it
     await sql`
       CREATE TABLE IF NOT EXISTS warehouses (
         id SERIAL PRIMARY KEY,
@@ -66,12 +65,14 @@ export async function GET() {
         description TEXT,
         location VARCHAR(200),
         is_active BOOLEAN DEFAULT true,
+        status INTEGER DEFAULT 1,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `
 
-    // Check if table is empty and populate with default warehouses
+    await sql`ALTER TABLE warehouses ADD COLUMN IF NOT EXISTS status INTEGER DEFAULT 1`
+
     const existingWarehouses = await sql`SELECT COUNT(*) as count FROM warehouses`
 
     if (existingWarehouses[0].count === 0) {
@@ -85,8 +86,8 @@ export async function GET() {
 
       for (const warehouse of defaultWarehouses) {
         await sql`
-          INSERT INTO warehouses (warehouse_code, warehouse_name, warehouse_name_en, location, is_active)
-          VALUES (${warehouse.code}, ${warehouse.name}, ${warehouse.name_en}, ${warehouse.location}, true)
+          INSERT INTO warehouses (warehouse_code, warehouse_name, warehouse_name_en, location, is_active, status)
+          VALUES (${warehouse.code}, ${warehouse.name}, ${warehouse.name_en}, ${warehouse.location}, true, 1)
         `
       }
     }
@@ -100,14 +101,15 @@ export async function GET() {
         description,
         location,
         is_active,
+        status,
         created_at,
         updated_at
       FROM warehouses
-      WHERE is_active = true
+      WHERE status != 3
       ORDER BY id
     `
 
-    return NextResponse.json(warehouses.map((w:Warehouse) => ({ ...w, name: w.warehouse_name })))
+    return NextResponse.json(warehouses.map((w: Warehouse) => ({ ...w, name: w.warehouse_name })))
   } catch (error) {
     console.error("Error fetching warehouses:", error)
     return NextResponse.json({ error: "Failed to fetch warehouses" }, { status: 500 })
@@ -122,7 +124,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "اسم المستودع ورمزه مطلوبان" }, { status: 400 })
     }
 
-    // Check if warehouse code already exists
     const existingWarehouse = await sql`
       SELECT id FROM warehouses WHERE warehouse_code = ${data.warehouse_code}
     `
@@ -131,16 +132,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "رمز المستودع موجود مسبقاً" }, { status: 400 })
     }
 
+    const status = Number(data.status ?? 1)
     const result = await sql`
       INSERT INTO warehouses (
-        warehouse_code, warehouse_name, warehouse_name_en, description, location, is_active
+        warehouse_code, warehouse_name, warehouse_name_en, description, location, is_active, status
       ) VALUES (
         ${data.warehouse_code}, 
         ${data.warehouse_name}, 
         ${data.warehouse_name_en || ""}, 
         ${data.description || ""}, 
         ${data.location || ""}, 
-        ${data.is_active !== false}
+        ${status === 1},
+        ${status}
       ) RETURNING *
     `
 

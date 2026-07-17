@@ -340,7 +340,12 @@ export default function DocumentSettings() {
             </div>
 
             {loading ? (
-              <div className="text-center py-4">جاري التحميل...</div>
+              <div className="flex items-center justify-center min-h-[200px]" dir="rtl">
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary mx-auto mb-3"></div>
+                  <p className="text-muted-foreground">جاري تحميل الأصناف...</p>
+                </div>
+              </div>
             ) : (
               <>
                 {/* Batch Settings Section */}

@@ -1,4 +1,4 @@
-import { type NextRequest, NextResponse } from "next/server"
+﻿import { type NextRequest, NextResponse } from "next/server"
 import { neon } from "@neondatabase/serverless"
 import { Pool } from "pg"
 import { db } from "@vercel/postgres"
@@ -68,24 +68,17 @@ async function ensureProductTypeColumns() {
   try {
     await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS type INTEGER DEFAULT 1`
     await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS service_type INTEGER DEFAULT 0`
+    await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS product_type INTEGER DEFAULT 1`
+    await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS tax_classification_id INTEGER`
     await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS selling_account_id INTEGER`
-    await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS selling_account_code VARCHAR(100)`
     await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS purchase_account_id INTEGER`
-    await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS purchase_account_code VARCHAR(100)`
     await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS selling_returns_account_id INTEGER`
-    await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS selling_returns_account_code VARCHAR(100)`
     await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS purchase_returns_account_id INTEGER`
-    await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS purchase_returns_account_code VARCHAR(100)`
     await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS stock_end_account_id INTEGER`
-    await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS stock_end_account_code VARCHAR(100)`
     await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS stock_start_account_id INTEGER`
-    await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS stock_start_account_code VARCHAR(100)`
     await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS production_account_id INTEGER`
-    await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS production_account_code VARCHAR(100)`
     await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS municipality_service_account_id INTEGER`
-    await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS municipality_service_account_code VARCHAR(100)`
     await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS lsti3mal_account_id INTEGER`
-    await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS lsti3mal_account_code VARCHAR(100)`
   } catch (error) {
     console.error("[v0] Failed to ensure product type columns:", error)
   }
@@ -188,42 +181,8 @@ function normalizeProductPayload(productData: any) {
     municipality_service_account_code: safeText(productData?.municipality_service_account_code, ""),
     lsti3mal_account_id: safeNumber(productData?.lsti3mal_account_id, 0),
     lsti3mal_account_code: safeText(productData?.lsti3mal_account_code, ""),
-    units: normalizedUnits,
-    prices: normalizedPrices,
-    stores: normalizedStores,
-    cost_centers: normalizedCostCenters,
-  }
-}
-
-export async function GET(request: NextRequest) {
-  if (!sql) {
-    return NextResponse.json({ error: "قاعدة البيانات غير متاحة" }, { status: 500 })
-  }
-
-  await ensureProductTypeColumns()
-
-  try {
-    const { searchParams } = new URL(request.url);
-    const organizationId = Number.parseInt(searchParams.get("organizationId") || "1", 10);
-    const priceCategoryId = Number.parseInt(searchParams.get("priceCategoryId") || "1", 10);
-    const requestedType = safeText(searchParams.get("type"), "").trim();
-    const requestedTypeFilter = requestedType === "services" || requestedType === "products" ? requestedType : "";
-    const typeParam: number | null = requestedTypeFilter === "services" ? 2 : requestedTypeFilter === "products" ? 1 : null;
-    const requestedProductId = safeNumber(searchParams.get("id"), 0);
-    const hasDefaultStore = await hasDefaultStoreColumn()
-    const products = hasDefaultStore
-      ? await sql`
-      SELECT 
-        p.*,
-        COALESCE(w.warehouse_name, 'بلا تحديد') AS default_store_name,
-        false as selected,
-        ROW_NUMBER() OVER (ORDER BY p.product_code desc) AS ser,
-        -- ✅ Stock columns
-        COALESCE(ps.current_stock, 0) AS current_stock,
-        COALESCE(ps.reserved_stock, 0) AS reserved_stock,
-        COALESCE(ps.available_stock, 0) AS available_stock,
-        COALESCE(ps.reorder_level, 0) AS min_stock_level,
-        ps.max_stock_level,
+    product_type: safeNumber(productData?.product_type, 1),
+    tax_classification_id: safeNumber(productData?.tax_classification_id, 0),
         ps.last_updated AS stock_last_updated,
 
         CASE 
@@ -234,25 +193,25 @@ export async function GET(request: NextRequest) {
           ELSE 'available'
         END AS stock_status,
 
-        -- ✅ Main unit (first product unit)
+        -- âœ… Main unit (first product unit)
         u.unit_name AS first_unit,
         u.id AS unit_id,
-        -- ✅ First unit barcode
+        -- âœ… First unit barcode
         pu.first_barcode,
 
-        -- ✅ First price (based on category)
+        -- âœ… First price (based on category)
         pr.price AS first_price,
         pc.name AS first_price_name,
         c.currency_name AS currency_name
 
       FROM products p
 
-      -- ✅ Stock join
+      -- âœ… Stock join
       LEFT JOIN product_stock ps 
         ON p.id = ps.product_id
         AND ps.organization_id = ${organizationId}
 
-      -- ✅ First unit join with barcode
+      -- âœ… First unit join with barcode
       LEFT JOIN LATERAL (
         SELECT pu.*, pub.barcode AS first_barcode
         FROM product_units pu
@@ -266,7 +225,7 @@ export async function GET(request: NextRequest) {
 
       LEFT JOIN units u ON pu.unit_id = u.id
 
-      -- ✅ First price join
+      -- âœ… First price join
       LEFT JOIN LATERAL (
         SELECT pr.*
         FROM product_prices pr
@@ -290,7 +249,7 @@ export async function GET(request: NextRequest) {
       : await sql`
       SELECT 
         p.*,
-        'بلا تحديد' AS default_store_name,
+        'ط¨ظ„ط§ طھط­ط¯ظٹط¯' AS default_store_name,
         false as selected,
         ROW_NUMBER() OVER (ORDER BY p.product_code desc) AS ser,
         COALESCE(ps.current_stock, 0) AS current_stock,
@@ -348,17 +307,17 @@ export async function GET(request: NextRequest) {
     // Map product status & tracking
     const mappedProducts = products.map((product: any) => ({
       ...product,
-      status: product.status === 1 ? "نشط" : product.status === 2 ? "غير نشط" : "متوقف",
+      status: product.status === 1 ? "ظ†ط´ط·" : product.status === 2 ? "ط؛ظٹط± ظ†ط´ط·" : "ظ…طھظˆظ‚ظپ",
       batch_tracking: product.has_batch,
       expiry_tracking: product.has_expiry,
-      default_store_name: product.default_store_name || "بلا تحديد",
+      default_store_name: product.default_store_name || "ط¨ظ„ط§ طھط­ط¯ظٹط¯",
     }));
 
     return NextResponse.json(mappedProducts);
   } catch (error) {
     console.error("Products API error:", error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "حدث خطأ في جلب البيانات" },
+      { error: error instanceof Error ? error.message : "ط­ط¯ط« ط®ط·ط£ ظپظٹ ط¬ظ„ط¨ ط§ظ„ط¨ظٹط§ظ†ط§طھ" },
       { status: 500 }
     );
   }
@@ -416,23 +375,14 @@ export async function POST(request: NextRequest) {
     await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS type INTEGER DEFAULT 1`)
     await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS service_type INTEGER DEFAULT 0`)
     await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS selling_account_id INTEGER`)
-    await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS selling_account_code VARCHAR(100)`)
     await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS purchase_account_id INTEGER`)
-    await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS purchase_account_code VARCHAR(100)`)
     await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS selling_returns_account_id INTEGER`)
-    await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS selling_returns_account_code VARCHAR(100)`)
     await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS purchase_returns_account_id INTEGER`)
-    await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS purchase_returns_account_code VARCHAR(100)`)
     await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS stock_end_account_id INTEGER`)
-    await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS stock_end_account_code VARCHAR(100)`)
     await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS stock_start_account_id INTEGER`)
-    await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS stock_start_account_code VARCHAR(100)`)
     await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS production_account_id INTEGER`)
-    await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS production_account_code VARCHAR(100)`)
     await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS municipality_service_account_id INTEGER`)
-    await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS municipality_service_account_code VARCHAR(100)`)
     await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS lsti3mal_account_id INTEGER`)
-    await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS lsti3mal_account_code VARCHAR(100)`)
     await ensureProductCostCentersTable(client)
 
     const productData = normalizeProductPayload(await request.json());
@@ -461,7 +411,7 @@ export async function POST(request: NextRequest) {
     if (nameCheck.rows.length > 0) {
       await client.query("ROLLBACK");
       //client.release();
-      return NextResponse.json({ success: false, message: "اسم الصنف مكرر" }, { status: 400 });
+      return NextResponse.json({ success: false, message: "ط§ط³ظ… ط§ظ„طµظ†ظپ ظ…ظƒط±ط±" }, { status: 400 });
     }
     if (Array.isArray(productData.units)) {
       for (const unit of productData.units) {
@@ -473,12 +423,12 @@ export async function POST(request: NextRequest) {
           if (barcodeCheck.rows.length > 0) {
             await client.query("ROLLBACK");
             //client.release();
-            return NextResponse.json({ success: false, message: `أحد الباركودات موجود مسبقاً: ${unit.barcode_list.join(", ")}` }, { status: 400 });
+            return NextResponse.json({ success: false, message: `ط£ط­ط¯ ط§ظ„ط¨ط§ط±ظƒظˆط¯ط§طھ ظ…ظˆط¬ظˆط¯ ظ…ط³ط¨ظ‚ط§ظ‹: ${unit.barcode_list.join(", ")}` }, { status: 400 });
           }
         }
       }
     }
-    // 1️⃣ Insert or update product
+    // 1ï¸ڈâƒ£ Insert or update product
 
 
 
@@ -526,42 +476,35 @@ export async function POST(request: NextRequest) {
           last_purchase_price=$13::numeric,
           currency_id=$14::int,
           selling_account_id=$15::int,
-          selling_account_code=$16::text,
-          purchase_account_id=$17::int,
-          purchase_account_code=$18::text,
-          selling_returns_account_id=$19::int,
-          selling_returns_account_code=$20::text,
-          purchase_returns_account_id=$21::int,
-          purchase_returns_account_code=$22::text,
-          stock_end_account_id=$23::int,
-          stock_end_account_code=$24::text,
-          stock_start_account_id=$25::int,
-          stock_start_account_code=$26::text,
-          production_account_id=$27::int,
-          production_account_code=$28::text,
-          municipality_service_account_id=$29::int,
-          municipality_service_account_code=$30::text,
-          lsti3mal_account_id=$31::int,
-          lsti3mal_account_code=$32::text,
-          tax_rate=$33::numeric,
-          discount_rate=$34::numeric,
-          location=$35::text,
-          has_expiry_date=$36::boolean,
-          has_batch_number=$37::boolean,
-          serial_tracking=$38::boolean,
-          status=$39::int,
-          type=$40::int,
-          service_type=$41::int,
-          length=$42::numeric,
-          width=$43::numeric,
-          height=$44::numeric,
-          density=$45::numeric,
-          color=$46::text,
-          size=$47::text,
-          notes=$48::text,
-          manufacturer_company=$49::text,
+          purchase_account_id=$16::int,
+          selling_returns_account_id=$17::int,
+          purchase_returns_account_id=$18::int,
+          stock_end_account_id=$19::int,
+          stock_start_account_id=$20::int,
+          production_account_id=$21::int,
+          municipality_service_account_id=$22::int,
+          lsti3mal_account_id=$23::int,
+          tax_rate=$24::numeric,
+          discount_rate=$25::numeric,
+          location=$26::text,
+          has_expiry_date=$27::boolean,
+          has_batch_number=$28::boolean,
+          serial_tracking=$29::boolean,
+          status=$30::int,
+          type=$31::int,
+          service_type=$32::int,
+          product_type=$33::int,
+          tax_classification_id=$34::int,
+          length=$35::numeric,
+          width=$36::numeric,
+          height=$37::numeric,
+          density=$38::numeric,
+          color=$39::text,
+          size=$40::text,
+          notes=$41::text,
+          manufacturer_company=$42::text,
           updated_at=NOW()
-         WHERE id=$50::int`
+         WHERE id=$43::int`
         : `UPDATE products SET
           product_code=$1::text,
           product_name=$2::text,
@@ -577,42 +520,35 @@ export async function POST(request: NextRequest) {
           last_purchase_price=$12::numeric,
           currency_id=$13::int,
           selling_account_id=$14::int,
-          selling_account_code=$15::text,
-          purchase_account_id=$16::int,
-          purchase_account_code=$17::text,
-          selling_returns_account_id=$18::int,
-          selling_returns_account_code=$19::text,
-          purchase_returns_account_id=$20::int,
-          purchase_returns_account_code=$21::text,
-          stock_end_account_id=$22::int,
-          stock_end_account_code=$23::text,
-          stock_start_account_id=$24::int,
-          stock_start_account_code=$25::text,
-          production_account_id=$26::int,
-          production_account_code=$27::text,
-          municipality_service_account_id=$28::int,
-          municipality_service_account_code=$29::text,
-          lsti3mal_account_id=$30::int,
-          lsti3mal_account_code=$31::text,
-          tax_rate=$32::numeric,
-          discount_rate=$33::numeric,
-          location=$34::text,
-          has_expiry_date=$35::boolean,
-          has_batch_number=$36::boolean,
-          serial_tracking=$37::boolean,
-          status=$38::int,
-          type=$39::int,
-          service_type=$40::int,
-          length=$41::numeric,
-          width=$42::numeric,
-          height=$43::numeric,
-          density=$44::numeric,
-          color=$45::text,
-          size=$46::text,
-          notes=$47::text,
-          manufacturer_company=$48::text,
+          purchase_account_id=$15::int,
+          selling_returns_account_id=$16::int,
+          purchase_returns_account_id=$17::int,
+          stock_end_account_id=$18::int,
+          stock_start_account_id=$19::int,
+          production_account_id=$20::int,
+          municipality_service_account_id=$21::int,
+          lsti3mal_account_id=$22::int,
+          tax_rate=$23::numeric,
+          discount_rate=$24::numeric,
+          location=$25::text,
+          has_expiry_date=$26::boolean,
+          has_batch_number=$27::boolean,
+          serial_tracking=$28::boolean,
+          status=$29::int,
+          type=$30::int,
+          service_type=$31::int,
+          product_type=$32::int,
+          tax_classification_id=$33::int,
+          length=$34::numeric,
+          width=$35::numeric,
+          height=$36::numeric,
+          density=$37::numeric,
+          color=$38::text,
+          size=$39::text,
+          notes=$40::text,
+          manufacturer_company=$41::text,
           updated_at=NOW()
-         WHERE id=$49::int`
+         WHERE id=$42::int`
 
       const updateValues = canSaveDefaultStore
         ? [
@@ -631,23 +567,14 @@ export async function POST(request: NextRequest) {
             productData.last_purchase_price,
             productData.currency_id || null,
             productData.selling_account_id || null,
-            productData.selling_account_code || "",
             productData.purchase_account_id || null,
-            productData.purchase_account_code || "",
             productData.selling_returns_account_id || null,
-            productData.selling_returns_account_code || "",
             productData.purchase_returns_account_id || null,
-            productData.purchase_returns_account_code || "",
             productData.stock_end_account_id || null,
-            productData.stock_end_account_code || "",
             productData.stock_start_account_id || null,
-            productData.stock_start_account_code || "",
             productData.production_account_id || null,
-            productData.production_account_code || "",
             productData.municipality_service_account_id || null,
-            productData.municipality_service_account_code || "",
             productData.lsti3mal_account_id || null,
-            productData.lsti3mal_account_code || "",
             productData.tax_rate,
             productData.discount_rate,
             productData.location,
@@ -657,6 +584,8 @@ export async function POST(request: NextRequest) {
             productData.status,
             productData.type || 1,
             productData.service_type || 0,
+            productData.product_type || 1,
+            productData.tax_classification_id || null,
             productData.length,
             productData.width,
             productData.height,
@@ -682,23 +611,14 @@ export async function POST(request: NextRequest) {
             productData.last_purchase_price,
             productData.currency_id || null,
             productData.selling_account_id || null,
-            productData.selling_account_code || "",
             productData.purchase_account_id || null,
-            productData.purchase_account_code || "",
             productData.selling_returns_account_id || null,
-            productData.selling_returns_account_code || "",
             productData.purchase_returns_account_id || null,
-            productData.purchase_returns_account_code || "",
             productData.stock_end_account_id || null,
-            productData.stock_end_account_code || "",
             productData.stock_start_account_id || null,
-            productData.stock_start_account_code || "",
             productData.production_account_id || null,
-            productData.production_account_code || "",
             productData.municipality_service_account_id || null,
-            productData.municipality_service_account_code || "",
             productData.lsti3mal_account_id || null,
-            productData.lsti3mal_account_code || "",
             productData.tax_rate,
             productData.discount_rate,
             productData.location,
@@ -708,6 +628,8 @@ export async function POST(request: NextRequest) {
             productData.status,
             productData.type || 1,
             productData.service_type || 0,
+            productData.product_type || 1,
+            productData.tax_classification_id || null,
             productData.length,
             productData.width,
             productData.height,
@@ -718,9 +640,7 @@ export async function POST(request: NextRequest) {
             productData.manufacturer_company,
             productId,
           ]
-
-      // Validate that the update query placeholders match the supplied values
-      const placeholderMatch = Array.from(updateQuery.matchAll(/\$(\d+)/g)).map(m => Number(m[1]))
+      const placeholderMatch = updateQuery.match(/\$([0-9]+)/g)?.map((match) => Number(match.replace("$", ""))) ?? []
       const maxPlaceholder = placeholderMatch.length ? Math.max(...placeholderMatch) : 0
       if (maxPlaceholder !== updateValues.length) {
         console.error(`[v0] Placeholder count mismatch for updateQuery: max=$${maxPlaceholder} values=${updateValues.length}`)
@@ -752,23 +672,14 @@ export async function POST(request: NextRequest) {
           'last_purchase_price',
           'currency_id',
           'selling_account_id',
-          'selling_account_code',
           'purchase_account_id',
-          'purchase_account_code',
           'selling_returns_account_id',
-          'selling_returns_account_code',
           'purchase_returns_account_id',
-          'purchase_returns_account_code',
           'stock_end_account_id',
-          'stock_end_account_code',
           'stock_start_account_id',
-          'stock_start_account_code',
           'production_account_id',
-          'production_account_code',
           'municipality_service_account_id',
-          'municipality_service_account_code',
           'lsti3mal_account_id',
-          'lsti3mal_account_code',
           'tax_rate',
           'discount_rate',
           'location',
@@ -777,6 +688,7 @@ export async function POST(request: NextRequest) {
           'status',
           'type',
           'service_type',
+          'product_type',
           'length',
           'width',
           'height',
@@ -802,23 +714,14 @@ export async function POST(request: NextRequest) {
           'last_purchase_price',
           'currency_id',
           'selling_account_id',
-          'selling_account_code',
           'purchase_account_id',
-          'purchase_account_code',
           'selling_returns_account_id',
-          'selling_returns_account_code',
           'purchase_returns_account_id',
-          'purchase_returns_account_code',
           'stock_end_account_id',
-          'stock_end_account_code',
           'stock_start_account_id',
-          'stock_start_account_code',
           'production_account_id',
-          'production_account_code',
           'municipality_service_account_id',
-          'municipality_service_account_code',
           'lsti3mal_account_id',
-          'lsti3mal_account_code',
           'tax_rate',
           'discount_rate',
           'location',
@@ -827,6 +730,7 @@ export async function POST(request: NextRequest) {
           'status',
           'type',
           'service_type',
+          'product_type',
           'length',
           'width',
           'height',
@@ -855,23 +759,14 @@ export async function POST(request: NextRequest) {
           productData.last_purchase_price,
           productData.currency_id,
           productData.selling_account_id || null,
-          productData.selling_account_code || "",
           productData.purchase_account_id || null,
-          productData.purchase_account_code || "",
           productData.selling_returns_account_id || null,
-          productData.selling_returns_account_code || "",
           productData.purchase_returns_account_id || null,
-          productData.purchase_returns_account_code || "",
           productData.stock_end_account_id || null,
-          productData.stock_end_account_code || "",
           productData.stock_start_account_id || null,
-          productData.stock_start_account_code || "",
           productData.production_account_id || null,
-          productData.production_account_code || "",
           productData.municipality_service_account_id || null,
-          productData.municipality_service_account_code || "",
           productData.lsti3mal_account_id || null,
-          productData.lsti3mal_account_code || "",
           productData.tax_rate,
           productData.discount_rate,
           productData.location,
@@ -880,6 +775,7 @@ export async function POST(request: NextRequest) {
           productData.status,
           productData.type || 1,
           productData.service_type || 0,
+          productData.product_type || 1,
           productData.length,
           productData.width,
           productData.height,
@@ -905,23 +801,14 @@ export async function POST(request: NextRequest) {
           productData.last_purchase_price,
           productData.currency_id,
           productData.selling_account_id || null,
-          productData.selling_account_code || "",
           productData.purchase_account_id || null,
-          productData.purchase_account_code || "",
           productData.selling_returns_account_id || null,
-          productData.selling_returns_account_code || "",
           productData.purchase_returns_account_id || null,
-          productData.purchase_returns_account_code || "",
           productData.stock_end_account_id || null,
-          productData.stock_end_account_code || "",
           productData.stock_start_account_id || null,
-          productData.stock_start_account_code || "",
           productData.production_account_id || null,
-          productData.production_account_code || "",
           productData.municipality_service_account_id || null,
-          productData.municipality_service_account_code || "",
           productData.lsti3mal_account_id || null,
-          productData.lsti3mal_account_code || "",
           productData.tax_rate,
           productData.discount_rate,
           productData.location,
@@ -930,6 +817,7 @@ export async function POST(request: NextRequest) {
           productData.status,
           productData.type || 1,
           productData.service_type || 0,
+          productData.product_type || 1,
           productData.length,
           productData.width,
           productData.height,
@@ -960,7 +848,7 @@ export async function POST(request: NextRequest) {
 
     }
 
-    // 3️⃣ Insert product units
+    // 3ï¸ڈâƒ£ Insert product units
     if (Array.isArray(productData.units)) {
       for (const unit of productData.units) {
         const unitResult = await client.query(
@@ -969,7 +857,7 @@ export async function POST(request: NextRequest) {
           [productId, Number(unit.unit_id || 0), Number(unit.to_main_qnty || 1)]
         );
         unitId = unitResult.rows[0].id;
-        // 4️⃣ Insert barcodes for this unit
+        // 4ï¸ڈâƒ£ Insert barcodes for this unit
         if (Array.isArray(unit.barcode_list)) {
           for (const barcode of unit.barcode_list) {
             await client.query(
@@ -982,7 +870,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 5️⃣ Insert product prices
+    // 5ï¸ڈâƒ£ Insert product prices
     if (Array.isArray(productData.stores)) {
       for (const store of productData.stores) {
         await client.query(
@@ -1036,7 +924,7 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   if (!sql) {
-    return NextResponse.json({ error: "قاعدة البيانات غير متاحة" }, { status: 500 });
+    return NextResponse.json({ error: "ظ‚ط§ط¹ط¯ط© ط§ظ„ط¨ظٹط§ظ†ط§طھ ط؛ظٹط± ظ…طھط§ط­ط©" }, { status: 500 });
   }
 
   await ensureProductTypeColumns()
@@ -1054,13 +942,22 @@ export async function PUT(request: NextRequest) {
         barcode = ${safeText(updateData.barcode, "")},
         description = ${safeText(updateData.description, "")},
         category = ${safeText(updateData.category, "")},
-        main_unit = ${safeText(updateData.main_unit, "قطعة")},
+        main_unit = ${safeText(updateData.main_unit, "ظ‚ط·ط¹ط©")},
         secondary_unit = ${safeText(updateData.secondary_unit, "")},
         conversion_factor = ${safeNumber(updateData.conversion_factor, 1)},
         last_purchase_price = ${safeNumber(updateData.last_purchase_price, safeNumber(updateData.selling_price, 0))},
-        currency = ${safeText(updateData.currency, "ريال سعودي")},
+        currency = ${safeText(updateData.currency, "ط±ظٹط§ظ„ ط³ط¹ظˆط¯ظٹ")},
         general_notes = ${safeText(updateData.notes, safeText(updateData.description, ""))},
-        product_type = ${safeText(updateData.product_type, "منتج نهائي")},
+        product_type = ${safeNumber(updateData.product_type, 1)},
+        selling_account_id = ${safeNumber(updateData.selling_account_id, 0)},
+        purchase_account_id = ${safeNumber(updateData.purchase_account_id, 0)},
+        selling_returns_account_id = ${safeNumber(updateData.selling_returns_account_id, 0)},
+        purchase_returns_account_id = ${safeNumber(updateData.purchase_returns_account_id, 0)},
+        stock_end_account_id = ${safeNumber(updateData.stock_end_account_id, 0)},
+        stock_start_account_id = ${safeNumber(updateData.stock_start_account_id, 0)},
+        production_account_id = ${safeNumber(updateData.production_account_id, 0)},
+        municipality_service_account_id = ${safeNumber(updateData.municipality_service_account_id, 0)},
+        lsti3mal_account_id = ${safeNumber(updateData.lsti3mal_account_id, 0)},
         type = ${safeNumber(updateData.type, 1)},
         service_type = ${safeNumber(updateData.service_type, 0)},
         classifications = ${safeText(updateData.classifications, safeText(updateData.category, ""))},
@@ -1070,7 +967,7 @@ export async function PUT(request: NextRequest) {
         has_colors = ${safeBoolean(updateData.has_colors, false)},
         has_expiry = ${safeBoolean(updateData.has_expiry, safeBoolean(updateData.expiry_tracking, false))},
         has_batch = ${safeBoolean(updateData.has_batch, safeBoolean(updateData.batch_tracking, false))},
-        status = ${safeText(updateData.status, "نشط")},
+        status = ${safeText(updateData.status, "ظ†ط´ط·")},
         max_quantity = ${safeNumber(updateData.max_stock_level, safeNumber(updateData.max_quantity, 0))},
         product_image = ${safeText(updateData.image_url, safeText(updateData.product_image, ""))},
         attachments = ${safeText(updateData.attachments, "")},
@@ -1094,11 +991,11 @@ export async function PUT(request: NextRequest) {
 
     // Update warehouse stock if available_quantity or warehouse_name is provided
     if (updateData.available_quantity !== undefined || updateData.warehouse_name) {
-      const warehouseName = updateData.warehouse_name || "المستودع الرئيسي"
+      const warehouseName = updateData.warehouse_name || "ط§ظ„ظ…ط³طھظˆط¯ط¹ ط§ظ„ط±ط¦ظٹط³ظٹ"
 
       // Get warehouse ID by name
       const warehouse = await sql`
-        SELECT id FROM warehouses WHERE warehouse_name = ${safeText(warehouseName, "المستودع الرئيسي")} LIMIT 1
+        SELECT id FROM warehouses WHERE warehouse_name = ${safeText(warehouseName, "ط§ظ„ظ…ط³طھظˆط¯ط¹ ط§ظ„ط±ط¦ظٹط³ظٹ")} LIMIT 1
       `
 
       if (warehouse.length > 0) {
@@ -1150,7 +1047,7 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json(mappedResult)
   } catch (error) {
     console.error("Update product API error:", error)
-    return NextResponse.json({ error: "حدث خطأ في تحديث المنتج" }, { status: 500 })
+    return NextResponse.json({ error: "ط­ط¯ط« ط®ط·ط£ ظپظٹ طھط­ط¯ظٹط« ط§ظ„ظ…ظ†طھط¬" }, { status: 500 })
   }
 }
 
@@ -1168,23 +1065,23 @@ export async function DELETE(request: NextRequest) {
     `
 
     if (existingProduct.length === 0) {
-      return NextResponse.json({ error: "الصنف غير موجود" }, { status: 404 })
+      return NextResponse.json({ error: "ط§ظ„طµظ†ظپ ط؛ظٹط± ظ…ظˆط¬ظˆط¯" }, { status: 404 })
     }
 
     const deleteResult = await sql`UPDATE products SET deleted = true WHERE id = ${id} RETURNING *`;
 
     if (deleteResult.length === 0) {
-      return NextResponse.json({ error: "فشل في حذف الصنف" }, { status: 500 })
+      return NextResponse.json({ error: "ظپط´ظ„ ظپظٹ ط­ط°ظپ ط§ظ„طµظ†ظپ" }, { status: 500 })
     }
 
 
     return NextResponse.json({
-      message: "تم حذف الصنف بنجاح",
+      message: "طھظ… ط­ط°ظپ ط§ظ„طµظ†ظپ ط¨ظ†ط¬ط§ط­",
       deletedProduct: deleteResult[0],
     })
   } catch (error) {
     console.error("Delete product API error:", error)
-    return NextResponse.json({ error: "حدث خطأ في حذف المنتج" }, { status: 500 })
+    return NextResponse.json({ error: "ط­ط¯ط« ط®ط·ط£ ظپظٹ ط­ط°ظپ ط§ظ„ظ…ظ†طھط¬" }, { status: 500 })
   }
 }
 function Inc_Code(code: string, prefix: string): string {

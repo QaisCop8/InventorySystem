@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -35,7 +35,7 @@ interface Customer {
 }
 
 const customerSummary = [
-  { title: "إجمالي الالعملاء", value: "342", icon: Users, color: "text-primary" },
+  { title: "إجمالي العملاء", value: "342", icon: Users, color: "text-primary" },
   { title: "العملاء نشطون", value: "298", icon: Users, color: "text-success" },
   { title: "العملاء جدد هذا الشهر", value: "23", icon: Users, color: "text-accent" },
   { title: "إجمالي المبيعات", value: "1,245,800 شيكل", icon: Users, color: "text-chart-2" },
@@ -127,7 +127,7 @@ function CustomersWithToolbar() {
         }
       } else {
         setCustomers([])
-        setError("فشل في تحميل بيانات الالعملاء")
+        setError("فشل في تحميل بيانات العملاء")
       }
     } catch (error) {
       console.error("Error fetching customers:", error)
@@ -218,7 +218,7 @@ function CustomersWithToolbar() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-lg">جاري تحميل بيانات الالعملاء...</div>
+        <div className="text-lg">جاري تحميل بيانات العملاء...</div>
       </div>
     )
   }
@@ -406,7 +406,7 @@ function CustomersWithToolbar() {
 
       {/* Report Generator */}
       <ReportGenerator
-        title="تقرير الالعملاء"
+        title="تقرير العملاء"
         data={customers}
         columns={reportColumns}
         isOpen={showReport}
@@ -417,3 +417,6 @@ function CustomersWithToolbar() {
 }
 
 export default CustomersWithToolbar
+
+
+

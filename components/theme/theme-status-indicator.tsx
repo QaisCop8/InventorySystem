@@ -9,7 +9,7 @@ export function ThemeStatusIndicator() {
   if (loading) {
     return (
       <Badge variant="secondary" className="animate-pulse">
-        جاري التحميل...
+        جاري تحميل الأصناف...
       </Badge>
     )
   }

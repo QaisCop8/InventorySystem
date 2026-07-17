@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
@@ -112,7 +112,7 @@ export function Sidebar({
       icon: Users,
       submenu: [
         { title: "الحسابات المحاسبية", section: "accounts", icon: Settings },
-        { title: "الالعملاء", section: "customers", icon: Users },
+        { title: "العملاء", section: "customers", icon: Users },
         { title: "الموردين", section: "suppliers", icon: Truck },
         { title: "الأصناف", section: "products", icon: Package },
         { title: "الخدمات", section: "services", icon: Package },
@@ -350,3 +350,6 @@ export function Sidebar({
     </div>
   )
 }
+
+
+

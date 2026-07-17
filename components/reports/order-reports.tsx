@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useState, useEffect, useMemo, useCallback } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -243,10 +243,10 @@ export function OrderReports() {
               <label className="text-sm font-medium mb-2 block text-gray-700">العميل:</label>
               <Select value={state.filters.customer} onValueChange={(value) => handleFilterChange("customer", value)}>
                 <SelectTrigger className="focus:ring-2 focus:ring-blue-500">
-                  <SelectValue placeholder="جميع الالعملاء" />
+                  <SelectValue placeholder="جميع العملاء" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">جميع الالعملاء</SelectItem>
+                  <SelectItem value="all">جميع العملاء</SelectItem>
                   <SelectItem value="ahmed">أحمد محمد علي</SelectItem>
                   <SelectItem value="success">شركة النجاح التجارية</SelectItem>
                 </SelectContent>
@@ -533,3 +533,6 @@ export function OrderReports() {
     </div>
   )
 }
+
+
+

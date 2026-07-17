@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import aesjs from 'aes-js';
 import { confirmDialog } from 'primereact/confirmdialog';
@@ -424,7 +424,7 @@ const exportDefault = {
       { label: $.strings.all, value: -1 },
       { label: 'الحسابات المحاسبية', value: 0 },
       { label: 'الحسابات غير المحاسبية', value: 1 },
-      { label: 'الالعملاء', value: 2 },
+      { label: 'العملاء', value: 2 },
       { label: 'الموردين', value: 3 },
       { label: 'المندوبين', value: 4 },
       { label: 'المشتركين', value: 5 },
@@ -4848,3 +4848,6 @@ const exportDefault = {
   },
 };
 export default exportDefault;
+
+
+

@@ -1,6 +1,6 @@
-import { type NextRequest, NextResponse } from "next/server"
+import { type NextRequest } from "next/server"
+import { NextResponse } from "next/server"
 import { neon } from "@neondatabase/serverless"
-
 import { Pool } from "pg"
 
 let sql: any = null
@@ -41,11 +41,8 @@ try {
   sql = null
 }
 
-export default sql
-
 export async function GET() {
   try {
-    // Check if units table exists, if not create it
     await sql`
       CREATE TABLE IF NOT EXISTS units (
         id SERIAL PRIMARY KEY,
@@ -54,12 +51,14 @@ export async function GET() {
         unit_name_en VARCHAR(50),
         description TEXT,
         is_active BOOLEAN DEFAULT true,
+        status INTEGER DEFAULT 1,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `
 
-    // Check if table is empty and populate with default units
+    await sql`ALTER TABLE units ADD COLUMN IF NOT EXISTS status INTEGER DEFAULT 1`
+
     const existingUnits = await sql`SELECT COUNT(*) as count FROM units`
 
     if (existingUnits[0].count === 0) {
@@ -83,8 +82,8 @@ export async function GET() {
 
       for (const unit of defaultUnits) {
         await sql`
-          INSERT INTO units (unit_code, unit_name, unit_name_en, is_active)
-          VALUES (${unit.code}, ${unit.name}, ${unit.name_en}, true)
+          INSERT INTO units (unit_code, unit_name, unit_name_en, is_active, status)
+          VALUES (${unit.code}, ${unit.name}, ${unit.name_en}, true, 1)
         `
       }
     }
@@ -96,10 +95,11 @@ export async function GET() {
         unit_name_en,
         description,
         is_active,
+        status,
         created_at,
         updated_at
       FROM units
-      WHERE is_active = true
+      WHERE status != 3
       ORDER BY unit_name
     `
 
@@ -118,7 +118,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "اسم الوحدة مطلوب" }, { status: 400 })
     }
 
-    // Check if unit code already exists
     const existingUnit = await sql`
       SELECT id FROM units WHERE unit_name = ${data.unit_name}
     `
@@ -126,15 +125,19 @@ export async function POST(request: NextRequest) {
     if (existingUnit.length > 0) {
       return NextResponse.json({ error: "اسم الوحدة موجود مسبقاً" }, { status: 400 })
     }
-    if(data.unit_name_e === "" || data.unit_name_e === undefined) data.unit_name_en = data.unit_name
+
+    if (data.unit_name_e === "" || data.unit_name_e === undefined) data.unit_name_en = data.unit_name
+    const newStatus = Number(data.status ?? 1)
+
     const result = await sql`
       INSERT INTO units (
-        unit_name, unit_name_en, description, is_active
+        unit_name, unit_name_en, description, is_active, status
       ) VALUES ( 
         ${data.unit_name}, 
         ${data.unit_name_en || ""}, 
         ${data.description || ""}, 
-        ${data.is_active !== false}
+        ${newStatus === 1}, 
+        ${newStatus}
       ) RETURNING *
     `
 

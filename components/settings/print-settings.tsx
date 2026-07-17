@@ -160,9 +160,11 @@ export default function PrintSettings() {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <Loader2 className="animate-spin w-6 h-6 ml-2" />
-        جاري التحميل...
+      <div className="flex items-center justify-center min-h-[400px]" dir="rtl">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">جاري تحميل الأصناف...</p>
+        </div>
       </div>
     )
   }

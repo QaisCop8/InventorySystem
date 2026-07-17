@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import type React from "react"
 
@@ -10,8 +10,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Edit, Building, MapPin, Package, Users, CreditCard, Settings, Trash2 } from "lucide-react"
+import { Plus, Edit, Building, MapPin, Package, Package2, Users, CreditCard, Settings, Trash2, Currency } from "lucide-react"
 import { UniversalToolbar } from "@/components/ui/universal-toolbar"
+import ConfirmDialogYesNo from "@/components/ui/ConfirmDialogYesNo"
 import { WorkflowStagesManagement } from "@/components/workflow/workflow-stages-management"
 import { WorkflowSequencesManagement } from "@/components/workflow/workflow-sequences-management"
 import { cn } from "@/lib/utils"
@@ -175,6 +176,18 @@ const customerCategories_initial = [
   { id: 3, name: "العملاء الجملة", discount: 20 },
 ]
 const colors = ["#10B981", "#6B7280", "#3B82F6", "#F59E0B", "#EF4444"];
+
+const getStatusBadgeVariant = (status?: number) =>
+  status === 1 ? "default" : status === 2 ? "secondary" : "destructive"
+
+const getStatusLabel = (status?: number) =>
+  status === 1 ? "نشط" : status === 2 ? "مجمّد" : "محذوف"
+
+const getToggleStatusLabel = (status?: number) =>
+  status === 2 ? "إلغاء التجميد" : "تجميد"
+
+const getToggledStatus = (status?: number) => (status === 2 ? 1 : 2)
+
 const supplierCategories_initial = [
   {
     id: 1,
@@ -213,6 +226,9 @@ function Definitions() {
   const [customercategories, setCustomerCategories] = useState<Customer_Categories[]>([])
   const [suppliercategories, setSupplierCategories] = useState<Supplier_Categories[]>([])
   const [productcategories, setProductCategories] = useState<Product_Categories[]>([])
+  const [taxClassifications, setTaxClassifications] = useState<Array<{ id: number; name: string; tax_percent?: number; status?: number }>>([])
+  const [showTaxClassificationForm, setShowTaxClassificationForm] = useState(false)
+  const [taxClassificationForm, setTaxClassificationForm] = useState<{ id?: number; name: string; tax_percent: number; status?: number }>({ name: "", tax_percent: 0, status: 1 })
   const [branches, setBranches] = useState<Branch[]>([])
   const [departments, setDepartments] = useState<Department[]>([])
   const [currencies, setCurrencies] = useState<Currency[]>([])
@@ -236,6 +252,7 @@ function Definitions() {
     warehouse_code: "",
     warehouse_name: "",
     location: "",
+    status: 1,
   })
   const [customercategoryForm, setCustomercategoryForm] = useState({
     name: "",
@@ -274,7 +291,7 @@ function Definitions() {
   const [units, setUnits] = useState<Unit[]>([])
   const [prices, setPrices] = useState<Price[]>([])
   const [priceForm, setPriceForm] = useState({ name: "", name_en: "", description: "" })
-  const [unitForm, setUnitForm] = useState({ unit_name: "", unit_name_e: "", description: "" })
+  const [unitForm, setUnitForm] = useState({ unit_name: "", unit_name_e: "", description: "", status: 1 })
   const [showUnitForm, setShowUnitForm] = useState(false)
   const [showPriceForm, setShowPriceForm] = useState(false)
   const [showIncomeStatementItemForm, setShowIncomeStatementItemForm] = useState(false)
@@ -295,6 +312,28 @@ function Definitions() {
   const [currentAccountClassificationIndex, setCurrentAccountClassificationIndex] = useState(0)
   const [editingUnitId, setEditingUnitId] = useState<number | null>(null)
   const [editingPriceId, setEditingPriceId] = useState<number | null>(null)
+  const [confirmDeleteVisible, setConfirmDeleteVisible] = useState(false)
+  const [confirmDeleteMessage, setConfirmDeleteMessage] = useState("هل أنت متأكد من حذف هذا العنصر؟")
+  const [confirmDeleteAction, setConfirmDeleteAction] = useState<(() => void) | null>(null)
+
+  const openDeleteConfirm = (message: string, action: () => void) => {
+    setConfirmDeleteMessage(message)
+    setConfirmDeleteAction(() => action)
+    setConfirmDeleteVisible(true)
+  }
+
+  const handleCancelDeleteConfirm = () => {
+    setConfirmDeleteVisible(false)
+    setConfirmDeleteAction(null)
+  }
+
+  const handleConfirmDelete = () => {
+    if (confirmDeleteAction) {
+      confirmDeleteAction()
+    }
+    handleCancelDeleteConfirm()
+  }
+
   const [incomeStatementItems, setIncomeStatementItems] = useState<IncomeStatementItem[]>([])
   const [balanceSheetAssetItems, setBalanceSheetAssetItems] = useState<BalanceSheetAssetItem[]>([])
   const [balanceSheetLiabilityItems, setBalanceSheetLiabilityItems] = useState<BalanceSheetLiabilityItem[]>([])
@@ -338,6 +377,80 @@ function Definitions() {
   useEffect(() => {
     fetchAllData()
   }, [])
+
+  useEffect(() => {
+    fetchTaxClassifications()
+  }, [])
+
+  const handleEditTaxClassification = (item: any) => {
+    setTaxClassificationForm({ id: item.id, name: item.name, tax_percent: Number(item.tax_percent || 0), status: Number(item.status ?? 1) })
+    setShowTaxClassificationForm(true)
+  }
+
+  const handleSaveTaxClassification = async (e: any) => {
+    e.preventDefault()
+    if (!taxClassificationForm.name.trim()) return
+    if (Number(taxClassificationForm.tax_percent) > 100) {
+      alert('قيمة الضريبة يجب أن لا تتجاوز 100')
+      return
+    }
+    try {
+      const url = '/api/tax-classifications'
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(taxClassificationForm),
+      })
+      if (response.ok) {
+        await fetchTaxClassifications()
+        setTaxClassificationForm({ name: '', tax_percent: 0, status: 1 })
+        setShowTaxClassificationForm(false)
+      } else {
+        const err = await response.json()
+        console.error('Failed to save tax classification', err)
+      }
+    } catch (err) {
+      console.error('Error saving tax classification', err)
+    }
+  }
+
+  const handleFreezeTaxClassification = async (item: any) => {
+    const nextStatus = item.status === 2 ? 1 : 2
+
+    try {
+      const response = await fetch(`/api/tax-classifications/${item.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: item.name, tax_percent: item.tax_percent ?? 0, status: nextStatus }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || (nextStatus === 2 ? "فشل في تجميد التصنيف" : "فشل في إلغاء التجميد"))
+      }
+
+      await fetchTaxClassifications()
+      toast({ title: nextStatus === 2 ? "تم التجميد" : "تم إلغاء التجميد", description: nextStatus === 2 ? "تم تجميد التصنيف" : "تم إلغاء تجميد التصنيف" })
+    } catch (error) {
+      toast({ title: nextStatus === 2 ? "فشل التجميد" : "فشل إلغاء التجميد", description: error instanceof Error ? error.message : "تعذر تنفيذ العملية", variant: "destructive" })
+    }
+  }
+
+  const handleDeleteTaxClassification = async (itemId: number) => {
+    try {
+      const response = await fetch(`/api/tax-classifications/${itemId}`, { method: "DELETE" })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || "فشل في حذف التصنيف")
+      }
+
+      await fetchTaxClassifications()
+      toast({ title: "تم الحذف", description: "تم حذف التصنيف" })
+    } catch (error) {
+      toast({ title: "فشل الحذف", description: error instanceof Error ? error.message : "تعذر حذف التصنيف", variant: "destructive" })
+    }
+  }
 
   const fetchCities = async () => {
     try {
@@ -549,6 +662,20 @@ function Definitions() {
     } catch (error) {
       console.error("Error fetching product categories:", error)
       setProductCategories(productCategories_initial)
+    }
+  }
+  const fetchTaxClassifications = async () => {
+    try {
+      const response = await fetch("/api/tax-classifications")
+      if (response.ok) {
+        const data = await response.json()
+        setTaxClassifications(data.categories || [])
+      } else {
+        setTaxClassifications([])
+      }
+    } catch (error) {
+      console.error("Error fetching tax classifications:", error)
+      setTaxClassifications([])
     }
   }
   const fetchBranches = async () => {
@@ -861,7 +988,7 @@ function Definitions() {
       })
       // Reset form
       await fetchUnits()
-      setUnitForm({ unit_name: "", unit_name_e: "", description: "" })
+      setUnitForm({ unit_name: "", unit_name_e: "", description: "", status: 1 })
       setShowUnitForm(false)
       setEditingUnitId(null)
       setCurrentUnitIndex(units.length) // select the new unit
@@ -877,9 +1004,61 @@ function Definitions() {
       unit_name: unit.unit_name,
       unit_name_e: unit.unit_name_e,
       description: unit.description || "",
+      status: unit.status ?? 1,
     })
     setEditingUnitId(unit.id)
     setShowUnitForm(true)
+  }
+
+  const handleFreezeUnit = async (unit: Unit) => {
+    const nextStatus = getToggledStatus(unit.status)
+    try {
+      const response = await fetch(`/api/units/${unit.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          unit_name: unit.unit_name,
+          unit_name_en: unit.unit_name_en || "",
+          description: unit.description || "",
+          status: nextStatus,
+        }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || "فشل في تحديث حالة الوحدة")
+      }
+
+      await fetchUnits()
+      toast({
+        title: nextStatus === 2 ? "تم التجميد" : "تم إلغاء التجميد",
+        description: nextStatus === 2 ? "تم تجميد الوحدة" : "تم إلغاء تجميد الوحدة",
+      })
+    } catch (error) {
+      toast({
+        title: nextStatus === 2 ? "فشل التجميد" : "فشل إلغاء التجميد",
+        description: error instanceof Error ? error.message : "تعذر تحديث حالة الوحدة",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleDeleteUnit = async (unitId: number) => {
+    try {
+      const response = await fetch(`/api/units/${unitId}`, { method: "DELETE" })
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || "فشل في حذف الوحدة")
+      }
+      await fetchUnits()
+      toast({ title: "تم الحذف", description: "تم حذف الوحدة" })
+    } catch (error) {
+      toast({
+        title: "فشل الحذف",
+        description: error instanceof Error ? error.message : "تعذر حذف الوحدة",
+        variant: "destructive",
+      })
+    }
   }
 
   const handleEditBranch = (branch: any) => {
@@ -916,15 +1095,79 @@ function Definitions() {
     warehouse_code: string;
     warehouse_name: string;
     location?: string;
+    status?: number;
   }) => {
     setWarehouseForm({
       id: warehouse.id,
       warehouse_code: warehouse.warehouse_code,
       warehouse_name: warehouse.warehouse_name,
       location: warehouse.location || "",
+      status: warehouse.status ?? 1,
     });
     setShowWarehouseForm(true);
   };
+
+  const handleFreezeWarehouse = async (warehouse: {
+    id: number;
+    warehouse_code: string;
+    warehouse_name: string;
+    warehouse_name_en?: string;
+    description?: string;
+    location?: string;
+    status?: number;
+  }) => {
+    const nextStatus = getToggledStatus(warehouse.status)
+    try {
+      const response = await fetch(`/api/warehouses/${warehouse.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          warehouse_code: warehouse.warehouse_code,
+          warehouse_name: warehouse.warehouse_name,
+          warehouse_name_en: warehouse.warehouse_name_en || "",
+          description: warehouse.description || "",
+          location: warehouse.location || "",
+          status: nextStatus,
+        }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || "فشل في تحديث حالة المستودع")
+      }
+
+      await fetchWarehouses()
+      toast({
+        title: nextStatus === 2 ? "تم التجميد" : "تم إلغاء التجميد",
+        description: nextStatus === 2 ? "تم تجميد المستودع" : "تم إلغاء تجميد المستودع",
+      })
+    } catch (error) {
+      toast({
+        title: nextStatus === 2 ? "فشل التجميد" : "فشل إلغاء التجميد",
+        description: error instanceof Error ? error.message : "تعذر تحديث حالة المستودع",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleDeleteWarehouse = async (warehouseId: number) => {
+    try {
+      const response = await fetch(`/api/warehouses/${warehouseId}`, { method: "DELETE" })
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || "فشل في حذف المستودع")
+      }
+      await fetchWarehouses()
+      toast({ title: "تم الحذف", description: "تم حذف المستودع" })
+    } catch (error) {
+      toast({
+        title: "فشل الحذف",
+        description: error instanceof Error ? error.message : "تعذر حذف المستودع",
+        variant: "destructive",
+      })
+    }
+  }
+
   const handleAddPrice = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -1035,27 +1278,28 @@ function Definitions() {
   }
 
   const handleStopIncomeStatementItem = async (item: IncomeStatementItem) => {
+    const nextStatus = getToggledStatus(item.status)
     try {
       const response = await fetch(`/api/income-statement-items/${item.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: item.name, status: 2 }),
+        body: JSON.stringify({ name: item.name, status: nextStatus }),
       })
 
       if (!response.ok) {
         const error = await response.json()
-        throw new Error(error.error || "فشل في تجميد البند")
+        throw new Error(error.error || "فشل في تحديث حالة البند")
       }
 
       await fetchIncomeStatementItems()
       toast({
-        title: "تم التجميد",
-        description: "تم تجميد بند قائمة الدخل",
+        title: nextStatus === 2 ? "تم التجميد" : "تم إلغاء التجميد",
+        description: nextStatus === 2 ? "تم تجميد بند قائمة الدخل" : "تم إلغاء تجميد بند قائمة الدخل",
       })
     } catch (error) {
       toast({
-        title: "فشل التجميد",
-        description: error instanceof Error ? error.message : "تعذر تجميد البند",
+        title: nextStatus === 2 ? "فشل التجميد" : "فشل إلغاء التجميد",
+        description: error instanceof Error ? error.message : "تعذر تحديث حالة البند",
         variant: "destructive",
       })
     }
@@ -1141,27 +1385,28 @@ function Definitions() {
   }
 
   const handleStopBalanceSheetAssetItem = async (item: BalanceSheetAssetItem) => {
+    const nextStatus = getToggledStatus(item.status)
     try {
       const response = await fetch(`/api/balance-sheet-assets-items/${item.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: item.name, status: 2 }),
+        body: JSON.stringify({ name: item.name, status: nextStatus }),
       })
 
       if (!response.ok) {
         const error = await response.json()
-        throw new Error(error.error || "فشل في تجميد البند")
+        throw new Error(error.error || "فشل في تحديث حالة البند")
       }
 
       await fetchBalanceSheetAssetItems()
       toast({
-        title: "تم التجميد",
-        description: "تم تجميد بند أصول الميزانية",
+        title: nextStatus === 2 ? "تم التجميد" : "تم إلغاء التجميد",
+        description: nextStatus === 2 ? "تم تجميد بند أصول الميزانية" : "تم إلغاء تجميد بند أصول الميزانية",
       })
     } catch (error) {
       toast({
-        title: "فشل التجميد",
-        description: error instanceof Error ? error.message : "تعذر تجميد البند",
+        title: nextStatus === 2 ? "فشل التجميد" : "فشل إلغاء التجميد",
+        description: error instanceof Error ? error.message : "تعذر تحديث حالة البند",
         variant: "destructive",
       })
     }
@@ -1247,27 +1492,28 @@ function Definitions() {
   }
 
   const handleStopBalanceSheetLiabilityItem = async (item: BalanceSheetLiabilityItem) => {
+    const nextStatus = getToggledStatus(item.status)
     try {
       const response = await fetch(`/api/balance-sheet-liabilities-items/${item.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: item.name, status: 2 }),
+        body: JSON.stringify({ name: item.name, status: nextStatus }),
       })
 
       if (!response.ok) {
         const error = await response.json()
-        throw new Error(error.error || "فشل في تجميد البند")
+        throw new Error(error.error || "فشل في تحديث حالة البند")
       }
 
       await fetchBalanceSheetLiabilityItems()
       toast({
-        title: "تم التجميد",
-        description: "تم تجميد بند خصوم الميزانية",
+        title: nextStatus === 2 ? "تم التجميد" : "تم إلغاء التجميد",
+        description: nextStatus === 2 ? "تم تجميد بند خصوم الميزانية" : "تم إلغاء تجميد بند خصوم الميزانية",
       })
     } catch (error) {
       toast({
-        title: "فشل التجميد",
-        description: error instanceof Error ? error.message : "تعذر تجميد البند",
+        title: nextStatus === 2 ? "فشل التجميد" : "فشل إلغاء التجميد",
+        description: error instanceof Error ? error.message : "تعذر تحديث حالة البند",
         variant: "destructive",
       })
     }
@@ -1351,27 +1597,28 @@ function Definitions() {
   }
 
   const handleFreezeCostCenterType = async (item: CostCenterType) => {
+    const nextStatus = getToggledStatus(item.status)
     try {
       const response = await fetch(`/api/cost-center-types/${item.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: item.name, status: 2 }),
+        body: JSON.stringify({ name: item.name, status: nextStatus }),
       })
 
       if (!response.ok) {
         const error = await response.json()
-        throw new Error(error.error || "فشل في تجميد النوع")
+        throw new Error(error.error || "فشل في تحديث حالة النوع")
       }
 
       await fetchCostCenterTypes()
       toast({
-        title: "تم التجميد",
-        description: "تم تجميد نوع مركز التكلفة",
+        title: nextStatus === 2 ? "تم التجميد" : "تم إلغاء التجميد",
+        description: nextStatus === 2 ? "تم تجميد نوع مركز التكلفة" : "تم إلغاء تجميد نوع مركز التكلفة",
       })
     } catch (error) {
       toast({
-        title: "فشل التجميد",
-        description: error instanceof Error ? error.message : "تعذر تجميد النوع",
+        title: nextStatus === 2 ? "فشل التجميد" : "فشل إلغاء التجميد",
+        description: error instanceof Error ? error.message : "تعذر تحديث حالة النوع",
         variant: "destructive",
       })
     }
@@ -1472,6 +1719,7 @@ function Definitions() {
   }
 
   const handleFreezeCostCenter = async (item: CostCenter) => {
+    const nextStatus = getToggledStatus(item.status)
     try {
       const response = await fetch(`/api/cost-centers/${item.id}`, {
         method: "PUT",
@@ -1480,24 +1728,24 @@ function Definitions() {
           name: item.name,
           cost_type_id: item.cost_type_id,
           parent_id: item.parent_id ?? null,
-          status: 2,
+          status: nextStatus,
         }),
       })
 
       if (!response.ok) {
         const error = await response.json()
-        throw new Error(error.error || "فشل في تجميد مركز التكلفة")
+        throw new Error(error.error || "فشل في تحديث حالة مركز التكلفة")
       }
 
       await fetchCostCenters()
       toast({
-        title: "تم التجميد",
-        description: "تم تجميد مركز التكلفة",
+        title: nextStatus === 2 ? "تم التجميد" : "تم إلغاء التجميد",
+        description: nextStatus === 2 ? "تم تجميد مركز التكلفة" : "تم إلغاء تجميد مركز التكلفة",
       })
     } catch (error) {
       toast({
-        title: "فشل التجميد",
-        description: error instanceof Error ? error.message : "تعذر تجميد مركز التكلفة",
+        title: nextStatus === 2 ? "فشل التجميد" : "فشل إلغاء التجميد",
+        description: error instanceof Error ? error.message : "تعذر تحديث حالة مركز التكلفة",
         variant: "destructive",
       })
     }
@@ -1576,24 +1824,28 @@ function Definitions() {
   }
 
   const handleFreezeAccountClassificationType = async (item: AccountClassificationType) => {
+    const nextStatus = getToggledStatus(item.status)
     try {
       const response = await fetch(`/api/account-classification-types/${item.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: item.name, status: 2 }),
+        body: JSON.stringify({ name: item.name, status: nextStatus }),
       })
 
       if (!response.ok) {
         const error = await response.json()
-        throw new Error(error.error || "فشل في تجميد نوع التصنيف")
+        throw new Error(error.error || "فشل في تحديث حالة النوع")
       }
 
       await fetchAccountClassificationTypes()
-      toast({ title: "تم التجميد", description: "تم تجميد نوع تصنيف الحساب" })
+      toast({
+        title: nextStatus === 2 ? "تم التجميد" : "تم إلغاء التجميد",
+        description: nextStatus === 2 ? "تم تجميد نوع تصنيف الحساب" : "تم إلغاء تجميد نوع تصنيف الحساب",
+      })
     } catch (error) {
       toast({
-        title: "فشل التجميد",
-        description: error instanceof Error ? error.message : "تعذر تجميد نوع تصنيف الحساب",
+        title: nextStatus === 2 ? "فشل التجميد" : "فشل إلغاء التجميد",
+        description: error instanceof Error ? error.message : "تعذر تحديث حالة النوع",
         variant: "destructive",
       })
     }
@@ -1678,6 +1930,7 @@ function Definitions() {
   }
 
   const handleFreezeAccountClassification = async (item: AccountClassification) => {
+    const nextStatus = getToggledStatus(item.status)
     try {
       const response = await fetch(`/api/account-classifications/${item.id}`, {
         method: "PUT",
@@ -1685,21 +1938,24 @@ function Definitions() {
         body: JSON.stringify({
           name: item.name,
           classification_type_id: item.classification_type_id,
-          status: 2,
+          status: nextStatus,
         }),
       })
 
       if (!response.ok) {
         const error = await response.json()
-        throw new Error(error.error || "فشل في تجميد التصنيف")
+        throw new Error(error.error || "فشل في تحديث حالة التصنيف")
       }
 
       await fetchAccountClassifications()
-      toast({ title: "تم التجميد", description: "تم تجميد تصنيف الحساب" })
+      toast({
+        title: nextStatus === 2 ? "تم التجميد" : "تم إلغاء التجميد",
+        description: nextStatus === 2 ? "تم تجميد تصنيف الحساب" : "تم إلغاء تجميد تصنيف الحساب",
+      })
     } catch (error) {
       toast({
-        title: "فشل التجميد",
-        description: error instanceof Error ? error.message : "تعذر تجميد تصنيف الحساب",
+        title: nextStatus === 2 ? "فشل التجميد" : "فشل إلغاء التجميد",
+        description: error instanceof Error ? error.message : "تعذر تحديث حالة التصنيف",
         variant: "destructive",
       })
     }
@@ -1773,7 +2029,7 @@ function Definitions() {
           description: isEditing ? "تم تعديل المستودع بنجاح" : "تم إضافة المستودع بنجاح",
         });
         await fetchWarehouses();
-        setWarehouseForm({ id: 0, warehouse_code: "", warehouse_name: "", location: "" });
+        setWarehouseForm({ id: 0, warehouse_code: "", warehouse_name: "", location: "", status: 1 });
         setShowWarehouseForm(false);
       } else {
         const error = await response.json();
@@ -1929,6 +2185,10 @@ function Definitions() {
           <TabsTrigger value="definitions" className="flex items-center gap-2">
             <Package className="h-4 w-4" />
             التعريفات الأساسية
+          </TabsTrigger>
+          <TabsTrigger value="items" className="flex items-center gap-2">
+            <Package2 className="h-4 w-4" />
+            الاصناف
           </TabsTrigger>
           <TabsTrigger value="financial-definitions" className="flex items-center gap-2">
             <CreditCard className="h-4 w-4" />
@@ -2228,6 +2488,345 @@ function Definitions() {
           </div>
         </TabsContent>
 
+        <TabsContent value="items" className="space-y-6">
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+            <Card dir="rtl">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Currency className="h-4 w-4 text-primary" />
+                    التصنيف الضريبي
+                  </CardTitle>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => { setShowTaxClassificationForm(!showTaxClassificationForm); if (!showTaxClassificationForm) setTaxClassificationForm({ name: '', tax_percent: 0, status: 1 }) }}
+                  >
+                    <Plus className="h-3 w-3" />
+                    اضافة فئة
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {showTaxClassificationForm && (
+                  <div className="bg-muted/30 rounded-lg p-3 border" dir="rtl">
+                    <form className="space-y-3" onSubmit={handleSaveTaxClassification}>
+                      <div className="text-right grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                          <Label className="erp-label text-sm text-right block">اسم التصنيف الضريبي</Label>
+                          <Input className="erp-input text-right" placeholder="مثال: ضريبة سنوية" dir="rtl"
+                            value={taxClassificationForm.name}
+                            onChange={(e) => setTaxClassificationForm({ ...taxClassificationForm, name: e.target.value })}
+                          />
+                        </div>
+                        <div>
+                          <Label className="erp-label text-sm text-right block">نسبة الضريبة (%)</Label>
+                          <Input
+                            type="number"
+                            min={0}
+                            max={100}
+                            step={0.01}
+                            className="erp-input text-right"
+                            placeholder="0.00"
+                            dir="rtl"
+                            value={taxClassificationForm.tax_percent ?? 0}
+                            onChange={(e) => {
+                              const raw = Number(e.target.value)
+                              const v = isNaN(raw) ? 0 : Math.max(0, Math.min(100, raw))
+                              setTaxClassificationForm({ ...taxClassificationForm, tax_percent: v })
+                            }}
+                          />
+                        </div>
+                      </div>
+                      <div className="flex justify-start gap-2">
+                        <Button type="submit" size="sm" className="erp-btn-primary">
+                          حفظ
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setShowTaxClassificationForm(false)}
+                        >
+                          إلغاء
+                        </Button>
+                      </div>
+                    </form>
+                  </div>
+                )}
+
+                <div className="space-y-2 max-h-96 overflow-y-auto">
+                  {taxClassifications.map((item, index) => (
+                    <div key={item.id} className="p-3 rounded-lg border bg-background hover:bg-muted/50 transition-colors" dir="rtl">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: colors[index % colors.length] }} />
+                          <div className="text-right min-w-0">
+                            <h4 className="font-medium text-sm truncate">{item.name}</h4>
+                            <p className="text-xs text-muted-foreground">النسبة: {Number(item.tax_percent ?? 0).toFixed(2)}%</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <Button variant="outline" size="sm" onClick={() => handleEditTaxClassification(item)} aria-label="تعديل التصنيف" title="تعديل التصنيف">
+                            <Edit className="h-3 w-3" />
+                          </Button>
+                          {item.status !== 3 && (
+                            <Button variant="outline" size="sm" onClick={() => handleFreezeTaxClassification(item)}>
+                              {getToggleStatusLabel(item.status)}
+                            </Button>
+                          )}
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => openDeleteConfirm("هل أنت متأكد من حذف هذا التصنيف الضريبي؟", () => handleDeleteTaxClassification(item.id))}
+                            aria-label="حذف التصنيف"
+                            title="حذف التصنيف"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                          <Badge variant={getStatusBadgeVariant(item.status)}>
+                            {getStatusLabel(item.status)}
+                          </Badge>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+            <Card dir="rtl">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Package className="h-4 w-4 text-primary" />
+                    المستودعات ({warehouses.length})
+                  </CardTitle>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setShowWarehouseForm(!showWarehouseForm)}
+                  >
+                    <Plus className="h-3 w-3" />
+                    إضافة مستودع
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {showWarehouseForm && (
+                  <div className="bg-muted/30 rounded-lg p-4 border" dir="rtl">
+                    <h3 className="font-heading font-semibold mb-4 text-right">إضافة مستودع جديد</h3>
+                    <form className="space-y-4" onSubmit={handleAddWarehouse}>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="text-right">
+                          <Label className="erp-label text-right block">رمز المستودع *</Label>
+                          <Input
+                            required
+                            className="erp-input text-right"
+                            placeholder="MAIN"
+                            dir="rtl"
+                            value={warehouseForm.warehouse_code}
+                            maxLength={8}
+                            onChange={(e) => {
+                              const value = e.target.value
+                                .toUpperCase()
+                                .replace(/[^A-Z0-9]/g, "")
+
+                              setWarehouseForm({ ...warehouseForm, warehouse_code: value })
+                            }}
+                          />
+                        </div>
+                        <div className="text-right">
+                          <Label className="erp-label text-right block">اسم المستودع *</Label>
+                          <Input
+                            required
+                            className="erp-input text-right"
+                            placeholder="مثال: مستودع الخليل"
+                            dir="rtl"
+                            maxLength={30}
+                            value={warehouseForm.warehouse_name}
+                            onChange={(e) => setWarehouseForm({ ...warehouseForm, warehouse_name: e.target.value })}
+                          />
+                        </div>
+                      </div>
+                      {/* الحالة سيتم التحكم بها عبر زر التجميد / إلغاء التجميد في الصف */}
+                      <div className="flex justify-start gap-2 pt-2">
+                        <Button type="submit" className="erp-btn-primary" size="sm">
+                          حفظ المستودع
+                        </Button>
+                        <Button type="button" variant="outline" size="sm" onClick={() => setShowWarehouseForm(false)}>
+                          إلغاء
+                        </Button>
+                      </div>
+                    </form>
+                  </div>
+                )}
+
+                <div className="space-y-3">
+                  {warehouses.map((warehouse, index) => (
+                    <div
+                      key={warehouse.id}
+                      className={cn(
+                        "p-4 rounded-lg border transition-all cursor-pointer",
+                        index === currentWarehouseIndex
+                          ? "bg-primary/10 border-primary shadow-sm"
+                          : "bg-background hover:bg-muted/50",
+                      )}
+                      onClick={() => setCurrentWarehouseIndex(index)}
+                      dir="rtl"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="space-y-1 text-right">
+                          <h4 className="font-heading font-semibold">{warehouse.warehouse_name}</h4>
+                          <p className="text-sm text-muted-foreground flex items-center gap-1">
+                            <MapPin className="h-3 w-3" />
+                            {warehouse.location || "لا يوجد موقع"}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button variant="outline" size="sm" onClick={() => handleEditWarehouse(warehouse)}>
+                            <Edit className="h-3 w-3" />
+                          </Button>
+                          {warehouse.status !== 3 && (
+                            <Button variant="outline" size="sm" onClick={() => handleFreezeWarehouse(warehouse)}>
+                              {getToggleStatusLabel(warehouse.status)}
+                            </Button>
+                          )}
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => openDeleteConfirm("هل أنت متأكد من حذف هذا المستودع؟", () => handleDeleteWarehouse(warehouse.id))}
+                            aria-label="حذف المستودع"
+                            title="حذف المستودع"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                          <Badge variant={getStatusBadgeVariant(warehouse.status)}>
+                            {getStatusLabel(warehouse.status)}
+                          </Badge>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+            <Card dir="rtl">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Package2 className="h-4 w-4 text-primary" />
+                    الوحدات ({units.length})
+                  </CardTitle>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      const show = !showUnitForm
+                      setShowUnitForm(show)
+                      if (!show) {
+                        setUnitForm({ unit_name: "", unit_name_e: "", description: "", status: 1 })
+                        setEditingUnitId(null)
+                      }
+                    }}
+                  >
+                    <Plus className="h-3 w-3" />
+                    إضافة وحدة
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {showUnitForm && (
+                  <div className="bg-muted/30 rounded-lg p-4 border" dir="rtl">
+                    <h3 className="font-heading font-semibold mb-4 text-right">{editingUnitId ? "تعديل الوحدة" : "إضافة وحدة جديدة"}</h3>
+                    <form className="space-y-4" onSubmit={handleAddUnit}>
+                      <div className="text-right">
+                        <Label className="erp-label text-right block">اسم الوحدة *</Label>
+                        <Input
+                          required
+                          className="erp-input text-right"
+                          placeholder="مثال: كرتونة"
+                          dir="rtl"
+                          value={unitForm.unit_name}
+                          onChange={(e) => setUnitForm({ ...unitForm, unit_name: e.target.value })}
+                        />
+                      </div>
+                      <div className="text-right">
+                        <Label className="erp-label text-right block">الاسم الإنجليزي للوحدة</Label>
+                        <Input
+                          className="erp-input text-right"
+                          placeholder="Example: Box"
+                          dir="rtl"
+                          value={unitForm.unit_name_e}
+                          onChange={(e) => setUnitForm({ ...unitForm, unit_name_e: e.target.value })}
+                        />
+                      </div>
+                      {/* الحالة سيتم التحكم بها عبر زر التجميد / إلغاء التجميد في الصف */}
+                      <div className="flex justify-start gap-2 pt-2">
+                        <Button type="submit" className="erp-btn-primary" size="sm">
+                          حفظ الوحدة
+                        </Button>
+                        <Button type="button" variant="outline" size="sm" onClick={() => {
+                          setShowUnitForm(false)
+                          setUnitForm({ unit_name: "", unit_name_e: "", description: "" })
+                          setEditingUnitId(null)
+                        }}>
+                          إلغاء
+                        </Button>
+                      </div>
+                    </form>
+                  </div>
+                )}
+
+                <div className="space-y-3">
+                  {units.map((unit, index) => (
+                    <div
+                      key={unit.id}
+                      className={cn(
+                        "p-4 rounded-lg border transition-all cursor-pointer",
+                        index === currentUnitIndex
+                          ? "bg-primary/10 border-primary shadow-sm"
+                          : "bg-background hover:bg-muted/50",
+                      )}
+                      onClick={() => setCurrentUnitIndex(index)}
+                      dir="rtl"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="space-y-1 text-right">
+                          <h4 className="font-heading font-semibold">{unit.unit_name}</h4>
+                          <p className="text-sm text-muted-foreground">{unit.unit_name_e}</p>
+                          <p className="text-xs text-muted-foreground">{unit.description || "بدون وصف"}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button variant="outline" size="sm" onClick={() => handleEditUnit(unit)}>
+                            <Edit className="h-3 w-3" />
+                          </Button>
+                          {unit.status !== 3 && (
+                            <Button variant="outline" size="sm" onClick={() => handleFreezeUnit(unit)}>
+                              {getToggleStatusLabel(unit.status)}
+                            </Button>
+                          )}
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => openDeleteConfirm("هل أنت متأكد من حذف هذه الوحدة؟", () => handleDeleteUnit(unit.id))}
+                            aria-label="حذف الوحدة"
+                            title="حذف الوحدة"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                          <Badge variant={getStatusBadgeVariant(unit.status)}>
+                            {getStatusLabel(unit.status)}
+                          </Badge>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
         <TabsContent value="definitions" className="space-y-6">
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
             <Card dir="rtl">
@@ -2302,246 +2901,26 @@ function Definitions() {
             <Card dir="rtl">
               <CardHeader>
                 <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center gap-2">
-                    <Package className="h-5 w-5 text-primary" />
-                    المستودعات ({warehouses.length})
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Package2 className="h-4 w-4 text-primary" />
+                    فئات الأسعار
                   </CardTitle>
                   <Button
-                    className="erp-btn-primary"
                     size="sm"
-                    onClick={() => setShowWarehouseForm(!showWarehouseForm)}
+                    variant="outline"
+                    onClick={() => {
+                      const show = !showPriceForm
+                      setShowPriceForm(show)
+                      if (show) {
+                        setPriceForm({ name: "", name_en: "", description: "" })
+                        setEditingPriceId(null)
+                      }
+                    }}
                   >
-                    <Plus className="h-4 w-4 mr-2" />
-                    إضافة مستودع
+                    <Plus className="h-3 w-3" />
                   </Button>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-4">
-
-                {showWarehouseForm && (
-                  <div className="bg-muted/30 rounded-lg p-4 border" dir="rtl">
-                    <h3 className="font-heading font-semibold mb-4 text-right">إضافة مستودع جديد</h3>
-                    <form className="space-y-4" onSubmit={handleAddWarehouse}>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="text-right">
-                          <Label className="erp-label text-right block">رمز المستودع *</Label>
-                          <Input
-                            required
-                            className="erp-input text-right"
-                            placeholder="MAIN"
-                            dir="rtl"
-                            value={warehouseForm.warehouse_code}
-                            maxLength={8}
-                            onChange={(e) => {
-                              const value = e.target.value
-                                .toUpperCase()        // تحويل إلى Capital
-                                .replace(/[^A-Z0-9]/g, ""); // السماح فقط بالحروف الإنجليزية والأرقام
-
-                              setWarehouseForm({ ...warehouseForm, warehouse_code: value })
-                            }}
-                           />
-                        </div>
-                        <div className="text-right">
-                          <Label className="erp-label text-right block">اسم المستودع *</Label>
-                          <Input
-                            required
-                            className="erp-input text-right"
-                            placeholder="مثال: مستودع الخليل"
-                            dir="rtl"
-                            maxLength={30}
-                            value={warehouseForm.warehouse_name}
-                            onChange={(e) => setWarehouseForm({ ...warehouseForm, warehouse_name: e.target.value })}
-                          />
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <Label className="erp-label text-right block">الموقع</Label>
-                        <Input
-                          className="erp-input text-right"
-                          placeholder="الموقع"
-                          dir="rtl"
-                          maxLength={30}
-                          value={warehouseForm.location}
-                          onChange={(e) => setWarehouseForm({ ...warehouseForm, location: e.target.value })}
-                        />
-                      </div>
-                      <div className="flex justify-start gap-2 pt-2">
-                        <Button type="submit" className="erp-btn-primary" size="sm">
-                          حفظ المستودع
-                        </Button>
-                        <Button type="button" variant="outline" size="sm" onClick={() => setShowWarehouseForm(false)}>
-                          إلغاء
-                        </Button>
-                      </div>
-                    </form>
-                  </div>
-                )}
-
-                <div className="space-y-3">
-                  {warehouses.map((warehouse, index) => (
-                    <div
-                      key={warehouse.id}
-                      className={cn(
-                        "p-4 rounded-lg border transition-all cursor-pointer",
-                        index === currentWarehouseIndex
-                          ? "bg-primary/10 border-primary shadow-sm"
-                          : "bg-background hover:bg-muted/50",
-                      )}
-                      onClick={() => setCurrentWarehouseIndex(index)}
-                      dir="rtl"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-1 text-right">
-                          <h4 className="font-heading font-semibold">{warehouse.warehouse_name}</h4>
-                          <p className="text-sm text-muted-foreground flex items-center gap-1">
-                            <MapPin className="h-3 w-3" />
-                            {warehouse.location || "لا يوجد موقع"}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Button variant="outline" size="sm" onClick={() => handleEditWarehouse(warehouse)}>
-                            <Edit className="h-3 w-3" />
-                          </Button>
-                          <Badge variant={warehouse.is_active ? "default" : "secondary"}>
-                            {warehouse.is_active ? "نشط" : "غير نشط"}
-                          </Badge>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-          </div>
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6" >
-            <Card dir="rtl" >
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center gap-2">
-                    <Package className="h-5 w-5 text-primary" />
-                    الوحدات ({units.length})
-                  </CardTitle>
-                  <Button
-                    className="erp-btn-primary"
-                    size="sm"
-                    onClick={() => setShowUnitForm(!showUnitForm)}
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    إضافة وحدة
-                  </Button>
-                </div>
-              </CardHeader>
-
-              <CardContent className="space-y-4">
-
-
-                {showUnitForm && (
-                  <div className="bg-muted/30 rounded-lg p-4 border" dir="rtl">
-                    <h3 className="font-heading font-semibold mb-4 text-right">إضافة وحدة جديدة</h3>
-                    <form className="space-y-4" onSubmit={handleAddUnit}>
-                      <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
-
-                        <div className="text-right">
-                          <Label className="erp-label text-right block">اسم الوحدة *</Label>
-                          <Input
-                            required
-                            className="erp-input text-right"
-                            placeholder="قطعة"
-                            dir="rtl"
-                            value={unitForm.unit_name}
-                            onChange={(e) => setUnitForm({ ...unitForm, unit_name: e.target.value })}
-                          />
-                        </div>
-                        <div className="text-right">
-                          <Label className="erp-label text-right block">اسم الوحدة en</Label>
-                          <Input
-                            className="erp-input text-right"
-                            placeholder="PCS"
-                            dir="rtl"
-                            value={unitForm.unit_name_e}
-                            onChange={(e) => setUnitForm({ ...unitForm, unit_name_e: e.target.value })}
-                          />
-                        </div>
-                      </div>
-
-                      <div className="text-right">
-                        <Label className="erp-label text-right block">الوصف</Label>
-                        <Input
-                          className="erp-input text-right"
-                          placeholder="وصف الوحدة"
-                          dir="rtl"
-                          value={unitForm.description}
-                          onChange={(e) => setUnitForm({ ...unitForm, description: e.target.value })}
-                        />
-                      </div>
-
-                      <div className="flex justify-start gap-2 pt-2">
-                        <Button type="submit" className="erp-btn-primary" size="sm">
-                          حفظ الوحدة
-                        </Button>
-                        <Button type="button" variant="outline" size="sm" onClick={() => setShowUnitForm(false)}>
-                          إلغاء
-                        </Button>
-                      </div>
-                    </form>
-                  </div>
-                )}
-
-                <div className="space-y-3">
-                  {units.map((unit, index) => (
-                    <div
-                      key={unit.id}
-                      className={cn(
-                        "p-4 rounded-lg border transition-all cursor-pointer",
-                        index === currentUnitIndex
-                          ? "bg-primary/10 border-primary shadow-sm"
-                          : "bg-background hover:bg-muted/50",
-                      )}
-                      onClick={() => setCurrentUnitIndex(index)}
-                      dir="rtl"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-1 text-right">
-                          <h4 className="font-heading font-semibold">{unit.unit_name}</h4>
-                          <p className="text-sm text-muted-foreground flex items-center gap-1">
-
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Button variant="outline" size="sm" onClick={() => handleEditUnit(unit)}>
-                            <Edit className="h-3 w-3" />
-                          </Button>
-                          <Badge variant={unit.is_active ? "default" : "secondary"}>
-                            {unit.is_active ? "نشط" : "غير نشط"}
-                          </Badge>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-
-            <Card dir="rtl" >
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center gap-2">
-                    <Package className="h-5 w-5 text-primary" />
-                    فئات الأسعار ({units.length})
-                  </CardTitle>
-                  <Button
-                    className="erp-btn-primary"
-                    size="sm"
-                    onClick={() => setShowPriceForm(!showPriceForm)}
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    إضافة فئة
-                  </Button>
-                </div>
-              </CardHeader>
-
               <CardContent className="space-y-4">
 
 
@@ -2650,7 +3029,7 @@ function Definitions() {
                 <div className="flex items-center justify-between">
                   <CardTitle className="flex items-center gap-2 text-base">
                     <Users className="h-4 w-4 text-primary" />
-                    تصنيفات الالعملاء
+                    تصنيفات العملاء
                   </CardTitle>
                   <Button
                     size="sm"
@@ -2926,22 +3305,7 @@ function Definitions() {
                         />
                       </div>
 
-                      <div className="text-right">
-                        <Label className="erp-label text-right block">الحالة</Label>
-                        <Select
-                          dir="rtl"
-                          value={incomeStatementItemForm.status.toString()}
-                          onValueChange={(value) => setIncomeStatementItemForm({ ...incomeStatementItemForm, status: Number.parseInt(value) })}
-                        >
-                          <SelectTrigger className="erp-input text-right">
-                            <SelectValue placeholder="اختر الحالة" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="1">نشط</SelectItem>
-                            <SelectItem value="2">مجمد</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
+                      {/* الحالة يتم التحكم بها من خلال أزرار التجميد/إلغاء التجميد في الصف */}
 
                       <div className="flex justify-start gap-2 pt-2">
                         <Button type="submit" className="erp-btn-primary" size="sm">
@@ -2985,16 +3349,22 @@ function Definitions() {
                           <Button variant="outline" size="sm" onClick={() => handleEditIncomeStatementItem(item)}>
                             <Edit className="h-3 w-3" />
                           </Button>
-                          {item.status === 1 && (
+                          {item.status !== 3 && (
                             <Button variant="outline" size="sm" onClick={() => handleStopIncomeStatementItem(item)}>
-                              تجميد
+                              {getToggleStatusLabel(item.status)}
                             </Button>
                           )}
-                          <Button variant="destructive" size="sm" onClick={() => handleDeleteIncomeStatementItem(item.id)}>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => openDeleteConfirm("هل أنت متأكد من حذف هذا البند من قائمة الدخل؟", () => handleDeleteIncomeStatementItem(item.id))}
+                            aria-label="حذف البند"
+                            title="حذف البند"
+                          >
                             <Trash2 className="h-3 w-3" />
                           </Button>
-                          <Badge variant={getIncomeStatementStatusVariant(item.status)}>
-                            {getIncomeStatementStatusLabel(item.status)}
+                          <Badge variant={getStatusBadgeVariant(item.status)}>
+                            {getStatusLabel(item.status)}
                           </Badge>
                         </div>
                       </div>
@@ -3044,22 +3414,7 @@ function Definitions() {
                         />
                       </div>
 
-                      <div className="text-right">
-                        <Label className="erp-label text-right block">الحالة</Label>
-                        <Select
-                          dir="rtl"
-                          value={balanceSheetAssetItemForm.status.toString()}
-                          onValueChange={(value) => setBalanceSheetAssetItemForm({ ...balanceSheetAssetItemForm, status: Number.parseInt(value) })}
-                        >
-                          <SelectTrigger className="erp-input text-right">
-                            <SelectValue placeholder="اختر الحالة" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="1">نشط</SelectItem>
-                            <SelectItem value="2">مجمد</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
+                      {/* الحالة سيتم التحكم بها عبر زر التجميد / إلغاء التجميد في الصف */}
 
                       <div className="flex justify-start gap-2 pt-2">
                         <Button type="submit" className="erp-btn-primary" size="sm">
@@ -3103,16 +3458,22 @@ function Definitions() {
                           <Button variant="outline" size="sm" onClick={() => handleEditBalanceSheetAssetItem(item)}>
                             <Edit className="h-3 w-3" />
                           </Button>
-                          {item.status === 1 && (
+                          {item.status !== 3 && (
                             <Button variant="outline" size="sm" onClick={() => handleStopBalanceSheetAssetItem(item)}>
-                              تجميد
+                              {getToggleStatusLabel(item.status)}
                             </Button>
                           )}
-                          <Button variant="destructive" size="sm" onClick={() => handleDeleteBalanceSheetAssetItem(item.id)}>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => openDeleteConfirm("هل أنت متأكد من حذف هذا البند من أصول الميزانية؟", () => handleDeleteBalanceSheetAssetItem(item.id))}
+                            aria-label="حذف البند"
+                            title="حذف البند"
+                          >
                             <Trash2 className="h-3 w-3" />
                           </Button>
-                          <Badge variant={getIncomeStatementStatusVariant(item.status)}>
-                            {getIncomeStatementStatusLabel(item.status)}
+                          <Badge variant={getStatusBadgeVariant(item.status)}>
+                            {getStatusLabel(item.status)}
                           </Badge>
                         </div>
                       </div>
@@ -3162,22 +3523,7 @@ function Definitions() {
                         />
                       </div>
 
-                      <div className="text-right">
-                        <Label className="erp-label text-right block">الحالة</Label>
-                        <Select
-                          dir="rtl"
-                          value={balanceSheetLiabilityItemForm.status.toString()}
-                          onValueChange={(value) => setBalanceSheetLiabilityItemForm({ ...balanceSheetLiabilityItemForm, status: Number.parseInt(value) })}
-                        >
-                          <SelectTrigger className="erp-input text-right">
-                            <SelectValue placeholder="اختر الحالة" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="1">نشط</SelectItem>
-                            <SelectItem value="2">مجمد</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
+                      {/* الحالة سيتم التحكم بها عبر زر التجميد / إلغاء التجميد في الصف */}
 
                       <div className="flex justify-start gap-2 pt-2">
                         <Button type="submit" className="erp-btn-primary" size="sm">
@@ -3221,16 +3567,22 @@ function Definitions() {
                           <Button variant="outline" size="sm" onClick={() => handleEditBalanceSheetLiabilityItem(item)}>
                             <Edit className="h-3 w-3" />
                           </Button>
-                          {item.status === 1 && (
+                          {item.status !== 3 && (
                             <Button variant="outline" size="sm" onClick={() => handleStopBalanceSheetLiabilityItem(item)}>
-                              تجميد
+                              {getToggleStatusLabel(item.status)}
                             </Button>
                           )}
-                          <Button variant="destructive" size="sm" onClick={() => handleDeleteBalanceSheetLiabilityItem(item.id)}>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => openDeleteConfirm("هل أنت متأكد من حذف هذا البند من خصوم الميزانية؟", () => handleDeleteBalanceSheetLiabilityItem(item.id))}
+                            aria-label="حذف البند"
+                            title="حذف البند"
+                          >
                             <Trash2 className="h-3 w-3" />
                           </Button>
-                          <Badge variant={getIncomeStatementStatusVariant(item.status)}>
-                            {getIncomeStatementStatusLabel(item.status)}
+                          <Badge variant={getStatusBadgeVariant(item.status)}>
+                            {getStatusLabel(item.status)}
                           </Badge>
                         </div>
                       </div>
@@ -3281,22 +3633,7 @@ function Definitions() {
                         />
                       </div>
 
-                      <div className="text-right">
-                        <Label className="erp-label text-right block">الحالة</Label>
-                        <Select
-                          dir="rtl"
-                          value={costCenterTypeForm.status.toString()}
-                          onValueChange={(value) => setCostCenterTypeForm({ ...costCenterTypeForm, status: Number.parseInt(value) })}
-                        >
-                          <SelectTrigger className="erp-input text-right">
-                            <SelectValue placeholder="اختر الحالة" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="1">نشط</SelectItem>
-                            <SelectItem value="2">مجمد</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
+                      {/* الحالة سيتم التحكم بها عبر زر التجميد / إلغاء التجميد في الصف */}
 
                       <div className="flex justify-start gap-2 pt-2">
                         <Button type="submit" className="erp-btn-primary" size="sm">
@@ -3340,16 +3677,22 @@ function Definitions() {
                           <Button variant="outline" size="sm" onClick={() => handleEditCostCenterType(item)}>
                             <Edit className="h-3 w-3" />
                           </Button>
-                          {item.status === 1 && (
+                          {item.status !== 3 && (
                             <Button variant="outline" size="sm" onClick={() => handleFreezeCostCenterType(item)}>
-                              تجميد
+                              {getToggleStatusLabel(item.status)}
                             </Button>
                           )}
-                          <Button variant="destructive" size="sm" onClick={() => handleDeleteCostCenterType(item.id)}>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => openDeleteConfirm("هل أنت متأكد من حذف هذا النوع؟", () => handleDeleteCostCenterType(item.id))}
+                            aria-label="حذف النوع"
+                            title="حذف النوع"
+                          >
                             <Trash2 className="h-3 w-3" />
                           </Button>
-                          <Badge variant={getIncomeStatementStatusVariant(item.status)}>
-                            {getIncomeStatementStatusLabel(item.status)}
+                          <Badge variant={getStatusBadgeVariant(item.status)}>
+                            {getStatusLabel(item.status)}
                           </Badge>
                         </div>
                       </div>
@@ -3442,22 +3785,7 @@ function Definitions() {
                         </Select>
                       </div>
 
-                      <div className="text-right">
-                        <Label className="erp-label text-right block">الحالة</Label>
-                        <Select
-                          dir="rtl"
-                          value={costCenterForm.status.toString()}
-                          onValueChange={(value) => setCostCenterForm({ ...costCenterForm, status: Number.parseInt(value) })}
-                        >
-                          <SelectTrigger className="erp-input text-right">
-                            <SelectValue placeholder="اختر الحالة" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="1">نشط</SelectItem>
-                            <SelectItem value="2">مجمد</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
+                      {/* الحالة سيتم التحكم بها عبر زر التجميد / إلغاء التجميد في الصف */}
 
                       <div className="flex justify-start gap-2 pt-2">
                         <Button type="submit" className="erp-btn-primary" size="sm">
@@ -3503,16 +3831,22 @@ function Definitions() {
                           <Button variant="outline" size="sm" onClick={() => handleEditCostCenter(item)}>
                             <Edit className="h-3 w-3" />
                           </Button>
-                          {item.status === 1 && (
+                          {item.status !== 3 && (
                             <Button variant="outline" size="sm" onClick={() => handleFreezeCostCenter(item)}>
-                              تجميد
+                              {getToggleStatusLabel(item.status)}
                             </Button>
                           )}
-                          <Button variant="destructive" size="sm" onClick={() => handleDeleteCostCenter(item.id)}>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => openDeleteConfirm("هل أنت متأكد من حذف هذا المركز؟", () => handleDeleteCostCenter(item.id))}
+                            aria-label="حذف المركز"
+                            title="حذف المركز"
+                          >
                             <Trash2 className="h-3 w-3" />
                           </Button>
-                          <Badge variant={getIncomeStatementStatusVariant(item.status)}>
-                            {getIncomeStatementStatusLabel(item.status)}
+                          <Badge variant={getStatusBadgeVariant(item.status)}>
+                            {getStatusLabel(item.status)}
                           </Badge>
                         </div>
                       </div>
@@ -3564,22 +3898,7 @@ function Definitions() {
                         />
                       </div>
 
-                      <div className="text-right">
-                        <Label className="erp-label text-right block">الحالة</Label>
-                        <Select
-                          dir="rtl"
-                          value={accountClassificationTypeForm.status.toString()}
-                          onValueChange={(value) => setAccountClassificationTypeForm({ ...accountClassificationTypeForm, status: Number.parseInt(value) })}
-                        >
-                          <SelectTrigger className="erp-input text-right">
-                            <SelectValue placeholder="اختر الحالة" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="1">نشط</SelectItem>
-                            <SelectItem value="2">مجمد</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
+                      {/* الحالة سيتم التحكم بها عبر زر التجميد / إلغاء التجميد في الصف */}
 
                       <div className="flex justify-start gap-2 pt-2">
                         <Button type="submit" className="erp-btn-primary" size="sm">
@@ -3623,16 +3942,22 @@ function Definitions() {
                           <Button variant="outline" size="sm" onClick={() => handleEditAccountClassificationType(item)}>
                             <Edit className="h-3 w-3" />
                           </Button>
-                          {item.status === 1 && (
+                          {item.status !== 3 && (
                             <Button variant="outline" size="sm" onClick={() => handleFreezeAccountClassificationType(item)}>
-                              تجميد
+                              {getToggleStatusLabel(item.status)}
                             </Button>
                           )}
-                          <Button variant="destructive" size="sm" onClick={() => handleDeleteAccountClassificationType(item.id)}>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => openDeleteConfirm("هل أنت متأكد من حذف هذا النوع؟", () => handleDeleteAccountClassificationType(item.id))}
+                            aria-label="حذف النوع"
+                            title="حذف النوع"
+                          >
                             <Trash2 className="h-3 w-3" />
                           </Button>
-                          <Badge variant={getIncomeStatementStatusVariant(item.status)}>
-                            {getIncomeStatementStatusLabel(item.status)}
+                          <Badge variant={getStatusBadgeVariant(item.status)}>
+                            {getStatusLabel(item.status)}
                           </Badge>
                         </div>
                       </div>
@@ -3702,22 +4027,7 @@ function Definitions() {
                         </Select>
                       </div>
 
-                      <div className="text-right">
-                        <Label className="erp-label text-right block">الحالة</Label>
-                        <Select
-                          dir="rtl"
-                          value={accountClassificationForm.status.toString()}
-                          onValueChange={(value) => setAccountClassificationForm({ ...accountClassificationForm, status: Number.parseInt(value) })}
-                        >
-                          <SelectTrigger className="erp-input text-right">
-                            <SelectValue placeholder="اختر الحالة" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="1">نشط</SelectItem>
-                            <SelectItem value="2">مجمد</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
+                      {/* الحالة سيتم التحكم بها عبر زر التجميد / إلغاء التجميد في الصف */}
 
                       <div className="flex justify-start gap-2 pt-2">
                         <Button type="submit" className="erp-btn-primary" size="sm">
@@ -3761,16 +4071,22 @@ function Definitions() {
                           <Button variant="outline" size="sm" onClick={() => handleEditAccountClassification(item)}>
                             <Edit className="h-3 w-3" />
                           </Button>
-                          {item.status === 1 && (
+                          {item.status !== 3 && (
                             <Button variant="outline" size="sm" onClick={() => handleFreezeAccountClassification(item)}>
-                              تجميد
+                              {getToggleStatusLabel(item.status)}
                             </Button>
                           )}
-                          <Button variant="destructive" size="sm" onClick={() => handleDeleteAccountClassification(item.id)}>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => openDeleteConfirm("هل أنت متأكد من حذف هذا التصنيف؟", () => handleDeleteAccountClassification(item.id))}
+                            aria-label="حذف التصنيف"
+                            title="حذف التصنيف"
+                          >
                             <Trash2 className="h-3 w-3" />
                           </Button>
-                          <Badge variant={getIncomeStatementStatusVariant(item.status)}>
-                            {getIncomeStatementStatusLabel(item.status)}
+                          <Badge variant={getStatusBadgeVariant(item.status)}>
+                            {getStatusLabel(item.status)}
                           </Badge>
                         </div>
                       </div>
@@ -3793,9 +4109,19 @@ function Definitions() {
           <WorkflowSequencesManagement />
         </TabsContent>
       </Tabs>
+
+      <ConfirmDialogYesNo
+        visible={confirmDeleteVisible}
+        message={confirmDeleteMessage}
+        onConfirm={handleConfirmDelete}
+        onCancel={handleCancelDeleteConfirm}
+      />
     </div>
   )
 }
 
 export { Definitions }
 export default Definitions
+
+
+

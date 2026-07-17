@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useState, useEffect, useMemo } from "react"
 import { Search, Filter, X, Users, MapPin, Phone, Mail, User, Building2 } from "lucide-react"
@@ -375,10 +375,10 @@ const UnifiedCustomerSupplierSearch = ({
           <Users className="h-5 w-5 text-primary" />
           <h2 className="search-title">
             {searchType === "customers"
-              ? "البحث عن الالعملاء"
+              ? "البحث عن العملاء"
               : searchType === "suppliers"
                 ? "البحث عن الموردين"
-                : "البحث عن الالعملاء والموردين"}
+                : "البحث عن العملاء والموردين"}
           </h2>
         </div>
         <div className="flex items-center gap-2">
@@ -511,7 +511,7 @@ const UnifiedCustomerSupplierSearch = ({
       {searchType === "both" ? (
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="customers">الالعملاء</TabsTrigger>
+            <TabsTrigger value="customers">العملاء</TabsTrigger>
             <TabsTrigger value="suppliers">الموردين</TabsTrigger>
           </TabsList>
 
@@ -628,3 +628,6 @@ const UnifiedCustomerSupplierSearch = ({
 
 export { UnifiedCustomerSupplierSearch }
 export default UnifiedCustomerSupplierSearch
+
+
+

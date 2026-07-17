@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -79,11 +79,11 @@ export function GlobalSearchProvider({ children }: GlobalSearchProviderProps) {
         </DialogContent>
       </Dialog>
 
-      {/* نافذة البحث عن الالعملاء والموردين */}
+      {/* نافذة البحث عن العملاء والموردين */}
       <Dialog open={searchType === "customers-suppliers"} onOpenChange={(open) => !open && closeSearch()}>
         <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden">
           <DialogHeader>
-            <DialogTitle className="text-right">البحث عن الالعملاء والموردين</DialogTitle>
+            <DialogTitle className="text-right">البحث عن العملاء والموردين</DialogTitle>
           </DialogHeader>
           <div className="overflow-y-auto max-h-[75vh]">
             <CustomerSupplierSearch
@@ -99,3 +99,6 @@ export function GlobalSearchProvider({ children }: GlobalSearchProviderProps) {
     </GlobalSearchContext.Provider>
   )
 }
+
+
+

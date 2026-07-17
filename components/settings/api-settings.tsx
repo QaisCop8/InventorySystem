@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
@@ -47,7 +47,7 @@ const endpoints = [
   {
     method: "GET",
     path: "/customers",
-    description: "الحصول على قائمة الالعملاء",
+    description: "الحصول على قائمة العملاء",
     params: "page, limit, search, status",
     status: "متاح",
   },
@@ -241,7 +241,7 @@ export default function APISettings() {
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-gray-50 rounded-lg">
                           <label className="flex items-center gap-2">
                             <input type="checkbox" defaultChecked className="rounded" />
-                            <span className="text-sm">الالعملاء</span>
+                            <span className="text-sm">العملاء</span>
                           </label>
                           <label className="flex items-center gap-2">
                             <input type="checkbox" defaultChecked className="rounded" />
@@ -389,7 +389,7 @@ export default function APISettings() {
 
               <div className="space-y-6">
                 <div>
-                  <h3 className="font-semibold mb-3">🔷 إدارة الالعملاء</h3>
+                  <h3 className="font-semibold mb-3">🔷 إدارة العملاء</h3>
                   <div className="overflow-x-auto">
                     <table className="w-full">
                       <thead>
@@ -753,3 +753,6 @@ export default function APISettings() {
     </div>
   )
 }
+
+
+

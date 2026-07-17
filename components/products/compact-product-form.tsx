@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Separator } from "@/components/ui/separator"
@@ -74,6 +73,8 @@ interface ProductFormData {
   status: number
   type: number
   service_type: number
+  product_type: number
+  tax_classification_id: number
 
   manufacturer_company: string
   length: number
@@ -128,6 +129,8 @@ export const initialFormData: ProductFormData = {
   tax_rate: 15,
   discount_rate: 0,
 
+  tax_classification_id: 0,
+
   original_number: "",
   factory_number: "",
   location: "",
@@ -138,6 +141,7 @@ export const initialFormData: ProductFormData = {
   status: 1,
   type: 1,
   service_type: 0,
+  product_type: 1,
 
   manufacturer_company: "",
   length: 0,
@@ -230,7 +234,17 @@ export function CompactProductForm({
     product_category: [] as Array<{ id: number; name: string }>,
     cost_center_types: [] as Array<{ id: number; name: string }>,
     cost_centers: [] as Array<{ id: number; name: string; cost_type_id?: number; parent_id?: number | null }>,
+    tax_classifications: [] as Array<{ id: number; name: string }>,
   })
+
+  const PRODUCT_TYPE_OPTIONS = [
+    { label: "بضاعة تجارية", value: 1 },
+    { label: "مواد خام", value: 2 },
+    { label: "لوازم إنتاج", value: 3 },
+    { label: "تحت التصنيع", value: 4 },
+    { label: "بضاعة مصنعة", value: 5 },
+    { label: "مواد للاستهلاك", value: 6 },
+  ]
   const definitionsRef = useRef({
     categories: [] as Array<{ id: number; group_name: string }>,
     suppliers: [] as Array<{ id: number; name: string; code?: string }>,
@@ -241,6 +255,7 @@ export function CompactProductForm({
     product_category: [] as Array<{ id: number; name: string }>,
     cost_center_types: [] as Array<{ id: number; name: string }>,
     cost_centers: [] as Array<{ id: number; name: string; cost_type_id?: number; parent_id?: number | null }>,
+    tax_classifications: [] as Array<{ id: number; name: string }>,
   });
   const unitGridRef = useRef<wjGrid.FlexGrid>(null);
   const [prices_data, setPricesData] = useState<PriceItem[]>([]);
@@ -773,6 +788,8 @@ export function CompactProductForm({
     // --- Build new form data ---
     const costCenterRows = buildCostCenterRows([], definitionsRef.current.cost_center_types, definitionsRef.current.cost_centers);
 
+    const defaultProductAccounts = await loadProductAccountDefaults()
+
     let newFormData = {
       ...initialFormData,
       product_code: newCode,
@@ -782,6 +799,8 @@ export function CompactProductForm({
       cost_centers: costCenterRows,
       type: isService ? 2 : 1,
       service_type: isService ? 1 : 0,
+      ...defaultProductAccounts,
+      tax_classification_id: definitionsRef.current.tax_classifications?.[0]?.id || 0,
     };
 
     if (definitionsRef.current.currencies.length > 0) {
@@ -889,6 +908,55 @@ export function CompactProductForm({
 
   const updateFormData = (field: keyof ProductFormData, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
+  }
+
+  const fetchAccountById = async (accountId: number) => {
+    if (!Number.isInteger(accountId) || accountId <= 0) return null
+    try {
+      const response = await fetch(`/api/accounts/${accountId}`)
+      if (!response.ok) return null
+      return await response.json()
+    } catch (error) {
+      console.error("Failed to load account by id:", error)
+      return null
+    }
+  }
+
+  const loadProductAccountDefaults = async () => {
+    try {
+      const response = await fetch("/api/settings/system")
+      if (!response.ok) return {}
+      const settings = await response.json()
+      const accountKeys = [
+        { setting: "default_selling_account_id", idKey: "selling_account_id", codeKey: "selling_account_code" },
+        { setting: "default_purchase_account_id", idKey: "purchase_account_id", codeKey: "purchase_account_code" },
+        { setting: "default_selling_returns_account_id", idKey: "selling_returns_account_id", codeKey: "selling_returns_account_code" },
+        { setting: "default_purchase_returns_account_id", idKey: "purchase_returns_account_id", codeKey: "purchase_returns_account_code" },
+        { setting: "default_stock_end_account_id", idKey: "stock_end_account_id", codeKey: "stock_end_account_code" },
+        { setting: "default_stock_start_account_id", idKey: "stock_start_account_id", codeKey: "stock_start_account_code" },
+        { setting: "default_production_account_id", idKey: "production_account_id", codeKey: "production_account_code" },
+        { setting: "default_municipality_service_account_id", idKey: "municipality_service_account_id", codeKey: "municipality_service_account_code" },
+        { setting: "default_lsti3mal_account_id", idKey: "lsti3mal_account_id", codeKey: "lsti3mal_account_code" },
+      ]
+
+      const defaults: Partial<ProductFormData> = {}
+      const accountPromises = accountKeys.map(async ({ setting, idKey, codeKey }) => {
+        const accountId = Number(settings[setting])
+        if (!Number.isInteger(accountId) || accountId <= 0) {
+          return null
+        }
+        const account = await fetchAccountById(accountId)
+        if (!account) return null
+        defaults[idKey as keyof ProductFormData] = account.id
+        defaults[codeKey as keyof ProductFormData] = account.code
+        return null
+      })
+      await Promise.all(accountPromises)
+      return defaults
+    } catch (error) {
+      console.error("Error loading product account defaults:", error)
+      return {}
+    }
   }
 
   const validateProductCode = (code: string): boolean => {
@@ -1464,6 +1532,21 @@ export function CompactProductForm({
         setDefinitions((prev) => ({ ...prev, price_category: pricesData }))
       }
 
+      // Tax classifications
+      try {
+        const taxResp = await fetch("/api/tax-classifications")
+        if (taxResp.ok) {
+          const taxData = await taxResp.json()
+          // endpoint returns { categories }
+          const list = taxData.categories || taxData || []
+          definitionsObj.tax_classifications = list
+          definitionsRef.current.tax_classifications = list
+          setDefinitions((prev) => ({ ...prev, tax_classifications: list }))
+        }
+      } catch (e) {
+        console.warn("Failed to load tax classifications", e)
+      }
+
       const productCategoryResponse = await fetch("/api/product-categories")
       if (productCategoryResponse.ok) {
         const productCategory = await productCategoryResponse.json()
@@ -1731,61 +1814,101 @@ export function CompactProductForm({
                 </div>
 
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
                   {!isService && (
                     <>
                       <div>
                         <Label htmlFor="category" className="text-sm font-medium">
                           التصنيف
                         </Label>
-                        <Select
-                          value={formData?.category_id != null ? formData.category_id.toString() : ""} // convert number → string
-                          onValueChange={(value) =>
-                            setFormData((prev) => ({
-                              ...prev,
-                              category_id: Number(value), // convert string → number
-                            }))
-                          }
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="اختر التصنيف" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="-1">بلا</SelectItem>
-                            {definitions.product_category.map((category) => (
-                              <SelectItem key={category.id} value={String(category.id)}>
-                                {category.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <div className={sharedDropdownStyles.dropDownWrapper}>
+                          <PrimeDropdown
+                            inputId="category_id"
+                            value={formData.category_id ? Number(formData.category_id) : null}
+                            options={[
+                              { label: "بلا", value: null },
+                              ...(definitions.product_category || []).map((category) => ({
+                                label: category.name,
+                                value: Number(category.id),
+                              })),
+                            ]}
+                            optionLabel="label"
+                            optionValue="value"
+                            placeholder="اختر التصنيف"
+                            className={`${sharedDropdownStyles.dropDown} w-full`}
+                            panelClassName={sharedDropdownStyles.dropDownPanel}
+                            appendTo="self"
+                            onChange={(e: any) => updateFormData("category_id", Number(e.value) || 0)}
+                          />
+                        </div>
                       </div>
 
                       <div>
                         <Label htmlFor="category" className="text-sm font-medium">
                           مجموعة الصنف
                         </Label>
-                        <Select
-                          value={formData?.main_stock_id != null ? formData.main_stock_id.toString() : ""}
-                          onValueChange={(value: string) => {
-                            setFormData(prev => ({
-                              ...prev,
-                              main_stock_id:parseInt(value, 10) || 0,
-                            }));
-                          }}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="اختر المجموعة" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="-1">بلا</SelectItem>
-                            {definitions.categories.map((category) => (
-                              <SelectItem key={category.id} value={String(category.id)}>
-                                {category.group_name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <div className={sharedDropdownStyles.dropDownWrapper}>
+                          <PrimeDropdown
+                            inputId="main_stock_id"
+                            value={formData.main_stock_id ? Number(formData.main_stock_id) : null}
+                            options={[
+                              { label: "بلا", value: null },
+                              ...(definitions.categories || []).map((category) => ({
+                                label: category.group_name,
+                                value: Number(category.id),
+                              })),
+                            ]}
+                            optionLabel="label"
+                            optionValue="value"
+                            placeholder="اختر المجموعة"
+                            className={`${sharedDropdownStyles.dropDown} w-full`}
+                            panelClassName={sharedDropdownStyles.dropDownPanel}
+                            appendTo="self"
+                            onChange={(e: any) => updateFormData("main_stock_id", Number(e.value) || 0)}
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <Label htmlFor="product_type" className="text-sm font-medium">
+                          نوع الصنف
+                        </Label>
+                        <div className={sharedDropdownStyles.dropDownWrapper}>
+                          <PrimeDropdown
+                            inputId="product_type"
+                            value={formData.product_type || null}
+                            options={PRODUCT_TYPE_OPTIONS}
+                            optionLabel="label"
+                            optionValue="value"
+                            placeholder="اختر نوع الصنف"
+                            className={`${sharedDropdownStyles.dropDown} w-full`}
+                            panelClassName={sharedDropdownStyles.dropDownPanel}
+                            appendTo="self"
+                            onChange={(e: any) => updateFormData("product_type", e.value || 1)}
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <Label htmlFor="tax_classification" className="text-sm font-medium">
+                          التصنيف الضريبي
+                        </Label>
+                        <div className={sharedDropdownStyles.dropDownWrapper}>
+                          <PrimeDropdown
+                            inputId="tax_classification"
+                            value={formData.tax_classification_id || null}
+                            options={[
+                              { label: "بلا", value: null },
+                              ...(definitions.tax_classifications || []).map((t: any) => ({ label: t.name, value: Number(t.id) })),
+                            ]}
+                            optionLabel="label"
+                            optionValue="value"
+                            placeholder="اختر التصنيف الضريبي"
+                            className={`${sharedDropdownStyles.dropDown} w-full`}
+                            panelClassName={sharedDropdownStyles.dropDownPanel}
+                            appendTo="self"
+                            onChange={(e: any) => updateFormData("tax_classification_id", Number(e.value) || 0)}
+                          />
+                        </div>
                       </div>
                     </>
                   )}
@@ -1818,20 +1941,29 @@ export function CompactProductForm({
                     </div>
                   )}
 
-                  <div>
+                  <div className="xl:col-span-1">
                     <Label htmlFor="status" className="text-sm font-medium">
                       {isService ? "حالة الخدمة" : "حالة الصنف"}
                     </Label>
-                    <Select disabled={formData.id === 0} value={formData?.status != null ? formData.status.toString() : "1"} onValueChange={(value) => updateFormData("status", value)}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="1">نشط</SelectItem>
-                        <SelectItem value="2">غير نشط</SelectItem>
-                        <SelectItem value="3">متوقف</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <div className={sharedDropdownStyles.dropDownWrapper}>
+                      <PrimeDropdown
+                        inputId="status"
+                        value={formData.status != null ? Number(formData.status) : null}
+                        options={[
+                          { label: "نشط", value: 1 },
+                          { label: "غير نشط", value: 2 },
+                          { label: "متوقف", value: 3 },
+                        ]}
+                        optionLabel="label"
+                        optionValue="value"
+                        placeholder="اختر الحالة"
+                        className={`${sharedDropdownStyles.dropDown} w-full`}
+                        panelClassName={sharedDropdownStyles.dropDownPanel}
+                        appendTo="self"
+                        onChange={(e: any) => updateFormData("status", Number(e.value) || 1)}
+                        disabled={formData.id === 0}
+                      />
+                    </div>
                   </div>
                 </div>
 
@@ -1958,114 +2090,122 @@ export function CompactProductForm({
                     <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
                       <div>
                         <AutoCompleteAccount
-                          value={formData.selling_account_code}
-                          onValueChange={(value) => updateFormData("selling_account_code", value)}
+                          value={formData.selling_account_id ? String(formData.selling_account_id) : ""}
+                          valueMode="id"
+                          onValueChange={(value) => updateFormData("selling_account_id", Number(value) || 0)}
                           onAccountSelect={(account) => updateFormData("selling_account_id", account?.id ?? 0)}
                           label="حساب المبيعات"
-                          placeholder="اختر حساب المبيعات"
+                          placeholder=""
                           showClearButton={true}
                           showSearchButton={true}
                           className="w-full"
-                          showCostCenterDialog={true}
+                          showCostCenterButton={false}
                           leafOnly
                         />
                       </div>
                       <div>
                         <AutoCompleteAccount
-                          value={formData.purchase_account_code}
-                          onValueChange={(value) => updateFormData("purchase_account_code", value)}
+                          value={formData.purchase_account_id ? String(formData.purchase_account_id) : ""}
+                          valueMode="id"
+                          onValueChange={(value) => updateFormData("purchase_account_id", Number(value) || 0)}
                           onAccountSelect={(account) => updateFormData("purchase_account_id", account?.id ?? 0)}
                           label="حساب المشتريات"
-                          placeholder="اختر حساب المشتريات"
+                          placeholder=""
                           showClearButton={true}
                           showSearchButton={true}
                           className="w-full"
-                          showCostCenterDialog={true}
+                          showCostCenterButton={false}
                           leafOnly
                         />
                       </div>
                       <div>
                         <AutoCompleteAccount
-                          value={formData.selling_returns_account_code}
-                          onValueChange={(value) => updateFormData("selling_returns_account_code", value)}
+                          value={formData.selling_returns_account_id ? String(formData.selling_returns_account_id) : ""}
+                          valueMode="id"
+                          onValueChange={(value) => updateFormData("selling_returns_account_id", Number(value) || 0)}
                           onAccountSelect={(account) => updateFormData("selling_returns_account_id", account?.id ?? 0)}
                           label="حساب مرتجعات المبيعات"
-                          placeholder="اختر حساب مرتجعات المبيعات"
+                          placeholder=""
                           showClearButton={true}
                           showSearchButton={true}
                           className="w-full"
-                          showCostCenterDialog={true}
+                          showCostCenterButton={false}
                           leafOnly
                         />
                       </div>
                       <div>
                         <AutoCompleteAccount
-                          value={formData.purchase_returns_account_code}
-                          onValueChange={(value) => updateFormData("purchase_returns_account_code", value)}
+                          value={formData.purchase_returns_account_id ? String(formData.purchase_returns_account_id) : ""}
+                          valueMode="id"
+                          onValueChange={(value) => updateFormData("purchase_returns_account_id", Number(value) || 0)}
                           onAccountSelect={(account) => updateFormData("purchase_returns_account_id", account?.id ?? 0)}
                           label="حساب مرتجعات المشتريات"
-                          placeholder="اختر حساب مرتجعات المشتريات"
+                          placeholder=""
                           showClearButton={true}
                           showSearchButton={true}
                           className="w-full"
-                          showCostCenterDialog={true}
+                          showCostCenterButton={false}
                           leafOnly
                         />
                       </div>
                       <div>
                         <AutoCompleteAccount
-                          value={formData.stock_end_account_code}
-                          onValueChange={(value) => updateFormData("stock_end_account_code", value)}
+                          value={formData.stock_end_account_id ? String(formData.stock_end_account_id) : ""}
+                          valueMode="id"
+                          onValueChange={(value) => updateFormData("stock_end_account_id", Number(value) || 0)}
                           onAccountSelect={(account) => updateFormData("stock_end_account_id", account?.id ?? 0)}
                           label="حساب تقييم بضاعة آخر المدة"
-                          placeholder="اختر حساب تقييم بضاعة آخر المدة"
+                          placeholder=""
                           showClearButton={true}
                           showSearchButton={true}
                           className="w-full"
-                          showCostCenterDialog={true}
+                          showCostCenterButton={false}
                           leafOnly
                         />
                       </div>
                       <div>
                         <AutoCompleteAccount
-                          value={formData.stock_start_account_code}
-                          onValueChange={(value) => updateFormData("stock_start_account_code", value)}
+                          value={formData.stock_start_account_id ? String(formData.stock_start_account_id) : ""}
+                          valueMode="id"
+                          onValueChange={(value) => updateFormData("stock_start_account_id", Number(value) || 0)}
                           onAccountSelect={(account) => updateFormData("stock_start_account_id", account?.id ?? 0)}
                           label="حساب تقييم بضاعة أول المدة"
-                          placeholder="اختر حساب تقييم بضاعة أول المدة"
+                          placeholder=""
                           showClearButton={true}
                           showSearchButton={true}
                           className="w-full"
-                          showCostCenterDialog={true}
+                          showCostCenterButton={false}
                           leafOnly
                         />
                       </div>
                       <div>
                         <AutoCompleteAccount
-                          value={formData.production_account_code}
-                          onValueChange={(value) => updateFormData("production_account_code", value)}
+                          value={formData.production_account_id ? String(formData.production_account_id) : ""}
+                          valueMode="id"
+                          onValueChange={(value) => updateFormData("production_account_id", Number(value) || 0)}
                           onAccountSelect={(account) => updateFormData("production_account_id", account?.id ?? 0)}
                           label="حساب الإنتاج"
-                          placeholder="اختر حساب الإنتاج"
+                          placeholder=""
                           showClearButton={true}
                           showSearchButton={true}
                           className="w-full"
-                          showCostCenterDialog={true}
+                          showCostCenterButton={false}
                           leafOnly
                         />
                       </div>
                       
                       <div>
                         <AutoCompleteAccount
-                          value={formData.lsti3mal_account_code}
-                          onValueChange={(value) => updateFormData("lsti3mal_account_code", value)}
+                          value={formData.lsti3mal_account_id ? String(formData.lsti3mal_account_id) : ""}
+                          valueMode="id"
+                          onValueChange={(value) => updateFormData("lsti3mal_account_id", Number(value) || 0)}
                           onAccountSelect={(account) => updateFormData("lsti3mal_account_id", account?.id ?? 0)}
                           label="حساب المصروف في سند الاستعمال"
-                          placeholder="اختر حساب المصروف في سند الاستعمال"
+                          placeholder=""
                           showClearButton={true}
                           showSearchButton={true}
                           className="w-full"
-                          showCostCenterDialog={true}
+                          showCostCenterButton={false}
                           leafOnly
                         />
                       </div>
@@ -2138,21 +2278,29 @@ export function CompactProductForm({
                       <CardContent>
                         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6 gap-4">
                           <div>
-                            <Label htmlFor="main_unit" className="text-sm font-medium">
+                            <Label htmlFor="measurment_unit" className="text-sm font-medium">
                               نوع القياس
                             </Label>
-                            <Select value={formData?.measurment_unit != null ? formData.measurment_unit.toString() : '1'} onValueChange={(value) => updateFormData("measurment_unit", value)}>
-                              <SelectTrigger>
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="1">عادي</SelectItem>
-                                <SelectItem value="2">مساحة</SelectItem>
-                                <SelectItem value="3">حجم</SelectItem>
-                                <SelectItem value="4">وزن</SelectItem>
-                                <SelectItem value="5">بروفيل</SelectItem>
-                              </SelectContent>
-                            </Select>
+                            <div className={sharedDropdownStyles.dropDownWrapper}>
+                              <PrimeDropdown
+                                inputId="measurment_unit"
+                                value={formData?.measurment_unit != null ? Number(formData.measurment_unit) : null}
+                                options={[
+                                  { label: "عادي", value: 1 },
+                                  { label: "مساحة", value: 2 },
+                                  { label: "حجم", value: 3 },
+                                  { label: "وزن", value: 4 },
+                                  { label: "بروفيل", value: 5 },
+                                ]}
+                                optionLabel="label"
+                                optionValue="value"
+                                placeholder="اختر نوع القياس"
+                                className={`${sharedDropdownStyles.dropDown} w-full`}
+                                panelClassName={sharedDropdownStyles.dropDownPanel}
+                                appendTo="self"
+                                onChange={(e: any) => updateFormData("measurment_unit", Number(e.value) || 1)}
+                              />
+                            </div>
                           </div>
                           <div>
                             <Label htmlFor="length" className="text-sm font-medium">
@@ -2246,28 +2394,26 @@ export function CompactProductForm({
                             />
                           </div>
                           <div>
-                            <Label htmlFor="currency" className="text-sm font-medium">
+                            <Label htmlFor="currency_id" className="text-sm font-medium">
                               عملة الشراء
                             </Label>
-                            <Select
-                              value={formData.currency_id?.toString() || ""}
-                              onValueChange={(value) => {
-                                updateFormData("currency_id", Number(value));
-                              }}
-                            >
-                              <SelectTrigger>
-                                <span>
-                                  {definitions.currencies.find(c => c.id === formData.currency_id)?.currency_name || "اختر العملة"}
-                                </span>
-                              </SelectTrigger>
-                              <SelectContent>
-                                {definitions.currencies.map((currency) => (
-                                  <SelectItem key={currency.id} value={currency.id.toString()}>
-                                    {currency.currency_name}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                            <div className={sharedDropdownStyles.dropDownWrapper}>
+                              <PrimeDropdown
+                                inputId="currency_id"
+                                value={formData.currency_id ? Number(formData.currency_id) : null}
+                                options={(definitions.currencies || []).map((currency) => ({
+                                  label: currency.currency_name,
+                                  value: Number(currency.id),
+                                }))}
+                                optionLabel="label"
+                                optionValue="value"
+                                placeholder="اختر العملة"
+                                className={`${sharedDropdownStyles.dropDown} w-full`}
+                                panelClassName={sharedDropdownStyles.dropDownPanel}
+                                appendTo="self"
+                                onChange={(e: any) => updateFormData("currency_id", Number(e.value) || 0)}
+                              />
+                            </div>
                           </div>
                           <div>
                             <Label htmlFor="tax_rate" className="text-sm font-medium">

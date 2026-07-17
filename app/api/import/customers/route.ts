@@ -1,4 +1,4 @@
-import { type NextRequest, NextResponse } from "next/server"
+﻿import { type NextRequest, NextResponse } from "next/server"
 import { neon } from "@neondatabase/serverless"
 import { generateCustomerNumber } from "@/lib/number-generator"
 
@@ -160,6 +160,9 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error("Error importing customers:", error)
-    return NextResponse.json({ error: "خطأ في استيراد الالعملاء" }, { status: 500 })
+    return NextResponse.json({ error: "خطأ في استيراد العملاء" }, { status: 500 })
   }
 }
+
+
+

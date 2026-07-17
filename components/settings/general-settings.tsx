@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useState, useCallback, useMemo, useEffect } from "react"
 import { Button } from "@/components/ui/button"
@@ -27,7 +27,7 @@ import {
 } from "lucide-react"
 
 const systemLabels = [
-  { id: "customer", defaultLabel: "عميل", currentLabel: "عميل", module: "الالعملاء" },
+  { id: "customer", defaultLabel: "عميل", currentLabel: "عميل", module: "العملاء" },
   { id: "supplier", defaultLabel: "مورد", currentLabel: "مورد", module: "الموردين" },
   { id: "product", defaultLabel: "صنف", currentLabel: "منتج", module: "الأصناف" },
   { id: "order", defaultLabel: "طلبية", currentLabel: "أمر شراء", module: "الطلبيات" },
@@ -813,3 +813,6 @@ export default function GeneralSettings() {
     </div>
   )
 }
+
+
+

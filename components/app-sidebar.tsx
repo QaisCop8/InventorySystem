@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import type * as React from "react"
 import {
@@ -93,7 +93,7 @@ const data = {
           url: "/sales-invoices",
         },
         {
-          title: "إدارة الالعملاء",
+          title: "إدارة العملاء",
           url: "/customers",
         },
       ],
@@ -146,7 +146,7 @@ const data = {
           url: "/search?type=products",
         },
         {
-          title: "البحث عن الالعملاء والموردين",
+          title: "البحث عن العملاء والموردين",
           url: "/search?type=customers",
         },
       ],
@@ -237,3 +237,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     </Sidebar>
   )
 }
+
+
+

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
@@ -244,7 +244,7 @@ const CustomerSearchPopup: React.FC<CustomerSearchPopupProps> = ({ visible, onCl
                 style={{ height: "600px" }}
             >
                 <h3 className="text-lg font-semibold mb-4 text-right">
-                    {type === 1 || type === -1 ? "بحث الالعملاء" : "بحث الموردين"}
+                    {type === 1 || type === -1 ? "بحث العملاء" : "بحث الموردين"}
                 </h3>
 
                 <Input
@@ -295,3 +295,6 @@ const CustomerSearchPopup: React.FC<CustomerSearchPopupProps> = ({ visible, onCl
 };
 
 export default CustomerSearchPopup;
+
+
+
