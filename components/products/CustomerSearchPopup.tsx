@@ -41,17 +41,18 @@ const CustomerSearchPopup: React.FC<CustomerSearchPopupProps> = ({ visible, onCl
             let cancelled = false;
 
             try {
-                const response = await fetch("/api/customers");
+                const query = type === -1 ? "" : `?type=${encodeURIComponent(type)}`;
+                const response = await fetch(`/api/customers${query}`);
                 const data = await response.json();
 
                 if (!cancelled) {
                     // Ensure we have an array
                     const allRecords = Array.isArray(data) ? data : data.customers || [];
 
-                    // Filter by type: 1 = customer, 2 = supplier
+                    // Filter by type: 1 = customer, 2 = supplier, 3 = salesman
                     const filtered = type === -1
                         ? allRecords
-                        : allRecords.filter((c: any) => c.type === type);
+                        : allRecords.filter((c: any) => Number(c.type) === Number(type));
 
                     // Order by customer_code
                     filtered.sort((a: any, b: any) =>

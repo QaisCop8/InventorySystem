@@ -63,6 +63,8 @@ const ACCOUNT_TYPE_OPTIONS = [
   { label: "حساب محاسبي", value: "1" },
   { label: "عميل", value: "2" },
   { label: "مورد", value: "3" },
+  { label: "مندوب", value: "4" },
+  { label: "مشترك", value: "5" },
 ]
 
 const getAccountTypeId = (account: Pick<AccountItem, "type" | "classification_type_id">) =>
@@ -79,6 +81,8 @@ const getAccountTypeLabel = (
   if (typeId === 1) return "حساب محاسبي"
   if (typeId === 2) return "عميل"
   if (typeId === 3) return "مورد"
+  if (typeId === 4) return "مندوب"
+  if (typeId === 5) return "مشترك"
   return "أخرى"
 }
 

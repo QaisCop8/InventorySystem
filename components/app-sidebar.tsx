@@ -3,8 +3,10 @@
 import type * as React from "react"
 import {
   AudioWaveform,
+  Building,
   Command,
   GalleryVerticalEnd,
+  MapPin,
   PieChart,
   Settings2,
   Home,
@@ -114,6 +116,20 @@ const data = {
         {
           title: "إدارة الموردين",
           url: "/suppliers",
+        },
+        {
+          title: "المشتركين",
+          url: "/admin/subscribers",
+        },
+        {
+          title: "البنوك",
+          url: "/admin/banks",
+          icon: Building,
+        },
+        {
+          title: "الفروع",
+          url: "/admin/branches",
+          icon: MapPin,
         },
       ],
     },

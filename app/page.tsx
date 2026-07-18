@@ -35,6 +35,8 @@ import { CustomerPortalAdmin } from "@/components/customer-portal/customer-porta
 import { WhatsAppNotificationSettings } from "@/components/inventory/whatsapp-notification-settings"
 import Accounts from "@/components/accounts"
 import UnifiedAccounts from "@/components/customer/unified-accounts-refactored"
+import Banks from "@/components/admin/banks"
+import Branches from "@/components/admin/branches"
 
 import { AIChat } from "@/components/ai-assistant/ai-chat"
 import { SmartAnalyticsDashboard } from "@/components/ai-analytics/smart-analytics-dashboard"
@@ -79,6 +81,10 @@ const componentMap: Record<string, React.ComponentType<any>> = {
   services: Services,
   customers: Customers,
   suppliers: (props: any) => <Customers {...props} isSupplier={true} />,
+  subscribers: (props: any) => <Customers {...props} isSubscriber={true} />,
+  salesmen: (props: any) => <Customers {...props} isSalesman={true} />,
+  banks: Banks,
+  branches: Branches,
   "product-groups": ProductGroups,
   definitions: Definitions,
   accounts: Accounts,

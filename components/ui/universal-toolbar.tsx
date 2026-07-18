@@ -136,7 +136,7 @@ export function UniversalToolbar({
         {/* New & Save Buttons */}
         {onNew && (
           <Button
-            className="flex items-center gap-1 px-4 py-2 rounded-lg bg-green-500 hover:bg-green-600 text-white text-sm"
+            className="flex items-center gap-1 px-5 py-3 rounded-lg bg-green-500 hover:bg-green-600 text-white text-sm min-h-[44px]"
             onClick={onNew}
           >
             <Plus className="h-4 w-4" />
@@ -146,7 +146,7 @@ export function UniversalToolbar({
 
         {onSave && (
           <Button
-            className="flex items-center gap-1 px-4 py-2 rounded-lg bg-green-500 hover:bg-green-600 text-white text-sm"
+            className="flex items-center gap-1 px-5 py-3 rounded-lg bg-green-500 hover:bg-green-600 text-white text-sm min-h-[44px]"
             onClick={onSave}
             disabled={isSaving || !canSave}
           >
@@ -162,7 +162,7 @@ export function UniversalToolbar({
             size="sm"
             onClick={onDelete}
             disabled={isLoading || !canDelete}
-            className="flex items-center gap-1 px-4 py-2 rounded-lg hover:bg-red-600 hover:text-white transition text-sm"
+            className="flex items-center gap-1 px-6 py-3.5 rounded-lg hover:bg-red-600 hover:text-white transition text-base min-h-[48px]"
           >
             <Trash2 className="h-4 w-4" />
             {labels.delete}
@@ -219,7 +219,7 @@ export function UniversalToolbar({
           <Button
             onClick={onClone}
             disabled={isLoading || !canClone }
-            className="flex items-center gap-1 px-3 py-2 rounded-lg hover:bg-gray-100 transition text-sm"
+            className="flex items-center gap-1 px-5 py-3.5 rounded-lg hover:bg-sky-400 transition text-base min-h-[48px]"
           >
 
             <Copy className="h-4 w-4" />
@@ -230,7 +230,7 @@ export function UniversalToolbar({
         {onFirst && (
           <Button
             onClick={handleFirst}
-            className="flex items-center gap-1 px-3 py-2 rounded-lg hover:bg-gray-100 transition text-sm"
+            className="flex items-center gap-1 px-5 py-3.5 rounded-lg hover:bg-sky-400 transition text-base min-h-[48px]"
           >
             <span>{labels.first}</span>
             <ChevronsRight className="h-4 w-4" />
@@ -239,7 +239,7 @@ export function UniversalToolbar({
         {onPrevious && (
           <Button
             onClick={handlePrevious}
-            className="flex items-center gap-1 px-3 py-2 rounded-lg hover:bg-gray-100 transition text-sm"
+            className="flex items-center gap-1 px-5 py-3.5 rounded-lg hover:bg-sky-400 transition text-base min-h-[48px]"
           >
             <span>{labels.previous}</span>
             <ChevronRight className="h-4 w-4" />
@@ -248,7 +248,7 @@ export function UniversalToolbar({
         {onNext && (
           <Button
             onClick={handleNext}
-            className="flex items-center gap-1 px-3 py-2 rounded-lg hover:bg-gray-100 transition text-sm"
+            className="flex items-center gap-1 px-5 py-3.5 rounded-lg hover:bg-sky-400 transition text-base min-h-[48px]"
           >
             <ChevronLeft className="h-4 w-4" />
             <span>{labels.next}</span>
@@ -257,7 +257,7 @@ export function UniversalToolbar({
         {onLast && (
           <Button
             onClick={handleLast}
-            className="flex items-center gap-1 px-3 py-2 rounded-lg hover:bg-gray-100 transition text-sm"
+            className="flex items-center gap-1 px-5 py-3.5 rounded-lg hover:bg-sky-400 transition text-base min-h-[48px]"
           >
             <ChevronsLeft className="h-4 w-4" />
             <span>{labels.last}</span>

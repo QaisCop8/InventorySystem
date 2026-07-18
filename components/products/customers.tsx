@@ -18,7 +18,6 @@ import {
   Search,
   FileText,
   Edit,
-  Trash2,
   Save,
   X,
   CheckCircle,
@@ -43,6 +42,8 @@ import Util from "../common/Util"
 import UnifiedCustomers from "./unified-customers"
 interface CustomersProps {
   isSupplier?: boolean;
+  isSalesman?: boolean;
+  isSubscriber?: boolean;
 }
 interface Customer {
   id: number
@@ -168,7 +169,7 @@ interface NotificationSettings {
   daily_summary_time: string
 }
 
-export default function Customers({ isSupplier }: CustomersProps) {
+export default function Customers({ isSupplier, isSalesman = false, isSubscriber = false }: CustomersProps) {
   const [customers, setCustomers] = useState<Customer[]>([])
   const [isloading, setIsLoading] = useState(false)
   const toast = useRef<Toast | null>(null)
@@ -867,14 +868,14 @@ export default function Customers({ isSupplier }: CustomersProps) {
         setIsLoading(true);
         setError(null);
 
-        const url = `/api/customers?type=${isSupplier ? 2 : 1}`;
+        const url = `/api/customers?type=${isSalesman ? 3 : isSupplier ? 2 : isSubscriber ? 4 : 1}`;
         const response = await fetch(url);
 
         if (response.ok) {
           const data = await response.json();
           const allRecords = Array.isArray(data) ? data : data.customers || [];
           const filteredRecords = allRecords.filter((record: { type: number }) =>
-            isSupplier ? record.type === 2 : record.type === 1
+            isSalesman ? record.type === 3 : isSupplier ? record.type === 2 : isSubscriber ? record.type === 4 : record.type === 1
           );
           filteredRecords.sort((a: Customer, b: Customer) => a.id - b.id);
           setCustomers(filteredRecords);
@@ -883,16 +884,16 @@ export default function Customers({ isSupplier }: CustomersProps) {
             setCurrentIndex((prevIndex) => (prevIndex >= filteredRecords.length ? 0 : prevIndex));
           }
         } else {
-          setError(isSupplier ? "فشل في تحميل بيانات الموردين" : "فشل في تحميل بيانات العملاء");
+          setError(isSalesman ? "فشل في تحميل بيانات المندوبين" : isSupplier ? "فشل في تحميل بيانات الموردين" : isSubscriber ? "فشل في تحميل بيانات المشتركين" : "فشل في تحميل بيانات العملاء");
         }
       } catch (error) {
         console.error("Error fetching data:", error);
-        setError(isSupplier ? "حدث خطأ في تحميل الموردين" : "حدث خطأ في تحميل العملاء");
+        setError(isSalesman ? "حدث خطأ في تحميل المندوبين" : isSupplier ? "حدث خطأ في تحميل الموردين" : isSubscriber ? "حدث خطأ في تحميل المشتركين" : "حدث خطأ في تحميل العملاء");
       } finally {
         setIsLoading(false);
       }
     },
-    [isSupplier]
+    [isSalesman, isSupplier, isSubscriber]
   );
 
 
@@ -951,10 +952,9 @@ export default function Customers({ isSupplier }: CustomersProps) {
     async () => {
       try {
         setGeneratingNumber(true);
-        console.log("[v0] Generating number...", isSupplier ? "Supplier" : "Customer");
+        console.log("[v0] Generating number...", isSalesman ? "Salesman" : isSupplier ? "Supplier" : "Customer");
 
-        // Pass isSupplier as query param
-        const response = await fetch(`/api/customers/generate-number?isSupplier=${isSupplier}`);
+        const response = await fetch(`/api/customers/generate-number?isSupplier=${isSupplier}&isSalesman=${isSalesman}&isSubscriber=${isSubscriber}`);
         if (response.ok) {
           const contentType = response.headers.get("content-type");
 
@@ -1021,14 +1021,21 @@ export default function Customers({ isSupplier }: CustomersProps) {
       console.log("Search by code response:", data);
       if (data.found) {
         // Load the customer data
-        if(isSupplier && data.customer.type !== 2) {
+        if (isSupplier && data.customer.type !== 2) {
           await reset_fields();
-          Util.showErrorToast(toast.current, "الرقم المدخل  لعميل وليس مورد")
+          Util.showErrorToast(toast.current, "الرقم المدخل لعميل وليس مورد")
           return
-        }
-        else if(!isSupplier && data.customer.type !== 1) {  
+        } else if (isSalesman && data.customer.type !== 3) {
           await reset_fields();
-          Util.showErrorToast(toast.current, "الرقم المدخل  لمورد وليس عميل")
+          Util.showErrorToast(toast.current, "الرقم المدخل لعميل وليس مندوب")
+          return
+        } else if (isSubscriber && data.customer.type !== 4) {
+          await reset_fields();
+          Util.showErrorToast(toast.current, "الرقم المدخل لعميل وليس مشترك")
+          return
+        } else if (!isSupplier && !isSalesman && !isSubscriber && data.customer.type !== 1) {
+          await reset_fields();
+          Util.showErrorToast(toast.current, "الرقم المدخل لمورد وليس عميل")
           return
         }
         setFormData((prev) => ({
@@ -1112,7 +1119,7 @@ export default function Customers({ isSupplier }: CustomersProps) {
         credit_limit: customerData.credit_limit,
         payment_terms: customerData.payment_terms,
         discount_percentage: customerData.discount_percentage,
-        type: isSupplier ? 2 : 1,
+        type: isSalesman ? 3 : isSupplier ? 2 : isSubscriber ? 4 : 1,
         pricecategory: customerData.pricecategory,
         account_id: customerData.account_id,
         cost_centers: costCenters,
@@ -1170,7 +1177,7 @@ export default function Customers({ isSupplier }: CustomersProps) {
 
       if (savedCustomer?.data?.id) {
         setCurrentCustomerId(Number(savedCustomer.data.id));
-        await unifiedCustomerLoadDataRef.current?.("ById", savedCustomer.data.id, isSupplier);
+        await unifiedCustomerLoadDataRef.current?.("ById", savedCustomer.data.id, isSupplier || isSubscriber);
       } else {
         reset_fields();
       }
@@ -1416,18 +1423,20 @@ export default function Customers({ isSupplier }: CustomersProps) {
   }, [fetchCustomers, fetchClassifications, fetchSalesmen, fetchPriceClass])
 
   useEffect(() => {
-    console.log("[v0] Current customer changed:", currentCustomer)
-    if (currentCustomer) {
+    if (!editingCustomer || !currentCustomer) return
+    if (currentCustomer.id !== formData.id) {
       updateFormData(currentCustomer)
     }
-  }, [currentCustomer, updateFormData])
+  }, [currentCustomer, editingCustomer, formData.id, updateFormData])
   const { isAuthenticated, hasPermission } = useAuth()
   if (isloading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]" dir="rtl">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">{isSupplier ? "جاري تحميل الموردين..." : "جاري تحميل العملاء..."}</p>
+          <p className="text-muted-foreground">
+            {isSalesman ? "جاري تحميل المندوبين..." : isSupplier ? "جاري تحميل الموردين..." : isSubscriber ? "جاري تحميل المشتركين..." : "جاري تحميل العملاء..."}
+          </p>
         </div>
       </div>
     )
@@ -1455,7 +1464,7 @@ export default function Customers({ isSupplier }: CustomersProps) {
   }
   return (
 
-    <div className="container mx-auto p-6 space-y-6" dir="rtl">
+    <div className="w-full max-w-full px-4 py-6 space-y-6 sm:px-6 lg:px-8" dir="rtl">
       {/* Success Message */}
       <ConfirmDialogYesNo
         visible={showConfirm}
@@ -1477,11 +1486,11 @@ export default function Customers({ isSupplier }: CustomersProps) {
 
       {/* Header */}
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">{isSupplier ? "إدارة الموردين" : "إدارة العملاء"} </h1>
+        <h1 className="text-3xl font-bold">{isSalesman ? "إدارة المندوبين" : isSupplier ? "إدارة الموردين" : isSubscriber ? "إدارة المشتركين" : "إدارة العملاء"} </h1>
         <div className="flex gap-2">
           <Button onClick={() => handleNewCustomer(true)} className="flex items-center gap-2">
             <Plus className="h-4 w-4" />
-            {isSupplier ? "مورد جديد" : "عميل جديد"}
+            {isSalesman ? "مندوب جديد" : isSupplier ? "مورد جديد" : isSubscriber ? "مشترك جديد" : "عميل جديد"}
           </Button>
           <Button
             variant="outline"
@@ -1500,7 +1509,7 @@ export default function Customers({ isSupplier }: CustomersProps) {
             </DialogTrigger>
             <DialogContent className="max-w-4xl">
               <DialogHeader>
-                <DialogTitle>تقارير العملاء</DialogTitle>
+                <DialogTitle>{isSalesman ? "تقارير المندوبين" : isSupplier ? "تقارير الموردين" : isSubscriber ? "تقارير المشتركين" : "تقارير العملاء"}</DialogTitle>
               </DialogHeader>
               <div className="p-4">
                 <p>سيتم إضافة التقارير هنا</p>
@@ -1516,7 +1525,7 @@ export default function Customers({ isSupplier }: CustomersProps) {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-blue-700">{isSupplier ? "إجمالي الموردين" : "إجمالي العملاء"}</p>
+                <p className="text-sm font-medium text-blue-700">{isSalesman ? "إجمالي المندوبين" : isSupplier ? "إجمالي الموردين" : isSubscriber ? "إجمالي المشتركين" : "إجمالي العملاء"}</p>
                 <p className="text-3xl font-bold text-blue-900">{statistics.total}</p>
               </div>
               <div className="h-10 w-10 bg-blue-200 rounded-full flex items-center justify-center">
@@ -1530,7 +1539,7 @@ export default function Customers({ isSupplier }: CustomersProps) {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-green-700"> {isSupplier ? "الموردين النشطين" : "العملاء النشطين"}</p>
+                <p className="text-sm font-medium text-green-700"> {isSalesman ? "المندوبين النشطين" : isSupplier ? "الموردين النشطين" : isSubscriber ? "المشتركين النشطين" : "العملاء النشطين"}</p>
                 <p className="text-3xl font-bold text-green-900">{statistics.active}</p>
               </div>
               <div className="h-10 w-10 bg-green-200 rounded-full flex items-center justify-center">
@@ -1544,7 +1553,7 @@ export default function Customers({ isSupplier }: CustomersProps) {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-red-700">{isSupplier ? "الموردين غير النشطين" : "العملاء غير النشطين"}</p>
+                <p className="text-sm font-medium text-red-700">{isSalesman ? "المندوبين غير النشطين" : isSupplier ? "الموردين غير النشطين" : isSubscriber ? "المشتركين غير النشطين" : "العملاء غير النشطين"}</p>
                 <p className="text-3xl font-bold text-red-900">{statistics.inactive}</p>
               </div>
               <div className="h-10 w-10 bg-red-200 rounded-full flex items-center justify-center">
@@ -1558,7 +1567,7 @@ export default function Customers({ isSupplier }: CustomersProps) {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-purple-700">{isSupplier ? "مورّدين VIP" : "العملاء VIP"}</p>
+                <p className="text-sm font-medium text-purple-700">{isSalesman ? "المندوبين VIP" : isSupplier ? "الموردين VIP" : isSubscriber ? "المشتركين VIP" : "العملاء VIP"}</p>
                 <p className="text-3xl font-bold text-purple-900">{statistics.vip}</p>
               </div>
               <div className="h-10 w-10 bg-purple-200 rounded-full flex items-center justify-center">
@@ -1580,7 +1589,7 @@ export default function Customers({ isSupplier }: CustomersProps) {
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
-              <Label htmlFor="search-name"> {isSupplier ? "اسم المورد" : "اسم العميل"}</Label>
+              <Label htmlFor="search-name"> {isSalesman ? "اسم المندوب" : isSupplier ? "اسم المورد" : isSubscriber ? "اسم المشترك" : "اسم العميل"}</Label>
               <Input
                 id="search-name"
                 value={searchFilters.name}
@@ -1660,7 +1669,7 @@ export default function Customers({ isSupplier }: CustomersProps) {
       <Card>
         <CardHeader>
           <CardTitle>
-            {isSupplier ? `قائمة الموردين (${filteredCustomers.length})` : `قائمة العملاء (${filteredCustomers.length})`}
+            {isSalesman ? `قائمة المندوبين (${filteredCustomers.length})` : isSupplier ? `قائمة الموردين (${filteredCustomers.length})` : isSubscriber ? `قائمة المشتركين (${filteredCustomers.length})` : `قائمة العملاء (${filteredCustomers.length})`}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -1669,10 +1678,10 @@ export default function Customers({ isSupplier }: CustomersProps) {
               <thead>
                 <tr className="bg-gray-50">
                   <th className="border border-gray-300 px-4 py-2 text-right">
-                    {isSupplier ? "رقم المورد" : "رقم العميل"}
+                    {isSalesman ? "رقم المندوب" : isSupplier ? "رقم المورد" : isSubscriber ? "رقم المشترك" : "رقم العميل"}
                   </th>
                   <th className="border border-gray-300 px-4 py-2 text-right">
-                    {isSupplier ? "اسم المورد" : "اسم العميل"}
+                    {isSalesman ? "اسم المندوب" : isSupplier ? "اسم المورد" : isSubscriber ? "اسم المشترك" : "اسم العميل"}
                   </th>
                   <th className="border border-gray-300 px-4 py-2 text-right">الجوال</th>
                   <th className="border border-gray-300 px-4 py-2 text-right">المدينة</th>
@@ -1691,20 +1700,9 @@ export default function Customers({ isSupplier }: CustomersProps) {
                       <Badge variant={customer.status === "نشط" ? "default" : "secondary"}>{customer.status}</Badge>
                     </td>
                     <td className="border border-gray-300 px-4 py-2 text-center">
-                      <div className="flex justify-center gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleManagePortal(customer)}
-                          title="إدارة بوابة العميل"
-                        >
-                          <Globe className="h-4 w-4" />
-                        </Button>
+                      <div className="flex justify-center">
                         <Button size="sm" variant="outline" onClick={() => handleEditCustomer(customer)}>
                           <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button size="sm" variant="outline" onClick={() => confirmDelete}>
-                          <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
                     </td>
@@ -1765,6 +1763,8 @@ export default function Customers({ isSupplier }: CustomersProps) {
               setShowNewCustomerDialog(nextOpen)
             }}
             isSupplier={!!isSupplier}
+            isSalesman={!!isSalesman}
+            isSubscriber={!!isSubscriber}
             showCustomerSearch={showCustomerSearch}
             setShowCustomerSearch={setShowCustomerSearch}
             formData={formData}
@@ -1819,7 +1819,7 @@ export default function Customers({ isSupplier }: CustomersProps) {
                   <div className="flex items-center justify-center min-h-[160px]" dir="rtl">
                     <div className="text-center">
                       <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary mx-auto mb-3"></div>
-                      <p className="text-muted-foreground">{isSupplier ? "جاري تحميل الموردين..." : "جاري تحميل العملاء..."}</p>
+                      <p className="text-muted-foreground">{isSupplier ? "جاري تحميل الموردين..." : isSubscriber ? "جاري تحميل المشتركين..." : "جاري تحميل العملاء..."}</p>
                     </div>
                   </div>
                 ) : notificationSettings ? (
@@ -2045,7 +2045,7 @@ export default function Customers({ isSupplier }: CustomersProps) {
               <div className="flex items-center justify-center min-h-[240px]" dir="rtl">
                 <div className="text-center">
                   <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary mx-auto mb-3"></div>
-                  <p className="text-muted-foreground">{isSupplier ? "جاري تحميل الموردين..." : "جاري تحميل العملاء..."}</p>
+                  <p className="text-muted-foreground">{isSupplier ? "جاري تحميل الموردين..." : isSubscriber ? "جاري تحميل المشتركين..." : "جاري تحميل العملاء..."}</p>
                 </div>
               </div>
             ) : portalUsers.length === 0 ? (

@@ -56,11 +56,10 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Read isSupplier from query params (default: false)
     const isSupplier = req.nextUrl.searchParams.get("isSupplier") === "true";
+    const isSalesman = req.nextUrl.searchParams.get("isSalesman") === "true";
 
-
-    const customerNumber = await generateCustomerNumber(isSupplier);
+    const customerNumber = await generateCustomerNumber(isSupplier, isSalesman);
     console.log("[v0] API: Generated number:", customerNumber);
 
     return NextResponse.json({ customerNumber });

@@ -98,6 +98,8 @@ export interface UnifiedCustomerFormData {
 interface UnifiedCustomersProps {
   open?: boolean
   isSupplier?: boolean
+  isSalesman?: boolean
+  isSubscriber?: boolean
   showCustomerSearch?: boolean
   setShowCustomerSearch?: (open: boolean) => void
   formData?: UnifiedCustomerFormData
@@ -175,6 +177,8 @@ interface ClassificationTypeRow {
 export default function UnifiedCustomers({
   open = false,
   isSupplier = false,
+  isSalesman = false,
+  isSubscriber = false,
   showCustomerSearch = false,
   setShowCustomerSearch = () => undefined,
   formData = defaultFormData,
@@ -313,7 +317,7 @@ export default function UnifiedCustomers({
 
   const generateCustomerCode = useCallback(async () => {
     try {
-      const response = await fetch(`/api/customers/generate-number?isSupplier=${isSupplier}`)
+      const response = await fetch(`/api/customers/generate-number?isSupplier=${isSupplier}&isSalesman=${isSalesman}&isSubscriber=${isSubscriber}`)
       if (!response.ok) {
         throw new Error(`Failed to generate customer code: ${response.status}`)
       }
@@ -324,7 +328,7 @@ export default function UnifiedCustomers({
       console.error("Error generating customer code for unified customers:", error)
       return ""
     }
-  }, [isSupplier])
+  }, [isSupplier, isSalesman, isSubscriber])
 
   const focusCustomerName = useCallback(() => {
     globalThis.setTimeout(() => {
@@ -728,6 +732,20 @@ export default function UnifiedCustomers({
       return
     }
 
+    const hasExistingRecord = Number(currentCustomerId) > 0 || Number(formData.id) > 0
+
+    if (dialogWasOpenRef.current && hasExistingRecord) {
+      const snapshot = getEditableFormSnapshot({
+        ...formData,
+        customer_code: formData.customer_code ?? "",
+        name: formData.name ?? "",
+        registration_date: formData.registration_date ?? "",
+      })
+      formDataRef.current = snapshot
+      initialHash.current = getFormDataHash(snapshot)
+      return
+    }
+
     if (dialogWasOpenRef.current) return
     dialogWasOpenRef.current = true
 
@@ -735,7 +753,19 @@ export default function UnifiedCustomers({
       try {
         setLoading(true)
         const definitions = await fetchDefinitions()
-        await reset_fields(definitions)
+
+        if (!hasExistingRecord) {
+          await reset_fields(definitions)
+        } else {
+          const snapshot = getEditableFormSnapshot({
+            ...formData,
+            customer_code: formData.customer_code ?? "",
+            name: formData.name ?? "",
+            registration_date: formData.registration_date ?? "",
+          })
+          formDataRef.current = snapshot
+          initialHash.current = getFormDataHash(snapshot)
+        }
       } catch (error) {
         console.error("Failed to initialize unified customers popup:", error)
       } finally {
@@ -744,7 +774,7 @@ export default function UnifiedCustomers({
     }
 
     void init()
-  }, [open, reset_fields, fetchDefinitions])
+  }, [open, reset_fields, fetchDefinitions, currentCustomerId, formData.id])
 
   const loadData = useCallback(
     async (
@@ -774,6 +804,9 @@ export default function UnifiedCustomers({
         await loadData("last", undefined, isSupplierArg, false)
         return
       }
+      if (!hasRealCurrentRecord && (navigationType === "first" || navigationType === "last")) {
+        return
+      }
 
       try {
         setLoading(true)
@@ -783,19 +816,48 @@ export default function UnifiedCustomers({
           navigationType = "ById"
         }
 
-        const url = new URL(`/api/customer/navigations/${navigationType}`, location.origin)
+        let customer: any = null
 
         if (navigationType === "ById" && customerId) {
-          url.searchParams.set("id", String(customerId))
-        } else if (navigationType === "previous" || navigationType === "next") {
-          url.searchParams.set("currentId", String(currentCustomerId))
+          const res = await fetch(`/api/customers/${customerId}`)
+          if (!res.ok) {
+            throw new Error(`Failed to load customer ${customerId}`)
+          }
+          customer = await res.json()
+        } else {
+          const customersRes = await fetch(`/api/customers?type=${isSupplierArg ? "2" : isSubscriber ? "4" : "1"}`)
+          if (!customersRes.ok) {
+            throw new Error("Failed to load customer list")
+          }
+
+          const customersData = await customersRes.json()
+          const list = Array.isArray(customersData?.customers) ? customersData.customers : []
+          if (!list.length) {
+            throw new Error("No customers found")
+          }
+
+          const currentId = Number(currentCustomerId || formData.id || 0)
+          let targetCustomer: any = null
+
+          if (navigationType === "first") {
+            targetCustomer = list[0]
+          } else if (navigationType === "last") {
+            targetCustomer = list[list.length - 1]
+          } else if (navigationType === "previous") {
+            targetCustomer = [...list].reverse().find((item: any) => Number(item.id) < currentId) || null
+          } else if (navigationType === "next") {
+            targetCustomer = list.find((item: any) => Number(item.id) > currentId) || null
+          }
+
+          if (!targetCustomer) {
+            const msg = navigationType === "previous" || navigationType === "first" ? "بداية السجلات" : "نهاية السجلات"
+            Util.showErrorToast(toast.current, msg)
+            return
+          }
+
+          customer = targetCustomer
         }
 
-        url.searchParams.set("type", isSupplierArg ? "2" : "1")
-
-        const res = await fetch(url.toString())
-        console.log("Fetch response status:", res.status, "URL:", url.toString())
-        const customer = await res.json()
         console.log("Loaded customer:", customer, "Navigation type:", navigationType, "Current ID:", currentCustomerId)
         if (!customer?.id) {
           const fallbackNavigation = navigationType === "next" ? "first" : "last"
@@ -847,6 +909,16 @@ export default function UnifiedCustomers({
     }
     return undefined
   }, [loadDataRef, loadData])
+
+  useEffect(() => {
+    if (!open) return
+
+    const selectedId = Number(currentCustomerId || formData.id || 0)
+    if (!selectedId) return
+    if (Number(formData.id) === selectedId && formData.id > 0) return
+
+    void loadData("ByIdEdit", selectedId, isSupplier, false)
+  }, [open, currentCustomerId, formData.id, isSupplier, isSubscriber, loadData])
 
   const handleFirst = useCallback(async () => {
     await loadData("first", undefined, isSupplier)
@@ -1231,7 +1303,7 @@ export default function UnifiedCustomers({
           credit_limit: formData.credit_limit,
           payment_terms: formData.payment_terms,
           discount_percentage: formData.discount_percentage,
-          type: isSupplier ? 2 : 1,
+          type: isSalesman ? 3 : isSupplier ? 2 : isSubscriber ? 4 : 1,
           pricecategory: formData.pricecategory,
           account_id: formData.account_id,
           cost_centers: costCenters,
@@ -1588,7 +1660,7 @@ export default function UnifiedCustomers({
             <div>
               <h1 className="text-xl font-bold text-foreground flex items-center gap-3 sm:text-2xl">
                 <Package className="h-7 w-7 text-primary" />
-                {isSupplier ? (formData.id === 0 ? "إضافة مورد جديد" : "تعديل مورد") : (formData.id === 0 ? "إضافة عميل جديد" : "تعديل عميل")}
+                {isSalesman ? (formData.id === 0 ? "إضافة مندوب جديد" : "تعديل مندوب") : isSupplier ? (formData.id === 0 ? "إضافة مورد جديد" : "تعديل مورد") : isSubscriber ? (formData.id === 0 ? "إضافة مشترك جديد" : "تعديل مشترك") : (formData.id === 0 ? "إضافة عميل جديد" : "تعديل عميل")}
               </h1>
             </div>
           </div>
@@ -1612,7 +1684,7 @@ export default function UnifiedCustomers({
         )}
         <CustomerSearchPopup
           visible={showCustomerSearch}
-          type={isSupplier ? 2 : 1}
+          type={isSalesman ? 3 : isSupplier ? 2 : isSubscriber ? 4 : 1}
           vch_type={0}
           onClose={() => setShowCustomerSearch(false)}
           onSelect={handleCustomerSelect}
@@ -1629,7 +1701,7 @@ export default function UnifiedCustomers({
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="col-span-1">
                 <Label htmlFor="customer_code" className="text-sm font-medium">
-                  {isSupplier ? "رقم المورد *" : "رقم العميل *"}
+                  {isSalesman ? "رقم المندوب *" : isSupplier ? "رقم المورد *" : isSubscriber ? "رقم المشترك *" : "رقم العميل *"}
                 </Label>
                 <div className="flex gap-2">
                   <Input
@@ -1640,7 +1712,7 @@ export default function UnifiedCustomers({
                       await handleCustomerCodeBlur(e.target.value)
                     }}
                     className="text-right"
-                    placeholder={isSupplier ? "رقم المورد" : "رقم العميل"}
+                    placeholder={isSalesman ? "رقم المندوب" : isSupplier ? "رقم المورد" : isSubscriber ? "رقم المشترك" : "رقم العميل"}
                     maxLength={8}
                   />
                   <Button type="button" onClick={() => setShowCustomerSearch(true)}>
@@ -1651,7 +1723,7 @@ export default function UnifiedCustomers({
 
               <div className="col-span-1 md:col-span-3">
                 <Label htmlFor="customer_name" className="text-sm font-medium">
-                  {isSupplier ? "اسم المورد *" : "اسم العميل *"}
+                  {isSalesman ? "اسم المندوب *" : isSupplier ? "اسم المورد *" : isSubscriber ? "اسم المشترك *" : "اسم العميل *"}
                 </Label>
                 <Input
                   id="customer_name"
@@ -1666,43 +1738,44 @@ export default function UnifiedCustomers({
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="salesman" className="text-sm font-medium">المندوب</Label>
-                <PrimeDropdown
-                  inputId="salesman"
-                  value={formData.salesman || null}
-                  options={salesmen.map((item) => ({ label: item.name, value: item.name }))}
-                  optionLabel="label"
-                  optionValue="value"
-                  placeholder="اختر المندوب"
-                  filter={true}
-                  className="invoice-currency-dropdown w-full"
-                  panelClassName="invoice-currency-dropdown-panel"
-                  appendTo="self"
-                  filterInputAutoFocus={true}
-                  onChange={(e: any) => updateField("salesman", e.value || "")}
-                />
+            {isSalesman ? null : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="salesman" className="text-sm font-medium">المندوب</Label>
+                  <PrimeDropdown
+                    inputId="salesman"
+                    value={formData.salesman || null}
+                    options={salesmen.map((item) => ({ label: item.name, value: item.name }))}
+                    optionLabel="label"
+                    optionValue="value"
+                    placeholder="اختر المندوب"
+                    filter={true}
+                    className="invoice-currency-dropdown w-full"
+                    panelClassName="invoice-currency-dropdown-panel"
+                    appendTo="self"
+                    filterInputAutoFocus={true}
+                    onChange={(e: any) => updateField("salesman", e.value || "")}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="classification" className="text-sm font-medium">تصنيف العميل</Label>
+                  <PrimeDropdown
+                    inputId="classification"
+                    value={formData.classification || null}
+                    options={classifications.map((item) => ({ label: item.group_name || item.name || "", value: item.group_name || item.name || "" }))}
+                    optionLabel="label"
+                    optionValue="value"
+                    placeholder={isSupplier ? "اختر تصنيف المورد" : isSubscriber ? "اختر تصنيف المشترك" : "اختر تصنيف العميل"}
+                    filter={true}
+                    className="invoice-currency-dropdown w-full"
+                    panelClassName="invoice-currency-dropdown-panel"
+                    appendTo="self"
+                    filterInputAutoFocus={true}
+                    onChange={(e: any) => updateField("classification", e.value || "")}
+                  />
+                </div>
               </div>
-              <div>
-                <Label htmlFor="classification" className="text-sm font-medium">تصنيف العميل</Label>
-                <PrimeDropdown
-                  inputId="classification"
-                  value={formData.classification || null}
-                  options={classifications.map((item) => ({ label: item.group_name || item.name || "", value: item.group_name || item.name || "" }))}
-                  optionLabel="label"
-                  optionValue="value"
-                  placeholder={isSupplier ? "اختر تصنيف المورد" : "اختر تصنيف العميل"}
-                  filter={true}
-                  className="invoice-currency-dropdown w-full"
-                  panelClassName="invoice-currency-dropdown-panel"
-                  appendTo="self"
-                  filterInputAutoFocus={true}
-                  onChange={(e: any) => updateField("classification", e.value || "")}
-                />
-              </div>
-
-            </div>
+            )}
 
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">

@@ -93,6 +93,15 @@ const resolveAccountHierarchy = async (fatherIdInput: unknown, levelNoInput: unk
   return { fatherId, levelNo: parentLevel + 1 }
 }
 
+const resolveAccountType = (entityType: unknown) => {
+  const normalizedType = Number(entityType)
+
+  if (normalizedType === 2) return 3
+  if (normalizedType === 3) return 4
+  if (normalizedType === 4) return 5
+  return 2
+}
+
 const ensureCustomerAccount = async ({
   accountId,
   code,
@@ -227,7 +236,7 @@ const ensureCustomerAccount = async ({
     ) VALUES (
       2,
       ${normalizedCode},
-      1,
+      ${accountType},
       ${normalizedName},
       NULL,
       ${finalFatherId},
@@ -320,7 +329,7 @@ export async function GET(request: NextRequest) {
     await ensureCustomerCompatibilityColumns()
 
     const typeParam = request.nextUrl.searchParams.get("type");
-    const typeFilter = typeParam === "1" || typeParam === "2" ? Number(typeParam) : null;
+    const typeFilter = typeParam === "1" || typeParam === "2" || typeParam === "3" || typeParam === "4" ? Number(typeParam) : null;
 
     const customers = typeFilter
       ? await sql`
@@ -511,26 +520,34 @@ export async function POST(request: NextRequest) {
     const accountAllowTransWithDiffCurr = toInt(data.allow_trans_with_diff_curr, 0)
     const accountIsCalcCurrDiffRates = toBool(data.iscalc_curr_diff_rates, false)
 
-    // Check if customer code already exists
-    if (data.id === 0) {
+    const accountType = resolveAccountType(data.type)
 
-      if (data.customer_code) {
+    const isNewCustomer = toInt(data.id, 0) === 0
+
+    // Check if customer code already exists or needs generation
+    if (isNewCustomer) {
+      const providedCustomerCode = String(data.customer_code || "").trim()
+
+      if (!providedCustomerCode) {
+        data.customer_code = await generateCustomerNumber(data.type === 2, data.type === 3, data.type === 4)
+      } else {
         const existingCustomer = await sql`
-        SELECT id FROM customers WHERE customer_code = ${data.customer_code}
-      `
+          SELECT id FROM customers WHERE customer_code = ${providedCustomerCode}
+        `
 
         if (existingCustomer.length > 0) {
+          data.customer_code = await generateCustomerNumber(data.type === 2, data.type === 3, data.type === 4)
+        } else {
+          data.customer_code = providedCustomerCode
+        }
+      }
 
-          const customerNumber = await generateCustomerNumber(data.type === 2 ? true : false);
-          data.customer_code = customerNumber;
-          const existingCust = await sql`
+      const existingCust = await sql`
         SELECT id FROM customers WHERE customer_code = ${data.customer_code}
       `
 
-          if (existingCust.length > 0) {
-            return NextResponse.json({ error: "رقم العميل موجود مسبقاً، يرجى اختيار رقم آخر" }, { status: 400 })
-          }
-        }
+      if (existingCust.length > 0) {
+        return NextResponse.json({ error: "رقم العميل موجود مسبقاً، يرجى اختيار رقم آخر" }, { status: 400 })
       }
 
       const accountId = await ensureCustomerAccount({
@@ -541,7 +558,7 @@ export async function POST(request: NextRequest) {
         isCalcCurrDiffRates: accountIsCalcCurrDiffRates,
         fatherId: accountHierarchy.fatherId,
         levelNo: accountHierarchy.levelNo,
-        accountType: Number(data.type) === 2 ? 3 : 2,
+        accountType,
       })
 
       const result = await sql`
@@ -635,6 +652,7 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "Customer ID is required" }, { status: 400 })
     }
 
+    const accountType = resolveAccountType(updateData.type)
     const accountHierarchy = await resolveAccountHierarchy(updateData.father_id, updateData.level_no)
     const accountCurrencyId = toNullableInt(updateData.currency_id) ?? 1
     const accountAllowTransWithDiffCurr = toInt(updateData.allow_trans_with_diff_curr, 0)
@@ -656,7 +674,7 @@ export async function PUT(request: NextRequest) {
       isCalcCurrDiffRates: accountIsCalcCurrDiffRates,
       fatherId: accountHierarchy.fatherId,
       levelNo: accountHierarchy.levelNo,
-      accountType: Number(updateData.type) === 2 ? 3 : 2,
+      accountType,
     })
 
     const result = await sql`

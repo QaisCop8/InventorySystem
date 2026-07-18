@@ -20,6 +20,8 @@ import {
   Database,
   Palette,
   GitBranch,
+  Building,
+  MapPin,
   Archive,
   TrendingUp,
   Unlock,
@@ -82,6 +84,9 @@ export function Sidebar({
       "inventory-analytics": "/admin/inventory-analytics",
       "order-tracking": "/admin/order-tracking",
       "exchange-rates": "/admin/exchange-rates",
+      "subscribers": "/admin/subscribers",
+      "banks": "/admin/banks",
+      "branches": "/admin/branches",
     }
     return sectionRoutes[section] || "/admin"
   }
@@ -114,6 +119,10 @@ export function Sidebar({
         { title: "الحسابات المحاسبية", section: "accounts", icon: Settings },
         { title: "العملاء", section: "customers", icon: Users },
         { title: "الموردين", section: "suppliers", icon: Truck },
+        { title: "المشتركين", section: "subscribers", icon: UserCheck },
+        { title: "المندوبين", section: "salesmen", icon: UserCheck },
+        { title: "البنوك", section: "banks", icon: Building },
+        { title: "الفروع", section: "branches", icon: MapPin },
         { title: "الأصناف", section: "products", icon: Package },
         { title: "الخدمات", section: "services", icon: Package },
         { title: "مجموعات الأصناف", section: "product-groups", icon: Package },
@@ -249,7 +258,7 @@ export function Sidebar({
                     <span className={`flex h-9 w-9 items-center justify-center rounded-lg transition-all ${
                       isActive
                         ? "bg-cyan-600/20 text-cyan-700 shadow-md shadow-cyan-600/20"
-                        : "bg-gray-200 text-gray-600 group-hover:bg-gray-300 group-hover:text-gray-800"
+                        : "bg-gray-200 text-cyan-600 group-hover:bg-cyan-100 group-hover:text-cyan-700"
                     }`}>
                       <ItemIcon className="h-5 w-5" />
                     </span>
@@ -286,7 +295,7 @@ export function Sidebar({
                             <span className={`flex h-7 w-7 items-center justify-center rounded transition-all ${
                               isSubActive
                                 ? "bg-cyan-600/20 text-cyan-700"
-                                : "bg-gray-200"
+                                : "bg-gray-200 text-cyan-600"
                             }`}>
                               <SubItemIcon className="h-4 w-4" />
                             </span>
@@ -319,7 +328,7 @@ export function Sidebar({
                                     <span className={`flex h-6 w-6 items-center justify-center rounded transition-all text-xs font-bold ${
                                       isNestedActive
                                         ? "bg-cyan-600/20 text-cyan-700"
-                                        : "bg-gray-200"
+                                        : "bg-gray-200 text-cyan-600"
                                     }`}>
                                       <NestedItemIcon className="h-3 w-3" />
                                     </span>

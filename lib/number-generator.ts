@@ -48,7 +48,7 @@ try {
 
 export default sql
 
-async function getPrefixFromSettings(type: "customer" | "supplier" | "item_group"): Promise<string> {
+async function getPrefixFromSettings(type: "customer" | "supplier" | "salesman" | "item_group"): Promise<string> {
   try {
     if (!process.env.DATABASE_URL) {
       return type === "customer" ? "C" : type === "supplier" ? "S" : "G"
@@ -57,7 +57,7 @@ async function getPrefixFromSettings(type: "customer" | "supplier" | "item_group
     const result = await sql`
       SELECT id, value
       FROM system_settings
-      WHERE id IN (${["customer_prefix", "supplier_prefix", "item_group_prefix"]})
+      WHERE id IN (${["customer_prefix", "supplier_prefix", "salesman_prefix", "item_group_prefix"]})
       ORDER BY id ASC
     `
 
@@ -67,22 +67,22 @@ async function getPrefixFromSettings(type: "customer" | "supplier" | "item_group
         ? prefixMap.customer_prefix
         : type === "supplier"
           ? prefixMap.supplier_prefix
-          : prefixMap.item_group_prefix
+          : type === "salesman"
+            ? prefixMap.salesman_prefix ?? prefixMap.customer_prefix
+            : prefixMap.item_group_prefix
 
-    return String(prefix || (type === "customer" ? "C" : type === "supplier" ? "S" : "G"))
+    return String(prefix || (type === "customer" ? "C" : type === "supplier" ? "S" : type === "salesman" ? "C" : "G"))
   } catch (error) {
     console.error("[v0] Error fetching prefix from settings:", error)
     return type === "customer" ? "C" : type === "supplier" ? "S" : "G"
   }
 }
 
-export async function generateCustomerNumber(isSupplier: boolean = false): Promise<string> {
-  // Use different prefixes based on type
-  const typeKey = isSupplier ? "supplier" : "customer";
+export async function generateCustomerNumber(isSupplier: boolean = false, isSalesman: boolean = false, isSubscriber: boolean = false): Promise<string> {
+  const typeKey = isSubscriber ? "subscriber" : isSalesman ? "salesman" : isSupplier ? "supplier" : "customer";
   const prefix = await getPrefixFromSettings(typeKey);
 
-  // Table is still "customers", column is "customer_code"
-  return await getNextSequentialNumber(prefix, "customers", "customer_code",isSupplier ? 2:1);
+  return await getNextSequentialNumber(prefix, "customers", "customer_code", isSubscriber ? 4 : isSalesman ? 3 : isSupplier ? 2 : 1);
 }
 
 
