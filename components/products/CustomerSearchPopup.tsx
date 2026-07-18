@@ -32,6 +32,15 @@ const CustomerSearchPopup: React.FC<CustomerSearchPopupProps> = ({ visible, onCl
     const gridRef = useRef<wjGrid.FlexGrid | null>(null);
     const searchInputRef = useRef<HTMLInputElement>(null);
     const ws = useRef<WebSocket | null>(null);
+    const entityType = Number(type ?? 1);
+    const isSalesmanType = entityType === 3;
+    const isSupplierType = entityType === 2;
+    const isSubscriberType = entityType === 4;
+    const isCustomerType = entityType === 1 || entityType === -1;
+    const searchTitle = isSalesmanType ? "بحث المندوبين" : isSupplierType ? "بحث الموردين" : isSubscriberType ? "بحث المشتركين" : "بحث العملاء";
+    const searchPlaceholder = isSalesmanType ? "ابحث عن مندوب..." : isSupplierType ? "ابحث عن مورد..." : isSubscriberType ? "ابحث عن مشترك..." : "ابحث عن عميل...";
+    const codeLabel = isSalesmanType ? "رقم المندوب" : isSupplierType ? "رقم المورد" : isSubscriberType ? "رقم المشترك" : "رقم العميل";
+    const nameLabel = isSalesmanType ? "اسم المندوب" : isSupplierType ? "اسم المورد" : isSubscriberType ? "اسم المشترك" : "اسم العميل";
     // Load customers
     useEffect(() => {
         if (!visible) return;
@@ -166,12 +175,12 @@ const CustomerSearchPopup: React.FC<CustomerSearchPopupProps> = ({ visible, onCl
         isReport: true,
         columns: [
             { header: "##", name: "ser", width: 70 },
-            { header: type === 1 || type === -1 ? "رقم العميل" : "رقم المورد", name: "customer_code", width: 120 },
-            { header: type === 1 || type === -1 ? "اسم العميل" : "اسم المورد", name: "name", width: "*" },
+            { header: codeLabel, name: "customer_code", width: 120 },
+            { header: nameLabel, name: "name", width: "*" },
             { header: "الجوال", name: "mobile1", width: 120 },
             { header: "ملاحظات", name: "general_notes", width: 180 },
         ],
-    }), []);
+    }), [codeLabel, nameLabel]);
 
     // Row click / double click
     const handleRowClick = useCallback((customer: Customer) => setSelectedCustomer(customer), []);
@@ -245,12 +254,12 @@ const CustomerSearchPopup: React.FC<CustomerSearchPopupProps> = ({ visible, onCl
                 style={{ height: "600px" }}
             >
                 <h3 className="text-lg font-semibold mb-4 text-right">
-                    {type === 1 || type === -1 ? "بحث العملاء" : "بحث الموردين"}
+                    {searchTitle}
                 </h3>
 
                 <Input
                     type="text"
-                    placeholder={type === 1 || type === -1 ? "ابحث عن عميل..." : "ابحث عن مورد"}
+                    placeholder={searchPlaceholder}
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="mb-4 p-2 border border-gray-300 rounded w-full text-right"
@@ -267,8 +276,8 @@ const CustomerSearchPopup: React.FC<CustomerSearchPopupProps> = ({ visible, onCl
                                     isReport: false,
                                     columns: [
                                         { header: "##", name: "ser", width: 70 },
-                                        { header: type === 1 || type === -1 ? "رقم العميل" : "رقم المورد", name: "customer_code", width: 120 },
-                                        { header: type === 1 || type === -1 ? "اسم العميل" : "اسم المورد", name: "name", width: "*" },
+                                        { header: codeLabel, name: "customer_code", width: 120 },
+                                        { header: nameLabel, name: "name", width: "*" },
                                         { header: "الجوال", name: "mobile1", width: 120 },
                                         { header: "ملاحظات", name: "general_notes", width: 180 },
                                     ],
