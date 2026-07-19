@@ -132,84 +132,84 @@ export default function UnifiedBranches({
   return (
     <>
       <Dialog open={dialogOpen} onOpenChange={onOpenChange}>
-        <DialogContent className="w-full max-w-5xl" dir="rtl">
-          <DialogHeader>
-            <DialogTitle>{form.id > 0 ? "تعديل الفرع" : "إضافة فرع جديد"}</DialogTitle>
-          </DialogHeader>
+        <DialogContent className="w-full max-w-5xl p-0 overflow-hidden" dir="rtl">
+          <UniversalToolbar
+            currentRecord={currentIndex + 1}
+            totalRecords={totalRecords}
+            onNew={onNew}
+            onSave={onSave}
+            onDelete={onDelete}
+            onFirst={() => handleNavigate("first")}
+            onPrevious={() => handleNavigate("previous")}
+            onNext={() => handleNavigate("next")}
+            onLast={() => handleNavigate("last")}
+            isSaving={isSaving}
+            canSave={canSave}
+            canDelete={form.id > 0}
+            isFirstRecord={isFirstRecord}
+            isLastRecord={isLastRecord}
+          />
 
-          <div className="mb-4">
-            <UniversalToolbar
-              currentRecord={currentIndex + 1}
-              totalRecords={totalRecords}
-              onNew={onNew}
-              onSave={onSave}
-              onDelete={onDelete}
-              onFirst={() => handleNavigate("first")}
-              onPrevious={() => handleNavigate("previous")}
-              onNext={() => handleNavigate("next")}
-              onLast={() => handleNavigate("last")}
-              isSaving={isSaving}
-              canSave={canSave}
-              canDelete={form.id > 0}
-              isFirstRecord={isFirstRecord}
-              isLastRecord={isLastRecord}
-            />
-          </div>
+          <div className="rounded-b-3xl bg-background px-6 py-6">
+            <DialogHeader className="mb-4">
+              <DialogTitle className="text-xl font-semibold">{form.id > 0 ? "تعديل الفرع" : "إضافة فرع جديد"}</DialogTitle>
+            </DialogHeader>
 
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="branch-code">رمز الفرع</Label>
-              <Input
-                id="branch-code"
-                value={form.branch_code}
-                onChange={(e) => onFormChange("branch_code", e.target.value)}
-                onBlur={() => onCodeBlur?.(form.branch_code)}
-                ref={codeInputRef}
-                maxLength={4}
-              />
-              {showBranchCodeValidationError && (
-                <p className="text-sm text-destructive">يجب إدخال رمز فرع رقمي فقط.</p>
-              )}
-              {hasDuplicateCode && (
-                <p className="text-sm text-destructive">هذا الرمز مستخدم بالفعل. الرجاء اختيار رمز آخر.</p>
-              )}
-            </div>
-
-            <div className="grid gap-2">
-              <Label htmlFor="branch-name">اسم الفرع</Label>
-              <Input
-                id="branch-name"
-                value={form.branch_name}
-                onChange={(e) => onFormChange("branch_name", e.target.value)}
-              />
-              {hasDuplicateName && (
-                <p className="text-sm text-destructive">هذا الاسم مستخدم بالفعل. الرجاء اختيار اسم آخر.</p>
-              )}
-            </div>
-
-            <div className="grid gap-2">
-              <Label htmlFor="branch-bank">البنك</Label>
-              <select
-                id="branch-bank"
-                value={form.bank_id != null ? String(form.bank_id) : ""}
-                onChange={(e) => onFormChange("bank_id", e.target.value ? Number(e.target.value) : null)}
-                className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-              >
-                {banks.length > 0 ? (
-                  banks.map((bank) => (
-                    <option key={bank.id} value={bank.id}>
-                      {bank.bank_name}
-                    </option>
-                  ))
-                ) : (
-                  <option value="" disabled>
-                    لا توجد بنوك متاحة
-                  </option>
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="branch-code">رمز الفرع</Label>
+                <Input
+                  id="branch-code"
+                  value={form.branch_code}
+                  onChange={(e) => onFormChange("branch_code", e.target.value)}
+                  onBlur={() => onCodeBlur?.(form.branch_code)}
+                  ref={codeInputRef}
+                  maxLength={4}
+                />
+                {showBranchCodeValidationError && (
+                  <p className="text-sm text-destructive">يجب إدخال رمز فرع رقمي فقط.</p>
                 )}
-              </select>
-              {shouldShowBankError && (
-                <p className="text-sm text-destructive">يجب ادخال رقم البنك</p>
-              )}
+                {hasDuplicateCode && (
+                  <p className="text-sm text-destructive">هذا الرمز مستخدم بالفعل. الرجاء اختيار رمز آخر.</p>
+                )}
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="branch-name">اسم الفرع</Label>
+                <Input
+                  id="branch-name"
+                  value={form.branch_name}
+                  onChange={(e) => onFormChange("branch_name", e.target.value)}
+                />
+                {hasDuplicateName && (
+                  <p className="text-sm text-destructive">هذا الاسم مستخدم بالفعل. الرجاء اختيار اسم آخر.</p>
+                )}
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="branch-bank">البنك</Label>
+                <select
+                  id="branch-bank"
+                  value={form.bank_id != null ? String(form.bank_id) : ""}
+                  onChange={(e) => onFormChange("bank_id", e.target.value ? Number(e.target.value) : null)}
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                >
+                  {banks.length > 0 ? (
+                    banks.map((bank) => (
+                      <option key={bank.id} value={bank.id}>
+                        {bank.bank_name}
+                      </option>
+                    ))
+                  ) : (
+                    <option value="" disabled>
+                      لا توجد بنوك متاحة
+                    </option>
+                  )}
+                </select>
+                {shouldShowBankError && (
+                  <p className="text-sm text-destructive">يجب ادخال رقم البنك</p>
+                )}
+              </div>
             </div>
           </div>
         </DialogContent>

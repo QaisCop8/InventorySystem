@@ -37,6 +37,8 @@ import Accounts from "@/components/accounts"
 import UnifiedAccounts from "@/components/customer/unified-accounts-refactored"
 import Banks from "@/components/admin/banks"
 import Branches from "@/components/admin/branches"
+import BankAccounts from "@/components/admin/bank-accounts"
+import Receipts from "@/components/accounting/receipts"
 
 import { AIChat } from "@/components/ai-assistant/ai-chat"
 import { SmartAnalyticsDashboard } from "@/components/ai-analytics/smart-analytics-dashboard"
@@ -85,6 +87,9 @@ const componentMap: Record<string, React.ComponentType<any>> = {
   salesmen: (props: any) => <Customers {...props} isSalesman={true} />,
   banks: Banks,
   branches: Branches,
+  "bank-accounts": BankAccounts,
+  "receipt-vouchers": (props: any) => <Receipts {...props} voucherType={1} />,
+  "payment-vouchers": (props: any) => <Receipts {...props} voucherType={2} />,
   "product-groups": ProductGroups,
   definitions: Definitions,
   accounts: Accounts,

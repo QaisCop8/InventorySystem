@@ -2,7 +2,7 @@
 
 import { Dialog } from "primereact/dialog";
 import { Button } from "@/components/ui/button";
-import { ShieldAlert, SaveAll } from "lucide-react";
+import { ShieldAlert, SaveAll, Sparkles } from "lucide-react";
 import React, { useEffect } from "react";
 
 interface ConfirmDialogProps {
@@ -49,33 +49,30 @@ const ConfirmDialogYesNo: React.FC<ConfirmDialogProps> = ({
   }, [visible, onConfirm, onCancel, onBack, showBack]);
 
   const footer = (
-    <div className={`flex justify-center gap-2 mt-4 ${isCompact ? "mt-3" : "mt-5"}`}>
+    <div className={`flex justify-center gap-3 ${isCompact ? "mt-3" : "mt-5"}`}>
       <Button
         onClick={() => {
           onConfirm();
         }}
-        className={`${isCompact ? "px-5 py-2 text-base" : "px-7 py-3 text-lg"} rounded-xl shadow-lg ${showBack
-            ? "bg-blue-600 hover:bg-blue-700 text-white"
-            : "bg-red-600 hover:bg-red-700 text-white"
-          }`}
+        className={`${isCompact ? "px-5 py-2 text-sm" : "px-7 py-3 text-base"} rounded-2xl border border-transparent bg-gradient-to-r from-rose-500 to-rose-600 text-white shadow-[0_10px_25px_-12px_rgba(244,63,94,0.9)] transition-all hover:-translate-y-0.5 hover:shadow-[0_14px_30px_-12px_rgba(244,63,94,0.9)]`}
       >
-        {showBack ? "نعم" : isCompact ? "حذف" : "نعم (F3)"}
+        {showBack ? "نعم" : "تأكيد"}
       </Button>
 
       <Button
         onClick={onCancel}
         variant="outline"
-        className={`${isCompact ? "px-5 py-2 text-base" : "px-7 py-3 text-lg"} rounded-xl border-gray-400`}
+        className={`${isCompact ? "px-5 py-2 text-sm" : "px-7 py-3 text-base"} rounded-2xl border-slate-200 bg-white text-slate-700 shadow-sm transition-all hover:-translate-y-0.5 hover:bg-slate-50`}
       >
-        {showBack ? "لا" : isCompact ? "إلغاء" : "لا (ESC)"}
+        {showBack ? "لا" : "إلغاء"}
       </Button>
 
       {showBack && onBack && (
         <Button
           onClick={onBack}
-          className={`${isCompact ? "px-3 py-1 text-xs" : "px-4 py-1.5 text-sm"} rounded-xl bg-gray-300 hover:bg-gray-400 text-black`}
+          className={`${isCompact ? "px-3 py-2 text-xs" : "px-4 py-2 text-sm"} rounded-2xl border border-slate-200 bg-slate-100 text-slate-700 transition-all hover:bg-slate-200`}
         >
-          إلغاء
+          رجوع
         </Button>
       )}
     </div>
@@ -88,34 +85,32 @@ const ConfirmDialogYesNo: React.FC<ConfirmDialogProps> = ({
       footer={footer}
       modal
       closable={false}
-      className={`rounded-3xl shadow-2xl border-2 ${showBack ? "border-blue-400" : "border-red-400"
-        } backdrop-blur-xl`}
+      className="overflow-hidden rounded-[24px] border border-slate-200/80 shadow-[0_20px_60px_-20px_rgba(15,23,42,0.35)]"
       style={{
         width: isCompact ? "420px" : "520px",
         direction: "rtl",
         textAlign: "center",
-        background: "rgba(255, 255, 255, 0.95)",
+        background: "linear-gradient(135deg, rgba(255,255,255,0.98), rgba(248,250,252,0.97))",
       }}
     >
-      <div className={`flex flex-col items-center ${isCompact ? "py-2" : "py-4"}`}>
-        <div
-          className={`bg-white border-2 ${isCompact ? "p-2 rounded-full" : "p-4 rounded-full"} shadow-md ${showBack ? "border-blue-400" : "border-red-400"
-            }`}
-        >
-          {showBack ? (
-            <SaveAll className="text-blue-600" size={isCompact ? 20 : 30} />
-          ) : (
-            <ShieldAlert className="text-red-600" size={isCompact ? 20 : 30} />
-          )}
+      <div className={`flex flex-col items-center ${isCompact ? "px-2 py-3" : "px-3 py-5"}`}>
+        <div className={`relative mb-3 flex items-center justify-center ${isCompact ? "h-12 w-12" : "h-16 w-16"}`}>
+          <div className={`absolute inset-0 rounded-full bg-gradient-to-br ${showBack ? "from-blue-500/20 to-cyan-500/20" : "from-rose-500/20 to-orange-500/20"}`} />
+          <div className={`relative flex items-center justify-center rounded-full border ${showBack ? "border-blue-200 bg-blue-50" : "border-rose-200 bg-rose-50"} ${isCompact ? "h-10 w-10" : "h-14 w-14"}`}>
+            {showBack ? (
+              <SaveAll className={showBack ? "text-blue-600" : "text-rose-600"} size={isCompact ? 20 : 26} />
+            ) : (
+              <ShieldAlert className={showBack ? "text-blue-600" : "text-rose-600"} size={isCompact ? 20 : 26} />
+            )}
+          </div>
+          <div className="absolute -top-1 -right-1 rounded-full bg-white p-1 shadow-sm">
+            <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+          </div>
         </div>
 
-        <h2
-          className={`font-bold ${isCompact ? "text-base mt-2" : "text-2xl mt-4"} ${showBack ? "text-blue-700" : "text-gray-800"
-            }`}
-        >
-        </h2>
-
-        <p className={`${isCompact ? "text-sm mt-2 px-3" : "text-gray-600 mt-3 px-4 text-lg"} text-gray-600`}>{message}</p>
+        <div className={`rounded-2xl border border-slate-200/70 bg-white/80 px-4 py-3 shadow-sm ${isCompact ? "max-w-[340px]" : "max-w-[420px]"}`}>
+          <p className={`${isCompact ? "text-sm" : "text-base"} leading-7 text-slate-700`}>{message}</p>
+        </div>
       </div>
     </Dialog>
   );

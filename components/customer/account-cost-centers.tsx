@@ -32,10 +32,21 @@ type DisplayRow = {
   required_label: string
 }
 
+export interface JournalCostCenterSelection {
+  cost_center_type_id: number
+  cost_center_id: number
+  cost_center_name: string
+}
+
 interface AccountCostCentersProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   account: AccountItem | null
+  // When provided, the dialog acts as a per-line selector (e.g. a voucher journal row)
+  // instead of a read-only view of the account's configured defaults: rows are seeded from
+  // `value` where present, and confirming with "موافق" reports the selection via `onChange`.
+  value?: JournalCostCenterSelection[]
+  onChange?: (value: JournalCostCenterSelection[]) => void
 }
 
 const requiredLabel = (value: number | string | null | undefined) => {
@@ -45,7 +56,7 @@ const requiredLabel = (value: number | string | null | undefined) => {
   return "اختياري"
 }
 
-export default function AccountCostCenters({ open, onOpenChange, account }: AccountCostCentersProps) {
+export default function AccountCostCenters({ open, onOpenChange, account, value, onChange }: AccountCostCentersProps) {
   const [costCenterTypes, setCostCenterTypes] = useState<CostCenterType[]>([])
   const [costCenters, setCostCenters] = useState<SearchCostCenterItem[]>([])
   const [rows, setRows] = useState<DisplayRow[]>([])
@@ -55,7 +66,12 @@ export default function AccountCostCenters({ open, onOpenChange, account }: Acco
   const [selectedRowIndex, setSelectedRowIndex] = useState<number>(-1)
 
   const buildRows = useCallback(
-    (types: CostCenterType[], centers: SearchCostCenterItem[], selectedAccount: AccountItem | null) => {
+    (
+      types: CostCenterType[],
+      centers: SearchCostCenterItem[],
+      selectedAccount: AccountItem | null,
+      selection?: JournalCostCenterSelection[],
+    ) => {
       const assignedRows = Array.isArray((selectedAccount as any)?.cost_centers)
         ? ((selectedAccount as any).cost_centers as AccountCostCenterRow[])
         : []
@@ -65,10 +81,18 @@ export default function AccountCostCenters({ open, onOpenChange, account }: Acco
         .sort((left, right) => Number(left.id || 0) - Number(right.id || 0))
         .map((type) => {
           const assignedRow = assignedRows.find((row) => Number(row.cost_center_type_id) === Number(type.id))
-          const defaultCenterId = assignedRow?.default_cost_center_id != null ? Number(assignedRow.default_cost_center_id) : null
+          const selectedRow = selection?.find((row) => Number(row.cost_center_type_id) === Number(type.id))
+          const defaultCenterId =
+            selectedRow?.cost_center_id != null
+              ? Number(selectedRow.cost_center_id)
+              : assignedRow?.default_cost_center_id != null
+                ? Number(assignedRow.default_cost_center_id)
+                : null
           const defaultCenterName =
             defaultCenterId != null
-              ? centers.find((center) => Number(center.id) === defaultCenterId)?.name || ""
+              ? selectedRow?.cost_center_name ||
+                centers.find((center) => Number(center.id) === defaultCenterId)?.name ||
+                ""
               : ""
           const requiredValue = Number(assignedRow?.required_in_transactions ?? 1)
 
@@ -119,8 +143,10 @@ export default function AccountCostCenters({ open, onOpenChange, account }: Acco
   }, [open])
 
   useEffect(() => {
-    setRows(buildRows(costCenterTypes, costCenters, account))
-  }, [account, buildRows, costCenterTypes, costCenters])
+    if (!open) return
+    setRows(buildRows(costCenterTypes, costCenters, account, value))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, account, buildRows, costCenterTypes, costCenters])
 
   const costCenterScheme = useMemo(
     () => ({
@@ -236,7 +262,25 @@ export default function AccountCostCenters({ open, onOpenChange, account }: Acco
           </div>
 
           <div className="border-t pt-2 flex items-center justify-center gap-2">
-            <Button variant="default" size="sm" onClick={() => onOpenChange(false)} className="min-w-20">
+            <Button
+              variant="default"
+              size="sm"
+              onClick={() => {
+                if (onChange) {
+                  onChange(
+                    rows
+                      .filter((row) => row.default_cost_center_id != null)
+                      .map((row) => ({
+                        cost_center_type_id: row.cost_center_type_id,
+                        cost_center_id: row.default_cost_center_id as number,
+                        cost_center_name: row.cost_center_name,
+                      })),
+                  )
+                }
+                onOpenChange(false)
+              }}
+              className="min-w-20"
+            >
               موافق
             </Button>
             <Button variant="outline" size="sm" onClick={() => onOpenChange(false)} className="min-w-20">

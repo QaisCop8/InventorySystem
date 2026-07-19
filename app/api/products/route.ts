@@ -13,6 +13,13 @@ export async function GET() {
       FROM products p
       LEFT JOIN product_categories pc ON p.category_id = pc.id
       LEFT JOIN suppliers s ON p.supplier_id = s.id
+      WHERE (
+        p.status IS NULL
+        OR p.status = 1
+        OR p.status = 'نشط'
+        OR p.status = 'active'
+        OR p.status = 'ACTIVE'
+      )
       ORDER BY p.created_at DESC
     `
 

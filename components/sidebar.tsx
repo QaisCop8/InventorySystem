@@ -1,4 +1,4 @@
-﻿"use client"
+"use client"
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
@@ -27,6 +27,12 @@ import {
   Unlock,
   Sparkles,
   Lightbulb,
+  Landmark,
+  Wallet,
+  Receipt,
+  ArrowDownCircle,
+  ArrowUpCircle,
+  LucideIcon,
 } from "lucide-react"
 import { useWindowManager } from "@/contexts/window-manager-context"
 
@@ -37,6 +43,40 @@ interface SidebarProps {
   onSectionChange: (section: string) => void
   isMobile?: boolean
 }
+
+interface MenuItem {
+  id?: string
+  title: string
+  icon: LucideIcon
+  section?: string
+  submenu?: MenuItem[]
+}
+
+interface Accent {
+  gradient: string
+  glow: string
+  chip: string
+}
+
+// Each top-level section gets its own colour identity so the whole menu reads
+// as a vivid, organised map rather than one flat colour repeated everywhere.
+const ACCENTS: Record<string, Accent> = {
+  "home-dashboard": { gradient: "from-cyan-400 to-blue-500", glow: "shadow-cyan-500/40", chip: "bg-cyan-500/15 text-cyan-200" },
+  "smart-analytics": { gradient: "from-violet-400 to-purple-600", glow: "shadow-violet-500/40", chip: "bg-violet-500/15 text-violet-200" },
+  "order-tracking": { gradient: "from-sky-400 to-indigo-500", glow: "shadow-sky-500/40", chip: "bg-sky-500/15 text-sky-200" },
+  definitions: { gradient: "from-emerald-400 to-teal-500", glow: "shadow-emerald-500/40", chip: "bg-emerald-500/15 text-emerald-200" },
+  "general-accounting": { gradient: "from-amber-400 to-orange-500", glow: "shadow-amber-500/40", chip: "bg-amber-500/15 text-amber-200" },
+  orders: { gradient: "from-rose-400 to-pink-600", glow: "shadow-rose-500/40", chip: "bg-rose-500/15 text-rose-200" },
+  invoices: { gradient: "from-indigo-400 to-blue-600", glow: "shadow-indigo-500/40", chip: "bg-indigo-500/15 text-indigo-200" },
+  batch: { gradient: "from-orange-400 to-red-500", glow: "shadow-orange-500/40", chip: "bg-orange-500/15 text-orange-200" },
+  reports: { gradient: "from-teal-400 to-cyan-600", glow: "shadow-teal-500/40", chip: "bg-teal-500/15 text-teal-200" },
+  settings: { gradient: "from-slate-400 to-slate-600", glow: "shadow-slate-500/40", chip: "bg-slate-500/15 text-slate-200" },
+  postings: { gradient: "from-fuchsia-400 to-purple-600", glow: "shadow-fuchsia-500/40", chip: "bg-fuchsia-500/15 text-fuchsia-200" },
+}
+
+const DEFAULT_ACCENT: Accent = ACCENTS["home-dashboard"]
+
+const getAccent = (id?: string): Accent => (id && ACCENTS[id]) || DEFAULT_ACCENT
 
 export function Sidebar({
   isOpen,
@@ -87,25 +127,33 @@ export function Sidebar({
       "subscribers": "/admin/subscribers",
       "banks": "/admin/banks",
       "branches": "/admin/branches",
+      "bank-accounts": "/admin/bank-accounts",
+      "receipt-vouchers": "/admin/receipts",
+      "payment-vouchers": "/admin/payments",
     }
     return sectionRoutes[section] || "/admin"
   }
 
-  const handleItemClick = (item: any) => {
+  const handleItemClick = (item: MenuItem) => {
     if (item.submenu) {
-      toggleMenu(item.id)
+      const menuId = item.id ?? item.section ?? item.title
+      toggleMenu(menuId)
       return
     }
 
-    onSectionChange(item.section)
+    if (item.section) {
+      onSectionChange(item.section)
+    }
   }
 
-  const handleContextMenu = (e: React.MouseEvent<HTMLButtonElement>, item: any) => {
+  const handleContextMenu = (e: React.MouseEvent<HTMLButtonElement>, item: MenuItem) => {
     e.preventDefault()
-    onSectionChange(item.section)
+    if (item.section) {
+      onSectionChange(item.section)
+    }
   }
 
-  const menuItems = [
+  const menuItems: MenuItem[] = [
     { id: "home-dashboard", title: "الرئيسية", icon: LayoutDashboard, section: "home-dashboard" },
     //{ id: "ai-assistant", title: "المساعد الذكي", icon: Sparkles, section: "ai-assistant" },
     { id: "smart-analytics", title: "التحليلات الذكية", icon: BarChart3, section: "smart-analytics" },
@@ -123,11 +171,28 @@ export function Sidebar({
         { title: "المندوبين", section: "salesmen", icon: UserCheck },
         { title: "البنوك", section: "banks", icon: Building },
         { title: "الفروع", section: "branches", icon: MapPin },
+        { title: "حسابات البنوك", section: "bank-accounts", icon: Landmark },
         { title: "الأصناف", section: "products", icon: Package },
         { title: "الخدمات", section: "services", icon: Package },
         { title: "مجموعات الأصناف", section: "product-groups", icon: Package },
         { title: "التعريفات", section: "definitions", icon: Settings },
         { title: "العملات", section: "exchange-rates", icon: DollarSign },
+      ],
+    },
+    {
+      id: "general-accounting",
+      title: "المحاسبة العامة",
+      icon: Wallet,
+      submenu: [
+        {
+          title: "الحركات",
+          section: "accounting-transactions",
+          icon: Receipt,
+          submenu: [
+            { title: "سند قبض", section: "receipt-vouchers", icon: ArrowDownCircle },
+            { title: "سند صرف", section: "payment-vouchers", icon: ArrowUpCircle },
+          ],
+        },
       ],
     },
     {
@@ -163,17 +228,17 @@ export function Sidebar({
       ],
     },
     {
-          id: "batch",
-          title: "حركات الرقم التشغيلي",
+      id: "batch",
+      title: "حركات الرقم التشغيلي",
+      icon: Archive,
+      submenu: [
+        {
+          title: "معالجة الرقم التشغيلي",
+          section: "batch-movements",
           icon: Archive,
-          submenu: [
-            {
-              title: "معالجة الرقم التشغيلي",
-              section: "batch-movements",
-              icon: Archive,
-            },
-          ],
         },
+      ],
+    },
     {
       id: "reports",
       title: "التقارير",
@@ -209,20 +274,21 @@ export function Sidebar({
 
   return (
     <div
-      className={`fixed top-0 right-0 h-screen flex flex-col bg-gradient-to-b from-white via-gray-50 to-white text-gray-900 shadow-2xl transition-all duration-300 ${isMobile ? "w-80 z-50" : isOpen ? "w-80" : "w-20"} ${isMobile && !isOpen ? "translate-x-full" : "translate-x-0"}`}
+      className={`fixed top-0 right-0 z-40 flex h-screen flex-col border-l border-white/10 bg-[radial-gradient(circle_at_top_right,_rgba(56,189,248,0.16),_transparent_45%),radial-gradient(circle_at_bottom_left,_rgba(167,139,250,0.14),_transparent_50%),linear-gradient(180deg,_#0b1120_0%,_#0f172a_55%,_#0b1120_100%)] text-slate-100 shadow-[0_25px_80px_-24px_rgba(2,6,23,0.9)] backdrop-blur-xl transition-all duration-300 ${isMobile ? "w-96 z-50" : isOpen ? "w-96" : "w-24"} ${isMobile && !isOpen ? "translate-x-full" : "translate-x-0"}`}
       dir="rtl"
     >
       {/* Header */}
-      <div className="border-b border-gray-200 bg-white/80 px-4 py-5">
+      <div className="border-b border-white/10 px-4 py-5">
         <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 text-white font-bold text-lg shadow-lg shadow-cyan-500/50">
-              <Sparkles className="h-5 w-5" />
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-400 via-blue-500 to-violet-600 shadow-lg shadow-blue-500/30">
+              <Sparkles className="h-5 w-5 text-white" />
+              <span className="absolute -bottom-1 -left-1 h-3 w-3 rounded-full bg-emerald-400 ring-2 ring-slate-950" />
             </div>
             {isOpen && (
-              <div>
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">نظام</p>
-                <h2 className="text-base font-bold text-gray-900">أساس للحلول المحاسبية</h2>
+              <div className="min-w-0">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-cyan-300/80">نظام</p>
+                <h2 className="truncate text-[15px] font-bold text-white">أساس للحلول المحاسبية</h2>
               </div>
             )}
           </div>
@@ -230,7 +296,7 @@ export function Sidebar({
             variant="ghost"
             size="icon"
             onClick={onToggle}
-            className="rounded-md text-gray-600 hover:bg-gray-200 hover:text-gray-900 transition-all"
+            className="shrink-0 rounded-xl border border-white/10 bg-white/5 text-slate-200 transition-colors hover:bg-white/10 hover:text-white"
           >
             <ChevronRight className={`h-5 w-5 transition-transform duration-300 ${isOpen ? "rotate-180" : ""}`} />
           </Button>
@@ -238,101 +304,105 @@ export function Sidebar({
       </div>
 
       {/* Menu */}
-      <div className="flex-1 overflow-y-auto px-2 py-4 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
-        <div className="space-y-1">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden px-3 py-4 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+        <div className="space-y-1.5">
           {menuItems.map((item) => {
+            const itemId = item.id ?? item.section ?? item.title
             const ItemIcon = item.icon
             const isActive = activeSection === item.section
+            const isExpanded = expandedMenus.includes(itemId)
+            const accent = getAccent(item.id)
+
             return (
-              <div key={item.id} className="mb-2">
+              <div key={itemId}>
                 <button
                   type="button"
-                  className={`group w-full flex items-center justify-between gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-all duration-200 ${
+                  title={!isOpen ? item.title : undefined}
+                  onClick={() => (item.submenu ? toggleMenu(itemId) : handleItemClick(item))}
+                  onContextMenu={(e) => handleContextMenu(e, item)}
+                  className={`group relative flex w-full items-center gap-3 overflow-hidden rounded-2xl px-3 py-2.5 text-sm font-medium transition-all duration-200 ${
                     isActive
-                      ? "bg-cyan-600/15 text-cyan-700 border-l-4 border-cyan-600 shadow-md shadow-cyan-600/20"
-                      : "text-gray-600 hover:bg-gray-200/60 hover:text-gray-900"
-                  }`}
-                  onClick={() => (item.submenu ? toggleMenu(item.id) : handleItemClick(item))}
+                      ? `bg-white/[0.07] text-white shadow-lg ${accent.glow}`
+                      : "text-slate-300 hover:bg-white/[0.05] hover:text-white"
+                  } ${!isOpen ? "justify-center px-2" : "justify-between"}`}
                 >
-                  <div className="flex items-center gap-3 flex-1">
-                    <span className={`flex h-9 w-9 items-center justify-center rounded-lg transition-all ${
-                      isActive
-                        ? "bg-cyan-600/20 text-cyan-700 shadow-md shadow-cyan-600/20"
-                        : "bg-gray-200 text-cyan-600 group-hover:bg-cyan-100 group-hover:text-cyan-700"
-                    }`}>
+                  {isActive && (
+                    <span className={`absolute inset-y-1.5 right-0 w-1 rounded-full bg-gradient-to-b ${accent.gradient}`} />
+                  )}
+                  <div className={`flex items-center gap-3 ${!isOpen ? "justify-center" : "min-w-0 flex-1"}`}>
+                    <span
+                      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${accent.gradient} text-white shadow-md transition-all duration-200 group-hover:scale-105 ${
+                        isActive ? `shadow-lg ${accent.glow}` : "opacity-90 group-hover:opacity-100"
+                      }`}
+                    >
                       <ItemIcon className="h-5 w-5" />
                     </span>
-                    {isOpen && <span className="text-right text-base font-semibold text-slate-900">{item.title}</span>}
+                    {isOpen && <span className="truncate text-right text-[0.95rem] font-semibold">{item.title}</span>}
                   </div>
                   {isOpen && item.submenu && (
-                    <span className={`flex h-6 w-6 items-center justify-center rounded transition-all ${
-                      expandedMenus.includes(item.id) ? "bg-gray-300" : "bg-gray-200"
-                    }`}>
-                      <ChevronDown className={`h-4 w-4 transition-transform duration-300 ${
-                        expandedMenus.includes(item.id) ? "-rotate-180" : ""
-                      }`} />
-                    </span>
+                    <ChevronDown
+                      className={`h-4 w-4 shrink-0 text-slate-400 transition-transform duration-300 ${
+                        isExpanded ? "-rotate-180 text-white" : ""
+                      }`}
+                    />
                   )}
                 </button>
 
-                {isOpen && item.submenu && expandedMenus.includes(item.id) && (
-                  <div className="mt-2 ml-2 space-y-1 rounded-lg border border-gray-200 bg-gray-100/60 p-2">
-                    {item.submenu.map((subItem) => {
+                {isOpen && item.submenu && isExpanded && (
+                  <div className="mr-5 mt-1.5 space-y-1 border-r-2 border-white/10 py-1 pr-4">
+                    {item.submenu.map((subItem: MenuItem) => {
+                      const subItemId = subItem.id ?? subItem.section ?? subItem.title
                       const SubItemIcon = subItem.icon
                       const hasNestedSubmenu = Boolean(subItem.submenu)
                       const isSubActive = activeSection === subItem.section
+                      const isSubExpanded = expandedMenus.includes(subItemId)
+
                       return (
-                        <div key={subItem.section} className="space-y-1">
+                        <div key={subItemId}>
                           <button
                             type="button"
-                            className={`w-full flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium transition-all duration-200 ${
-                              isSubActive
-                                ? "bg-cyan-600/15 text-cyan-700 border-r-2 border-cyan-600 shadow-md shadow-cyan-600/20"
-                                : "text-gray-600 hover:bg-gray-200/60 hover:text-gray-900"
+                            onClick={() => (hasNestedSubmenu ? toggleMenu(subItemId) : handleItemClick(subItem))}
+                            className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-medium transition-all duration-200 ${
+                              isSubActive ? `${accent.chip} font-semibold` : "text-slate-300 hover:bg-white/5 hover:text-white"
                             }`}
-                            onClick={() => (hasNestedSubmenu ? toggleMenu(subItem.section) : handleItemClick(subItem))}
                           >
-                            <span className={`flex h-7 w-7 items-center justify-center rounded transition-all ${
-                              isSubActive
-                                ? "bg-cyan-600/20 text-cyan-700"
-                                : "bg-gray-200 text-cyan-600"
-                            }`}>
-                              <SubItemIcon className="h-4 w-4" />
+                            <span
+                              className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition-all duration-200 ${
+                                isSubActive ? `bg-gradient-to-br ${accent.gradient} text-white shadow` : "bg-white/5 text-slate-300"
+                              }`}
+                            >
+                              <SubItemIcon className="h-3.5 w-3.5" />
                             </span>
-                            <span className="text-right flex-1 text-sm font-semibold text-slate-900">{subItem.title}</span>
+                            <span className="flex-1 truncate text-right text-[0.83rem] font-semibold">{subItem.title}</span>
                             {hasNestedSubmenu && (
-                              <span className="ml-auto">
-                                <ChevronDown className={`h-3 w-3 transition-transform duration-300 ${
-                                  expandedMenus.includes(subItem.section) ? "-rotate-180" : ""
-                                }`} />
-                              </span>
+                              <ChevronDown
+                                className={`h-3 w-3 shrink-0 transition-transform duration-300 ${isSubExpanded ? "-rotate-180" : ""}`}
+                              />
                             )}
                           </button>
 
-                          {hasNestedSubmenu && expandedMenus.includes(subItem.section) && (
-                            <div className="ml-2 space-y-1 rounded border border-gray-300 bg-white/80 p-1.5">
-                              {subItem.submenu.map((nestedItem) => {
+                          {hasNestedSubmenu && isSubExpanded && subItem.submenu && (
+                            <div className="mr-4 mt-1 space-y-1 border-r border-white/10 py-1 pr-3">
+                              {subItem.submenu.map((nestedItem: MenuItem) => {
                                 const NestedItemIcon = nestedItem.icon
                                 const isNestedActive = activeSection === nestedItem.section
                                 return (
                                   <button
                                     key={nestedItem.section}
                                     type="button"
-                                    className={`w-full flex items-center gap-2 rounded px-3 py-1.5 text-xs transition-all duration-200 ${
-                                      isNestedActive
-                                        ? "bg-cyan-600/15 text-cyan-700 shadow-md shadow-cyan-600/20"
-                                        : "text-gray-600 hover:bg-gray-200/60 hover:text-gray-900"
-                                    }`}
                                     onClick={() => handleItemClick(nestedItem)}
+                                    className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs transition-all duration-200 ${
+                                      isNestedActive ? `${accent.chip} font-semibold` : "text-slate-400 hover:bg-white/5 hover:text-white"
+                                    }`}
                                   >
-                                    <span className={`flex h-6 w-6 items-center justify-center rounded transition-all text-xs font-bold ${
-                                      isNestedActive
-                                        ? "bg-cyan-600/20 text-cyan-700"
-                                        : "bg-gray-200 text-cyan-600"
-                                    }`}>
+                                    <span
+                                      className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md ${
+                                        isNestedActive ? `bg-gradient-to-br ${accent.gradient} text-white` : "bg-white/5 text-slate-400"
+                                      }`}
+                                    >
                                       <NestedItemIcon className="h-3 w-3" />
                                     </span>
-                                    <span className="text-right flex-1 text-sm font-semibold text-slate-900">{nestedItem.title}</span>
+                                    <span className="flex-1 truncate text-right text-[0.78rem] font-semibold">{nestedItem.title}</span>
                                   </button>
                                 )
                               })}
@@ -350,15 +420,19 @@ export function Sidebar({
       </div>
 
       {/* Footer */}
-      <div className="border-t border-gray-200 bg-white/80 px-4 py-4">
-        <div className="flex items-center justify-center gap-2 text-xs text-gray-600">
-          <div className="h-2 w-2 rounded-full bg-green-600 shadow-lg shadow-green-600/30"></div>
-          {isOpen && <span>النظام متصل</span>}
+      <div className="border-t border-white/10 px-4 py-4">
+        <div
+          className={`flex items-center gap-2 rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-3 py-2.5 text-xs font-medium text-emerald-300 ${
+            !isOpen ? "justify-center" : ""
+          }`}
+        >
+          <span className="relative flex h-2.5 w-2.5 shrink-0">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+            <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400" />
+          </span>
+          {isOpen && <span>النظام متصل ومستعد</span>}
         </div>
       </div>
     </div>
   )
 }
-
-
-

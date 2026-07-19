@@ -134,7 +134,7 @@ export async function POST() {
     await sql`
       CREATE TABLE IF NOT EXISTS item_groups (
         id SERIAL PRIMARY KEY,
-        group_code VARCHAR(20) UNIQUE NOT NULL,
+        group_code VARCHAR(8) UNIQUE NOT NULL,
         group_name VARCHAR(100) NOT NULL,
         description TEXT,
         status VARCHAR(20) DEFAULT 'نشط',

@@ -1793,7 +1793,7 @@ export function CompactProductForm({
                           updateFormData("product_name_en", e.target.value)
                       }}
                       className="text-right"
-                      placeholder="اسم الصنف باللغة العربية"
+                      placeholder={isService ? "اسم الخدمة باللغة العربية" : "اسم الصنف باللغة العربية"}
                       required
                     />
                   </div>
@@ -1808,7 +1808,7 @@ export function CompactProductForm({
                       value={formData.product_name_en}
                       onChange={(e) => updateFormData("product_name_en", e.target.value)}
                       className="text-left"
-                      placeholder="Product Name in English"
+                      placeholder={isService ? "اسم الخدمة بالإنجليزية" : "اسم الصنف بالإنجليزية"}
                     />
                   </div>
                 </div>

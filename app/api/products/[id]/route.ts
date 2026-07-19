@@ -31,6 +31,13 @@ export async function GET(request: NextRequest) {
         FROM products p
         LEFT JOIN product_stock ps ON p.id = ps.product_id
         WHERE p.barcode = ${barcode}
+          AND (
+            p.status IS NULL
+            OR p.status = 1
+            OR p.status = 'نشط'
+            OR p.status = 'active'
+            OR p.status = 'ACTIVE'
+          )
         LIMIT 1
       `
     } else if (hasBarcode === "true") {
@@ -51,6 +58,13 @@ export async function GET(request: NextRequest) {
         FROM products p
         LEFT JOIN product_stock ps ON p.id = ps.product_id
         WHERE p.barcode IS NOT NULL AND p.barcode != ''
+          AND (
+            p.status IS NULL
+            OR p.status = 1
+            OR p.status = 'نشط'
+            OR p.status = 'active'
+            OR p.status = 'ACTIVE'
+          )
         ORDER BY p.product_name
         LIMIT 100
       `
@@ -71,10 +85,18 @@ export async function GET(request: NextRequest) {
           COALESCE(ps.reorder_level, 0) as reorder_level
         FROM products p
         LEFT JOIN product_stock ps ON p.id = ps.product_id
-        WHERE 
+        WHERE (
           p.product_name ILIKE ${`%${query}%`} OR
           p.product_code ILIKE ${`%${query}%`} OR
           p.barcode ILIKE ${`%${query}%`}
+        )
+          AND (
+            p.status IS NULL
+            OR p.status = 1
+            OR p.status = 'نشط'
+            OR p.status = 'active'
+            OR p.status = 'ACTIVE'
+          )
         ORDER BY p.product_name
         LIMIT 50
       `

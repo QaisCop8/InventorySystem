@@ -1433,7 +1433,7 @@ export default function Accounts() {
       <div className="flex items-center justify-center min-h-[400px]" dir="rtl">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">جاري تحميل الأصناف...</p>
+          <p className="text-muted-foreground">جاري تحميل الحسابات المحاسبية...</p>
         </div>
       </div>
     )
@@ -1892,14 +1892,11 @@ export default function Accounts() {
         </Card>
         {/* Unified accounts opened as local popup (like فاتورة جديدة) */}
         <Dialog open={showUnifiedPopup} onOpenChange={setShowUnifiedPopup}>
-          <DialogContent
-            hideCloseButton
-            className="w-full max-w-[95vw] sm:max-w-[90vw] md:max-w-[85vw] lg:max-w-[100vh] h-[95vh] max-h-[95vh] p-0 gap-0 flex flex-col overflow-x-hidden overflow-y-hidden"
-            dir="rtl"
-            onPointerDownOutside={(event) => event.preventDefault()}
-          >
-            <div className="flex min-w-0 flex-1 overflow-hidden">
-              {showUnifiedPopup && (
+          <DialogContent className="max-w-[95vw] sm:max-w-[90vw] md:max-w-[80vw] lg:max-w-[70vw] max-h-[95vh] overflow-hidden p-0" dir="rtl"
+                    onPointerDownOutside={(event) => event.preventDefault()}
+                    onEscapeKeyDown={(event) => event.preventDefault()}
+                  >
+              
                 <UnifiedAccounts
                   action={selectedUnifiedAccountId == null ? "new" : undefined}
                   accountId={selectedUnifiedAccountId}
@@ -1909,8 +1906,6 @@ export default function Accounts() {
                     setSelectedUnifiedAccountId(null)
                   }}
                 />
-              )}
-            </div>
           </DialogContent>
         </Dialog>
       </div>

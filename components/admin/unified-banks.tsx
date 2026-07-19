@@ -121,67 +121,67 @@ export default function UnifiedBanks({
   return (
     <>
       <Dialog open={dialogOpen} onOpenChange={onOpenChange}>
-        <DialogContent className="w-full max-w-5xl" dir="rtl">
-          <DialogHeader>
-            <DialogTitle>{form.id > 0 ? "تعديل البنك" : "إضافة بنك جديد"}</DialogTitle>
-          </DialogHeader>
+        <DialogContent className="w-full max-w-5xl p-0 overflow-hidden" dir="rtl">
+          <UniversalToolbar
+            currentRecord={currentIndex + 1}
+            totalRecords={totalRecords}
+            onNew={onNew}
+            onSave={onSave}
+            onDelete={onDelete}
+            onFirst={() => handleNavigate("first")}
+            onPrevious={() => handleNavigate("previous")}
+            onNext={() => handleNavigate("next")}
+            onLast={() => handleNavigate("last")}
+            isSaving={isSaving}
+            canSave={canSave}
+            canDelete={form.id > 0}
+            isFirstRecord={isFirstRecord}
+            isLastRecord={isLastRecord}
+          />
 
-          <div className="mb-4">
-            <UniversalToolbar
-              currentRecord={currentIndex + 1}
-              totalRecords={totalRecords}
-              onNew={onNew}
-              onSave={onSave}
-              onDelete={onDelete}
-              onFirst={() => handleNavigate("first")}
-              onPrevious={() => handleNavigate("previous")}
-              onNext={() => handleNavigate("next")}
-              onLast={() => handleNavigate("last")}
-              isSaving={isSaving}
-              canSave={canSave}
-              canDelete={form.id > 0}
-              isFirstRecord={isFirstRecord}
-              isLastRecord={isLastRecord}
-            />
-          </div>
+          <div className="rounded-b-3xl bg-background px-6 py-6">
+            <DialogHeader className="mb-4">
+              <DialogTitle className="text-xl font-semibold">{form.id > 0 ? "تعديل البنك" : "إضافة بنك جديد"}</DialogTitle>
+            </DialogHeader>
 
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="bank-code">رمز البنك</Label>
-              <Input
-                id="bank-code"
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="bank-code">رمز البنك</Label>
+                <Input
+                  id="bank-code"
                   value={form.bank_code}
                   onChange={(e) => onFormChange("bank_code", e.target.value)}
                   onBlur={() => onCodeBlur?.(form.bank_code)}
                   ref={codeInputRef}
-                maxLength={4}
-              />
-              {hasDuplicateCode && (
-                <p className="text-sm text-destructive">هذا الرمز مستخدم بالفعل. الرجاء اختيار رمز آخر.</p>
+                  maxLength={4}
+                />
+                {hasDuplicateCode && (
+                  <p className="text-sm text-destructive">هذا الرمز مستخدم بالفعل. الرجاء اختيار رمز آخر.</p>
+                )}
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="bank-name">اسم البنك</Label>
+                <Input
+                  id="bank-name"
+                  value={form.bank_name}
+                  onChange={(e) => onFormChange("bank_name", e.target.value)}
+                />
+                {hasDuplicateName && (
+                  <p className="text-sm text-destructive">هذا الاسم مستخدم بالفعل. الرجاء اختيار اسم آخر.</p>
+                )}
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="bank-name-en">اسم البنك انجليزي</Label>
+                <Input
+                  id="bank-name-en"
+                  value={form.bank_name_en}
+                  onChange={(e) => onFormChange("bank_name_en", e.target.value)}
+                />
+              </div>
+              {deleteError && (
+                <p className="text-sm text-destructive">{deleteError}</p>
               )}
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="bank-name">اسم البنك</Label>
-              <Input
-                id="bank-name"
-                value={form.bank_name}
-                onChange={(e) => onFormChange("bank_name", e.target.value)}
-              />
-              {hasDuplicateName && (
-                <p className="text-sm text-destructive">هذا الاسم مستخدم بالفعل. الرجاء اختيار اسم آخر.</p>
-              )}
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="bank-name-en">اسم البنك انجليزي</Label>
-              <Input
-                id="bank-name-en"
-                value={form.bank_name_en}
-                onChange={(e) => onFormChange("bank_name_en", e.target.value)}
-              />
-            </div>
-            {deleteError && (
-              <p className="text-sm text-destructive">{deleteError}</p>
-            )}
           </div>
         </DialogContent>
       </Dialog>

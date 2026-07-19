@@ -72,7 +72,7 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
 
     const fetchProducts = async () => {
       try {
-        let url = `/api/inventory/products?priceCategoryId=${priceCategoryId}`;
+        let url = `/api/inventory/products?priceCategoryId=${priceCategoryId}&activeOnly=true`;
         if (selectedTypes.length === 1) {
           url += selectedTypes[0] === 2 ? `&type=services` : `&type=products`;
         }

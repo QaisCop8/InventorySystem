@@ -48,16 +48,24 @@ try {
 
 export default sql
 
-async function getPrefixFromSettings(type: "customer" | "supplier" | "salesman" | "item_group"): Promise<string> {
+async function getPrefixFromSettings(type: "customer" | "supplier" | "salesman" | "subscriber" | "item_group"): Promise<string> {
   try {
     if (!process.env.DATABASE_URL) {
-      return type === "customer" ? "C" : type === "supplier" ? "S" : "G"
+      return type === "customer"
+        ? "C"
+        : type === "supplier"
+          ? "S"
+          : type === "salesman"
+            ? "C"
+            : type === "subscriber"
+              ? "G"
+              : "G"
     }
 
     const result = await sql`
       SELECT id, value
       FROM system_settings
-      WHERE id IN (${["customer_prefix", "supplier_prefix", "salesman_prefix", "item_group_prefix"]})
+      WHERE id IN (${["customer_prefix", "supplier_prefix", "salesman_prefix", "subscriber_prefix", "item_group_prefix"]})
       ORDER BY id ASC
     `
 
@@ -69,20 +77,32 @@ async function getPrefixFromSettings(type: "customer" | "supplier" | "salesman" 
           ? prefixMap.supplier_prefix
           : type === "salesman"
             ? prefixMap.salesman_prefix ?? prefixMap.customer_prefix
-            : prefixMap.item_group_prefix
+            : type === "subscriber"
+              ? prefixMap.subscriber_prefix ?? prefixMap.customer_prefix
+              : prefixMap.item_group_prefix
 
-    return String(prefix || (type === "customer" ? "C" : type === "supplier" ? "S" : type === "salesman" ? "C" : "G"))
+    return String(prefix || (type === "customer" ? "C" : type === "supplier" ? "S" : type === "salesman" ? "C" : type === "subscriber" ? "G" : "G"))
   } catch (error) {
     console.error("[v0] Error fetching prefix from settings:", error)
-    return type === "customer" ? "C" : type === "supplier" ? "S" : "G"
+    return type === "customer" ? "C" : type === "supplier" ? "S" : type === "salesman" ? "C" : type === "subscriber" ? "G" : "G"
   }
 }
 
-export async function generateCustomerNumber(isSupplier: boolean = false, isSalesman: boolean = false, isSubscriber: boolean = false): Promise<string> {
-  const typeKey = isSubscriber ? "subscriber" : isSalesman ? "salesman" : isSupplier ? "supplier" : "customer";
-  const prefix = await getPrefixFromSettings(typeKey);
+export async function generateCustomerNumber(entityTypeOrSupplier: boolean | number = false, isSalesman: boolean = false, isSubscriber: boolean = false): Promise<string> {
+  const entityType = typeof entityTypeOrSupplier === "number"
+    ? entityTypeOrSupplier
+    : isSubscriber
+      ? 4
+      : isSalesman
+        ? 3
+        : entityTypeOrSupplier
+          ? 2
+          : 1
 
-  return await getNextSequentialNumber(prefix, "customers", "customer_code", isSubscriber ? 4 : isSalesman ? 3 : isSupplier ? 2 : 1);
+  const typeKey = entityType === 2 ? "supplier" : entityType === 3 ? "salesman" : entityType === 4 ? "subscriber" : "customer"
+  const prefix = await getPrefixFromSettings(typeKey)
+
+  return await getNextSequentialNumber(prefix, "customers", "customer_code", entityType)
 }
 
 
@@ -133,10 +153,8 @@ async function getNextSequentialNumber(prefix: string, tableName: string, column
       result = await sql`
         SELECT customer_code as code 
         FROM customers 
-        WHERE customer_code LIKE ${prefix + "%"} 
-        AND TYPE= ${type}
-        ORDER BY customer_code DESC 
-        LIMIT 1
+        WHERE customer_code LIKE ${prefix + "%"}
+        ORDER BY customer_code ASC
       `
       console.log("[v0] Customers query completed")
     } else if (tableName === "suppliers") {
@@ -174,37 +192,45 @@ async function getNextSequentialNumber(prefix: string, tableName: string, column
         SELECT group_code as code 
         FROM item_groups 
         WHERE group_code LIKE ${prefix + "%"} 
-        ORDER BY group_code DESC 
-        LIMIT 1
+        ORDER BY group_code ASC
       `
     }
 
 
-    let nextNumber = 1
     let nextCode = "0000001";
-    if(tableName === "orders")
+    if (tableName === "orders") {
       nextCode = "000001";
-    if (result.length > 0 && result[0].code) {
-      // Extract the numeric part and increment
-      const currentCode = result[0].code as string
-      console.log(`[v0] Found existing code: ${currentCode}`)
-      let numericPart = currentCode.substring(1) // Remove prefix
-      if(tableName === "orders")
-        numericPart = currentCode.substring(2)
-      console.log(`[v0] Numeric part: ${numericPart}`)
-      nextCode = getNextCode(numericPart);
-
-      console.log(`[v0] Next number will be: ${nextNumber}`)
-    } else {
-      console.log("[v0] No existing codes found, starting with 1")
-      if (tableName === "sales_orders") {
-        nextNumber = 1
-      }
     }
 
-    // Format as 7-digit padded number with prefix
-    //const paddedNumber = nextNumber.toString().padStart(7, "0")
-    const finalNumber = `${prefix}${nextCode}`
+    if (result.length > 0) {
+      const matchingCodes = result
+        .map((row: any) => String(row?.code || ""))
+        .filter((code: string) => code && code.startsWith(prefix))
+
+      if (matchingCodes.length > 0) {
+        const parsedNumbers = matchingCodes
+          .map((code: string) => {
+            const match = code.match(/^([^\d]*)(\d+)$/)
+            return match ? { code, value: Number(match[2]), width: match[2].length } : null
+          })
+          .filter(Boolean) as Array<{ code: string; value: number; width: number }>
+
+        if (parsedNumbers.length > 0) {
+          const maxEntry = parsedNumbers.reduce((best, current) => {
+            if (current.value > best.value) return current
+            if (current.value === best.value && current.width > best.width) return current
+            return best
+          }, parsedNumbers[0])
+
+          nextCode = adjustCodePlusOne(maxEntry.code, 8)
+          console.log(`[v0] Highest matching code: ${maxEntry.code}`)
+        }
+      }
+    } else {
+      console.log("[v0] No existing codes found, starting with 1")
+    }
+
+    const finalNumber = nextCode.startsWith(prefix) ? nextCode : `${prefix}${nextCode}`
     console.log(`[v0] Generated final number: ${finalNumber}`)
     console.log(`[v0] ========== END getNextSequentialNumber (SUCCESS) ==========`)
 
@@ -233,17 +259,22 @@ async function getNextSequentialNumber(prefix: string, tableName: string, column
 }
 
 function getNextCode(currentCode: string) {
-  // Separate prefix (non-digits) and numeric part
-  const match = currentCode.match(/^([^\d]*)(\d+)$/);
-  if (!match) return currentCode; // fallback if no number found
+  return currentCode
+}
 
-  const prefix = match[1];       // e.g., "RB"
-  const numberPart = match[2];   // e.g., "010"
+function adjustCodePlusOne(code: string, codeLen = 8): string {
+  if (!code || !code.trim()) return ""
 
-  // Increment number and preserve leading zeros
-  const nextNumber = (parseInt(numberPart, 10) + 1).toString().padStart(numberPart.length, "0");
+  const normalizedCode = String(code).trim().toUpperCase()
+  const match = normalizedCode.match(/^([^\d]*)(\d+)$/)
+  if (!match) return normalizedCode
 
-  return prefix + nextNumber;     // e.g., "RB011"
+  const prefix = match[1] || ""
+  const numericPart = match[2]
+  const nextValue = (Number(numericPart) + 1).toString()
+  const digitsLength = Math.max(1, codeLen - prefix.length)
+
+  return `${prefix}${nextValue.padStart(digitsLength, "0")}`.slice(0, codeLen)
 }
 
 

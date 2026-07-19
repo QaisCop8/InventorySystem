@@ -2120,15 +2120,9 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
 
   if (inWindowManager) {
     return (
-      <div className="w-full h-full p-0 gap-0 flex flex-col overflow-hidden text-base" dir="rtl">
-        <div className="flex items-center justify-between border-b bg-white px-6 py-3">
-          <div className="flex-1"></div>
-          <Button variant="ghost" onClick={() => void handleRequestClose()}>
-            ✕
-          </Button>
-        </div>
-
-        <div className="border-b bg-white/95 px-4 py-2">
+      <div className="h-full min-h-[90vh] min-w-0 flex flex-col bg-background overflow-hidden text-lg compact-product-form-root" dir="rtl">
+      {/* Universal Toolbar - Fixed at top */}
+      <div className="flex-shrink-0">
           <UniversalToolbar
             currentRecord={activeAccounts.length > 0 ? currentIndex + 1 : 0}
             totalRecords={activeAccounts.length}

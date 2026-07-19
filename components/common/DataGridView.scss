@@ -223,3 +223,83 @@ html[dir="rtl"] .wj-flexgrid .wj-header {
   color: inherit !important;
   fill: inherit !important;
 }
+
+/* CALENDAR BUTTONS - Light Indigo (pi-calendar icon) */
+.wj-flexgrid button.pi-calendar,
+.wj-cell-maker-btn.pi-calendar,
+.wj-flexgrid button[title*="تقويم"],
+.wj-flexgrid button.btn-calendar {
+  background-color: #ddd6fe !important;
+  color: #4c1d95 !important;
+}
+
+.wj-flexgrid button.pi-calendar:hover,
+.wj-cell-maker-btn.pi-calendar:hover,
+.wj-flexgrid button[title*="تقويم"]:hover,
+.wj-flexgrid button.btn-calendar:hover {
+  background-color: #c4b5fd !important;
+  color: #4c1d95 !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
+  transform: translateY(-2px) !important;
+}
+
+/* ===============================
+   Modern voucher grid overrides (scoped) — opt-in via wrapping element
+   with class "modernVoucherGrid" (used by unified-receipt-voucher.tsx)
+   so other grids in the app keep their existing look.
+================================ */
+.modernVoucherGrid .wj-flexgrid {
+  font-family: inherit;
+  font-size: 13.5px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+}
+
+.modernVoucherGrid .wj-flexgrid .wj-header {
+  background: linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 55%, #2563eb 100%);
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.3px;
+  border-bottom: none;
+  padding: 10px 12px;
+}
+
+.modernVoucherGrid .wj-flexgrid .wj-cell {
+  border-bottom: 1px solid #eef2f7;
+  padding: 6px 12px;
+}
+
+.modernVoucherGrid .wj-flexgrid .wj-row:nth-child(even) .wj-cell {
+  background: #f8fafc;
+}
+
+.modernVoucherGrid .wj-flexgrid .wj-row:hover .wj-cell:not(.wj-header) {
+  background: #eff6ff;
+}
+
+.modernVoucherGrid .wj-flexgrid .wj-state-selected:not(.wj-header),
+.modernVoucherGrid .wj-flexgrid .wj-row .wj-cell.wj-state-selected:not(.wj-header),
+.modernVoucherGrid .wj-flexgrid .wj-cell.wj-state-selected:not(.wj-header) {
+  background: #bfdbfe !important;
+  color: #1e3a8a !important;
+  border-color: transparent !important;
+}
+
+.modernVoucherGrid .wj-flexgrid .wj-cell:focus:not(.wj-header) {
+  outline: none;
+  background: #93c5fd !important;
+  color: #1e3a8a !important;
+  box-shadow: inset 0 0 0 2px #2563eb;
+}
+
+.modernVoucherGrid .wj-flexgrid .wj-report-row-selected .wj-cell,
+.modernVoucherGrid .wj-flexgrid .wj-report-row-selected:hover .wj-cell {
+  background: #dbeafe !important;
+  color: #1e3a8a !important;
+}
+
+.modernVoucherGrid .wj-cell-maker-btn {
+  border-radius: 8px !important;
+}

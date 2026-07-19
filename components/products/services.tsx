@@ -8,10 +8,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Plus, Search, Edit, CheckCircle, X } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { Plus, Search, Edit, CheckCircle, X, Package, AlertTriangle, Warehouse } from "lucide-react"
 import { Toast } from "primereact/toast"
 import { CompactServiceForm } from "./compact-service-form"
 import Util from "@/components/common/Util"
+import ConfirmDialogYesNo from "@/components/ui/ConfirmDialogYesNo"
 
 interface Product {
   id: number
@@ -174,11 +176,36 @@ export function Services() {
     },
     formData: initialFormData,
     successMessage: null as string | null,
+    confirmDialogVisible: false,
+    pendingFreezeProduct: null as Product | null,
   })
   const toast = useRef<Toast>(null)
 
+  const serviceStats = useMemo(() => {
+    const totalServices = state.products.length
+    const activeServices = state.products.filter((product) => {
+      const status = String(product.status ?? "")
+      return status === "نشط" || status === "1" || status === "active" || status === "ACTIVE"
+    }).length
+    const inactiveServices = totalServices - activeServices
+
+    return { totalServices, activeServices, inactiveServices }
+  }, [state.products])
+
+  const normalizedServiceStatus = (status: string | number | undefined) => {
+    const normalized = String(status ?? "")
+    if (normalized === "1" || normalized === "نشط" || normalized.toLowerCase() === "active") {
+      return "نشط"
+    }
+    if (normalized === "2" || normalized === "غير نشط" || normalized.toLowerCase() === "inactive") {
+      return "غير نشط"
+    }
+    return normalized || "نشط"
+  }
+
   const filteredProducts = useMemo(() => {
     return state.products.filter((product) => {
+      const statusLabel = normalizedServiceStatus(product.status)
       if (
         state.filters.search &&
         !product.product_name?.toLowerCase().includes(state.filters.search.toLowerCase()) &&
@@ -190,7 +217,7 @@ export function Services() {
       if (state.filters.category !== "all" && product.category !== state.filters.category) {
         return false
       }
-      if (state.filters.status !== "all" && product.status !== state.filters.status) {
+      if (state.filters.status !== "all" && statusLabel !== state.filters.status) {
         return false
       }
       return true
@@ -279,30 +306,62 @@ export function Services() {
     }))
   }
 
-  const handleDelete = async (id: number) => {
-    const product = state.products.find((p) => p.id === id)
+  const handleToggleFreeze = (product: Product) => {
+    setState((prev) => ({
+      ...prev,
+      pendingFreezeProduct: product,
+      confirmDialogVisible: true,
+    }))
+  }
+
+  const confirmFreezeToggle = async () => {
+    const product = state.pendingFreezeProduct
     if (!product) return
-    const confirmed = window.confirm(
-      `هل أنت متأكد من حذف الخدمة "${product.product_name}"؟\n\nهذا الإجراء لا يمكن التراجع عنه.`,
-    )
-    if (!confirmed) return
+
+    const currentStatus = product.status
+    const isCurrentlyInactive = currentStatus === "غير نشط" || currentStatus === 2 || currentStatus === "2"
+    const nextStatus = isCurrentlyInactive ? 1 : 2
+
     try {
-      const response = await fetch(`/api/inventory/products?id=${id}`, {
-        method: "DELETE",
+      setState((prev) => ({ ...prev, isSubmitting: true, error: null, confirmDialogVisible: false, pendingFreezeProduct: null }))
+
+      const response = await fetch("/api/inventory/products", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: product.id, status: nextStatus }),
       })
+
+      const data = await response.json()
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || "فشل في حذف الخدمة")
+        throw new Error(data.error || "فشل في تغيير حالة الخدمة")
       }
-      await fetchProducts()
-      setState((prev) => ({ ...prev, successMessage: "تم حذف الخدمة بنجاح" }))
-      setTimeout(() => {
-        setState((prev) => ({ ...prev, successMessage: null }))
-      }, 3000)
+
+      setState((prev) => ({
+        ...prev,
+        products: prev.products.map((item) =>
+          item.id === product.id ? { ...item, status: nextStatus } : item,
+        ),
+      }))
+      toast.current?.show({
+        severity: "success",
+        summary: "تم الحفظ",
+        detail: isCurrentlyInactive ? "تم إلغاء التجميد" : "تم التجميد",
+        life: 3000,
+      })
     } catch (err) {
-      console.error("[Services] Delete error:", err)
-      setState((prev) => ({ ...prev, error: err instanceof Error ? err.message : "حدث خطأ أثناء الحذف" }))
+      console.error("[Services] Toggle freeze error:", err)
+      setState((prev) => ({ ...prev, error: err instanceof Error ? err.message : "حدث خطأ أثناء تغيير الحالة" }))
+    } finally {
+      setState((prev) => ({ ...prev, isSubmitting: false }))
     }
+  }
+
+  const cancelFreezeToggle = () => {
+    setState((prev) => ({
+      ...prev,
+      confirmDialogVisible: false,
+      pendingFreezeProduct: null,
+    }))
   }
 
   if (!Util.checkUserAccess(10)) {
@@ -371,6 +430,42 @@ export function Services() {
         </div>
       </div>
 
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <Card className="border-blue-200 bg-blue-50">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-blue-700">إجمالي الخدمات</p>
+                <p className="text-2xl font-bold text-blue-900">{serviceStats.totalServices}</p>
+              </div>
+              <Package className="h-8 w-8 text-blue-600" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="border-green-200 bg-green-50">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-green-700">الخدمات النشطة</p>
+                <p className="text-2xl font-bold text-green-900">{serviceStats.activeServices}</p>
+              </div>
+              <CheckCircle className="h-8 w-8 text-green-600" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="border-orange-200 bg-orange-50">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-orange-700">الخدمات غير النشطة</p>
+                <p className="text-2xl font-bold text-orange-900">{serviceStats.inactiveServices}</p>
+              </div>
+              <AlertTriangle className="h-8 w-8 text-orange-600" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
       <Card>
         <CardHeader>
           <CardTitle>قائمة الخدمات</CardTitle>
@@ -435,14 +530,26 @@ export function Services() {
                     <td className="py-3 px-2 font-medium">{product.product_name}</td>
                     <td className="py-3 px-2">{product.category}</td>
                     <td className="py-3 px-2">{product.last_purchase_price?.toLocaleString()}</td>
-                    <td className="py-3 px-2">{product.status}</td>
+                    <td className="py-3 px-2">
+                      <div className="flex items-center gap-2">
+                        <span className={`h-2.5 w-2.5 rounded-full ${normalizedServiceStatus(product.status) === "نشط" ? "bg-green-500" : "bg-gray-400"}`} />
+                        <Badge className={normalizedServiceStatus(product.status) === "نشط" ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}>
+                          {normalizedServiceStatus(product.status)}
+                        </Badge>
+                      </div>
+                    </td>
                     <td className="py-3 px-2">
                       <div className="flex gap-2">
                         <Button variant="outline" size="sm" onClick={() => handleEditProduct(product)}>
                           <Edit className="h-4 w-4" />
                         </Button>
-                        <Button variant="outline" size="sm" onClick={() => handleDelete(product.id)}>
-                          <X className="h-4 w-4" />
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleToggleFreeze(product)}
+                          title={product.status === "غير نشط" ? "إلغاء التجميد" : "تجميد"}
+                        >
+                          <Warehouse className="h-4 w-4" />
                         </Button>
                       </div>
                     </td>
@@ -459,6 +566,18 @@ export function Services() {
           )}
         </CardContent>
       </Card>
+
+      <ConfirmDialogYesNo
+        visible={state.confirmDialogVisible}
+        message={state.pendingFreezeProduct
+          ? (state.pendingFreezeProduct.status === "غير نشط" || state.pendingFreezeProduct.status === 2 || state.pendingFreezeProduct.status === "2"
+            ? `هل تريد إلغاء التجميد للخدمة "${state.pendingFreezeProduct.product_name}"؟`
+            : `هل تريد تجميد الخدمة "${state.pendingFreezeProduct.product_name}"؟`)
+          : "هل أنت متأكد؟"}
+        onConfirm={confirmFreezeToggle}
+        onCancel={cancelFreezeToggle}
+        isCompact
+      />
 
       <Dialog open={state.showDialog} onOpenChange={(open) => setState((prev) => ({ ...prev, showDialog: open, error: null, ...(open ? {} : { editingProduct: null, formData: initialFormData }) }))}>
         <DialogContent className="max-w-[95vw] sm:max-w-[90vw] md:max-w-[80vw] lg:max-w-[70vw] max-h-[95vh] overflow-hidden p-0" dir="rtl" onPointerDownOutside={(event) => event.preventDefault()} onEscapeKeyDown={(event) => event.preventDefault()}>

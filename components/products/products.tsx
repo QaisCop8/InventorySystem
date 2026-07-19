@@ -36,6 +36,7 @@ import { useAuth } from "../auth/auth-context"
 import { Toast } from "primereact/toast"
 import Definitions from "../settings/definitions"
 import Util from "../common/Util"
+import ConfirmDialogYesNo from "@/components/ui/ConfirmDialogYesNo"
 
 interface Product {
   id: number
@@ -72,7 +73,7 @@ interface Product {
   expiry_tracking: boolean
   batch_tracking: boolean
   serial_tracking: boolean
-  status: string
+  status: string | number
   supplier_id?: number
   supplier_name?: string
   supplier_code?: string
@@ -121,7 +122,7 @@ interface ProductFormData {
   expiry_tracking: boolean
   batch_tracking: boolean
   serial_tracking: boolean
-  status: string
+  status: string | number
   supplier_id: string
   supplier_name: string
   supplier_code: string
@@ -186,9 +187,39 @@ interface ProductsProps {
   entityType?: "products" | "services"
 }
 
+interface ProductsState {
+  products: Product[]
+  categories: Array<{ id: number; name: string }>
+  units: Array<{ id: number; unit_name: string; unit_code: string }>
+  warehouses: Array<{ id: number; warehouse_name: string }>
+  suppliers: Array<{ id: number; name: string }>
+  loading: boolean
+  error: string | null
+  showDialog: boolean
+  editingProduct: Product | null
+  isSubmitting: boolean
+  currentRecord: number
+  selectedProductIndex: number
+  currentPage: number
+  itemsPerPage: number
+  filters: {
+    search: string
+    category: string
+    status: string
+    stockLevel: string
+  }
+  formData: ProductFormData
+  successMessage: string | null
+  showExcelImport: boolean
+  showInitialQuantities: boolean
+  selectedProductForQuantities: Product | null
+  confirmDialogVisible: boolean
+  pendingFreezeProduct: Product | null
+}
+
 export function Products({ entityType = "products" }: ProductsProps) {
   const isService = entityType === "services"
-  const [state, setState] = useState({
+  const [state, setState] = useState<ProductsState>({
     products: [] as Product[],
     categories: [] as Array<{ id: number; name: string }>,
     units: [] as Array<{ id: number; unit_name: string; unit_code: string }>, // Added units from API
@@ -214,6 +245,8 @@ export function Products({ entityType = "products" }: ProductsProps) {
     showExcelImport: false,
     showInitialQuantities: false,
     selectedProductForQuantities: null as Product | null,
+    confirmDialogVisible: false,
+    pendingFreezeProduct: null as Product | null,
   })
   const toast = useRef<Toast>(null);
   const currencies = ["ريال سعودي", "دولار أمريكي", "يورو", "شيكل إسرائيلي"]
@@ -492,21 +525,83 @@ export function Products({ entityType = "products" }: ProductsProps) {
     }))
   }
 
-  const handleAddInitialQuantities = (product: Product) => {
+  const handleToggleFreeze = (product: Product) => {
     setState((prev) => ({
       ...prev,
-      selectedProductForQuantities: product,
-      showInitialQuantities: true,
+      pendingFreezeProduct: product,
+      confirmDialogVisible: true,
     }))
   }
 
-  const getStatusBadge = (status: string) => {
+  const confirmFreezeToggle = async () => {
+    const product = state.pendingFreezeProduct
+    if (!product) return
+
+    const currentStatus = product.status
+    const isCurrentlyInactive =
+      currentStatus === "غير نشط" || currentStatus === 2 || currentStatus === "2"
+    const nextStatus = isCurrentlyInactive ? 1 : 2
+
+    try {
+      setState((prev) => ({ ...prev, isSubmitting: true, error: null, confirmDialogVisible: false, pendingFreezeProduct: null }))
+
+      const response = await fetch("/api/inventory/products", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: product.id, status: nextStatus }),
+      })
+
+      const data = await response.json()
+      if (!response.ok) {
+        throw new Error(data.error || "فشل في تغيير حالة المنتج")
+      }
+
+      setState((prev) => ({
+        ...prev,
+        products: prev.products.map((item) =>
+          item.id === product.id ? { ...item, status: nextStatus } : item,
+        ),
+      }))
+      toast.current?.show({
+        severity: "success",
+        summary: "تم الحفظ",
+        detail: isCurrentlyInactive ? "تم إلغاء التجميد" : "تم التجميد",
+        life: 3000,
+      })
+    } catch (err) {
+      setState((prev) => ({
+        ...prev,
+        error: err instanceof Error ? err.message : "حدث خطأ أثناء تغيير الحالة",
+      }))
+    } finally {
+      setState((prev) => ({ ...prev, isSubmitting: false }))
+    }
+  }
+
+  const cancelFreezeToggle = () => {
+    setState((prev) => ({
+      ...prev,
+      confirmDialogVisible: false,
+      pendingFreezeProduct: null,
+    }))
+  }
+
+  const isInactiveStatus = (status: string | number) =>
+    status === "غير نشط" || status === 2 || status === "2"
+
+  const getStatusBadge = (status: string | number) => {
     switch (status) {
       case "نشط":
+      case 1:
+      case "1":
         return <Badge className="bg-green-100 text-green-800">نشط</Badge>
       case "غير نشط":
+      case 2:
+      case "2":
         return <Badge className="bg-gray-100 text-gray-800">غير نشط</Badge>
       case "متوقف":
+      case 3:
+      case "3":
         return <Badge className="bg-red-100 text-red-800">متوقف</Badge>
       default:
         return <Badge variant="secondary">{status}</Badge>
@@ -923,8 +1018,8 @@ export function Products({ entityType = "products" }: ProductsProps) {
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => handleAddInitialQuantities(product)}
-                              title="إدخال كميات ابتدائية"
+                              onClick={() => handleToggleFreeze(product)}
+                              title={product.status === "غير نشط" ? "الغاء التجميد" : "تجميد"}
                             >
                               <Warehouse className="h-4 w-4" />
                             </Button>
@@ -968,6 +1063,18 @@ export function Products({ entityType = "products" }: ProductsProps) {
           )}
         </CardContent>
       </Card>
+
+      <ConfirmDialogYesNo
+        visible={state.confirmDialogVisible}
+        message={state.pendingFreezeProduct
+          ? (state.pendingFreezeProduct.status === "غير نشط" || state.pendingFreezeProduct.status === 2 || state.pendingFreezeProduct.status === "2"
+            ? `هل تريد إلغاء التجميد للمنتج "${state.pendingFreezeProduct.product_name}"؟`
+            : `هل تريد تجميد المنتج "${state.pendingFreezeProduct.product_name}"؟`)
+          : "هل أنت متأكد؟"}
+        onConfirm={confirmFreezeToggle}
+        onCancel={cancelFreezeToggle}
+        isCompact
+      />
 
       <Dialog open={state.showDialog} onOpenChange={(open) => setState((prev) => ({ ...prev, showDialog: open }))} >
         <DialogContent className="max-w-[95vw] sm:max-w-[90vw] md:max-w-[80vw] lg:max-w-[70vw] max-h-[95vh] overflow-hidden p-0" dir="rtl" 

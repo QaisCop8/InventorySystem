@@ -2,52 +2,38 @@
 
 .progressSpinner {
   text-align: center !important;
-
   width: 100% !important;
   height: 100% !important;
   position: fixed !important;
   left: 0 !important;
   top: 0 !important;
-  z-index: 9999 !important;
- 
-}
-
-// .progressPos {
-//   //left: 43% !important;
-//   //position: fixed !important;
-//   margin: auto !important;
-//   align-self: center !important;
-//   top: 40% !important;
-// }
-.progressPos {
-  margin: auto !important;
-  align-self: center !important;
-  top: 40% !important;
-}
-
-.container {
+  z-index: 2147483647 !important;
+  pointer-events: all !important;
   display: flex !important;
-  flex-direction: column !important;
   align-items: center !important;
   justify-content: center !important;
-  height: 100vh; /* Optional: to center vertically in the viewport */
+  background-color: rgba(0, 0, 0, 0.4) !important; /* dim the page */
+}
+
+.spinnerRing {
+  width: 56px !important;
+  height: 56px !important;
+  border: 6px solid rgba(15, 23, 42, 0.12) !important;
+  border-top-color: #2563eb !important;
+  border-radius: 50% !important;
+  animation: spin 0.8s linear infinite !important;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .progressVisible {
-  display: block !important;
+  display: flex !important;
 }
 
 .progressHide {
   display: none !important;
-}
-
-.box {
-  width: 250px !important;
-  height: 100px !important;
-  margin: 10px !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  font-size: 20px !important;
-  font-weight: bold !important;
 }

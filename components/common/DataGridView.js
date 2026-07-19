@@ -587,6 +587,9 @@ createButtonTemplate = (col) => (ctx) => {
       case 'save':
         classes.push('pi', 'pi-save');
         break;
+      case 'calendar':
+        classes.push('pi', 'pi-calendar');
+        break;
       default:
         break;
     }
