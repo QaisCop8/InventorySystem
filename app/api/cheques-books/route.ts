@@ -1,14 +1,20 @@
 import { type NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
-import { ensureTables, saveChequeRows, resolveUserId, fetchBookWithJoins, generateNextCode } from "./_lib"
+import {
+  ensureTables,
+  saveChequeRows,
+  resolveUserId,
+  fetchBookWithJoins,
+  generateNextCode,
+  findDuplicateChequeCode,
+} from "./_lib"
 
 export async function GET() {
   try {
     await ensureTables()
 
     const rows = await sql`
-      SELECT cb.*, ba.code AS bank_account_code, ba.name AS bank_account_name,
-             ba.name_lang2 AS bank_account_name_lang2, ba.currency_id,
+      SELECT cb.*, ba.code AS bank_account_code, ba.name AS bank_account_name, ba.currency_id,
              cur.currency_name, cur.currency_code
       FROM cheque_books_tbl cb
       LEFT JOIN bank_accounts ba ON ba.id = cb.bank_account_id
@@ -30,6 +36,9 @@ const validate = (data: any): string | null => {
   return null
 }
 
+const extractChequeCodes = (data: any): string[] =>
+  (Array.isArray(data.cheques) ? data.cheques : []).map((c: any) => c?.cheque_code).filter(Boolean)
+
 export async function POST(request: NextRequest) {
   try {
     await ensureTables()
@@ -37,6 +46,14 @@ export async function POST(request: NextRequest) {
 
     const validationError = validate(data)
     if (validationError) return NextResponse.json({ error: validationError }, { status: 400 })
+
+    const duplicateCode = await findDuplicateChequeCode(data.bank_account_id, extractChequeCodes(data))
+    if (duplicateCode) {
+      return NextResponse.json(
+        { error: `يوجد دفتر معرف مسبقا للحساب البنكي المحدد بنفس الرقم ${duplicateCode}` },
+        { status: 400 },
+      )
+    }
 
     const currentUserId = await resolveUserId(data.user_id)
 
@@ -73,6 +90,14 @@ export async function PUT(request: NextRequest) {
     if (!isSoftDelete) {
       const validationError = validate(data)
       if (validationError) return NextResponse.json({ error: validationError }, { status: 400 })
+
+      const duplicateCode = await findDuplicateChequeCode(data.bank_account_id, extractChequeCodes(data), data.id)
+      if (duplicateCode) {
+        return NextResponse.json(
+          { error: `يوجد دفتر معرف مسبقا للحساب البنكي المحدد بنفس الرقم ${duplicateCode}` },
+          { status: 400 },
+        )
+      }
     } else {
       // لا يمكن حذف دفتر يحتوي شيكات "غير متوفر" (3) — أي شيك منه استُخدم فعلياً في سند.
       const unavailable = await sql`

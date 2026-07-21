@@ -107,10 +107,13 @@ const buildInitialForm = (voucherType: 8 | 9): VoucherRecord => ({
   to_account_id: null,
   cash_amount: null,
   cash_account_id: null,
+  cash_account_cost_centers: [],
   check_amount: null,
   check_account_id: null,
+  check_account_cost_centers: [],
   credit_card_amount: null,
   credit_card_account_id: null,
+  credit_card_account_cost_centers: [],
   amount: 0,
   payment_classification_id: null,
   salesman_id: null,
@@ -339,19 +342,60 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
     }
   }
 
+  // نفس منطق تعبئة الحسابات الافتراضية المستخدم عند تغيير العملة يدوياً (handleCurrencyChange
+  // في unified-receipt-voucher)، لكن هنا لتعبئتها فور فتح سند جديد بدل انتظار المستخدم لتغيير
+  // العملة يدوياً ليحصل عليها.
+  const fetchAccountDefaultsForCurrency = async (
+    currencyId: number | null,
+  ): Promise<{ cash_account_id: number | null; check_account_id: number | null; credit_card_account_id: number | null }> => {
+    const empty = { cash_account_id: null, check_account_id: null, credit_card_account_id: null }
+    if (!user?.id || !currencyId) return empty
+    try {
+      const response = await fetch(`/api/settings/users-currencies-default?user_id=${encodeURIComponent(user.id)}`)
+      if (!response.ok) return empty
+      const data = await response.json()
+      const row = Array.isArray(data?.rows) ? data.rows.find((r: any) => Number(r.currency_id) === currencyId) : null
+      return {
+        cash_account_id: row?.cash_account_id ?? null,
+        check_account_id: row?.incoming_checks_account_id ?? null,
+        credit_card_account_id: row?.card_account_id ?? null,
+      }
+    } catch (error) {
+      console.error("Failed to fetch default accounts for currency", error)
+      return empty
+    }
+  }
+
   const openNewDialog = async () => {
     const defaults = await fetchDefaults()
+    const accountDefaults = await fetchAccountDefaultsForCurrency(defaults.currencyId)
     const code = await generateCode(defaults.bookId)
     setForm({
       ...buildInitialForm(voucherType),
       vch_code: code,
       vch_book_id: defaults.bookId,
       currency_id: defaults.currencyId,
+      ...accountDefaults,
       cards: [{ ...emptyCardRow, currency_id: defaults.currencyId }],
     })
     setIsNewMode(true)
     setErrorMessages([])
     setDialogOpen(true)
+  }
+
+  // نسخ السند الحالي إلى سند جديد غير محفوظ: نفس البيانات (العميل/الحسابات/الشيكات/البطاقات)
+  // برقم ودفتر وتاريخ جديد بدل مسحها، ليحفظها المستخدم كسند مستقل دون إعادة إدخالها.
+  const cloneVoucher = async () => {
+    if (!form.id) return
+    const code = await generateCode(form.vch_book_id)
+    setForm((f) => ({
+      ...f,
+      id: 0,
+      vch_code: code,
+      vch_date: new Date().toISOString().slice(0, 10),
+    }))
+    setIsNewMode(true)
+    setErrorMessages([])
   }
 
   // تغيير دفتر السندات لسند جديد لم يُحفظ بعد يعيد توليد الرقم (رمز الدفتر جزء من الرقم) —
@@ -480,12 +524,14 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
       }
       await fetchVouchers()
       const defaults = await fetchDefaults()
+      const accountDefaults = await fetchAccountDefaultsForCurrency(defaults.currencyId)
       const code = await generateCode(defaults.bookId)
       setForm({
         ...buildInitialForm(voucherType),
         vch_code: code,
         vch_book_id: defaults.bookId,
         currency_id: defaults.currencyId,
+        ...accountDefaults,
         cards: [{ ...emptyCardRow, currency_id: defaults.currencyId }],
       })
       setIsNewMode(true)
@@ -529,12 +575,14 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
       }
 
       const defaults = await fetchDefaults()
+      const accountDefaults = await fetchAccountDefaultsForCurrency(defaults.currencyId)
       const code = await generateCode(defaults.bookId)
       setForm({
         ...buildInitialForm(voucherType),
         vch_code: code,
         vch_book_id: defaults.bookId,
         currency_id: defaults.currencyId,
+        ...accountDefaults,
         cards: [{ ...emptyCardRow, currency_id: defaults.currencyId }],
       })
       setCurrentIndex(0)
@@ -812,6 +860,7 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
         onNew={openNewDialog}
         onSave={saveVoucher}
         onDelete={() => form.id && setShowDeleteConfirm(true)}
+        onClone={cloneVoucher}
         onNavigateRecord={handleNavigateRecord}
         onFormChange={(field, value) => setForm((f) => ({ ...f, [field]: value }))}
         onBookChange={handleBookChange}

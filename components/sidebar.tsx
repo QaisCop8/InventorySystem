@@ -251,6 +251,7 @@ export function Sidebar({
         { title: "إعدادات الطباعة", section: "print-settings", icon: Printer },
         { title: "إعدادات السندات وطباعتها", section: "voucher-settings", icon: Printer },
         { title: "إعدادات API", section: "api-settings", icon: Database },
+        { title: "اعدادات عامة", section: "vouchers-general-settings", icon: Settings },
       ],
     },
     {

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import AccountSearchDialog, { AccountItem } from "@/components/customer/account-search-dialog"
-import AccountCostCenters from "@/components/customer/account-cost-centers"
+import AccountCostCenters, { type JournalCostCenterSelection } from "@/components/customer/account-cost-centers"
 
 const accountApiUrl = "/api/accounts"
 
@@ -23,6 +23,8 @@ interface AutoCompleteAccountProps {
   showCostCenterButton?: boolean
   costCenterButtonDisabled?: boolean
   showCostCenterDialog?: boolean
+  costCenters?: JournalCostCenterSelection[]
+  onCostCentersChange?: (value: JournalCostCenterSelection[]) => void
   leafOnly?: boolean
   displayNameFirst?: boolean
   showSearchButton?: boolean
@@ -100,6 +102,8 @@ export default function AutoCompleteAccount({
   showCostCenterButton = true,
   costCenterButtonDisabled = false,
   showCostCenterDialog = true,
+  costCenters,
+  onCostCentersChange,
   leafOnly = false,
   displayNameFirst = false,
   showSearchButton = true,
@@ -404,6 +408,8 @@ export default function AutoCompleteAccount({
           open={costCentersOpen}
           onOpenChange={setCostCentersOpen}
           account={selectedAccount}
+          value={costCenters}
+          onChange={onCostCentersChange}
         />
       )}
     </div>

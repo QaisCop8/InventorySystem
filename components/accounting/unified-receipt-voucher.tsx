@@ -77,10 +77,13 @@ export interface VoucherRecord {
   to_account_id: number | null
   cash_amount: number | null
   cash_account_id: number | null
+  cash_account_cost_centers?: JournalCostCenterSelection[]
   check_amount: number | null
   check_account_id: number | null
+  check_account_cost_centers?: JournalCostCenterSelection[]
   credit_card_amount: number | null
   credit_card_account_id: number | null
+  credit_card_account_cost_centers?: JournalCostCenterSelection[]
   amount: number
   payment_classification_id: number | null
   salesman_id: number | null
@@ -145,8 +148,9 @@ interface UnifiedReceiptVoucherProps {
   onNew?: () => void
   onSave: () => void
   onDelete?: () => void
+  onClone?: () => void
   onNavigateRecord?: (record: VoucherRecord) => void
-  onFormChange: (field: string, value: string | number | null) => void
+  onFormChange: (field: string, value: string | number | null | JournalCostCenterSelection[]) => void
   onBookChange?: (bookId: number | null) => void
   onCodeResolved?: (id: number) => void
   onCodeNotFound?: (code: string) => void
@@ -162,6 +166,9 @@ interface UnifiedReceiptVoucherProps {
   isNewMode?: boolean
   errorMessages?: string[]
 }
+
+const voucherTabTriggerClass =
+  "data-[state=active]:bg-gradient-to-r data-[state=active]:from-cyan-500 data-[state=active]:to-blue-600 data-[state=active]:text-white data-[state=active]:shadow-md"
 
 const normalizeVoucherCode = (value: string) => value.toUpperCase().replace(/[^A-Z0-9-]/g, "")
 const numberValue = (value: number | null | undefined) => (value === null || value === undefined ? "" : String(value))
@@ -261,6 +268,7 @@ export default function UnifiedReceiptVoucher({
   onNew,
   onSave,
   onDelete,
+  onClone,
   onNavigateRecord,
   onFormChange,
   onBookChange,
@@ -473,6 +481,17 @@ export default function UnifiedReceiptVoucher({
     onJournalChange(next)
   }
 
+  // يوازن مبلغ السطر الأول ليكمّل الفرق بين المبلغ الإجمالي ومجموع بقية أسطر تبويب الحسابات
+  // (نفس فكرة doCalculation لكن لتبويب الحسابات بدل نقدي/شيكات/بطاقات) — يُستدعى عند تغيير
+  // المبلغ الإجمالي أو عند تحديد/تغيير حساب السطر الأول.
+  const applyRemainingToFirstRow = () => {
+    const rows = journalRef.current
+    if (rows.length === 0) return
+    const othersSum = rows.slice(1).reduce((sum, r) => sum + Number(r.amount || 0), 0)
+    const remaining = Math.round((totalAmount - othersSum) * 100) / 100
+    patchJournalRow(0, { amount: remaining })
+  }
+
   const resolveJournalAccountByCode = (index: number, rawCode: string) => {
     const code = rawCode.trim().toUpperCase()
     if (!code) {
@@ -483,7 +502,10 @@ export default function UnifiedReceiptVoucher({
     const match = accountsList.find((a) => a.code.toUpperCase() === code)
     if (match) {
       patchJournalRow(index, { account_id: match.id, account_code: match.code, account_name: match.name })
-      if (index === 0) onFormChange("to_account_id", match.id)
+      if (index === 0) {
+        onFormChange("to_account_id", match.id)
+        applyRemainingToFirstRow()
+      }
     } else {
       patchJournalRow(index, { account_id: null, account_code: code, account_name: "" })
       messagesRef.current?.show?.([{ severity: "error", summary: "", detail: `لا يوجد حساب بهذا الرقم: ${code}`, life: 3000 }])
@@ -497,6 +519,7 @@ export default function UnifiedReceiptVoucher({
     next[0] = { ...next[0], account_id: account.id, account_code: account.code, account_name: account.name }
     journalRef.current = next
     onJournalChange(next)
+    applyRemainingToFirstRow()
   }
 
   const openJournalCostCenter = (index: number) => {
@@ -533,7 +556,7 @@ export default function UnifiedReceiptVoucher({
         },
         { header: "اسم الحساب", name: "account_name", width: "*", minWidth: 180, isReadOnly: true },
         { header: "المبلغ", name: "amount", width: 110, dataType: "Number" },
-        { header: "ملاحظات", name: "note", width: 150 },
+        { header: "ملاحظات", name: "note", width: 260, minWidth: 200 },
         {
           name: "btnCostCenter",
           header: "مراكز التكلفة",
@@ -1091,12 +1114,8 @@ export default function UnifiedReceiptVoucher({
         <DialogContent
           className="voucher-form w-[97vw] max-w-[1850px] p-0 overflow-hidden max-h-[92vh] overflow-y-auto"
           dir="rtl"
-          onPointerDownOutside={(event) => {
-            if (showUnsavedConfirm || showDeleteConfirm || journalSearchOpen || costCenterOpen) event.preventDefault()
-          }}
-          onInteractOutside={(event) => {
-            if (showUnsavedConfirm || showDeleteConfirm || journalSearchOpen || costCenterOpen) event.preventDefault()
-          }}
+          onPointerDownOutside={(event) => event.preventDefault()}
+          onInteractOutside={(event) => event.preventDefault()}
           onEscapeKeyDown={(event) => {
             if (showUnsavedConfirm || showDeleteConfirm || journalSearchOpen || costCenterOpen) event.preventDefault()
           }}
@@ -1107,6 +1126,7 @@ export default function UnifiedReceiptVoucher({
             onNew={() => guardedAction(() => onNew?.())}
             onSave={onSave}
             onDelete={onDelete}
+            onClone={onClone}
             onFirst={() => guardedAction(() => void handleNavigate("first"))}
             onPrevious={() => guardedAction(() => void handleNavigate("previous"))}
             onNext={() => guardedAction(() => void handleNavigate("next"))}
@@ -1114,6 +1134,7 @@ export default function UnifiedReceiptVoucher({
             isSaving={isSaving}
             canSave={canSave}
             canDelete={form.id > 0}
+            canClone={form.id > 0}
             isFirstRecord={isFirstRecord}
             isLastRecord={isLastRecord}
           />
@@ -1241,6 +1262,7 @@ export default function UnifiedReceiptVoucher({
                         setJournalFirstRowAccount({ id: account.id, code: account.code, name: account.name })
                       }}
                       searchAllowedTypeValues={[2, 3, 4, 5]}
+                      showCostCenterButton={false}
                     />
                     <div className="grid gap-1.5">
                       <Label>{customerNameLabel}</Label>
@@ -1258,7 +1280,8 @@ export default function UnifiedReceiptVoucher({
                       value={numberValue(form.to_account_id)}
                       onValueChange={(v) => onFormChange("to_account_id", v ? Number(v) : null)}
                       onAccountSelect={(account) => account && setJournalFirstRowAccount({ id: account.id, code: account.code, name: account.name })}
-                      showCostCenterButton={false}
+                      costCenters={journal[0]?.cost_centers}
+                      onCostCentersChange={(selection) => patchJournalRow(0, { cost_centers: selection })}
                     />
                     <div className="grid gap-1.5">
                       <Label>الرصيد</Label>
@@ -1274,7 +1297,10 @@ export default function UnifiedReceiptVoucher({
                         onKeyDown={blockNonNumericKey}
                         onChange={(e) => onFormChange("amount", e.target.value ? Number(e.target.value) : 0)}
                         onFocus={(e) => e.target.select()}
-                        onBlur={() => doCalculation("amount")}
+                        onBlur={() => {
+                          doCalculation("amount")
+                          applyRemainingToFirstRow()
+                        }}
                       />
                     </div>
                     <div className="grid gap-1.5">
@@ -1335,13 +1361,13 @@ export default function UnifiedReceiptVoucher({
             {/* Tabs: الرئيسية, الشيكات, تفاصيل البطاقة, الحسابات, ملاحظات, المرفقات, الحقول الإضافية */}
             <Tabs value={activeTab} onValueChange={setActiveTab} className="pt-4">
               <TabsList className="flex h-auto flex-wrap justify-start gap-1 bg-slate-100 p-1">
-                <TabsTrigger value="main">الرئيسية</TabsTrigger>
-                <TabsTrigger value="cheques">الشيكات</TabsTrigger>
-                <TabsTrigger value="card">تفاصيل البطاقة</TabsTrigger>
-                <TabsTrigger value="journal">الحسابات</TabsTrigger>
-                <TabsTrigger value="notes">ملاحظات</TabsTrigger>
-                <TabsTrigger value="attachments">المرفقات</TabsTrigger>
-                <TabsTrigger value="extra">الحقول الإضافية</TabsTrigger>
+                <TabsTrigger value="main" className={voucherTabTriggerClass}>الرئيسية</TabsTrigger>
+                <TabsTrigger value="cheques" className={voucherTabTriggerClass}>الشيكات</TabsTrigger>
+                <TabsTrigger value="card" className={voucherTabTriggerClass}>تفاصيل البطاقة</TabsTrigger>
+                <TabsTrigger value="journal" className={voucherTabTriggerClass}>الحسابات</TabsTrigger>
+                <TabsTrigger value="notes" className={voucherTabTriggerClass}>ملاحظات</TabsTrigger>
+                <TabsTrigger value="attachments" className={voucherTabTriggerClass}>المرفقات</TabsTrigger>
+                <TabsTrigger value="extra" className={voucherTabTriggerClass}>الحقول الإضافية</TabsTrigger>
               </TabsList>
 
               {/* الرئيسية */}
@@ -1352,21 +1378,24 @@ export default function UnifiedReceiptVoucher({
                     valueMode="id"
                     value={numberValue(form.cash_account_id)}
                     onValueChange={(v) => onFormChange("cash_account_id", v ? Number(v) : null)}
-                    showCostCenterButton={false}
+                    costCenters={form.cash_account_cost_centers}
+                    onCostCentersChange={(selection) => onFormChange("cash_account_cost_centers", selection)}
                   />
                   <AutoCompleteAccount
                     label="حساب صندوق الشيكات"
                     valueMode="id"
                     value={numberValue(form.check_account_id)}
                     onValueChange={(v) => onFormChange("check_account_id", v ? Number(v) : null)}
-                    showCostCenterButton={false}
+                    costCenters={form.check_account_cost_centers}
+                    onCostCentersChange={(selection) => onFormChange("check_account_cost_centers", selection)}
                   />
                   <AutoCompleteAccount
                     label="حساب البطاقات"
                     valueMode="id"
                     value={numberValue(form.credit_card_account_id)}
                     onValueChange={(v) => onFormChange("credit_card_account_id", v ? Number(v) : null)}
-                    showCostCenterButton={false}
+                    costCenters={form.credit_card_account_cost_centers}
+                    onCostCentersChange={(selection) => onFormChange("credit_card_account_cost_centers", selection)}
                   />
                 </div>
                 <div className="grid gap-4 md:grid-cols-2">

@@ -1098,7 +1098,7 @@ export function SystemSettings() {
                   </div>
                   <div className="flex items-end">
                     <div className="text-sm text-muted-foreground">
-                      مثال: {settings.receiptPrefix}A{String(settings.receiptStart).padStart(5, "0")} (A = دفتر السندات)
+                      مثال: {settings.receiptPrefix}A{String(settings.receiptStart).padStart(6, "0")} (A = دفتر السندات)
                     </div>
                   </div>
 
@@ -1137,7 +1137,7 @@ export function SystemSettings() {
                   </div>
                   <div className="flex items-end">
                     <div className="text-sm text-muted-foreground">
-                      مثال: {settings.paymentPrefix}A{String(settings.paymentStart).padStart(5, "0")} (A = دفتر السندات)
+                      مثال: {settings.paymentPrefix}A{String(settings.paymentStart).padStart(6, "0")} (A = دفتر السندات)
                     </div>
                   </div>
                 </div>

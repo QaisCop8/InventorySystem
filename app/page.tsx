@@ -54,6 +54,7 @@ import VoucherSettings from "@/components/settings/voucher-settings"
 import DocumentSettings from "@/components/settings/document-settings"
 import Permissions from "@/components/settings/permissions"
 import GeneralSettings from "@/components/settings/general-settings"
+import VouchersGeneralSettings from "@/components/settings/vouchers-general-settings"
 import APISettings from "@/components/settings/api-settings"
 import { SystemSettings } from "@/components/settings/system-settings"
 import { UserSettings } from "@/components/settings/user-settings"
@@ -106,6 +107,7 @@ const componentMap: Record<string, React.ComponentType<any>> = {
   "document-settings": DocumentSettings,
   permissions: Permissions,
   "general-settings": GeneralSettings,
+  "vouchers-general-settings": VouchersGeneralSettings,
   "api-settings": APISettings,
   "exchange-rates": ExchangeRates,
   "system-settings": SystemSettings,

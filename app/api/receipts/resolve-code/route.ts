@@ -28,6 +28,15 @@ export async function GET(request: NextRequest) {
 
     const [, typedPrefix, typedNumber] = match
     let prefix = typedPrefix.toUpperCase()
+
+    // "raw" قد يكون كوداً مكتملاً مسبقاً (مثال REB00001) وليس اختصاراً مكتوباً يدوياً — في هذه
+    // الحالة يلتقط الـ regex أعلاه "REB" كاملة كبادئة (رمز الدفتر ضمنها). يجب نزع رمز الدفتر
+    // المتكرر من نهاية البادئة الملتقطة، وإلا يتضاعف رمز الدفتر بكل خروج من الحقل (REB -> REBB -> REBBB...).
+    const upperBookName = bookName.toUpperCase()
+    while (upperBookName && prefix.length > upperBookName.length && prefix.endsWith(upperBookName)) {
+      prefix = prefix.slice(0, prefix.length - upperBookName.length)
+    }
+
     if (!prefix) {
       const settings = await getVoucherNumberSettings(request.url, vchType)
       prefix = settings.prefix

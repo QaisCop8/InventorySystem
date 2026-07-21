@@ -240,7 +240,7 @@ export const ensureTables = async () => {
 export const RECEIPT_VCH_TYPE = 8
 export const PAYMENT_VCH_TYPE = 9
 
-const VOUCHER_CODE_SEQUENCE_DIGITS = 5
+const VOUCHER_CODE_SEQUENCE_DIGITS = 6
 
 // رقم السند = بادئة (من إعدادات النظام) + رمز دفتر السندات + رقم تسلسلي مبطّن بأصفار
 // (مثال: RE + F + 00001 = REF00001). يُقرأ عبر طلب داخلي لنفس منطق /api/settings/system
@@ -311,7 +311,7 @@ export const buildJournalRows = (data: any, vchType: number) => {
       credit_debit: paymentSide,
       amount: cashAmount,
       note: "نقدي",
-      cost_centers: [],
+      cost_centers: Array.isArray(data.cash_account_cost_centers) ? data.cash_account_cost_centers : [],
       order_no: orderNo++,
     })
   }
@@ -324,7 +324,7 @@ export const buildJournalRows = (data: any, vchType: number) => {
       credit_debit: paymentSide,
       amount: checkAmount,
       note: "شيكات",
-      cost_centers: [],
+      cost_centers: Array.isArray(data.check_account_cost_centers) ? data.check_account_cost_centers : [],
       order_no: orderNo++,
     })
   }
@@ -337,7 +337,7 @@ export const buildJournalRows = (data: any, vchType: number) => {
       credit_debit: paymentSide,
       amount: creditCardAmount,
       note: "بطاقات",
-      cost_centers: [],
+      cost_centers: Array.isArray(data.credit_card_account_cost_centers) ? data.credit_card_account_cost_centers : [],
       order_no: orderNo++,
     })
   }
@@ -490,8 +490,21 @@ export const saveNoteRows = async (voucherId: number, notes: any[]) => {
 }
 
 export const fetchDetails = async (voucherId: number) => {
-  const [journalRaw, costCenterRows, cheques, notes, cards] = await Promise.all([
-    sql`SELECT * FROM voucher_journal_detail_tbl WHERE voucher_id = ${voucherId} ORDER BY order_no, id`,
+  const [journalRaw, cashCheckCardRows, costCenterRows, cheques, notes, cards] = await Promise.all([
+    // journal_type_id 1/2/3 (نقدي/شيكات/بطاقات) هي أسطر تركيبية تعكس حقول الرئيسية المخصصة
+    // (cash_amount/check_amount/credit_card_amount) وليست جزءاً من تبويب "الحسابات" — فقط
+    // النوع 4 (الحساب المقابل الفعلي الذي يُدخله المستخدم في تلك الشبكة) يجب أن يُعرض فيها،
+    // وإلا تظهر أسطر نقدي/شيكات/بطاقات مكرَّرة مع سطر الحساب الحقيقي.
+    // vjd.* لا يحمل رقم/اسم الحساب (voucher_journal_detail_tbl يخزّن account_id فقط) — لذا
+    // يُنضمّ إلى account_tbl هنا، وإلا تظهر شبكة الحسابات فارغة الحقول عند عرض سند محفوظ سابقاً.
+    sql`
+      SELECT vjd.*, acc.code AS account_code, acc.name AS account_name
+      FROM voucher_journal_detail_tbl vjd
+      LEFT JOIN account_tbl acc ON acc.id = vjd.account_id
+      WHERE vjd.voucher_id = ${voucherId} AND vjd.journal_type_id = 4
+      ORDER BY vjd.order_no, vjd.id
+    `,
+    sql`SELECT id, journal_type_id FROM voucher_journal_detail_tbl WHERE voucher_id = ${voucherId} AND journal_type_id IN (1, 2, 3)`,
     sql`
       SELECT vc.id, vc.voucher_journal_id, vc.cost_center_id, cc.cost_type_id AS cost_center_type_id, cc.name AS cost_center_name
       FROM voucher_costcenter_tbl vc
@@ -527,5 +540,20 @@ export const fetchDetails = async (voucherId: number) => {
     cost_centers: costCentersByJournalId.get(row.id) || [],
   }))
 
-  return { journal, cheques, notes, cards }
+  // نقدي (1) / شيكات (2) / بطاقات (3) ليست أسطراً في تبويب "الحسابات" (انظر التعليق أعلاه)
+  // لذا تُعاد مراكز تكلفتها كحقول مستقلة على مستوى السند بدل ضمن `journal`.
+  const cashCheckCardCostCenters = new Map<number, any[]>()
+  for (const row of cashCheckCardRows) {
+    cashCheckCardCostCenters.set(row.journal_type_id, costCentersByJournalId.get(row.id) || [])
+  }
+
+  return {
+    journal,
+    cheques,
+    notes,
+    cards,
+    cash_account_cost_centers: cashCheckCardCostCenters.get(1) || [],
+    check_account_cost_centers: cashCheckCardCostCenters.get(2) || [],
+    credit_card_account_cost_centers: cashCheckCardCostCenters.get(3) || [],
+  }
 }

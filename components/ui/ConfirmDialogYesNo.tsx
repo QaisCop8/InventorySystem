@@ -3,7 +3,7 @@
 import { Dialog } from "primereact/dialog";
 import { Button } from "@/components/ui/button";
 import { ShieldAlert, SaveAll, Sparkles } from "lucide-react";
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 
 interface ConfirmDialogProps {
   visible: boolean;
@@ -25,6 +25,14 @@ const ConfirmDialogYesNo: React.FC<ConfirmDialogProps> = ({
   isCompact = false,
 }) => {
 
+  // أول Escape لا يُغلق النافذة — فقط "يُسلّحها"، ويُغلقها الضغط الثاني المتتالي. هذا يمنع
+  // إغلاقها فوراً وبشكل غير مقصود بنفس ضغطة الـ Escape التي فتحتها (مثلاً عند تعليق حفظ التغييرات).
+  const escapeArmedRef = useRef(false);
+
+  useEffect(() => {
+    escapeArmedRef.current = false;
+  }, [visible]);
+
   useEffect(() => {
     if (!visible) return;
 
@@ -36,6 +44,11 @@ const ConfirmDialogYesNo: React.FC<ConfirmDialogProps> = ({
       } else if (e.key === "Escape") {
         e.preventDefault();
         e.stopPropagation();
+        if (!escapeArmedRef.current) {
+          escapeArmedRef.current = true;
+          return;
+        }
+        escapeArmedRef.current = false;
         if (showBack && onBack) {
           onBack();
         } else {
@@ -85,6 +98,7 @@ const ConfirmDialogYesNo: React.FC<ConfirmDialogProps> = ({
       footer={footer}
       modal
       closable={false}
+      closeOnEscape={false}
       className="overflow-hidden rounded-[24px] border border-slate-200/80 shadow-[0_20px_60px_-20px_rgba(15,23,42,0.35)]"
       style={{
         width: isCompact ? "420px" : "520px",

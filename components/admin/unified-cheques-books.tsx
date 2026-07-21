@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
-import { Search, Plus } from "lucide-react"
+import { Search, Plus, Trash2 } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -35,7 +35,6 @@ export interface ChequeBookRecord {
   bank_account_id: number | null
   bank_account_code: string
   bank_account_name: string
-  bank_account_name_lang2: string
   currency_id: number | null
   currency_name?: string
   currency_code?: string
@@ -241,16 +240,16 @@ export default function UnifiedChequesBooks({
     onFormChange("bank_account_id", account.id)
     onFormChange("bank_account_code", account.code)
     onFormChange("bank_account_name", account.name)
-    onFormChange("bank_account_name_lang2", account.name_lang2 || "")
     onFormChange("currency_id", account.currency_id)
   }
+
+  const normalizeBankAccountCode = (value: string) => value.toUpperCase().replace(/[^A-Z0-9-]/g, "")
 
   const handleBankCodeBlur = () => {
     const code = form.bank_account_code.trim()
     if (!code) {
       onFormChange("bank_account_id", null)
       onFormChange("bank_account_name", "")
-      onFormChange("bank_account_name_lang2", "")
       onFormChange("currency_id", null)
       return
     }
@@ -258,6 +257,10 @@ export default function UnifiedChequesBooks({
     if (match) {
       applyBankAccount(match)
     } else {
+      onFormChange("bank_account_code", "")
+      onFormChange("bank_account_id", null)
+      onFormChange("bank_account_name", "")
+      onFormChange("currency_id", null)
       messagesRef.current?.show?.([{ severity: "error", summary: "", detail: `لا يوجد حساب بنكي بهذا الرقم: ${code}`, life: 3000 }])
     }
   }
@@ -302,10 +305,19 @@ export default function UnifiedChequesBooks({
   }
 
   // من رقم شيك / الى رقم شيك -> عدد الشيكات تلقائياً عند الخروج من أي منهما.
+  // تساوي القيمتين نصياً يعني شيكاً واحداً بالضبط، بغض النظر عن طول الرقم (لا حاجة لتحويله رقمياً).
   const recalcCount = (from: string, to: string) => {
+    if (!from || !to) {
+      setChequeCount("")
+      return
+    }
+    if (from === to) {
+      setChequeCount("1")
+      return
+    }
     const fromNum = Number(from)
     const toNum = Number(to)
-    if (!from || !to || !Number.isFinite(fromNum) || !Number.isFinite(toNum) || toNum < fromNum) {
+    if (!Number.isSafeInteger(fromNum) || !Number.isSafeInteger(toNum) || toNum < fromNum) {
       setChequeCount("")
       return
     }
@@ -327,9 +339,31 @@ export default function UnifiedChequesBooks({
       return
     }
 
+    // تساوي "من" و"الى" نصياً = شيك واحد بنفس الرقم حرفياً، دون تحويله لرقم (يتفادى فقدان الدقة
+    // لأرقام طويلة تتجاوز Number.MAX_SAFE_INTEGER).
+    if (fromChequeNo.trim() === toChequeNo.trim()) {
+      const generated: ChequeBookRow[] = [
+        {
+          cheque_code: fromChequeNo.trim(),
+          notes: "",
+          status: CHEQUE_BOOK_STATUS.AVAILABLE,
+          status_name: CHEQUE_BOOK_STATUS_NAME[CHEQUE_BOOK_STATUS.AVAILABLE],
+          operation_user_id: null,
+          operation_user_name: user?.fullName || "",
+        },
+      ]
+      const next = [...chequesRef.current, ...generated]
+      chequesRef.current = next
+      onChequesChange(next)
+      setFromChequeNo("")
+      setToChequeNo("")
+      setChequeCount("")
+      return
+    }
+
     const fromNum = Number(fromChequeNo)
     const toNum = Number(toChequeNo)
-    if (!Number.isFinite(fromNum) || !Number.isFinite(toNum) || toNum < fromNum) {
+    if (!Number.isSafeInteger(fromNum) || !Number.isSafeInteger(toNum) || toNum < fromNum) {
       messagesRef.current?.show?.([{ severity: "error", summary: "", detail: "نطاق أرقام الشيكات غير صحيح", sticky: false, life: 4000 }])
       return
     }
@@ -363,6 +397,17 @@ export default function UnifiedChequesBooks({
     setChequeCount("")
   }
 
+  const deleteChequeRow = (index: number) => {
+    const next = chequesRef.current.filter((_, i) => i !== index)
+    chequesRef.current = next
+    onChequesChange(next)
+  }
+
+  const handleClearCheques = () => {
+    chequesRef.current = []
+    onChequesChange([])
+  }
+
   const chequeScheme = useMemo(
     () => ({
       name: "ChequeBookChequesScheme",
@@ -380,11 +425,24 @@ export default function UnifiedChequesBooks({
           // بدل نص ثابت، لأنه يتغيّر حسب حالة كل سطر (تالف ⇄ ارجاع الى متوفر).
           name: "damage_toggle_label",
           header: " ",
+          title: "اتلاف الشيك او اعادة حالة الشيك الى متوفر",
           width: 130,
           buttonBody: "button",
           align: "center",
           isReadOnly: true,
           onClick: (e: any, ctx: any) => toggleChequeStatus(ctx.row.index),
+          visible: true,
+        },
+        {
+          name: "delete_row",
+          header: " ",
+          title: "حذف الشيك",
+          width: 90,
+          buttonBody: "button",
+          iconType: "delete",
+          align: "center",
+          isReadOnly: true,
+          onClick: (e: any, ctx: any) => deleteChequeRow(ctx.row.index),
           visible: true,
         },
       ],
@@ -484,40 +542,35 @@ export default function UnifiedChequesBooks({
                 </div>
               </div>
 
-              <div className="grid gap-1.5">
-                <Label>رقم الحساب البنكي *</Label>
-                <div className="flex gap-2">
-                  <Input
-                    value={form.bank_account_code}
-                    onChange={(e) => onFormChange("bank_account_code", e.target.value)}
-                    onBlur={handleBankCodeBlur}
-                    onKeyDown={(e) => {
-                      if (e.key === "F10") {
-                        e.preventDefault()
-                        setBankSearchOpen(true)
-                      }
-                    }}
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    className="shrink-0"
-                    onClick={() => setBankSearchOpen(true)}
-                  >
-                    <Search className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-
               <div className="grid grid-cols-2 gap-3 items-start">
                 <div className="grid gap-1.5">
-                  <Label>اسم الحساب البنكي (عربي)</Label>
-                  <Input value={form.bank_account_name} readOnly disabled />
+                  <Label>رقم الحساب البنكي *</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      value={form.bank_account_code}
+                      onChange={(e) => onFormChange("bank_account_code", normalizeBankAccountCode(e.target.value))}
+                      onBlur={handleBankCodeBlur}
+                      onKeyDown={(e) => {
+                        if (e.key === "F10") {
+                          e.preventDefault()
+                          setBankSearchOpen(true)
+                        }
+                      }}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      className="shrink-0"
+                      onClick={() => setBankSearchOpen(true)}
+                    >
+                      <Search className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
                 <div className="grid gap-1.5">
-                  <Label>اسم الحساب البنكي (English)</Label>
-                  <Input value={form.bank_account_name_lang2} readOnly disabled />
+                  <Label>اسم الحساب البنكي</Label>
+                  <Input value={form.bank_account_name} readOnly disabled />
                 </div>
               </div>
 
@@ -545,7 +598,7 @@ export default function UnifiedChequesBooks({
 
             <div className="space-y-3 pt-4">
               <h4 className="text-sm font-bold text-slate-500">الشيكات</h4>
-              <div className="grid grid-cols-4 gap-2 items-end">
+              <div className="grid grid-cols-3 gap-2 items-end">
                 <div className="grid gap-1.5">
                   <Label>من رقم شيك *</Label>
                   <Input
@@ -570,10 +623,18 @@ export default function UnifiedChequesBooks({
                   <Label>عدد الشيكات</Label>
                   <Input value={chequeCount} disabled readOnly />
                 </div>
+              </div>
+              <div className="flex flex-wrap gap-2">
                 <Button type="button" onClick={handleGenerateCheques} className="h-9">
                   <Plus className="ml-1 h-4 w-4" />
                   اصدار الشيكات اليا
                 </Button>
+                {form.id === 0 && (
+                  <Button type="button" variant="outline" onClick={handleClearCheques} className="h-9">
+                    <Trash2 className="ml-1 h-4 w-4" />
+                    تفريغ قائمة الشيكات
+                  </Button>
+                )}
               </div>
 
               <DataGridView

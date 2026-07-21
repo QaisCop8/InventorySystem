@@ -94,6 +94,27 @@ export const generateNextCode = async (): Promise<string> => {
   return String(maxNumber + 1).padStart(8, "0")
 }
 
+// يمنع تكرار رقم شيك واحد على أكثر من دفتر لنفس الحساب البنكي (دفاتر أخرى غير محذوفة/موقوفة).
+// يُستثنى الدفتر الحالي نفسه عند التعديل حتى لا يتعارض مع أسطره الخاصة.
+export const findDuplicateChequeCode = async (
+  bankAccountId: number | null | undefined,
+  chequeCodes: string[],
+  excludeBookId?: number,
+): Promise<string | null> => {
+  if (!bankAccountId || chequeCodes.length === 0) return null
+  const rows = await sql`
+    SELECT c.cheque_code
+    FROM cheque_book_cheque_tbl c
+    JOIN cheque_books_tbl cb ON cb.id = c.cheque_books_id
+    WHERE cb.bank_account_id = ${bankAccountId}
+      AND COALESCE(cb.status, 1) != 3
+      AND cb.id != ${excludeBookId || 0}
+      AND c.cheque_code = ANY(${chequeCodes}::text[])
+    LIMIT 1
+  `
+  return rows[0]?.cheque_code ?? null
+}
+
 export const fetchCheques = async (bookId: number) => sql`
   SELECT c.*, cs.name AS status_name, u.full_name AS operation_user_name
   FROM cheque_book_cheque_tbl c
@@ -105,8 +126,7 @@ export const fetchCheques = async (bookId: number) => sql`
 
 export const fetchBookWithJoins = async (id: number) => {
   const rows = await sql`
-    SELECT cb.*, ba.code AS bank_account_code, ba.name AS bank_account_name,
-           ba.name_lang2 AS bank_account_name_lang2, ba.currency_id,
+    SELECT cb.*, ba.code AS bank_account_code, ba.name AS bank_account_name, ba.currency_id,
            cur.currency_name, cur.currency_code
     FROM cheque_books_tbl cb
     LEFT JOIN bank_accounts ba ON ba.id = cb.bank_account_id
