@@ -13,6 +13,7 @@ import ConfirmDialogYesNo from "@/components/ui/ConfirmDialogYesNo"
 import Messages from "@/components/common/Messages"
 import ProgressSpinner from "@/components/ProgressSpinner/ProgressSpinner"
 import DataGridView from "@/components/common/DataGridView"
+import DateTimeControl from "@/components/common/date-time-control"
 import AccountSearchDialog, { type AccountItem } from "@/components/customer/account-search-dialog"
 import AccountCostCenters, { type JournalCostCenterSelection } from "@/components/customer/account-cost-centers"
 import Util from "@/components/common/Util"
@@ -137,23 +138,59 @@ const adjustAccountCode = (raw: string): string => {
   return prefix + digits.padStart(digitsLength, "0")
 }
 
-// السماح بالـ Enter للتنقّل كـ Tab بين حقول الرأس (خارج شبكة الحسابات، التي لها منطقها الخاص).
+const FOCUSABLE_SELECTOR =
+  'input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+
+const focusNextInContainer = (container: HTMLElement, current: HTMLElement) => {
+  const focusable = Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter(
+    (el) => el.offsetParent !== null && !el.closest(".wj-flexgrid"),
+  )
+  const currentIndex = focusable.indexOf(current)
+  if (currentIndex === -1) return
+  focusable[currentIndex + 1]?.focus()
+}
+
+// السماح بالـ Enter للتنقّل كـ Tab بين حقول الرأس (خارج شبكة الحسابات وقوائم الاختيار، التي
+// لها منطقها الخاص أدناه).
 const handleFormEnterAsTab = (event: React.KeyboardEvent<HTMLDivElement>) => {
   if (event.key !== "Enter") return
   const target = event.target as HTMLElement
   if (target.tagName === "TEXTAREA" || target.tagName === "BUTTON") return
   if (target.closest(".wj-flexgrid")) return
-
-  const focusable = Array.from(
-    event.currentTarget.querySelectorAll<HTMLElement>(
-      'input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
-    ),
-  ).filter((el) => el.offsetParent !== null && !el.closest(".wj-flexgrid"))
-
-  const currentIndex = focusable.indexOf(target)
-  if (currentIndex === -1) return
   event.preventDefault()
-  focusable[currentIndex + 1]?.focus()
+  focusNextInContainer(event.currentTarget, target)
+}
+
+// تنقّل بالأسهم في قوائم الاختيار (PrimeDropdown) دون فتح لوحة الخيارات — يغيّر القيمة مباشرة
+// كأنه <select> عادي، ويمنع فتح اللوحة عند Enter (يتصرف بدلاً منها كـ Tab للحقل التالي).
+// يُلتقط في مرحلة الالتقاط (capture) ليسبق معالجة PrimeReact الداخلية للسهمين/Enter.
+const createDropdownKeyHandler = (
+  options: any[],
+  optionValueKey: string,
+  currentValue: any,
+  onSelect: (value: any) => void,
+) => (event: React.KeyboardEvent<HTMLDivElement>) => {
+  if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+    event.preventDefault()
+    event.stopPropagation()
+    if (!options.length) return
+    const currentIndex = options.findIndex((opt) => opt[optionValueKey] === currentValue)
+    const nextIndex =
+      event.key === "ArrowDown"
+        ? currentIndex < 0
+          ? 0
+          : Math.min(currentIndex + 1, options.length - 1)
+        : currentIndex < 0
+          ? options.length - 1
+          : Math.max(currentIndex - 1, 0)
+    onSelect(options[nextIndex][optionValueKey])
+  } else if (event.key === "Enter") {
+    event.preventDefault()
+    event.stopPropagation()
+    const target = event.target as HTMLElement
+    const container = target.closest<HTMLElement>('[data-enter-tab-root="true"]')
+    if (container) focusNextInContainer(container, target)
+  }
 }
 
 const mapAccount = (item: any): AccountItem => ({
@@ -663,7 +700,11 @@ export default function UnifiedJournal({
             isLastRecord={isLastRecord}
           />
 
-          <div className="relative rounded-b-3xl bg-background px-6 py-6" onKeyDown={handleFormEnterAsTab}>
+          <div
+            className="relative rounded-b-3xl bg-background px-6 py-6"
+            onKeyDown={handleFormEnterAsTab}
+            data-enter-tab-root="true"
+          >
             <ProgressSpinner loading={isSaving || navLoading} />
 
             <DialogHeader className="mb-4">
@@ -676,7 +717,12 @@ export default function UnifiedJournal({
 
             <div className="grid gap-3 border-b pb-6">
               <div className="grid gap-4 md:grid-cols-3">
-                <div className="grid gap-1.5">
+                <div
+                  className="grid gap-1.5"
+                  onKeyDownCapture={createDropdownKeyHandler(voucherBooks, "id", form.vch_book_id, (value) =>
+                    onBookChange ? onBookChange(value) : onFormChange("vch_book_id", value),
+                  )}
+                >
                   <Label>دفتر السندات *</Label>
                   <PrimeDropdown
                     value={form.vch_book_id}
@@ -703,18 +749,22 @@ export default function UnifiedJournal({
                 </div>
                 <div className="grid gap-1.5">
                   <Label htmlFor="vch-date">تاريخ السند *</Label>
-                  <Input
+                  <DateTimeControl
                     id="vch-date"
                     ref={dateInputRef}
-                    type="date"
                     value={form.vch_date ? form.vch_date.slice(0, 10) : ""}
-                    onChange={(e) => onFormChange("vch_date", e.target.value)}
+                    onChange={(value) => onFormChange("vch_date", value)}
                   />
                 </div>
               </div>
 
               <div className="grid gap-4 md:grid-cols-3">
-                <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
+                <div
+                  className="grid gap-1.5 invoice-currency-dropdown-wrap"
+                  onKeyDownCapture={createDropdownKeyHandler(currencyOptions, "value", form.currency_id, (value) =>
+                    void handleCurrencyChange(value),
+                  )}
+                >
                   <Label>العملة *</Label>
                   <PrimeDropdown
                     value={form.currency_id}
@@ -764,7 +814,24 @@ export default function UnifiedJournal({
                 </div>
                 <div className="grid gap-1.5 md:col-span-2">
                   <Label htmlFor="vch-note">الملاحظة</Label>
-                  <Input id="vch-note" value={form.note} onChange={(e) => onFormChange("note", e.target.value)} maxLength={200} />
+                  <Input
+                    id="vch-note"
+                    value={form.note}
+                    onChange={(e) => onFormChange("note", e.target.value)}
+                    maxLength={200}
+                    onKeyDown={(e) => {
+                      if (e.key !== "Tab" && e.key !== "Enter") return
+                      e.preventDefault()
+                      setActiveTab("journal")
+                      setTimeout(() => {
+                        const grid = gridRef.current
+                        if (grid) {
+                          selectCell(grid, 0, "account_code")
+                          grid.focus()
+                        }
+                      }, 100)
+                    }}
+                  />
                 </div>
               </div>
             </div>
@@ -792,7 +859,7 @@ export default function UnifiedJournal({
                 </div>
                 <div className="w-full overflow-x-auto">
                   <DataGridView
-                    ref={gridRef}
+                    innerRef={gridRef}
                     style={{ height: "340px" }}
                     scheme={journalScheme}
                     dataSource={journalGridData}
@@ -801,15 +868,21 @@ export default function UnifiedJournal({
                     showContextMenu={false}
                     cellEditEnded={handleJournalCellEditEnded}
                     onKeyDown={handleJournalKeyDown}
-                    keyActionEnter={KeyAction.None}
+                    keyActionEnter={"None"}
                     dontConvertToCards={true}
+
                   />
                 </div>
               </TabsContent>
 
               <TabsContent value="extra-data" className="min-h-[420px] space-y-4 pt-4">
                 <div className="grid gap-4 md:grid-cols-2">
-                  <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
+                  <div
+                    className="grid gap-1.5 invoice-currency-dropdown-wrap"
+                    onKeyDownCapture={createDropdownKeyHandler(salesmen, "id", form.salesman_id, (value) =>
+                      onFormChange("salesman_id", value),
+                    )}
+                  >
                     <Label>المندوب</Label>
                     <PrimeDropdown
                       value={form.salesman_id}
@@ -826,7 +899,15 @@ export default function UnifiedJournal({
                       onChange={(e: any) => onFormChange("salesman_id", e.value ?? null)}
                     />
                   </div>
-                  <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
+                  <div
+                    className="grid gap-1.5 invoice-currency-dropdown-wrap"
+                    onKeyDownCapture={createDropdownKeyHandler(
+                      paymentClassifications,
+                      "id",
+                      form.payment_classification_id,
+                      (value) => onFormChange("payment_classification_id", value),
+                    )}
+                  >
                     <Label>تصنيف الدفعة</Label>
                     <PrimeDropdown
                       value={form.payment_classification_id}

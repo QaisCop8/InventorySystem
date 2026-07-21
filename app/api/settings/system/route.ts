@@ -256,9 +256,11 @@ async function ensureSettingsTable(): Promise<void> {
   ]
 
   for (const col of dropColumns) {
-    // ignore failures
+    // Column names can't be bound as query parameters (sql`...${col}` would send it as $1,
+    // an identifier, which Postgres rejects) — col only ever comes from the fixed list above,
+    // so building the statement text directly here is safe.
     // eslint-disable-next-line no-await-in-loop
-    await execSafe(sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS ${col}`)
+    await execSafe(sql([`ALTER TABLE system_settings DROP COLUMN IF EXISTS "${col}"`] as any))
   }
 }
 

@@ -557,6 +557,91 @@
     color: #1d4ed8 !important;
   }
 
+  .date-time-control {
+    display: flex;
+    align-items: center;
+    min-height: 46px;
+    border: 1px solid #d7dde5;
+    border-radius: 14px;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    overflow: hidden;
+    transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
+  }
+
+  .date-time-control:hover:not(.date-time-control-disabled) {
+    border-color: #3b82f6;
+    box-shadow: 0 4px 10px rgba(59, 130, 246, 0.1);
+  }
+
+  .date-time-control:focus-within {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.14), 0 10px 22px rgba(15, 23, 42, 0.08);
+    background: #ffffff;
+  }
+
+  .date-time-control-error {
+    border-color: #f43f5e !important;
+  }
+
+  .date-time-control-error:focus-within {
+    box-shadow: 0 0 0 4px rgba(244, 63, 94, 0.14) !important;
+  }
+
+  .date-time-control-disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    background: #f1f5f9;
+  }
+
+  .date-time-control-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 44px;
+    flex-shrink: 0;
+    border: none;
+    background: transparent;
+    color: #2563eb;
+    cursor: pointer;
+    transition: color 160ms ease, background-color 160ms ease;
+  }
+
+  .date-time-control-icon:hover {
+    background: rgba(37, 99, 235, 0.08);
+  }
+
+  .date-time-control-icon:disabled {
+    cursor: not-allowed;
+    color: #94a3b8;
+  }
+
+  .date-time-control-input {
+    flex: 1;
+    min-width: 0;
+    border: none;
+    outline: none;
+    background: transparent;
+    padding-inline-end: 12px;
+    height: 44px;
+    font-weight: 600;
+    color: #1f2937;
+    font-size: 0.925rem;
+  }
+
+  .date-time-control-input::-webkit-calendar-picker-indicator {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .date-time-control-error-text {
+    margin-top: 4px;
+    font-size: 0.75rem;
+    color: #e11d48;
+    font-weight: 600;
+  }
+
   .invoice-offset-toggle {
     height: 42px;
     padding: 0 12px;
