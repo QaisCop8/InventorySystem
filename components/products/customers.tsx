@@ -18,6 +18,7 @@ import {
   Search,
   FileText,
   Edit,
+  Trash2,
   Save,
   X,
   CheckCircle,
@@ -42,8 +43,6 @@ import Util from "../common/Util"
 import UnifiedCustomers from "./unified-customers"
 interface CustomersProps {
   isSupplier?: boolean;
-  isSalesman?: boolean;
-  isSubscriber?: boolean;
 }
 interface Customer {
   id: number
@@ -169,10 +168,10 @@ interface NotificationSettings {
   daily_summary_time: string
 }
 
-export default function Customers({ isSupplier, isSalesman = false, isSubscriber = false }: CustomersProps) {
+export default function Customers({ isSupplier }: CustomersProps) {
   const [customers, setCustomers] = useState<Customer[]>([])
   const [isloading, setIsLoading] = useState(false)
-  const toast = useRef<Toast | null>(null)
+  const toast = useRef(null);
   const [currentIndex, setCurrentIndex] = useState(0)
   const [showCustomerDialog, setShowCustomerDialog] = useState(false)
   const [showNewCustomerDialog, setShowNewCustomerDialog] = useState(false)
@@ -188,6 +187,8 @@ export default function Customers({ isSupplier, isSalesman = false, isSubscriber
   const customer_name = useRef<HTMLInputElement>(null);
   const [showCustomerSearch, setShowCustomerSearch] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [showUnsaved, setShowUnsaved] = useState(false);
+  const [nextFunction, setNextFunction] = useState<(() => void) | null>(null);
   const bookGridRef = useRef<wjGrid.FlexGrid>(null);
   const [newUserData, setNewUserData] = useState({
     username: "",
@@ -754,9 +755,6 @@ export default function Customers({ isSupplier, isSalesman = false, isSubscriber
       discount_percentage: (customer as any).discount_percentage || "",
       pricecategory: (customer as any).pricecategory || 0,
       account_id: (customer as any).account_id || null,
-      cost_centers: Array.isArray((customer as any).cost_centers) ? (customer as any).cost_centers : [],
-      stop_transactions: Array.isArray((customer as any).stop_transactions) ? (customer as any).stop_transactions : [],
-      voucherType: Array.isArray((customer as any).voucherType) ? (customer as any).voucherType : [],
     })
   }, [])
   const [definitions, setDefinitions] = useState({
@@ -770,7 +768,69 @@ export default function Customers({ isSupplier, isSalesman = false, isSubscriber
 
   });
   const [currentCustomerId, setCurrentCustomerId] = useState<number>(0);
-  const unifiedCustomerLoadDataRef = useRef<((navigationType: "first" | "previous" | "next" | "last" | "ById" | "ByIdEdit", customerId?: number, isSupplier?: boolean, checkUnsaved?: boolean) => Promise<void>) | null>(null);
+
+  const loadData = async (
+    navigationType: "first" | "previous" | "next" | "last" | "ById" | "ByIdEdit",
+    customerId?: number,
+    isSupplier: boolean = false,
+    checkUnsaved: boolean = true
+  ) => {
+    const currentHash = getFormDataHash(formData);
+
+    if (false && checkUnsaved && currentHash !== initialHash.current && initialHash.current !== 0) {
+      setShowUnsaved(true);
+      setNextFunction(() => () => loadData(navigationType, customerId, isSupplier, false));
+      return;
+    }
+
+    try {
+      let dont_check = false;
+      if (navigationType === "ByIdEdit") {
+        dont_check = true;
+        navigationType = "ById"
+      }
+      const url = new URL(`/api/customer/navigations/${navigationType}`, location.origin);
+
+      // Determine ID for navigation
+      if (navigationType === "ById" && customerId) {
+        url.searchParams.set("id", String(customerId));
+      } else if (navigationType === "previous" || navigationType === "next") {
+        url.searchParams.set("currentId", currentCustomerId.toString());
+      }
+
+      // Pass type (customer/supplier)
+      url.searchParams.set("type", isSupplier ? "2" : "1");
+
+      const res = await fetch(url.toString());
+      console.log("res res ", url)
+      const customer = await res.json();
+      console.log("navigationType ", navigationType)
+      if (!customer.id || (customer.id === currentCustomerId && !dont_check)) {
+
+        let msg = navigationType === "previous" || navigationType === "first"
+          ? 'بداية السجلات'
+          : 'نهاية السجلات';
+        Util.showErrorToast(toast.current, msg);
+        return;
+      }
+
+
+      const newFormData = {
+        ...customer
+      };
+      setFormData(customer);
+      console.log("newFormData ", newFormData)
+
+      setTimeout(() => {
+        customer_name.current?.focus();
+        initialHash.current = getFormDataHash(formData)
+        setCurrentCustomerId(customer.id)
+      }, 200);
+
+    } catch (err) {
+      console.error("Error loading customer:", err);
+    }
+  };
 
   const handleFirst = useCallback(() => {
     if (customers.length > 0) {
@@ -834,7 +894,7 @@ export default function Customers({ isSupplier, isSalesman = false, isSubscriber
     const errors: Record<string, string> = {}
 
     if (!formData.name.trim()) {
-      errors.customer_name = "اسم العميل مطلوب"
+      errors.customer_name = "اسم الزبون مطلوب"
     }
 
     /*if (!formData.mobile1.trim()) {
@@ -851,8 +911,8 @@ export default function Customers({ isSupplier, isSalesman = false, isSubscriber
     (formData.voucherType ?? []).forEach((v, index) => {
       if (typeSet.has(v.type_id)) {
 
-        Util.showErrorToast(toast.current, 'لا يمكن تكرار نفس نوع السند في دفاتر السندات الافتراضية للعميل');
-        errors.vocherType = "ا يمكن تكرار نفس نوع السند في دفاتر السندات الافتراضية للعميل"
+        Util.showErrorToast(toast.current, 'لا يمكن تكرار نفس نوع السند في دفاتر السندات الافتراضية للزبون');
+        errors.vocherType = "ا يمكن تكرار نفس نوع السند في دفاتر السندات الافتراضية للزبون"
       } else {
         typeSet.add(v.type_id);
       }
@@ -868,14 +928,14 @@ export default function Customers({ isSupplier, isSalesman = false, isSubscriber
         setIsLoading(true);
         setError(null);
 
-        const url = `/api/customers?type=${isSalesman ? 3 : isSupplier ? 2 : isSubscriber ? 4 : 1}`;
+        const url = `/api/customers?type=${isSupplier ? 2 : 1}`;
         const response = await fetch(url);
 
         if (response.ok) {
           const data = await response.json();
           const allRecords = Array.isArray(data) ? data : data.customers || [];
           const filteredRecords = allRecords.filter((record: { type: number }) =>
-            isSalesman ? record.type === 3 : isSupplier ? record.type === 2 : isSubscriber ? record.type === 4 : record.type === 1
+            isSupplier ? record.type === 2 : record.type === 1
           );
           filteredRecords.sort((a: Customer, b: Customer) => a.id - b.id);
           setCustomers(filteredRecords);
@@ -884,16 +944,16 @@ export default function Customers({ isSupplier, isSalesman = false, isSubscriber
             setCurrentIndex((prevIndex) => (prevIndex >= filteredRecords.length ? 0 : prevIndex));
           }
         } else {
-          setError(isSalesman ? "فشل في تحميل بيانات المندوبين" : isSupplier ? "فشل في تحميل بيانات الموردين" : isSubscriber ? "فشل في تحميل بيانات المشتركين" : "فشل في تحميل بيانات العملاء");
+          setError(isSupplier ? "فشل في تحميل بيانات الموردين" : "فشل في تحميل بيانات الزبائن");
         }
       } catch (error) {
         console.error("Error fetching data:", error);
-        setError(isSalesman ? "حدث خطأ في تحميل المندوبين" : isSupplier ? "حدث خطأ في تحميل الموردين" : isSubscriber ? "حدث خطأ في تحميل المشتركين" : "حدث خطأ في تحميل العملاء");
+        setError(isSupplier ? "حدث خطأ في تحميل الموردين" : "حدث خطأ في تحميل الزبائن");
       } finally {
         setIsLoading(false);
       }
     },
-    [isSalesman, isSupplier, isSubscriber]
+    [isSupplier]
   );
 
 
@@ -952,9 +1012,10 @@ export default function Customers({ isSupplier, isSalesman = false, isSubscriber
     async () => {
       try {
         setGeneratingNumber(true);
-        console.log("[v0] Generating number...", isSalesman ? "Salesman" : isSupplier ? "Supplier" : "Customer");
+        console.log("[v0] Generating number...", isSupplier ? "Supplier" : "Customer");
 
-        const response = await fetch(`/api/customers/generate-number?isSupplier=${isSupplier}&isSalesman=${isSalesman}&isSubscriber=${isSubscriber}`);
+        // Pass isSupplier as query param
+        const response = await fetch(`/api/customers/generate-number?isSupplier=${isSupplier}`);
         if (response.ok) {
           const contentType = response.headers.get("content-type");
 
@@ -1021,28 +1082,21 @@ export default function Customers({ isSupplier, isSalesman = false, isSubscriber
       console.log("Search by code response:", data);
       if (data.found) {
         // Load the customer data
-        if (isSupplier && data.customer.type !== 2) {
+        if(isSupplier && data.customer.type !== 2) {
           await reset_fields();
-          Util.showErrorToast(toast.current, "الرقم المدخل لعميل وليس مورد")
+          Util.showErrorToast(toast.current, "الرقم المدخل  لزبون وليس مورد")
           return
-        } else if (isSalesman && data.customer.type !== 3) {
+        }
+        else if(!isSupplier && data.customer.type !== 1) {  
           await reset_fields();
-          Util.showErrorToast(toast.current, "الرقم المدخل لعميل وليس مندوب")
-          return
-        } else if (isSubscriber && data.customer.type !== 4) {
-          await reset_fields();
-          Util.showErrorToast(toast.current, "الرقم المدخل لعميل وليس مشترك")
-          return
-        } else if (!isSupplier && !isSalesman && !isSubscriber && data.customer.type !== 1) {
-          await reset_fields();
-          Util.showErrorToast(toast.current, "الرقم المدخل لمورد وليس عميل")
+          Util.showErrorToast(toast.current, "الرقم المدخل  لمورد وليس زبون")
           return
         }
         setFormData((prev) => ({
           ...prev,
           id: Number(data.customer.id), // use customer.id
         }));
-        await unifiedCustomerLoadDataRef.current?.("ById", data.customer.id, isSupplier);
+        loadData("ById", data.customer.id);
 
       } else {
         // Reset the form since customer not found
@@ -1119,7 +1173,7 @@ export default function Customers({ isSupplier, isSalesman = false, isSubscriber
         credit_limit: customerData.credit_limit,
         payment_terms: customerData.payment_terms,
         discount_percentage: customerData.discount_percentage,
-        type: isSalesman ? 3 : isSupplier ? 2 : isSubscriber ? 4 : 1,
+        type: isSupplier ? 2 : 1,
         pricecategory: customerData.pricecategory,
         account_id: customerData.account_id,
         cost_centers: costCenters,
@@ -1177,7 +1231,7 @@ export default function Customers({ isSupplier, isSalesman = false, isSubscriber
 
       if (savedCustomer?.data?.id) {
         setCurrentCustomerId(Number(savedCustomer.data.id));
-        await unifiedCustomerLoadDataRef.current?.("ById", savedCustomer.data.id, isSupplier || isSubscriber);
+        await loadData("ById", savedCustomer.data.id);
       } else {
         reset_fields();
       }
@@ -1212,7 +1266,7 @@ export default function Customers({ isSupplier, isSalesman = false, isSubscriber
       toast.current?.show({
         severity: "error",
         summary: "",
-        detail: "لا يوجد لديك صلاحية حذف عميل",
+        detail: "لا يوجد لديك صلاحية حذف زبون",
         life: 3000,
       });
       return;
@@ -1276,19 +1330,33 @@ export default function Customers({ isSupplier, isSalesman = false, isSubscriber
 
 
 
-  const handleNewCustomer = useCallback((openDialog = true) => {
+  const initialHash = useRef(0);
+  const hashCode = (str: string) => {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      const chr = str.charCodeAt(i);
+      hash = (hash << 5) - hash + chr;
+      hash |= 0; // Convert to 32bit integer
+    }
+    return hash;
+  };
+  const getFormDataHash = (data: any) => {
+    return hashCode(JSON.stringify(data));
+  };
+
+  /*const handleNewCustomer = useCallback(() => {
     console.log("AAAAa")
+    setLoading(true)
+    updateFormData(null)
     setEditingCustomer(false)
     editingCustomerRef.current = false
     setValidationErrors({})
-    if (openDialog) {
-      setShowNewCustomerDialog(true)
-    }
-    updateFormData(null)
+    setShowNewCustomerDialog(true)
     generateCustomerNumber()
-    customer_name.current?.focus()
+    setLoading(false)
+    customer_name.current?.focus();
   }, [updateFormData, generateCustomerNumber])
-
+*/
   const reset_fields = async (from_code = 0, code = "", showLoading = true) => {
     if (showLoading) setIsLoading(true)
     updateFormData(null)
@@ -1306,8 +1374,23 @@ export default function Customers({ isSupplier, isSalesman = false, isSubscriber
 
     setTimeout(() => {
       customer_name.current?.focus();
+      initialHash.current = getFormDataHash(formData)
+
     }, 200);
     setCurrentCustomerId(0)
+  }
+  const handleNewCustomer = async (checkUnsaved: any) => {
+
+    const currentHash = getFormDataHash(formData);
+    if (checkUnsaved === true && currentHash !== initialHash.current) {
+      setShowUnsaved(true)
+      setNextFunction(() => () => reset_fields());
+      return
+    }
+    setShowNewCustomerDialog(true)
+    setCustomerAccountClassifications([])
+    await reset_fields(0, "", false)
+
   }
 
   const fetch_Definitions = async () => {
@@ -1361,11 +1444,11 @@ export default function Customers({ isSupplier, isSalesman = false, isSubscriber
       setShowNewCustomerDialog(true)
       console.log("customer customer ", customer)
       setTimeout(() => {
-        void unifiedCustomerLoadDataRef.current?.("ByIdEdit", customer.id, isSupplier)
+        loadData("ByIdEdit", customer.id);
       }, 200);
 
     },
-    [updateFormData, isSupplier],
+    [updateFormData],
   )
 
   const handleManagePortal = useCallback(
@@ -1423,21 +1506,16 @@ export default function Customers({ isSupplier, isSalesman = false, isSubscriber
   }, [fetchCustomers, fetchClassifications, fetchSalesmen, fetchPriceClass])
 
   useEffect(() => {
-    if (!editingCustomer || !currentCustomer) return
-    if (currentCustomer.id !== formData.id) {
+    console.log("[v0] Current customer changed:", currentCustomer)
+    if (currentCustomer) {
       updateFormData(currentCustomer)
     }
-  }, [currentCustomer, editingCustomer, formData.id, updateFormData])
+  }, [currentCustomer, updateFormData])
   const { isAuthenticated, hasPermission } = useAuth()
   if (isloading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]" dir="rtl">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">
-            {isSalesman ? "جاري تحميل المندوبين..." : isSupplier ? "جاري تحميل الموردين..." : isSubscriber ? "جاري تحميل المشتركين..." : "جاري تحميل العملاء..."}
-          </p>
-        </div>
+      <div className="flex items-center justify-center h-64">
+        <div className="text-lg">جاري التحميل...</div>
       </div>
     )
   }
@@ -1464,7 +1542,7 @@ export default function Customers({ isSupplier, isSalesman = false, isSubscriber
   }
   return (
 
-    <div className="w-full max-w-full px-4 py-6 space-y-6 sm:px-6 lg:px-8" dir="rtl">
+    <div className="container mx-auto p-6 space-y-6" dir="rtl">
       {/* Success Message */}
       <ConfirmDialogYesNo
         visible={showConfirm}
@@ -1473,6 +1551,21 @@ export default function Customers({ isSupplier, isSalesman = false, isSubscriber
         message="هل تريد حذف هذا السجل؟"
       />
 
+      <ConfirmDialogYesNo
+        visible={showUnsaved}
+        onConfirm={() => { setShowUnsaved(false); handleSaveCustomer(formData) }}
+        onCancel={async () => {
+          setShowUnsaved(false); popupHasClosed();
+          if (nextFunction) {
+            nextFunction();
+            setNextFunction(null);
+
+          }
+        }}
+        message="تم تعديل السجل هل تريد الحفظ؟"
+        onBack={() => { setShowUnsaved(false); popupHasClosed(); }}
+        showBack={true}
+      />
       {showSuccessMessage && (
         <div className="fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg flex items-center gap-2 z-50">
           <CheckCircle className="h-4 w-4" />
@@ -1486,11 +1579,11 @@ export default function Customers({ isSupplier, isSalesman = false, isSubscriber
 
       {/* Header */}
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">{isSalesman ? "إدارة المندوبين" : isSupplier ? "إدارة الموردين" : isSubscriber ? "إدارة المشتركين" : "إدارة العملاء"} </h1>
+        <h1 className="text-3xl font-bold">{isSupplier ? "إدارة الموردين" : "إدارة الزبائن"} </h1>
         <div className="flex gap-2">
-          <Button onClick={() => handleNewCustomer(true)} className="flex items-center gap-2">
+          <Button onClick={() => handleNewCustomer(false)} className="flex items-center gap-2">
             <Plus className="h-4 w-4" />
-            {isSalesman ? "مندوب جديد" : isSupplier ? "مورد جديد" : isSubscriber ? "مشترك جديد" : "عميل جديد"}
+            {isSupplier ? "مورد جديد" : "زبون جديد"}
           </Button>
           <Button
             variant="outline"
@@ -1509,7 +1602,7 @@ export default function Customers({ isSupplier, isSalesman = false, isSubscriber
             </DialogTrigger>
             <DialogContent className="max-w-4xl">
               <DialogHeader>
-                <DialogTitle>{isSalesman ? "تقارير المندوبين" : isSupplier ? "تقارير الموردين" : isSubscriber ? "تقارير المشتركين" : "تقارير العملاء"}</DialogTitle>
+                <DialogTitle>تقارير الزبائن</DialogTitle>
               </DialogHeader>
               <div className="p-4">
                 <p>سيتم إضافة التقارير هنا</p>
@@ -1525,7 +1618,7 @@ export default function Customers({ isSupplier, isSalesman = false, isSubscriber
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-blue-700">{isSalesman ? "إجمالي المندوبين" : isSupplier ? "إجمالي الموردين" : isSubscriber ? "إجمالي المشتركين" : "إجمالي العملاء"}</p>
+                <p className="text-sm font-medium text-blue-700">{isSupplier ? "إجمالي الموردين" : "إجمالي الزبائن"}</p>
                 <p className="text-3xl font-bold text-blue-900">{statistics.total}</p>
               </div>
               <div className="h-10 w-10 bg-blue-200 rounded-full flex items-center justify-center">
@@ -1539,7 +1632,7 @@ export default function Customers({ isSupplier, isSalesman = false, isSubscriber
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-green-700"> {isSalesman ? "المندوبين النشطين" : isSupplier ? "الموردين النشطين" : isSubscriber ? "المشتركين النشطين" : "العملاء النشطين"}</p>
+                <p className="text-sm font-medium text-green-700"> {isSupplier ? "الموردين النشطين" : "الزبائن النشطين"}</p>
                 <p className="text-3xl font-bold text-green-900">{statistics.active}</p>
               </div>
               <div className="h-10 w-10 bg-green-200 rounded-full flex items-center justify-center">
@@ -1553,7 +1646,7 @@ export default function Customers({ isSupplier, isSalesman = false, isSubscriber
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-red-700">{isSalesman ? "المندوبين غير النشطين" : isSupplier ? "الموردين غير النشطين" : isSubscriber ? "المشتركين غير النشطين" : "العملاء غير النشطين"}</p>
+                <p className="text-sm font-medium text-red-700">{isSupplier ? "الموردين غير النشطين" : "الزبائن غير النشطين"}</p>
                 <p className="text-3xl font-bold text-red-900">{statistics.inactive}</p>
               </div>
               <div className="h-10 w-10 bg-red-200 rounded-full flex items-center justify-center">
@@ -1567,7 +1660,7 @@ export default function Customers({ isSupplier, isSalesman = false, isSubscriber
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-purple-700">{isSalesman ? "المندوبين VIP" : isSupplier ? "الموردين VIP" : isSubscriber ? "المشتركين VIP" : "العملاء VIP"}</p>
+                <p className="text-sm font-medium text-purple-700">{isSupplier ? "مورّدين VIP" : "زبائن VIP"}</p>
                 <p className="text-3xl font-bold text-purple-900">{statistics.vip}</p>
               </div>
               <div className="h-10 w-10 bg-purple-200 rounded-full flex items-center justify-center">
@@ -1589,7 +1682,7 @@ export default function Customers({ isSupplier, isSalesman = false, isSubscriber
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
-              <Label htmlFor="search-name"> {isSalesman ? "اسم المندوب" : isSupplier ? "اسم المورد" : isSubscriber ? "اسم المشترك" : "اسم العميل"}</Label>
+              <Label htmlFor="search-name"> {isSupplier ? "اسم المورد" : "اسم الزبون"}</Label>
               <Input
                 id="search-name"
                 value={searchFilters.name}
@@ -1669,7 +1762,7 @@ export default function Customers({ isSupplier, isSalesman = false, isSubscriber
       <Card>
         <CardHeader>
           <CardTitle>
-            {isSalesman ? `قائمة المندوبين (${filteredCustomers.length})` : isSupplier ? `قائمة الموردين (${filteredCustomers.length})` : isSubscriber ? `قائمة المشتركين (${filteredCustomers.length})` : `قائمة العملاء (${filteredCustomers.length})`}
+            {isSupplier ? `قائمة الموردين (${filteredCustomers.length})` : `قائمة الزبائن (${filteredCustomers.length})`}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -1678,10 +1771,10 @@ export default function Customers({ isSupplier, isSalesman = false, isSubscriber
               <thead>
                 <tr className="bg-gray-50">
                   <th className="border border-gray-300 px-4 py-2 text-right">
-                    {isSalesman ? "رقم المندوب" : isSupplier ? "رقم المورد" : isSubscriber ? "رقم المشترك" : "رقم العميل"}
+                    {isSupplier ? "رقم المورد" : "رقم الزبون"}
                   </th>
                   <th className="border border-gray-300 px-4 py-2 text-right">
-                    {isSalesman ? "اسم المندوب" : isSupplier ? "اسم المورد" : isSubscriber ? "اسم المشترك" : "اسم العميل"}
+                    {isSupplier ? "اسم المورد" : "اسم الزبون"}
                   </th>
                   <th className="border border-gray-300 px-4 py-2 text-right">الجوال</th>
                   <th className="border border-gray-300 px-4 py-2 text-right">المدينة</th>
@@ -1700,9 +1793,20 @@ export default function Customers({ isSupplier, isSalesman = false, isSubscriber
                       <Badge variant={customer.status === "نشط" ? "default" : "secondary"}>{customer.status}</Badge>
                     </td>
                     <td className="border border-gray-300 px-4 py-2 text-center">
-                      <div className="flex justify-center">
+                      <div className="flex justify-center gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleManagePortal(customer)}
+                          title="إدارة بوابة العميل"
+                        >
+                          <Globe className="h-4 w-4" />
+                        </Button>
                         <Button size="sm" variant="outline" onClick={() => handleEditCustomer(customer)}>
                           <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => confirmDelete}>
+                          <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
                     </td>
@@ -1750,47 +1854,60 @@ export default function Customers({ isSupplier, isSalesman = false, isSubscriber
       {/* Customer Form Dialog */}
       <Dialog
         open={showNewCustomerDialog}
-        onOpenChange={setShowNewCustomerDialog}
+        onOpenChange={(open) => {
+          setShowNewCustomerDialog(open);
+          if (!open) {
+            // fetch customers after dialog is closed
+            fetchCustomers();
+          }
+        }}
       >
-        <DialogContent className="max-w-[95vw] sm:max-w-[90vw] md:max-w-[80vw] lg:max-w-[70vw] max-h-[95vh] overflow-hidden p-0" dir="rtl"
+        <DialogContent className="max-w-[75vw] sm:max-w-[70vw] md:max-w-[62vw] lg:max-w-[110vh] max-h-[95vh] overflow-hidden p-0" dir="rtl"
           onPointerDownOutside={(event) => event.preventDefault()}
           onEscapeKeyDown={(event) => event.preventDefault()}
         >
-          
-          <UnifiedCustomers
-            open={showNewCustomerDialog}
-            onOpenChange={(nextOpen: boolean) => {
-              setShowNewCustomerDialog(nextOpen)
-            }}
-            isSupplier={!!isSupplier}
-            isSalesman={!!isSalesman}
-            isSubscriber={!!isSubscriber}
-            showCustomerSearch={showCustomerSearch}
-            setShowCustomerSearch={setShowCustomerSearch}
-            formData={formData}
-            updateField={updateField as any}
-            validationErrors={validationErrors}
-            classifications={classifications}
-            pricecategory={pricecategory}
-            salesmen={salesmen}
-            currentCustomerId={currentCustomerId}
-            currentIndex={currentIndex}
-            totalRecords={customers.length}
-            isSaving={saving}
-            loadDataRef={unifiedCustomerLoadDataRef}
-            onNew={() => handleNewCustomer(true)}
-            onSave={async () => {
-              await fetchCustomers()
-            }}
-            onDelete={fetchCustomers}
-            onReport={() => console.log("Generate customer report")}
-            onExportExcel={() => console.log("Export to Excel")}
-            onPrint={() => console.log("Print customer")}
-            customerNameRef={customer_name}
-            customers={customers}
-            setCurrentIndex={setCurrentIndex}
-            setCurrentCustomerId={setCurrentCustomerId}
-          />
+          <div className="h-screen flex flex-col bg-background p-6 overflow-y-auto">
+            <UnifiedCustomers
+              open={showNewCustomerDialog}
+              onOpenChange={setShowNewCustomerDialog}
+              isSupplier={!!isSupplier}
+              showCustomerSearch={showCustomerSearch}
+              setShowCustomerSearch={setShowCustomerSearch}
+              formData={formData}
+              updateField={updateField as any}
+              validationErrors={validationErrors}
+              classifications={classifications}
+              pricecategory={pricecategory}
+              salesmen={salesmen}
+              currentCustomerId={currentCustomerId}
+              currentIndex={currentIndex}
+              totalRecords={customers.length}
+              isSaving={saving}
+              onFirst={async () => { await loadData('first', 0, isSupplier) }}
+              onPrevious={async () => { await loadData('previous', 0, isSupplier) }}
+              onNext={async () => { await loadData('next', 0, isSupplier) }}
+              onLast={async () => { await loadData('last', 0, isSupplier) }}
+              onNew={() => handleNewCustomer(true)}
+              onSave={() => handleSaveCustomer(formData)}
+              onDelete={currentCustomerId > 0 ? () => handleDeleteClick(true) : undefined}
+              onReport={() => console.log("Generate customer report")}
+              onExportExcel={() => console.log("Export to Excel")}
+              onPrint={() => console.log("Print customer")}
+              onCustomerSelect={(customer) => {
+                setFormData((prev) => ({
+                  ...prev,
+                  id: Number(customer.id),
+                  account_id: customer.account_id ?? null,
+                }))
+                loadData("ById", customer.id)
+              }}
+              onClassificationRowsChange={setCustomerAccountClassifications}
+              onCostCenterRowsChange={(rows) => setFormData((prev) => ({ ...prev, cost_centers: rows }))}
+              onStopTransactionRowsChange={(rows) => setFormData((prev) => ({ ...prev, stop_transactions: rows }))}
+              onCustomerCodeBlur={handleCustomerBlur}
+              customerNameRef={customer_name}
+            />
+          </div>
         </DialogContent>
       </Dialog>
 
@@ -1816,12 +1933,7 @@ export default function Customers({ isSupplier, isSalesman = false, isSubscriber
               </CardHeader>
               <CardContent className="space-y-6">
                 {loadingNotificationSettings ? (
-                  <div className="flex items-center justify-center min-h-[160px]" dir="rtl">
-                    <div className="text-center">
-                      <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary mx-auto mb-3"></div>
-                      <p className="text-muted-foreground">{isSupplier ? "جاري تحميل الموردين..." : isSubscriber ? "جاري تحميل المشتركين..." : "جاري تحميل العملاء..."}</p>
-                    </div>
-                  </div>
+                  <div className="text-center py-4 text-muted-foreground">جاري التحميل...</div>
                 ) : notificationSettings ? (
                   <>
                     {/* طريقة الإرسال ورقم الهاتف */}
@@ -2042,12 +2154,7 @@ export default function Customers({ isSupplier, isSalesman = false, isSubscriber
 
             {/* Users Table */}
             {loadingPortalUsers ? (
-              <div className="flex items-center justify-center min-h-[240px]" dir="rtl">
-                <div className="text-center">
-                  <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary mx-auto mb-3"></div>
-                  <p className="text-muted-foreground">{isSupplier ? "جاري تحميل الموردين..." : isSubscriber ? "جاري تحميل المشتركين..." : "جاري تحميل العملاء..."}</p>
-                </div>
-              </div>
+              <div className="text-center py-8 text-muted-foreground">جاري التحميل...</div>
             ) : portalUsers.length === 0 ? (
               <Card className="bg-blue-50 border-blue-200">
                 <CardContent className="p-6 text-center">
@@ -2382,6 +2489,3 @@ export default function Customers({ isSupplier, isSalesman = false, isSubscriber
     </div>
   )
 }
-
-
-

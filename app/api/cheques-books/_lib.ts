@@ -105,7 +105,8 @@ export const fetchCheques = async (bookId: number) => sql`
 
 export const fetchBookWithJoins = async (id: number) => {
   const rows = await sql`
-    SELECT cb.*, ba.code AS bank_account_code, ba.name AS bank_account_name, ba.currency_id,
+    SELECT cb.*, ba.code AS bank_account_code, ba.name AS bank_account_name,
+           ba.name_lang2 AS bank_account_name_lang2, ba.currency_id,
            cur.currency_name, cur.currency_code
     FROM cheque_books_tbl cb
     LEFT JOIN bank_accounts ba ON ba.id = cb.bank_account_id

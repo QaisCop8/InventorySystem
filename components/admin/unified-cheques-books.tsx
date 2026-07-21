@@ -35,6 +35,7 @@ export interface ChequeBookRecord {
   bank_account_id: number | null
   bank_account_code: string
   bank_account_name: string
+  bank_account_name_lang2: string
   currency_id: number | null
   currency_name?: string
   currency_code?: string
@@ -240,6 +241,7 @@ export default function UnifiedChequesBooks({
     onFormChange("bank_account_id", account.id)
     onFormChange("bank_account_code", account.code)
     onFormChange("bank_account_name", account.name)
+    onFormChange("bank_account_name_lang2", account.name_lang2 || "")
     onFormChange("currency_id", account.currency_id)
   }
 
@@ -248,6 +250,7 @@ export default function UnifiedChequesBooks({
     if (!code) {
       onFormChange("bank_account_id", null)
       onFormChange("bank_account_name", "")
+      onFormChange("bank_account_name_lang2", "")
       onFormChange("currency_id", null)
       return
     }
@@ -462,7 +465,7 @@ export default function UnifiedChequesBooks({
             <Messages innerRef={messagesRef} />
 
             <div className="grid gap-3 border-b pb-6">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-3 items-start">
                 <div className="grid gap-1.5">
                   <Label htmlFor="cb-code">رقم الدفتر *</Label>
                   <Input
@@ -481,39 +484,44 @@ export default function UnifiedChequesBooks({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div className="grid gap-1.5">
-                  <Label>رقم الحساب البنكي *</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      value={form.bank_account_code}
-                      onChange={(e) => onFormChange("bank_account_code", e.target.value)}
-                      onBlur={handleBankCodeBlur}
-                      onKeyDown={(e) => {
-                        if (e.key === "F10") {
-                          e.preventDefault()
-                          setBankSearchOpen(true)
-                        }
-                      }}
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      className="shrink-0"
-                      onClick={() => setBankSearchOpen(true)}
-                    >
-                      <Search className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-                <div className="grid gap-1.5">
-                  <Label>اسم الحساب البنكي</Label>
-                  <Input value={form.bank_account_name} readOnly disabled />
+              <div className="grid gap-1.5">
+                <Label>رقم الحساب البنكي *</Label>
+                <div className="flex gap-2">
+                  <Input
+                    value={form.bank_account_code}
+                    onChange={(e) => onFormChange("bank_account_code", e.target.value)}
+                    onBlur={handleBankCodeBlur}
+                    onKeyDown={(e) => {
+                      if (e.key === "F10") {
+                        e.preventDefault()
+                        setBankSearchOpen(true)
+                      }
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className="shrink-0"
+                    onClick={() => setBankSearchOpen(true)}
+                  >
+                    <Search className="h-4 w-4" />
+                  </Button>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-3 items-start">
+                <div className="grid gap-1.5">
+                  <Label>اسم الحساب البنكي (عربي)</Label>
+                  <Input value={form.bank_account_name} readOnly disabled />
+                </div>
+                <div className="grid gap-1.5">
+                  <Label>اسم الحساب البنكي (English)</Label>
+                  <Input value={form.bank_account_name_lang2} readOnly disabled />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 items-start">
                 <div className="grid gap-1.5">
                   <Label htmlFor="cb-date">تاريخ الاصدار</Label>
                   <Input

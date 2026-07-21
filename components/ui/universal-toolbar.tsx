@@ -12,6 +12,7 @@ import {
   Trash2,
   FileText,
   Download,
+  Printer,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -128,117 +129,166 @@ export function UniversalToolbar({
 
   return (
     <div
-      className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-slate-950/95 p-2.5 shadow-[0_25px_55px_-28px_rgba(2,8,23,0.85)]"
+      className="flex flex-col sm:flex-row sm:items-center justify-end gap-2 sm:gap-3 p-3 bg-white border-b shadow-sm rounded-lg"
       dir="rtl"
     >
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(14,165,233,0.18),_transparent_42%),radial-gradient(circle_at_bottom_left,_rgba(16,185,129,0.18),_transparent_40%)]" />
-      <div className="relative flex flex-wrap items-center justify-start gap-2">
+      {/* All toolbar items aligned to right */}
+      <div className="flex flex-wrap gap-2 items-center justify-start w-full">
+        {/* New & Save Buttons */}
         {onNew && (
           <Button
-            className="group inline-flex items-center gap-2 rounded-xl border border-emerald-400/30 bg-gradient-to-r from-emerald-500 to-teal-500 px-3.5 py-2.5 text-sm font-semibold text-white shadow-[0_12px_24px_-12px_rgba(16,185,129,0.95)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_16px_30px_-12px_rgba(16,185,129,0.9)]"
+            className="flex items-center gap-1 px-4 py-2 rounded-lg bg-green-500 hover:bg-green-600 text-white text-sm"
             onClick={onNew}
           >
-            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/20">
-              <Plus className="h-4 w-4" />
-            </span>
-            <span>{labels.new}</span>
+            <Plus className="h-4 w-4" />
+            {labels.new}
           </Button>
         )}
 
         {onSave && (
           <Button
-            className="group inline-flex items-center gap-2 rounded-xl border border-emerald-400/30 bg-gradient-to-r from-emerald-500 to-teal-500 px-3.5 py-2.5 text-sm font-semibold text-white shadow-[0_12px_24px_-12px_rgba(16,185,129,0.95)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_16px_30px_-12px_rgba(16,185,129,0.9)] disabled:opacity-70"
+            className="flex items-center gap-1 px-4 py-2 rounded-lg bg-green-500 hover:bg-green-600 text-white text-sm"
             onClick={onSave}
-            disabled={isSaving}
+            disabled={isSaving || !canSave}
           >
-            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/20">
-              <Save className="h-4 w-4" />
-            </span>
-            <span>{isSaving ? "جاري الحفظ" : labels.save}</span>
+            <Save className="h-4 w-4" />
+            {isSaving ? "جاري الحفظ" : labels.save}
           </Button>
         )}
 
+        {/* Delete */}
         {onDelete && (
           <Button
             variant="destructive"
             size="sm"
             onClick={onDelete}
             disabled={isLoading || !canDelete}
-            className="group inline-flex items-center gap-2 rounded-xl border border-rose-400/30 bg-gradient-to-r from-rose-500 to-red-500 px-3.5 py-2.5 text-sm font-semibold text-white shadow-[0_12px_24px_-12px_rgba(244,63,94,0.95)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_16px_30px_-12px_rgba(244,63,94,0.9)]"
+            className="flex items-center gap-1 px-4 py-2 rounded-lg hover:bg-red-600 hover:text-white transition text-sm"
           >
-            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/20">
-              <Trash2 className="h-4 w-4" />
-            </span>
-            <span>{labels.delete}</span>
+            <Trash2 className="h-4 w-4" />
+            {labels.delete}
           </Button>
         )}
 
+        {/* Report Menu 
+        
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={isLoading}
+              className="flex items-center gap-1 px-3 py-2 rounded-lg hover:bg-gray-100 transition text-sm"
+            >
+              <FileText className="h-4 w-4" />
+              {labels.report}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            {onReport && (
+              <DropdownMenuItem
+                onClick={onReport}
+                className="text-sm flex items-center gap-2"
+              >
+                <FileText className="h-4 w-4" />
+                عرض التقرير
+              </DropdownMenuItem>
+            )}
+            {onExportExcel && (
+              <DropdownMenuItem
+                onClick={onExportExcel}
+                className="text-sm flex items-center gap-2"
+              >
+                <Download className="h-4 w-4" />
+                {labels.exportExcel}
+              </DropdownMenuItem>
+            )}
+            {onPrint && (
+              <DropdownMenuItem
+                onClick={onPrint}
+                className="text-sm flex items-center gap-2"
+              >
+                <Printer className="h-4 w-4" />
+                {labels.print}
+              </DropdownMenuItem>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+*/}
+
+        {onPrint && (
+          <Button
+            onClick={onPrint}
+            disabled={isLoading || isSaving || !canPrint}
+            className="text-sm flex items-center gap-2"
+          >
+            <Printer className="h-4 w-4" />
+            {labels.print}
+          </Button>
+        )}
+        
         {onClone && (
           <Button
             onClick={onClone}
-            disabled={isLoading || !canClone}
-            className="group inline-flex items-center gap-2 rounded-xl border border-sky-400/30 bg-gradient-to-r from-sky-500 to-blue-500 px-3.5 py-2.5 text-sm font-semibold text-white shadow-[0_12px_24px_-12px_rgba(14,165,233,0.95)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_16px_30px_-12px_rgba(14,165,233,0.9)] disabled:opacity-70"
+            disabled={isLoading || !canClone }
+            className="flex items-center gap-1 px-3 py-2 rounded-lg hover:bg-gray-100 transition text-sm"
           >
-            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/20">
-              <Copy className="h-4 w-4" />
-            </span>
+
+            <Copy className="h-4 w-4" />
             <span>{labels.clone}</span>
           </Button>
         )}
-
+        {onReport && (
+          <Button
+            onClick={onReport}
+            className="text-sm flex items-center gap-2"
+          >
+            <Printer className="h-4 w-4" />
+            {labels.report}
+          </Button>
+        )}
+        {/* Navigation */}
         {onFirst && (
           <Button
             onClick={handleFirst}
-            className="group inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/10 px-3.5 py-2.5 text-sm font-medium text-slate-100 backdrop-blur transition-all duration-200 hover:-translate-y-0.5 hover:bg-white/20"
+            className="flex items-center gap-1 px-3 py-2 rounded-lg hover:bg-gray-100 transition text-sm"
           >
-            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/10">
-              <ChevronsRight className="h-4 w-4" />
-            </span>
             <span>{labels.first}</span>
+            <ChevronsRight className="h-4 w-4" />
           </Button>
         )}
         {onPrevious && (
           <Button
             onClick={handlePrevious}
-            className="group inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/10 px-3.5 py-2.5 text-sm font-medium text-slate-100 backdrop-blur transition-all duration-200 hover:-translate-y-0.5 hover:bg-white/20"
+            className="flex items-center gap-1 px-3 py-2 rounded-lg hover:bg-gray-100 transition text-sm"
           >
-            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/10">
-              <ChevronRight className="h-4 w-4" />
-            </span>
             <span>{labels.previous}</span>
+            <ChevronRight className="h-4 w-4" />
           </Button>
         )}
         {onNext && (
           <Button
             onClick={handleNext}
-            className="group inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/10 px-3.5 py-2.5 text-sm font-medium text-slate-100 backdrop-blur transition-all duration-200 hover:-translate-y-0.5 hover:bg-white/20"
+            className="flex items-center gap-1 px-3 py-2 rounded-lg hover:bg-gray-100 transition text-sm"
           >
-            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/10">
-              <ChevronLeft className="h-4 w-4" />
-            </span>
+            <ChevronLeft className="h-4 w-4" />
             <span>{labels.next}</span>
           </Button>
         )}
         {onLast && (
-          <div className="flex items-center gap-2">
-            <Button
-              onClick={handleLast}
-              className="group inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/10 px-3.5 py-2.5 text-sm font-medium text-slate-100 backdrop-blur transition-all duration-200 hover:-translate-y-0.5 hover:bg-white/20"
-            >
-              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/10">
-                <ChevronsLeft className="h-4 w-4" />
-              </span>
-              <span>{labels.last}</span>
-            </Button>
-
-            <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/10 px-3 py-2 text-sm font-semibold text-slate-100 backdrop-blur">
-              <span className="h-2.5 w-2.5 rounded-full bg-emerald-400 shadow-[0_0_12px_rgba(74,222,128,0.8)]" />
-              <span className="tracking-wide">
-                {hasRecords ? `${currentRecord} من ${totalRecords}` : "لا توجد سجلات"}
-              </span>
-            </div>
-          </div>
+          <Button
+            onClick={handleLast}
+            className="flex items-center gap-1 px-3 py-2 rounded-lg hover:bg-gray-100 transition text-sm"
+          >
+            <ChevronsLeft className="h-4 w-4" />
+            <span>{labels.last}</span>
+          </Button>
         )}
+
+        {/* Record Counter */}
+        <div className="text-sm font-medium text-gray-600 text-right">
+          {hasRecords ? `${currentRecord} من ${totalRecords}` : "لا توجد سجلات"}
+        </div>
       </div>
     </div>
   );
