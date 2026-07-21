@@ -85,6 +85,18 @@ export default class DataGridView extends React.Component {
     this.setState({ hasError: true, errorInfo: { error: String(error), info } });
   }
 
+  componentDidUpdate(prevProps) {
+    // buttonsColumns wires each button column's onClick into a Wijmo CellMaker template built
+    // from the scheme object at the time it was created. Callers commonly rebuild `scheme` in a
+    // useMemo keyed on live state (e.g. row data), so the onClick closures captured here can go
+    // stale — clicking the button silently runs against whatever state existed when this
+    // component first mounted. Rebuilding buttonsColumns whenever the scheme prop actually
+    // changes keeps every button column's click handler current.
+    if (prevProps.scheme !== this.props.scheme) {
+      this.setState({ buttonsColumns: this.createButtonsColumns(this.props.scheme) });
+    }
+  }
+
   componentDidMount = () => {
     //GridGlobalization();
     
@@ -240,7 +252,7 @@ createButtonsColumns = () => {
         : [];
     const height = this.props.containerStyle || {};
     return (
-      <div style={height}>
+      <div style={height} dir="rtl">
         {this.state.hasError && (
           <div className="p-4 bg-red-50 border border-red-200 rounded text-sm text-red-700">
             <strong>خطأ في تحميل الجدول</strong>

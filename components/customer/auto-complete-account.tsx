@@ -318,6 +318,9 @@ export default function AutoCompleteAccount({
             if (event.key === "Enter") {
               event.preventDefault()
               void handleBlur()
+            } else if (event.key === "F10" && showSearchButton && !disabled) {
+              event.preventDefault()
+              void handleOpenSearch()
             }
           }}
           maxLength={8}

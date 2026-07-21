@@ -42,6 +42,23 @@
   background: #f9f9f9;
 }
 
+/* Cell editor: يظهر Wijmo افتراضياً مربع إدخال بحدود/ظل داخل الخلية أثناء التحرير — إزالته
+   يجعل التحرير يبدو متصلاً بالخلية نفسها بدل صندوق منفصل بداخلها. */
+.wj-flexgrid .wj-cell input,
+.wj-flexgrid .wj-cell .wj-form-control,
+.wj-flexgrid .wj-cell.wj-state-editing {
+  border: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  outline: none !important;
+}
+
+.wj-flexgrid .wj-cell input,
+.wj-flexgrid .wj-cell .wj-form-control {
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
 /* Hover effect on body rows */
 .wj-flexgrid .wj-row:hover .wj-cell:not(.wj-header) {
   background: #f1f9f5;

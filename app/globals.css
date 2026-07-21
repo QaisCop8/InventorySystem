@@ -1328,3 +1328,41 @@
   ring: 0 !important;
 }
 }
+
+/* سند قبض/سند صرف: حدود واضحة للحقول (متغير --input القياسي فاتح جداً على الخلفية فيصبح غير مرئي) */
+.voucher-form input:not([type="checkbox"]):not([type="radio"]),
+.voucher-form select,
+.voucher-form textarea {
+  border: 1px solid #cbd5e1 !important;
+}
+
+.voucher-form input:not([type="checkbox"]):not([type="radio"]):focus,
+.voucher-form select:focus,
+.voucher-form textarea:focus {
+  border-color: #3b82f6 !important;
+}
+
+/* جداول HTML الثابتة (بدون كلاسات dark:) المنتشرة في شاشات القوائم — بدون هذا التعريف يبقى نص
+   الخلايا بلون الوضع الفاتح فوق خلفية داكنة موروثة من --card فيصبح غير مرئي تقريباً. */
+.dark table {
+  color: var(--foreground);
+}
+
+.dark table th,
+.dark table td {
+  border-color: var(--border) !important;
+  color: inherit;
+}
+
+.dark table thead tr,
+.dark table tr.bg-gray-50,
+.dark table .bg-gray-50,
+.dark table .bg-gray-100 {
+  background-color: var(--muted) !important;
+  color: var(--foreground) !important;
+}
+
+.dark table tbody tr:hover,
+.dark table .hover\:bg-gray-50:hover {
+  background-color: var(--muted) !important;
+}

@@ -22,6 +22,7 @@ import DataGridView from "@/components/common/DataGridView"
 import { CellRange, KeyAction } from "@grapecity/wijmo.grid"
 import Util from "@/components/common/Util"
 import { Dropdown as PrimeDropdown } from "primereact/dropdown"
+import { useAuth } from "@/components/auth/auth-context"
 
 export interface VoucherJournalRow {
   account_id: number | null
@@ -56,6 +57,7 @@ export interface VoucherCardRow {
   account_name: string
   amount: number | null
   bank_amount: number | null
+  currency_id: number | null
 }
 
 export interface VoucherNoteRow {
@@ -104,6 +106,13 @@ interface LookupOption {
   name: string
 }
 
+interface CardTypeOption {
+  id: number
+  name: string
+  currency_id: number | null
+  financial_account_id: number | null
+}
+
 interface BankOption {
   id: number
   bank_code?: string
@@ -128,7 +137,7 @@ interface UnifiedReceiptVoucherProps {
   branches?: BranchOption[]
   salesmen?: LookupOption[]
   paymentClassifications?: LookupOption[]
-  cardTypes?: LookupOption[]
+  cardTypes?: CardTypeOption[]
   form: VoucherRecord
   isSaving: boolean
   showDeleteConfirm?: boolean
@@ -138,6 +147,9 @@ interface UnifiedReceiptVoucherProps {
   onDelete?: () => void
   onNavigateRecord?: (record: VoucherRecord) => void
   onFormChange: (field: string, value: string | number | null) => void
+  onBookChange?: (bookId: number | null) => void
+  onCodeResolved?: (id: number) => void
+  onCodeNotFound?: (code: string) => void
   onJournalChange: (journal: VoucherJournalRow[]) => void
   onChequesChange: (cheques: VoucherChequeRow[]) => void
   onCardsChange: (cards: VoucherCardRow[]) => void
@@ -196,10 +208,10 @@ const emptyCardRow: VoucherCardRow = {
   account_name: "",
   amount: null,
   bank_amount: null,
+  currency_id: null,
 }
 
 const CHEQUE_FIELD_ORDER = ["bank_account", "cheq_num", "bank_no", "branch_no", "due_date", "amount", "cheq_owner_name"]
-const CARD_FIELD_ORDER = ["card_type_name", "card_no", "account_code", "expire_date", "amount", "bank_amount"]
 
 // مطابق لـ validateCheck في QabdVoucher.js: لا يسمح بإضافة سطر جديد إلا إذا كان السطر الحالي مكتملاً.
 const validateChequeRow = (row: VoucherChequeRow | undefined): string | null => {
@@ -251,6 +263,9 @@ export default function UnifiedReceiptVoucher({
   onDelete,
   onNavigateRecord,
   onFormChange,
+  onBookChange,
+  onCodeResolved,
+  onCodeNotFound,
   onJournalChange,
   onChequesChange,
   onCardsChange,
@@ -263,8 +278,10 @@ export default function UnifiedReceiptVoucher({
   isNewMode,
   errorMessages = [],
 }: UnifiedReceiptVoucherProps) {
-  const codeInputRef = useRef<HTMLInputElement | null>(null)
+  const { user } = useAuth()
+  const dateInputRef = useRef<HTMLInputElement | null>(null)
   const messagesRef = useRef<any>(null)
+  const [activeTab, setActiveTab] = useState("main")
   const [navLoading, setNavLoading] = useState(false)
   const [accountsList, setAccountsList] = useState<AccountItem[]>([])
   const [journalSearchOpen, setJournalSearchOpen] = useState(false)
@@ -277,13 +294,8 @@ export default function UnifiedReceiptVoucher({
   const [dueDatePickerOpen, setDueDatePickerOpen] = useState(false)
   const [dueDateRow, setDueDateRow] = useState<number | null>(null)
   const chequeGridRef = useRef<any>(null)
-  const [cardSearchOpen, setCardSearchOpen] = useState(false)
-  const [cardSearchRow, setCardSearchRow] = useState<number | null>(null)
-  const [cardExpireDatePickerOpen, setCardExpireDatePickerOpen] = useState(false)
-  const [cardExpireDateRow, setCardExpireDateRow] = useState<number | null>(null)
-  const cardGridRef = useRef<any>(null)
 
-  const isReceipt = form.vch_type === 1
+  const isReceipt = form.vch_type === 8 // per voucher_types_tbl: 8 = سند قبض, 9 = سند صرف
   const customerLabel = isReceipt ? "المقبوض منه" : "المدفوع له"
   const customerNameLabel = isReceipt ? "اسم المقبوض منه" : "اسم المدفوع له"
 
@@ -311,6 +323,7 @@ export default function UnifiedReceiptVoucher({
 
   useEffect(() => {
     initialSnapshotRef.current = JSON.stringify(form)
+    setActiveTab("main")
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dialogOpen, form.id, isNewMode])
 
@@ -321,6 +334,35 @@ export default function UnifiedReceiptVoucher({
       setShowUnsavedConfirm(true)
     } else {
       action()
+    }
+  }
+
+  // كتابة يدوية في رقم السند (مثال R1 أو 1 فقط) تُعاد صياغتها دائماً كـ {بادئة}{رمز الدفتر}
+  // {تسلسل مبطّن} عبر /resolve-code، ثم يُعرض السند إن كان موجوداً بهذا الرقم (بعد التأكد من عدم
+  // وجود تعديلات غير محفوظة في السند الحالي)، أو تُصفَّر كل الحقول والشبكات لسند جديد بهذا الرقم.
+  const handleCodeBlur = async () => {
+    const raw = form.vch_code.trim()
+    if (!raw) return
+    try {
+      const query = new URLSearchParams({ vch_type: String(form.vch_type), raw })
+      if (form.vch_book_id) query.set("vch_book_id", String(form.vch_book_id))
+      const response = await fetch(`/api/receipts/resolve-code?${query.toString()}`)
+      const data = await response.json()
+      if (!response.ok) {
+        messagesRef.current?.show?.([{ severity: "error", summary: "", detail: data.error || "تعذر تحديد رقم السند", life: 3000 }])
+        return
+      }
+      if (data.code && data.code !== form.vch_code) {
+        onFormChange("vch_code", data.code)
+      }
+      if (data.exists && data.id) {
+        if (data.id === form.id) return
+        guardedAction(() => onCodeResolved?.(data.id))
+      } else if (!data.exists && data.code) {
+        guardedAction(() => onCodeNotFound?.(data.code))
+      }
+    } catch (error) {
+      console.error("Failed to resolve voucher code", error)
     }
   }
 
@@ -336,13 +378,17 @@ export default function UnifiedReceiptVoucher({
       }
       if (event.key === "F4") {
         event.preventDefault()
-        if (form.id > 0) onDelete?.()
+        if (form.id > 0) {
+          onDelete?.()
+        } else {
+          guardedAction(() => onOpenChange(false))
+        }
       }
     }
 
     window.addEventListener("keydown", handleKeyDown)
     return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [dialogOpen, form.id, onSave, onDelete, showDeleteConfirm, showUnsavedConfirm])
+  }, [dialogOpen, form.id, onSave, onDelete, onOpenChange, guardedAction, showDeleteConfirm, showUnsavedConfirm])
 
   const currencyOptions = useMemo(
     () =>
@@ -350,6 +396,17 @@ export default function UnifiedReceiptVoucher({
         label: c.currency_name || c.currency_code || "غير محدد",
         value: Number(c.currency_id ?? c.id),
       })),
+    [currencies],
+  )
+
+  // عملة الأساس في النظام = أصغر معرّف عملة، وسعر صرفها دائماً 1 (نفس قاعدة إنشاء العملات).
+  const baseCurrencyId = useMemo(
+    () =>
+      currencies.reduce<number | null>((min, c) => {
+        const id = Number(c.currency_id ?? c.id)
+        if (!Number.isFinite(id)) return min
+        return min === null || id < min ? id : min
+      }, null),
     [currencies],
   )
 
@@ -377,13 +434,13 @@ export default function UnifiedReceiptVoucher({
     }
   }
 
+  // Cursor lands on تاريخ السند whenever the dialog opens or a different record is shown
+  // (new record, navigated-to record, or a freshly opened popup) — matches QabdVoucher.js.
   useEffect(() => {
-    if (typeof window === "undefined") return
-    if (isNewMode && dialogOpen) {
-      const t = setTimeout(() => codeInputRef.current?.focus(), 120)
-      return () => clearTimeout(t)
-    }
-  }, [isNewMode, dialogOpen])
+    if (typeof window === "undefined" || !dialogOpen) return
+    const t = setTimeout(() => dateInputRef.current?.focus(), 120)
+    return () => clearTimeout(t)
+  }, [dialogOpen, form.id])
 
   const totalAmount = Number(form.amount || 0)
 
@@ -392,13 +449,28 @@ export default function UnifiedReceiptVoucher({
   const journalTotal = journal.reduce((sum, row) => sum + Number(row.amount || 0), 0)
   const journalDiff = Math.round((totalAmount - journalTotal) * 100) / 100
 
+  // Wijmo commits a cell edit and our onKeyDown-driven navigation can both fire in the same
+  // tick, before React re-renders — patching off the `journal` prop directly would let a
+  // second rapid edit compute from the same pre-first-edit array and silently drop it. This
+  // ref is updated synchronously on every patch so back-to-back edits always compose.
+  const journalRef = useRef(journal)
+  journalRef.current = journal
+
   const patchJournalRow = (index: number, patch: Partial<VoucherJournalRow>) => {
-    onJournalChange(journal.map((row, i) => (i === index ? { ...row, ...patch } : row)))
+    const next = journalRef.current.map((row, i) => (i === index ? { ...row, ...patch } : row))
+    journalRef.current = next
+    onJournalChange(next)
   }
-  const addJournalRow = () => onJournalChange([...journal, { ...emptyJournalRow }])
+  const addJournalRow = () => {
+    const next = [...journalRef.current, { ...emptyJournalRow }]
+    journalRef.current = next
+    onJournalChange(next)
+  }
   const removeJournalRow = (index: number) => {
-    const next = journal.filter((_, i) => i !== index)
-    onJournalChange(next.length > 0 ? next : [{ ...emptyJournalRow }])
+    const filtered = journalRef.current.filter((_, i) => i !== index)
+    const next = filtered.length > 0 ? filtered : [{ ...emptyJournalRow }]
+    journalRef.current = next
+    onJournalChange(next)
   }
 
   const resolveJournalAccountByCode = (index: number, rawCode: string) => {
@@ -421,8 +493,9 @@ export default function UnifiedReceiptVoucher({
   // "المقبوض منه"/"على حساب" وأول سطر في تبويب الحسابات مرتبطة ببعضها، تماماً كما في QabdVoucher.js
   // (customer_account -> to_account -> dataAccounts[0])
   const setJournalFirstRowAccount = (account: { id: number; code: string; name: string }) => {
-    const next = journal.length > 0 ? [...journal] : [{ ...emptyJournalRow }]
+    const next = journalRef.current.length > 0 ? [...journalRef.current] : [{ ...emptyJournalRow }]
     next[0] = { ...next[0], account_id: account.id, account_code: account.code, account_name: account.name }
+    journalRef.current = next
     onJournalChange(next)
   }
 
@@ -535,6 +608,10 @@ export default function UnifiedReceiptVoucher({
 
     if (e.keyCode === Util.keyboardKeys.Tab || e.keyCode === Util.keyboardKeys.Enter) {
       e.preventDefault()
+      // Force the in-progress cell edit to commit (fires cellEditEnded synchronously) before we
+      // read row data or move the selection — otherwise a fast Tab/Enter can move focus away
+      // before the typed value round-trips into state, and it appears to "clear" on navigation.
+      grid.finishEditing?.()
       grid.focus()
       if (colName === "account_code") {
         const currentRow = journal[row]
@@ -556,13 +633,25 @@ export default function UnifiedReceiptVoucher({
   const cheques = form.cheques || []
   const chequesTotal = cheques.reduce((sum, row) => sum + Number(row.amount || 0), 0)
 
+  // See journalRef above: keeps back-to-back cell commits from clobbering each other.
+  const chequesRef = useRef(cheques)
+  chequesRef.current = cheques
+
   const patchChequeRow = (index: number, patch: Partial<VoucherChequeRow>) => {
-    onChequesChange(cheques.map((row, i) => (i === index ? { ...row, ...patch } : row)))
+    const next = chequesRef.current.map((row, i) => (i === index ? { ...row, ...patch } : row))
+    chequesRef.current = next
+    onChequesChange(next)
   }
-  const addChequeRow = () => onChequesChange([...cheques, { ...emptyChequeRow }])
+  const addChequeRow = () => {
+    const next = [...chequesRef.current, { ...emptyChequeRow }]
+    chequesRef.current = next
+    onChequesChange(next)
+  }
   const removeChequeRow = (index: number) => {
-    const next = cheques.filter((_, i) => i !== index)
-    onChequesChange(next.length > 0 ? next : [{ ...emptyChequeRow }])
+    const filtered = chequesRef.current.filter((_, i) => i !== index)
+    const next = filtered.length > 0 ? filtered : [{ ...emptyChequeRow }]
+    chequesRef.current = next
+    onChequesChange(next)
   }
 
   const chequeScheme = useMemo(
@@ -575,7 +664,7 @@ export default function UnifiedReceiptVoucher({
         { header: "#", name: "ser", width: 50, isReadOnly: true },
         { header: "رقم الحساب", name: "bank_account", width: 120 },
         { header: "رقم الشيك", name: "cheq_num", width: 120 },
-        { header: "البنك", name: "bank_no", width: 90 },
+        { header: "البنك", name: "bank_no", width: 90, maxLength: 4 },
         {
           name: "btnSearchBank",
           header: " ",
@@ -591,7 +680,7 @@ export default function UnifiedReceiptVoucher({
           visible: true,
         },
         { header: "اسم البنك", name: "bank_name", width: 150, isReadOnly: true },
-        { header: "الفرع", name: "branch_no", width: 90 },
+        { header: "الفرع", name: "branch_no", width: 90, maxLength: 4 },
         {
           name: "btnSearchBranch",
           header: " ",
@@ -623,7 +712,7 @@ export default function UnifiedReceiptVoucher({
           visible: true,
         },
         { header: "المبلغ", name: "amount", width: 100, dataType: "Number" },
-        { header: "اسم صاحب الشيك", name: "cheq_owner_name", width: 150 },
+        { header: "اسم صاحب الشيك", name: "cheq_owner_name", width: "*", minWidth: 150 },
         {
           name: "btnDelete",
           header: " ",
@@ -666,19 +755,34 @@ export default function UnifiedReceiptVoucher({
     }
 
     if (colName === "bank_no") {
-      const code = String(value ?? "").trim()
+      const raw = String(value ?? "").trim()
+      if (!raw) {
+        patchChequeRow(row, { bank_no: "", bank_id: null, bank_name: "", branch_id: null, branch_no: "", branch_name: "" } as any)
+        return
+      }
+      // رقم البنك 4 خانات دائماً (1 -> 0001)، بنفس الأسلوب الذي ينتج عن اختياره من نافذة البحث.
+      const code = /^\d+$/.test(raw) ? raw.padStart(4, "0") : raw
       const bank = banks.find((b) => String(b.bank_code || "").trim() === code)
-      patchChequeRow(row, { bank_no: code, bank_id: bank?.id ?? null, bank_name: bank?.bank_name || "", branch_id: null, branch_no: "", branch_name: "" } as any)
-      if (code && !bank) {
+      if (bank) {
+        patchChequeRow(row, { bank_no: code, bank_id: bank.id, bank_name: bank.bank_name || "", branch_id: null, branch_no: "", branch_name: "" } as any)
+      } else {
+        patchChequeRow(row, { bank_no: "", bank_id: null, bank_name: "", branch_id: null, branch_no: "", branch_name: "" } as any)
         setChequeSearchRow(row)
         setBankSearchOpen(true)
       }
     } else if (colName === "branch_no") {
-      const code = String(value ?? "").trim()
+      const raw = String(value ?? "").trim()
+      if (!raw) {
+        patchChequeRow(row, { branch_no: "", branch_id: null, branch_name: "" } as any)
+        return
+      }
+      const code = /^\d+$/.test(raw) ? raw.padStart(4, "0") : raw
       const currentRow = cheques[row]
       const branch = branches.find((b) => String(b.branch_code || "").trim() === code && (!currentRow?.bank_id || b.bank_id === (currentRow as any).bank_id))
-      patchChequeRow(row, { branch_no: code, branch_id: branch?.id ?? null, branch_name: branch?.branch_name || "" } as any)
-      if (code && !branch) {
+      if (branch) {
+        patchChequeRow(row, { branch_no: code, branch_id: branch.id, branch_name: branch.branch_name || "" } as any)
+      } else {
+        patchChequeRow(row, { branch_no: "", branch_id: null, branch_name: "" } as any)
         setChequeSearchRow(row)
         setBranchSearchOpen(true)
       }
@@ -706,7 +810,19 @@ export default function UnifiedReceiptVoucher({
       }
     }
 
-    if (["bank_account", "cheq_num", "bank_no", "branch_no"].includes(colName)) {
+    // لا يمكن تحديد الفرع قبل تحديد البنك — أي مفتاح (كتابة، F10، Tab/Enter...) يُمنع ويُنبَّه المستخدم.
+    if (colName === "branch_no" && !cheques[row]?.bank_id) {
+      e.preventDefault()
+      messagesRef.current?.show?.([{ severity: "error", summary: "", detail: "يجب تحديد البنك اولا", life: 3000 }])
+      return
+    }
+
+    if (colName === "bank_no" || colName === "branch_no") {
+      if (e.key && e.key.length === 1 && !/[0-9]/.test(e.key)) {
+        e.preventDefault()
+        return
+      }
+    } else if (colName === "bank_account" || colName === "cheq_num") {
       if (e.key && e.key.length === 1 && Util.isArabic(e.key)) {
         e.preventDefault()
         return
@@ -736,6 +852,10 @@ export default function UnifiedReceiptVoucher({
 
     if (e.keyCode === Util.keyboardKeys.Tab || e.keyCode === Util.keyboardKeys.Enter) {
       e.preventDefault()
+      // Force the in-progress cell edit to commit (fires cellEditEnded synchronously) before we
+      // read row data or move the selection — otherwise a fast Tab/Enter can move focus away
+      // before the typed value round-trips into state, and it appears to "clear" on navigation.
+      grid.finishEditing?.()
       grid.focus()
       const currentRow = cheques[row]
 
@@ -791,200 +911,75 @@ export default function UnifiedReceiptVoucher({
     }
   }
 
-  // ---- تفاصيل البطاقة ----
-  const cards = form.cards || []
-  const cardsTotal = cards.reduce((sum, row) => sum + Number(row.amount || 0), 0)
+  // ---- تفاصيل البطاقة (بطاقة واحدة فقط لكل سند، بمبلغها = بطاقات في الرئيسية) ----
+  const card = form.cards?.[0] || emptyCardRow
 
-  const patchCardRow = (index: number, patch: Partial<VoucherCardRow>) => {
-    onCardsChange(cards.map((row, i) => (i === index ? { ...row, ...patch } : row)))
-  }
-  const addCardRow = () => onCardsChange([...cards, { ...emptyCardRow }])
-  const removeCardRow = (index: number) => {
-    const next = cards.filter((_, i) => i !== index)
-    onCardsChange(next.length > 0 ? next : [{ ...emptyCardRow }])
+  const patchCard = (patch: Partial<VoucherCardRow>) => {
+    onCardsChange([{ ...card, ...patch }])
   }
 
-  const resolveCardType = (index: number, rawName: string) => {
-    const name = rawName.trim()
-    if (!name) {
-      patchCardRow(index, { card_type_id: null, card_type_name: "" })
-      return
-    }
-    const match = cardTypes.find((t) => t.name.trim() === name)
-    if (match) {
-      patchCardRow(index, { card_type_id: match.id, card_type_name: match.name })
-    } else {
-      patchCardRow(index, { card_type_id: null, card_type_name: name })
-      messagesRef.current?.show?.([{ severity: "error", summary: "", detail: `لا يوجد نوع بطاقة بهذا الاسم: ${name}`, life: 3000 }])
-    }
-  }
-
-  const resolveCardAccountByCode = (index: number, rawCode: string) => {
-    const code = rawCode.trim().toUpperCase()
-    if (!code) {
-      patchCardRow(index, { account_id: null, account_code: "", account_name: "" })
-      return
-    }
-    const match = accountsList.find((a) => a.code.toUpperCase() === code)
-    if (match) {
-      patchCardRow(index, { account_id: match.id, account_code: match.code, account_name: match.name })
-    } else {
-      patchCardRow(index, { account_id: null, account_code: code, account_name: "" })
-      messagesRef.current?.show?.([{ severity: "error", summary: "", detail: `لا يوجد حساب بهذا الرقم: ${code}`, life: 3000 }])
-    }
-  }
-
-  const cardScheme = useMemo(
-    () => ({
-      name: "VoucherCardScheme",
-      filter: false,
-      showFooter: false,
-      sortable: false,
-      columns: [
-        { header: "#", name: "ser", width: 50, isReadOnly: true },
-        { header: "نوع البطاقة", name: "card_type_name", width: 130 },
-        { header: "رقم البطاقة", name: "card_no", width: 150 },
-        { header: "رقم الحساب", name: "account_code", width: 120 },
-        {
-          name: "btnSearchAccount",
-          header: " ",
-          width: 45,
-          buttonBody: "button",
-          align: "center",
-          iconType: "search",
-          isReadOnly: true,
-          onClick: (e: any, ctx: any) => {
-            setCardSearchRow(ctx.row.index)
-            setCardSearchOpen(true)
-          },
-          visible: true,
-        },
-        { header: "اسم الحساب", name: "account_name", width: 160, isReadOnly: true },
-        { header: "تاريخ الانتهاء", name: "expire_date", width: 110, dataType: "Date", format: "MM/dd/yyyy", isReadOnly: true },
-        {
-          name: "btnExpireDate",
-          header: " ",
-          width: 45,
-          buttonBody: "button",
-          align: "center",
-          iconType: "calendar",
-          isReadOnly: true,
-          onClick: (e: any, ctx: any) => {
-            setCardExpireDateRow(ctx.row.index)
-            setCardExpireDatePickerOpen(true)
-          },
-          visible: true,
-        },
-        { header: "المبلغ", name: "amount", width: 100, dataType: "Number" },
-        { header: "عمولة البنك", name: "bank_amount", width: 100, dataType: "Number" },
-        {
-          name: "btnDelete",
-          header: " ",
-          width: 50,
-          buttonBody: "button",
-          align: "center",
-          iconType: "delete",
-          isReadOnly: true,
-          onClick: (e: any, ctx: any) => removeCardRow(ctx.row.index),
-          visible: true,
-        },
-      ],
-    }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [cards, cardTypes, accountsList],
+  // نوع البطاقة يُحمّل فقط من الأنواع التي تطابق عملة السند (form.currency_id)، وليس عملة
+  // البطاقة نفسها — عملة البطاقة تابعة (disabled) لنوع البطاقة المختار، وليست مصدر التصفية.
+  const cardTypeOptions = useMemo(
+    () => cardTypes.filter((t) => form.currency_id == null || Number(t.currency_id) === Number(form.currency_id)),
+    [cardTypes, form.currency_id],
   )
 
-  const cardGridData = useMemo(
-    () =>
-      cards.map((row, i) => ({
-        ...row,
-        ser: i + 1,
-        expire_date: row.expire_date ? new Date(row.expire_date) : null,
-      })),
-    [cards],
-  )
-
-  const handleCardCellEditEnded = (grid: any, e: any) => {
-    cardGridRef.current = grid
-    const row = e.row
-    const colName = grid?.columns?.[e.col]?.binding
-    const value = grid.getCellData(row, e.col, false)
-
-    if (colName === "card_type_name") {
-      resolveCardType(row, String(value ?? ""))
-    } else if (colName === "account_code") {
-      resolveCardAccountByCode(row, String(value ?? ""))
-    } else if (colName === "amount" || colName === "bank_amount") {
-      patchCardRow(row, { [colName]: value === "" || value === null ? null : Number(value) } as any)
-    } else if (colName === "card_no") {
-      patchCardRow(row, { card_no: String(value ?? "") })
-    }
-  }
-
-  const handleCardKeyDown = (grid: any, e: any) => {
-    cardGridRef.current = grid
-    if (!grid || !grid.selection) return
-    const row = grid.selection.row
-    const col = grid.selection.col
-    if (row < 0 || col < 0) return
-    const colName = grid.columns[col]?.binding
-
-    if ((colName === "amount" || colName === "bank_amount") && e.key && e.key.length === 1 && !/[0-9.]/.test(e.key)) {
-      e.preventDefault()
+  const handleCardTypeChange = (value: number | null) => {
+    if (!value) {
+      patchCard({ card_type_id: null, card_type_name: "", account_id: null, account_code: "", account_name: "", currency_id: null })
       return
     }
+    const match = cardTypes.find((t) => t.id === value)
+    if (!match) return
+    patchCard({
+      card_type_id: match.id,
+      card_type_name: match.name,
+      account_id: match.financial_account_id ?? null,
+      currency_id: match.currency_id ?? null,
+    })
+  }
 
-    if (e.keyCode === Util.keyboardKeys.F10) {
-      if (colName === "account_code") {
-        e.preventDefault()
-        setCardSearchRow(row)
-        setCardSearchOpen(true)
-        return
-      }
-      if (colName === "expire_date") {
-        e.preventDefault()
-        setCardExpireDateRow(row)
-        setCardExpireDatePickerOpen(true)
-        return
+  // عند تغيير عملة السند: تفريغ نوع البطاقة إن لم يعد يطابق العملة الجديدة (القائمة تُصفّى
+  // بـ credit_cards_types_tbl.currency_id)، ضبط سعر الصرف (1 لعملة الأساس، وإلا آخر سعر بتاريخ
+  // <= تاريخ السند من exchange_rates)، وتحميل الحسابات الافتراضية للمستخدم الحالي لهذه العملة
+  // من users_currencies_default_account_tbl.
+  const handleCurrencyChange = async (newCurrencyId: number | null) => {
+    onFormChange("currency_id", newCurrencyId)
+
+    if (card.card_type_id && !cardTypes.some((t) => t.id === card.card_type_id && Number(t.currency_id) === newCurrencyId)) {
+      patchCard({ card_type_id: null, card_type_name: "", account_id: null, account_code: "", account_name: "", currency_id: null })
+    }
+
+    if (!newCurrencyId) return
+
+    if (newCurrencyId === baseCurrencyId) {
+      onFormChange("rate", 1)
+    } else {
+      try {
+        const query = new URLSearchParams({
+          currency_id: String(newCurrencyId),
+          date: form.vch_date ? form.vch_date.slice(0, 10) : "",
+        })
+        const response = await fetch(`/api/exchange-rates/lookup?${query.toString()}`)
+        const data = response.ok ? await response.json() : null
+        onFormChange("rate", data?.rate ?? 1)
+      } catch (error) {
+        console.error("Failed to fetch exchange rate", error)
+        onFormChange("rate", 1)
       }
     }
 
-    if (e.keyCode === Util.keyboardKeys.Tab || e.keyCode === Util.keyboardKeys.Enter) {
-      e.preventDefault()
-      grid.focus()
-      const currentRow = cards[row]
-
-      if (colName === "account_code") {
-        if (!currentRow?.account_id) {
-          setCardSearchRow(row)
-          setCardSearchOpen(true)
-          return
-        }
-        selectCell(grid, row, "expire_date")
-        return
-      }
-      if (colName === "expire_date") {
-        if (!currentRow?.expire_date) {
-          setCardExpireDateRow(row)
-          setCardExpireDatePickerOpen(true)
-          return
-        }
-        selectCell(grid, row, "amount")
-        return
-      }
-
-      if (colName === "bank_amount") {
-        addCardRow()
-        setTimeout(() => {
-          selectCell(grid, row + 1, "card_type_name")
-          grid.focus()
-        }, 0)
-        return
-      }
-
-      const idx = CARD_FIELD_ORDER.indexOf(colName)
-      if (idx >= 0 && idx < CARD_FIELD_ORDER.length - 1) {
-        selectCell(grid, row, CARD_FIELD_ORDER[idx + 1])
+    if (user?.id) {
+      try {
+        const response = await fetch(`/api/settings/users-currencies-default?user_id=${encodeURIComponent(user.id)}`)
+        const data = response.ok ? await response.json() : null
+        const row = Array.isArray(data?.rows) ? data.rows.find((r: any) => Number(r.currency_id) === newCurrencyId) : null
+        onFormChange("cash_account_id", row?.cash_account_id ?? null)
+        onFormChange("check_account_id", row?.incoming_checks_account_id ?? null)
+        onFormChange("credit_card_account_id", row?.card_account_id ?? null)
+      } catch (error) {
+        console.error("Failed to fetch default accounts for currency", error)
       }
     }
   }
@@ -995,7 +990,97 @@ export default function UnifiedReceiptVoucher({
   const addNoteRow = () => onNotesChange([...notes, { note: "" }])
   const removeNoteRow = (index: number) => onNotesChange(notes.filter((_, i) => i !== index))
 
-  const gridStyle = { maxHeight: "260px" }
+  // Ported from QabdVoucher.js's doCalclation: reconciles المبلغ (total) against
+  // نقدي/شيكات/بطاقات whenever one of the four is blurred, instead of just leaving them
+  // to disagree until save-time validation catches it.
+  const doCalculation = (type: "amount" | "cash" | "check" | "credit_card") => {
+    const amount = Number(form.amount || 0)
+    const amountCash = Number(form.cash_amount || 0)
+    const amountCheck = Number(form.check_amount || 0)
+    const amountCreditCard = Number(form.credit_card_amount || 0)
+
+    switch (type) {
+      case "amount": {
+        const sum = amountCash + amountCheck + amountCreditCard
+        if (amount > sum) {
+          // Total grew beyond the split — the difference defaults to نقدي.
+          const nextCash = amount - amountCheck - amountCreditCard
+          onFormChange("cash_amount", nextCash === 0 ? null : nextCash)
+        } else if (amount < sum) {
+          // Total shrank below the split — absorb the shortfall from نقدي first, then
+          // شيكات, then بطاقات (same priority order as the reference implementation).
+          let minus = amount - sum + amountCash
+          let nextCash = amount - amountCheck - amountCreditCard
+          let nextCheck = amountCheck
+          let nextCard = amountCreditCard
+          if (minus < 0 && nextCash < 0) nextCash = 0
+          if (minus < 0) {
+            const before = minus
+            minus += amountCheck
+            nextCheck = amountCheck + before
+            if (nextCheck < 0) nextCheck = 0
+          }
+          if (minus < 0) {
+            nextCard = amountCreditCard + minus
+            if (nextCard < 0) nextCard = 0
+          }
+          onFormChange("cash_amount", nextCash === 0 ? null : nextCash)
+          onFormChange("check_amount", nextCheck === 0 ? null : nextCheck)
+          onFormChange("credit_card_amount", nextCard === 0 ? null : nextCard)
+        }
+        break
+      }
+      case "cash": {
+        if (amountCash < amount) {
+          // نقدي covers only part of the total — the remainder defaults to شيكات.
+          const cheqs = Math.max(0, amount - amountCash - amountCreditCard)
+          onFormChange("check_amount", cheqs === 0 ? null : cheqs)
+        } else if (amountCash + amountCheck + amountCreditCard !== amount) {
+          onFormChange("amount", amountCash + amountCheck + amountCreditCard)
+        }
+        break
+      }
+      case "check": {
+        const sum = amountCash + amountCheck + amountCreditCard
+        if (sum !== amount) {
+          if (sum <= amount) {
+            // Still room under the total — the remainder defaults to بطاقات.
+            onFormChange("credit_card_amount", amount - amountCash - amountCheck)
+          } else {
+            // شيكات pushed the split over the total — grow the total to match.
+            onFormChange("amount", sum)
+          }
+        }
+        break
+      }
+      case "credit_card": {
+        const sum = amountCash + amountCheck + amountCreditCard
+        if (sum !== amount) onFormChange("amount", sum)
+        break
+      }
+    }
+  }
+
+  // Enter behaves like Tab across the plain form fields (not the grids or tab buttons,
+  // which handle their own Enter logic — see handleJournalKeyDown/handleChequeKeyDown,
+  // and AutoCompleteAccount's own Enter-resolves-then-bubbles handling).
+  const handleFormEnterAsTab = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== "Enter") return
+    const target = event.target as HTMLElement
+    if (target.tagName === "TEXTAREA" || target.tagName === "BUTTON") return
+    if (target.closest(".wj-flexgrid")) return
+
+    const focusable = Array.from(
+      event.currentTarget.querySelectorAll<HTMLElement>(
+        'input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      ),
+    ).filter((el) => el.offsetParent !== null && !el.closest(".wj-flexgrid"))
+
+    const currentIndex = focusable.indexOf(target)
+    if (currentIndex === -1) return
+    event.preventDefault()
+    focusable[currentIndex + 1]?.focus()
+  }
 
   return (
     <>
@@ -1004,7 +1089,7 @@ export default function UnifiedReceiptVoucher({
         onOpenChange={(open) => (open ? onOpenChange(open) : guardedAction(() => onOpenChange(false)))}
       >
         <DialogContent
-          className="w-[97vw] max-w-[1850px] p-0 overflow-hidden max-h-[92vh] overflow-y-auto"
+          className="voucher-form w-[97vw] max-w-[1850px] p-0 overflow-hidden max-h-[92vh] overflow-y-auto"
           dir="rtl"
           onPointerDownOutside={(event) => {
             if (showUnsavedConfirm || showDeleteConfirm || journalSearchOpen || costCenterOpen) event.preventDefault()
@@ -1033,7 +1118,7 @@ export default function UnifiedReceiptVoucher({
             isLastRecord={isLastRecord}
           />
 
-          <div className="relative rounded-b-3xl bg-background px-6 py-6">
+          <div className="relative rounded-b-3xl bg-background px-6 py-6" onKeyDown={handleFormEnterAsTab}>
             <ProgressSpinner loading={isSaving || navLoading} />
 
             <DialogHeader className="mb-4">
@@ -1048,83 +1133,92 @@ export default function UnifiedReceiptVoucher({
             <div className="grid gap-6 border-b pb-6 lg:grid-cols-2">
               <div className="space-y-3">
                 <h4 className="text-sm font-bold text-slate-500">تفاصيل السند</h4>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="grid gap-1.5">
-                    <Label>دفتر السندات *</Label>
-                    <select
-                      value={form.vch_book_id ?? ""}
-                      onChange={(e) => onFormChange("vch_book_id", e.target.value ? Number(e.target.value) : null)}
-                      className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-                    >
-                      <option value="">اختر</option>
-                      {voucherBooks.map((b) => (
-                        <option key={b.id} value={b.id}>
-                          {b.name}
-                        </option>
-                      ))}
-                    </select>
+                <div className="grid gap-3">
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
+                      <Label>دفتر السندات *</Label>
+                      <PrimeDropdown
+                        value={form.vch_book_id}
+                        options={voucherBooks}
+                        optionLabel="name"
+                        optionValue="id"
+                        placeholder="اختر"
+                        filter
+                        className="invoice-currency-dropdown w-full"
+                        panelClassName="invoice-currency-dropdown-panel"
+                        appendTo="self"
+                        panelStyle={{ zIndex: 10000 }}
+                        onChange={(e: any) => (onBookChange ? onBookChange(e.value ?? null) : onFormChange("vch_book_id", e.value ?? null))}
+                      />
+                    </div>
+                    <div className="grid gap-1.5">
+                      <Label htmlFor="vch-code">رقم السند *</Label>
+                      <Input
+                        id="vch-code"
+                        value={form.vch_code}
+                        onChange={(e) => onFormChange("vch_code", normalizeVoucherCode(e.target.value))}
+                        onBlur={handleCodeBlur}
+                        maxLength={20}
+                      />
+                    </div>
+                    <div className="grid gap-1.5">
+                      <Label htmlFor="vch-date">تاريخ السند *</Label>
+                      <Input
+                        id="vch-date"
+                        ref={dateInputRef}
+                        type="date"
+                        value={form.vch_date ? form.vch_date.slice(0, 10) : ""}
+                        onChange={(e) => onFormChange("vch_date", e.target.value)}
+                      />
+                    </div>
                   </div>
-                  <div className="grid gap-1.5">
-                    <Label htmlFor="vch-code">رقم السند *</Label>
-                    <Input
-                      id="vch-code"
-                      ref={codeInputRef}
-                      value={form.vch_code}
-                      onChange={(e) => onFormChange("vch_code", normalizeVoucherCode(e.target.value))}
-                      maxLength={20}
-                    />
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
+                      <Label>العملة *</Label>
+                      <PrimeDropdown
+                        value={form.currency_id}
+                        options={currencyOptions}
+                        optionLabel="label"
+                        optionValue="value"
+                        placeholder="اختر العملة"
+                        filter
+                        className="invoice-currency-dropdown w-full"
+                        panelClassName="invoice-currency-dropdown-panel"
+                        appendTo="self"
+                        panelStyle={{ zIndex: 10000 }}
+                        onChange={(e: any) => void handleCurrencyChange(e.value ?? null)}
+                      />
+                    </div>
+                    <div className="grid gap-1.5">
+                      <Label htmlFor="vch-rate">سعر الصرف *</Label>
+                      <Input
+                        id="vch-rate"
+                        type="number"
+                        value={numberValue(form.rate)}
+                        onChange={(e) => onFormChange("rate", e.target.value ? Number(e.target.value) : 1)}
+                        disabled={form.currency_id != null && form.currency_id === baseCurrencyId}
+                      />
+                    </div>
                   </div>
-                  <div className="grid gap-1.5">
-                    <Label htmlFor="vch-date">تاريخ السند *</Label>
-                    <Input
-                      id="vch-date"
-                      type="date"
-                      value={form.vch_date ? form.vch_date.slice(0, 10) : ""}
-                      onChange={(e) => onFormChange("vch_date", e.target.value)}
-                    />
-                  </div>
-                  <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
-                    <Label>العملة *</Label>
-                    <PrimeDropdown
-                      value={form.currency_id}
-                      options={currencyOptions}
-                      optionLabel="label"
-                      optionValue="value"
-                      placeholder="اختر العملة"
-                      filter
-                      className="invoice-currency-dropdown w-full"
-                      panelClassName="invoice-currency-dropdown-panel"
-                      appendTo="self"
-                      panelStyle={{ zIndex: 10000 }}
-                      onChange={(e: any) => onFormChange("currency_id", e.value ?? null)}
-                    />
-                  </div>
-                  <div className="grid gap-1.5">
-                    <Label htmlFor="vch-rate">سعر الصرف *</Label>
-                    <Input
-                      id="vch-rate"
-                      type="number"
-                      value={numberValue(form.rate)}
-                      onChange={(e) => onFormChange("rate", e.target.value ? Number(e.target.value) : 1)}
-                    />
-                  </div>
-                  <div className="grid gap-1.5">
-                    <Label htmlFor="vch-manual-date">تاريخ السند اليدوي</Label>
-                    <Input
-                      id="vch-manual-date"
-                      type="date"
-                      value={form.manual_date ? form.manual_date.slice(0, 10) : ""}
-                      onChange={(e) => onFormChange("manual_date", e.target.value)}
-                    />
-                  </div>
-                  <div className="col-span-2 grid gap-1.5">
-                    <Label htmlFor="vch-manual-code">سند يدوي</Label>
-                    <Input
-                      id="vch-manual-code"
-                      value={form.manual_voucher}
-                      onChange={(e) => onFormChange("manual_voucher", e.target.value)}
-                      maxLength={30}
-                    />
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="grid gap-1.5">
+                      <Label htmlFor="vch-manual-code">سند يدوي</Label>
+                      <Input
+                        id="vch-manual-code"
+                        value={form.manual_voucher}
+                        onChange={(e) => onFormChange("manual_voucher", e.target.value)}
+                        maxLength={30}
+                      />
+                    </div>
+                    <div className="grid gap-1.5">
+                      <Label htmlFor="vch-manual-date">تاريخ السند اليدوي</Label>
+                      <Input
+                        id="vch-manual-date"
+                        type="date"
+                        value={form.manual_date ? form.manual_date.slice(0, 10) : ""}
+                        onChange={(e) => onFormChange("manual_date", e.target.value)}
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1146,6 +1240,7 @@ export default function UnifiedReceiptVoucher({
                         onFormChange("to_account_id", account.id)
                         setJournalFirstRowAccount({ id: account.id, code: account.code, name: account.name })
                       }}
+                      searchAllowedTypeValues={[2, 3, 4, 5]}
                     />
                     <div className="grid gap-1.5">
                       <Label>{customerNameLabel}</Label>
@@ -1156,17 +1251,19 @@ export default function UnifiedReceiptVoucher({
                       />
                     </div>
                   </div>
-                  <AutoCompleteAccount
-                    label="على حساب"
-                    valueMode="id"
-                    value={numberValue(form.to_account_id)}
-                    onValueChange={(v) => onFormChange("to_account_id", v ? Number(v) : null)}
-                    onAccountSelect={(account) => account && setJournalFirstRowAccount({ id: account.id, code: account.code, name: account.name })}
-                    showCostCenterButton={false}
-                  />
-                  <div className="grid gap-1.5">
-                    <Label>الرصيد</Label>
-                    <Input value="0.000" readOnly disabled />
+                  <div className="grid grid-cols-2 gap-3">
+                    <AutoCompleteAccount
+                      label="على حساب"
+                      valueMode="id"
+                      value={numberValue(form.to_account_id)}
+                      onValueChange={(v) => onFormChange("to_account_id", v ? Number(v) : null)}
+                      onAccountSelect={(account) => account && setJournalFirstRowAccount({ id: account.id, code: account.code, name: account.name })}
+                      showCostCenterButton={false}
+                    />
+                    <div className="grid gap-1.5">
+                      <Label>الرصيد</Label>
+                      <Input value="0.000" readOnly disabled />
+                    </div>
                   </div>
                   <div className="grid grid-cols-4 gap-2">
                     <div className="grid gap-1.5">
@@ -1176,6 +1273,8 @@ export default function UnifiedReceiptVoucher({
                         value={numberValue(form.amount)}
                         onKeyDown={blockNonNumericKey}
                         onChange={(e) => onFormChange("amount", e.target.value ? Number(e.target.value) : 0)}
+                        onFocus={(e) => e.target.select()}
+                        onBlur={() => doCalculation("amount")}
                       />
                     </div>
                     <div className="grid gap-1.5">
@@ -1185,6 +1284,8 @@ export default function UnifiedReceiptVoucher({
                         value={numberValue(form.cash_amount)}
                         onKeyDown={blockNonNumericKey}
                         onChange={(e) => onFormChange("cash_amount", e.target.value ? Number(e.target.value) : null)}
+                        onFocus={(e) => e.target.select()}
+                        onBlur={() => doCalculation("cash")}
                       />
                     </div>
                     <div className="grid gap-1.5">
@@ -1194,6 +1295,8 @@ export default function UnifiedReceiptVoucher({
                         value={numberValue(form.credit_card_amount)}
                         onKeyDown={blockNonNumericKey}
                         onChange={(e) => onFormChange("credit_card_amount", e.target.value ? Number(e.target.value) : null)}
+                        onFocus={(e) => e.target.select()}
+                        onBlur={() => doCalculation("credit_card")}
                       />
                     </div>
                     <div className="grid gap-1.5">
@@ -1203,6 +1306,20 @@ export default function UnifiedReceiptVoucher({
                         value={numberValue(form.check_amount)}
                         onKeyDown={blockNonNumericKey}
                         onChange={(e) => onFormChange("check_amount", e.target.value ? Number(e.target.value) : null)}
+                        onFocus={(e) => e.target.select()}
+                        onBlur={() => {
+                          doCalculation("check")
+                          if (Number(form.check_amount || 0) > 0) {
+                            setActiveTab("cheques")
+                            setTimeout(() => {
+                              const grid = chequeGridRef.current
+                              if (grid) {
+                                selectCell(grid, 0, "bank_account")
+                                grid.focus()
+                              }
+                            }, 100)
+                          }
+                        }}
                       />
                     </div>
                   </div>
@@ -1216,7 +1333,7 @@ export default function UnifiedReceiptVoucher({
             </div>
 
             {/* Tabs: الرئيسية, الشيكات, تفاصيل البطاقة, الحسابات, ملاحظات, المرفقات, الحقول الإضافية */}
-            <Tabs defaultValue="main" className="pt-4">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="pt-4">
               <TabsList className="flex h-auto flex-wrap justify-start gap-1 bg-slate-100 p-1">
                 <TabsTrigger value="main">الرئيسية</TabsTrigger>
                 <TabsTrigger value="cheques">الشيكات</TabsTrigger>
@@ -1228,7 +1345,7 @@ export default function UnifiedReceiptVoucher({
               </TabsList>
 
               {/* الرئيسية */}
-              <TabsContent value="main" className="space-y-4 pt-4">
+              <TabsContent value="main" className="min-h-[420px] space-y-4 pt-4">
                 <div className="grid gap-4 md:grid-cols-3">
                   <AutoCompleteAccount
                     label="حساب الصندوق"
@@ -1253,67 +1370,64 @@ export default function UnifiedReceiptVoucher({
                   />
                 </div>
                 <div className="grid gap-4 md:grid-cols-2">
-                  <div className="grid gap-1.5">
+                  <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
                     <Label>تصنيف الدفعة</Label>
-                    <select
-                      value={form.payment_classification_id ?? ""}
-                      onChange={(e) => onFormChange("payment_classification_id", e.target.value ? Number(e.target.value) : null)}
-                      className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-                    >
-                      <option value="">اختر</option>
-                      {paymentClassifications.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.name}
-                        </option>
-                      ))}
-                    </select>
+                    <PrimeDropdown
+                      value={form.payment_classification_id}
+                      options={paymentClassifications}
+                      optionLabel="name"
+                      optionValue="id"
+                      placeholder="اختر"
+                      filter
+                      className="invoice-currency-dropdown w-full"
+                      panelClassName="invoice-currency-dropdown-panel"
+                      appendTo="self"
+                      panelStyle={{ zIndex: 10000 }}
+                      onChange={(e: any) => onFormChange("payment_classification_id", e.value ?? null)}
+                    />
                   </div>
-                  <div className="grid gap-1.5">
+                  <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
                     <Label>مندوب المبيعات</Label>
-                    <select
-                      value={form.salesman_id ?? ""}
-                      onChange={(e) => onFormChange("salesman_id", e.target.value ? Number(e.target.value) : null)}
-                      className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-                    >
-                      <option value="">اختر</option>
-                      {salesmen.map((s) => (
-                        <option key={s.id} value={s.id}>
-                          {s.name}
-                        </option>
-                      ))}
-                    </select>
+                    <PrimeDropdown
+                      value={form.salesman_id}
+                      options={salesmen}
+                      optionLabel="name"
+                      optionValue="id"
+                      placeholder="اختر"
+                      filter
+                      className="invoice-currency-dropdown w-full"
+                      panelClassName="invoice-currency-dropdown-panel"
+                      appendTo="self"
+                      panelStyle={{ zIndex: 10000 }}
+                      onChange={(e: any) => onFormChange("salesman_id", e.value ?? null)}
+                    />
                   </div>
                 </div>
               </TabsContent>
 
               {/* الشيكات */}
-              <TabsContent value="cheques" className="space-y-3 pt-4">
+              <TabsContent value="cheques" className="min-h-[420px] space-y-3 pt-4">
                 <div className="flex items-center justify-end">
                   <Button type="button" variant="outline" size="sm" onClick={addChequeRow}>
                     <Plus className="ml-1 h-4 w-4" />
                     إضافة شيك
                   </Button>
                 </div>
-                <div dir="rtl" className="modernVoucherGrid w-full max-w-full overflow-x-auto rounded-lg border border-slate-200" style={{ maxHeight: 300 }}>
-                  <div dir="rtl" style={{ minWidth: 1700, maxHeight: 260, overflowY: "auto" }}>
-                    <DataGridView
-                      dir="rtl"
-                      style={{ ...gridStyle, width: 1700 }}
-                      scheme={chequeScheme}
-                      dataSource={chequeGridData}
-                      idProperty="ser"
-                      theme="default-light"
-                      isReport={false}
-                      showContextMenu={false}
-                      cellEditEnded={handleChequeCellEditEnded}
-                      onKeyDown={handleChequeKeyDown}
-                      keyActionEnter={KeyAction.None}
-                      keyActionTab={KeyAction.None}
-                      columnHeaderHeight={42}
-                      defaultRowHeight={38}
-                      dontConvertToCards={true}
-                    />
-                  </div>
+                <div className="w-full max-w-full overflow-x-auto">
+                  <DataGridView
+                    innerRef={chequeGridRef}
+                    style={{ height: "300px" }}
+                    scheme={chequeScheme}
+                    dataSource={chequeGridData}
+                    idProperty="ser"
+                    isReport={false}
+                    showContextMenu={false}
+                    cellEditEnded={handleChequeCellEditEnded}
+                    onKeyDown={handleChequeKeyDown}
+                    keyActionEnter={KeyAction.None}
+                    keyActionTab={KeyAction.None}
+                    dontConvertToCards={true}
+                  />
                 </div>
                 <div className={`text-sm font-semibold ${chequesTotal === Number(form.check_amount || 0) ? "text-emerald-700" : "text-rose-600"}`}>
                   إجمالي الشيكات: {chequesTotal.toLocaleString()}
@@ -1321,41 +1435,61 @@ export default function UnifiedReceiptVoucher({
               </TabsContent>
 
               {/* تفاصيل البطاقة */}
-              <TabsContent value="card" className="space-y-3 pt-4">
-                <div className="flex items-center justify-end">
-                  <Button type="button" variant="outline" size="sm" onClick={addCardRow}>
-                    <Plus className="ml-1 h-4 w-4" />
-                    إضافة بطاقة
-                  </Button>
-                </div>
-                <div dir="rtl" className="modernVoucherGrid w-full max-w-full overflow-x-auto rounded-lg border border-slate-200" style={{ maxHeight: 300 }}>
-                  <div dir="rtl" style={{ minWidth: 1150, maxHeight: 260, overflowY: "auto" }}>
-                    <DataGridView
-                      dir="rtl"
-                      style={{ ...gridStyle, width: 1150 }}
-                      scheme={cardScheme}
-                      dataSource={cardGridData}
-                      idProperty="ser"
-                      theme="default-light"
-                      isReport={false}
-                      showContextMenu={false}
-                      cellEditEnded={handleCardCellEditEnded}
-                      onKeyDown={handleCardKeyDown}
-                      keyActionEnter={KeyAction.None}
-                      keyActionTab={KeyAction.None}
-                      columnHeaderHeight={42}
-                      defaultRowHeight={38}
-                      dontConvertToCards={true}
+              <TabsContent value="card" className="min-h-[420px] space-y-4 pt-4">
+                <div className="grid gap-3 md:grid-cols-3">
+                  <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
+                    <Label>نوع البطاقة</Label>
+                    <PrimeDropdown
+                      value={card.card_type_id}
+                      options={cardTypeOptions}
+                      optionLabel="name"
+                      optionValue="id"
+                      placeholder="اختر"
+                      filter
+                      className="invoice-currency-dropdown w-full"
+                      panelClassName="invoice-currency-dropdown-panel"
+                      appendTo="self"
+                      panelStyle={{ zIndex: 10000 }}
+                      onChange={(e: any) => handleCardTypeChange(e.value ?? null)}
+                    />
+                  </div>
+                  <div className="grid gap-1.5">
+                    <Label>رقم البطاقة</Label>
+                    <Input value={card.card_no} onChange={(e) => patchCard({ card_no: e.target.value })} maxLength={50} />
+                  </div>
+                  <div className="grid gap-1.5">
+                    <Label>تاريخ انتهاء البطاقة</Label>
+                    <Input
+                      type="date"
+                      value={card.expire_date ? card.expire_date.slice(0, 10) : ""}
+                      onChange={(e) => patchCard({ expire_date: e.target.value })}
                     />
                   </div>
                 </div>
-                <div className={`text-sm font-semibold ${cardsTotal === Number(form.credit_card_amount || 0) ? "text-emerald-700" : "text-rose-600"}`}>
-                  إجمالي البطاقات: {cardsTotal.toLocaleString()}
+                <div className="grid gap-3 md:grid-cols-2">
+                  <div className="grid gap-1.5">
+                    <Label>المبلغ</Label>
+                    <Input value={numberValue(form.credit_card_amount)} readOnly disabled />
+                  </div>
+                  <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
+                    <Label>العملة</Label>
+                    <PrimeDropdown
+                      value={card.currency_id}
+                      options={currencyOptions}
+                      optionLabel="label"
+                      optionValue="value"
+                      placeholder="اختر"
+                      disabled
+                      className="invoice-currency-dropdown w-full"
+                      panelClassName="invoice-currency-dropdown-panel"
+                      appendTo="self"
+                    />
+                  </div>
                 </div>
               </TabsContent>
 
               {/* الحسابات */}
-              <TabsContent value="journal" className="space-y-3 pt-4">
+              <TabsContent value="journal" className="min-h-[420px] space-y-3 pt-4">
                 <div className="flex items-center justify-between">
                   <p className="text-xs text-slate-500">
                     تُستخدم عند توزيع مبلغ السند على أكثر من حساب مقابل بدلاً من حقل "على حساب" وحده. اختيار حساب يفعّل زر مراكز التكلفة الخاص به.
@@ -1365,26 +1499,20 @@ export default function UnifiedReceiptVoucher({
                     إضافة سطر
                   </Button>
                 </div>
-                <div dir="rtl" className="modernVoucherGrid w-full max-w-full overflow-x-auto rounded-lg border border-slate-200" style={{ maxHeight: 300 }}>
-                  <div dir="rtl" style={{ minWidth: 950, maxHeight: 260, overflowY: "auto" }}>
-                    <DataGridView
-                      dir="rtl"
-                      style={{ ...gridStyle, width: 950 }}
-                      scheme={journalScheme}
-                      dataSource={journalGridData}
-                      idProperty="ser"
-                      theme="default-light"
-                      isReport={false}
-                      showContextMenu={false}
-                      cellEditEnded={handleJournalCellEditEnded}
-                      onKeyDown={handleJournalKeyDown}
-                      keyActionEnter={KeyAction.None}
-                      keyActionTab={KeyAction.None}
-                      columnHeaderHeight={42}
-                      defaultRowHeight={38}
-                      dontConvertToCards={true}
-                    />
-                  </div>
+                <div className="w-full max-w-full overflow-x-auto">
+                  <DataGridView
+                    style={{ height: "300px" }}
+                    scheme={journalScheme}
+                    dataSource={journalGridData}
+                    idProperty="ser"
+                    isReport={false}
+                    showContextMenu={false}
+                    cellEditEnded={handleJournalCellEditEnded}
+                    onKeyDown={handleJournalKeyDown}
+                    keyActionEnter={KeyAction.None}
+                    keyActionTab={KeyAction.None}
+                    dontConvertToCards={true}
+                  />
                 </div>
                 <div className={`text-sm font-semibold ${journalDiff === 0 ? "text-emerald-700" : "text-rose-600"}`}>
                   إجمالي الحسابات: {journalTotal.toLocaleString()}
@@ -1393,7 +1521,7 @@ export default function UnifiedReceiptVoucher({
               </TabsContent>
 
               {/* ملاحظات */}
-              <TabsContent value="notes" className="space-y-4 pt-4">
+              <TabsContent value="notes" className="min-h-[420px] space-y-4 pt-4">
                 <div className="flex items-center justify-end">
                   <Button type="button" variant="outline" size="sm" onClick={addNoteRow}>
                     <ListPlus className="ml-1 h-4 w-4" />
@@ -1427,7 +1555,7 @@ export default function UnifiedReceiptVoucher({
               </TabsContent>
 
               {/* المرفقات */}
-              <TabsContent value="attachments" className="pt-4">
+              <TabsContent value="attachments" className="min-h-[420px] pt-4">
                 <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-slate-300 bg-slate-50 py-10 text-slate-400">
                   <Paperclip className="h-6 w-6" />
                   <p className="text-sm">رفع المرفقات غير متاح بعد في هذا الإصدار</p>
@@ -1435,7 +1563,7 @@ export default function UnifiedReceiptVoucher({
               </TabsContent>
 
               {/* الحقول الإضافية */}
-              <TabsContent value="extra" className="pt-4">
+              <TabsContent value="extra" className="min-h-[420px] pt-4">
                 <p className="py-4 text-center text-sm text-slate-400">لا توجد حقول إضافية معرّفة لهذا النوع من السندات</p>
               </TabsContent>
             </Tabs>
@@ -1513,38 +1641,6 @@ export default function UnifiedReceiptVoucher({
             patchChequeRow(row, { due_date: isoDate })
             setTimeout(() => {
               const grid = chequeGridRef.current
-              if (grid) {
-                selectCell(grid, row, "amount")
-                grid.focus()
-              }
-            }, 0)
-          }
-        }}
-      />
-
-      <AccountSearchDialog
-        open={cardSearchOpen}
-        onOpenChange={setCardSearchOpen}
-        accounts={accountsList}
-        onSelect={(account) => {
-          if (cardSearchRow !== null) {
-            patchCardRow(cardSearchRow, { account_id: account.id, account_code: account.code, account_name: account.name })
-          }
-          setCardSearchOpen(false)
-        }}
-      />
-
-      <DatePickerDialog
-        open={cardExpireDatePickerOpen}
-        onOpenChange={setCardExpireDatePickerOpen}
-        value={cardExpireDateRow !== null ? cards[cardExpireDateRow]?.expire_date : null}
-        title="تاريخ انتهاء البطاقة"
-        onSelect={(isoDate) => {
-          if (cardExpireDateRow !== null) {
-            const row = cardExpireDateRow
-            patchCardRow(row, { expire_date: isoDate })
-            setTimeout(() => {
-              const grid = cardGridRef.current
               if (grid) {
                 selectCell(grid, row, "amount")
                 grid.focus()

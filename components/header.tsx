@@ -13,6 +13,7 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { Icons } from "@/components/ui/icons";
+import { QuickThemeToggle } from "@/components/theme/theme-toggle";
 
 interface HeaderProps {
   onMenuClick: () => void;
@@ -85,11 +86,12 @@ export function Header({ onMenuClick, activeSection, onProfileClick, onSettingsC
     "exchange-rates": "أسعار الصرف اليومية",
     "order-reports": "تقارير الطلبيات",
     "product-reports": "تقارير الأصناف والخدمات",
-    "user-settings": "إعدادات المستخدمين",
+    "user-settings": "المستخدمين",
     "print-settings": "إعدادات الطباعة",
     "voucher-settings": "إعدادات السندات وطباعتها",
     "system-settings": "إعدادات النظام",
-    permissions: "إدارة المستخدمين والصلاحيات",
+    permissions: "الصلاحيات",
+    "user-default-accounts": "اعدادات",
     "api-settings": "إعدادات API والتكامل",
   };
 
@@ -142,14 +144,14 @@ export function Header({ onMenuClick, activeSection, onProfileClick, onSettingsC
         </div>
 
         {/* Search */}
-        <div className="relative hidden lg:block">
+        <div className="hidden lg:flex items-center gap-2 rounded-md border border-border bg-muted/50 px-3 focus-within:bg-background">
+          <Icons.Search className="shrink-0 text-muted-foreground h-4 w-4" />
           <Input
             placeholder="البحث..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-48 xl:w-64 pr-10 pl-4 bg-muted/50 border-0 focus:bg-background text-right"
+            className="w-48 xl:w-64 border-0 bg-transparent shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 text-right px-0"
           />
-          <Icons.Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
         </div>
 
         {/* Notifications */}
@@ -166,6 +168,9 @@ export function Header({ onMenuClick, activeSection, onProfileClick, onSettingsC
             />
           </DropdownMenuContent>
         </DropdownMenu>
+
+        {/* Dark / light mode */}
+        <QuickThemeToggle />
 
         {/* User dropdown */}
         <DropdownMenu>

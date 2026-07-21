@@ -1,4 +1,5 @@
 import sql from "@/lib/database"
+import { ensureTables as ensureCreditCardTables } from "../credit-cards/_lib"
 
 // Shared schema + persistence helpers for سند قبض / سند صرف (voucher_header_tbl and its
 // related tables). Used by route.ts, [id]/route.ts and navigation/[navigationType]/route.ts
@@ -123,6 +124,14 @@ export const ensureTables = async () => {
     ON CONFLICT (id) DO NOTHING
   `
 
+  // voucher_types_tbl itself (the real one, migrated from legacy voucher_types) is owned by
+  // app/api/voucher-book-permissions/_lib.ts — nothing here needs to join against it, only the
+  // raw vch_type ints.
+  // One-time migration: this table used to store 1 (قبض) / 2 (صرف) before vch_type was
+  // aligned to voucher_types_tbl's real ids (8/9). No-op once already migrated.
+  await sql`UPDATE voucher_header_tbl SET vch_type = ${RECEIPT_VCH_TYPE} WHERE vch_type = 1`
+  await sql`UPDATE voucher_header_tbl SET vch_type = ${PAYMENT_VCH_TYPE} WHERE vch_type = 2`
+
   // Superseded by the real cheques_tbl below.
   await sql`DROP TABLE IF EXISTS voucher_cheques_tbl`
 
@@ -202,17 +211,9 @@ export const ensureTables = async () => {
   `
   await sql`CREATE INDEX IF NOT EXISTS idx_cheques_tbl_voucher_id ON cheques_tbl(voucher_id)`
 
-  await sql`
-    CREATE TABLE IF NOT EXISTS credit_cards_types_tbl (
-      id SERIAL PRIMARY KEY,
-      name VARCHAR(50) NOT NULL UNIQUE,
-      status INTEGER DEFAULT 1
-    )
-  `
-  await sql`
-    INSERT INTO credit_cards_types_tbl (name) VALUES ('فيزا'), ('ماستركارد'), ('أخرى')
-    ON CONFLICT (name) DO NOTHING
-  `
+  // credit_cards_types_tbl's real schema (بطاقات الائتمان admin screen) is owned there —
+  // ensure it here too since سند قبض/سند صرف's card tab references it via FK.
+  await ensureCreditCardTables()
 
   await sql`
     CREATE TABLE IF NOT EXISTS voucher_cards_detail_tbl (
@@ -235,12 +236,65 @@ export const ensureTables = async () => {
   await sql`CREATE INDEX IF NOT EXISTS idx_voucher_cards_detail_tbl_voucher_id ON voucher_cards_detail_tbl(voucher_id)`
 }
 
+// vch_type values on voucher_header_tbl, per voucher_types_tbl.
+export const RECEIPT_VCH_TYPE = 8
+export const PAYMENT_VCH_TYPE = 9
+
+const VOUCHER_CODE_SEQUENCE_DIGITS = 5
+
+// رقم السند = بادئة (من إعدادات النظام) + رمز دفتر السندات + رقم تسلسلي مبطّن بأصفار
+// (مثال: RE + F + 00001 = REF00001). يُقرأ عبر طلب داخلي لنفس منطق /api/settings/system
+// بدل تكرار معالجة المخطط القديم/الجديد لجدول system_settings هناك.
+export const getVoucherNumberSettings = async (
+  requestUrl: string,
+  vchType: number,
+): Promise<{ prefix: string; startNumber: number }> => {
+  const isReceipt = vchType === RECEIPT_VCH_TYPE
+  const defaultPrefix = isReceipt ? "R" : "P"
+  try {
+    const response = await fetch(new URL("/api/settings/system", requestUrl))
+    if (!response.ok) return { prefix: defaultPrefix, startNumber: 1 }
+    const settings = await response.json()
+    const prefixRaw = String(settings?.[isReceipt ? "receipt_prefix" : "payment_prefix"] || defaultPrefix).trim().toUpperCase()
+    const prefix = /^[A-Z]{1,3}$/.test(prefixRaw) ? prefixRaw : defaultPrefix
+    const startNumber = Number(settings?.[isReceipt ? "receipt_start" : "payment_start"]) || 1
+    return { prefix, startNumber }
+  } catch (error) {
+    console.error("Failed to load voucher numbering settings, using defaults:", error)
+    return { prefix: defaultPrefix, startNumber: 1 }
+  }
+}
+
+export const buildVoucherCode = (prefix: string, bookName: string, sequence: number): string =>
+  `${prefix}${bookName}${String(sequence).padStart(VOUCHER_CODE_SEQUENCE_DIGITS, "0")}`
+
+// الرقم التسلسلي التالي ضمن تركيبة (نوع السند + البادئة + رمز الدفتر) هذه تحديداً — تغيير
+// الدفتر يبدّل رمزه ضمن الكود فيُعاد حساب الأقصى من جديد لتلك التركيبة، كما لو أنها ترقيم منفصل.
+export const nextVoucherSequence = async (vchType: number, codePrefix: string, startNumber: number): Promise<number> => {
+  const rows = await sql`
+    SELECT vch_code FROM voucher_header_tbl WHERE vch_type = ${vchType} AND vch_code LIKE ${codePrefix + "%"}
+  `
+  let maxNumber = 0
+  for (const row of rows) {
+    const numericPart = String(row.vch_code || "").slice(codePrefix.length)
+    const value = Number(numericPart)
+    if (Number.isFinite(value) && value > maxNumber) maxNumber = value
+  }
+  return maxNumber >= startNumber ? maxNumber + 1 : startNumber
+}
+
+export const resolveVoucherBookName = async (bookId: number | null): Promise<string> => {
+  if (!bookId) return ""
+  const rows = await sql`SELECT name FROM voucher_books_tbl WHERE id = ${bookId}`
+  return rows[0]?.name || ""
+}
+
 // Debit (credit_debit=1) / Credit (credit_debit=2) — matches the reference C# system
 // (VoucherJournalDetail: "case when credit_debit=1 then amount else 0 end as debit").
 // سند قبض: cash/check/card accounts are debited, the counter account(s) are credited.
 // سند صرف: the reverse.
 export const buildJournalRows = (data: any, vchType: number) => {
-  const isReceipt = vchType === 1
+  const isReceipt = vchType === RECEIPT_VCH_TYPE
   const paymentSide = isReceipt ? 1 : 2
   const counterSide = isReceipt ? 2 : 1
   const currencyId = data.currency_id || null
@@ -379,7 +433,7 @@ export const saveChequeRows = async (voucherId: number, cheques: any[], ctx: Che
   await sql`DELETE FROM cheques_tbl WHERE voucher_id = ${voucherId}`
   const rows = (Array.isArray(cheques) ? cheques : []).filter((row) => row?.cheq_num || row?.bank_account)
   // cheques_type_tbl: 1 = شيكات واردة (in, سند قبض), 2 = شيكات صادرة (out, سند صرف)
-  const cheqType = ctx.vchType === 1 ? 1 : 2
+  const cheqType = ctx.vchType === RECEIPT_VCH_TYPE ? 1 : 2
 
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i]
@@ -397,7 +451,7 @@ export const saveChequeRows = async (voucherId: number, cheques: any[], ctx: Che
   }
 }
 
-export const saveCardRows = async (voucherId: number, cards: any[], currencyId: number | null) => {
+export const saveCardRows = async (voucherId: number, cards: any[], defaultCurrencyId: number | null) => {
   await sql`DELETE FROM voucher_cards_detail_tbl WHERE voucher_id = ${voucherId}`
   const rows = (Array.isArray(cards) ? cards : []).filter((row) => row?.card_no || Number(row?.amount || 0) > 0)
 
@@ -408,6 +462,9 @@ export const saveCardRows = async (voucherId: number, cards: any[], currencyId: 
     const netAmount = row.net_amount !== null && row.net_amount !== undefined && row.net_amount !== ""
       ? Number(row.net_amount)
       : amount - bankAmount
+    // Each card has its own currency (drives which نوع البطاقة options are offered),
+    // separate from the voucher header's currency.
+    const cardCurrencyId = row.currency_id || defaultCurrencyId
 
     await sql`
       INSERT INTO voucher_cards_detail_tbl (
@@ -415,7 +472,7 @@ export const saveCardRows = async (voucherId: number, cards: any[], currencyId: 
         currency_id, bank_currency_id, card_currency_id, order_no
       ) VALUES (
         ${voucherId}, ${row.card_type_id || null}, ${row.card_no || ""}, ${row.expire_date || null}, ${row.account_id || null},
-        ${amount}, ${bankAmount}, ${netAmount}, ${currencyId}, ${currencyId}, ${currencyId}, ${i + 1}
+        ${amount}, ${bankAmount}, ${netAmount}, ${cardCurrencyId}, ${cardCurrencyId}, ${cardCurrencyId}, ${i + 1}
       )
     `
   }
@@ -442,7 +499,14 @@ export const fetchDetails = async (voucherId: number) => {
       LEFT JOIN cost_centers cc ON cc.id = vc.cost_center_id
       WHERE vjd.voucher_id = ${voucherId}
     `,
-    sql`SELECT * FROM cheques_tbl WHERE voucher_id = ${voucherId} ORDER BY order_no, id`,
+    sql`
+      SELECT c.*, b.bank_code AS bank_no, b.bank_name, br.branch_code AS branch_no, br.branch_name
+      FROM cheques_tbl c
+      LEFT JOIN banks b ON b.id = c.bank_id
+      LEFT JOIN branches br ON br.id = c.branch_id
+      WHERE c.voucher_id = ${voucherId}
+      ORDER BY c.order_no, c.id
+    `,
     sql`SELECT * FROM voucher_notes_tbl WHERE voucher_id = ${voucherId} ORDER BY order_no, id`,
     sql`SELECT * FROM voucher_cards_detail_tbl WHERE voucher_id = ${voucherId} ORDER BY order_no, id`,
   ])

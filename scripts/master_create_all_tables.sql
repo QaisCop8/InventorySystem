@@ -18,6 +18,8 @@
 \i scripts/tables/37_batch_settings.sql
 \i scripts/tables/38_workflow_settings.sql
 \i scripts/tables/39_document_settings.sql
+\i scripts/tables/43_users_currencies_default_account_tbl.sql
+\i scripts/tables/44_virtual_cash_bank_accounts.sql
 
 -- 2. جداول العملاء والموردين
 \i scripts/tables/05_customers.sql

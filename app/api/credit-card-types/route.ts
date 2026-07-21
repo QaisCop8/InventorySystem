@@ -1,24 +1,18 @@
 import { NextResponse } from "next/server"
 import sql from "@/lib/database"
+import { ensureTables } from "../credit-cards/_lib"
 
-const ensureTable = async () => {
-  await sql`
-    CREATE TABLE IF NOT EXISTS credit_cards_types_tbl (
-      id SERIAL PRIMARY KEY,
-      name VARCHAR(50) NOT NULL UNIQUE,
-      status INTEGER DEFAULT 1
-    )
-  `
-  await sql`
-    INSERT INTO credit_cards_types_tbl (name) VALUES ('فيزا'), ('ماستركارد'), ('أخرى')
-    ON CONFLICT (name) DO NOTHING
-  `
-}
-
+// Lookup used by the سند قبض/سند صرف card tab. Schema is owned by app/api/credit-cards/_lib.ts
+// (the بطاقات الائتمان admin screen) — this just reads it.
 export async function GET() {
   try {
-    await ensureTable()
-    const rows = await sql`SELECT id, name FROM credit_cards_types_tbl WHERE status != 3 ORDER BY id`
+    await ensureTables()
+    const rows = await sql`
+      SELECT id, name, currency_id, financial_account_id
+      FROM credit_cards_types_tbl
+      WHERE COALESCE(status, 1) != 3
+      ORDER BY id
+    `
     return NextResponse.json(rows)
   } catch (error) {
     console.error("Error fetching credit card types:", error)

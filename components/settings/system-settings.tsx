@@ -103,6 +103,8 @@ export function SystemSettings() {
     invoicePrefix: "INV",
     orderPrefix: "SO",
     purchasePrefix: "PO",
+    receiptPrefix: "R",
+    paymentPrefix: "P",
     customerPrefix: "C",
     supplierPrefix: "S",
     itemGroupPrefix: "G",
@@ -112,6 +114,8 @@ export function SystemSettings() {
     invoiceStart: 1,
     orderStart: 1,
     purchaseStart: 1,
+    receiptStart: 1,
+    paymentStart: 1,
     customerStart: 1,
     supplierStart: 1,
     itemGroupStart: 1,
@@ -187,12 +191,16 @@ export function SystemSettings() {
             invoicePrefix: settingsPayload.invoice_prefix || prev.invoicePrefix,
             orderPrefix: settingsPayload.order_prefix || prev.orderPrefix,
             purchasePrefix: settingsPayload.purchase_prefix || prev.purchasePrefix,
+            receiptPrefix: settingsPayload.receipt_prefix || prev.receiptPrefix,
+            paymentPrefix: settingsPayload.payment_prefix || prev.paymentPrefix,
             customerPrefix: settingsPayload.customer_prefix || prev.customerPrefix,
             supplierPrefix: settingsPayload.supplier_prefix || prev.supplierPrefix,
             itemGroupPrefix: settingsPayload.item_group_prefix || prev.itemGroupPrefix,
             invoiceStart: settingsPayload.invoice_start ?? prev.invoiceStart,
             orderStart: settingsPayload.order_start ?? prev.orderStart,
             purchaseStart: settingsPayload.purchase_start ?? prev.purchaseStart,
+            receiptStart: settingsPayload.receipt_start ?? prev.receiptStart,
+            paymentStart: settingsPayload.payment_start ?? prev.paymentStart,
             customerStart: settingsPayload.customer_start ?? prev.customerStart,
             supplierStart: settingsPayload.supplier_start ?? prev.supplierStart,
             itemGroupStart: settingsPayload.item_group_start ?? prev.itemGroupStart,
@@ -277,6 +285,8 @@ export function SystemSettings() {
         { label: "بادئة فواتير المبيعات", value: settings.invoicePrefix },
         { label: "بادئة طلبات المبيعات", value: settings.orderPrefix },
         { label: "بادئة طلبات الشراء", value: settings.purchasePrefix },
+        { label: "بادئة سندات القبض", value: settings.receiptPrefix },
+        { label: "بادئة سندات الصرف", value: settings.paymentPrefix },
         { label: "بادئة العملاء", value: settings.customerPrefix },
         { label: "بادئة الموردين", value: settings.supplierPrefix },
         { label: "بادئة مجموعات الأصناف", value: settings.itemGroupPrefix },
@@ -284,7 +294,19 @@ export function SystemSettings() {
 
       for (const prefix of prefixes) {
         if (!isValidPrefix(prefix.value)) {
-          setError(`${prefix.label}: مسموح فقط بحروف إنجليزية كبيرة A-Z وبحد أقصى 3 أحرف`)
+          setError(`${prefix.label}: مسموح فقط بحروف إنجليزية كبيرة A-Z وبحد أقصى 3 أحرف، بدون أرقام أو رموز خاصة`)
+          return
+        }
+      }
+
+      const isValidVoucherStart = (value: number) => Number.isInteger(value) && value > 0 && value <= 10000
+      const voucherStarts = [
+        { label: "الترقيم يبدأ من (سندات القبض)", value: settings.receiptStart },
+        { label: "الترقيم يبدأ من (سندات الصرف)", value: settings.paymentStart },
+      ]
+      for (const start of voucherStarts) {
+        if (!isValidVoucherStart(start.value)) {
+          setError(`${start.label}: يجب أن يكون رقمًا صحيحًا من 1 إلى 10000`)
           return
         }
       }
@@ -337,12 +359,16 @@ export function SystemSettings() {
           invoice_prefix: settings.invoicePrefix.trim().toUpperCase(),
           order_prefix: settings.orderPrefix.trim().toUpperCase(),
           purchase_prefix: settings.purchasePrefix.trim().toUpperCase(),
+          receipt_prefix: settings.receiptPrefix.trim().toUpperCase(),
+          payment_prefix: settings.paymentPrefix.trim().toUpperCase(),
           customer_prefix: settings.customerPrefix.trim().toUpperCase(),
           supplier_prefix: settings.supplierPrefix.trim().toUpperCase(),
           item_group_prefix: settings.itemGroupPrefix.trim().toUpperCase(),
           invoice_start: settings.invoiceStart,
           order_start: settings.orderStart,
           purchase_start: settings.purchaseStart,
+          receipt_start: settings.receiptStart,
+          payment_start: settings.paymentStart,
           customer_start: settings.customerStart || null,
           supplier_start: settings.supplierStart || null,
           item_group_start: settings.itemGroupStart || null,
@@ -431,6 +457,8 @@ export function SystemSettings() {
         invoicePrefix: "INV",
         orderPrefix: "SO",
         purchasePrefix: "PO",
+        receiptPrefix: "R",
+        paymentPrefix: "P",
         customerPrefix: "C",
         supplierPrefix: "S",
         itemGroupPrefix: "G",
@@ -439,6 +467,8 @@ export function SystemSettings() {
         invoiceStart: 1,
         orderStart: 1,
         purchaseStart: 1,
+        receiptStart: 1,
+        paymentStart: 1,
         customerStart: 1,
         supplierStart: 1,
         itemGroupStart: 1,
@@ -1030,6 +1060,84 @@ export function SystemSettings() {
                     <div className="text-sm text-muted-foreground">
                       مثال: {settings.purchasePrefix}
                       {String(settings.purchaseStart).padStart(4, "0")}
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="receiptPrefix" className="text-right block">
+                      بادئة سندات القبض *
+                    </Label>
+                    <Input
+                      id="receiptPrefix"
+                      value={settings.receiptPrefix}
+                      onChange={(e) => setSettings({ ...settings, receiptPrefix: e.target.value })}
+                      className="text-right"
+                      dir="rtl"
+                      maxLength={3}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="receiptStart" className="text-right block">
+                      الترقيم يبدأ من (سندات القبض) *
+                    </Label>
+                    <Input
+                      id="receiptStart"
+                      type="number"
+                      min="1"
+                      max="10000"
+                      value={settings.receiptStart}
+                      onChange={(e) => {
+                        const value = e.target.value === "" ? 1 : Number.parseInt(e.target.value)
+                        setSettings({ ...settings, receiptStart: value })
+                      }}
+                      className="text-right"
+                      dir="rtl"
+                      required
+                    />
+                  </div>
+                  <div className="flex items-end">
+                    <div className="text-sm text-muted-foreground">
+                      مثال: {settings.receiptPrefix}A{String(settings.receiptStart).padStart(5, "0")} (A = دفتر السندات)
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="paymentPrefix" className="text-right block">
+                      بادئة سندات الصرف *
+                    </Label>
+                    <Input
+                      id="paymentPrefix"
+                      value={settings.paymentPrefix}
+                      onChange={(e) => setSettings({ ...settings, paymentPrefix: e.target.value })}
+                      className="text-right"
+                      dir="rtl"
+                      maxLength={3}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="paymentStart" className="text-right block">
+                      الترقيم يبدأ من (سندات الصرف) *
+                    </Label>
+                    <Input
+                      id="paymentStart"
+                      type="number"
+                      min="1"
+                      max="10000"
+                      value={settings.paymentStart}
+                      onChange={(e) => {
+                        const value = e.target.value === "" ? 1 : Number.parseInt(e.target.value)
+                        setSettings({ ...settings, paymentStart: value })
+                      }}
+                      className="text-right"
+                      dir="rtl"
+                      required
+                    />
+                  </div>
+                  <div className="flex items-end">
+                    <div className="text-sm text-muted-foreground">
+                      مثال: {settings.paymentPrefix}A{String(settings.paymentStart).padStart(5, "0")} (A = دفتر السندات)
                     </div>
                   </div>
                 </div>

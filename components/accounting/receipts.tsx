@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { useAuth } from "@/components/auth/auth-context"
 import UnifiedReceiptVoucher, {
   type VoucherJournalRow,
   type VoucherChequeRow,
@@ -27,6 +28,13 @@ interface LookupOption {
   name: string
 }
 
+interface CardTypeOption {
+  id: number
+  name: string
+  currency_id: number | null
+  financial_account_id: number | null
+}
+
 interface BankOption {
   id: number
   bank_code?: string
@@ -40,13 +48,14 @@ interface BranchOption {
   bank_id: number | null
 }
 
+// vch_type per voucher_types_tbl: 8 = سند قبض, 9 = سند صرف.
 interface ReceiptsProps {
-  voucherType: 1 | 2
+  voucherType: 8 | 9
 }
 
-const TYPE_LABELS: Record<1 | 2, { title: string; listTitle: string; addLabel: string; customerLabel: string }> = {
-  1: { title: "سند قبض", listTitle: "سندات القبض", addLabel: "إضافة سند قبض", customerLabel: "المقبوض منه" },
-  2: { title: "سند صرف", listTitle: "سندات الصرف", addLabel: "إضافة سند صرف", customerLabel: "المدفوع له" },
+const TYPE_LABELS: Record<8 | 9, { title: string; listTitle: string; addLabel: string; customerLabel: string }> = {
+  8: { title: "سند قبض", listTitle: "سندات القبض", addLabel: "إضافة سند قبض", customerLabel: "المقبوض منه" },
+  9: { title: "سند صرف", listTitle: "سندات الصرف", addLabel: "إضافة سند صرف", customerLabel: "المدفوع له" },
 }
 
 const emptyJournalRow: VoucherJournalRow = {
@@ -82,9 +91,10 @@ const emptyCardRow: VoucherCardRow = {
   account_name: "",
   amount: null,
   bank_amount: null,
+  currency_id: null,
 }
 
-const buildInitialForm = (voucherType: 1 | 2): VoucherRecord => ({
+const buildInitialForm = (voucherType: 8 | 9): VoucherRecord => ({
   id: 0,
   vch_type: voucherType,
   vch_code: "",
@@ -114,7 +124,7 @@ const buildInitialForm = (voucherType: 1 | 2): VoucherRecord => ({
   notes: [],
 })
 
-const normalizeVoucher = (record: Partial<VoucherRecord>, voucherType: 1 | 2): VoucherRecord => ({
+const normalizeVoucher = (record: Partial<VoucherRecord>, voucherType: 8 | 9): VoucherRecord => ({
   ...buildInitialForm(voucherType),
   ...record,
   journal: record.journal?.length ? (record.journal as VoucherJournalRow[]) : [{ ...emptyJournalRow }],
@@ -125,15 +135,17 @@ const normalizeVoucher = (record: Partial<VoucherRecord>, voucherType: 1 | 2): V
 
 export default function Receipts({ voucherType }: ReceiptsProps) {
   const labels = TYPE_LABELS[voucherType]
+  const { user } = useAuth()
 
   const [vouchers, setVouchers] = useState<VoucherRecord[]>([])
   const [currencies, setCurrencies] = useState<CurrencyOption[]>([])
   const [voucherBooks, setVoucherBooks] = useState<LookupOption[]>([])
+  const [defaultBookId, setDefaultBookId] = useState<number | null>(null)
   const [banks, setBanks] = useState<BankOption[]>([])
   const [branches, setBranches] = useState<BranchOption[]>([])
   const [salesmen, setSalesmen] = useState<LookupOption[]>([])
   const [paymentClassifications, setPaymentClassifications] = useState<LookupOption[]>([])
-  const [cardTypes, setCardTypes] = useState<LookupOption[]>([])
+  const [cardTypes, setCardTypes] = useState<CardTypeOption[]>([])
 
   const [dialogOpen, setDialogOpen] = useState(false)
   const [isNewMode, setIsNewMode] = useState(false)
@@ -163,6 +175,14 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
     return currency?.currency_name || currency?.currency_code || ""
   }
 
+  // النظام الافتراضي عند فتح سند جديد: أول عملة معرّفة في النظام (أصغر معرّف).
+  const firstCurrencyId = (): number | null =>
+    currencies.reduce<number | null>((min, c) => {
+      const id = Number(c.currency_id ?? c.id)
+      if (!Number.isFinite(id)) return min
+      return min === null || id < min ? id : min
+    }, null)
+
   const filteredVouchers = useMemo(() => {
     const codeQuery = searchFilters.code.trim().toLowerCase()
     const nameQuery = searchFilters.name.trim().toLowerCase()
@@ -191,8 +211,9 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
   useEffect(() => {
     fetchVouchers()
     fetchLookups()
+    // إعادة الجلب عند توفر user.id تُقيّد دفتر السندات بصلاحيات المستخدم الفعلي بمجرد اكتمال تسجيل الدخول.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [voucherType])
+  }, [voucherType, user?.id])
 
   const fetchVouchers = async () => {
     try {
@@ -207,9 +228,12 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
 
   const fetchLookups = async () => {
     try {
+      const booksUrl = `/api/receipts/voucher-books?vch_type=${voucherType}${
+        user?.id ? `&user_id=${encodeURIComponent(user.id)}` : ""
+      }`
       const [currenciesRes, booksRes, banksRes, branchesRes, salesmenRes, classificationsRes, cardTypesRes] = await Promise.all([
         fetch("/api/exchange-rates").catch(() => null),
-        fetch(`/api/receipts/voucher-books?vch_type=${voucherType}`).catch(() => null),
+        fetch(booksUrl).catch(() => null),
         fetch("/api/banks").catch(() => null),
         fetch("/api/branches").catch(() => null),
         fetch("/api/salesmen").catch(() => null),
@@ -223,7 +247,8 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
       }
       if (booksRes?.ok) {
         const data = await booksRes.json()
-        setVoucherBooks(Array.isArray(data) ? data : [])
+        setVoucherBooks(Array.isArray(data?.books) ? data.books : [])
+        setDefaultBookId(data?.default_book_id ?? null)
       }
       if (banksRes?.ok) {
         const data = await banksRes.json()
@@ -250,9 +275,11 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
     }
   }
 
-  const generateCode = async () => {
+  // الرقم يتضمّن رمز دفتر السندات (مثال REF00001) فلا بد من تمريره دائماً.
+  const generateCode = async (bookId: number | null) => {
+    if (!bookId) return ""
     try {
-      const response = await fetch(`/api/receipts/generate-number?vch_type=${voucherType}`)
+      const response = await fetch(`/api/receipts/generate-number?vch_type=${voucherType}&vch_book_id=${bookId}`)
       if (!response.ok) return ""
       const data = await response.json()
       return data.code || ""
@@ -273,12 +300,67 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
     }
   }
 
+  // يجلب دفتر السندات الافتراضي وأول عملة مباشرة من الخادم بدل الاعتماد على state قد لا يكون
+  // اكتمل تحميله بعد (مثلاً إن ضغط المستخدم "جديد" قبل أن يكتمل fetchLookups عند فتح الصفحة).
+  const fetchDefaults = async (): Promise<{ bookId: number | null; currencyId: number | null }> => {
+    try {
+      const booksUrl = `/api/receipts/voucher-books?vch_type=${voucherType}${
+        user?.id ? `&user_id=${encodeURIComponent(user.id)}` : ""
+      }`
+      const [booksRes, currenciesRes] = await Promise.all([
+        fetch(booksUrl).catch(() => null),
+        fetch("/api/exchange-rates").catch(() => null),
+      ])
+
+      let bookId: number | null = null
+      if (booksRes?.ok) {
+        const data = await booksRes.json()
+        setVoucherBooks(Array.isArray(data?.books) ? data.books : [])
+        bookId = data?.default_book_id ?? null
+        setDefaultBookId(bookId)
+      }
+
+      let currencyId: number | null = null
+      if (currenciesRes?.ok) {
+        const data = await currenciesRes.json()
+        const rates = Array.isArray(data?.rates) ? data.rates : []
+        setCurrencies(rates)
+        currencyId = rates.reduce((min: number | null, c: CurrencyOption) => {
+          const id = Number(c.currency_id ?? c.id)
+          if (!Number.isFinite(id)) return min
+          return min === null || id < min ? id : min
+        }, null)
+      }
+
+      return { bookId, currencyId }
+    } catch (error) {
+      console.error("Failed to fetch voucher defaults", error)
+      return { bookId: defaultBookId, currencyId: firstCurrencyId() }
+    }
+  }
+
   const openNewDialog = async () => {
-    const code = await generateCode()
-    setForm({ ...buildInitialForm(voucherType), vch_code: code })
+    const defaults = await fetchDefaults()
+    const code = await generateCode(defaults.bookId)
+    setForm({
+      ...buildInitialForm(voucherType),
+      vch_code: code,
+      vch_book_id: defaults.bookId,
+      currency_id: defaults.currencyId,
+      cards: [{ ...emptyCardRow, currency_id: defaults.currencyId }],
+    })
     setIsNewMode(true)
     setErrorMessages([])
     setDialogOpen(true)
+  }
+
+  // تغيير دفتر السندات لسند جديد لم يُحفظ بعد يعيد توليد الرقم (رمز الدفتر جزء من الرقم) —
+  // لا يُغيَّر رقم سند محفوظ مسبقاً لتجنّب إعادة ترقيم مستند موجود.
+  const handleBookChange = async (bookId: number | null) => {
+    setForm((f) => ({ ...f, vch_book_id: bookId }))
+    if (!isNewMode || !bookId) return
+    const code = await generateCode(bookId)
+    setForm((f) => ({ ...f, vch_code: code }))
   }
 
   const openEditDialog = async (record: VoucherRecord, index: number) => {
@@ -288,6 +370,31 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
     setIsNewMode(false)
     setErrorMessages([])
     setDialogOpen(true)
+  }
+
+  // كتابة رقم سند موجود فعلاً في حقل رقم السند (بعد تصفيره وإعادة صياغته) تعرضه للتعديل.
+  const handleCodeResolved = async (id: number) => {
+    const details = await fetchVoucherDetails(id)
+    if (!details) return
+    const index = vouchers.findIndex((v) => v.id === id)
+    setForm(normalizeVoucher(details, voucherType))
+    setCurrentIndex(index >= 0 ? index : 0)
+    setIsNewMode(false)
+    setErrorMessages([])
+  }
+
+  // رقم لا يخص أي سند محفوظ -> تصفير كل الحقول والشبكات لسند جديد بهذا الرقم، مع إبقاء دفتر
+  // السندات والعملة الحاليين لأنهما جزء من السياق الذي أُنشئ منه الرقم نفسه.
+  const handleCodeNotFound = (code: string) => {
+    setForm((f) => ({
+      ...buildInitialForm(voucherType),
+      vch_code: code,
+      vch_book_id: f.vch_book_id,
+      currency_id: f.currency_id,
+      cards: [{ ...emptyCardRow, currency_id: f.currency_id }],
+    }))
+    setIsNewMode(true)
+    setErrorMessages([])
   }
 
   const validateVoucher = (data: VoucherRecord): string | null => {
@@ -338,12 +445,8 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
       }
     }
 
-    if (creditCardAmount > 0) {
-      const validCards = (data.cards || []).filter((row) => (row.card_no || row.card_type_id) && Number(row.amount || 0) > 0)
-      const cardsTotal = validCards.reduce((sum, row) => sum + Number(row.amount || 0), 0)
-      if (Math.round((cardsTotal - creditCardAmount) * 100) / 100 !== 0) {
-        return "إجمالي تبويب البطاقات يجب أن يساوي مبلغ البطاقات"
-      }
+    if (creditCardAmount > 0 && !data.cards?.[0]?.card_type_id) {
+      return "يجب اختيار نوع البطاقة في تبويب تفاصيل البطاقة"
     }
 
     return null
@@ -360,10 +463,15 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
     setIsSaving(true)
     try {
       const method = form.id > 0 ? "PUT" : "POST"
+      // المبلغ في تبويب تفاصيل البطاقة يتبع حقل "بطاقات" في الرئيسية دائماً.
+      const dataToSave: VoucherRecord = {
+        ...form,
+        cards: [{ ...(form.cards?.[0] || emptyCardRow), amount: form.credit_card_amount }],
+      }
       const response = await fetch("/api/receipts", {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify(dataToSave),
       })
       if (!response.ok) {
         const responseError = await response.json()
@@ -371,8 +479,15 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
         return
       }
       await fetchVouchers()
-      const code = await generateCode()
-      setForm({ ...buildInitialForm(voucherType), vch_code: code })
+      const defaults = await fetchDefaults()
+      const code = await generateCode(defaults.bookId)
+      setForm({
+        ...buildInitialForm(voucherType),
+        vch_code: code,
+        vch_book_id: defaults.bookId,
+        currency_id: defaults.currencyId,
+        cards: [{ ...emptyCardRow, currency_id: defaults.currencyId }],
+      })
       setIsNewMode(true)
       setDialogOpen(true)
     } catch (error) {
@@ -413,8 +528,15 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
         }
       }
 
-      const code = await generateCode()
-      setForm({ ...buildInitialForm(voucherType), vch_code: code })
+      const defaults = await fetchDefaults()
+      const code = await generateCode(defaults.bookId)
+      setForm({
+        ...buildInitialForm(voucherType),
+        vch_code: code,
+        vch_book_id: defaults.bookId,
+        currency_id: defaults.currencyId,
+        cards: [{ ...emptyCardRow, currency_id: defaults.currencyId }],
+      })
       setCurrentIndex(0)
       setIsNewMode(true)
       setDialogOpen(true)
@@ -692,6 +814,9 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
         onDelete={() => form.id && setShowDeleteConfirm(true)}
         onNavigateRecord={handleNavigateRecord}
         onFormChange={(field, value) => setForm((f) => ({ ...f, [field]: value }))}
+        onBookChange={handleBookChange}
+        onCodeResolved={handleCodeResolved}
+        onCodeNotFound={handleCodeNotFound}
         onJournalChange={(journal) => setForm((f) => ({ ...f, journal }))}
         onChequesChange={(cheques) => setForm((f) => ({ ...f, cheques }))}
         onCardsChange={(cards) => setForm((f) => ({ ...f, cards }))}

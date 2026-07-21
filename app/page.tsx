@@ -1,7 +1,8 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect } from "react"
+import { Suspense, useState, useEffect } from "react"
+import { useSearchParams, useRouter } from "next/navigation"
 import { ProtectedRoute } from "@/components/auth/protected-route"
 import { ERPLayout } from "@/components/erp-layout"
 
@@ -39,6 +40,9 @@ import Banks from "@/components/admin/banks"
 import Branches from "@/components/admin/branches"
 import BankAccounts from "@/components/admin/bank-accounts"
 import Receipts from "@/components/accounting/receipts"
+import CreditCards from "@/components/admin/credit-cards"
+import ChequesBooks from "@/components/admin/cheques-books"
+import VoucherBookPermissions from "@/components/settings/voucher-book-permissions"
 
 import { AIChat } from "@/components/ai-assistant/ai-chat"
 import { SmartAnalyticsDashboard } from "@/components/ai-analytics/smart-analytics-dashboard"
@@ -88,8 +92,11 @@ const componentMap: Record<string, React.ComponentType<any>> = {
   banks: Banks,
   branches: Branches,
   "bank-accounts": BankAccounts,
-  "receipt-vouchers": (props: any) => <Receipts {...props} voucherType={1} />,
-  "payment-vouchers": (props: any) => <Receipts {...props} voucherType={2} />,
+  "receipt-vouchers": (props: any) => <Receipts {...props} voucherType={8} />,
+  "payment-vouchers": (props: any) => <Receipts {...props} voucherType={9} />,
+  "credit-cards": CreditCards,
+  "cheques-books": ChequesBooks,
+  "voucher-book-permissions": VoucherBookPermissions,
   "product-groups": ProductGroups,
   definitions: Definitions,
   accounts: Accounts,
@@ -103,6 +110,10 @@ const componentMap: Record<string, React.ComponentType<any>> = {
   "exchange-rates": ExchangeRates,
   "system-settings": SystemSettings,
   "user-settings": UserSettings,
+  "user-default-accounts": (props: any) => {
+    const Component = require('@/components/settings/virtual-accounts').default
+    return <Component {...props} />
+  },
   "font-settings": FontSettings,
   "qa-dashboard": QADashboard,
   "home-dashboard": WelcomeDashboard,
@@ -116,7 +127,21 @@ const componentMap: Record<string, React.ComponentType<any>> = {
 }
 
 export default function HomePage() {
-  const [activeSection, setActiveSection] = useState<string | null>(null)
+  return (
+    <Suspense fallback={null}>
+      <HomePageContent />
+    </Suspense>
+  )
+}
+
+function HomePageContent() {
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const [activeSection, setActiveSection] = useState<string | null>(() => {
+    const fromUrl = searchParams.get("section")
+    if (!fromUrl) return null
+    return fromUrl === "home-dashboard" || fromUrl === "dashboard" || componentMap[fromUrl] ? fromUrl : null
+  })
 
   useEffect(() => {
     const removeWijmoEval = () => {
@@ -208,12 +233,17 @@ export default function HomePage() {
   const handleSectionChange = (section: string) => {
     console.log("[v0] Section change requested:", section)
 
-    if (section === "home-dashboard" || section === "dashboard") {
-      setActiveSection("home-dashboard")
-      return
-    }
+    const resolved =
+      section === "home-dashboard" || section === "dashboard"
+        ? "home-dashboard"
+        : componentMap[section]
+          ? section
+          : "home-dashboard"
 
-    setActiveSection(componentMap[section] ? section : "home-dashboard")
+    setActiveSection(resolved)
+    // يُبقي رابط العنوان مطابقاً للقسم الحالي — يتيح فتح نفس القسم في تبويب جديد
+    // (كليك أوسط/يمين على عنصر القائمة الجانبية) بدل الرجوع دائماً للرئيسية.
+    router.replace(resolved === "home-dashboard" ? "/" : `/?section=${resolved}`, { scroll: false })
   }
 
   return (

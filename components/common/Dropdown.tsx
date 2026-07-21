@@ -151,11 +151,12 @@ export default class Dropdown extends React.Component<DropdownProps, DropdownSta
   }
 
   private selectedOptionTemplate = (option: DropdownOption | null, props: any) => {
-    if (!option) {
+    const selectedOption = option ?? this.findOptionByValue(this.props.value)
+    if (!selectedOption) {
       return <span>{props.placeholder}</span>
     }
 
-    const optionText = this.truncatedLabel(option)
+    const optionText = this.truncatedLabel(selectedOption)
     return (
       <div>
         <div
@@ -171,6 +172,14 @@ export default class Dropdown extends React.Component<DropdownProps, DropdownSta
         </div>
       </div>
     )
+  }
+
+  private findOptionByValue = (value: any): DropdownOption | null => {
+    const { options, optionValue } = this.props
+    if (value == null) return null
+    if (!optionValue) return typeof value === 'object' ? value : null
+
+    return options?.find((option) => `${option?.[optionValue]}` === `${value}`) ?? null
   }
 
   private handleOptions = () => {
@@ -269,11 +278,14 @@ export default class Dropdown extends React.Component<DropdownProps, DropdownSta
         onChange={this.handleChange}
         tooltipOptions={{ position: "top", style: { direction: "rtl" } }}
         placeholder={placeholder}
+        optionLabel={optionLabel}
         optionLabelLang2={optionLabelLang2 || optionLabel}
         itemTemplate={this.optionsTemplate}
         valueTemplate={this.selectedOptionTemplate}
         resetFilterOnHide
         options={this.handleOptions()}
+        panelClassName={restProps.panelClassName}
+        appendTo={restProps.appendTo}
       >
         {children}
       </PrimeDropdown>
