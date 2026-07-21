@@ -173,6 +173,7 @@ export function Sidebar({
           submenu: [
             { title: "سند قبض", section: "receipt-vouchers", icon: ArrowDownCircle },
             { title: "سند صرف", section: "payment-vouchers", icon: ArrowUpCircle },
+            { title: "سند قيد", section: "journal-vouchers", icon: BookOpen },
           ],
         },
       ],

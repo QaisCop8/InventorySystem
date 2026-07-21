@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
-import { ensureTables, JOURNAL_VCH_TYPE, buildJournalRows, saveJournalRows, saveNoteRows, fetchDetails } from "./_lib"
+import { ensureTables, JOURNAL_VCH_TYPE, buildJournalRows, saveJournalRows, saveNoteRows, fetchDetails, type JournalRow } from "./_lib"
 
 export async function GET() {
   try {
@@ -19,7 +19,7 @@ export async function GET() {
   }
 }
 
-const validateBalance = (journalRows: ReturnType<typeof buildJournalRows>): string | null => {
+const validateBalance = (journalRows: JournalRow[]): string | null => {
   if (journalRows.length < 2) return "يجب أن يحتوي السند على قيدين محاسبيين على الأقل (طرف مدين وطرف دائن)"
   const totalDebit = journalRows.filter((r) => r.credit_debit === 1).reduce((s, r) => s + r.amount, 0)
   const totalCredit = journalRows.filter((r) => r.credit_debit === 2).reduce((s, r) => s + r.amount, 0)
@@ -93,7 +93,7 @@ export async function PUT(request: NextRequest) {
     const status = Number(data.status ?? 1)
 
     // الحذف الناعم (status=3) يتخطى شرط توازن القيد — السند يُلغى وليس يُرحَّل.
-    let journalRows: ReturnType<typeof buildJournalRows> = []
+    let journalRows: JournalRow[] = []
     let amount = Number(data.amount || 0)
     if (status !== 3) {
       journalRows = buildJournalRows(data)

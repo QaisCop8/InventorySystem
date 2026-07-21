@@ -105,6 +105,7 @@ export function SystemSettings() {
     purchasePrefix: "PO",
     receiptPrefix: "R",
     paymentPrefix: "P",
+    journalPrefix: "J",
     customerPrefix: "C",
     supplierPrefix: "S",
     itemGroupPrefix: "G",
@@ -116,6 +117,7 @@ export function SystemSettings() {
     purchaseStart: 1,
     receiptStart: 1,
     paymentStart: 1,
+    journalStart: 1,
     customerStart: 1,
     supplierStart: 1,
     itemGroupStart: 1,
@@ -193,6 +195,7 @@ export function SystemSettings() {
             purchasePrefix: settingsPayload.purchase_prefix || prev.purchasePrefix,
             receiptPrefix: settingsPayload.receipt_prefix || prev.receiptPrefix,
             paymentPrefix: settingsPayload.payment_prefix || prev.paymentPrefix,
+            journalPrefix: settingsPayload.journal_prefix || prev.journalPrefix,
             customerPrefix: settingsPayload.customer_prefix || prev.customerPrefix,
             supplierPrefix: settingsPayload.supplier_prefix || prev.supplierPrefix,
             itemGroupPrefix: settingsPayload.item_group_prefix || prev.itemGroupPrefix,
@@ -201,6 +204,7 @@ export function SystemSettings() {
             purchaseStart: settingsPayload.purchase_start ?? prev.purchaseStart,
             receiptStart: settingsPayload.receipt_start ?? prev.receiptStart,
             paymentStart: settingsPayload.payment_start ?? prev.paymentStart,
+            journalStart: settingsPayload.journal_start ?? prev.journalStart,
             customerStart: settingsPayload.customer_start ?? prev.customerStart,
             supplierStart: settingsPayload.supplier_start ?? prev.supplierStart,
             itemGroupStart: settingsPayload.item_group_start ?? prev.itemGroupStart,
@@ -287,6 +291,7 @@ export function SystemSettings() {
         { label: "بادئة طلبات الشراء", value: settings.purchasePrefix },
         { label: "بادئة سندات القبض", value: settings.receiptPrefix },
         { label: "بادئة سندات الصرف", value: settings.paymentPrefix },
+        { label: "بادئة سندات القيد", value: settings.journalPrefix },
         { label: "بادئة العملاء", value: settings.customerPrefix },
         { label: "بادئة الموردين", value: settings.supplierPrefix },
         { label: "بادئة مجموعات الأصناف", value: settings.itemGroupPrefix },
@@ -303,6 +308,7 @@ export function SystemSettings() {
       const voucherStarts = [
         { label: "الترقيم يبدأ من (سندات القبض)", value: settings.receiptStart },
         { label: "الترقيم يبدأ من (سندات الصرف)", value: settings.paymentStart },
+        { label: "الترقيم يبدأ من (سندات القيد)", value: settings.journalStart },
       ]
       for (const start of voucherStarts) {
         if (!isValidVoucherStart(start.value)) {
@@ -361,6 +367,7 @@ export function SystemSettings() {
           purchase_prefix: settings.purchasePrefix.trim().toUpperCase(),
           receipt_prefix: settings.receiptPrefix.trim().toUpperCase(),
           payment_prefix: settings.paymentPrefix.trim().toUpperCase(),
+          journal_prefix: settings.journalPrefix.trim().toUpperCase(),
           customer_prefix: settings.customerPrefix.trim().toUpperCase(),
           supplier_prefix: settings.supplierPrefix.trim().toUpperCase(),
           item_group_prefix: settings.itemGroupPrefix.trim().toUpperCase(),
@@ -369,6 +376,7 @@ export function SystemSettings() {
           purchase_start: settings.purchaseStart,
           receipt_start: settings.receiptStart,
           payment_start: settings.paymentStart,
+          journal_start: settings.journalStart,
           customer_start: settings.customerStart || null,
           supplier_start: settings.supplierStart || null,
           item_group_start: settings.itemGroupStart || null,
@@ -459,6 +467,7 @@ export function SystemSettings() {
         purchasePrefix: "PO",
         receiptPrefix: "R",
         paymentPrefix: "P",
+        journalPrefix: "J",
         customerPrefix: "C",
         supplierPrefix: "S",
         itemGroupPrefix: "G",
@@ -469,6 +478,7 @@ export function SystemSettings() {
         purchaseStart: 1,
         receiptStart: 1,
         paymentStart: 1,
+        journalStart: 1,
         customerStart: 1,
         supplierStart: 1,
         itemGroupStart: 1,
@@ -1138,6 +1148,45 @@ export function SystemSettings() {
                   <div className="flex items-end">
                     <div className="text-sm text-muted-foreground">
                       مثال: {settings.paymentPrefix}A{String(settings.paymentStart).padStart(6, "0")} (A = دفتر السندات)
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="journalPrefix" className="text-right block">
+                      بادئة سندات القيد *
+                    </Label>
+                    <Input
+                      id="journalPrefix"
+                      value={settings.journalPrefix}
+                      onChange={(e) => setSettings({ ...settings, journalPrefix: e.target.value })}
+                      className="text-right"
+                      dir="rtl"
+                      maxLength={3}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="journalStart" className="text-right block">
+                      الترقيم يبدأ من (سندات القيد) *
+                    </Label>
+                    <Input
+                      id="journalStart"
+                      type="number"
+                      min="1"
+                      max="10000"
+                      value={settings.journalStart}
+                      onChange={(e) => {
+                        const value = e.target.value === "" ? 1 : Number.parseInt(e.target.value)
+                        setSettings({ ...settings, journalStart: value })
+                      }}
+                      className="text-right"
+                      dir="rtl"
+                      required
+                    />
+                  </div>
+                  <div className="flex items-end">
+                    <div className="text-sm text-muted-foreground">
+                      مثال: {settings.journalPrefix}A{String(settings.journalStart).padStart(6, "0")} (A = دفتر السندات)
                     </div>
                   </div>
                 </div>

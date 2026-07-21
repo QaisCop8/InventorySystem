@@ -55,15 +55,28 @@ export const resolveVoucherBookName = async (bookId: number | null): Promise<str
 // كل سطر مُدخَل في شبكة "الحسابات" (مدين أو دائن، وليس كلاهما) يصبح سطر journal_type_id=4
 // مباشرة — القيد نفسه هو محتوى السند، بخلاف سند القبض/الصرف حيث الحسابات المقابلة تُكمّل
 // طرفي نقدي/شيكات/بطاقات.
-export const buildJournalRows = (data: any) => {
+export interface JournalRow {
+  journal_type_id: number
+  account_id: number
+  credit_debit: number
+  amount: number
+  note: string
+  cost_centers: any[]
+  order_no: number
+  currency_id: number | null
+  rate: number
+  base_curr_amount: number
+}
+
+export const buildJournalRows = (data: any): JournalRow[] => {
   const currencyId = data.currency_id || null
   const rate = Number(data.rate || 1)
 
-  const journalRows = (Array.isArray(data.journal) ? data.journal : []).filter(
+  const journalRows: any[] = (Array.isArray(data.journal) ? data.journal : []).filter(
     (row: any) => row?.account_id && Number(row?.debit || 0) + Number(row?.credit || 0) > 0,
   )
 
-  return journalRows.map((row: any, index: number) => {
+  return journalRows.map((row: any, index: number): JournalRow => {
     const debit = Number(row.debit || 0)
     const credit = Number(row.credit || 0)
     const amount = debit > 0 ? debit : credit
