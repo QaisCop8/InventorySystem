@@ -41,6 +41,7 @@ import Branches from "@/components/admin/branches"
 import BankAccounts from "@/components/admin/bank-accounts"
 import Receipts from "@/components/accounting/receipts"
 import Journal from "@/components/accounting/journal"
+import CreditNote from "@/components/accounting/credit-note"
 import CreditCards from "@/components/admin/credit-cards"
 import ChequesBooks from "@/components/admin/cheques-books"
 import VoucherBookPermissions from "@/components/settings/voucher-book-permissions"
@@ -97,6 +98,8 @@ const componentMap: Record<string, React.ComponentType<any>> = {
   "receipt-vouchers": (props: any) => <Receipts {...props} voucherType={8} />,
   "payment-vouchers": (props: any) => <Receipts {...props} voucherType={9} />,
   "journal-vouchers": Journal,
+  "credit-notes": (props: any) => <CreditNote {...props} voucherType={10} />,
+  "debit-notes": (props: any) => <CreditNote {...props} voucherType={11} />,
   "credit-cards": CreditCards,
   "cheques-books": ChequesBooks,
   "voucher-book-permissions": VoucherBookPermissions,

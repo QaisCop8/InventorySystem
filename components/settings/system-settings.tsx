@@ -105,6 +105,8 @@ export function SystemSettings() {
     purchasePrefix: "PO",
     receiptPrefix: "R",
     paymentPrefix: "P",
+    creditNotePrefix: "C",
+    debitNotePrefix: "D",
     journalPrefix: "J",
     customerPrefix: "C",
     supplierPrefix: "S",
@@ -117,6 +119,8 @@ export function SystemSettings() {
     purchaseStart: 1,
     receiptStart: 1,
     paymentStart: 1,
+    creditNoteStart: 1,
+    debitNoteStart: 1,
     journalStart: 1,
     customerStart: 1,
     supplierStart: 1,
@@ -195,6 +199,8 @@ export function SystemSettings() {
             purchasePrefix: settingsPayload.purchase_prefix || prev.purchasePrefix,
             receiptPrefix: settingsPayload.receipt_prefix || prev.receiptPrefix,
             paymentPrefix: settingsPayload.payment_prefix || prev.paymentPrefix,
+            creditNotePrefix: settingsPayload.credit_note_prefix || prev.creditNotePrefix,
+            debitNotePrefix: settingsPayload.debit_note_prefix || prev.debitNotePrefix,
             journalPrefix: settingsPayload.journal_prefix || prev.journalPrefix,
             customerPrefix: settingsPayload.customer_prefix || prev.customerPrefix,
             supplierPrefix: settingsPayload.supplier_prefix || prev.supplierPrefix,
@@ -204,6 +210,8 @@ export function SystemSettings() {
             purchaseStart: settingsPayload.purchase_start ?? prev.purchaseStart,
             receiptStart: settingsPayload.receipt_start ?? prev.receiptStart,
             paymentStart: settingsPayload.payment_start ?? prev.paymentStart,
+            creditNoteStart: settingsPayload.credit_note_start ?? prev.creditNoteStart,
+            debitNoteStart: settingsPayload.debit_note_start ?? prev.debitNoteStart,
             journalStart: settingsPayload.journal_start ?? prev.journalStart,
             customerStart: settingsPayload.customer_start ?? prev.customerStart,
             supplierStart: settingsPayload.supplier_start ?? prev.supplierStart,
@@ -291,6 +299,8 @@ export function SystemSettings() {
         { label: "بادئة طلبات الشراء", value: settings.purchasePrefix },
         { label: "بادئة سندات القبض", value: settings.receiptPrefix },
         { label: "بادئة سندات الصرف", value: settings.paymentPrefix },
+        { label: "بادئة الاشعار الدائن", value: settings.creditNotePrefix },
+        { label: "بادئة الاشعار المدين", value: settings.debitNotePrefix },
         { label: "بادئة سندات القيد", value: settings.journalPrefix },
         { label: "بادئة العملاء", value: settings.customerPrefix },
         { label: "بادئة الموردين", value: settings.supplierPrefix },
@@ -308,6 +318,8 @@ export function SystemSettings() {
       const voucherStarts = [
         { label: "الترقيم يبدأ من (سندات القبض)", value: settings.receiptStart },
         { label: "الترقيم يبدأ من (سندات الصرف)", value: settings.paymentStart },
+        { label: "الترقيم يبدأ من (الاشعار الدائن)", value: settings.creditNoteStart },
+        { label: "الترقيم يبدأ من (الاشعار المدين)", value: settings.debitNoteStart },
         { label: "الترقيم يبدأ من (سندات القيد)", value: settings.journalStart },
       ]
       for (const start of voucherStarts) {
@@ -367,6 +379,8 @@ export function SystemSettings() {
           purchase_prefix: settings.purchasePrefix.trim().toUpperCase(),
           receipt_prefix: settings.receiptPrefix.trim().toUpperCase(),
           payment_prefix: settings.paymentPrefix.trim().toUpperCase(),
+          credit_note_prefix: settings.creditNotePrefix.trim().toUpperCase(),
+          debit_note_prefix: settings.debitNotePrefix.trim().toUpperCase(),
           journal_prefix: settings.journalPrefix.trim().toUpperCase(),
           customer_prefix: settings.customerPrefix.trim().toUpperCase(),
           supplier_prefix: settings.supplierPrefix.trim().toUpperCase(),
@@ -376,6 +390,8 @@ export function SystemSettings() {
           purchase_start: settings.purchaseStart,
           receipt_start: settings.receiptStart,
           payment_start: settings.paymentStart,
+          credit_note_start: settings.creditNoteStart,
+          debit_note_start: settings.debitNoteStart,
           journal_start: settings.journalStart,
           customer_start: settings.customerStart || null,
           supplier_start: settings.supplierStart || null,
@@ -467,6 +483,8 @@ export function SystemSettings() {
         purchasePrefix: "PO",
         receiptPrefix: "R",
         paymentPrefix: "P",
+        creditNotePrefix: "C",
+        debitNotePrefix: "D",
         journalPrefix: "J",
         customerPrefix: "C",
         supplierPrefix: "S",
@@ -478,6 +496,8 @@ export function SystemSettings() {
         purchaseStart: 1,
         receiptStart: 1,
         paymentStart: 1,
+        creditNoteStart: 1,
+        debitNoteStart: 1,
         journalStart: 1,
         customerStart: 1,
         supplierStart: 1,
@@ -1148,6 +1168,84 @@ export function SystemSettings() {
                   <div className="flex items-end">
                     <div className="text-sm text-muted-foreground">
                       مثال: {settings.paymentPrefix}A{String(settings.paymentStart).padStart(6, "0")} (A = دفتر السندات)
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="creditNotePrefix" className="text-right block">
+                      بادئة الاشعار الدائن *
+                    </Label>
+                    <Input
+                      id="creditNotePrefix"
+                      value={settings.creditNotePrefix}
+                      onChange={(e) => setSettings({ ...settings, creditNotePrefix: e.target.value })}
+                      className="text-right"
+                      dir="rtl"
+                      maxLength={3}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="creditNoteStart" className="text-right block">
+                      الترقيم يبدأ من (الاشعار الدائن) *
+                    </Label>
+                    <Input
+                      id="creditNoteStart"
+                      type="number"
+                      min="1"
+                      max="10000"
+                      value={settings.creditNoteStart}
+                      onChange={(e) => {
+                        const value = e.target.value === "" ? 1 : Number.parseInt(e.target.value)
+                        setSettings({ ...settings, creditNoteStart: value })
+                      }}
+                      className="text-right"
+                      dir="rtl"
+                      required
+                    />
+                  </div>
+                  <div className="flex items-end">
+                    <div className="text-sm text-muted-foreground">
+                      مثال: {settings.creditNotePrefix}A{String(settings.creditNoteStart).padStart(6, "0")} (A = دفتر السندات)
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="debitNotePrefix" className="text-right block">
+                      بادئة الاشعار المدين *
+                    </Label>
+                    <Input
+                      id="debitNotePrefix"
+                      value={settings.debitNotePrefix}
+                      onChange={(e) => setSettings({ ...settings, debitNotePrefix: e.target.value })}
+                      className="text-right"
+                      dir="rtl"
+                      maxLength={3}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="debitNoteStart" className="text-right block">
+                      الترقيم يبدأ من (الاشعار المدين) *
+                    </Label>
+                    <Input
+                      id="debitNoteStart"
+                      type="number"
+                      min="1"
+                      max="10000"
+                      value={settings.debitNoteStart}
+                      onChange={(e) => {
+                        const value = e.target.value === "" ? 1 : Number.parseInt(e.target.value)
+                        setSettings({ ...settings, debitNoteStart: value })
+                      }}
+                      className="text-right"
+                      dir="rtl"
+                      required
+                    />
+                  </div>
+                  <div className="flex items-end">
+                    <div className="text-sm text-muted-foreground">
+                      مثال: {settings.debitNotePrefix}A{String(settings.debitNoteStart).padStart(6, "0")} (A = دفتر السندات)
                     </div>
                   </div>
 

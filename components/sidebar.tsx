@@ -34,6 +34,8 @@ import {
   ArrowUpCircle,
   CreditCard,
   BookOpen,
+  FilePlus2,
+  FileMinus2,
   LucideIcon,
 } from "lucide-react"
 import { useWindowManager } from "@/contexts/window-manager-context"
@@ -174,6 +176,8 @@ export function Sidebar({
             { title: "سند قبض", section: "receipt-vouchers", icon: ArrowDownCircle },
             { title: "سند صرف", section: "payment-vouchers", icon: ArrowUpCircle },
             { title: "سند قيد", section: "journal-vouchers", icon: BookOpen },
+            { title: "اشعار دائن", section: "credit-notes", icon: FilePlus2 },
+            { title: "اشعار مدين", section: "debit-notes", icon: FileMinus2 },
           ],
         },
       ],

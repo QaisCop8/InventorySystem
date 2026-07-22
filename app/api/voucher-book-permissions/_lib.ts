@@ -40,6 +40,16 @@ export const ensureTables = async () => {
     await sql`DROP TABLE voucher_types`
   }
 
+  // اشعار دائن/مدين (credit-notes/_lib.ts) — نوعا سند جديدان لا يوجدان في أي جدول قديم مهاجَر،
+  // فيُدرجان صراحة هنا. لازمان لتظهرا في شاشة صلاحيات دفاتر السندات (fetchPermissionsForUser)
+  // ولأن voucher_book_user_permissions_tbl.voucher_type_id مرتبط بمفتاح خارجي مع هذا الجدول.
+  await sql`
+    INSERT INTO voucher_types_tbl (id, name, status) VALUES
+      (10, 'اشعار دائن', 1),
+      (11, 'اشعار مدين', 1)
+    ON CONFLICT (id) DO NOTHING
+  `
+
   // --- voucher_books_tbl (renamed from legacy voucher_books) ---
   const legacyBooks = await sql`SELECT to_regclass('public.voucher_books') AS reg`
   const booksTbl = await sql`SELECT to_regclass('public.voucher_books_tbl') AS reg`
