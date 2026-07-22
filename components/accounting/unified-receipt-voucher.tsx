@@ -181,7 +181,7 @@ interface UnifiedReceiptVoucherProps {
 }
 
 const voucherTabTriggerClass =
-  "data-[state=active]:bg-gradient-to-r data-[state=active]:from-cyan-500 data-[state=active]:to-blue-600 data-[state=active]:text-white data-[state=active]:shadow-md"
+  "data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-teal-600 data-[state=active]:text-white data-[state=active]:shadow-md"
 
 const normalizeVoucherCode = (value: string) => value.toUpperCase().replace(/[^A-Z0-9-]/g, "")
 const numberValue = (value: number | null | undefined) => (value === null || value === undefined ? "" : String(value))
@@ -1645,8 +1645,13 @@ export default function UnifiedReceiptVoucher({
               </div>
             </div>
 
-            <div className="grid gap-1.5 border-b py-4">
-              <Label htmlFor="vch-note">الملاحظة</Label>
+            <div className="mt-4 grid gap-1.5 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+              <div className="flex items-center gap-2 text-sm font-bold text-slate-600">
+                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-100 ring-1 ring-slate-200">
+                  <MessageSquare className="h-3.5 w-3.5" />
+                </span>
+                الملاحظة
+              </div>
               <Input
                 id="vch-note"
                 value={form.note}
@@ -1681,6 +1686,13 @@ export default function UnifiedReceiptVoucher({
 
               {/* الرئيسية */}
               <TabsContent value="main" className="min-h-[420px] space-y-4 pt-4">
+                <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+                  <div className="flex items-center gap-2 text-sm font-bold text-amber-700">
+                    <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-50 ring-1 ring-amber-100">
+                      <Wallet className="h-3.5 w-3.5" />
+                    </span>
+                    الحسابات الافتراضية
+                  </div>
                 <div className="grid gap-4 md:grid-cols-3">
                   <AutoCompleteAccount
                     label="حساب الصندوق"
@@ -1745,6 +1757,7 @@ export default function UnifiedReceiptVoucher({
                       onChange={(e: any) => onFormChange("salesman_id", e.value ?? null)}
                     />
                   </div>
+                </div>
                 </div>
               </TabsContent>
 
