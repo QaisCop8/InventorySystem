@@ -6,6 +6,7 @@ import {
   saveJournalRows,
   fetchCreditNoteDetails,
   validateJournalAccountCurrencies,
+  CREDIT_NOTE_VCH_TYPE,
 } from "./_lib"
 
 export async function GET(request: NextRequest) {
@@ -46,7 +47,8 @@ export async function POST(request: NextRequest) {
     }
 
     if (!data.account_id) return NextResponse.json({ error: "يجب اختيار العميل" }, { status: 400 })
-    if (!data.debit_account_id) return NextResponse.json({ error: "يجب اختيار الحساب المدين" }, { status: 400 })
+    if (!data.debit_account_id)
+      return NextResponse.json({ error: `يجب اختيار ${vchType === CREDIT_NOTE_VCH_TYPE ? "الحساب المدين" : "الحساب الدائن"}` }, { status: 400 })
     if (!data.vat_account_id) return NextResponse.json({ error: "يجب اختيار حساب الضريبة" }, { status: 400 })
 
     const amount = Number(data.amount || 0)
@@ -124,7 +126,8 @@ export async function PUT(request: NextRequest) {
     let journalRows: any[] = []
     if (status !== 3) {
       if (!data.account_id) return NextResponse.json({ error: "يجب اختيار العميل" }, { status: 400 })
-      if (!data.debit_account_id) return NextResponse.json({ error: "يجب اختيار الحساب المدين" }, { status: 400 })
+      if (!data.debit_account_id)
+        return NextResponse.json({ error: `يجب اختيار ${vchType === CREDIT_NOTE_VCH_TYPE ? "الحساب المدين" : "الحساب الدائن"}` }, { status: 400 })
       if (!data.vat_account_id) return NextResponse.json({ error: "يجب اختيار حساب الضريبة" }, { status: 400 })
       if (amount <= 0) return NextResponse.json({ error: "يجب إدخال المبلغ" }, { status: 400 })
 

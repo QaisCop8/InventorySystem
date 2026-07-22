@@ -258,14 +258,37 @@ export default function CreditNote({ voucherType }: CreditNoteProps) {
     }
   }
 
+  // حسابات الضريبة والحساب المدين/الدائن الافتراضيان يُحضَران من إعدادات النظام (شاشة الحسابات
+  // الافتراضية): اشعار دائن (10) يستخدم "حساب الضريبة على المبيعات" و"حساب خصم مسموح به"،
+  // واشعار مدين (11) يستخدم "حساب الضريبة على المشتريات" و"حساب الخصم المكتسب".
+  const fetchAccountDefaults = async (): Promise<{ vatAccountId: number | null; debitAccountId: number | null }> => {
+    const empty = { vatAccountId: null, debitAccountId: null }
+    try {
+      const response = await fetch("/api/settings/system")
+      if (!response.ok) return empty
+      const data = await response.json()
+      const settings = data?.settings ?? data
+      const isCredit = voucherType === 10
+      const vatAccountId = Number(settings?.[isCredit ? "default_sales_tax_account" : "default_purchase_tax_account"]) || null
+      const debitAccountId = Number(settings?.[isCredit ? "default_allowed_discount_account" : "default_earned_discount_account"]) || null
+      return { vatAccountId, debitAccountId }
+    } catch (error) {
+      console.error("Failed to fetch default vat/debit accounts", error)
+      return empty
+    }
+  }
+
   const openNewDialog = async () => {
     const defaults = await fetchDefaults()
+    const accountDefaults = await fetchAccountDefaults()
     const code = await generateCode(defaults.bookId)
     setForm({
       ...buildInitialForm(voucherType),
       vch_code: code,
       vch_book_id: defaults.bookId,
       currency_id: defaults.currencyId,
+      vat_account_id: accountDefaults.vatAccountId,
+      debit_account_id: accountDefaults.debitAccountId,
     })
     setIsNewMode(true)
     setErrorMessages([])
@@ -338,7 +361,7 @@ export default function CreditNote({ voucherType }: CreditNoteProps) {
     }
 
     if (!data.account_id) return "يجب اختيار العميل"
-    if (!data.debit_account_id) return "يجب اختيار الحساب المدين"
+    if (!data.debit_account_id) return `يجب اختيار ${voucherType === 10 ? "الحساب المدين" : "الحساب الدائن"}`
     if (!data.vat_account_id) return "يجب اختيار حساب الضريبة"
 
     if (!data.amount_journal_type_8 || Number(data.amount_journal_type_8) <= 0) return "يجب إدخال المبلغ"
@@ -401,6 +424,7 @@ export default function CreditNote({ voucherType }: CreditNoteProps) {
 
       await fetchVouchers()
       const defaults = await fetchDefaults()
+      const accountDefaults = await fetchAccountDefaults()
       const bookId = form.vch_book_id ?? defaults.bookId
       const code = await generateCode(bookId)
       setForm({
@@ -408,6 +432,8 @@ export default function CreditNote({ voucherType }: CreditNoteProps) {
         vch_code: code,
         vch_book_id: bookId,
         currency_id: defaults.currencyId,
+        vat_account_id: accountDefaults.vatAccountId,
+        debit_account_id: accountDefaults.debitAccountId,
       })
       setIsNewMode(true)
       setDialogOpen(true)
@@ -479,12 +505,15 @@ export default function CreditNote({ voucherType }: CreditNoteProps) {
     }
 
     const defaults = await fetchDefaults()
+    const accountDefaults = await fetchAccountDefaults()
     const code = await generateCode(defaults.bookId)
     setForm({
       ...buildInitialForm(voucherType),
       vch_code: code,
       vch_book_id: defaults.bookId,
       currency_id: defaults.currencyId,
+      vat_account_id: accountDefaults.vatAccountId,
+      debit_account_id: accountDefaults.debitAccountId,
     })
     setCurrentIndex(0)
     setIsNewMode(true)

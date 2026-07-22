@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
-import { Plus, Trash2, Paperclip, ListPlus } from "lucide-react"
+import { Plus, Trash2, Paperclip, ListPlus, FileText, User, Wallet, MessageSquare, Landmark, CreditCard, BookOpen } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -1398,14 +1398,26 @@ export default function UnifiedReceiptVoucher({
             isLastRecord={isLastRecord}
           />
 
-          <div className="relative rounded-b-3xl bg-background px-6 py-6" onKeyDown={handleFormEnterAsTab}>
+          <div className="relative rounded-b-3xl bg-slate-50/60 px-6 py-6" onKeyDown={handleFormEnterAsTab}>
             <ProgressSpinner loading={isSaving || navLoading} />
 
-            <DialogHeader className="mb-4">
-              <DialogTitle className="text-xl font-semibold">
-                {title} {form.id > 0 ? "" : "(مسودة)"}
+            <DialogHeader className="mb-5 overflow-hidden rounded-2xl bg-gradient-to-l from-emerald-600 via-emerald-600 to-teal-600 px-5 py-4 shadow-lg">
+              <DialogTitle className="flex flex-wrap items-center gap-2 text-lg font-extrabold tracking-tight text-white sm:text-xl">
+                <FileText className="h-5 w-5" />
+                {title}
+                {form.id > 0 ? (
+                  <span className="rounded-full bg-white/15 px-2.5 py-0.5 text-xs font-semibold ring-1 ring-white/30">{form.vch_code}</span>
+                ) : (
+                  <span className="rounded-full bg-white/15 px-2.5 py-0.5 text-xs font-semibold ring-1 ring-white/30">مسودة</span>
+                )}
                 {statusBadge && (
-                  <span className={form.status === 3 ? "text-rose-600" : "text-emerald-600"}> - {statusBadge}</span>
+                  <span
+                    className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ${
+                      form.status === 3 ? "bg-rose-500/20 text-rose-50 ring-rose-200/40" : "bg-amber-400/20 text-amber-50 ring-amber-200/40"
+                    }`}
+                  >
+                    {statusBadge}
+                  </span>
                 )}
               </DialogTitle>
             </DialogHeader>
@@ -1414,9 +1426,14 @@ export default function UnifiedReceiptVoucher({
 
             <fieldset disabled={isLocked} className="contents">
             {/* تفاصيل السند + تفاصيل العميل */}
-            <div className="grid gap-6 border-b pb-6 lg:grid-cols-2">
-              <div className="space-y-3">
-                <h4 className="text-sm font-bold text-slate-500">تفاصيل السند</h4>
+            <div className="grid gap-4 lg:grid-cols-2">
+              <div className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+                <div className="flex items-center gap-2 text-sm font-bold text-emerald-700">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-50 ring-1 ring-emerald-100">
+                    <FileText className="h-3.5 w-3.5" />
+                  </span>
+                  تفاصيل السند
+                </div>
                 <div className="grid gap-3">
                   <div className="grid grid-cols-3 gap-3">
                     <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
@@ -1512,8 +1529,13 @@ export default function UnifiedReceiptVoucher({
                 </div>
               </div>
 
-              <div className="space-y-3">
-                <h4 className="text-sm font-bold text-slate-500">تفاصيل العميل</h4>
+              <div className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+                <div className="flex items-center gap-2 text-sm font-bold text-blue-700">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-50 ring-1 ring-blue-100">
+                    <User className="h-3.5 w-3.5" />
+                  </span>
+                  تفاصيل العميل
+                </div>
                 <div className="grid gap-3">
                   <div className="grid grid-cols-2 gap-3">
                     <AutoCompleteAccount
