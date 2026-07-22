@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
-import { fetchDetails } from "../_lib"
+import { fetchDetails, archiveAndDeleteVoucher, markVoucherPrinted } from "../_lib"
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
@@ -19,5 +19,47 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   } catch (error) {
     console.error("Error fetching journal voucher:", error)
     return NextResponse.json({ error: "Failed to fetch journal voucher" }, { status: 500 })
+  }
+}
+
+// حذف فعلي (مع أرشفة إلى جداول log) — متاح فقط لسند بحالة "فعال" (status=1). سند مُرحَّل
+// يُلغى منطقياً عبر PUT بـ status=3 بدل هذا المسار (انظر archiveAndDeleteVoucher في receipts/_lib.ts).
+export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+  try {
+    const id = Number(params.id)
+    if (!id) {
+      return NextResponse.json({ error: "معرف السند غير صالح" }, { status: 400 })
+    }
+
+    const result = await archiveAndDeleteVoucher(id)
+    if (result.error) {
+      return NextResponse.json({ error: result.error }, { status: 400 })
+    }
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error("Error deleting journal voucher:", error)
+    return NextResponse.json({ error: "Failed to delete journal voucher" }, { status: 500 })
+  }
+}
+
+// يُستدعى عند ضغط زر الطباعة على سند مُرحَّل بالفعل — يسجّل printed=1 دون المرور بمسار PUT
+// الرئيسي الذي يرفض أي تعديل على سند مُرحَّل (انظر markVoucherPrinted في receipts/_lib.ts).
+export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
+  try {
+    const id = Number(params.id)
+    if (!id) {
+      return NextResponse.json({ error: "معرف السند غير صالح" }, { status: 400 })
+    }
+
+    const result = await markVoucherPrinted(id)
+    if (result.error) {
+      return NextResponse.json({ error: result.error }, { status: 400 })
+    }
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error("Error marking journal voucher as printed:", error)
+    return NextResponse.json({ error: "Failed to mark journal voucher as printed" }, { status: 500 })
   }
 }

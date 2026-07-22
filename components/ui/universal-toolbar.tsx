@@ -12,6 +12,7 @@ import {
   Trash2,
   FileText,
   Download,
+  Printer,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -149,7 +150,7 @@ export function UniversalToolbar({
           <Button
             className="group inline-flex items-center gap-2 rounded-xl border border-emerald-400/30 bg-gradient-to-r from-emerald-500 to-teal-500 px-3.5 py-2.5 text-sm font-semibold text-white shadow-[0_12px_24px_-12px_rgba(16,185,129,0.95)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_16px_30px_-12px_rgba(16,185,129,0.9)] disabled:opacity-70"
             onClick={onSave}
-            disabled={isSaving}
+            disabled={isSaving || !canSave}
           >
             <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/20">
               <Save className="h-4 w-4" />
@@ -170,6 +171,19 @@ export function UniversalToolbar({
               <Trash2 className="h-4 w-4" />
             </span>
             <span>{labels.delete}</span>
+          </Button>
+        )}
+
+        {onPrint && (
+          <Button
+            onClick={onPrint}
+            disabled={isLoading || isSaving || !canPrint}
+            className="group inline-flex items-center gap-2 rounded-xl border border-amber-400/30 bg-gradient-to-r from-amber-500 to-orange-500 px-3.5 py-2.5 text-sm font-semibold text-white shadow-[0_12px_24px_-12px_rgba(245,158,11,0.95)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_16px_30px_-12px_rgba(245,158,11,0.9)] disabled:opacity-70"
+          >
+            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/20">
+              <Printer className="h-4 w-4" />
+            </span>
+            <span>{labels.print}</span>
           </Button>
         )}
 

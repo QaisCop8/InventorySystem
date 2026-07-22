@@ -1,6 +1,15 @@
 import { type NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
-import { ensureTables, JOURNAL_VCH_TYPE, buildJournalRows, saveJournalRows, saveNoteRows, fetchDetails, type JournalRow } from "./_lib"
+import {
+  ensureTables,
+  JOURNAL_VCH_TYPE,
+  buildJournalRows,
+  saveJournalRows,
+  saveNoteRows,
+  fetchDetails,
+  validateJournalAccountCurrencies,
+  type JournalRow,
+} from "./_lib"
 
 export async function GET() {
   try {
@@ -48,15 +57,20 @@ export async function POST(request: NextRequest) {
     const journalRows = buildJournalRows(data)
     const balanceError = validateBalance(journalRows)
     if (balanceError) return NextResponse.json({ error: balanceError }, { status: 400 })
+    const currencyError = await validateJournalAccountCurrencies(journalRows, data.currency_id ? Number(data.currency_id) : null)
+    if (currencyError) return NextResponse.json({ error: currencyError }, { status: 400 })
     const amount = journalRows.filter((r) => r.credit_debit === 1).reduce((s, r) => s + r.amount, 0)
 
+    const insertStatus = Number(data.status || 1)
     const result = await sql`
       INSERT INTO voucher_header_tbl (
         vch_type, vch_code, vch_date, vch_book_id, currency_id, rate,
-        amount, payment_classification_id, salesman_id, manual_voucher, manual_date, note, status
+        amount, payment_classification_id, salesman_id, manual_voucher, manual_date, note, status, vch_status, is_printed,
+        insert_user
       ) VALUES (
         ${JOURNAL_VCH_TYPE}, ${data.vch_code}, ${data.vch_date}, ${data.vch_book_id || null}, ${data.currency_id || null}, ${Number(data.rate || 1)},
-        ${amount}, ${data.payment_classification_id || null}, ${data.salesman_id || null}, ${data.manual_voucher || ""}, ${data.manual_date || null}, ${data.note || ""}, ${Number(data.status || 1)}
+        ${amount}, ${data.payment_classification_id || null}, ${data.salesman_id || null}, ${data.manual_voucher || ""}, ${data.manual_date || null}, ${data.note || ""}, ${insertStatus}, ${insertStatus === 2 ? 2 : 1}, ${Number(data.is_printed || 0)},
+        ${data.insert_user || null}
       )
       RETURNING *
     `
@@ -92,6 +106,13 @@ export async function PUT(request: NextRequest) {
 
     const status = Number(data.status ?? 1)
 
+    // سند مُرحَّل (status=2) مقفل: التعديل العادي عليه ممنوع من الواجهة، ونمنعه هنا أيضاً كخط
+    // دفاع ثانٍ — الاستثناء الوحيد هو إلغاؤه منطقياً (status=3) عبر تأكيد الحذف.
+    const currentRows = await sql`SELECT status FROM voucher_header_tbl WHERE id = ${data.id}`
+    if (currentRows.length > 0 && Number(currentRows[0].status) === 2 && status !== 3) {
+      return NextResponse.json({ error: "السند مرحل ولا يمكن تعديله" }, { status: 400 })
+    }
+
     // الحذف الناعم (status=3) يتخطى شرط توازن القيد — السند يُلغى وليس يُرحَّل.
     let journalRows: JournalRow[] = []
     let amount = Number(data.amount || 0)
@@ -99,6 +120,8 @@ export async function PUT(request: NextRequest) {
       journalRows = buildJournalRows(data)
       const balanceError = validateBalance(journalRows)
       if (balanceError) return NextResponse.json({ error: balanceError }, { status: 400 })
+      const currencyError = await validateJournalAccountCurrencies(journalRows, data.currency_id ? Number(data.currency_id) : null)
+      if (currencyError) return NextResponse.json({ error: currencyError }, { status: 400 })
       amount = journalRows.filter((r) => r.credit_debit === 1).reduce((s, r) => s + r.amount, 0)
     }
 
@@ -117,7 +140,9 @@ export async function PUT(request: NextRequest) {
         manual_date = ${data.manual_date || null},
         note = ${data.note || ""},
         status = ${status},
-        updated_at = CURRENT_TIMESTAMP
+        vch_status = ${status === 2 ? 2 : 1},
+        is_printed = ${Number(data.is_printed || 0)},
+        last_update_date = CURRENT_TIMESTAMP
       WHERE id = ${data.id}
       RETURNING *
     `

@@ -15,6 +15,9 @@ import UnifiedReceiptVoucher, {
   type VoucherRecord,
 } from "./unified-receipt-voucher"
 import { Edit, Plus, Search } from "lucide-react"
+import type { PostVoucherAction } from "@/components/common/post-voucher-dialog"
+import VoucherPrintLayout, { type VoucherPrintData } from "@/components/common/voucher-print-layout"
+import type { BankAccountRecord } from "@/components/admin/unified-bank-accounts"
 
 interface CurrencyOption {
   currency_id?: number
@@ -69,7 +72,9 @@ const emptyJournalRow: VoucherJournalRow = {
 
 const emptyChequeRow: VoucherChequeRow = {
   bank_account: "",
+  bank_account_id: null,
   cheq_num: "",
+  cheque_book_cheque_id: null,
   bank_no: "",
   bank_id: null,
   bank_name: "",
@@ -102,7 +107,7 @@ const buildInitialForm = (voucherType: 8 | 9): VoucherRecord => ({
   vch_book_id: null,
   currency_id: null,
   rate: 1,
-  customer_account_id: null,
+  account_id: null,
   customer_name: "",
   to_account_id: null,
   cash_amount: null,
@@ -118,9 +123,10 @@ const buildInitialForm = (voucherType: 8 | 9): VoucherRecord => ({
   payment_classification_id: null,
   salesman_id: null,
   manual_voucher: "",
-  manual_date: "",
+  manual_date: new Date().toISOString().slice(0, 10),
   note: "",
   status: 1,
+  is_printed: 0,
   journal: [{ ...emptyJournalRow }],
   cheques: [{ ...emptyChequeRow }],
   cards: [{ ...emptyCardRow }],
@@ -130,6 +136,7 @@ const buildInitialForm = (voucherType: 8 | 9): VoucherRecord => ({
 const normalizeVoucher = (record: Partial<VoucherRecord>, voucherType: 8 | 9): VoucherRecord => ({
   ...buildInitialForm(voucherType),
   ...record,
+  manual_date: record.manual_date || record.vch_date || buildInitialForm(voucherType).manual_date,
   journal: record.journal?.length ? (record.journal as VoucherJournalRow[]) : [{ ...emptyJournalRow }],
   cheques: record.cheques?.length ? (record.cheques as VoucherChequeRow[]) : [{ ...emptyChequeRow }],
   cards: record.cards?.length ? (record.cards as VoucherCardRow[]) : [{ ...emptyCardRow }],
@@ -146,6 +153,8 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
   const [defaultBookId, setDefaultBookId] = useState<number | null>(null)
   const [banks, setBanks] = useState<BankOption[]>([])
   const [branches, setBranches] = useState<BranchOption[]>([])
+  const [bankAccounts, setBankAccounts] = useState<BankAccountRecord[]>([])
+  const [disallowManualChequeEntryInPayment, setDisallowManualChequeEntryInPayment] = useState(false)
   const [salesmen, setSalesmen] = useState<LookupOption[]>([])
   const [paymentClassifications, setPaymentClassifications] = useState<LookupOption[]>([])
   const [cardTypes, setCardTypes] = useState<CardTypeOption[]>([])
@@ -157,6 +166,13 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [errorMessages, setErrorMessages] = useState<string[]>([])
+  const [printData, setPrintData] = useState<VoucherPrintData | null>(null)
+
+  useEffect(() => {
+    if (!printData) return
+    const t = setTimeout(() => window.print(), 150)
+    return () => clearTimeout(t)
+  }, [printData])
 
   const [searchFilters, setSearchFilters] = useState({ code: "", name: "", currencyId: "__all__", dateFrom: "", dateTo: "" })
   const [currentPage, setCurrentPage] = useState(1)
@@ -234,15 +250,18 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
       const booksUrl = `/api/receipts/voucher-books?vch_type=${voucherType}${
         user?.id ? `&user_id=${encodeURIComponent(user.id)}` : ""
       }`
-      const [currenciesRes, booksRes, banksRes, branchesRes, salesmenRes, classificationsRes, cardTypesRes] = await Promise.all([
-        fetch("/api/exchange-rates").catch(() => null),
-        fetch(booksUrl).catch(() => null),
-        fetch("/api/banks").catch(() => null),
-        fetch("/api/branches").catch(() => null),
-        fetch("/api/salesmen").catch(() => null),
-        fetch("/api/payment-classifications").catch(() => null),
-        fetch("/api/credit-card-types").catch(() => null),
-      ])
+      const [currenciesRes, booksRes, banksRes, branchesRes, salesmenRes, classificationsRes, cardTypesRes, bankAccountsRes, systemSettingsRes] =
+        await Promise.all([
+          fetch("/api/exchange-rates").catch(() => null),
+          fetch(booksUrl).catch(() => null),
+          fetch("/api/banks").catch(() => null),
+          fetch("/api/branches").catch(() => null),
+          fetch("/api/salesmen").catch(() => null),
+          fetch("/api/payment-classifications").catch(() => null),
+          fetch("/api/credit-card-types").catch(() => null),
+          fetch("/api/bank-accounts").catch(() => null),
+          fetch("/api/settings/system").catch(() => null),
+        ])
 
       if (currenciesRes?.ok) {
         const data = await currenciesRes.json()
@@ -272,6 +291,15 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
       if (cardTypesRes?.ok) {
         const data = await cardTypesRes.json()
         setCardTypes(Array.isArray(data) ? data : [])
+      }
+      if (bankAccountsRes?.ok) {
+        const data = await bankAccountsRes.json()
+        setBankAccounts(Array.isArray(data) ? data : [])
+      }
+      if (systemSettingsRes?.ok) {
+        const data = await systemSettingsRes.json()
+        const settings = data?.settings ?? data
+        setDisallowManualChequeEntryInPayment(Boolean(settings?.disallow_manual_cheque_entry_in_payment))
       }
     } catch (error) {
       console.error("Failed to fetch lookups", error)
@@ -388,11 +416,15 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
   const cloneVoucher = async () => {
     if (!form.id) return
     const code = await generateCode(form.vch_book_id)
+    const today = new Date().toISOString().slice(0, 10)
     setForm((f) => ({
       ...f,
       id: 0,
       vch_code: code,
-      vch_date: new Date().toISOString().slice(0, 10),
+      vch_date: today,
+      manual_date: today,
+      status: 1,
+      is_printed: 0,
     }))
     setIsNewMode(true)
     setErrorMessages([])
@@ -454,7 +486,7 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
       return "يجب اختيار العملة"
     }
 
-    if (!data.customer_account_id) return `يجب اختيار ${labels.customerLabel}`
+    if (!data.account_id) return `يجب اختيار ${labels.customerLabel}`
 
     const cashAmount = Number(data.cash_amount || 0)
     const checkAmount = Number(data.check_amount || 0)
@@ -482,7 +514,28 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
     }
 
     if (checkAmount > 0) {
-      const validCheques = (data.cheques || []).filter((row) => row.cheq_num && Number(row.amount || 0) > 0)
+      // أي سطر لمسه المستخدم فعلياً (مبلغ أو رقم شيك أو رقم حساب) يجب أن يحمل بياناته الأساسية
+      // كاملة قبل الحفظ — إغفال أيٍّ منها يجعل الشيك غير قابل للتتبع لاحقاً (تحصيل/إرجاع/إيداع).
+      const enteredCheques = (data.cheques || []).filter(
+        (row) => Number(row.amount || 0) > 0 || row.cheq_num || row.bank_account,
+      )
+      for (const row of enteredCheques) {
+        if (!row.cheq_num) return "رقم الشيك مطلوب في تبويب الشيكات"
+        if (!row.due_date) return "تاريخ الاستحقاق مطلوب في تبويب الشيكات"
+        if (!row.bank_id) return "البنك مطلوب في تبويب الشيكات"
+        if (!row.branch_id) return "الفرع مطلوب في تبويب الشيكات"
+        if (voucherType === 9 && !row.bank_account) return "رقم الحساب مطلوب في تبويب الشيكات"
+      }
+
+      // سند الصرف يصدر شيكاته من حساب بنكي واحد فقط — لا يجوز خلط أكثر من حساب ضمن نفس السند.
+      if (voucherType === 9) {
+        const distinctAccounts = new Set(enteredCheques.map((row) => (row.bank_account || "").trim()).filter(Boolean))
+        if (distinctAccounts.size > 1) {
+          return "يجب أن تكون جميع الشيكات من نفس الحساب البنكي"
+        }
+      }
+
+      const validCheques = enteredCheques.filter((row) => row.cheq_num && Number(row.amount || 0) > 0)
       const chequesTotal = validCheques.reduce((sum, row) => sum + Number(row.amount || 0), 0)
       if (Math.round((chequesTotal - checkAmount) * 100) / 100 !== 0) {
         return "إجمالي تبويب الشيكات يجب أن يساوي مبلغ الشيكات"
@@ -496,7 +549,7 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
     return null
   }
 
-  const saveVoucher = async () => {
+  const saveVoucher = async (action: PostVoucherAction = "save") => {
     const error = validateVoucher(form)
     if (error) {
       setErrorMessages([error])
@@ -507,29 +560,64 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
     setIsSaving(true)
     try {
       const method = form.id > 0 ? "PUT" : "POST"
+      // حفظ عادي / حفظ وطباعة: تبقى الحالة كما هي (لا ترحيل). حفظ وترحيل / ترحيل وطباعة: تصبح
+      // status=2 (مرحل) ويُقفل السند بعدها. علامة الطباعة (is_printed=1) تُسجَّل فقط عند "ترحيل
+      // وطباعة" — أي طباعة أخرى (بما فيها حفظ وطباعة) لا تُغيّرها هنا إطلاقاً.
+      const status = action === "save" || action === "save_print" ? form.status : 2
+      const isPrinted = action === "post_print" ? 1 : form.is_printed || 0
       // المبلغ في تبويب تفاصيل البطاقة يتبع حقل "بطاقات" في الرئيسية دائماً.
       const dataToSave: VoucherRecord = {
         ...form,
+        status,
+        is_printed: isPrinted,
         cards: [{ ...(form.cards?.[0] || emptyCardRow), amount: form.credit_card_amount }],
       }
       const response = await fetch("/api/receipts", {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(dataToSave),
+        // insert_user: يُسجَّل عند الإدراج فقط (POST يتجاهله PUT في _lib.ts)، لتوثيق مَن أنشأ
+        // السند دون أن يتغيّر لاحقاً عند تعديل سند موجود من مستخدم آخر.
+        body: JSON.stringify({ ...dataToSave, insert_user: user?.id || null }),
       })
       if (!response.ok) {
         const responseError = await response.json()
         setErrorMessages([responseError.error || "فشل في حفظ السند"])
         return
       }
+      const saved = await response.json()
+
+      if (action === "post_print" || action === "save_print") {
+        const journalRows = Array.isArray(saved.journal) ? saved.journal : []
+        setPrintData({
+          title: labels.title,
+          copyLabel: action === "post_print" ? "نسخة اصلية" : "نسخة للتدقيق",
+          vch_code: saved.vch_code,
+          vch_date: saved.vch_date,
+          currency_name: currencies.find((c) => Number(c.currency_id ?? c.id) === saved.currency_id)?.currency_name,
+          amount: Number(saved.amount || 0),
+          manual_voucher: saved.manual_voucher,
+          note: saved.note,
+          rows: journalRows.map((row: any) => ({
+            account_code: row.account_code,
+            account_name: row.account_name,
+            debit: row.credit_debit === 1 ? row.amount : null,
+            credit: row.credit_debit === 2 ? row.amount : null,
+            note: row.note,
+          })),
+        })
+      }
+
       await fetchVouchers()
       const defaults = await fetchDefaults()
       const accountDefaults = await fetchAccountDefaultsForCurrency(defaults.currencyId)
-      const code = await generateCode(defaults.bookId)
+      // يبقى دفتر السندات كما هو (نفس الدفتر المستخدم للسند الذي حُفظ للتو) بدل الرجوع للدفتر
+      // الافتراضي — أكثر ملاءمة عند إدخال عدة سندات متتالية على نفس الدفتر.
+      const bookId = form.vch_book_id ?? defaults.bookId
+      const code = await generateCode(bookId)
       setForm({
         ...buildInitialForm(voucherType),
         vch_code: code,
-        vch_book_id: defaults.bookId,
+        vch_book_id: bookId,
         currency_id: defaults.currencyId,
         ...accountDefaults,
         cards: [{ ...emptyCardRow, currency_id: defaults.currencyId }],
@@ -544,7 +632,85 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
     }
   }
 
-  const deleteVoucher = async () => {
+  // زر الطباعة المستقل (خارج تدفق الحفظ): سند فعال (status=1) لم يُرحَّل بعد يُطبع كـ"نسخة
+  // للتدقيق" فقط دون أي تسجيل. سند مُرحَّل (status=2) يُسجَّل عليه is_printed=1 عند أول طباعة
+  // فتظهر "نسخة اصلية"، وأي طباعة لاحقة له تظهر "نسخة" فقط دون إعادة التسجيل.
+  const handlePrint = async () => {
+    if (!(form.id > 0) || form.status === 3) return
+
+    let isPrinted = form.is_printed || 0
+    const copyLabel = form.status !== 2 ? "نسخة للتدقيق" : isPrinted === 1 ? "نسخة" : "نسخة اصلية"
+
+    if (form.status === 2 && isPrinted !== 1) {
+      try {
+        const response = await fetch(`/api/receipts/${form.id}`, { method: "PATCH" })
+        if (response.ok) {
+          isPrinted = 1
+          setForm((f) => ({ ...f, is_printed: 1 }))
+        }
+      } catch (error) {
+        console.error("Failed to mark voucher as printed", error)
+      }
+    }
+
+    const journalRows = Array.isArray(form.journal) ? form.journal : []
+    setPrintData({
+      title: labels.title,
+      copyLabel,
+      vch_code: form.vch_code,
+      vch_date: form.vch_date,
+      currency_name: currencyName(form.currency_id),
+      amount: Number(form.amount || 0),
+      manual_voucher: form.manual_voucher,
+      note: form.note,
+      rows: journalRows.map((row: any) => ({
+        account_code: row.account_code,
+        account_name: row.account_name,
+        debit: row.credit_debit === 1 ? row.amount : null,
+        credit: row.credit_debit === 2 ? row.amount : null,
+        note: row.note,
+      })),
+    })
+  }
+
+  const advanceAfterDelete = async () => {
+    await fetchVouchers()
+    setShowDeleteConfirm(false)
+
+    const nextList = vouchers.filter((v) => v.id !== form.id)
+    if (nextList.length > 0) {
+      const targetIndex = Math.min(Math.max(0, currentIndex), nextList.length - 1)
+      const next = nextList[targetIndex]
+      if (next) {
+        const details = await fetchVoucherDetails(next.id)
+        setForm(normalizeVoucher(details || next, voucherType))
+        setCurrentIndex(targetIndex)
+        setIsNewMode(false)
+        setDialogOpen(true)
+        return
+      }
+    }
+
+    const defaults = await fetchDefaults()
+    const accountDefaults = await fetchAccountDefaultsForCurrency(defaults.currencyId)
+    const code = await generateCode(defaults.bookId)
+    setForm({
+      ...buildInitialForm(voucherType),
+      vch_code: code,
+      vch_book_id: defaults.bookId,
+      currency_id: defaults.currencyId,
+      ...accountDefaults,
+      cards: [{ ...emptyCardRow, currency_id: defaults.currencyId }],
+    })
+    setCurrentIndex(0)
+    setIsNewMode(true)
+    setDialogOpen(true)
+  }
+
+  // سند مُرحَّل (status=2): لا يُحذف فعلياً، بل يُلغى منطقياً (status=3) فيبقى في voucher_header_tbl
+  // كأثر تاريخي — هذا هو السلوك القديم لزر الحذف (الذي كان يُطبَّق على كل السندات سابقاً). يبقى
+  // معروضاً في نفس النافذة بعد الإلغاء (وليس الانتقال لسند آخر) ليرى المستخدم حالته الجديدة فوراً.
+  const logicalCancelVoucher = async () => {
     if (!form.id) return
     setIsSaving(true)
     try {
@@ -555,38 +721,13 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
       })
       if (!response.ok) {
         const error = await response.json()
-        throw new Error(error.error || "فشل في حذف السند")
+        throw new Error(error.error || "فشل في إلغاء السند")
       }
+      const saved = await response.json()
       await fetchVouchers()
       setShowDeleteConfirm(false)
-
-      const nextList = vouchers.filter((v) => v.id !== form.id)
-      if (nextList.length > 0) {
-        const targetIndex = Math.min(Math.max(0, currentIndex), nextList.length - 1)
-        const next = nextList[targetIndex]
-        if (next) {
-          const details = await fetchVoucherDetails(next.id)
-          setForm(normalizeVoucher(details || next, voucherType))
-          setCurrentIndex(targetIndex)
-          setIsNewMode(false)
-          setDialogOpen(true)
-          return
-        }
-      }
-
-      const defaults = await fetchDefaults()
-      const accountDefaults = await fetchAccountDefaultsForCurrency(defaults.currencyId)
-      const code = await generateCode(defaults.bookId)
-      setForm({
-        ...buildInitialForm(voucherType),
-        vch_code: code,
-        vch_book_id: defaults.bookId,
-        currency_id: defaults.currencyId,
-        ...accountDefaults,
-        cards: [{ ...emptyCardRow, currency_id: defaults.currencyId }],
-      })
-      setCurrentIndex(0)
-      setIsNewMode(true)
+      setForm(normalizeVoucher(saved, voucherType))
+      setIsNewMode(false)
       setDialogOpen(true)
     } catch (error) {
       console.error(error)
@@ -594,6 +735,27 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
       setIsSaving(false)
     }
   }
+
+  // سند بحالة فعال (status=1، لم يُرحَّل بعد): يُحذف فعلياً من voucher_header_tbl بعد أرشفته إلى
+  // جداول log (انظر archiveAndDeleteVoucher في app/api/receipts/_lib.ts).
+  const physicalDeleteVoucher = async () => {
+    if (!form.id) return
+    setIsSaving(true)
+    try {
+      const response = await fetch(`/api/receipts/${form.id}`, { method: "DELETE" })
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || "فشل في حذف السند")
+      }
+      await advanceAfterDelete()
+    } catch (error) {
+      console.error(error)
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const handleConfirmDelete = () => (form.status === 2 ? logicalCancelVoucher() : physicalDeleteVoucher())
 
   const handleDialogOpenChange = (open: boolean) => {
     if (!open && showDeleteConfirm) return
@@ -850,6 +1012,8 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
         voucherBooks={voucherBooks}
         banks={banks}
         branches={branches}
+        bankAccounts={bankAccounts}
+        disallowManualChequeEntryInPayment={disallowManualChequeEntryInPayment}
         salesmen={salesmen}
         paymentClassifications={paymentClassifications}
         cardTypes={cardTypes}
@@ -859,8 +1023,10 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
         onOpenChange={handleDialogOpenChange}
         onNew={openNewDialog}
         onSave={saveVoucher}
+        onValidateSave={() => validateVoucher(form)}
         onDelete={() => form.id && setShowDeleteConfirm(true)}
         onClone={cloneVoucher}
+        onPrint={handlePrint}
         onNavigateRecord={handleNavigateRecord}
         onFormChange={(field, value) => setForm((f) => ({ ...f, [field]: value }))}
         onBookChange={handleBookChange}
@@ -870,7 +1036,7 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
         onChequesChange={(cheques) => setForm((f) => ({ ...f, cheques }))}
         onCardsChange={(cards) => setForm((f) => ({ ...f, cards }))}
         onNotesChange={(notes) => setForm((f) => ({ ...f, notes }))}
-        onConfirmDelete={deleteVoucher}
+        onConfirmDelete={handleConfirmDelete}
         onCancelDelete={() => setShowDeleteConfirm(false)}
         canSave={
           !!form.vch_code.trim() &&
@@ -883,6 +1049,7 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
         isNewMode={isNewMode}
         errorMessages={errorMessages}
       />
+      <VoucherPrintLayout data={printData} />
     </div>
   )
 }

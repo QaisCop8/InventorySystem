@@ -14,9 +14,11 @@ import Messages from "@/components/common/Messages"
 import ProgressSpinner from "@/components/ProgressSpinner/ProgressSpinner"
 import DataGridView from "@/components/common/DataGridView"
 import DateTimeControl from "@/components/common/date-time-control"
+import PostVoucherDialog, { type PostVoucherAction } from "@/components/common/post-voucher-dialog"
 import AccountSearchDialog, { type AccountItem } from "@/components/customer/account-search-dialog"
 import AccountCostCenters, { type JournalCostCenterSelection } from "@/components/customer/account-cost-centers"
 import Util from "@/components/common/Util"
+import { useToast } from "@/hooks/use-toast"
 import { CellRange, KeyAction } from "@grapecity/wijmo.grid"
 import { Dropdown as PrimeDropdown } from "primereact/dropdown"
 
@@ -51,6 +53,7 @@ export interface JournalVoucherRecord {
   salesman_id: number | null
   note: string
   status: number
+  is_printed?: number
   journal: JournalEntryRow[]
   notes: JournalNoteRow[]
 }
@@ -80,9 +83,11 @@ interface UnifiedJournalProps {
   showDeleteConfirm?: boolean
   onOpenChange: (open: boolean) => void
   onNew?: () => void
-  onSave: () => void
+  onSave: (action?: PostVoucherAction) => void
+  onValidateSave?: () => string | null
   onDelete?: () => void
   onClone?: () => void
+  onPrint?: () => void
   onNavigateRecord?: (record: JournalVoucherRecord) => void
   onFormChange: (field: string, value: string | number | null) => void
   onBookChange?: (bookId: number | null) => void
@@ -113,9 +118,22 @@ const normalizeVoucherCode = (value: string) => value.toUpperCase().replace(/[^A
 const numberValue = (value: number | null | undefined) => (value === null || value === undefined ? "" : String(value))
 
 const selectCell = (grid: any, row: number, colName: string) => {
-  if (!grid) return
+  if (!grid || !grid.columns) return
   const colIndex = grid.columns.findIndex((c: any) => c.binding === colName)
   if (colIndex >= 0) grid.select(new CellRange(row, colIndex))
+}
+
+// بعد التبديل إلى تبويب "الحسابات" قد يُعاد إنشاء الشبكة (Radix يُلغي تركيب التبويبات غير
+// النشطة)، فيتأخر جاهزية gridRef.current قليلاً — نعيد المحاولة بدل الاعتماد على مهلة ثابتة
+// قد تسبق اكتمال إعادة التركيب فتترك grid كائناً قديماً بلا columns.
+const waitForGridReady = (getGrid: () => any, onReady: (grid: any) => void, attempts = 10) => {
+  const grid = getGrid()
+  if (grid && grid.columns) {
+    onReady(grid)
+    return
+  }
+  if (attempts <= 0) return
+  setTimeout(() => waitForGridReady(getGrid, onReady, attempts - 1), 50)
 }
 
 const blockNonNumericKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -227,8 +245,10 @@ export default function UnifiedJournal({
   onOpenChange,
   onNew,
   onSave,
+  onValidateSave,
   onDelete,
   onClone,
+  onPrint,
   onNavigateRecord,
   onFormChange,
   onBookChange,
@@ -246,6 +266,7 @@ export default function UnifiedJournal({
 }: UnifiedJournalProps) {
   const dateInputRef = useRef<HTMLInputElement | null>(null)
   const messagesRef = useRef<any>(null)
+  const { toast } = useToast()
   const [activeTab, setActiveTab] = useState("journal")
   const [navLoading, setNavLoading] = useState(false)
   const [accountsList, setAccountsList] = useState<AccountItem[]>([])
@@ -255,8 +276,21 @@ export default function UnifiedJournal({
   const [costCenterAccount, setCostCenterAccount] = useState<AccountItem | null>(null)
   const [costCenterRow, setCostCenterRow] = useState<number | null>(null)
   const gridRef = useRef<any>(null)
+  // يميّز نافذة بحث الحساب بين "تم الاختيار" (ينتقل التركيز إلى مدين) و"إلغاء/إغلاق دون اختيار"
+  // (يعود التركيز إلى رقم الحساب) — كلا المسارين يُغلقان النافذة عبر onOpenChange نفسه.
+  const accountJustSelectedRef = useRef(false)
   const accountsListRef = useRef<AccountItem[]>([])
   const accountsFetchRef = useRef<Promise<AccountItem[]> | null>(null)
+  const [postDialogOpen, setPostDialogOpen] = useState(false)
+  // سند مُرحَّل (status=2): مقفل بالكامل، لا يُعدَّل إلا عبر إلغائه منطقياً (زر حذف).
+  const isPosted = form.status === 2
+  // مقفل بالكامل (نموذج + شبكة الحسابات للقراءة فقط) لكلا الحالتين: مُرحَّل (2) أو ملغي منطقياً
+  // (3) — لا فرق بينهما من ناحية إمكانية التعديل، الفرق فقط في نص رسالة تأكيد الحذف أدناه.
+  const isLocked = form.status === 2 || form.status === 3
+  // شارة الحالة في عنوان النافذة: ملغي منطقياً (status=3) تطغى على أي شيء آخر؛ خلاف ذلك
+  // "مرحل" وحدها إن لم تُطبع بعد، أو "مرحل - مطبوع" إن طُبعت (is_printed=1) بعد الترحيل.
+  const statusBadge =
+    form.status === 3 ? "ملغي منطقياً" : form.status === 2 ? (form.is_printed === 1 ? "مرحل - مطبوع" : "مرحل") : ""
 
   // يضمن اكتمال جلب الحسابات قبل أي محاولة مطابقة رقم حساب — بدونه، الضغط على Enter بسرعة
   // فور فتح النافذة (قبل اكتمال fetch الأولي) يُظهر "لا يوجد حساب بهذا الرقم" رغم وجوده فعلياً.
@@ -302,8 +336,11 @@ export default function UnifiedJournal({
   useEffect(() => {
     initialSnapshotRef.current = JSON.stringify(form)
     setActiveTab("journal")
+    // form.vch_code يتغيّر أيضاً عند إعادة تصفير النموذج لمسودة جديدة بعد حفظ ناجح (id يبقى 0 في
+    // الحالتين) — بدونه تبقى initialSnapshotRef محتفظة بلقطة المسودة القديمة (قبل الحفظ)، فتُقارَن
+    // المسودة الجديدة الفارغة بها وتظهر "تم تعديل البيانات، هل تريد الحفظ؟" رغم عدم لمس المستخدم لها.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dialogOpen, form.id, isNewMode])
+  }, [dialogOpen, form.id, form.vch_code, isNewMode])
 
   const guardedAction = (action: () => void) => {
     if (showUnsavedConfirm) return
@@ -315,6 +352,19 @@ export default function UnifiedJournal({
     }
   }
 
+  // يتحقق من صحة السند قبل عرض نافذة "كيف تريد الحفظ؟" — لا فائدة من تخيير المستخدم بين حفظ/ترحيل/طباعة
+  // لسند غير صالح أصلاً (رقم ناقص، قيد غير متوازن...)؛ رسالة الخطأ تظهر مباشرة بدل فتح النافذة.
+  const handleRequestSave = () => {
+    if (isLocked) return
+    const error = onValidateSave?.()
+    if (error) {
+      messagesRef.current?.clear?.()
+      messagesRef.current?.show?.([{ severity: "error", summary: "", detail: error, sticky: false, life: 4000 }])
+      return
+    }
+    setPostDialogOpen(true)
+  }
+
   useEffect(() => {
     if (typeof window === "undefined" || !dialogOpen) return
     if (showDeleteConfirm || showUnsavedConfirm) return
@@ -322,7 +372,7 @@ export default function UnifiedJournal({
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "F3") {
         event.preventDefault()
-        onSave()
+        handleRequestSave()
         return
       }
       if (event.key === "F4") {
@@ -334,13 +384,16 @@ export default function UnifiedJournal({
 
     window.addEventListener("keydown", handleKeyDown)
     return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [dialogOpen, form.id, onSave, onDelete, onOpenChange, guardedAction, showDeleteConfirm, showUnsavedConfirm])
+  }, [dialogOpen, form.id, isLocked, onDelete, onOpenChange, guardedAction, showDeleteConfirm, showUnsavedConfirm])
 
   useEffect(() => {
     if (typeof window === "undefined" || !dialogOpen) return
     const t = setTimeout(() => dateInputRef.current?.focus(), 120)
     return () => clearTimeout(t)
-  }, [dialogOpen, form.id])
+    // form.vch_code يتغيّر أيضاً عند الضغط على "جديد" مرتين متتاليتين قبل الحفظ (id يبقى 0 في
+    // الحالتين)، لذا نعتمد عليه أيضاً حتى تعمل إعادة تركيز التاريخ في هذه الحالة أيضاً.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dialogOpen, form.id, form.vch_code, isNewMode])
 
   const handleNavigate = async (direction: "first" | "previous" | "next" | "last") => {
     setNavLoading(true)
@@ -400,24 +453,79 @@ export default function UnifiedJournal({
   const journalRef = useRef(journal)
   journalRef.current = journal
 
+  // يعيد تركيز الشبكة (وتحديد خلية بعينها) بعد إغلاق نافذة منبثقة فُتحت من سطر في الشبكة (بحث
+  // حساب، مراكز تكلفة) أو بعد حذف/اختيار سطر — دون هذا يبقى التركيز عالقاً على الزر الذي فتح
+  // النافذة. هناك سباقان منفصلان يجب تجاوزهما معاً، وليس أحدهما فقط:
+  // (١) مصيدة تركيز Radix (FocusScope) الخاصة بالنافذة المُغلقة قد لا تكون أُزيلت من الـ DOM بعد
+  //     لحظة استدعاء onOpenChange(false)، فتسحب grid.focus() الفوري إلى داخلها بدل الشبكة.
+  // (٢) تغيّر مصفوفة journal (بعد اختيار حساب مثلاً) يُعيد ربط itemsSource في Wijmo بمصفوفة
+  //     جديدة، وWijmo يُصفّر التحديد إلى الخلية (0,0) عند إعادة الربط — وقد يحدث هذا التصفير في
+  //     دورة رسم لاحقة وليس بالضرورة بشكل متزامن مع تحديث React، فيتغلب على أي selectCell سابق.
+  // لذا: انتظار دورتي رسم (لتجاوز الأول)، ثم إعادة فرض التحديد مرة أخرى بعد مهلة أطول قليلاً
+  // (لتجاوز الثاني إن حدث متأخراً) بدل الاكتفاء بمحاولة واحدة قد يسبقها كلا السباقين.
+  const focusGridCell = (row: number, colName: string) => {
+    const applyFocus = () => {
+      waitForGridReady(
+        () => gridRef.current,
+        (grid) => {
+          selectCell(grid, row, colName)
+          grid.focus()
+        },
+      )
+    }
+    requestAnimationFrame(() => requestAnimationFrame(applyFocus))
+    setTimeout(applyFocus, 120)
+  }
+
   const patchJournalRow = (index: number, patch: Partial<JournalEntryRow>) => {
+    if (isLocked) return
     const next = journalRef.current.map((row, i) => (i === index ? { ...row, ...patch } : row))
     journalRef.current = next
     onJournalChange(next)
   }
   const addJournalRow = () => {
+    if (isLocked) return journalRef.current
     const next = [...journalRef.current, { ...emptyJournalRow }]
     journalRef.current = next
     onJournalChange(next)
     return next
   }
   const deleteJournalRow = (index: number) => {
+    if (isLocked) return
     const filtered = journalRef.current.filter((_, i) => i !== index)
     const next = filtered.length > 0 ? filtered : [{ ...emptyJournalRow }]
     journalRef.current = next
     onJournalChange(next)
+    focusGridCell(Math.min(index, next.length - 1), "account_code")
   }
 
+  // فحص توافق عملة الحساب مع عملة السند عند اختيار حساب في شبكة "الحسابات" — لا علاقة له بحسابات
+  // أخرى في السند (كحساب المندوب مثلاً). allow_trans_with_diff_curr (إعداد الحساب "السماح بعمل
+  // حركة على الحساب بغير عملته"): 0 = مسموح بدون تنبيه، 1 = مسموح مع تنبيه (Toast تحذيري لكن
+  // يُقبل الاختيار)، 2 = ممنوع (يُرفض الاختيار تماماً).
+  const checkAccountCurrencyCompatibility = (account: AccountItem): boolean => {
+    if (account.currency_id == null || form.currency_id == null || account.currency_id === form.currency_id) {
+      return true
+    }
+    const diffCurrMode = Number(account.allow_trans_with_diff_curr)
+    if (diffCurrMode === 2) {
+      toast({
+        title: "تعذر اختيار الحساب",
+        description: "عملة السند تختلف عن عملة الحساب لا يمكن اختياره",
+        variant: "destructive",
+      })
+      return false
+    }
+    if (diffCurrMode === 1) {
+      toast({ title: "تنبيه", description: "عملة السند تختلف عن عملة الحساب" })
+    }
+    return true
+  }
+
+  // async (تنتظر ensureAccountsLoaded) — أي selectCell متزامن يُنفَّذ فور استدعائها (كما في معالج
+  // Tab/Enter) يسبق فعلياً تحديث journal هنا، فيصل تصفير Wijmo لتحديد الشبكة (بعد إعادة ربط
+  // itemsSource) لاحقاً ويُبطل ذلك التحديد. لذا focusGridCell تُستدعى هنا صراحة بعد أن تُعرف
+  // النتيجة الفعلية، لا يُكتفى بالتنقّل المتزامن في معالج المفاتيح.
   const resolveJournalAccountByCode = async (index: number, rawCode: string) => {
     const code = adjustAccountCode(rawCode)
     if (!code) {
@@ -427,14 +535,22 @@ export default function UnifiedJournal({
     const list = await ensureAccountsLoaded()
     const match = list.find((a) => a.code.toUpperCase() === code)
     if (match) {
+      if (!checkAccountCurrencyCompatibility(match)) {
+        patchJournalRow(index, { account_id: null, account_code: "", account_name: "", cost_centers: [] })
+        focusGridCell(index, "account_code")
+        return
+      }
       patchJournalRow(index, { account_id: match.id, account_code: match.code, account_name: match.name, cost_centers: [] })
+      focusGridCell(index, "debit")
     } else {
       patchJournalRow(index, { account_id: null, account_code: code, account_name: "" })
+      focusGridCell(index, "account_code")
       messagesRef.current?.show?.([{ severity: "error", summary: "", detail: `لا يوجد حساب بهذا الرقم: ${code}`, life: 3000 }])
     }
   }
 
   const openJournalCostCenter = (index: number) => {
+    if (isLocked) return
     const row = journal[index]
     if (!row?.account_id) {
       messagesRef.current?.show?.([{ severity: "error", summary: "", detail: "يجب تحديد الحساب أولاً", life: 3000 }])
@@ -462,14 +578,16 @@ export default function UnifiedJournal({
     else patchJournalRow(index, { credit: remaining, debit: null })
   }
 
-  const validateRowForNewRow = (index: number): boolean => {
+  // يتحقق من اكتمال السطر (حساب + مبلغ) قبل مغادرته عبر Enter/Tab من عمود "ملاحظات" — سواء
+  // كانت المغادرة للانتقال لسطر تالٍ موجود أو لإضافة سطر جديد.
+  const validateRowComplete = (index: number): boolean => {
     const row = journalRef.current[index]
     if (!row?.account_id) {
-      messagesRef.current?.show?.([{ severity: "error", summary: "", detail: "يجب تحديد رقم الحساب قبل إضافة سطر جديد", life: 3000 }])
+      messagesRef.current?.show?.([{ severity: "error", summary: "", detail: "يجب تحديد رقم الحساب أولاً", life: 3000 }])
       return false
     }
     if (!(Number(row.debit || 0) > 0) && !(Number(row.credit || 0) > 0)) {
-      messagesRef.current?.show?.([{ severity: "error", summary: "", detail: "يجب إدخال مبلغ مدين أو دائن قبل إضافة سطر جديد", life: 3000 }])
+      messagesRef.current?.show?.([{ severity: "error", summary: "", detail: "يجب إدخال مبلغ مدين أو دائن أولاً", life: 3000 }])
       return false
     }
     return true
@@ -483,7 +601,7 @@ export default function UnifiedJournal({
       sortable: false,
       columns: [
         { header: "#", name: "ser", width: 50, isReadOnly: true },
-        { header: "رقم الحساب", name: "account_code", width: 130, minWidth: 110 },
+        { header: "رقم الحساب", name: "account_code", width: 130, minWidth: 110, maxLength: ACCOUNT_CODE_LENGTH },
         {
           name: "btnSearch",
           header: " ",
@@ -494,6 +612,7 @@ export default function UnifiedJournal({
           iconType: "search",
           isReadOnly: true,
           onClick: (e: any, ctx: any) => {
+            if (isLocked) return
             setJournalSearchRow(ctx.row.index)
             setJournalSearchOpen(true)
           },
@@ -521,7 +640,7 @@ export default function UnifiedJournal({
           width: 50,
           buttonBody: "button",
           align: "center",
-          title: "حذف السطر",
+          title: "حذف السطر (F7)",
           iconType: "delete",
           isReadOnly: true,
           onClick: (e: any, ctx: any) => deleteJournalRow(ctx.row.index),
@@ -536,6 +655,7 @@ export default function UnifiedJournal({
   const journalGridData = useMemo(() => journal.map((row, i) => ({ ...row, ser: i + 1 })), [journal])
 
   const handleJournalCellEditEnded = (grid: any, e: any) => {
+    gridRef.current = grid
     const row = e.row
     const colName = grid?.columns?.[e.col]?.binding
     if (colName === "account_code") {
@@ -560,6 +680,7 @@ export default function UnifiedJournal({
   }
 
   const handleJournalKeyDown = (grid: any, e: any) => {
+    gridRef.current = grid
     if (!grid || !grid.selection) return
     const row = grid.selection.row
     const col = grid.selection.col
@@ -585,34 +706,54 @@ export default function UnifiedJournal({
       return
     }
 
+    // F7 يحذف السطر الحالي — يُتاح فقط لسند فعال غير مرحّل (status=1) أو مسودة جديدة لم تُحفظ
+    // بعد (id=0)؛ deleteJournalRow نفسها تمنع الحذف أصلاً إن كان السند مقفلاً (isLocked).
+    if (e.key === "F7") {
+      e.preventDefault()
+      if (form.status === 1 || form.id === 0) deleteJournalRow(row)
+      return
+    }
+
+    // F8 يفتح مراكز التكلفة للسطر الحالي — openJournalCostCenter نفسها تمنع الفتح إن لم يكن
+    // للسطر حساب محدد بعد (account_id فارغ) أو كان السند مقفلاً.
+    if (e.key === "F8") {
+      e.preventDefault()
+      openJournalCostCenter(row)
+      return
+    }
+
     if (e.key === "Tab" || e.key === "Enter") {
       const isLastRow = row === journalRef.current.length - 1
       if (colName === "account_code") {
         e.preventDefault()
         const code = journalRef.current[row]?.account_code?.trim()
+        // لا يوجد تعديل معلَّق هنا (الكود مُحلَّل مسبقاً)، فلا سباق مع Wijmo — التنقّل المتزامن
+        // آمن. الحالة الجديدة (تحليل كود لم يُحلَّل بعد) تُدار عبر resolveJournalAccountByCode
+        // نفسها + focusGridCell بعد معرفة النتيجة الفعلية (انظر تعليقها أعلاه).
         if (code) selectCell(grid, row, "debit")
         else {
           setJournalSearchRow(row)
           setJournalSearchOpen(true)
         }
-      } else if (colName === "debit") {
+      } else if (colName === "debit" || colName === "credit" || colName === "note") {
+        // خلاف account_code: مغادرة أي من هذه الأعمدة عبر Tab/Enter تُنهي تحرير الخلية أولاً،
+        // مما يُشغّل cellEditEnded -> patchJournalRow -> مصفوفة journal جديدة -> إعادة ربط
+        // itemsSource في Wijmo -> تصفير تحديده إلى (0,0) — وقد يحدث هذا بعد selectCell المتزامن
+        // هنا فيُبطله (نفس سباق resolveJournalAccountByCode). لذا focusGridCell (بتكرارها
+        // المُقاوم للتوقيت) بدل selectCell المباشر لكل تنقّل يتبع تعديل خلية.
         e.preventDefault()
-        selectCell(grid, row, "credit")
-      } else if (colName === "credit") {
-        e.preventDefault()
-        selectCell(grid, row, "note")
-      } else if (colName === "note") {
-        e.preventDefault()
-        if (isLastRow) {
-          if (validateRowForNewRow(row)) {
+        if (colName === "debit") {
+          focusGridCell(row, "credit")
+        } else if (colName === "credit") {
+          focusGridCell(row, "note")
+        } else if (colName === "note") {
+          if (!validateRowComplete(row)) return
+          if (isLastRow) {
             addJournalRow()
-            setTimeout(() => {
-              grid.focus()
-              selectCell(grid, row + 1, "account_code")
-            }, 0)
+            focusGridCell(row + 1, "account_code")
+          } else {
+            focusGridCell(row + 1, "account_code")
           }
-        } else {
-          selectCell(grid, row + 1, "account_code")
         }
       }
     }
@@ -678,24 +819,27 @@ export default function UnifiedJournal({
           onPointerDownOutside={(event) => event.preventDefault()}
           onInteractOutside={(event) => event.preventDefault()}
           onEscapeKeyDown={(event) => {
-            if (showUnsavedConfirm || showDeleteConfirm || journalSearchOpen || costCenterOpen) event.preventDefault()
+            if (showUnsavedConfirm || showDeleteConfirm || journalSearchOpen || costCenterOpen || postDialogOpen)
+              event.preventDefault()
           }}
         >
           <UniversalToolbar
             currentRecord={currentIndex + 1}
             totalRecords={totalRecords}
             onNew={() => guardedAction(() => onNew?.())}
-            onSave={onSave}
+            onSave={handleRequestSave}
             onDelete={onDelete}
             onClone={onClone}
+            onPrint={onPrint}
             onFirst={() => guardedAction(() => void handleNavigate("first"))}
             onPrevious={() => guardedAction(() => void handleNavigate("previous"))}
             onNext={() => guardedAction(() => void handleNavigate("next"))}
             onLast={() => guardedAction(() => void handleNavigate("last"))}
             isSaving={isSaving}
-            canSave={canSave}
-            canDelete={form.id > 0}
+            canSave={canSave && form.status !== 2 && form.status !== 3}
+            canDelete={form.id > 0 && form.status !== 3}
             canClone={form.id > 0}
+            canPrint={form.id > 0 && form.status !== 3}
             isFirstRecord={isFirstRecord}
             isLastRecord={isLastRecord}
           />
@@ -710,11 +854,15 @@ export default function UnifiedJournal({
             <DialogHeader className="mb-4">
               <DialogTitle className="text-xl font-semibold">
                 سند قيد {form.id > 0 ? "" : "(مسودة)"}
+                {statusBadge && (
+                  <span className={form.status === 3 ? "text-rose-600" : "text-emerald-600"}> - {statusBadge}</span>
+                )}
               </DialogTitle>
             </DialogHeader>
 
             <Messages innerRef={messagesRef} />
 
+            <fieldset disabled={isLocked} className="contents">
             <div className="grid gap-3 border-b pb-6">
               <div className="grid gap-4 md:grid-cols-3">
                 <div
@@ -731,6 +879,7 @@ export default function UnifiedJournal({
                     optionValue="id"
                     placeholder="اختر"
                     filter
+                    disabled={isLocked}
                     className="invoice-currency-dropdown w-full"
                     panelClassName="invoice-currency-dropdown-panel"
                     appendTo="self"
@@ -753,7 +902,11 @@ export default function UnifiedJournal({
                     id="vch-date"
                     ref={dateInputRef}
                     value={form.vch_date ? form.vch_date.slice(0, 10) : ""}
-                    onChange={(value) => onFormChange("vch_date", value)}
+                    disabled={isLocked}
+                    onChange={(value) => {
+                      onFormChange("vch_date", value)
+                      if (!form.manual_date) onFormChange("manual_date", value)
+                    }}
                   />
                 </div>
               </div>
@@ -773,6 +926,7 @@ export default function UnifiedJournal({
                     optionValue="value"
                     placeholder="اختر العملة"
                     filter
+                    disabled={isLocked}
                     className="invoice-currency-dropdown w-full"
                     panelClassName="invoice-currency-dropdown-panel"
                     appendTo="self"
@@ -805,11 +959,11 @@ export default function UnifiedJournal({
               <div className="grid gap-4 md:grid-cols-3">
                 <div className="grid gap-1.5">
                   <Label htmlFor="manual-date">تاريخ السند اليدوي</Label>
-                  <Input
+                  <DateTimeControl
                     id="manual-date"
-                    type="date"
                     value={form.manual_date ? form.manual_date.slice(0, 10) : ""}
-                    onChange={(e) => onFormChange("manual_date", e.target.value)}
+                    disabled={isLocked}
+                    onChange={(value) => onFormChange("manual_date", value)}
                   />
                 </div>
                 <div className="grid gap-1.5 md:col-span-2">
@@ -823,13 +977,13 @@ export default function UnifiedJournal({
                       if (e.key !== "Tab" && e.key !== "Enter") return
                       e.preventDefault()
                       setActiveTab("journal")
-                      setTimeout(() => {
-                        const grid = gridRef.current
-                        if (grid) {
+                      waitForGridReady(
+                        () => gridRef.current,
+                        (grid) => {
                           selectCell(grid, 0, "account_code")
                           grid.focus()
-                        }
-                      }, 100)
+                        },
+                      )
                     }}
                   />
                 </div>
@@ -864,11 +1018,12 @@ export default function UnifiedJournal({
                     scheme={journalScheme}
                     dataSource={journalGridData}
                     idProperty="ser"
-                    isReport={false}
+                    isReport={isLocked}
                     showContextMenu={false}
                     cellEditEnded={handleJournalCellEditEnded}
                     onKeyDown={handleJournalKeyDown}
-                    keyActionEnter={"None"}
+                    keyActionEnter={KeyAction.None}
+                    keyActionTab={KeyAction.None}
                     dontConvertToCards={true}
 
                   />
@@ -892,6 +1047,7 @@ export default function UnifiedJournal({
                       placeholder="اختر"
                       filter
                       showClear
+                      disabled={isLocked}
                       className="invoice-currency-dropdown w-full"
                       panelClassName="invoice-currency-dropdown-panel"
                       appendTo="self"
@@ -917,6 +1073,7 @@ export default function UnifiedJournal({
                       placeholder="اختر"
                       filter
                       showClear
+                      disabled={isLocked}
                       className="invoice-currency-dropdown w-full"
                       panelClassName="invoice-currency-dropdown-panel"
                       appendTo="self"
@@ -960,25 +1117,35 @@ export default function UnifiedJournal({
                 </div>
               </TabsContent>
             </Tabs>
+            </fieldset>
           </div>
         </DialogContent>
       </Dialog>
 
       <AccountSearchDialog
         open={journalSearchOpen}
-        onOpenChange={setJournalSearchOpen}
+        onOpenChange={(open) => {
+          setJournalSearchOpen(open)
+          if (!open && journalSearchRow !== null) {
+            focusGridCell(journalSearchRow, accountJustSelectedRef.current ? "debit" : "account_code")
+            accountJustSelectedRef.current = false
+          }
+        }}
         accounts={accountsList}
         onSelect={(account) => {
-          if (journalSearchRow !== null) {
+          if (journalSearchRow !== null && checkAccountCurrencyCompatibility(account)) {
             patchJournalRow(journalSearchRow, { account_id: account.id, account_code: account.code, account_name: account.name, cost_centers: [] })
+            accountJustSelectedRef.current = true
           }
-          setJournalSearchOpen(false)
         }}
       />
 
       <AccountCostCenters
         open={costCenterOpen}
-        onOpenChange={setCostCenterOpen}
+        onOpenChange={(open) => {
+          setCostCenterOpen(open)
+          if (!open && costCenterRow !== null) focusGridCell(costCenterRow, "btnCostCenter")
+        }}
         account={costCenterAccount}
         value={costCenterRow !== null ? journal[costCenterRow]?.cost_centers : undefined}
         onChange={(selection) => {
@@ -988,7 +1155,7 @@ export default function UnifiedJournal({
 
       <ConfirmDialogYesNo
         visible={showDeleteConfirm}
-        message="هل تريد حذف سند القيد هذا؟"
+        message={isPosted ? "السند مرحل هل تريد الغاؤه منطقياً؟" : "هل تريد حذف سند القيد هذا؟"}
         onConfirm={onConfirmDelete}
         onCancel={onCancelDelete}
       />
@@ -1000,7 +1167,7 @@ export default function UnifiedJournal({
         onConfirm={() => {
           setShowUnsavedConfirm(false)
           pendingActionRef.current = null
-          onSave()
+          onSave("save")
         }}
         onCancel={() => {
           setShowUnsavedConfirm(false)
@@ -1009,6 +1176,16 @@ export default function UnifiedJournal({
           action?.()
         }}
         onBack={() => setShowUnsavedConfirm(false)}
+      />
+
+      <PostVoucherDialog
+        visible={postDialogOpen}
+        isSaving={isSaving}
+        onSelect={(action) => {
+          setPostDialogOpen(false)
+          onSave(action)
+        }}
+        onCancel={() => setPostDialogOpen(false)}
       />
     </>
   )

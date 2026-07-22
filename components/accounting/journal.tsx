@@ -13,6 +13,8 @@ import UnifiedJournal, {
   type JournalVoucherRecord,
 } from "./unified-journal"
 import { Edit, Plus, Search } from "lucide-react"
+import type { PostVoucherAction } from "@/components/common/post-voucher-dialog"
+import VoucherPrintLayout, { type VoucherPrintData } from "@/components/common/voucher-print-layout"
 
 interface CurrencyOption {
   currency_id?: number
@@ -44,11 +46,12 @@ const buildInitialForm = (): JournalVoucherRecord => ({
   currency_id: null,
   rate: 1,
   manual_voucher: "",
-  manual_date: "",
+  manual_date: new Date().toISOString().slice(0, 10),
   payment_classification_id: null,
   salesman_id: null,
   note: "",
   status: 1,
+  is_printed: 0,
   journal: [{ ...emptyJournalRow }],
   notes: [],
 })
@@ -69,6 +72,7 @@ const mapApiJournalRow = (row: any): JournalEntryRow => ({
 const normalizeVoucher = (record: Partial<JournalVoucherRecord>): JournalVoucherRecord => ({
   ...buildInitialForm(),
   ...record,
+  manual_date: record.manual_date || record.vch_date || buildInitialForm().manual_date,
   journal: record.journal?.length ? (record.journal as any[]).map(mapApiJournalRow) : [{ ...emptyJournalRow }],
   notes: (record.notes as JournalNoteRow[]) || [],
 })
@@ -90,6 +94,13 @@ export default function Journal() {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [errorMessages, setErrorMessages] = useState<string[]>([])
+  const [printData, setPrintData] = useState<VoucherPrintData | null>(null)
+
+  useEffect(() => {
+    if (!printData) return
+    const t = setTimeout(() => window.print(), 150)
+    return () => clearTimeout(t)
+  }, [printData])
 
   const [searchFilters, setSearchFilters] = useState({ code: "", currencyId: "__all__", dateFrom: "", dateTo: "" })
   const [currentPage, setCurrentPage] = useState(1)
@@ -266,7 +277,8 @@ export default function Journal() {
   const cloneVoucher = async () => {
     if (!form.id) return
     const code = await generateCode(form.vch_book_id)
-    setForm((f) => ({ ...f, id: 0, vch_code: code, vch_date: new Date().toISOString().slice(0, 10) }))
+    const today = new Date().toISOString().slice(0, 10)
+    setForm((f) => ({ ...f, id: 0, vch_code: code, vch_date: today, manual_date: today, status: 1, is_printed: 0 }))
     setIsNewMode(true)
     setErrorMessages([])
   }
@@ -334,7 +346,7 @@ export default function Journal() {
     !!form.currency_id &&
     currencies.some((c) => Number(c.currency_id ?? c.id) === form.currency_id)
 
-  const saveVoucher = async () => {
+  const saveVoucher = async (action: PostVoucherAction = "save") => {
     const error = validateVoucher(form)
     if (error) {
       setErrorMessages([error])
@@ -344,20 +356,54 @@ export default function Journal() {
     setIsSaving(true)
     try {
       const method = form.id > 0 ? "PUT" : "POST"
+      // حفظ عادي / حفظ وطباعة: تبقى الحالة كما هي (لا ترحيل). حفظ وترحيل / ترحيل وطباعة: تصبح
+      // status=2 (مرحل) ويُقفل السند بعدها. علامة الطباعة (is_printed=1) تُسجَّل فقط عند "ترحيل
+      // وطباعة" — أي طباعة أخرى (بما فيها حفظ وطباعة) لا تُغيّرها هنا إطلاقاً.
+      const status = action === "save" || action === "save_print" ? form.status : 2
+      const isPrinted = action === "post_print" ? 1 : form.is_printed || 0
+      const dataToSave: JournalVoucherRecord = { ...form, status, is_printed: isPrinted }
       const response = await fetch("/api/journal-vouchers", {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        // insert_user: يُسجَّل عند الإدراج فقط (POST يتجاهله PUT في _lib.ts)، لتوثيق مَن أنشأ
+        // السند دون أن يتغيّر لاحقاً عند تعديل سند موجود من مستخدم آخر.
+        body: JSON.stringify({ ...dataToSave, insert_user: user?.id || null }),
       })
       if (!response.ok) {
         const responseError = await response.json()
         setErrorMessages([responseError.error || "فشل في حفظ سند القيد"])
         return
       }
+      const saved = await response.json()
+
+      if (action === "post_print" || action === "save_print") {
+        const journalRows = Array.isArray(saved.journal) ? saved.journal : []
+        setPrintData({
+          title: "سند قيد",
+          copyLabel: action === "post_print" ? "نسخة اصلية" : "نسخة للتدقيق",
+          vch_code: saved.vch_code,
+          vch_date: saved.vch_date,
+          currency_name: currencies.find((c) => Number(c.currency_id ?? c.id) === saved.currency_id)?.currency_name,
+          amount: Number(saved.amount || 0),
+          manual_voucher: saved.manual_voucher,
+          note: saved.note,
+          rows: journalRows.map((row: any) => ({
+            account_code: row.account_code,
+            account_name: row.account_name,
+            debit: row.credit_debit === 1 ? row.amount : null,
+            credit: row.credit_debit === 2 ? row.amount : null,
+            note: row.note,
+          })),
+        })
+      }
+
       await fetchVouchers()
       const defaults = await fetchDefaults()
-      const code = await generateCode(defaults.bookId)
-      setForm({ ...buildInitialForm(), vch_code: code, vch_book_id: defaults.bookId, currency_id: defaults.currencyId })
+      // يبقى دفتر السندات كما هو (نفس الدفتر المستخدم للسند الذي حُفظ للتو) بدل الرجوع للدفتر
+      // الافتراضي — أكثر ملاءمة عند إدخال عدة سندات متتالية على نفس الدفتر.
+      const bookId = form.vch_book_id ?? defaults.bookId
+      const code = await generateCode(bookId)
+      setForm({ ...buildInitialForm(), vch_code: code, vch_book_id: bookId, currency_id: defaults.currencyId })
       setIsNewMode(true)
       setDialogOpen(true)
     } catch (error) {
@@ -368,7 +414,76 @@ export default function Journal() {
     }
   }
 
-  const deleteVoucher = async () => {
+  // زر الطباعة المستقل (خارج تدفق الحفظ): سند فعال (status=1) لم يُرحَّل بعد يُطبع كـ"نسخة
+  // للتدقيق" فقط دون أي تسجيل. سند مُرحَّل (status=2) يُسجَّل عليه is_printed=1 عند أول طباعة
+  // فتظهر "نسخة اصلية"، وأي طباعة لاحقة له تظهر "نسخة" فقط دون إعادة التسجيل.
+  const handlePrint = async () => {
+    if (!(form.id > 0) || form.status === 3) return
+
+    let isPrinted = form.is_printed || 0
+    const copyLabel = form.status !== 2 ? "نسخة للتدقيق" : isPrinted === 1 ? "نسخة" : "نسخة اصلية"
+
+    if (form.status === 2 && isPrinted !== 1) {
+      try {
+        const response = await fetch(`/api/journal-vouchers/${form.id}`, { method: "PATCH" })
+        if (response.ok) {
+          isPrinted = 1
+          setForm((f) => ({ ...f, is_printed: 1 }))
+        }
+      } catch (error) {
+        console.error("Failed to mark journal voucher as printed", error)
+      }
+    }
+
+    setPrintData({
+      title: "سند قيد",
+      copyLabel,
+      vch_code: form.vch_code,
+      vch_date: form.vch_date,
+      currency_name: currencies.find((c) => Number(c.currency_id ?? c.id) === form.currency_id)?.currency_name,
+      amount: Number(form.amount || 0),
+      manual_voucher: form.manual_voucher,
+      note: form.note,
+      rows: (form.journal || []).map((row) => ({
+        account_code: row.account_code,
+        account_name: row.account_name,
+        debit: row.debit,
+        credit: row.credit,
+        note: row.note,
+      })),
+    })
+  }
+
+  const advanceAfterDelete = async () => {
+    await fetchVouchers()
+    setShowDeleteConfirm(false)
+
+    const nextList = vouchers.filter((v) => v.id !== form.id)
+    if (nextList.length > 0) {
+      const targetIndex = Math.min(Math.max(0, currentIndex), nextList.length - 1)
+      const next = nextList[targetIndex]
+      if (next) {
+        const details = await fetchVoucherDetails(next.id)
+        setForm(normalizeVoucher(details || next))
+        setCurrentIndex(targetIndex)
+        setIsNewMode(false)
+        setDialogOpen(true)
+        return
+      }
+    }
+
+    const defaults = await fetchDefaults()
+    const code = await generateCode(defaults.bookId)
+    setForm({ ...buildInitialForm(), vch_code: code, vch_book_id: defaults.bookId, currency_id: defaults.currencyId })
+    setCurrentIndex(0)
+    setIsNewMode(true)
+    setDialogOpen(true)
+  }
+
+  // سند مُرحَّل (status=2): لا يُحذف فعلياً، بل يُلغى منطقياً (status=3) فيبقى في voucher_header_tbl
+  // كأثر تاريخي — هذا هو السلوك القديم لزر الحذف (الذي كان يُطبَّق على كل السندات سابقاً). يبقى
+  // معروضاً في نفس النافذة بعد الإلغاء (وليس الانتقال لسند آخر) ليرى المستخدم حالته الجديدة فوراً.
+  const logicalCancelVoucher = async () => {
     if (!form.id) return
     setIsSaving(true)
     try {
@@ -379,31 +494,35 @@ export default function Journal() {
       })
       if (!response.ok) {
         const error = await response.json()
-        throw new Error(error.error || "فشل في حذف سند القيد")
+        throw new Error(error.error || "فشل في إلغاء سند القيد")
       }
+      const saved = await response.json()
       await fetchVouchers()
       setShowDeleteConfirm(false)
-
-      const nextList = vouchers.filter((v) => v.id !== form.id)
-      if (nextList.length > 0) {
-        const targetIndex = Math.min(Math.max(0, currentIndex), nextList.length - 1)
-        const next = nextList[targetIndex]
-        if (next) {
-          const details = await fetchVoucherDetails(next.id)
-          setForm(normalizeVoucher(details || next))
-          setCurrentIndex(targetIndex)
-          setIsNewMode(false)
-          setDialogOpen(true)
-          return
-        }
-      }
-
-      const defaults = await fetchDefaults()
-      const code = await generateCode(defaults.bookId)
-      setForm({ ...buildInitialForm(), vch_code: code, vch_book_id: defaults.bookId, currency_id: defaults.currencyId })
-      setCurrentIndex(0)
-      setIsNewMode(true)
+      setForm(normalizeVoucher(saved))
+      setIsNewMode(false)
       setDialogOpen(true)
+    } catch (error) {
+      console.error(error)
+      setShowDeleteConfirm(false)
+      setErrorMessages(["فشل في إلغاء سند القيد"])
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  // سند بحالة فعال (status=1، لم يُرحَّل بعد): يُحذف فعلياً من voucher_header_tbl بعد أرشفته إلى
+  // جداول log (انظر archiveAndDeleteVoucher في app/api/receipts/_lib.ts).
+  const physicalDeleteVoucher = async () => {
+    if (!form.id) return
+    setIsSaving(true)
+    try {
+      const response = await fetch(`/api/journal-vouchers/${form.id}`, { method: "DELETE" })
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || "فشل في حذف سند القيد")
+      }
+      await advanceAfterDelete()
     } catch (error) {
       console.error(error)
       setShowDeleteConfirm(false)
@@ -412,6 +531,8 @@ export default function Journal() {
       setIsSaving(false)
     }
   }
+
+  const handleConfirmDelete = () => (form.status === 2 ? logicalCancelVoucher() : physicalDeleteVoucher())
 
   const handleDialogOpenChange = (open: boolean) => {
     if (!open && showDeleteConfirm) return
@@ -661,8 +782,10 @@ export default function Journal() {
         onOpenChange={handleDialogOpenChange}
         onNew={openNewDialog}
         onSave={saveVoucher}
+        onValidateSave={() => validateVoucher(form)}
         onDelete={() => form.id && setShowDeleteConfirm(true)}
         onClone={cloneVoucher}
+        onPrint={handlePrint}
         onNavigateRecord={handleNavigateRecord}
         onFormChange={(field, value) => setForm((f) => ({ ...f, [field]: value }))}
         onBookChange={handleBookChange}
@@ -670,7 +793,7 @@ export default function Journal() {
         onCodeNotFound={handleCodeNotFound}
         onJournalChange={(journal) => setForm((f) => ({ ...f, journal }))}
         onNotesChange={(notes) => setForm((f) => ({ ...f, notes }))}
-        onConfirmDelete={deleteVoucher}
+        onConfirmDelete={handleConfirmDelete}
         onCancelDelete={() => setShowDeleteConfirm(false)}
         canSave={canSaveForm}
         isFirstRecord={currentIndex <= 0}
@@ -678,6 +801,7 @@ export default function Journal() {
         isNewMode={isNewMode}
         errorMessages={errorMessages}
       />
+      <VoucherPrintLayout data={printData} />
     </div>
   )
 }

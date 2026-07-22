@@ -311,7 +311,12 @@ export default function AccountSearchDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent hideCloseButton className="w-[94vw] max-w-6xl h-auto max-h-[76vh] overflow-hidden rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-2xl backdrop-blur sm:p-4" dir="rtl">
+      <DialogContent
+        hideCloseButton
+        className="w-[94vw] max-w-6xl h-auto max-h-[76vh] overflow-hidden rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-2xl backdrop-blur sm:p-4"
+        dir="rtl"
+        onCloseAutoFocus={(event) => event.preventDefault()}
+      >
         <div className="flex flex-col gap-3 sm:gap-4">
           <div className="flex flex-col gap-2 rounded-xl bg-gradient-to-r from-slate-50 via-white to-blue-50/60 px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-4">
             <div>

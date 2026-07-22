@@ -17,10 +17,16 @@ import AccountSearchDialog, { type AccountItem } from "@/components/customer/acc
 import AccountCostCenters, { type JournalCostCenterSelection } from "@/components/customer/account-cost-centers"
 import BanksSearch, { type BankSearchRecord } from "@/components/admin/banks-search"
 import BranchesSearch, { type BranchSearchRecord } from "@/components/admin/branches-search"
+import BankAccountsSearch from "@/components/admin/bank-accounts-search"
+import type { BankAccountRecord } from "@/components/admin/unified-bank-accounts"
+import ChequeBookLeafSearch, { type ChequeBookLeafRecord } from "@/components/admin/cheque-book-leaf-search"
 import DatePickerDialog from "@/components/common/date-picker-dialog"
+import DateTimeControl from "@/components/common/date-time-control"
+import PostVoucherDialog, { type PostVoucherAction } from "@/components/common/post-voucher-dialog"
 import DataGridView from "@/components/common/DataGridView"
 import { CellRange, KeyAction } from "@grapecity/wijmo.grid"
 import Util from "@/components/common/Util"
+import { useToast } from "@/hooks/use-toast"
 import { Dropdown as PrimeDropdown } from "primereact/dropdown"
 import { useAuth } from "@/components/auth/auth-context"
 
@@ -35,7 +41,9 @@ export interface VoucherJournalRow {
 
 export interface VoucherChequeRow {
   bank_account: string
+  bank_account_id: number | null
   cheq_num: string
+  cheque_book_cheque_id: number | null
   bank_no: string
   bank_id: number | null
   bank_name: string
@@ -72,7 +80,7 @@ export interface VoucherRecord {
   vch_book_id: number | null
   currency_id: number | null
   rate: number
-  customer_account_id: number | null
+  account_id: number | null
   customer_name: string
   to_account_id: number | null
   cash_amount: number | null
@@ -91,6 +99,7 @@ export interface VoucherRecord {
   manual_date: string
   note: string
   status: number
+  is_printed?: number
   journal: VoucherJournalRow[]
   cheques: VoucherChequeRow[]
   cards: VoucherCardRow[]
@@ -138,6 +147,8 @@ interface UnifiedReceiptVoucherProps {
   voucherBooks?: LookupOption[]
   banks?: BankOption[]
   branches?: BranchOption[]
+  bankAccounts?: BankAccountRecord[]
+  disallowManualChequeEntryInPayment?: boolean
   salesmen?: LookupOption[]
   paymentClassifications?: LookupOption[]
   cardTypes?: CardTypeOption[]
@@ -146,9 +157,11 @@ interface UnifiedReceiptVoucherProps {
   showDeleteConfirm?: boolean
   onOpenChange: (open: boolean) => void
   onNew?: () => void
-  onSave: () => void
+  onSave: (action?: PostVoucherAction) => void
+  onValidateSave?: () => string | null
   onDelete?: () => void
   onClone?: () => void
+  onPrint?: () => void
   onNavigateRecord?: (record: VoucherRecord) => void
   onFormChange: (field: string, value: string | number | null | JournalCostCenterSelection[]) => void
   onBookChange?: (bookId: number | null) => void
@@ -176,11 +189,24 @@ const numberValue = (value: number | null | undefined) => (value === null || val
 // FlexGrid.select(rng, show) expects a CellRange (or a row-only number) — NOT (row, columnName).
 // Resolve the column's numeric index first, matching the pattern used in unified-sales-order.tsx.
 const selectCell = (grid: any, row: number, colName: string) => {
-  if (!grid) return
+  if (!grid || !grid.columns) return
   const colIndex = grid.columns.findIndex((c: any) => c.binding === colName)
   if (colIndex >= 0) {
     grid.select(new CellRange(row, colIndex))
   }
+}
+
+// بعد التبديل إلى تبويب "الحسابات" قد يُعاد إنشاء الشبكة (Radix يُلغي تركيب التبويبات غير
+// النشطة)، فيتأخر جاهزية الـ ref قليلاً — نعيد المحاولة بدل الاعتماد على مهلة ثابتة قد تسبق
+// اكتمال إعادة التركيب فتترك grid كائناً قديماً بلا columns.
+const waitForGridReady = (getGrid: () => any, onReady: (grid: any) => void, attempts = 10) => {
+  const grid = getGrid()
+  if (grid && grid.columns) {
+    onReady(grid)
+    return
+  }
+  if (attempts <= 0) return
+  setTimeout(() => waitForGridReady(getGrid, onReady, attempts - 1), 50)
 }
 
 // أرقام فقط (وفاصلة عشرية)، بنفس أسلوب التحقق من الأعمدة الرقمية في QabdVoucher.js.
@@ -194,7 +220,9 @@ const blockNonNumericKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
 const emptyJournalRow: VoucherJournalRow = { account_id: null, account_code: "", account_name: "", amount: null, note: "", cost_centers: [] }
 const emptyChequeRow: VoucherChequeRow = {
   bank_account: "",
+  bank_account_id: null,
   cheq_num: "",
+  cheque_book_cheque_id: null,
   bank_no: "",
   bank_id: null,
   bank_name: "",
@@ -258,6 +286,8 @@ export default function UnifiedReceiptVoucher({
   voucherBooks = [],
   banks = [],
   branches = [],
+  bankAccounts = [],
+  disallowManualChequeEntryInPayment = false,
   salesmen = [],
   paymentClassifications = [],
   cardTypes = [],
@@ -267,8 +297,10 @@ export default function UnifiedReceiptVoucher({
   onOpenChange,
   onNew,
   onSave,
+  onValidateSave,
   onDelete,
   onClone,
+  onPrint,
   onNavigateRecord,
   onFormChange,
   onBookChange,
@@ -289,6 +321,7 @@ export default function UnifiedReceiptVoucher({
   const { user } = useAuth()
   const dateInputRef = useRef<HTMLInputElement | null>(null)
   const messagesRef = useRef<any>(null)
+  const { toast } = useToast()
   const [activeTab, setActiveTab] = useState("main")
   const [navLoading, setNavLoading] = useState(false)
   const [accountsList, setAccountsList] = useState<AccountItem[]>([])
@@ -298,14 +331,31 @@ export default function UnifiedReceiptVoucher({
   const [costCenterAccount, setCostCenterAccount] = useState<AccountItem | null>(null)
   const [bankSearchOpen, setBankSearchOpen] = useState(false)
   const [branchSearchOpen, setBranchSearchOpen] = useState(false)
+  const [bankAccountSearchOpen, setBankAccountSearchOpen] = useState(false)
+  const [chequeLeafSearchOpen, setChequeLeafSearchOpen] = useState(false)
   const [chequeSearchRow, setChequeSearchRow] = useState<number | null>(null)
   const [dueDatePickerOpen, setDueDatePickerOpen] = useState(false)
   const [dueDateRow, setDueDateRow] = useState<number | null>(null)
   const chequeGridRef = useRef<any>(null)
+  const journalGridRef = useRef<any>(null)
+  const [postDialogOpen, setPostDialogOpen] = useState(false)
 
   const isReceipt = form.vch_type === 8 // per voucher_types_tbl: 8 = سند قبض, 9 = سند صرف
+  const isPayment = form.vch_type === 9
+  // إعداد "عدم السماح بادخال شيكات يدويا في سند الصرف" (vouchers-general-settings.tsx) — عند
+  // تفعيله يُصبح رقم الشيك للقراءة فقط ولا يُختار إلا من دفتر شيكات الحساب البنكي المحدد.
+  const forceChequeBookLeaf = isPayment && disallowManualChequeEntryInPayment
   const customerLabel = isReceipt ? "المقبوض منه" : "المدفوع له"
   const customerNameLabel = isReceipt ? "اسم المقبوض منه" : "اسم المدفوع له"
+  // سند مُرحَّل (status=2): مقفل بالكامل، لا يُعدَّل إلا عبر إلغائه منطقياً (زر حذف).
+  const isPosted = form.status === 2
+  // مقفل بالكامل (نموذج + شبكة الحسابات للقراءة فقط) لكلا الحالتين: مُرحَّل (2) أو ملغي منطقياً
+  // (3) — لا فرق بينهما من ناحية إمكانية التعديل، الفرق فقط في نص رسالة تأكيد الحذف أدناه.
+  const isLocked = form.status === 2 || form.status === 3
+  // شارة الحالة في عنوان النافذة: ملغي منطقياً (status=3) تطغى على أي شيء آخر؛ خلاف ذلك
+  // "مرحل" وحدها إن لم تُطبع بعد، أو "مرحل - مطبوع" إن طُبعت (is_printed=1) بعد الترحيل.
+  const statusBadge =
+    form.status === 3 ? "ملغي منطقياً" : form.status === 2 ? (form.is_printed === 1 ? "مرحل - مطبوع" : "مرحل") : ""
 
   useEffect(() => {
     if (!dialogOpen || accountsList.length > 0) return
@@ -332,8 +382,11 @@ export default function UnifiedReceiptVoucher({
   useEffect(() => {
     initialSnapshotRef.current = JSON.stringify(form)
     setActiveTab("main")
+    // form.vch_code يتغيّر أيضاً عند إعادة تصفير النموذج لمسودة جديدة بعد حفظ ناجح (id يبقى 0 في
+    // الحالتين) — بدونه تبقى initialSnapshotRef محتفظة بلقطة المسودة القديمة (قبل الحفظ)، فتُقارَن
+    // المسودة الجديدة الفارغة بها وتظهر "تم تعديل البيانات، هل تريد الحفظ؟" رغم عدم لمس المستخدم لها.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dialogOpen, form.id, isNewMode])
+  }, [dialogOpen, form.id, form.vch_code, isNewMode])
 
   const guardedAction = (action: () => void) => {
     if (showUnsavedConfirm) return
@@ -374,6 +427,19 @@ export default function UnifiedReceiptVoucher({
     }
   }
 
+  // يتحقق من صحة السند قبل عرض نافذة "كيف تريد الحفظ؟" — لا فائدة من تخيير المستخدم بين حفظ/ترحيل/طباعة
+  // لسند غير صالح أصلاً (رقم ناقص، مبالغ غير متطابقة...)؛ رسالة الخطأ تظهر مباشرة بدل فتح النافذة.
+  const handleRequestSave = () => {
+    if (isLocked) return
+    const error = onValidateSave?.()
+    if (error) {
+      messagesRef.current?.clear?.()
+      messagesRef.current?.show?.([{ severity: "error", summary: "", detail: error, sticky: false, life: 4000 }])
+      return
+    }
+    setPostDialogOpen(true)
+  }
+
   useEffect(() => {
     if (typeof window === "undefined" || !dialogOpen) return
     if (showDeleteConfirm || showUnsavedConfirm) return
@@ -381,7 +447,7 @@ export default function UnifiedReceiptVoucher({
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "F3") {
         event.preventDefault()
-        onSave()
+        handleRequestSave()
         return
       }
       if (event.key === "F4") {
@@ -396,7 +462,7 @@ export default function UnifiedReceiptVoucher({
 
     window.addEventListener("keydown", handleKeyDown)
     return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [dialogOpen, form.id, onSave, onDelete, onOpenChange, guardedAction, showDeleteConfirm, showUnsavedConfirm])
+  }, [dialogOpen, form.id, isLocked, onDelete, onOpenChange, guardedAction, showDeleteConfirm, showUnsavedConfirm])
 
   const currencyOptions = useMemo(
     () =>
@@ -448,7 +514,10 @@ export default function UnifiedReceiptVoucher({
     if (typeof window === "undefined" || !dialogOpen) return
     const t = setTimeout(() => dateInputRef.current?.focus(), 120)
     return () => clearTimeout(t)
-  }, [dialogOpen, form.id])
+    // form.vch_code يتغيّر أيضاً عند الضغط على "جديد" مرتين متتاليتين قبل الحفظ (id يبقى 0 في
+    // الحالتين)، لذا نعتمد عليه أيضاً حتى تعمل إعادة تركيز التاريخ في هذه الحالة أيضاً.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dialogOpen, form.id, form.vch_code, isNewMode])
 
   const totalAmount = Number(form.amount || 0)
 
@@ -465,20 +534,48 @@ export default function UnifiedReceiptVoucher({
   journalRef.current = journal
 
   const patchJournalRow = (index: number, patch: Partial<VoucherJournalRow>) => {
+    if (isLocked) return
     const next = journalRef.current.map((row, i) => (i === index ? { ...row, ...patch } : row))
     journalRef.current = next
     onJournalChange(next)
   }
   const addJournalRow = () => {
+    if (isLocked) return
     const next = [...journalRef.current, { ...emptyJournalRow }]
     journalRef.current = next
     onJournalChange(next)
   }
+  // يعيد تركيز الشبكة (وتحديد خلية بعينها) بعد إغلاق نافذة منبثقة فُتحت من سطر في الشبكة (بحث
+  // حساب، مراكز تكلفة) أو بعد حذف/اختيار سطر — دون هذا يبقى التركيز عالقاً على الزر الذي فتح
+  // النافذة. هناك سباقان منفصلان يجب تجاوزهما معاً، وليس أحدهما فقط:
+  // (١) مصيدة تركيز Radix (FocusScope) الخاصة بالنافذة المُغلقة قد لا تكون أُزيلت من الـ DOM بعد
+  //     لحظة استدعاء onOpenChange(false)، فتسحب grid.focus() الفوري إلى داخلها بدل الشبكة.
+  // (٢) تغيّر مصفوفة journal (بعد اختيار حساب مثلاً) يُعيد ربط itemsSource في Wijmo بمصفوفة
+  //     جديدة، وWijmo يُصفّر التحديد إلى الخلية (0,0) عند إعادة الربط — وقد يحدث هذا التصفير في
+  //     دورة رسم لاحقة وليس بالضرورة بشكل متزامن مع تحديث React، فيتغلب على أي selectCell سابق.
+  // لذا: انتظار دورتي رسم (لتجاوز الأول)، ثم إعادة فرض التحديد مرة أخرى بعد مهلة أطول قليلاً
+  // (لتجاوز الثاني إن حدث متأخراً) بدل الاكتفاء بمحاولة واحدة قد يسبقها كلا السباقين.
+  const focusGridCell = (row: number, colName: string) => {
+    const applyFocus = () => {
+      waitForGridReady(
+        () => journalGridRef.current,
+        (grid) => {
+          selectCell(grid, row, colName)
+          grid.focus()
+        },
+      )
+    }
+    requestAnimationFrame(() => requestAnimationFrame(applyFocus))
+    setTimeout(applyFocus, 120)
+  }
+
   const removeJournalRow = (index: number) => {
+    if (isLocked) return
     const filtered = journalRef.current.filter((_, i) => i !== index)
     const next = filtered.length > 0 ? filtered : [{ ...emptyJournalRow }]
     journalRef.current = next
     onJournalChange(next)
+    focusGridCell(Math.min(index, next.length - 1), "account_code")
   }
 
   // يوازن مبلغ السطر الأول ليكمّل الفرق بين المبلغ الإجمالي ومجموع بقية أسطر تبويب الحسابات
@@ -492,6 +589,29 @@ export default function UnifiedReceiptVoucher({
     patchJournalRow(0, { amount: remaining })
   }
 
+  // فحص توافق عملة الحساب مع عملة السند عند اختيار حساب في شبكة "الحسابات" — لا علاقة له بحسابات
+  // أخرى في السند (كحساب النقدي/الشيك مثلاً). allow_trans_with_diff_curr (إعداد الحساب "السماح
+  // بعمل حركة على الحساب بغير عملته"): 0 = مسموح بدون تنبيه، 1 = مسموح مع تنبيه (Toast تحذيري لكن
+  // يُقبل الاختيار)، 2 = ممنوع (يُرفض الاختيار تماماً).
+  const checkAccountCurrencyCompatibility = (account: AccountItem): boolean => {
+    if (account.currency_id == null || form.currency_id == null || account.currency_id === form.currency_id) {
+      return true
+    }
+    const diffCurrMode = Number(account.allow_trans_with_diff_curr)
+    if (diffCurrMode === 2) {
+      toast({
+        title: "تعذر اختيار الحساب",
+        description: "عملة السند تختلف عن عملة الحساب لا يمكن اختياره",
+        variant: "destructive",
+      })
+      return false
+    }
+    if (diffCurrMode === 1) {
+      toast({ title: "تنبيه", description: "عملة السند تختلف عن عملة الحساب" })
+    }
+    return true
+  }
+
   const resolveJournalAccountByCode = (index: number, rawCode: string) => {
     const code = rawCode.trim().toUpperCase()
     if (!code) {
@@ -501,6 +621,10 @@ export default function UnifiedReceiptVoucher({
     }
     const match = accountsList.find((a) => a.code.toUpperCase() === code)
     if (match) {
+      if (!checkAccountCurrencyCompatibility(match)) {
+        patchJournalRow(index, { account_id: null, account_code: "", account_name: "" })
+        return
+      }
       patchJournalRow(index, { account_id: match.id, account_code: match.code, account_name: match.name })
       if (index === 0) {
         onFormChange("to_account_id", match.id)
@@ -523,6 +647,7 @@ export default function UnifiedReceiptVoucher({
   }
 
   const openJournalCostCenter = (index: number) => {
+    if (isLocked) return
     const row = journal[index]
     if (!row?.account_id) return
     const account = accountsList.find((a) => a.id === row.account_id) || null
@@ -549,6 +674,7 @@ export default function UnifiedReceiptVoucher({
           iconType: "search",
           isReadOnly: true,
           onClick: (e: any, ctx: any) => {
+            if (isLocked) return
             setJournalSearchRow(ctx.row.index)
             setJournalSearchOpen(true)
           },
@@ -574,6 +700,7 @@ export default function UnifiedReceiptVoucher({
           width: 50,
           buttonBody: "button",
           align: "center",
+          title: "حذف السطر (F7)",
           iconType: "delete",
           isReadOnly: true,
           onClick: (e: any, ctx: any) => removeJournalRow(ctx.row.index),
@@ -582,12 +709,13 @@ export default function UnifiedReceiptVoucher({
       ],
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [journal, accountsList],
+    [journal, accountsList, isLocked],
   )
 
   const journalGridData = useMemo(() => journal.map((row, i) => ({ ...row, ser: i + 1 })), [journal])
 
   const handleJournalCellEditEnded = (grid: any, e: any) => {
+    journalGridRef.current = grid
     const row = e.row
     const colName = grid?.columns?.[e.col]?.binding
     if (colName === "account_code") {
@@ -609,6 +737,7 @@ export default function UnifiedReceiptVoucher({
   // مطابق لـ onKeyDownGridAccounts في QabdVoucher.js: أرقام فقط في المبلغ، وTab/Enter تنقل
   // إلى العمود المنطقي التالي (account_code -> amount أو بحث، amount -> note).
   const handleJournalKeyDown = (grid: any, e: any) => {
+    journalGridRef.current = grid
     if (!grid || !grid.selection) return
     const row = grid.selection.row
     const col = grid.selection.col
@@ -629,6 +758,14 @@ export default function UnifiedReceiptVoucher({
       return
     }
 
+    // F7 يحذف السطر الحالي — يُتاح فقط لسند فعال غير مرحّل (status=1) أو مسودة جديدة لم تُحفظ
+    // بعد (id=0)؛ removeJournalRow نفسها تمنع الحذف أصلاً إن كان السند مقفلاً (isLocked).
+    if (e.keyCode === Util.keyboardKeys.F7) {
+      e.preventDefault()
+      if (form.status === 1 || form.id === 0) removeJournalRow(row)
+      return
+    }
+
     if (e.keyCode === Util.keyboardKeys.Tab || e.keyCode === Util.keyboardKeys.Enter) {
       e.preventDefault()
       // Force the in-progress cell edit to commit (fires cellEditEnded synchronously) before we
@@ -637,6 +774,7 @@ export default function UnifiedReceiptVoucher({
       grid.finishEditing?.()
       grid.focus()
       if (colName === "account_code") {
+        // لا يوجد تعديل معلَّق هنا (الحساب مُحلَّل مسبقاً)، فلا سباق مع Wijmo — التنقّل المتزامن آمن.
         const currentRow = journal[row]
         if (currentRow?.account_id) {
           selectCell(grid, row, "amount")
@@ -644,10 +782,13 @@ export default function UnifiedReceiptVoucher({
           setJournalSearchRow(row)
           setJournalSearchOpen(true)
         }
-      } else if (colName === "amount") {
-        selectCell(grid, row, "note")
-      } else if (colName === "note" && row < journal.length - 1) {
-        selectCell(grid, row + 1, "account_code")
+      } else if (colName === "amount" || (colName === "note" && row < journal.length - 1)) {
+        // مغادرة amount/note عبر Tab/Enter تُنهي تحرير الخلية (finishEditing أعلاه) فتُشغّل
+        // cellEditEnded -> patchJournalRow -> مصفوفة journal جديدة -> إعادة ربط itemsSource في
+        // Wijmo -> تصفير تحديده إلى (0,0)، وقد يحدث هذا بعد selectCell المتزامن فيُبطله. لذا
+        // focusGridCell (بتكرارها المُقاوم للتوقيت) بدل selectCell المباشر هنا.
+        if (colName === "amount") focusGridCell(row, "note")
+        else focusGridCell(row + 1, "account_code")
       }
     }
   }
@@ -661,16 +802,19 @@ export default function UnifiedReceiptVoucher({
   chequesRef.current = cheques
 
   const patchChequeRow = (index: number, patch: Partial<VoucherChequeRow>) => {
+    if (isLocked) return
     const next = chequesRef.current.map((row, i) => (i === index ? { ...row, ...patch } : row))
     chequesRef.current = next
     onChequesChange(next)
   }
   const addChequeRow = () => {
+    if (isLocked) return
     const next = [...chequesRef.current, { ...emptyChequeRow }]
     chequesRef.current = next
     onChequesChange(next)
   }
   const removeChequeRow = (index: number) => {
+    if (isLocked) return
     const filtered = chequesRef.current.filter((_, i) => i !== index)
     const next = filtered.length > 0 ? filtered : [{ ...emptyChequeRow }]
     chequesRef.current = next
@@ -685,8 +829,42 @@ export default function UnifiedReceiptVoucher({
       sortable: false,
       columns: [
         { header: "#", name: "ser", width: 50, isReadOnly: true },
-        { header: "رقم الحساب", name: "bank_account", width: 120 },
-        { header: "رقم الشيك", name: "cheq_num", width: 120 },
+        { header: "رقم الحساب", name: "bank_account", width: 100 },
+        {
+          name: "btnSearchBankAccount",
+          header: " ",
+          width: 40,
+          buttonBody: "button",
+          align: "center",
+          iconType: "search",
+          isReadOnly: true,
+          onClick: (e: any, ctx: any) => {
+            if (isLocked) return
+            setChequeSearchRow(ctx.row.index)
+            setBankAccountSearchOpen(true)
+          },
+          visible: true,
+        },
+        { header: "رقم الشيك", name: "cheq_num", width: 100, isReadOnly: forceChequeBookLeaf },
+        {
+          name: "btnSearchChequeLeaf",
+          header: " ",
+          width: 40,
+          buttonBody: "button",
+          align: "center",
+          iconType: "search",
+          isReadOnly: true,
+          onClick: (e: any, ctx: any) => {
+            if (isLocked) return
+            if (!cheques[ctx.row.index]?.bank_account_id) {
+              messagesRef.current?.show?.([{ severity: "error", summary: "", detail: "يجب تحديد رقم الحساب اولا", life: 3000 }])
+              return
+            }
+            setChequeSearchRow(ctx.row.index)
+            setChequeLeafSearchOpen(true)
+          },
+          visible: true,
+        },
         { header: "البنك", name: "bank_no", width: 90, maxLength: 4 },
         {
           name: "btnSearchBank",
@@ -697,6 +875,7 @@ export default function UnifiedReceiptVoucher({
           iconType: "search",
           isReadOnly: true,
           onClick: (e: any, ctx: any) => {
+            if (isLocked) return
             setChequeSearchRow(ctx.row.index)
             setBankSearchOpen(true)
           },
@@ -713,6 +892,7 @@ export default function UnifiedReceiptVoucher({
           iconType: "search",
           isReadOnly: true,
           onClick: (e: any, ctx: any) => {
+            if (isLocked) return
             setChequeSearchRow(ctx.row.index)
             setBranchSearchOpen(true)
           },
@@ -729,6 +909,7 @@ export default function UnifiedReceiptVoucher({
           iconType: "calendar",
           isReadOnly: true,
           onClick: (e: any, ctx: any) => {
+            if (isLocked) return
             setDueDateRow(ctx.row.index)
             setDueDatePickerOpen(true)
           },
@@ -750,7 +931,7 @@ export default function UnifiedReceiptVoucher({
       ],
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [cheques, banks, branches],
+    [cheques, banks, branches, bankAccounts, isLocked, forceChequeBookLeaf],
   )
 
   const chequeGridData = useMemo(
@@ -775,6 +956,36 @@ export default function UnifiedReceiptVoucher({
         messagesRef.current?.show?.([{ severity: "error", summary: "", detail: "الحقل يجب أن يحتوي أحرف/أرقام إنجليزية فقط بدون مسافات", life: 3000 }])
         return
       }
+    }
+
+    if (colName === "bank_account") {
+      const raw = String(value ?? "").trim()
+      if (!raw) {
+        patchChequeRow(row, { bank_account: "", bank_account_id: null, cheq_num: "", cheque_book_cheque_id: null } as any)
+        return
+      }
+      const account = bankAccounts.find((a) => String(a.code || "").trim() === raw)
+      if (account) {
+        const currentRow = cheques[row]
+        // تغيير الحساب البنكي يُبطل ورقة الشيك المحجوزة سابقاً (كانت تابعة لحساب مختلف).
+        const changedAccount = currentRow?.bank_account_id !== account.id
+        patchChequeRow(row, {
+          bank_account: account.code,
+          bank_account_id: account.id,
+          ...(changedAccount ? { cheq_num: "", cheque_book_cheque_id: null } : {}),
+        } as any)
+      } else {
+        // مطابق لطلب المستخدم: إبقاء التركيز على الخلية دون فتح نافذة البحث تلقائياً، مع مسح
+        // القيمة المدخلة وعرض رسالة الخطأ (بخلاف نمط البنك/الفرع اللذين يفتحان البحث تلقائياً).
+        patchChequeRow(row, { bank_account: "", bank_account_id: null } as any)
+        messagesRef.current?.show?.([{ severity: "error", summary: "", detail: "الحساب البنكي المدخل غير موجود", life: 3000 }])
+      }
+      return
+    }
+
+    if (colName === "cheq_num" && !forceChequeBookLeaf) {
+      patchChequeRow(row, { cheq_num: value, cheque_book_cheque_id: null } as any)
+      return
     }
 
     if (colName === "bank_no") {
@@ -811,8 +1022,8 @@ export default function UnifiedReceiptVoucher({
       }
     } else if (colName === "amount") {
       patchChequeRow(row, { amount: value === "" || value === null ? null : Number(value) })
-    } else if (["bank_account", "cheq_num", "cheq_owner_name"].includes(colName)) {
-      patchChequeRow(row, { [colName]: value } as any)
+    } else if (colName === "cheq_owner_name") {
+      patchChequeRow(row, { cheq_owner_name: value } as any)
     }
   }
 
@@ -873,6 +1084,25 @@ export default function UnifiedReceiptVoucher({
       }
     }
 
+    // مطابق لـ Util.keyboardKeys.Insert -> onAddCheckClick في QabdVoucher.js: يضيف سطراً جديداً
+    // من أي عمود، بنفس شرط صلاحية السطر الحالي المستخدم عند الوصول لآخر حقل بالـ Tab/Enter.
+    if (e.keyCode === Util.keyboardKeys.Insert) {
+      e.preventDefault()
+      grid.finishEditing?.()
+      const currentRow = cheques[row]
+      const validationError = validateChequeRow(currentRow)
+      if (validationError) {
+        messagesRef.current?.show?.([{ severity: "error", summary: "", detail: validationError, life: 3000 }])
+        return
+      }
+      addChequeRow()
+      setTimeout(() => {
+        selectCell(grid, row + 1, "bank_account")
+        grid.focus()
+      }, 0)
+      return
+    }
+
     if (e.keyCode === Util.keyboardKeys.Tab || e.keyCode === Util.keyboardKeys.Enter) {
       e.preventDefault()
       // Force the in-progress cell edit to commit (fires cellEditEnded synchronously) before we
@@ -881,6 +1111,32 @@ export default function UnifiedReceiptVoucher({
       grid.finishEditing?.()
       grid.focus()
       const currentRow = cheques[row]
+
+      // رقم الحساب فارغ -> افتح نافذة بحث الحسابات البنكية بدلاً من الانتقال.
+      if (colName === "bank_account") {
+        if (!currentRow?.bank_account?.trim()) {
+          setChequeSearchRow(row)
+          setBankAccountSearchOpen(true)
+          return
+        }
+        selectCell(grid, row, "cheq_num")
+        return
+      }
+      // رقم الشيك فارغ وإعداد "عدم السماح بادخال شيكات يدويا" مفعّل -> افتح نافذة بحث دفتر
+      // الشيكات (بعد التأكد من اختيار رقم الحساب أولاً) بدلاً من السماح بالكتابة اليدوية.
+      if (colName === "cheq_num" && forceChequeBookLeaf) {
+        if (!currentRow?.cheq_num?.trim()) {
+          if (!currentRow?.bank_account_id) {
+            messagesRef.current?.show?.([{ severity: "error", summary: "", detail: "يجب تحديد رقم الحساب اولا", life: 3000 }])
+            return
+          }
+          setChequeSearchRow(row)
+          setChequeLeafSearchOpen(true)
+          return
+        }
+        selectCell(grid, row, "bank_no")
+        return
+      }
 
       // البنك/الفرع فارغين -> افتح نافذة البحث بدلاً من الانتقال، تماماً كما في onKeyDownGridChecks
       if (colName === "bank_no") {
@@ -1117,24 +1373,27 @@ export default function UnifiedReceiptVoucher({
           onPointerDownOutside={(event) => event.preventDefault()}
           onInteractOutside={(event) => event.preventDefault()}
           onEscapeKeyDown={(event) => {
-            if (showUnsavedConfirm || showDeleteConfirm || journalSearchOpen || costCenterOpen) event.preventDefault()
+            if (showUnsavedConfirm || showDeleteConfirm || journalSearchOpen || costCenterOpen || postDialogOpen)
+              event.preventDefault()
           }}
         >
           <UniversalToolbar
             currentRecord={currentIndex + 1}
             totalRecords={totalRecords}
             onNew={() => guardedAction(() => onNew?.())}
-            onSave={onSave}
+            onSave={handleRequestSave}
             onDelete={onDelete}
             onClone={onClone}
+            onPrint={onPrint}
             onFirst={() => guardedAction(() => void handleNavigate("first"))}
             onPrevious={() => guardedAction(() => void handleNavigate("previous"))}
             onNext={() => guardedAction(() => void handleNavigate("next"))}
             onLast={() => guardedAction(() => void handleNavigate("last"))}
             isSaving={isSaving}
-            canSave={canSave}
-            canDelete={form.id > 0}
+            canSave={canSave && form.status !== 2 && form.status !== 3}
+            canDelete={form.id > 0 && form.status !== 3}
             canClone={form.id > 0}
+            canPrint={form.id > 0 && form.status !== 3}
             isFirstRecord={isFirstRecord}
             isLastRecord={isLastRecord}
           />
@@ -1145,11 +1404,15 @@ export default function UnifiedReceiptVoucher({
             <DialogHeader className="mb-4">
               <DialogTitle className="text-xl font-semibold">
                 {title} {form.id > 0 ? "" : "(مسودة)"}
+                {statusBadge && (
+                  <span className={form.status === 3 ? "text-rose-600" : "text-emerald-600"}> - {statusBadge}</span>
+                )}
               </DialogTitle>
             </DialogHeader>
 
             <Messages innerRef={messagesRef} />
 
+            <fieldset disabled={isLocked} className="contents">
             {/* تفاصيل السند + تفاصيل العميل */}
             <div className="grid gap-6 border-b pb-6 lg:grid-cols-2">
               <div className="space-y-3">
@@ -1165,6 +1428,7 @@ export default function UnifiedReceiptVoucher({
                         optionValue="id"
                         placeholder="اختر"
                         filter
+                        disabled={isLocked}
                         className="invoice-currency-dropdown w-full"
                         panelClassName="invoice-currency-dropdown-panel"
                         appendTo="self"
@@ -1184,12 +1448,15 @@ export default function UnifiedReceiptVoucher({
                     </div>
                     <div className="grid gap-1.5">
                       <Label htmlFor="vch-date">تاريخ السند *</Label>
-                      <Input
+                      <DateTimeControl
                         id="vch-date"
                         ref={dateInputRef}
-                        type="date"
                         value={form.vch_date ? form.vch_date.slice(0, 10) : ""}
-                        onChange={(e) => onFormChange("vch_date", e.target.value)}
+                        disabled={isLocked}
+                        onChange={(value) => {
+                          onFormChange("vch_date", value)
+                          if (!form.manual_date) onFormChange("manual_date", value)
+                        }}
                       />
                     </div>
                   </div>
@@ -1203,6 +1470,7 @@ export default function UnifiedReceiptVoucher({
                         optionValue="value"
                         placeholder="اختر العملة"
                         filter
+                        disabled={isLocked}
                         className="invoice-currency-dropdown w-full"
                         panelClassName="invoice-currency-dropdown-panel"
                         appendTo="self"
@@ -1233,11 +1501,11 @@ export default function UnifiedReceiptVoucher({
                     </div>
                     <div className="grid gap-1.5">
                       <Label htmlFor="vch-manual-date">تاريخ السند اليدوي</Label>
-                      <Input
+                      <DateTimeControl
                         id="vch-manual-date"
-                        type="date"
                         value={form.manual_date ? form.manual_date.slice(0, 10) : ""}
-                        onChange={(e) => onFormChange("manual_date", e.target.value)}
+                        disabled={isLocked}
+                        onChange={(value) => onFormChange("manual_date", value)}
                       />
                     </div>
                   </div>
@@ -1251,8 +1519,8 @@ export default function UnifiedReceiptVoucher({
                     <AutoCompleteAccount
                       label={`${customerLabel} *`}
                       valueMode="id"
-                      value={numberValue(form.customer_account_id)}
-                      onValueChange={(v) => onFormChange("customer_account_id", v ? Number(v) : null)}
+                      value={numberValue(form.account_id)}
+                      onValueChange={(v) => onFormChange("account_id", v ? Number(v) : null)}
                       onAccountSelect={(account) => {
                         if (!account) return
                         onFormChange("customer_name", account.name)
@@ -1263,6 +1531,7 @@ export default function UnifiedReceiptVoucher({
                       }}
                       searchAllowedTypeValues={[2, 3, 4, 5]}
                       showCostCenterButton={false}
+                      disabled={isLocked}
                     />
                     <div className="grid gap-1.5">
                       <Label>{customerNameLabel}</Label>
@@ -1282,6 +1551,7 @@ export default function UnifiedReceiptVoucher({
                       onAccountSelect={(account) => account && setJournalFirstRowAccount({ id: account.id, code: account.code, name: account.name })}
                       costCenters={journal[0]?.cost_centers}
                       onCostCentersChange={(selection) => patchJournalRow(0, { cost_centers: selection })}
+                      disabled={isLocked}
                     />
                     <div className="grid gap-1.5">
                       <Label>الرصيد</Label>
@@ -1355,7 +1625,24 @@ export default function UnifiedReceiptVoucher({
 
             <div className="grid gap-1.5 border-b py-4">
               <Label htmlFor="vch-note">الملاحظة</Label>
-              <Input id="vch-note" value={form.note} onChange={(e) => onFormChange("note", e.target.value)} maxLength={200} />
+              <Input
+                id="vch-note"
+                value={form.note}
+                onChange={(e) => onFormChange("note", e.target.value)}
+                maxLength={200}
+                onKeyDown={(e) => {
+                  if (e.key !== "Tab" && e.key !== "Enter") return
+                  e.preventDefault()
+                  setActiveTab("journal")
+                  waitForGridReady(
+                    () => journalGridRef.current,
+                    (grid) => {
+                      selectCell(grid, 0, "account_code")
+                      grid.focus()
+                    },
+                  )
+                }}
+              />
             </div>
 
             {/* Tabs: الرئيسية, الشيكات, تفاصيل البطاقة, الحسابات, ملاحظات, المرفقات, الحقول الإضافية */}
@@ -1380,6 +1667,7 @@ export default function UnifiedReceiptVoucher({
                     onValueChange={(v) => onFormChange("cash_account_id", v ? Number(v) : null)}
                     costCenters={form.cash_account_cost_centers}
                     onCostCentersChange={(selection) => onFormChange("cash_account_cost_centers", selection)}
+                    disabled={isLocked}
                   />
                   <AutoCompleteAccount
                     label="حساب صندوق الشيكات"
@@ -1388,6 +1676,7 @@ export default function UnifiedReceiptVoucher({
                     onValueChange={(v) => onFormChange("check_account_id", v ? Number(v) : null)}
                     costCenters={form.check_account_cost_centers}
                     onCostCentersChange={(selection) => onFormChange("check_account_cost_centers", selection)}
+                    disabled={isLocked}
                   />
                   <AutoCompleteAccount
                     label="حساب البطاقات"
@@ -1396,6 +1685,7 @@ export default function UnifiedReceiptVoucher({
                     onValueChange={(v) => onFormChange("credit_card_account_id", v ? Number(v) : null)}
                     costCenters={form.credit_card_account_cost_centers}
                     onCostCentersChange={(selection) => onFormChange("credit_card_account_cost_centers", selection)}
+                    disabled={isLocked}
                   />
                 </div>
                 <div className="grid gap-4 md:grid-cols-2">
@@ -1408,6 +1698,7 @@ export default function UnifiedReceiptVoucher({
                       optionValue="id"
                       placeholder="اختر"
                       filter
+                      disabled={isLocked}
                       className="invoice-currency-dropdown w-full"
                       panelClassName="invoice-currency-dropdown-panel"
                       appendTo="self"
@@ -1424,6 +1715,7 @@ export default function UnifiedReceiptVoucher({
                       optionValue="id"
                       placeholder="اختر"
                       filter
+                      disabled={isLocked}
                       className="invoice-currency-dropdown w-full"
                       panelClassName="invoice-currency-dropdown-panel"
                       appendTo="self"
@@ -1449,7 +1741,7 @@ export default function UnifiedReceiptVoucher({
                     scheme={chequeScheme}
                     dataSource={chequeGridData}
                     idProperty="ser"
-                    isReport={false}
+                    isReport={isLocked}
                     showContextMenu={false}
                     cellEditEnded={handleChequeCellEditEnded}
                     onKeyDown={handleChequeKeyDown}
@@ -1475,6 +1767,7 @@ export default function UnifiedReceiptVoucher({
                       optionValue="id"
                       placeholder="اختر"
                       filter
+                      disabled={isLocked}
                       className="invoice-currency-dropdown w-full"
                       panelClassName="invoice-currency-dropdown-panel"
                       appendTo="self"
@@ -1530,11 +1823,12 @@ export default function UnifiedReceiptVoucher({
                 </div>
                 <div className="w-full max-w-full overflow-x-auto">
                   <DataGridView
+                    innerRef={journalGridRef}
                     style={{ height: "300px" }}
                     scheme={journalScheme}
                     dataSource={journalGridData}
                     idProperty="ser"
-                    isReport={false}
+                    isReport={isLocked}
                     showContextMenu={false}
                     cellEditEnded={handleJournalCellEditEnded}
                     onKeyDown={handleJournalKeyDown}
@@ -1596,26 +1890,32 @@ export default function UnifiedReceiptVoucher({
                 <p className="py-4 text-center text-sm text-slate-400">لا توجد حقول إضافية معرّفة لهذا النوع من السندات</p>
               </TabsContent>
             </Tabs>
+            </fieldset>
           </div>
         </DialogContent>
       </Dialog>
 
       <AccountSearchDialog
         open={journalSearchOpen}
-        onOpenChange={setJournalSearchOpen}
+        onOpenChange={(open) => {
+          setJournalSearchOpen(open)
+          if (!open && journalSearchRow !== null) focusGridCell(journalSearchRow, "account_code")
+        }}
         accounts={accountsList}
         onSelect={(account) => {
-          if (journalSearchRow !== null) {
+          if (journalSearchRow !== null && checkAccountCurrencyCompatibility(account)) {
             patchJournalRow(journalSearchRow, { account_id: account.id, account_code: account.code, account_name: account.name })
             if (journalSearchRow === 0) onFormChange("to_account_id", account.id)
           }
-          setJournalSearchOpen(false)
         }}
       />
 
       <AccountCostCenters
         open={costCenterOpen}
-        onOpenChange={setCostCenterOpen}
+        onOpenChange={(open) => {
+          setCostCenterOpen(open)
+          if (!open && journalSearchRow !== null) focusGridCell(journalSearchRow, "account_code")
+        }}
         account={costCenterAccount}
         value={journalSearchRow !== null ? journal[journalSearchRow]?.cost_centers : undefined}
         onChange={(selection) => {
@@ -1659,6 +1959,36 @@ export default function UnifiedReceiptVoucher({
         }}
       />
 
+      <BankAccountsSearch
+        open={bankAccountSearchOpen}
+        onOpenChange={setBankAccountSearchOpen}
+        bankAccounts={bankAccounts}
+        onSelect={(account) => {
+          if (chequeSearchRow !== null) {
+            const currentRow = cheques[chequeSearchRow]
+            const changedAccount = currentRow?.bank_account_id !== account.id
+            patchChequeRow(chequeSearchRow, {
+              bank_account: account.code,
+              bank_account_id: account.id,
+              ...(changedAccount ? { cheq_num: "", cheque_book_cheque_id: null } : {}),
+            } as any)
+          }
+          setBankAccountSearchOpen(false)
+        }}
+      />
+
+      <ChequeBookLeafSearch
+        open={chequeLeafSearchOpen}
+        onOpenChange={setChequeLeafSearchOpen}
+        bankAccountId={chequeSearchRow !== null ? cheques[chequeSearchRow]?.bank_account_id ?? null : null}
+        onSelect={(leaf) => {
+          if (chequeSearchRow !== null) {
+            patchChequeRow(chequeSearchRow, { cheq_num: leaf.cheque_code, cheque_book_cheque_id: leaf.id } as any)
+          }
+          setChequeLeafSearchOpen(false)
+        }}
+      />
+
       <DatePickerDialog
         open={dueDatePickerOpen}
         onOpenChange={setDueDatePickerOpen}
@@ -1681,7 +2011,7 @@ export default function UnifiedReceiptVoucher({
 
       <ConfirmDialogYesNo
         visible={showDeleteConfirm}
-        message={`هل تريد حذف هذا ${title}؟`}
+        message={isPosted ? "السند مرحل هل تريد الغاؤه منطقياً؟" : `هل تريد حذف هذا ${title}؟`}
         onConfirm={onConfirmDelete}
         onCancel={onCancelDelete}
       />
@@ -1693,7 +2023,7 @@ export default function UnifiedReceiptVoucher({
         onConfirm={() => {
           setShowUnsavedConfirm(false)
           pendingActionRef.current = null
-          onSave()
+          onSave("save")
         }}
         onCancel={() => {
           setShowUnsavedConfirm(false)
@@ -1702,6 +2032,16 @@ export default function UnifiedReceiptVoucher({
           action?.()
         }}
         onBack={() => setShowUnsavedConfirm(false)}
+      />
+
+      <PostVoucherDialog
+        visible={postDialogOpen}
+        isSaving={isSaving}
+        onSelect={(action) => {
+          setPostDialogOpen(false)
+          onSave(action)
+        }}
+        onCancel={() => setPostDialogOpen(false)}
       />
     </>
   )

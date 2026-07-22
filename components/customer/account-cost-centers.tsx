@@ -235,7 +235,12 @@ export default function AccountCostCenters({ open, onOpenChange, account, value,
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent hideCloseButton className="w-[88vw] max-w-4xl h-[78vh] max-h-[78vh] overflow-hidden p-3 sm:p-4" dir="rtl">
+      <DialogContent
+        hideCloseButton
+        className="w-[88vw] max-w-4xl h-[78vh] max-h-[78vh] overflow-hidden p-3 sm:p-4"
+        dir="rtl"
+        onCloseAutoFocus={(event) => event.preventDefault()}
+      >
         <div className="flex h-full flex-col gap-2">
           <div className="flex items-start justify-between gap-3 border-b pb-2">
             <div>

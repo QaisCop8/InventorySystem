@@ -1,11 +1,27 @@
 import sql from "@/lib/database"
-import { ensureTables as ensureVoucherTables, saveJournalRows, saveNoteRows, fetchDetails } from "../receipts/_lib"
+import {
+  ensureTables as ensureVoucherTables,
+  saveJournalRows,
+  saveNoteRows,
+  fetchDetails,
+  archiveAndDeleteVoucher,
+  markVoucherPrinted,
+  validateJournalAccountCurrencies,
+  JOURNAL_TYPE_COUNTER_ACCOUNT,
+} from "../receipts/_lib"
 
 // سند قيد يشارك نفس جداول سند القبض/الصرف (voucher_header_tbl / voucher_journal_detail_tbl /
 // voucher_costcenter_tbl / voucher_notes_tbl) — الفرق الوحيد هنا: كل سطر في "الحسابات" هو
 // طرف مدين أو دائن مباشرة (لا صناديق/شيكات/بطاقات)، ولا يوجد عميل/حساب مقابل منفصل.
 export const ensureTables = ensureVoucherTables
-export { saveJournalRows, saveNoteRows, fetchDetails }
+export {
+  saveJournalRows,
+  saveNoteRows,
+  fetchDetails,
+  archiveAndDeleteVoucher,
+  markVoucherPrinted,
+  validateJournalAccountCurrencies,
+}
 
 // per voucher_types_tbl (7 = "سند قيد", مختلف عن سند القبض/الصرف 8/9).
 export const JOURNAL_VCH_TYPE = 7
@@ -52,9 +68,9 @@ export const resolveVoucherBookName = async (bookId: number | null): Promise<str
   return rows[0]?.name || ""
 }
 
-// كل سطر مُدخَل في شبكة "الحسابات" (مدين أو دائن، وليس كلاهما) يصبح سطر journal_type_id=4
-// مباشرة — القيد نفسه هو محتوى السند، بخلاف سند القبض/الصرف حيث الحسابات المقابلة تُكمّل
-// طرفي نقدي/شيكات/بطاقات.
+// كل سطر مُدخَل في شبكة "الحسابات" (مدين أو دائن، وليس كلاهما) يصبح سطر
+// journal_type_id=JOURNAL_TYPE_COUNTER_ACCOUNT مباشرة — القيد نفسه هو محتوى السند، بخلاف سند
+// القبض/الصرف حيث الحسابات المقابلة تُكمّل طرفي نقدي/شيكات/بطاقات.
 export interface JournalRow {
   journal_type_id: number
   account_id: number
@@ -81,7 +97,7 @@ export const buildJournalRows = (data: any): JournalRow[] => {
     const credit = Number(row.credit || 0)
     const amount = debit > 0 ? debit : credit
     return {
-      journal_type_id: 4,
+      journal_type_id: JOURNAL_TYPE_COUNTER_ACCOUNT,
       account_id: Number(row.account_id),
       credit_debit: debit > 0 ? 1 : 2,
       amount,

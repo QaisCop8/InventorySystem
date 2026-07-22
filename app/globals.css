@@ -642,6 +642,29 @@
     font-weight: 600;
   }
 
+  .voucher-print-area {
+    display: none;
+  }
+
+  @media print {
+    body * {
+      visibility: hidden;
+    }
+
+    .voucher-print-area,
+    .voucher-print-area * {
+      visibility: visible;
+    }
+
+    .voucher-print-area {
+      display: block;
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+    }
+  }
+
   .invoice-offset-toggle {
     height: 42px;
     padding: 0 12px;
