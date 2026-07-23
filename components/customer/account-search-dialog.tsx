@@ -126,6 +126,7 @@ export default function AccountSearchDialog({
     currency: "__all__",
   })
   const gridRef = useRef<any>(null)
+  const filterContainerRef = useRef<HTMLDivElement | null>(null)
   const accountNameInputRef = useRef<HTMLInputElement | null>(null)
 
   const visibleAccounts = useMemo(() => {
@@ -357,42 +358,58 @@ export default function AccountSearchDialog({
     grid.focus()
   }
 
-  // Enter يتصرف كـ Tab عبر كل حقول الفلترة (بدل تشغيل البحث كما كان سابقاً)، وسهم لأسفل من أي
-  // حقل فلترة ينتقل مباشرة لأول سطر في الشبكة. عندما تكون قائمة Prime Dropdown مفتوحة فعلياً
-  // (تصفّح بالأسهم بين الخيارات) لا نتدخل إطلاقاً ونترك السلوك الافتراضي للمكوّن كما هو.
-  const handleFilterKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
-    const target = event.target as HTMLElement
-    if (target.closest(".p-dropdown-panel")) return
+  // PrimeReact's Dropdown registers its own Enter/Arrow handling directly on `document` (its
+  // overlay/key-navigation service, not a plain React bubble handler on the trigger element) —
+  // a handler attached anywhere inside the React tree, even with onKeyDownCapture, loses that
+  // race and only "wins" every second press once Prime's own handler has already consumed the
+  // first one. A real document-level listener registered with capture:true always fires first
+  // (capture runs top-down starting at document, which is above everything React or Prime attach
+  // to), so this is attached directly instead of through JSX props.
+  useEffect(() => {
+    if (!open) return
 
-    if (event.key === "ArrowDown") {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null
+      if (!target) return
+      const container = filterContainerRef.current
+      if (!container || !container.contains(target)) return
+      // قائمة Prime Dropdown مفتوحة فعلاً (تصفّح بالأسهم بين الخيارات) -> لا نتدخل إطلاقاً.
+      if (target.closest(".p-dropdown-panel")) return
+
+      if (event.key === "ArrowDown") {
+        event.preventDefault()
+        event.stopPropagation()
+        focusGridFirstRow()
+        return
+      }
+
+      if (event.key !== "Enter") return
+
+      // العملة هو آخر حقل قبل زر البحث/الشبكة — Enter عليه ينتقل مباشرة لأول سطر في النتائج.
+      if (target.closest('[data-filter-field="currency"]')) {
+        event.preventDefault()
+        event.stopPropagation()
+        focusGridFirstRow()
+        return
+      }
+
+      if (target.tagName === "TEXTAREA" || target.tagName === "BUTTON") return
+      const focusable = Array.from(
+        container.querySelectorAll<HTMLElement>(
+          'input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ),
+      ).filter((el) => el.offsetParent !== null)
+      const currentIndex = focusable.indexOf(target)
+      if (currentIndex === -1) return
       event.preventDefault()
       event.stopPropagation()
-      focusGridFirstRow()
-      return
+      focusable[currentIndex + 1]?.focus()
     }
 
-    if (event.key !== "Enter") return
-
-    // العملة هو آخر حقل قبل زر البحث/الشبكة — Enter عليه ينتقل مباشرة لأول سطر في النتائج.
-    if (target.closest('[data-filter-field="currency"]')) {
-      event.preventDefault()
-      event.stopPropagation()
-      focusGridFirstRow()
-      return
-    }
-
-    if (target.tagName === "TEXTAREA" || target.tagName === "BUTTON") return
-    const focusable = Array.from(
-      event.currentTarget.querySelectorAll<HTMLElement>(
-        'input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
-      ),
-    ).filter((el) => el.offsetParent !== null)
-    const currentIndex = focusable.indexOf(target)
-    if (currentIndex === -1) return
-    event.preventDefault()
-    event.stopPropagation()
-    focusable[currentIndex + 1]?.focus()
-  }
+    document.addEventListener("keydown", handleKeyDown, true)
+    return () => document.removeEventListener("keydown", handleKeyDown, true)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
 
   // Enter والتركيز داخل الشبكة يختار السطر الحالي تماماً كما لو ضُغط زر "موافق" (بدل الاضطرار
   // لنقر مزدوج بالماوس).
@@ -470,7 +487,7 @@ export default function AccountSearchDialog({
               <ListFilter className="h-3.5 w-3.5" />
               خيارات البحث
             </div>
-            <div className={filterGridClassName} onKeyDown={handleFilterKeyDown}>
+            <div className={filterGridClassName} ref={filterContainerRef}>
               <div>
                 <Label className="mb-1.5 block text-sm font-medium text-slate-600">رقم الحساب</Label>
                 <Input

@@ -122,7 +122,7 @@ const StoresSearchPopup: React.FC<StoresSearchPopupProps> = ({
                         isReport: true,
                         columns: [
                             { header: "رقم المستودع", name: "id", width: 120, isReadOnly: true },
-                            { header: "اسم المستودع", name: "name", width: "*", isReadOnly: true },
+                            { header: "اسم المستودع", name: "warehouse_name", width: "*", isReadOnly: true },
                         ],
                     }}
                     selectionChanged={handleSelectionChange}

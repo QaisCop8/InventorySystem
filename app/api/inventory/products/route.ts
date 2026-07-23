@@ -221,7 +221,7 @@ export async function GET(request: NextRequest) {
       '(p.deleted IS NULL OR p.deleted = false)',
       ...(effectiveType !== null ? [`p.type = ${effectiveType}::int`] : []),
       ...(requestedProductId > 0 ? [`p.id = ${requestedProductId}::int`] : []),
-      ...(activeOnly ? [`(p.status = 1 OR p.status = 'نشط' OR p.status = 'active' OR p.status = 'ACTIVE')`] : []),
+      ...(activeOnly ? [`(p.status = 1 OR p.status::text = 'نشط' OR p.status::text = 'active' OR p.status::text = 'ACTIVE')`] : []),
     ]
     const filterExpression = filterClauses.join('\n        AND ')
 

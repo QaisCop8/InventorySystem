@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
-import { Plus, ListPlus, Paperclip } from "lucide-react"
+import { Plus, ListPlus, Paperclip, FileText } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -23,7 +23,7 @@ import { CellRange, KeyAction } from "@grapecity/wijmo.grid"
 import { Dropdown as PrimeDropdown } from "primereact/dropdown"
 
 const voucherTabTriggerClass =
-  "data-[state=active]:bg-gradient-to-r data-[state=active]:from-cyan-500 data-[state=active]:to-blue-600 data-[state=active]:text-white data-[state=active]:shadow-md"
+  "data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-teal-600 data-[state=active]:text-white data-[state=active]:shadow-md"
 
 export interface JournalEntryRow {
   account_id: number | null
@@ -845,17 +845,29 @@ export default function UnifiedJournal({
           />
 
           <div
-            className="relative rounded-b-3xl bg-background px-6 py-6"
+            className="relative rounded-b-3xl bg-slate-50/60 px-6 py-6"
             onKeyDown={handleFormEnterAsTab}
             data-enter-tab-root="true"
           >
             <ProgressSpinner loading={isSaving || navLoading} />
 
-            <DialogHeader className="mb-4">
-              <DialogTitle className="text-xl font-semibold">
-                سند قيد {form.id > 0 ? "" : "(مسودة)"}
+            <DialogHeader className="mb-5 overflow-hidden rounded-2xl bg-gradient-to-l from-emerald-600 via-emerald-600 to-teal-600 px-5 py-4 shadow-lg">
+              <DialogTitle className="flex flex-wrap items-center gap-2 text-lg font-extrabold tracking-tight text-white sm:text-xl">
+                <FileText className="h-5 w-5" />
+                سند قيد
+                {form.id > 0 ? (
+                  <span className="rounded-full bg-white/15 px-2.5 py-0.5 text-xs font-semibold ring-1 ring-white/30">{form.vch_code}</span>
+                ) : (
+                  <span className="rounded-full bg-white/15 px-2.5 py-0.5 text-xs font-semibold ring-1 ring-white/30">مسودة</span>
+                )}
                 {statusBadge && (
-                  <span className={form.status === 3 ? "text-rose-600" : "text-emerald-600"}> - {statusBadge}</span>
+                  <span
+                    className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ${
+                      form.status === 3 ? "bg-rose-500/20 text-rose-50 ring-rose-200/40" : "bg-amber-400/20 text-amber-50 ring-amber-200/40"
+                    }`}
+                  >
+                    {statusBadge}
+                  </span>
                 )}
               </DialogTitle>
             </DialogHeader>
@@ -863,7 +875,13 @@ export default function UnifiedJournal({
             <Messages innerRef={messagesRef} />
 
             <fieldset disabled={isLocked} className="contents">
-            <div className="grid gap-3 border-b pb-6">
+            <div className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+              <div className="flex items-center gap-2 text-sm font-bold text-emerald-700">
+                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-50 ring-1 ring-emerald-100">
+                  <FileText className="h-3.5 w-3.5" />
+                </span>
+                تفاصيل السند
+              </div>
               <div className="grid gap-4 md:grid-cols-3">
                 <div
                   className="grid gap-1.5"
@@ -998,7 +1016,7 @@ export default function UnifiedJournal({
                 <TabsTrigger value="attachments" className={voucherTabTriggerClass}>المرفقات</TabsTrigger>
               </TabsList>
 
-              <TabsContent value="journal" className="min-h-[420px] space-y-3 pt-4">
+              <TabsContent value="journal" className="mt-4 min-h-[420px] space-y-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
                 <div className="flex items-center justify-between">
                   <div
                     className={`text-sm font-semibold ${journalDiff === 0 ? "text-emerald-700" : "text-rose-600"}`}
@@ -1030,7 +1048,7 @@ export default function UnifiedJournal({
                 </div>
               </TabsContent>
 
-              <TabsContent value="extra-data" className="min-h-[420px] space-y-4 pt-4">
+              <TabsContent value="extra-data" className="mt-4 min-h-[420px] space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
                 <div className="grid gap-4 md:grid-cols-2">
                   <div
                     className="grid gap-1.5 invoice-currency-dropdown-wrap"
@@ -1084,7 +1102,7 @@ export default function UnifiedJournal({
                 </div>
               </TabsContent>
 
-              <TabsContent value="notes" className="min-h-[420px] space-y-4 pt-4">
+              <TabsContent value="notes" className="mt-4 min-h-[420px] space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
                 <div className="flex items-center justify-end">
                   <Button type="button" variant="outline" size="sm" onClick={addNoteRow}>
                     <ListPlus className="ml-1 h-4 w-4" />
@@ -1110,7 +1128,7 @@ export default function UnifiedJournal({
                 </div>
               </TabsContent>
 
-              <TabsContent value="attachments" className="min-h-[420px] pt-4">
+              <TabsContent value="attachments" className="mt-4 min-h-[420px] rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
                 <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-slate-300 bg-slate-50 py-10 text-slate-400">
                   <Paperclip className="h-6 w-6" />
                   <p className="text-sm">رفع المرفقات غير متاح بعد في هذا الإصدار</p>

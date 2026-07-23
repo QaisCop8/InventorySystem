@@ -107,6 +107,10 @@ export function SystemSettings() {
     paymentPrefix: "P",
     creditNotePrefix: "C",
     debitNotePrefix: "D",
+    stockInPrefix: "I",
+    stockOutPrefix: "O",
+    internalDeliveryPrefix: "T",
+    useVoucherPrefix: "U",
     journalPrefix: "J",
     customerPrefix: "C",
     supplierPrefix: "S",
@@ -121,6 +125,10 @@ export function SystemSettings() {
     paymentStart: 1,
     creditNoteStart: 1,
     debitNoteStart: 1,
+    stockInStart: 1,
+    stockOutStart: 1,
+    internalDeliveryStart: 1,
+    useVoucherStart: 1,
     journalStart: 1,
     customerStart: 1,
     supplierStart: 1,
@@ -201,6 +209,10 @@ export function SystemSettings() {
             paymentPrefix: settingsPayload.payment_prefix || prev.paymentPrefix,
             creditNotePrefix: settingsPayload.credit_note_prefix || prev.creditNotePrefix,
             debitNotePrefix: settingsPayload.debit_note_prefix || prev.debitNotePrefix,
+            stockInPrefix: settingsPayload.stock_in_prefix || prev.stockInPrefix,
+            stockOutPrefix: settingsPayload.stock_out_prefix || prev.stockOutPrefix,
+            internalDeliveryPrefix: settingsPayload.internal_delivery_prefix || prev.internalDeliveryPrefix,
+            useVoucherPrefix: settingsPayload.use_voucher_prefix || prev.useVoucherPrefix,
             journalPrefix: settingsPayload.journal_prefix || prev.journalPrefix,
             customerPrefix: settingsPayload.customer_prefix || prev.customerPrefix,
             supplierPrefix: settingsPayload.supplier_prefix || prev.supplierPrefix,
@@ -212,6 +224,10 @@ export function SystemSettings() {
             paymentStart: settingsPayload.payment_start ?? prev.paymentStart,
             creditNoteStart: settingsPayload.credit_note_start ?? prev.creditNoteStart,
             debitNoteStart: settingsPayload.debit_note_start ?? prev.debitNoteStart,
+            stockInStart: settingsPayload.stock_in_start ?? prev.stockInStart,
+            stockOutStart: settingsPayload.stock_out_start ?? prev.stockOutStart,
+            internalDeliveryStart: settingsPayload.internal_delivery_start ?? prev.internalDeliveryStart,
+            useVoucherStart: settingsPayload.use_voucher_start ?? prev.useVoucherStart,
             journalStart: settingsPayload.journal_start ?? prev.journalStart,
             customerStart: settingsPayload.customer_start ?? prev.customerStart,
             supplierStart: settingsPayload.supplier_start ?? prev.supplierStart,
@@ -301,6 +317,10 @@ export function SystemSettings() {
         { label: "بادئة سندات الصرف", value: settings.paymentPrefix },
         { label: "بادئة الاشعار الدائن", value: settings.creditNotePrefix },
         { label: "بادئة الاشعار المدين", value: settings.debitNotePrefix },
+        { label: "بادئة سند ادخال بضاعة", value: settings.stockInPrefix },
+        { label: "بادئة سند اخراج بضاعة", value: settings.stockOutPrefix },
+        { label: "بادئة ارسالية داخلية", value: settings.internalDeliveryPrefix },
+        { label: "بادئة سند استعمال", value: settings.useVoucherPrefix },
         { label: "بادئة سندات القيد", value: settings.journalPrefix },
         { label: "بادئة العملاء", value: settings.customerPrefix },
         { label: "بادئة الموردين", value: settings.supplierPrefix },
@@ -320,6 +340,10 @@ export function SystemSettings() {
         { label: "الترقيم يبدأ من (سندات الصرف)", value: settings.paymentStart },
         { label: "الترقيم يبدأ من (الاشعار الدائن)", value: settings.creditNoteStart },
         { label: "الترقيم يبدأ من (الاشعار المدين)", value: settings.debitNoteStart },
+        { label: "الترقيم يبدأ من (سند ادخال بضاعة)", value: settings.stockInStart },
+        { label: "الترقيم يبدأ من (سند اخراج بضاعة)", value: settings.stockOutStart },
+        { label: "الترقيم يبدأ من (ارسالية داخلية)", value: settings.internalDeliveryStart },
+        { label: "الترقيم يبدأ من (سند استعمال)", value: settings.useVoucherStart },
         { label: "الترقيم يبدأ من (سندات القيد)", value: settings.journalStart },
       ]
       for (const start of voucherStarts) {
@@ -381,6 +405,10 @@ export function SystemSettings() {
           payment_prefix: settings.paymentPrefix.trim().toUpperCase(),
           credit_note_prefix: settings.creditNotePrefix.trim().toUpperCase(),
           debit_note_prefix: settings.debitNotePrefix.trim().toUpperCase(),
+          stock_in_prefix: settings.stockInPrefix.trim().toUpperCase(),
+          stock_out_prefix: settings.stockOutPrefix.trim().toUpperCase(),
+          internal_delivery_prefix: settings.internalDeliveryPrefix.trim().toUpperCase(),
+          use_voucher_prefix: settings.useVoucherPrefix.trim().toUpperCase(),
           journal_prefix: settings.journalPrefix.trim().toUpperCase(),
           customer_prefix: settings.customerPrefix.trim().toUpperCase(),
           supplier_prefix: settings.supplierPrefix.trim().toUpperCase(),
@@ -392,6 +420,10 @@ export function SystemSettings() {
           payment_start: settings.paymentStart,
           credit_note_start: settings.creditNoteStart,
           debit_note_start: settings.debitNoteStart,
+          stock_in_start: settings.stockInStart,
+          stock_out_start: settings.stockOutStart,
+          internal_delivery_start: settings.internalDeliveryStart,
+          use_voucher_start: settings.useVoucherStart,
           journal_start: settings.journalStart,
           customer_start: settings.customerStart || null,
           supplier_start: settings.supplierStart || null,
@@ -485,6 +517,10 @@ export function SystemSettings() {
         paymentPrefix: "P",
         creditNotePrefix: "C",
         debitNotePrefix: "D",
+        stockInPrefix: "I",
+        stockOutPrefix: "O",
+        internalDeliveryPrefix: "T",
+        useVoucherPrefix: "U",
         journalPrefix: "J",
         customerPrefix: "C",
         supplierPrefix: "S",
@@ -498,6 +534,10 @@ export function SystemSettings() {
         paymentStart: 1,
         creditNoteStart: 1,
         debitNoteStart: 1,
+        stockInStart: 1,
+        stockOutStart: 1,
+        internalDeliveryStart: 1,
+        useVoucherStart: 1,
         journalStart: 1,
         customerStart: 1,
         supplierStart: 1,
@@ -1246,6 +1286,162 @@ export function SystemSettings() {
                   <div className="flex items-end">
                     <div className="text-sm text-muted-foreground">
                       مثال: {settings.debitNotePrefix}A{String(settings.debitNoteStart).padStart(6, "0")} (A = دفتر السندات)
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="stockInPrefix" className="text-right block">
+                      بادئة سند ادخال بضاعة *
+                    </Label>
+                    <Input
+                      id="stockInPrefix"
+                      value={settings.stockInPrefix}
+                      onChange={(e) => setSettings({ ...settings, stockInPrefix: e.target.value })}
+                      className="text-right"
+                      dir="rtl"
+                      maxLength={3}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="stockInStart" className="text-right block">
+                      الترقيم يبدأ من (سند ادخال بضاعة) *
+                    </Label>
+                    <Input
+                      id="stockInStart"
+                      type="number"
+                      min="1"
+                      max="10000"
+                      value={settings.stockInStart}
+                      onChange={(e) => {
+                        const value = e.target.value === "" ? 1 : Number.parseInt(e.target.value)
+                        setSettings({ ...settings, stockInStart: value })
+                      }}
+                      className="text-right"
+                      dir="rtl"
+                      required
+                    />
+                  </div>
+                  <div className="flex items-end">
+                    <div className="text-sm text-muted-foreground">
+                      مثال: {settings.stockInPrefix}A{String(settings.stockInStart).padStart(6, "0")} (A = دفتر السندات)
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="stockOutPrefix" className="text-right block">
+                      بادئة سند اخراج بضاعة *
+                    </Label>
+                    <Input
+                      id="stockOutPrefix"
+                      value={settings.stockOutPrefix}
+                      onChange={(e) => setSettings({ ...settings, stockOutPrefix: e.target.value })}
+                      className="text-right"
+                      dir="rtl"
+                      maxLength={3}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="stockOutStart" className="text-right block">
+                      الترقيم يبدأ من (سند اخراج بضاعة) *
+                    </Label>
+                    <Input
+                      id="stockOutStart"
+                      type="number"
+                      min="1"
+                      max="10000"
+                      value={settings.stockOutStart}
+                      onChange={(e) => {
+                        const value = e.target.value === "" ? 1 : Number.parseInt(e.target.value)
+                        setSettings({ ...settings, stockOutStart: value })
+                      }}
+                      className="text-right"
+                      dir="rtl"
+                      required
+                    />
+                  </div>
+                  <div className="flex items-end">
+                    <div className="text-sm text-muted-foreground">
+                      مثال: {settings.stockOutPrefix}A{String(settings.stockOutStart).padStart(6, "0")} (A = دفتر السندات)
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="internalDeliveryPrefix" className="text-right block">
+                      بادئة ارسالية داخلية *
+                    </Label>
+                    <Input
+                      id="internalDeliveryPrefix"
+                      value={settings.internalDeliveryPrefix}
+                      onChange={(e) => setSettings({ ...settings, internalDeliveryPrefix: e.target.value })}
+                      className="text-right"
+                      dir="rtl"
+                      maxLength={3}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="internalDeliveryStart" className="text-right block">
+                      الترقيم يبدأ من (ارسالية داخلية) *
+                    </Label>
+                    <Input
+                      id="internalDeliveryStart"
+                      type="number"
+                      min="1"
+                      max="10000"
+                      value={settings.internalDeliveryStart}
+                      onChange={(e) => {
+                        const value = e.target.value === "" ? 1 : Number.parseInt(e.target.value)
+                        setSettings({ ...settings, internalDeliveryStart: value })
+                      }}
+                      className="text-right"
+                      dir="rtl"
+                      required
+                    />
+                  </div>
+                  <div className="flex items-end">
+                    <div className="text-sm text-muted-foreground">
+                      مثال: {settings.internalDeliveryPrefix}A{String(settings.internalDeliveryStart).padStart(6, "0")} (A = دفتر السندات)
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="useVoucherPrefix" className="text-right block">
+                      بادئة سند استعمال *
+                    </Label>
+                    <Input
+                      id="useVoucherPrefix"
+                      value={settings.useVoucherPrefix}
+                      onChange={(e) => setSettings({ ...settings, useVoucherPrefix: e.target.value })}
+                      className="text-right"
+                      dir="rtl"
+                      maxLength={3}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="useVoucherStart" className="text-right block">
+                      الترقيم يبدأ من (سند استعمال) *
+                    </Label>
+                    <Input
+                      id="useVoucherStart"
+                      type="number"
+                      min="1"
+                      max="10000"
+                      value={settings.useVoucherStart}
+                      onChange={(e) => {
+                        const value = e.target.value === "" ? 1 : Number.parseInt(e.target.value)
+                        setSettings({ ...settings, useVoucherStart: value })
+                      }}
+                      className="text-right"
+                      dir="rtl"
+                      required
+                    />
+                  </div>
+                  <div className="flex items-end">
+                    <div className="text-sm text-muted-foreground">
+                      مثال: {settings.useVoucherPrefix}A{String(settings.useVoucherStart).padStart(6, "0")} (A = دفتر السندات)
                     </div>
                   </div>
 

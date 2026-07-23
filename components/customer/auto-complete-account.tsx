@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import AccountSearchDialog, { AccountItem } from "@/components/customer/account-search-dialog"
 import AccountCostCenters, { type JournalCostCenterSelection } from "@/components/customer/account-cost-centers"
+import { useToast } from "@/hooks/use-toast"
 
 const accountApiUrl = "/api/accounts"
 
@@ -35,6 +36,10 @@ interface AutoCompleteAccountProps {
   showFinancialListFilter?: boolean
   showTypeFilter?: boolean
   displayIdOnly?: boolean
+  // يظهر فقط عندما يُمرَّر requiredTypeValues: عند مغادرة الحقل (بعد كتابة يدوية) إن لم يوجد
+  // الحساب أصلاً أو كان موجوداً لكن نوعه خارج requiredTypeValues، تُمسح القيمة المدخلة وتُعرض
+  // هذه الرسالة بدل قبول حساب لا يطابق النوع المطلوب بصمت.
+  notFoundMessage?: string
 }
 
 const normalizeAccountCode = (value: string) => value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 8)
@@ -114,7 +119,10 @@ export default function AutoCompleteAccount({
   showFinancialListFilter,
   showTypeFilter = true,
   displayIdOnly = false,
+  notFoundMessage,
 }: AutoCompleteAccountProps) {
+  const { toast } = useToast()
+  const inputRef = useRef<HTMLInputElement | null>(null)
   const [accounts, setAccounts] = useState<AccountItem[]>([])
   const [selectedAccount, setSelectedAccount] = useState<AccountItem | null>(null)
   const [searchDialogOpen, setSearchDialogOpen] = useState(false)
@@ -269,12 +277,26 @@ export default function AutoCompleteAccount({
       valueMode === "id"
         ? (await resolveAccountById(normalizedInput)) || (await resolveAccountByCode(normalizedInput))
         : await resolveAccountByCode(normalizedInput)
-    notifySelection(account)
 
-    if (account) {
-      onValueChange(valueMode === "id" ? String(account.id) : account.code)
-      setDisplayValue(formatAccountLabel(account, displayNameFirst, displayIdOnly))
+    // requiredTypeValues يعني أن الحقل لا يقبل إلا حسابات من هذا النوع — كتابة يدوية لحساب غير
+    // موجود أو موجود لكن من نوع آخر تُرفض بالكامل بدل قبولها بصمت (خلاف searchAllowedTypeValues
+    // التي تُصفّي نافذة البحث فقط دون رفض ما يُكتب يدوياً).
+    const typeOk =
+      !requiredTypeValues || requiredTypeValues.length === 0 || (account != null && requiredTypeValues.includes(Number(account.type ?? 0)))
+
+    if (!account || !typeOk) {
+      if (requiredTypeValues && requiredTypeValues.length > 0) {
+        toast({ title: "خطأ", description: notFoundMessage || "الحساب غير موجود", variant: "destructive" })
+      }
+      onValueChange("")
+      setDisplayValue("")
+      notifySelection(null)
+      return
     }
+
+    notifySelection(account)
+    onValueChange(valueMode === "id" ? String(account.id) : account.code)
+    setDisplayValue(formatAccountLabel(account, displayNameFirst, displayIdOnly))
   }
 
   const handleOpenSearch = async () => {
@@ -287,6 +309,9 @@ export default function AutoCompleteAccount({
     notifySelection(account)
     setDisplayValue(formatAccountLabel(account, displayNameFirst, displayIdOnly))
     setSearchDialogOpen(false)
+    // نافذة البحث تمنع onCloseAutoFocus (حتى لا تسرقه من شبكات Wijmo المجاورة) — لذا يجب إعادة
+    // التركيز صراحة هنا، وإلا يضيع التركيز تماماً بعد الاختيار ولا يعود مفتاح Enter يعمل كـ Tab.
+    setTimeout(() => inputRef.current?.focus(), 50)
   }
 
   const handleClear = () => {
@@ -311,6 +336,7 @@ export default function AutoCompleteAccount({
       <Label className="mb-2 block text-sm font-medium">{label}</Label>
       <div className="flex items-center gap-2">
         <Input
+          ref={inputRef}
           value={displayValue}
           onChange={handleChange}
           onBlur={handleBlur}
@@ -321,7 +347,12 @@ export default function AutoCompleteAccount({
           onKeyDown={(event) => {
             if (event.key === "Enter") {
               event.preventDefault()
-              void handleBlur()
+              // حقل فارغ + Enter -> فتح نافذة البحث مباشرة بدل تشغيل handleBlur على قيمة فارغة.
+              if (!value && !selectedAccount && showSearchButton && !disabled) {
+                void handleOpenSearch()
+              } else {
+                void handleBlur()
+              }
             } else if (event.key === "F10" && showSearchButton && !disabled) {
               event.preventDefault()
               void handleOpenSearch()

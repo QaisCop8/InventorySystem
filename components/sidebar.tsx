@@ -70,6 +70,7 @@ const ACCENTS: Record<string, Accent> = {
   "order-tracking": { gradient: "from-sky-400 to-indigo-500", glow: "shadow-sky-500/40", chip: "bg-sky-500/15 text-sky-700 dark:text-sky-200" },
   definitions: { gradient: "from-emerald-400 to-teal-500", glow: "shadow-emerald-500/40", chip: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-200" },
   "general-accounting": { gradient: "from-amber-400 to-orange-500", glow: "shadow-amber-500/40", chip: "bg-amber-500/15 text-amber-700 dark:text-amber-200" },
+  "item-management": { gradient: "from-lime-400 to-green-600", glow: "shadow-lime-500/40", chip: "bg-lime-500/15 text-lime-700 dark:text-lime-200" },
   orders: { gradient: "from-rose-400 to-pink-600", glow: "shadow-rose-500/40", chip: "bg-rose-500/15 text-rose-700 dark:text-rose-200" },
   invoices: { gradient: "from-indigo-400 to-blue-600", glow: "shadow-indigo-500/40", chip: "bg-indigo-500/15 text-indigo-700 dark:text-indigo-200" },
   batch: { gradient: "from-orange-400 to-red-500", glow: "shadow-orange-500/40", chip: "bg-orange-500/15 text-orange-700 dark:text-orange-200" },
@@ -178,6 +179,32 @@ export function Sidebar({
             { title: "سند قيد", section: "journal-vouchers", icon: BookOpen },
             { title: "اشعار دائن", section: "credit-notes", icon: FilePlus2 },
             { title: "اشعار مدين", section: "debit-notes", icon: FileMinus2 },
+          ],
+        },
+      ],
+    },
+    {
+      id: "item-management",
+      title: "ادارة الاصناف",
+      icon: Package,
+      submenu: [
+        {
+          title: "الملفات",
+          section: "item-management-files",
+          icon: Users,
+          submenu: [
+            { title: "المستودعات", section: "warehouses", icon: Building },
+          ],
+        },
+        {
+          title: "الحركات",
+          section: "item-management-transactions",
+          icon: Receipt,
+          submenu: [
+            { title: "سند ادخال بضاعة", section: "stock-in-vouchers", icon: ArrowDownCircle },
+            { title: "سند اخراج بضاعة", section: "stock-out-vouchers", icon: ArrowUpCircle },
+            { title: "ارسالية داخلية", section: "internal-delivery-vouchers", icon: Truck },
+            { title: "سند استعمال", section: "use-vouchers", icon: FileMinus2 },
           ],
         },
       ],

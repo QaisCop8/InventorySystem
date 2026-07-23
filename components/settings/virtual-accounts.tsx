@@ -2,11 +2,31 @@
 
 import React, { useEffect, useState, useMemo, useRef } from "react"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import Dropdown from "@/components/common/Dropdown"
 import DataGridView from "@/components/common/DataGridView"
 import Messages from "@/components/common/Messages"
 import AccountSearchDialog from "@/components/customer/account-search-dialog"
+import StoresSearchPopup from "@/components/products/StoresSearchPopup"
+import { ChevronDown, ChevronUp, Search, Eraser } from "lucide-react"
+
+type WarehouseField = "default_item_warehouse_id" | "finished_goods_warehouse_id" | "raw_materials_warehouse_id"
+
+const WAREHOUSE_FIELDS: { field: WarehouseField; nameField: string; label: string }[] = [
+  { field: "default_item_warehouse_id", nameField: "default_item_warehouse_name", label: "المستودع الافتراضي للصنف في السندات" },
+  { field: "finished_goods_warehouse_id", nameField: "finished_goods_warehouse_name", label: "مستودع المواد الجاهزة في سند الانتاج" },
+  { field: "raw_materials_warehouse_id", nameField: "raw_materials_warehouse_name", label: "مستودع المواد الخام في سند الانتاج" },
+]
+
+const emptyWarehouseDefaults: Record<string, any> = {
+  default_item_warehouse_id: null,
+  default_item_warehouse_name: "",
+  finished_goods_warehouse_id: null,
+  finished_goods_warehouse_name: "",
+  raw_materials_warehouse_id: null,
+  raw_materials_warehouse_name: "",
+}
 
 export default function VirtualAccounts() {
   const [users, setUsers] = useState<any[]>([])
@@ -18,6 +38,12 @@ export default function VirtualAccounts() {
   const [accountDialogOpen, setAccountDialogOpen] = useState(false)
   const [selectedRowIndex, setSelectedRowIndex] = useState(-1)
   const [selectedField, setSelectedField] = useState<string | null>(null)
+
+  const [warehouses, setWarehouses] = useState<any[]>([])
+  const [warehouseDefaults, setWarehouseDefaults] = useState<Record<string, any>>(emptyWarehouseDefaults)
+  const [warehousesSectionOpen, setWarehousesSectionOpen] = useState(true)
+  const [warehouseSearchOpen, setWarehouseSearchOpen] = useState(false)
+  const [warehouseSearchField, setWarehouseSearchField] = useState<WarehouseField | null>(null)
 
   const gridRef = useRef<any>(null)
   const messagesRef = useRef<any>(null)
@@ -52,10 +78,44 @@ export default function VirtualAccounts() {
     }
   }
 
+  const loadWarehouses = async () => {
+    try {
+      const res = await fetch('/api/warehouses')
+      const data = await res.json()
+      setWarehouses(Array.isArray(data) ? data : [])
+    } catch (err) {
+      console.error(err)
+      setWarehouses([])
+    }
+  }
+
   useEffect(() => {
     loadUsers()
     loadCurrencies()
+    loadWarehouses()
   }, [])
+
+  const loadWarehouseDefaults = async (userId: string) => {
+    try {
+      const res = await fetch(`/api/settings/user-warehouse-defaults?user_id=${encodeURIComponent(userId)}`)
+      if (!res.ok) {
+        setWarehouseDefaults(emptyWarehouseDefaults)
+        return
+      }
+      const data = await res.json()
+      setWarehouseDefaults({
+        default_item_warehouse_id: data.default_item_warehouse_id ?? null,
+        default_item_warehouse_name: data.default_item_warehouse_name || '',
+        finished_goods_warehouse_id: data.finished_goods_warehouse_id ?? null,
+        finished_goods_warehouse_name: data.finished_goods_warehouse_name || '',
+        raw_materials_warehouse_id: data.raw_materials_warehouse_id ?? null,
+        raw_materials_warehouse_name: data.raw_materials_warehouse_name || '',
+      })
+    } catch (err) {
+      console.error(err)
+      setWarehouseDefaults(emptyWarehouseDefaults)
+    }
+  }
 
   const loadUserMappings = async (userId: number) => {
     setLoading(true)
@@ -74,11 +134,41 @@ export default function VirtualAccounts() {
   useEffect(() => {
     if (!selectedUser) {
       setUserCurrencyMappings([])
+      setWarehouseDefaults(emptyWarehouseDefaults)
       return
     }
 
     loadUserMappings(selectedUser.id)
+    loadWarehouseDefaults(selectedUser.user_id)
   }, [selectedUser])
+
+  const openWarehouseSearch = (field: WarehouseField) => {
+    if (!selectedUser) {
+      showErrorMessage('اختر مستخدما اولا')
+      return
+    }
+    setWarehouseSearchField(field)
+    setWarehouseSearchOpen(true)
+  }
+
+  const handleWarehouseSelect = (store: { id: number; warehouse_name: string }) => {
+    setWarehouseSearchOpen(false)
+    if (!warehouseSearchField) return
+    const config = WAREHOUSE_FIELDS.find((f) => f.field === warehouseSearchField)
+    if (!config) return
+    setWarehouseDefaults((prev) => ({
+      ...prev,
+      [config.field]: store.id,
+      [config.nameField]: store.warehouse_name,
+    }))
+    setWarehouseSearchField(null)
+  }
+
+  const clearWarehouseField = (field: WarehouseField) => {
+    const config = WAREHOUSE_FIELDS.find((f) => f.field === field)
+    if (!config) return
+    setWarehouseDefaults((prev) => ({ ...prev, [config.field]: null, [config.nameField]: '' }))
+  }
 
   useEffect(() => {
     const nextRows = (currencies || []).map((c) => {
@@ -319,22 +409,35 @@ export default function VirtualAccounts() {
         card_account_id: r.card_account_id,
       })),
     }
-    const res = await fetch('/api/settings/users-currencies-default', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    })
-    const data = await res.json()
-    if (res.ok && data.success) {
+    const [accountsRes, warehousesRes] = await Promise.all([
+      fetch('/api/settings/users-currencies-default', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      }),
+      fetch('/api/settings/user-warehouse-defaults', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: selectedUser.user_id,
+          default_item_warehouse_id: warehouseDefaults.default_item_warehouse_id,
+          finished_goods_warehouse_id: warehouseDefaults.finished_goods_warehouse_id,
+          raw_materials_warehouse_id: warehouseDefaults.raw_materials_warehouse_id,
+        }),
+      }),
+    ])
+    const data = await accountsRes.json()
+    const warehousesData = await warehousesRes.json()
+    if (accountsRes.ok && data.success && warehousesRes.ok && warehousesData.success) {
       showSuccessMessage('تمت العملية بنجاح')
       // Keep the current grid values on successful save.
     } else {
-      showErrorMessage(data.error || 'فشلت العملية')
+      showErrorMessage(data.error || warehousesData.error || 'فشلت العملية')
     }
   }
 
   return (
-    <div className="flex flex-col h-screen w-full">
+    <div className="flex flex-col min-h-screen w-full">
       <div className="flex flex-col gap-3 mb-4">
         <div className="flex items-center justify-between">
           <h2 className="text-2xl font-bold">اعدادات</h2>
@@ -367,15 +470,15 @@ export default function VirtualAccounts() {
         </div>
       </div>
 
-      <Card className="w-full flex-1">
+      <Card className="w-full">
         <CardHeader>
           <CardTitle>حسابات الصناديق والبنوك الافتراضية</CardTitle>
         </CardHeader>
-        <CardContent className="flex flex-col h-full p-0">
+        <CardContent className="flex flex-col p-0">
           <div className="px-6 pt-6">
             <Messages innerRef={messagesRef} />
           </div>
-          <div className="mt-4 flex-1 overflow-hidden rounded-md border border-slate-300 bg-white">
+          <div className="mt-4 overflow-hidden rounded-md border border-slate-300 bg-white" style={{ height: '260px' }}>
             <div className="h-full w-full overflow-hidden">
               <DataGridView
                 className="h-full w-full"
@@ -392,6 +495,65 @@ export default function VirtualAccounts() {
           </div>
         </CardContent>
       </Card>
+
+      <Card className="w-full mt-4">
+        <button
+          type="button"
+          className="flex w-full items-center justify-between rounded-t-lg bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-200"
+          onClick={() => setWarehousesSectionOpen((prev) => !prev)}
+        >
+          {warehousesSectionOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          <span>المستودعات</span>
+        </button>
+        {warehousesSectionOpen && (
+          <CardContent className="grid grid-cols-1 gap-6 pt-6 sm:grid-cols-2">
+            {WAREHOUSE_FIELDS.map((config) => (
+              <div key={config.field} className="space-y-1.5">
+                <label className="block text-right text-sm font-medium text-slate-700">{config.label}</label>
+                <div className="flex items-center gap-2" dir="rtl">
+                  <Input
+                    readOnly
+                    value={
+                      warehouseDefaults[config.field]
+                        ? `${warehouseDefaults[config.field]} / ${warehouseDefaults[config.nameField] || ''}`
+                        : ''
+                    }
+                    className="text-right"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    title="بحث"
+                    onClick={() => openWarehouseSearch(config.field)}
+                  >
+                    <Search className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    title="مسح"
+                    onClick={() => clearWarehouseField(config.field)}
+                  >
+                    <Eraser className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        )}
+      </Card>
+
+      <StoresSearchPopup
+        visible={warehouseSearchOpen}
+        onClose={() => {
+          setWarehouseSearchOpen(false)
+          setWarehouseSearchField(null)
+        }}
+        onSelect={handleWarehouseSelect}
+        stores={warehouses.map((w) => ({ id: w.id, warehouse_name: w.warehouse_name, code: w.warehouse_code }))}
+      />
 
       {accountDialogOpen && (
         <AccountSearchDialog open={accountDialogOpen} onOpenChange={setAccountDialogOpen} accounts={[]} onSelect={handleAccountSelect} />

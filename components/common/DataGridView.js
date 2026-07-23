@@ -95,6 +95,13 @@ export default class DataGridView extends React.Component {
     if (prevProps.scheme !== this.props.scheme) {
       this.setState({ buttonsColumns: this.createButtonsColumns(this.props.scheme) });
     }
+
+    // selectionMode is only applied once inside initialized() at first mount — a grid whose
+    // isReport prop flips later (e.g. a voucher moving from draft to مرحّل without the grid
+    // itself remounting) would otherwise keep the stale selection mode indefinitely.
+    if (prevProps.isReport !== this.props.isReport && this.flex) {
+      this.flex.selectionMode = this.props.isReport ? wjGrid.SelectionMode.Row : wjGrid.SelectionMode.Cell;
+    }
   }
 
   componentDidMount = () => {
@@ -302,7 +309,7 @@ createButtonsColumns = () => {
           wordWrap={true}
           allowMerging={true}
           loadingRows={() => this.columnTooltips.dispose()}
-          //keyActionEnter={this.props.isReport ? '0' : this.props.keyActionEnter}
+          {...(this.props.isReport ? { keyActionEnter: '0' } : {})}
         >
           {this.props.allowDragging && (this.props.allowDragging === 'Rows' || this.props.allowDragging === 'Both') && (
             <FlexGridCellTemplate cellType="RowHeader" template={this.rowHeaderTemplate} />

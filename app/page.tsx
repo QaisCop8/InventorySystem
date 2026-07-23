@@ -45,6 +45,8 @@ import CreditNote from "@/components/accounting/credit-note"
 import CreditCards from "@/components/admin/credit-cards"
 import ChequesBooks from "@/components/admin/cheques-books"
 import VoucherBookPermissions from "@/components/settings/voucher-book-permissions"
+import Warehouses from "@/components/admin/warehouses"
+const StockVouchers = dynamic(() => import("@/components/inventory/stock-vouchers"), { ssr: false })
 
 import { AIChat } from "@/components/ai-assistant/ai-chat"
 import { SmartAnalyticsDashboard } from "@/components/ai-analytics/smart-analytics-dashboard"
@@ -103,6 +105,11 @@ const componentMap: Record<string, React.ComponentType<any>> = {
   "credit-cards": CreditCards,
   "cheques-books": ChequesBooks,
   "voucher-book-permissions": VoucherBookPermissions,
+  warehouses: Warehouses,
+  "stock-in-vouchers": (props: any) => <StockVouchers {...props} voucherType={12} />,
+  "stock-out-vouchers": (props: any) => <StockVouchers {...props} voucherType={13} />,
+  "internal-delivery-vouchers": (props: any) => <StockVouchers {...props} voucherType={14} />,
+  "use-vouchers": (props: any) => <StockVouchers {...props} voucherType={15} />,
   "product-groups": ProductGroups,
   definitions: Definitions,
   accounts: Accounts,

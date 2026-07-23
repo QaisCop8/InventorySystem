@@ -73,6 +73,7 @@ const emptyJournalRow: VoucherJournalRow = {
 const emptyChequeRow: VoucherChequeRow = {
   bank_account: "",
   bank_account_id: null,
+  jary_account_id: null,
   cheq_num: "",
   cheque_book_cheque_id: null,
   bank_no: "",
@@ -128,7 +129,7 @@ const buildInitialForm = (voucherType: 8 | 9): VoucherRecord => ({
   status: 1,
   is_printed: 0,
   journal: [{ ...emptyJournalRow }],
-  cheques: [{ ...emptyChequeRow }],
+  cheques: [{ ...emptyChequeRow, due_date: new Date().toISOString().slice(0, 10) }],
   cards: [{ ...emptyCardRow }],
   notes: [],
 })
@@ -494,7 +495,16 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
     const totalAmount = Number(data.amount || 0)
 
     if (cashAmount > 0 && !data.cash_account_id) return "يجب اختيار حساب الصندوق"
-    if (checkAmount > 0 && !data.check_account_id) return "يجب اختيار حساب صندوق الشيكات"
+    if (checkAmount > 0) {
+      if (voucherType === 9) {
+        // سند الصرف: حساب صندوق الشيكات معطَّل — الحساب المقابل الفعلي يُشتق من jary_account_id
+        // الخاص بالحساب البنكي المختار في شبكة الشيكات بدلاً منه.
+        const anyRow = (data.cheques || []).find((row) => row.bank_account_id)
+        if (!anyRow?.jary_account_id) return "الحساب البنكي المختار لا يملك حساب جاري معرَّف (jary_account_id) في تعريف الحسابات البنكية"
+      } else if (!data.check_account_id) {
+        return "يجب اختيار حساب صندوق الشيكات"
+      }
+    }
     if (creditCardAmount > 0 && !data.credit_card_account_id) return "يجب اختيار حساب البطاقات"
 
     if (totalAmount <= 0) return "يجب إدخال المبلغ"
@@ -565,11 +575,16 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
       // وطباعة" — أي طباعة أخرى (بما فيها حفظ وطباعة) لا تُغيّرها هنا إطلاقاً.
       const status = action === "save" || action === "save_print" ? form.status : 2
       const isPrinted = action === "post_print" ? 1 : form.is_printed || 0
+      // سند الصرف: حساب صندوق الشيكات معطَّل في الواجهة دائماً null — الحساب المقابل الفعلي
+      // لسطر قيد "شيكات" هو jary_account_id الخاص بالحساب البنكي المختار في شبكة الشيكات.
+      const checkAccountId =
+        voucherType === 9 ? (form.cheques || []).find((row) => row.bank_account_id)?.jary_account_id ?? null : form.check_account_id
       // المبلغ في تبويب تفاصيل البطاقة يتبع حقل "بطاقات" في الرئيسية دائماً.
       const dataToSave: VoucherRecord = {
         ...form,
         status,
         is_printed: isPrinted,
+        check_account_id: checkAccountId,
         cards: [{ ...(form.cards?.[0] || emptyCardRow), amount: form.credit_card_amount }],
       }
       const response = await fetch("/api/receipts", {

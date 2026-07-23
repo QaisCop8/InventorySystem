@@ -350,8 +350,8 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
   if (!visible) return null;
 
   const gridStyleUnits = {
-    maxHeight: '16vh',
-    minHeight: '16vh',
+    maxHeight: '10vh',
+    minHeight: '10vh',
   };
 
   const gridStyleItems = {
@@ -368,7 +368,6 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
         <div className="mt-4 rounded-3xl border border-slate-200 bg-slate-50 p-4 shadow-sm">
           <div className="mb-4 text-right">
             <p className="text-sm font-semibold text-slate-900">الفلاتر</p>
-            <p className="text-sm text-slate-500">استعمل هذه الفلاتر لتضييق نتائج البحث</p>
           </div>
 
           <div className="grid gap-4 xl:grid-cols-[320px_minmax(0,_1fr)]">
@@ -398,7 +397,7 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
               />
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[1fr_2fr_1fr_1fr]">
               <div className="space-y-1">
                 <label className="block text-xs font-semibold text-slate-700 text-right">رقم الصنف</label>
                 <Input

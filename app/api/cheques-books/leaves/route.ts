@@ -14,13 +14,14 @@ export async function GET(request: NextRequest) {
       return NextResponse.json([])
     }
 
+    // تُعاد كل الأوراق (متوفر/تالف/غير متوفر) لا المتوفرة فقط — النافذة تعرض الحالة وتمنع اختيار
+    // غير المتوفر بدل إخفائه، حتى يرى المستخدم لماذا ورقة شيك بعينها غير قابلة للاختيار.
     const rows = await sql`
-      SELECT c.id, c.cheque_code, c.cheque_books_id, cb.code AS book_code
+      SELECT c.id, c.cheque_code, c.cheque_books_id, c.status, cb.code AS book_code
       FROM cheque_book_cheque_tbl c
       JOIN cheque_books_tbl cb ON cb.id = c.cheque_books_id
       WHERE cb.bank_account_id = ${bankAccountId}
         AND COALESCE(cb.status, 1) != 3
-        AND c.status = 1
       ORDER BY cb.id, c.order_no, c.id
     `
 

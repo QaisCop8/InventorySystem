@@ -1,11 +1,12 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import DataGridView from "@/components/common/DataGridView"
+import { CellRange } from "@grapecity/wijmo.grid"
 import type { BankAccountRecord } from "./unified-bank-accounts"
 
 interface BankAccountsSearchProps {
@@ -13,12 +14,18 @@ interface BankAccountsSearchProps {
   onOpenChange: (open: boolean) => void
   bankAccounts: BankAccountRecord[]
   onSelect: (record: BankAccountRecord) => void
+  // عند تمريرها (سند الصرف يمرّر عملة السند) تُقيَّد النتائج على الحسابات البنكية بنفس العملة
+  // فقط — لا معنى لاختيار حساب بعملة مختلفة عن عملة السند.
+  currencyId?: number | null
 }
 
-export default function BankAccountsSearch({ open, onOpenChange, bankAccounts, onSelect }: BankAccountsSearchProps) {
+export default function BankAccountsSearch({ open, onOpenChange, bankAccounts, onSelect, currencyId }: BankAccountsSearchProps) {
   const [codeFilter, setCodeFilter] = useState("")
   const [nameFilter, setNameFilter] = useState("")
   const [selected, setSelected] = useState<BankAccountRecord | null>(null)
+  const gridRef = useRef<any>(null)
+  const filterContainerRef = useRef<HTMLDivElement | null>(null)
+  const nameInputRef = useRef<HTMLInputElement | null>(null)
 
   useEffect(() => {
     if (!open) {
@@ -28,10 +35,73 @@ export default function BankAccountsSearch({ open, onOpenChange, bankAccounts, o
     }
   }, [open])
 
+  useEffect(() => {
+    if (!open) return
+    const t = setTimeout(() => nameInputRef.current?.focus(), 120)
+    return () => clearTimeout(t)
+  }, [open])
+
+  const focusGridFirstRow = () => {
+    const grid = gridRef.current
+    if (!grid || !grid.columns || !grid.rows || grid.rows.length === 0) return
+    grid.select(new CellRange(0, 0))
+    grid.focus()
+  }
+
+  useEffect(() => {
+    if (!open) return
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null
+      if (!target) return
+      const container = filterContainerRef.current
+      if (!container || !container.contains(target)) return
+
+      if (event.key === "ArrowDown") {
+        event.preventDefault()
+        event.stopPropagation()
+        focusGridFirstRow()
+        return
+      }
+
+      if (event.key !== "Enter") return
+
+      const focusable = Array.from(
+        container.querySelectorAll<HTMLElement>(
+          'input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ),
+      ).filter((el) => el.offsetParent !== null)
+      const currentIndex = focusable.indexOf(target)
+      if (currentIndex === -1) return
+      event.preventDefault()
+      event.stopPropagation()
+      if (currentIndex === focusable.length - 1) {
+        focusGridFirstRow()
+        return
+      }
+      focusable[currentIndex + 1]?.focus()
+    }
+
+    document.addEventListener("keydown", handleKeyDown, true)
+    return () => document.removeEventListener("keydown", handleKeyDown, true)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
+
+  const handleGridKeyDown = (grid: any, e: KeyboardEvent) => {
+    if (e.key !== "Enter") return
+    const row = grid?.selection?.row
+    if (row == null || row < 0) return
+    const item = grid.rows[row]?.dataItem
+    if (!item) return
+    e.preventDefault()
+    handleRowDoubleClick(item)
+  }
+
   const filteredAccounts = useMemo(() => {
     const nameQuery = nameFilter.trim().toLowerCase()
     return bankAccounts.filter((account) => {
       if (account.status === 3) return false
+      if (currencyId != null && Number(account.currency_id) !== Number(currencyId)) return false
       if (codeFilter && !account.code.includes(codeFilter)) return false
       if (
         nameQuery &&
@@ -42,7 +112,7 @@ export default function BankAccountsSearch({ open, onOpenChange, bankAccounts, o
       }
       return true
     })
-  }, [bankAccounts, codeFilter, nameFilter])
+  }, [bankAccounts, codeFilter, nameFilter, currencyId])
 
   const scheme = useMemo(
     () => ({
@@ -88,7 +158,7 @@ export default function BankAccountsSearch({ open, onOpenChange, bankAccounts, o
             </Button>
           </div>
 
-          <div className="grid gap-2 grid-cols-1 sm:grid-cols-2 border-b border-slate-200 pb-3 sm:pb-4">
+          <div className="grid gap-2 grid-cols-1 sm:grid-cols-2 border-b border-slate-200 pb-3 sm:pb-4" ref={filterContainerRef}>
             <div>
               <Label className="mb-2 block text-sm font-medium">رقم الحساب</Label>
               <Input
@@ -101,6 +171,7 @@ export default function BankAccountsSearch({ open, onOpenChange, bankAccounts, o
             <div>
               <Label className="mb-2 block text-sm font-medium">الاسم</Label>
               <Input
+                ref={nameInputRef}
                 value={nameFilter}
                 onChange={(e) => setNameFilter(e.target.value)}
                 placeholder="ابحث باسم الحساب"
@@ -112,6 +183,7 @@ export default function BankAccountsSearch({ open, onOpenChange, bankAccounts, o
           <div className="rounded-xl border border-slate-200 overflow-hidden bg-white shadow-sm" style={{ height: "420px" }}>
             {filteredAccounts.length > 0 ? (
               <DataGridView
+                innerRef={gridRef}
                 containerStyle={{ height: "100%", minHeight: 0, maxHeight: "100%" }}
                 style={{ height: "100%", minHeight: 0, maxHeight: "100%" }}
                 defaultRowHeight={42}
@@ -121,6 +193,7 @@ export default function BankAccountsSearch({ open, onOpenChange, bankAccounts, o
                 scheme={scheme}
                 onRowClick={(record: BankAccountRecord) => setSelected(record)}
                 onRowDoubleClick={handleRowDoubleClick}
+                onKeyDown={handleGridKeyDown}
               />
             ) : (
               <div className="flex h-full items-center justify-center bg-gradient-to-b from-slate-50 to-white text-slate-500 text-sm">

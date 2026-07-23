@@ -444,6 +444,7 @@ export default function UnifiedBankAccounts({
                   value={numberValue(form.jary_account_id)}
                   onValueChange={(v) => onFormChange("jary_account_id", v ? Number(v) : null)}
                   showCostCenterButton={false}
+                  searchAllowedTypeValues={[1]}
                 />
                 <AutoCompleteAccount
                   label="حساب شيكات برسم التحصيل *"
@@ -451,6 +452,7 @@ export default function UnifiedBankAccounts({
                   value={numberValue(form.tahsil_account_id)}
                   onValueChange={(v) => onFormChange("tahsil_account_id", v ? Number(v) : null)}
                   showCostCenterButton={false}
+                  searchAllowedTypeValues={[1]}
                 />
                 <AutoCompleteAccount
                   label="حساب عمولة التحصيل *"
@@ -458,6 +460,7 @@ export default function UnifiedBankAccounts({
                   value={numberValue(form.tahsil_commission_account_id)}
                   onValueChange={(v) => onFormChange("tahsil_commission_account_id", v ? Number(v) : null)}
                   showCostCenterButton={false}
+                  searchAllowedTypeValues={[1]}
                 />
                 <AutoCompleteAccount
                   label="حساب الشيكات الصادرة المؤجلة *"
@@ -465,6 +468,7 @@ export default function UnifiedBankAccounts({
                   value={numberValue(form.payed_checks_account_id)}
                   onValueChange={(v) => onFormChange("payed_checks_account_id", v ? Number(v) : null)}
                   showCostCenterButton={false}
+                  searchAllowedTypeValues={[1]}
                 />
                 <AutoCompleteAccount
                   label="حساب الشيكات المرتجعة *"
@@ -472,6 +476,7 @@ export default function UnifiedBankAccounts({
                   value={numberValue(form.returned_checks_account_id)}
                   onValueChange={(v) => onFormChange("returned_checks_account_id", v ? Number(v) : null)}
                   showCostCenterButton={false}
+                  searchAllowedTypeValues={[1]}
                 />
               </div>
             </div>

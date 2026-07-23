@@ -563,7 +563,8 @@ export default function UnifiedCreditNote({
                         onAccountSelect={(account) => account && onFormChange("customer_name", account.name)}
                         costCenters={form.account_cost_centers}
                         onCostCentersChange={(selection) => onFormChange("account_cost_centers", selection)}
-                        searchAllowedTypeValues={[2, 3, 4, 5]}
+                        requiredTypeValues={[2, 3, 5]}
+                        notFoundMessage="العميل المحدد غير موجود"
                         disabled={isLocked}
                       />
                       <div className="grid gap-1.5">
@@ -571,7 +572,7 @@ export default function UnifiedCreditNote({
                         <Input value="0.000" readOnly disabled className="bg-slate-50" />
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid gap-3">
                       <AutoCompleteAccount
                         label={isCreditNote ? "الحساب المدين *" : "الحساب الدائن *"}
                         valueMode="id"
@@ -579,7 +580,8 @@ export default function UnifiedCreditNote({
                         onValueChange={(v) => onFormChange("debit_account_id", v ? Number(v) : null)}
                         costCenters={form.debit_account_cost_centers}
                         onCostCentersChange={(selection) => onFormChange("debit_account_cost_centers", selection)}
-                        searchAllowedTypeValues={[0]}
+                        requiredTypeValues={[1]}
+                        notFoundMessage="الحساب غير موجود"
                         disabled={isLocked}
                       />
                       <div className="grid gap-1.5">
@@ -669,7 +671,8 @@ export default function UnifiedCreditNote({
                     onValueChange={(v) => onFormChange("vat_account_id", v ? Number(v) : null)}
                     costCenters={form.vat_account_cost_centers}
                     onCostCentersChange={(selection) => onFormChange("vat_account_cost_centers", selection)}
-                    searchAllowedTypeValues={[0]}
+                    requiredTypeValues={[1]}
+                    notFoundMessage="الحساب غير موجود"
                     disabled={isLocked}
                   />
                 </div>
