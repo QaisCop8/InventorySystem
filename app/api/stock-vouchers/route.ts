@@ -7,10 +7,16 @@ import {
   applyVoucherStockEffect,
   reverseStockMovement,
   buildUseVoucherJournalRows,
+  validateVoucherCodeFormat,
+  regenerateVoucherCode,
   USE_VOUCHER_VCH_TYPE,
   INTERNAL_DELIVERY_VCH_TYPE,
   STOCK_VOUCHER_TYPES,
 } from "./_lib"
+
+// حد أقصى لمحاولات توليد رقم بديل عند تعارض (رقم مستخدم مسبقاً من سند أُدخِل بنفس اللحظة من
+// مستخدم آخر) — وقاية من حلقة لا نهائية في الحالة النادرة لفشل توليد رقم صالح باستمرار.
+const MAX_CODE_RETRY_ATTEMPTS = 5
 import { saveJournalRows, validateJournalAccountCurrencies } from "../receipts/_lib"
 
 export async function GET(request: NextRequest) {
@@ -42,17 +48,43 @@ export async function POST(request: NextRequest) {
     if (!STOCK_VOUCHER_TYPES.includes(vchType as any) || !data.vch_code || !data.vch_date) {
       return NextResponse.json({ error: "بيانات السند غير مكتملة" }, { status: 400 })
     }
+    if (!(Number(data.rate) > 0)) {
+      return NextResponse.json({ error: "سعر الصرف يجب أن يكون أكبر من صفر" }, { status: 400 })
+    }
 
-    const existing = await sql`
-      SELECT id FROM voucher_header_tbl WHERE vch_type = ${vchType} AND vch_code = ${data.vch_code}
+    const codeFormatError = await validateVoucherCodeFormat(request.url, vchType, data.vch_book_id ?? null, data.vch_code)
+    if (codeFormatError) {
+      return NextResponse.json({ error: codeFormatError }, { status: 400 })
+    }
+
+    // تعارض الرقم (مستخدم مسبقاً) هنا غالباً ليس خطأ مستخدم بل أثر تزامن — سندان أُنشئا بنفس اللحظة
+    // من مستخدمين مختلفين على نفس الدفتر حصلا على نفس الرقم التالي عبر /generate-number (قراءة
+    // MAX+1 عادية بلا قفل). بدل رفض الحفظ، يُعاد توليد رقم بديل والمحاولة من جديد بضع مرات.
+    let vchCode = String(data.vch_code)
+    let existing = await sql`
+      SELECT id FROM voucher_header_tbl WHERE vch_type = ${vchType} AND vch_code = ${vchCode}
     `
+    let regenerateAttempts = 0
+    while (existing.length > 0 && regenerateAttempts < MAX_CODE_RETRY_ATTEMPTS) {
+      const regenerated = await regenerateVoucherCode(request.url, vchType, data.vch_book_id ?? null)
+      if (!regenerated || regenerated === vchCode) break
+      vchCode = regenerated
+      existing = await sql`SELECT id FROM voucher_header_tbl WHERE vch_type = ${vchType} AND vch_code = ${vchCode}`
+      regenerateAttempts++
+    }
     if (existing.length > 0) {
       return NextResponse.json({ error: "رقم السند مستخدم مسبقاً" }, { status: 400 })
     }
 
-    const items = Array.isArray(data.items) ? data.items.filter((i: any) => i?.product_id && Number(i?.quantity || 0) > 0) : []
+    const items = Array.isArray(data.items) ? data.items.filter((i: any) => i?.product_id) : []
     if (items.length === 0) {
       return NextResponse.json({ error: "يجب إدخال صنف واحد على الأقل" }, { status: 400 })
+    }
+    if (items.some((i: any) => !i.warehouse_id)) {
+      return NextResponse.json({ error: "يجب اختيار المستودع لكل صنف" }, { status: 400 })
+    }
+    if (items.some((i: any) => !(Number(i.quantity || 0) > 0))) {
+      return NextResponse.json({ error: "يجب إدخال الكمية لكل صنف" }, { status: 400 })
     }
     if (vchType === INTERNAL_DELIVERY_VCH_TYPE && (!data.from_store_id || !data.to_store_id)) {
       return NextResponse.json({ error: "يجب اختيار المستودع المرسل والمستودع المستلم" }, { status: 400 })
@@ -83,7 +115,7 @@ export async function POST(request: NextRequest) {
         amount, manual_voucher, manual_date, note, status, vch_status, is_printed,
         insert_user
       ) VALUES (
-        ${vchType}, ${data.vch_code}, ${data.vch_date}, ${data.vch_book_id || null}, ${data.currency_id || null}, ${Number(data.rate || 1)},
+        ${vchType}, ${vchCode}, ${data.vch_date}, ${data.vch_book_id || null}, ${data.currency_id || null}, ${Number(data.rate || 1)},
         ${data.account_id || null}, ${data.customer_name || ""}, ${data.to_store_id || null}, ${data.from_store_id || null},
         ${amount}, ${data.manual_voucher || ""}, ${data.manual_date || null}, ${data.note || ""}, ${status}, ${status === 2 ? 2 : 1}, ${Number(data.is_printed || 0)},
         ${data.insert_user || null}
@@ -121,6 +153,14 @@ export async function PUT(request: NextRequest) {
     if (!STOCK_VOUCHER_TYPES.includes(vchType as any) || !data.vch_code || !data.vch_date) {
       return NextResponse.json({ error: "بيانات السند غير مكتملة" }, { status: 400 })
     }
+    if (!(Number(data.rate) > 0)) {
+      return NextResponse.json({ error: "سعر الصرف يجب أن يكون أكبر من صفر" }, { status: 400 })
+    }
+
+    const codeFormatError = await validateVoucherCodeFormat(request.url, vchType, data.vch_book_id ?? null, data.vch_code)
+    if (codeFormatError) {
+      return NextResponse.json({ error: codeFormatError }, { status: 400 })
+    }
 
     const duplicate = await sql`
       SELECT id FROM voucher_header_tbl WHERE vch_type = ${vchType} AND vch_code = ${data.vch_code} AND id != ${data.id}
@@ -145,9 +185,15 @@ export async function PUT(request: NextRequest) {
     let items: any[] = []
     let journalRows: any[] = []
     if (status !== 3) {
-      items = Array.isArray(data.items) ? data.items.filter((i: any) => i?.product_id && Number(i?.quantity || 0) > 0) : []
+      items = Array.isArray(data.items) ? data.items.filter((i: any) => i?.product_id) : []
       if (items.length === 0) {
         return NextResponse.json({ error: "يجب إدخال صنف واحد على الأقل" }, { status: 400 })
+      }
+      if (items.some((i: any) => !i.warehouse_id)) {
+        return NextResponse.json({ error: "يجب اختيار المستودع لكل صنف" }, { status: 400 })
+      }
+      if (items.some((i: any) => !(Number(i.quantity || 0) > 0))) {
+        return NextResponse.json({ error: "يجب إدخال الكمية لكل صنف" }, { status: 400 })
       }
       if (vchType === INTERNAL_DELIVERY_VCH_TYPE && (!data.from_store_id || !data.to_store_id)) {
         return NextResponse.json({ error: "يجب اختيار المستودع المرسل والمستودع المستلم" }, { status: 400 })

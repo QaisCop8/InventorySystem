@@ -198,7 +198,11 @@ const numberValue = (value: number | null | undefined) => (value === null || val
 // فتح نافذة بحث بنقرة زر وليس بلوحة المفاتيح). غلاف React هذا يملك خاصية .control (عنصر التحكم
 // الحقيقي بكل توابعه: select/focus...) لكنه لا يُعيد توجيهها بنفسه، فاستدعاء .focus() مباشرة
 // عليه يفشل بـ "grid.focus is not a function". حلّها هنا مركزياً بدل تكرار الفحص بكل موقع استخدام.
-const resolveFlexControl = (grid: any): any => (grid && grid.control && !grid.columns ? grid.control : grid)
+const resolveFlexControl = (grid: any): any => {
+  if (!grid) return null
+  if (grid.columns) return grid
+  return grid.control || null
+}
 
 const selectCell = (rawGrid: any, row: number, colName: string) => {
   const grid = resolveFlexControl(rawGrid)

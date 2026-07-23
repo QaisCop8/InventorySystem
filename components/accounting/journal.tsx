@@ -329,6 +329,7 @@ export default function Journal() {
     if (!data.currency_id || !currencies.some((c) => Number(c.currency_id ?? c.id) === data.currency_id)) {
       return "يجب اختيار العملة"
     }
+    if (!(Number(data.rate) > 0)) return "سعر الصرف يجب أن يكون أكبر من صفر"
 
     const journalRows = (data.journal || []).filter((row) => row.account_id && (Number(row.debit || 0) > 0 || Number(row.credit || 0) > 0))
     if (journalRows.length < 2) return "يجب أن يحتوي السند على قيدين محاسبيين على الأقل (طرف مدين وطرف دائن)"

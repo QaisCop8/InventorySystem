@@ -162,6 +162,41 @@ export const resolveVoucherBookName = async (bookId: number | null): Promise<str
   return rows[0]?.name || ""
 }
 
+// يتحقق عند الحفظ من أن رقم السند يبدأ ببادئة إعدادات النظام لهذا النوع وبطول لا يقل عن
+// طول البادئة+رمز الدفتر (بدل الاكتفاء بفحص عدم الفراغ فقط) — يلتقط رقماً مبتوراً أو غير مطابق
+// لصيغة الترقيم دون رفض أكواد قديمة/مستوردة لا تطابق الطول الكامل تماماً (بادئة+دفتر+6 أرقام).
+export const validateVoucherCodeFormat = async (
+  requestUrl: string,
+  vchType: number,
+  vchBookId: number | null,
+  vchCode: string,
+): Promise<string | null> => {
+  const code = String(vchCode || "").trim().toUpperCase()
+  if (!code) return "رقم السند مطلوب"
+  const bookName = await resolveVoucherBookName(vchBookId)
+  if (!bookName) return null // لا يمكن التحقق من البادئة دون دفتر سندات صالح — validateVoucher الأساسي يرفض غياب الدفتر أصلاً
+  const { prefix } = await getStockVoucherNumberSettings(requestUrl, vchType)
+  if (!code.startsWith(prefix)) return `رقم السند يجب أن يبدأ بـ ${prefix}`
+  if (code.length < prefix.length + bookName.length) return "رقم السند غير مكتمل"
+  return null
+}
+
+// يُستخدَم عند تعارض رقم السند (مستخدم مسبقاً) لتوليد رقم بديل جديد وإعادة المحاولة — بدون قفل
+// على مستوى قاعدة البيانات (لا SELECT...FOR UPDATE ولا قيد فريد يُمسَك من الطلب)، فيبقى هذا تخفيفاً
+// للتعارض الناتج عن إدخال عدة مستخدمين سنداً بنفس اللحظة، وليس ضماناً مطلقاً لعدم التكرار.
+export const regenerateVoucherCode = async (
+  requestUrl: string,
+  vchType: number,
+  vchBookId: number | null,
+): Promise<string | null> => {
+  const bookName = await resolveVoucherBookName(vchBookId)
+  if (!bookName) return null
+  const { prefix, startNumber } = await getStockVoucherNumberSettings(requestUrl, vchType)
+  const codePrefix = `${prefix}${bookName}`
+  const sequence = await nextVoucherSequence(vchType, codePrefix, startNumber)
+  return buildVoucherCode(prefix, bookName, sequence)
+}
+
 export const saveVoucherItems = async (voucherId: number, items: any[]) => {
   await sql`DELETE FROM voucher_items_tbl WHERE voucher_id = ${voucherId}`
   const rows = (Array.isArray(items) ? items : []).filter((row) => row?.product_id && Number(row?.quantity || 0) > 0)
@@ -190,10 +225,14 @@ export const saveVoucherItems = async (voucherId: number, items: any[]) => {
 }
 
 export const fetchVoucherItems = async (voucherId: number) => {
+  // voucher_items_tbl يخزّن warehouse_id فقط (بلا عمود اسم) — يُجلَب اسم المستودع هنا عبر JOIN
+  // وإلا يبقى عمود المستودع فارغاً في الشبكة عند عرض/تحميل سند محفوظ سابقاً (رغم امتلاء warehouse_id).
   return sql`
-    SELECT vi.*, p.product_code AS current_product_code, p.product_name AS current_product_name
+    SELECT vi.*, p.product_code AS current_product_code, p.product_name AS current_product_name,
+           w.warehouse_name AS warehouse_name
     FROM voucher_items_tbl vi
     LEFT JOIN products p ON p.id = vi.product_id
+    LEFT JOIN warehouses w ON w.id = vi.warehouse_id
     WHERE vi.voucher_id = ${voucherId}
     ORDER BY vi.ser, vi.id
   `

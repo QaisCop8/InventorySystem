@@ -38,6 +38,9 @@ export async function POST(request: NextRequest) {
     if (!vchType || !data.vch_code || !data.vch_date) {
       return NextResponse.json({ error: "بيانات السند غير مكتملة" }, { status: 400 })
     }
+    if (!(Number(data.rate) > 0)) {
+      return NextResponse.json({ error: "سعر الصرف يجب أن يكون أكبر من صفر" }, { status: 400 })
+    }
 
     const existing = await sql`
       SELECT id FROM voucher_header_tbl WHERE vch_type = ${vchType} AND vch_code = ${data.vch_code}
@@ -104,6 +107,9 @@ export async function PUT(request: NextRequest) {
     const vchType = Number(data.vch_type)
     if (!vchType || !data.vch_code || !data.vch_date) {
       return NextResponse.json({ error: "بيانات السند غير مكتملة" }, { status: 400 })
+    }
+    if (!(Number(data.rate) > 0)) {
+      return NextResponse.json({ error: "سعر الصرف يجب أن يكون أكبر من صفر" }, { status: 400 })
     }
 
     const duplicate = await sql`

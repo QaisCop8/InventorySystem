@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
@@ -15,12 +16,14 @@ import AutoCompleteAccount from "@/components/customer/auto-complete-account"
 import type { JournalCostCenterSelection } from "@/components/customer/account-cost-centers"
 import ProductSearchPopup from "@/components/products/ProductSearchPopup"
 import StoresSearchPopup from "@/components/products/StoresSearchPopup"
+import UnitsSearchPopup from "@/components/products/UnitsSearchPopup"
+import PostVoucherDialog, { type PostVoucherAction } from "@/components/common/post-voucher-dialog"
 import { CellRange, KeyAction } from "@grapecity/wijmo.grid"
 import * as wjcCore from "@grapecity/wijmo"
 import { Dropdown as PrimeDropdown } from "primereact/dropdown"
 import DateTimeControl from "@/components/common/date-time-control"
 import Util from "@/components/common/Util"
-import { FileText, Package, Calculator, MessageSquare } from "lucide-react"
+import { FileText, Package, Calculator, MessageSquare, RefreshCw } from "lucide-react"
 
 // vch_type per voucher_types_tbl: 12=سند ادخال بضاعة, 13=سند اخراج بضاعة,
 // 14=ارسالية داخلية, 15=سند استعمال.
@@ -49,6 +52,8 @@ export interface VoucherItemRow {
   purchase_cost_centers: JournalCostCenterSelection[]
   // للعرض فقط (تفاصيل كميات الصنف) — لا تُرسَل للحفظ.
   current_stock?: number
+  // وحدات الصنف المختار في هذا السطر (لِزر البحث عن الوحدة بجانب عمود الوحدة) — لا تُرسَل للحفظ.
+  units?: { unit_id: number; unit_name: string; price: number; barcode: string; to_main_qnty: number }[]
 }
 
 export interface VoucherRecord {
@@ -100,15 +105,24 @@ interface UnifiedStockVoucherProps {
   // ترتيب اختيار المستودع الافتراضي عند اختيار صنف: مستودع الصنف نفسه (products.default_store)
   // → المستودع الافتراضي للمستخدم (هذا الحقل) → أول مستودع في النظام.
   defaultItemWarehouseId?: number | null
+  // مصدر قائمة "فئة السعر" لزر إعادة احتساب الأسعار — من /api/pricecategory.
+  priceCategories?: LookupOption[]
   isSaving?: boolean
   currentIndex?: number
   totalRecords?: number
   isFirstRecord?: boolean
   isLastRecord?: boolean
   onNew?: () => void
-  onSave?: () => void
+  onSave: (action?: PostVoucherAction) => void
+  onValidateSave?: () => string | null
   onDelete?: () => void
   onNavigate?: (direction: "first" | "previous" | "next" | "last") => void
+  onPrint?: () => void
+  onClone?: () => void
+  // كتابة يدوية في رقم السند تُعاد صياغتها عبر /resolve-code، ثم يُعرض السند إن كان موجوداً بهذا
+  // الرقم، أو تُصفَّر الحقول لسند جديد بهذا الرقم إن لم يوجد — نفس نمط unified-receipt-voucher.tsx.
+  onCodeResolved?: (id: number) => void
+  onCodeNotFound?: (code: string) => void
   errorMessages?: string[]
 }
 
@@ -118,6 +132,18 @@ const TYPE_LABELS: Record<StockVoucherType, { title: string }> = {
   14: { title: "ارسالية داخلية" },
   15: { title: "سند استعمال" },
 }
+
+// فئات سعر خاصة (معرّفات سالبة) تُعرَض دائماً في أعلى قائمة "فئة السعر" قبل صفوف جدول pricecategory
+// الحقيقية — نفس فكرة prices_class_list.splice في StockInVoucher.js القديم. "سعر الإنتاج" مُعطَّلة
+// لأنه لا يوجد لها مصدر بيانات في هذا النظام (لا BOM ولا عمود تكلفة تصنيع)؛ البقية مدعومة فعلياً
+// (انظر app/api/inventory/products/prices-by-category/route.ts لمنطق -2/-3/-4/-5).
+const SPECIAL_PRICE_CATEGORIES = [
+  { id: -1, name: "سعر الإنتاج", disabled: true },
+  { id: -2, name: "يدوي", disabled: false },
+  { id: -3, name: "متوسط الأسعار", disabled: false },
+  { id: -4, name: "داخل أول خارج أول", disabled: false },
+  { id: -5, name: "اخر سعر", disabled: false },
+]
 
 const emptyItemRow: VoucherItemRow = {
   product_id: null,
@@ -139,12 +165,17 @@ const emptyItemRow: VoucherItemRow = {
 }
 
 const numberValue = (value: number | null | undefined) => (value === null || value === undefined ? "" : value)
+const normalizeVoucherCode = (value: string) => value.toUpperCase().replace(/[^A-Z0-9-]/g, "")
 
 // انتقال ملاحظة عن سباق مشابه لِما وُوجِه في unified-receipt-voucher.tsx هذه الجلسة: شبكة Wijmo
 // تُصفّر تحديدها عند كل تبديل لمرجع itemsSource — لذا تُستخدم هنا نفس الحلول المُثبَتة: كائن
 // CollectionView ثابت لا يُستبدَل أبداً (بدل useMemo يُنتج مصفوفة جديدة كل تعديل)، وresolveFlexControl
 // لتطبيع غلاف React الذي قد يُخزَّن أحياناً بدل عنصر التحكم الفعلي في مرجع الشبكة.
-const resolveFlexControl = (grid: any): any => (grid && grid.control && !grid.columns ? grid.control : grid)
+const resolveFlexControl = (grid: any): any => {
+  if (!grid) return null
+  if (grid.columns) return grid
+  return grid.control || null
+}
 
 const selectCell = (rawGrid: any, row: number, colName: string) => {
   const grid = resolveFlexControl(rawGrid)
@@ -175,6 +206,7 @@ export default function UnifiedStockVoucher({
   baseCurrencyId,
   warehouses = [],
   defaultItemWarehouseId = null,
+  priceCategories = [],
   isSaving = false,
   currentIndex = 0,
   totalRecords = 0,
@@ -182,14 +214,24 @@ export default function UnifiedStockVoucher({
   isLastRecord = true,
   onNew,
   onSave,
+  onValidateSave,
   onDelete,
   onNavigate,
+  onPrint,
+  onClone,
+  onCodeResolved,
+  onCodeNotFound,
   errorMessages = [],
 }: UnifiedStockVoucherProps) {
   const labels = TYPE_LABELS[voucherType]
   const isInternalDelivery = voucherType === INTERNAL_DELIVERY_VCH_TYPE
   const isUseVoucher = voucherType === USE_VOUCHER_VCH_TYPE
+  // شارة الحالة في عنوان النافذة: ملغي منطقياً (status=3) تطغى على أي شيء آخر؛ خلاف ذلك "مرحل"
+  // وحدها إن لم تُطبع بعد، أو "مرحل - مطبوع" إن طُبعت (is_printed=1) بعد الترحيل — مطابق لِـ
+  // unified-receipt-voucher.tsx.
   const isLocked = form.status === 2 || form.status === 3
+  const statusBadge =
+    form.status === 3 ? "ملغي منطقياً" : form.status === 2 ? (form.is_printed === 1 ? "مرحل - مطبوع" : "مرحل") : ""
   // ترتيب التنقل بـ Tab/Enter بين أعمدة شبكة الأصناف — يطابق ترتيب الأعمدة الفعلي في scheme
   // (batch_number وexpiry_date مُستثنيان لِـ"ارسالية داخلية" لأنهما غير مرئيين أصلاً في تلك الشبكة).
   const fieldOrder = isInternalDelivery
@@ -197,12 +239,29 @@ export default function UnifiedStockVoucher({
     : ["product_code", "warehouse_name", "unit", "quantity", "unit_price", "batch_number", "expiry_date", "note"]
   const messagesRef = useRef<any>(null)
   const dateInputRef = useRef<HTMLInputElement | null>(null)
+  const vchCodeInputRef = useRef<HTMLInputElement | null>(null)
   const [activeTab, setActiveTab] = useState("items")
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [productSearchOpen, setProductSearchOpen] = useState(false)
   const [warehouseSearchOpen, setWarehouseSearchOpen] = useState(false)
   const [warehouseSearchRow, setWarehouseSearchRow] = useState<number | null>(null)
   const [warehouseSearchTarget, setWarehouseSearchTarget] = useState<"row" | "from_store" | "to_store">("row")
+  const [unitsSearchOpen, setUnitsSearchOpen] = useState(false)
+  const [unitsSearchRow, setUnitsSearchRow] = useState<number | null>(null)
+  const [postDialogOpen, setPostDialogOpen] = useState(false)
+  const [showUnsavedConfirm, setShowUnsavedConfirm] = useState(false)
+  const pendingActionRef = useRef<(() => void) | null>(null)
+  // فئة السعر المختارة لِزر "إعادة احتساب الأسعار"، وتأكيد تغيير العملة (يُسأل المستخدم عن إعادة
+  // احتساب الأسعار تناسبياً مع سعر الصرف الجديد) — نفس نمط onCurrencyChanged/PricingWay في
+  // StockInVoucher.js القديم.
+  const [priceCategoryId, setPriceCategoryId] = useState<number | null>(null)
+  const [showCurrencyRecalcConfirm, setShowCurrencyRecalcConfirm] = useState(false)
+  const pendingCurrencyIdRef = useRef<number | null>(null)
+  const [showPriceRecalcConfirm, setShowPriceRecalcConfirm] = useState(false)
+  const combinedPriceCategories = useMemo(
+    () => [...SPECIAL_PRICE_CATEGORIES, ...priceCategories.map((c) => ({ ...c, disabled: false }))],
+    [priceCategories],
+  )
 
   useEffect(() => {
     if (errorMessages.length > 0) {
@@ -211,13 +270,68 @@ export default function UnifiedStockVoucher({
   }, [errorMessages])
 
   // ينتقل التركيز إلى تاريخ السند عند فتح الحوار أو عرض سجل مختلف (سجل جديد، سجل تم التنقل إليه،
-  // أو إعادة ضبط الحقول بعد الحفظ) — مطابق لِـ unified-receipt-voucher.tsx.
+  // أو إعادة ضبط الحقول بعد الحفظ) — مطابق لِـ unified-receipt-voucher.tsx. form.vch_code ضمن
+  // الاعتماديات لأنه يتغيّر أيضاً عند الضغط على "جديد" مرتين متتاليتين قبل الحفظ (id يبقى 0 في
+  // الحالتين)، لكنه يتغيّر أيضاً بكل ضغطة مفتاح أثناء الكتابة في حقل رقم السند نفسه — فيُعاد تشغيل
+  // هذا الأثر حينها ويخطف التركيز من الحقل بعد 120ms منتصف الكتابة. الفحص أدناه (عنصر التركيز
+  // الحالي هو حقل رقم السند) يمنع ذلك تحديداً دون التأثير على حالة "جديد مرتين".
   useEffect(() => {
     if (typeof window === "undefined" || !dialogOpen) return
-    const t = setTimeout(() => dateInputRef.current?.focus(), 120)
+    const t = setTimeout(() => {
+      if (document.activeElement === vchCodeInputRef.current) return
+      dateInputRef.current?.focus()
+    }, 120)
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dialogOpen, form.id, form.vch_code])
+
+  // لقطة النموذج عند فتح السند/التنقل إليه — تُقارَن بها الحالة الحالية لتحديد وجود تعديلات غير
+  // محفوظة قبل تنفيذ أي إجراء يُغادر السند الحالي (جديد/تنقل/إغلاق) — نفس نمط unified-receipt-voucher.tsx.
+  const initialSnapshotRef = useRef<string>(JSON.stringify(form))
+  useEffect(() => {
+    initialSnapshotRef.current = JSON.stringify(form)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dialogOpen, form.id, form.vch_code])
+
+  const guardedAction = (action: () => void) => {
+    if (showUnsavedConfirm) return
+    if (JSON.stringify(form) !== initialSnapshotRef.current) {
+      pendingActionRef.current = action
+      setShowUnsavedConfirm(true)
+    } else {
+      action()
+    }
+  }
+
+  // كتابة يدوية في رقم السند (مثال R1 أو 1 فقط) تُعاد صياغتها دائماً كـ {بادئة}{رمز الدفتر}
+  // {تسلسل مبطّن} عبر /resolve-code، ثم يُعرض السند إن كان موجوداً بهذا الرقم (بعد التأكد من عدم
+  // وجود تعديلات غير محفوظة في السند الحالي)، أو تُصفَّر كل الحقول والشبكات لسند جديد بهذا الرقم
+  // — مطابق لِـ handleCodeBlur في unified-receipt-voucher.tsx.
+  const handleCodeBlur = async () => {
+    const raw = form.vch_code.trim()
+    if (!raw) return
+    try {
+      const query = new URLSearchParams({ vch_type: String(voucherType), raw })
+      if (form.vch_book_id) query.set("vch_book_id", String(form.vch_book_id))
+      const response = await fetch(`/api/stock-vouchers/resolve-code?${query.toString()}`)
+      const data = await response.json()
+      if (!response.ok) {
+        messagesRef.current?.show?.([{ severity: "error", summary: "", detail: data.error || "تعذر تحديد رقم السند", life: 3000 }])
+        return
+      }
+      if (data.code && data.code !== form.vch_code) {
+        onFormChange("vch_code", data.code)
+      }
+      if (data.exists && data.id) {
+        if (data.id === form.id) return
+        guardedAction(() => onCodeResolved?.(data.id))
+      } else if (!data.exists && data.code) {
+        guardedAction(() => onCodeNotFound?.(data.code))
+      }
+    } catch (error) {
+      console.error("Failed to resolve voucher code", error)
+    }
+  }
 
   // يمنع تطبيق نتيجة بحث الصنف (غير المتزامن) بعد إغلاق الحوار أو فكّ تركيب المكوّن — استدعاء
   // patchItemRow بعد ذلك كان يصل بشبكة Wijmo إلى حالة غير مستقرة (control فارغ) فتتحطّم.
@@ -260,6 +374,45 @@ export default function UnifiedStockVoucher({
       target.row + 1,
     )
   }
+
+  // مرجع لأحدث نسخة من handleRequestSave (يُسنَد إليه لاحقاً في كل تصيير — انظر أسفل الملف)،
+  // ليقرأه مستمع F3 دائماً محدَّثاً رغم أن مصفوفة تبعيات useEffect أدناه لا تتضمن form بأكمله (فقط
+  // id/status اللازمين لـF4). بدونه يبقى مستمع F3 متجمّداً على النسخة الأولى من handleRequestSave
+  // (وبالتالي form.items وقت التركيب فقط) طالما لم يتغيّر id/status — فيرى دائماً صفوفاً فارغة حتى
+  // لو أضاف المستخدم أصنافاً فعلياً بعدها.
+  const handleRequestSaveRef = useRef<() => void>(() => {})
+
+  // F3 يحفظ السند، F4 يحذفه (فقط لسند محفوظ فعلاً بحالة مسودة — id>0 وstatus=1). كلاهما مُعطَّل
+  // ريثما تكون أي نافذة منبثقة (بحث صنف/مستودع/وحدة، تأكيد الحذف، أو نافذة "كيف تريد الحفظ؟")
+  // مفتوحة عبر doHotKeys — نفس العلَم المُستخدَم لتعطيل اختصارات الشبكة أثناء ذلك — ويعود العمل
+  // تلقائياً بعد إغلاقها.
+  useEffect(() => {
+    if (typeof window === "undefined" || !dialogOpen) return
+
+    const onGlobalKeyDown = (event: KeyboardEvent) => {
+      if (!doHotKeys.current || showDeleteConfirm || postDialogOpen || showUnsavedConfirm) return
+      if (event.key === "F3") {
+        event.preventDefault()
+        // خلافاً للنقر على زر "حفظ" (يُفقِد الشبكة تركيزها فيُنهي Wijmo تحرير الخلية النشطة قبل
+        // وصول الحدث)، F3 لا يُغيّر التركيز إطلاقاً — فيبقى أي تعديل نشط في خلية الشبكة (كرقم صنف
+        // كُتب للتو) غير مُطبَّق على itemsSource/form.items عند وصول هذا الحدث. يُنهى التحرير النشط
+        // صراحةً، ثم يُؤجَّل التحقق/الحفظ لِتِك التالي لِتُتاح فرصة لتحديث form.items أولاً.
+        resolveFlexControl(chequeGridRef.current)?.finishEditing?.()
+        setTimeout(() => handleRequestSaveRef.current(), 0)
+        return
+      }
+      if (event.key === "F4") {
+        event.preventDefault()
+        if (form.id > 0 && form.status === 1) {
+          setShowDeleteConfirm(true)
+        }
+      }
+    }
+
+    window.addEventListener("keydown", onGlobalKeyDown)
+    return () => window.removeEventListener("keydown", onGlobalKeyDown)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dialogOpen, form.id, form.status, showDeleteConfirm, postDialogOpen, showUnsavedConfirm])
 
   useEffect(() => {
     const gridBeforeSync = resolveFlexControl(chequeGridRef.current)
@@ -321,6 +474,17 @@ export default function UnifiedStockVoucher({
     return Math.round(q * p * 100) / 100
   }
 
+  // يوحّد شكل وحدات الصنف القادمة من مصدرين مختلفين (نافذة بحث الأصناف تُرجع unit_id/unit_name/price،
+  // وبحث الكود عبر /api/inventory/products/search يُرجع unit_id/unit_name/unit_price/to_main_qnty).
+  const normalizeUnits = (rawUnits: any[] | undefined): NonNullable<VoucherItemRow["units"]> =>
+    (rawUnits || []).map((u) => ({
+      unit_id: u.unit_id,
+      unit_name: u.unit_name || "",
+      price: Number(u.price ?? u.unit_price ?? 0),
+      barcode: u.barcode || "",
+      to_main_qnty: Number(u.to_main_qnty ?? 1),
+    }))
+
   // بحث صنف بكوده بعد تطبيعه لطول ثابت (حرف بادئة + 7 أرقام، مثل B207 → B0000207) — نفس منطق
   // Util.adjustCode المستخدم في unified-sales-order.tsx، مطبَّق هنا على شبكة سندات الحركات.
   const lookupProductByCode = async (row: number, code: string) => {
@@ -341,6 +505,7 @@ export default function UnifiedStockVoucher({
         unit: product.unit_name || currentRow?.unit || "",
         unit_price: unitPrice,
         total_price: recalcAmount(currentRow?.quantity ?? 0, unitPrice),
+        units: normalizeUnits(product.units),
         ...(warehousePatch ? { warehouse_id: warehousePatch.id, warehouse_name: warehousePatch.name } : {}),
       })
     } catch {
@@ -426,6 +591,15 @@ export default function UnifiedStockVoucher({
       setTimeout(() => setWarehouseSearchOpen(true), 0)
       return
     }
+    if (e.keyCode === Util.keyboardKeys.F10 && colName === "unit") {
+      e.preventDefault()
+      grid.finishEditing?.()
+      setUnitsSearchRow(row)
+      lastFocusedCellRef.current = { row, col: "unit" }
+      popupHasCalled()
+      setTimeout(() => setUnitsSearchOpen(true), 0)
+      return
+    }
 
     if (e.keyCode === Util.keyboardKeys.Tab || e.keyCode === Util.keyboardKeys.Enter) {
       e.preventDefault()
@@ -467,7 +641,9 @@ export default function UnifiedStockVoucher({
 
   // مستودع الصنف الافتراضي عند اختياره في السند: مستودع الصنف نفسه (products.default_store)
   // → المستودع الافتراضي للمستخدم (defaultItemWarehouseId) → أول مستودع في النظام.
-  const resolveDefaultWarehouse = (product: any): { id: number | null; name: string } => {
+  // يُعيد null صراحةً عند تعذّر إيجاد أي مرشّح (بدل كائن "أجوَف" {id:null}) حتى يُفرَّق بوضوح
+  // في نقاط الاستدعاء بين "لا يوجد مستودع افتراضي على الإطلاق" و"تم إيجاد مستودع".
+  const resolveDefaultWarehouse = (product: any): { id: number; name: string } | null => {
     const productWarehouseId = product?.default_store ? Number(product.default_store) : null
     const candidateId = productWarehouseId || (defaultItemWarehouseId ? Number(defaultItemWarehouseId) : null)
     if (candidateId) {
@@ -476,7 +652,7 @@ export default function UnifiedStockVoucher({
       return { id: candidateId, name: "" }
     }
     const first = warehouses[0]
-    return first ? { id: first.id, name: first.warehouse_name } : { id: null, name: "" }
+    return first ? { id: first.id, name: first.warehouse_name } : null
   }
 
   const handleProductSelect = (products: any[]) => {
@@ -498,6 +674,7 @@ export default function UnifiedStockVoucher({
       unit: unit?.unit_name || product.first_unit || "",
       unit_price: unit?.price ?? product.first_price ?? 0,
       total_price: recalcAmount(itemsRef.current[row]?.quantity ?? 0, unit?.price ?? product.first_price ?? 0),
+      units: normalizeUnits(product.units),
       ...(warehousePatch ? { warehouse_id: warehousePatch.id, warehouse_name: warehousePatch.name } : {}),
     })
     pendingFocusRef.current = { row, col: "quantity" }
@@ -520,6 +697,22 @@ export default function UnifiedStockVoucher({
     }
     patchItemRow(warehouseSearchRow, { warehouse_id: store.id, warehouse_name: store.warehouse_name })
     pendingFocusRef.current = { row: warehouseSearchRow, col: "unit" }
+  }
+
+  const handleUnitSelect = ({ selected_unit }: { product: { name: string }; selected_unit: NonNullable<VoucherItemRow["units"]>[number] }) => {
+    setUnitsSearchOpen(false)
+    popupHasClosed()
+    if (unitsSearchRow === null) {
+      restoreGridFocus(lastFocusedCellRef.current)
+      return
+    }
+    const currentRow = itemsRef.current[unitsSearchRow]
+    patchItemRow(unitsSearchRow, {
+      unit: selected_unit.unit_name,
+      unit_price: selected_unit.price,
+      total_price: recalcAmount(currentRow?.quantity ?? 0, selected_unit.price),
+    })
+    pendingFocusRef.current = { row: unitsSearchRow, col: "quantity" }
   }
 
   const scheme = useMemo(
@@ -573,6 +766,25 @@ export default function UnifiedStockVoucher({
           visibleInColumnChooser: true,
         },
         { header: "الوحدة", name: "unit", width: 90, visible: Util.getVoucherSettingScreenData(voucherType, "unit") },
+        {
+          header: " ",
+          name: "btnSearchUnits",
+          width: 65,
+          buttonBody: "button",
+          align: "center",
+          title: "",
+          iconType: "search",
+          className: "",
+          isReadOnly: true,
+          onClick: (e: any, ctx: any) => {
+            setUnitsSearchRow(ctx.row.index)
+            lastFocusedCellRef.current = { row: ctx.row.index, col: "unit" }
+            popupHasCalled()
+            setTimeout(() => setUnitsSearchOpen(true), 0)
+          },
+          visible: Util.getVoucherSettingScreenData(voucherType, "unit"),
+          visibleInColumnChooser: true,
+        },
         { header: "الكمية", name: "quantity", width: 100, dataType: "Number" },
         { header: "السعر", name: "unit_price", width: 100, dataType: "Number", visible: Util.getVoucherSettingScreenData(voucherType, "price") },
         { header: "المبلغ", name: "total_price", width: 110, dataType: "Number", isReadOnly: true },
@@ -605,9 +817,126 @@ export default function UnifiedStockVoucher({
     [isLocked, isInternalDelivery, voucherType],
   )
 
-  const handleRequestSave = () => {
-    onSave?.()
+  // يضبط عملة/سعر صرف السند فعلياً (دون أي سؤال) — 1 لعملة الأساس، وإلا آخر سعر بتاريخ <= تاريخ
+  // السند من exchange_rates. يُعيد سعر الصرف الجديد لاستخدامه في إعادة احتساب أسعار الأصناف.
+  const applyCurrencyChange = async (newCurrencyId: number | null): Promise<number> => {
+    onFormChange("currency_id", newCurrencyId)
+    if (!newCurrencyId || newCurrencyId === baseCurrencyId) {
+      onFormChange("rate", 1)
+      return 1
+    }
+    try {
+      const query = new URLSearchParams({
+        currency_id: String(newCurrencyId),
+        date: form.vch_date ? form.vch_date.slice(0, 10) : "",
+      })
+      const response = await fetch(`/api/exchange-rates/lookup?${query.toString()}`)
+      const data = response.ok ? await response.json() : null
+      const rate = data?.rate ?? 1
+      onFormChange("rate", rate)
+      return rate
+    } catch (error) {
+      console.error("Failed to fetch exchange rate", error)
+      onFormChange("rate", 1)
+      return 1
+    }
   }
+
+  // يُعيد قياس سعر كل صنف تناسبياً مع نسبة سعر الصرف القديم للجديد (price * oldRate / newRate) —
+  // نفس معادلة onCurrencyChanged في StockInVoucher.js القديم.
+  const rescaleItemPricesForRate = (oldRate: number, newRate: number) => {
+    if (!newRate || newRate === oldRate) return
+    const next = itemsRef.current.map((row) => {
+      if (!row.product_id) return row
+      // مبقاة بدقة أعلى (6 خانات) بدل خانتين — تقريب كل صنف لخانتين عند كل تبديل عملة يراكم
+      // انحرافاً ملحوظاً عند التنقل ذهاباً وإياباً بين عملتين (مثال: 547 ← دولار ← شيكل تعود 547.01
+      // بدل 547 بالضبط)، لأن كل تقريب يُبنى على نتيجة التقريب السابق لا على السعر الأصلي.
+      const newPrice = Math.round((((Number(row.unit_price) || 0) * oldRate) / newRate) * 1e6) / 1e6
+      return { ...row, unit_price: newPrice, total_price: recalcAmount(row.quantity, newPrice) }
+    })
+    itemsRef.current = next
+    onItemsChange(next)
+  }
+
+  // عند تغيير عملة السند: إن وُجد صنف واحد مُدخَل فعلاً في الشبكة تُعرض أولاً رسالة تسأل إن كان
+  // يجب إعادة احتساب أسعار الأصناف تناسبياً مع سعر الصرف الجديد قبل تطبيق التغيير فعلياً — نفس
+  // منطق onCurrencyChanged في StockInVoucher.js القديم. لا يوجد أصناف بعد → يُطبَّق التغيير مباشرة.
+  const handleCurrencyChange = async (newCurrencyId: number | null) => {
+    if (newCurrencyId === form.currency_id) return
+    const hasItems = itemsRef.current.some((row) => row.product_id)
+    if (!hasItems) {
+      await applyCurrencyChange(newCurrencyId)
+      return
+    }
+    pendingCurrencyIdRef.current = newCurrencyId
+    setShowCurrencyRecalcConfirm(true)
+  }
+
+  // يُصفِّر سعر كل صنف (بلا طلب شبكة) — اختيار "يدوي" يعني أن المستخدم سيُدخل الأسعار بنفسه.
+  const applyManualZeroPrices = () => {
+    const next = itemsRef.current.map((row) => {
+      if (!row.product_id) return row
+      return { ...row, unit_price: 0, total_price: recalcAmount(row.quantity, 0) }
+    })
+    itemsRef.current = next
+    onItemsChange(next)
+  }
+
+  // يجلب سعر كل صنف من فئة السعر المختارة عبر endpoint جماعي، ويستبدل به سعر كل سطر — نظير
+  // PricingWay/ItemsRecalculateWay في StockInVoucher.js القديم. فئة السعر قد تكون صفاً حقيقياً من
+  // جدول pricecategory (معرّف موجب) أو إحدى الفئات الخاصة (معرّف سالب): -2 يدوي (يُصفَّر محلياً دون
+  // وصول هذه الدالة إطلاقاً)، -3/-4/-5 مُحسَّبة من دفعات المخزون/تاريخ الشراء عبر الـ endpoint
+  // نفسه، -1 (سعر الإنتاج) مُعطَّلة في القائمة أصلاً (SPECIAL_PRICE_CATEGORIES) فلا تصل هنا.
+  const recalcPricesFromCategory = async () => {
+    const rows = itemsRef.current.filter((row) => row.product_id)
+    if (!priceCategoryId || rows.length === 0) return
+    if (priceCategoryId === -2) {
+      applyManualZeroPrices()
+      return
+    }
+    try {
+      const response = await fetch("/api/inventory/products/prices-by-category", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          price_category_id: priceCategoryId,
+          items: rows.map((row) => ({ product_id: row.product_id, unit_name: row.unit })),
+        }),
+      })
+      if (!response.ok) return
+      const data = await response.json()
+      const results: { price: number }[] = Array.isArray(data?.results) ? data.results : []
+      let resultIndex = 0
+      const next = itemsRef.current.map((row) => {
+        if (!row.product_id) return row
+        const price = Number(results[resultIndex]?.price || 0)
+        resultIndex++
+        return { ...row, unit_price: price, total_price: recalcAmount(row.quantity, price) }
+      })
+      itemsRef.current = next
+      onItemsChange(next)
+    } catch (error) {
+      console.error("Failed to recalculate prices by category", error)
+    }
+  }
+
+  const handleRecalcPricesClick = () => {
+    if (!priceCategoryId || !itemsRef.current.some((row) => row.product_id)) return
+    setShowPriceRecalcConfirm(true)
+  }
+
+  // يتحقق من صحة السند قبل عرض نافذة "كيف تريد الحفظ؟" — مطابق لِـ unified-receipt-voucher.tsx.
+  const handleRequestSave = () => {
+    if (isLocked) return
+    const error = onValidateSave?.()
+    if (error) {
+      messagesRef.current?.clear?.()
+      messagesRef.current?.show?.([{ severity: "error", summary: "", detail: error, sticky: false, life: 4000 }])
+      return
+    }
+    setPostDialogOpen(true)
+  }
+  handleRequestSaveRef.current = handleRequestSave
 
   // نفس منطق unified-receipt-voucher.tsx: Enter خارج الشبكة يتصرف كـ Tab وينتقل للحقل التالي،
   // بدل إرسال/تفعيل السلوك الافتراضي للمتصفح على النموذج.
@@ -630,7 +959,7 @@ export default function UnifiedStockVoucher({
   }
 
   return (
-    <Dialog open={dialogOpen} onOpenChange={onOpenChange}>
+    <Dialog open={dialogOpen} onOpenChange={(open) => (open ? onOpenChange(open) : guardedAction(() => onOpenChange(false)))}>
       <DialogContent
         className="stock-voucher-form flex h-[96vh] w-[97vw] max-w-[1500px] max-h-[96vh] flex-col overflow-hidden p-0"
         dir="rtl"
@@ -638,22 +967,27 @@ export default function UnifiedStockVoucher({
         <UniversalToolbar
           currentRecord={currentIndex + 1}
           totalRecords={totalRecords}
-          onNew={onNew}
+          onNew={() => guardedAction(() => onNew?.())}
           onSave={handleRequestSave}
           onDelete={() => setShowDeleteConfirm(true)}
-          onFirst={() => onNavigate?.("first")}
-          onPrevious={() => onNavigate?.("previous")}
-          onNext={() => onNavigate?.("next")}
-          onLast={() => onNavigate?.("last")}
+          onFirst={() => guardedAction(() => onNavigate?.("first"))}
+          onPrevious={() => guardedAction(() => onNavigate?.("previous"))}
+          onNext={() => guardedAction(() => onNavigate?.("next"))}
+          onLast={() => guardedAction(() => onNavigate?.("last"))}
+          onPrint={onPrint}
+          onClone={onClone}
           isSaving={isSaving}
           canSave={!isLocked}
+          canPrint={form.id > 0}
+          canClone={form.id > 0}
           canDelete={form.id > 0 && form.status !== 3}
           isFirstRecord={isFirstRecord}
           isLastRecord={isLastRecord}
         />
 
         <div
-          className="relative min-h-0 flex-1 overflow-y-auto rounded-b-3xl bg-slate-50/60 px-6 py-4"
+          className="relative min-h-0 flex-1 overflow-y-auto rounded-b-3xl bg-slate-50/60 px-6 py-4 [&::-webkit-scrollbar]:w-0 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-transparent"
+          style={{ scrollbarWidth: "none", msOverflowStyle: "none" as any }}
           onKeyDown={handleFormEnterAsTab}
         >
           <ProgressSpinner loading={isSaving} />
@@ -668,25 +1002,108 @@ export default function UnifiedStockVoucher({
               ) : (
                 <span className="rounded-full bg-white/15 px-2.5 py-0.5 text-xs font-semibold ring-1 ring-white/30">مسودة</span>
               )}
+              {statusBadge && (
+                <span
+                  className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ${
+                    form.status === 3 ? "bg-rose-500/20 text-rose-50 ring-rose-200/40" : "bg-amber-400/20 text-amber-50 ring-amber-200/40"
+                  }`}
+                >
+                  {statusBadge}
+                </span>
+              )}
             </DialogTitle>
           </DialogHeader>
 
-          <fieldset disabled={isLocked} className="contents">
-            {/* تفاصيل السند + تفاصيل المستودعات/العميل */}
-            <div className="grid gap-4 lg:grid-cols-2">
-              <div className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-                <div className="flex items-center gap-2 text-sm font-bold text-emerald-700">
-                  <FileText className="h-3.5 w-3.5" />
-                  تفاصيل السند
+          {/* لا يُستخدَم <fieldset disabled={isLocked}> هنا (كما في تبويبات الأصناف) عمداً: يحتاج
+              حقل "رقم السند" البقاء قابلاً للتعديل حتى لسند مُقفَل (مُرحَّل/ملغى) للتنقل إلى سند آخر
+              بكتابة رقمه مباشرة — وfieldset يُعطِّل كل حقوله الفرعية بلا استثناء بصرف النظر عن أي
+              disabled صريح على الحقل نفسه. لذا كل حقل هنا يحمل disabled={isLocked} صراحة عدا رقم السند. */}
+          <>
+            {/* تفاصيل السند (يضم أيضاً العميل/المستودعات ضمن نفس البطاقة) */}
+            <div className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+              <div className="flex items-center gap-2 text-sm font-bold text-emerald-700">
+                <FileText className="h-3.5 w-3.5" />
+                تفاصيل السند
+              </div>
+              <div className="grid gap-3">
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
+                    <Label>دفتر السندات *</Label>
+                    <PrimeDropdown
+                      value={form.vch_book_id}
+                      options={voucherBooks}
+                      optionLabel="name"
+                      optionValue="id"
+                      placeholder="اختر"
+                      filter
+                      disabled={isLocked}
+                      className="invoice-currency-dropdown w-full"
+                      panelClassName="invoice-currency-dropdown-panel"
+                      appendTo="self"
+                      panelStyle={{ zIndex: 10000 }}
+                      onChange={(e: any) => onFormChange("vch_book_id", e.value ?? null)}
+                    />
+                  </div>
+                  <div className="grid gap-1.5">
+                    <Label htmlFor="vch-code">رقم السند *</Label>
+                    <Input
+                      ref={vchCodeInputRef}
+                      id="vch-code"
+                      value={form.vch_code}
+                      onChange={(e) => onFormChange("vch_code", normalizeVoucherCode(e.target.value))}
+                      onBlur={handleCodeBlur}
+                      maxLength={20}
+                    />
+                  </div>
+                  <div className="grid gap-1.5">
+                    <Label htmlFor="vch-date">تاريخ السند *</Label>
+                    <DateTimeControl
+                      id="vch-date"
+                      ref={dateInputRef}
+                      value={form.vch_date ? form.vch_date.slice(0, 10) : ""}
+                      disabled={isLocked}
+                      onChange={(value) => onFormChange("vch_date", value)}
+                    />
+                  </div>
                 </div>
-                <div className="grid gap-3">
-                  <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
+                    <Label>العملة *</Label>
+                    <PrimeDropdown
+                      value={form.currency_id}
+                      options={currencyOptions}
+                      optionLabel="label"
+                      optionValue="value"
+                      placeholder="اختر العملة"
+                      filter
+                      disabled={isLocked}
+                      className="invoice-currency-dropdown w-full"
+                      panelClassName="invoice-currency-dropdown-panel"
+                      appendTo="self"
+                      panelStyle={{ zIndex: 10000 }}
+                      onChange={(e: any) => void handleCurrencyChange(e.value ?? null)}
+                    />
+                  </div>
+                  <div className="grid gap-1.5">
+                    <Label htmlFor="vch-rate">سعر الصرف *</Label>
+                    <Input
+                      id="vch-rate"
+                      type="number"
+                      value={numberValue(form.rate)}
+                      onChange={(e) => onFormChange("rate", e.target.value ? Number(e.target.value) : 1)}
+                      disabled={isLocked || (form.currency_id != null && form.currency_id === baseCurrencyId)}
+                    />
+                  </div>
+                </div>
+
+                {isInternalDelivery ? (
+                  <div className="grid grid-cols-2 gap-3">
                     <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
-                      <Label>دفتر السندات *</Label>
+                      <Label>من مستودع *</Label>
                       <PrimeDropdown
-                        value={form.vch_book_id}
-                        options={voucherBooks}
-                        optionLabel="name"
+                        value={form.from_store_id}
+                        options={warehouses}
+                        optionLabel="warehouse_name"
                         optionValue="id"
                         placeholder="اختر"
                         filter
@@ -695,96 +1112,8 @@ export default function UnifiedStockVoucher({
                         panelClassName="invoice-currency-dropdown-panel"
                         appendTo="self"
                         panelStyle={{ zIndex: 10000 }}
-                        onChange={(e: any) => onFormChange("vch_book_id", e.value ?? null)}
+                        onChange={(e: any) => onFormChange("from_store_id", e.value ?? null)}
                       />
-                    </div>
-                    <div className="grid gap-1.5">
-                      <Label htmlFor="vch-code">رقم السند *</Label>
-                      <Input id="vch-code" value={form.vch_code} onChange={(e) => onFormChange("vch_code", e.target.value)} maxLength={20} />
-                    </div>
-                    <div className="grid gap-1.5">
-                      <Label htmlFor="vch-date">تاريخ السند *</Label>
-                      <DateTimeControl
-                        id="vch-date"
-                        ref={dateInputRef}
-                        value={form.vch_date ? form.vch_date.slice(0, 10) : ""}
-                        disabled={isLocked}
-                        onChange={(value) => onFormChange("vch_date", value)}
-                      />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
-                      <Label>العملة *</Label>
-                      <PrimeDropdown
-                        value={form.currency_id}
-                        options={currencyOptions}
-                        optionLabel="label"
-                        optionValue="value"
-                        placeholder="اختر العملة"
-                        filter
-                        disabled={isLocked}
-                        className="invoice-currency-dropdown w-full"
-                        panelClassName="invoice-currency-dropdown-panel"
-                        appendTo="self"
-                        panelStyle={{ zIndex: 10000 }}
-                        onChange={(e: any) => onFormChange("currency_id", e.value ?? null)}
-                      />
-                    </div>
-                    <div className="grid gap-1.5">
-                      <Label htmlFor="vch-rate">سعر الصرف *</Label>
-                      <Input
-                        id="vch-rate"
-                        type="number"
-                        value={numberValue(form.rate)}
-                        onChange={(e) => onFormChange("rate", e.target.value ? Number(e.target.value) : 1)}
-                        disabled={form.currency_id != null && form.currency_id === baseCurrencyId}
-                      />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="grid gap-1.5">
-                      <Label htmlFor="vch-manual-code">سند يدوي</Label>
-                      <Input id="vch-manual-code" value={form.manual_voucher} onChange={(e) => onFormChange("manual_voucher", e.target.value)} maxLength={30} />
-                    </div>
-                    <div className="grid gap-1.5">
-                      <Label htmlFor="vch-manual-date">تاريخ السند اليدوي</Label>
-                      <DateTimeControl
-                        id="vch-manual-date"
-                        value={form.manual_date ? form.manual_date.slice(0, 10) : ""}
-                        disabled={isLocked}
-                        onChange={(value) => onFormChange("manual_date", value)}
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-                <div className="flex items-center gap-2 text-sm font-bold text-emerald-700">
-                  <Package className="h-3.5 w-3.5" />
-                  {isInternalDelivery ? "تفاصيل المستودعات" : "تفاصيل العميل"}
-                </div>
-                {isInternalDelivery ? (
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="grid gap-1.5">
-                      <Label>من مستودع *</Label>
-                      <div className="flex gap-2 invoice-currency-dropdown-wrap">
-                        <PrimeDropdown
-                          value={form.from_store_id}
-                          options={warehouses}
-                          optionLabel="warehouse_name"
-                          optionValue="id"
-                          placeholder="اختر"
-                          filter
-                          disabled={isLocked}
-                          className="invoice-currency-dropdown w-full"
-                          panelClassName="invoice-currency-dropdown-panel"
-                          appendTo="self"
-                          panelStyle={{ zIndex: 10000 }}
-                          onChange={(e: any) => onFormChange("from_store_id", e.value ?? null)}
-                        />
-                      </div>
                     </div>
                     <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
                       <Label>الى مستودع *</Label>
@@ -805,7 +1134,7 @@ export default function UnifiedStockVoucher({
                     </div>
                   </div>
                 ) : (
-                  <div className="grid gap-3">
+                  <div className="grid gap-3 md:grid-cols-2">
                     <AutoCompleteAccount
                       label="العميل"
                       value={form.account_id != null ? String(form.account_id) : ""}
@@ -836,18 +1165,77 @@ export default function UnifiedStockVoucher({
                     )}
                   </div>
                 )}
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="grid gap-1.5">
+                    <Label htmlFor="vch-manual-code">سند يدوي</Label>
+                    <Input
+                      id="vch-manual-code"
+                      value={form.manual_voucher}
+                      onChange={(e) => onFormChange("manual_voucher", e.target.value)}
+                      disabled={isLocked}
+                      maxLength={30}
+                    />
+                  </div>
+                  <div className="grid gap-1.5">
+                    <Label htmlFor="vch-manual-date">تاريخ السند اليدوي</Label>
+                    <DateTimeControl
+                      id="vch-manual-date"
+                      value={form.manual_date ? form.manual_date.slice(0, 10) : ""}
+                      disabled={isLocked}
+                      onChange={(value) => onFormChange("manual_date", value)}
+                    />
+                  </div>
+                </div>
               </div>
             </div>
+          </>
 
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-4">
-              <TabsList>
-                <TabsTrigger value="items">الاصناف</TabsTrigger>
-                <TabsTrigger value="quantities">تفاصيل كميات الصنف</TabsTrigger>
-                {isUseVoucher && <TabsTrigger value="accounts">تفاصيل حسابات الاصناف</TabsTrigger>}
-                <TabsTrigger value="notes">ملاحظات</TabsTrigger>
-              </TabsList>
+          {/* Tabs خارج fieldset عمداً — يبقى التنقل بين التبويبات ممكناً حتى لسند مُقفَل (مُرحَّل/ملغى)،
+              وfieldset منفصل أدناه يُعطِّل حقول كل تبويب فقط دون تعطيل أزرار التبويبات نفسها. */}
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-4">
+            {/* dir صريح هنا (بدل الاعتماد فقط على وراثته من DialogContent) لضمان أن "الاصناف" —
+                أول عنصر بترتيب DOM — يظهر في أقصى اليمين دائماً، بصرف النظر عن أي تعارض في تتالي
+                الاتجاه عبر بوابة Radix Dialog/Tabs. */}
+            <TabsList dir="rtl">
+              <TabsTrigger value="items">الاصناف</TabsTrigger>
+              <TabsTrigger value="quantities">تفاصيل كميات الصنف</TabsTrigger>
+              {isUseVoucher && <TabsTrigger value="accounts">تفاصيل حسابات الاصناف</TabsTrigger>}
+              <TabsTrigger value="notes">ملاحظات</TabsTrigger>
+            </TabsList>
 
+            <fieldset disabled={isLocked} className="contents">
               <TabsContent value="items" className="mt-4 min-h-[360px] space-y-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+                <div className="flex flex-wrap items-end gap-2">
+                  <div className="grid gap-1.5 invoice-currency-dropdown-wrap w-56">
+                    <Label>فئة السعر</Label>
+                    <PrimeDropdown
+                      value={priceCategoryId}
+                      options={combinedPriceCategories}
+                      optionLabel="name"
+                      optionValue="id"
+                      optionDisabled="disabled"
+                      placeholder="اختر فئة السعر"
+                      filter
+                      disabled={isLocked}
+                      className="invoice-currency-dropdown w-full"
+                      panelClassName="invoice-currency-dropdown-panel"
+                      appendTo="self"
+                      panelStyle={{ zIndex: 10000 }}
+                      onChange={(e: any) => setPriceCategoryId(e.value ?? null)}
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={isLocked || !priceCategoryId}
+                    onClick={handleRecalcPricesClick}
+                    className="flex items-center gap-2"
+                  >
+                    <RefreshCw className="h-4 w-4" />
+                    إعادة إحتساب الأسعار
+                  </Button>
+                </div>
                 <div className="w-full max-w-full overflow-x-auto">
                   <DataGridView
                     innerRef={chequeGridRef}
@@ -855,7 +1243,13 @@ export default function UnifiedStockVoucher({
                     scheme={scheme}
                     dataSource={itemsCollectionView}
                     idProperty="ser"
-                    isReport={isLocked}
+                    // isReport يمنع التعديل فعلياً (isReadOnly على FlexGrid) لكنه يُبدّل أيضاً وضع
+                    // التحديد لصف كامل ويُلوّن الصفوف بأسلوب "تقرير" — لا يُراد ذلك هنا، فقط منع
+                    // التعديل، لذا isReadOnly مُمرَّر صراحةً (يُبطِل قيمة isReport الافتراضية داخل
+                    // DataGridView.js لأنه يُنشَر بعدها في الـ props) بينما isReport يبقى false
+                    // فيحافظ الجدول على شكله ولون تحديده المعتاد بالخلية.
+                    isReport={false}
+                    isReadOnly={isLocked}
                     showContextMenu={false}
                     cellEditEnded={(s: any, e: any) => handleCellEditEnded(s, e)}
                     onKeyDown={(s: any, e: any) => handleKeyDown(s, e)}
@@ -939,8 +1333,8 @@ export default function UnifiedStockVoucher({
                   <Textarea value={form.note} onChange={(e) => onFormChange("note", e.target.value)} rows={6} disabled={isLocked} />
                 </div>
               </TabsContent>
-            </Tabs>
-          </fieldset>
+            </fieldset>
+          </Tabs>
 
           {/* ملخص المبالغ */}
           <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
@@ -983,6 +1377,17 @@ export default function UnifiedStockVoucher({
           onSelect={handleWarehouseSelect}
           stores={warehouses as any}
         />
+        <UnitsSearchPopup
+          visible={unitsSearchOpen}
+          product={{ name: unitsSearchRow !== null ? itemsRef.current[unitsSearchRow]?.product_name || "" : "" }}
+          units={unitsSearchRow !== null ? itemsRef.current[unitsSearchRow]?.units || [] : []}
+          onClose={() => {
+            setUnitsSearchOpen(false)
+            popupHasClosed()
+            restoreGridFocus(lastFocusedCellRef.current)
+          }}
+          onSelect={handleUnitSelect}
+        />
 
         <ConfirmDialogYesNo
           visible={showDeleteConfirm}
@@ -992,6 +1397,63 @@ export default function UnifiedStockVoucher({
             onDelete?.()
           }}
           onCancel={() => setShowDeleteConfirm(false)}
+        />
+
+        <ConfirmDialogYesNo
+          visible={showUnsavedConfirm}
+          message="تم تعديل البيانات، هل تريد الحفظ؟"
+          showBack
+          onConfirm={() => {
+            setShowUnsavedConfirm(false)
+            pendingActionRef.current = null
+            onSave("save")
+          }}
+          onCancel={() => {
+            setShowUnsavedConfirm(false)
+            const action = pendingActionRef.current
+            pendingActionRef.current = null
+            action?.()
+          }}
+          onBack={() => setShowUnsavedConfirm(false)}
+        />
+
+        <ConfirmDialogYesNo
+          visible={showCurrencyRecalcConfirm}
+          message="تغيير العملة يغير سعر الصرف، هل تريد تغيير الأسعار بناءا على ذلك؟"
+          onConfirm={async () => {
+            setShowCurrencyRecalcConfirm(false)
+            const oldRate = Number(form.rate) || 1
+            const newCurrencyId = pendingCurrencyIdRef.current
+            pendingCurrencyIdRef.current = null
+            const newRate = await applyCurrencyChange(newCurrencyId)
+            rescaleItemPricesForRate(oldRate, newRate)
+          }}
+          onCancel={async () => {
+            setShowCurrencyRecalcConfirm(false)
+            const newCurrencyId = pendingCurrencyIdRef.current
+            pendingCurrencyIdRef.current = null
+            await applyCurrencyChange(newCurrencyId)
+          }}
+        />
+
+        <ConfirmDialogYesNo
+          visible={showPriceRecalcConfirm}
+          message="سيتم إعادة احتساب أسعار جميع الأصناف حسب فئة السعر المختارة، هل تريد المتابعة؟"
+          onConfirm={() => {
+            setShowPriceRecalcConfirm(false)
+            void recalcPricesFromCategory()
+          }}
+          onCancel={() => setShowPriceRecalcConfirm(false)}
+        />
+
+        <PostVoucherDialog
+          visible={postDialogOpen}
+          isSaving={isSaving}
+          onSelect={(action) => {
+            setPostDialogOpen(false)
+            onSave(action)
+          }}
+          onCancel={() => setPostDialogOpen(false)}
         />
       </DialogContent>
     </Dialog>

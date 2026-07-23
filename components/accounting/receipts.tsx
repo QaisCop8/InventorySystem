@@ -486,6 +486,7 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
     if (!data.currency_id || !currencies.some((c) => Number(c.currency_id ?? c.id) === data.currency_id)) {
       return "يجب اختيار العملة"
     }
+    if (!(Number(data.rate) > 0)) return "سعر الصرف يجب أن يكون أكبر من صفر"
 
     if (!data.account_id) return `يجب اختيار ${labels.customerLabel}`
 

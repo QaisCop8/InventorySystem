@@ -8,6 +8,8 @@ import { Label } from "@/components/ui/label"
 import { Edit, Plus, Search } from "lucide-react"
 import { useAuth } from "@/components/auth/auth-context"
 import UnifiedStockVoucher, { type VoucherRecord, type VoucherItemRow, type StockVoucherType } from "./unified-stock-voucher"
+import type { PostVoucherAction } from "@/components/common/post-voucher-dialog"
+import StockVoucherPrintLayout, { type StockVoucherPrintData } from "@/components/common/stock-voucher-print-layout"
 
 interface StockVouchersProps {
   voucherType: StockVoucherType
@@ -93,12 +95,17 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
   const [defaultBookId, setDefaultBookId] = useState<number | null>(null)
   const [warehouses, setWarehouses] = useState<WarehouseOption[]>([])
   const [defaultItemWarehouseId, setDefaultItemWarehouseId] = useState<number | null>(null)
+  const [priceCategories, setPriceCategories] = useState<LookupOption[]>([])
 
   const [dialogOpen, setDialogOpen] = useState(false)
   const [form, setForm] = useState<VoucherRecord>(buildInitialForm(voucherType))
   const [isSaving, setIsSaving] = useState(false)
+  // تحميل عند "جديد"/التنقل/عرض سجل (مختلف عن isSaving الخاص بالحفظ فعلياً) — يعطّل الواجهة ريثما
+  // تُجلَب بيانات السند (تفاصيل + أرقام تسلسلية) من الخادم.
+  const [isLoading, setIsLoading] = useState(false)
   const [currentIndex, setCurrentIndex] = useState(0)
   const [errorMessages, setErrorMessages] = useState<string[]>([])
+  const [printData, setPrintData] = useState<StockVoucherPrintData | null>(null)
 
   const [searchFilters, setSearchFilters] = useState({ code: "", dateFrom: "", dateTo: "" })
 
@@ -134,6 +141,12 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [voucherType, user?.id])
 
+  useEffect(() => {
+    if (!printData) return
+    const t = setTimeout(() => window.print(), 150)
+    return () => clearTimeout(t)
+  }, [printData])
+
   const fetchVouchers = async () => {
     try {
       const response = await fetch(`/api/stock-vouchers?vch_type=${voucherType}`)
@@ -151,11 +164,12 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
         user?.id ? `&user_id=${encodeURIComponent(user.id)}` : ""
       }`
       const warehouseDefaultsUrl = user?.id ? `/api/settings/user-warehouse-defaults?user_id=${encodeURIComponent(user.id)}` : null
-      const [currenciesRes, booksRes, warehousesRes, warehouseDefaultsRes] = await Promise.all([
+      const [currenciesRes, booksRes, warehousesRes, warehouseDefaultsRes, priceCategoriesRes] = await Promise.all([
         fetch("/api/exchange-rates").catch(() => null),
         fetch(booksUrl).catch(() => null),
         fetch("/api/warehouses").catch(() => null),
         warehouseDefaultsUrl ? fetch(warehouseDefaultsUrl).catch(() => null) : Promise.resolve(null),
+        fetch("/api/pricecategory").catch(() => null),
       ])
       if (currenciesRes?.ok) {
         const data = await currenciesRes.json()
@@ -176,8 +190,51 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
       } else {
         setDefaultItemWarehouseId(null)
       }
+      if (priceCategoriesRes?.ok) {
+        const data = await priceCategoriesRes.json()
+        setPriceCategories(Array.isArray(data) ? data.map((c: any) => ({ id: c.id, name: c.name })) : [])
+      }
     } catch (error) {
       console.error("Failed to fetch lookups", error)
+    }
+  }
+
+  // يجلب دفتر السندات الافتراضي وأول عملة مباشرة من الخادم بدل الاعتماد على state قد لا يكون
+  // اكتمل تحميله بعد (مثلاً إن ضغط المستخدم "جديد" قبل أن يكتمل fetchLookups عند فتح الصفحة).
+  const fetchDefaults = async (): Promise<{ bookId: number | null; currencyId: number | null }> => {
+    try {
+      const booksUrl = `/api/receipts/voucher-books?vch_type=${voucherType}${
+        user?.id ? `&user_id=${encodeURIComponent(user.id)}` : ""
+      }`
+      const [booksRes, currenciesRes] = await Promise.all([
+        fetch(booksUrl).catch(() => null),
+        fetch("/api/exchange-rates").catch(() => null),
+      ])
+
+      let bookId: number | null = null
+      if (booksRes?.ok) {
+        const data = await booksRes.json()
+        setVoucherBooks(Array.isArray(data?.books) ? data.books : [])
+        bookId = data?.default_book_id ?? null
+        setDefaultBookId(bookId)
+      }
+
+      let currencyId: number | null = null
+      if (currenciesRes?.ok) {
+        const data = await currenciesRes.json()
+        const rates = Array.isArray(data?.rates) ? data.rates : []
+        setCurrencies(rates)
+        currencyId = rates.reduce((min: number | null, c: CurrencyRate) => {
+          const id = Number(c.currency_id ?? c.id)
+          if (!Number.isFinite(id)) return min
+          return min === null || id < min ? id : min
+        }, null)
+      }
+
+      return { bookId, currencyId }
+    } catch (error) {
+      console.error("Failed to fetch voucher defaults", error)
+      return { bookId: defaultBookId, currencyId: firstCurrencyId() }
     }
   }
 
@@ -208,26 +265,126 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
   const firstCurrencyId = () => baseCurrencyId
 
   const openNewDialog = async () => {
-    const code = await generateCode(defaultBookId)
-    setForm({ ...buildInitialForm(voucherType), vch_code: code, vch_book_id: defaultBookId, currency_id: firstCurrencyId() })
-    setErrorMessages([])
-    setDialogOpen(true)
+    setIsLoading(true)
+    try {
+      const defaults = await fetchDefaults()
+      const code = await generateCode(defaults.bookId)
+      setForm({ ...buildInitialForm(voucherType), vch_code: code, vch_book_id: defaults.bookId, currency_id: defaults.currencyId })
+      setErrorMessages([])
+      setDialogOpen(true)
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const openRow = async (record: VoucherRecord, index: number) => {
-    const details = await fetchVoucherDetails(record.id)
-    setForm(normalizeVoucher(details || record, voucherType))
-    setCurrentIndex(index)
+    setIsLoading(true)
+    try {
+      const details = await fetchVoucherDetails(record.id)
+      setForm(normalizeVoucher(details || record, voucherType))
+      setCurrentIndex(index)
+      setErrorMessages([])
+      setDialogOpen(true)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // رقم سند غير مرتبط بأي سجل معروض حالياً (كُتب يدوياً في الحقل) — يُبحث عنه مباشرة بمعرّفه.
+  const handleCodeResolved = async (id: number) => {
+    setIsLoading(true)
+    try {
+      const details = await fetchVoucherDetails(id)
+      if (!details) return
+      const index = vouchers.findIndex((v) => v.id === id)
+      setForm(normalizeVoucher(details, voucherType))
+      setCurrentIndex(index >= 0 ? index : 0)
+      setErrorMessages([])
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // رقم لا يخص أي سند محفوظ -> تصفير كل الحقول والشبكات لسند جديد بهذا الرقم، مع إبقاء دفتر
+  // السندات والعملة الحاليين لأنهما جزء من السياق الذي أُنشئ منه الرقم نفسه.
+  const handleCodeNotFound = (code: string) => {
+    setForm((f) => ({
+      ...buildInitialForm(voucherType),
+      vch_code: code,
+      vch_book_id: f.vch_book_id,
+      currency_id: f.currency_id,
+    }))
     setErrorMessages([])
-    setDialogOpen(true)
+  }
+
+  // نسخ السند الحالي إلى سند جديد غير محفوظ: نفس البيانات (المستودعات/العميل/الأصناف) برقم وتاريخ
+  // جديد بدل مسحها، ليحفظها المستخدم كسند مستقل دون إعادة إدخالها — مطابق لِـ cloneVoucher في receipts.tsx.
+  const cloneVoucher = async () => {
+    if (!form.id) return
+    const code = await generateCode(form.vch_book_id)
+    const today = new Date().toISOString().slice(0, 10)
+    setForm((f) => ({
+      ...f,
+      id: 0,
+      vch_code: code,
+      vch_date: today,
+      manual_date: today,
+      status: 1,
+      is_printed: 0,
+    }))
+    setErrorMessages([])
+  }
+
+  // سند فعال (status=1) لم يُرحَّل بعد يُطبع كـ"نسخة للتدقيق" فقط دون أي تسجيل. سند مُرحَّل
+  // (status=2) يُسجَّل عليه is_printed=1 عند أول طباعة فتظهر "نسخة اصلية"، وأي طباعة لاحقة له
+  // تظهر "نسخة" فقط دون إعادة التسجيل — مطابق لِـ handlePrint في receipts.tsx.
+  const handlePrintVoucher = async () => {
+    if (!(form.id > 0) || form.status === 3) return
+
+    let isPrinted = form.is_printed || 0
+    const copyLabel = form.status !== 2 ? "نسخة للتدقيق" : isPrinted === 1 ? "نسخة" : "نسخة اصلية"
+
+    if (form.status === 2 && isPrinted !== 1) {
+      try {
+        const response = await fetch(`/api/stock-vouchers/${form.id}`, { method: "PATCH" })
+        if (response.ok) {
+          isPrinted = 1
+          setForm((f) => ({ ...f, is_printed: 1 }))
+        }
+      } catch (error) {
+        console.error("Failed to mark stock voucher as printed", error)
+      }
+    }
+
+    const rows = (form.items || []).filter((i) => i.product_id)
+    setPrintData({
+      title: labels.title,
+      copyLabel,
+      vch_code: form.vch_code,
+      vch_date: form.vch_date,
+      manual_voucher: form.manual_voucher,
+      note: form.note,
+      rows: rows.map((row) => ({
+        product_code: row.product_code,
+        product_name: row.product_name,
+        warehouse_name: row.warehouse_name,
+        unit: row.unit,
+        quantity: row.quantity,
+        unit_price: row.unit_price,
+        total_price: row.total_price,
+      })),
+    })
   }
 
   const validateVoucher = (data: VoucherRecord): string | null => {
     if (!data.vch_code.trim()) return "رقم السند مطلوب"
     if (!data.vch_book_id) return "دفتر السندات مطلوب"
     if (!data.currency_id) return "العملة مطلوبة"
-    const items = (data.items || []).filter((i) => i.product_id && Number(i.quantity || 0) > 0)
+    if (!(Number(data.rate) > 0)) return "سعر الصرف يجب أن يكون أكبر من صفر"
+    const items = (data.items || []).filter((i) => i.product_id)
     if (items.length === 0) return "يجب إدخال صنف واحد على الأقل"
+    if (items.some((i) => !i.warehouse_id)) return "يجب اختيار المستودع لكل صنف"
+    if (items.some((i) => !(Number(i.quantity || 0) > 0))) return "يجب إدخال الكمية لكل صنف"
     if (voucherType === 14 && (!data.from_store_id || !data.to_store_id)) return "يجب اختيار المستودع المرسل والمستودع المستلم"
     if (voucherType === 15 && items.some((i) => !i.expense_account_id || !i.purchase_account_id)) {
       return "يجب اختيار حساب المصروف وحساب المشتريات لكل صنف"
@@ -235,8 +392,12 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
     return null
   }
 
-  const saveVoucher = async (status = form.status || 1) => {
-    const dataToSave = { ...form, status }
+  const saveVoucher = async (action: PostVoucherAction = "save") => {
+    // حفظ عادي / حفظ وطباعة: تبقى الحالة كما هي (لا ترحيل). حفظ وترحيل / ترحيل وطباعة: تصبح
+    // status=2 (مرحل) ويُقفل السند بعدها ويُطبَّق أثر المخزون — نفس منطق receipts.tsx.
+    const status = action === "save" || action === "save_print" ? form.status || 1 : 2
+    const isPrinted = action === "post_print" ? 1 : form.is_printed || 0
+    const dataToSave: VoucherRecord = { ...form, status, is_printed: isPrinted }
     const validationError = validateVoucher(dataToSave)
     if (validationError) {
       setErrorMessages([validationError])
@@ -257,9 +418,35 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
         return
       }
       const saved = await response.json()
+
+      if (action === "post_print" || action === "save_print") {
+        const rows = (dataToSave.items || []).filter((i) => i.product_id)
+        setPrintData({
+          title: labels.title,
+          copyLabel: action === "post_print" ? "نسخة اصلية" : "نسخة للتدقيق",
+          vch_code: saved.vch_code,
+          vch_date: saved.vch_date,
+          manual_voucher: saved.manual_voucher,
+          note: saved.note,
+          rows: rows.map((row) => ({
+            product_code: row.product_code,
+            product_name: row.product_name,
+            warehouse_name: row.warehouse_name,
+            unit: row.unit,
+            quantity: row.quantity,
+            unit_price: row.unit_price,
+            total_price: row.total_price,
+          })),
+        })
+      }
+
       await fetchVouchers()
-      const code = await generateCode(form.vch_book_id ?? defaultBookId)
-      setForm({ ...buildInitialForm(voucherType), vch_code: code, vch_book_id: form.vch_book_id ?? defaultBookId, currency_id: firstCurrencyId() })
+      const defaults = await fetchDefaults()
+      // يبقى دفتر السندات كما هو (نفس الدفتر المستخدم للسند الذي حُفظ للتو) بدل الرجوع للدفتر
+      // الافتراضي — أكثر ملاءمة عند إدخال عدة سندات متتالية على نفس الدفتر.
+      const bookId = form.vch_book_id ?? defaults.bookId
+      const code = await generateCode(bookId)
+      setForm({ ...buildInitialForm(voucherType), vch_code: code, vch_book_id: bookId, currency_id: defaults.currencyId })
       setDialogOpen(true)
     } catch (error) {
       console.error(error)
@@ -270,23 +457,29 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
   }
 
   const advanceAfterDelete = async () => {
-    await fetchVouchers()
-    const nextList = vouchers.filter((v) => v.id !== form.id)
-    if (nextList.length > 0) {
-      const targetIndex = Math.min(Math.max(0, currentIndex), nextList.length - 1)
-      const next = nextList[targetIndex]
-      if (next) {
-        const details = await fetchVoucherDetails(next.id)
-        setForm(normalizeVoucher(details || next, voucherType))
-        setCurrentIndex(targetIndex)
-        setDialogOpen(true)
-        return
+    setIsLoading(true)
+    try {
+      await fetchVouchers()
+      const nextList = vouchers.filter((v) => v.id !== form.id)
+      if (nextList.length > 0) {
+        const targetIndex = Math.min(Math.max(0, currentIndex), nextList.length - 1)
+        const next = nextList[targetIndex]
+        if (next) {
+          const details = await fetchVoucherDetails(next.id)
+          setForm(normalizeVoucher(details || next, voucherType))
+          setCurrentIndex(targetIndex)
+          setDialogOpen(true)
+          return
+        }
       }
+      const defaults = await fetchDefaults()
+      const code = await generateCode(defaults.bookId)
+      setForm({ ...buildInitialForm(voucherType), vch_code: code, vch_book_id: defaults.bookId, currency_id: defaults.currencyId })
+      setCurrentIndex(0)
+      setDialogOpen(true)
+    } finally {
+      setIsLoading(false)
     }
-    const code = await generateCode(defaultBookId)
-    setForm({ ...buildInitialForm(voucherType), vch_code: code, vch_book_id: defaultBookId, currency_id: firstCurrencyId() })
-    setCurrentIndex(0)
-    setDialogOpen(true)
   }
 
   const handleDelete = async () => {
@@ -463,17 +656,24 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
         baseCurrencyId={baseCurrencyId}
         warehouses={warehouses}
         defaultItemWarehouseId={defaultItemWarehouseId}
-        isSaving={isSaving}
+        priceCategories={priceCategories}
+        isSaving={isSaving || isLoading}
         currentIndex={currentIndex}
         totalRecords={filteredVouchers.length}
         isFirstRecord={currentIndex <= 0}
         isLastRecord={currentIndex >= filteredVouchers.length - 1}
         onNew={openNewDialog}
-        onSave={() => saveVoucher(form.status || 1)}
+        onSave={saveVoucher}
+        onValidateSave={() => validateVoucher(form)}
         onDelete={handleDelete}
         onNavigate={handleNavigate}
+        onPrint={handlePrintVoucher}
+        onClone={cloneVoucher}
+        onCodeResolved={handleCodeResolved}
+        onCodeNotFound={handleCodeNotFound}
         errorMessages={errorMessages}
       />
+      <StockVoucherPrintLayout data={printData} />
     </div>
   )
 }
