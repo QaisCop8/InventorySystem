@@ -76,6 +76,7 @@ async function ensureProductTypeColumns() {
     await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS production_account_id INTEGER`
     await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS municipality_service_account_id INTEGER`
     await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS lsti3mal_account_id INTEGER`
+    await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS measurment_id INTEGER DEFAULT 1`
   } catch (error) {
     console.error("[v0] Failed to ensure product type columns:", error)
   }
@@ -169,6 +170,7 @@ function normalizeProductPayload(productData: any) {
     factory_number: safeText(productData?.factory_number, ""),
     original_number: safeText(productData?.original_number, ""),
     measurment_unit: safeNumber(productData?.measurment_unit, 1),
+    measurment_id: safeNumber(productData?.measurment_id, 1),
     last_purchase_price: safeNumber(productData?.last_purchase_price, 0),
     currency_id: safeNumber(productData?.currency_id, 0),
     selling_account_id: safeNumber(productData?.selling_account_id, 0),
@@ -436,6 +438,7 @@ export async function POST(request: NextRequest) {
     await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS production_account_id INTEGER`)
     await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS municipality_service_account_id INTEGER`)
     await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS lsti3mal_account_id INTEGER`)
+    await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS measurment_id INTEGER DEFAULT 1`)
     await ensureProductCostCentersTable(client)
 
     const productData = normalizeProductPayload(await request.json());
@@ -527,6 +530,52 @@ export async function POST(request: NextRequest) {
           factory_number=$10::text,
           original_number=$11::text,
           measurment_unit=$12::int,
+          measurment_id=$13::int,
+          last_purchase_price=$14::numeric,
+          currency_id=$15::int,
+          selling_account_id=$16::int,
+          purchase_account_id=$17::int,
+          selling_returns_account_id=$18::int,
+          purchase_returns_account_id=$19::int,
+          stock_end_account_id=$20::int,
+          stock_start_account_id=$21::int,
+          production_account_id=$22::int,
+          municipality_service_account_id=$23::int,
+          lsti3mal_account_id=$24::int,
+          tax_rate=$25::numeric,
+          discount_rate=$26::numeric,
+          location=$27::text,
+          has_expiry_date=$28::boolean,
+          has_batch_number=$29::boolean,
+          serial_tracking=$30::boolean,
+          status=$31::int,
+          type=$32::int,
+          service_type=$33::int,
+          product_type=$34::int,
+          tax_classification_id=$35::int,
+          length=$36::numeric,
+          width=$37::numeric,
+          height=$38::numeric,
+          density=$39::numeric,
+          color=$40::text,
+          size=$41::text,
+          notes=$42::text,
+          manufacturer_company=$43::text,
+          updated_at=NOW()
+         WHERE id=$44::int`
+        : `UPDATE products SET
+          product_code=$1::text,
+          product_name=$2::text,
+          product_name_en=$3::text,
+          description=$4::text,
+          category_id=$5::int,
+          main_stock_id=$6::int,
+          brand=$7::text,
+          model=$8::text,
+          factory_number=$9::text,
+          original_number=$10::text,
+          measurment_unit=$11::int,
+          measurment_id=$12::int,
           last_purchase_price=$13::numeric,
           currency_id=$14::int,
           selling_account_id=$15::int,
@@ -559,50 +608,6 @@ export async function POST(request: NextRequest) {
           manufacturer_company=$42::text,
           updated_at=NOW()
          WHERE id=$43::int`
-        : `UPDATE products SET
-          product_code=$1::text,
-          product_name=$2::text,
-          product_name_en=$3::text,
-          description=$4::text,
-          category_id=$5::int,
-          main_stock_id=$6::int,
-          brand=$7::text,
-          model=$8::text,
-          factory_number=$9::text,
-          original_number=$10::text,
-          measurment_unit=$11::int,
-          last_purchase_price=$12::numeric,
-          currency_id=$13::int,
-          selling_account_id=$14::int,
-          purchase_account_id=$15::int,
-          selling_returns_account_id=$16::int,
-          purchase_returns_account_id=$17::int,
-          stock_end_account_id=$18::int,
-          stock_start_account_id=$19::int,
-          production_account_id=$20::int,
-          municipality_service_account_id=$21::int,
-          lsti3mal_account_id=$22::int,
-          tax_rate=$23::numeric,
-          discount_rate=$24::numeric,
-          location=$25::text,
-          has_expiry_date=$26::boolean,
-          has_batch_number=$27::boolean,
-          serial_tracking=$28::boolean,
-          status=$29::int,
-          type=$30::int,
-          service_type=$31::int,
-          product_type=$32::int,
-          tax_classification_id=$33::int,
-          length=$34::numeric,
-          width=$35::numeric,
-          height=$36::numeric,
-          density=$37::numeric,
-          color=$38::text,
-          size=$39::text,
-          notes=$40::text,
-          manufacturer_company=$41::text,
-          updated_at=NOW()
-         WHERE id=$42::int`
 
       const updateValues = canSaveDefaultStore
         ? [
@@ -618,6 +623,7 @@ export async function POST(request: NextRequest) {
             productData.factory_number,
             productData.original_number,
             productData.measurment_unit,
+            productData.measurment_id,
             productData.last_purchase_price,
             productData.currency_id || null,
             productData.selling_account_id || null,
@@ -662,6 +668,7 @@ export async function POST(request: NextRequest) {
             productData.factory_number,
             productData.original_number,
             productData.measurment_unit,
+            productData.measurment_id,
             productData.last_purchase_price,
             productData.currency_id || null,
             productData.selling_account_id || null,
@@ -723,6 +730,7 @@ export async function POST(request: NextRequest) {
           'factory_number',
           'original_number',
           'measurment_unit',
+          'measurment_id',
           'last_purchase_price',
           'currency_id',
           'selling_account_id',
@@ -765,6 +773,7 @@ export async function POST(request: NextRequest) {
           'factory_number',
           'original_number',
           'measurment_unit',
+          'measurment_id',
           'last_purchase_price',
           'currency_id',
           'selling_account_id',
@@ -810,6 +819,7 @@ export async function POST(request: NextRequest) {
           productData.factory_number,
           productData.original_number,
           productData.measurment_unit,
+          productData.measurment_id,
           productData.last_purchase_price,
           productData.currency_id,
           productData.selling_account_id || null,
@@ -852,6 +862,7 @@ export async function POST(request: NextRequest) {
           productData.factory_number,
           productData.original_number,
           productData.measurment_unit,
+          productData.measurment_id,
           productData.last_purchase_price,
           productData.currency_id,
           productData.selling_account_id || null,

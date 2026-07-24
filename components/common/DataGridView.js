@@ -184,7 +184,10 @@ createButtonsColumns = () => {
         buttonsColumns.push({
           colName: col.name,
           template: CellMaker.makeButton({
-            attributes: { title: col.title, style: this.getButtonInlineStyle(col.className) },
+            // col.title || '' وليس col.title مباشرة — setAttribute('title', undefined) في DOM
+            // يضبط الخاصية فعلياً على النص الحرفي "undefined" بدل تركها فارغة، فتظهر "undefined"
+            // كتلميح (tooltip) لأي عمود زر لم يُحدَّد له title صراحةً.
+            attributes: { title: col.title || '', style: this.getButtonInlineStyle(col.className) },
             cssClass: this.setButtonClass(col.className, col.iconType),
             click: col.onClick,
           }),
@@ -228,7 +231,7 @@ createButtonsColumns = () => {
     const schemePtr = createScheme(this.props.scheme);
     let columns = schemePtr.columns.filter((col) => !col.visible || col.visible === true);
     if (this.state.columns) {
-      columns = this.state.columns;
+      columns = this.mergeSavedColumnWidths(columns, this.state.columns);
     }
     /*const serialColumn = {
       name: '__serial',
@@ -517,6 +520,25 @@ createButtonTemplate = (col) => (ctx) => {
 
 
 
+  // يدمج فقط عرض العمود (width) المحفوظ سابقاً في localStorage فوق أعمدة الـscheme الحالية — لا
+  // يستبدلها بالكامل كما كان يحدث سابقاً (columns = this.state.columns مباشرة). كانت هذه الاستبدالة
+  // الكاملة تُسقِط visible/isReadOnly/dataType/onClick... المحسوبة ديناميكياً بالكود الحالي وتُرجِع
+  // بدلاً منها القيم القديمة المحفوظة وقت آخر حفظ لنفس scheme.name — وبما أن عدة شاشات مختلفة (سند
+  // ادخال/اخراج بضاعة، استعمال، ارسالية داخلية) تشترك نفس scheme.name ("StockVoucherItemsScheme")،
+  // كان أي تعديل على visible لعمود (كعمود "المستودع" بالسطر) لا يظهر أثره إطلاقاً لأي مستخدم لديه
+  // بيانات محفوظة سابقاً من قبل تعديل الكود — يبقى العمود أو قيمته مخفياً/فارغاً رغم صحة الكود.
+  mergeSavedColumnWidths = (freshColumns, savedColumns) => {
+    if (!Array.isArray(savedColumns) || savedColumns.length === 0) return freshColumns;
+    const widthByKey = {};
+    savedColumns.forEach((sc) => {
+      const key = sc && (sc.binding || sc.name);
+      if (key && typeof sc.width !== 'undefined') widthByKey[key] = sc.width;
+    });
+    return freshColumns.map((col) =>
+      Object.prototype.hasOwnProperty.call(widthByKey, col.name) ? { ...col, width: widthByKey[col.name] } : col
+    );
+  };
+
   saveGridState(flexGrid, scheme) {
     if (!flexGrid) return;
     let state = {
@@ -611,6 +633,9 @@ createButtonTemplate = (col) => (ctx) => {
         break;
       case 'money':
         classes.push('pi', 'pi-money-bill');
+        break;
+      case 'barcode':
+        classes.push('pi', 'pi-qrcode');
         break;
       default:
         break;
@@ -1398,7 +1423,7 @@ createButtonTemplate = (col) => (ctx) => {
     let format = [];
     let columns = schemePtr.columns;
     if (this.state.columns) {
-      columns = this.state.columns;
+      columns = this.mergeSavedColumnWidths(columns, this.state.columns);
     }
     if (!columns || columns.length <= 0) {
       return;
@@ -1512,7 +1537,7 @@ createButtonTemplate = (col) => (ctx) => {
       const schemePtr = schemeHelper.create(this.props.scheme);
       let columns = schemePtr.columns;
       if (this.state.columns) {
-        columns = this.state.columns;
+        columns = this.mergeSavedColumnWidths(columns, this.state.columns);
       }
       if (!columns || columns.length <= 0) {
         return;

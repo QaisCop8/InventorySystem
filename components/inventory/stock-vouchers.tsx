@@ -7,7 +7,16 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Edit, Plus, Search } from "lucide-react"
 import { useAuth } from "@/components/auth/auth-context"
-import UnifiedStockVoucher, { type VoucherRecord, type VoucherItemRow, type StockVoucherType } from "./unified-stock-voucher"
+import UnifiedStockVoucher, {
+  type VoucherRecord,
+  type VoucherItemRow,
+  type StockVoucherType,
+  STOCK_IN_VCH_TYPE,
+  STOCK_OUT_VCH_TYPE,
+  USE_VOUCHER_VCH_TYPE,
+  toGridDateString,
+  validateItemMeasurement,
+} from "./unified-stock-voucher"
 import type { PostVoucherAction } from "@/components/common/post-voucher-dialog"
 import StockVoucherPrintLayout, { type StockVoucherPrintData } from "@/components/common/stock-voucher-print-layout"
 
@@ -42,6 +51,7 @@ const emptyItemRow: VoucherItemRow = {
   product_id: null,
   product_code: "",
   product_name: "",
+  barcode: "",
   warehouse_id: null,
   warehouse_name: "",
   unit: "",
@@ -50,6 +60,10 @@ const emptyItemRow: VoucherItemRow = {
   total_price: null,
   batch_number: "",
   expiry_date: "",
+  length: null,
+  width: null,
+  height: null,
+  count: null,
   note: "",
   expense_account_id: null,
   purchase_account_id: null,
@@ -82,7 +96,12 @@ const normalizeVoucher = (record: Partial<VoucherRecord>, voucherType: StockVouc
   ...buildInitialForm(voucherType),
   ...record,
   manual_date: record.manual_date || record.vch_date || buildInitialForm(voucherType).manual_date,
-  items: record.items?.length ? (record.items as VoucherItemRow[]) : [{ ...emptyItemRow }],
+  // toGridDateString هنا لنفس سبب استخدامها داخل unified-stock-voucher.tsx: تاريخ الصلاحية القادم
+  // من الخادم "YYYY-MM-DD" (بلا وقت) يُعرَض بشبكة Wijmo بتاريخ أقل بيوم في المناطق الزمنية المتقدّمة
+  // على UTC ما لم يُضَف وقت محلي صريح قبل ربطه بالعمود.
+  items: record.items?.length
+    ? (record.items as VoucherItemRow[]).map((item) => ({ ...item, expiry_date: toGridDateString(item.expiry_date) }))
+    : [{ ...emptyItemRow }],
 })
 
 export default function StockVouchers({ voucherType }: StockVouchersProps) {
@@ -96,6 +115,7 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
   const [warehouses, setWarehouses] = useState<WarehouseOption[]>([])
   const [defaultItemWarehouseId, setDefaultItemWarehouseId] = useState<number | null>(null)
   const [priceCategories, setPriceCategories] = useState<LookupOption[]>([])
+  const [defaultCostPriceCategoryId, setDefaultCostPriceCategoryId] = useState<number | null>(null)
 
   const [dialogOpen, setDialogOpen] = useState(false)
   const [form, setForm] = useState<VoucherRecord>(buildInitialForm(voucherType))
@@ -164,12 +184,13 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
         user?.id ? `&user_id=${encodeURIComponent(user.id)}` : ""
       }`
       const warehouseDefaultsUrl = user?.id ? `/api/settings/user-warehouse-defaults?user_id=${encodeURIComponent(user.id)}` : null
-      const [currenciesRes, booksRes, warehousesRes, warehouseDefaultsRes, priceCategoriesRes] = await Promise.all([
+      const [currenciesRes, booksRes, warehousesRes, warehouseDefaultsRes, priceCategoriesRes, systemSettingsRes] = await Promise.all([
         fetch("/api/exchange-rates").catch(() => null),
         fetch(booksUrl).catch(() => null),
         fetch("/api/warehouses").catch(() => null),
         warehouseDefaultsUrl ? fetch(warehouseDefaultsUrl).catch(() => null) : Promise.resolve(null),
         fetch("/api/pricecategory").catch(() => null),
+        fetch("/api/settings/system").catch(() => null),
       ])
       if (currenciesRes?.ok) {
         const data = await currenciesRes.json()
@@ -193,6 +214,12 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
       if (priceCategoriesRes?.ok) {
         const data = await priceCategoriesRes.json()
         setPriceCategories(Array.isArray(data) ? data.map((c: any) => ({ id: c.id, name: c.name })) : [])
+      }
+      if (systemSettingsRes?.ok) {
+        const data = await systemSettingsRes.json()
+        const payload = data?.settings ?? data
+        const raw = payload?.stock_voucher_item_cost_method
+        setDefaultCostPriceCategoryId(raw !== undefined && raw !== null && raw !== "" ? Number(raw) : null)
       }
     } catch (error) {
       console.error("Failed to fetch lookups", error)
@@ -383,9 +410,39 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
     if (!(Number(data.rate) > 0)) return "سعر الصرف يجب أن يكون أكبر من صفر"
     const items = (data.items || []).filter((i) => i.product_id)
     if (items.length === 0) return "يجب إدخال صنف واحد على الأقل"
+    // فحص مستودع رأس السند الآن للإرسالية الداخلية فقط (لها فحص from/to منفصل أدناه) — بقية الأنواع
+    // الثلاثة (ادخال/اخراج بضاعة، استعمال) لها جميعاً عمود "المستودع" الخاص بها بالسطر (أصنافها قد
+    // تدخل/تُصرف من مستودعات مختلفة)، فيكفيها الفحص العام "يجب اختيار المستودع لكل صنف" أدناه.
+    if (voucherType !== 14 && voucherType !== USE_VOUCHER_VCH_TYPE && voucherType !== STOCK_IN_VCH_TYPE && voucherType !== STOCK_OUT_VCH_TYPE && !data.to_store_id) {
+      return "يجب اختيار المستودع"
+    }
     if (items.some((i) => !i.warehouse_id)) return "يجب اختيار المستودع لكل صنف"
     if (items.some((i) => !(Number(i.quantity || 0) > 0))) return "يجب إدخال الكمية لكل صنف"
+    // أبعاد/عدد الصنف (نوع قياس غير عادي) — يُفحَص لكل أنواع السندات (لا سند ادخال بضاعة فقط)، إذ
+    // الأبعاد خاصية بمستوى السطر مستقلة عن اتجاه الحركة. الخادم يعيد نفس الفحص مستقلاً (_lib.ts).
+    for (const item of items) {
+      const measurementError = validateItemMeasurement(item)
+      if (measurementError) return measurementError
+    }
+    if (voucherType === STOCK_IN_VCH_TYPE) {
+      const missingExpiry = items.find((i) => i.has_expiry && !String(i.expiry_date || "").trim())
+      if (missingExpiry) return `يجب إدخال تاريخ الصلاحية للصنف: ${missingExpiry.product_name || missingExpiry.product_code}`
+      const missingBatch = items.find((i) => i.has_batch && !String(i.batch_number || "").trim())
+      if (missingBatch) return `يجب إدخال الرقم التشغيلي للصنف: ${missingBatch.product_name || missingBatch.product_code}`
+      // تاريخ الصلاحية الافتراضي عند اختيار صنف له تتبع صلاحية هو 1990-01-01 (قيمة اصطلاحية يُعدّلها
+      // المستخدم لاحقاً عبر التقويم) — أي تاريخ أقدم من 2020-01-01 عملياً يعني نسيان تعديل هذه القيمة
+      // الافتراضية قبل الحفظ، فيُرفَض الحفظ بدل قبول تاريخ غير منطقي لبضاعة داخلة حديثاً.
+      const implausibleExpiry = items.find(
+        (i) => i.has_expiry && i.expiry_date && new Date(i.expiry_date).getTime() < new Date("2020-01-01").getTime(),
+      )
+      if (implausibleExpiry) {
+        return `يرجى التأكد من تاريخ الصلاحية للصنف - ${implausibleExpiry.product_name || implausibleExpiry.product_code}`
+      }
+    }
     if (voucherType === 14 && (!data.from_store_id || !data.to_store_id)) return "يجب اختيار المستودع المرسل والمستودع المستلم"
+    if (voucherType === 14 && data.from_store_id && data.to_store_id && Number(data.from_store_id) === Number(data.to_store_id)) {
+      return "لا يمكن عمل ارسالية لنفس المستودع"
+    }
     if (voucherType === 15 && items.some((i) => !i.expense_account_id || !i.purchase_account_id)) {
       return "يجب اختيار حساب المصروف وحساب المشتريات لكل صنف"
     }
@@ -397,7 +454,25 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
     // status=2 (مرحل) ويُقفل السند بعدها ويُطبَّق أثر المخزون — نفس منطق receipts.tsx.
     const status = action === "save" || action === "save_print" ? form.status || 1 : 2
     const isPrinted = action === "post_print" ? 1 : form.is_printed || 0
-    const dataToSave: VoucherRecord = { ...form, status, is_printed: isPrinted }
+    let dataToSave: VoucherRecord = { ...form, status, is_printed: isPrinted }
+    // اشتقاق مستودع كل صنف من قيمة رأس السند الآن للإرسالية الداخلية فقط (مستودع واحد لكامل السند من
+    // رأسه) — بقية الأنواع الثلاثة (ادخال/اخراج بضاعة، استعمال) لها عمود "المستودع" الخاص بها بالسطر
+    // (أصنافها قد تدخل/تُصرف من مستودعات مختلفة)، فتُترَك قيم warehouse_id الخاصة بكل سطر كما هي.
+    // "من مستودع" (from_store_id) لا "الى مستودع" — voucher_items_tbl.warehouse_id يمثّل مستودع
+    // الاستهلاك/المصدر في كل حسابات "المتاح" (resolveConsumptionWarehouseId هنا، وvalidateAvailableQuantity
+    // من جهة الخادم)؛ استخدام to_store_id هنا سابقاً كان يُسجِّل استهلاك الإرسالية الداخلية على
+    // المستودع الوجهة الخاطئ، فيُفسِد حساب "المتاح" لكلا المستودعين معاً.
+    if (voucherType !== USE_VOUCHER_VCH_TYPE && voucherType !== STOCK_IN_VCH_TYPE && voucherType !== STOCK_OUT_VCH_TYPE && dataToSave.from_store_id) {
+      const fromStore = warehouses.find((w) => w.id === dataToSave.from_store_id)
+      dataToSave = {
+        ...dataToSave,
+        items: (dataToSave.items || []).map((item) =>
+          item.product_id
+            ? { ...item, warehouse_id: dataToSave.from_store_id, warehouse_name: fromStore?.warehouse_name || item.warehouse_name }
+            : item,
+        ),
+      }
+    }
     const validationError = validateVoucher(dataToSave)
     if (validationError) {
       setErrorMessages([validationError])
@@ -485,6 +560,7 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
   const handleDelete = async () => {
     if (!form.id) return
     setIsSaving(true)
+    setErrorMessages([])
     try {
       if (form.status === 2) {
         const response = await fetch("/api/stock-vouchers", {
@@ -492,18 +568,27 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ ...form, status: 3 }),
         })
-        if (!response.ok) throw new Error("فشل في إلغاء السند")
+        if (!response.ok) {
+          const error = await response.json().catch(() => null)
+          setErrorMessages([error?.error || "فشل في إلغاء السند"])
+          return
+        }
         const saved = await response.json()
         await fetchVouchers()
         setForm(normalizeVoucher(saved, voucherType))
         setDialogOpen(true)
       } else {
         const response = await fetch(`/api/stock-vouchers/${form.id}`, { method: "DELETE" })
-        if (!response.ok) throw new Error("فشل في حذف السند")
+        if (!response.ok) {
+          const error = await response.json().catch(() => null)
+          setErrorMessages([error?.error || "فشل في حذف السند"])
+          return
+        }
         await advanceAfterDelete()
       }
     } catch (error) {
       console.error(error)
+      setErrorMessages(["فشل في حذف/إلغاء السند"])
     } finally {
       setIsSaving(false)
     }
@@ -657,6 +742,7 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
         warehouses={warehouses}
         defaultItemWarehouseId={defaultItemWarehouseId}
         priceCategories={priceCategories}
+        defaultCostPriceCategoryId={defaultCostPriceCategoryId}
         isSaving={isSaving || isLoading}
         currentIndex={currentIndex}
         totalRecords={filteredVouchers.length}

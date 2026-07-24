@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Dropdown as PrimeDropdown } from "primereact/dropdown"
+import PrimeDropdown from "@/components/common/FocusDropdown"
 import { CellRange } from "@grapecity/wijmo.grid"
 import DataGridView from "../common/DataGridView"
 

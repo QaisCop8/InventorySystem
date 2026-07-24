@@ -34,7 +34,7 @@ import {
 } from "lucide-react"
 import { useDocumentSettings } from "@/hooks/use-document-settings"
 import { LotSelector } from "@/components/inventory/lot-selector"
-import { Dropdown as PrimeDropdown } from "primereact/dropdown"
+import PrimeDropdown from "@/components/common/FocusDropdown"
 import ProductSearchPopup from "../products/ProductSearchPopup"
 import * as wjGrid from "@grapecity/wijmo.grid";
 import DataGridView from "../common/DataGridView"

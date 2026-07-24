@@ -20,7 +20,7 @@ import AccountCostCenters, { type JournalCostCenterSelection } from "@/component
 import Util from "@/components/common/Util"
 import { useToast } from "@/hooks/use-toast"
 import { CellRange, KeyAction } from "@grapecity/wijmo.grid"
-import { Dropdown as PrimeDropdown } from "primereact/dropdown"
+import PrimeDropdown from "@/components/common/FocusDropdown"
 
 const voucherTabTriggerClass =
   "data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-teal-600 data-[state=active]:text-white data-[state=active]:shadow-md"

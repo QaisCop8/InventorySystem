@@ -25,7 +25,7 @@ import {
 import ConfirmDialogYesNo from "@/components/ui/ConfirmDialogYesNo"
 import { UniversalToolbar } from "@/components/ui/universal-toolbar"
 import { Plus, AlertCircle, Search, X } from "lucide-react"
-import { Dropdown as PrimeDropdown } from "primereact/dropdown"
+import PrimeDropdown from "@/components/common/FocusDropdown"
 import DataGridView from "../common/DataGridView"
 import Messages from "../common/Messages"
 import { isSameDay } from "date-fns"

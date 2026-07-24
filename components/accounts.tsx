@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Textarea } from "@/components/ui/textarea"
-import { Dropdown as PrimeDropdown } from "primereact/dropdown"
+import PrimeDropdown from "@/components/common/FocusDropdown"
 import MultiSelect from "@/components/common/MultiSelect"
 import * as XLSX from "xlsx"
 

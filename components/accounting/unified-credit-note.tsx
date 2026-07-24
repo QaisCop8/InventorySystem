@@ -15,7 +15,7 @@ import type { JournalCostCenterSelection } from "@/components/customer/account-c
 import DateTimeControl from "@/components/common/date-time-control"
 import PostVoucherDialog, { type PostVoucherAction } from "@/components/common/post-voucher-dialog"
 import { useToast } from "@/hooks/use-toast"
-import { Dropdown as PrimeDropdown } from "primereact/dropdown"
+import PrimeDropdown from "@/components/common/FocusDropdown"
 
 export interface VoucherRecord {
   id: number

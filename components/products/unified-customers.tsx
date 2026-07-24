@@ -18,7 +18,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Plus, AlertCircle } from "lucide-react"
 import { RefObject, useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { Dropdown as PrimeDropdown } from "primereact/dropdown"
+import PrimeDropdown from "@/components/common/FocusDropdown"
 import ProgressSpinner from "../ProgressSpinner/ProgressSpinner"
 interface Classification {
   id: number

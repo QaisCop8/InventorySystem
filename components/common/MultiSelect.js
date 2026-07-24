@@ -105,8 +105,11 @@ export default class MultiSelect extends React.Component {
               virtualScroll={true}
               virtualScrollerOptions={{ itemSize: 35 }}
               title={this.props.tooltip}
-              className={`${styles.multiselect} invoice-currency-dropdown w-full ${this.props.className || this.props.innerClass || ''}`.trim()}
               {...this.props}
+              // className مُعاد بناؤه هنا (بعد {...this.props}) عمداً — كتابته قبل الانتشار كانت
+              // تُمحى بالكامل متى ما مرَّر المستدعي className خاصاً به (كـ "w-full")، فيفقد الحقل
+              // صنف invoice-currency-dropdown ومعه كل التنسيق الحديث المُعرَّف له في globals.css.
+              className={`${styles.multiselect} invoice-currency-dropdown w-full ${this.props.className || this.props.innerClass || ''}`.trim()}
               appendTo={this.props.appendTo ?? this.state.appendToContainer}
               // showSelectAll={this.props.options&&this.props.options.length>SELECTALLMAXLIMIT && !this.props.showSelectAllAlways ?false:true}
               tooltipOptions={{ position: 'bottom', style: { direction: 'rtl' } }}
@@ -156,8 +159,9 @@ export default class MultiSelect extends React.Component {
             virtualScroll={true}
             virtualScrollerOptions={{ itemSize: 35 }}
             title={this.props.tooltip}
-            className={`${styles.multiselect} invoice-currency-dropdown w-full ${this.props.className || this.props.innerClass || ''}`.trim()}
             {...this.props}
+            // انظر التعليق في فرع withgroup أعلاه — نفس سبب تأجيل className لِما بعد الانتشار
+            className={`${styles.multiselect} invoice-currency-dropdown w-full ${this.props.className || this.props.innerClass || ''}`.trim()}
             appendTo={this.props.appendTo ?? this.state.appendToContainer}
             filter={this.props.showFilter ?? this.props.filter}
             showSelectAll={this.props.showCheck ?? this.props.showSelectAll}

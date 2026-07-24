@@ -14,7 +14,7 @@ import Messages from "@/components/common/Messages"
 import ProgressSpinner from "@/components/ProgressSpinner/ProgressSpinner"
 import AutoCompleteAccount from "@/components/customer/auto-complete-account"
 import BankAccountsSearch from "@/components/admin/bank-accounts-search"
-import { Dropdown as PrimeDropdown } from "primereact/dropdown"
+import PrimeDropdown from "@/components/common/FocusDropdown"
 
 export interface BankAccountRecord {
   id: number

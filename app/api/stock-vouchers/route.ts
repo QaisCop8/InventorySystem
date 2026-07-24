@@ -9,8 +9,14 @@ import {
   buildUseVoucherJournalRows,
   validateVoucherCodeFormat,
   regenerateVoucherCode,
+  validateItemBatchExpiry,
+  validateItemMeasurement,
+  validateAvailableQuantity,
+  validateVoucherDeletion,
+  validateStockInEditAvailability,
   USE_VOUCHER_VCH_TYPE,
   INTERNAL_DELIVERY_VCH_TYPE,
+  STOCK_IN_VCH_TYPE,
   STOCK_VOUCHER_TYPES,
 } from "./_lib"
 
@@ -86,11 +92,27 @@ export async function POST(request: NextRequest) {
     if (items.some((i: any) => !(Number(i.quantity || 0) > 0))) {
       return NextResponse.json({ error: "يجب إدخال الكمية لكل صنف" }, { status: 400 })
     }
+    const measurementError = await validateItemMeasurement(items)
+    if (measurementError) {
+      return NextResponse.json({ error: measurementError }, { status: 400 })
+    }
+    if (vchType === STOCK_IN_VCH_TYPE) {
+      const batchExpiryError = await validateItemBatchExpiry(items)
+      if (batchExpiryError) {
+        return NextResponse.json({ error: batchExpiryError }, { status: 400 })
+      }
+    }
     if (vchType === INTERNAL_DELIVERY_VCH_TYPE && (!data.from_store_id || !data.to_store_id)) {
       return NextResponse.json({ error: "يجب اختيار المستودع المرسل والمستودع المستلم" }, { status: 400 })
     }
     if (vchType === INTERNAL_DELIVERY_VCH_TYPE && Number(data.from_store_id) === Number(data.to_store_id)) {
-      return NextResponse.json({ error: "لا يمكن أن يكون المستودع المرسل والمستلم نفس المستودع" }, { status: 400 })
+      return NextResponse.json({ error: "لا يمكن عمل ارسالية لنفس المستودع" }, { status: 400 })
+    }
+    // فحص أخير من جهة الخادم (بمعزل تام عن أي فحص سابق بالواجهة) لتوفّر الكمية المطلوبة إخراجها —
+    // يلتقط تزامن مستخدمَين يُدخلان سندَين على نفس الدفعة/تاريخ الصلاحية بنفس اللحظة تقريباً.
+    const availabilityError = await validateAvailableQuantity(items, vchType, null)
+    if (availabilityError) {
+      return NextResponse.json({ error: availabilityError }, { status: 400 })
     }
 
     const amount = items.reduce((sum: number, i: any) => sum + Number(i.total_price || 0), 0)
@@ -195,11 +217,35 @@ export async function PUT(request: NextRequest) {
       if (items.some((i: any) => !(Number(i.quantity || 0) > 0))) {
         return NextResponse.json({ error: "يجب إدخال الكمية لكل صنف" }, { status: 400 })
       }
+      const measurementError = await validateItemMeasurement(items)
+      if (measurementError) {
+        return NextResponse.json({ error: measurementError }, { status: 400 })
+      }
+      if (vchType === STOCK_IN_VCH_TYPE) {
+        const batchExpiryError = await validateItemBatchExpiry(items)
+        if (batchExpiryError) {
+          return NextResponse.json({ error: batchExpiryError }, { status: 400 })
+        }
+        // فحص خاص بتعديل سند ادخال بضاعة موجود فقط (لا الإنشاء الجديد أعلاه في POST) — انظر شرح
+        // validateStockInEditAvailability: يمنع تغيير صنف/كمية/مستودع/وحدة سطر توفّر منه سند
+        // اخراج/استعمال/ارسالية داخلية لاحقاً بما يجعل "المتاح" لتلك الدفعة سالباً.
+        const stockInEditError = await validateStockInEditAvailability(Number(data.id), items)
+        if (stockInEditError) {
+          return NextResponse.json({ error: stockInEditError }, { status: 400 })
+        }
+      }
       if (vchType === INTERNAL_DELIVERY_VCH_TYPE && (!data.from_store_id || !data.to_store_id)) {
         return NextResponse.json({ error: "يجب اختيار المستودع المرسل والمستودع المستلم" }, { status: 400 })
       }
       if (vchType === INTERNAL_DELIVERY_VCH_TYPE && Number(data.from_store_id) === Number(data.to_store_id)) {
-        return NextResponse.json({ error: "لا يمكن أن يكون المستودع المرسل والمستلم نفس المستودع" }, { status: 400 })
+        return NextResponse.json({ error: "لا يمكن عمل ارسالية لنفس المستودع" }, { status: 400 })
+      }
+      // نفس فحص التوفّر في POST — استبعاد هذا السند نفسه (data.id) من ledger "المتاح" يجعل الفحص
+      // يعيد الاحتساب من الصفر اعتماداً على قائمة الأصناف الجديدة فقط، فيتعامل تلقائياً مع أي تعديل
+      // (حذف صنف، تغيير تاريخ صلاحية/وحدة/مستودع/كمية) دون حاجة لمقارنة صريحة مع الأصناف القديمة.
+      const availabilityError = await validateAvailableQuantity(items, vchType, Number(data.id))
+      if (availabilityError) {
+        return NextResponse.json({ error: availabilityError }, { status: 400 })
       }
       if (vchType === USE_VOUCHER_VCH_TYPE) {
         journalRows = buildUseVoucherJournalRows(items, data.currency_id || null, Number(data.rate || 1))
@@ -210,6 +256,13 @@ export async function PUT(request: NextRequest) {
         }
         const currencyError = await validateJournalAccountCurrencies(journalRows, data.currency_id ? Number(data.currency_id) : null)
         if (currencyError) return NextResponse.json({ error: currencyError }, { status: 400 })
+      }
+    } else {
+      // status === 3: إلغاء منطقي لسند مُرحَّل — يُعيد أثره على المخزون ويحذف سطوره أدناه (بعد
+      // تحديث الترويسة)، فيُفحَص هنا قبل أي تعديل فعلي أن إزالته آمنة (انظر شرح validateVoucherDeletion).
+      const deletionError = await validateVoucherDeletion(Number(data.id))
+      if (deletionError) {
+        return NextResponse.json({ error: deletionError }, { status: 400 })
       }
     }
 

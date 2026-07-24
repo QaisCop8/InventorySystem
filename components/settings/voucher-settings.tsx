@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Dropdown as PrimeDropdown } from "primereact/dropdown";
+import PrimeDropdown from "@/components/common/FocusDropdown";
 
 const VOUCHER_TYPES = [
     { id: "1", name: "طلبية مبيعات" },
@@ -28,15 +28,21 @@ const COLUMNS = [
     { id: "bonus", label: "البونص" },
     { id: "discount", label: "الخصم" },
     { id: "expiry_date", label: "تاريخ الانتهاء" },
+    { id: "length", label: "الطول" },
+    { id: "width", label: "العرض" },
+    { id: "height", label: "الارتفاع" },
+    { id: "count", label: "العدد" },
 ];
 
-// سندات الحركات (ادخال/اخراج بضاعة، ارسالية داخلية، سند استعمال) لا تملك بونص/خصم، وتملك
-// تاريخ انتهاء بدلاً منها — بخلاف طلبيات المبيعات/المشتريات.
+// سندات الحركات (ادخال/اخراج بضاعة، ارسالية داخلية، سند استعمال) لا تملك بونص/خصم، وتملك تاريخ
+// انتهاء وأعمدة الطول/العرض/الارتفاع/العدد بدلاً منها — بخلاف طلبيات المبيعات/المشتريات.
 const STOCK_VOUCHER_TYPE_IDS = ["12", "13", "14", "15"];
 const getColumnsForType = (voucherType: string) => {
     const isStockVoucher = STOCK_VOUCHER_TYPE_IDS.includes(voucherType);
     return COLUMNS.filter((col) =>
-        isStockVoucher ? col.id !== "bonus" && col.id !== "discount" : col.id !== "expiry_date",
+        isStockVoucher
+            ? col.id !== "bonus" && col.id !== "discount"
+            : col.id !== "expiry_date" && col.id !== "length" && col.id !== "width" && col.id !== "height" && col.id !== "count",
     );
 };
 

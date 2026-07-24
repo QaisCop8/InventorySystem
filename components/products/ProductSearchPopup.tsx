@@ -182,12 +182,23 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
     setSelectedProduct(product);
   }, []);
 
-  const handleProductDoubleClick = useCallback((product: Product) => {
+  const handleProductDoubleClick = useCallback(async (product: Product) => {
     if (!product) return;
-    console.log("product ", product)
-    // Automatically select first unit if available
-    const selectedUnit = product.units?.[0];
-    const updatedProduct: Product = { ...product, selected_unit: selectedUnit, selected: true };
+    // النقر المزدوج/Enter على صنف بلا مرور بشبكة الوحدات (selectionChanged) لا يحمل units أصلاً —
+    // فتُجلَب هنا صراحة قبل onSelect، وإلا يصل المستدعي (unified-stock-voucher.tsx وغيره) بمصفوفة
+    // وحدات فارغة فيظهر بعدها "لا توجد وحدات" عند فتح نافذة بحث الوحدة بالسطر.
+    let units = product.units;
+    if (!units || units.length === 0) {
+      try {
+        const response = await fetch(`/api/products/${product.id}/units?price_category_id=${priceCategoryId}`);
+        units = response.ok ? await response.json() : [];
+      } catch (err) {
+        console.error("Error fetching units:", err);
+        units = [];
+      }
+    }
+    const selectedUnit = units?.[0];
+    const updatedProduct: Product = { ...product, units, selected_unit: selectedUnit, selected: true };
 
     setProducts(prev =>
       prev.map(p => p.id === product.id ? updatedProduct : p)
@@ -195,7 +206,7 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
 
     onSelect([updatedProduct]);
     onClose();
-  }, [onSelect, onClose]);
+  }, [onSelect, onClose, priceCategoryId]);
   // -----------------------
   // Fetch units when product selected
   // -----------------------
@@ -208,14 +219,14 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
     if (!item) return;
 
     try {
-      const response = await fetch(`/api/products/${item.id}/units`);
+      const response = await fetch(`/api/products/${item.id}/units?price_category_id=${priceCategoryId}`);
       const units: Unit[] = await response.json();
       setSelectedProduct({ ...item, units });
     } catch (err) {
       console.error("Error fetching units:", err);
       setSelectedProduct({ ...item, units: [] });
     }
-  }, []);
+  }, [priceCategoryId]);
 
   // -----------------------
   // Select unit for product
@@ -332,16 +343,9 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
       if (rowIndex < 0) return;
 
       const item = grid.rows[rowIndex]?.dataItem as Product;
-      console.log("item ", item)
-      try {
-        const response = await fetch(`/api/products/${item.id}/units`);
-        const units: Unit[] = await response.json();
-        setSelectedProduct({ ...item, units });
-        const selectedItem = item
-        handleProductDoubleClick(selectedItem)
-      } catch (err) {
-        console.error("Error fetching units:", err);
-      }
+      // handleProductDoubleClick يجلب units بنفسه الآن إن لم تكن محمَّلة أصلاً — لا حاجة لجلبها هنا
+      // بمعزل ثم تجاهل النتيجة (كان الخلل السابق: الجلب هنا لا يصل إطلاقاً لِـonSelect).
+      await handleProductDoubleClick(item);
       e.preventDefault();
 
       return;
@@ -360,7 +364,7 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
   };
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-6">
-      <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 p-5 flex flex-col w-full max-w-6xl max-h-[84vh] overflow-hidden" dir="rtl">
+      <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 p-5 flex flex-col w-full max-w-[1400px] max-h-[84vh] overflow-hidden" dir="rtl">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <h3 className="text-xl font-semibold text-slate-900">{title || "بحث الأصناف"}</h3>
         </div>
@@ -370,11 +374,49 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
             <p className="text-sm font-semibold text-slate-900">الفلاتر</p>
           </div>
 
-          <div className="grid gap-4 xl:grid-cols-[320px_minmax(0,_1fr)]">
-            <div className="rounded-2xl bg-white p-3 shadow-sm space-y-1">
-              <label htmlFor="productTypeFilter" className="block text-xs font-semibold text-slate-700 text-right">
-                نوع الصنف
-              </label>
+          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-[0.8fr_2fr_0.8fr_0.8fr_1fr]">
+            <div className="space-y-1">
+              <label className="block text-xs font-semibold text-slate-700 text-right">رقم الصنف</label>
+              <Input
+                ref={searchCodeRef}
+                className="w-full"
+                placeholder="رقم الصنف"
+                value={searchCode}
+                onChange={(e) => setSearchCode(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="block text-xs font-semibold text-slate-700 text-right">اسم الصنف</label>
+              <Input
+                ref={searchNameRef}
+                className="w-full"
+                placeholder="اسم الصنف"
+                value={searchName}
+                onChange={(e) => setSearchName(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="block text-xs font-semibold text-slate-700 text-right">السعر</label>
+              <Input
+                ref={searchPriceRef}
+                className="w-full"
+                placeholder="السعر"
+                value={searchPrice}
+                onChange={(e) => setSearchPrice(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="block text-xs font-semibold text-slate-700 text-right">الباركود</label>
+              <Input
+                ref={searchBarcodeRef}
+                className="w-full"
+                placeholder="الباركود"
+                value={searchBarcode}
+                onChange={(e) => setSearchBarcode(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1 invoice-currency-dropdown-wrap">
+              <label className="block text-xs font-semibold text-slate-700 text-right">النوع</label>
               <MultiSelect
                 inputId="productTypeFilter"
                 value={selectedTypes}
@@ -385,59 +427,17 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
                 optionLabel="label"
                 optionValue="value"
                 placeholder="اختر النوع"
-                showFilter={false}
+                showFilter={true}
                 showCheck={true}
                 showMultiSelect={true}
                 className="w-full"
+                panelClassName="invoice-currency-dropdown-panel invoice-currency-dropdown-panel-left"
                 appendTo="self"
                 onChange={(e: any) => {
                   const values = Array.isArray(e.value) ? e.value.map(Number) : [];
                   setSelectedTypes(values.length > 0 ? values : [1, 2]);
                 }}
               />
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[1fr_2fr_1fr_1fr]">
-              <div className="space-y-1">
-                <label className="block text-xs font-semibold text-slate-700 text-right">رقم الصنف</label>
-                <Input
-                  ref={searchCodeRef}
-                  className="w-full"
-                  placeholder="رقم الصنف"
-                  value={searchCode}
-                  onChange={(e) => setSearchCode(e.target.value)}
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="block text-xs font-semibold text-slate-700 text-right">اسم الصنف</label>
-                <Input
-                  ref={searchNameRef}
-                  className="w-full"
-                  placeholder="اسم الصنف"
-                  value={searchName}
-                  onChange={(e) => setSearchName(e.target.value)}
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="block text-xs font-semibold text-slate-700 text-right">السعر</label>
-                <Input
-                  ref={searchPriceRef}
-                  className="w-full"
-                  placeholder="السعر"
-                  value={searchPrice}
-                  onChange={(e) => setSearchPrice(e.target.value)}
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="block text-xs font-semibold text-slate-700 text-right">الباركود</label>
-                <Input
-                  ref={searchBarcodeRef}
-                  className="w-full"
-                  placeholder="الباركود"
-                  value={searchBarcode}
-                  onChange={(e) => setSearchBarcode(e.target.value)}
-                />
-              </div>
             </div>
           </div>
         </div>

@@ -427,6 +427,7 @@
     right: 0 !important;
     width: auto !important;
     min-width: 100% !important;
+    max-width: min(320px, 90vw) !important;
     border: 1px solid rgba(148, 163, 184, 0.28) !important;
     border-radius: 14px !important;
     background: rgba(255, 255, 255, 0.98) !important;
@@ -436,8 +437,37 @@
     backdrop-filter: blur(6px) !important;
   }
 
+  /* لتحديد ثلاثة (كحقل "النوع" في نافذة بحث الأصناف) قد يكون العنصر المُشغِّل أقرب عمود لحافة
+     النافذة اليسرى ضمن صف فلاتر عريض — تثبيت اللوحة من يمينها (right:0) يجعلها تنمو يساراً فتخرج
+     عن حدود النافذة. هذا الصنف الإضافي يُثبِّتها من يسارها بدل ذلك فتنمو يميناً (إلى داخل النافذة). */
+  .invoice-currency-dropdown-panel-left.p-multiselect-panel {
+    left: 0 !important;
+    right: auto !important;
+  }
+
+  /* كان مُخفى بالكامل سابقاً (display:none) — يُخفي معه صندوق البحث وخانة "تحديد الكل" حتى لو
+     فعَّلهما المستدعي (كلاهما من ضمن هذا الشريط في PrimeReact)، فيبدو أن القائمة بلا فلترة ولا
+     تحديد جماعي رغم أن الخاصيتين مفعّلتان. يُعرَض الآن بتنسيق حديث بدل الإخفاء القسري. */
   .invoice-currency-dropdown-panel .p-multiselect-header {
-    display: none !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.5rem !important;
+    padding: 10px 12px !important;
+    background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%) !important;
+    border-bottom: 1px solid rgba(226, 232, 240, 0.9) !important;
+  }
+
+  .invoice-currency-dropdown-panel .p-multiselect-header .p-checkbox {
+    order: 2 !important;
+  }
+
+  .invoice-currency-dropdown-panel .p-multiselect-header .p-multiselect-filter-container {
+    order: 1 !important;
+    flex: 1 1 auto !important;
+  }
+
+  .invoice-currency-dropdown-panel .p-multiselect-header .p-multiselect-close {
+    order: 0 !important;
   }
 
   .invoice-currency-dropdown-panel .p-multiselect-filter-container {
@@ -555,6 +585,84 @@
   .invoice-currency-dropdown-panel .p-multiselect-item.p-highlight {
     background: linear-gradient(90deg, #dbeafe 0%, #bfdbfe 100%) !important;
     color: #1d4ed8 !important;
+  }
+
+  /* صندوق تحديد ثابت الحجم دائماً (محدَّد أو لا) — بلا هذا التثبيت يُغيّر ظهور علامة الصح
+     أبعاد/حواف الصندوق عند كل تبديل حالة، فيبدو أنه "يتحرك" داخل السطر.
+     التنسيق (حدود/خلفية) على .p-checkbox-box فقط — وليس أيضاً على .p-checkbox الحاوي الخارجي
+     (كان التنسيق سابقاً على الاثنين معاً، فيظهر صندوقان متداخلان لكل خانة اختيار). */
+  .invoice-currency-dropdown-panel .p-multiselect-item .p-checkbox {
+    box-sizing: border-box !important;
+    width: 20px !important;
+    height: 20px !important;
+    min-width: 20px !important;
+    border: none !important;
+    background: transparent !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  .invoice-currency-dropdown-panel .p-multiselect-item .p-checkbox-box {
+    box-sizing: border-box !important;
+    width: 20px !important;
+    height: 20px !important;
+    min-width: 20px !important;
+    border-radius: 6px !important;
+    border: 1.5px solid #cbd5e1 !important;
+    background: #ffffff !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    transition: background-color 140ms ease, border-color 140ms ease !important;
+  }
+
+  .invoice-currency-dropdown-panel .p-multiselect-item .p-checkbox-box.p-highlight {
+    border-color: #2563eb !important;
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%) !important;
+  }
+
+  .invoice-currency-dropdown-panel .p-multiselect-item .p-checkbox-icon {
+    width: 12px !important;
+    height: 12px !important;
+    color: #ffffff !important;
+  }
+
+  /* رقاقات (chips) الأصناف المختارة في حالة الإغلاق — لا يوجد لها تنسيق افتراضي حديث، فتظهر
+     كنص عادي متلاصق دون فواصل واضحة. */
+  .invoice-currency-dropdown .p-multiselect-token {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    margin-inline-end: 6px !important;
+    padding: 3px 10px !important;
+    border-radius: 999px !important;
+    background: #eff6ff !important;
+    color: #1d4ed8 !important;
+    font-size: 0.8rem !important;
+    font-weight: 600 !important;
+    line-height: 1.4 !important;
+  }
+
+  .invoice-currency-dropdown .p-multiselect-token .p-multiselect-token-icon {
+    width: 12px !important;
+    height: 12px !important;
+    color: #1d4ed8 !important;
+    opacity: 0.75 !important;
+    transition: opacity 140ms ease !important;
+  }
+
+  .invoice-currency-dropdown .p-multiselect-token .p-multiselect-token-icon:hover {
+    opacity: 1 !important;
+  }
+
+  .invoice-currency-dropdown .p-multiselect-label {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    align-items: center !important;
+    gap: 4px !important;
+    padding-inline: 14px 42px !important;
+    min-height: 46px !important;
   }
 
   .date-time-control {

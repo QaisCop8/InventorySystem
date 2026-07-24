@@ -15,14 +15,13 @@ import { Package, Save, X, Barcode, DollarSign, Warehouse, Truck, Info, Settings
 import { WarehouseInventoryTable } from "./warehouse-inventory-table"
 import { BatchTrackingTable } from "./batch-tracking-table"
 import { UNITS } from "@/lib/constants"
-import DataGrid from "../common/DataGrid"
 import DataGridView from "@/components/common/DataGridView"
-import * as wjcInput from '@grapecity/wijmo.input';
+import SimpleListPicker, { type SimpleListPickerItem } from "@/components/common/SimpleListPicker"
 import * as wjGrid from "@grapecity/wijmo.grid";
 import { readonly } from "zod/v4"
 import ProductBarcodes from "./ProductBarcodes"
 import { Toast } from 'primereact/toast';
-import { Dropdown as PrimeDropdown } from 'primereact/dropdown'
+import PrimeDropdown from '@/components/common/FocusDropdown'
 import SearchCostCenterDialog from "@/components/customer/search-cost-center-dialog"
 import './compact-product-form.css'
 import ProgressSpinner from "../ProgressSpinner/ProgressSpinner"
@@ -34,6 +33,10 @@ import Util from "../common/Util"
 import sharedDropdownStyles from "../common/Dropdown.module.scss"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
+// ارتفاع موحَّد لكل شبكات DataGridView في هذه الشاشة (الوحدات/الأسعار/المستودعات/مراكز التكلفة) —
+// يُمرَّر إلى DataGridView مباشرة (كخاصية style) لا إلى العنصر الملفوف، فيتولى Wijmo تمرير الصفوف
+// داخلياً بشريط تمرير عمودي واحد فقط بدل شريطين متداخلين (الجدول + العنصر الملفوف معاً).
+const TABS_GRID_HEIGHT = 260
 
 interface ProductCostCenterItem {
   id?: number
@@ -57,6 +60,7 @@ interface ProductFormData {
   brand: string
   model: string
   measurment_unit: number
+  measurment_id: number
   last_purchase_price: number
 
   currency_id: number
@@ -123,6 +127,7 @@ export const initialFormData: ProductFormData = {
   brand: "",
   model: "",
   measurment_unit: 1,
+  measurment_id: 1,
   last_purchase_price: 0,
 
   currency_id: 0,
@@ -235,7 +240,20 @@ export function CompactProductForm({
     cost_center_types: [] as Array<{ id: number; name: string }>,
     cost_centers: [] as Array<{ id: number; name: string; cost_type_id?: number; parent_id?: number | null }>,
     tax_classifications: [] as Array<{ id: number; name: string }>,
+    measurment_types: [] as Array<{ id: number; name: string }>,
   })
+
+  // تتبع تاريخ الصلاحية/الرقم التشغيلي/الرقم المتسلسل يفترض صنفاً بوحدات عد صحيحة بسيطة — نوع قياس
+  // غير "عادي" (1) يحسب الكمية تلقائياً من أبعاد/عدد متغيّرَين لكل حركة (مساحة/حجم/وزن...)، فلا
+  // معنى لربط دفعة/تسلسل واحد بكمية متغيّرة كهذه. يُفرَض التبادل بالاتجاهين: لا يمكن تفعيل أي من
+  // الثلاث خانات إن كان نوع القياس غير عادي، ولا تغيير نوع القياس عن عادي إن كانت إحداها مُفعَّلة.
+  const MEASUREMENT_TRACKING_CONFLICT_MSG =
+    "لا يمكن تفعيل تاريخ صلاحية / له رقم تشغيلي / له رقم متسلسل لصنف نوع القياس غير عادي"
+  // تُعطَّل هذه الخانات كلياً (لا تُعرَض هذه الرسالة إلا لتوضيح السبب عند محاولة تفعيلها من الشاشات
+  // التي لا تُطبِّق disabled على العنصر نفسه) إن كان للصنف سطر واحد على الأقل بـvoucher_items_tbl
+  // ضمن سند لم يُلغَ منطقياً — انظر isUsedInVouchers وGET /api/inventory/products/[id]/voucher-usage.
+  const VOUCHER_USAGE_TRACKING_LOCK_MSG =
+    "لا يمكن تغيير تاريخ الصلاحية / الرقم التشغيلي / الرقم المتسلسل لصنف له حركة مخزون فعلية"
 
   const PRODUCT_TYPE_OPTIONS = [
     { label: "بضاعة تجارية", value: 1 },
@@ -256,17 +274,28 @@ export function CompactProductForm({
     cost_center_types: [] as Array<{ id: number; name: string }>,
     cost_centers: [] as Array<{ id: number; name: string; cost_type_id?: number; parent_id?: number | null }>,
     tax_classifications: [] as Array<{ id: number; name: string }>,
+    measurment_types: [] as Array<{ id: number; name: string }>,
   });
   const unitGridRef = useRef<wjGrid.FlexGrid>(null);
-  const [prices_data, setPricesData] = useState<PriceItem[]>([]);
-  const [units_data, setUnitsData] = useState<UnitItem[]>([]);
-  const [stores_data, setStoresData] = useState<StoreItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [costCenterTypes, setCostCenterTypes] = useState<Array<{ id: number; name: string }>>([]);
   const [costCenters, setCostCenters] = useState<Array<{ id: number; name: string; cost_type_id?: number; parent_id?: number | null }>>([]);
   const [costCenterSearchOpen, setCostCenterSearchOpen] = useState(false)
   const [selectedCostCenterRowIndex, setSelectedCostCenterRowIndex] = useState<number | null>(null)
   const [selectedCostCenterType, setSelectedCostCenterType] = useState<{ id: number; name: string } | null>(null)
+  // منتقيات SimpleListPicker لأعمدة الوحدات/الأسعار/المستودعات/حالة مركز التكلفة — بديل موحَّد عن
+  // Column.editor المباشر (DataGridView الفعلي يتطلّب عنصر تحكم Wijmo حقيقياً لا JSX، انظر
+  // editor?: Control | null في @grapecity/wijmo.react.grid/index.d.ts)، بنفس نمط أزرار البحث
+  // الأخرى في شاشات السندات (بحث صنف/مستودع/وحدة/حساب).
+  const [unitPickerOpen, setUnitPickerOpen] = useState(false)
+  const [unitPickerRow, setUnitPickerRow] = useState<number | null>(null)
+  const [pricesPickerOpen, setPricesPickerOpen] = useState(false)
+  const [pricesPickerRow, setPricesPickerRow] = useState<number | null>(null)
+  const [pricesPickerField, setPricesPickerField] = useState<"category" | "unit" | "currency">("category")
+  const [storePickerOpen, setStorePickerOpen] = useState(false)
+  const [storePickerRow, setStorePickerRow] = useState<number | null>(null)
+  const [statusPickerOpen, setStatusPickerOpen] = useState(false)
+  const [statusPickerRow, setStatusPickerRow] = useState<number | null>(null)
 
   const [unitCurrentRow, setUnitCurrentRow] = useState(0)
   const [barcodeDialogOpen, setBarcodeDialogOpen] = useState(false);
@@ -314,6 +343,22 @@ export function CompactProductForm({
         life: 1500,
       });
       product_name.current?.focus();
+      return false;
+    }
+
+    // حاجز أخير عند الحفظ (بمعزل عن منع التفعيل التفاعلي بالخانات/القائمة نفسها) — يلتقط أي حالة
+    // وصلت لهذا التعارض بطريقة لم تمر عبر onCheckedChange/onChange (كصنف مُحمَّل من بيانات قديمة
+    // سابقة لهذا القيد).
+    if (
+      Number(formData.measurment_id || 1) !== 1 &&
+      (formData.expiry_tracking || formData.serial_tracking || formData.batch_tracking)
+    ) {
+      toast.current?.show({
+        severity: "error",
+        summary: "خطأ",
+        detail: MEASUREMENT_TRACKING_CONFLICT_MSG,
+        life: 3000,
+      });
       return false;
     }
 
@@ -532,6 +577,11 @@ export function CompactProductForm({
     return lastCode.toString();
   };
   const [currentProductId, setCurrentProductId] = useState<number>(0);
+  // true إن كان للصنف الحالي (بمعرّفه) سطر واحد على الأقل بـvoucher_items_tbl ضمن سند لم يُلغَ
+  // منطقياً (status != 3) — يُعطِّل خانات "له تاريخ صلاحية"/"له رقم متسلسل"/"له رقم تشغيلي" أدناه
+  // إذ تغييرها بأثر رجعي على صنف استُخدِم فعلياً يُناقض بيانات تلك السطور القائمة. يُعاد ضبطه false
+  // عند فتح صنف جديد (reset_fields) وعند كل تحميل صنف موجود (loadData) قبل الفحص الفعلي.
+  const [isUsedInVouchers, setIsUsedInVouchers] = useState(false);
   const loadData = async (
     navigationType: "first" | "previous" | "next" | "last" | "Byid",
     productId?: number, checkUnsaved?: any // explicitly pass ID when needed
@@ -618,11 +668,23 @@ export function CompactProductForm({
         stores: storesWithNames,
         cost_centers: costCenterRows,
         default_store: product.default_store ?? 0,
+        // GET /api/inventory/ProductsNavigations/[navigationType] يُعيد "SELECT * FROM products"
+        // خاماً — أعمدة الصلاحية/الدفعة الفعلية على الجدول هي has_expiry_date/has_batch_number لا
+        // expiry_tracking/batch_tracking (المستخدَمان في formData وفي حفظ /api/inventory/products
+        // POST)، فيُطابَق هنا صراحةً بدل الاعتماد على الانتشار الخام أعلاه (كان سيترك خانتي
+        // "له تاريخ صلاحية"/"له رقم تشغيلي" غير مؤشَّرتين دوماً عند تعديل صنف قائم فعلياً يحملهما).
+        expiry_tracking: Boolean(product.expiry_tracking ?? product.has_expiry_date ?? product.has_expiry ?? false),
+        batch_tracking: Boolean(product.batch_tracking ?? product.has_batch_number ?? product.has_batch ?? false),
       };
       setFormData(newFormData);
       const currentHash = getFormDataHash(newFormData);
       initialHash.current = (currentHash);
       setCurrentProductId(product.id);
+      setIsUsedInVouchers(false);
+      fetch(`/api/inventory/products/${product.id}/voucher-usage`)
+        .then((r) => (r.ok ? r.json() : { used: false }))
+        .then((data) => setIsUsedInVouchers(Boolean(data?.used)))
+        .catch(() => setIsUsedInVouchers(false));
       setLoading(false)
     } catch (err) {
       console.error(err);
@@ -706,6 +768,33 @@ export function CompactProductForm({
     });
   };
 
+  const updateUnitRow = (index: number, patch: Partial<UnitItem>) => {
+    setFormData((prev) => {
+      const units = [...(prev.units ?? [])]
+      if (!units[index]) return prev
+      units[index] = { ...units[index], ...patch }
+      return { ...prev, units }
+    })
+  }
+
+  const updatePriceRow = (index: number, patch: Partial<PriceItem>) => {
+    setFormData((prev) => {
+      const prices = [...(prev.prices ?? [])]
+      if (!prices[index]) return prev
+      prices[index] = { ...prices[index], ...patch }
+      return { ...prev, prices }
+    })
+  }
+
+  const updateStoreRow = (index: number, patch: Partial<StoreItem>) => {
+    setFormData((prev) => {
+      const stores = [...(prev.stores ?? [])]
+      if (!stores[index]) return prev
+      stores[index] = { ...stores[index], ...patch }
+      return { ...prev, stores }
+    })
+  }
+
   const countries = [
     "السعودية",
     "الإمارات",
@@ -746,9 +835,6 @@ export function CompactProductForm({
     let newCode = code;
     if (from_code === 0) newCode = await getNewProductCode();
     console.log("from_code ",from_code ," code ",code," newCode ",newCode)
-    setUnitsData([]);
-    setPricesData([]);
-    setStoresData([]);
 
     // --- Units ---
     const firstUnit = definitionsRef.current.units[0] || { id: 0, unit_name: "" };
@@ -809,6 +895,7 @@ export function CompactProductForm({
 
     setFormData(newFormData);
     setCurrentProductId(0);
+    setIsUsedInVouchers(false);
     setActiveTab("units");
 
     const currentHash = getFormDataHash(newFormData);
@@ -851,6 +938,17 @@ export function CompactProductForm({
     initFormData();
   }, [editingProduct]);
 
+  // يضمن ظهور مراكز التكلفة في الشبكة حتى لو اكتمل جلبها (fetchDefinitions) بعد استدعاء
+  // reset_fields/loadData بلحظة — نفس مصدر البيانات المستخدَم في unified-accounts-refactored.tsx
+  // (/api/cost-center-types و/api/cost-centers)، لكن هنا يُعاد بناء صفوف formData.cost_centers من
+  // التعريفات فور توفّرها إن كانت الشبكة لا تزال فارغة رغم توفّر أنواع مراكز التكلفة.
+  useEffect(() => {
+    if (definitions.cost_center_types.length === 0) return
+    if ((formData.cost_centers?.length ?? 0) > 0) return
+    const costCenterRows = buildCostCenterRows(formData.cost_centers ?? [], definitions.cost_center_types, definitions.cost_centers)
+    setFormData((prev) => ({ ...prev, cost_centers: costCenterRows }))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [definitions.cost_center_types, definitions.cost_centers])
 
   const popupHasCalled = () => {
     doHotKeys.current = false
@@ -902,7 +1000,6 @@ export function CompactProductForm({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    formData.units = units_data
     handleSaveProduct()
   }
 
@@ -1043,49 +1140,35 @@ export function CompactProductForm({
   };
 
 
-  const getUnitsEditor = () => {
-    // Return a function to create Wijmo Input ComboBox for React
-    return (cell: any) => {
-      const editorHost = document.createElement("div");
-      const combo = new wjcInput.ComboBox(editorHost, {
-        itemsSource: definitions.units || [],
-        displayMemberPath: "unit_name",
-        selectedValuePath: "id",
-      });
-      return editorHost;
-    };
-  };
+  // تبويبات الوحدات/الأسعار/المستودعات/مراكز التكلفة تُصيَّر عبر <DataGridView> (نفس مكوّن سندات
+  // الحركة/الاستلام لتوحيد الشكل) — أعمدة الاختيار (اسم الوحدة/فئة السعر/عملة البيع/المستودع/حالة
+  // مركز التكلفة) للقراءة فقط بجانبها زر بحث يفتح SimpleListPicker، بدل Column.editor مباشرةً
+  // (DataGridView الفعلي يتطلّب عنصر تحكم Wijmo حقيقياً واحداً ثابتاً للعمود بأكمله — انظر
+  // editor?: Control | null في @grapecity/wijmo.react.grid/index.d.ts — لا دالة تُستدعى لكل خلية؛
+  // محاولة سابقة بدالة تُعيد <div> فيه wjcInput.ComboBox مُنشأ يدوياً كانت تتحطّم فوراً عند فتح
+  // "صنف جديد" بخطأ Wijmo الداخلي "Element is already hosting a control"). هذا النمط (نص + زر بحث)
+  // مطابق تماماً لبقية أعمدة الاختيار في شاشات السندات (بحث صنف/مستودع/وحدة/حساب).
   const selectionChanged = (s: wjGrid.FlexGrid, e: wjGrid.CellRangeEventArgs) => {
     setUnitCurrentRow(s.selection._row);
   }
   const cellEditEnded = (s: wjGrid.FlexGrid, e: wjGrid.CellRangeEventArgs) => {
     const editedItem = s.rows[e.row]?.dataItem;
     const colName = s.columns[e.col]?.name;
-    if (!editedItem || !colName) return;
-
-
-    // Example: if unit_name changed, you can update to_main or other fields
-    if (colName === "to_main_qnty") {
-      // ensure types match
-
-      if (e.row === 0) {
-        editedItem.to_main_qnty = 1;
-        setUnitsData((prev) => {
-          const newData = [...prev];
-          newData[e.row] = { ...editedItem }; // update only the edited row
-          return newData;
-        });
-      }
+    if (!editedItem || colName !== "to_main_qnty") return;
+    if (e.row === 0) {
+      editedItem.to_main_qnty = 1;
+      setFormData((prev) => {
+        const units = [...(prev.units || [])];
+        if (!units[e.row]) return prev;
+        units[e.row] = { ...units[e.row], to_main_qnty: 1 };
+        return { ...prev, units };
+      });
     }
   };
 
   const getScheme = () => {
     let scheme = {
       name: 'UnitsScheme_Table',
-      filter: true,
-      showFooter: true,
-      sortable: true,
-      allowGrouping: false,
       responsiveColumnIndex: 2,
       columns: [
         {
@@ -1098,42 +1181,25 @@ export function CompactProductForm({
           name: "unit_name",
           width: "*",
           minWidth: 180,
-          editor: (cell: any) => (
-            <select
-              value={cell.row.dataItem.unit_name || ""}
-              onChange={(e) => {
-                const newValue = e.target.value;
-
-                // Find the selected unit from definitions
-                const selectedUnit = definitions.units.find((u: any) => u.unit_name === newValue);
-
-                // Update React state
-                setUnitsData((prev: UnitItem[] = []) => {
-                  const updated = [...prev];
-                  const rowIndex = cell.row.index;
-
-                  updated[rowIndex] = {
-                    ...updated[rowIndex],
-                    unit_name: newValue,
-                    unit_id: selectedUnit ? selectedUnit.id : 0, // fallback
-                  };
-
-                  return updated;
-                });
-
-                // Optional: also update the grid's dataItem if required
-                cell.row.dataItem.unit_name = newValue;
-                cell.row.dataItem.unit_id = selectedUnit ? selectedUnit.id : 0;
-              }}
-              className="px-2 py-1 w-full"
-            >
-              {(definitions.units || []).map((u: any) => (
-                <option key={u.id} value={u.unit_name}>
-                  {u.unit_name}
-                </option>
-              ))}
-            </select>
-          ),
+          isReadOnly: true,
+        },
+        {
+          name: "btnSearchUnit",
+          header: " ",
+          width: 56,
+          buttonBody: "button" as const,
+          align: "center" as const,
+          title: "بحث",
+          iconType: "search",
+          isReadOnly: true,
+          // ser (رقم تسلسلي مُخزَّن على الصف نفسه وقت البناء) لا ctx.row.index — هذه الشبكة
+          // sortable/filter مُفعَّلان، فقد يختلف ترتيب العرض المرئي عن الفهرس الفعلي في formData.units.
+          onClick: (e: any, ctx: any) => {
+            setUnitPickerRow(Number(ctx.row.dataItem?.ser || 0) - 1)
+            setUnitPickerOpen(true)
+          },
+          visible: true,
+          visibleInColumnChooser: true,
         },
         { header: "العلاقة بالرئيسية", name: "to_main_qnty", width: 150, visible: true },
         {
@@ -1142,9 +1208,10 @@ export function CompactProductForm({
           buttonBody: "button" as const,
           width: 100,
           iconType: "barcode",
-          readonly: true,
-          onClick: (item: { id: number }) => {
-            handleBarcodeClick(item);
+          title: "باركود",
+          isReadOnly: true,
+          onClick: (e: any, ctx: any) => {
+            handleBarcodeClick(ctx.row.dataItem);
           }
         },
 
@@ -1153,7 +1220,7 @@ export function CompactProductForm({
           name: "barcode_list",
           width: 100,
           iconType: "barcode",
-          readonly: true,
+          isReadOnly: true,
           visible: false
 
         },
@@ -1162,8 +1229,9 @@ export function CompactProductForm({
           name: "delete",
           width: 80,
           buttonBody: "button" as const,
-          iconType: "trash",
-          onClick: (item: { ser: number }) => handleDeleteUnit(item.ser - 1)
+          iconType: "delete",
+          title: "حذف",
+          onClick: (e: any, ctx: any) => handleDeleteUnit(Number(ctx.row.dataItem?.ser || 0) - 1)
         }
       ],
     }
@@ -1173,10 +1241,6 @@ export function CompactProductForm({
   const getPricesScheme = () => {
     let scheme = {
       name: 'PricesScheme_Table',
-      filter: true,
-      showFooter: true,
-      sortable: true,
-      allowGrouping: false,
       responsiveColumnIndex: 2,
       columns: [
         { header: "##", name: "ser", width: 50 },
@@ -1186,30 +1250,24 @@ export function CompactProductForm({
           name: "price_name",
           width: "*",
           minWidth: 180,
-          editor: (cell: any) => (
-            <select
-              value={cell.row.dataItem.price_name || ""}
-              onChange={(e) => {
-                const newValue = e.target.value;
-                cell.row.dataItem.price_name = newValue;
-                const selectedPrice = definitions.price_category.find((u: any) => u.name === newValue);
-
-                setFormData(prev => {
-                  const updatedPrices = (prev.prices || []).map((row, i) =>
-                    i === cell.row.index
-                      ? { ...row, price_name: newValue, price_category_id: selectedPrice ? selectedPrice.id : 0 }
-                      : row
-                  );
-                  return { ...prev, prices: updatedPrices };
-                });
-              }}
-              className="px-2 py-1 w-full"
-            >
-              {(definitions.price_category || []).map((u: any) => (
-                <option key={u.id} value={u.name}>{u.name}</option>
-              ))}
-            </select>
-          ),
+          isReadOnly: true,
+        },
+        {
+          name: "btnSearchPriceCategory",
+          header: " ",
+          width: 56,
+          buttonBody: "button" as const,
+          align: "center" as const,
+          title: "بحث",
+          iconType: "search",
+          isReadOnly: true,
+          onClick: (e: any, ctx: any) => {
+            setPricesPickerField("category")
+            setPricesPickerRow(Number(ctx.row.dataItem?.ser || 0) - 1)
+            setPricesPickerOpen(true)
+          },
+          visible: true,
+          visibleInColumnChooser: true,
         },
         { header: "رقم الوحدة", name: "unit_id", width: 150, visible: false },
         {
@@ -1217,69 +1275,58 @@ export function CompactProductForm({
           name: "unit_name",
           width: "*",
           minWidth: 150,
-          editor: (cell: any) => (
-            <select
-              value={cell.row.dataItem.unit_name || ""}
-              onChange={(e) => {
-                const newValue = e.target.value;
-                cell.row.dataItem.unit_name = newValue;
-                const selectedUnit = definitions.units.find((u: any) => u.unit_name === newValue);
-
-                setFormData(prev => {
-                  const updatedPrices = (prev.prices || []).map((row, i) =>
-                    i === cell.row.index
-                      ? { ...row, unit_name: newValue, unit_id: selectedUnit ? selectedUnit.id : 0 }
-                      : row
-                  );
-                  return { ...prev, prices: updatedPrices };
-                });
-              }}
-              className="px-2 py-1 w-full"
-            >
-              {(definitions.units || []).map((u: any) => (
-                <option key={u.id} value={u.unit_name}>{u.unit_name}</option>
-              ))}
-            </select>
-          ),
+          isReadOnly: true,
+        },
+        {
+          name: "btnSearchPriceUnit",
+          header: " ",
+          width: 56,
+          buttonBody: "button" as const,
+          align: "center" as const,
+          title: "بحث",
+          iconType: "search",
+          isReadOnly: true,
+          onClick: (e: any, ctx: any) => {
+            setPricesPickerField("unit")
+            setPricesPickerRow(Number(ctx.row.dataItem?.ser || 0) - 1)
+            setPricesPickerOpen(true)
+          },
+          visible: true,
+          visibleInColumnChooser: true,
         },
         { header: "السعر شامل الضريبة", name: "price", width: 150 },
         { header: "رقم العملة", name: "currency_id", width: 150, visible: false },
         {
           header: "عملة البيع",
-          name: "currency",
+          name: "currency_name",
           width: 150,
-          editor: (cell: any) => (
-            <select
-              value={cell.row.dataItem.currency_name || ""}
-              onChange={(e) => {
-                const newValue = e.target.value;
-                cell.row.dataItem.currency_name = newValue;
-                const selectedCurrency = definitions.currencies.find((u: any) => u.currency_name === newValue);
-
-                setFormData(prev => {
-                  const updatedPrices = (prev.prices || []).map((row, i) =>
-                    i === cell.row.index
-                      ? { ...row, currency_name: newValue, currency_id: selectedCurrency ? selectedCurrency.id : 0 }
-                      : row
-                  );
-                  return { ...prev, prices: updatedPrices };
-                });
-              }}
-              className="px-2 py-1 w-full"
-            >
-              {(definitions.currencies || []).map((u: any) => (
-                <option key={u.id} value={u.currency_name}>{u.currency_name}</option>
-              ))}
-            </select>
-          ),
+          isReadOnly: true,
+        },
+        {
+          name: "btnSearchPriceCurrency",
+          header: " ",
+          width: 56,
+          buttonBody: "button" as const,
+          align: "center" as const,
+          title: "بحث",
+          iconType: "search",
+          isReadOnly: true,
+          onClick: (e: any, ctx: any) => {
+            setPricesPickerField("currency")
+            setPricesPickerRow(Number(ctx.row.dataItem?.ser || 0) - 1)
+            setPricesPickerOpen(true)
+          },
+          visible: true,
+          visibleInColumnChooser: true,
         },
         {
           header: " ",
           name: "delete",
           width: 80,
           buttonBody: "button" as const,
-          iconType: "trash",
-          onClick: (item: { ser: number }) => handleDeletePrice(item.ser - 1)
+          iconType: "delete",
+          title: "حذف",
+          onClick: (e: any, ctx: any) => handleDeletePrice(Number(ctx.row.dataItem?.ser || 0) - 1)
         }
       ],
     };
@@ -1291,43 +1338,27 @@ export function CompactProductForm({
     columns: [
       { header: "رقم الستودع", name: "store_id", width: 150, visible: false },
       {
-        name: "warehouse_id",
+        name: "store_name",
         header: "المستودع",
         width: "*",
         minWidth: 180,
-        editor: (cell: any) => (
-          <select
-            value={cell.row.dataItem.store_name || ""}
-            onChange={(e) => {
-              const newValue = e.target.value;
-              cell.row.dataItem.store_name = newValue;
-              const selectedStore = definitions.warehouses.find((u: any) => u.warehouse_name === newValue);
-              setFormData(prev => {
-                const updatedstores = (prev.stores || []).map((row, i) =>
-                  i === cell.row.index
-                    ? {
-                      ...row,
-                      store_name: newValue,
-                      store_id: selectedStore ? selectedStore.id : 0 // fallback
-                    }
-                    : row
-                );
-
-                return {
-                  ...prev,
-                  stores: updatedstores,
-                };
-              });
-            }}
-            className="px-2 py-1 w-full"
-          >
-            {(definitions.warehouses || []).map((u: any) => (
-              <option key={u.id} value={u.warehouse_name}>
-                {u.warehouse_name}
-              </option>
-            ))}
-          </select>
-        ),
+        isReadOnly: true,
+      },
+      {
+        name: "btnSearchStore",
+        header: " ",
+        width: 56,
+        buttonBody: "button" as const,
+        align: "center" as const,
+        title: "بحث",
+        iconType: "search",
+        isReadOnly: true,
+        onClick: (e: any, ctx: any) => {
+          setStorePickerRow(Number(ctx.row.dataItem?.ser || 0) - 1)
+          setStorePickerOpen(true)
+        },
+        visible: true,
+        visibleInColumnChooser: true,
       },
       { name: "shelf", header: "الرف", width: 120 },
       { name: "reorder_quantity", header: "كمية اعادة الطلب", width: 120 },
@@ -1337,9 +1368,11 @@ export function CompactProductForm({
         name: "actions",
         header: " ",
         buttonBody: "button" as const,
-        iconType: "trash",
+        iconType: "delete",
+        className: "btn-delete",
+        title: "حذف",
         width: 100,
-        onClick: (item: { ser: number }) => handleDeleteStore(item.ser - 1)
+        onClick: (e: any, ctx: any) => handleDeleteStore(Number(ctx.row.dataItem?.ser || 0) - 1)
       }
     ]
   });
@@ -1532,6 +1565,15 @@ export function CompactProductForm({
         setDefinitions((prev) => ({ ...prev, price_category: pricesData }))
       }
 
+      // Measurment types (نوع القياس)
+      const measurmentTypesResponse = await fetch("/api/measurment-types")
+      if (measurmentTypesResponse.ok) {
+        const measurmentTypesData = await measurmentTypesResponse.json()
+        definitionsObj.measurmentTypesData = measurmentTypesData
+        definitionsRef.current.measurment_types = measurmentTypesData
+        setDefinitions((prev) => ({ ...prev, measurment_types: measurmentTypesData }))
+      }
+
       // Tax classifications
       try {
         const taxResp = await fetch("/api/tax-classifications")
@@ -1557,7 +1599,10 @@ export function CompactProductForm({
 
       const costCenterTypeResponse = await fetch("/api/cost-center-types")
       if (costCenterTypeResponse.ok) {
-        const costCenterTypesData = await costCenterTypeResponse.json()
+        const costCenterTypesData = (await costCenterTypeResponse.json()) as Array<{ id: number; name: string }>
+        // مطابقاً لِـunified-accounts-refactored.tsx: ترتيب تصاعدي حسب الرقم — الاستجابة الخام غير
+        // مُرتَّبة بالضرورة.
+        costCenterTypesData.sort((a, b) => (a.id || 0) - (b.id || 0))
         definitionsObj.costCenterTypes = costCenterTypesData
         definitionsRef.current.cost_center_types = costCenterTypesData
         setCostCenterTypes(costCenterTypesData)
@@ -1595,40 +1640,47 @@ export function CompactProductForm({
     { label: "ممنوع", value: 3 },
   ]
 
+  // ترتيب ثابت بلا إعادة فرز حسب القيمة المُختارة حالياً — النسخة السابقة كانت تُعيد بناء المصفوفة
+  // (بمرجع جديد) وتُقدِّم العنصر المُختار لأول القائمة في كل عرض، ما كان يُربك حالة Dropdown
+  // الداخلية (فتح/تحديد) ويمنع فعلياً تغيير الخيار عند الضغط على عنصر آخر.
+  const defaultStoreOptions = useMemo(
+    () => [
+      { label: "بلا تحديد", value: null as number | null },
+      ...(definitions.warehouses || []).map((warehouse: any) => ({
+        label: warehouse.warehouse_name,
+        value: Number(warehouse.id),
+      })),
+    ],
+    [definitions.warehouses],
+  )
+
   const costCenterScheme = useMemo(() => ({
     name: "ProductCostCenterScheme",
     columns: [
-      { header: "نوع مركز التكلفة", name: "cost_center_type_name", width: 220, minWidth: 180, isReadOnly: true },
+      { header: "نوع مركز التكلفة", name: "cost_center_type_name", width: '*', minWidth: 100, isReadOnly: true },
       {
         header: "الحالة",
         name: "required_label",
         width: 140,
         minWidth: 120,
-        editor: (cell: any) => {
-          const editorHost = document.createElement("div")
-          const select = document.createElement("select")
-          select.className = "w-full rounded border border-input bg-background px-2 py-1 text-sm"
-          select.value = String(cell.row.dataItem.required_in_transactions ?? 1)
-
-          costCenterStatusOptions.forEach((option) => {
-            const optionEl = document.createElement("option")
-            optionEl.value = String(option.value)
-            optionEl.textContent = option.label
-            select.appendChild(optionEl)
-          })
-
-          select.onchange = (event) => {
-            const nextValue = Number((event.target as HTMLSelectElement).value || 1)
-            const nextLabel = costCenterStatusOptions.find((option) => option.value === nextValue)?.label || "اختياري"
-            cell.row.dataItem.required_in_transactions = nextValue
-            cell.row.dataItem.required_label = nextLabel
-            updateCostCenterRow(cell.row.index, "required_in_transactions", nextValue)
-            updateCostCenterRow(cell.row.index, "required_label", nextLabel)
-          }
-
-          editorHost.appendChild(select)
-          return editorHost
+        isReadOnly: true,
+      },
+      {
+        name: "btnStatus",
+        header: " ",
+        width: 56,
+        buttonBody: "button" as const,
+        align: "center" as const,
+        title: "تغيير الحالة",
+        iconType: "edit",
+        className: "btn-status",
+        isReadOnly: true,
+        onClick: (e: any, ctx: any) => {
+          setStatusPickerRow(ctx.row.index)
+          setStatusPickerOpen(true)
         },
+        visible: true,
+        visibleInColumnChooser: true,
       },
       {
         header: "مركز التكلفة",
@@ -1641,18 +1693,16 @@ export function CompactProductForm({
         name: "btnSearch",
         header: " ",
         width: 56,
-        buttonBody: "button",
-        align: "center",
+        buttonBody: "button" as const,
+        align: "center" as const,
         title: "بحث",
         iconType: "search",
         className: "btn-search",
         isReadOnly: true,
         onClick: (e: any, ctx: any) => {
-          e.stopPropagation()
-          const rowIndex = ctx.row.index
-          const row = formData.cost_centers?.[rowIndex]
+          const row = ctx.row.dataItem
           if (!row) return
-          setSelectedCostCenterRowIndex(rowIndex)
+          setSelectedCostCenterRowIndex(ctx.row.index)
           setSelectedCostCenterType({ id: Number(row.cost_center_type_id), name: row.cost_center_type_name || "" })
           setCostCenterSearchOpen(true)
         },
@@ -1663,18 +1713,16 @@ export function CompactProductForm({
         name: "btnDelete",
         header: " ",
         width: 56,
-        buttonBody: "button",
-        align: "center",
+        buttonBody: "button" as const,
+        align: "center" as const,
         title: "حذف",
         iconType: "delete",
         className: "btn-delete",
         isReadOnly: true,
         onClick: (e: any, ctx: any) => {
-          e.stopPropagation()
           const rowIndex = ctx.row.index
           updateCostCenterRow(rowIndex, "default_cost_center_id", null)
           updateCostCenterRow(rowIndex, "cost_center_name", "")
-          updateCostCenterRow(rowIndex, "required_label", costCenterStatusOptions.find((option) => option.value === (formData.cost_centers?.[rowIndex]?.required_in_transactions ?? 1))?.label || "اختياري")
         },
         visible: true,
         visibleInColumnChooser: true,
@@ -1698,7 +1746,6 @@ export function CompactProductForm({
           onDelete={() => { handleDeleteClick(true) }}
           onReport={() => undefined}
           onExportExcel={() => undefined}
-          onPrint={() => console.log("Print product")}
           isLoading={isSearching}
           isSaving={isSubmitting}
           canSave={true}
@@ -1941,30 +1988,6 @@ export function CompactProductForm({
                     </div>
                   )}
 
-                  <div className="xl:col-span-1">
-                    <Label htmlFor="status" className="text-sm font-medium">
-                      {isService ? "حالة الخدمة" : "حالة الصنف"}
-                    </Label>
-                    <div className={sharedDropdownStyles.dropDownWrapper}>
-                      <PrimeDropdown
-                        inputId="status"
-                        value={formData.status != null ? Number(formData.status) : null}
-                        options={[
-                          { label: "نشط", value: 1 },
-                          { label: "غير نشط", value: 2 },
-                          { label: "متوقف", value: 3 },
-                        ]}
-                        optionLabel="label"
-                        optionValue="value"
-                        placeholder="اختر الحالة"
-                        className={`${sharedDropdownStyles.dropDown} w-full`}
-                        panelClassName={sharedDropdownStyles.dropDownPanel}
-                        appendTo="self"
-                        onChange={(e: any) => updateFormData("status", Number(e.value) || 1)}
-                        disabled={formData.id === 0}
-                      />
-                    </div>
-                  </div>
                 </div>
 
                 {!isService && (
@@ -2025,12 +2048,15 @@ export function CompactProductForm({
                     <div className="grid grid-cols-12 gap-4">
                       <div className="col-span-12 md:col-span-12">
                         <div className="w-full overflow-x-auto">
-                          <DataGrid
-                            ref={unitGridRef}
+                          <DataGridView
+                            style={{ height: TABS_GRID_HEIGHT }}
                             dataSource={formData.units ?? []}
                             scheme={getScheme()}
                             selectionChanged={selectionChanged}
                             cellEditEnded={(s: any, e: any) => cellEditEnded(s, e)}
+                            isReport={false}
+                            showContextMenu={false}
+                            dontConvertToCards={true}
                           />
                         </div>
                         <ProductBarcodes
@@ -2068,8 +2094,13 @@ export function CompactProductForm({
                     <div className="grid grid-cols-12 gap-4">
                       <div className="col-span-12 md:col-span-12">
                         <div className="w-full overflow-x-auto">
-                          <DataGrid dataSource={formData.prices ?? []}
+                          <DataGridView
+                            style={{ height: TABS_GRID_HEIGHT }}
+                            dataSource={formData.prices ?? []}
                             scheme={getPricesScheme()}
+                            isReport={false}
+                            showContextMenu={false}
+                            dontConvertToCards={true}
                           />
                         </div>
                       </div>
@@ -2278,27 +2309,36 @@ export function CompactProductForm({
                       <CardContent>
                         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6 gap-4">
                           <div>
-                            <Label htmlFor="measurment_unit" className="text-sm font-medium">
+                            <Label htmlFor="measurment_id" className="text-sm font-medium">
                               نوع القياس
                             </Label>
                             <div className={sharedDropdownStyles.dropDownWrapper}>
                               <PrimeDropdown
-                                inputId="measurment_unit"
-                                value={formData?.measurment_unit != null ? Number(formData.measurment_unit) : null}
-                                options={[
-                                  { label: "عادي", value: 1 },
-                                  { label: "مساحة", value: 2 },
-                                  { label: "حجم", value: 3 },
-                                  { label: "وزن", value: 4 },
-                                  { label: "بروفيل", value: 5 },
-                                ]}
-                                optionLabel="label"
-                                optionValue="value"
+                                inputId="measurment_id"
+                                value={formData?.measurment_id != null ? Number(formData.measurment_id) : null}
+                                options={definitions.measurment_types}
+                                optionLabel="name"
+                                optionValue="id"
                                 placeholder="اختر نوع القياس"
                                 className={`${sharedDropdownStyles.dropDown} w-full`}
                                 panelClassName={sharedDropdownStyles.dropDownPanel}
                                 appendTo="self"
-                                onChange={(e: any) => updateFormData("measurment_unit", Number(e.value) || 1)}
+                                onChange={(e: any) => {
+                                  const newValue = Number(e.value) || 1
+                                  if (
+                                    newValue !== 1 &&
+                                    (formData.expiry_tracking || formData.serial_tracking || formData.batch_tracking)
+                                  ) {
+                                    toast.current?.show({
+                                      severity: "error",
+                                      summary: "خطأ",
+                                      detail: MEASUREMENT_TRACKING_CONFLICT_MSG,
+                                      life: 3000,
+                                    })
+                                    return
+                                  }
+                                  updateFormData("measurment_id", newValue)
+                                }}
                               />
                             </div>
                           </div>
@@ -2443,7 +2483,7 @@ export function CompactProductForm({
                         </CardTitle>
                       </CardHeader>
                       <CardContent>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                           <div>
                             <Label htmlFor="original_number" className="text-sm font-medium">
                               الرقم الأصلي
@@ -2467,6 +2507,143 @@ export function CompactProductForm({
                               onChange={(e) => updateFormData("factory_number", e.target.value)}
                               className="text-right"
                             />
+                          </div>
+                          <div>
+                            <Label htmlFor="measurment_unit" className="text-sm font-medium">
+                              وحدة عد كميات الصنف <span className="text-red-500">*</span>
+                            </Label>
+                            <div className={sharedDropdownStyles.dropDownWrapper}>
+                              <PrimeDropdown
+                                inputId="measurment_unit"
+                                value={formData?.measurment_unit != null ? Number(formData.measurment_unit) : 1}
+                                options={[
+                                  { label: "عشري", value: 1 },
+                                  { label: "عدد صحيح", value: 2 },
+                                ]}
+                                optionLabel="label"
+                                optionValue="value"
+                                placeholder="عشري"
+                                className={`${sharedDropdownStyles.dropDown} w-full`}
+                                panelClassName={sharedDropdownStyles.dropDownPanel}
+                                appendTo="self"
+                                onChange={(e: any) => updateFormData("measurment_unit", Number(e.value) || 1)}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                        <Separator className="my-4" />
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                          <div className="flex items-center gap-2">
+                            <Checkbox
+                              id="expiry_tracking"
+                              checked={formData.expiry_tracking}
+                              disabled={isUsedInVouchers}
+                              onCheckedChange={(checked) => {
+                                if (isUsedInVouchers) {
+                                  toast.current?.show({
+                                    severity: "error",
+                                    summary: "خطأ",
+                                    detail: VOUCHER_USAGE_TRACKING_LOCK_MSG,
+                                    life: 3000,
+                                  })
+                                  return
+                                }
+                                const isChecked = checked === true
+                                if (isChecked && Number(formData.measurment_id || 1) !== 1) {
+                                  toast.current?.show({
+                                    severity: "error",
+                                    summary: "خطأ",
+                                    detail: MEASUREMENT_TRACKING_CONFLICT_MSG,
+                                    life: 3000,
+                                  })
+                                  return
+                                }
+                                updateFormData("expiry_tracking", isChecked)
+                              }}
+                            />
+                            <Label
+                              htmlFor="expiry_tracking"
+                              className={`text-sm font-medium ${isUsedInVouchers ? "text-muted-foreground cursor-not-allowed" : "cursor-pointer"}`}
+                            >
+                              له تاريخ صلاحية
+                            </Label>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Checkbox
+                              id="serial_tracking"
+                              checked={formData.serial_tracking}
+                              disabled={isUsedInVouchers}
+                              onCheckedChange={(checked) => {
+                                if (isUsedInVouchers) {
+                                  toast.current?.show({
+                                    severity: "error",
+                                    summary: "خطأ",
+                                    detail: VOUCHER_USAGE_TRACKING_LOCK_MSG,
+                                    life: 3000,
+                                  })
+                                  return
+                                }
+                                const isChecked = checked === true
+                                if (isChecked && Number(formData.measurment_id || 1) !== 1) {
+                                  toast.current?.show({
+                                    severity: "error",
+                                    summary: "خطأ",
+                                    detail: MEASUREMENT_TRACKING_CONFLICT_MSG,
+                                    life: 3000,
+                                  })
+                                  return
+                                }
+                                updateFormData("serial_tracking", isChecked)
+                              }}
+                            />
+                            <Label
+                              htmlFor="serial_tracking"
+                              className={`text-sm font-medium ${isUsedInVouchers ? "text-muted-foreground cursor-not-allowed" : "cursor-pointer"}`}
+                            >
+                              له رقم متسلسل
+                            </Label>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Checkbox
+                              id="batch_tracking"
+                              checked={formData.batch_tracking}
+                              disabled={isUsedInVouchers}
+                              onCheckedChange={(checked) => {
+                                if (isUsedInVouchers) {
+                                  toast.current?.show({
+                                    severity: "error",
+                                    summary: "خطأ",
+                                    detail: VOUCHER_USAGE_TRACKING_LOCK_MSG,
+                                    life: 3000,
+                                  })
+                                  return
+                                }
+                                const isChecked = checked === true
+                                if (isChecked && Number(formData.measurment_id || 1) !== 1) {
+                                  toast.current?.show({
+                                    severity: "error",
+                                    summary: "خطأ",
+                                    detail: MEASUREMENT_TRACKING_CONFLICT_MSG,
+                                    life: 3000,
+                                  })
+                                  return
+                                }
+                                // تفعيل "له رقم تشغيلي" يُفعِّل "له تاريخ صلاحية" تلقائياً معه (دفعة
+                                // بلا تاريخ صلاحية غير منطقية عملياً) — أما إلغاؤه فلا يُلغي تاريخ
+                                // الصلاحية تلقائياً، لأنه قد يبقى مطلوباً بذاته دون تتبع دفعات.
+                                setFormData((prev) => ({
+                                  ...prev,
+                                  batch_tracking: isChecked,
+                                  expiry_tracking: isChecked ? true : prev.expiry_tracking,
+                                }))
+                              }}
+                            />
+                            <Label
+                              htmlFor="batch_tracking"
+                              className={`text-sm font-medium ${isUsedInVouchers ? "text-muted-foreground cursor-not-allowed" : "cursor-pointer"}`}
+                            >
+                              له رقم تشغيلي
+                            </Label>
                           </div>
                         </div>
                       </CardContent>
@@ -2500,26 +2677,7 @@ export function CompactProductForm({
                                 value={formData.default_store ? Number(formData.default_store) : null}
                                 className={`${sharedDropdownStyles.dropDown} w-full`}
                                 panelClassName={sharedDropdownStyles.dropDownPanel}
-                                options={(() => {
-                                  const options = [
-                                    { label: "بلا تحديد", value: null },
-                                    ...((definitions.warehouses || []).map((warehouse: any) => ({
-                                      label: warehouse.warehouse_name,
-                                      value: Number(warehouse.id),
-                                    })))
-                                  ]
-
-                                  if (formData.default_store) {
-                                    const selectedId = Number(formData.default_store)
-                                    options.sort((a, b) => {
-                                      if (a.value === selectedId) return -1
-                                      if (b.value === selectedId) return 1
-                                      return 0
-                                    })
-                                  }
-
-                                  return options
-                                })()}
+                                options={defaultStoreOptions}
                                 optionLabel="label"
                                 optionValue="value"
                                 placeholder="اختر المستودع"
@@ -2532,7 +2690,14 @@ export function CompactProductForm({
                         </div>
                         <div className="grid grid-cols-1 gap-4">
                           <div className="w-full overflow-x-auto">
-                            <DataGrid dataSource={formData.stores ?? []} scheme={getStoresScheme()} />
+                            <DataGridView
+                              style={{ height: TABS_GRID_HEIGHT }}
+                              dataSource={formData.stores ?? []}
+                              scheme={getStoresScheme()}
+                              isReport={false}
+                              showContextMenu={false}
+                              dontConvertToCards={true}
+                            />
                           </div>
                         </div>
                       </CardContent>
@@ -2548,14 +2713,18 @@ export function CompactProductForm({
                         </CardTitle>
                       </CardHeader>
                       <CardContent>
-                        <div className="overflow-hidden rounded-lg border">
-                          <div className="h-[420px] min-h-[320px] overflow-auto">
-                            <DataGridView
-                              scheme={costCenterScheme}
-                              dataSource={formData.cost_centers ?? []}
-                              defaultRowHeight={44}
-                            />
-                          </div>
+                        {/* نفس الارتفاع الثابت المستخدَم في بقية تبويبات هذه الشاشة (TABS_GRID_HEIGHT)
+                            — تمرَّر إلى DataGridView مباشرة (لا على العنصر الملفوف) ليتولى Wijmo
+                            تمرير الصفوف داخلياً بشريط تمرير واحد بدل شريطين متداخلين. */}
+                        <div className="w-full overflow-x-auto rounded-lg border">
+                          <DataGridView
+                            style={{ height: TABS_GRID_HEIGHT }}
+                            scheme={costCenterScheme}
+                            dataSource={formData.cost_centers ?? []}
+                            isReport={false}
+                            showContextMenu={false}
+                            dontConvertToCards={true}
+                          />
                         </div>
                       </CardContent>
                     </Card>
@@ -2611,6 +2780,63 @@ export function CompactProductForm({
           }}
         />
       )}
+
+      <SimpleListPicker
+        open={unitPickerOpen}
+        onOpenChange={setUnitPickerOpen}
+        title="اختر الوحدة"
+        items={(definitions.units || []).map((u: any): SimpleListPickerItem => ({ id: u.id, label: u.unit_name }))}
+        onSelect={(item) => {
+          if (unitPickerRow == null) return
+          updateUnitRow(unitPickerRow, { unit_id: Number(item.id), unit_name: item.label })
+        }}
+      />
+
+      <SimpleListPicker
+        open={pricesPickerOpen}
+        onOpenChange={setPricesPickerOpen}
+        title={pricesPickerField === "category" ? "اختر فئة السعر" : pricesPickerField === "unit" ? "اختر الوحدة" : "اختر العملة"}
+        items={
+          pricesPickerField === "category"
+            ? (definitions.price_category || []).map((c: any): SimpleListPickerItem => ({ id: c.id, label: c.name }))
+            : pricesPickerField === "unit"
+              ? (definitions.units || []).map((u: any): SimpleListPickerItem => ({ id: u.id, label: u.unit_name }))
+              : (definitions.currencies || []).map((c: any): SimpleListPickerItem => ({ id: c.id, label: c.currency_name }))
+        }
+        onSelect={(item) => {
+          if (pricesPickerRow == null) return
+          if (pricesPickerField === "category") {
+            updatePriceRow(pricesPickerRow, { price_category_id: Number(item.id), price_name: item.label })
+          } else if (pricesPickerField === "unit") {
+            updatePriceRow(pricesPickerRow, { unit_id: Number(item.id), unit_name: item.label })
+          } else {
+            updatePriceRow(pricesPickerRow, { currency_id: Number(item.id), currency_name: item.label })
+          }
+        }}
+      />
+
+      <SimpleListPicker
+        open={storePickerOpen}
+        onOpenChange={setStorePickerOpen}
+        title="اختر المستودع"
+        items={(definitions.warehouses || []).map((w: any): SimpleListPickerItem => ({ id: w.id, label: w.warehouse_name }))}
+        onSelect={(item) => {
+          if (storePickerRow == null) return
+          updateStoreRow(storePickerRow, { store_id: Number(item.id), store_name: item.label })
+        }}
+      />
+
+      <SimpleListPicker
+        open={statusPickerOpen}
+        onOpenChange={setStatusPickerOpen}
+        title="حالة مركز التكلفة"
+        items={costCenterStatusOptions.map((option): SimpleListPickerItem => ({ id: option.value, label: option.label }))}
+        onSelect={(item) => {
+          if (statusPickerRow == null) return
+          updateCostCenterRow(statusPickerRow, "required_in_transactions", Number(item.id))
+          updateCostCenterRow(statusPickerRow, "required_label", item.label)
+        }}
+      />
     </div>
   )
 }

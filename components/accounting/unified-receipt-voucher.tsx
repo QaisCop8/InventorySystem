@@ -28,7 +28,7 @@ import { CellRange, KeyAction } from "@grapecity/wijmo.grid"
 import * as wjcCore from "@grapecity/wijmo"
 import Util from "@/components/common/Util"
 import { useToast } from "@/hooks/use-toast"
-import { Dropdown as PrimeDropdown } from "primereact/dropdown"
+import PrimeDropdown from "@/components/common/FocusDropdown"
 import { useAuth } from "@/components/auth/auth-context"
 
 export interface VoucherJournalRow {
@@ -200,8 +200,17 @@ const numberValue = (value: number | null | undefined) => (value === null || val
 // عليه يفشل بـ "grid.focus is not a function". حلّها هنا مركزياً بدل تكرار الفحص بكل موقع استخدام.
 const resolveFlexControl = (grid: any): any => {
   if (!grid) return null
-  if (grid.columns) return grid
-  return grid.control || null
+  // "control" في المفتاح (لا truthiness فقط) يُميّز غلاف React (wjcGrid.FlexGrid) عن عنصر التحكم
+  // الأصلي — truthiness عمود grid.columns وحدها غير كافية: الغلاف نفسه قد يُظهر columns بشكل
+  // عابر قبل اكتمال تركيب Control الأصلي بداخله (grid.control لا يزال null)، فيُعاد الغلاف ذاته
+  // بدل null، وأي قراءة لاحقة لـ.selection عليه تتحطّم (getter الغلاف يمرّرها لـcontrol الفارغ) —
+  // نفس عطل "Cannot read properties of null (reading 'selection')" الذي وُوجِه في
+  // unified-stock-voucher.tsx.
+  if ("control" in grid) {
+    const control = grid.control
+    return control && control.columns ? control : null
+  }
+  return grid.columns ? grid : null
 }
 
 const selectCell = (rawGrid: any, row: number, colName: string) => {
