@@ -60,7 +60,7 @@ export function UserSettings() {
   const activeDepartments = departmentDefs.filter((d) => d.is_active)
 
   const [loading, setLoading] = useState(true)
-  const [selectedUser, setSelectedUser] = useState(null)
+  const [selectedUser, setSelectedUser] = useState<User | null>(null)
   const [showUserDialog, setShowUserDialog] = useState(false)
   const [showNewUserDialog, setShowNewUserDialog] = useState(false)
   const [filters, setFilters] = useState({ search: "", role: "all", department: "all" })
