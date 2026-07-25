@@ -11,7 +11,6 @@ import { Badge } from "@/components/ui/badge"
 import { Plus, Search, Edit, Shield, Key, User, Users, UserCheck, UserX, Clock, Eye, EyeOff } from "lucide-react"
 
 const roles = ["مدير النظام", "مدير المبيعات", "مدير المشتريات", "محاسب", "مندوب مبيعات", "موظف مخازن"]
-const departments = ["الإدارة", "المبيعات", "المشتريات", "المحاسبة", "المخازن", "تقنية المعلومات"]
 interface User {
   id: number
   user_id: string
@@ -33,6 +32,11 @@ interface Branch {
   id: number
   branch_name: string
 }
+interface DepartmentDefinition {
+  id: number
+  department_name: string
+  is_active: boolean
+}
 const defaultScreens = [
   { value: "dashboard", label: "لوحة التحكم الرئيسية", roles: ["all"] },
   { value: "sales-orders", label: "طلبيات المبيعات", roles: ["مدير النظام", "مدير المبيعات", "مندوب مبيعات"] },
@@ -52,6 +56,8 @@ const defaultScreens = [
 export function UserSettings() {
   const [users, setUsers] = useState<User[]>([])
   const [branches, setBranches] = useState<Branch[]>([])
+  const [departmentDefs, setDepartmentDefs] = useState<DepartmentDefinition[]>([])
+  const activeDepartments = departmentDefs.filter((d) => d.is_active)
 
   const [loading, setLoading] = useState(true)
   const [selectedUser, setSelectedUser] = useState(null)
@@ -83,6 +89,17 @@ export function UserSettings() {
       setBranches(Array.isArray(data) ? data : [])
     } catch (error) {
       console.error("[v0] Error loading branches:", error)
+    }
+  }
+
+  const loadDepartmentDefs = async () => {
+    try {
+      const response = await fetch("/api/departments")
+      if (!response.ok) return
+      const data = await response.json()
+      setDepartmentDefs(Array.isArray(data) ? data : [])
+    } catch (error) {
+      console.error("[v0] Error loading departments:", error)
     }
   }
 
@@ -138,6 +155,7 @@ export function UserSettings() {
   useEffect(() => {
     loadUsers()
     loadBranches()
+    loadDepartmentDefs()
   }, [])
 
   const filteredUsers = users.filter((user) => {
@@ -193,7 +211,7 @@ export function UserSettings() {
     setSelectedUser(user)
     setEditRole(user.role)
     setEditDepartment(user.department)
-    setEditBranchId(user.branch_id ?? null)
+    setEditBranchId(user.branch_id ?? branches[0]?.id ?? null)
     setEditDefaultScreen(user.dashboard_layout?.default_screen || "dashboard")
     setShowEditPassword(false)
     setShowUserDialog(true)
@@ -344,7 +362,7 @@ export function UserSettings() {
                 onClick={() => {
                   setNewRole("")
                   setNewDepartment("")
-                  setNewBranchId(null)
+                  setNewBranchId(branches[0]?.id ?? null)
                   setNewDefaultScreen("dashboard")
                   setShowNewUserDialog(true)
                 }}
@@ -380,7 +398,7 @@ export function UserSettings() {
               <div className="invoice-currency-dropdown-wrap w-40">
                 <PrimeDropdown
                   value={filters.department}
-                  options={[{ label: "جميع الأقسام", value: "all" }, ...departments.map((dept) => ({ label: dept, value: dept }))]}
+                  options={[{ label: "جميع الأقسام", value: "all" }, ...activeDepartments.map((dept) => ({ label: dept.department_name, value: dept.department_name }))]}
                   optionLabel="label"
                   optionValue="value"
                   placeholder="القسم"
@@ -714,7 +732,9 @@ export function UserSettings() {
                         <PrimeDropdown
                           id="department"
                           value={editDepartment}
-                          options={departments}
+                          options={activeDepartments}
+                          optionLabel="department_name"
+                          optionValue="department_name"
                           placeholder="اختر القسم"
                           filter
                           className="invoice-currency-dropdown w-full"
@@ -934,18 +954,21 @@ export function UserSettings() {
                   </div>
                   <div className="md:col-span-2">
                     <Label htmlFor="newDefaultScreen">الشاشة الافتراضية عند الدخول</Label>
-                    <Select name="defaultScreen" defaultValue="dashboard" dir="rtl">
-                      <SelectTrigger className="text-right" dir="rtl">
-                        <SelectValue placeholder="اختر الشاشة الافتراضية" />
-                      </SelectTrigger>
-                      <SelectContent dir="rtl">
-                        {defaultScreens.map((screen) => (
-                          <SelectItem key={screen.value} value={screen.value} className="text-right">
-                            {screen.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <div className="invoice-currency-dropdown-wrap">
+                      <PrimeDropdown
+                        id="newDefaultScreen"
+                        value={newDefaultScreen}
+                        options={getAvailableScreens(newRole)}
+                        optionLabel="label"
+                        optionValue="value"
+                        placeholder="اختر الشاشة الافتراضية"
+                        filter
+                        className="invoice-currency-dropdown w-full"
+                        panelClassName="invoice-currency-dropdown-panel"
+                        appendTo="self"
+                        onChange={(e: any) => setNewDefaultScreen(e.value)}
+                      />
+                    </div>
                     <p className="text-sm text-muted-foreground mt-1 text-right">
                       سيتم توجيه المستخدم إلى هذه الشاشة مباشرة بعد تسجيل الدخول حسب صلاحياته
                     </p>
@@ -988,33 +1011,55 @@ export function UserSettings() {
                   </div>
                   <div>
                     <Label htmlFor="newRole">الدور *</Label>
-                    <Select name="role" required dir="rtl">
-                      <SelectTrigger className="text-right" dir="rtl">
-                        <SelectValue placeholder="اختر الدور" />
-                      </SelectTrigger>
-                      <SelectContent dir="rtl">
-                        {roles.map((role) => (
-                          <SelectItem key={role} value={role} className="text-right">
-                            {role}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <div className="invoice-currency-dropdown-wrap">
+                      <PrimeDropdown
+                        id="newRole"
+                        value={newRole}
+                        options={roles}
+                        placeholder="اختر الدور"
+                        filter
+                        className="invoice-currency-dropdown w-full"
+                        panelClassName="invoice-currency-dropdown-panel"
+                        appendTo="self"
+                        onChange={(e: any) => setNewRole(e.value)}
+                      />
+                    </div>
                   </div>
                   <div>
                     <Label htmlFor="newDepartment">القسم *</Label>
-                    <Select name="department" required dir="rtl">
-                      <SelectTrigger className="text-right" dir="rtl">
-                        <SelectValue placeholder="اختر القسم" />
-                      </SelectTrigger>
-                      <SelectContent dir="rtl">
-                        {departments.map((dept) => (
-                          <SelectItem key={dept} value={dept} className="text-right">
-                            {dept}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <div className="invoice-currency-dropdown-wrap">
+                      <PrimeDropdown
+                        id="newDepartment"
+                        value={newDepartment}
+                        options={activeDepartments}
+                        optionLabel="department_name"
+                        optionValue="department_name"
+                        placeholder="اختر القسم"
+                        filter
+                        className="invoice-currency-dropdown w-full"
+                        panelClassName="invoice-currency-dropdown-panel"
+                        appendTo="self"
+                        onChange={(e: any) => setNewDepartment(e.value)}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <Label htmlFor="newBranch">الفرع *</Label>
+                    <div className="invoice-currency-dropdown-wrap">
+                      <PrimeDropdown
+                        id="newBranch"
+                        value={newBranchId}
+                        options={branches}
+                        optionLabel="branch_name"
+                        optionValue="id"
+                        placeholder="اختر الفرع"
+                        filter
+                        className="invoice-currency-dropdown w-full"
+                        panelClassName="invoice-currency-dropdown-panel"
+                        appendTo="self"
+                        onChange={(e: any) => setNewBranchId(e.value)}
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
