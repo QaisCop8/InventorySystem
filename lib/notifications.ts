@@ -1,7 +1,9 @@
-import { neon } from "@neondatabase/serverless"
+import sql from "@/lib/database"
 import { sendTemplateMessage, sendTextMessage } from "./whatsapp-service"
 
-const sql = neon(process.env.DATABASE_URL!)
+// (كان يُنشئ عميل neon() خاصاً به دوماً بصرف النظر عن كون DATABASE_URL يشير لخادم Postgres محلي —
+// عميل neon يتواصل عبر HTTP فقط، فيفشل بـ"fetch failed" حِيال أي قاعدة محلية. الاستيراد من
+// lib/database.ts يُحيل لنفس منطق التبديل pg/neon المستخدَم بباقي المشروع.)
 
 export interface Notification {
   id: number

@@ -418,7 +418,7 @@ export async function GET(request: NextRequest) {
         cv.voucher_id as type_id ,
         vb.name AS book_name
         FROM customer_vouchers cv
-        LEFT JOIN voucher_books vb ON cv.book_id = vb.id
+        LEFT JOIN voucher_books_tbl vb ON cv.book_id = vb.id
          WHERE cv.customer_id = ANY(${customerIds}::int[])
         ORDER BY cv.customer_id, cv.id ASC
       `;

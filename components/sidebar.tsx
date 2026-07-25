@@ -36,6 +36,7 @@ import {
   BookOpen,
   FilePlus2,
   FileMinus2,
+  KanbanSquare,
   LucideIcon,
 } from "lucide-react"
 import { useWindowManager } from "@/contexts/window-manager-context"
@@ -68,6 +69,7 @@ const ACCENTS: Record<string, Accent> = {
   "home-dashboard": { gradient: "from-cyan-400 to-blue-500", glow: "shadow-cyan-500/40", chip: "bg-cyan-500/15 text-cyan-700 dark:text-cyan-200" },
   "smart-analytics": { gradient: "from-violet-400 to-purple-600", glow: "shadow-violet-500/40", chip: "bg-violet-500/15 text-violet-700 dark:text-violet-200" },
   "order-tracking": { gradient: "from-sky-400 to-indigo-500", glow: "shadow-sky-500/40", chip: "bg-sky-500/15 text-sky-700 dark:text-sky-200" },
+  "task-orders": { gradient: "from-fuchsia-400 to-pink-600", glow: "shadow-fuchsia-500/40", chip: "bg-fuchsia-500/15 text-fuchsia-700 dark:text-fuchsia-200" },
   definitions: { gradient: "from-emerald-400 to-teal-500", glow: "shadow-emerald-500/40", chip: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-200" },
   "general-accounting": { gradient: "from-amber-400 to-orange-500", glow: "shadow-amber-500/40", chip: "bg-amber-500/15 text-amber-700 dark:text-amber-200" },
   "item-management": { gradient: "from-lime-400 to-green-600", glow: "shadow-lime-500/40", chip: "bg-lime-500/15 text-lime-700 dark:text-lime-200" },
@@ -134,6 +136,16 @@ export function Sidebar({
     //{ id: "ai-assistant", title: "المساعد الذكي", icon: Sparkles, section: "ai-assistant" },
     { id: "smart-analytics", title: "التحليلات الذكية", icon: BarChart3, section: "smart-analytics" },
     { id: "order-tracking", title: "متابعة الطلبيات", icon: GitBranch, section: "order-tracking" },
+    {
+      id: "task-orders",
+      title: "تتبع أوامر العمل",
+      icon: KanbanSquare,
+      submenu: [
+        { title: "إدارة الأقسام ومخطط سير العمل", section: "task-orders-admin", icon: Settings },
+        { title: "متابعة طلباتي", section: "task-orders-board", icon: KanbanSquare },
+        { title: "التقارير", section: "task-orders-report", icon: BarChart3 },
+      ],
+    },
     //{ id: "lot-opener", title: "فتح الدفعات", icon: Unlock, section: "lot-opener" },
     {
       id: "definitions",

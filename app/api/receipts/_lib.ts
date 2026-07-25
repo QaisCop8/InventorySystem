@@ -812,6 +812,28 @@ export const validateChequeBankAccounts = async (vchType: number, cheques: any[]
   return null
 }
 
+// خط دفاع ثانٍ خلف تحقق الواجهة (validateVoucher في receipts.tsx) — وجود مبلغ شيكات يستلزم حساب
+// صندوق شيكات؛ في سند الصرف يصل check_account_id معبَّأً بالفعل بـ jary_account_id الخاص
+// بالحساب البنكي المختار في شبكة الشيكات (تُزامنه الواجهة تلقائياً في unified-receipt-voucher.tsx).
+export const validateCheckAccount = (checkAmount: number, checkAccountId: number | null): string | null => {
+  if (checkAmount > 0 && !checkAccountId) {
+    return "يجب ادخال حساب صندوق الشيكات"
+  }
+  return null
+}
+
+// خط دفاع ثانٍ خلف تحقق الواجهة (validateVoucher في receipts.tsx) — إجمالي مبالغ أسطر تبويب
+// الشيكات يجب أن يساوي مبلغ الشيكات (check_amount) في رأس السند.
+export const validateChequesTotal = (checkAmount: number, cheques: any[]): string | null => {
+  if (checkAmount <= 0) return null
+  const validCheques = (Array.isArray(cheques) ? cheques : []).filter((row) => row?.cheq_num && Number(row?.amount || 0) > 0)
+  const chequesTotal = validCheques.reduce((sum, row) => sum + Number(row.amount || 0), 0)
+  if (Math.round((chequesTotal - checkAmount) * 100) / 100 !== 0) {
+    return "مبلغ الشيكات غير مساوي لاجمالي مبالغ الشيكات"
+  }
+  return null
+}
+
 // يمنع سباق التزامن: ورقة حُجزت من مستخدم آخر بين لحظة اختيارها في الواجهة ولحظة الحفظ الفعلي.
 export const validateChequeBookLeaves = async (voucherId: number | null, cheques: any[]): Promise<string | null> => {
   const leafIds = (Array.isArray(cheques) ? cheques : [])

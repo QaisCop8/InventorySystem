@@ -6,6 +6,7 @@ import { neon } from "@neondatabase/serverless"
 import { Pool } from "pg"
 import { db } from "@vercel/postgres"
 import { adjustStock } from "./inventory"
+import { createCustomerOrder as createTaskCustomerOrder, createOrderItem as createTaskOrderItem } from "./task-orders"
 
 let sql: any = null
 
@@ -387,6 +388,9 @@ export async function createOrder(
     const updatedDate = baseDate;
 
     orderData.order_date = updatedDate.toISOString();
+    // يُستخدم لاحقاً لفتح مراحل تتبع الطلبيات (task-orders) — مرة واحدة فقط عند إنشاء طلبية بيع
+    // جديدة فعلياً، لا عند كل تعديل لاحق على طلبية موجودة (وإلا كُررت المراحل في كل حفظ).
+    const isNewOrder = !(orderData.id && orderData.id > 0);
     if (orderData.id && orderData.id > 0) {
       // UPDATE existing order
       const orderUpdateQuery = `
@@ -673,6 +677,38 @@ export async function createOrder(
 
     await client.query("COMMIT");
     console.log("[v0] Order and items inserted successfully");
+
+    // فتح مراحل "لوحة تتبع الطلبيات" (task-orders) مباشرة لكل صنف في طلبية بيع جديدة — أثر جانبي
+    // أفضل جهد (best-effort) بعد نجاح commit الطلبية نفسها ولا يُسقطها عند فشله (نفس نمط
+    // safeNotify في task-orders.ts): سير عمل تتبع الطلبيات منفصل تماماً عن حفظ الطلبية، وفشل
+    // تهيئته (لا سير عمل عام مُعرَّف بعد، إلخ) يجب ألا يمنع حفظ الطلبية الفعلي. Number(order_type)
+    // لأن orderData قد يصل أحياناً بقيم نصية من الواجهة رغم أن النوع المصرَّح Partial<SalesOrder>.
+    if (isNewOrder && Number(orderData.order_type) === 1) {
+      const trackedItems = items.filter((item) => item.product_name && (item.quantity || item.delivered_quantity));
+      if (trackedItems.length > 0) {
+        try {
+          const taskCustomerOrder = await createTaskCustomerOrder({
+            customerId: orderData.customer_id || null,
+            createdBy: String(orderData.user_id || ""),
+          });
+          for (const item of trackedItems) {
+            try {
+              await createTaskOrderItem({
+                customerOrderId: taskCustomerOrder.id,
+                title: item.product_name!,
+                productId: item.product_id || null,
+                qty: item.quantity || null,
+                createdBy: String(orderData.user_id || ""),
+              });
+            } catch (itemError) {
+              console.error("[v0] Failed to open tracking steps for order item (non-blocking):", item.product_name, itemError);
+            }
+          }
+        } catch (taskError) {
+          console.error("[v0] Failed to open task-order tracking for sales order (non-blocking):", taskError);
+        }
+      }
+    }
 
     return order;
   } catch (error) {

@@ -169,7 +169,7 @@ export default class MultiSelect extends React.Component {
             tooltipOptions={{ position: 'bottom', style: { direction: 'rtl' } }}
             panelClassName={panelClassName}
             itemTemplate={this.itemsTemplate}
-            selectedItemsLabel={this.props.value ? '$.strings.items.selectedItemsLabel' + ' ' + this.props.value.length : ''}
+            selectedItemsLabel={this.props.selectedItemsLabel ?? (this.props.value ? `تم تحديد ${this.props.value.length} عناصر` : '')}
             resetFilterOnHide={true}
             onSelectAll={this.props.handleSelectAll ? this.props.handleSelectAll : this.props.parent ? this.handleSelectAll : undefined}
           >

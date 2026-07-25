@@ -213,6 +213,19 @@ const resolveFlexControl = (grid: any): any => {
   return grid.columns ? grid : null
 }
 
+// getter .selection في Wijmo قد يرمي داخلياً "Cannot read properties of null (reading
+// 'selection')" حتى بعد فحوصات resolveFlexControl أعلاه — حالة حدّية سباقية عابرة (تفكيك جزئي
+// للشبكة الداخلية أثناء إعادة تركيب التبويب) لم تُغطِّها الفحوصات الثابتة هناك. تُقرأ هنا دفاعياً
+// بدل تكرار try/catch بكل موقع استخدام.
+const readGridSelection = (grid: any): { row: number; col: number } | null => {
+  try {
+    const sel = grid?.selection
+    return sel ? { row: sel.row, col: sel.col } : null
+  } catch {
+    return null
+  }
+}
+
 const selectCell = (rawGrid: any, row: number, colName: string) => {
   const grid = resolveFlexControl(rawGrid)
   if (!grid || !grid.columns) return
@@ -396,15 +409,22 @@ export default function UnifiedReceiptVoucher({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dialogOpen])
 
-  // حساب صندوق الشيكات لا يُستخدم إطلاقاً في سند الصرف (معطَّل في الواجهة) — أي قيمة قديمة له
-  // (سند مُحمَّل كان محفوظاً قبل هذا التغيير مثلاً) تُفرَّغ فعلياً لا شكلياً فقط، حتى لا تُحفظ
-  // خطأً مع السند رغم إخفائها في الحقل.
+  // سند الصرف: حساب صندوق الشيكات لا يُختار يدوياً (معطَّل في الواجهة) بل يُعبَّأ آلياً بـ
+  // jary_account_id الخاص بالحساب البنكي المختار في شبكة الشيكات — يُزامَن هنا مع كل تغيير في
+  // الشبكة (اختيار/تغيير/حذف السطر) بدل نقطة اختيار واحدة، حتى يبقى صحيحاً في كل الحالات.
   useEffect(() => {
-    if (isPayment && form.check_account_id != null) {
-      onFormChange("check_account_id", null)
+    if (!isPayment) return
+    // جدول cheques_tbl لا يخزّن jary_account_id (خاصية الحساب البنكي، لا خاصية سطر الشيك) — عند
+    // تحميل سند محفوظ سابقاً تصل الأسطر بلا هذا الحقل رغم امتلاكها bank_account_id، فيُشتق هنا
+    // احتياطاً من قائمة bankAccounts (بدل قراءته من السطر فقط، وهو متاح فقط لحظة الاختيار الحيّ).
+    const chequeRow = (form.cheques || []).find((row) => row.bank_account_id)
+    const jaryAccountId =
+      chequeRow?.jary_account_id ?? bankAccounts.find((a) => a.id === chequeRow?.bank_account_id)?.jary_account_id ?? null
+    if (form.check_account_id !== jaryAccountId) {
+      onFormChange("check_account_id", jaryAccountId)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isPayment, form.check_account_id])
+  }, [isPayment, form.cheques, bankAccounts])
 
   // البطاقات (المبلغ + الحساب + تبويب تفاصيلها) غير متاحة إطلاقاً في سند الصرف — أي قيمة قديمة
   // (سند مُحمَّل كان محفوظاً قبل هذا التغيير) تُفرَّغ فعلياً حتى لا تدخل في حساب الإجمالي رغم
@@ -774,18 +794,19 @@ export default function UnifiedReceiptVoucher({
   // تمرير مصفوفة كـ dataSource مباشرة) — لكن إعادة التعيين نفسها تُصفّر currentPosition لأول عنصر
   // رغم ثبات كائن CollectionView، فيُحفَظ التحديد الحالي هنا ويُعاد فرضه فوراً بعد المزامنة.
   useEffect(() => {
-    const gridBeforeSync = resolveFlexControl(journalGridRef.current)
-    const prevSelection = gridBeforeSync?.selection
-      ? { row: gridBeforeSync.selection.row, col: gridBeforeSync.selection.col }
-      : null
+    const prevSelection = readGridSelection(resolveFlexControl(journalGridRef.current))
 
     journalCollectionView.sourceCollection = journal.map((row, i) => ({ ...row, ser: i + 1 }))
     journalCollectionView.refresh()
 
     if (prevSelection) {
-      const grid = resolveFlexControl(journalGridRef.current)
-      if (grid && grid.rows && grid.rows.length > prevSelection.row) {
-        grid.select(new CellRange(prevSelection.row, prevSelection.col))
+      try {
+        const grid = resolveFlexControl(journalGridRef.current)
+        if (grid && grid.rows && grid.rows.length > prevSelection.row) {
+          grid.select(new CellRange(prevSelection.row, prevSelection.col))
+        }
+      } catch {
+        // استعادة التحديد ليست حرجة — تجاهل فشلها العابر (انظر readGridSelection أعلاه).
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -938,7 +959,7 @@ export default function UnifiedReceiptVoucher({
       sortable: false,
       columns: [
         { header: "#", name: "ser", width: 50, isReadOnly: true },
-        { header: "رقم الحساب", name: "bank_account", width: 160 },
+        { header: "رقم الحساب", name: "bank_account", width: 160, isReadOnly: isPayment },
         {
           name: "btnSearchBankAccount",
           header: " ",
@@ -976,7 +997,7 @@ export default function UnifiedReceiptVoucher({
           },
           visible: isPayment,
         },
-        { header: "البنك", name: "bank_no", width: 80, maxLength: 4 },
+        { header: "البنك", name: "bank_no", width: 80, maxLength: 4, isReadOnly: isPayment },
         {
           name: "btnSearchBank",
           header: " ",
@@ -995,7 +1016,7 @@ export default function UnifiedReceiptVoucher({
           visible: isReceipt,
         },
         { header: "اسم البنك", name: "bank_name", width: 120, isReadOnly: true },
-        { header: "الفرع", name: "branch_no", width: 80, maxLength: 4 },
+        { header: "الفرع", name: "branch_no", width: 80, maxLength: 4, isReadOnly: isPayment },
         {
           name: "btnSearchBranch",
           header: " ",
@@ -1053,10 +1074,7 @@ export default function UnifiedReceiptVoucher({
     // commitNew — reassignment كامل لـ sourceCollection يُعامَل داخلياً كبيانات جديدة تماماً). لذا
     // يُحفَظ تحديد الشبكة الحالي هنا صراحة قبل المزامنة، ويُعاد فرضه فوراً بعدها (ما لم يوجد هدف
     // تركيز مُعلَّق لسطر أُضيف لتوّه، فيُطبَّق ذلك بدلاً منه).
-    const gridBeforeSync = resolveFlexControl(chequeGridRef.current)
-    const prevSelection = gridBeforeSync?.selection
-      ? { row: gridBeforeSync.selection.row, col: gridBeforeSync.selection.col }
-      : null
+    const prevSelection = readGridSelection(resolveFlexControl(chequeGridRef.current))
 
     chequesCollectionView.sourceCollection = cheques.map((row, i) => ({
       ...row,
@@ -1079,9 +1097,13 @@ export default function UnifiedReceiptVoucher({
         pending.row + 1,
       )
     } else if (prevSelection) {
-      const grid = resolveFlexControl(chequeGridRef.current)
-      if (grid && grid.rows && grid.rows.length > prevSelection.row) {
-        grid.select(new CellRange(prevSelection.row, prevSelection.col))
+      try {
+        const grid = resolveFlexControl(chequeGridRef.current)
+        if (grid && grid.rows && grid.rows.length > prevSelection.row) {
+          grid.select(new CellRange(prevSelection.row, prevSelection.col))
+        }
+      } catch {
+        // استعادة التحديد ليست حرجة — تجاهل فشلها العابر (انظر readGridSelection أعلاه).
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1473,18 +1495,9 @@ export default function UnifiedReceiptVoucher({
           messagesRef.current?.show?.([{ severity: "error", summary: "", detail: validationError, life: 3000 }])
           return
         }
-        // يوجد أصلاً سطر فارغ تحت هذا السطر (مثلاً أُضيف سابقاً ولم يُعبَّأ) — الانتقال إليه بدل
-        // إضافة سطر فارغ آخر جديد فوقه.
+        // يوجد أصلاً سطر تحت هذا السطر (فارغ أو معبّأ) — الانتقال إليه بدل إضافة سطر فارغ جديد.
         const nextRow = chequesRef.current[row + 1]
-        const nextRowEmpty =
-          nextRow &&
-          !nextRow.bank_account?.trim() &&
-          !nextRow.bank_no?.trim() &&
-          !nextRow.cheq_num?.trim() &&
-          !nextRow.amount &&
-          !nextRow.cheq_owner_name?.trim()
-        
-        if (nextRowEmpty) {
+        if (nextRow) {
           selectCell(grid, row + 1, "bank_account")
           return
         }
@@ -2017,9 +2030,9 @@ export default function UnifiedReceiptVoucher({
                   <AutoCompleteAccount
                     label="حساب صندوق الشيكات"
                     valueMode="id"
-                    // سند الصرف: يُعطَّل ويُفرَّغ — الحساب المقابل الفعلي لسطر قيد "شيكات" يصير
-                    // jary_account_id الخاص بالحساب البنكي المختار في شبكة الشيكات بدلاً منه.
-                    value={isPayment ? "" : numberValue(form.check_account_id)}
+                    // سند الصرف: يُعطَّل أمام الإدخال اليدوي لكن يبقى معروضاً — قيمته تُعبَّأ آلياً
+                    // (jary_account_id الخاص بالحساب البنكي المختار في شبكة الشيكات) عبر المزامنة أعلاه.
+                    value={numberValue(form.check_account_id)}
                     onValueChange={(v) => onFormChange("check_account_id", v ? Number(v) : null)}
                     costCenters={form.check_account_cost_centers}
                     onCostCentersChange={(selection) => onFormChange("check_account_cost_centers", selection)}

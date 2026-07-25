@@ -13,6 +13,8 @@ import {
   validateManualChequeEntry,
   validateChequeBankAccounts,
   validateChequeBookLeaves,
+  validateChequesTotal,
+  validateCheckAccount,
   consumeChequeBookLeaves,
   releaseChequeBookLeaves,
 } from "./_lib"
@@ -73,6 +75,10 @@ export async function POST(request: NextRequest) {
     }
     const currencyError = await validateJournalAccountCurrencies(journalRows, data.currency_id ? Number(data.currency_id) : null)
     if (currencyError) return NextResponse.json({ error: currencyError }, { status: 400 })
+    const checkAccountError = validateCheckAccount(checkAmount, data.check_account_id || null)
+    if (checkAccountError) return NextResponse.json({ error: checkAccountError }, { status: 400 })
+    const chequesTotalError = validateChequesTotal(checkAmount, data.cheques)
+    if (chequesTotalError) return NextResponse.json({ error: chequesTotalError }, { status: 400 })
     const chequeDuplicateError = await validateChequeDuplicates(null, data.cheques)
     if (chequeDuplicateError) return NextResponse.json({ error: chequeDuplicateError }, { status: 400 })
     const chequeBankAccountError = await validateChequeBankAccounts(vchType, data.cheques)
@@ -174,6 +180,10 @@ export async function PUT(request: NextRequest) {
       }
       const currencyError = await validateJournalAccountCurrencies(journalRows, data.currency_id ? Number(data.currency_id) : null)
       if (currencyError) return NextResponse.json({ error: currencyError }, { status: 400 })
+      const checkAccountError = validateCheckAccount(checkAmount, data.check_account_id || null)
+      if (checkAccountError) return NextResponse.json({ error: checkAccountError }, { status: 400 })
+      const chequesTotalError = validateChequesTotal(checkAmount, data.cheques)
+      if (chequesTotalError) return NextResponse.json({ error: chequesTotalError }, { status: 400 })
       const chequeDuplicateError = await validateChequeDuplicates(data.id, data.cheques)
       if (chequeDuplicateError) return NextResponse.json({ error: chequeDuplicateError }, { status: 400 })
       const chequeBankAccountError = await validateChequeBankAccounts(vchType, data.cheques)

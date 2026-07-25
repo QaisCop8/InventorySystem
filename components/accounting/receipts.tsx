@@ -498,13 +498,15 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
     if (cashAmount > 0 && !data.cash_account_id) return "يجب اختيار حساب الصندوق"
     if (checkAmount > 0) {
       if (voucherType === 9) {
-        // سند الصرف: حساب صندوق الشيكات معطَّل — الحساب المقابل الفعلي يُشتق من jary_account_id
-        // الخاص بالحساب البنكي المختار في شبكة الشيكات بدلاً منه.
+        // سند الصرف: حساب صندوق الشيكات يُعبَّأ آلياً بـ jary_account_id الخاص بالحساب البنكي
+        // المختار في شبكة الشيكات (unified-receipt-voucher.tsx) — لا يُختار يدوياً هنا. حسابٌ
+        // بنكي مختار بلا jary_account_id معرَّف له يستحق رسالة تشخيصية أدق من الرسالة العامة أدناه.
         const anyRow = (data.cheques || []).find((row) => row.bank_account_id)
-        if (!anyRow?.jary_account_id) return "الحساب البنكي المختار لا يملك حساب جاري معرَّف (jary_account_id) في تعريف الحسابات البنكية"
-      } else if (!data.check_account_id) {
-        return "يجب اختيار حساب صندوق الشيكات"
+        if (anyRow && !anyRow.jary_account_id) {
+          return "الحساب البنكي المختار لا يملك حساب جاري معرَّف (jary_account_id) في تعريف الحسابات البنكية"
+        }
       }
+      if (!data.check_account_id) return "يجب ادخال حساب صندوق الشيكات"
     }
     if (creditCardAmount > 0 && !data.credit_card_account_id) return "يجب اختيار حساب البطاقات"
 
@@ -549,7 +551,7 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
       const validCheques = enteredCheques.filter((row) => row.cheq_num && Number(row.amount || 0) > 0)
       const chequesTotal = validCheques.reduce((sum, row) => sum + Number(row.amount || 0), 0)
       if (Math.round((chequesTotal - checkAmount) * 100) / 100 !== 0) {
-        return "إجمالي تبويب الشيكات يجب أن يساوي مبلغ الشيكات"
+        return "مبلغ الشيكات غير مساوي لاجمالي مبالغ الشيكات"
       }
     }
 
@@ -576,16 +578,13 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
       // وطباعة" — أي طباعة أخرى (بما فيها حفظ وطباعة) لا تُغيّرها هنا إطلاقاً.
       const status = action === "save" || action === "save_print" ? form.status : 2
       const isPrinted = action === "post_print" ? 1 : form.is_printed || 0
-      // سند الصرف: حساب صندوق الشيكات معطَّل في الواجهة دائماً null — الحساب المقابل الفعلي
-      // لسطر قيد "شيكات" هو jary_account_id الخاص بالحساب البنكي المختار في شبكة الشيكات.
-      const checkAccountId =
-        voucherType === 9 ? (form.cheques || []).find((row) => row.bank_account_id)?.jary_account_id ?? null : form.check_account_id
-      // المبلغ في تبويب تفاصيل البطاقة يتبع حقل "بطاقات" في الرئيسية دائماً.
+      // المبلغ في تبويب تفاصيل البطاقة يتبع حقل "بطاقات" في الرئيسية دائماً. حساب صندوق الشيكات
+      // (form.check_account_id) وصل هنا مُعبَّأً بالفعل — في سند الصرف تُبقيه المزامنة في
+      // unified-receipt-voucher.tsx متوافقاً دائماً مع jary_account_id للحساب البنكي المختار.
       const dataToSave: VoucherRecord = {
         ...form,
         status,
         is_printed: isPrinted,
-        check_account_id: checkAccountId,
         cards: [{ ...(form.cards?.[0] || emptyCardRow), amount: form.credit_card_amount }],
       }
       const response = await fetch("/api/receipts", {

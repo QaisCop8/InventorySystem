@@ -592,6 +592,7 @@
      التنسيق (حدود/خلفية) على .p-checkbox-box فقط — وليس أيضاً على .p-checkbox الحاوي الخارجي
      (كان التنسيق سابقاً على الاثنين معاً، فيظهر صندوقان متداخلان لكل خانة اختيار). */
   .invoice-currency-dropdown-panel .p-multiselect-item .p-checkbox {
+    position: relative !important;
     box-sizing: border-box !important;
     width: 20px !important;
     height: 20px !important;
@@ -617,7 +618,11 @@
     transition: background-color 140ms ease, border-color 140ms ease !important;
   }
 
-  .invoice-currency-dropdown-panel .p-multiselect-item .p-checkbox-box.p-highlight {
+  /* إصدارات PrimeReact الأحدث (passthrough) تُعبِّر عن حالة "محدَّد" عبر data-p-highlight="true"
+     بدل صنف .p-highlight فعلي على .p-checkbox-box نفسها (يبقى الصنف على .p-checkbox/.li الأب
+     فقط) — كلا المُحدِّدين هنا لتغطية الإصدارين معاً. */
+  .invoice-currency-dropdown-panel .p-multiselect-item .p-checkbox-box.p-highlight,
+  .invoice-currency-dropdown-panel .p-multiselect-item .p-checkbox-box[data-p-highlight="true"] {
     border-color: #2563eb !important;
     background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%) !important;
   }
@@ -626,6 +631,19 @@
     width: 12px !important;
     height: 12px !important;
     color: #ffffff !important;
+  }
+
+  /* PrimeReact يُدرج <input type="checkbox"> فعلياً بجانب .p-checkbox-box المُنسَّق (للوصولية/
+     تفاعل لوحة المفاتيح) — بلا CSS من ثيم PrimeReact الأساسي (غير مُحمَّل في هذا المشروع) يبقى
+     ظاهراً بمظهر المتصفح الافتراضي، فيظهر صندوقا اختيار لكل سطر بدل واحد. يُخفى بصرياً هنا (لا
+     display:none حتى يبقى قابلاً للتفاعل/الوصول له) مع تثبيته فوق .p-checkbox-box تماماً. */
+  .invoice-currency-dropdown-panel .p-multiselect-item .p-checkbox-input {
+    position: absolute !important;
+    width: 20px !important;
+    height: 20px !important;
+    margin: 0 !important;
+    opacity: 0 !important;
+    cursor: pointer !important;
   }
 
   /* رقاقات (chips) الأصناف المختارة في حالة الإغلاق — لا يوجد لها تنسيق افتراضي حديث، فتظهر

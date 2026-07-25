@@ -70,6 +70,9 @@ import WelcomeDashboard from "@/components/dashboard/welcome-dashboard"
 import PervasiveSettings from "@/app/settings/pervasive/page"
 import { OrderMigrate } from "@/components/Migration/orders-migration"
 import  {OrderManagement} from "@/components/orders/order-management"
+import TaskOrdersAdminPage from "@/components/task-orders/task-orders-admin-page"
+import TaskOrdersBoardPage from "@/components/task-orders/task-orders-board-page"
+import TaskOrdersReportPage from "@/components/task-orders/task-orders-report-page"
 const componentMap: Record<string, React.ComponentType<any>> = {
   dashboard: Dashboard,
   "inventory-analytics": InventoryAnalytics,
@@ -137,7 +140,10 @@ const componentMap: Record<string, React.ComponentType<any>> = {
   "smart-analytics": SmartAnalyticsDashboard,
   "smart-inventory": SmartInventoryRecommendations,
   "orders-migration": OrderMigrate,
-  "order-management": OrderManagement
+  "order-management": OrderManagement,
+  "task-orders-admin": TaskOrdersAdminPage,
+  "task-orders-board": TaskOrdersBoardPage,
+  "task-orders-report": TaskOrdersReportPage,
 }
 
 export default function HomePage() {
