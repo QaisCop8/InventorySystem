@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Icons } from "@/components/ui/icons";
 import { QuickThemeToggle } from "@/components/theme/theme-toggle";
+import { Loader2 } from "lucide-react";
 
 interface HeaderProps {
   onMenuClick: () => void;
@@ -39,6 +40,15 @@ export function Header({ onMenuClick, activeSection, onProfileClick, onSettingsC
     setActiveDepartmentContext,
   } = useAuth();
   const [search, setSearch] = useState("");
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  // logout فعلياً غير متزامن (طلب /api/auth/logout قبل تفريغ الجلسة) — بلا هذه الحالة كان الضغط
+  // على "تسجيل الخروج" يُغلق القائمة المنسدلة فوراً دون أي مؤشر تحميل حتى تكتمل الجلسة وتُعاد
+  // صفحة الدخول.
+  const handleLogout = async () => {
+    setLoggingOut(true);
+    await logout();
+  };
   const [branches, setBranches] = useState<Array<{ id: number; branch_name: string }>>([]);
   const [isLoadingBranches, setIsLoadingBranches] = useState(false);
 
@@ -52,8 +62,12 @@ export function Header({ onMenuClick, activeSection, onProfileClick, onSettingsC
         const normalized = Array.isArray(data) ? data : [];
         setBranches(normalized);
 
-        if (!activeBranchId && normalized[0]) {
-          setActiveBranchContext({ id: normalized[0].id, name: normalized[0].branch_name });
+        if (!activeBranchId && normalized.length > 0) {
+          const userBranch = user?.branchId
+            ? normalized.find((branch) => branch.id === user.branchId)
+            : undefined;
+          const defaultBranch = userBranch || normalized[0];
+          setActiveBranchContext({ id: defaultBranch.id, name: defaultBranch.branch_name });
         }
       } catch (error) {
         console.error("Failed to load branches", error);
@@ -63,7 +77,7 @@ export function Header({ onMenuClick, activeSection, onProfileClick, onSettingsC
     };
 
     fetchBranches();
-  }, [activeBranchId, setActiveBranchContext]);
+  }, [activeBranchId, setActiveBranchContext, user?.branchId]);
 
   useEffect(() => {
     if (!activeDepartment && user?.department) {
@@ -206,12 +220,19 @@ export function Header({ onMenuClick, activeSection, onProfileClick, onSettingsC
 
             <DropdownMenuSeparator />
 
-            <DropdownMenuItem onClick={logout} className="text-red-600 justify-center cursor-pointer">
+            <DropdownMenuItem onClick={handleLogout} className="text-red-600 justify-center cursor-pointer">
               تسجيل الخروج
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
+
+      {loggingOut && (
+        <div className="fixed inset-0 z-[999] flex flex-col items-center justify-center gap-3 bg-white/85 backdrop-blur-sm">
+          <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
+          <p className="text-sm font-medium text-slate-700">جاري تسجيل الخروج يرجى الانتظار...</p>
+        </div>
+      )}
     </header>
   );
 }

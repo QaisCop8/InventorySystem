@@ -3,7 +3,7 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import PrimeDropdown from "@/components/common/FocusDropdown"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
@@ -21,11 +21,17 @@ interface User {
   phone?: string
   role: string
   department: string
+  branch_id?: number | null
+  branch_name?: string | null
   is_active: boolean
   last_login?: string
   dashboard_layout?: { default_screen: string }
   notifications_enabled?: boolean
   email_notifications?: boolean
+}
+interface Branch {
+  id: number
+  branch_name: string
 }
 const defaultScreens = [
   { value: "dashboard", label: "لوحة التحكم الرئيسية", roles: ["all"] },
@@ -45,6 +51,7 @@ const defaultScreens = [
 
 export function UserSettings() {
   const [users, setUsers] = useState<User[]>([])
+  const [branches, setBranches] = useState<Branch[]>([])
 
   const [loading, setLoading] = useState(true)
   const [selectedUser, setSelectedUser] = useState(null)
@@ -55,6 +62,29 @@ export function UserSettings() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [showPasswordReset, setShowPasswordReset] = useState(false)
   const [showEditPassword, setShowEditPassword] = useState(false)
+
+  // حقول القوائم المنسدلة (PrimeDropdown) بحوارَي التعديل والإضافة — تُدار بحالة React بدل
+  // FormData لأن PrimeDropdown ليس عنصر <select> حقيقياً فلا تلتقطه FormData تلقائياً.
+  const [editRole, setEditRole] = useState("")
+  const [editDepartment, setEditDepartment] = useState("")
+  const [editBranchId, setEditBranchId] = useState<number | null>(null)
+  const [editDefaultScreen, setEditDefaultScreen] = useState("dashboard")
+
+  const [newRole, setNewRole] = useState("")
+  const [newDepartment, setNewDepartment] = useState("")
+  const [newBranchId, setNewBranchId] = useState<number | null>(null)
+  const [newDefaultScreen, setNewDefaultScreen] = useState("dashboard")
+
+  const loadBranches = async () => {
+    try {
+      const response = await fetch("/api/branches")
+      if (!response.ok) return
+      const data = await response.json()
+      setBranches(Array.isArray(data) ? data : [])
+    } catch (error) {
+      console.error("[v0] Error loading branches:", error)
+    }
+  }
 
   const loadUsers = async () => {
     try {
@@ -107,6 +137,7 @@ export function UserSettings() {
 
   useEffect(() => {
     loadUsers()
+    loadBranches()
   }, [])
 
   const filteredUsers = users.filter((user) => {
@@ -160,6 +191,11 @@ export function UserSettings() {
 
   const handleViewUser = (user) => {
     setSelectedUser(user)
+    setEditRole(user.role)
+    setEditDepartment(user.department)
+    setEditBranchId(user.branch_id ?? null)
+    setEditDefaultScreen(user.dashboard_layout?.default_screen || "dashboard")
+    setShowEditPassword(false)
     setShowUserDialog(true)
   }
 
@@ -191,6 +227,7 @@ export function UserSettings() {
             full_name: userData.full_name,
             role: userData.role,
             department: userData.department,
+            branch_id: userData.branch_id,
             phone: userData.phone,
             language: userData.language || "ar",
             theme_preference: userData.theme || "light",
@@ -234,6 +271,7 @@ export function UserSettings() {
             full_name: userData.full_name,
             role: userData.role,
             department: userData.department,
+            branch_id: userData.branch_id,
             phone: userData.phone,
             language: userData.language || "ar",
             theme_preference: userData.theme || "light",
@@ -302,7 +340,16 @@ export function UserSettings() {
         <CardContent className="pt-6">
           <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
             <div className="flex gap-2 flex-wrap">
-              <Button onClick={() => setShowNewUserDialog(true)} className="erp-btn-primary">
+              <Button
+                onClick={() => {
+                  setNewRole("")
+                  setNewDepartment("")
+                  setNewBranchId(null)
+                  setNewDefaultScreen("dashboard")
+                  setShowNewUserDialog(true)
+                }}
+                className="erp-btn-primary"
+              >
                 <Plus className="h-4 w-4 ml-2" />
                 مستخدم جديد
               </Button>
@@ -317,35 +364,32 @@ export function UserSettings() {
                   onChange={(e) => setFilters({ ...filters, search: e.target.value })}
                 />
               </div>
-              <Select value={filters.role} onValueChange={(value) => setFilters({ ...filters, role: value })}>
-                <SelectTrigger className="w-40">
-                  <SelectValue placeholder="الدور" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">جميع الأدوار</SelectItem>
-                  {roles.map((role) => (
-                    <SelectItem key={role} value={role}>
-                      {role}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select
-                value={filters.department}
-                onValueChange={(value) => setFilters({ ...filters, department: value })}
-              >
-                <SelectTrigger className="w-40">
-                  <SelectValue placeholder="القسم" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">جميع الأقسام</SelectItem>
-                  {departments.map((dept) => (
-                    <SelectItem key={dept} value={dept}>
-                      {dept}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="invoice-currency-dropdown-wrap w-40">
+                <PrimeDropdown
+                  value={filters.role}
+                  options={[{ label: "جميع الأدوار", value: "all" }, ...roles.map((role) => ({ label: role, value: role }))]}
+                  optionLabel="label"
+                  optionValue="value"
+                  placeholder="الدور"
+                  className="invoice-currency-dropdown w-full"
+                  panelClassName="invoice-currency-dropdown-panel"
+                  appendTo="self"
+                  onChange={(e: any) => setFilters({ ...filters, role: e.value })}
+                />
+              </div>
+              <div className="invoice-currency-dropdown-wrap w-40">
+                <PrimeDropdown
+                  value={filters.department}
+                  options={[{ label: "جميع الأقسام", value: "all" }, ...departments.map((dept) => ({ label: dept, value: dept }))]}
+                  optionLabel="label"
+                  optionValue="value"
+                  placeholder="القسم"
+                  className="invoice-currency-dropdown w-full"
+                  panelClassName="invoice-currency-dropdown-panel"
+                  appendTo="self"
+                  onChange={(e: any) => setFilters({ ...filters, department: e.value })}
+                />
+              </div>
             </div>
           </div>
         </CardContent>
@@ -440,9 +484,22 @@ export function UserSettings() {
                   }
                 }
 
+                if (!editRole) {
+                  alert("يجب اختيار الدور")
+                  return
+                }
+                if (!editDepartment) {
+                  alert("يجب اختيار القسم")
+                  return
+                }
+                if (!editBranchId) {
+                  alert("يجب اختيار الفرع")
+                  return
+                }
+
                 const dashboardLayout = {
                   ...selectedUser.dashboard_layout,
-                  default_screen: formData.get("defaultScreen") as string,
+                  default_screen: editDefaultScreen,
                 }
                 const userData = {
                   user_id: selectedUser.user_id,
@@ -450,8 +507,9 @@ export function UserSettings() {
                   full_name: formData.get("fullName") as string,
                   email: formData.get("email") as string,
                   phone: formData.get("phone") as string,
-                  role: formData.get("role") as string,
-                  department: formData.get("department") as string,
+                  role: editRole,
+                  department: editDepartment,
+                  branch_id: editBranchId,
                   language: (formData.get("language") as string) || "ar",
                   theme: (formData.get("theme") as string) || "light",
                   notifications_enabled: formData.get("notifications") === "on",
@@ -573,22 +631,21 @@ export function UserSettings() {
 
                     <div className="md:col-span-2">
                       <Label htmlFor="defaultScreen">الشاشة الافتراضية عند الدخول</Label>
-                      <Select
-                        name="defaultScreen"
-                        defaultValue={selectedUser.dashboard_layout?.default_screen || "dashboard"}
-                        dir="rtl"
-                      >
-                        <SelectTrigger className="text-right" dir="rtl">
-                          <SelectValue placeholder="اختر الشاشة الافتراضية" />
-                        </SelectTrigger>
-                        <SelectContent dir="rtl">
-                          {getAvailableScreens(selectedUser.role).map((screen) => (
-                            <SelectItem key={screen.value} value={screen.value} className="text-right">
-                              {screen.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <div className="invoice-currency-dropdown-wrap">
+                        <PrimeDropdown
+                          id="defaultScreen"
+                          value={editDefaultScreen}
+                          options={getAvailableScreens(editRole || selectedUser.role)}
+                          optionLabel="label"
+                          optionValue="value"
+                          placeholder="اختر الشاشة الافتراضية"
+                          filter
+                          className="invoice-currency-dropdown w-full"
+                          panelClassName="invoice-currency-dropdown-panel"
+                          appendTo="self"
+                          onChange={(e: any) => setEditDefaultScreen(e.value)}
+                        />
+                      </div>
                       <p className="text-sm text-muted-foreground mt-1 text-right">
                         سيتم توجيه المستخدم إلى هذه الشاشة مباشرة بعد تسجيل الدخول حسب صلاحياته
                       </p>
@@ -637,33 +694,53 @@ export function UserSettings() {
                     </div>
                     <div>
                       <Label htmlFor="role">الدور *</Label>
-                      <Select name="role" defaultValue={selectedUser.role} dir="rtl">
-                        <SelectTrigger className="text-right" dir="rtl">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent dir="rtl">
-                          {roles.map((role) => (
-                            <SelectItem key={role} value={role} className="text-right">
-                              {role}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <div className="invoice-currency-dropdown-wrap">
+                        <PrimeDropdown
+                          id="role"
+                          value={editRole}
+                          options={roles}
+                          placeholder="اختر الدور"
+                          filter
+                          className="invoice-currency-dropdown w-full"
+                          panelClassName="invoice-currency-dropdown-panel"
+                          appendTo="self"
+                          onChange={(e: any) => setEditRole(e.value)}
+                        />
+                      </div>
                     </div>
                     <div>
                       <Label htmlFor="department">القسم *</Label>
-                      <Select name="department" defaultValue={selectedUser.department} dir="rtl">
-                        <SelectTrigger className="text-right" dir="rtl">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent dir="rtl">
-                          {departments.map((dept) => (
-                            <SelectItem key={dept} value={dept} className="text-right">
-                              {dept}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <div className="invoice-currency-dropdown-wrap">
+                        <PrimeDropdown
+                          id="department"
+                          value={editDepartment}
+                          options={departments}
+                          placeholder="اختر القسم"
+                          filter
+                          className="invoice-currency-dropdown w-full"
+                          panelClassName="invoice-currency-dropdown-panel"
+                          appendTo="self"
+                          onChange={(e: any) => setEditDepartment(e.value)}
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <Label htmlFor="branch">الفرع *</Label>
+                      <div className="invoice-currency-dropdown-wrap">
+                        <PrimeDropdown
+                          id="branch"
+                          value={editBranchId}
+                          options={branches}
+                          optionLabel="branch_name"
+                          optionValue="id"
+                          placeholder="اختر الفرع"
+                          filter
+                          className="invoice-currency-dropdown w-full"
+                          panelClassName="invoice-currency-dropdown-panel"
+                          appendTo="self"
+                          onChange={(e: any) => setEditBranchId(e.value)}
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -731,8 +808,21 @@ export function UserSettings() {
                 return
               }
 
+              if (!newRole) {
+                alert("يجب اختيار الدور")
+                return
+              }
+              if (!newDepartment) {
+                alert("يجب اختيار القسم")
+                return
+              }
+              if (!newBranchId) {
+                alert("يجب اختيار الفرع")
+                return
+              }
+
               const dashboardLayout = {
-                default_screen: (formData.get("defaultScreen") as string) || "dashboard",
+                default_screen: newDefaultScreen || "dashboard",
               }
               const userData = {
                 username: formData.get("username") as string,
@@ -740,8 +830,9 @@ export function UserSettings() {
                 full_name: formData.get("fullName") as string,
                 email: formData.get("email") as string,
                 phone: formData.get("phone") as string,
-                role: formData.get("role") as string,
-                department: formData.get("department") as string,
+                role: newRole,
+                department: newDepartment,
+                branch_id: newBranchId,
                 language: "ar",
                 theme: "light",
                 notifications_enabled: true,

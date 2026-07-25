@@ -43,10 +43,23 @@ try {
   sql = null
 }
 
+let branchColumnEnsured: Promise<void> | null = null
+function ensureBranchColumn() {
+  if (!branchColumnEnsured) {
+    branchColumnEnsured = sql`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS branch_id INTEGER`
+      .then(() => undefined)
+      .catch((error: unknown) => {
+        branchColumnEnsured = null
+        throw error
+      })
+  }
+  return branchColumnEnsured
+}
 
 export async function GET(request: NextRequest) {
   try {
     console.log("[v0] User API GET request started")
+    await ensureBranchColumn()
 
     const { searchParams } = new URL(request.url)
     const userId = searchParams.get("user_id")
@@ -54,8 +67,10 @@ export async function GET(request: NextRequest) {
     if (userId) {
       console.log("[v0] Fetching specific user:", userId)
       const user = await sql`
-        SELECT * FROM user_settings 
-        WHERE user_id = ${userId} AND is_active = true
+        SELECT us.*, b.branch_name
+        FROM user_settings us
+        LEFT JOIN branches b ON b.id = us.branch_id
+        WHERE us.user_id = ${userId} AND us.is_active = true
         LIMIT 1
       `
 
@@ -68,35 +83,38 @@ export async function GET(request: NextRequest) {
 
     console.log("[v0] Fetching all users from database...")
     const users = await sql`
-      SELECT 
-        id,
-        user_id,
-        organization_id,
-        username,
-        email,
-        full_name,
-        role,
-        department,
-        phone,
-        avatar_url,
-        language,
-        timezone,
-        date_format,
-        time_format,
-        notifications_enabled,
-        email_notifications,
-        sms_notifications,
-        theme_preference,
-        sidebar_collapsed,
-        dashboard_layout,
-        permissions,
-        last_login,
-        is_active,
-        created_at,
-        updated_at
-      FROM user_settings 
-      WHERE is_active = true
-      ORDER BY created_at DESC
+      SELECT
+        us.id,
+        us.user_id,
+        us.organization_id,
+        us.username,
+        us.email,
+        us.full_name,
+        us.role,
+        us.department,
+        us.phone,
+        us.avatar_url,
+        us.language,
+        us.timezone,
+        us.date_format,
+        us.time_format,
+        us.notifications_enabled,
+        us.email_notifications,
+        us.sms_notifications,
+        us.theme_preference,
+        us.sidebar_collapsed,
+        us.dashboard_layout,
+        us.permissions,
+        us.branch_id,
+        b.branch_name,
+        us.last_login,
+        us.is_active,
+        us.created_at,
+        us.updated_at
+      FROM user_settings us
+      LEFT JOIN branches b ON b.id = us.branch_id
+      WHERE us.is_active = true
+      ORDER BY us.created_at DESC
     `
     return NextResponse.json(users)
   } catch (error) {
@@ -120,6 +138,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     console.log("[v0] User API POST request started")
+    await ensureBranchColumn()
     const data = await request.json()
 
     console.log("[v0] Creating user with data:", {
@@ -137,6 +156,7 @@ export async function POST(request: NextRequest) {
       department: data.department || "الإدارة",
       organizationId: data.organization_id || 1,
       permissions: data.permissions || ["جميع الصلاحيات"],
+      branchId: data.branch_id ? Number(data.branch_id) : null,
     })
 
     if (!result.success) {
@@ -164,6 +184,7 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
+    await ensureBranchColumn()
     const data = await request.json()
     console.log("[v0] PUT request data:", data)
 
@@ -229,6 +250,7 @@ export async function PUT(request: NextRequest) {
       data.role !== undefined ||
       data.department !== undefined ||
       data.phone !== undefined ||
+      data.branch_id !== undefined ||
       data.password_hash !== undefined ||
       data.password !== undefined
 
@@ -282,7 +304,8 @@ export async function PUT(request: NextRequest) {
         dashboard_layout = ${data.dashboard_layout ? JSON.stringify(data.dashboard_layout) : null},
         permissions = ${data.permissions ? JSON.stringify(data.permissions) : null},
         is_active = ${data.is_active ?? null},
-        password_hash = ${passwordHash ?? null},
+        password_hash = COALESCE(${passwordHash}, password_hash),
+        branch_id = ${data.branch_id ?? null},
         updated_at = CURRENT_TIMESTAMP
       WHERE user_id = ${data.user_id}
       RETURNING *

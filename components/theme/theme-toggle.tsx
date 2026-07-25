@@ -11,6 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useThemeSettings } from "@/contexts/theme-context"
+import { useMenuTheme } from "@/contexts/menu-theme-context"
 
 export function ThemeToggle() {
   const { settings, updateSettings, saveSettings } = useThemeSettings()
@@ -77,19 +78,16 @@ export function ThemeToggle() {
   )
 }
 
+// يُبدِّل الوضع الداكن للقائمة الجانبية فقط (Sidebar) — لا لكامل النظام كما يفعل toggleDarkMode
+// في ThemeToggle أعلاه (ذاك يُبدِّل صنف "dark" على <html> فيغيّر كل الواجهة). هذا مستقل تماماً
+// (انظر contexts/menu-theme-context.tsx) ويُطبَّق فقط داخل جذر القائمة الجانبية.
 export function QuickThemeToggle() {
-  const { settings, updateSettings, saveSettings } = useThemeSettings()
-
-  const toggleDarkMode = async () => {
-    updateSettings({ dark_mode: !settings.dark_mode })
-    await saveSettings()
-  }
+  const { menuDarkMode, toggleMenuDarkMode } = useMenuTheme()
 
   return (
-    <Button variant="ghost" size="icon" onClick={toggleDarkMode}>
-      <Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-      <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-      <span className="sr-only">تبديل الوضع الداكن</span>
+    <Button variant="ghost" size="icon" onClick={toggleMenuDarkMode} title="تبديل الوضع الداكن للقائمة الجانبية">
+      {menuDarkMode ? <Moon className="h-[1.2rem] w-[1.2rem]" /> : <Sun className="h-[1.2rem] w-[1.2rem]" />}
+      <span className="sr-only">تبديل الوضع الداكن للقائمة الجانبية</span>
     </Button>
   )
 }

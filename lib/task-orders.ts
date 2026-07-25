@@ -452,9 +452,12 @@ export async function listWorkflows() {
   }))
 }
 
-// يمنع أكثر من سير عمل نشِط "متطابق" لنفس الفرع (مطلوب: سير عمل واحد فقط لكل فرع بحسب معيار
-// كل نوع) — 'general': تطابق فرع فقط (NULL = "الكل" يُطابَق كفرع مستقل بذاته، لا كأي فرع).
-// 'group': تطابق فرع + مجموعة. 'specific': تطابق فرع + أي صنف مشترك مع أصناف سير عمل قائم.
+// يمنع أكثر من سير عمل نشِط "متطابق" حسب معيار كل نوع، على أي فرع "يتداخل" مع الفرع المطلوب —
+// فرعان يتداخلان إن كان أحدهما NULL ("الكل"، يشمل كل الفروع ضمناً بما فيها كل فرع محدَّد) أو كانا
+// نفس الفرع تحديداً؛ فرعان محدَّدان مختلفان فقط لا يتداخلان. لذا سير عمل "الكل" يتعارض مع أي سير
+// عمل لفرع محدَّد (والعكس)، لا مع سير آخر لفرع "الكل" فقط كما كان سابقاً.
+// 'general': تداخل فرع فقط. 'group': تداخل فرع + نفس المجموعة. 'specific': تداخل فرع + أي صنف
+// مشترك مع أصناف سير عمل قائم (سواء على نفس الفرع تحديداً أو عبر سير "الكل").
 async function assertNoDuplicateWorkflow(
   type: string,
   data: { branch_id: number | null; group_id?: number | null; item_ids?: number[] },
@@ -463,7 +466,7 @@ async function assertNoDuplicateWorkflow(
   const activeSameType = await sql`
     SELECT * FROM task_workflows
     WHERE is_active = true AND type = ${type}
-      AND branch_id IS NOT DISTINCT FROM ${data.branch_id}
+      AND (branch_id IS NULL OR ${data.branch_id}::int IS NULL OR branch_id = ${data.branch_id})
       AND id IS DISTINCT FROM ${excludeWorkflowId ?? -1}
   `
   if (type === "general") {
@@ -472,7 +475,7 @@ async function assertNoDuplicateWorkflow(
   }
   if (type === "group") {
     if (activeSameType.some((w: any) => Number(w.group_id) === Number(data.group_id))) {
-      throw new Error("يوجد سير عمل لهذه المجموعة ولهذا الفرع مسبقاً")
+      throw new Error("يوجد سير عمل لهذه المجموعة على نفس الفرع أو لكل الفروع مسبقاً")
     }
     return
   }
@@ -483,7 +486,7 @@ async function assertNoDuplicateWorkflow(
       SELECT DISTINCT workflow_id FROM task_workflow_items
       WHERE workflow_id = ANY(${candidateIds}::int[]) AND product_id = ANY(${data.item_ids || []}::int[])
     `
-    if (overlapping.length > 0) throw new Error("يوجد سير عمل لأحد هذه الأصناف ولهذا الفرع مسبقاً")
+    if (overlapping.length > 0) throw new Error("يوجد سير عمل لأحد هذه الأصناف على نفس الفرع أو لكل الفروع مسبقاً")
   }
 }
 

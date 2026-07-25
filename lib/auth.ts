@@ -56,6 +56,21 @@ export interface User {
   isActive: boolean
   lastLogin?: Date,
   dashboard_layout?: JsConfig
+  branchId?: number
+  branchName?: string
+}
+
+let branchColumnEnsured: Promise<void> | null = null
+function ensureBranchColumn() {
+  if (!branchColumnEnsured) {
+    branchColumnEnsured = sql`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS branch_id INTEGER`
+      .then(() => undefined)
+      .catch((error: unknown) => {
+        branchColumnEnsured = null
+        throw error
+      })
+  }
+  return branchColumnEnsured
 }
 
 export interface LoginCredentials {
@@ -108,23 +123,27 @@ export async function authenticateUser(credentials: LoginCredentials): Promise<A
     }
 
     try {
+      await ensureBranchColumn()
 
       const dbUsers = (await sql`
-        SELECT 
-          user_id as id,
-          username,
-          full_name as "fullName",
-          email,
-          role,
-          department,
-          password_hash,
-          is_active as "isActive",
-          organization_id as "organizationId",
-          permissions,
-          dashboard_layout
-        FROM user_settings 
-        WHERE (username = ${credentials.username} OR email = ${credentials.username})
-        AND is_active = true
+        SELECT
+          us.user_id as id,
+          us.username,
+          us.full_name as "fullName",
+          us.email,
+          us.role,
+          us.department,
+          us.password_hash,
+          us.is_active as "isActive",
+          us.organization_id as "organizationId",
+          us.permissions,
+          us.dashboard_layout,
+          us.branch_id as "branchId",
+          b.branch_name as "branchName"
+        FROM user_settings us
+        LEFT JOIN branches b ON b.id = us.branch_id
+        WHERE (us.username = ${credentials.username} OR us.email = ${credentials.username})
+        AND us.is_active = true
       `) as any[]
 
       console.log("users :", dbUsers)
@@ -225,7 +244,9 @@ export async function authenticateUser(credentials: LoginCredentials): Promise<A
         organizationId: dbUser.organizationId,
         isActive: dbUser.isActive,
         lastLogin: new Date(),
-        dashboard_layout: dbUser.dashboard_layout
+        dashboard_layout: dbUser.dashboard_layout,
+        branchId: dbUser.branchId ?? undefined,
+        branchName: dbUser.branchName ?? undefined,
       }
 
       try {
@@ -291,15 +312,18 @@ export async function createUser(userData: {
   department: string
   organizationId: number
   permissions?: string[]
+  branchId?: number | null
 }): Promise<{ success: boolean; error?: string; userId?: string }> {
   if (!sql) {
     return { success: false, error: "خطأ في الاتصال بقاعدة البيانات" }
   }
 
   try {
+    await ensureBranchColumn()
+
     // Check if username or email already exists
     const existingUsers = await sql`
-      SELECT user_id FROM user_settings 
+      SELECT user_id FROM user_settings
       WHERE username = ${userData.username} OR email = ${userData.email}
     `
 
@@ -329,13 +353,14 @@ export async function createUser(userData: {
     await sql`
       INSERT INTO user_settings (
         user_id, username, email, password_hash, full_name, role, department,
-        organization_id, permissions, is_active, language, timezone, 
+        organization_id, permissions, branch_id, is_active, language, timezone,
         date_format, time_format, notifications_enabled, email_notifications,
         sms_notifications, theme_preference, sidebar_collapsed, created_at, updated_at
       ) VALUES (
         ${nextUserId}, ${userData.username}, ${userData.email}, ${passwordHash},
         ${userData.fullName}, ${userData.role}, ${userData.department},
         ${userData.organizationId}, ${JSON.stringify(userData.permissions || ["جميع الصلاحيات"])},
+        ${userData.branchId ?? null},
         true, 'ar', 'Asia/Riyadh', 'DD/MM/YYYY', '24h', true, true, false,
         'slate', false, NOW(), NOW()
       )
