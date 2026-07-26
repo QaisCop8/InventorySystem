@@ -1,54 +1,56 @@
-import { NextResponse } from "next/server"
-import { sql } from "@/lib/database"
+import { type NextRequest, NextResponse } from "next/server"
+import sql from "@/lib/database"
 
-export async function GET() {
+export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const [salesStats] = await sql`
-      SELECT 
-        COUNT(*) as total_sales_orders,
-        COUNT(CASE WHEN order_status = 'pending' THEN 1 END) as pending_sales,
-        COUNT(CASE WHEN order_status = 'approved' THEN 1 END) as approved_sales,
-        COUNT(CASE WHEN order_status = 'completed' THEN 1 END) as completed_sales,
-        COALESCE(SUM(total_amount), 0) as total_sales_value
-      FROM sales_orders
+    const id = Number(params.id)
+    const rows = await sql`
+      SELECT d.*, b.branch_name
+      FROM departments d
+      LEFT JOIN branches b ON d.branch_id = b.id
+      WHERE d.id = ${id}
+      LIMIT 1
     `
-
-    const [purchaseStats] = await sql`
-      SELECT 
-        COUNT(*) as total_purchase_orders,
-        COUNT(CASE WHEN workflow_status = 'pending' THEN 1 END) as pending_purchases,
-        COUNT(CASE WHEN workflow_status = 'approved' THEN 1 END) as approved_purchases,
-        COUNT(CASE WHEN workflow_status = 'completed' THEN 1 END) as completed_purchases,
-        COALESCE(SUM(total_amount), 0) as total_purchase_value
-      FROM purchase_orders
-    `
-
-    const pendingSalesOrders = await sql`
-      SELECT order_number, customer_name, total_amount, order_date, order_status as workflow_status
-      FROM sales_orders 
-      WHERE order_status IN ('pending', 'approved')
-      ORDER BY order_date DESC
-      LIMIT 10
-    `
-
-    const pendingPurchaseOrders = await sql`
-      SELECT order_number, supplier_name, total_amount, order_date, workflow_status
-      FROM purchase_orders 
-      WHERE workflow_status IN ('pending', 'approved')
-      ORDER BY order_date DESC
-      LIMIT 10
-    `
-
-    return NextResponse.json({
-      salesStats,
-      purchaseStats,
-      pendingSalesOrders,
-      pendingPurchaseOrders,
-    })
+    if (rows.length === 0) {
+      return NextResponse.json({ error: "القسم غير موجود" }, { status: 404 })
+    }
+    return NextResponse.json(rows[0])
   } catch (error) {
-    console.error("Error fetching dashboard stats:", error)
-    console.error("Error connecting to database:", error.message)
-    return NextResponse.json({ error: "Failed to fetch stats" }, { status: 500 })
+    console.error("Error fetching department:", error)
+    return NextResponse.json({ error: "Failed to fetch department" }, { status: 500 })
   }
 }
 
+export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+  try {
+    const id = Number(params.id)
+    const data = await request.json()
+
+    if (!data.department_name || !data.department_code) {
+      return NextResponse.json({ error: "اسم القسم ورمزه مطلوبان" }, { status: 400 })
+    }
+
+    const result = await sql`
+      UPDATE departments
+      SET
+        department_code = ${data.department_code},
+        department_name = ${data.department_name},
+        branch_id = ${data.branch_id || null},
+        manager = ${data.manager || ""},
+        employee_count = ${data.employee_count || 0},
+        is_active = ${data.is_active !== false},
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = ${id}
+      RETURNING *
+    `
+
+    if (result.length === 0) {
+      return NextResponse.json({ error: "القسم غير موجود" }, { status: 404 })
+    }
+
+    return NextResponse.json(result[0])
+  } catch (error) {
+    console.error("Error updating department:", error)
+    return NextResponse.json({ error: "Failed to update department" }, { status: 500 })
+  }
+}

@@ -48,6 +48,20 @@ try {
 
 export default sql
 
+let orderWorkflowColumnsEnsured: Promise<void> | null = null
+function ensureOrderWorkflowColumns() {
+  if (!orderWorkflowColumnsEnsured) {
+    orderWorkflowColumnsEnsured = (async () => {
+      await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS branch_id INTEGER`
+      await sql`ALTER TABLE order_items ADD COLUMN IF NOT EXISTS workflow_id INTEGER`
+    })().catch((error: unknown) => {
+      orderWorkflowColumnsEnsured = null
+      throw error
+    })
+  }
+  return orderWorkflowColumnsEnsured
+}
+
 export interface SalesOrder {
   id: number;
   order_number: string;
@@ -80,6 +94,7 @@ export interface SalesOrder {
   customer_order_no?: string;
   user_id: string;
   order_status2: number;
+  branch_id?: number | null;
 }
 
 
@@ -120,6 +135,7 @@ export interface OrderItem {
   barcode?: string | null;
   unit_id?: number | null;
   store_id?: number | null;
+  workflow_id?: number | null;
   created_at: Date;
   updated_at: Date;
 }
@@ -321,6 +337,7 @@ export async function createOrder(
   orderData: Partial<SalesOrder>,
   items: Partial<OrderItem>[]
 ) {
+  await ensureOrderWorkflowColumns();
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
@@ -388,9 +405,6 @@ export async function createOrder(
     const updatedDate = baseDate;
 
     orderData.order_date = updatedDate.toISOString();
-    // يُستخدم لاحقاً لفتح مراحل تتبع الطلبيات (task-orders) — مرة واحدة فقط عند إنشاء طلبية بيع
-    // جديدة فعلياً، لا عند كل تعديل لاحق على طلبية موجودة (وإلا كُررت المراحل في كل حفظ).
-    const isNewOrder = !(orderData.id && orderData.id > 0);
     if (orderData.id && orderData.id > 0) {
       // UPDATE existing order
       const orderUpdateQuery = `
@@ -423,8 +437,9 @@ export async function createOrder(
     received_by = $25,
     customer_order_no= $26,
     order_status2 = $27,
+    branch_id = $28,
     updated_at = NOW()
-  WHERE id = $28
+  WHERE id = $29
   RETURNING *;
 `;
 
@@ -457,6 +472,7 @@ export async function createOrder(
         orderData.received_by || "",
         orderData.customer_order_no || "",
         orderData.order_status2 || 1,
+        orderData.branch_id ?? null,
         orderData.id, // WHERE id
       ];
 
@@ -513,12 +529,14 @@ export async function createOrder(
           printed,
           printed_count,
           order_status2,
+          branch_id,
           created_at,
           updated_at
         ) VALUES (
           $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,
           $11,$12,$13,$14,$15,$16,$17,$18,$19,$20,
           $21,$22,$23,$24,$25,$26,$27,$28,$29,$30,
+          $31,
           NOW(),NOW()
         )
         RETURNING *;
@@ -556,6 +574,7 @@ export async function createOrder(
         "0",
         "0",
         orderData.order_status2 || 0,
+        orderData.branch_id ?? null,
       ];
 
 
@@ -565,23 +584,48 @@ export async function createOrder(
 
 
     console.log("[v0] Order created:", order);
+
+    // نقل workflow_id الحالي لكل بند قبل حذفه، لمطابقته لاحقاً ببند الحفظ الجديد بنفس product_id —
+    // order_items يُعاد إنشاؤه بالكامل (حذف ثم إدراج) بكل حفظ، فهذا النقل يمنع فقدان الربط بمخطط
+    // سير عمل تتبع الطلبيات المُنشأ مسبقاً لهذا البند عند أي تعديل لاحق على الطلبية — وإلا كانت
+    // مهام "لوحة تتبع الطلبيات" ستُعاد إنشاؤها من الصفر (مكرَّرة) عند كل حفظ.
+    const priorWorkflowByProduct = new Map<number, number[]>();
     if (order.id && order.id > 0) {
+      const priorItemsResult = await client.query(
+        `SELECT product_id, workflow_id FROM order_items WHERE order_id = $1 AND workflow_id IS NOT NULL`,
+        [order.id]
+      );
+      for (const row of priorItemsResult.rows) {
+        if (row.product_id == null) continue;
+        const list = priorWorkflowByProduct.get(row.product_id) || [];
+        list.push(row.workflow_id);
+        priorWorkflowByProduct.set(row.product_id, list);
+      }
+
       // Delete existing items first
       await client.query(`DELETE FROM order_items WHERE order_id = $1`, [order.id]);
       await client.query(`DELETE FROM stock_batch WHERE order_id = $1`, [order.id]);
     }
     // Insert order items
+    const insertedItems: Array<{ dbId: number; item: Partial<OrderItem>; workflowId: number | null }> = [];
     for (const item of items) {
       if (!item.product_name || (!item.quantity && !item.delivered_quantity)) continue;
+
+      let carriedWorkflowId: number | null = null;
+      if (item.product_id != null) {
+        const list = priorWorkflowByProduct.get(item.product_id);
+        if (list && list.length > 0) carriedWorkflowId = list.shift()!;
+      }
 
       const itemInsertQuery = `
         INSERT INTO order_items (
           order_id, product_id, product_name, quantity, bonus, price, discount,
           barcode, unit_id, store_id, delivered_quantity,
-          expiry_date, batch_number, item_status, created_at, updated_at
+          expiry_date, batch_number, item_status, workflow_id, created_at, updated_at
         ) VALUES (
-          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,NOW(),NOW()
+          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,NOW(),NOW()
         )
+        RETURNING id
       `;
 
       const itemValues = [
@@ -599,9 +643,11 @@ export async function createOrder(
         item.expiry_date || null,
         item.batch_number || null,
         item.item_status || 0,
+        carriedWorkflowId,
       ];
 
-      await client.query(itemInsertQuery, itemValues);
+      const insertResult = await client.query(itemInsertQuery, itemValues);
+      insertedItems.push({ dbId: insertResult.rows[0].id, item, workflowId: carriedWorkflowId });
     }
 
     if (orderData.order_type === 2) {
@@ -678,30 +724,38 @@ export async function createOrder(
     await client.query("COMMIT");
     console.log("[v0] Order and items inserted successfully");
 
-    // فتح مراحل "لوحة تتبع الطلبيات" (task-orders) مباشرة لكل صنف في طلبية بيع جديدة — أثر جانبي
-    // أفضل جهد (best-effort) بعد نجاح commit الطلبية نفسها ولا يُسقطها عند فشله (نفس نمط
-    // safeNotify في task-orders.ts): سير عمل تتبع الطلبيات منفصل تماماً عن حفظ الطلبية، وفشل
-    // تهيئته (لا سير عمل عام مُعرَّف بعد، إلخ) يجب ألا يمنع حفظ الطلبية الفعلي. Number(order_type)
-    // لأن orderData قد يصل أحياناً بقيم نصية من الواجهة رغم أن النوع المصرَّح Partial<SalesOrder>.
-    if (isNewOrder && Number(orderData.order_type) === 1) {
-      const trackedItems = items.filter((item) => item.product_name && (item.quantity || item.delivered_quantity));
+    // فتح مراحل "لوحة تتبع الطلبيات" (task-orders) لكل صنف لم يُنقَل له سير عمل بالفعل من قبل
+    // (workflowId === null أعلاه) — سواء عند إنشاء طلبية جديدة أو عند إضافة بنود جديدة لطلبية
+    // موجودة أثناء تعديلها؛ بنود لها workflow_id منقول لا تُعاد معالجتها إطلاقاً (كانت isNewOrder
+    // وحدها تمنع إعادة الإنشاء المكرَّر بالتعديل، لكنها كانت تمنع أيضاً فتح تتبع لبنود جديدة أُضيفت
+    // ضمن تعديل لاحق). أثر جانبي أفضل جهد (best-effort) بعد نجاح commit الطلبية نفسها ولا يُسقطها
+    // عند فشله (نفس نمط safeNotify في task-orders.ts). Number(order_type) لأن orderData قد يصل
+    // أحياناً بقيم نصية من الواجهة رغم أن النوع المصرَّح Partial<SalesOrder>.
+    if (Number(orderData.order_type) === 1) {
+      const trackedItems = insertedItems.filter(
+        (entry) => entry.workflowId == null && entry.item.product_name && (entry.item.quantity || entry.item.delivered_quantity)
+      );
       if (trackedItems.length > 0) {
         try {
           const taskCustomerOrder = await createTaskCustomerOrder({
             customerId: orderData.customer_id || null,
             createdBy: String(orderData.user_id || ""),
           });
-          for (const item of trackedItems) {
+          for (const entry of trackedItems) {
             try {
-              await createTaskOrderItem({
+              const taskItem = await createTaskOrderItem({
                 customerOrderId: taskCustomerOrder.id,
-                title: item.product_name!,
-                productId: item.product_id || null,
-                qty: item.quantity || null,
+                title: entry.item.product_name!,
+                productId: entry.item.product_id || null,
+                qty: entry.item.quantity || null,
                 createdBy: String(orderData.user_id || ""),
+                branchId: orderData.branch_id ?? null,
               });
+              if (taskItem?.workflow_id) {
+                await pool.query(`UPDATE order_items SET workflow_id = $1 WHERE id = $2`, [taskItem.workflow_id, entry.dbId]);
+              }
             } catch (itemError) {
-              console.error("[v0] Failed to open tracking steps for order item (non-blocking):", item.product_name, itemError);
+              console.error("[v0] Failed to open tracking steps for order item (non-blocking):", entry.item.product_name, itemError);
             }
           }
         } catch (taskError) {
@@ -980,6 +1034,22 @@ export async function deleteSalesOrder(
   const client = await pool.connect(); // افترض أنك عندك pool
   try {
     await client.query('BEGIN'); // بدء المعاملة
+
+    // امنع حذف السند إن كان أي بند فيه مرتبطاً بمخطط سير عمل تتبع طلبيات فعلي (workflow_id يُضبط
+    // تلقائياً عند حفظ طلبية بيع جديدة) — حذف السند دون هذا التحقق يترك مهام/مراحل "لوحة تتبع
+    // الطلبيات" يتيمة بلا طلبية بيع أصلية تتبعها.
+    const linkedItems = await client.query(
+      `SELECT oi.product_name, w.name AS workflow_name
+       FROM order_items oi
+       JOIN task_workflows w ON w.id = oi.workflow_id
+       WHERE oi.order_id = $1 AND oi.workflow_id IS NOT NULL
+       LIMIT 1`,
+      [orderId]
+    );
+    if (linkedItems.rows.length > 0) {
+      const row = linkedItems.rows[0];
+      throw new Error(`الصنف - ${row.product_name} مرتبط بمخطط سير عمل - ${row.workflow_name} لا يمكن حذف السند`);
+    }
 
     // 1️⃣ تحديث الطلب ليصبح محذوف (soft delete)
     await client.query(

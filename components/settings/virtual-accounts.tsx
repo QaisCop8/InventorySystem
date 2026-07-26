@@ -117,7 +117,7 @@ export default function VirtualAccounts() {
     }
   }
 
-  const loadUserMappings = async (userId: number) => {
+  const loadUserMappings = async (userId: string | number) => {
     setLoading(true)
     try {
       const res = await fetch(`/api/settings/users-currencies-default?user_id=${userId}`)
@@ -138,7 +138,7 @@ export default function VirtualAccounts() {
       return
     }
 
-    loadUserMappings(selectedUser.id)
+    loadUserMappings(selectedUser.user_id)
     loadWarehouseDefaults(selectedUser.user_id)
   }, [selectedUser])
 
@@ -478,7 +478,7 @@ export default function VirtualAccounts() {
           <div className="px-6 pt-6">
             <Messages innerRef={messagesRef} />
           </div>
-          <div className="mt-4 overflow-hidden rounded-md border border-slate-300 bg-white" style={{ height: '260px' }}>
+          <div className="relative mt-4 overflow-hidden rounded-md border border-slate-300 bg-white" style={{ height: '260px' }}>
             <div className="h-full w-full overflow-hidden">
               <DataGridView
                 className="h-full w-full"
@@ -492,6 +492,14 @@ export default function VirtualAccounts() {
                 style={{ height: '100%', minHeight: 0, maxHeight: '100%', width: '100%' }}
               />
             </div>
+            {loading && (
+              <div className="absolute inset-0 flex items-center justify-center bg-white/70 backdrop-blur-[1px]">
+                <div className="flex items-center gap-2 text-sm text-slate-500">
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-slate-600" />
+                  جاري التحميل...
+                </div>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

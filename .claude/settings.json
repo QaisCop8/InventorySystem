@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(node scratch_check_constraint.js)"
+      "Bash(node scratch_check_constraint.js)",
+      "Bash(curl -s -X POST http://localhost:3000/api/orders/sales -H 'Content-Type: application/json' -d '{ *)",
+      "Bash(node -e ' *)"
     ]
   }
 }

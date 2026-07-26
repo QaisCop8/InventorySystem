@@ -32,6 +32,7 @@ import {
   Currency,
 } from "lucide-react"
 import { useDocumentSettings } from "@/hooks/use-document-settings"
+import { useAuth } from "@/components/auth/auth-context"
 import { LotSelector } from "@/components/inventory/lot-selector"
 import ProductSearchPopup from "../products/ProductSearchPopup"
 import * as wjGrid from "@grapecity/wijmo.grid";
@@ -298,6 +299,7 @@ function UnifiedSalesOrder({
   vch_type,
   fromSearch = false,
 }: UnifiedSalesOrderProps) {
+  const { activeBranchId } = useAuth()
   const {
     settings,
     loading: settingsLoading,
@@ -852,6 +854,20 @@ function UnifiedSalesOrder({
 
     const grid = gridRef.current?.flex;
     const selectedIndex = grid?.selection?.row;
+    const selectedItem = CollectionView.sourceCollection[selectedIndex] as any;
+
+    // بند مرتبط بمخطط سير عمل تتبع طلبيات (workflow_id يُضبط تلقائياً عند حفظ الطلبية) لا يجوز
+    // حذفه من السطر — حذفه يترك مهمة/مراحل "لوحة تتبع الطلبيات" يتيمة بلا بند طلبية أصلي تتبعه.
+    if (selectedItem?.workflow_id) {
+      toast.current?.show({
+        severity: 'error',
+        summary: 'تعذر الحذف',
+        detail: `الصنف - ${selectedItem.name || selectedItem.product_name || ''} مرتبط بمخطط سير عمل - ${selectedItem.workflow_name || ''} لا يمكن حذف الصنف`,
+        life: 4000
+      });
+      return;
+    }
+
     CollectionView.sourceCollection.splice(selectedIndex, 1);
     CollectionView.refresh();
 
@@ -1198,6 +1214,12 @@ function UnifiedSalesOrder({
     const col = sel.col;
     // Make sure row and col are valid
     if (row < 0 || col < 0) return;
+
+    if (e.keyCode === Util.keyboardKeys.F7) {
+      e.preventDefault();
+      deleteCurrentRow();
+      return;
+    }
 
     const colName = grid.columns[col]?.binding;
     const activeEditor = grid.activeEditor;
@@ -1959,6 +1981,7 @@ function UnifiedSalesOrder({
         received_by: state.formData.received_by || "",
         customer_order_no: state.formData.customer_order_no || "",
         user_id: user.id,
+        branch_id: activeBranchId ?? null,
       };
 
       const items = CollectionView.items.map((item) => ({

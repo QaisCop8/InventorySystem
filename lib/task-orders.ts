@@ -766,13 +766,18 @@ export async function saveWorkflowSteps(workflowId: number, steps: StepInput[], 
 // "خاص بمجموعة" (type='group' — عبر products.category_id، وهو نفس معرّف item_groups فعلياً كما
 // يُظهر عرض item_groups_with_count)، ثم "عام حسب نوع الصنف" (type='general' مرتبط بـitem_type نصي
 // حر)، تطابقاً مع القاعدة R9 (الأخص يتغلّب على الأعم).
-export async function resolveWorkflow(productId: number | null, itemType: string | null) {
+// حل سير العمل المطابق لصنف طلبية: أولوية صنف محدد ← مجموعة الصنف ← عام حسب نوع الصنف ← عام
+// افتراضي. كل مستوى يُقيَّد بالفرع عند تمرير branchId: سير عمل بلا فرع محدَّد (branch_id = NULL،
+// أي "الكل") يُطابق أي فرع، تماماً كمنطق التداخل الموسَّع المعتمد بالتحقق من ازدواجية سير العمل عند
+// إنشائه (assertNoDuplicateWorkflow) — فلا يتعارضان أبداً على نفس الصنف/المجموعة/النوع لنفس الفرع.
+export async function resolveWorkflow(productId: number | null, itemType: string | null, branchId: number | null = null) {
   await ensureTaskOrderTables()
   if (productId) {
     const specific = await sql`
       SELECT w.* FROM task_workflows w
       JOIN task_workflow_items wi ON wi.workflow_id = w.id
       WHERE w.is_active = true AND w.type = 'specific' AND wi.product_id = ${productId}
+        AND (w.branch_id IS NULL OR ${branchId}::int IS NULL OR w.branch_id = ${branchId})
       ORDER BY w.version DESC LIMIT 1
     `
     if (specific.length > 0) return specific[0]
@@ -780,6 +785,7 @@ export async function resolveWorkflow(productId: number | null, itemType: string
     // الجدول الوسيط task_workflow_items).
     const legacySpecific = await sql`
       SELECT * FROM task_workflows WHERE is_active = true AND type = 'specific' AND item_id = ${productId}
+        AND (branch_id IS NULL OR ${branchId}::int IS NULL OR branch_id = ${branchId})
       ORDER BY version DESC LIMIT 1
     `
     if (legacySpecific.length > 0) return legacySpecific[0]
@@ -789,6 +795,7 @@ export async function resolveWorkflow(productId: number | null, itemType: string
     if (categoryId) {
       const group = await sql`
         SELECT * FROM task_workflows WHERE is_active = true AND type = 'group' AND group_id = ${categoryId}
+          AND (branch_id IS NULL OR ${branchId}::int IS NULL OR branch_id = ${branchId})
         ORDER BY version DESC LIMIT 1
       `
       if (group.length > 0) return group[0]
@@ -797,12 +804,14 @@ export async function resolveWorkflow(productId: number | null, itemType: string
   if (itemType) {
     const general = await sql`
       SELECT * FROM task_workflows WHERE is_active = true AND type = 'general' AND item_type = ${itemType}
+        AND (branch_id IS NULL OR ${branchId}::int IS NULL OR branch_id = ${branchId})
       ORDER BY version DESC LIMIT 1
     `
     if (general.length > 0) return general[0]
   }
   const fallback = await sql`
     SELECT * FROM task_workflows WHERE is_active = true AND type = 'general' AND item_type IS NULL
+      AND (branch_id IS NULL OR ${branchId}::int IS NULL OR branch_id = ${branchId})
     ORDER BY version DESC LIMIT 1
   `
   return fallback[0] || null
@@ -853,6 +862,7 @@ export async function createOrderItem(data: {
   productId?: number | null
   itemType?: string | null
   workflowId?: number | null
+  branchId?: number | null
   qty?: number | null
   attributes?: Record<string, string>
   priority?: string
@@ -865,7 +875,7 @@ export async function createOrderItem(data: {
   // آلي مستقبلي (كربط أصناف مباشرة بمنتج فعلي بالنظام) لا يمرّ عبر هذه الشاشة.
   const workflow = data.workflowId
     ? (await sql`SELECT * FROM task_workflows WHERE id = ${data.workflowId} AND is_active = true`)[0]
-    : await resolveWorkflow(data.productId ?? null, data.itemType ?? null)
+    : await resolveWorkflow(data.productId ?? null, data.itemType ?? null, data.branchId ?? null)
   if (!workflow) throw new Error("لا يوجد سير عمل مطابق لهذا الصنف — أنشئ سير عمل عام أو خاص أولاً")
 
   const startStep = (await sql`SELECT * FROM task_workflow_steps WHERE workflow_id = ${workflow.id} AND is_start = true LIMIT 1`)[0]

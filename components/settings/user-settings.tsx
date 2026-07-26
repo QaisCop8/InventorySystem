@@ -209,8 +209,9 @@ export function UserSettings() {
 
   const handleViewUser = (user) => {
     setSelectedUser(user)
+    const matchedDept = activeDepartments.find((d) => d.department_name === user.department)
     setEditRole(user.role)
-    setEditDepartment(user.department)
+    setEditDepartment(matchedDept ? matchedDept.department_name : activeDepartments[0]?.department_name ?? "")
     setEditBranchId(user.branch_id ?? branches[0]?.id ?? null)
     setEditDefaultScreen(user.dashboard_layout?.default_screen || "dashboard")
     setShowEditPassword(false)
@@ -361,7 +362,7 @@ export function UserSettings() {
               <Button
                 onClick={() => {
                   setNewRole("")
-                  setNewDepartment("")
+                  setNewDepartment(activeDepartments[0]?.department_name ?? "")
                   setNewBranchId(branches[0]?.id ?? null)
                   setNewDefaultScreen("dashboard")
                   setShowNewUserDialog(true)

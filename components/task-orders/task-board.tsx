@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import PrimeDropdown from "@/components/common/FocusDropdown"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -22,6 +22,13 @@ import { ACTION_LABELS, PRIORITY_LABELS, STEP_STATUS_LABELS } from "./types"
 import { PRIORITY_BADGE_CLASS, PRIORITY_CARD_ACCENT, STATUS_BADGE_CLASS, columnColor, elapsedSecondsSince, formatDuration, initials } from "./utils"
 
 type Scope = "mine" | "section" | "all"
+
+interface RealBranch {
+  id: number
+  branch_code: string
+  branch_name: string
+  status: number
+}
 
 // ترتيب أعمدة اللوحة: BFS بدءاً من خطوة البداية عبر الانتقالات — يُعطي قراءة يسار→يمين منطقية حتى
 // مع تفرّع/التقاء متوازيَين؛ أي خطوة معزولة لم تُزرها BFS (لن يحدث عادة بسير عمل سليم) تُذيَّل بالنهاية.
@@ -61,11 +68,13 @@ export function TaskBoard() {
 
   const [workflows, setWorkflows] = useState<TaskWorkflow[]>([])
   const [sections, setSections] = useState<TaskSection[]>([])
-  const [selectedWorkflowId, setSelectedWorkflowId] = useState<number | null>(null)
+  const [branches, setBranches] = useState<RealBranch[]>([])
+  const [selectedWorkflowId, setSelectedWorkflowId] = useState<number | "all">("all")
   const [tasks, setTasks] = useState<TaskOpenTask[]>([])
   const [loadingTasks, setLoadingTasks] = useState(false)
   const [searchText, setSearchText] = useState("")
   const [scope, setScope] = useState<Scope>("section")
+  const [branchFilter, setBranchFilter] = useState<string>("all")
   const [, setTick] = useState(0)
 
   const [detailItemId, setDetailItemId] = useState<number | null>(null)
@@ -86,30 +95,10 @@ export function TaskBoard() {
 
   const fetchWorkflows = async () => {
     try {
-      const [wfRes, tasksRes] = await Promise.all([fetch("/api/task-orders/workflows"), fetch("/api/task-orders/tasks")])
-      const data = await wfRes.json()
+      const res = await fetch("/api/task-orders/workflows")
+      const data = await res.json()
       const active = (Array.isArray(data) ? data : []).filter((w: TaskWorkflow) => w.is_active)
       setWorkflows(active)
-
-      // الاختيار الافتراضي يُفضِّل سير العمل الذي يملك مهاماً مفتوحة فعلياً حالياً بدل الأول أبجدياً/
-      // إصداراً — وإلا تبقى أصناف أُنشئت للتو (كأصناف طلبيات المبيعات المفتوحة آلياً على سير عمل
-      // "عام" قد لا يكون الأول بالترتيب) غير مرئية إطلاقاً حتى يُبدِّل المستخدم سير العمل يدوياً.
-      const allTasks = tasksRes.ok ? await tasksRes.json() : []
-      const openCounts = new Map<number, number>()
-      if (Array.isArray(allTasks)) {
-        for (const t of allTasks) openCounts.set(t.workflow_id, (openCounts.get(t.workflow_id) || 0) + 1)
-      }
-      const busiestWorkflowId = active.reduce<number | null>((best, w) => {
-        const count = openCounts.get(w.id) || 0
-        const bestCount = best !== null ? openCounts.get(best) || 0 : -1
-        return count > bestCount ? w.id : best
-      }, null)
-
-      setSelectedWorkflowId((prev) => {
-        if (prev && active.some((w) => w.id === prev)) return prev
-        if (busiestWorkflowId && (openCounts.get(busiestWorkflowId) || 0) > 0) return busiestWorkflowId
-        return active[0]?.id ?? null
-      })
     } catch {
       toast({ title: "خطأ", description: "فشل في جلب سير العمل", variant: "destructive" })
     }
@@ -125,15 +114,21 @@ export function TaskBoard() {
     }
   }
 
-  const fetchTasks = async (workflowId: number | null) => {
-    if (!workflowId) {
-      setTasks([])
-      return
+  const fetchBranches = async () => {
+    try {
+      const res = await fetch("/api/branches")
+      const data = await res.json()
+      setBranches(Array.isArray(data) ? data : [])
+    } catch {
+      // صامت
     }
+  }
+
+  const fetchTasks = async (workflowId: number | "all") => {
     setLoadingTasks(true)
     try {
-      const params = new URLSearchParams({ workflow_id: String(workflowId) })
-      const res = await fetch(`/api/task-orders/tasks?${params}`)
+      const params = workflowId === "all" ? "" : `?${new URLSearchParams({ workflow_id: String(workflowId) })}`
+      const res = await fetch(`/api/task-orders/tasks${params}`)
       const data = await res.json()
       setTasks(Array.isArray(data) ? data : [])
     } catch {
@@ -146,6 +141,7 @@ export function TaskBoard() {
   useEffect(() => {
     fetchWorkflows()
     fetchSections()
+    fetchBranches()
   }, [])
 
   useEffect(() => {
@@ -160,11 +156,45 @@ export function TaskBoard() {
     return new Set(sections.filter((s) => s.members.some((m) => m.user_id === userId)).map((s) => s.id))
   }, [sections, userId])
 
-  const selectedWorkflow = workflows.find((w) => w.id === selectedWorkflowId) || null
+  // فرع "الكل" (branch_id = null) في سير عمل أو قسم يُعامَل كمتقاطع مع كل فرع محدَّد — نفس منطق
+  // التداخل الموسَّع المعتمد بإدارة سير العمل، بدل استبعاده عند اختيار فرع بعينه.
+  const sectionBranchMap = useMemo(() => new Map(sections.map((s) => [s.id, s.branch_id])), [sections])
+
+  const filteredWorkflows = useMemo(() => {
+    if (branchFilter === "all") return workflows
+    const branchId = Number(branchFilter)
+    return workflows.filter((w) => w.branch_id === null || w.branch_id === branchId)
+  }, [workflows, branchFilter])
+
+  // "الكل" هو الافتراضي دوماً — لا يُستبدَل تلقائياً بأي سير عمل بعينه؛ فقط اختيار سير عمل محدد
+  // يعود لـ"الكل" إن خرج عن نطاق فلتر الفرع الحالي.
+  useEffect(() => {
+    setSelectedWorkflowId((prev) => {
+      if (prev === "all") return "all"
+      return filteredWorkflows.some((w) => w.id === prev) ? prev : "all"
+    })
+  }, [branchFilter, filteredWorkflows])
+
+  const selectedWorkflow = selectedWorkflowId === "all" ? null : workflows.find((w) => w.id === selectedWorkflowId) || null
   const orderedSteps = useMemo(() => (selectedWorkflow ? orderStepsForColumns(selectedWorkflow) : []), [selectedWorkflow])
+
+  // ترتيب خطوات كل سير عمل نشِط مسبقاً — يُستخدَم بوضع "الكل" لتجميع المهام بحسب موضع الخطوة
+  // (الأولى، الثانية...) عبر كل سير عمل معاً، بدل الاعتماد على معرّف خطوة بعينه من سير عمل واحد.
+  const workflowStepOrder = useMemo(() => {
+    const map = new Map<number, TaskWorkflowStep[]>()
+    for (const w of workflows) map.set(w.id, orderStepsForColumns(w))
+    return map
+  }, [workflows])
 
   const visibleTasks = useMemo(() => {
     let list = tasks
+    if (branchFilter !== "all") {
+      const branchId = Number(branchFilter)
+      list = list.filter((t) => {
+        const b = sectionBranchMap.get(t.effective_section_id)
+        return b === null || b === undefined || b === branchId
+      })
+    }
     if (scope === "mine") list = list.filter((t) => t.claimed_by_user_id === userId)
     else if (scope === "section") list = list.filter((t) => mySectionIds.has(t.effective_section_id) || t.claimed_by_user_id === userId)
     if (searchText.trim()) {
@@ -172,7 +202,45 @@ export function TaskBoard() {
       list = list.filter((t) => t.title.toLowerCase().includes(q) || t.item_code.toLowerCase().includes(q))
     }
     return list
-  }, [tasks, scope, mySectionIds, userId, searchText])
+  }, [tasks, scope, mySectionIds, userId, searchText, branchFilter, sectionBranchMap])
+
+  interface BoardColumn {
+    key: string
+    label: string
+    subtitle: string
+    tasks: TaskOpenTask[]
+  }
+
+  // بوضع سير عمل محدد: عمود لكل خطوة فعلية بذلك السير. بوضع "الكل": عمود لكل موضع خطوة (الأولى،
+  // الثانية...) يُجمِّع مهام كل سِيَر العمل المعروضة معاً — فتظهر "خطوة 1" مثلاً بمهام كل الخطوات
+  // الأولى من كل سير عمل دفعة واحدة، بصرف النظر عن اختلاف تسميتها الفعلية بين سير وآخر.
+  const columns: BoardColumn[] = useMemo(() => {
+    if (selectedWorkflowId === "all") {
+      let maxLen = 0
+      for (const steps of workflowStepOrder.values()) maxLen = Math.max(maxLen, steps.length)
+      const positionOf = new Map<string, number>()
+      workflowStepOrder.forEach((steps, workflowId) => {
+        steps.forEach((step, idx) => positionOf.set(`${workflowId}:${step.id}`, idx))
+      })
+      return Array.from({ length: maxLen }, (_, i) => {
+        const colTasks = visibleTasks.filter((t) => positionOf.get(`${t.workflow_id}:${t.step_id}`) === i)
+        const workflowCount = new Set(colTasks.map((t) => t.workflow_id)).size
+        return {
+          key: `pos-${i}`,
+          label: `خطوة ${i + 1}`,
+          subtitle: workflowCount > 0 ? `${workflowCount} سير عمل` : "",
+          tasks: colTasks,
+        }
+      })
+    }
+    if (!selectedWorkflow) return []
+    return orderedSteps.map((step) => ({
+      key: String(step.id),
+      label: step.label,
+      subtitle: `${step.section_name}${step.join_type !== "none" ? ` · التقاء ${step.join_type === "and" ? "الكل" : "أي فرع"}` : ""}${step.sla_hours ? ` · SLA ${step.sla_hours}س` : ""}`,
+      tasks: visibleTasks.filter((t) => t.step_id === step.id),
+    }))
+  }, [selectedWorkflowId, selectedWorkflow, orderedSteps, visibleTasks, workflowStepOrder])
 
   const openItem = async (id: number) => {
     setDetailItemId(id)
@@ -259,7 +327,7 @@ export function TaskBoard() {
   }
 
   return (
-    <div dir="rtl" className="space-y-4">
+    <div dir="rtl" className="flex h-[calc(100vh-104px)] flex-col gap-4 md:h-[calc(100vh-136px)]">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold text-slate-800">لوحة تتبع الطلبيات</h1>
@@ -268,71 +336,104 @@ export function TaskBoard() {
         <div className="flex items-center gap-2">{userId && <NotificationCenter userId={userId} />}</div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <Select value={selectedWorkflowId ? String(selectedWorkflowId) : ""} onValueChange={(v) => setSelectedWorkflowId(Number(v))}>
-          <SelectTrigger className="w-64">
-            <SelectValue placeholder="اختر سير العمل" />
-          </SelectTrigger>
-          <SelectContent>
-            {workflows.map((w) => (
-              <SelectItem key={w.id} value={String(w.id)}>
-                {w.name} {w.version > 1 ? `(إصدار ${w.version})` : ""}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Select value={scope} onValueChange={(v) => setScope(v as Scope)}>
-          <SelectTrigger className="w-44">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="mine">مهامي فقط</SelectItem>
-            <SelectItem value="section">أقسامي</SelectItem>
-            {isAdmin && <SelectItem value="all">كل المهام</SelectItem>}
-          </SelectContent>
-        </Select>
-
-        <div className="relative w-64">
-          <Search className="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-          <Input value={searchText} onChange={(e) => setSearchText(e.target.value)} placeholder="بحث برقم الصنف أو العنوان" className="pr-8" />
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="flex flex-col gap-1">
+          <label className="text-xs font-medium text-slate-500">سير العمل</label>
+          <div className="invoice-currency-dropdown-wrap">
+            <PrimeDropdown
+              value={selectedWorkflowId}
+              options={[
+                { id: "all", label: "الكل" },
+                ...filteredWorkflows.map((w) => ({ id: w.id, label: `${w.name}${w.version > 1 ? ` (إصدار ${w.version})` : ""}` })),
+              ]}
+              optionLabel="label"
+              optionValue="id"
+              placeholder="اختر سير العمل"
+              filter
+              className="invoice-currency-dropdown w-full"
+              panelClassName="invoice-currency-dropdown-panel"
+              appendTo="self"
+              onChange={(e: any) => setSelectedWorkflowId(e.value)}
+            />
+          </div>
         </div>
 
-        <Button variant="outline" size="icon" onClick={() => fetchTasks(selectedWorkflowId)} title="تحديث">
-          <RefreshCw className={cn("h-4 w-4", loadingTasks && "animate-spin")} />
-        </Button>
+        <div className="flex flex-col gap-1">
+          <label className="text-xs font-medium text-slate-500">الفرع</label>
+          <div className="invoice-currency-dropdown-wrap">
+            <PrimeDropdown
+              value={branchFilter}
+              options={[{ label: "الكل", value: "all" }, ...branches.map((b) => ({ label: b.branch_name, value: String(b.id) }))]}
+              optionLabel="label"
+              optionValue="value"
+              placeholder="الفرع"
+              filter
+              className="invoice-currency-dropdown w-full"
+              panelClassName="invoice-currency-dropdown-panel"
+              appendTo="self"
+              onChange={(e: any) => setBranchFilter(e.value)}
+            />
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <label className="text-xs font-medium text-slate-500">نطاق العرض</label>
+          <div className="invoice-currency-dropdown-wrap">
+            <PrimeDropdown
+              value={scope}
+              options={[
+                { label: "مهامي فقط", value: "mine" },
+                { label: "أقسامي", value: "section" },
+                ...(isAdmin ? [{ label: "كل المهام", value: "all" }] : []),
+              ]}
+              optionLabel="label"
+              optionValue="value"
+              className="invoice-currency-dropdown w-full"
+              panelClassName="invoice-currency-dropdown-panel"
+              appendTo="self"
+              onChange={(e: any) => setScope(e.value as Scope)}
+            />
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <label className="text-xs font-medium text-slate-500">بحث</label>
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <Search className="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Input value={searchText} onChange={(e) => setSearchText(e.target.value)} placeholder="بحث برقم الصنف أو العنوان" className="w-full pr-8" />
+            </div>
+            <Button variant="outline" size="icon" onClick={() => fetchTasks(selectedWorkflowId)} title="تحديث" className="shrink-0">
+              <RefreshCw className={cn("h-4 w-4", loadingTasks && "animate-spin")} />
+            </Button>
+          </div>
+        </div>
       </div>
 
-      {!selectedWorkflow ? (
+      {columns.length === 0 ? (
         <Card>
           <CardContent className="py-10 text-center text-slate-500">لا يوجد سير عمل نشِط بعد — أنشئ واحداً من تبويب الإدارة</CardContent>
         </Card>
       ) : (
-        <div className="flex gap-4 overflow-x-auto pb-3">
-          {orderedSteps.map((step, stepIndex) => {
-            const columnTasks = visibleTasks
-              .filter((t) => t.step_id === step.id)
-              .sort((a, b) => {
-                const priorityRank: Record<string, number> = { urgent: 0, high: 1, normal: 2, low: 3 }
-                const pr = (priorityRank[a.item_priority] ?? 2) - (priorityRank[b.item_priority] ?? 2)
-                if (pr !== 0) return pr
-                return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-              })
-            const palette = columnColor(stepIndex)
+        <div className="flex min-h-0 flex-1 gap-4 overflow-x-auto pb-3">
+          {columns.map((column, columnIndex) => {
+            const columnTasks = [...column.tasks].sort((a, b) => {
+              const priorityRank: Record<string, number> = { urgent: 0, high: 1, normal: 2, low: 3 }
+              const pr = (priorityRank[a.item_priority] ?? 2) - (priorityRank[b.item_priority] ?? 2)
+              if (pr !== 0) return pr
+              return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+            })
+            const palette = columnColor(columnIndex)
             return (
-              <div key={step.id} className={cn("flex w-96 shrink-0 flex-col rounded-2xl border-2", palette.bg, palette.border)}>
+              <div key={column.key} className={cn("flex h-full w-[85vw] shrink-0 flex-col rounded-2xl border-2 sm:w-96", palette.bg, palette.border)}>
                 <div className={cn("flex items-center justify-between rounded-t-2xl px-4 py-3", palette.header)}>
                   <div>
-                    <div className={cn("text-base font-bold", palette.text)}>{step.label}</div>
-                    <div className="text-xs text-slate-500">
-                      {step.section_name}
-                      {step.join_type !== "none" && ` · التقاء ${step.join_type === "and" ? "الكل" : "أي فرع"}`}
-                      {step.sla_hours ? ` · SLA ${step.sla_hours}س` : ""}
-                    </div>
+                    <div className={cn("text-base font-bold", palette.text)}>{column.label}</div>
+                    {column.subtitle && <div className="text-xs text-slate-500">{column.subtitle}</div>}
                   </div>
                   <Badge className={cn("h-6 min-w-6 justify-center rounded-full px-2 text-sm font-bold", palette.badge)}>{columnTasks.length}</Badge>
                 </div>
-                <ScrollArea className="max-h-[70vh]">
+                <ScrollArea className="min-h-0 flex-1">
                   <div className="flex flex-col gap-3 p-3">
                     {columnTasks.length === 0 && <div className="py-8 text-center text-sm text-slate-400">لا توجد مهام</div>}
                     {columnTasks.map((t) => {
@@ -351,6 +452,11 @@ export function TaskBoard() {
                             <Badge className={cn("border text-xs", PRIORITY_BADGE_CLASS[t.item_priority])}>{PRIORITY_LABELS[t.item_priority] || t.item_priority}</Badge>
                           </div>
                           <div className="line-clamp-2 text-lg font-bold text-slate-800">{t.title}</div>
+                          {selectedWorkflowId === "all" && (
+                            <div className="mt-1 truncate text-xs text-slate-500">
+                              {t.workflow_name} · {t.step_label}
+                            </div>
+                          )}
                           <div className="mt-4 flex items-center justify-between">
                             <div className="flex items-center gap-2 text-sm text-slate-600">
                               <Avatar className="h-9 w-9 border-2 border-white shadow">
@@ -533,32 +639,38 @@ export function TaskBoard() {
                         {transferringInstanceId === instance.id && (
                           <div className="space-y-2 rounded-md border border-indigo-200 bg-indigo-50 p-2">
                             <div className="grid grid-cols-2 gap-2">
-                              <Select value={transferTarget.sectionId} onValueChange={(v) => setTransferTarget((f) => ({ ...f, sectionId: v, userId: "" }))}>
-                                <SelectTrigger className="h-8 text-xs">
-                                  <SelectValue placeholder="قسم آخر (اختياري)" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {sections.map((s) => (
-                                    <SelectItem key={s.id} value={String(s.id)}>
-                                      {s.name}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                              <Select value={transferTarget.userId} onValueChange={(v) => setTransferTarget((f) => ({ ...f, userId: v }))}>
-                                <SelectTrigger className="h-8 text-xs">
-                                  <SelectValue placeholder="مستخدم محدد (اختياري)" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {(sections.find((s) => s.id === Number(transferTarget.sectionId))?.members || sections.find((s) => s.id === instance.effective_section_id)?.members || []).map(
-                                    (m) => (
-                                      <SelectItem key={m.user_id} value={m.user_id}>
-                                        {m.full_name}
-                                      </SelectItem>
-                                    ),
+                              <div className="invoice-currency-dropdown-wrap">
+                                <PrimeDropdown
+                                  value={transferTarget.sectionId}
+                                  options={sections.map((s) => ({ id: String(s.id), name: s.name }))}
+                                  optionLabel="name"
+                                  optionValue="id"
+                                  placeholder="قسم آخر (اختياري)"
+                                  showClear
+                                  filter
+                                  className="invoice-currency-dropdown w-full text-xs"
+                                  panelClassName="invoice-currency-dropdown-panel"
+                                  appendTo="self"
+                                  onChange={(e: any) => setTransferTarget((f) => ({ ...f, sectionId: e.value ?? "", userId: "" }))}
+                                />
+                              </div>
+                              <div className="invoice-currency-dropdown-wrap">
+                                <PrimeDropdown
+                                  value={transferTarget.userId}
+                                  options={(sections.find((s) => s.id === Number(transferTarget.sectionId))?.members || sections.find((s) => s.id === instance.effective_section_id)?.members || []).map(
+                                    (m) => ({ user_id: m.user_id, full_name: m.full_name }),
                                   )}
-                                </SelectContent>
-                              </Select>
+                                  optionLabel="full_name"
+                                  optionValue="user_id"
+                                  placeholder="مستخدم محدد (اختياري)"
+                                  showClear
+                                  filter
+                                  className="invoice-currency-dropdown w-full text-xs"
+                                  panelClassName="invoice-currency-dropdown-panel"
+                                  appendTo="self"
+                                  onChange={(e: any) => setTransferTarget((f) => ({ ...f, userId: e.value ?? "" }))}
+                                />
+                              </div>
                             </div>
                             <Textarea
                               value={transferTarget.reason}
