@@ -73,10 +73,12 @@ export function ensureManagementTables(): Promise<void> {
           email_verified BOOLEAN DEFAULT false,
           email_verification_token VARCHAR(255),
           is_platform_admin BOOLEAN DEFAULT false,
+          is_active BOOLEAN DEFAULT true,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
       `
+      await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true`
       await sql`
         CREATE TABLE IF NOT EXISTS companies (
           id SERIAL PRIMARY KEY,

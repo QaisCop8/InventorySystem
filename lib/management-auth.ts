@@ -2,7 +2,6 @@ import { cookies } from "next/headers"
 import crypto from "crypto"
 import sql, { ensureManagementTables } from "./management-db"
 import { hashPassword } from "./auth"
-import { sendMail } from "./email"
 
 export interface ManagementUser {
   id: number
@@ -31,21 +30,15 @@ export async function signupManagementUser(data: { fullName: string; email: stri
   if (existing.length > 0) return { success: false, error: "البريد الإلكتروني مستخدَم مسبقاً" }
 
   const passwordHash = await hashPassword(data.password)
-  const verificationToken = generateToken()
 
+  // البريد الإلكتروني يُعتبر مؤكَّداً فور التسجيل (بلا خطوة تحقق عبر رابط بريدي) — يستطيع
+  // المستخدم تسجيل الدخول مباشرة بعد إنشاء الحساب.
   const inserted = await sql`
-    INSERT INTO users (full_name, email, password_hash, email_verification_token)
-    VALUES (${data.fullName.trim()}, ${email}, ${passwordHash}, ${verificationToken})
+    INSERT INTO users (full_name, email, password_hash, email_verified)
+    VALUES (${data.fullName.trim()}, ${email}, ${passwordHash}, true)
     RETURNING id, full_name, email
   `
   const user = inserted[0]
-
-  const verifyUrl = `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/management/verify-email?token=${verificationToken}`
-  await sendMail({
-    to: email,
-    subject: "تأكيد البريد الإلكتروني",
-    html: `<div dir="rtl"><p>مرحباً ${user.full_name}،</p><p>يرجى تأكيد بريدك الإلكتروني عبر الضغط على الرابط التالي:</p><p><a href="${verifyUrl}">${verifyUrl}</a></p></div>`,
-  })
 
   return { success: true, user }
 }
@@ -70,7 +63,7 @@ export async function loginManagementUser(data: { email: string; password: strin
   if (!email || !data.password) return { success: false, error: "البريد الإلكتروني وكلمة المرور مطلوبان" }
 
   const rows = await sql`
-    SELECT id, full_name, email, password_hash, email_verified, is_platform_admin
+    SELECT id, full_name, email, password_hash, email_verified, is_platform_admin, is_active
     FROM users WHERE email = ${email}
   `
   if (rows.length === 0) return { success: false, error: "البريد الإلكتروني أو كلمة المرور غير صحيحة" }
@@ -83,6 +76,10 @@ export async function loginManagementUser(data: { email: string; password: strin
 
   if (!user.email_verified) {
     return { success: false, error: "يرجى تأكيد بريدك الإلكتروني أولاً قبل تسجيل الدخول" }
+  }
+
+  if (!user.is_active) {
+    return { success: false, error: "تم إيقاف هذا الحساب — يرجى التواصل مع إدارة النظام" }
   }
 
   const sessionToken = generateToken()
@@ -123,11 +120,17 @@ export async function getManagementSession(): Promise<ManagementUser | null> {
     }
 
     const userRows = await sql`
-      SELECT id, full_name, email, email_verified, is_platform_admin
+      SELECT id, full_name, email, email_verified, is_platform_admin, is_active
       FROM users WHERE id = ${session.user_id}
     `
     if (userRows.length === 0) return null
-    return userRows[0] as ManagementUser
+    const user = userRows[0]
+    if (!user.is_active) {
+      await sql`DELETE FROM management_sessions WHERE session_token = ${sessionToken}`
+      cookieStore.delete(SESSION_COOKIE)
+      return null
+    }
+    return user as ManagementUser
   } catch (error) {
     console.error("[management-auth] getManagementSession error:", error)
     return null
