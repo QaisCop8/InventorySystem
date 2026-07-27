@@ -5,6 +5,7 @@ import { Suspense, useState, useEffect } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { ProtectedRoute } from "@/components/auth/protected-route"
 import { ERPLayout } from "@/components/erp-layout"
+import { activateCompany } from "@/lib/tenant-client"
 
 
 // Import all components
@@ -172,27 +173,13 @@ function HomePageContent() {
     if (!companyIdParam) return
     if (sessionStorage.getItem("active_company_id") === companyIdParam) return
 
-    ;(async () => {
-      try {
-        const res = await fetch("/api/management/select-company", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ companyId: Number(companyIdParam) }),
-        })
-        if (!res.ok) return
-        const data = await res.json()
-        sessionStorage.setItem("active_tenant_db", data.dbName)
-        sessionStorage.setItem("active_company_id", companyIdParam)
-        if (data.user && data.token) {
-          sessionStorage.setItem("erp_user", JSON.stringify(data.user))
-          sessionStorage.setItem("erp_token", data.token)
-          sessionStorage.setItem("erp_session", JSON.stringify({ timestamp: new Date().getTime(), rememberMe: false }))
-        }
-        window.location.reload()
-      } catch {
+    activateCompany(Number(companyIdParam))
+      .then((result) => {
+        if (result.success) window.location.reload()
+      })
+      .catch(() => {
         // تجاهل — ستتولى ProtectedRoute التحويل لتسجيل دخول الإدارة كالمعتاد إن تعذّر هذا
-      }
-    })()
+      })
   }, [searchParams])
 
   useEffect(() => {

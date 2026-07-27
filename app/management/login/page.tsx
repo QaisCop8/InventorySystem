@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { AlertCircle, Eye, EyeOff, Lock, Mail, LogIn, ShieldCheck, Sparkles } from "lucide-react"
+import { activateCompany } from "@/lib/tenant-client"
 
 export default function ManagementLoginPage() {
   const router = useRouter()
@@ -36,6 +37,26 @@ export default function ManagementLoginPage() {
         setError(data.error || "حدث خطأ في تسجيل الدخول")
         return
       }
+
+      // شركة واحدة معتمَدة فقط؟ لا داعي لعرض شركاتي لاختيار من قائمة بعنصر واحد — يدخل النظام
+      // مباشرة. أكثر من شركة (أو لا شركة معتمَدة بعد) يستمر لشركاتي كالمعتاد.
+      try {
+        const companiesRes = await fetch("/api/management/companies")
+        const companiesData = companiesRes.ok ? await companiesRes.json() : []
+        const approved = Array.isArray(companiesData)
+          ? companiesData.filter((c: any) => c.status === "approved")
+          : []
+        if (approved.length === 1) {
+          const result = await activateCompany(approved[0].id)
+          if (result.success) {
+            window.location.href = `/?company=${approved[0].id}`
+            return
+          }
+        }
+      } catch {
+        // تجاهل أي خلل هنا — المسار الافتراضي (شركاتي) يبقى يعمل دوماً
+      }
+
       router.push("/management/companies")
     } catch {
       setError("تعذّر الاتصال بالخادم")

@@ -19,6 +19,7 @@ import {
   Sparkles,
   LayoutGrid,
 } from "lucide-react"
+import { activateCompany } from "@/lib/tenant-client"
 
 interface Company {
   id: number
@@ -115,35 +116,12 @@ export default function ManagementCompaniesPage() {
     if (company.status !== "approved") return
     setSelecting(company.id)
     try {
-      const res = await fetch("/api/management/select-company", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ companyId: company.id }),
-      })
-      const data = await res.json()
-      if (!res.ok) {
-        setError(data.error || "تعذّر فتح الشركة")
+      const result = await activateCompany(company.id)
+      if (!result.success) {
+        setError(result.error || "تعذّر فتح الشركة")
         setSelecting(null)
         return
       }
-
-      // كل تبويب متصفح له شركته الخاصة عبر sessionStorage (غير مشتركة بين التبويبات) — هذا ما
-      // يسمح بفتح أكثر من شركة في آنٍ واحد بتبويبات مختلفة رغم أن كوكي tenant_db مشتركة بينها.
-      sessionStorage.setItem("active_tenant_db", data.dbName)
-      sessionStorage.setItem("active_company_id", String(company.id))
-
-      // إن نجح تسجيل الدخول التلقائي (وُجد مستخدم بنفس بريد حساب الإدارة داخل هذه الشركة)، خزّنه
-      // فوراً بنفس مفاتيح auth-context.tsx حتى تنتقل الصفحة إلى الرئيسية مباشرة بلا نموذج دخول
-      // ثانٍ. غياب user/token هنا يعني عدم وجود مستخدم مطابق، فتُعرض صفحة دخول هذه الشركة كبديل.
-      if (data.user && data.token) {
-        sessionStorage.setItem("erp_user", JSON.stringify(data.user))
-        sessionStorage.setItem("erp_token", data.token)
-        sessionStorage.setItem(
-          "erp_session",
-          JSON.stringify({ timestamp: new Date().getTime(), rememberMe: false }),
-        )
-      }
-
       window.location.href = `/?company=${company.id}`
     } catch {
       setError("تعذّر الاتصال بالخادم")

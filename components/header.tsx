@@ -1,6 +1,7 @@
 ﻿"use client";
 
 import { useEffect, useState, forwardRef } from "react";
+import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { NotificationCenter } from "@/components/notifications/notification-center";
 import { useAuth } from "@/components/auth/auth-context";
@@ -14,7 +15,14 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Icons } from "@/components/ui/icons";
 import { QuickThemeToggle } from "@/components/theme/theme-toggle";
-import { Loader2, Building2 } from "lucide-react";
+import { Loader2, Building2, ChevronDown } from "lucide-react";
+import { activateCompany } from "@/lib/tenant-client";
+
+interface HeaderCompany {
+  id: number;
+  name: string;
+  status: "pending" | "approved" | "rejected";
+}
 
 interface HeaderProps {
   onMenuClick: () => void;
@@ -30,6 +38,7 @@ const RefButton = forwardRef<HTMLButtonElement, React.ButtonHTMLAttributes<HTMLB
 RefButton.displayName = "RefButton";
 
 export function Header({ onMenuClick, activeSection, onProfileClick, onSettingsClick }: HeaderProps) {
+  const router = useRouter();
   const {
     user,
     logout,
@@ -41,14 +50,37 @@ export function Header({ onMenuClick, activeSection, onProfileClick, onSettingsC
   } = useAuth();
   const [search, setSearch] = useState("");
   const [loggingOut, setLoggingOut] = useState(false);
-  const [companyName, setCompanyName] = useState<string | null>(null);
+  const [myCompanies, setMyCompanies] = useState<HeaderCompany[]>([]);
+  const [currentCompanyId, setCurrentCompanyId] = useState<number | null>(null);
+  const [switchingCompanyName, setSwitchingCompanyName] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch("/api/management/current-company")
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => setCompanyName(data?.name ?? null))
-      .catch(() => setCompanyName(null));
+    Promise.all([
+      fetch("/api/management/companies").then((res) => (res.ok ? res.json() : [])),
+      fetch("/api/management/current-company").then((res) => (res.ok ? res.json() : null)),
+    ])
+      .then(([companiesData, current]) => {
+        setMyCompanies(Array.isArray(companiesData) ? companiesData : []);
+        setCurrentCompanyId(current?.id ?? null);
+      })
+      .catch(() => {});
   }, []);
+
+  // تبديل الشركة من قائمة الهيدر المنسدلة — يعيد استخدام نفس منطق شركاتي (lib/tenant-client.ts)
+  // حتى تتصرف كلتاهما بنفس الطريقة تماماً (sessionStorage الخاصة بهذا التبويب، تسجيل دخول تلقائي).
+  const handleCompanyChange = async (companyId: number) => {
+    if (companyId === currentCompanyId) return;
+    const target = myCompanies.find((c) => c.id === companyId);
+    if (!target || target.status !== "approved") return;
+
+    setSwitchingCompanyName(target.name);
+    const result = await activateCompany(companyId);
+    if (!result.success) {
+      setSwitchingCompanyName(null);
+      return;
+    }
+    window.location.href = `/?company=${companyId}`;
+  };
 
   // logout فعلياً غير متزامن (طلب /api/auth/logout قبل تفريغ الجلسة) — بلا هذه الحالة كان الضغط
   // على "تسجيل الخروج" يُغلق القائمة المنسدلة فوراً دون أي مؤشر تحميل حتى تكتمل الجلسة وتُعاد
@@ -165,11 +197,24 @@ export function Header({ onMenuClick, activeSection, onProfileClick, onSettingsC
           </span>
         </div>
 
-        {/* اسم الشركة الحالية */}
-        {companyName && (
-          <div className="hidden md:flex items-center gap-1.5 rounded-md border border-border bg-muted/50 px-3 py-1.5">
+        {/* الشركة الحالية — قائمة منسدلة بكل شركات المستخدم، التبديل يعيد تحميل النظام على الشركة الجديدة */}
+        {myCompanies.length > 0 && (
+          <div className="hidden md:flex items-center gap-1.5 rounded-md border border-border bg-muted/50 px-2 py-1.5">
             <Building2 className="h-4 w-4 shrink-0 text-muted-foreground" />
-            <span className="text-sm font-medium text-card-foreground truncate max-w-[160px]">{companyName}</span>
+            <select
+              className="bg-transparent text-sm font-medium text-card-foreground outline-none max-w-[160px] truncate"
+              value={currentCompanyId ?? ""}
+              onChange={(e) => handleCompanyChange(Number(e.target.value))}
+              disabled={!!switchingCompanyName}
+            >
+              {myCompanies.map((c) => (
+                <option key={c.id} value={c.id} disabled={c.status !== "approved"}>
+                  {c.name}
+                  {c.status !== "approved" ? " (غير جاهزة)" : ""}
+                </option>
+              ))}
+            </select>
+            <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
           </div>
         )}
 
@@ -234,6 +279,10 @@ export function Header({ onMenuClick, activeSection, onProfileClick, onSettingsC
               الإعدادات
             </DropdownMenuItem>
 
+            <DropdownMenuItem onClick={() => router.push("/management/companies")} className="justify-center cursor-pointer">
+              شركاتي
+            </DropdownMenuItem>
+
             <DropdownMenuSeparator />
 
             <DropdownMenuItem onClick={handleLogout} className="text-red-600 justify-center cursor-pointer">
@@ -247,6 +296,15 @@ export function Header({ onMenuClick, activeSection, onProfileClick, onSettingsC
         <div className="fixed inset-0 z-[999] flex flex-col items-center justify-center gap-3 bg-white/85 backdrop-blur-sm">
           <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
           <p className="text-sm font-medium text-slate-700">جاري تسجيل الخروج يرجى الانتظار...</p>
+        </div>
+      )}
+
+      {switchingCompanyName && (
+        <div className="fixed inset-0 z-[999] flex flex-col items-center justify-center gap-3 bg-white/85 backdrop-blur-sm">
+          <Loader2 className="h-8 w-8 animate-spin text-violet-600" />
+          <p className="text-sm font-medium text-slate-700">
+            جاري التحويل للشركة - {switchingCompanyName} - يرجى الانتظار ...
+          </p>
         </div>
       )}
     </header>

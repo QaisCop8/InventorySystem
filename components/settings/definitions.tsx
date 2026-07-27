@@ -2157,9 +2157,11 @@ function Definitions() {
 
     try {
       const method = editingBranchId ? "PUT" : "POST";
-      const url = editingBranchId
-        ? `/api/branches/${editingBranchId}`
-        : `/api/branches`;
+      // كلا التعديل والإضافة على /api/branches نفسها (بلا مقطع id بالرابط) — معالج PUT هناك
+      // يقرأ المعرّف من جسم الطلب (branchForm.id، مضبوط أصلاً في handleEditBranch)؛
+      // /api/branches/[id] ملف منفصل تماماً وغير مرتبط بالفروع (لبنود الميزانية)، فاستدعاؤه هنا
+      // بأي POST/PUT كان يفشل بلا معالج مطابق ويُظهر "تعذر الاتصال بالخادم" رغم وصول الرد فعلياً.
+      const url = `/api/branches`;
 
       const response = await fetch(url, {
         method,
