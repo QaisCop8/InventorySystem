@@ -164,6 +164,38 @@ function HomePageContent() {
   })
 
   useEffect(() => {
+    // تبويب جديد فُتح برابط يحمل ?company=<id> (لصق الرابط يدوياً، أو فتحه من مكان لا يُورث
+    // sessionStorage للتبويب الأصلي) — يعيد تنفيذ اختيار الشركة لتعمير sessionStorage لهذا
+    // التبويب تحديداً (كوكي tenant_db وحدها لا تكفي لأنها مشتركة بين كل التبويبات). التبويب الذي
+    // نفّذ الاختيار أصلاً من شركاتي يصل هنا وقد عمّر sessionStorage مسبقاً فيتخطى هذا مباشرة.
+    const companyIdParam = searchParams.get("company")
+    if (!companyIdParam) return
+    if (sessionStorage.getItem("active_company_id") === companyIdParam) return
+
+    ;(async () => {
+      try {
+        const res = await fetch("/api/management/select-company", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ companyId: Number(companyIdParam) }),
+        })
+        if (!res.ok) return
+        const data = await res.json()
+        sessionStorage.setItem("active_tenant_db", data.dbName)
+        sessionStorage.setItem("active_company_id", companyIdParam)
+        if (data.user && data.token) {
+          sessionStorage.setItem("erp_user", JSON.stringify(data.user))
+          sessionStorage.setItem("erp_token", data.token)
+          sessionStorage.setItem("erp_session", JSON.stringify({ timestamp: new Date().getTime(), rememberMe: false }))
+        }
+        window.location.reload()
+      } catch {
+        // تجاهل — ستتولى ProtectedRoute التحويل لتسجيل دخول الإدارة كالمعتاد إن تعذّر هذا
+      }
+    })()
+  }, [searchParams])
+
+  useEffect(() => {
     const removeWijmoEval = () => {
       document.body.querySelectorAll<HTMLElement>("*").forEach((e) => {
         if (e.innerText?.includes("Wijmo Evaluation")) {

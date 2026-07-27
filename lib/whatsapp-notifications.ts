@@ -1,7 +1,5 @@
-import { neon } from "@neondatabase/serverless"
+import sql from "@/lib/database"
 import { sendTemplateMessage, sendTextMessage } from "./whatsapp-service"
-
-const sql = neon(process.env.DATABASE_URL!)
 
 // إرسال إشعار تأكيد الطلبية
 export async function sendOrderConfirmation(orderId: number, orderType: "sales" | "purchase"): Promise<void> {

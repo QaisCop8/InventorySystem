@@ -1,9 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getWorkflowStages } from "@/lib/workflow"
-import { neon } from "@neondatabase/serverless"
-
-const sql = neon(process.env.DATABASE_URL!)
-
+import sql from "@/lib/database"
 export async function GET() {
   try {
     const stages = await getWorkflowStages()

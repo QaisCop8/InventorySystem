@@ -2,6 +2,7 @@
 
 import type React from "react"
 
+import { useEffect, useState } from "react"
 import { useAuth } from "./auth-context"
 import { LoginPage } from "./login-page"
 
@@ -12,7 +13,21 @@ interface ProtectedRouteProps {
 
 export function ProtectedRoute({ children, requiredPermission }: ProtectedRouteProps) {
   const { isAuthenticated, hasPermission, login, isLoading } = useAuth()
+  // شركة سبق اختيارها لهذا التبويب تحديداً (sessionStorage غير مشتركة بين التبويبات) — إن وُجدت
+  // بلا جلسة ERP مطابقة (فشل تسجيل الدخول التلقائي بالبريد)، نعرض نموذج دخول هذه الشركة بعينها
+  // بدل تحويل المستخدم بلا داعٍ لتسجيل دخول الإدارة الذي أتى منه أصلاً. بلا أي شركة مُختارة إطلاقاً
+  // لهذا التبويب (زيارة مباشرة لـ"/" بلا مرور بشركاتي)، الوجهة الوحيدة هي تسجيل دخول الإدارة.
+  const [hasSelectedCompany, setHasSelectedCompany] = useState(false)
 
+  useEffect(() => {
+    setHasSelectedCompany(!!sessionStorage.getItem("active_tenant_db"))
+  }, [])
+
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated && !hasSelectedCompany) {
+      window.location.href = "/management/login"
+    }
+  }, [isLoading, isAuthenticated, hasSelectedCompany])
 
   if (isLoading) {
     return (
@@ -26,10 +41,21 @@ export function ProtectedRoute({ children, requiredPermission }: ProtectedRouteP
     )
   }
 
-  if (!isAuthenticated) {
+  if (!isAuthenticated && hasSelectedCompany) {
     return (
       <div className="min-h-screen">
         <LoginPage onLogin={login} />
+      </div>
+    )
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-violet-400 mx-auto"></div>
+          <p className="text-slate-300 text-lg">جاري التحويل إلى تسجيل الدخول...</p>
+        </div>
       </div>
     )
   }

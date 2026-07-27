@@ -1,10 +1,7 @@
 // مدقق شامل لاستقرار النظام
 // Comprehensive system stability validator
 
-import { neon } from "@neondatabase/serverless"
-
-const sql = neon(process.env.DATABASE_URL!)
-
+import sql from "@/lib/database"
 export interface SystemValidationResult {
   isValid: boolean
   errors: string[]

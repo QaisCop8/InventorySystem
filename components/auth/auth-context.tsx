@@ -65,6 +65,24 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [activeDepartment, setActiveDepartment] = useState<string | null>(null)
 
   useEffect(() => {
+    // يُلحق كل طلب fetch من هذا التبويب بهيدر x-tenant-db (إن وُجدت شركة مُختارة له في
+    // sessionStorage، غير المشتركة بين تبويبات المتصفح) — هذا هو ما يجعل بالإمكان فتح شركات
+    // مختلفة في تبويبات مختلفة في آنٍ واحد رغم أن كوكي tenant_db وحدها مشتركة بينها جميعاً.
+    // مُطبَّق مرة واحدة فقط عبر علم على window لتفادي لف fetch عدة مرات مع إعادة تركيب المكوّن.
+    if (typeof window !== "undefined" && !(window as any).__tenantFetchPatched) {
+      const originalFetch = window.fetch.bind(window)
+      window.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
+        const tenantDb = sessionStorage.getItem("active_tenant_db")
+        if (tenantDb) {
+          const headers = new Headers(init?.headers)
+          headers.set("x-tenant-db", tenantDb)
+          init = { ...init, headers }
+        }
+        return originalFetch(input, init)
+      }) as typeof window.fetch
+      ;(window as any).__tenantFetchPatched = true
+    }
+
     console.log("[v0] useEffect triggered!")
 
     if (typeof window === "undefined") {
@@ -310,6 +328,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
       clearAuthData()
       if (typeof window !== "undefined") {
         sessionStorage.clear()
+        // تسجيل الخروج من تطبيق شركة بعينها يعود دوماً لتسجيل الدخول بنظام إدارة الشركات، لا لصفحة
+        // الدخول المحلية لهذا التطبيق — فهذا التطبيق أصبح يُفتح فقط عبر اختيار شركة من هناك.
+        window.location.href = "/management/login"
       }
     }
   }

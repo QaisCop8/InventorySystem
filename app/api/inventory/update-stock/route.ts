@@ -1,8 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { neon } from "@neondatabase/serverless"
+import sql from "@/lib/database"
 import { checkAndNotifyReorderPoint } from "@/lib/inventory-notifications"
-
-const sql = neon(process.env.DATABASE_URL!)
 
 /**
  * POST: Update product stock and check for reorder notifications

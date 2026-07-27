@@ -1,9 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getAllTemplates } from "@/lib/whatsapp-service"
-import { neon } from "@neondatabase/serverless"
-
-const sql = neon(process.env.DATABASE_URL!)
-
+import sql from "@/lib/database"
 // الحصول على جميع القوالب
 export async function GET() {
   try {

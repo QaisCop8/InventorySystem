@@ -1,7 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { neon } from "@neondatabase/serverless"
-import { Pool } from "pg"
 import { generateItemGroupNumber } from "@/lib/number-generator"
+import sql from "@/lib/database"
 
 interface ItemGroupDB {
   id: number
@@ -25,36 +24,7 @@ interface ItemGroup {
   updated_at: string
 }
 
-let sql: any = null
 
-try {
-  if (!process.env.DATABASE_URL) {
-    console.error("[v0] DATABASE_URL environment variable is not set")
-  } else {
-    const dbUrl = process.env.DATABASE_URL
-    if (dbUrl.includes("localhost") || dbUrl.includes("127.0.0.1")) {
-      const pool = new Pool({ connectionString: dbUrl })
-      sql = async (strings: TemplateStringsArray, ...values: any[]) => {
-        const client = await pool.connect()
-        try {
-          const query = strings.reduce(
-            (prev, curr, i) => prev + curr + (i < values.length ? `$${i + 1}` : ""),
-            ""
-          )
-          const result = await client.query(query, values)
-          return result.rows
-        } finally {
-          client.release()
-        }
-      }
-    } else {
-      sql = neon(dbUrl)
-    }
-  }
-} catch (error) {
-  console.error("[v0] Failed to initialize DB client:", error)
-  sql = null
-}
 
 function toDisplayStatus(status: number | null | undefined): "نشط" | "غير نشط" {
   return status === 2 ? "غير نشط" : "نشط"

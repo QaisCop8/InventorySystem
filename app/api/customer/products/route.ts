@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { getCustomerSession } from "@/lib/customer-auth"
-import { sql } from "@vercel/postgres"
+import sql from "@/lib/database"
 
 export async function GET() {
   try {

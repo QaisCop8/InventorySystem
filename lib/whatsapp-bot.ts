@@ -1,7 +1,5 @@
-import { neon } from "@neondatabase/serverless"
+import sql from "@/lib/database"
 import { sendTextMessage, formatPhoneNumber } from "./whatsapp-service"
-
-const sql = neon(process.env.DATABASE_URL!)
 
 // أنواع الأوامر التي يمكن للعميل إرسالها
 export type BotCommand = "menu" | "orders" | "order_status" | "products" | "new_order" | "help" | "contact" | "unknown"

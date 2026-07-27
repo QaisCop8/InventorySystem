@@ -1,9 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { neon } from "@neondatabase/serverless"
+import sql from "@/lib/database"
 import twilio from "twilio"
 import { shouldSendDailySummary, getProductsNeedingReorder, formatDailySummary } from "@/lib/whatsapp-scheduler"
 
-const sql = neon(process.env.DATABASE_URL!)
 const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID!, process.env.TWILIO_AUTH_TOKEN!)
 
 export async function POST(request: NextRequest) {

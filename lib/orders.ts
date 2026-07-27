@@ -2,49 +2,9 @@
 import { generateSalesOrderNumber } from "./number-generator"
 import { generatePurchaseOrderNumber } from "./number-generator"
 import { type NextRequest, NextResponse } from "next/server"
-import { neon } from "@neondatabase/serverless"
-import { Pool } from "pg"
-import { db } from "@vercel/postgres"
 import { adjustStock } from "./inventory"
 import { createCustomerOrder as createTaskCustomerOrder, createOrderItem as createTaskOrderItem } from "./task-orders"
-
-let sql: any = null
-
-try {
-  if (!process.env.DATABASE_URL) {
-    console.error("[v0] DATABASE_URL environment variable is not set")
-  } else {
-    const dbUrl = process.env.DATABASE_URL
-
-    if (dbUrl.includes("localhost") || dbUrl.includes("127.0.0.1")) {
-      console.log("[v0] Using local PostgreSQL with pg Pool")
-      const pool = new Pool({ connectionString: dbUrl })
-      sql = async (strings: TemplateStringsArray, ...values: any[]) => {
-        const client = await pool.connect()
-        try {
-          const query =
-            strings.reduce(
-              (prev, curr, i) =>
-                prev + curr + (i < values.length ? `$${i + 1}` : ""),
-              ""
-            )
-          const result = await client.query(query, values)
-          return result.rows
-        } finally {
-          client.release()
-        }
-      }
-    } else {
-      console.log("[v0] Using Neon serverless client")
-      sql = neon(dbUrl)
-    }
-
-    console.log("[v0] Database client initialized successfully")
-  }
-} catch (error) {
-  console.error("[v0] Failed to initialize DB client:", error)
-  sql = null
-}
+import sql, { getTenantPool } from "./database"
 
 export default sql
 
@@ -150,12 +110,6 @@ export interface OrderFilters {
   supplierId?: number
 }
 
-// Create pool once
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL
-});
-
-
 
 // ---------------------------------------------------------------
 // GET SALES ORDERS WITH SAFE FILTERS
@@ -224,7 +178,7 @@ export async function getSalesOrders(filters: any = {}) {
   `;
 
   // Use pool.query instead of sql template tag
-  const result = await pool.query(queryText, params);
+  const result = await (await getTenantPool()).query(queryText, params);
   return result.rows;
 }
 
@@ -338,7 +292,7 @@ export async function createOrder(
   items: Partial<OrderItem>[]
 ) {
   await ensureOrderWorkflowColumns();
-  const client = await pool.connect();
+  const client = await (await getTenantPool()).connect();
   try {
     await client.query("BEGIN");
     const vchBook = orderData.order_number?.[1] ?? "O";
@@ -476,7 +430,7 @@ export async function createOrder(
         orderData.id, // WHERE id
       ];
 
-      const result = await pool.query(orderUpdateQuery, orderValues);
+      const result = await (await getTenantPool()).query(orderUpdateQuery, orderValues);
       order = result.rows[0];
 
     } else {
@@ -485,7 +439,7 @@ export async function createOrder(
 
       if (orderData.order_number && orderData.order_number.length >= 2) {
         // Check DB if this order_number already exists
-        const res = await pool.query(
+        const res = await (await getTenantPool()).query(
           `SELECT id FROM orders WHERE order_number = $1 LIMIT 1`,
           [orderData.order_number]
         );
@@ -578,7 +532,7 @@ export async function createOrder(
       ];
 
 
-      const result = await pool.query(orderInsertQuery, orderValues);
+      const result = await (await getTenantPool()).query(orderInsertQuery, orderValues);
       order = result.rows[0];
     }
 
@@ -752,7 +706,7 @@ export async function createOrder(
                 branchId: orderData.branch_id ?? null,
               });
               if (taskItem?.workflow_id) {
-                await pool.query(`UPDATE order_items SET workflow_id = $1 WHERE id = $2`, [taskItem.workflow_id, entry.dbId]);
+                await (await getTenantPool()).query(`UPDATE order_items SET workflow_id = $1 WHERE id = $2`, [taskItem.workflow_id, entry.dbId]);
               }
             } catch (itemError) {
               console.error("[v0] Failed to open tracking steps for order item (non-blocking):", entry.item.product_name, itemError);
@@ -1031,7 +985,7 @@ export async function deleteSalesOrder(
   voucherType: number,
   userId: string | null
 ) {
-  const client = await pool.connect(); // افترض أنك عندك pool
+  const client = await (await getTenantPool()).connect(); // افترض أنك عندك pool
   try {
     await client.query('BEGIN'); // بدء المعاملة
 
@@ -1093,7 +1047,7 @@ export async function updatePrintSalesOrder(
   voucherType: number,
   userId: string | null
 ) {
-  const client = await pool.connect(); // افترض أنك عندك pool
+  const client = await (await getTenantPool()).connect(); // افترض أنك عندك pool
   try {
     await client.query('BEGIN'); // بدء المعاملة
 
@@ -1142,7 +1096,7 @@ export async function UpdateOrderStatus(
   userId: string | null,
   received_by: string | null
 ) {
-  const client = await pool.connect(); // افترض أنك عندك pool
+  const client = await (await getTenantPool()).connect(); // افترض أنك عندك pool
   try {
     await client.query('BEGIN'); // بدء المعاملة
 

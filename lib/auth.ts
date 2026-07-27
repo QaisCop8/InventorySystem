@@ -1,48 +1,6 @@
-import { neon } from "@neondatabase/serverless"
-import { JsConfig } from "next/dist/build/load-jsconfig"
-import { Pool } from "pg"
-import { Json } from "twilio/lib/interfaces"
-
-let sql: any = null
-
-try {
-  if (!process.env.DATABASE_URL) {
-    console.error("[v0] DATABASE_URL environment variable is not set")
-  } else {
-    const dbUrl = process.env.DATABASE_URL
-    console.log("dbUrl ",dbUrl)
-    if (dbUrl.includes("localhost") || dbUrl.includes("127.0.0.1")) {
-      console.log("[v0] Using local PostgreSQL with pg Pool")
-      const pool = new Pool({ connectionString: dbUrl })
-      sql = async (strings: TemplateStringsArray, ...values: any[]) => {
-        const client = await pool.connect()
-        try {
-          const query =
-            strings.reduce(
-              (prev, curr, i) =>
-                prev + curr + (i < values.length ? `$${i + 1}` : ""),
-              ""
-            )
-          const result = await client.query(query, values)
-          return result.rows
-        } finally {
-          client.release()
-        }
-      }
-    } else {
-      console.log("[v0] Using Neon serverless client")
-      sql = neon(dbUrl)
-    }
-
-    console.log("[v0] Database client initialized successfully")
-  }
-} catch (error) {
-  console.error("[v0] Failed to initialize DB client:", error)
-  sql = null
-}
+import sql from "./database"
 
 export default sql
-
 
 export interface User {
   id: string
@@ -55,7 +13,7 @@ export interface User {
   organizationId: number
   isActive: boolean
   lastLogin?: Date,
-  dashboard_layout?: JsConfig
+  dashboard_layout?: any
   branchId?: number
   branchName?: string
 }
@@ -63,12 +21,30 @@ export interface User {
 let branchColumnEnsured: Promise<void> | null = null
 function ensureBranchColumn() {
   if (!branchColumnEnsured) {
-    branchColumnEnsured = sql`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS branch_id INTEGER`
-      .then(() => undefined)
-      .catch((error: unknown) => {
-        branchColumnEnsured = null
-        throw error
-      })
+    branchColumnEnsured = (async () => {
+      // جدول branches نفسه قد لا يكون موجوداً بعد (قاعدة شركة حديثة التزويد لم تُنشأ فيها سوى
+      // user_settings)، ولا يكفي هنا عمل CREATE TABLE IF NOT EXISTS مطابقاً فقط لعمود id المُشار
+      // إليه من user_settings.branch_id — بل نحتاج الجدول كاملاً لأن استعلام الدخول (authenticateUser)
+      // يعمل LEFT JOIN عليه مباشرة، وسيفشل بالكامل (relation does not exist) إن لم يكن موجوداً إطلاقاً.
+      await sql`
+        CREATE TABLE IF NOT EXISTS branches (
+          id SERIAL PRIMARY KEY,
+          branch_code VARCHAR(20) UNIQUE NOT NULL,
+          branch_name VARCHAR(100) NOT NULL,
+          bank_id INTEGER,
+          address TEXT,
+          manager VARCHAR(100),
+          phone VARCHAR(20),
+          status INTEGER DEFAULT 1,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `
+      await sql`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS branch_id INTEGER`
+    })().catch((error: unknown) => {
+      branchColumnEnsured = null
+      throw error
+    })
   }
   return branchColumnEnsured
 }
@@ -109,6 +85,101 @@ async function verifyPassword(password: string, hashedPassword: string): Promise
   } catch (error) {
     console.log("[v0] Error in verifyPassword:", error)
     return false
+  }
+}
+
+// الجزء المشترك بين تسجيل الدخول العادي (authenticateUser، بعد التحقق من كلمة المرور) وتسجيل
+// الدخول التلقائي عند اختيار شركة (authenticateByEmail، بلا كلمة مرور أصلاً — الهوية مُثبَتة
+// مسبقاً عبر جلسة الإدارة mgmt_session): تحديث آخر دخول، بناء كائن المستخدم، تسجيل الحدث، وإصدار
+// رمز الجلسة.
+async function finalizeLogin(dbUser: any, ip?: string, userAgent?: string): Promise<AuthResult> {
+  try {
+    await sql`
+      UPDATE user_settings
+      SET last_login = NOW(), updated_at = NOW()
+      WHERE user_id = ${dbUser.id}
+    `
+  } catch (updateError) {
+    console.log("[v0] Failed to update last login:", updateError)
+  }
+
+  const user: User = {
+    id: dbUser.id,
+    username: dbUser.username,
+    fullName: dbUser.fullName,
+    email: dbUser.email,
+    role: dbUser.role,
+    department: dbUser.department,
+    permissions: dbUser.permissions,
+    organizationId: dbUser.organizationId,
+    isActive: dbUser.isActive,
+    lastLogin: new Date(),
+    dashboard_layout: dbUser.dashboard_layout,
+    branchId: dbUser.branchId ?? undefined,
+    branchName: dbUser.branchName ?? undefined,
+  }
+
+  try {
+    await logAuditEvent({
+      userId: dbUser.id,
+      userName: dbUser.fullName,
+      action: "login",
+      module: "authentication",
+      status: "success",
+      details: `User login successful from IP: ${ip || "unknown"}`,
+    })
+  } catch (auditError) {
+    console.log("[v0] Failed to log audit event:", auditError)
+  }
+
+  return {
+    success: true,
+    user,
+    token: generateSessionToken(dbUser.id),
+  }
+}
+
+// تسجيل دخول موثوق بلا كلمة مرور — يُستخدَم فقط من /api/management/select-company بعد التحقق من
+// أن المستخدم يملك جلسة إدارة صالحة (mgmt_session) ويملك الشركة المُختارة فعلاً؛ يبحث عن مستخدم
+// بنفس بريد حساب الإدارة داخل قاعدة الشركة المُختارة (ضمن withTenantDb) لتسجيل دخوله تلقائياً دون
+// إعادة طلب كلمة المرور. إن لم يوجد مستخدم بهذا البريد في هذه الشركة، يعيد success:false ليعرض
+// العميل نموذج الدخول الاعتيادي لتلك الشركة بدلاً من ذلك.
+export async function authenticateByEmail(email: string, opts: { ip?: string; userAgent?: string } = {}): Promise<AuthResult> {
+  try {
+    if (!sql) {
+      return { success: false, error: "خطأ في الاتصال بقاعدة البيانات" }
+    }
+
+    await ensureBranchColumn()
+
+    const dbUsers = (await sql`
+      SELECT
+        us.user_id as id,
+        us.username,
+        us.full_name as "fullName",
+        us.email,
+        us.role,
+        us.department,
+        us.is_active as "isActive",
+        us.organization_id as "organizationId",
+        us.permissions,
+        us.dashboard_layout,
+        us.branch_id as "branchId",
+        b.branch_name as "branchName"
+      FROM user_settings us
+      LEFT JOIN branches b ON b.id = us.branch_id
+      WHERE LOWER(us.email) = ${email.trim().toLowerCase()}
+      AND us.is_active = true
+    `) as any[]
+
+    if (dbUsers.length === 0) {
+      return { success: false, error: "لا يوجد مستخدم بهذا البريد الإلكتروني في هذه الشركة" }
+    }
+
+    return await finalizeLogin(dbUsers[0], opts.ip, opts.userAgent)
+  } catch (error: any) {
+    console.error("[v0] authenticateByEmail error:", error?.message)
+    return { success: false, error: "حدث خطأ في النظام. يرجى المحاولة مرة أخرى." }
   }
 }
 
@@ -211,64 +282,9 @@ export async function authenticateUser(credentials: LoginCredentials): Promise<A
         }
       }
 
-      try {
-        await sql`
-          UPDATE user_settings 
-          SET last_login = NOW(), updated_at = NOW()
-          WHERE user_id = ${dbUser.id}
-        `
-      } catch (updateError) {
-        console.log("[v0] Failed to update last login:", updateError)
-      }
-
-      // Get user permissions from database
-      let permissions = ["جميع الصلاحيات"]
-      if (dbUser.permissions && Array.isArray(dbUser.permissions)) {
-        permissions = dbUser.permissions
-      } else if (typeof dbUser.permissions === "string") {
-        try {
-          permissions = JSON.parse(dbUser.permissions)
-        } catch {
-          permissions = ["جميع الصلاحيات"]
-        }
-      }
-
-      const user: User = {
-        id: dbUser.id,
-        username: dbUser.username,
-        fullName: dbUser.fullName,
-        email: dbUser.email,
-        role: dbUser.role,
-        department: dbUser.department,
-        permissions:dbUser.permissions,
-        organizationId: dbUser.organizationId,
-        isActive: dbUser.isActive,
-        lastLogin: new Date(),
-        dashboard_layout: dbUser.dashboard_layout,
-        branchId: dbUser.branchId ?? undefined,
-        branchName: dbUser.branchName ?? undefined,
-      }
-
-      try {
-        await logAuditEvent({
-          userId: dbUser.id,
-          userName: dbUser.fullName,
-          action: "login",
-          module: "authentication",
-          status: "success",
-          details: `User login successful from IP: ${credentials.ip || "unknown"}`,
-        })
-      } catch (auditError) {
-        console.log("[v0] Failed to log audit event:", auditError)
-      }
-
       console.log("[v0] Database authentication successful for:", dbUser.username)
 
-      return {
-        success: true,
-        user,
-        token: generateSessionToken(dbUser.id),
-      }
+      return await finalizeLogin(dbUser, credentials.ip, credentials.userAgent)
     } catch (dbError: any) {
       console.error("[v0] Database query error:", {
         error: dbError,

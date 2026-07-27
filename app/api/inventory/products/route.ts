@@ -1,43 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { neon } from "@neondatabase/serverless"
-import { Pool } from "pg"
+import sql, { getTenantPool } from "@/lib/database"
 
-let sql: any = null
 
-try {
-  if (!process.env.DATABASE_URL) {
-    console.error("[v0] DATABASE_URL environment variable is not set")
-  } else {
-    const dbUrl = process.env.DATABASE_URL
-
-    if (dbUrl.includes("localhost") || dbUrl.includes("127.0.0.1")) {
-      const pool = new Pool({ connectionString: dbUrl })
-      sql = async (strings: TemplateStringsArray, ...values: any[]) => {
-        const client = await pool.connect()
-        try {
-          const query =
-            strings.reduce(
-              (prev, curr, i) =>
-                prev + curr + (i < values.length ? `$${i + 1}` : ""),
-              ""
-            )
-          const result = await client.query(query, values)
-          return result.rows
-        } finally {
-          client.release()
-        }
-      }
-    } else {
-      console.log("[v0] Using Neon serverless client")
-      sql = neon(dbUrl)
-    }
-
-    console.log("[v0] Database client initialized successfully")
-  }
-} catch (error) {
-  console.error("[v0] Failed to initialize DB client:", error)
-  sql = null
-}
 
 async function hasDefaultStoreColumn() {
   if (!sql) return false
@@ -338,7 +302,7 @@ export async function GET(request: NextRequest) {
       ORDER BY p.product_code DESC;
     `
 
-    const productsResult = await pool.query(productsQuery)
+    const productsResult = await (await getTenantPool()).query(productsQuery)
     const products = productsResult.rows
 
     // Map product status & tracking
@@ -369,11 +333,7 @@ export async function GET(request: NextRequest) {
 
 
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-});
-
-async function ensureProductCostCentersTable(client: any = pool) {
+async function ensureProductCostCentersTable(client: any) {
   await client.query(`
     CREATE TABLE IF NOT EXISTS product_costcenters_tbl (
       id SERIAL PRIMARY KEY,
@@ -413,7 +373,7 @@ async function persistProductCostCenters(client: any, productId: number, rows: a
 }
 
 async function getLastProductCode() {
-  const result = await pool.query(`
+  const result = await (await getTenantPool()).query(`
     SELECT COALESCE(MAX(product_code), '0') AS last_code
     FROM products
   `)
@@ -424,7 +384,7 @@ async function getLastProductCode() {
 }
 
 export async function POST(request: NextRequest) {
-  const client = await pool.connect();
+  const client = await (await getTenantPool()).connect();
 
   try {
     await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS type INTEGER DEFAULT 1`)

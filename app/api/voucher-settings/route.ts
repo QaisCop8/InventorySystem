@@ -1,49 +1,10 @@
 import { NextRequest, NextResponse } from "next/server"
 
-import { neon } from "@neondatabase/serverless"
-import { Pool } from "pg"
+import sql, { getTenantPool } from "@/lib/database"
 
-let sql: any = null
 
-try {
-    if (!process.env.DATABASE_URL) {
-        console.error("[v0] DATABASE_URL environment variable is not set")
-    } else {
-        const dbUrl = process.env.DATABASE_URL
-
-        if (dbUrl.includes("localhost") || dbUrl.includes("127.0.0.1")) {
-            const pool = new Pool({ connectionString: dbUrl })
-            sql = async (strings: TemplateStringsArray, ...values: any[]) => {
-                const client = await pool.connect()
-                try {
-                    const query =
-                        strings.reduce(
-                            (prev, curr, i) =>
-                                prev + curr + (i < values.length ? `$${i + 1}` : ""),
-                            ""
-                        )
-                    const result = await client.query(query, values)
-                    return result.rows
-                } finally {
-                    client.release()
-                }
-            }
-        } else {
-            console.log("[v0] Using Neon serverless client")
-            sql = neon(dbUrl)
-        }
-
-        console.log("[v0] Database client initialized successfully")
-    }
-} catch (error) {
-    console.error("[v0] Failed to initialize DB client:", error)
-    sql = null
-}
 
 export default sql
-const pool = new Pool({
-    connectionString: process.env.DATABASE_URL
-});
 /* =========================
    GET: Load settings
 ========================= */
@@ -63,7 +24,7 @@ export async function GET(req: Request) {
             );
         }
 
-        const { rows } = await pool.query(
+        const { rows } = await (await getTenantPool()).query(
             `
       SELECT column_key, is_visible,voucher_type
       FROM voucher_column_settings
@@ -100,7 +61,7 @@ export async function GET(req: Request) {
    POST: Save settings
 ========================= */
 export async function POST(req: Request) {
-    const client = await pool.connect();
+    const client = await (await getTenantPool()).connect();
 
     try {
         const body = await req.json();

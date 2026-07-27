@@ -1,7 +1,4 @@
-import { neon } from "@neondatabase/serverless"
-
-const sql = neon(process.env.DATABASE_URL!)
-
+import sql from "@/lib/database"
 /**
  * Check if a product has reached its reorder point and trigger notification
  * This function should be called after any inventory update

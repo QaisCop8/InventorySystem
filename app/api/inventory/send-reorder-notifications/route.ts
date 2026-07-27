@@ -1,8 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { neon } from "@neondatabase/serverless"
+import sql from "@/lib/database"
 import { checkInventoryAndNotify } from "@/lib/whatsapp-scheduler"
-
-const sql = neon(process.env.DATABASE_URL!)
 
 // GET: Fetch notification log
 export async function GET(request: NextRequest) {

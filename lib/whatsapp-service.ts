@@ -1,7 +1,4 @@
-import { neon } from "@neondatabase/serverless"
-
-const sql = neon(process.env.DATABASE_URL!)
-
+import sql from "@/lib/database"
 // أنواع الرسائل
 export type MessageType = "text" | "template" | "media" | "document" | "interactive"
 export type MessageStatus = "pending" | "sent" | "delivered" | "read" | "failed"

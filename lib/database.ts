@@ -1,5 +1,8 @@
 import { neon } from "@neondatabase/serverless"
 import { Pool, types } from "pg"
+import { cookies, headers } from "next/headers"
+import { AsyncLocalStorage } from "node:async_hooks"
+import { withDatabaseName, getDatabaseNameFromUrl } from "./db-url"
 
 // node-postgres يحوّل أعمدة DATE افتراضياً إلى كائن JS Date مربوط بمنتصف الليل بالتوقيت المحلي
 // لخادم Node (لا UTC ولا أي علاقة بالقيمة المخزَّنة فعلياً) — فتاريخ مثل "1990-01-01" على خادم
@@ -10,43 +13,179 @@ import { Pool, types } from "pg"
 // (neon() أدناه) لأنه لا يستخدم سجل الأنواع هذا التابع لحزمة pg.
 types.setTypeParser(1082, (value: string) => value)
 
-let sql: any = null
-
-try {
-  if (!process.env.DATABASE_URL) {
-    console.error("[v0] DATABASE_URL environment variable is not set")
-  } else {
-    const dbUrl = process.env.DATABASE_URL
-
-    if (dbUrl.includes("localhost") || dbUrl.includes("127.0.0.1")) {
-      console.log("[v0] Using local PostgreSQL with pg Pool")
-      const pool = new Pool({ connectionString: dbUrl })
-      sql = async (strings: TemplateStringsArray, ...values: any[]) => {
-        const client = await pool.connect()
-        try {
-          const query =
-            strings.reduce(
-              (prev, curr, i) =>
-                prev + curr + (i < values.length ? `$${i + 1}` : ""),
-              ""
-            )
-          const result = await client.query(query, values)
-          return result.rows
-        } finally {
-          client.release()
-        }
-      }
-    } else {
-      console.log("[v0] Using Neon serverless client")
-      sql = neon(dbUrl)
-    }
-
-    console.log("[v0] Database client initialized successfully")
-  }
-} catch (error) {
-  console.error("[v0] Failed to initialize DB client:", error)
-  sql = null
+// تنفيذ استعلام خام (نص + معاملات موضعية $1,$2...) على قاعدة بعينها — واجهة موحَّدة تُخفي الفرق بين
+// pg.Pool محلياً و.unsafe() الخاصة بعميل Neon، حتى يبقى منطق تركيب الاستعلامات (أدناه) مستقلاً تماماً
+// عن الخلفيّة الفعلية.
+interface TenantClient {
+  query: (text: string, params: any[]) => Promise<any[]>
 }
+
+const baseUrl = process.env.DATABASE_URL || ""
+const defaultDbName = baseUrl ? getDatabaseNameFromUrl(baseUrl) : ""
+
+function buildClientForUrl(url: string): TenantClient {
+  if (url.includes("localhost") || url.includes("127.0.0.1")) {
+    const pool = new Pool({ connectionString: url })
+    return { query: async (text, params) => (await pool.query(text, params)).rows }
+  }
+  const neonClient = neon(url) as any
+  return { query: (text, params) => neonClient.unsafe(text, params) }
+}
+
+// عميل واحد لكل قاعدة (مُخزَّن مؤقتاً بالذاكرة) — لا نفتح اتصالاً/Pool جديداً بكل استعلام، ولا حتى
+// بكل طلب HTTP، بل مرة واحدة لكل db_name طيلة عمر العملية (Node process).
+const clientCache = new Map<string, TenantClient>()
+
+function getClientForDbName(dbName: string): TenantClient {
+  let client = clientCache.get(dbName)
+  if (!client) {
+    const url = dbName === defaultDbName ? baseUrl : withDatabaseName(baseUrl, dbName)
+    client = buildClientForUrl(url)
+    clientCache.set(dbName, client)
+  }
+  return client
+}
+
+// وصول مباشر لقاعدة شركة بعينها بصرف النظر عن كوكي tenant_db للطلب الحالي — يُستخدَم فقط من كود
+// التزويد (lib/provisioning.ts) الذي يجب أن يكتب لقاعدة الشركة المُنشأة حديثاً تحديداً، لا لقاعدة
+// الشركة التي يتصفّحها المسؤول (Qais) حالياً أثناء الموافقة.
+export function getPoolForDb(dbName: string): TenantClient {
+  return getClientForDbName(dbName)
+}
+
+// pg.Pool حقيقي (وليس دالة tagged-template) للكود الذي يحتاج معاملات (BEGIN/COMMIT/ROLLBACK) عبر
+// عدة استعلامات على نفس الاتصال — مثل lib/orders.ts's createOrder. يعمل مع Neon أيضاً (بروتوكول
+// Postgres السلكي القياسي مدعوم من Neon، لا يقتصر الاتصال به على عميل neon() المبني على HTTP فقط).
+// مُخصَّص لقاعدة الشركة الحالية (نفس كوكي tenant_db)، ومُخزَّن مؤقتاً بالذاكرة لكل قاعدة كذلك.
+const rawPoolCache = new Map<string, Pool>()
+
+export async function getTenantPool(): Promise<Pool> {
+  const dbName = await resolveCurrentDbName()
+  let pool = rawPoolCache.get(dbName)
+  if (!pool) {
+    const url = dbName === defaultDbName ? baseUrl : withDatabaseName(baseUrl, dbName)
+    pool = new Pool({ connectionString: url })
+    rawPoolCache.set(dbName, pool)
+  }
+  return pool
+}
+
+// قائمة أسماء قواعد الشركات المعتمَدة (status='approved') — مخزَّنة مؤقتاً دقيقة واحدة، حتى لا
+// نستعلم قاعدة الإدارة (management) في كل استعلام لكل طلب HTTP في التطبيق كله.
+let approvedDbNamesCache: { names: Set<string>; loadedAt: number } | null = null
+const APPROVED_NAMES_TTL_MS = 60_000
+
+async function isApprovedTenantDb(dbName: string): Promise<boolean> {
+  const now = Date.now()
+  if (!approvedDbNamesCache || now - approvedDbNamesCache.loadedAt > APPROVED_NAMES_TTL_MS) {
+    try {
+      const managementSql = (await import("./management-db")).default
+      const rows = await managementSql`SELECT db_name FROM companies WHERE status = 'approved' AND db_name IS NOT NULL`
+      approvedDbNamesCache = { names: new Set(rows.map((r: any) => r.db_name)), loadedAt: now }
+    } catch (error) {
+      console.error("[database] Failed to refresh approved tenant db list:", error)
+      return false
+    }
+  }
+  return approvedDbNamesCache!.names.has(dbName)
+}
+
+// تجاوز صريح (وليس عبر كوكي/هيدر) لقاعدة الشركة الحالية ضمن نطاق دالة واحدة — يُستخدَم من
+// /api/management/select-company لتنفيذ تسجيل الدخول التلقائي على قاعدة الشركة المُختارة للتو
+// ضمن نفس الطلب، دون اعتماد على قراءة الكوكي الذي ضُبط للتو (توقيت الكتابة/القراءة داخل نفس
+// الطلب في Route Handlers غير مضمون بنفس درجة تجاوز صريح كهذا).
+const tenantOverrideStorage = new AsyncLocalStorage<string>()
+
+export function withTenantDb<T>(dbName: string, fn: () => Promise<T>): Promise<T> {
+  return tenantOverrideStorage.run(dbName, fn)
+}
+
+// كوكي tenant_db يُضبط فقط بواسطة /api/management/select-company بعد التحقق من ملكية المستخدم
+// لتلك الشركة وأنها معتمَدة — بلا هذا الكوكي (أو حين لا يمكن قراءة الكوكيز أصلاً، كسكربتات CLI/
+// اختبارات مباشرة) يبقى التطبيق يعمل على القاعدة الافتراضية (DATABASE_URL) تماماً كسلوكه الحالي،
+// حفاظاً على التوافق التام مع الاستخدام أحادي الشركة القائم.
+//
+// ترتيب الأولوية: تجاوز صريح (withTenantDb) > هيدر x-tenant-db (لكل تبويب متصفح على حدة — يُضبط
+// من تصحيح fetch في auth-context.tsx حتى تتمكّن عدة تبويبات من فتح شركات مختلفة في آنٍ واحد رغم
+// أن الكوكي مشتركة بين كل تبويبات نفس المتصفح) > كوكي tenant_db (المسار الأقدم/تبويب واحد).
+export async function resolveCurrentDbName(): Promise<string> {
+  const override = tenantOverrideStorage.getStore()
+  if (override) return override
+
+  try {
+    const headerStore = await headers()
+    const headerDb = headerStore.get("x-tenant-db")
+    if (headerDb && /^[a-zA-Z0-9_]+$/.test(headerDb) && (await isApprovedTenantDb(headerDb))) {
+      return headerDb
+    }
+  } catch {
+    // headers() غير متاحة خارج سياق طلب فعلي.
+  }
+
+  try {
+    const cookieStore = await cookies()
+    const tenantDb = cookieStore.get("tenant_db")?.value
+    if (tenantDb && /^[a-zA-Z0-9_]+$/.test(tenantDb) && (await isApprovedTenantDb(tenantDb))) {
+      return tenantDb
+    }
+  } catch {
+    // cookies() غير متاحة خارج سياق طلب فعلي — استخدم القاعدة الافتراضية بصمت.
+  }
+  return defaultDbName
+}
+
+// يدعم الاستخدامين اللذين يعتمد عليهما الكود القائم بكل مكان في المشروع (على غرار عميل Neon
+// الحقيقي): استدعاء sql`...` مباشرة كنص قالب مع معاملات مربوطة $1,$2...، و sql.unsafe(text, params)
+// لاستعلام نصّي خام — وكلاهما قابل لأن يُضمَّن كـ"جزء" (fragment) داخل استدعاء آخر (مثل
+// `WHERE ${sql.unsafe(whereClause)}`) بدل أن يُعامَل كقيمة مربوطة عادية، لأسماء أعمدة/جداول ديناميكية
+// أو شروط WHERE مبنية سلفاً. بناء النص فوري ومتزامن (لا يحتاج معرفة "أي شركة" أصلاً)؛ التنفيذ الفعلي
+// وحده (عند await) يحلّ الشركة الحالية عبر كوكي tenant_db وينفّذ الاستعلام النهائي عليها.
+class SqlFragment {
+  constructor(
+    public text: string,
+    public params: any[],
+  ) {}
+}
+
+function isFragment(value: any): value is SqlFragment {
+  return value instanceof SqlFragment
+}
+
+function buildTaggedQuery(strings: readonly string[], values: any[]): { text: string; params: any[] } {
+  let text = strings[0] ?? ""
+  const params: any[] = []
+  for (let i = 0; i < values.length; i++) {
+    const value = values[i]
+    if (isFragment(value)) {
+      text += value.text
+      params.push(...value.params)
+    } else {
+      params.push(value)
+      text += `$${params.length}`
+    }
+    text += strings[i + 1] ?? ""
+  }
+  return { text, params }
+}
+
+function makeAwaitableFragment(text: string, params: any[]): any {
+  const fragment: any = new SqlFragment(text, params)
+  fragment.then = (resolve: any, reject: any) => {
+    ;(async () => {
+      const dbName = await resolveCurrentDbName()
+      const client = getClientForDbName(dbName)
+      return client.query(text, params)
+    })().then(resolve, reject)
+  }
+  fragment.catch = (onReject: any) => Promise.resolve(fragment).catch(onReject)
+  return fragment
+}
+
+const sql: any = (strings: TemplateStringsArray, ...values: any[]) => {
+  const { text, params } = buildTaggedQuery(strings, values)
+  return makeAwaitableFragment(text, params)
+}
+sql.unsafe = (text: string, params: any[] = []) => makeAwaitableFragment(text, params)
 
 export default sql
 

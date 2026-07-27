@@ -1,7 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { Pool } from "pg"
-
-const pool = new Pool({ connectionString: process.env.DATABASE_URL })
+import { getTenantPool } from "@/lib/database"
 
 // وحدات صنف واحد بمعرّفه — يستدعيه ProductSearchPopup (عند اختيار صنف بالنقر المزدوج/Enter) وشاشتا
 // فاتورة/طلبية المبيعات، بنفس الشكل الذي يعيده /api/inventory/products/search لتوحيد التعامل مع
@@ -15,7 +13,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     const { searchParams } = new URL(request.url)
     const priceCategoryId = Number(searchParams.get("price_category_id") || 1)
 
-    const client = await pool.connect()
+    const client = await (await getTenantPool()).connect()
     try {
       const result = await client.query(
         `SELECT u.id AS unit_id, u.unit_name, pu.to_main_qnty,

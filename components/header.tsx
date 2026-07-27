@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Icons } from "@/components/ui/icons";
 import { QuickThemeToggle } from "@/components/theme/theme-toggle";
-import { Loader2 } from "lucide-react";
+import { Loader2, Building2 } from "lucide-react";
 
 interface HeaderProps {
   onMenuClick: () => void;
@@ -41,6 +41,14 @@ export function Header({ onMenuClick, activeSection, onProfileClick, onSettingsC
   } = useAuth();
   const [search, setSearch] = useState("");
   const [loggingOut, setLoggingOut] = useState(false);
+  const [companyName, setCompanyName] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/management/current-company")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => setCompanyName(data?.name ?? null))
+      .catch(() => setCompanyName(null));
+  }, []);
 
   // logout فعلياً غير متزامن (طلب /api/auth/logout قبل تفريغ الجلسة) — بلا هذه الحالة كان الضغط
   // على "تسجيل الخروج" يُغلق القائمة المنسدلة فوراً دون أي مؤشر تحميل حتى تكتمل الجلسة وتُعاد
@@ -156,6 +164,14 @@ export function Header({ onMenuClick, activeSection, onProfileClick, onSettingsC
             {activeDepartment || user?.department || "القسم"}
           </span>
         </div>
+
+        {/* اسم الشركة الحالية */}
+        {companyName && (
+          <div className="hidden md:flex items-center gap-1.5 rounded-md border border-border bg-muted/50 px-3 py-1.5">
+            <Building2 className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <span className="text-sm font-medium text-card-foreground truncate max-w-[160px]">{companyName}</span>
+          </div>
+        )}
 
         {/* Search */}
         <div className="hidden lg:flex items-center gap-2 rounded-md border border-border bg-muted/50 px-3 focus-within:bg-background">

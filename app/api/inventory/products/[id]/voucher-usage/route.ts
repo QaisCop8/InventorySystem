@@ -1,7 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { Pool } from "pg"
-
-const pool = new Pool({ connectionString: process.env.DATABASE_URL })
+import { getTenantPool } from "@/lib/database"
 
 // يتحقق أن للصنف سطراً واحداً على الأقل بـvoucher_items_tbl (سندات ادخال/اخراج بضاعة، ارسالية
 // داخلية، استعمال — voucher_items_tbl مشترك بينها جميعاً، انظر app/api/stock-vouchers/_lib.ts)
@@ -15,7 +13,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       return NextResponse.json({ error: "Invalid product id" }, { status: 400 })
     }
 
-    const client = await pool.connect()
+    const client = await (await getTenantPool()).connect()
     try {
       const result = await client.query(
         `SELECT EXISTS (

@@ -1,11 +1,9 @@
-import { neon } from "@neondatabase/serverless"
+import sql from "@/lib/database"
 import bcrypt from "bcryptjs"
 import { cookies } from "next/headers"
 import crypto from "crypto"
 
 // Create Neon client
-const sql = neon(process.env.DATABASE_URL!)
-
 export interface CustomerUser {
   id: number
   customer_id: number

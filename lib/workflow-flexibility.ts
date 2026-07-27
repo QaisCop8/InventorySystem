@@ -1,10 +1,7 @@
 // مكتبة إدارة مرونة نظام المراحل
 // Workflow Flexibility Management Library
 
-import { neon } from "@neondatabase/serverless"
-
-const sql = neon(process.env.DATABASE_URL!)
-
+import sql from "@/lib/database"
 // أنواع البيانات
 export interface WorkflowSettings {
   workflowSystemMandatory: boolean

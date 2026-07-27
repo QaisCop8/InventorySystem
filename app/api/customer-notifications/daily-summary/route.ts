@@ -1,8 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { neon } from "@neondatabase/serverless"
+import sql from "@/lib/database"
 import { sendNotification, generateDailySummaryMessage } from "@/lib/notification-service"
-
-const sql = neon(process.env.DATABASE_URL!)
 
 // POST - إرسال الملخص اليومي للعملاء
 export async function POST(request: NextRequest) {

@@ -1,11 +1,9 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { Pool } from "pg"
+import { getTenantPool } from "@/lib/database"
 import { deleteSalesOrder, updatePrintSalesOrder } from "@/lib/orders"
 
-const pool = new Pool({ connectionString: process.env.DATABASE_URL })
-
 async function getOrderType(id: number): Promise<number | null> {
-  const result = await pool.query(`SELECT order_type FROM orders WHERE id = $1`, [id])
+  const result = await (await getTenantPool()).query(`SELECT order_type FROM orders WHERE id = $1`, [id])
   return result.rows[0]?.order_type ?? null
 }
 
