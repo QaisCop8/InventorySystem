@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
   try {
     const query = `
       SELECT id, name, status
-       FROM voucher_types
+       FROM voucher_types_tbl
        WHERE status = 1
        ORDER BY id`
     ;

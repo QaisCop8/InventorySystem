@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { getCurrenciesWithLatestRate, updateExchangeRate } from "@/lib/database"
+import { getCurrenciesWithLatestRate, getOrCreateRatesForDate, updateExchangeRate } from "@/lib/database"
 import sql from "@/lib/database"
 // ❌ removed export default sql
 // ✅ leave sql as an internal helper variable
@@ -7,9 +7,14 @@ import sql from "@/lib/database"
 // ==============================
 // GET - Fetch currencies + rates
 // ==============================
-export async function GET() {
+// بلا ?date=: آخر سعر معروف لكل عملة (أياً كان تاريخه) — سلوك الشاشة الكاملة (components/data/
+// exchange-rates.tsx) كما كان دوماً. مع ?date=YYYY-MM-DD: أسعار "كما كانت" بذلك التاريخ تحديداً،
+// مع نسخ آخر سعر سابق تلقائياً وحفظه كسعر ذلك التاريخ إن لم يوجد سعر مسجَّل له أصلاً — تستخدمها
+// نافذة أسعار الصرف اليومية الجديدة.
+export async function GET(request: NextRequest) {
   try {
-    const result = await getCurrenciesWithLatestRate()
+    const date = request.nextUrl.searchParams.get("date")
+    const result = date ? await getOrCreateRatesForDate(date) : await getCurrenciesWithLatestRate()
 
     if (!result.success) {
       return NextResponse.json({ error: result.error }, { status: 500 })

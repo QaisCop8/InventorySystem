@@ -1,34 +1,30 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { sendNotification } from "@/lib/notification-service"
+import sql from "@/lib/database"
 
-// POST - اختبار إرسال إشعار
-export async function POST(request: NextRequest) {
+// البحث عن زبون/مورد برقمه (customer_code، يحمل الموردون كذلك رموزهم في نفس هذا العمود بجدول
+// customers الموحَّد — بادئة S بدل C) — يستخدمه components/products/customers.tsx عند مغادرة حقل
+// الرقم (handleCustomerBlur) للتحقق من وجود سجل بهذا الرقم وتحميله تلقائياً إن وُجد.
+export async function GET(request: NextRequest, { params }: { params: { code: string } }) {
   try {
-    const body = await request.json()
-    const { phoneNumber, message, method } = body
-
-    console.log("[v0] Testing notification send:", { phoneNumber, method })
-
-    if (!phoneNumber || !message || !method) {
-      return NextResponse.json({ error: "البيانات المطلوبة غير مكتملة" }, { status: 400 })
+    const code = decodeURIComponent(params.code || "").trim()
+    if (!code) {
+      return NextResponse.json({ found: false })
     }
 
-    const results = await sendNotification({
-      phoneNumber,
-      message,
-      method,
-    })
+    const rows = await sql`
+      SELECT id, type
+      FROM customers
+      WHERE isDeleted = false AND customer_code = ${code}
+      LIMIT 1
+    `
 
-    const allSuccess = results.every((result) => result.success)
+    if (rows.length === 0) {
+      return NextResponse.json({ found: false })
+    }
 
-    return NextResponse.json({
-      success: allSuccess,
-      results,
-      message: allSuccess ? "تم إرسال الإشعار التجريبي بنجاح" : "فشل في إرسال الإشعار التجريبي",
-    })
+    return NextResponse.json({ found: true, customer: rows[0] })
   } catch (error) {
-    console.error("[v0] Error testing notification:", error)
-    return NextResponse.json({ error: "فشل في اختبار الإشعار" }, { status: 500 })
+    console.error("[customers/by-code] error:", error)
+    return NextResponse.json({ error: "حدث خطأ أثناء البحث عن الزبون" }, { status: 500 })
   }
 }
-

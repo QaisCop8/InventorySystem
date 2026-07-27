@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
   try {
     const query = `
       SELECT id, name
-       FROM voucher_books
+       FROM voucher_books_tbl
        ORDER BY id`
     ;
 

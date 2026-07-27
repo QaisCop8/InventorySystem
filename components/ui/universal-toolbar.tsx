@@ -44,6 +44,7 @@ interface UniversalToolbarProps {
   canClone?: boolean;
   isFirstRecord?: boolean;
   isLastRecord?: boolean;
+  isNewRecord?: boolean;
   labels?: {
     new: string;
     save: string;
@@ -95,6 +96,7 @@ export function UniversalToolbar({
   canClone = true,
   isFirstRecord = false,
   isLastRecord = false,
+  isNewRecord = false,
   labels = defaultLabels,
 }: UniversalToolbarProps) {
   const hasRecords = totalRecords > 0;
@@ -112,14 +114,18 @@ export function UniversalToolbar({
     onFirst?.();
   };
 
+  // سجل جديد (لم يُحفظ بعد، بلا موضع طبيعي في تسلسل السجلات) — التالي/السابق كلاهما ينتقل لآخر
+  // سجل موجود فعلياً بدل تجاهل الضغطة أو الانتقال لموضع لا معنى له.
   const handlePrevious = () => {
     //if (!hasRecords) return;
-    onPrevious?.();
+    if (isNewRecord) onLast?.();
+    else onPrevious?.();
   };
 
   const handleNext = () => {
     //if (!hasRecords) return;
-    onNext?.();
+    if (isNewRecord) onLast?.();
+    else onNext?.();
   };
 
   const handleLast = () => {

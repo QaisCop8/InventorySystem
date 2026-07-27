@@ -136,10 +136,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
               setActiveDepartment(userData.department)
             }
 
-            // Refresh user permissions from database
+            // إعادة جلب صلاحيات المستخدم من قاعدة الشركة الحالية دوماً عند تحميل الصفحة — لا يكفي
+            // الاكتفاء بما كان مخزَّناً في localStorage من آخر مرة، فهذا الاستدعاء نفسه هو ما يُشغَّل
+            // بعد التبديل بين الشركات (activateCompany يُتبَع دوماً بإعادة تحميل/تنقّل كامل يُعيد
+            // تركيب AuthProvider)، وبلا هذا التحديث تبقى صلاحيات الشركة السابقة معروضة خطأً هنا.
             try {
-
+              await refreshUserPermissions(userData.id)
             } catch (permError) {
+              console.error("[v0] Failed to refresh permissions on init:", permError)
             }
           } else {
             clearAuthData()
@@ -252,6 +256,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
       const result = await response.json()
 
       if (result.success && result.user) {
+        // تُجلَب الصلاحيات وتُخزَّن في user_Access_List قبل تعليم المستخدم كـ"مُوثَّق" — بلا هذا
+        // الترتيب يُعيد ProtectedRoute عرض الصفحة المحمية فوراً بمجرد setIsAuthenticated(true) بينما
+        // localStorage لا يزال فارغاً (تحديثه لاحق وغير متزامن معه)، فتفشل شاشات مثل "الاصناف" التي
+        // تتحقق من الصلاحية عند أول عرض (Util.checkUserAccess) رغم أن الصلاحية فعلاً ممنوحة في القاعدة.
+        try {
+          await refreshUserPermissions(result.user.id)
+        } catch (permError) {
+          console.error("[v0] Failed to refresh permissions on login:", permError)
+        }
+
         setUser(result.user)
         setIsAuthenticated(true)
 
@@ -286,7 +300,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
           window.dispatchEvent(new CustomEvent("OPEN_DEFAULT_SCREEN"));
         }, 100);
         fetchSettings();
-        await refreshUserPermissions(result.user.id)
       } else {
         throw new Error(result.error || "فشل في تسجيل الدخول")
       }

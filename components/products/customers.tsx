@@ -245,6 +245,13 @@ export default function Customers({ isSupplier }: CustomersProps) {
     stop_transactions: [],
     voucherType: []
   })
+  // مرجع دوماً بآخر formData حيّة — يتجنّب مشكلة الإغلاق المتجمِّد (stale closure) عند قراءتها من
+  // داخل setTimeout/دوال غير متزامنة معرَّفة في عرض (render) سابق، وهو ما كان يجعل initialHash
+  // يُحسَب من بيانات السجل القديم بدل السجل المُحمَّل للتو أو المُفرَّغ حديثاً.
+  const formDataRef = useRef(formData)
+  useEffect(() => {
+    formDataRef.current = formData
+  }, [formData])
 
   const [searchFilters, setSearchFilters] = useState({
     name: "",
@@ -689,41 +696,44 @@ export default function Customers({ isSupplier }: CustomersProps) {
     })
   }
 
+  // مبنية كدالة (لا كائن ثابت) لأنها تعتمد على pricecategory (حالة تُحمَّل من الخادم) — تُستخدَم هنا
+  // وأيضاً في reset_fields لحساب هاش النموذج الفارغ المتوقَّع فوراً بلا انتظار إعادة عرض React (انظر
+  // تعليق initialHash في reset_fields لسبب أهمية ذلك تحديداً).
+  const buildEmptyCustomerFormData = useCallback((): CustomerFormData => ({
+    id: 0,
+    customer_code: "",
+    name: "",
+    mobile1: "",
+    mobile2: "",
+    whatsapp1: "",
+    whatsapp2: "",
+    city: "",
+    address: "",
+    email: "",
+    status: "نشط",
+    business_nature: "",
+    salesman: "",
+    classification: "",
+    registration_date: new Date().toISOString().split("T")[0],
+    web_username: "",
+    web_password: "",
+    transaction_notes: "",
+    general_notes: "",
+    tax_number: "",
+    commercial_registration: "",
+    credit_limit: "",
+    payment_terms: "نقدي",
+    discount_percentage: "",
+    pricecategory: pricecategory?.[0]?.id || 0,
+    account_id: null,
+    cost_centers: [],
+    stop_transactions: [],
+    voucherType: []
+  }), [pricecategory])
+
   const updateFormData = useCallback((customer: Customer | null) => {
     if (!customer) {
-      const emptyCustomer: CustomerFormData = {
-        id: 0,
-        customer_code: "",
-        name: "",
-        mobile1: "",
-        mobile2: "",
-        whatsapp1: "",
-        whatsapp2: "",
-        city: "",
-        address: "",
-        email: "",
-        status: "نشط",
-        business_nature: "",
-        salesman: "",
-        classification: "",
-        registration_date: new Date().toISOString().split("T")[0],
-        web_username: "",
-        web_password: "",
-        transaction_notes: "",
-        general_notes: "",
-        tax_number: "",
-        commercial_registration: "",
-        credit_limit: "",
-        payment_terms: "نقدي",
-        discount_percentage: "",
-        pricecategory: pricecategory?.[0]?.id || 0,
-        account_id: null,
-        cost_centers: [],
-        stop_transactions: [],
-        voucherType: []
-      }
-
-      setFormData(emptyCustomer)
+      setFormData(buildEmptyCustomerFormData())
       return
     }
 
@@ -756,7 +766,7 @@ export default function Customers({ isSupplier }: CustomersProps) {
       pricecategory: (customer as any).pricecategory || 0,
       account_id: (customer as any).account_id || null,
     })
-  }, [])
+  }, [buildEmptyCustomerFormData])
   const [definitions, setDefinitions] = useState({
     voucher_types: [] as Array<{ id: number; name: string }>,
     voucher_books: [] as Array<{ id: number; name: string }>,
@@ -777,7 +787,7 @@ export default function Customers({ isSupplier }: CustomersProps) {
   ) => {
     const currentHash = getFormDataHash(formData);
 
-    if (false && checkUnsaved && currentHash !== initialHash.current && initialHash.current !== 0) {
+    if (checkUnsaved && currentHash !== initialHash.current && initialHash.current !== 0) {
       setShowUnsaved(true);
       setNextFunction(() => () => loadData(navigationType, customerId, isSupplier, false));
       return;
@@ -823,7 +833,7 @@ export default function Customers({ isSupplier }: CustomersProps) {
 
       setTimeout(() => {
         customer_name.current?.focus();
-        initialHash.current = getFormDataHash(formData)
+        initialHash.current = getFormDataHash(customer)
         setCurrentCustomerId(customer.id)
       }, 200);
 
@@ -895,6 +905,12 @@ export default function Customers({ isSupplier }: CustomersProps) {
 
     if (!formData.name.trim()) {
       errors.customer_name = "اسم الزبون مطلوب"
+    }
+
+    const currencyId = formData.currency_id ? Number(formData.currency_id) : 0
+    if (!currencyId || currencyId <= 0) {
+      errors.currency_id = "يجب تحديد العملة"
+      Util.showErrorToast(toast.current, "يجب تحديد العملة")
     }
 
     /*if (!formData.mobile1.trim()) {
@@ -1009,7 +1025,7 @@ export default function Customers({ isSupplier }: CustomersProps) {
   }, [])
 
   const generateCustomerNumber = useCallback(
-    async () => {
+    async (): Promise<string> => {
       try {
         setGeneratingNumber(true);
         console.log("[v0] Generating number...", isSupplier ? "Supplier" : "Customer");
@@ -1022,6 +1038,7 @@ export default function Customers({ isSupplier }: CustomersProps) {
           if (contentType && contentType.includes("application/json")) {
             const data = await response.json();
             updateField("customer_code", data.customerNumber);
+            return data.customerNumber ?? "";
           } else {
             const text = await response.text();
             setError("خطأ في الخادم - تم إرجاع صفحة HTML بدلاً من JSON");
@@ -1046,6 +1063,7 @@ export default function Customers({ isSupplier }: CustomersProps) {
       } finally {
         setGeneratingNumber(false);
       }
+      return "";
     },
     [updateField]
   );
@@ -1122,7 +1140,10 @@ export default function Customers({ isSupplier }: CustomersProps) {
     setError(null);
 
     try {
-      const url = currentCustomerId > 0 ? `/api/customers/${currentCustomerId}` : "/api/customers";
+      // PUT الحقيقي لتحديث الزبائن معرَّف على /api/customers (المعرّف id يُقرأ من جسم الطلب، لا من
+      // المسار) — لا يوجد PUT إطلاقاً على /api/customers/[id]، فكان استهدافه هنا يُسبّب 405 Method
+      // Not Allowed عند تعديل أي سجل موجود (id > 0).
+      const url = "/api/customers";
       const method = currentCustomerId > 0 ? "PUT" : "POST";
 
       const voucher = (customerData.voucherType ?? []).map((v) => ({
@@ -1231,7 +1252,11 @@ export default function Customers({ isSupplier }: CustomersProps) {
 
       if (savedCustomer?.data?.id) {
         setCurrentCustomerId(Number(savedCustomer.data.id));
-        await loadData("ById", savedCustomer.data.id);
+        // checkUnsaved=false: هذا التحميل تحديثٌ للسجل الذي حُفظ للتو (لا تصفّح المستخدم بعيداً عن
+        // تعديلات لم تُحفَظ) — بلا هذا كانت المقارنة بين formData (المحتوي التعديلات المحفوظة للتو)
+        // و initialHash (قيمة ما قبل هذا الحفظ) تُظهر خطأً نافذة "تم تعديل السجل هل تريد الحفظ؟"
+        // فور نجاح الحفظ مباشرة، وهو ما كان يبدو للمستخدم كأن النافذة "تختفي وتُعاد فتحها".
+        await loadData("ById", savedCustomer.data.id, isSupplier, false);
       } else {
         reset_fields();
       }
@@ -1262,6 +1287,7 @@ export default function Customers({ isSupplier }: CustomersProps) {
   };
 
   const handleDeleteClick = (checkPermission = true) => {
+    if (currentCustomerId <= 0) return;
     if (checkPermission && !hasPermission("products-edit")) {
       toast.current?.show({
         severity: "error",
@@ -1364,25 +1390,25 @@ export default function Customers({ isSupplier }: CustomersProps) {
     editingCustomerRef.current = false
     setValidationErrors({})
     setShowNewCustomerDialog(true)
-    if (from_code == 0) {
-      await generateCustomerNumber()
-    }
-    else updateField("customer_code", code);
+    const generatedCode = from_code == 0 ? await generateCustomerNumber() : code
+    if (from_code != 0) updateField("customer_code", code)
     if (showLoading) setIsLoading(false)
 
-
+    // يُبنى النموذج الفارغ المتوقَّع (بنفس رقم مُولَّد للتو) مباشرة ويُحسَب هاشه فوراً، بدل قراءته من
+    // formDataRef بعد فاصل زمني ثابت (200ms) كسابقاً — تلك القراءة المؤجَّلة كانت عرضة لسباق حقيقي:
+    // ضغط "السابق/التالي" بسرعة بعد "جديد" (قبل انقضاء الفاصل) يقارن هاشاً قديماً بنموذج فارغ فعلاً،
+    // فيُظهر خطأً تنبيه "تم تعديل السجل هل تريد الحفظ؟" رغم عدم وجود أي تعديل حقيقي من المستخدم.
+    initialHash.current = getFormDataHash({ ...buildEmptyCustomerFormData(), customer_code: generatedCode })
+    setCurrentCustomerId(0)
 
     setTimeout(() => {
       customer_name.current?.focus();
-      initialHash.current = getFormDataHash(formData)
-
     }, 200);
-    setCurrentCustomerId(0)
   }
   const handleNewCustomer = async (checkUnsaved: any) => {
 
     const currentHash = getFormDataHash(formData);
-    if (checkUnsaved === true && currentHash !== initialHash.current) {
+    if (checkUnsaved === true && currentHash !== initialHash.current && initialHash.current !== 0) {
       setShowUnsaved(true)
       setNextFunction(() => () => reset_fields());
       return
@@ -1542,7 +1568,7 @@ export default function Customers({ isSupplier }: CustomersProps) {
   }
   return (
 
-    <div className="container mx-auto p-6 space-y-6" dir="rtl">
+    <div className="w-full p-6 space-y-6" dir="rtl">
       {/* Success Message */}
       <ConfirmDialogYesNo
         visible={showConfirm}
@@ -1865,8 +1891,9 @@ export default function Customers({ isSupplier }: CustomersProps) {
         <DialogContent className="max-w-[75vw] sm:max-w-[70vw] md:max-w-[62vw] lg:max-w-[110vh] max-h-[95vh] overflow-hidden p-0" dir="rtl"
           onPointerDownOutside={(event) => event.preventDefault()}
           onEscapeKeyDown={(event) => event.preventDefault()}
+          hideCloseButton
         >
-          <div className="h-screen flex flex-col bg-background p-6 overflow-y-auto">
+          <div className="flex h-[90vh] flex-col overflow-hidden bg-background">
             <UnifiedCustomers
               open={showNewCustomerDialog}
               onOpenChange={setShowNewCustomerDialog}
@@ -1887,9 +1914,10 @@ export default function Customers({ isSupplier }: CustomersProps) {
               onPrevious={async () => { await loadData('previous', 0, isSupplier) }}
               onNext={async () => { await loadData('next', 0, isSupplier) }}
               onLast={async () => { await loadData('last', 0, isSupplier) }}
+              isNewRecord={currentCustomerId <= 0}
               onNew={() => handleNewCustomer(true)}
               onSave={() => handleSaveCustomer(formData)}
-              onDelete={currentCustomerId > 0 ? () => handleDeleteClick(true) : undefined}
+              onDelete={() => handleDeleteClick(true)}
               onReport={() => console.log("Generate customer report")}
               onExportExcel={() => console.log("Export to Excel")}
               onPrint={() => console.log("Print customer")}

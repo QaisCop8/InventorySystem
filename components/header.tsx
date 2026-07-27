@@ -15,8 +15,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Icons } from "@/components/ui/icons";
 import { QuickThemeToggle } from "@/components/theme/theme-toggle";
-import { Loader2, Building2, ChevronDown } from "lucide-react";
+import { Loader2, Building2, ChevronDown, ArrowLeftRight } from "lucide-react";
 import { activateCompany } from "@/lib/tenant-client";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { DailyExchangeRatesDialog } from "@/components/settings/daily-exchange-rates";
+import { useDailyExchangeRatesCheck } from "@/hooks/use-daily-exchange-rates-check";
 
 interface HeaderCompany {
   id: number;
@@ -91,6 +94,7 @@ export function Header({ onMenuClick, activeSection, onProfileClick, onSettingsC
   };
   const [branches, setBranches] = useState<Array<{ id: number; branch_name: string }>>([]);
   const [isLoadingBranches, setIsLoadingBranches] = useState(false);
+  const { dialogOpen: exchangeRatesOpen, setDialogOpen: setExchangeRatesOpen, checkNow: recheckExchangeRates } = useDailyExchangeRatesCheck();
 
   useEffect(() => {
     const fetchBranches = async () => {
@@ -229,6 +233,21 @@ export function Header({ onMenuClick, activeSection, onProfileClick, onSettingsC
           />
         </div>
 
+        {/* أسعار الصرف اليومية */}
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <RefButton
+                className="p-2 rounded-md hover:bg-muted"
+                onClick={() => setExchangeRatesOpen(true)}
+              >
+                <ArrowLeftRight className="h-5 w-5" />
+              </RefButton>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">اسعار الصرف اليومية</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+
         {/* Notifications */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -307,6 +326,12 @@ export function Header({ onMenuClick, activeSection, onProfileClick, onSettingsC
           </p>
         </div>
       )}
+
+      <DailyExchangeRatesDialog
+        open={exchangeRatesOpen}
+        onOpenChange={setExchangeRatesOpen}
+        onSaved={recheckExchangeRates}
+      />
     </header>
   );
 }

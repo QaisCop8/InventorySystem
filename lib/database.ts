@@ -489,6 +489,60 @@ export async function getCurrenciesWithLatestRate() {
     return { success: false, error: error.message }
   }
 }
+
+// أسعار الصرف "كما كانت" بتاريخ مُعيَّن — لكل عملة نشطة (عدا الرئيسية، الثابتة دوماً عند 1): إن وُجد
+// سعر مسجَّل لهذا التاريخ تحديداً يُعاد كما هو، وإلا يُنسَخ آخر سعر معروف قبل هذا التاريخ (أو 0 إن لم
+// يوجد أي سعر سابق إطلاقاً) ويُحفَظ تلقائياً كسعر هذا اليوم — حتى لا تُفتَح شاشة الإدخال بلا أي قيمة
+// افتراضية معقولة لأي عملة.
+export async function getOrCreateRatesForDate(date: string) {
+  try {
+    const rows = await sql`
+      SELECT
+        c.id AS currency_id, c.currency_code, c.currency_name, c.is_active,
+        er.id, er.buy_rate, er.sell_rate, er.exchange_rate, er.rate_date
+      FROM currency c
+      LEFT JOIN LATERAL (
+        SELECT *
+        FROM exchange_rates er
+        WHERE er.currency_id = c.id AND er.rate_date <= ${date}
+        ORDER BY er.rate_date DESC, er.created_at DESC
+        LIMIT 1
+      ) er ON true
+      ORDER BY c.id
+    `
+
+    const baseId = rows.length > 0 ? Math.min(...rows.map((r: any) => Number(r.currency_id))) : null
+
+    const result = []
+    for (const row of rows as any[]) {
+      const currencyId = Number(row.currency_id)
+
+      if (currencyId === baseId) {
+        result.push({ ...row, buy_rate: 1, sell_rate: 1, exchange_rate: 1, rate_date: date })
+        continue
+      }
+
+      const existingDate = row.rate_date ? String(row.rate_date).slice(0, 10) : null
+      if (existingDate === date || row.is_active === false) {
+        result.push(row)
+        continue
+      }
+
+      const carried = await sql`
+        INSERT INTO exchange_rates (currency_id, buy_rate, sell_rate, exchange_rate, is_active, rate_date)
+        VALUES (${currencyId}, ${row.buy_rate ?? 0}, ${row.sell_rate ?? 0}, ${row.exchange_rate ?? 0}, true, ${date})
+        RETURNING id, buy_rate, sell_rate, exchange_rate, rate_date
+      `
+      result.push({ ...row, ...carried[0] })
+    }
+
+    return { success: true, data: result }
+  } catch (error: any) {
+    console.error("Database query error:", error)
+    return { success: false, error: error.message }
+  }
+}
+
 export async function getExchangeRate(
   currency_id: number,
   rate_date?: string | null
@@ -524,61 +578,62 @@ export async function getExchangeRate(
     };
   }
 }
+// ملاحظة: كانت هذه الدالة تبني نصوص SQL عبر قوالب حرفية (template literals) وتُمرّرها لـ executeQuery
+// بلا معاملات مربوطة إطلاقاً — أي أن buy_rate/sell_rate/exchange_rate/currency_id (قيم من جسم طلب
+// المستخدم مباشرة) كانت تُدرَج خاماً داخل نص الاستعلام، وهي ثغرة حقن SQL كلاسيكية. استُبدلت هنا
+// بالقوالب الموسومة (tagged templates) لـ sql التي تربط كل قيمة كمعامل $n حقيقي.
 export async function updateExchangeRate(id: number, rates: any) {
-  if (rates.type === 1) {
-    const existing = await executeQuery(`
-  SELECT * FROM exchange_rates 
-  WHERE currency_id = ${rates.currency_id} 
-  AND rate_date = CURRENT_DATE
-  LIMIT 1
-`);
+  try {
+    if (rates.type === 1) {
+      // rate_date اختياري — بلا تمريره (الاستخدام القديم) يبقى السلوك كما كان دوماً (يوم اليوم)؛
+      // نافذة أسعار الصرف اليومية الجديدة تُمرِّره صراحةً لتحديث/إدخال سعر تاريخ مُختار بعينه.
+      const rateDate = rates.rate_date || new Date().toISOString().slice(0, 10)
+      const existing = await sql`
+        SELECT id FROM exchange_rates
+        WHERE currency_id = ${rates.currency_id}
+        AND rate_date = ${rateDate}
+        LIMIT 1
+      `
 
-    if (existing.success && existing.data.length > 0) {
-      const query = `
-    UPDATE exchange_rates
-    SET 
-      buy_rate = ${rates.buy_rate},
-      sell_rate = ${rates.sell_rate},
-      exchange_rate = ${rates.exchange_rate},
-      updated_at = CURRENT_TIMESTAMP
-    WHERE id = ${existing.data[0].id}
-    RETURNING *
-  `;
-      return executeQuery(query);
+      if (existing.length > 0) {
+        const result = await sql`
+          UPDATE exchange_rates
+          SET
+            buy_rate = ${rates.buy_rate},
+            sell_rate = ${rates.sell_rate},
+            exchange_rate = ${rates.exchange_rate},
+            updated_at = CURRENT_TIMESTAMP
+          WHERE id = ${existing[0].id}
+          RETURNING *
+        `
+        return { success: true, data: result }
+      } else {
+        const result = await sql`
+          INSERT INTO exchange_rates (
+            currency_id, buy_rate, sell_rate, exchange_rate, is_active, rate_date
+          ) VALUES (
+            ${rates.currency_id}, ${rates.buy_rate}, ${rates.sell_rate}, ${rates.exchange_rate},
+            ${rates.is_active ?? true}, ${rateDate}
+          ) RETURNING *
+        `
+        return { success: true, data: result }
+      }
     } else {
-      // insert new
-      const query = `
-    INSERT INTO exchange_rates (
-      currency_id,
-      buy_rate,
-      sell_rate,
-      exchange_rate,
-      is_active,
-      rate_date
-    ) VALUES (
-      ${rates.currency_id},
-      ${rates.buy_rate},
-      ${rates.sell_rate},
-      ${rates.exchange_rate},
-      ${rates.is_active ?? true},
-      CURRENT_DATE
-    ) RETURNING *
-  `;
-      return executeQuery(query);
-
+      const result = await sql`
+        UPDATE exchange_rates
+        SET
+          buy_rate = ${rates.buy_rate},
+          sell_rate = ${rates.sell_rate},
+          exchange_rate = ${rates.exchange_rate},
+          updated_at = CURRENT_TIMESTAMP
+        WHERE id = ${id}
+        RETURNING *
+      `
+      return { success: true, data: result }
     }
-  } else {
-    const query = `
-      UPDATE exchange_rates 
-      SET 
-        buy_rate = ${rates.buy_rate},
-        sell_rate = ${rates.sell_rate},
-        exchange_rate = ${rates.exchange_rate},
-        updated_at = CURRENT_TIMESTAMP
-      WHERE id = ${id}
-      RETURNING *
-    `;
-    return executeQuery(query);
+  } catch (error: any) {
+    console.error("Database query error:", error)
+    return { success: false, error: error.message }
   }
 }
 

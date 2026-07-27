@@ -4,14 +4,19 @@ import { createUser, hashPassword } from "@/lib/auth"
 import sql from "@/lib/database"
 
 let branchColumnEnsured: Promise<void> | null = null
+// شركات زُوِّدت قبل توحيد بنية user_settings (عبر النسخة القديمة من lib/provisioning.ts) قد
+// تفتقد أعمدة مثل phone/avatar_url رغم استخدامها في استعلام GET أدناه — بلا هذا الإصلاح الذاتي
+// تفشل الصفحة بكاملها (relation/column does not exist) على أي شركة أُنشئت بتلك النسخة القديمة.
 function ensureBranchColumn() {
   if (!branchColumnEnsured) {
-    branchColumnEnsured = sql`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS branch_id INTEGER`
-      .then(() => undefined)
-      .catch((error: unknown) => {
-        branchColumnEnsured = null
-        throw error
-      })
+    branchColumnEnsured = (async () => {
+      await sql`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS branch_id INTEGER`
+      await sql`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS phone VARCHAR(20)`
+      await sql`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS avatar_url TEXT`
+    })().catch((error: unknown) => {
+      branchColumnEnsured = null
+      throw error
+    })
   }
   return branchColumnEnsured
 }

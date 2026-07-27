@@ -70,16 +70,16 @@ export default function ManagementLoginPage() {
   return (
     <div
       dir="rtl"
-      className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 px-4 py-10"
+      className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-indigo-50 via-violet-50 to-sky-50 px-4 py-10"
     >
-      {/* خلفية داكنة مع كتل ضوء ملوَّنة، مطابقة تماماً لتصميم components/auth/login-page.tsx —
-          هذه الصفحة أصبحت بوابة الدخول الوحيدة للنظام كله، فيجب أن تحمل نفس الهوية البصرية. */}
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_15%_20%,rgba(99,102,241,0.18),transparent_45%),radial-gradient(circle_at_85%_15%,rgba(217,70,239,0.14),transparent_40%),radial-gradient(circle_at_50%_100%,rgba(34,211,238,0.1),transparent_45%)]" />
-      <div className="pointer-events-none absolute -top-32 left-1/4 h-96 w-96 rounded-full bg-indigo-500/20 blur-[110px]" />
-      <div className="pointer-events-none absolute bottom-0 right-1/4 h-[26rem] w-[26rem] rounded-full bg-fuchsia-500/15 blur-[130px]" />
+      {/* خلفية فاتحة (لا داكنة ولا أبيض مسطّح) مع كتل ضوء ملوَّنة خفيفة — نفس تركيبة تصميم
+          components/auth/login-page.tsx (بوابة الدخول الوحيدة للنظام كله) لكن بدرجات فاتحة بدل الداكنة. */}
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_15%_20%,rgba(99,102,241,0.14),transparent_45%),radial-gradient(circle_at_85%_15%,rgba(217,70,239,0.12),transparent_40%),radial-gradient(circle_at_50%_100%,rgba(34,211,238,0.12),transparent_45%)]" />
+      <div className="pointer-events-none absolute -top-32 left-1/4 h-96 w-96 rounded-full bg-indigo-300/25 blur-[110px]" />
+      <div className="pointer-events-none absolute bottom-0 right-1/4 h-[26rem] w-[26rem] rounded-full bg-fuchsia-300/20 blur-[130px]" />
 
       <svg
-        className="pointer-events-none absolute -bottom-14 -left-14 h-[24rem] w-[24rem] text-indigo-200/[0.09] sm:-bottom-16 sm:-left-16 sm:h-[28rem] sm:w-[28rem]"
+        className="pointer-events-none absolute -bottom-14 -left-14 h-[24rem] w-[24rem] text-indigo-900/[0.06] sm:-bottom-16 sm:-left-16 sm:h-[28rem] sm:w-[28rem]"
         viewBox="0 0 200 200"
         fill="none"
         aria-hidden="true"
@@ -103,7 +103,7 @@ export default function ManagementLoginPage() {
         <path d="M76,14 L92,14 L92,29" stroke="currentColor" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
       <svg
-        className="pointer-events-none absolute -top-8 -right-8 h-64 w-64 text-fuchsia-200/[0.08] sm:h-80 sm:w-80"
+        className="pointer-events-none absolute -top-8 -right-8 h-64 w-64 text-fuchsia-900/[0.05] sm:h-80 sm:w-80"
         viewBox="0 0 200 200"
         fill="none"
         aria-hidden="true"
@@ -131,14 +131,14 @@ export default function ManagementLoginPage() {
               <Sparkles className="h-3.5 w-3.5 text-violet-600" />
             </span>
           </div>
-          <p className="text-xs font-medium tracking-[0.3em] text-indigo-300">ASAS ACCOUNTING SYSTEM</p>
-          <h1 className="mt-1 text-2xl font-bold text-white">أساس لإدارة الحلول المحاسبية</h1>
-          <p className="mt-2 max-w-xs text-sm leading-6 text-slate-300">
+          <p className="text-xs font-medium tracking-[0.3em] text-indigo-500">ASAS ACCOUNTING SYSTEM</p>
+          <h1 className="mt-1 text-2xl font-bold text-slate-800">أساس لإدارة الحلول المحاسبية</h1>
+          <p className="mt-2 max-w-xs text-sm leading-6 text-slate-500">
             سجّل الدخول للمتابعة إلى لوحة النظام — منصة متكاملة بواجهة سريعة وآمنة
           </p>
         </div>
 
-        <div className="rounded-3xl border border-slate-200 bg-white/90 p-6 shadow-[0_25px_70px_-25px_rgba(15,23,42,0.25)] backdrop-blur-xl sm:p-8">
+        <div className="rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-[0_25px_70px_-25px_rgba(15,23,42,0.15)] backdrop-blur-xl sm:p-8">
           <form onSubmit={handleSubmit} className="space-y-5">
             {error && (
               <Alert className="border-red-200 bg-red-50">

@@ -16,7 +16,7 @@ import ConfirmDialogYesNo from "@/components/ui/ConfirmDialogYesNo"
 import DataGridView from "../common/DataGridView"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Plus, AlertCircle } from "lucide-react"
+import { Plus, AlertCircle, X } from "lucide-react"
 import { RefObject, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import PrimeDropdown from "@/components/common/FocusDropdown"
 import ProgressSpinner from "../ProgressSpinner/ProgressSpinner"
@@ -111,6 +111,7 @@ interface UnifiedCustomersProps {
   onPrevious?: () => void
   onNext?: () => void
   onLast?: () => void
+  isNewRecord?: boolean
   onNew?: () => void
   onSave?: () => void
   onDelete?: () => void
@@ -186,6 +187,7 @@ export default function UnifiedCustomers({
   onPrevious = () => undefined,
   onNext = () => undefined,
   onLast = () => undefined,
+  isNewRecord = false,
   onNew = () => undefined,
   onSave = () => undefined,
   onDelete,
@@ -1028,8 +1030,7 @@ export default function UnifiedCustomers({
   )
 
   return (
-    <div className="relative space-y-4">
-      
+    <div className="relative flex h-full flex-col">
       <ProgressSpinner loading={loading} />
       <CustomerSearchPopup
         visible={showCustomerSearch}
@@ -1039,24 +1040,41 @@ export default function UnifiedCustomers({
         onSelect={onCustomerSelect || (() => undefined)}
       />
 
-      <UniversalToolbar
-        onFirst={onFirst}
-        onPrevious={onPrevious}
-        onNext={onNext}
-        onLast={onLast}
-        onNew={handleNew}
-        onSave={onSave}
-        onDelete={onDelete}
-        currentRecord={currentIndex + 1}
-        totalRecords={totalRecords}
-        isFirstRecord={currentIndex === 0}
-        isLastRecord={currentIndex === Math.max(totalRecords - 1, 0)}
-        isSaving={isSaving}
-        onExportExcel={onExportExcel}
-        canSave={true}
-        canDelete={!!onDelete}
-      />
+      {/* شريط الأدوات ثابت أعلى النافذة دوماً (لا يتحرَّك مع تمرير المحتوى) — بنفس أسلوب
+          components/customer/unified-accounts-refactored.tsx (flex-shrink-0 لرأس + flex-1
+          overflow-y-auto لجسم قابل للتمرير)، بدل sticky/هوامش سالبة أقل ثباتاً. */}
+      <div className="flex flex-shrink-0 items-start gap-2 px-6 pb-3 pt-6" dir="rtl">
+        <div className="flex-1">
+          <UniversalToolbar
+            onFirst={onFirst}
+            onPrevious={onPrevious}
+            onNext={onNext}
+            onLast={onLast}
+            onNew={handleNew}
+            onSave={onSave}
+            onDelete={onDelete}
+            currentRecord={currentIndex + 1}
+            totalRecords={totalRecords}
+            isFirstRecord={currentIndex === 0}
+            isLastRecord={currentIndex === Math.max(totalRecords - 1, 0)}
+            isSaving={isSaving}
+            onExportExcel={onExportExcel}
+            canSave={true}
+            canDelete={currentCustomerId > 0}
+            isNewRecord={isNewRecord}
+          />
+        </div>
+        <button
+          type="button"
+          onClick={() => onOpenChange(false)}
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/95 text-slate-900 shadow-lg ring-1 ring-slate-200 transition-opacity hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-sky-400"
+        >
+          <X className="h-4 w-4" />
+          <span className="sr-only">إغلاق</span>
+        </button>
+      </div>
 
+      <div className="flex-1 space-y-4 overflow-y-auto px-6 pb-6">
       <Card>
         <CardHeader className="pb-4">
           <CardTitle className="flex items-center gap-2 text-lg">
@@ -1689,6 +1707,7 @@ export default function UnifiedCustomers({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      </div>
     </div>
   )
 }

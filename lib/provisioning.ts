@@ -116,16 +116,87 @@ async function cloneReferenceSchema(tenantClient: ReturnType<typeof getPoolForDb
   }
 }
 
-// جدول أنواع السندات (voucher_types_tbl) قائمة ثابتة (طلبية مبيعات، فاتورة مبيعات، سند قبض...)
-// تُستخدَم كمرجع (lookup) في كل شاشات السندات — تُنسخ قيمها فعلياً من القاعدة المرجعية بدل تركها
-// فارغة، وإلا فشلت كل شاشات السندات لشركة حديثة التزويد رغم وجود الجدول.
-async function seedVoucherTypes(tenantClient: ReturnType<typeof getPoolForDb>) {
-  const referencePool = getPoolForDb(referenceDbName)
-  const voucherTypes = await referencePool.query(`SELECT id, name, status FROM voucher_types_tbl ORDER BY id`, [])
-  for (const vt of voucherTypes) {
+// جداول "لوكاب" ثابتة (أنواع/تصنيفات/حالات نظامية عامة، لا بيانات شركة بعينها) — كل واحد منها
+// مرجع (lookup) تعتمد عليه شاشات مختلفة (السندات، الشيكات، البطاقات الائتمانية، القوائم المالية،
+// الضرائب...)، وبلا نسخ قيمها الفعلية من القاعدة المرجعية تبقى فارغة فتفشل تلك الشاشات لشركة حديثة
+// التزويد رغم وجود الجداول نفسها. تقتصر القائمة عمداً على جداول لا تحمل company_id/branch_id ولا
+// أي ربط ببيانات شركة بعينها (حسابات، فروع، بنوك...) — عكس جداول مثل account_tbl أو bank_accounts
+// التي تُعتبر بيانات فعلية خاصة بكل شركة ويجب أن تبدأ فارغة تماماً لكل شركة جديدة.
+const LOOKUP_TABLES = [
+  "voucher_types_tbl",
+  "voucher_books_tbl",
+  "voucher_status_tbl",
+  "voucher_journal_type_tbl",
+  "voucher_journal_type_caption_tbl",
+  "account_classification_types",
+  "balance_sheet_assets_items",
+  "balance_sheet_liabilities_items",
+  "income_statement_items",
+  "cost_center_types",
+  "payment_classifications_tbl",
+  "tax_classifications",
+  "pricecategory",
+  "measurment_types_tbl",
+  "currency",
+  "cities",
+  "cheque_status_tbl",
+  "cheque_book_status_tbl",
+  "cheques_type_tbl",
+  "credit_card_main_types_tbl",
+  "credit_card_commission_types_tbl",
+]
+
+async function seedLookupTable(referencePool: ReturnType<typeof getPoolForDb>, tenantClient: ReturnType<typeof getPoolForDb>, tableName: string) {
+  const columns = await referencePool.query(
+    `SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = $1 ORDER BY ordinal_position`,
+    [tableName],
+  )
+  const columnNames = columns.map((c: { column_name: string }) => c.column_name)
+  const quotedCols = columnNames.map((c: string) => `"${c}"`).join(", ")
+  const placeholders = columnNames.map((_: string, i: number) => `$${i + 1}`).join(", ")
+
+  const rows = await referencePool.query(`SELECT * FROM "${tableName}" ORDER BY id`, [])
+  for (const row of rows) {
+    const values = columnNames.map((c: string) => row[c])
     await tenantClient.query(
-      `INSERT INTO voucher_types_tbl (id, name, status) VALUES ($1, $2, $3) ON CONFLICT (id) DO NOTHING`,
-      [vt.id, vt.name, vt.status],
+      `INSERT INTO "${tableName}" (${quotedCols}) VALUES (${placeholders}) ON CONFLICT (id) DO NOTHING`,
+      values,
+    )
+  }
+}
+
+async function seedLookupTables(tenantClient: ReturnType<typeof getPoolForDb>) {
+  const referencePool = getPoolForDb(referenceDbName)
+  for (const tableName of LOOKUP_TABLES) {
+    await seedLookupTable(referencePool, tenantClient, tableName)
+  }
+}
+
+// فئات وقوائم الصلاحيات (access_category, access_list) ثابتة (الملفات والتعريفات، الحركات،
+// التقارير...) تُستخدَم في شاشة "صلاحيات المستخدمين" — تُنسخ من القاعدة المرجعية بنفس أسلوب
+// voucher_types_tbl أعلاه، ثم تُمنَح جميعها افتراضياً لمستخدم admin (user_id='1') المُنشأ للتو
+// حتى لا يبدأ بلا أي صلاحية رغم كونه مدير النظام.
+async function seedAccessListsAndGrantAdmin(tenantClient: ReturnType<typeof getPoolForDb>) {
+  const referencePool = getPoolForDb(referenceDbName)
+
+  const categories = await referencePool.query(`SELECT id, name FROM access_category ORDER BY id`, [])
+  for (const cat of categories) {
+    await tenantClient.query(`INSERT INTO access_category (id, name) VALUES ($1, $2) ON CONFLICT (id) DO NOTHING`, [
+      cat.id,
+      cat.name,
+    ])
+  }
+
+  const accessList = await referencePool.query(`SELECT id, name, category_id FROM access_list ORDER BY id`, [])
+  for (const item of accessList) {
+    await tenantClient.query(
+      `INSERT INTO access_list (id, name, category_id) VALUES ($1, $2, $3) ON CONFLICT (id) DO NOTHING`,
+      [item.id, item.name, item.category_id],
+    )
+    await tenantClient.query(
+      `INSERT INTO user_access (user_id, access_id, is_granted) VALUES ($1, $2, true)
+       ON CONFLICT (user_id, access_id) DO UPDATE SET is_granted = true`,
+      ["1", item.id],
     )
   }
 }
@@ -159,7 +230,7 @@ export async function provisionCompanyDatabase(company: { id: number; name: stri
   const tenantClient = getPoolForDb(dbName)
 
   await cloneReferenceSchema(tenantClient)
-  await seedVoucherTypes(tenantClient)
+  await seedLookupTables(tenantClient)
   const branchId = await seedDefaultBranchAndSection(tenantClient)
 
   await tenantClient.query(
@@ -181,6 +252,8 @@ export async function provisionCompanyDatabase(company: { id: number; name: stri
       true,
     ],
   )
+
+  await seedAccessListsAndGrantAdmin(tenantClient)
 
   await managementSql`
     UPDATE companies
