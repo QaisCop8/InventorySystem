@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion"
 import AutoCompleteAccount from "@/components/customer/auto-complete-account"
 import Messages from "@/components/common/Messages"
 import Util from "@/components/common/Util"
@@ -217,6 +217,7 @@ export function SystemSettings() {
             customerPrefix: settingsPayload.customer_prefix || prev.customerPrefix,
             supplierPrefix: settingsPayload.supplier_prefix || prev.supplierPrefix,
             itemGroupPrefix: settingsPayload.item_group_prefix || prev.itemGroupPrefix,
+            accountPrefix: settingsPayload.account_prefix || prev.accountPrefix,
             invoiceStart: settingsPayload.invoice_start ?? prev.invoiceStart,
             orderStart: settingsPayload.order_start ?? prev.orderStart,
             purchaseStart: settingsPayload.purchase_start ?? prev.purchaseStart,
@@ -233,6 +234,7 @@ export function SystemSettings() {
             supplierStart: settingsPayload.supplier_start ?? prev.supplierStart,
             itemGroupStart: settingsPayload.item_group_start ?? prev.itemGroupStart,
             itemStart: settingsPayload.item_start ?? prev.itemStart,
+            accountStart: settingsPayload.account_start ?? prev.accountStart,
             fiscalYearStart: settingsPayload.fiscal_year_start || prev.fiscalYearStart,
             language: settingsPayload.language || prev.language,
             timezone: settingsPayload.timezone || prev.timezone,
@@ -413,6 +415,7 @@ export function SystemSettings() {
           customer_prefix: settings.customerPrefix.trim().toUpperCase(),
           supplier_prefix: settings.supplierPrefix.trim().toUpperCase(),
           item_group_prefix: settings.itemGroupPrefix.trim().toUpperCase(),
+          account_prefix: settings.accountPrefix.trim().toUpperCase(),
           invoice_start: settings.invoiceStart,
           order_start: settings.orderStart,
           purchase_start: settings.purchaseStart,
@@ -429,6 +432,7 @@ export function SystemSettings() {
           supplier_start: settings.supplierStart || null,
           item_group_start: settings.itemGroupStart || null,
           item_start: settings.itemStart || null,
+          account_start: settings.accountStart || null,
           fiscal_year_start: settings.fiscalYearStart,
           numbering_system: settings.autoNumbering ? "auto" : "manual",
           language: settings.language,
@@ -597,20 +601,11 @@ export function SystemSettings() {
         </CardHeader>
       </Card>
 
-      {/* Settings Tabs */}
-      <Tabs defaultValue="company" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-8 text-lg font-semibold text-foreground">
-          <TabsTrigger className="text-lg font-semibold text-foreground" value="company">معلومات الشركة</TabsTrigger>
-          <TabsTrigger className="text-lg font-semibold text-foreground" value="system">إعدادات النظام</TabsTrigger>
-          <TabsTrigger className="text-lg font-semibold text-foreground" value="business">إعدادات العمل</TabsTrigger>
-          <TabsTrigger className="text-lg font-semibold text-foreground" value="accounts">الحسابات الافتراضية</TabsTrigger>
-          <TabsTrigger className="text-lg font-semibold text-foreground" value="product_accounts">الحسابات الافتراضية للاصناف</TabsTrigger>
-          <TabsTrigger className="text-lg font-semibold text-foreground" value="security">الأمان</TabsTrigger>
-          <TabsTrigger className="text-lg font-semibold text-foreground" value="documents">السندات</TabsTrigger>
-          <TabsTrigger className="text-lg font-semibold text-foreground" value="printing">الطباعة</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="company" className="space-y-4">
+      {/* Settings Accordion */}
+      <Accordion type="single" collapsible defaultValue="company" className="space-y-4">
+        <AccordionItem value="company">
+          <AccordionTrigger className="text-lg font-semibold text-foreground">معلومات الشركة</AccordionTrigger>
+        <AccordionContent className="space-y-4">
           <Card className="erp-card">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-right">
@@ -720,9 +715,11 @@ export function SystemSettings() {
               </div>
             </CardContent>
           </Card>
-        </TabsContent>
-
-        <TabsContent value="system" className="space-y-4">
+        </AccordionContent>
+        </AccordionItem>
+        <AccordionItem value="system">
+          <AccordionTrigger className="text-lg font-semibold text-foreground">إعدادات النظام</AccordionTrigger>
+        <AccordionContent className="space-y-4">
           <Card className="erp-card">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-right">
@@ -806,9 +803,11 @@ export function SystemSettings() {
               </div>
             </CardContent>
           </Card>
-        </TabsContent>
-
-        <TabsContent value="business" className="space-y-4">
+        </AccordionContent>
+        </AccordionItem>
+        <AccordionItem value="business">
+          <AccordionTrigger className="text-lg font-semibold text-foreground">إعدادات العمل</AccordionTrigger>
+        <AccordionContent className="space-y-4">
           <Card className="erp-card">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-right">إعدادات العمل</CardTitle>
@@ -848,9 +847,11 @@ export function SystemSettings() {
               </div>
             </CardContent>
           </Card>
-        </TabsContent>
-
-        <TabsContent value="accounts" className="space-y-4">
+        </AccordionContent>
+        </AccordionItem>
+        <AccordionItem value="accounts">
+          <AccordionTrigger className="text-lg font-semibold text-foreground">الحسابات الافتراضية</AccordionTrigger>
+        <AccordionContent className="space-y-4">
           <Card className="erp-card">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-right">
@@ -889,9 +890,11 @@ export function SystemSettings() {
               </div>
             </CardContent>
           </Card>
-        </TabsContent>
-
-        <TabsContent value="product_accounts" className="space-y-4">
+        </AccordionContent>
+        </AccordionItem>
+        <AccordionItem value="product_accounts">
+          <AccordionTrigger className="text-lg font-semibold text-foreground">الحسابات الافتراضية للاصناف</AccordionTrigger>
+        <AccordionContent className="space-y-4">
           <Card className="erp-card">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-right">
@@ -930,9 +933,11 @@ export function SystemSettings() {
               </div>
             </CardContent>
           </Card>
-        </TabsContent>
-
-        <TabsContent value="security" className="space-y-4">
+        </AccordionContent>
+        </AccordionItem>
+        <AccordionItem value="security">
+          <AccordionTrigger className="text-lg font-semibold text-foreground">الأمان</AccordionTrigger>
+        <AccordionContent className="space-y-4">
           <Card className="erp-card">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-right">
@@ -990,9 +995,11 @@ export function SystemSettings() {
               </div>
             </CardContent>
           </Card>
-        </TabsContent>
-
-        <TabsContent value="documents" className="space-y-4">
+        </AccordionContent>
+        </AccordionItem>
+        <AccordionItem value="documents">
+          <AccordionTrigger className="text-lg font-semibold text-foreground">السندات</AccordionTrigger>
+        <AccordionContent className="space-y-4">
           <Card className="erp-card">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-right">
@@ -1663,9 +1670,11 @@ export function SystemSettings() {
               </div>
             </CardContent>
           </Card>
-        </TabsContent>
-
-        <TabsContent value="printing" className="space-y-4">
+        </AccordionContent>
+        </AccordionItem>
+        <AccordionItem value="printing">
+          <AccordionTrigger className="text-lg font-semibold text-foreground">الطباعة</AccordionTrigger>
+        <AccordionContent className="space-y-4">
           <Card className="erp-card">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-right">
@@ -1734,8 +1743,9 @@ export function SystemSettings() {
               </div>
             </CardContent>
           </Card>
-        </TabsContent>
-      </Tabs>
+        </AccordionContent>
+        </AccordionItem>
+      </Accordion>
     </div>
   )
 }

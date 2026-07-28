@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Plus, Edit, Building, MapPin, Package, Package2, Users, CreditCard, Settings, Trash2, Currency } from "lucide-react"
@@ -2277,35 +2277,13 @@ function Definitions() {
         </Badge>
       </div>
 
-      <Tabs defaultValue="definitions" className="w-full" dir="rtl">
-        <TabsList className="grid w-full grid-cols-5 mb-6">
-          <TabsTrigger value="definitions" className="flex items-center gap-2">
-            <Package className="h-4 w-4" />
-            التعريفات الأساسية
-          </TabsTrigger>
-          <TabsTrigger value="items" className="flex items-center gap-2">
-            <Package2 className="h-4 w-4" />
-            الاصناف
-          </TabsTrigger>
-          <TabsTrigger value="financial-definitions" className="flex items-center gap-2">
-            <CreditCard className="h-4 w-4" />
-            التعريفات المالية
-          </TabsTrigger>
-          <TabsTrigger value="departments" className="flex items-center gap-2">
+      <Accordion type="single" collapsible defaultValue="definitions" className="w-full" dir="rtl">
+        <AccordionItem value="departments">
+          <AccordionTrigger className="flex items-center gap-2">
             <Building className="h-4 w-4" />
             الأقسام والفروع
-          </TabsTrigger>
-          <TabsTrigger value="workflow-stages" className="flex items-center gap-2">
-            <Settings className="h-4 w-4" />
-            مراحل العمل
-          </TabsTrigger>
-          <TabsTrigger value="workflow-sequences" className="flex items-center gap-2">
-            <Settings className="h-4 w-4" />
-            تسلسلات العمل
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="departments" className="space-y-6">
+          </AccordionTrigger>
+        <AccordionContent className="space-y-6">
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
             <Card dir="rtl">
               <CardHeader>
@@ -2583,9 +2561,14 @@ function Definitions() {
             </Card>
 
           </div>
-        </TabsContent>
-
-        <TabsContent value="items" className="space-y-6">
+        </AccordionContent>
+        </AccordionItem>
+        <AccordionItem value="items">
+          <AccordionTrigger className="flex items-center gap-2">
+            <Package2 className="h-4 w-4" />
+            الاصناف
+          </AccordionTrigger>
+        <AccordionContent className="space-y-6">
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
             <Card dir="rtl">
               <CardHeader>
@@ -2922,9 +2905,14 @@ function Definitions() {
               </CardContent>
             </Card>
           </div>
-        </TabsContent>
-
-        <TabsContent value="definitions" className="space-y-6">
+        </AccordionContent>
+        </AccordionItem>
+        <AccordionItem value="definitions">
+          <AccordionTrigger className="flex items-center gap-2">
+            <Package className="h-4 w-4" />
+            التعريفات الأساسية
+          </AccordionTrigger>
+        <AccordionContent className="space-y-6">
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
             <Card dir="rtl">
               <CardHeader>
@@ -3395,9 +3383,14 @@ function Definitions() {
             </Card>
           </div>
 
-        </TabsContent>
-
-        <TabsContent value="financial-definitions" className="space-y-6">
+        </AccordionContent>
+        </AccordionItem>
+        <AccordionItem value="financial-definitions">
+          <AccordionTrigger className="flex items-center gap-2">
+            <CreditCard className="h-4 w-4" />
+            التعريفات المالية
+          </AccordionTrigger>
+        <AccordionContent className="space-y-6">
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
             <Card dir="rtl">
               <CardHeader>
@@ -4231,18 +4224,31 @@ function Definitions() {
             </Card>
             </div>
           </div>
-        </TabsContent>
+        </AccordionContent>
+        </AccordionItem>
 
-        {/* Workflow Stages Management Tab */}
-        <TabsContent value="workflow-stages">
-          <WorkflowStagesManagement />
-        </TabsContent>
+        {/* Workflow Stages Management */}
+        <AccordionItem value="workflow-stages">
+          <AccordionTrigger className="flex items-center gap-2">
+            <Settings className="h-4 w-4" />
+            مراحل العمل
+          </AccordionTrigger>
+          <AccordionContent>
+            <WorkflowStagesManagement />
+          </AccordionContent>
+        </AccordionItem>
 
-        {/* Workflow Sequences Management Tab */}
-        <TabsContent value="workflow-sequences">
-          <WorkflowSequencesManagement />
-        </TabsContent>
-      </Tabs>
+        {/* Workflow Sequences Management */}
+        <AccordionItem value="workflow-sequences">
+          <AccordionTrigger className="flex items-center gap-2">
+            <Settings className="h-4 w-4" />
+            تسلسلات العمل
+          </AccordionTrigger>
+          <AccordionContent>
+            <WorkflowSequencesManagement />
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
 
       <ConfirmDialogYesNo
         visible={confirmDeleteVisible}

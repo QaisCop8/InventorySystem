@@ -182,6 +182,27 @@ function HomePageContent() {
       })
   }, [searchParams])
 
+  // عند كل دخول للنظام (تحميل هذا المكوّن مرة واحدة عقب تسجيل الدخول)، إن لم تكن أي عملة معرَّفة
+  // بعد لهذه الشركة (شركة حديثة التزويد مثلاً)، نوجّه المستخدم مباشرة لشاشة تعريف العملات بدل ترك
+  // الشاشات الأخرى (تسعير، فواتير...) تفشل بصمت لغياب عملة أساس.
+  useEffect(() => {
+    let cancelled = false
+    fetch("/api/exchange-rates")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (cancelled || !data) return
+        const list = Array.isArray(data?.rates) ? data.rates : []
+        if (list.length === 0) handleSectionChange("exchange-rates")
+      })
+      .catch(() => {
+        // تجاهل — ليست فحصاً حرجاً يمنع استخدام النظام
+      })
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   useEffect(() => {
     const removeWijmoEval = () => {
       document.body.querySelectorAll<HTMLElement>("*").forEach((e) => {

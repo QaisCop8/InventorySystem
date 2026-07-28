@@ -154,16 +154,11 @@ export function Sidebar({
       title: "الملفات والتعريفات",
       icon: Users,
       submenu: [
-        { title: "الحسابات المحاسبية", section: "accounts", icon: Settings },
         { title: "العملاء", section: "customers", icon: Users },
         { title: "الموردين", section: "suppliers", icon: Truck },
         { title: "المشتركين", section: "subscribers", icon: UserCheck },
         { title: "المندوبين", section: "salesmen", icon: UserCheck },
-        { title: "الأصناف", section: "products", icon: Package },
-        { title: "الخدمات", section: "services", icon: Package },
-        { title: "مجموعات الأصناف", section: "product-groups", icon: Package },
         { title: "التعريفات", section: "definitions", icon: Settings },
-        { title: "العملات", section: "exchange-rates", icon: DollarSign },
       ],
     },
     {
@@ -176,6 +171,8 @@ export function Sidebar({
           section: "general-accounting-files",
           icon: Users,
           submenu: [
+            { title: "الحسابات المحاسبية", section: "accounts", icon: Settings },
+            { title: "العملات", section: "exchange-rates", icon: DollarSign },
             { title: "البنوك", section: "banks", icon: Building },
             { title: "الفروع", section: "branches", icon: MapPin },
             { title: "حسابات البنوك", section: "bank-accounts", icon: Landmark },
@@ -208,6 +205,9 @@ export function Sidebar({
           icon: Users,
           submenu: [
             { title: "المستودعات", section: "warehouses", icon: Building },
+            { title: "الأصناف", section: "products", icon: Package },
+            { title: "الخدمات", section: "services", icon: Package },
+            { title: "مجموعات الأصناف", section: "product-groups", icon: Package },
           ],
         },
         {

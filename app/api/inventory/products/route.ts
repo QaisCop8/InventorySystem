@@ -131,8 +131,20 @@ function normalizeProductPayload(productData: any) {
     default_store: safeNumber(productData?.default_store, 0),
     brand: safeText(productData?.brand, ""),
     model: safeText(productData?.model, ""),
-    factory_number: safeText(productData?.factory_number, ""),
-    original_number: safeText(productData?.original_number, ""),
+    factory_number: safeText(
+      Array.isArray(productData?.factory_numbers) ? productData.factory_numbers[0] : productData?.factory_number,
+      ""
+    ),
+    original_number: safeText(
+      Array.isArray(productData?.original_numbers) ? productData.original_numbers[0] : productData?.original_number,
+      ""
+    ),
+    original_numbers: Array.isArray(productData?.original_numbers)
+      ? productData.original_numbers.map((n: any) => safeText(n, "").trim()).filter(Boolean)
+      : [],
+    factory_numbers: Array.isArray(productData?.factory_numbers)
+      ? productData.factory_numbers.map((n: any) => safeText(n, "").trim()).filter(Boolean)
+      : [],
     measurment_unit: safeNumber(productData?.measurment_unit, 1),
     measurment_id: safeNumber(productData?.measurment_id, 1),
     last_purchase_price: safeNumber(productData?.last_purchase_price, 0),
@@ -372,6 +384,45 @@ async function persistProductCostCenters(client: any, productId: number, rows: a
   }
 }
 
+// جدول أرقام الصنف متعددة القيم (الرقم الأصلي والرقم التصنيعي) بدل خانة نصية واحدة لكل نوع — يسمح
+// بإضافة أكثر من رقم أصلي/تصنيعي لنفس الصنف (مثل أرقام موردين متعددين لنفس القطعة)، بنفس أسلوب
+// نافذة الباركود المتعددة (ProductBarcodes). type: 1 = رقم أصلي، 2 = رقم مصنع.
+async function ensureProductNumbersTable(client: any) {
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS product_numbers (
+      id SERIAL PRIMARY KEY,
+      product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+      type INTEGER NOT NULL,
+      number TEXT NOT NULL
+    )
+  `)
+
+  await client.query(`
+    CREATE INDEX IF NOT EXISTS idx_product_numbers_product_id
+    ON product_numbers(product_id)
+  `)
+}
+
+async function persistProductNumbers(client: any, productId: number, originalNumbers: string[], factoryNumbers: string[]) {
+  await client.query(`DELETE FROM product_numbers WHERE product_id = $1`, [productId])
+
+  for (const number of originalNumbers) {
+    if (!number) continue
+    await client.query(
+      `INSERT INTO product_numbers (product_id, type, number) VALUES ($1::int, 1, $2::text)`,
+      [productId, number]
+    )
+  }
+
+  for (const number of factoryNumbers) {
+    if (!number) continue
+    await client.query(
+      `INSERT INTO product_numbers (product_id, type, number) VALUES ($1::int, 2, $2::text)`,
+      [productId, number]
+    )
+  }
+}
+
 async function getLastProductCode() {
   const result = await (await getTenantPool()).query(`
     SELECT COALESCE(MAX(product_code), '0') AS last_code
@@ -400,6 +451,7 @@ export async function POST(request: NextRequest) {
     await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS lsti3mal_account_id INTEGER`)
     await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS measurment_id INTEGER DEFAULT 1`)
     await ensureProductCostCentersTable(client)
+    await ensureProductNumbersTable(client)
 
     const productData = normalizeProductPayload(await request.json());
     const organizationId = 1; // replace with auth context
@@ -932,6 +984,7 @@ export async function POST(request: NextRequest) {
     }
 
     await persistProductCostCenters(client, productId, productData.cost_centers)
+    await persistProductNumbers(client, productId, productData.original_numbers, productData.factory_numbers)
 
     await client.query("COMMIT");
     return NextResponse.json({ success: true, productId });

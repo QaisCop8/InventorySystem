@@ -177,6 +177,27 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
       return NextResponse.json({ error: "المجموعة غير موجودة" }, { status: 404 })
     }
 
+    // منع حذف مجموعة صنف مرتبطة بأصناف فعلية — عمود products.group_id قد لا يكون موجوداً في كل
+    // قاعدة بيانات (لم يُضَف بعد لهذه الشركة)، فيُتحقَّق من وجوده أولاً عبر information_schema بدل
+    // افتراض وجوده دوماً، تجنباً لخطأ "column does not exist" في الشركات التي لم تُنشئه بعد.
+    const hasGroupIdColumn = await sql`
+      SELECT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'products' AND column_name = 'group_id'
+      ) AS has_column
+    `
+    if (hasGroupIdColumn[0]?.has_column) {
+      const linkedProducts = await sql`
+        SELECT id FROM products WHERE group_id = ${id} LIMIT 1
+      `
+      if (linkedProducts.length > 0) {
+        return NextResponse.json(
+          { error: "يوجد اصناف مرتبطة مع مجموعة الصنف المختارة لا يمكن الحذف" },
+          { status: 409 }
+        )
+      }
+    }
+
     await sql`UPDATE item_groups SET status = 3 WHERE id = ${id}`
     return NextResponse.json({ success: true })
   } catch (error: unknown) {

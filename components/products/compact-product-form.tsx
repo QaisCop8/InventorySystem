@@ -20,6 +20,7 @@ import SimpleListPicker, { type SimpleListPickerItem } from "@/components/common
 import * as wjGrid from "@grapecity/wijmo.grid";
 import { readonly } from "zod/v4"
 import ProductBarcodes from "./ProductBarcodes"
+import ProductNumbers from "./ProductNumbers"
 import { Toast } from 'primereact/toast';
 import PrimeDropdown from '@/components/common/FocusDropdown'
 import SearchCostCenterDialog from "@/components/customer/search-cost-center-dialog"
@@ -67,8 +68,8 @@ interface ProductFormData {
   tax_rate: number
   discount_rate: number
 
-  original_number: string
-  factory_number: string
+  original_numbers: string[]
+  factory_numbers: string[]
   location: string
 
   expiry_tracking: boolean
@@ -136,8 +137,8 @@ export const initialFormData: ProductFormData = {
 
   tax_classification_id: 0,
 
-  original_number: "",
-  factory_number: "",
+  original_numbers: [],
+  factory_numbers: [],
   location: "",
 
   expiry_tracking: false,
@@ -299,6 +300,8 @@ export function CompactProductForm({
 
   const [unitCurrentRow, setUnitCurrentRow] = useState(0)
   const [barcodeDialogOpen, setBarcodeDialogOpen] = useState(false);
+  const [originalNumbersDialogOpen, setOriginalNumbersDialogOpen] = useState(false);
+  const [factoryNumbersDialogOpen, setFactoryNumbersDialogOpen] = useState(false);
   const [dialogUnitName, setDialogUnitName] = useState("");
   const [dialogBarcodes, setDialogBarcodes] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -2069,6 +2072,20 @@ export function CompactProductForm({
                           barcodes={dialogBarcodes}
                           onUpdateBarcodes={(newBarcodes) => setDialogBarcodes(newBarcodes)}
                         />
+                        <ProductNumbers
+                          open={originalNumbersDialogOpen}
+                          onOpenChange={setOriginalNumbersDialogOpen}
+                          title="الرقم الأصلي"
+                          numbers={formData.original_numbers}
+                          onUpdateNumbers={(newNumbers) => updateFormData("original_numbers", newNumbers)}
+                        />
+                        <ProductNumbers
+                          open={factoryNumbersDialogOpen}
+                          onOpenChange={setFactoryNumbersDialogOpen}
+                          title="رقم المصنع"
+                          numbers={formData.factory_numbers}
+                          onUpdateNumbers={(newNumbers) => updateFormData("factory_numbers", newNumbers)}
+                        />
                       </div>
                     </div>
                   </CardContent>
@@ -2485,28 +2502,38 @@ export function CompactProductForm({
                       <CardContent>
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                           <div>
-                            <Label htmlFor="original_number" className="text-sm font-medium">
+                            <Label className="text-sm font-medium">
                               الرقم الأصلي
                             </Label>
-                            <Input
-                              id="original_number"
-                              type="number"
-                              value={formData.original_number}
-                              onChange={(e) => updateFormData("original_number", e.target.value)}
-                              className="text-right"
-                            />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className="w-full justify-between text-right"
+                              onClick={() => setOriginalNumbersDialogOpen(true)}
+                            >
+                              <span>
+                                {formData.original_numbers.length > 0
+                                  ? `${formData.original_numbers.length} رقم`
+                                  : "اضافة"}
+                              </span>
+                            </Button>
                           </div>
                           <div>
-                            <Label htmlFor="factory_number" className="text-sm font-medium">
+                            <Label className="text-sm font-medium">
                               رقم المصنع
                             </Label>
-                            <Input
-                              id="factory_number"
-                              type="number"
-                              value={formData.factory_number}
-                              onChange={(e) => updateFormData("factory_number", e.target.value)}
-                              className="text-right"
-                            />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className="w-full justify-between text-right"
+                              onClick={() => setFactoryNumbersDialogOpen(true)}
+                            >
+                              <span>
+                                {formData.factory_numbers.length > 0
+                                  ? `${formData.factory_numbers.length} رقم`
+                                  : "اضافة"}
+                              </span>
+                            </Button>
                           </div>
                           <div>
                             <Label htmlFor="measurment_unit" className="text-sm font-medium">

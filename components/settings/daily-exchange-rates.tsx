@@ -226,7 +226,7 @@ export function DailyExchangeRatesDialog({ open, onOpenChange, onSaved }: DailyE
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
         ) : (
-          <div className="w-full max-w-full overflow-x-auto">
+          <div className="w-full max-w-full">
             <DataGridView
               innerRef={gridRef}
               style={{ height: "360px" }}
@@ -238,7 +238,7 @@ export function DailyExchangeRatesDialog({ open, onOpenChange, onSaved }: DailyE
               cellEditEnded={(s: any, e: any) => handleCellEditEnded(s, e)}
               beginningEdit={(s: any, e: any) => handleBeginningEdit(s, e)}
               onKeyDown={(s: any, e: any) => handleKeyDown(s, e)}
-              keyActionEnter={KeyAction.None}
+              keyActionEnter="None"
               keyActionTab={KeyAction.None}
               dontConvertToCards={true}
             />

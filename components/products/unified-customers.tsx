@@ -60,6 +60,7 @@ export interface UnifiedCustomerFormData {
   id: number
   customer_code: string
   name: string
+  name_en: string
   mobile1: string
   mobile2: string
   whatsapp1: string
@@ -130,6 +131,7 @@ const defaultFormData: UnifiedCustomerFormData = {
   id: 0,
   customer_code: "",
   name: "",
+  name_en: "",
   mobile1: "",
   mobile2: "",
   whatsapp1: "",
@@ -1120,6 +1122,20 @@ export default function UnifiedCustomers({
                 required
               />
               {validationErrors.name && <p className="text-red-500 text-xs mt-1">{validationErrors.name}</p>}
+            </div>
+
+            <div className="col-span-1 md:col-span-3">
+              <Label htmlFor="customer_name_en" className="text-sm font-medium">
+                {isSupplier ? "اسم المورد بالانجليزي" : "اسم الزبون بالانجليزي"}
+              </Label>
+              <Input
+                id="customer_name_en"
+                value={formData.name_en}
+                onChange={(e) => updateField("name_en", e.target.value)}
+                className="text-right"
+                placeholder=""
+                dir="ltr"
+              />
             </div>
           </div>
 

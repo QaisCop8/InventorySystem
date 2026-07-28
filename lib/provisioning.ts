@@ -137,7 +137,6 @@ const LOOKUP_TABLES = [
   "tax_classifications",
   "pricecategory",
   "measurment_types_tbl",
-  "currency",
   "cities",
   "cheque_status_tbl",
   "cheque_book_status_tbl",

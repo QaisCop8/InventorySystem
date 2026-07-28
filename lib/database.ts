@@ -468,7 +468,7 @@ export async function getCurrenciesWithLatestRate() {
         er.buy_rate,
         er.sell_rate,
         er.exchange_rate,
-        er.rate_date,
+        to_char(er.rate_date, 'YYYY-MM-DD') AS rate_date,
         er.is_active AS rate_active,
         er.created_at AS rate_created,
         er.updated_at AS rate_updated
@@ -499,7 +499,7 @@ export async function getOrCreateRatesForDate(date: string) {
     const rows = await sql`
       SELECT
         c.id AS currency_id, c.currency_code, c.currency_name, c.is_active,
-        er.id, er.buy_rate, er.sell_rate, er.exchange_rate, er.rate_date
+        er.id, er.buy_rate, er.sell_rate, er.exchange_rate, to_char(er.rate_date, 'YYYY-MM-DD') AS rate_date
       FROM currency c
       LEFT JOIN LATERAL (
         SELECT *
@@ -528,9 +528,12 @@ export async function getOrCreateRatesForDate(date: string) {
         continue
       }
 
+      // بلا أي سعر سابق مسجَّل إطلاقاً لهذه العملة (لا صف أصلاً عبر LEFT JOIN LATERAL، فـrow.buy_rate
+      // وأخواتها null) — القيمة الافتراضية المعقولة هي 1 (لا فرق صرف بعد) وليس 0 (سعر صرف صفري
+      // يُفسَد به أي حساب لاحق يعتمد القسمة على سعر الصرف).
       const carried = await sql`
         INSERT INTO exchange_rates (currency_id, buy_rate, sell_rate, exchange_rate, is_active, rate_date)
-        VALUES (${currencyId}, ${row.buy_rate ?? 0}, ${row.sell_rate ?? 0}, ${row.exchange_rate ?? 0}, true, ${date})
+        VALUES (${currencyId}, ${row.buy_rate ?? 1}, ${row.sell_rate ?? 1}, ${row.exchange_rate ?? 1}, true, ${date})
         RETURNING id, buy_rate, sell_rate, exchange_rate, rate_date
       `
       result.push({ ...row, ...carried[0] })

@@ -29,11 +29,13 @@ export async function GET(request: NextRequest) {
       startNumber = settings.account_start || 1
     }
 
-    // Get max account number - extract numeric part correctly for 8-char codes
+    // Get max account number - extract numeric part correctly for 8-char codes.
+    // type = 1 يقصر البحث على الحسابات المحاسبية العادية (دليل الحسابات) — حسابات العملاء/الموردين/
+    // المندوبين/المشتركين (type = 2..5) لها ترقيمها الخاص ولا يجوز أن تتداخل مع تسلسل هذا الدليل.
     const accountsResult = await sql`
-      SELECT code FROM account_tbl 
-      WHERE code IS NOT NULL AND code != ''
-      ORDER BY code DESC 
+      SELECT code FROM account_tbl
+      WHERE code IS NOT NULL AND code != '' AND type = 1
+      ORDER BY code DESC
       LIMIT 1
     `
 

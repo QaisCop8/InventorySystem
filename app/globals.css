@@ -864,7 +864,7 @@
   }
 
   .erp-main-content {
-    @apply bg-background min-h-screen;
+    @apply bg-background min-h-full;
     transition: background-color var(--animation-duration, 0.3s) ease;
   }
 

@@ -193,6 +193,19 @@ export async function GET(
       product.cost_centers = product.cost_centers || [];
     }
 
+    // fetch original/factory numbers (optional table, type 1 = رقم أصلي، 2 = رقم مصنع)
+    try {
+      const numbersResult = await pool.query(
+        `SELECT type, number FROM product_numbers WHERE product_id=$1 ORDER BY id`,
+        [product.id]
+      );
+      product.original_numbers = numbersResult.rows.filter((r: any) => r.type === 1).map((r: any) => r.number);
+      product.factory_numbers = numbersResult.rows.filter((r: any) => r.type === 2).map((r: any) => r.number);
+    } catch (err) {
+      product.original_numbers = product.original_number ? [product.original_number] : [];
+      product.factory_numbers = product.factory_number ? [product.factory_number] : [];
+    }
+
     return NextResponse.json(product);
   } catch (error) {
     console.error(error);

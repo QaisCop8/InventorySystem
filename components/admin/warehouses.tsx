@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import ConfirmDialogYesNo from "@/components/ui/ConfirmDialogYesNo"
+import PrimeDropdown from "@/components/common/FocusDropdown"
 import { Edit, Plus } from "lucide-react"
 
 interface Warehouse {
@@ -241,15 +242,19 @@ export default function Warehouses() {
               </div>
               <div>
                 <Label htmlFor="warehouse_status">الحالة</Label>
-                <select
-                  id="warehouse_status"
+                <PrimeDropdown
+                  inputId="warehouse_status"
                   value={form.status}
-                  onChange={(e) => setForm((f) => ({ ...f, status: Number(e.target.value) }))}
-                  className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
-                >
-                  <option value={1}>نشط</option>
-                  <option value={2}>متوقف</option>
-                </select>
+                  options={[
+                    { label: "نشط", value: 1 },
+                    { label: "متوقف", value: 2 },
+                  ]}
+                  optionLabel="label"
+                  optionValue="value"
+                  className="w-full"
+                  appendTo="self"
+                  onChange={(e: any) => setForm((f) => ({ ...f, status: Number(e.value) }))}
+                />
               </div>
             </div>
             <div>

@@ -105,7 +105,8 @@ function ExchangeRatesContent() {
       })
 
       if (!response.ok) {
-        throw new Error("Failed to create new currency")
+        const errorBody = await response.json().catch(() => null)
+        throw new Error(errorBody?.error || "Failed to create new currency")
       }
 
       refresh() // Using SWR refresh instead of manual fetch

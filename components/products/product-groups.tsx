@@ -633,7 +633,7 @@ export default function ProductGroups() {
         onNavigateRecord={handleNavigateRecord}
         onFormChange={handleFormChange}
         onCodeBlur={handleGroupCodeBlur}
-        canSave={canSaveForm}
+        canSave={true}
         hasDuplicateCode={hasDuplicateCode}
         hasDuplicateName={hasDuplicateName}
         deleteError={deleteError}

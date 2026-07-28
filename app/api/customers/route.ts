@@ -28,7 +28,8 @@ const ensureCustomerCompatibilityColumns = async () => {
   await sql`
     ALTER TABLE customers
       ADD COLUMN IF NOT EXISTS type INTEGER DEFAULT 1,
-      ADD COLUMN IF NOT EXISTS isDeleted BOOLEAN DEFAULT false
+      ADD COLUMN IF NOT EXISTS isDeleted BOOLEAN DEFAULT false,
+      ADD COLUMN IF NOT EXISTS customer_name_en VARCHAR(255)
   `
 }
 
@@ -526,6 +527,7 @@ export async function POST(request: NextRequest) {
   INSERT INTO customers (
     customer_code,
     name,
+    customer_name_en,
     mobile1,
     mobile2,
     whatsapp1,
@@ -548,6 +550,7 @@ export async function POST(request: NextRequest) {
   ) VALUES (
     ${data.customer_code},
     ${data.customer_name || data.name},
+    ${data.customer_name_en || data.name_en || null},
     ${data.mobile1 || null},
     ${data.mobile2 || null},
     ${data.whatsapp1 || null},
@@ -643,6 +646,7 @@ export async function PUT(request: NextRequest) {
       SET
         customer_code = ${updateData.customer_code || updateData.code || ""},
         name = ${updateData.customer_name || updateData.name || ""},
+        customer_name_en = ${updateData.customer_name_en || updateData.name_en || null},
         mobile1 = ${updateData.mobile1 || ""},
         mobile2 = ${updateData.mobile2 || ""},
         whatsapp1 = ${updateData.whatsapp1 || ""},

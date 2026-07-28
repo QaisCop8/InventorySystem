@@ -51,6 +51,14 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
       ? Array.from(new Set(productTypes))
       : [1, 2]
   );
+  // نوع ثابت مفروض (productTypes بعنصر واحد) يجب أن يبقى متزامناً حتى لو تغيّر بين فتحة وأخرى لنفس
+  // مثيل هذه النافذة (مثال: مكوّن واحد يُستدعى مرة لصنف ومرة لخدمة) — بلا هذا التزامن يبقى النوع
+  // القديم محفوظاً في الحالة (state) فيعرض نتائج من النوع الخطأ.
+  useEffect(() => {
+    if (Array.isArray(productTypes) && productTypes.length > 0) {
+      setSelectedTypes(Array.from(new Set(productTypes)));
+    }
+  }, [productTypes]);
   const searchCodeRef = useRef<HTMLInputElement>(null);
   const searchNameRef = useRef<HTMLInputElement>(null);
   const searchPriceRef = useRef<HTMLInputElement>(null);
@@ -417,27 +425,36 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
             </div>
             <div className="space-y-1 invoice-currency-dropdown-wrap">
               <label className="block text-xs font-semibold text-slate-700 text-right">النوع</label>
-              <MultiSelect
-                inputId="productTypeFilter"
-                value={selectedTypes}
-                options={[
-                  { label: "الأصناف", value: 1 },
-                  { label: "الخدمات", value: 2 },
-                ]}
-                optionLabel="label"
-                optionValue="value"
-                placeholder="اختر النوع"
-                showFilter={true}
-                showCheck={true}
-                showMultiSelect={true}
-                className="w-full"
-                panelClassName="invoice-currency-dropdown-panel invoice-currency-dropdown-panel-left"
-                appendTo="self"
-                onChange={(e: any) => {
-                  const values = Array.isArray(e.value) ? e.value.map(Number) : [];
-                  setSelectedTypes(values.length > 0 ? values : [1, 2]);
-                }}
-              />
+              {Array.isArray(productTypes) && productTypes.length === 1 ? (
+                // نوع ثابت مفروض من الشاشة المستدعية (مثال: نموذج الصنف يفتح البحث عن أصناف فقط، أو
+                // نموذج الخدمة يفتح البحث عن خدمات فقط) — لا يُعرض منتقي قابل للتعديل هنا كي لا يتمكن
+                // المستخدم من تحويل النتائج لتشمل النوع الآخر (صنف يختار خدمة، أو العكس) عن طريق الخطأ.
+                <div className="w-full h-10 flex items-center justify-center rounded-md border border-slate-200 bg-slate-50 text-sm text-slate-600">
+                  {productTypes[0] === 2 ? "الخدمات" : "الأصناف"}
+                </div>
+              ) : (
+                <MultiSelect
+                  inputId="productTypeFilter"
+                  value={selectedTypes}
+                  options={[
+                    { label: "الأصناف", value: 1 },
+                    { label: "الخدمات", value: 2 },
+                  ]}
+                  optionLabel="label"
+                  optionValue="value"
+                  placeholder="اختر النوع"
+                  showFilter={true}
+                  showCheck={true}
+                  showMultiSelect={true}
+                  className="w-full"
+                  panelClassName="invoice-currency-dropdown-panel invoice-currency-dropdown-panel-left"
+                  appendTo="self"
+                  onChange={(e: any) => {
+                    const values = Array.isArray(e.value) ? e.value.map(Number) : [];
+                    setSelectedTypes(values.length > 0 ? values : [1, 2]);
+                  }}
+                />
+              )}
             </div>
           </div>
         </div>

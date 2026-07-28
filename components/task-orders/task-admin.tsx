@@ -213,7 +213,7 @@ function SectionsAdmin({
   }
 
   return (
-    <Card className="overflow-visible border-indigo-100 bg-gradient-to-b from-indigo-50/40 to-white shadow-md">
+    <Card className="flex min-h-[calc(100vh-260px)] flex-col overflow-visible border-indigo-100 bg-gradient-to-b from-indigo-50/40 to-white shadow-md">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base">
           <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-400 to-purple-600 text-white shadow-sm">
@@ -222,7 +222,7 @@ function SectionsAdmin({
           الأقسام وأعضاؤها
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4 overflow-visible">
+      <CardContent className="flex-1 space-y-4 overflow-visible">
         <div className="flex flex-wrap gap-2 rounded-xl border border-indigo-100 bg-white/70 p-3">
           <div className="invoice-currency-dropdown-wrap w-72">
             <PrimeDropdown

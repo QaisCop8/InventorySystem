@@ -44,6 +44,17 @@ export async function POST(request: NextRequest) {
       SELECT * FROM currency WHERE currency_code = ${currency_code}
     `
 
+    if (currency.length > 0) {
+      return NextResponse.json({ error: "رمز العملة مكرر" }, { status: 400 })
+    }
+
+    const duplicateName = await sql`
+      SELECT id FROM currency WHERE currency_name = ${currency_name}
+    `
+    if (duplicateName.length > 0) {
+      return NextResponse.json({ error: "اسم العملة مكرر" }, { status: 400 })
+    }
+
     if (currency.length === 0) {
       const lastIdRow = await sql`SELECT MAX(id) AS max_id FROM currency`
       const lastId = lastIdRow[0]?.max_id ?? 0

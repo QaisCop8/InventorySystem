@@ -31,7 +31,6 @@ import {
 import { CompactProductForm } from "./compact-product-form"
 import { ExcelImportDialog } from "./excel-import-dialog"
 import { InitialQuantitiesDialog } from "./initial-quantities-dialog"
-import { BatchPrintDialog } from "@/components/inventory/batch-print-dialog"
 import { useAuth } from "../auth/auth-context"
 import { Toast } from "primereact/toast"
 import Definitions from "../settings/definitions"
@@ -695,7 +694,6 @@ export function Products({ entityType = "products" }: ProductsProps) {
             <FileSpreadsheet className="h-4 w-4" />
             استيراد من Excel
           </Button>
-          <BatchPrintDialog />
           <Button
             onClick={() => {
               if (!Util.checkUserAccess(1)) {

@@ -43,6 +43,8 @@ import Util from "../common/Util"
 import UnifiedCustomers from "./unified-customers"
 interface CustomersProps {
   isSupplier?: boolean;
+  isSubscriber?: boolean;
+  isSalesman?: boolean;
 }
 interface Customer {
   id: number
@@ -104,6 +106,7 @@ interface CustomerFormData {
   id: number,
   customer_code: string
   name: string
+  name_en: string
   mobile1: string
   mobile2: string
   whatsapp1: string
@@ -168,7 +171,7 @@ interface NotificationSettings {
   daily_summary_time: string
 }
 
-export default function Customers({ isSupplier }: CustomersProps) {
+export default function Customers({ isSupplier, isSubscriber, isSalesman }: CustomersProps) {
   const [customers, setCustomers] = useState<Customer[]>([])
   const [isloading, setIsLoading] = useState(false)
   const toast = useRef(null);
@@ -218,6 +221,7 @@ export default function Customers({ isSupplier }: CustomersProps) {
     id: 0,
     customer_code: "",
     name: "",
+    name_en: "",
     mobile1: "",
     mobile2: "",
     whatsapp1: "",
@@ -703,6 +707,7 @@ export default function Customers({ isSupplier }: CustomersProps) {
     id: 0,
     customer_code: "",
     name: "",
+    name_en: "",
     mobile1: "",
     mobile2: "",
     whatsapp1: "",
@@ -726,6 +731,7 @@ export default function Customers({ isSupplier }: CustomersProps) {
     discount_percentage: "",
     pricecategory: pricecategory?.[0]?.id || 0,
     account_id: null,
+    father_id: defaultParentAccountRef.current || undefined,
     cost_centers: [],
     stop_transactions: [],
     voucherType: []
@@ -742,6 +748,7 @@ export default function Customers({ isSupplier }: CustomersProps) {
       id: customer.id || 0,
       customer_code: customer.customer_code || "",
       name: customer.name || "",
+      name_en: (customer as any).customer_name_en || "",
       mobile1: customer.mobile1 || "",
       mobile2: customer.mobile2 || "",
       whatsapp1: customer.whatsapp1 || "",
@@ -777,6 +784,31 @@ export default function Customers({ isSupplier }: CustomersProps) {
     voucher_books: [] as Array<{ id: number; name: string; }>,
 
   });
+
+  // الحساب الاب الافتراضي لكل سجل جديد يُقرأ مرة واحدة من إعدادات النظام حسب نوع هذه الشاشة (زبون/
+  // مورد/مشترك/مندوب) — بدل تركه فارغاً دوماً كما كان، مما كان يجبر كل مستخدم على اختياره يدوياً في
+  // كل مرة رغم وجود قيمة افتراضية واحدة ثابتة لكل نوع مُعرَّفة مسبقاً في إعدادات النظام.
+  const defaultParentAccountRef = useRef("")
+  useEffect(() => {
+    fetch("/api/settings/system")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        const settings = data?.settings ?? data
+        if (!settings) return
+        const value = isSupplier
+          ? settings.default_supplier_parent_account
+          : isSubscriber
+            ? settings.default_customer_subscription_account
+            : isSalesman
+              ? settings.default_salesman_parent_account
+              : settings.default_customer_parent_account
+        defaultParentAccountRef.current = value ? String(value) : ""
+      })
+      .catch(() => {
+        // تجاهل — تبقى خانة الحساب الاب فارغة قابلة للتعبئة يدوياً كالسابق
+      })
+  }, [isSupplier, isSubscriber, isSalesman])
+
   const [currentCustomerId, setCurrentCustomerId] = useState<number>(0);
 
   const loadData = async (
@@ -1175,6 +1207,7 @@ export default function Customers({ isSupplier }: CustomersProps) {
         id: customerData.id,
         customer_code: customerData.customer_code,
         customer_name: customerData.name,
+        customer_name_en: customerData.name_en,
         mobile1: customerData.mobile1,
         mobile2: customerData.mobile2,
         whatsapp1: customerData.whatsapp1,

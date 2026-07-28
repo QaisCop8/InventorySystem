@@ -2026,6 +2026,7 @@ export default function UnifiedReceiptVoucher({
                     costCenters={form.cash_account_cost_centers}
                     onCostCentersChange={(selection) => onFormChange("cash_account_cost_centers", selection)}
                     disabled={isLocked}
+                    searchAllowedTypeValues={[1]}
                   />
                   <AutoCompleteAccount
                     label="حساب صندوق الشيكات"
@@ -2037,6 +2038,7 @@ export default function UnifiedReceiptVoucher({
                     costCenters={form.check_account_cost_centers}
                     onCostCentersChange={(selection) => onFormChange("check_account_cost_centers", selection)}
                     disabled={isLocked || isPayment}
+                    searchAllowedTypeValues={[1]}
                   />
                   {!isPayment && (
                     <AutoCompleteAccount
@@ -2047,6 +2049,7 @@ export default function UnifiedReceiptVoucher({
                       costCenters={form.credit_card_account_cost_centers}
                       onCostCentersChange={(selection) => onFormChange("credit_card_account_cost_centers", selection)}
                       disabled={isLocked}
+                      searchAllowedTypeValues={[1]}
                     />
                   )}
                 </div>
