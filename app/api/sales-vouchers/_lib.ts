@@ -83,7 +83,12 @@ export const ITEM_ACCOUNT_VCH_TYPES = [
 // مستورَد من receipts/_lib.ts ويُعاد استخدامه هنا لحساب العميل/المورد المقابل، بمعناه "حساب الزبون/
 // المورد" تماماً).
 const JOURNAL_TYPE_SALES = 6
+// 7="ضريبة المبيعات" و10="ضريبة المشتريات" — محجوزان أصلاً بـvoucher_journal_type_caption_tbl
+// (receipts/_lib.ts)، أول استخدام فعلي لهما هنا: سطر قيد حساب الضريبة (تبويب "بيانات اضافية")، لا
+// عمود على voucher_header_tbl — نفس نمط SaveVoucher.cs/VoucherJournalDetail.cs المرجعي.
+const JOURNAL_TYPE_SALES_TAX = 7
 const JOURNAL_TYPE_PURCHASES = 9
+const JOURNAL_TYPE_PURCHASE_TAX = 10
 const JOURNAL_TYPE_SALES_RETURN = 16
 const JOURNAL_TYPE_PURCHASE_RETURN = 17
 
@@ -161,11 +166,11 @@ export const ensureTables = async () => {
   await sql`ALTER TABLE voucher_header_tbl ADD COLUMN IF NOT EXISTS discount_type VARCHAR(20) DEFAULT 'percentage'`
   await sql`ALTER TABLE voucher_header_tbl ADD COLUMN IF NOT EXISTS discount_value DOUBLE PRECISION DEFAULT 0`
   await sql`ALTER TABLE voucher_header_tbl ADD COLUMN IF NOT EXISTS vat_percent DOUBLE PRECISION DEFAULT 0`
-  // تبويب "بيانات اضافية" — حساب الضريبة، وحده الجديد فعلياً هنا (حساب الصندوق يُخزَّن في
-  // cash_account_id الموجود أصلاً على voucher_header_tbl من receipts/_lib.ts). باقي أعمدة تبويبَي
-  // "الضريبة"/"بيانات اضافية" (vat_classification_id/invoice_type/vat_included/is_maqasa/
-  // maqasa_type/phone/due_date/is_exported_sales/location_id) محجوزة أصلاً هناك أيضاً.
-  await sql`ALTER TABLE voucher_header_tbl ADD COLUMN IF NOT EXISTS tax_account_id INTEGER`
+  // بقية الحقول الجديدة (cash_account_id، vat_classification_id/invoice_type/vat_included/
+  // is_maqasa/maqasa_type، phone/due_date/is_exported_sales، location_id) محجوزة أصلاً على
+  // voucher_header_tbl من receipts/_lib.ts — بلا ADD COLUMN هنا. حساب الضريبة تحديداً لا يُخزَّن
+  // كعمود بالرأس إطلاقاً؛ بل كسطر قيد في voucher_journal_detail_tbl (انظر buildSalesVoucherJournalRows
+  // وfetchTaxAccountForVoucher أدناه) مطابقاً لنمط المرجع (SaveVoucher.cs/VoucherJournalDetail.cs).
 }
 
 const SALES_VOUCHER_SETTINGS_KEY: Record<number, { prefix: string; start: string; defaultPrefix: string }> = {
@@ -229,11 +234,14 @@ export const validateItemAccounts = (vchType: number, items: any[]): string | nu
 //   مردود مشتريات: مدين المورد / دائن حساب مردود المشتريات لكل صنف
 // المبلغ هنا هو total_price الأصلي لكل صنف (كمية × سعر بلا خصم/ضريبة على مستوى السند) — تبسيط
 // مقصود (v1) بلا سطري خصم/ضريبة منفصلين، تماماً كما لا يوجد لهما تمثيل في buildUseVoucherJournalRows.
-const ITEM_ACCOUNT_JOURNAL_CONFIG: Record<number, { itemJournalType: number; itemSide: 1 | 2; counterSide: 1 | 2 }> = {
-  [SALES_INVOICE_VCH_TYPE]: { itemJournalType: JOURNAL_TYPE_SALES, itemSide: 2, counterSide: 1 },
-  [RETURN_SELL_VCH_TYPE]: { itemJournalType: JOURNAL_TYPE_SALES_RETURN, itemSide: 1, counterSide: 2 },
-  [PURCHASE_INVOICE_VCH_TYPE]: { itemJournalType: JOURNAL_TYPE_PURCHASES, itemSide: 1, counterSide: 2 },
-  [RETURN_PURCHASE_VCH_TYPE]: { itemJournalType: JOURNAL_TYPE_PURCHASE_RETURN, itemSide: 2, counterSide: 1 },
+const ITEM_ACCOUNT_JOURNAL_CONFIG: Record<
+  number,
+  { itemJournalType: number; itemSide: 1 | 2; counterSide: 1 | 2; taxJournalType: number }
+> = {
+  [SALES_INVOICE_VCH_TYPE]: { itemJournalType: JOURNAL_TYPE_SALES, itemSide: 2, counterSide: 1, taxJournalType: JOURNAL_TYPE_SALES_TAX },
+  [RETURN_SELL_VCH_TYPE]: { itemJournalType: JOURNAL_TYPE_SALES_RETURN, itemSide: 1, counterSide: 2, taxJournalType: JOURNAL_TYPE_SALES_TAX },
+  [PURCHASE_INVOICE_VCH_TYPE]: { itemJournalType: JOURNAL_TYPE_PURCHASES, itemSide: 1, counterSide: 2, taxJournalType: JOURNAL_TYPE_PURCHASE_TAX },
+  [RETURN_PURCHASE_VCH_TYPE]: { itemJournalType: JOURNAL_TYPE_PURCHASE_RETURN, itemSide: 2, counterSide: 1, taxJournalType: JOURNAL_TYPE_PURCHASE_TAX },
 }
 
 export const buildSalesVoucherJournalRows = (
@@ -242,6 +250,12 @@ export const buildSalesVoucherJournalRows = (
   customerAccountId: number | null,
   currencyId: number | null,
   rate: number,
+  // حساب الضريبة (تبويب "بيانات اضافية") ومبلغها على مستوى السند كاملاً — لا عمود على
+  // voucher_header_tbl، يُسجَّلان هنا كسطر قيد مباشرة (journal_type 7/10 بحسب الاتجاه) بنفس جانب
+  // أسطر الصنف (مدين لفاتورة/مردود يُدين الأصناف، دائن للعكس)، ويُضافان لمبلغ الطرف المقابل
+  // (العميل/المورد) حتى يبقى القيد متوازناً — مطابق لِـSaveVoucher.cs/VoucherJournalDetail.cs.
+  taxAccountId: number | null = null,
+  taxAmount = 0,
 ) => {
   const typeConfig = ITEM_ACCOUNT_JOURNAL_CONFIG[vchType]
   if (!typeConfig || !customerAccountId) return []
@@ -268,15 +282,30 @@ export const buildSalesVoucherJournalRows = (
     total += amount
     hasItemRow = true
   }
+
+  const roundedTax = Math.round(Number(taxAmount || 0) * 100) / 100
+  if (hasItemRow && taxAccountId && roundedTax > 0) {
+    rows.push({
+      order_no: orderNo++,
+      journal_type_id: typeConfig.taxJournalType,
+      account_id: Number(taxAccountId),
+      credit_debit: typeConfig.itemSide,
+      amount: roundedTax,
+      note: "ضريبة",
+      cost_centers: [],
+    })
+  }
+
   // سطر العميل/المورد المقابل يُدرَج بمجرد وجود سطر صنف واحد على الأقل (حتى لو كان مجموعه صفراً)،
-  // لا فقط عند total > 0 كما كان سابقاً.
+  // لا فقط عند total > 0 كما كان سابقاً — بمبلغ يشمل الضريبة (الطرف المقابل يُطالَب/يُدين بالإجمالي).
   if (hasItemRow) {
+    const counterAmount = total + (taxAccountId && roundedTax > 0 ? roundedTax : 0)
     rows.push({
       order_no: orderNo++,
       journal_type_id: JOURNAL_TYPE_COUNTER_ACCOUNT,
       account_id: Number(customerAccountId),
       credit_debit: typeConfig.counterSide,
-      amount: Math.round(total * 100) / 100,
+      amount: Math.round(counterAmount * 100) / 100,
       note: "حساب الزبون/المورد",
       cost_centers: [],
     })
@@ -287,6 +316,23 @@ export const buildSalesVoucherJournalRows = (
     rate,
     base_curr_amount: Math.round(row.amount * rate * 100) / 100,
   }))
+}
+
+// يُعيد حساب الضريبة (تبويب "بيانات اضافية") من سطر القيد نفسه بدل عمود على voucher_header_tbl —
+// انظر شرح buildSalesVoucherJournalRows أعلاه. journal_type_id يُميِّز بين ضريبة المبيعات (7)
+// والمشتريات (10)؛ يكفي البحث عن أيهما لأن سند بعينه من نوع واحد فقط فلن يحمل كليهما معاً.
+export const fetchTaxAccountForVoucher = async (
+  voucherId: number,
+): Promise<{ id: number; code: string; name: string } | null> => {
+  const rows = await sql`
+    SELECT a.id, a.code, a.name
+    FROM voucher_journal_detail_tbl vjd
+    JOIN account_tbl a ON a.id = vjd.account_id
+    WHERE vjd.voucher_id = ${voucherId} AND vjd.journal_type_id IN (${JOURNAL_TYPE_SALES_TAX}, ${JOURNAL_TYPE_PURCHASE_TAX})
+    LIMIT 1
+  `
+  const row = rows[0]
+  return row ? { id: Number(row.id), code: row.code, name: row.name } : null
 }
 
 // نفس saveVoucherItems في stock-vouchers/_lib.ts حرفياً (DELETE+إعادة إدراج كاملة، وتصفير تاريخ

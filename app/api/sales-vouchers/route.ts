@@ -15,6 +15,7 @@ import {
   buildSalesVoucherJournalRows,
   saveJournalRows,
   validateJournalAccountCurrencies,
+  fetchTaxAccountForVoucher,
 } from "./_lib"
 import { validateItemReferences } from "@/app/api/stock-vouchers/_lib"
 
@@ -95,7 +96,9 @@ const validatePayload = (data: any, items: any[]): string | null => {
 // نفس معادلة totals في unified-sales-delivery.tsx بالضبط (بمعزل عن الواجهة) — خصم بمستوى السطر
 // (الخصم %) أولاً، ثم خصم/ضريبة بمستوى السند كاملاً: المجموع الفرعي (كمية × سعر × (1-خصم السطر)
 // لكل الأصناف)، ثم خصم السند (نسبة أو مبلغ ثابت)، ثم ضريبة على الصافي بعد الخصم.
-const computeTotalAmount = (items: any[], data: any): number => {
+// مُشتركة بين computeTotalAmount (أدناه) وbuildSalesVoucherJournalRows (تحتاج مبلغ الضريبة وحده
+// لسطر قيد حساب الضريبة) — نفس معادلة totals في unified-sales-delivery.tsx بالضبط.
+const computeAmountBreakdown = (items: any[], data: any) => {
   // الخصم بمستوى السطر (نسبة مئوية لكل صنف، عمود "الخصم %") يُطبَّق أولاً قبل خصم/ضريبة السند
   // كاملاً — نفس معادلة recalcLineAmounts في unified-sales-delivery.tsx بالضبط.
   const subtotal = items.reduce((sum: number, i: any) => {
@@ -106,8 +109,10 @@ const computeTotalAmount = (items: any[], data: any): number => {
   const discount = data.discount_type === "amount" ? discountValue : (subtotal * discountValue) / 100
   const taxPercent = Number(data.vat_percent || 0)
   const tax = ((subtotal - discount) * taxPercent) / 100
-  return Math.round((subtotal - discount + tax) * 100) / 100
+  return { subtotal, discount, tax, total: subtotal - discount + tax }
 }
+
+const computeTotalAmount = (items: any[], data: any): number => Math.round(computeAmountBreakdown(items, data).total * 100) / 100
 
 export async function POST(request: NextRequest) {
   try {
@@ -130,14 +135,23 @@ export async function POST(request: NextRequest) {
     const { code: vchCode, conflict } = await regenerateOnConflict(request.url, vchType, data.vch_book_id ?? null, String(data.vch_code))
     if (conflict) return NextResponse.json({ error: "رقم السند مستخدم مسبقاً" }, { status: 400 })
 
+    const breakdown = computeAmountBreakdown(items, data)
     let journalRows: any[] = []
     if ((ITEM_ACCOUNT_VCH_TYPES as readonly number[]).includes(vchType)) {
-      journalRows = buildSalesVoucherJournalRows(vchType, items, data.account_id ?? null, data.currency_id || null, Number(data.rate || 1))
+      journalRows = buildSalesVoucherJournalRows(
+        vchType,
+        items,
+        data.account_id ?? null,
+        data.currency_id || null,
+        Number(data.rate || 1),
+        data.tax_account_id ?? null,
+        breakdown.tax,
+      )
       const currencyError = await validateJournalAccountCurrencies(journalRows, data.currency_id ? Number(data.currency_id) : null)
       if (currencyError) return NextResponse.json({ error: currencyError }, { status: 400 })
     }
 
-    const amount = computeTotalAmount(items, data)
+    const amount = Math.round(breakdown.total * 100) / 100
     const status = Number(data.status || 1)
     const discountType = data.discount_type === "amount" ? "amount" : "percentage"
 
@@ -147,13 +161,18 @@ export async function POST(request: NextRequest) {
         account_id, customer_name, to_store_id,
         amount, manual_voucher, manual_date, note, status, vch_status, is_printed,
         insert_user, shipping_address, salesman_id, linked_order_id,
-        discount_type, discount_value, vat_percent
+        discount_type, discount_value, vat_percent,
+        cash_account_id, vat_classification_id, invoice_type, vat_included, is_maqasa, maqasa_type,
+        phone, due_date, is_exported_sales, location_id
       ) VALUES (
         ${vchType}, ${vchCode}, ${data.vch_date}, ${data.vch_book_id || null}, ${data.currency_id || null}, ${Number(data.rate || 1)},
         ${data.account_id}, ${data.customer_name || ""}, ${data.to_store_id || null},
         ${amount}, ${data.manual_voucher || ""}, ${data.manual_date || null}, ${data.note || ""}, ${status}, ${status === 2 ? 2 : 1}, ${Number(data.is_printed || 0)},
         ${data.insert_user || null}, ${data.shipping_address || ""}, ${data.salesman_id || null}, ${data.linked_order_id || null},
-        ${discountType}, ${Number(data.discount_value || 0)}, ${Number(data.vat_percent || 0)}
+        ${discountType}, ${Number(data.discount_value || 0)}, ${Number(data.vat_percent || 0)},
+        ${data.cash_account_id || null}, ${Number(data.vat_classification_id) || 1}, ${Number(data.invoice_type) || 1},
+        ${Boolean(data.vat_included)}, ${Boolean(data.is_maqasa)}, ${data.is_maqasa ? Number(data.maqasa_type) || 1 : null},
+        ${data.phone || ""}, ${data.due_date || null}, ${Boolean(data.is_exported_sales)}, ${data.city_id || null}
       )
       RETURNING *
     `
@@ -168,7 +187,18 @@ export async function POST(request: NextRequest) {
     }
 
     const savedItemsWithNames = await fetchSalesVoucherItems(voucher.id)
-    return NextResponse.json({ ...voucher, items: savedItemsWithNames }, { status: 201 })
+    const taxAccount = (ITEM_ACCOUNT_VCH_TYPES as readonly number[]).includes(vchType) ? await fetchTaxAccountForVoucher(voucher.id) : null
+    return NextResponse.json(
+      {
+        ...voucher,
+        city_id: voucher.location_id,
+        tax_account_id: taxAccount?.id ?? null,
+        tax_account_code: taxAccount?.code ?? "",
+        tax_account_name: taxAccount?.name ?? "",
+        items: savedItemsWithNames,
+      },
+      { status: 201 },
+    )
   } catch (error) {
     console.error("Error creating sales voucher:", error)
     return NextResponse.json({ error: "Failed to create sales voucher" }, { status: 500 })
@@ -210,7 +240,16 @@ export async function PUT(request: NextRequest) {
       if (duplicate.length > 0) return NextResponse.json({ error: "رقم السند مستخدم مسبقاً" }, { status: 400 })
 
       if ((ITEM_ACCOUNT_VCH_TYPES as readonly number[]).includes(vchType)) {
-        journalRows = buildSalesVoucherJournalRows(vchType, items, data.account_id ?? null, data.currency_id || null, Number(data.rate || 1))
+        const breakdown = computeAmountBreakdown(items, data)
+        journalRows = buildSalesVoucherJournalRows(
+          vchType,
+          items,
+          data.account_id ?? null,
+          data.currency_id || null,
+          Number(data.rate || 1),
+          data.tax_account_id ?? null,
+          breakdown.tax,
+        )
         const currencyError = await validateJournalAccountCurrencies(journalRows, data.currency_id ? Number(data.currency_id) : null)
         if (currencyError) return NextResponse.json({ error: currencyError }, { status: 400 })
       }
@@ -243,6 +282,16 @@ export async function PUT(request: NextRequest) {
         discount_type = ${discountType},
         discount_value = ${Number(data.discount_value || 0)},
         vat_percent = ${Number(data.vat_percent || 0)},
+        cash_account_id = ${data.cash_account_id || null},
+        vat_classification_id = ${Number(data.vat_classification_id) || 1},
+        invoice_type = ${Number(data.invoice_type) || 1},
+        vat_included = ${Boolean(data.vat_included)},
+        is_maqasa = ${Boolean(data.is_maqasa)},
+        maqasa_type = ${data.is_maqasa ? Number(data.maqasa_type) || 1 : null},
+        phone = ${data.phone || ""},
+        due_date = ${data.due_date || null},
+        is_exported_sales = ${Boolean(data.is_exported_sales)},
+        location_id = ${data.city_id || null},
         last_update_date = CURRENT_TIMESTAMP
       WHERE id = ${data.id}
       RETURNING *
@@ -254,7 +303,7 @@ export async function PUT(request: NextRequest) {
       await reverseSalesVoucherStockMovement(voucher.id)
       await sql`DELETE FROM voucher_journal_detail_tbl WHERE voucher_id = ${voucher.id}`
       await sql`DELETE FROM voucher_items_tbl WHERE voucher_id = ${voucher.id}`
-      return NextResponse.json({ ...voucher, items: [] })
+      return NextResponse.json({ ...voucher, city_id: voucher.location_id, items: [] })
     }
 
     const savedItems = await saveSalesVoucherItems(voucher.id, items)
@@ -266,7 +315,15 @@ export async function PUT(request: NextRequest) {
     }
 
     const savedItemsWithNames = await fetchSalesVoucherItems(voucher.id)
-    return NextResponse.json({ ...voucher, items: savedItemsWithNames })
+    const taxAccount = (ITEM_ACCOUNT_VCH_TYPES as readonly number[]).includes(vchType) ? await fetchTaxAccountForVoucher(voucher.id) : null
+    return NextResponse.json({
+      ...voucher,
+      city_id: voucher.location_id,
+      tax_account_id: taxAccount?.id ?? null,
+      tax_account_code: taxAccount?.code ?? "",
+      tax_account_name: taxAccount?.name ?? "",
+      items: savedItemsWithNames,
+    })
   } catch (error) {
     console.error("Error updating sales voucher:", error)
     return NextResponse.json({ error: "Failed to update sales voucher" }, { status: 500 })

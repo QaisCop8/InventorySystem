@@ -21,6 +21,7 @@ import UnitsSearchPopup from "@/components/products/UnitsSearchPopup"
 import PostVoucherDialog, { type PostVoucherAction } from "@/components/common/post-voucher-dialog"
 import DatePickerDialog from "@/components/common/date-picker-dialog"
 import ItemExpiryDatePicker, { type ExpiryLotAllocation } from "@/components/common/ItemExpiryDatePicker"
+import MeasurementInputDialog from "@/components/common/MeasurementInputDialog"
 import { CellRange, KeyAction } from "@grapecity/wijmo.grid"
 import * as wjcCore from "@grapecity/wijmo"
 import PrimeDropdown from "@/components/common/FocusDropdown"
@@ -447,8 +448,8 @@ export default function UnifiedStockVoucher({
   // warehouse_name وunit للقراءة فقط الآن (تُملآن تلقائياً/عبر زر بحث حصراً، مثل product_name) فلا
   // حاجة لإدراجهما في ترتيب Tab/Enter — نفس معاملة product_name غير المُدرَج هنا لذات السبب.
   const fieldOrder = isInternalDelivery
-    ? ["product_code", "length", "width", "height", "count", "quantity", "unit_price", "note"]
-    : ["product_code", "length", "width", "height", "count", "quantity", "unit_price", "batch_number", "expiry_date", "note"]
+    ? ["product_code", "quantity", "unit_price", "note"]
+    : ["product_code", "quantity", "unit_price", "batch_number", "expiry_date", "note"]
   const messagesRef = useRef<any>(null)
   const dateInputRef = useRef<HTMLInputElement | null>(null)
   const vchCodeInputRef = useRef<HTMLInputElement | null>(null)
@@ -462,6 +463,10 @@ export default function UnifiedStockVoucher({
   const [unitsSearchRow, setUnitsSearchRow] = useState<number | null>(null)
   const [expiryDatePickerOpen, setExpiryDatePickerOpen] = useState(false)
   const [expiryDateRow, setExpiryDateRow] = useState<number | null>(null)
+  // نافذة "بيانات القياس" (الطول/العرض/الارتفاع/العدد) — تفتح بدل الكتابة المباشرة في خلية "الكمية"
+  // لأي صنف نوع قياسه غير عادي (measurment_id != 1)، انظر handleBeginningEdit أدناه.
+  const [measurementDialogOpen, setMeasurementDialogOpen] = useState(false)
+  const [measurementDialogRow, setMeasurementDialogRow] = useState<number | null>(null)
   // نافذة اختيار الدفعة/تاريخ الصلاحية عند إدخال الكمية — فقط لسندات اخراج بضاعة/استعمال/ارسالية
   // داخلية (استهلاك من مخزون قائم قد يحمل أكثر من دفعة)؛ سند ادخال بضاعة يبقى على نمط "تاريخ
   // صلاحية مكتوب مباشرة" الحالي (DEFAULT_EXPIRY_DATE + التقويم أعلاه) لأنه يُدخِل دفعة جديدة.
@@ -893,7 +898,7 @@ export default function UnifiedStockVoucher({
         // نفس منطق handleProductSelect بعد اختيار صنف من النافذة المنبثقة: العمود التالي لِـ"رقم
         // الصنف" يعتمد على نوع قياس الصنف (طول/عرض/ارتفاع/عدد إن لزم، وإلا الكمية مباشرة) — تُطبَّق
         // هنا أيضاً بصرف النظر عن كون البحث بدأ من عمود الباركود أو رقم الصنف نفسه.
-        const nextFieldIndex = findNextRelevantFieldIndex(fieldOrder.indexOf("product_code") + 1, itemsRef.current[row])
+        const nextFieldIndex = findNextRelevantFieldIndex(fieldOrder.indexOf("product_code") + 1)
         pendingFocusRef.current = { row, col: nextFieldIndex === -1 ? "quantity" : fieldOrder[nextFieldIndex] }
       }
     } catch {
@@ -980,19 +985,6 @@ export default function UnifiedStockVoucher({
     } else if (colName === "unit_price") {
       const unitPrice = value === "" || value === null ? null : Number(value)
       patchItemRow(row, { unit_price: unitPrice, total_price: recalcAmount(itemsRef.current[row]?.quantity ?? null, unitPrice) })
-    } else if (colName === "length" || colName === "width" || colName === "height" || colName === "count") {
-      const dimensionValue = value === "" || value === null ? null : Number(value)
-      const updatedRow = { ...itemsRef.current[row], [colName]: dimensionValue }
-      // نوع قياس غير "عادي" (1) يحتسب الكمية تلقائياً من الأبعاد/العدد بدل كتابتها يدوياً — نفس
-      // منطق StockInVoucher.js المرجعي (انظر تعليق recalcQuantityFromMeasurement أعلاه).
-      const shouldRecalc = Number(updatedRow.measurment_id || 1) !== 1
-      const quantity = shouldRecalc ? recalcQuantityFromMeasurement(updatedRow) : updatedRow.quantity
-      patchItemRow(row, {
-        [colName]: dimensionValue,
-        ...(shouldRecalc
-          ? { quantity, total_price: recalcAmount(quantity, updatedRow.unit_price ?? null) }
-          : {}),
-      })
     } else if (colName === "unit") {
       patchItemRow(row, { unit: String(value ?? "") })
     } else if (colName === "batch_number") {
@@ -1043,14 +1035,17 @@ export default function UnifiedStockVoucher({
     const colName = grid?.columns?.[e.col]?.binding
     const row = itemsRef.current[e.row]
     if (colName === "quantity") {
-      if (row && Number(row.measurment_id || 1) !== 1) e.cancel = true
-      return
-    }
-    // أعمدة الأبعاد الأربعة: تُمنَع الكتابة المباشرة إن لم يكن البُعد المُقابِل مطلوباً فعلياً لنوع
-    // قياس هذا السطر تحديداً — نفس الشرط المستخدَم لتخطّيها بالتنقّل (Tab/Enter) أعلاه، فتتّسق
-    // الحالتان (لا تُتاح الكتابة المباشرة بالنقر بالماوس على عمود لا يصله المؤشّر أصلاً بالتنقّل).
-    if (colName === "length" || colName === "width" || colName === "height" || colName === "count") {
-      if (!isDimensionFieldRelevant(colName, row)) e.cancel = true
+      // نوع قياس غير عادي: تُمنَع الكتابة المباشرة دوماً، وتُفتَح نافذة "بيانات القياس" بدلاً منها
+      // عند أي محاولة تحرير (كتابة حرف، F2، نقر مزدوج — كلها تُطلق beginningEdit في Wijmo) بدل
+      // اشتراط مفتاح بعينه.
+      if (row && Number(row.measurment_id || 1) !== 1) {
+        e.cancel = true
+        if (row.product_id) {
+          popupHasCalled()
+          setMeasurementDialogRow(e.row)
+          setMeasurementDialogOpen(true)
+        }
+      }
     }
   }
 
@@ -1156,7 +1151,7 @@ export default function UnifiedStockVoucher({
       // يتخطّى أعمدة الأبعاد غير ذات الصلة بنوع قياس هذا السطر تحديداً (measurment_id) — المؤشّر
       // "لا يصل" إليها إطلاقاً بدل التوقف عندها ثم منع التحرير فقط (beginningEdit أدناه يمنع
       // التحرير المباشر بالنقر أيضاً، لكن هذا يمنع حتى الوصول عبر Tab/Enter كما طُلِب).
-      const nextFieldIndex = findNextRelevantFieldIndex(currentFieldIndex + 1, currentRow)
+      const nextFieldIndex = findNextRelevantFieldIndex(currentFieldIndex + 1)
       if (nextFieldIndex === -1) {
         const isLastRow = row === itemsRef.current.length - 1
         if (isLastRow && currentRow?.product_id && Number(currentRow?.quantity || 0) > 0) {
@@ -1352,7 +1347,7 @@ export default function UnifiedStockVoucher({
     // الوجهة التالية بعد اختيار صنف تعتمد على نوع قياسه: عادي (1) ⇐ الكمية كالمعتاد، غير ذلك ⇐ أول
     // عمود بُعد يحتاجه فعلياً (بترتيب طول←عرض←ارتفاع←عدد، متخطّياً غير المطلوب منها) — نفس منطق
     // findNextRelevantFieldIndex المستخدَم بتنقّل Tab/Enter، مطبَّقاً هنا لحظة اختيار الصنف مباشرة.
-    const nextFieldIndex = findNextRelevantFieldIndex(fieldOrder.indexOf("product_code") + 1, itemsRef.current[row])
+    const nextFieldIndex = findNextRelevantFieldIndex(fieldOrder.indexOf("product_code") + 1)
     pendingFocusRef.current = { row, col: nextFieldIndex === -1 ? "quantity" : fieldOrder[nextFieldIndex] }
   }
 
@@ -1391,63 +1386,9 @@ export default function UnifiedStockVoucher({
     pendingFocusRef.current = { row: unitsSearchRow, col: "quantity" }
   }
 
-  // تُظهِر عمود بُعد بعينه (طول/عرض/ارتفاع/عدد) تلقائياً حتى لو كان مخفياً بإعدادات السند (الشرط
-  // الأول) إن كان أي صنف مُدرَج فعلياً بالسند يحتاجه فعلياً بحسب نوع قياسه (الشرط الثاني) — وإلا
-  // يبقى صنف بنوع قياس غير عادي غير قادر على إدخال أبعاده أصلاً لمجرد أن الإعداد العام معطَّل.
-  const showLengthColumn =
-    Util.getVoucherSettingScreenData(voucherType, "length") || items.some((i) => measurementRequiresLength(Number(i.measurment_id || 1)))
-  const showWidthColumn =
-    Util.getVoucherSettingScreenData(voucherType, "width") || items.some((i) => measurementRequiresWidth(Number(i.measurment_id || 1)))
-  const showHeightColumn =
-    Util.getVoucherSettingScreenData(voucherType, "height") || items.some((i) => measurementRequiresHeight(Number(i.measurment_id || 1)))
-  const showCountColumn =
-    Util.getVoucherSettingScreenData(voucherType, "count") || items.some((i) => measurementRequiresCount(Number(i.measurment_id || 1)))
-  // نفس سبب formRef/warehousesRef: تُقرَأ هذه القيم من handleBeginningEdit/handleKeyDown المربوطين
-  // بخاصيتَي beginningEdit/onKeyDown لِـWijmo — إن لم تُعِد الشبكة ربطهما عند كل تحديث (كما ثبت
-  // فعلياً مع cellEditEnded سابقاً بهذا الملف)، يبقى الإغلاق الخاص بهما محتفظاً بقيم showXColumn كما
-  // كانت عند أول تركيب (غالباً بلا أي صنف مُدرَج بعد)، فتُحسَب أعمدة الأبعاد دوماً "غير مرئية" ولو
-  // اختير صنف يحتاجها فعلياً بعد ذلك — تظهر المشكلة كأن العمود "للقراءة فقط دوماً" رغم صحة الشرط
-  // البرمجي نفسه. .current يضمن قراءة أحدث قيمة دوماً بصرف النظر عن توقيت آخر إعادة ربط فعلية.
-  const showLengthColumnRef = useRef(showLengthColumn)
-  showLengthColumnRef.current = showLengthColumn
-  const showWidthColumnRef = useRef(showWidthColumn)
-  showWidthColumnRef.current = showWidthColumn
-  const showHeightColumnRef = useRef(showHeightColumn)
-  showHeightColumnRef.current = showHeightColumn
-  const showCountColumnRef = useRef(showCountColumn)
-  showCountColumnRef.current = showCountColumn
-
-  // يحدّد هل يستحق حقل بعينه من fieldOrder التوقف عنده أثناء تنقّل Tab/Enter (وأيضاً أثناء إسناد
-  // الوجهة الأولى بعد اختيار صنف أدناه) — أعمدة الأبعاد الأربعة فقط مشروطة (يجب أن تكون مرئية أصلاً
-  // وأن يحتاجها نوع قياس هذا السطر تحديداً)، أي حقل آخر (product_code/quantity/unit_price/...)
-  // يبقى محطة توقف دائماً. مطابق لِـgetFocus في StockInVoucher.js المرجعي من حيث الفكرة (تخطّي
-  // أبعاد لا يحتاجها نوع القياس الحالي) لكن مُشتقّاً آلياً من نفس دوال measurementRequires* المستخدَمة
-  // بالتحقق أعلاه، بدل جدول حالات يدوي منفصل قد يتعارض معها في حالات هامشية (كـ"محيط"/"اعمال زجاج").
-  const isDimensionFieldRelevant = (fieldName: string, row: VoucherItemRow | undefined): boolean => {
-    const measurmentId = Number(row?.measurment_id || 1)
-    switch (fieldName) {
-      case "length":
-        return showLengthColumnRef.current && measurementRequiresLength(measurmentId)
-      case "width":
-        return showWidthColumnRef.current && measurementRequiresWidth(measurmentId)
-      case "height":
-        return showHeightColumnRef.current && measurementRequiresHeight(measurmentId)
-      case "count":
-        return showCountColumnRef.current && measurementRequiresCount(measurmentId)
-      default:
-        return true
-    }
-  }
-
-  // أول فهرس في fieldOrder ابتداءً من startIndex يستحق التوقف عنده لهذا السطر — أو -1 إن لم يبقَ
-  // شيء (نهاية الصف، ينتقل عندها الاستدعاء لمنطق "آخر عمود" المعتاد: صف جديد/product_code بالصف
-  // التالي).
-  const findNextRelevantFieldIndex = (startIndex: number, row: VoucherItemRow | undefined): number => {
-    for (let i = startIndex; i < fieldOrder.length; i++) {
-      if (isDimensionFieldRelevant(fieldOrder[i], row)) return i
-    }
-    return -1
-  }
+  // كل حقول fieldOrder محطة توقف دائمة الآن (الأبعاد/العدد لم تعد أعمدة شبكة، تُدخَل عبر
+  // MeasurementInputDialog بدلاً من ذلك) — يكفي فحص حدود المصفوفة بدل تخطٍّ شرطي.
+  const findNextRelevantFieldIndex = (startIndex: number): number => (startIndex < fieldOrder.length ? startIndex : -1)
 
   const scheme = useMemo(
     () => ({
@@ -1551,19 +1492,15 @@ export default function UnifiedStockVoucher({
           visible: Util.getVoucherSettingScreenData(voucherType, "unit"),
           visibleInColumnChooser: true,
         },
-        { header: "الطول", name: "length", width: 90, dataType: "Number", visible: showLengthColumn },
-        { header: "العرض", name: "width", width: 90, dataType: "Number", visible: showWidthColumn },
-        { header: "الارتفاع", name: "height", width: 90, dataType: "Number", visible: showHeightColumn },
-        { header: "العدد", name: "count", width: 90, dataType: "Number", visible: showCountColumn },
         {
           header: "الكمية",
           name: "quantity",
           width: 100,
           dataType: "Number",
-          // للقراءة فقط لنوع قياس غير عادي — تُحتسَب تلقائياً من الأبعاد/العدد (recalcQuantityFromMeasurement)
-          // بدل كتابتها يدوياً؛ المنع الفعلي بمستوى الخلية عبر beginningEdit أدناه (isReadOnly هنا
-          // خاصية عمود ثابتة لا تفرّق بين الأسطر، فلا تكفي وحدها إذ قد تختلف أنواع القياس بين أسطر
-          // نفس السند).
+          // للقراءة فقط لنوع قياس غير عادي — تُحتسَب تلقائياً من الأبعاد/العدد المُدخَلة عبر
+          // MeasurementInputDialog بدل كتابتها يدوياً؛ المنع الفعلي بمستوى الخلية عبر beginningEdit
+          // أدناه (isReadOnly هنا خاصية عمود ثابتة لا تفرّق بين الأسطر، فلا تكفي وحدها إذ قد تختلف
+          // أنواع القياس بين أسطر نفس السند).
         },
         { header: "السعر", name: "unit_price", width: 100, dataType: "Number", visible: Util.getVoucherSettingScreenData(voucherType, "price") },
         { header: "المبلغ", name: "total_price", width: 110, dataType: "Number", isReadOnly: true },
@@ -1631,7 +1568,7 @@ export default function UnifiedStockVoucher({
       ],
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }),
-    [isLocked, isInternalDelivery, voucherType, showLengthColumn, showWidthColumn, showHeightColumn, showCountColumn],
+    [isLocked, isInternalDelivery, voucherType],
   )
 
   // شبكة تبويب "تفاصيل حسابات الاصناف" (سند الاستعمال فقط) — تُبنى من نفس itemsCollectionView
@@ -2349,6 +2286,42 @@ export default function UnifiedStockVoucher({
             setExpiryLotPickerRow(null)
             setExpiryLotPickerWarehouseId(null)
             setExpiryLotPickerReservedByLot({})
+          }}
+        />
+
+        <MeasurementInputDialog
+          open={measurementDialogOpen}
+          onOpenChange={(open) => {
+            setMeasurementDialogOpen(open)
+            if (!open) {
+              popupHasClosed()
+              restoreGridFocus(measurementDialogRow !== null ? { row: measurementDialogRow, col: "quantity" } : null)
+            }
+          }}
+          measurmentId={measurementDialogRow !== null ? Number(itemsRef.current[measurementDialogRow]?.measurment_id || 1) : 1}
+          productName={measurementDialogRow !== null ? itemsRef.current[measurementDialogRow]?.product_name : undefined}
+          initialValues={
+            measurementDialogRow !== null
+              ? {
+                  length: itemsRef.current[measurementDialogRow]?.length ?? null,
+                  width: itemsRef.current[measurementDialogRow]?.width ?? null,
+                  height: itemsRef.current[measurementDialogRow]?.height ?? null,
+                  count: itemsRef.current[measurementDialogRow]?.count ?? null,
+                }
+              : undefined
+          }
+          productLength={measurementDialogRow !== null ? itemsRef.current[measurementDialogRow]?.product_length : null}
+          productWidth={measurementDialogRow !== null ? itemsRef.current[measurementDialogRow]?.product_width : null}
+          productDensity={measurementDialogRow !== null ? itemsRef.current[measurementDialogRow]?.product_density : null}
+          onConfirm={(values, quantity) => {
+            if (measurementDialogRow === null) return
+            const row = measurementDialogRow
+            patchItemRow(row, {
+              ...values,
+              quantity,
+              total_price: recalcAmount(quantity, itemsRef.current[row]?.unit_price ?? null),
+            })
+            pendingFocusRef.current = { row, col: "unit_price" }
           }}
         />
 

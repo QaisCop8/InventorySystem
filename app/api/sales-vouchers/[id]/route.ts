@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
-import { fetchSalesVoucherItems, archiveAndDeleteSalesVoucher } from "../_lib"
+import { fetchSalesVoucherItems, archiveAndDeleteSalesVoucher, fetchTaxAccountForVoucher, ITEM_ACCOUNT_VCH_TYPES } from "../_lib"
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
@@ -14,8 +14,22 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       return NextResponse.json({ error: "السند غير موجود" }, { status: 404 })
     }
 
+    const voucher = rows[0]
     const items = await fetchSalesVoucherItems(id)
-    return NextResponse.json({ ...rows[0], items })
+    // حساب الضريبة (تبويب "بيانات اضافية") لا عمود على voucher_header_tbl — يُشتَق من سطر القيد
+    // المحفوظ (voucher_journal_detail_tbl) عند تحميل سند موجود، انظر buildSalesVoucherJournalRows/
+    // fetchTaxAccountForVoucher في ../_lib.ts.
+    const taxAccount = (ITEM_ACCOUNT_VCH_TYPES as readonly number[]).includes(Number(voucher.vch_type))
+      ? await fetchTaxAccountForVoucher(id)
+      : null
+    return NextResponse.json({
+      ...voucher,
+      city_id: voucher.location_id,
+      tax_account_id: taxAccount?.id ?? null,
+      tax_account_code: taxAccount?.code ?? "",
+      tax_account_name: taxAccount?.name ?? "",
+      items,
+    })
   } catch (error) {
     console.error("Error fetching sales voucher:", error)
     return NextResponse.json({ error: "Failed to fetch sales voucher" }, { status: 500 })
