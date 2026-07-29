@@ -29,6 +29,7 @@ import {
   Warehouse,
 } from "lucide-react"
 import { CompactProductForm } from "./compact-product-form"
+import { ImageThumbnail } from "@/components/common/ImageUploadField"
 import { ExcelImportDialog } from "./excel-import-dialog"
 import { InitialQuantitiesDialog } from "./initial-quantities-dialog"
 import { useAuth } from "../auth/auth-context"
@@ -946,6 +947,7 @@ export function Products({ entityType = "products" }: ProductsProps) {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="text-right w-12"></TableHead>
                       <TableHead className="text-right">رقم الصنف</TableHead>
                       <TableHead className="text-right">اسم الصنف</TableHead>
                       <TableHead className="text-right">التصنيف</TableHead>
@@ -962,6 +964,9 @@ export function Products({ entityType = "products" }: ProductsProps) {
                   <TableBody>
                     {paginatedProducts.map((product) => (
                       <TableRow key={product.id}>
+                        <TableCell>
+                          <ImageThumbnail value={(product as any).product_image || product.image_url} size={32} alt={product.product_name} />
+                        </TableCell>
                         <TableCell className="font-medium">{product.product_code}</TableCell>
                         <TableCell>
                           <div>
@@ -1075,9 +1080,10 @@ export function Products({ entityType = "products" }: ProductsProps) {
       />
 
       <Dialog open={state.showDialog} onOpenChange={(open) => setState((prev) => ({ ...prev, showDialog: open }))} >
-        <DialogContent className="max-w-[95vw] sm:max-w-[90vw] md:max-w-[80vw] lg:max-w-[70vw] max-h-[95vh] overflow-hidden p-0" dir="rtl" 
+        <DialogContent className="max-w-[95vw] sm:max-w-[90vw] md:max-w-[80vw] lg:max-w-[70vw] max-h-[95vh] overflow-hidden p-0" dir="rtl"
         onPointerDownOutside={(event) => event.preventDefault()}
         onEscapeKeyDown={(event) => event.preventDefault()}
+        hideCloseButton
         >
           <CompactProductForm
             visible={true}

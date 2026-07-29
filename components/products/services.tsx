@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge"
 import { Plus, Search, Edit, CheckCircle, X, Package, AlertTriangle, Warehouse } from "lucide-react"
 import { Toast } from "primereact/toast"
 import { CompactServiceForm } from "./compact-service-form"
+import { ImageThumbnail } from "@/components/common/ImageUploadField"
 import Util from "@/components/common/Util"
 import ConfirmDialogYesNo from "@/components/ui/ConfirmDialogYesNo"
 
@@ -515,6 +516,7 @@ export function Services() {
             <table className="min-w-full text-right">
               <thead>
                 <tr>
+                  <th className="py-3 px-2 w-12"></th>
                   <th className="py-3 px-2">رمز الخدمة</th>
                   <th className="py-3 px-2">اسم الخدمة</th>
                   <th className="py-3 px-2">التصنيف</th>
@@ -526,6 +528,9 @@ export function Services() {
               <tbody>
                 {paginatedProducts.map((product) => (
                   <tr key={product.id} className="border-t border-slate-200">
+                    <td className="py-3 px-2">
+                      <ImageThumbnail value={(product as any).product_image || product.image_url} size={32} alt={product.product_name} />
+                    </td>
                     <td className="py-3 px-2">{product.product_code}</td>
                     <td className="py-3 px-2 font-medium">{product.product_name}</td>
                     <td className="py-3 px-2">{product.category}</td>
@@ -580,7 +585,7 @@ export function Services() {
       />
 
       <Dialog open={state.showDialog} onOpenChange={(open) => setState((prev) => ({ ...prev, showDialog: open, error: null, ...(open ? {} : { editingProduct: null, formData: initialFormData }) }))}>
-        <DialogContent className="max-w-[95vw] sm:max-w-[90vw] md:max-w-[80vw] lg:max-w-[70vw] max-h-[95vh] overflow-hidden p-0" dir="rtl" onPointerDownOutside={(event) => event.preventDefault()} onEscapeKeyDown={(event) => event.preventDefault()}>
+        <DialogContent className="max-w-[95vw] sm:max-w-[90vw] md:max-w-[80vw] lg:max-w-[70vw] max-h-[95vh] overflow-hidden p-0" dir="rtl" onPointerDownOutside={(event) => event.preventDefault()} onEscapeKeyDown={(event) => event.preventDefault()} hideCloseButton>
           <CompactServiceForm
             visible={state.showDialog}
             editingProduct={state.editingProduct}

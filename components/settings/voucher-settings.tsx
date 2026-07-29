@@ -32,6 +32,7 @@ const COLUMNS = [
     { id: "store", label: "المستودع" },
     { id: "batch", label: "الرقم التشغيلي" },
     { id: "price", label: "السعر" },
+    { id: "price_excl_tax", label: "السعر غ.ش" },
     { id: "unit", label: "الوحدة" },
     { id: "bonus", label: "البونص" },
     { id: "discount", label: "الخصم" },
@@ -58,10 +59,18 @@ const getColumnsForType = (voucherType: string) => {
     if (isSalesVoucher) {
         return COLUMNS.filter((col) => col.id !== "discount" && col.id !== "tax");
     }
+    // السعر غ.ش خاص بسندات المبيعات/المشتريات الثمانية فقط (فرع isSalesVoucher أعلاه) — لا معنى له
+    // في سندات الحركة (لا ضريبة على مستواها) ولا شاشات الطلبيات (لم تُضَف إليها بعد).
     return COLUMNS.filter((col) =>
         isStockVoucher
-            ? col.id !== "bonus" && col.id !== "discount" && col.id !== "tax" && col.id !== "serial"
-            : col.id !== "expiry_date" && col.id !== "serial" && col.id !== "length" && col.id !== "width" && col.id !== "height" && col.id !== "count",
+            ? col.id !== "bonus" && col.id !== "discount" && col.id !== "tax" && col.id !== "serial" && col.id !== "price_excl_tax"
+            : col.id !== "expiry_date" &&
+              col.id !== "serial" &&
+              col.id !== "length" &&
+              col.id !== "width" &&
+              col.id !== "height" &&
+              col.id !== "count" &&
+              col.id !== "price_excl_tax",
     );
 };
 

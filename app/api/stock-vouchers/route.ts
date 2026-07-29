@@ -11,6 +11,7 @@ import {
   regenerateVoucherCode,
   validateItemBatchExpiry,
   validateItemMeasurement,
+  validateItemReferences,
   validateAvailableQuantity,
   validateVoucherDeletion,
   validateStockInEditAvailability,
@@ -95,6 +96,12 @@ export async function POST(request: NextRequest) {
     const measurementError = await validateItemMeasurement(items)
     if (measurementError) {
       return NextResponse.json({ error: measurementError }, { status: 400 })
+    }
+    // المستودع/الوحدة موجودان ونشِطان فعلياً — بمعزل عمّا رآه العميل عند اختيارهما (قد يكونان حُذفا
+    // أو أُوقِفا منذ ذلك الحين)، ونفس فحص حسابَي المصروف/المشتريات لسند الاستعمال تحديداً.
+    const referencesError = await validateItemReferences(items, vchType === USE_VOUCHER_VCH_TYPE ? ["expense_account_id", "purchase_account_id"] : [])
+    if (referencesError) {
+      return NextResponse.json({ error: referencesError }, { status: 400 })
     }
     if (vchType === STOCK_IN_VCH_TYPE) {
       const batchExpiryError = await validateItemBatchExpiry(items)
@@ -220,6 +227,10 @@ export async function PUT(request: NextRequest) {
       const measurementError = await validateItemMeasurement(items)
       if (measurementError) {
         return NextResponse.json({ error: measurementError }, { status: 400 })
+      }
+      const referencesError = await validateItemReferences(items, vchType === USE_VOUCHER_VCH_TYPE ? ["expense_account_id", "purchase_account_id"] : [])
+      if (referencesError) {
+        return NextResponse.json({ error: referencesError }, { status: 400 })
       }
       if (vchType === STOCK_IN_VCH_TYPE) {
         const batchExpiryError = await validateItemBatchExpiry(items)

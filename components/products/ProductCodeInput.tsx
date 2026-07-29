@@ -112,7 +112,16 @@ const ProductCodeInput = ({
                     maxLength={8}
                     onBlur={handleProductCodeBlur}
                 />
-                <Button type="button" onClick={() => setShowDialog(true)}>
+                <Button
+                    type="button"
+                    // منع فقدان تركيز خانة رقم الصنف عند الضغط على زر البحث — بلا هذا كان onBlur
+                    // بالخانة (handleProductCodeBlur) يُطلَق أولاً فيستدعي البحث بالكود/إعادة تصفير
+                    // النموذج (searchProductByCode في compact-product-form.tsx) بكود الصنف الحالي
+                    // (كود جديد مولَّد تلقائياً لصنف لم يُحفَظ بعد مثلاً)، فيُفرَّغ ما أُدخِل بالفعل
+                    // قبل أن تُفتَح نافذة البحث أصلاً.
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => setShowDialog(true)}
+                >
                     <Search className="w-4 h-4" />
                 </Button>
             </div>

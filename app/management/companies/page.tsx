@@ -19,7 +19,6 @@ import {
   Sparkles,
   LayoutGrid,
   Ban,
-  RefreshCw,
 } from "lucide-react"
 import { activateCompany } from "@/lib/tenant-client"
 
@@ -63,7 +62,6 @@ export default function ManagementCompaniesPage() {
   const [newCompanyName, setNewCompanyName] = useState("")
   const [saving, setSaving] = useState(false)
   const [selecting, setSelecting] = useState<number | null>(null)
-  const [subscriptionBusyId, setSubscriptionBusyId] = useState<number | null>(null)
   const [error, setError] = useState("")
   const [isPlatformAdmin, setIsPlatformAdmin] = useState(false)
 
@@ -134,28 +132,6 @@ export default function ManagementCompaniesPage() {
     } catch {
       setError("تعذّر الاتصال بالخادم")
       setSelecting(null)
-    }
-  }
-
-  const handleSubscriptionAction = async (companyId: number, action: "stop" | "extend") => {
-    setSubscriptionBusyId(companyId)
-    setError("")
-    try {
-      const res = await fetch(`/api/management/companies/${companyId}/subscription`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action }),
-      })
-      const data = await res.json()
-      if (!res.ok) {
-        setError(data.error || "تعذّر تنفيذ الإجراء")
-        return
-      }
-      await loadCompanies()
-    } catch {
-      setError("تعذّر الاتصال بالخادم")
-    } finally {
-      setSubscriptionBusyId(null)
     }
   }
 
@@ -297,46 +273,9 @@ export default function ManagementCompaniesPage() {
                   )}
                 </div>
 
-                <div className="flex w-full flex-wrap items-center justify-between gap-2">
-                  <div className="flex items-center gap-1.5 text-xs text-slate-400">
-                    <Calendar className="h-3.5 w-3.5" />
-                    {createdDate.toLocaleDateString("ar-EG", { year: "numeric", month: "long", day: "numeric" })}
-                  </div>
-
-                  <div className="flex flex-wrap gap-2">
-                    {company.status === "approved" && !isExpired && isPlatformAdmin && (
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        className="gap-1 border-amber-200 text-amber-700 hover:bg-amber-50"
-                        disabled={subscriptionBusyId === company.id || selecting !== null}
-                        onClick={(event) => {
-                          event.stopPropagation()
-                          handleSubscriptionAction(company.id, "stop")
-                        }}
-                      >
-                        <Ban className="h-3.5 w-3.5" />
-                        إيقاف
-                      </Button>
-                    )}
-
-                    {(isExpired || company.status === "stopped") && isPlatformAdmin && (
-                      <Button
-                        type="button"
-                        size="sm"
-                        className="gap-1 bg-violet-600 text-white hover:bg-violet-700"
-                        disabled={subscriptionBusyId === company.id || selecting !== null}
-                        onClick={(event) => {
-                          event.stopPropagation()
-                          handleSubscriptionAction(company.id, "extend")
-                        }}
-                      >
-                        <RefreshCw className="h-3.5 w-3.5" />
-                        تمديد الاشتراك
-                      </Button>
-                    )}
-                  </div>
+                <div className="flex w-full items-center gap-1.5 text-xs text-slate-400">
+                  <Calendar className="h-3.5 w-3.5" />
+                  {createdDate.toLocaleDateString("ar-EG", { year: "numeric", month: "long", day: "numeric" })}
                 </div>
               </div>
             )

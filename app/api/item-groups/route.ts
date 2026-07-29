@@ -27,7 +27,6 @@ interface ItemGroup {
 
 // ----------------- DB Client -----------------
 
-export default sql
 
 // ----------------- API Handlers -----------------
 export async function GET(request: NextRequest) {

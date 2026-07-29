@@ -1,12 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
-import { Pool } from "pg"
+import { getTenantPool } from "@/lib/database"
 
 export const dynamic = "force-dynamic"
 export const revalidate = 0
-
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-})
 
 function getPrefix(vchType: number, vchBook: string) {
   if (vchType === 1) return `O${vchBook}`
@@ -17,6 +13,7 @@ function getPrefix(vchType: number, vchBook: string) {
 
 export async function GET(request: NextRequest) {
   try {
+    const pool = await getTenantPool()
     const { searchParams } = new URL(request.url)
     const vchBook = (searchParams.get("vch_book") ?? "").trim().toUpperCase()
     const vchType = Number(searchParams.get("voucher_type") ?? searchParams.get("vch_type") ?? 5)
@@ -37,14 +34,14 @@ export async function GET(request: NextRequest) {
       `
         SELECT id, value
         FROM system_settings
-        WHERE id IN ('invoice_prefix', 'invoice_start', 'order_prefix', 'order_start', 'purchase_prefix', 'purchase_start')
+        WHERE id IN ('sales_invoice_prefix', 'sales_invoice_start', 'order_prefix', 'order_start', 'purchase_prefix', 'purchase_start')
       `,
     )
 
     const settings = Object.fromEntries((settingsResult.rows ?? []).map((row) => [row.id, row.value]))
     const configuredPrefix =
       vchType === 5
-        ? settings.invoice_prefix
+        ? settings.sales_invoice_prefix
         : vchType === 1
           ? settings.order_prefix
           : vchType === 2
@@ -53,7 +50,7 @@ export async function GET(request: NextRequest) {
 
     const configuredStart = Number(
       vchType === 5
-        ? settings.invoice_start
+        ? settings.sales_invoice_start
         : vchType === 1
           ? settings.order_start
           : vchType === 2
@@ -107,6 +104,7 @@ export async function GET(request: NextRequest) {
     )
   } catch (error) {
     console.error("Error generating voucher number:", error)
+    const pool = await getTenantPool()
     const { searchParams } = new URL(request.url)
     const vchBook = (searchParams.get("vch_book") ?? "R").trim().toUpperCase()
     const vchType = Number(searchParams.get("voucher_type") ?? searchParams.get("vch_type") ?? 5)
@@ -114,13 +112,13 @@ export async function GET(request: NextRequest) {
       `
         SELECT id, value
         FROM system_settings
-        WHERE id IN ('invoice_prefix', 'order_prefix', 'purchase_prefix')
+        WHERE id IN ('sales_invoice_prefix', 'order_prefix', 'purchase_prefix')
       `,
     )
     const settings = Object.fromEntries((settingsResult.rows ?? []).map((row) => [row.id, row.value]))
     const configuredPrefix =
       vchType === 5
-        ? settings.invoice_prefix
+        ? settings.sales_invoice_prefix
         : vchType === 1
           ? settings.order_prefix
           : vchType === 2

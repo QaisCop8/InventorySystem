@@ -135,6 +135,7 @@ interface UnifiedStockVoucherProps {
   onOpenChange: (open: boolean) => void
   form: VoucherRecord
   onFormChange: <K extends keyof VoucherRecord>(field: K, value: VoucherRecord[K]) => void
+  onBookChange?: (bookId: number | null) => void
   onItemsChange: (items: VoucherItemRow[]) => void
   voucherBooks?: LookupOption[]
   currencyOptions?: CurrencyOption[]
@@ -357,7 +358,7 @@ const emptyItemRow: VoucherItemRow = {
 }
 
 const numberValue = (value: number | null | undefined) => (value === null || value === undefined ? "" : value)
-const normalizeVoucherCode = (value: string) => value.toUpperCase().replace(/[^A-Z0-9-]/g, "")
+const normalizeVoucherCode = (value: string) => value.toUpperCase().replace(/[^A-Z0-9-]/g, "").slice(0, 10)
 
 // انتقال ملاحظة عن سباق مشابه لِما وُوجِه في unified-receipt-voucher.tsx هذه الجلسة: شبكة Wijmo
 // تُصفّر تحديدها عند كل تبديل لمرجع itemsSource — لذا تُستخدم هنا نفس الحلول المُثبَتة: كائن
@@ -401,6 +402,7 @@ export default function UnifiedStockVoucher({
   onOpenChange,
   form,
   onFormChange,
+  onBookChange,
   onItemsChange,
   voucherBooks = [],
   currencyOptions = [],
@@ -1978,7 +1980,7 @@ export default function UnifiedStockVoucher({
                       panelClassName="invoice-currency-dropdown-panel"
                       appendTo="self"
                       panelStyle={{ zIndex: 10000 }}
-                      onChange={(e: any) => onFormChange("vch_book_id", e.value ?? null)}
+                      onChange={(e: any) => (onBookChange ? onBookChange(e.value ?? null) : onFormChange("vch_book_id", e.value ?? null))}
                     />
                   </div>
                   <div className="grid gap-1.5">
@@ -1989,7 +1991,7 @@ export default function UnifiedStockVoucher({
                       value={form.vch_code}
                       onChange={(e) => onFormChange("vch_code", normalizeVoucherCode(e.target.value))}
                       onBlur={handleCodeBlur}
-                      maxLength={20}
+                      maxLength={10}
                     />
                   </div>
                   <div className="grid gap-1.5">

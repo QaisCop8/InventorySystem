@@ -1,6 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
-export default sql
 
 const toNullableInt = (value: unknown): number | null => {
   if (value === null || value === undefined || value === "") return null

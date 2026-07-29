@@ -34,6 +34,7 @@ import Util from "../common/Util"
 import sharedDropdownStyles from "../common/Dropdown.module.scss"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import AttachmentManager from "@/components/common/AttachmentManager"
+import { ImageUploadField } from "@/components/common/ImageUploadField"
 
 // ارتفاع موحَّد لكل شبكات DataGridView في هذه الشاشة (الوحدات/الأسعار/المستودعات/مراكز التكلفة) —
 // يُمرَّر إلى DataGridView مباشرة (كخاصية style) لا إلى العنصر الملفوف، فيتولى Wijmo تمرير الصفوف
@@ -116,6 +117,7 @@ interface ProductFormData {
   prices?: PriceItem[],
   stores?: StoreItem[],
   cost_centers?: ProductCostCenterItem[],
+  product_image?: string | null,
 }
 export const initialFormData: ProductFormData = {
   id: 0,
@@ -183,7 +185,8 @@ export const initialFormData: ProductFormData = {
   units: [],
   prices: [],
   stores: [],
-  cost_centers: []
+  cost_centers: [],
+  product_image: null,
 };
 
 export interface CompactProductFormProps {
@@ -347,6 +350,15 @@ export function CompactProductForm({
         life: 1500,
       });
       product_name.current?.focus();
+      return false;
+    }
+    if (!formData.prices || formData.prices.length === 0) {
+      toast.current?.show({
+        severity: "error",
+        summary: "خطأ",
+        detail: "يجب ادخال سعر بيع واحد على الاقل",
+        life: 1500,
+      });
       return false;
     }
 
@@ -586,6 +598,65 @@ export function CompactProductForm({
   // إذ تغييرها بأثر رجعي على صنف استُخدِم فعلياً يُناقض بيانات تلك السطور القائمة. يُعاد ضبطه false
   // عند فتح صنف جديد (reset_fields) وعند كل تحميل صنف موجود (loadData) قبل الفحص الفعلي.
   const [isUsedInVouchers, setIsUsedInVouchers] = useState(false);
+
+  // يُطبَّق على أي صنف مُحمَّل بنجاح (تصفّح تسلسلي أو اختيار مباشر عبر البحث بـByid) — مُستخرَجة
+  // كدالة مشتركة بدل تكرارها لكل مسار، بعد أن كانت مسارات النجاح المختلفة (لا الأخطاء فقط) تُكرِّر
+  // نفس تحويل الوحدات/الأسعار/المستودعات وضبط formData/initialHash/currentProductId حرفياً.
+  const applyLoadedProduct = async (product: any) => {
+    const unitsWithNames = (product.units ?? []).map((unit: any) => {
+      const unitDef = definitions.units.find((u: any) => u.id === unit.unit_id);
+      return { ...unit, unit_name: unitDef?.unit_name || "" };
+    });
+
+    const pricesWithNames = (product.prices ?? []).map((price: any) => {
+      const unitDef = definitions.units.find((u: any) => u.id === price.unit_id);
+      const priceCategoryDef = definitions.price_category.find((p: any) => p.id === price.price_category_id);
+      const currencyDef = definitions.currencies.find((c: any) => c.id === price.currency_id);
+      return {
+        ...price,
+        unit_name: unitDef?.unit_name || "",
+        price_name: priceCategoryDef?.name || "",
+        currency_name: currencyDef?.currency_name || "",
+      };
+    });
+
+    const storesWithNames = (product.stores ?? []).map((store: any) => {
+      const storeDef = definitions.warehouses.find((w: any) => w.id === store.warehouse_id);
+      return {
+        ...store,
+        store_name: storeDef?.warehouse_name || "",
+        store_id: storeDef?.id || 0,
+      };
+    });
+
+    const costCenterRows = buildCostCenterRows(product.cost_centers ?? [], definitionsRef.current.cost_center_types, definitionsRef.current.cost_centers);
+
+    const newFormData = {
+      ...product,
+      units: unitsWithNames,
+      prices: pricesWithNames,
+      stores: storesWithNames,
+      cost_centers: costCenterRows,
+      default_store: product.default_store ?? 0,
+      // GET /api/inventory/ProductsNavigations/[navigationType] يُعيد "SELECT * FROM products"
+      // خاماً — أعمدة الصلاحية/الدفعة الفعلية على الجدول هي has_expiry_date/has_batch_number لا
+      // expiry_tracking/batch_tracking (المستخدَمان في formData وفي حفظ /api/inventory/products
+      // POST)، فيُطابَق هنا صراحةً بدل الاعتماد على الانتشار الخام أعلاه (كان سيترك خانتي
+      // "له تاريخ صلاحية"/"له رقم تشغيلي" غير مؤشَّرتين دوماً عند تعديل صنف قائم فعلياً يحملهما).
+      expiry_tracking: Boolean(product.expiry_tracking ?? product.has_expiry_date ?? product.has_expiry ?? false),
+      batch_tracking: Boolean(product.batch_tracking ?? product.has_batch_number ?? product.has_batch ?? false),
+    };
+    setFormData(newFormData);
+    initialHash.current = getFormDataHash(newFormData);
+    setCurrentProductId(product.id);
+    setIsUsedInVouchers(false);
+    fetch(`/api/inventory/products/${product.id}/voucher-usage`)
+      .then((r) => (r.ok ? r.json() : { used: false }))
+      .then((data) => setIsUsedInVouchers(Boolean(data?.used)))
+      .catch(() => setIsUsedInVouchers(false));
+    setLoading(false)
+  };
+
   const loadData = async (
     navigationType: "first" | "previous" | "next" | "last" | "Byid",
     productId?: number, checkUnsaved?: any // explicitly pass ID when needed
@@ -611,7 +682,7 @@ export function CompactProductForm({
       setLoading(true)
       let url = new URL(`/api/inventory/ProductsNavigations/${navigationType}`, location.origin);
       url.searchParams.set("type", isService ? "services" : "products");
-
+      console.log("productId ",productId)
       // Determine ID to use
       if (navigationType === "Byid" && productId) {
         url.searchParams.set("id", String(productId));
@@ -621,6 +692,43 @@ export function CompactProductForm({
 
       const res = await fetch(url.toString());
       console.log("loadData response:", res);
+
+      // Byid (اختيار صنف من نافذة البحث) له معالجة أخطاء مستقلة عن رسائل حدود التصفّح
+      // (بداية/نهاية السجلات) التي لا معنى لها هنا أصلاً — طلب صنف بعينه بمعرّفه، لا تنقّل تسلسلي.
+      if (navigationType === "Byid") {
+        if (!res.ok) {
+          const errorBody = await res.json().catch(() => null)
+          toast.current?.show({
+            severity: 'error',
+            summary: '',
+            detail: errorBody?.error === "No product found" ? 'لم يتم العثور على الصنف' : (errorBody?.error || 'تعذّر تحميل الصنف'),
+            life: 3000
+          });
+          setLoading(false)
+          return;
+        }
+        const product = await res.json();
+        if (!product?.id) {
+          toast.current?.show({ severity: 'error', summary: '', detail: 'لم يتم العثور على الصنف', life: 3000 });
+          setLoading(false)
+          return;
+        }
+        await applyLoadedProduct(product)
+        return
+      }
+
+      if (!res.ok) {
+        toast.current?.show({
+          severity: 'error',
+          summary: '',
+          detail: navigationType === "previous" || navigationType === "first"
+            ? 'بداية السجلات'
+            : 'نهاية السجلات',
+          life: 3000
+        });
+        setLoading(false)
+        return;
+      }
       const product = await res.json();
       console.log("loadData product:", product);
       if (!product.id || product.id === currentProductId) {
@@ -636,60 +744,7 @@ export function CompactProductForm({
         return;
       }
 
-      // Map units, prices, stores
-      const unitsWithNames = (product.units ?? []).map((unit: any) => {
-        const unitDef = definitions.units.find((u: any) => u.id === unit.unit_id);
-        return { ...unit, unit_name: unitDef?.unit_name || "" };
-      });
-
-      const pricesWithNames = (product.prices ?? []).map((price: any) => {
-        const unitDef = definitions.units.find((u: any) => u.id === price.unit_id);
-        const priceCategoryDef = definitions.price_category.find((p: any) => p.id === price.price_category_id);
-        const currencyDef = definitions.currencies.find((c: any) => c.id === price.currency_id);
-        return {
-          ...price,
-          unit_name: unitDef?.unit_name || "",
-          price_name: priceCategoryDef?.name || "",
-          currency_name: currencyDef?.currency_name || "",
-        };
-      });
-
-      const storesWithNames = (product.stores ?? []).map((store: any) => {
-        const storeDef = definitions.warehouses.find((w: any) => w.id === store.warehouse_id);
-        return {
-          ...store,
-          store_name: storeDef?.warehouse_name || "",
-          store_id: storeDef?.id || 0,
-        };
-      });
-
-      const costCenterRows = buildCostCenterRows(product.cost_centers ?? [], definitionsRef.current.cost_center_types, definitionsRef.current.cost_centers);
-
-      const newFormData = {
-        ...product,
-        units: unitsWithNames,
-        prices: pricesWithNames,
-        stores: storesWithNames,
-        cost_centers: costCenterRows,
-        default_store: product.default_store ?? 0,
-        // GET /api/inventory/ProductsNavigations/[navigationType] يُعيد "SELECT * FROM products"
-        // خاماً — أعمدة الصلاحية/الدفعة الفعلية على الجدول هي has_expiry_date/has_batch_number لا
-        // expiry_tracking/batch_tracking (المستخدَمان في formData وفي حفظ /api/inventory/products
-        // POST)، فيُطابَق هنا صراحةً بدل الاعتماد على الانتشار الخام أعلاه (كان سيترك خانتي
-        // "له تاريخ صلاحية"/"له رقم تشغيلي" غير مؤشَّرتين دوماً عند تعديل صنف قائم فعلياً يحملهما).
-        expiry_tracking: Boolean(product.expiry_tracking ?? product.has_expiry_date ?? product.has_expiry ?? false),
-        batch_tracking: Boolean(product.batch_tracking ?? product.has_batch_number ?? product.has_batch ?? false),
-      };
-      setFormData(newFormData);
-      const currentHash = getFormDataHash(newFormData);
-      initialHash.current = (currentHash);
-      setCurrentProductId(product.id);
-      setIsUsedInVouchers(false);
-      fetch(`/api/inventory/products/${product.id}/voucher-usage`)
-        .then((r) => (r.ok ? r.json() : { used: false }))
-        .then((data) => setIsUsedInVouchers(Boolean(data?.used)))
-        .catch(() => setIsUsedInVouchers(false));
-      setLoading(false)
+      await applyLoadedProduct(product)
     } catch (err) {
       console.error(err);
     }
@@ -898,12 +953,10 @@ export function CompactProductForm({
     }
 
     setFormData(newFormData);
+    initialHash.current = getFormDataHash(newFormData);
     setCurrentProductId(0);
     setIsUsedInVouchers(false);
     setActiveTab("units");
-
-    const currentHash = getFormDataHash(newFormData);
-    initialHash.current = currentHash;
 
     product_name.current?.focus();
   };
@@ -921,6 +974,7 @@ export function CompactProductForm({
     setLoading(false)
 
   }
+
   useEffect(() => {
     if (initialized.current) return;
     initialized.current = true;
@@ -1736,8 +1790,17 @@ export function CompactProductForm({
 
   return (
     <div className="h-full min-h-[70vh] min-w-0 flex flex-col bg-background overflow-hidden text-lg compact-product-form-root" dir="rtl">
-      {/* Universal Toolbar - Fixed at top */}
-      <div className="flex-shrink-0">
+      {/* زر الإغلاق فوق شريط الأدوات مباشرة (لا بجانبه) حتى لا يزاحمه أفقياً فيضطر للف على
+          سطرين — الشريط يأخذ العرض الكامل دوماً. */}
+      <div className="flex flex-shrink-0 flex-col gap-2 px-2 pt-2 sm:px-4 sm:pt-4" dir="rtl">
+        <button
+          type="button"
+          onClick={(e) => onHideDialog(e)}
+          className="flex h-10 w-10 shrink-0 items-center justify-center self-end rounded-full bg-white/95 text-slate-900 shadow-lg ring-1 ring-slate-200 transition-opacity hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-sky-400"
+        >
+          <X className="h-4 w-4" />
+          <span className="sr-only">إغلاق</span>
+        </button>
         <UniversalToolbar
           currentRecord={1}
           totalRecords={1}
@@ -1786,7 +1849,7 @@ export function CompactProductForm({
       <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0">
         <div className="mx-auto w-full max-w-full space-y-4 p-2 pb-8 sm:space-y-6 sm:p-4 sm:pb-10 lg:p-6 lg:pb-12">
           {/* Header */}
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h1 className="text-xl font-bold text-foreground flex items-center gap-3 sm:text-2xl">
                 <Package className="h-7 w-7 text-primary" />
@@ -1801,67 +1864,77 @@ export function CompactProductForm({
             </div>
             <Card>
               <CardContent className="space-y-4 p-4 sm:p-6">
-                {/* الصف الأول: الأكواد والتعريف */}
-                <div className="grid grid-cols-1 xl:grid-cols-12 gap-4">
-                  {/* Product Code - 2 columns */}
+                {/* نفس تصميم components/products/unified-customers.tsx: الصورة يساراً، وأكواد
+                    التعريف (الرقم/الاسم العربي/الاسم الإنجليزي) يميناً — الرقم في سطره الخاص،
+                    ثم كل اسم بسطر كامل العرض تحته. */}
+                <div className="flex flex-col md:flex-row items-stretch gap-4">
+                  <div className="flex-1 space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <ProductCodeInput
+                          formData={formData}
+                          handleProductCodeChange={(code) => setFormData((prev) => ({ ...prev, product_code: code }))}
+                          onBlur={async () => {
+                            const adjustedCode = adjustCode(formData.product_code || "")
+                            setFormData((prev) => ({ ...prev, product_code: adjustedCode }))
+                            await searchProductByCode(adjustedCode)
+                          }}
+                          onSelectProductId={(id) => {
+                            // لا يُعدَّل formData.id هنا مباشرة قبل اكتمال التحميل — كان هذا يُخطئ
+                            // مقارنة الهاش في loadData (تُحسَب من formData الحالي الذي أصبح يحمل
+                            // معرّف الصنف الجديد بينما initialHash لا يزال لبيانات الصنف/النموذج
+                            // السابق)، فتظهر رسالة تصفّح غير صحيحة بدل تحميل الصنف المختار فعلياً.
+                            // loadData("Byid", ...) وحدها من تُحدِّث formData بالكامل عند النجاح.
+                            loadData("Byid", id)
+                          }}
+                          visible={true}
+                          priceCategoryId={1}
+                          productTypes={isService ? [2] : [1]}
+                          codeLabel={isService ? "رقم الخدمة *" : "رقم الصنف *"}
+                          searchTitle={isService ? "بحث الخدمات" : "بحث الأصناف"}
+                        />
+                      </div>
+                    </div>
 
+                    <div>
+                      <Label htmlFor="product_name" className="text-sm font-medium">
+                        {isService ? "اسم الخدمة *" : "اسم الصنف *"}
+                      </Label>
+                      <Input
+                        ref={product_name}
+                        id="product_name"
+                        value={formData.product_name}
+                        onChange={(e) => {
+                          updateFormData("product_name", e.target.value);
+                          if (formData.product_name_en === '')
+                            updateFormData("product_name_en", e.target.value)
+                        }}
+                        className="text-right"
+                        placeholder={isService ? "اسم الخدمة باللغة العربية" : "اسم الصنف باللغة العربية"}
+                        required
+                      />
+                    </div>
 
-                  <div className="col-span-1 xl:col-span-2 w-full">
-                    <ProductCodeInput
-                      formData={formData}
-                      handleProductCodeChange={(code) => setFormData((prev) => ({ ...prev, product_code: code }))}
-                      onBlur={async () => {
-                        const adjustedCode = adjustCode(formData.product_code || "")
-                        setFormData((prev) => ({ ...prev, product_code: adjustedCode }))
-                        await searchProductByCode(adjustedCode)
-                      }}
-                      onSelectProductId={(id) => {
-                        setFormData((prev) => ({
-                          ...prev,
-                          id: Number(id), // convert string → number
-                        }))
-                        loadData("Byid", id)
-                      }}
-                      visible={true}
-                      priceCategoryId={1}
-                      productTypes={isService ? [2] : [1]}
-                      codeLabel={isService ? "رقم الخدمة *" : "رقم الصنف *"}
-                      searchTitle={isService ? "بحث الخدمات" : "بحث الأصناف"}
-                    />
-                  </div>
-                  {/* Arabic Name - 5 columns */}
-                  <div className="col-span-1 lg:col-span-5 xl:col-span-5">
-                    <Label htmlFor="product_name" className="text-sm font-medium">
-                      {isService ? "اسم الخدمة *" : "اسم الصنف *"}
-                    </Label>
-                    <Input
-                      ref={product_name}
-                      id="product_name"
-                      value={formData.product_name}
-                      onChange={(e) => {
-                        updateFormData("product_name", e.target.value);
-                        if (formData.product_name_en === '')
-                          updateFormData("product_name_en", e.target.value)
-                      }}
-                      className="text-right"
-                      placeholder={isService ? "اسم الخدمة باللغة العربية" : "اسم الصنف باللغة العربية"}
-                      required
-                    />
+                    <div>
+                      <Label htmlFor="product_name_en" className="text-sm font-medium">
+                        {isService ? "اسم الخدمة بالإنجليزية" : "اسم الصنف بالإنجليزية"}
+                      </Label>
+                      <Input
+                        id="product_name_en"
+                        value={formData.product_name_en}
+                        onChange={(e) => updateFormData("product_name_en", e.target.value)}
+                        className="text-left"
+                        placeholder={isService ? "اسم الخدمة بالإنجليزية" : "اسم الصنف بالإنجليزية"}
+                      />
+                    </div>
                   </div>
 
-                  {/* English Name - 5 columns */}
-                  <div className="col-span-1 lg:col-span-5 xl:col-span-5">
-                    <Label htmlFor="product_name_en" className="text-sm font-medium">
-                      {isService ? "اسم الخدمة بالإنجليزية" : "اسم الصنف بالإنجليزية"}
-                    </Label>
-                    <Input
-                      id="product_name_en"
-                      value={formData.product_name_en}
-                      onChange={(e) => updateFormData("product_name_en", e.target.value)}
-                      className="text-left"
-                      placeholder={isService ? "اسم الخدمة بالإنجليزية" : "اسم الصنف بالإنجليزية"}
-                    />
-                  </div>
+                  <ImageUploadField
+                    value={formData.product_image}
+                    onChange={(value) => updateFormData("product_image", value)}
+                    label={isService ? "صورة الخدمة" : "صورة الصنف"}
+                    size={160}
+                  />
                 </div>
 
 
@@ -2073,20 +2146,6 @@ export function CompactProductForm({
                           unitName={dialogUnitName}
                           barcodes={dialogBarcodes}
                           onUpdateBarcodes={(newBarcodes) => setDialogBarcodes(newBarcodes)}
-                        />
-                        <ProductNumbers
-                          open={originalNumbersDialogOpen}
-                          onOpenChange={setOriginalNumbersDialogOpen}
-                          title="الرقم الأصلي"
-                          numbers={formData.original_numbers}
-                          onUpdateNumbers={(newNumbers) => updateFormData("original_numbers", newNumbers)}
-                        />
-                        <ProductNumbers
-                          open={factoryNumbersDialogOpen}
-                          onOpenChange={setFactoryNumbersDialogOpen}
-                          title="رقم المصنع"
-                          numbers={formData.factory_numbers}
-                          onUpdateNumbers={(newNumbers) => updateFormData("factory_numbers", newNumbers)}
                         />
                       </div>
                     </div>
@@ -2798,6 +2857,32 @@ export function CompactProductForm({
           </form>
         </div>
       </div>
+      {/* خارج <Tabs> عمداً — زرّا "اضافة" لهما في تبويب "معلومات إضافية"، بينما كانت هاتان
+          النافذتان مُعشَّشتين سابقاً داخل TabsContent="units"؛ Radix Tabs لا يُبقي محتوى التبويبات
+          غير النشطة في DOM افتراضياً، فكان الضغط على "اضافة" من تبويب آخر لا يُظهر شيئاً إطلاقاً
+          لأن هاتين النافذتين لم تكونا موجودتين في DOM أصلاً حينها. */}
+      <ProductNumbers
+        open={originalNumbersDialogOpen}
+        onOpenChange={setOriginalNumbersDialogOpen}
+        title="الرقم الأصلي"
+        numbers={formData.original_numbers}
+        onUpdateNumbers={(newNumbers) => updateFormData("original_numbers", newNumbers)}
+        numberType={1}
+        excludeProductId={formData.id}
+        currentProductName={formData.product_name}
+        onDuplicateError={(message) => toast.current?.show({ severity: "error", summary: "", detail: message, life: 4000 })}
+      />
+      <ProductNumbers
+        open={factoryNumbersDialogOpen}
+        onOpenChange={setFactoryNumbersDialogOpen}
+        title="رقم المصنع"
+        numbers={formData.factory_numbers}
+        onUpdateNumbers={(newNumbers) => updateFormData("factory_numbers", newNumbers)}
+        numberType={2}
+        excludeProductId={formData.id}
+        currentProductName={formData.product_name}
+        onDuplicateError={(message) => toast.current?.show({ severity: "error", summary: "", detail: message, life: 4000 })}
+      />
       {costCenterSearchOpen && selectedCostCenterType && (
         <SearchCostCenterDialog
           open={costCenterSearchOpen}

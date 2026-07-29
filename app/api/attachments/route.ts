@@ -7,6 +7,18 @@ import { ensureTables, isAllowedModel, resolveStorageDir, generateStoredFileName
 // IIS/Windows هنا، لا تخزيناً سحابياً بحداً منفصلاً خاصاً به).
 const MAX_FILE_SIZE = 20 * 1024 * 1024
 
+// خادم Node 18 هنا (لا 20+) لا يُعرِّف صنف File عالمياً (أُضيف فقط بدءاً من Node 20) — استخدام
+// "instanceof File" مباشرة يرمي ReferenceError: File is not defined عند أي رفع ملف (وليس PDF
+// تحديداً كما بدا ظاهرياً؛ كل رفع كان يفشل بنفس الخطأ). فحص بنيوي (duck typing) هنا بدل الاعتماد
+// على وجود الصنف العالمي، يعمل مع أي كائن ملف حقيقي أعادته request.formData() بصرف النظر عن نسخة
+// Node المشغّلة.
+const isUploadedFile = (value: FormDataEntryValue | null): value is File =>
+  !!value &&
+  typeof value === "object" &&
+  typeof (value as any).arrayBuffer === "function" &&
+  typeof (value as any).size === "number" &&
+  typeof (value as any).name === "string"
+
 export async function GET(request: NextRequest) {
   try {
     await ensureTables()
@@ -44,7 +56,7 @@ export async function POST(request: NextRequest) {
     if (!isAllowedModel(modelName) || !Number.isFinite(recordId) || recordId <= 0) {
       return NextResponse.json({ error: "معطيات غير صالحة" }, { status: 400 })
     }
-    if (!(file instanceof File)) {
+    if (!isUploadedFile(file)) {
       return NextResponse.json({ error: "يجب اختيار ملف" }, { status: 400 })
     }
     if (file.size > MAX_FILE_SIZE) {
@@ -65,6 +77,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(result[0], { status: 201 })
   } catch (error) {
     console.error("Error uploading attachment:", error)
-    return NextResponse.json({ error: "Failed to upload attachment" }, { status: 500 })
+    const message = error instanceof Error ? error.message : String(error)
+    return NextResponse.json({ error: `فشل رفع المرفق: ${message}` }, { status: 500 })
   }
 }

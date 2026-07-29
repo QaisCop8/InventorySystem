@@ -96,7 +96,7 @@ interface UnifiedCreditNoteProps {
   errorMessages?: string[]
 }
 
-const normalizeVoucherCode = (value: string) => value.toUpperCase().replace(/[^A-Z0-9-]/g, "")
+const normalizeVoucherCode = (value: string) => value.toUpperCase().replace(/[^A-Z0-9-]/g, "").slice(0, 10)
 const numberValue = (value: number | null | undefined) => (value === null || value === undefined ? "" : String(value))
 
 const blockNonNumericKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -473,7 +473,7 @@ export default function UnifiedCreditNote({
                           value={form.vch_code}
                           onChange={(e) => onFormChange("vch_code", normalizeVoucherCode(e.target.value))}
                           onBlur={handleCodeBlur}
-                          maxLength={20}
+                          maxLength={10}
                           className="focus-visible:border-emerald-400 focus-visible:ring-emerald-100"
                         />
                       </div>

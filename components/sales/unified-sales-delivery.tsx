@@ -14,6 +14,8 @@ import ProgressSpinner from "@/components/ProgressSpinner/ProgressSpinner"
 import DataGridView from "@/components/common/DataGridView"
 import AttachmentManager from "@/components/common/AttachmentManager"
 import AutoCompleteAccount from "@/components/customer/auto-complete-account"
+import AccountSearchDialog, { type AccountItem } from "@/components/customer/account-search-dialog"
+import AccountCostCenters, { type JournalCostCenterSelection } from "@/components/customer/account-cost-centers"
 import ProductSearchPopup from "@/components/products/ProductSearchPopup"
 import StoresSearchPopup from "@/components/products/StoresSearchPopup"
 import UnitsSearchPopup from "@/components/products/UnitsSearchPopup"
@@ -21,6 +23,7 @@ import PostVoucherDialog, { type PostVoucherAction } from "@/components/common/p
 import ItemExpiryDatePicker, { type ExpiryLotAllocation } from "@/components/common/ItemExpiryDatePicker"
 import { CellRange, KeyAction } from "@grapecity/wijmo.grid"
 import * as wjcCore from "@grapecity/wijmo"
+import { Menu } from "@grapecity/wijmo.input"
 import PrimeDropdown from "@/components/common/FocusDropdown"
 import DateTimeControl from "@/components/common/date-time-control"
 import Util from "@/components/common/Util"
@@ -29,10 +32,30 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator"
 import { FileText, Package, Calculator, MessageSquare, Wallet, TrendingUp, Percent } from "lucide-react"
 
-// vch_type per voucher_types_tbl (app/api/sales-vouchers/_lib.ts, IDs 16-23): هذا المكوّن يخدم
-// النوع 17 (إرسالية مبيعات) حصراً حالياً — البادئة الثابتة هنا بدل استيرادها من _lib.ts (كود خادم
-// يستخدم `sql` مباشرة، لا يجوز استيراده داخل مكوّن "use client").
-export const DELIVERY_SELL_VCH_TYPE = 17
+// vch_type per voucher_types_tbl (app/api/sales-vouchers/_lib.ts, IDs 16-23) — هذا المكوّن يخدم
+// الأنواع الثمانية جميعها الآن عبر خاصية voucherType (بنفس أسلوب unified-stock-voucher.tsx مع
+// أنواعه الأربعة)، بدل خدمة النوع 17 (إرسالية مبيعات) حصراً كما كان. الثوابت هنا بدل استيرادها من
+// _lib.ts (كود خادم يستخدم `sql` مباشرة، لا يجوز استيراده داخل مكوّن "use client").
+export type SalesVoucherSubType = 16 | 17 | 18 | 19 | 20 | 21 | 22 | 23
+export const SALES_INVOICE_VCH_TYPE: SalesVoucherSubType = 16
+export const DELIVERY_SELL_VCH_TYPE: SalesVoucherSubType = 17
+export const DELIVERY_CONSIGNMENT_SALE_VCH_TYPE: SalesVoucherSubType = 18
+export const RETURN_DELIVERY_CONSIGNMENT_SALE_VCH_TYPE: SalesVoucherSubType = 19
+export const RETURN_SELL_VCH_TYPE: SalesVoucherSubType = 20
+export const PURCHASE_INVOICE_VCH_TYPE: SalesVoucherSubType = 21
+export const DELIVERY_PAY_VCH_TYPE: SalesVoucherSubType = 22
+export const RETURN_PURCHASE_VCH_TYPE: SalesVoucherSubType = 23
+
+export const SALES_VOUCHER_TYPE_LABELS: Record<SalesVoucherSubType, { title: string; listTitle: string }> = {
+  16: { title: "فاتورة مبيعات", listTitle: "فواتير المبيعات" },
+  17: { title: "إرسالية مبيعات", listTitle: "إرساليات المبيعات" },
+  18: { title: "إرسالية برسم البيع", listTitle: "إرساليات برسم البيع" },
+  19: { title: "مرتجع إرسالية برسم البيع", listTitle: "مرتجعات إرسالية برسم البيع" },
+  20: { title: "مرتجع مبيعات", listTitle: "مرتجعات المبيعات" },
+  21: { title: "فاتورة مشتريات", listTitle: "فواتير المشتريات" },
+  22: { title: "إرسالية مشتريات", listTitle: "إرساليات المشتريات" },
+  23: { title: "مرتجع مشتريات", listTitle: "مرتجعات المشتريات" },
+}
 
 export interface SalesVoucherItemRow {
   product_id: number | null
@@ -71,6 +94,17 @@ export interface SalesVoucherItemRow {
   // للعرض فقط (تفاصيل كميات الصنف) — لا تُرسَل للحفظ.
   current_stock?: number
   units?: { unit_id: number; unit_name: string; price: number; barcode: string; to_main_qnty: number }[]
+  // تبويب "تفاصيل حسابات الاصناف" — يظهر فقط لفاتورة مبيعات/مشتريات ومردود مبيعات/مشتريات (انظر
+  // ITEM_ACCOUNT_CONFIG أدناه). حساب واحد لكل سطر (بخلاف سند الاستعمال في unified-stock-voucher.tsx
+  // الذي يحمل حسابَي مشتريات/مصروف معاً)، يُملأ تلقائياً من حساب الصنف نفسه إن وُجد وإلا من الحساب
+  // الافتراضي المُعرَّف بالإعدادات العامة، وقابل للتعديل يدوياً عبر زر البحث.
+  account_id: number | null
+  account_code?: string
+  account_name?: string
+  account_cost_centers?: JournalCostCenterSelection[]
+  // السعر غ.ش (غير شامل الضريبة) — للعرض فقط، يُحتسَب من unit_price ونسبة ضريبة السند كاملاً
+  // (form.vat_percent) عند كل مزامنة لـitemsCollectionView، وليس حقلاً محفوظاً بذاته.
+  unit_price_excl_tax?: number
 }
 
 export interface SalesDeliveryRecord {
@@ -117,10 +151,12 @@ interface WarehouseOption {
 }
 
 interface UnifiedSalesDeliveryProps {
+  voucherType: SalesVoucherSubType
   dialogOpen: boolean
   onOpenChange: (open: boolean) => void
   form: SalesDeliveryRecord
   onFormChange: <K extends keyof SalesDeliveryRecord>(field: K, value: SalesDeliveryRecord[K]) => void
+  onBookChange?: (bookId: number | null) => void
   onItemsChange: (items: SalesVoucherItemRow[]) => void
   voucherBooks?: LookupOption[]
   currencyOptions?: CurrencyOption[]
@@ -145,15 +181,13 @@ interface UnifiedSalesDeliveryProps {
   errorMessages?: string[]
 }
 
-const TITLE = "إرسالية مبيعات"
-
 // تاريخ اصطلاحي لصنف بلا تتبع صلاحية فعلي — نفس القيمة والسبب المُستخدَمين في unified-stock-voucher.tsx
 // وstock-vouchers/_lib.ts (NO_EXPIRY_SENTINEL_DATE) للتوافق مع نفس ledger "المتاح".
 const DEFAULT_EXPIRY_DATE = "1990-01-01"
 
 const numberValue = (value: number | null | undefined) => (value === null || value === undefined ? "" : value)
 
-const normalizeVoucherCode = (value: string) => value.toUpperCase().replace(/[^A-Z0-9-]/g, "")
+const normalizeVoucherCode = (value: string) => value.toUpperCase().replace(/[^A-Z0-9-]/g, "").slice(0, 10)
 
 export const toGridDateString = (value: string | null | undefined): string => (value || "").trim().slice(0, 10)
 
@@ -262,6 +296,18 @@ const emptyItemRow: SalesVoucherItemRow = {
   width: null,
   height: null,
   count: null,
+  account_id: null,
+}
+
+// تبويب "تفاصيل حسابات الاصناف" يظهر فقط لفاتورة مبيعات/مشتريات ومردود مبيعات/مشتريات (وليس
+// لأنواع الإرسالية الأربعة الأخرى) — لكل نوع حقل حساب على الصنف نفسه (products.<productField>)
+// يُقرأ أولاً، وإلا فالحساب الافتراضي من الإعدادات العامة (system_settings.<settingsKey>، انظر
+// default_selling_account_id وأخواتها في components/settings/system-settings.tsx).
+const ITEM_ACCOUNT_CONFIG: Partial<Record<SalesVoucherSubType, { productField: string; settingsKey: string }>> = {
+  [SALES_INVOICE_VCH_TYPE]: { productField: "selling_account_id", settingsKey: "default_selling_account_id" },
+  [RETURN_SELL_VCH_TYPE]: { productField: "selling_returns_account_id", settingsKey: "default_selling_returns_account_id" },
+  [PURCHASE_INVOICE_VCH_TYPE]: { productField: "purchase_account_id", settingsKey: "default_purchase_account_id" },
+  [RETURN_PURCHASE_VCH_TYPE]: { productField: "purchase_returns_account_id", settingsKey: "default_purchase_returns_account_id" },
 }
 
 // مبلغ السطر = الكمية × السعر فقط — لا خصم/ضريبة بمستوى السطر (نُقِلا لمستوى السند كاملاً، انظر
@@ -274,10 +320,12 @@ const recalcLineAmounts = (row: SalesVoucherItemRow): Pick<SalesVoucherItemRow, 
 }
 
 export default function UnifiedSalesDelivery({
+  voucherType,
   dialogOpen,
   onOpenChange,
   form,
   onFormChange,
+  onBookChange,
   onItemsChange,
   voucherBooks = [],
   currencyOptions = [],
@@ -301,6 +349,11 @@ export default function UnifiedSalesDelivery({
   onCodeNotFound,
   errorMessages = [],
 }: UnifiedSalesDeliveryProps) {
+  const TITLE = SALES_VOUCHER_TYPE_LABELS[voucherType].title
+  // عنوان بطاقة الملخص أعلى الشاشة يتبع نوع السند الفعلي بدل "ملخص الطلبية" الثابت: فاتورة
+  // لفاتورة مبيعات/مشتريات، مرتجع لمرتجع مبيعات/مشتريات (بما فيها مرتجع إرسالية برسم البيع)،
+  // وإرسالية لبقية الأنواع (إرسالية مبيعات/برسم البيع/مشتريات).
+  const summaryLabel = TITLE.includes("مرتجع") ? "ملخص المرتجع" : TITLE.includes("فاتورة") ? "ملخص الفاتورة" : "ملخص الارسالية"
   const { toast } = useToast()
   const isLocked = form.status === 2 || form.status === 3
   const statusBadge =
@@ -328,6 +381,27 @@ export default function UnifiedSalesDelivery({
   const pendingActionRef = useRef<(() => void) | null>(null)
   const [customerInfo, setCustomerInfo] = useState<{ credit_limit: string; address: string } | null>(null)
   const [stockByProductId, setStockByProductId] = useState<Record<number, number>>({})
+
+  // تبويب "تفاصيل حسابات الاصناف" — نفس نمط ensureAccountsLoaded/ensureDefaultItemAccountsLoaded/
+  // resolveAccountDefaults في unified-stock-voucher.tsx (سند الاستعمال)، لكن بحساب واحد لكل سطر
+  // بدل حسابَي مشتريات/مصروف معاً.
+  const itemAccountConfig = ITEM_ACCOUNT_CONFIG[voucherType]
+  const showAccountsTab = Boolean(itemAccountConfig)
+  const [accountsList, setAccountsList] = useState<AccountItem[]>([])
+  const accountsListRef = useRef<AccountItem[]>([])
+  const accountsFetchRef = useRef<Promise<AccountItem[]> | null>(null)
+  const defaultAccountIdRef = useRef<number | null | undefined>(undefined)
+  const defaultAccountFetchRef = useRef<Promise<number | null> | null>(null)
+  const [itemAccountsSearchOpen, setItemAccountsSearchOpen] = useState(false)
+  const [itemAccountsSearchRow, setItemAccountsSearchRow] = useState<number | null>(null)
+  const [itemCostCenterOpen, setItemCostCenterOpen] = useState(false)
+  const [itemCostCenterAccount, setItemCostCenterAccount] = useState<AccountItem | null>(null)
+  const [itemCostCenterRow, setItemCostCenterRow] = useState<number | null>(null)
+  // شبكة الحسابات FlexGrid منفصل فعلياً عن شبكة الأصناف الرئيسية (itemsGridRef) — تحتاج مرجع
+  // تركيز خاصاً بها، نفس accountsGridRef/lastAccountsFocusedCellRef في unified-stock-voucher.tsx.
+  const accountsGridRef = useRef<any>(null)
+  const pendingAccountsFocusRef = useRef<{ row: number; col: string } | null>(null)
+  const lastAccountsFocusedCellRef = useRef<{ row: number; col: string } | null>(null)
 
   useEffect(() => {
     if (errorMessages.length > 0) {
@@ -389,7 +463,7 @@ export default function UnifiedSalesDelivery({
     const raw = form.vch_code.trim()
     if (!raw) return
     try {
-      const query = new URLSearchParams({ vch_type: String(DELIVERY_SELL_VCH_TYPE), raw })
+      const query = new URLSearchParams({ vch_type: String(voucherType), raw })
       if (form.vch_book_id) query.set("vch_book_id", String(form.vch_book_id))
       const response = await fetch(`/api/sales-vouchers/resolve-code?${query.toString()}`)
       const data = await response.json()
@@ -430,17 +504,17 @@ export default function UnifiedSalesDelivery({
   // تُظهِر عمود بُعد بعينه (طول/عرض/ارتفاع/عدد) تلقائياً حتى لو كان مخفياً بإعدادات السند إن كان أي
   // صنف مُدرَج فعلياً بالسند يحتاجه بحسب نوع قياسه — نفس منطق unified-stock-voucher.tsx تماماً.
   const showLengthColumn =
-    Util.getVoucherSettingScreenData(DELIVERY_SELL_VCH_TYPE, "length") || items.some((i) => measurementRequiresLength(Number(i.measurment_id || 1)))
+    Util.getVoucherSettingScreenData(voucherType, "length") || items.some((i) => measurementRequiresLength(Number(i.measurment_id || 1)))
   const showWidthColumn =
-    Util.getVoucherSettingScreenData(DELIVERY_SELL_VCH_TYPE, "width") || items.some((i) => measurementRequiresWidth(Number(i.measurment_id || 1)))
+    Util.getVoucherSettingScreenData(voucherType, "width") || items.some((i) => measurementRequiresWidth(Number(i.measurment_id || 1)))
   const showHeightColumn =
-    Util.getVoucherSettingScreenData(DELIVERY_SELL_VCH_TYPE, "height") || items.some((i) => measurementRequiresHeight(Number(i.measurment_id || 1)))
+    Util.getVoucherSettingScreenData(voucherType, "height") || items.some((i) => measurementRequiresHeight(Number(i.measurment_id || 1)))
   const showCountColumn =
-    Util.getVoucherSettingScreenData(DELIVERY_SELL_VCH_TYPE, "count") || items.some((i) => measurementRequiresCount(Number(i.measurment_id || 1)))
+    Util.getVoucherSettingScreenData(voucherType, "count") || items.some((i) => measurementRequiresCount(Number(i.measurment_id || 1)))
   // تاريخ الانتهاء: يظهر فقط إن كان مفعّلاً بإعدادات السند وكان يوجد فعلياً صنف واحد على الأقل متتبَّع
   // (تاريخ صلاحية أو رقم تشغيلي) بالسند — لا فائدة من عمود يبقى فارغاً دوماً لسند لا يحوي أي صنف متتبَّع.
   const showExpiryColumn =
-    Util.getVoucherSettingScreenData(DELIVERY_SELL_VCH_TYPE, "expiry_date") && items.some((i) => i.has_expiry || i.has_batch)
+    Util.getVoucherSettingScreenData(voucherType, "expiry_date") && items.some((i) => i.has_expiry || i.has_batch)
   // نفس سبب warehousesRef/defaultItemWarehouseIdRef أعلاه: تُقرَأ من handleBeginningEdit/handleKeyDown
   // المربوطين بخاصيتَي beginningEdit/onKeyDown لِـWijmo، فلا تُعاد قراءتهما تلقائياً عند كل تحديث ما
   // لم تُستخدَم عبر .current.
@@ -504,6 +578,19 @@ export default function UnifiedSalesDelivery({
     )
   }
 
+  const restoreAccountsGridFocus = (target: { row: number; col: string } | null) => {
+    if (!target) return
+    waitForGridReady(
+      () => accountsGridRef.current,
+      (grid) => {
+        selectCell(grid, target.row, target.col)
+        grid.focus()
+      },
+      20,
+      target.row + 1,
+    )
+  }
+
   const handleRequestSaveRef = useRef<() => void>(() => {})
 
   useEffect(() => {
@@ -534,7 +621,14 @@ export default function UnifiedSalesDelivery({
       ? { row: gridBeforeSync.selection.row, col: gridBeforeSync.selection.col }
       : null
 
-    itemsCollectionView.sourceCollection = items.map((row, i) => ({ ...row, ser: i + 1 }))
+    // السعر غ.ش (غير شامل الضريبة) — حقل عرض فقط يُحتسَب هنا من unit_price ونسبة ضريبة السند كاملاً
+    // (form.vat_percent، ضريبة على مستوى السند وليس السطر)، وليس حقلاً محفوظاً بذاته.
+    const vatPercent = Number(form.vat_percent || 0)
+    itemsCollectionView.sourceCollection = items.map((row, i) => ({
+      ...row,
+      ser: i + 1,
+      unit_price_excl_tax: vatPercent > 0 ? Math.round((Number(row.unit_price || 0) / (1 + vatPercent / 100)) * 100) / 100 : Number(row.unit_price || 0),
+    }))
     itemsCollectionView.refresh()
 
     const pending = pendingFocusRef.current
@@ -555,8 +649,22 @@ export default function UnifiedSalesDelivery({
         grid.select(new CellRange(prevSelection.row, prevSelection.col))
       }
     }
+
+    const pendingAccounts = pendingAccountsFocusRef.current
+    if (pendingAccounts) {
+      pendingAccountsFocusRef.current = null
+      waitForGridReady(
+        () => accountsGridRef.current,
+        (grid) => {
+          selectCell(grid, pendingAccounts.row, pendingAccounts.col)
+          grid.focus()
+        },
+        20,
+        pendingAccounts.row + 1,
+      )
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [items])
+  }, [items, form.vat_percent])
 
   // تفاصيل كميات الصنف: يجلب current_stock الفعلي (product_stock) لكل صنف مختلف بالسند عبر
   // /api/inventory/products?id=<id> — يُعاد الجلب فقط عند تغيّر مجموعة الأصناف المختارة فعلياً (لا
@@ -679,6 +787,181 @@ export default function UnifiedSalesDelivery({
     hasBatch: Boolean(product?.has_batch_number),
   })
 
+  // نفس ensureAccountsLoaded في unified-stock-voucher.tsx (سند الاستعمال) — تُجلَب مرة واحدة فقط
+  // لهذه الشاشة ولا تُعاد إن كانت مُحمَّلة مسبقاً.
+  const ensureAccountsLoaded = (): Promise<AccountItem[]> => {
+    if (accountsListRef.current.length > 0) return Promise.resolve(accountsListRef.current)
+    if (!accountsFetchRef.current) {
+      accountsFetchRef.current = fetch("/api/accounts")
+        .then((res) => (res.ok ? res.json() : []))
+        .then((data) => {
+          const mapped: AccountItem[] = Array.isArray(data)
+            ? data.map((item: any) => ({
+                id: Number(item.id),
+                code: String(item.code || item.account_code || ""),
+                name: String(item.name || item.account_name || ""),
+                name_lang2: item.name_lang2 ?? null,
+                level_no: Number(item.level_no || 1),
+                finanical_list_id: Number(item.finanical_list_id || 1),
+                currency_id: item.currency_id != null ? Number(item.currency_id) : null,
+                allow_trans_with_diff_curr: Number(item.allow_trans_with_diff_curr || 0),
+                iscalc_curr_diff_rates: Boolean(item.iscalc_curr_diff_rates),
+                transaction_type: Number(item.transaction_type || 0),
+                transaction_type_action: Number(item.transaction_type_action || 0),
+                max_transaction_amount: Number(item.max_transaction_amount || 0),
+                max_transaction_amount_action: Number(item.max_transaction_amount_action || 0),
+                max_balance_amount: Number(item.max_balance_amount || 0),
+                show_notes_in_transactions_soa: Boolean(item.show_notes_in_transactions_soa),
+                status: item.status || "نشط",
+                cost_centers: Array.isArray(item.cost_centers) ? item.cost_centers : [],
+              }))
+            : []
+          accountsListRef.current = mapped
+          setAccountsList(mapped)
+          return mapped
+        })
+        .catch(() => {
+          accountsListRef.current = []
+          setAccountsList([])
+          return []
+        })
+    }
+    return accountsFetchRef.current
+  }
+
+  // الحساب الافتراضي لهذا النوع من إعدادات النظام العامة (system_settings.<settingsKey> —
+  // default_selling_account_id وأخواتها) — يُستخدَم فقط إن لم يحمل الصنف نفسه حساباً خاصاً به.
+  const ensureDefaultAccountLoaded = (): Promise<number | null> => {
+    if (defaultAccountIdRef.current !== undefined) return Promise.resolve(defaultAccountIdRef.current)
+    if (!defaultAccountFetchRef.current) {
+      defaultAccountFetchRef.current = fetch("/api/settings/system")
+        .then((res) => (res.ok ? res.json() : {}))
+        .then((settings: any) => {
+          const key = itemAccountConfig?.settingsKey
+          const resolved = key && settings?.[key] ? Number(settings[key]) : null
+          defaultAccountIdRef.current = resolved
+          return resolved
+        })
+        .catch(() => {
+          defaultAccountIdRef.current = null
+          return null
+        })
+    }
+    return defaultAccountFetchRef.current
+  }
+
+  // حساب الصنف لهذا السطر: أولاً حقل حساب الصنف نفسه (products.<productField>) إن كان أكبر من
+  // صفر، وإلا الحساب الافتراضي بالإعدادات العامة — نفس منطق resolveAccountDefaults في
+  // unified-stock-voucher.tsx بحساب واحد بدل حسابَين.
+  const resolveItemAccountDefault = async (product: any): Promise<{ id: number; code: string; name: string } | null> => {
+    if (!itemAccountConfig) return null
+    const [accounts, defaultAccountId] = await Promise.all([ensureAccountsLoaded(), ensureDefaultAccountLoaded()])
+    const productAccountId = Number(product?.[itemAccountConfig.productField]) > 0 ? Number(product[itemAccountConfig.productField]) : null
+    const accountId = productAccountId || defaultAccountId
+    if (!accountId) return null
+    const account = accounts.find((a) => a.id === accountId)
+    return account ? { id: account.id, code: account.code, name: account.name } : { id: accountId, code: "", name: "" }
+  }
+
+  // زر "مراكز التكلفة" بشبكة الحسابات — نفس openItemCostCenter في unified-stock-voucher.tsx.
+  const openItemCostCenter = (index: number) => {
+    const row = itemsRef.current[index]
+    const accountId = row?.account_id
+    if (!accountId) return
+    const account = accountsListRef.current.find((a) => a.id === accountId) || null
+    lastAccountsFocusedCellRef.current = { row: index, col: "btnCostCenter" }
+    popupHasCalled()
+    setItemCostCenterAccount(account)
+    setItemCostCenterOpen(true)
+    setItemCostCenterRow(index)
+  }
+
+  // تُجلَب مسبقاً عند فتح الشاشة فقط لأنواع السندات الأربعة التي تستخدم هذا التبويب فعلياً.
+  useEffect(() => {
+    if (!dialogOpen || !showAccountsTab) return
+    void ensureAccountsLoaded()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dialogOpen, showAccountsTab])
+
+  // "نسخ الحساب الى اسفل" / "نسخ مراكز التكلفة الى اسفل" — قائمة كليك يمين على عمود "رقم الحساب"
+  // بشبكة تفاصيل حسابات الاصناف. تُطبَّق فقط على الأسطر التي تحمل صنفاً فعلياً (product_id) أسفل
+  // السطر المُختار (لا فوقه، ولا على أسطر فارغة بلا صنف بعد)، عبر patchItemRow/onItemsChange بدل
+  // التعديل المباشر على itemsCollectionView حتى تبقى حالة React (form.items) متزامنة قبل الحفظ.
+  const copyAccountToRowsBelow = (sourceIndex: number) => {
+    if (isLocked) return
+    const source = itemsRef.current[sourceIndex]
+    if (!source?.account_id) return
+    const next = itemsRef.current.map((row, i) => {
+      if (i <= sourceIndex || !(Number(row.product_id) > 0)) return row
+      return { ...row, account_id: source.account_id, account_code: source.account_code, account_name: source.account_name }
+    })
+    itemsRef.current = next
+    onItemsChange(next)
+  }
+
+  const copyCostCentersToRowsBelow = (sourceIndex: number) => {
+    if (isLocked) return
+    const source = itemsRef.current[sourceIndex]
+    const sourceCostCenters = Array.isArray(source?.account_cost_centers) ? source!.account_cost_centers : []
+    const next = itemsRef.current.map((row, i) => {
+      if (i <= sourceIndex || !(Number(row.product_id) > 0)) return row
+      return { ...row, account_cost_centers: [...sourceCostCenters] }
+    })
+    itemsRef.current = next
+    onItemsChange(next)
+  }
+
+  // قائمة الكليك يمين نفسها تُبنى وتُربَط من جديد كل مرة يُفتَح فيها تبويب "تفاصيل حسابات الاصناف"
+  // فعلياً (لا فقط عند فتح الشاشة) — Radix Tabs يُلغي تركيب محتوى التبويب غير النشط افتراضياً
+  // (unmount)، فتُستبدَل شبكة الحسابات (accountsGridRef) بمثيل Wijmo جديد كل مرة يُعاد فيها فتح هذا
+  // التبويب تحديداً، ويجب إرفاق المستمع بمثيلها الجديد في كل مرة.
+  useEffect(() => {
+    if (!showAccountsTab || activeTab !== "accounts") return
+    waitForGridReady(
+      () => accountsGridRef.current,
+      (grid) => {
+        const menuHost = document.createElement("div")
+        menuHost.dir = "rtl"
+        const menu = new Menu(menuHost, {
+          owner: grid.hostElement,
+          displayMemberPath: "header",
+          subItemsPath: "",
+          commandParameterPath: "cmd",
+          openOnHover: true,
+          closeOnLeave: false,
+          itemsSource: [
+            { header: "نسخ الحساب الى اسفل", cmd: "copyAccountDown" },
+            { header: "نسخ مراكز التكلفة الى اسفل", cmd: "copyCostCentersDown" },
+          ],
+          command: {
+            canExecuteCommand: () => true,
+            executeCommand: (cmd: string) => {
+              const row = grid.selection?.row ?? -1
+              if (row < 0) return
+              if (cmd === "copyAccountDown") copyAccountToRowsBelow(row)
+              else if (cmd === "copyCostCentersDown") copyCostCentersToRowsBelow(row)
+            },
+          },
+        })
+        grid.menu = menu
+        grid.hostElement.addEventListener(
+          "contextmenu",
+          (e: any) => {
+            const ht = grid.hitTest(e)
+            if (ht.panel !== grid.cells) return
+            const col = grid.columns[ht.col]
+            if (!col || col.name !== "account_code") return
+            grid.select(ht.row, ht.col)
+            e.preventDefault()
+            menu.show(e)
+          },
+          true,
+        )
+      },
+    )
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showAccountsTab, activeTab])
+
   // كمية نفس الصنف/المستودع "المحجوزة" فعلياً بسطور أخرى غير محفوظة بعد — نفس computeReservedByLot
   // في unified-stock-voucher.tsx.
   const computeReservedByLot = (excludeRow: number, productId: number, warehouseId: number): Record<string, number> => {
@@ -714,6 +997,7 @@ export default function UnifiedSalesDelivery({
       const unitPrice = product.price != null ? Number(product.price) : 0
       const warehousePatch = resolveDefaultWarehouse(product)
       const { hasExpiry, hasBatch } = resolveBatchExpiryFlags(product)
+      const itemAccount = showAccountsTab ? await resolveItemAccountDefault(product) : null
       if (!isMountedRef.current) return
       const patched: SalesVoucherItemRow = {
         ...currentRow,
@@ -734,6 +1018,7 @@ export default function UnifiedSalesDelivery({
         product_density: product.density != null ? Number(product.density) : null,
         count: 1,
         ...(warehousePatch ? { warehouse_id: warehousePatch.id, warehouse_name: warehousePatch.name } : {}),
+        ...(itemAccount ? { account_id: itemAccount.id, account_code: itemAccount.code, account_name: itemAccount.name } : {}),
       }
       patchItemRow(row, { ...patched, ...recalcLineAmounts(patched) })
       if (autoAdvanceOnSuccess) {
@@ -884,6 +1169,7 @@ export default function UnifiedSalesDelivery({
     const currentRow = itemsRef.current[row]
     const warehousePatch = resolveDefaultWarehouse(product)
     const { hasExpiry, hasBatch } = resolveBatchExpiryFlags(product)
+    const itemAccount = showAccountsTab ? await resolveItemAccountDefault(product) : null
     if (!isMountedRef.current) return
     const unitPrice = unit?.price ?? product.first_price ?? 0
     const patched: SalesVoucherItemRow = {
@@ -903,6 +1189,7 @@ export default function UnifiedSalesDelivery({
       product_density: product.density != null ? Number(product.density) : null,
       count: 1,
       ...(warehousePatch ? { warehouse_id: warehousePatch.id, warehouse_name: warehousePatch.name } : {}),
+      ...(itemAccount ? { account_id: itemAccount.id, account_code: itemAccount.code, account_name: itemAccount.name } : {}),
     }
     patchItemRow(row, { ...patched, ...recalcLineAmounts(patched) })
     const nextFieldIndex = findNextRelevantFieldIndex(fieldOrder.indexOf("product_code") + 1, patched)
@@ -1008,9 +1295,9 @@ export default function UnifiedSalesDelivery({
       name: "SalesDeliveryItemsScheme",
       showFooter: false,
       columns: [
-        { header: "#", name: "ser", width: 45, isReadOnly: true, dataType: "Number", visible: Util.getVoucherSettingScreenData(DELIVERY_SELL_VCH_TYPE, "ser") },
-        { header: "الباركود", name: "barcode", width: 110, visible: Util.getVoucherSettingScreenData(DELIVERY_SELL_VCH_TYPE, "barcode") },
-        { header: "رقم الصنف", name: "product_code", width: 110, visible: Util.getVoucherSettingScreenData(DELIVERY_SELL_VCH_TYPE, "code") },
+        { header: "#", name: "ser", width: 45, isReadOnly: true, dataType: "Number", visible: Util.getVoucherSettingScreenData(voucherType, "ser") },
+        { header: "الباركود", name: "barcode", width: 110, visible: Util.getVoucherSettingScreenData(voucherType, "barcode") },
+        { header: "رقم الصنف", name: "product_code", width: 110, visible: Util.getVoucherSettingScreenData(voucherType, "code") },
         {
           header: " ",
           name: "btnSearchProduct",
@@ -1025,7 +1312,7 @@ export default function UnifiedSalesDelivery({
             popupHasCalled()
             setTimeout(() => setProductSearchOpen(true), 0)
           },
-          visible: Util.getVoucherSettingScreenData(DELIVERY_SELL_VCH_TYPE, "code"),
+          visible: Util.getVoucherSettingScreenData(voucherType, "code"),
           visibleInColumnChooser: true,
         },
         { header: "اسم الصنف", name: "product_name", width: "*", minWidth: 160, isReadOnly: true },
@@ -1034,7 +1321,7 @@ export default function UnifiedSalesDelivery({
           name: "warehouse_name",
           width: 120,
           isReadOnly: true,
-          visible: Util.getVoucherSettingScreenData(DELIVERY_SELL_VCH_TYPE, "store"),
+          visible: Util.getVoucherSettingScreenData(voucherType, "store"),
         },
         {
           header: " ",
@@ -1050,10 +1337,10 @@ export default function UnifiedSalesDelivery({
             popupHasCalled()
             setTimeout(() => setWarehouseSearchOpen(true), 0)
           },
-          visible: Util.getVoucherSettingScreenData(DELIVERY_SELL_VCH_TYPE, "store"),
+          visible: Util.getVoucherSettingScreenData(voucherType, "store"),
           visibleInColumnChooser: true,
         },
-        { header: "الوحدة", name: "unit", width: 80, isReadOnly: true, visible: Util.getVoucherSettingScreenData(DELIVERY_SELL_VCH_TYPE, "unit") },
+        { header: "الوحدة", name: "unit", width: 80, isReadOnly: true, visible: Util.getVoucherSettingScreenData(voucherType, "unit") },
         {
           header: " ",
           name: "btnSearchUnits",
@@ -1068,7 +1355,7 @@ export default function UnifiedSalesDelivery({
             popupHasCalled()
             setTimeout(() => setUnitsSearchOpen(true), 0)
           },
-          visible: Util.getVoucherSettingScreenData(DELIVERY_SELL_VCH_TYPE, "unit"),
+          visible: Util.getVoucherSettingScreenData(voucherType, "unit"),
           visibleInColumnChooser: true,
         },
         { header: "الطول", name: "length", width: 90, dataType: "Number", visible: showLengthColumn },
@@ -1083,15 +1370,23 @@ export default function UnifiedSalesDelivery({
           // للقراءة فقط لنوع قياس غير عادي — تُحتسَب تلقائياً من الأبعاد/العدد؛ المنع الفعلي بمستوى
           // الخلية عبر beginningEdit (isReadOnly هنا خاصية عمود ثابتة لا تفرّق بين الأسطر).
         },
-        { header: "البونص", name: "bonus_quantity", width: 80, dataType: "Number", visible: Util.getVoucherSettingScreenData(DELIVERY_SELL_VCH_TYPE, "bonus") },
-        { header: "السعر", name: "unit_price", width: 90, dataType: "Number", visible: Util.getVoucherSettingScreenData(DELIVERY_SELL_VCH_TYPE, "price") },
+        { header: "البونص", name: "bonus_quantity", width: 80, dataType: "Number", visible: Util.getVoucherSettingScreenData(voucherType, "bonus") },
+        { header: "السعر", name: "unit_price", width: 90, dataType: "Number", visible: Util.getVoucherSettingScreenData(voucherType, "price") },
+        {
+          header: "السعر غ.ش",
+          name: "unit_price_excl_tax",
+          width: 90,
+          dataType: "Number",
+          isReadOnly: true,
+          visible: Util.getVoucherSettingScreenData(voucherType, "price_excl_tax"),
+        },
         { header: "المبلغ", name: "total_price", width: 110, dataType: "Number", isReadOnly: true },
         {
           header: "الرقم التشغيلي",
           name: "batch_number",
           width: 110,
           isReadOnly: true,
-          visible: Util.getVoucherSettingScreenData(DELIVERY_SELL_VCH_TYPE, "batch"),
+          visible: Util.getVoucherSettingScreenData(voucherType, "batch"),
         },
         {
           header: "تاريخ الانتهاء",
@@ -1115,7 +1410,7 @@ export default function UnifiedSalesDelivery({
             setSerialsRow(ctx.row.index)
             setSerialsOpen(true)
           },
-          visible: Util.getVoucherSettingScreenData(DELIVERY_SELL_VCH_TYPE, "serial"),
+          visible: Util.getVoucherSettingScreenData(voucherType, "serial"),
           visibleInColumnChooser: true,
         },
         { header: "ملاحظة", name: "note", width: 130 },
@@ -1136,6 +1431,56 @@ export default function UnifiedSalesDelivery({
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }),
     [isLocked, showLengthColumn, showWidthColumn, showHeightColumn, showCountColumn, showExpiryColumn],
+  )
+
+  // شبكة تبويب "تفاصيل حسابات الاصناف" — تُبنى من نفس itemsCollectionView (نفس الأسطر بنفس
+  // الترتيب/الفهرسة الفعلية بالضبط كشبكة الاصناف الرئيسية)، بحساب واحد قابل للتعديل يدوياً عبر
+  // زر البحث بدل حسابَي مشتريات/مصروف معاً كسند الاستعمال في unified-stock-voucher.tsx.
+  const accountsScheme = useMemo(
+    () => ({
+      name: "SalesVoucherAccountsScheme",
+      showFooter: false,
+      columns: [
+        { header: "#", name: "ser", width: 45, isReadOnly: true, dataType: "Number" },
+        { header: "رقم الصنف", name: "product_code", width: 110, isReadOnly: true },
+        { header: "اسم الصنف", name: "product_name", width: "*", minWidth: 160, isReadOnly: true },
+        { header: "رقم الحساب", name: "account_code", width: 130, isReadOnly: true },
+        {
+          name: "btnSearchAccount",
+          header: " ",
+          width: 55,
+          buttonBody: "button",
+          align: "center",
+          title: "بحث عن حساب",
+          iconType: "search",
+          isReadOnly: true,
+          onClick: (e: any, ctx: any) => {
+            if (isLocked) return
+            if (!itemsRef.current[ctx.row.index]?.product_id) return
+            lastAccountsFocusedCellRef.current = { row: ctx.row.index, col: "btnSearchAccount" }
+            popupHasCalled()
+            setItemAccountsSearchRow(ctx.row.index)
+            setItemAccountsSearchOpen(true)
+          },
+          visible: true,
+        },
+        { header: "الحساب", name: "account_name", width: 200, isReadOnly: true },
+        {
+          name: "btnCostCenter",
+          header: "مراكز التكلفة",
+          width: 100,
+          buttonBody: "button",
+          align: "center",
+          title: "مراكز التكلفة",
+          iconType: "money",
+          isReadOnly: true,
+          onClick: (e: any, ctx: any) => openItemCostCenter(ctx.row.index),
+          visible: true,
+        },
+      ],
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }),
+    [isLocked],
   )
 
   // نافذة الأرقام التسلسلية لكل سطر — قائمة نصية بسيطة (مطابقة لـProductNumbers.tsx المستخدَم
@@ -1235,7 +1580,7 @@ export default function UnifiedSalesDelivery({
             <div className="flex flex-wrap items-center justify-between gap-4 p-4">
               <div className="flex items-center gap-2">
                 <TrendingUp className="h-5 w-5 text-emerald-700" />
-                <span className="text-sm font-medium">ملخص الطلبية</span>
+                <span className="text-sm font-medium">{summaryLabel}</span>
               </div>
               <div className="flex flex-wrap items-center gap-6 text-sm">
                 <div className="flex flex-col items-end">
@@ -1278,9 +1623,9 @@ export default function UnifiedSalesDelivery({
                     disabled={isLocked}
                     className="invoice-currency-dropdown w-full"
                     panelClassName="invoice-currency-dropdown-panel"
-                    appendTo="self"
+                    appendTo={document.body}
                     panelStyle={{ zIndex: 10000 }}
-                    onChange={(e: any) => onFormChange("vch_book_id", e.value ?? null)}
+                    onChange={(e: any) => (onBookChange ? onBookChange(e.value ?? null) : onFormChange("vch_book_id", e.value ?? null))}
                   />
                 </div>
                 <div className="grid gap-1.5">
@@ -1291,7 +1636,7 @@ export default function UnifiedSalesDelivery({
                     value={form.vch_code}
                     onChange={(e) => onFormChange("vch_code", normalizeVoucherCode(e.target.value))}
                     onBlur={handleCodeBlur}
-                    maxLength={20}
+                    maxLength={10}
                   />
                 </div>
                 <div className="grid gap-1.5">
@@ -1395,6 +1740,7 @@ export default function UnifiedSalesDelivery({
           <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-4">
             <TabsList dir="rtl" className="flex h-auto flex-wrap justify-start gap-1">
               <TabsTrigger value="items">الاصناف</TabsTrigger>
+              {showAccountsTab && <TabsTrigger value="accounts">تفاصيل حسابات الاصناف</TabsTrigger>}
               <TabsTrigger value="extra_data">بيانات اضافية</TabsTrigger>
               <TabsTrigger value="tax">الضريبة</TabsTrigger>
               <TabsTrigger value="quantities">تفاصيل كميات الصنف</TabsTrigger>
@@ -1425,6 +1771,24 @@ export default function UnifiedSalesDelivery({
                 </div>
               </TabsContent>
 
+              {showAccountsTab && (
+                <TabsContent value="accounts" className="mt-4 min-h-[360px] space-y-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+                  <div className="w-full max-w-full overflow-x-auto">
+                    <DataGridView
+                      innerRef={accountsGridRef}
+                      style={{ height: "300px" }}
+                      scheme={accountsScheme}
+                      dataSource={itemsCollectionView}
+                      idProperty="ser"
+                      isReport={false}
+                      isReadOnly={isLocked}
+                      showContextMenu={false}
+                      dontConvertToCards={true}
+                    />
+                  </div>
+                </TabsContent>
+              )}
+
               <TabsContent value="extra_data" className="mt-4 min-h-[360px] space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
                 <div className="grid gap-3 md:grid-cols-2">
                   <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
@@ -1439,7 +1803,7 @@ export default function UnifiedSalesDelivery({
                       disabled={isLocked}
                       className="invoice-currency-dropdown w-full"
                       panelClassName="invoice-currency-dropdown-panel"
-                      appendTo="self"
+                      appendTo={document.body}
                       panelStyle={{ zIndex: 10000 }}
                       onChange={(e: any) => onFormChange("salesman_id", e.value ?? null)}
                     />
@@ -1647,6 +2011,53 @@ export default function UnifiedSalesDelivery({
           ShowSelect={false}
           searchText=""
         />
+        {showAccountsTab && (
+          <AccountSearchDialog
+            open={itemAccountsSearchOpen}
+            onOpenChange={(open) => {
+              setItemAccountsSearchOpen(open)
+              if (!open) {
+                popupHasClosed()
+                // إن أُغلِقت النافذة دون اختيار (Escape/زر الإغلاق) فلن يكون onSelect قد ضبط
+                // pendingAccountsFocusRef أدناه — تُعاد الشبكة للتركيز على نفس زر البحث الذي فتحها.
+                if (!pendingAccountsFocusRef.current) restoreAccountsGridFocus(lastAccountsFocusedCellRef.current)
+              }
+            }}
+            accounts={accountsList}
+            // "يجب عرض حساب محاسبي فقط" — نوع 1 في ACCOUNT_TYPE_OPTIONS (account-search-dialog.tsx)،
+            // بخلاف AutoCompleteAccount الخاص بالعميل/المورد (searchAllowedTypeValues={[2, 3, 5]}).
+            allowedTypeValues={[1]}
+            onSelect={(account) => {
+              if (itemAccountsSearchRow === null) return
+              const row = itemAccountsSearchRow
+              patchItemRow(row, {
+                account_id: account.id,
+                account_code: account.code,
+                account_name: account.name,
+                account_cost_centers: [],
+              })
+              pendingAccountsFocusRef.current = { row, col: "btnCostCenter" }
+            }}
+          />
+        )}
+        {showAccountsTab && (
+          <AccountCostCenters
+            open={itemCostCenterOpen}
+            onOpenChange={(open) => {
+              setItemCostCenterOpen(open)
+              if (!open) {
+                popupHasClosed()
+                restoreAccountsGridFocus(lastAccountsFocusedCellRef.current)
+              }
+            }}
+            account={itemCostCenterAccount}
+            value={itemCostCenterRow !== null ? items[itemCostCenterRow]?.account_cost_centers : undefined}
+            onChange={(selection) => {
+              if (itemCostCenterRow === null) return
+              patchItemRow(itemCostCenterRow, { account_cost_centers: selection })
+            }}
+          />
+        )}
         <StoresSearchPopup
           visible={warehouseSearchOpen}
           onClose={() => {

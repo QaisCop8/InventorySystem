@@ -450,6 +450,7 @@ export async function POST(request: NextRequest) {
     await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS municipality_service_account_id INTEGER`)
     await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS lsti3mal_account_id INTEGER`)
     await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS measurment_id INTEGER DEFAULT 1`)
+    await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS product_image TEXT`)
     await ensureProductCostCentersTable(client)
     await ensureProductNumbersTable(client)
 
@@ -573,8 +574,9 @@ export async function POST(request: NextRequest) {
           size=$41::text,
           notes=$42::text,
           manufacturer_company=$43::text,
+          product_image=$44::text,
           updated_at=NOW()
-         WHERE id=$44::int`
+         WHERE id=$45::int`
         : `UPDATE products SET
           product_code=$1::text,
           product_name=$2::text,
@@ -618,8 +620,9 @@ export async function POST(request: NextRequest) {
           size=$40::text,
           notes=$41::text,
           manufacturer_company=$42::text,
+          product_image=$43::text,
           updated_at=NOW()
-         WHERE id=$43::int`
+         WHERE id=$44::int`
 
       const updateValues = canSaveDefaultStore
         ? [
@@ -666,6 +669,7 @@ export async function POST(request: NextRequest) {
             productData.size,
             productData.notes,
             productData.manufacturer_company,
+            productData.image_url || productData.product_image || null,
             productId,
           ]
         : [
@@ -711,6 +715,7 @@ export async function POST(request: NextRequest) {
             productData.size,
             productData.notes,
             productData.manufacturer_company,
+            productData.image_url || productData.product_image || null,
             productId,
           ]
       const placeholderMatch = updateQuery.match(/\$([0-9]+)/g)?.map((match) => Number(match.replace("$", ""))) ?? []
@@ -772,6 +777,7 @@ export async function POST(request: NextRequest) {
           'notes',
           'serial_tracking',
           'manufacturer_company',
+          'product_image',
         ]
         : [
           'product_code',
@@ -815,6 +821,7 @@ export async function POST(request: NextRequest) {
           'notes',
           'serial_tracking',
           'manufacturer_company',
+          'product_image',
         ]
 
       const insertValues = canSaveDefaultStore
@@ -861,6 +868,7 @@ export async function POST(request: NextRequest) {
           productData.notes,
           productData.serial_tracking,
           productData.manufacturer_company,
+          productData.image_url || productData.product_image || null,
         ]
         : [
           productData.product_code,
@@ -904,6 +912,7 @@ export async function POST(request: NextRequest) {
           productData.notes,
           productData.serial_tracking,
           productData.manufacturer_company,
+          productData.image_url || productData.product_image || null,
         ]
 
       const insertPlaceholders = insertColumns.map((_, index) => `$${index + 1}`).join(",")

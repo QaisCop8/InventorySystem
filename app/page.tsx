@@ -23,6 +23,8 @@ const Products = dynamic(() => import("@/components/products/products").then(mod
 const Services = dynamic(() => import("@/components/products/services").then(mod => mod.Services), { ssr: false })
 import Customers from "@/components/products/customers"
 import ProductGroups from "@/components/products/product-groups"
+import Cars from "@/components/products/cars"
+import Drivers from "@/components/products/drivers"
 import { ExchangeRates } from "@/components/data/exchange-rates"
 import { BatchMovements } from "@/components/inventory/batch-movements"
 import { BatchReports } from "@/components/reports/batch-reports"
@@ -99,6 +101,8 @@ const componentMap: Record<string, React.ComponentType<any>> = {
   suppliers: (props: any) => <Customers {...props} isSupplier={true} />,
   subscribers: (props: any) => <Customers {...props} isSubscriber={true} />,
   salesmen: (props: any) => <Customers {...props} isSalesman={true} />,
+  cars: Cars,
+  drivers: Drivers,
   banks: Banks,
   branches: Branches,
   "bank-accounts": BankAccounts,
@@ -115,7 +119,14 @@ const componentMap: Record<string, React.ComponentType<any>> = {
   "stock-out-vouchers": (props: any) => <StockVouchers {...props} voucherType={13} />,
   "internal-delivery-vouchers": (props: any) => <StockVouchers {...props} voucherType={14} />,
   "use-vouchers": (props: any) => <StockVouchers {...props} voucherType={15} />,
-  "sales-delivery": (props: any) => <SalesDelivery {...props} />,
+  "sales-invoices": (props: any) => <SalesDelivery {...props} voucherType={16} />,
+  "sales-delivery": (props: any) => <SalesDelivery {...props} voucherType={17} />,
+  "delivery-consignment-sale": (props: any) => <SalesDelivery {...props} voucherType={18} />,
+  "return-delivery-consignment-sale": (props: any) => <SalesDelivery {...props} voucherType={19} />,
+  "return-sell": (props: any) => <SalesDelivery {...props} voucherType={20} />,
+  "purchase-invoices": (props: any) => <SalesDelivery {...props} voucherType={21} />,
+  "delivery-pay": (props: any) => <SalesDelivery {...props} voucherType={22} />,
+  "return-purchase": (props: any) => <SalesDelivery {...props} voucherType={23} />,
   "product-groups": ProductGroups,
   definitions: Definitions,
   accounts: Accounts,

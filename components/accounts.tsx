@@ -82,6 +82,22 @@ type ExcelAccountRow = {
   status: string
   errors: string[]
   isValid: boolean
+  // الحقول الإضافية أدناه تطابق كل ما يُحفَظ من unified-accounts-refactored حتى لا يفقد
+  // الاستيراد الجماعي أي بيانات كانت متاحة عند الإدخال اليدوي لحساب واحد.
+  allow_trans_with_diff_curr: boolean
+  iscalc_curr_diff_rates: boolean
+  transaction_type: number
+  transaction_type_action: number
+  max_transaction_amount: number
+  max_transaction_amount_action: number
+  max_balance_amount: number
+  max_balance_action: number | null
+  budget_exceeding_perc: number | null
+  budget_exceeding_action: number | null
+  unified_report_account_no: string
+  unified_report_group_code: string
+  notes: string
+  show_notes_in_transactions_soa: boolean
 }
 
 type ExcelImportSummary = {
@@ -167,6 +183,31 @@ export default function Accounts() {
       }
     }
     return ""
+  }
+
+  // نفس الحقول الإضافية التي يحفظها unified-accounts-refactored لحساب واحد — تُقرأ هنا من أي
+  // مصدر صف (ملف Excel مرفوع بأعمدة عربية، أو صف من accounts.json بأسماء snake_case) بنفس الآلية.
+  const extractExtendedAccountFields = (row: any) => {
+    const readNumber = (keys: string[]) => {
+      const value = getExcelCell(row, keys)
+      return value ? Number(value) : null
+    }
+    return {
+      allow_trans_with_diff_curr: getExcelCell(row, ["السماح بفرق العملة", "allow_trans_with_diff_curr"]) === "1",
+      iscalc_curr_diff_rates: getExcelCell(row, ["احتساب فروقات العملة", "iscalc_curr_diff_rates"]) === "1",
+      transaction_type: readNumber(["نوع الحركة", "transaction_type"]) ?? 0,
+      transaction_type_action: readNumber(["إجراء نوع الحركة", "transaction_type_action"]) ?? 0,
+      max_transaction_amount: readNumber(["أقصى مبلغ حركة", "max_transaction_amount"]) ?? 0,
+      max_transaction_amount_action: readNumber(["إجراء أقصى مبلغ حركة", "max_transaction_amount_action"]) ?? 0,
+      max_balance_amount: readNumber(["أقصى رصيد", "max_balance_amount"]) ?? 0,
+      max_balance_action: readNumber(["إجراء أقصى رصيد", "max_balance_action"]),
+      budget_exceeding_perc: readNumber(["نسبة تجاوز الموازنة", "budget_exceeding_perc"]),
+      budget_exceeding_action: readNumber(["إجراء تجاوز الموازنة", "budget_exceeding_action"]),
+      unified_report_account_no: getExcelCell(row, ["رقم الحساب الموحد", "unified_report_account_no"]),
+      unified_report_group_code: getExcelCell(row, ["رمز مجموعة التقرير الموحد", "unified_report_group_code"]),
+      notes: getExcelCell(row, ["ملاحظات", "notes"]),
+      show_notes_in_transactions_soa: getExcelCell(row, ["إظهار الملاحظات في كشف الحساب", "show_notes_in_transactions_soa"]) === "1",
+    }
   }
 
   const resolveByIdOrName = (value: string, items: Array<{ id: number; name: string }>) => {
@@ -288,29 +329,24 @@ export default function Accounts() {
 
     if (!cleaned) return ""
 
-    if (cleaned.length >= 8) {
-      return cleaned.slice(0, 8)
+    if (cleaned.length >= 10) {
+      return cleaned.slice(0, 10)
     }
 
+    // إكمال الرقم إلى 10 خانات بإضافة أصفار في النهاية (لا البداية) — كود مثل "110000000" (9 خانات)
+    // يجب أن يصبح "1100000000" لا "0110000000"، حتى لا يتغيّر الرقم الفعلي المقصود بإضافة صفر
+    // بمقدمته (يُحوّله لحساب مختلف تماماً ضمن هيكل الحسابات).
     if (/^\d+$/.test(cleaned)) {
-      return cleaned.padStart(8, "0")
+      return cleaned.padEnd(10, "0")
     }
 
-    return cleaned.padEnd(8, "0").slice(0, 8)
+    return cleaned.padEnd(10, "0").slice(0, 10)
   }
 
-  const normalizeFatherCodeFromJson = (value: unknown) => {
-    const trimmed = String(value ?? "").trim()
-    if (!trimmed) return ""
-
-    const collapsed = trimmed.replace(/\s+/g, "")
-    if (collapsed.endsWith("0")) {
-      const shortened = collapsed.slice(0, -1)
-      return shortened || collapsed
-    }
-
-    return collapsed
-  }
+  // كان يحذف صفراً أخيراً واحداً من رقم حساب الأب بدل ضبطه لـ10 خانات — فيفشل أي بحث/مطابقة لاحقة
+  // (حسابات القاعدة الفعلية دوماً 10 خانات كاملة) — نفس معالجة رقم الحساب نفسه (normalizeAccountCode)
+  // تماماً، إذ يجب أن يطابق حساب الأب نفس الصيغة.
+  const normalizeFatherCodeFromJson = (value: unknown) => normalizeAccountCode(String(value ?? ""))
 
   const loadExcelValidationAccounts = async () => {
     const response = await fetch("/api/accounts?type=1")
@@ -371,13 +407,25 @@ export default function Accounts() {
   const buildExcelRows = (rawRows: any[], latestAccounts: Array<{ code: string; name: string }> = excelValidationAccounts) => {
     const seenCodes = new Set<string>()
 
+    // كل أكواد الملف نفسها (مُطبَّعة لـ10 خانات) — تُبنى مسبقاً وليس أثناء map أدناه، حتى يصح التحقق
+    // من وجود حساب الأب حتى لو كان تعريفه يقع في سطر لاحق بالملف (لا يشترط أن يسبق ابنه ترتيبياً).
+    const allFileCodes = new Set(
+      rawRows
+        .map((row) => normalizeAccountCode(getExcelCell(row, ["رقم الحساب", "account_code", "code"])))
+        .filter(Boolean),
+    )
+
     return rawRows.map((row, index) => {
       const errors: string[] = []
       const rawCode = getExcelCell(row, ["رقم الحساب", "account_code", "code"])
       const rawName = getExcelCell(row, ["اسم الحساب", "account_name", "name"])
       const rawFinancialList = getExcelCell(row, ["القائمة المالية", "financial_list", "finanical_list_id"])
       const rawCurrency = getExcelCell(row, ["العملة", "currency", "currency_name", "currency_code", "currency_id"])
-      const rawFather = getExcelCell(row, ["حساب الاب", "الحساب الأب", "father_code", "father_account_code", "father", "parent_account", "father_id"])
+      // يُضبط لـ10 خانات هنا (وليس خاماً كما كان) — نفس معالجة رقم الحساب نفسه، وإلا يفشل أي بحث عن
+      // الحساب الأب لاحقاً (حسابات القاعدة الفعلية 10 خانات دوماً) حتى لو كان الحساب موجوداً فعلياً.
+      const rawFather = normalizeFatherCodeFromJson(
+        getExcelCell(row, ["حساب الاب", "الحساب الأب", "father_code", "father_account_code", "father", "parent_account", "father_id"]),
+      )
       const rawBalanceSheetAssets = getExcelCell(row, ["أصول الميزانية", "اصول الميزانية", "balance_sheet_assets", "finanical_list_assests_id"])
       const rawBalanceSheetLiabilities = getExcelCell(row, ["خصوم الميزانية", "balance_sheet_liabilities", "finanical_list_liabilities_id"])
       const rawBalanceSheetItem = getExcelCell(row, ["اصول وخصوم الميزانية", "أصول وخصوم الميزانية", "balance_sheet_item"])
@@ -412,6 +460,10 @@ export default function Accounts() {
       if (!finanical_list_id) errors.push("القائمة المالية مطلوبة")
       const fatherSelfError = getExcelFatherSelfError(code, rawFather)
       if (fatherSelfError) errors.push(fatherSelfError)
+      if (rawFather && !fatherSelfError) {
+        const fatherExists = allFileCodes.has(rawFather) || latestAccounts.some((account) => normalizeAccountCode(account.code) === rawFather)
+        if (!fatherExists) errors.push(`الحساب الأب غير موجود: ${rawFather}`)
+      }
       if (!rawCurrency) {
         errors.push("العملة مطلوبة")
       } else if (!currencyMatch) {
@@ -483,6 +535,7 @@ export default function Accounts() {
         finanical_list_liabilities_id,
         finanical_list_income_id,
         status: getExcelCell(row, ["الحالة", "status"]) || "نشط",
+        ...extractExtendedAccountFields(row),
         errors,
         isValid: errors.length === 0,
       } as ExcelAccountRow
@@ -714,6 +767,13 @@ export default function Accounts() {
     if (duplicateError) errors.push(duplicateError)
     const fatherSelfError = getExcelFatherSelfError(code, fatherReference)
     if (fatherSelfError) errors.push(fatherSelfError)
+    if (fatherReference && !fatherSelfError) {
+      const fatherExistsInTemplate = excelExportRows.some((r: any) => normalizeAccountCode(String(r.code ?? "")) === fatherReference)
+      const fatherExistsInDb = excelValidationAccounts.some((account) => normalizeAccountCode(account.code) === fatherReference)
+      if (!fatherExistsInTemplate && !fatherExistsInDb) {
+        errors.push(`الحساب الأب غير موجود: ${fatherReference}`)
+      }
+    }
 
     const finanical_list_id = Number(row.financial_list ?? row.finanical_list_id ?? 1) || 1
     if (finanical_list_id === 1) {
@@ -751,6 +811,7 @@ export default function Accounts() {
       finanical_list_liabilities_id: null,
       finanical_list_income_id: null,
       status: String(row.status ?? "نشط"),
+      ...extractExtendedAccountFields(row),
       errors,
       isValid: errors.length === 0,
     }
@@ -958,6 +1019,32 @@ export default function Accounts() {
         } catch {
           // no-op
         }
+
+        // البند موجود مسبقاً فعلياً بقاعدة البيانات لكن ذاكرة التخزين المؤقت (cache، مُهيَّأة من
+        // حالة المكوّن عند فتح شاشة الاستيراد) لم تعرفه — بسبب فارق تطبيع بسيط بين النص كما جاء من
+        // Excel/القالب والاسم الفعلي المخزَّن (مسافات إضافية، حرف مختلف...)، أو لأن سطراً سابقاً بنفس
+        // الدفعة أنشأه للتو ولم تُحدَّث القائمة الأصلية بعد. بدل فشل الاستيراد بالكامل (كان الخطأ هنا
+        // يوقف حلقة for بأكملها فتُعلَّم كل الصفوف فاشلة)، يُعاد البحث عن البند بالاسم فعلياً بدل اعتباره
+        // خطأً قاطعاً.
+        if (errorMessage.includes("موجود مسبقاً")) {
+          try {
+            const listResponse = await fetch(endpoint)
+            if (listResponse.ok) {
+              const listData = await listResponse.json()
+              const list: Array<{ id: number; name: string }> = Array.isArray(listData) ? listData : []
+              const match = list.find((item) => normalizeReferenceValue(item.name) === normalized)
+              if (match) {
+                const existingItem = { id: Number(match.id), name: String(match.name ?? trimmed) }
+                cache.set(normalized, existingItem)
+                cache.set(normalizeReferenceValue(existingItem.id), existingItem)
+                return existingItem
+              }
+            }
+          } catch {
+            // تجاهل فشل إعادة البحث — يُتابَع أدناه لإلقاء خطأ الإنشاء الأصلي.
+          }
+        }
+
         throw new Error(errorMessage)
       }
 
@@ -1004,20 +1091,20 @@ export default function Accounts() {
           finanical_list_liabilities_id: resolvedLiability?.id ?? row.finanical_list_liabilities_id,
           finanical_list_income_id: resolvedIncome?.id ?? row.finanical_list_income_id,
           currency_id: row.currency_id ?? 1,
-          allow_trans_with_diff_curr: 0,
-          iscalc_curr_diff_rates: false,
-          transaction_type: 0,
-          transaction_type_action: 0,
-          max_transaction_amount: 0,
-          max_transaction_amount_action: 0,
-          max_balance_amount: 0,
-          max_balance_action: null,
-          budget_exceeding_perc: null,
-          budget_exceeding_action: null,
-          unified_report_account_no: null,
-          unified_report_group_code: null,
-          notes: null,
-          show_notes_in_transactions_soa: false,
+          allow_trans_with_diff_curr: row.allow_trans_with_diff_curr ? 1 : 0,
+          iscalc_curr_diff_rates: row.iscalc_curr_diff_rates ?? false,
+          transaction_type: row.transaction_type ?? 0,
+          transaction_type_action: row.transaction_type_action ?? 0,
+          max_transaction_amount: row.max_transaction_amount ?? 0,
+          max_transaction_amount_action: row.max_transaction_amount_action ?? 0,
+          max_balance_amount: row.max_balance_amount ?? 0,
+          max_balance_action: row.max_balance_action ?? null,
+          budget_exceeding_perc: row.budget_exceeding_perc ?? null,
+          budget_exceeding_action: row.budget_exceeding_action ?? null,
+          unified_report_account_no: row.unified_report_account_no || null,
+          unified_report_group_code: row.unified_report_group_code || null,
+          notes: row.notes || null,
+          show_notes_in_transactions_soa: row.show_notes_in_transactions_soa ?? false,
           status: row.status || "نشط",
         }
 
@@ -1120,8 +1207,16 @@ export default function Accounts() {
       "السماح بفرق العملة": row.allow_trans_with_diff_curr ? "1" : "0",
       "احتساب فروقات العملة": row.iscalc_curr_diff_rates ? "1" : "0",
       "نوع الحركة": String(row.transaction_type ?? "0"),
+      "إجراء نوع الحركة": String(row.transaction_type_action ?? "0"),
       "أقصى مبلغ حركة": String(row.max_transaction_amount ?? 0),
+      "إجراء أقصى مبلغ حركة": String(row.max_transaction_amount_action ?? 0),
       "أقصى رصيد": String(row.max_balance_amount ?? 0),
+      "إجراء أقصى رصيد": row.max_balance_action != null ? String(row.max_balance_action) : "",
+      "نسبة تجاوز الموازنة": row.budget_exceeding_perc != null ? String(row.budget_exceeding_perc) : "",
+      "إجراء تجاوز الموازنة": row.budget_exceeding_action != null ? String(row.budget_exceeding_action) : "",
+      "رقم الحساب الموحد": row.unified_report_account_no || "",
+      "رمز مجموعة التقرير الموحد": row.unified_report_group_code || "",
+      "إظهار الملاحظات في كشف الحساب": row.show_notes_in_transactions_soa ? "1" : "0",
       "ملاحظات": row.notes || "",
       "الحالة": row.status || "",
     }))
@@ -1597,7 +1692,7 @@ export default function Accounts() {
           }
         }}>
           <DialogContent
-            className="w-full max-w-6xl max-h-[92vh] overflow-hidden p-0 flex flex-col"
+            className="w-full max-w-[95vw] xl:max-w-[1400px] max-h-[90vh] overflow-hidden p-0 flex flex-col"
             dir="rtl"
             onPointerDownOutside={(event) => event.preventDefault()}
           >
@@ -1610,21 +1705,26 @@ export default function Accounts() {
 
               <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 pb-4 sm:px-6">
               <div className="flex w-full flex-nowrap items-end gap-2 overflow-x-auto pb-1">
-                <div className="min-w-[260px] shrink-0">
+                <div className="min-w-[260px] shrink-0 invoice-currency-dropdown-wrap">
                   <Label className="mb-2 block text-sm">نوع هيكل الحسابات الافتراضي</Label>
-                  <Select value={excelTemplateType} onValueChange={(value) => {
-                    setExcelTemplateType(value)
-                  }}>
-                    <SelectTrigger className="h-11">
-                      <SelectValue placeholder="اختر" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">بلا</SelectItem>
-                      <SelectItem value="commercial">مؤسسة تجارية</SelectItem>
-                      <SelectItem value="commercial_continuous_inventory">مؤسسة تجارية - جرد مستمر</SelectItem>
-                      <SelectItem value="services">خدمات</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <PrimeDropdown
+                    inputId="excel_template_type"
+                    value={excelTemplateType}
+                    options={[
+                      { label: "بلا", value: "none" },
+                      { label: "مؤسسة تجارية", value: "commercial" },
+                      { label: "مؤسسة تجارية - جرد مستمر", value: "commercial_continuous_inventory" },
+                      { label: "خدمات", value: "services" },
+                    ]}
+                    optionLabel="label"
+                    optionValue="value"
+                    placeholder="اختر"
+                    className="invoice-currency-dropdown w-full"
+                    panelClassName="invoice-currency-dropdown-panel"
+                    appendTo="self"
+                    panelStyle={{ zIndex: 10000 }}
+                    onChange={(e: any) => setExcelTemplateType(e.value)}
+                  />
                 </div>
                 <Button variant="outline" className="gap-2 shrink-0" onClick={() => { void downloadExcelTemplate(excelTemplateType) }}>
                   <Download className="h-4 w-4" /> تحميل قالب
@@ -1644,7 +1744,7 @@ export default function Accounts() {
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>
                   الملف يجب أن يحتوي على الأعمدة: رقم الحساب، اسم الحساب، اسم الحساب انجليزي، العملة، القائمة المالية، أصول الميزانية، خصوم الميزانية، وبند قائمة الدخل.
-                  إذا كان رقم الحساب أقصر من 8 أحرف سيتم ضبطه تلقائياً إلى 8 أحرف إنجليزية/أرقام.
+                  إذا كان رقم الحساب أقصر من 10 أحرف سيتم ضبطه تلقائياً إلى 10 أحرف إنجليزية/أرقام.
                 </AlertDescription>
               </Alert>
 

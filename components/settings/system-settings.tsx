@@ -13,6 +13,7 @@ import AutoCompleteAccount from "@/components/customer/auto-complete-account"
 import Messages from "@/components/common/Messages"
 import Util from "@/components/common/Util"
 import { Save, Settings, Building2, Globe, Shield, Printer, FileText, Loader2, AlertCircle } from "lucide-react"
+import { buildVoucherCode } from "@/lib/voucher-code"
 
 const defaultAccountFields = [
   { key: "customerParentAccount", label: "حساب اب العملاء في ملف تعريف العملاء" },
@@ -87,6 +88,8 @@ export function SystemSettings() {
     timeFormat: "24h",
     language: "ar",
     timezone: "Asia/Jerusalem",
+    taxRate: 16,
+    taxRateClearing: 18,
 
     // Business Settings
     fiscalYearStart: "01/01",
@@ -100,7 +103,6 @@ export function SystemSettings() {
     auditLog: true,
 
     // Document Settings - Prefixes
-    invoicePrefix: "INV",
     orderPrefix: "SO",
     purchasePrefix: "PO",
     receiptPrefix: "R",
@@ -218,7 +220,6 @@ export function SystemSettings() {
             taxNumber: settingsPayload.tax_number || prev.taxNumber,
             commercialRegister: settingsPayload.commercial_register || prev.commercialRegister,
             defaultCurrency: settingsPayload.default_currency || prev.defaultCurrency,
-            invoicePrefix: settingsPayload.invoice_prefix || prev.invoicePrefix,
             orderPrefix: settingsPayload.order_prefix || prev.orderPrefix,
             purchasePrefix: settingsPayload.purchase_prefix || prev.purchasePrefix,
             receiptPrefix: settingsPayload.receipt_prefix || prev.receiptPrefix,
@@ -272,6 +273,11 @@ export function SystemSettings() {
             timezone: settingsPayload.timezone || prev.timezone,
             dateFormat: settingsPayload.date_format || prev.dateFormat,
             timeFormat: settingsPayload.time_format || prev.timeFormat,
+            taxRate: settingsPayload.tax_rate != null && settingsPayload.tax_rate !== "" ? Number(settingsPayload.tax_rate) : prev.taxRate,
+            taxRateClearing:
+              settingsPayload.tax_rate_clearing != null && settingsPayload.tax_rate_clearing !== ""
+                ? Number(settingsPayload.tax_rate_clearing)
+                : prev.taxRateClearing,
             workingDays: settingsPayload.working_days
               ? (() => {
                   try {
@@ -447,7 +453,6 @@ export function SystemSettings() {
           tax_number: settings.taxNumber,
           commercial_register: settings.commercialRegister,
           default_currency: settings.defaultCurrency,
-          invoice_prefix: settings.salesInvoicePrefix.trim().toUpperCase(),
           order_prefix: settings.orderPrefix.trim().toUpperCase(),
           purchase_prefix: settings.purchasePrefix.trim().toUpperCase(),
           receipt_prefix: settings.receiptPrefix.trim().toUpperCase(),
@@ -502,6 +507,8 @@ export function SystemSettings() {
           timezone: settings.timezone,
           date_format: settings.dateFormat,
           time_format: settings.timeFormat,
+          tax_rate: Number(settings.taxRate) || 0,
+          tax_rate_clearing: Number(settings.taxRateClearing) || 0,
           working_days: settings.workingDays,
           working_hours: settings.workingHours,
           sessionTimeout: settings.sessionTimeout,
@@ -570,6 +577,8 @@ export function SystemSettings() {
         timeFormat: "24h",
         language: "ar",
         timezone: "Asia/Jerusalem",
+        taxRate: 16,
+        taxRateClearing: 18,
         fiscalYearStart: "01/01",
         workingDays: ["sunday", "monday", "tuesday", "wednesday", "thursday"],
         workingHours: "08:00-17:00",
@@ -577,7 +586,6 @@ export function SystemSettings() {
         passwordPolicy: true,
         twoFactorAuth: false,
         auditLog: true,
-        invoicePrefix: "INV",
         orderPrefix: "SO",
         purchasePrefix: "PO",
         receiptPrefix: "R",
@@ -879,6 +887,34 @@ export function SystemSettings() {
                     </SelectContent>
                   </Select>
                 </div>
+                <div>
+                  <Label htmlFor="taxRate" className="text-right block">
+                    نسبة الضريبة
+                  </Label>
+                  <Input
+                    id="taxRate"
+                    type="number"
+                    step="0.01"
+                    value={settings.taxRate}
+                    onChange={(e) => setSettings({ ...settings, taxRate: e.target.value === "" ? 0 : Number(e.target.value) })}
+                    className="text-right"
+                    dir="rtl"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="taxRateClearing" className="text-right block">
+                    نسبة الضريبة-مقاصة
+                  </Label>
+                  <Input
+                    id="taxRateClearing"
+                    type="number"
+                    step="0.01"
+                    value={settings.taxRateClearing}
+                    onChange={(e) => setSettings({ ...settings, taxRateClearing: e.target.value === "" ? 0 : Number(e.target.value) })}
+                    className="text-right"
+                    dir="rtl"
+                  />
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -1098,427 +1134,467 @@ export function SystemSettings() {
 
               <div>
                 <h3 className="text-lg font-semibold mb-4 text-right">إعدادات السندات (إجبارية)</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="md:col-span-2">
-                    <div className="rounded-lg border border-dashed border-violet-200 bg-violet-50/70 px-4 py-3 text-sm text-violet-700">
-                      بادئة الفواتير: <span className="font-semibold">{settings.salesInvoicePrefix || settings.invoicePrefix}</span> — تُستخدم لجميع الفواتير والإرسالات بدون بادئة منفصلة.
-                    </div>
-                  </div>
-                  <div>
-                    <Label htmlFor="invoiceStart" className="text-right block">
-                      بداية ترقيم فواتير المبيعات *
-                    </Label>
-                    <Input
-                      id="invoiceStart"
-                      type="number"
-                      min="1"
-                      value={settings.invoiceStart}
-                      onChange={(e) => {
-                        const value = e.target.value === "" ? 1 : Number.parseInt(e.target.value)
-                        setSettings({ ...settings, invoiceStart: value })
-                      }}
-                      className="text-right"
-                      dir="rtl"
-                      required
-                      disabled={numberingLocks.invoice}
-                    />
-                  </div>
-                  <div className="flex items-end">
-                    <div className="text-sm text-muted-foreground">
-                      مثال: {settings.salesInvoicePrefix || settings.invoicePrefix}
-                      {String(settings.invoiceStart).padStart(4, "0")}
-                    </div>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="orderPrefix" className="text-right block">
-                      بادئة طلبات المبيعات *
-                    </Label>
-                    <Input
-                      id="orderPrefix"
-                      value={settings.orderPrefix}
-                      onChange={(e) => setSettings({ ...settings, orderPrefix: e.target.value })}
-                      className="text-right"
-                      dir="rtl"
-                      required
-                      disabled={numberingLocks.order}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="orderStart" className="text-right block">
-                      بداية ترقيم طلبات المبيعات *
-                    </Label>
-                    <Input
-                      id="orderStart"
-                      type="number"
-                      min="1"
-                      value={settings.orderStart}
-                      onChange={(e) => {
-                        const value = e.target.value === "" ? 1 : Number.parseInt(e.target.value)
-                        setSettings({ ...settings, orderStart: value })
-                      }}
-                      className="text-right"
-                      dir="rtl"
-                      required
-                      disabled={numberingLocks.order}
-                    />
-                  </div>
-                  <div className="flex items-end">
-                    <div className="text-sm text-muted-foreground">
-                      مثال: {settings.orderPrefix}
-                      {String(settings.orderStart).padStart(4, "0")}
+                <div className="space-y-3">
+                  <div className="rounded-lg border border-border/70 bg-muted/20 p-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <Label htmlFor="invoiceStart" className="text-right block">
+                          بداية ترقيم فواتير المبيعات *
+                        </Label>
+                        <Input
+                          id="invoiceStart"
+                          type="number"
+                          min="1"
+                          value={settings.invoiceStart}
+                          onChange={(e) => {
+                            const value = e.target.value === "" ? 1 : Number.parseInt(e.target.value)
+                            setSettings({ ...settings, invoiceStart: value })
+                          }}
+                          className="text-right"
+                          dir="rtl"
+                          required
+                          disabled={numberingLocks.invoice}
+                        />
+                      </div>
+                      <div />
+                      <div className="flex items-end md:col-start-3">
+                        <div className="text-sm text-muted-foreground">
+                          مثال: {settings.salesInvoicePrefix}
+                          {String(settings.invoiceStart).padStart(4, "0")}
+                        </div>
+                      </div>
                     </div>
                   </div>
 
-                  <div>
-                    <Label htmlFor="purchasePrefix" className="text-right block">
-                      بادئة طلبات الشراء *
-                    </Label>
-                    <Input
-                      id="purchasePrefix"
-                      value={settings.purchasePrefix}
-                      onChange={(e) => setSettings({ ...settings, purchasePrefix: e.target.value })}
-                      className="text-right"
-                      dir="rtl"
-                      required
-                      disabled={numberingLocks.purchase}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="purchaseStart" className="text-right block">
-                      بداية ترقيم طلبات الشراء *
-                    </Label>
-                    <Input
-                      id="purchaseStart"
-                      type="number"
-                      min="1"
-                      value={settings.purchaseStart}
-                      onChange={(e) => {
-                        const value = e.target.value === "" ? 1 : Number.parseInt(e.target.value)
-                        setSettings({ ...settings, purchaseStart: value })
-                      }}
-                      className="text-right"
-                      dir="rtl"
-                      required
-                      disabled={numberingLocks.purchase}
-                    />
-                  </div>
-                  <div className="flex items-end">
-                    <div className="text-sm text-muted-foreground">
-                      مثال: {settings.purchasePrefix}
-                      {String(settings.purchaseStart).padStart(4, "0")}
+                  <div className="rounded-lg border border-border/70 bg-muted/20 p-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <Label htmlFor="orderPrefix" className="text-right block">
+                          بادئة طلبات المبيعات *
+                        </Label>
+                        <Input
+                          id="orderPrefix"
+                          value={settings.orderPrefix}
+                          onChange={(e) => setSettings({ ...settings, orderPrefix: e.target.value })}
+                          className="text-right"
+                          dir="rtl"
+                          required
+                          disabled={numberingLocks.order}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="orderStart" className="text-right block">
+                          بداية ترقيم طلبات المبيعات *
+                        </Label>
+                        <Input
+                          id="orderStart"
+                          type="number"
+                          min="1"
+                          value={settings.orderStart}
+                          onChange={(e) => {
+                            const value = e.target.value === "" ? 1 : Number.parseInt(e.target.value)
+                            setSettings({ ...settings, orderStart: value })
+                          }}
+                          className="text-right"
+                          dir="rtl"
+                          required
+                          disabled={numberingLocks.order}
+                        />
+                      </div>
+                      <div className="flex items-end">
+                        <div className="text-sm text-muted-foreground">
+                          مثال: {settings.orderPrefix}
+                          {String(settings.orderStart).padStart(4, "0")}
+                        </div>
+                      </div>
                     </div>
                   </div>
 
-                  <div>
-                    <Label htmlFor="receiptPrefix" className="text-right block">
-                      بادئة سندات القبض *
-                    </Label>
-                    <Input
-                      id="receiptPrefix"
-                      value={settings.receiptPrefix}
-                      onChange={(e) => setSettings({ ...settings, receiptPrefix: e.target.value })}
-                      className="text-right"
-                      dir="rtl"
-                      maxLength={3}
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="receiptStart" className="text-right block">
-                      الترقيم يبدأ من (سندات القبض) *
-                    </Label>
-                    <Input
-                      id="receiptStart"
-                      type="number"
-                      min="1"
-                      max="10000"
-                      value={settings.receiptStart}
-                      onChange={(e) => {
-                        const value = e.target.value === "" ? 1 : Number.parseInt(e.target.value)
-                        setSettings({ ...settings, receiptStart: value })
-                      }}
-                      className="text-right"
-                      dir="rtl"
-                      required
-                    />
-                  </div>
-                  <div className="flex items-end">
-                    <div className="text-sm text-muted-foreground">
-                      مثال: {settings.receiptPrefix}A{String(settings.receiptStart).padStart(6, "0")} (A = دفتر السندات)
+                  <div className="rounded-lg border border-border/70 bg-muted/20 p-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <Label htmlFor="purchasePrefix" className="text-right block">
+                          بادئة طلبات الشراء *
+                        </Label>
+                        <Input
+                          id="purchasePrefix"
+                          value={settings.purchasePrefix}
+                          onChange={(e) => setSettings({ ...settings, purchasePrefix: e.target.value })}
+                          className="text-right"
+                          dir="rtl"
+                          required
+                          disabled={numberingLocks.purchase}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="purchaseStart" className="text-right block">
+                          بداية ترقيم طلبات الشراء *
+                        </Label>
+                        <Input
+                          id="purchaseStart"
+                          type="number"
+                          min="1"
+                          value={settings.purchaseStart}
+                          onChange={(e) => {
+                            const value = e.target.value === "" ? 1 : Number.parseInt(e.target.value)
+                            setSettings({ ...settings, purchaseStart: value })
+                          }}
+                          className="text-right"
+                          dir="rtl"
+                          required
+                          disabled={numberingLocks.purchase}
+                        />
+                      </div>
+                      <div className="flex items-end">
+                        <div className="text-sm text-muted-foreground">
+                          مثال: {settings.purchasePrefix}
+                          {String(settings.purchaseStart).padStart(4, "0")}
+                        </div>
+                      </div>
                     </div>
                   </div>
 
-                  <div>
-                    <Label htmlFor="paymentPrefix" className="text-right block">
-                      بادئة سندات الصرف *
-                    </Label>
-                    <Input
-                      id="paymentPrefix"
-                      value={settings.paymentPrefix}
-                      onChange={(e) => setSettings({ ...settings, paymentPrefix: e.target.value })}
-                      className="text-right"
-                      dir="rtl"
-                      maxLength={3}
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="paymentStart" className="text-right block">
-                      الترقيم يبدأ من (سندات الصرف) *
-                    </Label>
-                    <Input
-                      id="paymentStart"
-                      type="number"
-                      min="1"
-                      max="10000"
-                      value={settings.paymentStart}
-                      onChange={(e) => {
-                        const value = e.target.value === "" ? 1 : Number.parseInt(e.target.value)
-                        setSettings({ ...settings, paymentStart: value })
-                      }}
-                      className="text-right"
-                      dir="rtl"
-                      required
-                    />
-                  </div>
-                  <div className="flex items-end">
-                    <div className="text-sm text-muted-foreground">
-                      مثال: {settings.paymentPrefix}A{String(settings.paymentStart).padStart(6, "0")} (A = دفتر السندات)
+                  <div className="rounded-lg border border-border/70 bg-muted/20 p-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <Label htmlFor="receiptPrefix" className="text-right block">
+                          بادئة سندات القبض *
+                        </Label>
+                        <Input
+                          id="receiptPrefix"
+                          value={settings.receiptPrefix}
+                          onChange={(e) => setSettings({ ...settings, receiptPrefix: e.target.value })}
+                          className="text-right"
+                          dir="rtl"
+                          maxLength={3}
+                          required
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="receiptStart" className="text-right block">
+                          الترقيم يبدأ من (سندات القبض) *
+                        </Label>
+                        <Input
+                          id="receiptStart"
+                          type="number"
+                          min="1"
+                          max="10000"
+                          value={settings.receiptStart}
+                          onChange={(e) => {
+                            const value = e.target.value === "" ? 1 : Number.parseInt(e.target.value)
+                            setSettings({ ...settings, receiptStart: value })
+                          }}
+                          className="text-right"
+                          dir="rtl"
+                          required
+                        />
+                      </div>
+                      <div className="flex items-end">
+                        <div className="text-sm text-muted-foreground">
+                          مثال: {buildVoucherCode(settings.receiptPrefix, "A", settings.receiptStart)} (A = دفتر السندات، والكود الكلي لا يتجاوز 10 خانات)
+                        </div>
+                      </div>
                     </div>
                   </div>
 
-                  <div>
-                    <Label htmlFor="creditNotePrefix" className="text-right block">
-                      بادئة الاشعار الدائن *
-                    </Label>
-                    <Input
-                      id="creditNotePrefix"
-                      value={settings.creditNotePrefix}
-                      onChange={(e) => setSettings({ ...settings, creditNotePrefix: e.target.value })}
-                      className="text-right"
-                      dir="rtl"
-                      maxLength={3}
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="creditNoteStart" className="text-right block">
-                      الترقيم يبدأ من (الاشعار الدائن) *
-                    </Label>
-                    <Input
-                      id="creditNoteStart"
-                      type="number"
-                      min="1"
-                      max="10000"
-                      value={settings.creditNoteStart}
-                      onChange={(e) => {
-                        const value = e.target.value === "" ? 1 : Number.parseInt(e.target.value)
-                        setSettings({ ...settings, creditNoteStart: value })
-                      }}
-                      className="text-right"
-                      dir="rtl"
-                      required
-                    />
-                  </div>
-                  <div className="flex items-end">
-                    <div className="text-sm text-muted-foreground">
-                      مثال: {settings.creditNotePrefix}A{String(settings.creditNoteStart).padStart(6, "0")} (A = دفتر السندات)
+                  <div className="rounded-lg border border-border/70 bg-muted/20 p-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <Label htmlFor="paymentPrefix" className="text-right block">
+                          بادئة سندات الصرف *
+                        </Label>
+                        <Input
+                          id="paymentPrefix"
+                          value={settings.paymentPrefix}
+                          onChange={(e) => setSettings({ ...settings, paymentPrefix: e.target.value })}
+                          className="text-right"
+                          dir="rtl"
+                          maxLength={3}
+                          required
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="paymentStart" className="text-right block">
+                          الترقيم يبدأ من (سندات الصرف) *
+                        </Label>
+                        <Input
+                          id="paymentStart"
+                          type="number"
+                          min="1"
+                          max="10000"
+                          value={settings.paymentStart}
+                          onChange={(e) => {
+                            const value = e.target.value === "" ? 1 : Number.parseInt(e.target.value)
+                            setSettings({ ...settings, paymentStart: value })
+                          }}
+                          className="text-right"
+                          dir="rtl"
+                          required
+                        />
+                      </div>
+                      <div className="flex items-end">
+                        <div className="text-sm text-muted-foreground">
+                          مثال: {buildVoucherCode(settings.paymentPrefix, "A", settings.paymentStart)} (A = دفتر السندات، والكود الكلي لا يتجاوز 10 خانات)
+                        </div>
+                      </div>
                     </div>
                   </div>
 
-                  <div>
-                    <Label htmlFor="debitNotePrefix" className="text-right block">
-                      بادئة الاشعار المدين *
-                    </Label>
-                    <Input
-                      id="debitNotePrefix"
-                      value={settings.debitNotePrefix}
-                      onChange={(e) => setSettings({ ...settings, debitNotePrefix: e.target.value })}
-                      className="text-right"
-                      dir="rtl"
-                      maxLength={3}
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="debitNoteStart" className="text-right block">
-                      الترقيم يبدأ من (الاشعار المدين) *
-                    </Label>
-                    <Input
-                      id="debitNoteStart"
-                      type="number"
-                      min="1"
-                      max="10000"
-                      value={settings.debitNoteStart}
-                      onChange={(e) => {
-                        const value = e.target.value === "" ? 1 : Number.parseInt(e.target.value)
-                        setSettings({ ...settings, debitNoteStart: value })
-                      }}
-                      className="text-right"
-                      dir="rtl"
-                      required
-                    />
-                  </div>
-                  <div className="flex items-end">
-                    <div className="text-sm text-muted-foreground">
-                      مثال: {settings.debitNotePrefix}A{String(settings.debitNoteStart).padStart(6, "0")} (A = دفتر السندات)
+                  <div className="rounded-lg border border-border/70 bg-muted/20 p-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <Label htmlFor="creditNotePrefix" className="text-right block">
+                          بادئة الاشعار الدائن *
+                        </Label>
+                        <Input
+                          id="creditNotePrefix"
+                          value={settings.creditNotePrefix}
+                          onChange={(e) => setSettings({ ...settings, creditNotePrefix: e.target.value })}
+                          className="text-right"
+                          dir="rtl"
+                          maxLength={3}
+                          required
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="creditNoteStart" className="text-right block">
+                          الترقيم يبدأ من (الاشعار الدائن) *
+                        </Label>
+                        <Input
+                          id="creditNoteStart"
+                          type="number"
+                          min="1"
+                          max="10000"
+                          value={settings.creditNoteStart}
+                          onChange={(e) => {
+                            const value = e.target.value === "" ? 1 : Number.parseInt(e.target.value)
+                            setSettings({ ...settings, creditNoteStart: value })
+                          }}
+                          className="text-right"
+                          dir="rtl"
+                          required
+                        />
+                      </div>
+                      <div className="flex items-end">
+                        <div className="text-sm text-muted-foreground">
+                          مثال: {buildVoucherCode(settings.creditNotePrefix, "A", settings.creditNoteStart)} (A = دفتر السندات، والكود الكلي لا يتجاوز 10 خانات)
+                        </div>
+                      </div>
                     </div>
                   </div>
 
-                  <div>
-                    <Label htmlFor="stockInPrefix" className="text-right block">
-                      بادئة سند ادخال بضاعة *
-                    </Label>
-                    <Input
-                      id="stockInPrefix"
-                      value={settings.stockInPrefix}
-                      onChange={(e) => setSettings({ ...settings, stockInPrefix: e.target.value })}
-                      className="text-right"
-                      dir="rtl"
-                      maxLength={3}
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="stockInStart" className="text-right block">
-                      الترقيم يبدأ من (سند ادخال بضاعة) *
-                    </Label>
-                    <Input
-                      id="stockInStart"
-                      type="number"
-                      min="1"
-                      max="10000"
-                      value={settings.stockInStart}
-                      onChange={(e) => {
-                        const value = e.target.value === "" ? 1 : Number.parseInt(e.target.value)
-                        setSettings({ ...settings, stockInStart: value })
-                      }}
-                      className="text-right"
-                      dir="rtl"
-                      required
-                    />
-                  </div>
-                  <div className="flex items-end">
-                    <div className="text-sm text-muted-foreground">
-                      مثال: {settings.stockInPrefix}A{String(settings.stockInStart).padStart(6, "0")} (A = دفتر السندات)
+                  <div className="rounded-lg border border-border/70 bg-muted/20 p-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <Label htmlFor="debitNotePrefix" className="text-right block">
+                          بادئة الاشعار المدين *
+                        </Label>
+                        <Input
+                          id="debitNotePrefix"
+                          value={settings.debitNotePrefix}
+                          onChange={(e) => setSettings({ ...settings, debitNotePrefix: e.target.value })}
+                          className="text-right"
+                          dir="rtl"
+                          maxLength={3}
+                          required
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="debitNoteStart" className="text-right block">
+                          الترقيم يبدأ من (الاشعار المدين) *
+                        </Label>
+                        <Input
+                          id="debitNoteStart"
+                          type="number"
+                          min="1"
+                          max="10000"
+                          value={settings.debitNoteStart}
+                          onChange={(e) => {
+                            const value = e.target.value === "" ? 1 : Number.parseInt(e.target.value)
+                            setSettings({ ...settings, debitNoteStart: value })
+                          }}
+                          className="text-right"
+                          dir="rtl"
+                          required
+                        />
+                      </div>
+                      <div className="flex items-end">
+                        <div className="text-sm text-muted-foreground">
+                          مثال: {buildVoucherCode(settings.debitNotePrefix, "A", settings.debitNoteStart)} (A = دفتر السندات، والكود الكلي لا يتجاوز 10 خانات)
+                        </div>
+                      </div>
                     </div>
                   </div>
 
-                  <div>
-                    <Label htmlFor="stockOutPrefix" className="text-right block">
-                      بادئة سند اخراج بضاعة *
-                    </Label>
-                    <Input
-                      id="stockOutPrefix"
-                      value={settings.stockOutPrefix}
-                      onChange={(e) => setSettings({ ...settings, stockOutPrefix: e.target.value })}
-                      className="text-right"
-                      dir="rtl"
-                      maxLength={3}
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="stockOutStart" className="text-right block">
-                      الترقيم يبدأ من (سند اخراج بضاعة) *
-                    </Label>
-                    <Input
-                      id="stockOutStart"
-                      type="number"
-                      min="1"
-                      max="10000"
-                      value={settings.stockOutStart}
-                      onChange={(e) => {
-                        const value = e.target.value === "" ? 1 : Number.parseInt(e.target.value)
-                        setSettings({ ...settings, stockOutStart: value })
-                      }}
-                      className="text-right"
-                      dir="rtl"
-                      required
-                    />
-                  </div>
-                  <div className="flex items-end">
-                    <div className="text-sm text-muted-foreground">
-                      مثال: {settings.stockOutPrefix}A{String(settings.stockOutStart).padStart(6, "0")} (A = دفتر السندات)
+                  <div className="rounded-lg border border-border/70 bg-muted/20 p-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <Label htmlFor="stockInPrefix" className="text-right block">
+                          بادئة سند ادخال بضاعة *
+                        </Label>
+                        <Input
+                          id="stockInPrefix"
+                          value={settings.stockInPrefix}
+                          onChange={(e) => setSettings({ ...settings, stockInPrefix: e.target.value })}
+                          className="text-right"
+                          dir="rtl"
+                          maxLength={3}
+                          required
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="stockInStart" className="text-right block">
+                          الترقيم يبدأ من (سند ادخال بضاعة) *
+                        </Label>
+                        <Input
+                          id="stockInStart"
+                          type="number"
+                          min="1"
+                          max="10000"
+                          value={settings.stockInStart}
+                          onChange={(e) => {
+                            const value = e.target.value === "" ? 1 : Number.parseInt(e.target.value)
+                            setSettings({ ...settings, stockInStart: value })
+                          }}
+                          className="text-right"
+                          dir="rtl"
+                          required
+                        />
+                      </div>
+                      <div className="flex items-end">
+                        <div className="text-sm text-muted-foreground">
+                          مثال: {buildVoucherCode(settings.stockInPrefix, "A", settings.stockInStart)} (A = دفتر السندات، والكود الكلي لا يتجاوز 10 خانات)
+                        </div>
+                      </div>
                     </div>
                   </div>
 
-                  <div>
-                    <Label htmlFor="internalDeliveryPrefix" className="text-right block">
-                      بادئة ارسالية داخلية *
-                    </Label>
-                    <Input
-                      id="internalDeliveryPrefix"
-                      value={settings.internalDeliveryPrefix}
-                      onChange={(e) => setSettings({ ...settings, internalDeliveryPrefix: e.target.value })}
-                      className="text-right"
-                      dir="rtl"
-                      maxLength={3}
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="internalDeliveryStart" className="text-right block">
-                      الترقيم يبدأ من (ارسالية داخلية) *
-                    </Label>
-                    <Input
-                      id="internalDeliveryStart"
-                      type="number"
-                      min="1"
-                      max="10000"
-                      value={settings.internalDeliveryStart}
-                      onChange={(e) => {
-                        const value = e.target.value === "" ? 1 : Number.parseInt(e.target.value)
-                        setSettings({ ...settings, internalDeliveryStart: value })
-                      }}
-                      className="text-right"
-                      dir="rtl"
-                      required
-                    />
-                  </div>
-                  <div className="flex items-end">
-                    <div className="text-sm text-muted-foreground">
-                      مثال: {settings.internalDeliveryPrefix}A{String(settings.internalDeliveryStart).padStart(6, "0")} (A = دفتر السندات)
+                  <div className="rounded-lg border border-border/70 bg-muted/20 p-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <Label htmlFor="stockOutPrefix" className="text-right block">
+                          بادئة سند اخراج بضاعة *
+                        </Label>
+                        <Input
+                          id="stockOutPrefix"
+                          value={settings.stockOutPrefix}
+                          onChange={(e) => setSettings({ ...settings, stockOutPrefix: e.target.value })}
+                          className="text-right"
+                          dir="rtl"
+                          maxLength={3}
+                          required
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="stockOutStart" className="text-right block">
+                          الترقيم يبدأ من (سند اخراج بضاعة) *
+                        </Label>
+                        <Input
+                          id="stockOutStart"
+                          type="number"
+                          min="1"
+                          max="10000"
+                          value={settings.stockOutStart}
+                          onChange={(e) => {
+                            const value = e.target.value === "" ? 1 : Number.parseInt(e.target.value)
+                            setSettings({ ...settings, stockOutStart: value })
+                          }}
+                          className="text-right"
+                          dir="rtl"
+                          required
+                        />
+                      </div>
+                      <div className="flex items-end">
+                        <div className="text-sm text-muted-foreground">
+                          مثال: {buildVoucherCode(settings.stockOutPrefix, "A", settings.stockOutStart)} (A = دفتر السندات، والكود الكلي لا يتجاوز 10 خانات)
+                        </div>
+                      </div>
                     </div>
                   </div>
 
-                  <div>
-                    <Label htmlFor="useVoucherPrefix" className="text-right block">
-                      بادئة سند استعمال *
-                    </Label>
-                    <Input
-                      id="useVoucherPrefix"
-                      value={settings.useVoucherPrefix}
-                      onChange={(e) => setSettings({ ...settings, useVoucherPrefix: e.target.value })}
-                      className="text-right"
-                      dir="rtl"
-                      maxLength={3}
-                      required
-                    />
+                  <div className="rounded-lg border border-border/70 bg-muted/20 p-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <Label htmlFor="internalDeliveryPrefix" className="text-right block">
+                          بادئة ارسالية داخلية *
+                        </Label>
+                        <Input
+                          id="internalDeliveryPrefix"
+                          value={settings.internalDeliveryPrefix}
+                          onChange={(e) => setSettings({ ...settings, internalDeliveryPrefix: e.target.value })}
+                          className="text-right"
+                          dir="rtl"
+                          maxLength={3}
+                          required
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="internalDeliveryStart" className="text-right block">
+                          الترقيم يبدأ من (ارسالية داخلية) *
+                        </Label>
+                        <Input
+                          id="internalDeliveryStart"
+                          type="number"
+                          min="1"
+                          max="10000"
+                          value={settings.internalDeliveryStart}
+                          onChange={(e) => {
+                            const value = e.target.value === "" ? 1 : Number.parseInt(e.target.value)
+                            setSettings({ ...settings, internalDeliveryStart: value })
+                          }}
+                          className="text-right"
+                          dir="rtl"
+                          required
+                        />
+                      </div>
+                      <div className="flex items-end">
+                        <div className="text-sm text-muted-foreground">
+                          مثال: {buildVoucherCode(settings.internalDeliveryPrefix, "A", settings.internalDeliveryStart)} (A = دفتر السندات، والكود الكلي لا يتجاوز 10 خانات)
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <Label htmlFor="useVoucherStart" className="text-right block">
-                      الترقيم يبدأ من (سند استعمال) *
-                    </Label>
-                    <Input
-                      id="useVoucherStart"
-                      type="number"
-                      min="1"
-                      max="10000"
-                      value={settings.useVoucherStart}
-                      onChange={(e) => {
-                        const value = e.target.value === "" ? 1 : Number.parseInt(e.target.value)
-                        setSettings({ ...settings, useVoucherStart: value })
-                      }}
-                      className="text-right"
-                      dir="rtl"
-                      required
-                    />
-                  </div>
-                  <div className="flex items-end">
-                    <div className="text-sm text-muted-foreground">
-                      مثال: {settings.useVoucherPrefix}A{String(settings.useVoucherStart).padStart(6, "0")} (A = دفتر السندات)
+
+                  <div className="rounded-lg border border-border/70 bg-muted/20 p-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <Label htmlFor="useVoucherPrefix" className="text-right block">
+                          بادئة سند استعمال *
+                        </Label>
+                        <Input
+                          id="useVoucherPrefix"
+                          value={settings.useVoucherPrefix}
+                          onChange={(e) => setSettings({ ...settings, useVoucherPrefix: e.target.value })}
+                          className="text-right"
+                          dir="rtl"
+                          maxLength={3}
+                          required
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="useVoucherStart" className="text-right block">
+                          الترقيم يبدأ من (سند استعمال) *
+                        </Label>
+                        <Input
+                          id="useVoucherStart"
+                          type="number"
+                          min="1"
+                          max="10000"
+                          value={settings.useVoucherStart}
+                          onChange={(e) => {
+                            const value = e.target.value === "" ? 1 : Number.parseInt(e.target.value)
+                            setSettings({ ...settings, useVoucherStart: value })
+                          }}
+                          className="text-right"
+                          dir="rtl"
+                          required
+                        />
+                      </div>
+                      <div className="flex items-end">
+                        <div className="text-sm text-muted-foreground">
+                          مثال: {buildVoucherCode(settings.useVoucherPrefix, "A", settings.useVoucherStart)} (A = دفتر السندات، والكود الكلي لا يتجاوز 10 خانات)
+                        </div>
+                      </div>
                     </div>
                   </div>
 
@@ -1537,85 +1613,91 @@ export function SystemSettings() {
                     const prefixValue = settings[prefixKey] as string
                     const startValue = settings[startKey] as number
                     return (
-                      <div key={key} className="contents">
-                        <div>
-                          <Label htmlFor={`${key}Prefix`} className="text-right block">
-                            بادئة {label} *
-                          </Label>
-                          <Input
-                            id={`${key}Prefix`}
-                            value={prefixValue}
-                            onChange={(e) => setSettings({ ...settings, [prefixKey]: e.target.value })}
-                            className="text-right"
-                            dir="rtl"
-                            maxLength={3}
-                            required
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor={`${key}Start`} className="text-right block">
-                            الترقيم يبدأ من ({label}) *
-                          </Label>
-                          <Input
-                            id={`${key}Start`}
-                            type="number"
-                            min="1"
-                            max="10000"
-                            value={startValue}
-                            onChange={(e) => {
-                              const value = e.target.value === "" ? 1 : Number.parseInt(e.target.value)
-                              setSettings({ ...settings, [startKey]: value })
-                            }}
-                            className="text-right"
-                            dir="rtl"
-                            required
-                          />
-                        </div>
-                        <div className="flex items-end">
-                          <div className="text-sm text-muted-foreground">
-                            مثال: {prefixValue}A{String(startValue).padStart(6, "0")} (A = دفتر السندات)
+                      <div key={key} className="rounded-lg border border-border/70 bg-muted/20 p-4">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <div>
+                            <Label htmlFor={`${key}Prefix`} className="text-right block">
+                              بادئة {label} *
+                            </Label>
+                            <Input
+                              id={`${key}Prefix`}
+                              value={prefixValue}
+                              onChange={(e) => setSettings({ ...settings, [prefixKey]: e.target.value })}
+                              className="text-right"
+                              dir="rtl"
+                              maxLength={3}
+                              required
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor={`${key}Start`} className="text-right block">
+                              الترقيم يبدأ من ({label}) *
+                            </Label>
+                            <Input
+                              id={`${key}Start`}
+                              type="number"
+                              min="1"
+                              max="10000"
+                              value={startValue}
+                              onChange={(e) => {
+                                const value = e.target.value === "" ? 1 : Number.parseInt(e.target.value)
+                                setSettings({ ...settings, [startKey]: value })
+                              }}
+                              className="text-right"
+                              dir="rtl"
+                              required
+                            />
+                          </div>
+                          <div className="flex items-end">
+                            <div className="text-sm text-muted-foreground">
+                              مثال: {buildVoucherCode(prefixValue, "A", startValue)} (A = دفتر السندات، والكود الكلي لا يتجاوز 10 خانات)
+                            </div>
                           </div>
                         </div>
                       </div>
                     )
                   })}
 
-                  <div>
-                    <Label htmlFor="journalPrefix" className="text-right block">
-                      بادئة سندات القيد *
-                    </Label>
-                    <Input
-                      id="journalPrefix"
-                      value={settings.journalPrefix}
-                      onChange={(e) => setSettings({ ...settings, journalPrefix: e.target.value })}
-                      className="text-right"
-                      dir="rtl"
-                      maxLength={3}
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="journalStart" className="text-right block">
-                      الترقيم يبدأ من (سندات القيد) *
-                    </Label>
-                    <Input
-                      id="journalStart"
-                      type="number"
-                      min="1"
-                      max="10000"
-                      value={settings.journalStart}
-                      onChange={(e) => {
-                        const value = e.target.value === "" ? 1 : Number.parseInt(e.target.value)
-                        setSettings({ ...settings, journalStart: value })
-                      }}
-                      className="text-right"
-                      dir="rtl"
-                      required
-                    />
-                  </div>
-                  <div className="flex items-end">
-                    <div className="text-sm text-muted-foreground">
-                      مثال: {settings.journalPrefix}A{String(settings.journalStart).padStart(6, "0")} (A = دفتر السندات)
+                  <div className="rounded-lg border border-border/70 bg-muted/20 p-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <Label htmlFor="journalPrefix" className="text-right block">
+                          بادئة سندات القيد *
+                        </Label>
+                        <Input
+                          id="journalPrefix"
+                          value={settings.journalPrefix}
+                          onChange={(e) => setSettings({ ...settings, journalPrefix: e.target.value })}
+                          className="text-right"
+                          dir="rtl"
+                          maxLength={3}
+                          required
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="journalStart" className="text-right block">
+                          الترقيم يبدأ من (سندات القيد) *
+                        </Label>
+                        <Input
+                          id="journalStart"
+                          type="number"
+                          min="1"
+                          max="10000"
+                          value={settings.journalStart}
+                          onChange={(e) => {
+                            const value = e.target.value === "" ? 1 : Number.parseInt(e.target.value)
+                            setSettings({ ...settings, journalStart: value })
+                          }}
+                          className="text-right"
+                          dir="rtl"
+                          required
+                        />
+                      </div>
+                      <div className="flex items-end">
+                        <div className="text-sm text-muted-foreground">
+                          مثال: {buildVoucherCode(settings.journalPrefix, "A", settings.journalStart)} (A = دفتر السندات، والكود الكلي لا يتجاوز 10 خانات)
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>

@@ -278,6 +278,17 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
     }
   }
 
+  // تغيير دفتر السندات (لسند جديد لم يُحفَظ بعد فقط) يعيد توليد رقم السند وفق الدفتر الجديد —
+  // بنفس نمط handleBookChange في credit-note.tsx/journal.tsx/receipts.tsx (لم تكن هذه الشاشة
+  // تطبّقه إطلاقاً).
+  const handleBookChange = async (bookId: number | null) => {
+    const previousCode = form.vch_code || ""
+    setForm((f) => ({ ...f, vch_book_id: bookId }))
+    if (form.id > 0 || !bookId) return
+    const generated = await generateCode(bookId, previousCode)
+    setForm((f) => ({ ...f, vch_code: generated || previousCode }))
+  }
+
   const fetchVoucherDetails = async (id: number): Promise<VoucherRecord | null> => {
     try {
       const response = await fetch(`/api/stock-vouchers/${id}`)
@@ -735,6 +746,7 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
         onOpenChange={setDialogOpen}
         form={form}
         onFormChange={onFormChange}
+        onBookChange={handleBookChange}
         onItemsChange={(items) => setForm((f) => ({ ...f, items }))}
         voucherBooks={voucherBooks}
         currencyOptions={currencyOptions}

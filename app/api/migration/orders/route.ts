@@ -4,7 +4,6 @@ import sql, { getTenantPool } from "@/lib/database"
 
 
 
-export default sql
 export async function GET(request: NextRequest) {
     try {
         const { searchParams } = new URL(request.url)

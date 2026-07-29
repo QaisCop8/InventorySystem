@@ -1,13 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Pool } from 'pg';
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-});
+import { getTenantPool } from "@/lib/database";
 
 export async function GET(
   req: NextRequest,
   { params }: { params: { navigationType: string, id: string } }
 ) {
+  // كانت هذه الشاشة تتصل مباشرة بـprocess.env.DATABASE_URL (قاعدة الإدارة/المرجعية) بدل قاعدة
+  // الشركة الحالية (tenant) — فيفشل أي بحث/تصفّح دوماً مهما كان الصنف موجوداً فعلاً في قاعدة
+  // الشركة، لأن الاستعلام ينفَّذ أصلاً على قاعدة مختلفة تماماً لا تحوي هذا الصنف غالباً. getTenantPool
+  // يحل قاعدة الشركة النشطة لهذا الطلب تحديداً (نفس آلية sql في بقية مسارات API)، مطابقاً app/api/
+  // inventory/products/route.ts الصحيح أصلاً.
+  const pool = await getTenantPool();
   const { navigationType, id } = params;
   // Support filtering by entity type: "products" or "services"
   const typeStr = req.nextUrl.searchParams.get("type");

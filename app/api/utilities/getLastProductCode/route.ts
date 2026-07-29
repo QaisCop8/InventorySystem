@@ -1,9 +1,6 @@
 import { NextResponse } from 'next/server';
-import { Pool } from 'pg';
+import { getTenantPool } from "@/lib/database";
 
-const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-});
 function Inc_Code(code: string, prefix: string): string {
     let codeValue = code.replace(prefix, '');
     let codeArr = codeValue.split('');
@@ -33,6 +30,7 @@ function Inc_Code(code: string, prefix: string): string {
     return newCode;
 }
 export async function GET() {
+    const pool = await getTenantPool();
     const result = await pool.query(
         'SELECT product_code FROM products ORDER BY product_code DESC LIMIT 1'
     );

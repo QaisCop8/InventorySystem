@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -10,7 +10,12 @@ import { useAuth } from "@/components/auth/auth-context"
 import UnifiedSalesDelivery, {
   type SalesDeliveryRecord,
   type SalesVoucherItemRow,
-  DELIVERY_SELL_VCH_TYPE,
+  type SalesVoucherSubType,
+  SALES_VOUCHER_TYPE_LABELS,
+  SALES_INVOICE_VCH_TYPE,
+  RETURN_SELL_VCH_TYPE,
+  PURCHASE_INVOICE_VCH_TYPE,
+  RETURN_PURCHASE_VCH_TYPE,
   toGridDateString,
 } from "./unified-sales-delivery"
 import type { PostVoucherAction } from "@/components/common/post-voucher-dialog"
@@ -31,8 +36,18 @@ interface WarehouseOption {
   code: string
 }
 
-const TITLE = "إرسالية مبيعات"
-const LIST_TITLE = "إرساليات المبيعات"
+interface SalesDeliveryProps {
+  voucherType: SalesVoucherSubType
+}
+
+// نفس الأنواع الأربعة التي يظهر لها تبويب "تفاصيل حسابات الاصناف" في unified-sales-delivery.tsx
+// (ITEM_ACCOUNT_CONFIG هناك) — يجب أن يحمل كل صنف حساباً قبل الحفظ لهذه الأنواع فقط.
+const ITEM_ACCOUNT_VCH_TYPES = new Set<SalesVoucherSubType>([
+  SALES_INVOICE_VCH_TYPE,
+  RETURN_SELL_VCH_TYPE,
+  PURCHASE_INVOICE_VCH_TYPE,
+  RETURN_PURCHASE_VCH_TYPE,
+])
 
 const emptyItemRow: SalesVoucherItemRow = {
   product_id: null,
@@ -56,45 +71,56 @@ const emptyItemRow: SalesVoucherItemRow = {
   width: null,
   height: null,
   count: null,
+  account_id: null,
 }
 
-const buildInitialForm = (): SalesDeliveryRecord => ({
-  id: 0,
-  vch_type: DELIVERY_SELL_VCH_TYPE,
-  vch_code: "",
-  vch_date: new Date().toISOString().slice(0, 10),
-  vch_book_id: null,
-  currency_id: null,
-  rate: 1,
-  account_id: null,
-  customer_name: "",
-  to_store_id: null,
-  salesman_id: null,
-  shipping_address: "",
-  linked_order_id: null,
-  discount_type: "percentage",
-  discount_value: 0,
-  vat_percent: 0,
-  amount: 0,
-  manual_voucher: "",
-  manual_date: new Date().toISOString().slice(0, 10),
-  note: "",
-  status: 1,
-  is_printed: 0,
-  items: [{ ...emptyItemRow }],
-})
-
-const normalizeVoucher = (record: Partial<SalesDeliveryRecord>): SalesDeliveryRecord => ({
-  ...buildInitialForm(),
-  ...record,
-  manual_date: record.manual_date || record.vch_date || buildInitialForm().manual_date,
-  items: record.items?.length
-    ? (record.items as SalesVoucherItemRow[]).map((item) => ({ ...item, expiry_date: toGridDateString(item.expiry_date) }))
-    : [{ ...emptyItemRow }],
-})
-
-export default function SalesDelivery() {
+export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
   const { user } = useAuth()
+  const TITLE = SALES_VOUCHER_TYPE_LABELS[voucherType].title
+  const LIST_TITLE = SALES_VOUCHER_TYPE_LABELS[voucherType].listTitle
+
+  // نسبة الضريبة الافتراضية (system_settings.tax_rate، الإعدادات العامة) — تُجلَب مرة واحدة عند
+  // فتح الشاشة (fetchLookups أدناه) وتُقرأ هنا كمرجع بدل حالة React، إذ لا داعي لإعادة رسم الشاشة
+  // عند وصولها؛ تُستخدَم فقط عند بناء سند جديد لاحقاً.
+  const defaultVatPercentRef = useRef<number>(0)
+
+  // مُعرَّفتان هنا (لا بمستوى الوحدة) لاعتمادهما على voucherType الخاص بهذه الشاشة تحديداً — نفس
+  // النوع يُستخدَم عند بناء أي سند جديد/فارغ بدل النوع 17 (إرسالية مبيعات) الثابت سابقاً.
+  const buildInitialForm = (): SalesDeliveryRecord => ({
+    id: 0,
+    vch_type: voucherType,
+    vch_code: "",
+    vch_date: new Date().toISOString().slice(0, 10),
+    vch_book_id: null,
+    currency_id: null,
+    rate: 1,
+    account_id: null,
+    customer_name: "",
+    to_store_id: null,
+    salesman_id: null,
+    shipping_address: "",
+    linked_order_id: null,
+    discount_type: "percentage",
+    discount_value: 0,
+    vat_percent: defaultVatPercentRef.current,
+    amount: 0,
+    manual_voucher: "",
+    manual_date: new Date().toISOString().slice(0, 10),
+    note: "",
+    status: 1,
+    is_printed: 0,
+    items: [{ ...emptyItemRow }],
+  })
+
+  const normalizeVoucher = (record: Partial<SalesDeliveryRecord>): SalesDeliveryRecord => ({
+    ...buildInitialForm(),
+    ...record,
+    manual_date: record.manual_date || record.vch_date || buildInitialForm().manual_date,
+    items: record.items?.length
+      ? (record.items as SalesVoucherItemRow[]).map((item) => ({ ...item, expiry_date: toGridDateString(item.expiry_date) }))
+      : [{ ...emptyItemRow }],
+  })
+
 
   const [vouchers, setVouchers] = useState<SalesDeliveryRecord[]>([])
   const [currencies, setCurrencies] = useState<CurrencyRate[]>([])
@@ -148,7 +174,7 @@ export default function SalesDelivery() {
 
   const fetchVouchers = async () => {
     try {
-      const response = await fetch(`/api/sales-vouchers?vch_type=${DELIVERY_SELL_VCH_TYPE}`)
+      const response = await fetch(`/api/sales-vouchers?vch_type=${voucherType}`)
       const data = await response.json()
       setVouchers(Array.isArray(data) ? data : [])
     } catch (error) {
@@ -159,16 +185,17 @@ export default function SalesDelivery() {
 
   const fetchLookups = async () => {
     try {
-      const booksUrl = `/api/receipts/voucher-books?vch_type=${DELIVERY_SELL_VCH_TYPE}${
+      const booksUrl = `/api/receipts/voucher-books?vch_type=${voucherType}${
         user?.id ? `&user_id=${encodeURIComponent(user.id)}` : ""
       }`
       const warehouseDefaultsUrl = user?.id ? `/api/settings/user-warehouse-defaults?user_id=${encodeURIComponent(user.id)}` : null
-      const [currenciesRes, booksRes, warehousesRes, warehouseDefaultsRes, salesmenRes] = await Promise.all([
+      const [currenciesRes, booksRes, warehousesRes, warehouseDefaultsRes, salesmenRes, systemSettingsRes] = await Promise.all([
         fetch("/api/exchange-rates").catch(() => null),
         fetch(booksUrl).catch(() => null),
         fetch("/api/warehouses").catch(() => null),
         warehouseDefaultsUrl ? fetch(warehouseDefaultsUrl).catch(() => null) : Promise.resolve(null),
         fetch("/api/salesmen").catch(() => null),
+        fetch("/api/settings/system").catch(() => null),
       ])
       if (currenciesRes?.ok) {
         const data = await currenciesRes.json()
@@ -193,6 +220,10 @@ export default function SalesDelivery() {
         const data = await salesmenRes.json()
         setSalesmen(Array.isArray(data) ? data : Array.isArray(data?.salesmen) ? data.salesmen : [])
       }
+      if (systemSettingsRes?.ok) {
+        const data = await systemSettingsRes.json()
+        defaultVatPercentRef.current = Number(data?.tax_rate) || 0
+      }
     } catch (error) {
       console.error("Failed to fetch lookups", error)
     }
@@ -200,7 +231,7 @@ export default function SalesDelivery() {
 
   const fetchDefaults = async (): Promise<{ bookId: number | null; currencyId: number | null }> => {
     try {
-      const booksUrl = `/api/receipts/voucher-books?vch_type=${DELIVERY_SELL_VCH_TYPE}${
+      const booksUrl = `/api/receipts/voucher-books?vch_type=${voucherType}${
         user?.id ? `&user_id=${encodeURIComponent(user.id)}` : ""
       }`
       const [booksRes, currenciesRes] = await Promise.all([
@@ -238,7 +269,7 @@ export default function SalesDelivery() {
   const generateCode = async (bookId: number | null, fallbackCode = "") => {
     if (!bookId) return fallbackCode
     try {
-      const response = await fetch(`/api/sales-vouchers/generate-number?vch_type=${DELIVERY_SELL_VCH_TYPE}&vch_book_id=${bookId}`)
+      const response = await fetch(`/api/sales-vouchers/generate-number?vch_type=${voucherType}&vch_book_id=${bookId}`)
       if (!response.ok) return fallbackCode
       const data = await response.json()
       return data.code || fallbackCode
@@ -246,6 +277,17 @@ export default function SalesDelivery() {
       console.error("Failed to generate sales delivery voucher number", error)
       return fallbackCode
     }
+  }
+
+  // تغيير دفتر السندات (قبل الحفظ فقط، أي سند جديد بعد لم يُحفَظ بعد — form.id > 0 يعني سنداً
+  // محفوظاً فعلياً فلا يُعاد توليد رقمه) يعيد توليد رقم السند وفق الدفتر الجديد — بنفس نمط
+  // handleBookChange في credit-note.tsx/journal.tsx/receipts.tsx (لم تكن هذه الشاشة تطبّقه إطلاقاً).
+  const handleBookChange = async (bookId: number | null) => {
+    const previousCode = form.vch_code || ""
+    setForm((f) => ({ ...f, vch_book_id: bookId }))
+    if (form.id > 0 || !bookId) return
+    const generated = await generateCode(bookId, previousCode)
+    setForm((f) => ({ ...f, vch_code: generated || previousCode }))
   }
 
   const fetchVoucherDetails = async (id: number): Promise<SalesDeliveryRecord | null> => {
@@ -335,6 +377,12 @@ export default function SalesDelivery() {
     if (items.length === 0) return "يجب إدخال صنف واحد على الأقل"
     if (items.some((i) => !i.warehouse_id)) return "يجب اختيار المستودع لكل صنف"
     if (items.some((i) => !(Number(i.quantity || 0) > 0))) return "يجب إدخال الكمية لكل صنف"
+    // فاتورة مبيعات/مشتريات ومردود مبيعات/مشتريات فقط: تبويب "تفاصيل حسابات الاصناف" يُنشئ قيداً
+    // محاسبياً لكل صنف (buildSalesVoucherJournalRows في app/api/sales-vouchers/_lib.ts)، فيجب أن
+    // يحمل كل صنف حساباً قبل الحفظ وإلا يبقى القيد غير مكتمل/غير متوازن.
+    if (ITEM_ACCOUNT_VCH_TYPES.has(voucherType) && items.some((i) => !i.account_id)) {
+      return "رقم حساب الصنف غير محدد يرجى الذهاب الى تاب تفاصيل حسابات الاصناف وتحديد الحساب للاصناف"
+    }
     return null
   }
 
@@ -578,10 +626,12 @@ export default function SalesDelivery() {
       </Card>
 
       <UnifiedSalesDelivery
+        voucherType={voucherType}
         dialogOpen={dialogOpen}
         onOpenChange={setDialogOpen}
         form={form}
         onFormChange={onFormChange}
+        onBookChange={handleBookChange}
         onItemsChange={(items) => setForm((f) => ({ ...f, items }))}
         voucherBooks={voucherBooks}
         currencyOptions={currencyOptions}

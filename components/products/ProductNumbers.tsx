@@ -11,6 +11,12 @@ interface ProductNumbersProps {
     title: string;
     numbers: string[];
     onUpdateNumbers: (newNumbers: string[]) => void;
+    // 1 = الرقم الأصلي، 2 = رقم المصنع (يطابق عمود product_numbers.type في app/api/inventory/
+    // products/route.ts) — يُستخدَم لفحص التكرار مع أصناف أخرى عبر check-number.
+    numberType: 1 | 2;
+    excludeProductId: number;
+    currentProductName: string;
+    onDuplicateError: (message: string) => void;
 }
 
 // نافذة إضافة متعددة لأرقام الصنف (الرقم الأصلي/رقم المصنع) — بنفس أسلوب ProductBarcodes تماماً،
@@ -21,12 +27,48 @@ export default function ProductNumbers({
     title,
     numbers,
     onUpdateNumbers,
+    numberType,
+    excludeProductId,
+    currentProductName,
+    onDuplicateError,
 }: ProductNumbersProps) {
     const [dialogData, setDialogData] = React.useState<{ ser: number; number: string }[]>([]);
 
     React.useEffect(() => {
         setDialogData(numbers.map((n, i) => ({ ser: i + 1, number: n })));
     }, [numbers]);
+
+    // يتحقق من عدم تكرار الرقم مع سطر آخر لنفس الصنف (rows أخرى بهذه النافذة) أو مع صنف آخر
+    // (عبر /api/inventory/products/check-number) — يُستدعى بعد كل تعديل خانة، ويُفرغ الخانة
+    // المكرَّرة فوراً إن وُجد تكرار بدل تركها كما هي.
+    const validateNumber = async (rowIndex: number, value: string, rows: { ser: number; number: string }[]) => {
+        const trimmed = value.trim()
+        if (!trimmed) return true
+
+        const duplicateInSameProduct = rows.some(
+            (row, i) => i !== rowIndex && row.number.trim().toLowerCase() === trimmed.toLowerCase(),
+        )
+        if (duplicateInSameProduct) {
+            onDuplicateError(`${title} مكرر مع صنف - ${currentProductName || "هذا الصنف"}`)
+            return false
+        }
+
+        try {
+            const response = await fetch(
+                `/api/inventory/products/check-number?type=${numberType}&number=${encodeURIComponent(trimmed)}&exclude_id=${excludeProductId || 0}`,
+            )
+            if (response.ok) {
+                const data = await response.json()
+                if (data?.duplicate) {
+                    onDuplicateError(`${title} مكرر مع صنف - ${data.product_name}`)
+                    return false
+                }
+            }
+        } catch (error) {
+            console.error("Failed to check product number duplicate", error)
+        }
+        return true
+    }
 
     const handleDelete = (index: number) => {
         const newData = dialogData.filter((_, i) => i !== index)
@@ -56,11 +98,25 @@ export default function ProductNumbers({
 
     const cellEditEnded = (s: any, e: any) => {
         const editedItem = s.rows[e.row].dataItem;
+        const rowIndex = e.row;
 
         setDialogData(prev => {
             const newData = [...prev];
-            newData[e.row] = { ...editedItem };
+            newData[rowIndex] = { ...editedItem };
             onUpdateNumbers(newData.map(d => d.number));
+
+            void validateNumber(rowIndex, editedItem.number, newData).then((isValid) => {
+                if (isValid) return
+                // يُفرَّغ السطر المكرَّر بدل ترك القيمة غير الصالحة معروضة أو محفوظة لاحقاً.
+                setDialogData((current) => {
+                    if (!current[rowIndex]) return current
+                    const reverted = [...current]
+                    reverted[rowIndex] = { ...reverted[rowIndex], number: "" }
+                    onUpdateNumbers(reverted.map(d => d.number))
+                    return reverted
+                })
+            })
+
             return newData;
         });
     };

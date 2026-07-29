@@ -2,7 +2,6 @@ import { generateText } from "ai"
 import OpenAI from "openai";
 import sql from "@/lib/database"
 
-export default sql
 
 
 export async function POST(request: Request) {

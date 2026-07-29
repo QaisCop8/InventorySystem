@@ -23,19 +23,26 @@ export async function GET(request: NextRequest) {
     }
 
     const [, typedPrefix, typedNumber] = match
+    const settings = await getCreditNoteNumberSettings(request.url, vchType)
     let prefix = typedPrefix.toUpperCase()
+    const configuredPrefix = settings.prefix.toUpperCase()
 
+    // "raw" قد يكون كوداً مكتملاً مسبقاً وليس اختصاراً مكتوباً يدوياً — البادئة الصحيحة دوماً هي
+    // بادئة الإعدادات الحالية (لا ما كتبه المستخدم)، وما تبقى بعد نزع البادئة/رمز الدفتر المكرَّرين
+    // من المكتوب يُستخدَم كبادئة مستخدم اختيارية بحرف واحد (انظر نفس المنطق في stock-vouchers/
+    // resolve-code وreceipts/resolve-code).
     const upperBookName = bookName.toUpperCase()
+    if (prefix.startsWith(configuredPrefix)) {
+      prefix = prefix.slice(configuredPrefix.length)
+    }
+    if (prefix.startsWith(upperBookName)) {
+      prefix = prefix.slice(upperBookName.length)
+    }
     while (upperBookName && prefix.length > upperBookName.length && prefix.endsWith(upperBookName)) {
       prefix = prefix.slice(0, prefix.length - upperBookName.length)
     }
 
-    if (!prefix) {
-      const settings = await getCreditNoteNumberSettings(request.url, vchType)
-      prefix = settings.prefix
-    }
-
-    const code = buildVoucherCode(prefix, bookName, Number(typedNumber))
+    const code = buildVoucherCode(configuredPrefix, bookName, Number(typedNumber), prefix)
 
     const rows = await sql`SELECT id FROM voucher_header_tbl WHERE vch_type = ${vchType} AND vch_code = ${code}`
     const existingId = rows[0]?.id ?? null

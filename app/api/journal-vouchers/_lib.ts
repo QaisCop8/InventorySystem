@@ -9,6 +9,9 @@ import {
   validateJournalAccountCurrencies,
   JOURNAL_TYPE_COUNTER_ACCOUNT,
 } from "../receipts/_lib"
+import { buildVoucherCode, normalizeVoucherPrefix } from "@/lib/voucher-code"
+
+export { buildVoucherCode, normalizeVoucherPrefix }
 
 // سند قيد يشارك نفس جداول سند القبض/الصرف (voucher_header_tbl / voucher_journal_detail_tbl /
 // voucher_costcenter_tbl / voucher_notes_tbl) — الفرق الوحيد هنا: كل سطر في "الحسابات" هو
@@ -26,8 +29,6 @@ export {
 // per voucher_types_tbl (7 = "سند قيد", مختلف عن سند القبض/الصرف 8/9).
 export const JOURNAL_VCH_TYPE = 7
 
-const VOUCHER_CODE_SEQUENCE_DIGITS = 8
-
 export const getVoucherNumberSettings = async (
   requestUrl: string,
 ): Promise<{ prefix: string; startNumber: number }> => {
@@ -44,17 +45,6 @@ export const getVoucherNumberSettings = async (
     console.error("Failed to load journal voucher numbering settings, using defaults:", error)
     return { prefix: defaultPrefix, startNumber: 1 }
   }
-}
-
-const normalizeVoucherPrefix = (value: string): string =>
-  String(value || "").trim().toUpperCase().replace(/[^A-Z]/g, "").slice(0, 1)
-
-export const buildVoucherCode = (prefix: string, bookName: string, sequence: number, userPrefix = ""): string => {
-  const basePrefix = String(prefix || "").trim().toUpperCase()
-  const normalizedBookName = String(bookName || "").trim().toUpperCase()
-  const normalizedUserPrefix = normalizeVoucherPrefix(userPrefix)
-  const sequencePart = String(sequence).padStart(VOUCHER_CODE_SEQUENCE_DIGITS, "0")
-  return `${basePrefix}${normalizedBookName}${normalizedUserPrefix}${sequencePart}`
 }
 
 export const nextVoucherSequence = async (codePrefix: string, startNumber: number): Promise<number> => {

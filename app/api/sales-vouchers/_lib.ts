@@ -6,11 +6,19 @@ import {
   applyStockMovement,
   reverseStockMovement,
   ensureTables as ensureStockVoucherTables,
+  NO_EXPIRY_SENTINEL_DATE,
 } from "@/app/api/stock-vouchers/_lib"
+import {
+  ensureTables as ensureReceiptsTables,
+  JOURNAL_TYPE_COUNTER_ACCOUNT,
+  saveJournalRows,
+  validateJournalAccountCurrencies,
+} from "@/app/api/receipts/_lib"
 
 // يُعاد تصديرها هنا لأن route.ts/generate-number/resolve-code في هذا المجلد تستوردها من "./_lib"
 // (نفس نمط ملفات stock-vouchers) بدل الاستيراد المباشر من وحدة سندات المخزون.
 export { buildVoucherCode, nextVoucherSequence, resolveVoucherBookName }
+export { saveJournalRows, validateJournalAccountCurrencies }
 
 // reference_type مخصَّص لحركات مخزون سندات المبيعات الثمانية (يميّزها في inventory_transactions
 // عن سندات المخزون نفسها) — مُمرَّر لِـapplyStockMovement/reverseStockMovement المستوردتين أعلاه
@@ -59,6 +67,26 @@ export const SALES_IN_VCH_TYPES = [
 // مرتجع مشتريات: بضاعة تعود للمورد، تخرج من مستودعنا.
 export const RETURN_PURCHASE_OUT = [RETURN_PURCHASE_VCH_TYPE] as const
 
+// الأنواع الأربعة التي يظهر لها تبويب "تفاصيل حسابات الاصناف" (فاتورة مبيعات/مشتريات ومردود
+// مبيعات/مشتريات — وليس أنواع الإرسالية الأربعة الأخرى) — مطابق تماماً لـITEM_ACCOUNT_CONFIG في
+// unified-sales-delivery.tsx. يُستخدَم هنا للتحقق من وجود حساب لكل صنف ولبناء قيد buildSalesVoucherJournalRows.
+export const ITEM_ACCOUNT_VCH_TYPES = [
+  SALES_INVOICE_VCH_TYPE,
+  RETURN_SELL_VCH_TYPE,
+  PURCHASE_INVOICE_VCH_TYPE,
+  RETURN_PURCHASE_VCH_TYPE,
+] as const
+
+// journal_type_id حسب voucher_journal_type_caption_tbl: 6="المبيعات" و9="المشتريات" (مستخدَمان
+// أصلاً لموديولات أخرى محجوزة لم تُبنَ بعد — أول من يستخدمهما فعلياً هو هذا الملف)، و16/17 نوعان
+// جديدان لمردود المبيعات/المشتريات (مُضافان في ensureTables أعلاه؛ JOURNAL_TYPE_COUNTER_ACCOUNT=5
+// مستورَد من receipts/_lib.ts ويُعاد استخدامه هنا لحساب العميل/المورد المقابل، بمعناه "حساب الزبون/
+// المورد" تماماً).
+const JOURNAL_TYPE_SALES = 6
+const JOURNAL_TYPE_PURCHASES = 9
+const JOURNAL_TYPE_SALES_RETURN = 16
+const JOURNAL_TYPE_PURCHASE_RETURN = 17
+
 const VOUCHER_TYPE_NAMES: Record<number, string> = {
   [SALES_INVOICE_VCH_TYPE]: "فاتورة مبيعات",
   [DELIVERY_SELL_VCH_TYPE]: "إرسالية مبيعات",
@@ -71,6 +99,10 @@ const VOUCHER_TYPE_NAMES: Record<number, string> = {
 }
 
 export const ensureTables = async () => {
+  // voucher_journal_detail_tbl/voucher_journal_type_tbl (تفاصيل حسابات الاصناف لفاتورة مبيعات/
+  // مشتريات ومردود مبيعات/مشتريات، انظر buildSalesVoucherJournalRows أدناه) مملوكان أصلاً بواسطة
+  // receipts/_lib.ts — نفس نمط credit-notes/_lib.ts (تستدعيها أولاً قبل أي شيء آخر).
+  await ensureReceiptsTables()
   // product_stock/inventory_transactions مملوكان فعلياً بواسطة stock-vouchers/_lib.ts — تُستدعى
   // ensureTables هناك هنا أيضاً لضمان وجودهما حتى لو لم تُستخدَم شاشات سندات المخزون إطلاقاً بعد على
   // هذه الشركة (تنصيب جديد قد يبدأ مباشرة بشاشة إرسالية المبيعات دون المرور بها أولاً).
@@ -92,41 +124,32 @@ export const ensureTables = async () => {
     ON CONFLICT (id) DO NOTHING
   `
 
-  // جدول أسطر مشترك للأنواع الثمانية — أغنى من voucher_items_tbl (سندات الحركة) لأنه يحمل التسعير/
-  // الضريبة/الربط العابر للسندات المطلوبة بنطاق الشاشة الأولى (إرسالية مبيعات): بونص، خصم بنسبة
-  // ومبلغ، ضريبة، أرقام تسلسلية (JSONB لكل وحدات مسلسلة لنفس السطر)، مراكز كلفة، وربط بسند المصدر
-  // (طلبية/عرض سعر) الذي استُلَّ منه هذا السطر.
+  // أسطر أصناف سندات المبيعات/المشتريات الثمانية تُخزَّن في voucher_items_tbl نفسه (الجدول المشترك
+  // الذي تملكه stock-vouchers/_lib.ts وتستخدمه سندات الحركة الأربعة، بما فيها سند الاستعمال) — وليس
+  // بجدول منفصل. أعمدته الأساسية (product_id/warehouse_id/quantity/unit_price/batch_number/
+  // expiry_date/length-width-height-count/note...) مُنشأة بالفعل عبر ensureStockVoucherTables أعلاه؛
+  // الأعمدة التالية فقط خاصة بسندات المبيعات ولا وجود لها هناك، فتُضاف هنا دفاعياً.
+  await sql`ALTER TABLE voucher_items_tbl ADD COLUMN IF NOT EXISTS serial_numbers JSONB DEFAULT '[]'`
+  // حساب الصنف (تبويب "تفاصيل حسابات الاصناف" — فاتورة مبيعات/مشتريات ومردود مبيعات/مشتريات فقط،
+  // انظر ITEM_ACCOUNT_CONFIG في unified-sales-delivery.tsx وbuildSalesVoucherJournalRows أدناه) —
+  // عمود مستقل عن expense_account_id/purchase_account_id الخاصَّين بسند الاستعمال فقط.
+  await sql`ALTER TABLE voucher_items_tbl ADD COLUMN IF NOT EXISTS account_id INTEGER`
+  await sql`ALTER TABLE voucher_items_tbl ADD COLUMN IF NOT EXISTS account_cost_centers JSONB DEFAULT '[]'`
+  // سند المصدر الذي استُلَّ منه هذا السطر (عرض سعر/طلبية/إرسالية سابقة) — يمنع سحب نفس السطر مرتين
+  // عبر نوافذ "استلام من طلبية/إرسالية" في تبويب بيانات اضافية.
+  await sql`ALTER TABLE voucher_items_tbl ADD COLUMN IF NOT EXISTS source_voucher_id INTEGER`
+  await sql`ALTER TABLE voucher_items_tbl ADD COLUMN IF NOT EXISTS source_voucher_type INTEGER`
+
+  // نوعا قيد إضافيان خاصان بمردود المبيعات/المشتريات (1-15 محجوزة لموديولات أخرى بالفعل، 6="المبيعات"
+  // و9="المشتريات" يُعادان استخدامهما هنا لفاتورة مبيعات/مشتريات مباشرة) — نفس نمط إضافة الأنواع
+  // الثمانية الجديدة لـvoucher_types_tbl أعلاه.
+  await sql`INSERT INTO voucher_journal_type_tbl (id) VALUES (${JOURNAL_TYPE_SALES_RETURN}), (${JOURNAL_TYPE_PURCHASE_RETURN}) ON CONFLICT (id) DO NOTHING`
   await sql`
-    CREATE TABLE IF NOT EXISTS sales_voucher_items_tbl (
-      id SERIAL PRIMARY KEY,
-      voucher_id INTEGER NOT NULL REFERENCES voucher_header_tbl(id) ON DELETE CASCADE,
-      ser INTEGER,
-      product_id INTEGER,
-      product_code VARCHAR(50),
-      product_name VARCHAR(200),
-      barcode VARCHAR(100),
-      warehouse_id INTEGER,
-      unit VARCHAR(50),
-      quantity DOUBLE PRECISION DEFAULT 0,
-      bonus_quantity DOUBLE PRECISION DEFAULT 0,
-      unit_price DOUBLE PRECISION DEFAULT 0,
-      discount_percent DOUBLE PRECISION DEFAULT 0,
-      discount_amount DOUBLE PRECISION DEFAULT 0,
-      tax_percent DOUBLE PRECISION DEFAULT 0,
-      tax_amount DOUBLE PRECISION DEFAULT 0,
-      total_price DOUBLE PRECISION DEFAULT 0,
-      batch_number VARCHAR(50),
-      expiry_date DATE,
-      serial_numbers JSONB DEFAULT '[]',
-      cost_centers JSONB DEFAULT '[]',
-      -- سند المصدر الذي استُلَّ منه هذا السطر (عرض سعر/طلبية/إرسالية سابقة) — يمنع سحب نفس السطر
-      -- مرتين عبر نوافذ "استلام من طلبية/إرسالية" في تبويب بيانات اضافية.
-      source_voucher_id INTEGER,
-      source_voucher_type INTEGER,
-      note VARCHAR(200)
-    )
+    INSERT INTO voucher_journal_type_caption_tbl (id, journal_type_id, language_id, name) VALUES
+      (${JOURNAL_TYPE_SALES_RETURN}, ${JOURNAL_TYPE_SALES_RETURN}, 1, 'مردود المبيعات'),
+      (${JOURNAL_TYPE_PURCHASE_RETURN}, ${JOURNAL_TYPE_PURCHASE_RETURN}, 1, 'مردود المشتريات')
+    ON CONFLICT (id) DO NOTHING
   `
-  await sql`CREATE INDEX IF NOT EXISTS idx_sales_voucher_items_tbl_voucher_id ON sales_voucher_items_tbl(voucher_id)`
 
   // أعمدة مستوى السند (الرأس) الخاصة بهذه الأنواع الثمانية فقط — تُضاف لـvoucher_header_tbl القائم
   // (لا تُنشئه، receipts/_lib.ts يملك ذلك) دفاعياً بـADD COLUMN IF NOT EXISTS.
@@ -139,8 +162,6 @@ export const ensureTables = async () => {
   await sql`ALTER TABLE voucher_header_tbl ADD COLUMN IF NOT EXISTS discount_value DOUBLE PRECISION DEFAULT 0`
   await sql`ALTER TABLE voucher_header_tbl ADD COLUMN IF NOT EXISTS vat_percent DOUBLE PRECISION DEFAULT 0`
 }
-
-const VOUCHER_CODE_SEQUENCE_DIGITS = 8
 
 const SALES_VOUCHER_SETTINGS_KEY: Record<number, { prefix: string; start: string; defaultPrefix: string }> = {
   [SALES_INVOICE_VCH_TYPE]: { prefix: "sales_invoice_prefix", start: "sales_invoice_start", defaultPrefix: "INV" },
@@ -183,26 +204,115 @@ export const generateSalesVoucherCode = async (requestUrl: string, vchType: numb
   return buildVoucherCode(prefix, bookName, sequence)
 }
 
+// يتحقق أن كل صنف بالسند يحمل حساباً — فقط لفاتورة مبيعات/مشتريات ومردود مبيعات/مشتريات (تبويب
+// "تفاصيل حسابات الاصناف")؛ خط دفاع ثانٍ خلف نفس التحقق بالواجهة (validateVoucher في
+// sales-delivery.tsx) لأي استدعاء مباشر لواجهة الـAPI.
+export const validateItemAccounts = (vchType: number, items: any[]): string | null => {
+  if (!(ITEM_ACCOUNT_VCH_TYPES as readonly number[]).includes(vchType)) return null
+  const missing = items.some((item) => !item?.account_id)
+  if (!missing) return null
+  return "رقم حساب الصنف غير محدد يرجى الذهاب الى تاب تفاصيل حسابات الاصناف وتحديد الحساب للاصناف"
+}
+
+// سند استعمال في unified-stock-voucher.tsx: قيد كل سطر مغلق بحد ذاته (مدين مصروف/دائن مشتريات
+// بنفس المبلغ). هنا يوجد أيضاً عميل/مورد واحد على مستوى السند كاملاً (form.account_id)، فالقيد
+// المتوازن هو: مجموع أسطر حساب الصنف (طرف واحد) مقابل سطر واحد للعميل/المورد بإجمالي المبلغ (الطرف
+// الآخر) — نفس المعادلة المحاسبية القياسية للفواتير:
+//   فاتورة مبيعات: مدين العميل / دائن حساب المبيعات لكل صنف
+//   مردود مبيعات: مدين حساب مردود المبيعات لكل صنف / دائن العميل
+//   فاتورة مشتريات: مدين حساب المشتريات لكل صنف / دائن المورد
+//   مردود مشتريات: مدين المورد / دائن حساب مردود المشتريات لكل صنف
+// المبلغ هنا هو total_price الأصلي لكل صنف (كمية × سعر بلا خصم/ضريبة على مستوى السند) — تبسيط
+// مقصود (v1) بلا سطري خصم/ضريبة منفصلين، تماماً كما لا يوجد لهما تمثيل في buildUseVoucherJournalRows.
+const ITEM_ACCOUNT_JOURNAL_CONFIG: Record<number, { itemJournalType: number; itemSide: 1 | 2; counterSide: 1 | 2 }> = {
+  [SALES_INVOICE_VCH_TYPE]: { itemJournalType: JOURNAL_TYPE_SALES, itemSide: 2, counterSide: 1 },
+  [RETURN_SELL_VCH_TYPE]: { itemJournalType: JOURNAL_TYPE_SALES_RETURN, itemSide: 1, counterSide: 2 },
+  [PURCHASE_INVOICE_VCH_TYPE]: { itemJournalType: JOURNAL_TYPE_PURCHASES, itemSide: 1, counterSide: 2 },
+  [RETURN_PURCHASE_VCH_TYPE]: { itemJournalType: JOURNAL_TYPE_PURCHASE_RETURN, itemSide: 2, counterSide: 1 },
+}
+
+export const buildSalesVoucherJournalRows = (
+  vchType: number,
+  items: any[],
+  customerAccountId: number | null,
+  currencyId: number | null,
+  rate: number,
+) => {
+  const typeConfig = ITEM_ACCOUNT_JOURNAL_CONFIG[vchType]
+  if (!typeConfig || !customerAccountId) return []
+
+  const rows: any[] = []
+  let orderNo = 1
+  let total = 0
+  for (const item of items) {
+    const amount = Number(item.total_price || 0)
+    if (amount <= 0 || !item.account_id) continue
+    rows.push({
+      order_no: orderNo++,
+      journal_type_id: typeConfig.itemJournalType,
+      account_id: Number(item.account_id),
+      credit_debit: typeConfig.itemSide,
+      amount,
+      note: item.product_name || "",
+      cost_centers: Array.isArray(item.account_cost_centers) ? item.account_cost_centers : [],
+    })
+    total += amount
+  }
+  if (total > 0) {
+    rows.push({
+      order_no: orderNo++,
+      journal_type_id: JOURNAL_TYPE_COUNTER_ACCOUNT,
+      account_id: Number(customerAccountId),
+      credit_debit: typeConfig.counterSide,
+      amount: Math.round(total * 100) / 100,
+      note: "حساب الزبون/المورد",
+      cost_centers: [],
+    })
+  }
+  return rows.map((row) => ({
+    ...row,
+    currency_id: currencyId,
+    rate,
+    base_curr_amount: Math.round(row.amount * rate * 100) / 100,
+  }))
+}
+
+// نفس saveVoucherItems في stock-vouchers/_lib.ts حرفياً (DELETE+إعادة إدراج كاملة، وتصفير تاريخ
+// الانتهاء لصنف غير متتبَّع فعلياً عبر NO_EXPIRY_SENTINEL_DATE) — مع أعمدة سندات المبيعات الإضافية
+// (serial_numbers/account_id/account_cost_centers/source_voucher_id/source_voucher_type) بدل
+// expense_account_id/purchase_account_id/expense_cost_centers/purchase_cost_centers الخاصة بسند
+// الاستعمال حصراً.
 export const saveSalesVoucherItems = async (voucherId: number, items: any[]) => {
-  await sql`DELETE FROM sales_voucher_items_tbl WHERE voucher_id = ${voucherId}`
+  await sql`DELETE FROM voucher_items_tbl WHERE voucher_id = ${voucherId}`
   const rows = (Array.isArray(items) ? items : []).filter((row) => row?.product_id && Number(row?.quantity || 0) > 0)
+
+  const productIds = [...new Set(rows.map((r) => Number(r.product_id)).filter((id) => Number.isFinite(id) && id > 0))]
+  const expiryFlagRows = productIds.length
+    ? await sql`SELECT id, has_expiry_date FROM products WHERE id = ANY(${productIds}::int[])`
+    : []
+  const hasExpiryById = new Map<number, boolean>(
+    (expiryFlagRows as any[]).map((r) => [Number(r.id), Boolean(r.has_expiry_date)]),
+  )
+
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i]
+    const hasExpiry = hasExpiryById.get(Number(row.product_id)) ?? false
+    const expiryDateToSave = hasExpiry ? row.expiry_date || null : NO_EXPIRY_SENTINEL_DATE
     await sql`
-      INSERT INTO sales_voucher_items_tbl (
+      INSERT INTO voucher_items_tbl (
         voucher_id, ser, product_id, product_code, product_name, barcode, warehouse_id, unit,
-        quantity, bonus_quantity, unit_price, discount_percent, discount_amount, tax_percent, tax_amount,
-        total_price, batch_number, expiry_date, serial_numbers, cost_centers,
-        source_voucher_id, source_voucher_type, note
+        quantity, bonus_quantity, unit_price, discount_percent, total_price,
+        batch_number, expiry_date, serial_numbers, account_id, account_cost_centers,
+        source_voucher_id, source_voucher_type, note, length, width, height, count
       ) VALUES (
         ${voucherId}, ${i + 1}, ${row.product_id}, ${row.product_code || ""}, ${row.product_name || ""}, ${row.barcode || ""},
         ${row.warehouse_id || null}, ${row.unit || ""},
         ${Number(row.quantity || 0)}, ${Number(row.bonus_quantity || 0)}, ${Number(row.unit_price || 0)},
-        ${Number(row.discount_percent || 0)}, ${Number(row.discount_amount || 0)},
-        ${Number(row.tax_percent || 0)}, ${Number(row.tax_amount || 0)}, ${Number(row.total_price || 0)},
-        ${row.batch_number || null}, ${row.expiry_date || null},
-        ${JSON.stringify(row.serial_numbers || [])}, ${JSON.stringify(row.cost_centers || [])},
-        ${row.source_voucher_id || null}, ${row.source_voucher_type || null}, ${row.note || ""}
+        ${Number(row.discount_percent || 0)}, ${Number(row.total_price || 0)},
+        ${row.batch_number || null}, ${expiryDateToSave},
+        ${JSON.stringify(row.serial_numbers || [])}, ${row.account_id || null}, ${JSON.stringify(row.account_cost_centers || [])},
+        ${row.source_voucher_id || null}, ${row.source_voucher_type || null}, ${row.note || ""},
+        ${row.length ?? null}, ${row.width ?? null}, ${row.height ?? null}, ${row.count ?? null}
       )
     `
   }
@@ -210,14 +320,18 @@ export const saveSalesVoucherItems = async (voucherId: number, items: any[]) => 
 }
 
 export const fetchSalesVoucherItems = async (voucherId: number) => {
+  // account_code/account_name تُجلَب هنا عبر JOIN (voucher_items_tbl.account_id يخزّن المعرّف فقط)
+  // — نفس سبب/إصلاح مشكلة warehouse_name في stock-vouchers/_lib.ts's fetchVoucherItems.
   return sql`
-    SELECT si.*, p.product_code AS current_product_code, p.product_name AS current_product_name,
-           w.warehouse_name AS warehouse_name
-    FROM sales_voucher_items_tbl si
-    LEFT JOIN products p ON p.id = si.product_id
-    LEFT JOIN warehouses w ON w.id = si.warehouse_id
-    WHERE si.voucher_id = ${voucherId}
-    ORDER BY si.ser, si.id
+    SELECT vi.*, p.product_code AS current_product_code, p.product_name AS current_product_name,
+           w.warehouse_name AS warehouse_name,
+           ia.code AS account_code, ia.name AS account_name
+    FROM voucher_items_tbl vi
+    LEFT JOIN products p ON p.id = vi.product_id
+    LEFT JOIN warehouses w ON w.id = vi.warehouse_id
+    LEFT JOIN account_tbl ia ON ia.id = vi.account_id
+    WHERE vi.voucher_id = ${voucherId}
+    ORDER BY vi.ser, vi.id
   `
 }
 
@@ -253,7 +367,8 @@ export const archiveAndDeleteSalesVoucher = async (voucherId: number): Promise<{
   }
 
   await reverseSalesVoucherStockMovement(voucherId)
-  await sql`DELETE FROM sales_voucher_items_tbl WHERE voucher_id = ${voucherId}`
+  await sql`DELETE FROM voucher_journal_detail_tbl WHERE voucher_id = ${voucherId}`
+  await sql`DELETE FROM voucher_items_tbl WHERE voucher_id = ${voucherId}`
   await sql`DELETE FROM voucher_header_tbl WHERE id = ${voucherId}`
 
   return {}

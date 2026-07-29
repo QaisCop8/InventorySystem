@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { UniversalToolbar } from "@/components/ui/universal-toolbar"
 import AutoCompleteAccount from "@/components/customer/auto-complete-account"
 import AttachmentManager from "@/components/common/AttachmentManager"
+import { ImageUploadField } from "@/components/common/ImageUploadField"
 import SearchAccountClassificationDialog from "@/components/customer/search-account-classification-dialog"
 import CustomerSearchPopup from "./CustomerSearchPopup"
 import SearchCostCenterDialog, { type CostCenterItem } from "@/components/customer/search-cost-center-dialog"
@@ -91,6 +92,7 @@ export interface UnifiedCustomerFormData {
   allow_trans_with_diff_curr?: string
   iscalc_curr_diff_rates?: boolean
   voucherType?: VoucherItem[]
+  image_url?: string | null
 }
 
 interface UnifiedCustomersProps {
@@ -161,6 +163,7 @@ const defaultFormData: UnifiedCustomerFormData = {
   allow_trans_with_diff_curr: "0",
   iscalc_curr_diff_rates: false,
   voucherType: [],
+  image_url: null,
 }
 
 interface ClassificationTypeRow {
@@ -1086,61 +1089,91 @@ export default function UnifiedCustomers({
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="col-span-1">
-              <Label htmlFor="customer_code" className="text-sm font-medium">
-                {isSupplier ? "رقم المورد *" : "رقم الزبون *"}
-              </Label>
-              <div className="flex gap-2">
+          <div className="flex flex-col md:flex-row items-stretch gap-4">
+            <div className="flex-1 space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <Label htmlFor="customer_code" className="text-sm font-medium">
+                    {isSupplier ? "رقم المورد *" : "رقم الزبون *"}
+                  </Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="customer_code"
+                      value={formData.customer_code}
+                      onChange={(e) => updateField("customer_code", e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))}
+                      onBlur={async (e) => {
+                        await onCustomerCodeBlur?.(e.target.value)
+                      }}
+                      className="text-right"
+                      placeholder={isSupplier ? "رقم المورد" : "رقم الزبون"}
+                      maxLength={8}
+                    />
+                    <Button type="button" onClick={() => setShowCustomerSearch(true)}>
+                      🔍
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="customer_name" className="text-sm font-medium">
+                  {isSupplier ? "اسم المورد *" : "اسم الزبون *"}
+                </Label>
                 <Input
-                  id="customer_code"
-                  value={formData.customer_code}
-                  onChange={(e) => updateField("customer_code", e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))}
-                  onBlur={async (e) => {
-                    await onCustomerCodeBlur?.(e.target.value)
-                  }}
-                  className="text-right"
-                  placeholder={isSupplier ? "رقم المورد" : "رقم الزبون"}
-                  maxLength={8}
+                  id="customer_name"
+                  ref={customerNameRef}
+                  value={formData.name}
+                  onChange={(e) => updateField("name", e.target.value.slice(0, 100))}
+                  className={`text-right ${validationErrors.name ? "border-red-500" : ""}`}
+                  placeholder=""
+                  maxLength={100}
+                  required
                 />
-                <Button type="button" onClick={() => setShowCustomerSearch(true)}>
-                  🔍
-                </Button>
+                {validationErrors.name && <p className="text-red-500 text-xs mt-1">{validationErrors.name}</p>}
+              </div>
+
+              <div>
+                <Label htmlFor="customer_name_en" className="text-sm font-medium">
+                  {isSupplier ? "اسم المورد بالانجليزي" : "اسم الزبون بالانجليزي"}
+                </Label>
+                <Input
+                  id="customer_name_en"
+                  value={formData.name_en}
+                  onChange={(e) => updateField("name_en", e.target.value.slice(0, 100))}
+                  className="text-right"
+                  placeholder=""
+                  maxLength={100}
+                  dir="ltr"
+                />
               </div>
             </div>
 
-            <div className="col-span-1 md:col-span-3">
-              <Label htmlFor="customer_name" className="text-sm font-medium">
-                {isSupplier ? "اسم المورد *" : "اسم الزبون *"}
-              </Label>
-              <Input
-                id="customer_name"
-                ref={customerNameRef}
-                value={formData.name}
-                onChange={(e) => updateField("name", e.target.value)}
-                className={`text-right ${validationErrors.name ? "border-red-500" : ""}`}
-                placeholder=""
-                required
-              />
-              {validationErrors.name && <p className="text-red-500 text-xs mt-1">{validationErrors.name}</p>}
-            </div>
-
-            <div className="col-span-1 md:col-span-3">
-              <Label htmlFor="customer_name_en" className="text-sm font-medium">
-                {isSupplier ? "اسم المورد بالانجليزي" : "اسم الزبون بالانجليزي"}
-              </Label>
-              <Input
-                id="customer_name_en"
-                value={formData.name_en}
-                onChange={(e) => updateField("name_en", e.target.value)}
-                className="text-right"
-                placeholder=""
-                dir="ltr"
-              />
-            </div>
+            <ImageUploadField
+              value={formData.image_url}
+              onChange={(value) => updateField("image_url", value)}
+              label={isSupplier ? "صورة المورد" : "صورة الزبون"}
+              size={160}
+            />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <Label htmlFor="pricecategory" className="text-sm font-medium">فئة السعر</Label>
+              <PrimeDropdown
+                inputId="pricecategory"
+                value={formData.pricecategory || null}
+                options={pricecategory.map((item) => ({ label: item.name, value: item.id }))}
+                optionLabel="label"
+                optionValue="value"
+                placeholder="اختر فئة السعر"
+                filter={true}
+                className="invoice-currency-dropdown w-full"
+                panelClassName="invoice-currency-dropdown-panel"
+                appendTo="self"
+                filterInputAutoFocus={true}
+                onChange={(e: any) => updateField("pricecategory", e.value ?? 0)}
+              />
+            </div>
             <div>
               <Label htmlFor="salesman" className="text-sm font-medium">المندوب</Label>
               <PrimeDropdown
@@ -1177,46 +1210,6 @@ export default function UnifiedCustomers({
                 </div>
 
           </div>
-
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                            <div>
-              <Label htmlFor="status" className="text-sm font-medium">
-                الحالة
-              </Label>
-              <PrimeDropdown
-                inputId="status"
-                value={formData.status || "نشط"}
-                options={[
-                  { label: "نشط", value: "نشط" },
-                  { label: "غير نشط", value: "غير نشط" },
-                ]}
-                optionLabel="label"
-                optionValue="value"
-                placeholder="اختر الحالة"
-                filter={false}
-                className="invoice-currency-dropdown w-full"
-                panelClassName="invoice-currency-dropdown-panel"
-                appendTo="self"
-                onChange={(e: any) => updateField("status", e.value || "نشط")}
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="registration_date" className="text-sm font-medium">
-                تاريخ التسجيل
-              </Label>
-              <Input
-                id="registration_date"
-                type="date"
-                disabled
-                value={formData.registration_date}
-                onChange={(e) => updateField("registration_date", e.target.value)}
-                className="text-right"
-              />
-            </div>
-                
-              </div>
         </CardContent>
       </Card>
 

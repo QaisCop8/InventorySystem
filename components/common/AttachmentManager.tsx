@@ -70,15 +70,23 @@ export default function AttachmentManager({ modelName, recordId, disabled = fals
     setUploading(true)
     try {
       for (const file of Array.from(files)) {
-        const formData = new FormData()
-        formData.append("model_name", modelName)
-        formData.append("record_id", String(recordId))
-        formData.append("file", file)
-        if (uploadedBy) formData.append("uploaded_by", String(uploadedBy))
-        const response = await fetch("/api/attachments", { method: "POST", body: formData })
-        if (!response.ok) {
-          const error = await response.json().catch(() => null)
-          toast({ title: "خطأ", description: error?.error || `فشل رفع الملف: ${file.name}`, variant: "destructive" })
+        try {
+          const formData = new FormData()
+          formData.append("model_name", modelName)
+          formData.append("record_id", String(recordId))
+          formData.append("file", file)
+          if (uploadedBy) formData.append("uploaded_by", String(uploadedBy))
+          const response = await fetch("/api/attachments", { method: "POST", body: formData })
+          if (!response.ok) {
+            const error = await response.json().catch(() => null)
+            toast({ title: "خطأ", description: error?.error || `فشل رفع الملف: ${file.name}`, variant: "destructive" })
+          }
+        } catch (error) {
+          // خطأ شبكة/استثناء غير متوقَّع أثناء هذا الملف تحديداً — يُعرَض فوراً ويُكمَل رفع بقية
+          // الملفات بدل توقف الحلقة بالكامل بصمت (وعد مرفوض غير مُعالَج) دون أي إشعار للمستخدم.
+          console.error("Failed to upload attachment", file.name, error)
+          const message = error instanceof Error ? error.message : String(error)
+          toast({ title: "خطأ", description: `فشل رفع الملف: ${file.name} — ${message}`, variant: "destructive" })
         }
       }
       await fetchAttachments()
@@ -151,7 +159,10 @@ export default function AttachmentManager({ modelName, recordId, disabled = fals
       ) : attachments.length === 0 ? (
         <p className="py-4 text-center text-sm text-slate-400">لا توجد مرفقات</p>
       ) : (
-        <div className="space-y-2">
+        // ارتفاع أقصى + تمرير عمودي خاص بالقائمة نفسها — بلا هذا كانت المرفقات الإضافية (بعد عدد
+        // معيّن) تُقطَع بصمت عند حدود النافذة المنبثقة (compact-product-form.tsx) دون أي شريط
+        // تمرير، إذ لا يمكن الاعتماد على أن الحاوية الخارجية تمرّر دوماً بارتفاع كافٍ لعرضها كاملة.
+        <div className="max-h-64 space-y-2 overflow-y-auto pr-1">
           {attachments.map((attachment) => (
             <div key={attachment.id} className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2">
               <div className="flex min-w-0 items-center gap-2">

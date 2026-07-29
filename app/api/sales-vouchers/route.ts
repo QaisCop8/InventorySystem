@@ -10,7 +10,13 @@ import {
   getSalesVoucherNumberSettings,
   resolveVoucherBookName,
   SALES_VOUCHER_TYPES,
+  ITEM_ACCOUNT_VCH_TYPES,
+  validateItemAccounts,
+  buildSalesVoucherJournalRows,
+  saveJournalRows,
+  validateJournalAccountCurrencies,
 } from "./_lib"
+import { validateItemReferences } from "@/app/api/stock-vouchers/_lib"
 
 const MAX_CODE_RETRY_ATTEMPTS = 5
 
@@ -70,6 +76,8 @@ const validatePayload = (data: any, items: any[]): string | null => {
   if (items.length === 0) return "يجب إدخال صنف واحد على الأقل"
   if (items.some((i: any) => !i.warehouse_id)) return "يجب اختيار المستودع لكل صنف"
   if (items.some((i: any) => !(Number(i.quantity || 0) > 0))) return "يجب إدخال الكمية لكل صنف"
+  const itemAccountsError = validateItemAccounts(Number(data.vch_type), items)
+  if (itemAccountsError) return itemAccountsError
   return null
 }
 
@@ -95,11 +103,23 @@ export async function POST(request: NextRequest) {
     const payloadError = validatePayload(data, items)
     if (payloadError) return NextResponse.json({ error: payloadError }, { status: 400 })
 
+    // المستودع/الوحدة موجودان ونشطان فعلياً، وكذلك حساب الصنف لفاتورة مبيعات/مشتريات ومردود
+    // مبيعات/مشتريات تحديداً — بمعزل عمّا رآه العميل عند اختيارهم (قد يكونوا حُذفوا أو أُوقِفوا).
+    const referencesError = await validateItemReferences(items, (ITEM_ACCOUNT_VCH_TYPES as readonly number[]).includes(vchType) ? ["account_id"] : [])
+    if (referencesError) return NextResponse.json({ error: referencesError }, { status: 400 })
+
     const codeFormatError = await validateCodeFormat(request.url, vchType, data.vch_book_id ?? null, data.vch_code)
     if (codeFormatError) return NextResponse.json({ error: codeFormatError }, { status: 400 })
 
     const { code: vchCode, conflict } = await regenerateOnConflict(request.url, vchType, data.vch_book_id ?? null, String(data.vch_code))
     if (conflict) return NextResponse.json({ error: "رقم السند مستخدم مسبقاً" }, { status: 400 })
+
+    let journalRows: any[] = []
+    if ((ITEM_ACCOUNT_VCH_TYPES as readonly number[]).includes(vchType)) {
+      journalRows = buildSalesVoucherJournalRows(vchType, items, data.account_id ?? null, data.currency_id || null, Number(data.rate || 1))
+      const currencyError = await validateJournalAccountCurrencies(journalRows, data.currency_id ? Number(data.currency_id) : null)
+      if (currencyError) return NextResponse.json({ error: currencyError }, { status: 400 })
+    }
 
     const amount = computeTotalAmount(items, data)
     const status = Number(data.status || 1)
@@ -124,6 +144,9 @@ export async function POST(request: NextRequest) {
 
     const voucher = result[0]
     const savedItems = await saveSalesVoucherItems(voucher.id, items)
+    if ((ITEM_ACCOUNT_VCH_TYPES as readonly number[]).includes(vchType)) {
+      await saveJournalRows(voucher.id, journalRows)
+    }
     if (status === 2) {
       await applySalesVoucherStockEffect(vchType, voucher.id, savedItems)
     }
@@ -153,10 +176,14 @@ export async function PUT(request: NextRequest) {
     }
 
     let items: any[] = []
+    let journalRows: any[] = []
     if (status !== 3) {
       items = Array.isArray(data.items) ? data.items.filter((i: any) => i?.product_id) : []
       const payloadError = validatePayload(data, items)
       if (payloadError) return NextResponse.json({ error: payloadError }, { status: 400 })
+
+      const referencesError = await validateItemReferences(items, (ITEM_ACCOUNT_VCH_TYPES as readonly number[]).includes(vchType) ? ["account_id"] : [])
+      if (referencesError) return NextResponse.json({ error: referencesError }, { status: 400 })
 
       const codeFormatError = await validateCodeFormat(request.url, vchType, data.vch_book_id ?? null, data.vch_code)
       if (codeFormatError) return NextResponse.json({ error: codeFormatError }, { status: 400 })
@@ -165,6 +192,12 @@ export async function PUT(request: NextRequest) {
         SELECT id FROM voucher_header_tbl WHERE vch_type = ${vchType} AND vch_code = ${data.vch_code} AND id != ${data.id}
       `
       if (duplicate.length > 0) return NextResponse.json({ error: "رقم السند مستخدم مسبقاً" }, { status: 400 })
+
+      if ((ITEM_ACCOUNT_VCH_TYPES as readonly number[]).includes(vchType)) {
+        journalRows = buildSalesVoucherJournalRows(vchType, items, data.account_id ?? null, data.currency_id || null, Number(data.rate || 1))
+        const currencyError = await validateJournalAccountCurrencies(journalRows, data.currency_id ? Number(data.currency_id) : null)
+        if (currencyError) return NextResponse.json({ error: currencyError }, { status: 400 })
+      }
     }
 
     const amount = computeTotalAmount(items, data)
@@ -203,11 +236,15 @@ export async function PUT(request: NextRequest) {
 
     if (status === 3) {
       await reverseSalesVoucherStockMovement(voucher.id)
-      await sql`DELETE FROM sales_voucher_items_tbl WHERE voucher_id = ${voucher.id}`
+      await sql`DELETE FROM voucher_journal_detail_tbl WHERE voucher_id = ${voucher.id}`
+      await sql`DELETE FROM voucher_items_tbl WHERE voucher_id = ${voucher.id}`
       return NextResponse.json({ ...voucher, items: [] })
     }
 
     const savedItems = await saveSalesVoucherItems(voucher.id, items)
+    if ((ITEM_ACCOUNT_VCH_TYPES as readonly number[]).includes(vchType)) {
+      await saveJournalRows(voucher.id, journalRows)
+    }
     if (status === 2 && previousStatus !== 2) {
       await applySalesVoucherStockEffect(vchType, voucher.id, savedItems)
     }

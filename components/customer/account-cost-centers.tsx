@@ -237,7 +237,7 @@ export default function AccountCostCenters({ open, onOpenChange, account, value,
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         hideCloseButton
-        className="w-[88vw] max-w-4xl h-[78vh] max-h-[78vh] overflow-hidden p-3 sm:p-4"
+        className="w-[88vw] max-w-4xl max-h-[78vh] overflow-hidden p-3 sm:p-4"
         dir="rtl"
         onCloseAutoFocus={(event) => event.preventDefault()}
       >

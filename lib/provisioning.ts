@@ -122,6 +122,8 @@ async function cloneReferenceSchema(tenantClient: ReturnType<typeof getPoolForDb
 // التزويد رغم وجود الجداول نفسها. تقتصر القائمة عمداً على جداول لا تحمل company_id/branch_id ولا
 // أي ربط ببيانات شركة بعينها (حسابات، فروع، بنوك...) — عكس جداول مثل account_tbl أو bank_accounts
 // التي تُعتبر بيانات فعلية خاصة بكل شركة ويجب أن تبدأ فارغة تماماً لكل شركة جديدة.
+// cost_center_types عمداً غير مُدرَج هنا (كان مُدرَجاً سابقاً) — كل شركة تبني مراكز كلفتها الخاصة من
+// الصفر (لا قيمة مشتركة معقولة كسندات/عملات/تصنيفات ضريبة عامة)، فتبدأ فارغة تماماً كالحسابات نفسها.
 const LOOKUP_TABLES = [
   "voucher_types_tbl",
   "voucher_books_tbl",
@@ -132,7 +134,6 @@ const LOOKUP_TABLES = [
   "balance_sheet_assets_items",
   "balance_sheet_liabilities_items",
   "income_statement_items",
-  "cost_center_types",
   "payment_classifications_tbl",
   "tax_classifications",
   "pricecategory",

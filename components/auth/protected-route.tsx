@@ -13,14 +13,17 @@ interface ProtectedRouteProps {
 
 export function ProtectedRoute({ children, requiredPermission }: ProtectedRouteProps) {
   const { isAuthenticated, hasPermission, login, isLoading } = useAuth()
-  // شركة سبق اختيارها لهذا التبويب تحديداً (sessionStorage غير مشتركة بين التبويبات) — إن وُجدت
-  // بلا جلسة ERP مطابقة (فشل تسجيل الدخول التلقائي بالبريد)، نعرض نموذج دخول هذه الشركة بعينها
-  // بدل تحويل المستخدم بلا داعٍ لتسجيل دخول الإدارة الذي أتى منه أصلاً. بلا أي شركة مُختارة إطلاقاً
-  // لهذا التبويب (زيارة مباشرة لـ"/" بلا مرور بشركاتي)، الوجهة الوحيدة هي تسجيل دخول الإدارة.
+  // شركة سبق اختيارها لهذا التبويب تحديداً (sessionStorage) أو لتبويب آخر بنفس المتصفح
+  // (localStorage، تُقرأ هنا كاحتياط فقط) — إن وُجدت بلا جلسة ERP مطابقة (فشل تسجيل الدخول
+  // التلقائي بالبريد)، نعرض نموذج دخول هذه الشركة بعينها بدل تحويل المستخدم بلا داعٍ لتسجيل دخول
+  // الإدارة الذي أتى منه أصلاً. بلا أي شركة مُختارة إطلاقاً (لا لهذا التبويب ولا لأي تبويب آخر بنفس
+  // المتصفح) — كزيارة مباشرة لـ"/" بلا مرور بشركاتي على متصفح جديد كلياً — الوجهة الوحيدة هي تسجيل
+  // دخول الإدارة. الاعتماد على sessionStorage فقط هنا كان يُحوِّل أي تبويب جديد (رابط فُتح بتبويب
+  // جديد مثلاً) لتسجيل الدخول خطأً رغم وجود جلسة صالحة فعلياً في تبويب آخر من نفس المتصفح.
   const [hasSelectedCompany, setHasSelectedCompany] = useState(false)
 
   useEffect(() => {
-    setHasSelectedCompany(!!sessionStorage.getItem("active_tenant_db"))
+    setHasSelectedCompany(!!sessionStorage.getItem("active_tenant_db") || !!localStorage.getItem("active_tenant_db"))
   }, [])
 
   useEffect(() => {

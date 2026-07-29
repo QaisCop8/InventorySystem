@@ -68,11 +68,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
     // يُلحق كل طلب fetch من هذا التبويب بهيدر x-tenant-db (إن وُجدت شركة مُختارة له في
     // sessionStorage، غير المشتركة بين تبويبات المتصفح) — هذا هو ما يجعل بالإمكان فتح شركات
     // مختلفة في تبويبات مختلفة في آنٍ واحد رغم أن كوكي tenant_db وحدها مشتركة بينها جميعاً.
+    // localStorage احتياط فقط لتبويب جديد لم يختر شركته الخاصة بعد (انظر شرح tenant-client.ts).
     // مُطبَّق مرة واحدة فقط عبر علم على window لتفادي لف fetch عدة مرات مع إعادة تركيب المكوّن.
     if (typeof window !== "undefined" && !(window as any).__tenantFetchPatched) {
       const originalFetch = window.fetch.bind(window)
       window.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
-        const tenantDb = sessionStorage.getItem("active_tenant_db")
+        const tenantDb = sessionStorage.getItem("active_tenant_db") || localStorage.getItem("active_tenant_db")
         if (tenantDb) {
           const headers = new Headers(init?.headers)
           headers.set("x-tenant-db", tenantDb)

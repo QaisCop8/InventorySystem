@@ -41,6 +41,7 @@ import * as wjGrid from "@grapecity/wijmo.grid";
 import DataGridView from "../common/DataGridView"
 import Util from "../common/Util"
 import UnifiedCustomers from "./unified-customers"
+import { ImageThumbnail } from "@/components/common/ImageUploadField"
 interface CustomersProps {
   isSupplier?: boolean;
   isSubscriber?: boolean;
@@ -74,6 +75,7 @@ interface Customer {
   discount_percentage?: string,
   type?: number
   account_id?: number | null
+  image_url?: string | null
 }
 
 interface Classification {
@@ -138,6 +140,7 @@ interface CustomerFormData {
   cost_centers?: Array<{ id: number; name: string; state_status: string; required_in_transactions: number; cost_center_name?: string; default_cost_center_id?: number | null }>,
   stop_transactions?: Array<{ voucher_types_id: number; voucher_type_name: string; is_stopped: boolean; stop_date: string }>,
   voucherType?: VoucherItem[],
+  image_url?: string | null,
 }
 
 interface CustomerUser {
@@ -172,6 +175,11 @@ interface NotificationSettings {
 }
 
 export default function Customers({ isSupplier, isSubscriber, isSalesman }: CustomersProps) {
+  // نوع الجهة (customers.type) بحسب أي تبويب/شاشة فتحت هذا المكوّن المشترك — عميل=1، مورد=2،
+  // مندوب=3، مشترك=4. كان الكود سابقاً يفترض في عدة أماكن أن "ليس مورداً" تعني "عميل" حصراً،
+  // فيُخطئ في شاشتي المندوبين والمشتركين (يحفظ/يبحث/يولّد رقماً بنوع "عميل" بدلاً من نوعها الفعلي).
+  const entityTypeCode = isSupplier ? 2 : isSubscriber ? 4 : isSalesman ? 3 : 1
+  const entityTypeLabel = isSupplier ? "المورد" : isSubscriber ? "المشترك" : isSalesman ? "المندوب" : "الزبون"
   const [customers, setCustomers] = useState<Customer[]>([])
   const [isloading, setIsLoading] = useState(false)
   const toast = useRef(null);
@@ -247,7 +255,8 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
     account_id: null,
     cost_centers: [],
     stop_transactions: [],
-    voucherType: []
+    voucherType: [],
+    image_url: null,
   })
   // مرجع دوماً بآخر formData حيّة — يتجنّب مشكلة الإغلاق المتجمِّد (stale closure) عند قراءتها من
   // داخل setTimeout/دوال غير متزامنة معرَّفة في عرض (render) سابق، وهو ما كان يجعل initialHash
@@ -734,7 +743,8 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
     father_id: defaultParentAccountRef.current || undefined,
     cost_centers: [],
     stop_transactions: [],
-    voucherType: []
+    voucherType: [],
+    image_url: null,
   }), [pricecategory])
 
   const updateFormData = useCallback((customer: Customer | null) => {
@@ -772,6 +782,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
       discount_percentage: (customer as any).discount_percentage || "",
       pricecategory: (customer as any).pricecategory || 0,
       account_id: (customer as any).account_id || null,
+      image_url: (customer as any).image_url || null,
     })
   }, [buildEmptyCustomerFormData])
   const [definitions, setDefinitions] = useState({
@@ -840,8 +851,8 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
         url.searchParams.set("currentId", currentCustomerId.toString());
       }
 
-      // Pass type (customer/supplier)
-      url.searchParams.set("type", isSupplier ? "2" : "1");
+      // Pass type (customer/supplier/salesman/subscriber)
+      url.searchParams.set("type", String(entityTypeCode));
 
       const res = await fetch(url.toString());
       console.log("res res ", url)
@@ -976,7 +987,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
         setIsLoading(true);
         setError(null);
 
-        const url = `/api/customers?type=${isSupplier ? 2 : 1}`;
+        const url = `/api/customers?type=${entityTypeCode}`;
         const response = await fetch(url);
 
         if (response.ok) {
@@ -1060,10 +1071,11 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
     async (): Promise<string> => {
       try {
         setGeneratingNumber(true);
-        console.log("[v0] Generating number...", isSupplier ? "Supplier" : "Customer");
+        console.log("[v0] Generating number...", entityTypeLabel);
 
-        // Pass isSupplier as query param
-        const response = await fetch(`/api/customers/generate-number?isSupplier=${isSupplier}`);
+        const response = await fetch(
+          `/api/customers/generate-number?isSupplier=${!!isSupplier}&isSalesman=${!!isSalesman}&isSubscriber=${!!isSubscriber}`,
+        );
         if (response.ok) {
           const contentType = response.headers.get("content-type");
 
@@ -1132,14 +1144,9 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
       console.log("Search by code response:", data);
       if (data.found) {
         // Load the customer data
-        if(isSupplier && data.customer.type !== 2) {
+        if (Number(data.customer.type) !== entityTypeCode) {
           await reset_fields();
-          Util.showErrorToast(toast.current, "الرقم المدخل  لزبون وليس مورد")
-          return
-        }
-        else if(!isSupplier && data.customer.type !== 1) {  
-          await reset_fields();
-          Util.showErrorToast(toast.current, "الرقم المدخل  لمورد وليس زبون")
+          Util.showErrorToast(toast.current, `الرقم المدخل ليس لـ${entityTypeLabel}`)
           return
         }
         setFormData((prev) => ({
@@ -1227,7 +1234,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
         credit_limit: customerData.credit_limit,
         payment_terms: customerData.payment_terms,
         discount_percentage: customerData.discount_percentage,
-        type: isSupplier ? 2 : 1,
+        type: entityTypeCode,
         pricecategory: customerData.pricecategory,
         account_id: customerData.account_id,
         cost_centers: costCenters,
@@ -1239,6 +1246,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
         level_no: customerData.father_id ? undefined : 1,
         account_classifications: accountClassifications.filter((row) => row.classification_id != null),
         voucher,
+        image_url: customerData.image_url,
       };
 
       console.log("[v0] Sending customer data:", dataToSend);
@@ -1829,6 +1837,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
             <table className="w-full border-collapse border border-gray-300">
               <thead>
                 <tr className="bg-gray-50">
+                  <th className="border border-gray-300 px-4 py-2 text-right w-12"></th>
                   <th className="border border-gray-300 px-4 py-2 text-right">
                     {isSupplier ? "رقم المورد" : "رقم الزبون"}
                   </th>
@@ -1844,6 +1853,9 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
               <tbody>
                 {pagedCustomers.map((customer) => (
                   <tr key={customer.id} className="hover:bg-gray-50">
+                    <td className="border border-gray-300 px-2 py-2">
+                      <ImageThumbnail value={(customer as any).image_url} size={32} alt={customer.name} />
+                    </td>
                     <td className="border border-gray-300 px-4 py-2">{customer.customer_code}</td>
                     <td className="border border-gray-300 px-4 py-2">{customer.name}</td>
                     <td className="border border-gray-300 px-4 py-2">{customer.mobile1}</td>
@@ -1921,7 +1933,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
           }
         }}
       >
-        <DialogContent className="max-w-[75vw] sm:max-w-[70vw] md:max-w-[62vw] lg:max-w-[110vh] max-h-[95vh] overflow-hidden p-0" dir="rtl"
+        <DialogContent className="max-w-[95vw] sm:max-w-[90vw] md:max-w-[85vw] lg:max-w-[75vw] max-h-[95vh] overflow-hidden p-0" dir="rtl"
           onPointerDownOutside={(event) => event.preventDefault()}
           onEscapeKeyDown={(event) => event.preventDefault()}
           hideCloseButton
@@ -2539,7 +2551,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
       </Dialog>
 
       <ExcelImport
-        entityType={isSupplier ? "suppliers" : "customers"}
+        entityType={isSupplier ? "suppliers" : isSubscriber ? "subscribers" : "customers"}
         isOpen={showImportDialog}
         onClose={() => setShowImportDialog(false)}
         onImportComplete={() => {

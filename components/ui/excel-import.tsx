@@ -15,7 +15,7 @@ import DataGridView from "@/components/common/DataGridView"
 import { Upload, Download, FileSpreadsheet, AlertCircle, CheckCircle } from "lucide-react"
 
 interface ExcelImportProps {
-  entityType: "products" | "customers" | "suppliers"
+  entityType: "products" | "customers" | "suppliers" | "subscribers"
   isOpen: boolean
   onClose: () => void
   onImportComplete: () => void
@@ -67,6 +67,7 @@ export function ExcelImport({ entityType, isOpen, onClose, onImportComplete }: E
     products: "الأصناف",
     customers: "العملاء",
     suppliers: "الموردين",
+    subscribers: "المشتركين",
   }
 
   const templateColumns = {
@@ -97,6 +98,18 @@ export function ExcelImport({ entityType, isOpen, onClose, onImportComplete }: E
     suppliers: [
       { key: "customer_code", label: "رقم العميل" },
       { key: "customer_name", label: "اسم العميل" },
+      { key: "mobile1", label: "الجوال الأول" },
+      { key: "mobile2", label: "الجوال الثاني" },
+      { key: "whatsapp1", label: "واتساب الأول" },
+      { key: "city", label: "المدينة" },
+      { key: "address", label: "العنوان" },
+      { key: "email", label: "البريد الإلكتروني" },
+      { key: "classifications", label: "التصنيف" },
+      { key: "priceClass", label: "فئة السعر" },
+    ],
+    subscribers: [
+      { key: "customer_code", label: "رقم المشترك" },
+      { key: "customer_name", label: "اسم المشترك" },
       { key: "mobile1", label: "الجوال الأول" },
       { key: "mobile2", label: "الجوال الثاني" },
       { key: "whatsapp1", label: "واتساب الأول" },
@@ -246,7 +259,7 @@ export function ExcelImport({ entityType, isOpen, onClose, onImportComplete }: E
           last_purchase_price: Number(row["آخر سعر شراء"] || row["last_purchase_price"]) || 0,
           currency: row["العملة"] || row["currency"] || "",
         }));
-      } else if (entityType === "customers" || entityType === "suppliers") {
+      } else if (entityType === "customers" || entityType === "suppliers" || entityType === "subscribers") {
         processedData = jsonData.map((row, index) => {
           const customer: any = {
             rowIndex: index + 2,
@@ -342,14 +355,15 @@ export function ExcelImport({ entityType, isOpen, onClose, onImportComplete }: E
 
     try {
       // Annotate type and filter only valid records
-      const typeValue = entityType === "suppliers" ? 2 : 1;
+      // customers.type: 1=عميل, 2=مورد, 4=مشترك (يطابق resolveAccountType في app/api/customers/_lib.ts)
+      const typeValue = entityType === "suppliers" ? 2 : entityType === "subscribers" ? 4 : 1;
 
       const dataToSend = previewData
         .filter((item) => item.isValid)  // only valid records
         .map((item) => ({ ...item, type: typeValue }));
       console.log("dataToSend ", dataToSend)
-      // For suppliers, the API endpoint still uses "customers"
-      const apiEntityType = entityType === "suppliers" ? "customers" : entityType;
+      // For suppliers and subscribers, the API endpoint still uses "customers"
+      const apiEntityType = entityType === "suppliers" || entityType === "subscribers" ? "customers" : entityType;
 
       const response = await fetch(`/api/import/${apiEntityType}`, {
         method: "POST",

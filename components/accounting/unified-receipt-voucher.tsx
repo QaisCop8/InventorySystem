@@ -188,7 +188,7 @@ interface UnifiedReceiptVoucherProps {
 const voucherTabTriggerClass =
   "data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-teal-600 data-[state=active]:text-white data-[state=active]:shadow-md"
 
-const normalizeVoucherCode = (value: string) => value.toUpperCase().replace(/[^A-Z0-9-]/g, "")
+const normalizeVoucherCode = (value: string) => value.toUpperCase().replace(/[^A-Z0-9-]/g, "").slice(0, 10)
 const numberValue = (value: number | null | undefined) => (value === null || value === undefined ? "" : String(value))
 
 // FlexGrid.select(rng, show) expects a CellRange (or a row-only number) — NOT (row, columnName).
@@ -1787,7 +1787,7 @@ export default function UnifiedReceiptVoucher({
                         value={form.vch_code}
                         onChange={(e) => onFormChange("vch_code", normalizeVoucherCode(e.target.value))}
                         onBlur={handleCodeBlur}
-                        maxLength={20}
+                        maxLength={10}
                       />
                     </div>
                     <div className="grid gap-1.5">

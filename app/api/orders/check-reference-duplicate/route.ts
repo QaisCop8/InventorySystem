@@ -1,12 +1,9 @@
 import { NextResponse } from "next/server";
-import { Pool } from "pg";
-
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-});
+import { getTenantPool } from "@/lib/database";
 
 export async function GET(request: Request) {
   try {
+    const pool = await getTenantPool();
     const { searchParams } = new URL(request.url);
     const reference_number = searchParams.get("reference_number");
     const order_id = searchParams.get("order_id");

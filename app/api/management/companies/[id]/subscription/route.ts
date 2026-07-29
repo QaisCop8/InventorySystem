@@ -27,12 +27,24 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       return NextResponse.json({ success: true })
     }
 
-    if (action === "extend") {
-      const nextExpiry = new Date()
-      nextExpiry.setFullYear(nextExpiry.getFullYear() + 1)
+    // إلغاء الإيقاف — يعيد الشركة الموقوفة لحالة approved دون المساس بتاريخ انتهاء الاشتراك
+    // (تمديد الاشتراك فعلياً منفصل عبر action="extend" أدناه).
+    if (action === "unstop") {
       await managementSql`
         UPDATE companies
-        SET status = 'approved', expiry_date = ${nextExpiry.toISOString()}
+        SET status = 'approved'
+        WHERE id = ${companyId} AND status = 'stopped'
+      `
+      return NextResponse.json({ success: true })
+    }
+
+    // تمديد الاشتراك — يضيف سنة واحدة لتاريخ الانتهاء الحالي (وليس سنة من الآن)، مع إعادة
+    // الشركة لحالة approved إن كانت موقوفة.
+    if (action === "extend") {
+      await managementSql`
+        UPDATE companies
+        SET status = 'approved',
+            expiry_date = COALESCE(expiry_date, CURRENT_TIMESTAMP) + INTERVAL '1 year'
         WHERE id = ${companyId}
       `
       return NextResponse.json({ success: true })

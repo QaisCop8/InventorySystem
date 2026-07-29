@@ -1,6 +1,9 @@
 import sql from "@/lib/database"
 import { ensureTables as ensureCreditCardTables } from "../credit-cards/_lib"
 import { getSystemSettingValue } from "@/lib/system-settings"
+import { buildVoucherCode, normalizeVoucherPrefix } from "@/lib/voucher-code"
+
+export { buildVoucherCode, normalizeVoucherPrefix }
 
 // Shared schema + persistence helpers for سند قبض / سند صرف (voucher_header_tbl and its
 // related tables). Used by route.ts, [id]/route.ts and navigation/[navigationType]/route.ts
@@ -536,8 +539,6 @@ export const ensureTables = async () => {
 export const RECEIPT_VCH_TYPE = 8
 export const PAYMENT_VCH_TYPE = 9
 
-const VOUCHER_CODE_SEQUENCE_DIGITS = 8
-
 // رقم السند = بادئة (من إعدادات النظام) + رمز دفتر السندات + رقم تسلسلي مبطّن بأصفار
 // (مثال: RE + F + 00001 = REF00001). يُقرأ عبر طلب داخلي لنفس منطق /api/settings/system
 // بدل تكرار معالجة المخطط القديم/الجديد لجدول system_settings هناك.
@@ -559,17 +560,6 @@ export const getVoucherNumberSettings = async (
     console.error("Failed to load voucher numbering settings, using defaults:", error)
     return { prefix: defaultPrefix, startNumber: 1 }
   }
-}
-
-const normalizeVoucherPrefix = (value: string): string =>
-  String(value || "").trim().toUpperCase().replace(/[^A-Z]/g, "").slice(0, 1)
-
-export const buildVoucherCode = (prefix: string, bookName: string, sequence: number, userPrefix = ""): string => {
-  const basePrefix = String(prefix || "").trim().toUpperCase()
-  const normalizedBookName = String(bookName || "").trim().toUpperCase()
-  const normalizedUserPrefix = normalizeVoucherPrefix(userPrefix)
-  const sequencePart = String(sequence).padStart(VOUCHER_CODE_SEQUENCE_DIGITS, "0")
-  return `${basePrefix}${normalizedBookName}${normalizedUserPrefix}${sequencePart}`
 }
 
 // الرقم التسلسلي التالي ضمن تركيبة (نوع السند + البادئة + رمز الدفتر) هذه تحديداً — تغيير

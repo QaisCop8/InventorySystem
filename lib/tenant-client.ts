@@ -21,10 +21,23 @@ export async function activateCompany(companyId: number): Promise<ActivateCompan
   sessionStorage.setItem("active_tenant_db", data.dbName)
   sessionStorage.setItem("active_company_id", String(companyId))
 
+  // يُكتَب أيضاً في localStorage (المشتركة بين كل تبويبات نفس المتصفح) كقيمة افتراضية لأي تبويب
+  // جديد يُفتَح لاحقاً (رابط بتبويب جديد، Ctrl+Click...) — لا يملك sessionStorage خاصة به إطلاقاً
+  // فيبدو للنظام بلا شركة مُختارة ولا جلسة، فيُحوَّل خطأً لتسجيل الدخول رغم وجود جلسة صالحة فعلياً.
+  // sessionStorage يبقى له الأولوية عند القراءة (انظر protected-route.tsx وauth-context.tsx) فتبقى
+  // ميزة فتح شركات مختلفة في تبويبات مختلفة تعمل كما هي: أي تبويب بدّل شركته صراحة يحتفظ باختياره
+  // الخاص، والتبويبات الجديدة فقط هي من تعتمد على هذه القيمة المشتركة.
+  localStorage.setItem("active_tenant_db", data.dbName)
+  localStorage.setItem("active_company_id", String(companyId))
+
   if (data.user && data.token) {
+    const session = JSON.stringify({ timestamp: new Date().getTime(), rememberMe: false })
     sessionStorage.setItem("erp_user", JSON.stringify(data.user))
     sessionStorage.setItem("erp_token", data.token)
-    sessionStorage.setItem("erp_session", JSON.stringify({ timestamp: new Date().getTime(), rememberMe: false }))
+    sessionStorage.setItem("erp_session", session)
+    localStorage.setItem("erp_user", JSON.stringify(data.user))
+    localStorage.setItem("erp_token", data.token)
+    localStorage.setItem("erp_session", session)
   }
 
   return { success: true, dbName: data.dbName }

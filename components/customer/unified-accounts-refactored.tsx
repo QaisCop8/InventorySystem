@@ -1335,7 +1335,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
   // Handle account code input change - validate and clean
   const handleAccountCodeChange = (value: string) => {
     // Allow only English letters and digits, then force uppercase
-    const cleanValue = value.replace(/[^A-Za-z0-9]/g, "").slice(0, 8).toUpperCase()
+    const cleanValue = value.replace(/[^A-Za-z0-9]/g, "").slice(0, 10).toUpperCase()
     setFormData({ ...formData, code: cleanValue })
   }
 
@@ -1477,8 +1477,8 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
       return false
     }
 
-    if (!/^[A-Z0-9]{8}$/.test(trimmedCode)) {
-      showValidationMessage("يجب أن يكون رقم الحساب 8 أحرف إنجليزية أو أرقام وبحروف كبيرة")
+    if (!/^[A-Z0-9]{10}$/.test(trimmedCode)) {
+      showValidationMessage("يجب أن يكون رقم الحساب 10 أحرف إنجليزية أو أرقام وبحروف كبيرة")
       return false
     }
 
@@ -1528,13 +1528,13 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
 
     // Adjust code if not already adjusted (ensure it's 8 uppercase alphanumeric characters)
     let finalCode = trimmedCode
-    if (finalCode.length !== 8) {
+    if (finalCode.length !== 10) {
       finalCode = adjustCode(finalCode)
     }
 
-    // Validate account code length - must be exactly 8 uppercase English alphanumeric characters
-    if (!/^[A-Z0-9]{8}$/.test(finalCode)) {
-      showValidationMessage("طول رقم الحساب غير صحيح - يجب أن يكون 8 أحرف إنجليزية أو أرقام وبحروف كبيرة")
+    // Validate account code length - must be exactly 10 uppercase English alphanumeric characters
+    if (!/^[A-Z0-9]{10}$/.test(finalCode)) {
+      showValidationMessage("طول رقم الحساب غير صحيح - يجب أن يكون 10 أحرف إنجليزية أو أرقام وبحروف كبيرة")
       return false
     }
 
@@ -2178,7 +2178,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
                     onKeyDown={handleAccountCodeKeyDown}
                     placeholder=""
                     className="text-right flex-1 font-mono text-lg font-semibold tracking-widest"
-                    maxLength={8}
+                    maxLength={10}
                   />
                   <Button
                     variant="default"

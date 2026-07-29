@@ -1,7 +1,6 @@
 // app/api/customer-categories/route.ts
 import { type NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
-export default sql
 
 // GET all customer categories
 export async function GET() {

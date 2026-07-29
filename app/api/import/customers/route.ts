@@ -1,11 +1,12 @@
 ﻿import { type NextRequest, NextResponse } from "next/server"
 import { generateCustomerNumber } from "@/lib/number-generator"
 import sql from "@/lib/database"
+import { ensureCustomerAccount, resolveAccountType, toNullableInt, ensureCustomerCompatibilityColumns } from "@/app/api/customers/_lib"
 
-export default sql
 
 export async function POST(request: NextRequest) {
   try {
+    await ensureCustomerCompatibilityColumns()
     const { data } = await request.json()
 
     if (!Array.isArray(data) || data.length === 0) {
@@ -53,6 +54,21 @@ export async function POST(request: NextRequest) {
           continue;
         }
 
+        // كل عميل/مورد/مشترك مستورَد يحتاج حساباً مرتبطاً في account_tbl تماماً كما يحصل عند
+        // الإنشاء اليدوي عبر /api/customers — بلا هذا الربط كان الاستيراد الجماعي يترك العميل
+        // بلا حساب محاسبي أصلاً (account_id فارغ)، خلافاً لما يحدث عند الإدخال اليدوي.
+        const accountType = resolveAccountType(type)
+        const accountId = await ensureCustomerAccount({
+          code: customerCode,
+          name: item.name || item.customer_name,
+          currencyId: toNullableInt(item.currency_id) ?? 1,
+          allowTransWithDiffCurr: item.allow_trans_with_diff_curr ?? 0,
+          isCalcCurrDiffRates: item.iscalc_curr_diff_rates ?? false,
+          fatherId: toNullableInt(item.father_id),
+          levelNo: Number(item.level_no) || 1,
+          accountType,
+        })
+
         // Insert into customers table
         const result = await sql`
       INSERT INTO customers (
@@ -75,7 +91,8 @@ export async function POST(request: NextRequest) {
         api_key,
         type,
         isDeleted,
-        priceCategory
+        priceCategory,
+        account_id
       ) VALUES (
         ${customerCode},
         ${item.name || item.customer_name},
@@ -96,7 +113,8 @@ export async function POST(request: NextRequest) {
         ${item.api_key || `API_${customerCode}_${Date.now()}`},
         ${type},
         ${item.isDeleted || false},
-        ${Number(item.pricecategory) || Number(item.priceCategory) || 0}
+        ${Number(item.pricecategory) || Number(item.priceCategory) || 0},
+        ${accountId}
       )
       RETURNING *;
     `;

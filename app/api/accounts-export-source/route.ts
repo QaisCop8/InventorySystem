@@ -20,7 +20,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "accounts.json not found" }, { status: 404 })
     }
 
-    const rawContent = fs.readFileSync(SOURCE_FILE_PATH, "utf8")
+    // ملف accounts.json يُحفَظ أحياناً بترميز UTF-8 مع BOM (مثلاً بعد تعديله من Excel/Windows)،
+    // وJSON.parse يرفض BOM في بداية النص فيفشل التحميل بالكامل — نزيله دفاعياً هنا.
+    const rawContent = fs.readFileSync(SOURCE_FILE_PATH, "utf8").replace(/^﻿/, "")
     const parsed = JSON.parse(rawContent)
     const rows = Array.isArray(parsed?.Sheet1) ? parsed.Sheet1 : []
 

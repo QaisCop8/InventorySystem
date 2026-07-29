@@ -1,7 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { generateCustomerNumber } from "@/lib/number-generator";
 import sql from "@/lib/database"
-export default sql
 
 
 export async function GET(req: NextRequest) {

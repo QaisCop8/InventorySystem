@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Plus, Edit, Building, MapPin, Package, Package2, Users, CreditCard, Settings, Trash2, Currency } from "lucide-react"
@@ -78,6 +78,11 @@ interface Supplier_Categories {
 interface Product_Categories {
   id: number
   name: string
+}
+interface License_Type {
+  id: number
+  name: string
+  status?: number
 }
 interface Unit {
   id: number
@@ -227,6 +232,8 @@ function Definitions() {
   const [customercategories, setCustomerCategories] = useState<Customer_Categories[]>([])
   const [suppliercategories, setSupplierCategories] = useState<Supplier_Categories[]>([])
   const [productcategories, setProductCategories] = useState<Product_Categories[]>([])
+  const [licenseTypes, setLicenseTypes] = useState<License_Type[]>([])
+  const [showLicenseTypeForm, setShowLicenseTypeForm] = useState(false)
   const [taxClassifications, setTaxClassifications] = useState<Array<{ id: number; name: string; tax_percent?: number; status?: number }>>([])
   const [showTaxClassificationForm, setShowTaxClassificationForm] = useState(false)
   const [taxClassificationForm, setTaxClassificationForm] = useState<{ id?: number; name: string; tax_percent: number; status?: number }>({ name: "", tax_percent: 0, status: 1 })
@@ -264,6 +271,9 @@ function Definitions() {
     paymentterms: ""
   })
   const [productcategoryForm, setProductcategoryForm] = useState({
+    name: "",
+  })
+  const [licenseTypeForm, setLicenseTypeForm] = useState({
     name: "",
   })
   const [branchForm, setBranchForm] = useState({
@@ -367,7 +377,7 @@ function Definitions() {
     setLoading(true)
     try {
       await Promise.all([fetchCities(), fetchWarehouses(), fetchBranches(), fetchDepartments(), fetchCurrencies(), fetchCustomerCategories(),
-      fetchsupplierCategories(), fetchUnits(), fetchProductCategories(), fetchPrices(), fetchIncomeStatementItems(), fetchBalanceSheetAssetItems(), fetchBalanceSheetLiabilityItems(), fetchCostCenterTypes(), fetchCostCenters(), fetchAccountClassificationTypes(), fetchAccountClassifications()])
+      fetchsupplierCategories(), fetchUnits(), fetchProductCategories(), fetchLicenseTypes(), fetchPrices(), fetchIncomeStatementItems(), fetchBalanceSheetAssetItems(), fetchBalanceSheetLiabilityItems(), fetchCostCenterTypes(), fetchCostCenters(), fetchAccountClassificationTypes(), fetchAccountClassifications()])
     } catch (error) {
       console.error("Error fetching data:", error)
     } finally {
@@ -665,6 +675,20 @@ function Definitions() {
       setProductCategories(productCategories_initial)
     }
   }
+  const fetchLicenseTypes = async () => {
+    try {
+      const response = await fetch("/api/license-types")
+      if (response.ok) {
+        const data = await response.json()
+        setLicenseTypes(Array.isArray(data.categories) ? data.categories : [])
+      } else {
+        setLicenseTypes([])
+      }
+    } catch (error) {
+      console.error("Error fetching license types:", error)
+      setLicenseTypes([])
+    }
+  }
   const fetchTaxClassifications = async () => {
     try {
       const response = await fetch("/api/tax-classifications")
@@ -950,6 +974,69 @@ function Definitions() {
       toast({
         title: "خطأ في الاتصال",
         description: "تعذر الاتصال بالخادم، يرجى المحاولة مرة أخرى",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleAddLicenseType = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    if (!licenseTypeForm.name.trim()) {
+      toast({
+        title: "خطأ",
+        description: "يرجى إدخال اسم نوع الرخصة",
+        variant: "destructive",
+      })
+      return
+    }
+
+    try {
+      const response = await fetch("/api/license-types", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(licenseTypeForm),
+      })
+
+      if (response.ok) {
+        toast({
+          title: "تم الحفظ بنجاح",
+          description: "تم إضافة نوع الرخصة بنجاح",
+        })
+        await fetchLicenseTypes()
+        setLicenseTypeForm({ name: "" })
+        setShowLicenseTypeForm(false)
+      } else {
+        const error = await response.json()
+        toast({
+          title: "فشل الحفظ",
+          description: error.error || "حدث خطأ أثناء حفظ نوع الرخصة",
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      console.error("Error adding license type:", error)
+      toast({
+        title: "خطأ في الاتصال",
+        description: "تعذر الاتصال بالخادم، يرجى المحاولة مرة أخرى",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleDeleteLicenseType = async (id: number) => {
+    try {
+      const response = await fetch(`/api/license-types/${id}`, { method: "DELETE" })
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || "فشل في حذف نوع الرخصة")
+      }
+      await fetchLicenseTypes()
+      toast({ title: "تم الحذف", description: "تم حذف نوع الرخصة" })
+    } catch (error) {
+      toast({
+        title: "فشل الحذف",
+        description: error instanceof Error ? error.message : "تعذر حذف نوع الرخصة",
         variant: "destructive",
       })
     }
@@ -2157,11 +2244,9 @@ function Definitions() {
 
     try {
       const method = editingBranchId ? "PUT" : "POST";
-      // كلا التعديل والإضافة على /api/branches نفسها (بلا مقطع id بالرابط) — معالج PUT هناك
-      // يقرأ المعرّف من جسم الطلب (branchForm.id، مضبوط أصلاً في handleEditBranch)؛
-      // /api/branches/[id] ملف منفصل تماماً وغير مرتبط بالفروع (لبنود الميزانية)، فاستدعاؤه هنا
-      // بأي POST/PUT كان يفشل بلا معالج مطابق ويُظهر "تعذر الاتصال بالخادم" رغم وصول الرد فعلياً.
-      const url = `/api/branches`;
+      const url = editingBranchId
+        ? `/api/branches/${editingBranchId}`
+        : `/api/branches`;
 
       const response = await fetch(url, {
         method,
@@ -2277,13 +2362,35 @@ function Definitions() {
         </Badge>
       </div>
 
-      <Accordion type="single" collapsible defaultValue="definitions" className="w-full" dir="rtl">
-        <AccordionItem value="departments">
-          <AccordionTrigger className="flex items-center gap-2">
+      <Tabs defaultValue="definitions" className="w-full" dir="rtl">
+        <TabsList className="grid w-full grid-cols-5 mb-6">
+          <TabsTrigger value="definitions" className="flex items-center gap-2">
+            <Package className="h-4 w-4" />
+            التعريفات الأساسية
+          </TabsTrigger>
+          <TabsTrigger value="items" className="flex items-center gap-2">
+            <Package2 className="h-4 w-4" />
+            الاصناف
+          </TabsTrigger>
+          <TabsTrigger value="financial-definitions" className="flex items-center gap-2">
+            <CreditCard className="h-4 w-4" />
+            التعريفات المالية
+          </TabsTrigger>
+          <TabsTrigger value="departments" className="flex items-center gap-2">
             <Building className="h-4 w-4" />
             الأقسام والفروع
-          </AccordionTrigger>
-        <AccordionContent className="space-y-6">
+          </TabsTrigger>
+          <TabsTrigger value="workflow-stages" className="flex items-center gap-2">
+            <Settings className="h-4 w-4" />
+            مراحل العمل
+          </TabsTrigger>
+          <TabsTrigger value="workflow-sequences" className="flex items-center gap-2">
+            <Settings className="h-4 w-4" />
+            تسلسلات العمل
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="departments" className="space-y-6">
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
             <Card dir="rtl">
               <CardHeader>
@@ -2561,14 +2668,9 @@ function Definitions() {
             </Card>
 
           </div>
-        </AccordionContent>
-        </AccordionItem>
-        <AccordionItem value="items">
-          <AccordionTrigger className="flex items-center gap-2">
-            <Package2 className="h-4 w-4" />
-            الاصناف
-          </AccordionTrigger>
-        <AccordionContent className="space-y-6">
+        </TabsContent>
+
+        <TabsContent value="items" className="space-y-6">
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
             <Card dir="rtl">
               <CardHeader>
@@ -2905,14 +3007,9 @@ function Definitions() {
               </CardContent>
             </Card>
           </div>
-        </AccordionContent>
-        </AccordionItem>
-        <AccordionItem value="definitions">
-          <AccordionTrigger className="flex items-center gap-2">
-            <Package className="h-4 w-4" />
-            التعريفات الأساسية
-          </AccordionTrigger>
-        <AccordionContent className="space-y-6">
+        </TabsContent>
+
+        <TabsContent value="definitions" className="space-y-6">
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
             <Card dir="rtl">
               <CardHeader>
@@ -3381,16 +3478,90 @@ function Definitions() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* License Types (نوع الرخصة) */}
+            <Card dir="rtl">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Users className="h-4 w-4 text-primary" />
+                    أنواع الرخص
+                  </CardTitle>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setShowLicenseTypeForm(!showLicenseTypeForm)}
+                  >
+                    <Plus className="h-3 w-3" />
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {showLicenseTypeForm && (
+                  <div className="bg-muted/30 rounded-lg p-3 border" dir="rtl">
+                    <form className="space-y-3" onSubmit={handleAddLicenseType}>
+                      <div className="text-right">
+                        <Label className="erp-label text-sm text-right block">اسم نوع الرخصة</Label>
+                        <Input
+                          className="erp-input text-right"
+                          placeholder="مثال: رخصة عمومي"
+                          dir="rtl"
+                          maxLength={30}
+                          value={licenseTypeForm.name}
+                          onChange={(e) => setLicenseTypeForm({ ...licenseTypeForm, name: e.target.value.slice(0, 30) })}
+                        />
+                      </div>
+                      <div className="flex justify-start gap-2">
+                        <Button type="submit" size="sm" className="erp-btn-primary">
+                          حفظ
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setShowLicenseTypeForm(false)}
+                        >
+                          إلغاء
+                        </Button>
+                      </div>
+                    </form>
+                  </div>
+                )}
+
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {licenseTypes.map((type, index) => (
+                    <div
+                      key={type.id}
+                      className="p-3 rounded-lg border bg-background hover:bg-muted/50 transition-colors"
+                      dir="rtl"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: colors[index % colors.length] }} />
+                          <div className="text-right">
+                            <h4 className="font-medium text-sm">{type.name}</h4>
+                          </div>
+                        </div>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => openDeleteConfirm("هل أنت متأكد من حذف نوع الرخصة هذا؟", () => handleDeleteLicenseType(type.id))}
+                          aria-label="حذف نوع الرخصة"
+                          title="حذف نوع الرخصة"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
-        </AccordionContent>
-        </AccordionItem>
-        <AccordionItem value="financial-definitions">
-          <AccordionTrigger className="flex items-center gap-2">
-            <CreditCard className="h-4 w-4" />
-            التعريفات المالية
-          </AccordionTrigger>
-        <AccordionContent className="space-y-6">
+        </TabsContent>
+
+        <TabsContent value="financial-definitions" className="space-y-6">
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
             <Card dir="rtl">
               <CardHeader>
@@ -4224,31 +4395,18 @@ function Definitions() {
             </Card>
             </div>
           </div>
-        </AccordionContent>
-        </AccordionItem>
+        </TabsContent>
 
-        {/* Workflow Stages Management */}
-        <AccordionItem value="workflow-stages">
-          <AccordionTrigger className="flex items-center gap-2">
-            <Settings className="h-4 w-4" />
-            مراحل العمل
-          </AccordionTrigger>
-          <AccordionContent>
-            <WorkflowStagesManagement />
-          </AccordionContent>
-        </AccordionItem>
+        {/* Workflow Stages Management Tab */}
+        <TabsContent value="workflow-stages">
+          <WorkflowStagesManagement />
+        </TabsContent>
 
-        {/* Workflow Sequences Management */}
-        <AccordionItem value="workflow-sequences">
-          <AccordionTrigger className="flex items-center gap-2">
-            <Settings className="h-4 w-4" />
-            تسلسلات العمل
-          </AccordionTrigger>
-          <AccordionContent>
-            <WorkflowSequencesManagement />
-          </AccordionContent>
-        </AccordionItem>
-      </Accordion>
+        {/* Workflow Sequences Management Tab */}
+        <TabsContent value="workflow-sequences">
+          <WorkflowSequencesManagement />
+        </TabsContent>
+      </Tabs>
 
       <ConfirmDialogYesNo
         visible={confirmDeleteVisible}

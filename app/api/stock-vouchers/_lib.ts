@@ -1,4 +1,7 @@
 import sql from "@/lib/database"
+import { buildVoucherCode, normalizeVoucherPrefix } from "@/lib/voucher-code"
+
+export { buildVoucherCode, normalizeVoucherPrefix }
 
 // Shared schema + persistence helpers for the 4 new item-quantity vouchers:
 // سند ادخال بضاعة (Stock In), سند اخراج بضاعة (Stock Out), ارسالية داخلية (Internal Delivery),
@@ -123,10 +126,9 @@ export const ensureTables = async () => {
   await sql`CREATE INDEX IF NOT EXISTS idx_inventory_transactions_reference ON inventory_transactions(reference_type, reference_id)`
 }
 
-const VOUCHER_CODE_SEQUENCE_DIGITS = 8
-
-// بادئة حرف واحد لكل نوع — لتطابق طول كود السند (بادئة + رمز الدفتر + 6 أرقام = 8 خانات)
-// المستخدم في باقي أنواع السندات هنا (R/P/C/D/J جميعها حرف واحد).
+// بادئة حرف واحد لكل نوع — لتطابق طول كود السند (بادئة + رمز الدفتر + رقم تسلسلي = 10 خانات
+// كحد أقصى دوماً؛ انظر lib/voucher-code.ts) المستخدم في باقي أنواع السندات هنا (R/P/C/D/J
+// جميعها حرف واحد).
 const STOCK_VOUCHER_SETTINGS_KEY: Record<number, { prefix: string; start: string; defaultPrefix: string }> = {
   [STOCK_IN_VCH_TYPE]: { prefix: "stock_in_prefix", start: "stock_in_start", defaultPrefix: "I" },
   [STOCK_OUT_VCH_TYPE]: { prefix: "stock_out_prefix", start: "stock_out_start", defaultPrefix: "O" },
@@ -154,17 +156,6 @@ export const getStockVoucherNumberSettings = async (
     console.error("Failed to load stock voucher numbering settings, using defaults:", error)
     return { prefix: defaultPrefix, startNumber: 1 }
   }
-}
-
-const normalizeVoucherPrefix = (value: string): string =>
-  String(value || "").trim().toUpperCase().replace(/[^A-Z]/g, "").slice(0, 1)
-
-export const buildVoucherCode = (prefix: string, bookName: string, sequence: number, userPrefix = ""): string => {
-  const basePrefix = String(prefix || "").trim().toUpperCase()
-  const normalizedBookName = String(bookName || "").trim().toUpperCase()
-  const normalizedUserPrefix = normalizeVoucherPrefix(userPrefix)
-  const sequencePart = String(sequence).padStart(VOUCHER_CODE_SEQUENCE_DIGITS, "0")
-  return `${basePrefix}${normalizedBookName}${normalizedUserPrefix}${sequencePart}`
 }
 
 export const nextVoucherSequence = async (vchType: number, codePrefix: string, startNumber: number): Promise<number> => {
@@ -203,7 +194,9 @@ export const validateVoucherCodeFormat = async (
   const { prefix } = await getStockVoucherNumberSettings(requestUrl, vchType)
   const basePrefix = `${prefix}${bookName}`
   if (!code.startsWith(prefix)) return `رقم السند يجب أن يبدأ بـ ${prefix}`
-  if (code.length < basePrefix.length + VOUCHER_CODE_SEQUENCE_DIGITS) return "رقم السند غير مكتمل"
+  // لا عدد أرقام تسلسل ثابت بعد الآن (ينكمش ديناميكياً لتبقى 10 خانات كحد أقصى — انظر
+  // lib/voucher-code.ts) — يكفي التحقق من وجود رقم تسلسلي واحد على الأقل بعد البادئة+الدفتر.
+  if (code.length < basePrefix.length + 1) return "رقم السند غير مكتمل"
   return null
 }
 
@@ -334,6 +327,61 @@ export const validateItemBatchExpiry = async (items: any[]): Promise<string | nu
       return `يرجى التأكد من تاريخ الصلاحية للصنف - ${label}`
     }
   }
+  return null
+}
+
+// يتحقق من جهة الخادم (بمعزل عن الواجهة) أن كل مرجع مُدخَل بسطر الصنف — المستودع، الوحدة، وحساب/
+// حسابات الصنف إن وُجدت — موجود فعلاً وحالته "نشط" (status=1)، لا محذوف/موقوف تم اختياره في نافذة
+// كانت مفتوحة قبل حذفه/إيقافه. مشترك بين stock-vouchers (سند الاستعمال: expense_account_id/
+// purchase_account_id) وsales-vouchers (account_id) عبر accountFields. الوحدة تُخزَّن بسطر الصنف
+// باسمها (unit) لا بمعرّفها، فتُطابَق بالاسم على جدول units مباشرة.
+export const validateItemReferences = async (items: any[], accountFields: string[] = []): Promise<string | null> => {
+  const warehouseIds = [...new Set(items.map((i) => Number(i.warehouse_id)).filter((id) => Number.isFinite(id) && id > 0))]
+  const warehouseRows = warehouseIds.length
+    ? await sql`SELECT id, warehouse_name, status FROM warehouses WHERE id = ANY(${warehouseIds}::int[])`
+    : []
+  const warehousesById = new Map<number, any>(warehouseRows.map((r: any) => [Number(r.id), r]))
+
+  const unitNames = [...new Set(items.map((i) => String(i.unit || "").trim().toLowerCase()).filter(Boolean))]
+  const unitRows = unitNames.length ? await sql`SELECT id, unit_name, status FROM units WHERE LOWER(TRIM(unit_name)) = ANY(${unitNames}::text[])` : []
+  const unitsByName = new Map<string, any>(unitRows.map((r: any) => [String(r.unit_name).trim().toLowerCase(), r]))
+
+  const accountIds = accountFields.length
+    ? [
+        ...new Set(
+          items
+            .flatMap((i) => accountFields.map((field) => Number(i[field])))
+            .filter((id) => Number.isFinite(id) && id > 0),
+        ),
+      ]
+    : []
+  const accountRows = accountIds.length ? await sql`SELECT id, code, name, status FROM account_tbl WHERE id = ANY(${accountIds}::int[])` : []
+  const accountsById = new Map<number, any>(accountRows.map((r: any) => [Number(r.id), r]))
+
+  for (const item of items) {
+    const label = item.product_name || item.product_code || ""
+
+    if (item.warehouse_id) {
+      const warehouse = warehousesById.get(Number(item.warehouse_id))
+      if (!warehouse) return `المستودع المحدد للصنف - ${label} - غير موجود`
+      if (Number(warehouse.status) !== 1) return `المستودع المحدد للصنف - ${label} - غير نشط`
+    }
+
+    if (item.unit) {
+      const unit = unitsByName.get(String(item.unit).trim().toLowerCase())
+      if (!unit) return `الوحدة المحددة للصنف - ${label} - غير موجودة`
+      if (Number(unit.status) !== 1) return `الوحدة المحددة للصنف - ${label} - غير نشطة`
+    }
+
+    for (const field of accountFields) {
+      const accountId = Number(item[field])
+      if (!(accountId > 0)) continue
+      const account = accountsById.get(accountId)
+      if (!account) return `الحساب المحدد للصنف - ${label} - غير موجود`
+      if (Number(account.status) !== 1) return `الحساب المحدد للصنف - ${label} - غير نشط`
+    }
+  }
+
   return null
 }
 

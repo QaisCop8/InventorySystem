@@ -114,7 +114,7 @@ const emptyJournalRow: JournalEntryRow = {
   cost_centers: [],
 }
 
-const normalizeVoucherCode = (value: string) => value.toUpperCase().replace(/[^A-Z0-9-]/g, "")
+const normalizeVoucherCode = (value: string) => value.toUpperCase().replace(/[^A-Z0-9-]/g, "").slice(0, 10)
 const numberValue = (value: number | null | undefined) => (value === null || value === undefined ? "" : String(value))
 
 const selectCell = (grid: any, row: number, colName: string) => {
@@ -912,6 +912,7 @@ export default function UnifiedJournal({
                     value={form.vch_code}
                     onChange={(e) => onFormChange("vch_code", normalizeVoucherCode(e.target.value))}
                     onBlur={handleCodeBlur}
+                    maxLength={10}
                   />
                 </div>
                 <div className="grid gap-1.5">

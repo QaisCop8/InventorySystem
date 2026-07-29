@@ -1,9 +1,6 @@
 
 import { type NextRequest, NextResponse } from "next/server"
-import { Pool } from 'pg';
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-});
+import { getTenantPool } from "@/lib/database"
 
 async function ensureProductCostCentersTable(client: any) {
   await client.query(`
@@ -45,6 +42,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Query is required" }, { status: 400 });
     }
 
+    // كانت متصلة مباشرة بـprocess.env.DATABASE_URL (قاعدة مرجعية) بدل قاعدة الشركة الحالية —
+    // فيفشل بحث الصنف دوماً على أي قاعدة شركة فعلية. انظر نفس الشرح في ProductsNavigations/
+    // [navigationType]/route.ts.
+    const pool = await getTenantPool();
     const client = await pool.connect();
     await ensureProductCostCentersTable(client)
     const canJoinDefaultStore = await hasDefaultStoreColumn(client)

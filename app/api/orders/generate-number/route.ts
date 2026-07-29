@@ -2,7 +2,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
 
-export default sql
 
 
 export async function GET(request: NextRequest) {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import odbc, { Connection } from "odbc";
-import { Pool } from "pg"
+import type { Pool } from "pg"
+import { getTenantPool } from "@/lib/database"
 /* ======================================================
    CONFIG
 ====================================================== */
@@ -442,10 +443,7 @@ INSERT INTO spage (
   await connection.query(sql);
 }
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL
-});
-export async function getOrderItems(orderId: number): Promise<OrderItem[]> {
+export async function getOrderItems(pool: Pool, orderId: number): Promise<OrderItem[]> {
   const client = await pool.connect();
   try {
     const result = await client.query<OrderItem>(
@@ -605,6 +603,7 @@ export async function recalcualateAccounts(
 
 export async function POST(req: NextRequest) {
   let connection: Connection | null = null;
+  const pool = await getTenantPool();
 
   try {
     const body = await req.json();
@@ -661,7 +660,7 @@ export async function POST(req: NextRequest) {
         }
         if (!order.discount_amount) order.discount_amount = 0;
         console.log("Processing order:", order.order_number);
-        const items = await getOrderItems(order.id);
+        const items = await getOrderItems(pool, order.id);
         const missingItems: string[] = [];
         const missingAccounts: string[] = [];
         console.log("Migrating order:", order.order_number, "with items:", items.length);

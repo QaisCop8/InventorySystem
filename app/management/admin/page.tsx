@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { Loader2, ShieldAlert, Check, X, ArrowRight, UserCheck, UserX } from "lucide-react"
+import { Loader2, ShieldAlert, Check, X, ArrowRight, UserCheck, UserX, Ban, RefreshCw, Clock } from "lucide-react"
 
 interface PendingCompany {
   id: number
@@ -13,6 +13,20 @@ interface PendingCompany {
   requested_by_name: string
   requested_by_email: string
 }
+
+interface AllCompany {
+  id: number
+  name: string
+  status: "pending" | "approved" | "rejected" | "stopped"
+  created_at: string
+  expiry_date?: string | null
+  db_name?: string | null
+  requested_by_name?: string | null
+  requested_by_email?: string | null
+}
+
+const isCompanyExpired = (company: AllCompany) =>
+  !!company.expiry_date && new Date(company.expiry_date).getTime() < Date.now()
 
 interface ManagedUser {
   id: number
@@ -25,12 +39,14 @@ interface ManagedUser {
 }
 
 export default function ManagementAdminPage() {
-  const [tab, setTab] = useState<"companies" | "users">("companies")
+  const [tab, setTab] = useState<"pending" | "companies" | "users">("pending")
   const [companies, setCompanies] = useState<PendingCompany[]>([])
+  const [allCompanies, setAllCompanies] = useState<AllCompany[]>([])
   const [users, setUsers] = useState<ManagedUser[]>([])
   const [loading, setLoading] = useState(true)
   const [forbidden, setForbidden] = useState(false)
   const [busyId, setBusyId] = useState<number | null>(null)
+  const [subscriptionBusyId, setSubscriptionBusyId] = useState<number | null>(null)
   const [error, setError] = useState("")
 
   const load = async () => {
@@ -49,6 +65,16 @@ export default function ManagementAdminPage() {
     }
   }
 
+  const loadAllCompanies = async () => {
+    try {
+      const res = await fetch("/api/management/companies")
+      const data = await res.json()
+      setAllCompanies(Array.isArray(data) ? data : [])
+    } catch {
+      setError("تعذّر تحميل جميع الشركات")
+    }
+  }
+
   const loadUsers = async () => {
     try {
       const res = await fetch("/api/management/admin/users")
@@ -61,8 +87,31 @@ export default function ManagementAdminPage() {
 
   useEffect(() => {
     load()
+    loadAllCompanies()
     loadUsers()
   }, [])
+
+  const handleSubscriptionAction = async (companyId: number, action: "stop" | "unstop" | "extend") => {
+    setSubscriptionBusyId(companyId)
+    setError("")
+    try {
+      const res = await fetch(`/api/management/companies/${companyId}/subscription`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setError(data.error || "تعذّر تنفيذ الإجراء")
+        return
+      }
+      await loadAllCompanies()
+    } catch {
+      setError("تعذّر الاتصال بالخادم")
+    } finally {
+      setSubscriptionBusyId(null)
+    }
+  }
 
   const handleToggleUser = async (user: ManagedUser) => {
     setBusyId(user.id)
@@ -152,10 +201,16 @@ export default function ManagementAdminPage() {
 
         <div className="mb-6 flex gap-2 border-b border-slate-200">
           <button
+            onClick={() => setTab("pending")}
+            className={`px-4 py-2 text-sm font-medium ${tab === "pending" ? "border-b-2 border-violet-600 text-violet-700" : "text-slate-500"}`}
+          >
+            الشركات بانتظار الموافقة
+          </button>
+          <button
             onClick={() => setTab("companies")}
             className={`px-4 py-2 text-sm font-medium ${tab === "companies" ? "border-b-2 border-violet-600 text-violet-700" : "text-slate-500"}`}
           >
-            الشركات بانتظار الموافقة
+            الشركات
           </button>
           <button
             onClick={() => setTab("users")}
@@ -167,7 +222,7 @@ export default function ManagementAdminPage() {
 
         {error && <p className="mb-4 text-sm text-red-600">{error}</p>}
 
-        {tab === "companies" &&
+        {tab === "pending" &&
           (companies.length === 0 ? (
             <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center text-slate-400">لا توجد شركات بانتظار الموافقة</div>
           ) : (
@@ -190,6 +245,90 @@ export default function ManagementAdminPage() {
                   </div>
                 </div>
               ))}
+            </div>
+          ))}
+
+        {tab === "companies" &&
+          (allCompanies.length === 0 ? (
+            <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center text-slate-400">لا توجد شركات</div>
+          ) : (
+            <div className="space-y-3">
+              {allCompanies.map((company) => {
+                const expired = isCompanyExpired(company)
+                const statusLabel =
+                  company.status === "approved"
+                    ? "معتمدة"
+                    : company.status === "pending"
+                      ? "بانتظار الموافقة"
+                      : company.status === "rejected"
+                        ? "مرفوضة"
+                        : "موقوفة"
+                const statusClasses =
+                  company.status === "approved"
+                    ? "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200"
+                    : company.status === "pending"
+                      ? "bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-200"
+                      : company.status === "rejected"
+                        ? "bg-rose-50 text-rose-700 ring-1 ring-inset ring-rose-200"
+                        : "bg-slate-100 text-slate-700 ring-1 ring-inset ring-slate-200"
+
+                return (
+                  <div key={company.id} className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                    <div>
+                      <div className="flex items-center gap-2 font-semibold text-slate-800">
+                        {company.name}
+                        <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${statusClasses}`}>{statusLabel}</span>
+                        {expired && (
+                          <span className="flex items-center gap-1 rounded-full bg-rose-50 px-2 py-0.5 text-xs font-medium text-rose-700 ring-1 ring-inset ring-rose-200">
+                            <Clock className="h-3 w-3" /> الاشتراك منتهي
+                          </span>
+                        )}
+                      </div>
+                      {company.requested_by_name && (
+                        <div className="text-sm text-slate-500">
+                          {company.requested_by_name} · {company.requested_by_email}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex gap-2">
+                      {(company.status === "approved" || company.status === "stopped") && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className={
+                            company.status === "stopped"
+                              ? "gap-1 border-emerald-200 text-emerald-600 hover:bg-emerald-50"
+                              : "gap-1 border-amber-200 text-amber-700 hover:bg-amber-50"
+                          }
+                          disabled={subscriptionBusyId === company.id}
+                          onClick={() => handleSubscriptionAction(company.id, company.status === "stopped" ? "unstop" : "stop")}
+                        >
+                          {subscriptionBusyId === company.id ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : company.status === "stopped" ? (
+                            <RefreshCw className="h-3.5 w-3.5" />
+                          ) : (
+                            <Ban className="h-3.5 w-3.5" />
+                          )}
+                          {company.status === "stopped" ? "إلغاء الإيقاف" : "إيقاف"}
+                        </Button>
+                      )}
+
+                      {expired && (
+                        <Button
+                          size="sm"
+                          className="gap-1 bg-violet-600 text-white hover:bg-violet-700"
+                          disabled={subscriptionBusyId === company.id}
+                          onClick={() => handleSubscriptionAction(company.id, "extend")}
+                        >
+                          <RefreshCw className="h-3.5 w-3.5" />
+                          تمديد الاشتراك
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
             </div>
           ))}
 
