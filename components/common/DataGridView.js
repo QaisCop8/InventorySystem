@@ -143,12 +143,28 @@ export default class DataGridView extends React.Component {
     window['grid'] = this.flex;
     // Listen for window resize to update predicate (document does not fire resize).
     window.addEventListener('resize', this.updatePredicate);
+
+    // يُطلَق من lib/system-settings-sync.ts بعد كل مزامنة (تحميل أول أو حفظ إعداد "عدد الخانات
+    // العشرية" بشاشة إعدادات السندات) — formatItem أعلاه يقرأ Util.getSystemSetting(17) عند كل
+    // رسم خلية، لكن Wijmo لا يُعيد رسم الخلايا تلقائياً فقط لأن localStorage تغيّر؛ invalidate()
+    // يجبر إعادة تنسيق كل الخلايا المعروضة فوراً بالقيمة الجديدة دون حاجة لإعادة تحميل الصفحة.
+    this._onSystemSettingsUpdated = () => {
+      try {
+        if (this.flex && this.flex.invalidate) this.flex.invalidate();
+      } catch (e) {
+        /* ignore */
+      }
+    };
+    window.addEventListener('system-settings-updated', this._onSystemSettingsUpdated);
   };
 
   componentWillUnmount() {
     try {
       window.removeEventListener('resize', this._updateGridLayout);
       window.removeEventListener('resize', this.updatePredicate);
+      if (this._onSystemSettingsUpdated) {
+        window.removeEventListener('system-settings-updated', this._onSystemSettingsUpdated);
+      }
     } catch (e) {
       /* ignore */
     }
@@ -1077,7 +1093,13 @@ createButtonTemplate = (col) => (ctx) => {
           }
         }
 
-        if (this.props.isReport) {
+        {
+          // تنسيق أعمدة الأرقام (عدد الخانات العشرية عبر Util.getSystemSetting(17)، المرتبط الآن
+          // بـ"عدد الخانات العشرية" بإعدادات السندات العامة — انظر lib/system-settings-sync.ts) كان
+          // مقصوراً على this.props.isReport (شبكات التقارير فقط)، فتبقى شبكات الإدخال (سندات
+          // المخزون/طلبات وتسليم المبيعات...) بلا أي تنسيق عشري رغم استخدامها نفس DataGridView —
+          // يُطبَّق الآن على كل شبكة تستخدم هذا المكوّن بصرف النظر عن isReport؛ باقي السلوكيات
+          // المشروطة بـisReport أعلاه (تلوين الصفوف الزوجية/الفردية، عرض البطاقات الضيق...) بلا تغيير.
           //cells formatting
           if (e.panel === flexgrid.cells) {
             let col = flexgrid.columns[e.col];
@@ -1094,7 +1116,7 @@ createButtonTemplate = (col) => (ctx) => {
                 col.name !== 'ser' &&
                 col.name !== 'status' &&
                 col.name !== 'code' &&
-                !_col[0].withoutFractions
+                !(_col[0] && _col[0].withoutFractions)
               ) {
                 if (value === null) {
                   e.cell.textContent = '';

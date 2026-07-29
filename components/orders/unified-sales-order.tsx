@@ -3094,20 +3094,20 @@ function UnifiedSalesOrder({
                   <div className="flex flex-wrap items-center gap-6 text-sm">
                     <div className="flex flex-col items-end">
                       <span className="text-xs text-muted-foreground">المجموع الفرعي</span>
-                      <span className="font-semibold">{totals.subtotal.toFixed(2)} </span>
+                      <span className="font-semibold">{Util.formatNumber(totals.subtotal, Util.getSystemSetting(17))} </span>
                     </div>
                     <div className="flex flex-col items-end">
                       <span className="text-xs text-muted-foreground">الخصم</span>
-                      <span className="font-semibold text-red-600">-{totals.discount.toFixed(2)} </span>
+                      <span className="font-semibold text-red-600">-{Util.formatNumber(totals.discount, Util.getSystemSetting(17))} </span>
                     </div>
                     <div className="flex flex-col items-end">
                       <span className="text-xs text-muted-foreground">الضريبة</span>
-                      <span className="font-semibold">{totals.tax.toFixed(2)} </span>
+                      <span className="font-semibold">{Util.formatNumber(totals.tax, Util.getSystemSetting(17))} </span>
                     </div>
                     <Separator orientation="vertical" className="h-10 hidden md:block" />
                     <div className="flex flex-col items-end">
                       <span className="text-xs text-muted-foreground">الإجمالي</span>
-                      <span className="text-lg font-bold text-primary">{totals.total.toFixed(2)}</span>
+                      <span className="text-lg font-bold text-primary">{Util.formatNumber(totals.total, Util.getSystemSetting(17))}</span>
                     </div>
                   </div>
                 </div>
@@ -3759,28 +3759,28 @@ function UnifiedSalesOrder({
                   <div className="space-y-4">
                     <div className="flex justify-between items-center text-base py-2">
                       <span className="text-muted-foreground">المجموع الفرعي:</span>
-                      <span className="font-semibold text-lg">{totals.subtotal.toFixed(2)} </span>
+                      <span className="font-semibold text-lg">{Util.formatNumber(totals.subtotal, Util.getSystemSetting(17))} </span>
                     </div>
                     <div className="flex justify-between items-center text-base py-2">
                       <span className="text-muted-foreground">الخصم:</span>
-                      <span className="font-semibold text-lg text-red-600">-{totals.discount.toFixed(2)} </span>
+                      <span className="font-semibold text-lg text-red-600">-{Util.formatNumber(totals.discount, Util.getSystemSetting(17))} </span>
                     </div>
                     <div className="flex justify-between items-center text-base py-2">
                       <span className="text-muted-foreground">الضريبة:</span>
-                      <span className="font-semibold text-lg">{totals.tax.toFixed(2)} </span>
+                      <span className="font-semibold text-lg">{Util.formatNumber(totals.tax, Util.getSystemSetting(17))} </span>
                     </div>
                     <div className="flex justify-between items-center text-base py-2">
                       <span className="text-muted-foreground">الشحن:</span>
-                      <span className="font-semibold text-lg">{(Number(state.formData.shipping_cost) || 0).toFixed(2)} </span>
+                      <span className="font-semibold text-lg">{Util.formatNumber(Number(state.formData.shipping_cost) || 0, Util.getSystemSetting(17))} </span>
                     </div>
                     <div className="flex justify-between items-center text-base py-2">
                       <span className="text-muted-foreground">رسوم أخرى:</span>
-                      <span className="font-semibold text-lg">{(Number(state.formData.other_charges) || 0).toFixed(2)} </span>
+                      <span className="font-semibold text-lg">{Util.formatNumber(Number(state.formData.other_charges) || 0, Util.getSystemSetting(17))} </span>
                     </div>
                     <Separator className="my-4" />
                     <div className="flex justify-between items-center bg-primary/10 p-4 rounded-lg border border-primary/20">
                       <span className="text-lg font-bold">المجموع الكلي:</span>
-                      <span className="text-2xl font-bold text-primary">{(Number(totals.total) || 0).toFixed(2)} </span>
+                      <span className="text-2xl font-bold text-primary">{Util.formatNumber(Number(totals.total) || 0, Util.getSystemSetting(17))} </span>
                     </div>
                   </div>
                 </CardContent>

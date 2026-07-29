@@ -135,37 +135,41 @@ html[dir="rtl"] .wj-flexgrid .wj-header {
   text-align: right;
 }
 
-/* Button Styling - Grid Buttons */
+/* Button Styling - Grid Buttons — تطابق مظهر زر shadcn/ui (variant="ghost", size="icon") المُعرَّف
+   بـcomponents/ui/button.tsx: بلا خلفية افتراضاً، خلفية "accent" فقط عند :hover، بلا ظل/رفع عند
+   المرور. الألوان عبر متغيرات CSS نفسها (app/globals.css) لتتبع الثيم الفاتح/الداكن تلقائياً. */
 .wj-flexgrid button,
 .wj-cell-maker-btn {
-  padding: 8px 12px;
-  border-radius: 0;
+  padding: 0;
+  border-radius: var(--radius-md, 8px);
   border: none;
   outline: none;
-  font-weight: 600;
+  font-weight: 500;
   font-size: 14px;
   cursor: pointer;
-  transition: all 0.3s ease;
-  color: white !important;
-  min-width: 40px;
+  transition: color 0.15s ease, background-color 0.15s ease;
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 4px;
-  background-color: #bfdbfe !important;
-  color: #1e40af !important;
+  background-color: transparent !important;
+  color: var(--muted-foreground) !important;
 }
 
 .wj-flexgrid button:hover,
 .wj-cell-maker-btn:hover {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  transform: translateY(-2px);
-  background-color: #93c5fd !important;
+  background-color: var(--accent) !important;
+  color: var(--accent-foreground) !important;
+  box-shadow: none;
+  transform: none;
 }
 
 .wj-flexgrid button:active,
 .wj-cell-maker-btn:active {
-  transform: translateY(0);
+  transform: none;
 }
 
 .wj-flexgrid button:disabled,
@@ -175,61 +179,62 @@ html[dir="rtl"] .wj-flexgrid .wj-header {
   transform: none;
 }
 
-/* DELETE BUTTONS - Light Red (pi-trash icon) */
+/* DELETE BUTTONS — نفس منطق variant="destructive" لوناً (pi-trash icon)، بخلفية شفافة (ghost) بدل
+   الحمراء المصمتة لتناسب الاستخدام المتكرر داخل صفوف الشبكة. */
 .wj-flexgrid button.pi-trash,
 .wj-cell-maker-btn.pi-trash,
 .wj-flexgrid button[title*="حذف"],
 .wj-flexgrid button.btn-delete {
-  background-color: #fecaca !important;
-  color: #7f1d1d !important;
+  background-color: transparent !important;
+  color: var(--destructive) !important;
 }
 
 .wj-flexgrid button.pi-trash:hover,
 .wj-cell-maker-btn.pi-trash:hover,
 .wj-flexgrid button[title*="حذف"]:hover,
 .wj-flexgrid button.btn-delete:hover {
-  background-color: #fca5a5 !important;
-  color: #7f1d1d !important;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
-  transform: translateY(-2px) !important;
+  background-color: color-mix(in srgb, var(--destructive) 12%, transparent) !important;
+  color: var(--destructive) !important;
+  box-shadow: none !important;
+  transform: none !important;
 }
 
-/* SEARCH BUTTONS - Light Blue (pi-search icon) */
+/* SEARCH BUTTONS - ghost (pi-search icon) */
 .wj-flexgrid button.pi-search,
 .wj-cell-maker-btn.pi-search,
 .wj-flexgrid button[title*="بحث"],
 .wj-flexgrid button.btn-search {
-  background-color: #bfdbfe !important;
-  color: #1e40af !important;
+  background-color: transparent !important;
+  color: var(--muted-foreground) !important;
 }
 
 .wj-flexgrid button.pi-search:hover,
 .wj-cell-maker-btn.pi-search:hover,
 .wj-flexgrid button[title*="بحث"]:hover,
 .wj-flexgrid button.btn-search:hover {
-  background-color: #93c5fd !important;
-  color: #1e40af !important;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
-  transform: translateY(-2px) !important;
+  background-color: var(--accent) !important;
+  color: var(--accent-foreground) !important;
+  box-shadow: none !important;
+  transform: none !important;
 }
 
-/* EDIT BUTTONS - Light Blue (pi-pencil icon) */
+/* EDIT BUTTONS - ghost (pi-pencil icon) */
 .wj-flexgrid button.pi-pencil,
 .wj-cell-maker-btn.pi-pencil,
 .wj-flexgrid button[title*="تغيير"],
 .wj-flexgrid button.btn-status {
-  background-color: #bfdbfe !important;
-  color: #1e40af !important;
+  background-color: transparent !important;
+  color: var(--muted-foreground) !important;
 }
 
 .wj-flexgrid button.pi-pencil:hover,
 .wj-cell-maker-btn.pi-pencil:hover,
 .wj-flexgrid button[title*="تغيير"]:hover,
 .wj-flexgrid button.btn-status:hover {
-  background-color: #93c5fd !important;
-  color: #1e40af !important;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
-  transform: translateY(-2px) !important;
+  background-color: var(--accent) !important;
+  color: var(--accent-foreground) !important;
+  box-shadow: none !important;
+  transform: none !important;
 }
 
 /* Ensure all button text and icons are styled appropriately */
@@ -241,23 +246,23 @@ html[dir="rtl"] .wj-flexgrid .wj-header {
   fill: inherit !important;
 }
 
-/* CALENDAR BUTTONS - Light Indigo (pi-calendar icon) */
+/* CALENDAR BUTTONS - ghost (pi-calendar icon) */
 .wj-flexgrid button.pi-calendar,
 .wj-cell-maker-btn.pi-calendar,
 .wj-flexgrid button[title*="تقويم"],
 .wj-flexgrid button.btn-calendar {
-  background-color: #ddd6fe !important;
-  color: #4c1d95 !important;
+  background-color: transparent !important;
+  color: var(--muted-foreground) !important;
 }
 
 .wj-flexgrid button.pi-calendar:hover,
 .wj-cell-maker-btn.pi-calendar:hover,
 .wj-flexgrid button[title*="تقويم"]:hover,
 .wj-flexgrid button.btn-calendar:hover {
-  background-color: #c4b5fd !important;
-  color: #4c1d95 !important;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
-  transform: translateY(-2px) !important;
+  background-color: var(--accent) !important;
+  color: var(--accent-foreground) !important;
+  box-shadow: none !important;
+  transform: none !important;
 }
 
 /* ===============================

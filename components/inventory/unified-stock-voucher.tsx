@@ -29,6 +29,7 @@ import DateTimeControl from "@/components/common/date-time-control"
 import Util from "@/components/common/Util"
 import { useToast } from "@/hooks/use-toast"
 import { FileText, Package, Calculator, MessageSquare, RefreshCw } from "lucide-react"
+import { readVoucherClipboard, writeVoucherClipboard, type VoucherClipboardPayload } from "@/lib/voucher-clipboard"
 
 // vch_type per voucher_types_tbl: 12=سند ادخال بضاعة, 13=سند اخراج بضاعة,
 // 14=ارسالية داخلية, 15=سند استعمال.
@@ -709,6 +710,120 @@ export default function UnifiedStockVoucher({
         if (form.id > 0 && form.status === 1) {
           setShowDeleteConfirm(true)
         }
+        return
+      }
+
+      // Alt+C/Alt+V: نسخ/لصق سند عابر لنوع السند (سند مخزون ↔ ارسالية مبيعات بـunified-sales-
+      // delivery.tsx) عبر حافظة مشتركة بـlocalStorage — انظر lib/voucher-clipboard.ts لسبب اقتصارها
+      // على تقاطع الحقول المشتركة فعلياً بين النموذجين فقط (رأس السند + بنود الصنف).
+      if (event.altKey && (event.key === "c" || event.key === "C")) {
+        event.preventDefault()
+        const currentForm = formRef.current
+        if (!(currentForm.id > 0)) {
+          messagesRef.current?.show?.([{ severity: "warn", summary: "", detail: "يجب حفظ السند أولاً قبل نسخه", life: 2500 }])
+          return
+        }
+        const payload: VoucherClipboardPayload = {
+          sourceKind: "stock_voucher",
+          sourceVchType: currentForm.vch_type,
+          sourceVchCode: currentForm.vch_code,
+          copiedAt: new Date().toISOString(),
+          header: {
+            currency_id: currentForm.currency_id,
+            rate: currentForm.rate,
+            account_id: currentForm.account_id,
+            customer_name: currentForm.customer_name,
+            to_store_id: currentForm.to_store_id,
+            note: currentForm.note,
+          },
+          items: itemsRef.current
+            .filter((r) => r.product_id)
+            .map((r) => ({
+              product_id: r.product_id,
+              product_code: r.product_code,
+              product_name: r.product_name,
+              barcode: r.barcode,
+              warehouse_id: r.warehouse_id,
+              warehouse_name: r.warehouse_name,
+              unit: r.unit,
+              quantity: r.quantity,
+              unit_price: r.unit_price,
+              total_price: r.total_price,
+              batch_number: r.batch_number,
+              expiry_date: r.expiry_date,
+              note: r.note,
+              measurment_id: r.measurment_id ?? null,
+              product_length: r.product_length ?? null,
+              product_width: r.product_width ?? null,
+              product_density: r.product_density ?? null,
+              length: r.length,
+              width: r.width,
+              height: r.height,
+              count: r.count,
+              has_expiry: r.has_expiry,
+              has_batch: r.has_batch,
+              units: r.units,
+            })),
+        }
+        writeVoucherClipboard(payload)
+        messagesRef.current?.show?.([
+          { severity: "success", summary: "", detail: `تم نسخ السند ${currentForm.vch_code} (${payload.items.length} صنف)`, life: 2500 },
+        ])
+        return
+      }
+
+      if (event.altKey && (event.key === "v" || event.key === "V")) {
+        event.preventDefault()
+        if (isLocked) return
+        const clipboard = readVoucherClipboard()
+        if (!clipboard || clipboard.items.length === 0) {
+          messagesRef.current?.show?.([{ severity: "warn", summary: "", detail: "لا يوجد سند منسوخ للصقه", life: 2500 }])
+          return
+        }
+        onFormChange("currency_id", clipboard.header.currency_id)
+        onFormChange("rate", clipboard.header.rate)
+        onFormChange("account_id", clipboard.header.account_id)
+        onFormChange("customer_name", clipboard.header.customer_name)
+        onFormChange("to_store_id", clipboard.header.to_store_id)
+        onFormChange("note", clipboard.header.note)
+
+        const pastedRows: VoucherItemRow[] = clipboard.items.map((it) => ({
+          ...emptyItemRow,
+          product_id: it.product_id,
+          product_code: it.product_code,
+          product_name: it.product_name,
+          barcode: it.barcode,
+          warehouse_id: it.warehouse_id,
+          warehouse_name: it.warehouse_name,
+          unit: it.unit,
+          quantity: it.quantity,
+          unit_price: it.unit_price,
+          total_price: it.total_price,
+          batch_number: it.batch_number,
+          expiry_date: it.expiry_date,
+          note: it.note,
+          measurment_id: it.measurment_id ?? 1,
+          product_length: it.product_length,
+          product_width: it.product_width,
+          product_density: it.product_density,
+          length: it.length,
+          width: it.width,
+          height: it.height,
+          count: it.count,
+          has_expiry: it.has_expiry,
+          has_batch: it.has_batch,
+          units: it.units,
+        }))
+        // تُستبعَد أي أسطر فارغة (بلا صنف مُختار بعد) من الأسطر الحالية قبل الإلحاق — نفس فلترة
+        // Alt+C أعلاه — بدل ترك سطر فارغ عالقاً بمنتصف القائمة بعد الأسطر الملصوقة.
+        const existing = itemsRef.current.filter((r) => r.product_id)
+        const nextItems = [...existing, ...pastedRows]
+        itemsRef.current = nextItems
+        onItemsChange(nextItems)
+        messagesRef.current?.show?.([
+          { severity: "success", summary: "", detail: `تم لصق ${pastedRows.length} صنف من السند ${clipboard.sourceVchCode}`, life: 2500 },
+        ])
+        return
       }
     }
 
@@ -1146,7 +1261,29 @@ export default function UnifiedStockVoucher({
       }
 
       const currentFieldIndex = fieldOrder.indexOf(colName)
-      if (currentFieldIndex === -1) return
+      if (currentFieldIndex === -1) {
+        // عمود بلا ترتيب Tab/Enter مخصّص بـfieldOrder (كـ"الوحدة"/"المستودع" للقراءة فقط، أو أزرار
+        // البحث المجاورة لها) — كان الضغط عليه يُلغي الحدث بلا أي انتقال (return أعلاه بلا تنفيذ)،
+        // فيبدو للمستخدم أن Enter/Tab "لا يعملان" على هذه الخلية. يُنقَل هنا افتراضياً للعمود المرئي
+        // التالي بنفس الشبكة (متخطّياً أعمدة الأزرار كـbtnSearchUnits/btnDelete التي يبدأ اسمها بـ
+        // "btn")، وعند آخر عمود للسطر التالي — مطابقاً لسلوك Tab الطبيعي بأي جدول بيانات.
+        const isSelectableColumn = (gc: any) => gc && gc.visible !== false && !String(gc.binding || "").startsWith("btn")
+        let nextCol = -1
+        for (let c = col + 1; c < grid.columns.length; c++) {
+          if (isSelectableColumn(grid.columns[c])) {
+            nextCol = c
+            break
+          }
+        }
+        if (nextCol >= 0) {
+          selectCell(grid, row, grid.columns[nextCol].binding)
+        } else {
+          const nextRow = row + 1 <= itemsRef.current.length - 1 ? row + 1 : row
+          const firstCol = grid.columns.find(isSelectableColumn)
+          if (firstCol) selectCell(grid, nextRow, firstCol.binding)
+        }
+        return
+      }
 
       // يتخطّى أعمدة الأبعاد غير ذات الصلة بنوع قياس هذا السطر تحديداً (measurment_id) — المؤشّر
       // "لا يصل" إليها إطلاقاً بدل التوقف عندها ثم منع التحرير فقط (beginningEdit أدناه يمنع
@@ -2178,11 +2315,11 @@ export default function UnifiedStockVoucher({
             <div className="grid grid-cols-2 gap-4">
               <div className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3">
                 <span className="text-muted-foreground">مجموع الكميات</span>
-                <span className="text-lg font-bold">{chequesTotal.toLocaleString()}</span>
+                <span className="text-lg font-bold">{Util.formatNumber(chequesTotal, Util.getSystemSetting(17))}</span>
               </div>
               <div className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3">
                 <span className="text-muted-foreground">المجموع</span>
-                <span className="text-lg font-bold">{amountTotal.toLocaleString()}</span>
+                <span className="text-lg font-bold">{Util.formatNumber(amountTotal, Util.getSystemSetting(17))}</span>
               </div>
             </div>
           </div>
@@ -2295,7 +2432,14 @@ export default function UnifiedStockVoucher({
             setMeasurementDialogOpen(open)
             if (!open) {
               popupHasClosed()
-              restoreGridFocus(measurementDialogRow !== null ? { row: measurementDialogRow, col: "quantity" } : null)
+              // إن أُغلِقت النافذة بعد تأكيد (موافق) فقد ضبط onConfirm أدناه pendingFocusRef فعلاً
+              // (لعمود "unit_price") — استدعاء restoreGridFocus هنا أيضاً كان يتسابق معه ويُعيد
+              // التركيز أحياناً لعمود "quantity" بدلاً منه بحسب توقيت callback الشبكتين. يُطبَّق هنا
+              // نفس نمط AccountSearchDialog أدناه: استرجاع تركيز افتراضي فقط إن لم يُحدَّد فعلاً
+              // (أي أُغلِقت النافذة بإلغاء أو Escape دون تأكيد).
+              if (!pendingFocusRef.current) {
+                restoreGridFocus(measurementDialogRow !== null ? { row: measurementDialogRow, col: "quantity" } : null)
+              }
             }
           }}
           measurmentId={measurementDialogRow !== null ? Number(itemsRef.current[measurementDialogRow]?.measurment_id || 1) : 1}

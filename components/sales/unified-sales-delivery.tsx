@@ -32,6 +32,7 @@ import { useToast } from "@/hooks/use-toast"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import { FileText, Package, Calculator, MessageSquare, Wallet, TrendingUp, Percent } from "lucide-react"
+import { readVoucherClipboard, writeVoucherClipboard, type VoucherClipboardPayload } from "@/lib/voucher-clipboard"
 
 // vch_type per voucher_types_tbl (app/api/sales-vouchers/_lib.ts, IDs 16-23) — هذا المكوّن يخدم
 // الأنواع الثمانية جميعها الآن عبر خاصية voucherType (بنفس أسلوب unified-stock-voucher.tsx مع
@@ -522,6 +523,11 @@ export default function UnifiedSalesDelivery({
   const items = form.items || []
   const itemsRef = useRef(items)
   itemsRef.current = items
+  // نفس نمط formRef في unified-stock-voucher.tsx — يقرأه معالِج Alt+C (نسخ سند للحافظة العابرة
+  // لنوع السند، انظر lib/voucher-clipboard.ts) دون حاجة لإدراج كل حقل رأس يقرأه بمصفوفة تبعيات
+  // useEffect أدناه (المُقتصرة على id/status اللازمين لِـF3/F4 فقط).
+  const formRef = useRef(form)
+  formRef.current = form
   const warehousesRef = useRef(warehouses)
   warehousesRef.current = warehouses
   const defaultItemWarehouseIdRef = useRef(defaultItemWarehouseId)
@@ -592,6 +598,117 @@ export default function UnifiedSalesDelivery({
         if (form.id > 0 && form.status === 1) {
           setShowDeleteConfirm(true)
         }
+        return
+      }
+
+      // Alt+C/Alt+V: نسخ/لصق سند عابر لنوع السند (ارسالية مبيعات ↔ سند مخزون بـunified-stock-
+      // voucher.tsx) عبر حافظة مشتركة بـlocalStorage — نفس الآلية والتعليق التفصيلي هناك.
+      if (event.altKey && (event.key === "c" || event.key === "C")) {
+        event.preventDefault()
+        const currentForm = formRef.current
+        if (!(currentForm.id > 0)) {
+          messagesRef.current?.show?.([{ severity: "warn", summary: "", detail: "يجب حفظ السند أولاً قبل نسخه", life: 2500 }])
+          return
+        }
+        const payload: VoucherClipboardPayload = {
+          sourceKind: "sales_delivery",
+          sourceVchType: currentForm.vch_type,
+          sourceVchCode: currentForm.vch_code,
+          copiedAt: new Date().toISOString(),
+          header: {
+            currency_id: currentForm.currency_id,
+            rate: currentForm.rate,
+            account_id: currentForm.account_id,
+            customer_name: currentForm.customer_name,
+            to_store_id: currentForm.to_store_id,
+            note: currentForm.note,
+          },
+          items: itemsRef.current
+            .filter((r) => r.product_id)
+            .map((r) => ({
+              product_id: r.product_id,
+              product_code: r.product_code,
+              product_name: r.product_name,
+              barcode: r.barcode,
+              warehouse_id: r.warehouse_id,
+              warehouse_name: r.warehouse_name,
+              unit: r.unit,
+              quantity: r.quantity,
+              unit_price: r.unit_price,
+              total_price: r.total_price,
+              batch_number: r.batch_number,
+              expiry_date: r.expiry_date,
+              note: r.note,
+              measurment_id: r.measurment_id ?? null,
+              product_length: r.product_length ?? null,
+              product_width: r.product_width ?? null,
+              product_density: r.product_density ?? null,
+              length: r.length,
+              width: r.width,
+              height: r.height,
+              count: r.count,
+              has_expiry: r.has_expiry,
+              has_batch: r.has_batch,
+              units: r.units,
+            })),
+        }
+        writeVoucherClipboard(payload)
+        messagesRef.current?.show?.([
+          { severity: "success", summary: "", detail: `تم نسخ السند ${currentForm.vch_code} (${payload.items.length} صنف)`, life: 2500 },
+        ])
+        return
+      }
+
+      if (event.altKey && (event.key === "v" || event.key === "V")) {
+        event.preventDefault()
+        if (isLocked) return
+        const clipboard = readVoucherClipboard()
+        if (!clipboard || clipboard.items.length === 0) {
+          messagesRef.current?.show?.([{ severity: "warn", summary: "", detail: "لا يوجد سند منسوخ للصقه", life: 2500 }])
+          return
+        }
+        onFormChange("currency_id", clipboard.header.currency_id)
+        onFormChange("rate", clipboard.header.rate)
+        onFormChange("account_id", clipboard.header.account_id)
+        onFormChange("customer_name", clipboard.header.customer_name)
+        onFormChange("to_store_id", clipboard.header.to_store_id)
+        onFormChange("note", clipboard.header.note)
+
+        const pastedRows: SalesVoucherItemRow[] = clipboard.items.map((it) => ({
+          ...emptyItemRow,
+          product_id: it.product_id,
+          product_code: it.product_code,
+          product_name: it.product_name,
+          barcode: it.barcode,
+          warehouse_id: it.warehouse_id,
+          warehouse_name: it.warehouse_name,
+          unit: it.unit,
+          quantity: it.quantity,
+          unit_price: it.unit_price,
+          total_price: it.total_price,
+          batch_number: it.batch_number,
+          expiry_date: it.expiry_date,
+          note: it.note,
+          measurment_id: it.measurment_id ?? 1,
+          product_length: it.product_length,
+          product_width: it.product_width,
+          product_density: it.product_density,
+          length: it.length,
+          width: it.width,
+          height: it.height,
+          count: it.count,
+          has_expiry: it.has_expiry,
+          has_batch: it.has_batch,
+          units: it.units,
+        }))
+        const existing = itemsRef.current.filter((r) => r.product_id)
+        const nextItems = [...existing, ...pastedRows]
+        itemsRef.current = nextItems
+        onItemsChange(nextItems)
+        messagesRef.current?.show?.([
+          { severity: "success", summary: "", detail: `تم لصق ${pastedRows.length} صنف من السند ${clipboard.sourceVchCode}`, life: 2500 },
+        ])
+        return
       }
     }
     window.addEventListener("keydown", onGlobalKeyDown)
@@ -1294,7 +1411,27 @@ export default function UnifiedSalesDelivery({
       }
 
       const currentFieldIndex = fieldOrder.indexOf(colName)
-      if (currentFieldIndex === -1) return
+      if (currentFieldIndex === -1) {
+        // عمود بلا ترتيب Tab/Enter مخصّص بـfieldOrder — نفس منطق unified-stock-voucher.tsx: ينتقل
+        // افتراضياً للعمود المرئي التالي بنفس الشبكة (متخطّياً أعمدة الأزرار التي يبدأ اسمها بـ"btn")
+        // بدل تجاهل الضغطة كلياً.
+        const isSelectableColumn = (gc: any) => gc && gc.visible !== false && !String(gc.binding || "").startsWith("btn")
+        let nextCol = -1
+        for (let c = col + 1; c < grid.columns.length; c++) {
+          if (isSelectableColumn(grid.columns[c])) {
+            nextCol = c
+            break
+          }
+        }
+        if (nextCol >= 0) {
+          selectCell(grid, row, grid.columns[nextCol].binding)
+        } else {
+          const nextRow = row + 1 <= itemsRef.current.length - 1 ? row + 1 : row
+          const firstCol = grid.columns.find(isSelectableColumn)
+          if (firstCol) selectCell(grid, nextRow, firstCol.binding)
+        }
+        return
+      }
       // يتخطّى أعمدة الأبعاد غير ذات الصلة بنوع قياس هذا السطر تحديداً — نفس منطق
       // findNextRelevantFieldIndex في unified-stock-voucher.tsx.
       const nextFieldIndex = findNextRelevantFieldIndex(currentFieldIndex + 1)
@@ -1611,20 +1748,20 @@ export default function UnifiedSalesDelivery({
               <div className="flex flex-wrap items-center gap-6 text-sm">
                 <div className="flex flex-col items-end">
                   <span className="text-xs text-muted-foreground">المجموع الفرعي</span>
-                  <span className="font-semibold">{totals.subtotal.toFixed(2)}</span>
+                  <span className="font-semibold">{Util.formatNumber(totals.subtotal, Util.getSystemSetting(17))}</span>
                 </div>
                 <div className="flex flex-col items-end">
                   <span className="text-xs text-muted-foreground">الخصم</span>
-                  <span className="font-semibold text-red-600">-{totals.discount.toFixed(2)}</span>
+                  <span className="font-semibold text-red-600">-{Util.formatNumber(totals.discount, Util.getSystemSetting(17))}</span>
                 </div>
                 <div className="flex flex-col items-end">
                   <span className="text-xs text-muted-foreground">الضريبة</span>
-                  <span className="font-semibold">{totals.tax.toFixed(2)}</span>
+                  <span className="font-semibold">{Util.formatNumber(totals.tax, Util.getSystemSetting(17))}</span>
                 </div>
                 <Separator orientation="vertical" className="hidden h-10 md:block" />
                 <div className="flex flex-col items-end">
                   <span className="text-xs text-muted-foreground">الإجمالي</span>
-                  <span className="text-lg font-bold text-emerald-700">{totals.total.toFixed(2)}</span>
+                  <span className="text-lg font-bold text-emerald-700">{Util.formatNumber(totals.total, Util.getSystemSetting(17))}</span>
                 </div>
               </div>
             </div>
@@ -2157,24 +2294,24 @@ export default function UnifiedSalesDelivery({
               <div className="space-y-3">
                 <div className="flex items-center justify-between py-1">
                   <span className="text-muted-foreground">مجموع الكميات:</span>
-                  <span className="font-semibold">{quantityTotal.toLocaleString()}</span>
+                  <span className="font-semibold">{Util.formatNumber(quantityTotal, Util.getSystemSetting(17))}</span>
                 </div>
                 <div className="flex items-center justify-between py-1">
                   <span className="text-muted-foreground">المجموع الفرعي:</span>
-                  <span className="font-semibold">{totals.subtotal.toFixed(2)}</span>
+                  <span className="font-semibold">{Util.formatNumber(totals.subtotal, Util.getSystemSetting(17))}</span>
                 </div>
                 <div className="flex items-center justify-between py-1">
                   <span className="text-muted-foreground">الخصم:</span>
-                  <span className="font-semibold text-red-600">-{totals.discount.toFixed(2)}</span>
+                  <span className="font-semibold text-red-600">-{Util.formatNumber(totals.discount, Util.getSystemSetting(17))}</span>
                 </div>
                 <div className="flex items-center justify-between py-1">
                   <span className="text-muted-foreground">الضريبة:</span>
-                  <span className="font-semibold">{totals.tax.toFixed(2)}</span>
+                  <span className="font-semibold">{Util.formatNumber(totals.tax, Util.getSystemSetting(17))}</span>
                 </div>
                 <Separator className="my-2" />
                 <div className="flex items-center justify-between rounded-lg border border-emerald-200 bg-white/70 p-3">
                   <span className="text-base font-bold">المجموع الكلي:</span>
-                  <span className="text-xl font-bold text-emerald-700">{totals.total.toFixed(2)}</span>
+                  <span className="text-xl font-bold text-emerald-700">{Util.formatNumber(totals.total, Util.getSystemSetting(17))}</span>
                 </div>
               </div>
             </div>
@@ -2303,7 +2440,12 @@ export default function UnifiedSalesDelivery({
             setMeasurementDialogOpen(open)
             if (!open) {
               popupHasClosed()
-              restoreGridFocus(measurementDialogRow !== null ? { row: measurementDialogRow, col: "quantity" } : null)
+              // نفس نمط AccountSearchDialog أدناه: إن أُغلِقت النافذة بعد تأكيد فقد ضبط onConfirm
+              // pendingFocusRef فعلاً (لعمود "unit_price") — استرجاع تركيز افتراضي هنا كان يتسابق
+              // معه ويُعيد التركيز أحياناً لعمود "quantity" خطأً. يُطبَّق فقط إن أُغلِقت دون تأكيد.
+              if (!pendingFocusRef.current) {
+                restoreGridFocus(measurementDialogRow !== null ? { row: measurementDialogRow, col: "quantity" } : null)
+              }
             }
           }}
           measurmentId={measurementDialogRow !== null ? Number(itemsRef.current[measurementDialogRow]?.measurment_id || 1) : 1}

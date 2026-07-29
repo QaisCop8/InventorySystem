@@ -894,6 +894,11 @@ const exportDefault = {
         }
       }
     }
+    // 17: عدد الخانات العشرية (مُزامَن من decimal_places_count عبر lib/system-settings-sync.ts) —
+    // قبل اكتمال أول مزامنة (أو تعذّرها) ترجع undefined بدل هذا الاحتياطي، فتتأثر بذلك كل استدعاءات
+    // .toFixed(undefined)/Intl.NumberFormat بدون minimumFractionDigits المعتمدة على هذا الإعداد
+    // (كانت تُنتِج صفر خانة عشرية أو عدداً متبايناً بدل ثابت)، لذا يُفترَض هنا افتراضٌ صريح ثابت.
+    if (settingId === 17) return 2;
     return undefined;
   },
 

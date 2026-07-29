@@ -11,6 +11,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import PrimeDropdown from "@/components/common/FocusDropdown"
 import { useToast } from "@/hooks/use-toast"
 import { SPECIAL_PRICE_CATEGORIES } from "@/components/inventory/unified-stock-voucher"
+import { syncSystemSettingsToLocalStorage } from "@/lib/system-settings-sync"
 
 const CHEQUE_CHECK_MODES = [
   { value: "no_check", label: "عدم التشييك" },
@@ -234,6 +235,9 @@ export default function VouchersGeneralSettings() {
         }),
       })
       if (!response.ok) throw new Error("Failed to save")
+      // يُعيد تعبئة عدد الخانات العشرية بـlocalStorage فوراً (بدل انتظار إعادة تحميل الصفحة) —
+      // يُطلِق أيضاً حدثاً تلتقطه كل شبكة DataGridView مفتوحة حالياً لإعادة تنسيق خلاياها المعروضة.
+      void syncSystemSettingsToLocalStorage()
       toast({ title: "تم الحفظ", description: "تم حفظ الإعدادات العامة بنجاح" })
     } catch (error) {
       console.error("Failed to save general voucher settings", error)

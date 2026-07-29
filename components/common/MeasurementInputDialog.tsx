@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState, type RefObject } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -99,6 +99,41 @@ export default function MeasurementInputDialog({
   const needsHeight = measurementRequiresHeight(measurmentId)
   const needsCount = measurementRequiresCount(measurmentId)
 
+  const lengthInputRef = useRef<HTMLInputElement>(null)
+  const widthInputRef = useRef<HTMLInputElement>(null)
+  const heightInputRef = useRef<HTMLInputElement>(null)
+  const countInputRef = useRef<HTMLInputElement>(null)
+  const confirmButtonRef = useRef<HTMLButtonElement>(null)
+
+  // ترتيب الحقول المعروضة فعلياً (طول←عرض←ارتفاع←عدد، متخطّياً غير المطلوب منها لنوع القياس
+  // الحالي) — يُستخدَم لكل من: (أ) تركيز أول حقل عند الفتح، (ب) تنقّل Enter بين الحقول أدناه.
+  const fieldRefs = [
+    needsLength ? lengthInputRef : null,
+    needsWidth ? widthInputRef : null,
+    needsHeight ? heightInputRef : null,
+    needsCount ? countInputRef : null,
+  ].filter((ref): ref is typeof lengthInputRef => ref !== null)
+
+  // كان autoFocus مضبوطاً فقط على حقل "الطول" — فلا يتلقى أي حقل تركيزاً فعلياً لأنواع القياس التي
+  // لا تتطلب الطول (كالمحيط: عرض+عدد فقط)، فيصل Enter حينها لعنصر DialogContent نفسه بلا أثر. يُركَّز
+  // هنا صراحة على أول حقل معروض فعلياً بعد أن يفتح Radix النافذة.
+  useEffect(() => {
+    if (!open) return
+    const id = requestAnimationFrame(() => fieldRefs[0]?.current?.focus())
+    return () => cancelAnimationFrame(id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, measurmentId])
+
+  // Enter يتصرّف كـTab: ينقل التركيز للحقل التالي المعروض، وعند آخر حقل ينقله لزر "موافق" (Enter
+  // عليه بعدها يُفعِّل onClick الخاص به تلقائياً — سلوك المتصفح الافتراضي لعنصر button مُركَّز عليه)
+  // بدل تأكيد الإدخال فوراً من أي حقل، حتى يتسنّى للمستخدم مراجعة الكمية المحتسبة قبل التأكيد.
+  const focusNextField = (currentRef: RefObject<HTMLInputElement>) => {
+    const index = fieldRefs.indexOf(currentRef)
+    const next = fieldRefs[index + 1]
+    if (next) next.current?.focus()
+    else confirmButtonRef.current?.focus()
+  }
+
   const quantity = recalcQuantityFromMeasurementValues(
     measurmentId,
     values,
@@ -121,7 +156,15 @@ export default function MeasurementInputDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-sm" dir="rtl">
+      <DialogContent
+        className="max-w-sm"
+        dir="rtl"
+        // نفس نمط AccountSearchDialog/AccountCostCenters وأخواتها (انظر تعليقها) — يمنع Radix من سرقة
+        // التركيز عند الإغلاق (افتراضياً يُعيده لعنصر داخلي/document.body بدل ترك restoreGridFocus
+        // بملفَي unified-stock-voucher.tsx/unified-sales-delivery.tsx يتحكّم به كاملاً)، وإلا فقد
+        // يتسابق سلوك Radix الافتراضي مع استدعاء selectCell/grid.focus() هناك ويُبطِل أثره.
+        onCloseAutoFocus={(event) => event.preventDefault()}
+      >
         <DialogHeader>
           <DialogTitle>بيانات القياس{productName ? ` - ${productName}` : ""}</DialogTitle>
         </DialogHeader>
@@ -132,11 +175,14 @@ export default function MeasurementInputDialog({
               <Input
                 id="measurement-length"
                 type="number"
-                autoFocus
+                ref={lengthInputRef}
                 value={values.length ?? ""}
                 onChange={(e) => setValues((v) => ({ ...v, length: e.target.value === "" ? null : Number(e.target.value) }))}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter") handleConfirm()
+                  if (e.key === "Enter") {
+                    e.preventDefault()
+                    focusNextField(lengthInputRef)
+                  }
                 }}
               />
             </div>
@@ -147,10 +193,14 @@ export default function MeasurementInputDialog({
               <Input
                 id="measurement-width"
                 type="number"
+                ref={widthInputRef}
                 value={values.width ?? ""}
                 onChange={(e) => setValues((v) => ({ ...v, width: e.target.value === "" ? null : Number(e.target.value) }))}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter") handleConfirm()
+                  if (e.key === "Enter") {
+                    e.preventDefault()
+                    focusNextField(widthInputRef)
+                  }
                 }}
               />
             </div>
@@ -161,10 +211,14 @@ export default function MeasurementInputDialog({
               <Input
                 id="measurement-height"
                 type="number"
+                ref={heightInputRef}
                 value={values.height ?? ""}
                 onChange={(e) => setValues((v) => ({ ...v, height: e.target.value === "" ? null : Number(e.target.value) }))}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter") handleConfirm()
+                  if (e.key === "Enter") {
+                    e.preventDefault()
+                    focusNextField(heightInputRef)
+                  }
                 }}
               />
             </div>
@@ -175,10 +229,14 @@ export default function MeasurementInputDialog({
               <Input
                 id="measurement-count"
                 type="number"
+                ref={countInputRef}
                 value={values.count ?? ""}
                 onChange={(e) => setValues((v) => ({ ...v, count: e.target.value === "" ? null : Number(e.target.value) }))}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter") handleConfirm()
+                  if (e.key === "Enter") {
+                    e.preventDefault()
+                    focusNextField(countInputRef)
+                  }
                 }}
               />
             </div>
@@ -192,7 +250,7 @@ export default function MeasurementInputDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             إلغاء
           </Button>
-          <Button onClick={handleConfirm} disabled={!canConfirm}>
+          <Button ref={confirmButtonRef} onClick={handleConfirm} disabled={!canConfirm}>
             موافق
           </Button>
         </div>
