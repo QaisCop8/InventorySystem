@@ -135,19 +135,20 @@ html[dir="rtl"] .wj-flexgrid .wj-header {
   text-align: right;
 }
 
-/* Button Styling - Grid Buttons — تطابق مظهر زر shadcn/ui (variant="ghost", size="icon") المُعرَّف
-   بـcomponents/ui/button.tsx: بلا خلفية افتراضاً، خلفية "accent" فقط عند :hover، بلا ظل/رفع عند
-   المرور. الألوان عبر متغيرات CSS نفسها (app/globals.css) لتتبع الثيم الفاتح/الداكن تلقائياً. */
+/* Button Styling - Grid Buttons — أزرار أيقونية "ناعمة" (soft-fill): خلفية بلون خفيف (12%) لنوع
+   الزر منذ حالة السكون (لا انتظار hover لإدراك دلالة اللون)، تتكثّف مع ظل ورفعة خفيفة عند :hover،
+   وانضغاطة قصيرة عند :active — بدل مظهر ghost المسطّح السابق. الألوان عبر color-mix مع متغيرات
+   الثيم نفسها (app/globals.css) فتتبع الفاتح/الداكن تلقائياً بلا تكرار قيم hex. */
 .wj-flexgrid button,
 .wj-cell-maker-btn {
   padding: 0;
-  border-radius: var(--radius-md, 8px);
+  border-radius: 10px;
   border: none;
   outline: none;
   font-weight: 500;
   font-size: 14px;
   cursor: pointer;
-  transition: color 0.15s ease, background-color 0.15s ease;
+  transition: background-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease, transform 0.12s ease;
   width: 32px;
   height: 32px;
   min-width: 32px;
@@ -155,37 +156,39 @@ html[dir="rtl"] .wj-flexgrid .wj-header {
   align-items: center;
   justify-content: center;
   gap: 4px;
-  background-color: transparent !important;
+  background-color: color-mix(in srgb, var(--foreground) 7%, transparent) !important;
   color: var(--muted-foreground) !important;
 }
 
 .wj-flexgrid button:hover,
 .wj-cell-maker-btn:hover {
-  background-color: var(--accent) !important;
-  color: var(--accent-foreground) !important;
-  box-shadow: none;
-  transform: none;
+  background-color: color-mix(in srgb, var(--primary) 16%, transparent) !important;
+  color: var(--primary) !important;
+  box-shadow: 0 2px 6px color-mix(in srgb, var(--primary) 25%, transparent);
+  transform: translateY(-1px);
 }
 
 .wj-flexgrid button:active,
 .wj-cell-maker-btn:active {
-  transform: none;
+  transform: translateY(0) scale(0.93);
+  box-shadow: none;
 }
 
 .wj-flexgrid button:disabled,
 .wj-cell-maker-btn:disabled {
-  opacity: 0.5;
+  opacity: 0.45;
   cursor: not-allowed;
   transform: none;
+  box-shadow: none;
 }
 
-/* DELETE BUTTONS — نفس منطق variant="destructive" لوناً (pi-trash icon)، بخلفية شفافة (ghost) بدل
-   الحمراء المصمتة لتناسب الاستخدام المتكرر داخل صفوف الشبكة. */
+/* DELETE BUTTONS — لون "destructive" منذ حالة السكون (pi-trash icon)، يتكثّف مع ظل أحمر خفيف
+   ورفعة عند :hover — مميّز بصرياً فوراً عن بقية الأزرار كإجراء لا رجعة فيه. */
 .wj-flexgrid button.pi-trash,
 .wj-cell-maker-btn.pi-trash,
 .wj-flexgrid button[title*="حذف"],
 .wj-flexgrid button.btn-delete {
-  background-color: transparent !important;
+  background-color: color-mix(in srgb, var(--destructive) 13%, transparent) !important;
   color: var(--destructive) !important;
 }
 
@@ -193,48 +196,48 @@ html[dir="rtl"] .wj-flexgrid .wj-header {
 .wj-cell-maker-btn.pi-trash:hover,
 .wj-flexgrid button[title*="حذف"]:hover,
 .wj-flexgrid button.btn-delete:hover {
-  background-color: color-mix(in srgb, var(--destructive) 12%, transparent) !important;
+  background-color: color-mix(in srgb, var(--destructive) 24%, transparent) !important;
   color: var(--destructive) !important;
-  box-shadow: none !important;
-  transform: none !important;
+  box-shadow: 0 2px 6px color-mix(in srgb, var(--destructive) 30%, transparent) !important;
+  transform: translateY(-1px);
 }
 
-/* SEARCH BUTTONS - ghost (pi-search icon) */
+/* SEARCH BUTTONS - soft-fill بلون "primary" (pi-search icon) */
 .wj-flexgrid button.pi-search,
 .wj-cell-maker-btn.pi-search,
 .wj-flexgrid button[title*="بحث"],
 .wj-flexgrid button.btn-search {
-  background-color: transparent !important;
-  color: var(--muted-foreground) !important;
+  background-color: color-mix(in srgb, var(--primary) 12%, transparent) !important;
+  color: var(--primary) !important;
 }
 
 .wj-flexgrid button.pi-search:hover,
 .wj-cell-maker-btn.pi-search:hover,
 .wj-flexgrid button[title*="بحث"]:hover,
 .wj-flexgrid button.btn-search:hover {
-  background-color: var(--accent) !important;
-  color: var(--accent-foreground) !important;
-  box-shadow: none !important;
-  transform: none !important;
+  background-color: color-mix(in srgb, var(--primary) 22%, transparent) !important;
+  color: var(--primary) !important;
+  box-shadow: 0 2px 6px color-mix(in srgb, var(--primary) 28%, transparent) !important;
+  transform: translateY(-1px);
 }
 
-/* EDIT BUTTONS - ghost (pi-pencil icon) */
+/* EDIT BUTTONS - soft-fill بلون "primary" (pi-pencil icon) */
 .wj-flexgrid button.pi-pencil,
 .wj-cell-maker-btn.pi-pencil,
 .wj-flexgrid button[title*="تغيير"],
 .wj-flexgrid button.btn-status {
-  background-color: transparent !important;
-  color: var(--muted-foreground) !important;
+  background-color: color-mix(in srgb, var(--primary) 12%, transparent) !important;
+  color: var(--primary) !important;
 }
 
 .wj-flexgrid button.pi-pencil:hover,
 .wj-cell-maker-btn.pi-pencil:hover,
 .wj-flexgrid button[title*="تغيير"]:hover,
 .wj-flexgrid button.btn-status:hover {
-  background-color: var(--accent) !important;
-  color: var(--accent-foreground) !important;
-  box-shadow: none !important;
-  transform: none !important;
+  background-color: color-mix(in srgb, var(--primary) 22%, transparent) !important;
+  color: var(--primary) !important;
+  box-shadow: 0 2px 6px color-mix(in srgb, var(--primary) 28%, transparent) !important;
+  transform: translateY(-1px);
 }
 
 /* Ensure all button text and icons are styled appropriately */
@@ -244,25 +247,26 @@ html[dir="rtl"] .wj-flexgrid .wj-header {
 .wj-cell-maker-btn svg {
   color: inherit !important;
   fill: inherit !important;
+  font-size: 14px;
 }
 
-/* CALENDAR BUTTONS - ghost (pi-calendar icon) */
+/* CALENDAR BUTTONS - soft-fill بلون بنفسجي مميَّز عن primary (pi-calendar icon) */
 .wj-flexgrid button.pi-calendar,
 .wj-cell-maker-btn.pi-calendar,
 .wj-flexgrid button[title*="تقويم"],
 .wj-flexgrid button.btn-calendar {
-  background-color: transparent !important;
-  color: var(--muted-foreground) !important;
+  background-color: color-mix(in srgb, #8b5cf6 14%, transparent) !important;
+  color: #8b5cf6 !important;
 }
 
 .wj-flexgrid button.pi-calendar:hover,
 .wj-cell-maker-btn.pi-calendar:hover,
 .wj-flexgrid button[title*="تقويم"]:hover,
 .wj-flexgrid button.btn-calendar:hover {
-  background-color: var(--accent) !important;
-  color: var(--accent-foreground) !important;
-  box-shadow: none !important;
-  transform: none !important;
+  background-color: color-mix(in srgb, #8b5cf6 24%, transparent) !important;
+  color: #8b5cf6 !important;
+  box-shadow: 0 2px 6px color-mix(in srgb, #8b5cf6 30%, transparent) !important;
+  transform: translateY(-1px);
 }
 
 /* ===============================
@@ -323,5 +327,5 @@ html[dir="rtl"] .wj-flexgrid .wj-header {
 }
 
 .modernVoucherGrid .wj-cell-maker-btn {
-  border-radius: 8px !important;
+  border-radius: 10px !important;
 }

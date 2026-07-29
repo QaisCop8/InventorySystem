@@ -663,18 +663,21 @@ createButtonTemplate = (col) => (ctx) => {
   // Returns inline style string for a given button class to be used as a
   // fallback when CSS rules are overridden or not applied by the environment.
   getButtonInlineStyle = (className) => {
+    // نفس تدرّجات "soft-fill" بـDataGridView.scss (لون خفيف منذ حالة السكون) — احتياطي فقط لبيئات
+    // يتعذّر فيها تحميل/تطبيق تلك القواعد الخارجية؛ color-mix مدعوم أصلاً بالمتصفحات المستهدَفة إذ
+    // يُستخدَم بنفس ملف الـSCSS الأساسي بلا مشاكل.
     const cls = (className || 'default').toLowerCase();
     switch (cls) {
       case 'danger':
-        return 'background:#dc3545;color:#fff;border:none;';
+        return 'background:color-mix(in srgb, var(--destructive) 13%, transparent);color:var(--destructive);border:none;';
       case 'warning':
-        return 'background:#ffb84d;color:#222;border:none;';
+        return 'background:color-mix(in srgb, #f59e0b 14%, transparent);color:#b45309;border:none;';
       case 'info':
-        return 'background:#17a2b8;color:#fff;border:none;';
+        return 'background:color-mix(in srgb, var(--primary) 12%, transparent);color:var(--primary);border:none;';
       case 'success':
-        return 'background:#28a745;color:#fff;border:none;';
+        return 'background:color-mix(in srgb, #22c55e 14%, transparent);color:#15803d;border:none;';
       default:
-        return 'background:#f1f1f1;color:#222;border:none;';
+        return 'background:color-mix(in srgb, var(--foreground) 7%, transparent);color:var(--muted-foreground);border:none;';
     }
   };
 
@@ -687,29 +690,33 @@ createButtonTemplate = (col) => (ctx) => {
       const btns = this.flex.hostElement.querySelectorAll('button');
       btns.forEach((btn) => {
         const cls = (btn.className || '').toLowerCase();
-        // size and base styles
-        btn.style.height = btn.style.height || '30px';
+        // size and base styles — نفس تدرّجات "soft-fill" بـDataGridView.scss، احتياطي فقط
+        btn.style.height = btn.style.height || '32px';
+        btn.style.width = btn.style.width || '32px';
         btn.style.minWidth = btn.style.minWidth || '32px';
-        btn.style.padding = btn.style.padding || '0 8px';
-        btn.style.borderRadius = btn.style.borderRadius || '8px';
+        btn.style.padding = btn.style.padding || '0';
+        btn.style.borderRadius = btn.style.borderRadius || '10px';
         btn.style.border = btn.style.border || 'none';
 
-        if (cls.indexOf('btn-danger') > -1) {
-          btn.style.background = '#dc3545';
-          btn.style.color = '#fff';
+        if (cls.indexOf('pi-trash') > -1 || cls.indexOf('btn-danger') > -1) {
+          btn.style.background = 'color-mix(in srgb, var(--destructive) 13%, transparent)';
+          btn.style.color = 'var(--destructive)';
+        } else if (cls.indexOf('pi-calendar') > -1) {
+          btn.style.background = 'color-mix(in srgb, #8b5cf6 14%, transparent)';
+          btn.style.color = '#8b5cf6';
+        } else if (cls.indexOf('pi-search') > -1 || cls.indexOf('pi-pencil') > -1 || cls.indexOf('btn-info') > -1) {
+          btn.style.background = 'color-mix(in srgb, var(--primary) 12%, transparent)';
+          btn.style.color = 'var(--primary)';
         } else if (cls.indexOf('btn-warning') > -1) {
-          btn.style.background = '#ffb84d';
-          btn.style.color = '#222';
-        } else if (cls.indexOf('btn-info') > -1) {
-          btn.style.background = '#17a2b8';
-          btn.style.color = '#fff';
+          btn.style.background = 'color-mix(in srgb, #f59e0b 14%, transparent)';
+          btn.style.color = '#b45309';
         } else if (cls.indexOf('btn-success') > -1) {
-          btn.style.background = '#28a745';
-          btn.style.color = '#fff';
+          btn.style.background = 'color-mix(in srgb, #22c55e 14%, transparent)';
+          btn.style.color = '#15803d';
         } else if (cls.indexOf('btn-default') > -1 || cls.indexOf('wj-cell-maker') > -1 || cls.indexOf('wj-cell-maker-btn') > -1) {
           // default neutral look
-          btn.style.background = '#f1f1f1';
-          btn.style.color = '#222';
+          btn.style.background = 'color-mix(in srgb, var(--foreground) 7%, transparent)';
+          btn.style.color = 'var(--muted-foreground)';
         }
         // ensure icon color follows button
         const icon = btn.querySelector('i');
