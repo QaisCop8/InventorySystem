@@ -930,7 +930,7 @@ export default function UnifiedStockVoucher({
         patchItemRow(row, { product_code: "", product_id: null, product_name: "" })
         return
       }
-      const adjusted = Util.adjustCode(rawValue, 8).toUpperCase()
+      const adjusted = Util.adjustCode(rawValue, 10).toUpperCase()
       patchItemRow(row, { product_code: adjusted })
       // يتخطّى البحث إن كان Enter/Tab (handleKeyDown) سيُشغِّله بنفسه بعد قليل — انظر تعليق
       // skipAutoLookupRef أدناه لسبب تفادي بحث مزدوج.

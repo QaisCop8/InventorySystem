@@ -12,13 +12,28 @@ export async function GET() {
     const session = await getManagementSession()
     if (!session) return NextResponse.json({ error: "يجب تسجيل الدخول" }, { status: 401 })
 
-    const rows = await managementSql`
-      SELECT c.id, c.name, c.status, c.created_at
-      FROM companies c
-      JOIN user_company uc ON uc.company_id = c.id
-      WHERE uc.user_id = ${session.id}
-      ORDER BY c.created_at DESC
-    `
+    let rows: any[] = []
+
+    if (session.is_platform_admin) {
+      rows = await managementSql`
+        SELECT c.id, c.name, c.status, c.created_at, c.expiry_date, c.db_name,
+               u.full_name AS requested_by_name, u.email AS requested_by_email
+        FROM companies c
+        LEFT JOIN users u ON u.id = c.created_by
+        ORDER BY c.created_at DESC
+      `
+    } else {
+      rows = await managementSql`
+        SELECT c.id, c.name, c.status, c.created_at, c.expiry_date, c.db_name,
+               u.full_name AS requested_by_name, u.email AS requested_by_email
+        FROM companies c
+        JOIN user_company uc ON uc.company_id = c.id
+        LEFT JOIN users u ON u.id = c.created_by
+        WHERE uc.user_id = ${session.id}
+        ORDER BY c.created_at DESC
+      `
+    }
+
     return NextResponse.json(rows)
   } catch (error) {
     console.error("[management/companies GET] error:", error)

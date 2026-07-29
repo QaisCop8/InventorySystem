@@ -66,7 +66,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Generate new order number with prefix and sequential number
-    const paddedNumber = nextNumber.toString().padStart(7, "0")
+    const paddedNumber = nextNumber.toString().padStart(9, "0")
     const orderNumber = `${prefix}${paddedNumber}`
 
     console.log("[v0] API: Generated order number:", orderNumber)

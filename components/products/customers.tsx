@@ -1100,7 +1100,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
     [updateField]
   );
 
-  const adjustCode = (code: string, codeLen: number = 8): string => {
+  const adjustCode = (code: string, codeLen: number = 10): string => {
     if (!code || !code.trim()) return '';
 
     code = code.trim().toUpperCase();

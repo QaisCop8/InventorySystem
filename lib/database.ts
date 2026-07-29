@@ -80,7 +80,13 @@ async function isApprovedTenantDb(dbName: string): Promise<boolean> {
   if (!approvedDbNamesCache || now - approvedDbNamesCache.loadedAt > APPROVED_NAMES_TTL_MS) {
     try {
       const managementSql = (await import("./management-db")).default
-      const rows = await managementSql`SELECT db_name FROM companies WHERE status = 'approved' AND db_name IS NOT NULL`
+      // تُستثنى الشركات المنتهي اشتراكها هنا أيضاً (لا فقط عند اختيار الشركة في select-company) —
+      // حاجز دفاعي إضافي يقطع كل استعلامات هذه القاعدة فوراً حتى لو بقيت كوكي tenant_db قديمة سارية
+      // من قبل تاريخ الانتهاء (المستخدم لم يُعِد اختيار الشركة، فلا مسار آخر كان سيرفض طلباته).
+      const rows = await managementSql`
+        SELECT db_name FROM companies
+        WHERE status = 'approved' AND db_name IS NOT NULL AND (expiry_date IS NULL OR expiry_date > CURRENT_TIMESTAMP)
+      `
       approvedDbNamesCache = { names: new Set(rows.map((r: any) => r.db_name)), loadedAt: now }
     } catch (error) {
       console.error("[database] Failed to refresh approved tenant db list:", error)

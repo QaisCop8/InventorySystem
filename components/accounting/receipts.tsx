@@ -308,16 +308,16 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
   }
 
   // الرقم يتضمّن رمز دفتر السندات (مثال REF00001) فلا بد من تمريره دائماً.
-  const generateCode = async (bookId: number | null) => {
-    if (!bookId) return ""
+  const generateCode = async (bookId: number | null, fallbackCode = "") => {
+    if (!bookId) return fallbackCode
     try {
       const response = await fetch(`/api/receipts/generate-number?vch_type=${voucherType}&vch_book_id=${bookId}`)
-      if (!response.ok) return ""
+      if (!response.ok) return fallbackCode
       const data = await response.json()
-      return data.code || ""
+      return data.code || fallbackCode
     } catch (error) {
       console.error("Failed to generate voucher number", error)
-      return ""
+      return fallbackCode
     }
   }
 
@@ -434,10 +434,11 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
   // تغيير دفتر السندات لسند جديد لم يُحفظ بعد يعيد توليد الرقم (رمز الدفتر جزء من الرقم) —
   // لا يُغيَّر رقم سند محفوظ مسبقاً لتجنّب إعادة ترقيم مستند موجود.
   const handleBookChange = async (bookId: number | null) => {
+    const previousCode = form.vch_code || ""
     setForm((f) => ({ ...f, vch_book_id: bookId }))
     if (!isNewMode || !bookId) return
-    const code = await generateCode(bookId)
-    setForm((f) => ({ ...f, vch_code: code }))
+    const generated = await generateCode(bookId, previousCode)
+    setForm((f) => ({ ...f, vch_code: generated || previousCode }))
   }
 
   const openEditDialog = async (record: VoucherRecord, index: number) => {

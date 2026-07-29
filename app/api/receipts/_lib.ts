@@ -536,7 +536,7 @@ export const ensureTables = async () => {
 export const RECEIPT_VCH_TYPE = 8
 export const PAYMENT_VCH_TYPE = 9
 
-const VOUCHER_CODE_SEQUENCE_DIGITS = 6
+const VOUCHER_CODE_SEQUENCE_DIGITS = 8
 
 // رقم السند = بادئة (من إعدادات النظام) + رمز دفتر السندات + رقم تسلسلي مبطّن بأصفار
 // (مثال: RE + F + 00001 = REF00001). يُقرأ عبر طلب داخلي لنفس منطق /api/settings/system
@@ -561,8 +561,16 @@ export const getVoucherNumberSettings = async (
   }
 }
 
-export const buildVoucherCode = (prefix: string, bookName: string, sequence: number): string =>
-  `${prefix}${bookName}${String(sequence).padStart(VOUCHER_CODE_SEQUENCE_DIGITS, "0")}`
+const normalizeVoucherPrefix = (value: string): string =>
+  String(value || "").trim().toUpperCase().replace(/[^A-Z]/g, "").slice(0, 1)
+
+export const buildVoucherCode = (prefix: string, bookName: string, sequence: number, userPrefix = ""): string => {
+  const basePrefix = String(prefix || "").trim().toUpperCase()
+  const normalizedBookName = String(bookName || "").trim().toUpperCase()
+  const normalizedUserPrefix = normalizeVoucherPrefix(userPrefix)
+  const sequencePart = String(sequence).padStart(VOUCHER_CODE_SEQUENCE_DIGITS, "0")
+  return `${basePrefix}${normalizedBookName}${normalizedUserPrefix}${sequencePart}`
+}
 
 // الرقم التسلسلي التالي ضمن تركيبة (نوع السند + البادئة + رمز الدفتر) هذه تحديداً — تغيير
 // الدفتر يبدّل رمزه ضمن الكود فيُعاد حساب الأقصى من جديد لتلك التركيبة، كما لو أنها ترقيم منفصل.
@@ -572,8 +580,9 @@ export const nextVoucherSequence = async (vchType: number, codePrefix: string, s
   `
   let maxNumber = 0
   for (const row of rows) {
-    const numericPart = String(row.vch_code || "").slice(codePrefix.length)
-    const value = Number(numericPart)
+    const suffix = String(row.vch_code || "").slice(codePrefix.length)
+    const match = suffix.match(/^[A-Za-z]?([0-9]+)$/)
+    const value = Number(match?.[1] ?? suffix)
     if (Number.isFinite(value) && value > maxNumber) maxNumber = value
   }
   return maxNumber >= startNumber ? maxNumber + 1 : startNumber

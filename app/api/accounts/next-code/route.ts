@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(
         {
           error: "Database connection failed",
-          code: "A0000001",
+          code: "A000000001",
         },
         { status: 500 }
       )
@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
       startNumber = settings.account_start || 1
     }
 
-    // Get max account number - extract numeric part correctly for 8-char codes.
+    // Get max account number - extract numeric part correctly for 10-char codes.
     // type = 1 يقصر البحث على الحسابات المحاسبية العادية (دليل الحسابات) — حسابات العملاء/الموردين/
     // المندوبين/المشتركين (type = 2..5) لها ترقيمها الخاص ولا يجوز أن تتداخل مع تسلسل هذا الدليل.
     const accountsResult = await sql`
@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
     `
 
     let nextNumber = startNumber
-    let nextCode = prefix + String(startNumber).padStart(7, "0")
+    let nextCode = prefix + String(startNumber).padStart(9, "0")
 
     if (accountsResult && accountsResult.length > 0) {
       const lastCode = accountsResult[0].code
@@ -64,7 +64,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       {
         error: "Failed to generate next account code",
-        code: "A0000001", // Fallback
+        code: "A000000001", // Fallback
       },
       { status: 500 }
     )

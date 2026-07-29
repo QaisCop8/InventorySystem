@@ -298,7 +298,7 @@ const exportDefault = {
       }
     }
     code = code.replace(prefix, '');
-    if (!codeLen) codeLen = 9;
+    if (!codeLen) codeLen = 10;
     let tempCode = '';
     if (prefix && prefix.length) {
       codeLen = codeLen - prefix.length;

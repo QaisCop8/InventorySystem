@@ -111,6 +111,14 @@ export function SystemSettings() {
     stockOutPrefix: "O",
     internalDeliveryPrefix: "T",
     useVoucherPrefix: "U",
+    salesInvoicePrefix: "INV",
+    deliverySellPrefix: "DSL",
+    deliveryConsignmentSalePrefix: "INV",
+    returnDeliveryConsignmentSalePrefix: "INV",
+    returnSellPrefix: "INV",
+    purchaseInvoicePrefix: "INV",
+    deliveryPayPrefix: "DPY",
+    returnPurchasePrefix: "RPU",
     journalPrefix: "J",
     customerPrefix: "C",
     supplierPrefix: "S",
@@ -129,6 +137,14 @@ export function SystemSettings() {
     stockOutStart: 1,
     internalDeliveryStart: 1,
     useVoucherStart: 1,
+    salesInvoiceStart: 1,
+    deliverySellStart: 1,
+    deliveryConsignmentSaleStart: 1,
+    returnDeliveryConsignmentSaleStart: 1,
+    returnSellStart: 1,
+    purchaseInvoiceStart: 1,
+    deliveryPayStart: 1,
+    returnPurchaseStart: 1,
     journalStart: 1,
     customerStart: 1,
     supplierStart: 1,
@@ -213,6 +229,14 @@ export function SystemSettings() {
             stockOutPrefix: settingsPayload.stock_out_prefix || prev.stockOutPrefix,
             internalDeliveryPrefix: settingsPayload.internal_delivery_prefix || prev.internalDeliveryPrefix,
             useVoucherPrefix: settingsPayload.use_voucher_prefix || prev.useVoucherPrefix,
+            salesInvoicePrefix: settingsPayload.sales_invoice_prefix || prev.salesInvoicePrefix,
+            deliverySellPrefix: settingsPayload.delivery_sell_prefix || prev.deliverySellPrefix,
+            deliveryConsignmentSalePrefix: settingsPayload.delivery_consignment_sale_prefix || prev.deliveryConsignmentSalePrefix,
+            returnDeliveryConsignmentSalePrefix: settingsPayload.return_delivery_consignment_sale_prefix || prev.returnDeliveryConsignmentSalePrefix,
+            returnSellPrefix: settingsPayload.return_sell_prefix || prev.returnSellPrefix,
+            purchaseInvoicePrefix: settingsPayload.purchase_invoice_prefix || prev.purchaseInvoicePrefix,
+            deliveryPayPrefix: settingsPayload.delivery_pay_prefix || prev.deliveryPayPrefix,
+            returnPurchasePrefix: settingsPayload.return_purchase_prefix || prev.returnPurchasePrefix,
             journalPrefix: settingsPayload.journal_prefix || prev.journalPrefix,
             customerPrefix: settingsPayload.customer_prefix || prev.customerPrefix,
             supplierPrefix: settingsPayload.supplier_prefix || prev.supplierPrefix,
@@ -229,6 +253,14 @@ export function SystemSettings() {
             stockOutStart: settingsPayload.stock_out_start ?? prev.stockOutStart,
             internalDeliveryStart: settingsPayload.internal_delivery_start ?? prev.internalDeliveryStart,
             useVoucherStart: settingsPayload.use_voucher_start ?? prev.useVoucherStart,
+            salesInvoiceStart: settingsPayload.sales_invoice_start ?? prev.salesInvoiceStart,
+            deliverySellStart: settingsPayload.delivery_sell_start ?? prev.deliverySellStart,
+            deliveryConsignmentSaleStart: settingsPayload.delivery_consignment_sale_start ?? prev.deliveryConsignmentSaleStart,
+            returnDeliveryConsignmentSaleStart: settingsPayload.return_delivery_consignment_sale_start ?? prev.returnDeliveryConsignmentSaleStart,
+            returnSellStart: settingsPayload.return_sell_start ?? prev.returnSellStart,
+            purchaseInvoiceStart: settingsPayload.purchase_invoice_start ?? prev.purchaseInvoiceStart,
+            deliveryPayStart: settingsPayload.delivery_pay_start ?? prev.deliveryPayStart,
+            returnPurchaseStart: settingsPayload.return_purchase_start ?? prev.returnPurchaseStart,
             journalStart: settingsPayload.journal_start ?? prev.journalStart,
             customerStart: settingsPayload.customer_start ?? prev.customerStart,
             supplierStart: settingsPayload.supplier_start ?? prev.supplierStart,
@@ -312,7 +344,6 @@ export function SystemSettings() {
       }
 
       const prefixes = [
-        { label: "بادئة فواتير المبيعات", value: settings.invoicePrefix },
         { label: "بادئة طلبات المبيعات", value: settings.orderPrefix },
         { label: "بادئة طلبات الشراء", value: settings.purchasePrefix },
         { label: "بادئة سندات القبض", value: settings.receiptPrefix },
@@ -323,6 +354,14 @@ export function SystemSettings() {
         { label: "بادئة سند اخراج بضاعة", value: settings.stockOutPrefix },
         { label: "بادئة ارسالية داخلية", value: settings.internalDeliveryPrefix },
         { label: "بادئة سند استعمال", value: settings.useVoucherPrefix },
+        { label: "بادئة فاتورة مبيعات", value: settings.salesInvoicePrefix },
+        { label: "بادئة إرسالية مبيعات", value: settings.deliverySellPrefix },
+        { label: "بادئة إرسالية برسم البيع", value: settings.deliveryConsignmentSalePrefix },
+        { label: "بادئة مرتجع إرسالية برسم البيع", value: settings.returnDeliveryConsignmentSalePrefix },
+        { label: "بادئة مرتجع مبيعات", value: settings.returnSellPrefix },
+        { label: "بادئة فاتورة مشتريات", value: settings.purchaseInvoicePrefix },
+        { label: "بادئة إرسالية مشتريات", value: settings.deliveryPayPrefix },
+        { label: "بادئة مرتجع مشتريات", value: settings.returnPurchasePrefix },
         { label: "بادئة سندات القيد", value: settings.journalPrefix },
         { label: "بادئة العملاء", value: settings.customerPrefix },
         { label: "بادئة الموردين", value: settings.supplierPrefix },
@@ -346,6 +385,14 @@ export function SystemSettings() {
         { label: "الترقيم يبدأ من (سند اخراج بضاعة)", value: settings.stockOutStart },
         { label: "الترقيم يبدأ من (ارسالية داخلية)", value: settings.internalDeliveryStart },
         { label: "الترقيم يبدأ من (سند استعمال)", value: settings.useVoucherStart },
+        { label: "الترقيم يبدأ من (فاتورة مبيعات)", value: settings.salesInvoiceStart },
+        { label: "الترقيم يبدأ من (إرسالية مبيعات)", value: settings.deliverySellStart },
+        { label: "الترقيم يبدأ من (إرسالية برسم البيع)", value: settings.deliveryConsignmentSaleStart },
+        { label: "الترقيم يبدأ من (مرتجع إرسالية برسم البيع)", value: settings.returnDeliveryConsignmentSaleStart },
+        { label: "الترقيم يبدأ من (مرتجع مبيعات)", value: settings.returnSellStart },
+        { label: "الترقيم يبدأ من (فاتورة مشتريات)", value: settings.purchaseInvoiceStart },
+        { label: "الترقيم يبدأ من (إرسالية مشتريات)", value: settings.deliveryPayStart },
+        { label: "الترقيم يبدأ من (مرتجع مشتريات)", value: settings.returnPurchaseStart },
         { label: "الترقيم يبدأ من (سندات القيد)", value: settings.journalStart },
       ]
       for (const start of voucherStarts) {
@@ -400,7 +447,7 @@ export function SystemSettings() {
           tax_number: settings.taxNumber,
           commercial_register: settings.commercialRegister,
           default_currency: settings.defaultCurrency,
-          invoice_prefix: settings.invoicePrefix.trim().toUpperCase(),
+          invoice_prefix: settings.salesInvoicePrefix.trim().toUpperCase(),
           order_prefix: settings.orderPrefix.trim().toUpperCase(),
           purchase_prefix: settings.purchasePrefix.trim().toUpperCase(),
           receipt_prefix: settings.receiptPrefix.trim().toUpperCase(),
@@ -411,6 +458,14 @@ export function SystemSettings() {
           stock_out_prefix: settings.stockOutPrefix.trim().toUpperCase(),
           internal_delivery_prefix: settings.internalDeliveryPrefix.trim().toUpperCase(),
           use_voucher_prefix: settings.useVoucherPrefix.trim().toUpperCase(),
+          sales_invoice_prefix: settings.salesInvoicePrefix.trim().toUpperCase(),
+          delivery_sell_prefix: settings.deliverySellPrefix.trim().toUpperCase(),
+          delivery_consignment_sale_prefix: settings.deliveryConsignmentSalePrefix.trim().toUpperCase(),
+          return_delivery_consignment_sale_prefix: settings.returnDeliveryConsignmentSalePrefix.trim().toUpperCase(),
+          return_sell_prefix: settings.returnSellPrefix.trim().toUpperCase(),
+          purchase_invoice_prefix: settings.purchaseInvoicePrefix.trim().toUpperCase(),
+          delivery_pay_prefix: settings.deliveryPayPrefix.trim().toUpperCase(),
+          return_purchase_prefix: settings.returnPurchasePrefix.trim().toUpperCase(),
           journal_prefix: settings.journalPrefix.trim().toUpperCase(),
           customer_prefix: settings.customerPrefix.trim().toUpperCase(),
           supplier_prefix: settings.supplierPrefix.trim().toUpperCase(),
@@ -427,6 +482,14 @@ export function SystemSettings() {
           stock_out_start: settings.stockOutStart,
           internal_delivery_start: settings.internalDeliveryStart,
           use_voucher_start: settings.useVoucherStart,
+          sales_invoice_start: settings.salesInvoiceStart,
+          delivery_sell_start: settings.deliverySellStart,
+          delivery_consignment_sale_start: settings.deliveryConsignmentSaleStart,
+          return_delivery_consignment_sale_start: settings.returnDeliveryConsignmentSaleStart,
+          return_sell_start: settings.returnSellStart,
+          purchase_invoice_start: settings.purchaseInvoiceStart,
+          delivery_pay_start: settings.deliveryPayStart,
+          return_purchase_start: settings.returnPurchaseStart,
           journal_start: settings.journalStart,
           customer_start: settings.customerStart || null,
           supplier_start: settings.supplierStart || null,
@@ -525,6 +588,14 @@ export function SystemSettings() {
         stockOutPrefix: "O",
         internalDeliveryPrefix: "T",
         useVoucherPrefix: "U",
+        salesInvoicePrefix: "INV",
+        deliverySellPrefix: "DSL",
+        deliveryConsignmentSalePrefix: "INV",
+        returnDeliveryConsignmentSalePrefix: "INV",
+        returnSellPrefix: "INV",
+        purchaseInvoicePrefix: "INV",
+        deliveryPayPrefix: "INV",
+        returnPurchasePrefix: "INV",
         journalPrefix: "J",
         customerPrefix: "C",
         supplierPrefix: "S",
@@ -542,6 +613,14 @@ export function SystemSettings() {
         stockOutStart: 1,
         internalDeliveryStart: 1,
         useVoucherStart: 1,
+        salesInvoiceStart: 1,
+        deliverySellStart: 1,
+        deliveryConsignmentSaleStart: 1,
+        returnDeliveryConsignmentSaleStart: 1,
+        returnSellStart: 1,
+        purchaseInvoiceStart: 1,
+        deliveryPayStart: 1,
+        returnPurchaseStart: 1,
         journalStart: 1,
         customerStart: 1,
         supplierStart: 1,
@@ -1020,19 +1099,10 @@ export function SystemSettings() {
               <div>
                 <h3 className="text-lg font-semibold mb-4 text-right">إعدادات السندات (إجبارية)</h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <Label htmlFor="invoicePrefix" className="text-right block">
-                      بادئة فواتير المبيعات *
-                    </Label>
-                    <Input
-                      id="invoicePrefix"
-                      value={settings.invoicePrefix}
-                      onChange={(e) => setSettings({ ...settings, invoicePrefix: e.target.value })}
-                      className="text-right"
-                      dir="rtl"
-                      required
-                      disabled={numberingLocks.invoice}
-                    />
+                  <div className="md:col-span-2">
+                    <div className="rounded-lg border border-dashed border-violet-200 bg-violet-50/70 px-4 py-3 text-sm text-violet-700">
+                      بادئة الفواتير: <span className="font-semibold">{settings.salesInvoicePrefix || settings.invoicePrefix}</span> — تُستخدم لجميع الفواتير والإرسالات بدون بادئة منفصلة.
+                    </div>
                   </div>
                   <div>
                     <Label htmlFor="invoiceStart" className="text-right block">
@@ -1055,7 +1125,7 @@ export function SystemSettings() {
                   </div>
                   <div className="flex items-end">
                     <div className="text-sm text-muted-foreground">
-                      مثال: {settings.invoicePrefix}
+                      مثال: {settings.salesInvoicePrefix || settings.invoicePrefix}
                       {String(settings.invoiceStart).padStart(4, "0")}
                     </div>
                   </div>
@@ -1451,6 +1521,64 @@ export function SystemSettings() {
                       مثال: {settings.useVoucherPrefix}A{String(settings.useVoucherStart).padStart(6, "0")} (A = دفتر السندات)
                     </div>
                   </div>
+
+                  {([
+                    { key: "salesInvoice", label: "فاتورة مبيعات" },
+                    { key: "deliverySell", label: "إرسالية مبيعات" },
+                    { key: "deliveryConsignmentSale", label: "إرسالية برسم البيع" },
+                    { key: "returnDeliveryConsignmentSale", label: "مرتجع إرسالية برسم البيع" },
+                    { key: "returnSell", label: "مرتجع مبيعات" },
+                    { key: "purchaseInvoice", label: "فاتورة مشتريات" },
+                    { key: "deliveryPay", label: "إرسالية مشتريات" },
+                    { key: "returnPurchase", label: "مرتجع مشتريات" },
+                  ] as const).map(({ key, label }) => {
+                    const prefixKey = `${key}Prefix` as keyof typeof settings
+                    const startKey = `${key}Start` as keyof typeof settings
+                    const prefixValue = settings[prefixKey] as string
+                    const startValue = settings[startKey] as number
+                    return (
+                      <div key={key} className="contents">
+                        <div>
+                          <Label htmlFor={`${key}Prefix`} className="text-right block">
+                            بادئة {label} *
+                          </Label>
+                          <Input
+                            id={`${key}Prefix`}
+                            value={prefixValue}
+                            onChange={(e) => setSettings({ ...settings, [prefixKey]: e.target.value })}
+                            className="text-right"
+                            dir="rtl"
+                            maxLength={3}
+                            required
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor={`${key}Start`} className="text-right block">
+                            الترقيم يبدأ من ({label}) *
+                          </Label>
+                          <Input
+                            id={`${key}Start`}
+                            type="number"
+                            min="1"
+                            max="10000"
+                            value={startValue}
+                            onChange={(e) => {
+                              const value = e.target.value === "" ? 1 : Number.parseInt(e.target.value)
+                              setSettings({ ...settings, [startKey]: value })
+                            }}
+                            className="text-right"
+                            dir="rtl"
+                            required
+                          />
+                        </div>
+                        <div className="flex items-end">
+                          <div className="text-sm text-muted-foreground">
+                            مثال: {prefixValue}A{String(startValue).padStart(6, "0")} (A = دفتر السندات)
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
 
                   <div>
                     <Label htmlFor="journalPrefix" className="text-right block">

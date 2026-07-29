@@ -18,14 +18,20 @@ import {
   ChevronLeft,
   Sparkles,
   LayoutGrid,
+  Ban,
+  RefreshCw,
 } from "lucide-react"
 import { activateCompany } from "@/lib/tenant-client"
 
 interface Company {
   id: number
   name: string
-  status: "pending" | "approved" | "rejected"
+  status: "pending" | "approved" | "rejected" | "stopped"
   created_at: string
+  expiry_date?: string | null
+  db_name?: string | null
+  requested_by_name?: string | null
+  requested_by_email?: string | null
 }
 
 // نفس تدرّجات ألوان النظام (indigo/violet/fuchsia بشاشات الدخول) موزَّعة على الشركات بالتناوب —
@@ -46,6 +52,7 @@ const STATUS_CONFIG: Record<Company["status"], { label: string; icon: typeof Shi
   approved: { label: "جاهزة", icon: ShieldCheck, classes: "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200" },
   pending: { label: "في انتظار الموافقة", icon: Clock, classes: "bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-200" },
   rejected: { label: "مرفوضة", icon: XCircle, classes: "bg-rose-50 text-rose-700 ring-1 ring-inset ring-rose-200" },
+  stopped: { label: "موقوفة", icon: Ban, classes: "bg-slate-100 text-slate-700 ring-1 ring-inset ring-slate-200" },
 }
 
 export default function ManagementCompaniesPage() {
@@ -56,6 +63,7 @@ export default function ManagementCompaniesPage() {
   const [newCompanyName, setNewCompanyName] = useState("")
   const [saving, setSaving] = useState(false)
   const [selecting, setSelecting] = useState<number | null>(null)
+  const [subscriptionBusyId, setSubscriptionBusyId] = useState<number | null>(null)
   const [error, setError] = useState("")
   const [isPlatformAdmin, setIsPlatformAdmin] = useState(false)
 
@@ -129,10 +137,34 @@ export default function ManagementCompaniesPage() {
     }
   }
 
+  const handleSubscriptionAction = async (companyId: number, action: "stop" | "extend") => {
+    setSubscriptionBusyId(companyId)
+    setError("")
+    try {
+      const res = await fetch(`/api/management/companies/${companyId}/subscription`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setError(data.error || "تعذّر تنفيذ الإجراء")
+        return
+      }
+      await loadCompanies()
+    } catch {
+      setError("تعذّر الاتصال بالخادم")
+    } finally {
+      setSubscriptionBusyId(null)
+    }
+  }
+
   const handleLogout = async () => {
     await fetch("/api/management/auth/logout", { method: "POST" }).catch(() => {})
     router.push("/management/login")
   }
+
+  const isCompanyExpired = (company: Company) => !!company.expiry_date && new Date(company.expiry_date).getTime() < Date.now()
 
   if (loading) {
     return (
@@ -204,18 +236,30 @@ export default function ManagementCompaniesPage() {
             const StatusIcon = status.icon
             const isApproved = company.status === "approved"
             const isSelecting = selecting === company.id
+            const isExpired = isCompanyExpired(company)
             const createdDate = new Date(company.created_at)
+            const canOpenCompany = isApproved && !isExpired && selecting === null
 
             return (
-              <button
+              <div
                 key={company.id}
-                onClick={() => handleSelectCompany(company)}
-                disabled={!isApproved || selecting !== null}
+                role="button"
+                tabIndex={0}
+                onClick={() => {
+                  if (!canOpenCompany) return
+                  handleSelectCompany(company)
+                }}
+                onKeyDown={(event) => {
+                  if ((event.key === "Enter" || event.key === " ") && canOpenCompany) {
+                    event.preventDefault()
+                    handleSelectCompany(company)
+                  }
+                }}
                 className={
-                  "group relative flex min-h-[190px] flex-col items-start gap-4 overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 text-right shadow-sm transition-all " +
-                  (isApproved
-                    ? "enabled:hover:-translate-y-0.5 enabled:hover:border-violet-200 enabled:hover:shadow-lg"
-                    : "opacity-70 disabled:cursor-not-allowed")
+                  "group relative flex min-h-[220px] flex-col items-start gap-4 overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 text-right shadow-sm transition-all " +
+                  (canOpenCompany
+                    ? "cursor-pointer hover:-translate-y-0.5 hover:border-violet-200 hover:shadow-lg"
+                    : "cursor-not-allowed opacity-70")
                 }
               >
                 <div className="flex w-full items-start justify-between">
@@ -232,7 +276,7 @@ export default function ManagementCompaniesPage() {
                     )}
                   </div>
 
-                  {isApproved && (
+                  {isApproved && !isExpired && (
                     <ChevronLeft className="mt-2 h-5 w-5 text-slate-300 transition-all group-hover:-translate-x-1 group-hover:text-violet-500" />
                   )}
                 </div>
@@ -244,13 +288,57 @@ export default function ManagementCompaniesPage() {
                     <StatusIcon className="h-3 w-3" />
                     {status.label}
                   </span>
+
+                  {isExpired && (
+                    <span className="inline-flex w-fit items-center gap-1 rounded-full bg-rose-50 px-2.5 py-1 text-[11px] font-medium text-rose-700">
+                      <Clock className="h-3 w-3" />
+                      الاشتراك منتهي
+                    </span>
+                  )}
                 </div>
 
-                <div className="flex items-center gap-1.5 text-xs text-slate-400">
-                  <Calendar className="h-3.5 w-3.5" />
-                  {createdDate.toLocaleDateString("ar-EG", { year: "numeric", month: "long", day: "numeric" })}
+                <div className="flex w-full flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5 text-xs text-slate-400">
+                    <Calendar className="h-3.5 w-3.5" />
+                    {createdDate.toLocaleDateString("ar-EG", { year: "numeric", month: "long", day: "numeric" })}
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    {company.status === "approved" && !isExpired && isPlatformAdmin && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="gap-1 border-amber-200 text-amber-700 hover:bg-amber-50"
+                        disabled={subscriptionBusyId === company.id || selecting !== null}
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          handleSubscriptionAction(company.id, "stop")
+                        }}
+                      >
+                        <Ban className="h-3.5 w-3.5" />
+                        إيقاف
+                      </Button>
+                    )}
+
+                    {(isExpired || company.status === "stopped") && isPlatformAdmin && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        className="gap-1 bg-violet-600 text-white hover:bg-violet-700"
+                        disabled={subscriptionBusyId === company.id || selecting !== null}
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          handleSubscriptionAction(company.id, "extend")
+                        }}
+                      >
+                        <RefreshCw className="h-3.5 w-3.5" />
+                        تمديد الاشتراك
+                      </Button>
+                    )}
+                  </div>
                 </div>
-              </button>
+              </div>
             )
           })}
         </div>

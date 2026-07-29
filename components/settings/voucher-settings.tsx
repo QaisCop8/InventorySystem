@@ -15,6 +15,14 @@ const VOUCHER_TYPES = [
     { id: "13", name: "سند اخراج بضاعة" },
     { id: "14", name: "ارسالية داخلية" },
     { id: "15", name: "سند استعمال" },
+    { id: "16", name: "فاتورة مبيعات" },
+    { id: "17", name: "إرسالية مبيعات" },
+    { id: "18", name: "إرسالية برسم البيع" },
+    { id: "19", name: "مرتجع إرسالية برسم البيع" },
+    { id: "20", name: "مرتجع مبيعات" },
+    { id: "21", name: "فاتورة مشتريات" },
+    { id: "22", name: "إرسالية مشتريات" },
+    { id: "23", name: "مرتجع مشتريات" },
 ];
 
 const COLUMNS = [
@@ -27,22 +35,33 @@ const COLUMNS = [
     { id: "unit", label: "الوحدة" },
     { id: "bonus", label: "البونص" },
     { id: "discount", label: "الخصم" },
+    { id: "tax", label: "الضريبة" },
     { id: "expiry_date", label: "تاريخ الانتهاء" },
+    { id: "serial", label: "الرقم التسلسلي" },
     { id: "length", label: "الطول" },
     { id: "width", label: "العرض" },
     { id: "height", label: "الارتفاع" },
     { id: "count", label: "العدد" },
 ];
 
-// سندات الحركات (ادخال/اخراج بضاعة، ارسالية داخلية، سند استعمال) لا تملك بونص/خصم، وتملك تاريخ
-// انتهاء وأعمدة الطول/العرض/الارتفاع/العدد بدلاً منها — بخلاف طلبيات المبيعات/المشتريات.
+// سندات الحركات (ادخال/اخراج بضاعة، ارسالية داخلية، سند استعمال) لا تملك بونص/خصم/ضريبة/تسلسلي،
+// وتملك تاريخ انتهاء وأعمدة الطول/العرض/الارتفاع/العدد بدلاً منها.
 const STOCK_VOUCHER_TYPE_IDS = ["12", "13", "14", "15"];
+// سندات المبيعات/المشتريات الثمانية (فاتورة/إرسالية مبيعات، برسم البيع ومرتجعاتها، فاتورة/إرسالية
+// مشتريات ومرتجعها) تملك بونص/تتبع دفعة-صلاحية/تسلسلي، وأعمدة الأبعاد أيضاً (كسندات الحركة، نفس
+// شبكة unified-stock-voucher.tsx/unified-sales-delivery.tsx) — لكن لا الخصم/الضريبة، إذ نُقِلا
+// لمستوى السند كاملاً (بطاقة "الخصومات والضرائب") بدل عمود لكل سطر.
+const SALES_VOUCHER_TYPE_IDS = ["16", "17", "18", "19", "20", "21", "22", "23"];
 const getColumnsForType = (voucherType: string) => {
     const isStockVoucher = STOCK_VOUCHER_TYPE_IDS.includes(voucherType);
+    const isSalesVoucher = SALES_VOUCHER_TYPE_IDS.includes(voucherType);
+    if (isSalesVoucher) {
+        return COLUMNS.filter((col) => col.id !== "discount" && col.id !== "tax");
+    }
     return COLUMNS.filter((col) =>
         isStockVoucher
-            ? col.id !== "bonus" && col.id !== "discount"
-            : col.id !== "expiry_date" && col.id !== "length" && col.id !== "width" && col.id !== "height" && col.id !== "count",
+            ? col.id !== "bonus" && col.id !== "discount" && col.id !== "tax" && col.id !== "serial"
+            : col.id !== "expiry_date" && col.id !== "serial" && col.id !== "length" && col.id !== "width" && col.id !== "height" && col.id !== "count",
     );
 };
 

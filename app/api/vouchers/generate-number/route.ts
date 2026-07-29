@@ -69,8 +69,8 @@ export async function GET(request: NextRequest) {
         SELECT COALESCE(
           MAX(
             CASE
-              WHEN RIGHT(voucher_code, 5) ~ '^[0-9]{5}$'
-                THEN CAST(RIGHT(voucher_code, 5) AS BIGINT)
+              WHEN RIGHT(voucher_code, 7) ~ '^[0-9]{7}$'
+                THEN CAST(RIGHT(voucher_code, 7) AS BIGINT)
               ELSE 0
             END
           ),
@@ -88,7 +88,7 @@ export async function GET(request: NextRequest) {
     const maxSeq = Number(result.rows?.[0]?.max_seq ?? 0)
     const startSeq = Number.isFinite(configuredStart) && configuredStart > 0 ? configuredStart : 1
     const nextNumber = Math.max(maxSeq + 1, startSeq)
-    const voucherCode = `${prefix}${nextNumber.toString().padStart(5, "0")}`
+    const voucherCode = `${prefix}${nextNumber.toString().padStart(7, "0")}`
 
     return NextResponse.json(
       {

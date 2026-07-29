@@ -981,8 +981,8 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
     setSearchModalOpen(false)
   }
 
-  // Adjust account code to 8 characters using letters prefix + padded digits
-  const adjustCode = (code: string, codeLen: number = 8): string => {
+  // Adjust account code to 10 characters using letters prefix + padded digits
+  const adjustCode = (code: string, codeLen: number = 10): string => {
     if (!code || !code.trim()) return ''
 
     const cleaned = code.trim().replace(/[^A-Za-z0-9]/g, "").toUpperCase()

@@ -43,11 +43,11 @@ export async function GET(request: NextRequest) {
         nextNumber = parsedNumber + 1
         console.log("[v0] API: Found existing code:", currentCode, "next number:", nextNumber)
       }
-      const paddedNumber = nextNumber.toString().padStart(6, "0")
+      const paddedNumber = nextNumber.toString().padStart(8, "0")
       orderNumber = `${prefix}${paddedNumber}`
 
     } else {
-      const paddedNumber = nextNumber.toString().padStart(6, "0")
+      const paddedNumber = nextNumber.toString().padStart(8, "0")
       orderNumber = `${prefix}${paddedNumber}`
     }
 
@@ -63,7 +63,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error("[v0] API: Error generating sales order number:", error)
 
-    const fallbackNumber = "O0000001"
+    const fallbackNumber = "O00000001"
 
     console.log("[v0] API: Using fallback number:", fallbackNumber)
 

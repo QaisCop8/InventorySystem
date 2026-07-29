@@ -5,11 +5,31 @@ import sql, { getTenantPool } from "@/lib/database"
 
 
 export default sql
+
+// لا يوجد تعريف CREATE TABLE لهذا الجدول في أي مكان بالمستودع (كان يُفترَض موجوداً مسبقاً بقاعدة
+// البيانات الحية فقط) — يُنشَأ دفاعياً هنا لضمان عمله على أي شركة/قاعدة بيانات جديدة (لم يكن ضمن
+// LOOKUP_TABLES في lib/provisioning.ts فتبقى شركات جديدة بلا هذا الجدول دون هذا).
+const ensureVoucherColumnSettingsTable = async () => {
+    const pool = await getTenantPool()
+    await pool.query(`
+        CREATE TABLE IF NOT EXISTS voucher_column_settings (
+            id SERIAL PRIMARY KEY,
+            voucher_type INTEGER NOT NULL,
+            target INTEGER NOT NULL,
+            column_key VARCHAR(50) NOT NULL,
+            is_visible BOOLEAN DEFAULT true,
+            updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE (voucher_type, target, column_key)
+        )
+    `)
+}
+
 /* =========================
    GET: Load settings
 ========================= */
 export async function GET(req: Request) {
     try {
+        await ensureVoucherColumnSettingsTable()
         const { searchParams } = new URL(req.url);
 
         const target = searchParams.get("target");
@@ -61,6 +81,7 @@ export async function GET(req: Request) {
    POST: Save settings
 ========================= */
 export async function POST(req: Request) {
+    await ensureVoucherColumnSettingsTable()
     const client = await (await getTenantPool()).connect();
 
     try {

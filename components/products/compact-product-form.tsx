@@ -33,6 +33,7 @@ import AutoCompleteAccount from "@/components/customer/auto-complete-account"
 import Util from "../common/Util"
 import sharedDropdownStyles from "../common/Dropdown.module.scss"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import AttachmentManager from "@/components/common/AttachmentManager"
 
 // ارتفاع موحَّد لكل شبكات DataGridView في هذه الشاشة (الوحدات/الأسعار/المستودعات/مراكز التكلفة) —
 // يُمرَّر إلى DataGridView مباشرة (كخاصية style) لا إلى العنصر الملفوف، فيتولى Wijmo تمرير الصفوف
@@ -985,7 +986,7 @@ export function CompactProductForm({
   }, [visible, onHideDialog, handleDeleteClick]);
 
 
-  const adjustCode = (code: string, codeLen: number = 8): string => {
+  const adjustCode = (code: string, codeLen: number = 10): string => {
     if (!code || !code.trim()) return '';
 
     code = code.trim().toUpperCase();
@@ -2025,6 +2026,7 @@ export function CompactProductForm({
                     <TabsTrigger value="stores" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-amber-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">تفاصيل المستودعات</TabsTrigger>
                     <TabsTrigger value="costcenters" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-fuchsia-500 data-[state=active]:to-fuchsia-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">مراكز التكلفة</TabsTrigger>
                     <TabsTrigger value="notes" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-slate-600 data-[state=active]:to-slate-700 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">ملاحظات</TabsTrigger>
+                    <TabsTrigger value="attachments" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-slate-600 data-[state=active]:to-slate-700 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">المرفقات</TabsTrigger>
                   </>
                 )}
               </TabsList>
@@ -2776,6 +2778,17 @@ export function CompactProductForm({
                             placeholder="أي ملاحظات أو تفاصيل إضافية حول الصنف"
                           />
                         </div>
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
+
+                  <TabsContent value="attachments">
+                    <Card>
+                      <CardHeader className="pb-4">
+                        <CardTitle className="text-lg">المرفقات</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <AttachmentManager modelName="product" recordId={formData.id > 0 ? formData.id : null} />
                       </CardContent>
                     </Card>
                   </TabsContent>

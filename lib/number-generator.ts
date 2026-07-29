@@ -90,7 +90,7 @@ export async function generateItemGroupNumber(): Promise<string> {
 
 // Helper function to validate number format
 export function validateNumberFormat(number: string, prefix: string): boolean {
-  const regex = new RegExp(`^${prefix}\\d{7}$`)
+  const regex = new RegExp(`^${prefix}\\d{9}$`)
   return regex.test(number)
 }
 
@@ -156,9 +156,9 @@ async function getNextSequentialNumber(prefix: string, tableName: string, column
     }
 
 
-    let nextCode = "0000001";
+    let nextCode = "000000001";
     if (tableName === "orders") {
-      nextCode = "000001";
+      nextCode = "00000001";
     }
 
     if (result.length > 0) {
@@ -181,7 +181,7 @@ async function getNextSequentialNumber(prefix: string, tableName: string, column
             return best
           }, parsedNumbers[0])
 
-          nextCode = adjustCodePlusOne(maxEntry.code, 8)
+          nextCode = adjustCodePlusOne(maxEntry.code, 10)
           console.log(`[v0] Highest matching code: ${maxEntry.code}`)
         }
       }
@@ -221,7 +221,7 @@ function getNextCode(currentCode: string) {
   return currentCode
 }
 
-function adjustCodePlusOne(code: string, codeLen = 8): string {
+function adjustCodePlusOne(code: string, codeLen = 10): string {
   if (!code || !code.trim()) return ""
 
   const normalizedCode = String(code).trim().toUpperCase()

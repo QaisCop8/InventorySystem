@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
     if (!companyId) return NextResponse.json({ error: "معرّف الشركة مطلوب" }, { status: 400 })
 
     const rows = await managementSql`
-      SELECT c.id, c.db_name, c.status
+      SELECT c.id, c.db_name, c.status, c.expiry_date
       FROM companies c
       JOIN user_company uc ON uc.company_id = c.id
       WHERE uc.user_id = ${session.id} AND c.id = ${companyId}
@@ -24,8 +24,20 @@ export async function POST(request: NextRequest) {
     if (rows.length === 0) return NextResponse.json({ error: "لا تملك صلاحية الوصول لهذه الشركة" }, { status: 403 })
 
     const company = rows[0]
+    // موقوفة إدارياً (ايقاف من لوحة التحكم) — نفس رسالة انتهاء الاشتراك أدناه؛ زر "تمديد الاشتراك"
+    // بلوحة التحكم يُعيدها لحالة approved فيعالج الحالتين معاً بإجراء واحد من جهة المسؤول.
+    if (company.status === "stopped") {
+      return NextResponse.json({ error: "يجب الاتصال بالشركة المزودة للنظام لتمديد الاشتراك" }, { status: 403 })
+    }
     if (company.status !== "approved" || !company.db_name) {
       return NextResponse.json({ error: "الشركة لم تُعتمَد بعد" }, { status: 400 })
+    }
+    // منتهي اشتراكها (expiry_date تجاوز الآن) — لا كوكي tenant_db يُضبَط ولا تسجيل دخول تلقائي
+    // ينفَّذ، فيبقى المستخدم دون دخول فعلياً (يبقى على شركته الحالية إن كان يبدّل من الهيدر، أو
+    // يبقى بصفحة الشركات دون دخول إن كان يختارها من هناك للمرة الأولى).
+    const isExpired = company.expiry_date && new Date(company.expiry_date).getTime() < Date.now()
+    if (isExpired) {
+      return NextResponse.json({ error: "يجب الاتصال بالشركة المزودة للنظام لتمديد الاشتراك" }, { status: 403 })
     }
 
     const cookieStore = await cookies()

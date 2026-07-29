@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { UniversalToolbar } from "@/components/ui/universal-toolbar"
 import AutoCompleteAccount from "@/components/customer/auto-complete-account"
+import AttachmentManager from "@/components/common/AttachmentManager"
 import SearchAccountClassificationDialog from "@/components/customer/search-account-classification-dialog"
 import CustomerSearchPopup from "./CustomerSearchPopup"
 import SearchCostCenterDialog, { type CostCenterItem } from "@/components/customer/search-cost-center-dialog"
@@ -1226,6 +1227,7 @@ export default function UnifiedCustomers({
           <TabsTrigger value="default-voucher-books" className="rounded-lg px-4 py-2 font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-amber-500 data-[state=active]:to-amber-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">دفاتر السندات الافتراضية</TabsTrigger>
           <TabsTrigger value="cost-centers" className="rounded-lg px-4 py-2 font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-emerald-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">مراكز التكلفة</TabsTrigger>
           <TabsTrigger value="stop-transactions" className="rounded-lg px-4 py-2 font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-red-500 data-[state=active]:to-red-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">إيقاف الحركات</TabsTrigger>
+          <TabsTrigger value="attachments" className="rounded-lg px-4 py-2 font-medium transition-all duration-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-slate-500 data-[state=active]:to-slate-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">المرفقات</TabsTrigger>
         </TabsList>
 
         <TabsContent value="address-location" className="space-y-4" dir="rtl">
@@ -1578,6 +1580,10 @@ export default function UnifiedCustomers({
               )}
             </div>
           </div>
+        </TabsContent>
+
+        <TabsContent value="attachments" className="space-y-4" dir="rtl">
+          <AttachmentManager modelName="customer" recordId={formData.id > 0 ? formData.id : null} />
         </TabsContent>
       </Tabs>
 

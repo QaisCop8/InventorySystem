@@ -24,21 +24,24 @@ export async function GET(request: NextRequest) {
     }
 
     const [, typedPrefix, typedNumber] = match
+    const settings = await getVoucherNumberSettings(request.url)
     let prefix = typedPrefix.toUpperCase()
+    const configuredPrefix = settings.prefix.toUpperCase()
 
     // "raw" قد يكون كوداً مكتملاً مسبقاً وليس اختصاراً مكتوباً يدوياً — يجب نزع رمز الدفتر
     // المتكرر من نهاية البادئة الملتقطة، وإلا يتضاعف رمز الدفتر بكل خروج من الحقل.
     const upperBookName = bookName.toUpperCase()
+    if (prefix.startsWith(configuredPrefix)) {
+      prefix = prefix.slice(configuredPrefix.length)
+    }
+    if (prefix.startsWith(upperBookName)) {
+      prefix = prefix.slice(upperBookName.length)
+    }
     while (upperBookName && prefix.length > upperBookName.length && prefix.endsWith(upperBookName)) {
       prefix = prefix.slice(0, prefix.length - upperBookName.length)
     }
 
-    if (!prefix) {
-      const settings = await getVoucherNumberSettings(request.url)
-      prefix = settings.prefix
-    }
-
-    const code = buildVoucherCode(prefix, bookName, Number(typedNumber))
+    const code = buildVoucherCode(configuredPrefix, bookName, Number(typedNumber), prefix)
 
     const rows = await sql`SELECT id FROM voucher_header_tbl WHERE vch_type = ${JOURNAL_VCH_TYPE} AND vch_code = ${code}`
     const existingId = rows[0]?.id ?? null

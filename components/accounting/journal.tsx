@@ -201,16 +201,16 @@ export default function Journal() {
     }
   }
 
-  const generateCode = async (bookId: number | null) => {
-    if (!bookId) return ""
+  const generateCode = async (bookId: number | null, fallbackCode = "") => {
+    if (!bookId) return fallbackCode
     try {
       const response = await fetch(`/api/journal-vouchers/generate-number?vch_book_id=${bookId}`)
-      if (!response.ok) return ""
+      if (!response.ok) return fallbackCode
       const data = await response.json()
-      return data.code || ""
+      return data.code || fallbackCode
     } catch (error) {
       console.error("Failed to generate journal voucher number", error)
-      return ""
+      return fallbackCode
     }
   }
 
@@ -284,10 +284,11 @@ export default function Journal() {
   }
 
   const handleBookChange = async (bookId: number | null) => {
+    const previousCode = form.vch_code || ""
     setForm((f) => ({ ...f, vch_book_id: bookId }))
     if (!isNewMode || !bookId) return
-    const code = await generateCode(bookId)
-    setForm((f) => ({ ...f, vch_code: code }))
+    const generated = await generateCode(bookId, previousCode)
+    setForm((f) => ({ ...f, vch_code: generated || previousCode }))
   }
 
   const openEditDialog = async (record: JournalVoucherRecord, index: number) => {

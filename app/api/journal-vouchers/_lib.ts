@@ -26,7 +26,7 @@ export {
 // per voucher_types_tbl (7 = "سند قيد", مختلف عن سند القبض/الصرف 8/9).
 export const JOURNAL_VCH_TYPE = 7
 
-const VOUCHER_CODE_SEQUENCE_DIGITS = 6
+const VOUCHER_CODE_SEQUENCE_DIGITS = 8
 
 export const getVoucherNumberSettings = async (
   requestUrl: string,
@@ -46,8 +46,16 @@ export const getVoucherNumberSettings = async (
   }
 }
 
-export const buildVoucherCode = (prefix: string, bookName: string, sequence: number): string =>
-  `${prefix}${bookName}${String(sequence).padStart(VOUCHER_CODE_SEQUENCE_DIGITS, "0")}`
+const normalizeVoucherPrefix = (value: string): string =>
+  String(value || "").trim().toUpperCase().replace(/[^A-Z]/g, "").slice(0, 1)
+
+export const buildVoucherCode = (prefix: string, bookName: string, sequence: number, userPrefix = ""): string => {
+  const basePrefix = String(prefix || "").trim().toUpperCase()
+  const normalizedBookName = String(bookName || "").trim().toUpperCase()
+  const normalizedUserPrefix = normalizeVoucherPrefix(userPrefix)
+  const sequencePart = String(sequence).padStart(VOUCHER_CODE_SEQUENCE_DIGITS, "0")
+  return `${basePrefix}${normalizedBookName}${normalizedUserPrefix}${sequencePart}`
+}
 
 export const nextVoucherSequence = async (codePrefix: string, startNumber: number): Promise<number> => {
   const rows = await sql`
@@ -55,8 +63,9 @@ export const nextVoucherSequence = async (codePrefix: string, startNumber: numbe
   `
   let maxNumber = 0
   for (const row of rows) {
-    const numericPart = String(row.vch_code || "").slice(codePrefix.length)
-    const value = Number(numericPart)
+    const suffix = String(row.vch_code || "").slice(codePrefix.length)
+    const match = suffix.match(/^[A-Za-z]?([0-9]+)$/)
+    const value = Number(match?.[1] ?? suffix)
     if (Number.isFinite(value) && value > maxNumber) maxNumber = value
   }
   return maxNumber >= startNumber ? maxNumber + 1 : startNumber

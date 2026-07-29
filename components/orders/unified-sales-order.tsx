@@ -713,7 +713,7 @@ function UnifiedSalesOrder({
   };
 
 
-  const adjustCode = (code: string, codeLen: number = 8): string => {
+  const adjustCode = (code: string, codeLen: number = 10): string => {
     if (!code || !code.trim()) return '';
 
     code = code.trim().toUpperCase();
@@ -776,7 +776,7 @@ function UnifiedSalesOrder({
     // Ensure first character is replaced
 
     // Adjust length using your adjustCode function
-    cleaned = adjustCode(cleaned, 8);
+    cleaned = adjustCode(cleaned, 10);
 
     let order_num = firstLetter + (cleaned.slice(1) || "");
 
@@ -1114,7 +1114,7 @@ function UnifiedSalesOrder({
 
       if (colName === "code") {
         code = String(editedValue);
-        code = Util.adjustCode(code, 8).toUpperCase();
+        code = Util.adjustCode(code, 10).toUpperCase();
       }
       const product = await fetchProductByCodeOrBarcode(code);
 

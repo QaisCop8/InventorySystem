@@ -256,6 +256,21 @@ export function Sidebar({
       ],
     },
     {
+      id: "sales-purchase-vouchers",
+      title: "سندات المبيعات والمشتريات",
+      icon: Truck,
+      submenu: [
+        {
+          title: "الحركات",
+          section: "sales-purchase-vouchers-transactions",
+          icon: Truck,
+          submenu: [
+            { title: "إرسالية مبيعات", section: "sales-delivery", icon: Truck },
+          ],
+        },
+      ],
+    },
+    {
       id: "batch",
       title: "حركات الرقم التشغيلي",
       icon: Archive,

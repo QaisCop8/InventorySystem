@@ -292,6 +292,21 @@ export async function GET(request: NextRequest) {
 
     const typeParam = request.nextUrl.searchParams.get("type");
     const typeFilter = typeParam === "1" || typeParam === "2" || typeParam === "3" || typeParam === "4" ? Number(typeParam) : null;
+    // account_id: يُستخدَم لجلب بيانات العميل (حد الائتمان/العنوان) بعد اختياره عبر AutoCompleteAccount
+    // في شاشات السندات (كإرسالية مبيعات) التي تحمل account_id فقط لا customer_id — إضافي بحت، لا يمس
+    // أي استعلام قائم عند غيابه.
+    const accountIdParam = request.nextUrl.searchParams.get("account_id");
+    const accountIdFilter = accountIdParam && Number.isFinite(Number(accountIdParam)) ? Number(accountIdParam) : null;
+    if (accountIdFilter) {
+      const rows = await sql`
+        SELECT c.*, acc.currency_id AS currency_id
+        FROM customers c
+        LEFT JOIN account_tbl acc ON acc.id = c.account_id
+        WHERE c.isDeleted = false AND c.account_id = ${accountIdFilter}
+        LIMIT 1
+      `
+      return NextResponse.json(Array.isArray(rows) ? rows : [])
+    }
 
     const customers = typeFilter
       ? await sql`

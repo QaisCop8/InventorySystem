@@ -217,6 +217,31 @@ async function seedDefaultBranchAndSection(tenantClient: ReturnType<typeof getPo
   return branchId
 }
 
+async function seedDefaultSystemSettings(tenantClient: ReturnType<typeof getPoolForDb>) {
+  const rows = [
+    ["invoice_prefix", "INV"],
+    ["sales_invoice_prefix", "INV"],
+    ["delivery_sell_prefix", "DSL"],
+    ["purchase_invoice_prefix", "INV"],
+    ["invoice_start", "1"],
+    ["sales_invoice_start", "1"],
+    ["delivery_sell_start", "1"],
+    ["purchase_invoice_start", "1"],
+  ] as const
+
+  for (const [key, value] of rows) {
+    await tenantClient.query(
+      `INSERT INTO system_settings (id, description, value) VALUES ($1, $2, $3)
+       ON CONFLICT (id) DO UPDATE SET description = EXCLUDED.description, value = EXCLUDED.value`,
+      [key, key, value],
+    )
+  }
+}
+
+async function clearFreshCompanySeedData(tenantClient: ReturnType<typeof getPoolForDb>) {
+  await tenantClient.query(`TRUNCATE TABLE products, banks, bank_accounts RESTART IDENTITY CASCADE`)
+}
+
 export async function provisionCompanyDatabase(company: { id: number; name: string; requestedByEmail: string; requestedByFullName: string; requestedByPasswordHash: string }, approvedByUserId: number) {
   await ensureManagementTables()
 
@@ -231,6 +256,8 @@ export async function provisionCompanyDatabase(company: { id: number; name: stri
   await cloneReferenceSchema(tenantClient)
   await seedLookupTables(tenantClient)
   const branchId = await seedDefaultBranchAndSection(tenantClient)
+  await seedDefaultSystemSettings(tenantClient)
+  await clearFreshCompanySeedData(tenantClient)
 
   await tenantClient.query(
     `INSERT INTO user_settings (
@@ -254,9 +281,12 @@ export async function provisionCompanyDatabase(company: { id: number; name: stri
 
   await seedAccessListsAndGrantAdmin(tenantClient)
 
+  // اشتراك سنة واحدة من تاريخ الاعتماد الفعلي، ونطاق مستخدمين افتراضي = 1 (محجوز لاستخدام مستقبلي
+  // — لا فرض/تحقق فعلي لعدد المستخدمين مقابل هذا الحد بعد).
   await managementSql`
     UPDATE companies
-    SET db_name = ${dbName}, status = 'approved', approved_by = ${approvedByUserId}, approved_at = CURRENT_TIMESTAMP
+    SET db_name = ${dbName}, status = 'approved', approved_by = ${approvedByUserId}, approved_at = CURRENT_TIMESTAMP,
+        expiry_date = CURRENT_TIMESTAMP + INTERVAL '1 year', number_of_users = 1
     WHERE id = ${company.id}
   `
 

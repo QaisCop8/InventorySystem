@@ -91,6 +91,14 @@ export function ensureManagementTables(): Promise<void> {
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
       `
+      // انتهاء الاشتراك: يُضبَط سنة واحدة من تاريخ الاعتماد (provisionCompanyDatabase)، لا وقت
+      // الإنشاء (طلب معلَّق قد ينتظر الموافقة أياماً قبل أن يبدأ الاشتراك فعلياً). "منتهية" حالة
+      // محسوبة (status='approved' AND expiry_date < now()) لا عمود قائم بذاته — بهذا "تمديد
+      // الاشتراك" يكفيه تحديث expiry_date وحدها لإعادة تفعيل الشركة تلقائياً دون أي تحوّل حالة إضافي.
+      // status='stopped' حالة منفصلة (إيقاف إداري يدوي من لوحة التحكم)، تُميَّز عن الانتهاء الطبيعي
+      // بالتاريخ لكن تُعامَل بنفس المنع تماماً عند اختيار الشركة (select-company).
+      await sql`ALTER TABLE companies ADD COLUMN IF NOT EXISTS expiry_date TIMESTAMP`
+      await sql`ALTER TABLE companies ADD COLUMN IF NOT EXISTS number_of_users INTEGER DEFAULT 1`
       await sql`
         CREATE TABLE IF NOT EXISTS user_company (
           id SERIAL PRIMARY KEY,

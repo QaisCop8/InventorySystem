@@ -7,22 +7,13 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Edit, Plus, Search } from "lucide-react"
 import { useAuth } from "@/components/auth/auth-context"
-import UnifiedStockVoucher, {
-  type VoucherRecord,
-  type VoucherItemRow,
-  type StockVoucherType,
-  STOCK_IN_VCH_TYPE,
-  STOCK_OUT_VCH_TYPE,
-  USE_VOUCHER_VCH_TYPE,
+import UnifiedSalesDelivery, {
+  type SalesDeliveryRecord,
+  type SalesVoucherItemRow,
+  DELIVERY_SELL_VCH_TYPE,
   toGridDateString,
-  validateItemMeasurement,
-} from "./unified-stock-voucher"
+} from "./unified-sales-delivery"
 import type { PostVoucherAction } from "@/components/common/post-voucher-dialog"
-import StockVoucherPrintLayout, { type StockVoucherPrintData } from "@/components/common/stock-voucher-print-layout"
-
-interface StockVouchersProps {
-  voucherType: StockVoucherType
-}
 
 interface LookupOption {
   id: number
@@ -40,14 +31,10 @@ interface WarehouseOption {
   code: string
 }
 
-const TYPE_LABELS: Record<StockVoucherType, { title: string; listTitle: string; addLabel: string }> = {
-  12: { title: "سند ادخال بضاعة", listTitle: "سندات ادخال البضاعة", addLabel: "إضافة سند ادخال بضاعة" },
-  13: { title: "سند اخراج بضاعة", listTitle: "سندات اخراج البضاعة", addLabel: "إضافة سند اخراج بضاعة" },
-  14: { title: "ارسالية داخلية", listTitle: "الارساليات الداخلية", addLabel: "إضافة ارسالية داخلية" },
-  15: { title: "سند استعمال", listTitle: "سندات الاستعمال", addLabel: "إضافة سند استعمال" },
-}
+const TITLE = "إرسالية مبيعات"
+const LIST_TITLE = "إرساليات المبيعات"
 
-const emptyItemRow: VoucherItemRow = {
+const emptyItemRow: SalesVoucherItemRow = {
   product_id: null,
   product_code: "",
   product_name: "",
@@ -56,24 +43,24 @@ const emptyItemRow: VoucherItemRow = {
   warehouse_name: "",
   unit: "",
   quantity: null,
+  bonus_quantity: null,
   unit_price: null,
   total_price: null,
   batch_number: "",
   expiry_date: "",
+  serial_numbers: [],
+  source_voucher_id: null,
+  source_voucher_type: null,
+  note: "",
   length: null,
   width: null,
   height: null,
   count: null,
-  note: "",
-  expense_account_id: null,
-  purchase_account_id: null,
-  expense_cost_centers: [],
-  purchase_cost_centers: [],
 }
 
-const buildInitialForm = (voucherType: StockVoucherType): VoucherRecord => ({
+const buildInitialForm = (): SalesDeliveryRecord => ({
   id: 0,
-  vch_type: voucherType,
+  vch_type: DELIVERY_SELL_VCH_TYPE,
   vch_code: "",
   vch_date: new Date().toISOString().slice(0, 10),
   vch_book_id: null,
@@ -82,7 +69,12 @@ const buildInitialForm = (voucherType: StockVoucherType): VoucherRecord => ({
   account_id: null,
   customer_name: "",
   to_store_id: null,
-  from_store_id: null,
+  salesman_id: null,
+  shipping_address: "",
+  linked_order_id: null,
+  discount_type: "percentage",
+  discount_value: 0,
+  vat_percent: 0,
   amount: 0,
   manual_voucher: "",
   manual_date: new Date().toISOString().slice(0, 10),
@@ -92,40 +84,32 @@ const buildInitialForm = (voucherType: StockVoucherType): VoucherRecord => ({
   items: [{ ...emptyItemRow }],
 })
 
-const normalizeVoucher = (record: Partial<VoucherRecord>, voucherType: StockVoucherType): VoucherRecord => ({
-  ...buildInitialForm(voucherType),
+const normalizeVoucher = (record: Partial<SalesDeliveryRecord>): SalesDeliveryRecord => ({
+  ...buildInitialForm(),
   ...record,
-  manual_date: record.manual_date || record.vch_date || buildInitialForm(voucherType).manual_date,
-  // toGridDateString هنا لنفس سبب استخدامها داخل unified-stock-voucher.tsx: تاريخ الصلاحية القادم
-  // من الخادم "YYYY-MM-DD" (بلا وقت) يُعرَض بشبكة Wijmo بتاريخ أقل بيوم في المناطق الزمنية المتقدّمة
-  // على UTC ما لم يُضَف وقت محلي صريح قبل ربطه بالعمود.
+  manual_date: record.manual_date || record.vch_date || buildInitialForm().manual_date,
   items: record.items?.length
-    ? (record.items as VoucherItemRow[]).map((item) => ({ ...item, expiry_date: toGridDateString(item.expiry_date) }))
+    ? (record.items as SalesVoucherItemRow[]).map((item) => ({ ...item, expiry_date: toGridDateString(item.expiry_date) }))
     : [{ ...emptyItemRow }],
 })
 
-export default function StockVouchers({ voucherType }: StockVouchersProps) {
-  const labels = TYPE_LABELS[voucherType]
+export default function SalesDelivery() {
   const { user } = useAuth()
 
-  const [vouchers, setVouchers] = useState<VoucherRecord[]>([])
+  const [vouchers, setVouchers] = useState<SalesDeliveryRecord[]>([])
   const [currencies, setCurrencies] = useState<CurrencyRate[]>([])
   const [voucherBooks, setVoucherBooks] = useState<LookupOption[]>([])
   const [defaultBookId, setDefaultBookId] = useState<number | null>(null)
   const [warehouses, setWarehouses] = useState<WarehouseOption[]>([])
   const [defaultItemWarehouseId, setDefaultItemWarehouseId] = useState<number | null>(null)
-  const [priceCategories, setPriceCategories] = useState<LookupOption[]>([])
-  const [defaultCostPriceCategoryId, setDefaultCostPriceCategoryId] = useState<number | null>(null)
+  const [salesmen, setSalesmen] = useState<LookupOption[]>([])
 
   const [dialogOpen, setDialogOpen] = useState(false)
-  const [form, setForm] = useState<VoucherRecord>(buildInitialForm(voucherType))
+  const [form, setForm] = useState<SalesDeliveryRecord>(buildInitialForm())
   const [isSaving, setIsSaving] = useState(false)
-  // تحميل عند "جديد"/التنقل/عرض سجل (مختلف عن isSaving الخاص بالحفظ فعلياً) — يعطّل الواجهة ريثما
-  // تُجلَب بيانات السند (تفاصيل + أرقام تسلسلية) من الخادم.
   const [isLoading, setIsLoading] = useState(false)
   const [currentIndex, setCurrentIndex] = useState(0)
   const [errorMessages, setErrorMessages] = useState<string[]>([])
-  const [printData, setPrintData] = useState<StockVoucherPrintData | null>(null)
 
   const [searchFilters, setSearchFilters] = useState({ code: "", dateFrom: "", dateTo: "" })
 
@@ -137,11 +121,12 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
     [currencies],
   )
   const baseCurrencyId = useMemo(
-    () => currencies.reduce<number | null>((min, c) => {
-      const id = Number(c.currency_id ?? c.id)
-      if (!Number.isFinite(id)) return min
-      return min === null || id < min ? id : min
-    }, null),
+    () =>
+      currencies.reduce<number | null>((min, c) => {
+        const id = Number(c.currency_id ?? c.id)
+        if (!Number.isFinite(id)) return min
+        return min === null || id < min ? id : min
+      }, null),
     [currencies],
   )
 
@@ -159,38 +144,31 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
     fetchVouchers()
     fetchLookups()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [voucherType, user?.id])
-
-  useEffect(() => {
-    if (!printData) return
-    const t = setTimeout(() => window.print(), 150)
-    return () => clearTimeout(t)
-  }, [printData])
+  }, [user?.id])
 
   const fetchVouchers = async () => {
     try {
-      const response = await fetch(`/api/stock-vouchers?vch_type=${voucherType}`)
+      const response = await fetch(`/api/sales-vouchers?vch_type=${DELIVERY_SELL_VCH_TYPE}`)
       const data = await response.json()
       setVouchers(Array.isArray(data) ? data : [])
     } catch (error) {
-      console.error("Failed to fetch stock vouchers", error)
+      console.error("Failed to fetch sales delivery vouchers", error)
       setVouchers([])
     }
   }
 
   const fetchLookups = async () => {
     try {
-      const booksUrl = `/api/receipts/voucher-books?vch_type=${voucherType}${
+      const booksUrl = `/api/receipts/voucher-books?vch_type=${DELIVERY_SELL_VCH_TYPE}${
         user?.id ? `&user_id=${encodeURIComponent(user.id)}` : ""
       }`
       const warehouseDefaultsUrl = user?.id ? `/api/settings/user-warehouse-defaults?user_id=${encodeURIComponent(user.id)}` : null
-      const [currenciesRes, booksRes, warehousesRes, warehouseDefaultsRes, priceCategoriesRes, systemSettingsRes] = await Promise.all([
+      const [currenciesRes, booksRes, warehousesRes, warehouseDefaultsRes, salesmenRes] = await Promise.all([
         fetch("/api/exchange-rates").catch(() => null),
         fetch(booksUrl).catch(() => null),
         fetch("/api/warehouses").catch(() => null),
         warehouseDefaultsUrl ? fetch(warehouseDefaultsUrl).catch(() => null) : Promise.resolve(null),
-        fetch("/api/pricecategory").catch(() => null),
-        fetch("/api/settings/system").catch(() => null),
+        fetch("/api/salesmen").catch(() => null),
       ])
       if (currenciesRes?.ok) {
         const data = await currenciesRes.json()
@@ -211,26 +189,18 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
       } else {
         setDefaultItemWarehouseId(null)
       }
-      if (priceCategoriesRes?.ok) {
-        const data = await priceCategoriesRes.json()
-        setPriceCategories(Array.isArray(data) ? data.map((c: any) => ({ id: c.id, name: c.name })) : [])
-      }
-      if (systemSettingsRes?.ok) {
-        const data = await systemSettingsRes.json()
-        const payload = data?.settings ?? data
-        const raw = payload?.stock_voucher_item_cost_method
-        setDefaultCostPriceCategoryId(raw !== undefined && raw !== null && raw !== "" ? Number(raw) : null)
+      if (salesmenRes?.ok) {
+        const data = await salesmenRes.json()
+        setSalesmen(Array.isArray(data) ? data : Array.isArray(data?.salesmen) ? data.salesmen : [])
       }
     } catch (error) {
       console.error("Failed to fetch lookups", error)
     }
   }
 
-  // يجلب دفتر السندات الافتراضي وأول عملة مباشرة من الخادم بدل الاعتماد على state قد لا يكون
-  // اكتمل تحميله بعد (مثلاً إن ضغط المستخدم "جديد" قبل أن يكتمل fetchLookups عند فتح الصفحة).
   const fetchDefaults = async (): Promise<{ bookId: number | null; currencyId: number | null }> => {
     try {
-      const booksUrl = `/api/receipts/voucher-books?vch_type=${voucherType}${
+      const booksUrl = `/api/receipts/voucher-books?vch_type=${DELIVERY_SELL_VCH_TYPE}${
         user?.id ? `&user_id=${encodeURIComponent(user.id)}` : ""
       }`
       const [booksRes, currenciesRes] = await Promise.all([
@@ -261,42 +231,40 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
       return { bookId, currencyId }
     } catch (error) {
       console.error("Failed to fetch voucher defaults", error)
-      return { bookId: defaultBookId, currencyId: firstCurrencyId() }
+      return { bookId: defaultBookId, currencyId: baseCurrencyId }
     }
   }
 
   const generateCode = async (bookId: number | null, fallbackCode = "") => {
     if (!bookId) return fallbackCode
     try {
-      const response = await fetch(`/api/stock-vouchers/generate-number?vch_type=${voucherType}&vch_book_id=${bookId}`)
+      const response = await fetch(`/api/sales-vouchers/generate-number?vch_type=${DELIVERY_SELL_VCH_TYPE}&vch_book_id=${bookId}`)
       if (!response.ok) return fallbackCode
       const data = await response.json()
       return data.code || fallbackCode
     } catch (error) {
-      console.error("Failed to generate stock voucher number", error)
+      console.error("Failed to generate sales delivery voucher number", error)
       return fallbackCode
     }
   }
 
-  const fetchVoucherDetails = async (id: number): Promise<VoucherRecord | null> => {
+  const fetchVoucherDetails = async (id: number): Promise<SalesDeliveryRecord | null> => {
     try {
-      const response = await fetch(`/api/stock-vouchers/${id}`)
+      const response = await fetch(`/api/sales-vouchers/${id}`)
       if (!response.ok) return null
       return await response.json()
     } catch (error) {
-      console.error("Failed to fetch stock voucher details", error)
+      console.error("Failed to fetch sales delivery voucher details", error)
       return null
     }
   }
-
-  const firstCurrencyId = () => baseCurrencyId
 
   const openNewDialog = async () => {
     setIsLoading(true)
     try {
       const defaults = await fetchDefaults()
       const code = await generateCode(defaults.bookId)
-      setForm({ ...buildInitialForm(voucherType), vch_code: code, vch_book_id: defaults.bookId, currency_id: defaults.currencyId })
+      setForm({ ...buildInitialForm(), vch_code: code, vch_book_id: defaults.bookId, currency_id: defaults.currencyId })
       setErrorMessages([])
       setDialogOpen(true)
     } finally {
@@ -304,11 +272,11 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
     }
   }
 
-  const openRow = async (record: VoucherRecord, index: number) => {
+  const openRow = async (record: SalesDeliveryRecord, index: number) => {
     setIsLoading(true)
     try {
       const details = await fetchVoucherDetails(record.id)
-      setForm(normalizeVoucher(details || record, voucherType))
+      setForm(normalizeVoucher(details || record))
       setCurrentIndex(index)
       setErrorMessages([])
       setDialogOpen(true)
@@ -317,14 +285,13 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
     }
   }
 
-  // رقم سند غير مرتبط بأي سجل معروض حالياً (كُتب يدوياً في الحقل) — يُبحث عنه مباشرة بمعرّفه.
   const handleCodeResolved = async (id: number) => {
     setIsLoading(true)
     try {
       const details = await fetchVoucherDetails(id)
       if (!details) return
       const index = vouchers.findIndex((v) => v.id === id)
-      setForm(normalizeVoucher(details, voucherType))
+      setForm(normalizeVoucher(details))
       setCurrentIndex(index >= 0 ? index : 0)
       setErrorMessages([])
     } finally {
@@ -332,11 +299,9 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
     }
   }
 
-  // رقم لا يخص أي سند محفوظ -> تصفير كل الحقول والشبكات لسند جديد بهذا الرقم، مع إبقاء دفتر
-  // السندات والعملة الحاليين لأنهما جزء من السياق الذي أُنشئ منه الرقم نفسه.
   const handleCodeNotFound = (code: string) => {
     setForm((f) => ({
-      ...buildInitialForm(voucherType),
+      ...buildInitialForm(),
       vch_code: code,
       vch_book_id: f.vch_book_id,
       currency_id: f.currency_id,
@@ -344,8 +309,6 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
     setErrorMessages([])
   }
 
-  // نسخ السند الحالي إلى سند جديد غير محفوظ: نفس البيانات (المستودعات/العميل/الأصناف) برقم وتاريخ
-  // جديد بدل مسحها، ليحفظها المستخدم كسند مستقل دون إعادة إدخالها — مطابق لِـ cloneVoucher في receipts.tsx.
   const cloneVoucher = async () => {
     if (!form.id) return
     const code = await generateCode(form.vch_book_id)
@@ -362,117 +325,24 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
     setErrorMessages([])
   }
 
-  // سند فعال (status=1) لم يُرحَّل بعد يُطبع كـ"نسخة للتدقيق" فقط دون أي تسجيل. سند مُرحَّل
-  // (status=2) يُسجَّل عليه is_printed=1 عند أول طباعة فتظهر "نسخة اصلية"، وأي طباعة لاحقة له
-  // تظهر "نسخة" فقط دون إعادة التسجيل — مطابق لِـ handlePrint في receipts.tsx.
-  const handlePrintVoucher = async () => {
-    if (!(form.id > 0) || form.status === 3) return
-
-    let isPrinted = form.is_printed || 0
-    const copyLabel = form.status !== 2 ? "نسخة للتدقيق" : isPrinted === 1 ? "نسخة" : "نسخة اصلية"
-
-    if (form.status === 2 && isPrinted !== 1) {
-      try {
-        const response = await fetch(`/api/stock-vouchers/${form.id}`, { method: "PATCH" })
-        if (response.ok) {
-          isPrinted = 1
-          setForm((f) => ({ ...f, is_printed: 1 }))
-        }
-      } catch (error) {
-        console.error("Failed to mark stock voucher as printed", error)
-      }
-    }
-
-    const rows = (form.items || []).filter((i) => i.product_id)
-    setPrintData({
-      title: labels.title,
-      copyLabel,
-      vch_code: form.vch_code,
-      vch_date: form.vch_date,
-      manual_voucher: form.manual_voucher,
-      note: form.note,
-      rows: rows.map((row) => ({
-        product_code: row.product_code,
-        product_name: row.product_name,
-        warehouse_name: row.warehouse_name,
-        unit: row.unit,
-        quantity: row.quantity,
-        unit_price: row.unit_price,
-        total_price: row.total_price,
-      })),
-    })
-  }
-
-  const validateVoucher = (data: VoucherRecord): string | null => {
+  const validateVoucher = (data: SalesDeliveryRecord): string | null => {
     if (!data.vch_code.trim()) return "رقم السند مطلوب"
     if (!data.vch_book_id) return "دفتر السندات مطلوب"
     if (!data.currency_id) return "العملة مطلوبة"
     if (!(Number(data.rate) > 0)) return "سعر الصرف يجب أن يكون أكبر من صفر"
+    if (!data.account_id) return "يجب اختيار العميل"
     const items = (data.items || []).filter((i) => i.product_id)
     if (items.length === 0) return "يجب إدخال صنف واحد على الأقل"
-    // فحص مستودع رأس السند الآن للإرسالية الداخلية فقط (لها فحص from/to منفصل أدناه) — بقية الأنواع
-    // الثلاثة (ادخال/اخراج بضاعة، استعمال) لها جميعاً عمود "المستودع" الخاص بها بالسطر (أصنافها قد
-    // تدخل/تُصرف من مستودعات مختلفة)، فيكفيها الفحص العام "يجب اختيار المستودع لكل صنف" أدناه.
-    if (voucherType !== 14 && voucherType !== USE_VOUCHER_VCH_TYPE && voucherType !== STOCK_IN_VCH_TYPE && voucherType !== STOCK_OUT_VCH_TYPE && !data.to_store_id) {
-      return "يجب اختيار المستودع"
-    }
     if (items.some((i) => !i.warehouse_id)) return "يجب اختيار المستودع لكل صنف"
     if (items.some((i) => !(Number(i.quantity || 0) > 0))) return "يجب إدخال الكمية لكل صنف"
-    // أبعاد/عدد الصنف (نوع قياس غير عادي) — يُفحَص لكل أنواع السندات (لا سند ادخال بضاعة فقط)، إذ
-    // الأبعاد خاصية بمستوى السطر مستقلة عن اتجاه الحركة. الخادم يعيد نفس الفحص مستقلاً (_lib.ts).
-    for (const item of items) {
-      const measurementError = validateItemMeasurement(item)
-      if (measurementError) return measurementError
-    }
-    if (voucherType === STOCK_IN_VCH_TYPE) {
-      const missingExpiry = items.find((i) => i.has_expiry && !String(i.expiry_date || "").trim())
-      if (missingExpiry) return `يجب إدخال تاريخ الصلاحية للصنف: ${missingExpiry.product_name || missingExpiry.product_code}`
-      const missingBatch = items.find((i) => i.has_batch && !String(i.batch_number || "").trim())
-      if (missingBatch) return `يجب إدخال الرقم التشغيلي للصنف: ${missingBatch.product_name || missingBatch.product_code}`
-      // تاريخ الصلاحية الافتراضي عند اختيار صنف له تتبع صلاحية هو 1990-01-01 (قيمة اصطلاحية يُعدّلها
-      // المستخدم لاحقاً عبر التقويم) — أي تاريخ أقدم من 2020-01-01 عملياً يعني نسيان تعديل هذه القيمة
-      // الافتراضية قبل الحفظ، فيُرفَض الحفظ بدل قبول تاريخ غير منطقي لبضاعة داخلة حديثاً.
-      const implausibleExpiry = items.find(
-        (i) => i.has_expiry && i.expiry_date && new Date(i.expiry_date).getTime() < new Date("2020-01-01").getTime(),
-      )
-      if (implausibleExpiry) {
-        return `يرجى التأكد من تاريخ الصلاحية للصنف - ${implausibleExpiry.product_name || implausibleExpiry.product_code}`
-      }
-    }
-    if (voucherType === 14 && (!data.from_store_id || !data.to_store_id)) return "يجب اختيار المستودع المرسل والمستودع المستلم"
-    if (voucherType === 14 && data.from_store_id && data.to_store_id && Number(data.from_store_id) === Number(data.to_store_id)) {
-      return "لا يمكن عمل ارسالية لنفس المستودع"
-    }
-    if (voucherType === 15 && items.some((i) => !i.expense_account_id || !i.purchase_account_id)) {
-      return "يجب اختيار حساب المصروف وحساب المشتريات لكل صنف"
-    }
     return null
   }
 
   const saveVoucher = async (action: PostVoucherAction = "save") => {
-    // حفظ عادي / حفظ وطباعة: تبقى الحالة كما هي (لا ترحيل). حفظ وترحيل / ترحيل وطباعة: تصبح
-    // status=2 (مرحل) ويُقفل السند بعدها ويُطبَّق أثر المخزون — نفس منطق receipts.tsx.
     const status = action === "save" || action === "save_print" ? form.status || 1 : 2
     const isPrinted = action === "post_print" ? 1 : form.is_printed || 0
-    let dataToSave: VoucherRecord = { ...form, status, is_printed: isPrinted }
-    // اشتقاق مستودع كل صنف من قيمة رأس السند الآن للإرسالية الداخلية فقط (مستودع واحد لكامل السند من
-    // رأسه) — بقية الأنواع الثلاثة (ادخال/اخراج بضاعة، استعمال) لها عمود "المستودع" الخاص بها بالسطر
-    // (أصنافها قد تدخل/تُصرف من مستودعات مختلفة)، فتُترَك قيم warehouse_id الخاصة بكل سطر كما هي.
-    // "من مستودع" (from_store_id) لا "الى مستودع" — voucher_items_tbl.warehouse_id يمثّل مستودع
-    // الاستهلاك/المصدر في كل حسابات "المتاح" (resolveConsumptionWarehouseId هنا، وvalidateAvailableQuantity
-    // من جهة الخادم)؛ استخدام to_store_id هنا سابقاً كان يُسجِّل استهلاك الإرسالية الداخلية على
-    // المستودع الوجهة الخاطئ، فيُفسِد حساب "المتاح" لكلا المستودعين معاً.
-    if (voucherType !== USE_VOUCHER_VCH_TYPE && voucherType !== STOCK_IN_VCH_TYPE && voucherType !== STOCK_OUT_VCH_TYPE && dataToSave.from_store_id) {
-      const fromStore = warehouses.find((w) => w.id === dataToSave.from_store_id)
-      dataToSave = {
-        ...dataToSave,
-        items: (dataToSave.items || []).map((item) =>
-          item.product_id
-            ? { ...item, warehouse_id: dataToSave.from_store_id, warehouse_name: fromStore?.warehouse_name || item.warehouse_name }
-            : item,
-        ),
-      }
-    }
+    const dataToSave: SalesDeliveryRecord = { ...form, status, is_printed: isPrinted }
+
     const validationError = validateVoucher(dataToSave)
     if (validationError) {
       setErrorMessages([validationError])
@@ -482,7 +352,7 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
     setErrorMessages([])
     try {
       const method = form.id > 0 ? "PUT" : "POST"
-      const response = await fetch("/api/stock-vouchers", {
+      const response = await fetch("/api/sales-vouchers", {
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(dataToSave),
@@ -492,36 +362,12 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
         setErrorMessages([error.error || "فشل في حفظ السند"])
         return
       }
-      const saved = await response.json()
-
-      if (action === "post_print" || action === "save_print") {
-        const rows = (dataToSave.items || []).filter((i) => i.product_id)
-        setPrintData({
-          title: labels.title,
-          copyLabel: action === "post_print" ? "نسخة اصلية" : "نسخة للتدقيق",
-          vch_code: saved.vch_code,
-          vch_date: saved.vch_date,
-          manual_voucher: saved.manual_voucher,
-          note: saved.note,
-          rows: rows.map((row) => ({
-            product_code: row.product_code,
-            product_name: row.product_name,
-            warehouse_name: row.warehouse_name,
-            unit: row.unit,
-            quantity: row.quantity,
-            unit_price: row.unit_price,
-            total_price: row.total_price,
-          })),
-        })
-      }
 
       await fetchVouchers()
       const defaults = await fetchDefaults()
-      // يبقى دفتر السندات كما هو (نفس الدفتر المستخدم للسند الذي حُفظ للتو) بدل الرجوع للدفتر
-      // الافتراضي — أكثر ملاءمة عند إدخال عدة سندات متتالية على نفس الدفتر.
       const bookId = form.vch_book_id ?? defaults.bookId
       const code = await generateCode(bookId)
-      setForm({ ...buildInitialForm(voucherType), vch_code: code, vch_book_id: bookId, currency_id: defaults.currencyId })
+      setForm({ ...buildInitialForm(), vch_code: code, vch_book_id: bookId, currency_id: defaults.currencyId })
       setDialogOpen(true)
     } catch (error) {
       console.error(error)
@@ -541,7 +387,7 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
         const next = nextList[targetIndex]
         if (next) {
           const details = await fetchVoucherDetails(next.id)
-          setForm(normalizeVoucher(details || next, voucherType))
+          setForm(normalizeVoucher(details || next))
           setCurrentIndex(targetIndex)
           setDialogOpen(true)
           return
@@ -549,7 +395,7 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
       }
       const defaults = await fetchDefaults()
       const code = await generateCode(defaults.bookId)
-      setForm({ ...buildInitialForm(voucherType), vch_code: code, vch_book_id: defaults.bookId, currency_id: defaults.currencyId })
+      setForm({ ...buildInitialForm(), vch_code: code, vch_book_id: defaults.bookId, currency_id: defaults.currencyId })
       setCurrentIndex(0)
       setDialogOpen(true)
     } finally {
@@ -563,7 +409,7 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
     setErrorMessages([])
     try {
       if (form.status === 2) {
-        const response = await fetch("/api/stock-vouchers", {
+        const response = await fetch("/api/sales-vouchers", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ ...form, status: 3 }),
@@ -575,10 +421,10 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
         }
         const saved = await response.json()
         await fetchVouchers()
-        setForm(normalizeVoucher(saved, voucherType))
+        setForm(normalizeVoucher(saved))
         setDialogOpen(true)
       } else {
-        const response = await fetch(`/api/stock-vouchers/${form.id}`, { method: "DELETE" })
+        const response = await fetch(`/api/sales-vouchers/${form.id}`, { method: "DELETE" })
         if (!response.ok) {
           const error = await response.json().catch(() => null)
           setErrorMessages([error?.error || "فشل في حذف السند"])
@@ -607,24 +453,24 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
     await openRow(record, targetIndex)
   }
 
-  const onFormChange = <K extends keyof VoucherRecord>(field: K, value: VoucherRecord[K]) => {
+  const onFormChange = <K extends keyof SalesDeliveryRecord>(field: K, value: SalesDeliveryRecord[K]) => {
     setForm((f) => ({ ...f, [field]: value }))
   }
 
   return (
     <div className="w-full max-w-full space-y-6" dir="rtl">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-3xl font-bold">{labels.listTitle}</h1>
+        <h1 className="text-3xl font-bold">{LIST_TITLE}</h1>
         <Button onClick={openNewDialog} className="flex items-center gap-2">
           <Plus className="h-4 w-4" />
-          {labels.addLabel}
+          {`إضافة ${TITLE}`}
         </Button>
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <Card className="border-blue-200 bg-gradient-to-br from-blue-50 to-blue-100">
           <CardContent className="p-6">
-            <p className="text-sm font-medium text-blue-700">{`إجمالي ${labels.listTitle}`}</p>
+            <p className="text-sm font-medium text-blue-700">{`إجمالي ${LIST_TITLE}`}</p>
             <p className="text-3xl font-bold text-blue-900">{totalVouchers}</p>
           </CardContent>
         </Card>
@@ -679,7 +525,7 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
 
       <Card>
         <CardHeader>
-          <CardTitle>{`${labels.listTitle} (${filteredVouchers.length})`}</CardTitle>
+          <CardTitle>{`${LIST_TITLE} (${filteredVouchers.length})`}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
@@ -688,6 +534,7 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
                 <tr className="bg-gray-50">
                   <th className="border border-gray-300 px-4 py-2 text-right">رقم السند</th>
                   <th className="border border-gray-300 px-4 py-2 text-right">التاريخ</th>
+                  <th className="border border-gray-300 px-4 py-2 text-right">العميل</th>
                   <th className="border border-gray-300 px-4 py-2 text-right">المبلغ</th>
                   <th className="border border-gray-300 px-4 py-2 text-center">الحالة</th>
                   <th className="border border-gray-300 px-4 py-2 text-center">الإجراءات</th>
@@ -698,6 +545,7 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
                   <tr key={voucher.id} className="cursor-pointer hover:bg-gray-50" onDoubleClick={() => openRow(voucher, index)}>
                     <td className="border border-gray-300 px-4 py-2">{voucher.vch_code}</td>
                     <td className="border border-gray-300 px-4 py-2">{voucher.vch_date?.slice(0, 10)}</td>
+                    <td className="border border-gray-300 px-4 py-2">{voucher.customer_name}</td>
                     <td className="border border-gray-300 px-4 py-2">{Number(voucher.amount || 0).toLocaleString()}</td>
                     <td className="border border-gray-300 px-4 py-2 text-center">{voucher.status === 2 ? "مرحل" : "مسودة"}</td>
                     <td className="border border-gray-300 px-4 py-2 text-center">
@@ -718,7 +566,7 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
                 ))}
                 {filteredVouchers.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="border border-gray-300 px-4 py-6 text-center text-muted-foreground">
+                    <td colSpan={6} className="border border-gray-300 px-4 py-6 text-center text-muted-foreground">
                       لا توجد سندات
                     </td>
                   </tr>
@@ -729,8 +577,7 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
         </CardContent>
       </Card>
 
-      <UnifiedStockVoucher
-        voucherType={voucherType}
+      <UnifiedSalesDelivery
         dialogOpen={dialogOpen}
         onOpenChange={setDialogOpen}
         form={form}
@@ -741,8 +588,7 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
         baseCurrencyId={baseCurrencyId}
         warehouses={warehouses}
         defaultItemWarehouseId={defaultItemWarehouseId}
-        priceCategories={priceCategories}
-        defaultCostPriceCategoryId={defaultCostPriceCategoryId}
+        salesmen={salesmen}
         isSaving={isSaving || isLoading}
         currentIndex={currentIndex}
         totalRecords={filteredVouchers.length}
@@ -753,13 +599,11 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
         onValidateSave={() => validateVoucher(form)}
         onDelete={handleDelete}
         onNavigate={handleNavigate}
-        onPrint={handlePrintVoucher}
         onClone={cloneVoucher}
         onCodeResolved={handleCodeResolved}
         onCodeNotFound={handleCodeNotFound}
         errorMessages={errorMessages}
       />
-      <StockVoucherPrintLayout data={printData} />
     </div>
   )
 }

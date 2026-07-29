@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
-import { Plus, Trash2, Paperclip, ListPlus, FileText, User, Wallet, MessageSquare, Landmark, CreditCard, BookOpen } from "lucide-react"
+import { Plus, Trash2, ListPlus, FileText, User, Wallet, MessageSquare, Landmark, CreditCard, BookOpen } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -24,6 +24,7 @@ import DatePickerDialog from "@/components/common/date-picker-dialog"
 import DateTimeControl from "@/components/common/date-time-control"
 import PostVoucherDialog, { type PostVoucherAction } from "@/components/common/post-voucher-dialog"
 import DataGridView from "@/components/common/DataGridView"
+import AttachmentManager from "@/components/common/AttachmentManager"
 import { CellRange, KeyAction } from "@grapecity/wijmo.grid"
 import * as wjcCore from "@grapecity/wijmo"
 import Util from "@/components/common/Util"
@@ -2246,10 +2247,7 @@ export default function UnifiedReceiptVoucher({
 
               {/* المرفقات */}
               <TabsContent value="attachments" className="mt-4 min-h-[360px] rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-                <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-slate-300 bg-slate-50 py-10 text-slate-400">
-                  <Paperclip className="h-6 w-6" />
-                  <p className="text-sm">رفع المرفقات غير متاح بعد في هذا الإصدار</p>
-                </div>
+                <AttachmentManager modelName="voucher" recordId={form.id > 0 ? form.id : null} disabled={isLocked} />
               </TabsContent>
 
               {/* الحقول الإضافية */}

@@ -900,7 +900,7 @@ function UnifiedSaleInvoices({
   };
 
 
-  const adjustCode = (code: string, codeLen: number = 8): string => {
+  const adjustCode = (code: string, codeLen: number = 10): string => {
     if (!code || !code.trim()) return '';
 
     code = code.trim().toUpperCase();
@@ -1262,7 +1262,7 @@ function UnifiedSaleInvoices({
 
       if (colName === "code") {
         code = String(editedValue);
-        code = Util.adjustCode(code, 8).toUpperCase();
+        code = Util.adjustCode(code, 10).toUpperCase();
       }
       const product = await fetchProductByCodeOrBarcode(code);
 

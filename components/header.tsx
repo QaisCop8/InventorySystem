@@ -20,12 +20,17 @@ import { activateCompany } from "@/lib/tenant-client";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { DailyExchangeRatesDialog } from "@/components/settings/daily-exchange-rates";
 import { useDailyExchangeRatesCheck } from "@/hooks/use-daily-exchange-rates-check";
+import { useToast } from "@/hooks/use-toast";
 
 interface HeaderCompany {
   id: number;
   name: string;
-  status: "pending" | "approved" | "rejected";
+  status: "pending" | "approved" | "rejected" | "stopped";
+  expiry_date?: string | null;
 }
+
+const isCompanyExpired = (company: HeaderCompany) =>
+  !!company.expiry_date && new Date(company.expiry_date).getTime() < Date.now();
 
 interface HeaderProps {
   onMenuClick: () => void;
@@ -42,6 +47,7 @@ RefButton.displayName = "RefButton";
 
 export function Header({ onMenuClick, activeSection, onProfileClick, onSettingsClick }: HeaderProps) {
   const router = useRouter();
+  const { toast } = useToast();
   const {
     user,
     logout,
@@ -80,6 +86,9 @@ export function Header({ onMenuClick, activeSection, onProfileClick, onSettingsC
     const result = await activateCompany(companyId);
     if (!result.success) {
       setSwitchingCompanyName(null);
+      // العودة للشركة السابقة: لا شيء إضافي مطلوب هنا فعلياً — عنصر <select> مربوط بـcurrentCompanyId
+      // الذي لم يتغيّر (لم يُعَد تعيينه بعد نجاح فعلي فقط)، فيعرض تلقائياً الشركة السابقة نفسها.
+      toast({ title: "تعذّر فتح الشركة", description: result.error || "تعذّر فتح الشركة", variant: "destructive" });
       return;
     }
     window.location.href = `/?company=${companyId}`;
@@ -211,12 +220,16 @@ export function Header({ onMenuClick, activeSection, onProfileClick, onSettingsC
               onChange={(e) => handleCompanyChange(Number(e.target.value))}
               disabled={!!switchingCompanyName}
             >
-              {myCompanies.map((c) => (
-                <option key={c.id} value={c.id} disabled={c.status !== "approved"}>
-                  {c.name}
-                  {c.status !== "approved" ? " (غير جاهزة)" : ""}
-                </option>
-              ))}
+              {myCompanies.map((c) => {
+                const expired = isCompanyExpired(c);
+                const disabled = c.status !== "approved" || expired;
+                return (
+                  <option key={c.id} value={c.id} disabled={disabled}>
+                    {c.name}
+                    {expired ? " (منتهي الاشتراك)" : c.status !== "approved" ? " (غير جاهزة)" : ""}
+                  </option>
+                );
+              })}
             </select>
             <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
           </div>

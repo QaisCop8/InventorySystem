@@ -123,7 +123,7 @@ export const ensureTables = async () => {
   await sql`CREATE INDEX IF NOT EXISTS idx_inventory_transactions_reference ON inventory_transactions(reference_type, reference_id)`
 }
 
-const VOUCHER_CODE_SEQUENCE_DIGITS = 6
+const VOUCHER_CODE_SEQUENCE_DIGITS = 8
 
 // بادئة حرف واحد لكل نوع — لتطابق طول كود السند (بادئة + رمز الدفتر + 6 أرقام = 8 خانات)
 // المستخدم في باقي أنواع السندات هنا (R/P/C/D/J جميعها حرف واحد).
@@ -156,8 +156,16 @@ export const getStockVoucherNumberSettings = async (
   }
 }
 
-export const buildVoucherCode = (prefix: string, bookName: string, sequence: number): string =>
-  `${prefix}${bookName}${String(sequence).padStart(VOUCHER_CODE_SEQUENCE_DIGITS, "0")}`
+const normalizeVoucherPrefix = (value: string): string =>
+  String(value || "").trim().toUpperCase().replace(/[^A-Z]/g, "").slice(0, 1)
+
+export const buildVoucherCode = (prefix: string, bookName: string, sequence: number, userPrefix = ""): string => {
+  const basePrefix = String(prefix || "").trim().toUpperCase()
+  const normalizedBookName = String(bookName || "").trim().toUpperCase()
+  const normalizedUserPrefix = normalizeVoucherPrefix(userPrefix)
+  const sequencePart = String(sequence).padStart(VOUCHER_CODE_SEQUENCE_DIGITS, "0")
+  return `${basePrefix}${normalizedBookName}${normalizedUserPrefix}${sequencePart}`
+}
 
 export const nextVoucherSequence = async (vchType: number, codePrefix: string, startNumber: number): Promise<number> => {
   const rows = await sql`
@@ -165,8 +173,9 @@ export const nextVoucherSequence = async (vchType: number, codePrefix: string, s
   `
   let maxNumber = 0
   for (const row of rows) {
-    const numericPart = String(row.vch_code || "").slice(codePrefix.length)
-    const value = Number(numericPart)
+    const suffix = String(row.vch_code || "").slice(codePrefix.length)
+    const match = suffix.match(/^[A-Za-z]?([0-9]+)$/)
+    const value = Number(match?.[1] ?? suffix)
     if (Number.isFinite(value) && value > maxNumber) maxNumber = value
   }
   return maxNumber >= startNumber ? maxNumber + 1 : startNumber
@@ -192,8 +201,9 @@ export const validateVoucherCodeFormat = async (
   const bookName = await resolveVoucherBookName(vchBookId)
   if (!bookName) return null // لا يمكن التحقق من البادئة دون دفتر سندات صالح — validateVoucher الأساسي يرفض غياب الدفتر أصلاً
   const { prefix } = await getStockVoucherNumberSettings(requestUrl, vchType)
+  const basePrefix = `${prefix}${bookName}`
   if (!code.startsWith(prefix)) return `رقم السند يجب أن يبدأ بـ ${prefix}`
-  if (code.length < prefix.length + bookName.length) return "رقم السند غير مكتمل"
+  if (code.length < basePrefix.length + VOUCHER_CODE_SEQUENCE_DIGITS) return "رقم السند غير مكتمل"
   return null
 }
 
@@ -646,6 +656,10 @@ export const applyStockMovement = async (
   referenceId: number,
   warehouseIdOverride?: number | null,
   organizationId = 1,
+  // "stock_voucher" افتراضياً (السلوك الحالي دون تغيير) — sales-vouchers/_lib.ts يمرّر
+  // "sales_voucher" صراحةً بدل ذلك لتمييز حركة مخزون سندات المبيعات (إرسالية مبيعات وما شابهها) عن
+  // سندات المخزون نفسها في inventory_transactions، رغم مشاركة نفس دفتر product_stock الفعلي.
+  referenceType: string = "stock_voucher",
 ) => {
   for (const item of items) {
     const productId = Number(item.product_id)
@@ -670,7 +684,7 @@ export const applyStockMovement = async (
         product_id, warehouse_id, transaction_type, quantity, reference_type, reference_id, organization_id
       ) VALUES (
         ${productId}, ${warehouseIdOverride ?? item.warehouse_id ?? null}, ${direction}, ${quantity},
-        'stock_voucher', ${referenceId}, ${organizationId}
+        ${referenceType}, ${referenceId}, ${organizationId}
       )
     `
   }
@@ -679,11 +693,11 @@ export const applyStockMovement = async (
 // يعكس أي حركة مخزون سُجِّلت سابقاً لهذا السند (عند حذفه أو إلغاء ترحيله) — يقرأ
 // inventory_transactions الفعلية بدل إعادة بناء الاتجاه من نوع السند، فيبقى صحيحاً حتى
 // للإرسالية الداخلية (سطرا in/out معاً).
-export const reverseStockMovement = async (referenceId: number, organizationId = 1) => {
+export const reverseStockMovement = async (referenceId: number, organizationId = 1, referenceType: string = "stock_voucher") => {
   const rows = await sql`
     SELECT product_id, warehouse_id, transaction_type, quantity
     FROM inventory_transactions
-    WHERE reference_type = 'stock_voucher' AND reference_id = ${referenceId}
+    WHERE reference_type = ${referenceType} AND reference_id = ${referenceId}
   `
   for (const row of rows) {
     const delta = row.transaction_type === "in" ? -Number(row.quantity) : Number(row.quantity)
@@ -692,7 +706,7 @@ export const reverseStockMovement = async (referenceId: number, organizationId =
       WHERE product_id = ${row.product_id} AND organization_id = ${organizationId}
     `
   }
-  await sql`DELETE FROM inventory_transactions WHERE reference_type = 'stock_voucher' AND reference_id = ${referenceId}`
+  await sql`DELETE FROM inventory_transactions WHERE reference_type = ${referenceType} AND reference_id = ${referenceId}`
 }
 
 // تُطبَّق فقط عند status=2 (مرحّل) — مسودة (status=1) لا تحرّك المخزون إطلاقاً.
