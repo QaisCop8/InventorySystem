@@ -85,6 +85,12 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
   // فتح الشاشة (fetchLookups أدناه) وتُقرأ هنا كمرجع بدل حالة React، إذ لا داعي لإعادة رسم الشاشة
   // عند وصولها؛ تُستخدَم فقط عند بناء سند جديد لاحقاً.
   const defaultVatPercentRef = useRef<number>(0)
+  // نسبة الضريبة الافتراضية عند المقاصة (system_settings.tax_rate_clearing) — تُستخدَم بدل
+  // defaultVatPercentRef أعلاه فقط عند تأكيد المستخدم إعادة النسبة الافتراضية وform.is_maqasa فعّال
+  // (انظر resolveDefaultVatPercent أدناه وhandleVatClassificationChange في unified-sales-delivery.tsx).
+  const defaultVatPercentClearingRef = useRef<number>(0)
+  const resolveDefaultVatPercent = (isMaqasa: boolean) =>
+    isMaqasa ? defaultVatPercentClearingRef.current : defaultVatPercentRef.current
   // حساب الضريبة الافتراضي (تبويب "بيانات اضافية") — من الحسابات الافتراضية بالإعدادات العامة:
   // default_sales_tax_account لأنواع المبيعات (فاتورة/إرسالية مبيعات وبرسم البيع ومرتجعاتها)،
   // default_purchase_tax_account لأنواع المشتريات — يُحدَّد اتجاه هذا السند بمجرد اختيار voucherType
@@ -94,6 +100,10 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
   // (users_currencies_default_account_tbl)؛ خريطة كاملة currency_id -> حساب مُجهَّزة مسبقاً عند فتح
   // الشاشة، تُقرأ عند كل تغيير عملة (handleCurrencyChange أدناه) بدل طلب شبكة جديد في كل مرة.
   const cashAccountsByCurrencyRef = useRef<Map<number, { id: number; code: string; name: string }>>(new Map())
+  // "اعدادات اخرى" (تبويب الحسابات الافتراضية للمستخدم) — إن فُعِّل، يُعامَل ما يكتبه المستخدم في
+  // عمود "السعر" كسعر شامل الضريبة فيُحوَّل فوراً لغير شامل قبل تخزينه في unit_price (انظر
+  // handleCellEditEnded في unified-sales-delivery.tsx).
+  const [priceEntryIncludesTax, setPriceEntryIncludesTax] = useState(false)
 
   const resolveCashAccountForCurrency = (currencyId: number | null) => {
     if (!currencyId) return null
@@ -260,8 +270,10 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
       if (warehouseDefaultsRes?.ok) {
         const data = await warehouseDefaultsRes.json()
         setDefaultItemWarehouseId(data?.default_item_warehouse_id ?? null)
+        setPriceEntryIncludesTax(Boolean(data?.price_entry_includes_tax))
       } else {
         setDefaultItemWarehouseId(null)
+        setPriceEntryIncludesTax(false)
       }
       if (salesmenRes?.ok) {
         const data = await salesmenRes.json()
@@ -274,6 +286,7 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
       if (systemSettingsRes?.ok) {
         const data = await systemSettingsRes.json()
         defaultVatPercentRef.current = Number(data?.tax_rate) || 0
+        defaultVatPercentClearingRef.current = Number(data?.tax_rate_clearing) || 0
 
         // حساب الضريبة الافتراضي بحسب اتجاه هذا النوع من السندات (مبيعات/مشتريات) — انظر شرح
         // defaultTaxAccountRef أعلاه. يحتاج طلباً إضافياً لجلب رقم/اسم الحساب (الإعدادات العامة لا
@@ -742,6 +755,8 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
         defaultItemWarehouseId={defaultItemWarehouseId}
         salesmen={salesmen}
         cities={cities}
+        priceEntryIncludesTax={priceEntryIncludesTax}
+        resolveDefaultVatPercent={resolveDefaultVatPercent}
         isSaving={isSaving || isLoading}
         currentIndex={currentIndex}
         totalRecords={filteredVouchers.length}

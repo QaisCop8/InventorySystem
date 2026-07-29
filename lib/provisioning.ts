@@ -144,6 +144,14 @@ const LOOKUP_TABLES = [
   "cheques_type_tbl",
   "credit_card_main_types_tbl",
   "credit_card_commission_types_tbl",
+  // تسلسل/مراحل سير عمل طلبيات المبيعات (workflow engine عام غير مرتبط بشركة بعينها) — الترتيب
+  // هنا مقصود (مراحل، ثم تسلسلات، ثم خطوات) لأن workflow_sequence_steps يشير لمعرّفات الجدولين
+  // الأولين بنفس القيم المنسوخة حرفياً من القاعدة المرجعية، فيبقى الربط صحيحاً في قاعدة الشركة
+  // الجديدة أيضاً. انظر scripts/29-seed-sales-order-workflow.sql للتسلسل الافتراضي المزروع في
+  // القاعدة المرجعية نفسها.
+  "workflow_stages",
+  "workflow_sequences",
+  "workflow_sequence_steps",
 ]
 
 async function seedLookupTable(referencePool: ReturnType<typeof getPoolForDb>, tenantClient: ReturnType<typeof getPoolForDb>, tableName: string) {

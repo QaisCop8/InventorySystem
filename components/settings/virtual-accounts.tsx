@@ -3,6 +3,8 @@
 import React, { useEffect, useState, useMemo, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Switch } from "@/components/ui/switch"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import Dropdown from "@/components/common/Dropdown"
 import DataGridView from "@/components/common/DataGridView"
@@ -44,6 +46,12 @@ export default function VirtualAccounts() {
   const [warehousesSectionOpen, setWarehousesSectionOpen] = useState(true)
   const [warehouseSearchOpen, setWarehouseSearchOpen] = useState(false)
   const [warehouseSearchField, setWarehouseSearchField] = useState<WarehouseField | null>(null)
+
+  // "اعدادات اخرى" — عند التفعيل يُعامَل السعر المُدخَل يدوياً في عمود "السعر" بسندات المبيعات كسعر
+  // شامل الضريبة، فيُحوَّل فوراً لسعر غير شامل قبل تخزينه (انظر handleCellEditEnded في
+  // unified-sales-delivery.tsx).
+  const [otherSettingsSectionOpen, setOtherSettingsSectionOpen] = useState(true)
+  const [priceEntryIncludesTax, setPriceEntryIncludesTax] = useState(false)
 
   const gridRef = useRef<any>(null)
   const messagesRef = useRef<any>(null)
@@ -100,6 +108,7 @@ export default function VirtualAccounts() {
       const res = await fetch(`/api/settings/user-warehouse-defaults?user_id=${encodeURIComponent(userId)}`)
       if (!res.ok) {
         setWarehouseDefaults(emptyWarehouseDefaults)
+        setPriceEntryIncludesTax(false)
         return
       }
       const data = await res.json()
@@ -111,9 +120,11 @@ export default function VirtualAccounts() {
         raw_materials_warehouse_id: data.raw_materials_warehouse_id ?? null,
         raw_materials_warehouse_name: data.raw_materials_warehouse_name || '',
       })
+      setPriceEntryIncludesTax(Boolean(data.price_entry_includes_tax))
     } catch (err) {
       console.error(err)
       setWarehouseDefaults(emptyWarehouseDefaults)
+      setPriceEntryIncludesTax(false)
     }
   }
 
@@ -135,6 +146,7 @@ export default function VirtualAccounts() {
     if (!selectedUser) {
       setUserCurrencyMappings([])
       setWarehouseDefaults(emptyWarehouseDefaults)
+      setPriceEntryIncludesTax(false)
       return
     }
 
@@ -423,6 +435,7 @@ export default function VirtualAccounts() {
           default_item_warehouse_id: warehouseDefaults.default_item_warehouse_id,
           finished_goods_warehouse_id: warehouseDefaults.finished_goods_warehouse_id,
           raw_materials_warehouse_id: warehouseDefaults.raw_materials_warehouse_id,
+          price_entry_includes_tax: priceEntryIncludesTax,
         }),
       }),
     ])
@@ -549,6 +562,30 @@ export default function VirtualAccounts() {
                 </div>
               </div>
             ))}
+          </CardContent>
+        )}
+      </Card>
+
+      <Card className="w-full mt-4">
+        <button
+          type="button"
+          className="flex w-full items-center justify-between rounded-t-lg bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-200"
+          onClick={() => setOtherSettingsSectionOpen((prev) => !prev)}
+        >
+          {otherSettingsSectionOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          <span>اعدادات اخرى</span>
+        </button>
+        {otherSettingsSectionOpen && (
+          <CardContent className="flex items-center justify-between gap-4 pt-6" dir="rtl">
+            <Label htmlFor="price-entry-includes-tax" className="text-sm font-medium text-slate-700">
+              السعر عند الادخال يشمل الضريبة
+            </Label>
+            <Switch
+              id="price-entry-includes-tax"
+              checked={priceEntryIncludesTax}
+              onCheckedChange={setPriceEntryIncludesTax}
+              disabled={!selectedUser}
+            />
           </CardContent>
         )}
       </Card>

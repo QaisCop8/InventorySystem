@@ -32,7 +32,7 @@ const COLUMNS = [
     { id: "store", label: "المستودع" },
     { id: "batch", label: "الرقم التشغيلي" },
     { id: "price", label: "السعر" },
-    { id: "price_excl_tax", label: "السعر غ.ش" },
+    { id: "price_excl_tax", label: "السعر شامل" },
     { id: "unit", label: "الوحدة" },
     { id: "bonus", label: "البونص" },
     { id: "discount", label: "الخصم" },
@@ -63,7 +63,7 @@ const getColumnsForType = (voucherType: string, target: "screen" | "print" = "sc
     const isSalesVoucher = SALES_VOUCHER_TYPE_IDS.includes(voucherType);
     const base = isSalesVoucher
         ? COLUMNS.filter((col) => col.id !== "tax")
-        : // السعر غ.ش خاص بسندات المبيعات/المشتريات الثمانية فقط (فرع isSalesVoucher أعلاه) — لا معنى
+        : // السعر شامل (الضريبة) خاص بسندات المبيعات/المشتريات الثمانية فقط (فرع isSalesVoucher أعلاه) — لا معنى
           // له في سندات الحركة (لا ضريبة على مستواها) ولا شاشات الطلبيات (لم تُضَف إليها بعد).
           COLUMNS.filter((col) =>
             isStockVoucher

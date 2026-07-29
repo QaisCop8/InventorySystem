@@ -138,6 +138,23 @@ export function OrderTrackingDashboard() {
     }
   }
 
+  // تحديث أولوية الطلبية
+  const updatePriority = async (orderId: number, orderType: string, priority: string) => {
+    try {
+      const response = await fetch(`/api/workflow/orders/${orderId}/priority`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderType, priority_level: priority }),
+      })
+
+      if (response.ok) {
+        await fetchOrders()
+      }
+    } catch (error) {
+      console.error("Error updating priority:", error)
+    }
+  }
+
   // رفض الطلبية
   const rejectOrder = async (orderId: number, orderType: string, reason: string) => {
     try {
@@ -488,9 +505,20 @@ export function OrderTrackingDashboard() {
                       <div>
                         <div className="flex items-center gap-2">
                           <p className="font-medium">{order.order_number}</p>
-                          <Badge variant="outline" className={getPriorityColor(order.priority_level)}>
-                            {order.priority_level}
-                          </Badge>
+                          <Select
+                            value={order.priority_level}
+                            onValueChange={(value) => updatePriority(order.order_id, order.order_type, value)}
+                          >
+                            <SelectTrigger className={cn("h-6 w-24 px-2 text-xs", getPriorityColor(order.priority_level))}>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="urgent">عاجلة</SelectItem>
+                              <SelectItem value="high">عالية</SelectItem>
+                              <SelectItem value="normal">عادية</SelectItem>
+                              <SelectItem value="low">منخفضة</SelectItem>
+                            </SelectContent>
+                          </Select>
                         </div>
                         <p className="text-sm text-muted-foreground">{order.partner_name}</p>
                       </div>

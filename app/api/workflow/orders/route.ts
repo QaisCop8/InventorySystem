@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
       FROM order_workflow_status ows
       JOIN workflow_stages ws ON ows.current_stage_id = ws.id
       JOIN workflow_sequences wseq ON ows.sequence_id = wseq.id
-      LEFT JOIN sales_orders so ON ows.order_type = 'sales' AND ows.order_id = so.id
+      LEFT JOIN orders so ON ows.order_type = 'sales' AND ows.order_id = so.id
       LEFT JOIN purchase_orders po ON ows.order_type = 'purchase' AND ows.order_id = po.id
       ${whereClause}
       ORDER BY 
@@ -84,7 +84,7 @@ export async function GET(request: NextRequest) {
       SELECT COUNT(*) as total
       FROM order_workflow_status ows
       JOIN workflow_stages ws ON ows.current_stage_id = ws.id
-      LEFT JOIN sales_orders so ON ows.order_type = 'sales' AND ows.order_id = so.id
+      LEFT JOIN orders so ON ows.order_type = 'sales' AND ows.order_id = so.id
       LEFT JOIN purchase_orders po ON ows.order_type = 'purchase' AND ows.order_id = po.id
       ${whereClause}
     `

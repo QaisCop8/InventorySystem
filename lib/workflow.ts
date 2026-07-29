@@ -254,7 +254,7 @@ export async function advanceOrderToNextStage(
       SELECT stage_name FROM workflow_stages WHERE id = ${status.current_stage_id}
     `
 
-    const orderTable = orderType === "sales" ? "sales_orders" : "purchase_orders"
+    const orderTable = orderType === "sales" ? "orders" : "purchase_orders"
     const orderDetails = await sql`
       SELECT order_number, total_amount FROM ${sql(orderTable)} WHERE id = ${orderId}
     `
@@ -478,7 +478,7 @@ export async function getOrdersByStage(stageId: number, department?: string) {
           END as order_date
         FROM order_workflow_status ows
         JOIN workflow_stages ws ON ows.current_stage_id = ws.id
-        LEFT JOIN sales_orders so ON ows.order_type = 'sales' AND ows.order_id = so.id
+        LEFT JOIN orders so ON ows.order_type = 'sales' AND ows.order_id = so.id
         LEFT JOIN purchase_orders po ON ows.order_type = 'purchase' AND ows.order_id = po.id
         WHERE ows.current_stage_id = ${stageId}
         AND ows.assigned_to_department = ${department}
@@ -506,7 +506,7 @@ export async function getOrdersByStage(stageId: number, department?: string) {
           END as order_date
         FROM order_workflow_status ows
         JOIN workflow_stages ws ON ows.current_stage_id = ws.id
-        LEFT JOIN sales_orders so ON ows.order_type = 'sales' AND ows.order_id = so.id
+        LEFT JOIN orders so ON ows.order_type = 'sales' AND ows.order_id = so.id
         LEFT JOIN purchase_orders po ON ows.order_type = 'purchase' AND ows.order_id = po.id
         WHERE ows.current_stage_id = ${stageId}
         ORDER BY ows.stage_start_time ASC

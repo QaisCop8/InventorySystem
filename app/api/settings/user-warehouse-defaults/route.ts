@@ -8,6 +8,11 @@ async function ensureColumns() {
   await sql`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS default_item_warehouse_id INTEGER`
   await sql`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS finished_goods_warehouse_id INTEGER`
   await sql`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS raw_materials_warehouse_id INTEGER`
+  // "اعدادات اخرى" (تبويب الحسابات الافتراضية للمستخدم) — عند التفعيل يُعامَل السعر المُدخَل يدوياً
+  // في عمود "السعر" بسندات المبيعات كسعر شامل الضريبة، فيُحوَّل فوراً لسعر غير شامل (السعر ÷
+  // (1+نسبة الضريبة/100)) قبل تخزينه في unit_price — انظر handleCellEditEnded في
+  // components/sales/unified-sales-delivery.tsx.
+  await sql`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS price_entry_includes_tax BOOLEAN DEFAULT false`
 }
 
 export async function GET(request: NextRequest) {
@@ -26,7 +31,8 @@ export async function GET(request: NextRequest) {
         us.finished_goods_warehouse_id,
         w2.warehouse_name AS finished_goods_warehouse_name,
         us.raw_materials_warehouse_id,
-        w3.warehouse_name AS raw_materials_warehouse_name
+        w3.warehouse_name AS raw_materials_warehouse_name,
+        us.price_entry_includes_tax
       FROM user_settings us
       LEFT JOIN warehouses w1 ON w1.id = us.default_item_warehouse_id
       LEFT JOIN warehouses w2 ON w2.id = us.finished_goods_warehouse_id
@@ -59,6 +65,7 @@ export async function PUT(request: NextRequest) {
         default_item_warehouse_id = ${data.default_item_warehouse_id ?? null},
         finished_goods_warehouse_id = ${data.finished_goods_warehouse_id ?? null},
         raw_materials_warehouse_id = ${data.raw_materials_warehouse_id ?? null},
+        price_entry_includes_tax = ${Boolean(data.price_entry_includes_tax)},
         updated_at = CURRENT_TIMESTAMP
       WHERE user_id = ${data.user_id}
       RETURNING id

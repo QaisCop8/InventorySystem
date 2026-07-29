@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getSalesOrders, getPurchaseOrders, createOrder, createPurchaseOrder } from "@/lib/orders"
+import { createOrderWorkflowStatus } from "@/lib/workflow"
 
 export async function GET(request: NextRequest) {
   try {
@@ -40,7 +41,19 @@ export async function POST(request: NextRequest) {
     if (!items || items.length === 0)
       return NextResponse.json({ error: "عناصر الطلبية مطلوبة" }, { status: 400 });
 
+    const isNewOrder = !orderData.id || orderData.id <= 0;
+
     const order = await createOrder(orderData, items);
+
+    if (isNewOrder) {
+      try {
+        await createOrderWorkflowStatus(order.id, "sales", order.order_number);
+      } catch (workflowError) {
+        console.error("Error creating order workflow status:", workflowError);
+        // لا يُفشِل إنشاء الطلبية نفسها إن تعذّر إنشاء سجل سير العمل (كأن تسلسل sales_order
+        // الافتراضي غير مُهيَّأ بعد على هذه القاعدة).
+      }
+    }
 
     return NextResponse.json(order, { status: 201 });
   } catch (error: any) {

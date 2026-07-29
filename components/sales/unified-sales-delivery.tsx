@@ -127,9 +127,10 @@ export interface SalesVoucherItemRow {
   account_code?: string
   account_name?: string
   account_cost_centers?: JournalCostCenterSelection[]
-  // السعر غ.ش (غير شامل الضريبة) — للعرض فقط، يُحتسَب من unit_price ونسبة ضريبة السند كاملاً
-  // (form.vat_percent) عند كل مزامنة لـitemsCollectionView، وليس حقلاً محفوظاً بذاته.
-  unit_price_excl_tax?: number
+  // السعر شامل (الضريبة) — للعرض فقط، يُحتسَب من unit_price (المُخزَّن دوماً غير شامل الضريبة)
+  // ونسبة ضريبة السند كاملاً (form.vat_percent) عند كل مزامنة لـitemsCollectionView، وليس حقلاً
+  // محفوظاً بذاته.
+  unit_price_incl_tax?: number
 }
 
 export interface SalesDeliveryRecord {
@@ -217,6 +218,14 @@ interface UnifiedSalesDeliveryProps {
   defaultItemWarehouseId?: number | null
   salesmen?: LookupOption[]
   cities?: LookupOption[]
+  // "اعدادات اخرى" (تبويب الحسابات الافتراضية للمستخدم) — إن فُعِّل، يُعامَل ما يكتبه المستخدم في
+  // عمود "السعر" كسعر شامل الضريبة فيُحوَّل فوراً لغير شامل قبل تخزينه في unit_price (انظر
+  // handleCellEditEnded أدناه).
+  priceEntryIncludesTax?: boolean
+  // نسبة الضريبة الافتراضية من الإعدادات العامة (نسبة الضريبة / نسبة الضريبة-مقاصة) — تُقرَأ فقط
+  // عند تأكيد المستخدم إعادة نسبة الضريبة الافتراضية بعد الرجوع لتصنيف "ضريبية" من معفاه/صفرية
+  // (انظر handleVatClassificationChange أدناه)؛ isMaqasa يحدّد أيهما (18 مثلاً بدل 16 إن مقاصة).
+  resolveDefaultVatPercent?: (isMaqasa: boolean) => number
   isSaving?: boolean
   currentIndex?: number
   totalRecords?: number
@@ -341,6 +350,8 @@ export default function UnifiedSalesDelivery({
   defaultItemWarehouseId = null,
   salesmen = [],
   cities = [],
+  priceEntryIncludesTax = false,
+  resolveDefaultVatPercent,
   isSaving = false,
   currentIndex = 0,
   totalRecords = 0,
@@ -372,6 +383,9 @@ export default function UnifiedSalesDelivery({
   const vchCodeInputRef = useRef<HTMLInputElement | null>(null)
   const [activeTab, setActiveTab] = useState("items")
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  // تأكيد إعادة نسبة الضريبة الافتراضية عند الرجوع لتصنيف "ضريبية" من معفاه/صفرية — انظر
+  // handleVatClassificationChange أدناه.
+  const [showVatRestoreConfirm, setShowVatRestoreConfirm] = useState(false)
   const [productSearchOpen, setProductSearchOpen] = useState(false)
   const [warehouseSearchOpen, setWarehouseSearchOpen] = useState(false)
   const [warehouseSearchRow, setWarehouseSearchRow] = useState<number | null>(null)
@@ -591,13 +605,14 @@ export default function UnifiedSalesDelivery({
       ? { row: gridBeforeSync.selection.row, col: gridBeforeSync.selection.col }
       : null
 
-    // السعر غ.ش (غير شامل الضريبة) — حقل عرض فقط يُحتسَب هنا من unit_price ونسبة ضريبة السند كاملاً
-    // (form.vat_percent، ضريبة على مستوى السند وليس السطر)، وليس حقلاً محفوظاً بذاته.
+    // السعر شامل (الضريبة) — حقل عرض فقط يُحتسَب هنا من unit_price (المُخزَّن دوماً غير شامل
+    // الضريبة) ونسبة ضريبة السند كاملاً (form.vat_percent، ضريبة على مستوى السند وليس السطر)،
+    // وليس حقلاً محفوظاً بذاته.
     const vatPercent = Number(form.vat_percent || 0)
     itemsCollectionView.sourceCollection = items.map((row, i) => ({
       ...row,
       ser: i + 1,
-      unit_price_excl_tax: vatPercent > 0 ? Math.round((Number(row.unit_price || 0) / (1 + vatPercent / 100)) * 100) / 100 : Number(row.unit_price || 0),
+      unit_price_incl_tax: vatPercent > 0 ? Math.round(Number(row.unit_price || 0) * (1 + vatPercent / 100) * 100) / 100 : Number(row.unit_price || 0),
     }))
     itemsCollectionView.refresh()
 
@@ -734,6 +749,26 @@ export default function UnifiedSalesDelivery({
     const total = subtotal - discount + tax
     return { subtotal, discount, tax, total }
   }, [items, form.discount_type, form.discount_value, form.vat_percent])
+
+  // مسودة نص حقل "الصافي للدفع" أثناء الكتابة فيه فقط (خلاف ذلك null فتُعرَض totals.total مباشرة) —
+  // إبقاء الحقل غير مربوط بـtotals.total مباشرة أثناء الكتابة يمنع "قفز" المؤشّر/القيمة المعروضة مع
+  // كل حرف بسبب إعادة الحساب الفورية؛ يُطبَّق الخصم الجديد فقط عند مغادرة الحقل (onBlur).
+  const [netPayableDraft, setNetPayableDraft] = useState<string | null>(null)
+
+  // يُعيد احتساب "قيمة الخصم" من الصافي للدفع الذي كتبه المستخدم مباشرة (نسبة الضريبة تبقى كما هي)
+  // — قد تصبح قيمة الخصم سالبة إن رفع المستخدم الصافي فوق المجموع الحالي (كتقريب فاتورة 10.89 الى
+  // 11 مثلاً)، وهذا مقصود ومسموح به هنا (انظر تخفيف حد قيمة الخصم الأدنى أدناه).
+  const applyDesiredNetPayable = (desiredTotal: number) => {
+    const taxPercent = Number(form.vat_percent || 0)
+    const netBeforeTax = taxPercent > 0 ? desiredTotal / (1 + taxPercent / 100) : desiredTotal
+    const requiredDiscount = totals.subtotal - netBeforeTax
+    if (form.discount_type === "amount") {
+      onFormChange("discount_value", Math.round(Math.min(requiredDiscount, totals.subtotal) * 100) / 100)
+    } else {
+      const percent = totals.subtotal > 0 ? (requiredDiscount / totals.subtotal) * 100 : 0
+      onFormChange("discount_value", Math.round(Math.min(percent, 100) * 100) / 100)
+    }
+  }
 
   const normalizeUnits = (rawUnits: any[] | undefined): NonNullable<SalesVoucherItemRow["units"]> =>
     (rawUnits || []).map((u) => ({
@@ -1073,7 +1108,15 @@ export default function UnifiedSalesDelivery({
       const bonusQuantity = value === "" || value === null ? null : Number(value)
       patchItemRow(row, { bonus_quantity: bonusQuantity })
     } else if (colName === "unit_price") {
-      const unitPrice = value === "" || value === null ? null : Number(value)
+      const rawUnitPrice = value === "" || value === null ? null : Number(value)
+      // "السعر عند الادخال يشمل الضريبة" (إعدادات المستخدم): ما كتبه المستخدم هنا يُعامَل كسعر شامل
+      // الضريبة، فيُحوَّل فوراً لغير شامل (السعر ÷ (1+نسبة الضريبة/100)) قبل تخزينه في unit_price —
+      // unit_price يبقى دوماً غير شامل الضريبة داخلياً (نفس أساس عمود "السعر شامل" أعلاه).
+      const vatPercent = Number(form.vat_percent || 0)
+      const unitPrice =
+        rawUnitPrice !== null && priceEntryIncludesTax && vatPercent > 0
+          ? Math.round((rawUnitPrice / (1 + vatPercent / 100)) * 100) / 100
+          : rawUnitPrice
       const currentRow = itemsRef.current[row]
       const patched = { ...currentRow, unit_price: unitPrice }
       patchItemRow(row, { unit_price: unitPrice, ...recalcLineAmounts(patched) })
@@ -1294,7 +1337,7 @@ export default function UnifiedSalesDelivery({
           visible: Util.getVoucherSettingScreenData(voucherType, "code"),
           visibleInColumnChooser: true,
         },
-        { header: "اسم الصنف", name: "product_name", width: "*", minWidth: 160, isReadOnly: true },
+        { header: "اسم الصنف", name: "product_name", width: "*", minWidth: 160, isReadOnly: false },
         {
           header: "المستودع",
           name: "warehouse_name",
@@ -1351,13 +1394,13 @@ export default function UnifiedSalesDelivery({
         {
           header: "الخصم %",
           name: "discount_percent",
-          width: 80,
+          width: 90,
           dataType: "Number",
           visible: Util.getVoucherSettingScreenData(voucherType, "discount"),
         },
         {
-          header: "السعر غ.ش",
-          name: "unit_price_excl_tax",
+          header: "السعر شامل",
+          name: "unit_price_incl_tax",
           width: 90,
           dataType: "Number",
           isReadOnly: true,
@@ -1779,7 +1822,20 @@ export default function UnifiedSalesDelivery({
                     panelClassName="invoice-currency-dropdown-panel"
                     appendTo="self"
                     panelStyle={{ zIndex: 10000 }}
-                    onChange={(e: any) => onFormChange("vat_classification_id", Number(e.value) || 1)}
+                    onChange={(e: any) => {
+                      const nextValue = Number(e.value) || 1
+                      const previousValue = form.vat_classification_id || 1
+                      onFormChange("vat_classification_id", nextValue)
+                      if (nextValue === 2 || nextValue === 3) {
+                        // معفاه/صفرية: لا نسبة ضريبة أصلاً — تُصفَّر تلقائياً (الحقل يُعطَّل، انظر
+                        // Input نسبة الضريبة أدناه).
+                        onFormChange("vat_percent", 0)
+                      } else if (nextValue === 1 && (previousValue === 2 || previousValue === 3)) {
+                        // عودة فعلية من معفاه/صفرية الى ضريبية — يُسأل المستخدم قبل إعادة النسبة
+                        // الافتراضية بدل فرضها مباشرة (قد يكون له نسبة أخرى مقصودة).
+                        setShowVatRestoreConfirm(true)
+                      }
+                    }}
                   />
                 </div>
                 <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
@@ -1854,6 +1910,7 @@ export default function UnifiedSalesDelivery({
                     isReport={false}
                     isReadOnly={isLocked}
                     showContextMenu={false}
+                    copyItemStoreDown={true}
                     cellEditEnded={(s: any, e: any) => handleCellEditEnded(s, e)}
                     beginningEdit={(s: any, e: any) => handleBeginningEdit(s, e)}
                     onKeyDown={(s: any, e: any) => handleKeyDown(s, e)}
@@ -1876,6 +1933,7 @@ export default function UnifiedSalesDelivery({
                       isReport={false}
                       isReadOnly={isLocked}
                       showContextMenu={false}
+                      copyItemStoreDown={true}
                       dontConvertToCards={true}
                     />
                   </div>
@@ -2037,9 +2095,12 @@ export default function UnifiedSalesDelivery({
                         type="number"
                         step="0.01"
                         value={form.discount_value || 0}
+                        onFocus={(e) => e.target.select()}
                         onChange={(e) => {
                           let value = Number.parseFloat(e.target.value) || 0
-                          value = form.discount_type === "amount" ? Math.min(Math.max(value, 0), totals.subtotal) : Math.min(Math.max(value, 0), 100)
+                          // يُسمَح بقيمة سالبة (كتقريب فاتورة كـ10.89 الى 11 يتطلّب "خصماً سالباً") —
+                          // الحد الأعلى وحده يبقى مضبوطاً (100% أو المجموع الفرعي بحسب نوع الخصم).
+                          value = form.discount_type === "amount" ? Math.min(value, totals.subtotal) : Math.min(value, 100)
                           onFormChange("discount_value", value)
                         }}
                         className="text-right"
@@ -2053,8 +2114,34 @@ export default function UnifiedSalesDelivery({
                       type="number"
                       step="0.01"
                       value={form.vat_percent || 0}
+                      // معفاه/صفرية: لا نسبة ضريبة أصلاً — تُصفَّر وتُعطَّل الكتابة المباشرة (انظر
+                      // فرع vat_classification_id في PrimeDropdown أعلاه لسبب التصفير التلقائي).
+                      disabled={isLocked || form.vat_classification_id === 2 || form.vat_classification_id === 3}
+                      onFocus={(e) => e.target.select()}
                       onChange={(e) => onFormChange("vat_percent", Number.parseFloat(e.target.value) || 0)}
                       className="text-right"
+                      dir="rtl"
+                    />
+                  </div>
+                  <div className="grid gap-1.5">
+                    <Label>الصافي للدفع</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={netPayableDraft ?? totals.total.toFixed(2)}
+                      onFocus={(e) => {
+                        setNetPayableDraft(totals.total.toFixed(2))
+                        e.target.select()
+                      }}
+                      onChange={(e) => setNetPayableDraft(e.target.value)}
+                      onBlur={() => {
+                        if (netPayableDraft !== null) {
+                          const desired = Number.parseFloat(netPayableDraft)
+                          if (!Number.isNaN(desired)) applyDesiredNetPayable(desired)
+                        }
+                        setNetPayableDraft(null)
+                      }}
+                      className="text-right font-bold"
                       dir="rtl"
                     />
                   </div>
@@ -2251,6 +2338,16 @@ export default function UnifiedSalesDelivery({
             onDelete?.()
           }}
           onCancel={() => setShowDeleteConfirm(false)}
+        />
+
+        <ConfirmDialogYesNo
+          visible={showVatRestoreConfirm}
+          message="هل تريد اعادة نسبة الضريبة الى الافتراضية؟"
+          onConfirm={() => {
+            setShowVatRestoreConfirm(false)
+            onFormChange("vat_percent", resolveDefaultVatPercent?.(!!form.is_maqasa) ?? 0)
+          }}
+          onCancel={() => setShowVatRestoreConfirm(false)}
         />
 
         <ConfirmDialogYesNo
