@@ -333,7 +333,7 @@ export default function AutoCompleteAccount({
 
   return (
     <div className={className} dir="rtl">
-      <Label className="mb-2 block text-sm font-medium">{label}</Label>
+      {label && <Label className="mb-2 block text-sm font-medium">{label}</Label>}
       <div className="flex items-center gap-2">
         <Input
           ref={inputRef}

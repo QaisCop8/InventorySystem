@@ -980,6 +980,7 @@ export function SystemSettings() {
                   <div key={field.key} className="space-y-2">
                     <Label className="text-right block">{field.label}</Label>
                     <AutoCompleteAccount
+                      label=""
                       value={settings[field.key as DefaultAccountFieldKey]}
                       valueMode="id"
                       onValueChange={(value) =>
@@ -1023,6 +1024,7 @@ export function SystemSettings() {
                   <div key={field.key} className="space-y-2">
                     <Label className="text-right block">{field.label}</Label>
                     <AutoCompleteAccount
+                      label=""
                       value={settings[field.key as ProductAccountFieldKey]}
                       valueMode="id"
                       onValueChange={(value) =>

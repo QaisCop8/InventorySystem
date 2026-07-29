@@ -57,6 +57,29 @@ export const SALES_VOUCHER_TYPE_LABELS: Record<SalesVoucherSubType, { title: str
   23: { title: "مرتجع مشتريات", listTitle: "مرتجعات المشتريات" },
 }
 
+// خيارات تبويب "الضريبة" — نفس تسميات/قيم taxClassificationOptions وinvoiceTypeOptions
+// وoffsetCodeOptions في components/orders/unified-sale-invoices.tsx حرفياً.
+export const TAX_CLASSIFICATION_OPTIONS = [
+  { label: "ضريبية", value: 1 },
+  { label: "معفاه", value: 2 },
+  { label: "صفرية", value: 3 },
+]
+export const INVOICE_TYPE_OPTIONS = [
+  { label: "للتجارة", value: 1 },
+  { label: "خدمات", value: 2 },
+  { label: "أصول", value: 3 },
+]
+export const MAQASA_CODE_OPTIONS = [
+  { label: "تجارية", value: 1 },
+  { label: "أصول", value: 2 },
+  { label: "خدمات", value: 3 },
+]
+
+// حساب الضريبة الافتراضي حسب اتجاه السند: مبيعات (فاتورة/إرسالية/مرتجع مبيعات وبرسم البيع) أم
+// مشتريات (فاتورة/إرسالية/مرتجع مشتريات) — يقرر أي حقل إعدادات عامة (sales/purchase tax account)
+// يُستخدَم كافتراضي لحقل "حساب الضريبة" بتبويب "بيانات اضافية".
+export const SALES_DIRECTION_VCH_TYPES: readonly SalesVoucherSubType[] = [16, 17, 18, 19, 20]
+
 export interface SalesVoucherItemRow {
   product_id: number | null
   product_code: string
@@ -68,6 +91,7 @@ export interface SalesVoucherItemRow {
   quantity: number | null
   bonus_quantity: number | null
   unit_price: number | null
+  discount_percent: number | null
   total_price: number | null
   batch_number: string
   expiry_date: string
@@ -133,6 +157,29 @@ export interface SalesDeliveryRecord {
   note: string
   status: number
   is_printed: number
+  // تبويب "الضريبة" — تصنيف ضريبي (1=ضريبية، 2=معفاة، 3=صفرية)، نوع الفاتورة (1=للتجارة، 2=خدمات،
+  // 3=أصول)، هل السعر بالطباعة يشمل الضريبة، مقاصة (تحوّل بضاعة بين طرفين تُحصَّل ضريبتها لاحقاً)
+  // وكودها (1=تجارية، 2=أصول، 3=خدمات) — كلها أعمدة محجوزة أصلاً على voucher_header_tbl
+  // (vat_classification_id/invoice_type/vat_included/is_maqasa/maqasa_type، انظر receipts/_lib.ts).
+  vat_classification_id: number | null
+  invoice_type: number | null
+  vat_included: boolean
+  is_maqasa: boolean
+  maqasa_type: number | null
+  // تبويب "بيانات اضافية" — حساب الصندوق (من إعدادات المستخدم بحسب العملة) وحساب الضريبة (من
+  // الحسابات الافتراضية بالإعدادات العامة)، للعرض فقط code/name (تُجلَب عبر JOIN من الخادم).
+  cash_account_id: number | null
+  cash_account_code?: string
+  cash_account_name?: string
+  tax_account_id: number | null
+  tax_account_code?: string
+  tax_account_name?: string
+  phone: string
+  due_date: string
+  is_exported_sales: boolean
+  // المنطقة — بجانب المندوب أسفل حقل العميل مباشرة، مصدرها المدن المُعرَّفة بالتعريفات
+  // (cities/voucher_header_tbl.location_id، أقرب عمود محجوز مطابق لمعنى "منطقة").
+  city_id: number | null
   items: SalesVoucherItemRow[]
 }
 
@@ -157,6 +204,10 @@ interface UnifiedSalesDeliveryProps {
   form: SalesDeliveryRecord
   onFormChange: <K extends keyof SalesDeliveryRecord>(field: K, value: SalesDeliveryRecord[K]) => void
   onBookChange?: (bookId: number | null) => void
+  // يُستدعى عند كل تغيير للعملة (بما فيها تعيينها الأولي بسند جديد) — يُحدِّث حساب الصندوق الافتراضي
+  // (تبويب "بيانات اضافية") وفق إعدادات المستخدم لتلك العملة. انظر handleCurrencyChange في
+  // sales-delivery.tsx.
+  onCurrencyChange?: (currencyId: number | null) => void
   onItemsChange: (items: SalesVoucherItemRow[]) => void
   voucherBooks?: LookupOption[]
   currencyOptions?: CurrencyOption[]
@@ -164,6 +215,7 @@ interface UnifiedSalesDeliveryProps {
   warehouses?: WarehouseOption[]
   defaultItemWarehouseId?: number | null
   salesmen?: LookupOption[]
+  cities?: LookupOption[]
   isSaving?: boolean
   currentIndex?: number
   totalRecords?: number
@@ -233,6 +285,7 @@ const fieldOrder = [
   "quantity",
   "bonus_quantity",
   "unit_price",
+  "discount_percent",
   "note",
 ]
 
@@ -285,6 +338,7 @@ const emptyItemRow: SalesVoucherItemRow = {
   quantity: null,
   bonus_quantity: null,
   unit_price: null,
+  discount_percent: null,
   total_price: null,
   batch_number: "",
   expiry_date: "",
@@ -316,7 +370,8 @@ const ITEM_ACCOUNT_CONFIG: Partial<Record<SalesVoucherSubType, { productField: s
 const recalcLineAmounts = (row: SalesVoucherItemRow): Pick<SalesVoucherItemRow, "total_price"> => {
   const quantity = Number(row.quantity || 0)
   const price = Number(row.unit_price || 0)
-  return { total_price: Math.round(quantity * price * 100) / 100 }
+  const discountPercent = Number(row.discount_percent || 0)
+  return { total_price: Math.round(quantity * price * (1 - discountPercent / 100) * 100) / 100 }
 }
 
 export default function UnifiedSalesDelivery({
@@ -326,6 +381,7 @@ export default function UnifiedSalesDelivery({
   form,
   onFormChange,
   onBookChange,
+  onCurrencyChange,
   onItemsChange,
   voucherBooks = [],
   currencyOptions = [],
@@ -333,6 +389,7 @@ export default function UnifiedSalesDelivery({
   warehouses = [],
   defaultItemWarehouseId = null,
   salesmen = [],
+  cities = [],
   isSaving = false,
   currentIndex = 0,
   totalRecords = 0,
@@ -751,7 +808,12 @@ export default function UnifiedSalesDelivery({
   // نفس معادلة totals في unified-sales-order.tsx بالضبط (بلا تكلفة شحن/رسوم أخرى): المجموع الفرعي من
   // الأصناف، ثم خصم بمستوى السند كاملاً (نسبة أو مبلغ ثابت)، ثم ضريبة على الصافي بعد الخصم.
   const totals = useMemo(() => {
-    const subtotal = items.reduce((sum, row) => sum + Number(row.quantity || 0) * Number(row.unit_price || 0), 0)
+    // الخصم بمستوى السطر (عمود "الخصم %") يُطبَّق أولاً قبل خصم/ضريبة السند كاملاً — نفس معادلة
+    // computeTotalAmount في app/api/sales-vouchers/route.ts بالضبط.
+    const subtotal = items.reduce((sum, row) => {
+      const lineDiscountPercent = Number(row.discount_percent || 0)
+      return sum + Number(row.quantity || 0) * Number(row.unit_price || 0) * (1 - lineDiscountPercent / 100)
+    }, 0)
     const discountValue = Number(form.discount_value || 0)
     const discount = form.discount_type === "amount" ? discountValue : (subtotal * discountValue) / 100
     const taxPercent = Number(form.vat_percent || 0)
@@ -920,6 +982,10 @@ export default function UnifiedSalesDelivery({
     waitForGridReady(
       () => accountsGridRef.current,
       (grid) => {
+        // قد يكون التبويب تبدَّل بعيداً عن "الحسابات" (فيُفكَّك عنصر Wijmo، وتُصفَّر hostElement)
+        // أثناء محاولات الاستطلاع المتكررة لـwaitForGridReady (حتى 20 محاولة كل 50ms) قبل أن
+        // يستدعي onReady فعلياً — فحص دفاعي يمنع محاولة إرفاق المستمع بعنصر لم يعد موجوداً.
+        if (!grid?.hostElement) return
         const menuHost = document.createElement("div")
         menuHost.dir = "rtl"
         const menu = new Menu(menuHost, {
@@ -1111,6 +1177,16 @@ export default function UnifiedSalesDelivery({
       const currentRow = itemsRef.current[row]
       const patched = { ...currentRow, unit_price: unitPrice }
       patchItemRow(row, { unit_price: unitPrice, ...recalcLineAmounts(patched) })
+    } else if (colName === "discount_percent") {
+      const rawDiscount = value === "" || value === null ? null : Number(value)
+      // يجب ألا تتجاوز نسبة الخصم 100% — أي قيمة أكبر تعني مبلغاً سالباً بالسطر، وهو خطأ إدخال دوماً.
+      const discountPercent = rawDiscount === null ? null : Math.min(Math.max(rawDiscount, 0), 100)
+      if (rawDiscount !== null && rawDiscount > 100) {
+        messagesRef.current?.show?.([{ severity: "error", summary: "", detail: "نسبة الخصم يجب ألا تتجاوز 100%", life: 3000 }])
+      }
+      const currentRow = itemsRef.current[row]
+      const patched = { ...currentRow, discount_percent: discountPercent }
+      patchItemRow(row, { discount_percent: discountPercent, ...recalcLineAmounts(patched) })
     } else if (colName === "note") {
       patchItemRow(row, { note: String(value ?? "") })
     }
@@ -1373,6 +1449,13 @@ export default function UnifiedSalesDelivery({
         { header: "البونص", name: "bonus_quantity", width: 80, dataType: "Number", visible: Util.getVoucherSettingScreenData(voucherType, "bonus") },
         { header: "السعر", name: "unit_price", width: 90, dataType: "Number", visible: Util.getVoucherSettingScreenData(voucherType, "price") },
         {
+          header: "الخصم %",
+          name: "discount_percent",
+          width: 80,
+          dataType: "Number",
+          visible: Util.getVoucherSettingScreenData(voucherType, "discount"),
+        },
+        {
           header: "السعر غ.ش",
           name: "unit_price_excl_tax",
           width: 90,
@@ -1521,7 +1604,7 @@ export default function UnifiedSalesDelivery({
   return (
     <Dialog open={dialogOpen} onOpenChange={(open) => (open ? onOpenChange(true) : guardedAction(() => onOpenChange(false)))}>
       <DialogContent
-        className="sales-delivery-form flex h-[96vh] w-[97vw] max-w-[1500px] max-h-[96vh] flex-col overflow-hidden p-0"
+        className="sales-delivery-form flex h-[96vh] w-[97vw] max-w-[1800px] max-h-[96vh] flex-col overflow-hidden p-0"
         dir="rtl"
         onPointerDownOutside={(event) => event.preventDefault()}
         onInteractOutside={(event) => event.preventDefault()}
@@ -1576,7 +1659,7 @@ export default function UnifiedSalesDelivery({
             </DialogTitle>
           </DialogHeader>
 
-          <div className="mb-3 rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-teal-50 shadow-md">
+          <div className="sticky top-0 z-40 mb-3 rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-teal-50 shadow-md">
             <div className="flex flex-wrap items-center justify-between gap-4 p-4">
               <div className="flex items-center gap-2">
                 <TrendingUp className="h-5 w-5 text-emerald-700" />
@@ -1610,7 +1693,7 @@ export default function UnifiedSalesDelivery({
               تفاصيل السند
             </div>
             <div className="grid gap-3">
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-5 gap-3">
                 <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
                   <Label>دفتر السندات *</Label>
                   <PrimeDropdown
@@ -1623,7 +1706,7 @@ export default function UnifiedSalesDelivery({
                     disabled={isLocked}
                     className="invoice-currency-dropdown w-full"
                     panelClassName="invoice-currency-dropdown-panel"
-                    appendTo={document.body}
+                    appendTo="self"
                     panelStyle={{ zIndex: 10000 }}
                     onChange={(e: any) => (onBookChange ? onBookChange(e.value ?? null) : onFormChange("vch_book_id", e.value ?? null))}
                   />
@@ -1649,8 +1732,6 @@ export default function UnifiedSalesDelivery({
                     onChange={(value) => onFormChange("vch_date", value)}
                   />
                 </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
                 <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
                   <Label>العملة *</Label>
                   <PrimeDropdown
@@ -1668,6 +1749,7 @@ export default function UnifiedSalesDelivery({
                     onChange={async (e: any) => {
                       const newCurrencyId = e.value ?? null
                       onFormChange("currency_id", newCurrencyId)
+                      onCurrencyChange?.(newCurrencyId)
                       if (!newCurrencyId || newCurrencyId === baseCurrencyId) {
                         onFormChange("rate", 1)
                         return
@@ -1698,19 +1780,68 @@ export default function UnifiedSalesDelivery({
                 </div>
               </div>
 
-              <div className="grid gap-3">
-                <AutoCompleteAccount
-                  label="العميل *"
-                  value={form.account_id != null ? String(form.account_id) : ""}
-                  valueMode="id"
-                  onValueChange={() => {}}
-                  onAccountSelect={(account) => {
-                    onFormChange("account_id", account?.id ?? null)
-                    onFormChange("customer_name", account?.name ?? "")
-                  }}
-                  searchAllowedTypeValues={[2, 3, 5]}
-                  disabled={isLocked}
-                />
+              <div className="grid grid-cols-3 gap-3">
+                <div className="col-span-1">
+                  <AutoCompleteAccount
+                    label="العميل *"
+                    value={form.account_id != null ? String(form.account_id) : ""}
+                    valueMode="id"
+                    onValueChange={() => {}}
+                    onAccountSelect={(account) => {
+                      onFormChange("account_id", account?.id ?? null)
+                      onFormChange("customer_name", account?.name ?? "")
+                    }}
+                    searchAllowedTypeValues={[2, 3, 5]}
+                    disabled={isLocked}
+                  />
+                </div>
+                <div className="col-span-2 grid gap-1.5">
+                  <Label htmlFor="payer-name">اسم الدافع</Label>
+                  <Input
+                    id="payer-name"
+                    value={form.customer_name}
+                    onChange={(e) => onFormChange("customer_name", e.target.value)}
+                    disabled={isLocked}
+                    className="text-right"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
+                  <Label>المندوب</Label>
+                  <PrimeDropdown
+                    value={form.salesman_id}
+                    options={salesmen}
+                    optionLabel="name"
+                    optionValue="id"
+                    placeholder="اختر"
+                    filter
+                    disabled={isLocked}
+                    className="invoice-currency-dropdown w-full"
+                    panelClassName="invoice-currency-dropdown-panel"
+                    appendTo="self"
+                    panelStyle={{ zIndex: 10000 }}
+                    onChange={(e: any) => onFormChange("salesman_id", e.value ?? null)}
+                  />
+                </div>
+                <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
+                  <Label>المنطقة</Label>
+                  <PrimeDropdown
+                    value={form.city_id ?? 0}
+                    options={[{ id: 0, name: "بلا" }, ...cities]}
+                    optionLabel="name"
+                    optionValue="id"
+                    placeholder="اختر"
+                    filter
+                    disabled={isLocked}
+                    className="invoice-currency-dropdown w-full"
+                    panelClassName="invoice-currency-dropdown-panel"
+                    appendTo="self"
+                    panelStyle={{ zIndex: 10000 }}
+                    onChange={(e: any) => onFormChange("city_id", e.value ? Number(e.value) : null)}
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -1734,6 +1865,69 @@ export default function UnifiedSalesDelivery({
                   />
                 </div>
               </div>
+
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
+                  <Label>التصنيف الضريبي</Label>
+                  <PrimeDropdown
+                    value={form.vat_classification_id || 1}
+                    options={TAX_CLASSIFICATION_OPTIONS}
+                    optionLabel="label"
+                    optionValue="value"
+                    disabled={isLocked}
+                    className="invoice-currency-dropdown w-full"
+                    panelClassName="invoice-currency-dropdown-panel"
+                    appendTo="self"
+                    panelStyle={{ zIndex: 10000 }}
+                    onChange={(e: any) => onFormChange("vat_classification_id", Number(e.value) || 1)}
+                  />
+                </div>
+                <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
+                  <Label>النوع</Label>
+                  <PrimeDropdown
+                    value={form.invoice_type || 1}
+                    options={INVOICE_TYPE_OPTIONS}
+                    optionLabel="label"
+                    optionValue="value"
+                    disabled={isLocked}
+                    className="invoice-currency-dropdown w-full"
+                    panelClassName="invoice-currency-dropdown-panel"
+                    appendTo="self"
+                    panelStyle={{ zIndex: 10000 }}
+                    onChange={(e: any) => onFormChange("invoice_type", Number(e.value) || 1)}
+                  />
+                </div>
+                <label className="flex items-center gap-2 self-end pb-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={!!form.is_maqasa}
+                    disabled={isLocked}
+                    onChange={(e) => {
+                      onFormChange("is_maqasa", e.target.checked)
+                      onFormChange("maqasa_type", e.target.checked ? form.maqasa_type || 1 : null)
+                    }}
+                  />
+                  مقاصة
+                </label>
+                {form.is_maqasa && (
+                  <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
+                    <Label>كود المقاصة</Label>
+                    <PrimeDropdown
+                      value={form.maqasa_type}
+                      options={MAQASA_CODE_OPTIONS}
+                      optionLabel="label"
+                      optionValue="value"
+                      placeholder="اختر"
+                      disabled={isLocked}
+                      className="invoice-currency-dropdown w-full"
+                      panelClassName="invoice-currency-dropdown-panel"
+                      appendTo="self"
+                      panelStyle={{ zIndex: 10000 }}
+                      onChange={(e: any) => onFormChange("maqasa_type", Number(e.value) || null)}
+                    />
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
@@ -1742,7 +1936,6 @@ export default function UnifiedSalesDelivery({
               <TabsTrigger value="items">الاصناف</TabsTrigger>
               {showAccountsTab && <TabsTrigger value="accounts">تفاصيل حسابات الاصناف</TabsTrigger>}
               <TabsTrigger value="extra_data">بيانات اضافية</TabsTrigger>
-              <TabsTrigger value="tax">الضريبة</TabsTrigger>
               <TabsTrigger value="quantities">تفاصيل كميات الصنف</TabsTrigger>
               <TabsTrigger value="notes">ملاحظات</TabsTrigger>
               <TabsTrigger value="attachments">المرفقات</TabsTrigger>
@@ -1790,79 +1983,78 @@ export default function UnifiedSalesDelivery({
               )}
 
               <TabsContent value="extra_data" className="mt-4 min-h-[360px] space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-                <div className="grid gap-3 md:grid-cols-2">
-                  <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
-                    <Label>المندوب</Label>
-                    <PrimeDropdown
-                      value={form.salesman_id}
-                      options={salesmen}
-                      optionLabel="name"
-                      optionValue="id"
-                      placeholder="اختر"
-                      filter
+                <div className="space-y-3 rounded-xl border border-slate-200 p-3">
+                  <div className="text-sm font-bold text-slate-600">الحسابات</div>
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <AutoCompleteAccount
+                      label="حساب الصندوق *"
+                      value={form.cash_account_id != null ? String(form.cash_account_id) : ""}
+                      valueMode="id"
+                      onValueChange={() => {}}
+                      onAccountSelect={(account) => {
+                        onFormChange("cash_account_id", account?.id ?? null)
+                        onFormChange("cash_account_code", account?.code ?? "")
+                        onFormChange("cash_account_name", account?.name ?? "")
+                      }}
                       disabled={isLocked}
-                      className="invoice-currency-dropdown w-full"
-                      panelClassName="invoice-currency-dropdown-panel"
-                      appendTo={document.body}
-                      panelStyle={{ zIndex: 10000 }}
-                      onChange={(e: any) => onFormChange("salesman_id", e.value ?? null)}
                     />
-                  </div>
-                  <div className="grid gap-1.5">
-                    <Label className="flex items-center gap-2">
-                      <Wallet className="h-3.5 w-3.5" />
-                      حد الائتمان (للعرض فقط)
-                    </Label>
-                    <Input value={customerInfo?.credit_limit || ""} readOnly disabled />
-                  </div>
-                </div>
-                <div className="grid gap-3 md:grid-cols-2">
-                  <div className="grid gap-1.5">
-                    <Label>عنوان العميل (للعرض فقط)</Label>
-                    <Input value={customerInfo?.address || ""} readOnly disabled />
-                  </div>
-                  <div className="grid gap-1.5">
-                    <Label htmlFor="shipping-address">عنوان التسليم</Label>
-                    <Textarea
-                      id="shipping-address"
-                      value={form.shipping_address}
-                      onChange={(e) => onFormChange("shipping_address", e.target.value)}
+                    <AutoCompleteAccount
+                      label="حساب الضريبة *"
+                      value={form.tax_account_id != null ? String(form.tax_account_id) : ""}
+                      valueMode="id"
+                      onValueChange={() => {}}
+                      onAccountSelect={(account) => {
+                        onFormChange("tax_account_id", account?.id ?? null)
+                        onFormChange("tax_account_code", account?.code ?? "")
+                        onFormChange("tax_account_name", account?.name ?? "")
+                      }}
                       disabled={isLocked}
-                      rows={2}
                     />
                   </div>
                 </div>
-                <div className="grid gap-1.5 md:w-1/2">
-                  <Label htmlFor="linked-order">رقم الطلبية المرجعية (اختياري)</Label>
-                  <Input
-                    id="linked-order"
-                    type="number"
-                    value={form.linked_order_id ?? ""}
-                    onChange={(e) => onFormChange("linked_order_id", e.target.value ? Number(e.target.value) : null)}
-                    disabled={isLocked}
-                  />
-                  <p className="text-xs text-slate-400">حقل مرجعي فقط — استلام أصناف الطلبية تلقائياً غير متاح بعد في هذا الإصدار.</p>
-                </div>
-              </TabsContent>
 
-              <TabsContent value="tax" className="mt-4 min-h-[360px] rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-                <div className="grid gap-4 md:grid-cols-3">
-                  <div className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3">
-                    <span className="text-muted-foreground">المجموع الفرعي</span>
-                    <span className="text-lg font-bold">{totals.subtotal.toFixed(2)}</span>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <div className="grid gap-1.5">
+                    <Label htmlFor="customer-phone">هاتف العميل</Label>
+                    <Input
+                      id="customer-phone"
+                      value={form.phone}
+                      onChange={(e) => onFormChange("phone", e.target.value)}
+                      disabled={isLocked}
+                      dir="ltr"
+                      className="text-right"
+                    />
                   </div>
-                  <div className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3">
-                    <span className="text-muted-foreground">الخصم</span>
-                    <span className="text-lg font-bold text-red-600">-{totals.discount.toFixed(2)}</span>
-                  </div>
-                  <div className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3">
-                    <span className="text-muted-foreground">الضريبة</span>
-                    <span className="text-lg font-bold">{totals.tax.toFixed(2)}</span>
+                  <div className="grid gap-1.5">
+                    <Label htmlFor="due-date">اخر موعد للدفع</Label>
+                    <DateTimeControl
+                      id="due-date"
+                      value={form.due_date ? form.due_date.slice(0, 10) : ""}
+                      disabled={isLocked}
+                      onChange={(value) => onFormChange("due_date", value)}
+                    />
                   </div>
                 </div>
-                <p className="mt-3 text-xs text-slate-500">
-                  نوع الخصم/قيمته ونسبة الضريبة تُحدَّد لكامل السند من بطاقة "الخصومات والضرائب" أسفل الشاشة.
-                </p>
+
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={!!form.is_exported_sales}
+                    disabled={isLocked}
+                    onChange={(e) => onFormChange("is_exported_sales", e.target.checked)}
+                  />
+                  مبيعات مصدرة
+                </label>
+
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={!!form.vat_included}
+                    disabled={isLocked}
+                    onChange={(e) => onFormChange("vat_included", e.target.checked)}
+                  />
+                  السعر في الطباعة يشمل الضريبة
+                </label>
               </TabsContent>
 
               <TabsContent value="quantities" className="mt-4 min-h-[360px] rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
@@ -1923,18 +2115,21 @@ export default function UnifiedSalesDelivery({
                   <div className="grid grid-cols-2 gap-4">
                     <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
                       <Label>نوع الخصم</Label>
-                      <Select
+                      <PrimeDropdown
                         value={form.discount_type || "percentage"}
-                        onValueChange={(value) => onFormChange("discount_type", value as "percentage" | "amount")}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="percentage">نسبة مئوية</SelectItem>
-                          <SelectItem value="amount">مبلغ ثابت</SelectItem>
-                        </SelectContent>
-                      </Select>
+                        options={[
+                          { label: "نسبة مئوية", value: "percentage" },
+                          { label: "مبلغ ثابت", value: "amount" },
+                        ]}
+                        optionLabel="label"
+                        optionValue="value"
+                        disabled={isLocked}
+                        className="invoice-currency-dropdown w-full"
+                        panelClassName="invoice-currency-dropdown-panel"
+                        appendTo="self"
+                        panelStyle={{ zIndex: 10000 }}
+                        onChange={(e: any) => onFormChange("discount_type", (e.value as "percentage" | "amount") ?? "percentage")}
+                      />
                     </div>
                     <div className="grid gap-1.5">
                       <Label>قيمة الخصم</Label>

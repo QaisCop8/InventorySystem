@@ -16,6 +16,7 @@ import UnifiedSalesDelivery, {
   RETURN_SELL_VCH_TYPE,
   PURCHASE_INVOICE_VCH_TYPE,
   RETURN_PURCHASE_VCH_TYPE,
+  SALES_DIRECTION_VCH_TYPES,
   toGridDateString,
 } from "./unified-sales-delivery"
 import type { PostVoucherAction } from "@/components/common/post-voucher-dialog"
@@ -60,6 +61,7 @@ const emptyItemRow: SalesVoucherItemRow = {
   quantity: null,
   bonus_quantity: null,
   unit_price: null,
+  discount_percent: null,
   total_price: null,
   batch_number: "",
   expiry_date: "",
@@ -83,6 +85,32 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
   // فتح الشاشة (fetchLookups أدناه) وتُقرأ هنا كمرجع بدل حالة React، إذ لا داعي لإعادة رسم الشاشة
   // عند وصولها؛ تُستخدَم فقط عند بناء سند جديد لاحقاً.
   const defaultVatPercentRef = useRef<number>(0)
+  // حساب الضريبة الافتراضي (تبويب "بيانات اضافية") — من الحسابات الافتراضية بالإعدادات العامة:
+  // default_sales_tax_account لأنواع المبيعات (فاتورة/إرسالية مبيعات وبرسم البيع ومرتجعاتها)،
+  // default_purchase_tax_account لأنواع المشتريات — يُحدَّد اتجاه هذا السند بمجرد اختيار voucherType
+  // (خاصية ثابتة للشاشة كاملة، لا لكل سند)، فيُجلَب مرة واحدة أيضاً عند فتح الشاشة.
+  const defaultTaxAccountRef = useRef<{ id: number; code: string; name: string } | null>(null)
+  // حساب الصندوق الافتراضي حسب عملة السند — من إعدادات المستخدم بحسب العملة
+  // (users_currencies_default_account_tbl)؛ خريطة كاملة currency_id -> حساب مُجهَّزة مسبقاً عند فتح
+  // الشاشة، تُقرأ عند كل تغيير عملة (handleCurrencyChange أدناه) بدل طلب شبكة جديد في كل مرة.
+  const cashAccountsByCurrencyRef = useRef<Map<number, { id: number; code: string; name: string }>>(new Map())
+
+  const resolveCashAccountForCurrency = (currencyId: number | null) => {
+    if (!currencyId) return null
+    return cashAccountsByCurrencyRef.current.get(currencyId) ?? null
+  }
+
+  // يُستدعى من unified-sales-delivery.tsx عند كل تغيير للعملة (بما فيها التعيين الأولي لسند جديد)
+  // — يُحدِّث حساب الصندوق تلقائياً وفق العملة الجديدة، أو يُفرِّغه إن لم يوجد حساب مُعرَّف لتلك العملة.
+  const handleCurrencyChange = (currencyId: number | null) => {
+    const resolved = resolveCashAccountForCurrency(currencyId)
+    setForm((f) => ({
+      ...f,
+      cash_account_id: resolved?.id ?? null,
+      cash_account_code: resolved?.code ?? "",
+      cash_account_name: resolved?.name ?? "",
+    }))
+  }
 
   // مُعرَّفتان هنا (لا بمستوى الوحدة) لاعتمادهما على voucherType الخاص بهذه الشاشة تحديداً — نفس
   // النوع يُستخدَم عند بناء أي سند جديد/فارغ بدل النوع 17 (إرسالية مبيعات) الثابت سابقاً.
@@ -109,6 +137,21 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
     note: "",
     status: 1,
     is_printed: 0,
+    vat_classification_id: 1,
+    invoice_type: 1,
+    vat_included: false,
+    is_maqasa: false,
+    maqasa_type: null,
+    cash_account_id: null,
+    cash_account_code: "",
+    cash_account_name: "",
+    tax_account_id: defaultTaxAccountRef.current?.id ?? null,
+    tax_account_code: defaultTaxAccountRef.current?.code ?? "",
+    tax_account_name: defaultTaxAccountRef.current?.name ?? "",
+    phone: "",
+    due_date: "",
+    is_exported_sales: false,
+    city_id: null,
     items: [{ ...emptyItemRow }],
   })
 
@@ -129,6 +172,7 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
   const [warehouses, setWarehouses] = useState<WarehouseOption[]>([])
   const [defaultItemWarehouseId, setDefaultItemWarehouseId] = useState<number | null>(null)
   const [salesmen, setSalesmen] = useState<LookupOption[]>([])
+  const [cities, setCities] = useState<LookupOption[]>([])
 
   const [dialogOpen, setDialogOpen] = useState(false)
   const [form, setForm] = useState<SalesDeliveryRecord>(buildInitialForm())
@@ -189,13 +233,16 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
         user?.id ? `&user_id=${encodeURIComponent(user.id)}` : ""
       }`
       const warehouseDefaultsUrl = user?.id ? `/api/settings/user-warehouse-defaults?user_id=${encodeURIComponent(user.id)}` : null
-      const [currenciesRes, booksRes, warehousesRes, warehouseDefaultsRes, salesmenRes, systemSettingsRes] = await Promise.all([
+      const currencyDefaultsUrl = user?.id ? `/api/settings/users-currencies-default?user_id=${encodeURIComponent(user.id)}` : null
+      const [currenciesRes, booksRes, warehousesRes, warehouseDefaultsRes, salesmenRes, systemSettingsRes, currencyDefaultsRes, citiesRes] = await Promise.all([
         fetch("/api/exchange-rates").catch(() => null),
         fetch(booksUrl).catch(() => null),
         fetch("/api/warehouses").catch(() => null),
         warehouseDefaultsUrl ? fetch(warehouseDefaultsUrl).catch(() => null) : Promise.resolve(null),
         fetch("/api/salesmen").catch(() => null),
         fetch("/api/settings/system").catch(() => null),
+        currencyDefaultsUrl ? fetch(currencyDefaultsUrl).catch(() => null) : Promise.resolve(null),
+        fetch("/api/cities").catch(() => null),
       ])
       if (currenciesRes?.ok) {
         const data = await currenciesRes.json()
@@ -220,9 +267,43 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
         const data = await salesmenRes.json()
         setSalesmen(Array.isArray(data) ? data : Array.isArray(data?.salesmen) ? data.salesmen : [])
       }
+      if (citiesRes?.ok) {
+        const data = await citiesRes.json()
+        setCities(Array.isArray(data) ? data : [])
+      }
       if (systemSettingsRes?.ok) {
         const data = await systemSettingsRes.json()
         defaultVatPercentRef.current = Number(data?.tax_rate) || 0
+
+        // حساب الضريبة الافتراضي بحسب اتجاه هذا النوع من السندات (مبيعات/مشتريات) — انظر شرح
+        // defaultTaxAccountRef أعلاه. يحتاج طلباً إضافياً لجلب رقم/اسم الحساب (الإعدادات العامة لا
+        // تخزّن سوى المعرّف).
+        const isSalesDirection = (SALES_DIRECTION_VCH_TYPES as readonly number[]).includes(voucherType)
+        const taxAccountId = Number(isSalesDirection ? data?.default_sales_tax_account : data?.default_purchase_tax_account) || null
+        if (taxAccountId) {
+          try {
+            const accountRes = await fetch(`/api/accounts/${taxAccountId}`)
+            if (accountRes.ok) {
+              const account = await accountRes.json()
+              defaultTaxAccountRef.current = { id: taxAccountId, code: account?.code || "", name: account?.name || "" }
+            }
+          } catch {
+            // تجاهل — يبقى حقل حساب الضريبة فارغاً افتراضياً إن تعذّر الجلب.
+          }
+        }
+      }
+      if (currencyDefaultsRes?.ok) {
+        const data = await currencyDefaultsRes.json()
+        const rows = Array.isArray(data?.rows) ? data.rows : []
+        const map = new Map<number, { id: number; code: string; name: string }>()
+        for (const row of rows) {
+          const currencyId = Number(row.currency_id)
+          const cashAccountId = Number(row.cash_account_id)
+          if (Number.isFinite(currencyId) && Number.isFinite(cashAccountId) && cashAccountId > 0) {
+            map.set(currencyId, { id: cashAccountId, code: row.cash_account_code || "", name: row.cash_account_name || "" })
+          }
+        }
+        cashAccountsByCurrencyRef.current = map
       }
     } catch (error) {
       console.error("Failed to fetch lookups", error)
@@ -306,7 +387,16 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
     try {
       const defaults = await fetchDefaults()
       const code = await generateCode(defaults.bookId)
-      setForm({ ...buildInitialForm(), vch_code: code, vch_book_id: defaults.bookId, currency_id: defaults.currencyId })
+      const cashAccount = resolveCashAccountForCurrency(defaults.currencyId)
+      setForm({
+        ...buildInitialForm(),
+        vch_code: code,
+        vch_book_id: defaults.bookId,
+        currency_id: defaults.currencyId,
+        cash_account_id: cashAccount?.id ?? null,
+        cash_account_code: cashAccount?.code ?? "",
+        cash_account_name: cashAccount?.name ?? "",
+      })
       setErrorMessages([])
       setDialogOpen(true)
     } finally {
@@ -372,11 +462,22 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
     if (!data.vch_book_id) return "دفتر السندات مطلوب"
     if (!data.currency_id) return "العملة مطلوبة"
     if (!(Number(data.rate) > 0)) return "سعر الصرف يجب أن يكون أكبر من صفر"
-    if (!data.account_id) return "يجب اختيار العميل"
+    // العميل نفسه اختياري الآن (بيع نقدي بلا عميل مسجَّل) — لكن عندها يجب تحديد حساب الصندوق
+    // (سيُقفَل عليه بدل حساب العميل) واسم الدافع (بديل اسم العميل) معاً كحد أدنى للتوثيق المحاسبي.
+    if (!data.account_id) {
+      if (!data.cash_account_id) return "يجب اختيار حساب الصندوق عند عدم اختيار العميل"
+      if (!data.customer_name?.trim()) return "يجب إدخال اسم الدافع عند عدم اختيار العميل"
+    }
+    if (Number(data.vat_percent || 0) > 0 && !data.tax_account_id) {
+      return "يجب اختيار حساب الضريبة لوجود نسبة ضريبة على السند"
+    }
     const items = (data.items || []).filter((i) => i.product_id)
     if (items.length === 0) return "يجب إدخال صنف واحد على الأقل"
     if (items.some((i) => !i.warehouse_id)) return "يجب اختيار المستودع لكل صنف"
     if (items.some((i) => !(Number(i.quantity || 0) > 0))) return "يجب إدخال الكمية لكل صنف"
+    if (items.some((i) => Number(i.discount_percent || 0) < 0 || Number(i.discount_percent || 0) > 100)) {
+      return "نسبة الخصم يجب ألا تتجاوز 100% لكل صنف"
+    }
     // فاتورة مبيعات/مشتريات ومردود مبيعات/مشتريات فقط: تبويب "تفاصيل حسابات الاصناف" يُنشئ قيداً
     // محاسبياً لكل صنف (buildSalesVoucherJournalRows في app/api/sales-vouchers/_lib.ts)، فيجب أن
     // يحمل كل صنف حساباً قبل الحفظ وإلا يبقى القيد غير مكتمل/غير متوازن.
@@ -632,6 +733,7 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
         form={form}
         onFormChange={onFormChange}
         onBookChange={handleBookChange}
+        onCurrencyChange={handleCurrencyChange}
         onItemsChange={(items) => setForm((f) => ({ ...f, items }))}
         voucherBooks={voucherBooks}
         currencyOptions={currencyOptions}
@@ -639,6 +741,7 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
         warehouses={warehouses}
         defaultItemWarehouseId={defaultItemWarehouseId}
         salesmen={salesmen}
+        cities={cities}
         isSaving={isSaving || isLoading}
         currentIndex={currentIndex}
         totalRecords={filteredVouchers.length}

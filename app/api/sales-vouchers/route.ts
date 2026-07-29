@@ -72,20 +72,36 @@ const validatePayload = (data: any, items: any[]): string | null => {
     return "بيانات السند غير مكتملة"
   }
   if (!(Number(data.rate) > 0)) return "سعر الصرف يجب أن يكون أكبر من صفر"
-  if (!data.account_id) return "يجب اختيار العميل"
+  // العميل نفسه اختياري (بيع نقدي بلا عميل مسجَّل) — لكن عندها يجب تحديد حساب الصندوق واسم الدافع
+  // معاً كحد أدنى للتوثيق المحاسبي بدلاً من حساب العميل.
+  if (!data.account_id) {
+    if (!data.cash_account_id) return "يجب اختيار حساب الصندوق عند عدم اختيار العميل"
+    if (!String(data.customer_name || "").trim()) return "يجب إدخال اسم الدافع عند عدم اختيار العميل"
+  }
+  if (Number(data.vat_percent || 0) > 0 && !data.tax_account_id) {
+    return "يجب اختيار حساب الضريبة لوجود نسبة ضريبة على السند"
+  }
   if (items.length === 0) return "يجب إدخال صنف واحد على الأقل"
   if (items.some((i: any) => !i.warehouse_id)) return "يجب اختيار المستودع لكل صنف"
   if (items.some((i: any) => !(Number(i.quantity || 0) > 0))) return "يجب إدخال الكمية لكل صنف"
+  if (items.some((i: any) => Number(i.discount_percent || 0) < 0 || Number(i.discount_percent || 0) > 100)) {
+    return "نسبة الخصم يجب ألا تتجاوز 100% لكل صنف"
+  }
   const itemAccountsError = validateItemAccounts(Number(data.vch_type), items)
   if (itemAccountsError) return itemAccountsError
   return null
 }
 
-// نفس معادلة totals في unified-sales-delivery.tsx بالضبط (بمعزل عن الواجهة) — خصم/ضريبة بمستوى
-// السند كاملاً، لا لكل سطر: المجموع الفرعي (كمية × سعر لكل الأصناف)، ثم خصم (نسبة أو مبلغ ثابت)،
-// ثم ضريبة على الصافي بعد الخصم.
+// نفس معادلة totals في unified-sales-delivery.tsx بالضبط (بمعزل عن الواجهة) — خصم بمستوى السطر
+// (الخصم %) أولاً، ثم خصم/ضريبة بمستوى السند كاملاً: المجموع الفرعي (كمية × سعر × (1-خصم السطر)
+// لكل الأصناف)، ثم خصم السند (نسبة أو مبلغ ثابت)، ثم ضريبة على الصافي بعد الخصم.
 const computeTotalAmount = (items: any[], data: any): number => {
-  const subtotal = items.reduce((sum: number, i: any) => sum + Number(i.quantity || 0) * Number(i.unit_price || 0), 0)
+  // الخصم بمستوى السطر (نسبة مئوية لكل صنف، عمود "الخصم %") يُطبَّق أولاً قبل خصم/ضريبة السند
+  // كاملاً — نفس معادلة recalcLineAmounts في unified-sales-delivery.tsx بالضبط.
+  const subtotal = items.reduce((sum: number, i: any) => {
+    const lineDiscountPercent = Number(i.discount_percent || 0)
+    return sum + Number(i.quantity || 0) * Number(i.unit_price || 0) * (1 - lineDiscountPercent / 100)
+  }, 0)
   const discountValue = Number(data.discount_value || 0)
   const discount = data.discount_type === "amount" ? discountValue : (subtotal * discountValue) / 100
   const taxPercent = Number(data.vat_percent || 0)

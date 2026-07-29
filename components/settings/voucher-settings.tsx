@@ -50,28 +50,36 @@ const COLUMNS = [
 const STOCK_VOUCHER_TYPE_IDS = ["12", "13", "14", "15"];
 // سندات المبيعات/المشتريات الثمانية (فاتورة/إرسالية مبيعات، برسم البيع ومرتجعاتها، فاتورة/إرسالية
 // مشتريات ومرتجعها) تملك بونص/تتبع دفعة-صلاحية/تسلسلي، وأعمدة الأبعاد أيضاً (كسندات الحركة، نفس
-// شبكة unified-stock-voucher.tsx/unified-sales-delivery.tsx) — لكن لا الخصم/الضريبة، إذ نُقِلا
-// لمستوى السند كاملاً (بطاقة "الخصومات والضرائب") بدل عمود لكل سطر.
+// شبكة unified-stock-voucher.tsx/unified-sales-delivery.tsx)، والخصم بمستوى السطر أيضاً (نسبة
+// مئوية لكل صنف) — لكن لا الضريبة، إذ تبقى بمستوى السند كاملاً فقط (بطاقة "الخصومات والضرائب").
 const SALES_VOUCHER_TYPE_IDS = ["16", "17", "18", "19", "20", "21", "22", "23"];
-const getColumnsForType = (voucherType: string) => {
+// الطول/العرض/الارتفاع/العدد: أُخرِجت من "الأعمدة التي تظهر في السند" — لم تعد أعمدة قابلة للتحرير
+// بالشبكة أصلاً (أُلغيت تماماً من unified-stock-voucher.tsx/unified-sales-delivery.tsx)، إذ صار
+// إدخالها حصراً عبر نافذة "بيانات القياس" المنبثقة عند الكمية لصنف نوع قياسه غير عادي. تبقى فقط
+// ضمن "الأعمدة التي تظهر في الطباعة" (تصريحاً بإظهارها بالتقرير المطبوع دون إمكانية تحريرها هناك).
+const DIMENSION_COLUMN_IDS = ["length", "width", "height", "count"];
+const getColumnsForType = (voucherType: string, target: "screen" | "print" = "screen") => {
     const isStockVoucher = STOCK_VOUCHER_TYPE_IDS.includes(voucherType);
     const isSalesVoucher = SALES_VOUCHER_TYPE_IDS.includes(voucherType);
-    if (isSalesVoucher) {
-        return COLUMNS.filter((col) => col.id !== "discount" && col.id !== "tax");
+    const base = isSalesVoucher
+        ? COLUMNS.filter((col) => col.id !== "tax")
+        : // السعر غ.ش خاص بسندات المبيعات/المشتريات الثمانية فقط (فرع isSalesVoucher أعلاه) — لا معنى
+          // له في سندات الحركة (لا ضريبة على مستواها) ولا شاشات الطلبيات (لم تُضَف إليها بعد).
+          COLUMNS.filter((col) =>
+            isStockVoucher
+                ? col.id !== "bonus" && col.id !== "discount" && col.id !== "tax" && col.id !== "serial" && col.id !== "price_excl_tax"
+                : col.id !== "expiry_date" &&
+                  col.id !== "serial" &&
+                  col.id !== "length" &&
+                  col.id !== "width" &&
+                  col.id !== "height" &&
+                  col.id !== "count" &&
+                  col.id !== "price_excl_tax",
+          );
+    if (target === "screen") {
+        return base.filter((col) => !DIMENSION_COLUMN_IDS.includes(col.id));
     }
-    // السعر غ.ش خاص بسندات المبيعات/المشتريات الثمانية فقط (فرع isSalesVoucher أعلاه) — لا معنى له
-    // في سندات الحركة (لا ضريبة على مستواها) ولا شاشات الطلبيات (لم تُضَف إليها بعد).
-    return COLUMNS.filter((col) =>
-        isStockVoucher
-            ? col.id !== "bonus" && col.id !== "discount" && col.id !== "tax" && col.id !== "serial" && col.id !== "price_excl_tax"
-            : col.id !== "expiry_date" &&
-              col.id !== "serial" &&
-              col.id !== "length" &&
-              col.id !== "width" &&
-              col.id !== "height" &&
-              col.id !== "count" &&
-              col.id !== "price_excl_tax",
-    );
+    return base;
 };
 
 export default function VoucherSettings() {
@@ -143,18 +151,19 @@ export default function VoucherSettings() {
 
             const screenData = await screenRes.json();
             const printData = await printRes.json();
-            const applicableColumns = getColumnsForType(voucherType);
+            const applicableScreenColumns = getColumnsForType(voucherType, "screen");
+            const applicablePrintColumns = getColumnsForType(voucherType, "print");
             const screenRows =
                 screenData?.columns?.[voucherType] ??
-                applicableColumns.reduce((acc, col) => ({ ...acc, [col.id]: true }), {});
+                applicableScreenColumns.reduce((acc, col) => ({ ...acc, [col.id]: true }), {});
 
             const printRows =
                 printData?.columns?.[voucherType] ??
-                applicableColumns.reduce((acc, col) => ({ ...acc, [col.id]: true }), {});
+                applicablePrintColumns.reduce((acc, col) => ({ ...acc, [col.id]: true }), {});
 
             setScreenColumns(
                 screenRows ??
-                applicableColumns.reduce((acc, col) => {
+                applicableScreenColumns.reduce((acc, col) => {
                     acc[col.id] = true;
                     return acc;
                 }, {} as Record<string, boolean>)
@@ -162,7 +171,7 @@ export default function VoucherSettings() {
 
             setPrintColumns(
                 printRows ??
-                applicableColumns.reduce((acc, col) => {
+                applicablePrintColumns.reduce((acc, col) => {
                     acc[col.id] = true;
                     return acc;
                 }, {} as Record<string, boolean>)
@@ -199,7 +208,7 @@ export default function VoucherSettings() {
 
     const renderCheckboxes = (state: Record<string, boolean>, target: "screen" | "print") => (
         <div className="grid grid-cols-3 gap-3 mt-3">
-            {getColumnsForType(voucherType).map((col) => (
+            {getColumnsForType(voucherType, target).map((col) => (
                 <label key={col.id} className="flex items-center gap-4 cursor-pointer">
                     <Checkbox
                         checked={!!state[col.id]}

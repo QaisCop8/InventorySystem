@@ -161,6 +161,11 @@ export const ensureTables = async () => {
   await sql`ALTER TABLE voucher_header_tbl ADD COLUMN IF NOT EXISTS discount_type VARCHAR(20) DEFAULT 'percentage'`
   await sql`ALTER TABLE voucher_header_tbl ADD COLUMN IF NOT EXISTS discount_value DOUBLE PRECISION DEFAULT 0`
   await sql`ALTER TABLE voucher_header_tbl ADD COLUMN IF NOT EXISTS vat_percent DOUBLE PRECISION DEFAULT 0`
+  // تبويب "بيانات اضافية" — حساب الضريبة، وحده الجديد فعلياً هنا (حساب الصندوق يُخزَّن في
+  // cash_account_id الموجود أصلاً على voucher_header_tbl من receipts/_lib.ts). باقي أعمدة تبويبَي
+  // "الضريبة"/"بيانات اضافية" (vat_classification_id/invoice_type/vat_included/is_maqasa/
+  // maqasa_type/phone/due_date/is_exported_sales/location_id) محجوزة أصلاً هناك أيضاً.
+  await sql`ALTER TABLE voucher_header_tbl ADD COLUMN IF NOT EXISTS tax_account_id INTEGER`
 }
 
 const SALES_VOUCHER_SETTINGS_KEY: Record<number, { prefix: string; start: string; defaultPrefix: string }> = {
@@ -241,12 +246,16 @@ export const buildSalesVoucherJournalRows = (
   const typeConfig = ITEM_ACCOUNT_JOURNAL_CONFIG[vchType]
   if (!typeConfig || !customerAccountId) return []
 
+  // يُدرَج سطر لكل صنف يحمل حساباً (مطلوب أصلاً لهذه الأنواع الأربعة، انظر validateItemAccounts)
+  // حتى لو كان سعره صفراً — القيد يُسجَّل دوماً بمجرد وجود صنف بالسند، لا فقط عند وجود مبلغ فعلي؛
+  // خلاف السلوك السابق الذي كان يتجاهل الصنف كلياً (لا سطر إطلاقاً) إن كان سعره صفراً.
   const rows: any[] = []
   let orderNo = 1
   let total = 0
+  let hasItemRow = false
   for (const item of items) {
+    if (!item.account_id) continue
     const amount = Number(item.total_price || 0)
-    if (amount <= 0 || !item.account_id) continue
     rows.push({
       order_no: orderNo++,
       journal_type_id: typeConfig.itemJournalType,
@@ -257,8 +266,11 @@ export const buildSalesVoucherJournalRows = (
       cost_centers: Array.isArray(item.account_cost_centers) ? item.account_cost_centers : [],
     })
     total += amount
+    hasItemRow = true
   }
-  if (total > 0) {
+  // سطر العميل/المورد المقابل يُدرَج بمجرد وجود سطر صنف واحد على الأقل (حتى لو كان مجموعه صفراً)،
+  // لا فقط عند total > 0 كما كان سابقاً.
+  if (hasItemRow) {
     rows.push({
       order_no: orderNo++,
       journal_type_id: JOURNAL_TYPE_COUNTER_ACCOUNT,

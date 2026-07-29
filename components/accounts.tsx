@@ -1692,7 +1692,7 @@ export default function Accounts() {
           }
         }}>
           <DialogContent
-            className="w-full max-w-[95vw] xl:max-w-[1400px] max-h-[90vh] overflow-hidden p-0 flex flex-col"
+            className="w-full max-w-[95vw] xl:max-w-[1400px] min-h-[75vh] max-h-[90vh] overflow-hidden p-0 flex flex-col"
             dir="rtl"
             onPointerDownOutside={(event) => event.preventDefault()}
           >
@@ -1703,43 +1703,49 @@ export default function Accounts() {
                 </DialogHeader>
               </div>
 
-              <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 pb-4 sm:px-6">
-              <div className="flex w-full flex-nowrap items-end gap-2 overflow-x-auto pb-1">
-                <div className="min-w-[260px] shrink-0 invoice-currency-dropdown-wrap">
-                  <Label className="mb-2 block text-sm">نوع هيكل الحسابات الافتراضي</Label>
-                  <PrimeDropdown
-                    inputId="excel_template_type"
-                    value={excelTemplateType}
-                    options={[
-                      { label: "بلا", value: "none" },
-                      { label: "مؤسسة تجارية", value: "commercial" },
-                      { label: "مؤسسة تجارية - جرد مستمر", value: "commercial_continuous_inventory" },
-                      { label: "خدمات", value: "services" },
-                    ]}
-                    optionLabel="label"
-                    optionValue="value"
-                    placeholder="اختر"
-                    className="invoice-currency-dropdown w-full"
-                    panelClassName="invoice-currency-dropdown-panel"
-                    appendTo="self"
-                    panelStyle={{ zIndex: 10000 }}
-                    onChange={(e: any) => setExcelTemplateType(e.value)}
-                  />
+              {/* خارج المنطقة القابلة للتمرير (overflow-y-auto) عمداً — لوحة PrimeDropdown المنبثقة
+                  (appendTo="self") تبقى فعلياً حفيدة لأي حاوية overflow:auto تحتضنها (position:absolute
+                  لا يُخرِجها من حساب scrollHeight لسلف يملك containing block لها)، فيظهر شريط تمرير
+                  رأسي زائف بمجرد فتح القائمة طالما بقيت داخل تلك الحاوية. */}
+              <div className="shrink-0 px-4 sm:px-6">
+                <div className="flex w-full flex-wrap items-end gap-2 pb-3">
+                  <div className="min-w-[260px] shrink-0 invoice-currency-dropdown-wrap">
+                    <Label className="mb-2 block text-sm">نوع هيكل الحسابات الافتراضي</Label>
+                    <PrimeDropdown
+                      inputId="excel_template_type"
+                      value={excelTemplateType}
+                      options={[
+                        { label: "بلا", value: "none" },
+                        { label: "مؤسسة تجارية", value: "commercial" },
+                        { label: "مؤسسة تجارية - جرد مستمر", value: "commercial_continuous_inventory" },
+                        { label: "خدمات", value: "services" },
+                      ]}
+                      optionLabel="label"
+                      optionValue="value"
+                      placeholder="اختر"
+                      className="invoice-currency-dropdown w-full"
+                      panelClassName="invoice-currency-dropdown-panel"
+                      appendTo="self"
+                      panelStyle={{ zIndex: 10000 }}
+                      onChange={(e: any) => setExcelTemplateType(e.value)}
+                    />
+                  </div>
+                  <Button variant="outline" className="gap-2 shrink-0" onClick={() => { void downloadExcelTemplate(excelTemplateType) }}>
+                    <Download className="h-4 w-4" /> تحميل قالب
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    className="gap-2 shrink-0"
+                    onClick={() => excelInputRef.current?.click()}
+                    disabled={excelProcessing || excelImporting}
+                  >
+                    <Upload className="h-4 w-4" /> اختيار ملف
+                  </Button>
+                  <Input ref={excelInputRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleExcelFileChange} />
                 </div>
-                <Button variant="outline" className="gap-2 shrink-0" onClick={() => { void downloadExcelTemplate(excelTemplateType) }}>
-                  <Download className="h-4 w-4" /> تحميل قالب
-                </Button>
-                <Button
-                  variant="secondary"
-                  className="gap-2 shrink-0"
-                  onClick={() => excelInputRef.current?.click()}
-                  disabled={excelProcessing || excelImporting}
-                >
-                  <Upload className="h-4 w-4" /> اختيار ملف
-                </Button>
-                <Input ref={excelInputRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleExcelFileChange} />
               </div>
 
+              <div className="flex min-h-0 flex-1 flex-col space-y-4 overflow-y-auto px-4 pb-4 sm:px-6">
               <Alert>
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>
@@ -1756,13 +1762,16 @@ export default function Accounts() {
               {excelExportError && <Alert className="border-red-200 bg-red-50 text-red-900"><AlertDescription>{excelExportError}</AlertDescription></Alert>}
 
               {excelStep === "upload" && excelTemplateType !== "none" && excelExportRows.length > 0 && (
-                <div className="space-y-3">
-                  <div className="text-sm text-muted-foreground">
+                <div className="flex min-h-0 flex-1 flex-col space-y-3">
+                  <div className="shrink-0 text-sm text-muted-foreground">
                     تم تحميل {excelExportRows.length} حسابًا للنوع المحدد.
                   </div>
-                  <div className="w-full max-h-[260px] overflow-hidden rounded-md border">
+                  {/* flex-1 min-h-0 بدل max-height ثابت (vh/px) — يملأ الشبكة كل المساحة الرأسية
+                      المتبقية فعلياً حتى أزرار الحوار أسفله، لا فقط ارتفاعاً أدنى/أقصى قد لا يطابق
+                      المساحة الحقيقية المتاحة داخل حوار بات الآن قابلاً للتمدد (min-h-[75vh]). */}
+                  <div className="w-full flex-1 min-h-[220px] overflow-y-auto rounded-md border">
                     <DataGridView
-                      style={{ maxHeight: "260px", minHeight: "180px", width: "100%" }}
+                      style={{ height: "100%", width: "100%" }}
                       idProperty="rowIndex"
                       scheme={excelGridScheme}
                       dataSource={excelExportRows.map(buildExportGridRow)}
@@ -1778,10 +1787,10 @@ export default function Accounts() {
               )}
 
               {excelStep === "preview" && excelRows.length > 0 && (
-                <div className="space-y-4">
-                  <div className="w-full max-h-[70vh] overflow-hidden rounded-md border">
+                <div className="flex min-h-0 flex-1 flex-col space-y-4">
+                  <div className="w-full flex-1 min-h-[220px] overflow-y-auto rounded-md border">
                     <DataGridView
-                      style={{ maxHeight: "70vh", minHeight: "50vh", width: "100%" }}
+                      style={{ height: "100%", width: "100%" }}
                       idProperty="rowIndex"
                       scheme={excelGridScheme}
                       dataSource={excelRows.map(buildPreviewGridRow)}
@@ -1794,7 +1803,7 @@ export default function Accounts() {
                     />
                   </div>
 
-                  <div className="flex flex-wrap gap-3 text-sm">
+                  <div className="flex shrink-0 flex-wrap gap-3 text-sm">
                     <span className="rounded-full bg-green-50 px-3 py-1 text-green-700">صالحة: {excelRows.filter((row) => row.isValid).length}</span>
                     <span className="rounded-full bg-red-50 px-3 py-1 text-red-700">غير صالحة: {excelRows.filter((row) => !row.isValid).length}</span>
                   </div>

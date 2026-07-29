@@ -4,7 +4,6 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -12,6 +11,37 @@ import { Switch } from "@/components/ui/switch"
 import { Separator } from "@/components/ui/separator"
 import { FileText, Save, Loader2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import PrimeDropdown from "@/components/common/FocusDropdown"
+
+// نفس قائمة VOUCHER_TYPES في components/settings/voucher-settings.tsx حرفياً — كل أنواع السندات
+// (طلبيات، سندات الحركة الأربعة، وسندات المبيعات/المشتريات الثمانية)، لا نوعا الطلبية فقط كما كان.
+const VOUCHER_TYPES = [
+  { id: "1", name: "طلبية مبيعات" },
+  { id: "2", name: "طلبية مشتريات" },
+  { id: "12", name: "سند ادخال بضاعة" },
+  { id: "13", name: "سند اخراج بضاعة" },
+  { id: "14", name: "ارسالية داخلية" },
+  { id: "15", name: "سند استعمال" },
+  { id: "16", name: "فاتورة مبيعات" },
+  { id: "17", name: "إرسالية مبيعات" },
+  { id: "18", name: "إرسالية برسم البيع" },
+  { id: "19", name: "مرتجع إرسالية برسم البيع" },
+  { id: "20", name: "مرتجع مبيعات" },
+  { id: "21", name: "فاتورة مشتريات" },
+  { id: "22", name: "إرسالية مشتريات" },
+  { id: "23", name: "مرتجع مشتريات" },
+]
+
+const PAPER_SIZE_OPTIONS = [
+  { label: "A4", value: "A4" },
+  { label: "A5", value: "A5" },
+  { label: "مخصص", value: "Custom" },
+]
+
+const ORIENTATION_OPTIONS = [
+  { label: "عمودي", value: "portrait" },
+  { label: "أفقي", value: "landscape" },
+]
 
 /* ======================================================
    Types
@@ -199,32 +229,36 @@ export default function PrintSettings() {
       <CardContent className="space-y-6">
         <div className="grid md:grid-cols-2 gap-4">
           {title === "إعدادات طباعة السندات" && (
-            <div>
+            <div className="invoice-currency-dropdown-wrap">
               <Label>نوع السند</Label>
-              <Select value={String(currentVoucherId)} onValueChange={(v) => setCurrentVoucherId(Number(v))}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="1">طلبية مشتريات</SelectItem>
-                  <SelectItem value="2">طلبية مبيعات</SelectItem>
-                </SelectContent>
-              </Select>
+              <PrimeDropdown
+                value={String(currentVoucherId)}
+                options={VOUCHER_TYPES}
+                optionLabel="name"
+                optionValue="id"
+                filter
+                className="invoice-currency-dropdown w-full"
+                panelClassName="invoice-currency-dropdown-panel"
+                appendTo="self"
+                panelStyle={{ zIndex: 10000 }}
+                onChange={(e: any) => setCurrentVoucherId(Number(e.value))}
+              />
             </div>
           )}
 
-          <div>
+          <div className="invoice-currency-dropdown-wrap">
             <Label>حجم الورق</Label>
-            <Select value={data.paper_size} onValueChange={(v) => onChange({ ...data, paper_size: v })}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="A4">A4</SelectItem>
-                <SelectItem value="A5">A5</SelectItem>
-                <SelectItem value="Custom">مخصص</SelectItem>
-              </SelectContent>
-            </Select>
+            <PrimeDropdown
+              value={data.paper_size}
+              options={PAPER_SIZE_OPTIONS}
+              optionLabel="label"
+              optionValue="value"
+              className="invoice-currency-dropdown w-full"
+              panelClassName="invoice-currency-dropdown-panel"
+              appendTo="self"
+              panelStyle={{ zIndex: 10000 }}
+              onChange={(e: any) => onChange({ ...data, paper_size: e.value })}
+            />
           </div>
 
           {data.paper_size === "Custom" && (
@@ -240,17 +274,19 @@ export default function PrintSettings() {
             </>
           )}
 
-          <div>
+          <div className="invoice-currency-dropdown-wrap">
             <Label>اتجاه الطباعة</Label>
-            <Select value={data.orientation} onValueChange={(v) => onChange({ ...data, orientation: v })}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="portrait">عمودي</SelectItem>
-                <SelectItem value="landscape">أفقي</SelectItem>
-              </SelectContent>
-            </Select>
+            <PrimeDropdown
+              value={data.orientation}
+              options={ORIENTATION_OPTIONS}
+              optionLabel="label"
+              optionValue="value"
+              className="invoice-currency-dropdown w-full"
+              panelClassName="invoice-currency-dropdown-panel"
+              appendTo="self"
+              panelStyle={{ zIndex: 10000 }}
+              onChange={(e: any) => onChange({ ...data, orientation: e.value })}
+            />
           </div>
         </div>
 
