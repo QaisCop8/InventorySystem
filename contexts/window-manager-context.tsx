@@ -61,7 +61,10 @@ export function WindowManagerProvider({ children }: { children: React.ReactNode 
         id,
         zIndex: nextZIndex,
         position: windowData.position || { x: defaultX, y: defaultY },
-        size: windowData.size || { width: 800, height: 600 },
+        // كان 800×600 — قُلِّص بناءً على طلب صريح لتصغير نوافذ "unified-accounts-refactored"؛ هذا
+        // الافتراضي مُشترَك بين كل أنواع النوافذ (لا آلية تخصيص لكل مكوّن حالياً بالنداءات الفعلية
+        // لـopenWindow المُكتشَفة بالكود)، فيُطبَّق على أي نافذة أخرى لا تُمرِّر size صريحاً بنفسها.
+        size: windowData.size || { width: 700, height: 520 },
       }
 
       console.log("[v0] Opening window:", { id, title: newWindow.title, type: newWindow.type, zIndex: nextZIndex })

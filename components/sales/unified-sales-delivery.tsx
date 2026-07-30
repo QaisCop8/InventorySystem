@@ -59,6 +59,12 @@ export const SALES_VOUCHER_TYPE_LABELS: Record<SalesVoucherSubType, { title: str
   23: { title: "مرتجع مشتريات", listTitle: "مرتجعات المشتريات" },
 }
 
+// نفس تدرّج التبويبات (زمردي←تركوازي عند التفعيل) المُطبَّق أصلاً بـunified-journal.tsx/unified-
+// receipt-voucher.tsx وunified-stock-voucher.tsx — يُطبَّق هنا أيضاً لتوحيد شكل التبويبات عبر كل
+// شاشات السندات.
+const voucherTabTriggerClass =
+  "data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-teal-600 data-[state=active]:text-white data-[state=active]:shadow-md"
+
 // خيارات تبويب "الضريبة" — نفس تسميات/قيم taxClassificationOptions وinvoiceTypeOptions
 // وoffsetCodeOptions في components/orders/unified-sale-invoices.tsx حرفياً.
 export const TAX_CLASSIFICATION_OPTIONS = [
@@ -263,6 +269,21 @@ const resolveFlexControl = (grid: any): any => {
     return control && control.columns ? control : null
   }
   return grid.columns ? grid : null
+}
+
+// قراءة .selection الآمنة — نفس عطل "Cannot read properties of null (reading 'selection')" الذي
+// كان يُظَنّ مُعالَجاً بالفعل عبر resolveFlexControl (انظر تعليقها بـunified-stock-voucher.tsx):
+// control وcontrol.columns كلاهما صحيحان فعلاً فيمرّ فحصها، لكن getter الخاص بـ.selection نفسه في
+// Wijmo يتحطّم داخلياً بحالة حدّية أخرى (حقل باطني آخر لا يزال null أثناء نافذة زمنية قصيرة من
+// إعادة بناء تخطيط الشبكة) — try/catch يكفي إذ هذه القراءة مجرد تحسين (حفظ موضع التحديد السابق قبل
+// تحديث itemsSource) لا حرج بتجاهله عند فشله.
+const readGridSelection = (grid: any): { row: number; col: number } | null => {
+  try {
+    const sel = grid?.selection
+    return sel ? { row: sel.row, col: sel.col } : null
+  } catch {
+    return null
+  }
 }
 
 const selectCell = (rawGrid: any, row: number, colName: string) => {
@@ -718,9 +739,7 @@ export default function UnifiedSalesDelivery({
 
   useEffect(() => {
     const gridBeforeSync = resolveFlexControl(itemsGridRef.current)
-    const prevSelection = gridBeforeSync?.selection
-      ? { row: gridBeforeSync.selection.row, col: gridBeforeSync.selection.col }
-      : null
+    const prevSelection = readGridSelection(gridBeforeSync)
 
     // السعر شامل (الضريبة) — حقل عرض فقط يُحتسَب هنا من unit_price (المُخزَّن دوماً غير شامل
     // الضريبة) ونسبة ضريبة السند كاملاً (form.vat_percent، ضريبة على مستوى السند وليس السطر)،
@@ -736,15 +755,26 @@ export default function UnifiedSalesDelivery({
     const pending = pendingFocusRef.current
     if (pending) {
       pendingFocusRef.current = null
-      waitForGridReady(
-        () => itemsGridRef.current,
-        (grid) => {
-          selectCell(grid, pending.row, pending.col)
-          grid.focus()
-        },
-        20,
-        pending.row + 1,
-      )
+      // نفس السبب والتعليق التفصيلي في unified-stock-voucher.tsx: إعادة تعيين sourceCollection أعلاه
+      // تُصفِّر currentPosition الداخلي لِـWijmo فوراً، فيتسابق ذلك مع استرجاع الصف عبر
+      // waitForGridReady (المبنية على setTimeout) وحدها — يُطبَّق الاسترجاع أولاً بنفس التِّك مباشرة
+      // إن كانت الشبكة جاهزة فعلاً (كفرع prevSelection أدناه المُثبَت أصلاً)، ولا يُلجَأ لِـ
+      // waitForGridReady إلا إن لم تكن الشبكة جاهزة بعد.
+      const gridNow = resolveFlexControl(itemsGridRef.current)
+      if (gridNow && gridNow.rows && gridNow.rows.length > pending.row) {
+        selectCell(gridNow, pending.row, pending.col)
+        gridNow.focus()
+      } else {
+        waitForGridReady(
+          () => itemsGridRef.current,
+          (grid) => {
+            selectCell(grid, pending.row, pending.col)
+            grid.focus()
+          },
+          20,
+          pending.row + 1,
+        )
+      }
     } else if (prevSelection) {
       const grid = resolveFlexControl(itemsGridRef.current)
       if (grid && grid.rows && grid.rows.length > prevSelection.row) {
@@ -2025,14 +2055,14 @@ export default function UnifiedSalesDelivery({
           </div>
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-4">
-            <TabsList dir="rtl" className="flex h-auto flex-wrap justify-start gap-1">
-              <TabsTrigger value="items">الاصناف</TabsTrigger>
-              {showAccountsTab && <TabsTrigger value="accounts">تفاصيل حسابات الاصناف</TabsTrigger>}
-              <TabsTrigger value="extra_data">بيانات اضافية</TabsTrigger>
-              <TabsTrigger value="quantities">تفاصيل كميات الصنف</TabsTrigger>
-              <TabsTrigger value="notes">ملاحظات</TabsTrigger>
-              <TabsTrigger value="attachments">المرفقات</TabsTrigger>
-              <TabsTrigger value="custom_fields">الحقول الإضافية</TabsTrigger>
+            <TabsList dir="rtl" className="flex h-auto flex-wrap justify-start gap-1 bg-slate-100 p-1">
+              <TabsTrigger value="items" className={voucherTabTriggerClass}>الاصناف</TabsTrigger>
+              {showAccountsTab && <TabsTrigger value="accounts" className={voucherTabTriggerClass}>تفاصيل حسابات الاصناف</TabsTrigger>}
+              <TabsTrigger value="extra_data" className={voucherTabTriggerClass}>بيانات اضافية</TabsTrigger>
+              <TabsTrigger value="quantities" className={voucherTabTriggerClass}>تفاصيل كميات الصنف</TabsTrigger>
+              <TabsTrigger value="notes" className={voucherTabTriggerClass}>ملاحظات</TabsTrigger>
+              <TabsTrigger value="attachments" className={voucherTabTriggerClass}>المرفقات</TabsTrigger>
+              <TabsTrigger value="custom_fields" className={voucherTabTriggerClass}>الحقول الإضافية</TabsTrigger>
             </TabsList>
 
             <fieldset disabled={isLocked} className="contents">

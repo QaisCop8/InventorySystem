@@ -51,6 +51,15 @@ export async function POST(request: NextRequest) {
     const name = String(data.name || "").trim()
     if (!name) return NextResponse.json({ error: "اسم الشركة مطلوب" }, { status: 400 })
 
+    // مطابقة بلا حساسية لحالة الأحرف/المسافات الطرفية — عبر كل الشركات (لا فقط شركات نفس المستخدم)
+    // لتفادي التباس بشركتين بنفس الاسم بلوحة إدارة المنصة.
+    const duplicate = await managementSql`
+      SELECT id FROM companies WHERE LOWER(TRIM(name)) = LOWER(${name}) LIMIT 1
+    `
+    if (duplicate.length > 0) {
+      return NextResponse.json({ error: "اسم الشركة مكرر يرجى اختيار اسم اخر" }, { status: 400 })
+    }
+
     const inserted = await managementSql`
       INSERT INTO companies (name, status, created_by)
       VALUES (${name}, 'pending', ${session.id})

@@ -29,6 +29,12 @@ function Inc_Code(code: string, prefix: string): string {
     const newCode = codeArr.join('');
     return newCode;
 }
+// طول كود الصنف المُولَّد تلقائياً: بادئة حرف واحد + 9 أرقام = 10 خانات إجمالاً (كان 8: بادئة + 7
+// أرقام). أكواد قديمة أقصر من CODE_LENGTH (بيانات سابقة لهذا التغيير) تُوسَّع بأصفار بادئة قبل
+// الزيادة أدناه بدل تركها تُنتج أكواداً بـ8 خانات إلى الأبد — الأكواد الفعلية المحفوظة مسبقاً بالجدول
+// لا تُغيَّر، هذا يُطبَّق فقط على نسخة العمل المحسوبة هنا لتوليد الكود التالي.
+const CODE_LENGTH = 10;
+
 export async function GET() {
     const pool = await getTenantPool();
     const result = await pool.query(
@@ -36,8 +42,17 @@ export async function GET() {
     );
     const lastCode = result.rows[0]?.product_code ?? null;
     let prefix = 'I'; // set your prefix
-    if(lastCode) prefix = lastCode[0];
-    const newCode = lastCode ? `${prefix}${Inc_Code(lastCode, prefix)}` : `${prefix}0000001`;
+    if (lastCode) prefix = lastCode[0];
 
-    return NextResponse.json({ lastCode :newCode });
+    let baseCode = lastCode;
+    if (baseCode && baseCode.length < CODE_LENGTH) {
+        const suffix = baseCode.slice(prefix.length);
+        baseCode = prefix + suffix.padStart(CODE_LENGTH - prefix.length, '0');
+    }
+
+    const newCode = baseCode
+        ? `${prefix}${Inc_Code(baseCode, prefix)}`
+        : `${prefix}${'0'.repeat(CODE_LENGTH - prefix.length - 1)}1`;
+
+    return NextResponse.json({ lastCode: newCode });
 }

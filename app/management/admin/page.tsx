@@ -289,6 +289,12 @@ export default function ManagementAdminPage() {
                           {company.requested_by_name} · {company.requested_by_email}
                         </div>
                       )}
+                      {company.expiry_date && (
+                        <div className={"mt-1 flex items-center gap-1 text-sm " + (expired ? "font-medium text-rose-600" : "text-slate-500")}>
+                          <Clock className="h-3.5 w-3.5" />
+                          تاريخ انتهاء الاشتراك: {new Date(company.expiry_date).toLocaleDateString("ar-EG", { year: "numeric", month: "long", day: "numeric" })}
+                        </div>
+                      )}
                     </div>
                     <div className="flex gap-2">
                       {(company.status === "approved" || company.status === "stopped") && (

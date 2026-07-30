@@ -1067,90 +1067,99 @@ export default function Accounts() {
       for (const row of rowsToImport) {
         const nextCurrent = summary.success + summary.failed + summary.duplicates + 1
         setExcelImportProgress({ current: nextCurrent, total: rowsToImport.length })
-        
-        const resolvedAsset = row.raw_balance_sheet_assets
-          ? await resolveOrCreateLookupItem(row.raw_balance_sheet_assets, assetItemCache, "/api/balance-sheet-assets-items")
-          : null
-        const resolvedLiability = row.raw_balance_sheet_liabilities
-          ? await resolveOrCreateLookupItem(row.raw_balance_sheet_liabilities, liabilityItemCache, "/api/balance-sheet-liabilities-items")
-          : null
-        const resolvedIncome = row.raw_income_statement_item
-          ? await resolveOrCreateLookupItem(row.raw_income_statement_item, incomeItemCache, "/api/income-statement-items")
-          : null
 
-        const payload = {
-          code: row.code,
-          name: row.name,
-          name_lang2: row.name_lang2,
-          type: 1,
-          parent_code: row.father_reference || null,
-          father_id: null,
-          level_no: row.father_reference ? 2 : 1,
-          finanical_list_id: row.finanical_list_id ?? 1,
-          finanical_list_assests_id: resolvedAsset?.id ?? row.finanical_list_assests_id,
-          finanical_list_liabilities_id: resolvedLiability?.id ?? row.finanical_list_liabilities_id,
-          finanical_list_income_id: resolvedIncome?.id ?? row.finanical_list_income_id,
-          currency_id: row.currency_id ?? 1,
-          allow_trans_with_diff_curr: row.allow_trans_with_diff_curr ? 1 : 0,
-          iscalc_curr_diff_rates: row.iscalc_curr_diff_rates ?? false,
-          transaction_type: row.transaction_type ?? 0,
-          transaction_type_action: row.transaction_type_action ?? 0,
-          max_transaction_amount: row.max_transaction_amount ?? 0,
-          max_transaction_amount_action: row.max_transaction_amount_action ?? 0,
-          max_balance_amount: row.max_balance_amount ?? 0,
-          max_balance_action: row.max_balance_action ?? null,
-          budget_exceeding_perc: row.budget_exceeding_perc ?? null,
-          budget_exceeding_action: row.budget_exceeding_action ?? null,
-          unified_report_account_no: row.unified_report_account_no || null,
-          unified_report_group_code: row.unified_report_group_code || null,
-          notes: row.notes || null,
-          show_notes_in_transactions_soa: row.show_notes_in_transactions_soa ?? false,
-          status: row.status || "نشط",
-        }
+        // try/catch لكل سطر على حدة — كان عطلاً شبكياً عابراً بسطر واحد فقط (كـ"Failed to fetch"
+        // عند انقطاع الاتصال أو إعادة تحميل خادم التطوير لحظياً بمنتصف استيراد طويل) يُسقِط الدفعة
+        // كاملة عبر catch الخارجي أدناه (0 نجاح رغم نجاح عشرات الأسطر فعلياً قبله). يُسجَّل هذا
+        // السطر فاشلاً فقط الآن، وتُتابَع بقية الأسطر بلا انقطاع.
+        try {
+          const resolvedAsset = row.raw_balance_sheet_assets
+            ? await resolveOrCreateLookupItem(row.raw_balance_sheet_assets, assetItemCache, "/api/balance-sheet-assets-items")
+            : null
+          const resolvedLiability = row.raw_balance_sheet_liabilities
+            ? await resolveOrCreateLookupItem(row.raw_balance_sheet_liabilities, liabilityItemCache, "/api/balance-sheet-liabilities-items")
+            : null
+          const resolvedIncome = row.raw_income_statement_item
+            ? await resolveOrCreateLookupItem(row.raw_income_statement_item, incomeItemCache, "/api/income-statement-items")
+            : null
 
-        const response = await fetch("/api/accounts", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        })
-
-        if (!response.ok) {
-          let errorMessage = "فشل استيراد الحساب"
-          try {
-            const errorData = await response.json()
-            errorMessage = errorData.error || errorMessage
-          } catch {
-            // no-op
+          const payload = {
+            code: row.code,
+            name: row.name,
+            name_lang2: row.name_lang2,
+            type: 1,
+            parent_code: row.father_reference || null,
+            father_id: null,
+            level_no: row.father_reference ? 2 : 1,
+            finanical_list_id: row.finanical_list_id ?? 1,
+            finanical_list_assests_id: resolvedAsset?.id ?? row.finanical_list_assests_id,
+            finanical_list_liabilities_id: resolvedLiability?.id ?? row.finanical_list_liabilities_id,
+            finanical_list_income_id: resolvedIncome?.id ?? row.finanical_list_income_id,
+            currency_id: row.currency_id ?? 1,
+            allow_trans_with_diff_curr: row.allow_trans_with_diff_curr ? 1 : 0,
+            iscalc_curr_diff_rates: row.iscalc_curr_diff_rates ?? false,
+            transaction_type: row.transaction_type ?? 0,
+            transaction_type_action: row.transaction_type_action ?? 0,
+            max_transaction_amount: row.max_transaction_amount ?? 0,
+            max_transaction_amount_action: row.max_transaction_amount_action ?? 0,
+            max_balance_amount: row.max_balance_amount ?? 0,
+            max_balance_action: row.max_balance_action ?? null,
+            budget_exceeding_perc: row.budget_exceeding_perc ?? null,
+            budget_exceeding_action: row.budget_exceeding_action ?? null,
+            unified_report_account_no: row.unified_report_account_no || null,
+            unified_report_group_code: row.unified_report_group_code || null,
+            notes: row.notes || null,
+            show_notes_in_transactions_soa: row.show_notes_in_transactions_soa ?? false,
+            status: row.status || "نشط",
           }
 
-          if (errorMessage.includes("موجود")) {
-            summary.duplicates += 1
-          } else {
-            summary.failed += 1
+          const response = await fetch("/api/accounts", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          })
+
+          if (!response.ok) {
+            let errorMessage = "فشل استيراد الحساب"
+            try {
+              const errorData = await response.json()
+              errorMessage = errorData.error || errorMessage
+            } catch {
+              // no-op
+            }
+
+            if (errorMessage.includes("موجود")) {
+              summary.duplicates += 1
+            } else {
+              summary.failed += 1
+            }
+            summary.errors.push(`السطر ${row.rowIndex}: ${errorMessage}`)
+            continue
           }
-          summary.errors.push(`السطر ${row.rowIndex}: ${errorMessage}`)
-          continue
+
+          const createdAccount = await response.json()
+          seedAccountReference({
+            id: Number(createdAccount?.id ?? 0),
+            code: createdAccount?.code || createdAccount?.account_code || row.code,
+            name: createdAccount?.name || createdAccount?.account_name || row.name,
+            name_lang2: createdAccount?.name_lang2 || row.name_lang2,
+            father_id: createdAccount?.father_id ?? null,
+            level_no: Number(createdAccount?.level_no ?? (row.father_reference ? 2 : 1)),
+            finanical_list_id: Number(createdAccount?.finanical_list_id ?? row.finanical_list_id ?? 1),
+            type: createdAccount?.type ?? null,
+            allow_trans_with_diff_curr: Number(createdAccount?.allow_trans_with_diff_curr ?? 0),
+            iscalc_curr_diff_rates: Boolean(createdAccount?.iscalc_curr_diff_rates),
+            transaction_type: Number(createdAccount?.transaction_type ?? 0),
+            max_transaction_amount: Number(createdAccount?.max_transaction_amount ?? 0),
+            max_balance_amount: Number(createdAccount?.max_balance_amount ?? 0),
+            status: createdAccount?.status || row.status || "نشط",
+          })
+
+          summary.success += 1
+        } catch (rowErr: any) {
+          summary.failed += 1
+          summary.errors.push(`السطر ${row.rowIndex}: ${rowErr?.message || "خطأ غير متوقع أثناء استيراد هذا السطر"}`)
         }
-
-                  const createdAccount = await response.json()
-                  seedAccountReference({
-                    id: Number(createdAccount?.id ?? 0),
-                    code: createdAccount?.code || createdAccount?.account_code || row.code,
-                    name: createdAccount?.name || createdAccount?.account_name || row.name,
-                    name_lang2: createdAccount?.name_lang2 || row.name_lang2,
-                    father_id: createdAccount?.father_id ?? null,
-                    level_no: Number(createdAccount?.level_no ?? (row.father_reference ? 2 : 1)),
-                    finanical_list_id: Number(createdAccount?.finanical_list_id ?? row.finanical_list_id ?? 1),
-                    type: createdAccount?.type ?? null,
-                    allow_trans_with_diff_curr: Number(createdAccount?.allow_trans_with_diff_curr ?? 0),
-                    iscalc_curr_diff_rates: Boolean(createdAccount?.iscalc_curr_diff_rates),
-                    transaction_type: Number(createdAccount?.transaction_type ?? 0),
-                    max_transaction_amount: Number(createdAccount?.max_transaction_amount ?? 0),
-                    max_balance_amount: Number(createdAccount?.max_balance_amount ?? 0),
-                    status: createdAccount?.status || row.status || "نشط",
-                  })
-
-        summary.success += 1
       }
 
       setExcelSummary(summary)
@@ -1159,7 +1168,12 @@ export default function Accounts() {
       await loadData()
     } catch (err: any) {
       console.error(err)
-      setExcelSummary({ success: 0, failed: rowsToImport.length, duplicates: 0, errors: [err?.message || "خطأ غير متوقع أثناء الاستيراد"] })
+      setExcelSummary({
+        success: summary.success,
+        failed: summary.failed + Math.max(0, rowsToImport.length - summary.success - summary.failed - summary.duplicates),
+        duplicates: summary.duplicates,
+        errors: [...summary.errors, err?.message || "خطأ غير متوقع أثناء الاستيراد"],
+      })
       setExcelImportProgress({ current: rowsToImport.length, total: rowsToImport.length })
       setExcelStep("result")
     } finally {

@@ -178,6 +178,11 @@ const TYPE_LABELS: Record<StockVoucherType, { title: string }> = {
   15: { title: "سند استعمال" },
 }
 
+// نفس تدرّج التبويبات (زمردي←تركوازي عند التفعيل) المُطبَّق أصلاً بـunified-journal.tsx/unified-
+// receipt-voucher.tsx — يُطبَّق هنا أيضاً لتوحيد شكل التبويبات عبر كل شاشات السندات.
+const voucherTabTriggerClass =
+  "data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-teal-600 data-[state=active]:text-white data-[state=active]:shadow-md"
+
 // فئات سعر خاصة (معرّفات سالبة) تُعرَض دائماً في أعلى قائمة "فئة السعر" قبل صفوف جدول pricecategory
 // الحقيقية — نفس فكرة prices_class_list.splice في StockInVoucher.js القديم. "سعر الإنتاج" مُعطَّلة
 // لأنه لا يوجد لها مصدر بيانات في هذا النظام (لا BOM ولا عمود تكلفة تصنيع)؛ البقية مدعومة فعلياً
@@ -379,6 +384,21 @@ const resolveFlexControl = (grid: any): any => {
     return control && control.columns ? control : null
   }
   return grid.columns ? grid : null
+}
+
+// قراءة .selection الآمنة — نفس عطل "Cannot read properties of null (reading 'selection')" أعلاه
+// لكن بحالة حدّية أخرى لم يكفِ resolveFlexControl لتغطيتها: control وcontrol.columns كلاهما صحيحان
+// فعلاً (فيمرّ فحص resolveFlexControl)، لكن getter الخاص بـ.selection نفسه في Wijmo يتحطّم داخلياً
+// (حقل باطني آخر لا يزال null، كأثناء نافذة زمنية قصيرة من إعادة بناء تخطيط الشبكة) — try/catch هنا
+// يكفي إذ إن هذه القراءة مجرد تحسين (حفظ موضع التحديد السابق قبل تحديث itemsSource) لا حرج بتجاهله
+// عند فشله.
+const readGridSelection = (grid: any): { row: number; col: number } | null => {
+  try {
+    const sel = grid?.selection
+    return sel ? { row: sel.row, col: sel.col } : null
+  } catch {
+    return null
+  }
 }
 
 const selectCell = (rawGrid: any, row: number, colName: string) => {
@@ -834,9 +854,7 @@ export default function UnifiedStockVoucher({
 
   useEffect(() => {
     const gridBeforeSync = resolveFlexControl(chequeGridRef.current)
-    const prevSelection = gridBeforeSync?.selection
-      ? { row: gridBeforeSync.selection.row, col: gridBeforeSync.selection.col }
-      : null
+    const prevSelection = readGridSelection(gridBeforeSync)
 
     itemsCollectionView.sourceCollection = items.map((row, i) => ({ ...row, ser: i + 1 }))
     itemsCollectionView.refresh()
@@ -844,15 +862,29 @@ export default function UnifiedStockVoucher({
     const pending = pendingFocusRef.current
     if (pending) {
       pendingFocusRef.current = null
-      waitForGridReady(
-        () => chequeGridRef.current,
-        (grid) => {
-          selectCell(grid, pending.row, pending.col)
-          grid.focus()
-        },
-        20,
-        pending.row + 1,
-      )
+      // إعادة تعيين itemsCollectionView.sourceCollection أعلاه (مصفوفة جديدة كل مرة) تُصفِّر
+      // currentPosition الداخلي لِـWijmo فوراً، فيُزامِن الأخير تحديد الشبكة مع الصفر تلقائياً بعد
+      // .refresh() مباشرة — إن جرى استرجاع الصف المطلوب هنا لاحقاً فقط عبر waitForGridReady
+      // (المبنية على setTimeout)، يتسابق ذلك مع مزامنة Wijmo الداخلية الفورية، وقد تكسبها هي فتُعاد
+      // الشبكة لأول صف بدل الصف الصحيح (هذا بالضبط ما كان يحدث عند "موافق" على أي صف غير الأول).
+      // يُطبَّق الاسترجاع أولاً بنفس التِّك مباشرة إن كانت الشبكة جاهزة فعلاً (الحالة المعتادة، إذ
+      // هذا تحديث لا تركيب أول) بنفس أسلوب فرع prevSelection أدناه المُثبَت أصلاً، ولا يُلجَأ
+      // لِـwaitForGridReady إلا إن لم تكن الشبكة جاهزة بعد (تركيب أول فقط).
+      const gridNow = resolveFlexControl(chequeGridRef.current)
+      if (gridNow && gridNow.rows && gridNow.rows.length > pending.row) {
+        selectCell(gridNow, pending.row, pending.col)
+        gridNow.focus()
+      } else {
+        waitForGridReady(
+          () => chequeGridRef.current,
+          (grid) => {
+            selectCell(grid, pending.row, pending.col)
+            grid.focus()
+          },
+          20,
+          pending.row + 1,
+        )
+      }
     } else if (prevSelection) {
       const grid = resolveFlexControl(chequeGridRef.current)
       if (grid && grid.rows && grid.rows.length > prevSelection.row) {
@@ -2039,7 +2071,9 @@ export default function UnifiedStockVoucher({
                 تفاصيل السند
               </div>
               <div className="grid gap-3">
-                <div className="grid grid-cols-3 gap-3">
+                {/* دفتر السندات ← رقم السند ← تاريخ السند ← العملة ← سعر الصرف: بصف واحد بالسطر
+                    الأول من البطاقة (كانا سابقاً بصفَّين منفصلين: 3 حقول ثم 2) بناءً على طلب صريح. */}
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
                   <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
                     <Label>دفتر السندات *</Label>
                     <PrimeDropdown
@@ -2078,8 +2112,6 @@ export default function UnifiedStockVoucher({
                       onChange={(value) => onFormChange("vch_date", value)}
                     />
                   </div>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
                   <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
                     <Label>العملة *</Label>
                     <PrimeDropdown
@@ -2217,11 +2249,11 @@ export default function UnifiedStockVoucher({
             {/* dir صريح هنا (بدل الاعتماد فقط على وراثته من DialogContent) لضمان أن "الاصناف" —
                 أول عنصر بترتيب DOM — يظهر في أقصى اليمين دائماً، بصرف النظر عن أي تعارض في تتالي
                 الاتجاه عبر بوابة Radix Dialog/Tabs. */}
-            <TabsList dir="rtl">
-              <TabsTrigger value="items">الاصناف</TabsTrigger>
-              <TabsTrigger value="quantities">تفاصيل كميات الصنف</TabsTrigger>
-              {isUseVoucher && <TabsTrigger value="accounts">تفاصيل حسابات الاصناف</TabsTrigger>}
-              <TabsTrigger value="notes">ملاحظات</TabsTrigger>
+            <TabsList dir="rtl" className="flex h-auto flex-wrap justify-start gap-1 bg-slate-100 p-1">
+              <TabsTrigger value="items" className={voucherTabTriggerClass}>الاصناف</TabsTrigger>
+              <TabsTrigger value="quantities" className={voucherTabTriggerClass}>تفاصيل كميات الصنف</TabsTrigger>
+              {isUseVoucher && <TabsTrigger value="accounts" className={voucherTabTriggerClass}>تفاصيل حسابات الاصناف</TabsTrigger>}
+              <TabsTrigger value="notes" className={voucherTabTriggerClass}>ملاحظات</TabsTrigger>
             </TabsList>
 
             <fieldset disabled={isLocked} className="contents">

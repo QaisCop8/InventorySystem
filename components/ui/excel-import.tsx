@@ -9,10 +9,11 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Progress } from "@/components/ui/progress"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import DataGridView from "@/components/common/DataGridView"
-import { Upload, Download, FileSpreadsheet, AlertCircle, CheckCircle } from "lucide-react"
+import { Upload, Download, FileSpreadsheet, AlertCircle, CheckCircle, X, Package, ArrowLeft } from "lucide-react"
 
 interface ExcelImportProps {
   entityType: "products" | "customers" | "suppliers" | "subscribers"
@@ -36,16 +37,35 @@ interface ExcelRow {
   [key: string]: any
 }
 
+// لا خيار مطابقة لهذا الحقل — يبقى بقيمته الافتراضية (فارغ) لكل صف.
+const NO_MAPPING_VALUE = "__none__"
+// حقول لا يجوز تركها بلا مطابقة (تحقق validateRow لاحقاً يفرض قيمة فعلية لها بكل الحالات) — لكل
+// entityType، مطابقة لِـtemplateColumns[entityType][0]/[1] (الرقم/الاسم) في كل الأنواع الأربعة.
+const REQUIRED_FIELD_KEYS: Record<ExcelImportProps["entityType"], string[]> = {
+  products: ["product_code", "product_name"],
+  customers: ["customer_code", "customer_name"],
+  suppliers: ["customer_code", "customer_name"],
+  subscribers: ["customer_code", "customer_name"],
+}
+
 export function ExcelImport({ entityType, isOpen, onClose, onImportComplete }: ExcelImportProps) {
   const [file, setFile] = useState<File | null>(null)
   const [previewData, setPreviewData] = useState<ExcelRow[]>([])
-  const [step, setStep] = useState<"upload" | "preview" | "result">("upload")
+  const [step, setStep] = useState<"upload" | "mapping" | "preview" | "result">("upload")
   const [importResult, setImportResult] = useState<ImportResult | null>(null)
   const [isUploading, setIsUploading] = useState(false)
   const [progress, setProgress] = useState(0)
   const [loading, setLoading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
+
+  // خطوة مطابقة الأعمدة (بين رفع الملف والمعاينة) — rawRows/excelHeaders تُملأ فور رفع الملف
+  // (processFile)، ثم buildPreviewFromMapping يبني previewData الفعلية وفق ما اختاره المستخدم
+  // بـcolumnMapping بدل الاعتماد على تخمين ثابت لاسم كل عمود (كان يقرأ row["اسم العميل"] ||
+  // row["customer_name"] مباشرة بلا أي فرصة للمستخدم لتصحيح ذلك إن اختلفت رؤوس ملفه).
+  const [excelHeaders, setExcelHeaders] = useState<string[]>([])
+  const [rawRows, setRawRows] = useState<any[]>([])
+  const [columnMapping, setColumnMapping] = useState<Record<string, string>>({})
 
   // Definitions fetched from API (categories, warehouses, etc.)
   const [definitions, setDefinitions] = useState<any>({
@@ -75,7 +95,7 @@ export function ExcelImport({ entityType, isOpen, onClose, onImportComplete }: E
       { key: "product_code", label: "رقم الصنف" },
       { key: "product_name", label: "اسم الصنف" },
       { key: "description", label: "الوصف" },
-      { key: "category", label: "الفئة" },
+      { key: "category_id", label: "الفئة" },
       { key: "main_unit", label: "الوحدة الأساسية" },
       { key: "secondary_unit", label: "الوحدة الثانوية" },
       { key: "conversion_factor", label: "معامل التحويل" },
@@ -228,11 +248,26 @@ export function ExcelImport({ entityType, isOpen, onClose, onImportComplete }: E
   }
 
   // Generic Excel processing function
+  // يبني تخميناً أولياً للمطابقة (fieldKey → عنوان عمود بملف المستخدم) بمطابقة تامة (بلا حساسية
+  // لحالة الأحرف) بين عنوان عمود الملف وإما تسمية الحقل العربية (label) أو مفتاحه الإنجليزي (key)
+  // — يغطي كلا حالتَي الاستخدام السابقتين (ملء قالبنا بعناوينه العربية، أو ملف جاهز بمفاتيح
+  // إنجليزية) تلقائياً، ويترك الباقي للمستخدم ليختاره يدوياً بخطوة المطابقة.
+  const guessColumnMapping = (headers: string[]): Record<string, string> => {
+    const mapping: Record<string, string> = {}
+    const normalizedHeaders = headers.map((h) => ({ raw: h, normalized: String(h ?? "").trim().toLowerCase() }))
+    for (const field of templateColumns[entityType]) {
+      const match = normalizedHeaders.find(
+        (h) => h.normalized === field.label.toLowerCase() || h.normalized === field.key.toLowerCase(),
+      )
+      mapping[field.key] = match ? match.raw : NO_MAPPING_VALUE
+    }
+    return mapping
+  }
+
   const processFile = async () => {
     if (!file) return;
 
     setIsUploading(true);
-    setProgress(0);
 
     try {
       const data = await file.arrayBuffer();
@@ -240,103 +275,18 @@ export function ExcelImport({ entityType, isOpen, onClose, onImportComplete }: E
       const sheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[sheetName];
       const jsonData = XLSX.utils.sheet_to_json(worksheet) as any[];
+      const headerRow = (XLSX.utils.sheet_to_json(worksheet, { header: 1 })[0] as any[]) || [];
+      const headers = headerRow.map((h) => String(h ?? "").trim()).filter((h) => h.length > 0);
 
-      let processedData: any[] = [];
-
-      if (entityType === "products") {
-        processedData = jsonData.map((row, index) => ({
-          rowIndex: index + 2,
-          errors: [],
-          isValid: true,
-          product_code: row["رقم الصنف"] || row["product_code"] || "",
-          product_name: row["اسم الصنف"] || row["product_name"] || "",
-          description: row["الوصف"] || row["description"] || "",
-          category_id: Number(row["الفئة"] || row["category_id"]) || 0,
-          main_unit: row["الوحدة الأساسية"] || row["main_unit"] || "",
-          secondary_unit: row["الوحدة الثانوية"] || row["secondary_unit"] || "",
-          conversion_factor: Number(row["معامل التحويل"] || row["conversion_factor"]) || 1,
-          barcode: row["الباركود"] || row["barcode"] || "",
-          last_purchase_price: Number(row["آخر سعر شراء"] || row["last_purchase_price"]) || 0,
-          currency: row["العملة"] || row["currency"] || "",
-        }));
-      } else if (entityType === "customers" || entityType === "suppliers" || entityType === "subscribers") {
-        processedData = jsonData.map((row, index) => {
-          const customer: any = {
-            rowIndex: index + 2,
-            errors: [],
-            isValid: true,
-            customer_code: row["رقم العميل"] || row["customer_code"] || "",
-            customer_name: row["اسم العميل"] || row["customer_name"] || "",
-            mobile1: row["الجوال الأول"] || row["mobile1"] || "",
-            mobile2: row["الجوال الثاني"] || row["mobile2"] || "",
-            whatsapp1: row["واتساب الأول"] || row["whatsapp1"] || "",
-            city: row["المدينة"] || row["city"] || "",
-            address: row["العنوان"] || row["address"] || "",
-            email: row["البريد الإلكتروني"] || row["email"] || "",
-            status: row["الحالة"] || row["status"] || "",
-            classifications: row["التصنيف"] || row["classifications"] || "",
-            priceClass: row["فئة السعر"] || row["priceClass"] || "",
-          };
-
-          // Validation
-          if (!customer.customer_code.trim()) customer.errors.push("رقم العميل مطلوب");
-          if (!customer.customer_name.trim()) customer.errors.push("اسم العميل مطلوب");
-
-          // City validation if not empty
-          if (customer.city.trim()) {
-            const cityExists = definitionsRef.current.cities?.some(
-              (c: any) => c.name === customer.city || c.name_en === customer.city
-            );
-            if (!cityExists) customer.errors.push(`المدينة "${customer.city}" غير موجودة`);
-          }
-
-          if (entityType === "customers") {
-            if (customer.classifications.trim()) {
-              const cityExists = definitionsRef.current.customer_category?.some(
-                (c: any) => c.name === customer.classifications
-              );
-              if (!cityExists) customer.errors.push(`تصنيف "${customer.classifications}" غير موجود`);
-            }
-          }
-          if (entityType === "suppliers") {
-            if (customer.classifications.trim()) {
-              const cityExists = definitionsRef.current.supplier_category?.some(
-                (c: any) => c.name === customer.classifications
-              );
-              if (!cityExists) customer.errors.push(`تصنيف "${customer.classifications}" غير موجود`);
-            }
-          }
-          if (customer.priceClass + '' ?.trim()) {
-            console.log("customer.price_category ",customer.price_category)
-            const priceCat = definitionsRef.current.price_category?.find(
-              (c: any) => c.name === customer.priceClass || c.id === Number(customer.priceClass)
-            );
-
-            if (!priceCat) {
-              customer.errors.push(`فئة السعر "${customer.priceClass}" غير موجودة`);
-            } else {
-              customer.priceClass = priceCat.id; // Replace name with ID
-            }
-          }
-          // Optionally, you can add validations for email, classifications, priceClass, etc.
-          if (customer.email && !/^\S+@\S+\.\S+$/.test(customer.email)) {
-            customer.errors.push("صيغة البريد الإلكتروني غير صحيحة");
-          }
-
-          // Set isValid flag
-          customer.isValid = customer.errors.length === 0;
-          return customer;
-        });
+      if (jsonData.length === 0 || headers.length === 0) {
+        toast({ title: "الملف فارغ", description: "لا يحتوي الملف على بيانات أو صف عناوين أعمدة صالح", variant: "destructive" });
+        return;
       }
 
-
-      setPreviewData(processedData);
-      setStep("preview");
-
-      toast({
-        title: `تم تحليل ملف ${entityLabels[entityType]} بنجاح`,
-        description: `تم العثور على ${processedData.length} سجل`,
-      });
+      setRawRows(jsonData);
+      setExcelHeaders(headers);
+      setColumnMapping(guessColumnMapping(headers));
+      setStep("mapping");
     } catch (error: any) {
       toast({
         title: "خطأ في معالجة الملف",
@@ -345,8 +295,121 @@ export function ExcelImport({ entityType, isOpen, onClose, onImportComplete }: E
       });
     } finally {
       setIsUploading(false);
-      setProgress(0);
     }
+  };
+
+  // يبني previewData الفعلية من rawRows بحسب مطابقة الأعمدة التي أكّدها/عدّلها المستخدم بخطوة
+  // المطابقة — نفس منطق بناء/تحقق كل صف الذي كان سابقاً بجسم processFile مباشرة، فقط يقرأ كل حقل
+  // عبر columnMapping[key] (عنوان عمود ملف المستخدم) بدل افتراض تطابق حرفي مع تسمية عربية/مفتاح ثابت.
+  const buildPreviewFromMapping = () => {
+    const readField = (row: any, key: string) => {
+      const header = columnMapping[key]
+      if (!header || header === NO_MAPPING_VALUE) return undefined
+      return row[header]
+    }
+    // نصوص الملف قد تصل كأرقام (خلية Excel مُنسَّقة كرقم لا نص، كرقم عميل "12345" بلا صياغة نصية
+    // صريحة) — XLSX.utils.sheet_to_json يُرجعها عندئذ number لا string، فيتحطّم أي .trim() لاحق
+    // عليها مباشرة (Number.prototype لا يملك trim). كل حقل نصي هنا يُمرَّر عبر String(...) صراحة
+    // بدل الاعتماد على || "" وحدها (لا تكفي لتحويل رقم فعلي كـ0 أو أي رقم آخر إلى نص).
+    const readText = (row: any, key: string) => {
+      const value = readField(row, key)
+      return value === undefined || value === null ? "" : String(value).trim()
+    }
+
+    let processedData: any[] = [];
+
+    if (entityType === "products") {
+      processedData = rawRows.map((row, index) => ({
+        rowIndex: index + 2,
+        errors: [],
+        isValid: true,
+        product_code: readText(row, "product_code"),
+        product_name: readText(row, "product_name"),
+        description: readText(row, "description"),
+        category_id: Number(readField(row, "category_id")) || 0,
+        main_unit: readText(row, "main_unit"),
+        secondary_unit: readText(row, "secondary_unit"),
+        conversion_factor: Number(readField(row, "conversion_factor")) || 1,
+        barcode: readText(row, "barcode"),
+        last_purchase_price: Number(readField(row, "last_purchase_price")) || 0,
+        currency: readText(row, "currency"),
+      }));
+    } else if (entityType === "customers" || entityType === "suppliers" || entityType === "subscribers") {
+      processedData = rawRows.map((row, index) => {
+        const customer: any = {
+          rowIndex: index + 2,
+          errors: [],
+          isValid: true,
+          customer_code: readText(row, "customer_code"),
+          customer_name: readText(row, "customer_name"),
+          mobile1: readText(row, "mobile1"),
+          mobile2: readText(row, "mobile2"),
+          whatsapp1: readText(row, "whatsapp1"),
+          city: readText(row, "city"),
+          address: readText(row, "address"),
+          email: readText(row, "email"),
+          status: readText(row, "status"),
+          classifications: readText(row, "classifications"),
+          priceClass: readText(row, "priceClass"),
+        };
+
+        // Validation
+        if (!customer.customer_code.trim()) customer.errors.push("رقم العميل مطلوب");
+        if (!customer.customer_name.trim()) customer.errors.push("اسم العميل مطلوب");
+
+        // City validation if not empty
+        if (customer.city.trim()) {
+          const cityExists = definitionsRef.current.cities?.some(
+            (c: any) => c.name === customer.city || c.name_en === customer.city
+          );
+          if (!cityExists) customer.errors.push(`المدينة "${customer.city}" غير موجودة`);
+        }
+
+        if (entityType === "customers") {
+          if (customer.classifications.trim()) {
+            const cityExists = definitionsRef.current.customer_category?.some(
+              (c: any) => c.name === customer.classifications
+            );
+            if (!cityExists) customer.errors.push(`تصنيف "${customer.classifications}" غير موجود`);
+          }
+        }
+        if (entityType === "suppliers") {
+          if (customer.classifications.trim()) {
+            const cityExists = definitionsRef.current.supplier_category?.some(
+              (c: any) => c.name === customer.classifications
+            );
+            if (!cityExists) customer.errors.push(`تصنيف "${customer.classifications}" غير موجود`);
+          }
+        }
+        if (customer.priceClass + '' ?.trim()) {
+          const priceCat = definitionsRef.current.price_category?.find(
+            (c: any) => c.name === customer.priceClass || c.id === Number(customer.priceClass)
+          );
+
+          if (!priceCat) {
+            customer.errors.push(`فئة السعر "${customer.priceClass}" غير موجودة`);
+          } else {
+            customer.priceClass = priceCat.id; // Replace name with ID
+          }
+        }
+        // Optionally, you can add validations for email, classifications, priceClass, etc.
+        if (customer.email && !/^\S+@\S+\.\S+$/.test(customer.email)) {
+          customer.errors.push("صيغة البريد الإلكتروني غير صحيحة");
+        }
+
+        // Set isValid flag
+        customer.isValid = customer.errors.length === 0;
+        return customer;
+      });
+    }
+
+    setPreviewData(processedData);
+    setStep("preview");
+
+    toast({
+      title: `تم تحليل ملف ${entityLabels[entityType]} بنجاح`,
+      description: `تم العثور على ${processedData.length} سجل`,
+    });
   };
 
   const confirmImport = async () => {
@@ -401,6 +464,9 @@ export function ExcelImport({ entityType, isOpen, onClose, onImportComplete }: E
     setImportResult(null)
     setStep("upload")
     setProgress(0)
+    setExcelHeaders([])
+    setRawRows([])
+    setColumnMapping({})
     if (fileInputRef.current) fileInputRef.current.value = ""
   }
 
@@ -413,30 +479,9 @@ export function ExcelImport({ entityType, isOpen, onClose, onImportComplete }: E
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent
-        className="excel-import-dialog max-h-[90vh] overflow-hidden flex flex-col p-4 sm:p-6"
+        className="excel-import-dialog max-w-6xl max-h-[90vh] overflow-hidden flex flex-col p-4 sm:p-6"
         dir="rtl"
-        style={{ width: "96vw", maxWidth: "96vw" }}
       >
-        <style>{`
-          .excel-import-dialog .wj-flexgrid {
-            width: 100% !important;
-            max-width: 100% !important;
-            min-width: 0 !important;
-          }
-
-          .excel-import-dialog .wj-flexgrid .wj-rowheaders {
-            width: 0 !important;
-            min-width: 0 !important;
-            display: none !important;
-          }
-
-          .excel-import-dialog .wj-flexgrid .wj-cells {
-            width: 100% !important;
-          }
-          .excel-import-dialog .wj-flexgrid .wj-cells .wj-cell {
-            width: 100% !important;
-          }
-        `}</style>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileSpreadsheet className="h-5 w-5" />
@@ -447,42 +492,107 @@ export function ExcelImport({ entityType, isOpen, onClose, onImportComplete }: E
         <ProgressSpinner loading={loading} />
 
         <div className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden" dir="rtl">
-          {/* UPLOAD STEP */}
+          {/* UPLOAD STEP — نفس تصميم رفع ملف الأصناف (components/products/excel-import-dialog.tsx):
+              بطاقة واحدة مدمجة (زر تحميل القالب + حقل اختيار ملف) بدل صندوقين كبيرين متجاورين، ثم
+              تنبيه تعليمات أسفلها. */}
           {step === "upload" && (
             <div className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">رفع ملف Excel</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center gap-4">
+                    <Button variant="outline" onClick={downloadTemplate} className="flex items-center gap-2 bg-transparent">
+                      <Download className="h-4 w-4" />
+                      تحميل نموذج {entityLabels[entityType]}
+                    </Button>
+                    <span className="text-sm text-muted-foreground">
+                      قم بتحميل النموذج أولاً لمعرفة تنسيق البيانات المقترح
+                    </span>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="file-upload">اختر ملف Excel</Label>
+                    <Input
+                      ref={fileInputRef}
+                      id="file-upload"
+                      type="file"
+                      accept=".xlsx,.xls"
+                      onChange={handleFileSelect}
+                      disabled={isUploading}
+                    />
+                    {file && <p className="mt-1 text-sm text-muted-foreground">الملف المحدد: {file.name}</p>}
+                  </div>
+                </CardContent>
+              </Card>
+
               <Alert>
-                <AlertCircle className="h-4 w-4" />
+                <Package className="h-4 w-4" />
                 <AlertDescription>
-                  يرجى تحميل ملف Excel يحتوي على البيانات المطلوبة. يمكنك تحميل نموذج فارغ للمساعدة في تنسيق البيانات.
+                  يرجى تحميل ملف Excel يحتوي على البيانات المطلوبة. يمكنك تحميل نموذج فارغ للمساعدة في تنسيق البيانات — بعد رفع
+                  الملف ستتمكن من مطابقة أعمدته مع حقول النظام قبل المعاينة النهائية.
                 </AlertDescription>
               </Alert>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <Label htmlFor="file-upload" className="text-lg font-semibold">اختيار ملف Excel</Label>
-                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                    <Upload className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-                    <Input ref={fileInputRef} id="file-upload" type="file" accept=".xlsx,.xls" onChange={handleFileSelect} className="hidden" />
-                    <Button variant="outline" onClick={() => fileInputRef.current?.click()} className="mb-2">اختيار ملف</Button>
-                    <p className="text-sm text-gray-500">{file ? file.name : "لم يتم اختيار ملف"}</p>
-                  </div>
-                </div>
+              <div className="flex justify-end gap-3">
+                <Button variant="outline" onClick={handleClose}>إلغاء</Button>
+                <Button onClick={processFile} disabled={!file || isUploading}>متابعة لمطابقة الأعمدة</Button>
+              </div>
+            </div>
+          )}
 
-                <div className="space-y-4">
-                  <Label className="text-lg font-semibold">تحميل نموذج فارغ</Label>
-                  <div className="border rounded-lg p-6 text-center">
-                    <Download className="mx-auto h-12 w-12 text-blue-500 mb-4" />
-                    <Button variant="outline" onClick={downloadTemplate}>
-                      <Download className="ml-2 h-4 w-4" /> تحميل نموذج {entityLabels[entityType]}
-                    </Button>
-                    <p className="text-sm text-gray-500 mt-2">نموذج Excel جاهز للتعبئة</p>
-                  </div>
+          {/* MAPPING STEP — اختيار عمود ملف المستخدم المقابل لكل حقل نظام، بنفس أسلوب استيراد
+              الأصناف (excel-import-dialog.tsx: PRODUCT_FIELD_DEFS/columnMapping). */}
+          {step === "mapping" && (
+            <div className="flex min-w-0 flex-col gap-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold">مطابقة الأعمدة</h3>
+                  <p className="text-sm text-muted-foreground">
+                    اختر لكل حقل من حقول النظام العمود المقابل له في ملفك ({rawRows.length} صف). الحقول المميّزة بـ * مطلوبة.
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={resetImport}>
+                    <X className="h-4 w-4 mr-2" /> إلغاء
+                  </Button>
+                  <Button
+                    onClick={buildPreviewFromMapping}
+                    disabled={REQUIRED_FIELD_KEYS[entityType].some(
+                      (key) => !columnMapping[key] || columnMapping[key] === NO_MAPPING_VALUE,
+                    )}
+                  >
+                    <ArrowLeft className="h-4 w-4 mr-2 rotate-180" /> متابعة للمعاينة
+                  </Button>
                 </div>
               </div>
 
-              <div className="flex justify-end gap-3">
-                <Button variant="outline" onClick={handleClose}>إلغاء</Button>
-                <Button onClick={processFile} disabled={!file || isUploading}>معاينة البيانات</Button>
+              <div className="grid max-h-[520px] grid-cols-1 gap-3 overflow-y-auto rounded-lg border p-4 sm:grid-cols-2 lg:grid-cols-3">
+                {templateColumns[entityType].map((field) => (
+                  <div key={field.key} className="space-y-1.5">
+                    <Label className="text-sm">
+                      {field.label}
+                      {REQUIRED_FIELD_KEYS[entityType].includes(field.key) && <span className="text-red-600"> *</span>}
+                    </Label>
+                    <Select
+                      value={columnMapping[field.key] || NO_MAPPING_VALUE}
+                      onValueChange={(value) => setColumnMapping((prev) => ({ ...prev, [field.key]: value }))}
+                    >
+                      <SelectTrigger className="text-right" dir="rtl">
+                        <SelectValue placeholder="اختر العمود" />
+                      </SelectTrigger>
+                      <SelectContent dir="rtl">
+                        <SelectItem value={NO_MAPPING_VALUE}>بدون مطابقة</SelectItem>
+                        {excelHeaders.map((header) => (
+                          <SelectItem key={header} value={header}>
+                            {header}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ))}
               </div>
             </div>
           )}
@@ -497,9 +607,11 @@ export function ExcelImport({ entityType, isOpen, onClose, onImportComplete }: E
                 </AlertDescription>
               </Alert>
 
-              <div className="w-full min-w-0 border rounded-lg overflow-hidden">
+              {/* الشريط الأفقي (لعدد أعمدة قد يفوق عرض الحوار) داخل الشبكة نفسها هنا فقط
+                  (overflow-x-auto) بدل تسريبه لمستوى الحوار كاملاً — نفس إصلاح استيراد الأصناف. */}
+              <div className="w-full min-w-0 border rounded-lg overflow-x-auto overflow-y-hidden">
                 <DataGridView
-                  style={{ maxHeight: "70vh", minHeight: "50vh", width: "100%", overflowX: "hidden" }}
+                  style={{ maxHeight: "70vh", minHeight: "50vh" }}
                   idProperty="rowIndex"
                   scheme={previewGridScheme}
                   dataSource={previewGridData}

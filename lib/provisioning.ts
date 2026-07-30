@@ -209,6 +209,29 @@ async function seedAccessListsAndGrantAdmin(tenantClient: ReturnType<typeof getP
   }
 }
 
+// صلاحيات دفاتر السندات (voucher_book_user_permissions_tbl — انظر app/api/voucher-book-permissions/
+// _lib.ts لشرح الجداول الثلاثة) لمستخدم admin (user_id='1'/id=1 المُنشأ للتو): تُمنَح كل الدفاتر
+// (voucher_books_tbl، مُستنسَخة ببياناتها أصلاً ضمن LOOKUP_TABLES أعلاه) لكل نوع سند (voucher_types_tbl)
+// دون استثناء — بلا هذا لا يستطيع admin استخدام أي سند إطلاقاً بشركة حديثة التزويد (شاشة كل سند تفرض
+// دفتراً من ضمن صلاحيات المستخدم). الدفتر الافتراضي (is_default=1) هو الدفتر المُسمّى "0" تحديداً
+// (يُنشَأ دوماً ضمن ensureTables بذلك المسار) لا أول دفتر بالترتيب، مطابقاً لطلب المستخدم صراحةً.
+async function seedVoucherBookPermissionsForAdmin(tenantClient: ReturnType<typeof getPoolForDb>) {
+  const types = await tenantClient.query(`SELECT id FROM voucher_types_tbl WHERE COALESCE(status, 1) != 3`, [])
+  const books = await tenantClient.query(`SELECT id, name FROM voucher_books_tbl`, [])
+  if (books.length === 0) return
+
+  const defaultBook = books.find((b: any) => String(b.name).trim() === "0") ?? books[0]
+
+  for (const type of types) {
+    for (const book of books) {
+      await tenantClient.query(
+        `INSERT INTO voucher_book_user_permissions_tbl (user_id, voucher_type_id, vch_book_id, is_default) VALUES ($1, $2, $3, $4)`,
+        ["1", type.id, book.id, book.id === defaultBook.id ? 1 : 0],
+      )
+    }
+  }
+}
+
 // فرع وقسم افتراضيان لكل شركة جديدة — بلا أي فرع/قسم، شاشات كثيرة (تسجيل الدخول نفسه عبر
 // user_settings.branch_id، شاشات المخزون والسندات) تفترض وجود فرع واحد على الأقل.
 async function seedDefaultBranchAndSection(tenantClient: ReturnType<typeof getPoolForDb>) {
@@ -238,6 +261,18 @@ async function seedDefaultSystemSettings(tenantClient: ReturnType<typeof getPool
     ["purchase_invoice_start", "1"],
   ] as const
 
+  // system_settings.id قد يكون لا يزال SERIAL/عددياً قديماً بدل VARCHAR(100) المقصود (تلك الهجرة
+  // تُنفَّذ فقط عند أول استدعاء لـensureSettingsTable بـapp/api/settings/system/route.ts — إن لم
+  // يُستدعَ هذا المسار بعد على القاعدة المرجعية، ترثه كل شركة جديدة كما هو عبر cloneReferenceSchema
+  // أعلاه). المحاولة الأولى هنا كانت تكتشف هذه الحالة وتُدرِج بعمودَي description/value بدل id (نفس
+  // حل ensureSettingsTable) لكنها افترضت خطأً وجود تسلسل SERIAL يُعيّن id تلقائياً عند حذفه من
+  // الإدراج — إن كان id عدداً صحيحاً بلا قيمة افتراضية أصلاً (الحالة الفعلية هنا: عمود عددي مُستنسَخ
+  // بلا nextval)، يفشل الإدراج بـ"null value in column \"id\" violates not-null constraint" بدل ذلك.
+  // الحل الأضمن: تهجير العمود صراحة لِـVARCHAR(100) (الشكل النهائي المقصود) على هذا الجدول الفارغ
+  // تواً (شركة جديدة، بلا صفوف بعد فتُهاجَر بأمان دوماً) بدل محاولة التكيّف مع الشكل القديم.
+  await tenantClient.query(`ALTER TABLE system_settings ALTER COLUMN id TYPE VARCHAR(100) USING id::TEXT`, []).catch(() => {})
+  await tenantClient.query(`ALTER TABLE system_settings ALTER COLUMN id DROP DEFAULT`, []).catch(() => {})
+
   for (const [key, value] of rows) {
     await tenantClient.query(
       `INSERT INTO system_settings (id, description, value) VALUES ($1, $2, $3)
@@ -251,7 +286,13 @@ async function clearFreshCompanySeedData(tenantClient: ReturnType<typeof getPool
   await tenantClient.query(`TRUNCATE TABLE products, banks, bank_accounts RESTART IDENTITY CASCADE`)
 }
 
-export async function provisionCompanyDatabase(company: { id: number; name: string; requestedByEmail: string; requestedByFullName: string; requestedByPasswordHash: string }, approvedByUserId: number) {
+export async function provisionCompanyDatabase(
+  company: { id: number; name: string; requestedByEmail: string; requestedByFullName: string; requestedByPasswordHash: string },
+  approvedByUserId: number,
+  // expiryDays: مدة الاشتراك الممنوحة عند التزويد (365 للاعتماد العادي عبر لوحة الإدارة، 10 للشركة
+  // التجريبية ذاتية الاعتماد — انظر app/api/management/companies/trial/route.ts).
+  options: { expiryDays?: number } = {},
+) {
   await ensureManagementTables()
 
   const dbName = await generateUniqueDbName()
@@ -289,15 +330,18 @@ export async function provisionCompanyDatabase(company: { id: number; name: stri
   )
 
   await seedAccessListsAndGrantAdmin(tenantClient)
+  await seedVoucherBookPermissionsForAdmin(tenantClient)
 
-  // اشتراك سنة واحدة من تاريخ الاعتماد الفعلي، ونطاق مستخدمين افتراضي = 1 (محجوز لاستخدام مستقبلي
-  // — لا فرض/تحقق فعلي لعدد المستخدمين مقابل هذا الحد بعد).
-  await managementSql`
+  // اشتراك بمدة expiryDays (سنة واحدة افتراضياً) من تاريخ الاعتماد الفعلي، ونطاق مستخدمين افتراضي
+  // = 1 (محجوز لاستخدام مستقبلي — لا فرض/تحقق فعلي لعدد المستخدمين مقابل هذا الحد بعد).
+  const expiryDays = options.expiryDays ?? 365
+  const updated = await managementSql`
     UPDATE companies
     SET db_name = ${dbName}, status = 'approved', approved_by = ${approvedByUserId}, approved_at = CURRENT_TIMESTAMP,
-        expiry_date = CURRENT_TIMESTAMP + INTERVAL '1 year', number_of_users = 1
+        expiry_date = CURRENT_TIMESTAMP + (${expiryDays} * INTERVAL '1 day'), number_of_users = 1
     WHERE id = ${company.id}
+    RETURNING expiry_date
   `
 
-  return { dbName }
+  return { dbName, expiryDate: updated[0]?.expiry_date ?? null }
 }

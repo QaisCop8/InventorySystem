@@ -355,7 +355,18 @@ function ExchangeRatesContent() {
                 <TrendingUp className="h-4 w-4 mr-2" />
                 تحديث الأسعار
               </Button>
-              <Button onClick={() => setShowNewRateDialog(true)} variant="outline">
+              <Button
+                onClick={() => {
+                  // أول عملة تُعرَّف بالنظام (لا عملات موجودة بعد) هي عملة الأساس ضمناً — سعر
+                  // الشراء/البيع/الصرف بالنسبة لنفسها 1 دوماً بالتعريف، فتُثبَّت هنا 1 وتُعطَّل حقولها
+                  // أدناه (isFirstCurrency) بدل تركها فارغة/قابلة للتعديل بلا معنى فعلي.
+                  if (exchangeRates.length === 0) {
+                    setNewCurrencyForm((prev) => ({ ...prev, buyRate: 1, sellRate: 1, exchangeRate: 1 }))
+                  }
+                  setShowNewRateDialog(true)
+                }}
+                variant="outline"
+              >
                 <Plus className="h-4 w-4 mr-2" />
                 عملة جديدة
               </Button>
@@ -600,6 +611,7 @@ function ExchangeRatesContent() {
                   className="text-right"
                   dir="rtl"
                   value={newCurrencyForm.buyRate}
+                  disabled={exchangeRates.length === 0}
                   onChange={(e) =>
                     setNewCurrencyForm({ ...newCurrencyForm, buyRate: Number.parseFloat(e.target.value) || 0 })
                   }
@@ -617,6 +629,7 @@ function ExchangeRatesContent() {
                   className="text-right"
                   dir="rtl"
                   value={newCurrencyForm.sellRate}
+                  disabled={exchangeRates.length === 0}
                   onChange={(e) =>
                     setNewCurrencyForm({ ...newCurrencyForm, sellRate: Number.parseFloat(e.target.value) || 0 })
                   }
@@ -634,6 +647,7 @@ function ExchangeRatesContent() {
                   className="text-right"
                   dir="rtl"
                   value={newCurrencyForm.exchangeRate}
+                  disabled={exchangeRates.length === 0}
                   onChange={(e) =>
                     setNewCurrencyForm({ ...newCurrencyForm, exchangeRate: Number.parseFloat(e.target.value) || 0 })
                   }

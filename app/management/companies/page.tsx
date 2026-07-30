@@ -19,8 +19,10 @@ import {
   Sparkles,
   LayoutGrid,
   Ban,
+  Gift,
 } from "lucide-react"
 import { activateCompany } from "@/lib/tenant-client"
+import { useToast } from "@/hooks/use-toast"
 
 interface Company {
   id: number
@@ -47,6 +49,12 @@ function paletteFor(id: number) {
   return AVATAR_PALETTES[id % AVATAR_PALETTES.length]
 }
 
+// مطابقة لِـTRIAL_EXPIRY_DAYS بـapp/api/management/companies/trial/route.ts — للعرض فقط هنا (تاريخ
+// الانتهاء الفعلي المحفوظ يُحتسَب/يُعاد من الخادم نفسه عند الإنشاء الفعلي، هذا فقط لمعاينة المستخدم
+// قبل الضغط على "إنشاء").
+const TRIAL_EXPIRY_DAYS = 10
+const formatArabicDate = (date: Date) => date.toLocaleDateString("ar-EG", { year: "numeric", month: "long", day: "numeric" })
+
 const STATUS_CONFIG: Record<Company["status"], { label: string; icon: typeof ShieldCheck; classes: string }> = {
   approved: { label: "جاهزة", icon: ShieldCheck, classes: "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200" },
   pending: { label: "في انتظار الموافقة", icon: Clock, classes: "bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-200" },
@@ -56,6 +64,7 @@ const STATUS_CONFIG: Record<Company["status"], { label: string; icon: typeof Shi
 
 export default function ManagementCompaniesPage() {
   const router = useRouter()
+  const { toast } = useToast()
   const [companies, setCompanies] = useState<Company[]>([])
   const [loading, setLoading] = useState(true)
   const [showAddDialog, setShowAddDialog] = useState(false)
@@ -63,7 +72,14 @@ export default function ManagementCompaniesPage() {
   const [saving, setSaving] = useState(false)
   const [selecting, setSelecting] = useState<number | null>(null)
   const [error, setError] = useState("")
+  const [notice, setNotice] = useState("")
   const [isPlatformAdmin, setIsPlatformAdmin] = useState(false)
+  // شركة تجريبية (اعتماد فوري ذاتي، اشتراك TRIAL_EXPIRY_DAYS يوماً — انظر
+  // app/api/management/companies/trial/route.ts) — حوار منفصل عن "اضافة شركة جديدة" العادية
+  // (التي تبقى بانتظار موافقة مسؤول المنصة) حتى يبقى الفرق بين المسارين واضحاً للمستخدم.
+  const [showTrialDialog, setShowTrialDialog] = useState(false)
+  const [trialCompanyName, setTrialCompanyName] = useState("")
+  const [trialSaving, setTrialSaving] = useState(false)
 
   useEffect(() => {
     fetch("/api/management/me")
@@ -94,9 +110,11 @@ export default function ManagementCompaniesPage() {
   }, [])
 
   const handleAddCompany = async () => {
+    // الخطأ يظهر توستاً فقط هنا (لا شارة الصفحة الحمراء أدناه) — الحوار يبقى مفتوحاً عند الفشل
+    // (لا setShowAddDialog(false) إلا بالنجاح)، وتلك الشارة تُرسَم بمحتوى الصفحة الذي يُظلّله الحوار
+    // المفتوح فوقه، فتبقى غير مرئية عملياً خلفه بدل توست يظهر فوق كل شيء.
     if (!newCompanyName.trim()) return
     setSaving(true)
-    setError("")
     try {
       const res = await fetch("/api/management/companies", {
         method: "POST",
@@ -105,16 +123,50 @@ export default function ManagementCompaniesPage() {
       })
       const data = await res.json()
       if (!res.ok) {
-        setError(data.error || "حدث خطأ أثناء إنشاء الشركة")
+        toast({ title: "خطأ", description: data.error || "حدث خطأ أثناء إنشاء الشركة", variant: "destructive" })
         return
       }
       setShowAddDialog(false)
       setNewCompanyName("")
       await loadCompanies()
     } catch {
-      setError("تعذّر الاتصال بالخادم")
+      toast({ title: "خطأ", description: "تعذّر الاتصال بالخادم", variant: "destructive" })
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleAddTrialCompany = async () => {
+    // نفس سبب عدم استخدام شارة الصفحة بـhandleAddCompany أعلاه.
+    if (!trialCompanyName.trim()) return
+    setTrialSaving(true)
+    setNotice("")
+    try {
+      const res = await fetch("/api/management/companies/trial", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: trialCompanyName.trim() }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        // detail (انظر catch بـapp/api/management/companies/trial/route.ts) يحمل رسالة الخطأ
+        // الفعلية من provisionCompanyDatabase (إنشاء قاعدة كاملة — عدة نقاط فشل محتملة)، تُرفَق هنا
+        // بالتوست عند توفّرها بدل رسالة "حدث خطأ" العامة وحدها.
+        const message = data.detail ? `${data.error || "حدث خطأ أثناء إنشاء الشركة التجريبية"} (${data.detail})` : data.error || "حدث خطأ أثناء إنشاء الشركة التجريبية"
+        toast({ title: "خطأ", description: message, variant: "destructive" })
+        return
+      }
+      setShowTrialDialog(false)
+      setTrialCompanyName("")
+      const expiryLabel = data.expiryDate ? formatArabicDate(new Date(data.expiryDate)) : formatArabicDate(new Date(Date.now() + TRIAL_EXPIRY_DAYS * 24 * 60 * 60 * 1000))
+      const successMessage = `تم إنشاء الشركة التجريبية واعتمادها تلقائياً — ستنتهي صلاحيتها بتاريخ ${expiryLabel}`
+      setNotice(successMessage)
+      toast({ title: "تم الإنشاء", description: successMessage })
+      await loadCompanies()
+    } catch {
+      toast({ title: "خطأ", description: "تعذّر الاتصال بالخادم", variant: "destructive" })
+    } finally {
+      setTrialSaving(false)
     }
   }
 
@@ -195,6 +247,9 @@ export default function ManagementCompaniesPage() {
         {error && (
           <div className="mb-6 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div>
         )}
+        {notice && (
+          <div className="mb-6 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{notice}</div>
+        )}
 
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
           <button
@@ -205,6 +260,20 @@ export default function ManagementCompaniesPage() {
               <Plus className="h-7 w-7" />
             </div>
             <span className="font-semibold">اضافة شركة جديدة</span>
+          </button>
+
+          <button
+            onClick={() => setShowTrialDialog(true)}
+            className="group flex min-h-[190px] flex-col items-center justify-center gap-3 rounded-3xl border-2 border-dashed border-violet-200 bg-violet-50/40 p-8 text-violet-400 transition-all hover:border-violet-400 hover:bg-violet-50 hover:text-violet-600"
+          >
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-violet-100 transition-colors group-hover:bg-violet-200">
+              <Gift className="h-7 w-7" />
+            </div>
+            <span className="font-semibold">شركة تجريبية</span>
+            {/* معلومة الانتهاء على الزر نفسه — مطابقة لطلب المستخدم صراحةً بإظهارها هنا بلا حاجة لفتح
+                الحوار أصلاً؛ التاريخ الفعلي (اليوم + المدة) يُحسَب ويُعرَض داخل الحوار عند الإنشاء
+                إذ يعتمد على لحظة الضغط على "إنشاء" تحديداً، لا يمكن تثبيته على الزر مسبقاً. */}
+            <span className="text-xs font-normal text-violet-400">مجانية لمدة {TRIAL_EXPIRY_DAYS} أيام — اعتماد فوري بلا انتظار</span>
           </button>
 
           {companies.map((company) => {
@@ -277,6 +346,13 @@ export default function ManagementCompaniesPage() {
                   <Calendar className="h-3.5 w-3.5" />
                   {createdDate.toLocaleDateString("ar-EG", { year: "numeric", month: "long", day: "numeric" })}
                 </div>
+
+                {company.expiry_date && (
+                  <div className={"flex w-full items-center gap-1.5 text-xs " + (isExpired ? "font-medium text-rose-600" : "text-slate-400")}>
+                    <Clock className="h-3.5 w-3.5" />
+                    تاريخ انتهاء الاشتراك: {new Date(company.expiry_date).toLocaleDateString("ar-EG", { year: "numeric", month: "long", day: "numeric" })}
+                  </div>
+                )}
               </div>
             )
           })}
@@ -305,6 +381,33 @@ export default function ManagementCompaniesPage() {
             </Button>
             <Button onClick={handleAddCompany} disabled={saving || !newCompanyName.trim()}>
               {saving ? "جاري الإنشاء..." : "إنشاء"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showTrialDialog} onOpenChange={setShowTrialDialog}>
+        <DialogContent dir="rtl" className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>شركة تجريبية</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label>اسم الشركة</Label>
+            <Input value={trialCompanyName} onChange={(e) => setTrialCompanyName(e.target.value)} className="text-right" autoFocus />
+          </div>
+          <div className="flex items-start gap-2 rounded-xl border border-violet-200 bg-violet-50 px-3 py-2.5 text-sm text-violet-700">
+            <Clock className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>
+              ستُعتمَد الشركة فوراً بلا انتظار موافقة، وتنتهي صلاحيتها تلقائياً بعد {TRIAL_EXPIRY_DAYS} أيام من الآن — بتاريخ{" "}
+              <strong>{formatArabicDate(new Date(Date.now() + TRIAL_EXPIRY_DAYS * 24 * 60 * 60 * 1000))}</strong>.
+            </span>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowTrialDialog(false)}>
+              إلغاء
+            </Button>
+            <Button onClick={handleAddTrialCompany} disabled={trialSaving || !trialCompanyName.trim()}>
+              {trialSaving ? "جاري الإنشاء..." : "إنشاء"}
             </Button>
           </DialogFooter>
         </DialogContent>

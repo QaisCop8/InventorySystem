@@ -1115,8 +1115,9 @@ export function CompactProductForm({
   }
 
   const validateProductCode = (code: string): boolean => {
-    // يجب أن يكون الكود بحد أقصى 8 خانات ويحتوي على أرقام وحروف إنجليزية فقط
-    const regex = /^[A-Za-z0-9]{1,8}$/
+    // يجب أن يكون الكود بحد أقصى 10 خانات (كان 8 — طول التوليد التلقائي بـ
+    // app/api/utilities/getLastProductCode أصبح 10 خانات) ويحتوي على أرقام وحروف إنجليزية فقط
+    const regex = /^[A-Za-z0-9]{1,10}$/
     return regex.test(code)
   }
   const gridStyle = {

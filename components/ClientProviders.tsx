@@ -10,6 +10,7 @@ import { GlobalSearchProvider } from "@/components/global-search-provider"
 import { GlobalShortcuts } from "@/components/global-shortcuts"
 import { Toaster } from "@/components/ui/toaster"
 import { syncSystemSettingsToLocalStorage } from "@/lib/system-settings-sync"
+import { CompanyStatusGuard } from "@/components/auth/company-status-guard"
 
 export default function ClientProviders({ children }: { children: React.ReactNode }) {
   // يُعبِّئ إعداد "عدد الخانات العشرية" (وأي إعداد نظام قديم آخر لاحقاً) بـlocalStorage عند بدء أي
@@ -26,6 +27,7 @@ export default function ClientProviders({ children }: { children: React.ReactNod
             <WindowManagerProvider>
               <GlobalSearchProvider>
                 <GlobalShortcuts />
+                <CompanyStatusGuard />
                 {children}
                 <Toaster />
               </GlobalSearchProvider>
