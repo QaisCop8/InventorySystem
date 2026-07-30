@@ -409,7 +409,6 @@ export function SystemSettings() {
       }
 
       const starts = [
-        { label: "بداية ترقيم فواتير المبيعات", value: settings.invoiceStart },
         { label: "بداية ترقيم طلبات المبيعات", value: settings.orderStart },
         { label: "بداية ترقيم طلبات الشراء", value: settings.purchaseStart },
         { label: "بداية ترقيم العملاء", value: settings.customerStart },
@@ -425,10 +424,6 @@ export function SystemSettings() {
         }
       }
 
-      if (!settings.invoiceStart || settings.invoiceStart < 1) {
-        setError("بداية ترقيم فواتير المبيعات مطلوبة ويجب أن تكون أكبر من صفر")
-        return
-      }
       if (!settings.orderStart || settings.orderStart < 1) {
         setError("بداية ترقيم طلبات المبيعات مطلوبة ويجب أن تكون أكبر من صفر")
         return
@@ -1137,37 +1132,6 @@ export function SystemSettings() {
               <div>
                 <h3 className="text-lg font-semibold mb-4 text-right">إعدادات السندات (إجبارية)</h3>
                 <div className="space-y-3">
-                  <div className="rounded-lg border border-border/70 bg-muted/20 p-4">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div>
-                        <Label htmlFor="invoiceStart" className="text-right block">
-                          بداية ترقيم فواتير المبيعات *
-                        </Label>
-                        <Input
-                          id="invoiceStart"
-                          type="number"
-                          min="1"
-                          value={settings.invoiceStart}
-                          onChange={(e) => {
-                            const value = e.target.value === "" ? 1 : Number.parseInt(e.target.value)
-                            setSettings({ ...settings, invoiceStart: value })
-                          }}
-                          className="text-right"
-                          dir="rtl"
-                          required
-                          disabled={numberingLocks.invoice}
-                        />
-                      </div>
-                      <div />
-                      <div className="flex items-end md:col-start-3">
-                        <div className="text-sm text-muted-foreground">
-                          مثال: {settings.salesInvoicePrefix}
-                          {String(settings.invoiceStart).padStart(4, "0")}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
                   <div className="rounded-lg border border-border/70 bg-muted/20 p-4">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>

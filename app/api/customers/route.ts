@@ -11,6 +11,19 @@ import {
   ensureCustomerAccount,
 } from "./_lib"
 
+// تقييد ظهور العميل بفروع معيّنة (اختياري) — بلا أي صف هنا لهذا العميل يبقى ظاهراً لكل الفروع.
+// نفس نمط product_branches بـapp/api/inventory/products/route.ts، تُستدعى من GET/POST/PUT الثلاثة
+// إذ لا وسيلة migration منفصلة بهذا المشروع (كل مسار API يضمن جداوله بنفسه عند أول استدعاء).
+const ensureCustomerBranchesTable = async () => {
+  await sql`
+    CREATE TABLE IF NOT EXISTS customer_branches (
+      customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      branch_id INTEGER NOT NULL REFERENCES branches(id) ON DELETE CASCADE,
+      PRIMARY KEY (customer_id, branch_id)
+    )
+  `
+}
+
 const persistCustomerClassifications = async (accountId: number, classifications: any[] | undefined) => {
   if (!Array.isArray(classifications)) return
 
@@ -68,6 +81,19 @@ export async function GET(request: NextRequest) {
   try {
     console.log("[v0] GET /api/customers - Fetching customers with portal info")
     await ensureCustomerCompatibilityColumns()
+    await ensureCustomerBranchesTable()
+
+    // تصفية حسب الفرع النشط (هيدر x-branch-id — انظر auth-context.tsx) — عميل بلا أي صف بـ
+    // customer_branches يبقى ظاهراً للجميع، وعميل مقيَّد بفرع/فروع معيّنة لا يظهر إلا لمستخدم فرعه
+    // أحدها. activeBranchId مُتحقَّق كعدد صحيح صراحة قبل تضمينه حرفياً بنص الاستعلام (سديد هنا بدل
+    // معامل مربوط $n لأن sql.unsafe المُضمَّن كـfragment لا يُعيد ترقيم معاملاته الداخلية بالنسبة
+    // لمعاملات الاستعلام الخارجي المحيط به — انظر buildTaggedQuery بـlib/database.ts).
+    const activeBranchIdHeader = Number(request.headers.get("x-branch-id"))
+    const activeBranchId = Number.isInteger(activeBranchIdHeader) && activeBranchIdHeader > 0 ? activeBranchIdHeader : null
+    const branchFilterSql = activeBranchId !== null
+      ? `AND (NOT EXISTS (SELECT 1 FROM customer_branches cb WHERE cb.customer_id = c.id)
+          OR EXISTS (SELECT 1 FROM customer_branches cb WHERE cb.customer_id = c.id AND cb.branch_id = ${activeBranchId}))`
+      : ""
 
     const typeParam = request.nextUrl.searchParams.get("type");
     const typeFilter = typeParam === "1" || typeParam === "2" || typeParam === "3" || typeParam === "4" ? Number(typeParam) : null;
@@ -106,6 +132,7 @@ export async function GET(request: NextRequest) {
           LEFT JOIN account_tbl acc ON acc.id = c.account_id
           LEFT JOIN customer_users cu ON c.id = cu.customer_id AND cu.is_active = true
           WHERE c.isDeleted = false AND c.type = ${typeFilter}
+          ${sql.unsafe(branchFilterSql)}
           GROUP BY c.id
                    , acc.father_id
                    , acc.finanical_list_id
@@ -136,6 +163,7 @@ export async function GET(request: NextRequest) {
           LEFT JOIN account_tbl acc ON acc.id = c.account_id
           LEFT JOIN customer_users cu ON c.id = cu.customer_id AND cu.is_active = true
           WHERE c.isDeleted = false
+          ${sql.unsafe(branchFilterSql)}
           GROUP BY c.id
                    , acc.father_id
                    , acc.finanical_list_id
@@ -269,6 +297,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     await ensureCustomerCompatibilityColumns()
+    await ensureCustomerBranchesTable()
     const data = await request.json()
     console.log("[v0] Creating customer with data:", data)
 
@@ -379,6 +408,19 @@ export async function POST(request: NextRequest) {
       await persistCustomerAccountCostCenters(Number(accountId), data.cost_centers)
       await persistCustomerStopTransactions(Number(accountId), data.stop_transactions)
 
+      // فروع تقييد ظهور العميل بالبحث (اختياري) — بلا أي فرع هنا يبقى العميل ظاهراً لكل الفروع.
+      if (Array.isArray(data.branch_ids)) {
+        for (const branchId of data.branch_ids) {
+          const numericBranchId = Number(branchId)
+          if (!Number.isInteger(numericBranchId) || numericBranchId <= 0) continue
+          await sql`
+            INSERT INTO customer_branches (customer_id, branch_id)
+            VALUES (${customer.id}, ${numericBranchId})
+            ON CONFLICT DO NOTHING
+          `
+        }
+      }
+
       // 3️⃣ Save voucherType array (customer_vouchers)
       if (Array.isArray(data.voucher) && data.voucher.length > 0) {
         // Use a transaction if supported
@@ -407,6 +449,7 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     await ensureCustomerCompatibilityColumns()
+    await ensureCustomerBranchesTable()
     const data = await request.json()
     const { id, voucher, ...updateData } = data
 
@@ -472,6 +515,20 @@ export async function PUT(request: NextRequest) {
     await persistCustomerClassifications(Number(accountId), data.account_classifications)
     await persistCustomerAccountCostCenters(Number(accountId), data.cost_centers)
     await persistCustomerStopTransactions(Number(accountId), data.stop_transactions)
+
+    // فروع تقييد ظهور العميل بالبحث (اختياري) — نفس منطق POST أعلاه: حذف ثم إعادة إدراج.
+    await sql`DELETE FROM customer_branches WHERE customer_id = ${id}`
+    if (Array.isArray(data.branch_ids)) {
+      for (const branchId of data.branch_ids) {
+        const numericBranchId = Number(branchId)
+        if (!Number.isInteger(numericBranchId) || numericBranchId <= 0) continue
+        await sql`
+          INSERT INTO customer_branches (customer_id, branch_id)
+          VALUES (${id}, ${numericBranchId})
+          ON CONFLICT DO NOTHING
+        `
+      }
+    }
 
     await sql`DELETE FROM customer_vouchers WHERE customer_id = ${id}`
 

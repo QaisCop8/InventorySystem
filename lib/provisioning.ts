@@ -249,6 +249,33 @@ async function seedDefaultBranchAndSection(tenantClient: ReturnType<typeof getPo
   return branchId
 }
 
+// مستودع افتراضي واحد باسم "الرئيسي" (مطابق لاسم الفرع الافتراضي) — بلا هذا تُنشئ /api/warehouses
+// GET (أول استدعاء لها فقط، إذ الجدول فارغ) خمسة مستودعات إنجليزية الاسم (MAIN/SALES/PROD/DMGD/RETN)
+// بدل مستودع واحد يطابق تسمية الفرع؛ إدراجه هنا مسبقاً يجعل ذلك المسار اللاحق بلا أثر (شرطه
+// COUNT(*) = 0 لن يتحقق).
+async function seedDefaultStore(tenantClient: ReturnType<typeof getPoolForDb>) {
+  await tenantClient.query(
+    `CREATE TABLE IF NOT EXISTS warehouses (
+      id SERIAL PRIMARY KEY,
+      warehouse_code VARCHAR(10) UNIQUE NOT NULL,
+      warehouse_name VARCHAR(100) NOT NULL,
+      warehouse_name_en VARCHAR(100),
+      description TEXT,
+      location VARCHAR(200),
+      is_active BOOLEAN DEFAULT true,
+      status INTEGER DEFAULT 1,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`,
+    [],
+  )
+  await tenantClient.query(
+    `INSERT INTO warehouses (warehouse_code, warehouse_name, warehouse_name_en, is_active, status)
+     VALUES ($1, $2, $3, true, 1)`,
+    ["MAIN", "الرئيسي", "Main"],
+  )
+}
+
 async function seedDefaultSystemSettings(tenantClient: ReturnType<typeof getPoolForDb>) {
   const rows = [
     ["invoice_prefix", "INV"],
@@ -306,6 +333,7 @@ export async function provisionCompanyDatabase(
   await cloneReferenceSchema(tenantClient)
   await seedLookupTables(tenantClient)
   const branchId = await seedDefaultBranchAndSection(tenantClient)
+  await seedDefaultStore(tenantClient)
   await seedDefaultSystemSettings(tenantClient)
   await clearFreshCompanySeedData(tenantClient)
 

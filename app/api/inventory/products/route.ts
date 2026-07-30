@@ -119,6 +119,16 @@ function normalizeProductPayload(productData: any) {
       }))
     : []
 
+  const normalizedBrands = Array.isArray(productData?.product_brands)
+    ? productData.product_brands.map((row: any) => ({
+        ...row,
+        brand_type_id: safeNumber(row?.brand_type_id, 0),
+        required_in_transactions: safeNumber(row?.required_in_transactions, 1),
+        brand_id:
+          row?.brand_id == null || row?.brand_id === "" ? null : safeNumber(row.brand_id, null as any),
+      }))
+    : []
+
   return {
     ...productData,
     id: safeNumber(productData?.id, 0),
@@ -173,6 +183,7 @@ function normalizeProductPayload(productData: any) {
     prices: normalizedPrices,
     stores: normalizedStores,
     cost_centers: normalizedCostCenters,
+    product_brands: normalizedBrands,
   }
 }
 
@@ -180,6 +191,17 @@ export async function GET(request: NextRequest) {
   if (!sql) return NextResponse.json({ error: 'Database client not initialized' }, { status: 500 })
 
   try {
+    // قد لا يكون product_branches موجوداً بعد (يُنشَأ أصلاً ضمن POST) على قاعدة لم يُحفَظ بها أي
+    // صنف مقيَّد بفرع بعد — الاستعلام أدناه يستخدمه دوماً بمجرّد وجود هيدر x-branch-id، فيُضمَن
+    // وجوده هنا أيضاً بدل تفويت ذلك لِـPOST فقط.
+    await sql`
+      CREATE TABLE IF NOT EXISTS product_branches (
+        product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+        branch_id INTEGER NOT NULL REFERENCES branches(id) ON DELETE CASCADE,
+        PRIMARY KEY (product_id, branch_id)
+      )
+    `
+
     const url = new URL(request.url)
     const typeParam = url.searchParams.get('type') ?? 'NULL'
     const priceCategoryId = Number.parseInt(url.searchParams.get('priceCategoryId') || '1', 10) || 1
@@ -195,11 +217,24 @@ export async function GET(request: NextRequest) {
         : Number(typeParam)
     const effectiveType = Number.isFinite(resolvedType) && resolvedType > 0 ? resolvedType : null
 
+    // تصفية حسب الفرع النشط (هيدر x-branch-id — انظر auth-context.tsx للسياق الكامل): صنف بلا أي
+    // صف بـproduct_branches يبقى ظاهراً للجميع (السلوك الافتراضي)، وصنف مقيَّد بفرع/فروع معيّنة لا
+    // يظهر إلا لمستخدم فرعه أحدها. بلا هيدر (لا فرع نشط محدَّد، أو طلب غير آتٍ من واجهة تُرسِله) لا
+    // تُطبَّق هذه التصفية إطلاقاً — تُعرَض كل الأصناف كما كانت قبل هذه الميزة.
+    const activeBranchIdHeader = Number(request.headers.get('x-branch-id'))
+    const activeBranchId = Number.isInteger(activeBranchIdHeader) && activeBranchIdHeader > 0 ? activeBranchIdHeader : null
+
     const filterClauses = [
       '(p.deleted IS NULL OR p.deleted = false)',
       ...(effectiveType !== null ? [`p.type = ${effectiveType}::int`] : []),
       ...(requestedProductId > 0 ? [`p.id = ${requestedProductId}::int`] : []),
       ...(activeOnly ? [`(p.status = 1 OR p.status::text = 'نشط' OR p.status::text = 'active' OR p.status::text = 'ACTIVE')`] : []),
+      ...(activeBranchId !== null
+        ? [
+            `(NOT EXISTS (SELECT 1 FROM product_branches pb WHERE pb.product_id = p.id)
+              OR EXISTS (SELECT 1 FROM product_branches pb WHERE pb.product_id = p.id AND pb.branch_id = ${activeBranchId}::int))`,
+          ]
+        : []),
     ]
     const filterExpression = filterClauses.join('\n        AND ')
 
@@ -384,6 +419,45 @@ async function persistProductCostCenters(client: any, productId: number, rows: a
   }
 }
 
+// نفس نمط مراكز التكلفة أعلاه تماماً (product_costcenters_tbl) لكن للعلامات التجارية — صف واحد لكل
+// نوع علامة تجارية (brand_types)، وقد يُسنَد له علامة تجارية (brands) محدَّدة أو يبقى بلا إسناد.
+async function ensureProductBrandsTable(client: any) {
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS product_brands_tbl (
+      id SERIAL PRIMARY KEY,
+      product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+      brand_type_id INTEGER,
+      required_in_transactions INTEGER,
+      brand_id INTEGER
+    )
+  `)
+
+  await client.query(`
+    CREATE INDEX IF NOT EXISTS idx_product_brands_product_id
+    ON product_brands_tbl(product_id)
+  `)
+}
+
+async function persistProductBrands(client: any, productId: number, rows: any[] | undefined) {
+  await client.query(`DELETE FROM product_brands_tbl WHERE product_id = $1`, [productId])
+
+  if (!Array.isArray(rows)) return
+
+  for (const row of rows) {
+    const brandTypeId = Number(row?.brand_type_id ?? row?.id ?? 0)
+    const requiredInTransactions = Number(row?.required_in_transactions ?? 1)
+    const brandId = row?.brand_id != null && row.brand_id !== "" ? Number(row.brand_id) : null
+
+    if (!brandTypeId) continue
+
+    await client.query(
+      `INSERT INTO product_brands_tbl (product_id, brand_type_id, required_in_transactions, brand_id)
+       VALUES ($1::int, $2::int, $3::int, $4::int)`,
+      [productId, brandTypeId, requiredInTransactions, brandId]
+    )
+  }
+}
+
 // جدول أرقام الصنف متعددة القيم (الرقم الأصلي والرقم التصنيعي) بدل خانة نصية واحدة لكل نوع — يسمح
 // بإضافة أكثر من رقم أصلي/تصنيعي لنفس الصنف (مثل أرقام موردين متعددين لنفس القطعة)، بنفس أسلوب
 // نافذة الباركود المتعددة (ProductBarcodes). type: 1 = رقم أصلي، 2 = رقم مصنع.
@@ -452,7 +526,18 @@ export async function POST(request: NextRequest) {
     await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS measurment_id INTEGER DEFAULT 1`)
     await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS product_image TEXT`)
     await ensureProductCostCentersTable(client)
+    await ensureProductBrandsTable(client)
     await ensureProductNumbersTable(client)
+    // تقييد ظهور الصنف بفروع معيّنة (اختياري) — بلا أي صف هنا لهذا الصنف يبقى ظاهراً لكل الفروع
+    // (السلوك الحالي دون تغيير)؛ بصف واحد أو أكثر يظهر فقط لمستخدم فرعه أحد هذه الصفوف (انظر تصفية
+    // GET أدناه عبر هيدر x-branch-id). نفس نمط product_warehouses تماماً (جدول علاقة بسيط).
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS product_branches (
+        product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+        branch_id INTEGER NOT NULL REFERENCES branches(id) ON DELETE CASCADE,
+        PRIMARY KEY (product_id, branch_id)
+      )
+    `)
 
     const productData = normalizeProductPayload(await request.json());
     const organizationId = 1; // replace with auth context
@@ -730,6 +815,7 @@ export async function POST(request: NextRequest) {
       await client.query(`DELETE FROM product_unit_barcodes WHERE product_id=$1`, [productId]);
       await client.query(`DELETE FROM product_prices WHERE product_id=$1`, [productId]);
       await client.query(`DELETE FROM product_warehouses WHERE product_id=$1`, [productId]);
+      await client.query(`DELETE FROM product_branches WHERE product_id=$1`, [productId]);
       await client.query(`DELETE FROM product_costcenters_tbl WHERE product_id=$1`, [productId]);
 
     } else {
@@ -992,7 +1078,19 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    if (Array.isArray(productData.branch_ids)) {
+      for (const branchId of productData.branch_ids) {
+        const numericBranchId = Number(branchId)
+        if (!Number.isInteger(numericBranchId) || numericBranchId <= 0) continue
+        await client.query(
+          `INSERT INTO product_branches (product_id, branch_id) VALUES ($1::int, $2::int) ON CONFLICT DO NOTHING`,
+          [productId, numericBranchId],
+        );
+      }
+    }
+
     await persistProductCostCenters(client, productId, productData.cost_centers)
+    await persistProductBrands(client, productId, productData.product_brands)
     await persistProductNumbers(client, productId, productData.original_numbers, productData.factory_numbers)
 
     await client.query("COMMIT");

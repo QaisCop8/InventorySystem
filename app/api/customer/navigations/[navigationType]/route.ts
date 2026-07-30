@@ -94,7 +94,17 @@ export async function GET(request: NextRequest, { params }: { params: { navigati
       return NextResponse.json({})
     }
 
-    return NextResponse.json(rows[0])
+    const customer = rows[0]
+    // فروع تقييد ظهور العميل بالبحث (اختياري — انظر customer_branches بـapp/api/customers/route.ts)
+    // — بلا صفوف هنا يبقى ظاهراً لكل الفروع، فتُعاد مصفوفة فارغة ليعكسها حقل "الفروع" بنموذج التعديل.
+    try {
+      const branchRows = await sql`SELECT branch_id FROM customer_branches WHERE customer_id = ${customer.id}`
+      customer.branch_ids = branchRows.map((r: any) => r.branch_id)
+    } catch {
+      customer.branch_ids = []
+    }
+
+    return NextResponse.json(customer)
   } catch (error) {
     console.error("[customer/navigations] error:", error)
     return NextResponse.json({ error: "حدث خطأ أثناء تصفّح السجلات" }, { status: 500 })

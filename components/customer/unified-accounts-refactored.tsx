@@ -8,12 +8,14 @@ import AutoCompleteAccount from "@/components/customer/auto-complete-account"
 import AccountSearchDialog, { AccountItem } from "@/components/customer/account-search-dialog"
 import SearchCostCenterDialog from "@/components/customer/search-cost-center-dialog"
 import SearchAccountClassificationDialog from "@/components/customer/search-account-classification-dialog"
+import MultiSelect from "@/components/common/MultiSelect"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import ProgressSpinner from "../ProgressSpinner/ProgressSpinner"
+import { attachEnterAsTab } from "@/components/common/enterAsTab"
 import {
   Dialog,
   DialogContent,
@@ -63,6 +65,10 @@ interface FormState {
   notes: string
   show_notes_in_transactions_soa: boolean
   status: string
+  // فروع تقييد ظهور الحساب بالبحث (اختياري) — مصفوفة فارغة = يظهر لكل الفروع (الافتراضي/الحالي)،
+  // وإلا يظهر فقط لمستخدم فرعه أحد هذه المعرّفات (انظر account_branches بـapp/api/accounts/route.ts
+  // وتصفية x-branch-id بـauth-context.tsx).
+  branch_ids: number[]
 }
 
 interface UnifiedAccountsProps {
@@ -79,6 +85,8 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
   const [activeTab, setActiveTab] = useState("main")
   const [accounts, setAccounts] = useState<AccountItem[]>([])
   const [types, setTypes] = useState<AccountType[]>([])
+  // خيارات حقل "الفروع" (تقييد ظهور الحساب بالبحث) — انظر branch_ids بـFormState.
+  const [branches, setBranches] = useState<Array<{ id: number; branch_name: string }>>([])
   const [voucherTypes, setVoucherTypes] = useState<any[]>([])
   const [currencies, setCurrencies] = useState<any[]>([])
   const [companies, setCompanies] = useState<any[]>([])
@@ -184,6 +192,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
           notes: values.formData.notes,
           show_notes_in_transactions_soa: values.formData.show_notes_in_transactions_soa,
           status: values.formData.status,
+          branch_ids: [...(values.formData.branch_ids || [])].sort((a, b) => a - b),
         },
         financialListType: values.financialListType,
         fatherAccountName: values.fatherAccountName,
@@ -236,6 +245,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
     notes: "",
     show_notes_in_transactions_soa: false,
     status: "نشط",
+    branch_ids: [],
   })
 
   const clearBudgetSelectionMessage = useCallback(() => {
@@ -330,6 +340,13 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
         const typesRes = await fetch("/api/cost-center-types")
         if (typesRes.ok) {
           costCenterTypesData = await typesRes.json()
+        }
+      } catch (_) { }
+      try {
+        const branchesRes = await fetch("/api/branches")
+        if (branchesRes.ok) {
+          const branchesJson = await branchesRes.json()
+          setBranches(Array.isArray(branchesJson) ? branchesJson : [])
         }
       } catch (_) { }
       try {
@@ -895,6 +912,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
       notes: account.notes || "",
       show_notes_in_transactions_soa: Boolean(account.show_notes_in_transactions_soa),
       status: account.status || "نشط",
+      branch_ids: Array.isArray((account as any).branch_ids) ? (account as any).branch_ids.map(Number) : [],
     })
     setFinancialListType(String(safeFinancialListId))
     setCostCenterTypes(nextCostCenterTypes)
@@ -940,6 +958,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
         notes: account.notes || "",
         show_notes_in_transactions_soa: Boolean(account.show_notes_in_transactions_soa),
         status: account.status || "نشط",
+        branch_ids: Array.isArray((account as any).branch_ids) ? (account as any).branch_ids.map(Number) : [],
       },
       financialListType: String(account.finanical_list_id || 1),
       fatherAccountName: nextFatherName,
@@ -1069,6 +1088,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
       notes: "",
       show_notes_in_transactions_soa: false,
       status: "نشط",
+      branch_ids: [],
     })
     setFinancialListType("1")
     setFatherAccountCode("")
@@ -1144,6 +1164,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
         notes: "",
         show_notes_in_transactions_soa: false,
         status: "نشط",
+        branch_ids: [],
       },
       financialListType: "1",
       fatherAccountName: "",
@@ -1201,6 +1222,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
       notes: "",
       show_notes_in_transactions_soa: false,
       status: "نشط",
+      branch_ids: [],
     })
     setFinancialListType("1")
     setFatherAccountCode("")
@@ -1261,6 +1283,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
         notes: "",
         show_notes_in_transactions_soa: false,
         status: "نشط",
+        branch_ids: [],
       },
       financialListType: "1",
       fatherAccountName: "",
@@ -1642,6 +1665,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
         stop_transactions: stopTransactionsData,
         cost_centers: costCentersData,
         account_classifications: classificationsData,
+        branch_ids: formData.branch_ids || [],
       }
       console.log("Saving account with payload:", payload)
       const response = await fetch(url, {
@@ -2114,6 +2138,48 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
     setDeleteClassificationConfirmIndex(-1)
   }, [deleteClassificationConfirmIndex, classificationTypes])
 
+  // F3 حفظ / F4 حذف / F5 جديد — بلا أثر بينما نافذة فرعية مفتوحة (تصنيف/مركز تكلفة/بحث/تأكيد حذف)
+  // فتمنح مفاتيحها الخاصة أولوية بلا تعارض، بنفس أسلوب compact-product-form.tsx.
+  const nestedPopupOpen =
+    showCostCenterTypeForm ||
+    searchCostCenterOpen ||
+    showDeleteConfirm ||
+    showClassificationTypeForm ||
+    showClassificationForm ||
+    searchAccountClassificationOpen ||
+    showDeleteClassificationConfirm ||
+    showAccountDeleteConfirm ||
+    showUnsavedConfirm ||
+    searchModalOpen
+  useEffect(() => {
+    if (!dialogOpen) return
+    const handler = (e: KeyboardEvent) => {
+      if (nestedPopupOpen) return
+      if (e.key === "F3") {
+        e.preventDefault()
+        void handleSave()
+      }
+      if (e.key === "F4") {
+        e.preventDefault()
+        void handleDelete()
+      }
+      if (e.key === "F5") {
+        e.preventDefault()
+        void handleNew()
+      }
+    }
+    window.addEventListener("keydown", handler, true)
+    return () => window.removeEventListener("keydown", handler, true)
+  }, [dialogOpen, nestedPopupOpen, handleSave, handleDelete, handleNew])
+
+  const formRootRef = useRef<HTMLDivElement>(null)
+  const enterAsTabEnabledRef = useRef(true)
+  enterAsTabEnabledRef.current = !nestedPopupOpen
+  useEffect(() => {
+    if (!dialogOpen || !formRootRef.current) return
+    return attachEnterAsTab(formRootRef.current, enterAsTabEnabledRef)
+  }, [dialogOpen])
+
   /*if (loading) {
     return <div className="p-6 text-center">Loading...</div>
   }*/
@@ -2156,7 +2222,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
           <h2 className="text-2xl font-bold">{formData.id === 0 ? "إضافة حساب جديد" : "تعديل حساب"}</h2>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+        <div ref={formRootRef} className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
           {error && (
             <Alert variant="destructive">
               <AlertDescription>{error}</AlertDescription>
@@ -2307,6 +2373,26 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
                         focusPrimeDropdownRoot(e)
                       }}
                       onHide={() => refocusDropdownInput("currency_id")}
+                    />
+                  </div>
+                  <div>
+                    {/* تقييد ظهور الحساب بفروع معيّنة (اختياري) — بلا أي فرع مُحدَّد هنا يبقى ظاهراً
+                        لكل الفروع (السلوك الافتراضي/الحالي دون تغيير)؛ باختيار فرع أو أكثر لا يظهر
+                        بنتائج البحث إلا لمستخدم فرعه النشط أحد هذه الفروع. */}
+                    <Label className="mb-2 block text-sm font-medium">الفروع (اختياري)</Label>
+                    <MultiSelect
+                      inputId="branch_ids"
+                      value={formData.branch_ids || []}
+                      options={branches}
+                      optionLabel="branch_name"
+                      optionValue="id"
+                      placeholder="كل الفروع"
+                      showFilter={true}
+                      showCheck={true}
+                      showMultiSelect={true}
+                      onChange={(e: any) =>
+                        setFormData({ ...formData, branch_ids: Array.isArray(e.value) ? e.value.map(Number) : [] })
+                      }
                     />
                   </div>
                   <div>

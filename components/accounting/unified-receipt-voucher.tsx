@@ -384,8 +384,8 @@ export default function UnifiedReceiptVoucher({
   const journalGridRef = useRef<any>(null)
   const [postDialogOpen, setPostDialogOpen] = useState(false)
   const doHotKeys = useRef(true)
-  const isReceipt = form.vch_type === 8 // per voucher_types_tbl: 8 = سند قبض, 9 = سند صرف
-  const isPayment = form.vch_type === 9
+  const isReceipt = form.vch_type === 4 // per voucher_types_tbl: 4 = سند قبض, 5 = سند صرف
+  const isPayment = form.vch_type === 5
   // إعداد "عدم السماح بادخال شيكات يدويا في سند الصرف" (vouchers-general-settings.tsx) — عند
   // تفعيله يُصبح رقم الشيك للقراءة فقط ولا يُختار إلا من دفتر شيكات الحساب البنكي المحدد.
   const forceChequeBookLeaf = isPayment && disallowManualChequeEntryInPayment

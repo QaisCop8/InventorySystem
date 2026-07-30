@@ -26,15 +26,15 @@ interface LookupOption {
 
 // vch_type per credit-notes/_lib.ts: 10 = اشعار دائن, 11 = اشعار مدين.
 interface CreditNoteProps {
-  voucherType: 10 | 11
+  voucherType: 6 | 7
 }
 
-const TYPE_LABELS: Record<10 | 11, { title: string; listTitle: string; addLabel: string }> = {
-  10: { title: "اشعار دائن", listTitle: "الاشعارات الدائنة", addLabel: "إضافة اشعار دائن" },
-  11: { title: "اشعار مدين", listTitle: "الاشعارات المدينة", addLabel: "إضافة اشعار مدين" },
+const TYPE_LABELS: Record<6 | 7, { title: string; listTitle: string; addLabel: string }> = {
+  6: { title: "اشعار دائن", listTitle: "الاشعارات الدائنة", addLabel: "إضافة اشعار دائن" },
+  7: { title: "اشعار مدين", listTitle: "الاشعارات المدينة", addLabel: "إضافة اشعار مدين" },
 }
 
-const buildInitialForm = (voucherType: 10 | 11): VoucherRecord => ({
+const buildInitialForm = (voucherType: 6 | 7): VoucherRecord => ({
   id: 0,
   vch_type: voucherType,
   vch_code: "",
@@ -62,7 +62,7 @@ const buildInitialForm = (voucherType: 10 | 11): VoucherRecord => ({
   is_printed: 0,
 })
 
-const normalizeVoucher = (record: Partial<VoucherRecord>, voucherType: 10 | 11): VoucherRecord => ({
+const normalizeVoucher = (record: Partial<VoucherRecord>, voucherType: 6 | 7): VoucherRecord => ({
   ...buildInitialForm(voucherType),
   ...record,
   manual_date: record.manual_date || record.vch_date || buildInitialForm(voucherType).manual_date,
@@ -268,7 +268,7 @@ export default function CreditNote({ voucherType }: CreditNoteProps) {
       if (!response.ok) return empty
       const data = await response.json()
       const settings = data?.settings ?? data
-      const isCredit = voucherType === 10
+      const isCredit = voucherType === 6
       const vatAccountId = Number(settings?.[isCredit ? "default_sales_tax_account" : "default_purchase_tax_account"]) || null
       const debitAccountId = Number(settings?.[isCredit ? "default_allowed_discount_account" : "default_earned_discount_account"]) || null
       return { vatAccountId, debitAccountId }
@@ -363,7 +363,7 @@ export default function CreditNote({ voucherType }: CreditNoteProps) {
     if (!(Number(data.rate) > 0)) return "سعر الصرف يجب أن يكون أكبر من صفر"
 
     if (!data.account_id) return "يجب اختيار العميل"
-    if (!data.debit_account_id) return `يجب اختيار ${voucherType === 10 ? "الحساب المدين" : "الحساب الدائن"}`
+    if (!data.debit_account_id) return `يجب اختيار ${voucherType === 6 ? "الحساب المدين" : "الحساب الدائن"}`
     if (!data.vat_account_id) return "يجب اختيار حساب الضريبة"
 
     if (!data.amount_journal_type_8 || Number(data.amount_journal_type_8) <= 0) return "يجب إدخال المبلغ"

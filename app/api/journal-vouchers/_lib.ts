@@ -26,8 +26,8 @@ export {
   validateJournalAccountCurrencies,
 }
 
-// per voucher_types_tbl (7 = "سند قيد", مختلف عن سند القبض/الصرف 8/9).
-export const JOURNAL_VCH_TYPE = 7
+// per voucher_types_tbl (3 = "سند قيد", مختلف عن سند القبض/الصرف 4/5).
+export const JOURNAL_VCH_TYPE = 3
 
 export const getVoucherNumberSettings = async (
   requestUrl: string,

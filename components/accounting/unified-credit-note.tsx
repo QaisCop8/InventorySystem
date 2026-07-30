@@ -145,7 +145,7 @@ export default function UnifiedCreditNote({
   const [navLoading, setNavLoading] = useState(false)
   const [postDialogOpen, setPostDialogOpen] = useState(false)
 
-  const isCreditNote = form.vch_type === 10 // per credit-notes/_lib.ts: 10 = اشعار دائن, 11 = اشعار مدين
+  const isCreditNote = form.vch_type === 6 // per credit-notes/_lib.ts: 6 = اشعار دائن, 7 = اشعار مدين
   // سند مُرحَّل (status=2): مقفل بالكامل، لا يُعدَّل إلا عبر إلغائه منطقياً (زر حذف).
   const isLocked = form.status === 2 || form.status === 3
   const statusBadge =

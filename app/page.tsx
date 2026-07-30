@@ -23,6 +23,8 @@ const Products = dynamic(() => import("@/components/products/products").then(mod
 const Services = dynamic(() => import("@/components/products/services").then(mod => mod.Services), { ssr: false })
 import Customers from "@/components/products/customers"
 import ProductGroups from "@/components/products/product-groups"
+import BrandTypes from "@/components/products/brand-types"
+import Brands from "@/components/products/brands"
 import Cars from "@/components/products/cars"
 import Drivers from "@/components/products/drivers"
 import { ExchangeRates } from "@/components/data/exchange-rates"
@@ -106,28 +108,34 @@ const componentMap: Record<string, React.ComponentType<any>> = {
   banks: Banks,
   branches: Branches,
   "bank-accounts": BankAccounts,
-  "receipt-vouchers": (props: any) => <Receipts {...props} voucherType={8} />,
-  "payment-vouchers": (props: any) => <Receipts {...props} voucherType={9} />,
+  // أرقام أنواع السندات هنا مطابقة لـvoucher_types_tbl بعد إعادة ترقيمها (حذف المكرَّرات 3-6 في
+  // 2026-07-30) — لا يمكن استيراد الثوابت الفعلية من app/api/**/_lib.ts مباشرة هنا (هذا ملف "use
+  // client"، وتلك الملفات تستورد sql من lib/database.ts وهو خادمي فقط)، فتُبقى كأرقام حرفية لكن
+  // مطابقة تماماً لما بعد إعادة الترقيم.
+  "receipt-vouchers": (props: any) => <Receipts {...props} voucherType={4} />,
+  "payment-vouchers": (props: any) => <Receipts {...props} voucherType={5} />,
   "journal-vouchers": Journal,
-  "credit-notes": (props: any) => <CreditNote {...props} voucherType={10} />,
-  "debit-notes": (props: any) => <CreditNote {...props} voucherType={11} />,
+  "credit-notes": (props: any) => <CreditNote {...props} voucherType={6} />,
+  "debit-notes": (props: any) => <CreditNote {...props} voucherType={7} />,
   "credit-cards": CreditCards,
   "cheques-books": ChequesBooks,
   "voucher-book-permissions": VoucherBookPermissions,
   warehouses: Warehouses,
-  "stock-in-vouchers": (props: any) => <StockVouchers {...props} voucherType={12} />,
-  "stock-out-vouchers": (props: any) => <StockVouchers {...props} voucherType={13} />,
-  "internal-delivery-vouchers": (props: any) => <StockVouchers {...props} voucherType={14} />,
-  "use-vouchers": (props: any) => <StockVouchers {...props} voucherType={15} />,
-  "sales-invoices": (props: any) => <SalesDelivery {...props} voucherType={16} />,
-  "sales-delivery": (props: any) => <SalesDelivery {...props} voucherType={17} />,
-  "delivery-consignment-sale": (props: any) => <SalesDelivery {...props} voucherType={18} />,
-  "return-delivery-consignment-sale": (props: any) => <SalesDelivery {...props} voucherType={19} />,
-  "return-sell": (props: any) => <SalesDelivery {...props} voucherType={20} />,
-  "purchase-invoices": (props: any) => <SalesDelivery {...props} voucherType={21} />,
-  "delivery-pay": (props: any) => <SalesDelivery {...props} voucherType={22} />,
-  "return-purchase": (props: any) => <SalesDelivery {...props} voucherType={23} />,
+  "stock-in-vouchers": (props: any) => <StockVouchers {...props} voucherType={8} />,
+  "stock-out-vouchers": (props: any) => <StockVouchers {...props} voucherType={9} />,
+  "internal-delivery-vouchers": (props: any) => <StockVouchers {...props} voucherType={10} />,
+  "use-vouchers": (props: any) => <StockVouchers {...props} voucherType={11} />,
+  "sales-invoices": (props: any) => <SalesDelivery {...props} voucherType={12} />,
+  "sales-delivery": (props: any) => <SalesDelivery {...props} voucherType={13} />,
+  "delivery-consignment-sale": (props: any) => <SalesDelivery {...props} voucherType={14} />,
+  "return-delivery-consignment-sale": (props: any) => <SalesDelivery {...props} voucherType={15} />,
+  "return-sell": (props: any) => <SalesDelivery {...props} voucherType={16} />,
+  "purchase-invoices": (props: any) => <SalesDelivery {...props} voucherType={17} />,
+  "delivery-pay": (props: any) => <SalesDelivery {...props} voucherType={18} />,
+  "return-purchase": (props: any) => <SalesDelivery {...props} voucherType={19} />,
   "product-groups": ProductGroups,
+  "brand-types": BrandTypes,
+  brands: Brands,
   definitions: Definitions,
   accounts: Accounts,
   "unified-accounts": UnifiedAccounts,

@@ -536,8 +536,8 @@ export const ensureTables = async () => {
 }
 
 // vch_type values on voucher_header_tbl, per voucher_types_tbl.
-export const RECEIPT_VCH_TYPE = 8
-export const PAYMENT_VCH_TYPE = 9
+export const RECEIPT_VCH_TYPE = 4
+export const PAYMENT_VCH_TYPE = 5
 
 // رقم السند = بادئة (من إعدادات النظام) + رمز دفتر السندات + رقم تسلسلي مبطّن بأصفار
 // (مثال: RE + F + 00001 = REF00001). يُقرأ عبر طلب داخلي لنفس منطق /api/settings/system

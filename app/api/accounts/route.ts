@@ -14,6 +14,24 @@ export async function GET(request: NextRequest) {
   try {
     await ensureAccountsTable()
     await ensureAccountRelatedTables()
+    await sql`
+      CREATE TABLE IF NOT EXISTS account_branches (
+        account_id INTEGER NOT NULL REFERENCES account_tbl(id) ON DELETE CASCADE,
+        branch_id INTEGER NOT NULL REFERENCES branches(id) ON DELETE CASCADE,
+        PRIMARY KEY (account_id, branch_id)
+      )
+    `
+
+    // تصفية حسب الفرع النشط (هيدر x-branch-id) — حساب بلا أي صف بـaccount_branches يبقى ظاهراً
+    // للجميع، وحساب مقيَّد بفرع/فروع معيّنة لا يظهر إلا لمستخدم فرعه أحدها. activeBranchId مُتحقَّق
+    // كعدد صحيح صراحة قبل تضمينه حرفياً بنص الاستعلام (نفس سبب app/api/customers/route.ts: fragment
+    // sql.unsafe المُضمَّن لا يُعيد ترقيم معاملاته الداخلية بالنسبة لمعاملات الاستعلام المحيط).
+    const activeBranchIdHeader = Number(request.headers.get('x-branch-id'))
+    const activeBranchId = Number.isInteger(activeBranchIdHeader) && activeBranchIdHeader > 0 ? activeBranchIdHeader : null
+    const branchFilterSql = activeBranchId !== null
+      ? `AND (NOT EXISTS (SELECT 1 FROM account_branches ab WHERE ab.account_id = a.id)
+          OR EXISTS (SELECT 1 FROM account_branches ab WHERE ab.account_id = a.id AND ab.branch_id = ${activeBranchId}))`
+      : ""
 
     // Get query parameters
     const { searchParams } = new URL(request.url)
@@ -65,6 +83,7 @@ export async function GET(request: NextRequest) {
         LEFT JOIN account_classification_types t ON t.id = a.type
         LEFT JOIN account_tbl pa ON pa.id = a.father_id
         WHERE COALESCE(a.status, 1) IN (1, 2) AND a.type = ${typeFilter}
+        ${sql.unsafe(branchFilterSql)}
         ORDER BY a.code ASC
       `
     } else {
@@ -111,6 +130,7 @@ export async function GET(request: NextRequest) {
         LEFT JOIN account_classification_types t ON t.id = a.type
         LEFT JOIN account_tbl pa ON pa.id = a.father_id
         WHERE COALESCE(a.status, 1) IN (1, 2)
+        ${sql.unsafe(branchFilterSql)}
         ORDER BY a.code ASC
       `
     }
@@ -131,6 +151,12 @@ export async function GET(request: NextRequest) {
       SELECT id, account_id, classification_id
       FROM account_classifications_tbl
       ORDER BY id ASC
+    `
+
+    const branchRows = await sql`
+      SELECT account_id, branch_id
+      FROM account_branches
+      ORDER BY account_id ASC
     `
 
     const stopByAccount = new Map<number, any[]>()
@@ -157,12 +183,21 @@ export async function GET(request: NextRequest) {
       classByAccount.set(accountId, list)
     }
 
+    const branchesByAccount = new Map<number, number[]>()
+    for (const row of branchRows) {
+      const accountId = Number(row.account_id)
+      const list = branchesByAccount.get(accountId) ?? []
+      list.push(Number(row.branch_id))
+      branchesByAccount.set(accountId, list)
+    }
+
     const items = rows.map((row: any) =>
       mapAccountRow({
         ...row,
         stop_transactions: stopByAccount.get(Number(row.id)) ?? [],
         cost_centers: costByAccount.get(Number(row.id)) ?? [],
         account_classifications: classByAccount.get(Number(row.id)) ?? [],
+        branch_ids: branchesByAccount.get(Number(row.id)) ?? [],
       }),
     )
 
@@ -177,6 +212,13 @@ export async function POST(request: NextRequest) {
   try {
     await ensureAccountsTable()
     await ensureAccountRelatedTables()
+    await sql`
+      CREATE TABLE IF NOT EXISTS account_branches (
+        account_id INTEGER NOT NULL REFERENCES account_tbl(id) ON DELETE CASCADE,
+        branch_id INTEGER NOT NULL REFERENCES branches(id) ON DELETE CASCADE,
+        PRIMARY KEY (account_id, branch_id)
+      )
+    `
 
     const data = await request.json()
     // Support both naming conventions: account_code/account_name (API) and code/name (frontend)
@@ -386,6 +428,18 @@ export async function POST(request: NextRequest) {
       await sql`
         INSERT INTO account_classifications_tbl (account_id, classification_id)
         VALUES (${accountId}, ${classificationId})
+      `
+    }
+
+    // فروع تقييد ظهور الحساب بالبحث (اختياري) — بلا أي فرع هنا يبقى الحساب ظاهراً لكل الفروع.
+    const branchIds = Array.isArray(data.branch_ids) ? data.branch_ids : []
+    for (const branchId of branchIds) {
+      const numericBranchId = toNullableInt(branchId)
+      if (!numericBranchId) continue
+      await sql`
+        INSERT INTO account_branches (account_id, branch_id)
+        VALUES (${accountId}, ${numericBranchId})
+        ON CONFLICT DO NOTHING
       `
     }
 

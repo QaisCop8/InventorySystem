@@ -196,6 +196,30 @@ export async function GET(
       product.cost_centers = product.cost_centers || [];
     }
 
+    // fetch product brands (optional table) — نفس نمط مراكز التكلفة أعلاه تماماً
+    try {
+      const brandResult = await pool.query(
+        `SELECT brand_type_id, required_in_transactions, brand_id FROM product_brands_tbl WHERE product_id=$1`,
+        [product.id]
+      );
+      product.product_brands = brandResult.rows;
+    } catch (err) {
+      product.product_brands = product.product_brands || [];
+    }
+
+    // فروع الصنف المقيَّد بها (اختياري — انظر product_branches بـapp/api/inventory/products/
+    // route.ts) — بلا صفوف هنا يبقى الصنف ظاهراً لكل الفروع، فيُعاد مصفوفة فارغة ليعكسها حقل
+    // "الفروع" بنموذج الصنف (لا شيء مُحدَّد = كل الفروع).
+    try {
+      const branchesResult = await pool.query(
+        `SELECT branch_id FROM product_branches WHERE product_id=$1`,
+        [product.id]
+      );
+      product.branch_ids = branchesResult.rows.map((r: any) => r.branch_id);
+    } catch (err) {
+      product.branch_ids = [];
+    }
+
     // fetch original/factory numbers (optional table, type 1 = رقم أصلي، 2 = رقم مصنع)
     try {
       const numbersResult = await pool.query(

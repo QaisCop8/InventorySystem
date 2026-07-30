@@ -45,8 +45,8 @@ export const ensureTables = async () => {
   // ولأن voucher_book_user_permissions_tbl.voucher_type_id مرتبط بمفتاح خارجي مع هذا الجدول.
   await sql`
     INSERT INTO voucher_types_tbl (id, name, status) VALUES
-      (10, 'اشعار دائن', 1),
-      (11, 'اشعار مدين', 1)
+      (6, 'اشعار دائن', 1),
+      (7, 'اشعار مدين', 1)
     ON CONFLICT (id) DO NOTHING
   `
 

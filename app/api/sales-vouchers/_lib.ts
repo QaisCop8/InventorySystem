@@ -34,14 +34,14 @@ const SALES_VOUCHER_REFERENCE_TYPE = "sales_voucher"
 // own code; 1/2/5 are confirmed in-use by components/orders/*, so 16+ is the only safe range).
 // Reuses voucher_header_tbl (owned by receipts/_lib.ts) as the header table, same as stock vouchers.
 
-export const SALES_INVOICE_VCH_TYPE = 16
-export const DELIVERY_SELL_VCH_TYPE = 17
-export const DELIVERY_CONSIGNMENT_SALE_VCH_TYPE = 18
-export const RETURN_DELIVERY_CONSIGNMENT_SALE_VCH_TYPE = 19
-export const RETURN_SELL_VCH_TYPE = 20
-export const PURCHASE_INVOICE_VCH_TYPE = 21
-export const DELIVERY_PAY_VCH_TYPE = 22
-export const RETURN_PURCHASE_VCH_TYPE = 23
+export const SALES_INVOICE_VCH_TYPE = 12
+export const DELIVERY_SELL_VCH_TYPE = 13
+export const DELIVERY_CONSIGNMENT_SALE_VCH_TYPE = 14
+export const RETURN_DELIVERY_CONSIGNMENT_SALE_VCH_TYPE = 15
+export const RETURN_SELL_VCH_TYPE = 16
+export const PURCHASE_INVOICE_VCH_TYPE = 17
+export const DELIVERY_PAY_VCH_TYPE = 18
+export const RETURN_PURCHASE_VCH_TYPE = 19
 
 export const SALES_VOUCHER_TYPES = [
   SALES_INVOICE_VCH_TYPE,

@@ -141,6 +141,10 @@ interface CustomerFormData {
   stop_transactions?: Array<{ voucher_types_id: number; voucher_type_name: string; is_stopped: boolean; stop_date: string }>,
   voucherType?: VoucherItem[],
   image_url?: string | null,
+  // فروع تقييد ظهور العميل بالبحث (اختياري) — مصفوفة فارغة = يظهر لكل الفروع (الافتراضي/الحالي)،
+  // وإلا يظهر فقط لمستخدم فرعه أحد هذه المعرّفات (انظر customer_branches بـapp/api/customers/
+  // route.ts وتصفية x-branch-id بـauth-context.tsx).
+  branch_ids?: number[],
 }
 
 interface CustomerUser {
@@ -224,6 +228,8 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
   const [customerAccountClassifications, setCustomerAccountClassifications] = useState<Array<{ id: number; name: string; classification_id: number | null; classification_name: string }>>([])
 
   const [salesmen, setSalesmen] = useState<Salesman[]>([])
+  // خيارات حقل "الفروع" (تقييد ظهور العميل بالبحث) — انظر branch_ids بـCustomerFormData.
+  const [branches, setBranches] = useState<Array<{ id: number; branch_name: string }>>([])
 
   const [formData, setFormData] = useState<CustomerFormData>({
     id: 0,
@@ -745,6 +751,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
     stop_transactions: [],
     voucherType: [],
     image_url: null,
+    branch_ids: [],
   }), [pricecategory])
 
   const updateFormData = useCallback((customer: Customer | null) => {
@@ -1067,6 +1074,19 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
     }
   }, [])
 
+  const fetchBranches = useCallback(async () => {
+    try {
+      const response = await fetch("/api/branches")
+      if (response.ok) {
+        const data = await response.json()
+        setBranches(Array.isArray(data) ? data : [])
+      }
+    } catch (error) {
+      console.error("Error fetching branches:", error)
+      setBranches([])
+    }
+  }, [])
+
   const generateCustomerNumber = useCallback(
     async (): Promise<string> => {
       try {
@@ -1247,6 +1267,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
         account_classifications: accountClassifications.filter((row) => row.classification_id != null),
         voucher,
         image_url: customerData.image_url,
+        branch_ids: customerData.branch_ids || [],
       };
 
       console.log("[v0] Sending customer data:", dataToSend);
@@ -1570,7 +1591,8 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
     fetchClassifications()
     fetchSalesmen()
     fetchPriceClass()
-  }, [fetchCustomers, fetchClassifications, fetchSalesmen, fetchPriceClass])
+    fetchBranches()
+  }, [fetchCustomers, fetchClassifications, fetchSalesmen, fetchPriceClass, fetchBranches])
 
   useEffect(() => {
     console.log("[v0] Current customer changed:", currentCustomer)
@@ -1951,6 +1973,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
               classifications={classifications}
               pricecategory={pricecategory}
               salesmen={salesmen}
+              branches={branches}
               currentCustomerId={currentCustomerId}
               currentIndex={currentIndex}
               totalRecords={customers.length}

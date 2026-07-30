@@ -167,6 +167,13 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
   try {
     await ensureAccountsTable()
     await ensureAccountRelatedTables()
+    await sql`
+      CREATE TABLE IF NOT EXISTS account_branches (
+        account_id INTEGER NOT NULL REFERENCES account_tbl(id) ON DELETE CASCADE,
+        branch_id INTEGER NOT NULL REFERENCES branches(id) ON DELETE CASCADE,
+        PRIMARY KEY (account_id, branch_id)
+      )
+    `
 
     const id = Number(params.id)
     if (!id) {
@@ -308,6 +315,19 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       await sql`
         INSERT INTO account_classifications_tbl (account_id, classification_id)
         VALUES (${id}, ${classificationId})
+      `
+    }
+
+    // فروع تقييد ظهور الحساب بالبحث (اختياري) — نفس منطق POST: حذف ثم إعادة إدراج.
+    await sql`DELETE FROM account_branches WHERE account_id = ${id}`
+    const branchIds = Array.isArray(data.branch_ids) ? data.branch_ids : []
+    for (const branchId of branchIds) {
+      const numericBranchId = toNullableInt(branchId)
+      if (!numericBranchId) continue
+      await sql`
+        INSERT INTO account_branches (account_id, branch_id)
+        VALUES (${id}, ${numericBranchId})
+        ON CONFLICT DO NOTHING
       `
     }
 

@@ -21,7 +21,9 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Plus, AlertCircle, X } from "lucide-react"
 import { RefObject, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import PrimeDropdown from "@/components/common/FocusDropdown"
+import MultiSelect from "@/components/common/MultiSelect"
 import ProgressSpinner from "../ProgressSpinner/ProgressSpinner"
+import { attachEnterAsTab } from "@/components/common/enterAsTab"
 interface Classification {
   id: number
   name?: string
@@ -93,6 +95,8 @@ export interface UnifiedCustomerFormData {
   iscalc_curr_diff_rates?: boolean
   voucherType?: VoucherItem[]
   image_url?: string | null
+  // فروع تقييد ظهور العميل بالبحث (اختياري) — مصفوفة فارغة/غير محدَّدة = يظهر لكل الفروع.
+  branch_ids?: number[]
 }
 
 interface UnifiedCustomersProps {
@@ -107,6 +111,8 @@ interface UnifiedCustomersProps {
   classifications?: Classification[]
   pricecategory?: PriceCategory[]
   salesmen?: Salesman[]
+  // خيارات حقل "الفروع" (تقييد ظهور العميل بالبحث) — انظر branch_ids بـUnifiedCustomerFormData أعلاه.
+  branches?: Array<{ id: number; branch_name: string }>
   currentCustomerId?: number
   currentIndex?: number
   totalRecords?: number
@@ -164,6 +170,7 @@ const defaultFormData: UnifiedCustomerFormData = {
   iscalc_curr_diff_rates: false,
   voucherType: [],
   image_url: null,
+  branch_ids: [],
 }
 
 interface ClassificationTypeRow {
@@ -185,6 +192,7 @@ export default function UnifiedCustomers({
   classifications = [],
   pricecategory = [],
   salesmen = [],
+  branches = [],
   currentCustomerId = 0,
   currentIndex = 0,
   totalRecords = 0,
@@ -815,6 +823,44 @@ export default function UnifiedCustomers({
     void reset_fields()
   }, [reset_fields])
 
+  // F3 حفظ / F4 حذف / F5 جديد — بلا أثر بينما نافذة فرعية مفتوحة (تصنيف/مركز تكلفة/تأكيد حذف)
+  // فتمنح مفاتيحها الخاصة أولوية بلا تعارض، بنفس أسلوب compact-product-form.tsx.
+  const nestedPopupOpen =
+    showClassificationTypeForm ||
+    showClassificationForm ||
+    searchAccountClassificationOpen ||
+    showDeleteClassificationConfirm ||
+    searchCostCenterOpen ||
+    showDeleteConfirm
+  useEffect(() => {
+    if (!open) return
+    const handler = (e: KeyboardEvent) => {
+      if (nestedPopupOpen) return
+      if (e.key === "F3") {
+        e.preventDefault()
+        onSave()
+      }
+      if (e.key === "F4") {
+        e.preventDefault()
+        onDelete?.()
+      }
+      if (e.key === "F5") {
+        e.preventDefault()
+        handleNew()
+      }
+    }
+    window.addEventListener("keydown", handler, true)
+    return () => window.removeEventListener("keydown", handler, true)
+  }, [open, nestedPopupOpen, onSave, onDelete, handleNew])
+
+  const formRootRef = useRef<HTMLDivElement>(null)
+  const enterAsTabEnabledRef = useRef(true)
+  enterAsTabEnabledRef.current = !nestedPopupOpen
+  useEffect(() => {
+    if (!open || !formRootRef.current) return
+    return attachEnterAsTab(formRootRef.current, enterAsTabEnabledRef)
+  }, [open])
+
   const handleSaveClassification = useCallback(async () => {
     if (!newClassificationTypeId) {
       setClassificationError("يجب اختيار نوع التصنيف")
@@ -1080,7 +1126,7 @@ export default function UnifiedCustomers({
         </button>
       </div>
 
-      <div className="flex-1 space-y-4 overflow-y-auto px-6 pb-6">
+      <div ref={formRootRef} className="flex-1 space-y-4 overflow-y-auto px-6 pb-6">
       <Card>
         <CardHeader className="pb-4">
           <CardTitle className="flex items-center gap-2 text-lg">
@@ -1208,6 +1254,25 @@ export default function UnifiedCustomers({
                     onChange={(e: any) => updateField("classification", e.value || "")}
                   />
                 </div>
+
+            <div>
+              {/* تقييد ظهور العميل بفروع معيّنة (اختياري) — بلا أي فرع مُحدَّد هنا يبقى ظاهراً لكل
+                  الفروع (السلوك الافتراضي/الحالي دون تغيير)؛ باختيار فرع أو أكثر لا يظهر بنتائج
+                  البحث إلا لمستخدم فرعه النشط أحد هذه الفروع. */}
+              <MultiSelect
+                caption="الفروع (اختياري — بلا تحديد = كل الفروع)"
+                inputId="branch_ids"
+                value={formData.branch_ids || []}
+                options={branches}
+                optionLabel="branch_name"
+                optionValue="id"
+                placeholder="كل الفروع"
+                showFilter={true}
+                showCheck={true}
+                showMultiSelect={true}
+                onChange={(e: any) => updateField("branch_ids", (Array.isArray(e.value) ? e.value.map(Number) : []) as any)}
+              />
+            </div>
 
           </div>
         </CardContent>

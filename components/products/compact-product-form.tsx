@@ -23,7 +23,9 @@ import ProductBarcodes from "./ProductBarcodes"
 import ProductNumbers from "./ProductNumbers"
 import { Toast } from 'primereact/toast';
 import PrimeDropdown from '@/components/common/FocusDropdown'
+import MultiSelect from '@/components/common/MultiSelect'
 import SearchCostCenterDialog from "@/components/customer/search-cost-center-dialog"
+import SearchBrandDialog from "@/components/customer/search-brand-dialog"
 import './compact-product-form.css'
 import ProgressSpinner from "../ProgressSpinner/ProgressSpinner"
 import ConfirmDialogYesNo from "../ui/ConfirmDialogYesNo"
@@ -35,6 +37,7 @@ import sharedDropdownStyles from "../common/Dropdown.module.scss"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import AttachmentManager from "@/components/common/AttachmentManager"
 import { ImageUploadField } from "@/components/common/ImageUploadField"
+import { attachEnterAsTab } from "@/components/common/enterAsTab"
 
 // ارتفاع موحَّد لكل شبكات DataGridView في هذه الشاشة (الوحدات/الأسعار/المستودعات/مراكز التكلفة) —
 // يُمرَّر إلى DataGridView مباشرة (كخاصية style) لا إلى العنصر الملفوف، فيتولى Wijmo تمرير الصفوف
@@ -49,6 +52,18 @@ interface ProductCostCenterItem {
   default_cost_center_id?: number | null
   cost_center_type_name?: string
   cost_center_name?: string
+}
+
+// صف واحد لكل نوع علامة تجارية (brand_types) — بنفس نمط ProductCostCenterItem أعلاه تماماً؛ قد
+// يُسنَد له علامة تجارية (brands) محدَّدة أو يبقى بلا إسناد (brand_id فارغ).
+interface ProductBrandItem {
+  id?: number
+  product_id?: number
+  brand_type_id: number | null
+  required_in_transactions?: number | null
+  brand_id?: number | null
+  brand_type_name?: string
+  brand_name?: string
 }
 
 interface ProductFormData {
@@ -117,7 +132,12 @@ interface ProductFormData {
   prices?: PriceItem[],
   stores?: StoreItem[],
   cost_centers?: ProductCostCenterItem[],
+  product_brands?: ProductBrandItem[],
   product_image?: string | null,
+  // فروع تقييد ظهور الصنف بالبحث (اختياري) — مصفوفة فارغة = يظهر لكل الفروع (الافتراضي/الحالي)،
+  // وإلا يظهر فقط لمستخدم فرعه أحد هذه المعرّفات (انظر product_branches بـapp/api/inventory/
+  // products/route.ts وتصفية x-branch-id بـauth-context.tsx).
+  branch_ids?: number[],
 }
 export const initialFormData: ProductFormData = {
   id: 0,
@@ -186,7 +206,9 @@ export const initialFormData: ProductFormData = {
   prices: [],
   stores: [],
   cost_centers: [],
+  product_brands: [],
   product_image: null,
+  branch_ids: [],
 };
 
 export interface CompactProductFormProps {
@@ -246,6 +268,9 @@ export function CompactProductForm({
     cost_centers: [] as Array<{ id: number; name: string; cost_type_id?: number; parent_id?: number | null }>,
     tax_classifications: [] as Array<{ id: number; name: string }>,
     measurment_types: [] as Array<{ id: number; name: string }>,
+    branches: [] as Array<{ id: number; branch_name: string }>,
+    brand_types: [] as Array<{ id: number; name: string }>,
+    brands: [] as Array<{ id: number; name: string; brand_type_id: number }>,
   })
 
   // تتبع تاريخ الصلاحية/الرقم التشغيلي/الرقم المتسلسل يفترض صنفاً بوحدات عد صحيحة بسيطة — نوع قياس
@@ -280,6 +305,9 @@ export function CompactProductForm({
     cost_centers: [] as Array<{ id: number; name: string; cost_type_id?: number; parent_id?: number | null }>,
     tax_classifications: [] as Array<{ id: number; name: string }>,
     measurment_types: [] as Array<{ id: number; name: string }>,
+    branches: [] as Array<{ id: number; branch_name: string }>,
+    brand_types: [] as Array<{ id: number; name: string }>,
+    brands: [] as Array<{ id: number; name: string; brand_type_id: number }>,
   });
   const unitGridRef = useRef<wjGrid.FlexGrid>(null);
   const [loading, setLoading] = useState(false);
@@ -288,6 +316,13 @@ export function CompactProductForm({
   const [costCenterSearchOpen, setCostCenterSearchOpen] = useState(false)
   const [selectedCostCenterRowIndex, setSelectedCostCenterRowIndex] = useState<number | null>(null)
   const [selectedCostCenterType, setSelectedCostCenterType] = useState<{ id: number; name: string } | null>(null)
+  // نفس نمط مراكز التكلفة أعلاه تماماً (costCenterTypes/costCenters/costCenterSearchOpen...) لكن
+  // للعلامات التجارية — انظر تبويب "brand" وbrandScheme/buildBrandRows أدناه.
+  const [brandTypes, setBrandTypes] = useState<Array<{ id: number; name: string }>>([]);
+  const [brands, setBrands] = useState<Array<{ id: number; name: string; brand_type_id?: number }>>([]);
+  const [brandSearchOpen, setBrandSearchOpen] = useState(false)
+  const [selectedBrandRowIndex, setSelectedBrandRowIndex] = useState<number | null>(null)
+  const [selectedBrandType, setSelectedBrandType] = useState<{ id: number; name: string } | null>(null)
   // منتقيات SimpleListPicker لأعمدة الوحدات/الأسعار/المستودعات/حالة مركز التكلفة — بديل موحَّد عن
   // Column.editor المباشر (DataGridView الفعلي يتطلّب عنصر تحكم Wijmo حقيقياً لا JSX، انظر
   // editor?: Control | null في @grapecity/wijmo.react.grid/index.d.ts)، بنفس نمط أزرار البحث
@@ -630,6 +665,7 @@ export function CompactProductForm({
     });
 
     const costCenterRows = buildCostCenterRows(product.cost_centers ?? [], definitionsRef.current.cost_center_types, definitionsRef.current.cost_centers);
+    const brandRows = buildBrandRows(product.product_brands ?? [], definitionsRef.current.brand_types, definitionsRef.current.brands);
 
     const newFormData = {
       ...product,
@@ -637,6 +673,7 @@ export function CompactProductForm({
       prices: pricesWithNames,
       stores: storesWithNames,
       cost_centers: costCenterRows,
+      product_brands: brandRows,
       default_store: product.default_store ?? 0,
       // GET /api/inventory/ProductsNavigations/[navigationType] يُعيد "SELECT * FROM products"
       // خاماً — أعمدة الصلاحية/الدفعة الفعلية على الجدول هي has_expiry_date/has_batch_number لا
@@ -932,6 +969,7 @@ export function CompactProductForm({
 
     // --- Build new form data ---
     const costCenterRows = buildCostCenterRows([], definitionsRef.current.cost_center_types, definitionsRef.current.cost_centers);
+    const brandRows = buildBrandRows([], definitionsRef.current.brand_types, definitionsRef.current.brands);
 
     const defaultProductAccounts = await loadProductAccountDefaults()
 
@@ -942,6 +980,7 @@ export function CompactProductForm({
       prices: [newPrice],
       stores: [newStore],
       cost_centers: costCenterRows,
+      product_brands: brandRows,
       type: isService ? 2 : 1,
       service_type: isService ? 1 : 0,
       ...defaultProductAccounts,
@@ -1008,6 +1047,15 @@ export function CompactProductForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [definitions.cost_center_types, definitions.cost_centers])
 
+  // نفس منطق تأثير مراكز التكلفة أعلاه تماماً لكن للعلامات التجارية
+  useEffect(() => {
+    if (definitions.brand_types.length === 0) return
+    if ((formData.product_brands?.length ?? 0) > 0) return
+    const brandRows = buildBrandRows(formData.product_brands ?? [], definitions.brand_types, definitions.brands)
+    setFormData((prev) => ({ ...prev, product_brands: brandRows }))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [definitions.brand_types, definitions.brands])
+
   const popupHasCalled = () => {
     doHotKeys.current = false
   };
@@ -1033,11 +1081,21 @@ export function CompactProductForm({
         e.preventDefault();
         if (doHotKeys.current) handleSaveProduct()
       }
+      if (e.key === "F5") {
+        e.preventDefault();
+        if (doHotKeys.current) onNew(true)
+      }
     };
 
     window.addEventListener("keydown", handler, true); // ✅ capture phase
     return () => window.removeEventListener("keydown", handler, true);
   }, [visible, onHideDialog, handleDeleteClick]);
+
+  const formRootRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!visible || !formRootRef.current) return;
+    return attachEnterAsTab(formRootRef.current, doHotKeys);
+  }, [visible]);
 
 
   const adjustCode = (code: string, codeLen: number = 10): string => {
@@ -1490,12 +1548,14 @@ export function CompactProductForm({
           });
 
           const costCenterRows = buildCostCenterRows(product.cost_centers ?? [], definitionsRef.current.cost_center_types, definitionsRef.current.cost_centers);
+          const brandRows = buildBrandRows(product.product_brands ?? [], definitionsRef.current.brand_types, definitionsRef.current.brands);
 
           setFormData({
             ...product,
             units: unitsWithNames,
             prices: pricesWithNames,
             cost_centers: costCenterRows,
+            product_brands: brandRows,
 
           });
           setCurrentProductId(product.id);
@@ -1567,6 +1627,37 @@ export function CompactProductForm({
     })
   }
 
+  // نفس منطق buildCostCenterRows أعلاه تماماً لكن للعلامات التجارية — صف واحد لكل نوع علامة تجارية
+  // (brand_types)، مع إسناد اختياري لعلامة تجارية (brands) محدَّدة من نفس النوع.
+  const buildBrandRows = (assignedRows: any[] = [], types: any[] = [], brandsList: any[] = []) => {
+    return (types || []).map((type: any) => {
+      const assignment = (assignedRows || []).find((row: any) => Number(row?.brand_type_id) === Number(type.id))
+      const selectedId = assignment?.brand_id != null ? Number(assignment.brand_id) : null
+      const requiredValue = Number(assignment?.required_in_transactions ?? 1)
+      const requiredLabel = costCenterStatusOptions.find((option) => option.value === requiredValue)?.label || "اختياري"
+      return {
+        id: assignment?.id ?? 0,
+        product_id: assignment?.product_id ?? 0,
+        brand_type_id: Number(type.id),
+        brand_type_name: type.name || "",
+        required_in_transactions: requiredValue,
+        required_label: requiredLabel,
+        brand_id: selectedId,
+        brand_name: selectedId != null
+          ? brandsList.find((brand: any) => Number(brand.id) === selectedId)?.name || ""
+          : "",
+      }
+    })
+  }
+
+  const updateBrandRow = (index: number, field: string, value: any) => {
+    setFormData((prev) => {
+      const rows = [...(prev.product_brands ?? [])]
+      rows[index] = { ...rows[index], [field]: value }
+      return { ...prev, product_brands: rows }
+    })
+  }
+
   const fetchDefinitions = async () => {
     try {
       const definitionsObj: any = {}
@@ -1633,6 +1724,20 @@ export function CompactProductForm({
         setDefinitions((prev) => ({ ...prev, measurment_types: measurmentTypesData }))
       }
 
+      // فروع تقييد ظهور الصنف بالبحث (اختياري — انظر حقل "الفروع" أدناه بتبويب "عام")
+      try {
+        const branchesResp = await fetch("/api/branches")
+        if (branchesResp.ok) {
+          const branchesData = await branchesResp.json()
+          const list = Array.isArray(branchesData) ? branchesData : []
+          definitionsObj.branches = list
+          definitionsRef.current.branches = list
+          setDefinitions((prev) => ({ ...prev, branches: list }))
+        }
+      } catch (e) {
+        console.warn("Failed to load branches", e)
+      }
+
       // Tax classifications
       try {
         const taxResp = await fetch("/api/tax-classifications")
@@ -1675,6 +1780,25 @@ export function CompactProductForm({
         definitionsRef.current.cost_centers = costCentersData
         setCostCenters(costCentersData)
         setDefinitions((prev) => ({ ...prev, cost_centers: costCentersData }))
+      }
+
+      const brandTypesResponse = await fetch("/api/brand-types")
+      if (brandTypesResponse.ok) {
+        const brandTypesData = (await brandTypesResponse.json()) as Array<{ id: number; name: string }>
+        brandTypesData.sort((a, b) => (a.id || 0) - (b.id || 0))
+        definitionsObj.brandTypes = brandTypesData
+        definitionsRef.current.brand_types = brandTypesData
+        setBrandTypes(brandTypesData)
+        setDefinitions((prev) => ({ ...prev, brand_types: brandTypesData }))
+      }
+
+      const brandsResponse = await fetch("/api/brands")
+      if (brandsResponse.ok) {
+        const brandsData = await brandsResponse.json()
+        definitionsObj.brands = brandsData
+        definitionsRef.current.brands = brandsData
+        setBrands(brandsData)
+        setDefinitions((prev) => ({ ...prev, brands: brandsData }))
       }
       return definitionsObj
     } catch (error) {
@@ -1789,6 +1913,59 @@ export function CompactProductForm({
     ],
   }), [costCenterStatusOptions, formData.cost_centers])
 
+  // نفس نمط costCenterScheme أعلاه تماماً لكن للعلامات التجارية
+  const brandScheme = useMemo(() => ({
+    name: "ProductBrandScheme",
+    columns: [
+      { header: "نوع العلامة التجارية", name: "brand_type_name", width: '*', minWidth: 100, isReadOnly: true },
+      {
+        header: "العلامة التجارية",
+        name: "brand_name",
+        width: 260,
+        minWidth: 220,
+        isReadOnly: true,
+      },
+      {
+        name: "btnSearch",
+        header: " ",
+        width: 56,
+        buttonBody: "button" as const,
+        align: "center" as const,
+        title: "بحث",
+        iconType: "search",
+        className: "btn-search",
+        isReadOnly: true,
+        onClick: (e: any, ctx: any) => {
+          const row = ctx.row.dataItem
+          if (!row) return
+          setSelectedBrandRowIndex(ctx.row.index)
+          setSelectedBrandType({ id: Number(row.brand_type_id), name: row.brand_type_name || "" })
+          setBrandSearchOpen(true)
+        },
+        visible: true,
+        visibleInColumnChooser: true,
+      },
+      {
+        name: "btnDelete",
+        header: " ",
+        width: 56,
+        buttonBody: "button" as const,
+        align: "center" as const,
+        title: "حذف",
+        iconType: "delete",
+        className: "btn-delete",
+        isReadOnly: true,
+        onClick: (e: any, ctx: any) => {
+          const rowIndex = ctx.row.index
+          updateBrandRow(rowIndex, "brand_id", null)
+          updateBrandRow(rowIndex, "brand_name", "")
+        },
+        visible: true,
+        visibleInColumnChooser: true,
+      },
+    ],
+  }), [formData.product_brands])
+
   return (
     <div className="h-full min-h-[70vh] min-w-0 flex flex-col bg-background overflow-hidden text-lg compact-product-form-root" dir="rtl">
       {/* زر الإغلاق فوق شريط الأدوات مباشرة (لا بجانبه) حتى لا يزاحمه أفقياً فيضطر للف على
@@ -1847,7 +2024,7 @@ export function CompactProductForm({
 
       <Toast ref={toast} position="top-left" className="custom-toast" />
       <ProgressSpinner loading={loading} />
-      <div className="flex-1 overflow-y-auto overflow-x-hidden min-h-0">
+      <div ref={formRootRef} className="flex-1 overflow-y-auto overflow-x-hidden min-h-0">
         <div className="mx-auto w-full max-w-full space-y-4 p-2 pb-8 sm:space-y-6 sm:p-4 sm:pb-10 lg:p-6 lg:pb-12">
           {/* Header */}
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -1897,36 +2074,38 @@ export function CompactProductForm({
                       </div>
                     </div>
 
-                    <div>
-                      <Label htmlFor="product_name" className="text-sm font-medium">
-                        {isService ? "اسم الخدمة *" : "اسم الصنف *"}
-                      </Label>
-                      <Input
-                        ref={product_name}
-                        id="product_name"
-                        value={formData.product_name}
-                        onChange={(e) => {
-                          updateFormData("product_name", e.target.value);
-                          if (formData.product_name_en === '')
-                            updateFormData("product_name_en", e.target.value)
-                        }}
-                        className="text-right"
-                        placeholder={isService ? "اسم الخدمة باللغة العربية" : "اسم الصنف باللغة العربية"}
-                        required
-                      />
-                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="product_name" className="text-sm font-medium">
+                          {isService ? "اسم الخدمة *" : "اسم الصنف *"}
+                        </Label>
+                        <Input
+                          ref={product_name}
+                          id="product_name"
+                          value={formData.product_name}
+                          onChange={(e) => {
+                            updateFormData("product_name", e.target.value);
+                            if (formData.product_name_en === '')
+                              updateFormData("product_name_en", e.target.value)
+                          }}
+                          className="text-right"
+                          placeholder={isService ? "اسم الخدمة باللغة العربية" : "اسم الصنف باللغة العربية"}
+                          required
+                        />
+                      </div>
 
-                    <div>
-                      <Label htmlFor="product_name_en" className="text-sm font-medium">
-                        {isService ? "اسم الخدمة بالإنجليزية" : "اسم الصنف بالإنجليزية"}
-                      </Label>
-                      <Input
-                        id="product_name_en"
-                        value={formData.product_name_en}
-                        onChange={(e) => updateFormData("product_name_en", e.target.value)}
-                        className="text-left"
-                        placeholder={isService ? "اسم الخدمة بالإنجليزية" : "اسم الصنف بالإنجليزية"}
-                      />
+                      <div>
+                        <Label htmlFor="product_name_en" className="text-sm font-medium">
+                          {isService ? "اسم الخدمة بالإنجليزية" : "اسم الصنف بالإنجليزية"}
+                        </Label>
+                        <Input
+                          id="product_name_en"
+                          value={formData.product_name_en}
+                          onChange={(e) => updateFormData("product_name_en", e.target.value)}
+                          className="text-left"
+                          placeholder={isService ? "اسم الخدمة بالإنجليزية" : "اسم الصنف بالإنجليزية"}
+                        />
+                      </div>
                     </div>
                   </div>
 
@@ -1939,7 +2118,7 @@ export function CompactProductForm({
                 </div>
 
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
                   {!isService && (
                     <>
                       <div>
@@ -2035,6 +2214,25 @@ export function CompactProductForm({
                           />
                         </div>
                       </div>
+
+                      <div>
+                        {/* تقييد ظهور الصنف بفروع معيّنة (اختياري) — بلا أي فرع مُحدَّد هنا يبقى
+                            الصنف ظاهراً لكل الفروع (السلوك الافتراضي/الحالي دون تغيير)؛ باختيار فرع
+                            أو أكثر لا يظهر الصنف بنتائج البحث إلا لمستخدم فرعه النشط أحد هذه الفروع. */}
+                        <MultiSelect
+                          caption="الفروع (اختياري — بلا تحديد = كل الفروع)"
+                          inputId="branch_ids"
+                          value={formData.branch_ids || []}
+                          options={definitions.branches}
+                          optionLabel="branch_name"
+                          optionValue="id"
+                          placeholder="كل الفروع"
+                          showFilter={true}
+                          showCheck={true}
+                          showMultiSelect={true}
+                          onChange={(e: any) => updateFormData("branch_ids", Array.isArray(e.value) ? e.value.map(Number) : [])}
+                        />
+                      </div>
                     </>
                   )}
 
@@ -2067,22 +2265,6 @@ export function CompactProductForm({
                   )}
 
                 </div>
-
-                {!isService && (
-                  <div>
-                    <Label htmlFor="description" className="text-sm font-medium">
-                      وصف الصنف
-                    </Label>
-                    <Textarea
-                      id="description"
-                      value={formData.description}
-                      onChange={(e) => updateFormData("description", e.target.value)}
-                      className="text-right"
-                      rows={2}
-                      placeholder="وصف مفصل للصنف"
-                    />
-                  </div>
-                )}
               </CardContent>
             </Card>
 
@@ -2334,44 +2516,18 @@ export function CompactProductForm({
                           العلامة التجارية
                         </CardTitle>
                       </CardHeader>
-                      <CardContent>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
-                          <div>
-                            <Label htmlFor="brand" className="text-sm font-medium">
-                              العلامة التجارية
-                            </Label>
-                            <Input
-                              id="brand"
-                              value={formData.brand}
-                              onChange={(e) => updateFormData("brand", e.target.value)}
-                              className="text-right"
-                              placeholder="اسم العلامة التجارية"
-                            />
-                          </div>
-                          <div>
-                            <Label htmlFor="model" className="text-sm font-medium">
-                              الموديل
-                            </Label>
-                            <Input
-                              id="model"
-                              value={formData.model}
-                              onChange={(e) => updateFormData("model", e.target.value)}
-                              className="text-right"
-                              placeholder="رقم أو اسم الموديل"
-                            />
-                          </div>
-                          <div>
-                            <Label htmlFor="manufacturer_company" className="text-sm font-medium">
-                              الشركة المصنعة
-                            </Label>
-                            <Input
-                              id="manufacturer_company"
-                              value={formData.manufacturer_company}
-                              onChange={(e) => updateFormData("manufacturer_company", e.target.value)}
-                              className="text-right"
-                              placeholder="اسم الشركة المصنعة"
-                            />
-                          </div>
+                      <CardContent className="space-y-6">
+                        {/* شبكة العلامات التجارية بنفس أسلوب تبويب "مراكز التكلفة" تماماً: صف واحد
+                            لكل نوع علامة تجارية، بزر بحث يفتح SearchBrandDialog مقيَّداً بذلك النوع. */}
+                        <div className="w-full overflow-x-auto rounded-lg border">
+                          <DataGridView
+                            style={{ height: TABS_GRID_HEIGHT }}
+                            scheme={brandScheme}
+                            dataSource={formData.product_brands ?? []}
+                            isReport={false}
+                            showContextMenu={false}
+                            dontConvertToCards={true}
+                          />
                         </div>
                       </CardContent>
                     </Card>
@@ -2963,6 +3119,29 @@ export function CompactProductForm({
           updateCostCenterRow(statusPickerRow, "required_label", item.label)
         }}
       />
+
+      {brandSearchOpen && selectedBrandType && (
+        <SearchBrandDialog
+          open={brandSearchOpen}
+          onOpenChange={(open) => {
+            setBrandSearchOpen(open)
+            if (!open) {
+              setSelectedBrandRowIndex(null)
+              setSelectedBrandType(null)
+            }
+          }}
+          type={selectedBrandType}
+          brands={brands as any}
+          onSelect={(brand) => {
+            if (selectedBrandRowIndex == null) return
+            updateBrandRow(selectedBrandRowIndex, "brand_id", Number(brand.id))
+            updateBrandRow(selectedBrandRowIndex, "brand_name", brand.name || "")
+            setSelectedBrandRowIndex(null)
+            setSelectedBrandType(null)
+            setBrandSearchOpen(false)
+          }}
+        />
+      )}
     </div>
   )
 }

@@ -212,6 +212,8 @@ export function Sidebar({
             { title: "الأصناف", section: "products", icon: Package },
             { title: "الخدمات", section: "services", icon: Package },
             { title: "مجموعات الأصناف", section: "product-groups", icon: Package },
+            { title: "أنواع العلامات التجارية", section: "brand-types", icon: Package },
+            { title: "العلامات التجارية", section: "brands", icon: Package },
           ],
         },
         {

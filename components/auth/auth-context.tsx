@@ -74,9 +74,24 @@ export function AuthProvider({ children }: AuthProviderProps) {
       const originalFetch = window.fetch.bind(window)
       window.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
         const tenantDb = sessionStorage.getItem("active_tenant_db") || localStorage.getItem("active_tenant_db")
-        if (tenantDb) {
+        // نفس فكرة x-tenant-db أعلاه بالضبط، لكن للفرع النشط (erp_active_branch: JSON {id,name} —
+        // انظر persistBranchContext أدناه) — يحتاجه الخادم لتصفية نتائج بحث الأصناف/العملاء/الحسابات
+        // حسب صلاحيات الفرع (سجل مقيَّد بفروع معيّنة لا يظهر إلا لمستخدم فرعه أحدها؛ سجل بلا أي فرع
+        // مُحدَّد يبقى ظاهراً للجميع). كان هذا السياق عميل-فقط سابقاً (React state) بلا أي وسيلة
+        // لوصوله للخادم إطلاقاً.
+        const branchRaw = sessionStorage.getItem("erp_active_branch") || localStorage.getItem("erp_active_branch")
+        let branchId: number | null = null
+        if (branchRaw) {
+          try {
+            branchId = JSON.parse(branchRaw)?.id ?? null
+          } catch {
+            branchId = null
+          }
+        }
+        if (tenantDb || branchId != null) {
           const headers = new Headers(init?.headers)
-          headers.set("x-tenant-db", tenantDb)
+          if (tenantDb) headers.set("x-tenant-db", tenantDb)
+          if (branchId != null) headers.set("x-branch-id", String(branchId))
           init = { ...init, headers }
         }
         return originalFetch(input, init)

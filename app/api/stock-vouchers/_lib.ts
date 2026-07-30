@@ -9,10 +9,10 @@ export { buildVoucherCode, normalizeVoucherPrefix }
 // as their header table, plus a new voucher_items_tbl child table for item lines. Used by
 // route.ts, [id]/route.ts and navigation/[navigationType]/route.ts.
 
-export const STOCK_IN_VCH_TYPE = 12
-export const STOCK_OUT_VCH_TYPE = 13
-export const INTERNAL_DELIVERY_VCH_TYPE = 14
-export const USE_VOUCHER_VCH_TYPE = 15
+export const STOCK_IN_VCH_TYPE = 8
+export const STOCK_OUT_VCH_TYPE = 9
+export const INTERNAL_DELIVERY_VCH_TYPE = 10
+export const USE_VOUCHER_VCH_TYPE = 11
 
 export const STOCK_VOUCHER_TYPES = [
   STOCK_IN_VCH_TYPE,

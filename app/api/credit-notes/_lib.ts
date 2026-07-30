@@ -16,8 +16,8 @@ import { ensureTables as ensureVoucherTypesTable } from "../voucher-book-permiss
 // حساب مدين/مقابل + حساب العميل)، وليس شبكة حسابات متعددة الأسطر كسند القيد، ولا نقدي/شيكات/
 // بطاقات كسند القبض/الصرف. مبني على نفس voucher_header_tbl (عبر ensureReceiptsTables) بأعمدة
 // إضافية خاصة به فقط.
-export const CREDIT_NOTE_VCH_TYPE = 10
-export const DEBIT_NOTE_VCH_TYPE = 11
+export const CREDIT_NOTE_VCH_TYPE = 6
+export const DEBIT_NOTE_VCH_TYPE = 7
 
 // journal_type_id ثابتة حسب voucher_journal_type_caption_tbl (مطابقة تماماً لـ fillJournalsList
 // في CreditNote.js الأصلي — الترقيم معكوس عمداً بين النوعين مقابل التسميات، وهذا مطابق للمرجع):

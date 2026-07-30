@@ -53,12 +53,12 @@ interface BranchOption {
 
 // vch_type per voucher_types_tbl: 8 = سند قبض, 9 = سند صرف.
 interface ReceiptsProps {
-  voucherType: 8 | 9
+  voucherType: 4 | 5
 }
 
-const TYPE_LABELS: Record<8 | 9, { title: string; listTitle: string; addLabel: string; customerLabel: string }> = {
-  8: { title: "سند قبض", listTitle: "سندات القبض", addLabel: "إضافة سند قبض", customerLabel: "المقبوض منه" },
-  9: { title: "سند صرف", listTitle: "سندات الصرف", addLabel: "إضافة سند صرف", customerLabel: "المدفوع له" },
+const TYPE_LABELS: Record<4 | 5, { title: string; listTitle: string; addLabel: string; customerLabel: string }> = {
+  4: { title: "سند قبض", listTitle: "سندات القبض", addLabel: "إضافة سند قبض", customerLabel: "المقبوض منه" },
+  5: { title: "سند صرف", listTitle: "سندات الصرف", addLabel: "إضافة سند صرف", customerLabel: "المدفوع له" },
 }
 
 const emptyJournalRow: VoucherJournalRow = {
@@ -100,7 +100,7 @@ const emptyCardRow: VoucherCardRow = {
   currency_id: null,
 }
 
-const buildInitialForm = (voucherType: 8 | 9): VoucherRecord => ({
+const buildInitialForm = (voucherType: 4 | 5): VoucherRecord => ({
   id: 0,
   vch_type: voucherType,
   vch_code: "",
@@ -134,7 +134,7 @@ const buildInitialForm = (voucherType: 8 | 9): VoucherRecord => ({
   notes: [],
 })
 
-const normalizeVoucher = (record: Partial<VoucherRecord>, voucherType: 8 | 9): VoucherRecord => ({
+const normalizeVoucher = (record: Partial<VoucherRecord>, voucherType: 4 | 5): VoucherRecord => ({
   ...buildInitialForm(voucherType),
   ...record,
   manual_date: record.manual_date || record.vch_date || buildInitialForm(voucherType).manual_date,
@@ -498,7 +498,7 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
 
     if (cashAmount > 0 && !data.cash_account_id) return "يجب اختيار حساب الصندوق"
     if (checkAmount > 0) {
-      if (voucherType === 9) {
+      if (voucherType === 5) {
         // سند الصرف: حساب صندوق الشيكات يُعبَّأ آلياً بـ jary_account_id الخاص بالحساب البنكي
         // المختار في شبكة الشيكات (unified-receipt-voucher.tsx) — لا يُختار يدوياً هنا. حسابٌ
         // بنكي مختار بلا jary_account_id معرَّف له يستحق رسالة تشخيصية أدق من الرسالة العامة أدناه.
@@ -538,11 +538,11 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
         if (!row.due_date) return "تاريخ الاستحقاق مطلوب في تبويب الشيكات"
         if (!row.bank_id) return "البنك مطلوب في تبويب الشيكات"
         if (!row.branch_id) return "الفرع مطلوب في تبويب الشيكات"
-        if (voucherType === 9 && !row.bank_account) return "رقم الحساب مطلوب في تبويب الشيكات"
+        if (voucherType === 5 && !row.bank_account) return "رقم الحساب مطلوب في تبويب الشيكات"
       }
 
       // سند الصرف يصدر شيكاته من حساب بنكي واحد فقط — لا يجوز خلط أكثر من حساب ضمن نفس السند.
-      if (voucherType === 9) {
+      if (voucherType === 5) {
         const distinctAccounts = new Set(enteredCheques.map((row) => (row.bank_account || "").trim()).filter(Boolean))
         if (distinctAccounts.size > 1) {
           return "يجب أن تكون جميع الشيكات من نفس الحساب البنكي"
