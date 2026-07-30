@@ -122,6 +122,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "البريد الإلكتروني مطلوب" }, { status: 400 })
     }
 
+    const existingEmailUser = await sql`
+      SELECT user_id FROM user_settings WHERE LOWER(email) = LOWER(${String(data.email).trim()})
+    `
+    if (existingEmailUser.length > 0) {
+      return NextResponse.json({ error: "البريد الإلكتروني مستخدَم بالفعل لمستخدم آخر في هذه الشركة" }, { status: 400 })
+    }
+
     // يضيف الموظف أولاً إلى management.users (هوية عامة موحَّدة، تفرّد البريد الإلكتروني عبر كل
     // الشركات) ثم يربطه بهذه الشركة عبر management.user_company، وأخيراً يُنشئ صفه المحلي بقاعدة
     // الشركة كما كان يعمل تماماً من قبل — انظر lib/auth.ts وخطة الصلاحيات لتفاصيل التصميم الكامل.
@@ -255,6 +262,16 @@ export async function PUT(request: NextRequest) {
 
     if (!hasProfileFields && !hasPreferenceFields) {
       return NextResponse.json({ error: "No updatable fields provided" }, { status: 400 })
+    }
+
+    if (data.email && String(data.email).trim()) {
+      const existingEmailUser = await sql`
+        SELECT user_id FROM user_settings
+        WHERE LOWER(email) = LOWER(${String(data.email).trim()}) AND user_id != ${data.user_id}
+      `
+      if (existingEmailUser.length > 0) {
+        return NextResponse.json({ error: "البريد الإلكتروني مستخدَم بالفعل لمستخدم آخر في هذه الشركة" }, { status: 400 })
+      }
     }
 
     const rawPassword =

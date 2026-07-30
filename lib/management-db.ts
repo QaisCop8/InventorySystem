@@ -144,7 +144,15 @@ export function ensureManagementTables(): Promise<void> {
           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
       `
-      await seedAccessDefinitionsFromReferenceOnce()
+      // مجهود أفضل (best effort): هذا استيراد لمرة واحدة من قاعدة مرجعية خارجية قد لا تملك الجداول
+      // المتوقعة أو يتعذّر الاتصال بها — فشله يجب ألّا يُسقِط إنشاء جداول الإدارة نفسها، وإلا ستفشل
+      // كل عملية تعتمد على ensureManagementTables (مثل إضافة صلاحية جديدة من "تعريف الصلاحيات")
+      // بشكل دائم في كل طلب لاحق أيضاً، لا لمرة واحدة فقط.
+      try {
+        await seedAccessDefinitionsFromReferenceOnce()
+      } catch (seedError) {
+        console.error("[management-db] seedAccessDefinitionsFromReferenceOnce failed:", seedError)
+      }
     })().catch((error) => {
       managementDbEnsured = null
       throw error
@@ -176,6 +184,13 @@ async function seedAccessDefinitionsFromReferenceOnce(): Promise<void> {
   } finally {
     await referencePool.end()
   }
+
+  // الإدراج بمعرّف صريح أعلاه لا يُقدِّم تسلسل SERIAL (nextval لم يُستدعَ إطلاقاً) — فيبقى متأخراً
+  // عند رقمه الافتراضي بينما الجدول يحوي فعلياً معرّفات أعلى بكثير، فيصطدم أول إدراج طبيعي لاحق
+  // (بلا معرّف صريح، كإضافة صلاحية جديدة من شاشة "تعريف الصلاحيات") بمعرّف موجود مسبقاً
+  // (duplicate key value violates unique constraint). يُزامَن التسلسلان هنا فوراً بعد هذا النسخ.
+  await sql`SELECT setval(pg_get_serial_sequence('access_category', 'id'), COALESCE((SELECT MAX(id) FROM access_category), 1))`
+  await sql`SELECT setval(pg_get_serial_sequence('access_list', 'id'), COALESCE((SELECT MAX(id) FROM access_list), 1))`
 }
 
 let managementPool: Pool | null = null

@@ -79,13 +79,11 @@ export function UserSettings() {
 
   // حقول القوائم المنسدلة (PrimeDropdown) بحوارَي التعديل والإضافة — تُدار بحالة React بدل
   // FormData لأن PrimeDropdown ليس عنصر <select> حقيقياً فلا تلتقطه FormData تلقائياً.
-  const [editRole, setEditRole] = useState("")
   const [editDepartment, setEditDepartment] = useState("")
   const [editBranchId, setEditBranchId] = useState<number | null>(null)
   const [editDefaultScreen, setEditDefaultScreen] = useState("dashboard")
   const [editJobRoleId, setEditJobRoleId] = useState<number | null>(null)
 
-  const [newRole, setNewRole] = useState("")
   const [newDepartment, setNewDepartment] = useState("")
   const [newBranchId, setNewBranchId] = useState<number | null>(null)
   const [newDefaultScreen, setNewDefaultScreen] = useState("dashboard")
@@ -232,7 +230,6 @@ export function UserSettings() {
   const handleViewUser = (user) => {
     setSelectedUser(user)
     const matchedDept = activeDepartments.find((d) => d.department_name === user.department)
-    setEditRole(user.role)
     setEditDepartment(matchedDept ? matchedDept.department_name : activeDepartments[0]?.department_name ?? "")
     setEditBranchId(user.branch_id ?? branches[0]?.id ?? null)
     setEditJobRoleId(user.job_role_id ?? null)
@@ -385,7 +382,6 @@ export function UserSettings() {
             <div className="flex gap-2 flex-wrap">
               <Button
                 onClick={() => {
-                  setNewRole("")
                   setNewDepartment(activeDepartments[0]?.department_name ?? "")
                   setNewBranchId(branches[0]?.id ?? null)
                   setNewDefaultScreen("dashboard")
@@ -527,10 +523,6 @@ export function UserSettings() {
                   }
                 }
 
-                if (!editRole) {
-                  alert("يجب اختيار الدور")
-                  return
-                }
                 if (!editDepartment) {
                   alert("يجب اختيار القسم")
                   return
@@ -539,18 +531,23 @@ export function UserSettings() {
                   alert("يجب اختيار الفرع")
                   return
                 }
+                if (!editJobRoleId) {
+                  alert("يجب اختيار الدور الوظيفي")
+                  return
+                }
 
+                const email = formData.get("email") as string
                 const dashboardLayout = {
                   ...selectedUser.dashboard_layout,
                   default_screen: editDefaultScreen,
                 }
                 const userData = {
                   user_id: selectedUser.user_id,
-                  username: formData.get("username") as string,
+                  username: email,
                   full_name: formData.get("fullName") as string,
-                  email: formData.get("email") as string,
+                  email,
                   phone: formData.get("phone") as string,
-                  role: editRole,
+                  role: selectedUser.role,
                   department: editDepartment,
                   branch_id: editBranchId,
                   job_role_id: editJobRoleId,
@@ -586,11 +583,12 @@ export function UserSettings() {
                       </p>
                     </div>
                     <div>
-                      <Label htmlFor="username">اسم المستخدم *</Label>
+                      <Label htmlFor="email">البريد الإلكتروني *</Label>
                       <Input
-                        id="username"
-                        name="username"
-                        defaultValue={selectedUser.username}
+                        id="email"
+                        name="email"
+                        type="email"
+                        defaultValue={selectedUser.email}
                         required
                         className="text-right"
                         dir="rtl"
@@ -679,7 +677,7 @@ export function UserSettings() {
                         <PrimeDropdown
                           id="defaultScreen"
                           value={editDefaultScreen}
-                          options={getAvailableScreens(editRole || selectedUser.role)}
+                          options={getAvailableScreens(selectedUser.role)}
                           optionLabel="label"
                           optionValue="value"
                           placeholder="اختر الشاشة الافتراضية"
@@ -715,18 +713,6 @@ export function UserSettings() {
                       />
                     </div>
                     <div>
-                      <Label htmlFor="email">البريد الإلكتروني *</Label>
-                      <Input
-                        id="email"
-                        name="email"
-                        type="email"
-                        defaultValue={selectedUser.email}
-                        required
-                        className="text-right"
-                        dir="rtl"
-                      />
-                    </div>
-                    <div>
                       <Label htmlFor="phone">رقم الهاتف</Label>
                       <Input
                         id="phone"
@@ -735,22 +721,6 @@ export function UserSettings() {
                         className="text-right"
                         dir="rtl"
                       />
-                    </div>
-                    <div>
-                      <Label htmlFor="role">الدور *</Label>
-                      <div className="invoice-currency-dropdown-wrap">
-                        <PrimeDropdown
-                          id="role"
-                          value={editRole}
-                          options={roles}
-                          placeholder="اختر الدور"
-                          filter
-                          className="invoice-currency-dropdown w-full"
-                          panelClassName="invoice-currency-dropdown-panel"
-                          appendTo="self"
-                          onChange={(e: any) => setEditRole(e.value)}
-                        />
-                      </div>
                     </div>
                     <div>
                       <Label htmlFor="department">القسم *</Label>
@@ -789,15 +759,15 @@ export function UserSettings() {
                       </div>
                     </div>
                     <div>
-                      <Label htmlFor="editJobRole">الدور الوظيفي (اختياري)</Label>
+                      <Label htmlFor="editJobRole">الدور الوظيفي *</Label>
                       <div className="invoice-currency-dropdown-wrap">
                         <PrimeDropdown
                           id="editJobRole"
                           value={editJobRoleId}
-                          options={[{ id: null, name: "بلا دور" }, ...jobRoles]}
+                          options={jobRoles}
                           optionLabel="name"
                           optionValue="id"
-                          placeholder="بلا دور"
+                          placeholder="اختر الدور الوظيفي"
                           filter
                           className="invoice-currency-dropdown w-full"
                           panelClassName="invoice-currency-dropdown-panel"
@@ -872,10 +842,6 @@ export function UserSettings() {
                 return
               }
 
-              if (!newRole) {
-                alert("يجب اختيار الدور")
-                return
-              }
               if (!newDepartment) {
                 alert("يجب اختيار القسم")
                 return
@@ -884,17 +850,21 @@ export function UserSettings() {
                 alert("يجب اختيار الفرع")
                 return
               }
+              if (!newJobRoleId) {
+                alert("يجب اختيار الدور الوظيفي")
+                return
+              }
 
+              const newEmail = formData.get("email") as string
               const dashboardLayout = {
                 default_screen: newDefaultScreen || "dashboard",
               }
               const userData = {
-                username: formData.get("username") as string,
+                username: newEmail,
                 password: formData.get("password") as string,
                 full_name: formData.get("fullName") as string,
-                email: formData.get("email") as string,
+                email: newEmail,
                 phone: formData.get("phone") as string,
-                role: newRole,
                 department: newDepartment,
                 branch_id: newBranchId,
                 job_role_id: newJobRoleId,
@@ -928,11 +898,12 @@ export function UserSettings() {
                     </p>
                   </div>
                   <div>
-                    <Label htmlFor="newUsername">اسم المستخدم *</Label>
+                    <Label htmlFor="newEmail">البريد الإلكتروني *</Label>
                     <Input
-                      id="newUsername"
-                      name="username"
-                      placeholder="أدخل اسم المستخدم"
+                      id="newEmail"
+                      name="email"
+                      type="email"
+                      placeholder="user@company.com"
                       required
                       className="text-right"
                       dir="rtl"
@@ -1003,7 +974,7 @@ export function UserSettings() {
                       <PrimeDropdown
                         id="newDefaultScreen"
                         value={newDefaultScreen}
-                        options={getAvailableScreens(newRole)}
+                        options={getAvailableScreens("مدير النظام")}
                         optionLabel="label"
                         optionValue="value"
                         placeholder="اختر الشاشة الافتراضية"
@@ -1039,36 +1010,8 @@ export function UserSettings() {
                     />
                   </div>
                   <div>
-                    <Label htmlFor="newEmail">البريد الإلكتروني *</Label>
-                    <Input
-                      id="newEmail"
-                      name="email"
-                      type="email"
-                      placeholder="user@company.com"
-                      required
-                      className="text-right"
-                      dir="rtl"
-                    />
-                  </div>
-                  <div>
                     <Label htmlFor="newPhone">رقم الهاتف</Label>
                     <Input id="newPhone" name="phone" placeholder="05xxxxxxxx" className="text-right" dir="rtl" />
-                  </div>
-                  <div>
-                    <Label htmlFor="newRole">الدور *</Label>
-                    <div className="invoice-currency-dropdown-wrap">
-                      <PrimeDropdown
-                        id="newRole"
-                        value={newRole}
-                        options={roles}
-                        placeholder="اختر الدور"
-                        filter
-                        className="invoice-currency-dropdown w-full"
-                        panelClassName="invoice-currency-dropdown-panel"
-                        appendTo="self"
-                        onChange={(e: any) => setNewRole(e.value)}
-                      />
-                    </div>
                   </div>
                   <div>
                     <Label htmlFor="newDepartment">القسم *</Label>
@@ -1107,15 +1050,15 @@ export function UserSettings() {
                     </div>
                   </div>
                   <div>
-                    <Label htmlFor="newJobRole">الدور الوظيفي (اختياري)</Label>
+                    <Label htmlFor="newJobRole">الدور الوظيفي *</Label>
                     <div className="invoice-currency-dropdown-wrap">
                       <PrimeDropdown
                         id="newJobRole"
                         value={newJobRoleId}
-                        options={[{ id: null, name: "بلا دور" }, ...jobRoles]}
+                        options={jobRoles}
                         optionLabel="name"
                         optionValue="id"
-                        placeholder="بلا دور"
+                        placeholder="اختر الدور الوظيفي"
                         filter
                         className="invoice-currency-dropdown w-full"
                         panelClassName="invoice-currency-dropdown-panel"

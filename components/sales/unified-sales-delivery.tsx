@@ -1282,9 +1282,10 @@ export default function UnifiedSalesDelivery({
     }
   }
 
-  // يمنع بدء تحرير خلية "الكمية" لسطر نوع قياس صنفه غير عادي (تُحتسَب تلقائياً من الأبعاد/العدد) ويفتح
-  // نافذة "بيانات القياس" بدلاً من ذلك عند أي محاولة تحرير (كتابة حرف، F2، نقر مزدوج — كلها تُطلق
-  // beginningEdit في Wijmo) — نفس handleBeginningEdit في unified-stock-voucher.tsx.
+  // يمنع بدء تحرير خلية "الكمية"/"البونص" لسطر نوع قياس صنفه غير عادي (تُحتسَب الكمية تلقائياً من
+  // الأبعاد/العدد، والبونص تابع لها) ويفتح نافذة "بيانات القياس" بدلاً من ذلك عند أي محاولة تحرير
+  // الكمية (كتابة حرف، F2، نقر مزدوج — كلها تُطلق beginningEdit في Wijmo) — نفس handleBeginningEdit
+  // في unified-stock-voucher.tsx، مع فرع bonus_quantity الإضافي هنا (العمود غير موجود هناك أصلاً).
   const handleBeginningEdit = (grid: any, e: any) => {
     const colName = grid?.columns?.[e.col]?.binding
     const row = itemsRef.current[e.row]
@@ -1296,6 +1297,10 @@ export default function UnifiedSalesDelivery({
           setMeasurementDialogRow(e.row)
           setMeasurementDialogOpen(true)
         }
+      }
+    } else if (colName === "bonus_quantity") {
+      if (row && Number(row.measurment_id || 1) !== 1) {
+        e.cancel = true
       }
     }
   }

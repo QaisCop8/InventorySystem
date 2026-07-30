@@ -4,6 +4,7 @@ import { getManagementSession } from "@/lib/management-auth"
 import managementSql, { ensureManagementTables } from "@/lib/management-db"
 import { withTenantDb } from "@/lib/database"
 import { authenticateByEmail } from "@/lib/auth"
+import { createTenantSession } from "@/lib/tenant-auth"
 
 export async function POST(request: NextRequest) {
   try {
@@ -53,9 +54,20 @@ export async function POST(request: NextRequest) {
     // الاستعلام على قاعدة الشركة الصحيحة ضمن هذا الطلب تحديداً، بصرف النظر عن كوكي tenant_db.
     const ip = request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || "unknown"
     const userAgent = request.headers.get("user-agent") || "unknown"
-    const authResult = await withTenantDb(company.db_name, () =>
-      authenticateByEmail(session.email, { ip, userAgent }),
-    )
+    const authResult = await withTenantDb(company.db_name, async () => {
+      const result = await authenticateByEmail(session.email, { ip, userAgent })
+      // بلا هذا، الشاشات التي تتطلب tenant_session (مثل حفظ/تعديل المستخدمين) كانت ترفض كل من
+      // يدخل عبر لوحة الإدارة برسالة "يجب تسجيل الدخول" لأن هذا المسار لم يكن يصدر كوكي الجلسة
+      // إطلاقاً، خلافاً لمسار تسجيل الدخول المباشر في app/api/auth/login.
+      if (result.success && result.user?.id) {
+        try {
+          await createTenantSession(String(result.user.id))
+        } catch (sessionError) {
+          console.error("[management/select-company] Failed to create tenant session:", sessionError)
+        }
+      }
+      return result
+    })
 
     return NextResponse.json({
       success: true,

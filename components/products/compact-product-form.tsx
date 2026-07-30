@@ -638,15 +638,21 @@ export function CompactProductForm({
   // كدالة مشتركة بدل تكرارها لكل مسار، بعد أن كانت مسارات النجاح المختلفة (لا الأخطاء فقط) تُكرِّر
   // نفس تحويل الوحدات/الأسعار/المستودعات وضبط formData/initialHash/currentProductId حرفياً.
   const applyLoadedProduct = async (product: any) => {
+    // definitionsRef.current لا الحالة definitions — الحالة مُحدَّثة عبر setDefinitions (غير متزامنة،
+    // تُطبَّق بالعرض التالي) بينما هذه الدالة تُستدعى من نفس تشغيلة useEffect التي استدعت
+    // fetchDefinitions أصلاً (مرة واحدة فقط، محروسة بـinitialized.current)، فتبقى definitions هنا
+    // دوماً بقيمتها الأولية الفارغة عند أول تحميل صنف — تماماً سبب ظهور اسم الوحدة/فئة السعر فارغين
+    // بتبويب "أسعار البيع" عند فتح/حفظ صنف لأول مرة. نفس النمط الصحيح المُستخدَم أصلاً أدناه لـ
+    // costCenterRows/brandRows.
     const unitsWithNames = (product.units ?? []).map((unit: any) => {
-      const unitDef = definitions.units.find((u: any) => u.id === unit.unit_id);
+      const unitDef = definitionsRef.current.units.find((u: any) => u.id === unit.unit_id);
       return { ...unit, unit_name: unitDef?.unit_name || "" };
     });
 
     const pricesWithNames = (product.prices ?? []).map((price: any) => {
-      const unitDef = definitions.units.find((u: any) => u.id === price.unit_id);
-      const priceCategoryDef = definitions.price_category.find((p: any) => p.id === price.price_category_id);
-      const currencyDef = definitions.currencies.find((c: any) => c.id === price.currency_id);
+      const unitDef = definitionsRef.current.units.find((u: any) => u.id === price.unit_id);
+      const priceCategoryDef = definitionsRef.current.price_category.find((p: any) => p.id === price.price_category_id);
+      const currencyDef = definitionsRef.current.currencies.find((c: any) => c.id === price.currency_id);
       return {
         ...price,
         unit_name: unitDef?.unit_name || "",
@@ -656,7 +662,7 @@ export function CompactProductForm({
     });
 
     const storesWithNames = (product.stores ?? []).map((store: any) => {
-      const storeDef = definitions.warehouses.find((w: any) => w.id === store.warehouse_id);
+      const storeDef = definitionsRef.current.warehouses.find((w: any) => w.id === store.warehouse_id);
       return {
         ...store,
         store_name: storeDef?.warehouse_name || "",
@@ -1272,15 +1278,24 @@ export function CompactProductForm({
     const editedItem = s.rows[e.row]?.dataItem;
     const colName = s.columns[e.col]?.name;
     if (!editedItem || colName !== "to_main_qnty") return;
-    if (e.row === 0) {
-      editedItem.to_main_qnty = 1;
-      setFormData((prev) => {
-        const units = [...(prev.units || [])];
-        if (!units[e.row]) return prev;
-        units[e.row] = { ...units[e.row], to_main_qnty: 1 };
-        return { ...prev, units };
+    const raw = Number(editedItem.to_main_qnty);
+    const isValid = Number.isFinite(raw) && raw >= 0.000001 && raw <= 100000;
+    const value = isValid ? raw : 1;
+    if (!isValid) {
+      toast.current?.show({
+        severity: "error",
+        summary: "خطأ",
+        detail: "العلاقة بالوحدة الرئيسية يجب أن تكون رقماً بين 0.000001 و100000",
+        life: 3000,
       });
     }
+    editedItem.to_main_qnty = value;
+    setFormData((prev) => {
+      const units = [...(prev.units || [])];
+      if (!units[e.row]) return prev;
+      units[e.row] = { ...units[e.row], to_main_qnty: value };
+      return { ...prev, units };
+    });
   };
 
   const getScheme = () => {
@@ -1318,7 +1333,7 @@ export function CompactProductForm({
           visible: true,
           visibleInColumnChooser: true,
         },
-        { header: "العلاقة بالرئيسية", name: "to_main_qnty", width: 150, visible: true },
+        { header: "العلاقة بالرئيسية", name: "to_main_qnty", width: 150, dataType: "Number", visible: true },
         {
           header: "الباركود",
           name: "barcode",

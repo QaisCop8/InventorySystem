@@ -18,7 +18,8 @@ import {
   PaginationPrevious,
   PaginationEllipsis,
 } from "@/components/ui/pagination"
-import { Search, RefreshCw, Users, UserPlus } from "lucide-react"
+import { Search, RefreshCw, Users, UserPlus, CheckCheck, X, RotateCcw } from "lucide-react"
+import { Switch } from "@/components/ui/switch"
 import PermissionSection from "./PermissionSection";
 import { Toast } from 'primereact/toast';
 import React from "react"
@@ -370,6 +371,7 @@ export default function Permissions() {
 
   const [accessList, setAccessList] = useState<Record<string, AccessItem[]>>({})
   const [userAccess, setUserAccess] = useState<Record<string, Record<string, boolean>>>({})
+  const [permSearch, setPermSearch] = useState("")
 
   useEffect(() => {
     const fetchAccess = async () => {
@@ -727,80 +729,133 @@ export default function Permissions() {
 
                   {/* الأقسام */}
                   {/** الملفات والتعريفات */}
-                  <div className="space-y-6">
-                    <div className="flex gap-4 mb-6">
-                      <button
-                        className="px-4 py-1 bg-green-500 text-white rounded"
-                        onClick={() => {
-                          const updated: Record<number, { view: boolean }> = {}
-                          Object.values(accessList).flat().forEach(item => {
-                            updated[item.access_id] = { view: true }
-                          })
-                          setUserAccess(updated)
-                        }}
-                      >
-                        تحديد الكل
-                      </button>
+                  {(() => {
+                    const allItems = Object.values(accessList).flat()
+                    const grantedCount = allItems.filter((item) => userAccess[item.access_id]?.view).length
+                    const term = permSearch.trim().toLowerCase()
+                    const filteredCategories = !term
+                      ? accessList
+                      : Object.entries(accessList).reduce<Record<string, AccessItem[]>>((acc, [category, items]) => {
+                          const matches = items.filter((item) => item.access_name.toLowerCase().includes(term))
+                          if (matches.length > 0) acc[category] = matches
+                          return acc
+                        }, {})
 
-                      <button
-                        className="px-4 py-1 bg-red-500 text-white rounded"
-                        onClick={() => {
-                          const updated: Record<number, { view: boolean }> = {}
-                          Object.values(accessList).flat().forEach(item => {
-                            updated[item.access_id] = { view: false }
-                          })
-                          setUserAccess(updated)
-                        }}
-                      >
-                        الغاء تحديد الكل
-                      </button>
+                    return (
+                      <div className="space-y-6">
+                        <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
+                          <div className="relative w-full sm:max-w-xs">
+                            <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input
+                              placeholder="ابحث عن صلاحية..."
+                              value={permSearch}
+                              onChange={(e) => setPermSearch(e.target.value)}
+                              className="pr-9"
+                            />
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Badge variant="secondary" className="text-sm">
+                              {grantedCount} من {allItems.length} صلاحية مفعّلة
+                            </Badge>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                const updated: Record<number, { view: boolean }> = {}
+                                allItems.forEach((item) => {
+                                  updated[item.access_id] = { view: true }
+                                })
+                                setUserAccess(updated)
+                              }}
+                            >
+                              <CheckCheck className="h-4 w-4 ml-1.5" />
+                              تحديد الكل
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                const updated: Record<number, { view: boolean }> = {}
+                                allItems.forEach((item) => {
+                                  updated[item.access_id] = { view: false }
+                                })
+                                setUserAccess(updated)
+                              }}
+                            >
+                              <X className="h-4 w-4 ml-1.5" />
+                              الغاء تحديد الكل
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                const updated = { ...userAccess }
+                                allItems.forEach((item) => {
+                                  updated[item.access_id] = { view: !updated[item.access_id]?.view }
+                                })
+                                setUserAccess(updated)
+                              }}
+                            >
+                              <RotateCcw className="h-4 w-4 ml-1.5" />
+                              عكس التحديد
+                            </Button>
+                          </div>
+                        </div>
 
-                      <button
-                        className="px-4 py-1 bg-blue-500 text-white rounded"
-                        onClick={() => {
-                          const updated = { ...userAccess }
-                          Object.values(accessList).flat().forEach(item => {
-                            updated[item.access_id] = { view: !updated[item.access_id]?.view }
-                          })
-                          setUserAccess(updated)
-                        }}
-                      >
-                        عكس التحديد
-                      </button>
-                    </div>
+                        {Object.keys(filteredCategories).length === 0 && (
+                          <div className="text-center text-sm text-gray-500 py-10">لا توجد صلاحيات مطابقة للبحث</div>
+                        )}
 
-                    {Object.entries(accessList).map(([categoryName, items]) => (
-                      <div key={categoryName} className="border rounded-lg p-6 mb-4">
-                        <h4 className="font-semibold text-lg mb-4">{categoryName}</h4>
-                        <div className="grid grid-cols-[1fr_60px] gap-6 items-center">
-                          {items.map(item => {
-                            const isChecked = !!userAccess[item.access_id]?.view // make sure it's boolean
-
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                          {Object.entries(filteredCategories).map(([categoryName, items]) => {
+                            const categoryGranted = items.filter((item) => userAccess[item.access_id]?.view).length
                             return (
-                              <React.Fragment key={item.access_id}>
-                                <div className="text-base font-medium">{item.access_name}</div>
-                                <input
-                                  type="checkbox"
-                                  checked={isChecked}
-                                  className="rounded w-5 h-5"
-                                  onChange={(e) => {
-                                    console.log("item.access_id ", item.access_id)
-                                    setUserAccess(prev => ({
-                                      ...prev,
-                                      [item.access_id]: { view: e.target.checked } // replace whole object
-                                    }))
-                                  }}
-                                />
-                              </React.Fragment>
+                              <Card key={categoryName} className="overflow-hidden">
+                                <CardHeader className="py-3 bg-gray-50">
+                                  <div className="flex items-center justify-between">
+                                    <CardTitle className="text-base font-semibold">{categoryName}</CardTitle>
+                                    <Badge variant={categoryGranted === items.length ? "default" : "secondary"} className="text-xs">
+                                      {categoryGranted}/{items.length}
+                                    </Badge>
+                                  </div>
+                                </CardHeader>
+                                <CardContent className="p-0">
+                                  <div className="divide-y">
+                                    {items.map((item) => {
+                                      const isChecked = !!userAccess[item.access_id]?.view
+
+                                      return (
+                                        <div
+                                          key={item.access_id}
+                                          className={`flex items-center justify-between gap-4 px-4 py-3 transition-colors ${
+                                            isChecked ? "bg-emerald-50" : ""
+                                          }`}
+                                        >
+                                          <span className="text-sm font-medium">{item.access_name}</span>
+                                          <Switch
+                                            checked={isChecked}
+                                            onCheckedChange={(checked) =>
+                                              setUserAccess((prev) => ({
+                                                ...prev,
+                                                [item.access_id]: { view: checked },
+                                              }))
+                                            }
+                                          />
+                                        </div>
+                                      )
+                                    })}
+                                  </div>
+                                </CardContent>
+                              </Card>
                             )
                           })}
                         </div>
                       </div>
-                    ))}
-
-                  </div>
-
-
+                    )
+                  })()}
 
 
 

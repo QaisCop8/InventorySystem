@@ -445,7 +445,7 @@ export default function UnifiedCustomers({
       updateField("credit_limit" as keyof UnifiedCustomerFormData, "" as any)
       updateField("payment_terms" as keyof UnifiedCustomerFormData, "" as any)
       updateField("discount_percentage" as keyof UnifiedCustomerFormData, "" as any)
-      updateField("pricecategory" as keyof UnifiedCustomerFormData, 0 as any)
+      updateField("pricecategory" as keyof UnifiedCustomerFormData, (pricecategory[0]?.id ?? 0) as any)
       updateField("account_id" as keyof UnifiedCustomerFormData, null as any)
       updateField("father_id" as keyof UnifiedCustomerFormData, "" as any)
       updateField("finanical_list_id" as keyof UnifiedCustomerFormData, "1" as any)
@@ -1202,7 +1202,7 @@ export default function UnifiedCustomers({
             />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
               <Label htmlFor="pricecategory" className="text-sm font-medium">فئة السعر</Label>
               <PrimeDropdown

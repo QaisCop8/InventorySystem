@@ -10,7 +10,7 @@ export async function GET() {
       SELECT id, name, status, created_at, updated_at
       FROM job_roles
       WHERE status IN (1, 2)
-      ORDER BY id DESC
+      ORDER BY id ASC
     `
 
     return NextResponse.json(items)
