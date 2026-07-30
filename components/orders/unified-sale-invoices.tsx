@@ -1351,7 +1351,10 @@ function UnifiedSaleInvoices({
 
   const onKeyDownGrid = (grid: any, e: KeyboardEvent) => {
     // Make sure grid and selection exist
-    if (!grid || !grid.selection) return;
+    // يُستدعى مرتين لكل ضغطة مفتاح فعلياً: مرة بمعطيات Wijmo الصحيحة، ومرة أخرى بمعطيات غير مكتملة
+    // (onKeyDown ليس حدثاً مُوثَّقاً بـFlexGridInputs) — بلا هذا الحارس، قراءة e.keyCode على undefined
+    // بالاستدعاء الثاني تُطلِق استثناءً غير مُلتقَط يمنع Wijmo من بدء تحرير الخلية بعد أول ضغطة مفتاح.
+    if (!grid || !grid.selection || !e || typeof e.keyCode === "undefined") return;
     if (doHotKeys.current === false) return;
     if (e.keyCode === 113) {
       e.preventDefault(); // Prevent FlexGrid from opening the editor

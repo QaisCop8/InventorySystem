@@ -136,7 +136,10 @@ export function DailyExchangeRatesDialog({ open, onOpenChange, onSaved }: DailyE
   // Tab/Enter تنتقل بين أعمدة السعر القابلة للتحرير فقط (تتخطّى الأعمدة القرائية)، وتنتقل لأول عمود
   // قابل بالسطر التالي عند الوصول لآخر عمود — تتخطّى أي سطر رئيسي (غير قابل للتحرير) في طريقها.
   const handleKeyDown = (grid: any, e: any) => {
-    if (!grid || !grid.selection) return
+    // يُستدعى مرتين لكل ضغطة مفتاح فعلياً: مرة بمعطيات Wijmo الصحيحة، ومرة أخرى بمعطيات غير مكتملة
+    // (onKeyDown ليس حدثاً مُوثَّقاً بـFlexGridInputs) — بلا هذا الحارس، قراءة e.keyCode على undefined
+    // بالاستدعاء الثاني تُطلِق استثناءً غير مُلتقَط قد يمنع Wijmo من بدء تحرير الخلية.
+    if (!grid || !grid.selection || !e || typeof e.keyCode === "undefined") return
     if (e.keyCode !== Util_TAB && e.keyCode !== Util_ENTER) return
     const row = grid.selection.row
     const col = grid.selection.col

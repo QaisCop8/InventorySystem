@@ -222,7 +222,9 @@ const CustomerSearchPopup: React.FC<CustomerSearchPopupProps> = ({ visible, onCl
 
     const onKeyDownGrid = async (grid: any, e: KeyboardEvent) => {
         // Make sure grid and selection exist
-        if (!grid || !grid.selection) return;
+        // يُستدعى مرتين لكل ضغطة مفتاح فعلياً (onKeyDown ليس حدثاً مُوثَّقاً بـFlexGridInputs) — الاستدعاء
+        // الثاني بمعطيات غير مكتملة، فيُطلِق قراءة e.keyCode على undefined استثناءً غير مُلتقَط بلا هذا الحارس.
+        if (!grid || !grid.selection || !e || typeof e.keyCode === "undefined") return;
         const sel = grid.selection;
         const row = sel.row;
 

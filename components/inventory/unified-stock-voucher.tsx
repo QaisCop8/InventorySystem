@@ -1197,9 +1197,12 @@ export default function UnifiedStockVoucher({
   }
 
   const handleKeyDown = (grid: any, e: any) => {
+    // يُستدعى مرتين لكل ضغطة مفتاح فعلياً: مرة بمعطيات Wijmo الصحيحة، ومرة أخرى بمعطيات غير مكتملة
+    // (onKeyDown ليس حدثاً مُوثَّقاً بـFlexGridInputs) — بلا هذا الحارس، قراءة e.keyCode على undefined
+    // بالاستدعاء الثاني تُطلِق استثناءً غير مُلتقَط يمنع Wijmo من بدء تحرير الخلية بعد أول ضغطة مفتاح.
+    if (!grid || !grid.selection || !e || typeof e.keyCode === "undefined") return
     chequeGridRef.current = grid
     if (doHotKeys.current === false) return
-    if (!grid || !grid.selection) return
     const row = grid.selection.row
     const col = grid.selection.col
     if (row < 0 || col < 0) return
@@ -1665,14 +1668,14 @@ export default function UnifiedStockVoucher({
           header: "الكمية",
           name: "quantity",
           width: 100,
-          dataType: "Number",
+          dataType: wjcCore.DataType.Number,
           // للقراءة فقط لنوع قياس غير عادي — تُحتسَب تلقائياً من الأبعاد/العدد المُدخَلة عبر
           // MeasurementInputDialog بدل كتابتها يدوياً؛ المنع الفعلي بمستوى الخلية عبر beginningEdit
           // أدناه (isReadOnly هنا خاصية عمود ثابتة لا تفرّق بين الأسطر، فلا تكفي وحدها إذ قد تختلف
           // أنواع القياس بين أسطر نفس السند).
         },
-        { header: "السعر", name: "unit_price", width: 100, dataType: "Number", visible: Util.getVoucherSettingScreenData(voucherType, "price") },
-        { header: "المبلغ", name: "total_price", width: 110, dataType: "Number", isReadOnly: true },
+        { header: "السعر", name: "unit_price", width: 100, dataType: wjcCore.DataType.Number, visible: Util.getVoucherSettingScreenData(voucherType, "price") },
+        { header: "المبلغ", name: "total_price", width: 110, dataType: wjcCore.DataType.Number, isReadOnly: false },
         {
           header: "الرقم التشغيلي",
           name: "batch_number",

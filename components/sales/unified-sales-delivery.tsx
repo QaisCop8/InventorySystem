@@ -1371,9 +1371,14 @@ export default function UnifiedSalesDelivery({
   }
 
   const handleKeyDown = (grid: any, e: any) => {
+    // يُستدعى مرتين لكل ضغطة مفتاح فعلياً: مرة بمعطيات Wijmo الصحيحة (grid/e سليمَين)، ومرة أخرى
+    // بمعطيات غير مكتملة (onKeyDown ليس حدثاً مُوثَّقاً في FlexGridInputs، فيبدو أن React يلتقطها
+    // كخاصية DOM أصلية على العنصر المُغلَّف ويستدعيها بوسيط واحد فقط) — بلا هذا الحارس، محاولة قراءة
+    // e.keyCode على undefined بالاستدعاء الثاني تُطلِق استثناءً غير مُلتقَط يقطع معالجة الحدث كاملة،
+    // فيمنع Wijmo من بدء تحرير الخلية إطلاقاً بعد أول ضغطة مفتاح (هذا هو سبب "الشبكة لا تقبل الكتابة").
+    if (!grid || !grid.selection || !e || typeof e.keyCode === "undefined") return
     itemsGridRef.current = grid
     if (doHotKeys.current === false) return
-    if (!grid || !grid.selection) return
     const row = grid.selection.row
     const col = grid.selection.col
     if (row < 0 || col < 0) return
@@ -1384,7 +1389,6 @@ export default function UnifiedSalesDelivery({
       if (!isLocked) removeItemRow(row)
       return
     }
-
     if (e.keyCode === Util.keyboardKeys.F10 && colName === "product_code") {
       e.preventDefault()
       grid.finishEditing?.()
@@ -1556,18 +1560,18 @@ export default function UnifiedSalesDelivery({
           header: "الكمية",
           name: "quantity",
           width: 90,
-          dataType: "Number",
+          dataType: wjcCore.DataType.Number,
           // للقراءة فقط لنوع قياس غير عادي — تُحتسَب تلقائياً من الأبعاد/العدد المُدخَلة عبر
           // MeasurementInputDialog؛ المنع الفعلي بمستوى الخلية عبر beginningEdit (isReadOnly هنا
           // خاصية عمود ثابتة لا تفرّق بين الأسطر).
         },
-        { header: "البونص", name: "bonus_quantity", width: 80, dataType: "Number", visible: Util.getVoucherSettingScreenData(voucherType, "bonus") },
-        { header: "السعر", name: "unit_price", width: 90, dataType: "Number", visible: Util.getVoucherSettingScreenData(voucherType, "price") },
+        { header: "البونص", name: "bonus_quantity", width: 80, dataType: wjcCore.DataType.Number, visible: Util.getVoucherSettingScreenData(voucherType, "bonus") },
+        { header: "السعر", name: "unit_price", width: 90, dataType: wjcCore.DataType.Number, visible: Util.getVoucherSettingScreenData(voucherType, "price") },
         {
           header: "الخصم %",
           name: "discount_percent",
           width: 90,
-          dataType: "Number",
+          dataType: wjcCore.DataType.Number,
           visible: Util.getVoucherSettingScreenData(voucherType, "discount"),
         },
         {
@@ -1578,7 +1582,7 @@ export default function UnifiedSalesDelivery({
           isReadOnly: true,
           visible: Util.getVoucherSettingScreenData(voucherType, "price_excl_tax"),
         },
-        { header: "المبلغ", name: "total_price", width: 110, dataType: "Number", isReadOnly: true },
+        { header: "المبلغ", name: "total_price", width: 110, dataType: datwjcCore.DataType.Number, isReadOnly: false },
         {
           header: "الرقم التشغيلي",
           name: "batch_number",
