@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { cookies } from "next/headers"
 import { logAuditEvent } from "@/lib/auth"
+import { clearTenantSession } from "@/lib/tenant-auth"
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,6 +17,8 @@ export async function POST(request: NextRequest) {
         details: "User logged out successfully",
       })
     }
+
+    await clearTenantSession()
 
     // إزالة كوكي الشركة الحالية (tenant_db) عند تسجيل الخروج — حتى لا تبقى الجلسة التالية مرتبطة
     // ضمناً بآخر شركة تم اختيارها من لوحة إدارة الشركات دون اختيار صريح جديد.

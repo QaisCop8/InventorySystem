@@ -13,6 +13,7 @@ import UnifiedStockVoucher, {
   type StockVoucherType,
   STOCK_IN_VCH_TYPE,
   STOCK_OUT_VCH_TYPE,
+  INTERNAL_DELIVERY_VCH_TYPE,
   USE_VOUCHER_VCH_TYPE,
   toGridDateString,
   validateItemMeasurement,
@@ -41,10 +42,10 @@ interface WarehouseOption {
 }
 
 const TYPE_LABELS: Record<StockVoucherType, { title: string; listTitle: string; addLabel: string }> = {
-  12: { title: "سند ادخال بضاعة", listTitle: "سندات ادخال البضاعة", addLabel: "إضافة سند ادخال بضاعة" },
-  13: { title: "سند اخراج بضاعة", listTitle: "سندات اخراج البضاعة", addLabel: "إضافة سند اخراج بضاعة" },
-  14: { title: "ارسالية داخلية", listTitle: "الارساليات الداخلية", addLabel: "إضافة ارسالية داخلية" },
-  15: { title: "سند استعمال", listTitle: "سندات الاستعمال", addLabel: "إضافة سند استعمال" },
+  8: { title: "سند ادخال بضاعة", listTitle: "سندات ادخال البضاعة", addLabel: "إضافة سند ادخال بضاعة" },
+  9: { title: "سند اخراج بضاعة", listTitle: "سندات اخراج البضاعة", addLabel: "إضافة سند اخراج بضاعة" },
+  10: { title: "ارسالية داخلية", listTitle: "الارساليات الداخلية", addLabel: "إضافة ارسالية داخلية" },
+  11: { title: "سند استعمال", listTitle: "سندات الاستعمال", addLabel: "إضافة سند استعمال" },
 }
 
 const emptyItemRow: VoucherItemRow = {
@@ -424,7 +425,7 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
     // فحص مستودع رأس السند الآن للإرسالية الداخلية فقط (لها فحص from/to منفصل أدناه) — بقية الأنواع
     // الثلاثة (ادخال/اخراج بضاعة، استعمال) لها جميعاً عمود "المستودع" الخاص بها بالسطر (أصنافها قد
     // تدخل/تُصرف من مستودعات مختلفة)، فيكفيها الفحص العام "يجب اختيار المستودع لكل صنف" أدناه.
-    if (voucherType !== 14 && voucherType !== USE_VOUCHER_VCH_TYPE && voucherType !== STOCK_IN_VCH_TYPE && voucherType !== STOCK_OUT_VCH_TYPE && !data.to_store_id) {
+    if (voucherType !== INTERNAL_DELIVERY_VCH_TYPE && voucherType !== USE_VOUCHER_VCH_TYPE && voucherType !== STOCK_IN_VCH_TYPE && voucherType !== STOCK_OUT_VCH_TYPE && !data.to_store_id) {
       return "يجب اختيار المستودع"
     }
     if (items.some((i) => !i.warehouse_id)) return "يجب اختيار المستودع لكل صنف"
@@ -450,11 +451,11 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
         return `يرجى التأكد من تاريخ الصلاحية للصنف - ${implausibleExpiry.product_name || implausibleExpiry.product_code}`
       }
     }
-    if (voucherType === 14 && (!data.from_store_id || !data.to_store_id)) return "يجب اختيار المستودع المرسل والمستودع المستلم"
-    if (voucherType === 14 && data.from_store_id && data.to_store_id && Number(data.from_store_id) === Number(data.to_store_id)) {
+    if (voucherType === INTERNAL_DELIVERY_VCH_TYPE && (!data.from_store_id || !data.to_store_id)) return "يجب اختيار المستودع المرسل والمستودع المستلم"
+    if (voucherType === INTERNAL_DELIVERY_VCH_TYPE && data.from_store_id && data.to_store_id && Number(data.from_store_id) === Number(data.to_store_id)) {
       return "لا يمكن عمل ارسالية لنفس المستودع"
     }
-    if (voucherType === 15 && items.some((i) => !i.expense_account_id || !i.purchase_account_id)) {
+    if (voucherType === USE_VOUCHER_VCH_TYPE && items.some((i) => !i.expense_account_id || !i.purchase_account_id)) {
       return "يجب اختيار حساب المصروف وحساب المشتريات لكل صنف"
     }
     return null

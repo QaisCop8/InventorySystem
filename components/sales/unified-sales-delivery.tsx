@@ -38,25 +38,25 @@ import { readVoucherClipboard, writeVoucherClipboard, type VoucherClipboardPaylo
 // الأنواع الثمانية جميعها الآن عبر خاصية voucherType (بنفس أسلوب unified-stock-voucher.tsx مع
 // أنواعه الأربعة)، بدل خدمة النوع 17 (إرسالية مبيعات) حصراً كما كان. الثوابت هنا بدل استيرادها من
 // _lib.ts (كود خادم يستخدم `sql` مباشرة، لا يجوز استيراده داخل مكوّن "use client").
-export type SalesVoucherSubType = 16 | 17 | 18 | 19 | 20 | 21 | 22 | 23
-export const SALES_INVOICE_VCH_TYPE: SalesVoucherSubType = 16
-export const DELIVERY_SELL_VCH_TYPE: SalesVoucherSubType = 17
-export const DELIVERY_CONSIGNMENT_SALE_VCH_TYPE: SalesVoucherSubType = 18
-export const RETURN_DELIVERY_CONSIGNMENT_SALE_VCH_TYPE: SalesVoucherSubType = 19
-export const RETURN_SELL_VCH_TYPE: SalesVoucherSubType = 20
-export const PURCHASE_INVOICE_VCH_TYPE: SalesVoucherSubType = 21
-export const DELIVERY_PAY_VCH_TYPE: SalesVoucherSubType = 22
-export const RETURN_PURCHASE_VCH_TYPE: SalesVoucherSubType = 23
+export type SalesVoucherSubType = 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19
+export const SALES_INVOICE_VCH_TYPE: SalesVoucherSubType = 12
+export const DELIVERY_SELL_VCH_TYPE: SalesVoucherSubType = 13
+export const DELIVERY_CONSIGNMENT_SALE_VCH_TYPE: SalesVoucherSubType = 14
+export const RETURN_DELIVERY_CONSIGNMENT_SALE_VCH_TYPE: SalesVoucherSubType = 15
+export const RETURN_SELL_VCH_TYPE: SalesVoucherSubType = 16
+export const PURCHASE_INVOICE_VCH_TYPE: SalesVoucherSubType = 17
+export const DELIVERY_PAY_VCH_TYPE: SalesVoucherSubType = 18
+export const RETURN_PURCHASE_VCH_TYPE: SalesVoucherSubType = 19
 
 export const SALES_VOUCHER_TYPE_LABELS: Record<SalesVoucherSubType, { title: string; listTitle: string }> = {
-  16: { title: "فاتورة مبيعات", listTitle: "فواتير المبيعات" },
-  17: { title: "إرسالية مبيعات", listTitle: "إرساليات المبيعات" },
-  18: { title: "إرسالية برسم البيع", listTitle: "إرساليات برسم البيع" },
-  19: { title: "مرتجع إرسالية برسم البيع", listTitle: "مرتجعات إرسالية برسم البيع" },
-  20: { title: "مرتجع مبيعات", listTitle: "مرتجعات المبيعات" },
-  21: { title: "فاتورة مشتريات", listTitle: "فواتير المشتريات" },
-  22: { title: "إرسالية مشتريات", listTitle: "إرساليات المشتريات" },
-  23: { title: "مرتجع مشتريات", listTitle: "مرتجعات المشتريات" },
+  12: { title: "فاتورة مبيعات", listTitle: "فواتير المبيعات" },
+  13: { title: "إرسالية مبيعات", listTitle: "إرساليات المبيعات" },
+  14: { title: "إرسالية برسم البيع", listTitle: "إرساليات برسم البيع" },
+  15: { title: "مرتجع إرسالية برسم البيع", listTitle: "مرتجعات إرسالية برسم البيع" },
+  16: { title: "مرتجع مبيعات", listTitle: "مرتجعات المبيعات" },
+  17: { title: "فاتورة مشتريات", listTitle: "فواتير المشتريات" },
+  18: { title: "إرسالية مشتريات", listTitle: "إرساليات المشتريات" },
+  19: { title: "مرتجع مشتريات", listTitle: "مرتجعات المشتريات" },
 }
 
 // نفس تدرّج التبويبات (زمردي←تركوازي عند التفعيل) المُطبَّق أصلاً بـunified-journal.tsx/unified-
@@ -86,7 +86,7 @@ export const MAQASA_CODE_OPTIONS = [
 // حساب الضريبة الافتراضي حسب اتجاه السند: مبيعات (فاتورة/إرسالية/مرتجع مبيعات وبرسم البيع) أم
 // مشتريات (فاتورة/إرسالية/مرتجع مشتريات) — يقرر أي حقل إعدادات عامة (sales/purchase tax account)
 // يُستخدَم كافتراضي لحقل "حساب الضريبة" بتبويب "بيانات اضافية".
-export const SALES_DIRECTION_VCH_TYPES: readonly SalesVoucherSubType[] = [16, 17, 18, 19, 20]
+export const SALES_DIRECTION_VCH_TYPES: readonly SalesVoucherSubType[] = [12, 13, 14, 15, 16]
 
 export interface SalesVoucherItemRow {
   product_id: number | null

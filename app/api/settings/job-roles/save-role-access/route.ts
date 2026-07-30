@@ -1,9 +1,10 @@
 import { type NextRequest, NextResponse } from "next/server"
-import sql from "@/lib/database"
+import sql, { resolveCurrentDbName } from "@/lib/database"
+import { ensurePermissionTables } from "@/lib/permissions"
 import { getSessionUser } from "@/lib/tenant-auth"
 
-interface AccessPayload {
-  userId: number
+interface RoleAccessPayload {
+  roleId: number
   accesses: { access_id: number; is_granted: boolean }[]
 }
 
@@ -12,20 +13,21 @@ export async function POST(req: NextRequest) {
     if (!(await getSessionUser(req))) {
       return NextResponse.json({ error: "يجب تسجيل الدخول" }, { status: 401 })
     }
-    const body: AccessPayload = await req.json()
+    await ensurePermissionTables(await resolveCurrentDbName())
 
-    if (!body.userId || !Array.isArray(body.accesses)) {
+    const body: RoleAccessPayload = await req.json()
+
+    if (!body.roleId || !Array.isArray(body.accesses)) {
       return NextResponse.json({ error: "Invalid payload" }, { status: 400 })
     }
 
-    const { userId, accesses } = body
+    const { roleId, accesses } = body
 
-    // For each access, either insert or update
     for (const access of accesses) {
       await sql`
-        INSERT INTO user_access (user_id, access_id, is_granted)
-        VALUES (${userId}, ${access.access_id}, ${access.is_granted})
-        ON CONFLICT (user_id, access_id) DO UPDATE
+        INSERT INTO role_permissions (role_id, access_id, is_granted)
+        VALUES (${roleId}, ${access.access_id}, ${access.is_granted})
+        ON CONFLICT (role_id, access_id) DO UPDATE
         SET is_granted = EXCLUDED.is_granted
       `
     }
@@ -33,6 +35,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true })
   } catch (err) {
     console.error(err)
-    return NextResponse.json({ error: "Failed to save user access" }, { status: 500 })
+    return NextResponse.json({ error: "Failed to save role access" }, { status: 500 })
   }
 }

@@ -118,10 +118,74 @@ export function ensureManagementTables(): Promise<void> {
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
       `
+
+      // ارتباط موظف شركة بحساب إدارة عام (اختياري — يُضبَط فقط عبر مسار إنشاء المستخدم الجديد
+      // ثنائي القاعدة، انظر lib/permissions.ts وخطة الصلاحيات) — نشِط/متوقف مقيَّد بهذه العلاقة
+      // (شركة بعينها) لا بالحساب العام نفسه (users.is_active محجوز لمسؤول المنصة فقط).
+      await sql`ALTER TABLE user_company ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true`
+
+      // تعريفات الصلاحيات القانونية (access_category/access_list) — قاعدة الإدارة هي المصدر الوحيد
+      // للحقيقة من الآن فصاعداً (شاشة "تعريف الصلاحيات" بلوحة تحكم المنصة تكتب هنا)؛ كل قاعدة شركة
+      // تُزامِن نسخة منها عند كل تحميل صفحة رئيسية (syncPermissionDefinitions بـlib/permissions.ts).
+      await sql`
+        CREATE TABLE IF NOT EXISTS access_category (
+          id SERIAL PRIMARY KEY,
+          name VARCHAR(100) NOT NULL,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `
+      await sql`
+        CREATE TABLE IF NOT EXISTS access_list (
+          id SERIAL PRIMARY KEY,
+          name VARCHAR(255) NOT NULL,
+          category_id INTEGER REFERENCES access_category(id) ON DELETE SET NULL,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `
+      await seedAccessDefinitionsFromReferenceOnce()
     })().catch((error) => {
       managementDbEnsured = null
       throw error
     })
   }
   return managementDbEnsured
+}
+
+// نسخة أولى لمرة واحدة فقط (حارسها COUNT(*) أدناه) من access_category/access_list الحاليتين بقاعدة
+// الشركة المرجعية (نفس القاعدة التي كان lib/provisioning.ts يعتمدها ضمنياً "قالباً" سلفاً) إلى قاعدة
+// الإدارة — بعدها تصبح قاعدة الإدارة وحدها المصدر المُعتمَد، ولا تُعاد هذه النسخة أبداً (لا تُكرَّر
+// ولا تُحدِّث صفوفاً أضافها مسؤول المنصة لاحقاً عبر الشاشة الجديدة).
+async function seedAccessDefinitionsFromReferenceOnce(): Promise<void> {
+  const existing = await sql`SELECT COUNT(*)::int AS n FROM access_category`
+  if (Number(existing[0]?.n) > 0) return
+
+  if (!baseUrl) return
+  // baseUrl (DATABASE_URL) يشير أصلاً إلى القاعدة المرجعية نفسها — بلا حاجة لإعادة بنائه.
+  const referencePool = new Pool({ connectionString: baseUrl })
+  try {
+    const categories = await referencePool.query(`SELECT id, name FROM access_category ORDER BY id`)
+    for (const category of categories.rows) {
+      await sql`INSERT INTO access_category (id, name) VALUES (${category.id}, ${category.name}) ON CONFLICT (id) DO NOTHING`
+    }
+    const items = await referencePool.query(`SELECT id, name, category_id FROM access_list ORDER BY id`)
+    for (const item of items.rows) {
+      await sql`INSERT INTO access_list (id, name, category_id) VALUES (${item.id}, ${item.name}, ${item.category_id}) ON CONFLICT (id) DO NOTHING`
+    }
+  } finally {
+    await referencePool.end()
+  }
+}
+
+let managementPool: Pool | null = null
+
+// pg.Pool حقيقي لقاعدة الإدارة — يحتاجه أي كود يريد معاملة (BEGIN/COMMIT/ROLLBACK) عبر عدة استعلامات
+// على نفس الاتصال (sql الافتراضي أعلاه يفتح ويُغلق اتصالاً منفصلاً بكل استدعاء، انظر buildSqlClient،
+// فلا يصلح لمعاملة متعددة الاستعلامات)، بنفس نمط getTenantPool في lib/database.ts تماماً.
+export function getManagementPool(): Pool {
+  if (!managementPool) {
+    managementPool = new Pool({ connectionString: managementUrl })
+  }
+  return managementPool
 }

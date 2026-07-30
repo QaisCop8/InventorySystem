@@ -1,7 +1,10 @@
 import { type NextRequest, NextResponse } from "next/server"
 
-import { createUser, hashPassword } from "@/lib/auth"
-import sql from "@/lib/database"
+import { createTenantEmployeeWithManagementLink, hashPassword } from "@/lib/auth"
+import sql, { resolveCurrentDbName } from "@/lib/database"
+import { ensurePermissionTables } from "@/lib/permissions"
+import { getSessionUser } from "@/lib/tenant-auth"
+import managementSql from "@/lib/management-db"
 
 let branchColumnEnsured: Promise<void> | null = null
 // شركات زُوِّدت قبل توحيد بنية user_settings (عبر النسخة القديمة من lib/provisioning.ts) قد
@@ -103,6 +106,9 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     console.log("[v0] User API POST request started")
+    if (!(await getSessionUser(request))) {
+      return NextResponse.json({ error: "يجب تسجيل الدخول" }, { status: 401 })
+    }
     await ensureBranchColumn()
     const data = await request.json()
 
@@ -112,7 +118,14 @@ export async function POST(request: NextRequest) {
       full_name: data.full_name,
     })
 
-    const result = await createUser({
+    if (!data.email || !String(data.email).trim()) {
+      return NextResponse.json({ error: "البريد الإلكتروني مطلوب" }, { status: 400 })
+    }
+
+    // يضيف الموظف أولاً إلى management.users (هوية عامة موحَّدة، تفرّد البريد الإلكتروني عبر كل
+    // الشركات) ثم يربطه بهذه الشركة عبر management.user_company، وأخيراً يُنشئ صفه المحلي بقاعدة
+    // الشركة كما كان يعمل تماماً من قبل — انظر lib/auth.ts وخطة الصلاحيات لتفاصيل التصميم الكامل.
+    const result = await createTenantEmployeeWithManagementLink({
       username: data.username,
       email: data.email,
       password: data.password,
@@ -122,6 +135,7 @@ export async function POST(request: NextRequest) {
       organizationId: data.organization_id || 1,
       permissions: data.permissions || ["جميع الصلاحيات"],
       branchId: data.branch_id ? Number(data.branch_id) : null,
+      jobRoleId: data.job_role_id ? Number(data.job_role_id) : null,
     })
 
     if (!result.success) {
@@ -149,7 +163,11 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
+    if (!(await getSessionUser(request))) {
+      return NextResponse.json({ error: "يجب تسجيل الدخول" }, { status: 401 })
+    }
     await ensureBranchColumn()
+    await ensurePermissionTables(await resolveCurrentDbName())
     const data = await request.json()
     console.log("[v0] PUT request data:", data)
 
@@ -216,6 +234,7 @@ export async function PUT(request: NextRequest) {
       data.department !== undefined ||
       data.phone !== undefined ||
       data.branch_id !== undefined ||
+      data.job_role_id !== undefined ||
       data.password_hash !== undefined ||
       data.password !== undefined
 
@@ -271,6 +290,7 @@ export async function PUT(request: NextRequest) {
         is_active = ${data.is_active ?? null},
         password_hash = COALESCE(${passwordHash}, password_hash),
         branch_id = ${data.branch_id ?? null},
+        job_role_id = ${data.job_role_id ?? null},
         updated_at = CURRENT_TIMESTAMP
       WHERE user_id = ${data.user_id}
       RETURNING *
@@ -278,6 +298,31 @@ export async function PUT(request: NextRequest) {
 
     if (result.length === 0) {
       return NextResponse.json({ error: "User not found" }, { status: 404 })
+    }
+
+    // مزامنة كلمة المرور/حالة النشاط مع قاعدة الإدارة إن كان هذا المستخدم مرتبطاً بحساب عام هناك
+    // (management_user_id — مضبوط فقط للموظفين المُنشَأين عبر المسار الثنائي أعلاه، NULL لكل من
+    // سبقهم) — مجهود أفضل (best effort): فشلها لا يُسقِط حفظ المستخدم محلياً، إذ تسجيل الدخول
+    // اليومي لا يمر بقاعدة الإدارة إطلاقاً أصلاً (authenticateUser). التنشيط/الإيقاف يُقيَّد بعلاقة
+    // هذه الشركة تحديداً (user_company.is_active) لا بالحساب العام (users.is_active، محجوز لمسؤول
+    // المنصة فقط بلوحة التحكم).
+    const updatedUser = result[0]
+    if (updatedUser.management_user_id) {
+      try {
+        if (passwordHash) {
+          await managementSql`UPDATE users SET password_hash = ${passwordHash}, updated_at = CURRENT_TIMESTAMP WHERE id = ${updatedUser.management_user_id}`
+        }
+        if (data.is_active !== undefined) {
+          const currentDbName = await resolveCurrentDbName()
+          await managementSql`
+            UPDATE user_company SET is_active = ${data.is_active}
+            WHERE user_id = ${updatedUser.management_user_id}
+              AND company_id = (SELECT id FROM companies WHERE db_name = ${currentDbName})
+          `
+        }
+      } catch (syncError) {
+        console.error("[settings/user PUT] Failed to sync management DB:", syncError)
+      }
     }
 
     return NextResponse.json({ success: true, user: result[0] })
@@ -295,6 +340,9 @@ export async function PUT(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
+    if (!(await getSessionUser(request))) {
+      return NextResponse.json({ error: "يجب تسجيل الدخول" }, { status: 401 })
+    }
     const { searchParams } = new URL(request.url)
     const userId = searchParams.get("user_id")
 

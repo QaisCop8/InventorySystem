@@ -152,6 +152,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
               setActiveDepartment(userData.department)
             }
 
+            // مزامنة تعريفات الصلاحيات الجديدة (أنواع/أدوار وظيفية) من قاعدة الإدارة لهذه الشركة —
+            // قبل تحديث صلاحيات المستخدم مباشرة (السطر التالي) حتى يظهر أي تعريف جديد أُضيف هناك
+            // فوراً بنفس هذا التحميل، بلا أي سكربت يدوي لكل شركة. فشلها لا يمنع تسجيل الدخول (best
+            // effort — انظر lib/permissions.ts).
+            try {
+              await fetch("/api/settings/permissions/sync", { method: "POST" })
+            } catch (syncError) {
+              console.error("[v0] Failed to sync permission definitions on init:", syncError)
+            }
+
             // إعادة جلب صلاحيات المستخدم من قاعدة الشركة الحالية دوماً عند تحميل الصفحة — لا يكفي
             // الاكتفاء بما كان مخزَّناً في localStorage من آخر مرة، فهذا الاستدعاء نفسه هو ما يُشغَّل
             // بعد التبديل بين الشركات (activateCompany يُتبَع دوماً بإعادة تحميل/تنقّل كامل يُعيد
@@ -276,6 +286,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
         // الترتيب يُعيد ProtectedRoute عرض الصفحة المحمية فوراً بمجرد setIsAuthenticated(true) بينما
         // localStorage لا يزال فارغاً (تحديثه لاحق وغير متزامن معه)، فتفشل شاشات مثل "الاصناف" التي
         // تتحقق من الصلاحية عند أول عرض (Util.checkUserAccess) رغم أن الصلاحية فعلاً ممنوحة في القاعدة.
+        try {
+          await fetch("/api/settings/permissions/sync", { method: "POST" })
+        } catch (syncError) {
+          console.error("[v0] Failed to sync permission definitions on login:", syncError)
+        }
         try {
           await refreshUserPermissions(result.user.id)
         } catch (permError) {

@@ -63,6 +63,8 @@ import PrintSettings from "@/components/settings/print-settings"
 import VoucherSettings from "@/components/settings/voucher-settings"
 import DocumentSettings from "@/components/settings/document-settings"
 import Permissions from "@/components/settings/permissions"
+import JobRoles from "@/components/settings/job-roles"
+import RolePermissions from "@/components/settings/role-permissions"
 import GeneralSettings from "@/components/settings/general-settings"
 import VouchersGeneralSettings from "@/components/settings/vouchers-general-settings"
 import APISettings from "@/components/settings/api-settings"
@@ -143,6 +145,8 @@ const componentMap: Record<string, React.ComponentType<any>> = {
   "voucher-settings": VoucherSettings,
   "document-settings": DocumentSettings,
   permissions: Permissions,
+  "job-roles": JobRoles,
+  "role-permissions": RolePermissions,
   "general-settings": GeneralSettings,
   "vouchers-general-settings": VouchersGeneralSettings,
   "api-settings": APISettings,
@@ -310,6 +314,21 @@ function HomePageContent() {
 
     return () => window.removeEventListener("OPEN_DEFAULT_SCREEN", handler)
   }, [user])
+
+  // جسر تنقّل عام بين مكوّنات الأقسام الشقيقة (لا قناة props مباشرة بينها — كل قسم يُصيَّر بلا أي
+  // props عبر componentMap، انظر `<Component />` أدناه) — نفس فكرة OPEN_DEFAULT_SCREEN أعلاه، لكن
+  // بغرض عام. مثال الاستخدام الحالي: زر "تعديل الصلاحيات" بـcomponents/settings/user-settings.tsx
+  // يفتح شاشة الصلاحيات مباشرة بدل تنبيه بديل (alert) كان يعرضه فقط.
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const section = (e as CustomEvent<{ section: string }>).detail?.section
+      if (section && componentMap[section]) {
+        setActiveSection(section)
+      }
+    }
+    window.addEventListener("OPEN_SECTION", handler)
+    return () => window.removeEventListener("OPEN_SECTION", handler)
+  }, [])
 
   const handleSectionChange = (section: string) => {
     console.log("[v0] Section change requested:", section)

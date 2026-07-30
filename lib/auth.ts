@@ -1,4 +1,6 @@
-import sql from "./database"
+import sql, { resolveCurrentDbName } from "./database"
+import { ensurePermissionTables } from "./permissions"
+import managementSql, { getManagementPool, ensureManagementTables } from "./management-db"
 
 export default sql
 
@@ -329,6 +331,8 @@ export async function createUser(userData: {
   organizationId: number
   permissions?: string[]
   branchId?: number | null
+  jobRoleId?: number | null
+  managementUserId?: number | null
 }): Promise<{ success: boolean; error?: string; userId?: string }> {
   if (!sql) {
     return { success: false, error: "خطأ في الاتصال بقاعدة البيانات" }
@@ -336,6 +340,7 @@ export async function createUser(userData: {
 
   try {
     await ensureBranchColumn()
+    await ensurePermissionTables(await resolveCurrentDbName())
 
     // Check if username or email already exists
     const existingUsers = await sql`
@@ -369,14 +374,14 @@ export async function createUser(userData: {
     await sql`
       INSERT INTO user_settings (
         user_id, username, email, password_hash, full_name, role, department,
-        organization_id, permissions, branch_id, is_active, language, timezone,
+        organization_id, permissions, branch_id, job_role_id, management_user_id, is_active, language, timezone,
         date_format, time_format, notifications_enabled, email_notifications,
         sms_notifications, theme_preference, sidebar_collapsed, created_at, updated_at
       ) VALUES (
         ${nextUserId}, ${userData.username}, ${userData.email}, ${passwordHash},
         ${userData.fullName}, ${userData.role}, ${userData.department},
         ${userData.organizationId}, ${JSON.stringify(userData.permissions || ["جميع الصلاحيات"])},
-        ${userData.branchId ?? null},
+        ${userData.branchId ?? null}, ${userData.jobRoleId ?? null}, ${userData.managementUserId ?? null},
         true, 'ar', 'Asia/Riyadh', 'DD/MM/YYYY', '24h', true, true, false,
         'slate', false, NOW(), NOW()
       )
@@ -387,6 +392,97 @@ export async function createUser(userData: {
   } catch (error) {
     console.error("Create user error:", error)
     return { success: false, error: "حدث خطأ في إنشاء المستخدم" }
+  }
+}
+
+// إنشاء موظف شركة جديد بهويّة عامة موحّدة عبر النظام (management.users) — يضمن تفرّد البريد
+// الإلكتروني عالمياً (لا شركة أخرى تستطيع تسجيل نفس البريد كموظف لديها)، مع بقاء تسجيل الدخول
+// اليومي بلا أي تغيير (مباشرة على قاعدة الشركة نفسها، انظر authenticateUser أعلاه — لا يمر إطلاقاً
+// عبر قاعدة الإدارة). انظر خطة الصلاحيات لتفاصيل التصميم الكامل والمفاضلات.
+export async function createTenantEmployeeWithManagementLink(userData: {
+  username: string
+  email: string
+  password: string
+  fullName: string
+  role: string
+  department: string
+  organizationId: number
+  permissions?: string[]
+  branchId?: number | null
+  jobRoleId?: number | null
+}): Promise<{ success: boolean; error?: string; userId?: string }> {
+  const email = userData.email?.trim().toLowerCase()
+  if (!email) {
+    return { success: false, error: "البريد الإلكتروني مطلوب" }
+  }
+
+  await ensureManagementTables()
+
+  // فحص مبدئي (الفحص الحاسم الفعلي هو قيد UNIQUE على management.users.email أدناه — قد يتسابق
+  // مسؤولا شركتين مختلفتين على نفس البريد بين هذا الفحص والإدراج، فيُلتقَط ذلك عبر رمز خطأ postgres
+  // 23505 لا الاعتماد على هذا الفحص وحده).
+  const existingManagementUser = await managementSql`SELECT id FROM users WHERE email = ${email}`
+  if (existingManagementUser.length > 0) {
+    return { success: false, error: "البريد الإلكتروني مستخدَم في شركة أخرى بالفعل" }
+  }
+
+  const currentDbName = await resolveCurrentDbName()
+  const companyRows = await managementSql`SELECT id FROM companies WHERE db_name = ${currentDbName}`
+  const companyId: number | null = companyRows[0]?.id ?? null
+
+  // لا صف شركة بقاعدة الإدارة (قاعدة مرجعية محلية بلا تتبّع، أو بيئة تطوير مباشرة بلا كوكي
+  // tenant_db) — يستمر إنشاء المستخدم محلياً بالشركة كما كان يعمل تماماً قبل هذه الميزة، بلا أي
+  // ربط بقاعدة الإدارة، بدل رفض إضافة موظف بالكامل في تلك البيئات.
+  if (!companyId) {
+    console.warn("[auth] createTenantEmployeeWithManagementLink: no management.companies row for", currentDbName)
+    return createUser(userData)
+  }
+
+  const passwordHash = await hashPassword(userData.password)
+
+  const managementPool = getManagementPool()
+  const managementClient = await managementPool.connect()
+  try {
+    await managementClient.query("BEGIN")
+
+    let managementUserId: number
+    try {
+      const inserted = await managementClient.query(
+        `INSERT INTO users (full_name, email, password_hash, email_verified, is_active)
+         VALUES ($1, $2, $3, true, true) RETURNING id`,
+        [userData.fullName, email, passwordHash],
+      )
+      managementUserId = inserted.rows[0].id
+    } catch (insertError: any) {
+      if (insertError?.code === "23505") {
+        await managementClient.query("ROLLBACK")
+        return { success: false, error: "البريد الإلكتروني مستخدَم في شركة أخرى بالفعل" }
+      }
+      throw insertError
+    }
+
+    await managementClient.query(
+      `INSERT INTO user_company (user_id, company_id, role, is_active) VALUES ($1, $2, 'employee', true)`,
+      [managementUserId, companyId],
+    )
+
+    // hashPassword حتمية (SHA-256 بلا ملح، انظر تعريفها أدناه) — إعادة تجزئة نفس النص الصريح هنا
+    // بأمان تُنتج نفس القيمة المُدرَجة أعلاه في management.users.password_hash بلا حاجة لتمريرها.
+    const tenantResult = await createUser({ ...userData, email, managementUserId })
+
+    if (!tenantResult.success) {
+      await managementClient.query("ROLLBACK")
+      return tenantResult
+    }
+
+    await managementClient.query("COMMIT")
+    return tenantResult
+  } catch (error) {
+    await managementClient.query("ROLLBACK")
+    console.error("[auth] createTenantEmployeeWithManagementLink error:", error)
+    return { success: false, error: "حدث خطأ في إنشاء المستخدم" }
+  } finally {
+    managementClient.release()
   }
 }
 

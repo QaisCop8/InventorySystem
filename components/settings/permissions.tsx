@@ -142,7 +142,14 @@ export default function Permissions() {
 
       setUsers(userData)
 
-      if (userData.length > 0 && !selectedUser) {
+      // مستخدم مُستهدَف من زر "تعديل الصلاحيات" بشاشة المستخدمين (components/settings/user-
+      // settings.tsx) — انظر جسر التنقّل OPEN_SECTION بـapp/page.tsx. يُستهلَك مرة واحدة فقط.
+      const pendingUserId = sessionStorage.getItem("erp_pending_permissions_user_id")
+      if (pendingUserId) {
+        sessionStorage.removeItem("erp_pending_permissions_user_id")
+        setSelectedUser(pendingUserId)
+        setActiveTab("permissions")
+      } else if (userData.length > 0 && !selectedUser) {
         setSelectedUser(userData[0].user_id || userData[0].id)
       }
 

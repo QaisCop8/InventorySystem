@@ -317,6 +317,8 @@ export function Sidebar({
           submenu: [
             { title: "المستخدمين", section: "user-settings", icon: UserCheck },
             { title: "الصلاحيات", section: "permissions", icon: Shield },
+            { title: "الأدوار الوظيفية", section: "job-roles", icon: UserCheck },
+            { title: "صلاحيات الأدوار الوظيفية", section: "role-permissions", icon: Shield },
             { title: "اعدادات", section: "user-default-accounts", icon: Settings },
             { title: "صلاحيات دفاتر السندات", section: "voucher-book-permissions", icon: CreditCard },
           ],

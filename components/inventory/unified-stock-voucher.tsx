@@ -33,11 +33,11 @@ import { readVoucherClipboard, writeVoucherClipboard, type VoucherClipboardPaylo
 
 // vch_type per voucher_types_tbl: 12=سند ادخال بضاعة, 13=سند اخراج بضاعة,
 // 14=ارسالية داخلية, 15=سند استعمال.
-export type StockVoucherType = 12 | 13 | 14 | 15
-export const STOCK_IN_VCH_TYPE: StockVoucherType = 12
-export const STOCK_OUT_VCH_TYPE: StockVoucherType = 13
-export const INTERNAL_DELIVERY_VCH_TYPE: StockVoucherType = 14
-export const USE_VOUCHER_VCH_TYPE: StockVoucherType = 15
+export type StockVoucherType = 8 | 9 | 10 | 11
+export const STOCK_IN_VCH_TYPE: StockVoucherType = 8
+export const STOCK_OUT_VCH_TYPE: StockVoucherType = 9
+export const INTERNAL_DELIVERY_VCH_TYPE: StockVoucherType = 10
+export const USE_VOUCHER_VCH_TYPE: StockVoucherType = 11
 
 export interface VoucherItemRow {
   product_id: number | null
@@ -172,10 +172,10 @@ interface UnifiedStockVoucherProps {
 }
 
 const TYPE_LABELS: Record<StockVoucherType, { title: string }> = {
-  12: { title: "سند ادخال بضاعة" },
-  13: { title: "سند اخراج بضاعة" },
-  14: { title: "ارسالية داخلية" },
-  15: { title: "سند استعمال" },
+  8: { title: "سند ادخال بضاعة" },
+  9: { title: "سند اخراج بضاعة" },
+  10: { title: "ارسالية داخلية" },
+  11: { title: "سند استعمال" },
 }
 
 // نفس تدرّج التبويبات (زمردي←تركوازي عند التفعيل) المُطبَّق أصلاً بـunified-journal.tsx/unified-

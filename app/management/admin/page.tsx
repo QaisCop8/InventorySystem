@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { Loader2, ShieldAlert, Check, X, ArrowRight, UserCheck, UserX, Ban, RefreshCw, Clock } from "lucide-react"
+import { Loader2, ShieldAlert, Check, X, ArrowRight, UserCheck, UserX, Ban, RefreshCw, Clock, Plus, Trash2, Edit } from "lucide-react"
 
 interface PendingCompany {
   id: number
@@ -38,8 +38,20 @@ interface ManagedUser {
   created_at: string
 }
 
+interface AccessCategory {
+  id: number
+  name: string
+}
+
+interface AccessDefinition {
+  id: number
+  name: string
+  category_id: number | null
+  category_name: string | null
+}
+
 export default function ManagementAdminPage() {
-  const [tab, setTab] = useState<"pending" | "companies" | "users">("pending")
+  const [tab, setTab] = useState<"pending" | "companies" | "users" | "permissions">("pending")
   const [companies, setCompanies] = useState<PendingCompany[]>([])
   const [allCompanies, setAllCompanies] = useState<AllCompany[]>([])
   const [users, setUsers] = useState<ManagedUser[]>([])
@@ -48,6 +60,21 @@ export default function ManagementAdminPage() {
   const [busyId, setBusyId] = useState<number | null>(null)
   const [subscriptionBusyId, setSubscriptionBusyId] = useState<number | null>(null)
   const [error, setError] = useState("")
+
+  // تبويب "تعريف الصلاحيات" — الفئات (access_category) وعناصر الصلاحيات (access_list) بقاعدة
+  // الإدارة، المصدر الوحيد للحقيقة لكل الشركات (تُزامَن نسخة منها تلقائياً لكل شركة عند كل تحميل
+  // صفحة رئيسية، انظر lib/permissions.ts وsyncPermissionDefinitions).
+  const [accessCategories, setAccessCategories] = useState<AccessCategory[]>([])
+  const [accessDefinitions, setAccessDefinitions] = useState<AccessDefinition[]>([])
+  const [newCategoryName, setNewCategoryName] = useState("")
+  const [newAccessName, setNewAccessName] = useState("")
+  const [newAccessCategoryId, setNewAccessCategoryId] = useState("")
+  const [editingCategoryId, setEditingCategoryId] = useState<number | null>(null)
+  const [editingCategoryName, setEditingCategoryName] = useState("")
+  const [editingAccessId, setEditingAccessId] = useState<number | null>(null)
+  const [editingAccessName, setEditingAccessName] = useState("")
+  const [editingAccessCategoryId, setEditingAccessCategoryId] = useState("")
+  const [permBusy, setPermBusy] = useState(false)
 
   const load = async () => {
     try {
@@ -85,11 +112,170 @@ export default function ManagementAdminPage() {
     }
   }
 
+  const loadAccessCategories = async () => {
+    try {
+      const res = await fetch("/api/management/admin/access-definitions/categories")
+      const data = await res.json()
+      setAccessCategories(Array.isArray(data) ? data : [])
+    } catch {
+      setError("تعذّر تحميل فئات الصلاحيات")
+    }
+  }
+
+  const loadAccessDefinitions = async () => {
+    try {
+      const res = await fetch("/api/management/admin/access-definitions")
+      const data = await res.json()
+      setAccessDefinitions(Array.isArray(data) ? data : [])
+    } catch {
+      setError("تعذّر تحميل الصلاحيات")
+    }
+  }
+
   useEffect(() => {
     load()
     loadAllCompanies()
     loadUsers()
+    loadAccessCategories()
+    loadAccessDefinitions()
   }, [])
+
+  const handleAddCategory = async () => {
+    if (!newCategoryName.trim()) return
+    setPermBusy(true)
+    setError("")
+    try {
+      const res = await fetch("/api/management/admin/access-definitions/categories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newCategoryName.trim() }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setError(data.error || "تعذّر إضافة الفئة")
+        return
+      }
+      setNewCategoryName("")
+      await loadAccessCategories()
+    } catch {
+      setError("تعذّر الاتصال بالخادم")
+    } finally {
+      setPermBusy(false)
+    }
+  }
+
+  const handleSaveCategory = async (id: number) => {
+    if (!editingCategoryName.trim()) return
+    setPermBusy(true)
+    setError("")
+    try {
+      const res = await fetch(`/api/management/admin/access-definitions/categories/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: editingCategoryName.trim() }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setError(data.error || "تعذّر تعديل الفئة")
+        return
+      }
+      setEditingCategoryId(null)
+      await loadAccessCategories()
+      await loadAccessDefinitions()
+    } catch {
+      setError("تعذّر الاتصال بالخادم")
+    } finally {
+      setPermBusy(false)
+    }
+  }
+
+  const handleDeleteCategory = async (id: number) => {
+    setPermBusy(true)
+    setError("")
+    try {
+      const res = await fetch(`/api/management/admin/access-definitions/categories/${id}`, { method: "DELETE" })
+      const data = await res.json()
+      if (!res.ok) {
+        setError(data.error || "تعذّر حذف الفئة")
+        return
+      }
+      await loadAccessCategories()
+    } catch {
+      setError("تعذّر الاتصال بالخادم")
+    } finally {
+      setPermBusy(false)
+    }
+  }
+
+  const handleAddAccess = async () => {
+    if (!newAccessName.trim()) return
+    setPermBusy(true)
+    setError("")
+    try {
+      const res = await fetch("/api/management/admin/access-definitions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newAccessName.trim(), category_id: newAccessCategoryId ? Number(newAccessCategoryId) : null }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setError(data.error || "تعذّر إضافة الصلاحية")
+        return
+      }
+      setNewAccessName("")
+      setNewAccessCategoryId("")
+      await loadAccessDefinitions()
+    } catch {
+      setError("تعذّر الاتصال بالخادم")
+    } finally {
+      setPermBusy(false)
+    }
+  }
+
+  const handleSaveAccess = async (id: number) => {
+    if (!editingAccessName.trim()) return
+    setPermBusy(true)
+    setError("")
+    try {
+      const res = await fetch(`/api/management/admin/access-definitions/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: editingAccessName.trim(),
+          category_id: editingAccessCategoryId ? Number(editingAccessCategoryId) : null,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setError(data.error || "تعذّر تعديل الصلاحية")
+        return
+      }
+      setEditingAccessId(null)
+      await loadAccessDefinitions()
+    } catch {
+      setError("تعذّر الاتصال بالخادم")
+    } finally {
+      setPermBusy(false)
+    }
+  }
+
+  const handleDeleteAccess = async (id: number) => {
+    setPermBusy(true)
+    setError("")
+    try {
+      const res = await fetch(`/api/management/admin/access-definitions/${id}`, { method: "DELETE" })
+      const data = await res.json()
+      if (!res.ok) {
+        setError(data.error || "تعذّر حذف الصلاحية")
+        return
+      }
+      await loadAccessDefinitions()
+    } catch {
+      setError("تعذّر الاتصال بالخادم")
+    } finally {
+      setPermBusy(false)
+    }
+  }
 
   const handleSubscriptionAction = async (companyId: number, action: "stop" | "unstop" | "extend") => {
     setSubscriptionBusyId(companyId)
@@ -217,6 +403,12 @@ export default function ManagementAdminPage() {
             className={`px-4 py-2 text-sm font-medium ${tab === "users" ? "border-b-2 border-violet-600 text-violet-700" : "text-slate-500"}`}
           >
             المستخدمون
+          </button>
+          <button
+            onClick={() => setTab("permissions")}
+            className={`px-4 py-2 text-sm font-medium ${tab === "permissions" ? "border-b-2 border-violet-600 text-violet-700" : "text-slate-500"}`}
+          >
+            تعريف الصلاحيات
           </button>
         </div>
 
@@ -384,6 +576,157 @@ export default function ManagementAdminPage() {
               ))}
             </div>
           ))}
+
+        {tab === "permissions" && (
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+              <h2 className="mb-3 font-semibold text-slate-800">الفئات ({accessCategories.length})</h2>
+              <div className="mb-3 flex gap-2">
+                <input
+                  value={newCategoryName}
+                  onChange={(e) => setNewCategoryName(e.target.value)}
+                  placeholder="اسم الفئة الجديدة"
+                  className="flex-1 rounded-lg border border-slate-200 px-3 py-1.5 text-sm"
+                />
+                <Button size="sm" disabled={permBusy || !newCategoryName.trim()} onClick={handleAddCategory}>
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+              <div className="space-y-2">
+                {accessCategories.map((category) => (
+                  <div key={category.id} className="flex items-center justify-between rounded-lg border border-slate-100 p-2 text-sm">
+                    {editingCategoryId === category.id ? (
+                      <input
+                        value={editingCategoryName}
+                        onChange={(e) => setEditingCategoryName(e.target.value)}
+                        className="flex-1 rounded border border-slate-200 px-2 py-1 text-sm"
+                        autoFocus
+                      />
+                    ) : (
+                      <span>{category.name}</span>
+                    )}
+                    <div className="flex gap-1">
+                      {editingCategoryId === category.id ? (
+                        <Button size="sm" variant="outline" disabled={permBusy} onClick={() => handleSaveCategory(category.id)}>
+                          <Check className="h-3.5 w-3.5" />
+                        </Button>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setEditingCategoryId(category.id)
+                            setEditingCategoryName(category.name)
+                          }}
+                        >
+                          <Edit className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="border-red-200 text-red-600 hover:bg-red-50"
+                        disabled={permBusy}
+                        onClick={() => handleDeleteCategory(category.id)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+              <h2 className="mb-3 font-semibold text-slate-800">الصلاحيات ({accessDefinitions.length})</h2>
+              <div className="mb-3 space-y-2">
+                <input
+                  value={newAccessName}
+                  onChange={(e) => setNewAccessName(e.target.value)}
+                  placeholder="اسم الصلاحية الجديدة"
+                  className="w-full rounded-lg border border-slate-200 px-3 py-1.5 text-sm"
+                />
+                <div className="flex gap-2">
+                  <select
+                    value={newAccessCategoryId}
+                    onChange={(e) => setNewAccessCategoryId(e.target.value)}
+                    className="flex-1 rounded-lg border border-slate-200 px-3 py-1.5 text-sm"
+                  >
+                    <option value="">بلا فئة</option>
+                    {accessCategories.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                  <Button size="sm" disabled={permBusy || !newAccessName.trim()} onClick={handleAddAccess}>
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+              <div className="max-h-[500px] space-y-2 overflow-y-auto">
+                {accessDefinitions.map((item) => (
+                  <div key={item.id} className="rounded-lg border border-slate-100 p-2 text-sm">
+                    {editingAccessId === item.id ? (
+                      <div className="space-y-2">
+                        <input
+                          value={editingAccessName}
+                          onChange={(e) => setEditingAccessName(e.target.value)}
+                          className="w-full rounded border border-slate-200 px-2 py-1 text-sm"
+                          autoFocus
+                        />
+                        <select
+                          value={editingAccessCategoryId}
+                          onChange={(e) => setEditingAccessCategoryId(e.target.value)}
+                          className="w-full rounded border border-slate-200 px-2 py-1 text-sm"
+                        >
+                          <option value="">بلا فئة</option>
+                          {accessCategories.map((c) => (
+                            <option key={c.id} value={c.id}>
+                              {c.name}
+                            </option>
+                          ))}
+                        </select>
+                        <Button size="sm" variant="outline" disabled={permBusy} onClick={() => handleSaveAccess(item.id)}>
+                          <Check className="h-3.5 w-3.5" /> حفظ
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div>{item.name}</div>
+                          <div className="text-xs text-slate-400">{item.category_name || "بلا فئة"}</div>
+                        </div>
+                        <div className="flex gap-1">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setEditingAccessId(item.id)
+                              setEditingAccessName(item.name)
+                              setEditingAccessCategoryId(item.category_id ? String(item.category_id) : "")
+                            }}
+                          >
+                            <Edit className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="border-red-200 text-red-600 hover:bg-red-50"
+                            disabled={permBusy}
+                            onClick={() => handleDeleteAccess(item.id)}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

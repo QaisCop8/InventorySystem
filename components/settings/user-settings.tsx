@@ -22,6 +22,7 @@ interface User {
   department: string
   branch_id?: number | null
   branch_name?: string | null
+  job_role_id?: number | null
   is_active: boolean
   last_login?: string
   dashboard_layout?: { default_screen: string }
@@ -53,9 +54,16 @@ const defaultScreens = [
   { value: "order-management", label: "معالجة حالة الطلبيات", roles: ["مدير النظام", "موظف مخازن"] },
 ]
 
+interface JobRole {
+  id: number
+  name: string
+  status: number
+}
+
 export function UserSettings() {
   const [users, setUsers] = useState<User[]>([])
   const [branches, setBranches] = useState<Branch[]>([])
+  const [jobRoles, setJobRoles] = useState<JobRole[]>([])
   const [departmentDefs, setDepartmentDefs] = useState<DepartmentDefinition[]>([])
   const activeDepartments = departmentDefs.filter((d) => d.is_active)
 
@@ -75,11 +83,13 @@ export function UserSettings() {
   const [editDepartment, setEditDepartment] = useState("")
   const [editBranchId, setEditBranchId] = useState<number | null>(null)
   const [editDefaultScreen, setEditDefaultScreen] = useState("dashboard")
+  const [editJobRoleId, setEditJobRoleId] = useState<number | null>(null)
 
   const [newRole, setNewRole] = useState("")
   const [newDepartment, setNewDepartment] = useState("")
   const [newBranchId, setNewBranchId] = useState<number | null>(null)
   const [newDefaultScreen, setNewDefaultScreen] = useState("dashboard")
+  const [newJobRoleId, setNewJobRoleId] = useState<number | null>(null)
 
   const loadBranches = async () => {
     try {
@@ -100,6 +110,17 @@ export function UserSettings() {
       setDepartmentDefs(Array.isArray(data) ? data : [])
     } catch (error) {
       console.error("[v0] Error loading departments:", error)
+    }
+  }
+
+  const loadJobRoles = async () => {
+    try {
+      const response = await fetch("/api/settings/job-roles")
+      if (!response.ok) return
+      const data = await response.json()
+      setJobRoles(Array.isArray(data) ? data.filter((r: JobRole) => r.status === 1) : [])
+    } catch (error) {
+      console.error("[v0] Error loading job roles:", error)
     }
   }
 
@@ -156,6 +177,7 @@ export function UserSettings() {
     loadUsers()
     loadBranches()
     loadDepartmentDefs()
+    loadJobRoles()
   }, [])
 
   const filteredUsers = users.filter((user) => {
@@ -213,6 +235,7 @@ export function UserSettings() {
     setEditRole(user.role)
     setEditDepartment(matchedDept ? matchedDept.department_name : activeDepartments[0]?.department_name ?? "")
     setEditBranchId(user.branch_id ?? branches[0]?.id ?? null)
+    setEditJobRoleId(user.job_role_id ?? null)
     setEditDefaultScreen(user.dashboard_layout?.default_screen || "dashboard")
     setShowEditPassword(false)
     setShowUserDialog(true)
@@ -220,9 +243,10 @@ export function UserSettings() {
 
   const handleEditPermissions = (user) => {
     setSelectedUser(user)
-    // Navigate to permissions tab - we'll need to communicate with parent component
-    // For now, we'll show an alert with user info
-    alert(`سيتم فتح شاشة تعديل الصلاحيات للمستخدم: ${user.full_name}`)
+    // جسر تنقّل بين مكوّنات الأقسام الشقيقة (لا قناة props مباشرة، انظر app/page.tsx's OPEN_SECTION
+    // handler) — يفتح شاشة "الصلاحيات" مباشرة على هذا المستخدم بدل تنبيه بديل كان يعرضه فقط سابقاً.
+    sessionStorage.setItem("erp_pending_permissions_user_id", user.user_id || String(user.id))
+    window.dispatchEvent(new CustomEvent("OPEN_SECTION", { detail: { section: "permissions" } }))
   }
 
   const handlePasswordReset = (user) => {
@@ -529,6 +553,7 @@ export function UserSettings() {
                   role: editRole,
                   department: editDepartment,
                   branch_id: editBranchId,
+                  job_role_id: editJobRoleId,
                   language: (formData.get("language") as string) || "ar",
                   theme: (formData.get("theme") as string) || "light",
                   notifications_enabled: formData.get("notifications") === "on",
@@ -763,6 +788,24 @@ export function UserSettings() {
                         />
                       </div>
                     </div>
+                    <div>
+                      <Label htmlFor="editJobRole">الدور الوظيفي (اختياري)</Label>
+                      <div className="invoice-currency-dropdown-wrap">
+                        <PrimeDropdown
+                          id="editJobRole"
+                          value={editJobRoleId}
+                          options={[{ id: null, name: "بلا دور" }, ...jobRoles]}
+                          optionLabel="name"
+                          optionValue="id"
+                          placeholder="بلا دور"
+                          filter
+                          className="invoice-currency-dropdown w-full"
+                          panelClassName="invoice-currency-dropdown-panel"
+                          appendTo="self"
+                          onChange={(e: any) => setEditJobRoleId(e.value)}
+                        />
+                      </div>
+                    </div>
                   </div>
                 </div>
 
@@ -854,6 +897,7 @@ export function UserSettings() {
                 role: newRole,
                 department: newDepartment,
                 branch_id: newBranchId,
+                job_role_id: newJobRoleId,
                 language: "ar",
                 theme: "light",
                 notifications_enabled: true,
@@ -1059,6 +1103,24 @@ export function UserSettings() {
                         panelClassName="invoice-currency-dropdown-panel"
                         appendTo="self"
                         onChange={(e: any) => setNewBranchId(e.value)}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <Label htmlFor="newJobRole">الدور الوظيفي (اختياري)</Label>
+                    <div className="invoice-currency-dropdown-wrap">
+                      <PrimeDropdown
+                        id="newJobRole"
+                        value={newJobRoleId}
+                        options={[{ id: null, name: "بلا دور" }, ...jobRoles]}
+                        optionLabel="name"
+                        optionValue="id"
+                        placeholder="بلا دور"
+                        filter
+                        className="invoice-currency-dropdown w-full"
+                        panelClassName="invoice-currency-dropdown-panel"
+                        appendTo="self"
+                        onChange={(e: any) => setNewJobRoleId(e.value)}
                       />
                     </div>
                   </div>
