@@ -88,6 +88,225 @@ const DEFAULT_ACCENT: Accent = ACCENTS["home-dashboard"]
 
 const getAccent = (id?: string): Accent => (id && ACCENTS[id]) || DEFAULT_ACCENT
 
+// مُصعَّد لمستوى الوحدة (بدل داخل Sidebar) ليُصدَّر ويُعاد استخدامه بمكان آخر (شريط تبويبات
+// مساحة العمل) دون تكرار نفس القائمة الضخمة — البيانات ثابتة أصلاً، لا تعتمد على أي prop/hook.
+export const menuItems: MenuItem[] = [
+  { id: "home-dashboard", title: "الرئيسية", icon: LayoutDashboard, section: "home-dashboard" },
+  //{ id: "ai-assistant", title: "المساعد الذكي", icon: Sparkles, section: "ai-assistant" },
+  { id: "smart-analytics", title: "التحليلات الذكية", icon: BarChart3, section: "smart-analytics" },
+  { id: "order-tracking", title: "متابعة الطلبيات", icon: GitBranch, section: "order-tracking" },
+  {
+    id: "task-orders",
+    title: "تتبع أوامر العمل",
+    icon: KanbanSquare,
+    submenu: [
+      { title: "إدارة الأقسام ومخطط سير العمل", section: "task-orders-admin", icon: Settings },
+      { title: "متابعة طلباتي", section: "task-orders-board", icon: KanbanSquare },
+      { title: "التقارير", section: "task-orders-report", icon: BarChart3 },
+    ],
+  },
+  //{ id: "lot-opener", title: "فتح الدفعات", icon: Unlock, section: "lot-opener" },
+  {
+    id: "definitions",
+    title: "الملفات والتعريفات",
+    icon: Users,
+    submenu: [
+      { title: "العملاء", section: "customers", icon: Users },
+      { title: "الموردين", section: "suppliers", icon: Truck },
+      { title: "المشتركين", section: "subscribers", icon: UserCheck },
+      { title: "المندوبين", section: "salesmen", icon: UserCheck },
+      { title: "السيارات", section: "cars", icon: Car },
+      { title: "السائقين", section: "drivers", icon: IdCard },
+      { title: "التعريفات", section: "definitions", icon: Settings },
+    ],
+  },
+  {
+    id: "general-accounting",
+    title: "المحاسبة العامة",
+    icon: Wallet,
+    submenu: [
+      {
+        title: "الملفات",
+        section: "general-accounting-files",
+        icon: Users,
+        submenu: [
+          { title: "الحسابات المحاسبية", section: "accounts", icon: Settings },
+          { title: "العملات", section: "exchange-rates", icon: DollarSign },
+          { title: "البنوك", section: "banks", icon: Building },
+          { title: "الفروع", section: "branches", icon: MapPin },
+          { title: "حسابات البنوك", section: "bank-accounts", icon: Landmark },
+          { title: "بطاقات الائتمان", section: "credit-cards", icon: CreditCard },
+          { title: "دفاتر الشيكات", section: "cheques-books", icon: BookOpen },
+        ],
+      },
+      {
+        title: "الحركات",
+        section: "accounting-transactions",
+        icon: Receipt,
+        submenu: [
+          { title: "سند قبض", section: "receipt-vouchers", icon: ArrowDownCircle },
+          { title: "سند صرف", section: "payment-vouchers", icon: ArrowUpCircle },
+          { title: "سند قيد", section: "journal-vouchers", icon: BookOpen },
+          { title: "اشعار دائن", section: "credit-notes", icon: FilePlus2 },
+          { title: "اشعار مدين", section: "debit-notes", icon: FileMinus2 },
+        ],
+      },
+    ],
+  },
+  {
+    id: "item-management",
+    title: "ادارة الاصناف",
+    icon: Package,
+    submenu: [
+      {
+        title: "الملفات",
+        section: "item-management-files",
+        icon: Users,
+        submenu: [
+          { title: "المستودعات", section: "warehouses", icon: Building },
+          { title: "الأصناف", section: "products", icon: Package },
+          { title: "الخدمات", section: "services", icon: Package },
+          { title: "مجموعات الأصناف", section: "product-groups", icon: Package },
+          { title: "أنواع العلامات التجارية", section: "brand-types", icon: Package },
+          { title: "العلامات التجارية", section: "brands", icon: Package },
+        ],
+      },
+      {
+        title: "الحركات",
+        section: "item-management-transactions",
+        icon: Receipt,
+        submenu: [
+          { title: "سند ادخال بضاعة", section: "stock-in-vouchers", icon: ArrowDownCircle },
+          { title: "سند اخراج بضاعة", section: "stock-out-vouchers", icon: ArrowUpCircle },
+          { title: "ارسالية داخلية", section: "internal-delivery-vouchers", icon: Truck },
+          { title: "سند استعمال", section: "use-vouchers", icon: FileMinus2 },
+        ],
+      },
+    ],
+  },
+  {
+    id: "orders",
+    title: "الطلبيات",
+    icon: ShoppingCart,
+    submenu: [
+      {
+        title: "الحركات",
+        section: "transactions",
+        icon: ShoppingCart,
+        submenu: [
+          { title: "طلبيات المشتريات", section: "purchase-orders", icon: Truck },
+          { title: "طلبيات المبيعات", section: "sales-orders", icon: ShoppingCart },
+          { title: "معالجة حالة الطلبيات", section: "order-management", icon: Package },
+        ],
+      },
+    ],
+  },
+  {
+    id: "invoices",
+    title: "الفواتير",
+    icon: FileText,
+    submenu: [
+      {
+        title: "الحركات",
+        section: "invoice-transactions",
+        icon: FileText,
+        submenu: [
+          { title: "فواتير المبيعات", section: "sale-invoices", icon: FileText },
+        ],
+      },
+    ],
+  },
+  {
+    id: "sales-purchase-vouchers",
+    title: "سندات المبيعات والمشتريات",
+    icon: Truck,
+    submenu: [
+      {
+        title: "الحركات",
+        section: "sales-purchase-vouchers-transactions",
+        icon: Truck,
+        submenu: [
+          { title: "فاتورة مبيعات", section: "sales-invoices", icon: FileText },
+          { title: "إرسالية مبيعات", section: "sales-delivery", icon: Truck },
+          { title: "إرسالية برسم البيع", section: "delivery-consignment-sale", icon: ArrowUpCircle },
+          { title: "مرتجع إرسالية برسم البيع", section: "return-delivery-consignment-sale", icon: ArrowDownCircle },
+          { title: "مرتجع مبيعات", section: "return-sell", icon: FileMinus2 },
+          { title: "فاتورة مشتريات", section: "purchase-invoices", icon: ShoppingCart },
+          { title: "إرسالية مشتريات", section: "delivery-pay", icon: ArrowDownCircle },
+          { title: "مرتجع مشتريات", section: "return-purchase", icon: FileMinus2 },
+        ],
+      },
+    ],
+  },
+  {
+    id: "batch",
+    title: "حركات الرقم التشغيلي",
+    icon: Archive,
+    submenu: [
+      {
+        title: "معالجة الرقم التشغيلي",
+        section: "batch-movements",
+        icon: Archive,
+      },
+    ],
+  },
+  {
+    id: "reports",
+    title: "التقارير",
+    icon: FileText,
+    submenu: [
+      { title: "تقارير الطلبيات", section: "order-reports", icon: BarChart3 },
+      { title: "تقارير الأصناف", section: "product-reports", icon: Package },
+      { title: "أرشفة الرقم التشغيلي", section: "batch-log-report", icon: Package },
+    ],
+  },
+  {
+    id: "settings",
+    title: "الإعدادات",
+    icon: Settings,
+    submenu: [
+      {
+        id: "user-management",
+        title: "اعدادات المستخدمين",
+        icon: UserCheck,
+        submenu: [
+          { title: "المستخدمين", section: "user-settings", icon: UserCheck },
+          { title: "الصلاحيات", section: "permissions", icon: Shield },
+          { title: "الأدوار الوظيفية", section: "job-roles", icon: UserCheck },
+          { title: "صلاحيات الأدوار الوظيفية", section: "role-permissions", icon: Shield },
+          { title: "اعدادات", section: "user-default-accounts", icon: Settings },
+          { title: "صلاحيات دفاتر السندات", section: "voucher-book-permissions", icon: CreditCard },
+        ],
+      },
+      { title: "إعدادات النظام", section: "system-settings", icon: Settings },
+      { title: "إعدادات الطباعة", section: "print-settings", icon: Printer },
+      { title: "إعدادات السندات وطباعتها", section: "voucher-settings", icon: Printer },
+      { title: "إعدادات API", section: "api-settings", icon: Database },
+      { title: "اعدادات عامة", section: "vouchers-general-settings", icon: Settings },
+    ],
+  },
+  {
+    id: "postings",
+    title: "التكامل مع الأنظمة الأخرى",
+    icon: DollarSign,
+    submenu: [
+      { title: "ترحيل الطلبيات", section: "orders-migration", icon: UserCheck },
+    ],
+  },
+]
+
+// يُسطِّح menuItems (بمن فيهم submenu المتداخل حتى مستويين) إلى خريطة section -> title واحدة —
+// مصدر عناوين موحّد يُستخدم بشريط تبويبات مساحة العمل (WorkspacePane) بدل تكرار عناوين يدوياً.
+function flattenSectionTitles(items: MenuItem[], acc: Record<string, string> = {}): Record<string, string> {
+  for (const item of items) {
+    if (item.section) acc[item.section] = item.title
+    if (item.submenu) flattenSectionTitles(item.submenu, acc)
+  }
+  return acc
+}
+
+export const SECTION_TITLES: Record<string, string> = flattenSectionTitles(menuItems)
+
 export function Sidebar({
   isOpen,
   onToggle,
@@ -134,211 +353,6 @@ export function Sidebar({
     e.preventDefault()
     handleItemClick(item)
   }
-
-  const menuItems: MenuItem[] = [
-    { id: "home-dashboard", title: "الرئيسية", icon: LayoutDashboard, section: "home-dashboard" },
-    //{ id: "ai-assistant", title: "المساعد الذكي", icon: Sparkles, section: "ai-assistant" },
-    { id: "smart-analytics", title: "التحليلات الذكية", icon: BarChart3, section: "smart-analytics" },
-    { id: "order-tracking", title: "متابعة الطلبيات", icon: GitBranch, section: "order-tracking" },
-    {
-      id: "task-orders",
-      title: "تتبع أوامر العمل",
-      icon: KanbanSquare,
-      submenu: [
-        { title: "إدارة الأقسام ومخطط سير العمل", section: "task-orders-admin", icon: Settings },
-        { title: "متابعة طلباتي", section: "task-orders-board", icon: KanbanSquare },
-        { title: "التقارير", section: "task-orders-report", icon: BarChart3 },
-      ],
-    },
-    //{ id: "lot-opener", title: "فتح الدفعات", icon: Unlock, section: "lot-opener" },
-    {
-      id: "definitions",
-      title: "الملفات والتعريفات",
-      icon: Users,
-      submenu: [
-        { title: "العملاء", section: "customers", icon: Users },
-        { title: "الموردين", section: "suppliers", icon: Truck },
-        { title: "المشتركين", section: "subscribers", icon: UserCheck },
-        { title: "المندوبين", section: "salesmen", icon: UserCheck },
-        { title: "السيارات", section: "cars", icon: Car },
-        { title: "السائقين", section: "drivers", icon: IdCard },
-        { title: "التعريفات", section: "definitions", icon: Settings },
-      ],
-    },
-    {
-      id: "general-accounting",
-      title: "المحاسبة العامة",
-      icon: Wallet,
-      submenu: [
-        {
-          title: "الملفات",
-          section: "general-accounting-files",
-          icon: Users,
-          submenu: [
-            { title: "الحسابات المحاسبية", section: "accounts", icon: Settings },
-            { title: "العملات", section: "exchange-rates", icon: DollarSign },
-            { title: "البنوك", section: "banks", icon: Building },
-            { title: "الفروع", section: "branches", icon: MapPin },
-            { title: "حسابات البنوك", section: "bank-accounts", icon: Landmark },
-            { title: "بطاقات الائتمان", section: "credit-cards", icon: CreditCard },
-            { title: "دفاتر الشيكات", section: "cheques-books", icon: BookOpen },
-          ],
-        },
-        {
-          title: "الحركات",
-          section: "accounting-transactions",
-          icon: Receipt,
-          submenu: [
-            { title: "سند قبض", section: "receipt-vouchers", icon: ArrowDownCircle },
-            { title: "سند صرف", section: "payment-vouchers", icon: ArrowUpCircle },
-            { title: "سند قيد", section: "journal-vouchers", icon: BookOpen },
-            { title: "اشعار دائن", section: "credit-notes", icon: FilePlus2 },
-            { title: "اشعار مدين", section: "debit-notes", icon: FileMinus2 },
-          ],
-        },
-      ],
-    },
-    {
-      id: "item-management",
-      title: "ادارة الاصناف",
-      icon: Package,
-      submenu: [
-        {
-          title: "الملفات",
-          section: "item-management-files",
-          icon: Users,
-          submenu: [
-            { title: "المستودعات", section: "warehouses", icon: Building },
-            { title: "الأصناف", section: "products", icon: Package },
-            { title: "الخدمات", section: "services", icon: Package },
-            { title: "مجموعات الأصناف", section: "product-groups", icon: Package },
-            { title: "أنواع العلامات التجارية", section: "brand-types", icon: Package },
-            { title: "العلامات التجارية", section: "brands", icon: Package },
-          ],
-        },
-        {
-          title: "الحركات",
-          section: "item-management-transactions",
-          icon: Receipt,
-          submenu: [
-            { title: "سند ادخال بضاعة", section: "stock-in-vouchers", icon: ArrowDownCircle },
-            { title: "سند اخراج بضاعة", section: "stock-out-vouchers", icon: ArrowUpCircle },
-            { title: "ارسالية داخلية", section: "internal-delivery-vouchers", icon: Truck },
-            { title: "سند استعمال", section: "use-vouchers", icon: FileMinus2 },
-          ],
-        },
-      ],
-    },
-    {
-      id: "orders",
-      title: "الطلبيات",
-      icon: ShoppingCart,
-      submenu: [
-        {
-          title: "الحركات",
-          section: "transactions",
-          icon: ShoppingCart,
-          submenu: [
-            { title: "طلبيات المشتريات", section: "purchase-orders", icon: Truck },
-            { title: "طلبيات المبيعات", section: "sales-orders", icon: ShoppingCart },
-            { title: "معالجة حالة الطلبيات", section: "order-management", icon: Package },
-          ],
-        },
-      ],
-    },
-    {
-      id: "invoices",
-      title: "الفواتير",
-      icon: FileText,
-      submenu: [
-        {
-          title: "الحركات",
-          section: "invoice-transactions",
-          icon: FileText,
-          submenu: [
-            { title: "فواتير المبيعات", section: "sale-invoices", icon: FileText },
-          ],
-        },
-      ],
-    },
-    {
-      id: "sales-purchase-vouchers",
-      title: "سندات المبيعات والمشتريات",
-      icon: Truck,
-      submenu: [
-        {
-          title: "الحركات",
-          section: "sales-purchase-vouchers-transactions",
-          icon: Truck,
-          submenu: [
-            { title: "فاتورة مبيعات", section: "sales-invoices", icon: FileText },
-            { title: "إرسالية مبيعات", section: "sales-delivery", icon: Truck },
-            { title: "إرسالية برسم البيع", section: "delivery-consignment-sale", icon: ArrowUpCircle },
-            { title: "مرتجع إرسالية برسم البيع", section: "return-delivery-consignment-sale", icon: ArrowDownCircle },
-            { title: "مرتجع مبيعات", section: "return-sell", icon: FileMinus2 },
-            { title: "فاتورة مشتريات", section: "purchase-invoices", icon: ShoppingCart },
-            { title: "إرسالية مشتريات", section: "delivery-pay", icon: ArrowDownCircle },
-            { title: "مرتجع مشتريات", section: "return-purchase", icon: FileMinus2 },
-          ],
-        },
-      ],
-    },
-    {
-      id: "batch",
-      title: "حركات الرقم التشغيلي",
-      icon: Archive,
-      submenu: [
-        {
-          title: "معالجة الرقم التشغيلي",
-          section: "batch-movements",
-          icon: Archive,
-        },
-      ],
-    },
-    {
-      id: "reports",
-      title: "التقارير",
-      icon: FileText,
-      submenu: [
-        { title: "تقارير الطلبيات", section: "order-reports", icon: BarChart3 },
-        { title: "تقارير الأصناف", section: "product-reports", icon: Package },
-        { title: "أرشفة الرقم التشغيلي", section: "batch-log-report", icon: Package },
-      ],
-    },
-    {
-      id: "settings",
-      title: "الإعدادات",
-      icon: Settings,
-      submenu: [
-        {
-          id: "user-management",
-          title: "اعدادات المستخدمين",
-          icon: UserCheck,
-          submenu: [
-            { title: "المستخدمين", section: "user-settings", icon: UserCheck },
-            { title: "الصلاحيات", section: "permissions", icon: Shield },
-            { title: "الأدوار الوظيفية", section: "job-roles", icon: UserCheck },
-            { title: "صلاحيات الأدوار الوظيفية", section: "role-permissions", icon: Shield },
-            { title: "اعدادات", section: "user-default-accounts", icon: Settings },
-            { title: "صلاحيات دفاتر السندات", section: "voucher-book-permissions", icon: CreditCard },
-          ],
-        },
-        { title: "إعدادات النظام", section: "system-settings", icon: Settings },
-        { title: "إعدادات الطباعة", section: "print-settings", icon: Printer },
-        { title: "إعدادات السندات وطباعتها", section: "voucher-settings", icon: Printer },
-        { title: "إعدادات API", section: "api-settings", icon: Database },
-        { title: "اعدادات عامة", section: "vouchers-general-settings", icon: Settings },
-      ],
-    },
-    {
-      id: "postings",
-      title: "التكامل مع الأنظمة الأخرى",
-      icon: DollarSign,
-      submenu: [
-        { title: "ترحيل الطلبيات", section: "orders-migration", icon: UserCheck },
-      ],
-    },
-  ]
 
   return (
     // اللف بعنصر خارجي حامل لصنف "dark" (بدل وضعه على نفس عنصر الجذر) — أصناف dark: في العنصر

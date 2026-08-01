@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Icons } from "@/components/ui/icons";
 import { QuickThemeToggle } from "@/components/theme/theme-toggle";
+import { DisplayModeMenu } from "@/components/workspace/display-mode-menu";
 import { Loader2, Building2, ChevronDown, ArrowLeftRight } from "lucide-react";
 import { activateCompany } from "@/lib/tenant-client";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -275,6 +276,9 @@ export function Header({ onMenuClick, activeSection, onProfileClick, onSettingsC
             />
           </DropdownMenuContent>
         </DropdownMenu>
+
+        {/* طريقة عرض الصفحات: شاشة مقسمة / تبويبات — تفضيل شخصي (dashboard_layout.display_mode) */}
+        <DisplayModeMenu userId={user?.id} />
 
         {/* Dark / light mode */}
         <QuickThemeToggle />

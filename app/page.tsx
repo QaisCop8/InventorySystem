@@ -6,6 +6,9 @@ import { useSearchParams, useRouter } from "next/navigation"
 import { ProtectedRoute } from "@/components/auth/protected-route"
 import { ERPLayout } from "@/components/erp-layout"
 import { activateCompany } from "@/lib/tenant-client"
+import { SECTION_TITLES } from "@/components/sidebar"
+import { useWorkspace } from "@/contexts/workspace-context"
+import { WorkspacePane } from "@/components/workspace/workspace-pane"
 
 
 // Import all components
@@ -172,6 +175,39 @@ const componentMap: Record<string, React.ComponentType<any>> = {
   "task-orders-report": TaskOrdersReportPage,
 }
 
+const titleFor = (section: string) => SECTION_TITLES[section] || section
+
+// مُستخرَج من renderContent السابقة بلا تغيير بالمنطق — الفرق الوحيد أنها تأخذ section كمعامل
+// بدل قراءته من حالة activeSection المُغلَقة عليها، لتُستخدم بكل جزء (pane) من مساحة العمل على
+// حدة (انظر WorkspacePane)، بما فيها احتمال وجود قسمين مختلفين مفتوحين بآن واحد بالشاشة المقسمة.
+function resolveSectionNode(section: string | null, onOpenSection: (section: string) => void): React.ReactNode {
+  if (!section || section === "home-dashboard") {
+    return <WelcomeDashboard onOpenSection={onOpenSection} />
+  }
+
+  const Component = componentMap[section]
+  if (Component) {
+    if (typeof Component !== "function") {
+      console.error("[v0] Invalid component type detected for section", section, Component)
+    }
+    return <Component />
+  }
+
+  if (section === "user-profile") {
+    return (
+      <div className="space-y-6" dir="rtl">
+        <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg p-6 text-white">
+          <h1 className="text-2xl font-bold mb-2">الملف الشخصي</h1>
+          <p className="text-blue-100">إدارة معلوماتك الشخصية وإعدادات الحساب</p>
+        </div>
+        <UserSettings />
+      </div>
+    )
+  }
+
+  return <WelcomeDashboard onOpenSection={onOpenSection} />
+}
+
 export default function HomePage() {
   return (
     <Suspense fallback={null}>
@@ -183,11 +219,18 @@ export default function HomePage() {
 function HomePageContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
-  const [activeSection, setActiveSection] = useState<string | null>(() => {
+  const { openSection, currentSection, focusedPaneId, tabsEnabled, splitEnabled } = useWorkspace()
+  const activeSection = currentSection(focusedPaneId)
+
+  // يُعمِّر تبويب البداية بالجزء "a" حسب رابط العنوان — استبدال لما كان سابقاً initializer لـ
+  // useState (نفّذ مرة واحدة عند أول عرض فقط)، الآن عبر workspace بدل حالة activeSection مباشرة.
+  useEffect(() => {
     const fromUrl = searchParams.get("section")
-    if (!fromUrl) return null
-    return fromUrl === "home-dashboard" || fromUrl === "dashboard" || componentMap[fromUrl] ? fromUrl : null
-  })
+    if (!fromUrl) return
+    const resolved = fromUrl === "home-dashboard" || fromUrl === "dashboard" || componentMap[fromUrl] ? fromUrl : null
+    if (resolved) openSection(resolved, titleFor(resolved), "a")
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
     // تبويب جديد فُتح برابط يحمل ?company=<id> (لصق الرابط يدوياً، أو فتحه من مكان لا يُورث
@@ -248,40 +291,6 @@ function HomePageContent() {
 
     return () => observer.disconnect();
   }, []);
-  const renderContent = () => {
-    if (!activeSection) {
-      return <WelcomeDashboard onOpenSection={handleSectionChange} />
-    }
-
-    if (activeSection === "home-dashboard") {
-      return <WelcomeDashboard onOpenSection={handleSectionChange} />
-    }
-
-    if (activeSection) {
-      const Component = componentMap[activeSection]
-      if (Component) {
-        console.log("[v0] Rendering traditional component:", activeSection, { type: typeof Component })
-        if (typeof Component !== 'function') {
-          console.error('[v0] Invalid component type detected for section', activeSection, Component)
-        }
-        return <Component />
-      }
-    }
-
-    if (activeSection === "user-profile") {
-      return (
-        <div className="space-y-6" dir="rtl">
-          <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg p-6 text-white">
-            <h1 className="text-2xl font-bold mb-2">الملف الشخصي</h1>
-            <p className="text-blue-100">إدارة معلوماتك الشخصية وإعدادات الحساب</p>
-          </div>
-          <UserSettings />
-        </div>
-      )
-    }
-
-    return <WelcomeDashboard onOpenSection={handleSectionChange} />
-  }
   const [user, setUser] = useState<any>(null)
 
   useEffect(() => {
@@ -307,13 +316,14 @@ function HomePageContent() {
 
       if (!defaultScreen || defaultScreen === "dashboard") return
 
-      setActiveSection(componentMap[defaultScreen] ? defaultScreen : "home-dashboard")
+      const resolved = componentMap[defaultScreen] ? defaultScreen : "home-dashboard"
+      openSection(resolved, titleFor(resolved))
     }
 
     window.addEventListener("OPEN_DEFAULT_SCREEN", handler)
 
     return () => window.removeEventListener("OPEN_DEFAULT_SCREEN", handler)
-  }, [user])
+  }, [user, openSection])
 
   // جسر تنقّل عام بين مكوّنات الأقسام الشقيقة (لا قناة props مباشرة بينها — كل قسم يُصيَّر بلا أي
   // props عبر componentMap، انظر `<Component />` أدناه) — نفس فكرة OPEN_DEFAULT_SCREEN أعلاه، لكن
@@ -323,12 +333,12 @@ function HomePageContent() {
     const handler = (e: Event) => {
       const section = (e as CustomEvent<{ section: string }>).detail?.section
       if (section && componentMap[section]) {
-        setActiveSection(section)
+        openSection(section, titleFor(section))
       }
     }
     window.addEventListener("OPEN_SECTION", handler)
     return () => window.removeEventListener("OPEN_SECTION", handler)
-  }, [])
+  }, [openSection])
 
   const handleSectionChange = (section: string) => {
     console.log("[v0] Section change requested:", section)
@@ -340,7 +350,7 @@ function HomePageContent() {
           ? section
           : "home-dashboard"
 
-    setActiveSection(resolved)
+    openSection(resolved, titleFor(resolved))
     // يُبقي رابط العنوان مطابقاً للقسم الحالي — يتيح فتح نفس القسم في تبويب جديد
     // (كليك أوسط/يمين على عنصر القائمة الجانبية) بدل الرجوع دائماً للرئيسية.
     router.replace(resolved === "home-dashboard" ? "/" : `/?section=${resolved}`, { scroll: false })
@@ -349,7 +359,23 @@ function HomePageContent() {
   return (
     <ProtectedRoute>
       <ERPLayout activeSection={activeSection || ""} onSectionChange={handleSectionChange}>
-        <div className="flex-1 overflow-auto">{renderContent()}</div>
+        <div className="flex-1 overflow-hidden flex flex-row gap-2">
+          <WorkspacePane
+            paneId="a"
+            showTabStrip={tabsEnabled}
+            showFocusRing={splitEnabled}
+            renderSection={(section) => resolveSectionNode(section, handleSectionChange)}
+          />
+          {splitEnabled && <div className="w-px bg-border shrink-0" />}
+          {splitEnabled && (
+            <WorkspacePane
+              paneId="b"
+              showTabStrip={tabsEnabled}
+              showFocusRing={splitEnabled}
+              renderSection={(section) => resolveSectionNode(section, handleSectionChange)}
+            />
+          )}
+        </div>
       </ERPLayout>
     </ProtectedRoute>
   )

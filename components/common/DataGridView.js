@@ -1110,7 +1110,12 @@ createButtonTemplate = (col) => (ctx) => {
           //cells formatting
           if (e.panel === flexgrid.cells) {
             let col = flexgrid.columns[e.col];
-            if (col.dataType === 2) {
+            // لا تلمس محتوى الخلية أثناء تحريرها فعلياً — Wijmo يضع عنصر <input> حقيقياً بداخلها
+            // عند التحرير، وformatItem يُعاد استدعاؤه أثناء ذلك أيضاً؛ الكتابة فوق textContent هنا
+            // كانت تمحو ذلك الـinput بنص ثابت في كل مرة، فيبدو العمود كأنه للقراءة فقط (خصوصاً
+            // بمجرد إضافة dataType: Number لأي عمود، حتى بلا isReadOnly صراحةً).
+            const isEditingThisCell = flexgrid.editRange && flexgrid.editRange.row === e.row && flexgrid.editRange.col === e.col;
+            if (col.dataType === 2 && !isEditingThisCell) {
               let value = flexgrid.getCellData(e.row, e.col, false);
 
               const _col = this.props.scheme.columns.filter((c) => c.name === col.name);

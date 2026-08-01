@@ -233,6 +233,26 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ success: true, user: result[0] })
     }
 
+    // فرع ضيّق مطابق للأنماط أعلاه (avatar_url/language) — بلا هذا الفرع كان تحديث dashboard_layout
+    // وحده (مثلاً تفضيل عرض مساحة العمل الشخصي) يسقط بالتحديث العام أدناه الذي يُصفِّر كل عمود آخر
+    // (username/email/full_name...) لـnull لعدم وجوده بالـbody، ما كان سيمحو بيانات المستخدم فعلياً.
+    if (data.dashboard_layout !== undefined && Object.keys(data).filter((key) => key !== "user_id" && key !== "dashboard_layout").length === 0) {
+      const result = await sql`
+        UPDATE user_settings
+        SET
+          dashboard_layout = ${JSON.stringify(data.dashboard_layout)},
+          updated_at = CURRENT_TIMESTAMP
+        WHERE user_id = ${data.user_id}
+        RETURNING *
+      `
+
+      if (result.length === 0) {
+        return NextResponse.json({ error: "User not found" }, { status: 404 })
+      }
+
+      return NextResponse.json({ success: true, user: result[0] })
+    }
+
     const hasProfileFields =
       data.username !== undefined ||
       data.email !== undefined ||
