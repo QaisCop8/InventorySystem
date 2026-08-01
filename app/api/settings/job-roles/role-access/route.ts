@@ -12,9 +12,10 @@ export async function GET(req: NextRequest) {
 
     const { searchParams } = new URL(req.url)
     const roleId = searchParams.get("roleId")
+    const branchId = Number(searchParams.get("branchId"))
 
-    if (!roleId) {
-      return NextResponse.json({ error: "roleId is required" }, { status: 400 })
+    if (!roleId || !Number.isInteger(branchId) || branchId <= 0) {
+      return NextResponse.json({ error: "roleId and branchId are required" }, { status: 400 })
     }
 
     const rows = await sql`
@@ -22,9 +23,12 @@ export async function GET(req: NextRequest) {
         al.id AS access_id,
         al.name AS access_name,
         ac.name AS category_name,
-        COALESCE(rp.is_granted, FALSE) AS is_granted
+        COALESCE(rbp.is_granted, rp.is_granted, FALSE) AS is_granted,
+        CASE WHEN rbp.access_id IS NOT NULL THEN 'branch_role' WHEN rp.access_id IS NOT NULL THEN 'role' ELSE 'none' END AS permission_source
       FROM access_list al
       LEFT JOIN access_category ac ON al.category_id = ac.id
+      LEFT JOIN role_branch_permissions rbp
+        ON rbp.access_id = al.id AND rbp.role_id = ${roleId} AND rbp.branch_id = ${branchId}
       LEFT JOIN role_permissions rp ON rp.access_id = al.id AND rp.role_id = ${roleId}
       ORDER BY ac.id, al.id
     `

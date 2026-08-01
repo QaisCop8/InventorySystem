@@ -218,7 +218,9 @@ interface ProductsState {
 }
 
 export function Products({ entityType = "products" }: ProductsProps) {
+  const { permissionVersion } = useAuth()
   const isService = entityType === "services"
+  const canViewProducts = useMemo(() => Util.checkUserAccess(10), [permissionVersion])
   const [state, setState] = useState<ProductsState>({
     products: [] as Product[],
     categories: [] as Array<{ id: number; name: string }>,
@@ -626,7 +628,7 @@ export function Products({ entityType = "products" }: ProductsProps) {
     }
   }
 
-  if (!Util.checkUserAccess(10)) {
+  if (!canViewProducts) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">

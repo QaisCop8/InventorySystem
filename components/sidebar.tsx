@@ -218,7 +218,7 @@ export const menuItems: MenuItem[] = [
   },
   {
     id: "sales-purchase-vouchers",
-    title: "سندات المبيعات والمشتريات",
+    title: "المبيعات والمشتريات",
     icon: Truck,
     submenu: [
       {

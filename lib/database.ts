@@ -2,7 +2,7 @@ import { neon } from "@neondatabase/serverless"
 import { Pool, types } from "pg"
 import { cookies, headers } from "next/headers"
 import { AsyncLocalStorage } from "node:async_hooks"
-import { withDatabaseName, getDatabaseNameFromUrl } from "./db-url"
+import { withDatabaseName, getDatabaseNameFromUrl, isNeonDatabaseUrl } from "./db-url"
 
 // node-postgres يحوّل أعمدة DATE افتراضياً إلى كائن JS Date مربوط بمنتصف الليل بالتوقيت المحلي
 // لخادم Node (لا UTC ولا أي علاقة بالقيمة المخزَّنة فعلياً) — فتاريخ مثل "1990-01-01" على خادم
@@ -24,7 +24,7 @@ const baseUrl = process.env.DATABASE_URL || ""
 const defaultDbName = baseUrl ? getDatabaseNameFromUrl(baseUrl) : ""
 
 function buildClientForUrl(url: string): TenantClient {
-  if (url.includes("localhost") || url.includes("127.0.0.1")) {
+  if (!isNeonDatabaseUrl(url)) {
     const pool = new Pool({ connectionString: url })
     return { query: async (text, params) => (await pool.query(text, params)).rows }
   }

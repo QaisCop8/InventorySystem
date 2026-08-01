@@ -1,282 +1,106 @@
 "use client"
 
-import React, { useEffect, useMemo, useState } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Switch } from "@/components/ui/switch"
+import { useEffect, useState } from "react"
+import { BranchPermissionEditor, type PermissionItem } from "./branch-permission-editor"
 import { Badge } from "@/components/ui/badge"
-import { Shield, Search, CheckCheck, X, RotateCcw, Save } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import Dropdown from "@/components/common/Dropdown"
+import { BriefcaseBusiness, RotateCcw, Save, Shield } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 
-interface JobRole {
-  id: number
-  name: string
-  status: number
-}
+interface JobRole { id: number; name: string; status: number }
+interface Branch { id: number; branch_code: string; branch_name: string; status: number }
 
-interface AccessItem {
-  access_id: number
-  access_name: string
-  category_name: string
-  is_granted: boolean
-}
-
-// نفس شبكة الصلاحيات المستخدَمة بـcomponents/settings/permissions.tsx تماماً (مجمَّعة حسب الفئة +
-// أزرار تحديد الكل/الغاء تحديد الكل/عكس التحديد) لكن مفتاحها دور وظيفي بدل مستخدم بعينه، وتُحفَظ في
-// role_permissions بدل user_access.
 export default function RolePermissions() {
   const { toast } = useToast()
   const [roles, setRoles] = useState<JobRole[]>([])
-  const [selectedRoleId, setSelectedRoleId] = useState("")
-  const [accessList, setAccessList] = useState<Record<string, AccessItem[]>>({})
-  const [roleAccess, setRoleAccess] = useState<Record<number, boolean>>({})
-  const [loading, setLoading] = useState(true)
-  const [accessLoading, setAccessLoading] = useState(false)
-  const [saving, setSaving] = useState(false)
+  const [branches, setBranches] = useState<Branch[]>([])
+  const [roleId, setRoleId] = useState("")
+  const [branchId, setBranchId] = useState("")
+  const [items, setItems] = useState<PermissionItem[]>([])
+  const [values, setValues] = useState<Record<number, boolean>>({})
+  const [initialValues, setInitialValues] = useState<Record<number, boolean>>({})
   const [search, setSearch] = useState("")
+  const [loading, setLoading] = useState(true)
+  const [permissionsLoading, setPermissionsLoading] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const dirty = JSON.stringify(values) !== JSON.stringify(initialValues)
+  const selectedRole = roles.find((role) => String(role.id) === roleId)
+  const selectedBranch = branches.find((branch) => String(branch.id) === branchId)
 
   useEffect(() => {
-    const fetchRoles = async () => {
+    const load = async () => {
       try {
-        setLoading(true)
-        const res = await fetch("/api/settings/job-roles")
-        if (!res.ok) throw new Error("فشل في تحميل الأدوار الوظيفية")
-        const data: JobRole[] = await res.json()
-        setRoles(data)
-        if (data.length > 0) setSelectedRoleId(String(data[0].id))
+        const [rolesResponse, branchesResponse] = await Promise.all([fetch("/api/settings/job-roles"), fetch("/api/branches")])
+        if (!rolesResponse.ok || !branchesResponse.ok) throw new Error("تعذر تحميل الأدوار أو الفروع")
+        const [rolesData, branchesData]: [JobRole[], Branch[]] = await Promise.all([rolesResponse.json(), branchesResponse.json()])
+        setRoles(rolesData); setBranches(branchesData)
+        setRoleId(String(rolesData[0]?.id || "")); setBranchId(String(branchesData[0]?.id || ""))
       } catch (error) {
-        console.error(error)
-      } finally {
-        setLoading(false)
-      }
+        toast({ title: "تعذر فتح الصلاحيات", description: error instanceof Error ? error.message : "حدث خطأ", variant: "destructive" })
+      } finally { setLoading(false) }
     }
-    void fetchRoles()
-  }, [])
+    void load()
+  }, [toast])
 
   useEffect(() => {
-    if (!selectedRoleId) return
-    const fetchAccess = async () => {
-      setAccessLoading(true)
+    if (!roleId || !branchId) return
+    const loadPermissions = async () => {
+      setPermissionsLoading(true)
       try {
-        const res = await fetch(`/api/settings/job-roles/role-access?roleId=${selectedRoleId}`)
-        const data: AccessItem[] = await res.json()
-        const grouped: Record<string, AccessItem[]> = {}
-        data.forEach((item) => {
-          if (!grouped[item.category_name]) grouped[item.category_name] = []
-          grouped[item.category_name].push(item)
-        })
-        setAccessList(grouped)
-        const ra: Record<number, boolean> = {}
-        data.forEach((item) => {
-          ra[item.access_id] = !!item.is_granted
-        })
-        setRoleAccess(ra)
-      } finally {
-        setAccessLoading(false)
-      }
+        const response = await fetch(`/api/settings/job-roles/role-access?roleId=${roleId}&branchId=${branchId}`)
+        if (!response.ok) throw new Error("تعذر تحميل صلاحيات الدور")
+        const data: PermissionItem[] = await response.json()
+        const next = Object.fromEntries(data.map((item) => [item.access_id, Boolean(item.is_granted)]))
+        setItems(data); setValues(next); setInitialValues(next)
+      } catch (error) {
+        toast({ title: "فشل التحميل", description: error instanceof Error ? error.message : "حدث خطأ", variant: "destructive" })
+      } finally { setPermissionsLoading(false) }
     }
-    void fetchAccess()
-  }, [selectedRoleId])
+    void loadPermissions()
+  }, [roleId, branchId, toast])
 
-  const allItems = useMemo(() => Object.values(accessList).flat(), [accessList])
-  const grantedCount = allItems.filter((item) => roleAccess[item.access_id]).length
-
-  const filteredCategories = useMemo(() => {
-    const term = search.trim().toLowerCase()
-    if (!term) return accessList
-    const filtered: Record<string, AccessItem[]> = {}
-    Object.entries(accessList).forEach(([category, items]) => {
-      const matches = items.filter((item) => item.access_name.toLowerCase().includes(term))
-      if (matches.length > 0) filtered[category] = matches
-    })
-    return filtered
-  }, [accessList, search])
-
-  const savePermissions = async () => {
+  const save = async (inherit = false) => {
+    if (!roleId || !branchId) return
+    setSaving(true)
     try {
-      setSaving(true)
-      const payload = {
-        roleId: Number(selectedRoleId),
-        accesses: Object.entries(roleAccess).map(([accessId, isGranted]) => ({
-          access_id: Number(accessId),
-          is_granted: isGranted,
-        })),
-      }
-      const res = await fetch("/api/settings/job-roles/save-role-access", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+      const response = await fetch("/api/settings/job-roles/save-role-access", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ roleId: Number(roleId), branchId: Number(branchId), inherit, accesses: items.map((item) => ({ access_id: item.access_id, is_granted: Boolean(values[item.access_id]) })) }),
       })
-      if (!res.ok) throw new Error("حدث خطأ في حفظ صلاحيات الدور الوظيفي")
-      toast({ title: "تم الحفظ بنجاح", description: "تم تحديث صلاحيات الدور الوظيفي" })
+      if (!response.ok) throw new Error("تعذر حفظ صلاحيات الدور")
+      toast({ title: inherit ? "تمت استعادة الصلاحيات العامة" : "تم حفظ الصلاحيات", description: `${selectedRole?.name} — ${selectedBranch?.branch_name}` })
+      if (inherit) {
+        const reload = await fetch(`/api/settings/job-roles/role-access?roleId=${roleId}&branchId=${branchId}`)
+        const data: PermissionItem[] = await reload.json()
+        const next = Object.fromEntries(data.map((item) => [item.access_id, Boolean(item.is_granted)]))
+        setItems(data); setValues(next); setInitialValues(next)
+      } else setInitialValues({ ...values })
     } catch (error) {
       toast({ title: "فشل الحفظ", description: error instanceof Error ? error.message : "حدث خطأ", variant: "destructive" })
-    } finally {
-      setSaving(false)
-    }
+    } finally { setSaving(false) }
   }
 
-  if (loading) {
-    return <div className="flex h-40 items-center justify-center text-muted-foreground">جاري التحميل...</div>
-  }
+  if (loading) return <div className="flex h-64 items-center justify-center text-muted-foreground">جاري تحميل شاشة الصلاحيات...</div>
 
   return (
-    <div className="w-full space-y-6 p-6" dir="rtl">
-      <Card className="border-none shadow-sm bg-gradient-to-l from-primary/5 to-transparent">
-        <CardContent className="py-5">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                <Shield className="h-5 w-5" />
-              </div>
-              <div>
-                <h1 className="text-lg font-semibold">صلاحيات الأدوار الوظيفية</h1>
-                <p className="text-sm text-muted-foreground">تحكّم بما يستطيع كل دور وظيفي الوصول إليه في النظام</p>
-              </div>
-            </div>
-            <div className="w-full md:w-64 space-y-1.5">
-              <Label className="text-xs text-muted-foreground">الدور الوظيفي</Label>
-              <Select value={selectedRoleId} onValueChange={setSelectedRoleId}>
-                <SelectTrigger className="bg-background">
-                  <SelectValue placeholder="اختر دوراً وظيفياً" />
-                </SelectTrigger>
-                <SelectContent>
-                  {roles.map((role) => (
-                    <SelectItem key={role.id} value={String(role.id)}>
-                      {role.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+    <div className="w-full space-y-5 p-4 md:p-6" dir="rtl">
+      <div className="flex flex-col gap-4 rounded-2xl border bg-gradient-to-l from-primary/10 via-background to-background p-5 shadow-sm md:flex-row md:items-center md:justify-between">
+        <div className="flex items-center gap-3"><div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground"><Shield className="h-6 w-6" /></div><div><h1 className="text-xl font-bold">صلاحيات الأدوار الوظيفية</h1><p className="mt-1 text-sm text-muted-foreground">حدد صلاحيات كل دور بصورة مستقلة في كل فرع.</p></div></div>
+        <div className="flex flex-wrap gap-2"><Button variant="outline" onClick={() => void save(true)} disabled={!roleId || !branchId || saving}><RotateCcw className="ml-2 h-4 w-4" />استعادة صلاحيات الدور العامة</Button><Button onClick={() => void save(false)} disabled={!roleId || !branchId || permissionsLoading || saving}><Save className="ml-2 h-4 w-4" />{saving ? "جاري الحفظ..." : "حفظ الصلاحيات"}</Button></div>
+      </div>
 
-      {roles.length === 0 && (
-        <div className="text-muted-foreground text-sm border rounded-lg p-6 text-center">
-          لا توجد أدوار وظيفية بعد — أضِف دوراً من شاشة "الأدوار الوظيفية" أولاً.
-        </div>
-      )}
-
-      {selectedRoleId && (
-        <>
-          <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between sticky top-0 z-10 bg-background/95 backdrop-blur py-2">
-            <div className="relative w-full sm:max-w-xs">
-              <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="ابحث عن صلاحية..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pr-9"
-              />
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="secondary" className="text-sm">
-                {grantedCount} من {allItems.length} صلاحية مفعّلة
-              </Badge>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  const updated: Record<number, boolean> = {}
-                  allItems.forEach((item) => {
-                    updated[item.access_id] = true
-                  })
-                  setRoleAccess(updated)
-                }}
-              >
-                <CheckCheck className="h-4 w-4 ml-1.5" />
-                تحديد الكل
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  const updated: Record<number, boolean> = {}
-                  allItems.forEach((item) => {
-                    updated[item.access_id] = false
-                  })
-                  setRoleAccess(updated)
-                }}
-              >
-                <X className="h-4 w-4 ml-1.5" />
-                الغاء تحديد الكل
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  const updated = { ...roleAccess }
-                  allItems.forEach((item) => {
-                    updated[item.access_id] = !updated[item.access_id]
-                  })
-                  setRoleAccess(updated)
-                }}
-              >
-                <RotateCcw className="h-4 w-4 ml-1.5" />
-                عكس التحديد
-              </Button>
-              <Button type="button" size="sm" onClick={() => void savePermissions()} disabled={saving}>
-                <Save className="h-4 w-4 ml-1.5" />
-                {saving ? "جاري الحفظ..." : "حفظ الصلاحيات"}
-              </Button>
-            </div>
-          </div>
-
-          <div className={accessLoading ? "opacity-50 pointer-events-none" : undefined}>
-            {Object.keys(filteredCategories).length === 0 && (
-              <div className="text-center text-sm text-muted-foreground py-10">لا توجد صلاحيات مطابقة للبحث</div>
-            )}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {Object.entries(filteredCategories).map(([categoryName, items]) => {
-                const categoryGranted = items.filter((item) => roleAccess[item.access_id]).length
-                return (
-                  <Card key={categoryName} className="overflow-hidden">
-                    <CardHeader className="py-3 bg-muted/40">
-                      <div className="flex items-center justify-between">
-                        <CardTitle className="text-base font-semibold">{categoryName}</CardTitle>
-                        <Badge variant={categoryGranted === items.length ? "default" : "secondary"} className="text-xs">
-                          {categoryGranted}/{items.length}
-                        </Badge>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="p-0">
-                      <div className="divide-y">
-                        {items.map((item) => {
-                          const isChecked = !!roleAccess[item.access_id]
-                          return (
-                            <div
-                              key={item.access_id}
-                              className={`flex items-center justify-between gap-4 px-4 py-3 transition-colors ${
-                                isChecked ? "bg-primary/[0.04]" : ""
-                              }`}
-                            >
-                              <span className="text-sm font-medium">{item.access_name}</span>
-                              <Switch
-                                checked={isChecked}
-                                onCheckedChange={(checked) =>
-                                  setRoleAccess((prev) => ({ ...prev, [item.access_id]: checked }))
-                                }
-                              />
-                            </div>
-                          )
-                        })}
-                      </div>
-                    </CardContent>
-                  </Card>
-                )
-              })}
-            </div>
-          </div>
-        </>
-      )}
+      {roles.length === 0 || branches.length === 0 ? <div className="rounded-xl border border-dashed p-10 text-center text-muted-foreground">{roles.length === 0 ? "لا توجد أدوار وظيفية. أضف دوراً وظيفياً أولاً." : "لا توجد فروع معرفة. أضف فرعاً أولاً."}</div> : <>
+        <Card><CardContent className="grid gap-4 p-4 md:grid-cols-2">
+          <div><Label className="mb-2 block text-xs text-muted-foreground">1. الدور الوظيفي</Label><Select value={roleId} onValueChange={(value) => { setRoleId(value); setSearch("") }}><SelectTrigger><BriefcaseBusiness className="ml-2 h-4 w-4 text-muted-foreground" /><SelectValue placeholder="اختر الدور الوظيفي" /></SelectTrigger><SelectContent>{roles.map((role) => <SelectItem key={role.id} value={String(role.id)}>{role.name}</SelectItem>)}</SelectContent></Select></div>
+          <div><Label className="mb-2 block text-xs text-muted-foreground">2. الفرع الذي ستطبق فيه الصلاحيات</Label><Dropdown id="role-permissions-branch" value={Number(branchId) || null} options={branches} optionLabel="branch_name" optionLabelCode="branch_code" optionValue="id" placeholder="اختر الفرع" filter onChange={(event) => setBranchId(String(event.value))} /></div>
+          <div className="flex flex-wrap gap-2 md:col-span-2"><Badge variant="secondary">الدور: {selectedRole?.name}</Badge><Badge variant="outline">الفرع: {selectedBranch?.branch_name}</Badge><span className="text-xs text-muted-foreground self-center">أي تعديل هنا يخص هذا الدور في هذا الفرع فقط.</span></div>
+        </CardContent></Card>
+        <BranchPermissionEditor items={items} values={values} onChange={setValues} search={search} onSearchChange={setSearch} loading={permissionsLoading} dirty={dirty} />
+      </>}
     </div>
   )
 }

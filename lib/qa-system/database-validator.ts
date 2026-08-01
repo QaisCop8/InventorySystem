@@ -1,4 +1,4 @@
-import { neon } from "@neondatabase/serverless"
+import sql from "@/lib/database"
 
 interface DatabaseField {
   name: string
@@ -19,7 +19,7 @@ interface ValidationResult {
 }
 
 export class DatabaseValidator {
-  private sql = neon(process.env.DATABASE_URL!)
+  private sql = sql
   private schema: Map<string, TableSchema> = new Map()
 
   private initializeSchema() {

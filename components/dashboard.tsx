@@ -7,10 +7,11 @@ import { Badge } from "@/components/ui/badge"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"
 import { Plus, ShoppingCart, Clock, CheckCircle, AlertCircle, BarChart3 } from "lucide-react"
 import UnifiedSalesOrder from "./orders/unified-sales-order"
-import { useDashboardStats } from "@/hooks/use-swr-data"
+import { useDashboardStats, useExchangeRates } from "@/hooks/use-swr-data"
 import { LoadingCard } from "@/components/ui/loading-spinner"
 import { ErrorBoundary } from "@/components/error-boundary"
 import { QuickAccessFavorites } from "@/components/dashboard/quick-access-favorites"
+import { getFirstCurrencyLabel } from "@/lib/currency-display"
 
 const salesData = [
   { month: "يناير", sales: 4000, orders: 24 },
@@ -21,9 +22,16 @@ const salesData = [
   { month: "يونيو", sales: 5500, orders: 35 },
 ]
 
+const formatEnglishNumber = (value: number) =>
+  new Intl.NumberFormat("en-US", {
+    maximumFractionDigits: 0,
+  }).format(value)
+
 function DashboardContent() {
   const [showUnifiedOrder, setShowUnifiedOrder] = useState(false)
   const { stats, isLoading, isError, refresh } = useDashboardStats()
+  const { rates: currencies } = useExchangeRates()
+  const currencyLabel = getFirstCurrencyLabel(currencies)
 
   const updateOrderStatus = async (orderType: string, orderId: number, newStatus: string) => {
     try {
@@ -103,8 +111,12 @@ function DashboardContent() {
             <CardTitle className="text-sm font-medium text-muted-foreground">طلبيات المبيعات المعلقة</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-orange-600">{stats?.salesStats.pending_sales || 0}</div>
-            <p className="text-xs text-muted-foreground">من إجمالي {stats?.salesStats.total_sales_orders || 0} طلبية</p>
+            <div className="text-2xl font-bold text-orange-600">
+              {formatEnglishNumber(stats?.salesStats.pending_sales || 0)}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              من إجمالي {formatEnglishNumber(stats?.salesStats.total_sales_orders || 0)} طلبية
+            </p>
           </CardContent>
         </Card>
 
@@ -113,9 +125,11 @@ function DashboardContent() {
             <CardTitle className="text-sm font-medium text-muted-foreground">طلبيات المشتريات المعلقة</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-600">{stats?.purchaseStats.pending_purchases || 0}</div>
+            <div className="text-2xl font-bold text-blue-600">
+              {formatEnglishNumber(stats?.purchaseStats.pending_purchases || 0)}
+            </div>
             <p className="text-xs text-muted-foreground">
-              من إجمالي {stats?.purchaseStats.total_purchase_orders || 0} طلبية
+              من إجمالي {formatEnglishNumber(stats?.purchaseStats.total_purchase_orders || 0)} طلبية
             </p>
           </CardContent>
         </Card>
@@ -129,10 +143,12 @@ function DashboardContent() {
               {(stats?.salesStats.total_sales_value !== null
                 ? stats?.salesStats.total_sales_value
                 : 0
-              ).toLocaleString()}{" "}
-              ر.س
+              ).toLocaleString("en-US")}{" "}
+              {currencyLabel}
             </div>
-            <p className="text-xs text-muted-foreground">طلبيات مكتملة: {stats?.salesStats.completed_sales || 0}</p>
+            <p className="text-xs text-muted-foreground">
+              طلبيات مكتملة: {formatEnglishNumber(stats?.salesStats.completed_sales || 0)}
+            </p>
           </CardContent>
         </Card>
 
@@ -145,11 +161,11 @@ function DashboardContent() {
               {(stats?.purchaseStats.total_purchase_value !== null
                 ? stats?.purchaseStats.total_purchase_value
                 : 0
-              ).toLocaleString()}{" "}
-              ر.س
+              ).toLocaleString("en-US")}{" "}
+              {currencyLabel}
             </div>
             <p className="text-xs text-muted-foreground">
-              طلبيات مكتملة: {stats?.purchaseStats.completed_purchases || 0}
+              طلبيات مكتملة: {formatEnglishNumber(stats?.purchaseStats.completed_purchases || 0)}
             </p>
           </CardContent>
         </Card>
@@ -167,7 +183,11 @@ function DashboardContent() {
             <BarChart data={salesData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
               <XAxis dataKey="month" tick={{ fontSize: 12, fill: "#64748b" }} axisLine={{ stroke: "#e2e8f0" }} />
-              <YAxis tick={{ fontSize: 12, fill: "#64748b" }} axisLine={{ stroke: "#e2e8f0" }} />
+              <YAxis
+                tick={{ fontSize: 12, fill: "#64748b" }}
+                axisLine={{ stroke: "#e2e8f0" }}
+                tickFormatter={(value) => formatEnglishNumber(Number(value))}
+              />
               <Tooltip
                 contentStyle={{
                   backgroundColor: "#ffffff",
@@ -176,6 +196,7 @@ function DashboardContent() {
                   boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
                 }}
                 labelStyle={{ color: "#1e293b", fontWeight: "bold" }}
+                formatter={(value) => formatEnglishNumber(Number(value))}
               />
               <Bar dataKey="sales" fill="url(#salesGradient)" radius={[4, 4, 0, 0]} />
               <defs>
@@ -208,7 +229,7 @@ function DashboardContent() {
                       <div className="font-medium">{order.order_number}</div>
                       <div className="text-sm text-muted-foreground">{order.customer_name}</div>
                       <div className="text-sm font-medium">
-                        {(order.total_amount !== null ? order.total_amount : 0).toLocaleString()} ر.س
+                        {(order.total_amount !== null ? order.total_amount : 0).toLocaleString("en-US")} {currencyLabel}
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
@@ -250,7 +271,7 @@ function DashboardContent() {
                       <div className="font-medium">{order.order_number}</div>
                       <div className="text-sm text-muted-foreground">{order.supplier_name}</div>
                       <div className="text-sm font-medium">
-                        {(order.total_amount !== null ? order.total_amount : 0).toLocaleString()} ر.س
+                        {(order.total_amount !== null ? order.total_amount : 0).toLocaleString("en-US")} {currencyLabel}
                       </div>
                     </div>
                     <div className="flex items-center gap-2">

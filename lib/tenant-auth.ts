@@ -94,7 +94,9 @@ export async function requirePermission(request: NextRequest, accessId: number):
   if (!user) {
     return { ok: false, response: NextResponse.json({ error: "يجب تسجيل الدخول" }, { status: 401 }) }
   }
-  const granted = await hasEffectivePermission(user.user_id, accessId)
+  const requestedBranchId = Number(request.headers.get("x-branch-id"))
+  const branchId = Number.isInteger(requestedBranchId) && requestedBranchId > 0 ? requestedBranchId : null
+  const granted = await hasEffectivePermission(user.user_id, accessId, branchId)
   if (!granted) {
     return { ok: false, response: NextResponse.json({ error: "لا يوجد لديك صلاحية" }, { status: 403 }) }
   }

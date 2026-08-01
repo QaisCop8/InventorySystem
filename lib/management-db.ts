@@ -1,11 +1,11 @@
 import { neon } from "@neondatabase/serverless"
 import { Pool } from "pg"
-import { withDatabaseName } from "./db-url"
+import { isNeonDatabaseUrl, withDatabaseName } from "./db-url"
 
 const MANAGEMENT_DB_NAME = "management"
 
 function buildSqlClient(connectionUrl: string) {
-  if (connectionUrl.includes("localhost") || connectionUrl.includes("127.0.0.1")) {
+  if (!isNeonDatabaseUrl(connectionUrl)) {
     const pool = new Pool({ connectionString: connectionUrl })
     const client: any = async (strings: TemplateStringsArray, ...values: any[]) => {
       const conn = await pool.connect()

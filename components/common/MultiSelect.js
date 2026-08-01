@@ -115,6 +115,9 @@ export default class MultiSelect extends React.Component {
               tooltipOptions={{ position: 'bottom', style: { direction: 'rtl' } }}
               panelClassName={panelClassName}
               itemTemplate={this.itemsTemplate}
+              filterPlaceholder={this.props.filterPlaceholder ?? 'ابحث في الخيارات...'}
+              emptyMessage={this.props.emptyMessage ?? 'لا توجد خيارات متاحة'}
+              emptyFilterMessage={this.props.emptyFilterMessage ?? 'لا توجد نتائج مطابقة'}
               resetFilterOnHide={true}
               onSelectAll={this.props.handleSelectAll ? this.props.handleSelectAll : this.props.parent ? this.handleSelectAll : undefined}
               //options={this.state.filteredItems ?? this.props.options}
@@ -169,6 +172,9 @@ export default class MultiSelect extends React.Component {
             tooltipOptions={{ position: 'bottom', style: { direction: 'rtl' } }}
             panelClassName={panelClassName}
             itemTemplate={this.itemsTemplate}
+            filterPlaceholder={this.props.filterPlaceholder ?? 'ابحث في الخيارات...'}
+            emptyMessage={this.props.emptyMessage ?? 'لا توجد خيارات متاحة'}
+            emptyFilterMessage={this.props.emptyFilterMessage ?? 'لا توجد نتائج مطابقة'}
             selectedItemsLabel={this.props.selectedItemsLabel ?? (this.props.value ? `تم تحديد ${this.props.value.length} عناصر` : '')}
             resetFilterOnHide={true}
             onSelectAll={this.props.handleSelectAll ? this.props.handleSelectAll : this.props.parent ? this.handleSelectAll : undefined}

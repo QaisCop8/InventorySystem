@@ -160,8 +160,12 @@ const FOCUSABLE_SELECTOR =
   'input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
 
 const focusNextInContainer = (container: HTMLElement, current: HTMLElement) => {
+  // PrimeReact Dropdown يُدرج <select tabIndex={-1}> مخفياً (توافق نماذج/تعبئة تلقائية) يقع مباشرة
+  // بعد حقل التركيز الحقيقي بالـDOM — يطابقه "select:not([disabled])" بمحدد FOCUSABLE_SELECTOR رغم
+  // tabIndex=-1 (المحدد لا يفحصه لعناصر <select>)، فيسرق التركيز عند Enter بدل الحقل التالي الفعلي.
+  // استبعاد tabIndex=-1 صراحةً هنا يُصلح ذلك دون المساس بحقل الإدخال الحقيقي (tabIndex=0).
   const focusable = Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter(
-    (el) => el.offsetParent !== null && !el.closest(".wj-flexgrid"),
+    (el) => el.offsetParent !== null && el.tabIndex !== -1 && !el.closest(".wj-flexgrid"),
   )
   const currentIndex = focusable.indexOf(current)
   if (currentIndex === -1) return

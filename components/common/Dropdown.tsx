@@ -96,7 +96,7 @@ export default class Dropdown extends React.Component<DropdownProps, DropdownSta
     }
 
     if ("current" in innerRef) {
-      innerRef.current = el
+      ;(innerRef as React.MutableRefObject<any>).current = el
     }
   }
 
@@ -279,12 +279,11 @@ export default class Dropdown extends React.Component<DropdownProps, DropdownSta
         tooltipOptions={{ position: "top", style: { direction: "rtl" } }}
         placeholder={placeholder}
         optionLabel={optionLabel}
-        optionLabelLang2={optionLabelLang2 || optionLabel}
         itemTemplate={this.optionsTemplate}
         valueTemplate={this.selectedOptionTemplate}
         resetFilterOnHide
         options={this.handleOptions()}
-        panelClassName={restProps.panelClassName}
+        panelClassName={`${styles.dropDownPanel} ${restProps.panelClassName || ""}`.trim()}
         appendTo={restProps.appendTo}
       >
         {children}

@@ -1,0 +1,12 @@
+.git
+.github
+.next
+.env
+.env.*
+!.env.production.example
+node_modules
+npm-debug.log*
+tmp
+uploads
+backups
+

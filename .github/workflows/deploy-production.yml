@@ -1,0 +1,58 @@
+name: Deploy production
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Configure SSH
+        env:
+          SERVER_SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
+          SERVER_KNOWN_HOSTS: ${{ secrets.SERVER_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SERVER_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$SERVER_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Upload release files
+        env:
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+          SERVER_USER: ${{ secrets.SERVER_USER }}
+        run: |
+          ssh -i ~/.ssh/deploy_key "$SERVER_USER@$SERVER_HOST" 'mkdir -p /opt/asas/app'
+          rsync -az --delete \
+            --exclude='.env.production' \
+            --exclude='uploads/' \
+            --exclude='backups/' \
+            --exclude='.git/' \
+            --exclude='.next/' \
+            --exclude='node_modules/' \
+            -e 'ssh -i ~/.ssh/deploy_key' \
+            ./ "$SERVER_USER@$SERVER_HOST:/opt/asas/app/"
+
+      - name: Build and restart production
+        env:
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+          SERVER_USER: ${{ secrets.SERVER_USER }}
+        run: |
+          ssh -i ~/.ssh/deploy_key "$SERVER_USER@$SERVER_HOST" <<'REMOTE'
+            set -eu
+            cd /opt/asas/app
+            test -f .env.production
+            docker compose --env-file .env.production -f compose.production.yml up -d --build --remove-orphans
+            docker image prune -f
+          REMOTE

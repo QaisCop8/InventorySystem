@@ -1,75 +1,234 @@
 @import '../themes';
 
+.multiselectRoot {
+  position: relative;
+  width: 100%;
+}
+
 .multiselect {
   width: 100% !important;
 }
 
 .errorField {
-  background-color: #ffcdd2 !important;
   width: 100% !important;
-  padding: 5px !important;
-}
-
-/* Ensure global selectors include a local class so CSS modules treat them as pure */
-:global(#app[dir='rtl']) .multiselectRoot :global(.p-multiselect-filter-container) {
-  margin-right: 10px !important;
-  float: right !important;
-  direction: rtl !important;
-}
-
-:global(#app[dir='rtl']) .multiselectRoot :global(.p-multiselect-trigger) {
-  left: 0 !important;
-  right: auto !important;
+  margin-top: 6px;
+  padding: 8px 12px !important;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  background: #fef2f2 !important;
+  color: #991b1b;
+  font-size: 13px;
 }
 
 .multiselectRoot :global(.p-multiselect) {
-  outline: none !important;
   width: 100% !important;
   min-width: 150px !important;
+  min-height: 44px;
+  border: 1px solid #d7dde5 !important;
+  border-radius: 12px !important;
+  background: #fff !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+  outline: none !important;
+  direction: rtl !important;
+  transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
+}
+
+.multiselectRoot :global(.p-multiselect:not(.p-disabled):hover) {
+  border-color: #10a274 !important;
+}
+
+.multiselectRoot :global(.p-multiselect.p-focus) {
+  border-color: #0f9f6e !important;
+  box-shadow: 0 0 0 3px rgba(15, 159, 110, 0.14) !important;
+}
+
+.multiselectRoot :global(.p-multiselect.p-disabled) {
+  background: #f3f4f6 !important;
+  color: #94a3b8 !important;
+  opacity: 1;
+}
+
+.multiselectRoot :global(.p-multiselect-label-container) {
+  min-width: 0;
+}
+
+.multiselectRoot :global(.p-multiselect-label) {
+  display: flex;
+  min-height: 42px;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px !important;
+  color: #1f2937;
+  font-size: 14px;
+  text-align: right;
+}
+
+.multiselectRoot :global(.p-multiselect-label.p-placeholder) {
+  color: #9ca3af;
+}
+
+.multiselectRoot :global(.p-multiselect-token) {
+  max-width: 180px;
+  margin: 0 !important;
+  padding: 4px 8px !important;
+  border: 1px solid #bbf7d0;
+  border-radius: 8px !important;
+  background: #ecfdf5 !important;
+  color: #166534 !important;
+  font-size: 12px;
+}
+
+.multiselectRoot :global(.p-multiselect-token-label) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.multiselectRoot :global(.p-multiselect-trigger) {
+  width: 42px !important;
+  color: #64748b !important;
+}
+
+.panelClassRight,
+.panelClassLeft {
+  overflow: hidden !important;
+  margin-top: 6px !important;
+  border: 1px solid #d7dde5 !important;
+  border-radius: 14px !important;
+  background: #fff !important;
+  box-shadow: 0 20px 45px rgba(15, 23, 42, 0.16) !important;
 }
 
 .panelClassRight {
   direction: rtl !important;
-  :global(.p-multiselect-close) {
-    margin-left: 0 !important;
-  }
-  :global(.p-multiselect-item .p-checkbox) {
-    margin: 0 0.5em 0 0.5em !important;
-  }
-  :global(.p-multiselect-filter-container) {
-    margin: 0 0.5em 0 0.5em !important;
-  }
-  :global(.p-multiselect-filter-container .p-inputtext) {
-    padding-left: 0 !important;
-    padding-right: 0.2em !important;
-    min-width: 300px !important;
-  }
-  :global(.p-multiselect-filter-container .p-multiselect-filter-icon) {
-    left: 0.5em !important;
-    right: auto !important;
-  }
 }
 
 .panelClassLeft {
   direction: ltr !important;
-  :global(.p-multiselect-close) {
-    margin-left: auto !important;
-  }
-  :global(.p-multiselect-item .p-checkbox) {
-    margin: 0 0.5em 0 0 !important;
-  }
-  :global(.p-multiselect-filter-container) {
-    margin: 0 0.5em 0 0.5em !important;
-  }
-  :global(.p-multiselect-filter-container .p-inputtext) {
-    padding-left: 0.5em !important;
-    padding-right: 2em !important;
-    min-width: 310px !important;
-  }
-  :global(.p-multiselect-filter-container .p-multiselect-filter-icon) {
-    left: auto !important;
-    right: 0.5em !important;
-  }
+}
+
+.panelClassRight :global(.p-multiselect-header),
+.panelClassLeft :global(.p-multiselect-header) {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px;
+  padding: 10px !important;
+  border-bottom: 1px solid #eef2f7 !important;
+  background: #f8fafc !important;
+}
+
+.panelClassRight :global(.p-multiselect-header) {
+  direction: rtl !important;
+}
+
+.panelClassRight :global(.p-multiselect-filter-container),
+.panelClassLeft :global(.p-multiselect-filter-container) {
+  flex: 1;
+  min-width: 0;
+  margin: 0 !important;
+}
+
+.panelClassRight :global(.p-multiselect-filter),
+.panelClassLeft :global(.p-multiselect-filter) {
+  width: 100% !important;
+  min-width: 0 !important;
+  height: 38px;
+  padding-inline: 34px 11px !important;
+  border: 1px solid #d7dde5 !important;
+  border-radius: 9px !important;
+  background: #fff !important;
+  box-shadow: none !important;
+  text-align: right;
+}
+
+.panelClassRight :global(.p-multiselect-filter:focus),
+.panelClassLeft :global(.p-multiselect-filter:focus) {
+  border-color: #0f9f6e !important;
+  box-shadow: 0 0 0 3px rgba(15, 159, 110, 0.12) !important;
+}
+
+.panelClassRight :global(.p-multiselect-filter-icon) {
+  right: auto !important;
+  left: 11px !important;
+  color: #94a3b8;
+}
+
+.panelClassRight :global(.p-multiselect-items-wrapper),
+.panelClassRight :global(.p-multiselect-items) {
+  direction: rtl !important;
+}
+
+.panelClassRight :global(.p-multiselect-items),
+.panelClassLeft :global(.p-multiselect-items) {
+  padding: 6px !important;
+}
+
+.panelClassRight :global(.p-multiselect-item),
+.panelClassLeft :global(.p-multiselect-item) {
+  display: flex !important;
+  min-height: 42px;
+  align-items: center !important;
+  padding: 9px 10px !important;
+  border-radius: 9px !important;
+  color: #273449 !important;
+  background: transparent !important;
+  font-size: 14px;
+  transition: background-color 140ms ease, color 140ms ease;
+}
+
+.panelClassRight :global(.p-multiselect-item) {
+  flex-direction: row !important;
+  direction: rtl !important;
+  text-align: right !important;
+}
+
+.panelClassRight :global(.p-multiselect-item .p-checkbox),
+.panelClassRight :global(.p-multiselect-header .p-checkbox) {
+  order: -1;
+  flex: 0 0 auto;
+  margin: 0 0 0 11px !important;
+}
+
+.panelClassRight :global(.p-multiselect-item > span) {
+  flex: 1;
+  min-width: 0;
+  text-align: right;
+}
+
+.panelClassRight :global(.p-checkbox-box),
+.panelClassLeft :global(.p-checkbox-box) {
+  width: 20px !important;
+  height: 20px !important;
+  border: 1.5px solid #cbd5e1 !important;
+  border-radius: 6px !important;
+  background: #fff !important;
+  box-shadow: none !important;
+}
+
+.panelClassRight :global(.p-checkbox-box.p-highlight),
+.panelClassLeft :global(.p-checkbox-box.p-highlight) {
+  border-color: #0f9f6e !important;
+  background: #0f9f6e !important;
+}
+
+.panelClassRight :global(.p-multiselect-item:hover),
+.panelClassLeft :global(.p-multiselect-item:hover) {
+  background: #f0fdf4 !important;
+  color: #14532d !important;
+}
+
+.panelClassRight :global(.p-multiselect-item.p-highlight),
+.panelClassLeft :global(.p-multiselect-item.p-highlight) {
+  background: #ecfdf5 !important;
+  color: #166534 !important;
+  font-weight: 600;
+}
+
+.panelClassRight :global(.p-multiselect-empty-message),
+.panelClassLeft :global(.p-multiselect-empty-message) {
+  padding: 18px 14px !important;
+  color: #64748b !important;
+  text-align: center !important;
 }
 
 .rotateEnterIcon {

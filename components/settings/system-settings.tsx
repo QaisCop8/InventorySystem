@@ -545,6 +545,7 @@ export function SystemSettings() {
 
       const result = await response.json()
       console.log("تم حفظ الإعدادات بنجاح:", result)
+      window.dispatchEvent(new CustomEvent("system-settings-updated", { detail: result }))
       Util.showSuccessMessage(message, "تم حفظ الإعدادات بنجاح")
     } catch (err) {
       console.error("Error saving settings:", err)

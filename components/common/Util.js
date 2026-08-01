@@ -810,13 +810,19 @@ const exportDefault = {
     }
 
     try {
-      const accessListRaw = localStorage.getItem('user_Access_List');
+      const savedUserRaw = localStorage.getItem("erp_user") || sessionStorage.getItem("erp_user");
+      const savedBranchRaw = sessionStorage.getItem("erp_active_branch") || localStorage.getItem("erp_active_branch");
+      const savedUser = savedUserRaw ? JSON.parse(savedUserRaw) : null;
+      const savedBranch = savedBranchRaw ? JSON.parse(savedBranchRaw) : null;
+      const userId = savedUser?.id ?? savedUser?.user_id;
+      const branchId = savedBranch?.id ?? savedUser?.branchId ?? savedUser?.branch_id ?? "default";
+      const scopedKey = userId ? `user_Access_List:${userId}:${branchId || "default"}` : null;
+      const accessListRaw = (scopedKey ? localStorage.getItem(scopedKey) : null) || localStorage.getItem('user_Access_List');
       const userAccessList = accessListRaw ? JSON.parse(accessListRaw) : null;
-      const savedUser = localStorage.getItem("erp_user") || sessionStorage.getItem("erp_user")
 
-      if (userAccessList) {
-        const userAccess = userAccessList.find((e) => e.access_id + '' === accessId + '' && e.is_granted === true);
-        return userAccess ? true : false;
+      if (Array.isArray(userAccessList)) {
+        const userAccess = userAccessList.find((entry) => entry.access_id + '' === accessId + '');
+        return userAccess?.is_granted === true || userAccess?.is_granted === 1 || userAccess?.is_granted === "true";
       }
     } catch (error) {
       console.warn("[Util] Failed to resolve user access", error);

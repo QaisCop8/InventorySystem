@@ -299,6 +299,124 @@
     color: #78350f !important;
   }
 
+  /* نمط أساسي عام مسطّح/حديث لكل PrimeDropdown بالتطبيق — لا ثيم بصري لـPrimeReact محمَّل بهذا
+     المشروع (لا primereact/resources/themes مستورَد)، فتظهر القوائم المنسدلة بلا أي تنسيق افتراضياً
+     خارج .invoice-currency-dropdown (تُطبَّق بأماكن محدودة فقط). !important هنا لضمان الأولوية على
+     الأنماط الهيكلية التي يحقنها PrimeReact وقت التشغيل (@layer primereact يُضاف لاحقاً بالمستند
+     فتفوز أنماطه غير الـ!important بترتيب الطبقات). .invoice-currency-dropdown الأكثر تخصيصاً تبقى
+     فوق هذا الأساس دون تغيير أينما استُخدمت. */
+  .p-dropdown {
+    width: 100%;
+    min-height: 42px;
+    border: 1px solid var(--border) !important;
+    border-radius: var(--radius) !important;
+    background: var(--card) !important;
+    box-shadow: none !important;
+    transition: border-color 150ms ease, box-shadow 150ms ease !important;
+  }
+
+  .p-dropdown:not(.p-disabled):hover {
+    border-color: color-mix(in srgb, var(--primary) 55%, var(--border)) !important;
+  }
+
+  .p-dropdown.p-focus {
+    border-color: var(--primary) !important;
+    box-shadow: 0 0 0 3px var(--ring) !important;
+  }
+
+  .p-dropdown.p-disabled {
+    opacity: 0.6 !important;
+    background: var(--muted) !important;
+    cursor: not-allowed !important;
+  }
+
+  .p-dropdown .p-dropdown-label {
+    min-height: 40px !important;
+    display: flex !important;
+    align-items: center !important;
+    padding-inline: 12px 36px !important;
+    color: var(--foreground) !important;
+    font-weight: 500 !important;
+  }
+
+  .p-dropdown .p-dropdown-label.p-placeholder {
+    color: var(--muted-foreground) !important;
+    font-weight: 400 !important;
+  }
+
+  .p-dropdown .p-dropdown-trigger,
+  .p-dropdown .p-dropdown-clear-icon {
+    color: var(--muted-foreground) !important;
+    width: 36px !important;
+  }
+
+  /* لا overflow/z-index هنا عمداً — بعض الصفحات (مثل unified-sale-invoices.css) تفرض overflow:
+     visible و z-index أعلى صراحةً لمنع اقتصاص اللوحة داخل نوافذ منبثقة متداخلة؛ إضافتهما هنا
+     !important قد تكسر تلك التخصيصات، وPrimeReact يُدير z-index تلقائياً وقت الفتح أصلاً. */
+  .p-dropdown-panel {
+    border: 1px solid var(--border) !important;
+    border-radius: var(--radius) !important;
+    background: var(--popover) !important;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.10) !important;
+  }
+
+  .p-dropdown-panel .p-dropdown-header {
+    padding: 10px !important;
+    background: var(--popover) !important;
+    border-bottom: 1px solid var(--border) !important;
+  }
+
+  .p-dropdown-panel .p-dropdown-filter-container {
+    direction: rtl;
+  }
+
+  .p-dropdown-panel .p-dropdown-filter {
+    min-height: 36px !important;
+    border: 1px solid var(--border) !important;
+    border-radius: calc(var(--radius) - 4px) !important;
+    background: var(--background) !important;
+    padding-inline: 12px 32px !important;
+    color: var(--foreground) !important;
+    box-shadow: none !important;
+  }
+
+  .p-dropdown-panel .p-dropdown-filter-icon,
+  .p-dropdown-panel .p-dropdown-filter-clear-icon {
+    color: var(--muted-foreground) !important;
+  }
+
+  .p-dropdown-panel .p-dropdown-items-wrapper {
+    max-height: 280px !important;
+  }
+
+  .p-dropdown-panel .p-dropdown-item {
+    padding: 10px 14px !important;
+    color: var(--foreground) !important;
+    background: transparent !important;
+  }
+
+  .p-dropdown-panel .p-dropdown-item:not(.p-disabled):hover,
+  .p-dropdown-panel .p-dropdown-item.p-focus {
+    background: var(--muted) !important;
+  }
+
+  .p-dropdown-panel .p-dropdown-item.p-highlight {
+    background: color-mix(in srgb, var(--primary) 14%, transparent) !important;
+    color: var(--primary) !important;
+    font-weight: 600 !important;
+  }
+
+  .p-dropdown-panel .p-dropdown-item.p-disabled {
+    color: var(--muted-foreground) !important;
+    cursor: not-allowed !important;
+  }
+
+  .p-dropdown-panel .p-dropdown-empty-message {
+    padding: 14px !important;
+    color: var(--muted-foreground) !important;
+    text-align: center !important;
+  }
+
   .invoice-currency-dropdown {
     width: 100% !important;
     min-height: 46px !important;

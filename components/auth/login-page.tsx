@@ -8,221 +8,148 @@ import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
+  AlertCircle,
+  ArrowLeft,
+  BarChart3,
+  Boxes,
+  Building2,
+  CheckCircle2,
   Eye,
   EyeOff,
-  Lock,
-  User,
-  AlertCircle,
-  LogIn,
+  LockKeyhole,
+  PackageCheck,
   ShieldCheck,
-  Sparkles,
+  TrendingUp,
+  UserRound,
 } from "lucide-react"
 
 interface LoginPageProps {
-  onLogin: (credentials: {
-    username: string
-    password: string
-    rememberMe: boolean
-  }) => void
+  onLogin: (credentials: { username: string; password: string; rememberMe: boolean }) => void | Promise<void>
 }
 
 export function LoginPage({ onLogin }: LoginPageProps) {
-  const [credentials, setCredentials] = useState({
-    username: "",
-    password: "",
-    rememberMe: false,
-  })
-
+  const [credentials, setCredentials] = useState({ username: "", password: "", rememberMe: false })
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
   const [showPasswordReset, setShowPasswordReset] = useState(false)
 
-  if (showPasswordReset) {
-    return <PasswordReset onBack={() => setShowPasswordReset(false)} />
-  }
+  if (showPasswordReset) return <PasswordReset onBack={() => setShowPasswordReset(false)} />
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault()
     setError("")
     setIsLoading(true)
-
     try {
       await onLogin(credentials)
-    } catch (err: any) {
-      setError(err.message || "حدث خطأ في تسجيل الدخول")
+    } catch (caughtError: unknown) {
+      setError(caughtError instanceof Error ? caughtError.message : "حدث خطأ في تسجيل الدخول")
     } finally {
       setIsLoading(false)
     }
   }
 
   return (
-    <div
-      dir="rtl"
-      className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 px-4 py-10"
-    >
-      {/* خلفية داكنة مع كتل ضوء ملوَّنة — تباين أقوى مع بطاقة الدخول الفاتحة في المنتصف. */}
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_15%_20%,rgba(99,102,241,0.18),transparent_45%),radial-gradient(circle_at_85%_15%,rgba(217,70,239,0.14),transparent_40%),radial-gradient(circle_at_50%_100%,rgba(34,211,238,0.1),transparent_45%)]" />
-      <div className="pointer-events-none absolute -top-32 left-1/4 h-96 w-96 rounded-full bg-indigo-500/20 blur-[110px]" />
-      <div className="pointer-events-none absolute bottom-0 right-1/4 h-[26rem] w-[26rem] rounded-full bg-fuchsia-500/15 blur-[130px]" />
+    <main dir="rtl" className="relative min-h-screen overflow-hidden bg-[#f4f7f6] px-4 py-6 text-slate-950 sm:px-6 lg:flex lg:items-center lg:justify-center lg:py-10">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_90%_10%,rgba(16,185,129,0.10),transparent_30%),radial-gradient(circle_at_10%_90%,rgba(14,116,144,0.08),transparent_32%)]" />
+      <div className="pointer-events-none absolute inset-0 opacity-[0.22] [background-image:linear-gradient(rgba(15,23,42,0.045)_1px,transparent_1px),linear-gradient(90deg,rgba(15,23,42,0.045)_1px,transparent_1px)] [background-size:32px_32px]" />
 
-      {/* رسمة خط زخرفية بموضوع إدارة الطلبيات (صندوق شحن + قائمة تدقيق + مؤشر نمو) وموضوع
-          محاسبي (فاتورة + عملات + مخطط بياني) — بديل صورة خارجية، شفافة جداً فوق الخلفية الداكنة. */}
-      <svg
-        className="pointer-events-none absolute -bottom-14 -left-14 h-[24rem] w-[24rem] text-indigo-200/[0.09] sm:-bottom-16 sm:-left-16 sm:h-[28rem] sm:w-[28rem]"
-        viewBox="0 0 200 200"
-        fill="none"
-        aria-hidden="true"
-      >
-        {/* صندوق شحن مكعّب */}
-        <polygon points="40,70 90,50 140,70 90,90" stroke="currentColor" strokeWidth="4" strokeLinejoin="round" />
-        <polygon points="40,70 90,90 90,150 40,130" stroke="currentColor" strokeWidth="4" strokeLinejoin="round" />
-        <polygon points="140,70 90,90 90,150 140,130" stroke="currentColor" strokeWidth="4" strokeLinejoin="round" />
-        <path d="M40,100 L90,120 L140,100" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-
-        {/* بطاقة باركود معلّقة */}
-        <rect x="12" y="138" width="32" height="20" rx="2.5" stroke="currentColor" strokeWidth="3" />
-        <path d="M18,142 v12 M23,142 v12 M28,142 v8 M33,142 v12 M38,142 v8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-        <path d="M40,130 L26,138" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-
-        {/* قائمة تدقيق الطلبية */}
-        <rect x="146" y="94" width="42" height="64" rx="6" stroke="currentColor" strokeWidth="4" />
-        <rect x="158" y="87" width="18" height="10" rx="3" stroke="currentColor" strokeWidth="4" />
-        <path d="M152,114 l4,4 l7,-8" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-        <path d="M167,114 h14" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-        <path d="M152,130 l4,4 l7,-8" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-        <path d="M167,130 h14" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-        <path d="M152,146 l4,4 l7,-8" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-        <path d="M167,146 h14" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-
-        {/* مؤشر نمو */}
-        <path d="M18,42 L45,26 L66,37 L92,14" stroke="currentColor" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
-        <path d="M76,14 L92,14 L92,29" stroke="currentColor" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-      <svg
-        className="pointer-events-none absolute -top-8 -right-8 h-64 w-64 text-fuchsia-200/[0.08] sm:h-80 sm:w-80"
-        viewBox="0 0 200 200"
-        fill="none"
-        aria-hidden="true"
-      >
-        {/* فاتورة/سند محاسبي */}
-        <rect x="108" y="14" width="72" height="96" rx="6" stroke="currentColor" strokeWidth="4" />
-        <path d="M122,34 h44 M122,47 h44 M122,60 h30" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
-        <path d="M122,84 h44" stroke="currentColor" strokeWidth="5" strokeLinecap="round" />
-
-        {/* عملات معدنية */}
-        <circle cx="104" cy="120" r="24" stroke="currentColor" strokeWidth="4" />
-        <circle cx="88" cy="132" r="24" stroke="currentColor" strokeWidth="4" />
-
-        {/* مخطط بياني */}
-        <path d="M45,178 h140" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
-        <path d="M60,178 v-24 M85,178 v-40 M110,178 v-15 M135,178 v-32 M160,178 v-20" stroke="currentColor" strokeWidth="6" strokeLinecap="round" />
-      </svg>
-
-      <div className="relative z-10 w-full max-w-md">
-        <div className="mb-7 flex flex-col items-center text-center">
-          <div className="relative mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 via-violet-500 to-fuchsia-500 shadow-[0_10px_35px_-8px_rgba(139,92,246,0.5)]">
-            <svg viewBox="0 0 24 24" className="h-8 w-8 text-white" aria-hidden="true">
-              <path
-                d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3zm0 2.3L6 8.2v7.6l6 2.9 6-2.9V8.2l-6-2.9z"
-                fill="currentColor"
-              />
-              <path d="M12 8.8l3.4 1.9v3.8L12 16.4l-3.4-1.9v-3.8L12 8.8z" fill="currentColor" opacity="0.65" />
-            </svg>
-            <span className="absolute -left-1.5 -top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-white shadow-md">
-              <Sparkles className="h-3.5 w-3.5 text-violet-600" />
-            </span>
-          </div>
-          <p className="text-xs font-medium tracking-[0.3em] text-indigo-300">ASAS ACCOUNTING SYSTEM</p>
-          <h1 className="mt-1 text-2xl font-bold text-white">أساس لإدارة الحلول المحاسبية</h1>
-          <p className="mt-2 max-w-xs text-sm leading-6 text-slate-300">
-            سجّل الدخول للمتابعة إلى لوحة النظام — منصة متكاملة بواجهة سريعة وآمنة
-          </p>
-        </div>
-
-        <div className="rounded-3xl border border-slate-200 bg-white/90 p-6 shadow-[0_25px_70px_-25px_rgba(15,23,42,0.25)] backdrop-blur-xl sm:p-8">
-          <form onSubmit={handleSubmit} className="space-y-5">
-            {error && (
-              <Alert className="border-red-200 bg-red-50">
-                <AlertCircle className="h-4 w-4 text-red-600" />
-                <AlertDescription className="text-red-700">{error}</AlertDescription>
-              </Alert>
-            )}
-
-            {/* Username */}
-            <div className="space-y-1.5">
-              <Label className="text-sm text-slate-700">اسم المستخدم أو البريد الإلكتروني</Label>
-              <div className="relative">
-                <User className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                <Input
-                  className="h-12 rounded-xl border-slate-200 bg-white pr-11 text-right text-slate-900 placeholder:text-slate-400 focus-visible:border-violet-400 focus-visible:ring-violet-500/30"
-                  value={credentials.username}
-                  onChange={(e) => setCredentials({ ...credentials, username: e.target.value })}
-                  required
-                />
+      <section className="relative z-10 mx-auto grid w-full max-w-6xl overflow-hidden rounded-[28px] border border-slate-200/80 bg-white shadow-[0_32px_90px_-42px_rgba(15,23,42,0.4)] lg:min-h-[700px] lg:grid-cols-[0.88fr_1.12fr]">
+        <div className="flex flex-col justify-between px-6 py-7 sm:px-10 sm:py-10 lg:px-14 lg:py-12">
+          <header className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-600 text-white shadow-lg shadow-emerald-600/20">
+                <Boxes className="h-5 w-5" />
+              </div>
+              <div>
+                <div className="text-base font-bold">نظام أساس</div>
+                <div className="text-[11px] font-medium tracking-[0.12em] text-slate-500">ASAS ERP</div>
               </div>
             </div>
+            <div className="flex items-center gap-1.5 rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />اتصال آمن
+            </div>
+          </header>
 
-            {/* Password */}
-            <div className="space-y-1.5">
-              <Label className="text-sm text-slate-700">كلمة المرور</Label>
-              <div className="relative">
-                <Lock className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                <Input
-                  type={showPassword ? "text" : "password"}
-                  className="h-12 rounded-xl border-slate-200 bg-white pl-11 pr-11 text-right text-slate-900 placeholder:text-slate-400 focus-visible:border-violet-400 focus-visible:ring-violet-500/30"
-                  value={credentials.password}
-                  onChange={(e) => setCredentials({ ...credentials, password: e.target.value })}
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 transition-colors hover:text-slate-600"
-                >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
+          <div className="mx-auto my-12 w-full max-w-md lg:my-8">
+            <div className="mb-8">
+              <p className="mb-2 text-sm font-semibold text-emerald-700">مرحباً بعودتك</p>
+              <h1 className="text-3xl font-bold tracking-tight text-slate-950 sm:text-[2.15rem]">سجّل الدخول إلى حسابك</h1>
+              <p className="mt-3 text-sm leading-7 text-slate-500">أدخل بياناتك للوصول إلى إدارة المخزون والطلبات والحسابات من مساحة عمل واحدة.</p>
             </div>
 
-            {/* Remember */}
-            <div className="flex items-center justify-between pt-1">
-              <div className="flex items-center gap-2">
-                <Switch
-                  checked={credentials.rememberMe}
-                  onCheckedChange={(v) => setCredentials({ ...credentials, rememberMe: v })}
-                />
-                <span className="text-sm text-slate-600">تذكرني</span>
-              </div>
-
-              <button type="button" className="text-sm text-violet-600 transition-colors hover:text-violet-700 hover:underline">
-                نسيت كلمة المرور؟
-              </button>
-            </div>
-
-            {/* Submit */}
-            <Button
-              type="submit"
-              disabled={isLoading}
-              className="h-12 w-full rounded-xl bg-gradient-to-l from-indigo-500 via-violet-500 to-fuchsia-500 text-white shadow-[0_14px_35px_-12px_rgba(139,92,246,0.5)] transition-transform hover:scale-[1.01] hover:opacity-95"
-            >
-              {isLoading ? (
-                <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-              ) : (
-                <div className="flex items-center gap-2">
-                  <LogIn className="h-4 w-4" />
-                  تسجيل الدخول
-                </div>
+            <form onSubmit={handleSubmit} className="space-y-5">
+              {error && (
+                <Alert className="rounded-xl border-red-200 bg-red-50 text-right">
+                  <AlertCircle className="h-4 w-4 text-red-600" />
+                  <AlertDescription className="text-red-700">{error}</AlertDescription>
+                </Alert>
               )}
-            </Button>
-          </form>
 
-          <div className="mt-6 flex items-center justify-center gap-2 border-t border-slate-200 pt-4 text-xs text-slate-500">
-            <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
-            اتصال مشفَّر وآمن — أساس (Asas) Accounting System
+              <div className="space-y-2">
+                <Label htmlFor="login-username" className="text-sm font-semibold text-slate-700">اسم المستخدم أو البريد الإلكتروني</Label>
+                <div className="relative">
+                  <UserRound className="pointer-events-none absolute right-4 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-slate-400" />
+                  <Input id="login-username" autoComplete="username" autoFocus value={credentials.username} onChange={(event) => setCredentials((current) => ({ ...current, username: event.target.value }))} placeholder="أدخل اسم المستخدم" className="h-12 rounded-xl border-slate-200 bg-slate-50/70 pr-11 text-right text-slate-950 placeholder:text-slate-400 focus-visible:border-emerald-500 focus-visible:bg-white focus-visible:ring-emerald-500/15" required />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="login-password" className="text-sm font-semibold text-slate-700">كلمة المرور</Label>
+                  <button type="button" onClick={() => setShowPasswordReset(true)} className="text-xs font-semibold text-emerald-700 transition-colors hover:text-emerald-800 hover:underline">نسيت كلمة المرور؟</button>
+                </div>
+                <div className="relative">
+                  <LockKeyhole className="pointer-events-none absolute right-4 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-slate-400" />
+                  <Input id="login-password" type={showPassword ? "text" : "password"} autoComplete="current-password" value={credentials.password} onChange={(event) => setCredentials((current) => ({ ...current, password: event.target.value }))} placeholder="أدخل كلمة المرور" className="h-12 rounded-xl border-slate-200 bg-slate-50/70 pl-12 pr-11 text-right text-slate-950 placeholder:text-slate-400 focus-visible:border-emerald-500 focus-visible:bg-white focus-visible:ring-emerald-500/15" required />
+                  <button type="button" onClick={() => setShowPassword((current) => !current)} className="absolute left-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700" aria-label={showPassword ? "إخفاء كلمة المرور" : "إظهار كلمة المرور"}>
+                    {showPassword ? <EyeOff className="h-[18px] w-[18px]" /> : <Eye className="h-[18px] w-[18px]" />}
+                  </button>
+                </div>
+              </div>
+
+              <label className="flex cursor-pointer items-center gap-2.5 py-1 text-sm text-slate-600">
+                <Switch checked={credentials.rememberMe} onCheckedChange={(rememberMe) => setCredentials((current) => ({ ...current, rememberMe }))} />
+                الاحتفاظ بتسجيل الدخول على هذا الجهاز
+              </label>
+
+              <Button type="submit" disabled={isLoading} className="group h-12 w-full rounded-xl bg-emerald-600 text-sm font-bold text-white shadow-lg shadow-emerald-600/15 transition-all hover:-translate-y-0.5 hover:bg-emerald-700 hover:shadow-xl hover:shadow-emerald-600/20">
+                {isLoading ? <><span className="ml-2 h-4 w-4 animate-spin rounded-full border-2 border-white/35 border-t-white" />جاري التحقق...</> : <>دخول إلى النظام<ArrowLeft className="mr-2 h-4 w-4 transition-transform group-hover:-translate-x-1" /></>}
+              </Button>
+            </form>
           </div>
+
+          <footer className="flex items-center justify-between gap-4 border-t border-slate-100 pt-5 text-[11px] text-slate-400">
+            <span>© {new Date().getFullYear()} نظام أساس</span>
+            <span className="flex items-center gap-1.5"><ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />بياناتك محمية ومشفّرة</span>
+          </footer>
         </div>
-      </div>
-    </div>
+
+        <aside className="relative hidden overflow-hidden bg-[#0b2420] p-10 text-white lg:flex lg:flex-col lg:justify-between xl:p-14">
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_15%,rgba(52,211,153,0.22),transparent_32%),radial-gradient(circle_at_85%_85%,rgba(14,116,144,0.28),transparent_38%)]" />
+          <div className="pointer-events-none absolute inset-0 opacity-[0.08] [background-image:linear-gradient(rgba(255,255,255,0.35)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.35)_1px,transparent_1px)] [background-size:38px_38px]" />
+
+          <div className="relative z-10 max-w-lg">
+            <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-emerald-100 backdrop-blur"><CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />إدارة مترابطة، قرارات أوضح</div>
+            <h2 className="text-3xl font-bold leading-[1.45] xl:text-[2.4rem]">كل عمليات شركتك<br />في لوحة واحدة ذكية.</h2>
+            <p className="mt-4 max-w-md text-sm leading-7 text-slate-300">تابع المخزون، نفّذ الطلبات، وراقب الأداء المالي لحظة بلحظة عبر الفروع.</p>
+          </div>
+
+          <div className="relative z-10 my-10 rounded-[26px] border border-white/10 bg-white/[0.07] p-5 shadow-2xl backdrop-blur-md">
+            <div className="mb-5 flex items-center justify-between"><div><div className="text-sm font-semibold">نظرة عامة</div><div className="mt-1 text-xs text-slate-400">أداء الفروع اليوم</div></div><div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-400/15 text-emerald-300"><BarChart3 className="h-4 w-4" /></div></div>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="rounded-2xl bg-white/[0.07] p-3"><PackageCheck className="mb-3 h-4 w-4 text-emerald-300" /><div className="text-xl font-bold">128</div><div className="mt-1 text-[10px] text-slate-400">طلبية مكتملة</div></div>
+              <div className="rounded-2xl bg-white/[0.07] p-3"><Building2 className="mb-3 h-4 w-4 text-cyan-300" /><div className="text-xl font-bold">6</div><div className="mt-1 text-[10px] text-slate-400">فروع نشطة</div></div>
+              <div className="rounded-2xl bg-white/[0.07] p-3"><TrendingUp className="mb-3 h-4 w-4 text-amber-300" /><div className="text-xl font-bold">+18%</div><div className="mt-1 text-[10px] text-slate-400">نمو المبيعات</div></div>
+            </div>
+            <div className="mt-4 flex h-24 items-end gap-2 rounded-2xl bg-black/10 px-4 pb-3 pt-5" aria-hidden="true">
+              {[38, 55, 44, 72, 58, 84, 68, 92, 78, 100].map((height, index) => <div key={index} className="flex-1 rounded-t-md bg-gradient-to-t from-emerald-500/50 to-emerald-300" style={{ height: `${height}%` }} />)}
+            </div>
+          </div>
+
+          <div className="relative z-10 flex items-center gap-3 border-t border-white/10 pt-5 text-xs text-slate-300"><ShieldCheck className="h-4 w-4 text-emerald-400" />صلاحيات دقيقة لكل مستخدم وفرع</div>
+        </aside>
+      </section>
+    </main>
   )
 }

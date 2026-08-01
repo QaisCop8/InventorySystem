@@ -1,8 +1,10 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { ArrowRight, BarChart3, BellRing, CircleDollarSign, Clock3, Package, Sparkles, TrendingUp, Users2, Wallet2, CreditCard, FilePlus, ShoppingCart, UserPlus, PieChart as PieChartIcon } from "lucide-react"
+import { ArrowRight, BarChart3, BellRing, CircleDollarSign, Clock3, Package, Sparkles, TrendingUp, AlertTriangle, CheckCircle2, Users2, Wallet2, CreditCard, FilePlus, ShoppingCart, UserPlus, PieChart as PieChartIcon } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
+import { useExchangeRates } from "@/hooks/use-swr-data"
+import { getFirstCurrencyLabel } from "@/lib/currency-display"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ResponsiveContainer, BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell, Legend } from "recharts"
@@ -13,7 +15,7 @@ interface WelcomeDashboardProps {
 
 const quickActions = [
   { label: "طلبيات المبيعات", section: "sales-orders", icon: TrendingUp },
-  { label: "المنتجات", section: "products", icon: Package },
+  { label: "الأصناف", section: "products", icon: Package },
   { label: "العملاء", section: "customers", icon: Users2 },
   { label: "الحسابات", section: "accounts", icon: Wallet2 },
 ]
@@ -21,7 +23,7 @@ const quickActions = [
 const monthNames = ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"]
 
 const formatCurrency = (value: number) =>
-  new Intl.NumberFormat("ar-SA", {
+  new Intl.NumberFormat("en-US", {
     maximumFractionDigits: 0,
   }).format(value)
 
@@ -169,6 +171,8 @@ const buildDailyCombinedData = (orders: any[], vouchers: any[], monthKey?: strin
 }
 
 export default function WelcomeDashboard({ onOpenSection }: WelcomeDashboardProps) {
+  const { rates: currencies } = useExchangeRates()
+  const currencyLabel = getFirstCurrencyLabel(currencies)
   const [monthlyOrdersData, setMonthlyOrdersData] = useState<Array<{ key: string; month: string; orders: number }>>([])
   const [monthlySalesData, setMonthlySalesData] = useState<Array<{ key: string; month: string; sales: number }>>([])
   const [ordersData, setOrdersData] = useState<any[]>([])
@@ -183,6 +187,74 @@ export default function WelcomeDashboard({ onOpenSection }: WelcomeDashboardProp
     { title: "جارٍ تحميل أحدث النشاط…", time: "الآن", accent: "bg-sky-500" },
   ])
   const [loading, setLoading] = useState(true)
+  const [companyName, setCompanyName] = useState("")
+  const [companyAddress, setCompanyAddress] = useState("")
+  const [companyInfoLoading, setCompanyInfoLoading] = useState(true)
+  const [insightsData, setInsightsData] = useState<{
+    months: Array<{ monthKey: string; revenue: number; cogs: number }>
+    cashBalance: number
+    dailyBurn: number
+  }>({ months: [], cashBalance: 0, dailyBurn: 0 })
+
+  useEffect(() => {
+    fetch("/api/dashboard/insights")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!data) return
+        setInsightsData({
+          months: Array.isArray(data.months) ? data.months : [],
+          cashBalance: Number(data.cashBalance) || 0,
+          dailyBurn: Number(data.dailyBurn) || 0,
+        })
+      })
+      .catch(() => {
+        // تجاهل — تبقى بطاقات الرؤى بحالتها الافتراضية (بيانات غير كافية) إن تعذر التحميل
+      })
+  }, [])
+
+  useEffect(() => {
+    let isActive = true
+
+    const applyCompanySettings = (data: any) => {
+      const settings = data?.settings ?? data
+      if (!isActive || !settings || typeof settings !== "object") return
+
+      setCompanyName(String(settings.company_name ?? "").trim())
+      setCompanyAddress(String(settings.company_address ?? "").trim())
+    }
+
+    const loadCompanySettings = () => {
+      fetch("/api/settings/system", { cache: "no-store" })
+        .then((res) => (res.ok ? res.json() : null))
+        .then(applyCompanySettings)
+        .catch(() => {
+          // تجاهل — تبقى القيم الافتراضية إن تعذر تحميل إعدادات النظام
+        })
+        .finally(() => {
+          if (isActive) setCompanyInfoLoading(false)
+        })
+    }
+
+    const handleSettingsUpdate = (event: Event) => {
+      const updatedSettings = (event as CustomEvent).detail
+      if (updatedSettings) {
+        applyCompanySettings(updatedSettings)
+        setCompanyInfoLoading(false)
+      } else {
+        loadCompanySettings()
+      }
+    }
+
+    loadCompanySettings()
+    window.addEventListener("focus", loadCompanySettings)
+    window.addEventListener("system-settings-updated", handleSettingsUpdate)
+
+    return () => {
+      isActive = false
+      window.removeEventListener("focus", loadCompanySettings)
+      window.removeEventListener("system-settings-updated", handleSettingsUpdate)
+    }
+  }, [])
 
   useEffect(() => {
     const loadDashboardData = async () => {
@@ -277,28 +349,28 @@ export default function WelcomeDashboard({ onOpenSection }: WelcomeDashboardProp
   const statCards = [
     {
       title: "المبيعات اليوم",
-      value: `${formatCurrency(salesToday)} ر.س`,
+      value: `${formatCurrency(salesToday)} ${currencyLabel}`.trim(),
       change: loading ? "جارٍ التحميل…" : "+من السندات",
       icon: CircleDollarSign,
       tone: "from-emerald-500 to-emerald-600",
     },
     {
       title: "الطلبات المعلقة",
-      value: pendingOrders.toString(),
+      value: formatCurrency(pendingOrders),
       change: loading ? "جارٍ التحميل…" : "من الطلبات",
       icon: Clock3,
       tone: "from-amber-500 to-orange-500",
     },
     {
       title: "الطلبات هذا الشهر",
-      value: monthlyOrdersData.reduce((sum, item) => sum + item.orders, 0).toString(),
+      value: formatCurrency(monthlyOrdersData.reduce((sum, item) => sum + item.orders, 0)),
       change: loading ? "جارٍ التحميل…" : "من جدول الطلبات",
       icon: Users2,
       tone: "from-sky-500 to-blue-600",
     },
     {
       title: "إجمالي المبيعات",
-      value: `${formatCurrency(monthlySalesData.reduce((sum, item) => sum + item.sales, 0))} ر.س`,
+      value: `${formatCurrency(monthlySalesData.reduce((sum, item) => sum + item.sales, 0))} ${currencyLabel}`.trim(),
       change: loading ? "جارٍ التحميل…" : "من جدول السندات",
       icon: Package,
       tone: "from-violet-500 to-fuchsia-600",
@@ -309,7 +381,7 @@ export default function WelcomeDashboard({ onOpenSection }: WelcomeDashboardProp
     { label: "إضافة عميل", section: "customers", icon: UserPlus, tone: "from-sky-500 to-blue-600" },
     { label: "إنشاء فاتورة", section: "sale-invoices", icon: FilePlus, tone: "from-emerald-500 to-teal-600" },
     { label: "إنشاء طلب", section: "sales-orders", icon: ShoppingCart, tone: "from-orange-500 to-amber-600" },
-    { label: "إدخال منتج", section: "products", icon: Package, tone: "from-violet-500 to-fuchsia-600" },
+    { label: "إدخال صنف", section: "products", icon: Package, tone: "from-violet-500 to-fuchsia-600" },
     { label: "إدخال دفع", section: "accounts", icon: CreditCard, tone: "from-emerald-500 to-green-600" },
     { label: "الحسابات", section: "accounts", icon: Wallet2, tone: "from-sky-500 to-indigo-600" },
     { label: "تقارير المبيعات", section: "order-reports", icon: BarChart3, tone: "from-amber-500 to-orange-500" },
@@ -331,6 +403,75 @@ export default function WelcomeDashboard({ onOpenSection }: WelcomeDashboardProp
 
   const pieColors = ["#0ea5e9", "#10b981", "#f59e0b", "#d946ef"]
 
+  type InsightSeverity = "critical" | "warning" | "good" | "neutral"
+
+  const severityStyles: Record<InsightSeverity, { emoji: string; border: string; bg: string; text: string; iconBg: string; icon: typeof TrendingUp }> = {
+    critical: { emoji: "🔴", border: "border-red-200", bg: "bg-red-50", text: "text-red-700", iconBg: "bg-red-100 text-red-600", icon: AlertTriangle },
+    warning: { emoji: "🟡", border: "border-amber-200", bg: "bg-amber-50", text: "text-amber-700", iconBg: "bg-amber-100 text-amber-600", icon: AlertTriangle },
+    good: { emoji: "🟢", border: "border-emerald-200", bg: "bg-emerald-50", text: "text-emerald-700", iconBg: "bg-emerald-100 text-emerald-600", icon: CheckCircle2 },
+    neutral: { emoji: "⚪", border: "border-border/60", bg: "bg-slate-50", text: "text-slate-600", iconBg: "bg-slate-100 text-slate-500", icon: TrendingUp },
+  }
+
+  const marginMonths = insightsData.months
+  const marginPct = (m?: { revenue: number; cogs: number }) =>
+    m && m.revenue > 0 ? ((m.revenue - m.cogs) / m.revenue) * 100 : null
+  const marginThisMonth = marginPct(marginMonths[marginMonths.length - 1])
+  const marginLastMonth = marginPct(marginMonths[marginMonths.length - 2])
+  const marginChangePts = marginThisMonth != null && marginLastMonth != null ? marginThisMonth - marginLastMonth : null
+
+  const runwayDays = insightsData.dailyBurn > 0 ? Math.max(0, Math.round(insightsData.cashBalance / insightsData.dailyBurn)) : null
+
+  const lastTwoMonthsSales = monthlySalesData.slice(-2)
+  const revenueThisMonth = lastTwoMonthsSales[1]?.sales ?? 0
+  const revenueLastMonth = lastTwoMonthsSales[0]?.sales ?? 0
+  const revenueGrowthPct = revenueLastMonth > 0 ? ((revenueThisMonth - revenueLastMonth) / revenueLastMonth) * 100 : null
+
+  const smartInsights: Array<{ severity: InsightSeverity; title: string; message: string }> = [
+    (() => {
+      if (loading) return { severity: "neutral" as const, title: "السيولة النقدية", message: "جارٍ تحميل بيانات السيولة…" }
+      if (insightsData.dailyBurn <= 0) {
+        return insightsData.cashBalance > 0
+          ? { severity: "good" as const, title: "السيولة النقدية", message: "لا يوجد استهلاك نقدي ملحوظ خلال آخر 30 يوماً" }
+          : { severity: "neutral" as const, title: "السيولة النقدية", message: "لا توجد بيانات كافية من سندات القبض والصرف بعد" }
+      }
+      if (insightsData.cashBalance <= 0) {
+        return { severity: "critical" as const, title: "السيولة النقدية", message: "الرصيد النقدي التقديري صفر أو سالب — راجع سندات القبض والصرف" }
+      }
+      const days = runwayDays ?? 0
+      const severity: InsightSeverity = days < 30 ? "critical" : days < 90 ? "warning" : "good"
+      return { severity, title: "السيولة النقدية", message: `لديك سيولة تكفي لـ ${days} يوماً بمعدل الصرف الحالي` }
+    })(),
+    (() => {
+      if (loading) return { severity: "neutral" as const, title: "هامش الربح", message: "جارٍ تحميل بيانات الهامش…" }
+      if (marginThisMonth == null) {
+        return { severity: "neutral" as const, title: "هامش الربح", message: "لا توجد مبيعات كافية هذا الشهر لحساب هامش الربح" }
+      }
+      if (marginChangePts == null) {
+        return { severity: "neutral" as const, title: "هامش الربح", message: `هامش الربح الإجمالي الحالي ${marginThisMonth.toFixed(1)}%` }
+      }
+      if (marginChangePts <= -3) {
+        return { severity: "critical" as const, title: "تحذير هامش الربح", message: `انخفض هامش الربح الإجمالي بنسبة ${Math.abs(marginChangePts).toFixed(1)}% هذا الشهر` }
+      }
+      if (marginChangePts >= 3) {
+        return { severity: "good" as const, title: "هامش الربح", message: `تحسّن هامش الربح الإجمالي بنسبة ${marginChangePts.toFixed(1)}% هذا الشهر` }
+      }
+      return { severity: "warning" as const, title: "هامش الربح", message: `هامش الربح الإجمالي مستقر عند ${marginThisMonth.toFixed(1)}% هذا الشهر` }
+    })(),
+    (() => {
+      if (loading) return { severity: "neutral" as const, title: "نمو الإيرادات", message: "جارٍ تحميل بيانات الإيرادات…" }
+      if (revenueGrowthPct == null) {
+        return { severity: "neutral" as const, title: "نمو الإيرادات", message: "لا توجد بيانات كافية لمقارنة نمو الإيرادات" }
+      }
+      if (revenueGrowthPct > 1) {
+        return { severity: "good" as const, title: "نمو الإيرادات", message: `+${revenueGrowthPct.toFixed(1)}% مقارنة بالشهر الماضي` }
+      }
+      if (revenueGrowthPct < -1) {
+        return { severity: "critical" as const, title: "تراجع الإيرادات", message: `${revenueGrowthPct.toFixed(1)}% مقارنة بالشهر الماضي` }
+      }
+      return { severity: "warning" as const, title: "نمو الإيرادات", message: "الإيرادات مستقرة مقارنة بالشهر الماضي" }
+    })(),
+  ]
+
   return (
     <div className="min-h-full rounded-[28px] border border-border/60 bg-white p-4 text-slate-900 shadow-sm sm:p-6 lg:p-8" dir="rtl">
       <div className="grid gap-6">
@@ -338,14 +479,22 @@ export default function WelcomeDashboard({ onOpenSection }: WelcomeDashboardProp
           <CardContent className="space-y-6 p-6 sm:p-8">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div>
-                <Badge className="rounded-full border-border/60 bg-slate-100 px-3 py-1 text-sm text-slate-700">
-                  <Sparkles className="ml-1 h-4 w-4" />
-                  لوحة تحكم الأساس
-                </Badge>
-                <h2 className="mt-3 text-3xl font-bold text-slate-900 sm:text-4xl">رأس الصفحة الرئيسية</h2>
-                <p className="mt-2 max-w-2xl text-sm leading-7 text-slate-600 sm:text-base">
-                  تصفح أهم العمليات التشغيلية والمبيعات والمخزون من لوحة واحدة مع الوصول السريع للأقسام الرئيسية.
-                </p>
+                
+                {companyInfoLoading ? (
+                  <div className="mt-4 space-y-3" aria-label="جارٍ تحميل معلومات الشركة">
+                    <div className="h-10 w-72 max-w-full animate-pulse rounded-xl bg-slate-200" />
+                    <div className="h-5 w-96 max-w-full animate-pulse rounded-lg bg-slate-100" />
+                  </div>
+                ) : (
+                  <>
+                    <h2 className="mt-3 text-3xl font-bold text-slate-900 sm:text-4xl">
+                      {companyName || "لم يتم تحديد اسم الشركة"}
+                    </h2>
+                    <p className="mt-2 max-w-2xl whitespace-pre-line text-sm leading-7 text-slate-600 sm:text-base">
+                      {companyAddress || "لم يتم تحديد عنوان الشركة"}
+                    </p>
+                  </>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -392,6 +541,34 @@ export default function WelcomeDashboard({ onOpenSection }: WelcomeDashboardProp
           </CardContent>
         </Card>
 
+        <Card className="border-border/60 bg-white shadow-sm">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-slate-900">
+              <Sparkles className="h-5 w-5 text-slate-800" />
+              لوحة الرؤى الذكية
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-3 p-6 sm:grid-cols-3">
+            {smartInsights.map((insight) => {
+              const style = severityStyles[insight.severity]
+              const Icon = style.icon
+              return (
+                <div key={insight.title} className={`rounded-3xl border ${style.border} ${style.bg} p-4`}>
+                  <div className="flex items-center gap-2">
+                    <span className={`inline-flex h-8 w-8 items-center justify-center rounded-xl ${style.iconBg}`}>
+                      <Icon className="h-4 w-4" />
+                    </span>
+                    <p className="text-sm font-semibold text-slate-900">
+                      {style.emoji} {insight.title}
+                    </p>
+                  </div>
+                  <p className={`mt-3 text-sm leading-6 ${style.text}`}>{insight.message}</p>
+                </div>
+              )
+            })}
+          </CardContent>
+        </Card>
+
         <div className="grid gap-6 xl:grid-cols-[1.3fr_0.7fr]">
           <Card className="border-border/60 bg-white shadow-sm">
             <CardHeader>
@@ -405,8 +582,13 @@ export default function WelcomeDashboard({ onOpenSection }: WelcomeDashboardProp
                 <BarChart data={monthlySalesData} margin={{ left: 0, right: 0, top: 10, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                   <XAxis dataKey="month" tickLine={false} axisLine={false} tick={{ fill: "#64748b", fontSize: 12 }} />
-                  <YAxis tickLine={false} axisLine={false} tick={{ fill: "#64748b", fontSize: 12 }} />
-                  <Tooltip />
+                  <YAxis
+                    tickLine={false}
+                    axisLine={false}
+                    tick={{ fill: "#64748b", fontSize: 12 }}
+                    tickFormatter={(value) => formatCurrency(Number(value))}
+                  />
+                  <Tooltip formatter={(value) => formatCurrency(Number(value))} />
                   <Bar dataKey="sales" fill="#2563eb" radius={[8, 8, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
@@ -449,7 +631,7 @@ export default function WelcomeDashboard({ onOpenSection }: WelcomeDashboardProp
                   <div className="flex items-center justify-between gap-4">
                     <div>
                       <p className="text-sm text-slate-500">{item.name}</p>
-                      <p className="mt-2 text-xl font-semibold text-slate-900">{item.value}%</p>
+                      <p className="mt-2 text-xl font-semibold text-slate-900">{formatCurrency(item.value)}%</p>
                     </div>
                     <div className={`h-3 w-16 rounded-full bg-gradient-to-r ${pieColors[index % pieColors.length]} `} />
                   </div>
@@ -468,12 +650,14 @@ export default function WelcomeDashboard({ onOpenSection }: WelcomeDashboardProp
             <CardContent className="space-y-3 p-6">
               <div className="rounded-3xl border border-border/60 bg-white p-4">
                 <h3 className="text-sm font-semibold text-slate-900">الطلبات المعلقة</h3>
-                <p className="mt-1 text-3xl font-bold text-orange-600">{pendingOrders}</p>
+                <p className="mt-1 text-3xl font-bold text-orange-600">{formatCurrency(pendingOrders)}</p>
                 <p className="text-sm text-slate-500">طلبات لم يتم الانتهاء منها بعد</p>
               </div>
               <div className="rounded-3xl border border-border/60 bg-white p-4">
                 <h3 className="text-sm font-semibold text-slate-900">الإيرادات اليوم</h3>
-                <p className="mt-1 text-3xl font-bold text-emerald-600">{formatCurrency(salesToday)} ر.س</p>
+                <p className="mt-1 text-3xl font-bold text-emerald-600">
+                  {formatCurrency(salesToday)} {currencyLabel}
+                </p>
                 <p className="text-sm text-slate-500">إجمالي السندات لهذا اليوم</p>
               </div>
             </CardContent>

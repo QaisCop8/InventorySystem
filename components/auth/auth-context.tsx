@@ -33,6 +33,7 @@ interface AuthContextType {
   activeBranchId: number | null
   activeBranchName: string | null
   activeDepartment: string | null
+  permissionVersion: number
   login: (credentials: { username: string; password: string; rememberMe: boolean }) => Promise<void>
   logout: () => void
   hasPermission: (permission: string) => boolean
@@ -63,6 +64,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [activeBranchId, setActiveBranchId] = useState<number | null>(null)
   const [activeBranchName, setActiveBranchName] = useState<string | null>(null)
   const [activeDepartment, setActiveDepartment] = useState<string | null>(null)
+  const [permissionVersion, setPermissionVersion] = useState(0)
 
   useEffect(() => {
     // يُلحق كل طلب fetch من هذا التبويب بهيدر x-tenant-db (إن وُجدت شركة مُختارة له في
@@ -132,14 +134,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
           // Check if session is still valid (24 hours)
           if (now - sessionData.timestamp < 24 * 60 * 60 * 1000) {
             const userData = JSON.parse(savedUser)
-            setUser(userData)
-            setIsAuthenticated(true)
 
+            let permissionBranchId: number | null = userData?.branchId ?? null
             if (savedBranch) {
               try {
                 const parsedBranch = JSON.parse(savedBranch)
                 setActiveBranchId(parsedBranch?.id ?? null)
                 setActiveBranchName(parsedBranch?.name ?? null)
+                permissionBranchId = parsedBranch?.id ?? permissionBranchId
               } catch {
                 setActiveBranchId(null)
                 setActiveBranchName(null)
@@ -167,10 +169,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
             // بعد التبديل بين الشركات (activateCompany يُتبَع دوماً بإعادة تحميل/تنقّل كامل يُعيد
             // تركيب AuthProvider)، وبلا هذا التحديث تبقى صلاحيات الشركة السابقة معروضة خطأً هنا.
             try {
-              await refreshUserPermissions(userData.id)
+              await refreshUserPermissions(userData.id, permissionBranchId)
             } catch (permError) {
               console.error("[v0] Failed to refresh permissions on init:", permError)
             }
+            setUser(userData)
+            setIsAuthenticated(true)
           } else {
             clearAuthData()
           }
@@ -240,6 +244,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }
 
   const setActiveBranchContext = (branch: { id: number; name: string } | null) => {
+    if (branch && user) {
+      void refreshUserPermissions(user.id, branch.id)
+        .then(() => {
+          setActiveBranchId(branch.id)
+          setActiveBranchName(branch.name)
+          persistBranchContext(branch, activeDepartment)
+        })
+        .catch((error) => console.error("[auth] Failed to switch branch permissions", error))
+      return
+    }
     setActiveBranchId(branch?.id ?? null)
     setActiveBranchName(branch?.name ?? null)
     persistBranchContext(branch, activeDepartment)
@@ -249,11 +263,20 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setActiveDepartment(department)
     persistBranchContext(activeBranchId ? { id: activeBranchId, name: activeBranchName || "" } : null, department)
   }
-  const refreshUserPermissions = async (userId: string) => {
+  const refreshUserPermissions = async (userId: string, branchId?: number | null) => {
     try {
-      localStorage.removeItem('user_Access_List');
-      const res = await fetch(`/api/settings/user/user-access?userId=${userId}`)
+      let resolvedBranchId = Number(branchId) || null
+      if (!resolvedBranchId) {
+        const storedBranch = sessionStorage.getItem("erp_active_branch") || localStorage.getItem("erp_active_branch")
+        if (storedBranch) {
+          try { resolvedBranchId = Number(JSON.parse(storedBranch)?.id) || null } catch { resolvedBranchId = null }
+        }
+      }
+      const branchQuery = resolvedBranchId ? `&branchId=${resolvedBranchId}` : ""
+      const res = await fetch(`/api/settings/user/user-access?userId=${encodeURIComponent(userId)}${branchQuery}`)
+      if (!res.ok) throw new Error(`Failed to load permissions (${res.status})`)
       const data: AccessItem[] = await res.json()
+      if (!Array.isArray(data)) throw new Error("Invalid permissions response")
       console.log("[v0] Fetched user permissions:", data)
       const ua: Record<string, Record<string, boolean>> = {}
       data.forEach(item => {
@@ -261,11 +284,26 @@ export function AuthProvider({ children }: AuthProviderProps) {
         ua[key] = { view: !!item.is_granted } // extend for more actions if needed
       })
       localStorage.setItem('user_Access_List', JSON.stringify(data))
+      localStorage.setItem(`user_Access_List:${userId}:${resolvedBranchId || "default"}`, JSON.stringify(data))
+      setPermissionVersion((current) => current + 1)
+      window.dispatchEvent(new CustomEvent("user-permissions-updated", { detail: { userId, branchId: resolvedBranchId } }))
     } catch (error) {
       console.error("[v0] Failed to refresh permissions:", error)
       throw error
     }
   }
+
+  useEffect(() => {
+    const handlePermissionsChanged = (event: Event) => {
+      const detail = (event as CustomEvent<{ userId?: string; branchId?: number }>).detail
+      if (!user?.id || String(detail?.userId) !== String(user.id)) return
+      if (detail?.branchId && activeBranchId && Number(detail.branchId) !== Number(activeBranchId)) return
+      void refreshUserPermissions(user.id, detail?.branchId || activeBranchId)
+    }
+
+    window.addEventListener("user-permissions-changed", handlePermissionsChanged)
+    return () => window.removeEventListener("user-permissions-changed", handlePermissionsChanged)
+  }, [user?.id, activeBranchId])
 
 
 
@@ -292,7 +330,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
           console.error("[v0] Failed to sync permission definitions on login:", syncError)
         }
         try {
-          await refreshUserPermissions(result.user.id)
+          const loginBranchId = Number(result.user.branchId) || null
+          if (loginBranchId) {
+            const loginBranch = { id: loginBranchId, name: result.user.branchName || "" }
+            setActiveBranchId(loginBranch.id)
+            setActiveBranchName(loginBranch.name)
+            persistBranchContext(loginBranch, result.user.department || null)
+          }
+          await refreshUserPermissions(result.user.id, loginBranchId)
         } catch (permError) {
           console.error("[v0] Failed to refresh permissions on login:", permError)
         }
@@ -372,6 +417,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
       clearAuthData()
       if (typeof window !== "undefined") {
         sessionStorage.clear()
+        // active_tenant_db بـlocalStorage (قيمة افتراضية مشتركة لتبويبات جديدة — انظر tenant-
+        // client.ts) لا يمسحها sessionStorage.clear() أعلاه؛ بقاؤها يجعل ProtectedRoute يظن أن
+        // شركة ما زالت "مُختارة" فيومض بنموذج الدخول المحلي للحظة قبل أن يكتمل التحويل لتسجيل دخول
+        // الإدارة بالسطر التالي. مسحها هنا يمنع ذلك الوميض تماماً.
+        localStorage.removeItem("active_tenant_db")
+        localStorage.removeItem("active_company_id")
         // تسجيل الخروج من تطبيق شركة بعينها يعود دوماً لتسجيل الدخول بنظام إدارة الشركات، لا لصفحة
         // الدخول المحلية لهذا التطبيق — فهذا التطبيق أصبح يُفتح فقط عبر اختيار شركة من هناك.
         window.location.href = "/management/login"
@@ -383,7 +434,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     if (!user) return
 
     try {
-      await refreshUserPermissions(user.id)
+      await refreshUserPermissions(user.id, activeBranchId)
     } catch (error) {
       console.error("Failed to refresh user:", error)
     }
@@ -429,6 +480,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         activeBranchId,
         activeBranchName,
         activeDepartment,
+        permissionVersion,
         login,
         logout,
         hasPermission,

@@ -22,9 +22,13 @@ export function ProtectedRoute({ children, requiredPermission }: ProtectedRouteP
   // جديد مثلاً) لتسجيل الدخول خطأً رغم وجود جلسة صالحة فعلياً في تبويب آخر من نفس المتصفح.
   const [hasSelectedCompany, setHasSelectedCompany] = useState(false)
 
+  // يُعاد فحصها أيضاً عند تبدّل isAuthenticated (لا مرة واحدة فقط عند التركيب) — logout() يمسح
+  // active_tenant_db من كلا التخزينين، فبلا إعادة الفحص هنا تبقى هذه القيمة "true" من آخر تحميل
+  // للصفحة فيومض نموذج الدخول المحلي (LoginPage بالأسفل) للحظة قبل أن يكتمل التحويل الفعلي لتسجيل
+  // دخول الإدارة.
   useEffect(() => {
     setHasSelectedCompany(!!sessionStorage.getItem("active_tenant_db") || !!localStorage.getItem("active_tenant_db"))
-  }, [])
+  }, [isAuthenticated])
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated && !hasSelectedCompany) {

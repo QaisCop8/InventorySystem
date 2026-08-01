@@ -45,8 +45,29 @@ export function ensurePermissionTables(dbName: string): Promise<void> {
         )`,
         [],
       )
+      await client.query(
+        `CREATE TABLE IF NOT EXISTS role_branch_permissions (
+          role_id INTEGER NOT NULL REFERENCES job_roles(id) ON DELETE CASCADE,
+          branch_id INTEGER NOT NULL,
+          access_id INTEGER NOT NULL REFERENCES access_list(id) ON DELETE CASCADE,
+          is_granted BOOLEAN NOT NULL DEFAULT true,
+          PRIMARY KEY (role_id, branch_id, access_id)
+        )`,
+        [],
+      )
+      await client.query(
+        `CREATE TABLE IF NOT EXISTS user_branch_permissions (
+          user_id VARCHAR(255) NOT NULL,
+          branch_id INTEGER NOT NULL,
+          access_id INTEGER NOT NULL REFERENCES access_list(id) ON DELETE CASCADE,
+          is_granted BOOLEAN NOT NULL DEFAULT true,
+          PRIMARY KEY (user_id, branch_id, access_id)
+        )`,
+        [],
+      )
       await client.query(`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS job_role_id INTEGER REFERENCES job_roles(id) ON DELETE SET NULL`, [])
       await client.query(`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS management_user_id INTEGER`, [])
+      await client.query(`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS branch_id INTEGER`, [])
       await client.query(
         `CREATE TABLE IF NOT EXISTS tenant_sessions (
           id SERIAL PRIMARY KEY,
@@ -68,12 +89,21 @@ export function ensurePermissionTables(dbName: string): Promise<void> {
 
 // يُستخدَم من كل من مسار user-access (عرض الصلاحية الفعّالة لكل مستخدم) وlib/tenant-auth.ts
 // (requirePermission) — منطق COALESCE واحد مكتوب مرة واحدة فقط.
-export async function hasEffectivePermission(userId: string, accessId: number): Promise<boolean> {
+export async function hasEffectivePermission(userId: string, accessId: number, branchId?: number | null): Promise<boolean> {
+  const requestedBranchId = Number.isInteger(branchId) && Number(branchId) > 0 ? Number(branchId) : null
   const rows = await sql`
-    SELECT COALESCE(ua.is_granted, rp.is_granted, FALSE) AS is_granted
+    SELECT COALESCE(ubp.is_granted, ua.is_granted, rbp.is_granted, rp.is_granted, FALSE) AS is_granted
     FROM user_settings us
+    LEFT JOIN user_branch_permissions ubp
+      ON ubp.user_id = us.user_id
+      AND ubp.branch_id = COALESCE(${requestedBranchId}, us.branch_id)
+      AND ubp.access_id = ${accessId}
+    LEFT JOIN user_access ua ON ua.access_id = ${accessId} AND ua.user_id = us.user_id
+    LEFT JOIN role_branch_permissions rbp
+      ON rbp.role_id = us.job_role_id
+      AND rbp.branch_id = COALESCE(${requestedBranchId}, us.branch_id)
+      AND rbp.access_id = ${accessId}
     LEFT JOIN role_permissions rp ON rp.role_id = us.job_role_id AND rp.access_id = ${accessId}
-    LEFT JOIN user_access ua ON ua.access_id = ${accessId} AND ua.user_id = ${userId}
     WHERE us.user_id = ${userId}
     LIMIT 1
   `

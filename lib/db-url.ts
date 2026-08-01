@@ -11,3 +11,12 @@ export function getDatabaseNameFromUrl(baseUrl: string): string {
   const url = new URL(baseUrl)
   return url.pathname.replace(/^\//, "")
 }
+
+export function isNeonDatabaseUrl(connectionUrl: string): boolean {
+  try {
+    const hostname = new URL(connectionUrl).hostname.toLowerCase()
+    return hostname === "neon.tech" || hostname.endsWith(".neon.tech")
+  } catch {
+    return false
+  }
+}
