@@ -14,7 +14,7 @@ interface DateTimeControlProps
   id?: string
   value: string
   onChange: (value: string) => void
-  onNativeChange?: React.ChangeEventHandler<HTMLInputElement>
+  onNativeChange?: React.ChangeEventHandler<HTMLInputElement>  
   onBlur?: React.FocusEventHandler<HTMLInputElement>
   showTime?: boolean
   minYear?: number
