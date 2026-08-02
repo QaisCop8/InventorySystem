@@ -18,7 +18,7 @@ export async function GET(request: Request, { params }: { params: { navigationTy
       }
 
       const orderResult = await pool.query(
-        `SELECT so.*, COALESCE(c.name, '') AS customer_name
+        `SELECT so.*, COALESCE(c.name, '') AS customer_name, COALESCE(c.customer_code, '') AS customer_code
          FROM orders so
          LEFT JOIN customers c ON so.customer_id = c.id
          WHERE so.id = $1 AND so.deleted = false
@@ -31,9 +31,15 @@ export async function GET(request: Request, { params }: { params: { navigationTy
       }
 
       const itemsResult = await pool.query(
-        `SELECT oi.*, w.name AS workflow_name
+        `SELECT oi.*, w.name AS workflow_name,
+           COALESCE(p.product_code, '') AS product_code,
+           COALESCE(u.unit_name, '') AS unit_name,
+           COALESCE(wh.warehouse_name, '') AS store_name
          FROM order_items oi
          LEFT JOIN task_workflows w ON w.id = oi.workflow_id
+         LEFT JOIN products p ON p.id = oi.product_id
+         LEFT JOIN units u ON u.id = oi.unit_id
+         LEFT JOIN warehouses wh ON wh.id = oi.store_id
          WHERE oi.order_id = $1
          ORDER BY oi.id`,
         [id]
@@ -54,7 +60,8 @@ export async function GET(request: Request, { params }: { params: { navigationTy
     const queryText = `
       SELECT
         so.*,
-        COALESCE(c.name, '') AS customer_name
+        COALESCE(c.name, '') AS customer_name,
+        COALESCE(c.customer_code, '') AS customer_code
       FROM orders so
       LEFT JOIN customers c ON so.customer_id = c.id
       WHERE so.order_number = $1 AND so.deleted = false
@@ -68,9 +75,15 @@ export async function GET(request: Request, { params }: { params: { navigationTy
     }
 
     const itemsResult = await pool.query(
-      `SELECT oi.*, w.name AS workflow_name
+      `SELECT oi.*, w.name AS workflow_name,
+         COALESCE(p.product_code, '') AS product_code,
+         COALESCE(u.unit_name, '') AS unit_name,
+         COALESCE(wh.warehouse_name, '') AS store_name
        FROM order_items oi
        LEFT JOIN task_workflows w ON w.id = oi.workflow_id
+       LEFT JOIN products p ON p.id = oi.product_id
+       LEFT JOIN units u ON u.id = oi.unit_id
+       LEFT JOIN warehouses wh ON wh.id = oi.store_id
        WHERE oi.order_id = $1
        ORDER BY oi.id`,
       [order.id]

@@ -278,7 +278,9 @@ export default function AccountSearchDialog({
 
   useEffect(() => {
     if (!open) return
-    const t = setTimeout(() => accountNameInputRef.current?.focus(), 120)
+    const t = setTimeout(() => {
+      if (!window.matchMedia("(max-width: 639px)").matches) accountNameInputRef.current?.focus()
+    }, 120)
     return () => clearTimeout(t)
   }, [open])
 
@@ -450,13 +452,13 @@ export default function AccountSearchDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         hideCloseButton
-        className="w-[96vw] max-w-[1500px] h-auto max-h-[80vh] overflow-hidden rounded-3xl border border-slate-200 bg-white p-0 shadow-2xl backdrop-blur sm:p-0"
+        className="h-[100dvh] max-h-[100dvh] w-screen max-w-none overflow-hidden rounded-none border-0 bg-white p-0 shadow-2xl backdrop-blur sm:h-[92vh] sm:max-h-[92vh] sm:w-[96vw] sm:max-w-[1500px] sm:rounded-3xl sm:border sm:border-slate-200"
         dir="rtl"
         onCloseAutoFocus={(event) => event.preventDefault()}
       >
-        <div className="flex flex-col gap-4 p-4 sm:p-5">
+        <div className="flex h-full min-h-0 flex-col gap-3 overflow-y-auto overscroll-contain p-3 sm:gap-4 sm:overflow-hidden sm:p-5">
           {/* Header */}
-          <div className="flex items-center justify-between gap-3 rounded-2xl bg-gradient-to-l from-emerald-600 via-emerald-600 to-teal-600 px-4 py-4 shadow-lg sm:px-6">
+          <div className="flex shrink-0 items-center justify-between gap-3 rounded-2xl bg-gradient-to-l from-emerald-600 via-emerald-600 to-teal-600 px-3 py-3 shadow-lg sm:px-6 sm:py-4">
             <div className="flex items-center gap-3">
               <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/30">
                 <Search className="h-5 w-5 text-white" />
@@ -482,7 +484,7 @@ export default function AccountSearchDialog({
           </div>
 
           {/* Filters */}
-          <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-3 sm:p-4">
+          <div className="shrink-0 rounded-2xl border border-slate-200 bg-slate-50/60 p-3 sm:p-4">
             <div className="mb-3 flex items-center gap-2 text-xs font-bold text-slate-500">
               <ListFilter className="h-3.5 w-3.5" />
               خيارات البحث
@@ -593,7 +595,7 @@ export default function AccountSearchDialog({
           </div>
 
           {/* Results grid */}
-          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm" style={{ height: "440px" }}>
+          <div className="h-[42dvh] min-h-[240px] shrink-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm sm:h-auto sm:min-h-0 sm:flex-1">
             {searchResults.length > 0 ? (
               <DataGridView
                 innerRef={gridRef}
@@ -609,7 +611,7 @@ export default function AccountSearchDialog({
                 onKeyDown={handleGridKeyDown}
               />
             ) : (
-              <div className="flex h-full min-h-[340px] flex-col items-center justify-center gap-2 bg-gradient-to-b from-slate-50 to-white text-slate-400">
+              <div className="flex h-full min-h-0 flex-col items-center justify-center gap-2 bg-gradient-to-b from-slate-50 to-white px-4 text-center text-slate-400">
                 <Search className="h-8 w-8 text-slate-300" />
                 <span className="text-sm text-slate-500">
                   {loading ? "جاري تحميل البيانات ..." : "لا توجد نتائج. قم بالبحث لعرض النتائج"}
@@ -619,18 +621,18 @@ export default function AccountSearchDialog({
           </div>
 
           {/* Footer */}
-          <div className="flex justify-center gap-3 border-t border-slate-200 pt-4">
+          <div className="sticky bottom-0 z-10 flex shrink-0 gap-3 border-t border-slate-200 bg-white/95 py-3 backdrop-blur sm:static sm:justify-center sm:bg-white sm:pb-0 sm:pt-4">
             <Button
               onClick={handleConfirm}
               disabled={!selectedAccount}
-              className="rounded-xl border-0 bg-gradient-to-l from-emerald-600 to-emerald-500 px-8 text-white shadow-md transition-transform hover:scale-[1.01] hover:from-emerald-700 hover:to-emerald-600"
+              className="flex-1 rounded-xl border-0 bg-gradient-to-l from-emerald-600 to-emerald-500 px-4 text-white shadow-md transition-transform hover:scale-[1.01] hover:from-emerald-700 hover:to-emerald-600 sm:flex-none sm:px-8"
             >
               موافق
             </Button>
             <Button
               variant="outline"
               onClick={() => onOpenChange(false)}
-              className="rounded-xl border-emerald-200 px-8 text-emerald-700 shadow-sm hover:bg-emerald-50 hover:text-emerald-800"
+              className="flex-1 rounded-xl border-emerald-200 px-4 text-emerald-700 shadow-sm hover:bg-emerald-50 hover:text-emerald-800 sm:flex-none sm:px-8"
             >
               إغلاق
             </Button>

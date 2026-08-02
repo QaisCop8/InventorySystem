@@ -119,6 +119,12 @@ export function ensureTaskOrderTables(): Promise<void> {
       `
       await sql`ALTER TABLE task_workflow_steps ADD COLUMN IF NOT EXISTS is_conditional BOOLEAN NOT NULL DEFAULT false`
       await sql`ALTER TABLE task_workflow_steps ADD COLUMN IF NOT EXISTS sla_actions TEXT[] NOT NULL DEFAULT '{}'`
+      // نوع الخطوة: يُحدِّد سلوك خاص إضافي بشاشة العمل (task-board) عند فتح مهمة على هذه الخطوة —
+      // 'audit'/'approval' يعرضان كل أصناف نفس الطلبية مع إمكانية تعديل الكمية المطلوبة وحذف صنف،
+      // 'preparation' يعرضها مع حقل "الكمية المجهزة" فقط (الكمية الأصلية للقراءة)، 'loading' يعرضها
+      // للقراءة فقط ويشترط فحص كل صنف قبل إنهاء المرحلة (انظر completeTask)، و'normal' (الافتراضي)
+      // يبقي السلوك الحالي دون أي لوحة إضافية.
+      await sql`ALTER TABLE task_workflow_steps ADD COLUMN IF NOT EXISTS step_type VARCHAR(20) NOT NULL DEFAULT 'normal'`
       await sql`
         CREATE TABLE IF NOT EXISTS task_workflow_transitions (
           id SERIAL PRIMARY KEY,
@@ -143,6 +149,13 @@ export function ensureTaskOrderTables(): Promise<void> {
           completed_at TIMESTAMP
         )
       `
+      // source_order_id: يشير إلى الطلب الفعلي (orders.id) الذي فتح هذه الطلبية عبر الجسر في
+      // lib/orders.ts createOrder — بلا قيد FK عابر للوحدات (نفس أسلوب هذا الملف). approved_at/by:
+      // تُضبط بعد اكتمال كل أصناف الطلبية عبر شاشة الاعتماد النهائية (انظر lib/orders.ts
+      // approveTaskCustomerOrder) — بعدها تخرج الطلبية من قائمة "قابلة للاعتماد".
+      await sql`ALTER TABLE task_customer_orders ADD COLUMN IF NOT EXISTS source_order_id INTEGER`
+      await sql`ALTER TABLE task_customer_orders ADD COLUMN IF NOT EXISTS approved_at TIMESTAMP`
+      await sql`ALTER TABLE task_customer_orders ADD COLUMN IF NOT EXISTS approved_by VARCHAR(255)`
       // attributes: JSONB حرّة تحمل سمات الصنف (كـ"النوع الفرعي"، أو أي مفتاح/قيمة يلزم انتقالات
       // سير العمل الشرطية — condition_key/condition_value أعلاه تُقارَن مباشرة بهذا الحقل).
       await sql`
@@ -165,6 +178,12 @@ export function ensureTaskOrderTables(): Promise<void> {
           completed_at TIMESTAMP
         )
       `
+      // prepared_qty: "الكمية المجهزة" — تُملأ فقط أثناء خطوة type='preparation' (الكمية الأصلية qty
+      // تبقى للقراءة هناك). loading_checked_at/by: فحص/موافقة الصنف أثناء خطوة type='loading' —
+      // completeTask يمنع إنهاء تلك الخطوة ما لم تُفحص كل أصناف نفس الطلبية.
+      await sql`ALTER TABLE task_order_items ADD COLUMN IF NOT EXISTS prepared_qty NUMERIC`
+      await sql`ALTER TABLE task_order_items ADD COLUMN IF NOT EXISTS loading_checked_at TIMESTAMP`
+      await sql`ALTER TABLE task_order_items ADD COLUMN IF NOT EXISTS loading_checked_by VARCHAR(255)`
       // override_section_id: تحويل إداري لقسم التنفيذ الفعلي لهذه النسخة وحدها (دون المساس بتعريف
       // الخطوة المشتركة بين كل الأصناف). claimed_by_user_id فارغ + status='pending' يعني "متاحة لكل
       // أعضاء القسم" (assignment_type='all')؛ تُملأ لحظة أول Start (قفل تفاؤلي عبر شرط WHERE عند
@@ -599,11 +618,11 @@ export async function updateWorkflowDefinition(
   const keyToNewId: Record<string, number> = {}
   for (const step of oldSteps) {
     const insertedStep = await sql`
-      INSERT INTO task_workflow_steps (workflow_id, key, label, section_id, assignment_type, assigned_user_id, is_start, is_end, join_type, sla_hours, is_conditional, sla_actions)
+      INSERT INTO task_workflow_steps (workflow_id, key, label, section_id, assignment_type, assigned_user_id, is_start, is_end, join_type, sla_hours, is_conditional, sla_actions, step_type)
       VALUES (
         ${newWorkflow.id}, ${step.key}, ${step.label}, ${step.section_id}, ${step.assignment_type},
         ${step.assigned_user_id}, ${step.is_start}, ${step.is_end}, ${step.join_type}, ${step.sla_hours},
-        ${step.is_conditional}, ${step.sla_actions}
+        ${step.is_conditional}, ${step.sla_actions}, ${step.step_type || "normal"}
       )
       RETURNING id
     `
@@ -645,6 +664,8 @@ export async function deleteWorkflow(id: number, userId: string) {
   return result[0]
 }
 
+export type StepType = "audit" | "approval" | "preparation" | "normal" | "loading"
+
 interface StepInput {
   key: string
   label: string
@@ -655,6 +676,7 @@ interface StepInput {
   sla_hours?: number | null
   is_conditional?: boolean
   sla_actions?: string[]
+  step_type?: StepType
 }
 interface TransitionInput {
   from_key: string
@@ -736,11 +758,11 @@ export async function saveWorkflowSteps(workflowId: number, steps: StepInput[], 
   const keyToId: Record<string, number> = {}
   for (const step of steps) {
     const inserted = await sql`
-      INSERT INTO task_workflow_steps (workflow_id, key, label, section_id, assignment_type, assigned_user_id, is_start, is_end, join_type, sla_hours, is_conditional, sla_actions)
+      INSERT INTO task_workflow_steps (workflow_id, key, label, section_id, assignment_type, assigned_user_id, is_start, is_end, join_type, sla_hours, is_conditional, sla_actions, step_type)
       VALUES (
         ${targetWorkflowId}, ${step.key}, ${step.label}, ${step.section_id}, ${step.assignment_type || "all"},
         ${step.assigned_user_id || null}, ${isStartKey(step.key)}, ${isEndKey(step.key)}, ${step.join_type || "none"}, ${step.sla_hours ?? null},
-        ${!!step.is_conditional}, ${step.sla_actions || []}
+        ${!!step.is_conditional}, ${step.sla_actions || []}, ${step.step_type || "normal"}
       )
       RETURNING id
     `
@@ -834,17 +856,61 @@ export async function listCustomerOrders() {
   return orders
 }
 
-export async function createCustomerOrder(data: { customerId?: number | null; priority?: string; createdBy: string }) {
+export async function createCustomerOrder(data: {
+  customerId?: number | null
+  priority?: string
+  createdBy: string
+  sourceOrderId?: number | null
+}) {
   await ensureTaskOrderTables()
   const inserted = await sql`
-    INSERT INTO task_customer_orders (customer_id, priority, created_by, status)
-    VALUES (${data.customerId || null}, ${data.priority || "normal"}, ${data.createdBy}, 'in_progress')
+    INSERT INTO task_customer_orders (customer_id, priority, created_by, status, source_order_id)
+    VALUES (${data.customerId || null}, ${data.priority || "normal"}, ${data.createdBy}, 'in_progress', ${data.sourceOrderId ?? null})
     RETURNING *
   `
   const order = inserted[0]
   const orderCode = `ORD-${String(order.id).padStart(6, "0")}`
   await sql`UPDATE task_customer_orders SET order_code = ${orderCode} WHERE id = ${order.id}`
   return { ...order, order_code: orderCode }
+}
+
+export async function getCustomerOrderById(id: number) {
+  await ensureTaskOrderTables()
+  const rows = await sql`SELECT * FROM task_customer_orders WHERE id = ${id}`
+  return rows[0] || null
+}
+
+// قائمة الطلبيات "جاهزة للاعتماد النهائي": مصدرها طلب فعلي (source_order_id)، لم تُعتمَد بعد، ولها
+// صنف واحد على الأقل وكل أصنافها status='completed' — تُستهلَك من شاشة الاعتماد النهائية الجديدة.
+export async function listApprovableCustomerOrders() {
+  await ensureTaskOrderTables()
+  return sql`
+    SELECT o.*, c.name AS customer_name,
+      (SELECT COUNT(*) FROM task_order_items i WHERE i.customer_order_id = o.id) AS item_count
+    FROM task_customer_orders o
+    LEFT JOIN customers c ON c.id = o.customer_id
+    WHERE o.source_order_id IS NOT NULL
+      AND o.approved_at IS NULL
+      AND EXISTS (SELECT 1 FROM task_order_items i WHERE i.customer_order_id = o.id)
+      AND NOT EXISTS (SELECT 1 FROM task_order_items i WHERE i.customer_order_id = o.id AND i.status <> 'completed')
+    ORDER BY o.created_at DESC
+  `
+}
+
+// يُستدعى فقط بعد نجاح تحديث الطلب الفعلي (orders.order_status2) في lib/orders.ts
+// approveTaskCustomerOrder — يُبقي منطق "هل الطلب الفعلي موجود/جاهز للاعتماد" هناك تفادياً لاستيراد
+// دائري بين هذا الملف وlib/orders.ts (الذي يستورد من هذا الملف أصلاً).
+export async function markCustomerOrderApproved(customerOrderId: number, userId: string) {
+  await ensureTaskOrderTables()
+  const order = (await sql`SELECT * FROM task_customer_orders WHERE id = ${customerOrderId}`)[0]
+  if (!order) throw new Error("الطلبية غير موجودة")
+  if (order.approved_at) throw new Error("تم اعتماد هذه الطلبية مسبقاً")
+  const unfinished = await sql`SELECT COUNT(*) AS c FROM task_order_items WHERE customer_order_id = ${customerOrderId} AND status <> 'completed'`
+  if (Number(unfinished[0].c) > 0) throw new Error("لا يمكن الاعتماد قبل إكمال كل أصناف الطلبية")
+  const result = await sql`
+    UPDATE task_customer_orders SET approved_at = CURRENT_TIMESTAMP, approved_by = ${userId} WHERE id = ${customerOrderId} RETURNING *
+  `
+  return result[0]
 }
 
 // ------------------------------------------------------------------
@@ -959,7 +1025,7 @@ export async function listOrderItems(filters: { workflowId?: number; status?: st
 export async function listOpenTasks(filters: { workflowId?: number; sectionId?: number; assigneeId?: string; search?: string }) {
   await ensureTaskOrderTables()
   const rows = await sql`
-    SELECT si.*, st.key AS step_key, st.label AS step_label, st.assignment_type, st.sla_hours, st.is_end,
+    SELECT si.*, st.key AS step_key, st.label AS step_label, st.step_type, st.assignment_type, st.sla_hours, st.is_end,
       COALESCE(si.override_section_id, st.section_id) AS effective_section_id,
       sec.name AS section_name,
       i.id AS order_item_id, i.item_code, i.title, i.description, i.priority AS item_priority, i.workflow_id, i.status AS item_status,
@@ -1004,7 +1070,7 @@ export async function getOrderItemDetail(orderItemId: number) {
   if (items.length === 0) return null
 
   const instances = await sql`
-    SELECT si.*, st.key AS step_key, st.label AS step_label, st.assignment_type, st.is_end, st.join_type,
+    SELECT si.*, st.key AS step_key, st.label AS step_label, st.step_type, st.assignment_type, st.is_end, st.join_type,
       COALESCE(si.override_section_id, st.section_id) AS effective_section_id,
       sec.name AS section_name, u.full_name AS claimed_by_name
     FROM task_step_instances si
@@ -1048,12 +1114,100 @@ export async function getOrderItemDetail(orderItemId: number) {
 }
 
 // ------------------------------------------------------------------
+// تعديلات أصناف الطلبية أثناء خطوات تدقيق/اعتماد/تجهيز/تحميل (يفتحها task-board عند عرض لوحة
+// الأصناف الشقيقة داخل نافذة تفاصيل المهمة)
+// ------------------------------------------------------------------
+
+// كل أصناف نفس "الطلبية" (customer_order_id) — تُستخدَم لعرض/تعديل الأصناف الشقيقة معاً أثناء
+// العمل على مهمة واحدة منها بخطوة من الأنواع الخاصة (تدقيق/اعتماد/تجهيز/تحميل).
+export async function listSiblingOrderItems(customerOrderId: number) {
+  await ensureTaskOrderTables()
+  return sql`
+    SELECT id, item_code, title, qty, prepared_qty, loading_checked_at, loading_checked_by, status
+    FROM task_order_items
+    WHERE customer_order_id = ${customerOrderId}
+    ORDER BY id
+  `
+}
+
+// صلاحية التعديل على صنف من ضمن لوحة الأصناف الشقيقة: لا تُشتَرط ملكية المستخدم لمهمة ذلك الصنف
+// تحديداً (قد يُعدِّل صنفاً شقيقاً غير مسنَد له مباشرة) — يكفي أن يملك حالياً مهمة مفتوحة (بالانتظار/
+// قيد العمل/متوقفة) على أي صنف من نفس الطلبية بخطوة نوعها ضمن allowedStepTypes، إما لأنه مستلمها أو
+// عضو بقسمها (لخطوات assignment_type='all'). مدير النظام يتجاوز هذا الشرط دائماً.
+async function assertOrderItemStepAccess(orderItemId: number, userId: string, allowedStepTypes: StepType[]) {
+  if (await isWorkspaceAdmin(userId)) return
+  const item = (await sql`SELECT id, customer_order_id FROM task_order_items WHERE id = ${orderItemId}`)[0]
+  if (!item) throw new Error("الصنف غير موجود")
+
+  const scopeIds = item.customer_order_id
+    ? (await sql`SELECT id FROM task_order_items WHERE customer_order_id = ${item.customer_order_id}`).map((r: any) => r.id)
+    : [item.id]
+
+  const openInstances = await sql`
+    SELECT si.claimed_by_user_id, st.assignment_type, st.section_id AS step_section_id
+    FROM task_step_instances si
+    JOIN task_workflow_steps st ON st.id = si.step_id
+    WHERE si.order_item_id = ANY(${scopeIds}::int[])
+      AND si.status IN ('pending', 'in_progress', 'paused')
+      AND st.step_type = ANY(${allowedStepTypes}::text[])
+  `
+  for (const inst of openInstances) {
+    if (inst.claimed_by_user_id === userId) return
+    if (inst.assignment_type === "all") {
+      const membership = await isSectionMember(inst.step_section_id, userId)
+      if (membership.isMember) return
+    }
+  }
+  throw new Error("لا تملك صلاحية التعديل على أصناف هذه الطلبية بالمرحلة الحالية")
+}
+
+export async function updateOrderItemQty(itemId: number, qty: number, userId: string) {
+  await ensureTaskOrderTables()
+  await assertOrderItemStepAccess(itemId, userId, ["audit", "approval"])
+  const result = await sql`UPDATE task_order_items SET qty = ${qty}, updated_at = CURRENT_TIMESTAMP WHERE id = ${itemId} RETURNING *`
+  if (result.length === 0) throw new Error("الصنف غير موجود")
+  return result[0]
+}
+
+export async function updatePreparedQty(itemId: number, preparedQty: number, userId: string) {
+  await ensureTaskOrderTables()
+  await assertOrderItemStepAccess(itemId, userId, ["preparation"])
+  const result = await sql`UPDATE task_order_items SET prepared_qty = ${preparedQty}, updated_at = CURRENT_TIMESTAMP WHERE id = ${itemId} RETURNING *`
+  if (result.length === 0) throw new Error("الصنف غير موجود")
+  return result[0]
+}
+
+export async function deleteOrderItem(itemId: number, userId: string) {
+  await ensureTaskOrderTables()
+  await assertOrderItemStepAccess(itemId, userId, ["audit", "approval"])
+  const result = await sql`DELETE FROM task_order_items WHERE id = ${itemId} RETURNING id`
+  if (result.length === 0) throw new Error("الصنف غير موجود")
+  return result[0]
+}
+
+export async function setLoadingChecked(itemId: number, checked: boolean, userId: string) {
+  await ensureTaskOrderTables()
+  await assertOrderItemStepAccess(itemId, userId, ["loading"])
+  const result = checked
+    ? await sql`
+        UPDATE task_order_items SET loading_checked_at = CURRENT_TIMESTAMP, loading_checked_by = ${userId}, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ${itemId} RETURNING *
+      `
+    : await sql`
+        UPDATE task_order_items SET loading_checked_at = NULL, loading_checked_by = NULL, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ${itemId} RETURNING *
+      `
+  if (result.length === 0) throw new Error("الصنف غير موجود")
+  return result[0]
+}
+
+// ------------------------------------------------------------------
 // محرك تنفيذ المهام (StepInstance): بدء/إيقاف/إنهاء/رفض + تفرّع/التقاء تلقائي
 // ------------------------------------------------------------------
 
 async function getInstanceContext(instanceId: number) {
   const rows = await sql`
-    SELECT si.*, st.section_id AS step_section_id, st.assignment_type, st.assigned_user_id, st.is_end,
+    SELECT si.*, st.section_id AS step_section_id, st.assignment_type, st.assigned_user_id, st.is_end, st.step_type,
       COALESCE(si.override_section_id, st.section_id) AS effective_section_id,
       i.id AS order_item_id, i.item_code, i.title, i.created_by, i.customer_order_id
     FROM task_step_instances si
@@ -1245,6 +1399,15 @@ export async function completeTask(instanceId: number, userId: string, note?: st
     if (ctx.claimed_by_user_id !== userId) throw new Error("لا تملك صلاحية إنهاء مهمة مستخدم آخر")
   }
 
+  // خطوة تحميل: يُمنع إنهاؤها ما لم تُفحص كل أصناف نفس الطلبية (loading_checked_at) — الإنهاء
+  // الإجباري الإداري (isForce) يتجاوز هذا الشرط عمداً، أسوةً بتجاوزه لبقية شروط الحالة أعلاه.
+  if (!isForce && ctx.step_type === "loading" && ctx.customer_order_id) {
+    const unchecked = await sql`
+      SELECT COUNT(*) AS c FROM task_order_items WHERE customer_order_id = ${ctx.customer_order_id} AND loading_checked_at IS NULL
+    `
+    if (Number(unchecked[0].c) > 0) throw new Error("يجب فحص كل الأصناف والموافقة عليها قبل إنهاء هذه المرحلة")
+  }
+
   const durationSeconds = await logTerminalAction(instanceId, ctx.order_item_id, userId, isForce ? "force_complete" : "complete", note)
   await sql`
     UPDATE task_step_instances SET status = 'completed', completed_at = CURRENT_TIMESTAMP, total_duration_seconds = total_duration_seconds + ${durationSeconds}
@@ -1326,4 +1489,38 @@ export async function adminTransferTask(
   }
 
   return getOrderItemDetail(ctx.order_item_id)
+}
+
+// إغلاق إجباري لكامل الطلبية (لا صنف واحد فقط) — مدير النظام حصراً: يُلغي كل مهمة مفتوحة على كل
+// أصناف نفس الطلبية دفعة واحدة (status='cancelled'، لا تُحذَف — يبقى المسار قابلاً للتدقيق عبر
+// task_execution_logs)، ويُعلِّم كل الأصناف والطلبية نفسها كملغاة. يُستدعى من lib/orders.ts
+// (forceCloseOrderFromTaskInstance) الذي يُكمِل الإغلاق على الطلب الفعلي المرتبط (orders.order_status2)
+// بعد نجاح هذا الجزء — يبقى هذا الملف بلا أي استيراد من lib/orders.ts لتفادي الاستيراد الدائري.
+export async function forceCloseCustomerOrder(instanceId: number, adminUserId: string, note?: string) {
+  await ensureTaskOrderTables()
+  await assertAdmin(adminUserId)
+  const ctx = await getInstanceContext(instanceId)
+  if (!ctx) throw new Error("المهمة غير موجودة")
+  if (!ctx.customer_order_id) throw new Error("لا توجد طلبية مرتبطة بهذا الصنف")
+
+  const customerOrderId = ctx.customer_order_id
+
+  await sql`
+    UPDATE task_step_instances SET status = 'cancelled'
+    WHERE order_item_id IN (SELECT id FROM task_order_items WHERE customer_order_id = ${customerOrderId})
+      AND status IN ('pending', 'in_progress', 'paused')
+  `
+  await sql`
+    UPDATE task_order_items SET status = 'cancelled', completed_at = CURRENT_TIMESTAMP
+    WHERE customer_order_id = ${customerOrderId} AND status <> 'completed'
+  `
+  await sql`
+    UPDATE task_customer_orders SET status = 'cancelled', completed_at = CURRENT_TIMESTAMP WHERE id = ${customerOrderId}
+  `
+  await sql`
+    INSERT INTO task_execution_logs (step_instance_id, order_item_id, user_id, action, note)
+    VALUES (${instanceId}, ${ctx.order_item_id}, ${adminUserId}, 'force_close', ${note || "إغلاق إجباري لكامل الطلبية"})
+  `
+
+  return { customerOrderId }
 }

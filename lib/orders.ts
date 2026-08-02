@@ -1,9 +1,14 @@
 
-import { generateSalesOrderNumber } from "./number-generator"
-import { generatePurchaseOrderNumber } from "./number-generator"
+import { generateSalesOrderNumber, generatePurchaseOrderNumber, resolveDefaultVoucherBookName } from "./number-generator"
 import { type NextRequest, NextResponse } from "next/server"
 import { adjustStock } from "./inventory"
-import { createCustomerOrder as createTaskCustomerOrder, createOrderItem as createTaskOrderItem } from "./task-orders"
+import {
+  createCustomerOrder as createTaskCustomerOrder,
+  createOrderItem as createTaskOrderItem,
+  getCustomerOrderById as getTaskCustomerOrderById,
+  markCustomerOrderApproved,
+  forceCloseCustomerOrder,
+} from "./task-orders"
 import sql, { getTenantPool } from "./database"
 
 export default sql
@@ -14,6 +19,30 @@ function ensureOrderWorkflowColumns() {
     orderWorkflowColumnsEnsured = (async () => {
       await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS branch_id INTEGER`
       await sql`ALTER TABLE order_items ADD COLUMN IF NOT EXISTS workflow_id INTEGER`
+      // order_number كان VARCHAR(8) بالمخطط الأصلي (scripts/ME/Scripts28122025.txt) — لا يكفي
+      // للتنسيق الفعلي المولَّد بـgetNextSequentialNumber (بادئة حرفين "O"/"T" + رمز دفتر السند +
+      // 9 أرقام، انظر lib/number-generator.ts validateNumberFormat)، فيفشل الحفظ بـ"value too long
+      // for type character varying(8)". يُوسَّع هنا ليطابق نفس عرض vch_code بـvoucher_header_tbl
+      // (VARCHAR(30) — انظر app/api/receipts/_lib.ts) بدل رقم اعتباطي، لتوحيد عرض حقل رقم السند/
+      // الطلبية عبر النظام. توسيع VARCHAR بهذا الاتجاه عملية وصفية فقط بـPostgres (بلا إعادة كتابة
+      // الجدول)، فتُنفَّذ بأمان في كل إقلاع بارد لهذا الملف.
+      await sql`ALTER TABLE orders ALTER COLUMN order_number TYPE VARCHAR(30)`
+      // شركات زُوِّدت قبل إصلاح lib/provisioning.ts (cloneReferenceSchema كانت تُفوِّت أعمدة IDENTITY
+      // تماماً — انظر isIdentityColumn هناك) انتهت بـorders.id عمود INTEGER عادي بلا أي تسلسل تلقائي.
+      // أي إدراج يُغفِل id (السلوك الصحيح، يُفتَرض توليده تلقائياً) يفشل حينها بـ"null value in column
+      // \"id\" violates not-null constraint". يُصلَح هنا ذاتياً لأي قاعدة شركة قديمة لم تُصلَح يدوياً بعد.
+      await sql`
+        DO $$
+        BEGIN
+          IF NOT EXISTS (
+            SELECT 1 FROM information_schema.columns
+            WHERE table_name = 'orders' AND column_name = 'id' AND is_identity = 'YES'
+          ) THEN
+            ALTER TABLE orders ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY;
+            PERFORM setval(pg_get_serial_sequence('orders', 'id'), COALESCE((SELECT MAX(id) FROM orders), 0) + 1, false);
+          END IF;
+        END$$;
+      `
     })().catch((error: unknown) => {
       orderWorkflowColumnsEnsured = null
       throw error
@@ -295,13 +324,6 @@ export async function createOrder(
   const client = await (await getTenantPool()).connect();
   try {
     await client.query("BEGIN");
-    const vchBook = orderData.order_number?.[1] ?? "O";
-    // Generate order number if missing
-    if (!orderData.order_number) {
-      if (orderData.order_type === 1) orderData.order_number = await generateSalesOrderNumber(vchBook);
-      else orderData.order_number = await generatePurchaseOrderNumber(vchBook);
-    }
-
     // Check for duplicate reference number
     if (orderData.reference_number && orderData.reference_number.trim() !== "") {
       let queryText = `SELECT id FROM orders WHERE reference_number = $1 AND deleted = false AND id != $2`;
@@ -446,8 +468,13 @@ export async function createOrder(
         exists = res.rows.length > 0;
       }
 
-      // Generate new order number if missing or already exists
+      // Generate new order number if missing or already exists — يحصل هذا لأي طلبية لا تُرسِل رقماً
+      // جاهزاً من الواجهة (كالنافذة السريعة QuickSalesOrder التي لا تعرض دفتر سندات إطلاقاً)، أو
+      // عند تعارض رقم موجود مسبقاً. دفتر السندات هنا يُحلّ من صلاحيات المستخدم الفعلية
+      // (voucher_book_user_permissions_tbl، is_default=1) بدل الرجوع لحرف ثابت غير مرتبط بأي صلاحية.
       if (!orderData.order_number || orderData.order_number.length < 2 || exists) {
+        const vchBook =
+          (await resolveDefaultVoucherBookName(String(orderData.user_id || ""), orderData.order_type === 2 ? 2 : 1)) || "0";
         if (orderData.order_type === 1) orderData.order_number = await generateSalesOrderNumber(vchBook);
         else orderData.order_number = await generatePurchaseOrderNumber(vchBook);
       }
@@ -685,15 +712,24 @@ export async function createOrder(
     // ضمن تعديل لاحق). أثر جانبي أفضل جهد (best-effort) بعد نجاح commit الطلبية نفسها ولا يُسقطها
     // عند فشله (نفس نمط safeNotify في task-orders.ts). Number(order_type) لأن orderData قد يصل
     // أحياناً بقيم نصية من الواجهة رغم أن النوع المصرَّح Partial<SalesOrder>.
+    // taskTracking: يُرفَق على الطلبة المُعادة فقط (لا عمود بقاعدة البيانات) ليتمكن الطرف الطالب
+    // (API route ثم الواجهة، كـQuickSalesOrder) من إعلام المستخدم إن تعذّر فتح خطوات سير العمل —
+    // كانت هذه الأخطاء تُسجَّل بـconsole.error على الخادم فقط (best-effort) دون أي إشارة للمستخدم،
+    // فيبدو الأمر وكأن "الطلبية من الشاشة السريعة لا تفتح خطوات سير عمل" رغم أن الكود نفسه يعمل من
+    // كلا المسارين (الشاشة السريعة والشاشة الكاملة تستدعيان createOrder نفسها) — الفرق الفعلي غالباً
+    // عدم وجود سير عمل مطابق (عام/فرع/صنف) وليس فرقاً بالكود.
+    let taskTracking: { attempted: number; opened: number; error: string | null } | null = null;
     if (Number(orderData.order_type) === 1) {
       const trackedItems = insertedItems.filter(
         (entry) => entry.workflowId == null && entry.item.product_name && (entry.item.quantity || entry.item.delivered_quantity)
       );
       if (trackedItems.length > 0) {
+        taskTracking = { attempted: trackedItems.length, opened: 0, error: null };
         try {
           const taskCustomerOrder = await createTaskCustomerOrder({
             customerId: orderData.customer_id || null,
             createdBy: String(orderData.user_id || ""),
+            sourceOrderId: order.id,
           });
           for (const entry of trackedItems) {
             try {
@@ -707,18 +743,21 @@ export async function createOrder(
               });
               if (taskItem?.workflow_id) {
                 await (await getTenantPool()).query(`UPDATE order_items SET workflow_id = $1 WHERE id = $2`, [taskItem.workflow_id, entry.dbId]);
+                taskTracking.opened++;
               }
-            } catch (itemError) {
+            } catch (itemError: any) {
               console.error("[v0] Failed to open tracking steps for order item (non-blocking):", entry.item.product_name, itemError);
+              taskTracking.error = itemError?.message || "تعذّر فتح سير العمل لأحد الأصناف";
             }
           }
-        } catch (taskError) {
+        } catch (taskError: any) {
           console.error("[v0] Failed to open task-order tracking for sales order (non-blocking):", taskError);
+          taskTracking.error = taskError?.message || "تعذّر فتح سير العمل لهذه الطلبية";
         }
       }
     }
 
-    return order;
+    return { ...order, _taskTracking: taskTracking };
   } catch (error) {
     await client.query("ROLLBACK");
     console.error("[v0] Error creating order:", error);
@@ -1146,4 +1185,31 @@ export async function UpdateOrderStatus(
   } finally {
     client.release(); // تحرير الاتصال من pool
   }
+}
+
+// اعتماد نهائي لطلبية "تتبع أوامر العمل" بعد اكتمال كل خطواتها — يُحدِّث الطلب الفعلي المرتبط بها
+// (orders.order_status2 = 2 / جاهز) عبر UpdateOrderStatus الموجودة أعلاه، ثم يُعلِّم طلبية التتبع
+// نفسها كمُعتمَدة (lib/task-orders.ts markCustomerOrderApproved) لتخرج من قائمة "قابلة للاعتماد".
+// يبقى هنا (لا في lib/task-orders.ts) لتفادي استيراد دائري: task-orders.ts لا يستورد من هذا الملف.
+export async function approveTaskCustomerOrder(customerOrderId: number, userId: string, receivedBy: string | null) {
+  const order = await getTaskCustomerOrderById(customerOrderId);
+  if (!order) throw new Error("الطلبية غير موجودة");
+  if (!order.source_order_id) throw new Error("لا يوجد طلب فعلي مرتبط بهذه الطلبية");
+  await UpdateOrderStatus(order.source_order_id, 0, 1, userId, receivedBy);
+  return markCustomerOrderApproved(customerOrderId, userId);
+}
+
+// إغلاق إجباري لكامل الطلبية من زر "إغلاق إجباري" بلوحة تتبع أوامر العمل (task-board.tsx) — يُلغي
+// أولاً كل مهام/أصناف/طلبية task-orders (forceCloseCustomerOrder، مدير النظام فقط)، ثم يُحدِّث الطلب
+// الفعلي المرتبط بها (orders.order_status2 = 6 / مغلق) إن وُجد. order_status2 = 6 قيمة جديدة أُضيفت
+// خصيصاً لهذا الإجراء — انظر التحديث المقابل بقوائم order_status2 المنسدلة بـ
+// unified-sales-order.tsx وunified-sale-invoices.tsx (1=غير جاهز، 2=جاهز، 3=مرسلة جزئياً،
+// 4=مرسلة كلياً، 5=ملغي، 6=مغلق).
+export async function forceCloseOrderFromTaskInstance(instanceId: number, adminUserId: string, note?: string) {
+  const { customerOrderId } = await forceCloseCustomerOrder(instanceId, adminUserId, note);
+  const order = await getTaskCustomerOrderById(customerOrderId);
+  if (order?.source_order_id) {
+    await (await getTenantPool()).query(`UPDATE orders SET order_status2 = 6, updated_at = NOW() WHERE id = $1`, [order.source_order_id]);
+  }
+  return { customerOrderId, sourceOrderId: order?.source_order_id ?? null };
 }

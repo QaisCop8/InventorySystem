@@ -27,14 +27,28 @@ interface ColumnInfo {
   numeric_scale: number | null
   is_nullable: "YES" | "NO"
   column_default: string | null
+  is_identity: "YES" | "NO"
+  identity_generation: "ALWAYS" | "BY DEFAULT" | null
 }
 
 function isSerialColumn(col: ColumnInfo): boolean {
   return !!col.column_default && col.column_default.startsWith("nextval(")
 }
 
+// أعمدة GENERATED ALWAYS/BY DEFAULT AS IDENTITY (بديل SERIAL الحديث بـPostgres) تُبلِغ عن
+// column_default كـNULL دوماً بـinformation_schema — isSerialColumn وحدها (تفحص نمط nextval فقط)
+// كانت تُفوِّت هذا النوع تماماً، فتُستنسَخ كعمود INTEGER عادي بلا أي تسلسل تلقائي لقاعدة الشركة
+// الجديدة — أول إدراج يُغفِل id (وهذا هو الطبيعي، متوقَّع أن يُولَّد تلقائياً) يفشل حينها بـ"null
+// value in column "id" violates not-null constraint". الجداول المتأثرة فعلياً بهذا الخلل في القاعدة
+// المرجعية وقت اكتشافه: orders، vouchers، voucher_items، customer_vouchers (وsystem_settings، لكنه
+// يُعاد ضبطه صراحة لاحقاً بمعزل — انظر seedDefaultSystemSettings).
+function isIdentityColumn(col: ColumnInfo): boolean {
+  return col.is_identity === "YES"
+}
+
 function columnTypeSql(col: ColumnInfo): string {
   if (isSerialColumn(col)) return col.data_type === "bigint" ? "BIGSERIAL" : "SERIAL"
+  if (isIdentityColumn(col)) return col.data_type === "bigint" ? "BIGINT" : col.data_type === "smallint" ? "SMALLINT" : "INTEGER"
 
   switch (col.data_type) {
     case "character varying":
@@ -78,8 +92,13 @@ function buildCreateTableSql(tableName: string, columns: ColumnInfo[], constrain
   const colDefs = columns.map((col) => {
     let def = `"${col.column_name}" ${columnTypeSql(col)}`
     const serial = isSerialColumn(col)
-    if (col.is_nullable === "NO" && !serial) def += " NOT NULL"
-    if (col.column_default && !serial) def += ` DEFAULT ${col.column_default}`
+    const identity = isIdentityColumn(col)
+    if (identity) {
+      def += ` GENERATED ${col.identity_generation === "BY DEFAULT" ? "BY DEFAULT" : "ALWAYS"} AS IDENTITY`
+    } else {
+      if (col.is_nullable === "NO" && !serial) def += " NOT NULL"
+      if (col.column_default && !serial) def += ` DEFAULT ${col.column_default}`
+    }
     return def
   })
 
@@ -106,7 +125,7 @@ async function cloneReferenceSchema(tenantClient: ReturnType<typeof getPoolForDb
 
   for (const { table_name } of tables) {
     const columns: ColumnInfo[] = await referencePool.query(
-      `SELECT column_name, data_type, udt_name, character_maximum_length, numeric_precision, numeric_scale, is_nullable, column_default
+      `SELECT column_name, data_type, udt_name, character_maximum_length, numeric_precision, numeric_scale, is_nullable, column_default, is_identity, identity_generation
        FROM information_schema.columns WHERE table_schema = 'public' AND table_name = $1 ORDER BY ordinal_position`,
       [table_name],
     )

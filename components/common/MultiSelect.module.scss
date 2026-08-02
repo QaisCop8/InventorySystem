@@ -23,23 +23,23 @@
 .multiselectRoot :global(.p-multiselect) {
   width: 100% !important;
   min-width: 150px !important;
-  min-height: 44px;
-  border: 1px solid #d7dde5 !important;
-  border-radius: 12px !important;
+  min-height: 52px;
+  border: 1px solid #dbe3ee !important;
+  border-radius: 16px !important;
   background: #fff !important;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.05);
   outline: none !important;
   direction: rtl !important;
   transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
 }
 
 .multiselectRoot :global(.p-multiselect:not(.p-disabled):hover) {
-  border-color: #10a274 !important;
+  border-color: #93b4e8 !important;
 }
 
 .multiselectRoot :global(.p-multiselect.p-focus) {
-  border-color: #0f9f6e !important;
-  box-shadow: 0 0 0 3px rgba(15, 159, 110, 0.14) !important;
+  border-color: #3b82f6 !important;
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.12) !important;
 }
 
 .multiselectRoot :global(.p-multiselect.p-disabled) {
@@ -54,12 +54,14 @@
 
 .multiselectRoot :global(.p-multiselect-label) {
   display: flex;
-  min-height: 42px;
+  min-height: 50px;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
-  padding: 8px 12px !important;
-  color: #1f2937;
-  font-size: 14px;
+  gap: 8px;
+  padding: 8px 14px !important;
+  color: #172033;
+  font-size: 15px;
+  font-weight: 500;
   text-align: right;
 }
 
@@ -68,14 +70,20 @@
 }
 
 .multiselectRoot :global(.p-multiselect-token) {
-  max-width: 180px;
+  display: inline-flex;
+  max-width: 210px;
+  min-height: 34px;
+  align-items: center;
+  gap: 8px;
   margin: 0 !important;
-  padding: 4px 8px !important;
-  border: 1px solid #bbf7d0;
-  border-radius: 8px !important;
-  background: #ecfdf5 !important;
-  color: #166534 !important;
-  font-size: 12px;
+  padding: 5px 8px 5px 12px !important;
+  border: 1px solid #e2e8f0;
+  border-radius: 999px !important;
+  background: #fff !important;
+  color: #172033 !important;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+  font-size: 13px;
+  font-weight: 500;
 }
 
 .multiselectRoot :global(.p-multiselect-token-label) {
@@ -84,19 +92,35 @@
   white-space: nowrap;
 }
 
+.multiselectRoot :global(.p-multiselect-token-icon) {
+  box-sizing: content-box;
+  width: 12px;
+  height: 12px;
+  padding: 4px;
+  border-radius: 999px;
+  background: #eaf0f8;
+  color: #475569;
+  transition: background-color 140ms ease, color 140ms ease;
+}
+
+.multiselectRoot :global(.p-multiselect-token-icon:hover) {
+  background: #dbeafe;
+  color: #2563eb;
+}
+
 .multiselectRoot :global(.p-multiselect-trigger) {
-  width: 42px !important;
-  color: #64748b !important;
+  width: 48px !important;
+  color: #172033 !important;
 }
 
 .panelClassRight,
 .panelClassLeft {
   overflow: hidden !important;
-  margin-top: 6px !important;
-  border: 1px solid #d7dde5 !important;
-  border-radius: 14px !important;
+  margin-top: 8px !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 20px !important;
   background: #fff !important;
-  box-shadow: 0 20px 45px rgba(15, 23, 42, 0.16) !important;
+  box-shadow: 0 24px 60px rgba(30, 64, 175, 0.16) !important;
 }
 
 .panelClassRight {
@@ -107,18 +131,33 @@
   direction: ltr !important;
 }
 
-.panelClassRight :global(.p-multiselect-header),
-.panelClassLeft :global(.p-multiselect-header) {
+.panelHeader {
   display: flex !important;
-  align-items: center !important;
-  gap: 10px;
-  padding: 10px !important;
-  border-bottom: 1px solid #eef2f7 !important;
-  background: #f8fafc !important;
+  flex-direction: column;
+  align-items: stretch !important;
+  gap: 8px;
+  padding: 14px 14px 10px !important;
+  border-bottom: 1px solid #dbeafe !important;
+  background: #fff !important;
 }
 
-.panelClassRight :global(.p-multiselect-header) {
+.panelClassRight .panelHeader {
   direction: rtl !important;
+}
+
+.searchRow {
+  width: 100%;
+}
+
+.selectAllRow {
+  display: flex;
+  min-height: 42px;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 8px;
+  color: #172033;
+  font-size: 14px;
+  font-weight: 600;
 }
 
 .panelClassRight :global(.p-multiselect-filter-container),
@@ -132,25 +171,25 @@
 .panelClassLeft :global(.p-multiselect-filter) {
   width: 100% !important;
   min-width: 0 !important;
-  height: 38px;
-  padding-inline: 34px 11px !important;
-  border: 1px solid #d7dde5 !important;
-  border-radius: 9px !important;
-  background: #fff !important;
+  height: 44px;
+  padding-inline: 40px 14px !important;
+  border: 1px solid #cbdaf0 !important;
+  border-radius: 999px !important;
+  background: #f8fbff !important;
   box-shadow: none !important;
   text-align: right;
 }
 
 .panelClassRight :global(.p-multiselect-filter:focus),
 .panelClassLeft :global(.p-multiselect-filter:focus) {
-  border-color: #0f9f6e !important;
-  box-shadow: 0 0 0 3px rgba(15, 159, 110, 0.12) !important;
+  border-color: #3b82f6 !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12) !important;
 }
 
 .panelClassRight :global(.p-multiselect-filter-icon) {
   right: auto !important;
-  left: 11px !important;
-  color: #94a3b8;
+  left: 14px !important;
+  color: #64748b;
 }
 
 .panelClassRight :global(.p-multiselect-items-wrapper),
@@ -160,17 +199,19 @@
 
 .panelClassRight :global(.p-multiselect-items),
 .panelClassLeft :global(.p-multiselect-items) {
-  padding: 6px !important;
+  padding: 12px !important;
 }
 
 .panelClassRight :global(.p-multiselect-item),
 .panelClassLeft :global(.p-multiselect-item) {
   display: flex !important;
-  min-height: 42px;
+  min-height: 48px;
   align-items: center !important;
-  padding: 9px 10px !important;
-  border-radius: 9px !important;
-  color: #273449 !important;
+  gap: 12px;
+  margin-bottom: 7px;
+  padding: 10px 14px !important;
+  border-radius: 999px !important;
+  color: #172033 !important;
   background: transparent !important;
   font-size: 14px;
   transition: background-color 140ms ease, color 140ms ease;
@@ -183,10 +224,32 @@
 }
 
 .panelClassRight :global(.p-multiselect-item .p-checkbox),
-.panelClassRight :global(.p-multiselect-header .p-checkbox) {
+.panelClassRight :global(.p-multiselect-header .p-checkbox),
+.panelClassLeft :global(.p-multiselect-item .p-checkbox),
+.panelClassLeft :global(.p-multiselect-header .p-checkbox) {
+  position: relative !important;
+  display: inline-flex !important;
+  width: 24px !important;
+  height: 24px !important;
   order: -1;
   flex: 0 0 auto;
-  margin: 0 0 0 11px !important;
+  align-items: center;
+  justify-content: center;
+  margin: 0 !important;
+}
+
+// PrimeReact renders a real checkbox input over its styled box for accessibility.
+// Keep it interactive but visually hidden so only the custom checkbox is visible.
+.panelClassRight :global(.p-checkbox-input),
+.panelClassLeft :global(.p-checkbox-input) {
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: 1;
+  width: 100% !important;
+  height: 100% !important;
+  margin: 0 !important;
+  opacity: 0 !important;
+  cursor: pointer;
 }
 
 .panelClassRight :global(.p-multiselect-item > span) {
@@ -197,31 +260,43 @@
 
 .panelClassRight :global(.p-checkbox-box),
 .panelClassLeft :global(.p-checkbox-box) {
-  width: 20px !important;
-  height: 20px !important;
-  border: 1.5px solid #cbd5e1 !important;
-  border-radius: 6px !important;
+  width: 24px !important;
+  height: 24px !important;
+  border: 1.5px solid #b9c9df !important;
+  border-radius: 7px !important;
   background: #fff !important;
   box-shadow: none !important;
 }
 
 .panelClassRight :global(.p-checkbox-box.p-highlight),
-.panelClassLeft :global(.p-checkbox-box.p-highlight) {
-  border-color: #0f9f6e !important;
-  background: #0f9f6e !important;
+.panelClassLeft :global(.p-checkbox-box.p-highlight),
+.panelClassRight :global(.p-checkbox-box[data-p-highlight='true']),
+.panelClassLeft :global(.p-checkbox-box[data-p-highlight='true']) {
+  border-color: #2f80ed !important;
+  background: #2f80ed !important;
+}
+
+.panelClassRight :global(.p-multiselect-item .p-checkbox-box),
+.panelClassLeft :global(.p-multiselect-item .p-checkbox-box) {
+  border-radius: 999px !important;
 }
 
 .panelClassRight :global(.p-multiselect-item:hover),
 .panelClassLeft :global(.p-multiselect-item:hover) {
-  background: #f0fdf4 !important;
-  color: #14532d !important;
+  background: #f5f9ff !important;
+  color: #172033 !important;
 }
 
 .panelClassRight :global(.p-multiselect-item.p-highlight),
 .panelClassLeft :global(.p-multiselect-item.p-highlight) {
-  background: #ecfdf5 !important;
-  color: #166534 !important;
-  font-weight: 600;
+  background: #eef5ff !important;
+  color: #172033 !important;
+  font-weight: 500;
+}
+
+.panelClassRight :global(.p-multiselect-item:last-child),
+.panelClassLeft :global(.p-multiselect-item:last-child) {
+  margin-bottom: 0;
 }
 
 .panelClassRight :global(.p-multiselect-empty-message),

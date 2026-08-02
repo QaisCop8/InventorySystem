@@ -30,16 +30,8 @@ export default class MultiSelect extends React.Component {
     this.state = {
       floatLabel: false,
       isAllSelected: false,
-      filteredItems: this.props.options,
-      appendToContainer: null
+      filteredItems: this.props.options
     };
-  }
-
-  componentDidMount() {
-    const container = this.wrapperRef.current;
-    if (container && !this.props.appendTo) {
-      this.setState({ appendToContainer: container });
-    }
   }
   truncatedLabel = (option) => {
 
@@ -63,7 +55,7 @@ export default class MultiSelect extends React.Component {
   }
 
   render() {
-    const panelClassName = `${styles.panelClassRight} ${this.props.panelClassName ?? 'invoice-currency-dropdown-panel'}`.trim();
+    const panelClassName = `${styles.panelClassRight} ${this.props.panelClassName ?? ''}`.trim();
     // const SELECTALLMAXLIMIT = 5000;
     let divlabelStyle = {};
     if (this.props.isReportFilter) divlabelStyle = { display: 'flex', flexDirection: 'column', width: '100%', overflow: 'hidden' };
@@ -103,18 +95,20 @@ export default class MultiSelect extends React.Component {
               }}
               ref={this.props.innerRef}
               virtualScroll={true}
-              virtualScrollerOptions={{ itemSize: 35 }}
+              virtualScrollerOptions={{ itemSize: 55 }}
               title={this.props.tooltip}
               {...this.props}
-              // className مُعاد بناؤه هنا (بعد {...this.props}) عمداً — كتابته قبل الانتشار كانت
-              // تُمحى بالكامل متى ما مرَّر المستدعي className خاصاً به (كـ "w-full")، فيفقد الحقل
-              // صنف invoice-currency-dropdown ومعه كل التنسيق الحديث المُعرَّف له في globals.css.
-              className={`${styles.multiselect} invoice-currency-dropdown w-full ${this.props.className || this.props.innerClass || ''}`.trim()}
-              appendTo={this.props.appendTo ?? this.state.appendToContainer}
+              // Keep the component's local style after the prop spread so a caller's className
+              // augments the control instead of replacing the shared multiselect appearance.
+              className={`${styles.multiselect} w-full ${this.props.className || this.props.innerClass || ''}`.trim()}
+              appendTo={this.props.appendTo ?? 'self'}
+              filter={this.props.showFilter ?? this.props.filter}
+              showSelectAll={this.props.showCheck ?? this.props.showSelectAll}
               // showSelectAll={this.props.options&&this.props.options.length>SELECTALLMAXLIMIT && !this.props.showSelectAllAlways ?false:true}
               tooltipOptions={{ position: 'bottom', style: { direction: 'rtl' } }}
               panelClassName={panelClassName}
-              itemTemplate={this.itemsTemplate}
+              itemTemplate={this.props.itemTemplate ?? this.itemsTemplate}
+              panelHeaderTemplate={this.props.panelHeaderTemplate ?? this.panelHeaderTemplate}
               filterPlaceholder={this.props.filterPlaceholder ?? 'ابحث في الخيارات...'}
               emptyMessage={this.props.emptyMessage ?? 'لا توجد خيارات متاحة'}
               emptyFilterMessage={this.props.emptyFilterMessage ?? 'لا توجد نتائج مطابقة'}
@@ -160,18 +154,19 @@ export default class MultiSelect extends React.Component {
             }}
             ref={this.props.innerRef}
             virtualScroll={true}
-            virtualScrollerOptions={{ itemSize: 35 }}
+            virtualScrollerOptions={{ itemSize: 55 }}
             title={this.props.tooltip}
             {...this.props}
-            // انظر التعليق في فرع withgroup أعلاه — نفس سبب تأجيل className لِما بعد الانتشار
-            className={`${styles.multiselect} invoice-currency-dropdown w-full ${this.props.className || this.props.innerClass || ''}`.trim()}
-            appendTo={this.props.appendTo ?? this.state.appendToContainer}
+            // See the withgroup branch above; local styles must survive the prop spread.
+            className={`${styles.multiselect} w-full ${this.props.className || this.props.innerClass || ''}`.trim()}
+            appendTo={this.props.appendTo ?? 'self'}
             filter={this.props.showFilter ?? this.props.filter}
             showSelectAll={this.props.showCheck ?? this.props.showSelectAll}
             display={this.props.showMultiSelect ? 'chip' : this.props.display}
             tooltipOptions={{ position: 'bottom', style: { direction: 'rtl' } }}
             panelClassName={panelClassName}
-            itemTemplate={this.itemsTemplate}
+            itemTemplate={this.props.itemTemplate ?? this.itemsTemplate}
+            panelHeaderTemplate={this.props.panelHeaderTemplate ?? this.panelHeaderTemplate}
             filterPlaceholder={this.props.filterPlaceholder ?? 'ابحث في الخيارات...'}
             emptyMessage={this.props.emptyMessage ?? 'لا توجد خيارات متاحة'}
             emptyFilterMessage={this.props.emptyFilterMessage ?? 'لا توجد نتائج مطابقة'}
@@ -190,6 +185,24 @@ export default class MultiSelect extends React.Component {
       </div>
     );
   }
+
+  panelHeaderTemplate = (options) => {
+    const showFilter = options.props.filter;
+    const showSelectAll = options.props.showSelectAll !== false;
+
+    return (
+      <div className={`${options.className} ${styles.panelHeader}`}>
+        {showFilter && <div className={styles.searchRow}>{options.filterElement}</div>}
+        {showSelectAll && (
+          <div className={styles.selectAllRow}>
+            {options.checkboxElement}
+            <span>{this.props.selectAllLabel ?? 'تحديد الكل'}</span>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   searchWordsMatch = (option, searchQuery, filterFields) => {
     const words = searchQuery.trim().toLowerCase().split(/\s+/);
 

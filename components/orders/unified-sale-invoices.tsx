@@ -714,7 +714,8 @@ function UnifiedSaleInvoices({
           { id: 2, name: 'جاهز' },
           { id: 3, name: 'مرسلة جزئيا' },
           { id: 4, name: 'مرسلة كليا' },
-          { id: 5, name: 'ملغي' }
+          { id: 5, name: 'ملغي' },
+          { id: 6, name: 'مغلق' }
         ]);
 
         // Initialize new record
@@ -1067,6 +1068,23 @@ function UnifiedSaleInvoices({
     const grid = gridRef.current?.flex;
     if (!grid) return;
 
+    try {
+      await FillItemInner(items, grid);
+    } catch (error: any) {
+      // استثناء غير معالَج هنا سابقاً (كخطأ شبكة عند جلب وحدات الصنف) كان يهرب كـ unhandled promise
+      // rejection بعد إغلاق نافذة البحث أصلاً — يظهر للمستخدم كأن التطبيق "تعطّل" رغم أن الإضافة قد
+      // تكون جزئية. الآن يُلتَقط ويُعرَض كتنبيه بدل ذلك.
+      console.error("Error adding product to invoice:", error);
+      toast.current?.show({
+        severity: "error",
+        summary: "تعذّرت إضافة الصنف",
+        detail: error?.message || "حدث خطأ غير متوقع أثناء إضافة الصنف",
+        life: 4000,
+      });
+    }
+  };
+
+  const FillItemInner = async (items: any[], grid: wjGrid.FlexGrid) => {
     let selectedIndexL = grid?.selection?.row;
     const lastRowIndex = CollectionView.items.length - 1;
     if (setFromExcelRef.current) {

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { ArrowRight, BarChart3, BellRing, CircleDollarSign, Clock3, Package, Sparkles, TrendingUp, AlertTriangle, CheckCircle2, Users2, Wallet2, CreditCard, FilePlus, ShoppingCart, UserPlus, PieChart as PieChartIcon } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { useExchangeRates } from "@/hooks/use-swr-data"
@@ -8,6 +8,7 @@ import { getFirstCurrencyLabel } from "@/lib/currency-display"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ResponsiveContainer, BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell, Legend } from "recharts"
+import { QuickSalesOrder } from "@/components/quick-sales-order"
 
 interface WelcomeDashboardProps {
   onOpenSection?: (section: string) => void
@@ -190,6 +191,7 @@ export default function WelcomeDashboard({ onOpenSection }: WelcomeDashboardProp
   const [companyName, setCompanyName] = useState("")
   const [companyAddress, setCompanyAddress] = useState("")
   const [companyInfoLoading, setCompanyInfoLoading] = useState(true)
+  const [showQuickOrder, setShowQuickOrder] = useState(false)
   const [insightsData, setInsightsData] = useState<{
     months: Array<{ monthKey: string; revenue: number; cogs: number }>
     cashBalance: number
@@ -256,8 +258,7 @@ export default function WelcomeDashboard({ onOpenSection }: WelcomeDashboardProp
     }
   }, [])
 
-  useEffect(() => {
-    const loadDashboardData = async () => {
+  const loadDashboardData = useCallback(async () => {
       try {
         setLoading(true)
 
@@ -326,10 +327,11 @@ export default function WelcomeDashboard({ onOpenSection }: WelcomeDashboardProp
       } finally {
         setLoading(false)
       }
-    }
-
-    loadDashboardData()
   }, [])
+
+  useEffect(() => {
+    loadDashboardData()
+  }, [loadDashboardData])
 
   const dailyOrdersData = buildDailyOrdersData(ordersData, ordersSelectedMonth)
   const dailySalesData = buildDailySalesData(vouchersData, salesSelectedMonth)
@@ -377,10 +379,10 @@ export default function WelcomeDashboard({ onOpenSection }: WelcomeDashboardProp
     },
   ]
 
-  const homeActions = [
+  const homeActions: Array<{ label: string; section: string; icon: typeof UserPlus; tone: string; onClick?: () => void }> = [
     { label: "إضافة عميل", section: "customers", icon: UserPlus, tone: "from-sky-500 to-blue-600" },
     { label: "إنشاء فاتورة", section: "sale-invoices", icon: FilePlus, tone: "from-emerald-500 to-teal-600" },
-    { label: "إنشاء طلب", section: "sales-orders", icon: ShoppingCart, tone: "from-orange-500 to-amber-600" },
+    { label: "إنشاء طلب", section: "sales-orders", icon: ShoppingCart, tone: "from-orange-500 to-amber-600", onClick: () => setShowQuickOrder(true) },
     { label: "إدخال صنف", section: "products", icon: Package, tone: "from-violet-500 to-fuchsia-600" },
     { label: "إدخال دفع", section: "accounts", icon: CreditCard, tone: "from-emerald-500 to-green-600" },
     { label: "الحسابات", section: "accounts", icon: Wallet2, tone: "from-sky-500 to-indigo-600" },
@@ -504,7 +506,7 @@ export default function WelcomeDashboard({ onOpenSection }: WelcomeDashboardProp
                     <button
                       key={action.label}
                       type="button"
-                      onClick={() => onOpenSection?.(action.section)}
+                      onClick={() => (action.onClick ? action.onClick() : onOpenSection?.(action.section))}
                       className="flex flex-col items-center justify-center gap-2 rounded-3xl border border-border/60 bg-slate-50 px-4 py-4 text-center text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-100"
                     >
                       <span className={`inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br ${action.tone} text-white`}>
@@ -664,6 +666,12 @@ export default function WelcomeDashboard({ onOpenSection }: WelcomeDashboardProp
           </Card>
         </div>
       </div>
+
+      <QuickSalesOrder
+        open={showQuickOrder}
+        onOpenChange={setShowQuickOrder}
+        onOrderSaved={() => loadDashboardData()}
+      />
     </div>
   )
 }

@@ -39,6 +39,7 @@ import {
   FilePlus2,
   FileMinus2,
   KanbanSquare,
+  PackageCheck,
   LucideIcon,
 } from "lucide-react"
 import { useWindowManager } from "@/contexts/window-manager-context"
@@ -103,6 +104,7 @@ export const menuItems: MenuItem[] = [
       { title: "إدارة الأقسام ومخطط سير العمل", section: "task-orders-admin", icon: Settings },
       { title: "متابعة طلباتي", section: "task-orders-board", icon: KanbanSquare },
       { title: "التقارير", section: "task-orders-report", icon: BarChart3 },
+      { title: "اعتماد الطلبيات الجاهزة", section: "task-orders-approval", icon: PackageCheck },
     ],
   },
   //{ id: "lot-opener", title: "فتح الدفعات", icon: Unlock, section: "lot-opener" },

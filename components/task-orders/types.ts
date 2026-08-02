@@ -28,6 +28,7 @@ export interface TaskSection {
 
 export type AssignmentType = "all" | "specific"
 export type JoinType = "none" | "and" | "or"
+export type StepType = "audit" | "approval" | "preparation" | "normal" | "loading"
 
 export interface TaskWorkflowStep {
   id: number
@@ -44,6 +45,7 @@ export interface TaskWorkflowStep {
   sla_hours: number | null
   is_conditional: boolean
   sla_actions: string[]
+  step_type: StepType
 }
 
 export interface TaskWorkflowTransition {
@@ -94,6 +96,7 @@ export interface TaskOpenTask {
   step_id: number
   step_key: string
   step_label: string
+  step_type: StepType
   assignment_type: AssignmentType
   sla_hours: number | null
   is_end: boolean
@@ -144,6 +147,7 @@ export interface TaskStepInstance {
   step_id: number
   step_key: string
   step_label: string
+  step_type: StepType
   assignment_type: AssignmentType
   is_end: boolean
   join_type: JoinType
@@ -191,6 +195,9 @@ export interface TaskOrderItemDetail {
   product_id: number | null
   item_type: string | null
   qty: number | null
+  prepared_qty: number | null
+  loading_checked_at: string | null
+  loading_checked_by: string | null
   attributes: Record<string, string>
   workflow_id: number
   workflow_name: string
@@ -207,6 +214,33 @@ export interface TaskOrderItemDetail {
   workflowTransitions: TaskWorkflowTransition[]
 }
 
+// صف صنف شقيق داخل نفس الطلبية — تُستخدَم بلوحة الأصناف الشقيقة (order-items-panel.tsx) عند العمل
+// على خطوة من نوع تدقيق/اعتماد/تجهيز/تحميل.
+export interface SiblingOrderItem {
+  id: number
+  item_code: string
+  title: string
+  qty: number | null
+  prepared_qty: number | null
+  loading_checked_at: string | null
+  loading_checked_by: string | null
+  status: OrderItemStatus
+}
+
+// طلبية قابلة للاعتماد النهائي — تُستخدَم بشاشة اعتماد الطلبيات الجاهزة الجديدة.
+export interface ApprovableCustomerOrder {
+  id: number
+  order_code: string
+  customer_id: number | null
+  customer_name: string | null
+  priority: Priority
+  status: string
+  source_order_id: number
+  item_count: number
+  created_at: string
+  completed_at: string | null
+}
+
 export interface AppUser {
   user_id: string
   full_name: string
@@ -219,6 +253,14 @@ export const PRIORITY_LABELS: Record<Priority, string> = {
   normal: "عادية",
   high: "عالية",
   urgent: "عاجلة",
+}
+
+export const STEP_TYPE_LABELS: Record<StepType, string> = {
+  normal: "خطوة عادية",
+  audit: "تدقيق",
+  approval: "اعتماد",
+  preparation: "تجهيز",
+  loading: "تحميل",
 }
 
 export const STEP_STATUS_LABELS: Record<StepInstanceStatus, string> = {
@@ -239,4 +281,5 @@ export const ACTION_LABELS: Record<string, string> = {
   reject: "رفض",
   force_reject: "رفض إجباري (إداري)",
   transfer: "تحويل إداري",
+  force_close: "إغلاق إجباري للطلبية",
 }

@@ -1170,8 +1170,7 @@ export function SystemSettings() {
                       </div>
                       <div className="flex items-end">
                         <div className="text-sm text-muted-foreground">
-                          مثال: {settings.orderPrefix}
-                          {String(settings.orderStart).padStart(4, "0")}
+                          مثال: {buildVoucherCode(settings.orderPrefix, "A", settings.orderStart)} (A = دفتر السندات، والكود الكلي لا يتجاوز 10 خانات)
                         </div>
                       </div>
                     </div>
@@ -1214,8 +1213,7 @@ export function SystemSettings() {
                       </div>
                       <div className="flex items-end">
                         <div className="text-sm text-muted-foreground">
-                          مثال: {settings.purchasePrefix}
-                          {String(settings.purchaseStart).padStart(4, "0")}
+                          مثال: {buildVoucherCode(settings.purchasePrefix, "A", settings.purchaseStart)} (A = دفتر السندات، والكود الكلي لا يتجاوز 10 خانات)
                         </div>
                       </div>
                     </div>

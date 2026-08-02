@@ -1,12 +1,14 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import DataGridView from "../common/DataGridView";
 import MultiSelect from "../common/MultiSelect";
 import * as wjGrid from "@grapecity/wijmo.grid";
 import { useTranslation } from 'react-i18next';
+import { X } from "lucide-react";
 // -----------------------
 // Types
 // -----------------------
@@ -98,13 +100,16 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
     setSearchName(searchText || "");
     setSearchBarcode("");
     setSearchPrice("");
-    setTimeout(() => searchNameRef.current?.focus(), 100);
+    const focusTimer = window.setTimeout(() => {
+      if (!window.matchMedia("(max-width: 639px)").matches) searchNameRef.current?.focus();
+    }, 100);
     ws.current = new WebSocket("ws://localhost:33333/ws");
     ws.current.onopen = () => {
       ws.current?.send(JSON.stringify({ type: "changeLang", language: "1" }));
     };
     return () => {
       cancelled = true;
+      window.clearTimeout(focusTimer);
       if (ws.current) ws.current.close();
     };
   }, [visible, priceCategoryId, selectedTypes, searchText]);
@@ -303,6 +308,7 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
 
     if (e.key === "Escape") {
       e.preventDefault();
+      e.stopPropagation();
       onClose();
       return;
     }
@@ -332,10 +338,10 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
     }
   };
 
-  window.addEventListener("keydown", handleKeyDown, true);
+  document.addEventListener("keydown", handleKeyDown, true);
 
   return () => {
-    window.removeEventListener("keydown", handleKeyDown, true);
+    document.removeEventListener("keydown", handleKeyDown, true);
   };
 }, [visible, onClose]);
 
@@ -363,28 +369,45 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
   }
   if (!visible) return null;
 
-  const gridStyleUnits = {
-    maxHeight: '10vh',
-    minHeight: '10vh',
-  };
-
-  const gridStyleItems = {
-    maxHeight: '24vh',
-    minHeight: '24vh',
-  };
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-6">
-      <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 p-5 flex flex-col w-full max-w-[1400px] max-h-[84vh] overflow-hidden" dir="rtl">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+  const responsiveGridStyle = { height: '100%', minHeight: 0, maxHeight: '100%' };
+  return createPortal(
+    <div
+      // pointer-events-auto صريح ضروري هنا: هذه اللوحة تُركَّب عبر createPortal مباشرة إلى
+      // document.body، خارج أي عنصر تتتبّعه Radix كـ"طبقة" (DismissableLayer). أي Dialog من Radix
+      // مفتوح بنفس اللحظة (وهو الحال الافتراضي modal=true) يضبط pointerEvents="none" على body نفسه
+      // ويُعيد تفعيلها فقط على عقدة الطبقة الخاصة به — لا على عناصر أخرى ملحقة بـbody كهذه، فتُصبح
+      // كل عناصر هذه اللوحة غير قابلة للنقر بالكامل (فقط لوحة المفاتيح، كـEscape، تبقى تعمل) ما لم
+      // تُفرَض pointer-events: auto صراحة هنا بمعزل عن أي وراثة من body.
+      className="pointer-events-auto fixed inset-0 z-[100] flex items-stretch justify-center bg-black/40 p-0 sm:items-center sm:px-4 sm:py-6"
+      onKeyDown={(e) => {
+        if (e.key === "Escape") {
+          e.preventDefault();
+          e.stopPropagation();
+          onClose();
+        }
+      }}
+    >
+      <div className="flex h-[100dvh] max-h-[100dvh] w-full max-w-[1400px] flex-col overflow-y-auto rounded-none border-0 border-slate-200 bg-white p-3 shadow-2xl overscroll-contain sm:h-auto sm:max-h-[92dvh] sm:overflow-hidden sm:rounded-3xl sm:border sm:p-5" dir="rtl">
+        <div className="flex shrink-0 items-center justify-between gap-3">
           <h3 className="text-xl font-semibold text-slate-900">{title || "بحث الأصناف"}</h3>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={onClose}
+            className="h-10 w-10 shrink-0 rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200"
+            aria-label="إغلاق"
+          >
+            <X className="h-5 w-5" />
+          </Button>
         </div>
 
-        <div className="mt-4 rounded-3xl border border-slate-200 bg-slate-50 p-4 shadow-sm">
-          <div className="mb-4 text-right">
+        <div className="mt-3 shrink-0 rounded-2xl border border-slate-200 bg-slate-50 p-3 shadow-sm sm:mt-4 sm:rounded-3xl sm:p-4">
+          <div className="mb-3 text-right sm:mb-4">
             <p className="text-sm font-semibold text-slate-900">الفلاتر</p>
           </div>
 
-          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-[0.8fr_2fr_0.8fr_0.8fr_1fr]">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3 xl:grid-cols-[0.8fr_2fr_0.8fr_0.8fr_1fr]">
             <div className="space-y-1">
               <label className="block text-xs font-semibold text-slate-700 text-right">رقم الصنف</label>
               <Input
@@ -451,6 +474,13 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
                   className="w-full"
                   panelClassName="invoice-currency-dropdown-panel invoice-currency-dropdown-panel-left"
                   appendTo="self"
+                  // virtualScroll مفروض افتراضياً بمكوّن MultiSelect المشترك (لا يمكن تعطيله إلا
+                  // بتمريره كـprop يتغلّب على القيمة الافتراضية عبر انتشار this.props) — لا فائدة منه
+                  // لقائمتين ثابتتين فقط، وتفاعله مع panelHeaderTemplate المخصّص (خانة "تحديد الكل")
+                  // هو المرشّح الأقرب لاستثناء JS غير مُلتقَط عند فتح هذه القائمة تحديداً هنا (لوحة
+                  // بحث الأصناف هي المكان الوحيد بالمشروع الذي يعرض هذا الفلتر التفاعلي بدل تثبيت نوع
+                  // واحد عبر productTypes).
+                  virtualScroll={false}
                   onChange={(e: any) => {
                     const values = Array.isArray(e.value) ? e.value.map(Number) : [];
                     setSelectedTypes(values.length > 0 ? values : [1, 2]);
@@ -462,43 +492,51 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
         </div>
 
 
-        <div className="flex-1 flex flex-col gap-4 overflow-hidden mt-2">
-          <div className="rounded-3xl border border-slate-200 bg-white shadow-sm p-3">
+        <div className="mt-2 flex min-h-0 flex-1 flex-col gap-3 sm:gap-4 sm:overflow-hidden">
+          <div className="shrink-0 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:rounded-3xl">
             <h4 className="text-sm font-semibold mb-3 text-slate-700 text-right">نتائج البحث</h4>
-            <DataGridView
-              style={gridStyleItems}
-              ref={gridProductsRef}
-              dataSource={filteredProducts}
-              scheme={productScheme}
-              onRowDoubleClick={handleProductDoubleClick}
-              selectionChanged={selectionChanged}
-              onKeyDown={(s: any, e: any) => onKeyDownGrid(s, e)}
-              keyActionEnter="None"
-            />
+            <div className="h-[32dvh] min-h-[220px] w-full overflow-hidden sm:h-[24vh] sm:min-h-[180px]">
+              <DataGridView
+                style={responsiveGridStyle}
+                containerStyle={responsiveGridStyle}
+                ref={gridProductsRef}
+                dataSource={filteredProducts}
+                scheme={productScheme}
+                onRowDoubleClick={handleProductDoubleClick}
+                selectionChanged={selectionChanged}
+                onKeyDown={(s: any, e: any) => onKeyDownGrid(s, e)}
+                keyActionEnter="None"
+              />
+            </div>
           </div>
 
-          <div className="rounded-3xl border border-slate-200 bg-white shadow-sm p-3">
+          <div className="shrink-0 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:rounded-3xl">
             <h4 className="text-sm font-semibold mb-3 text-slate-700 text-right">وحدات الصنف</h4>
             <div className="text-sm text-slate-500 mb-3 text-right">{selectedProduct?.product_name || "لا يوجد صنف محدد"}</div>
-            <DataGridView
-              innerRef={gridUnitsRef}
-              dataSource={selectedProduct?.units || []}
-              scheme={unitScheme}
-              onRowDoubleClick={handleUnitRowDoubleClick}
-            />
+            <div className="h-[24dvh] min-h-[180px] w-full overflow-hidden sm:h-[12vh] sm:min-h-[100px]">
+              <DataGridView
+                innerRef={gridUnitsRef}
+                style={responsiveGridStyle}
+                containerStyle={responsiveGridStyle}
+                dataSource={selectedProduct?.units || []}
+                scheme={unitScheme}
+                onRowDoubleClick={handleUnitRowDoubleClick}
+              />
+            </div>
           </div>
         </div>
 
-        <div className="flex justify-center gap-3 mt-5">
-          <Button className="erp-btn-primary search-button min-w-[120px]" onClick={handleConfirm}>
+        <div className="sticky bottom-0 z-10 mt-3 flex shrink-0 gap-3 border-t border-slate-200 bg-white/95 py-3 backdrop-blur sm:static sm:mt-5 sm:justify-center sm:border-0 sm:bg-transparent sm:py-0">
+          <Button className="erp-btn-primary search-button min-w-0 flex-1 sm:min-w-[120px] sm:flex-none" onClick={handleConfirm}>
             موافق
           </Button>
-          <Button variant="outline" onClick={onClose} className="search-button min-w-[120px]">
+          <Button variant="outline" onClick={onClose} className="search-button min-w-0 flex-1 sm:min-w-[120px] sm:flex-none">
             إغلاق
           </Button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 };
 

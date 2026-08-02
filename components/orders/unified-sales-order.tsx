@@ -299,7 +299,7 @@ function UnifiedSalesOrder({
   vch_type,
   fromSearch = false,
 }: UnifiedSalesOrderProps) {
-  const { activeBranchId } = useAuth()
+  const { activeBranchId, user } = useAuth()
   const {
     settings,
     loading: settingsLoading,
@@ -378,6 +378,7 @@ function UnifiedSalesOrder({
   const [selectedIndex, setSelectedIndex] = useState(0)
   const [orderStatusList, setOrderStatusList] = useState<OrderStatus[]>([]);
   const [orderStatus, setOrderStatus] = useState<OrderStatus | null>(null);
+  const [voucherBooks, setVoucherBooks] = useState<{ id: number; name: string }[]>([]);
   const [selectedProductForUnits, setSelectedProductForUnits] = useState<Product | null>(null);
   const [showStoresSearch, setStoresSearch] = useState(false)
   const [showCustomerSearch, setShowCustomerSearch] = useState(false);
@@ -539,15 +540,41 @@ function UnifiedSalesOrder({
           { id: 2, name: 'جاهز' },
           { id: 3, name: 'مرسلة جزئيا' },
           { id: 4, name: 'مرسلة كليا' },
-          { id: 5, name: 'ملغي' }
+          { id: 5, name: 'ملغي' },
+          { id: 6, name: 'مغلق' }
         ]);
+
+        // دفتر السندات: كان قائمة أحرف ثابتة "LMPR" بلا علاقة بصلاحيات المستخدم — الآن يُجلَب فعلياً
+        // من voucher_book_user_permissions_tbl (نفس نقطة النهاية ونمط stock-vouchers.tsx تماماً)،
+        // مقيّداً بنوع السند (1=طلبية مبيعات، 2=طلبية مشتريات — voucher_types_tbl).
+        let defaultBookName: string | null = null;
+        try {
+          const booksRes = await fetch(
+            `/api/receipts/voucher-books?vch_type=${vch_type ?? 1}${user?.id ? `&user_id=${encodeURIComponent(user.id)}` : ""}`,
+          );
+          if (booksRes.ok) {
+            const booksData = await booksRes.json();
+            const books = Array.isArray(booksData?.books) ? booksData.books : [];
+            setVoucherBooks(books);
+            defaultBookName = books.find((b: any) => b.id === booksData?.default_book_id)?.name ?? books[0]?.name ?? null;
+          }
+        } catch (error) {
+          console.error("Failed to fetch voucher books:", error);
+        }
 
         // Initialize new record
         if (order) {
+          // طلبية موجودة: دفتر السندات يأتي من الطلبية نفسها (loadOrderData) — لا يُستبدَل بالافتراضي.
           loadOrderData("Byid", order.id)
           //fromSearch = false
         }
-        else reset_order();
+        else {
+          // طلبية جديدة: يُضبَط دفتر السندات على الافتراضي الفعلي لصلاحيات المستخدم أولاً (يُمرَّر
+          // صراحة لـreset_order بدل الاعتماد على "R" الثابتة القديمة أو قراءة state بعد setState
+          // غير متزامن)، ثم يُولَّد رقم الطلبية بناءً عليه مباشرة بنفس اللفة — لا توليد أول بدفتر
+          // خاطئ يليه توليد ثانٍ مصحَّح.
+          reset_order(defaultBookName ?? undefined);
+        }
       } catch (error) {
         console.error("Failed to fetch definitions:", error);
       } finally {
@@ -669,9 +696,12 @@ function UnifiedSalesOrder({
     }
   }
 
-  const generateOrderNumber = async () => {
+  // vchBookOverride: يُستخدَم عندما يُستدعى التوليد مباشرة بعد ضبط دفتر السندات ببرمجية (setState)
+  // بنفس اللفة التزامنية — state.formData.vch_book بالذاكرة المحلية لا يعكس تحديث setState الأخير
+  // بعد (تحديثات React غير متزامنة)، فتُمرَّر القيمة الفعلية صراحة بدل قراءتها من state القديم.
+  const generateOrderNumber = async (vchBookOverride?: string) => {
     try {
-      const vchBook = state.formData.vch_book ?? "0";
+      const vchBook = vchBookOverride ?? state.formData.vch_book ?? "0";
       const response = await fetch(
         `/api/orders/generate-number?vch_book=${encodeURIComponent(vchBook)}&vch_type=${encodeURIComponent(vch_type ?? 1)}`
       );
@@ -897,6 +927,23 @@ function UnifiedSalesOrder({
     const grid = gridRef.current?.flex;
     if (!grid) return;
 
+    try {
+      await FillItemInner(items, grid);
+    } catch (error: any) {
+      // استثناء غير معالَج هنا سابقاً (كخطأ شبكة عند جلب وحدات الصنف) كان يهرب كـ unhandled promise
+      // rejection بعد إغلاق نافذة البحث أصلاً — يظهر للمستخدم كأن التطبيق "تعطّل" رغم أن الإضافة قد
+      // تكون جزئية. الآن يُلتَقط ويُعرَض كتنبيه بدل ذلك.
+      console.error("Error adding product to order:", error);
+      toast.current?.show({
+        severity: "error",
+        summary: "تعذّرت إضافة الصنف",
+        detail: error?.message || "حدث خطأ غير متوقع أثناء إضافة الصنف",
+        life: 4000,
+      });
+    }
+  };
+
+  const FillItemInner = async (items: any[], grid: wjGrid.FlexGrid) => {
     const resolveProductStore = (product: any) => {
       const defaultStoreId = Number(product.default_store ?? product.store_id ?? 0) || 0;
       const defaultStoreName =
@@ -2306,7 +2353,7 @@ function UnifiedSalesOrder({
       }));
 
       // 4️⃣ Focus on first input (order date)
-      setTimeout(() => referenceNumberRef.current?.focus(), 50)
+      setTimeout(() => orderdateRef.current?.focus(), 50)
     } catch (err) {
       console.error("Failed to clone order:", err);
     } finally {
@@ -2629,6 +2676,7 @@ function UnifiedSalesOrder({
           ...item,
           id: item.product_id,
           item_id: item.product_id,
+          code: item.product_code,
           name: item.product_name,
           price: item.price,
           discount: item.discount,
@@ -2669,7 +2717,7 @@ function UnifiedSalesOrder({
     finally {
       setLoading(false)
       setTimeout(() => {
-        referenceNumberRef.current?.focus();
+        orderdateRef.current?.focus();
       }, 50)
 
     }
@@ -2698,11 +2746,12 @@ function UnifiedSalesOrder({
     reset_order()
   }
 
-  const reset_order = () => {
+  const reset_order = (vchBookOverride?: string) => {
     setLoading(true)
+    const resolvedVchBook = vchBookOverride || lastVchBook.current || initialFormData.vch_book;
     setState((prev) => ({
       ...prev, // Keep existing states like customers, products etc.
-      formData: { ...initialFormData, vch_book: lastVchBook.current || initialFormData.vch_book },
+      formData: { ...initialFormData, vch_book: resolvedVchBook },
       customerSearch: "",
       activeTab: "basic", // Reset to basic tab
       showCustomerSearch: false,
@@ -2721,7 +2770,7 @@ function UnifiedSalesOrder({
       focusGrid()
     }, 10)
     console.log("initialFormData before reset ", initialFormData)
-    generateOrderNumber()
+    generateOrderNumber(resolvedVchBook)
     setLoading(false)
     const orderDate = new Date(initialFormData.order_date ?? new Date());
 
@@ -2739,7 +2788,7 @@ function UnifiedSalesOrder({
     initialHash.current = currentHash;
 
     setTimeout(() => {
-      referenceNumberRef.current?.focus();
+      orderdateRef.current?.focus();
     }, 50)
     setCurrentOrderId(0)
     priceCategoryIdRef.current = 1
@@ -3134,26 +3183,25 @@ function UnifiedSalesOrder({
                   {/* الصف الأول */}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     {/* دفتر السندات */}
-                    <div>
+                    <div className="invoice-currency-dropdown-wrap">
                       <Label>دفتر السندات</Label>
-                      <Select
-                        value={String(state.formData.vch_book ?? "R")}
-                        onValueChange={(value) =>
+                      <Dropdown
+                        value={state.formData.vch_book ?? null}
+                        options={voucherBooks}
+                        optionLabel="name"
+                        optionValue="name"
+                        placeholder="اختر"
+                        filter
+                        className="invoice-currency-dropdown w-full"
+                        panelClassName="invoice-currency-dropdown-panel"
+                        appendTo="self"
+                        onChange={(e: any) =>
                           setState(prev => ({
                             ...prev,
-                            formData: { ...prev.formData, vch_book: value }
+                            formData: { ...prev.formData, vch_book: e.value ?? null }
                           }))
                         }
-                      >
-                        <SelectTrigger className="h-11">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {"LMPR".split("").map(l => (
-                            <SelectItem key={l} value={l}>{l}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      />
                     </div>
 
                     {/* رقم الطلبية */}
@@ -3295,6 +3343,7 @@ function UnifiedSalesOrder({
                           <SelectItem value="3">مرسلة جزئيا</SelectItem>
                           <SelectItem value="4">مرسلة كليا</SelectItem>
                           <SelectItem value="5">ملغاة</SelectItem>
+                          <SelectItem value="6">مغلقة</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>

@@ -6,14 +6,21 @@ import { CalendarDays } from "lucide-react"
 export const DATE_TIME_CONTROL_DEFAULT_MIN_YEAR = 1900
 export const DATE_TIME_CONTROL_DEFAULT_MAX_YEAR = 2199
 
-interface DateTimeControlProps {
+interface DateTimeControlProps
+  extends Omit<
+    React.InputHTMLAttributes<HTMLInputElement>,
+    "type" | "value" | "defaultValue" | "onChange" | "onBlur" | "className" | "min" | "max"
+  > {
   id?: string
   value: string
   onChange: (value: string) => void
-  onBlur?: () => void
+  onNativeChange?: React.ChangeEventHandler<HTMLInputElement>
+  onBlur?: React.FocusEventHandler<HTMLInputElement>
   showTime?: boolean
   minYear?: number
   maxYear?: number
+  min?: string
+  max?: string
   disabled?: boolean
   required?: boolean
   className?: string
@@ -33,10 +40,14 @@ const DateTimeControl = forwardRef<HTMLInputElement, DateTimeControlProps>(
       showTime = false,
       minYear = DATE_TIME_CONTROL_DEFAULT_MIN_YEAR,
       maxYear = DATE_TIME_CONTROL_DEFAULT_MAX_YEAR,
+      min: minimumDate,
+      max: maximumDate,
       disabled = false,
       required = false,
       className = "",
       onValidationChange,
+      onNativeChange,
+      ...inputProps
     },
     forwardedRef,
   ) => {
@@ -45,8 +56,8 @@ const DateTimeControl = forwardRef<HTMLInputElement, DateTimeControlProps>(
 
     useImperativeHandle(forwardedRef, () => inputRef.current as HTMLInputElement)
 
-    const min = showTime ? `${minYear}-01-01T00:00` : `${minYear}-01-01`
-    const max = showTime ? `${maxYear}-12-31T23:59` : `${maxYear}-12-31`
+    const min = minimumDate ?? (showTime ? `${minYear}-01-01T00:00` : `${minYear}-01-01`)
+    const max = maximumDate ?? (showTime ? `${maxYear}-12-31T23:59` : `${maxYear}-12-31`)
 
     const validate = (raw: string): string | null => {
       if (!raw) return null
@@ -59,14 +70,15 @@ const DateTimeControl = forwardRef<HTMLInputElement, DateTimeControlProps>(
 
     const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
       onChange(event.target.value)
+      onNativeChange?.(event)
       if (error) setError(null)
     }
 
-    const handleBlur = () => {
+    const handleBlur = (event: React.FocusEvent<HTMLInputElement>) => {
       const validationError = validate(value)
       setError(validationError)
       onValidationChange?.(validationError)
-      onBlur?.()
+      onBlur?.(event)
     }
 
     const openPicker = () => {
@@ -99,6 +111,7 @@ const DateTimeControl = forwardRef<HTMLInputElement, DateTimeControlProps>(
             <CalendarDays className="h-4 w-4" />
           </button>
           <input
+            {...inputProps}
             ref={inputRef}
             id={id}
             type={showTime ? "datetime-local" : "date"}

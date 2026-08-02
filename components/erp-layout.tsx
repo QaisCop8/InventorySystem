@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { Sidebar } from "./sidebar";
 import { Header } from "./header";
+import { ChatWidget } from "./chat/chat-widget";
 import { MenuThemeProvider } from "@/contexts/menu-theme-context";
 
 interface ERPLayoutProps {
@@ -85,6 +86,8 @@ export function ERPLayout({ children, activeSection, onSectionChange }: ERPLayou
             <div className="p-3 md:p-6 mobile-scroll-container">{children}</div>
           </main>
         </div>
+
+        <ChatWidget />
       </div>
     </MenuThemeProvider>
   );

@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { Suspense, useState, useEffect } from "react"
+import { Suspense, useState, useEffect, useRef } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { ProtectedRoute } from "@/components/auth/protected-route"
 import { ERPLayout } from "@/components/erp-layout"
@@ -84,6 +84,7 @@ import  {OrderManagement} from "@/components/orders/order-management"
 import TaskOrdersAdminPage from "@/components/task-orders/task-orders-admin-page"
 import TaskOrdersBoardPage from "@/components/task-orders/task-orders-board-page"
 import TaskOrdersReportPage from "@/components/task-orders/task-orders-report-page"
+import TaskOrdersApprovalPage from "@/components/task-orders/order-approval-page"
 const componentMap: Record<string, React.ComponentType<any>> = {
   dashboard: Dashboard,
   "inventory-analytics": InventoryAnalytics,
@@ -173,6 +174,7 @@ const componentMap: Record<string, React.ComponentType<any>> = {
   "task-orders-admin": TaskOrdersAdminPage,
   "task-orders-board": TaskOrdersBoardPage,
   "task-orders-report": TaskOrdersReportPage,
+  "task-orders-approval": TaskOrdersApprovalPage,
 }
 
 const titleFor = (section: string) => SECTION_TITLES[section] || section
@@ -231,6 +233,34 @@ function HomePageContent() {
     if (resolved) openSection(resolved, titleFor(resolved), "a")
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // مزامنة القسم المعروض مع رابط العنوان عند تنقّل "رجوع"/"تقدّم" بالمتصفح — handleSectionChange
+  // تستخدم router.push الآن (لا replace) فيتراكم سجلّ حقيقي بتاريخ المتصفح لكل قسم، لكن تنقّل history
+  // API (رجوع/تقدّم) يُغيّر searchParams وحده دون إعادة تركيب هذا المكوّن أو إعادة تشغيل الأثر أعلاه
+  // (ذو الاعتماديات []) — فيبقى القسم المعروض كما هو ولا يتبع رابط العنوان الجديد بلا هذا الأثر.
+  // الحارس (resolved === activeSection) يمنع استدعاءً مكرَّراً زائداً بلا داعٍ عند تنقّل بدأناه نحن
+  // أصلاً عبر handleSectionChange (التي تُحدِّث activeSection مباشرة أولاً قبل router.push) — openSection
+  // تصنع تبويباً جديداً في كل استدعاء بوضع "بلا تبويبات" (tabsEnabled=false)، فإعادة تنفيذها لنفس
+  // القسم فعلياً تُعيد تركيب الشاشة وتفقد أي حالة غير محفوظة بلا داعٍ.
+  const didInitialUrlSync = useRef(false)
+  useEffect(() => {
+    // التشغيل الأول عند التركيب مُتكفَّل به بالفعل بالأثر أعلاه (بادئ الجزء "a")؛ هذا الأثر يتعامل
+    // فقط مع تغييرات searchParams اللاحقة (رجوع/تقدّم، أو push ذاتي من handleSectionChange).
+    if (!didInitialUrlSync.current) {
+      didInitialUrlSync.current = true
+      return
+    }
+    const fromUrl = searchParams.get("section")
+    const resolved =
+      !fromUrl || fromUrl === "home-dashboard" || fromUrl === "dashboard"
+        ? "home-dashboard"
+        : componentMap[fromUrl]
+          ? fromUrl
+          : "home-dashboard"
+    if (resolved === activeSection) return
+    openSection(resolved, titleFor(resolved))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams])
 
   useEffect(() => {
     // تبويب جديد فُتح برابط يحمل ?company=<id> (لصق الرابط يدوياً، أو فتحه من مكان لا يُورث
@@ -353,7 +383,11 @@ function HomePageContent() {
     openSection(resolved, titleFor(resolved))
     // يُبقي رابط العنوان مطابقاً للقسم الحالي — يتيح فتح نفس القسم في تبويب جديد
     // (كليك أوسط/يمين على عنصر القائمة الجانبية) بدل الرجوع دائماً للرئيسية.
-    router.replace(resolved === "home-dashboard" ? "/" : `/?section=${resolved}`, { scroll: false })
+    // push لا replace: كل تنقّل قسم يُضيف سجلّاً حقيقياً بتاريخ المتصفح، حتى يعمل زر "رجوع" فعلياً
+    // بالتنقّل بين الأقسام المفتوحة سابقاً — replace كانت تستبدل السجلّ الحالي في كل مرة، فيقفز زر
+    // "رجوع" مباشرة لما قبل أول تنقّل قسم على الإطلاق (شاشة تسجيل الدخول عادة) بصرف النظر عن عدد
+    // الأقسام التي زارها المستخدم بينهما.
+    router.push(resolved === "home-dashboard" ? "/" : `/?section=${resolved}`, { scroll: false })
   }
 
   return (

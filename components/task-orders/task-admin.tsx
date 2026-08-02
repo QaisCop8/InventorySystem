@@ -15,7 +15,7 @@ import { Separator } from "@/components/ui/separator"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import ConfirmDialogYesNo from "@/components/ui/ConfirmDialogYesNo"
 import { Plus, Trash2, Loader2, Save, Users, Search, Pencil } from "lucide-react"
-import type { AppUser, TaskSection, TaskWorkflow, TaskWorkflowStep, TaskWorkflowTransition } from "./types"
+import type { AppUser, StepType, TaskSection, TaskWorkflow, TaskWorkflowStep, TaskWorkflowTransition } from "./types"
 import ItemGroupSearch, { type ItemGroupRecord } from "./item-group-search"
 
 // فروع النظام الحقيقية (تعريفات) — لا علاقة لها بـtask_branches المحلي القديم؛ نفس الجدول
@@ -359,7 +359,16 @@ interface EditableStep {
   sla_hours: string
   is_conditional: boolean
   sla_actions: string[]
+  step_type: StepType
 }
+
+const STEP_TYPE_OPTIONS: { value: StepType; label: string }[] = [
+  { value: "normal", label: "خطوة عادية" },
+  { value: "audit", label: "تدقيق" },
+  { value: "approval", label: "اعتماد" },
+  { value: "preparation", label: "تجهيز" },
+  { value: "loading", label: "تحميل" },
+]
 interface EditableTransition {
   from_key: string
   to_key: string
@@ -389,6 +398,7 @@ function stepToEditable(s: TaskWorkflowStep): EditableStep {
     sla_hours: s.sla_hours != null ? String(s.sla_hours) : "",
     is_conditional: s.is_conditional,
     sla_actions: s.sla_actions || [],
+    step_type: s.step_type || "normal",
   }
 }
 function transitionToEditable(t: TaskWorkflowTransition, steps: TaskWorkflowStep[]): EditableTransition {
@@ -556,6 +566,7 @@ function WorkflowsAdmin({
         sla_hours: "",
         is_conditional: false,
         sla_actions: [],
+        step_type: "normal",
       },
     ])
   }
@@ -609,6 +620,7 @@ function WorkflowsAdmin({
             sla_hours: s.sla_hours ? Number(s.sla_hours) : null,
             is_conditional: s.is_conditional,
             sla_actions: s.sla_actions,
+            step_type: s.step_type,
           })),
           transitions: editTransitions.map((t) => ({
             from_key: t.from_key,
@@ -858,6 +870,22 @@ function WorkflowsAdmin({
                           panelClassName="invoice-currency-dropdown-panel"
                           appendTo="self"
                           onChange={(e: any) => updateStep(index, { assignment_type: e.value })}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label className="text-xs text-slate-500">نوع الخطوة</Label>
+                      <div className="invoice-currency-dropdown-wrap">
+                        <PrimeDropdown
+                          value={step.step_type}
+                          options={STEP_TYPE_OPTIONS}
+                          optionLabel="label"
+                          optionValue="value"
+                          className="invoice-currency-dropdown w-full"
+                          panelClassName="invoice-currency-dropdown-panel"
+                          appendTo="self"
+                          onChange={(e: any) => updateStep(index, { step_type: e.value })}
                         />
                       </div>
                     </div>

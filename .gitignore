@@ -6,6 +6,8 @@
 # next.js
 /.next/
 /out/
+# stale renamed build dirs left behind by some tooling instead of being deleted (e.g. .next.stale-20260802/)
+.next.stale-*/
 
 # production
 /build

@@ -17,9 +17,13 @@ import { NotificationCenter } from "@/components/notifications/notification-cent
 import { Search, RefreshCw, Play, Pause, CheckCircle2, Undo2, ArrowRightLeft, Clock, Loader2, ShieldAlert } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { formatDateTimeToBritish } from "@/lib/utils"
-import type { TaskOpenTask, TaskOrderItemDetail, TaskSection, TaskWorkflow, TaskWorkflowStep } from "./types"
-import { ACTION_LABELS, PRIORITY_LABELS, STEP_STATUS_LABELS } from "./types"
+import type { TaskOpenTask, TaskOrderItemDetail, TaskSection, TaskStepInstance, TaskWorkflow, TaskWorkflowStep } from "./types"
+import { ACTION_LABELS, PRIORITY_LABELS, STEP_STATUS_LABELS, STEP_TYPE_LABELS } from "./types"
 import { PRIORITY_BADGE_CLASS, PRIORITY_CARD_ACCENT, STATUS_BADGE_CLASS, columnColor, elapsedSecondsSince, formatDuration, initials } from "./utils"
+import { OrderItemsPanel } from "./order-items-panel"
+import ConfirmDialogYesNo from "@/components/ui/ConfirmDialogYesNo"
+
+const SPECIAL_STEP_TYPES = new Set(["audit", "approval", "preparation", "loading"])
 
 type Scope = "mine" | "section" | "all"
 
@@ -87,6 +91,8 @@ export function TaskBoard() {
   const [transferTarget, setTransferTarget] = useState<{ sectionId: string; userId: string; reason: string }>({ sectionId: "", userId: "", reason: "" })
   const [noteDialog, setNoteDialog] = useState<{ instanceId: number; action: "stop" | "complete" | "force_complete"; label: string } | null>(null)
   const [noteDialogText, setNoteDialogText] = useState("")
+  const [allLoadingChecked, setAllLoadingChecked] = useState(true)
+  const [forceCloseInstanceId, setForceCloseInstanceId] = useState<number | null>(null)
 
   useEffect(() => {
     const interval = setInterval(() => setTick((t) => t + 1), 1000)
@@ -247,6 +253,7 @@ export function TaskBoard() {
     setDetailLoading(true)
     setRejectingInstanceId(null)
     setTransferringInstanceId(null)
+    setAllLoadingChecked(true)
     try {
       const res = await fetch(`/api/task-orders/order-items/${id}`)
       if (!res.ok) throw new Error()
@@ -289,6 +296,39 @@ export function TaskBoard() {
   }
 
   const handleStart = (instanceId: number) => callInstanceAction("start", instanceId)
+  // خطوات تدقيق/اعتماد/تجهيز/تحميل لا تعرض "بدء"/"إيقاف مؤقت" (لا تتبّع وقت عمل تفصيلي بها، فقط
+  // مراجعة/تجهيز/فحص أصناف الطلبية دفعة واحدة) — زر "تم" يبدأ المهمة ضمنياً إن لم تكن قد بدأت بعد
+  // ثم يُنهيها مباشرة، فيبدو للمستخدم كإجراء واحد بسيط.
+  const handleMarkDone = async (instance: TaskStepInstance) => {
+    if (instance.status !== "in_progress") {
+      const started = await callInstanceAction("start", instance.id)
+      if (!started) return
+    }
+    await callInstanceAction("complete", instance.id, {})
+  }
+  // إغلاق إجباري: يُلغي كل مهام/أصناف الطلبية بالكامل (لا هذا الصنف وحده) ويُحدِّث الطلب الفعلي
+  // المرتبط بها إلى "مغلق" (orders.order_status2 = 6) — إجراء مدير النظام حصراً، لذا يُشترَط تأكيد
+  // صريح عبر ConfirmDialogYesNo قبل التنفيذ.
+  const confirmForceClose = async () => {
+    if (!forceCloseInstanceId || !userId) return
+    setActionBusy(true)
+    try {
+      const res = await fetch(`/api/task-orders/tasks/${forceCloseInstanceId}/force-close-order`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data?.error || "فشل الإغلاق الإجباري")
+      toast({ title: "تم", description: "تم إغلاق الطلبية بشكل إجباري" })
+      setForceCloseInstanceId(null)
+      await refreshDetail()
+    } catch (error: any) {
+      toast({ title: "تعذّر الإغلاق", description: error?.message || "خطأ غير متوقع", variant: "destructive" })
+    } finally {
+      setActionBusy(false)
+    }
+  }
   const openNoteDialog = (instanceId: number, action: "stop" | "complete" | "force_complete", label: string) => {
     setNoteDialog({ instanceId, action, label })
     setNoteDialogText("")
@@ -488,7 +528,7 @@ export function TaskBoard() {
       {/* نافذة تفاصيل الصنف — تعرض كل المهام (StepInstance) المفتوحة/المكتملة له معاً، لأن التفرّع
           المتوازي قد يعني أكثر من مهمة مفتوحة في آنٍ واحد بأقسام مختلفة. */}
       <Dialog open={detailItemId !== null} onOpenChange={(open) => !open && setDetailItemId(null)}>
-        <DialogContent className="max-w-3xl" dir="rtl">
+        <DialogContent className="w-[95vw] max-w-3xl max-h-[90vh] overflow-y-auto" dir="rtl">
           {detailLoading || !detailItem ? (
             <div className="flex items-center justify-center py-16">
               <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
@@ -525,11 +565,90 @@ export function TaskBoard() {
 
               {detailItem.description && <p className="rounded-md bg-slate-50 p-2 text-sm text-slate-600">{detailItem.description}</p>}
 
+              {(() => {
+                const activeSpecialInstance = detailItem.instances.find(
+                  (i) => ["pending", "in_progress", "paused"].includes(i.status) && SPECIAL_STEP_TYPES.has(i.step_type),
+                )
+                if (!activeSpecialInstance || !userId) return null
+                // مطابق لشرط الوصول الخادمي (assertOrderItemStepAccess بـlib/task-orders.ts): مستلم
+                // المهمة، أو عضو قسمها لخطوة "كل القسم"، أو مدير نظام — من عداهم يرى اللوحة للقراءة
+                // فقط ولا يظهر له تم/رفض إطلاقاً.
+                const canActOnSpecial =
+                  isAdmin ||
+                  activeSpecialInstance.claimed_by_user_id === userId ||
+                  (activeSpecialInstance.assignment_type === "all" && mySectionIds.has(activeSpecialInstance.effective_section_id))
+                const loadingBlocked = activeSpecialInstance.step_type === "loading" && !allLoadingChecked
+                return (
+                  <>
+                    <OrderItemsPanel
+                      customerOrderId={detailItem.customer_order_id}
+                      stepType={activeSpecialInstance.step_type}
+                      userId={userId}
+                      canEdit={canActOnSpecial}
+                      onAllLoadingCheckedChange={setAllLoadingChecked}
+                    />
+
+                    {canActOnSpecial && (
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Button
+                          size="sm"
+                          className="gap-1"
+                          disabled={actionBusy || loadingBlocked}
+                          title={loadingBlocked ? "يجب فحص كل الأصناف أولاً" : undefined}
+                          onClick={() => handleMarkDone(activeSpecialInstance)}
+                        >
+                          <CheckCircle2 className="h-3.5 w-3.5" /> تم
+                        </Button>
+                        {!activeSpecialInstance.first_started_at && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="gap-1 border-red-200 text-red-600 hover:bg-red-50"
+                            disabled={actionBusy || !activeSpecialInstance.parent_instance_id}
+                            onClick={() => setRejectingInstanceId(activeSpecialInstance.id)}
+                          >
+                            <Undo2 className="h-3.5 w-3.5" /> رفض
+                          </Button>
+                        )}
+                        {isAdmin && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="gap-1 text-blue-600"
+                            disabled={actionBusy}
+                            onClick={() => setForceCloseInstanceId(activeSpecialInstance.id)}
+                          >
+                            <ShieldAlert className="h-3.5 w-3.5" /> إغلاق إجباري
+                          </Button>
+                        )}
+                      </div>
+                    )}
+
+                    {rejectingInstanceId === activeSpecialInstance.id && (
+                      <div className="space-y-2 rounded-md border border-red-200 bg-red-50 p-2">
+                        <Textarea value={rejectNote} onChange={(e) => setRejectNote(e.target.value)} placeholder="سبب إعادة المهمة للمرحلة السابقة (مطلوب)" rows={2} />
+                        <div className="flex justify-end gap-2">
+                          <Button size="sm" variant="ghost" onClick={() => setRejectingInstanceId(null)}>
+                            إلغاء
+                          </Button>
+                          <Button size="sm" variant="destructive" onClick={confirmReject} disabled={actionBusy || !rejectNote.trim()}>
+                            تأكيد الرفض
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )
+              })()}
+
               <Separator />
 
               <div className="space-y-2">
                 <div className="text-sm font-semibold text-slate-600">مراحل التنفيذ</div>
-                {detailItem.instances.map((instance) => {
+                {/* خطوات تدقيق/اعتماد/تجهيز/تحميل (التي تعرض لوحة أصناف الطلبية أعلاه) لا تظهر هنا
+                    إطلاقاً — إجراؤها عبر أزرار تم/رفض/إغلاق إجباري المبسّطة فقط، لا سجل المراحل
+                    التفصيلي (بدء/إيقاف مؤقت/تحويل إداري...) المخصَّص للخطوات العادية. */}
+                {detailItem.instances.filter((instance) => !SPECIAL_STEP_TYPES.has(instance.step_type)).map((instance) => {
                   const isOpen = ["pending", "in_progress", "paused"].includes(instance.status)
                   const canAct = isAdmin || mySectionIds.has(instance.effective_section_id)
                   const liveSeconds =
@@ -544,6 +663,11 @@ export function TaskBoard() {
                           <div>
                             <div className="text-sm font-medium">
                               {instance.step_label} <span className="text-xs text-slate-400">({instance.section_name})</span>
+                              {instance.step_type !== "normal" && (
+                                <Badge variant="outline" className="mr-1 text-[10px]">
+                                  {STEP_TYPE_LABELS[instance.step_type]}
+                                </Badge>
+                              )}
                             </div>
                             <div className="text-xs text-slate-500">
                               {instance.claimed_by_name || "غير مسند"} · <Clock className="inline h-3 w-3" /> {formatDuration(liveSeconds)}
@@ -566,8 +690,9 @@ export function TaskBoard() {
                             <Button
                               size="sm"
                               className="gap-1"
-                              disabled={actionBusy || instance.status !== "in_progress"}
+                              disabled={actionBusy || instance.status !== "in_progress" || (instance.step_type === "loading" && !allLoadingChecked)}
                               onClick={() => openNoteDialog(instance.id, "complete", "إنهاء")}
+                              title={instance.step_type === "loading" && !allLoadingChecked ? "يجب فحص كل الأصناف أولاً" : undefined}
                             >
                               <CheckCircle2 className="h-3.5 w-3.5" /> إنهاء
                             </Button>
@@ -740,6 +865,13 @@ export function TaskBoard() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialogYesNo
+        visible={forceCloseInstanceId !== null}
+        message="سيتم إلغاء كل مهام هذه الطلبية بالكامل وإغلاق الطلب الفعلي المرتبط بها نهائياً. هل تريد تأكيد الإغلاق الإجباري؟"
+        onConfirm={confirmForceClose}
+        onCancel={() => setForceCloseInstanceId(null)}
+      />
 
     </div>
   )

@@ -119,7 +119,7 @@ const OrderSearchPopup: React.FC<OrderSearchPopupProps> = ({ visible, onClose, o
         isReport: true,
         columns: [
             { header: "##", name: "ser", width: 50 },
-            { header: type === 3 ? "رقم الفاتورة" : "رقم الطلبية", name: "order_number", width: 120 },
+            { header: type === 3 ? "رقم الفاتورة" : "رقم الطلبية", name: "order_number", width: 160 },
             { header: type === 3 ? "تاريخ الفاتورة" : "تاريخ الطلبية", name: "order_date", width: 130 },
             { header: "اسم العميل", name: "customer_name", width: "*" },
             { header: "السند اليدوي", name: "reference_number", width: 130 },
@@ -160,13 +160,16 @@ const OrderSearchPopup: React.FC<OrderSearchPopupProps> = ({ visible, onClose, o
 
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+        // نمط الاستجابة نفسه المستخدَم بـProductSearchPopup.tsx: ملء الشاشة بلا حواف مستديرة على
+        // الجوال (بلا ارتفاع ثابت يفيض عن الشاشات القصيرة)، وبطاقة مركزية عادية بارتفاع أقصى 92dvh
+        // من sm فما فوق. الأزرار sticky بأسفل البطاقة على الجوال (بدل تعويمها خارج الحدود المرئية
+        // عند فيض المحتوى) وتعود لوضعها الطبيعي الثابت على الشاشات الأوسع.
+        <div className="fixed inset-0 z-50 flex items-stretch justify-center bg-black/40 p-0 sm:items-center sm:px-4 sm:py-6">
             <div
-                className="bg-white rounded-lg shadow-2xl border p-6 flex flex-col w-full max-w-4xl"
+                className="flex h-[100dvh] max-h-[100dvh] w-full max-w-6xl flex-col overflow-y-auto rounded-none border-0 bg-white p-3 shadow-2xl overscroll-contain sm:h-auto sm:max-h-[92dvh] sm:overflow-hidden sm:rounded-lg sm:border sm:p-6"
                 dir="rtl"
-                style={{ height: "700px" }}
             >
-                <h3 className="text-lg font-semibold mb-4 text-right">
+                <h3 className="mb-4 shrink-0 text-lg font-semibold text-right">
                     {type === 3 ? "بحث الفواتير" : type === 1 ? "بحث طلبيات المبيعات" : "بحث طلبيات المشتريات"}
                 </h3>
 
@@ -175,23 +178,27 @@ const OrderSearchPopup: React.FC<OrderSearchPopupProps> = ({ visible, onClose, o
                     placeholder={type === 3 ? "ابحث عن فاتورة..." : "ابحث عن طلبية..."}
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="mb-4 p-2 border border-gray-300 rounded w-full text-right"
+                    className="mb-4 shrink-0 p-2 border border-gray-300 rounded w-full text-right"
                     ref={searchInputRef}
                 />
 
-                <div className="flex-1 flex flex-col gap-4">
-                    <div className="flex-1 border rounded shadow-sm p-2">
+                <div className="flex min-h-0 flex-1 flex-col gap-4">
+                    {/* overflow-x-auto على الحاوية الخارجية: تغيير عرض أي عمود (سحب حده يدوياً) يوسّع
+                        الحاوية min-w-max الداخلية أحياناً لأكثر من عرض هذه البطاقة — بلا overflow هنا
+                        كانت الشبكة تفيض بصرياً خارج حدود النافذة المنبثقة نفسها بدل التمرير أفقياً
+                        داخلها. */}
+                    <div className="min-h-0 flex-1 overflow-auto border rounded shadow-sm p-2">
                         <div className="min-w-max">
                             <DataGridView
                                 ref={(g: any) => (gridRef.current = g?.control ?? g ?? null)}
-                                
+
                                 dataSource={filteredOrders}
                                 scheme={{
                                     isReport: false,
 
                                     columns: [
                                         { header: "##", name: "ser", width: 50,isReadOnly:true },
-                                        { header: type === 3 ? "رقم الفاتورة" : "رقم الطلبية", name: "order_number", width: 120,isReadOnly:true },
+                                        { header: type === 3 ? "رقم الفاتورة" : "رقم الطلبية", name: "order_number", width: 160,isReadOnly:true },
                                         { header: type === 3 ? "تاريخ الفاتورة" : "تاريخ الطلبية", name: "order_date", width: 130 ,isReadOnly:true},
                                         { header: "اسم العميل", name: "customer_name", width: "*" ,isReadOnly:true},
                                         { header: "السند اليدوي", name: "reference_number", width: 130,isReadOnly:true },
@@ -206,7 +213,7 @@ const OrderSearchPopup: React.FC<OrderSearchPopupProps> = ({ visible, onClose, o
                     </div>
                 </div>
 
-                <div className="flex justify-center gap-2 mt-4">
+                <div className="sticky bottom-0 z-10 mt-3 flex shrink-0 justify-center gap-2 border-t border-slate-200 bg-white/95 py-3 backdrop-blur sm:static sm:mt-4 sm:border-0 sm:bg-transparent sm:py-0">
                     <Button className="erp-btn-primary search-button" onClick={() => selectedOrder && handleRowDoubleClick(selectedOrder)} >
                         موافق
                     </Button>

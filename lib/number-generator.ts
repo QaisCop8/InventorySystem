@@ -4,8 +4,79 @@
  */
 
 import sql from "./database"
+import { buildVoucherCode } from "./voucher-code"
 
 export default sql
+
+// إعدادات ترقيم الطلبيات (بادئة النظام + بداية الترقيم) — نفس نمط getStockVoucherNumberSettings
+// بـapp/api/stock-vouchers/_lib.ts، لكن قراءة مباشرة من system_settings (بنفس أسلوب
+// getPrefixFromSettings أدناه) بدل استدعاء HTTP ذاتي، لأن هذا الملف يُستدعى من الخادم مباشرة (كـ
+// lib/orders.ts) بلا سياق طلب دوماً. order_prefix/order_start لطلبات المبيعات، purchase_prefix/
+// purchase_start لطلبات الشراء — نفس المفاتيح التي تعرضها شاشة الإعدادات العامة (system-settings.tsx).
+async function getOrderNumberSettings(vchType: number): Promise<{ prefix: string; startNumber: number }> {
+  const isPurchase = vchType === 2
+  const defaultPrefix = isPurchase ? "PO" : "SO"
+  const prefixKey = isPurchase ? "purchase_prefix" : "order_prefix"
+  const startKey = isPurchase ? "purchase_start" : "order_start"
+  try {
+    const result = await sql`
+      SELECT id, value FROM system_settings WHERE id IN (${[prefixKey, startKey]})
+    `
+    const map = Object.fromEntries(result.map((row: any) => [row.id, row.value]))
+    const prefixRaw = String(map[prefixKey] || defaultPrefix).trim().toUpperCase()
+    const prefix = /^[A-Z]{1,3}$/.test(prefixRaw) ? prefixRaw : defaultPrefix
+    const startNumber = Number(map[startKey]) || 1
+    return { prefix, startNumber }
+  } catch (error) {
+    console.error("[v0] Error fetching order number settings:", error)
+    return { prefix: defaultPrefix, startNumber: 1 }
+  }
+}
+
+// دفتر السندات الافتراضي لمستخدم معيَّن على نوع سند معيَّن (voucher_book_user_permissions_tbl،
+// is_default=1) — نفس منطق app/api/receipts/voucher-books/route.ts تماماً (بما فيه حلّ المعرّف
+// النصي user_settings.user_id إلى المفتاح الرقمي user_settings.id أولاً)، لكن استعلام مباشر هنا
+// بدل HTTP لأن هذا يُستدعى من الخادم مباشرة (lib/orders.ts createOrder) بلا سياق طلب. تُستخدَم عند
+// حفظ طلبية دون رقم طلبية جاهز من الواجهة (كالنافذة السريعة QuickSalesOrder التي لا تعرف شيئاً عن
+// دفاتر السندات) بدل الرجوع لحرف ثابت غير مرتبط بصلاحيات المستخدم فعلياً.
+export async function resolveDefaultVoucherBookName(userId: string, voucherTypeId: number): Promise<string | null> {
+  if (!userId || !voucherTypeId) return null
+  try {
+    const userRows = await sql`SELECT id FROM user_settings WHERE user_id = ${userId}`
+    const resolvedUserId: number | null = userRows[0]?.id ?? null
+    if (!resolvedUserId) return null
+
+    const permissionRows = await sql`
+      SELECT vch_book_id FROM voucher_book_user_permissions_tbl
+      WHERE user_id = ${resolvedUserId} AND voucher_type_id = ${voucherTypeId} AND is_default = 1
+      LIMIT 1
+    `
+    const bookId = permissionRows[0]?.vch_book_id ?? null
+    if (!bookId) return null
+
+    const bookRows = await sql`SELECT name FROM voucher_books_tbl WHERE id = ${bookId}`
+    return bookRows[0]?.name ?? null
+  } catch (error) {
+    console.error("[v0] Error resolving default voucher book:", error)
+    return null
+  }
+}
+
+// التسلسل التالي ضمن orders.order_number لبادئة (بادئة الطلبية + رمز الدفتر) معيَّنة — نفس منطق
+// nextVoucherSequence بـapp/api/stock-vouchers/_lib.ts، لكن على جدول orders بدل voucher_header_tbl.
+async function nextOrderSequence(codePrefix: string, startNumber: number): Promise<number> {
+  const rows = await sql`
+    SELECT order_number FROM orders WHERE order_number LIKE ${codePrefix + "%"}
+  `
+  let maxNumber = 0
+  for (const row of rows as any[]) {
+    const suffix = String(row.order_number || "").slice(codePrefix.length)
+    const match = suffix.match(/^[A-Za-z]?([0-9]+)$/)
+    const value = Number(match?.[1] ?? suffix)
+    if (Number.isFinite(value) && value > maxNumber) maxNumber = value
+  }
+  return maxNumber >= startNumber ? maxNumber + 1 : startNumber
+}
 
 async function getPrefixFromSettings(type: "customer" | "supplier" | "salesman" | "subscriber" | "item_group"): Promise<string> {
   try {
@@ -70,16 +141,24 @@ export async function generateSupplierNumber(): Promise<string> {
   return await getNextSequentialNumber(prefix, "suppliers", "supplier_code")
 }
 
-export async function generateSalesOrderNumber(
-  vchBook: string
-): Promise<string> {
-  return await getNextSequentialNumber("O"+vchBook, "orders", "order_number");
+// رقم الطلبية = بادئة الطلبية (إعدادات النظام) + رمز دفتر السندات + رقم تسلسلي مبطّن بأصفار،
+// بمجموع 10 خانات كحد أقصى (lib/voucher-code.ts buildVoucherCode) — نفس منطق ترقيم السندات
+// الموحَّد (سند قبض/صرف/قيد، سندات المخزون...) بدل الصيغة القديمة "O"/"T" + دفتر + 8 أرقام ثابتة
+// التي لم تكن لها أي علاقة ببادئة الطلبية الفعلية بإعدادات النظام.
+export async function generateSalesOrderNumber(vchBook: string): Promise<string> {
+  const bookName = String(vchBook || "").trim().toUpperCase()
+  const { prefix, startNumber } = await getOrderNumberSettings(1)
+  const codePrefix = `${prefix}${bookName}`
+  const sequence = await nextOrderSequence(codePrefix, startNumber)
+  return buildVoucherCode(prefix, bookName, sequence)
 }
 
-export async function generatePurchaseOrderNumber(
-  vchBook: string
-): Promise<string> {
-  return await getNextSequentialNumber("T"+vchBook, "orders", "order_number");
+export async function generatePurchaseOrderNumber(vchBook: string): Promise<string> {
+  const bookName = String(vchBook || "").trim().toUpperCase()
+  const { prefix, startNumber } = await getOrderNumberSettings(2)
+  const codePrefix = `${prefix}${bookName}`
+  const sequence = await nextOrderSequence(codePrefix, startNumber)
+  return buildVoucherCode(prefix, bookName, sequence)
 }
 
 
