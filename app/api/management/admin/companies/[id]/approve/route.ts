@@ -1,12 +1,20 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { getManagementSession } from "@/lib/management-auth"
-import managementSql, { ensureManagementTables } from "@/lib/management-db"
-import { provisionCompanyDatabase } from "@/lib/provisioning"
 
 export const dynamic = "force-dynamic"
+export const runtime = "nodejs"
 
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+  if (process.env.NEXT_PHASE === "phase-production-build") {
+    return NextResponse.json({ skipped: true }, { status: 204 })
+  }
+
   try {
+    const [{ getManagementSession }, { default: managementSql, ensureManagementTables }, { provisionCompanyDatabase }] = await Promise.all([
+      import("@/lib/management-auth"),
+      import("@/lib/management-db"),
+      import("@/lib/provisioning"),
+    ])
+
     await ensureManagementTables()
     const session = await getManagementSession()
     if (!session || !session.is_platform_admin) {
