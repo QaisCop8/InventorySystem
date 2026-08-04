@@ -1,4 +1,6 @@
 import sql from "@/lib/database"
+import { getProductsNeedingReorder, getNotificationSettings } from "./whatsapp-notifications"
+
 /**
  * Check if it's time to send daily summary based on settings
  */
@@ -36,34 +38,34 @@ export async function shouldSendDailySummary(): Promise<boolean> {
   }
 }
 
-/**
- * Get products that need reordering for daily summary
- */
-export async function getProductsNeedingReorder() {
+export async function checkInventoryAndNotify() {
   try {
-    const result = await sql`
-      SELECT 
-        p.id,
-        p.product_code,
-        p.product_name,
-        p.reorder_point,
-        p.min_stock_level,
-        COALESCE(ps.current_stock, 0) as current_stock,
-        s.supplier_name
-      FROM products p
-      LEFT JOIN product_stock ps ON p.id = ps.product_id
-      LEFT JOIN suppliers s ON p.supplier_id = s.id
-      WHERE 
-        p.status = 'active'
-        AND p.reorder_point IS NOT NULL
-        AND COALESCE(ps.current_stock, 0) <= p.reorder_point
-      ORDER BY COALESCE(ps.current_stock, 0) ASC
-    `
+    const settings = await getNotificationSettings()
 
-    return result
+    if (!settings || !settings.is_enabled) {
+      return {
+        success: false,
+        message: "Notifications are disabled",
+        productsChecked: 0,
+        productsToNotify: 0,
+      }
+    }
+
+    const products = await getProductsNeedingReorder()
+
+    return {
+      success: true,
+      message: "Inventory check completed",
+      productsChecked: products.length,
+      productsToNotify: products.length,
+    }
   } catch (error) {
-    console.error("[v0] Error fetching products needing reorder:", error)
-    return []
+    console.error("[v0] Error checking inventory notifications:", error)
+    return {
+      success: false,
+      message: "Failed to check inventory notifications",
+      error: error instanceof Error ? error.message : "Unknown error",
+    }
   }
 }
 

@@ -1,6 +1,81 @@
 import sql from "@/lib/database"
 import { sendTemplateMessage, sendTextMessage } from "./whatsapp-service"
 
+export interface InventoryNotificationSettings {
+  is_enabled: boolean
+  send_daily_summary?: boolean
+  daily_summary_time?: string
+  phone_numbers?: string[]
+  [key: string]: any
+}
+
+export async function getNotificationSettings(): Promise<InventoryNotificationSettings | null> {
+  try {
+    const settings = await sql`
+      SELECT is_enabled, send_daily_summary, daily_summary_time, phone_numbers
+      FROM whatsapp_notification_settings
+      WHERE is_enabled = true
+      ORDER BY id DESC
+      LIMIT 1
+    `
+
+    if (settings.length === 0) {
+      return null
+    }
+
+    return settings[0] as InventoryNotificationSettings
+  } catch (error) {
+    console.error("[WhatsApp] Error fetching notification settings:", error)
+    return null
+  }
+}
+
+export async function getProductsNeedingReorder() {
+  try {
+    const result = await sql`
+      SELECT 
+        p.id,
+        p.product_code,
+        p.product_name,
+        p.reorder_point,
+        p.min_stock_level,
+        COALESCE(ps.current_stock, 0) as current_stock,
+        s.supplier_name
+      FROM products p
+      LEFT JOIN product_stock ps ON p.id = ps.product_id
+      LEFT JOIN suppliers s ON p.supplier_id = s.id
+      WHERE 
+        p.status = 'active'
+        AND p.reorder_point IS NOT NULL
+        AND COALESCE(ps.current_stock, 0) <= p.reorder_point
+      ORDER BY COALESCE(ps.current_stock, 0) ASC
+    `
+
+    return result
+  } catch (error) {
+    console.error("[WhatsApp] Error fetching products needing reorder:", error)
+    return []
+  }
+}
+
+export async function wasRecentlyNotified(productId: number, hours: number): Promise<boolean> {
+  try {
+    const rows = await sql`
+      SELECT id
+      FROM whatsapp_notification_log
+      WHERE product_id = ${productId}
+        AND status = 'sent'
+        AND created_at > NOW() - INTERVAL '${hours} hours'
+      LIMIT 1
+    `
+
+    return rows.length > 0
+  } catch (error) {
+    console.error("[WhatsApp] Error checking recent notification state:", error)
+    return false
+  }
+}
+
 // إرسال إشعار تأكيد الطلبية
 export async function sendOrderConfirmation(orderId: number, orderType: "sales" | "purchase"): Promise<void> {
   try {

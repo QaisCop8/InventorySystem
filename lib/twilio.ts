@@ -16,6 +16,46 @@ export interface WhatsAppMessage {
   body: string
 }
 
+export async function sendSMS(phone: string, message: string): Promise<{
+  success: boolean
+  sid?: string
+  error?: string
+}> {
+  if (!client) {
+    return {
+      success: false,
+      error: "Twilio client not initialized. Check environment variables.",
+    }
+  }
+
+  try {
+    const twilioMessage = await client.messages.create({
+      from: whatsappNumber || "",
+      to: phone,
+      body: message,
+    })
+
+    return {
+      success: true,
+      sid: twilioMessage.sid,
+    }
+  } catch (error) {
+    console.error("[v0] Error sending SMS:", error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error occurred",
+    }
+  }
+}
+
+export async function sendWhatsApp(phone: string, message: string): Promise<{
+  success: boolean
+  sid?: string
+  error?: string
+}> {
+  return sendWhatsAppMessage({ to: phone, body: message })
+}
+
 export async function sendWhatsAppMessage(message: WhatsAppMessage): Promise<{
   success: boolean
   messageId?: string
