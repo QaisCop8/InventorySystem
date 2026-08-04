@@ -63,8 +63,8 @@ const getColumnsForType = (voucherType: string, target: "screen" | "print" = "sc
     const isSalesVoucher = SALES_VOUCHER_TYPE_IDS.includes(voucherType);
     const base = isSalesVoucher
         ? COLUMNS.filter((col) => col.id !== "tax")
-        : // السعر شامل (الضريبة) خاص بسندات المبيعات/المشتريات الثمانية فقط (فرع isSalesVoucher أعلاه) — لا معنى
-          // له في سندات الحركة (لا ضريبة على مستواها) ولا شاشات الطلبيات (لم تُضَف إليها بعد).
+        : // السعر شامل (الضريبة) يُدعم الآن أيضاً في شاشات طلبية المبيعات/المشتريات.
+          // نُبقيه محظوراً فقط في سندات الحركة التي لا تملك ضريبة على مستوى السطر.
           COLUMNS.filter((col) =>
             isStockVoucher
                 ? col.id !== "bonus" && col.id !== "discount" && col.id !== "tax" && col.id !== "serial" && col.id !== "price_excl_tax"
@@ -73,8 +73,7 @@ const getColumnsForType = (voucherType: string, target: "screen" | "print" = "sc
                   col.id !== "length" &&
                   col.id !== "width" &&
                   col.id !== "height" &&
-                  col.id !== "count" &&
-                  col.id !== "price_excl_tax",
+                  col.id !== "count",
           );
     if (target === "screen") {
         return base.filter((col) => !DIMENSION_COLUMN_IDS.includes(col.id));

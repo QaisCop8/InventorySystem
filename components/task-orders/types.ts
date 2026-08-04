@@ -93,6 +93,7 @@ export interface TaskOpenTask {
   workflow_id: number
   workflow_name: string
   item_status: OrderItemStatus
+  customer_order_id: number | null
   step_id: number
   step_key: string
   step_label: string
@@ -189,6 +190,7 @@ export interface TaskOrderItemDetail {
   item_code: string
   customer_order_id: number | null
   customer_order_code: string | null
+  source_order_number: string | null
   customer_name: string | null
   title: string
   description: string | null

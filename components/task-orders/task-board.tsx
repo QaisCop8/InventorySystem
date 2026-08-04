@@ -25,6 +25,8 @@ import ConfirmDialogYesNo from "@/components/ui/ConfirmDialogYesNo"
 
 const SPECIAL_STEP_TYPES = new Set(["audit", "approval", "preparation", "loading"])
 
+type GroupedTask = TaskOpenTask & { siblingItemIds: number[] }
+
 type Scope = "mine" | "section" | "all"
 
 interface RealBranch {
@@ -77,7 +79,7 @@ export function TaskBoard() {
   const [tasks, setTasks] = useState<TaskOpenTask[]>([])
   const [loadingTasks, setLoadingTasks] = useState(false)
   const [searchText, setSearchText] = useState("")
-  const [scope, setScope] = useState<Scope>("section")
+  const [scope, setScope] = useState<Scope>("mine")
   const [branchFilter, setBranchFilter] = useState<string>("all")
   const [, setTick] = useState(0)
 
@@ -86,6 +88,9 @@ export function TaskBoard() {
   const [detailLoading, setDetailLoading] = useState(false)
   const [actionBusy, setActionBusy] = useState(false)
   const [rejectingInstanceId, setRejectingInstanceId] = useState<number | null>(null)
+  // مُضبَطة فقط عند الرفض من الشريط المبسَّط (خطوات تدقيق/اعتماد/تجهيز/تحميل) — تُحوِّل confirmReject
+  // لرفض كل أصناف الطلبية المفتوحة بنفس الخطوة دفعة واحدة بدل صنف واحد فقط.
+  const [rejectOrderContext, setRejectOrderContext] = useState<{ customerOrderId: number; stepId: number } | null>(null)
   const [rejectNote, setRejectNote] = useState("")
   const [transferringInstanceId, setTransferringInstanceId] = useState<number | null>(null)
   const [transferTarget, setTransferTarget] = useState<{ sectionId: string; userId: string; reason: string }>({ sectionId: "", userId: "", reason: "" })
@@ -214,7 +219,27 @@ export function TaskBoard() {
     key: string
     label: string
     subtitle: string
-    tasks: TaskOpenTask[]
+    tasks: GroupedTask[]
+  }
+
+  // خطوات تدقيق/اعتماد/تجهيز/تحميل تُراجَع لكل أصناف الطلبية معاً (لوحة الأصناف الشقيقة أصلاً تعرضها
+  // دفعة واحدة داخل نافذة التفاصيل) — فبطاقة واحدة بلوحة Kanban تكفي لتمثيل الطلبية كلها بهذه الخطوة،
+  // لا بطاقة منفصلة لكل صنف. التجميع بحسب (step_id, customer_order_id) فقط — أصناف بلا طلبية (أُنشئت
+  // مباشرة من لوحة الإدارة) أو خطوات عادية تبقى بطاقة لكل صنف كما هي.
+  const groupTasksForDisplay = (list: TaskOpenTask[]): GroupedTask[] => {
+    const groups = new Map<string, GroupedTask>()
+    const passthrough: GroupedTask[] = []
+    for (const t of list) {
+      if (!SPECIAL_STEP_TYPES.has(t.step_type) || !t.customer_order_id) {
+        passthrough.push({ ...t, siblingItemIds: [t.order_item_id] })
+        continue
+      }
+      const key = `${t.step_id}:${t.customer_order_id}`
+      const existing = groups.get(key)
+      if (existing) existing.siblingItemIds.push(t.order_item_id)
+      else groups.set(key, { ...t, siblingItemIds: [t.order_item_id] })
+    }
+    return [...passthrough, ...groups.values()]
   }
 
   // بوضع سير عمل محدد: عمود لكل خطوة فعلية بذلك السير. بوضع "الكل": عمود لكل موضع خطوة (الأولى،
@@ -235,7 +260,7 @@ export function TaskBoard() {
           key: `pos-${i}`,
           label: `خطوة ${i + 1}`,
           subtitle: workflowCount > 0 ? `${workflowCount} سير عمل` : "",
-          tasks: colTasks,
+          tasks: groupTasksForDisplay(colTasks),
         }
       })
     }
@@ -244,7 +269,7 @@ export function TaskBoard() {
       key: String(step.id),
       label: step.label,
       subtitle: `${step.section_name}${step.join_type !== "none" ? ` · التقاء ${step.join_type === "and" ? "الكل" : "أي فرع"}` : ""}${step.sla_hours ? ` · SLA ${step.sla_hours}س` : ""}`,
-      tasks: visibleTasks.filter((t) => t.step_id === step.id),
+      tasks: groupTasksForDisplay(visibleTasks.filter((t) => t.step_id === step.id)),
     }))
   }, [selectedWorkflowId, selectedWorkflow, orderedSteps, visibleTasks, workflowStepOrder])
 
@@ -252,6 +277,7 @@ export function TaskBoard() {
     setDetailItemId(id)
     setDetailLoading(true)
     setRejectingInstanceId(null)
+    setRejectOrderContext(null)
     setTransferringInstanceId(null)
     setAllLoadingChecked(true)
     try {
@@ -298,8 +324,31 @@ export function TaskBoard() {
   const handleStart = (instanceId: number) => callInstanceAction("start", instanceId)
   // خطوات تدقيق/اعتماد/تجهيز/تحميل لا تعرض "بدء"/"إيقاف مؤقت" (لا تتبّع وقت عمل تفصيلي بها، فقط
   // مراجعة/تجهيز/فحص أصناف الطلبية دفعة واحدة) — زر "تم" يبدأ المهمة ضمنياً إن لم تكن قد بدأت بعد
-  // ثم يُنهيها مباشرة، فيبدو للمستخدم كإجراء واحد بسيط.
-  const handleMarkDone = async (instance: TaskStepInstance) => {
+  // ثم يُنهيها مباشرة، فيبدو للمستخدم كإجراء واحد بسيط. ولأن بطاقة اللوحة تمثِّل الطلبية كلها لا صنفاً
+  // بمفرده لهذه الخطوات (انظر groupTasksForDisplay)، "تم" هنا يُنهي كل صنف مفتوح بنفس الخطوة على نفس
+  // الطلبية دفعة واحدة عبر نقطة النهاية الجماعية، لا هذا الصنف وحده.
+  const handleMarkDone = async (instance: TaskStepInstance, customerOrderId: number | null) => {
+    if (!userId) return
+    if (customerOrderId) {
+      setActionBusy(true)
+      try {
+        const res = await fetch(`/api/task-orders/customer-orders/${customerOrderId}/steps/${instance.step_id}/complete`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId }),
+        })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data?.error || "فشل تنفيذ العملية")
+        await refreshDetail()
+        toast({ title: "تم", description: "تم إنهاء المرحلة لكل أصناف الطلبية" })
+        setDetailItemId(null)
+      } catch (error: any) {
+        toast({ title: "تعذّر التنفيذ", description: error?.message || "خطأ غير متوقع", variant: "destructive" })
+      } finally {
+        setActionBusy(false)
+      }
+      return
+    }
     if (instance.status !== "in_progress") {
       const started = await callInstanceAction("start", instance.id)
       if (!started) return
@@ -323,6 +372,7 @@ export function TaskBoard() {
       toast({ title: "تم", description: "تم إغلاق الطلبية بشكل إجباري" })
       setForceCloseInstanceId(null)
       await refreshDetail()
+      setDetailItemId(null)
     } catch (error: any) {
       toast({ title: "تعذّر الإغلاق", description: error?.message || "خطأ غير متوقع", variant: "destructive" })
     } finally {
@@ -346,10 +396,37 @@ export function TaskBoard() {
   }
   const confirmReject = async () => {
     if (!rejectingInstanceId || !rejectNote.trim()) return
+    if (rejectOrderContext) {
+      if (!userId) return
+      setActionBusy(true)
+      try {
+        const res = await fetch(
+          `/api/task-orders/customer-orders/${rejectOrderContext.customerOrderId}/steps/${rejectOrderContext.stepId}/reject`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ userId, reason: rejectNote }),
+          },
+        )
+        const data = await res.json()
+        if (!res.ok) throw new Error(data?.error || "فشل تنفيذ العملية")
+        await refreshDetail()
+        toast({ title: "تم", description: "تم رفض كل أصناف الطلبية بهذه المرحلة" })
+        setRejectingInstanceId(null)
+        setRejectOrderContext(null)
+        setRejectNote("")
+      } catch (error: any) {
+        toast({ title: "تعذّر التنفيذ", description: error?.message || "خطأ غير متوقع", variant: "destructive" })
+      } finally {
+        setActionBusy(false)
+      }
+      return
+    }
     const ok = await callInstanceAction("reject", rejectingInstanceId, { reason: rejectNote })
     if (ok) {
       setRejectingInstanceId(null)
       setRejectNote("")
+      setDetailItemId(null)
     }
   }
   const forceReject = (instanceId: number, reason: string) => callInstanceAction("reject", instanceId, { reason, force: true })
@@ -491,7 +568,9 @@ export function TaskBoard() {
                             <span className="text-xs font-mono text-slate-500">{t.item_code}</span>
                             <Badge className={cn("border text-xs", PRIORITY_BADGE_CLASS[t.item_priority])}>{PRIORITY_LABELS[t.item_priority] || t.item_priority}</Badge>
                           </div>
-                          <div className="line-clamp-2 text-lg font-bold text-slate-800">{t.title}</div>
+                          <div className="line-clamp-2 text-lg font-bold text-slate-800">
+                            {t.siblingItemIds.length > 1 ? `الطلبية — ${t.siblingItemIds.length} أصناف` : t.title}
+                          </div>
                           {selectedWorkflowId === "all" && (
                             <div className="mt-1 truncate text-xs text-slate-500">
                               {t.workflow_name} · {t.step_label}
@@ -554,7 +633,7 @@ export function TaskBoard() {
                 {detailItem.customer_order_code && (
                   <div>
                     <span className="text-slate-400">الطلبية: </span>
-                    {detailItem.customer_order_code} {detailItem.customer_name ? `(${detailItem.customer_name})` : ""}
+                    {detailItem.source_order_number || detailItem.customer_order_code} {detailItem.customer_name ? `(${detailItem.customer_name})` : ""}
                   </div>
                 )}
                 <div>
@@ -595,7 +674,7 @@ export function TaskBoard() {
                           className="gap-1"
                           disabled={actionBusy || loadingBlocked}
                           title={loadingBlocked ? "يجب فحص كل الأصناف أولاً" : undefined}
-                          onClick={() => handleMarkDone(activeSpecialInstance)}
+                          onClick={() => handleMarkDone(activeSpecialInstance, detailItem.customer_order_id)}
                         >
                           <CheckCircle2 className="h-3.5 w-3.5" /> تم
                         </Button>
@@ -605,7 +684,12 @@ export function TaskBoard() {
                             variant="outline"
                             className="gap-1 border-red-200 text-red-600 hover:bg-red-50"
                             disabled={actionBusy || !activeSpecialInstance.parent_instance_id}
-                            onClick={() => setRejectingInstanceId(activeSpecialInstance.id)}
+                            onClick={() => {
+                              setRejectingInstanceId(activeSpecialInstance.id)
+                              setRejectOrderContext(
+                                detailItem.customer_order_id ? { customerOrderId: detailItem.customer_order_id, stepId: activeSpecialInstance.step_id } : null,
+                              )
+                            }}
                           >
                             <Undo2 className="h-3.5 w-3.5" /> رفض
                           </Button>
@@ -628,7 +712,14 @@ export function TaskBoard() {
                       <div className="space-y-2 rounded-md border border-red-200 bg-red-50 p-2">
                         <Textarea value={rejectNote} onChange={(e) => setRejectNote(e.target.value)} placeholder="سبب إعادة المهمة للمرحلة السابقة (مطلوب)" rows={2} />
                         <div className="flex justify-end gap-2">
-                          <Button size="sm" variant="ghost" onClick={() => setRejectingInstanceId(null)}>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => {
+                              setRejectingInstanceId(null)
+                              setRejectOrderContext(null)
+                            }}
+                          >
                             إلغاء
                           </Button>
                           <Button size="sm" variant="destructive" onClick={confirmReject} disabled={actionBusy || !rejectNote.trim()}>

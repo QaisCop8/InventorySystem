@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -44,7 +43,7 @@ import StoresSearchPopup from "../products/StoresSearchPopup"
 import { adjustStock } from "@/lib/inventory"
 import { maxLength } from "zod/v4"
 import Dropdown from "../common/Dropdown"
-import CustomerSearchPopup from "../products/CustomerSearchPopup"
+import AccountSearchDialog, { type AccountItem } from "@/components/customer/account-search-dialog"
 import ProgressSpinner from "../ProgressSpinner/ProgressSpinner"
 import OrderSearchPopup from "./OrderSearchPopup"
 import ConfirmDialogYesNo from "../ui/ConfirmDialogYesNo"
@@ -336,6 +335,7 @@ function UnifiedSalesOrder({
   const isHandlingSave = useRef(false)
   const isDeleting = useRef(false)
   const lastVchBook = useRef<string | null>(null)
+  const defaultVatPercentRef = useRef<number>(0)
   const doHotKeys = useRef(true)
   const toast = useRef<Toast | null>(null);
   const message = useRef(Messages);
@@ -402,8 +402,26 @@ function UnifiedSalesOrder({
   const skipNextEnterRef = useRef(false)
   const suppressEnterUntilRef = useRef(0)
   const [data, setData] = useState([{
-    ser: 1, unit_id: 0, unit_name: '', units: [], name: '', discount: 0, batch: '', expiry_date: '1900-01-01', item_status: 1,
-    barcode: '', id: 0, code: '', price: 0, qnty: 0, bonus: 0, amount: 0, to_main_unit_qty: 0, store_id: 0, store_name: ''
+    ser: 1,
+    unit_id: 0,
+    unit_name: '',
+    units: [],
+    name: '',
+    discount: 0,
+    batch: '',
+    expiry_date: '1900-01-01',
+    item_status: 1,
+    barcode: '',
+    id: 0,
+    code: '',
+    price: 0,
+    price_incl_tax: 0,
+    qnty: 0,
+    bonus: 0,
+    amount: 0,
+    to_main_unit_qty: 0,
+    store_id: 0,
+    store_name: ''
   }]);
   const [CollectionView] = useState(() => new wjcCore.CollectionView(data));
   const CollectionViewBackupRef = useRef(null as any);
@@ -602,6 +620,13 @@ function UnifiedSalesOrder({
       definitionsObj.currenciesData = currenciesData.rates
       definitionsRef.current.currencies = currenciesData.rates
       setDefinitions((prev) => ({ ...prev, currencies: currenciesData.rates }))
+    }
+
+    // Load default system settings for tax rate
+    const systemResponse = await fetch("/api/settings/system")
+    if (systemResponse.ok) {
+      const systemData = await systemResponse.json()
+      defaultVatPercentRef.current = Number(systemData?.tax_rate) || 0
     }
 
     // Price categories
@@ -982,6 +1007,12 @@ function UnifiedSalesOrder({
 
       // Validate price
       const resolvedStore = resolveProductStore(ii);
+      const initialPrice = (() => {
+        const p = ii.price ? ii.price / state.formData.exchange_rate : NaN;
+        const fallback = ii.first_price ? ii.first_price / state.formData.exchange_rate : NaN;
+        return isNaN(p) ? (isNaN(fallback) ? 0 : fallback) : p;
+      })();
+      const initialPriceInclTax = calculateInclusivePrice(initialPrice, state.formData.vat_percent ?? 0)
 
       if (!item) {
         // Add new item
@@ -991,11 +1022,8 @@ function UnifiedSalesOrder({
           code: ii.product_code,
           name: ii.product_name,
           barcode: ii.barcode || ii.first_barcode,
-          price: (() => {
-            const p = ii.price ? ii.price / state.formData.exchange_rate : NaN;
-            const fallback = ii.first_price ? ii.first_price / state.formData.exchange_rate : NaN;
-            return isNaN(p) ? (isNaN(fallback) ? 0 : fallback) : p;
-          })(),
+          price: initialPrice,
+          price_incl_tax: initialPriceInclTax,
           unit_id: ii.unit_id,
           unit_name: ii.first_unit || ii.unit_name || ii.main_unit,
           store_id: resolvedStore.store_id,
@@ -1006,11 +1034,7 @@ function UnifiedSalesOrder({
           batch: '',
           qnty: items.length > 1 ? 1 : '',
           bonus: '',
-          amount: items.length > 1 ? (() => {
-            const p = ii.price ? ii.price / state.formData.exchange_rate : NaN;
-            const fallback = ii.first_price ? ii.first_price / state.formData.exchange_rate : NaN;
-            return isNaN(p) ? (isNaN(fallback) ? 0 : fallback) : p;
-          })() : ''
+          amount: items.length > 1 ? initialPrice : ''
 
         };
         if (setFromExcelRef.current) {
@@ -1018,6 +1042,7 @@ function UnifiedSalesOrder({
           item.bonus = ii.bonus;
           item.batch = ii.batch + '';
           item.price = ii.price;
+          item.price_incl_tax = calculateInclusivePrice(ii.price, state.formData.vat_percent ?? 0);
           item.amount = ii.price * ii.qnty;
         }
         CollectionView.sourceCollection.push(item);
@@ -1030,11 +1055,13 @@ function UnifiedSalesOrder({
         item.name = ii.product_name;
         item.unit_id = ii.unit_id;
         item.unit_name = ii.first_unit || ii.unit_name || ii.main_unit;
-        item.price = setFromExcelRef.current ? ii.price : (() => {
+        const updatedPrice = setFromExcelRef.current ? ii.price : (() => {
           const p = ii.price ? ii.price / state.formData.exchange_rate : NaN;
           const fallback = ii.first_price ? ii.first_price / state.formData.exchange_rate : NaN;
           return isNaN(p) ? (isNaN(fallback) ? 0 : fallback) : p;
         })();
+        item.price = updatedPrice;
+        item.price_incl_tax = calculateInclusivePrice(updatedPrice, state.formData.vat_percent ?? 0);
         item.qnty = setFromExcelRef.current ? ii.qnty : '';
         item.bonus = setFromExcelRef.current ? ii.bonus : '';
         item.store_id = resolvedStore.store_id;
@@ -1045,12 +1072,8 @@ function UnifiedSalesOrder({
         item.has_batch_number = ii.has_batch_number;
         item.batch = setFromExcelRef.current ? ii.batch + '' : '';
         item.qnty = setFromExcelRef.current ? ii.qnty : items.length > 1 ? 1 : '';
-        item.amount = setFromExcelRef.current ? ii.qnty * ii.price : items.length > 1 ? (() => {
-          const p = ii.price ? ii.price / state.formData.exchange_rate : NaN;
-          const fallback = ii.first_price ? ii.first_price / state.formData.exchange_rate : NaN;
-          return isNaN(p) ? (isNaN(fallback) ? 0 : fallback) : p;
-        })() : ''
-          , CollectionView.commitEdit();
+        item.amount = setFromExcelRef.current ? ii.qnty * ii.price : items.length > 1 ? updatedPrice : '';
+        CollectionView.commitEdit();
       }
     }
 
@@ -1153,6 +1176,7 @@ function UnifiedSalesOrder({
     const discount = grid.getCellData(row, 'discount', false) ?? 0;
     const qnty = grid.getCellData(row, 'qnty', false) ?? 0;
     const amount = grid.getCellData(row, 'amount', false) ?? 0;
+    const taxPercentage = parseFloat(state.formData.vat_percent ?? 0);
     console.log(" row  row ", row)
     setSelectedIndex(row)
     if (colName === 'code' || colName === 'barcode') {
@@ -1210,8 +1234,13 @@ function UnifiedSalesOrder({
         return;
       }
       const amount = parseFloat(editedValue) * parseFloat(qnty) - parseFloat(discount)
-      const ColIndex = grid.columns.findIndex((coll: { binding: string }) => coll.binding === 'amount');
-      grid.setCellData(row, ColIndex, amount);
+      const priceInclTax = calculateInclusivePrice(parseFloat(editedValue), taxPercentage)
+      const amountIndex = grid.columns.findIndex((coll: { binding: string }) => coll.binding === 'amount');
+      const priceInclIndex = grid.columns.findIndex((coll: { binding: string }) => coll.binding === 'price_incl_tax');
+      grid.setCellData(row, amountIndex, amount);
+      if (priceInclIndex >= 0) {
+        grid.setCellData(row, priceInclIndex, priceInclTax);
+      }
       grid.refresh(true);
     }
     if (colName === 'discount') {
@@ -1516,6 +1545,13 @@ function UnifiedSalesOrder({
           visibleInColumnChooser: true
         },
         { header: "السعر", name: "price", width: 80, maxLength: 10, visible: Util.getVoucherSettingScreenData(vch_type, 'price') },
+        {
+          header: "السعر شامل",
+          name: "price_incl_tax",
+          width: 100,
+          visible: Util.getVoucherSettingScreenData(vch_type, 'price_excl_tax'),
+          isReadOnly: true,
+        },
         { header: "الخصم", name: "discount", width: 80, maxLength: 10, visible: Util.getVoucherSettingScreenData(vch_type, 'discount') },
         { header: "المبلغ", name: "amount", width: 80, visible: true, maxLength: 15 },
         { header: "تاريخ الصلاحية", name: "expiry_date", width: 120, visible: false },
@@ -1660,6 +1696,13 @@ function UnifiedSalesOrder({
     const taxAmount = (afterDiscount * item.vat_percent) / 100
     return afterDiscount + taxAmount
   }
+
+  const calculateInclusivePrice = (price: number, vatPercent: number) => {
+    const numericPrice = Number(price ?? 0)
+    const numericVat = Number(vatPercent ?? 0)
+    if (!Number.isFinite(numericPrice)) return 0
+    return Math.round(numericPrice * (1 + numericVat / 100) * 100) / 100
+  }
   type OrderItemType = {
     qnty: number;
     price: number;
@@ -1669,6 +1712,12 @@ function UnifiedSalesOrder({
   const totals = useMemo(() => {
     // Safely get items from CollectionView
     const items: OrderItemType[] = (CollectionView?.items as OrderItemType[]) ?? [];
+
+    // Update inclusive price column values for all rows when totals calculation runs
+    const vatPercent = Number(state.formData.vat_percent ?? 0)
+    items.forEach((item) => {
+      item.price_incl_tax = calculateInclusivePrice(Number(item.price ?? 0), vatPercent)
+    })
 
     // Calculate subtotal
     const subtotal = items.reduce((sum: number, item: OrderItemType) => {
@@ -1708,6 +1757,17 @@ function UnifiedSalesOrder({
     state.formData.other_charges,
     CollectionView?.items,
   ]);
+
+  useEffect(() => {
+    if (!CollectionView) return
+    const vatPercent = Number(state.formData.vat_percent ?? 0)
+    const items: any[] = CollectionView.items ?? []
+    items.forEach((item) => {
+      item.price_incl_tax = calculateInclusivePrice(Number(item.price ?? 0), vatPercent)
+    })
+    CollectionView.refresh()
+    gridRef.current?.refresh()
+  }, [state.formData.vat_percent, CollectionView])
 
 
   const validateOrder = () => {
@@ -2679,13 +2739,7 @@ function UnifiedSalesOrder({
           code: item.product_code,
           name: item.product_name,
           price: item.price,
-          discount: item.discount,
-          qnty: item.quantity,
-          bonus: item.bonus,
-          ser: ser++,
-          unit_name: item.unit_name, // you might want actual unit name instead of ID
-          amount: item.quantity * item.price - item.discount,
-          batch: item.batch_number,
+          price_incl_tax: calculateInclusivePrice(item.price, Number(mappedOrder.vat_percent ?? state.formData.vat_percent ?? 0)),
           unit_id: item.unit_id,
           store_id: item.store_id,
           store_name: item.store_name,
@@ -2751,7 +2805,7 @@ function UnifiedSalesOrder({
     const resolvedVchBook = vchBookOverride || lastVchBook.current || initialFormData.vch_book;
     setState((prev) => ({
       ...prev, // Keep existing states like customers, products etc.
-      formData: { ...initialFormData, vch_book: resolvedVchBook },
+      formData: { ...initialFormData, vat_percent: defaultVatPercentRef.current, vch_book: resolvedVchBook },
       customerSearch: "",
       activeTab: "basic", // Reset to basic tab
       showCustomerSearch: false,
@@ -2986,37 +3040,34 @@ function UnifiedSalesOrder({
                 //FillItem([obj]);
               }}
             />
-            <CustomerSearchPopup
-              visible={showCustomerSearch}
-              type={-1}
-              vch_type={vch_type ?? 1}
-              onClose={() => {
-                popupHasClosed()
-                setShowCustomerSearch(false)
-                customerNameRef.current?.focus()
-              }
-              }
-              onSelect={(customer) => {   // customer: Customer
-                const allowedVoucherBooks = ["L", "P", "M", "R"]
-                const customerVoucherBook = customer.vch_book?.toString().trim().toUpperCase()
-                const book = allowedVoucherBooks.includes(customerVoucherBook)
-                  ? customerVoucherBook
-                  : state.formData.vch_book
-
+            <AccountSearchDialog
+              open={showCustomerSearch}
+              onOpenChange={(open) => {
+                setShowCustomerSearch(open)
+                if (!open) {
+                  popupHasClosed()
+                  customerNameRef.current?.focus()
+                }
+              }}
+              accounts={[]}
+              allowedTypeValues={[2, 3, 5]}
+              onSelect={(account: AccountItem) => {
+                const book = state.formData.vch_book
                 setState((prev) => ({
                   ...prev,
                   formData: {
                     ...prev.formData,
-                    customer_id: customer.id,
-                    customer_code: customer.customer_code,
-                    customer_name: customer.name,
-                    customer_phone: customer.mobile1,
+                    customer_id: account.id,
+                    customer_code: account.code,
+                    customer_name: account.name,
+                    customer_phone: (account as any).mobile1 || account.notes || "",
                     vch_book: book,
                   },
                 }))
-                priceCategoryIdRef.current = customer.pricecategory
+                // price category not available on AccountItem; keep existing
                 customerNameRef.current?.focus()
                 popupHasClosed()
+                setShowCustomerSearch(false)
               }}
             />
             <ConfirmDialogYesNo
@@ -3271,13 +3322,21 @@ function UnifiedSalesOrder({
                   {/* الصف الثاني */}
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     {/* العملة */}
-                    <div>
+                    <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
                       <Label>العملة</Label>
-                      <Select
-                        value={String(state.formData.currency_id ?? "-1")}
-                        onValueChange={async (value) => {
+                      <Dropdown
+                        value={state.formData.currency_id ?? null}
+                        options={definitionsRef.current.currencies}
+                        optionLabel="currency_name"
+                        optionValue="currency_id"
+                        placeholder="اختر العملة"
+                        className="invoice-currency-dropdown w-full"
+                        panelClassName="invoice-currency-dropdown-panel"
+                        appendTo="self"
+                        panelStyle={{ zIndex: 10000 }}
+                        onChange={async (e: any) => {
                           const selected = definitionsRef.current.currencies.find(
-                            (c) => String(c.currency_id) === value
+                            (c) => c.currency_id === e.value
                           );
 
                           if (!selected) return;
@@ -3292,25 +3351,13 @@ function UnifiedSalesOrder({
                             ...prev,
                             formData: {
                               ...prev.formData,
-                              currency_id: selected.currency_id,                 // ✅ API
-                              currency_name: selected.currency_name,    // ✅ UI
-                              exchange_rate: rate,                      // ✅ from DB
+                              currency_id: selected.currency_id,
+                              currency_name: selected.currency_name,
+                              exchange_rate: rate,
                             },
                           }));
                         }}
-
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="اختر العملة" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {definitionsRef.current.currencies.map(c => (
-                            <SelectItem key={c.currency_id} value={String(c.currency_id)}>
-                              {c.currency_name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      />
                     </div>
 
                     {/* سعر الصرف */}
@@ -3323,52 +3370,58 @@ function UnifiedSalesOrder({
                     </div>
 
                     {/* حالة الطلبية */}
-                    <div>
+                    <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
                       <Label>حالة الطلبية</Label>
-                      <Select
-                        value={String(state.formData.order_status ?? "1")}
-                        onValueChange={(v) =>
+                      <Dropdown
+                        value={state.formData.order_status ?? 1}
+                        options={[
+                          { value: 1, label: "غير جاهزة" },
+                          { value: 2, label: "جاهزة" },
+                          { value: 3, label: "مرسلة جزئيا" },
+                          { value: 4, label: "مرسلة كليا" },
+                          { value: 5, label: "ملغاة" },
+                          { value: 6, label: "مغلقة" },
+                        ]}
+                        optionLabel="label"
+                        optionValue="value"
+                        placeholder="اختر حالة الطلبية"
+                        className="invoice-currency-dropdown w-full"
+                        panelClassName="invoice-currency-dropdown-panel"
+                        appendTo="self"
+                        panelStyle={{ zIndex: 10000 }}
+                        onChange={(e: any) =>
                           setState(prev => ({
                             ...prev,
-                            formData: { ...prev.formData, order_status: v }
+                            formData: { ...prev.formData, order_status: e.value }
                           }))
                         }
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="1">غير جاهزة</SelectItem>
-                          <SelectItem value="2">جاهزة</SelectItem>
-                          <SelectItem value="3">مرسلة جزئيا</SelectItem>
-                          <SelectItem value="4">مرسلة كليا</SelectItem>
-                          <SelectItem value="5">ملغاة</SelectItem>
-                          <SelectItem value="6">مغلقة</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      />
                     </div>
 
                     {/*2 حالة الطلبية */}
-                    <div>
+                    <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
                       <Label>حالة التسليم</Label>
-                      <Select
-                        value={String(state.formData.order_status2 ?? "1")}
-                        onValueChange={(v) =>
+                      <Dropdown
+                        value={state.formData.order_status2 ?? 1}
+                        options={[
+                          { value: 1, label: "غير مسلم" },
+                          { value: 2, label: "مسلم" },
+                          { value: 3, label: "ملغي" },
+                        ]}
+                        optionLabel="label"
+                        optionValue="value"
+                        placeholder="اختر حالة التسليم"
+                        className="invoice-currency-dropdown w-full"
+                        panelClassName="invoice-currency-dropdown-panel"
+                        appendTo="self"
+                        panelStyle={{ zIndex: 10000 }}
+                        onChange={(e: any) =>
                           setState(prev => ({
                             ...prev,
-                            formData: { ...prev.formData, order_status2: v }
+                            formData: { ...prev.formData, order_status2: e.value }
                           }))
                         }
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="1">غير مسلم</SelectItem>
-                          <SelectItem value="2">مسلم</SelectItem>
-                          <SelectItem value="3">ملغي</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      />
                     </div>
 
                   </div>
@@ -3412,31 +3465,34 @@ function UnifiedSalesOrder({
                         dir="rtl"
                       />
                     </div>
-                    <div>
+                    <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
                       <Label className="text-sm font-medium">
                         {"قرار الإدارة"}
                       </Label>
-                      <Select
-                        value={String(state.formData.order_decision ?? "1")}
-                        onValueChange={(value) =>
+                      <Dropdown
+                        value={state.formData.order_decision ?? 1}
+                        options={[
+                          { value: 1, label: "مقبول" },
+                          { value: 2, label: "مرفوض" },
+                          { value: 3, label: "مؤجل" },
+                          { value: 4, label: "معتمدة" },
+                          { value: 5, label: "مدققة" },
+                        ]}
+                        optionLabel="label"
+                        optionValue="value"
+                        placeholder="اختر قرار الإدارة"
+                        disabled={state.formData.order_decision > 3}
+                        className="invoice-currency-dropdown w-full"
+                        panelClassName="invoice-currency-dropdown-panel"
+                        appendTo="self"
+                        panelStyle={{ zIndex: 10000 }}
+                        onChange={(e: any) =>
                           setState((prev) => ({
                             ...prev,
-                            formData: { ...prev.formData, order_decision: value },
+                            formData: { ...prev.formData, order_decision: e.value },
                           }))
                         }
-                        disabled={state.formData.order_decision > 3}
-                      >
-                        <SelectTrigger className="h-11">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="1">مقبول</SelectItem>
-                          <SelectItem value="2">مرفوض</SelectItem>
-                          <SelectItem value="3">مؤجل</SelectItem>
-                          <SelectItem value="4">معتمدة</SelectItem>
-                          <SelectItem value="5">مدققة</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      />
                     </div>
                   </div>
 
@@ -3697,23 +3753,26 @@ function UnifiedSalesOrder({
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label className="text-sm font-medium">نوع الخصم</Label>
-                      <Select
+                      <Dropdown
                         value={state.formData.discount_type || "percentage"}
-                        onValueChange={(value) =>
+                        options={[
+                          { value: "percentage", label: "نسبة مئوية" },
+                          { value: "amount", label: "مبلغ ثابت" },
+                        ]}
+                        optionLabel="label"
+                        optionValue="value"
+                        placeholder="اختر نوع الخصم"
+                        className="invoice-currency-dropdown w-full"
+                        panelClassName="invoice-currency-dropdown-panel"
+                        appendTo="self"
+                        panelStyle={{ zIndex: 10000 }}
+                        onChange={(e: any) =>
                           setState((prev) => ({
                             ...prev,
-                            formData: { ...prev.formData, discount_type: value },
+                            formData: { ...prev.formData, discount_type: String(e.value) },
                           }))
                         }
-                      >
-                        <SelectTrigger className="h-11">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="percentage">نسبة مئوية</SelectItem>
-                          <SelectItem value="amount">مبلغ ثابت</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      />
                     </div>
                     <div className="space-y-2">
                       <Label className="text-sm font-medium">قيمة الخصم</Label>
@@ -3751,13 +3810,17 @@ function UnifiedSalesOrder({
                     <Input
                       type="number"
                       step="0.01"
-                      value={state.formData.vat_percent || 0}
-                      onChange={(e) =>
+                      min={0}
+                      max={100}
+                      value={state.formData.vat_percent ?? 0}
+                      onChange={(e) => {
+                        const entered = Number.parseFloat(e.target.value)
+                        const value = Number.isNaN(entered) ? 0 : Math.min(Math.max(entered, 0), 100)
                         setState((prev) => ({
                           ...prev,
-                          formData: { ...prev.formData, vat_percent: Number.parseFloat(e.target.value) || 0 },
+                          formData: { ...prev.formData, vat_percent: value },
                         }))
-                      }
+                      }}
                       className="text-right h-11"
                       dir="rtl"
                     />

@@ -65,6 +65,19 @@ export function ensurePermissionTables(dbName: string): Promise<void> {
         )`,
         [],
       )
+      // عضوية فرع بسيطة (بلا بعد access_id) — منفصلة تماماً عن user_branch_permissions أعلاه: تلك
+      // مقيَّدة بصلاحية بعينها، وهذه فقط "هل يعمل هذا المستخدم بهذا الفرع إطلاقاً". بلا أي صف لمستخدم
+      // = غير مقيَّد (يصل لكل الفروع، السلوك الحالي دون تغيير) — نفس اصطلاح جداول product_branches/
+      // customer_branches/account_branches الوسيطة (فراغ = بلا قيد)؛ صف واحد أو أكثر = يقتصر عليها.
+      // بلا FK صريح على branch_id، بنفس أسلوب user_branch_permissions/role_branch_permissions أعلاه.
+      await client.query(
+        `CREATE TABLE IF NOT EXISTS user_branches (
+          user_id VARCHAR(255) NOT NULL,
+          branch_id INTEGER NOT NULL,
+          PRIMARY KEY (user_id, branch_id)
+        )`,
+        [],
+      )
       await client.query(`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS job_role_id INTEGER REFERENCES job_roles(id) ON DELETE SET NULL`, [])
       await client.query(`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS management_user_id INTEGER`, [])
       await client.query(`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS branch_id INTEGER`, [])
@@ -108,6 +121,42 @@ export async function hasEffectivePermission(userId: string, accessId: number, b
     LIMIT 1
   `
   return Boolean(rows[0]?.is_granted)
+}
+
+// يُرمى عند رفض صلاحية — رسالته جاهزة للعرض مباشرة للمستخدم (تحمل اسم الصلاحية الفعلي من
+// access_list، لا معرِّفها الرقمي فقط).
+export class PermissionDeniedError extends Error {}
+
+// كل الفروع التي يملك فيها المستخدم صلاحية بعينها فعلياً — نفس منطق COALESCE وترتيب الأولوية في
+// hasEffectivePermission أعلاه حرفياً، لكن مُقيَّماً لكل فرع دفعة واحدة (JOIN مع branches) بدل فرع
+// واحد فقط. يُستخدَم عندما تحتاج شاشة عرض بيانات مُقيَّدة بالفرع (كالأصناف) تجميع النتائج من كل فرع
+// يملك المستخدم صلاحية استعلامه فيه، لا فرعه النشط فقط.
+export async function getGrantedBranchIds(userId: string, accessId: number): Promise<number[]> {
+  const rows = await sql`
+    SELECT b.id
+    FROM branches b
+    CROSS JOIN (SELECT job_role_id FROM user_settings WHERE user_id = ${userId} LIMIT 1) us
+    LEFT JOIN user_branch_permissions ubp ON ubp.user_id = ${userId} AND ubp.branch_id = b.id AND ubp.access_id = ${accessId}
+    LEFT JOIN user_access ua ON ua.access_id = ${accessId} AND ua.user_id = ${userId}
+    LEFT JOIN role_branch_permissions rbp ON rbp.role_id = us.job_role_id AND rbp.branch_id = b.id AND rbp.access_id = ${accessId}
+    LEFT JOIN role_permissions rp ON rp.role_id = us.job_role_id AND rp.access_id = ${accessId}
+    WHERE COALESCE(ubp.is_granted, ua.is_granted, rbp.is_granted, rp.is_granted, FALSE) = TRUE
+  `
+  return rows.map((r: any) => Number(r.id))
+}
+
+// حارس جاهز لبداية أي مسار API يحتاج فرض صلاحية مُقيَّدة بالفرع فعلياً على الخادم (لا فقط إخفاءها
+// بالواجهة عبر Util.checkUserAccess المخزَّنة بـlocalStorage، التي لا تمنع طلب fetch نفسه إطلاقاً).
+// يرمي PermissionDeniedError برسالة جاهزة للعرض عند عدم وجود أي فرع مصرَّح به؛ وإلا يُعيد قائمة
+// الفروع المصرَّح بها لتُستخدَم في تصفية الاستعلام.
+export async function requireBranchAccess(userId: string | null, accessId: number): Promise<number[]> {
+  if (!userId) throw new PermissionDeniedError("يجب تسجيل الدخول")
+  const grantedBranchIds = await getGrantedBranchIds(userId, accessId)
+  if (grantedBranchIds.length === 0) {
+    const accessRow = (await sql`SELECT name FROM access_list WHERE id = ${accessId}`)[0]
+    throw new PermissionDeniedError(`لا يوجد لديك صلاحية ${accessRow?.name || ""}`.trim())
+  }
+  return grantedBranchIds
 }
 
 // تُطبَّق عند تحميل الصفحة الرئيسية (انظر نقطة الاستدعاء بـauth-context.tsx) — بلا حاجة لتشغيل أي

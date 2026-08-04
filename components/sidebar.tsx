@@ -40,6 +40,7 @@ import {
   FileMinus2,
   KanbanSquare,
   PackageCheck,
+  Grid3x3,
   LucideIcon,
 } from "lucide-react"
 import { useWindowManager } from "@/contexts/window-manager-context"
@@ -276,6 +277,9 @@ export const menuItems: MenuItem[] = [
           { title: "الصلاحيات", section: "permissions", icon: Shield },
           { title: "الأدوار الوظيفية", section: "job-roles", icon: UserCheck },
           { title: "صلاحيات الأدوار الوظيفية", section: "role-permissions", icon: Shield },
+          // صلاحيات المستخدمين على الفروع: أُزيلت من القائمة مؤقتاً بطلب المستخدم (لم يُقرَّر بعد كيف
+          // ستُستخدَم) — الشاشة والمسارات وجدول user_branches ما زالت موجودة، فقط غير مرتبطة بالقائمة.
+          // انظر "user-branch-access-matrix" بـapp/page.tsx لإعادتها لاحقاً بسطر واحد هنا.
           { title: "اعدادات", section: "user-default-accounts", icon: Settings },
           { title: "صلاحيات دفاتر السندات", section: "voucher-book-permissions", icon: CreditCard },
         ],

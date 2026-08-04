@@ -90,10 +90,25 @@ export function AuthProvider({ children }: AuthProviderProps) {
             branchId = null
           }
         }
-        if (tenantDb || branchId != null) {
+        // x-user-id: يتيح لمسارات API التحقق الفعلي من صلاحيات المستخدم عبر hasEffectivePermission/
+        // getGrantedBranchIds (lib/permissions.ts) بدل الاكتفاء بقراءة Util.checkUserAccess المخزَّنة
+        // بـlocalStorage بالواجهة فقط (لا يمنع طلب fetch فعلياً، فقط يُخفي العرض). نفس مصدر المعرِّف
+        // الذي تستخدمه Util.checkUserAccess نفسها (savedUser?.id ?? savedUser?.user_id) للاتساق.
+        let userId: string | null = null
+        const userRaw = localStorage.getItem("erp_user") || sessionStorage.getItem("erp_user")
+        if (userRaw) {
+          try {
+            const savedUser = JSON.parse(userRaw)
+            userId = savedUser?.id ?? savedUser?.user_id ?? null
+          } catch {
+            userId = null
+          }
+        }
+        if (tenantDb || branchId != null || userId) {
           const headers = new Headers(init?.headers)
           if (tenantDb) headers.set("x-tenant-db", tenantDb)
           if (branchId != null) headers.set("x-branch-id", String(branchId))
+          if (userId) headers.set("x-user-id", userId)
           init = { ...init, headers }
         }
         return originalFetch(input, init)

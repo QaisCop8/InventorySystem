@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
-import sql, { getTenantPool } from "@/lib/database"
+import sql, { getTenantPool, resolveCurrentDbName } from "@/lib/database"
+import { requireBranchAccess, PermissionDeniedError, ensurePermissionTables } from "@/lib/permissions"
 
 
 
@@ -202,6 +203,22 @@ export async function GET(request: NextRequest) {
       )
     `
 
+    // صلاحية "استعلام الاصناف" (access_list.id = 10) تُفرَض هنا فعلياً على الخادم — لا يكفي إخفاء
+    // الشاشة بـUtil.checkUserAccess(10) بالواجهة وحده (تلك قراءة من localStorage فقط، لا تمنع طلب
+    // fetch نفسه إطلاقاً). المستخدم يُعرَّف عبر هيدر x-user-id (يُلحقه تصحيح fetch بـauth-context.tsx
+    // تلقائياً بكل طلب). بلا أي فرع يملك المستخدم الصلاحية فيه: 403 برسالة جاهزة للعرض مباشرة.
+    const requestingUserId = request.headers.get('x-user-id')
+    let grantedBranchIds: number[]
+    try {
+      await ensurePermissionTables(await resolveCurrentDbName())
+      grantedBranchIds = await requireBranchAccess(requestingUserId, 10)
+    } catch (error) {
+      if (error instanceof PermissionDeniedError) {
+        return NextResponse.json({ error: error.message }, { status: 403 })
+      }
+      throw error
+    }
+
     const url = new URL(request.url)
     const typeParam = url.searchParams.get('type') ?? 'NULL'
     const priceCategoryId = Number.parseInt(url.searchParams.get('priceCategoryId') || '1', 10) || 1
@@ -217,24 +234,20 @@ export async function GET(request: NextRequest) {
         : Number(typeParam)
     const effectiveType = Number.isFinite(resolvedType) && resolvedType > 0 ? resolvedType : null
 
-    // تصفية حسب الفرع النشط (هيدر x-branch-id — انظر auth-context.tsx للسياق الكامل): صنف بلا أي
-    // صف بـproduct_branches يبقى ظاهراً للجميع (السلوك الافتراضي)، وصنف مقيَّد بفرع/فروع معيّنة لا
-    // يظهر إلا لمستخدم فرعه أحدها. بلا هيدر (لا فرع نشط محدَّد، أو طلب غير آتٍ من واجهة تُرسِله) لا
-    // تُطبَّق هذه التصفية إطلاقاً — تُعرَض كل الأصناف كما كانت قبل هذه الميزة.
-    const activeBranchIdHeader = Number(request.headers.get('x-branch-id'))
-    const activeBranchId = Number.isInteger(activeBranchIdHeader) && activeBranchIdHeader > 0 ? activeBranchIdHeader : null
+    // تصفية حسب الفروع التي يملك المستخدم صلاحية "استعلام الاصناف" فيها فعلياً (grantedBranchIds
+    // أعلاه، مُتحقَّق منها على الخادم) — لا الفرع النشط وحده كما كانت التصفية السابقة (هيدر
+    // x-branch-id لا يزال يُرسَل لكنه لم يعد المصدر هنا): صنف بلا أي صف بـproduct_branches يبقى
+    // ظاهراً طالما يملك المستخدم الصلاحية بفرع واحد على الأقل (تحقَّق أعلاه بالفعل)، وصنف مقيَّد
+    // بفرع/فروع معيّنة يظهر فقط إن كان أحد تلك الفروع ضمن الفروع المصرَّح بها للمستخدم.
+    const grantedBranchIdsLiteral = grantedBranchIds.join(',')
 
     const filterClauses = [
       '(p.deleted IS NULL OR p.deleted = false)',
       ...(effectiveType !== null ? [`p.type = ${effectiveType}::int`] : []),
       ...(requestedProductId > 0 ? [`p.id = ${requestedProductId}::int`] : []),
       ...(activeOnly ? [`(p.status = 1 OR p.status::text = 'نشط' OR p.status::text = 'active' OR p.status::text = 'ACTIVE')`] : []),
-      ...(activeBranchId !== null
-        ? [
-            `(NOT EXISTS (SELECT 1 FROM product_branches pb WHERE pb.product_id = p.id)
-              OR EXISTS (SELECT 1 FROM product_branches pb WHERE pb.product_id = p.id AND pb.branch_id = ${activeBranchId}::int))`,
-          ]
-        : []),
+      `(NOT EXISTS (SELECT 1 FROM product_branches pb WHERE pb.product_id = p.id)
+        OR EXISTS (SELECT 1 FROM product_branches pb WHERE pb.product_id = p.id AND pb.branch_id = ANY(ARRAY[${grantedBranchIdsLiteral}]::int[])))`,
     ]
     const filterExpression = filterClauses.join('\n        AND ')
 

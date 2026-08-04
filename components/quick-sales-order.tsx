@@ -72,6 +72,8 @@ export function QuickSalesOrder({ open, onOpenChange, onOrderSaved }: QuickSales
   const [showCustomerSearch, setShowCustomerSearch] = useState(false)
   const [showProductSearch, setShowProductSearch] = useState(false)
   const [items, setItems] = useState<QuickOrderItem[]>([emptyItem()])
+  const [defaultItemWarehouseId, setDefaultItemWarehouseId] = useState<number | null>(null)
+  const [defaultWarehouseLoading, setDefaultWarehouseLoading] = useState(false)
 
   const resetForm = () => {
     setOrderDate(new Date().toISOString().split("T")[0])
@@ -83,6 +85,33 @@ export function QuickSalesOrder({ open, onOpenChange, onOrderSaved }: QuickSales
   useEffect(() => {
     if (open) resetForm()
   }, [open])
+
+  useEffect(() => {
+    const loadDefaultWarehouse = async () => {
+      if (!user?.id) {
+        setDefaultItemWarehouseId(null)
+        return
+      }
+
+      setDefaultWarehouseLoading(true)
+      try {
+        const response = await fetch(`/api/settings/user-warehouse-defaults?user_id=${encodeURIComponent(user.id)}`)
+        if (!response.ok) {
+          setDefaultItemWarehouseId(null)
+          return
+        }
+        const data = await response.json()
+        setDefaultItemWarehouseId(data?.default_item_warehouse_id ?? null)
+      } catch (error) {
+        console.error("Failed to load user default warehouse:", error)
+        setDefaultItemWarehouseId(null)
+      } finally {
+        setDefaultWarehouseLoading(false)
+      }
+    }
+
+    void loadDefaultWarehouse()
+  }, [user?.id])
 
   // F2 لبحث العملاء أثناء فتح النافذة، بنفس اختصار نموذج طلبية المبيعات الكامل
   useEffect(() => {
@@ -238,7 +267,7 @@ export function QuickSalesOrder({ open, onOpenChange, onOrderSaved }: QuickSales
         discount: Number(item.discount) || 0,
         barcode: item.barcode || null,
         unit_id: item.unit_id || null,
-        store_id: null,
+        store_id: defaultItemWarehouseId ?? null,
         delivered_quantity: 0,
         expiry_date: null,
         batch_number: null,

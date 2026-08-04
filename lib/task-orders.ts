@@ -960,10 +960,15 @@ export async function createOrderItem(data: {
   const itemCode = generateItemCode(item.id)
   await sql`UPDATE task_order_items SET item_code = ${itemCode} WHERE id = ${item.id}`
 
+  // خطوة "تحديد ل مستخدم معين" (assignment_type='specific') يجب أن تُنسَب فوراً لذلك المستخدم عند
+  // الإنشاء، لا فقط لحظة أول Start — وإلا claimed_by_user_id يبقى NULL حتى يبدأ العمل عليها فعلياً،
+  // فلا تظهر إطلاقاً بنطاق "مهامي" (task-board.tsx يُصفّي بـclaimed_by_user_id===userId حصراً لهذا
+  // النطاق) رغم كونها مُسندة له تحديداً. startTask نفسها مبنية على هذا الافتراض أصلاً (شرط WHERE
+  // بها يقبل status='pending' مع claimed_by_user_id مُسبَق التعيين، لا NULL فقط).
   const instance = (
     await sql`
-      INSERT INTO task_step_instances (order_item_id, step_id, status, parent_instance_id)
-      VALUES (${item.id}, ${startStep.id}, 'pending', NULL)
+      INSERT INTO task_step_instances (order_item_id, step_id, status, parent_instance_id, claimed_by_user_id)
+      VALUES (${item.id}, ${startStep.id}, 'pending', NULL, ${startStep.assignment_type === "specific" ? startStep.assigned_user_id : null})
       RETURNING *
     `
   )[0]
@@ -1029,6 +1034,7 @@ export async function listOpenTasks(filters: { workflowId?: number; sectionId?: 
       COALESCE(si.override_section_id, st.section_id) AS effective_section_id,
       sec.name AS section_name,
       i.id AS order_item_id, i.item_code, i.title, i.description, i.priority AS item_priority, i.workflow_id, i.status AS item_status,
+      i.customer_order_id,
       i.created_at AS item_created_at,
       w.name AS workflow_name,
       u.full_name AS claimed_by_name,
@@ -1057,13 +1063,20 @@ export async function listOpenTasks(filters: { workflowId?: number; sectionId?: 
 
 export async function getOrderItemDetail(orderItemId: number) {
   await ensureTaskOrderTables()
+  // رقم الطلبية المعروض للمستخدم يجب أن يكون رقم الطلب الفعلي (orders.order_number — الصيغة
+  // المُوحَّدة الجديدة كبادئة+دفتر+تسلسل) لا الكود الداخلي لتتبّع أوامر العمل (task_customer_orders.
+  // order_code، شكله "ORD-000003" ولا علاقة له برقم الطلب الذي يعرفه المستخدم) — يُفضَّل عند وجود
+  // source_order_id (طلبية أُنشئت عبر جسر lib/orders.ts)، ويبقى الكود الداخلي احتياطاً فقط لأصناف لا
+  // ترتبط بطلب فعلي (أُنشئت مباشرة من لوحة إدارة تتبع أوامر العمل).
   const items = await sql`
     SELECT i.*, w.name AS workflow_name, co.order_code AS customer_order_code, c.name AS customer_name,
+      COALESCE(o.order_number, co.order_code) AS source_order_number,
       creator.full_name AS created_by_name
     FROM task_order_items i
     JOIN task_workflows w ON w.id = i.workflow_id
     LEFT JOIN task_customer_orders co ON co.id = i.customer_order_id
     LEFT JOIN customers c ON c.id = co.customer_id
+    LEFT JOIN orders o ON o.id = co.source_order_id
     LEFT JOIN user_settings creator ON creator.user_id = i.created_by
     WHERE i.id = ${orderItemId}
   `
@@ -1370,10 +1383,10 @@ async function advanceFromStep(orderItemId: number, fromStepId: number, itemAttr
     }
 
     await sql`
-      INSERT INTO task_step_instances (order_item_id, step_id, status, parent_instance_id)
+      INSERT INTO task_step_instances (order_item_id, step_id, status, parent_instance_id, claimed_by_user_id)
       VALUES (${orderItemId}, ${transition.to_step_id}, 'pending', (
         SELECT id FROM task_step_instances WHERE order_item_id = ${orderItemId} AND step_id = ${fromStepId} ORDER BY created_at DESC LIMIT 1
-      ))
+      ), ${targetStep.assignment_type === "specific" ? targetStep.assigned_user_id : null})
     `
 
     const item = (await sql`SELECT item_code, title FROM task_order_items WHERE id = ${orderItemId}`)[0]
@@ -1439,6 +1452,51 @@ export async function completeTask(instanceId: number, userId: string, note?: st
   }
 
   return getOrderItemDetail(ctx.order_item_id)
+}
+
+// خطوات تدقيق/اعتماد/تجهيز/تحميل تُراجَع لكل أصناف الطلبية دفعة واحدة (لوحة الأصناف الشقيقة تعرضها
+// معاً أصلاً) — فبطاقة لوحة Kanban الواحدة لهذه الخطوات تُمثِّل الطلبية كلها لا صنفاً بمفرده
+// (انظر التجميع بـtask-board.tsx)، و"تم"/"رفض" هنا ينفّذان الإجراء على كل مهمة صنف مفتوحة بنفس
+// الخطوة دفعة واحدة، لا مهمة واحدة فقط. تُبنى فوق startTask/completeTask/rejectTask الموجودتين
+// حرفياً (لا تكرار لمنطقهما — تدقيق الوصول، بوابة فحص التحميل، تقدّم DAG، الإشعارات) بدل إعادة
+// كتابته بمعزل هنا.
+async function openSiblingInstanceIds(customerOrderId: number, stepId: number): Promise<number[]> {
+  const rows = await sql`
+    SELECT si.id FROM task_step_instances si
+    JOIN task_order_items i ON i.id = si.order_item_id
+    WHERE i.customer_order_id = ${customerOrderId} AND si.step_id = ${stepId}
+      AND si.status IN ('pending', 'in_progress', 'paused')
+  `
+  return rows.map((r: any) => Number(r.id))
+}
+
+export async function completeStepForOrder(customerOrderId: number, stepId: number, userId: string, note?: string) {
+  await ensureTaskOrderTables()
+  const instanceIds = await openSiblingInstanceIds(customerOrderId, stepId)
+  if (instanceIds.length === 0) throw new Error("لا توجد مهام مفتوحة لهذه الخطوة على هذه الطلبية")
+  let lastItemId: number | null = null
+  for (const instanceId of instanceIds) {
+    const ctx = await getInstanceContext(instanceId)
+    if (!ctx) continue
+    if (ctx.status !== "in_progress") await startTask(instanceId, userId)
+    await completeTask(instanceId, userId, note)
+    lastItemId = ctx.order_item_id
+  }
+  return lastItemId ? getOrderItemDetail(lastItemId) : null
+}
+
+export async function rejectStepForOrder(customerOrderId: number, stepId: number, userId: string, reason: string) {
+  await ensureTaskOrderTables()
+  const instanceIds = await openSiblingInstanceIds(customerOrderId, stepId)
+  if (instanceIds.length === 0) throw new Error("لا توجد مهام مفتوحة لهذه الخطوة على هذه الطلبية")
+  let lastItemId: number | null = null
+  for (const instanceId of instanceIds) {
+    const ctx = await getInstanceContext(instanceId)
+    if (!ctx) continue
+    await rejectTask(instanceId, userId, reason)
+    lastItemId = ctx.order_item_id
+  }
+  return lastItemId ? getOrderItemDetail(lastItemId) : null
 }
 
 export async function adminTransferTask(
