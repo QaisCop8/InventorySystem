@@ -3,6 +3,8 @@ import { getManagementSession } from "@/lib/management-auth"
 import managementSql, { ensureManagementTables } from "@/lib/management-db"
 import { provisionCompanyDatabase } from "@/lib/provisioning"
 
+export const dynamic = "force-dynamic"
+
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     await ensureManagementTables()

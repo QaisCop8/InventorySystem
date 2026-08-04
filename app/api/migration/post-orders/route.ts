@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import odbc, { Connection } from "odbc";
+import type { Connection as OdbcConnection } from "odbc";
 import type { Pool } from "pg"
 import { getTenantPool } from "@/lib/database"
 /* ======================================================
@@ -103,7 +103,7 @@ const Inc_Code = (code: string, prefix: string): string => {
   return newCode;
 }
 async function getNextVoucherID(
-  connection: odbc.Connection,
+  connection: OdbcConnection,
   orderNumber: string,
   orderTypeId: number
 ): Promise<string> {
@@ -137,7 +137,7 @@ async function getNextVoucherID(
   return Inc_Code(lastVoucher, prefix);
 }
 async function getVatAccount(
-  connection: Connection,
+  connection: OdbcConnection,
   orderTypeId: number
 ): Promise<string> {
   const pos = orderTypeId === 1 ? 482 : 483;
@@ -157,7 +157,7 @@ async function getVatAccount(
 
 
 async function getItemAccount_sales(
-  connection: Connection,
+  connection: OdbcConnection,
   stockId: string
 ): Promise<string | null> {  // allow null if not found
   const result = await connection.query<{ Cr_Code: string }>(
@@ -170,7 +170,7 @@ async function getItemAccount_sales(
 }
 
 async function getItemAccount_purchase(
-  connection: Connection,
+  connection: OdbcConnection,
   stockId: string
 ): Promise<string | null> {  // allow null if not found
   const result = await connection.query<{ Dr_Code: string }>(`
@@ -196,7 +196,7 @@ function formatTime(date: Date) {
 }
 
 export async function insertCPage(
-  connection: odbc.Connection,
+  connection: OdbcConnection,
   voucherId: string,
   order: OrderPayload,
   insertOrder: number,
@@ -247,7 +247,7 @@ INSERT INTO cpage (
 
 
 export async function insertStrans(
-  connection: odbc.Connection,
+  connection: OdbcConnection,
   voucherId: string,
   order: OrderPayload,
   item: OrderItem,
@@ -319,7 +319,7 @@ INSERT INTO strans (
 }
 
 export async function updateSitems(
-  connection: odbc.Connection,
+  connection: OdbcConnection,
   order: OrderPayload,
   item: OrderItem,
   orderTypeId: number
@@ -369,7 +369,7 @@ export async function updateSitems(
   }
 }
 export async function insertCtrans(
-  connection: odbc.Connection,
+  connection: OdbcConnection,
   voucherId: string,
   order: OrderPayload,
   amount: number,
@@ -404,7 +404,7 @@ INSERT INTO ctrans (
 
 
 export async function insertSPage(
-  connection: odbc.Connection,
+  connection: OdbcConnection,
   voucherId: string,
   order: OrderPayload,
   insertOrder: number,
@@ -479,7 +479,7 @@ export async function getOrderItems(pool: Pool, orderId: number): Promise<OrderI
     client.release();
   }
 }
-async function checkStockExists(connection: odbc.Connection, productCode: string): Promise<boolean> {
+async function checkStockExists(connection: OdbcConnection, productCode: string): Promise<boolean> {
   const result = await connection.query<{ exist: number }>(
     `SELECT COUNT(*) AS exist FROM stock WHERE StockID = ?`,
     [productCode]
@@ -488,7 +488,7 @@ async function checkStockExists(connection: odbc.Connection, productCode: string
 }
 
 async function checkManualExists(
-  connection: odbc.Connection,
+  connection: OdbcConnection,
   manualVoucher: string
 ): Promise<string | null> {
 
@@ -508,7 +508,7 @@ async function checkManualExists(
 
 
 async function getcustPriceIfExists(
-  connection: odbc.Connection,
+  connection: OdbcConnection,
   cs_code: string,
   productCode: string
 ): Promise<number> {
@@ -538,7 +538,7 @@ type AccountBalance = {
 };
 
 export async function recalcualateAccounts(
-  connection: Connection,
+  connection: OdbcConnection,
   accounts: string[]
 ) {
   const today = new Date();
@@ -601,8 +601,18 @@ export async function recalcualateAccounts(
 }
 
 
+async function loadOdbcModule() {
+  try {
+    const module = await import("odbc")
+    return (module as any).default ?? module
+  } catch (error) {
+    console.error("[migration/post-orders] Failed to load ODBC module:", error)
+    throw new Error("ODBC driver is not available in this environment")
+  }
+}
+
 export async function POST(req: NextRequest) {
-  let connection: Connection | null = null;
+  let connection: OdbcConnection | null = null;
   const pool = await getTenantPool();
 
   try {
@@ -617,7 +627,8 @@ export async function POST(req: NextRequest) {
     }
     console.log(`Starting migration of ${orders.length} orders...`);
     console.log("Connecting to Pervasive database...");
-    connection = await odbc.connect(ODBC_CONNECTION_STRING);
+    const odbcModule = await loadOdbcModule();
+    connection = await odbcModule.connect(ODBC_CONNECTION_STRING);
 
 
     const results: {
