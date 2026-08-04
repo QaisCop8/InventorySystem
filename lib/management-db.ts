@@ -33,13 +33,19 @@ function buildSqlClient(connectionUrl: string) {
   return neon(connectionUrl)
 }
 
-const baseUrl = process.env.DATABASE_URL || ""
+const baseUrl = (process.env.DATABASE_URL || "").trim()
 const managementUrl = baseUrl ? withDatabaseName(baseUrl, MANAGEMENT_DB_NAME) : ""
+
+function createNoopSqlClient(): any {
+  const client: any = async () => []
+  client.unsafe = async () => []
+  return client
+}
 
 // اتصال ثابت بقاعدة "الإدارة" (management) — على عكس sql الافتراضي في lib/database.ts، هذا الاتصال
 // لا يتبدّل أبداً بحسب الشركة/الجلسة الحالية؛ يبقى دوماً نفس قاعدة الإدارة بصرف النظر عن أي كوكي
 // tenant_db مضبوط، لأنها تخزّن حسابات المستخدمين والشركات نفسها لا بيانات شركة بعينها.
-const sql: any = managementUrl ? buildSqlClient(managementUrl) : null
+const sql: any = managementUrl ? buildSqlClient(managementUrl) : createNoopSqlClient()
 
 export default sql
 
@@ -61,6 +67,7 @@ async function ensureManagementDatabaseExists() {
 }
 
 export function ensureManagementTables(): Promise<void> {
+  if (!baseUrl) return Promise.resolve()
   if (!managementDbEnsured) {
     managementDbEnsured = (async () => {
       await ensureManagementDatabaseExists()
@@ -199,6 +206,9 @@ let managementPool: Pool | null = null
 // على نفس الاتصال (sql الافتراضي أعلاه يفتح ويُغلق اتصالاً منفصلاً بكل استدعاء، انظر buildSqlClient،
 // فلا يصلح لمعاملة متعددة الاستعلامات)، بنفس نمط getTenantPool في lib/database.ts تماماً.
 export function getManagementPool(): Pool {
+  if (!managementUrl) {
+    throw new Error("DATABASE_URL is not configured for management database access")
+  }
   if (!managementPool) {
     managementPool = new Pool({ connectionString: managementUrl })
   }

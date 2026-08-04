@@ -20,10 +20,16 @@ interface TenantClient {
   query: (text: string, params: any[]) => Promise<any[]>
 }
 
-const baseUrl = process.env.DATABASE_URL || ""
+const baseUrl = (process.env.DATABASE_URL || "").trim()
 const defaultDbName = baseUrl ? getDatabaseNameFromUrl(baseUrl) : ""
 
+function buildNoopClient(): TenantClient {
+  return { query: async () => [] }
+}
+
 function buildClientForUrl(url: string): TenantClient {
+  if (!url) return buildNoopClient()
+
   if (!isNeonDatabaseUrl(url)) {
     const pool = new Pool({ connectionString: url })
     return { query: async (text, params) => (await pool.query(text, params)).rows }
