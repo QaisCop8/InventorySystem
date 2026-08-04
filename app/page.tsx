@@ -68,6 +68,7 @@ import DocumentSettings from "@/components/settings/document-settings"
 import Permissions from "@/components/settings/permissions"
 import JobRoles from "@/components/settings/job-roles"
 import RolePermissions from "@/components/settings/role-permissions"
+import UserBranchAccessMatrix from "@/components/settings/user-branch-access-matrix"
 import GeneralSettings from "@/components/settings/general-settings"
 import VouchersGeneralSettings from "@/components/settings/vouchers-general-settings"
 import APISettings from "@/components/settings/api-settings"
@@ -151,6 +152,7 @@ const componentMap: Record<string, React.ComponentType<any>> = {
   permissions: Permissions,
   "job-roles": JobRoles,
   "role-permissions": RolePermissions,
+  "user-branch-access-matrix": UserBranchAccessMatrix,
   "general-settings": GeneralSettings,
   "vouchers-general-settings": VouchersGeneralSettings,
   "api-settings": APISettings,
