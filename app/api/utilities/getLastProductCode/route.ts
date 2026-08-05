@@ -39,23 +39,35 @@ function Inc_Code(code: string, prefix: string): string {
 const CODE_LENGTH = 10;
 
 export async function GET() {
-    const pool = await getTenantPool();
-    const result = await pool.query(
-        'SELECT product_code FROM products ORDER BY product_code DESC LIMIT 1'
-    );
-    const lastCode = result.rows[0]?.product_code ?? null;
-    let prefix = 'I'; // set your prefix
-    if (lastCode) prefix = lastCode[0];
+    const databaseUrl = (process.env.DATABASE_URL || "").trim();
+    const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
 
-    let baseCode = lastCode;
-    if (baseCode && baseCode.length < CODE_LENGTH) {
-        const suffix = baseCode.slice(prefix.length);
-        baseCode = prefix + suffix.padStart(CODE_LENGTH - prefix.length, '0');
+    if (isBuildPhase || !databaseUrl) {
+        return NextResponse.json({ lastCode: "I0000000001" });
     }
 
-    const newCode = baseCode
-        ? `${prefix}${Inc_Code(baseCode, prefix)}`
-        : `${prefix}${'0'.repeat(CODE_LENGTH - prefix.length - 1)}1`;
+    try {
+        const pool = await getTenantPool();
+        const result = await pool.query(
+            'SELECT product_code FROM products ORDER BY product_code DESC LIMIT 1'
+        );
+        const lastCode = result.rows[0]?.product_code ?? null;
+        let prefix = 'I'; // set your prefix
+        if (lastCode) prefix = lastCode[0];
 
-    return NextResponse.json({ lastCode: newCode });
+        let baseCode = lastCode;
+        if (baseCode && baseCode.length < CODE_LENGTH) {
+            const suffix = baseCode.slice(prefix.length);
+            baseCode = prefix + suffix.padStart(CODE_LENGTH - prefix.length, '0');
+        }
+
+        const newCode = baseCode
+            ? `${prefix}${Inc_Code(baseCode, prefix)}`
+            : `${prefix}${'0'.repeat(CODE_LENGTH - prefix.length - 1)}1`;
+
+        return NextResponse.json({ lastCode: newCode });
+    } catch (error) {
+        console.error("[getLastProductCode] Failed to resolve latest product code:", error);
+        return NextResponse.json({ lastCode: "I0000000001" });
+    }
 }
