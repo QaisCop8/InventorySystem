@@ -193,7 +193,8 @@ export const getSalesVoucherNumberSettings = async (
   const key = SALES_VOUCHER_SETTINGS_KEY[vchType]
   const defaultPrefix = key?.defaultPrefix || "SV"
   try {
-    const response = await fetch(new URL("/api/settings/system", requestUrl))
+    const settingsUrl = String(requestUrl || "").trim()
+    const response = await fetch(settingsUrl ? new URL("/api/settings/system", settingsUrl) : "/api/settings/system")
     if (!response.ok) return { prefix: defaultPrefix, startNumber: 1 }
     const settings = await response.json()
     const prefixRaw = String(settings?.[key?.prefix || ""] || defaultPrefix).trim().toUpperCase()

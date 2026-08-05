@@ -127,7 +127,8 @@ export const getCreditNoteNumberSettings = async (
   const isCredit = vchType === CREDIT_NOTE_VCH_TYPE
   const defaultPrefix = isCredit ? "C" : "D"
   try {
-    const response = await fetch(new URL("/api/settings/system", requestUrl))
+    const settingsUrl = String(requestUrl || "").trim()
+    const response = await fetch(settingsUrl ? new URL("/api/settings/system", settingsUrl) : "/api/settings/system")
     if (!response.ok) return { prefix: defaultPrefix, startNumber: 1 }
     const settings = await response.json()
     const prefixRaw = String(settings?.[isCredit ? "credit_note_prefix" : "debit_note_prefix"] || defaultPrefix)

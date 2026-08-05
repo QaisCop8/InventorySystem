@@ -549,7 +549,8 @@ export const getVoucherNumberSettings = async (
   const isReceipt = vchType === RECEIPT_VCH_TYPE
   const defaultPrefix = isReceipt ? "R" : "P"
   try {
-    const response = await fetch(new URL("/api/settings/system", requestUrl))
+    const settingsUrl = String(requestUrl || "").trim()
+    const response = await fetch(settingsUrl ? new URL("/api/settings/system", settingsUrl) : "/api/settings/system")
     if (!response.ok) return { prefix: defaultPrefix, startNumber: 1 }
     const settings = await response.json()
     const prefixRaw = String(settings?.[isReceipt ? "receipt_prefix" : "payment_prefix"] || defaultPrefix).trim().toUpperCase()
