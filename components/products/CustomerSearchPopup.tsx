@@ -279,7 +279,7 @@ const CustomerSearchPopup: React.FC<CustomerSearchPopupProps> = ({ visible, onCl
                                     columns: [
                                         { header: "##", name: "ser", width: 70 },
                                         { header: codeLabel, name: "customer_code", width: 120 },
-                                        { header: nameLabel, name: "name", width: "*" },
+                                        { header: nameLabel, name: "name", width: "*",minWidth: 200 },
                                         { header: "الجوال", name: "mobile1", width: 120 },
                                         { header: "ملاحظات", name: "general_notes", width: 180 },
                                     ],
@@ -289,7 +289,8 @@ const CustomerSearchPopup: React.FC<CustomerSearchPopupProps> = ({ visible, onCl
                                 selectionChanged={selectionChanged}
                                 style={{ maxHeight: '400px' }}
                                 onKeyDown={(s: any, e: any) => onKeyDownGrid(s, e)}
-
+                                dontConvertToCards={true}
+                                showContextMenu={false}
                             />
                         </div>
                     </div>

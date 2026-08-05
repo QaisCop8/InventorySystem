@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { sql } from "@/lib/database"
+import sql from "@/lib/database"
 import { generatePurchaseOrderNumber } from "@/lib/number-generator"
 
 export async function GET() {

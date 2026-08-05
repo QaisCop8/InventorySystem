@@ -131,7 +131,7 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
     columns: [
       { header: "✅", name: "selected", width: 50, isReadOnly: false, visible: ShowSelect },
       { header: "رقم الصنف", name: "product_code", width: 120, isReadOnly: true },
-      { header: "اسم الصنف", name: "product_name", width: "*", isReadOnly: true },
+      { header: "اسم الصنف", name: "product_name", width: "*", isReadOnly: true,minWidth: 200 },
       { header: "الوحدة", name: "first_unit", width: 80, isReadOnly: true },
       { header: "السعر", name: "first_price", width: 80, isReadOnly: true },
       { header: "باركود", name: "first_barcode", width: 150, isReadOnly: true },
@@ -506,6 +506,8 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
                 selectionChanged={selectionChanged}
                 onKeyDown={(s: any, e: any) => onKeyDownGrid(s, e)}
                 keyActionEnter="None"
+                dontConvertToCards={true}
+                showContextMenu={false}
               />
             </div>
           </div>

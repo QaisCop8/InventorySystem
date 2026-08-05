@@ -1,5 +1,9 @@
 "use client"
-import VirtualAccounts from "@/components/settings/virtual-accounts"
+import dynamic from "next/dynamic"
+
+const VirtualAccounts = dynamic(() => import("@/components/settings/virtual-accounts"), {
+  ssr: false,
+})
 
 export default function SettingsVirtualAccountsPage() {
   return (

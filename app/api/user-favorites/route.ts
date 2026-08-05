@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { sql } from "@/lib/database"
+import sql from "@/lib/database"
 
 // دالة مساعدة للحصول على معرف المستخدم من الطلب
 function getUserIdFromRequest(request: NextRequest): string | null {

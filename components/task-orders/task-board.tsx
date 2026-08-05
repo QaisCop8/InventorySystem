@@ -98,6 +98,7 @@ export function TaskBoard() {
   const [noteDialogText, setNoteDialogText] = useState("")
   const [allLoadingChecked, setAllLoadingChecked] = useState(true)
   const [forceCloseInstanceId, setForceCloseInstanceId] = useState<number | null>(null)
+  const [draggedTaskId, setDraggedTaskId] = useState<number | null>(null)
 
   useEffect(() => {
     const interval = setInterval(() => setTick((t) => t + 1), 1000)
@@ -242,36 +243,68 @@ export function TaskBoard() {
     return [...passthrough, ...groups.values()]
   }
 
-  // بوضع سير عمل محدد: عمود لكل خطوة فعلية بذلك السير. بوضع "الكل": عمود لكل موضع خطوة (الأولى،
-  // الثانية...) يُجمِّع مهام كل سِيَر العمل المعروضة معاً — فتظهر "خطوة 1" مثلاً بمهام كل الخطوات
-  // الأولى من كل سير عمل دفعة واحدة، بصرف النظر عن اختلاف تسميتها الفعلية بين سير وآخر.
-  const columns: BoardColumn[] = useMemo(() => {
-    if (selectedWorkflowId === "all") {
-      let maxLen = 0
-      for (const steps of workflowStepOrder.values()) maxLen = Math.max(maxLen, steps.length)
-      const positionOf = new Map<string, number>()
-      workflowStepOrder.forEach((steps, workflowId) => {
-        steps.forEach((step, idx) => positionOf.set(`${workflowId}:${step.id}`, idx))
-      })
-      return Array.from({ length: maxLen }, (_, i) => {
-        const colTasks = visibleTasks.filter((t) => positionOf.get(`${t.workflow_id}:${t.step_id}`) === i)
-        const workflowCount = new Set(colTasks.map((t) => t.workflow_id)).size
-        return {
-          key: `pos-${i}`,
-          label: `خطوة ${i + 1}`,
-          subtitle: workflowCount > 0 ? `${workflowCount} سير عمل` : "",
-          tasks: groupTasksForDisplay(colTasks),
-        }
-      })
+  // كل المهام تُعرض أولاً داخل أصناف الحالة (To Do / Paused / In Progress / Finished)
+  // بدل عرض كل مرحلة عمل كعمود مستقل — بحيث تبدأ المهمة فعلياً عبر سحب بطاقة من To Do أو Paused
+  // إلى In Progress، وليس عبر إظهار جميع المراحل مباشرةً في اللوحة.
+  const statusSummary = useMemo(() => {
+    const summary = {
+      pending: { count: 0, totalSeconds: 0 },
+      paused: { count: 0, totalSeconds: 0 },
+      in_progress: { count: 0, totalSeconds: 0 },
+      completed: { count: 0, totalSeconds: 0 },
     }
-    if (!selectedWorkflow) return []
-    return orderedSteps.map((step) => ({
-      key: String(step.id),
-      label: step.label,
-      subtitle: `${step.section_name}${step.join_type !== "none" ? ` · التقاء ${step.join_type === "and" ? "الكل" : "أي فرع"}` : ""}${step.sla_hours ? ` · SLA ${step.sla_hours}س` : ""}`,
-      tasks: groupTasksForDisplay(visibleTasks.filter((t) => t.step_id === step.id)),
-    }))
-  }, [selectedWorkflowId, selectedWorkflow, orderedSteps, visibleTasks, workflowStepOrder])
+
+    for (const task of visibleTasks) {
+      const bucket = task.status === "completed"
+        ? "completed"
+        : task.status === "paused"
+          ? "paused"
+          : task.status === "in_progress"
+            ? "in_progress"
+            : "pending"
+
+      summary[bucket].count += 1
+      summary[bucket].totalSeconds += task.total_duration_seconds
+    }
+
+    return summary
+  }, [visibleTasks])
+
+  const statusColumns: BoardColumn[] = useMemo(() => {
+    const byStatus = {
+      pending: visibleTasks.filter((t) => t.status === "pending"),
+      paused: visibleTasks.filter((t) => t.status === "paused"),
+      in_progress: visibleTasks.filter((t) => t.status === "in_progress"),
+      completed: visibleTasks.filter((t) => t.status === "completed"),
+    }
+
+    return [
+      {
+        key: "pending",
+        label: "مهام جديدة",
+        subtitle: "كل المراحل تُعرض هنا أولاً",
+        tasks: groupTasksForDisplay(byStatus.pending),
+      },
+      {
+        key: "paused",
+        label: "مهام متوقفة",
+        subtitle: "مؤقتة",
+        tasks: groupTasksForDisplay(byStatus.paused),
+      },
+      {
+        key: "in_progress",
+        label: "مهام جارية",
+        subtitle: "اسحب من مهام جديدة أو مهام متوقفة لبدء التنفيذ",
+        tasks: groupTasksForDisplay(byStatus.in_progress),
+      },
+      {
+        key: "completed",
+        label: "مهام منتهية",
+        subtitle: "مكتملة",
+        tasks: groupTasksForDisplay(byStatus.completed),
+      },
+    ]
+  }, [visibleTasks])
 
   const openItem = async (id: number) => {
     setDetailItemId(id)
@@ -289,6 +322,17 @@ export function TaskBoard() {
       setDetailItemId(null)
     } finally {
       setDetailLoading(false)
+    }
+  }
+
+  const beginTaskFromStatusLane = async (task: GroupedTask) => {
+    if (!userId) return
+    if (task.status !== "pending") return
+
+    const ok = await callInstanceAction("start", task.id)
+    if (ok) {
+      await fetchTasks(selectedWorkflowId)
+      setDraggedTaskId(null)
     }
   }
 
@@ -527,13 +571,48 @@ export function TaskBoard() {
         </div>
       </div>
 
-      {columns.length === 0 ? (
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+          <div className="mb-2 flex items-center justify-between text-sm text-slate-600">
+            <span>مهام جديدة</span>
+            <span className="font-bold text-slate-800">{statusSummary.pending.count}</span>
+          </div>
+          <div className="text-xs text-slate-500">Est. Time</div>
+          <div className="text-lg font-bold text-slate-800">{formatDuration(statusSummary.pending.totalSeconds)}</div>
+        </div>
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
+          <div className="mb-2 flex items-center justify-between text-sm text-amber-800">
+            <span>مهام متوقفة</span>
+            <span className="font-bold">{statusSummary.paused.count}</span>
+          </div>
+          <div className="text-xs text-amber-700">Est. Time</div>
+          <div className="text-lg font-bold text-amber-900">{formatDuration(statusSummary.paused.totalSeconds)}</div>
+        </div>
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
+          <div className="mb-2 flex items-center justify-between text-sm text-emerald-800">
+            <span>مهام جارية</span>
+            <span className="font-bold">{statusSummary.in_progress.count}</span>
+          </div>
+          <div className="text-xs text-emerald-700">Est. Time</div>
+          <div className="text-lg font-bold text-emerald-900">{formatDuration(statusSummary.in_progress.totalSeconds)}</div>
+        </div>
+        <div className="rounded-xl border border-blue-200 bg-blue-50 p-3">
+          <div className="mb-2 flex items-center justify-between text-sm text-blue-800">
+            <span>مهام منتهية</span>
+            <span className="font-bold">{statusSummary.completed.count}</span>
+          </div>
+          <div className="text-xs text-blue-700">Est. Time</div>
+          <div className="text-lg font-bold text-blue-900">{formatDuration(statusSummary.completed.totalSeconds)}</div>
+        </div>
+      </div>
+
+      {statusColumns.length === 0 ? (
         <Card>
           <CardContent className="py-10 text-center text-slate-500">لا يوجد سير عمل نشِط بعد — أنشئ واحداً من تبويب الإدارة</CardContent>
         </Card>
       ) : (
         <div className="flex min-h-0 flex-1 gap-4 overflow-x-auto pb-3">
-          {columns.map((column, columnIndex) => {
+          {statusColumns.map((column, columnIndex) => {
             const columnTasks = [...column.tasks].sort((a, b) => {
               const priorityRank: Record<string, number> = { urgent: 0, high: 1, normal: 2, low: 3 }
               const pr = (priorityRank[a.item_priority] ?? 2) - (priorityRank[b.item_priority] ?? 2)
@@ -542,7 +621,21 @@ export function TaskBoard() {
             })
             const palette = columnColor(columnIndex)
             return (
-              <div key={column.key} className={cn("flex h-full w-[85vw] shrink-0 flex-col rounded-2xl border-2 sm:w-96", palette.bg, palette.border)}>
+              <div
+                key={column.key}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={async (e) => {
+                  e.preventDefault()
+                  const taskId = draggedTaskId
+                  if (!taskId) return
+                  const task = visibleTasks.find((item) => item.id === taskId)
+                  if (!task) return
+                  if (column.key !== "in_progress") return
+                  if (task.status !== "pending") return
+                  await beginTaskFromStatusLane(task as GroupedTask)
+                }}
+                className={cn("flex h-full w-[85vw] shrink-0 flex-col rounded-2xl border-2 sm:w-96", palette.bg, palette.border)}
+              >
                 <div className={cn("flex items-center justify-between rounded-t-2xl px-4 py-3", palette.header)}>
                   <div>
                     <div className={cn("text-base font-bold", palette.text)}>{column.label}</div>
@@ -558,6 +651,12 @@ export function TaskBoard() {
                       return (
                         <button
                           key={t.id}
+                          draggable={t.status === "pending"}
+                          onDragStart={() => {
+                            if (t.status !== "pending") return
+                            setDraggedTaskId(t.id)
+                          }}
+                          onDragEnd={() => setDraggedTaskId(null)}
                           onClick={() => openItem(t.order_item_id)}
                           className={cn(
                             "text-right rounded-xl border border-r-[6px] p-5 shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all",

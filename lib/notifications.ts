@@ -340,6 +340,11 @@ export async function checkOverdueOrdersAndNotify() {
 }
 
 // الحصول على التنبيهات للمستخدم أو القسم
+function isNotificationsTableMissingError(error: any) {
+  const message = String(error?.message || error)
+  return /relation \"notifications\" does not exist|undefined_table/i.test(message)
+}
+
 export async function getNotifications(
   userId?: number,
   department?: string,
@@ -392,6 +397,10 @@ export async function getNotifications(
     const result = await sql.unsafe(query, params)
     return result as Notification[]
   } catch (error) {
+    if (isNotificationsTableMissingError(error)) {
+      console.warn("Notifications table missing; returning empty list.")
+      return []
+    }
     console.error("Error fetching notifications:", error)
     throw error
   }
@@ -474,6 +483,10 @@ export async function getUnreadNotificationCount(userId?: number, department?: s
     const result = await sql.unsafe(query, params)
     return result && result[0] ? Number.parseInt(result[0].count) : 0
   } catch (error) {
+    if (isNotificationsTableMissingError(error)) {
+      console.warn("Notifications table missing; returning unread count 0.")
+      return 0
+    }
     console.error("Error getting unread notification count:", error)
     return 0
   }

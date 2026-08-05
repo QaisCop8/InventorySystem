@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { ReactNode, useState } from "react"
 import { PasswordReset } from "./password-reset"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -25,9 +25,10 @@ import {
 
 interface LoginPageProps {
   onLogin: (credentials: { username: string; password: string; rememberMe: boolean }) => void | Promise<void>
+  footer?: ReactNode
 }
 
-export function LoginPage({ onLogin }: LoginPageProps) {
+export function LoginPage({ onLogin, footer }: LoginPageProps) {
   const [credentials, setCredentials] = useState({ username: "", password: "", rememberMe: false })
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
@@ -116,6 +117,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
               <Button type="submit" disabled={isLoading} className="group h-12 w-full rounded-xl bg-emerald-600 text-sm font-bold text-white shadow-lg shadow-emerald-600/15 transition-all hover:-translate-y-0.5 hover:bg-emerald-700 hover:shadow-xl hover:shadow-emerald-600/20">
                 {isLoading ? <><span className="ml-2 h-4 w-4 animate-spin rounded-full border-2 border-white/35 border-t-white" />جاري التحقق...</> : <>دخول إلى النظام<ArrowLeft className="mr-2 h-4 w-4 transition-transform group-hover:-translate-x-1" /></>}
               </Button>
+              {footer && <div className="pt-3 text-center text-sm text-slate-500">{footer}</div>}
             </form>
           </div>
 

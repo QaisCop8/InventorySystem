@@ -153,7 +153,6 @@ export default class MultiSelect extends React.Component {
               this.checkAllIsSelected();
             }}
             ref={this.props.innerRef}
-            virtualScroll={true}
             virtualScrollerOptions={{ itemSize: 55 }}
             title={this.props.tooltip}
             {...this.props}

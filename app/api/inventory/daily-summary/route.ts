@@ -1,7 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
 import twilio from "twilio"
-import { shouldSendDailySummary, getProductsNeedingReorder, formatDailySummary } from "@/lib/whatsapp-scheduler"
+import { shouldSendDailySummary, formatDailySummary } from "@/lib/whatsapp-scheduler"
+import { getProductsNeedingReorder } from "@/lib/whatsapp-notifications"
 
 const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID!, process.env.TWILIO_AUTH_TOKEN!)
 

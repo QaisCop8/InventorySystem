@@ -41,13 +41,11 @@ import { Inter } from "next/font/google"
 import { Suspense } from "react"
 import { AuthProvider } from "@/components/auth/auth-context"
 import { FontProvider } from "@/components/settings/font-settings"
-import dynamic from "next/dynamic"
+import ClientProviders from "@/components/ClientProviders"
 import { ThemeProvider } from "@/components/theme-provider"
 import { ThemeSettingsProvider } from "@/contexts/theme-context"
 import { WindowManagerProvider } from "@/contexts/window-manager-context"
 import { Toaster } from "@/components/ui/toaster"
-// Load client-only providers dynamically to avoid server imports
-const ClientProviders = dynamic(() => import("@/components/ClientProviders").then((m) => m.default), { ssr: false })
 import "./globals.css"
 
 const inter = Inter({
@@ -91,8 +89,8 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="ar" dir="rtl">
-      <body className={`font-sans ${inter.variable} antialiased`}>
+    <html lang="ar" dir="rtl" suppressHydrationWarning>
+      <body className={`font-sans ${inter.variable} antialiased`} suppressHydrationWarning>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
