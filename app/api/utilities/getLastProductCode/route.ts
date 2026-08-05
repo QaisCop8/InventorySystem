@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { getTenantPool } from "@/lib/database";
 
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
 function Inc_Code(code: string, prefix: string): string {
     let codeValue = code.replace(prefix, '');
     let codeArr = codeValue.split('');
