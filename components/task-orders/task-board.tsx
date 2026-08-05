@@ -611,7 +611,7 @@ export function TaskBoard() {
           <CardContent className="py-10 text-center text-slate-500">لا يوجد سير عمل نشِط بعد — أنشئ واحداً من تبويب الإدارة</CardContent>
         </Card>
       ) : (
-        <div className="flex min-h-0 flex-1 gap-4 overflow-x-auto pb-3">
+        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-x-auto pb-3 lg:flex-row">
           {statusColumns.map((column, columnIndex) => {
             const columnTasks = [...column.tasks].sort((a, b) => {
               const priorityRank: Record<string, number> = { urgent: 0, high: 1, normal: 2, low: 3 }

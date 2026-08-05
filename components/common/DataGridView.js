@@ -320,7 +320,6 @@ createButtonsColumns = () => {
           headersVisibility={this.props.headersVisibility ? this.props.headersVisibility : 'Column'}
           isReadOnly={this.props.isReport ? true : false}
           quickAutoSize={false}
-          quickRowHeights={false}
           
           initialized={this.initialized.bind(this)}
           itemsSource={this.props.dataSource}
