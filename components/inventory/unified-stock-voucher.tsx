@@ -721,7 +721,8 @@ export default function UnifiedStockVoucher({
         // وصول الحدث)، F3 لا يُغيّر التركيز إطلاقاً — فيبقى أي تعديل نشط في خلية الشبكة (كرقم صنف
         // كُتب للتو) غير مُطبَّق على itemsSource/form.items عند وصول هذا الحدث. يُنهى التحرير النشط
         // صراحةً، ثم يُؤجَّل التحقق/الحفظ لِتِك التالي لِتُتاح فرصة لتحديث form.items أولاً.
-        resolveFlexControl(chequeGridRef.current)?.finishEditing?.()
+        const control = resolveFlexControl(chequeGridRef.current)
+        control?.finishEditing?.()
         setTimeout(() => handleRequestSaveRef.current(), 0)
         return
       }
@@ -1216,7 +1217,8 @@ export default function UnifiedStockVoucher({
 
     if (e.keyCode === Util.keyboardKeys.F10 && colName === "product_code") {
       e.preventDefault()
-      grid.finishEditing?.()
+      const control = resolveFlexControl(grid)
+      control?.finishEditing?.()
       setWarehouseSearchTarget("row")
       pendingFocusRow.current = row
       lastFocusedCellRef.current = { row, col: "product_code" }
@@ -1227,7 +1229,8 @@ export default function UnifiedStockVoucher({
     }
     if (e.keyCode === Util.keyboardKeys.F10 && colName === "warehouse_name") {
       e.preventDefault()
-      grid.finishEditing?.()
+      const control = resolveFlexControl(grid)
+      control?.finishEditing?.()
       setWarehouseSearchRow(row)
       lastFocusedCellRef.current = { row, col: "warehouse_name" }
       popupHasCalled()
@@ -1236,7 +1239,8 @@ export default function UnifiedStockVoucher({
     }
     if (e.keyCode === Util.keyboardKeys.F10 && colName === "unit") {
       e.preventDefault()
-      grid.finishEditing?.()
+      const control = resolveFlexControl(grid)
+      control?.finishEditing?.()
       setUnitsSearchRow(row)
       lastFocusedCellRef.current = { row, col: "unit" }
       popupHasCalled()
@@ -1246,7 +1250,8 @@ export default function UnifiedStockVoucher({
     if (e.keyCode === Util.keyboardKeys.F10 && colName === "expiry_date" && voucherType === STOCK_IN_VCH_TYPE) {
       e.preventDefault()
       if (isLocked) return
-      grid.finishEditing?.()
+      const control = resolveFlexControl(grid)
+      control?.finishEditing?.()
       setExpiryDateRow(row)
       setExpiryDatePickerOpen(true)
       return
@@ -1259,9 +1264,10 @@ export default function UnifiedStockVoucher({
       const previousRow =
         colName === "product_code" || colName === "barcode" ? itemsRef.current[row] : undefined
       if (colName === "product_code" || colName === "barcode") skipAutoLookupRef.current = true
-      grid.finishEditing?.()
+      const control = resolveFlexControl(grid)
+      control?.finishEditing?.()
+      control?.focus?.()
       skipAutoLookupRef.current = false
-      grid.focus()
       const currentRow = itemsRef.current[row]
 
       if (colName === "product_code" && !currentRow?.product_code?.trim()) {

@@ -88,7 +88,15 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
         }
         const res = await fetch(url);
         const data = await res.json();
-        if (!cancelled) setProducts(data || []);
+        if (!cancelled) {
+          // reset any previous selection state when opening so stale selections do not
+          // persist across open/close cycles (causes confusing UI and race conditions)
+          const normalized = Array.isArray(data)
+            ? data.map((p: any) => ({ ...p, selected: false, selected_unit: p.selected_unit || null }))
+            : [];
+          setProducts(normalized);
+          setSelectedProduct(null);
+        }
       } catch (err) {
         console.error("Failed to fetch products:", err);
         if (!cancelled) setProducts([]);
@@ -103,10 +111,31 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
     const focusTimer = window.setTimeout(() => {
       if (!window.matchMedia("(max-width: 639px)").matches) searchNameRef.current?.focus();
     }, 100);
-    ws.current = new WebSocket("ws://localhost:33333/ws");
-    ws.current.onopen = () => {
-      ws.current?.send(JSON.stringify({ type: "changeLang", language: "1" }));
-    };
+    // WebSocket is useful in development (local i18n change server), but in production
+    // creating a socket to localhost can fail and produce unhandled exceptions in the
+    // client. Guard it: only attempt when running on localhost and wrap in try/catch.
+    try {
+      if (typeof window !== "undefined" && window.location?.hostname === "localhost") {
+        try {
+          ws.current = new WebSocket("ws://localhost:33333/ws");
+          ws.current.onopen = () => {
+            try {
+              ws.current?.send(JSON.stringify({ type: "changeLang", language: "1" }));
+            } catch (err) {
+              console.warn("ws send failed", err);
+            }
+          };
+          ws.current.onerror = (ev) => {
+            console.warn("ProductSearchPopup websocket error:", ev);
+          };
+        } catch (err) {
+          console.warn("Failed to initialize websocket in ProductSearchPopup:", err);
+          ws.current = null;
+        }
+      }
+    } catch (err) {
+      console.warn("WS guard failed:", err);
+    }
     return () => {
       cancelled = true;
       window.clearTimeout(focusTimer);

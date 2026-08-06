@@ -488,7 +488,7 @@ export function TaskBoard() {
   }
 
   return (
-    <div dir="rtl" className="flex h-[calc(100vh-104px)] flex-col gap-4 md:h-[calc(100vh-136px)]">
+    <div dir="rtl" className="flex min-h-[calc(100vh-104px)] flex-col gap-4 overflow-y-auto md:min-h-[calc(100vh-136px)]">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold text-slate-800">لوحة تتبع الطلبيات</h1>

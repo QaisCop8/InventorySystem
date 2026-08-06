@@ -870,8 +870,9 @@ export default function UnifiedReceiptVoucher({
       // Force the in-progress cell edit to commit (fires cellEditEnded synchronously) before we
       // read row data or move the selection — otherwise a fast Tab/Enter can move focus away
       // before the typed value round-trips into state, and it appears to "clear" on navigation.
-      grid.finishEditing?.()
-      grid.focus()
+      const control = resolveFlexControl(grid)
+      control?.finishEditing?.()
+      control?.focus?.()
       if (colName === "account_code") {
         // لا يوجد تعديل معلَّق هنا (الحساب مُحلَّل مسبقاً)، فلا سباق مع Wijmo — التنقّل المتزامن آمن.
         const currentRow = journal[row]
@@ -1332,7 +1333,8 @@ export default function UnifiedReceiptVoucher({
     // النظر عن مكان المؤشر وقت الضغط (تجنّباً لالتباس الإضافة "في المنتصف" حين يوجد سطر فارغ بينهما).
     if (e.keyCode === Util.keyboardKeys.Insert) {
       e.preventDefault()
-      grid.finishEditing?.()
+      const control = resolveFlexControl(grid)
+      control?.finishEditing?.()
       const lastIndex = chequesRef.current.length - 1
       const lastRow = chequesRef.current[lastIndex]
 
@@ -1424,9 +1426,10 @@ export default function UnifiedReceiptVoucher({
       // Force the in-progress cell edit to commit (fires cellEditEnded synchronously) before we
       // read row data or move the selection — otherwise a fast Tab/Enter can move focus away
       // before the typed value round-trips into state, and it appears to "clear" on navigation.
-      grid.finishEditing?.()
-      grid.focus()
-      // chequesRef.current لا cheques (state) — finishEditing أعلاه يُشغّل cellEditEnded بشكل
+      const control = resolveFlexControl(grid)
+      control?.finishEditing?.()
+      control?.focus?.()
+      // chequesRef.current لا cheques (state) — finishEditing أعلاه يُشغِّل cellEditEnded بشكل
       // متزامن، الذي يُحدّث chequesRef.current فوراً عبر patchChequeRow، لكن state React نفسها
       // (ومنها cheques هنا) لا تتحدّث إلا في الـ render التالي — فقراءة cheques[row] هنا كانت
       // تعطي القيمة القديمة قبل هذا التعديل مباشرة، مسبّبة قرارات خاطئة (فتح بحث غير لازم، حلقة
@@ -1692,7 +1695,7 @@ export default function UnifiedReceiptVoucher({
         onOpenChange={(open) => (open ? onOpenChange(open) : guardedAction(() => onOpenChange(false)))}
       >
         <DialogContent
-          className="voucher-form flex h-[96vh] w-[97vw] max-w-[1850px] max-h-[96vh] flex-col overflow-hidden p-0"
+          className="voucher-form flex min-h-[80vh] w-full max-w-[1850px] flex-col overflow-hidden p-0"
           dir="rtl"
           onPointerDownOutside={(event) => event.preventDefault()}
           onInteractOutside={(event) => event.preventDefault()}
@@ -1762,7 +1765,7 @@ export default function UnifiedReceiptVoucher({
                   تفاصيل السند
                 </div>
                 <div className="grid gap-3">
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                     <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
                       <Label>دفتر السندات *</Label>
                       <PrimeDropdown
@@ -1804,7 +1807,7 @@ export default function UnifiedReceiptVoucher({
                       />
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid gap-3 sm:grid-cols-2">
                     <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
                       <Label>العملة *</Label>
                       <PrimeDropdown
@@ -1833,7 +1836,7 @@ export default function UnifiedReceiptVoucher({
                       />
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid gap-3 sm:grid-cols-2">
                     <div className="grid gap-1.5">
                       <Label htmlFor="vch-manual-code">سند يدوي</Label>
                       <Input
@@ -1864,7 +1867,7 @@ export default function UnifiedReceiptVoucher({
                   تفاصيل العميل
                 </div>
                 <div className="grid gap-3">
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid gap-3 sm:grid-cols-2">
                     <AutoCompleteAccount
                       label={`${customerLabel} *`}
                       valueMode="id"
@@ -1891,7 +1894,7 @@ export default function UnifiedReceiptVoucher({
                       />
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid gap-3 sm:grid-cols-2">
                     <AutoCompleteAccount
                       label="على حساب"
                       valueMode="id"
@@ -1907,7 +1910,7 @@ export default function UnifiedReceiptVoucher({
                       <Input value="0.000" readOnly disabled />
                     </div>
                   </div>
-                  <div className={isPayment ? "grid grid-cols-3 gap-2" : "grid grid-cols-4 gap-2"}>
+                  <div className={isPayment ? "grid gap-2 sm:grid-cols-3" : "grid gap-2 sm:grid-cols-4"}>
                     <div className="grid gap-1.5">
                       <Label>المبلغ *</Label>
                       <Input
@@ -2010,7 +2013,7 @@ export default function UnifiedReceiptVoucher({
               </TabsList>
 
               {/* الرئيسية */}
-              <TabsContent value="main" className="min-h-[360px] space-y-4 pt-4">
+              <TabsContent value="main" className="min-h-[260px] space-y-4 pt-4 sm:min-h-[360px]">
                 <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
                   <div className="flex items-center gap-2 text-sm font-bold text-amber-700">
                     <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-50 ring-1 ring-amber-100">
@@ -2094,7 +2097,7 @@ export default function UnifiedReceiptVoucher({
               </TabsContent>
 
               {/* الشيكات */}
-              <TabsContent value="cheques" className="mt-4 min-h-[360px] space-y-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+              <TabsContent value="cheques" className="mt-4 min-h-[260px] space-y-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
                 <div className="flex items-center justify-end">
                   <Button type="button" variant="outline" size="sm" onClick={addChequeRow}>
                     <Plus className="ml-1 h-4 w-4" />
@@ -2123,7 +2126,7 @@ export default function UnifiedReceiptVoucher({
 
               {/* تفاصيل البطاقة — غير متاحة إطلاقاً في سند الصرف */}
               {!isPayment && (
-              <TabsContent value="card" className="mt-4 min-h-[360px] space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+              <TabsContent value="card" className="mt-4 min-h-[260px] space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
                 <div className="grid gap-3 md:grid-cols-3">
                   <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
                     <Label>نوع البطاقة</Label>
@@ -2179,7 +2182,7 @@ export default function UnifiedReceiptVoucher({
               )}
 
               {/* الحسابات */}
-              <TabsContent value="journal" className="mt-4 min-h-[360px] space-y-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+              <TabsContent value="journal" className="mt-4 min-h-[260px] space-y-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
                 <div className="flex items-center justify-between">
                   <p className="text-xs text-slate-500">
                     تُستخدم عند توزيع مبلغ السند على أكثر من حساب مقابل بدلاً من حقل "على حساب" وحده. اختيار حساب يفعّل زر مراكز التكلفة الخاص به.
@@ -2212,7 +2215,7 @@ export default function UnifiedReceiptVoucher({
               </TabsContent>
 
               {/* ملاحظات */}
-              <TabsContent value="notes" className="mt-4 min-h-[360px] space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+              <TabsContent value="notes" className="mt-4 min-h-[260px] space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
                 <div className="flex items-center justify-end">
                   <Button type="button" variant="outline" size="sm" onClick={addNoteRow}>
                     <ListPlus className="ml-1 h-4 w-4" />
@@ -2246,12 +2249,12 @@ export default function UnifiedReceiptVoucher({
               </TabsContent>
 
               {/* المرفقات */}
-              <TabsContent value="attachments" className="mt-4 min-h-[360px] rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+              <TabsContent value="attachments" className="mt-4 min-h-[260px] rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
                 <AttachmentManager modelName="voucher" recordId={form.id > 0 ? form.id : null} disabled={isLocked} />
               </TabsContent>
 
               {/* الحقول الإضافية */}
-              <TabsContent value="extra" className="mt-4 min-h-[360px] rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+              <TabsContent value="extra" className="mt-4 min-h-[260px] rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
                 <p className="py-4 text-center text-sm text-slate-400">لا توجد حقول إضافية معرّفة لهذا النوع من السندات</p>
               </TabsContent>
             </Tabs>
