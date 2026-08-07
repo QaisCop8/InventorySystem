@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState, useMemo } from "react"
 import { useAuth } from "@/components/auth/auth-context"
 import { useToast } from "@/hooks/use-toast"
 import { Button } from "@/components/ui/button"
@@ -133,7 +133,7 @@ function SectionsAdmin({
 }) {
   const { toast } = useToast()
   const [departmentId, setDepartmentId] = useState<number | null>(null)
-  const [branchId, setBranchId] = useState<number | null>(null)
+  // branchId removed: sections are tied to department.branch_id, no separate branch selector here
   const [busy, setBusy] = useState(false)
   const [memberPicks, setMemberPicks] = useState<Record<number, { userId: string | null; isManager: boolean }>>({})
 
@@ -143,9 +143,10 @@ function SectionsAdmin({
   const createSection = async () => {
     const department = activeDepartments.find((d) => d.id === departmentId)
     if (!department || !userId) return
-    // نفس تركيبة القسم (اسم) + الفرع مُضافة مسبقاً — تمنع تكرار نفس الصف بدل الاعتماد على رفض
-    // الخادم فقط (تجربة أوضح للمستخدم برسالة فورية).
-    const duplicate = sections.some((s) => s.name === department.department_name && (s.branch_id ?? null) === branchId)
+    // Use the department's configured branch (do not allow selecting branch here)
+    const targetBranchId = department.branch_id ?? null
+    // Prevent duplicate section (same name + branch)
+    const duplicate = sections.some((s) => s.name === department.department_name && (s.branch_id ?? null) === targetBranchId)
     if (duplicate) {
       toast({ title: "تعذّر الإنشاء", description: "الفرع والقسم تم اضافتهم مسبقا", variant: "destructive" })
       return
@@ -155,12 +156,11 @@ function SectionsAdmin({
       const res = await fetch("/api/task-orders/sections", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId, name: department.department_name, branch_id: branchId }),
+        body: JSON.stringify({ userId, name: department.department_name, branch_id: targetBranchId }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data?.error)
       setDepartmentId(null)
-      setBranchId(null)
       onChanged()
     } catch (error: any) {
       toast({ title: "تعذّر الإنشاء", description: error?.message, variant: "destructive" })
@@ -179,15 +179,8 @@ function SectionsAdmin({
     onChanged()
   }
 
-  const changeBranch = async (section: TaskSection, newBranchId: number | null) => {
-    if (!userId) return
-    await fetch(`/api/task-orders/sections/${section.id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId, branch_id: newBranchId }),
-    })
-    onChanged()
-  }
+  // changeBranch removed — branch for a section is fixed to the department's branch and
+  // should not be editable from this UI when mapping sections and members.
 
   const addMember = async (sectionId: number) => {
     const pick = memberPicks[sectionId]
@@ -238,21 +231,7 @@ function SectionsAdmin({
               onChange={(e: any) => setDepartmentId(e.value ?? null)}
             />
           </div>
-          <div className="invoice-currency-dropdown-wrap w-72">
-            <PrimeDropdown
-              value={branchId}
-              options={activeBranches}
-              optionLabel="branch_name"
-              optionValue="id"
-              placeholder="الفرع"
-              filter
-              showClear
-              className="invoice-currency-dropdown w-full"
-              panelClassName="invoice-currency-dropdown-panel"
-              appendTo="self"
-              onChange={(e: any) => setBranchId(e.value ?? null)}
-            />
-          </div>
+          {/* branch selector removed: sections are tied to department.branch_id */}
           <Button onClick={createSection} disabled={busy || !departmentId} className="shrink-0 gap-1">
             <Plus className="h-4 w-4" /> إضافة
           </Button>
@@ -279,21 +258,7 @@ function SectionsAdmin({
                   )}
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="invoice-currency-dropdown-wrap w-44">
-                    <PrimeDropdown
-                      value={section.branch_id ?? null}
-                      options={activeBranches}
-                      optionLabel="branch_name"
-                      optionValue="id"
-                      placeholder="الفرع"
-                      filter
-                      showClear
-                      className="invoice-currency-dropdown h-7 w-full text-xs"
-                      panelClassName="invoice-currency-dropdown-panel"
-                      appendTo="self"
-                      onChange={(e: any) => changeBranch(section, e.value ?? null)}
-                    />
-                  </div>
+                  
                   <Button size="sm" variant="ghost" onClick={() => toggleActive(section)}>
                     {section.is_active ? "تعطيل" : "تفعيل"}
                   </Button>
@@ -357,7 +322,6 @@ interface EditableStep {
   assignment_type: "all" | "specific"
   assigned_user_id: string
   sla_hours: string
-  is_conditional: boolean
   sla_actions: string[]
   step_type: StepType
 }
@@ -396,7 +360,6 @@ function stepToEditable(s: TaskWorkflowStep): EditableStep {
     assignment_type: s.assignment_type,
     assigned_user_id: s.assigned_user_id || "",
     sla_hours: s.sla_hours != null ? String(s.sla_hours) : "",
-    is_conditional: s.is_conditional,
     sla_actions: s.sla_actions || [],
     step_type: s.step_type || "normal",
   }
@@ -461,6 +424,18 @@ function WorkflowsAdmin({
       return matchedSection ? { id: matchedSection.id, department_name: d.department_name } : null
     })
     .filter((d): d is { id: number; department_name: string } => d !== null)
+
+  // Map section id -> members for quick lookup when filling user dropdowns
+  const sectionMembersMap = useMemo(() => {
+    const m = new Map<number, { user_id: string; full_name: string }[]>()
+    sections.forEach((s) => {
+      m.set(
+        s.id,
+        (s.members || []).map((mm) => ({ user_id: mm.user_id, full_name: mm.full_name || mm.user_id }))
+      )
+    })
+    return m
+  }, [sections])
 
   // أصناف من النوع 1 فقط (الأصناف الفعلية لا الخدمات) — تُستخدم في مُتعدِّد الاختيار لسير عمل
   // "لصنف معين". تُجلَب مرة واحدة عند فتح هذا التبويب.
@@ -564,7 +539,6 @@ function WorkflowsAdmin({
         assignment_type: "all",
         assigned_user_id: "",
         sla_hours: "",
-        is_conditional: false,
         sla_actions: [],
         step_type: "normal",
       },
@@ -611,14 +585,14 @@ function WorkflowsAdmin({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           userId,
-          steps: editSteps.map((s) => ({
+            steps: editSteps.map((s) => ({
             key: s.key,
             label: s.label,
             section_id: Number(s.section_id),
             assignment_type: s.assignment_type,
             assigned_user_id: s.assignment_type === "specific" ? s.assigned_user_id || null : null,
             sla_hours: s.sla_hours ? Number(s.sla_hours) : null,
-            is_conditional: s.is_conditional,
+              is_conditional: false,
             sla_actions: s.sla_actions,
             step_type: s.step_type,
           })),
@@ -850,7 +824,7 @@ function WorkflowsAdmin({
                           className="invoice-currency-dropdown w-full"
                           panelClassName="invoice-currency-dropdown-panel"
                           appendTo="self"
-                          onChange={(e: any) => updateStep(index, { section_id: e.value != null ? String(e.value) : "" })}
+                          onChange={(e: any) => updateStep(index, { section_id: e.value != null ? String(e.value) : "", assigned_user_id: "" })}
                         />
                       </div>
                     </div>
@@ -896,7 +870,7 @@ function WorkflowsAdmin({
                         <div className="invoice-currency-dropdown-wrap">
                           <PrimeDropdown
                             value={step.assigned_user_id || null}
-                            options={users}
+                            options={sectionMembersMap.get(Number(step.section_id)) || []}
                             optionLabel="full_name"
                             optionValue="user_id"
                             placeholder="المستخدم"
@@ -944,11 +918,7 @@ function WorkflowsAdmin({
                     </div>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-4 text-xs text-slate-600">
-                    <label className="flex items-center gap-1">
-                      <Checkbox checked={step.is_conditional} onCheckedChange={(c) => updateStep(index, { is_conditional: !!c })} /> مرحلة شرطية
-                    </label>
-                  </div>
+                  <div className="flex flex-wrap items-center gap-4 text-xs text-slate-600" />
                 </div>
               ))}
               <Button

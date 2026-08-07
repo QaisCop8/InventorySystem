@@ -583,62 +583,20 @@ export async function updateWorkflowDefinition(
 
   const usage = await sql`SELECT id FROM task_order_items WHERE workflow_id = ${id} LIMIT 1`
   const itemIds = Array.isArray(data.item_ids) ? Array.from(new Set(data.item_ids)) : []
-
-  if (usage.length === 0) {
-    const result = await sql`
-      UPDATE task_workflows
-      SET name = ${data.name}, description = ${data.description || null}, type = ${type},
-          item_id = ${data.item_id || null}, group_id = ${data.group_id || null}, branch_id = ${branchId},
-          updated_at = CURRENT_TIMESTAMP
-      WHERE id = ${id}
-      RETURNING *
-    `
-    await sql`DELETE FROM task_workflow_items WHERE workflow_id = ${id}`
-    for (const productId of itemIds) {
-      await sql`INSERT INTO task_workflow_items (workflow_id, product_id) VALUES (${id}, ${productId})`
-    }
-    return { ...result[0], item_ids: itemIds }
-  }
-
-  const maxVersion = await sql`SELECT COALESCE(MAX(version), 0) AS v FROM task_workflows WHERE name = ${data.name}`
-  const inserted = await sql`
-    INSERT INTO task_workflows (name, description, type, item_id, item_type, group_id, branch_id, version, is_active)
-    VALUES (${data.name}, ${data.description || null}, ${type}, ${data.item_id || null}, NULL, ${data.group_id || null}, ${branchId}, ${Number(maxVersion[0].v) + 1}, true)
+  // Always update the existing workflow in-place rather than creating a new version.
+  const result = await sql`
+    UPDATE task_workflows
+    SET name = ${data.name}, description = ${data.description || null}, type = ${type},
+        item_id = ${data.item_id || null}, group_id = ${data.group_id || null}, branch_id = ${branchId},
+        updated_at = CURRENT_TIMESTAMP
+    WHERE id = ${id}
     RETURNING *
   `
-  const newWorkflow = inserted[0]
-  await sql`UPDATE task_workflows SET is_active = false WHERE id = ${id}`
-
+  await sql`DELETE FROM task_workflow_items WHERE workflow_id = ${id}`
   for (const productId of itemIds) {
-    await sql`INSERT INTO task_workflow_items (workflow_id, product_id) VALUES (${newWorkflow.id}, ${productId})`
+    await sql`INSERT INTO task_workflow_items (workflow_id, product_id) VALUES (${id}, ${productId})`
   }
-
-  const oldSteps = await sql`SELECT * FROM task_workflow_steps WHERE workflow_id = ${id}`
-  const oldTransitions = await sql`SELECT * FROM task_workflow_transitions WHERE workflow_id = ${id}`
-  const keyToNewId: Record<string, number> = {}
-  for (const step of oldSteps) {
-    const insertedStep = await sql`
-      INSERT INTO task_workflow_steps (workflow_id, key, label, section_id, assignment_type, assigned_user_id, is_start, is_end, join_type, sla_hours, is_conditional, sla_actions, step_type)
-      VALUES (
-        ${newWorkflow.id}, ${step.key}, ${step.label}, ${step.section_id}, ${step.assignment_type},
-        ${step.assigned_user_id}, ${step.is_start}, ${step.is_end}, ${step.join_type}, ${step.sla_hours},
-        ${step.is_conditional}, ${step.sla_actions}, ${step.step_type || "normal"}
-      )
-      RETURNING id
-    `
-    keyToNewId[step.key] = insertedStep[0].id
-  }
-  for (const t of oldTransitions) {
-    const fromKey = oldSteps.find((s: any) => s.id === t.from_step_id)?.key
-    const toKey = oldSteps.find((s: any) => s.id === t.to_step_id)?.key
-    if (!fromKey || !toKey) continue
-    await sql`
-      INSERT INTO task_workflow_transitions (workflow_id, from_step_id, to_step_id, condition_key, condition_value)
-      VALUES (${newWorkflow.id}, ${keyToNewId[fromKey]}, ${keyToNewId[toKey]}, ${t.condition_key}, ${t.condition_value})
-    `
-  }
-
-  return { ...newWorkflow, item_ids: itemIds }
+  return { ...result[0], item_ids: itemIds }
 }
 
 // حذف منطقي (status=2) — يُمنع إن وُجدت مهام مفتوحة (pending/in_progress/paused) على أصناف
@@ -731,39 +689,19 @@ export async function saveWorkflowSteps(workflowId: number, steps: StepInput[], 
 
   const usage = await sql`SELECT id FROM task_order_items WHERE workflow_id = ${workflowId} LIMIT 1`
   let targetWorkflowId = workflowId
-
-  if (usage.length > 0) {
-    const maxVersion = await sql`SELECT COALESCE(MAX(version), 0) AS v FROM task_workflows WHERE name = ${current.name}`
-    const inserted = await sql`
-      INSERT INTO task_workflows (name, description, type, item_id, item_type, group_id, branch_id, version, is_active)
-      VALUES (
-        ${current.name}, ${current.description}, ${current.type}, ${current.item_id}, ${current.item_type},
-        ${current.group_id}, ${current.branch_id}, ${Number(maxVersion[0].v) + 1}, true
-      )
-      RETURNING *
-    `
-    targetWorkflowId = inserted[0].id
-    await sql`UPDATE task_workflows SET is_active = false WHERE id = ${workflowId}`
-    // ربط الأصناف (task_workflow_items) مرتبط بمعرّف الإصدار القديم تحديداً — يُنسَخ صراحة
-    // للإصدار الجديد، وإلا فقد سير العمل من النوع 'specific' مطابقته عند إعادة الحل (resolveWorkflow).
-    const existingItems = await sql`SELECT product_id FROM task_workflow_items WHERE workflow_id = ${workflowId}`
-    for (const row of existingItems) {
-      await sql`INSERT INTO task_workflow_items (workflow_id, product_id) VALUES (${targetWorkflowId}, ${row.product_id})`
-    }
-  } else {
-    await sql`DELETE FROM task_workflow_transitions WHERE workflow_id = ${workflowId}`
-    await sql`DELETE FROM task_workflow_steps WHERE workflow_id = ${workflowId}`
-  }
+  // Always overwrite steps/transitions on the same workflow rather than creating a new version.
+  await sql`DELETE FROM task_workflow_transitions WHERE workflow_id = ${workflowId}`
+  await sql`DELETE FROM task_workflow_steps WHERE workflow_id = ${workflowId}`
 
   const keyToId: Record<string, number> = {}
   for (const step of steps) {
     const inserted = await sql`
       INSERT INTO task_workflow_steps (workflow_id, key, label, section_id, assignment_type, assigned_user_id, is_start, is_end, join_type, sla_hours, is_conditional, sla_actions, step_type)
-      VALUES (
-        ${targetWorkflowId}, ${step.key}, ${step.label}, ${step.section_id}, ${step.assignment_type || "all"},
-        ${step.assigned_user_id || null}, ${isStartKey(step.key)}, ${isEndKey(step.key)}, ${step.join_type || "none"}, ${step.sla_hours ?? null},
-        ${!!step.is_conditional}, ${step.sla_actions || []}, ${step.step_type || "normal"}
-      )
+        VALUES (
+          ${targetWorkflowId}, ${step.key}, ${step.label}, ${step.section_id}, ${step.assignment_type || "all"},
+          ${step.assigned_user_id || null}, ${isStartKey(step.key)}, ${isEndKey(step.key)}, ${step.join_type || "none"}, ${step.sla_hours ?? null},
+          false, ${step.sla_actions || []}, ${step.step_type || "normal"}
+        )
       RETURNING id
     `
     keyToId[step.key] = inserted[0].id
@@ -1049,7 +987,7 @@ export async function listOpenTasks(filters: { workflowId?: number; sectionId?: 
     JOIN task_order_items i ON i.id = si.order_item_id
     JOIN task_workflows w ON w.id = i.workflow_id
     LEFT JOIN user_settings u ON u.user_id = si.claimed_by_user_id
-    WHERE si.status IN ('pending', 'in_progress', 'paused')
+    WHERE si.status IN ('pending', 'in_progress', 'paused', 'completed')
       AND (${filters.workflowId ?? null}::int IS NULL OR i.workflow_id = ${filters.workflowId ?? null})
       AND (${filters.sectionId ?? null}::int IS NULL OR COALESCE(si.override_section_id, st.section_id) = ${filters.sectionId ?? null})
       AND (${filters.assigneeId ?? null}::text IS NULL OR si.claimed_by_user_id = ${filters.assigneeId ?? null})

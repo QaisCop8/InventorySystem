@@ -277,6 +277,7 @@ createButtonsColumns = () => {
         ? this.state.columnChooserItemsSource.filter((item) => item.header.toLowerCase().includes(this.state.searchText.toLowerCase()))
         : [];
     const height = this.props.containerStyle || {};
+    const { innerRef, ...gridProps } = this.props;
     return (
       <div style={height} dir="rtl">
         {this.state.hasError && (
@@ -316,14 +317,14 @@ createButtonsColumns = () => {
         )}
         <FlexGrid
           id="theGridTallRows"
-          ref={this.props.innerRef}
+          ref={innerRef}
           headersVisibility={this.props.headersVisibility ? this.props.headersVisibility : 'Column'}
           isReadOnly={this.props.isReport ? true : false}
           quickAutoSize={false}
           
           initialized={this.initialized.bind(this)}
           itemsSource={this.props.dataSource}
-          {...this.props}
+          {...gridProps}
           wordWrap={true}
           allowMerging={true}
           loadingRows={() => this.columnTooltips.dispose()}

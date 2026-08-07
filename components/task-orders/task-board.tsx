@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useState, type TouchEvent } from "react"
 import { useAuth } from "@/components/auth/auth-context"
 import { useToast } from "@/hooks/use-toast"
 import { Button } from "@/components/ui/button"
@@ -94,11 +94,13 @@ export function TaskBoard() {
   const [rejectNote, setRejectNote] = useState("")
   const [transferringInstanceId, setTransferringInstanceId] = useState<number | null>(null)
   const [transferTarget, setTransferTarget] = useState<{ sectionId: string; userId: string; reason: string }>({ sectionId: "", userId: "", reason: "" })
-  const [noteDialog, setNoteDialog] = useState<{ instanceId: number; action: "stop" | "complete" | "force_complete"; label: string } | null>(null)
+  const [noteDialog, setNoteDialog] = useState<{ instanceId: number; action: "stop" | "complete" | "force_complete" | "start"; label: string } | null>(null)
+  const [noteDialogExtra, setNoteDialogExtra] = useState<{ needStartFirst?: boolean } | null>(null)
   const [noteDialogText, setNoteDialogText] = useState("")
   const [allLoadingChecked, setAllLoadingChecked] = useState(true)
   const [forceCloseInstanceId, setForceCloseInstanceId] = useState<number | null>(null)
   const [draggedTaskId, setDraggedTaskId] = useState<number | null>(null)
+  const [dragTouchState, setDragTouchState] = useState<{ taskId: number; clientX: number; clientY: number; hasMoved: boolean } | null>(null)
 
   useEffect(() => {
     const interval = setInterval(() => setTick((t) => t + 1), 1000)
@@ -325,6 +327,21 @@ export function TaskBoard() {
     }
   }
 
+  const refreshDetail = async () => {
+    if (detailItemId === null) return
+    setDetailLoading(true)
+    try {
+      const res = await fetch(`/api/task-orders/order-items/${detailItemId}`)
+      if (!res.ok) throw new Error()
+      setDetailItem(await res.json())
+    } catch {
+      toast({ title: "خطأ", description: "فشل في تحديث تفاصيل الصنف", variant: "destructive" })
+      setDetailItemId(null)
+    } finally {
+      setDetailLoading(false)
+    }
+  }
+
   const beginTaskFromStatusLane = async (task: GroupedTask) => {
     if (!userId) return
     if (task.status !== "pending") return
@@ -333,13 +350,90 @@ export function TaskBoard() {
     if (ok) {
       await fetchTasks(selectedWorkflowId)
       setDraggedTaskId(null)
+      setDragTouchState(null)
     }
   }
 
-  const refreshDetail = async () => {
-    if (!detailItemId) return
-    const res = await fetch(`/api/task-orders/order-items/${detailItemId}`)
-    if (res.ok) setDetailItem(await res.json())
+  const completeTaskFromStatusLane = async (task: GroupedTask) => {
+    if (!userId) return
+    if (task.status !== "in_progress") return
+
+    const ok = await callInstanceAction("complete", task.id, {})
+    if (ok) {
+      await fetchTasks(selectedWorkflowId)
+      setDraggedTaskId(null)
+      setDragTouchState(null)
+    }
+  }
+
+  const handleTouchTaskStart = (event: TouchEvent<HTMLButtonElement>, task: GroupedTask) => {
+    if (!["pending", "in_progress"].includes(task.status)) return
+    event.preventDefault()
+    const touch = event.touches[0]
+    if (!touch) return
+    setDraggedTaskId(task.id)
+    setDragTouchState({ taskId: task.id, clientX: touch.clientX, clientY: touch.clientY, hasMoved: false })
+  }
+
+  const getTouchDropColumnKey = (event: TouchEvent<HTMLElement>) => {
+    const touch = event.changedTouches?.[0]
+    if (!touch) return null
+    const targetElement = document.elementFromPoint(touch.clientX, touch.clientY) as HTMLElement | null
+    if (!targetElement) return null
+    return targetElement.closest<HTMLElement>("[data-task-column-key]")?.dataset.taskColumnKey ?? null
+  }
+
+  const handleTouchTaskMove = (event: TouchEvent<HTMLButtonElement>, task: GroupedTask) => {
+    if (!["pending", "paused", "in_progress"].includes(task.status) || draggedTaskId !== task.id) return
+    const touch = event.touches[0]
+    if (!touch) return
+    setDragTouchState((current) => {
+      if (!current || current.taskId !== task.id) return current
+      const deltaX = touch.clientX - current.clientX
+      const deltaY = touch.clientY - current.clientY
+      const moved = Math.abs(deltaX) > 8 || Math.abs(deltaY) > 8
+      return { taskId: task.id, clientX: touch.clientX, clientY: touch.clientY, hasMoved: moved || current.hasMoved }
+    })
+  }
+
+  const handleTouchTaskEnd = async (event: TouchEvent<HTMLElement>, columnKey: string) => {
+    if (!draggedTaskId) return
+    event.preventDefault()
+    const targetColumnKey = getTouchDropColumnKey(event) ?? columnKey
+    const task = visibleTasks.find((item) => item.id === draggedTaskId)
+    if (!task) {
+      setDraggedTaskId(null)
+      setDragTouchState(null)
+      return
+    }
+
+    if (targetColumnKey === "in_progress" && ["pending", "paused"].includes(task.status)) {
+      openNoteDialog(task.id, "start", "بدء المهمة")
+      setNoteDialogExtra(null)
+      return
+    }
+
+    if (targetColumnKey === "paused" && task.status === "in_progress") {
+      openNoteDialog(task.id, "stop", "إيقاف المهمة")
+      setNoteDialogExtra(null)
+      return
+    }
+
+    if (targetColumnKey === "completed" && task.status === "in_progress") {
+      openNoteDialog(task.id, "complete", "إنهاء المهمة")
+      setNoteDialogExtra(null)
+      return
+    }
+
+    // paused -> completed: require start then complete
+    if (targetColumnKey === "completed" && task.status === "paused") {
+      setNoteDialogExtra({ needStartFirst: true })
+      openNoteDialog(task.id, "complete", "إنهاء المهمة")
+      return
+    }
+
+    setDraggedTaskId(null)
+    setDragTouchState(null)
     await fetchTasks(selectedWorkflowId)
   }
 
@@ -355,6 +449,7 @@ export function TaskBoard() {
       const data = await res.json()
       if (!res.ok) throw new Error(data?.error || "فشل تنفيذ العملية")
       await refreshDetail()
+      await fetchTasks(selectedWorkflowId)
       toast({ title: "تم", description: "تم تنفيذ العملية بنجاح" })
       return true
     } catch (error: any) {
@@ -423,19 +518,60 @@ export function TaskBoard() {
       setActionBusy(false)
     }
   }
-  const openNoteDialog = (instanceId: number, action: "stop" | "complete" | "force_complete", label: string) => {
+  const openNoteDialog = (instanceId: number, action: "stop" | "complete" | "force_complete" | "start", label: string) => {
     setNoteDialog({ instanceId, action, label })
     setNoteDialogText("")
   }
   const confirmNoteAction = async () => {
     if (!noteDialog) return
-    const path = noteDialog.action === "force_complete" ? "complete" : noteDialog.action
     const body: Record<string, any> = { note: noteDialogText.trim() || undefined }
-    if (noteDialog.action === "force_complete") body.force = true
-    const ok = await callInstanceAction(path, noteDialog.instanceId, body)
-    if (ok) {
-      setNoteDialog(null)
-      setNoteDialogText("")
+    setActionBusy(true)
+    try {
+      if (noteDialog.action === "start") {
+        const ok = await callInstanceAction("start", noteDialog.instanceId, body)
+        if (ok) {
+          setNoteDialog(null)
+          setNoteDialogText("")
+          setNoteDialogExtra(null)
+        }
+        return
+      }
+
+      if (noteDialog.action === "complete") {
+        // If we need to start first (paused -> completed), start then complete
+        if (noteDialogExtra?.needStartFirst) {
+          const started = await callInstanceAction("start", noteDialog.instanceId, body)
+          if (!started) throw new Error("فشل بدء المهمة")
+          const completed = await callInstanceAction("complete", noteDialog.instanceId, body)
+          if (!completed) throw new Error("فشل إنهاء المهمة")
+          setNoteDialog(null)
+          setNoteDialogText("")
+          setNoteDialogExtra(null)
+          return
+        }
+
+        const ok = await callInstanceAction("complete", noteDialog.instanceId, body)
+        if (ok) {
+          setNoteDialog(null)
+          setNoteDialogText("")
+          setNoteDialogExtra(null)
+        }
+        return
+      }
+
+      const path = noteDialog.action === "force_complete" ? "complete" : noteDialog.action
+      if (noteDialog.action === "force_complete") body.force = true
+      const ok = await callInstanceAction(path, noteDialog.instanceId, body)
+      if (ok) {
+        setNoteDialog(null)
+        setNoteDialogText("")
+        setNoteDialogExtra(null)
+      }
+    } catch (error: any) {
+      // callInstanceAction already toasts on error; nothing extra required
+      setNoteDialogExtra(null)
+    } finally {
+      setActionBusy(false)
     }
   }
   const confirmReject = async () => {
@@ -623,6 +759,7 @@ export function TaskBoard() {
             return (
               <div
                 key={column.key}
+                data-task-column-key={column.key}
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={async (e) => {
                   e.preventDefault()
@@ -630,9 +767,32 @@ export function TaskBoard() {
                   if (!taskId) return
                   const task = visibleTasks.find((item) => item.id === taskId)
                   if (!task) return
-                  if (column.key !== "in_progress") return
-                  if (task.status !== "pending") return
-                  await beginTaskFromStatusLane(task as GroupedTask)
+                  if (column.key === "in_progress" && ["pending", "paused"].includes(task.status)) {
+                    setNoteDialogExtra(null)
+                    openNoteDialog(task.id, "start", "بدء المهمة")
+                    return
+                  }
+                  if (column.key === "paused" && task.status === "in_progress") {
+                      setNoteDialogExtra(null)
+                      openNoteDialog(task.id, "stop", "إيقاف المهمة")
+                      return
+                    }
+                    if (column.key === "completed" && task.status === "in_progress") {
+                      setNoteDialogExtra(null)
+                      openNoteDialog(task.id, "complete", "إنهاء المهمة")
+                      return
+                    }
+                    // allow paused -> completed: start then complete (shows confirmation dialog)
+                    if (column.key === "completed" && task.status === "paused") {
+                      setNoteDialogExtra({ needStartFirst: true })
+                      openNoteDialog(task.id, "complete", "إنهاء المهمة")
+                      return
+                    }
+                }}
+                onTouchEnd={(e) => void handleTouchTaskEnd(e, column.key)}
+                onTouchCancel={() => {
+                  setDraggedTaskId(null)
+                  setDragTouchState(null)
                 }}
                 className={cn("flex h-full w-[85vw] shrink-0 flex-col rounded-2xl border-2 sm:w-96", palette.bg, palette.border)}
               >
@@ -643,7 +803,14 @@ export function TaskBoard() {
                   </div>
                   <Badge className={cn("h-6 min-w-6 justify-center rounded-full px-2 text-sm font-bold", palette.badge)}>{columnTasks.length}</Badge>
                 </div>
-                <ScrollArea className="min-h-0 flex-1">
+                <ScrollArea
+                  className="min-h-0 flex-1"
+                  onTouchEnd={(e) => void handleTouchTaskEnd(e, column.key)}
+                  onTouchCancel={() => {
+                    setDraggedTaskId(null)
+                    setDragTouchState(null)
+                  }}
+                >
                   <div className="flex flex-col gap-3 p-3">
                     {columnTasks.length === 0 && <div className="py-8 text-center text-sm text-slate-400">لا توجد مهام</div>}
                     {columnTasks.map((t) => {
@@ -651,13 +818,36 @@ export function TaskBoard() {
                       return (
                         <button
                           key={t.id}
-                          draggable={t.status === "pending"}
+                          draggable={["pending", "paused", "in_progress"].includes(t.status)}
                           onDragStart={() => {
-                            if (t.status !== "pending") return
+                            if (!["pending", "paused", "in_progress"].includes(t.status)) return
                             setDraggedTaskId(t.id)
+                            setDragTouchState(null)
                           }}
-                          onDragEnd={() => setDraggedTaskId(null)}
-                          onClick={() => openItem(t.order_item_id)}
+                          onDragEnd={() => {
+                            setDraggedTaskId(null)
+                            setDragTouchState(null)
+                          }}
+                          onTouchStart={(e) => handleTouchTaskStart(e, t as GroupedTask)}
+                          onTouchMove={(e) => handleTouchTaskMove(e, t as GroupedTask)}
+                          onTouchEnd={() => {
+                            if (dragTouchState?.taskId !== t.id) {
+                              setDraggedTaskId(null)
+                              setDragTouchState(null)
+                            }
+                          }}
+                          onTouchCancel={() => {
+                            setDraggedTaskId(null)
+                            setDragTouchState(null)
+                          }}
+                          onClick={() => {
+                            if (dragTouchState?.taskId === t.id && dragTouchState.hasMoved) {
+                              setDragTouchState(null)
+                              return
+                            }
+                            openItem(t.order_item_id)
+                          }}
+                          style={{ touchAction: "none" }}
                           className={cn(
                             "text-right rounded-xl border border-r-[6px] p-5 shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all",
                             PRIORITY_CARD_ACCENT[t.item_priority] || PRIORITY_CARD_ACCENT.normal,
@@ -1046,11 +1236,11 @@ export function TaskBoard() {
             autoFocus
           />
           <DialogFooter>
-            <Button variant="outline" onClick={() => setNoteDialog(null)}>
+            <Button variant="outline" onClick={() => { setNoteDialog(null); setNoteDialogExtra(null); }}>
               إلغاء
             </Button>
             <Button onClick={confirmNoteAction} disabled={actionBusy}>
-              {actionBusy && <Loader2 className="ml-1 h-4 w-4 animate-spin" />} تأكيد
+              {actionBusy && <Loader2 className="ml-1 h-4 w-4 animate-spin" />} {(noteDialog?.action === "start" || noteDialog?.action === "complete" || noteDialog?.action === "stop" || noteDialog?.action === "force_complete") ? "تم" : "تأكيد"}
             </Button>
           </DialogFooter>
         </DialogContent>

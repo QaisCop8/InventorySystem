@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import PrimeDropdown from "@/components/common/FocusDropdown"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -2307,6 +2308,17 @@ function Definitions() {
       return;
     }
 
+    if (!departmentForm.branch_id) {
+      toast({ title: "مطلوب", description: "يجب اختيار الفرع", variant: "destructive" })
+      return
+    }
+    // Prevent duplicate department names (case-insensitive). Allow same name when editing the same record.
+    const nameNormalized = departmentForm.department_name.trim().toLowerCase();
+    const duplicate = departments.some((d) => ((d.department_name || "").trim().toLowerCase() === nameNormalized) && d.id !== (departmentForm.id || 0));
+    if (duplicate) {
+      toast({ title: "مكرر", description: "اسم القسم موجود بالفعل", variant: "destructive" })
+      return
+    }
     try {
       const isEditing = departmentForm.id && departmentForm.id > 0;
       const url = isEditing
@@ -2590,22 +2602,20 @@ function Definitions() {
                       </div>
                       <div className="text-right">
                         <Label className="erp-label text-right block">تابع لفرع</Label>
-                        <Select
-                          dir="rtl"
-                          value={departmentForm.branch_id}
-                          onValueChange={(value) => setDepartmentForm({ ...departmentForm, branch_id: value })}
-                        >
-                          <SelectTrigger className="erp-input text-right">
-                            <SelectValue placeholder="اختر الفرع" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {branches.map((branch) => (
-                              <SelectItem key={branch.id} value={branch.id.toString()}>
-                                {branch.branch_name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <div className="invoice-currency-dropdown-wrap w-full">
+                          <PrimeDropdown
+                            value={departmentForm.branch_id ? Number(departmentForm.branch_id) : null}
+                            options={branches}
+                            optionLabel="branch_name"
+                            optionValue="id"
+                            placeholder="اختر الفرع"
+                            filter
+                            className="invoice-currency-dropdown w-full"
+                            panelClassName="invoice-currency-dropdown-panel"
+                            appendTo="self"
+                            onChange={(e: any) => setDepartmentForm({ ...departmentForm, branch_id: e.value ? String(e.value) : "" })}
+                          />
+                        </div>
                       </div>
                       <div className="text-right">
                         <Label className="erp-label text-right block">مسؤول القسم</Label>

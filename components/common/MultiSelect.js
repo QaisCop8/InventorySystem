@@ -56,6 +56,9 @@ export default class MultiSelect extends React.Component {
 
   render() {
     const panelClassName = `${styles.panelClassRight} ${this.props.panelClassName ?? ''}`.trim();
+    // Avoid forwarding internal-only props (like showFilter) to underlying DOM elements
+    const passProps = { ...this.props };
+    if (Object.prototype.hasOwnProperty.call(passProps, 'showFilter')) delete passProps.showFilter;
     // const SELECTALLMAXLIMIT = 5000;
     let divlabelStyle = {};
     if (this.props.isReportFilter) divlabelStyle = { display: 'flex', flexDirection: 'column', width: '100%', overflow: 'hidden' };
@@ -97,7 +100,7 @@ export default class MultiSelect extends React.Component {
               virtualScroll={true}
               virtualScrollerOptions={{ itemSize: 55 }}
               title={this.props.tooltip}
-              {...this.props}
+              {...passProps}
               // Keep the component's local style after the prop spread so a caller's className
               // augments the control instead of replacing the shared multiselect appearance.
               className={`${styles.multiselect} w-full ${this.props.className || this.props.innerClass || ''}`.trim()}
@@ -155,7 +158,7 @@ export default class MultiSelect extends React.Component {
             ref={this.props.innerRef}
             virtualScrollerOptions={{ itemSize: 55 }}
             title={this.props.tooltip}
-            {...this.props}
+            {...passProps}
             // See the withgroup branch above; local styles must survive the prop spread.
             className={`${styles.multiselect} w-full ${this.props.className || this.props.innerClass || ''}`.trim()}
             appendTo={this.props.appendTo ?? 'self'}
