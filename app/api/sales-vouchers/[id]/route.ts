@@ -1,15 +1,35 @@
 import { type NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
-import { fetchSalesVoucherItems, archiveAndDeleteSalesVoucher, fetchTaxAccountForVoucher, ITEM_ACCOUNT_VCH_TYPES } from "../_lib"
+import { ensureTables, fetchSalesVoucherItems, archiveAndDeleteSalesVoucher, fetchTaxAccountForVoucher, ITEM_ACCOUNT_VCH_TYPES } from "../_lib"
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
+    await ensureTables()
     const id = Number(params.id)
     if (!id) {
       return NextResponse.json({ error: "معرف السند غير صالح" }, { status: 400 })
     }
 
-    const rows = await sql`SELECT * FROM voucher_header_tbl WHERE id = ${id}`
+    const rows = await sql`
+      SELECT vh.*, EXISTS(
+        SELECT 1
+        FROM voucher_header_tbl inv
+        WHERE inv.vch_type IN (12, 17)
+          AND inv.id != vh.id
+          AND (
+            (inv.source_voucher_id = vh.id AND inv.source_voucher_type = vh.vch_type)
+            OR EXISTS (
+              SELECT 1
+              FROM voucher_items_tbl vi
+              WHERE vi.voucher_id = inv.id
+                AND vi.source_voucher_id = vh.id
+                AND vi.source_voucher_type = vh.vch_type
+            )
+          )
+      ) AS has_linked_invoice
+      FROM voucher_header_tbl vh
+      WHERE vh.id = ${id}
+    `
     if (rows.length === 0) {
       return NextResponse.json({ error: "السند غير موجود" }, { status: 404 })
     }

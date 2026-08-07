@@ -16,6 +16,10 @@ import UnifiedSalesDelivery, {
   RETURN_SELL_VCH_TYPE,
   PURCHASE_INVOICE_VCH_TYPE,
   RETURN_PURCHASE_VCH_TYPE,
+  DELIVERY_SELL_VCH_TYPE,
+  DELIVERY_CONSIGNMENT_SALE_VCH_TYPE,
+  DELIVERY_PAY_VCH_TYPE,
+  RETURN_DELIVERY_CONSIGNMENT_SALE_VCH_TYPE,
   SALES_DIRECTION_VCH_TYPES,
   toGridDateString,
 } from "./unified-sales-delivery"
@@ -149,6 +153,7 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
     is_printed: 0,
     vat_classification_id: 1,
     invoice_type: 1,
+    invoice_source_type: 1,
     vat_included: false,
     is_maqasa: false,
     maqasa_type: null,
@@ -162,6 +167,9 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
     due_date: "",
     is_exported_sales: false,
     city_id: null,
+    source_voucher_id: null,
+    source_voucher_type: null,
+    has_linked_invoice: false,
     items: [{ ...emptyItemRow }],
   })
 
@@ -475,13 +483,29 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
     if (!data.vch_book_id) return "دفتر السندات مطلوب"
     if (!data.currency_id) return "العملة مطلوبة"
     if (!(Number(data.rate) > 0)) return "سعر الصرف يجب أن يكون أكبر من صفر"
-    // العميل نفسه اختياري الآن (بيع نقدي بلا عميل مسجَّل) — لكن عندها يجب تحديد حساب الصندوق
-    // (سيُقفَل عليه بدل حساب العميل) واسم الدافع (بديل اسم العميل) معاً كحد أدنى للتوثيق المحاسبي.
-    if (!data.account_id) {
-      if (!data.cash_account_id) return "يجب اختيار حساب الصندوق عند عدم اختيار العميل"
-      if (!data.customer_name?.trim()) return "يجب إدخال اسم الدافع عند عدم اختيار العميل"
+    if (data.invoice_source_type === 2 && (!data.source_voucher_id || !data.source_voucher_type)) {
+      return "يجب اختيار الإرسالية المصدرية للفاتورة"
     }
-    if (Number(data.vat_percent || 0) > 0 && !data.tax_account_id) {
+    const isDeliveryVoucherType = [DELIVERY_SELL_VCH_TYPE, DELIVERY_CONSIGNMENT_SALE_VCH_TYPE, RETURN_DELIVERY_CONSIGNMENT_SALE_VCH_TYPE, DELIVERY_PAY_VCH_TYPE].includes(voucherType)
+    const isPurchaseDeliveryVoucherType = voucherType === DELIVERY_PAY_VCH_TYPE
+
+    if (isDeliveryVoucherType) {
+      if (!data.account_id) {
+        return isPurchaseDeliveryVoucherType ? "يجب إدخال المورد" : "يجب إدخال العميل"
+      }
+    } else {
+      // العميل نفسه اختياري الآن (بيع نقدي بلا عميل مسجَّل) — لكن عندها يجب تحديد حساب الصندوق
+      // (سيُقفَل عليه بدل حساب العميل) واسم الدافع (بديل اسم العميل) معاً كحد أدنى للتوثيق المحاسبي.
+      if (!data.account_id) {
+        if (!data.cash_account_id) return "يجب اختيار حساب الصندوق عند عدم اختيار العميل"
+        if (!data.customer_name?.trim()) return "يجب إدخال اسم الدافع عند عدم اختيار العميل"
+      }
+    }
+    if (
+      Number(data.vat_percent || 0) > 0 &&
+      !data.tax_account_id &&
+      ![DELIVERY_SELL_VCH_TYPE, DELIVERY_CONSIGNMENT_SALE_VCH_TYPE, DELIVERY_PAY_VCH_TYPE].includes(voucherType)
+    ) {
       return "يجب اختيار حساب الضريبة لوجود نسبة ضريبة على السند"
     }
     const items = (data.items || []).filter((i) => i.product_id)
@@ -709,7 +733,9 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
                     <td className="border border-gray-300 px-4 py-2">{voucher.vch_date?.slice(0, 10)}</td>
                     <td className="border border-gray-300 px-4 py-2">{voucher.customer_name}</td>
                     <td className="border border-gray-300 px-4 py-2">{Number(voucher.amount || 0).toLocaleString()}</td>
-                    <td className="border border-gray-300 px-4 py-2 text-center">{voucher.status === 2 ? "مرحل" : "مسودة"}</td>
+                    <td className="border border-gray-300 px-4 py-2 text-center">
+          {voucher.has_linked_invoice ? "تم إصدار فاتورة" : voucher.status === 2 ? "مرحل" : "مسودة"}
+        </td>
                     <td className="border border-gray-300 px-4 py-2 text-center">
                       <div className="flex justify-center">
                         <Button

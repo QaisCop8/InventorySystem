@@ -19,6 +19,7 @@ import AccountCostCenters, { type JournalCostCenterSelection } from "@/component
 import ProductSearchPopup from "@/components/products/ProductSearchPopup"
 import StoresSearchPopup from "@/components/products/StoresSearchPopup"
 import UnitsSearchPopup from "@/components/products/UnitsSearchPopup"
+import InvoiceFromDeliveryPopup from "@/components/sales/InvoiceFromDeliveryPopup"
 import PostVoucherDialog, { type PostVoucherAction } from "@/components/common/post-voucher-dialog"
 import ItemExpiryDatePicker, { type ExpiryLotAllocation } from "@/components/common/ItemExpiryDatePicker"
 import MeasurementInputDialog from "@/components/common/MeasurementInputDialog"
@@ -72,6 +73,11 @@ export const TAX_CLASSIFICATION_OPTIONS = [
   { label: "معفاه", value: 2 },
   { label: "صفرية", value: 3 },
 ]
+export const INVOICE_SOURCE_TYPE_OPTIONS = [
+  { label: "عادية", value: 1 },
+  { label: "من ارسالية", value: 2 },
+  { label: "من طلبية", value: 3 },
+]
 export const INVOICE_TYPE_OPTIONS = [
   { label: "للتجارة", value: 1 },
   { label: "خدمات", value: 2 },
@@ -106,6 +112,9 @@ export interface SalesVoucherItemRow {
   serial_numbers: string[]
   source_voucher_id: number | null
   source_voucher_type: number | null
+  source_currency_id?: number | null
+  source_currency_code?: string
+  source_rate?: number
   note: string
   // أبعاد/عدد اختيارية بمستوى السطر — نفس الآلية والأعمدة الأربعة في unified-stock-voucher.tsx
   // (تظهر فقط إن فُعِّلت أعمدتها من إعدادات السند أو احتاجها صنف نوع قياسه غير عادي فعلياً).
@@ -189,6 +198,10 @@ export interface SalesDeliveryRecord {
   // المنطقة — بجانب المندوب أسفل حقل العميل مباشرة، مصدرها المدن المُعرَّفة بالتعريفات
   // (cities/voucher_header_tbl.location_id، أقرب عمود محجوز مطابق لمعنى "منطقة").
   city_id: number | null
+  invoice_source_type?: number | null
+  source_voucher_id: number | null
+  source_voucher_type: number | null
+  has_linked_invoice?: boolean
   items: SalesVoucherItemRow[]
 }
 
@@ -327,6 +340,9 @@ const emptyItemRow: SalesVoucherItemRow = {
   serial_numbers: [],
   source_voucher_id: null,
   source_voucher_type: null,
+  source_currency_id: null,
+  source_currency_code: "",
+  source_rate: undefined,
   note: "",
   length: null,
   width: null,
@@ -391,14 +407,23 @@ export default function UnifiedSalesDelivery({
   errorMessages = [],
 }: UnifiedSalesDeliveryProps) {
   const TITLE = SALES_VOUCHER_TYPE_LABELS[voucherType].title
+  const isDeliveryVoucher = [DELIVERY_SELL_VCH_TYPE, DELIVERY_CONSIGNMENT_SALE_VCH_TYPE, RETURN_DELIVERY_CONSIGNMENT_SALE_VCH_TYPE, DELIVERY_PAY_VCH_TYPE].includes(voucherType)
+  const isSalesDeliveryVoucher = [DELIVERY_SELL_VCH_TYPE, DELIVERY_CONSIGNMENT_SALE_VCH_TYPE, RETURN_DELIVERY_CONSIGNMENT_SALE_VCH_TYPE].includes(voucherType)
+  const isPurchaseDeliveryVoucher = voucherType === DELIVERY_PAY_VCH_TYPE
   // عنوان بطاقة الملخص أعلى الشاشة يتبع نوع السند الفعلي بدل "ملخص الطلبية" الثابت: فاتورة
   // لفاتورة مبيعات/مشتريات، مرتجع لمرتجع مبيعات/مشتريات (بما فيها مرتجع إرسالية برسم البيع)،
   // وإرسالية لبقية الأنواع (إرسالية مبيعات/برسم البيع/مشتريات).
   const summaryLabel = TITLE.includes("مرتجع") ? "ملخص المرتجع" : TITLE.includes("فاتورة") ? "ملخص الفاتورة" : "ملخص الارسالية"
   const { toast } = useToast()
   const isLocked = form.status === 2 || form.status === 3
-  const statusBadge =
-    form.status === 3 ? "ملغي منطقياً" : form.status === 2 ? (form.is_printed === 1 ? "مرحل - مطبوع" : "مرحل") : ""
+  const isFromDelivery = Number(form.invoice_source_type || 1) === 2
+  const statusBadge = form.has_linked_invoice
+    ? "مرحل - تم إصدار فاتورة"
+    : form.status === 3
+      ? "ملغي منطقياً"
+      : form.status === 2
+        ? (form.is_printed === 1 ? "مرحل - مطبوع" : "مرحل")
+        : ""
 
   const messagesRef = useRef<any>(null)
   const dateInputRef = useRef<HTMLInputElement | null>(null)
@@ -408,11 +433,31 @@ export default function UnifiedSalesDelivery({
   // تأكيد إعادة نسبة الضريبة الافتراضية عند الرجوع لتصنيف "ضريبية" من معفاه/صفرية — انظر
   // handleVatClassificationChange أدناه.
   const [showVatRestoreConfirm, setShowVatRestoreConfirm] = useState(false)
+  const [invoiceFromDeliveryOpen, setInvoiceFromDeliveryOpen] = useState(false)
   const [productSearchOpen, setProductSearchOpen] = useState(false)
   const [warehouseSearchOpen, setWarehouseSearchOpen] = useState(false)
   const [warehouseSearchRow, setWarehouseSearchRow] = useState<number | null>(null)
   const [unitsSearchOpen, setUnitsSearchOpen] = useState(false)
   const [unitsSearchRow, setUnitsSearchRow] = useState<number | null>(null)
+
+  const handleInvoiceSourceTypeChange = (value: number) => {
+    onFormChange("invoice_source_type", value)
+    if (value === 2 && dialogOpen) {
+      setInvoiceFromDeliveryOpen(true)
+      return
+    }
+    if (value !== 2) {
+      onFormChange("source_voucher_id" as keyof SalesDeliveryRecord, null)
+      onFormChange("source_voucher_type" as keyof SalesDeliveryRecord, null)
+      onItemsChange(
+        form.items.map((item) => ({
+          ...item,
+          source_voucher_id: null,
+          source_voucher_type: null,
+        })),
+      )
+    }
+  }
   // نافذة اختيار الدفعة/تاريخ الصلاحية — إرسالية المبيعات تستهلك من مخزون قائم دوماً (بخلاف سند
   // ادخال بضاعة)، فتُفتَح دائماً لصنف متتبَّع عند إدخال كمية موجبة، بنفس منطق سند اخراج بضاعة
   // تماماً في unified-stock-voucher.tsx.
@@ -1289,6 +1334,10 @@ export default function UnifiedSalesDelivery({
   const handleBeginningEdit = (grid: any, e: any) => {
     const colName = grid?.columns?.[e.col]?.binding
     const row = itemsRef.current[e.row]
+    if (isFromDelivery && colName !== "unit_price") {
+      e.cancel = true
+      return
+    }
     if (colName === "quantity") {
       if (row && Number(row.measurment_id || 1) !== 1) {
         e.cancel = true
@@ -1494,8 +1543,8 @@ export default function UnifiedSalesDelivery({
       showFooter: false,
       columns: [
         { header: "#", name: "ser", width: 45, isReadOnly: true, dataType: "Number", visible: Util.getVoucherSettingScreenData(voucherType, "ser") },
-        { header: "الباركود", name: "barcode", width: 110, visible: Util.getVoucherSettingScreenData(voucherType, "barcode") },
-        { header: "رقم الصنف", name: "product_code", width: 110, visible: Util.getVoucherSettingScreenData(voucherType, "code") },
+        { header: "الباركود", name: "barcode", width: 110, visible: Util.getVoucherSettingScreenData(voucherType, "barcode"), isReadOnly: isLocked || isFromDelivery },
+        { header: "رقم الصنف", name: "product_code", width: 110, visible: Util.getVoucherSettingScreenData(voucherType, "code"), isReadOnly: isLocked || isFromDelivery },
         {
           header: " ",
           name: "btnSearchProduct",
@@ -1505,6 +1554,7 @@ export default function UnifiedSalesDelivery({
           iconType: "search",
           isReadOnly: true,
           onClick: (e: any, ctx: any) => {
+            if (isLocked || isFromDelivery) return
             pendingFocusRow.current = ctx.row.index
             lastFocusedCellRef.current = { row: ctx.row.index, col: "product_code" }
             popupHasCalled()
@@ -1513,7 +1563,7 @@ export default function UnifiedSalesDelivery({
           visible: Util.getVoucherSettingScreenData(voucherType, "code"),
           visibleInColumnChooser: true,
         },
-        { header: "اسم الصنف", name: "product_name", width: "*", minWidth: 160, isReadOnly: false },
+        { header: "اسم الصنف", name: "product_name", width: "*", minWidth: 160, isReadOnly: isLocked || isFromDelivery },
         {
           header: "المستودع",
           name: "warehouse_name",
@@ -1530,6 +1580,7 @@ export default function UnifiedSalesDelivery({
           iconType: "search",
           isReadOnly: true,
           onClick: (e: any, ctx: any) => {
+            if (isLocked || isFromDelivery) return
             setWarehouseSearchRow(ctx.row.index)
             lastFocusedCellRef.current = { row: ctx.row.index, col: "warehouse_name" }
             popupHasCalled()
@@ -1548,6 +1599,7 @@ export default function UnifiedSalesDelivery({
           iconType: "search",
           isReadOnly: true,
           onClick: (e: any, ctx: any) => {
+            if (isLocked || isFromDelivery) return
             setUnitsSearchRow(ctx.row.index)
             lastFocusedCellRef.current = { row: ctx.row.index, col: "unit" }
             popupHasCalled()
@@ -1561,17 +1613,18 @@ export default function UnifiedSalesDelivery({
           name: "quantity",
           width: 90,
           dataType: wjcCore.DataType.Number,
+          isReadOnly: isLocked || isFromDelivery,
           // للقراءة فقط لنوع قياس غير عادي — تُحتسَب تلقائياً من الأبعاد/العدد المُدخَلة عبر
           // MeasurementInputDialog؛ المنع الفعلي بمستوى الخلية عبر beginningEdit (isReadOnly هنا
           // خاصية عمود ثابتة لا تفرّق بين الأسطر).
         },
-        { header: "البونص", name: "bonus_quantity", width: 80, dataType: wjcCore.DataType.Number, visible: Util.getVoucherSettingScreenData(voucherType, "bonus") },
-        { header: "السعر", name: "unit_price", width: 90, dataType: wjcCore.DataType.Number, visible: Util.getVoucherSettingScreenData(voucherType, "price") },
+        { header: "البونص", name: "bonus_quantity", width: 80, dataType: wjcCore.DataType.Number, visible: Util.getVoucherSettingScreenData(voucherType, "bonus"), isReadOnly: isLocked || isFromDelivery },
+        { header: "السعر", name: "unit_price", width: 90, dataType: wjcCore.DataType.Number, visible: Util.getVoucherSettingScreenData(voucherType, "price"), isReadOnly: isLocked },
         {
           header: "الخصم %",
           name: "discount_percent",
           width: 90,
-          isReadOnly: false,
+          isReadOnly: isLocked || isFromDelivery,
           visible: Util.getVoucherSettingScreenData(voucherType, "discount"),
         },
         {
@@ -1582,7 +1635,7 @@ export default function UnifiedSalesDelivery({
           isReadOnly: true,
           visible: Util.getVoucherSettingScreenData(voucherType, "price_excl_tax"),
         },
-        { header: "المبلغ", name: "total_price", width: 110, dataType: wjcCore.DataType.Number, isReadOnly: false },
+        { header: "المبلغ", name: "total_price", width: 110, dataType: wjcCore.DataType.Number, isReadOnly: isLocked || isFromDelivery },
         {
           header: "الرقم التشغيلي",
           name: "batch_number",
@@ -1615,7 +1668,7 @@ export default function UnifiedSalesDelivery({
           visible: Util.getVoucherSettingScreenData(voucherType, "serial"),
           visibleInColumnChooser: true,
         },
-        { header: "ملاحظة", name: "note", width: 130 },
+        { header: "ملاحظة", name: "note", width: 130, isReadOnly: isLocked || isFromDelivery },
         {
           header: " ",
           name: "btnDelete",
@@ -1625,14 +1678,17 @@ export default function UnifiedSalesDelivery({
           iconType: "delete",
           className: "danger",
           isReadOnly: true,
-          visible: !isLocked,
+          visible: !isLocked && !isFromDelivery,
           visibleInColumnChooser: true,
-          onClick: (e: any, ctx: any) => removeItemRow(ctx.row.index),
+          onClick: (e: any, ctx: any) => {
+            if (isLocked || isFromDelivery) return
+            removeItemRow(ctx.row.index)
+          },
         },
       ],
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }),
-    [isLocked, showExpiryColumn],
+    [isLocked, isFromDelivery, showExpiryColumn],
   )
 
   // شبكة تبويب "تفاصيل حسابات الاصناف" — تُبنى من نفس itemsCollectionView (نفس الأسطر بنفس
@@ -1744,7 +1800,7 @@ export default function UnifiedSalesDelivery({
           canSave={!isLocked}
           canPrint={form.id > 0}
           canClone={form.id > 0}
-          canDelete={form.id > 0 && form.status !== 3}
+          canDelete={form.id > 0 && form.status !== 3 && !form.has_linked_invoice}
           isFirstRecord={isFirstRecord}
           isLastRecord={isLastRecord}
         />
@@ -1902,16 +1958,29 @@ export default function UnifiedSalesDelivery({
               <div className="grid grid-cols-3 gap-3">
                 <div className="col-span-1">
                   <AutoCompleteAccount
-                    label="العميل *"
+                    label={isPurchaseDeliveryVoucher ? "المورد *" : "العميل *"}
                     value={form.account_id != null ? String(form.account_id) : ""}
                     valueMode="id"
                     onValueChange={() => {}}
                     onAccountSelect={(account) => {
+                      if (isFromDelivery) {
+                        messagesRef.current?.show?.([
+                          {
+                            severity: "warn",
+                            summary: "",
+                            detail: isPurchaseDeliveryVoucher
+                              ? "لا يمكن تغيير المورد لفاتورة من إرسالية. لحساب مورد جديد، أغلق الفاتورة واحفظ التغييرات أولاً."
+                              : "لا يمكن تغيير العميل لفاتورة من إرسالية. لحساب عميل جديد، أغلق الفاتورة واحفظ التغييرات أولاً.",
+                            life: 5000,
+                          },
+                        ])
+                        return
+                      }
                       onFormChange("account_id", account?.id ?? null)
                       onFormChange("customer_name", account?.name ?? "")
                     }}
-                    searchAllowedTypeValues={[2, 3, 5]}
-                    disabled={isLocked}
+                    searchAllowedTypeValues={isPurchaseDeliveryVoucher ? [3, 5] : [2, 5]}
+                    disabled={isLocked || isFromDelivery}
                   />
                 </div>
                 <div className="col-span-2 grid gap-1.5">
@@ -1920,13 +1989,38 @@ export default function UnifiedSalesDelivery({
                     id="payer-name"
                     value={form.customer_name}
                     onChange={(e) => onFormChange("customer_name", e.target.value)}
-                    disabled={isLocked}
+                    disabled={isLocked || isFromDelivery}
                     className="text-right"
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className={`grid gap-3 ${
+                (voucherType === SALES_INVOICE_VCH_TYPE || voucherType === PURCHASE_INVOICE_VCH_TYPE)
+                  ? "grid-cols-3"
+                  : "grid-cols-2"
+              }`}>
+                {(voucherType === SALES_INVOICE_VCH_TYPE || voucherType === PURCHASE_INVOICE_VCH_TYPE) && (
+                  <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
+                    <Label>نوع الفاتورة</Label>
+                    <PrimeDropdown
+                      value={form.invoice_source_type || 1}
+                      options={INVOICE_SOURCE_TYPE_OPTIONS}
+                      optionLabel="label"
+                      optionValue="value"
+                      placeholder="اختر"
+                      disabled={isLocked}
+                      className="invoice-currency-dropdown w-full"
+                      panelClassName="invoice-currency-dropdown-panel"
+                      appendTo="self"
+                      panelStyle={{ zIndex: 10000 }}
+                      onChange={(e: any) => {
+                        const value = Number(e.value) || 1
+                        handleInvoiceSourceTypeChange(value)
+                      }}
+                    />
+                  </div>
+                )}
                 <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
                   <Label>المندوب</Label>
                   <PrimeDropdown
@@ -2117,35 +2211,37 @@ export default function UnifiedSalesDelivery({
               )}
 
               <TabsContent value="extra_data" className="mt-4 min-h-[360px] space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-                <div className="space-y-3 rounded-xl border border-slate-200 p-3">
-                  <div className="text-sm font-bold text-slate-600">الحسابات</div>
-                  <div className="grid gap-3 md:grid-cols-2">
-                    <AutoCompleteAccount
-                      label="حساب الصندوق *"
-                      value={form.cash_account_id != null ? String(form.cash_account_id) : ""}
-                      valueMode="id"
-                      onValueChange={() => {}}
-                      onAccountSelect={(account) => {
-                        onFormChange("cash_account_id", account?.id ?? null)
-                        onFormChange("cash_account_code", account?.code ?? "")
-                        onFormChange("cash_account_name", account?.name ?? "")
-                      }}
-                      disabled={isLocked}
-                    />
-                    <AutoCompleteAccount
-                      label="حساب الضريبة *"
-                      value={form.tax_account_id != null ? String(form.tax_account_id) : ""}
-                      valueMode="id"
-                      onValueChange={() => {}}
-                      onAccountSelect={(account) => {
-                        onFormChange("tax_account_id", account?.id ?? null)
-                        onFormChange("tax_account_code", account?.code ?? "")
-                        onFormChange("tax_account_name", account?.name ?? "")
-                      }}
-                      disabled={isLocked}
-                    />
+                {!isDeliveryVoucher && (
+                  <div className="space-y-3 rounded-xl border border-slate-200 p-3">
+                    <div className="text-sm font-bold text-slate-600">الحسابات</div>
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <AutoCompleteAccount
+                        label="حساب الصندوق *"
+                        value={form.cash_account_id != null ? String(form.cash_account_id) : ""}
+                        valueMode="id"
+                        onValueChange={() => {}}
+                        onAccountSelect={(account) => {
+                          onFormChange("cash_account_id", account?.id ?? null)
+                          onFormChange("cash_account_code", account?.code ?? "")
+                          onFormChange("cash_account_name", account?.name ?? "")
+                        }}
+                        disabled={isLocked}
+                      />
+                      <AutoCompleteAccount
+                        label="حساب الضريبة *"
+                        value={form.tax_account_id != null ? String(form.tax_account_id) : ""}
+                        valueMode="id"
+                        onValueChange={() => {}}
+                        onAccountSelect={(account) => {
+                          onFormChange("tax_account_id", account?.id ?? null)
+                          onFormChange("tax_account_code", account?.code ?? "")
+                          onFormChange("tax_account_name", account?.name ?? "")
+                        }}
+                        disabled={isLocked}
+                      />
+                    </div>
                   </div>
-                </div>
+                )}
 
                 <div className="grid gap-3 md:grid-cols-2">
                   <div className="grid gap-1.5">
@@ -2436,6 +2532,73 @@ export default function UnifiedSalesDelivery({
             restoreGridFocus(lastFocusedCellRef.current)
           }}
           onSelect={handleUnitSelect}
+        />
+
+        <InvoiceFromDeliveryPopup
+          open={invoiceFromDeliveryOpen}
+          onOpenChange={(open) => {
+            setInvoiceFromDeliveryOpen(open)
+          }}
+          voucherType={voucherType}
+          onCancel={() => {
+            handleInvoiceSourceTypeChange(1)
+          }}
+          onSelect={(delivery, customer, items, selectedDeliveries) => {
+            const invoiceRate = Number(form.rate || 1)
+            const convertedItems = items.map((item) => {
+              const unitPrice = Number(item.unit_price || 0)
+              const itemSourceRate = Number(item.source_rate || 1)
+              const convertedUnitPrice = itemSourceRate && invoiceRate ? Math.round((unitPrice * itemSourceRate / invoiceRate) * 100) / 100 : unitPrice
+              const sourceDelivery = selectedDeliveries?.find((entry) => entry.id === item.source_voucher_id) || delivery
+              return {
+                ...item,
+                source_voucher_id: sourceDelivery?.id ?? null,
+                source_voucher_type: sourceDelivery?.vch_type ?? null,
+                source_currency_id: sourceDelivery?.currency_id ?? null,
+                source_currency_code: sourceDelivery?.currency_code ?? "",
+                source_rate: sourceDelivery?.rate ?? 1,
+                unit_price: convertedUnitPrice,
+                ...recalcLineAmounts({ ...item, unit_price: convertedUnitPrice }),
+              }
+            })
+
+            const subtotal = convertedItems.reduce((sum, item) => sum + Number(item.quantity || 0) * Number(item.unit_price || 0), 0)
+            const sourceSubtotal = (selectedDeliveries || []).reduce((sum, sourceDelivery) => {
+              const deliveryItems = items.filter((item) => item.source_voucher_id === sourceDelivery.id)
+              const deliverySubtotal = deliveryItems.reduce((deliverySum, item) => {
+                const unitPrice = Number(item.unit_price || 0)
+                const quantity = Number(item.quantity || 0)
+                return deliverySum + unitPrice * quantity
+              }, 0)
+              return sum + deliverySubtotal
+            }, 0)
+
+            const computedDiscountPercent = sourceSubtotal > 0
+              ? Math.min(100, Math.max(0, (selectedDeliveries || []).reduce((sum, sourceDelivery) => {
+                  const discountValue = Number(sourceDelivery.discount_value || 0)
+                  if (!discountValue) return sum
+                  const deliveryItems = items.filter((item) => item.source_voucher_id === sourceDelivery.id)
+                  const deliverySubtotal = deliveryItems.reduce((deliverySum, item) => {
+                    const unitPrice = Number(item.unit_price || 0)
+                    const quantity = Number(item.quantity || 0)
+                    return deliverySum + unitPrice * quantity
+                  }, 0)
+                  if (!deliverySubtotal) return sum
+                  const equivalentPercent = sourceDelivery.discount_type === "amount"
+                    ? (discountValue / deliverySubtotal) * 100
+                    : discountValue
+                  return sum + (deliverySubtotal * equivalentPercent)
+                }, 0) / sourceSubtotal))
+              : 0
+
+            onFormChange("account_id", customer.id)
+            onFormChange("customer_name", customer.name || "")
+            onFormChange("source_voucher_id" as keyof SalesDeliveryRecord, selectedDeliveries?.[0]?.id ?? delivery.id)
+            onFormChange("source_voucher_type" as keyof SalesDeliveryRecord, selectedDeliveries?.[0]?.vch_type ?? delivery.vch_type)
+            onFormChange("discount_type", "percentage")
+            onFormChange("discount_value", Number(computedDiscountPercent.toFixed(2)))
+            onItemsChange(convertedItems)
+          }}
         />
 
         <ItemExpiryDatePicker

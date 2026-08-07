@@ -161,6 +161,9 @@ export const ensureTables = async () => {
   await sql`ALTER TABLE voucher_header_tbl ADD COLUMN IF NOT EXISTS shipping_address TEXT`
   await sql`ALTER TABLE voucher_header_tbl ADD COLUMN IF NOT EXISTS salesman_id INTEGER`
   await sql`ALTER TABLE voucher_header_tbl ADD COLUMN IF NOT EXISTS linked_order_id INTEGER`
+  await sql`ALTER TABLE voucher_header_tbl ADD COLUMN IF NOT EXISTS invoice_source_type INTEGER DEFAULT 1`
+  await sql`ALTER TABLE voucher_header_tbl ADD COLUMN IF NOT EXISTS source_voucher_id INTEGER`
+  await sql`ALTER TABLE voucher_header_tbl ADD COLUMN IF NOT EXISTS source_voucher_type INTEGER`
   // خصم/ضريبة على مستوى السند كاملاً — نفس نموذج unified-sales-order.tsx (discount_type/discount_value/
   // vat_percent)، بلا تكلفة شحن/رسوم أخرى (غير مطلوبة لهذه الأنواع الثمانية).
   await sql`ALTER TABLE voucher_header_tbl ADD COLUMN IF NOT EXISTS discount_type VARCHAR(20) DEFAULT 'percentage'`
@@ -423,6 +426,17 @@ export const archiveAndDeleteSalesVoucher = async (voucherId: number): Promise<{
   const voucher = headerRows[0]
   if (Number(voucher.status) !== 1) {
     return { error: "لا يمكن الحذف الفعلي إلا لسند بحالة فعال (غير مرحّل)" }
+  }
+
+  const linkedInvoice = await sql`
+    SELECT id FROM voucher_header_tbl
+    WHERE source_voucher_id = ${voucherId}
+      AND source_voucher_type = ${voucher.vch_type}
+      AND vch_type IN (${SALES_INVOICE_VCH_TYPE}, ${PURCHASE_INVOICE_VCH_TYPE})
+    LIMIT 1
+  `
+  if (linkedInvoice.length > 0) {
+    return { error: "لا يمكن حذف هذه الإرسالية لأنها مرتبطة بفاتورة" }
   }
 
   await reverseSalesVoucherStockMovement(voucherId)

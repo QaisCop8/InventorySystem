@@ -11,6 +11,11 @@ import {
   resolveVoucherBookName,
   SALES_VOUCHER_TYPES,
   ITEM_ACCOUNT_VCH_TYPES,
+  SALES_INVOICE_VCH_TYPE,
+  PURCHASE_INVOICE_VCH_TYPE,
+  DELIVERY_SELL_VCH_TYPE,
+  DELIVERY_CONSIGNMENT_SALE_VCH_TYPE,
+  DELIVERY_PAY_VCH_TYPE,
   validateItemAccounts,
   buildSalesVoucherJournalRows,
   saveJournalRows,
@@ -29,9 +34,25 @@ export async function GET(request: NextRequest) {
     const vchType = Number(searchParams.get("vch_type") || SALES_VOUCHER_TYPES[1])
 
     const rows = await sql`
-      SELECT * FROM voucher_header_tbl
-      WHERE vch_type = ${vchType} AND status != 3
-      ORDER BY id DESC
+      SELECT vh.*, EXISTS(
+        SELECT 1
+        FROM voucher_header_tbl inv
+        WHERE inv.vch_type IN (${SALES_INVOICE_VCH_TYPE}, ${PURCHASE_INVOICE_VCH_TYPE})
+          AND inv.id != vh.id
+          AND (
+            (inv.source_voucher_id = vh.id AND inv.source_voucher_type = vh.vch_type)
+            OR EXISTS (
+              SELECT 1
+              FROM voucher_items_tbl vi
+              WHERE vi.voucher_id = inv.id
+                AND vi.source_voucher_id = vh.id
+                AND vi.source_voucher_type = vh.vch_type
+            )
+          )
+      ) AS has_linked_invoice
+      FROM voucher_header_tbl vh
+      WHERE vh.vch_type = ${vchType} AND vh.status != 3
+      ORDER BY vh.id DESC
     `
 
     return NextResponse.json(rows)
@@ -68,6 +89,8 @@ const validateCodeFormat = async (requestUrl: string, vchType: number, vchBookId
   return null
 }
 
+const DELIVERY_VOUCHER_TYPES = [DELIVERY_SELL_VCH_TYPE, DELIVERY_CONSIGNMENT_SALE_VCH_TYPE, DELIVERY_PAY_VCH_TYPE] as const
+
 const validatePayload = (data: any, items: any[]): string | null => {
   if (!SALES_VOUCHER_TYPES.includes(Number(data.vch_type) as any) || !data.vch_code || !data.vch_date) {
     return "بيانات السند غير مكتملة"
@@ -79,7 +102,11 @@ const validatePayload = (data: any, items: any[]): string | null => {
     if (!data.cash_account_id) return "يجب اختيار حساب الصندوق عند عدم اختيار العميل"
     if (!String(data.customer_name || "").trim()) return "يجب إدخال اسم الدافع عند عدم اختيار العميل"
   }
-  if (Number(data.vat_percent || 0) > 0 && !data.tax_account_id) {
+  if (
+    Number(data.vat_percent || 0) > 0 &&
+    !data.tax_account_id &&
+    !DELIVERY_VOUCHER_TYPES.includes(Number(data.vch_type))
+  ) {
     return "يجب اختيار حساب الضريبة لوجود نسبة ضريبة على السند"
   }
   if (items.length === 0) return "يجب إدخال صنف واحد على الأقل"
@@ -114,6 +141,37 @@ const computeAmountBreakdown = (items: any[], data: any) => {
 
 const computeTotalAmount = (items: any[], data: any): number => Math.round(computeAmountBreakdown(items, data).total * 100) / 100
 
+const validateSourceDeliveryInvoice = async (data: any, excludeVoucherId = 0): Promise<string | null> => {
+  const invoiceSourceType = Number(data.invoice_source_type || 1)
+  if (invoiceSourceType !== 2) return null
+  const sourceVoucherId = Number(data.source_voucher_id || 0)
+  const sourceVoucherType = Number(data.source_voucher_type || 0)
+  if (!sourceVoucherId || !sourceVoucherType) {
+    return "يجب اختيار الإرسالية المصدرية للفاتورة"
+  }
+  const existing = await sql`
+    SELECT vh.id
+    FROM voucher_header_tbl vh
+    WHERE vh.id != ${excludeVoucherId}
+      AND vh.vch_type IN (${SALES_INVOICE_VCH_TYPE}, ${PURCHASE_INVOICE_VCH_TYPE})
+      AND (
+        (vh.source_voucher_id = ${sourceVoucherId} AND vh.source_voucher_type = ${sourceVoucherType})
+        OR EXISTS (
+          SELECT 1
+          FROM voucher_items_tbl vi
+          WHERE vi.voucher_id = vh.id
+            AND vi.source_voucher_id = ${sourceVoucherId}
+            AND vi.source_voucher_type = ${sourceVoucherType}
+        )
+      )
+    LIMIT 1
+  `
+  if (existing.length > 0) {
+    return "تم إصدار فاتورة لهذه الإرسالية سابقاً"
+  }
+  return null
+}
+
 export async function POST(request: NextRequest) {
   try {
     await ensureTables()
@@ -123,6 +181,8 @@ export async function POST(request: NextRequest) {
 
     const payloadError = validatePayload(data, items)
     if (payloadError) return NextResponse.json({ error: payloadError }, { status: 400 })
+    const sourceError = await validateSourceDeliveryInvoice(data)
+    if (sourceError) return NextResponse.json({ error: sourceError }, { status: 400 })
 
     // المستودع/الوحدة موجودان ونشطان فعلياً، وكذلك حساب الصنف لفاتورة مبيعات/مشتريات ومردود
     // مبيعات/مشتريات تحديداً — بمعزل عمّا رآه العميل عند اختيارهم (قد يكونوا حُذفوا أو أُوقِفوا).
@@ -154,6 +214,10 @@ export async function POST(request: NextRequest) {
     const amount = Math.round(breakdown.total * 100) / 100
     const status = Number(data.status || 1)
     const discountType = data.discount_type === "amount" ? "amount" : "percentage"
+    const invoiceSourceType = Number(data.invoice_source_type || 1)
+    const sourceVoucherId = invoiceSourceType === 2 ? Number(data.source_voucher_id || null) : null
+    const sourceVoucherType = invoiceSourceType === 2 ? Number(data.source_voucher_type || null) : null
+    const itemsToSave = invoiceSourceType === 2 ? items : items.map((item) => ({ ...item, source_voucher_id: null, source_voucher_type: null }))
 
     const result = await sql`
       INSERT INTO voucher_header_tbl (
@@ -161,6 +225,7 @@ export async function POST(request: NextRequest) {
         account_id, customer_name, to_store_id,
         amount, manual_voucher, manual_date, note, status, vch_status, is_printed,
         insert_user, shipping_address, salesman_id, linked_order_id,
+        invoice_source_type, source_voucher_id, source_voucher_type,
         discount_type, discount_value, vat_percent,
         cash_account_id, vat_classification_id, invoice_type, vat_included, is_maqasa, maqasa_type,
         phone, due_date, is_exported_sales, location_id
@@ -169,6 +234,7 @@ export async function POST(request: NextRequest) {
         ${data.account_id}, ${data.customer_name || ""}, ${data.to_store_id || null},
         ${amount}, ${data.manual_voucher || ""}, ${data.manual_date || null}, ${data.note || ""}, ${status}, ${status === 2 ? 2 : 1}, ${Number(data.is_printed || 0)},
         ${data.insert_user || null}, ${data.shipping_address || ""}, ${data.salesman_id || null}, ${data.linked_order_id || null},
+        ${invoiceSourceType}, ${sourceVoucherId || null}, ${sourceVoucherType || null},
         ${discountType}, ${Number(data.discount_value || 0)}, ${Number(data.vat_percent || 0)},
         ${data.cash_account_id || null}, ${Number(data.vat_classification_id) || 1}, ${Number(data.invoice_type) || 1},
         ${Boolean(data.vat_included)}, ${Boolean(data.is_maqasa)}, ${data.is_maqasa ? Number(data.maqasa_type) || 1 : null},
@@ -178,7 +244,7 @@ export async function POST(request: NextRequest) {
     `
 
     const voucher = result[0]
-    const savedItems = await saveSalesVoucherItems(voucher.id, items)
+    const savedItems = await saveSalesVoucherItems(voucher.id, itemsToSave)
     if ((ITEM_ACCOUNT_VCH_TYPES as readonly number[]).includes(vchType)) {
       await saveJournalRows(voucher.id, journalRows)
     }
@@ -227,6 +293,8 @@ export async function PUT(request: NextRequest) {
       items = Array.isArray(data.items) ? data.items.filter((i: any) => i?.product_id) : []
       const payloadError = validatePayload(data, items)
       if (payloadError) return NextResponse.json({ error: payloadError }, { status: 400 })
+      const sourceError = await validateSourceDeliveryInvoice(data, Number(data.id || 0))
+      if (sourceError) return NextResponse.json({ error: sourceError }, { status: 400 })
 
       const referencesError = await validateItemReferences(items, (ITEM_ACCOUNT_VCH_TYPES as readonly number[]).includes(vchType) ? ["account_id"] : [])
       if (referencesError) return NextResponse.json({ error: referencesError }, { status: 400 })
@@ -255,6 +323,9 @@ export async function PUT(request: NextRequest) {
       }
     }
 
+    const invoiceSourceType = Number(data.invoice_source_type || 1)
+    const sourceVoucherId = invoiceSourceType === 2 ? Number(data.source_voucher_id || null) : null
+    const sourceVoucherType = invoiceSourceType === 2 ? Number(data.source_voucher_type || null) : null
     const amount = computeTotalAmount(items, data)
     const discountType = data.discount_type === "amount" ? "amount" : "percentage"
 
@@ -279,6 +350,9 @@ export async function PUT(request: NextRequest) {
         shipping_address = ${data.shipping_address || ""},
         salesman_id = ${data.salesman_id || null},
         linked_order_id = ${data.linked_order_id || null},
+        invoice_source_type = ${invoiceSourceType},
+        source_voucher_id = ${sourceVoucherId || null},
+        source_voucher_type = ${sourceVoucherType || null},
         discount_type = ${discountType},
         discount_value = ${Number(data.discount_value || 0)},
         vat_percent = ${Number(data.vat_percent || 0)},
@@ -298,6 +372,7 @@ export async function PUT(request: NextRequest) {
     `
 
     const voucher = result[0]
+    const itemsToSave = invoiceSourceType === 2 ? items : items.map((item) => ({ ...item, source_voucher_id: null, source_voucher_type: null }))
 
     if (status === 3) {
       await reverseSalesVoucherStockMovement(voucher.id)
@@ -306,7 +381,7 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ ...voucher, city_id: voucher.location_id, items: [] })
     }
 
-    const savedItems = await saveSalesVoucherItems(voucher.id, items)
+    const savedItems = await saveSalesVoucherItems(voucher.id, itemsToSave)
     if ((ITEM_ACCOUNT_VCH_TYPES as readonly number[]).includes(vchType)) {
       await saveJournalRows(voucher.id, journalRows)
     }
