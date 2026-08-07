@@ -20,6 +20,7 @@ import ProductSearchPopup from "@/components/products/ProductSearchPopup"
 import StoresSearchPopup from "@/components/products/StoresSearchPopup"
 import UnitsSearchPopup from "@/components/products/UnitsSearchPopup"
 import InvoiceFromDeliveryPopup from "@/components/sales/InvoiceFromDeliveryPopup"
+import InvoiceFromOrderPopup from "@/components/sales/InvoiceFromOrderPopup"
 import PostVoucherDialog, { type PostVoucherAction } from "@/components/common/post-voucher-dialog"
 import ItemExpiryDatePicker, { type ExpiryLotAllocation } from "@/components/common/ItemExpiryDatePicker"
 import MeasurementInputDialog from "@/components/common/MeasurementInputDialog"
@@ -436,6 +437,7 @@ export default function UnifiedSalesDelivery({
   // handleVatClassificationChange أدناه.
   const [showVatRestoreConfirm, setShowVatRestoreConfirm] = useState(false)
   const [invoiceFromDeliveryOpen, setInvoiceFromDeliveryOpen] = useState(false)
+  const [invoiceFromOrderOpen, setInvoiceFromOrderOpen] = useState(false)
   const [productSearchOpen, setProductSearchOpen] = useState(false)
   const [warehouseSearchOpen, setWarehouseSearchOpen] = useState(false)
   const [warehouseSearchRow, setWarehouseSearchRow] = useState<number | null>(null)
@@ -448,7 +450,11 @@ export default function UnifiedSalesDelivery({
       setInvoiceFromDeliveryOpen(true)
       return
     }
-    if (value !== 2) {
+    if (value === 3 && dialogOpen) {
+      setInvoiceFromOrderOpen(true)
+      return
+    }
+    if (value !== 2 && value !== 3) {
       onFormChange("source_voucher_id" as keyof SalesDeliveryRecord, null)
       onFormChange("source_voucher_type" as keyof SalesDeliveryRecord, null)
       onItemsChange(
@@ -2566,7 +2572,6 @@ export default function UnifiedSalesDelivery({
               }
             })
 
-            const subtotal = convertedItems.reduce((sum, item) => sum + Number(item.quantity || 0) * Number(item.unit_price || 0), 0)
             const sourceSubtotal = (selectedDeliveries || []).reduce((sum, sourceDelivery) => {
               const deliveryItems = items.filter((item) => item.source_voucher_id === sourceDelivery.id)
               const deliverySubtotal = deliveryItems.reduce((deliverySum, item) => {
@@ -2599,6 +2604,59 @@ export default function UnifiedSalesDelivery({
             onFormChange("customer_name", customer.name || "")
             onFormChange("source_voucher_id" as keyof SalesDeliveryRecord, selectedDeliveries?.[0]?.id ?? delivery.id)
             onFormChange("source_voucher_type" as keyof SalesDeliveryRecord, selectedDeliveries?.[0]?.vch_type ?? delivery.vch_type)
+            onFormChange("discount_type", "percentage")
+            onFormChange("discount_value", Number(computedDiscountPercent.toFixed(2)))
+            onItemsChange(convertedItems)
+          }}
+        />
+
+        <InvoiceFromOrderPopup
+          open={invoiceFromOrderOpen}
+          onOpenChange={(open) => {
+            setInvoiceFromOrderOpen(open)
+          }}
+          voucherType={voucherType}
+          onCancel={() => {
+            handleInvoiceSourceTypeChange(1)
+          }}
+          onSelect={(order, customer, items, selectedOrders) => {
+            const invoiceRate = Number(form.rate || 1)
+            const convertedItems = items.map((item) => {
+              const unitPrice = Number(item.unit_price || 0)
+              const itemSourceRate = Number(item.source_rate || 1)
+              const convertedUnitPrice = itemSourceRate && invoiceRate ? Math.round((unitPrice * itemSourceRate / invoiceRate) * 100) / 100 : unitPrice
+              return {
+                ...item,
+                source_voucher_id: order.id,
+                source_voucher_type: item.source_voucher_type ?? 3,
+                source_currency_id: order.currency_id ?? null,
+                source_currency_code: order.currency_code ?? "",
+                source_rate: order.exchange_rate ?? 1,
+                unit_price: convertedUnitPrice,
+                ...recalcLineAmounts({ ...item, unit_price: convertedUnitPrice }),
+              }
+            })
+
+            const sourceSubtotal = items.reduce((sum, item) => {
+              const quantity = Number(item.quantity || 0)
+              const price = Number(item.unit_price || 0)
+              return sum + quantity * price
+            }, 0)
+            const computedDiscountPercent = sourceSubtotal > 0
+              ? Math.min(100, Math.max(0, selectedOrders.reduce((sum, selectedOrder) => {
+                  const discountValue = Number(selectedOrder.discount_amount || 0)
+                  if (!discountValue) return sum
+                  const equivalentPercent = selectedOrder.discount_type === "amount"
+                    ? (discountValue / sourceSubtotal) * 100
+                    : discountValue
+                  return sum + equivalentPercent
+                }, 0)))
+              : 0
+
+            onFormChange("account_id", customer.id)
+            onFormChange("customer_name", customer.name || "")
+            onFormChange("source_voucher_id" as keyof SalesDeliveryRecord, order.id)
+            onFormChange("source_voucher_type" as keyof SalesDeliveryRecord, 3)
             onFormChange("discount_type", "percentage")
             onFormChange("discount_value", Number(computedDiscountPercent.toFixed(2)))
             onItemsChange(convertedItems)

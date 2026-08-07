@@ -90,6 +90,7 @@ const validateCodeFormat = async (requestUrl: string, vchType: number, vchBookId
 }
 
 const DELIVERY_VOUCHER_TYPES = [DELIVERY_SELL_VCH_TYPE, DELIVERY_CONSIGNMENT_SALE_VCH_TYPE, DELIVERY_PAY_VCH_TYPE] as const
+const ORDER_SOURCE_VOUCHER_TYPE = 3
 
 const validatePayload = (data: any, items: any[]): string | null => {
   if (!SALES_VOUCHER_TYPES.includes(Number(data.vch_type) as any) || !data.vch_code || !data.vch_date) {
@@ -141,19 +142,22 @@ const computeAmountBreakdown = (items: any[], data: any) => {
 
 const computeTotalAmount = (items: any[], data: any): number => Math.round(computeAmountBreakdown(items, data).total * 100) / 100
 
-const validateSourceDeliveryInvoice = async (data: any, excludeVoucherId = 0): Promise<string | null> => {
+const validateSourceInvoice = async (data: any, excludeVoucherId = 0): Promise<string | null> => {
   const invoiceSourceType = Number(data.invoice_source_type || 1)
-  if (invoiceSourceType !== 2) return null
+  if (![2, 3].includes(invoiceSourceType)) return null
   const sourceVoucherId = Number(data.source_voucher_id || 0)
   const sourceVoucherType = Number(data.source_voucher_type || 0)
   if (!sourceVoucherId || !sourceVoucherType) {
-    return "يجب اختيار الإرسالية المصدرية للفاتورة"
+    return invoiceSourceType === 2
+      ? "يجب اختيار الإرسالية المصدرية للفاتورة"
+      : "يجب اختيار الطلبية المصدرية للفاتورة"
   }
   const existing = await sql`
     SELECT vh.id
     FROM voucher_header_tbl vh
     WHERE vh.id != ${excludeVoucherId}
       AND vh.vch_type IN (${SALES_INVOICE_VCH_TYPE}, ${PURCHASE_INVOICE_VCH_TYPE})
+      AND vh.invoice_source_type = ${invoiceSourceType}
       AND (
         (vh.source_voucher_id = ${sourceVoucherId} AND vh.source_voucher_type = ${sourceVoucherType})
         OR EXISTS (
@@ -167,7 +171,9 @@ const validateSourceDeliveryInvoice = async (data: any, excludeVoucherId = 0): P
     LIMIT 1
   `
   if (existing.length > 0) {
-    return "تم إصدار فاتورة لهذه الإرسالية سابقاً"
+    return invoiceSourceType === 2
+      ? "تم إصدار فاتورة لهذه الإرسالية سابقاً"
+      : "تم إصدار فاتورة لهذه الطلبية سابقاً"
   }
   return null
 }
@@ -181,7 +187,7 @@ export async function POST(request: NextRequest) {
 
     const payloadError = validatePayload(data, items)
     if (payloadError) return NextResponse.json({ error: payloadError }, { status: 400 })
-    const sourceError = await validateSourceDeliveryInvoice(data)
+    const sourceError = await validateSourceInvoice(data)
     if (sourceError) return NextResponse.json({ error: sourceError }, { status: 400 })
 
     // المستودع/الوحدة موجودان ونشطان فعلياً، وكذلك حساب الصنف لفاتورة مبيعات/مشتريات ومردود
@@ -215,9 +221,9 @@ export async function POST(request: NextRequest) {
     const status = Number(data.status || 1)
     const discountType = data.discount_type === "amount" ? "amount" : "percentage"
     const invoiceSourceType = Number(data.invoice_source_type || 1)
-    const sourceVoucherId = invoiceSourceType === 2 ? Number(data.source_voucher_id || null) : null
-    const sourceVoucherType = invoiceSourceType === 2 ? Number(data.source_voucher_type || null) : null
-    const itemsToSave = invoiceSourceType === 2 ? items : items.map((item) => ({ ...item, source_voucher_id: null, source_voucher_type: null }))
+    const sourceVoucherId = [2, 3].includes(invoiceSourceType) ? Number(data.source_voucher_id || null) : null
+    const sourceVoucherType = [2, 3].includes(invoiceSourceType) ? Number(data.source_voucher_type || null) : null
+    const itemsToSave = [2, 3].includes(invoiceSourceType) ? items : items.map((item) => ({ ...item, source_voucher_id: null, source_voucher_type: null }))
 
     const result = await sql`
       INSERT INTO voucher_header_tbl (
@@ -293,7 +299,7 @@ export async function PUT(request: NextRequest) {
       items = Array.isArray(data.items) ? data.items.filter((i: any) => i?.product_id) : []
       const payloadError = validatePayload(data, items)
       if (payloadError) return NextResponse.json({ error: payloadError }, { status: 400 })
-      const sourceError = await validateSourceDeliveryInvoice(data, Number(data.id || 0))
+      const sourceError = await validateSourceInvoice(data, Number(data.id || 0))
       if (sourceError) return NextResponse.json({ error: sourceError }, { status: 400 })
 
       const referencesError = await validateItemReferences(items, (ITEM_ACCOUNT_VCH_TYPES as readonly number[]).includes(vchType) ? ["account_id"] : [])
@@ -324,8 +330,8 @@ export async function PUT(request: NextRequest) {
     }
 
     const invoiceSourceType = Number(data.invoice_source_type || 1)
-    const sourceVoucherId = invoiceSourceType === 2 ? Number(data.source_voucher_id || null) : null
-    const sourceVoucherType = invoiceSourceType === 2 ? Number(data.source_voucher_type || null) : null
+    const sourceVoucherId = [2, 3].includes(invoiceSourceType) ? Number(data.source_voucher_id || null) : null
+    const sourceVoucherType = [2, 3].includes(invoiceSourceType) ? Number(data.source_voucher_type || null) : null
     const amount = computeTotalAmount(items, data)
     const discountType = data.discount_type === "amount" ? "amount" : "percentage"
 
@@ -372,7 +378,7 @@ export async function PUT(request: NextRequest) {
     `
 
     const voucher = result[0]
-    const itemsToSave = invoiceSourceType === 2 ? items : items.map((item) => ({ ...item, source_voucher_id: null, source_voucher_type: null }))
+    const itemsToSave = [2, 3].includes(invoiceSourceType) ? items : items.map((item) => ({ ...item, source_voucher_id: null, source_voucher_type: null }))
 
     if (status === 3) {
       await reverseSalesVoucherStockMovement(voucher.id)
