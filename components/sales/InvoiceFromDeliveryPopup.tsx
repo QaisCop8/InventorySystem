@@ -308,7 +308,7 @@ export default function InvoiceFromDeliveryPopup({
   return (
     <Dialog open={open} onOpenChange={handleDialogOpenChange}>
       <DialogContent
-        className="max-w-[86vw] max-h-[90vh] p-0 border border-slate-300 shadow-2xl"
+        className="max-w-[60vw] max-h-[90vh] p-0 border border-slate-300 shadow-2xl"
         onInteractOutside={(event) => {
           event.preventDefault()
         }}

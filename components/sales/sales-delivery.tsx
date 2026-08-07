@@ -443,7 +443,7 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
     try {
       const details = await fetchVoucherDetails(id)
       if (!details) return
-      const index = vouchers.findIndex((v) => v.id === id)
+      const index = filteredVouchers.findIndex((v) => v.id === id)
       setForm(normalizeVoucher(details))
       setCurrentIndex(index >= 0 ? index : 0)
       setErrorMessages([])
@@ -464,7 +464,9 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
 
   const cloneVoucher = async () => {
     if (!form.id) return
-    const code = await generateCode(form.vch_book_id)
+    setIsLoading(true)
+    try {
+      const code = await generateCode(form.vch_book_id)
     const today = new Date().toISOString().slice(0, 10)
     setForm((f) => ({
       ...f,
@@ -476,6 +478,9 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
       is_printed: 0,
     }))
     setErrorMessages([])
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const validateVoucher = (data: SalesDeliveryRecord): string | null => {
@@ -627,16 +632,36 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
   }
 
   const handleNavigate = async (direction: "first" | "previous" | "next" | "last") => {
-    if (filteredVouchers.length === 0) return
-    let targetIndex = currentIndex
-    if (direction === "first") targetIndex = 0
-    else if (direction === "last") targetIndex = filteredVouchers.length - 1
-    else if (direction === "previous") targetIndex = Math.max(0, currentIndex - 1)
-    else targetIndex = Math.min(filteredVouchers.length - 1, currentIndex + 1)
+    try {
+      console.debug("handleNavigate called", { direction, currentIndex, filteredLength: filteredVouchers.length })
+      if (filteredVouchers.length === 0) return
+      let targetIndex = currentIndex
+      if (direction === "first") targetIndex = 0
+      else if (direction === "last") targetIndex = filteredVouchers.length - 1
+      else if (direction === "previous") targetIndex = Math.max(0, currentIndex - 1)
+      else targetIndex = Math.min(filteredVouchers.length - 1, currentIndex + 1)
 
-    const record = filteredVouchers[targetIndex]
-    if (!record) return
-    await openRow(record, targetIndex)
+      const record = filteredVouchers[targetIndex]
+      if (!record) {
+        console.warn("handleNavigate: no record at targetIndex", { targetIndex, filteredLength: filteredVouchers.length })
+        return
+      }
+
+      // Fetch fresh details from API (in case other users added/updated the record)
+      setIsLoading(true)
+      try {
+        const details = await fetchVoucherDetails(record.id)
+        setForm(normalizeVoucher(details || record))
+        setCurrentIndex(targetIndex)
+        setErrorMessages([])
+        setDialogOpen(true)
+      } finally {
+        setIsLoading(false)
+      }
+    } catch (err) {
+      console.error("handleNavigate error", err)
+      throw err
+    }
   }
 
   const onFormChange = <K extends keyof SalesDeliveryRecord>(field: K, value: SalesDeliveryRecord[K]) => {
@@ -783,7 +808,8 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
         cities={cities}
         priceEntryIncludesTax={priceEntryIncludesTax}
         resolveDefaultVatPercent={resolveDefaultVatPercent}
-        isSaving={isSaving || isLoading}
+        isSaving={isSaving}
+        isLoading={isLoading}
         currentIndex={currentIndex}
         totalRecords={filteredVouchers.length}
         isFirstRecord={currentIndex <= 0}

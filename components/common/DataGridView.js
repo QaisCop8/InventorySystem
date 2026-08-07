@@ -277,7 +277,7 @@ createButtonsColumns = () => {
         ? this.state.columnChooserItemsSource.filter((item) => item.header.toLowerCase().includes(this.state.searchText.toLowerCase()))
         : [];
     const height = this.props.containerStyle || {};
-    const { innerRef, ...gridProps } = this.props;
+    const { innerRef, dataSource, idProperty, isReport, ...gridProps } = this.props;
     return (
       <div style={height} dir="rtl">
         {this.state.hasError && (

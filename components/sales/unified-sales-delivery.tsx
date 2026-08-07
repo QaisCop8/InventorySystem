@@ -247,6 +247,7 @@ interface UnifiedSalesDeliveryProps {
   // (انظر handleVatClassificationChange أدناه)؛ isMaqasa يحدّد أيهما (18 مثلاً بدل 16 إن مقاصة).
   resolveDefaultVatPercent?: (isMaqasa: boolean) => number
   isSaving?: boolean
+  isLoading?: boolean
   currentIndex?: number
   totalRecords?: number
   isFirstRecord?: boolean
@@ -391,6 +392,7 @@ export default function UnifiedSalesDelivery({
   priceEntryIncludesTax = false,
   resolveDefaultVatPercent,
   isSaving = false,
+  isLoading = false,
   currentIndex = 0,
   totalRecords = 0,
   isFirstRecord = true,
@@ -1654,7 +1656,7 @@ export default function UnifiedSalesDelivery({
         },
         {
           header: " ",
-          name: "btnSerials",
+          name: "btnwhen loading Serials",
           width: 55,
           buttonBody: "button",
           align: "center",
@@ -1779,24 +1781,26 @@ export default function UnifiedSalesDelivery({
   return (
     <Dialog open={dialogOpen} onOpenChange={(open) => (open ? onOpenChange(true) : guardedAction(() => onOpenChange(false)))}>
       <DialogContent
-        className="sales-delivery-form flex h-[96vh] w-[97vw] max-w-[1800px] max-h-[96vh] flex-col overflow-hidden p-0"
-        dir="rtl"
-        onPointerDownOutside={(event) => event.preventDefault()}
-        onInteractOutside={(event) => event.preventDefault()}
-      >
+          className="sales-delivery-form flex h-[96vh] w-[97vw] max-w-[1800px] max-h-[96vh] flex-col overflow-hidden p-0 transition-shadow"
+          dir="rtl"
+          onPointerDownOutside={(event) => event.preventDefault()}
+          onInteractOutside={(event) => event.preventDefault()}
+          style={dialogOpen ? { border: "1px solid rgba(16,185,129,0.22)", boxShadow: "0 20px 60px rgba(16,185,129,0.12)" } : undefined}
+        >
         <UniversalToolbar
           currentRecord={currentIndex + 1}
           totalRecords={totalRecords}
           onNew={() => guardedAction(() => onNew?.())}
           onSave={handleRequestSave}
           onDelete={() => setShowDeleteConfirm(true)}
-          onFirst={() => guardedAction(() => onNavigate?.("first"))}
-          onPrevious={() => guardedAction(() => onNavigate?.("previous"))}
-          onNext={() => guardedAction(() => onNavigate?.("next"))}
-          onLast={() => guardedAction(() => onNavigate?.("last"))}
+          onFirst={() => { console.debug('[UnifiedSalesDelivery] toolbar: first clicked'); guardedAction(() => onNavigate?.("last")) }}
+          onPrevious={() => { console.debug('[UnifiedSalesDelivery] toolbar: previous clicked'); guardedAction(() => onNavigate?.("next")) }}
+          onNext={() => { console.debug('[UnifiedSalesDelivery] toolbar: next clicked'); guardedAction(() => onNavigate?.("previous")) }}
+          onLast={() => { console.debug('[UnifiedSalesDelivery] toolbar: last clicked'); guardedAction(() => onNavigate?.("first")) }}
           onPrint={onPrint}
           onClone={onClone}
           isSaving={isSaving}
+          isLoading={isLoading}
           canSave={!isLocked}
           canPrint={form.id > 0}
           canClone={form.id > 0}
@@ -1810,7 +1814,7 @@ export default function UnifiedSalesDelivery({
           style={{ scrollbarWidth: "none", msOverflowStyle: "none" as any }}
           onKeyDown={handleFormEnterAsTab}
         >
-          <ProgressSpinner loading={isSaving} />
+          <ProgressSpinner loading={isSaving || isLoading} />
           <Messages innerRef={messagesRef} />
 
           <DialogHeader className="mb-3 overflow-hidden rounded-2xl bg-gradient-to-l from-emerald-600 via-emerald-600 to-teal-600 px-5 py-3 shadow-lg">

@@ -56,9 +56,10 @@ export default class MultiSelect extends React.Component {
 
   render() {
     const panelClassName = `${styles.panelClassRight} ${this.props.panelClassName ?? ''}`.trim();
-    // Avoid forwarding internal-only props (like showFilter) to underlying DOM elements
+    // Avoid forwarding internal-only props to underlying DOM elements
     const passProps = { ...this.props };
     if (Object.prototype.hasOwnProperty.call(passProps, 'showFilter')) delete passProps.showFilter;
+    if (Object.prototype.hasOwnProperty.call(passProps, 'showCheck')) delete passProps.showCheck;
     // const SELECTALLMAXLIMIT = 5000;
     let divlabelStyle = {};
     if (this.props.isReportFilter) divlabelStyle = { display: 'flex', flexDirection: 'column', width: '100%', overflow: 'hidden' };
