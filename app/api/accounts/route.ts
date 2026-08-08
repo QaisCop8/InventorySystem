@@ -37,6 +37,45 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const typeParam = searchParams.get('type')
     const typeFilter = typeParam ? parseInt(typeParam, 10) : null
+    const deliveryVchTypesParam = searchParams.get('delivery_vch_types') || ""
+    const deliveryVchTypes = deliveryVchTypesParam
+      .split(",")
+      .map((value) => Number(value))
+      .filter((value) => Number.isFinite(value) && value > 0)
+
+    const orderTypeParam = searchParams.get('order_type')
+    const orderType = orderTypeParam ? Number(orderTypeParam) : null
+
+    const hasDeliveriesCondition = deliveryVchTypes.length > 0
+      ? sql`
+          EXISTS (
+            SELECT 1
+            FROM voucher_header_tbl vh
+            WHERE vh.account_id = a.id
+              AND vh.vch_type = ANY(${deliveryVchTypes})
+              AND vh.status = 2
+              AND NOT EXISTS (
+                SELECT 1
+                FROM voucher_header_tbl inv
+                WHERE inv.vch_type IN (12, 17)
+                  AND inv.invoice_source_type = 2
+                  AND inv.source_voucher_id = vh.id
+                  AND inv.source_voucher_type = vh.vch_type
+              )
+              AND NOT EXISTS (
+                SELECT 1
+                FROM voucher_items_tbl vi
+                WHERE vi.source_voucher_id = vh.id
+                  AND vi.source_voucher_type = vh.vch_type
+              )
+          )`
+      : sql`FALSE`
+
+    const hasOrdersCondition = orderType === 1
+      ? sql`EXISTS (SELECT 1 FROM orders o WHERE o.customer_id = a.id)`
+      : orderType === 2
+        ? sql`EXISTS (SELECT 1 FROM purchase_orders po WHERE po.supplier_id = a.id)`
+        : sql`FALSE`
 
     let rows
     if (typeFilter !== null) {
@@ -71,6 +110,8 @@ export async function GET(request: NextRequest) {
           a.unified_report_account_no,
           a.unified_report_group_code,
           a.notes AS description,
+          ${hasDeliveriesCondition} AS has_deliveries,
+          ${hasOrdersCondition} AS has_orders,
           a.show_notes_in_transactions_soa,
           a.status,
           a.insert_date AS created_at,
@@ -118,6 +159,8 @@ export async function GET(request: NextRequest) {
           a.unified_report_account_no,
           a.unified_report_group_code,
           a.notes AS description,
+          ${hasDeliveriesCondition} AS has_deliveries,
+          ${hasOrdersCondition} AS has_orders,
           a.show_notes_in_transactions_soa,
           a.status,
           a.insert_date AS created_at,

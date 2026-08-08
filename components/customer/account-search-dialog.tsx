@@ -50,6 +50,8 @@ export interface AccountItem {
   unified_report_group_code?: string | null
   notes?: string | null
   show_notes_in_transactions_soa: boolean
+  has_deliveries?: boolean
+  has_orders?: boolean
   status: string
   cost_centers?: any[]
   created_at?: string
@@ -65,6 +67,10 @@ interface AccountSearchDialogProps {
   defaultTypeValue?: string
   showFinancialListFilter?: boolean
   showTypeFilter?: boolean
+  showDeliveryOnlyFilter?: boolean
+  deliveryVchTypes?: number[]
+  showOrderOnlyFilter?: boolean
+  orderType?: number | null
 }
 
 interface CurrencyOption {
@@ -112,6 +118,10 @@ export default function AccountSearchDialog({
   defaultTypeValue = "__all__",
   showFinancialListFilter = true,
   showTypeFilter = true,
+  showDeliveryOnlyFilter = false,
+  deliveryVchTypes = [],
+  showOrderOnlyFilter = false,
+  orderType = null,
 }: AccountSearchDialogProps) {
   const [searchResults, setSearchResults] = useState<AccountItem[]>([])
   const [allAccounts, setAllAccounts] = useState<AccountItem[]>([])
@@ -124,6 +134,8 @@ export default function AccountSearchDialog({
     financialList: "__all__",
     type: defaultTypeValue,
     currency: "__all__",
+    deliveryOnly: Boolean(showDeliveryOnlyFilter),
+    orderOnly: Boolean(showOrderOnlyFilter),
   })
   const gridRef = useRef<any>(null)
   const filterContainerRef = useRef<HTMLDivElement | null>(null)
@@ -220,6 +232,8 @@ export default function AccountSearchDialog({
         financialList: "__all__",
         type: defaultTypeValue,
         currency: "__all__",
+        deliveryOnly: Boolean(showDeliveryOnlyFilter),
+        orderOnly: Boolean(showOrderOnlyFilter),
       })
       return
     }
@@ -230,17 +244,21 @@ export default function AccountSearchDialog({
       financialList: "__all__",
       type: defaultTypeValue,
       currency: "__all__",
+      deliveryOnly: Boolean(showDeliveryOnlyFilter),
+      orderOnly: Boolean(showOrderOnlyFilter),
     }
-
-    fetch(CURRENCIES_API_URL)
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => setCurrencies(Array.isArray(data?.rates) ? data.rates : []))
-      .catch(() => setCurrencies([]))
 
     const loadFreshAccounts = async () => {
       setLoading(true)
       try {
-        const response = await fetch(API_URL)
+        const url = new URL(API_URL, window.location.origin)
+        if (deliveryVchTypes.length > 0) {
+          url.searchParams.set("delivery_vch_types", deliveryVchTypes.join(","))
+        }
+        if (orderType != null) {
+          url.searchParams.set("order_type", String(orderType))
+        }
+        const response = await fetch(url.toString())
         if (!response.ok) return
 
         const data = await response.json()
@@ -255,6 +273,7 @@ export default function AccountSearchDialog({
               : (account as any).parent_account_id != null
                 ? Number((account as any).parent_account_id)
                 : null,
+          has_orders: Boolean((account as any).has_orders),
           type:
             account.type != null
               ? Number(account.type)
@@ -274,7 +293,7 @@ export default function AccountSearchDialog({
     }
 
     void loadFreshAccounts()
-  }, [open, defaultTypeValue, allowedTypeValuesKey])
+  }, [open, defaultTypeValue, allowedTypeValuesKey, deliveryVchTypes.join(","), orderType, showOrderOnlyFilter, showDeliveryOnlyFilter])
 
   useEffect(() => {
     if (!open) return
@@ -301,6 +320,16 @@ export default function AccountSearchDialog({
     return Number(account.currency_id ?? 0) === Number(filterValue)
   }
 
+  const matchesDeliveryFilter = (account: AccountItem, deliveryOnly: boolean) => {
+    if (!deliveryOnly) return true
+    return Boolean(account.has_deliveries)
+  }
+
+  const matchesOrderFilter = (account: AccountItem, orderOnly: boolean) => {
+    if (!orderOnly) return true
+    return Boolean(account.has_orders)
+  }
+
   const handleSearchAccounts = () => {
     const results = visibleAccounts.filter((account) => {
       if (searchFilters.accountNumber && !account.code.includes(searchFilters.accountNumber)) {
@@ -316,6 +345,12 @@ export default function AccountSearchDialog({
         return false
       }
       if (!matchesCurrencyFilter(account, searchFilters.currency)) {
+        return false
+      }
+      if (!matchesDeliveryFilter(account, searchFilters.deliveryOnly)) {
+        return false
+      }
+      if (!matchesOrderFilter(account, searchFilters.orderOnly)) {
         return false
       }
       return true
@@ -341,6 +376,12 @@ export default function AccountSearchDialog({
         return false
       }
       if (!matchesCurrencyFilter(account, filters.currency)) {
+        return false
+      }
+      if (!matchesDeliveryFilter(account, filters.deliveryOnly)) {
+        return false
+      }
+      if (!matchesOrderFilter(account, filters.orderOnly)) {
         return false
       }
       return true
@@ -455,6 +496,7 @@ export default function AccountSearchDialog({
         className="h-[100dvh] max-h-[100dvh] w-screen max-w-none overflow-hidden rounded-none border-0 bg-white p-0 shadow-2xl backdrop-blur sm:h-[92vh] sm:max-h-[92vh] sm:w-[96vw] sm:max-w-[1500px] sm:rounded-3xl sm:border sm:border-slate-200"
         dir="rtl"
         onCloseAutoFocus={(event) => event.preventDefault()}
+        onInteractOutside={(event) => event.preventDefault()}
       >
         <div className="flex h-full min-h-0 flex-col gap-3 overflow-y-auto overscroll-contain p-3 sm:gap-4 sm:overflow-hidden sm:p-5">
           {/* Header */}
@@ -581,6 +623,46 @@ export default function AccountSearchDialog({
                     applySearchFilters(nextFilters)
                   }}
                 />
+              </div>
+            </div>
+            <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                {showDeliveryOnlyFilter ? (
+                  <div className="flex items-center gap-2">
+                    <input
+                      id="deliveryOnly"
+                      type="checkbox"
+                      checked={searchFilters.deliveryOnly}
+                      onChange={(e) => {
+                        const nextFilters = { ...searchFilters, deliveryOnly: e.target.checked }
+                        setSearchFilters(nextFilters)
+                        applySearchFilters(nextFilters)
+                      }}
+                      className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                    />
+                    <label htmlFor="deliveryOnly" className="text-sm font-medium text-slate-600">
+                      إظهار الزبائن الذين لديهم ارساليات فقط
+                    </label>
+                  </div>
+                ) : null}
+                {showOrderOnlyFilter ? (
+                  <div className="flex items-center gap-2">
+                    <input
+                      id="orderOnly"
+                      type="checkbox"
+                      checked={searchFilters.orderOnly}
+                      onChange={(e) => {
+                        const nextFilters = { ...searchFilters, orderOnly: e.target.checked }
+                        setSearchFilters(nextFilters)
+                        applySearchFilters(nextFilters)
+                      }}
+                      className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                    />
+                    <label htmlFor="orderOnly" className="text-sm font-medium text-slate-600">
+                      إظهار الزبائن الذين لديهم طلبيات فقط
+                    </label>
+                  </div>
+                ) : null}
               </div>
               <div className="flex items-end">
                 <Button

@@ -335,6 +335,9 @@ function UnifiedSalesOrder({
   const isHandlingSave = useRef(false)
   const isDeleting = useRef(false)
   const lastVchBook = useRef<string | null>(null)
+  const [defaultItemWarehouseId, setDefaultItemWarehouseId] = useState<number | null>(null)
+  const defaultItemWarehouseIdRef = useRef<number | null>(null)
+  defaultItemWarehouseIdRef.current = defaultItemWarehouseId
   const defaultVatPercentRef = useRef<number>(0)
   const doHotKeys = useRef(true)
   const toast = useRef<Toast | null>(null);
@@ -627,6 +630,22 @@ function UnifiedSalesOrder({
     if (systemResponse.ok) {
       const systemData = await systemResponse.json()
       defaultVatPercentRef.current = Number(systemData?.tax_rate) || 0
+    }
+
+    if (user?.id) {
+      try {
+        const warehouseDefaultsUrl = `/api/settings/user-warehouse-defaults?user_id=${encodeURIComponent(user.id)}`
+        const defaultsResponse = await fetch(warehouseDefaultsUrl)
+        if (defaultsResponse.ok) {
+          const defaultsData = await defaultsResponse.json()
+          setDefaultItemWarehouseId(defaultsData?.default_item_warehouse_id ?? null)
+        } else {
+          setDefaultItemWarehouseId(null)
+        }
+      } catch (error) {
+        console.error("Failed to load user default warehouse:", error)
+        setDefaultItemWarehouseId(null)
+      }
     }
 
     // Price categories
@@ -970,23 +989,24 @@ function UnifiedSalesOrder({
 
   const FillItemInner = async (items: any[], grid: wjGrid.FlexGrid) => {
     const resolveProductStore = (product: any) => {
-      const defaultStoreId = Number(product.default_store ?? product.store_id ?? 0) || 0;
-      const defaultStoreName =
-        product.default_store_name ||
+      const productStoreId = product?.default_store ? Number(product.default_store) : product?.store_id ? Number(product.store_id) : 0;
+      const userWarehouseId = Number(defaultItemWarehouseIdRef.current ?? 0) || 0;
+      const resolvedStoreId = productStoreId > 0 ? productStoreId : userWarehouseId > 0 ? userWarehouseId : definitionsRef.current?.warehouses?.[0]?.id ?? 0;
+      const resolvedStoreName =
+        (productStoreId > 0
+          ? product.default_store_name || product.store_name
+          : userWarehouseId > 0
+          ? definitionsRef.current?.warehouses?.find((warehouse: any) => warehouse.id === userWarehouseId)?.warehouse_name
+          : undefined) ||
         product.store_name ||
-        definitionsRef.current?.warehouses?.find((warehouse: any) => warehouse.id === defaultStoreId)?.warehouse_name ||
+        product.default_store_name ||
+        definitionsRef.current?.warehouses?.find((warehouse: any) => warehouse.id === resolvedStoreId)?.warehouse_name ||
+        definitionsRef.current?.warehouses?.[0]?.warehouse_name ||
         "";
 
-      if (defaultStoreId > 0) {
-        return {
-          store_id: defaultStoreId,
-          store_name: defaultStoreName || definitionsRef.current?.warehouses?.[0]?.warehouse_name || "",
-        };
-      }
-
       return {
-        store_id: definitionsRef.current?.warehouses?.[0]?.id ?? 0,
-        store_name: definitionsRef.current?.warehouses?.[0]?.warehouse_name ?? "",
+        store_id: resolvedStoreId,
+        store_name: resolvedStoreName,
       };
     };
 
@@ -1032,10 +1052,9 @@ function UnifiedSalesOrder({
           units: units,
           has_batch_number: ii.has_batch_number,
           batch: '',
-          qnty: items.length > 1 ? 1 : '',
+          qnty: 1,
           bonus: '',
-          amount: items.length > 1 ? initialPrice : ''
-
+          amount: initialPrice
         };
         if (setFromExcelRef.current) {
           item.qnty = ii.qnty;
@@ -1062,8 +1081,6 @@ function UnifiedSalesOrder({
         })();
         item.price = updatedPrice;
         item.price_incl_tax = calculateInclusivePrice(updatedPrice, state.formData.vat_percent ?? 0);
-        item.qnty = setFromExcelRef.current ? ii.qnty : '';
-        item.bonus = setFromExcelRef.current ? ii.bonus : '';
         item.store_id = resolvedStore.store_id;
         item.store_name = resolvedStore.store_name;
         item.barcode = ii.barcode || ii.first_barcode;
@@ -1071,8 +1088,8 @@ function UnifiedSalesOrder({
         item.units = units;
         item.has_batch_number = ii.has_batch_number;
         item.batch = setFromExcelRef.current ? ii.batch + '' : '';
-        item.qnty = setFromExcelRef.current ? ii.qnty : items.length > 1 ? 1 : '';
-        item.amount = setFromExcelRef.current ? ii.qnty * ii.price : items.length > 1 ? updatedPrice : '';
+        item.qnty = setFromExcelRef.current ? ii.qnty : 1;
+        item.amount = setFromExcelRef.current ? ii.qnty * ii.price : updatedPrice;
         CollectionView.commitEdit();
       }
     }
@@ -2732,21 +2749,29 @@ function UnifiedSalesOrder({
 
       if (mappedOrder.items?.length) {
         let ser = 1;
-        const updatedItems = mappedOrder.items.map((item: any) => ({
-          ...item,
-          id: item.product_id,
-          item_id: item.product_id,
-          code: item.product_code,
-          name: item.product_name,
-          price: item.price,
-          price_incl_tax: calculateInclusivePrice(item.price, Number(mappedOrder.vat_percent ?? state.formData.vat_percent ?? 0)),
-          unit_id: item.unit_id,
-          store_id: item.store_id,
-          store_name: item.store_name,
-          units: item.units
-        }));
-
-        CollectionView.sourceCollection = updatedItems;
+        const updatedItems = mappedOrder.items.map((item: any) => {
+          const quantity = Number(item.qnty ?? item.quantity ?? 0) || 0
+          const unitPrice = Number(item.price || 0)
+          return {
+            ...item,
+            id: item.product_id,
+            item_id: item.product_id,
+            code: item.product_code,
+            name: item.product_name,
+            price: unitPrice,
+            price_incl_tax: calculateInclusivePrice(unitPrice, Number(mappedOrder.vat_percent ?? state.formData.vat_percent ?? 0)),
+            unit_id: item.unit_id,
+            store_id: item.store_id,
+            store_name: item.store_name,
+            units: item.units,
+            qnty: quantity,
+            bonus: Number(item.bonus_quantity ?? item.bonus ?? 0),
+            amount: item.amount ?? quantity * unitPrice,
+            batch: item.batch ?? "",
+            expiry_date: item.expiry_date ?? "",
+            discount: Number(item.discount ?? item.discount_percentage ?? 0),
+          }
+        });
         CollectionView.refresh();
       }
 

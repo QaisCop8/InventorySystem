@@ -277,7 +277,49 @@ createButtonsColumns = () => {
         ? this.state.columnChooserItemsSource.filter((item) => item.header.toLowerCase().includes(this.state.searchText.toLowerCase()))
         : [];
     const height = this.props.containerStyle || {};
-    const { innerRef, dataSource, idProperty, isReport, ...gridProps } = this.props;
+    const {
+      innerRef,
+      dataSource,
+      idProperty,
+      isReport,
+      containerStyle,
+      defaultRowHeight,
+      scheme,
+      parent,
+      focusFilter,
+      hideSearch,
+      pageId,
+      allowDragging,
+      allowMerging,
+      columnHeaderHeight,
+      onKeyDown,
+      onMouseDown,
+      onRowClick,
+      onRowDoubleClick,
+      columnsCustomMenu,
+      registerContextMenuEvent,
+      showContextMenu,
+      exportFileName,
+      allowExcelExport,
+      exportHiddenColumns,
+      copyItemStoreDown,
+      checkBoxSelector,
+      ShowColumsSpan,
+      ColumsSpanFrom,
+      ColumsSpanTo,
+      ColumsSpanHeader,
+      showStaticFooter,
+      dontConvertToCards,
+      dontDoLessThan3,
+      doHideVisibleCol,
+      from_permissions,
+      ...gridProps
+    } = this.props;
+    Object.keys(gridProps).forEach((key) => {
+      if (/^on[A-Z]/.test(key)) {
+        delete gridProps[key];
+      }
+    });
     return (
       <div style={height} dir="rtl">
         {this.state.hasError && (

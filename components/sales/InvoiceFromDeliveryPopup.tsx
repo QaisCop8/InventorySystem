@@ -368,7 +368,7 @@ export default function InvoiceFromDeliveryPopup({
                 ) : error ? (
                   <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>
                 ) : deliveries.length === 0 ? (
-                  <div className="py-12 text-center text-sm text-slate-500">لا توجد إرسالات تم العثور عليها للعميل المحدد.</div>
+                  <div className="py-12 text-center text-sm text-slate-500">لا توجد إرساليات تم العثور عليها للعميل المحدد.</div>
                 ) : (
                   <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white">
                     <DataGridView
@@ -434,6 +434,8 @@ export default function InvoiceFromDeliveryPopup({
         }}
         accounts={[]}
         allowedTypeValues={allowedAccountTypes}
+        showDeliveryOnlyFilter={true}
+        deliveryVchTypes={sourceDeliveryTypes}
         onSelect={handleCustomerSelect}
       />
     </Dialog>

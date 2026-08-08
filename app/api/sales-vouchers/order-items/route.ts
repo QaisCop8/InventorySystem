@@ -13,9 +13,11 @@ export async function GET(request: NextRequest) {
 
     if (orderType === 1) {
       const orders = await sql`
-        SELECT o.*, COALESCE(c.name, '') AS account_name
+        SELECT o.*, COALESCE(c.name, '') AS account_name,
+               COALESCE(cur.currency_code, '') AS currency_code
         FROM orders o
         LEFT JOIN customers c ON c.id = o.customer_id
+        LEFT JOIN currency cur ON cur.id = o.currency_id
         WHERE o.id = ${orderId}
         LIMIT 1
       `
@@ -24,11 +26,18 @@ export async function GET(request: NextRequest) {
       }
 
       const items = await sql`
-        SELECT soi.*, p.product_code, p.product_name, p.barcode, p.main_unit AS unit
-        FROM sales_order_items soi
-        LEFT JOIN products p ON p.id = soi.product_id
-        WHERE soi.sales_order_id = ${orderId}
-        ORDER BY soi.id
+        SELECT oi.*, p.product_code,
+               COALESCE(oi.product_name, p.product_name, '') AS product_name,
+               p.barcode,
+               COALESCE(u.unit_name, p.main_unit, '') AS unit,
+               oi.price AS unit_price,
+               oi.discount AS discount_percent,
+               oi.bonus AS bonus_quantity
+        FROM order_items oi
+        LEFT JOIN products p ON p.id = oi.product_id
+        LEFT JOIN units u ON u.id = oi.unit_id
+        WHERE oi.order_id = ${orderId}
+        ORDER BY oi.id
       `
 
       return NextResponse.json({ order: orders[0], items })

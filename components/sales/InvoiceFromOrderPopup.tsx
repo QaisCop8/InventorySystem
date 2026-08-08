@@ -376,7 +376,7 @@ export default function InvoiceFromOrderPopup({
 
             <div className="grid gap-4 lg:grid-cols-2">
               <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
-                <div className="mb-3 text-sm font-semibold text-slate-700">الطلبات المتاحة</div>
+                <div className="mb-3 text-sm font-semibold text-slate-700">الطلبيات الجاهزة</div>
                 <div className="min-h-[220px] overflow-auto border border-slate-200 p-2">
                   {loading ? (
                     <div className="text-sm text-slate-500">جاري تحميل الطلبات...</div>
@@ -443,6 +443,8 @@ export default function InvoiceFromOrderPopup({
           }
         }}
         allowedTypeValues={allowedAccountTypes}
+        showOrderOnlyFilter={true}
+        orderType={orderType}
         onSelect={handleCustomerSelect}
       />
     </Dialog>
