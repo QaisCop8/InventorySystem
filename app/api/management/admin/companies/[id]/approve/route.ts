@@ -49,6 +49,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     return NextResponse.json({ success: true, dbName })
   } catch (error) {
     console.error("[management/admin/companies/approve] error:", error)
-    return NextResponse.json({ error: "حدث خطأ أثناء اعتماد الشركة" }, { status: 500 })
+    const message = error instanceof Error ? error.message : "حدث خطأ أثناء اعتماد الشركة"
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }

@@ -46,6 +46,49 @@ function isIdentityColumn(col: ColumnInfo): boolean {
   return col.is_identity === "YES"
 }
 
+const LEGACY_SCHEMA_TABLES = new Set(["voucher_items"])
+
+async function ensureModernVoucherItemsTable(tenantClient: ReturnType<typeof getPoolForDb>) {
+  await tenantClient.query(`DROP TABLE IF EXISTS public.voucher_items CASCADE`, [])
+  await tenantClient.query(`DROP TABLE IF EXISTS public.voucher_items_tbl CASCADE`, [])
+
+  await tenantClient.query(
+    `CREATE TABLE IF NOT EXISTS voucher_items_tbl (
+      id SERIAL PRIMARY KEY,
+      voucher_id INTEGER NOT NULL REFERENCES voucher_header_tbl(id) ON DELETE CASCADE,
+      item_id INTEGER,
+      item_name VARCHAR(140),
+      unit_id INTEGER,
+      qnty DOUBLE PRECISION,
+      bonus DOUBLE PRECISION,
+      discount DOUBLE PRECISION,
+      vat_classification_id INTEGER,
+      vat_amount DOUBLE PRECISION,
+      vat_ratio DOUBLE PRECISION,
+      price DOUBLE PRECISION,
+      note VARCHAR(200),
+      cost_price DOUBLE PRECISION,
+      barcode VARCHAR(150),
+      size_id INTEGER,
+      color_taste_id INTEGER,
+      length INTEGER,
+      width INTEGER,
+      height INTEGER,
+      count INTEGER,
+      order_item_id INTEGER,
+      delivery_item_id INTEGER,
+      production_date DATE,
+      expiry_date DATE,
+      batch_no VARCHAR(30),
+      store_id INTEGER,
+      journal_id INTEGER,
+      return_sales_invoice_id INTEGER
+    )`,
+    [],
+  )
+  await tenantClient.query(`CREATE INDEX IF NOT EXISTS idx_voucher_items_tbl_voucher_id ON voucher_items_tbl(voucher_id)`, [])
+}
+
 function columnTypeSql(col: ColumnInfo): string {
   if (isSerialColumn(col)) return col.data_type === "bigint" ? "BIGSERIAL" : "SERIAL"
   if (isIdentityColumn(col)) return col.data_type === "bigint" ? "BIGINT" : col.data_type === "smallint" ? "SMALLINT" : "INTEGER"
@@ -124,6 +167,8 @@ async function cloneReferenceSchema(tenantClient: ReturnType<typeof getPoolForDb
   )
 
   for (const { table_name } of tables) {
+    if (LEGACY_SCHEMA_TABLES.has(table_name)) continue
+
     const columns: ColumnInfo[] = await referencePool.query(
       `SELECT column_name, data_type, udt_name, character_maximum_length, numeric_precision, numeric_scale, is_nullable, column_default, is_identity, identity_generation
        FROM information_schema.columns WHERE table_schema = 'public' AND table_name = $1 ORDER BY ordinal_position`,
@@ -132,6 +177,61 @@ async function cloneReferenceSchema(tenantClient: ReturnType<typeof getPoolForDb
     const constraintGroups = await getConstraintGroups(referencePool, table_name)
     const ddl = buildCreateTableSql(table_name, columns, constraintGroups)
     await tenantClient.query(ddl, [])
+  }
+}
+
+async function ensureModernProductColumns(tenantClient: ReturnType<typeof getPoolForDb>) {
+  const productColumns: Array<[string, string]> = [
+    ["product_name_en", "TEXT"],
+    ["category_id", "INTEGER"],
+    ["main_stock_id", "INTEGER"],
+    ["default_store", "INTEGER"],
+    ["brand", "TEXT"],
+    ["model", "TEXT"],
+    ["factory_number", "TEXT"],
+    ["original_number", "TEXT"],
+    ["measurment_unit", "INTEGER DEFAULT 1"],
+    ["measurment_id", "INTEGER DEFAULT 1"],
+    ["last_purchase_price", "NUMERIC(18,4) DEFAULT 0"],
+    ["currency_id", "INTEGER DEFAULT 1"],
+    ["tax_rate", "NUMERIC(18,4) DEFAULT 0"],
+    ["discount_rate", "NUMERIC(18,4) DEFAULT 0"],
+    ["location", "TEXT"],
+    ["has_expiry_date", "BOOLEAN DEFAULT false"],
+    ["has_batch_number", "BOOLEAN DEFAULT false"],
+    ["serial_tracking", "BOOLEAN DEFAULT false"],
+    ["status", "INTEGER DEFAULT 1"],
+    ["type", "INTEGER DEFAULT 1"],
+    ["service_type", "INTEGER DEFAULT 0"],
+    ["product_type", "INTEGER DEFAULT 1"],
+    ["tax_classification_id", "INTEGER"],
+    ["length", "NUMERIC(18,4) DEFAULT 0"],
+    ["width", "NUMERIC(18,4) DEFAULT 0"],
+    ["height", "NUMERIC(18,4) DEFAULT 0"],
+    ["density", "NUMERIC(18,4) DEFAULT 0"],
+    ["color", "TEXT"],
+    ["size", "TEXT"],
+    ["notes", "TEXT"],
+    ["manufacturer_company", "TEXT"],
+    ["product_image", "TEXT"],
+    ["selling_account_id", "INTEGER"],
+    ["purchase_account_id", "INTEGER"],
+    ["selling_returns_account_id", "INTEGER"],
+    ["purchase_returns_account_id", "INTEGER"],
+    ["stock_end_account_id", "INTEGER"],
+    ["stock_start_account_id", "INTEGER"],
+    ["production_account_id", "INTEGER"],
+    ["municipality_service_account_id", "INTEGER"],
+    ["lsti3mal_account_id", "INTEGER"],
+    ["deleted", "BOOLEAN DEFAULT false"],
+    ["updated_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"],
+    ["created_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"],
+    ["entry_date", "DATE DEFAULT CURRENT_DATE"],
+    ["has_colors", "BOOLEAN DEFAULT false"],
+  ]
+
+  for (const [columnName, columnType] of productColumns) {
+    await tenantClient.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS ${columnName} ${columnType}`, [])
   }
 }
 
@@ -295,7 +395,42 @@ async function seedDefaultStore(tenantClient: ReturnType<typeof getPoolForDb>) {
   )
 }
 
+async function tableExists(tenantClient: ReturnType<typeof getPoolForDb>, tableName: string) {
+  const rows = await tenantClient.query(
+    `SELECT to_regclass($1) AS table_name`,
+    [`public.${tableName}`],
+  )
+  return !!rows[0]?.table_name
+}
+
 async function seedDefaultSystemSettings(tenantClient: ReturnType<typeof getPoolForDb>) {
+  if (!(await tableExists(tenantClient, "system_settings"))) {
+    await tenantClient.query(
+      `CREATE TABLE IF NOT EXISTS system_settings (
+        id VARCHAR(100) PRIMARY KEY,
+        description VARCHAR(255),
+        value TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`,
+      [],
+    )
+  }
+
+  const idTypeRows = await tenantClient.query(
+    `SELECT data_type
+     FROM information_schema.columns
+     WHERE table_schema = 'public' AND table_name = 'system_settings' AND column_name = 'id'
+     LIMIT 1`,
+    [],
+  )
+  const idIsInteger = /int/i.test(String(idTypeRows[0]?.data_type || ""))
+
+  await tenantClient.query(`ALTER TABLE system_settings ALTER COLUMN id TYPE VARCHAR(100) USING id::TEXT`, []).catch(() => {})
+  await tenantClient.query(`ALTER TABLE system_settings ALTER COLUMN id DROP DEFAULT`, []).catch(() => {})
+  await tenantClient.query(`ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS description TEXT`, []).catch(() => {})
+  await tenantClient.query(`ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS value TEXT`, []).catch(() => {})
+
   const rows = [
     ["invoice_prefix", "INV"],
     ["sales_invoice_prefix", "INV"],
@@ -307,29 +442,35 @@ async function seedDefaultSystemSettings(tenantClient: ReturnType<typeof getPool
     ["purchase_invoice_start", "1"],
   ] as const
 
-  // system_settings.id قد يكون لا يزال SERIAL/عددياً قديماً بدل VARCHAR(100) المقصود (تلك الهجرة
-  // تُنفَّذ فقط عند أول استدعاء لـensureSettingsTable بـapp/api/settings/system/route.ts — إن لم
-  // يُستدعَ هذا المسار بعد على القاعدة المرجعية، ترثه كل شركة جديدة كما هو عبر cloneReferenceSchema
-  // أعلاه). المحاولة الأولى هنا كانت تكتشف هذه الحالة وتُدرِج بعمودَي description/value بدل id (نفس
-  // حل ensureSettingsTable) لكنها افترضت خطأً وجود تسلسل SERIAL يُعيّن id تلقائياً عند حذفه من
-  // الإدراج — إن كان id عدداً صحيحاً بلا قيمة افتراضية أصلاً (الحالة الفعلية هنا: عمود عددي مُستنسَخ
-  // بلا nextval)، يفشل الإدراج بـ"null value in column \"id\" violates not-null constraint" بدل ذلك.
-  // الحل الأضمن: تهجير العمود صراحة لِـVARCHAR(100) (الشكل النهائي المقصود) على هذا الجدول الفارغ
-  // تواً (شركة جديدة، بلا صفوف بعد فتُهاجَر بأمان دوماً) بدل محاولة التكيّف مع الشكل القديم.
-  await tenantClient.query(`ALTER TABLE system_settings ALTER COLUMN id TYPE VARCHAR(100) USING id::TEXT`, []).catch(() => {})
-  await tenantClient.query(`ALTER TABLE system_settings ALTER COLUMN id DROP DEFAULT`, []).catch(() => {})
-
   for (const [key, value] of rows) {
-    await tenantClient.query(
-      `INSERT INTO system_settings (id, description, value) VALUES ($1, $2, $3)
-       ON CONFLICT (id) DO UPDATE SET description = EXCLUDED.description, value = EXCLUDED.value`,
-      [key, key, value],
-    )
+    if (idIsInteger) {
+      const updated = await tenantClient.query(
+        `UPDATE system_settings SET description = $1, value = $2 WHERE description = $1`,
+        [key, value],
+      )
+      if (Number(updated?.[0]?.rowCount ?? 0) === 0) {
+        await tenantClient.query(
+          `INSERT INTO system_settings (description, value) VALUES ($1, $2)`,
+          [key, value],
+        )
+      }
+    } else {
+      await tenantClient.query(
+        `INSERT INTO system_settings (id, description, value) VALUES ($1, $2, $3)
+         ON CONFLICT (id) DO UPDATE SET description = EXCLUDED.description, value = EXCLUDED.value`,
+        [key, key, value],
+      )
+    }
   }
 }
 
 async function clearFreshCompanySeedData(tenantClient: ReturnType<typeof getPoolForDb>) {
-  await tenantClient.query(`TRUNCATE TABLE products, banks, bank_accounts RESTART IDENTITY CASCADE`)
+  const tables = ["products", "banks", "bank_accounts"]
+  for (const tableName of tables) {
+    if (await tableExists(tenantClient, tableName)) {
+      await tenantClient.query(`TRUNCATE TABLE "${tableName}" RESTART IDENTITY CASCADE`, [])
+    }
+  }
 }
 
 export async function provisionCompanyDatabase(
@@ -350,6 +491,8 @@ export async function provisionCompanyDatabase(
   const tenantClient = getPoolForDb(dbName)
 
   await cloneReferenceSchema(tenantClient)
+  await ensureModernProductColumns(tenantClient)
+  await ensureModernVoucherItemsTable(tenantClient)
   await seedLookupTables(tenantClient)
   const branchId = await seedDefaultBranchAndSection(tenantClient)
   await seedDefaultStore(tenantClient)

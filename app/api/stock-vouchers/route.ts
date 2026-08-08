@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
     if (items.length === 0) {
       return NextResponse.json({ error: "يجب إدخال صنف واحد على الأقل" }, { status: 400 })
     }
-    if (items.some((i: any) => !i.warehouse_id)) {
+    if (items.some((i: any) => !(Number(i.store_id ?? i.warehouse_id) > 0))) {
       return NextResponse.json({ error: "يجب اختيار المستودع لكل صنف" }, { status: 400 })
     }
     if (items.some((i: any) => !(Number(i.quantity || 0) > 0))) {
@@ -218,7 +218,7 @@ export async function PUT(request: NextRequest) {
       if (items.length === 0) {
         return NextResponse.json({ error: "يجب إدخال صنف واحد على الأقل" }, { status: 400 })
       }
-      if (items.some((i: any) => !i.warehouse_id)) {
+      if (items.some((i: any) => !(Number(i.store_id ?? i.warehouse_id) > 0))) {
         return NextResponse.json({ error: "يجب اختيار المستودع لكل صنف" }, { status: 400 })
       }
       if (items.some((i: any) => !(Number(i.quantity || 0) > 0))) {

@@ -2024,10 +2024,10 @@ export default function UnifiedStockVoucher({
           onNew={() => guardedAction(() => onNew?.())}
           onSave={handleRequestSave}
           onDelete={() => setShowDeleteConfirm(true)}
-          onFirst={() => guardedAction(() => onNavigate?.("first"))}
-          onPrevious={() => guardedAction(() => onNavigate?.("previous"))}
-          onNext={() => guardedAction(() => onNavigate?.("next"))}
-          onLast={() => guardedAction(() => onNavigate?.("last"))}
+          onFirst={() => guardedAction(() => onNavigate?.("last"))}
+          onPrevious={() => guardedAction(() => onNavigate?.("next"))}
+          onNext={() => guardedAction(() => onNavigate?.("previous"))}
+          onLast={() => guardedAction(() => onNavigate?.("first"))}
           onPrint={onPrint}
           onClone={onClone}
           isSaving={isSaving}

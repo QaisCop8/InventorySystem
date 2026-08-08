@@ -286,6 +286,12 @@ const resolveFlexControl = (grid: any): any => {
   return grid.columns ? grid : null
 }
 
+const safeFinishEditing = (grid: any) => {
+  const control = resolveFlexControl(grid)
+  if (!control || typeof control.finishEditing !== "function") return
+  control.finishEditing()
+}
+
 // قراءة .selection الآمنة — نفس عطل "Cannot read properties of null (reading 'selection')" الذي
 // كان يُظَنّ مُعالَجاً بالفعل عبر resolveFlexControl (انظر تعليقها بـunified-stock-voucher.tsx):
 // control وcontrol.columns كلاهما صحيحان فعلاً فيمرّ فحصها، لكن getter الخاص بـ.selection نفسه في
@@ -660,10 +666,63 @@ export default function UnifiedSalesDelivery({
   useEffect(() => {
     if (typeof window === "undefined" || !dialogOpen) return
     const onGlobalKeyDown = (event: KeyboardEvent) => {
-      if (!doHotKeys.current || showDeleteConfirm || postDialogOpen || showUnsavedConfirm) return
+      if (!doHotKeys.current || showDeleteConfirm || postDialogOpen || showUnsavedConfirm || isSaving) return
+      // Intercept Escape to close inner popups first, and prevent closing parent dialog while saving or popups open
+      if (event.key === "Escape") {
+        // Close popups in priority order
+        if (productSearchOpen) {
+          event.preventDefault()
+          setProductSearchOpen(false)
+          popupHasClosed()
+          return
+        }
+        if (warehouseSearchOpen) {
+          event.preventDefault()
+          setWarehouseSearchOpen(false)
+          popupHasClosed()
+          return
+        }
+        if (unitsSearchOpen) {
+          event.preventDefault()
+          setUnitsSearchOpen(false)
+          popupHasClosed()
+          return
+        }
+        if (expiryLotPickerOpen) {
+          event.preventDefault()
+          setExpiryLotPickerOpen(false)
+          return
+        }
+        if (measurementDialogOpen) {
+          event.preventDefault()
+          setMeasurementDialogOpen(false)
+          return
+        }
+        if (invoiceFromDeliveryOpen) {
+          event.preventDefault()
+          setInvoiceFromDeliveryOpen(false)
+          return
+        }
+        if (invoiceFromOrderOpen) {
+          event.preventDefault()
+          setInvoiceFromOrderOpen(false)
+          return
+        }
+        if (itemAccountsSearchOpen) {
+          event.preventDefault()
+          setItemAccountsSearchOpen(false)
+          return
+        }
+        if (itemCostCenterOpen) {
+          event.preventDefault()
+          setItemCostCenterOpen(false)
+          return
+        }
+        // If none of the inner popups are open, allow Dialog to handle closing (it will run guardedAction)
+      }
       if (event.key === "F3") {
         event.preventDefault()
-        resolveFlexControl(itemsGridRef.current)?.finishEditing?.()
+        safeFinishEditing(itemsGridRef.current)
         setTimeout(() => handleRequestSaveRef.current(), 0)
         return
       }
@@ -791,62 +850,66 @@ export default function UnifiedSalesDelivery({
   }, [dialogOpen, form.id, form.status, showDeleteConfirm, postDialogOpen, showUnsavedConfirm])
 
   useEffect(() => {
-    const gridBeforeSync = resolveFlexControl(itemsGridRef.current)
-    const prevSelection = readGridSelection(gridBeforeSync)
+    try {
+      const gridBeforeSync = resolveFlexControl(itemsGridRef.current)
+      const prevSelection = readGridSelection(gridBeforeSync)
 
-    // السعر شامل (الضريبة) — حقل عرض فقط يُحتسَب هنا من unit_price (المُخزَّن دوماً غير شامل
-    // الضريبة) ونسبة ضريبة السند كاملاً (form.vat_percent، ضريبة على مستوى السند وليس السطر)،
-    // وليس حقلاً محفوظاً بذاته.
-    const vatPercent = Number(form.vat_percent || 0)
-    itemsCollectionView.sourceCollection = items.map((row, i) => ({
-      ...row,
-      ser: i + 1,
-      unit_price_incl_tax: vatPercent > 0 ? Math.round(Number(row.unit_price || 0) * (1 + vatPercent / 100) * 100) / 100 : Number(row.unit_price || 0),
-    }))
-    itemsCollectionView.refresh()
+      // السعر شامل (الضريبة) — حقل عرض فقط يُحتسَب هنا من unit_price (المُخزَّن دوماً غير شامل
+      // الضريبة) ونسبة ضريبة السند كاملاً (form.vat_percent، ضريبة على مستوى السند وليس السطر)،
+      // وليس حقلاً محفوظاً بذاته.
+      const vatPercent = Number(form.vat_percent || 0)
+      itemsCollectionView.sourceCollection = items.map((row, i) => ({
+        ...row,
+        ser: i + 1,
+        unit_price_incl_tax: vatPercent > 0 ? Math.round(Number(row.unit_price || 0) * (1 + vatPercent / 100) * 100) / 100 : Number(row.unit_price || 0),
+      }))
+      itemsCollectionView.refresh()
 
-    const pending = pendingFocusRef.current
-    if (pending) {
-      pendingFocusRef.current = null
-      // نفس السبب والتعليق التفصيلي في unified-stock-voucher.tsx: إعادة تعيين sourceCollection أعلاه
-      // تُصفِّر currentPosition الداخلي لِـWijmo فوراً، فيتسابق ذلك مع استرجاع الصف عبر
-      // waitForGridReady (المبنية على setTimeout) وحدها — يُطبَّق الاسترجاع أولاً بنفس التِّك مباشرة
-      // إن كانت الشبكة جاهزة فعلاً (كفرع prevSelection أدناه المُثبَت أصلاً)، ولا يُلجَأ لِـ
-      // waitForGridReady إلا إن لم تكن الشبكة جاهزة بعد.
-      const gridNow = resolveFlexControl(itemsGridRef.current)
-      if (gridNow && gridNow.rows && gridNow.rows.length > pending.row) {
-        selectCell(gridNow, pending.row, pending.col)
-        gridNow.focus()
-      } else {
+      const pending = pendingFocusRef.current
+      if (pending) {
+        pendingFocusRef.current = null
+        // نفس السبب والتعليق التفصيلي في unified-stock-voucher.tsx: إعادة تعيين sourceCollection أعلاه
+        // تُصفِّر currentPosition الداخلي لِـWijmo فوراً، فيتسابق ذلك مع استرجاع الصف عبر
+        // waitForGridReady (المبنية على setTimeout) وحدها — يُطبَّق الاسترجاع أولاً بنفس التِّك مباشرة
+        // إن كانت الشبكة جاهزة فعلاً (كفرع prevSelection أدناه المُثبَت أصلاً)، ولا يُلجَأ لِـ
+        // waitForGridReady إلا إن لم تكن الشبكة جاهزة بعد.
+        const gridNow = resolveFlexControl(itemsGridRef.current)
+        if (gridNow && gridNow.rows && gridNow.rows.length > pending.row) {
+          selectCell(gridNow, pending.row, pending.col)
+          gridNow.focus()
+        } else {
+          waitForGridReady(
+            () => itemsGridRef.current,
+            (grid) => {
+              selectCell(grid, pending.row, pending.col)
+              grid.focus()
+            },
+            20,
+            pending.row + 1,
+          )
+        }
+      } else if (prevSelection) {
+        const grid = resolveFlexControl(itemsGridRef.current)
+        if (grid && grid.rows && grid.rows.length > prevSelection.row) {
+          grid.select(new CellRange(prevSelection.row, prevSelection.col))
+        }
+      }
+
+      const pendingAccounts = pendingAccountsFocusRef.current
+      if (pendingAccounts) {
+        pendingAccountsFocusRef.current = null
         waitForGridReady(
-          () => itemsGridRef.current,
+          () => accountsGridRef.current,
           (grid) => {
-            selectCell(grid, pending.row, pending.col)
+            selectCell(grid, pendingAccounts.row, pendingAccounts.col)
             grid.focus()
           },
           20,
-          pending.row + 1,
+          pendingAccounts.row + 1,
         )
       }
-    } else if (prevSelection) {
-      const grid = resolveFlexControl(itemsGridRef.current)
-      if (grid && grid.rows && grid.rows.length > prevSelection.row) {
-        grid.select(new CellRange(prevSelection.row, prevSelection.col))
-      }
-    }
-
-    const pendingAccounts = pendingAccountsFocusRef.current
-    if (pendingAccounts) {
-      pendingAccountsFocusRef.current = null
-      waitForGridReady(
-        () => accountsGridRef.current,
-        (grid) => {
-          selectCell(grid, pendingAccounts.row, pendingAccounts.col)
-          grid.focus()
-        },
-        20,
-        pendingAccounts.row + 1,
-      )
+    } catch (err) {
+      console.error("Error synchronizing items grid:", err)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items, form.vat_percent])
@@ -1448,7 +1511,7 @@ export default function UnifiedSalesDelivery({
     }
     if (e.keyCode === Util.keyboardKeys.F10 && colName === "product_code") {
       e.preventDefault()
-      grid.finishEditing?.()
+      safeFinishEditing(grid)
       pendingFocusRow.current = row
       lastFocusedCellRef.current = { row, col: "product_code" }
       popupHasCalled()
@@ -1457,7 +1520,7 @@ export default function UnifiedSalesDelivery({
     }
     if (e.keyCode === Util.keyboardKeys.F10 && colName === "warehouse_name") {
       e.preventDefault()
-      grid.finishEditing?.()
+      safeFinishEditing(grid)
       setWarehouseSearchRow(row)
       lastFocusedCellRef.current = { row, col: "warehouse_name" }
       popupHasCalled()
@@ -1466,7 +1529,7 @@ export default function UnifiedSalesDelivery({
     }
     if (e.keyCode === Util.keyboardKeys.F10 && colName === "unit") {
       e.preventDefault()
-      grid.finishEditing?.()
+      safeFinishEditing(grid)
       setUnitsSearchRow(row)
       lastFocusedCellRef.current = { row, col: "unit" }
       popupHasCalled()
@@ -1478,7 +1541,7 @@ export default function UnifiedSalesDelivery({
       e.preventDefault()
       const previousRow = colName === "product_code" || colName === "barcode" ? itemsRef.current[row] : undefined
       if (colName === "product_code" || colName === "barcode") skipAutoLookupRef.current = true
-      grid.finishEditing?.()
+      safeFinishEditing(grid)
       skipAutoLookupRef.current = false
       grid.focus()
       const currentRow = itemsRef.current[row]
@@ -1784,8 +1847,27 @@ export default function UnifiedSalesDelivery({
     if (index >= 0 && index < focusable.length - 1) focusable[index + 1]?.focus()
   }
 
+  const anyInnerPopupOpen = () =>
+    productSearchOpen || warehouseSearchOpen || unitsSearchOpen || expiryLotPickerOpen || measurementDialogOpen ||
+    invoiceFromDeliveryOpen || invoiceFromOrderOpen || itemAccountsSearchOpen || itemCostCenterOpen || showVatRestoreConfirm || showDeleteConfirm || postDialogOpen || showUnsavedConfirm
+
   return (
-    <Dialog open={dialogOpen} onOpenChange={(open) => (open ? onOpenChange(true) : guardedAction(() => onOpenChange(false)))}>
+    <Dialog
+      open={dialogOpen}
+      onOpenChange={(open) => {
+        if (open) {
+          onOpenChange(true)
+          return
+        }
+        // Prevent closing while saving or when any inner popup is open
+        if (isSaving || anyInnerPopupOpen()) {
+          // optionally notify user when trying to close during save
+          if (isSaving) messagesRef.current?.show?.([{ severity: "warn", summary: "", detail: "جاري الحفظ... الرجاء الانتظار", life: 2000 }])
+          return
+        }
+        guardedAction(() => onOpenChange(false))
+      }}
+    >
       <DialogContent
           className="sales-delivery-form flex h-[96vh] w-[97vw] max-w-[1800px] max-h-[96vh] flex-col overflow-hidden p-0 transition-shadow"
           dir="rtl"
@@ -1816,7 +1898,7 @@ export default function UnifiedSalesDelivery({
         />
 
         <div
-          className="relative min-h-0 flex-1 overflow-y-auto rounded-b-3xl bg-slate-50/60 px-6 py-4 [&::-webkit-scrollbar]:w-0 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-transparent"
+          className="relative min-h-0 flex-1 overflow-y-auto rounded-b-3xl bg-slate-50/60 px-4 py-3 sm:px-6 sm:py-4 [&::-webkit-scrollbar]:w-0 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-transparent"
           style={{ scrollbarWidth: "none", msOverflowStyle: "none" as any }}
           onKeyDown={handleFormEnterAsTab}
         >
@@ -1872,13 +1954,13 @@ export default function UnifiedSalesDelivery({
             </div>
           </div>
 
-          <div className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+          <div className="space-y-3 rounded-2xl border border-slate-200 bg-white p-3 sm:p-5 shadow-sm">
             <div className="flex items-center gap-2 text-sm font-bold text-emerald-700">
               <FileText className="h-3.5 w-3.5" />
               تفاصيل السند
             </div>
             <div className="grid gap-3">
-              <div className="grid grid-cols-5 gap-3">
+              <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 md:grid-cols-5 lg:grid-cols-5">
                 <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
                   <Label>دفتر السندات *</Label>
                   <PrimeDropdown
@@ -1965,7 +2047,7 @@ export default function UnifiedSalesDelivery({
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
                 <div className="col-span-1">
                   <AutoCompleteAccount
                     label={isPurchaseDeliveryVoucher ? "المورد *" : "العميل *"}
@@ -2007,8 +2089,8 @@ export default function UnifiedSalesDelivery({
 
               <div className={`grid gap-3 ${
                 (voucherType === SALES_INVOICE_VCH_TYPE || voucherType === PURCHASE_INVOICE_VCH_TYPE)
-                  ? "grid-cols-3"
-                  : "grid-cols-2"
+                  ? "grid-cols-1 sm:grid-cols-2 md:grid-cols-3"
+                  : "grid-cols-1 sm:grid-cols-2 md:grid-cols-2"
               }`}>
                 {(voucherType === SALES_INVOICE_VCH_TYPE || voucherType === PURCHASE_INVOICE_VCH_TYPE) && (
                   <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
@@ -2067,7 +2149,7 @@ export default function UnifiedSalesDelivery({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="grid gap-1.5">
                   <Label htmlFor="vch-manual-code">سند يدوي</Label>
                   <Input
@@ -2089,7 +2171,7 @@ export default function UnifiedSalesDelivery({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
                 <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
                   <Label>التصنيف الضريبي</Label>
                   <PrimeDropdown

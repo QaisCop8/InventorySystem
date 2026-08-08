@@ -47,6 +47,65 @@ async function ensureProductTypeColumns() {
   }
 }
 
+async function ensureProductSchemaColumns(client: any) {
+  const columns: Array<[string, string]> = [
+    ["product_name_en", "TEXT"],
+    ["category_id", "INTEGER"],
+    ["main_stock_id", "INTEGER"],
+    ["default_store", "INTEGER"],
+    ["brand", "TEXT"],
+    ["model", "TEXT"],
+    ["factory_number", "TEXT"],
+    ["original_number", "TEXT"],
+    ["measurment_unit", "INTEGER DEFAULT 1"],
+    ["measurment_id", "INTEGER DEFAULT 1"],
+    ["last_purchase_price", "NUMERIC(18,4) DEFAULT 0"],
+    ["currency_id", "INTEGER DEFAULT 1"],
+    ["tax_rate", "NUMERIC(18,4) DEFAULT 0"],
+    ["discount_rate", "NUMERIC(18,4) DEFAULT 0"],
+    ["location", "TEXT"],
+    ["has_expiry_date", "BOOLEAN DEFAULT false"],
+    ["has_batch_number", "BOOLEAN DEFAULT false"],
+    ["serial_tracking", "BOOLEAN DEFAULT false"],
+    ["status", "INTEGER DEFAULT 1"],
+    ["type", "INTEGER DEFAULT 1"],
+    ["service_type", "INTEGER DEFAULT 0"],
+    ["product_type", "INTEGER DEFAULT 1"],
+    ["tax_classification_id", "INTEGER"],
+    ["length", "NUMERIC(18,4) DEFAULT 0"],
+    ["width", "NUMERIC(18,4) DEFAULT 0"],
+    ["height", "NUMERIC(18,4) DEFAULT 0"],
+    ["density", "NUMERIC(18,4) DEFAULT 0"],
+    ["color", "TEXT"],
+    ["size", "TEXT"],
+    ["notes", "TEXT"],
+    ["manufacturer_company", "TEXT"],
+    ["product_image", "TEXT"],
+    ["selling_account_id", "INTEGER"],
+    ["purchase_account_id", "INTEGER"],
+    ["selling_returns_account_id", "INTEGER"],
+    ["purchase_returns_account_id", "INTEGER"],
+    ["stock_end_account_id", "INTEGER"],
+    ["stock_start_account_id", "INTEGER"],
+    ["production_account_id", "INTEGER"],
+    ["municipality_service_account_id", "INTEGER"],
+    ["lsti3mal_account_id", "INTEGER"],
+    ["deleted", "BOOLEAN DEFAULT false"],
+    ["updated_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"],
+    ["created_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"],
+    ["entry_date", "DATE DEFAULT CURRENT_DATE"],
+    ["has_colors", "BOOLEAN DEFAULT false"],
+  ]
+
+  for (const [columnName, columnType] of columns) {
+    try {
+      await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS ${columnName} ${columnType}`)
+    } catch (error) {
+      console.error(`[v0] Failed to ensure products.${columnName}:`, error)
+    }
+  }
+}
+
 function safeText(value: any, fallback = "") {
   if (value == null) return fallback
   return typeof value === "string" ? value : String(value)
@@ -76,14 +135,24 @@ function normalizeStatus(value: any, fallback: number | null = null) {
 }
 
 function normalizeProductPayload(productData: any) {
+  const normalizeBarcodeList = (value: any): string[] => {
+    if (value == null) return []
+    if (Array.isArray(value)) {
+      return value.map((barcode: any) => safeText(barcode, "")).filter(Boolean)
+    }
+    const raw = String(value)
+      .split(/[;,]+/)
+      .map((barcode) => safeText(barcode, ""))
+      .filter(Boolean)
+    return Array.from(new Set(raw))
+  }
+
   const normalizedUnits = Array.isArray(productData?.units)
     ? productData.units.map((unit: any) => ({
         ...unit,
         unit_id: safeNumber(unit?.unit_id, 0),
         to_main_qnty: safeNumber(unit?.to_main_qnty, 1),
-        barcode_list: Array.isArray(unit?.barcode_list)
-          ? unit.barcode_list.map((barcode: any) => safeText(barcode, ""))
-          : [],
+        barcode_list: normalizeBarcodeList(unit?.barcode_list),
       }))
     : []
 
@@ -490,6 +559,45 @@ async function ensureProductNumbersTable(client: any) {
   `)
 }
 
+async function ensureProductUnitLinkTables(client: any) {
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS product_units (
+      id SERIAL PRIMARY KEY,
+      product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+      unit_id INTEGER NOT NULL,
+      to_main_qnty DOUBLE PRECISION DEFAULT 1
+    )
+  `)
+
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS product_unit_barcodes (
+      id SERIAL PRIMARY KEY,
+      product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+      unit_id INTEGER NOT NULL,
+      barcode TEXT NOT NULL
+    )
+  `)
+
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS product_prices (
+      id SERIAL PRIMARY KEY,
+      product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+      price_category_id INTEGER NOT NULL,
+      unit_id INTEGER NOT NULL,
+      price NUMERIC(18, 4) DEFAULT 0,
+      currency_id INTEGER DEFAULT 1
+    )
+  `)
+
+  await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_product_units_product_unit_unique ON product_units(product_id, unit_id)`, [])
+  await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_product_unit_barcodes_product_unit_barcode_unique ON product_unit_barcodes(product_id, unit_id, barcode)`, [])
+  await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_product_prices_product_price_unique ON product_prices(product_id, price_category_id, unit_id)`, [])
+
+  await client.query(`CREATE INDEX IF NOT EXISTS idx_product_units_product_id ON product_units(product_id)`, [])
+  await client.query(`CREATE INDEX IF NOT EXISTS idx_product_unit_barcodes_product_id ON product_unit_barcodes(product_id)`, [])
+  await client.query(`CREATE INDEX IF NOT EXISTS idx_product_prices_product_id ON product_prices(product_id)`, [])
+}
+
 async function persistProductNumbers(client: any, productId: number, originalNumbers: string[], factoryNumbers: string[]) {
   await client.query(`DELETE FROM product_numbers WHERE product_id = $1`, [productId])
 
@@ -525,22 +633,11 @@ export async function POST(request: NextRequest) {
   const client = await (await getTenantPool()).connect();
 
   try {
-    await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS type INTEGER DEFAULT 1`)
-    await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS service_type INTEGER DEFAULT 0`)
-    await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS selling_account_id INTEGER`)
-    await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS purchase_account_id INTEGER`)
-    await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS selling_returns_account_id INTEGER`)
-    await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS purchase_returns_account_id INTEGER`)
-    await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS stock_end_account_id INTEGER`)
-    await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS stock_start_account_id INTEGER`)
-    await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS production_account_id INTEGER`)
-    await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS municipality_service_account_id INTEGER`)
-    await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS lsti3mal_account_id INTEGER`)
-    await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS measurment_id INTEGER DEFAULT 1`)
-    await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS product_image TEXT`)
+    await ensureProductSchemaColumns(client)
     await ensureProductCostCentersTable(client)
     await ensureProductBrandsTable(client)
     await ensureProductNumbersTable(client)
+    await ensureProductUnitLinkTables(client)
     // تقييد ظهور الصنف بفروع معيّنة (اختياري) — بلا أي صف هنا لهذا الصنف يبقى ظاهراً لكل الفروع
     // (السلوك الحالي دون تغيير)؛ بصف واحد أو أكثر يظهر فقط لمستخدم فرعه أحد هذه الصفوف (انظر تصفية
     // GET أدناه عبر هيدر x-branch-id). نفس نمط product_warehouses تماماً (جدول علاقة بسيط).
@@ -1036,21 +1133,27 @@ export async function POST(request: NextRequest) {
     // 3ï¸ڈâƒ£ Insert product units
     if (Array.isArray(productData.units)) {
       for (const unit of productData.units) {
-        const unitResult = await client.query(
+        const realUnitId = Number(unit.unit_id || 0)
+        if (!realUnitId) continue
+
+        await client.query(
           `INSERT INTO product_units (product_id, unit_id, to_main_qnty)
-           VALUES ($1::int, $2::int, $3::int) RETURNING id`,
-          [productId, Number(unit.unit_id || 0), Number(unit.to_main_qnty || 1)]
-        );
-        unitId = unitResult.rows[0].id;
-        // 4ï¸ڈâƒ£ Insert barcodes for this unit
-        if (Array.isArray(unit.barcode_list)) {
-          for (const barcode of unit.barcode_list) {
-            await client.query(
-              `INSERT INTO product_unit_barcodes (product_id, unit_id, barcode)
-               VALUES ($1::int, $2::int, $3::text)`,
-              [productId, unitId, String(barcode)]
-            );
-          }
+           VALUES ($1::int, $2::int, $3::int)
+           ON CONFLICT (product_id, unit_id) DO UPDATE SET to_main_qnty = EXCLUDED.to_main_qnty`,
+          [productId, realUnitId, Number(unit.to_main_qnty || 1)]
+        )
+
+        const barcodeList = Array.isArray(unit.barcode_list) ? unit.barcode_list : []
+        for (const barcode of barcodeList) {
+          const normalizedBarcode = String(barcode ?? "").trim();
+          if (!normalizedBarcode) continue
+
+          await client.query(
+            `INSERT INTO product_unit_barcodes (product_id, unit_id, barcode)
+             VALUES ($1::int, $2::int, $3::text)
+             ON CONFLICT (product_id, unit_id, barcode) DO NOTHING`,
+            [productId, realUnitId, normalizedBarcode]
+          )
         }
       }
     }

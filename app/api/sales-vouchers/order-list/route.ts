@@ -29,7 +29,8 @@ export async function GET(request: NextRequest) {
           WHERE o.deleted = false
             AND o.order_type = 1
             AND o.customer_id = ${customerId}
-            AND o.order_status != 3
+            AND o.order_status != 'cancelled'
+            AND o.order_status IN ('approved', 'completed')
             AND NOT EXISTS (
               SELECT 1
               FROM voucher_header_tbl inv
@@ -55,6 +56,7 @@ export async function GET(request: NextRequest) {
           LEFT JOIN suppliers s ON s.id = po.supplier_id
           LEFT JOIN currency cur ON cur.id = po.currency_id
           WHERE po.supplier_id = ${supplierId}
+            AND COALESCE(po.workflow_status, '') != 'cancelled'
             AND NOT EXISTS (
               SELECT 1
               FROM voucher_header_tbl inv

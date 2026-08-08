@@ -43,42 +43,38 @@ export const ensureTables = async () => {
     CREATE TABLE IF NOT EXISTS voucher_items_tbl (
       id SERIAL PRIMARY KEY,
       voucher_id INTEGER NOT NULL REFERENCES voucher_header_tbl(id) ON DELETE CASCADE,
-      ser INTEGER,
-      product_id INTEGER,
-      product_code VARCHAR(50),
-      product_name VARCHAR(200),
-      barcode VARCHAR(100),
-      warehouse_id INTEGER,
-      unit VARCHAR(50),
-      quantity DOUBLE PRECISION DEFAULT 0,
-      bonus_quantity DOUBLE PRECISION DEFAULT 0,
-      unit_price DOUBLE PRECISION DEFAULT 0,
-      discount_percent DOUBLE PRECISION DEFAULT 0,
-      total_price DOUBLE PRECISION DEFAULT 0,
-      batch_number VARCHAR(50),
+      item_id INTEGER,
+      item_name VARCHAR(140),
+      unit_id INTEGER,
+      qnty DOUBLE PRECISION,
+      bonus DOUBLE PRECISION,
+      discount DOUBLE PRECISION,
+      vat_classification_id INTEGER,
+      vat_amount DOUBLE PRECISION,
+      vat_ratio DOUBLE PRECISION,
+      price DOUBLE PRECISION,
+      note VARCHAR(200),
+      cost_price DOUBLE PRECISION,
+      barcode VARCHAR(150),
+      size_id INTEGER,
+      color_taste_id INTEGER,
+      length INTEGER,
+      width INTEGER,
+      height INTEGER,
+      count INTEGER,
+      order_item_id INTEGER,
+      delivery_item_id INTEGER,
+      production_date DATE,
       expiry_date DATE,
-      -- سند استعمال only: per-item GL posting (expense account debited, purchases/inventory
-      -- contra account credited), each optionally split across cost centers.
-      expense_account_id INTEGER,
-      purchase_account_id INTEGER,
-      expense_cost_centers JSONB,
-      purchase_cost_centers JSONB,
-      note VARCHAR(200)
+      batch_no VARCHAR(30),
+      store_id INTEGER,
+      journal_id INTEGER,
+      return_sales_invoice_id INTEGER
     )
   `
+  await sql`ALTER TABLE voucher_items_tbl DROP COLUMN IF EXISTS expense_account_id`
+  await sql`ALTER TABLE voucher_items_tbl DROP COLUMN IF EXISTS purchase_account_id`
   await sql`CREATE INDEX IF NOT EXISTS idx_voucher_items_tbl_voucher_id ON voucher_items_tbl(voucher_id)`
-  // أعمدة اختيارية بمستوى السطر (الطول/العرض/الارتفاع/العدد) — مُضافة لاحقاً على جدول موجود فعلياً
-  // (CREATE TABLE IF NOT EXISTS أعلاه لا يُضيف أعمدة لجدول قائم)، فتُضاف صراحةً هنا. إعدادات السند
-  // (voucher-settings.tsx) تتحكم بإظهارها بالشبكة؛ معلوماتية بحتة، لا تدخل في أي حساب للكمية.
-  await sql`ALTER TABLE voucher_items_tbl ADD COLUMN IF NOT EXISTS length DOUBLE PRECISION`
-  await sql`ALTER TABLE voucher_items_tbl ADD COLUMN IF NOT EXISTS width DOUBLE PRECISION`
-  await sql`ALTER TABLE voucher_items_tbl ADD COLUMN IF NOT EXISTS height DOUBLE PRECISION`
-  await sql`ALTER TABLE voucher_items_tbl ADD COLUMN IF NOT EXISTS count DOUBLE PRECISION`
-  // باركود الصنف وقت إدخاله بالسطر — يُخزَّن هنا (كـproduct_code/product_name) بدل الاعتماد على
-  // JOIN حي مع الصنف عند العرض، إذ لا عمود باركود مباشر على products أصلاً (الباركود بهذه القاعدة
-  // per-unit عبر product_unit_barcodes)؛ تخزينه بالسطر أبسط وأدق تاريخياً (يعكس ما كان صحيحاً وقت
-  // الإدخال لا الحالي).
-  await sql`ALTER TABLE voucher_items_tbl ADD COLUMN IF NOT EXISTS barcode VARCHAR(100)`
 
   // product_stock already exists in this DB (created by an earlier, separate migration) but is
   // re-declared IF NOT EXISTS here defensively, matching this codebase's convention of never
@@ -337,9 +333,9 @@ export const validateItemBatchExpiry = async (items: any[]): Promise<string | nu
 // purchase_account_id) وsales-vouchers (account_id) عبر accountFields. الوحدة تُخزَّن بسطر الصنف
 // باسمها (unit) لا بمعرّفها، فتُطابَق بالاسم على جدول units مباشرة.
 export const validateItemReferences = async (items: any[], accountFields: string[] = []): Promise<string | null> => {
-  const warehouseIds = [...new Set(items.map((i) => Number(i.warehouse_id)).filter((id) => Number.isFinite(id) && id > 0))]
-  const warehouseRows = warehouseIds.length
-    ? await sql`SELECT id, warehouse_name, status FROM warehouses WHERE id = ANY(${warehouseIds}::int[])`
+  const storeIds = [...new Set(items.map((i) => Number(i.store_id ?? i.warehouse_id)).filter((id) => Number.isFinite(id) && id > 0))]
+  const warehouseRows = storeIds.length
+    ? await sql`SELECT id, warehouse_name, status FROM warehouses WHERE id = ANY(${storeIds}::int[])`
     : []
   const warehousesById = new Map<number, any>(warehouseRows.map((r: any) => [Number(r.id), r]))
 
@@ -362,8 +358,8 @@ export const validateItemReferences = async (items: any[], accountFields: string
   for (const item of items) {
     const label = item.product_name || item.product_code || ""
 
-    if (item.warehouse_id) {
-      const warehouse = warehousesById.get(Number(item.warehouse_id))
+    if (item.store_id ?? item.warehouse_id) {
+      const warehouse = warehousesById.get(Number(item.store_id ?? item.warehouse_id))
       if (!warehouse) return `المستودع المحدد للصنف - ${label} - غير موجود`
       if (Number(warehouse.status) !== 1) return `المستودع المحدد للصنف - ${label} - غير نشط`
     }
@@ -430,25 +426,25 @@ export const validateAvailableQuantity = async (
   // منفصلان لكل منهما نصف الكمية المطلوبة رغم تجاوز مجموعهما "المتاح" فعلياً.
   const groups = new Map<
     string,
-    { productId: number; warehouseId: number; batchNumber: string; expiryDate: string; mainQty: number; label: string }
+    { productId: number; storeId: number; batchNumber: string; expiryDate: string; mainQty: number; label: string }
   >()
   for (const item of trackedItems) {
     const productId = Number(item.product_id)
-    const warehouseId = Number(item.warehouse_id)
-    if (!productId || !warehouseId) continue
+    const storeId = Number(item.warehouse_id)
+    if (!productId || !storeId) continue
     const toMainQty = toMainQtyByKey.get(`${productId}|${item.unit || ""}`) ?? 1
     const mainQty = Number(item.quantity || 0) * toMainQty
     if (mainQty <= 0) continue
     const batchNumber = String(item.batch_number || "").trim()
     const expiryDate = item.expiry_date ? String(item.expiry_date).slice(0, 10) : ""
-    const key = `${productId}|${warehouseId}|${batchNumber}|${expiryDate}`
+    const key = `${productId}|${storeId}|${batchNumber}|${expiryDate}`
     const existing = groups.get(key)
     if (existing) {
       existing.mainQty += mainQty
     } else {
       groups.set(key, {
         productId,
-        warehouseId,
+        storeId,
         batchNumber,
         expiryDate,
         mainQty,
@@ -468,7 +464,7 @@ export const validateAvailableQuantity = async (
       LEFT JOIN units u ON u.unit_name = vi.unit
       LEFT JOIN product_units pu ON pu.product_id = vi.product_id AND pu.unit_id = u.id
       WHERE vi.product_id = ${group.productId}
-        AND vi.warehouse_id = ${group.warehouseId}
+        AND vi.store_id = ${group.storeId}
         AND COALESCE(vi.batch_number, '') = ${group.batchNumber}
         AND COALESCE(vi.expiry_date::text, '') = ${group.expiryDate}
         AND vh.status IN (1, 2)
@@ -515,16 +511,16 @@ export const validateStockInEditAvailability = async (voucherId: number, newItem
   )
 
   // مجموعات المزيج القديم (صنف/مستودع/دفعة/صلاحية) التي ساهم بها هذا السند قبل التعديل.
-  const oldGroups = new Map<string, { productId: number; warehouseId: number; batchNumber: string; expiryDate: string; label: string }>()
+  const oldGroups = new Map<string, { productId: number; storeId: number; batchNumber: string; expiryDate: string; label: string }>()
   for (const item of oldTracked) {
     const productId = Number(item.product_id)
-    const warehouseId = Number(item.warehouse_id)
-    if (!productId || !warehouseId) continue
+    const storeId = Number(item.store_id)
+    if (!productId || !storeId) continue
     const batchNumber = String(item.batch_number || "").trim()
     const expiryDate = item.expiry_date ? String(item.expiry_date).slice(0, 10) : ""
-    const key = `${productId}|${warehouseId}|${batchNumber}|${expiryDate}`
+    const key = `${productId}|${storeId}|${batchNumber}|${expiryDate}`
     if (!oldGroups.has(key)) {
-      oldGroups.set(key, { productId, warehouseId, batchNumber, expiryDate, label: item.product_name || item.product_code || "" })
+      oldGroups.set(key, { productId, storeId, batchNumber, expiryDate, label: item.product_name || item.product_code || "" })
     }
   }
 
@@ -533,14 +529,14 @@ export const validateStockInEditAvailability = async (voucherId: number, newItem
   const newQtyByKey = new Map<string, number>()
   for (const item of newItems) {
     const productId = Number(item.product_id)
-    const warehouseId = Number(item.warehouse_id)
-    if (!productId || !warehouseId) continue
+    const storeId = Number(item.warehouse_id)
+    if (!productId || !storeId) continue
     const toMainQty = toMainQtyByKey.get(`${productId}|${item.unit || ""}`) ?? 1
     const mainQty = Number(item.quantity || 0) * toMainQty
     if (mainQty <= 0) continue
     const batchNumber = String(item.batch_number || "").trim()
     const expiryDate = item.expiry_date ? String(item.expiry_date).slice(0, 10) : ""
-    const key = `${productId}|${warehouseId}|${batchNumber}|${expiryDate}`
+    const key = `${productId}|${storeId}|${batchNumber}|${expiryDate}`
     newQtyByKey.set(key, (newQtyByKey.get(key) || 0) + mainQty)
   }
 
@@ -555,7 +551,7 @@ export const validateStockInEditAvailability = async (voucherId: number, newItem
       LEFT JOIN units u ON u.unit_name = vi.unit
       LEFT JOIN product_units pu ON pu.product_id = vi.product_id AND pu.unit_id = u.id
       WHERE vi.product_id = ${group.productId}
-        AND vi.warehouse_id = ${group.warehouseId}
+        AND vi.store_id = ${group.storeId}
         AND COALESCE(vi.batch_number, '') = ${group.batchNumber}
         AND COALESCE(vi.expiry_date::text, '') = ${group.expiryDate}
         AND vh.status IN (1, 2)
@@ -598,20 +594,39 @@ export const saveVoucherItems = async (voucherId: number, items: any[]) => {
     const expiryDateToSave = hasExpiry ? row.expiry_date || null : NO_EXPIRY_SENTINEL_DATE
     await sql`
       INSERT INTO voucher_items_tbl (
-        voucher_id, ser, product_id, product_code, product_name, barcode, warehouse_id, unit,
-        quantity, bonus_quantity, unit_price, discount_percent, total_price,
-        batch_number, expiry_date, expense_account_id, purchase_account_id,
-        expense_cost_centers, purchase_cost_centers, note, length, width, height, count
+        voucher_id, item_id, item_name, unit_id, qnty, bonus, discount, vat_classification_id,
+        vat_amount, vat_ratio, price, note, cost_price, barcode, size_id, color_taste_id,
+        length, width, height, count, order_item_id, delivery_item_id, production_date,
+        expiry_date, batch_no, store_id, journal_id, return_sales_invoice_id
       ) VALUES (
-        ${voucherId}, ${i + 1}, ${row.product_id}, ${row.product_code || ""}, ${row.product_name || ""}, ${row.barcode || ""},
-        ${row.warehouse_id || null}, ${row.unit || ""},
-        ${Number(row.quantity || 0)}, ${Number(row.bonus_quantity || 0)}, ${Number(row.unit_price || 0)},
-        ${Number(row.discount_percent || 0)}, ${Number(row.total_price || 0)},
-        ${row.batch_number || null}, ${expiryDateToSave},
-        ${row.expense_account_id || null}, ${row.purchase_account_id || null},
-        ${JSON.stringify(row.expense_cost_centers || [])}, ${JSON.stringify(row.purchase_cost_centers || [])},
+        ${voucherId},
+        ${row.item_id ?? row.product_id ?? null},
+        ${row.item_name || row.product_name || ""},
+        ${row.unit_id ?? null},
+        ${Number(row.qnty ?? row.quantity ?? 0)},
+        ${Number(row.bonus ?? row.bonus_quantity ?? 0)},
+        ${Number(row.discount ?? row.discount_percent ?? 0)},
+        ${row.vat_classification_id ?? null},
+        ${Number(row.vat_amount ?? 0)},
+        ${Number(row.vat_ratio ?? 0)},
+        ${Number(row.price ?? row.unit_price ?? 0)},
         ${row.note || ""},
-        ${row.length ?? null}, ${row.width ?? null}, ${row.height ?? null}, ${row.count ?? null}
+        ${Number(row.cost_price ?? 0)},
+        ${row.barcode || ""},
+        ${row.size_id ?? null},
+        ${row.color_taste_id ?? null},
+        ${row.length ?? null},
+        ${row.width ?? null},
+        ${row.height ?? null},
+        ${row.count ?? null},
+        ${row.order_item_id ?? null},
+        ${row.delivery_item_id ?? null},
+        ${row.production_date || null},
+        ${expiryDateToSave},
+        ${row.batch_no || row.batch_number || null},
+        ${row.store_id ?? row.warehouse_id ?? null},
+        ${row.journal_id ?? null},
+        ${row.return_sales_invoice_id ?? null}
       )
     `
   }
@@ -632,16 +647,16 @@ export const validateVoucherDeletion = async (voucherId: number): Promise<string
   )
   if (trackedItems.length === 0) return null
 
-  const groups = new Map<string, { productId: number; warehouseId: number; batchNumber: string; expiryDate: string; label: string }>()
+  const groups = new Map<string, { productId: number; storeId: number; batchNumber: string; expiryDate: string; label: string }>()
   for (const item of trackedItems) {
     const productId = Number(item.product_id)
-    const warehouseId = Number(item.warehouse_id)
-    if (!productId || !warehouseId) continue
+    const storeId = Number(item.stor)
+    if (!productId || !storeId) continue
     const batchNumber = String(item.batch_number || "").trim()
     const expiryDate = item.expiry_date ? String(item.expiry_date).slice(0, 10) : ""
-    const key = `${productId}|${warehouseId}|${batchNumber}|${expiryDate}`
+    const key = `${productId}|${storeId}|${batchNumber}|${expiryDate}`
     if (!groups.has(key)) {
-      groups.set(key, { productId, warehouseId, batchNumber, expiryDate, label: item.product_name || item.product_code || "" })
+      groups.set(key, { productId, storeId, batchNumber, expiryDate, label: item.product_name || item.product_code || "" })
     }
   }
 
@@ -656,7 +671,7 @@ export const validateVoucherDeletion = async (voucherId: number): Promise<string
       LEFT JOIN units u ON u.unit_name = vi.unit
       LEFT JOIN product_units pu ON pu.product_id = vi.product_id AND pu.unit_id = u.id
       WHERE vi.product_id = ${group.productId}
-        AND vi.warehouse_id = ${group.warehouseId}
+        AND vi.store_id = ${group.storeId}
         AND COALESCE(vi.batch_number, '') = ${group.batchNumber}
         AND COALESCE(vi.expiry_date::text, '') = ${group.expiryDate}
         AND vh.status IN (1, 2)
@@ -675,24 +690,55 @@ export const validateVoucherDeletion = async (voucherId: number): Promise<string
 }
 
 export const fetchVoucherItems = async (voucherId: number) => {
-  // voucher_items_tbl يخزّن المعرّفات فقط (warehouse_id/expense_account_id/purchase_account_id
-  // بلا أعمدة اسم مرافقة) — تُجلَب هنا عبر JOIN وإلا تبقى فارغة في الشبكة عند عرض/تحميل سند محفوظ
+  // voucher_items_tbl يخزّن المعرّفات فقط (store_id وغيرها من حقول السطر) — تُجلَب هنا عبر JOIN
+  // وإلا تبقى فارغة في الشبكة عند عرض/تحميل سند محفوظ سابقاً.
   // سابقاً (رغم امتلاء المعرّفات نفسها) — نفس سبب/إصلاح مشكلة warehouse_name سابقاً، يُطبَّق الآن
   // أيضاً على حسابي المصروف/المشتريات لسند الاستعمال (تفاصيل حسابات الاصناف).
   // جدول الحسابات الفعلي account_tbl (بعمودي code/name خامين) — وليس accounts (غير موجود؛ هذا هو
   // اسم النوع TypeScript المستخدَم في الواجهة فقط)؛ مؤكَّد عبر app/api/accounts/route.ts.
   return sql`
-    SELECT vi.*, p.product_code AS current_product_code, p.product_name AS current_product_name,
-           w.warehouse_name AS warehouse_name,
-           ea.code AS expense_account_code, ea.name AS expense_account_name,
-           pa.code AS purchase_account_code, pa.name AS purchase_account_name
+    SELECT
+      vi.id,
+      vi.voucher_id,
+      vi.item_id AS product_id,
+      vi.item_id AS item_id,
+      vi.item_name AS item_name,
+      vi.unit_id,
+      vi.qnty AS quantity,
+      vi.bonus,
+      vi.discount,
+      vi.vat_classification_id,
+      vi.vat_amount,
+      vi.vat_ratio,
+      vi.price AS unit_price,
+      vi.note,
+      vi.cost_price,
+      vi.barcode,
+      vi.size_id,
+      vi.color_taste_id,
+      vi.length,
+      vi.width,
+      vi.height,
+      vi.count,
+      vi.order_item_id,
+      vi.delivery_item_id,
+      vi.production_date,
+      vi.expiry_date,
+      vi.batch_no AS batch_number,
+      vi.store_id AS warehouse_id,
+      vi.store_id AS store_id,
+      vi.journal_id,
+      vi.return_sales_invoice_id,
+      COALESCE(p.product_code, '') AS product_code,
+      p.product_code AS current_product_code,
+      COALESCE(p.product_name, vi.item_name, '') AS product_name,
+      p.product_name AS current_product_name,
+      w.warehouse_name AS warehouse_name
     FROM voucher_items_tbl vi
-    LEFT JOIN products p ON p.id = vi.product_id
-    LEFT JOIN warehouses w ON w.id = vi.warehouse_id
-    LEFT JOIN account_tbl ea ON ea.id = vi.expense_account_id
-    LEFT JOIN account_tbl pa ON pa.id = vi.purchase_account_id
+    LEFT JOIN products p ON p.id = vi.item_id
+    LEFT JOIN warehouses w ON w.id = vi.store_id
     WHERE vi.voucher_id = ${voucherId}
-    ORDER BY vi.ser, vi.id
+    ORDER BY vi.id
   `
 }
 
@@ -700,7 +746,7 @@ export const fetchVoucherItems = async (voucherId: number) => {
 // فقط (يُسجَّل في inventory_transactions للتدقيق) لأن product_stock لا يملك بُعد مستودع في هذه
 // القاعدة (فقط product_id + organization_id) — انظر ملاحظة "Internal Delivery" في خطة التنفيذ.
 export const applyStockMovement = async (
-  items: { product_id: number; quantity: number; warehouse_id?: number | null }[],
+  items: { product_id: number; quantity: number; store_id?: number | null; warehouse_id?: number | null }[],
   direction: "in" | "out",
   referenceId: number,
   warehouseIdOverride?: number | null,
@@ -732,7 +778,7 @@ export const applyStockMovement = async (
       INSERT INTO inventory_transactions (
         product_id, warehouse_id, transaction_type, quantity, reference_type, reference_id, organization_id
       ) VALUES (
-        ${productId}, ${warehouseIdOverride ?? item.warehouse_id ?? null}, ${direction}, ${quantity},
+        ${productId}, ${warehouseIdOverride ?? item.store_id ?? item.warehouse_id ?? null}, ${direction}, ${quantity},
         ${referenceType}, ${referenceId}, ${organizationId}
       )
     `

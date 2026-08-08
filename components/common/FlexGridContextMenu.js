@@ -354,8 +354,8 @@ export default class FlexGridContextMenu {
         },
         executeCommand:async (cmd) => {
           switch (cmd) {
-            case 'copyStoreToDownRow': {
-              grid.finishEditing();
+                case 'copyStoreToDownRow': {
+              if (grid && typeof grid.finishEditing === 'function') grid.finishEditing();
               setTimeout(async() => {
               let view = grid.collectionView,
                 cols = grid.columns,

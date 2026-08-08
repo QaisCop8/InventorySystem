@@ -111,7 +111,7 @@ const validatePayload = (data: any, items: any[]): string | null => {
     return "يجب اختيار حساب الضريبة لوجود نسبة ضريبة على السند"
   }
   if (items.length === 0) return "يجب إدخال صنف واحد على الأقل"
-  if (items.some((i: any) => !i.warehouse_id)) return "يجب اختيار المستودع لكل صنف"
+  if (items.some((i: any) => !(Number(i.store_id ?? i.warehouse_id) > 0))) return "يجب اختيار المستودع لكل صنف"
   if (items.some((i: any) => !(Number(i.quantity || 0) > 0))) return "يجب إدخال الكمية لكل صنف"
   if (items.some((i: any) => Number(i.discount_percent || 0) < 0 || Number(i.discount_percent || 0) > 100)) {
     return "نسبة الخصم يجب ألا تتجاوز 100% لكل صنف"

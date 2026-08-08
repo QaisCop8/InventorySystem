@@ -130,20 +130,8 @@ export const ensureTables = async () => {
   `
 
   // أسطر أصناف سندات المبيعات/المشتريات الثمانية تُخزَّن في voucher_items_tbl نفسه (الجدول المشترك
-  // الذي تملكه stock-vouchers/_lib.ts وتستخدمه سندات الحركة الأربعة، بما فيها سند الاستعمال) — وليس
-  // بجدول منفصل. أعمدته الأساسية (product_id/warehouse_id/quantity/unit_price/batch_number/
-  // expiry_date/length-width-height-count/note...) مُنشأة بالفعل عبر ensureStockVoucherTables أعلاه؛
-  // الأعمدة التالية فقط خاصة بسندات المبيعات ولا وجود لها هناك، فتُضاف هنا دفاعياً.
-  await sql`ALTER TABLE voucher_items_tbl ADD COLUMN IF NOT EXISTS serial_numbers JSONB DEFAULT '[]'`
-  // حساب الصنف (تبويب "تفاصيل حسابات الاصناف" — فاتورة مبيعات/مشتريات ومردود مبيعات/مشتريات فقط،
-  // انظر ITEM_ACCOUNT_CONFIG في unified-sales-delivery.tsx وbuildSalesVoucherJournalRows أدناه) —
-  // عمود مستقل عن expense_account_id/purchase_account_id الخاصَّين بسند الاستعمال فقط.
-  await sql`ALTER TABLE voucher_items_tbl ADD COLUMN IF NOT EXISTS account_id INTEGER`
-  await sql`ALTER TABLE voucher_items_tbl ADD COLUMN IF NOT EXISTS account_cost_centers JSONB DEFAULT '[]'`
-  // سند المصدر الذي استُلَّ منه هذا السطر (عرض سعر/طلبية/إرسالية سابقة) — يمنع سحب نفس السطر مرتين
-  // عبر نوافذ "استلام من طلبية/إرسالية" في تبويب بيانات اضافية.
-  await sql`ALTER TABLE voucher_items_tbl ADD COLUMN IF NOT EXISTS source_voucher_id INTEGER`
-  await sql`ALTER TABLE voucher_items_tbl ADD COLUMN IF NOT EXISTS source_voucher_type INTEGER`
+  // الذي تملكه stock-vouchers/_lib.ts وتستخدمه سندات الحركة الأربعة، بما فيها سند الاستعمال) —
+  // يتم إنشاء الجدول الجديد يدوياً على المخطط الحديث فقط، ولا تُضاف الأعمدة القديمة/المتوافقية هنا.
 
   // نوعا قيد إضافيان خاصان بمردود المبيعات/المشتريات (1-15 محجوزة لموديولات أخرى بالفعل، 6="المبيعات"
   // و9="المشتريات" يُعادان استخدامهما هنا لفاتورة مبيعات/مشتريات مباشرة) — نفس نمط إضافة الأنواع
@@ -362,19 +350,45 @@ export const saveSalesVoucherItems = async (voucherId: number, items: any[]) => 
     const expiryDateToSave = hasExpiry ? row.expiry_date || null : NO_EXPIRY_SENTINEL_DATE
     await sql`
       INSERT INTO voucher_items_tbl (
-        voucher_id, ser, product_id, product_code, product_name, barcode, warehouse_id, unit,
-        quantity, bonus_quantity, unit_price, discount_percent, total_price,
-        batch_number, expiry_date, serial_numbers, account_id, account_cost_centers,
-        source_voucher_id, source_voucher_type, note, length, width, height, count
+        voucher_id, item_id, item_name, unit_id, qnty, bonus, discount, vat_classification_id,
+        vat_amount, vat_ratio, price, note, cost_price, barcode, size_id, color_taste_id,
+        length, width, height, count, order_item_id, delivery_item_id, production_date,
+        expiry_date, batch_no, store_id, journal_id, return_sales_invoice_id,
+        serial_numbers, account_id, account_cost_centers, source_voucher_id, source_voucher_type
       ) VALUES (
-        ${voucherId}, ${i + 1}, ${row.product_id}, ${row.product_code || ""}, ${row.product_name || ""}, ${row.barcode || ""},
-        ${row.warehouse_id || null}, ${row.unit || ""},
-        ${Number(row.quantity || 0)}, ${Number(row.bonus_quantity || 0)}, ${Number(row.unit_price || 0)},
-        ${Number(row.discount_percent || 0)}, ${Number(row.total_price || 0)},
-        ${row.batch_number || null}, ${expiryDateToSave},
-        ${JSON.stringify(row.serial_numbers || [])}, ${row.account_id || null}, ${JSON.stringify(row.account_cost_centers || [])},
-        ${row.source_voucher_id || null}, ${row.source_voucher_type || null}, ${row.note || ""},
-        ${row.length ?? null}, ${row.width ?? null}, ${row.height ?? null}, ${row.count ?? null}
+        ${voucherId},
+        ${row.item_id ?? row.product_id ?? null},
+        ${row.item_name || row.product_name || ""},
+        ${row.unit_id ?? null},
+        ${Number(row.qnty ?? row.quantity ?? 0)},
+        ${Number(row.bonus ?? row.bonus_quantity ?? 0)},
+        ${Number(row.discount ?? row.discount_percent ?? 0)},
+        ${row.vat_classification_id ?? null},
+        ${Number(row.vat_amount ?? 0)},
+        ${Number(row.vat_ratio ?? 0)},
+        ${Number(row.price ?? row.unit_price ?? 0)},
+        ${row.note || ""},
+        ${Number(row.cost_price ?? 0)},
+        ${row.barcode || ""},
+        ${row.size_id ?? null},
+        ${row.color_taste_id ?? null},
+        ${row.length ?? null},
+        ${row.width ?? null},
+        ${row.height ?? null},
+        ${row.count ?? null},
+        ${row.order_item_id ?? null},
+        ${row.delivery_item_id ?? null},
+        ${row.production_date || null},
+        ${expiryDateToSave},
+        ${row.batch_no || row.batch_number || null},
+        ${row.store_id ?? row.warehouse_id ?? null},
+        ${row.journal_id ?? null},
+        ${row.return_sales_invoice_id ?? null},
+        ${JSON.stringify(row.serial_numbers || [])},
+        ${row.account_id || null},
+        ${JSON.stringify(row.account_cost_centers || [])},
+        ${row.source_voucher_id || null},
+        ${row.source_voucher_type || null}
       )
     `
   }
@@ -389,8 +403,8 @@ export const fetchSalesVoucherItems = async (voucherId: number) => {
            w.warehouse_name AS warehouse_name,
            ia.code AS account_code, ia.name AS account_name
     FROM voucher_items_tbl vi
-    LEFT JOIN products p ON p.id = vi.product_id
-    LEFT JOIN warehouses w ON w.id = vi.warehouse_id
+    LEFT JOIN products p ON p.id = vi.item_id
+    LEFT JOIN warehouses w ON w.id = vi.store_id
     LEFT JOIN account_tbl ia ON ia.id = vi.account_id
     WHERE vi.voucher_id = ${voucherId}
     ORDER BY vi.ser, vi.id

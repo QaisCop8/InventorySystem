@@ -456,9 +456,9 @@ export function ExcelImportDialog({ open, onOpenChange, onImportComplete }: Exce
         color: readText(row, "color"),
         size: readText(row, "size"),
         notes: readText(row, "notes"),
-        expiry_tracking: Boolean(readField(row, "expiry_tracking")),
-        batch_tracking: Boolean(readField(row, "batch_tracking")),
-        serial_tracking: Boolean(readField(row, "serial_tracking")),
+        expiry_tracking: false,
+        batch_tracking: false,
+        serial_tracking: false,
         store_id: Number(readField(row, "store_id")) || 0,
         price_1: Number(readField(row, "price_1")) || 0,
         price_2: Number(readField(row, "price_2")) || 0,
@@ -473,6 +473,9 @@ export function ExcelImportDialog({ open, onOpenChange, onImportComplete }: Exce
       const errors: string[] = [];
       if (!product.product_code.trim()) errors.push("رقم الصنف مطلوب");
       if (!product.product_name.trim()) errors.push("اسم الصنف مطلوب");
+      if (!product.unit_1 || !String(product.unit_1).trim()) {
+        errors.push("الوحدة الرئيسية مطلوبة");
+      }
       if (product.store_id > 0) {
         const warehouseExists = definitionsRef.current.warehouses.some(w => w.id === product.store_id)
         if (!warehouseExists) errors.push(`المستودع (store_id: ${product.store_id}) غير موجود في النظام`)
@@ -559,6 +562,55 @@ export function ExcelImportDialog({ open, onOpenChange, onImportComplete }: Exce
       return;
     }
 
+    const normalizeBarcodeList = (value: string | string[] | undefined): string[] => {
+      const raw = Array.isArray(value) ? value : String(value ?? "").split(/[\r\n;,]+/)
+      return Array.from(
+        new Set(
+          raw
+            .map((item) => String(item ?? "").trim())
+            .filter((item) => item.length > 0),
+        ),
+      )
+    }
+
+    const ensureUnitExists = async (unitName: string): Promise<number | null> => {
+      const value = String(unitName || "").trim();
+      if (!value) return null;
+
+      const existingUnit = definitionsRef.current.units.find(
+        (u) => String(u.unit_name || "").trim().toLowerCase() === value.toLowerCase(),
+      );
+      if (existingUnit) return existingUnit.id;
+
+      const response = await fetch("/api/units", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          unit_name: value,
+          unit_name_en: value,
+          description: "",
+          is_active: true,
+          status: 1,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorBody = await response.json().catch(() => ({}));
+        throw new Error(errorBody?.error || `فشل إنشاء الوحدة: ${value}`);
+      }
+
+      const createdUnit = await response.json();
+      const createdUnitId = Number(createdUnit?.id ?? 0);
+      if (!createdUnitId) {
+        throw new Error(`لم يتم إرجاع معرف الوحدة الجديدة: ${value}`);
+      }
+
+      const nextUnits = [...definitionsRef.current.units, { id: createdUnitId, unit_name: value }];
+      definitionsRef.current.units = nextUnits;
+      setDefinitions((prev) => ({ ...prev, units: nextUnits }));
+      return createdUnitId;
+    };
+
     setIsImporting(true);
     setImportProgress({ current: 0, total: validProducts.length });
     const results = { success: 0, failed: 0, errors: [] as string[] };
@@ -568,33 +620,33 @@ export function ExcelImportDialog({ open, onOpenChange, onImportComplete }: Exce
       const product = validProducts[i];
 
       try {
-        // Map units
-        const units = [];
+        const mainUnitId = product.unit_1 ? await ensureUnitExists(product.unit_1) : null;
+        const secondaryUnitId = product.unit_2 ? await ensureUnitExists(product.unit_2) : null;
 
-        if (product.unit_1) {
-          const mainUnitDef = definitionsRef.current.units.find(u => u.unit_name === product.unit_1);
-          if (mainUnitDef) {
-            units.push({
-              unit_id: mainUnitDef.id,
-              to_main_qnty: 1,
-              barcode_list: product.unit_1_barcode ? [product.unit_1_barcode] : [],
-            });
-          }
+        const unitEntries = new Map<number, { unit_id: number; to_main_qnty: number; barcode_list: string[] }>();
+
+        const addUnitEntry = (unitId: number | null, multiplier: number, barcodes: string[]) => {
+          if (!unitId || !Number.isFinite(unitId)) return;
+          const existing = unitEntries.get(unitId);
+          const nextBarcodes = normalizeBarcodeList([...((existing?.barcode_list ?? []) || []), ...barcodes]);
+
+          unitEntries.set(unitId, {
+            unit_id: unitId,
+            to_main_qnty: existing?.to_main_qnty ? existing.to_main_qnty : multiplier,
+            barcode_list: nextBarcodes,
+          });
+        };
+
+        if (mainUnitId) {
+          addUnitEntry(mainUnitId, 1, normalizeBarcodeList(product.unit_1_barcode));
         }
 
-        if (product.unit_2) {
-          const secUnitDef = definitionsRef.current.units.find(u => u.unit_name === product.unit_2);
-          if (secUnitDef) {
-            units.push({
-              unit_id: secUnitDef.id,
-              to_main_qnty: product.unit_2_to_main_qnty || 1,
-              barcode_list: product.unit_2_barcode ? [product.unit_2_barcode] : [],
-            });
-          }
+        if (secondaryUnitId) {
+          addUnitEntry(secondaryUnitId, Number(product.unit_2_to_main_qnty) || 1, normalizeBarcodeList(product.unit_2_barcode));
         }
 
+        const units = Array.from(unitEntries.values());
 
-        // Map stores
         const stores = product.store_id ? [{
           store_id: product.store_id,
           shelf: "",
@@ -603,31 +655,27 @@ export function ExcelImportDialog({ open, onOpenChange, onImportComplete }: Exce
           min_quantity: 0,
         }] : [];
 
-        // Map prices
         const prices: { price_category_id: number; unit_id: number; price: number; currency_id: number }[] = [];
+        const priceUnitIds = units.map((unit) => unit.unit_id);
 
-        for (let i = 1; i <= 6; i++) {
-          const rawValue = product[`price_${i}` as keyof typeof product];
-
-          // convert to number safely
+        for (let p = 1; p <= 6; p++) {
+          const rawValue = product[`price_${p}` as keyof typeof product];
           const priceValue = Number(rawValue);
 
           if (!isNaN(priceValue) && priceValue > 0) {
-            const priceCategory = definitionsRef.current.price_category.find(pc => pc.id === i);
-            const mainUnit = definitionsRef.current.units.find(u => u.unit_name === product.unit_1);
+            const priceCategory = definitionsRef.current.price_category.find(pc => pc.id === p);
+            if (!priceCategory) continue;
 
-            if (priceCategory && mainUnit) {
+            for (const selectedUnitId of priceUnitIds) {
               prices.push({
                 price_category_id: priceCategory.id,
-                unit_id: mainUnit.id,
+                unit_id: selectedUnitId,
                 price: priceValue,
-                currency_id: 1, // or from definitionsRef if needed
+                currency_id: 1,
               });
             }
           }
         }
-
-
 
         const bodyData = {
           product_code: product.product_code,
@@ -642,12 +690,12 @@ export function ExcelImportDialog({ open, onOpenChange, onImportComplete }: Exce
           original_number: "",
           measurment_unit: 1,
           last_purchase_price: 0,
-          currency_id: 1, // set default currency id
+          currency_id: 1,
           tax_rate: 16,
           discount_rate: 0,
-          expiry_tracking: product.expiry_tracking,
-          batch_tracking: product.batch_tracking,
-          serial_tracking: product.serial_tracking,
+          expiry_tracking: false,
+          batch_tracking: false,
+          serial_tracking: false,
           status: 1,
           length: product.length,
           width: product.width,

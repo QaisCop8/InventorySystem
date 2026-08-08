@@ -1,3 +1,5 @@
+import fs from 'fs';
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: "standalone",

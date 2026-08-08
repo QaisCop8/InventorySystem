@@ -60,6 +60,8 @@ export default class MultiSelect extends React.Component {
     const passProps = { ...this.props };
     if (Object.prototype.hasOwnProperty.call(passProps, 'showFilter')) delete passProps.showFilter;
     if (Object.prototype.hasOwnProperty.call(passProps, 'showCheck')) delete passProps.showCheck;
+    if (Object.prototype.hasOwnProperty.call(passProps, 'showMultiSelect')) delete passProps.showMultiSelect;
+    if (Object.prototype.hasOwnProperty.call(passProps, 'virtualScroll')) delete passProps.virtualScroll;
     // const SELECTALLMAXLIMIT = 5000;
     let divlabelStyle = {};
     if (this.props.isReportFilter) divlabelStyle = { display: 'flex', flexDirection: 'column', width: '100%', overflow: 'hidden' };

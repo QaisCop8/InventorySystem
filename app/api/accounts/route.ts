@@ -45,6 +45,7 @@ export async function GET(request: NextRequest) {
 
     const orderTypeParam = searchParams.get('order_type')
     const orderType = orderTypeParam ? Number(orderTypeParam) : null
+    const ORDER_SOURCE_VOUCHER_TYPE = 3
 
     const hasDeliveriesCondition = deliveryVchTypes.length > 0
       ? sql`
@@ -72,9 +73,51 @@ export async function GET(request: NextRequest) {
       : sql`FALSE`
 
     const hasOrdersCondition = orderType === 1
-      ? sql`EXISTS (SELECT 1 FROM orders o WHERE o.customer_id = a.id)`
+      ? sql`
+          EXISTS (
+            SELECT 1
+            FROM orders o
+            WHERE o.customer_id = a.id
+              AND o.deleted = false
+              AND o.order_type = 1
+              AND o.order_status IN (2, 3)
+              AND NOT EXISTS (
+                SELECT 1
+                FROM voucher_header_tbl inv
+                WHERE inv.vch_type = 12
+                  AND inv.invoice_source_type = 3
+                  AND inv.source_voucher_id = o.id
+                  AND inv.source_voucher_type = ${ORDER_SOURCE_VOUCHER_TYPE}
+              )
+              AND NOT EXISTS (
+                SELECT 1
+                FROM voucher_items_tbl vi
+                WHERE vi.source_voucher_id = o.id
+                  AND vi.source_voucher_type = ${ORDER_SOURCE_VOUCHER_TYPE}
+              )
+          )`
       : orderType === 2
-        ? sql`EXISTS (SELECT 1 FROM purchase_orders po WHERE po.supplier_id = a.id)`
+        ? sql`
+          EXISTS (
+            SELECT 1
+            FROM orders po
+            WHERE po.customer_id = a.id
+              AND COALESCE(po.workflow_status, '') != 'cancelled'
+              AND NOT EXISTS (
+                SELECT 1
+                FROM voucher_header_tbl inv
+                WHERE inv.vch_type IN (12, 17)
+                  AND inv.invoice_source_type = 3
+                  AND inv.source_voucher_id = po.id
+                  AND inv.source_voucher_type = ${ORDER_SOURCE_VOUCHER_TYPE}
+              )
+              AND NOT EXISTS (
+                SELECT 1
+                FROM voucher_items_tbl vi
+                WHERE vi.source_voucher_id = po.id
+                  AND vi.source_voucher_type = ${ORDER_SOURCE_VOUCHER_TYPE}
+              )
+          )`
         : sql`FALSE`
 
     let rows

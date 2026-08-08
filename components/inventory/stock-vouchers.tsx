@@ -101,7 +101,30 @@ const normalizeVoucher = (record: Partial<VoucherRecord>, voucherType: StockVouc
   // من الخادم "YYYY-MM-DD" (بلا وقت) يُعرَض بشبكة Wijmo بتاريخ أقل بيوم في المناطق الزمنية المتقدّمة
   // على UTC ما لم يُضَف وقت محلي صريح قبل ربطه بالعمود.
   items: record.items?.length
-    ? (record.items as VoucherItemRow[]).map((item) => ({ ...item, expiry_date: toGridDateString(item.expiry_date) }))
+    ? (record.items as any[]).map((item) => ({
+        ...emptyItemRow,
+        ...item,
+        product_id: item.product_id ?? item.item_id ?? null,
+        product_code: String(item.product_code || item.current_product_code || "").trim(),
+        product_name: String(item.product_name || item.current_product_name || item.item_name || "").trim(),
+        warehouse_id: item.warehouse_id ?? item.store_id ?? null,
+        warehouse_name: item.warehouse_name || "",
+        batch_number: String(item.batch_number || item.batch_no || ""),
+        expiry_date: toGridDateString(item.expiry_date),
+        quantity: item.quantity ?? item.qnty ?? null,
+        unit_price: item.unit_price ?? item.price ?? null,
+        total_price: item.total_price ?? (item.quantity ?? item.qnty ?? 0) * (item.unit_price ?? item.price ?? 0),
+        length: item.length ?? null,
+        width: item.width ?? null,
+        height: item.height ?? null,
+        count: item.count ?? null,
+        expense_account_id: item.expense_account_id ?? null,
+        purchase_account_id: item.purchase_account_id ?? null,
+        expense_account_code: String(item.expense_account_code || ""),
+        expense_account_name: String(item.expense_account_name || ""),
+        purchase_account_code: String(item.purchase_account_code || ""),
+        purchase_account_name: String(item.purchase_account_name || ""),
+      }))
     : [{ ...emptyItemRow }],
 })
 

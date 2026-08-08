@@ -35,6 +35,7 @@ interface Warehouse {
   warehouse_name_en?: string
   location?: string
   is_active: boolean
+  status?: number
 }
 
 interface Branch {
@@ -87,10 +88,12 @@ interface License_Type {
 }
 interface Unit {
   id: number
-  unit_name: string,
-  unit_name_e: string,
-  description: string,
-  is_active: boolean
+  unit_name: string
+  unit_name_e?: string
+  unit_name_en?: string
+  description?: string
+  is_active?: boolean
+  status?: number
 }
 
 interface Price {
@@ -303,7 +306,12 @@ function Definitions() {
   const [units, setUnits] = useState<Unit[]>([])
   const [prices, setPrices] = useState<Price[]>([])
   const [priceForm, setPriceForm] = useState({ name: "", name_en: "", description: "", status: 1 })
-  const [unitForm, setUnitForm] = useState({ unit_name: "", unit_name_e: "", description: "", status: 1 })
+  const [unitForm, setUnitForm] = useState<{ unit_name: string; unit_name_e: string; description: string; status: number }>({
+    unit_name: "",
+    unit_name_e: "",
+    description: "",
+    status: 1,
+  })
   const [showUnitForm, setShowUnitForm] = useState(false)
   const [showPriceForm, setShowPriceForm] = useState(false)
   const [showIncomeStatementItemForm, setShowIncomeStatementItemForm] = useState(false)
@@ -1091,7 +1099,7 @@ function Definitions() {
   const handleEditUnit = (unit: Unit) => {
     setUnitForm({
       unit_name: unit.unit_name,
-      unit_name_e: unit.unit_name_e,
+      unit_name_e: unit.unit_name_e ?? unit.unit_name_en ?? "",
       description: unit.description || "",
       status: unit.status ?? 1,
     })
@@ -1107,7 +1115,7 @@ function Definitions() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           unit_name: unit.unit_name,
-          unit_name_en: unit.unit_name_en || "",
+          unit_name_en: unit.unit_name_en || unit.unit_name_e || "",
           description: unit.description || "",
           status: nextStatus,
         }),
@@ -2959,7 +2967,7 @@ function Definitions() {
                         </Button>
                         <Button type="button" variant="outline" size="sm" onClick={() => {
                           setShowUnitForm(false)
-                          setUnitForm({ unit_name: "", unit_name_e: "", description: "" })
+                          setUnitForm({ unit_name: "", unit_name_e: "", description: "", status: 1 })
                           setEditingUnitId(null)
                         }}>
                           إلغاء
