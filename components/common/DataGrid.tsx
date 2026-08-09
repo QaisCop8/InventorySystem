@@ -70,9 +70,9 @@ export default function CustomFlexGrid({
 
 
     const handleInitialized = (grid: wjGrid.FlexGrid) => {
-        flexRef.current = grid; // ✅ works now
-        console.log("flexRef.current ",flexRef.current)
-        initialized;
+        flexRef.current = grid;
+        grid.showAlternatingRows = true;
+        initialized?.(grid);
 
         if (onRowDoubleClick) {
             grid.hostElement.addEventListener("dblclick", (e: MouseEvent) => {
@@ -93,7 +93,6 @@ export default function CustomFlexGrid({
                 headersVisibility={headersVisibility || "Column"}
                 isReadOnly={isReport || false}
                 wordWrap={true}
-                showAlternatingRows={true}
                 allowDragging={allowDragging || "None"}
                 cssClass={styles.customFlexgrid}
                 allowResizing="Both"

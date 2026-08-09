@@ -18,15 +18,19 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       const result = await client.query(
         `SELECT u.id AS unit_id, u.unit_name, pu.to_main_qnty,
                 pub.barcode,
-                COALESCE(pp.price, 0) AS price
+                COALESCE(pp_selected.price, pp_fallback.price, 0) AS price
          FROM product_units pu
          LEFT JOIN units u ON pu.unit_id = u.id
          LEFT JOIN product_unit_barcodes pub
-           ON pu.product_id = pub.product_id AND pu.id = pub.unit_id
-         LEFT JOIN product_prices pp
-           ON pu.product_id = pp.product_id
-           AND pu.unit_id = pp.unit_id
-           AND pp.price_category_id = $2
+           ON pu.product_id = pub.product_id AND pu.unit_id = pub.unit_id
+         LEFT JOIN product_prices pp_selected
+           ON pu.product_id = pp_selected.product_id
+           AND pu.unit_id = pp_selected.unit_id
+           AND pp_selected.price_category_id = $2
+         LEFT JOIN product_prices pp_fallback
+           ON pu.product_id = pp_fallback.product_id
+           AND pu.unit_id = pp_fallback.unit_id
+           AND pp_fallback.price_category_id = 1
          WHERE pu.product_id = $1
          ORDER BY pu.id ASC`,
         [productId, priceCategoryId],

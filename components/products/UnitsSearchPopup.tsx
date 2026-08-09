@@ -12,14 +12,16 @@ interface Unit {
 
 interface Product {
   name: string;
+  id?: number | null;
 }
 
 interface UnitsSearchPopupProps {
   visible: boolean;
   onClose: () => void;
   onSelect: (selection: { product: Product; selected_unit: Unit }) => void;
-  units: Unit[];
+  units?: Unit[];
   product: Product;
+  priceCategoryId?: number;
 }
 
 const UnitsSearchPopup: React.FC<UnitsSearchPopupProps> = ({
@@ -28,9 +30,63 @@ const UnitsSearchPopup: React.FC<UnitsSearchPopupProps> = ({
   onSelect,
   units,
   product,
+  priceCategoryId = 0,
 }) => {
   const [selectedUnit, setSelectedUnit] = useState<Unit | null>(null);
+  const [resolvedUnits, setResolvedUnits] = useState<Unit[]>([]);
   const gridRef = useRef<wjGrid.FlexGrid | null>(null);
+
+  useEffect(() => {
+    if (!visible) return;
+
+    const sourceUnits = Array.isArray(units) && units.length > 0 ? units : [];
+    if (sourceUnits.length > 0) {
+      setResolvedUnits(sourceUnits);
+      setSelectedUnit(sourceUnits[0] ?? null);
+      return;
+    }
+    if (!product?.id) {
+      setResolvedUnits([]);
+      setSelectedUnit(null);
+      return;
+    }
+
+    let isActive = true;
+    const loadUnits = async () => {
+      try {
+        const categoryId = Number.isFinite(priceCategoryId) ? Number(priceCategoryId) : 0;
+        const response = await fetch(`/api/products/${product.id}/units?price_category_id=${categoryId}`);
+        console.log("response ", response)
+        if (!response.ok) {
+          throw new Error("Failed to load units");
+        }
+        const data = await response.json();
+        if (!isActive) return;
+        const nextUnits = Array.isArray(data)
+          ? data.map((u: any) => ({
+              unit_id: Number(u.unit_id ?? u.id ?? 0),
+              unit_name: String(u.unit_name ?? ""),
+              price: Number(u.price ?? 0),
+              barcode: String(u.barcode ?? ""),
+              to_main_qnty: Number(u.to_main_qnty ?? 1),
+            }))
+          : [];
+
+        setResolvedUnits(nextUnits);
+        setSelectedUnit(nextUnits[0] ?? null);
+      } catch (error) {
+        if (!isActive) return;
+        setResolvedUnits([]);
+        setSelectedUnit(null);
+      }
+    };
+
+    void loadUnits();
+
+    return () => {
+      isActive = false;
+    };
+  }, [visible, product?.id, units, priceCategoryId]);
 
   const handleRowDoubleClick = (unit: Unit) => {
     onSelect({ product, selected_unit: unit });
@@ -53,14 +109,18 @@ const UnitsSearchPopup: React.FC<UnitsSearchPopupProps> = ({
       window.removeEventListener("keydown", handleKeyDown, true);
     };
   }, [visible, onClose]);
+
   const handleSelectionChange = useCallback((grid: wjGrid.FlexGrid) => {
     if (!grid || !grid.collectionView) return;
     const item = grid.collectionView.currentItem as Unit | undefined;
     if (!item) return;
     setSelectedUnit(item);
   }, []);
+
+  const gridUnits = resolvedUnits.length > 0 ? resolvedUnits : (Array.isArray(units) ? units : []);
+
   if (!visible) return null;
-  console.log("units ", units)
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
       <div
@@ -74,13 +134,13 @@ const UnitsSearchPopup: React.FC<UnitsSearchPopupProps> = ({
 
         <DataGridView
           ref={gridRef}
-          dataSource={units}
+          dataSource={gridUnits}
           scheme={{
             isReport: true,
             columns: [
               { header: "الوحدة", name: "unit_name", width: "*", isReadOnly: true },
-              { header: "السعر", name: "price", width: 80, isReadOnly: true },
-              { header: "باركود", name: "barcode", width: 120, isReadOnly: true },
+              { header: "السعر", name: "price", width: 120, isReadOnly: true },
+              { header: "باركود", name: "barcode", width: 180, isReadOnly: true },
               { header: "العلاقة بالرئيسية", name: "to_main_qnty", width: 120, isReadOnly: true },
             ],
           }}

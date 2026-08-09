@@ -33,17 +33,12 @@ export async function GET(request: NextRequest) {
             AND o.order_status IN ('approved', 'completed')
             AND NOT EXISTS (
               SELECT 1
-              FROM voucher_header_tbl inv
+              FROM voucher_items_tbl inv_item
+              JOIN voucher_header_tbl inv ON inv.id = inv_item.voucher_id
               WHERE inv.vch_type IN (12, 17)
-                AND inv.invoice_source_type = 3
-                AND inv.source_voucher_id = o.id
-                AND inv.source_voucher_type = ${ORDER_SOURCE_VOUCHER_TYPE}
-            )
-            AND NOT EXISTS (
-              SELECT 1
-              FROM voucher_items_tbl vi
-              WHERE vi.source_voucher_id = o.id
-                AND vi.source_voucher_type = ${ORDER_SOURCE_VOUCHER_TYPE}
+                AND inv_item.order_item_id IN (
+                  SELECT id FROM order_items WHERE order_id = o.id
+                )
             )
           ORDER BY o.order_date DESC, o.id DESC
         `
@@ -59,17 +54,12 @@ export async function GET(request: NextRequest) {
             AND COALESCE(po.workflow_status, '') != 'cancelled'
             AND NOT EXISTS (
               SELECT 1
-              FROM voucher_header_tbl inv
+              FROM voucher_items_tbl inv_item
+              JOIN voucher_header_tbl inv ON inv.id = inv_item.voucher_id
               WHERE inv.vch_type IN (12, 17)
-                AND inv.invoice_source_type = 3
-                AND inv.source_voucher_id = po.id
-                AND inv.source_voucher_type = ${ORDER_SOURCE_VOUCHER_TYPE}
-            )
-            AND NOT EXISTS (
-              SELECT 1
-              FROM voucher_items_tbl vi
-              WHERE vi.source_voucher_id = po.id
-                AND vi.source_voucher_type = ${ORDER_SOURCE_VOUCHER_TYPE}
+                AND inv_item.order_item_id IN (
+                  SELECT id FROM purchase_order_items WHERE purchase_order_id = po.id
+                )
             )
           ORDER BY po.order_date DESC, po.id DESC
         `

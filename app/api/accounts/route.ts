@@ -51,74 +51,40 @@ export async function GET(request: NextRequest) {
       ? sql`
           EXISTS (
             SELECT 1
-            FROM voucher_header_tbl vh
-            WHERE vh.account_id = a.id
-              AND vh.vch_type = ANY(${deliveryVchTypes})
-              AND vh.status = 2
-              AND NOT EXISTS (
-                SELECT 1
-                FROM voucher_header_tbl inv
-                WHERE inv.vch_type IN (12, 17)
-                  AND inv.invoice_source_type = 2
-                  AND inv.source_voucher_id = vh.id
-                  AND inv.source_voucher_type = vh.vch_type
-              )
-              AND NOT EXISTS (
-                SELECT 1
-                FROM voucher_items_tbl vi
-                WHERE vi.source_voucher_id = vh.id
-                  AND vi.source_voucher_type = vh.vch_type
-              )
+            FROM voucher_header_tbl vch
+            INNER JOIN voucher_items_tbl ivch ON ivch.voucher_id = vch.id
+            WHERE vch.account_id = a.id
+              AND vch.vch_type = ANY(${deliveryVchTypes})
+              AND vch.status = 2
+              AND (
+                (
+                  ivch.qnty - (
+                    SELECT COALESCE(SUM(qnty), 0) FROM voucher_items_tbl WHERE delivery_item_id = ivch.id
+                  )
+                )
+                +
+                (
+                  ivch.bonus - (
+                    SELECT COALESCE(SUM(bonus), 0) FROM voucher_items_tbl WHERE delivery_item_id = ivch.id
+                  )
+                )
+              ) > 0
           )`
       : sql`FALSE`
 
-    const hasOrdersCondition = orderType === 1
+    const hasOrdersCondition = orderType !== null
       ? sql`
           EXISTS (
             SELECT 1
-            FROM orders o
-            WHERE o.customer_id = a.id
-              AND o.deleted = false
-              AND o.order_type = 1
-              AND o.order_status IN (2, 3)
-              AND NOT EXISTS (
-                SELECT 1
-                FROM voucher_header_tbl inv
-                WHERE inv.vch_type = 12
-                  AND inv.invoice_source_type = 3
-                  AND inv.source_voucher_id = o.id
-                  AND inv.source_voucher_type = ${ORDER_SOURCE_VOUCHER_TYPE}
-              )
-              AND NOT EXISTS (
-                SELECT 1
-                FROM voucher_items_tbl vi
-                WHERE vi.source_voucher_id = o.id
-                  AND vi.source_voucher_type = ${ORDER_SOURCE_VOUCHER_TYPE}
-              )
+            FROM orders oh
+            INNER JOIN order_items oi ON oi.order_id = oh.id
+            WHERE oh.account_id = a.id
+              AND oh.deleted = FALSE
+              AND oh.order_status_id IN (2, 3)
+              AND oi.item_status IN (2, 3)
+              AND oh.ready_status_id IN (2, 4)
           )`
-      : orderType === 2
-        ? sql`
-          EXISTS (
-            SELECT 1
-            FROM orders po
-            WHERE po.customer_id = a.id
-              AND COALESCE(po.workflow_status, '') != 'cancelled'
-              AND NOT EXISTS (
-                SELECT 1
-                FROM voucher_header_tbl inv
-                WHERE inv.vch_type IN (12, 17)
-                  AND inv.invoice_source_type = 3
-                  AND inv.source_voucher_id = po.id
-                  AND inv.source_voucher_type = ${ORDER_SOURCE_VOUCHER_TYPE}
-              )
-              AND NOT EXISTS (
-                SELECT 1
-                FROM voucher_items_tbl vi
-                WHERE vi.source_voucher_id = po.id
-                  AND vi.source_voucher_type = ${ORDER_SOURCE_VOUCHER_TYPE}
-              )
-          )`
-        : sql`FALSE`
+      : sql`FALSE`
 
     let rows
     if (typeFilter !== null) {
@@ -294,6 +260,17 @@ export async function GET(request: NextRequest) {
   }
 }
 
+const normalizeAccountCode = (rawValue: unknown) => {
+  const cleaned = String(rawValue ?? "")
+    .trim()
+    .replace(/\s+/g, "")
+    .replace(/[^A-Za-z0-9]/g, "")
+    .toUpperCase()
+
+  if (!cleaned) return ""
+  return cleaned.length >= 10 ? cleaned.slice(0, 10) : cleaned.padEnd(10, "0")
+}
+
 export async function POST(request: NextRequest) {
   try {
     await ensureAccountsTable()
@@ -308,7 +285,7 @@ export async function POST(request: NextRequest) {
 
     const data = await request.json()
     // Support both naming conventions: account_code/account_name (API) and code/name (frontend)
-    const accountCode = String(data.account_code ?? data.code ?? "").trim()
+    const accountCode = normalizeAccountCode(data.account_code ?? data.code ?? "")
     const accountName = String(data.account_name ?? data.name ?? "").trim()
     const TypeId = 1 // Default to 1 if not provided, since it's required
     const parentCode = String(data.parent_code ?? data.father_code ?? "").trim()

@@ -1558,6 +1558,7 @@ export default function UnifiedStockVoucher({
     const currentRow = itemsRef.current[unitsSearchRow]
     patchItemRow(unitsSearchRow, {
       unit: selected_unit.unit_name,
+      unit_id: selected_unit.unit_id,
       unit_price: selected_unit.price,
       total_price: recalcAmount(currentRow?.quantity ?? 0, selected_unit.price),
     })
@@ -2269,6 +2270,7 @@ export default function UnifiedStockVoucher({
               <TabsContent value="items" className="mt-4 min-h-[360px] space-y-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
                 <div className="w-full max-w-full overflow-x-auto">
                   <DataGridView
+                  allowSorting={false}
                     innerRef={chequeGridRef}
                     style={{ height: "300px" }}
                     scheme={scheme}
@@ -2391,6 +2393,7 @@ export default function UnifiedStockVoucher({
         <UnitsSearchPopup
           visible={unitsSearchOpen}
           product={{ name: unitsSearchRow !== null ? itemsRef.current[unitsSearchRow]?.product_name || "" : "" }}
+          priceCategoryId={0}
           units={unitsSearchRow !== null ? itemsRef.current[unitsSearchRow]?.units || [] : []}
           onClose={() => {
             setUnitsSearchOpen(false)

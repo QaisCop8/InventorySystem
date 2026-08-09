@@ -1389,7 +1389,7 @@ function UnifiedSalesOrder({
           if (validateAddNewRow(row, grid)/* && this.state.dataObject.vch_status_id + '' !== '2' && this.state.dataObject.status !== 3*/) {
             grid.collectionView.addNew({});
             grid.collectionView.commitNew();
-            grid.finishEditing(true);
+            grid?.finishEditing?.(true);
             CollectionView.items[grid.rows.length - 1].ser = grid.rows.length;
             //setData(newData);
 
@@ -3034,6 +3034,7 @@ function UnifiedSalesOrder({
             <UnitsSearchPopup
               visible={showUnitsSearch}
               product={selectedProductForUnits!}      // selected row from your main grid
+              priceCategoryId={priceCategoryIdRef.current}
               units={selectedProductForUnits?.units ?? []} // units from that row
               onClose={() => {
                 setUnitsSearch(false)

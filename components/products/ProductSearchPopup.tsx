@@ -108,9 +108,23 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
     setSearchName(searchText || "");
     setSearchBarcode("");
     setSearchPrice("");
-    const focusTimer = window.setTimeout(() => {
-      if (!window.matchMedia("(max-width: 639px)").matches) searchNameRef.current?.focus();
-    }, 100);
+    let focusAttemptCancelled = false
+    const tryFocus = () => {
+      if (focusAttemptCancelled) return
+      if (window.matchMedia("(max-width: 639px)").matches) return
+      const targetRef = (searchText || !searchNameRef.current) ? searchNameRef : searchNameRef
+      if (targetRef.current) {
+        try {
+          targetRef.current.focus()
+        } catch {
+          // ignore
+        }
+        return
+      }
+      // retry a few times in case focus is blocked by other modal setup
+      window.setTimeout(tryFocus, 80)
+    }
+    tryFocus()
     // WebSocket is useful in development (local i18n change server), but in production
     // creating a socket to localhost can fail and produce unhandled exceptions in the
     // client. Guard it: only attempt when running on localhost and wrap in try/catch.
@@ -138,7 +152,7 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
     }
     return () => {
       cancelled = true;
-      window.clearTimeout(focusTimer);
+      focusAttemptCancelled = true
       if (ws.current) ws.current.close();
     };
   }, [visible, priceCategoryId, selectedTypes, searchText]);

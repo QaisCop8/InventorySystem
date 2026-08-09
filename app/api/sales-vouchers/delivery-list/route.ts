@@ -36,19 +36,13 @@ export async function GET(request: NextRequest) {
       WHERE vh.status = 2
         AND vh.account_id = ${customerId}
         AND vh.vch_type = ANY(${deliveryTypes})
-        AND NOT EXISTS (
+      AND NOT EXISTS (
           SELECT 1
-          FROM voucher_header_tbl inv
+          FROM voucher_items_tbl inv_item
+          JOIN voucher_header_tbl inv ON inv.id = inv_item.voucher_id
           WHERE inv.vch_type IN (12, 17)
-            AND (
-              (inv.source_voucher_id = vh.id AND inv.source_voucher_type = vh.vch_type)
-              OR EXISTS (
-                SELECT 1
-                FROM voucher_items_tbl vi
-                WHERE vi.voucher_id = inv.id
-                  AND vi.source_voucher_id = vh.id
-                  AND vi.source_voucher_type = vh.vch_type
-              )
+            AND inv_item.delivery_item_id IN (
+              SELECT id FROM voucher_items_tbl WHERE voucher_id = vh.id
             )
         )
       ORDER BY vh.vch_date DESC, vh.id DESC

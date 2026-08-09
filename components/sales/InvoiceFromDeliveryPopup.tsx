@@ -90,6 +90,8 @@ export default function InvoiceFromDeliveryPopup({
       source_currency_id: delivery.currency_id ?? null,
       source_currency_code: delivery.currency_code ?? "",
       source_rate: delivery.rate ?? 1,
+      order_item_id: item.order_item_id ?? null,
+      delivery_item_id: item.delivery_item_id ?? null,
     }))
 
     setSelectedDeliveryItems((prev) => {
@@ -255,6 +257,9 @@ export default function InvoiceFromDeliveryPopup({
         source_currency_id: item.source_currency_id != null ? Number(item.source_currency_id) : null,
         source_currency_code: String(item.source_currency_code ?? ""),
         source_rate: item.source_rate != null ? Number(item.source_rate) : null,
+        order_item_id: item.order_item_id != null ? Number(item.order_item_id) : null,
+        // ensure delivery_item_id contains the voucher_items id for the delivery row
+        delivery_item_id: item.delivery_item_id != null ? Number(item.delivery_item_id) : item.id != null ? Number(item.id) : null,
         note: String(item.note || ""),
         length: item.length != null ? Number(item.length) : null,
         width: item.width != null ? Number(item.width) : null,

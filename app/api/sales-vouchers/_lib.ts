@@ -149,9 +149,10 @@ export const ensureTables = async () => {
   await sql`ALTER TABLE voucher_header_tbl ADD COLUMN IF NOT EXISTS shipping_address TEXT`
   await sql`ALTER TABLE voucher_header_tbl ADD COLUMN IF NOT EXISTS salesman_id INTEGER`
   await sql`ALTER TABLE voucher_header_tbl ADD COLUMN IF NOT EXISTS linked_order_id INTEGER`
-  await sql`ALTER TABLE voucher_header_tbl ADD COLUMN IF NOT EXISTS invoice_source_type INTEGER DEFAULT 1`
-  await sql`ALTER TABLE voucher_header_tbl ADD COLUMN IF NOT EXISTS source_voucher_id INTEGER`
-  await sql`ALTER TABLE voucher_header_tbl ADD COLUMN IF NOT EXISTS source_voucher_type INTEGER`
+  // Drop deprecated header-level source columns — linkage is item-level now.
+  await sql`ALTER TABLE voucher_header_tbl DROP COLUMN IF EXISTS invoice_source_type`
+  await sql`ALTER TABLE voucher_header_tbl DROP COLUMN IF EXISTS source_voucher_id`
+  await sql`ALTER TABLE voucher_header_tbl DROP COLUMN IF EXISTS source_voucher_type`
   // خصم/ضريبة على مستوى السند كاملاً — نفس نموذج unified-sales-order.tsx (discount_type/discount_value/
   // vat_percent)، بلا تكلفة شحن/رسوم أخرى (غير مطلوبة لهذه الأنواع الثمانية).
   await sql`ALTER TABLE voucher_header_tbl ADD COLUMN IF NOT EXISTS discount_type VARCHAR(20) DEFAULT 'percentage'`
@@ -344,8 +345,19 @@ export const saveSalesVoucherItems = async (voucherId: number, items: any[]) => 
     (expiryFlagRows as any[]).map((r) => [Number(r.id), Boolean(r.has_expiry_date)]),
   )
 
+  const unitNames = [...new Set(rows.map((r) => String(r.unit || r.unit_name || "").trim()).filter(Boolean))]
+  const unitRows = unitNames.length
+    ? await sql`SELECT id, unit_name FROM units WHERE LOWER(TRIM(unit_name)) = ANY(${unitNames.map((name) => name.toLowerCase())}::text[])`
+    : []
+  const unitIdsByName = new Map<string, number>(
+    (unitRows as any[]).map((r) => [String(r.unit_name).trim().toLowerCase(), Number(r.id)]),
+  )
+
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i]
+    const unitName = String(row.unit || row.unit_name || "").trim()
+    const rawUnitId = row.unit_id ?? row.unitId ?? null
+    const resolvedUnitId = Number(rawUnitId ?? null) > 0 ? Number(rawUnitId) : unitName ? unitIdsByName.get(unitName.toLowerCase()) ?? null : null
     const hasExpiry = hasExpiryById.get(Number(row.product_id)) ?? false
     const expiryDateToSave = hasExpiry ? row.expiry_date || null : NO_EXPIRY_SENTINEL_DATE
     await sql`
@@ -353,13 +365,12 @@ export const saveSalesVoucherItems = async (voucherId: number, items: any[]) => 
         voucher_id, item_id, item_name, unit_id, qnty, bonus, discount, vat_classification_id,
         vat_amount, vat_ratio, price, note, cost_price, barcode, size_id, color_taste_id,
         length, width, height, count, order_item_id, delivery_item_id, production_date,
-        expiry_date, batch_no, store_id, journal_id, return_sales_invoice_id,
-        serial_numbers, account_id, account_cost_centers, source_voucher_id, source_voucher_type
+        expiry_date, batch_no, store_id, journal_id, return_sales_invoice_id
       ) VALUES (
         ${voucherId},
         ${row.item_id ?? row.product_id ?? null},
         ${row.item_name || row.product_name || ""},
-        ${row.unit_id ?? null},
+        ${resolvedUnitId ?? null},
         ${Number(row.qnty ?? row.quantity ?? 0)},
         ${Number(row.bonus ?? row.bonus_quantity ?? 0)},
         ${Number(row.discount ?? row.discount_percent ?? 0)},
@@ -383,12 +394,7 @@ export const saveSalesVoucherItems = async (voucherId: number, items: any[]) => 
         ${row.batch_no || row.batch_number || null},
         ${row.store_id ?? row.warehouse_id ?? null},
         ${row.journal_id ?? null},
-        ${row.return_sales_invoice_id ?? null},
-        ${JSON.stringify(row.serial_numbers || [])},
-        ${row.account_id || null},
-        ${JSON.stringify(row.account_cost_centers || [])},
-        ${row.source_voucher_id || null},
-        ${row.source_voucher_type || null}
+        ${row.return_sales_invoice_id ?? null}
       )
     `
   }
@@ -396,18 +402,58 @@ export const saveSalesVoucherItems = async (voucherId: number, items: any[]) => 
 }
 
 export const fetchSalesVoucherItems = async (voucherId: number) => {
-  // account_code/account_name تُجلَب هنا عبر JOIN (voucher_items_tbl.account_id يخزّن المعرّف فقط)
-  // — نفس سبب/إصلاح مشكلة warehouse_name في stock-vouchers/_lib.ts's fetchVoucherItems.
   return sql`
-    SELECT vi.*, p.product_code AS current_product_code, p.product_name AS current_product_name,
-           w.warehouse_name AS warehouse_name,
-           ia.code AS account_code, ia.name AS account_name
+    SELECT
+      vi.id,
+      vi.voucher_id,
+      vi.item_id AS product_id,
+      vi.item_id AS item_id,
+      vi.item_name,
+      vi.unit_id,
+      u.unit_name AS unit_name,
+      u.unit_name AS unit,
+      vi.qnty AS quantity,
+      vi.bonus AS bonus_quantity,
+      vi.discount AS discount_percent,
+      vi.vat_classification_id,
+      vi.vat_amount,
+      vi.vat_ratio,
+      vi.price AS unit_price,
+      vi.price AS price,
+      vi.note,
+      vi.cost_price,
+      vi.barcode,
+      vi.size_id,
+      vi.color_taste_id,
+      vi.length,
+      vi.width,
+      vi.height,
+      vi.count,
+      vi.order_item_id,
+      vi.delivery_item_id,
+      vi.production_date,
+      vi.expiry_date,
+      vi.batch_no AS batch_number,
+      vi.store_id AS warehouse_id,
+      vi.store_id AS store_id,
+      vi.journal_id,
+      vi.return_sales_invoice_id,
+      COALESCE(p.product_code, '') AS product_code,
+      p.product_code AS current_product_code,
+      COALESCE(p.product_name, vi.item_name, '') AS product_name,
+      p.product_name AS current_product_name,
+      COALESCE(u.unit_name, '') AS unit,
+      COALESCE(u.unit_name, '') AS unit_name,
+      w.warehouse_name AS warehouse_name,
+      (vi.qnty * vi.price * (1 - vi.discount / 100)) AS total_price,
+      (vi.qnty * vi.price * (1 - vi.discount / 100)) AS amount,
+      (vi.qnty * vi.price * (1 - vi.discount / 100)) AS line_amount
     FROM voucher_items_tbl vi
     LEFT JOIN products p ON p.id = vi.item_id
+    LEFT JOIN units u ON u.id = vi.unit_id
     LEFT JOIN warehouses w ON w.id = vi.store_id
-    LEFT JOIN account_tbl ia ON ia.id = vi.account_id
     WHERE vi.voucher_id = ${voucherId}
-    ORDER BY vi.ser, vi.id
+    ORDER BY vi.id
   `
 }
 
@@ -442,14 +488,18 @@ export const archiveAndDeleteSalesVoucher = async (voucherId: number): Promise<{
     return { error: "لا يمكن الحذف الفعلي إلا لسند بحالة فعال (غير مرحّل)" }
   }
 
-  const linkedInvoice = await sql`
-    SELECT id FROM voucher_header_tbl
-    WHERE source_voucher_id = ${voucherId}
-      AND source_voucher_type = ${voucher.vch_type}
-      AND vch_type IN (${SALES_INVOICE_VCH_TYPE}, ${PURCHASE_INVOICE_VCH_TYPE})
+  const linkedInvoiceByItem = await sql`
+    SELECT inv.id
+    FROM voucher_items_tbl inv_item
+    JOIN voucher_header_tbl inv ON inv.id = inv_item.voucher_id
+    WHERE inv.vch_type IN (${SALES_INVOICE_VCH_TYPE}, ${PURCHASE_INVOICE_VCH_TYPE})
+      AND inv_item.delivery_item_id IN (
+        SELECT id FROM voucher_items_tbl WHERE voucher_id = ${voucherId}
+      )
     LIMIT 1
   `
-  if (linkedInvoice.length > 0) {
+
+  if (linkedInvoiceByItem.length > 0) {
     return { error: "لا يمكن حذف هذه الإرسالية لأنها مرتبطة بفاتورة" }
   }
 

@@ -18,14 +18,26 @@ const FocusDropdown = forwardRef<PrimeDropdown, DropdownProps>((props, ref) => {
     setTimeout(() => focusInputRef.current?.focus(), 0)
   }
 
+  const focusNextField = () => {
+    const root = wrapperRef.current?.closest<HTMLElement>('[data-enter-tab-root="true"]') ?? wrapperRef.current?.closest<HTMLElement>("form")
+    if (!root) return
+
+    const focusable = Array.from(
+      root.querySelectorAll<HTMLElement>(
+        'input:not([disabled]):not([type="hidden"]):not([type="checkbox"]):not([type="radio"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      ),
+    ).filter((el) => el.offsetParent !== null && el.tabIndex !== -1 && !el.closest(".wj-flexgrid"))
+
+    const current = document.activeElement as HTMLElement | null
+    const currentIndex = current ? focusable.indexOf(current) : -1
+    if (currentIndex === -1) return
+    focusable[currentIndex + 1]?.focus()
+  }
+
   // Enter لا يفتح القائمة عندما تكون مغلقة (خلافاً لسلوك PrimeReact الافتراضي الذي يعامل Enter مثل
-  // سهم الأسفل ويفتحها، انظر onEnterKey بـdropdown.esm.js) — يُلتقَط هنا بمرحلة capture قبل أن يصل
-  // الحدث لمعالج PrimeReact الداخلي على حقل الإدخال نفسه. يُستدعى onKeyDownCapture الممرَّر من
-  // المستدعي أولاً (مثل createDropdownKeyHandler بـunified-journal.tsx الذي يجعل Enter ينتقل للحقل
-  // التالي بدل فتح اللوحة) — إن نفّذ preventDefault بنفسه (isDefaultPrevented) نتوقف هنا ولا نتدخّل.
-  // خلاف ذلك، يُمنع كلياً فقط حين تكون القائمة مغلقة فعلاً (aria-expanded="false")؛ سهم الأسفل يبقى
-  // يفتحها كما هو (onArrowDownKey لم يُمَس)، وEnter بعد فتحها واختيار عنصر يبقي على سلوكه الافتراضي
-  // (تأكيد الاختيار وإغلاق القائمة) بلا أي تغيير إذ aria-expanded يصبح "true" حينها فلا يعترض هذا المعالج.
+  // سهم الأسفل ويفتحها) — بدلاً من إيقاف الحدث بالكامل، ننتقل إلى الحقل التالي داخل النموذج، مع
+  // الحفاظ على سلوك القائمة المفتوحة عند اختيار عنصر أو الضغط على الأسهم. يُستدعى onKeyDownCapture
+  // الممرَّر من المستدعي أولاً (مثل createDropdownKeyHandler)؛ إذا استهلك الحدث نفسه فلا نُدخل هنا.
   const handleKeyDownCapture = (e: React.KeyboardEvent<HTMLDivElement>) => {
     onKeyDownCapture?.(e)
     if (e.key !== "Enter" || e.isDefaultPrevented()) return
@@ -34,6 +46,7 @@ const FocusDropdown = forwardRef<PrimeDropdown, DropdownProps>((props, ref) => {
     if (!isOpen) {
       e.preventDefault()
       e.stopPropagation()
+      focusNextField()
     }
   }
 

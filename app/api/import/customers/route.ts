@@ -3,6 +3,20 @@ import { generateCustomerNumber } from "@/lib/number-generator"
 import sql from "@/lib/database"
 import { ensureCustomerAccount, resolveAccountType, toNullableInt, ensureCustomerCompatibilityColumns } from "@/app/api/customers/_lib"
 
+const normalizeImportedCode = (rawValue: unknown, prefix = "C") => {
+  const cleaned = String(rawValue ?? "").trim().toUpperCase().replace(/[^A-Z0-9]/g, "")
+  if (!cleaned) return ""
+
+  if (prefix) {
+    const prefixValue = String(prefix).trim().toUpperCase()
+    const numericPart = cleaned.replace(/[^0-9]/g, "")
+    const maxDigits = Math.max(0, 10 - prefixValue.length)
+    const digits = numericPart.slice(0, maxDigits).padEnd(maxDigits, "0")
+    return `${prefixValue}${digits}`.slice(0, 10)
+  }
+
+  return cleaned.slice(0, 10).padEnd(10, "0")
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -39,8 +53,8 @@ export async function POST(request: NextRequest) {
         // Determine type: 1 = customer, 2 = supplier
         const type = item.type || 1;
 
-        // Generate customer code if not provided
-        let customerCode = item.customer_code;
+        // Generate customer code if not provided and normalize imported values to the same 10-digit format
+        let customerCode = normalizeImportedCode(item.customer_code, "C");
         if (!customerCode) {
           customerCode = await generateCustomerNumber();
         }

@@ -211,6 +211,17 @@ const ensureSupplierAccount = async ({
   return Number(created[0].id)
 }
 
+const normalizeEntityCode = (rawValue: unknown, prefix = "S") => {
+  const cleaned = String(rawValue ?? "").trim().toUpperCase().replace(/[^A-Z0-9]/g, "")
+  if (!cleaned) return ""
+
+  const prefixValue = String(prefix).trim().toUpperCase()
+  const numericPart = cleaned.replace(/[^0-9]/g, "")
+  const maxDigits = Math.max(0, 10 - prefixValue.length)
+  const digits = numericPart.slice(0, maxDigits).padEnd(maxDigits, "0")
+  return `${prefixValue}${digits}`.slice(0, 10)
+}
+
 export async function GET() {
   try {
     const suppliers = await sql`
@@ -231,6 +242,8 @@ export async function POST(request: NextRequest) {
     const data = await request.json()
 
     console.log("[v0] Received supplier data:", data)
+
+    data.supplier_code = normalizeEntityCode(data.supplier_code, "S")
 
     // Check if supplier code already exists
     if (data.supplier_code) {

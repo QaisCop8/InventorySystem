@@ -36,18 +36,11 @@ export async function GET(request: NextRequest) {
     const rows = await sql`
       SELECT vh.*, EXISTS(
         SELECT 1
-        FROM voucher_header_tbl inv
+        FROM voucher_items_tbl inv_item
+        JOIN voucher_header_tbl inv ON inv.id = inv_item.voucher_id
         WHERE inv.vch_type IN (${SALES_INVOICE_VCH_TYPE}, ${PURCHASE_INVOICE_VCH_TYPE})
-          AND inv.id != vh.id
-          AND (
-            (inv.source_voucher_id = vh.id AND inv.source_voucher_type = vh.vch_type)
-            OR EXISTS (
-              SELECT 1
-              FROM voucher_items_tbl vi
-              WHERE vi.voucher_id = inv.id
-                AND vi.source_voucher_id = vh.id
-                AND vi.source_voucher_type = vh.vch_type
-            )
+          AND inv_item.delivery_item_id IN (
+            SELECT id FROM voucher_items_tbl WHERE voucher_id = vh.id
           )
       ) AS has_linked_invoice
       FROM voucher_header_tbl vh
@@ -142,7 +135,19 @@ const computeAmountBreakdown = (items: any[], data: any) => {
 
 const computeTotalAmount = (items: any[], data: any): number => Math.round(computeAmountBreakdown(items, data).total * 100) / 100
 
-const validateSourceInvoice = async (data: any, excludeVoucherId = 0): Promise<string | null> => {
+const validateSourceInvoice = async (itemsOrData: any, maybeData?: any, excludeVoucherId = 0): Promise<string | null> => {
+  // Support two call patterns during transition:
+  // - validateSourceInvoice(items, data, excludeId)
+  // - validateSourceInvoice(data, excludeId)
+  let items: any[] = []
+  let data: any = {}
+  if (Array.isArray(itemsOrData)) {
+    items = itemsOrData
+    data = maybeData || {}
+  } else {
+    data = itemsOrData || {}
+  }
+
   const invoiceSourceType = Number(data.invoice_source_type || 1)
   if (![2, 3].includes(invoiceSourceType)) return null
   const sourceVoucherId = Number(data.source_voucher_id || 0)
@@ -152,28 +157,53 @@ const validateSourceInvoice = async (data: any, excludeVoucherId = 0): Promise<s
       ? "يجب اختيار الإرسالية المصدرية للفاتورة"
       : "يجب اختيار الطلبية المصدرية للفاتورة"
   }
-  const existing = await sql`
-    SELECT vh.id
-    FROM voucher_header_tbl vh
-    WHERE vh.id != ${excludeVoucherId}
-      AND vh.vch_type IN (${SALES_INVOICE_VCH_TYPE}, ${PURCHASE_INVOICE_VCH_TYPE})
-      AND vh.invoice_source_type = ${invoiceSourceType}
-      AND (
-        (vh.source_voucher_id = ${sourceVoucherId} AND vh.source_voucher_type = ${sourceVoucherType})
-        OR EXISTS (
-          SELECT 1
-          FROM voucher_items_tbl vi
-          WHERE vi.voucher_id = vh.id
-            AND vi.source_voucher_id = ${sourceVoucherId}
-            AND vi.source_voucher_type = ${sourceVoucherType}
-        )
-      )
-    LIMIT 1
-  `
-  if (existing.length > 0) {
+
+  // Ensure at least one item links to a delivery/order at item level
+  const hasItemLink = items.some((it: any) =>
+    invoiceSourceType === 2 ? Number(it.delivery_item_id || 0) > 0 : Number(it.order_item_id || 0) > 0,
+  )
+  if (!hasItemLink) {
     return invoiceSourceType === 2
-      ? "تم إصدار فاتورة لهذه الإرسالية سابقاً"
-      : "تم إصدار فاتورة لهذه الطلبية سابقاً"
+      ? "يجب اختيار الإرسالية المصدرية للفاتورة"
+      : "يجب اختيار الطلبية المصدرية للفاتورة"
+  }
+
+  // Check for existing invoices referencing the same source at item level (no header columns)
+  const existing =
+    invoiceSourceType === 2
+      ? await sql`
+          SELECT vh.id
+          FROM voucher_header_tbl vh
+          WHERE vh.id != ${excludeVoucherId}
+            AND vh.vch_type IN (${SALES_INVOICE_VCH_TYPE}, ${PURCHASE_INVOICE_VCH_TYPE})
+            AND EXISTS (
+              SELECT 1
+              FROM voucher_items_tbl vi
+              WHERE vi.voucher_id = vh.id
+                AND vi.delivery_item_id IN (
+                  SELECT id FROM voucher_items_tbl WHERE voucher_id = ${sourceVoucherId}
+                )
+            )
+          LIMIT 1
+        `
+      : await sql`
+          SELECT vh.id
+          FROM voucher_header_tbl vh
+          WHERE vh.id != ${excludeVoucherId}
+            AND vh.vch_type IN (${SALES_INVOICE_VCH_TYPE}, ${PURCHASE_INVOICE_VCH_TYPE})
+            AND EXISTS (
+              SELECT 1
+              FROM voucher_items_tbl vi
+              WHERE vi.voucher_id = vh.id
+                AND (
+                  vi.order_item_id IN (SELECT id FROM order_items WHERE order_id = ${sourceVoucherId})
+                  OR vi.order_item_id IN (SELECT id FROM purchase_order_items WHERE purchase_order_id = ${sourceVoucherId})
+                )
+            )
+          LIMIT 1
+        `
+  if (existing.length > 0) {
+    return invoiceSourceType === 2 ? "تم إصدار فاتورة لهذه الإرسالية سابقاً" : "تم إصدار فاتورة لهذه الطلبية سابقاً"
   }
   return null
 }
@@ -187,7 +217,7 @@ export async function POST(request: NextRequest) {
 
     const payloadError = validatePayload(data, items)
     if (payloadError) return NextResponse.json({ error: payloadError }, { status: 400 })
-    const sourceError = await validateSourceInvoice(data)
+    const sourceError = await validateSourceInvoice(items, data)
     if (sourceError) return NextResponse.json({ error: sourceError }, { status: 400 })
 
     // المستودع/الوحدة موجودان ونشطان فعلياً، وكذلك حساب الصنف لفاتورة مبيعات/مشتريات ومردود
@@ -223,7 +253,15 @@ export async function POST(request: NextRequest) {
     const invoiceSourceType = Number(data.invoice_source_type || 1)
     const sourceVoucherId = [2, 3].includes(invoiceSourceType) ? Number(data.source_voucher_id || null) : null
     const sourceVoucherType = [2, 3].includes(invoiceSourceType) ? Number(data.source_voucher_type || null) : null
-    const itemsToSave = [2, 3].includes(invoiceSourceType) ? items : items.map((item) => ({ ...item, source_voucher_id: null, source_voucher_type: null }))
+    const itemsToSave = [2, 3].includes(invoiceSourceType)
+      ? items
+      : items.map((item) => ({
+          ...item,
+          source_voucher_id: null,
+          source_voucher_type: null,
+          delivery_item_id: null,
+          order_item_id: null,
+        }))
 
     const result = await sql`
       INSERT INTO voucher_header_tbl (
@@ -231,7 +269,6 @@ export async function POST(request: NextRequest) {
         account_id, customer_name, to_store_id,
         amount, manual_voucher, manual_date, note, status, vch_status, is_printed,
         insert_user, shipping_address, salesman_id, linked_order_id,
-        invoice_source_type, source_voucher_id, source_voucher_type,
         discount_type, discount_value, vat_percent,
         cash_account_id, vat_classification_id, invoice_type, vat_included, is_maqasa, maqasa_type,
         phone, due_date, is_exported_sales, location_id
@@ -240,7 +277,6 @@ export async function POST(request: NextRequest) {
         ${data.account_id}, ${data.customer_name || ""}, ${data.to_store_id || null},
         ${amount}, ${data.manual_voucher || ""}, ${data.manual_date || null}, ${data.note || ""}, ${status}, ${status === 2 ? 2 : 1}, ${Number(data.is_printed || 0)},
         ${data.insert_user || null}, ${data.shipping_address || ""}, ${data.salesman_id || null}, ${data.linked_order_id || null},
-        ${invoiceSourceType}, ${sourceVoucherId || null}, ${sourceVoucherType || null},
         ${discountType}, ${Number(data.discount_value || 0)}, ${Number(data.vat_percent || 0)},
         ${data.cash_account_id || null}, ${Number(data.vat_classification_id) || 1}, ${Number(data.invoice_type) || 1},
         ${Boolean(data.vat_included)}, ${Boolean(data.is_maqasa)}, ${data.is_maqasa ? Number(data.maqasa_type) || 1 : null},
@@ -273,7 +309,8 @@ export async function POST(request: NextRequest) {
     )
   } catch (error) {
     console.error("Error creating sales voucher:", error)
-    return NextResponse.json({ error: "Failed to create sales voucher" }, { status: 500 })
+    const message = error instanceof Error ? error.message : String(error)
+    return NextResponse.json({ error: message || "Failed to create sales voucher" }, { status: 500 })
   }
 }
 
@@ -299,7 +336,7 @@ export async function PUT(request: NextRequest) {
       items = Array.isArray(data.items) ? data.items.filter((i: any) => i?.product_id) : []
       const payloadError = validatePayload(data, items)
       if (payloadError) return NextResponse.json({ error: payloadError }, { status: 400 })
-      const sourceError = await validateSourceInvoice(data, Number(data.id || 0))
+      const sourceError = await validateSourceInvoice(items, data, Number(data.id || 0))
       if (sourceError) return NextResponse.json({ error: sourceError }, { status: 400 })
 
       const referencesError = await validateItemReferences(items, (ITEM_ACCOUNT_VCH_TYPES as readonly number[]).includes(vchType) ? ["account_id"] : [])
@@ -356,9 +393,6 @@ export async function PUT(request: NextRequest) {
         shipping_address = ${data.shipping_address || ""},
         salesman_id = ${data.salesman_id || null},
         linked_order_id = ${data.linked_order_id || null},
-        invoice_source_type = ${invoiceSourceType},
-        source_voucher_id = ${sourceVoucherId || null},
-        source_voucher_type = ${sourceVoucherType || null},
         discount_type = ${discountType},
         discount_value = ${Number(data.discount_value || 0)},
         vat_percent = ${Number(data.vat_percent || 0)},
@@ -378,7 +412,15 @@ export async function PUT(request: NextRequest) {
     `
 
     const voucher = result[0]
-    const itemsToSave = [2, 3].includes(invoiceSourceType) ? items : items.map((item) => ({ ...item, source_voucher_id: null, source_voucher_type: null }))
+    const itemsToSave = [2, 3].includes(invoiceSourceType)
+      ? items
+      : items.map((item) => ({
+          ...item,
+          source_voucher_id: null,
+          source_voucher_type: null,
+          delivery_item_id: null,
+          order_item_id: null,
+        }))
 
     if (status === 3) {
       await reverseSalesVoucherStockMovement(voucher.id)
@@ -407,6 +449,7 @@ export async function PUT(request: NextRequest) {
     })
   } catch (error) {
     console.error("Error updating sales voucher:", error)
-    return NextResponse.json({ error: "Failed to update sales voucher" }, { status: 500 })
+    const message = error instanceof Error ? error.message : String(error)
+    return NextResponse.json({ error: message || "Failed to update sales voucher" }, { status: 500 })
   }
 }

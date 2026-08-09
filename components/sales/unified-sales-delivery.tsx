@@ -103,11 +103,16 @@ export interface SalesVoucherItemRow {
   warehouse_id: number | null
   warehouse_name: string
   unit: string
+  unit_id?: number | null
+  unit_name?: string
   quantity: number | null
   bonus_quantity: number | null
   unit_price: number | null
+  // السعر الأصلي معبراً عنه بعملة النظام/الأساس (التخزين الثابت لغرض إعادة التحويل عند تبديل العملات)
+  base_unit_price?: number | null
   discount_percent: number | null
   total_price: number | null
+  line_amount?: number | null
   batch_number: string
   expiry_date: string
   serial_numbers: string[]
@@ -116,6 +121,8 @@ export interface SalesVoucherItemRow {
   source_currency_id?: number | null
   source_currency_code?: string
   source_rate?: number
+  order_item_id?: number | null
+  delivery_item_id?: number | null
   note: string
   // أبعاد/عدد اختيارية بمستوى السطر — نفس الآلية والأعمدة الأربعة في unified-stock-voucher.tsx
   // (تظهر فقط إن فُعِّلت أعمدتها من إعدادات السند أو احتاجها صنف نوع قياسه غير عادي فعلياً).
@@ -338,11 +345,14 @@ const emptyItemRow: SalesVoucherItemRow = {
   warehouse_id: null,
   warehouse_name: "",
   unit: "",
+  unit_name: "",
   quantity: null,
   bonus_quantity: null,
   unit_price: null,
+  base_unit_price: null,
   discount_percent: null,
   total_price: null,
+  line_amount: null,
   batch_number: "",
   expiry_date: "",
   serial_numbers: [],
@@ -373,11 +383,12 @@ const ITEM_ACCOUNT_CONFIG: Partial<Record<SalesVoucherSubType, { productField: s
 // مبلغ السطر = الكمية × السعر فقط — لا خصم/ضريبة بمستوى السطر (نُقِلا لمستوى السند كاملاً، انظر
 // discount_type/discount_value/vat_percent في SalesDeliveryRecord وtotals أدناه، بنفس نموذج
 // unified-sales-order.tsx تماماً).
-const recalcLineAmounts = (row: SalesVoucherItemRow): Pick<SalesVoucherItemRow, "total_price"> => {
+const recalcLineAmounts = (row: SalesVoucherItemRow): Pick<SalesVoucherItemRow, "total_price" | "line_amount"> => {
   const quantity = Number(row.quantity || 0)
   const price = Number(row.unit_price || 0)
   const discountPercent = Number(row.discount_percent || 0)
-  return { total_price: Math.round(quantity * price * (1 - discountPercent / 100) * 100) / 100 }
+  const amount = Math.round(quantity * price * (1 - discountPercent / 100) * 100) / 100
+  return { total_price: amount, line_amount: amount }
 }
 
 export default function UnifiedSalesDelivery({
@@ -439,6 +450,9 @@ export default function UnifiedSalesDelivery({
   const vchCodeInputRef = useRef<HTMLInputElement | null>(null)
   const [activeTab, setActiveTab] = useState("items")
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const pendingCurrencyIdRef = useRef<number | null>(null)
+  const pendingCurrencyOldRateRef = useRef<number>(Number(form.rate || 1))
+  const [showCurrencyRecalcConfirm, setShowCurrencyRecalcConfirm] = useState(false)
   // تأكيد إعادة نسبة الضريبة الافتراضية عند الرجوع لتصنيف "ضريبية" من معفاه/صفرية — انظر
   // handleVatClassificationChange أدناه.
   const [showVatRestoreConfirm, setShowVatRestoreConfirm] = useState(false)
@@ -449,6 +463,63 @@ export default function UnifiedSalesDelivery({
   const [warehouseSearchRow, setWarehouseSearchRow] = useState<number | null>(null)
   const [unitsSearchOpen, setUnitsSearchOpen] = useState(false)
   const [unitsSearchRow, setUnitsSearchRow] = useState<number | null>(null)
+
+  const applyCurrencyChange = async (newCurrencyId: number | null): Promise<number> => {
+    onFormChange("currency_id", newCurrencyId)
+    onCurrencyChange?.(newCurrencyId)
+    if (!newCurrencyId || newCurrencyId === baseCurrencyId) {
+      onFormChange("rate", 1)
+      return 1
+    }
+    try {
+      const query = new URLSearchParams({
+        currency_id: String(newCurrencyId),
+        date: form.vch_date ? form.vch_date.slice(0, 10) : "",
+      })
+      const response = await fetch(`/api/exchange-rates/lookup?${query.toString()}`)
+      const data = response.ok ? await response.json() : null
+      const rate = data?.rate ?? 1
+      onFormChange("rate", rate)
+      return rate
+    } catch {
+      onFormChange("rate", 1)
+      return 1
+    }
+  }
+
+  const rescaleItemPricesForRate = (newRate: number) => {
+    if (!newRate || !itemsRef.current.some((row) => row.product_id)) return
+    const oldRate = Number(pendingCurrencyOldRateRef.current || form.rate || 1)
+    const next = itemsRef.current.map((row) => {
+      if (!row.product_id) return row
+      const quantity = Number(row.quantity || 0)
+      // determine base price in system/base currency: prefer stored base_unit_price, otherwise derive
+      const basePrice = row.base_unit_price != null
+        ? Number(row.base_unit_price)
+        : row.unit_price != null
+        ? Number(row.unit_price) * oldRate
+        : null
+      if (basePrice == null) return row
+      const convertedPrice = Math.round((basePrice / newRate) * 1e6) / 1e6
+      const amount = Math.round(quantity * convertedPrice * 100) / 100
+      return { ...row, unit_price: convertedPrice, base_unit_price: basePrice, total_price: amount, line_amount: amount }
+    })
+    itemsRef.current = next
+    onItemsChange(next)
+  }
+
+  const handleCurrencyChangeSelection = async (newCurrencyId: number | null) => {
+    if (newCurrencyId === form.currency_id) return
+    const hasItems = itemsRef.current.some((row) => row.product_id)
+    if (!hasItems) {
+      await applyCurrencyChange(newCurrencyId)
+      return
+    }
+    // capture current rate so we can derive base prices from existing row.unit_price values
+    pendingCurrencyOldRateRef.current = Number(form.rate || 1)
+    pendingCurrencyIdRef.current = newCurrencyId
+    setShowCurrencyRecalcConfirm(true)
+  }
 
   const handleInvoiceSourceTypeChange = (value: number) => {
     onFormChange("invoice_source_type", value)
@@ -525,6 +596,28 @@ export default function UnifiedSalesDelivery({
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dialogOpen, form.id, form.vch_code])
+
+  // When dialog opens, ensure the grid and its collection view are refreshed so
+  // that a newly-created (empty) form's single empty item appears immediately.
+  useEffect(() => {
+    if (!dialogOpen) return
+    try {
+      safeFinishEditing(itemsGridRef.current)
+    } catch (e) {
+      /* ignore */
+    }
+    try {
+      if (itemsCollectionViewRef.current) itemsCollectionViewRef.current.refresh()
+    } catch (e) {
+      /* ignore */
+    }
+    try {
+      const g = resolveFlexControl(itemsGridRef.current)
+      if (g && typeof g.invalidate === "function") g.invalidate()
+    } catch (e) {
+      /* ignore */
+    }
+  }, [dialogOpen])
 
   const initialSnapshotRef = useRef<string>(JSON.stringify(form))
   useEffect(() => {
@@ -622,7 +715,19 @@ export default function UnifiedSalesDelivery({
   // MeasurementInputDialog بدلاً من ذلك) — يكفي فحص حدود المصفوفة بدل تخطٍّ شرطي.
   const findNextRelevantFieldIndex = (startIndex: number): number => (startIndex < fieldOrder.length ? startIndex : -1)
 
-  const [itemsCollectionView] = useState(() => new wjcCore.CollectionView<any>([]))
+  const [itemsCollectionView] = useState(() => {
+    const v = new wjcCore.CollectionView<any>([])
+    try {
+      // Avoid automatic refresh-on-edit which can trigger synchronous grid bindings
+      // and cause timing issues with the grid's internal editor lifecycle.
+      v.refreshOnEdit = false
+    } catch (e) {
+      /* ignore if property not available */
+    }
+    return v
+  })
+  const itemsCollectionViewRef = useRef(itemsCollectionView)
+  itemsCollectionViewRef.current = itemsCollectionView
   const itemsGridRef = useRef<any>(null)
   const pendingFocusRef = useRef<{ row: number; col: string } | null>(null)
   const pendingFocusRow = useRef<number | null>(null)
@@ -858,12 +963,105 @@ export default function UnifiedSalesDelivery({
       // الضريبة) ونسبة ضريبة السند كاملاً (form.vat_percent، ضريبة على مستوى السند وليس السطر)،
       // وليس حقلاً محفوظاً بذاته.
       const vatPercent = Number(form.vat_percent || 0)
-      itemsCollectionView.sourceCollection = items.map((row, i) => ({
-        ...row,
-        ser: i + 1,
-        unit_price_incl_tax: vatPercent > 0 ? Math.round(Number(row.unit_price || 0) * (1 + vatPercent / 100) * 100) / 100 : Number(row.unit_price || 0),
-      }))
-      itemsCollectionView.refresh()
+      const normalizedItems = items.map((row, i) => {
+        const unitName = String(row.unit_name || row.unit || "").trim()
+        const amount = row.total_price ?? row.line_amount ?? (Number(row.quantity || 0) * Number(row.unit_price || 0))
+        return {
+          ...row,
+          ser: i + 1,
+          unit: unitName,
+          unit_name: unitName,
+          total_price: amount,
+          line_amount: amount,
+          unit_price_incl_tax: vatPercent > 0 ? Math.round(Number(row.unit_price || 0) * (1 + vatPercent / 100) * 100) / 100 : Number(row.unit_price || 0),
+        }
+      })
+      // Ensure any in-progress cell edits are finished before we replace the collection
+      try {
+        safeFinishEditing(itemsGridRef.current)
+      } catch (e) {
+        // ignore
+      }
+      if (itemsCollectionViewRef.current && Array.isArray(normalizedItems)) {
+        try {
+          const view = itemsCollectionViewRef.current
+          if (typeof view.deferUpdate === "function") {
+            view.deferUpdate(() => {
+              view.sourceCollection = normalizedItems
+            })
+            // refresh is not required after deferUpdate; call defensively
+            try {
+              view.refresh()
+            } catch {}
+          } else {
+            view.sourceCollection = normalizedItems
+            try {
+              view.refresh()
+            } catch {}
+          }
+        } catch (err) {
+          // If even deferUpdate fails, fall back to a delayed assignment once more.
+          // eslint-disable-next-line no-console
+          console.warn("CollectionView update failed, retrying shortly:", err)
+          setTimeout(() => {
+            try {
+              const view2 = itemsCollectionViewRef.current
+              if (view2) {
+                try {
+                  view2.deferUpdate(() => {
+                    view2.sourceCollection = normalizedItems
+                  })
+                  view2.refresh()
+                } catch {
+                  view2.sourceCollection = normalizedItems
+                  try {
+                    view2.refresh()
+                  } catch {}
+                }
+              }
+            } catch (err2) {
+              // eslint-disable-next-line no-console
+              console.error("Deferred CollectionView update failed:", err2)
+            }
+          }, 80)
+        }
+      }
+      // Final fallback: if Wijmo still throws due to internal editor state, temporarily
+      // unbind the grid itemsSource, assign the view, then rebind to force a stable render.
+      // This is defensive and should be rare.
+      try {
+        const viewFinal = itemsCollectionViewRef.current
+        const gridControl = resolveFlexControl(itemsGridRef.current)
+        if (viewFinal && gridControl) {
+          try {
+            // unbind
+            gridControl.itemsSource = null
+          } catch {}
+          try {
+            viewFinal.deferUpdate(() => {
+              viewFinal.sourceCollection = normalizedItems
+            })
+          } catch {
+            try {
+              viewFinal.sourceCollection = normalizedItems
+            } catch {}
+          }
+          setTimeout(() => {
+            try {
+              gridControl.itemsSource = viewFinal
+              try {
+                gridControl.invalidate()
+              } catch {}
+            } catch (err3) {
+              // eslint-disable-next-line no-console
+              console.error("Rebinding grid itemsSource failed:", err3)
+            }
+          }, 0)
+        }
+      } catch (finalErr) {
+        // eslint-disable-next-line no-console
+        console.error("Final CollectionView fallback failed:", finalErr)
+      }
 
       const pending = pendingFocusRef.current
       if (pending) {
@@ -950,7 +1148,14 @@ export default function UnifiedSalesDelivery({
 
   const patchItemRow = (index: number, patch: Partial<SalesVoucherItemRow>) => {
     if (isLocked) return
-    const safePatch = patch.expiry_date !== undefined ? { ...patch, expiry_date: toGridDateString(patch.expiry_date) } : patch
+    // If caller updated unit_price without providing base_unit_price, compute base price
+    const incoming = { ...patch }
+    if (incoming.unit_price !== undefined && incoming.base_unit_price === undefined) {
+      const rate = Number(form.rate || 1)
+      const unitPriceNum = incoming.unit_price != null ? Number(incoming.unit_price) : null
+      incoming.base_unit_price = unitPriceNum != null ? unitPriceNum * rate : null
+    }
+    const safePatch = incoming.expiry_date !== undefined ? { ...incoming, expiry_date: toGridDateString(incoming.expiry_date) } : incoming
     const next = itemsRef.current.map((row, i) => (i === index ? { ...row, ...safePatch } : row))
     itemsRef.current = next
     onItemsChange(next)
@@ -1283,6 +1488,7 @@ export default function UnifiedSalesDelivery({
         product_name: product.product_name,
         barcode: product.barcode || product.first_barcode || "",
         unit: product.unit_name || currentRow?.unit || "",
+        unit_name: product.unit_name || currentRow?.unit_name || currentRow?.unit || "",
         unit_price: unitPrice,
         units: normalizeUnits(product.units),
         has_expiry: hasExpiry,
@@ -1433,7 +1639,7 @@ export default function UnifiedSalesDelivery({
       return
     }
     patchItemRow(warehouseSearchRow, { warehouse_id: store.id, warehouse_name: store.warehouse_name })
-    pendingFocusRef.current = { row: warehouseSearchRow, col: "unit" }
+    pendingFocusRef.current = { row: warehouseSearchRow, col: "unit_name" }
   }
 
   const handleUnitSelect = ({ selected_unit }: { product: { name: string }; selected_unit: NonNullable<SalesVoucherItemRow["units"]>[number] }) => {
@@ -1445,8 +1651,20 @@ export default function UnifiedSalesDelivery({
     }
     const row = unitsSearchRow
     const currentRow = itemsRef.current[row]
-    const patched = { ...currentRow, unit: selected_unit.unit_name, unit_price: selected_unit.price }
-    patchItemRow(row, { unit: selected_unit.unit_name, unit_price: selected_unit.price, ...recalcLineAmounts(patched) })
+    const patched = {
+      ...currentRow,
+      unit: selected_unit.unit_name,
+      unit_id: selected_unit.unit_id,
+      unit_name: selected_unit.unit_name,
+      unit_price: selected_unit.price,
+    }
+    patchItemRow(row, {
+      unit: selected_unit.unit_name,
+      unit_id: selected_unit.unit_id,
+      unit_name: selected_unit.unit_name,
+      unit_price: selected_unit.price,
+      ...recalcLineAmounts(patched),
+    })
     pendingFocusRef.current = { row, col: "quantity" }
   }
 
@@ -1473,6 +1691,7 @@ export default function UnifiedSalesDelivery({
       product_name: product.product_name,
       barcode: product.barcode || product.first_barcode || "",
       unit: unit?.unit_name || product.first_unit || "",
+      unit_name: unit?.unit_name || product.first_unit || "",
       unit_price: unitPrice,
       units: normalizeUnits(product.units),
       has_expiry: hasExpiry,
@@ -1660,7 +1879,7 @@ export default function UnifiedSalesDelivery({
           visible: Util.getVoucherSettingScreenData(voucherType, "store"),
           visibleInColumnChooser: true,
         },
-        { header: "الوحدة", name: "unit", width: 80, isReadOnly: true, visible: Util.getVoucherSettingScreenData(voucherType, "unit") },
+        { header: "الوحدة", name: "unit_name", width: 80, isReadOnly: true, visible: Util.getVoucherSettingScreenData(voucherType, "unit") },
         {
           header: " ",
           name: "btnSearchUnits",
@@ -1672,7 +1891,7 @@ export default function UnifiedSalesDelivery({
           onClick: (e: any, ctx: any) => {
             if (isLocked || isFromDelivery) return
             setUnitsSearchRow(ctx.row.index)
-            lastFocusedCellRef.current = { row: ctx.row.index, col: "unit" }
+            lastFocusedCellRef.current = { row: ctx.row.index, col: "unit_name" }
             popupHasCalled()
             setTimeout(() => setUnitsSearchOpen(true), 0)
           },
@@ -2015,23 +2234,7 @@ export default function UnifiedSalesDelivery({
                     panelStyle={{ zIndex: 10000 }}
                     onChange={async (e: any) => {
                       const newCurrencyId = e.value ?? null
-                      onFormChange("currency_id", newCurrencyId)
-                      onCurrencyChange?.(newCurrencyId)
-                      if (!newCurrencyId || newCurrencyId === baseCurrencyId) {
-                        onFormChange("rate", 1)
-                        return
-                      }
-                      try {
-                        const query = new URLSearchParams({
-                          currency_id: String(newCurrencyId),
-                          date: form.vch_date ? form.vch_date.slice(0, 10) : "",
-                        })
-                        const response = await fetch(`/api/exchange-rates/lookup?${query.toString()}`)
-                        const data = response.ok ? await response.json() : null
-                        onFormChange("rate", data?.rate ?? 1)
-                      } catch {
-                        onFormChange("rate", 1)
-                      }
+                      await handleCurrencyChangeSelection(newCurrencyId)
                     }}
                   />
                 </div>
@@ -2264,6 +2467,7 @@ export default function UnifiedSalesDelivery({
               <TabsContent value="items" className="mt-4 min-h-[360px] space-y-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
                 <div className="w-full max-w-full overflow-x-auto">
                   <DataGridView
+                    allowSorting={false}
                     innerRef={itemsGridRef}
                     style={{ height: "300px" }}
                     scheme={scheme}
@@ -2616,7 +2820,14 @@ export default function UnifiedSalesDelivery({
         />
         <UnitsSearchPopup
           visible={unitsSearchOpen}
-          product={{ name: unitsSearchRow !== null ? itemsRef.current[unitsSearchRow]?.product_name || "" : "" }}
+          product={{
+            name: unitsSearchRow !== null ? itemsRef.current[unitsSearchRow]?.product_name || "" : "",
+            id:
+              unitsSearchRow !== null && itemsRef.current[unitsSearchRow]?.product_id != null
+                ? Number(itemsRef.current[unitsSearchRow].product_id)
+                : null,
+          }}
+          priceCategoryId={0}
           units={unitsSearchRow !== null ? itemsRef.current[unitsSearchRow]?.units || [] : []}
           onClose={() => {
             setUnitsSearchOpen(false)
@@ -2684,6 +2895,7 @@ export default function UnifiedSalesDelivery({
 
             onFormChange("account_id", customer.id)
             onFormChange("customer_name", customer.name || "")
+            onFormChange("invoice_source_type", 2)
             onFormChange("source_voucher_id" as keyof SalesDeliveryRecord, selectedDeliveries?.[0]?.id ?? delivery.id)
             onFormChange("source_voucher_type" as keyof SalesDeliveryRecord, selectedDeliveries?.[0]?.vch_type ?? delivery.vch_type)
             onFormChange("discount_type", "percentage")
@@ -2737,6 +2949,7 @@ export default function UnifiedSalesDelivery({
 
             onFormChange("account_id", customer.id)
             onFormChange("customer_name", customer.name || "")
+            onFormChange("invoice_source_type", 3)
             onFormChange("source_voucher_id" as keyof SalesDeliveryRecord, order.id)
             onFormChange("source_voucher_type" as keyof SalesDeliveryRecord, 3)
             onFormChange("discount_type", "percentage")
@@ -2826,6 +3039,24 @@ export default function UnifiedSalesDelivery({
             onDelete?.()
           }}
           onCancel={() => setShowDeleteConfirm(false)}
+        />
+
+        <ConfirmDialogYesNo
+          visible={showCurrencyRecalcConfirm}
+          message="تم تغيير عملة السند، هل تريد اعادة احتساب اسعار الاصناف؟"
+          onConfirm={async () => {
+            setShowCurrencyRecalcConfirm(false)
+            const newCurrencyId = pendingCurrencyIdRef.current
+            pendingCurrencyIdRef.current = null
+            const newRate = await applyCurrencyChange(newCurrencyId)
+            rescaleItemPricesForRate(newRate)
+          }}
+          onCancel={async () => {
+            setShowCurrencyRecalcConfirm(false)
+            const newCurrencyId = pendingCurrencyIdRef.current
+            pendingCurrencyIdRef.current = null
+            await applyCurrencyChange(newCurrencyId)
+          }}
         />
 
         <ConfirmDialogYesNo

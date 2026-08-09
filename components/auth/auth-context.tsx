@@ -332,6 +332,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
         body: JSON.stringify(credentials),
       })
 
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => "")
+        throw new Error(errorText || `Login failed (${response.status})`)
+      }
+
       const result = await response.json()
 
       if (result.success && result.user) {

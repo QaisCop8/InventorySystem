@@ -187,6 +187,11 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
 
     const data = await request.json()
     const accountCode = String(data.account_code ?? data.code ?? "").trim()
+    const normalizedAccountCode = accountCode
+      .replace(/\s+/g, "")
+      .replace(/[^A-Za-z0-9]/g, "")
+      .toUpperCase()
+    const finalAccountCode = normalizedAccountCode.length >= 10 ? normalizedAccountCode.slice(0, 10) : normalizedAccountCode.padEnd(10, "0")
     const accountName = String(data.account_name ?? data.name ?? "").trim()
     const parentCode = String(data.parent_code ?? data.father_code ?? "").trim()
     let parentAccountId = toNullableInt(data.parent_account_id ?? data.father_id)
@@ -248,7 +253,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     const levelNo = Number(data.level_no ?? (parentAccountId ? 2 : 1))
 
     const codeTaken = await sql`
-      SELECT id FROM account_tbl WHERE LOWER(code) = LOWER(${accountCode}) AND id != ${id} AND status IN (1, 2) LIMIT 1
+      SELECT id FROM account_tbl WHERE LOWER(code) = LOWER(${finalAccountCode}) AND id != ${id} AND status IN (1, 2) LIMIT 1
     `
     if (codeTaken.length > 0) {
       return NextResponse.json({ error: "رقم الحساب مستخدم مسبقاً" }, { status: 400 })
@@ -256,7 +261,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
 
     await sql`
       UPDATE account_tbl SET
-        code = ${accountCode},
+        code = ${finalAccountCode},
         name = ${accountName},
         name_lang2 = ${nameLang2},
         father_id = ${parentAccountId},

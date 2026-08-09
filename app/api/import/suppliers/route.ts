@@ -2,6 +2,17 @@ import { type NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
 import { generateSupplierNumber } from "@/lib/number-generator"
 
+const normalizeImportedCode = (rawValue: unknown, prefix = "S") => {
+  const cleaned = String(rawValue ?? "").trim().toUpperCase().replace(/[^A-Z0-9]/g, "")
+  if (!cleaned) return ""
+
+  const prefixValue = String(prefix).trim().toUpperCase()
+  const numericPart = cleaned.replace(/[^0-9]/g, "")
+  const maxDigits = Math.max(0, 10 - prefixValue.length)
+  const digits = numericPart.slice(0, maxDigits).padEnd(maxDigits, "0")
+  return `${prefixValue}${digits}`.slice(0, 10)
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { data } = await request.json()
@@ -24,8 +35,8 @@ export async function POST(request: NextRequest) {
           continue
         }
 
-        // Generate supplier code if not provided
-        let supplierCode = item.supplier_code
+        // Generate supplier code if not provided and normalize imported values to the same 10-digit format
+        let supplierCode = normalizeImportedCode(item.supplier_code, "S")
         if (!supplierCode) {
           supplierCode = await generateSupplierNumber()
         }

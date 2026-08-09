@@ -355,7 +355,7 @@ export async function GET(request: NextRequest) {
         FROM product_units pu
         LEFT JOIN product_unit_barcodes pub
           ON pub.product_id = pu.product_id
-          AND pub.unit_id = pu.id
+          AND pub.unit_id = pu.unit_id
         WHERE pu.product_id = p.id
         ORDER BY pu.id ASC
         LIMIT 1
@@ -373,7 +373,7 @@ export async function GET(request: NextRequest) {
       LEFT JOIN currency c ON c.id = pr.currency_id
 
       WHERE ${filterExpression}
-      ORDER BY p.product_code DESC;
+      ORDER BY p.product_code ASC;
     `
       : `
       SELECT 
@@ -410,7 +410,7 @@ export async function GET(request: NextRequest) {
         FROM product_units pu
         LEFT JOIN product_unit_barcodes pub
           ON pub.product_id = pu.product_id
-          AND pub.unit_id = pu.id
+          AND pub.unit_id = pu.unit_id
         WHERE pu.product_id = p.id
         ORDER BY pu.id ASC
         LIMIT 1
@@ -428,7 +428,7 @@ export async function GET(request: NextRequest) {
       LEFT JOIN currency c ON c.id = pr.currency_id
 
       WHERE ${filterExpression}
-      ORDER BY p.product_code DESC;
+      ORDER BY p.product_code ASC;
     `
 
     const productsResult = await (await getTenantPool()).query(productsQuery)
@@ -596,6 +596,29 @@ async function ensureProductUnitLinkTables(client: any) {
   await client.query(`CREATE INDEX IF NOT EXISTS idx_product_units_product_id ON product_units(product_id)`, [])
   await client.query(`CREATE INDEX IF NOT EXISTS idx_product_unit_barcodes_product_id ON product_unit_barcodes(product_id)`, [])
   await client.query(`CREATE INDEX IF NOT EXISTS idx_product_prices_product_id ON product_prices(product_id)`, [])
+}
+
+async function resolveProductUnitId(client: any, productId: number, candidateUnitId: number | null): Promise<number | null> {
+  const raw = Number(candidateUnitId ?? 0)
+  if (!Number.isFinite(raw) || raw <= 0) return null
+
+  const byProductUnitRow = await client.query(
+    `SELECT unit_id FROM product_units WHERE product_id = $1 AND id = $2 LIMIT 1`,
+    [productId, raw],
+  )
+  if (byProductUnitRow.rows[0]?.unit_id != null) {
+    return Number(byProductUnitRow.rows[0].unit_id)
+  }
+
+  const byUnitsTableId = await client.query(
+    `SELECT unit_id FROM product_units WHERE product_id = $1 AND unit_id = $2 LIMIT 1`,
+    [productId, raw],
+  )
+  if (byUnitsTableId.rows[0]?.unit_id != null) {
+    return Number(byUnitsTableId.rows[0].unit_id)
+  }
+
+  return raw
 }
 
 async function persistProductNumbers(client: any, productId: number, originalNumbers: string[], factoryNumbers: string[]) {
@@ -1144,6 +1167,9 @@ export async function POST(request: NextRequest) {
         )
 
         const barcodeList = Array.isArray(unit.barcode_list) ? unit.barcode_list : []
+        const savedUnitId = await resolveProductUnitId(client, productId, realUnitId)
+        if (!savedUnitId) continue
+
         for (const barcode of barcodeList) {
           const normalizedBarcode = String(barcode ?? "").trim();
           if (!normalizedBarcode) continue
@@ -1152,7 +1178,7 @@ export async function POST(request: NextRequest) {
             `INSERT INTO product_unit_barcodes (product_id, unit_id, barcode)
              VALUES ($1::int, $2::int, $3::text)
              ON CONFLICT (product_id, unit_id, barcode) DO NOTHING`,
-            [productId, realUnitId, normalizedBarcode]
+            [productId, savedUnitId, normalizedBarcode]
           )
         }
       }
@@ -1179,6 +1205,9 @@ export async function POST(request: NextRequest) {
 
     if (Array.isArray(productData.prices)) {
       for (const price of productData.prices) {
+        const savedUnitId = await resolveProductUnitId(client, productId, Number(price.unit_id || 0))
+        if (!savedUnitId) continue
+
         await client.query(
           `INSERT INTO product_prices
         (product_id, price_category_id, unit_id, price, currency_id)
@@ -1186,7 +1215,7 @@ export async function POST(request: NextRequest) {
           [
             productId,
             Number(price.price_category_id || 0),
-            Number(price.unit_id || 0),
+            savedUnitId,
             Number(price.price || 0),
             Number(price.currency_id || 0)
           ]

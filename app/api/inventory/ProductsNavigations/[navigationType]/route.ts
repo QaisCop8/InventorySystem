@@ -126,7 +126,7 @@ export async function GET(
 
       const barcodeRes = await pool.query(
         `SELECT barcode FROM product_unit_barcodes WHERE unit_id = $1 and product_id = $2`,
-        [units[i].id, product.id]
+        [units[i].unit_id, product.id]
       );
 
       units[i].barcode_list = barcodeRes.rows.map(b => b.barcode);

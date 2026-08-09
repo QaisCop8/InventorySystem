@@ -11,7 +11,7 @@ const FOCUSABLE_SELECTOR =
   'input:not([disabled]):not([type="hidden"]):not([type="checkbox"]):not([type="radio"]), select:not([disabled]), textarea:not([disabled])'
 
 const SKIP_ANCESTOR_SELECTOR =
-  '.wj-flexgrid, .wj-control, .p-dropdown, .p-multiselect, .p-autocomplete, .p-calendar, [role="combobox"], [role="listbox"]'
+  '.wj-flexgrid, .wj-control, .p-multiselect, .p-autocomplete, .p-calendar, [role="listbox"]'
 
 function isVisible(el: HTMLElement): boolean {
   return !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length)

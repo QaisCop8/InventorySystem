@@ -590,6 +590,9 @@ export const saveVoucherItems = async (voucherId: number, items: any[]) => {
 
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i]
+    const unitName = String(row.unit || row.unit_name || "").trim()
+    const rawUnitId = row.unit_id ?? row.unitId ?? null
+    const resolvedUnitId = Number(rawUnitId ?? null) > 0 ? Number(rawUnitId) : null
     const hasExpiry = hasExpiryById.get(Number(row.product_id)) ?? false
     const expiryDateToSave = hasExpiry ? row.expiry_date || null : NO_EXPIRY_SENTINEL_DATE
     await sql`
@@ -602,7 +605,7 @@ export const saveVoucherItems = async (voucherId: number, items: any[]) => {
         ${voucherId},
         ${row.item_id ?? row.product_id ?? null},
         ${row.item_name || row.product_name || ""},
-        ${row.unit_id ?? null},
+        ${resolvedUnitId ?? null},
         ${Number(row.qnty ?? row.quantity ?? 0)},
         ${Number(row.bonus ?? row.bonus_quantity ?? 0)},
         ${Number(row.discount ?? row.discount_percent ?? 0)},
@@ -733,7 +736,10 @@ export const fetchVoucherItems = async (voucherId: number) => {
       p.product_code AS current_product_code,
       COALESCE(p.product_name, vi.item_name, '') AS product_name,
       p.product_name AS current_product_name,
-      w.warehouse_name AS warehouse_name
+      w.warehouse_name AS warehouse_name,
+      (vi.qnty * vi.price) AS total_price,
+      (vi.qnty * vi.price) AS amount,
+      (vi.qnty * vi.price) AS line_amount
     FROM voucher_items_tbl vi
     LEFT JOIN products p ON p.id = vi.item_id
     LEFT JOIN warehouses w ON w.id = vi.store_id

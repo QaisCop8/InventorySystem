@@ -294,6 +294,17 @@ export async function GET(request: NextRequest) {
   }
 }
 
+const normalizeEntityCode = (rawValue: unknown, prefix = "C") => {
+  const cleaned = String(rawValue ?? "").trim().toUpperCase().replace(/[^A-Z0-9]/g, "")
+  if (!cleaned) return ""
+
+  const prefixValue = String(prefix).trim().toUpperCase()
+  const numericPart = cleaned.replace(/[^0-9]/g, "")
+  const maxDigits = Math.max(0, 10 - prefixValue.length)
+  const digits = numericPart.slice(0, maxDigits).padEnd(maxDigits, "0")
+  return `${prefixValue}${digits}`.slice(0, 10)
+}
+
 export async function POST(request: NextRequest) {
   try {
     await ensureCustomerCompatibilityColumns()
@@ -317,14 +328,15 @@ export async function POST(request: NextRequest) {
       if (!providedCustomerCode) {
         data.customer_code = await generateCustomerNumber(data.type === 2, data.type === 3, data.type === 4)
       } else {
+        const normalizedProvidedCode = normalizeEntityCode(providedCustomerCode, data.type === 2 ? "S" : "C")
         const existingCustomer = await sql`
-          SELECT id FROM customers WHERE customer_code = ${providedCustomerCode}
+          SELECT id FROM customers WHERE customer_code = ${normalizedProvidedCode}
         `
 
         if (existingCustomer.length > 0) {
           data.customer_code = await generateCustomerNumber(data.type === 2, data.type === 3, data.type === 4)
         } else {
-          data.customer_code = providedCustomerCode
+          data.customer_code = normalizedProvidedCode
         }
       }
 
