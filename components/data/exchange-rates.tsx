@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState } from "react"
+import { useRef, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -26,6 +26,7 @@ import {
 import { useExchangeRates } from "@/hooks/use-swr-data"
 import { LoadingCard, LoadingSpinner } from "@/components/ui/loading-spinner"
 import { ErrorBoundary } from "@/components/error-boundary"
+import Messages from "@/components/common/Messages"
 
 interface ExchangeRate {
   id: number,
@@ -44,6 +45,9 @@ interface ExchangeRate {
   change_percent?: string
 }
 
+const MIN_EXCHANGE_RATE = 0.0001
+const MAX_EXCHANGE_RATE = 10000
+
 function ExchangeRatesContent() {
   const { rates: exchangeRates, isLoading, isError, refresh, updateRate } = useExchangeRates()
 
@@ -51,6 +55,10 @@ function ExchangeRatesContent() {
   const [showRateDialog, setShowRateDialog] = useState(false)
   const [showNewRateDialog, setShowNewRateDialog] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const submittingRef = useRef(false)
+  const messagesRef = useRef<any>(null)
+  const rateDialogMessagesRef = useRef<any>(null)
+  const newCurrencyMessagesRef = useRef<any>(null)
   const [editFormData, setEditFormData] = useState({
     type: 1,
     buyRate: 0,
@@ -61,9 +69,9 @@ function ExchangeRatesContent() {
   const [newCurrencyForm, setNewCurrencyForm] = useState({
     currencyName: "",
     currencyCode: "",
-    buyRate: 0,
-    sellRate: 0,
-    exchangeRate: 0,
+    buyRate: 1,
+    sellRate: 1,
+    exchangeRate: 1,
   })
 
   const [filters, setFilters] = useState({
@@ -73,19 +81,29 @@ function ExchangeRatesContent() {
 
   const handleSaveNewCurrency = async (e?: React.FormEvent) => {
     if (e) e.preventDefault()
+    if (submittingRef.current) return
 
     // Validation
-    if (
-      !newCurrencyForm.currencyName.trim() ||
-      !newCurrencyForm.currencyCode.trim() ||
-      Number(newCurrencyForm.buyRate) <= 0 ||
-      Number(newCurrencyForm.sellRate) <= 0 ||
-      Number(newCurrencyForm.exchangeRate) <= 0
-    ) {
-      alert("جميع الحقول مطلوبة")
+    if (!newCurrencyForm.currencyName.trim() || !newCurrencyForm.currencyCode.trim()) {
+      newCurrencyMessagesRef.current?.show?.([
+        { severity: "error", summary: "", detail: "جميع الحقول مطلوبة", life: 4000 },
+      ])
+      return
+    }
+    const newRates = [newCurrencyForm.buyRate, newCurrencyForm.sellRate, newCurrencyForm.exchangeRate].map(Number)
+    if (newRates.some((rate) => !Number.isFinite(rate) || rate < MIN_EXCHANGE_RATE || rate > MAX_EXCHANGE_RATE)) {
+      newCurrencyMessagesRef.current?.show?.([
+        {
+          severity: "error",
+          summary: "",
+          detail: "سعر الشراء وسعر البيع وسعر الصرف يجب أن تكون بين 0.0001 و 10000",
+          life: 5000,
+        },
+      ])
       return
     }
 
+    submittingRef.current = true
     setIsSubmitting(true)
     try {
       console.log("[v0] Creating new currency:", newCurrencyForm)
@@ -116,16 +134,26 @@ function ExchangeRatesContent() {
       setNewCurrencyForm({
         currencyName: "",
         currencyCode: "",
-        buyRate: 0,
-        sellRate: 0,
-        exchangeRate: 0,
+        buyRate: 1,
+        sellRate: 1,
+        exchangeRate: 1,
       })
 
-      alert("تم إضافة العملة بنجاح")
+      messagesRef.current?.show?.([
+        { severity: "success", summary: "", detail: "تم إضافة العملة وسعر الصرف بنجاح", life: 4000 },
+      ])
     } catch (err) {
       console.error("[v0] Error saving new currency:", err)
-      alert("حدث خطأ أثناء حفظ البيانات: " + (err instanceof Error ? err.message : "خطأ غير معروف"))
+      newCurrencyMessagesRef.current?.show?.([
+        {
+          severity: "error",
+          summary: "",
+          detail: "حدث خطأ أثناء حفظ البيانات: " + (err instanceof Error ? err.message : "خطأ غير معروف"),
+          life: 5000,
+        },
+      ])
     } finally {
+      submittingRef.current = false
       setIsSubmitting(false)
     }
   }
@@ -222,8 +250,19 @@ function ExchangeRatesContent() {
 
 
   const handleSaveRateChanges = async () => {
-    if (!selectedRate) return
+    if (!selectedRate || submittingRef.current) return
+    if (
+      Number(editFormData.buyRate) <= 0 ||
+      Number(editFormData.sellRate) <= 0 ||
+      Number(editFormData.exchangeRate) <= 0
+    ) {
+      rateDialogMessagesRef.current?.show?.([
+        { severity: "error", summary: "", detail: "أسعار الشراء والبيع والصرف يجب أن تكون أكبر من صفر", life: 4000 },
+      ])
+      return
+    }
     console.log("selectedRate ", selectedRate)
+    submittingRef.current = true
     setIsSubmitting(true)
     try {
       if (editFormData.type === 2) {
@@ -234,7 +273,9 @@ function ExchangeRatesContent() {
           exchange_rate: editFormData.exchangeRate,
         })
         setShowRateDialog(false)
-        alert("تم تحديث سعر الصرف بنجاح")
+        messagesRef.current?.show?.([
+          { severity: "success", summary: "", detail: "تم تحديث سعر الصرف بنجاح", life: 4000 },
+        ])
       }
       else {
 
@@ -247,12 +288,17 @@ function ExchangeRatesContent() {
           is_active: true,
         });
         setShowRateDialog(false)
-        alert("تم اضافة سعر صرف جديد لليوم بنجاح");
+        messagesRef.current?.show?.([
+          { severity: "success", summary: "", detail: "تم إضافة سعر صرف جديد لليوم بنجاح", life: 4000 },
+        ])
       }
     } catch (err) {
       console.error("[v0] Error saving rate changes:", err)
-      alert("حدث خطأ أثناء حفظ التغييرات")
+      rateDialogMessagesRef.current?.show?.([
+        { severity: "error", summary: "", detail: "حدث خطأ أثناء حفظ التغييرات", life: 5000 },
+      ])
     } finally {
+      submittingRef.current = false
       setIsSubmitting(false)
     }
   }
@@ -328,7 +374,8 @@ function ExchangeRatesContent() {
   }
 
   return (
-    <div className="space-y-6" dir="rtl">
+    <div className="flex min-h-0 flex-col gap-4 overflow-x-hidden lg:h-[calc(100vh-7rem)] lg:overflow-y-hidden" dir="rtl">
+      <Messages innerRef={messagesRef} />
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {exchangeRatesSummary.map((item, index) => (
@@ -357,12 +404,13 @@ function ExchangeRatesContent() {
               </Button>
               <Button
                 onClick={() => {
-                  // أول عملة تُعرَّف بالنظام (لا عملات موجودة بعد) هي عملة الأساس ضمناً — سعر
-                  // الشراء/البيع/الصرف بالنسبة لنفسها 1 دوماً بالتعريف، فتُثبَّت هنا 1 وتُعطَّل حقولها
-                  // أدناه (isFirstCurrency) بدل تركها فارغة/قابلة للتعديل بلا معنى فعلي.
-                  if (exchangeRates.length === 0) {
-                    setNewCurrencyForm((prev) => ({ ...prev, buyRate: 1, sellRate: 1, exchangeRate: 1 }))
-                  }
+                  setNewCurrencyForm({
+                    currencyName: "",
+                    currencyCode: "",
+                    buyRate: 1,
+                    sellRate: 1,
+                    exchangeRate: 1,
+                  })
                   setShowNewRateDialog(true)
                 }}
                 variant="outline"
@@ -396,14 +444,14 @@ function ExchangeRatesContent() {
       </Card>
 
       {/* Exchange Rates Table */}
-      <Card className="shadow-sm">
+      <Card className="flex min-h-0 flex-1 flex-col overflow-hidden shadow-sm">
         <CardHeader>
           <CardTitle className="text-right">أسعار الصرف اليومية</CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto" id="printArea">
-            <table className="w-full border-collapse" dir="rtl">
-              <thead>
+        <CardContent className="min-h-0 flex-1 overflow-hidden">
+          <div className="h-full max-h-full overflow-x-hidden overflow-y-auto" id="printArea">
+            <table className="w-full table-fixed border-collapse text-sm [&_td]:break-words [&_th]:break-words" dir="rtl">
+              <thead className="sticky top-0 z-10 bg-white">
                 <tr className="border-b">
                   <th className="text-right p-3 font-semibold text-gray-700">العملة</th>
                   <th className="text-right p-3 font-semibold text-gray-700">الرمز</th>
@@ -453,7 +501,7 @@ function ExchangeRatesContent() {
                     <td className="text-right p-3">
                       <div className="flex gap-1 justify-center">
                         {rate && rate.currency_id !== 1 &&
-                          <div>
+                          <div className="flex flex-wrap justify-center gap-1">
                             <Button size="sm" variant="outline" onClick={() => { rate && rate.currency_id !== 1 ? handleAddRate(rate) : undefined; console.log("rate ", rate) }} className="text-xs">
                               <Edit className="h-3 w-1 ml-1" />
                               اضافة
@@ -475,13 +523,20 @@ function ExchangeRatesContent() {
       </Card>
 
       {/* Edit Rate Dialog */}
-      <Dialog open={showRateDialog} onOpenChange={setShowRateDialog}>
+      <Dialog
+        open={showRateDialog}
+        onOpenChange={(open) => {
+          if (!open && submittingRef.current) return
+          setShowRateDialog(open)
+        }}
+      >
         <DialogContent className="max-w-2xl" dir="rtl">
           <DialogHeader>
             <DialogTitle className="text-right">تعديل سعر صرف {selectedRate?.currency_name}</DialogTitle>
           </DialogHeader>
           {selectedRate && (
             <div className="space-y-4">
+              <Messages innerRef={rateDialogMessagesRef} />
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <Label htmlFor="buyRate" className="text-right block">
@@ -539,6 +594,7 @@ function ExchangeRatesContent() {
                   إلغاء
                 </Button>
                 <Button
+                  type="button"
                   onClick={handleSaveRateChanges}
                   className="bg-blue-600 hover:bg-blue-700 text-white"
                   disabled={isSubmitting}
@@ -553,12 +609,19 @@ function ExchangeRatesContent() {
       </Dialog>
 
       {/* New Currency Dialog */}
-      <Dialog open={showNewRateDialog} onOpenChange={setShowNewRateDialog}>
+      <Dialog
+        open={showNewRateDialog}
+        onOpenChange={(open) => {
+          if (!open && submittingRef.current) return
+          setShowNewRateDialog(open)
+        }}
+      >
         <DialogContent className="max-w-2xl" dir="rtl">
           <DialogHeader>
             <DialogTitle className="text-right">إضافة عملة جديدة</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleSaveNewCurrency} className="space-y-4">
+          <form onSubmit={handleSaveNewCurrency} className="space-y-4" noValidate>
+            <Messages innerRef={newCurrencyMessagesRef} />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="currencyCode" className="text-right block">
@@ -606,12 +669,15 @@ function ExchangeRatesContent() {
                 <Input
                   id="newBuyRate"
                   type="number"
-                  step="0.001"
-                  placeholder="0.000"
+                  step="0.0001"
+                  placeholder="0.0001"
                   className="text-right"
                   dir="rtl"
                   value={newCurrencyForm.buyRate}
                   disabled={exchangeRates.length === 0}
+                  min={MIN_EXCHANGE_RATE}
+                  max={MAX_EXCHANGE_RATE}
+                  onFocus={(e) => e.currentTarget.select()}
                   onChange={(e) =>
                     setNewCurrencyForm({ ...newCurrencyForm, buyRate: Number.parseFloat(e.target.value) || 0 })
                   }
@@ -624,12 +690,15 @@ function ExchangeRatesContent() {
                 <Input
                   id="newSellRate"
                   type="number"
-                  step="0.001"
-                  placeholder="0.000"
+                  step="0.0001"
+                  placeholder="0.0001"
                   className="text-right"
                   dir="rtl"
                   value={newCurrencyForm.sellRate}
                   disabled={exchangeRates.length === 0}
+                  min={MIN_EXCHANGE_RATE}
+                  max={MAX_EXCHANGE_RATE}
+                  onFocus={(e) => e.currentTarget.select()}
                   onChange={(e) =>
                     setNewCurrencyForm({ ...newCurrencyForm, sellRate: Number.parseFloat(e.target.value) || 0 })
                   }
@@ -642,12 +711,15 @@ function ExchangeRatesContent() {
                 <Input
                   id="newExchangeRate"
                   type="number"
-                  step="0.001"
-                  placeholder="0.000"
+                  step="0.0001"
+                  placeholder="0.0001"
                   className="text-right"
                   dir="rtl"
                   value={newCurrencyForm.exchangeRate}
                   disabled={exchangeRates.length === 0}
+                  min={MIN_EXCHANGE_RATE}
+                  max={MAX_EXCHANGE_RATE}
+                  onFocus={(e) => e.currentTarget.select()}
                   onChange={(e) =>
                     setNewCurrencyForm({ ...newCurrencyForm, exchangeRate: Number.parseFloat(e.target.value) || 0 })
                   }

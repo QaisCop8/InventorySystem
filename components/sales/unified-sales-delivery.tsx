@@ -24,7 +24,7 @@ import InvoiceFromOrderPopup from "@/components/sales/InvoiceFromOrderPopup"
 import PostVoucherDialog, { type PostVoucherAction } from "@/components/common/post-voucher-dialog"
 import ItemExpiryDatePicker, { type ExpiryLotAllocation } from "@/components/common/ItemExpiryDatePicker"
 import MeasurementInputDialog from "@/components/common/MeasurementInputDialog"
-import { CellRange, KeyAction } from "@grapecity/wijmo.grid"
+import { KeyAction } from "@grapecity/wijmo.grid"
 import * as wjcCore from "@grapecity/wijmo"
 import { Menu } from "@grapecity/wijmo.input"
 import PrimeDropdown from "@/components/common/FocusDropdown"
@@ -316,9 +316,14 @@ const readGridSelection = (grid: any): { row: number; col: number } | null => {
 
 const selectCell = (rawGrid: any, row: number, colName: string) => {
   const grid = resolveFlexControl(rawGrid)
-  if (!grid || !grid.columns) return
-  const colIndex = grid.columns.findIndex((c: any) => c.binding === colName)
-  if (colIndex >= 0) grid.select(new CellRange(row, colIndex))
+  if (!grid || !grid.columns || typeof grid.select !== 'function') return
+  if (!grid.rows || grid.rows.length <= row) return
+  try {
+    grid.select(row, colName)
+  } catch {
+    // The Wijmo control may still be initializing internally; ignore this and
+    // let focus restoration retry later via waitForGridReady or other handlers.
+  }
 }
 
 const waitForGridReady = (getGrid: () => any, onReady: (grid: any) => void, attempts = 10, minRows = 0) => {
@@ -550,6 +555,7 @@ export default function UnifiedSalesDelivery({
   const [expiryLotPickerRow, setExpiryLotPickerRow] = useState<number | null>(null)
   const [expiryLotPickerQuantity, setExpiryLotPickerQuantity] = useState(0)
   const [expiryLotPickerReservedByLot, setExpiryLotPickerReservedByLot] = useState<Record<string, number>>({})
+  const expiryLotPickerQuantityFieldRef = useRef<"quantity" | "bonus_quantity">("quantity")
   // نافذة "بيانات القياس" (الطول/العرض/الارتفاع/العدد) — تفتح بدل الكتابة المباشرة في خلية "الكمية"
   // لأي صنف نوع قياسه غير عادي (measurment_id != 1)، انظر handleBeginningEdit أدناه.
   const [measurementDialogOpen, setMeasurementDialogOpen] = useState(false)
@@ -712,8 +718,17 @@ export default function UnifiedSalesDelivery({
     Util.getVoucherSettingScreenData(voucherType, "expiry_date") && items.some((i) => i.has_expiry || i.has_batch)
 
   // كل حقول fieldOrder محطة توقف دائمة الآن (الأبعاد/العدد لم تعد أعمدة شبكة، تُدخَل عبر
-  // MeasurementInputDialog بدلاً من ذلك) — يكفي فحص حدود المصفوفة بدل تخطٍّ شرطي.
-  const findNextRelevantFieldIndex = (startIndex: number): number => (startIndex < fieldOrder.length ? startIndex : -1)
+  // MeasurementInputDialog بدلاً من ذلك) — ابحث عن الحقل التالي الظاهر فعلياً في الشبكة.
+  const findNextRelevantFieldIndex = (grid: any, startIndex: number): number => {
+    for (let i = startIndex; i < fieldOrder.length; i++) {
+      const fieldName = fieldOrder[i]
+      const column = grid?.columns?.find((c: any) => c.binding === fieldName)
+      if (column && column.visible !== false) {
+        return i
+      }
+    }
+    return -1
+  }
 
   const [itemsCollectionView] = useState(() => {
     const v = new wjcCore.CollectionView<any>([])
@@ -1026,43 +1041,6 @@ export default function UnifiedSalesDelivery({
           }, 80)
         }
       }
-      // Final fallback: if Wijmo still throws due to internal editor state, temporarily
-      // unbind the grid itemsSource, assign the view, then rebind to force a stable render.
-      // This is defensive and should be rare.
-      try {
-        const viewFinal = itemsCollectionViewRef.current
-        const gridControl = resolveFlexControl(itemsGridRef.current)
-        if (viewFinal && gridControl) {
-          try {
-            // unbind
-            gridControl.itemsSource = null
-          } catch {}
-          try {
-            viewFinal.deferUpdate(() => {
-              viewFinal.sourceCollection = normalizedItems
-            })
-          } catch {
-            try {
-              viewFinal.sourceCollection = normalizedItems
-            } catch {}
-          }
-          setTimeout(() => {
-            try {
-              gridControl.itemsSource = viewFinal
-              try {
-                gridControl.invalidate()
-              } catch {}
-            } catch (err3) {
-              // eslint-disable-next-line no-console
-              console.error("Rebinding grid itemsSource failed:", err3)
-            }
-          }, 0)
-        }
-      } catch (finalErr) {
-        // eslint-disable-next-line no-console
-        console.error("Final CollectionView fallback failed:", finalErr)
-      }
-
       const pending = pendingFocusRef.current
       if (pending) {
         pendingFocusRef.current = null
@@ -1089,7 +1067,25 @@ export default function UnifiedSalesDelivery({
       } else if (prevSelection) {
         const grid = resolveFlexControl(itemsGridRef.current)
         if (grid && grid.rows && grid.rows.length > prevSelection.row) {
-          grid.select(new CellRange(prevSelection.row, prevSelection.col))
+          try {
+            const colIndex = prevSelection.col
+            const colBinding = grid.columns && grid.columns[colIndex] ? grid.columns[colIndex].binding : null
+            if (colBinding) {
+              try {
+                grid.select(prevSelection.row, colBinding)
+              } catch {
+                // ignore
+              }
+            } else {
+              try {
+                grid.select(prevSelection.row, colIndex)
+              } catch {
+                // ignore
+              }
+            }
+          } catch {
+            // Safe to ignore initialization race here.
+          }
         }
       }
 
@@ -1183,11 +1179,15 @@ export default function UnifiedSalesDelivery({
     if (!baseRow) return
     const [first, ...rest] = allocations
     const buildRow = (allocation: ExpiryLotAllocation): SalesVoucherItemRow => {
+      const allocatedQuantity =
+        expiryLotPickerQuantityFieldRef.current === "bonus_quantity"
+          ? { bonus_quantity: allocation.quantity }
+          : { quantity: allocation.quantity }
       const patched: SalesVoucherItemRow = {
         ...baseRow,
         batch_number: allocation.batch_number,
         expiry_date: toGridDateString(allocation.expiry_date),
-        quantity: allocation.quantity,
+        ...allocatedQuantity,
       }
       return { ...patched, ...recalcLineAmounts(patched) }
     }
@@ -1433,7 +1433,11 @@ export default function UnifiedSalesDelivery({
             if (ht.panel !== grid.cells) return
             const col = grid.columns[ht.col]
             if (!col || col.name !== "account_code") return
-            grid.select(ht.row, ht.col)
+            try {
+              grid.select(ht.row, ht.col)
+            } catch {
+              // Ignore selection failure on context menu open if grid is not ready.
+            }
             e.preventDefault()
             menu.show(e)
           },
@@ -1453,12 +1457,72 @@ export default function UnifiedSalesDelivery({
       if (row.product_id !== productId) return
       if (Number(row.warehouse_id) !== warehouseId) return
       const rowToMainQty = row.units?.find((u) => u.unit_name === row.unit)?.to_main_qnty ?? 1
-      const mainQty = Number(row.quantity || 0) * rowToMainQty
+      const mainQty = (Number(row.quantity || 0) + Number(row.bonus_quantity || 0)) * rowToMainQty
       if (mainQty <= 0) return
       const key = `${row.batch_number || ""}||${row.expiry_date ? row.expiry_date.slice(0, 10) : ""}`
       reserved[key] = (reserved[key] || 0) + mainQty
     })
     return reserved
+  }
+
+  const openExpiryLotPickerForRow = (
+    rowIndex: number,
+    quantityField: "quantity" | "bonus_quantity" = "quantity",
+  ): boolean => {
+    const item = itemsRef.current[rowIndex]
+    if (!item?.product_id) return false
+    const requiredQuantity = Number(item[quantityField] || 0)
+    if (requiredQuantity <= 0) return false
+    if (!item.warehouse_id) {
+      messagesRef.current?.show?.([{ severity: "error", summary: "", detail: "يجب تحديد المستودع أولاً", life: 3000 }])
+      pendingFocusRef.current = { row: rowIndex, col: "warehouse_name" }
+      restoreGridFocus(pendingFocusRef.current)
+      return false
+    }
+
+    expiryLotPickerQuantityFieldRef.current = quantityField
+    lastFocusedCellRef.current = { row: rowIndex, col: quantityField }
+    popupHasCalled()
+    setExpiryLotPickerRow(rowIndex)
+    setExpiryLotPickerQuantity(requiredQuantity)
+    setExpiryLotPickerReservedByLot(computeReservedByLot(rowIndex, item.product_id, Number(item.warehouse_id)))
+    setExpiryLotPickerOpen(true)
+    return true
+  }
+
+  const validateRowBeforeAdd = (rowIndex: number): boolean => {
+    const item = itemsRef.current[rowIndex]
+    if (!item?.product_id) return false
+    const itemLabel = item.product_name || item.product_code || ""
+    const quantity = Number(item.quantity || 0)
+    const bonusQuantity = Number(item.bonus_quantity || 0)
+
+    if (quantity <= 0 && bonusQuantity <= 0) {
+      messagesRef.current?.show?.([
+        { severity: "error", summary: "", detail: `يجب إدخال الكمية أو البونص للصنف ${itemLabel}`, life: 3000 },
+      ])
+      pendingFocusRef.current = { row: rowIndex, col: "quantity" }
+      restoreGridFocus(pendingFocusRef.current)
+      return false
+    }
+
+    const missingExpiry = item.has_expiry && !String(item.expiry_date || "").trim()
+    const missingBatch = item.has_batch && !String(item.batch_number || "").trim()
+    if (missingExpiry || missingBatch) {
+      const detail = missingExpiry
+        ? `يجب تحديد تاريخ الصلاحية للصنف ${itemLabel}`
+        : `يجب تحديد الرقم التشغيلي للصنف ${itemLabel}`
+      messagesRef.current?.show?.([{ severity: "error", summary: "", detail, life: 3000 }])
+      const quantityField = quantity > 0 ? "quantity" : "bonus_quantity"
+      if (!openExpiryLotPickerForRow(rowIndex, quantityField)) {
+        const missingColumn = missingExpiry ? "expiry_date" : "batch_number"
+        pendingFocusRef.current = { row: rowIndex, col: missingColumn }
+        restoreGridFocus(pendingFocusRef.current)
+      }
+      return false
+    }
+
+    return true
   }
 
   const lookupProductByCode = async (
@@ -1505,7 +1569,8 @@ export default function UnifiedSalesDelivery({
       }
       patchItemRow(row, { ...patched, ...recalcLineAmounts(patched) })
       if (autoAdvanceOnSuccess) {
-        const nextFieldIndex = findNextRelevantFieldIndex(fieldOrder.indexOf("product_code") + 1)
+        const grid = resolveFlexControl(itemsGridRef.current)
+        const nextFieldIndex = findNextRelevantFieldIndex(grid, fieldOrder.indexOf("product_code") + 1)
         pendingFocusRef.current = { row, col: nextFieldIndex === -1 ? "quantity" : fieldOrder[nextFieldIndex] }
       }
     } catch {
@@ -1544,7 +1609,8 @@ export default function UnifiedSalesDelivery({
       const adjusted = Util.adjustCode(rawValue, 10).toUpperCase()
       patchItemRow(row, { product_code: adjusted })
       if (skipAutoLookupRef.current) return
-      void lookupProductByCode(row, adjusted, "product_code", false, previousRow)
+      // Let lookup advance focus when successful so navigation is consistent with unified-sales-order
+      void lookupProductByCode(row, adjusted, "product_code", true, previousRow)
     } else if (colName === "barcode") {
       const previousRow = itemsRef.current[row]
       const rawValue = String(value ?? "").trim()
@@ -1554,7 +1620,8 @@ export default function UnifiedSalesDelivery({
       }
       patchItemRow(row, { barcode: rawValue })
       if (skipAutoLookupRef.current) return
-      void lookupProductByCode(row, rawValue, "barcode", false, previousRow)
+      // Let lookup advance focus when successful so navigation is consistent with unified-sales-order
+      void lookupProductByCode(row, rawValue, "barcode", true, previousRow)
     } else if (colName === "quantity") {
       const quantity = value === "" || value === null ? null : Number(value)
       const currentRow = itemsRef.current[row]
@@ -1563,19 +1630,26 @@ export default function UnifiedSalesDelivery({
       // إرسالية مبيعات تستهلك دائماً من مخزون قائم — تُفتَح نافذة اختيار الدفعة/تاريخ الصلاحية فور
       // إدخال كمية موجبة لصنف متتبَّع، بلا استثناء (بخلاف سند ادخال بضاعة في stock-voucher).
       if (currentRow?.product_id && (currentRow.has_expiry || currentRow.has_batch) && Number(quantity || 0) > 0) {
-        if (!currentRow.warehouse_id) {
-          messagesRef.current?.show?.([{ severity: "error", summary: "", detail: "يجب تحديد المستودع اولا", life: 3000 }])
+        if (!openExpiryLotPickerForRow(row, "quantity")) {
           patchItemRow(row, { quantity: null, ...recalcLineAmounts({ ...currentRow, quantity: null }) })
-          return
         }
-        setExpiryLotPickerRow(row)
-        setExpiryLotPickerQuantity(Number(quantity))
-        setExpiryLotPickerReservedByLot(computeReservedByLot(row, currentRow.product_id, Number(currentRow.warehouse_id)))
-        setExpiryLotPickerOpen(true)
       }
     } else if (colName === "bonus_quantity") {
       const bonusQuantity = value === "" || value === null ? null : Number(value)
-      patchItemRow(row, { bonus_quantity: bonusQuantity })
+      const currentRow = itemsRef.current[row]
+      const patched = { ...currentRow, bonus_quantity: bonusQuantity }
+      patchItemRow(row, { bonus_quantity: bonusQuantity, ...recalcLineAmounts(patched) })
+      // A bonus-only row also consumes tracked stock and needs a lot allocation.
+      if (
+        currentRow?.product_id &&
+        (currentRow.has_expiry || currentRow.has_batch) &&
+        Number(currentRow.quantity || 0) <= 0 &&
+        Number(bonusQuantity || 0) > 0
+      ) {
+        if (!openExpiryLotPickerForRow(row, "bonus_quantity")) {
+          patchItemRow(row, { bonus_quantity: null })
+        }
+      }
     } else if (colName === "unit_price") {
       const rawUnitPrice = value === "" || value === null ? null : Number(value)
       // "السعر عند الادخال يشمل الضريبة" (إعدادات المستخدم): ما كتبه المستخدم هنا يُعامَل كسعر شامل
@@ -1705,7 +1779,8 @@ export default function UnifiedSalesDelivery({
       ...(itemAccount ? { account_id: itemAccount.id, account_code: itemAccount.code, account_name: itemAccount.name } : {}),
     }
     patchItemRow(row, { ...patched, ...recalcLineAmounts(patched) })
-    const nextFieldIndex = findNextRelevantFieldIndex(fieldOrder.indexOf("product_code") + 1)
+    const grid = resolveFlexControl(itemsGridRef.current)
+    const nextFieldIndex = findNextRelevantFieldIndex(grid, fieldOrder.indexOf("product_code") + 1)
     pendingFocusRef.current = { row, col: nextFieldIndex === -1 ? "quantity" : fieldOrder[nextFieldIndex] }
   }
 
@@ -1715,13 +1790,53 @@ export default function UnifiedSalesDelivery({
     // كخاصية DOM أصلية على العنصر المُغلَّف ويستدعيها بوسيط واحد فقط) — بلا هذا الحارس، محاولة قراءة
     // e.keyCode على undefined بالاستدعاء الثاني تُطلِق استثناءً غير مُلتقَط يقطع معالجة الحدث كاملة،
     // فيمنع Wijmo من بدء تحرير الخلية إطلاقاً بعد أول ضغطة مفتاح (هذا هو سبب "الشبكة لا تقبل الكتابة").
-    if (!grid || !grid.selection || !e || typeof e.keyCode === "undefined") return
+    if (!grid || !e || typeof e.keyCode === "undefined") return
+    let sel
+    try {
+      sel = grid.selection
+    } catch {
+      return
+    }
+    if (!sel) return
     itemsGridRef.current = grid
     if (doHotKeys.current === false) return
-    const row = grid.selection.row
-    const col = grid.selection.col
+    const row = sel.row
+    const col = sel.col
     if (row < 0 || col < 0) return
     const colName = grid.columns[col]?.binding
+    const currentItem = itemsRef.current[row]
+    const item_id = currentItem?.product_id
+
+    // Block non-navigation keys when the row has no product selected (same UX as unified-sales-order)
+    if (
+      colName !== 'product_code' &&
+      colName !== 'barcode' &&
+      e.keyCode !== Util.keyboardKeys.Tab &&
+      e.keyCode !== Util.keyboardKeys.Enter &&
+      e.keyCode !== Util.keyboardKeys.DownArrow &&
+      e.keyCode !== Util.keyboardKeys.UpArrow &&
+      e.keyCode !== Util.keyboardKeys.LeftArrow &&
+      e.keyCode !== Util.keyboardKeys.RightArrow &&
+      e.keyCode !== Util.keyboardKeys.F3 &&
+      e.keyCode !== Util.keyboardKeys.Ctrl &&
+      e.keyCode !== Util.keyboardKeys.F5 &&
+      e.keyCode !== Util.keyboardKeys.Esc
+    ) {
+      if (!item_id || (item_id + '') === '0') {
+        messagesRef.current?.show?.([{ severity: 'error', summary: '', detail: 'يجب ادخال رقم الصنف', life: 1500 }])
+        grid.focus()
+        e.preventDefault()
+        return
+      }
+    }
+
+    // Restrict non-numeric chars in numeric columns (quantity/unit_price/discount)
+    if (['quantity', 'bonus_quantity', 'unit_price', 'discount_percent'].includes(colName)) {
+      if (e.key && e.key.length === 1 && !/[0-9.]/.test(e.key)) {
+        e.preventDefault()
+        return
+      }
+    }
 
     if (e.keyCode === Util.keyboardKeys.F7) {
       e.preventDefault()
@@ -1758,72 +1873,104 @@ export default function UnifiedSalesDelivery({
 
     if (e.keyCode === Util.keyboardKeys.Tab || e.keyCode === Util.keyboardKeys.Enter) {
       e.preventDefault()
-      const previousRow = colName === "product_code" || colName === "barcode" ? itemsRef.current[row] : undefined
-      if (colName === "product_code" || colName === "barcode") skipAutoLookupRef.current = true
-      safeFinishEditing(grid)
-      skipAutoLookupRef.current = false
-      grid.focus()
+      e.stopPropagation()
+      // Compute the target cell before finishing the edit so pending focus is available
+      // to the items synchronization effect if the row data changes during handleCellEditEnded.
+      let target: { row: number; col: string } | null = null
+      let requestNewRowAfterEdit = false
       const currentRow = itemsRef.current[row]
-
-      if (colName === "product_code" && !currentRow?.product_code?.trim()) {
-        pendingFocusRow.current = row
-        lastFocusedCellRef.current = { row, col: "product_code" }
-        popupHasCalled()
-        setTimeout(() => setProductSearchOpen(true), 0)
-        return
+      if (colName !== "product_code" && colName !== "barcode") {
+        const currentFieldIndex = fieldOrder.indexOf(colName)
+        if (currentFieldIndex === -1) {
+          const isSelectableColumn = (gc: any) => gc && gc.visible !== false && !String(gc.binding || "").startsWith("btn")
+          let nextCol = -1
+          for (let c = col + 1; c < grid.columns.length; c++) {
+            if (isSelectableColumn(grid.columns[c])) {
+              nextCol = c
+              break
+            }
+          }
+          if (nextCol >= 0) {
+            target = { row, col: grid.columns[nextCol].binding }
+          } else {
+            const nextRow = row + 1 <= itemsRef.current.length - 1 ? row + 1 : row
+            const firstCol = grid.columns.find(isSelectableColumn)
+            if (firstCol) {
+              target = { row: nextRow, col: firstCol.binding }
+            }
+          }
+        } else {
+          const nextFieldIndex = findNextRelevantFieldIndex(grid, currentFieldIndex + 1)
+          if (nextFieldIndex === -1) {
+            const isLastRow = row === itemsRef.current.length - 1
+            if (isLastRow && currentRow?.product_id) {
+              requestNewRowAfterEdit = true
+            } else {
+              const targetRow = row + 1 <= itemsRef.current.length - 1 ? row + 1 : row
+              target = { row: targetRow, col: "product_code" }
+            }
+          } else {
+            target = { row, col: fieldOrder[nextFieldIndex] }
+          }
+        }
+        if (target) pendingFocusRef.current = target
       }
 
       if (colName === "product_code") {
-        void lookupProductByCode(row, currentRow?.product_code ?? "", "product_code", true, previousRow)
+        const rawValue = String(grid.getCellData(row, col, false) ?? "").trim()
+        if (!rawValue) {
+          pendingFocusRow.current = row
+          lastFocusedCellRef.current = { row, col: "product_code" }
+          popupHasCalled()
+          setTimeout(() => setProductSearchOpen(true), 0)
+          return
+        }
+        try {
+          safeFinishEditing(grid)
+        } catch {}
+        grid.focus()
         return
       }
 
       if (colName === "barcode") {
-        const rawBarcode = String(currentRow?.barcode ?? "").trim()
+        const rawBarcode = String(grid.getCellData(row, col, false) ?? "").trim()
         if (!rawBarcode) {
-          selectCell(grid, row, "product_code")
+          pendingFocusRef.current = { row, col: "product_code" }
+          try {
+            safeFinishEditing(grid)
+          } catch {}
+          setTimeout(() => {
+            selectCell(grid, row, "product_code")
+            grid.focus()
+          }, 0)
           return
         }
-        void lookupProductByCode(row, rawBarcode, "barcode", true, previousRow)
+        try {
+          safeFinishEditing(grid)
+        } catch {}
+        grid.focus()
         return
       }
 
-      const currentFieldIndex = fieldOrder.indexOf(colName)
-      if (currentFieldIndex === -1) {
-        // عمود بلا ترتيب Tab/Enter مخصّص بـfieldOrder — نفس منطق unified-stock-voucher.tsx: ينتقل
-        // افتراضياً للعمود المرئي التالي بنفس الشبكة (متخطّياً أعمدة الأزرار التي يبدأ اسمها بـ"btn")
-        // بدل تجاهل الضغطة كلياً.
-        const isSelectableColumn = (gc: any) => gc && gc.visible !== false && !String(gc.binding || "").startsWith("btn")
-        let nextCol = -1
-        for (let c = col + 1; c < grid.columns.length; c++) {
-          if (isSelectableColumn(grid.columns[c])) {
-            nextCol = c
-            break
-          }
-        }
-        if (nextCol >= 0) {
-          selectCell(grid, row, grid.columns[nextCol].binding)
-        } else {
-          const nextRow = row + 1 <= itemsRef.current.length - 1 ? row + 1 : row
-          const firstCol = grid.columns.find(isSelectableColumn)
-          if (firstCol) selectCell(grid, nextRow, firstCol.binding)
-        }
-        return
-      }
-      // يتخطّى أعمدة الأبعاد غير ذات الصلة بنوع قياس هذا السطر تحديداً — نفس منطق
-      // findNextRelevantFieldIndex في unified-stock-voucher.tsx.
-      const nextFieldIndex = findNextRelevantFieldIndex(currentFieldIndex + 1)
-      if (nextFieldIndex === -1) {
-        const isLastRow = row === itemsRef.current.length - 1
-        if (isLastRow && currentRow?.product_id && Number(currentRow?.quantity || 0) > 0) {
-          pendingFocusRef.current = { row: row + 1, col: "product_code" }
+      try {
+        safeFinishEditing(grid)
+      } catch {}
+      grid.focus()
+
+      if (requestNewRowAfterEdit) {
+        if (!validateRowBeforeAdd(row)) return
+        pendingFocusRef.current = { row: row + 1, col: "product_code" }
+        setTimeout(() => {
           addItemRow()
-          return
-        }
-        selectCell(grid, row + 1 <= itemsRef.current.length - 1 ? row + 1 : row, "product_code")
+        }, 0)
         return
       }
-      selectCell(grid, row, fieldOrder[nextFieldIndex])
+      if (target) {
+        setTimeout(() => {
+          selectCell(grid, target.row, target.col)
+          grid.focus()
+        }, 0)
+      }
     }
   }
 
@@ -1833,8 +1980,8 @@ export default function UnifiedSalesDelivery({
       showFooter: false,
       columns: [
         { header: "#", name: "ser", width: 45, isReadOnly: true, dataType: "Number", visible: Util.getVoucherSettingScreenData(voucherType, "ser") },
-        { header: "الباركود", name: "barcode", width: 110, visible: Util.getVoucherSettingScreenData(voucherType, "barcode"), isReadOnly: isLocked || isFromDelivery },
-        { header: "رقم الصنف", name: "product_code", width: 110, visible: Util.getVoucherSettingScreenData(voucherType, "code"), isReadOnly: isLocked || isFromDelivery },
+        { header: "الباركود", name: "barcode", width: 140,maxLength: 30, visible: Util.getVoucherSettingScreenData(voucherType, "barcode"), isReadOnly: isLocked || isFromDelivery },
+        { header: "رقم الصنف", name: "product_code", width: 120,maxLength: 10, visible: Util.getVoucherSettingScreenData(voucherType, "code"), isReadOnly: isLocked || isFromDelivery },
         {
           header: " ",
           name: "btnSearchProduct",
@@ -1942,22 +2089,7 @@ export default function UnifiedSalesDelivery({
           // بالسند حالياً — انظر showExpiryColumn أعلاه.
           visible: showExpiryColumn,
         },
-        {
-          header: " ",
-          name: "btnwhen loading Serials",
-          width: 55,
-          buttonBody: "button",
-          align: "center",
-          title: "الأرقام التسلسلية",
-          iconType: "list",
-          isReadOnly: true,
-          onClick: (e: any, ctx: any) => {
-            setSerialsRow(ctx.row.index)
-            setSerialsOpen(true)
-          },
-          visible: Util.getVoucherSettingScreenData(voucherType, "serial"),
-          visibleInColumnChooser: true,
-        },
+
         { header: "ملاحظة", name: "note", width: 130, isReadOnly: isLocked || isFromDelivery },
         {
           header: " ",
@@ -2058,11 +2190,20 @@ export default function UnifiedSalesDelivery({
     if (event.key !== "Enter") return
     const target = event.target as HTMLElement
     if (target.tagName === "TEXTAREA" || target.tagName === "BUTTON") return
-    event.preventDefault()
+    // The items grid owns its Enter navigation. Handling the same event here
+    // moves focus to an unrelated (often off-screen) tabbable element and makes
+    // the dialog appear to jump to a large blank area.
+    if (target.closest(".wj-flexgrid")) return
+
     const focusable = Array.from(
-      (event.currentTarget as HTMLElement).querySelectorAll<HTMLElement>('input, select, [tabindex]:not([tabindex="-1"])'),
-    ).filter((el) => !el.hasAttribute("disabled"))
+      event.currentTarget.querySelectorAll<HTMLElement>(
+        'input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      ),
+    ).filter((el) => el.offsetParent !== null && !el.closest(".wj-flexgrid"))
+
     const index = focusable.indexOf(target)
+    if (index === -1) return
+    event.preventDefault()
     if (index >= 0 && index < focusable.length - 1) focusable[index + 1]?.focus()
   }
 
@@ -2976,6 +3117,7 @@ export default function UnifiedSalesDelivery({
           reservedByLot={expiryLotPickerReservedByLot}
           onConfirm={(allocations) => {
             if (expiryLotPickerRow !== null) applyExpiryAllocations(expiryLotPickerRow, allocations)
+            popupHasClosed()
             setExpiryLotPickerOpen(false)
             setExpiryLotPickerRow(null)
             setExpiryLotPickerReservedByLot({})
@@ -2984,9 +3126,16 @@ export default function UnifiedSalesDelivery({
             if (expiryLotPickerRow !== null) {
               const row = expiryLotPickerRow
               const currentRow = itemsRef.current[row]
-              patchItemRow(row, { quantity: null, ...recalcLineAmounts({ ...currentRow, quantity: null }) })
-              pendingFocusRef.current = { row, col: "quantity" }
+              const quantityField = expiryLotPickerQuantityFieldRef.current
+              const clearedQuantity =
+                quantityField === "bonus_quantity" ? { bonus_quantity: null } : { quantity: null }
+              patchItemRow(row, {
+                ...clearedQuantity,
+                ...recalcLineAmounts({ ...currentRow, ...clearedQuantity }),
+              })
+              pendingFocusRef.current = { row, col: quantityField }
             }
+            popupHasClosed()
             setExpiryLotPickerOpen(false)
             setExpiryLotPickerRow(null)
             setExpiryLotPickerReservedByLot({})

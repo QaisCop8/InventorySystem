@@ -107,10 +107,22 @@ export function Header({ onMenuClick, activeSection, onProfileClick, onSettingsC
   const { dialogOpen: exchangeRatesOpen, setDialogOpen: setExchangeRatesOpen, checkNow: recheckExchangeRates } = useDailyExchangeRatesCheck();
 
   useEffect(() => {
+    if (!user?.id) {
+      setBranches([]);
+      return;
+    }
+
+    const tenantDb = sessionStorage.getItem("active_tenant_db") || localStorage.getItem("active_tenant_db");
+    if (!tenantDb) {
+      setBranches([]);
+      return;
+    }
+
+    const controller = new AbortController();
     const fetchBranches = async () => {
       try {
         setIsLoadingBranches(true);
-        const response = await fetch("/api/branches");
+        const response = await fetch("/api/branches", { signal: controller.signal });
         if (!response.ok) throw new Error("فشل في تحميل الفروع");
         const data = await response.json();
         const normalized = Array.isArray(data) ? data : [];
@@ -124,14 +136,19 @@ export function Header({ onMenuClick, activeSection, onProfileClick, onSettingsC
           setActiveBranchContext({ id: defaultBranch.id, name: defaultBranch.branch_name });
         }
       } catch (error) {
-        console.error("Failed to load branches", error);
+        if (!controller.signal.aborted) {
+          console.warn("Failed to load branches", error);
+        }
       } finally {
-        setIsLoadingBranches(false);
+        if (!controller.signal.aborted) {
+          setIsLoadingBranches(false);
+        }
       }
     };
 
-    fetchBranches();
-  }, [activeBranchId, setActiveBranchContext, user?.branchId]);
+    void fetchBranches();
+    return () => controller.abort();
+  }, [activeBranchId, setActiveBranchContext, user?.branchId, user?.id]);
 
   useEffect(() => {
     if (!activeDepartment && user?.department) {

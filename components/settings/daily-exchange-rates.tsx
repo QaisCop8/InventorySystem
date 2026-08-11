@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Loader2, Save } from "lucide-react"
 import * as wjcCore from "@grapecity/wijmo"
-import { CellRange, KeyAction } from "@grapecity/wijmo.grid"
+import { KeyAction } from "@grapecity/wijmo.grid"
 import DataGridView from "@/components/common/DataGridView"
 
 interface CurrencyRateRow {
@@ -66,6 +66,7 @@ export function DailyExchangeRatesDialog({ open, onOpenChange, onSaved }: DailyE
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
+  const savingRef = useRef(false)
 
   // مرجع دوماً بآخر rows حيّة — تُقرَأ من داخل مُعالِجات Wijmo (cellEditEnded/beginningEdit/onKeyDown)
   // التي لا يُعاد ربطها بالضرورة عند كل عرض (render)، فتتجنَّب الإغلاق المتجمِّد (stale closure).
@@ -149,6 +150,7 @@ export function DailyExchangeRatesDialog({ open, onOpenChange, onSaved }: DailyE
     if (idx === -1) return
 
     e.preventDefault()
+    e.stopPropagation()
     grid.finishEditing?.()
 
     let nextIdx = idx + 1
@@ -164,11 +166,22 @@ export function DailyExchangeRatesDialog({ open, onOpenChange, onSaved }: DailyE
 
     const nextColIndex = grid.columns.findIndex((c: any) => c.binding === EDITABLE_COLUMNS[nextIdx])
     if (nextColIndex === -1) return
-    grid.selection = new CellRange(nextRow, nextColIndex)
-    grid.startEditing(true, nextRow, nextColIndex)
+    // Move after Wijmo has completed the current editor lifecycle; otherwise its
+    // own edit-ending work may restore the selection to the cell just committed.
+    setTimeout(() => {
+      try {
+        grid.select(nextRow, EDITABLE_COLUMNS[nextIdx])
+        grid.focus()
+        grid.startEditing(true, nextRow, nextColIndex)
+      } catch {
+        // The dialog may have closed while the deferred navigation was pending.
+      }
+    }, 0)
   }
 
   const handleSave = async () => {
+    if (savingRef.current) return
+    savingRef.current = true
     setSaving(true)
     setError("")
     try {
@@ -195,13 +208,20 @@ export function DailyExchangeRatesDialog({ open, onOpenChange, onSaved }: DailyE
     } catch (err) {
       setError(err instanceof Error ? err.message : "حدث خطأ أثناء الحفظ")
     } finally {
+      savingRef.current = false
       setSaving(false)
     }
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-6xl max-h-[85vh] overflow-y-auto" dir="rtl">
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen && savingRef.current) return
+        onOpenChange(nextOpen)
+      }}
+    >
+      <DialogContent className="flex h-[min(85vh,720px)] max-w-6xl flex-col overflow-hidden" dir="rtl">
         <DialogHeader>
           <DialogTitle>أسعار الصرف اليومية</DialogTitle>
         </DialogHeader>
@@ -229,10 +249,11 @@ export function DailyExchangeRatesDialog({ open, onOpenChange, onSaved }: DailyE
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
         ) : (
-          <div className="w-full max-w-full">
+          <div className="min-h-0 w-full flex-1 overflow-hidden [&_.wj-flexgrid]:overflow-x-hidden">
             <DataGridView
               innerRef={gridRef}
-              style={{ height: "360px" }}
+              containerStyle={{ height: "100%", minHeight: 0, maxHeight: "100%", overflow: "hidden" }}
+              style={{ height: "100%", minHeight: 0, maxHeight: "100%", width: "100%", overflowX: "hidden" }}
               scheme={scheme}
               dataSource={collectionView}
               idProperty="currency_id"
@@ -241,14 +262,14 @@ export function DailyExchangeRatesDialog({ open, onOpenChange, onSaved }: DailyE
               cellEditEnded={(s: any, e: any) => handleCellEditEnded(s, e)}
               beginningEdit={(s: any, e: any) => handleBeginningEdit(s, e)}
               onKeyDown={(s: any, e: any) => handleKeyDown(s, e)}
-              keyActionEnter="None"
+              keyActionEnter={KeyAction.None}
               keyActionTab={KeyAction.None}
               dontConvertToCards={true}
             />
           </div>
         )}
 
-        <div className="flex justify-end gap-2">
+        <div className="flex shrink-0 justify-end gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
             إغلاق
           </Button>

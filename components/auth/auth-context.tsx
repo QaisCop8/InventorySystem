@@ -1,6 +1,6 @@
 "use client"
 
-import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
+import { createContext, useCallback, useContext, useState, useEffect, type ReactNode } from "react"
 import { ThemeLoader } from "@/components/theme-loader"
 interface ModulePermissions {
   add?: boolean
@@ -237,7 +237,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     access_id: number
   }
 
-  const persistBranchContext = (branch: { id: number; name: string } | null, department: string | null) => {
+  const persistBranchContext = useCallback((branch: { id: number; name: string } | null, department: string | null) => {
     if (typeof window === "undefined") return
 
     if (branch) {
@@ -256,29 +256,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
       localStorage.removeItem("erp_active_department")
       sessionStorage.removeItem("erp_active_department")
     }
-  }
+  }, [])
 
-  const setActiveBranchContext = (branch: { id: number; name: string } | null) => {
-    if (branch && user) {
-      void refreshUserPermissions(user.id, branch.id)
-        .then(() => {
-          setActiveBranchId(branch.id)
-          setActiveBranchName(branch.name)
-          persistBranchContext(branch, activeDepartment)
-        })
-        .catch((error) => console.error("[auth] Failed to switch branch permissions", error))
-      return
-    }
-    setActiveBranchId(branch?.id ?? null)
-    setActiveBranchName(branch?.name ?? null)
-    persistBranchContext(branch, activeDepartment)
-  }
-
-  const setActiveDepartmentContext = (department: string | null) => {
-    setActiveDepartment(department)
-    persistBranchContext(activeBranchId ? { id: activeBranchId, name: activeBranchName || "" } : null, department)
-  }
-  const refreshUserPermissions = async (userId: string, branchId?: number | null) => {
+  const refreshUserPermissions = useCallback(async (userId: string, branchId?: number | null) => {
     try {
       let resolvedBranchId = Number(branchId) || null
       if (!resolvedBranchId) {
@@ -303,10 +283,30 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setPermissionVersion((current) => current + 1)
       window.dispatchEvent(new CustomEvent("user-permissions-updated", { detail: { userId, branchId: resolvedBranchId } }))
     } catch (error) {
-      console.error("[v0] Failed to refresh permissions:", error)
+      console.warn("[auth] Unable to refresh permissions; keeping the cached permissions", error)
       throw error
     }
-  }
+  }, [])
+
+  const currentUserId = user?.id
+  const setActiveBranchContext = useCallback((branch: { id: number; name: string } | null) => {
+    setActiveBranchId(branch?.id ?? null)
+    setActiveBranchName(branch?.name ?? null)
+    persistBranchContext(branch, activeDepartment)
+
+    if (branch && currentUserId) {
+      void refreshUserPermissions(currentUserId, branch.id)
+        .catch(() => {
+          // A temporary API/network failure must not keep selecting the same
+          // default branch and start another render/fetch cycle.
+        })
+    }
+  }, [activeDepartment, currentUserId, persistBranchContext, refreshUserPermissions])
+
+  const setActiveDepartmentContext = useCallback((department: string | null) => {
+    setActiveDepartment(department)
+    persistBranchContext(activeBranchId ? { id: activeBranchId, name: activeBranchName || "" } : null, department)
+  }, [activeBranchId, activeBranchName, persistBranchContext])
 
   useEffect(() => {
     const handlePermissionsChanged = (event: Event) => {

@@ -8,11 +8,20 @@ export interface ActivateCompanyResult {
 }
 
 export async function activateCompany(companyId: number): Promise<ActivateCompanyResult> {
-  const res = await fetch("/api/management/select-company", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ companyId }),
-  })
+  let res: Response
+  try {
+    res = await fetch("/api/management/select-company", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ companyId }),
+    })
+  } catch (error) {
+    console.warn("[tenant] Unable to reach the company selection endpoint", error)
+    return {
+      success: false,
+      error: "تعذّر الاتصال بالخادم. تأكد من تشغيل النظام ثم حاول مرة أخرى.",
+    }
+  }
   const data = await res.json().catch(() => ({}))
   if (!res.ok) {
     return { success: false, error: data.error || "تعذّر فتح الشركة" }

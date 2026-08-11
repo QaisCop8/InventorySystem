@@ -33,8 +33,9 @@ function buildSqlClient(connectionUrl: string) {
   return neon(connectionUrl)
 }
 
-const baseUrl = (process.env.DATABASE_URL || "").trim()
-const managementUrl = baseUrl ? withDatabaseName(baseUrl, MANAGEMENT_DB_NAME) : ""
+const managementUrl = (process.env.DATABASE_URL || "").trim()
+const adminUrl = managementUrl ? withDatabaseName(managementUrl, "postgres") : ""
+const templateUrl = managementUrl ? withDatabaseName(managementUrl, "company_template") : ""
 
 function createNoopSqlClient(): any {
   const client: any = async () => []
@@ -51,11 +52,11 @@ export default sql
 
 let managementDbEnsured: Promise<void> | null = null
 
-// تُنشئ قاعدة "management" نفسها إن لم تكن موجودة بعد (بالاتصال بقاعدة inventory_system الأساسية
-// المؤكَّد وجودها دوماً، إذ لا يمكن الاتصال بقاعدة غير موجودة أصلاً لإنشائها)، ثم تُنشئ جداولها.
+// تُنشئ قاعدة management بالاتصال بقاعدة الصيانة postgres. لا تعتمد عملية البدء على وجود
+// inventory_system أو أي قاعدة شركة مسبقاً.
 async function ensureManagementDatabaseExists() {
-  if (!baseUrl) return
-  const pool = new Pool({ connectionString: baseUrl })
+  if (!managementUrl || !adminUrl) return
+  const pool = new Pool({ connectionString: adminUrl })
   try {
     const existing = await pool.query("SELECT 1 FROM pg_database WHERE datname = $1", [MANAGEMENT_DB_NAME])
     if (existing.rows.length === 0) {
@@ -67,7 +68,7 @@ async function ensureManagementDatabaseExists() {
 }
 
 export function ensureManagementTables(): Promise<void> {
-  if (!baseUrl) return Promise.resolve()
+  if (!managementUrl) return Promise.resolve()
   if (!managementDbEnsured) {
     managementDbEnsured = (async () => {
       await ensureManagementDatabaseExists()
@@ -176,9 +177,9 @@ async function seedAccessDefinitionsFromReferenceOnce(): Promise<void> {
   const existing = await sql`SELECT COUNT(*)::int AS n FROM access_category`
   if (Number(existing[0]?.n) > 0) return
 
-  if (!baseUrl) return
-  // baseUrl (DATABASE_URL) يشير أصلاً إلى القاعدة المرجعية نفسها — بلا حاجة لإعادة بنائه.
-  const referencePool = new Pool({ connectionString: baseUrl })
+  if (!templateUrl) return
+  // قالب الشركات يُنشأ مرة واحدة بواسطة scripts/bootstrap-databases.sh ويحوي التعريفات الثابتة.
+  const referencePool = new Pool({ connectionString: templateUrl })
   try {
     const categories = await referencePool.query(`SELECT id, name FROM access_category ORDER BY id`)
     for (const category of categories.rows) {

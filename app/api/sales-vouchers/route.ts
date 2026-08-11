@@ -19,8 +19,10 @@ import {
   validateItemAccounts,
   buildSalesVoucherJournalRows,
   saveJournalRows,
+  linkSalesVoucherItemsToJournals,
   validateJournalAccountCurrencies,
-  fetchTaxAccountForVoucher,
+  fetchSalesVoucherJournalAccounts,
+  resolveSalesVoucherJournalTypes,
 } from "./_lib"
 import { validateItemReferences } from "@/app/api/stock-vouchers/_lib"
 
@@ -99,7 +101,7 @@ const validatePayload = (data: any, items: any[]): string | null => {
   if (
     Number(data.vat_percent || 0) > 0 &&
     !data.tax_account_id &&
-    !DELIVERY_VOUCHER_TYPES.includes(Number(data.vch_type))
+    !(DELIVERY_VOUCHER_TYPES as readonly number[]).includes(Number(data.vch_type))
   ) {
     return "يجب اختيار حساب الضريبة لوجود نسبة ضريبة على السند"
   }
@@ -233,13 +235,17 @@ export async function POST(request: NextRequest) {
 
     const breakdown = computeAmountBreakdown(items, data)
     let journalRows: any[] = []
+    let journalTypes = null
     if ((ITEM_ACCOUNT_VCH_TYPES as readonly number[]).includes(vchType)) {
+      journalTypes = await resolveSalesVoucherJournalTypes(vchType)
+      if (!journalTypes) throw new Error("تعذّر تحديد أنواع قيود الفاتورة")
       journalRows = buildSalesVoucherJournalRows(
         vchType,
         items,
-        data.account_id ?? null,
+        data.account_id ?? data.cash_account_id ?? null,
         data.currency_id || null,
         Number(data.rate || 1),
+        journalTypes,
         data.tax_account_id ?? null,
         breakdown.tax,
       )
@@ -255,7 +261,7 @@ export async function POST(request: NextRequest) {
     const sourceVoucherType = [2, 3].includes(invoiceSourceType) ? Number(data.source_voucher_type || null) : null
     const itemsToSave = [2, 3].includes(invoiceSourceType)
       ? items
-      : items.map((item) => ({
+      : items.map((item: any) => ({
           ...item,
           source_voucher_id: null,
           source_voucher_type: null,
@@ -288,21 +294,27 @@ export async function POST(request: NextRequest) {
     const voucher = result[0]
     const savedItems = await saveSalesVoucherItems(voucher.id, itemsToSave)
     if ((ITEM_ACCOUNT_VCH_TYPES as readonly number[]).includes(vchType)) {
-      await saveJournalRows(voucher.id, journalRows)
+      const journalIds = await saveJournalRows(voucher.id, journalRows)
+      await linkSalesVoucherItemsToJournals(savedItems, journalRows, journalIds)
     }
     if (status === 2) {
       await applySalesVoucherStockEffect(vchType, voucher.id, savedItems)
     }
 
-    const savedItemsWithNames = await fetchSalesVoucherItems(voucher.id)
-    const taxAccount = (ITEM_ACCOUNT_VCH_TYPES as readonly number[]).includes(vchType) ? await fetchTaxAccountForVoucher(voucher.id) : null
+    const savedItemsWithNames = await fetchSalesVoucherItems(voucher.id, journalTypes?.itemJournalType)
+    const journalAccounts = (ITEM_ACCOUNT_VCH_TYPES as readonly number[]).includes(vchType)
+      ? await fetchSalesVoucherJournalAccounts(voucher.id, vchType, Boolean(voucher.account_id))
+      : { taxAccount: null, cashAccount: null }
     return NextResponse.json(
       {
         ...voucher,
         city_id: voucher.location_id,
-        tax_account_id: taxAccount?.id ?? null,
-        tax_account_code: taxAccount?.code ?? "",
-        tax_account_name: taxAccount?.name ?? "",
+        cash_account_id: journalAccounts.cashAccount?.id ?? null,
+        cash_account_code: journalAccounts.cashAccount?.code ?? "",
+        cash_account_name: journalAccounts.cashAccount?.name ?? "",
+        tax_account_id: journalAccounts.taxAccount?.id ?? null,
+        tax_account_code: journalAccounts.taxAccount?.code ?? "",
+        tax_account_name: journalAccounts.taxAccount?.name ?? "",
         items: savedItemsWithNames,
       },
       { status: 201 },
@@ -332,6 +344,7 @@ export async function PUT(request: NextRequest) {
 
     let items: any[] = []
     let journalRows: any[] = []
+    let journalTypes = null
     if (status !== 3) {
       items = Array.isArray(data.items) ? data.items.filter((i: any) => i?.product_id) : []
       const payloadError = validatePayload(data, items)
@@ -351,13 +364,16 @@ export async function PUT(request: NextRequest) {
       if (duplicate.length > 0) return NextResponse.json({ error: "رقم السند مستخدم مسبقاً" }, { status: 400 })
 
       if ((ITEM_ACCOUNT_VCH_TYPES as readonly number[]).includes(vchType)) {
+        journalTypes = await resolveSalesVoucherJournalTypes(vchType)
+        if (!journalTypes) throw new Error("تعذّر تحديد أنواع قيود الفاتورة")
         const breakdown = computeAmountBreakdown(items, data)
         journalRows = buildSalesVoucherJournalRows(
           vchType,
           items,
-          data.account_id ?? null,
+          data.account_id ?? data.cash_account_id ?? null,
           data.currency_id || null,
           Number(data.rate || 1),
+          journalTypes,
           data.tax_account_id ?? null,
           breakdown.tax,
         )
@@ -431,20 +447,26 @@ export async function PUT(request: NextRequest) {
 
     const savedItems = await saveSalesVoucherItems(voucher.id, itemsToSave)
     if ((ITEM_ACCOUNT_VCH_TYPES as readonly number[]).includes(vchType)) {
-      await saveJournalRows(voucher.id, journalRows)
+      const journalIds = await saveJournalRows(voucher.id, journalRows)
+      await linkSalesVoucherItemsToJournals(savedItems, journalRows, journalIds)
     }
     if (status === 2 && previousStatus !== 2) {
       await applySalesVoucherStockEffect(vchType, voucher.id, savedItems)
     }
 
-    const savedItemsWithNames = await fetchSalesVoucherItems(voucher.id)
-    const taxAccount = (ITEM_ACCOUNT_VCH_TYPES as readonly number[]).includes(vchType) ? await fetchTaxAccountForVoucher(voucher.id) : null
+    const savedItemsWithNames = await fetchSalesVoucherItems(voucher.id, journalTypes?.itemJournalType)
+    const journalAccounts = (ITEM_ACCOUNT_VCH_TYPES as readonly number[]).includes(vchType)
+      ? await fetchSalesVoucherJournalAccounts(voucher.id, vchType, Boolean(voucher.account_id))
+      : { taxAccount: null, cashAccount: null }
     return NextResponse.json({
       ...voucher,
       city_id: voucher.location_id,
-      tax_account_id: taxAccount?.id ?? null,
-      tax_account_code: taxAccount?.code ?? "",
-      tax_account_name: taxAccount?.name ?? "",
+      cash_account_id: journalAccounts.cashAccount?.id ?? null,
+      cash_account_code: journalAccounts.cashAccount?.code ?? "",
+      cash_account_name: journalAccounts.cashAccount?.name ?? "",
+      tax_account_id: journalAccounts.taxAccount?.id ?? null,
+      tax_account_code: journalAccounts.taxAccount?.code ?? "",
+      tax_account_name: journalAccounts.taxAccount?.name ?? "",
       items: savedItemsWithNames,
     })
   } catch (error) {

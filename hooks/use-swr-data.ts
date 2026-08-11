@@ -131,10 +131,10 @@ export function useExchangeRates() {
       )
 
       try {
-        const response = await fetch(`/api/exchange-rates/${id}`, {
+        const response = await fetch("/api/exchange-rates", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(rateData),
+          body: JSON.stringify({ id, ...rateData }),
         })
 
         if (!response.ok) throw new Error("Failed to update exchange rate")

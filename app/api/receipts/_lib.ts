@@ -706,6 +706,7 @@ export const saveJournalRows = async (voucherId: number, journalRows: any[]) => 
   await sql`DELETE FROM voucher_journal_detail_tbl WHERE voucher_id = ${voucherId}`
 
   const accountCurrencyCache = new Map<number, number | null>()
+  const insertedIds: number[] = []
 
   for (const row of journalRows) {
     let accountCurrencyId = accountCurrencyCache.get(row.account_id)
@@ -734,6 +735,7 @@ export const saveJournalRows = async (voucherId: number, journalRows: any[]) => 
       RETURNING id
     `
     const journalId = inserted[0].id
+    insertedIds.push(Number(journalId))
 
     for (const costCenter of row.cost_centers || []) {
       if (!costCenter?.cost_center_id) continue
@@ -743,6 +745,7 @@ export const saveJournalRows = async (voucherId: number, journalRows: any[]) => 
       `
     }
   }
+  return insertedIds
 }
 
 // خط دفاع ثانٍ خلف تحقق الحقول المطلوبة في الواجهة — نفس الشيك (رقم الشيك + رقم الحساب معاً، وليس

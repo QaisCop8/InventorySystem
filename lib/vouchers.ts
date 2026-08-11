@@ -1,8 +1,4 @@
-import { Pool } from "pg"
-
-const pool = new Pool({
-	connectionString: process.env.DATABASE_URL,
-})
+import { getTenantPool } from "./database"
 
 function getVoucherPrefix(vchType: number, vchBook: string) {
 	if (vchType === 1) return `O${vchBook}`
@@ -12,6 +8,7 @@ function getVoucherPrefix(vchType: number, vchBook: string) {
 }
 
 async function generateVoucherNumber(vchType: number, vchBook: string) {
+	const pool = await getTenantPool()
 	const normalizedBook = String(vchBook || "").trim().toUpperCase()
 	if (!normalizedBook || normalizedBook === "0") {
 		throw new Error("vch_book is required")
@@ -77,6 +74,7 @@ async function generateVoucherNumber(vchType: number, vchBook: string) {
 }
 
 export async function getSalesVouchers(filters: any = {}) {
+	const pool = await getTenantPool()
 	const {
 		search = null,
 		status = null,
@@ -161,6 +159,7 @@ export async function getSalesVouchers(filters: any = {}) {
 }
 
 export async function createVoucher(voucherData: any, items: any[]) {
+	const pool = await getTenantPool()
 	const client = await pool.connect()
 
 	try {
@@ -483,11 +482,13 @@ export async function createVoucher(voucherData: any, items: any[]) {
 }
 
 export async function deleteSalesVoucher(voucherId: number) {
+	const pool = await getTenantPool()
 	await pool.query(`UPDATE vouchers SET deleted = true WHERE id = $1`, [voucherId])
 	return { success: true }
 }
 
 export async function updatePrintSalesVoucher(voucherId: number) {
+	const pool = await getTenantPool()
 	await pool.query(
 		`
 			UPDATE vouchers

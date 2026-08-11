@@ -1,6 +1,6 @@
 # ASAS production deployment
 
-This deployment runs the Next.js application, PostgreSQL 16, and Caddy on one VPS. PostgreSQL is bound only to `127.0.0.1`; Caddy is the only public application entry point and provisions HTTPS for `asas.com` automatically.
+This deployment runs the Next.js application, PostgreSQL 18, and Caddy on one VPS. PostgreSQL is bound only to `127.0.0.1`; Caddy is the only public application entry point and provisions HTTPS for `asas.com` automatically.
 
 ## 1. Create the server
 
@@ -31,7 +31,7 @@ cp .env.production.example .env.production
 chmod 600 .env.production
 ```
 
-Use URL-safe random values for `POSTGRES_PASSWORD` and `CRON_SECRET`. The password in `POSTGRES_PASSWORD` must exactly match the password embedded in `DATABASE_URL`.
+Use URL-safe random values for `POSTGRES_PASSWORD` and `CRON_SECRET`. The password in `POSTGRES_PASSWORD` must exactly match the password embedded in `DATABASE_URL`, which must end in `/management`. Company database names are stored only in `management.companies.db_name`.
 
 Never commit `.env.production` to Git.
 
@@ -57,7 +57,7 @@ Add these GitHub repository secrets under **Settings â†’ Secrets and variables â
 
 The workflow `.github/workflows/deploy-production.yml` deploys every push to `main`. The repository currently uses `main` as its default branch; it is the production equivalent of `master`.
 
-## 5. First deployment and database migration
+## 5. First deployment
 
 Push the reviewed production commit to `main`, or start the workflow manually from GitHub Actions. Confirm the containers:
 
@@ -67,7 +67,15 @@ docker compose --env-file .env.production -f compose.production.yml ps
 docker compose --env-file .env.production -f compose.production.yml logs --tail=100 app caddy
 ```
 
-Migrate every application database from the local PostgreSQL server, not only `inventory_system`. This installation can also contain `management` and one database per company. Use pgAdmin **Backup** on the local server and **Restore** on the VPS for each database. Preserve database names because tenant selection depends on them.
+On a new PostgreSQL volume, the container automatically creates `management`, its tables, and `company_template`. The application creates each `co_*` company database from that template when a company is approved. A fresh server does not require an `inventory_system` restore.
+
+If the database container was already started before these bootstrap mounts were added, update `.env.production` and run the bootstrap explicitly:
+
+```bash
+docker compose --env-file .env.production -f compose.production.yml exec database bash /bootstrap/scripts/bootstrap-databases.sh
+```
+
+For a migration of an existing installation, restore `management` and every existing `co_*` company database. Preserve company database names because tenant selection depends on them. Do not restore `inventory_system` for a fresh installation.
 
 ## 6. Connect local pgAdmin securely
 
@@ -81,7 +89,7 @@ Create the pgAdmin server connection with:
 
 - Host: `127.0.0.1`
 - Port: `5433`
-- Maintenance database: `inventory_system`
+- Maintenance database: `management`
 - Username: value of `POSTGRES_USER`
 - Password: value of `POSTGRES_PASSWORD`
 

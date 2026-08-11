@@ -20,6 +20,8 @@ interface TenantClient {
   query: (text: string, params: any[]) => Promise<any[]>
 }
 
+// DATABASE_URL connects only to management and supplies the shared PostgreSQL server credentials.
+// Company database names always come from management.companies.db_name after user selection.
 const baseUrl = (process.env.DATABASE_URL || "").trim()
 const defaultDbName = baseUrl ? getDatabaseNameFromUrl(baseUrl) : ""
 

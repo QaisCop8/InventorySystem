@@ -54,7 +54,7 @@ yarn install
 #### الطريقة الأولى: PostgreSQL محلي
 
 \`\`\`bash
-# تثبيت PostgreSQL
+# تثبيت PostgreSQL 18 (مطلوب لقراءة قالب قاعدة البيانات المرفق)
 # على Ubuntu/Debian:
 sudo apt install postgresql postgresql-contrib
 
@@ -63,15 +63,16 @@ brew install postgresql
 
 # على Windows: تحميل من postgresql.org
 
-# إنشاء قاعدة بيانات
-createdb inventory_system
+# أنشئ ملف البيئة ثم شغّل سكربت التثبيت؛ سيُنشئ management وcompany_template
+cp .env.local.example .env.local
+bash install.sh
 \`\`\`
 
 #### الطريقة الثانية: Docker
 
 \`\`\`bash
 docker run --name postgres-inventory \
-  -e POSTGRES_DB=inventory_system \
+  -e POSTGRES_DB=management \
   -e POSTGRES_USER=your_username \
   -e POSTGRES_PASSWORD=your_password \
   -p 5432:5432 \
@@ -84,9 +85,7 @@ docker run --name postgres-inventory \
 
 \`\`\`env
 # Database Configuration
-DATABASE_URL="postgresql://username:password@localhost:5432/inventory_system"
-POSTGRES_URL="postgresql://username:password@localhost:5432/inventory_system"
-POSTGRES_PRISMA_URL="postgresql://username:password@localhost:5432/inventory_system"
+DATABASE_URL="postgresql://username:password@localhost:5432/management"
 
 # Encryption Key (generate a random 32-character string)
 ENCRYPTION_KEY="your-32-character-encryption-key-here"
@@ -100,10 +99,8 @@ STACK_SECRET_SERVER_KEY="your-stack-server-key"
 ### 5. إنشاء قاعدة البيانات
 
 \`\`\`bash
-# تشغيل سكريبت إنشاء الجداول
-psql -d inventory_system -f scripts/create-tables.sql
-
-# أو باستخدام pgAdmin أو أي أداة إدارة قواعد البيانات
+# ينشئ قاعدة الإدارة وقالب الشركات من السكربتات المرفقة
+bash scripts/bootstrap-databases.sh
 \`\`\`
 
 ### 6. تشغيل التطبيق

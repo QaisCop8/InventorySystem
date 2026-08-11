@@ -10,7 +10,6 @@ import {
 } from "@/app/api/stock-vouchers/_lib"
 import {
   ensureTables as ensureReceiptsTables,
-  JOURNAL_TYPE_COUNTER_ACCOUNT,
   saveJournalRows,
   validateJournalAccountCurrencies,
 } from "@/app/api/receipts/_lib"
@@ -77,20 +76,60 @@ export const ITEM_ACCOUNT_VCH_TYPES = [
   RETURN_PURCHASE_VCH_TYPE,
 ] as const
 
-// journal_type_id حسب voucher_journal_type_caption_tbl: 6="المبيعات" و9="المشتريات" (مستخدَمان
-// أصلاً لموديولات أخرى محجوزة لم تُبنَ بعد — أول من يستخدمهما فعلياً هو هذا الملف)، و16/17 نوعان
-// جديدان لمردود المبيعات/المشتريات (مُضافان في ensureTables أعلاه؛ JOURNAL_TYPE_COUNTER_ACCOUNT=5
-// مستورَد من receipts/_lib.ts ويُعاد استخدامه هنا لحساب العميل/المورد المقابل، بمعناه "حساب الزبون/
-// المورد" تماماً).
-const JOURNAL_TYPE_SALES = 6
-// 7="ضريبة المبيعات" و10="ضريبة المشتريات" — محجوزان أصلاً بـvoucher_journal_type_caption_tbl
-// (receipts/_lib.ts)، أول استخدام فعلي لهما هنا: سطر قيد حساب الضريبة (تبويب "بيانات اضافية")، لا
-// عمود على voucher_header_tbl — نفس نمط SaveVoucher.cs/VoucherJournalDetail.cs المرجعي.
-const JOURNAL_TYPE_SALES_TAX = 7
-const JOURNAL_TYPE_PURCHASES = 9
-const JOURNAL_TYPE_PURCHASE_TAX = 10
 const JOURNAL_TYPE_SALES_RETURN = 16
 const JOURNAL_TYPE_PURCHASE_RETURN = 17
+
+const JOURNAL_TYPE_NAMES: Record<number, { item: string; tax: string }> = {
+  [SALES_INVOICE_VCH_TYPE]: { item: "المبيعات", tax: "ضريبة المبيعات" },
+  [RETURN_SELL_VCH_TYPE]: { item: "مردود المبيعات", tax: "ضريبة المبيعات" },
+  [PURCHASE_INVOICE_VCH_TYPE]: { item: "المشتريات", tax: "ضريبة المشتريات" },
+  [RETURN_PURCHASE_VCH_TYPE]: { item: "مردود المشتريات", tax: "ضريبة المشتريات" },
+}
+
+export type SalesVoucherJournalTypes = {
+  itemJournalType: number
+  taxJournalType: number
+  counterJournalType: number
+  itemSide: 1 | 2
+  counterSide: 1 | 2
+}
+
+// لا نفترض أن أرقام أنواع القيود ثابتة بين قواعد الشركات. الاسم الدلالي موجود في جدول التسميات،
+// والـid الفعلي يُؤخذ من voucher_journal_type_tbl عند كل عملية حفظ/تحميل.
+export const resolveSalesVoucherJournalTypes = async (vchType: number): Promise<SalesVoucherJournalTypes | null> => {
+  const names = JOURNAL_TYPE_NAMES[vchType]
+  if (!names) return null
+
+  const requestedNames = [names.item, names.tax, "حساب الزبون/المورد"]
+  const rows = await sql`
+    SELECT vjt.id, TRIM(vjtc.name) AS name
+    FROM voucher_journal_type_tbl vjt
+    JOIN voucher_journal_type_caption_tbl vjtc ON vjtc.journal_type_id = vjt.id
+    WHERE vjtc.name = ANY(${requestedNames}::text[])
+    ORDER BY CASE WHEN vjtc.language_id = 1 THEN 0 ELSE 1 END, vjtc.id
+  `
+  const idsByName = new Map<string, number>()
+  for (const row of rows) {
+    const name = String(row.name || "").trim()
+    if (!idsByName.has(name)) idsByName.set(name, Number(row.id))
+  }
+
+  const itemJournalType = idsByName.get(names.item)
+  const taxJournalType = idsByName.get(names.tax)
+  const counterJournalType = idsByName.get("حساب الزبون/المورد")
+  if (!itemJournalType || !taxJournalType || !counterJournalType) {
+    throw new Error("تعريفات أنواع قيود الفاتورة غير مكتملة في voucher_journal_type_tbl")
+  }
+
+  const salesDirection = vchType === SALES_INVOICE_VCH_TYPE || vchType === RETURN_PURCHASE_VCH_TYPE
+  return {
+    itemJournalType,
+    taxJournalType,
+    counterJournalType,
+    itemSide: salesDirection ? 2 : 1,
+    counterSide: salesDirection ? 1 : 2,
+  }
+}
 
 const VOUCHER_TYPE_NAMES: Record<number, string> = {
   [SALES_INVOICE_VCH_TYPE]: "فاتورة مبيعات",
@@ -162,7 +201,7 @@ export const ensureTables = async () => {
   // is_maqasa/maqasa_type، phone/due_date/is_exported_sales، location_id) محجوزة أصلاً على
   // voucher_header_tbl من receipts/_lib.ts — بلا ADD COLUMN هنا. حساب الضريبة تحديداً لا يُخزَّن
   // كعمود بالرأس إطلاقاً؛ بل كسطر قيد في voucher_journal_detail_tbl (انظر buildSalesVoucherJournalRows
-  // وfetchTaxAccountForVoucher أدناه) مطابقاً لنمط المرجع (SaveVoucher.cs/VoucherJournalDetail.cs).
+  // وfetchSalesVoucherJournalAccounts أدناه) مطابقاً لنمط المرجع (SaveVoucher.cs/VoucherJournalDetail.cs).
 }
 
 const SALES_VOUCHER_SETTINGS_KEY: Record<number, { prefix: string; start: string; defaultPrefix: string }> = {
@@ -227,59 +266,62 @@ export const validateItemAccounts = (vchType: number, items: any[]): string | nu
 //   مردود مشتريات: مدين المورد / دائن حساب مردود المشتريات لكل صنف
 // المبلغ هنا هو total_price الأصلي لكل صنف (كمية × سعر بلا خصم/ضريبة على مستوى السند) — تبسيط
 // مقصود (v1) بلا سطري خصم/ضريبة منفصلين، تماماً كما لا يوجد لهما تمثيل في buildUseVoucherJournalRows.
-const ITEM_ACCOUNT_JOURNAL_CONFIG: Record<
-  number,
-  { itemJournalType: number; itemSide: 1 | 2; counterSide: 1 | 2; taxJournalType: number }
-> = {
-  [SALES_INVOICE_VCH_TYPE]: { itemJournalType: JOURNAL_TYPE_SALES, itemSide: 2, counterSide: 1, taxJournalType: JOURNAL_TYPE_SALES_TAX },
-  [RETURN_SELL_VCH_TYPE]: { itemJournalType: JOURNAL_TYPE_SALES_RETURN, itemSide: 1, counterSide: 2, taxJournalType: JOURNAL_TYPE_SALES_TAX },
-  [PURCHASE_INVOICE_VCH_TYPE]: { itemJournalType: JOURNAL_TYPE_PURCHASES, itemSide: 1, counterSide: 2, taxJournalType: JOURNAL_TYPE_PURCHASE_TAX },
-  [RETURN_PURCHASE_VCH_TYPE]: { itemJournalType: JOURNAL_TYPE_PURCHASE_RETURN, itemSide: 2, counterSide: 1, taxJournalType: JOURNAL_TYPE_PURCHASE_TAX },
-}
-
 export const buildSalesVoucherJournalRows = (
   vchType: number,
   items: any[],
-  customerAccountId: number | null,
+  counterAccountId: number | null,
   currencyId: number | null,
   rate: number,
+  typeConfig: SalesVoucherJournalTypes,
   // حساب الضريبة (تبويب "بيانات اضافية") ومبلغها على مستوى السند كاملاً — لا عمود على
-  // voucher_header_tbl، يُسجَّلان هنا كسطر قيد مباشرة (journal_type 7/10 بحسب الاتجاه) بنفس جانب
+  // voucher_header_tbl، يُسجَّلان هنا كسطر قيد بالنوع المحمّل من جدول أنواع القيود وبنفس جانب
   // أسطر الصنف (مدين لفاتورة/مردود يُدين الأصناف، دائن للعكس)، ويُضافان لمبلغ الطرف المقابل
   // (العميل/المورد) حتى يبقى القيد متوازناً — مطابق لِـSaveVoucher.cs/VoucherJournalDetail.cs.
   taxAccountId: number | null = null,
   taxAmount = 0,
 ) => {
-  const typeConfig = ITEM_ACCOUNT_JOURNAL_CONFIG[vchType]
-  if (!typeConfig || !customerAccountId) return []
+  if (!typeConfig || !counterAccountId) return []
 
   // يُدرَج سطر لكل صنف يحمل حساباً (مطلوب أصلاً لهذه الأنواع الأربعة، انظر validateItemAccounts)
   // حتى لو كان سعره صفراً — القيد يُسجَّل دوماً بمجرد وجود صنف بالسند، لا فقط عند وجود مبلغ فعلي؛
   // خلاف السلوك السابق الذي كان يتجاهل الصنف كلياً (لا سطر إطلاقاً) إن كان سعره صفراً.
-  const rows: any[] = []
-  let orderNo = 1
+  const itemRows: any[] = []
   let total = 0
-  let hasItemRow = false
-  for (const item of items) {
+  for (let itemIndex = 0; itemIndex < items.length; itemIndex++) {
+    const item = items[itemIndex]
     if (!item.account_id) continue
     const amount = Number(item.total_price || 0)
-    rows.push({
-      order_no: orderNo++,
+    itemRows.push({
       journal_type_id: typeConfig.itemJournalType,
       account_id: Number(item.account_id),
       credit_debit: typeConfig.itemSide,
       amount,
       note: item.product_name || "",
       cost_centers: Array.isArray(item.account_cost_centers) ? item.account_cost_centers : [],
+      item_index: itemIndex,
     })
     total += amount
-    hasItemRow = true
   }
 
+  const hasItemRow = itemRows.length > 0
   const roundedTax = Math.round(Number(taxAmount || 0) * 100) / 100
+  const rows: any[] = []
+  if (hasItemRow) {
+    const counterAmount = total + (taxAccountId && roundedTax > 0 ? roundedTax : 0)
+    rows.push({
+      order_no: 1,
+      journal_type_id: typeConfig.counterJournalType,
+      account_id: Number(counterAccountId),
+      credit_debit: typeConfig.counterSide,
+      amount: Math.round(counterAmount * 100) / 100,
+      note: "حساب الزبون/المورد",
+      cost_centers: [],
+    })
+  }
+
   if (hasItemRow && taxAccountId && roundedTax > 0) {
     rows.push({
-      order_no: orderNo++,
+      order_no: 2,
       journal_type_id: typeConfig.taxJournalType,
       account_id: Number(taxAccountId),
       credit_debit: typeConfig.itemSide,
@@ -289,19 +331,9 @@ export const buildSalesVoucherJournalRows = (
     })
   }
 
-  // سطر العميل/المورد المقابل يُدرَج بمجرد وجود سطر صنف واحد على الأقل (حتى لو كان مجموعه صفراً)،
-  // لا فقط عند total > 0 كما كان سابقاً — بمبلغ يشمل الضريبة (الطرف المقابل يُطالَب/يُدين بالإجمالي).
-  if (hasItemRow) {
-    const counterAmount = total + (taxAccountId && roundedTax > 0 ? roundedTax : 0)
-    rows.push({
-      order_no: orderNo++,
-      journal_type_id: JOURNAL_TYPE_COUNTER_ACCOUNT,
-      account_id: Number(customerAccountId),
-      credit_debit: typeConfig.counterSide,
-      amount: Math.round(counterAmount * 100) / 100,
-      note: "حساب الزبون/المورد",
-      cost_centers: [],
-    })
+  // ترتيب السطور مطابق للنظام المرجعي: المقابل 1، الضريبة 2، ثم حسابات الأصناف من 3.
+  for (let index = 0; index < itemRows.length; index++) {
+    rows.push({ ...itemRows[index], order_no: index + 3 })
   }
   return rows.map((row) => ({
     ...row,
@@ -311,21 +343,29 @@ export const buildSalesVoucherJournalRows = (
   }))
 }
 
-// يُعيد حساب الضريبة (تبويب "بيانات اضافية") من سطر القيد نفسه بدل عمود على voucher_header_tbl —
-// انظر شرح buildSalesVoucherJournalRows أعلاه. journal_type_id يُميِّز بين ضريبة المبيعات (7)
-// والمشتريات (10)؛ يكفي البحث عن أيهما لأن سند بعينه من نوع واحد فقط فلن يحمل كليهما معاً.
-export const fetchTaxAccountForVoucher = async (
-  voucherId: number,
-): Promise<{ id: number; code: string; name: string } | null> => {
+// يعيد حسابي الضريبة والصندوق من أسطر القيد نفسها بدل الاعتماد على رأس السند. أرقام الأنواع
+// تُحل ديناميكياً من voucher_journal_type_tbl، مع fallback بالملاحظة للسجلات القديمة.
+export const fetchSalesVoucherJournalAccounts = async (voucherId: number, vchType: number, hasCustomerAccount: boolean) => {
+  const typeConfig = await resolveSalesVoucherJournalTypes(vchType)
+  if (!typeConfig) return { taxAccount: null, cashAccount: null }
   const rows = await sql`
-    SELECT a.id, a.code, a.name
+    SELECT vjd.journal_type_id, vjd.note, a.id, a.code, a.name
     FROM voucher_journal_detail_tbl vjd
     JOIN account_tbl a ON a.id = vjd.account_id
-    WHERE vjd.voucher_id = ${voucherId} AND vjd.journal_type_id IN (${JOURNAL_TYPE_SALES_TAX}, ${JOURNAL_TYPE_PURCHASE_TAX})
-    LIMIT 1
+    WHERE vjd.voucher_id = ${voucherId}
+      AND (
+        vjd.journal_type_id IN (${typeConfig.taxJournalType}, ${typeConfig.counterJournalType})
+        OR COALESCE(vjd.note, '') IN ('ضريبة', 'حساب الزبون/المورد')
+      )
+    ORDER BY vjd.order_no
   `
-  const row = rows[0]
-  return row ? { id: Number(row.id), code: row.code, name: row.name } : null
+  const toAccount = (row: any) => row ? { id: Number(row.id), code: row.code, name: row.name } : null
+  return {
+    taxAccount: toAccount(rows.find((row: any) => Number(row.journal_type_id) === typeConfig.taxJournalType || row.note === "ضريبة")),
+    cashAccount: hasCustomerAccount
+      ? null
+      : toAccount(rows.find((row: any) => Number(row.journal_type_id) === typeConfig.counterJournalType || row.note === "حساب الزبون/المورد")),
+  }
 }
 
 // نفس saveVoucherItems في stock-vouchers/_lib.ts حرفياً (DELETE+إعادة إدراج كاملة، وتصفير تاريخ
@@ -353,6 +393,7 @@ export const saveSalesVoucherItems = async (voucherId: number, items: any[]) => 
     (unitRows as any[]).map((r) => [String(r.unit_name).trim().toLowerCase(), Number(r.id)]),
   )
 
+  const savedRows: any[] = []
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i]
     const unitName = String(row.unit || row.unit_name || "").trim()
@@ -360,7 +401,7 @@ export const saveSalesVoucherItems = async (voucherId: number, items: any[]) => 
     const resolvedUnitId = Number(rawUnitId ?? null) > 0 ? Number(rawUnitId) : unitName ? unitIdsByName.get(unitName.toLowerCase()) ?? null : null
     const hasExpiry = hasExpiryById.get(Number(row.product_id)) ?? false
     const expiryDateToSave = hasExpiry ? row.expiry_date || null : NO_EXPIRY_SENTINEL_DATE
-    await sql`
+    const inserted = await sql`
       INSERT INTO voucher_items_tbl (
         voucher_id, item_id, item_name, unit_id, qnty, bonus, discount, vat_classification_id,
         vat_amount, vat_ratio, price, note, cost_price, barcode, size_id, color_taste_id,
@@ -395,14 +436,38 @@ export const saveSalesVoucherItems = async (voucherId: number, items: any[]) => 
         ${row.store_id ?? row.warehouse_id ?? null},
         ${row.journal_id ?? null},
         ${row.return_sales_invoice_id ?? null}
-      )
+      ) RETURNING id
     `
+    savedRows.push({ ...row, id: Number(inserted[0].id) })
   }
-  return rows
+  return savedRows
 }
 
-export const fetchSalesVoucherItems = async (voucherId: number) => {
+export const linkSalesVoucherItemsToJournals = async (savedItems: any[], journalRows: any[], journalIds: number[]) => {
+  for (let journalIndex = 0; journalIndex < journalRows.length; journalIndex++) {
+    const itemIndex = journalRows[journalIndex]?.item_index
+    const itemId = itemIndex != null ? savedItems[Number(itemIndex)]?.id : null
+    const journalId = journalIds[journalIndex]
+    if (!itemId || !journalId) continue
+    await sql`UPDATE voucher_items_tbl SET journal_id = ${journalId} WHERE id = ${itemId}`
+  }
+}
+
+export const fetchSalesVoucherItems = async (voucherId: number, itemJournalTypeId?: number | null) => {
   return sql`
+    WITH numbered_items AS (
+      SELECT vi.*, ROW_NUMBER() OVER (ORDER BY vi.id) AS item_row_no
+      FROM voucher_items_tbl vi
+      WHERE vi.voucher_id = ${voucherId}
+    ), numbered_journals AS (
+      SELECT vjd.*, ROW_NUMBER() OVER (ORDER BY vjd.order_no, vjd.id) AS journal_row_no
+      FROM voucher_journal_detail_tbl vjd
+      WHERE vjd.voucher_id = ${voucherId}
+        AND (
+          vjd.journal_type_id = ${itemJournalTypeId ?? -1}
+          OR COALESCE(vjd.note, '') NOT IN ('ضريبة', 'حساب الزبون/المورد')
+        )
+    )
     SELECT
       vi.id,
       vi.voucher_id,
@@ -431,12 +496,28 @@ export const fetchSalesVoucherItems = async (voucherId: number) => {
       vi.count,
       vi.order_item_id,
       vi.delivery_item_id,
+      source_delivery_header.id AS source_voucher_id,
+      source_delivery_header.vch_type AS source_voucher_type,
+      source_delivery_header.vch_code AS source_voucher_code,
       vi.production_date,
       vi.expiry_date,
       vi.batch_no AS batch_number,
       vi.store_id AS warehouse_id,
       vi.store_id AS store_id,
-      vi.journal_id,
+      COALESCE(linked_journal.id, fallback_journal.id) AS journal_id,
+      account.id AS account_id,
+      COALESCE(account.code, '') AS account_code,
+      COALESCE(account.name, '') AS account_name,
+      COALESCE((
+        SELECT json_agg(json_build_object(
+          'cost_center_type_id', cc.cost_type_id,
+          'cost_center_id', cc.id,
+          'cost_center_name', cc.name
+        ) ORDER BY cc.cost_type_id, cc.id)
+        FROM voucher_costcenter_tbl vc
+        JOIN cost_centers cc ON cc.id = vc.cost_center_id
+        WHERE vc.voucher_journal_id = COALESCE(linked_journal.id, fallback_journal.id)
+      ), '[]'::json) AS account_cost_centers,
       vi.return_sales_invoice_id,
       COALESCE(p.product_code, '') AS product_code,
       p.product_code AS current_product_code,
@@ -448,10 +529,16 @@ export const fetchSalesVoucherItems = async (voucherId: number) => {
       (vi.qnty * vi.price * (1 - vi.discount / 100)) AS total_price,
       (vi.qnty * vi.price * (1 - vi.discount / 100)) AS amount,
       (vi.qnty * vi.price * (1 - vi.discount / 100)) AS line_amount
-    FROM voucher_items_tbl vi
+    FROM numbered_items vi
+    LEFT JOIN voucher_journal_detail_tbl linked_journal ON linked_journal.id = vi.journal_id
+    LEFT JOIN numbered_journals fallback_journal
+      ON vi.journal_id IS NULL AND fallback_journal.journal_row_no = vi.item_row_no
+    LEFT JOIN account_tbl account ON account.id = COALESCE(linked_journal.account_id, fallback_journal.account_id)
     LEFT JOIN products p ON p.id = vi.item_id
     LEFT JOIN units u ON u.id = vi.unit_id
     LEFT JOIN warehouses w ON w.id = vi.store_id
+    LEFT JOIN voucher_items_tbl source_delivery_item ON source_delivery_item.id = vi.delivery_item_id
+    LEFT JOIN voucher_header_tbl source_delivery_header ON source_delivery_header.id = source_delivery_item.voucher_id
     WHERE vi.voucher_id = ${voucherId}
     ORDER BY vi.id
   `

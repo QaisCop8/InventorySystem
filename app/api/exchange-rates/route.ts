@@ -1,8 +1,9 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { getCurrenciesWithLatestRate, getOrCreateRatesForDate, updateExchangeRate } from "@/lib/database"
-import sql from "@/lib/database"
-// ❌ removed export default sql
-// ✅ leave sql as an internal helper variable
+import type { PoolClient } from "pg"
+import { getCurrenciesWithLatestRate, getOrCreateRatesForDate, getTenantPool, updateExchangeRate } from "@/lib/database"
+
+const MIN_EXCHANGE_RATE = 0.0001
+const MAX_EXCHANGE_RATE = 10000
 
 // ==============================
 // GET - Fetch currencies + rates
@@ -26,78 +27,106 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Failed to fetch exchange rates" }, { status: 500 })
   }
 }
-
 // ==============================
 // POST - Add currency + rate
 // ==============================
 export async function POST(request: NextRequest) {
+  let client: PoolClient | null = null
   try {
     const body = await request.json()
     const { currency_name, currency_code, buy_rate, sell_rate, exchange_rate, is_active } = body
+    const currencyName = String(currency_name || "").trim()
+    const currencyCode = String(currency_code || "").trim().toUpperCase()
+    const buyRate = Number(buy_rate)
+    const sellRate = Number(sell_rate)
+    const exchangeRate = Number(exchange_rate)
 
-    if (!currency_name || !currency_code) {
+    if (!currencyName || !currencyCode) {
       return NextResponse.json({ error: "Currency name and code are required" }, { status: 400 })
     }
+    if (
+      ![buyRate, sellRate, exchangeRate].every(
+        (rate) => Number.isFinite(rate) && rate >= MIN_EXCHANGE_RATE && rate <= MAX_EXCHANGE_RATE,
+      )
+    ) {
+      return NextResponse.json(
+        { error: "سعر الشراء وسعر البيع وسعر الصرف يجب أن تكون بين 0.0001 و 10000" },
+        { status: 400 },
+      )
+    }
 
-    // Check if currency exists
-    let currency = await sql`
-      SELECT * FROM currency WHERE currency_code = ${currency_code}
-    `
+    const pool = await getTenantPool()
+    client = await pool.connect()
+    await client.query("BEGIN")
+    // IDs are assigned manually in this schema. Locking prevents two concurrent
+    // currency requests from choosing the same MAX(id) + 1 value.
+    await client.query("LOCK TABLE currency IN EXCLUSIVE MODE")
 
-    if (currency.length > 0) {
+    const duplicateCode = await client.query(
+      "SELECT id FROM currency WHERE UPPER(currency_code) = UPPER($1) LIMIT 1",
+      [currencyCode],
+    )
+    if (duplicateCode.rows.length > 0) {
+      await client.query("ROLLBACK")
       return NextResponse.json({ error: "رمز العملة مكرر" }, { status: 400 })
     }
 
-    const duplicateName = await sql`
-      SELECT id FROM currency WHERE currency_name = ${currency_name}
-    `
-    if (duplicateName.length > 0) {
+    const duplicateName = await client.query(
+      "SELECT id FROM currency WHERE currency_name = $1 LIMIT 1",
+      [currencyName],
+    )
+    if (duplicateName.rows.length > 0) {
+      await client.query("ROLLBACK")
       return NextResponse.json({ error: "اسم العملة مكرر" }, { status: 400 })
     }
 
-    if (currency.length === 0) {
-      const lastIdRow = await sql`SELECT MAX(id) AS max_id FROM currency`
-      const lastId = lastIdRow[0]?.max_id ?? 0
-      const newId = lastId + 1
-
-      if (newId === 1 && (buy_rate !== 1 || sell_rate !== 1 || exchange_rate !== 1)) {
-        return NextResponse.json(
-          { error: "عملة الأساس يجب أن يكون سعر الصرف والبيع والشراء يساوي 1" },
-          { status: 400 }
-        )
-      }
-
-      const inserted = await sql`
-        INSERT INTO currency (id, currency_code, currency_name, is_active)
-        VALUES (${newId}, ${currency_code}, ${currency_name}, true)
-        RETURNING *
-      `
-      currency = inserted
+    const lastIdResult = await client.query("SELECT COALESCE(MAX(id), 0) AS max_id FROM currency")
+    const newId = Number(lastIdResult.rows[0]?.max_id || 0) + 1
+    if (newId === 1 && (buyRate !== 1 || sellRate !== 1 || exchangeRate !== 1)) {
+      await client.query("ROLLBACK")
+      return NextResponse.json(
+        { error: "عملة الأساس يجب أن يكون سعر الصرف والبيع والشراء يساوي 1" },
+        { status: 400 },
+      )
     }
 
-    const currencyId = currency[0].id
-
-    // Insert new exchange rate
-    const result = await sql`
+    const currencyResult = await client.query(
+      `INSERT INTO currency (id, currency_code, currency_name, is_active)
+       VALUES ($1, $2, $3, true)
+       RETURNING *`,
+      [newId, currencyCode, currencyName],
+    )
+    const rateResult = await client.query(
+      `
       INSERT INTO exchange_rates (
         currency_id,
         buy_rate,
         sell_rate,
         exchange_rate,
-        is_active
+        is_active,
+        rate_date
       ) VALUES (
-        ${currencyId},
-        ${buy_rate || 0},
-        ${sell_rate || 0},
-        ${exchange_rate || 0},
-        ${is_active !== false}
+        $1, $2, $3, $4, $5, CURRENT_DATE
       ) RETURNING *
-    `
+      `,
+      [newId, buyRate, sellRate, exchangeRate, is_active !== false],
+    )
+    await client.query("COMMIT")
 
-    return NextResponse.json({ rate: result[0] }, { status: 201 })
+    return NextResponse.json(
+      { currency: currencyResult.rows[0], rate: rateResult.rows[0] },
+      { status: 201 },
+    )
   } catch (error) {
+    if (client) {
+      try {
+        await client.query("ROLLBACK")
+      } catch {}
+    }
     console.error("Error creating exchange rate:", error)
     return NextResponse.json({ error: "Failed to create exchange rate" }, { status: 500 })
+  } finally {
+    client?.release()
   }
 }
 
@@ -118,33 +147,4 @@ export async function PUT(request: NextRequest) {
     console.error("Error updating exchange rate:", error)
     return NextResponse.json({ error: "Failed to update exchange rate" }, { status: 500 })
   }
-}
-
-// ==============================
-// Utility - Manual insert helper
-// ==============================
-export async function createExchangeRate(data: {
-  currency_id: number
-  buy_rate: number
-  sell_rate: number
-  exchange_rate: number
-  is_active?: boolean
-}) {
-  return sql`
-    INSERT INTO exchange_rates (
-      currency_id,
-      buy_rate,
-      sell_rate,
-      exchange_rate,
-      is_active,
-      rate_date
-    ) VALUES (
-      ${data.currency_id},
-      ${data.buy_rate},
-      ${data.sell_rate},
-      ${data.exchange_rate},
-      ${data.is_active ?? true},
-      CURRENT_DATE
-    ) RETURNING *
-  `
 }

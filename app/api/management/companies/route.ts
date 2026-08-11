@@ -29,7 +29,7 @@ export async function GET() {
         FROM companies c
         JOIN user_company uc ON uc.company_id = c.id
         LEFT JOIN users u ON u.id = c.created_by
-        WHERE uc.user_id = ${session.id}
+        WHERE uc.user_id = ${session.id} AND COALESCE(uc.is_active, true) = true
         ORDER BY c.created_at DESC
       `
     }

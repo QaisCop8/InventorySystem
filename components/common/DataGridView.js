@@ -320,6 +320,11 @@ createButtonsColumns = () => {
         delete gridProps[key];
       }
     });
+    // Prevent passing certain custom props through to the DOM via spread — these
+    // belong to the Wijmo components or our API and React warns if forwarded
+    // to a native element. Remove common ones here.
+    delete gridProps.wordWrap;
+    delete gridProps.wordwrap;
     return (
       <div style={height} dir="rtl">
         {this.state.hasError && (

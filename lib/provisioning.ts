@@ -1,7 +1,6 @@
 import crypto from "crypto"
 import managementSql, { ensureManagementTables } from "./management-db"
 import { getPoolForDb } from "./database"
-import { getDatabaseNameFromUrl } from "./db-url"
 
 function generateDbName(): string {
   return `co_${crypto.randomBytes(4).toString("hex")}`
@@ -16,37 +15,7 @@ async function generateUniqueDbName(): Promise<string> {
   throw new Error("تعذّر توليد معرّف فريد لقاعدة بيانات الشركة")
 }
 
-const referenceDbName = getDatabaseNameFromUrl(process.env.DATABASE_URL || "")
-
-interface ColumnInfo {
-  column_name: string
-  data_type: string
-  udt_name: string
-  character_maximum_length: number | null
-  numeric_precision: number | null
-  numeric_scale: number | null
-  is_nullable: "YES" | "NO"
-  column_default: string | null
-  is_identity: "YES" | "NO"
-  identity_generation: "ALWAYS" | "BY DEFAULT" | null
-}
-
-function isSerialColumn(col: ColumnInfo): boolean {
-  return !!col.column_default && col.column_default.startsWith("nextval(")
-}
-
-// أعمدة GENERATED ALWAYS/BY DEFAULT AS IDENTITY (بديل SERIAL الحديث بـPostgres) تُبلِغ عن
-// column_default كـNULL دوماً بـinformation_schema — isSerialColumn وحدها (تفحص نمط nextval فقط)
-// كانت تُفوِّت هذا النوع تماماً، فتُستنسَخ كعمود INTEGER عادي بلا أي تسلسل تلقائي لقاعدة الشركة
-// الجديدة — أول إدراج يُغفِل id (وهذا هو الطبيعي، متوقَّع أن يُولَّد تلقائياً) يفشل حينها بـ"null
-// value in column "id" violates not-null constraint". الجداول المتأثرة فعلياً بهذا الخلل في القاعدة
-// المرجعية وقت اكتشافه: orders، vouchers، voucher_items، customer_vouchers (وsystem_settings، لكنه
-// يُعاد ضبطه صراحة لاحقاً بمعزل — انظر seedDefaultSystemSettings).
-function isIdentityColumn(col: ColumnInfo): boolean {
-  return col.is_identity === "YES"
-}
-
-const LEGACY_SCHEMA_TABLES = new Set(["voucher_items"])
+const templateDbName = "company_template"
 
 async function ensureModernVoucherItemsTable(tenantClient: ReturnType<typeof getPoolForDb>) {
   await tenantClient.query(`DROP TABLE IF EXISTS public.voucher_items CASCADE`, [])
@@ -87,97 +56,6 @@ async function ensureModernVoucherItemsTable(tenantClient: ReturnType<typeof get
     [],
   )
   await tenantClient.query(`CREATE INDEX IF NOT EXISTS idx_voucher_items_tbl_voucher_id ON voucher_items_tbl(voucher_id)`, [])
-}
-
-function columnTypeSql(col: ColumnInfo): string {
-  if (isSerialColumn(col)) return col.data_type === "bigint" ? "BIGSERIAL" : "SERIAL"
-  if (isIdentityColumn(col)) return col.data_type === "bigint" ? "BIGINT" : col.data_type === "smallint" ? "SMALLINT" : "INTEGER"
-
-  switch (col.data_type) {
-    case "character varying":
-      return col.character_maximum_length ? `VARCHAR(${col.character_maximum_length})` : "VARCHAR"
-    case "numeric":
-      return col.numeric_precision != null ? `NUMERIC(${col.numeric_precision}, ${col.numeric_scale ?? 0})` : "NUMERIC"
-    case "timestamp without time zone":
-      return "TIMESTAMP"
-    case "timestamp with time zone":
-      return "TIMESTAMPTZ"
-    case "double precision":
-      return "DOUBLE PRECISION"
-    case "ARRAY":
-      return `${col.udt_name.replace(/^_/, "")}[]`
-    default:
-      return col.data_type.toUpperCase()
-  }
-}
-
-type ConstraintGroup = { type: "PRIMARY KEY" | "UNIQUE"; cols: string[] }
-
-async function getConstraintGroups(referencePool: ReturnType<typeof getPoolForDb>, tableName: string) {
-  const rows = await referencePool.query(
-    `SELECT tc.constraint_name, tc.constraint_type, kcu.column_name
-     FROM information_schema.table_constraints tc
-     JOIN information_schema.key_column_usage kcu
-       ON tc.constraint_name = kcu.constraint_name AND tc.table_schema = kcu.table_schema
-     WHERE tc.table_schema = 'public' AND tc.table_name = $1 AND tc.constraint_type IN ('PRIMARY KEY', 'UNIQUE')
-     ORDER BY tc.constraint_name, kcu.ordinal_position`,
-    [tableName],
-  )
-  const groups = new Map<string, ConstraintGroup>()
-  for (const r of rows) {
-    if (!groups.has(r.constraint_name)) groups.set(r.constraint_name, { type: r.constraint_type, cols: [] })
-    groups.get(r.constraint_name)!.cols.push(r.column_name)
-  }
-  return [...groups.values()]
-}
-
-function buildCreateTableSql(tableName: string, columns: ColumnInfo[], constraintGroups: ConstraintGroup[]): string {
-  const colDefs = columns.map((col) => {
-    let def = `"${col.column_name}" ${columnTypeSql(col)}`
-    const serial = isSerialColumn(col)
-    const identity = isIdentityColumn(col)
-    if (identity) {
-      def += ` GENERATED ${col.identity_generation === "BY DEFAULT" ? "BY DEFAULT" : "ALWAYS"} AS IDENTITY`
-    } else {
-      if (col.is_nullable === "NO" && !serial) def += " NOT NULL"
-      if (col.column_default && !serial) def += ` DEFAULT ${col.column_default}`
-    }
-    return def
-  })
-
-  const constraintDefs = constraintGroups.map((group) => {
-    const cols = group.cols.map((c) => `"${c}"`).join(", ")
-    return group.type === "PRIMARY KEY" ? `PRIMARY KEY (${cols})` : `UNIQUE (${cols})`
-  })
-
-  return `CREATE TABLE IF NOT EXISTS "${tableName}" (\n  ${[...colDefs, ...constraintDefs].join(",\n  ")}\n)`
-}
-
-// تُنسخ بنية قاعدة الشركة الجديدة بالكامل (كل الجداول) من القاعدة المرجعية (inventory_system، أي
-// DATABASE_URL) بدل الاكتفاء بجدول user_settings فقط — عبر قراءة information_schema بدل كتابة كل
-// جدول يدوياً (١٠٧ جدول حالياً)، حتى تبقى مطابقة تلقائياً لأي تعديل مستقبلي على المخطط دون حاجة
-// لتحديث هذا الملف بكل مرة. تتعمّد تجاهل قيود المفاتيح الأجنبية (FK) لتفادي مشاكل ترتيب الإنشاء —
-// نفس أسلوب بقية المشروع الذي ينشئ جداوله ذاتياً (CREATE TABLE IF NOT EXISTS) بلا FK صريحة غالباً.
-async function cloneReferenceSchema(tenantClient: ReturnType<typeof getPoolForDb>) {
-  const referencePool = getPoolForDb(referenceDbName)
-
-  const tables = await referencePool.query(
-    `SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE' ORDER BY table_name`,
-    [],
-  )
-
-  for (const { table_name } of tables) {
-    if (LEGACY_SCHEMA_TABLES.has(table_name)) continue
-
-    const columns: ColumnInfo[] = await referencePool.query(
-      `SELECT column_name, data_type, udt_name, character_maximum_length, numeric_precision, numeric_scale, is_nullable, column_default, is_identity, identity_generation
-       FROM information_schema.columns WHERE table_schema = 'public' AND table_name = $1 ORDER BY ordinal_position`,
-      [table_name],
-    )
-    const constraintGroups = await getConstraintGroups(referencePool, table_name)
-    const ddl = buildCreateTableSql(table_name, columns, constraintGroups)
-    await tenantClient.query(ddl, [])
-  }
 }
 
 async function ensureModernProductColumns(tenantClient: ReturnType<typeof getPoolForDb>) {
@@ -235,91 +113,11 @@ async function ensureModernProductColumns(tenantClient: ReturnType<typeof getPoo
   }
 }
 
-// جداول "لوكاب" ثابتة (أنواع/تصنيفات/حالات نظامية عامة، لا بيانات شركة بعينها) — كل واحد منها
-// مرجع (lookup) تعتمد عليه شاشات مختلفة (السندات، الشيكات، البطاقات الائتمانية، القوائم المالية،
-// الضرائب...)، وبلا نسخ قيمها الفعلية من القاعدة المرجعية تبقى فارغة فتفشل تلك الشاشات لشركة حديثة
-// التزويد رغم وجود الجداول نفسها. تقتصر القائمة عمداً على جداول لا تحمل company_id/branch_id ولا
-// أي ربط ببيانات شركة بعينها (حسابات، فروع، بنوك...) — عكس جداول مثل account_tbl أو bank_accounts
-// التي تُعتبر بيانات فعلية خاصة بكل شركة ويجب أن تبدأ فارغة تماماً لكل شركة جديدة.
-// cost_center_types عمداً غير مُدرَج هنا (كان مُدرَجاً سابقاً) — كل شركة تبني مراكز كلفتها الخاصة من
-// الصفر (لا قيمة مشتركة معقولة كسندات/عملات/تصنيفات ضريبة عامة)، فتبدأ فارغة تماماً كالحسابات نفسها.
-const LOOKUP_TABLES = [
-  "voucher_types_tbl",
-  "voucher_books_tbl",
-  "voucher_status_tbl",
-  "voucher_journal_type_tbl",
-  "voucher_journal_type_caption_tbl",
-  "account_classification_types",
-  "balance_sheet_assets_items",
-  "balance_sheet_liabilities_items",
-  "income_statement_items",
-  "payment_classifications_tbl",
-  "tax_classifications",
-  "pricecategory",
-  "measurment_types_tbl",
-  "cities",
-  "cheque_status_tbl",
-  "cheque_book_status_tbl",
-  "cheques_type_tbl",
-  "credit_card_main_types_tbl",
-  "credit_card_commission_types_tbl",
-  // تسلسل/مراحل سير عمل طلبيات المبيعات (workflow engine عام غير مرتبط بشركة بعينها) — الترتيب
-  // هنا مقصود (مراحل، ثم تسلسلات، ثم خطوات) لأن workflow_sequence_steps يشير لمعرّفات الجدولين
-  // الأولين بنفس القيم المنسوخة حرفياً من القاعدة المرجعية، فيبقى الربط صحيحاً في قاعدة الشركة
-  // الجديدة أيضاً. انظر scripts/29-seed-sales-order-workflow.sql للتسلسل الافتراضي المزروع في
-  // القاعدة المرجعية نفسها.
-  "workflow_stages",
-  "workflow_sequences",
-  "workflow_sequence_steps",
-]
-
-async function seedLookupTable(referencePool: ReturnType<typeof getPoolForDb>, tenantClient: ReturnType<typeof getPoolForDb>, tableName: string) {
-  const columns = await referencePool.query(
-    `SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = $1 ORDER BY ordinal_position`,
-    [tableName],
-  )
-  const columnNames = columns.map((c: { column_name: string }) => c.column_name)
-  const quotedCols = columnNames.map((c: string) => `"${c}"`).join(", ")
-  const placeholders = columnNames.map((_: string, i: number) => `$${i + 1}`).join(", ")
-
-  const rows = await referencePool.query(`SELECT * FROM "${tableName}" ORDER BY id`, [])
-  for (const row of rows) {
-    const values = columnNames.map((c: string) => row[c])
-    await tenantClient.query(
-      `INSERT INTO "${tableName}" (${quotedCols}) VALUES (${placeholders}) ON CONFLICT (id) DO NOTHING`,
-      values,
-    )
-  }
-}
-
-async function seedLookupTables(tenantClient: ReturnType<typeof getPoolForDb>) {
-  const referencePool = getPoolForDb(referenceDbName)
-  for (const tableName of LOOKUP_TABLES) {
-    await seedLookupTable(referencePool, tenantClient, tableName)
-  }
-}
-
-// فئات وقوائم الصلاحيات (access_category, access_list) ثابتة (الملفات والتعريفات، الحركات،
-// التقارير...) تُستخدَم في شاشة "صلاحيات المستخدمين" — تُنسخ من القاعدة المرجعية بنفس أسلوب
-// voucher_types_tbl أعلاه، ثم تُمنَح جميعها افتراضياً لمستخدم admin (user_id='1') المُنشأ للتو
-// حتى لا يبدأ بلا أي صلاحية رغم كونه مدير النظام.
+// تعريفات الصلاحيات والبيانات الثابتة موجودة أصلاً داخل company_template. هنا نمنح admin
+// جميع التعريفات الموجودة في قاعدة الشركة الجديدة من دون قراءة أي قاعدة مرجعية خارجية.
 async function seedAccessListsAndGrantAdmin(tenantClient: ReturnType<typeof getPoolForDb>) {
-  const referencePool = getPoolForDb(referenceDbName)
-
-  const categories = await referencePool.query(`SELECT id, name FROM access_category ORDER BY id`, [])
-  for (const cat of categories) {
-    await tenantClient.query(`INSERT INTO access_category (id, name) VALUES ($1, $2) ON CONFLICT (id) DO NOTHING`, [
-      cat.id,
-      cat.name,
-    ])
-  }
-
-  const accessList = await referencePool.query(`SELECT id, name, category_id FROM access_list ORDER BY id`, [])
+  const accessList = await tenantClient.query(`SELECT id FROM access_list ORDER BY id`, [])
   for (const item of accessList) {
-    await tenantClient.query(
-      `INSERT INTO access_list (id, name, category_id) VALUES ($1, $2, $3) ON CONFLICT (id) DO NOTHING`,
-      [item.id, item.name, item.category_id],
-    )
     await tenantClient.query(
       `INSERT INTO user_access (user_id, access_id, is_granted) VALUES ($1, $2, true)
        ON CONFLICT (user_id, access_id) DO UPDATE SET is_granted = true`,
@@ -484,16 +282,14 @@ export async function provisionCompanyDatabase(
 
   const dbName = await generateUniqueDbName()
 
-  // CREATE DATABASE يجب أن يُنفَّذ خارج أي معاملة (transaction) — استعلام مستقل عبر اتصال قاعدة
-  // الإدارة (management)، وهو ما يوفّره sql.unsafe هنا بلا BEGIN/COMMIT محيطة.
-  await managementSql.unsafe(`CREATE DATABASE "${dbName}"`)
+  // ينسخ PostgreSQL المخطط والبيانات الثابتة من القالب الذي أنشأه سكربت التثبيت. لا توجد قراءة
+  // أو حاجة إلى قاعدة inventory_system عند تشغيل التطبيق أو اعتماد شركة.
+  await managementSql.unsafe(`CREATE DATABASE "${dbName}" TEMPLATE "${templateDbName}"`)
 
   const tenantClient = getPoolForDb(dbName)
 
-  await cloneReferenceSchema(tenantClient)
   await ensureModernProductColumns(tenantClient)
   await ensureModernVoucherItemsTable(tenantClient)
-  await seedLookupTables(tenantClient)
   const branchId = await seedDefaultBranchAndSection(tenantClient)
   await seedDefaultStore(tenantClient)
   await seedDefaultSystemSettings(tenantClient)

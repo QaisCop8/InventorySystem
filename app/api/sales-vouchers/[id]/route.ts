@@ -1,11 +1,18 @@
 import { type NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
-import { ensureTables, fetchSalesVoucherItems, archiveAndDeleteSalesVoucher, fetchTaxAccountForVoucher, ITEM_ACCOUNT_VCH_TYPES } from "../_lib"
+import {
+  ensureTables,
+  fetchSalesVoucherItems,
+  archiveAndDeleteSalesVoucher,
+  fetchSalesVoucherJournalAccounts,
+  resolveSalesVoucherJournalTypes,
+  ITEM_ACCOUNT_VCH_TYPES,
+} from "../_lib"
 
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     await ensureTables()
-    const id = Number(params.id)
+    const id = Number((await params).id)
     if (!id) {
       return NextResponse.json({ error: "معرف السند غير صالح" }, { status: 400 })
     }
@@ -28,19 +35,30 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     }
 
     const voucher = rows[0]
-    const items = await fetchSalesVoucherItems(id)
-    // حساب الضريبة (تبويب "بيانات اضافية") لا عمود على voucher_header_tbl — يُشتَق من سطر القيد
-    // المحفوظ (voucher_journal_detail_tbl) عند تحميل سند موجود، انظر buildSalesVoucherJournalRows/
-    // fetchTaxAccountForVoucher في ../_lib.ts.
-    const taxAccount = (ITEM_ACCOUNT_VCH_TYPES as readonly number[]).includes(Number(voucher.vch_type))
-      ? await fetchTaxAccountForVoucher(id)
-      : null
+    const hasJournalAccounts = (ITEM_ACCOUNT_VCH_TYPES as readonly number[]).includes(Number(voucher.vch_type))
+    const journalTypes = hasJournalAccounts ? await resolveSalesVoucherJournalTypes(Number(voucher.vch_type)) : null
+    const items = await fetchSalesVoucherItems(id, journalTypes?.itemJournalType)
+    // Source information is intentionally stored on voucher item links, not
+    // duplicated on voucher_header_tbl. Reconstruct the invoice source when
+    // displaying an existing invoice so the UI does not fall back to "normal".
+    const deliverySourceItem = items.find((item: any) => Number(item.delivery_item_id) > 0)
+    const orderSourceItem = items.find((item: any) => Number(item.order_item_id) > 0)
+    const invoiceSourceType = deliverySourceItem ? 2 : orderSourceItem ? 3 : 1
+    const journalAccounts = hasJournalAccounts
+      ? await fetchSalesVoucherJournalAccounts(id, Number(voucher.vch_type), Boolean(voucher.account_id))
+      : { taxAccount: null, cashAccount: null }
     return NextResponse.json({
       ...voucher,
       city_id: voucher.location_id,
-      tax_account_id: taxAccount?.id ?? null,
-      tax_account_code: taxAccount?.code ?? "",
-      tax_account_name: taxAccount?.name ?? "",
+      invoice_source_type: invoiceSourceType,
+      source_voucher_id: deliverySourceItem?.source_voucher_id ?? null,
+      source_voucher_type: deliverySourceItem?.source_voucher_type ?? null,
+      cash_account_id: journalAccounts.cashAccount?.id ?? null,
+      cash_account_code: journalAccounts.cashAccount?.code ?? "",
+      cash_account_name: journalAccounts.cashAccount?.name ?? "",
+      tax_account_id: journalAccounts.taxAccount?.id ?? null,
+      tax_account_code: journalAccounts.taxAccount?.code ?? "",
+      tax_account_name: journalAccounts.taxAccount?.name ?? "",
       items,
     })
   } catch (error) {
@@ -50,9 +68,9 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 }
 
 // يُسجَّل عند أول طباعة لسند مُرحَّل فقط (is_printed=1) — مطابق لِـstock-vouchers/[id]/route.ts.
-export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const id = Number(params.id)
+    const id = Number((await params).id)
     if (!id) {
       return NextResponse.json({ error: "معرف السند غير صالح" }, { status: 400 })
     }
@@ -73,9 +91,9 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 }
 
 // حذف فعلي — متاح فقط لسند بحالة "فعال" (status=1). سند مُرحَّل يُلغى منطقياً عبر PUT بـstatus=3.
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const id = Number(params.id)
+    const id = Number((await params).id)
     if (!id) {
       return NextResponse.json({ error: "معرف السند غير صالح" }, { status: 400 })
     }

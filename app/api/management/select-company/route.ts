@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
       SELECT c.id, c.db_name, c.status, c.expiry_date
       FROM companies c
       JOIN user_company uc ON uc.company_id = c.id
-      WHERE uc.user_id = ${session.id} AND c.id = ${companyId}
+      WHERE uc.user_id = ${session.id} AND c.id = ${companyId} AND COALESCE(uc.is_active, true) = true
     `
     if (rows.length === 0) return NextResponse.json({ error: "لا تملك صلاحية الوصول لهذه الشركة" }, { status: 403 })
 
@@ -40,14 +40,6 @@ export async function POST(request: NextRequest) {
     if (isExpired) {
       return NextResponse.json({ error: "يجب الاتصال بالشركة المزودة للنظام لتمديد الاشتراك" }, { status: 403 })
     }
-
-    const cookieStore = await cookies()
-    cookieStore.set("tenant_db", company.db_name, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      path: "/",
-    })
 
     // تسجيل دخول تلقائي على قاعدة الشركة المُختارة باستخدام بريد حساب الإدارة نفسه — بلا حاجة
     // لطلب كلمة مرور ثانية، فالهوية مُثبَتة أصلاً عبر جلسة الإدارة أعلاه. withTenantDb يضمن تنفيذ
@@ -69,11 +61,29 @@ export async function POST(request: NextRequest) {
       return result
     })
 
+    if (!authResult.success || !authResult.user || !authResult.token) {
+      return NextResponse.json(
+        { error: authResult.error || "لا يوجد مستخدم فعّال بهذا البريد في قاعدة بيانات الشركة" },
+        { status: 403 },
+      )
+    }
+
+    // لا تُثبَّت قاعدة الشركة في الكوكي إلا بعد نجاح التحقق من وجود المستخدم داخلها. اسم القاعدة
+    // نفسه جاء حصراً من management.companies.db_name بعد فحص user_company أعلاه.
+    const cookieStore = await cookies()
+    cookieStore.set("tenant_db", company.db_name, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+    })
+
     return NextResponse.json({
       success: true,
       dbName: company.db_name,
       companyId: company.id,
-      ...(authResult.success ? { user: authResult.user, token: authResult.token } : {}),
+      user: authResult.user,
+      token: authResult.token,
     })
   } catch (error) {
     console.error("[management/select-company] error:", error)

@@ -1,16 +1,14 @@
 import { NextResponse } from "next/server"
-import { Pool } from "pg"
-import sql from "@/lib/database"
+import sql, { getTenantPool } from "@/lib/database"
 import { ensureTables as ensureReceiptTables, RECEIPT_VCH_TYPE, PAYMENT_VCH_TYPE } from "@/app/api/receipts/_lib"
 
 const SALES_VCH_TYPE = 5
-
-const pool = new Pool({ connectionString: process.env.DATABASE_URL })
 
 // إيراد وتكلفة البضاعة المباعة شهرياً (آخر 3 أشهر، لضمان وجود شهرين فيهما مبيعات فعلياً للمقارنة)
 // لحساب هامش الربح الإجمالي — التكلفة مبنية على last_purchase_price المخزّن على المنتج حالياً
 // (لا يوجد عمود تكلفة مخصَّص في جدول products الفعلي؛ هذا تقدير، وليس تكلفة تاريخية دقيقة وقت البيع).
 async function getMarginByMonth() {
+  const pool = await getTenantPool()
   const result = await pool.query(`
     WITH sales AS (
       SELECT id, voucher_date, total_amount
