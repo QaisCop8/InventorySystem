@@ -1000,19 +1000,31 @@ export default function UnifiedSalesDelivery({
       if (itemsCollectionViewRef.current && Array.isArray(normalizedItems)) {
         try {
           const view = itemsCollectionViewRef.current
+          const gridControl = resolveFlexControl(itemsGridRef.current)
+          const refreshView = () => {
+            try {
+              view.refresh()
+            } catch {}
+            if (gridControl && typeof gridControl.invalidate === "function") {
+              try {
+                gridControl.invalidate()
+              } catch {}
+            }
+            if (gridControl && typeof gridControl.itemsSource !== "undefined") {
+              try {
+                gridControl.itemsSource = view
+              } catch {}
+            }
+          }
           if (typeof view.deferUpdate === "function") {
             view.deferUpdate(() => {
               view.sourceCollection = normalizedItems
             })
             // refresh is not required after deferUpdate; call defensively
-            try {
-              view.refresh()
-            } catch {}
+            refreshView()
           } else {
             view.sourceCollection = normalizedItems
-            try {
-              view.refresh()
-            } catch {}
+            refreshView()
           }
         } catch (err) {
           // If even deferUpdate fails, fall back to a delayed assignment once more.
@@ -1021,17 +1033,40 @@ export default function UnifiedSalesDelivery({
           setTimeout(() => {
             try {
               const view2 = itemsCollectionViewRef.current
+              const gridControl2 = resolveFlexControl(itemsGridRef.current)
               if (view2) {
                 try {
                   view2.deferUpdate(() => {
                     view2.sourceCollection = normalizedItems
                   })
-                  view2.refresh()
+                  try {
+                    view2.refresh()
+                  } catch {}
+                  if (gridControl2 && typeof gridControl2.invalidate === "function") {
+                    try {
+                      gridControl2.invalidate()
+                    } catch {}
+                  }
+                  if (gridControl2 && typeof gridControl2.itemsSource !== "undefined") {
+                    try {
+                      gridControl2.itemsSource = view2
+                    } catch {}
+                  }
                 } catch {
                   view2.sourceCollection = normalizedItems
                   try {
                     view2.refresh()
                   } catch {}
+                  if (gridControl2 && typeof gridControl2.invalidate === "function") {
+                    try {
+                      gridControl2.invalidate()
+                    } catch {}
+                  }
+                  if (gridControl2 && typeof gridControl2.itemsSource !== "undefined") {
+                    try {
+                      gridControl2.itemsSource = view2
+                    } catch {}
+                  }
                 }
               }
             } catch (err2) {
