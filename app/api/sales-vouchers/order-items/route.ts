@@ -16,10 +16,10 @@ export async function GET(request: NextRequest) {
 
     if (orderType === 1) {
       const orders = await sql`
-        SELECT o.*, COALESCE(c.name, '') AS account_name,
+        SELECT o.*, COALESCE(c.account_name, '') AS account_name,
                COALESCE(cur.currency_code, '') AS currency_code
         FROM orders o
-        LEFT JOIN customers c ON c.id = o.customer_id
+        LEFT JOIN accounts c ON c.id = o.customer_id
         LEFT JOIN currency cur ON cur.id = o.currency_id
         WHERE o.id = ${orderId}
         LIMIT 1
@@ -31,15 +31,14 @@ export async function GET(request: NextRequest) {
       const items = await sql`
         SELECT oi.*, p.product_code,
                COALESCE(oi.product_name, p.product_name, '') AS product_name,
-               p.barcode,
-               COALESCE(u.unit_name, p.main_unit, '') AS unit,
+               u.unit_name AS unit,
                oi.price AS unit_price,
                oi.discount AS discount_percent,
-               COALESCE(oi.bonus, oi.bonus_quantity, 0) AS bonus_quantity,
+               oi.bonus AS bonus_quantity,
                COALESCE(inv.invoiced_quantity, 0) AS sent_quantity,
                COALESCE(inv.invoiced_bonus, 0) AS sent_bonus,
                GREATEST(oi.quantity - COALESCE(inv.invoiced_quantity, 0), 0) AS remaining_quantity,
-               GREATEST(COALESCE(oi.bonus, oi.bonus_quantity, 0) - COALESCE(inv.invoiced_bonus, 0), 0) AS remaining_bonus
+               GREATEST(oi.bonus - COALESCE(inv.invoiced_bonus, 0), 0) AS remaining_bonus
         FROM order_items oi
         LEFT JOIN LATERAL (
           SELECT
@@ -56,7 +55,7 @@ export async function GET(request: NextRequest) {
         WHERE oi.order_id = ${orderId}
           AND (
             oi.quantity > COALESCE(inv.invoiced_quantity, 0)
-            OR COALESCE(oi.bonus, oi.bonus_quantity, 0) > COALESCE(inv.invoiced_bonus, 0)
+            OR oi.bonus > COALESCE(inv.invoiced_bonus, 0)
           )
         ORDER BY oi.id
       `
@@ -66,9 +65,9 @@ export async function GET(request: NextRequest) {
 
     if (orderType === 2) {
       const orders = await sql`
-        SELECT po.*, COALESCE(s.supplier_name, '') AS account_name
+        SELECT po.*, COALESCE(s.account_name, '') AS account_name
         FROM purchase_orders po
-        LEFT JOIN suppliers s ON s.id = po.supplier_id
+        LEFT JOIN accounts s ON s.id = po.supplier_id
         WHERE po.id = ${orderId}
         LIMIT 1
       `
