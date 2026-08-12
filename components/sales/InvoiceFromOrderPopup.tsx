@@ -98,15 +98,7 @@ export default function InvoiceFromOrderPopup({
         all.findIndex(
           (candidate) =>
             candidate.source_voucher_id === entry.source_voucher_id &&
-            candidate.product_id === entry.product_id &&
-            candidate.unit === entry.unit &&
-            index ===
-              all.findIndex(
-                (other) =>
-                  other.source_voucher_id === entry.source_voucher_id &&
-                  other.product_id === entry.product_id &&
-                  other.unit === entry.unit,
-              ),
+            candidate.order_item_id === entry.order_item_id,
         ) === index,
       )
     })
@@ -190,6 +182,9 @@ export default function InvoiceFromOrderPopup({
       columns: [
         { header: "الصنف", name: "product_name", width: "*", isReadOnly: true },
         { header: "الكمية", name: "quantity", width: 90, isReadOnly: true },
+        { header: "البونص", name: "bonus_quantity", width: 90, isReadOnly: true },
+        { header: "الكمية المرسلة", name: "sent_quantity", width: 110, isReadOnly: true },
+        { header: "البونص المرسل", name: "sent_bonus", width: 110, isReadOnly: true },
         { header: "الوحدة", name: "unit", width: 90, isReadOnly: true },
         {
           header: "السعر",
@@ -278,6 +273,10 @@ export default function InvoiceFromOrderPopup({
             source_rate: item.source_rate != null ? Number(item.source_rate) : null,
             order_item_id: item.order_item_id != null ? Number(item.order_item_id) : null,
             delivery_item_id: item.delivery_item_id != null ? Number(item.delivery_item_id) : null,
+            sent_quantity: Number(item.sent_quantity || 0),
+            sent_bonus: Number(item.sent_bonus || 0),
+            remaining_quantity: Number(item.remaining_quantity || 0),
+            remaining_bonus: Number(item.remaining_bonus || 0),
             note: String(item.note || ""),
             length: item.length != null ? Number(item.length) : null,
             width: item.width != null ? Number(item.width) : null,

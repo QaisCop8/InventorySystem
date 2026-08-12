@@ -78,11 +78,10 @@ export async function GET(request: NextRequest) {
             SELECT 1
             FROM orders oh
             INNER JOIN order_items oi ON oi.order_id = oh.id
-            WHERE oh.account_id = a.id
+            WHERE oh.customer_id = a.id
               AND oh.deleted = FALSE
-              AND oh.order_status_id IN (2, 3)
+              AND oh.order_status IN (2, 3)
               AND oi.item_status IN (2, 3)
-              AND oh.ready_status_id IN (2, 4)
           )`
       : sql`FALSE`
 

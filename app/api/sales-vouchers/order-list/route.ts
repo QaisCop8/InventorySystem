@@ -2,6 +2,8 @@ import { type NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
 
 const ORDER_SOURCE_VOUCHER_TYPE = 3
+const SALES_INVOICE_TYPE = 12
+const PURCHASE_INVOICE_TYPE = 17
 
 export async function GET(request: NextRequest) {
   try {
@@ -21,23 +23,32 @@ export async function GET(request: NextRequest) {
       ? await sql`
           SELECT o.id, o.order_number, o.order_date, o.total_amount AS amount, o.order_status,
                  o.discount_type, o.discount_amount, o.vat_percent, o.currency_id, o.exchange_rate,
-                 COALESCE(c.name, '') AS account_name,
+                 COALESCE(c.account_name, '') AS account_name,
                  COALESCE(cur.currency_code, '') AS currency_code
           FROM orders o
-          LEFT JOIN customers c ON c.id = o.customer_id
+          LEFT JOIN accounts c ON c.id = o.customer_id
           LEFT JOIN currency cur ON cur.id = o.currency_id
           WHERE o.deleted = false
             AND o.order_type = 1
             AND o.customer_id = ${customerId}
-            AND o.order_status != 'cancelled'
-            AND o.order_status IN ('approved', 'completed')
-            AND NOT EXISTS (
+            AND o.order_status IN (2, 3)
+            AND EXISTS (
               SELECT 1
-              FROM voucher_items_tbl inv_item
-              JOIN voucher_header_tbl inv ON inv.id = inv_item.voucher_id
-              WHERE inv.vch_type IN (12, 17)
-                AND inv_item.order_item_id IN (
-                  SELECT id FROM order_items WHERE order_id = o.id
+              FROM order_items oi
+              LEFT JOIN LATERAL (
+                SELECT
+                  COALESCE(SUM(vi.qnty), 0) AS invoiced_quantity,
+                  COALESCE(SUM(vi.bonus), 0) AS invoiced_bonus
+                FROM voucher_items_tbl vi
+                JOIN voucher_header_tbl vh ON vh.id = vi.voucher_id
+                WHERE vh.vch_type = ${SALES_INVOICE_TYPE}
+                  AND vh.status <> 3
+                  AND vi.order_item_id = oi.id
+              ) inv ON TRUE
+              WHERE oi.order_id = o.id
+                AND (
+                  oi.quantity > COALESCE(inv.invoiced_quantity, 0)
+                  OR COALESCE(oi.bonus, oi.quantity, 0) > COALESCE(inv.invoiced_bonus, 0)
                 )
             )
           ORDER BY o.order_date DESC, o.id DESC
@@ -46,19 +57,29 @@ export async function GET(request: NextRequest) {
           SELECT po.id, po.order_number, po.order_date, po.total_amount AS amount, po.workflow_status AS order_status,
                  po.discount_type, po.discount_amount, po.vat_amount AS vat_percent, po.currency_id, po.exchange_rate,
                  COALESCE(po.currency_code, cur.currency_code, '') AS currency_code,
-                 COALESCE(s.supplier_name, '') AS account_name
-          FROM purchase_orders po
-          LEFT JOIN suppliers s ON s.id = po.supplier_id
+                 COALESCE(s.account_name, '') AS account_name
+          FROM orders po
+          LEFT JOIN accounts s ON s.id = po.supplier_id
           LEFT JOIN currency cur ON cur.id = po.currency_id
           WHERE po.supplier_id = ${supplierId}
             AND COALESCE(po.workflow_status, '') != 'cancelled'
-            AND NOT EXISTS (
+            AND EXISTS (
               SELECT 1
-              FROM voucher_items_tbl inv_item
-              JOIN voucher_header_tbl inv ON inv.id = inv_item.voucher_id
-              WHERE inv.vch_type IN (12, 17)
-                AND inv_item.order_item_id IN (
-                  SELECT id FROM purchase_order_items WHERE purchase_order_id = po.id
+              FROM order_items poi
+              LEFT JOIN LATERAL (
+                SELECT
+                  COALESCE(SUM(vi.qnty), 0) AS invoiced_quantity,
+                  COALESCE(SUM(vi.bonus), 0) AS invoiced_bonus
+                FROM voucher_items_tbl vi
+                JOIN voucher_header_tbl vh ON vh.id = vi.voucher_id
+                WHERE vh.vch_type = ${PURCHASE_INVOICE_TYPE}
+                  AND vh.status <> 3
+                  AND vi.order_item_id = poi.id
+              ) inv ON TRUE
+              WHERE poi.order_id = po.id
+                AND (
+                  poi.quantity > COALESCE(inv.invoiced_quantity, 0)
+                  OR COALESCE(poi.bonus, poi.quantity, 0) > COALESCE(inv.invoiced_bonus, 0)
                 )
             )
           ORDER BY po.order_date DESC, po.id DESC

@@ -204,9 +204,103 @@ const validateSourceInvoice = async (itemsOrData: any, maybeData?: any, excludeV
             )
           LIMIT 1
         `
-  if (existing.length > 0) {
-    return invoiceSourceType === 2 ? "تم إصدار فاتورة لهذه الإرسالية سابقاً" : "تم إصدار فاتورة لهذه الطلبية سابقاً"
+  if (invoiceSourceType === 2) {
+    const existing = await sql`
+      SELECT vh.id
+      FROM voucher_header_tbl vh
+      WHERE vh.id != ${excludeVoucherId}
+        AND vh.vch_type IN (${SALES_INVOICE_VCH_TYPE}, ${PURCHASE_INVOICE_VCH_TYPE})
+        AND EXISTS (
+          SELECT 1
+          FROM voucher_items_tbl vi
+          WHERE vi.voucher_id = vh.id
+            AND vi.delivery_item_id IN (
+              SELECT id FROM voucher_items_tbl WHERE voucher_id = ${sourceVoucherId}
+            )
+        )
+      LIMIT 1
+    `
+    if (existing.length > 0) {
+      return "تم إصدار فاتورة لهذه الإرسالية سابقاً"
+    }
+    return null
   }
+
+  const orderItemIds = items
+    .map((item: any) => Number(item.order_item_id || 0))
+    .filter((id) => id > 0)
+  if (orderItemIds.length === 0) {
+    return "يجب اختيار الطلبية المصدرية للفاتورة"
+  }
+
+  const invoices = await sql`
+    SELECT vi.order_item_id,
+           COALESCE(SUM(vi.qnty), 0) AS invoiced_quantity,
+           COALESCE(SUM(vi.bonus), 0) AS invoiced_bonus
+    FROM voucher_items_tbl vi
+    JOIN voucher_header_tbl vh ON vh.id = vi.voucher_id
+    WHERE vh.vch_type = ${vchType}
+      AND vh.status = 2
+      AND vh.id != ${excludeVoucherId}
+      AND vi.order_item_id = ANY(${orderItemIds}::int[])
+    GROUP BY vi.order_item_id
+  `
+
+  const invoiceTotals = new Map<number, { invoiced_quantity: number; invoiced_bonus: number }>()
+  for (const row of invoices) {
+    invoiceTotals.set(Number(row.order_item_id), {
+      invoiced_quantity: Number(row.invoiced_quantity || 0),
+      invoiced_bonus: Number(row.invoiced_bonus || 0),
+    })
+  }
+
+  const orderItems = vchType === SALES_INVOICE_VCH_TYPE
+    ? await sql`
+        SELECT oi.id, oi.quantity, COALESCE(oi.bonus, oi.bonus_quantity, 0) AS bonus, oi.order_id
+        FROM order_items oi
+        WHERE oi.id = ANY(${orderItemIds}::int[])
+      `
+    : await sql`
+        SELECT poi.id, poi.quantity, COALESCE(poi.bonus, poi.bonus_quantity, 0) AS bonus, poi.purchase_order_id AS order_id
+        FROM purchase_order_items poi
+        WHERE poi.id = ANY(${orderItemIds}::int[])
+      `
+
+  const orderItemById = new Map<number, any>()
+  for (const row of orderItems) {
+    orderItemById.set(Number(row.id), row)
+  }
+
+  const currentTotals = new Map<number, { quantity: number; bonus: number }>()
+  for (const item of items) {
+    const id = Number(item.order_item_id || 0)
+    if (id <= 0) continue
+    const existing = currentTotals.get(id) ?? { quantity: 0, bonus: 0 }
+    currentTotals.set(id, {
+      quantity: existing.quantity + Number(item.quantity || 0),
+      bonus: existing.bonus + Number((item.bonus ?? item.bonus_quantity) || 0),
+    })
+  }
+
+  for (const [orderItemId, totals] of currentTotals.entries()) {
+    const orderItem = orderItemById.get(orderItemId)
+    if (!orderItem || Number(orderItem.order_id) !== sourceVoucherId) {
+      return "أحد عناصر الطلبية غير صالح لهذه الطلبية المصدرية"
+    }
+
+    const existing = invoiceTotals.get(orderItemId) ?? { invoiced_quantity: 0, invoiced_bonus: 0 }
+    const remainingQuantity = Math.max(0, Number(orderItem.quantity || 0) - existing.invoiced_quantity)
+    const remainingBonus = Math.max(0, Number(orderItem.bonus || 0) - existing.invoiced_bonus)
+
+    if (totals.quantity > remainingQuantity || totals.bonus > remainingBonus) {
+      return "الكمية أو البونص المحدد يتجاوز المتبقي في الطلبية"
+    }
+
+    if (remainingQuantity === 0 && remainingBonus === 0) {
+      return "تمت فاتورة هذا العنصر بالكامل سابقاً"
+    }
+  }
+
   return null
 }
 
