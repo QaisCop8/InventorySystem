@@ -123,6 +123,7 @@ export interface SalesVoucherItemRow {
   source_rate?: number
   order_item_id?: number | null
   delivery_item_id?: number | null
+  item_name?: string
   note: string
   // أبعاد/عدد اختيارية بمستوى السطر — نفس الآلية والأعمدة الأربعة في unified-stock-voucher.tsx
   // (تظهر فقط إن فُعِّلت أعمدتها من إعدادات السند أو احتاجها صنف نوع قياسه غير عادي فعلياً).
@@ -1001,33 +1002,27 @@ export default function UnifiedSalesDelivery({
         try {
           const view = itemsCollectionViewRef.current
           const gridControl = resolveFlexControl(itemsGridRef.current)
-          const refreshView = () => {
+          view.sourceCollection = normalizedItems
+          try {
+            view.refresh()
+          } catch {}
+          if (gridControl) {
             try {
-              view.refresh()
+              gridControl.itemsSource = view
             } catch {}
-            if (gridControl && typeof gridControl.invalidate === "function") {
+            if (typeof gridControl.invalidate === "function") {
               try {
                 gridControl.invalidate()
               } catch {}
             }
-            if (gridControl && typeof gridControl.itemsSource !== "undefined") {
+            if (typeof gridControl.refresh === "function") {
               try {
-                gridControl.itemsSource = view
+                gridControl.refresh()
               } catch {}
             }
           }
-          if (typeof view.deferUpdate === "function") {
-            view.deferUpdate(() => {
-              view.sourceCollection = normalizedItems
-            })
-            // refresh is not required after deferUpdate; call defensively
-            refreshView()
-          } else {
-            view.sourceCollection = normalizedItems
-            refreshView()
-          }
         } catch (err) {
-          // If even deferUpdate fails, fall back to a delayed assignment once more.
+          // If the primary update fails, fall back to a direct sourceCollection assignment.
           // eslint-disable-next-line no-console
           console.warn("CollectionView update failed, retrying shortly:", err)
           setTimeout(() => {
@@ -1035,36 +1030,22 @@ export default function UnifiedSalesDelivery({
               const view2 = itemsCollectionViewRef.current
               const gridControl2 = resolveFlexControl(itemsGridRef.current)
               if (view2) {
+                view2.sourceCollection = normalizedItems
                 try {
-                  view2.deferUpdate(() => {
-                    view2.sourceCollection = normalizedItems
-                  })
+                  view2.refresh()
+                } catch {}
+                if (gridControl2) {
                   try {
-                    view2.refresh()
+                    gridControl2.itemsSource = view2
                   } catch {}
-                  if (gridControl2 && typeof gridControl2.invalidate === "function") {
+                  if (typeof gridControl2.invalidate === "function") {
                     try {
                       gridControl2.invalidate()
                     } catch {}
                   }
-                  if (gridControl2 && typeof gridControl2.itemsSource !== "undefined") {
+                  if (typeof gridControl2.refresh === "function") {
                     try {
-                      gridControl2.itemsSource = view2
-                    } catch {}
-                  }
-                } catch {
-                  view2.sourceCollection = normalizedItems
-                  try {
-                    view2.refresh()
-                  } catch {}
-                  if (gridControl2 && typeof gridControl2.invalidate === "function") {
-                    try {
-                      gridControl2.invalidate()
-                    } catch {}
-                  }
-                  if (gridControl2 && typeof gridControl2.itemsSource !== "undefined") {
-                    try {
-                      gridControl2.itemsSource = view2
+                      gridControl2.refresh()
                     } catch {}
                   }
                 }

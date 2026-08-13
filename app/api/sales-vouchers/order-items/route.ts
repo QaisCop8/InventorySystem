@@ -29,16 +29,29 @@ export async function GET(request: NextRequest) {
       }
 
       const items = await sql`
-        SELECT oi.*, p.product_code,
-               COALESCE(oi.product_name, p.product_name, '') AS product_name,
+        SELECT oi.id AS order_item_id,
+               oi.id,
+               oi.order_id,
+               oi.product_id,
+               oi.product_code,
+               oi.product_name,
+               COALESCE(oi.product_name, p.product_name, '') AS item_name,
+               p.product_code AS product_code_alias,
+               p.product_name AS current_product_name,
+               oi.barcode,
+               oi.store_id AS warehouse_id,
+               oi.store_id AS store_id,
+               COALESCE(wh.warehouse_name, '') AS warehouse_name,
                u.unit_name AS unit,
                oi.price AS unit_price,
                oi.discount AS discount_percent,
-               oi.bonus AS bonus_quantity,
+               COALESCE(oi.bonus, 0) AS bonus_quantity,
+               oi.quantity,
+               oi.quantity AS remaining_quantity_raw,
                COALESCE(inv.invoiced_quantity, 0) AS sent_quantity,
                COALESCE(inv.invoiced_bonus, 0) AS sent_bonus,
                GREATEST(oi.quantity - COALESCE(inv.invoiced_quantity, 0), 0) AS remaining_quantity,
-               GREATEST(oi.bonus - COALESCE(inv.invoiced_bonus, 0), 0) AS remaining_bonus
+               GREATEST(COALESCE(oi.bonus, 0) - COALESCE(inv.invoiced_bonus, 0), 0) AS remaining_bonus
         FROM order_items oi
         LEFT JOIN LATERAL (
           SELECT
@@ -52,10 +65,11 @@ export async function GET(request: NextRequest) {
         ) inv ON TRUE
         LEFT JOIN products p ON p.id = oi.product_id
         LEFT JOIN units u ON u.id = oi.unit_id
+        LEFT JOIN warehouses wh ON wh.id = oi.store_id
         WHERE oi.order_id = ${orderId}
           AND (
             oi.quantity > COALESCE(inv.invoiced_quantity, 0)
-            OR oi.bonus > COALESCE(inv.invoiced_bonus, 0)
+            OR COALESCE(oi.bonus, 0) > COALESCE(inv.invoiced_bonus, 0)
           )
         ORDER BY oi.id
       `
@@ -76,14 +90,28 @@ export async function GET(request: NextRequest) {
       }
 
       const items = await sql`
-        SELECT poi.*, p.product_code, p.product_name, p.barcode,
-               COALESCE(poi.unit, p.main_unit, '') AS unit,
-               COALESCE(poi.discount, poi.discount_percentage, 0) AS discount_percent,
-               COALESCE(poi.bonus, poi.bonus_quantity, 0) AS bonus_quantity,
+        SELECT poi.id AS order_item_id,
+               poi.id,
+               poi.purchase_order_id AS order_id,
+               poi.product_id,
+               poi.product_code,
+               poi.product_name,
+               COALESCE(poi.product_name, p.product_name, '') AS item_name,
+               p.product_code AS product_code_alias,
+               p.product_name AS current_product_name,
+               poi.barcode,
+               NULL::integer AS warehouse_id,
+               NULL::integer AS store_id,
+               '' AS warehouse_name,
+               COALESCE(poi.unit, '') AS unit,
+               poi.unit_price,
+               COALESCE(poi.discount, 0) AS discount_percent,
+               COALESCE(poi.bonus_quantity, 0) AS bonus_quantity,
+               poi.quantity,
                COALESCE(inv.invoiced_quantity, 0) AS sent_quantity,
                COALESCE(inv.invoiced_bonus, 0) AS sent_bonus,
                GREATEST(poi.quantity - COALESCE(inv.invoiced_quantity, 0), 0) AS remaining_quantity,
-               GREATEST(COALESCE(poi.bonus, poi.bonus_quantity, 0) - COALESCE(inv.invoiced_bonus, 0), 0) AS remaining_bonus
+               GREATEST(COALESCE(poi.bonus_quantity, 0) - COALESCE(inv.invoiced_bonus, 0), 0) AS remaining_bonus
         FROM purchase_order_items poi
         LEFT JOIN LATERAL (
           SELECT
@@ -99,7 +127,7 @@ export async function GET(request: NextRequest) {
         WHERE poi.purchase_order_id = ${orderId}
           AND (
             poi.quantity > COALESCE(inv.invoiced_quantity, 0)
-            OR COALESCE(poi.bonus, poi.bonus_quantity, 0) > COALESCE(inv.invoiced_bonus, 0)
+            OR COALESCE(poi.bonus_quantity, 0) > COALESCE(inv.invoiced_bonus, 0)
           )
         ORDER BY poi.id
       `

@@ -180,7 +180,15 @@ export default function InvoiceFromOrderPopup({
     () => ({
       name: "SelectedItemsScheme",
       columns: [
-        { header: "الصنف", name: "product_name", width: "*", isReadOnly: true },
+        {
+          header: "الصنف",
+          name: "item_name",
+          width: "*",
+          isReadOnly: true,
+          body: (cell: any) => (
+            <span>{String(cell.row.dataItem.item_name || cell.row.dataItem.product_name || "")}</span>
+          ),
+        },
         { header: "الكمية", name: "quantity", width: 90, isReadOnly: true },
         { header: "البونص", name: "bonus_quantity", width: 90, isReadOnly: true },
         { header: "الكمية المرسلة", name: "sent_quantity", width: 110, isReadOnly: true },
@@ -254,9 +262,10 @@ export default function InvoiceFromOrderPopup({
             product_id: Number(item.product_id || null),
             product_code: String(item.product_code || item.current_product_code || ""),
             product_name: String(item.product_name || item.current_product_name || ""),
+            item_name: String(item.item_name || item.product_name || item.current_product_name || ""),
             barcode: String(item.barcode || ""),
             warehouse_id: item.warehouse_id != null ? Number(item.warehouse_id) : null,
-            warehouse_name: String(item.warehouse_name || item.warehouse || ""),
+            warehouse_name: String(item.warehouse_name || item.store_name || item.warehouse || ""),
             unit: String(item.unit || ""),
             quantity: Number(item.quantity || 0),
             bonus_quantity: Number(item.bonus_quantity || 0),
@@ -449,6 +458,7 @@ export default function InvoiceFromOrderPopup({
             setError(null)
           }
         }}
+        accounts={[]}
         allowedTypeValues={allowedAccountTypes}
         showOrderOnlyFilter={true}
         orderType={orderType}

@@ -2689,8 +2689,8 @@ function UnifiedSalesOrder({
         `/api/orders/navigation/${navigationType}`,
         location.origin
       );
-      url.searchParams.set("currentId", state.formData.order_number.toString());
-      url.searchParams.set("vch_book", state.formData.vch_book.toString());
+      url.searchParams.set("currentId", String(state.formData.id || 0));
+      url.searchParams.set("vch_book", state.formData.vch_book?.toString() ?? "");
       url.searchParams.set("order_type", vch_type?.toString() ?? "1");
       // ---- navigation params ----
       if (navigationType === "Byid" && orderId) {

@@ -150,6 +150,7 @@ const validateSourceInvoice = async (itemsOrData: any, maybeData?: any, excludeV
     data = itemsOrData || {}
   }
 
+  const vchType = Number(data.vch_type || 0)
   const invoiceSourceType = Number(data.invoice_source_type || 1)
   if (![2, 3].includes(invoiceSourceType)) return null
   const sourceVoucherId = Number(data.source_voucher_id || 0)
