@@ -279,7 +279,7 @@ const initialFormData: OrderFormData = {
   customer_number: "",
   customer_phone: "",
   order_source: "manual",
-  vch_book: "R",
+  vch_book: "",
   received_by: "",
   customer_order_no: "",
   printed: 0,
@@ -519,15 +519,43 @@ function UnifiedSalesOrder({
 
 
   useEffect(() => {
-    const { vch_book } = state.formData;
+    const { vch_book, id: formId } = state.formData;
 
     // Optional: only generate if vch_book has a value
-    console.log("vch_book changed999999:", vch_book, "fromBlurRef:", fromBlurRef.current, "fromSearch:", fromSearch)
-    if (vch_book != null && !fromBlurRef.current && !fromSearch) {
+    console.log("vch_book changed:", vch_book, "fromBlurRef:", fromBlurRef.current, "fromSearch:", fromSearch, "formId:", formId);
+    
+    // Check if voucher book changed on NEW order (id = 0)
+    if (formId === 0 && vch_book != null && lastVchBook.current !== null && lastVchBook.current !== vch_book) {
+      console.log("Voucher book changed from", lastVchBook.current, "to", vch_book, "for new order");
+      
+      // Reset order number to force regeneration with new voucher book
+      setState((prev) => ({
+        ...prev,
+        formData: {
+          ...prev.formData,
+          order_number: "", // Reset order number
+        }
+      }));
+      
+      // Generate new order number with new voucher book
+      fromBlurRef.current = false;
+      generateOrderNumber(vch_book);
+      
+      // Set focus on date field
+      setTimeout(() => {
+        orderdateRef.current?.focus();
+      }, 50);
+    } else if (vch_book != null && !fromBlurRef.current && !fromSearch) {
       generateOrderNumber();
     }
+    
+    // Store current vch_book as last for future change detection
+    if (vch_book != null) {
+      lastVchBook.current = vch_book;
+    }
+    
     fromSearch = false
-  }, [state.formData.vch_book]);
+  }, [state.formData.vch_book, state.formData.id]);
   const currencies = [
     { code: "SAR", name: "ريال سعودي" },
     { code: "USD", name: "دولار أمريكي" },
@@ -552,9 +580,10 @@ function UnifiedSalesOrder({
       try {
         setLoading(true);
 
-        // Wait for definitions to load
-        await fetchDefinitions();
-
+        // Wait for definitions to load (includes default voucher book)
+        const definitions = await fetchDefinitions();
+        const defaultBookName = definitions?.defaultVoucherBook ?? null;
+        
         // Set order statuses
         setOrderStatusList([
           { id: 1, name: 'غير جاهز' },
@@ -564,24 +593,6 @@ function UnifiedSalesOrder({
           { id: 5, name: 'ملغي' },
           { id: 6, name: 'مغلق' }
         ]);
-
-        // دفتر السندات: كان قائمة أحرف ثابتة "LMPR" بلا علاقة بصلاحيات المستخدم — الآن يُجلَب فعلياً
-        // من voucher_book_user_permissions_tbl (نفس نقطة النهاية ونمط stock-vouchers.tsx تماماً)،
-        // مقيّداً بنوع السند (1=طلبية مبيعات، 2=طلبية مشتريات — voucher_types_tbl).
-        let defaultBookName: string | null = null;
-        try {
-          const booksRes = await fetch(
-            `/api/receipts/voucher-books?vch_type=${vch_type ?? 1}${user?.id ? `&user_id=${encodeURIComponent(user.id)}` : ""}`,
-          );
-          if (booksRes.ok) {
-            const booksData = await booksRes.json();
-            const books = Array.isArray(booksData?.books) ? booksData.books : [];
-            setVoucherBooks(books);
-            defaultBookName = books.find((b: any) => b.id === booksData?.default_book_id)?.name ?? books[0]?.name ?? null;
-          }
-        } catch (error) {
-          console.error("Failed to fetch voucher books:", error);
-        }
 
         // Initialize new record
         if (order) {
@@ -662,7 +673,26 @@ function UnifiedSalesOrder({
       setSalesmen(Array.isArray(json.data) ? json.data : []);
     }
 
-    return definitionsObj
+    // Fetch default voucher book
+    // دفتر السندات: يُجلَب فعلياً من voucher_book_user_permissions_tbl،
+    // مقيّداً بنوع السند (1=طلبية مبيعات، 2=طلبية مشتريات — voucher_types_tbl).
+    let defaultBookName: string | null = null;
+    try {
+      const booksRes = await fetch(
+        `/api/receipts/voucher-books?vch_type=${vch_type ?? 1}${user?.id ? `&user_id=${encodeURIComponent(user.id)}` : ""}`,
+      );
+      if (booksRes.ok) {
+        const booksData = await booksRes.json();
+        const books = Array.isArray(booksData?.books) ? booksData.books : [];
+        setVoucherBooks(books);
+        definitionsObj.defaultVoucherBook = books.find((b: any) => b.id === booksData?.default_book_id)?.name ?? books[0]?.name ?? null;
+        defaultBookName = definitionsObj.defaultVoucherBook;
+      }
+    } catch (error) {
+      console.error("Failed to fetch voucher books:", error);
+    }
+
+    return { ...definitionsObj, defaultVoucherBook: defaultBookName }
   }
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -839,56 +869,40 @@ function UnifiedSalesOrder({
   };
 
   const handleOrderCodeBlur = async () => {
-    const { order_number } = state.formData;
+    const raw = (state.formData.order_number || "").trim();
+    if (!raw) return;
 
-    // Remove all non-alphanumeric characters
-    let cleaned = (order_number || "").replace(/[^a-zA-Z0-9]/g, "");
+    try {
+      const params = new URLSearchParams({
+        order_number: raw,
+      });
 
-    // Force first letter based on vch_type
-    const firstLetter = vch_type === 1 ? "O" : "T";
+      const res = await fetch(`/api/orders/getorderbycode?${params.toString()}`);
+      const data = await res.json();
 
-    // Ensure first character is replaced
-
-    // Adjust length using your adjustCode function
-    cleaned = adjustCode(cleaned, 10);
-
-    let order_num = firstLetter + (cleaned.slice(1) || "");
-
-
-    console.log("order_num ", order_num);
-    fromBlurRef.current = true
-    // Update state
-    setState((prev) => ({
-      ...prev,
-      formData: {
-        ...prev.formData,
-        order_number: order_num,
-        vch_book: order_num[1] ?? "R", // second character
-      },
-    }));
-
-    const params = new URLSearchParams({
-      order_number: order_num,
-    });
-
-    const res = await fetch(`/api/orders/getorderbycode?${params.toString()}`);
-    const data = await res.json();
-    if (!res.ok) {
-      reset_order()
-    }
-    else {
-      if (!data) reset_order()
-      else {
-        if (data.deleted === true) {
-          Util.showErrorMessage(message, 'الطلبية محذوفة لا يمكن عرضها')
-          reset_order();
-          return
-        }
-
-        loadOrderData('Byid', data.id)
+      if (!res.ok) {
+        Util.showErrorMessage(message, data.error || 'تعذر تحديد رقم الطلبية');
+        return;
       }
+
+      // If order exists
+      if (data && data.id) {
+        if (data.id === state.formData.id) return; // Same order, do nothing
+        if (data.deleted === true) {
+          Util.showErrorMessage(message, 'الطلبية محذوفة لا يمكن عرضها');
+          reset_order();
+          return;
+        }
+        // Order found, load it
+        loadOrderData('Byid', data.id);
+      } else {
+        // New order, reset
+        reset_order();
+      }
+    } catch (error) {
+      console.error("Error resolving order code:", error);
+      Util.showErrorMessage(message, 'حدث خطأ أثناء التحقق من رقم الطلبية');
     }
-    //fromBlurRef.current = false
   };
 
 
@@ -1054,7 +1068,8 @@ function UnifiedSalesOrder({
           batch: '',
           qnty: 1,
           bonus: '',
-          amount: initialPrice
+          amount: initialPrice,
+          item_status: state.formData.order_status || 1
         };
         if (setFromExcelRef.current) {
           item.qnty = ii.qnty;
@@ -1090,6 +1105,10 @@ function UnifiedSalesOrder({
         item.batch = setFromExcelRef.current ? ii.batch + '' : '';
         item.qnty = setFromExcelRef.current ? ii.qnty : 1;
         item.amount = setFromExcelRef.current ? ii.qnty * ii.price : updatedPrice;
+        // Ensure item_status is set to order status
+        if (!item.item_status) {
+          item.item_status = state.formData.order_status || 1;
+        }
         CollectionView.commitEdit();
       }
     }
@@ -1477,7 +1496,21 @@ function UnifiedSalesOrder({
         },
 
         {
-          header: "الحالة", name: "item_status", width: 100, visible: false,
+          header: "حالة الصنف", name: "item_status", width: 100, visible: false,
+        },
+        {
+          header: "حالة الصنف", name: "item_status_name", width: 100, visible: true,
+          cellTemplate: (ctx: any) => {
+            const statusMap: { [key: number]: string } = {
+              1: 'غير جاهز',
+              2: 'جاهز',
+              3: 'مرسلة جزئيا',
+              4: 'مرسلة كليا',
+              5: 'ملغي',
+              6: 'مغلق'
+            };
+            return statusMap[ctx.item?.item_status] || '';
+          }
         },
         {
           header: "الباركود", name: "barcode", width: 120, visible: Util.getVoucherSettingScreenData(vch_type, 'barcode')
@@ -2701,9 +2734,11 @@ function UnifiedSalesOrder({
         url.searchParams.set("order_number", orderCode);
       }
 
-
+      console.log("Fetching order data from URL:", url.toString());
+      console.log("Current Order ID:", state.formData.id);
       const res = await fetch(url.toString());
       const order = await res.json();
+      console.log("Fetched order data:", order);
       if (!order?.id || order.id === currentOrderId) {
         Util.showErrorToast(toast.current, navigationType === "previous" || navigationType === "first"
           ? "بداية السجلات"
@@ -2772,6 +2807,21 @@ function UnifiedSalesOrder({
             discount: Number(item.discount ?? item.discount_percentage ?? 0),
           }
         });
+        // Replace the CollectionView contents with the loaded items
+        try {
+          CollectionView.sourceCollection.splice(0, CollectionView.sourceCollection.length);
+          updatedItems.forEach((it: any) => CollectionView.sourceCollection.push(it));
+        } catch (e) {
+          // Fallback: assign directly if splice is not available
+          // @ts-ignore
+          CollectionView.sourceCollection = updatedItems;
+        }
+        CollectionView.refresh();
+      } else {
+        // Ensure grid has at least one empty row when no items
+        CollectionView.sourceCollection.splice(0, CollectionView.sourceCollection.length);
+        const newRow = { ser: 1 };
+        CollectionView.sourceCollection.push(newRow);
         CollectionView.refresh();
       }
 
@@ -2828,6 +2878,7 @@ function UnifiedSalesOrder({
   const reset_order = (vchBookOverride?: string) => {
     setLoading(true)
     const resolvedVchBook = vchBookOverride || lastVchBook.current || initialFormData.vch_book;
+    console.log("reset_order resolvedVchBook ", resolvedVchBook, " lastVchBook.current ", lastVchBook.current, " initialFormData.vch_book ", initialFormData.vch_book)
     setState((prev) => ({
       ...prev, // Keep existing states like customers, products etc.
       formData: { ...initialFormData, vat_percent: defaultVatPercentRef.current, vch_book: resolvedVchBook },

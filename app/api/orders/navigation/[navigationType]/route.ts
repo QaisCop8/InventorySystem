@@ -6,46 +6,53 @@ export async function GET(request: Request, { params }: { params: { navigationTy
   try {
     const pool = await getTenantPool();
     const { searchParams } = new URL(request.url);
-    const navigationType = params.navigationType;
+    let navigationType = params.navigationType;
     const currentId = Number(searchParams.get("currentId") || 0);
-    const orderType = Number(searchParams.get("order_type") || 0);
+    const orderTypeParam = searchParams.get("order_type");
+    const orderType = orderTypeParam ? Number(orderTypeParam) : null;
 
-    const orderQueryBase = `
-      SELECT so.*, COALESCE(c.name, '') AS customer_name, COALESCE(c.customer_code, '') AS customer_code
+    const selectOrderBase = `
+      SELECT so.*, COALESCE(c.account_name, '') AS customer_name, COALESCE(c.account_code, '') AS customer_code
       FROM orders so
-      LEFT JOIN customers c ON so.customer_id = c.id
-      WHERE so.deleted = false
-      ${orderType ? "AND so.order_type = $2" : ""}
+      Inner JOIN accounts c ON so.customer_id = c.id
     `;
 
+    const baseWhere = `WHERE so.deleted = false`;
+    if(navigationType === "previous" && !currentId) navigationType = "last"
+    if(navigationType === "next" && !currentId) navigationType = "first"
     if (navigationType === "first" || navigationType === "last" || navigationType === "previous" || navigationType === "next") {
       let rows: any[] = [];
+
       if (navigationType === "first") {
-        rows = await pool.query(
-          `${orderQueryBase} ORDER BY so.id ASC LIMIT 1`,
-          orderType ? [orderType] : []
-        ).then((result) => result.rows);
+        if (orderType) {
+          rows = (await pool.query(`${selectOrderBase} ${baseWhere} AND so.order_type = $1 ORDER BY so.id ASC LIMIT 1`, [orderType])).rows;
+        } else {
+          rows = (await pool.query(`${selectOrderBase} ${baseWhere} ORDER BY so.id ASC LIMIT 1`)).rows;
+        }
       } else if (navigationType === "last") {
-        rows = await pool.query(
-          `${orderQueryBase} ORDER BY so.id DESC LIMIT 1`,
-          orderType ? [orderType] : []
-        ).then((result) => result.rows);
+        if (orderType) {
+          rows = (await pool.query(`${selectOrderBase} ${baseWhere} AND so.order_type = $1 ORDER BY so.id DESC LIMIT 1`, [orderType])).rows;
+        } else {
+          rows = (await pool.query(`${selectOrderBase} ${baseWhere} ORDER BY so.id DESC LIMIT 1`)).rows;
+        }
       } else if (navigationType === "previous") {
         if (!currentId) {
           return NextResponse.json(null, { status: 200 });
         }
-        rows = await pool.query(
-          `${orderQueryBase} AND so.id < $1 ORDER BY so.id DESC LIMIT 1`,
-          orderType ? [currentId, orderType] : [currentId]
-        ).then((result) => result.rows);
+        if (orderType) {
+          rows = (await pool.query(`${selectOrderBase} ${baseWhere} AND so.id < $1 AND so.order_type = $2 ORDER BY so.id DESC LIMIT 1`, [currentId, orderType])).rows;
+        } else {
+          rows = (await pool.query(`${selectOrderBase} ${baseWhere} AND so.id < $1 ORDER BY so.id DESC LIMIT 1`, [currentId])).rows;
+        }
       } else if (navigationType === "next") {
         if (!currentId) {
           return NextResponse.json(null, { status: 200 });
         }
-        rows = await pool.query(
-          `${orderQueryBase} AND so.id > $1 ORDER BY so.id ASC LIMIT 1`,
-          orderType ? [currentId, orderType] : [currentId]
-        ).then((result) => result.rows);
+        if (orderType) {
+          rows = (await pool.query(`${selectOrderBase} ${baseWhere} AND so.id > $1 AND so.order_type = $2 ORDER BY so.id ASC LIMIT 1`, [currentId, orderType])).rows;
+        } else {
+          rows = (await pool.query(`${selectOrderBase} ${baseWhere} AND so.id > $1 ORDER BY so.id ASC LIMIT 1`, [currentId])).rows;
+        }
       }
 
       const order = rows[0];
@@ -78,9 +85,9 @@ export async function GET(request: Request, { params }: { params: { navigationTy
       }
 
       const orderResult = await pool.query(
-        `SELECT so.*, COALESCE(c.name, '') AS customer_name, COALESCE(c.customer_code, '') AS customer_code
+        `SELECT so.*, COALESCE(c.account_name, '') AS customer_name, COALESCE(c.account_code, '') AS customer_code
          FROM orders so
-         LEFT JOIN customers c ON so.customer_id = c.id
+         INNER JOIN accounts c ON so.customer_id = c.id
          WHERE so.id = $1 AND so.deleted = false
          LIMIT 1`,
         [id]
@@ -120,10 +127,10 @@ export async function GET(request: Request, { params }: { params: { navigationTy
       const queryText = `
         SELECT
           so.*,
-          COALESCE(c.name, '') AS customer_name,
-          COALESCE(c.customer_code, '') AS customer_code
+          COALESCE(c.account_name, '') AS customer_name,
+          COALESCE(c.account_code, '') AS customer_code
         FROM orders so
-        LEFT JOIN customers c ON so.customer_id = c.id
+        LEFT JOIN accounts c ON so.customer_id = c.id
         WHERE so.order_number = $1 AND so.deleted = false
         LIMIT 1
       `;

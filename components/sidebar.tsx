@@ -73,17 +73,13 @@ interface Accent {
 const ACCENTS: Record<string, Accent> = {
   "home-dashboard": { gradient: "from-cyan-400 to-blue-500", glow: "shadow-cyan-500/40", chip: "bg-cyan-500/15 text-cyan-700 dark:text-cyan-200" },
   "smart-analytics": { gradient: "from-violet-400 to-purple-600", glow: "shadow-violet-500/40", chip: "bg-violet-500/15 text-violet-700 dark:text-violet-200" },
-  "order-tracking": { gradient: "from-sky-400 to-indigo-500", glow: "shadow-sky-500/40", chip: "bg-sky-500/15 text-sky-700 dark:text-sky-200" },
   "task-orders": { gradient: "from-fuchsia-400 to-pink-600", glow: "shadow-fuchsia-500/40", chip: "bg-fuchsia-500/15 text-fuchsia-700 dark:text-fuchsia-200" },
   definitions: { gradient: "from-emerald-400 to-teal-500", glow: "shadow-emerald-500/40", chip: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-200" },
   "general-accounting": { gradient: "from-amber-400 to-orange-500", glow: "shadow-amber-500/40", chip: "bg-amber-500/15 text-amber-700 dark:text-amber-200" },
   "item-management": { gradient: "from-lime-400 to-green-600", glow: "shadow-lime-500/40", chip: "bg-lime-500/15 text-lime-700 dark:text-lime-200" },
   orders: { gradient: "from-rose-400 to-pink-600", glow: "shadow-rose-500/40", chip: "bg-rose-500/15 text-rose-700 dark:text-rose-200" },
-  invoices: { gradient: "from-indigo-400 to-blue-600", glow: "shadow-indigo-500/40", chip: "bg-indigo-500/15 text-indigo-700 dark:text-indigo-200" },
-  batch: { gradient: "from-orange-400 to-red-500", glow: "shadow-orange-500/40", chip: "bg-orange-500/15 text-orange-700 dark:text-orange-200" },
   reports: { gradient: "from-teal-400 to-cyan-600", glow: "shadow-teal-500/40", chip: "bg-teal-500/15 text-teal-700 dark:text-teal-200" },
   settings: { gradient: "from-slate-400 to-slate-600", glow: "shadow-slate-500/40", chip: "bg-slate-500/15 text-slate-700 dark:text-slate-200" },
-  postings: { gradient: "from-fuchsia-400 to-purple-600", glow: "shadow-fuchsia-500/40", chip: "bg-fuchsia-500/15 text-fuchsia-700 dark:text-fuchsia-200" },
 }
 
 const DEFAULT_ACCENT: Accent = ACCENTS["home-dashboard"]
@@ -96,7 +92,6 @@ export const menuItems: MenuItem[] = [
   { id: "home-dashboard", title: "الرئيسية", icon: LayoutDashboard, section: "home-dashboard" },
   //{ id: "ai-assistant", title: "المساعد الذكي", icon: Sparkles, section: "ai-assistant" },
   { id: "smart-analytics", title: "التحليلات الذكية", icon: BarChart3, section: "smart-analytics" },
-  { id: "order-tracking", title: "متابعة الطلبيات", icon: GitBranch, section: "order-tracking" },
   {
     id: "task-orders",
     title: "تتبع أوامر العمل",
@@ -204,21 +199,7 @@ export const menuItems: MenuItem[] = [
       },
     ],
   },
-  {
-    id: "invoices",
-    title: "الفواتير",
-    icon: FileText,
-    submenu: [
-      {
-        title: "الحركات",
-        section: "invoice-transactions",
-        icon: FileText,
-        submenu: [
-          { title: "فواتير المبيعات", section: "sale-invoices", icon: FileText },
-        ],
-      },
-    ],
-  },
+
   {
     id: "sales-purchase-vouchers",
     title: "المبيعات والمشتريات",
@@ -241,18 +222,7 @@ export const menuItems: MenuItem[] = [
       },
     ],
   },
-  {
-    id: "batch",
-    title: "حركات الرقم التشغيلي",
-    icon: Archive,
-    submenu: [
-      {
-        title: "معالجة الرقم التشغيلي",
-        section: "batch-movements",
-        icon: Archive,
-      },
-    ],
-  },
+
   {
     id: "reports",
     title: "التقارير",
@@ -291,14 +261,7 @@ export const menuItems: MenuItem[] = [
       { title: "اعدادات عامة", section: "vouchers-general-settings", icon: Settings },
     ],
   },
-  {
-    id: "postings",
-    title: "التكامل مع الأنظمة الأخرى",
-    icon: DollarSign,
-    submenu: [
-      { title: "ترحيل الطلبيات", section: "orders-migration", icon: UserCheck },
-    ],
-  },
+
 ]
 
 // يُسطِّح menuItems (بمن فيهم submenu المتداخل حتى مستويين) إلى خريطة section -> title واحدة —
