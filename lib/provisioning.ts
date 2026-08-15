@@ -447,7 +447,7 @@ async function seedDefaultBranchAndSection(tenantClient: ReturnType<typeof getPo
   )
   const branchId = branchResult[0].id
 
-  const insertedAdmin = await tenantClient.query(
+  await tenantClient.query(
     `INSERT INTO departments (department_code, department_name, branch_id, is_active)
      VALUES ($1, $2, $3, true)
      ON CONFLICT (department_code) DO UPDATE SET
@@ -608,7 +608,7 @@ export async function provisionCompanyDatabase(
     `DELETE FROM user_settings WHERE user_id = $1 OR LOWER(username) = LOWER($2)`,
     ["1", "admin"],
   )
-  await tenantClient.query(
+  const insertedAdmin = await tenantClient.query(
     `INSERT INTO user_settings (
       user_id, username, email, password_hash, full_name, role, department,
       organization_id, permissions, branch_id, is_active
