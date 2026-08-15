@@ -2,7 +2,6 @@
 set -euo pipefail
 
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-dump_path="${DATABASE_DUMP_PATH:-${root_dir}/backupDB.sql}"
 management_schema_path="${MANAGEMENT_SCHEMA_PATH:-${root_dir}/scripts/management-schema.sql}"
 management_url="${DATABASE_URL:-}"
 
@@ -19,17 +18,12 @@ fi
 connection_root="${url_without_query%/*}"
 admin_url="${connection_root}/postgres${url_query}"
 
-for command_name in psql createdb pg_restore; do
+for command_name in psql createdb; do
   if ! command -v "${command_name}" >/dev/null 2>&1; then
     echo "${command_name} is required to bootstrap the databases." >&2
     exit 1
   fi
 done
-
-if [[ ! -f "${dump_path}" ]]; then
-  echo "Project database dump not found: ${dump_path}" >&2
-  exit 1
-fi
 
 create_database_if_missing() {
   local database_name="$1"
@@ -45,4 +39,4 @@ if [[ "$(psql "${management_url}" -tAc "SELECT current_database()")" != "managem
 fi
 psql "${management_url}" -v ON_ERROR_STOP=1 -f "${management_schema_path}"
 
-echo "Database bootstrap complete: management only. Company databases are created from backupDB.sql during approval."
+echo "Database bootstrap complete: management only. Each company is created as an empty database and restored from the project dump during provisioning."

@@ -35,7 +35,6 @@ function buildSqlClient(connectionUrl: string) {
 
 const managementUrl = (process.env.DATABASE_URL || "").trim()
 const adminUrl = managementUrl ? withDatabaseName(managementUrl, "postgres") : ""
-const templateUrl = managementUrl ? withDatabaseName(managementUrl, "company_template") : ""
 
 function createNoopSqlClient(): any {
   const client: any = async () => []
@@ -158,11 +157,6 @@ export function ensureManagementTables(): Promise<void> {
       // المتوقعة أو يتعذّر الاتصال بها — فشله يجب ألّا يُسقِط إنشاء جداول الإدارة نفسها، وإلا ستفشل
       // كل عملية تعتمد على ensureManagementTables (مثل إضافة صلاحية جديدة من "تعريف الصلاحيات")
       // بشكل دائم في كل طلب لاحق أيضاً، لا لمرة واحدة فقط.
-      try {
-        await seedAccessDefinitionsFromReferenceOnce()
-      } catch (seedError) {
-        console.error("[management-db] seedAccessDefinitionsFromReferenceOnce failed:", seedError)
-      }
     })().catch((error) => {
       managementDbEnsured = null
       throw error
@@ -175,7 +169,12 @@ export function ensureManagementTables(): Promise<void> {
 // الشركة المرجعية (نفس القاعدة التي كان lib/provisioning.ts يعتمدها ضمنياً "قالباً" سلفاً) إلى قاعدة
 // الإدارة — بعدها تصبح قاعدة الإدارة وحدها المصدر المُعتمَد، ولا تُعاد هذه النسخة أبداً (لا تُكرَّر
 // ولا تُحدِّث صفوفاً أضافها مسؤول المنصة لاحقاً عبر الشاشة الجديدة).
+/* Legacy reference-database importer intentionally disabled. New tenants are restored
+   from the project dump and no database is used as a template.
 async function seedAccessDefinitionsFromReferenceOnce(): Promise<void> {
+  // Retained only for source compatibility with older builds; provisioning no longer
+  // calls this importer or reads from another database.
+  const templateUrl = ""
   const existing = await sql`SELECT COUNT(*)::int AS n FROM access_category`
   if (Number(existing[0]?.n) > 0) return
 
@@ -202,6 +201,7 @@ async function seedAccessDefinitionsFromReferenceOnce(): Promise<void> {
   await sql`SELECT setval(pg_get_serial_sequence('access_category', 'id'), COALESCE((SELECT MAX(id) FROM access_category), 1))`
   await sql`SELECT setval(pg_get_serial_sequence('access_list', 'id'), COALESCE((SELECT MAX(id) FROM access_list), 1))`
 }
+*/
 
 let managementPool: Pool | null = null
 

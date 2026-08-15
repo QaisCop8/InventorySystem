@@ -1,6 +1,9 @@
 import crypto from "crypto"
+import path from "path"
+import { spawn } from "child_process"
 import managementSql, { ensureManagementTables } from "./management-db"
 import { getPoolForDb } from "./database"
+import { withDatabaseName } from "./db-url"
 
 function generateDbName(): string {
   return `co_${crypto.randomBytes(4).toString("hex")}`
@@ -15,13 +18,47 @@ async function generateUniqueDbName(): Promise<string> {
   throw new Error("تعذّر توليد معرّف فريد لقاعدة بيانات الشركة")
 }
 
-async function createCompanyDatabaseFromDump(dbName: string) {
+function restoreCompanyDatabase(dbName: string): Promise<void> {
+  const databaseUrl = process.env.DATABASE_URL?.trim()
+  if (!databaseUrl) throw new Error("DATABASE_URL is not configured")
+
+  const dumpPath = process.env.DATABASE_DUMP_PATH?.trim() || path.join(process.cwd(), "backupDB.sql")
+  const targetUrl = new URL(withDatabaseName(databaseUrl, dbName))
+  const restoreEnv: NodeJS.ProcessEnv = {
+    ...process.env,
+    PGHOST: targetUrl.hostname,
+    PGPORT: targetUrl.port || "5432",
+    PGUSER: decodeURIComponent(targetUrl.username),
+    PGPASSWORD: decodeURIComponent(targetUrl.password),
+    PGDATABASE: dbName,
+  }
+  const sslMode = targetUrl.searchParams.get("sslmode")
+  if (sslMode) restoreEnv.PGSSLMODE = sslMode
+
+  return new Promise((resolve, reject) => {
+    const child = spawn(
+      process.env.PG_RESTORE_PATH?.trim() || "pg_restore",
+      ["--exit-on-error", "--no-owner", "--no-privileges", "--dbname", dbName, dumpPath],
+      { env: restoreEnv, windowsHide: true },
+    )
+    let stderr = ""
+    child.stderr.on("data", (chunk) => {
+      stderr += String(chunk)
+    })
+    child.on("error", (error) => reject(new Error(`Unable to start pg_restore: ${error.message}`)))
+    child.on("close", (code) => {
+      if (code === 0) resolve()
+      else reject(new Error(`pg_restore failed with exit code ${code}: ${stderr.trim()}`))
+    })
+  })
+}
+
+async function createCompanyDatabaseFromScript(dbName: string) {
   if (!process.env.DATABASE_URL) {
     throw new Error("DATABASE_URL is not configured")
   }
 
   const { Pool } = await import("pg")
-  const { withDatabaseName } = await import("./db-url")
   const adminUrl = withDatabaseName(process.env.DATABASE_URL, "postgres")
 
   if (!adminUrl) {
@@ -31,23 +68,15 @@ async function createCompanyDatabaseFromDump(dbName: string) {
   const adminPool = new Pool({ connectionString: adminUrl })
   try {
     const existing = await adminPool.query("SELECT 1 FROM pg_database WHERE datname = $1", [dbName])
-    if (existing.rows.length === 0) {
-      // استخدام قاعدة inventory_system كقالب (template) لإنشاء قاعدة الشركة الجديدة
-      try {
-        await adminPool.query(`CREATE DATABASE "${dbName}" TEMPLATE "inventory_system"`)
-      } catch (error: any) {
-        // إذا فشل الاستنساخ من inventory_system، حاول إنشاء قاعدة فارغة
-        if (error.message.includes("inventory_system")) {
-          console.warn("[provisioning] inventory_system template not found, creating empty database")
-          await adminPool.query(`CREATE DATABASE "${dbName}"`)
-        } else {
-          throw error
-        }
-      }
-    }
+    if (existing.rows.length > 0) throw new Error(`Database ${dbName} already exists`)
+    // Always create an empty database. The project dump supplies its schema and
+    // default rows; no existing PostgreSQL database is used as a template.
+    await adminPool.query(`CREATE DATABASE "${dbName}"`)
   } finally {
     await adminPool.end().catch(() => {})
   }
+
+  await restoreCompanyDatabase(dbName)
 }
 
 async function ensureBasicProductsTable(tenantClient: ReturnType<typeof getPoolForDb>) {
@@ -315,6 +344,29 @@ async function seedAccessListsAndGrantAdmin(tenantClient: ReturnType<typeof getP
   }
 }
 
+async function seedManagementAccessDefinitions(tenantClient: ReturnType<typeof getPoolForDb>) {
+  const categories = await tenantClient.query(`SELECT id, name FROM access_category ORDER BY id`, [])
+  for (const category of categories) {
+    await managementSql`
+      INSERT INTO access_category (id, name)
+      VALUES (${category.id}, ${category.name})
+      ON CONFLICT (id) DO NOTHING
+    `
+  }
+
+  const items = await tenantClient.query(`SELECT id, name, category_id FROM access_list ORDER BY id`, [])
+  for (const item of items) {
+    await managementSql`
+      INSERT INTO access_list (id, name, category_id)
+      VALUES (${item.id}, ${item.name}, ${item.category_id})
+      ON CONFLICT (id) DO NOTHING
+    `
+  }
+
+  await managementSql`SELECT setval(pg_get_serial_sequence('access_category', 'id'), COALESCE((SELECT MAX(id) FROM access_category), 1))`
+  await managementSql`SELECT setval(pg_get_serial_sequence('access_list', 'id'), COALESCE((SELECT MAX(id) FROM access_list), 1))`
+}
+
 // صلاحيات دفاتر السندات (voucher_book_user_permissions_tbl — انظر app/api/voucher-book-permissions/
 // _lib.ts لشرح الجداول الثلاثة) لمستخدم admin (user_id='1'/id=1 المُنشأ للتو): تُمنَح كل الدفاتر
 // (voucher_books_tbl، مُستنسَخة ببياناتها أصلاً ضمن LOOKUP_TABLES أعلاه) لكل نوع سند (voucher_types_tbl)
@@ -470,7 +522,7 @@ export async function provisionCompanyDatabase(
   await ensureManagementTables()
 
   const dbName = await generateUniqueDbName()
-  await createCompanyDatabaseFromDump(dbName)
+  await createCompanyDatabaseFromScript(dbName)
 
   const tenantClient = getPoolForDb(dbName)
 
@@ -482,6 +534,7 @@ export async function provisionCompanyDatabase(
   await seedDefaultStore(tenantClient)
   await seedDefaultSystemSettings(tenantClient)
   await clearFreshCompanySeedData(tenantClient)
+  await seedManagementAccessDefinitions(tenantClient)
 
   await tenantClient.query(
     `INSERT INTO user_settings (

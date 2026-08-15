@@ -67,7 +67,7 @@ docker compose --env-file .env.production -f compose.production.yml ps
 docker compose --env-file .env.production -f compose.production.yml logs --tail=100 app caddy
 ```
 
-On a new PostgreSQL volume, the container automatically creates `management`, its tables, and `company_template`. The application creates each `co_*` company database from that template when a company is approved. A fresh server does not require an `inventory_system` restore.
+On a new PostgreSQL volume, the container creates only `management` and its tables. When a company is approved, the application creates a new empty `co_*` database and restores the project schema and default rows into it with PostgreSQL 18 `pg_restore`. No database is used as a template.
 
 If the database container was already started before these bootstrap mounts were added, update `.env.production` and run the bootstrap explicitly:
 
@@ -75,7 +75,7 @@ If the database container was already started before these bootstrap mounts were
 docker compose --env-file .env.production -f compose.production.yml exec database bash /bootstrap/scripts/bootstrap-databases.sh
 ```
 
-For a migration of an existing installation, restore `management` and every existing `co_*` company database. Preserve company database names because tenant selection depends on them. Do not restore `inventory_system` for a fresh installation.
+For a migration of an existing installation, restore `management` and every existing `co_*` company database. Preserve company database names because tenant selection depends on them. `inventory_system` and `company_template` are not required.
 
 ## 6. Connect local pgAdmin securely
 

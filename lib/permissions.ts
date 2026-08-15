@@ -22,6 +22,27 @@ export function ensurePermissionTables(dbName: string): Promise<void> {
   if (!promise) {
     const client = getPoolForDb(dbName)
     promise = (async () => {
+      // Create permission definitions before tables whose foreign keys reference them.
+      // This also repairs older tenant databases that do not yet have access_list.
+      await client.query(
+        `CREATE TABLE IF NOT EXISTS access_category (
+          id SERIAL PRIMARY KEY,
+          name VARCHAR(100) NOT NULL,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )`,
+        [],
+      )
+      await client.query(
+        `CREATE TABLE IF NOT EXISTS access_list (
+          id SERIAL PRIMARY KEY,
+          name VARCHAR(255) NOT NULL,
+          category_id INTEGER REFERENCES access_category(id) ON DELETE SET NULL,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )`,
+        [],
+      )
       await client.query(
         `CREATE TABLE IF NOT EXISTS job_roles (
           id SERIAL PRIMARY KEY,
