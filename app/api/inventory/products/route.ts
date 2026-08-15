@@ -49,6 +49,7 @@ async function ensureProductTypeColumns() {
 
 async function ensureProductSchemaColumns(client: any) {
   const columns: Array<[string, string]> = [
+    ["barcode", "VARCHAR(100)"],
     ["product_name_en", "TEXT"],
     ["category_id", "INTEGER"],
     ["main_stock_id", "INTEGER"],

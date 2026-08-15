@@ -174,6 +174,11 @@ async function ensureBasicProductsTable(tenantClient: ReturnType<typeof getPoolF
   )
 
   // إنشاء الفهارس الأساسية
+  // The canonical dump predates products.barcode. CREATE TABLE IF NOT EXISTS does
+  // not add missing columns to an existing restored table, so migrate it before
+  // creating the barcode index below.
+  await tenantClient.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS barcode VARCHAR(100)`, [])
+
   await tenantClient.query(`CREATE INDEX IF NOT EXISTS idx_products_code ON products(product_code)`, [])
   await tenantClient.query(`CREATE INDEX IF NOT EXISTS idx_products_name ON products(product_name)`, [])
   await tenantClient.query(`CREATE INDEX IF NOT EXISTS idx_products_barcode ON products(barcode)`, [])
@@ -307,6 +312,7 @@ async function ensureModernVoucherItemsTable(tenantClient: ReturnType<typeof get
 
 async function ensureModernProductColumns(tenantClient: ReturnType<typeof getPoolForDb>) {
   const productColumns: Array<[string, string]> = [
+    ["barcode", "VARCHAR(100)"],
     ["product_name_en", "TEXT"],
     ["category_id", "INTEGER"],
     ["main_stock_id", "INTEGER"],
