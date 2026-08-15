@@ -1,12 +1,28 @@
 import crypto from "crypto"
 import path from "path"
 import { spawn } from "child_process"
+import { existsSync } from "fs"
 import managementSql, { ensureManagementTables } from "./management-db"
 import { getPoolForDb } from "./database"
 import { withDatabaseName } from "./db-url"
 
 function generateDbName(): string {
   return `co_${crypto.randomBytes(4).toString("hex")}`
+}
+
+function resolvePgRestorePath(): string {
+  const configuredPath = process.env.PG_RESTORE_PATH?.trim()
+  if (configuredPath) return configuredPath
+
+  if (process.platform === "win32") {
+    const programFiles = process.env.ProgramFiles || "C:\\Program Files"
+    for (const version of ["18", "17", "16", "15", "14"]) {
+      const candidate = path.join(programFiles, "PostgreSQL", version, "bin", "pg_restore.exe")
+      if (existsSync(candidate)) return candidate
+    }
+  }
+
+  return "pg_restore"
 }
 
 async function generateUniqueDbName(): Promise<string> {
@@ -37,7 +53,7 @@ function restoreCompanyDatabase(dbName: string): Promise<void> {
 
   return new Promise((resolve, reject) => {
     const child = spawn(
-      process.env.PG_RESTORE_PATH?.trim() || "pg_restore",
+      resolvePgRestorePath(),
       ["--exit-on-error", "--no-owner", "--no-privileges", "--dbname", dbName, dumpPath],
       { env: restoreEnv, windowsHide: true },
     )
@@ -45,7 +61,12 @@ function restoreCompanyDatabase(dbName: string): Promise<void> {
     child.stderr.on("data", (chunk) => {
       stderr += String(chunk)
     })
-    child.on("error", (error) => reject(new Error(`Unable to start pg_restore: ${error.message}`)))
+    child.on("error", (error: NodeJS.ErrnoException) => {
+      const hint = error.code === "ENOENT"
+        ? " Install PostgreSQL 18 client tools or set PG_RESTORE_PATH to the full pg_restore executable path."
+        : ""
+      reject(new Error(`Unable to start pg_restore: ${error.message}.${hint}`))
+    })
     child.on("close", (code) => {
       if (code === 0) resolve()
       else reject(new Error(`pg_restore failed with exit code ${code}: ${stderr.trim()}`))
