@@ -426,7 +426,15 @@ function UnifiedSalesOrder({
     store_id: 0,
     store_name: ''
   }]);
-  const [CollectionView] = useState(() => new wjcCore.CollectionView(data));
+  const [CollectionView] = useState(() => {
+    const view = new wjcCore.CollectionView(data)
+    try {
+      view.refreshOnEdit = false
+    } catch {
+      // Ignore older Wijmo builds that do not expose refreshOnEdit.
+    }
+    return view
+  })
   const CollectionViewBackupRef = useRef(null as any);
   const createNewOrder = (): SalesOrder => ({
     id: 0,
@@ -966,7 +974,11 @@ function UnifiedSalesOrder({
     CollectionView.sourceCollection.forEach((item, index) => {
       item.ser = index + 1;
     });
-    grid.refresh();
+    try {
+      grid?.refresh?.();
+    } catch {
+      // Ignore stale grid refreshes after the app resumes or the control is recreated.
+    }
 
     setTimeout(async () => {
       const lastRowIndex = CollectionView.items.length - 1;
@@ -2891,11 +2903,19 @@ function UnifiedSalesOrder({
       selectedProductForLots: null,
       selectedItemIdForLots: null,
     }))
-    CollectionView.sourceCollection.splice(0);
-    CollectionView.refresh();
+    try {
+      CollectionView.sourceCollection.splice(0);
+      CollectionView.refresh();
+    } catch {
+      // Ignore stale-grid refreshes when the grid has been recreated after returning from inactivity.
+    }
     const newRow = { ser: 1 };
-    CollectionView.sourceCollection.push(newRow);
-    CollectionView.refresh();
+    try {
+      CollectionView.sourceCollection.push(newRow);
+      CollectionView.refresh();
+    } catch {
+      // Ignore stale-grid refreshes when the grid has been recreated after returning from inactivity.
+    }
     setTimeout(() => {
       focusGrid()
     }, 10)
