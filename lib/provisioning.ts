@@ -1,4 +1,6 @@
 import crypto from "crypto"
+import { execFileSync } from "child_process"
+import path from "path"
 import managementSql, { ensureManagementTables } from "./management-db"
 import { getPoolForDb } from "./database"
 
@@ -16,6 +18,34 @@ async function generateUniqueDbName(): Promise<string> {
 }
 
 const templateDbName = "company_template"
+
+async function ensureCompanyTemplateDatabaseExists() {
+  if (!process.env.DATABASE_URL) return
+
+  const { Pool } = await import("pg")
+  const { withDatabaseName } = await import("./db-url")
+  const adminUrl = withDatabaseName(process.env.DATABASE_URL, "postgres")
+  if (!adminUrl) return
+
+  const adminPool = new Pool({ connectionString: adminUrl })
+  try {
+    const existing = await adminPool.query("SELECT 1 FROM pg_database WHERE datname = $1", [templateDbName])
+    if (existing.rows.length > 0) return
+  } finally {
+    await adminPool.end().catch(() => {})
+  }
+
+  const bootstrapScript = path.resolve(process.cwd(), "scripts", "bootstrap-databases.sh")
+  try {
+    execFileSync("bash", [bootstrapScript], {
+      env: process.env,
+      stdio: "inherit",
+    })
+  } catch (error) {
+    console.error("[provisioning] bootstrap-databases.sh failed while creating company template:", error)
+    throw new Error("تعذّر إنشاء قاعدة القالب company_template. تأكد من تشغيل bootstrap-databases.sh أو التحقق من وجود قاعدة company_template على الخادم.")
+  }
+}
 
 async function ensureModernVoucherItemsTable(tenantClient: ReturnType<typeof getPoolForDb>) {
   await tenantClient.query(`DROP TABLE IF EXISTS public.voucher_items CASCADE`, [])
@@ -279,6 +309,7 @@ export async function provisionCompanyDatabase(
   options: { expiryDays?: number } = {},
 ) {
   await ensureManagementTables()
+  await ensureCompanyTemplateDatabaseExists()
 
   const dbName = await generateUniqueDbName()
 

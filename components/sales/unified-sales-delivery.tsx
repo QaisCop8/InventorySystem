@@ -744,6 +744,17 @@ export default function UnifiedSalesDelivery({
   })
   const itemsCollectionViewRef = useRef(itemsCollectionView)
   itemsCollectionViewRef.current = itemsCollectionView
+  const [accountsCollectionView] = useState(() => {
+    const v = new wjcCore.CollectionView<any>([])
+    try {
+      v.refreshOnEdit = false
+    } catch (e) {
+      /* ignore if property not available */
+    }
+    return v
+  })
+  const accountsCollectionViewRef = useRef(accountsCollectionView)
+  accountsCollectionViewRef.current = accountsCollectionView
   const itemsGridRef = useRef<any>(null)
   const pendingFocusRef = useRef<{ row: number; col: string } | null>(null)
   const pendingFocusRow = useRef<number | null>(null)
@@ -998,63 +1009,54 @@ export default function UnifiedSalesDelivery({
       } catch (e) {
         // ignore
       }
+      const syncCollectionView = (view: any, grid: any) => {
+        if (!view || !Array.isArray(normalizedItems)) return
+        view.sourceCollection = normalizedItems
+        try {
+          view.refresh()
+        } catch {}
+        if (grid) {
+          try {
+            grid.itemsSource = view
+          } catch {}
+          if (typeof grid.invalidate === "function") {
+            try {
+              grid.invalidate()
+            } catch {}
+          }
+          if (typeof grid.refresh === "function") {
+            try {
+              grid.refresh()
+            } catch {}
+          }
+        }
+      }
+
       if (itemsCollectionViewRef.current && Array.isArray(normalizedItems)) {
         try {
-          const view = itemsCollectionViewRef.current
-          const gridControl = resolveFlexControl(itemsGridRef.current)
-          view.sourceCollection = normalizedItems
-          try {
-            view.refresh()
-          } catch {}
-          if (gridControl) {
-            try {
-              gridControl.itemsSource = view
-            } catch {}
-            if (typeof gridControl.invalidate === "function") {
-              try {
-                gridControl.invalidate()
-              } catch {}
-            }
-            if (typeof gridControl.refresh === "function") {
-              try {
-                gridControl.refresh()
-              } catch {}
-            }
-          }
+          syncCollectionView(itemsCollectionViewRef.current, resolveFlexControl(itemsGridRef.current))
         } catch (err) {
           // If the primary update fails, fall back to a direct sourceCollection assignment.
           // eslint-disable-next-line no-console
           console.warn("CollectionView update failed, retrying shortly:", err)
           setTimeout(() => {
             try {
-              const view2 = itemsCollectionViewRef.current
-              const gridControl2 = resolveFlexControl(itemsGridRef.current)
-              if (view2) {
-                view2.sourceCollection = normalizedItems
-                try {
-                  view2.refresh()
-                } catch {}
-                if (gridControl2) {
-                  try {
-                    gridControl2.itemsSource = view2
-                  } catch {}
-                  if (typeof gridControl2.invalidate === "function") {
-                    try {
-                      gridControl2.invalidate()
-                    } catch {}
-                  }
-                  if (typeof gridControl2.refresh === "function") {
-                    try {
-                      gridControl2.refresh()
-                    } catch {}
-                  }
-                }
-              }
+              syncCollectionView(itemsCollectionViewRef.current, resolveFlexControl(itemsGridRef.current))
             } catch (err2) {
               // eslint-disable-next-line no-console
               console.error("Deferred CollectionView update failed:", err2)
             }
           }, 80)
+        }
+      }
+
+      if (accountsCollectionViewRef.current && Array.isArray(normalizedItems)) {
+        try {
+          syncCollectionView(accountsCollectionViewRef.current, resolveFlexControl(accountsGridRef.current))
+        } catch (err) {
+          // The account-detail tab uses its own CollectionView so it stays in sync even when hidden.
+          // eslint-disable-next-line no-console
+          console.warn("Accounts CollectionView update failed:", err)
         }
       }
       const pending = pendingFocusRef.current
@@ -2673,7 +2675,7 @@ export default function UnifiedSalesDelivery({
                       innerRef={accountsGridRef}
                       style={{ height: "300px" }}
                       scheme={accountsScheme}
-                      dataSource={itemsCollectionView}
+                      dataSource={accountsCollectionView}
                       idProperty="ser"
                       isReport={false}
                       isReadOnly={isLocked}
