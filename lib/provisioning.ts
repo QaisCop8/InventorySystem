@@ -72,11 +72,19 @@ async function createCompanyDatabaseFromScript(dbName: string) {
     // Always create an empty database. The project dump supplies its schema and
     // default rows; no existing PostgreSQL database is used as a template.
     await adminPool.query(`CREATE DATABASE "${dbName}"`)
+    try {
+      await restoreCompanyDatabase(dbName)
+    } catch (error) {
+      await adminPool.query(
+        `SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = $1 AND pid <> pg_backend_pid()`,
+        [dbName],
+      ).catch(() => {})
+      await adminPool.query(`DROP DATABASE IF EXISTS "${dbName}"`).catch(() => {})
+      throw error
+    }
   } finally {
     await adminPool.end().catch(() => {})
   }
-
-  await restoreCompanyDatabase(dbName)
 }
 
 async function ensureBasicProductsTable(tenantClient: ReturnType<typeof getPoolForDb>) {
