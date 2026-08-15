@@ -542,7 +542,7 @@ export default function ManagementAdminPage() {
                       {user.full_name}
                       {user.is_platform_admin && (
                         <span className="rounded-full bg-violet-50 px-2 py-0.5 text-xs font-medium text-violet-700 ring-1 ring-inset ring-violet-200">
-                          مسؤول المنصة
+                          مسؤول الموقع
                         </span>
                       )}
                       {!user.is_active && (

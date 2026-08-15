@@ -17,33 +17,51 @@ async function generateUniqueDbName(): Promise<string> {
   throw new Error("تعذّر توليد معرّف فريد لقاعدة بيانات الشركة")
 }
 
-const templateDbName = "company_template"
-
-async function ensureCompanyTemplateDatabaseExists() {
-  if (!process.env.DATABASE_URL) return
+async function createCompanyDatabaseFromDump(dbName: string) {
+  if (!process.env.DATABASE_URL) {
+    throw new Error("DATABASE_URL is not configured")
+  }
 
   const { Pool } = await import("pg")
   const { withDatabaseName } = await import("./db-url")
   const adminUrl = withDatabaseName(process.env.DATABASE_URL, "postgres")
-  if (!adminUrl) return
+  const targetUrl = withDatabaseName(process.env.DATABASE_URL, dbName)
+  const dumpPath = path.resolve(process.cwd(), "backupDB.sql")
+
+  if (!adminUrl || !targetUrl) {
+    throw new Error("تعذّر بناء رابط الاتصال لقاعدة الشركة الجديدة")
+  }
 
   const adminPool = new Pool({ connectionString: adminUrl })
   try {
-    const existing = await adminPool.query("SELECT 1 FROM pg_database WHERE datname = $1", [templateDbName])
-    if (existing.rows.length > 0) return
+    const existing = await adminPool.query("SELECT 1 FROM pg_database WHERE datname = $1", [dbName])
+    if (existing.rows.length === 0) {
+      await adminPool.query(`CREATE DATABASE "${dbName}"`)
+    }
   } finally {
     await adminPool.end().catch(() => {})
   }
 
-  const bootstrapScript = path.resolve(process.cwd(), "scripts", "bootstrap-databases.sh")
+  if (!require("fs").existsSync(dumpPath)) {
+    throw new Error(`ملف dump قاعدة الشركة غير موجود: ${dumpPath}`)
+  }
+
   try {
-    execFileSync("bash", [bootstrapScript], {
+    execFileSync("pg_restore", [
+      "--no-owner",
+      "--no-privileges",
+      "--clean",
+      "--if-exists",
+      "--dbname",
+      targetUrl,
+      dumpPath,
+    ], {
       env: process.env,
       stdio: "inherit",
     })
   } catch (error) {
-    console.error("[provisioning] bootstrap-databases.sh failed while creating company template:", error)
-    throw new Error("تعذّر إنشاء قاعدة القالب company_template. تأكد من تشغيل bootstrap-databases.sh أو التحقق من وجود قاعدة company_template على الخادم.")
+    console.error("[provisioning] pg_restore failed for new company database:", error)
+    throw new Error(`تعذّر استيراد هيكل قاعدة الشركة ${dbName} من backupDB.sql`)
   }
 }
 
@@ -143,8 +161,8 @@ async function ensureModernProductColumns(tenantClient: ReturnType<typeof getPoo
   }
 }
 
-// تعريفات الصلاحيات والبيانات الثابتة موجودة أصلاً داخل company_template. هنا نمنح admin
-// جميع التعريفات الموجودة في قاعدة الشركة الجديدة من دون قراءة أي قاعدة مرجعية خارجية.
+// بعد إنشاء قاعدة الشركة من dump المشروع مباشرة، نمنح admin جميع التعريفات الموجودة في قاعدة
+// الشركة الجديدة دون الحاجة إلى أي قالب منفصل أو قاعدة مرجعية خارجية.
 async function seedAccessListsAndGrantAdmin(tenantClient: ReturnType<typeof getPoolForDb>) {
   const accessList = await tenantClient.query(`SELECT id FROM access_list ORDER BY id`, [])
   for (const item of accessList) {
@@ -309,13 +327,9 @@ export async function provisionCompanyDatabase(
   options: { expiryDays?: number } = {},
 ) {
   await ensureManagementTables()
-  await ensureCompanyTemplateDatabaseExists()
 
   const dbName = await generateUniqueDbName()
-
-  // ينسخ PostgreSQL المخطط والبيانات الثابتة من القالب الذي أنشأه سكربت التثبيت. لا توجد قراءة
-  // أو حاجة إلى قاعدة inventory_system عند تشغيل التطبيق أو اعتماد شركة.
-  await managementSql.unsafe(`CREATE DATABASE "${dbName}" TEMPLATE "${templateDbName}"`)
+  await createCompanyDatabaseFromDump(dbName)
 
   const tenantClient = getPoolForDb(dbName)
 
