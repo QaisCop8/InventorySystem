@@ -591,22 +591,18 @@ export async function provisionCompanyDatabase(
   await clearFreshCompanySeedData(tenantClient)
   await seedManagementAccessDefinitions(tenantClient)
 
+  // A restored or partially seeded database may contain the placeholder admin under
+  // either unique key. Clear both identities before inserting the company's owner;
+  // ON CONFLICT can target only one constraint and therefore cannot handle both safely.
+  await tenantClient.query(
+    `DELETE FROM user_settings WHERE user_id = $1 OR LOWER(username) = LOWER($2)`,
+    ["1", "admin"],
+  )
   await tenantClient.query(
     `INSERT INTO user_settings (
       user_id, username, email, password_hash, full_name, role, department,
       organization_id, permissions, branch_id, is_active
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-    ON CONFLICT (user_id) DO UPDATE SET
-      username = EXCLUDED.username,
-      email = EXCLUDED.email,
-      password_hash = EXCLUDED.password_hash,
-      full_name = EXCLUDED.full_name,
-      role = EXCLUDED.role,
-      department = EXCLUDED.department,
-      organization_id = EXCLUDED.organization_id,
-      permissions = EXCLUDED.permissions,
-      branch_id = EXCLUDED.branch_id,
-      is_active = EXCLUDED.is_active`,
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
     [
       "1",
       "admin",
