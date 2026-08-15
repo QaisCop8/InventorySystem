@@ -257,12 +257,12 @@ const validateSourceInvoice = async (itemsOrData: any, maybeData?: any, excludeV
 
   const orderItems = vchType === SALES_INVOICE_VCH_TYPE
     ? await sql`
-        SELECT oi.id, oi.quantity, COALESCE(oi.bonus, oi.bonus_quantity, 0) AS bonus, oi.order_id
+        SELECT oi.id, oi.quantity, COALESCE(oi.bonus, 0) AS bonus, oi.order_id
         FROM order_items oi
         WHERE oi.id = ANY(${orderItemIds}::int[])
       `
     : await sql`
-        SELECT poi.id, poi.quantity, COALESCE(poi.bonus, poi.bonus_quantity, 0) AS bonus, poi.purchase_order_id AS order_id
+        SELECT poi.id, poi.quantity, COALESCE(poi.bonus, 0) AS bonus, poi.purchase_order_id AS order_id
         FROM purchase_order_items poi
         WHERE poi.id = ANY(${orderItemIds}::int[])
       `

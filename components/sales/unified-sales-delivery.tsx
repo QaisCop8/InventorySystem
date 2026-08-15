@@ -1158,6 +1158,22 @@ export default function UnifiedSalesDelivery({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [uniqueProductIds.join(",")])
 
+  const refreshItemsGrid = () => {
+    try {
+      const view = itemsCollectionViewRef.current
+      if (view && typeof view.refresh === "function") view.refresh()
+    } catch (e) {
+      /* ignore */
+    }
+    try {
+      const grid = resolveFlexControl(itemsGridRef.current)
+      if (grid && typeof grid.invalidate === "function") grid.invalidate()
+      if (grid && typeof grid.refresh === "function") grid.refresh()
+    } catch (e) {
+      /* ignore */
+    }
+  }
+
   const patchItemRow = (index: number, patch: Partial<SalesVoucherItemRow>) => {
     if (isLocked) return
     // If caller updated unit_price without providing base_unit_price, compute base price
@@ -1171,6 +1187,7 @@ export default function UnifiedSalesDelivery({
     const next = itemsRef.current.map((row, i) => (i === index ? { ...row, ...safePatch } : row))
     itemsRef.current = next
     onItemsChange(next)
+    requestAnimationFrame(refreshItemsGrid)
   }
 
   const addItemRow = () => {
@@ -1178,6 +1195,7 @@ export default function UnifiedSalesDelivery({
     const next = [...itemsRef.current, { ...emptyItemRow }]
     itemsRef.current = next
     onItemsChange(next)
+    requestAnimationFrame(refreshItemsGrid)
   }
 
   const removeItemRow = (index: number) => {
@@ -1185,6 +1203,7 @@ export default function UnifiedSalesDelivery({
     const next = itemsRef.current.filter((_, i) => i !== index)
     itemsRef.current = next.length > 0 ? next : [{ ...emptyItemRow }]
     onItemsChange(itemsRef.current)
+    requestAnimationFrame(refreshItemsGrid)
   }
 
   // نفس منطق applyExpiryAllocations في unified-stock-voucher.tsx: الدفعة الأولى على السطر الحالي،
@@ -1448,7 +1467,7 @@ export default function UnifiedSalesDelivery({
             const ht = grid.hitTest(e)
             if (ht.panel !== grid.cells) return
             const col = grid.columns[ht.col]
-            if (!col || col.name !== "account_code") return
+            if (!col || !["account_code", "account_name"].includes(col.name)) return
             try {
               grid.select(ht.row, ht.col)
             } catch {
@@ -2254,7 +2273,10 @@ export default function UnifiedSalesDelivery({
         <UniversalToolbar
           currentRecord={currentIndex + 1}
           totalRecords={totalRecords}
-          onNew={() => guardedAction(() => onNew?.())}
+          onNew={() => {
+            setActiveTab("items")
+            guardedAction(() => onNew?.())
+          }}
           onSave={handleRequestSave}
           onDelete={() => setShowDeleteConfirm(true)}
           onFirst={() => { console.debug('[UnifiedSalesDelivery] toolbar: first clicked'); guardedAction(() => onNavigate?.("last")) }}
