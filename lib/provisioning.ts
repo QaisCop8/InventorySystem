@@ -415,11 +415,15 @@ async function seedVoucherBookPermissionsForAdmin(tenantClient: ReturnType<typeo
 
   const defaultBook = books.find((b: any) => String(b.name).trim() === "0") ?? books[0]
 
+  // The dump can already contain permissions for its placeholder admin. Replace
+  // those rows instead of appending another full copy on every provisioning retry.
+  await tenantClient.query(`DELETE FROM voucher_book_user_permissions_tbl WHERE user_id = $1`, [1])
+
   for (const type of types) {
     for (const book of books) {
       await tenantClient.query(
         `INSERT INTO voucher_book_user_permissions_tbl (user_id, voucher_type_id, vch_book_id, is_default) VALUES ($1, $2, $3, $4)`,
-        ["1", type.id, book.id, book.id === defaultBook.id ? 1 : 0],
+        [1, type.id, book.id, book.id === defaultBook.id ? 1 : 0],
       )
     }
   }
@@ -429,13 +433,24 @@ async function seedVoucherBookPermissionsForAdmin(tenantClient: ReturnType<typeo
 // user_settings.branch_id، شاشات المخزون والسندات) تفترض وجود فرع واحد على الأقل.
 async function seedDefaultBranchAndSection(tenantClient: ReturnType<typeof getPoolForDb>) {
   const branchResult = await tenantClient.query(
-    `INSERT INTO branches (branch_code, branch_name, is_active, status) VALUES ($1, $2, true, 1) RETURNING id`,
+    `INSERT INTO branches (branch_code, branch_name, is_active, status)
+     VALUES ($1, $2, true, 1)
+     ON CONFLICT (branch_code) DO UPDATE SET
+       branch_name = EXCLUDED.branch_name,
+       is_active = true,
+       status = 1
+     RETURNING id`,
     ["0001", "الرئيسي"],
   )
   const branchId = branchResult[0].id
 
   await tenantClient.query(
-    `INSERT INTO departments (department_code, department_name, branch_id, is_active) VALUES ($1, $2, $3, true)`,
+    `INSERT INTO departments (department_code, department_name, branch_id, is_active)
+     VALUES ($1, $2, $3, true)
+     ON CONFLICT (department_code) DO UPDATE SET
+       department_name = EXCLUDED.department_name,
+       branch_id = EXCLUDED.branch_id,
+       is_active = true`,
     ["D1", "الادارة", branchId],
   )
 
@@ -464,7 +479,12 @@ async function seedDefaultStore(tenantClient: ReturnType<typeof getPoolForDb>) {
   )
   await tenantClient.query(
     `INSERT INTO warehouses (warehouse_code, warehouse_name, warehouse_name_en, is_active, status)
-     VALUES ($1, $2, $3, true, 1)`,
+     VALUES ($1, $2, $3, true, 1)
+     ON CONFLICT (warehouse_code) DO UPDATE SET
+       warehouse_name = EXCLUDED.warehouse_name,
+       warehouse_name_en = EXCLUDED.warehouse_name_en,
+       is_active = true,
+       status = 1`,
     ["MAIN", "الرئيسي", "Main"],
   )
 }
@@ -575,7 +595,18 @@ export async function provisionCompanyDatabase(
     `INSERT INTO user_settings (
       user_id, username, email, password_hash, full_name, role, department,
       organization_id, permissions, branch_id, is_active
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+    ON CONFLICT (user_id) DO UPDATE SET
+      username = EXCLUDED.username,
+      email = EXCLUDED.email,
+      password_hash = EXCLUDED.password_hash,
+      full_name = EXCLUDED.full_name,
+      role = EXCLUDED.role,
+      department = EXCLUDED.department,
+      organization_id = EXCLUDED.organization_id,
+      permissions = EXCLUDED.permissions,
+      branch_id = EXCLUDED.branch_id,
+      is_active = EXCLUDED.is_active`,
     [
       "1",
       "admin",
