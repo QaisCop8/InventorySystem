@@ -1,6 +1,4 @@
 import crypto from "crypto"
-import { execFileSync } from "child_process"
-import path from "path"
 import managementSql, { ensureManagementTables } from "./management-db"
 import { getPoolForDb } from "./database"
 
@@ -25,10 +23,8 @@ async function createCompanyDatabaseFromDump(dbName: string) {
   const { Pool } = await import("pg")
   const { withDatabaseName } = await import("./db-url")
   const adminUrl = withDatabaseName(process.env.DATABASE_URL, "postgres")
-  const targetUrl = withDatabaseName(process.env.DATABASE_URL, dbName)
-  const dumpPath = path.resolve(process.cwd(), "backupDB.sql")
 
-  if (!adminUrl || !targetUrl) {
+  if (!adminUrl) {
     throw new Error("تعذّر بناء رابط الاتصال لقاعدة الشركة الجديدة")
   }
 
@@ -36,32 +32,21 @@ async function createCompanyDatabaseFromDump(dbName: string) {
   try {
     const existing = await adminPool.query("SELECT 1 FROM pg_database WHERE datname = $1", [dbName])
     if (existing.rows.length === 0) {
-      await adminPool.query(`CREATE DATABASE "${dbName}"`)
+      // استخدام قاعدة inventory_system كقالب (template) لإنشاء قاعدة الشركة الجديدة
+      try {
+        await adminPool.query(`CREATE DATABASE "${dbName}" TEMPLATE "inventory_system"`)
+      } catch (error: any) {
+        // إذا فشل الاستنساخ من inventory_system، حاول إنشاء قاعدة فارغة
+        if (error.message.includes("inventory_system")) {
+          console.warn("[provisioning] inventory_system template not found, creating empty database")
+          await adminPool.query(`CREATE DATABASE "${dbName}"`)
+        } else {
+          throw error
+        }
+      }
     }
   } finally {
     await adminPool.end().catch(() => {})
-  }
-
-  if (!require("fs").existsSync(dumpPath)) {
-    throw new Error(`ملف dump قاعدة الشركة غير موجود: ${dumpPath}`)
-  }
-
-  try {
-    execFileSync("pg_restore", [
-      "--no-owner",
-      "--no-privileges",
-      "--clean",
-      "--if-exists",
-      "--dbname",
-      targetUrl,
-      dumpPath,
-    ], {
-      env: process.env,
-      stdio: "inherit",
-    })
-  } catch (error) {
-    console.error("[provisioning] pg_restore failed for new company database:", error)
-    throw new Error(`تعذّر استيراد هيكل قاعدة الشركة ${dbName} من backupDB.sql`)
   }
 }
 
