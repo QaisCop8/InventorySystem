@@ -50,7 +50,163 @@ async function createCompanyDatabaseFromDump(dbName: string) {
   }
 }
 
+async function ensureBasicProductsTable(tenantClient: ReturnType<typeof getPoolForDb>) {
+  // تأكد من وجود جدول products الأساسي
+  await tenantClient.query(
+    `CREATE TABLE IF NOT EXISTS products (
+      id SERIAL PRIMARY KEY,
+      product_code VARCHAR(100) UNIQUE NOT NULL,
+      product_name VARCHAR(255) NOT NULL,
+      product_name_en VARCHAR(255),
+      barcode VARCHAR(100),
+      description TEXT,
+      category VARCHAR(100),
+      subcategory VARCHAR(100),
+      classifications VARCHAR(255),
+      product_type VARCHAR(50),
+      brand VARCHAR(100),
+      model VARCHAR(100),
+      default_store INTEGER,
+      manufacturer_number VARCHAR(100),
+      original_number VARCHAR(100),
+      supplier_id INTEGER,
+      supplier_name VARCHAR(255),
+      supplier_code VARCHAR(100),
+      main_unit VARCHAR(50),
+      secondary_unit VARCHAR(50),
+      conversion_factor NUMERIC(10,4) DEFAULT 1,
+      selling_price NUMERIC(15,2),
+      retail_price NUMERIC(15,2),
+      wholesale_price NUMERIC(15,2),
+      last_purchase_price NUMERIC(15,2),
+      average_cost NUMERIC(15,2),
+      currency VARCHAR(10) DEFAULT 'SAR',
+      tax_rate NUMERIC(5,2) DEFAULT 0,
+      discount_rate NUMERIC(5,2) DEFAULT 0,
+      min_stock_level NUMERIC(15,2),
+      max_stock_level NUMERIC(15,2),
+      reorder_point NUMERIC(15,2),
+      order_quantity NUMERIC(15,2),
+      max_quantity NUMERIC(15,2),
+      location VARCHAR(100),
+      weight NUMERIC(10,2),
+      dimensions VARCHAR(100),
+      color VARCHAR(50),
+      size VARCHAR(50),
+      material VARCHAR(100),
+      country_of_origin VARCHAR(100),
+      warranty_period INTEGER,
+      shelf_life INTEGER,
+      has_batch BOOLEAN DEFAULT false,
+      batch_tracking BOOLEAN DEFAULT false,
+      has_expiry BOOLEAN DEFAULT false,
+      expiry_tracking BOOLEAN DEFAULT false,
+      serial_tracking BOOLEAN DEFAULT false,
+      has_colors BOOLEAN DEFAULT false,
+      status VARCHAR(20) DEFAULT 'active',
+      entry_date DATE,
+      image_url TEXT,
+      product_image TEXT,
+      attachments TEXT,
+      notes TEXT,
+      general_notes TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`,
+    [],
+  )
+
+  // إنشاء الفهارس الأساسية
+  await tenantClient.query(`CREATE INDEX IF NOT EXISTS idx_products_code ON products(product_code)`, [])
+  await tenantClient.query(`CREATE INDEX IF NOT EXISTS idx_products_name ON products(product_name)`, [])
+  await tenantClient.query(`CREATE INDEX IF NOT EXISTS idx_products_barcode ON products(barcode)`, [])
+  await tenantClient.query(`CREATE INDEX IF NOT EXISTS idx_products_category ON products(category)`, [])
+  await tenantClient.query(`CREATE INDEX IF NOT EXISTS idx_products_status ON products(status)`, [])
+
+  // تأكد من وجود الجداول الأخرى الأساسية
+  await tenantClient.query(
+    `CREATE TABLE IF NOT EXISTS branches (
+      id SERIAL PRIMARY KEY,
+      branch_code VARCHAR(50) NOT NULL,
+      branch_name VARCHAR(255) NOT NULL,
+      is_active BOOLEAN DEFAULT true,
+      status INTEGER DEFAULT 1,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`,
+    [],
+  )
+
+  await tenantClient.query(
+    `CREATE TABLE IF NOT EXISTS departments (
+      id SERIAL PRIMARY KEY,
+      department_code VARCHAR(50),
+      department_name VARCHAR(255),
+      branch_id INTEGER REFERENCES branches(id),
+      is_active BOOLEAN DEFAULT true,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`,
+    [],
+  )
+
+  await tenantClient.query(
+    `CREATE TABLE IF NOT EXISTS user_settings (
+      id SERIAL PRIMARY KEY,
+      user_id VARCHAR(50),
+      username VARCHAR(100),
+      email VARCHAR(100),
+      password_hash VARCHAR(255),
+      full_name VARCHAR(255),
+      role VARCHAR(100),
+      department VARCHAR(100),
+      organization_id INTEGER,
+      permissions JSONB,
+      branch_id INTEGER,
+      is_active BOOLEAN DEFAULT true,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`,
+    [],
+  )
+
+  await tenantClient.query(
+    `CREATE TABLE IF NOT EXISTS user_access (
+      id SERIAL PRIMARY KEY,
+      user_id VARCHAR(50),
+      access_id INTEGER,
+      is_granted BOOLEAN DEFAULT false,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`,
+    [],
+  )
+
+  await tenantClient.query(
+    `CREATE TABLE IF NOT EXISTS voucher_book_user_permissions_tbl (
+      id SERIAL PRIMARY KEY,
+      user_id VARCHAR(50),
+      voucher_type_id INTEGER,
+      vch_book_id INTEGER,
+      is_default BOOLEAN DEFAULT false,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`,
+    [],
+  )
+}
+
 async function ensureModernVoucherItemsTable(tenantClient: ReturnType<typeof getPoolForDb>) {
+  // تأكد من وجود جدول رؤوس الفواتير أولاً
+  await tenantClient.query(
+    `CREATE TABLE IF NOT EXISTS voucher_header_tbl (
+      id SERIAL PRIMARY KEY,
+      voucher_type_id INTEGER,
+      vch_book_id INTEGER,
+      vch_date DATE,
+      vch_code VARCHAR(50),
+      branch_id INTEGER,
+      user_id VARCHAR(50),
+      notes TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`,
+    [],
+  )
+
   await tenantClient.query(`DROP TABLE IF EXISTS public.voucher_items CASCADE`, [])
   await tenantClient.query(`DROP TABLE IF EXISTS public.voucher_items_tbl CASCADE`, [])
 
@@ -318,6 +474,8 @@ export async function provisionCompanyDatabase(
 
   const tenantClient = getPoolForDb(dbName)
 
+  // تأكد من وجود الجداول الأساسية (خاصة products) قبل محاولة إضافة الأعمدة
+  await ensureBasicProductsTable(tenantClient)
   await ensureModernProductColumns(tenantClient)
   await ensureModernVoucherItemsTable(tenantClient)
   const branchId = await seedDefaultBranchAndSection(tenantClient)
