@@ -165,44 +165,6 @@ export function ensureManagementTables(): Promise<void> {
   return managementDbEnsured
 }
 
-// نسخة أولى لمرة واحدة فقط (حارسها COUNT(*) أدناه) من access_category/access_list الحاليتين بقاعدة
-// الشركة المرجعية (نفس القاعدة التي كان lib/provisioning.ts يعتمدها ضمنياً "قالباً" سلفاً) إلى قاعدة
-// الإدارة — بعدها تصبح قاعدة الإدارة وحدها المصدر المُعتمَد، ولا تُعاد هذه النسخة أبداً (لا تُكرَّر
-// ولا تُحدِّث صفوفاً أضافها مسؤول المنصة لاحقاً عبر الشاشة الجديدة).
-/* Legacy reference-database importer intentionally disabled. New tenants are restored
-   from the project dump and no database is used as a template.
-async function seedAccessDefinitionsFromReferenceOnce(): Promise<void> {
-  // Retained only for source compatibility with older builds; provisioning no longer
-  // calls this importer or reads from another database.
-  const templateUrl = ""
-  const existing = await sql`SELECT COUNT(*)::int AS n FROM access_category`
-  if (Number(existing[0]?.n) > 0) return
-
-  if (!templateUrl) return
-  // قالب الشركات يُنشأ مرة واحدة بواسطة scripts/bootstrap-databases.sh ويحوي التعريفات الثابتة.
-  const referencePool = new Pool({ connectionString: templateUrl })
-  try {
-    const categories = await referencePool.query(`SELECT id, name FROM access_category ORDER BY id`)
-    for (const category of categories.rows) {
-      await sql`INSERT INTO access_category (id, name) VALUES (${category.id}, ${category.name}) ON CONFLICT (id) DO NOTHING`
-    }
-    const items = await referencePool.query(`SELECT id, name, category_id FROM access_list ORDER BY id`)
-    for (const item of items.rows) {
-      await sql`INSERT INTO access_list (id, name, category_id) VALUES (${item.id}, ${item.name}, ${item.category_id}) ON CONFLICT (id) DO NOTHING`
-    }
-  } finally {
-    await referencePool.end()
-  }
-
-  // الإدراج بمعرّف صريح أعلاه لا يُقدِّم تسلسل SERIAL (nextval لم يُستدعَ إطلاقاً) — فيبقى متأخراً
-  // عند رقمه الافتراضي بينما الجدول يحوي فعلياً معرّفات أعلى بكثير، فيصطدم أول إدراج طبيعي لاحق
-  // (بلا معرّف صريح، كإضافة صلاحية جديدة من شاشة "تعريف الصلاحيات") بمعرّف موجود مسبقاً
-  // (duplicate key value violates unique constraint). يُزامَن التسلسلان هنا فوراً بعد هذا النسخ.
-  await sql`SELECT setval(pg_get_serial_sequence('access_category', 'id'), COALESCE((SELECT MAX(id) FROM access_category), 1))`
-  await sql`SELECT setval(pg_get_serial_sequence('access_list', 'id'), COALESCE((SELECT MAX(id) FROM access_list), 1))`
-}
-*/
-
 let managementPool: Pool | null = null
 
 // pg.Pool حقيقي لقاعدة الإدارة — يحتاجه أي كود يريد معاملة (BEGIN/COMMIT/ROLLBACK) عبر عدة استعلامات

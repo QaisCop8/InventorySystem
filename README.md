@@ -63,7 +63,7 @@ brew install postgresql
 
 # على Windows: تحميل من postgresql.org
 
-# أنشئ ملف البيئة ثم شغّل سكربت التثبيت؛ سيُنشئ management وcompany_template
+# أنشئ ملف البيئة ثم شغّل سكربت التثبيت؛ سيُنشئ قاعدة management فقط
 cp .env.local.example .env.local
 bash install.sh
 \`\`\`
