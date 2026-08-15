@@ -408,7 +408,10 @@ async function seedManagementAccessDefinitions(tenantClient: ReturnType<typeof g
 // دون استثناء — بلا هذا لا يستطيع admin استخدام أي سند إطلاقاً بشركة حديثة التزويد (شاشة كل سند تفرض
 // دفتراً من ضمن صلاحيات المستخدم). الدفتر الافتراضي (is_default=1) هو الدفتر المُسمّى "0" تحديداً
 // (يُنشَأ دوماً ضمن ensureTables بذلك المسار) لا أول دفتر بالترتيب، مطابقاً لطلب المستخدم صراحةً.
-async function seedVoucherBookPermissionsForAdmin(tenantClient: ReturnType<typeof getPoolForDb>) {
+async function seedVoucherBookPermissionsForAdmin(
+  tenantClient: ReturnType<typeof getPoolForDb>,
+  adminUserRowId: number,
+) {
   const types = await tenantClient.query(`SELECT id FROM voucher_types_tbl WHERE COALESCE(status, 1) != 3`, [])
   const books = await tenantClient.query(`SELECT id, name FROM voucher_books_tbl`, [])
   if (books.length === 0) return
@@ -417,13 +420,13 @@ async function seedVoucherBookPermissionsForAdmin(tenantClient: ReturnType<typeo
 
   // The dump can already contain permissions for its placeholder admin. Replace
   // those rows instead of appending another full copy on every provisioning retry.
-  await tenantClient.query(`DELETE FROM voucher_book_user_permissions_tbl WHERE user_id = $1`, [1])
+  await tenantClient.query(`DELETE FROM voucher_book_user_permissions_tbl WHERE user_id = $1`, [adminUserRowId])
 
   for (const type of types) {
     for (const book of books) {
       await tenantClient.query(
         `INSERT INTO voucher_book_user_permissions_tbl (user_id, voucher_type_id, vch_book_id, is_default) VALUES ($1, $2, $3, $4)`,
-        [1, type.id, book.id, book.id === defaultBook.id ? 1 : 0],
+        [adminUserRowId, type.id, book.id, book.id === defaultBook.id ? 1 : 0],
       )
     }
   }
@@ -444,7 +447,7 @@ async function seedDefaultBranchAndSection(tenantClient: ReturnType<typeof getPo
   )
   const branchId = branchResult[0].id
 
-  await tenantClient.query(
+  const insertedAdmin = await tenantClient.query(
     `INSERT INTO departments (department_code, department_name, branch_id, is_active)
      VALUES ($1, $2, $3, true)
      ON CONFLICT (department_code) DO UPDATE SET
@@ -595,6 +598,13 @@ export async function provisionCompanyDatabase(
   // either unique key. Clear both identities before inserting the company's owner;
   // ON CONFLICT can target only one constraint and therefore cannot handle both safely.
   await tenantClient.query(
+    `DELETE FROM voucher_book_user_permissions_tbl
+     WHERE user_id IN (
+       SELECT id FROM user_settings WHERE user_id = $1 OR LOWER(username) = LOWER($2)
+     )`,
+    ["1", "admin"],
+  )
+  await tenantClient.query(
     `DELETE FROM user_settings WHERE user_id = $1 OR LOWER(username) = LOWER($2)`,
     ["1", "admin"],
   )
@@ -602,7 +612,8 @@ export async function provisionCompanyDatabase(
     `INSERT INTO user_settings (
       user_id, username, email, password_hash, full_name, role, department,
       organization_id, permissions, branch_id, is_active
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+    RETURNING id`,
     [
       "1",
       "admin",
@@ -617,9 +628,13 @@ export async function provisionCompanyDatabase(
       true,
     ],
   )
+  const adminUserRowId = Number(insertedAdmin[0]?.id)
+  if (!Number.isInteger(adminUserRowId) || adminUserRowId <= 0) {
+    throw new Error("Failed to create the tenant administrator")
+  }
 
   await seedAccessListsAndGrantAdmin(tenantClient)
-  await seedVoucherBookPermissionsForAdmin(tenantClient)
+  await seedVoucherBookPermissionsForAdmin(tenantClient, adminUserRowId)
 
   // اشتراك بمدة expiryDays (سنة واحدة افتراضياً) من تاريخ الاعتماد الفعلي، ونطاق مستخدمين افتراضي
   // = 1 (محجوز لاستخدام مستقبلي — لا فرض/تحقق فعلي لعدد المستخدمين مقابل هذا الحد بعد).
