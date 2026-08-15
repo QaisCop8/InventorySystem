@@ -5,6 +5,7 @@ export interface Product {
   product_name: string
   description?: string
   category: string
+  category_id?: number | null
   main_unit: string
   secondary_unit?: string
   conversion_factor: number
@@ -69,7 +70,8 @@ export async function getProductsWithStock(organizationId = 1) {
         p.product_code,
         p.product_name,
         p.description,
-        COALESCE(p.category, 'غير محدد') as category,
+        p.category_id,
+        COALESCE(ig.group_name, 'غير محدد') as category,
         p.main_unit,
         p.secondary_unit,
         p.conversion_factor,
@@ -96,6 +98,7 @@ export async function getProductsWithStock(organizationId = 1) {
           ELSE 'available'
         END as stock_status
       FROM products p
+      LEFT JOIN item_groups ig ON ig.id = p.category_id
       LEFT JOIN product_stock ps ON p.id = ps.product_id AND ps.organization_id = ${organizationId}
       WHERE p.status = 'نشط'
       ORDER BY p.product_name
@@ -304,13 +307,13 @@ export async function createProduct(productData: Partial<Product>, organizationI
 
     const result = await sql`
       INSERT INTO products (
-        product_code, product_name, description, category,
+        product_code, product_name, description, category_id,
         main_unit, secondary_unit, conversion_factor, last_purchase_price, currency,
         status, product_type, barcode, max_quantity, order_quantity,
         has_batch, has_expiry, has_colors, general_notes
       ) VALUES (
         ${productData.product_code}, ${productData.product_name}, 
-        ${productData.description || null}, ${productData.category},
+        ${productData.description || null}, ${productData.category_id ?? null},
         ${productData.main_unit}, ${productData.secondary_unit || null},
         ${productData.conversion_factor || 1}, ${productData.last_purchase_price || 0},
         ${productData.currency || "USD"}, ${productData.status || "نشط"},
@@ -383,7 +386,7 @@ export async function updateProduct(productId: number, productData: Partial<Prod
       UPDATE products SET
         product_name = COALESCE(${productData.product_name}, product_name),
         description = COALESCE(${productData.description}, description),
-        category = COALESCE(${productData.category}, category),
+        category_id = COALESCE(${productData.category_id}, category_id),
         main_unit = COALESCE(${productData.main_unit}, main_unit),
         secondary_unit = COALESCE(${productData.secondary_unit}, secondary_unit),
         conversion_factor = COALESCE(${productData.conversion_factor}, conversion_factor),

@@ -1291,7 +1291,7 @@ export async function PUT(request: NextRequest) {
         product_name = ${safeText(updateData.product_name, "")},
         barcode = ${safeText(updateData.barcode, "")},
         description = ${safeText(updateData.description, "")},
-        category = ${safeText(updateData.category, "")},
+        category_id = ${safeNumber(updateData.category_id, 0) || null},
         main_unit = ${safeText(updateData.main_unit, "ظ‚ط·ط¹ط©")},
         secondary_unit = ${safeText(updateData.secondary_unit, "")},
         conversion_factor = ${safeNumber(updateData.conversion_factor, 1)},

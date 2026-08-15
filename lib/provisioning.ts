@@ -118,7 +118,7 @@ async function ensureBasicProductsTable(tenantClient: ReturnType<typeof getPoolF
       product_name_en VARCHAR(255),
       barcode VARCHAR(100),
       description TEXT,
-      category VARCHAR(100),
+      category_id INTEGER,
       subcategory VARCHAR(100),
       classifications VARCHAR(255),
       product_type VARCHAR(50),
@@ -182,7 +182,7 @@ async function ensureBasicProductsTable(tenantClient: ReturnType<typeof getPoolF
   await tenantClient.query(`CREATE INDEX IF NOT EXISTS idx_products_code ON products(product_code)`, [])
   await tenantClient.query(`CREATE INDEX IF NOT EXISTS idx_products_name ON products(product_name)`, [])
   await tenantClient.query(`CREATE INDEX IF NOT EXISTS idx_products_barcode ON products(barcode)`, [])
-  await tenantClient.query(`CREATE INDEX IF NOT EXISTS idx_products_category ON products(category)`, [])
+  await tenantClient.query(`CREATE INDEX IF NOT EXISTS idx_products_category_id ON products(category_id)`, [])
   await tenantClient.query(`CREATE INDEX IF NOT EXISTS idx_products_status ON products(status)`, [])
 
   // تأكد من وجود الجداول الأخرى الأساسية

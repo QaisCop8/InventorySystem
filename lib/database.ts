@@ -311,7 +311,7 @@ export async function getProducts() {
     const result = await sql`
       SELECT p.*, ig.group_name as category_name, s.supplier_name as supplier_name
       FROM products p
-      LEFT JOIN item_groups ig ON p.category = ig.group_name
+      LEFT JOIN item_groups ig ON p.category_id = ig.id
       LEFT JOIN suppliers s ON p.product_code = s.supplier_code
       ORDER BY p.created_at DESC
     `
@@ -326,7 +326,7 @@ export async function createProduct(productData: any) {
   const query = `
     INSERT INTO products (
       product_code, product_name, description, barcode, original_number,
-      manufacturer_number, category, main_unit, secondary_unit,
+      manufacturer_number, category_id, main_unit, secondary_unit,
       conversion_factor, currency, last_purchase_price, 
       order_quantity, max_quantity, has_expiry, has_batch_number, 
       has_colors, status, product_type, entry_date, product_image
@@ -340,7 +340,7 @@ export async function createProduct(productData: any) {
     productData.barcode,
     productData.original_number,
     productData.manufacturer_number,
-    productData.category,
+    productData.category_id ?? productData.category ?? null,
     productData.main_unit,
     productData.secondary_unit,
     productData.conversion_factor || 1,
