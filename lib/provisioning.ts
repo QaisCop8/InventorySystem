@@ -526,20 +526,11 @@ async function seedDefaultSystemSettings(tenantClient: ReturnType<typeof getPool
     )
   }
 
-  const idTypeRows = await tenantClient.query(
-    `SELECT data_type
-     FROM information_schema.columns
-     WHERE table_schema = 'public' AND table_name = 'system_settings' AND column_name = 'id'
-     LIMIT 1`,
-    [],
-  )
-  const idIsInteger = /int/i.test(String(idTypeRows[0]?.data_type || ""))
-
-  await tenantClient.query(`ALTER TABLE system_settings ALTER COLUMN id DROP IDENTITY IF EXISTS`, []).catch(() => {})
-  await tenantClient.query(`ALTER TABLE system_settings ALTER COLUMN id DROP DEFAULT`, []).catch(() => {})
-  await tenantClient.query(`ALTER TABLE system_settings ALTER COLUMN id TYPE VARCHAR(100) USING id::TEXT`, []).catch(() => {})
-  await tenantClient.query(`ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS description TEXT`, []).catch(() => {})
-  await tenantClient.query(`ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS value TEXT`, []).catch(() => {})
+  await tenantClient.query(`ALTER TABLE system_settings ALTER COLUMN id DROP IDENTITY IF EXISTS`, [])
+  await tenantClient.query(`ALTER TABLE system_settings ALTER COLUMN id DROP DEFAULT`, [])
+  await tenantClient.query(`ALTER TABLE system_settings ALTER COLUMN id TYPE VARCHAR(100) USING id::TEXT`, [])
+  await tenantClient.query(`ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS description TEXT`, [])
+  await tenantClient.query(`ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS value TEXT`, [])
 
   const rows = [
     ["invoice_prefix", "INV"],
@@ -553,24 +544,11 @@ async function seedDefaultSystemSettings(tenantClient: ReturnType<typeof getPool
   ] as const
 
   for (const [key, value] of rows) {
-    if (idIsInteger) {
-      const updated = await tenantClient.query(
-        `UPDATE system_settings SET description = $1, value = $2 WHERE description = $1`,
-        [key, value],
-      )
-      if (Number(updated?.[0]?.rowCount ?? 0) === 0) {
-        await tenantClient.query(
-          `INSERT INTO system_settings (description, value) VALUES ($1, $2)`,
-          [key, value],
-        )
-      }
-    } else {
-      await tenantClient.query(
-        `INSERT INTO system_settings (id, description, value) VALUES ($1, $2, $3)
-         ON CONFLICT (id) DO UPDATE SET description = EXCLUDED.description, value = EXCLUDED.value`,
-        [key, key, value],
-      )
-    }
+    await tenantClient.query(
+      `INSERT INTO system_settings (id, description, value) VALUES ($1, $2, $3)
+       ON CONFLICT (id) DO UPDATE SET description = EXCLUDED.description, value = EXCLUDED.value`,
+      [key, key, value],
+    )
   }
 }
 
