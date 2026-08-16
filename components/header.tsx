@@ -169,7 +169,7 @@ export function Header({ onMenuClick, activeSection, onProfileClick, onSettingsC
     "product-groups": "مجموعات الأصناف",
     definitions: "التعريفات",
     "sales-orders": "طلبيات المبيعات",
-    "draft-sales-order": "إنشاء مسودة طلبية",
+    "draft-sales-order": "مسودات طلبيات المبيعات",
     "order-confirmation": "تأكيد الطلبيات",
     "order-checklists": "قوائم تحقق الطلبيات",
     "purchase-orders": "طلبيات المشتريات",

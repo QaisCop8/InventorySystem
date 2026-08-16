@@ -87,7 +87,7 @@ const data = {
           url: "/sales-orders",
         },
         {
-          title: "مسودة طلبية جديدة",
+          title: "مسودات طلبيات المبيعات",
           url: "/order-drafts/new",
         },
         {

@@ -14,7 +14,7 @@ import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import ConfirmDialogYesNo from "@/components/ui/ConfirmDialogYesNo"
-import { Plus, Trash2, Loader2, Save, Users, Search, Pencil } from "lucide-react"
+import { Plus, Trash2, Loader2, Save, Users, Search, Pencil, GitBranch, Building2, UserRoundCheck, RefreshCw } from "lucide-react"
 import type { AppUser, StepType, TaskSection, TaskWorkflow, TaskWorkflowStep, TaskWorkflowTransition } from "./types"
 import ItemGroupSearch, { type ItemGroupRecord } from "./item-group-search"
 
@@ -53,6 +53,7 @@ export function TaskAdmin() {
   // التحميل الكامل هنا للتحميل الأول فقط؛ التحديثات اللاحقة صامتة (تُحدِّث البيانات فقط دون أي
   // إخفاء/إعادة تركيب للواجهة).
   const [initialLoading, setInitialLoading] = useState(true)
+  const [activeTab, setActiveTab] = useState("sections")
 
   const loadAll = async () => {
     try {
@@ -91,12 +92,20 @@ export function TaskAdmin() {
   }
 
   return (
-    <div dir="rtl" className="w-full">
-      <Tabs defaultValue="sections" className="w-full">
-        <TabsList>
-          <TabsTrigger value="workflows">سير العمل</TabsTrigger>
-          <TabsTrigger value="sections">الأقسام</TabsTrigger>
-        </TabsList>
+    <div dir="rtl" className="w-full space-y-5">
+      <div className="grid gap-3 sm:grid-cols-3">
+        <Card className="border-indigo-100 bg-gradient-to-br from-white to-indigo-50/70"><CardContent className="flex items-center gap-3 p-4"><span className="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-600 text-white"><Building2 className="h-5 w-5" /></span><div><div className="text-2xl font-bold text-slate-900">{sections.length}</div><div className="text-xs text-slate-500">أقسام العمل</div></div></CardContent></Card>
+        <Card className="border-violet-100 bg-gradient-to-br from-white to-violet-50/70"><CardContent className="flex items-center gap-3 p-4"><span className="flex h-11 w-11 items-center justify-center rounded-xl bg-violet-600 text-white"><GitBranch className="h-5 w-5" /></span><div><div className="text-2xl font-bold text-slate-900">{workflows.length}</div><div className="text-xs text-slate-500">مسارات سير العمل</div></div></CardContent></Card>
+        <Card className="border-emerald-100 bg-gradient-to-br from-white to-emerald-50/70"><CardContent className="flex items-center gap-3 p-4"><span className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-600 text-white"><UserRoundCheck className="h-5 w-5" /></span><div><div className="text-2xl font-bold text-slate-900">{sections.reduce((total, section) => total + section.members.length, 0)}</div><div className="text-xs text-slate-500">الأعضاء المعيّنون</div></div></CardContent></Card>
+      </div>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <div className="flex flex-col gap-3 rounded-2xl border bg-white p-3 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+          <TabsList className="grid h-auto w-full grid-cols-2 rounded-xl bg-slate-100 p-1 sm:w-[420px]">
+            <TabsTrigger value="sections" className="gap-2 rounded-lg py-2.5 data-[state=active]:bg-white data-[state=active]:text-indigo-700 data-[state=active]:shadow-sm"><Users className="h-4 w-4" />الأقسام والأعضاء</TabsTrigger>
+            <TabsTrigger value="workflows" className="gap-2 rounded-lg py-2.5 data-[state=active]:bg-white data-[state=active]:text-violet-700 data-[state=active]:shadow-sm"><GitBranch className="h-4 w-4" />مخطط سير العمل</TabsTrigger>
+          </TabsList>
+          <Button variant="outline" size="sm" onClick={() => void loadAll()}><RefreshCw className="ml-2 h-4 w-4" />تحديث البيانات</Button>
+        </div>
         <TabsContent value="sections" className="mt-4 w-full">
           <SectionsAdmin sections={sections} branches={branches} departments={departments} users={users} userId={userId} onChanged={loadAll} />
         </TabsContent>
