@@ -26,9 +26,10 @@ import {
 interface LoginPageProps {
   onLogin: (credentials: { username: string; password: string; rememberMe: boolean }) => void | Promise<void>
   footer?: ReactNode
+  usernameDirection?: "ltr" | "rtl"
 }
 
-export function LoginPage({ onLogin, footer }: LoginPageProps) {
+export function LoginPage({ onLogin, footer, usernameDirection = "rtl" }: LoginPageProps) {
   const [credentials, setCredentials] = useState({ username: "", password: "", rememberMe: false })
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
@@ -91,7 +92,7 @@ export function LoginPage({ onLogin, footer }: LoginPageProps) {
                 <Label htmlFor="login-username" className="text-sm font-semibold text-slate-700">اسم المستخدم أو البريد الإلكتروني</Label>
                 <div className="relative">
                   <UserRound className="pointer-events-none absolute right-4 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-slate-400" />
-                  <Input id="login-username" autoComplete="username" autoFocus value={credentials.username} onChange={(event) => setCredentials((current) => ({ ...current, username: event.target.value }))} placeholder="أدخل اسم المستخدم" className="h-12 rounded-xl border-slate-200 bg-slate-50/70 pr-11 text-right text-slate-950 placeholder:text-slate-400 focus-visible:border-emerald-500 focus-visible:bg-white focus-visible:ring-emerald-500/15" required />
+                  <Input dir={usernameDirection} id="login-username" autoComplete="username" autoFocus value={credentials.username} onChange={(event) => setCredentials((current) => ({ ...current, username: event.target.value }))} placeholder="أدخل اسم المستخدم" className={`h-12 rounded-xl border-slate-200 bg-slate-50/70 pr-11 text-slate-950 placeholder:text-slate-400 focus-visible:border-emerald-500 focus-visible:bg-white focus-visible:ring-emerald-500/15 ${usernameDirection === "ltr" ? "text-left" : "text-right"}`} required />
                 </div>
               </div>
 

@@ -536,7 +536,11 @@ export default function AccountSearchDialog({
                 <Label className="mb-1.5 block text-sm font-medium text-slate-600">رقم الحساب</Label>
                 <Input
                   value={searchFilters.accountNumber}
-                  onChange={(e) => setSearchFilters({ ...searchFilters, accountNumber: e.target.value })}
+                  onChange={(e) => {
+                    const nextFilters = { ...searchFilters, accountNumber: e.target.value }
+                    setSearchFilters(nextFilters)
+                    applySearchFilters(nextFilters)
+                  }}
                   placeholder="ابحث برقم الحساب"
                   className="h-[42px] rounded-xl border-slate-200 bg-white text-right shadow-sm transition-colors focus-visible:border-blue-400 focus-visible:ring-blue-100"
                   onBlur={handleCodeOrNameBlur}
@@ -547,7 +551,11 @@ export default function AccountSearchDialog({
                 <Input
                   ref={accountNameInputRef}
                   value={searchFilters.accountName}
-                  onChange={(e) => setSearchFilters({ ...searchFilters, accountName: e.target.value })}
+                  onChange={(e) => {
+                    const nextFilters = { ...searchFilters, accountName: e.target.value }
+                    setSearchFilters(nextFilters)
+                    applySearchFilters(nextFilters)
+                  }}
                   placeholder="ابحث باسم الحساب (يمكن كتابة أكثر من كلمة)"
                   className="h-[42px] rounded-xl border-slate-200 bg-white text-right shadow-sm transition-colors focus-visible:border-blue-400 focus-visible:ring-blue-100"
                   onBlur={handleCodeOrNameBlur}
@@ -679,19 +687,47 @@ export default function AccountSearchDialog({
           {/* Results grid */}
           <div className="h-[42dvh] min-h-[240px] shrink-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm sm:h-auto sm:min-h-0 sm:flex-1">
             {searchResults.length > 0 ? (
-              <DataGridView
-                innerRef={gridRef}
-                containerStyle={{ height: "100%", minHeight: 0, maxHeight: "100%" }}
-                style={{ height: "100%", minHeight: 0, maxHeight: "100%" }}
-                defaultRowHeight={42}
-                autoRowHeights={false}
-                wordWrap={false}
-                dataSource={gridDataSource}
-                scheme={accountScheme}
-                onRowClick={(account: AccountItem) => setSelectedAccount(account)}
-                onRowDoubleClick={handleRowDoubleClick}
-                onKeyDown={handleGridKeyDown}
-              />
+              <>
+                <div className="h-full overflow-y-auto sm:hidden">
+                  {searchResults.map((account) => {
+                    const isSelected = selectedAccount?.id === account.id
+                    return (
+                      <button
+                        key={account.id}
+                        type="button"
+                        onClick={() => setSelectedAccount(account)}
+                        onDoubleClick={() => handleRowDoubleClick(account)}
+                        className={`flex w-full items-start justify-between gap-3 border-b border-slate-100 px-4 py-3 text-right last:border-b-0 ${
+                          isSelected ? "bg-emerald-50 ring-1 ring-inset ring-emerald-300" : "bg-white active:bg-slate-50"
+                        }`}
+                      >
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-sm font-semibold text-slate-900">{account.name}</span>
+                          <span className="mt-1 block text-xs text-slate-500">{getAccountTypeLabel(account)}</span>
+                        </span>
+                        <span dir="ltr" className="shrink-0 rounded-lg bg-slate-100 px-2 py-1 text-xs font-medium text-slate-700">
+                          {account.code}
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
+                <div className="hidden h-full sm:block">
+                  <DataGridView
+                    innerRef={gridRef}
+                    containerStyle={{ height: "100%", minHeight: 0, maxHeight: "100%" }}
+                    style={{ height: "100%", minHeight: 0, maxHeight: "100%" }}
+                    defaultRowHeight={42}
+                    autoRowHeights={false}
+                    wordWrap={false}
+                    dataSource={gridDataSource}
+                    scheme={accountScheme}
+                    onRowClick={(account: AccountItem) => setSelectedAccount(account)}
+                    onRowDoubleClick={handleRowDoubleClick}
+                    onKeyDown={handleGridKeyDown}
+                  />
+                </div>
+              </>
             ) : (
               <div className="flex h-full min-h-0 flex-col items-center justify-center gap-2 bg-gradient-to-b from-slate-50 to-white px-4 text-center text-slate-400">
                 <Search className="h-8 w-8 text-slate-300" />

@@ -13,9 +13,6 @@ import { WorkspacePane } from "@/components/workspace/workspace-pane"
 
 // Import all components
 const Dashboard = dynamic(() => import("@/components/dashboard").then((mod) => mod.Dashboard), { ssr: false })
-import { OrderReports } from "@/components/reports/order-reports"
-import { ProductReports } from "@/components/reports/product-reports"
-
 import dynamic from "next/dynamic"
 
 // Dynamically import heavy client-only components to avoid pulling browser-only
@@ -24,71 +21,73 @@ const SalesOrders = dynamic(() => import("@/components/orders/sales-orders").the
 const SaleInvoices = dynamic(() => import("@/components/orders/sale-invoices").then(mod => mod.SaleInvoices), { ssr: false })
 const Products = dynamic(() => import("@/components/products/products").then(mod => mod.Products), { ssr: false })
 const Services = dynamic(() => import("@/components/products/services").then(mod => mod.Services), { ssr: false })
-import Customers from "@/components/products/customers"
-import ProductGroups from "@/components/products/product-groups"
-import BrandTypes from "@/components/products/brand-types"
-import Brands from "@/components/products/brands"
-import Cars from "@/components/products/cars"
-import Drivers from "@/components/products/drivers"
-import { ExchangeRates } from "@/components/data/exchange-rates"
-import { BatchMovements } from "@/components/inventory/batch-movements"
-import { BatchReports } from "@/components/reports/batch-reports"
-import { BatchLogReport } from "@/components/reports/batch-log-report"
-import { InventoryAnalytics } from "@/components/inventory/inventory-analytics"
-import { AutomatedReorderSystem } from "@/components/inventory/automated-reorder-system"
-import { BarcodeManagement } from "@/components/barcode/barcode-management"
-import { OrderTrackingDashboard } from "@/components/workflow/order-tracking-dashboard"
-import { LotOpener } from "@/components/inventory/lot-opener"
-import { LotStatusManager } from "@/components/inventory/lot-status-manager"
-import { CustomerPortalAdmin } from "@/components/customer-portal/customer-portal-admin"
-import { WhatsAppNotificationSettings } from "@/components/inventory/whatsapp-notification-settings"
-import Accounts from "@/components/accounts"
-import UnifiedAccounts from "@/components/customer/unified-accounts-refactored"
-import Banks from "@/components/admin/banks"
-import Branches from "@/components/admin/branches"
-import BankAccounts from "@/components/admin/bank-accounts"
-import Receipts from "@/components/accounting/receipts"
-import Journal from "@/components/accounting/journal"
-import CreditNote from "@/components/accounting/credit-note"
-import CreditCards from "@/components/admin/credit-cards"
-import ChequesBooks from "@/components/admin/cheques-books"
-import VoucherBookPermissions from "@/components/settings/voucher-book-permissions"
-import Warehouses from "@/components/admin/warehouses"
+const lazyNamed = (loader: () => Promise<any>, name: string) => dynamic(() => loader().then((mod) => mod[name]), { ssr: false })
+const lazyDefault = (loader: () => Promise<any>) => dynamic(loader, { ssr: false })
+const OrderReports = lazyNamed(() => import("@/components/reports/order-reports"), "OrderReports")
+const ProductReports = lazyNamed(() => import("@/components/reports/product-reports"), "ProductReports")
+const Customers = lazyDefault(() => import("@/components/products/customers"))
+const ProductGroups = lazyDefault(() => import("@/components/products/product-groups"))
+const BrandTypes = lazyDefault(() => import("@/components/products/brand-types"))
+const Brands = lazyDefault(() => import("@/components/products/brands"))
+const Cars = lazyDefault(() => import("@/components/products/cars"))
+const Drivers = lazyDefault(() => import("@/components/products/drivers"))
+const ExchangeRates = lazyNamed(() => import("@/components/data/exchange-rates"), "ExchangeRates")
+const BatchMovements = lazyNamed(() => import("@/components/inventory/batch-movements"), "BatchMovements")
+const BatchReports = lazyNamed(() => import("@/components/reports/batch-reports"), "BatchReports")
+const BatchLogReport = lazyNamed(() => import("@/components/reports/batch-log-report"), "BatchLogReport")
+const InventoryAnalytics = lazyNamed(() => import("@/components/inventory/inventory-analytics"), "InventoryAnalytics")
+const AutomatedReorderSystem = lazyNamed(() => import("@/components/inventory/automated-reorder-system"), "AutomatedReorderSystem")
+const BarcodeManagement = lazyNamed(() => import("@/components/barcode/barcode-management"), "BarcodeManagement")
+const OrderTrackingDashboard = lazyNamed(() => import("@/components/workflow/order-tracking-dashboard"), "OrderTrackingDashboard")
+const LotOpener = lazyNamed(() => import("@/components/inventory/lot-opener"), "LotOpener")
+const LotStatusManager = lazyNamed(() => import("@/components/inventory/lot-status-manager"), "LotStatusManager")
+const CustomerPortalAdmin = lazyNamed(() => import("@/components/customer-portal/customer-portal-admin"), "CustomerPortalAdmin")
+const WhatsAppNotificationSettings = lazyNamed(() => import("@/components/inventory/whatsapp-notification-settings"), "WhatsAppNotificationSettings")
+const Accounts = lazyDefault(() => import("@/components/accounts"))
+const UnifiedAccounts = lazyDefault(() => import("@/components/customer/unified-accounts-refactored"))
+const Banks = lazyDefault(() => import("@/components/admin/banks"))
+const Branches = lazyDefault(() => import("@/components/admin/branches"))
+const BankAccounts = lazyDefault(() => import("@/components/admin/bank-accounts"))
+const Receipts = lazyDefault(() => import("@/components/accounting/receipts"))
+const Journal = lazyDefault(() => import("@/components/accounting/journal"))
+const CreditNote = lazyDefault(() => import("@/components/accounting/credit-note"))
+const CreditCards = lazyDefault(() => import("@/components/admin/credit-cards"))
+const ChequesBooks = lazyDefault(() => import("@/components/admin/cheques-books"))
+const VoucherBookPermissions = lazyDefault(() => import("@/components/settings/voucher-book-permissions"))
+const Warehouses = lazyDefault(() => import("@/components/admin/warehouses"))
 const StockVouchers = dynamic(() => import("@/components/inventory/stock-vouchers"), { ssr: false })
 const SalesDelivery = dynamic(() => import("@/components/sales/sales-delivery"), { ssr: false })
 
-import { AIChat } from "@/components/ai-assistant/ai-chat"
-import { SmartAnalyticsDashboard } from "@/components/ai-analytics/smart-analytics-dashboard"
-import { SmartInventoryRecommendations } from "@/components/ai-recommendations/smart-inventory-recommendations"
-
-// Settings components
-import PrintSettings from "@/components/settings/print-settings"
-import VoucherSettings from "@/components/settings/voucher-settings"
-import DocumentSettings from "@/components/settings/document-settings"
-import Permissions from "@/components/settings/permissions"
-import JobRoles from "@/components/settings/job-roles"
-import RolePermissions from "@/components/settings/role-permissions"
-import UserBranchAccessMatrix from "@/components/settings/user-branch-access-matrix"
-import GeneralSettings from "@/components/settings/general-settings"
-import VouchersGeneralSettings from "@/components/settings/vouchers-general-settings"
-import APISettings from "@/components/settings/api-settings"
-import { SystemSettings } from "@/components/settings/system-settings"
-import { UserSettings } from "@/components/settings/user-settings"
-import { ThemeCustomization } from "@/components/settings/theme-customization"
-import { Definitions } from "@/components/settings/definitions"
-import FontSettings from "@/components/settings/font-settings"
-import QADashboard from "@/components/qa-dashboard"
-import WelcomeDashboard from "@/components/dashboard/welcome-dashboard"
-import PervasiveSettings from "@/app/settings/pervasive/page"
-import { OrderMigrate } from "@/components/Migration/orders-migration"
-import  {OrderManagement} from "@/components/orders/order-management"
-import TaskOrdersAdminPage from "@/components/task-orders/task-orders-admin-page"
-import TaskOrdersBoardPage from "@/components/task-orders/task-orders-board-page"
-import TaskOrdersReportPage from "@/components/task-orders/task-orders-report-page"
-import TaskOrdersApprovalPage from "@/components/task-orders/order-approval-page"
-import { DraftOrdersPage } from "@/components/order-drafts/draft-orders-page"
-import { OrderConfirmationBoard } from "@/components/order-drafts/order-confirmation-board"
-import { ChecklistDesigner } from "@/components/order-drafts/checklist-designer"
+const AIChat = lazyNamed(() => import("@/components/ai-assistant/ai-chat"), "AIChat")
+const SmartAnalyticsDashboard = lazyNamed(() => import("@/components/ai-analytics/smart-analytics-dashboard"), "SmartAnalyticsDashboard")
+const SmartInventoryRecommendations = lazyNamed(() => import("@/components/ai-recommendations/smart-inventory-recommendations"), "SmartInventoryRecommendations")
+const PrintSettings = lazyDefault(() => import("@/components/settings/print-settings"))
+const VoucherSettings = lazyDefault(() => import("@/components/settings/voucher-settings"))
+const DocumentSettings = lazyDefault(() => import("@/components/settings/document-settings"))
+const Permissions = lazyDefault(() => import("@/components/settings/permissions"))
+const JobRoles = lazyDefault(() => import("@/components/settings/job-roles"))
+const RolePermissions = lazyDefault(() => import("@/components/settings/role-permissions"))
+const UserBranchAccessMatrix = lazyDefault(() => import("@/components/settings/user-branch-access-matrix"))
+const GeneralSettings = lazyDefault(() => import("@/components/settings/general-settings"))
+const VouchersGeneralSettings = lazyDefault(() => import("@/components/settings/vouchers-general-settings"))
+const APISettings = lazyDefault(() => import("@/components/settings/api-settings"))
+const SystemSettings = lazyNamed(() => import("@/components/settings/system-settings"), "SystemSettings")
+const UserSettings = lazyNamed(() => import("@/components/settings/user-settings"), "UserSettings")
+const ThemeCustomization = lazyNamed(() => import("@/components/settings/theme-customization"), "ThemeCustomization")
+const Definitions = lazyNamed(() => import("@/components/settings/definitions"), "Definitions")
+const FontSettings = lazyDefault(() => import("@/components/settings/font-settings"))
+const QADashboard = lazyDefault(() => import("@/components/qa-dashboard"))
+const WelcomeDashboard = lazyDefault(() => import("@/components/dashboard/welcome-dashboard"))
+const PervasiveSettings = lazyDefault(() => import("@/app/settings/pervasive/page"))
+const OrderMigrate = lazyNamed(() => import("@/components/Migration/orders-migration"), "OrderMigrate")
+const OrderManagement = lazyNamed(() => import("@/components/orders/order-management"), "OrderManagement")
+const TaskOrdersAdminPage = lazyDefault(() => import("@/components/task-orders/task-orders-admin-page"))
+const TaskOrdersBoardPage = lazyDefault(() => import("@/components/task-orders/task-orders-board-page"))
+const TaskOrdersReportPage = lazyDefault(() => import("@/components/task-orders/task-orders-report-page"))
+const TaskOrdersApprovalPage = lazyDefault(() => import("@/components/task-orders/order-approval-page"))
+const DraftOrdersPage = lazyNamed(() => import("@/components/order-drafts/draft-orders-page"), "DraftOrdersPage")
+const OrderConfirmationBoard = lazyNamed(() => import("@/components/order-drafts/order-confirmation-board"), "OrderConfirmationBoard")
+const ChecklistDesigner = lazyNamed(() => import("@/components/order-drafts/checklist-designer"), "ChecklistDesigner")
 const componentMap: Record<string, React.ComponentType<any>> = {
   dashboard: Dashboard,
   "inventory-analytics": InventoryAnalytics,
@@ -310,21 +309,27 @@ function HomePageContent() {
   }, [])
 
   useEffect(() => {
-    const removeWijmoEval = () => {
-      document.body.querySelectorAll<HTMLElement>("*").forEach((e) => {
-        if (e.innerText?.includes("Wijmo Evaluation")) {
-          e.remove()
-        }
-        if (e.innerText?.includes("Wijmo License")) {
-          e.remove()
-        }
-      });
-    };
+    const removeLicenseNodes = (root: ParentNode) => {
+      const elements = root instanceof HTMLElement ? [root, ...root.querySelectorAll<HTMLElement>("*")] : root.querySelectorAll<HTMLElement>("*")
+      elements.forEach((element) => {
+        const text = element.innerText
+        const isLicenseText = text?.includes("Wijmo Evaluation") || text?.includes("Wijmo License")
+        const hasMatchingChild = Array.from(element.children).some((child) => {
+          const childText = (child as HTMLElement).innerText
+          return childText?.includes("Wijmo Evaluation") || childText?.includes("Wijmo License")
+        })
+        if (isLicenseText && !hasMatchingChild) element.remove()
+      })
+    }
 
-    removeWijmoEval();
-
-    // Observe DOM changes under body only
-    const observer = new MutationObserver(removeWijmoEval);
+    // One initial scan, then inspect only nodes added by Wijmo. The previous
+    // implementation rescanned the entire document after every DOM mutation.
+    removeLicenseNodes(document.body)
+    const observer = new MutationObserver((records) => {
+      records.forEach((record) => record.addedNodes.forEach((node) => {
+        if (node instanceof HTMLElement) removeLicenseNodes(node)
+      }))
+    })
     observer.observe(document.body, { childList: true, subtree: true });
 
     return () => observer.disconnect();
