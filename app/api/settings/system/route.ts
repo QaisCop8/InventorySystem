@@ -160,8 +160,11 @@ async function ensureSettingsTable(): Promise<void> {
 
   // Many databases contain id as integer; attempts to ALTER may fail with
   // insufficient privileges — ignore those errors and proceed.
-  await execSafe(sql`ALTER TABLE system_settings ALTER COLUMN id TYPE VARCHAR(100) USING id::TEXT`)
+  // PostgreSQL won't change an IDENTITY column to varchar. Remove its generation
+  // metadata/default first, then perform the legacy key/value schema conversion.
+  await execSafe(sql`ALTER TABLE system_settings ALTER COLUMN id DROP IDENTITY IF EXISTS`)
   await execSafe(sql`ALTER TABLE system_settings ALTER COLUMN id DROP DEFAULT`)
+  await execSafe(sql`ALTER TABLE system_settings ALTER COLUMN id TYPE VARCHAR(100) USING id::TEXT`)
   await execSafe(sql`ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS description TEXT`)
   await execSafe(sql`ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS value TEXT`)
 

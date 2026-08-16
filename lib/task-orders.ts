@@ -769,10 +769,12 @@ export async function resolveWorkflow(productId: number | null, itemType: string
     `
     if (general.length > 0) return general[0]
   }
+  // Older general workflows may contain an item_type. Sales-order confirmation only
+  // has a product id, so accept the branch's general workflow as the final fallback.
   const fallback = await sql`
-    SELECT * FROM task_workflows WHERE is_active = true AND type = 'general' AND item_type IS NULL
+    SELECT * FROM task_workflows WHERE is_active = true AND type = 'general'
       AND (branch_id IS NULL OR ${branchId}::int IS NULL OR branch_id = ${branchId})
-    ORDER BY version DESC LIMIT 1
+    ORDER BY (item_type IS NULL) DESC, version DESC LIMIT 1
   `
   return fallback[0] || null
 }

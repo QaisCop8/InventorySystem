@@ -9,7 +9,13 @@ const SALES_VCH_TYPE = 5
 // (لا يوجد عمود تكلفة مخصَّص في جدول products الفعلي؛ هذا تقدير، وليس تكلفة تاريخية دقيقة وقت البيع).
 async function getMarginByMonth() {
   const pool = await getTenantPool()
-  const result = await pool.query(`
+  const tables = await pool.query(`
+    SELECT to_regclass('public.vouchers') AS vouchers,
+           to_regclass('public.voucher_items') AS voucher_items
+  `)
+  const hasLegacyVoucherTables = Boolean(tables.rows[0]?.vouchers && tables.rows[0]?.voucher_items)
+
+  const result = hasLegacyVoucherTables ? await pool.query(`
     WITH sales AS (
       SELECT id, voucher_date, total_amount
       FROM vouchers
@@ -31,7 +37,28 @@ async function getMarginByMonth() {
     LEFT JOIN cogs c ON c.voucher_id = s.id
     GROUP BY 1
     ORDER BY 1
-  `, [SALES_VCH_TYPE])
+  `, [SALES_VCH_TYPE]) : await pool.query(`
+    WITH order_costs AS (
+      SELECT
+        o.id,
+        o.order_date,
+        o.total_amount,
+        SUM(COALESCE(oi.quantity, 0) * COALESCE(p.last_purchase_price, 0)) AS cogs
+      FROM orders o
+      LEFT JOIN order_items oi ON oi.order_id = o.id
+      LEFT JOIN products p ON p.id = oi.product_id
+      WHERE COALESCE(o.deleted, false) = false
+        AND o.order_date >= (CURRENT_DATE - INTERVAL '3 months')
+      GROUP BY o.id, o.order_date, o.total_amount
+    )
+    SELECT
+      to_char(order_date, 'YYYY-MM') AS month_key,
+      SUM(total_amount) AS revenue,
+      SUM(cogs) AS cogs
+    FROM order_costs
+    GROUP BY 1
+    ORDER BY 1
+  `)
 
   return result.rows.map((row) => ({
     monthKey: row.month_key as string,

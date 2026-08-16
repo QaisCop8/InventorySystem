@@ -117,8 +117,9 @@ async function ensureSettingsTable(): Promise<void> {
     )
   `
 
-  await sql`ALTER TABLE system_settings ALTER COLUMN id TYPE VARCHAR(100) USING id::TEXT`
+  await sql`ALTER TABLE system_settings ALTER COLUMN id DROP IDENTITY IF EXISTS`
   await sql`ALTER TABLE system_settings ALTER COLUMN id DROP DEFAULT`
+  await sql`ALTER TABLE system_settings ALTER COLUMN id TYPE VARCHAR(100) USING id::TEXT`
   await sql`ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS description TEXT`
   await sql`ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS value TEXT`
 

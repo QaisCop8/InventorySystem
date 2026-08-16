@@ -523,8 +523,9 @@ async function seedDefaultSystemSettings(tenantClient: ReturnType<typeof getPool
   )
   const idIsInteger = /int/i.test(String(idTypeRows[0]?.data_type || ""))
 
-  await tenantClient.query(`ALTER TABLE system_settings ALTER COLUMN id TYPE VARCHAR(100) USING id::TEXT`, []).catch(() => {})
+  await tenantClient.query(`ALTER TABLE system_settings ALTER COLUMN id DROP IDENTITY IF EXISTS`, []).catch(() => {})
   await tenantClient.query(`ALTER TABLE system_settings ALTER COLUMN id DROP DEFAULT`, []).catch(() => {})
+  await tenantClient.query(`ALTER TABLE system_settings ALTER COLUMN id TYPE VARCHAR(100) USING id::TEXT`, []).catch(() => {})
   await tenantClient.query(`ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS description TEXT`, []).catch(() => {})
   await tenantClient.query(`ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS value TEXT`, []).catch(() => {})
 

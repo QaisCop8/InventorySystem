@@ -51,7 +51,15 @@ export function OrderConfirmationBoard() {
         toast({ title: "تعذر تأكيد الطلبية", description: error, variant: "destructive" })
         return
       }
-      toast({ title: "تم تأكيد الطلبية", description: `تم إنشاء طلبية المبيعات ${result.order_number}` })
+      if (result.workflow_created === false) {
+        toast({
+          title: "تم إنشاء الطلبية مع تنبيه",
+          description: result.workflow_message || "تعذر إنشاء سير العمل لبعض الأصناف",
+          variant: "destructive",
+        })
+      } else {
+        toast({ title: "تم تأكيد الطلبية", description: `تم إنشاء طلبية المبيعات ${result.order_number} وبدء سير العمل` })
+      }
       setSelected(null)
       await load()
     } catch {
