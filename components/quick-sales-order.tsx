@@ -13,6 +13,7 @@ import Util from "./common/Util"
 import CustomerSearchPopup from "./products/CustomerSearchPopup"
 import ProductSearchPopup from "./products/ProductSearchPopup"
 import { useAuth } from "./auth/auth-context"
+import MeasurementInputDialog from "./common/MeasurementInputDialog"
 
 // نوع طلبية المبيعات ثابت في هذه النافذة السريعة — لا يُعرض للمستخدم ولا يمكن تغييره
 const SALES_ORDER_TYPE = 1
@@ -27,6 +28,14 @@ interface QuickOrderItem {
   qty: number | ""
   price: number | ""
   discount: number | ""
+  measurment_id: number
+  product_length: number | null
+  product_width: number | null
+  product_density: number | null
+  length: number | null
+  width: number | null
+  height: number | null
+  count: number | null
 }
 
 interface SelectedCustomer {
@@ -52,6 +61,14 @@ const emptyItem = (): QuickOrderItem => ({
   qty: 1,
   price: 0,
   discount: 0,
+  measurment_id: 1,
+  product_length: null,
+  product_width: null,
+  product_density: null,
+  length: null,
+  width: null,
+  height: null,
+  count: null,
 })
 
 const amountOf = (item: QuickOrderItem) => {
@@ -71,6 +88,7 @@ export function QuickSalesOrder({ open, onOpenChange, onOrderSaved }: QuickSales
   const [customer, setCustomer] = useState<SelectedCustomer | null>(null)
   const [showCustomerSearch, setShowCustomerSearch] = useState(false)
   const [showProductSearch, setShowProductSearch] = useState(false)
+  const [measurementItemId, setMeasurementItemId] = useState<string | null>(null)
   const [items, setItems] = useState<QuickOrderItem[]>([emptyItem()])
   const [defaultItemWarehouseId, setDefaultItemWarehouseId] = useState<number | null>(null)
   const [defaultWarehouseLoading, setDefaultWarehouseLoading] = useState(false)
@@ -80,6 +98,7 @@ export function QuickSalesOrder({ open, onOpenChange, onOrderSaved }: QuickSales
     setNotes("")
     setCustomer(null)
     setItems([emptyItem()])
+    setMeasurementItemId(null)
   }
 
   useEffect(() => {
@@ -160,6 +179,14 @@ export function QuickSalesOrder({ open, onOpenChange, onOrderSaved }: QuickSales
         qty: 1,
         price: unit?.price ?? product.first_price ?? 0,
         discount: 0,
+        measurment_id: product.measurment_id != null ? Number(product.measurment_id) : 1,
+        product_length: product.length != null ? Number(product.length) : null,
+        product_width: product.width != null ? Number(product.width) : null,
+        product_density: product.density != null ? Number(product.density) : null,
+        length: null,
+        width: null,
+        height: null,
+        count: 1,
       }
 
       if (emptyIndex >= 0) {
@@ -189,6 +216,14 @@ export function QuickSalesOrder({ open, onOpenChange, onOrderSaved }: QuickSales
       return next.length > 0 ? next : [emptyItem()]
     })
   }
+
+  const openMeasurementDialog = (item: QuickOrderItem) => {
+    if (item.product_id && Number(item.measurment_id || 1) !== 1) {
+      setMeasurementItemId(item.rowId)
+    }
+  }
+
+  const measurementItem = measurementItemId ? items.find((item) => item.rowId === measurementItemId) : undefined
 
   const totalAmount = items.reduce((sum, item) => sum + amountOf(item), 0)
 
@@ -335,9 +370,9 @@ export function QuickSalesOrder({ open, onOpenChange, onOrderSaved }: QuickSales
         // الـDialog وتُغلقها تلقائياً، فتُغلَق نافذة الطلبية السريعة كاملة معها. تُمنَع هذه الإغلاقات
         // التلقائية طالما نافذة بحث الأصناف مفتوحة — إغلاقها هي نفسها يبقى بيد onClose/Escape الخاصين
         // بها فقط.
-        onPointerDownOutside={(e) => { if (showProductSearch) e.preventDefault() }}
-        onInteractOutside={(e) => { if (showProductSearch) e.preventDefault() }}
-        onEscapeKeyDown={(e) => { if (showProductSearch) e.preventDefault() }}
+        onPointerDownOutside={(e) => { if (showProductSearch || measurementItem) e.preventDefault() }}
+        onInteractOutside={(e) => { if (showProductSearch || measurementItem) e.preventDefault() }}
+        onEscapeKeyDown={(e) => { if (showProductSearch || measurementItem) e.preventDefault() }}
       >
         <Toast ref={toast} position="top-left" className="erp-toast-host" style={{ top: 100, whiteSpace: "pre-line" }} />
 
@@ -406,6 +441,9 @@ export function QuickSalesOrder({ open, onOpenChange, onOrderSaved }: QuickSales
                       type="number"
                       value={item.qty}
                       onChange={(e) => updateItem(item.rowId, "qty", e.target.value)}
+                      onFocus={() => openMeasurementDialog(item)}
+                      onClick={() => openMeasurementDialog(item)}
+                      readOnly={Number(item.measurment_id || 1) !== 1}
                       className="text-right"
                     />
                   </div>
@@ -477,6 +515,29 @@ export function QuickSalesOrder({ open, onOpenChange, onOrderSaved }: QuickSales
           priceCategoryId={1}
           ShowSelect={false}
           searchText=""
+        />
+        <MeasurementInputDialog
+          open={Boolean(measurementItem)}
+          onOpenChange={(next) => {
+            if (!next) setMeasurementItemId(null)
+          }}
+          measurmentId={Number(measurementItem?.measurment_id || 1)}
+          productName={measurementItem?.product_name}
+          initialValues={measurementItem ? {
+            length: measurementItem.length,
+            width: measurementItem.width,
+            height: measurementItem.height,
+            count: measurementItem.count,
+          } : undefined}
+          productLength={measurementItem?.product_length}
+          productWidth={measurementItem?.product_width}
+          productDensity={measurementItem?.product_density}
+          onConfirm={(values, quantity) => {
+            if (!measurementItemId) return
+            setItems((prev) => prev.map((item) => item.rowId === measurementItemId
+              ? { ...item, ...values, qty: quantity }
+              : item))
+          }}
         />
       </DialogContent>
     </Dialog>

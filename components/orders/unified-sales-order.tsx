@@ -47,6 +47,7 @@ import AccountSearchDialog, { type AccountItem } from "@/components/customer/acc
 import ProgressSpinner from "../ProgressSpinner/ProgressSpinner"
 import OrderSearchPopup from "./OrderSearchPopup"
 import ConfirmDialogYesNo from "../ui/ConfirmDialogYesNo"
+import MeasurementInputDialog from "@/components/common/MeasurementInputDialog"
 import { stat } from "fs"
 import { set } from "date-fns"
 import React from "react"
@@ -400,11 +401,14 @@ function UnifiedSalesOrder({
   const [nextFunction, setNextFunction] = useState<(() => void) | null>(null);
   const [showPrintRefConfirm, setShowPrintRefConfirm] = useState(false);
   const [showDuplicateRefConfirm, setShowDuplicateRefConfirm] = useState(false);
+  const [measurementDialogOpen, setMeasurementDialogOpen] = useState(false)
+  const [measurementDialogRow, setMeasurementDialogRow] = useState<number | null>(null)
+  const measurementConfirmedRef = useRef(false)
   const [isDuplicateRefConfirmed, setIsDuplicateRefConfirmed] = useState(false);
   const duplicateRefDismissedValueRef = useRef<string>("");
   const skipNextEnterRef = useRef(false)
   const suppressEnterUntilRef = useRef(0)
-  const [data, setData] = useState([{
+  const [data, setData] = useState<any[]>([{
     ser: 1,
     unit_id: 0,
     unit_name: '',
@@ -424,7 +428,15 @@ function UnifiedSalesOrder({
     amount: 0,
     to_main_unit_qty: 0,
     store_id: 0,
-    store_name: ''
+    store_name: '',
+    measurment_id: 1,
+    product_length: null,
+    product_width: null,
+    product_density: null,
+    length: null,
+    width: null,
+    height: null,
+    count: null,
   }]);
   const [CollectionView] = useState(() => {
     const view = new wjcCore.CollectionView(data)
@@ -1081,7 +1093,15 @@ function UnifiedSalesOrder({
           qnty: 1,
           bonus: '',
           amount: initialPrice,
-          item_status: state.formData.order_status || 1
+          item_status: state.formData.order_status || 1,
+          measurment_id: ii.measurment_id != null ? Number(ii.measurment_id) : 1,
+          product_length: ii.length != null ? Number(ii.length) : null,
+          product_width: ii.width != null ? Number(ii.width) : null,
+          product_density: ii.density != null ? Number(ii.density) : null,
+          length: null,
+          width: null,
+          height: null,
+          count: 1,
         };
         if (setFromExcelRef.current) {
           item.qnty = ii.qnty;
@@ -1117,6 +1137,14 @@ function UnifiedSalesOrder({
         item.batch = setFromExcelRef.current ? ii.batch + '' : '';
         item.qnty = setFromExcelRef.current ? ii.qnty : 1;
         item.amount = setFromExcelRef.current ? ii.qnty * ii.price : updatedPrice;
+        item.measurment_id = ii.measurment_id != null ? Number(ii.measurment_id) : 1;
+        item.product_length = ii.length != null ? Number(ii.length) : null;
+        item.product_width = ii.width != null ? Number(ii.width) : null;
+        item.product_density = ii.density != null ? Number(ii.density) : null;
+        item.length = null;
+        item.width = null;
+        item.height = null;
+        item.count = 1;
         // Ensure item_status is set to order status
         if (!item.item_status) {
           item.item_status = state.formData.order_status || 1;
@@ -1323,6 +1351,24 @@ function UnifiedSalesOrder({
       }
     }
 
+  }
+
+  const onBeginningEdit = (grid: any, e: any) => {
+    const colName = grid?.columns?.[e.col]?.binding
+    const item = grid?.rows?.[e.row]?.dataItem ?? CollectionView.items[e.row]
+    if (!item || Number(item.measurment_id || 1) === 1) return
+
+    if (colName === "qnty") {
+      e.cancel = true
+      if (item.id) {
+        measurementConfirmedRef.current = false
+        setMeasurementDialogRow(e.row)
+        setMeasurementDialogOpen(true)
+        popupHasCalled()
+      }
+    } else if (colName === "bonus") {
+      e.cancel = true
+    }
   }
 
   const onKeyDownGrid = (grid: any, e: KeyboardEvent) => {
@@ -3777,6 +3823,7 @@ function UnifiedSalesOrder({
                   dataSource={CollectionView}
                   onKeyDown={(s: any, e: any) => onKeyDownGrid(s, e)}
                   cellEditEnded={(s: any, e: any) => onCellEditEnded(s, e)}
+                  beginningEdit={(s: any, e: any) => onBeginningEdit(s, e)}
                   showContextMenu={false}
                   copyItemStoreDown={true}
                   dontConvertToCards={true}
@@ -4024,6 +4071,43 @@ function UnifiedSalesOrder({
             onLotsSelected={handleLotsSelected}
           />
         )}
+
+        <MeasurementInputDialog
+          open={measurementDialogOpen}
+          onOpenChange={(open) => {
+            setMeasurementDialogOpen(open)
+            if (!open) {
+              popupHasClosed()
+              const row = measurementDialogRow
+              setTimeout(() => {
+                gridRef.current?.focus()
+                if (row !== null) gridRef.current?.select(row, measurementConfirmedRef.current ? "price" : "qnty")
+              }, 0)
+            }
+          }}
+          measurmentId={measurementDialogRow !== null ? Number(CollectionView.items[measurementDialogRow]?.measurment_id || 1) : 1}
+          productName={measurementDialogRow !== null ? CollectionView.items[measurementDialogRow]?.name : undefined}
+          initialValues={measurementDialogRow !== null ? {
+            length: CollectionView.items[measurementDialogRow]?.length ?? null,
+            width: CollectionView.items[measurementDialogRow]?.width ?? null,
+            height: CollectionView.items[measurementDialogRow]?.height ?? null,
+            count: CollectionView.items[measurementDialogRow]?.count ?? null,
+          } : undefined}
+          productLength={measurementDialogRow !== null ? CollectionView.items[measurementDialogRow]?.product_length : null}
+          productWidth={measurementDialogRow !== null ? CollectionView.items[measurementDialogRow]?.product_width : null}
+          productDensity={measurementDialogRow !== null ? CollectionView.items[measurementDialogRow]?.product_density : null}
+          onConfirm={(values, quantity) => {
+            if (measurementDialogRow === null) return
+            const item = CollectionView.items[measurementDialogRow]
+            if (!item) return
+            Object.assign(item, values, {
+              qnty: quantity,
+              amount: quantity * (Number(item.price) || 0) - (Number(item.discount) || 0),
+            })
+            measurementConfirmedRef.current = true
+            CollectionView.refresh()
+          }}
+        />
 
         <ReportGenerator
           title={vch_type === 1 ? "تقرير طلبيات المبيعات" : "تقرير طلبيات المشتريات"}

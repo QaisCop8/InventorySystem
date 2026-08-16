@@ -561,13 +561,75 @@ async function seedDefaultSystemSettings(tenantClient: ReturnType<typeof getPool
   }
 }
 
-async function clearFreshCompanySeedData(tenantClient: ReturnType<typeof getPoolForDb>) {
-  const tables = ["products", "banks", "bank_accounts"]
-  for (const tableName of tables) {
-    if (await tableExists(tenantClient, tableName)) {
-      await tenantClient.query(`TRUNCATE TABLE "${tableName}" RESTART IDENTITY CASCADE`, [])
-    }
-  }
+// Only shared reference/lookup values are allowed to survive the project-dump
+// restore. Everything that belongs to a company (files/master records,
+// transactions, users, logs, attachments, workflow executions, etc.) must start
+// empty. New-company defaults such as its branch, store and administrator are
+// inserted after this cleanup.
+const FRESH_COMPANY_LOOKUP_TABLES = new Set([
+  "access_category",
+  "access_list",
+  "account_classification_types",
+  "balance_sheet_assets_items",
+  "balance_sheet_liabilities_items",
+  "income_statement_items",
+  "payment_classifications_tbl",
+  "tax_classifications",
+  "pricecategory",
+  "measurment_types_tbl",
+  "cities",
+  "currency",
+  "units",
+  "customer_categories",
+  "supplier_categories",
+  "item_categories",
+  "item_groups",
+  "product_categories",
+  "cheque_status_tbl",
+  "cheque_book_status_tbl",
+  "cheques_type_tbl",
+  "credit_card_main_types_tbl",
+  "credit_card_commission_types_tbl",
+  "credit_cards_types_tbl",
+  "voucher_types_tbl",
+  "voucher_books_tbl",
+  "voucher_status_tbl",
+  "voucher_journal_type_tbl",
+  "voucher_journal_type_caption_tbl",
+  "workflow_stages",
+  "workflow_sequences",
+  "workflow_sequence_steps",
+])
+
+const SCHEMA_METADATA_TABLES = new Set(["_prisma_migrations", "schema_migrations"])
+
+function quoteIdentifier(identifier: string): string {
+  return `"${identifier.replace(/"/g, '""')}"`
+}
+
+async function clearFreshCompanyNonLookupData(tenantClient: ReturnType<typeof getPoolForDb>) {
+  const tables = await tenantClient.query(
+    `SELECT table_name
+     FROM information_schema.tables
+     WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
+     ORDER BY table_name`,
+    [],
+  )
+
+  const tablesToClear = tables
+    .map((row: { table_name: string }) => row.table_name)
+    .filter((tableName: string) =>
+      !FRESH_COMPANY_LOOKUP_TABLES.has(tableName) &&
+      !SCHEMA_METADATA_TABLES.has(tableName) &&
+      tableName !== "spatial_ref_sys" &&
+      tableName !== "geography_columns" &&
+      tableName !== "geometry_columns"
+    )
+
+  if (tablesToClear.length === 0) return
+
+  const tableList = tablesToClear.map(quoteIdentifier).join(", ")
+  await tenantClient.query(`TRUNCATE TABLE ${tableList} RESTART IDENTITY CASCADE`, [])
 }
 
 export async function provisionCompanyDatabase(
@@ -588,10 +650,10 @@ export async function provisionCompanyDatabase(
   await ensureBasicProductsTable(tenantClient)
   await ensureModernProductColumns(tenantClient)
   await ensureModernVoucherItemsTable(tenantClient)
+  await clearFreshCompanyNonLookupData(tenantClient)
   const branchId = await seedDefaultBranchAndSection(tenantClient)
   await seedDefaultStore(tenantClient)
   await seedDefaultSystemSettings(tenantClient)
-  await clearFreshCompanySeedData(tenantClient)
   await seedManagementAccessDefinitions(tenantClient)
 
   // A restored or partially seeded database may contain the placeholder admin under

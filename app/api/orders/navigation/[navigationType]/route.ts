@@ -63,6 +63,10 @@ export async function GET(request: Request, { params }: { params: { navigationTy
       const itemsResult = await pool.query(
         `SELECT oi.*, w.name AS workflow_name,
            COALESCE(p.product_code, '') AS product_code,
+           COALESCE(p.measurment_id, 1) AS measurment_id,
+           p.length AS product_length,
+           p.width AS product_width,
+           p.density AS product_density,
            COALESCE(u.unit_name, '') AS unit_name,
            COALESCE(wh.warehouse_name, '') AS store_name
          FROM order_items oi
@@ -100,6 +104,10 @@ export async function GET(request: Request, { params }: { params: { navigationTy
       const itemsResult = await pool.query(
         `SELECT oi.*, w.name AS workflow_name,
            COALESCE(p.product_code, '') AS product_code,
+           COALESCE(p.measurment_id, 1) AS measurment_id,
+           p.length AS product_length,
+           p.width AS product_width,
+           p.density AS product_density,
            COALESCE(u.unit_name, '') AS unit_name,
            COALESCE(wh.warehouse_name, '') AS store_name
          FROM order_items oi
@@ -144,6 +152,10 @@ export async function GET(request: Request, { params }: { params: { navigationTy
       const itemsResult = await pool.query(
         `SELECT oi.*, w.name AS workflow_name,
            COALESCE(p.product_code, '') AS product_code,
+           COALESCE(p.measurment_id, 1) AS measurment_id,
+           p.length AS product_length,
+           p.width AS product_width,
+           p.density AS product_density,
            COALESCE(u.unit_name, '') AS unit_name,
            COALESCE(wh.warehouse_name, '') AS store_name
          FROM order_items oi
