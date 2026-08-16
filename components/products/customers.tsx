@@ -881,10 +881,14 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
       setFormData(customer);
       console.log("newFormData ", newFormData)
 
+      // Establish the baseline from the exact payload being committed. Keeping
+      // this inside a timer allowed user input (or child synchronization) to
+      // happen first and made genuine edits look unchanged intermittently.
+      initialHash.current = getFormDataHash(customer)
+      setCurrentCustomerId(customer.id)
+
       setTimeout(() => {
         customer_name.current?.focus();
-        initialHash.current = getFormDataHash(customer)
-        setCurrentCustomerId(customer.id)
       }, 200);
 
     } catch (err) {
@@ -1530,13 +1534,13 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
       editingCustomerRef.current = true
       setValidationErrors({})
       setShowNewCustomerDialog(true)
-      console.log("customer customer ", customer)
-      setTimeout(() => {
-        loadData("ByIdEdit", customer.id);
-      }, 200);
+      // Editing a row is an explicit navigation request. Do not compare the
+      // selected row with the hash of whichever record happened to be open
+      // previously, otherwise the edit is mistaken for an unsaved change.
+      void loadData("ByIdEdit", customer.id, isSupplier, false)
 
     },
-    [updateFormData],
+    [isSupplier, updateFormData],
   )
 
   const handleManagePortal = useCallback(
@@ -1955,12 +1959,12 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
           }
         }}
       >
-        <DialogContent className="max-w-[95vw] sm:max-w-[90vw] md:max-w-[85vw] lg:max-w-[75vw] max-h-[95vh] overflow-hidden p-0" dir="rtl"
+        <DialogContent className="h-[94dvh] max-h-[94dvh] w-[96vw] max-w-[1400px] overflow-hidden p-0 sm:h-[92dvh] sm:max-h-[92dvh]" dir="rtl"
           onPointerDownOutside={(event) => event.preventDefault()}
           onEscapeKeyDown={(event) => event.preventDefault()}
           hideCloseButton
         >
-          <div className="flex h-[90vh] flex-col overflow-hidden bg-background">
+          <div className="flex h-full min-h-0 flex-col overflow-hidden bg-background">
             <UnifiedCustomers
               open={showNewCustomerDialog}
               onOpenChange={setShowNewCustomerDialog}

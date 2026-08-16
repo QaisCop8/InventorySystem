@@ -544,7 +544,11 @@ export default function UnifiedCustomers({
       try {
         setLoading(true)
         const definitions = await loadData()
-        await reset_fields(definitions)
+        // The parent has already populated formData when an existing customer is
+        // opened. Resetting here changed an edit popup back into a new record.
+        if (currentCustomerId <= 0 && Number(formData.id || 0) <= 0) {
+          await reset_fields(definitions)
+        }
       } catch (error) {
         console.error("Failed to initialize unified customers popup:", error)
       } finally {
@@ -553,7 +557,7 @@ export default function UnifiedCustomers({
     }
 
     void init()
-  }, [loadData, open, reset_fields])
+  }, [currentCustomerId, formData.id, loadData, open, reset_fields])
 
   useEffect(() => {
     if (!formData.id && !formData.currency_id && currencies.length > 0) {
@@ -820,8 +824,8 @@ export default function UnifiedCustomers({
   }, [])
 
   const handleNew = useCallback(() => {
-    void reset_fields()
-  }, [reset_fields])
+    onNew()
+  }, [onNew])
 
   // F3 حفظ / F4 حذف / F5 جديد — بلا أثر بينما نافذة فرعية مفتوحة (تصنيف/مركز تكلفة/تأكيد حذف)
   // فتمنح مفاتيحها الخاصة أولوية بلا تعارض، بنفس أسلوب compact-product-form.tsx.
@@ -1126,7 +1130,7 @@ export default function UnifiedCustomers({
         </button>
       </div>
 
-      <div ref={formRootRef} className="flex-1 space-y-4 overflow-y-auto px-6 pb-6">
+      <div ref={formRootRef} className="flex-1 space-y-3 overflow-y-auto px-3 pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:px-5 sm:pb-5 lg:px-6">
       <Card>
         <CardHeader className="pb-4">
           <CardTitle className="flex items-center gap-2 text-lg">
