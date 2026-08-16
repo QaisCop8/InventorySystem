@@ -25,6 +25,25 @@ function resolvePgRestorePath(): string {
   return "pg_restore"
 }
 
+function resolveDatabaseDumpPath(): string {
+  const configuredPath = process.env.DATABASE_DUMP_PATH?.trim()
+  const projectDumpPath = path.join(process.cwd(), "backupDB.sql")
+
+  // Local development can retain an obsolete DATABASE_DUMP_PATH from an old
+  // publish directory. Prefer it when it exists, but fall back to the dump that
+  // is shipped with the project instead of passing a missing file to pg_restore.
+  if (configuredPath && existsSync(configuredPath)) return configuredPath
+  if (existsSync(projectDumpPath)) return projectDumpPath
+
+  const checkedPaths = configuredPath
+    ? `configured path "${configuredPath}" and project path "${projectDumpPath}"`
+    : `project path "${projectDumpPath}"`
+  throw new Error(
+    `Database dump was not found. Checked ${checkedPaths}. ` +
+    "Set DATABASE_DUMP_PATH to an existing pg_dump custom-format backup.",
+  )
+}
+
 async function generateUniqueDbName(): Promise<string> {
   for (let attempt = 0; attempt < 10; attempt++) {
     const candidate = generateDbName()
@@ -38,7 +57,7 @@ function restoreCompanyDatabase(dbName: string): Promise<void> {
   const databaseUrl = process.env.DATABASE_URL?.trim()
   if (!databaseUrl) throw new Error("DATABASE_URL is not configured")
 
-  const dumpPath = process.env.DATABASE_DUMP_PATH?.trim() || path.join(process.cwd(), "backupDB.sql")
+  const dumpPath = resolveDatabaseDumpPath()
   const targetUrl = new URL(withDatabaseName(databaseUrl, dbName))
   const restoreEnv: NodeJS.ProcessEnv = {
     ...process.env,
