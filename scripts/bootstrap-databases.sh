@@ -39,4 +39,4 @@ if [[ "$(psql "${management_url}" -tAc "SELECT current_database()")" != "managem
 fi
 psql "${management_url}" -v ON_ERROR_STOP=1 -f "${management_schema_path}"
 
-echo "Database bootstrap complete: management only. Each company is created as an empty database and restored from the project dump during provisioning."
+echo "Database bootstrap complete: management only. Each company is created as an empty database and initialized from scripts/company-bootstrap.sql during provisioning."

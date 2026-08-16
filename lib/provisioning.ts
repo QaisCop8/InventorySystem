@@ -10,37 +10,30 @@ function generateDbName(): string {
   return `co_${crypto.randomBytes(4).toString("hex")}`
 }
 
-function resolvePgRestorePath(): string {
-  const configuredPath = process.env.PG_RESTORE_PATH?.trim()
+function resolvePsqlPath(): string {
+  const configuredPath = process.env.PSQL_PATH?.trim()
   if (configuredPath) return configuredPath
 
   if (process.platform === "win32") {
     const programFiles = process.env.ProgramFiles || "C:\\Program Files"
     for (const version of ["18", "17", "16", "15", "14"]) {
-      const candidate = path.join(programFiles, "PostgreSQL", version, "bin", "pg_restore.exe")
+      const candidate = path.join(programFiles, "PostgreSQL", version, "bin", "psql.exe")
       if (existsSync(candidate)) return candidate
     }
   }
 
-  return "pg_restore"
+  return "psql"
 }
 
-function resolveDatabaseDumpPath(): string {
-  const configuredPath = process.env.DATABASE_DUMP_PATH?.trim()
-  const projectDumpPath = path.join(process.cwd(), "backupDB.sql")
-
-  // Local development can retain an obsolete DATABASE_DUMP_PATH from an old
-  // publish directory. Prefer it when it exists, but fall back to the dump that
-  // is shipped with the project instead of passing a missing file to pg_restore.
+function resolveCompanyBootstrapScriptPath(): string {
+  const configuredPath = process.env.COMPANY_BOOTSTRAP_SCRIPT_PATH?.trim()
+  const projectScriptPath = path.join(process.cwd(), "scripts", "company-bootstrap.sql")
   if (configuredPath && existsSync(configuredPath)) return configuredPath
-  if (existsSync(projectDumpPath)) return projectDumpPath
+  if (existsSync(projectScriptPath)) return projectScriptPath
 
-  const checkedPaths = configuredPath
-    ? `configured path "${configuredPath}" and project path "${projectDumpPath}"`
-    : `project path "${projectDumpPath}"`
   throw new Error(
-    `Database dump was not found. Checked ${checkedPaths}. ` +
-    "Set DATABASE_DUMP_PATH to an existing pg_dump custom-format backup.",
+    `Company bootstrap script was not found at "${configuredPath || projectScriptPath}". ` +
+    "Set COMPANY_BOOTSTRAP_SCRIPT_PATH to an existing SQL script.",
   )
 }
 
@@ -53,11 +46,11 @@ async function generateUniqueDbName(): Promise<string> {
   throw new Error("تعذّر توليد معرّف فريد لقاعدة بيانات الشركة")
 }
 
-function restoreCompanyDatabase(dbName: string): Promise<void> {
+function runCompanyBootstrapScript(dbName: string): Promise<void> {
   const databaseUrl = process.env.DATABASE_URL?.trim()
   if (!databaseUrl) throw new Error("DATABASE_URL is not configured")
 
-  const dumpPath = resolveDatabaseDumpPath()
+  const scriptPath = resolveCompanyBootstrapScriptPath()
   const targetUrl = new URL(withDatabaseName(databaseUrl, dbName))
   const restoreEnv: NodeJS.ProcessEnv = {
     ...process.env,
@@ -72,8 +65,8 @@ function restoreCompanyDatabase(dbName: string): Promise<void> {
 
   return new Promise((resolve, reject) => {
     const child = spawn(
-      resolvePgRestorePath(),
-      ["--exit-on-error", "--no-owner", "--no-privileges", "--dbname", dbName, dumpPath],
+      resolvePsqlPath(),
+      ["--no-psqlrc", "--set", "ON_ERROR_STOP=1", "--dbname", dbName, "--file", scriptPath],
       { env: restoreEnv, windowsHide: true },
     )
     let stderr = ""
@@ -82,13 +75,13 @@ function restoreCompanyDatabase(dbName: string): Promise<void> {
     })
     child.on("error", (error: NodeJS.ErrnoException) => {
       const hint = error.code === "ENOENT"
-        ? " Install PostgreSQL 18 client tools or set PG_RESTORE_PATH to the full pg_restore executable path."
+        ? " Install PostgreSQL client tools or set PSQL_PATH to the full psql executable path."
         : ""
-      reject(new Error(`Unable to start pg_restore: ${error.message}.${hint}`))
+      reject(new Error(`Unable to start psql: ${error.message}.${hint}`))
     })
     child.on("close", (code) => {
       if (code === 0) resolve()
-      else reject(new Error(`pg_restore failed with exit code ${code}: ${stderr.trim()}`))
+      else reject(new Error(`Company bootstrap script failed with exit code ${code}: ${stderr.trim()}`))
     })
   })
 }
@@ -109,11 +102,11 @@ async function createCompanyDatabaseFromScript(dbName: string) {
   try {
     const existing = await adminPool.query("SELECT 1 FROM pg_database WHERE datname = $1", [dbName])
     if (existing.rows.length > 0) throw new Error(`Database ${dbName} already exists`)
-    // Always create an empty database. The project dump supplies its schema and
-    // default rows; no existing PostgreSQL database is used as a template.
+    // Always create an empty database, then build it from the versioned SQL
+    // bootstrap script. No backup file or template database is used.
     await adminPool.query(`CREATE DATABASE "${dbName}"`)
     try {
-      await restoreCompanyDatabase(dbName)
+      await runCompanyBootstrapScript(dbName)
     } catch (error) {
       await adminPool.query(
         `SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = $1 AND pid <> pg_backend_pid()`,
@@ -193,8 +186,8 @@ async function ensureBasicProductsTable(tenantClient: ReturnType<typeof getPoolF
   )
 
   // إنشاء الفهارس الأساسية
-  // The canonical dump predates products.barcode. CREATE TABLE IF NOT EXISTS does
-  // not add missing columns to an existing restored table, so migrate it before
+  // The canonical bootstrap script predates products.barcode. CREATE TABLE IF NOT EXISTS does
+  // not add missing columns to an existing table, so migrate it before
   // creating the barcode index below.
   await tenantClient.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS barcode VARCHAR(100)`, [])
 
@@ -581,8 +574,8 @@ async function seedDefaultSystemSettings(tenantClient: ReturnType<typeof getPool
   }
 }
 
-// Only shared reference/lookup values are allowed to survive the project-dump
-// restore. Everything that belongs to a company (files/master records,
+// Only shared reference/lookup values are allowed to survive the bootstrap
+// script. Everything that belongs to a company (files/master records,
 // transactions, users, logs, attachments, workflow executions, etc.) must start
 // empty. New-company defaults such as its branch, store and administrator are
 // inserted after this cleanup.
@@ -676,7 +669,7 @@ export async function provisionCompanyDatabase(
   await seedDefaultSystemSettings(tenantClient)
   await seedManagementAccessDefinitions(tenantClient)
 
-  // A restored or partially seeded database may contain the placeholder admin under
+  // A bootstrapped or partially seeded database may contain the placeholder admin under
   // either unique key. Clear both identities before inserting the company's owner;
   // ON CONFLICT can target only one constraint and therefore cannot handle both safely.
   await tenantClient.query(

@@ -67,7 +67,7 @@ docker compose --env-file .env.production -f compose.production.yml ps
 docker compose --env-file .env.production -f compose.production.yml logs --tail=100 app caddy
 ```
 
-On a new PostgreSQL volume, the container creates only `management` and its tables. When a company is approved, the application creates a new empty `co_*` database and restores the project schema and default rows into it with PostgreSQL 18 `pg_restore`. No database is used as a template.
+On a new PostgreSQL volume, the container creates only `management` and its tables. When a company is approved, the application creates a new empty `co_*` database and runs `scripts/company-bootstrap.sql` with PostgreSQL 18 `psql`. No backup file or template database is used.
 
 If the database container was already started before these bootstrap mounts were added, update `.env.production` and run the bootstrap explicitly:
 

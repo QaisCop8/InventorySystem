@@ -26,8 +26,8 @@ ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
     HOSTNAME=0.0.0.0 \
     PORT=3000 \
-    PG_RESTORE_PATH=/usr/lib/postgresql/18/bin/pg_restore \
-    DATABASE_DUMP_PATH=/app/backupDB.sql
+    PSQL_PATH=/usr/lib/postgresql/18/bin/psql \
+    COMPANY_BOOTSTRAP_SCRIPT_PATH=/app/scripts/company-bootstrap.sql
 
 RUN apt-get update \
   && apt-get install -y --no-install-recommends ca-certificates unixodbc libpq5 liblz4-1 libzstd1 \
@@ -39,7 +39,6 @@ COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/scripts ./scripts
-COPY --from=builder --chown=nextjs:nodejs /app/backupDB.sql ./backupDB.sql
 COPY --from=postgres-client /usr/lib/postgresql/18 /usr/lib/postgresql/18
 
 RUN mkdir -p /app/uploads && chown nextjs:nodejs /app/uploads
