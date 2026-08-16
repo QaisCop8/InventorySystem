@@ -73,14 +73,14 @@ const emptyProductAccountValues = productAccountFields.reduce(
 export function SystemSettings() {
   const [settings, setSettings] = useState({
     // Company Settings
-    companyName: "شركة الموارد المتكاملة",
-    companyNameEn: "Integrated Resources Company",
-    taxNumber: "123456789",
-    commercialRegister: "987654321",
-    address: "رام الله - البيرة - شارع الإرسال",
-    phone: "02-2345678",
-    email: "info@company.com",
-    website: "www.company.com",
+    companyName: "",
+    companyNameEn: "",
+    taxNumber: "",
+    commercialRegister: "",
+    address: "",
+    phone: "",
+    email: "",
+    website: "",
 
     // System Settings
     defaultCurrency: "ILS",
@@ -211,14 +211,14 @@ export function SystemSettings() {
         if (settingsPayload && Object.keys(settingsPayload).length > 0) {
           setSettings((prev) => ({
             ...prev,
-            companyName: settingsPayload.company_name || prev.companyName,
-            companyNameEn: settingsPayload.company_name_en || prev.companyNameEn,
-            address: settingsPayload.company_address || prev.address,
-            phone: settingsPayload.company_phone || prev.phone,
-            email: settingsPayload.company_email || prev.email,
-            website: settingsPayload.company_website || prev.website,
-            taxNumber: settingsPayload.tax_number || prev.taxNumber,
-            commercialRegister: settingsPayload.commercial_register || prev.commercialRegister,
+            companyName: String(settingsPayload.company_name ?? ""),
+            companyNameEn: String(settingsPayload.company_name_en ?? ""),
+            address: String(settingsPayload.company_address ?? ""),
+            phone: String(settingsPayload.company_phone ?? ""),
+            email: String(settingsPayload.company_email ?? ""),
+            website: String(settingsPayload.company_website ?? ""),
+            taxNumber: String(settingsPayload.tax_number ?? ""),
+            commercialRegister: String(settingsPayload.commercial_register ?? ""),
             defaultCurrency: settingsPayload.default_currency || prev.defaultCurrency,
             orderPrefix: settingsPayload.order_prefix || prev.orderPrefix,
             purchasePrefix: settingsPayload.purchase_prefix || prev.purchasePrefix,
@@ -540,7 +540,8 @@ export function SystemSettings() {
       })
 
       if (!response.ok) {
-        throw new Error("فشل في حفظ الإعدادات")
+        const failure = await response.json().catch(() => null)
+        throw new Error(failure?.details || failure?.error || "فشل في حفظ الإعدادات")
       }
 
       const result = await response.json()
@@ -560,14 +561,14 @@ export function SystemSettings() {
   const handleReset = () => {
     if (confirm("هل أنت متأكد من إعادة تعيين جميع الإعدادات؟")) {
       setSettings({
-        companyName: "شركة الموارد المتكاملة",
-        companyNameEn: "Integrated Resources Company",
-        taxNumber: "123456789",
-        commercialRegister: "987654321",
-        address: "رام الله - البيرة - شارع الإرسال",
-        phone: "02-2345678",
-        email: "info@company.com",
-        website: "www.company.com",
+        companyName: "",
+        companyNameEn: "",
+        taxNumber: "",
+        commercialRegister: "",
+        address: "",
+        phone: "",
+        email: "",
+        website: "",
         defaultCurrency: "ILS",
         dateFormat: "dd/mm/yyyy",
         timeFormat: "24h",

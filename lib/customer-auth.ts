@@ -1,6 +1,7 @@
 import sql from "@/lib/database"
 import bcrypt from "bcryptjs"
 import { cookies } from "next/headers"
+import { shouldUseSecureCookies } from "./cookie-security"
 import crypto from "crypto"
 
 // Create Neon client
@@ -168,7 +169,7 @@ export async function authenticateCustomer(
     const cookieStore = await cookies()
     cookieStore.set("customer_session", sessionToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: await shouldUseSecureCookies(),
       sameSite: "lax",
       expires: expiresAt,
       path: "/",

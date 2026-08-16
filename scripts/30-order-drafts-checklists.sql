@@ -1,0 +1,58 @@
+ALTER TABLE products ADD COLUMN IF NOT EXISTS minimum_order_quantity NUMERIC(15,4) NOT NULL DEFAULT 0;
+
+CREATE TABLE IF NOT EXISTS order_checklist_templates (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(200) NOT NULL,
+  description TEXT,
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS order_checklist_fields (
+  id SERIAL PRIMARY KEY,
+  template_id INTEGER NOT NULL REFERENCES order_checklist_templates(id) ON DELETE CASCADE,
+  label VARCHAR(200) NOT NULL,
+  field_type VARCHAR(20) NOT NULL CHECK (field_type IN ('text','integer','decimal','date','boolean','textarea')),
+  max_length INTEGER,
+  is_required BOOLEAN NOT NULL DEFAULT FALSE,
+  position INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS sales_order_drafts (
+  id SERIAL PRIMARY KEY,
+  draft_number VARCHAR(40) UNIQUE NOT NULL,
+  customer_id INTEGER NOT NULL,
+  customer_name VARCHAR(255) NOT NULL,
+  order_date DATE NOT NULL DEFAULT CURRENT_DATE,
+  requested_delivery_date DATE NOT NULL,
+  deposit_amount NUMERIC(15,2) NOT NULL DEFAULT 0,
+  notes TEXT,
+  delivery_address TEXT,
+  contact_phone VARCHAR(50),
+  priority VARCHAR(20) NOT NULL DEFAULT 'normal',
+  checklist_template_id INTEGER REFERENCES order_checklist_templates(id),
+  attachments JSONB NOT NULL DEFAULT '[]'::jsonb,
+  status VARCHAR(20) NOT NULL DEFAULT 'draft',
+  created_by VARCHAR(100),
+  branch_id INTEGER,
+  confirmed_order_id INTEGER,
+  checklist_values JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS sales_order_draft_items (
+  id SERIAL PRIMARY KEY,
+  draft_id INTEGER NOT NULL REFERENCES sales_order_drafts(id) ON DELETE CASCADE,
+  product_id INTEGER NOT NULL REFERENCES products(id),
+  product_name VARCHAR(255) NOT NULL,
+  quantity NUMERIC(15,4) NOT NULL,
+  price NUMERIC(15,4) NOT NULL DEFAULT 0,
+  discount NUMERIC(15,2) NOT NULL DEFAULT 0,
+  unit_id INTEGER,
+  barcode VARCHAR(100)
+);
+
+CREATE INDEX IF NOT EXISTS idx_sales_order_drafts_status ON sales_order_drafts(status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_draft_items_draft ON sales_order_draft_items(draft_id);

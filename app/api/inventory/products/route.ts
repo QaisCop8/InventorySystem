@@ -1239,6 +1239,14 @@ export async function POST(request: NextRequest) {
     await persistProductBrands(client, productId, productData.product_brands)
     await persistProductNumbers(client, productId, productData.original_numbers, productData.factory_numbers)
 
+    // Kept outside the legacy positional INSERT/UPDATE lists so older databases can
+    // adopt the decimal minimum-order rule without destabilising those contracts.
+    await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS minimum_order_quantity NUMERIC(15,4) NOT NULL DEFAULT 0`)
+    await client.query(`UPDATE products SET minimum_order_quantity=$1::numeric WHERE id=$2::int`, [
+      Math.max(0, Number(productData.minimum_order_quantity || 0)),
+      productId,
+    ])
+
     await client.query("COMMIT");
     return NextResponse.json({ success: true, productId });
   } catch (err) {

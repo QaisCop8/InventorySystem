@@ -54,7 +54,7 @@ interface SidebarProps {
   isMobile?: boolean
 }
 
-interface MenuItem {
+export interface MenuItem {
   id?: string
   title: string
   icon: LucideIcon
@@ -194,6 +194,9 @@ export const menuItems: MenuItem[] = [
         submenu: [
           { title: "طلبيات المشتريات", section: "purchase-orders", icon: Truck },
           { title: "طلبيات المبيعات", section: "sales-orders", icon: ShoppingCart },
+          { title: "إنشاء مسودة طلبية", section: "draft-sales-order", icon: FilePlus2 },
+          { title: "تأكيد الطلبيات", section: "order-confirmation", icon: PackageCheck },
+          { title: "قوائم تحقق الطلبيات", section: "order-checklists", icon: FileText },
           { title: "معالجة حالة الطلبيات", section: "order-management", icon: Package },
         ],
       },

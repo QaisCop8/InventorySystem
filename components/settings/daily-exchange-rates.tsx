@@ -60,7 +60,8 @@ const scheme = {
 // التي تعرض السعر المسجَّل لذلك التاريخ إن وُجد، أو تنسخ آخر سعر سابق وتحفظه تلقائياً كسعر ذلك اليوم
 // إن لم يوجد (انظر lib/database.ts's getOrCreateRatesForDate).
 export function DailyExchangeRatesDialog({ open, onOpenChange, onSaved }: DailyExchangeRatesDialogProps) {
-  const today = new Date().toISOString().slice(0, 10)
+  const now = new Date()
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`
   const [rateDate, setRateDate] = useState(today)
   const [rows, setRows] = useState<CurrencyRateRow[]>([])
   const [loading, setLoading] = useState(false)
@@ -76,6 +77,7 @@ export function DailyExchangeRatesDialog({ open, onOpenChange, onSaved }: DailyE
   }, [rows])
 
   const gridRef = useRef<any>(null)
+  const pendingNavigationRef = useRef<{ row: number; col: number } | null>(null)
   const [collectionView] = useState(() => new wjcCore.CollectionView<CurrencyRateRow>([]))
   useEffect(() => {
     collectionView.sourceCollection = rows
@@ -142,6 +144,7 @@ export function DailyExchangeRatesDialog({ open, onOpenChange, onSaved }: DailyE
     // بالاستدعاء الثاني تُطلِق استثناءً غير مُلتقَط قد يمنع Wijmo من بدء تحرير الخلية.
     if (!grid || !grid.selection || !e || typeof e.keyCode === "undefined") return
     if (e.keyCode !== Util_TAB && e.keyCode !== Util_ENTER) return
+    if (e.defaultPrevented || pendingNavigationRef.current) return
     const row = grid.selection.row
     const col = grid.selection.col
     if (row < 0 || col < 0) return
@@ -166,15 +169,22 @@ export function DailyExchangeRatesDialog({ open, onOpenChange, onSaved }: DailyE
 
     const nextColIndex = grid.columns.findIndex((c: any) => c.binding === EDITABLE_COLUMNS[nextIdx])
     if (nextColIndex === -1) return
+    pendingNavigationRef.current = { row: nextRow, col: nextColIndex }
     // Move after Wijmo has completed the current editor lifecycle; otherwise its
     // own edit-ending work may restore the selection to the cell just committed.
     setTimeout(() => {
       try {
-        grid.select(nextRow, EDITABLE_COLUMNS[nextIdx])
+        const target = pendingNavigationRef.current
+        if (!target) return
+        // FlexGrid.select expects a numeric column index. Passing the binding
+        // string made Enter resolve an invalid range and jump to an earlier row.
+        grid.select(target.row, target.col)
         grid.focus()
-        grid.startEditing(true, nextRow, nextColIndex)
+        grid.startEditing(true, target.row, target.col)
       } catch {
         // The dialog may have closed while the deferred navigation was pending.
+      } finally {
+        pendingNavigationRef.current = null
       }
     }, 0)
   }
@@ -221,7 +231,12 @@ export function DailyExchangeRatesDialog({ open, onOpenChange, onSaved }: DailyE
         onOpenChange(nextOpen)
       }}
     >
-      <DialogContent className="flex h-[min(85vh,720px)] max-w-6xl flex-col overflow-hidden" dir="rtl">
+      <DialogContent
+        className="flex h-[min(85vh,720px)] max-w-6xl flex-col overflow-hidden"
+        dir="rtl"
+        onPointerDownOutside={(event) => event.preventDefault()}
+        onInteractOutside={(event) => event.preventDefault()}
+      >
         <DialogHeader>
           <DialogTitle>أسعار الصرف اليومية</DialogTitle>
         </DialogHeader>

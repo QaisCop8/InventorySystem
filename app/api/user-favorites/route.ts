@@ -1,6 +1,10 @@
 import { type NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
 
+async function ensureFavoritesTable() {
+  await sql`CREATE TABLE IF NOT EXISTS user_favorites (id SERIAL PRIMARY KEY, user_id VARCHAR(255) NOT NULL, favorite_type VARCHAR(50) NOT NULL, favorite_name VARCHAR(255) NOT NULL, favorite_title VARCHAR(255) NOT NULL, favorite_icon VARCHAR(50), favorite_component VARCHAR(100) NOT NULL, favorite_color VARCHAR(50), display_order INTEGER DEFAULT 0, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, UNIQUE(user_id, favorite_component))`
+}
+
 // دالة مساعدة للحصول على معرف المستخدم من الطلب
 function getUserIdFromRequest(request: NextRequest): string | null {
   // محاولة الحصول على user_id من header
@@ -12,6 +16,7 @@ function getUserIdFromRequest(request: NextRequest): string | null {
 // GET - جلب المفضلة للمستخدم الحالي
 export async function GET(request: NextRequest) {
   try {
+    await ensureFavoritesTable()
     console.log("[v0] GET /api/user-favorites - Fetching favorites")
     const userId = getUserIdFromRequest(request)
     console.log("[v0] User ID:", userId)
@@ -50,6 +55,7 @@ export async function GET(request: NextRequest) {
 // POST - إضافة مفضلة جديدة
 export async function POST(request: NextRequest) {
   try {
+    await ensureFavoritesTable()
     console.log("[v0] POST /api/user-favorites - Adding favorite")
     const userId = getUserIdFromRequest(request)
     console.log("[v0] User ID:", userId)
@@ -128,6 +134,7 @@ export async function POST(request: NextRequest) {
 // DELETE - حذف مفضلة
 export async function DELETE(request: NextRequest) {
   try {
+    await ensureFavoritesTable()
     console.log("[v0] DELETE /api/user-favorites - Deleting favorite")
     const userId = getUserIdFromRequest(request)
     console.log("[v0] User ID:", userId)

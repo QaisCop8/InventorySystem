@@ -87,6 +87,18 @@ const data = {
           url: "/sales-orders",
         },
         {
+          title: "مسودة طلبية جديدة",
+          url: "/order-drafts/new",
+        },
+        {
+          title: "تأكيد الطلبيات",
+          url: "/order-confirmation",
+        },
+        {
+          title: "قوائم تحقق الطلبيات",
+          url: "/order-checklists",
+        },
+        {
           title: "طلبيات المبيعات الحديثة",
           url: "/orders/modern",
         },

@@ -4,6 +4,7 @@ import { NextResponse } from "next/server"
 import crypto from "crypto"
 import sql, { resolveCurrentDbName } from "./database"
 import { ensurePermissionTables, hasEffectivePermission } from "./permissions"
+import { shouldUseSecureCookies } from "./cookie-security"
 
 // جلسة خادمية حقيقية لتسجيل دخول الشركة (تينانت) — نفس نمط management_sessions/mgmt_session في
 // lib/management-auth.ts تماماً، لكن مقيَّدة بقاعدة الشركة الحالية (sql من lib/database.ts يُحلّها
@@ -29,7 +30,7 @@ export async function createTenantSession(userId: string): Promise<void> {
   const cookieStore = await cookies()
   cookieStore.set(SESSION_COOKIE, sessionToken, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: await shouldUseSecureCookies(),
     sameSite: "lax",
     expires: expiresAt,
     path: "/",

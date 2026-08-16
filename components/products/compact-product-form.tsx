@@ -80,6 +80,7 @@ interface ProductFormData {
   measurment_unit: number
   measurment_id: number
   last_purchase_price: number
+  minimum_order_quantity: number
 
   currency_id: number
   tax_rate: number
@@ -153,6 +154,7 @@ export const initialFormData: ProductFormData = {
   measurment_unit: 1,
   measurment_id: 1,
   last_purchase_price: 0,
+  minimum_order_quantity: 0,
 
   currency_id: 0,
   tax_rate: 15,
@@ -2681,6 +2683,20 @@ export function CompactProductForm({
                               onChange={(e) => updateFormData("last_purchase_price", Number.parseFloat(e.target.value) || 0)}
                               className="text-right"
                               disabled
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor="minimum_order_quantity" className="text-sm font-medium">
+                              أقل كمية للطلب
+                            </Label>
+                            <Input
+                              id="minimum_order_quantity"
+                              type="number"
+                              min="0"
+                              step="0.0001"
+                              value={formData.minimum_order_quantity ?? 0}
+                              onChange={(e) => updateFormData("minimum_order_quantity", Number.parseFloat(e.target.value) || 0)}
+                              className="text-right"
                             />
                           </div>
                           <div>

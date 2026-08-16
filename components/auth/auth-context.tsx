@@ -128,9 +128,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
       console.log("[v0] Starting auth initialization...")
 
       try {
-        const savedUser = localStorage.getItem("erp_user") || sessionStorage.getItem("erp_user")
-        const savedToken = localStorage.getItem("erp_token") || sessionStorage.getItem("erp_token")
-        let savedSession = localStorage.getItem("erp_session") || sessionStorage.getItem("erp_session")
+        // The current tab's session wins over a remembered session. Otherwise an
+        // old localStorage login can immediately replace a successful LAN login.
+        const savedUser = sessionStorage.getItem("erp_user") || localStorage.getItem("erp_user")
+        const savedToken = sessionStorage.getItem("erp_token") || localStorage.getItem("erp_token")
+        let savedSession = sessionStorage.getItem("erp_session") || localStorage.getItem("erp_session")
         const savedBranch = localStorage.getItem("erp_active_branch") || sessionStorage.getItem("erp_active_branch")
         const savedDepartment = localStorage.getItem("erp_active_department") || sessionStorage.getItem("erp_active_department")
 
@@ -376,10 +378,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
         try {
           if (credentials.rememberMe) {
+            sessionStorage.removeItem("erp_user")
+            sessionStorage.removeItem("erp_token")
+            sessionStorage.removeItem("erp_session")
             localStorage.setItem("erp_user", JSON.stringify(result.user))
             localStorage.setItem("erp_token", result.token)
             localStorage.setItem("erp_session", JSON.stringify(sessionData))
           } else {
+            localStorage.removeItem("erp_user")
+            localStorage.removeItem("erp_token")
+            localStorage.removeItem("erp_session")
             sessionStorage.setItem("erp_user", JSON.stringify(result.user))
             sessionStorage.setItem("erp_token", result.token)
             sessionStorage.setItem("erp_session", JSON.stringify(sessionData))

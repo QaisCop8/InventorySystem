@@ -86,6 +86,9 @@ import TaskOrdersAdminPage from "@/components/task-orders/task-orders-admin-page
 import TaskOrdersBoardPage from "@/components/task-orders/task-orders-board-page"
 import TaskOrdersReportPage from "@/components/task-orders/task-orders-report-page"
 import TaskOrdersApprovalPage from "@/components/task-orders/order-approval-page"
+import { DraftOrdersPage } from "@/components/order-drafts/draft-orders-page"
+import { OrderConfirmationBoard } from "@/components/order-drafts/order-confirmation-board"
+import { ChecklistDesigner } from "@/components/order-drafts/checklist-designer"
 const componentMap: Record<string, React.ComponentType<any>> = {
   dashboard: Dashboard,
   "inventory-analytics": InventoryAnalytics,
@@ -177,6 +180,9 @@ const componentMap: Record<string, React.ComponentType<any>> = {
   "task-orders-board": TaskOrdersBoardPage,
   "task-orders-report": TaskOrdersReportPage,
   "task-orders-approval": TaskOrdersApprovalPage,
+  "draft-sales-order": DraftOrdersPage,
+  "order-confirmation": OrderConfirmationBoard,
+  "order-checklists": ChecklistDesigner,
 }
 
 const titleFor = (section: string) => SECTION_TITLES[section] || section

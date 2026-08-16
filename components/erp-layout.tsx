@@ -80,6 +80,7 @@ export function ERPLayout({ children, activeSection, onSectionChange }: ERPLayou
             activeSection={activeSection}
             onProfileClick={handleProfileClick}
             onSettingsClick={handleSettingsClick}
+            onSectionChange={onSectionChange}
           />
 
           <main className="flex-1 overflow-auto erp-main-content mobile-safe-area">

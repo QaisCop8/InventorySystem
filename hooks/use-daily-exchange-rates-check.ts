@@ -4,6 +4,13 @@ import { useEffect, useRef, useState } from "react"
 
 const CHECK_INTERVAL_MS = 30 * 60 * 1000 // كل 30 دقيقة
 
+function localDateKey(date = new Date()) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, "0")
+  const day = String(date.getDate()).padStart(2, "0")
+  return `${year}-${month}-${day}`
+}
+
 // يفحص دورياً (عند التحميل، ثم كل 30 دقيقة) إن كانت أي عملة نشطة (عدا العملة الرئيسية، الثابتة
 // دوماً عند 1) بلا سعر صرف مسجَّل لهذا اليوم تحديداً — ويفتح نافذة الإدخال تلقائياً عند وجود نقص،
 // حتى لا يُصدر أحد سندات بأسعار صرف قديمة دون انتباه.
@@ -20,7 +27,7 @@ export function useDailyExchangeRatesCheck() {
       if (list.length === 0) return
 
       const baseId = Math.min(...list.map((r) => Number(r.currency_id)))
-      const today = new Date().toISOString().slice(0, 10)
+      const today = localDateKey()
 
       const missing = list.some((r) => {
         if (r.is_active === false) return false
@@ -29,7 +36,7 @@ export function useDailyExchangeRatesCheck() {
         return rateDate !== today
       })
 
-      if (missing) setDialogOpen(true)
+      setDialogOpen(missing)
     } catch {
       // تجاهل أخطاء الفحص الدوري بصمت — ليست حرجة، والمحاولة التالية (خلال 30 دقيقة) ستُعيد الكرّة
     }

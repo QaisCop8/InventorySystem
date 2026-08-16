@@ -22,6 +22,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { DailyExchangeRatesDialog } from "@/components/settings/daily-exchange-rates";
 import { useDailyExchangeRatesCheck } from "@/hooks/use-daily-exchange-rates-check";
 import { useToast } from "@/hooks/use-toast";
+import { ApplicationMenu } from "@/components/navigation/application-menu";
 
 interface HeaderCompany {
   id: number;
@@ -38,6 +39,7 @@ interface HeaderProps {
   activeSection: string;
   onProfileClick?: () => void;
   onSettingsClick?: () => void;
+  onSectionChange: (section: string) => void;
 }
 
 // ForwardRef button so Radix can attach properly
@@ -46,7 +48,7 @@ const RefButton = forwardRef<HTMLButtonElement, React.ButtonHTMLAttributes<HTMLB
 );
 RefButton.displayName = "RefButton";
 
-export function Header({ onMenuClick, activeSection, onProfileClick, onSettingsClick }: HeaderProps) {
+export function Header({ onMenuClick, activeSection, onProfileClick, onSettingsClick, onSectionChange }: HeaderProps) {
   const router = useRouter();
   const { toast } = useToast();
   const {
@@ -167,6 +169,9 @@ export function Header({ onMenuClick, activeSection, onProfileClick, onSettingsC
     "product-groups": "مجموعات الأصناف",
     definitions: "التعريفات",
     "sales-orders": "طلبيات المبيعات",
+    "draft-sales-order": "إنشاء مسودة طلبية",
+    "order-confirmation": "تأكيد الطلبيات",
+    "order-checklists": "قوائم تحقق الطلبيات",
     "purchase-orders": "طلبيات المشتريات",
     "exchange-rates": "أسعار الصرف اليومية",
     "order-reports": "تقارير الطلبيات",
@@ -187,6 +192,7 @@ export function Header({ onMenuClick, activeSection, onProfileClick, onSettingsC
     >
       {/* Left: Menu + title */}
       <div className="flex items-center gap-2 md:gap-4 flex-1 min-w-0">
+        <ApplicationMenu onNavigate={onSectionChange} />
         <RefButton
           className="p-2 rounded-md hover:bg-muted"
           onClick={onMenuClick}

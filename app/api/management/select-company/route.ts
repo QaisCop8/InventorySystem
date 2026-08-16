@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { cookies } from "next/headers"
+import { shouldUseSecureCookies } from "@/lib/cookie-security"
 import { getManagementSession } from "@/lib/management-auth"
 import managementSql, { ensureManagementTables } from "@/lib/management-db"
 import { withTenantDb } from "@/lib/database"
@@ -73,7 +74,7 @@ export async function POST(request: NextRequest) {
     const cookieStore = await cookies()
     cookieStore.set("tenant_db", company.db_name, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: await shouldUseSecureCookies(),
       sameSite: "lax",
       path: "/",
     })

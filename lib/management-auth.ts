@@ -1,4 +1,5 @@
 import { cookies } from "next/headers"
+import { shouldUseSecureCookies } from "./cookie-security"
 import crypto from "crypto"
 import sql, { ensureManagementTables } from "./management-db"
 import { hashPassword } from "./auth"
@@ -92,7 +93,7 @@ export async function loginManagementUser(data: { email: string; password: strin
   const cookieStore = await cookies()
   cookieStore.set(SESSION_COOKIE, sessionToken, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: await shouldUseSecureCookies(),
     sameSite: "lax",
     expires: expiresAt,
     path: "/",

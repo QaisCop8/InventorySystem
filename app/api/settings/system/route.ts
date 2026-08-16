@@ -296,19 +296,18 @@ async function saveSettingsPayload(payload: Record<string, unknown>): Promise<Re
   for (const [key, value] of Object.entries(payload)) {
     const serializedValue = serializeSettingValue(value)
     if (idIsInteger) {
-      // Upsert by description
-      await sql`
-        INSERT INTO system_settings (description, value)
-        VALUES (${key}, ${serializedValue})
+      const updated = await sql`
+        UPDATE system_settings
+        SET value = ${serializedValue}
+        WHERE description = ${key}
+        RETURNING id
       `
-        .catch(async () => {
-          // If insert fails (unique constraints or other), try update
-          await sql`
-            UPDATE system_settings
-            SET value = ${serializedValue}, description = ${key}
-            WHERE description = ${key}
-          `
-        })
+      if (updated.length === 0) {
+        await sql`
+          INSERT INTO system_settings (description, value)
+          VALUES (${key}, ${serializedValue})
+        `
+      }
     } else {
       await sql`
         INSERT INTO system_settings (id, description, value)
