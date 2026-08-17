@@ -3113,6 +3113,7 @@ CREATE TABLE public.user_settings (
     sms_notifications boolean DEFAULT false,
     sidebar_collapsed boolean DEFAULT false,
     dashboard_layout jsonb,
+    datagrid_settings jsonb DEFAULT '{}'::jsonb,
     avatar_url text,
     last_login timestamp without time zone,
     created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,

@@ -15,6 +15,24 @@
   overflow-y: hidden;
 }
 
+/* Per-user DataGridView appearance settings. */
+.wj-flexgrid .wj-header {
+  height: var(--datagrid-header-height, 40px) !important;
+  min-height: var(--datagrid-header-height, 40px) !important;
+  background: var(--datagrid-header-color, #2c3e50) !important;
+  font-family: var(--datagrid-header-font-family, "Cairo"), sans-serif !important;
+}
+
+.wj-flexgrid .wj-cell:not(.wj-header) {
+  min-height: var(--datagrid-row-height, 50px) !important;
+}
+
+.wj-flexgrid .wj-state-selected:not(.wj-header),
+.wj-flexgrid .wj-row .wj-cell.wj-state-selected:not(.wj-header),
+.wj-flexgrid .wj-cell.wj-state-selected:not(.wj-header) {
+  background: var(--datagrid-selected-row-color, #6fe27b) !important;
+}
+
 .wj-flexgrid .wj-header {
   background: #2c3e50;       /* Dark, modern header */
   color: #ffffff;
@@ -328,4 +346,22 @@ html[dir="rtl"] .wj-flexgrid .wj-header {
 
 .modernVoucherGrid .wj-cell-maker-btn {
   border-radius: 10px !important;
+}
+
+/* Final user overrides must remain after the named grid themes above. */
+.wj-flexgrid .wj-header,
+.modernVoucherGrid .wj-flexgrid .wj-header {
+  height: var(--datagrid-header-height, 40px) !important;
+  min-height: var(--datagrid-header-height, 40px) !important;
+  background: var(--datagrid-header-color, #2c3e50) !important;
+  font-family: var(--datagrid-header-font-family, "Cairo"), sans-serif !important;
+}
+
+.wj-flexgrid .wj-state-selected:not(.wj-header),
+.wj-flexgrid .wj-row .wj-cell.wj-state-selected:not(.wj-header),
+.wj-flexgrid .wj-report-row-selected .wj-cell,
+.modernVoucherGrid .wj-flexgrid .wj-state-selected:not(.wj-header),
+.modernVoucherGrid .wj-flexgrid .wj-row .wj-cell.wj-state-selected:not(.wj-header),
+.modernVoucherGrid .wj-flexgrid .wj-report-row-selected .wj-cell {
+  background: var(--datagrid-selected-row-color, #6fe27b) !important;
 }

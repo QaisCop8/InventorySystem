@@ -235,6 +235,9 @@ async function ensureBasicProductsTable(tenantClient: ReturnType<typeof getPoolF
       organization_id INTEGER,
       permissions JSONB,
       branch_id INTEGER,
+      font_family VARCHAR(100) DEFAULT 'Cairo',
+      font_size INTEGER DEFAULT 14,
+      datagrid_settings JSONB DEFAULT '{}',
       is_active BOOLEAN DEFAULT true,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )`,

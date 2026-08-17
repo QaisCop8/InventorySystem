@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS user_settings (
     sms_notifications BOOLEAN DEFAULT false,
     sidebar_collapsed BOOLEAN DEFAULT false,
     dashboard_layout JSONB,
+    datagrid_settings JSONB DEFAULT '{}',
     avatar_url TEXT,
     last_login TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

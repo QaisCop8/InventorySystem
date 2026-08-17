@@ -85,6 +85,16 @@ export default class DataGridView extends React.Component {
     this.setState({ hasError: true, errorInfo: { error: String(error), info } });
   }
 
+  _applyUserGridSettings = (settings) => {
+    if (!this.flex) return;
+    const rootStyles = typeof window !== 'undefined' ? getComputedStyle(document.documentElement) : null;
+    const headerHeight = Number(settings && settings.gridHeaderHeight) || parseInt(rootStyles?.getPropertyValue('--datagrid-header-height'), 10) || 40;
+    const rowHeight = Number(settings && settings.gridRowHeight) || parseInt(rootStyles?.getPropertyValue('--datagrid-row-height'), 10) || 50;
+    if (this.flex.columnHeaders?.rows?.length) this.flex.columnHeaders.rows[0].height = headerHeight;
+    if (this.flex.rows) this.flex.rows.defaultSize = rowHeight;
+    if (this.flex.invalidate) this.flex.invalidate();
+  };
+
   componentDidUpdate(prevProps) {
     // buttonsColumns wires each button column's onClick into a Wijmo CellMaker template built
     // from the scheme object at the time it was created. Callers commonly rebuild `scheme` in a
@@ -156,6 +166,8 @@ export default class DataGridView extends React.Component {
       }
     };
     window.addEventListener('system-settings-updated', this._onSystemSettingsUpdated);
+    window.addEventListener('datagrid-settings-updated', this._applyUserGridSettings);
+    this._applyUserGridSettings();
   };
 
   componentWillUnmount() {
@@ -165,6 +177,7 @@ export default class DataGridView extends React.Component {
       if (this._onSystemSettingsUpdated) {
         window.removeEventListener('system-settings-updated', this._onSystemSettingsUpdated);
       }
+      window.removeEventListener('datagrid-settings-updated', this._applyUserGridSettings);
     } catch (e) {
       /* ignore */
     }
@@ -870,6 +883,7 @@ createButtonTemplate = (col) => (ctx) => {
       this.flex.selectionMode = this.props.isReport ? wjGrid.SelectionMode.Row : wjGrid.SelectionMode.Cell;
       if (this.props.columnHeaderHeight) this.flex.columnHeaders.rows[0].height = this.props.columnHeaderHeight;
       else this.flex.columnHeaders.rows[0].height = 40;
+      this._applyUserGridSettings();
       this.flex.columns.height = 150;
       // this.flex.autoSizeRow(0, true); header 2 row height
       // add blank row initially

@@ -117,6 +117,7 @@ CREATE TABLE IF NOT EXISTS user_settings (
     time_format VARCHAR(10) DEFAULT '24H',
     sidebar_collapsed BOOLEAN DEFAULT false,
     dashboard_layout JSONB DEFAULT '{}',
+    datagrid_settings JSONB DEFAULT '{}',
     avatar_url TEXT,
     last_login TIMESTAMP,
     organization_id INTEGER DEFAULT 1,

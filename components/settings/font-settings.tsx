@@ -19,6 +19,11 @@ interface FontSettings {
   fontWeight: string
   lineHeight: number
   letterSpacing: number
+  gridHeaderHeight: number
+  gridHeaderColor: string
+  gridHeaderFontFamily: string
+  gridRowHeight: number
+  gridSelectedRowColor: string
 }
 
 interface FontContextType {
@@ -34,6 +39,11 @@ const defaultSettings: FontSettings = {
   fontWeight: "400",
   lineHeight: 1.5,
   letterSpacing: 0,
+  gridHeaderHeight: 40,
+  gridHeaderColor: "#2c3e50",
+  gridHeaderFontFamily: "Cairo",
+  gridRowHeight: 50,
+  gridSelectedRowColor: "#6fe27b",
 }
 
 const FontContext = createContext<FontContextType | undefined>(undefined)
@@ -66,10 +76,16 @@ export const FontProvider: React.FC<{ children: React.ReactNode }> = ({ children
     root.style.setProperty("--font-weight-custom", settings.fontWeight)
     root.style.setProperty("--line-height-custom", settings.lineHeight.toString())
     root.style.setProperty("--letter-spacing-custom", `${settings.letterSpacing}px`)
+    root.style.setProperty("--datagrid-header-height", `${settings.gridHeaderHeight}px`)
+    root.style.setProperty("--datagrid-header-color", settings.gridHeaderColor)
+    root.style.setProperty("--datagrid-header-font-family", settings.gridHeaderFontFamily)
+    root.style.setProperty("--datagrid-row-height", `${settings.gridRowHeight}px`)
+    root.style.setProperty("--datagrid-selected-row-color", settings.gridSelectedRowColor)
 
     // Save to localStorage
     if (typeof window !== "undefined") {
       localStorage.setItem("erp-font-settings", JSON.stringify(settings))
+      window.dispatchEvent(new CustomEvent("datagrid-settings-updated", { detail: settings }))
     }
   }
 
@@ -120,6 +136,11 @@ export const FontSettings: React.FC = () => {
         updateSettings({
           fontFamily: data.font_family || defaultSettings.fontFamily,
           fontSize: Number(data.font_size || defaultSettings.fontSize),
+          gridHeaderHeight: Number(data.datagrid_settings?.headerHeight || defaultSettings.gridHeaderHeight),
+          gridHeaderColor: data.datagrid_settings?.headerColor || defaultSettings.gridHeaderColor,
+          gridHeaderFontFamily: data.datagrid_settings?.headerFontFamily || defaultSettings.gridHeaderFontFamily,
+          gridRowHeight: Number(data.datagrid_settings?.rowHeight || defaultSettings.gridRowHeight),
+          gridSelectedRowColor: data.datagrid_settings?.selectedRowColor || defaultSettings.gridSelectedRowColor,
         })
       })
       .catch((error) => console.error("Failed to load user font settings", error))
@@ -133,7 +154,18 @@ export const FontSettings: React.FC = () => {
       const response = await fetch("/api/settings/user", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user_id: user.id, font_family: settings.fontFamily, font_size: settings.fontSize }),
+        body: JSON.stringify({
+          user_id: user.id,
+          font_family: settings.fontFamily,
+          font_size: settings.fontSize,
+          datagrid_settings: {
+            headerHeight: settings.gridHeaderHeight,
+            headerColor: settings.gridHeaderColor,
+            headerFontFamily: settings.gridHeaderFontFamily,
+            rowHeight: settings.gridRowHeight,
+            selectedRowColor: settings.gridSelectedRowColor,
+          },
+        }),
       })
       if (!response.ok) throw new Error("Failed to save font settings")
       setSaveMessage("تم حفظ إعدادات الخط للمستخدم")
@@ -300,6 +332,93 @@ export const FontSettings: React.FC = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* DataGridView Settings */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-right">إعدادات جداول البيانات</CardTitle>
+          <CardDescription className="text-right">تخصيص رأس الجدول والصفوف والصف المحدد في جميع شاشات النظام</CardDescription>
+        </CardHeader>
+        <CardContent className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
+          <div className="space-y-2">
+            <Label htmlFor="grid-header-height" className="block text-right">ارتفاع رأس الجدول (px)</Label>
+            <Input
+              id="grid-header-height"
+              type="number"
+              min={28}
+              max={80}
+              value={settings.gridHeaderHeight}
+              onChange={(event) => updateSettings({ gridHeaderHeight: Math.min(80, Math.max(28, Number(event.target.value) || 40)) })}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="grid-header-color" className="block text-right">لون خلفية رأس الجدول</Label>
+            <div className="flex items-center gap-2" dir="ltr">
+              <Input
+                id="grid-header-color"
+                type="color"
+                value={settings.gridHeaderColor}
+                onChange={(event) => updateSettings({ gridHeaderColor: event.target.value })}
+                className="h-10 w-16 cursor-pointer p-1"
+              />
+              <Input value={settings.gridHeaderColor} onChange={(event) => updateSettings({ gridHeaderColor: event.target.value })} />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="block text-right">نوع خط رأس الجدول</Label>
+            <Select value={settings.gridHeaderFontFamily} onValueChange={(value) => updateSettings({ gridHeaderFontFamily: value })}>
+              <SelectTrigger className="text-right"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {fontFamilies.map((font) => (
+                  <SelectItem key={`grid-${font.value}`} value={font.value} className="text-right">
+                    <span style={{ fontFamily: font.value }}>{font.label}</span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="grid-row-height" className="block text-right">ارتفاع الصف (px)</Label>
+            <Input
+              id="grid-row-height"
+              type="number"
+              min={24}
+              max={100}
+              value={settings.gridRowHeight}
+              onChange={(event) => updateSettings({ gridRowHeight: Math.min(100, Math.max(24, Number(event.target.value) || 50)) })}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="grid-selected-color" className="block text-right">لون خلفية الصف المحدد</Label>
+            <div className="flex items-center gap-2" dir="ltr">
+              <Input
+                id="grid-selected-color"
+                type="color"
+                value={settings.gridSelectedRowColor}
+                onChange={(event) => updateSettings({ gridSelectedRowColor: event.target.value })}
+                className="h-10 w-16 cursor-pointer p-1"
+              />
+              <Input value={settings.gridSelectedRowColor} onChange={(event) => updateSettings({ gridSelectedRowColor: event.target.value })} />
+            </div>
+          </div>
+
+          <div className="overflow-hidden rounded-md border">
+            <div
+              className="flex items-center px-3 font-semibold text-white"
+              style={{ height: settings.gridHeaderHeight, backgroundColor: settings.gridHeaderColor, fontFamily: settings.gridHeaderFontFamily }}
+            >
+              معاينة رأس الجدول
+            </div>
+            <div className="flex items-center px-3" style={{ height: settings.gridRowHeight, backgroundColor: settings.gridSelectedRowColor }}>
+              معاينة الصف المحدد
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Preview Section */}
       <Card>

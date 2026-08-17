@@ -18,6 +18,7 @@ function ensureBranchColumn() {
       await sql`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS avatar_url TEXT`
       await sql`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS font_family VARCHAR(100) DEFAULT 'Cairo'`
       await sql`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS font_size INTEGER DEFAULT 14`
+      await sql`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS datagrid_settings JSONB DEFAULT '{}'::jsonb`
     })().catch((error: unknown) => {
       branchColumnEnsured = null
       throw error
@@ -240,14 +241,19 @@ export async function PUT(request: NextRequest) {
     const fontPreferenceKeys = Object.keys(data).filter((key) => key !== "user_id")
     if (
       fontPreferenceKeys.length > 0 &&
-      fontPreferenceKeys.every((key) => key === "font_family" || key === "font_size")
+      fontPreferenceKeys.every((key) => key === "font_family" || key === "font_size" || key === "datagrid_settings")
     ) {
       const fontFamily = String(data.font_family || "Cairo").trim().slice(0, 100)
       const requestedFontSize = Number(data.font_size ?? 14)
       const fontSize = Math.min(24, Math.max(10, Number.isFinite(requestedFontSize) ? Math.round(requestedFontSize) : 14))
+      const datagridSettings = data.datagrid_settings && typeof data.datagrid_settings === "object"
+        ? data.datagrid_settings
+        : {}
       const result = await sql`
         UPDATE user_settings
-        SET font_family = ${fontFamily}, font_size = ${fontSize}, updated_at = CURRENT_TIMESTAMP
+        SET font_family = ${fontFamily}, font_size = ${fontSize},
+            datagrid_settings = ${JSON.stringify(datagridSettings)}::jsonb,
+            updated_at = CURRENT_TIMESTAMP
         WHERE user_id = ${data.user_id}
         RETURNING *
       `

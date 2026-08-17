@@ -45,6 +45,11 @@
   --font-weight-custom: 400;
   --line-height-custom: 1.5;
   --letter-spacing-custom: 0px;
+  --datagrid-header-height: 40px;
+  --datagrid-header-color: #2c3e50;
+  --datagrid-header-font-family: "Cairo";
+  --datagrid-row-height: 50px;
+  --datagrid-selected-row-color: #6fe27b;
   --border-radius-custom: 8px;
   --sidebar-width-custom: 256px;
   --header-height-custom: 64px;
