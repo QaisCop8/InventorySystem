@@ -406,7 +406,7 @@ function HomePageContent() {
   return (
     <ProtectedRoute>
       <ERPLayout activeSection={activeSection || ""} onSectionChange={handleSectionChange}>
-        <div className="flex-1 overflow-hidden flex flex-row gap-2">
+        <div className="flex min-h-0 flex-1 flex-row gap-2 overflow-hidden">
           <WorkspacePane
             paneId="a"
             showTabStrip={tabsEnabled}

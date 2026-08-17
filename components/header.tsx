@@ -177,6 +177,7 @@ export function Header({ onMenuClick, activeSection, onProfileClick, onSettingsC
     "order-reports": "تقارير الطلبيات",
     "product-reports": "تقارير الأصناف والخدمات",
     "user-settings": "المستخدمين",
+    "font-settings": "إعدادات الخطوط",
     "print-settings": "إعدادات الطباعة",
     "voucher-settings": "إعدادات السندات وطباعتها",
     "system-settings": "إعدادات النظام",

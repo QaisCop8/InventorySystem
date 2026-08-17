@@ -247,6 +247,7 @@ export const menuItems: MenuItem[] = [
         icon: UserCheck,
         submenu: [
           { title: "المستخدمين", section: "user-settings", icon: UserCheck },
+          { title: "إعدادات الخطوط", section: "font-settings", icon: Settings },
           { title: "الصلاحيات", section: "permissions", icon: Shield },
           { title: "الأدوار الوظيفية", section: "job-roles", icon: UserCheck },
           { title: "صلاحيات الأدوار الوظيفية", section: "role-permissions", icon: Shield },

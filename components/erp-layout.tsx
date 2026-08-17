@@ -83,8 +83,8 @@ export function ERPLayout({ children, activeSection, onSectionChange }: ERPLayou
             onSectionChange={onSectionChange}
           />
 
-          <main className="flex-1 overflow-auto erp-main-content mobile-safe-area">
-            <div className="p-3 md:p-6 mobile-scroll-container">{children}</div>
+          <main className="flex min-h-0 flex-1 flex-col overflow-hidden erp-main-content mobile-safe-area">
+            <div className="flex min-h-0 flex-1 flex-col overflow-auto p-3 md:p-6 mobile-scroll-container">{children}</div>
           </main>
         </div>
 
