@@ -339,16 +339,19 @@ export default function UnifiedCustomers({
 
   const loadData = useCallback(async () => {
     setLoading(true)
+    const controller = new AbortController()
+    const timeoutId = window.setTimeout(() => controller.abort(), 15000)
+    const requestOptions = { signal: controller.signal }
     try {
       const [voucherTypesResponse, voucherBooksResponse, currenciesResponse, citiesResponse, costCenterTypesResponse, costCentersResponse, classTypesResponse, classificationsResponse] = await Promise.all([
-        fetch("/api/vouchers/voucher-types"),
-        fetch("/api/vouchers/voucher-books"),
-        fetch("/api/exchange-rates"),
-        fetch("/api/cities"),
-        fetch("/api/cost-center-types"),
-        fetch("/api/cost-centers"),
-        fetch("/api/account-classification-types"),
-        fetch("/api/account-classifications"),
+        fetch("/api/vouchers/voucher-types", requestOptions),
+        fetch("/api/vouchers/voucher-books", requestOptions),
+        fetch("/api/exchange-rates", requestOptions),
+        fetch("/api/cities", requestOptions),
+        fetch("/api/cost-center-types", requestOptions),
+        fetch("/api/cost-centers", requestOptions),
+        fetch("/api/account-classification-types", requestOptions),
+        fetch("/api/account-classifications", requestOptions),
       ])
 
       const nextVoucherTypes = voucherTypesResponse.ok ? await voucherTypesResponse.json() : []
@@ -408,6 +411,7 @@ export default function UnifiedCustomers({
         costCenters: [],
       }
     } finally {
+      window.clearTimeout(timeoutId)
       setLoading(false)
     }
   }, [])

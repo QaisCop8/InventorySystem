@@ -6,11 +6,15 @@ interface ProgressSpinnerProps {
 }
 
 export default function ProgressSpinner({ loading }: ProgressSpinnerProps) {
+  // Do not leave a hidden, full-screen fixed element in the DOM. Some browsers
+  // can retain its composited backdrop/pointer layer after a modal is removed.
+  if (!loading) return null;
+
   return (
     <div
-      className={`${styles.progressSpinner} ${loading ? styles.progressVisible : styles.progressHide}`}
+      className={`${styles.progressSpinner} ${styles.progressVisible}`}
       style={{
-        display: loading ? 'flex' : 'none',
+        display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         backgroundColor: 'rgba(255,255,255,0.78)',
