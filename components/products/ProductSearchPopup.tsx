@@ -50,6 +50,14 @@ interface ProductSearchPopupProps {
   title?: string;
 }
 
+const productImageCellTemplate = (cell: any) => {
+  const product = cell?.row?.dataItem as Product
+  const image = product?.display_image || product?.product_image || product?.image_url
+  return image
+    ? <img src={image} alt={product?.product_name || ""} className="mx-auto h-10 w-10 rounded-lg border object-cover" />
+    : <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-lg border bg-slate-50 text-[10px] text-slate-400">لا صورة</div>
+}
+
 const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClose, onSelect, priceCategoryId, ShowSelect, searchText, productTypes, title }) => {
   const [products, setProducts] = useState<Product[]>([]);
   const [searchCode, setSearchCode] = useState("");
@@ -177,36 +185,28 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
 
   useEffect(() => {
     if (!visible) return;
-    setSelectedTypes(
-      Array.isArray(productTypes) && productTypes.length > 0
-        ? Array.from(new Set(productTypes))
-        : [1, 2]
-    );
+    const nextTypes = Array.isArray(productTypes) && productTypes.length > 0
+      ? Array.from(new Set(productTypes))
+      : [1, 2]
+    setSelectedTypes((current) => current.length === nextTypes.length && current.every((value, index) => value === nextTypes[index]) ? current : nextTypes);
   }, [visible, productTypes]);
 
   // -----------------------
   // Products grid scheme
   // -----------------------
-  const hasVariantProducts = products.some((product) => Array.isArray(product.attributes) && product.attributes.length > 0)
   const productScheme = useMemo(() => ({
     name: "ProductsScheme",
     columns: [
       { header: "✅", name: "selected", width: 50, isReadOnly: false, visible: ShowSelect },
-      { header: "صورة الصنف", name: "display_image", width: 90, minWidth: 76, isReadOnly: true, align: "center", body: (cell: any) => {
-        const product = cell?.row?.dataItem as Product
-        const image = product?.display_image || product?.product_image || product?.image_url
-        return image
-          ? <img src={image} alt={product?.product_name || ""} className="mx-auto h-10 w-10 rounded-lg border object-cover" />
-          : <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-lg border bg-slate-50 text-[10px] text-slate-400">لا صورة</div>
-      } },
+      { header: "صورة الصنف", name: "display_image", width: 90, minWidth: 76, isReadOnly: true, align: "center", body: productImageCellTemplate },
       { header: "رقم الصنف", name: "product_code", width: 120, isReadOnly: true },
       { header: "اسم الصنف", name: "product_name", width: "*", isReadOnly: true,minWidth: 200 },
-      ...(hasVariantProducts ? [{ header: "الخصائص", name: "attributes_display", width: 280, minWidth: 180, isReadOnly: true }] : []),
+      { header: "الخصائص", name: "attributes_display", width: 280, minWidth: 180, isReadOnly: true },
       { header: "الوحدة", name: "first_unit", width: 80, isReadOnly: true },
       { header: "السعر", name: "first_price", width: 80, isReadOnly: true },
       { header: "باركود", name: "first_barcode", width: 150, isReadOnly: true },
     ]
-  }), [ShowSelect, hasVariantProducts]);
+  }), [ShowSelect]);
 
   // -----------------------
   // Units grid scheme

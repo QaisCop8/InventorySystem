@@ -540,10 +540,7 @@ export function CompactProductForm({
   }
   const handleSaveProduct = async () => {
     try {
-      const productNameEn = formData.product_name_en.trim() || formData.product_name.trim()
-      if (productNameEn !== formData.product_name_en) {
-        setFormData((previous) => ({ ...previous, product_name_en: productNameEn }))
-      }
+      const productNameEn = formData.product_name_en.trim()
       let permission = 1
       if (formData.id > 0) permission = 2
       if (!Util.checkUserAccess(permission)) {
@@ -2213,16 +2210,7 @@ export function CompactProductForm({
                           ref={product_name}
                           id="product_name"
                           value={formData.product_name}
-                          onChange={(e) => {
-                            updateFormData("product_name", e.target.value);
-                            if (formData.product_name_en === '')
-                              updateFormData("product_name_en", e.target.value)
-                          }}
-                          onBlur={() => {
-                            if (!formData.product_name_en.trim()) {
-                              updateFormData("product_name_en", formData.product_name.trim())
-                            }
-                          }}
+                          onChange={(e) => updateFormData("product_name", e.target.value)}
                           className="text-right"
                           placeholder={isService ? "اسم الخدمة باللغة العربية" : "اسم الصنف باللغة العربية"}
                           required
