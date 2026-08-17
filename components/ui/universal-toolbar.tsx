@@ -165,21 +165,6 @@ export function UniversalToolbar({
           </Button>
         )}
 
-        {onDelete && (
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={onDelete}
-            disabled={isLoading || !canDelete}
-            className="group inline-flex items-center gap-2 rounded-xl border border-rose-400/30 bg-gradient-to-r from-rose-500 to-red-500 px-3.5 py-2.5 text-sm font-semibold text-white shadow-[0_12px_24px_-12px_rgba(244,63,94,0.95)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_16px_30px_-12px_rgba(244,63,94,0.9)]"
-          >
-            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/20">
-              <Trash2 className="h-4 w-4" />
-            </span>
-            <span>{labels.delete}</span>
-          </Button>
-        )}
-
         {onPrint && (
           <Button
             onClick={onPrint}
@@ -240,23 +225,38 @@ export function UniversalToolbar({
           </Button>
         )}
         {onLast && (
-          <div className="flex items-center gap-2">
-            <Button
-              onClick={handleLast}
-              className="group inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/10 px-3.5 py-2.5 text-sm font-medium text-slate-100 backdrop-blur transition-all duration-200 hover:-translate-y-0.5 hover:bg-white/20"
-            >
-              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/10">
-                <ChevronsLeft className="h-4 w-4" />
-              </span>
-              <span>{labels.last}</span>
-            </Button>
+          <Button
+            onClick={handleLast}
+            className="group inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/10 px-3.5 py-2.5 text-sm font-medium text-slate-100 backdrop-blur transition-all duration-200 hover:-translate-y-0.5 hover:bg-white/20"
+          >
+            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/10">
+              <ChevronsLeft className="h-4 w-4" />
+            </span>
+            <span>{labels.last}</span>
+          </Button>
+        )}
 
-            <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/10 px-3 py-2 text-sm font-semibold text-slate-100 backdrop-blur">
-              <span className="h-2.5 w-2.5 rounded-full bg-emerald-400 shadow-[0_0_12px_rgba(74,222,128,0.8)]" />
-              <span className="tracking-wide">
-                {hasRecords ? `${currentRecord} من ${totalRecords}` : "لا توجد سجلات"}
-              </span>
-            </div>
+        {onDelete && (
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={onDelete}
+            disabled={isLoading || !canDelete}
+            className="group inline-flex items-center gap-2 rounded-xl border border-rose-400/30 bg-gradient-to-r from-rose-500 to-red-500 px-3.5 py-2.5 text-sm font-semibold text-white shadow-[0_12px_24px_-12px_rgba(244,63,94,0.95)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_16px_30px_-12px_rgba(244,63,94,0.9)]"
+          >
+            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/20">
+              <Trash2 className="h-4 w-4" />
+            </span>
+            <span>{labels.delete}</span>
+          </Button>
+        )}
+
+        {onLast && (
+          <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/10 px-3 py-2 text-sm font-semibold text-slate-100 backdrop-blur">
+            <span className="h-2.5 w-2.5 rounded-full bg-emerald-400 shadow-[0_0_12px_rgba(74,222,128,0.8)]" />
+            <span className="tracking-wide">
+              {hasRecords ? `${currentRecord} من ${totalRecords}` : "لا توجد سجلات"}
+            </span>
           </div>
         )}
       </div>

@@ -103,13 +103,13 @@ const ProductCodeInput = ({
                     id="product_code"
                     value={formData.product_code || ""}
                     onChange={(e) => {
-                        const cleanValue = e.target.value.replace(/[^A-Za-z0-9]/g, "").slice(0, 8);
+                        const cleanValue = e.target.value.replace(/[^A-Za-z0-9]/g, "").slice(0, 10);
                         handleProductCodeChange(cleanValue.toUpperCase())
                     }
                     }
                     placeholder=""
                     className="text-right w-full"
-                    maxLength={8}
+                    maxLength={10}
                     onBlur={handleProductCodeBlur}
                 />
                 <Button

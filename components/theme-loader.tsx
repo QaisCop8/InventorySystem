@@ -23,6 +23,17 @@ export function ThemeLoader({ userId }: ThemeLoaderProps) {
           if (userData.theme_preference) {
             setTheme(userData.theme_preference)
           }
+          if (userData.font_family || userData.font_size) {
+            const root = document.documentElement
+            root.style.setProperty("--font-family-custom", userData.font_family || "Cairo")
+            root.style.setProperty("--font-size-custom", `${userData.font_size || 14}px`)
+            const saved = JSON.parse(localStorage.getItem("erp-font-settings") || "{}")
+            localStorage.setItem("erp-font-settings", JSON.stringify({
+              ...saved,
+              fontFamily: userData.font_family || "Cairo",
+              fontSize: userData.font_size || 14,
+            }))
+          }
         }
 
         const themeResponse = await fetch("/api/settings/theme")

@@ -17,7 +17,7 @@ interface DisplayModeMenuProps {
 // البيانات عند الإقلاع (لا الاعتماد على erp_user المخزَّن محلياً، الذي لا يتحدَّث بعد أي PUT هنا —
 // نفس نمط components/theme-loader.tsx لـtheme_preference).
 export function DisplayModeMenu({ userId }: DisplayModeMenuProps) {
-  const { splitEnabled, tabsEnabled, setSplitEnabled, setTabsEnabled, hydrateModes } = useWorkspace()
+  const { splitEnabled, tabsEnabled, popupsInTab, setSplitEnabled, setTabsEnabled, setPopupsInTab, hydrateModes } = useWorkspace()
   const dashboardLayoutRef = useRef<Record<string, any>>({})
   const [saving, setSaving] = useState(false)
 
@@ -31,8 +31,8 @@ export function DisplayModeMenu({ userId }: DisplayModeMenuProps) {
         if (cancelled || !data) return
         const dashboardLayout = data.dashboard_layout || {}
         dashboardLayoutRef.current = dashboardLayout
-        const displayMode = dashboardLayout.display_mode || { split: false, tabs: false }
-        hydrateModes({ split: !!displayMode.split, tabs: !!displayMode.tabs })
+        const displayMode = dashboardLayout.display_mode || { split: false, tabs: false, popupsInTab: false }
+        hydrateModes({ split: !!displayMode.split, tabs: !!displayMode.tabs, popupsInTab: !!displayMode.popupsInTab })
       })
       .catch(() => {
         // تجاهل — يبقى الوضع الافتراضي (بلا شاشة مقسمة/تبويبات) كما لو لم يُحفَظ تفضيل من قبل
@@ -43,7 +43,7 @@ export function DisplayModeMenu({ userId }: DisplayModeMenuProps) {
     }
   }, [userId, hydrateModes])
 
-  const persist = async (next: { split: boolean; tabs: boolean }) => {
+  const persist = async (next: { split: boolean; tabs: boolean; popupsInTab: boolean }) => {
     if (!userId) return
     const nextDashboardLayout = { ...dashboardLayoutRef.current, display_mode: next }
     dashboardLayoutRef.current = nextDashboardLayout
@@ -91,7 +91,7 @@ export function DisplayModeMenu({ userId }: DisplayModeMenuProps) {
               disabled={saving}
               onCheckedChange={(checked) => {
                 setSplitEnabled(checked)
-                void persist({ split: checked, tabs: tabsEnabled })
+                void persist({ split: checked, tabs: tabsEnabled, popupsInTab })
               }}
             />
           </div>
@@ -106,7 +106,22 @@ export function DisplayModeMenu({ userId }: DisplayModeMenuProps) {
               disabled={saving}
               onCheckedChange={(checked) => {
                 setTabsEnabled(checked)
-                void persist({ split: splitEnabled, tabs: checked })
+                void persist({ split: splitEnabled, tabs: checked, popupsInTab })
+              }}
+            />
+          </div>
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <Label htmlFor="popups-in-tab-toggle">فتح النوافذ داخل التبويب</Label>
+              <p className="text-xs text-muted-foreground">حصر التعتيم والنافذة داخل التبويب النشط دون قفل النظام</p>
+            </div>
+            <Switch
+              id="popups-in-tab-toggle"
+              checked={popupsInTab}
+              disabled={saving}
+              onCheckedChange={(checked) => {
+                setPopupsInTab(checked)
+                void persist({ split: splitEnabled, tabs: tabsEnabled, popupsInTab: checked })
               }}
             />
           </div>

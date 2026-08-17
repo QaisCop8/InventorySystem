@@ -31,7 +31,6 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     const result = await sql`
       UPDATE warehouses
       SET
-        warehouse_code = ${data.warehouse_code},
         warehouse_name = ${data.warehouse_name},
         warehouse_name_en = ${data.warehouse_name_en || ""},
         description = ${data.description || ""},

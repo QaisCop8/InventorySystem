@@ -26,14 +26,13 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     const id = Number(params.id)
     const data = await request.json()
 
-    if (!data.department_name || !data.department_code) {
-      return NextResponse.json({ error: "اسم القسم ورمزه مطلوبان" }, { status: 400 })
+    if (!data.department_name) {
+      return NextResponse.json({ error: "اسم القسم مطلوب" }, { status: 400 })
     }
 
     const result = await sql`
       UPDATE departments
       SET
-        department_code = ${data.department_code},
         department_name = ${data.department_name},
         branch_id = ${data.branch_id || null},
         manager = ${data.manager || ""},

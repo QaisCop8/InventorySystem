@@ -106,12 +106,12 @@ function normalizeGroupCode(code?: string): string {
 
   const letters = cleaned.replace(/\d/g, "")
   const digits = cleaned.replace(/\D/g, "")
-  const prefix = letters.slice(0, 8)
+  const prefix = letters.slice(0, 10)
 
-  if (!digits) return prefix.slice(0, 8)
+  if (!digits) return prefix.slice(0, 10)
 
-  const paddingLength = Math.max(1, 8 - prefix.length)
-  return `${prefix}${digits.padStart(paddingLength, "0")}`.slice(0, 8)
+  const paddingLength = Math.max(1, 10 - prefix.length)
+  return `${prefix}${digits.padStart(paddingLength, "0")}`.slice(0, 10)
 }
 
 async function isDuplicateGroupName(name?: string, currentId?: number): Promise<boolean> {
@@ -164,6 +164,7 @@ export async function POST(request: NextRequest) {
   if (!sql) return NextResponse.json({ error: "Database not initialized" }, { status: 500 })
 
   try {
+    await sql`ALTER TABLE item_groups ALTER COLUMN group_code TYPE VARCHAR(10)`
     const data = await request.json()
     const statusValue = toDbStatus(data.status)
     const query = sql as any

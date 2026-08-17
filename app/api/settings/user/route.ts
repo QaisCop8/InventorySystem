@@ -16,6 +16,8 @@ function ensureBranchColumn() {
       await sql`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS branch_id INTEGER`
       await sql`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS phone VARCHAR(20)`
       await sql`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS avatar_url TEXT`
+      await sql`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS font_family VARCHAR(100) DEFAULT 'Cairo'`
+      await sql`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS font_size INTEGER DEFAULT 14`
     })().catch((error: unknown) => {
       branchColumnEnsured = null
       throw error
@@ -70,6 +72,8 @@ export async function GET(request: NextRequest) {
         us.email_notifications,
         us.sms_notifications,
         us.theme_preference,
+        us.font_family,
+        us.font_size,
         us.sidebar_collapsed,
         us.dashboard_layout,
         us.permissions,
@@ -230,6 +234,24 @@ export async function PUT(request: NextRequest) {
         return NextResponse.json({ error: "User not found" }, { status: 404 })
       }
 
+      return NextResponse.json({ success: true, user: result[0] })
+    }
+
+    const fontPreferenceKeys = Object.keys(data).filter((key) => key !== "user_id")
+    if (
+      fontPreferenceKeys.length > 0 &&
+      fontPreferenceKeys.every((key) => key === "font_family" || key === "font_size")
+    ) {
+      const fontFamily = String(data.font_family || "Cairo").trim().slice(0, 100)
+      const requestedFontSize = Number(data.font_size ?? 14)
+      const fontSize = Math.min(24, Math.max(10, Number.isFinite(requestedFontSize) ? Math.round(requestedFontSize) : 14))
+      const result = await sql`
+        UPDATE user_settings
+        SET font_family = ${fontFamily}, font_size = ${fontSize}, updated_at = CURRENT_TIMESTAMP
+        WHERE user_id = ${data.user_id}
+        RETURNING *
+      `
+      if (result.length === 0) return NextResponse.json({ error: "User not found" }, { status: 404 })
       return NextResponse.json({ success: true, user: result[0] })
     }
 

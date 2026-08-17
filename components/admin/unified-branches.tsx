@@ -161,8 +161,9 @@ export default function UnifiedBranches({
                 <Input
                   id="branch-code"
                   value={form.branch_code}
-                  onChange={(e) => onFormChange("branch_code", e.target.value)}
-                  onBlur={() => onCodeBlur?.(form.branch_code)}
+                  readOnly
+                  placeholder="يتم توليده تلقائياً"
+                  className="bg-muted"
                   ref={codeInputRef}
                   maxLength={4}
                 />

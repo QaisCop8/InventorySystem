@@ -1,69 +1,70 @@
-import { NextRequest, NextResponse } from "next/server"
+import { type NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
 
-const ensureBalanceSheetLiabilitiesItemsTable = async () => {
-  await sql`
-    CREATE TABLE IF NOT EXISTS balance_sheet_liabilities_items (
-      id SERIAL PRIMARY KEY,
-      name VARCHAR(100) NOT NULL,
-      status INTEGER NOT NULL DEFAULT 1 CHECK (status IN (1, 2, 3)),
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )
-  `
+type RouteContext = { params: Promise<{ id: string }> }
+
+async function resolveBranchId(context: RouteContext) {
+  const { id } = await context.params
+  const branchId = Number(id)
+  return Number.isInteger(branchId) && branchId > 0 ? branchId : null
 }
 
-export async function GET() {
+export async function GET(_request: NextRequest, context: RouteContext) {
   try {
-    await ensureBalanceSheetLiabilitiesItemsTable()
-
-    const items = await sql`
-      SELECT id, name, status, created_at, updated_at
-      FROM balance_sheet_liabilities_items
-      WHERE status IN (1, 2)
-      ORDER BY id ASC
+    const branchId = await resolveBranchId(context)
+    if (!branchId) return NextResponse.json({ error: "معرف الفرع غير صالح" }, { status: 400 })
+    const rows = await sql`
+      SELECT id, branch_code, branch_name, bank_id, address, manager, phone, status
+      FROM branches WHERE id = ${branchId} AND status != 3 LIMIT 1
     `
-
-    return NextResponse.json(items)
+    if (rows.length === 0) return NextResponse.json({ error: "الفرع غير موجود" }, { status: 404 })
+    return NextResponse.json(rows[0])
   } catch (error) {
-    console.error("Error fetching balance sheet liabilities items:", error)
-    return NextResponse.json({ error: "Failed to fetch balance sheet liabilities items" }, { status: 500 })
+    console.error("Error fetching branch:", error)
+    return NextResponse.json({ error: "فشل في جلب بيانات الفرع" }, { status: 500 })
   }
 }
 
-export async function POST(request: NextRequest) {
+export async function PUT(request: NextRequest, context: RouteContext) {
   try {
-    await ensureBalanceSheetLiabilitiesItemsTable()
-
+    const branchId = await resolveBranchId(context)
+    if (!branchId) return NextResponse.json({ error: "معرف الفرع غير صالح" }, { status: 400 })
     const data = await request.json()
-
-    if (!data.name || !String(data.name).trim()) {
-      return NextResponse.json({ error: "اسم البند مطلوب" }, { status: 400 })
+    if (!String(data.branch_name || "").trim()) {
+      return NextResponse.json({ error: "اسم الفرع مطلوب" }, { status: 400 })
     }
-
-    const status = Number(data.status ?? 1)
-    if (![1, 2, 3].includes(status)) {
-      return NextResponse.json({ error: "الحالة يجب أن تكون 1 أو 2 أو 3" }, { status: 400 })
-    }
-
-    const existing = await sql`
-      SELECT id FROM balance_sheet_liabilities_items WHERE LOWER(name) = LOWER(${String(data.name).trim()})
+    const rows = await sql`
+      UPDATE branches SET
+        branch_name = ${String(data.branch_name).trim()},
+        bank_id = ${data.bank_id ? Number(data.bank_id) : null},
+        address = ${data.address || ""},
+        manager = ${data.manager || ""},
+        phone = ${data.phone || ""},
+        status = ${Number(data.status ?? 1)},
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = ${branchId}
+      RETURNING id, branch_code, branch_name, bank_id, address, manager, phone, status
     `
-
-    if (existing.length > 0) {
-      return NextResponse.json({ error: "اسم البند موجود مسبقاً" }, { status: 400 })
-    }
-
-    const result = await sql`
-      INSERT INTO balance_sheet_liabilities_items (name, status)
-      VALUES (${String(data.name).trim()}, ${status})
-      RETURNING id, name, status, created_at, updated_at
-    `
-
-    return NextResponse.json(result[0], { status: 201 })
+    if (rows.length === 0) return NextResponse.json({ error: "الفرع غير موجود" }, { status: 404 })
+    return NextResponse.json(rows[0])
   } catch (error) {
-    console.error("Error creating balance sheet liabilities item:", error)
-    return NextResponse.json({ error: "Failed to create balance sheet liabilities item" }, { status: 500 })
+    console.error("Error updating branch:", error)
+    return NextResponse.json({ error: "فشل في تعديل الفرع" }, { status: 500 })
   }
 }
 
+export async function DELETE(_request: NextRequest, context: RouteContext) {
+  try {
+    const branchId = await resolveBranchId(context)
+    if (!branchId) return NextResponse.json({ error: "معرف الفرع غير صالح" }, { status: 400 })
+    const rows = await sql`
+      UPDATE branches SET status = 3, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ${branchId} RETURNING id
+    `
+    if (rows.length === 0) return NextResponse.json({ error: "الفرع غير موجود" }, { status: 404 })
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error("Error deleting branch:", error)
+    return NextResponse.json({ error: "فشل في حذف الفرع" }, { status: 500 })
+  }
+}

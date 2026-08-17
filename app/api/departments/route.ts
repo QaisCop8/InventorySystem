@@ -22,7 +22,7 @@ export async function GET() {
       SELECT d.*, b.branch_name
       FROM departments d
       LEFT JOIN branches b ON d.branch_id = b.id
-      ORDER BY d.department_name
+      ORDER BY d.department_code ASC
     `
     return NextResponse.json(departments)
   } catch (error) {
@@ -35,20 +35,24 @@ export async function POST(request: NextRequest) {
   try {
     const data = await request.json()
 
-    if (!data.department_name || !data.department_code) {
-      return NextResponse.json({ error: "اسم القسم ورمزه مطلوبان" }, { status: 400 })
+    if (!data.department_name) {
+      return NextResponse.json({ error: "اسم القسم مطلوب" }, { status: 400 })
     }
 
     const result = await sql`
-      INSERT INTO departments (department_code, department_name, branch_id, manager, employee_count, is_active)
-      VALUES (
-        ${data.department_code},
+      WITH next_department AS (
+        SELECT nextval(pg_get_serial_sequence('departments', 'id')) AS id
+      )
+      INSERT INTO departments (id, department_code, department_name, branch_id, manager, employee_count, is_active)
+      SELECT
+        id,
+        LPAD(id::text, 4, '0'),
         ${data.department_name},
         ${data.branch_id || null},
         ${data.manager || ""},
         ${data.employee_count || 0},
         ${data.is_active !== false}
-      )
+      FROM next_department
       RETURNING *
     `
 

@@ -92,8 +92,8 @@ export default function Warehouses() {
   }
 
   const saveWarehouse = async () => {
-    if (!form.warehouse_code.trim() || !form.warehouse_name.trim()) {
-      setErrorMessage("رمز المستودع واسمه مطلوبان")
+    if (!form.warehouse_name.trim()) {
+      setErrorMessage("اسم المستودع مطلوب")
       return
     }
     setIsSaving(true)
@@ -236,8 +236,9 @@ export default function Warehouses() {
                 <Input
                   id="warehouse_code"
                   value={form.warehouse_code}
-                  onChange={(e) => setForm((f) => ({ ...f, warehouse_code: e.target.value }))}
-                  className="text-right"
+                  readOnly
+                  placeholder="يتم توليده تلقائياً"
+                  className="bg-muted text-right"
                 />
               </div>
               <div>

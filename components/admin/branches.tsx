@@ -146,7 +146,7 @@ export default function Branches() {
       bank_id: normalizeBankId(form.bank_id),
     }
 
-    const hasValidBranchCode = branchCode.trim().length > 0 && /^\d+$/.test(branchCode)
+    const hasValidBranchCode = normalizedForm.id === 0 || (branchCode.trim().length > 0 && /^\d+$/.test(branchCode))
     const hasValidBank = normalizedForm.bank_id !== null
 
     if (!hasValidBranchCode) {
@@ -451,7 +451,7 @@ export default function Branches() {
         banks={banks}
         showBankValidationError={showBankValidationError && hasBankSelectionBeenTouched}
         showBranchCodeValidationError={showBranchCodeValidationError}
-        canSave={!!form.branch_code.trim() && !!form.branch_name.trim() && !!form.bank_id && Number(form.bank_id) > 0}
+        canSave={!!form.branch_name.trim() && !!form.bank_id && Number(form.bank_id) > 0}
         hasDuplicateCode={branches.some((b) => b.branch_code === form.branch_code && b.id !== form.id)}
         hasDuplicateName={hasDuplicateName(form.branch_name, form.id)}
         isFirstRecord={currentIndex <= 0}

@@ -480,6 +480,10 @@ export function CompactProductForm({
   }
   const handleSaveProduct = async () => {
     try {
+      const productNameEn = formData.product_name_en.trim() || formData.product_name.trim()
+      if (productNameEn !== formData.product_name_en) {
+        setFormData((previous) => ({ ...previous, product_name_en: productNameEn }))
+      }
       let permission = 1
       if (formData.id > 0) permission = 2
       if (!Util.checkUserAccess(permission)) {
@@ -506,6 +510,7 @@ export function CompactProductForm({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...formData,
+          product_name_en: productNameEn,
           type: isService ? 2 : 1,
           service_type: isService ? 1 : 0,
         }),
@@ -1598,10 +1603,10 @@ export function CompactProductForm({
 
   const handleProductCodeChange = (value: string) => {
     // تنظيف القيمة للسماح بالأرقام والحروف الإنجليزية فقط
-    const cleanValue = value.replace(/[^A-Za-z0-9]/g, "").slice(0, 8)
+    const cleanValue = value.replace(/[^A-Za-z0-9]/g, "").slice(0, 10)
 
     if (cleanValue !== value) {
-      setProductCodeError("يُسمح بالأرقام والحروف الإنجليزية فقط (حد أقصى 8 خانات)")
+      setProductCodeError("يُسمح بالأرقام والحروف الإنجليزية فقط (حد أقصى 10 خانات)")
     } else {
       setProductCodeError("")
     }
@@ -2105,6 +2110,11 @@ export function CompactProductForm({
                             if (formData.product_name_en === '')
                               updateFormData("product_name_en", e.target.value)
                           }}
+                          onBlur={() => {
+                            if (!formData.product_name_en.trim()) {
+                              updateFormData("product_name_en", formData.product_name.trim())
+                            }
+                          }}
                           className="text-right"
                           placeholder={isService ? "اسم الخدمة باللغة العربية" : "اسم الصنف باللغة العربية"}
                           required
@@ -2285,8 +2295,8 @@ export function CompactProductForm({
               </CardContent>
             </Card>
 
-            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v)} dir="rtl">
-              <TabsList className="h-auto w-full flex flex-wrap justify-start gap-2 overflow-x-auto rounded-xl bg-gradient-to-r from-slate-50 via-blue-50 to-slate-50 p-2 shadow-md border border-slate-200/60 backdrop-blur-sm" style={{ direction: "rtl" }}>
+            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v)} dir="rtl" className="min-w-0">
+              <TabsList className="flex h-auto w-full min-w-0 flex-nowrap justify-start gap-2 overflow-x-auto rounded-xl border border-slate-200/60 bg-gradient-to-r from-slate-50 via-blue-50 to-slate-50 p-2 shadow-md backdrop-blur-sm" style={{ direction: "rtl" }}>
                 <TabsTrigger value="units" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-emerald-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">الوحدات</TabsTrigger>
                 <TabsTrigger value="prices" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-blue-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">اسعار البيع</TabsTrigger>
                 <TabsTrigger value="accounts" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-emerald-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">{isService ? 'الحسابات المحاسبية' : 'الحسابات'}</TabsTrigger>

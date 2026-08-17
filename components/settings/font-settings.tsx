@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Slider } from "@/components/ui/slider"
 import { Separator } from "@/components/ui/separator"
 import { Type, Palette, RotateCcw } from "@/components/ui/icons"
+import { useAuth } from "@/components/auth/auth-context"
 
 // Font Settings Context
 interface FontSettings {
@@ -105,6 +106,43 @@ export const useFontSettings = () => {
 // Font Settings Component
 export const FontSettings: React.FC = () => {
   const { settings, updateSettings, resetSettings } = useFontSettings()
+  const { user } = useAuth()
+  const [isSaving, setIsSaving] = useState(false)
+  const [saveMessage, setSaveMessage] = useState("")
+
+  useEffect(() => {
+    if (!user?.id) return
+    fetch(`/api/settings/user?user_id=${encodeURIComponent(user.id)}`)
+      .then((response) => response.ok ? response.json() : null)
+      .then((data) => {
+        if (!data) return
+        updateSettings({
+          fontFamily: data.font_family || defaultSettings.fontFamily,
+          fontSize: Number(data.font_size || defaultSettings.fontSize),
+        })
+      })
+      .catch((error) => console.error("Failed to load user font settings", error))
+  }, [user?.id])
+
+  const saveUserFontSettings = async () => {
+    if (!user?.id) return
+    setIsSaving(true)
+    setSaveMessage("")
+    try {
+      const response = await fetch("/api/settings/user", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: user.id, font_family: settings.fontFamily, font_size: settings.fontSize }),
+      })
+      if (!response.ok) throw new Error("Failed to save font settings")
+      setSaveMessage("تم حفظ إعدادات الخط للمستخدم")
+    } catch (error) {
+      console.error(error)
+      setSaveMessage("تعذر حفظ إعدادات الخط")
+    } finally {
+      setIsSaving(false)
+    }
+  }
 
   const fontFamilies = [
     { value: "Cairo", label: "Cairo (عربي)" },
@@ -278,11 +316,12 @@ export const FontSettings: React.FC = () => {
           <RotateCcw className="h-4 w-4" />
           إعادة تعيين
         </Button>
-        <Button className="flex items-center gap-2">
+        <Button className="flex items-center gap-2" onClick={saveUserFontSettings} disabled={isSaving || !user?.id}>
           <Type className="h-4 w-4" />
           حفظ الإعدادات
         </Button>
       </div>
+      {saveMessage && <p className="text-right text-sm text-muted-foreground">{saveMessage}</p>}
     </div>
   )
 }

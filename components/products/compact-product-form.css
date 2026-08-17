@@ -64,10 +64,17 @@
 .compact-product-form-root {
   min-height: 70vh;
   min-width: 0;
+  max-width: 100%;
 }
 
 .compact-product-form-root .w-full {
   min-width: 0;
+}
+
+.compact-product-form-root [role="tabpanel"] {
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
 }
 
 @media (max-width: 768px) {

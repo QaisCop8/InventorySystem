@@ -5,28 +5,39 @@ import * as DialogPrimitive from "@radix-ui/react-dialog"
 import { X } from "lucide-react"
 
 import { cn } from "@/lib/utils"
+import { useWorkspaceDialog } from "@/contexts/workspace-dialog-context"
 
-const Dialog = DialogPrimitive.Root
+function Dialog(props: React.ComponentProps<typeof DialogPrimitive.Root>) {
+  const { confined } = useWorkspaceDialog()
+  return <DialogPrimitive.Root {...props} modal={props.modal ?? !confined} />
+}
 
 const DialogTrigger = DialogPrimitive.Trigger
 
-const DialogPortal = DialogPrimitive.Portal
+function DialogPortal(props: React.ComponentProps<typeof DialogPrimitive.Portal>) {
+  const { confined, container } = useWorkspaceDialog()
+  return <DialogPrimitive.Portal {...props} container={confined && container ? container : props.container} />
+}
 
 const DialogClose = DialogPrimitive.Close
 
 const DialogOverlay = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Overlay>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Overlay>
->(({ className, ...props }, ref) => (
-  <DialogPrimitive.Overlay
-    ref={ref}
-    className={cn(
-      "fixed inset-0 z-50 bg-white/70 backdrop-blur-[2px] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
-      className,
-    )}
-    {...props}
-  />
-))
+>(({ className, ...props }, ref) => {
+  const { confined } = useWorkspaceDialog()
+  return (
+    <DialogPrimitive.Overlay
+      ref={ref}
+      className={cn(
+        confined ? "absolute" : "fixed",
+        "pointer-events-auto inset-0 z-50 bg-white/70 backdrop-blur-[2px] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+        className,
+      )}
+      {...props}
+    />
+  )
+})
 DialogOverlay.displayName = DialogPrimitive.Overlay.displayName
 
 interface DialogContentProps extends React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> {
@@ -36,13 +47,17 @@ interface DialogContentProps extends React.ComponentPropsWithoutRef<typeof Dialo
 const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   DialogContentProps
->(({ className, children, hideCloseButton, ...props }, ref) => (
-  <DialogPortal>
+>(({ className, children, hideCloseButton, ...props }, ref) => {
+  const { confined } = useWorkspaceDialog()
+  return <DialogPortal>
     <DialogOverlay />
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        "fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg",
+        confined
+          ? "absolute left-1/2 top-3 max-h-[calc(100%-1.5rem)] -translate-x-1/2 overflow-y-auto"
+          : "fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2",
+        "pointer-events-auto z-50 grid w-full max-w-lg gap-4 border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 sm:rounded-lg",
         className,
       )}
       {...props}
@@ -56,7 +71,7 @@ const DialogContent = React.forwardRef<
       )}
     </DialogPrimitive.Content>
   </DialogPortal>
-))
+})
 DialogContent.displayName = DialogPrimitive.Content.displayName
 
 const DialogHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (

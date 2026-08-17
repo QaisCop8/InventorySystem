@@ -42,12 +42,12 @@ const formatGroupCode = (code: string): string => {
 
   const letters = cleaned.replace(/\d/g, "")
   const digits = cleaned.replace(/\D/g, "")
-  const prefix = letters.slice(0, 8)
+  const prefix = letters.slice(0, 10)
 
-  if (!digits) return prefix.slice(0, 8)
+  if (!digits) return prefix.slice(0, 10)
 
-  const paddingLength = Math.max(1, 8 - prefix.length)
-  return `${prefix}${digits.padStart(paddingLength, "0")}`.slice(0, 8)
+  const paddingLength = Math.max(1, 10 - prefix.length)
+  return `${prefix}${digits.padStart(paddingLength, "0")}`.slice(0, 10)
 }
 
 export default function ProductGroups() {

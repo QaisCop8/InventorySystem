@@ -2194,10 +2194,10 @@ function Definitions() {
   const handleAddWarehouse = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!warehouseForm.warehouse_code.trim() || !warehouseForm.warehouse_name.trim()) {
+    if (!warehouseForm.warehouse_name.trim()) {
       toast({
         title: "خطأ",
-        description: "يرجى إدخال رمز واسم المستودع",
+        description: "يرجى إدخال اسم المستودع",
         variant: "destructive",
       });
       return;
@@ -2242,10 +2242,10 @@ function Definitions() {
   const handleAddBranch = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!branchForm.branch_code.trim() || !branchForm.branch_name.trim()) {
+    if (!branchForm.branch_name.trim()) {
       toast({
         title: "خطأ",
-        description: "يرجى إدخال رمز واسم الفرع",
+        description: "يرجى إدخال اسم الفرع",
         variant: "destructive",
       });
       return;
@@ -2307,10 +2307,10 @@ function Definitions() {
   const handleAddDepartment = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!departmentForm.department_code.trim() || !departmentForm.department_name.trim()) {
+    if (!departmentForm.department_name.trim()) {
       toast({
         title: "خطأ",
-        description: "يرجى إدخال رمز واسم القسم",
+        description: "يرجى إدخال اسم القسم",
         variant: "destructive",
       });
       return;
@@ -2434,22 +2434,13 @@ function Definitions() {
                     <form className="space-y-4" onSubmit={handleAddBranch}>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="text-right">
-                          <Label className="erp-label text-right block">رمز الفرع *</Label>
+                          <Label className="erp-label text-right block">رمز الفرع</Label>
                           <Input
-                            required
-                            className="erp-input text-right"
-                            placeholder="B001"
+                            readOnly
+                            className="erp-input bg-muted text-right"
+                            placeholder="يتم توليده تلقائياً"
                             dir="rtl"
-                            maxLength={5}
-
                             value={branchForm.branch_code}
-                            onChange={(e) => {
-                              const value = e.target.value
-                                .toUpperCase()        // تحويل إلى Capital
-                                .replace(/[^A-Z0-9]/g, ""); // السماح فقط بالحروف الإنجليزية والأرقام
-
-                              setBranchForm({ ...branchForm, branch_code: value });
-                            }}
                           />
                         </div>
                         <div className="text-right">
@@ -2578,21 +2569,13 @@ function Definitions() {
                     <form className="space-y-4" onSubmit={handleAddDepartment}>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="text-right">
-                          <Label className="erp-label text-right block">رمز القسم *</Label>
+                          <Label className="erp-label text-right block">رمز القسم</Label>
                           <Input
-                            required
-                            className="erp-input text-right"
-                            placeholder="D0001"
+                            readOnly
+                            className="erp-input bg-muted text-right"
+                            placeholder="يتم توليده تلقائياً"
                             dir="rtl"
-                            onChange={(e) => {
-                              const value = e.target.value
-                                .toUpperCase()        // تحويل إلى Capital
-                                .replace(/[^A-Z0-9]/g, ""); // السماح فقط بالحروف الإنجليزية والأرقام
-
-                              setDepartmentForm({ ...departmentForm, department_code: value })
-                            }}
                             value={departmentForm.department_code}
-                            maxLength={5}
                           />
                         </div>
                         <div className="text-right">
@@ -2818,21 +2801,13 @@ function Definitions() {
                     <form className="space-y-4" onSubmit={handleAddWarehouse}>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="text-right">
-                          <Label className="erp-label text-right block">رمز المستودع *</Label>
+                          <Label className="erp-label text-right block">رمز المستودع</Label>
                           <Input
-                            required
-                            className="erp-input text-right"
-                            placeholder="MAIN"
+                            readOnly
+                            className="erp-input bg-muted text-right"
+                            placeholder="يتم توليده تلقائياً"
                             dir="rtl"
                             value={warehouseForm.warehouse_code}
-                            maxLength={8}
-                            onChange={(e) => {
-                              const value = e.target.value
-                                .toUpperCase()
-                                .replace(/[^A-Z0-9]/g, "")
-
-                              setWarehouseForm({ ...warehouseForm, warehouse_code: value })
-                            }}
                           />
                         </div>
                         <div className="text-right">

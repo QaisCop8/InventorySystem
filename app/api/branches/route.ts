@@ -31,13 +31,13 @@ export async function GET(request: NextRequest) {
           SELECT id, branch_code, branch_name, bank_id, address, manager, phone, status
           FROM branches
           WHERE status != 3 AND bank_id = ${bankId}
-          ORDER BY branch_name
+          ORDER BY branch_code ASC
         `
       : await sql`
           SELECT id, branch_code, branch_name, bank_id, address, manager, phone, status
           FROM branches
           WHERE status != 3
-          ORDER BY branch_name
+          ORDER BY branch_code ASC
         `
 
     return NextResponse.json(branches)
@@ -51,21 +51,25 @@ export async function POST(request: NextRequest) {
   try {
     const data = await request.json()
 
-    if (!data.branch_name || !data.branch_code) {
-      return NextResponse.json({ error: "اسم الفرع ورمزه مطلوبان" }, { status: 400 })
+    if (!data.branch_name) {
+      return NextResponse.json({ error: "اسم الفرع مطلوب" }, { status: 400 })
     }
 
     const result = await sql`
-      INSERT INTO branches (branch_code, branch_name, bank_id, address, manager, phone, status)
-      VALUES (
-        ${data.branch_code},
+      WITH next_branch AS (
+        SELECT nextval(pg_get_serial_sequence('branches', 'id')) AS id
+      )
+      INSERT INTO branches (id, branch_code, branch_name, bank_id, address, manager, phone, status)
+      SELECT
+        id,
+        LPAD(id::text, 4, '0'),
         ${data.branch_name},
         ${data.bank_id || null},
         ${data.address || ""},
         ${data.manager || ""},
         ${data.phone || ""},
         ${Number(data.status || 1)}
-      )
+      FROM next_branch
       RETURNING id, branch_code, branch_name, bank_id, address, manager, phone, status
     `
 
@@ -84,14 +88,9 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "معرف الفرع مطلوب" }, { status: 400 })
     }
 
-    if (!data.branch_code || String(data.branch_code).trim().length > 4) {
-      return NextResponse.json({ error: "رمز الفرع يجب أن يتكون من 1 إلى 4 أحرف" }, { status: 400 })
-    }
-
     const result = await sql`
       UPDATE branches
       SET 
-        branch_code = ${String(data.branch_code).trim()},
         branch_name = ${data.branch_name},
         bank_id = ${data.bank_id || null},
         address = ${data.address || ""},

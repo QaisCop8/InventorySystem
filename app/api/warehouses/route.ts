@@ -66,7 +66,7 @@ export async function GET() {
         updated_at
       FROM warehouses
       WHERE status != 3
-      ORDER BY id
+      ORDER BY warehouse_code ASC
     `
 
     return NextResponse.json(warehouses.map((w: Warehouse) => ({ ...w, name: w.warehouse_name })))
@@ -80,31 +80,28 @@ export async function POST(request: NextRequest) {
   try {
     const data = await request.json()
 
-    if (!data.warehouse_name || !data.warehouse_code) {
-      return NextResponse.json({ error: "اسم المستودع ورمزه مطلوبان" }, { status: 400 })
-    }
-
-    const existingWarehouse = await sql`
-      SELECT id FROM warehouses WHERE warehouse_code = ${data.warehouse_code}
-    `
-
-    if (existingWarehouse.length > 0) {
-      return NextResponse.json({ error: "رمز المستودع موجود مسبقاً" }, { status: 400 })
+    if (!data.warehouse_name) {
+      return NextResponse.json({ error: "اسم المستودع مطلوب" }, { status: 400 })
     }
 
     const status = Number(data.status ?? 1)
     const result = await sql`
+      WITH next_warehouse AS (
+        SELECT nextval(pg_get_serial_sequence('warehouses', 'id')) AS id
+      )
       INSERT INTO warehouses (
-        warehouse_code, warehouse_name, warehouse_name_en, description, location, is_active, status
-      ) VALUES (
-        ${data.warehouse_code}, 
+        id, warehouse_code, warehouse_name, warehouse_name_en, description, location, is_active, status
+      ) SELECT
+        id,
+        LPAD(id::text, 4, '0'),
         ${data.warehouse_name}, 
         ${data.warehouse_name_en || ""}, 
         ${data.description || ""}, 
         ${data.location || ""}, 
         ${status === 1},
         ${status}
-      ) RETURNING *
+      FROM next_warehouse
+      RETURNING *
     `
 
     return NextResponse.json({ ...result[0], name: result[0].warehouse_name }, { status: 201 })
