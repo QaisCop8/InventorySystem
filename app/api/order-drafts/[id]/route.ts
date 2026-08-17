@@ -19,9 +19,11 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     const id = Number((await params).id)
     const data = await request.json()
     if (!data.account_id || !data.requested_delivery_date) return NextResponse.json({ error: "العميل وتاريخ التسليم مطلوبان" }, { status: 400 })
+    const customerAccounts = await sql`SELECT id, name FROM account_tbl WHERE id=${Number(data.account_id)} AND type=2 AND COALESCE(status, 1) IN (1, 2) LIMIT 1`
+    if (!customerAccounts.length) return NextResponse.json({ error: "حساب العميل غير موجود أو ليس من النوع 2" }, { status: 400 })
     await validateItems(data.items)
     const updated = await sql`
-      UPDATE sales_order_drafts SET account_id=${data.account_id}, customer_name=${data.customer_name},
+      UPDATE sales_order_drafts SET account_id=${data.account_id}, customer_name=${customerAccounts[0].name},
         order_date=${data.order_date}, requested_delivery_date=${data.requested_delivery_date},
         deposit_amount=${Number(data.deposit_amount)||0}, notes=${data.notes||null},
         delivery_address=${data.delivery_address||null}, contact_phone=${data.contact_phone||null},
@@ -35,7 +37,8 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       INSERT INTO sales_order_draft_items (draft_id,product_id,product_name,quantity,price,discount,unit_id,barcode)
       VALUES (${id},${item.product_id},${item.product_name},${item.quantity},${item.price||0},${item.discount||0},${item.unit_id||null},${item.barcode||null})
     `
-    return NextResponse.json(updated[0])
+    const { customer_id: _deprecatedCustomerId, ...savedDraft } = updated[0] as any
+    return NextResponse.json(savedDraft)
   } catch (error: any) { return NextResponse.json({ error: error.message }, { status: 400 }) }
 }
 
