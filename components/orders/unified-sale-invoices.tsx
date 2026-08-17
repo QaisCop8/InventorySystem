@@ -36,6 +36,7 @@ import { useDocumentSettings } from "@/hooks/use-document-settings"
 import { LotSelector } from "@/components/inventory/lot-selector"
 import PrimeDropdown from "@/components/common/FocusDropdown"
 import ProductSearchPopup from "../products/ProductSearchPopup"
+import { requestProductVariant } from "@/components/products/product-variant-service"
 import * as wjGrid from "@grapecity/wijmo.grid";
 import DataGridView from "../common/DataGridView"
 import Messages from "../common/Messages"
@@ -1255,7 +1256,7 @@ function UnifiedSaleInvoices({
       console.log("res res res res res ", res)
       if (!res.ok) throw new Error('Failed to fetch product');
       const product: Product | null = await res.json();
-      return product;
+      return product ? await requestProductVariant(product as any) as Product | null : null;
     } catch (err) {
       console.error('Error fetching product:', err);
       return null;
@@ -1705,7 +1706,9 @@ function UnifiedSaleInvoices({
     }))
   }
 
-  const handleProductSelect = (product: any, itemId: string) => {
+  const handleProductSelect = async (product: any, itemId: string) => {
+    product = await requestProductVariant(product)
+    if (!product) return
     updateOrderItem(itemId, "product_id", product.id)
     updateOrderItem(itemId, "product_code", product.product_code)
     updateOrderItem(itemId, "product_name", product.product_name)

@@ -1081,7 +1081,9 @@ export function Products({ entityType = "products" }: ProductsProps) {
         isCompact
       />
 
-      <Dialog open={state.showDialog} onOpenChange={(open) => setState((prev) => ({ ...prev, showDialog: open }))} >
+      <Dialog open={state.showDialog} onOpenChange={(open) => {
+        if (open) setState((prev) => ({ ...prev, showDialog: true }))
+      }} >
         <DialogContent className="h-[calc(100%-1.5rem)] max-h-[calc(100%-1.5rem)] w-[calc(100%-1.5rem)] max-w-[95vw] overflow-hidden p-0 sm:max-w-[94vw] lg:max-w-[92vw] 2xl:max-w-[90vw]" dir="rtl"
         onPointerDownOutside={(event) => event.preventDefault()}
         onEscapeKeyDown={(event) => event.preventDefault()}

@@ -188,7 +188,7 @@ export function Header({ onMenuClick, activeSection, onProfileClick, onSettingsC
 
   return (
     <header
-      className="h-14 md:h-16 border-b border-border bg-card px-3 md:px-6 flex items-center justify-between shadow-sm"
+      className="user-typography h-14 md:h-16 border-b border-border bg-card px-3 md:px-6 flex items-center justify-between shadow-sm"
       dir="rtl"
     >
       {/* Left: Menu + title */}

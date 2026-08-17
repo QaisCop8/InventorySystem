@@ -29,6 +29,11 @@ interface Product {
   units?: Unit[];
   selected?: boolean;
   selected_unit?: Unit;
+  attributes?: Array<{ name: string; values: string[] }>;
+  selected_attributes?: Record<string, string>;
+  attribute_summary?: string;
+  attributes_display?: string;
+  _variant_key?: string;
 }
 
 interface ProductSearchPopupProps {
@@ -69,6 +74,7 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
   const gridProductsRef = useRef<wjGrid.FlexGrid | null>(null);
   const gridUnitsRef = useRef<wjGrid.FlexGrid | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [attributeError, setAttributeError] = useState("");
   const searchTextRef = useRef<HTMLInputElement>(null);
   const ws = useRef<WebSocket | null>(null);
   const { t, i18n } = useTranslation();
@@ -92,7 +98,15 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
           // reset any previous selection state when opening so stale selections do not
           // persist across open/close cycles (causes confusing UI and race conditions)
           const normalized = Array.isArray(data)
-            ? data.map((p: any) => ({ ...p, selected: false, selected_unit: p.selected_unit || null }))
+            ? data.flatMap((p: any) => {
+                const attributes = (Array.isArray(p.attributes) ? p.attributes : []).filter((attribute: any) => attribute?.name && Array.isArray(attribute?.values) && attribute.values.length > 0)
+                if (attributes.length === 0) return [{ ...p, attributes: [], attributes_display: "", _variant_key: `${p.id}:default`, selected: false, selected_unit: p.selected_unit || null }]
+                const combinations = attributes.reduce<Record<string, string>[]>((items: Record<string, string>[], attribute: any) => items.flatMap((item) => attribute.values.map((value: string) => ({ ...item, [attribute.name]: value }))), [{}])
+                return combinations.map((selection: Record<string, string>, index: number) => {
+                  const summary = attributes.map((attribute: any) => `${attribute.name}: ${selection[attribute.name]}`).join("، ")
+                  return { ...p, attributes, selected_attributes: selection, attribute_summary: summary, attributes_display: summary, _variant_key: `${p.id}:${index}:${summary}`, selected: false, selected_unit: p.selected_unit || null }
+                })
+              })
             : [];
           setProducts(normalized);
           setSelectedProduct(null);
@@ -169,17 +183,19 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
   // -----------------------
   // Products grid scheme
   // -----------------------
+  const hasVariantProducts = products.some((product) => Array.isArray(product.attributes) && product.attributes.length > 0)
   const productScheme = useMemo(() => ({
     name: "ProductsScheme",
     columns: [
       { header: "✅", name: "selected", width: 50, isReadOnly: false, visible: ShowSelect },
       { header: "رقم الصنف", name: "product_code", width: 120, isReadOnly: true },
       { header: "اسم الصنف", name: "product_name", width: "*", isReadOnly: true,minWidth: 200 },
+      ...(hasVariantProducts ? [{ header: "الخصائص", name: "attributes_display", width: 280, minWidth: 180, isReadOnly: true }] : []),
       { header: "الوحدة", name: "first_unit", width: 80, isReadOnly: true },
       { header: "السعر", name: "first_price", width: 80, isReadOnly: true },
       { header: "باركود", name: "first_barcode", width: 150, isReadOnly: true },
     ]
-  }), []);
+  }), [ShowSelect, hasVariantProducts]);
 
   // -----------------------
   // Units grid scheme
@@ -238,6 +254,17 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
     setSelectedProduct(product);
   }, []);
 
+  const finishOrConfigureProduct = useCallback((product: Product) => {
+    const attributes = Array.isArray(product.attributes) ? product.attributes.filter((attribute) => attribute.name && attribute.values?.length) : [];
+    if (attributes.length > 0 && !product.selected_attributes) {
+      setAttributeError("اختر صف تركيبة من عمود الخصائص")
+      return;
+    }
+    const name = product.attribute_summary ? `${product.product_name} (${product.attribute_summary})` : product.product_name
+    onSelect([{ ...product, product_name: name }]);
+    onClose();
+  }, [onSelect, onClose]);
+
   const handleProductDoubleClick = useCallback(async (product: Product) => {
     if (!product) return;
     // النقر المزدوج/Enter على صنف بلا مرور بشبكة الوحدات (selectionChanged) لا يحمل units أصلاً —
@@ -257,12 +284,11 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
     const updatedProduct: Product = { ...product, units, selected_unit: selectedUnit, selected: true };
 
     setProducts(prev =>
-      prev.map(p => p.id === product.id ? updatedProduct : p)
+      prev.map(p => p._variant_key === product._variant_key ? updatedProduct : p)
     );
 
-    onSelect([updatedProduct]);
-    onClose();
-  }, [onSelect, onClose, priceCategoryId]);
+    finishOrConfigureProduct(updatedProduct);
+  }, [finishOrConfigureProduct, priceCategoryId]);
   // -----------------------
   // Fetch units when product selected
   // -----------------------
@@ -291,7 +317,7 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
     if (!selectedProduct) return;
 
     setProducts(prev =>
-      prev.map(p => p.id === selectedProduct.id ? { ...p, selected_unit: unit, selected: true } : p)
+      prev.map(p => p._variant_key === selectedProduct._variant_key ? { ...p, selected_unit: unit, selected: true } : p)
     );
     setSelectedProduct(prev => prev ? { ...prev, selected_unit: unit } : null);
   }, [selectedProduct]);
@@ -310,9 +336,8 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
     };
 
     // Pass it to parent and close popup
-    onSelect([productWithUnit]);
-    onClose();
-  }, [selectedProduct, onSelect, onClose]);
+    finishOrConfigureProduct(productWithUnit);
+  }, [selectedProduct, finishOrConfigureProduct]);
   // -----------------------
   // Confirm selection
   // -----------------------
@@ -330,8 +355,7 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
     // Reset selection flags
     setProducts(prev => prev.map(p => ({ ...p, selected: false })));
 
-    // Pass selected items to parent and close popup
-    onSelect(selectedItems);
+    onSelect(selectedItems.map((product) => ({ ...product, product_name: product.attribute_summary ? `${product.product_name} (${product.attribute_summary})` : product.product_name })));
     onClose();
   };
 
@@ -430,7 +454,8 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
         }
       }}
     >
-      <div className="flex h-[100dvh] max-h-[100dvh] w-full max-w-[1400px] flex-col overflow-y-auto rounded-none border-0 border-slate-200 bg-white p-3 shadow-2xl overscroll-contain sm:h-auto sm:max-h-[92dvh] sm:overflow-hidden sm:rounded-3xl sm:border sm:p-5" dir="rtl">
+      <div className="relative flex h-[100dvh] max-h-[100dvh] w-full max-w-[1400px] flex-col overflow-y-auto rounded-none border-0 border-slate-200 bg-white p-3 shadow-2xl overscroll-contain sm:h-auto sm:max-h-[92dvh] sm:overflow-hidden sm:rounded-3xl sm:border sm:p-5" dir="rtl">
+        {attributeError && <div className="mb-3 rounded-md border border-red-200 bg-red-50 p-2 text-sm font-semibold text-red-700">{attributeError}</div>}
         <div className="flex shrink-0 items-center justify-between gap-3">
           <h3 className="text-xl font-semibold text-slate-900">{title || "بحث الأصناف"}</h3>
           <Button

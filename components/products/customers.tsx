@@ -1952,11 +1952,9 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
       <Dialog
         open={showNewCustomerDialog}
         onOpenChange={(open) => {
-          setShowNewCustomerDialog(open);
-          if (!open) {
-            // fetch customers after dialog is closed
-            fetchCustomers();
-          }
+          // The form closes only through its explicit close button. Saving or a nested
+          // popup must not toggle the parent dialog off and mount it again.
+          if (open) setShowNewCustomerDialog(true);
         }}
       >
         <DialogContent className="h-[94dvh] max-h-[94dvh] w-[96vw] max-w-[1400px] overflow-hidden p-0 sm:h-[92dvh] sm:max-h-[92dvh]" dir="rtl"
@@ -1967,7 +1965,10 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
           <div className="flex h-full min-h-0 flex-col overflow-hidden bg-background">
             <UnifiedCustomers
               open={showNewCustomerDialog}
-              onOpenChange={setShowNewCustomerDialog}
+              onOpenChange={(open) => {
+                setShowNewCustomerDialog(open)
+                if (!open) void fetchCustomers()
+              }}
               isSupplier={!!isSupplier}
               showCustomerSearch={showCustomerSearch}
               setShowCustomerSearch={setShowCustomerSearch}

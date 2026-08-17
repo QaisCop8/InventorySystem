@@ -117,6 +117,7 @@ CREATE TABLE IF NOT EXISTS products (
     order_quantity DECIMAL(10,2),
     max_quantity DECIMAL(10,2),
     has_colors BOOLEAN DEFAULT false,
+    attributes JSONB NOT NULL DEFAULT '[]'::jsonb,
     has_batch BOOLEAN DEFAULT false,
     has_expiry BOOLEAN DEFAULT false,
     status VARCHAR(50) DEFAULT 'active',

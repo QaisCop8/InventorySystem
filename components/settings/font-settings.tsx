@@ -4,6 +4,7 @@ import type React from "react"
 import { createContext, useContext, useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
 import { Slider } from "@/components/ui/slider"
@@ -145,6 +146,9 @@ export const FontSettings: React.FC = () => {
   }
 
   const fontFamilies = [
+    { value: "Arabic Transparent", label: "Arabic Transparent (عربي شفاف)" },
+    { value: "Simplified Arabic", label: "Simplified Arabic (العربية المبسطة)" },
+    { value: "Traditional Arabic", label: "Traditional Arabic (العربية التقليدية)" },
     { value: "Cairo", label: "Cairo (عربي)" },
     { value: "Inter", label: "Inter (إنجليزي)" },
     { value: "Tajawal", label: "Tajawal (عربي)" },
@@ -239,6 +243,25 @@ export const FontSettings: React.FC = () => {
                 step={1}
                 className="w-full"
               />
+              <div className="flex items-center gap-2" dir="ltr">
+                <Input
+                  id="user-font-size"
+                  type="number"
+                  value={settings.fontSize}
+                  onChange={(event) => {
+                    const value = Number(event.target.value)
+                    if (Number.isFinite(value)) {
+                      updateSettings({ fontSize: Math.min(24, Math.max(10, Math.round(value))) })
+                    }
+                  }}
+                  aria-label="حجم الخط بالبكسل"
+                  min={10}
+                  max={24}
+                  step={1}
+                  className="w-28 text-center"
+                />
+                <span className="text-sm font-medium text-muted-foreground">px</span>
+              </div>
             </div>
 
             <Separator />

@@ -371,6 +371,7 @@ async function ensureModernProductColumns(tenantClient: ReturnType<typeof getPoo
     ["created_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"],
     ["entry_date", "DATE DEFAULT CURRENT_DATE"],
     ["has_colors", "BOOLEAN DEFAULT false"],
+    ["attributes", "JSONB NOT NULL DEFAULT '[]'::jsonb"],
   ]
 
   for (const [columnName, columnType] of productColumns) {

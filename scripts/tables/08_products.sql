@@ -49,6 +49,7 @@ CREATE TABLE IF NOT EXISTS products (
     expiry_tracking BOOLEAN DEFAULT false,
     serial_tracking BOOLEAN DEFAULT false,
     has_colors BOOLEAN DEFAULT false,
+    attributes JSONB NOT NULL DEFAULT '[]'::jsonb,
     status VARCHAR(20) DEFAULT 'active',
     entry_date DATE,
     image_url TEXT,

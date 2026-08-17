@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Separator } from "@/components/ui/separator"
 import { UniversalToolbar } from "@/components/ui/universal-toolbar"
-import { Package, Save, X, Barcode, DollarSign, Warehouse, Truck, Info, Settings, Package2, Plus, Currency } from "lucide-react"
+import { Package, Save, X, Barcode, DollarSign, Warehouse, Truck, Info, Settings, Package2, Plus, Currency, SlidersHorizontal } from "lucide-react"
 import { WarehouseInventoryTable } from "./warehouse-inventory-table"
 import { BatchTrackingTable } from "./batch-tracking-table"
 import { UNITS } from "@/lib/constants"
@@ -43,6 +43,40 @@ import { attachEnterAsTab } from "@/components/common/enterAsTab"
 // يُمرَّر إلى DataGridView مباشرة (كخاصية style) لا إلى العنصر الملفوف، فيتولى Wijmo تمرير الصفوف
 // داخلياً بشريط تمرير عمودي واحد فقط بدل شريطين متداخلين (الجدول + العنصر الملفوف معاً).
 const TABS_GRID_HEIGHT = 260
+
+interface ProductAttributeLine {
+  name: string
+  values: string[]
+}
+
+interface AttributeCatalogItem extends ProductAttributeLine {}
+
+function AttributeValueInput({ values, suggestions, onChange }: { values: string[]; suggestions: string[]; onChange: (values: string[]) => void }) {
+  const [query, setQuery] = useState("")
+  const normalizedQuery = query.trim().toLocaleLowerCase()
+  const filtered = suggestions.filter((value) => value.toLocaleLowerCase().includes(normalizedQuery) && !values.includes(value))
+  const exactMatch = suggestions.find((value) => value.toLocaleLowerCase() === normalizedQuery)
+  const addValue = (value: string) => {
+    const text = value.trim()
+    if (!text || values.some((item) => item.toLocaleLowerCase() === text.toLocaleLowerCase())) return
+    onChange([...values, text])
+    setQuery("")
+  }
+  return <div className="relative min-w-0">
+    <div className="flex min-h-10 flex-wrap items-center gap-1 rounded-md border bg-background px-2 py-1">
+      {values.map((value) => <span key={value} className="inline-flex items-center gap-1 rounded-full bg-violet-100 px-2 py-1 text-xs font-medium text-violet-800">
+        {value}<button type="button" onClick={() => onChange(values.filter((item) => item !== value))}><X className="h-3 w-3" /></button>
+      </span>)}
+      <input className="h-7 min-w-[120px] flex-1 bg-transparent text-sm outline-none" value={query} placeholder="اكتب قيمة ثم مسافة" onChange={(event) => setQuery(event.target.value)} onKeyDown={(event) => {
+        if ((event.key === " " || event.key === "Enter") && query.trim()) { event.preventDefault(); addValue(exactMatch || query) }
+      }} />
+    </div>
+    {query.trim() && <div className="absolute z-30 mt-1 max-h-44 w-full overflow-auto rounded-md border bg-popover p-1 shadow-lg">
+      {filtered.map((value) => <button type="button" key={value} className="block w-full rounded px-3 py-2 text-right text-sm hover:bg-muted" onMouseDown={(event) => event.preventDefault()} onClick={() => addValue(value)}>{value}</button>)}
+      {!exactMatch && <button type="button" className="block w-full rounded px-3 py-2 text-right text-sm font-semibold text-emerald-700 hover:bg-emerald-50" onMouseDown={(event) => event.preventDefault()} onClick={() => addValue(query)}>+ إنشاء “{query.trim()}”</button>}
+    </div>}
+  </div>
+}
 
 interface ProductCostCenterItem {
   id?: number
@@ -139,6 +173,7 @@ interface ProductFormData {
   // وإلا يظهر فقط لمستخدم فرعه أحد هذه المعرّفات (انظر product_branches بـapp/api/inventory/
   // products/route.ts وتصفية x-branch-id بـauth-context.tsx).
   branch_ids?: number[],
+  attributes?: ProductAttributeLine[],
 }
 export const initialFormData: ProductFormData = {
   id: 0,
@@ -211,6 +246,7 @@ export const initialFormData: ProductFormData = {
   product_brands: [],
   product_image: null,
   branch_ids: [],
+  attributes: [],
 };
 
 export interface CompactProductFormProps {
@@ -349,6 +385,7 @@ export function CompactProductForm({
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<string>("units");
+  const [attributeCatalog, setAttributeCatalog] = useState<AttributeCatalogItem[]>([])
   const product_code = useRef<HTMLInputElement>(null);
   const product_name = useRef<HTMLInputElement>(null);
   const initialized = useRef(false);
@@ -358,6 +395,10 @@ export function CompactProductForm({
       setActiveTab("units");
     }
   }, [visible]);
+  useEffect(() => {
+    if (!visible || isService) return
+    fetch("/api/product-attributes").then((response) => response.ok ? response.json() : []).then((data) => setAttributeCatalog(Array.isArray(data) ? data : [])).catch(() => setAttributeCatalog([]))
+  }, [visible, isService])
   const validateProduct = () => {
     if (formData.product_code === "") {
       toast.current?.show({
@@ -476,6 +517,23 @@ export function CompactProductForm({
       }
     }
 
+    const attributeNames = new Set<string>()
+    for (const attribute of formData.attributes || []) {
+      const name = attribute.name.trim()
+      if (!name || attribute.values.length === 0) {
+        setActiveTab("attributes")
+        toast.current?.show({ severity: "error", summary: "خطأ", detail: "يجب كتابة اسم الخاصية وإضافة قيمة واحدة على الأقل", life: 3000 })
+        return false
+      }
+      const key = name.toLocaleLowerCase()
+      if (attributeNames.has(key)) {
+        setActiveTab("attributes")
+        toast.current?.show({ severity: "error", summary: "خطأ", detail: `الخاصية ${name} مكررة`, life: 3000 })
+        return false
+      }
+      attributeNames.add(key)
+    }
+
     return true;
   }
   const handleSaveProduct = async () => {
@@ -528,7 +586,10 @@ export function CompactProductForm({
         detail: 'تمت العملية بنجاح ✅',
         life: 3000
       });
-      await reset_fields()
+      const savedProductId = Number(responseData?.productId || formData.id || 0)
+      if (savedProductId > 0) {
+        await loadData("Byid", savedProductId, false)
+      }
       onSuccess?.()
 
     } catch (err) {
@@ -583,7 +644,6 @@ export function CompactProductForm({
   };
 
   const handleDeleteProduct = async () => {
-    setLoading(true)
     if (!formData.id) {
       toast.current?.show({
         severity: 'warn',
@@ -594,6 +654,7 @@ export function CompactProductForm({
       return;
     }
 
+    setLoading(true)
     try {
       const response = await fetch(`/api/inventory/products?id=${formData.id}`, {
         method: "DELETE",
@@ -612,7 +673,7 @@ export function CompactProductForm({
         life: 3000
       });
 
-      reset_fields(); // clear form
+      await reset_fields(); // clear form
 
     } catch (err) {
       console.error("Error deleting product:", err);
@@ -629,10 +690,26 @@ export function CompactProductForm({
 
 
   const getNewProductCode = async (): Promise<string> => {
-    const res = await fetch("/api/utilities/getLastProductCode");
-    const data = await res.json();
-    const lastCode = data.lastCode;
-    return lastCode.toString();
+    try {
+      const res = await fetch("/api/utilities/getLastProductCode");
+      if (!res.ok) {
+        throw new Error(`Product code request failed with status ${res.status}`)
+      }
+      const data = await res.json();
+      if (data?.lastCode === undefined || data?.lastCode === null) {
+        throw new Error("Product code response does not contain lastCode")
+      }
+      return data.lastCode.toString();
+    } catch (error) {
+      console.warn("Unable to generate a new product code:", error)
+      toast.current?.show({
+        severity: "warn",
+        summary: "تنبيه",
+        detail: "تعذر توليد رقم الصنف. تحقق من الاتصال ثم حاول مرة أخرى.",
+        life: 4000,
+      })
+      return ""
+    }
   };
   const [currentProductId, setCurrentProductId] = useState<number>(0);
   // true إن كان للصنف الحالي (بمعرّفه) سطر واحد على الأقل بـvoucher_items_tbl ضمن سند لم يُلغَ
@@ -1022,8 +1099,11 @@ export function CompactProductForm({
       return
     }
     setLoading(true)
-    await reset_fields()
-    setLoading(false)
+    try {
+      await reset_fields()
+    } finally {
+      setLoading(false)
+    }
 
   }
 
@@ -1032,20 +1112,28 @@ export function CompactProductForm({
     initialized.current = true;
     const initFormData = async () => {
       setLoading(true)
-      const result = await fetchDefinitions(); // now returns a single object
-
-      if (editingProduct) {
-        loadData("Byid", editingProduct.id);
-
-      } else {
-        // Populate from initial form data + first currency if available
-        reset_fields()
-
+      try {
+        await fetchDefinitions();
+        if (editingProduct) {
+          await loadData("Byid", editingProduct.id);
+        } else {
+          // Populate from initial form data + first currency if available
+          await reset_fields()
+        }
+      } catch (error) {
+        console.warn("Unable to initialize compact product form:", error)
+        toast.current?.show({
+          severity: "error",
+          summary: "خطأ في الاتصال",
+          detail: "تعذر تحميل بيانات الصنف. تحقق من الاتصال ثم حاول مرة أخرى.",
+          life: 5000,
+        })
+      } finally {
+        setLoading(false)
       }
-      setLoading(false)
     };
 
-    initFormData();
+    void initFormData();
   }, [editingProduct]);
 
   // يضمن ظهور مراكز التكلفة في الشبكة حتى لو اكتمل جلبها (fetchDefinitions) بعد استدعاء
@@ -1683,9 +1771,19 @@ export function CompactProductForm({
   const fetchDefinitions = async () => {
     try {
       const definitionsObj: any = {}
+      let failedRequests = 0
+      const fetchDefinition = async (url: string): Promise<Response> => {
+        try {
+          return await fetch(url)
+        } catch (error) {
+          failedRequests += 1
+          console.warn(`Unable to load product definition ${url}:`, error)
+          return new Response(null, { status: 503, statusText: "Network request failed" })
+        }
+      }
 
       // Categories
-      const categoriesResponse = await fetch("/api/item-groups")
+      const categoriesResponse = await fetchDefinition("/api/item-groups")
       if (categoriesResponse.ok) {
         const categoriesData = await categoriesResponse.json()
         definitionsObj.categoriesData = categoriesData
@@ -1694,7 +1792,7 @@ export function CompactProductForm({
       }
 
       // Suppliers
-      const suppliersResponse = await fetch("/api/suppliers")
+      const suppliersResponse = await fetchDefinition("/api/suppliers")
       if (suppliersResponse.ok) {
         const suppliersData = await suppliersResponse.json()
         definitionsObj.suppliersData = suppliersData
@@ -1702,7 +1800,7 @@ export function CompactProductForm({
       }
 
       // Warehouses
-      const warehousesResponse = await fetch("/api/warehouses")
+      const warehousesResponse = await fetchDefinition("/api/warehouses")
       if (warehousesResponse.ok) {
         const warehousesData = await warehousesResponse.json()
         definitionsObj.warehousesData = warehousesData
@@ -1711,7 +1809,7 @@ export function CompactProductForm({
       }
 
       // Units
-      const unitsResponse = await fetch("/api/units")
+      const unitsResponse = await fetchDefinition("/api/units")
       if (unitsResponse.ok) {
         const unitsData = await unitsResponse.json()
         definitionsObj.unitsData = unitsData
@@ -1720,7 +1818,7 @@ export function CompactProductForm({
       }
 
       // Currencies
-      const currenciesResponse = await fetch("/api/exchange-rates")
+      const currenciesResponse = await fetchDefinition("/api/exchange-rates")
       if (currenciesResponse.ok) {
         const currenciesData = await currenciesResponse.json()
         definitionsObj.currenciesData = currenciesData.rates
@@ -1729,7 +1827,7 @@ export function CompactProductForm({
       }
 
       // Price categories
-      const pricesResponse = await fetch("/api/pricecategory")
+      const pricesResponse = await fetchDefinition("/api/pricecategory")
       if (pricesResponse.ok) {
         const pricesData = await pricesResponse.json()
         definitionsObj.pricesData = pricesData
@@ -1738,7 +1836,7 @@ export function CompactProductForm({
       }
 
       // Measurment types (نوع القياس)
-      const measurmentTypesResponse = await fetch("/api/measurment-types")
+      const measurmentTypesResponse = await fetchDefinition("/api/measurment-types")
       if (measurmentTypesResponse.ok) {
         const measurmentTypesData = await measurmentTypesResponse.json()
         definitionsObj.measurmentTypesData = measurmentTypesData
@@ -1748,7 +1846,7 @@ export function CompactProductForm({
 
       // فروع تقييد ظهور الصنف بالبحث (اختياري — انظر حقل "الفروع" أدناه بتبويب "عام")
       try {
-        const branchesResp = await fetch("/api/branches")
+        const branchesResp = await fetchDefinition("/api/branches")
         if (branchesResp.ok) {
           const branchesData = await branchesResp.json()
           const list = Array.isArray(branchesData) ? branchesData : []
@@ -1762,7 +1860,7 @@ export function CompactProductForm({
 
       // Tax classifications
       try {
-        const taxResp = await fetch("/api/tax-classifications")
+        const taxResp = await fetchDefinition("/api/tax-classifications")
         if (taxResp.ok) {
           const taxData = await taxResp.json()
           // endpoint returns { categories }
@@ -1775,7 +1873,7 @@ export function CompactProductForm({
         console.warn("Failed to load tax classifications", e)
       }
 
-      const productCategoryResponse = await fetch("/api/product-categories")
+      const productCategoryResponse = await fetchDefinition("/api/product-categories")
       if (productCategoryResponse.ok) {
         const productCategory = await productCategoryResponse.json()
         definitionsObj.product_category = productCategory
@@ -1783,7 +1881,7 @@ export function CompactProductForm({
         setDefinitions((prev) => ({ ...prev, product_category: productCategory.categories }))
       }
 
-      const costCenterTypeResponse = await fetch("/api/cost-center-types")
+      const costCenterTypeResponse = await fetchDefinition("/api/cost-center-types")
       if (costCenterTypeResponse.ok) {
         const costCenterTypesData = (await costCenterTypeResponse.json()) as Array<{ id: number; name: string }>
         // مطابقاً لِـunified-accounts-refactored.tsx: ترتيب تصاعدي حسب الرقم — الاستجابة الخام غير
@@ -1795,7 +1893,7 @@ export function CompactProductForm({
         setDefinitions((prev) => ({ ...prev, cost_center_types: costCenterTypesData }))
       }
 
-      const costCentersResponse = await fetch("/api/cost-centers")
+      const costCentersResponse = await fetchDefinition("/api/cost-centers")
       if (costCentersResponse.ok) {
         const costCentersData = await costCentersResponse.json()
         definitionsObj.costCenters = costCentersData
@@ -1804,7 +1902,7 @@ export function CompactProductForm({
         setDefinitions((prev) => ({ ...prev, cost_centers: costCentersData }))
       }
 
-      const brandTypesResponse = await fetch("/api/brand-types")
+      const brandTypesResponse = await fetchDefinition("/api/brand-types")
       if (brandTypesResponse.ok) {
         const brandTypesData = (await brandTypesResponse.json()) as Array<{ id: number; name: string }>
         brandTypesData.sort((a, b) => (a.id || 0) - (b.id || 0))
@@ -1814,7 +1912,7 @@ export function CompactProductForm({
         setDefinitions((prev) => ({ ...prev, brand_types: brandTypesData }))
       }
 
-      const brandsResponse = await fetch("/api/brands")
+      const brandsResponse = await fetchDefinition("/api/brands")
       if (brandsResponse.ok) {
         const brandsData = await brandsResponse.json()
         definitionsObj.brands = brandsData
@@ -1822,9 +1920,17 @@ export function CompactProductForm({
         setBrands(brandsData)
         setDefinitions((prev) => ({ ...prev, brands: brandsData }))
       }
+      if (failedRequests > 0) {
+        toast.current?.show({
+          severity: "warn",
+          summary: "اتصال غير مستقر",
+          detail: "تعذر تحميل بعض تعريفات الأصناف. يمكنك متابعة العمل أو إعادة المحاولة.",
+          life: 4000,
+        })
+      }
       return definitionsObj
     } catch (error) {
-      console.error("Error fetching definitions:", error)
+      console.warn("Error fetching product definitions:", error)
       return {}
     }
   }
@@ -2302,6 +2408,7 @@ export function CompactProductForm({
                 <TabsTrigger value="accounts" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-emerald-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">{isService ? 'الحسابات المحاسبية' : 'الحسابات'}</TabsTrigger>
                 {isService ? null : (
                   <>
+                    <TabsTrigger value="attributes" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-violet-500 data-[state=active]:to-purple-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">الخصائص والقيم</TabsTrigger>
                     <TabsTrigger value="brand" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-orange-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">العلامة التجارية</TabsTrigger>
                     <TabsTrigger value="measurements" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-red-500 data-[state=active]:to-red-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">القياسات</TabsTrigger>
                     <TabsTrigger value="pricing" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-cyan-500 data-[state=active]:to-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">سعر الشراء والضريبة</TabsTrigger>
@@ -2535,6 +2642,26 @@ export function CompactProductForm({
 
               {!isService && (
                 <>
+                  <TabsContent value="attributes">
+                    <Card>
+                      <CardHeader className="pb-3"><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><CardTitle className="flex items-center gap-2 text-lg"><SlidersHorizontal className="h-5 w-5 text-violet-600" />الخصائص والقيم</CardTitle><Button type="button" variant="outline" onClick={() => setFormData((previous) => ({ ...previous, attributes: [...(previous.attributes || []), { name: "", values: [] }] }))}><Plus className="ml-2 h-4 w-4" />إضافة خاصية</Button></div></CardHeader>
+                      <CardContent className="space-y-3">
+                        {!(formData.attributes || []).length && <button type="button" onClick={() => setFormData((previous) => ({ ...previous, attributes: [{ name: "", values: [] }] }))} className="w-full rounded-xl border-2 border-dashed p-8 text-muted-foreground hover:border-violet-400 hover:text-violet-700">+ إضافة أول خاصية للصنف</button>}
+                        {(formData.attributes || []).map((attribute, index) => {
+                          const normalizedName = attribute.name.trim().toLocaleLowerCase()
+                          const catalogEntry = attributeCatalog.find((item) => item.name.toLocaleLowerCase() === normalizedName)
+                          const updateAttribute = (patch: Partial<ProductAttributeLine>) => setFormData((previous) => ({ ...previous, attributes: (previous.attributes || []).map((item, itemIndex) => itemIndex === index ? { ...item, ...patch } : item) }))
+                          return <div key={index} className="grid min-w-0 gap-3 rounded-xl border bg-card p-4 md:grid-cols-[minmax(180px,.7fr)_minmax(260px,1.3fr)_44px]">
+                            <div className="min-w-0"><Label>الخاصية *</Label><Input className="mt-1" value={attribute.name} placeholder="مثال: اللون" onChange={(event) => updateAttribute({ name: event.target.value })} list={`attribute-options-${index}`} /><datalist id={`attribute-options-${index}`}>{attributeCatalog.map((item) => <option key={item.name} value={item.name} />)}</datalist>{attribute.name.trim() && !catalogEntry && <p className="mt-1 text-xs font-semibold text-emerald-700">+ إنشاء “{attribute.name.trim()}” عند الحفظ</p>}</div>
+                            <div className="min-w-0"><Label>القيم *</Label><div className="mt-1"><AttributeValueInput values={attribute.values} suggestions={catalogEntry?.values || []} onChange={(values) => updateAttribute({ values })} /></div></div>
+                            <Button type="button" size="icon" variant="ghost" className="self-end text-red-600" onClick={() => setFormData((previous) => ({ ...previous, attributes: (previous.attributes || []).filter((_, itemIndex) => itemIndex !== index) }))}><X className="h-4 w-4" /></Button>
+                          </div>
+                        })}
+                        <p className="text-xs text-muted-foreground">يبقى هذا صنفاً واحداً؛ تُختار قيم الخصائص المطلوبة عند إضافته إلى أي حركة.</p>
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
+
                   <TabsContent value="brand">
                     <Card>
                       <CardHeader className="pb-4">

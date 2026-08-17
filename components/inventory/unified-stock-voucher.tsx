@@ -16,6 +16,7 @@ import AutoCompleteAccount from "@/components/customer/auto-complete-account"
 import AccountCostCenters, { type JournalCostCenterSelection } from "@/components/customer/account-cost-centers"
 import AccountSearchDialog, { type AccountItem } from "@/components/customer/account-search-dialog"
 import ProductSearchPopup from "@/components/products/ProductSearchPopup"
+import { requestProductVariant } from "@/components/products/product-variant-service"
 import StoresSearchPopup from "@/components/products/StoresSearchPopup"
 import UnitsSearchPopup from "@/components/products/UnitsSearchPopup"
 import PostVoucherDialog, { type PostVoucherAction } from "@/components/common/post-voucher-dialog"
@@ -1004,10 +1005,12 @@ export default function UnifiedStockVoucher({
     try {
       const res = await fetch(`/api/inventory/products/search?query=${encodeURIComponent(code)}&priceCategoryId=0`)
       if (!isMountedRef.current) return
+      let product = await res.json()
       if (!res.ok) throw new Error("not found")
-      const product = await res.json()
       if (!isMountedRef.current) return
       if (!product || !product.id) throw new Error("not found")
+      product = await requestProductVariant(product)
+      if (!product || !isMountedRef.current) return
       const currentRow = itemsRef.current[row]
       const unitPrice = product.price != null ? Number(product.price) : 0
       const warehousePatch = resolveDefaultWarehouse(product)

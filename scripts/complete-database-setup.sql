@@ -223,6 +223,7 @@ CREATE TABLE IF NOT EXISTS products (
     has_expiry BOOLEAN DEFAULT false,
     has_batch BOOLEAN DEFAULT false,
     has_colors BOOLEAN DEFAULT false,
+    attributes JSONB NOT NULL DEFAULT '[]'::jsonb,
     serial_tracking BOOLEAN DEFAULT false,
     batch_tracking BOOLEAN DEFAULT false,
     expiry_tracking BOOLEAN DEFAULT false,

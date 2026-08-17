@@ -102,6 +102,7 @@ CREATE TABLE IF NOT EXISTS products (
   has_expiry_date BOOLEAN DEFAULT false,
   has_batch_number BOOLEAN DEFAULT false,
   has_colors BOOLEAN DEFAULT false,
+  attributes JSONB NOT NULL DEFAULT '[]'::jsonb,
   entry_date DATE DEFAULT CURRENT_DATE,
   image_url TEXT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

@@ -3,7 +3,6 @@
 import React, { useEffect } from "react"
 import { PrimeReactProvider } from "primereact/api"
 import { ThemeProvider } from "@/components/theme-provider"
-import { FontProvider } from "@/components/settings/font-settings"
 import { ThemeSettingsProvider } from "@/contexts/theme-context"
 import { WindowManagerProvider } from "@/contexts/window-manager-context"
 import { WorkspaceProvider } from "@/contexts/workspace-context"
@@ -12,6 +11,7 @@ import { GlobalShortcuts } from "@/components/global-shortcuts"
 import { Toaster } from "@/components/ui/toaster"
 import { syncSystemSettingsToLocalStorage } from "@/lib/system-settings-sync"
 import { CompanyStatusGuard } from "@/components/auth/company-status-guard"
+import { ProductVariantProvider } from "@/components/products/product-variant-provider"
 
 export default function ClientProviders({ children }: { children: React.ReactNode }) {
   // يُعبِّئ إعداد "عدد الخانات العشرية" (وأي إعداد نظام قديم آخر لاحقاً) بـlocalStorage عند بدء أي
@@ -23,20 +23,19 @@ export default function ClientProviders({ children }: { children: React.ReactNod
   return (
     <PrimeReactProvider>
       <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
-        <FontProvider>
-          <ThemeSettingsProvider>
-            <WindowManagerProvider>
-              <WorkspaceProvider>
-                <GlobalSearchProvider>
-                  <GlobalShortcuts />
-                  <CompanyStatusGuard />
-                  {children}
-                  <Toaster />
-                </GlobalSearchProvider>
-              </WorkspaceProvider>
-            </WindowManagerProvider>
-          </ThemeSettingsProvider>
-        </FontProvider>
+        <ThemeSettingsProvider>
+          <WindowManagerProvider>
+            <WorkspaceProvider>
+              <GlobalSearchProvider>
+                <GlobalShortcuts />
+                <CompanyStatusGuard />
+                <ProductVariantProvider />
+                {children}
+                <Toaster />
+              </GlobalSearchProvider>
+            </WorkspaceProvider>
+          </WindowManagerProvider>
+        </ThemeSettingsProvider>
       </ThemeProvider>
     </PrimeReactProvider>
   )

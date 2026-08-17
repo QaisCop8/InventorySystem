@@ -96,6 +96,7 @@ async function ensureProductSchemaColumns(client: any) {
     ["created_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"],
     ["entry_date", "DATE DEFAULT CURRENT_DATE"],
     ["has_colors", "BOOLEAN DEFAULT false"],
+    ["attributes", "JSONB NOT NULL DEFAULT '[]'::jsonb"],
   ]
 
   for (const [columnName, columnType] of columns) {
@@ -255,6 +256,13 @@ function normalizeProductPayload(productData: any) {
     stores: normalizedStores,
     cost_centers: normalizedCostCenters,
     product_brands: normalizedBrands,
+    attributes: Array.isArray(productData?.attributes)
+      ? productData.attributes.map((attribute: any) => ({
+          name: safeText(attribute?.name, "").trim(),
+          values: Array.from(new Set((Array.isArray(attribute?.values) ? attribute.values : [])
+            .map((value: any) => safeText(value, "").trim()).filter(Boolean))),
+        })).filter((attribute: any) => attribute.name && attribute.values.length > 0)
+      : [],
   }
 }
 
@@ -262,6 +270,7 @@ export async function GET(request: NextRequest) {
   if (!sql) return NextResponse.json({ error: 'Database client not initialized' }, { status: 500 })
 
   try {
+    await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS attributes JSONB NOT NULL DEFAULT '[]'::jsonb`
     // قد لا يكون product_branches موجوداً بعد (يُنشَأ أصلاً ضمن POST) على قاعدة لم يُحفَظ بها أي
     // صنف مقيَّد بفرع بعد — الاستعلام أدناه يستخدمه دوماً بمجرّد وجود هيدر x-branch-id، فيُضمَن
     // وجوده هنا أيضاً بدل تفويت ذلك لِـPOST فقط.
@@ -1244,6 +1253,11 @@ export async function POST(request: NextRequest) {
     await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS minimum_order_quantity NUMERIC(15,4) NOT NULL DEFAULT 0`)
     await client.query(`UPDATE products SET minimum_order_quantity=$1::numeric WHERE id=$2::int`, [
       Math.max(0, Number(productData.minimum_order_quantity || 0)),
+      productId,
+    ])
+    await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS attributes JSONB NOT NULL DEFAULT '[]'::jsonb`)
+    await client.query(`UPDATE products SET attributes=$1::jsonb WHERE id=$2::int`, [
+      JSON.stringify(productData.attributes || []),
       productId,
     ])
 

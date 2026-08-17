@@ -1558,7 +1558,8 @@ CREATE TABLE public.products (
     lsti3mal_account_code character varying(100),
     product_type character varying(50) DEFAULT 'بضاعة تجارية'::character varying,
     tax_classification_id integer,
-    measurment_id integer DEFAULT 1
+    measurment_id integer DEFAULT 1,
+    attributes jsonb DEFAULT '[]'::jsonb NOT NULL
 );
 
 
@@ -23622,4 +23623,3 @@ ALTER TABLE ONLY public.vouchers
 --
 
 \unrestrict mG9MfTn297ETNUyF0uVxCyCzIpTp43BB4uVykMAe4Ea9ct8S2Ae78U3r6gYX0gs
-

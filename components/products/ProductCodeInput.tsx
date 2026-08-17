@@ -132,7 +132,9 @@ const ProductCodeInput = ({
                 onSelect={handleSelectProduct}
                 priceCategoryId={priceCategoryId}
                 ShowSelect={false}
-                searchText={formData.product_code || ""}
+                // The compact form's current/generated product code is not a product name.
+                // Open an unfiltered search instead of copying that code into "اسم الصنف".
+                searchText=""
                 productTypes={productTypes}
                 title={searchTitle}
             />

@@ -28,6 +28,7 @@ import {
 } from "lucide-react"
 import { useDocumentSettings } from "@/hooks/use-document-settings"
 import { OrderSearchDialog } from "@/components/search/order-search-dialog"
+import { requestProductVariant } from "@/components/products/product-variant-service"
 
 const InlineSupplierSearch = ({ onSelect, onClose, suppliers }: any) => {
   const [searchTerm, setSearchTerm] = useState("")
@@ -565,7 +566,9 @@ function UnifiedPurchaseOrder({
     }))
   }
 
-  const handleProductSelect = (product: any, itemId: string) => {
+  const handleProductSelect = async (product: any, itemId: string) => {
+    product = await requestProductVariant(product)
+    if (!product) return
     updateOrderItem(itemId, "product_id", product.id)
     updateOrderItem(itemId, "product_code", product.product_code)
     updateOrderItem(itemId, "product_name", product.product_name)
