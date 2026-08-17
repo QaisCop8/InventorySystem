@@ -209,6 +209,14 @@ export const menuItems: MenuItem[] = [
     icon: Truck,
     submenu: [
       {
+        title: "الملفات",
+        section: "sales-purchase-vouchers-files",
+        icon: Users,
+        submenu: [
+          { title: "قوالب العملاء والأصناف", section: "customer-product-templates", icon: Grid3x3 },
+        ],
+      },
+      {
         title: "الحركات",
         section: "sales-purchase-vouchers-transactions",
         icon: Truck,

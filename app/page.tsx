@@ -88,6 +88,7 @@ const TaskOrdersApprovalPage = lazyDefault(() => import("@/components/task-order
 const DraftOrdersPage = lazyNamed(() => import("@/components/order-drafts/draft-orders-page"), "DraftOrdersPage")
 const OrderConfirmationBoard = lazyNamed(() => import("@/components/order-drafts/order-confirmation-board"), "OrderConfirmationBoard")
 const ChecklistDesigner = lazyNamed(() => import("@/components/order-drafts/checklist-designer"), "ChecklistDesigner")
+const CustomerProductTemplates = lazyDefault(() => import("@/components/products/customer-product-templates"))
 const componentMap: Record<string, React.ComponentType<any>> = {
   dashboard: Dashboard,
   "inventory-analytics": InventoryAnalytics,
@@ -182,6 +183,7 @@ const componentMap: Record<string, React.ComponentType<any>> = {
   "draft-sales-order": DraftOrdersPage,
   "order-confirmation": OrderConfirmationBoard,
   "order-checklists": ChecklistDesigner,
+  "customer-product-templates": CustomerProductTemplates,
 }
 
 const titleFor = (section: string) => SECTION_TITLES[section] || section

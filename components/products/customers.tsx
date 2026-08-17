@@ -993,10 +993,12 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
   }, [formData])
 
   const fetchCustomers = useCallback(
-    async () => {
+    async (silent = false) => {
       try {
-        setIsLoading(true);
-        setError(null);
+        if (!silent) {
+          setIsLoading(true);
+          setError(null);
+        }
 
         const url = `/api/customers?type=${entityTypeCode}`;
         const response = await fetch(url);
@@ -1020,7 +1022,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
         console.error("Error fetching data:", error);
         setError(isSupplier ? "حدث خطأ في تحميل الموردين" : "حدث خطأ في تحميل الزبائن");
       } finally {
-        setIsLoading(false);
+        if (!silent) setIsLoading(false);
       }
     },
     [isSupplier]
@@ -1316,7 +1318,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
       setEditingCustomer(false);
       editingCustomerRef.current = false;
 
-      await fetchCustomers()
+      await fetchCustomers(true)
       setCustomerAccountClassifications([])
       await reset_fields(0, "", false)
 

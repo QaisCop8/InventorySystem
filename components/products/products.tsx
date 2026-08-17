@@ -321,9 +321,9 @@ export function Products({ entityType = "products" }: ProductsProps) {
     fetchDefinitions()
   }, [])
 
-  const fetchProducts = async () => {
+  const fetchProducts = async (silent = false) => {
     try {
-      setState((prev) => ({ ...prev, loading: true, error: null }))
+      if (!silent) setState((prev) => ({ ...prev, loading: true, error: null }))
       const response = await fetch("/api/inventory/products")
       const data = await response.json().catch(() => null)
       if (!response.ok) {
@@ -338,7 +338,7 @@ export function Products({ entityType = "products" }: ProductsProps) {
         products: [],
       }))
     } finally {
-      setState((prev) => ({ ...prev, loading: false }))
+      if (!silent) setState((prev) => ({ ...prev, loading: false }))
     }
   }
 
@@ -1084,7 +1084,7 @@ export function Products({ entityType = "products" }: ProductsProps) {
       <Dialog open={state.showDialog} onOpenChange={(open) => {
         if (open) setState((prev) => ({ ...prev, showDialog: true }))
       }} >
-        <DialogContent className="h-[calc(100%-1.5rem)] max-h-[calc(100%-1.5rem)] w-[calc(100%-1.5rem)] max-w-[95vw] overflow-hidden p-0 sm:max-w-[94vw] lg:max-w-[92vw] 2xl:max-w-[90vw]" dir="rtl"
+        <DialogContent className="h-[calc(100%-1.5rem)] max-h-[calc(100%-1.5rem)] w-[calc(100%-1.5rem)] max-w-[95vw] overflow-hidden p-0 sm:max-w-[90vw] lg:max-w-[80vw] xl:max-w-[75vw] 2xl:max-w-[70vw]" dir="rtl"
         onPointerDownOutside={(event) => event.preventDefault()}
         onEscapeKeyDown={(event) => event.preventDefault()}
         hideCloseButton
@@ -1095,7 +1095,7 @@ export function Products({ entityType = "products" }: ProductsProps) {
             editingProduct={state.editingProduct}
             onHideDialog={(close) => { if (close) { setState((prev) => ({ ...prev, showDialog: false, error: null })) } }}
             onSuccess={() => {
-              fetchProducts()
+              void fetchProducts(true)
             }}
             isSubmitting={state.isSubmitting}
 
