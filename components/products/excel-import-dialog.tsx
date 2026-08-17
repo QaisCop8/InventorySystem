@@ -7,13 +7,14 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Upload, Download, FileSpreadsheet, CheckCircle, AlertCircle, X, Package, ArrowLeft } from "lucide-react"
+import { Upload, Download, X, Package, ArrowLeft } from "lucide-react"
 import * as XLSX from "xlsx"
 import DataGridView from "@/components/common/DataGridView"
+import { ExcelImportHeader, ExcelImportProgress, ExcelImportStats, type ExcelImportStep } from "@/components/ui/excel-import-layout"
 
 interface ExcelProduct {
   product_code: string
@@ -819,7 +820,7 @@ export function ExcelImportDialog({ open, onOpenChange, onImportComplete }: Exce
       }}
     modal
     >
-      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto overflow-x-hidden" dir="rtl" onPointerDownOutside={(event) => event.preventDefault()}>
+      <DialogContent className="flex max-h-[92vh] max-w-6xl flex-col overflow-hidden p-0" dir="rtl" onPointerDownOutside={(event) => event.preventDefault()}>
         {/* Hide default close button */}
         <style>
           {`
@@ -828,14 +829,9 @@ export function ExcelImportDialog({ open, onOpenChange, onImportComplete }: Exce
       }
     `}
         </style>
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <FileSpreadsheet className="h-5 w-5" />
-            استيراد الأصناف من Excel
-          </DialogTitle>
-        </DialogHeader>
+        <ExcelImportHeader title="استيراد الأصناف من Excel" description="ارفع الملف، طابق الأعمدة، راجع الأصناف، ثم ابدأ الاستيراد." step={(importResults ? "result" : showPreview ? "preview" : showMapping ? "mapping" : "upload") as ExcelImportStep} />
 
-        <div className="min-w-0 space-y-6">
+        <div className="min-h-0 min-w-0 flex-1 space-y-6 overflow-y-auto overflow-x-hidden px-4 py-5 sm:px-6">
           {!showMapping && !showPreview && !importResults && (
             <>
               <Card>
@@ -999,22 +995,7 @@ export function ExcelImportDialog({ open, onOpenChange, onImportComplete }: Exce
 
 
           {isImporting && importProgress.total > 0 && (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-sm text-muted-foreground" dir="rtl">
-                <span>جاري استيراد البيانات...</span>
-                <span>
-                  {importProgress.current}/{importProgress.total}
-                </span>
-              </div>
-              <div className="h-2 overflow-hidden rounded-full bg-slate-200">
-                <div
-                  className="h-full rounded-full bg-blue-600 transition-all duration-200"
-                  style={{
-                    width: `${Math.min(100, Math.round((importProgress.current / importProgress.total) * 100))}%`,
-                  }}
-                />
-              </div>
-            </div>
+            <ExcelImportProgress current={importProgress.current} total={importProgress.total} />
           )}
 
 
@@ -1025,16 +1006,7 @@ export function ExcelImportDialog({ open, onOpenChange, onImportComplete }: Exce
                   <CardTitle className="text-lg">نتائج الاستيراد</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="text-center p-4 bg-green-50 rounded-lg">
-                      <div className="text-2xl font-bold text-green-600">{importResults.success}</div>
-                      <div className="text-sm text-green-700">تم استيرادها بنجاح</div>
-                    </div>
-                    <div className="text-center p-4 bg-red-50 rounded-lg">
-                      <div className="text-2xl font-bold text-red-600">{importResults.failed}</div>
-                      <div className="text-sm text-red-700">فشل في الاستيراد</div>
-                    </div>
-                  </div>
+                  <ExcelImportStats success={importResults.success} failed={importResults.failed} />
 
                   {importResults.errors.length > 0 && (
                     <div>

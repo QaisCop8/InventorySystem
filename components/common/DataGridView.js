@@ -93,6 +93,10 @@ export default class DataGridView extends React.Component {
     if (this.flex.columnHeaders?.rows?.length) this.flex.columnHeaders.rows[0].height = headerHeight;
     if (this.flex.rows) this.flex.rows.defaultSize = rowHeight;
     if (this.flex.invalidate) this.flex.invalidate();
+    // CellMaker uses inline dimensions, so resize action buttons after redraw.
+    if (typeof window !== 'undefined') {
+      window.requestAnimationFrame(() => this.applyButtonColors());
+    }
   };
 
   componentDidUpdate(prevProps) {
@@ -747,15 +751,19 @@ createButtonTemplate = (col) => (ctx) => {
   applyButtonColors = () => {
     try {
       if (!this.flex || !this.flex.hostElement) return;
+      const rootStyles = typeof window !== 'undefined' ? getComputedStyle(document.documentElement) : null;
+      const configuredRowHeight = parseInt(rootStyles?.getPropertyValue('--datagrid-row-height'), 10) || 50;
+      const buttonSize = Math.max(20, Math.min(32, configuredRowHeight - 8));
+      const buttonRadius = Math.max(6, Math.min(10, Math.round(buttonSize * 0.3)));
       const btns = this.flex.hostElement.querySelectorAll('button');
       btns.forEach((btn) => {
         const cls = (btn.className || '').toLowerCase();
         // size and base styles — نفس تدرّجات "soft-fill" بـDataGridView.scss، احتياطي فقط
-        btn.style.height = btn.style.height || '32px';
-        btn.style.width = btn.style.width || '32px';
-        btn.style.minWidth = btn.style.minWidth || '32px';
+        btn.style.height = `${buttonSize}px`;
+        btn.style.width = `${buttonSize}px`;
+        btn.style.minWidth = `${buttonSize}px`;
         btn.style.padding = btn.style.padding || '0';
-        btn.style.borderRadius = btn.style.borderRadius || '10px';
+        btn.style.borderRadius = `${buttonRadius}px`;
         btn.style.border = btn.style.border || 'none';
 
         if (cls.indexOf('pi-trash') > -1 || cls.indexOf('btn-danger') > -1) {

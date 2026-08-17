@@ -29,7 +29,10 @@ interface Product {
   units?: Unit[];
   selected?: boolean;
   selected_unit?: Unit;
-  attributes?: Array<{ name: string; values: string[] }>;
+  product_image?: string | null;
+  image_url?: string | null;
+  display_image?: string | null;
+  attributes?: Array<{ name: string; values: string[]; value_images?: Record<string, string | null> }>;
   selected_attributes?: Record<string, string>;
   attribute_summary?: string;
   attributes_display?: string;
@@ -104,7 +107,8 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
                 const combinations = attributes.reduce<Record<string, string>[]>((items: Record<string, string>[], attribute: any) => items.flatMap((item) => attribute.values.map((value: string) => ({ ...item, [attribute.name]: value }))), [{}])
                 return combinations.map((selection: Record<string, string>, index: number) => {
                   const summary = attributes.map((attribute: any) => `${attribute.name}: ${selection[attribute.name]}`).join("، ")
-                  return { ...p, attributes, selected_attributes: selection, attribute_summary: summary, attributes_display: summary, _variant_key: `${p.id}:${index}:${summary}`, selected: false, selected_unit: p.selected_unit || null }
+                  const variantImage = attributes.map((attribute: any) => attribute.value_images?.[selection[attribute.name]]).find(Boolean)
+                  return { ...p, attributes, selected_attributes: selection, attribute_summary: summary, attributes_display: summary, display_image: variantImage || p.product_image || p.image_url || null, _variant_key: `${p.id}:${index}:${summary}`, selected: false, selected_unit: p.selected_unit || null }
                 })
               })
             : [];
@@ -188,6 +192,13 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
     name: "ProductsScheme",
     columns: [
       { header: "✅", name: "selected", width: 50, isReadOnly: false, visible: ShowSelect },
+      { header: "صورة الصنف", name: "display_image", width: 90, minWidth: 76, isReadOnly: true, align: "center", body: (cell: any) => {
+        const product = cell?.row?.dataItem as Product
+        const image = product?.display_image || product?.product_image || product?.image_url
+        return image
+          ? <img src={image} alt={product?.product_name || ""} className="mx-auto h-10 w-10 rounded-lg border object-cover" />
+          : <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-lg border bg-slate-50 text-[10px] text-slate-400">لا صورة</div>
+      } },
       { header: "رقم الصنف", name: "product_code", width: 120, isReadOnly: true },
       { header: "اسم الصنف", name: "product_name", width: "*", isReadOnly: true,minWidth: 200 },
       ...(hasVariantProducts ? [{ header: "الخصائص", name: "attributes_display", width: 280, minWidth: 180, isReadOnly: true }] : []),

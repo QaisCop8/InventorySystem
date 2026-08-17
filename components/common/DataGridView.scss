@@ -160,16 +160,16 @@ html[dir="rtl"] .wj-flexgrid .wj-header {
 .wj-flexgrid button,
 .wj-cell-maker-btn {
   padding: 0;
-  border-radius: 10px;
+  border-radius: clamp(6px, calc(var(--datagrid-row-height, 50px) - 18px), 10px);
   border: none;
   outline: none;
   font-weight: 500;
   font-size: 14px;
   cursor: pointer;
   transition: background-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease, transform 0.12s ease;
-  width: 32px;
-  height: 32px;
-  min-width: 32px;
+  width: clamp(20px, calc(var(--datagrid-row-height, 50px) - 8px), 32px);
+  height: clamp(20px, calc(var(--datagrid-row-height, 50px) - 8px), 32px);
+  min-width: clamp(20px, calc(var(--datagrid-row-height, 50px) - 8px), 32px);
   display: inline-flex;
   align-items: center;
   justify-content: center;

@@ -47,11 +47,12 @@ const TABS_GRID_HEIGHT = 260
 interface ProductAttributeLine {
   name: string
   values: string[]
+  value_images?: Record<string, string | null>
 }
 
 interface AttributeCatalogItem extends ProductAttributeLine {}
 
-function AttributeValueInput({ values, suggestions, onChange }: { values: string[]; suggestions: string[]; onChange: (values: string[]) => void }) {
+function AttributeValueInput({ values, valueImages = {}, suggestions, onChange, onImageChange }: { values: string[]; valueImages?: Record<string, string | null>; suggestions: string[]; onChange: (values: string[]) => void; onImageChange: (value: string, image: string | null) => void }) {
   const [query, setQuery] = useState("")
   const normalizedQuery = query.trim().toLocaleLowerCase()
   const filtered = suggestions.filter((value) => value.toLocaleLowerCase().includes(normalizedQuery) && !values.includes(value))
@@ -64,8 +65,9 @@ function AttributeValueInput({ values, suggestions, onChange }: { values: string
   }
   return <div className="relative min-w-0">
     <div className="flex min-h-10 flex-wrap items-center gap-1 rounded-md border bg-background px-2 py-1">
-      {values.map((value) => <span key={value} className="inline-flex items-center gap-1 rounded-full bg-violet-100 px-2 py-1 text-xs font-medium text-violet-800">
-        {value}<button type="button" onClick={() => onChange(values.filter((item) => item !== value))}><X className="h-3 w-3" /></button>
+      {values.map((value) => <span key={value} className="inline-flex items-center gap-2 rounded-xl bg-violet-100 px-2 py-1 text-xs font-medium text-violet-800">
+        <ImageUploadField value={valueImages[value]} onChange={(image) => onImageChange(value, image)} size={36} rounded="2xl" />
+        <span>{value}</span><button type="button" title="إزالة القيمة" onClick={() => onChange(values.filter((item) => item !== value))}><X className="h-3 w-3" /></button>
       </span>)}
       <input className="h-7 min-w-[120px] flex-1 bg-transparent text-sm outline-none" value={query} placeholder="اكتب قيمة ثم مسافة" onChange={(event) => setQuery(event.target.value)} onKeyDown={(event) => {
         if ((event.key === " " || event.key === "Enter") && query.trim()) { event.preventDefault(); addValue(exactMatch || query) }
@@ -2653,7 +2655,7 @@ export function CompactProductForm({
                           const updateAttribute = (patch: Partial<ProductAttributeLine>) => setFormData((previous) => ({ ...previous, attributes: (previous.attributes || []).map((item, itemIndex) => itemIndex === index ? { ...item, ...patch } : item) }))
                           return <div key={index} className="grid min-w-0 gap-3 rounded-xl border bg-card p-4 md:grid-cols-[minmax(180px,.7fr)_minmax(260px,1.3fr)_44px]">
                             <div className="min-w-0"><Label>الخاصية *</Label><Input className="mt-1" value={attribute.name} placeholder="مثال: اللون" onChange={(event) => updateAttribute({ name: event.target.value })} list={`attribute-options-${index}`} /><datalist id={`attribute-options-${index}`}>{attributeCatalog.map((item) => <option key={item.name} value={item.name} />)}</datalist>{attribute.name.trim() && !catalogEntry && <p className="mt-1 text-xs font-semibold text-emerald-700">+ إنشاء “{attribute.name.trim()}” عند الحفظ</p>}</div>
-                            <div className="min-w-0"><Label>القيم *</Label><div className="mt-1"><AttributeValueInput values={attribute.values} suggestions={catalogEntry?.values || []} onChange={(values) => updateAttribute({ values })} /></div></div>
+                            <div className="min-w-0"><Label>القيم *</Label><div className="mt-1"><AttributeValueInput values={attribute.values} valueImages={attribute.value_images} suggestions={catalogEntry?.values || []} onChange={(values) => updateAttribute({ values, value_images: Object.fromEntries(Object.entries(attribute.value_images || {}).filter(([value]) => values.includes(value))) })} onImageChange={(value, image) => updateAttribute({ value_images: { ...(attribute.value_images || {}), [value]: image } })} /></div></div>
                             <Button type="button" size="icon" variant="ghost" className="self-end text-red-600" onClick={() => setFormData((previous) => ({ ...previous, attributes: (previous.attributes || []).filter((_, itemIndex) => itemIndex !== index) }))}><X className="h-4 w-4" /></Button>
                           </div>
                         })}

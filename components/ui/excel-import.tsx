@@ -6,14 +6,15 @@ import { useToast } from "@/hooks/use-toast"
 import ProgressSpinner from "../ProgressSpinner/ProgressSpinner"
 
 import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import DataGridView from "@/components/common/DataGridView"
-import { Upload, Download, FileSpreadsheet, AlertCircle, CheckCircle, X, Package, ArrowLeft } from "lucide-react"
+import { ExcelImportHeader, ExcelImportStats } from "@/components/ui/excel-import-layout"
+import { Download, CheckCircle, X, Package, ArrowLeft } from "lucide-react"
 
 interface ExcelImportProps {
   entityType: "products" | "customers" | "suppliers" | "subscribers"
@@ -214,7 +215,7 @@ export function ExcelImport({ entityType, isOpen, onClose, onImportComplete }: E
     fetchDefinitions()
   }, [])
 
-  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = event.target.files?.[0]
     if (!selectedFile) return
     if (!selectedFile.name.match(/\.(xlsx|xls)$/)) {
@@ -226,6 +227,7 @@ export function ExcelImport({ entityType, isOpen, onClose, onImportComplete }: E
       return
     }
     setFile(selectedFile)
+    await processFile(selectedFile)
   }
 
   const downloadTemplate = () => {
@@ -264,13 +266,13 @@ export function ExcelImport({ entityType, isOpen, onClose, onImportComplete }: E
     return mapping
   }
 
-  const processFile = async () => {
-    if (!file) return;
+  const processFile = async (selectedFile = file) => {
+    if (!selectedFile) return;
 
     setIsUploading(true);
 
     try {
-      const data = await file.arrayBuffer();
+      const data = await selectedFile.arrayBuffer();
       const workbook = XLSX.read(data, { type: "array" });
       const sheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[sheetName];
@@ -479,19 +481,14 @@ export function ExcelImport({ entityType, isOpen, onClose, onImportComplete }: E
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent
-        className="excel-import-dialog max-w-6xl max-h-[90vh] overflow-hidden flex flex-col p-4 sm:p-6"
+        className="excel-import-dialog flex max-h-[92vh] max-w-6xl flex-col overflow-hidden p-0"
         dir="rtl"
       >
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <FileSpreadsheet className="h-5 w-5" />
-            استيراد {entityLabels[entityType]} من Excel
-          </DialogTitle>
-        </DialogHeader>
+        <ExcelImportHeader title={`استيراد ${entityLabels[entityType]} من Excel`} description="ارفع الملف، طابق الأعمدة، راجع البيانات، ثم ابدأ الاستيراد." step={step} />
 
         <ProgressSpinner loading={loading} />
 
-        <div className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden" dir="rtl">
+        <div className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden px-4 py-5 sm:px-6" dir="rtl">
           {/* UPLOAD STEP — نفس تصميم رفع ملف الأصناف (components/products/excel-import-dialog.tsx):
               بطاقة واحدة مدمجة (زر تحميل القالب + حقل اختيار ملف) بدل صندوقين كبيرين متجاورين، ثم
               تنبيه تعليمات أسفلها. */}
@@ -537,7 +534,6 @@ export function ExcelImport({ entityType, isOpen, onClose, onImportComplete }: E
 
               <div className="flex justify-end gap-3">
                 <Button variant="outline" onClick={handleClose}>إلغاء</Button>
-                <Button onClick={processFile} disabled={!file || isUploading}>متابعة لمطابقة الأعمدة</Button>
               </div>
             </div>
           )}
@@ -644,20 +640,7 @@ export function ExcelImport({ entityType, isOpen, onClose, onImportComplete }: E
                 <h3 className="text-xl font-semibold mb-2">تم الاستيراد بنجاح!</h3>
               </div>
 
-              <div className="grid grid-cols-3 gap-6 text-center">
-                <div className="p-4 border rounded-lg">
-                  <h4 className="font-semibold">نجاح</h4>
-                  <p className="text-lg">{importResult.success}</p>
-                </div>
-                <div className="p-4 border rounded-lg">
-                  <h4 className="font-semibold">فشل</h4>
-                  <p className="text-lg">{importResult.failed}</p>
-                </div>
-                <div className="p-4 border rounded-lg">
-                  <h4 className="font-semibold">تكرارات</h4>
-                  <p className="text-lg">{importResult.duplicates}</p>
-                </div>
-              </div>
+              <ExcelImportStats success={importResult.success} failed={importResult.failed} duplicates={importResult.duplicates} />
 
               {importResult.errors.length > 0 && (
                 <div className="mt-4 p-4 border rounded-lg bg-red-50 text-red-700">

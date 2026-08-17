@@ -14,8 +14,6 @@ import { Badge } from "@/components/ui/badge"
 import { Plus, Edit, Building, MapPin, Package, Package2, Users, CreditCard, Settings, Trash2, Currency } from "lucide-react"
 import { UniversalToolbar } from "@/components/ui/universal-toolbar"
 import ConfirmDialogYesNo from "@/components/ui/ConfirmDialogYesNo"
-import { WorkflowStagesManagement } from "@/components/workflow/workflow-stages-management"
-import { WorkflowSequencesManagement } from "@/components/workflow/workflow-sequences-management"
 import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
 import { LoadingCard } from "@/components/ui/loading-spinner"
@@ -2383,7 +2381,7 @@ function Definitions() {
       </div>
 
       <Tabs defaultValue="definitions" className="w-full" dir="rtl">
-        <TabsList className="grid w-full grid-cols-5 mb-6">
+        <TabsList className="grid w-full grid-cols-4 mb-6">
           <TabsTrigger value="definitions" className="flex items-center gap-2">
             <Package className="h-4 w-4" />
             التعريفات الأساسية
@@ -2399,14 +2397,6 @@ function Definitions() {
           <TabsTrigger value="departments" className="flex items-center gap-2">
             <Building className="h-4 w-4" />
             الأقسام والفروع
-          </TabsTrigger>
-          <TabsTrigger value="workflow-stages" className="flex items-center gap-2">
-            <Settings className="h-4 w-4" />
-            مراحل العمل
-          </TabsTrigger>
-          <TabsTrigger value="workflow-sequences" className="flex items-center gap-2">
-            <Settings className="h-4 w-4" />
-            تسلسلات العمل
           </TabsTrigger>
         </TabsList>
 
@@ -4390,15 +4380,6 @@ function Definitions() {
           </div>
         </TabsContent>
 
-        {/* Workflow Stages Management Tab */}
-        <TabsContent value="workflow-stages">
-          <WorkflowStagesManagement />
-        </TabsContent>
-
-        {/* Workflow Sequences Management Tab */}
-        <TabsContent value="workflow-sequences">
-          <WorkflowSequencesManagement />
-        </TabsContent>
       </Tabs>
 
       <ConfirmDialogYesNo

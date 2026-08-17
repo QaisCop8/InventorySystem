@@ -261,6 +261,11 @@ function normalizeProductPayload(productData: any) {
           name: safeText(attribute?.name, "").trim(),
           values: Array.from(new Set((Array.isArray(attribute?.values) ? attribute.values : [])
             .map((value: any) => safeText(value, "").trim()).filter(Boolean))),
+          value_images: Object.fromEntries(
+            Object.entries(attribute?.value_images && typeof attribute.value_images === "object" ? attribute.value_images : {})
+              .map(([value, image]) => [safeText(value, "").trim(), safeText(image, "").trim() || null])
+              .filter(([value]) => Boolean(value))
+          ),
         })).filter((attribute: any) => attribute.name && attribute.values.length > 0)
       : [],
   }

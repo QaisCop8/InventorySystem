@@ -17,6 +17,7 @@ import { Textarea } from "@/components/ui/textarea"
 import PrimeDropdown from "@/components/common/FocusDropdown"
 import MultiSelect from "@/components/common/MultiSelect"
 import * as XLSX from "xlsx"
+import { ExcelImportHeader, ExcelImportProgress, ExcelImportStats } from "@/components/ui/excel-import-layout"
 
 interface AccountType {
   id: number
@@ -1711,11 +1712,7 @@ export default function Accounts() {
             onPointerDownOutside={(event) => event.preventDefault()}
           >
             <div className="flex min-h-0 flex-1 flex-col">
-              <div className="shrink-0 px-4 pb-2 pt-4 sm:px-6 sm:pt-6">
-                <DialogHeader>
-                  <DialogTitle>استيراد الحسابات من اكسل</DialogTitle>
-                </DialogHeader>
-              </div>
+              <ExcelImportHeader title="استيراد الحسابات من Excel" description="اختر القالب أو ارفع ملفاً، راجع الحسابات، ثم ابدأ الاستيراد." step={excelStep} hideMapping />
 
               {/* خارج المنطقة القابلة للتمرير (overflow-y-auto) عمداً — لوحة PrimeDropdown المنبثقة
                   (appendTo="self") تبقى فعلياً حفيدة لأي حاوية overflow:auto تحتضنها (position:absolute
@@ -1826,6 +1823,7 @@ export default function Accounts() {
 
               {excelStep === "result" && excelSummary && (
                 <div className="space-y-3">
+                  <ExcelImportStats success={excelSummary.success} failed={excelSummary.failed} duplicates={excelSummary.duplicates} />
                   <Alert className="border-green-200 bg-green-50 text-green-900">
                     <CheckCircle className="h-4 w-4" />
                     <AlertDescription>
@@ -1849,22 +1847,7 @@ export default function Accounts() {
 
               <div className="shrink-0 border-t bg-background px-4 py-4 sm:px-6">
                 {excelImporting && excelImportProgress.total > 0 && (
-                  <div className="mb-4 space-y-2">
-                    <div className="flex items-center justify-between text-sm text-muted-foreground">
-                      <span>جاري استيراد البيانات...</span>
-                      <span>
-                        {excelImportProgress.current}/{excelImportProgress.total}
-                      </span>
-                    </div>
-                    <div className="h-2 overflow-hidden rounded-full bg-slate-200">
-                      <div
-                        className="h-full rounded-full bg-blue-600 transition-all duration-200"
-                        style={{
-                          width: `${Math.min(100, Math.round((excelImportProgress.current / excelImportProgress.total) * 100))}%`,
-                        }}
-                      />
-                    </div>
-                  </div>
+                  <div className="mb-4"><ExcelImportProgress current={excelImportProgress.current} total={excelImportProgress.total} /></div>
                 )}
                 <div className="flex justify-end gap-2">
                   <Button variant="outline" onClick={() => setShowExcelImportDialog(false)} disabled={excelImporting}>
