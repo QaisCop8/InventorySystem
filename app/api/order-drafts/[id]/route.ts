@@ -18,10 +18,10 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     await ensureOrderDraftTables()
     const id = Number((await params).id)
     const data = await request.json()
-    if (!data.customer_id || !data.requested_delivery_date) return NextResponse.json({ error: "العميل وتاريخ التسليم مطلوبان" }, { status: 400 })
+    if (!data.account_id || !data.requested_delivery_date) return NextResponse.json({ error: "العميل وتاريخ التسليم مطلوبان" }, { status: 400 })
     await validateItems(data.items)
     const updated = await sql`
-      UPDATE sales_order_drafts SET customer_id=${data.customer_id}, customer_name=${data.customer_name},
+      UPDATE sales_order_drafts SET account_id=${data.account_id}, customer_name=${data.customer_name},
         order_date=${data.order_date}, requested_delivery_date=${data.requested_delivery_date},
         deposit_amount=${Number(data.deposit_amount)||0}, notes=${data.notes||null},
         delivery_address=${data.delivery_address||null}, contact_phone=${data.contact_phone||null},
