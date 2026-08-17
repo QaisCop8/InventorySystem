@@ -14,7 +14,10 @@ export async function POST(request: NextRequest) {
     await ensureOrderDraftTables()
     const data = await request.json()
     if (!String(data.name || "").trim() || !Array.isArray(data.fields) || !data.fields.length) return NextResponse.json({ error: "اسم القائمة وحقل واحد على الأقل مطلوبان" }, { status: 400 })
-    const [template] = await sql`INSERT INTO order_checklist_templates (name, description) VALUES (${data.name.trim()}, ${data.description || null}) RETURNING *`
+    const normalizedName = String(data.name).trim()
+    const duplicate = await sql`SELECT id FROM order_checklist_templates WHERE LOWER(TRIM(name)) = LOWER(${normalizedName}) LIMIT 1`
+    if (duplicate.length) return NextResponse.json({ error: "اسم قائمة التحقق مستخدم مسبقاً" }, { status: 409 })
+    const [template] = await sql`INSERT INTO order_checklist_templates (name, description) VALUES (${normalizedName}, ${data.description || null}) RETURNING *`
     for (let i = 0; i < data.fields.length; i++) {
       const f = data.fields[i]
       if (!f.label?.trim()) continue
@@ -32,9 +35,12 @@ export async function PUT(request: NextRequest) {
     if (!id || !String(data.name || "").trim() || !Array.isArray(data.fields) || !data.fields.length) {
       return NextResponse.json({ error: "القائمة واسمها وحقل واحد على الأقل مطلوبة" }, { status: 400 })
     }
+    const normalizedName = String(data.name).trim()
+    const duplicate = await sql`SELECT id FROM order_checklist_templates WHERE LOWER(TRIM(name)) = LOWER(${normalizedName}) AND id <> ${id} LIMIT 1`
+    if (duplicate.length) return NextResponse.json({ error: "اسم قائمة التحقق مستخدم مسبقاً" }, { status: 409 })
     const updated = await sql`
       UPDATE order_checklist_templates
-      SET name=${data.name.trim()}, description=${data.description || null}, updated_at=CURRENT_TIMESTAMP
+      SET name=${normalizedName}, description=${data.description || null}, updated_at=CURRENT_TIMESTAMP
       WHERE id=${id}
       RETURNING *
     `

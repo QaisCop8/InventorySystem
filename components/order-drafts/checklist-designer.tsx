@@ -20,12 +20,22 @@ export function ChecklistDesigner() {
   const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null)
   const [dragIndex, setDragIndex] = useState<number | null>(null)
   const [message, setMessage] = useState("")
+  const [messageType, setMessageType] = useState<"success" | "error" | null>(null)
+  const [isSaving, setIsSaving] = useState(false)
   const load = () => fetch("/api/order-checklists").then((response) => response.json()).then(setTemplates)
   useEffect(() => { void load() }, [])
+  useEffect(() => {
+    if (!message || messageType !== "success") return
+    const timeoutId = window.setTimeout(() => {
+      setMessage("")
+      setMessageType(null)
+    }, 3000)
+    return () => window.clearTimeout(timeoutId)
+  }, [message, messageType])
 
   const updateField = (index: number, patch: Partial<Field>) => setFields((current) => current.map((field, i) => i === index ? { ...field, ...patch } : field))
   const addField = () => setFields((current) => [...current, { label: "", field_type: "text", max_length: "", is_required: false }])
-  const resetDesigner = () => { setSelectedTemplateId(null); setName(""); setDescription(""); setFields([]); setMessage("") }
+  const resetDesigner = () => { setSelectedTemplateId(null); setName(""); setDescription(""); setFields([]); setMessage(""); setMessageType(null) }
   const editTemplate = (template: any) => {
     setSelectedTemplateId(Number(template.id))
     setName(String(template.name || ""))
@@ -35,6 +45,7 @@ export function ChecklistDesigner() {
       max_length: field.max_length == null ? "" : String(field.max_length), is_required: Boolean(field.is_required),
     })))
     setMessage("")
+    setMessageType(null)
   }
   const moveField = (target: number) => {
     if (dragIndex === null || dragIndex === target) return
@@ -43,10 +54,42 @@ export function ChecklistDesigner() {
   }
   const save = async () => {
     setMessage("")
-    const response = await fetch("/api/order-checklists", { method: selectedTemplateId ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: selectedTemplateId, name, description, fields }) })
-    const result = await response.json()
-    setMessage(response.ok ? (selectedTemplateId ? "تم تحديث قائمة التحقق بنجاح" : "تم حفظ قائمة التحقق بنجاح") : result.error)
-    if (response.ok) { setSelectedTemplateId(null); setName(""); setDescription(""); setFields([]); void load() }
+    setMessageType(null)
+    if (!name.trim()) {
+      setMessage("يرجى إدخال اسم قائمة التحقق")
+      setMessageType("error")
+      return
+    }
+    if (!fields.some((field) => field.label.trim())) {
+      setMessage("يرجى إضافة حقل واحد على الأقل وكتابة عنوانه")
+      setMessageType("error")
+      return
+    }
+    const normalizedName = name.trim().toLocaleLowerCase()
+    const duplicateName = templates.some((template) =>
+      Number(template.id) !== Number(selectedTemplateId) &&
+      String(template.name || "").trim().toLocaleLowerCase() === normalizedName
+    )
+    if (duplicateName) {
+      setMessage("اسم قائمة التحقق مستخدم مسبقاً")
+      setMessageType("error")
+      return
+    }
+
+    setIsSaving(true)
+    try {
+      const validFields = fields.filter((field) => field.label.trim())
+      const response = await fetch("/api/order-checklists", { method: selectedTemplateId ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: selectedTemplateId, name: name.trim(), description, fields: validFields }) })
+      const result = await response.json()
+      setMessage(response.ok ? (selectedTemplateId ? "تم تحديث قائمة التحقق بنجاح" : "تم حفظ القائمة بنجاح") : result.error || "تعذر حفظ قائمة التحقق")
+      setMessageType(response.ok ? "success" : "error")
+      if (response.ok) { setSelectedTemplateId(null); setName(""); setDescription(""); setFields([]); void load() }
+    } catch {
+      setMessage("تعذر الاتصال بالخادم أثناء حفظ قائمة التحقق")
+      setMessageType("error")
+    } finally {
+      setIsSaving(false)
+    }
   }
   const previewControl = (field: Field) => {
     if (field.field_type === "textarea") return <Textarea disabled placeholder="إجابة المستخدم" />
@@ -57,9 +100,9 @@ export function ChecklistDesigner() {
   return <div dir="rtl" className="mx-auto max-w-[1500px] space-y-5 p-4 md:p-6">
     <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
       <div><h1 className="flex items-center gap-2 text-2xl font-bold"><ClipboardCheck className="h-7 w-7 text-emerald-600" />مصمم قوائم التحقق</h1><p className="mt-1 text-sm text-muted-foreground">أنشئ حقول التحقق ورتبها بالسحب، ثم اربط القائمة بمسودة الطلبية.</p></div>
-      <div className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto">{selectedTemplateId && <Button size="lg" variant="outline" onClick={resetDesigner}><Plus className="ml-2 h-4 w-4" />قائمة جديدة</Button>}<Button size="lg" onClick={save} disabled={!name.trim() || !fields.some((field) => field.label.trim())}><Save className="ml-2 h-4 w-4" />{selectedTemplateId ? "حفظ التعديلات" : "حفظ القائمة"}</Button></div>
+      <div className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto">{selectedTemplateId && <Button size="lg" variant="outline" onClick={resetDesigner}><Plus className="ml-2 h-4 w-4" />قائمة جديدة</Button>}<Button size="lg" onClick={save} disabled={isSaving}><Save className="ml-2 h-4 w-4" />{isSaving ? "جاري الحفظ..." : selectedTemplateId ? "حفظ التعديلات" : "حفظ القائمة"}</Button></div>
     </div>
-    {message && <div className="rounded-xl border bg-muted/40 p-3 text-sm">{message}</div>}
+    {message && <div role="alert" className={`rounded-xl border p-3 text-sm font-semibold ${messageType === "success" ? "border-emerald-300 bg-emerald-50 text-emerald-800" : "border-red-300 bg-red-50 text-red-700"}`}>{message}</div>}
     <div className="grid min-w-0 items-start gap-5 lg:grid-cols-2 2xl:grid-cols-[280px_minmax(0,1fr)_minmax(320px,.75fr)]">
       <Card className="order-2 min-w-0 lg:order-2 2xl:order-1 2xl:sticky 2xl:top-4"><CardHeader><CardTitle className="text-base">القوائم المحفوظة</CardTitle></CardHeader><CardContent className="max-h-[50vh] space-y-2 overflow-y-auto 2xl:max-h-[70vh]">
         {!templates.length && <p className="py-6 text-center text-sm text-muted-foreground">لا توجد قوائم محفوظة</p>}
