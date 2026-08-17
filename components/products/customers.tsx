@@ -1323,9 +1323,10 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
         // و initialHash (قيمة ما قبل هذا الحفظ) تُظهر خطأً نافذة "تم تعديل السجل هل تريد الحفظ؟"
         // فور نجاح الحفظ مباشرة، وهو ما كان يبدو للمستخدم كأن النافذة "تختفي وتُعاد فتحها".
         await loadData("ById", savedCustomer.data.id, isSupplier, false);
-      } else {
-        reset_fields();
       }
+
+      setShowNewCustomerDialog(false)
+      await fetchCustomers()
 
       return true;
     } catch (errorDataOrError) {

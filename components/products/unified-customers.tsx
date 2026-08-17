@@ -1148,7 +1148,7 @@ export default function UnifiedCustomers({
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <Label htmlFor="customer_code" className="text-sm font-medium">
-                    {isSupplier ? "رقم المورد *" : "رقم الزبون *"}
+                    {isSupplier ? "رقم المورد *" : "رقم العميل *"}
                   </Label>
                   <div className="flex gap-2">
                     <Input
@@ -1159,7 +1159,7 @@ export default function UnifiedCustomers({
                         await onCustomerCodeBlur?.(e.target.value)
                       }}
                       className="text-right"
-                      placeholder={isSupplier ? "رقم المورد" : "رقم الزبون"}
+                      placeholder={isSupplier ? "رقم المورد" : "رقم العميل"}
                       maxLength={8}
                     />
                     <Button type="button" onClick={() => setShowCustomerSearch(true)}>
@@ -1171,7 +1171,7 @@ export default function UnifiedCustomers({
 
               <div>
                 <Label htmlFor="customer_name" className="text-sm font-medium">
-                  {isSupplier ? "اسم المورد *" : "اسم الزبون *"}
+                  {isSupplier ? "اسم المورد *" : "اسم العميل *"}
                 </Label>
                 <Input
                   id="customer_name"
@@ -1188,7 +1188,7 @@ export default function UnifiedCustomers({
 
               <div>
                 <Label htmlFor="customer_name_en" className="text-sm font-medium">
-                  {isSupplier ? "اسم المورد بالانجليزي" : "اسم الزبون بالانجليزي"}
+                  {isSupplier ? "اسم المورد بالانجليزي" : "اسم العميل بالانجليزي"}
                 </Label>
                 <Input
                   id="customer_name_en"

@@ -590,6 +590,7 @@ export function CompactProductForm({
         await loadData("Byid", savedProductId, false)
       }
       onSuccess?.()
+      onHideDialog(true)
 
     } catch (err) {
       console.error("[ProductDialog] Error saving product:", err)
