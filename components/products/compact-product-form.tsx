@@ -585,12 +585,8 @@ export function CompactProductForm({
         detail: 'تمت العملية بنجاح ✅',
         life: 3000
       });
-      const savedProductId = Number(responseData?.productId || formData.id || 0)
-      if (savedProductId > 0) {
-        await loadData("Byid", savedProductId, false)
-      }
       onSuccess?.()
-      onHideDialog(true)
+      await reset_fields()
 
     } catch (err) {
       console.error("[ProductDialog] Error saving product:", err)

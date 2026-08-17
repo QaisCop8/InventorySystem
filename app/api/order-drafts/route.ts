@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
-import sql from "@/lib/database"
+import sql, { getTenantPool } from "@/lib/database"
 import { ensureOrderDraftTables } from "@/lib/order-drafts"
+import { ensureTables as ensureReceiptTables } from "@/app/api/receipts/_lib"
+import { DraftValidationError, syncDepositReceipt, validateDraftPayload, validateDraftReferences } from "@/lib/order-draft-transaction"
 
 export async function GET() {
   await ensureOrderDraftTables()
@@ -9,26 +11,23 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  let client: any
   try {
-    await ensureOrderDraftTables()
-    const d = await request.json()
-    if (!d.account_id || !d.requested_delivery_date || !Array.isArray(d.items) || !d.items.length) return NextResponse.json({ error: "العميل وتاريخ التسليم وصنف واحد على الأقل مطلوبة" }, { status: 400 })
-    const customerAccounts = await sql`SELECT id, name FROM account_tbl WHERE id=${Number(d.account_id)} AND type=2 AND COALESCE(status, 1) IN (1, 2) LIMIT 1`
-    if (!customerAccounts.length) return NextResponse.json({ error: "حساب العميل غير موجود أو ليس من النوع 2" }, { status: 400 })
-    const ids = d.items.map((i: any) => Number(i.product_id))
-    const products = await sql`SELECT id, product_name, minimum_order_quantity FROM products WHERE id = ANY(${ids}::int[])`
-    for (const item of d.items) {
-      const p: any = products.find((x: any) => x.id === Number(item.product_id))
-      const qty = Number(item.quantity)
-      if (!p || qty <= 0) return NextResponse.json({ error: "بيانات صنف أو كمية غير صالحة" }, { status: 400 })
-      if (qty < Number(p.minimum_order_quantity || 0)) return NextResponse.json({ error: `الحد الأدنى لطلب ${p.product_name} هو ${p.minimum_order_quantity}` }, { status: 400 })
-    }
-    const attachments = Array.isArray(d.attachments) ? d.attachments : []
-    if (attachments.some((a: any) => !String(a.type || "").match(/^(image\/(jpeg|png|webp)|application\/pdf)$/) || String(a.data || "").length > 7_000_000)) return NextResponse.json({ error: "المرفقات المسموحة صور أو PDF وبحد أقصى 5MB للملف" }, { status: 400 })
+    await ensureOrderDraftTables(); await ensureReceiptTables()
+    const data = await request.json()
+    const { deposit, attachments } = validateDraftPayload(data)
+    client = await (await getTenantPool()).connect(); await client.query("BEGIN")
+    const account = await validateDraftReferences(client, data)
     const number = `DR-${Date.now()}`
-    const [draft] = await sql`INSERT INTO sales_order_drafts (draft_number,account_id,customer_name,order_date,requested_delivery_date,deposit_amount,notes,delivery_address,contact_phone,priority,checklist_template_id,attachments,created_by,branch_id) VALUES (${number},${d.account_id},${customerAccounts[0].name},${d.order_date || new Date().toISOString().slice(0,10)},${d.requested_delivery_date},${Number(d.deposit_amount)||0},${d.notes||null},${d.delivery_address||null},${d.contact_phone||null},${d.priority||"normal"},${d.checklist_template_id||null},${JSON.stringify(attachments)}::jsonb,${d.created_by||null},${d.branch_id||null}) RETURNING *`
-    for (const i of d.items) await sql`INSERT INTO sales_order_draft_items (draft_id,product_id,product_name,quantity,price,discount,unit_id,barcode) VALUES (${draft.id},${i.product_id},${i.product_name},${i.quantity},${i.price||0},${i.discount||0},${i.unit_id||null},${i.barcode||null})`
-    const { customer_id: _deprecatedCustomerId, ...savedDraft } = draft as any
-    return NextResponse.json(savedDraft, { status: 201 })
-  } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 500 }) }
+    const result = await client.query(`INSERT INTO sales_order_drafts (draft_number,account_id,customer_name,order_date,requested_delivery_date,deposit_amount,notes,delivery_address,contact_phone,priority,checklist_template_id,attachments,created_by,branch_id) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,$13,$14) RETURNING *`, [number, Number(data.account_id), account.name, data.order_date, data.requested_delivery_date, deposit, data.notes || null, data.delivery_address || null, data.contact_phone || null, data.priority || "normal", data.checklist_template_id || null, JSON.stringify(attachments), data.created_by || null, data.branch_id || null])
+    const draft = result.rows[0]
+    for (const item of data.items) await client.query(`INSERT INTO sales_order_draft_items (draft_id,product_id,product_name,quantity,price,discount,unit_id,barcode) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`, [draft.id, Number(item.product_id), item.product_name, Number(item.quantity), Number(item.price), Number(item.discount), item.unit_id || null, item.barcode || null])
+    const receiptVoucherId = await syncDepositReceipt(client, { draftId: draft.id, draftNumber: number, accountId: Number(data.account_id), customerName: account.name, orderDate: data.order_date, deposit, userId: Number(data.created_by) })
+    await client.query("COMMIT")
+    const { customer_id: _deprecatedCustomerId, ...savedDraft } = draft
+    return NextResponse.json({ ...savedDraft, receipt_voucher_id: receiptVoucherId }, { status: 201 })
+  } catch (error: any) {
+    if (client) await client.query("ROLLBACK").catch(() => {})
+    return NextResponse.json({ error: error.message || "تعذر حفظ المسودة" }, { status: error instanceof DraftValidationError ? 400 : 500 })
+  } finally { client?.release() }
 }

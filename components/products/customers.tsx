@@ -1316,17 +1316,9 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
       setEditingCustomer(false);
       editingCustomerRef.current = false;
 
-      if (savedCustomer?.data?.id) {
-        setCurrentCustomerId(Number(savedCustomer.data.id));
-        // checkUnsaved=false: هذا التحميل تحديثٌ للسجل الذي حُفظ للتو (لا تصفّح المستخدم بعيداً عن
-        // تعديلات لم تُحفَظ) — بلا هذا كانت المقارنة بين formData (المحتوي التعديلات المحفوظة للتو)
-        // و initialHash (قيمة ما قبل هذا الحفظ) تُظهر خطأً نافذة "تم تعديل السجل هل تريد الحفظ؟"
-        // فور نجاح الحفظ مباشرة، وهو ما كان يبدو للمستخدم كأن النافذة "تختفي وتُعاد فتحها".
-        await loadData("ById", savedCustomer.data.id, isSupplier, false);
-      }
-
-      setShowNewCustomerDialog(false)
       await fetchCustomers()
+      setCustomerAccountClassifications([])
+      await reset_fields(0, "", false)
 
       return true;
     } catch (errorDataOrError) {
