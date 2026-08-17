@@ -28,6 +28,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ...savedDraft, receipt_voucher_id: receiptVoucherId }, { status: 201 })
   } catch (error: any) {
     if (client) await client.query("ROLLBACK").catch(() => {})
+    console.error("[order-drafts] Failed to create draft transaction:", error)
     return NextResponse.json({ error: error.message || "تعذر حفظ المسودة" }, { status: error instanceof DraftValidationError ? 400 : 500 })
   } finally { client?.release() }
 }
