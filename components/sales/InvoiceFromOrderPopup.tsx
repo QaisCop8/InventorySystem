@@ -6,6 +6,7 @@ import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import AccountSearchDialog, { type AccountItem } from "@/components/customer/account-search-dialog"
 import DataGridView from "@/components/common/DataGridView"
+import { PackageCheck, ShoppingCart, UserRound } from "lucide-react"
 import type { SalesVoucherItemRow } from "@/components/sales/unified-sales-delivery"
 
 interface OrderHeader {
@@ -172,7 +173,7 @@ export default function InvoiceFromOrderPopup({
       name: "SelectedItemsScheme",
       columns: [
         {
-          header: "الصنف",
+          header: "اسم الصنف",
           name: "item_name",
           width: "*",
           isReadOnly: true,
@@ -351,27 +352,28 @@ export default function InvoiceFromOrderPopup({
   return (
     <Dialog open={open} onOpenChange={handleDialogOpenChange}>
       <DialogContent
-        className="max-w-[60vw] max-h-[90vh] p-0 border border-slate-300 shadow-2xl"
+        hideCloseButton
+        className="flex h-[92vh] max-h-[92vh] w-[96vw] max-w-[1500px] flex-col overflow-hidden rounded-3xl border border-slate-200 bg-slate-50 p-0 shadow-2xl"
         onInteractOutside={(event) => {
           event.preventDefault()
         }}
       >
-        <div className="flex h-full min-h-[520px] flex-col bg-white" dir="rtl">
-          <div className="border-b border-slate-300 bg-slate-50 p-4">
+        <div className="flex h-full min-h-0 flex-col bg-slate-50" dir="rtl">
+          <div className="shrink-0 bg-gradient-to-l from-indigo-700 via-blue-700 to-cyan-600 px-5 py-4 text-white shadow-lg">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <p className="text-lg font-semibold text-slate-900">{title}</p>
-                <p className="text-sm text-slate-500">
+                <p className="flex items-center gap-2 text-xl font-extrabold"><ShoppingCart className="h-5 w-5" />{title}</p>
+                <p className="mt-1 text-sm text-blue-50">
                   اختر {isSalesInvoice ? "العميل" : "المورد"} أولاً ثم حدد طلبية مرحَلة، ثم استخدم الأسهم لإضافة أو إزالة العناصر من القائمة.
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="space-y-4 p-4">
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4 sm:p-5">
             <div className="grid gap-3 sm:grid-cols-2">
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                <Label className="mb-2 block text-sm font-medium">{isSalesInvoice ? "العميل" : "المورد"}</Label>
+              <div className="rounded-2xl border border-blue-100 bg-white p-4 shadow-sm">
+                <Label className="mb-2 flex items-center gap-2 text-sm font-bold text-blue-900"><UserRound className="h-4 w-4 text-blue-600" />{isSalesInvoice ? "العميل" : "المورد"}</Label>
                 {selectedCustomer ? (
                   <div className="space-y-2">
                     <div className="rounded-2xl bg-white p-3 shadow-sm">
@@ -392,8 +394,8 @@ export default function InvoiceFromOrderPopup({
                 )}
               </div>
 
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                <Label className="mb-2 block text-sm font-medium">{orderLabel}</Label>
+              <div className="rounded-2xl border border-indigo-100 bg-white p-4 shadow-sm">
+                <Label className="mb-2 flex items-center gap-2 text-sm font-bold text-indigo-900"><PackageCheck className="h-4 w-4 text-indigo-600" />{orderLabel}</Label>
                 <p className="text-sm text-slate-600">اختر طلبية لتنزيل سطور البضاعة إلى الفاتورة.</p>
                 <div className="mt-3 text-sm text-slate-500">
                   {selectedOrder ? `${orderLabel} المحددة: ${selectedOrder.order_number}` : `لم يتم اختيار ${orderLabel} بعد.`}
@@ -402,9 +404,9 @@ export default function InvoiceFromOrderPopup({
             </div>
 
             <div className="grid gap-4 lg:grid-cols-2">
-              <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+              <div className="rounded-2xl border border-blue-100 bg-white p-3 shadow-sm">
                 <div className="mb-3 text-sm font-semibold text-slate-700">الطلبيات الجاهزة</div>
-                <div className="min-h-[220px] overflow-auto border border-slate-200 p-2">
+                <div className="invoice-source-grid h-[310px] overflow-hidden rounded-xl border border-slate-200">
                   {loading ? (
                     <div className="text-sm text-slate-500">جاري تحميل الطلبات...</div>
                   ) : error ? (
@@ -419,14 +421,16 @@ export default function InvoiceFromOrderPopup({
                       isReadOnly={true}
                       showContextMenu={false}
                       dontConvertToCards={true}
+                      containerStyle={{ height: "100%", minHeight: 0 }}
+                      style={{ height: "100%", minHeight: 0 }}
                     />
                   )}
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+              <div className="rounded-2xl border border-indigo-100 bg-white p-3 shadow-sm">
                 <div className="mb-3 text-sm font-semibold text-slate-700">العناصر المحددة</div>
-                <div className="min-h-[220px] overflow-auto border border-slate-200 p-2">
+                <div className="invoice-source-grid h-[310px] overflow-hidden rounded-xl border border-slate-200">
                   {itemsLoading ? (
                     <div className="text-sm text-slate-500">جاري تحميل عناصر الطلب...</div>
                   ) : itemsError ? (
@@ -441,6 +445,8 @@ export default function InvoiceFromOrderPopup({
                       isReadOnly={true}
                       showContextMenu={false}
                       dontConvertToCards={true}
+                      containerStyle={{ height: "100%", minHeight: 0 }}
+                      style={{ height: "100%", minHeight: 0 }}
                     />
                   )}
                 </div>
@@ -448,7 +454,7 @@ export default function InvoiceFromOrderPopup({
             </div>
           </div>
 
-          <div className="mt-auto border-t border-slate-200 bg-slate-50 p-4">
+          <div className="mt-auto shrink-0 border-t border-slate-200 bg-white/95 p-4 backdrop-blur">
             <div className="flex items-center justify-between gap-2">
               <Button variant="outline" onClick={() => handleClose()}>
                 إلغاء

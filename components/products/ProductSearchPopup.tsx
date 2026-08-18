@@ -8,7 +8,7 @@ import DataGridView from "../common/DataGridView";
 import MultiSelect from "../common/MultiSelect";
 import * as wjGrid from "@grapecity/wijmo.grid";
 import { useTranslation } from 'react-i18next';
-import { Plus, X } from "lucide-react";
+import { Plus, Search, SlidersHorizontal, X } from "lucide-react";
 // -----------------------
 // Types
 // -----------------------
@@ -45,7 +45,7 @@ interface ProductSearchPopupProps {
   onSelect: (products: Product[]) => void;
   priceCategoryId: number;
   ShowSelect: boolean;
-  searchText: string;
+  searchText?: string;
   productTypes?: number[];
   title?: string;
 }
@@ -58,7 +58,7 @@ const productImageCellTemplate = (cell: any) => {
     : <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-lg border bg-slate-50 text-[10px] text-slate-400">لا صورة</div>
 }
 
-const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClose, onSelect, priceCategoryId, ShowSelect, searchText, productTypes, title }) => {
+const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClose, onSelect, priceCategoryId, ShowSelect, searchText = "", productTypes, title }) => {
   const [products, setProducts] = useState<Product[]>([]);
   const [searchCode, setSearchCode] = useState("");
   const [searchName, setSearchName] = useState("");
@@ -81,6 +81,7 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
   const searchNameRef = useRef<HTMLInputElement>(null);
   const searchPriceRef = useRef<HTMLInputElement>(null);
   const searchBarcodeRef = useRef<HTMLInputElement>(null);
+  const filterContainerRef = useRef<HTMLDivElement>(null);
 
   const gridProductsRef = useRef<wjGrid.FlexGrid | null>(null);
   const gridUnitsRef = useRef<wjGrid.FlexGrid | null>(null);
@@ -111,7 +112,7 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
           // persist across open/close cycles (causes confusing UI and race conditions)
           const normalized = Array.isArray(data)
             ? data.flatMap((p: any) => {
-                const attributes = (Array.isArray(p.attributes) ? p.attributes : []).filter((attribute: any) => attribute?.name && Array.isArray(attribute?.values) && attribute.values.length > 0)
+                const attributes: any[] = (Array.isArray(p.attributes) ? p.attributes : []).filter((attribute: any) => attribute?.name && Array.isArray(attribute?.values) && attribute.values.length > 0)
                 if (attributes.length === 0) return [{ ...p, attributes: [], attributes_display: "", _variant_key: `${p.id}:default`, selected: false, selected_unit: p.selected_unit || null }]
                 const combinations = attributes.reduce<Record<string, string>[]>((items: Record<string, string>[], attribute: any) => items.flatMap((item) => attribute.values.map((value: string) => ({ ...item, [attribute.name]: value }))), [{}])
                 return combinations.map((selection: Record<string, string>, index: number) => {
@@ -378,19 +379,19 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
     onClose();
   };
 
-  const focusFirstGridRow = () => {
+  const focusFirstGridRow = useCallback(() => {
     const grid = gridProductsRef.current;
-    if (!grid) return;
+    if (!grid || !grid.rows || grid.rows.length === 0) return;
 
     grid?.focus();
     grid.select(0, 0); // first row, first column
-  };
+  }, []);
 
   useEffect(() => {
   if (!visible) return;
 
   const handleKeyDown = (e: KeyboardEvent) => {
-    const active = document.activeElement;
+    const active = document.activeElement as HTMLElement | null;
 
     if (e.key === "Escape") {
       e.preventDefault();
@@ -399,28 +400,27 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
       return;
     }
 
-    if (e.key === "Enter") {
-      e.preventDefault();
-
-      if (active === searchCodeRef.current) {
-        searchNameRef.current?.focus();
-      } else if (active === searchNameRef.current) {
-        searchPriceRef.current?.focus();
-      } else if (active === searchPriceRef.current) {
-        searchBarcodeRef.current?.focus();
-      } else if (active === searchBarcodeRef.current) {
-        focusFirstGridRow(); // Focus first row of products grid
-      }
-    }
+    const container = filterContainerRef.current;
+    if (!active || !container?.contains(active) || active.closest(".p-multiselect-panel")) return;
 
     if (e.key === "ArrowDown") {
-      if (active === searchCodeRef.current ||
-          active === searchNameRef.current ||
-          active === searchPriceRef.current ||
-          active === searchBarcodeRef.current) {
-        focusFirstGridRow();
-        e.preventDefault();
-      }
+      e.preventDefault();
+      e.stopPropagation();
+      focusFirstGridRow();
+      return;
+    }
+
+    if (e.key === "Enter") {
+      const focusable = Array.from(container.querySelectorAll<HTMLElement>(
+        'input:not([disabled]):not([type="hidden"]), select:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      )).filter((element) => element.offsetParent !== null);
+      const currentIndex = focusable.indexOf(active);
+      if (currentIndex < 0) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const next = focusable[currentIndex + 1];
+      if (next) next.focus();
+      else focusFirstGridRow();
     }
   };
 
@@ -429,7 +429,7 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
   return () => {
     document.removeEventListener("keydown", handleKeyDown, true);
   };
-}, [visible, onClose]);
+}, [visible, onClose, focusFirstGridRow]);
 
 
   const onKeyDownGrid = async (grid: any, e: KeyboardEvent) => {
@@ -473,18 +473,18 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
         }
       }}
     >
-      <div className="relative flex h-[100dvh] max-h-[100dvh] w-full max-w-[1400px] flex-col overflow-y-auto rounded-none border-0 border-slate-200 bg-white p-3 shadow-2xl overscroll-contain sm:h-auto sm:max-h-[92dvh] sm:overflow-hidden sm:rounded-3xl sm:border sm:p-5" dir="rtl">
+      <div className="relative flex h-[100dvh] max-h-[100dvh] w-full max-w-[1500px] flex-col overflow-y-auto rounded-none border-0 border-slate-200 bg-slate-50 p-3 shadow-2xl overscroll-contain sm:h-[92dvh] sm:max-h-[92dvh] sm:overflow-hidden sm:rounded-3xl sm:border sm:p-5" dir="rtl">
         {attributeError && <div className="mb-3 rounded-md border border-red-200 bg-red-50 p-2 text-sm font-semibold text-red-700">{attributeError}</div>}
-        <div className="flex shrink-0 items-center justify-between gap-3">
-          <h3 className="text-xl font-semibold text-slate-900">{title || "بحث الأصناف"}</h3>
+        <div className="flex shrink-0 items-center justify-between gap-3 rounded-2xl bg-gradient-to-l from-blue-700 via-blue-600 to-cyan-600 px-4 py-3 shadow-lg sm:px-6 sm:py-4">
+          <div className="flex items-center gap-3"><div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/30"><Search className="h-5 w-5 text-white" /></div><h3 className="text-lg font-extrabold text-white sm:text-xl">{title || "بحث الأصناف"}</h3></div>
           <div className="flex items-center gap-2">
-          <Button type="button" onClick={() => window.open("/products?new=1", "_blank", "noopener,noreferrer")} className="gap-2 bg-emerald-600 text-white hover:bg-emerald-700"><Plus className="h-4 w-4"/>إضافة صنف</Button>
+          <Button type="button" onClick={() => window.open("/products?new=1", "_blank", "noopener,noreferrer")} className="gap-2 rounded-xl bg-white text-blue-700 hover:bg-blue-50"><Plus className="h-4 w-4"/>إضافة صنف</Button>
           <Button
             type="button"
             variant="ghost"
             size="icon"
             onClick={onClose}
-            className="h-10 w-10 shrink-0 rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200"
+            className="h-10 w-10 shrink-0 rounded-full bg-white/15 text-white hover:bg-white/25 hover:text-white"
             aria-label="إغلاق"
           >
             <X className="h-5 w-5" />
@@ -492,17 +492,17 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
           </div>
         </div>
 
-        <div className="mt-3 shrink-0 rounded-2xl border border-slate-200 bg-slate-50 p-3 shadow-sm sm:mt-4 sm:rounded-3xl sm:p-4">
+        <div className="mt-3 shrink-0 rounded-2xl border border-blue-100 bg-white p-3 shadow-sm sm:mt-4 sm:p-4">
           <div className="mb-3 text-right sm:mb-4">
-            <p className="text-sm font-semibold text-slate-900">الفلاتر</p>
+            <p className="flex items-center gap-2 text-sm font-bold text-blue-900"><SlidersHorizontal className="h-4 w-4 text-blue-600" />الفلاتر</p>
           </div>
 
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3 xl:grid-cols-[0.8fr_2fr_0.8fr_0.8fr_1fr]">
+          <div ref={filterContainerRef} className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3 xl:grid-cols-[0.8fr_2fr_0.8fr_0.8fr_1fr]">
             <div className="space-y-1">
               <label className="block text-xs font-semibold text-slate-700 text-right">رقم الصنف</label>
               <Input
                 ref={searchCodeRef}
-                className="w-full"
+                className="h-11 w-full rounded-xl border-blue-100 bg-blue-50/40 shadow-sm focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-blue-100"
                 placeholder="رقم الصنف"
                 value={searchCode}
                 onChange={(e) => setSearchCode(e.target.value)}
@@ -512,7 +512,7 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
               <label className="block text-xs font-semibold text-slate-700 text-right">اسم الصنف</label>
               <Input
                 ref={searchNameRef}
-                className="w-full"
+                className="h-11 w-full rounded-xl border-blue-100 bg-blue-50/40 shadow-sm focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-blue-100"
                 placeholder="اسم الصنف"
                 value={searchName}
                 onChange={(e) => setSearchName(e.target.value)}
@@ -522,7 +522,7 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
               <label className="block text-xs font-semibold text-slate-700 text-right">السعر</label>
               <Input
                 ref={searchPriceRef}
-                className="w-full"
+                className="h-11 w-full rounded-xl border-blue-100 bg-blue-50/40 shadow-sm focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-blue-100"
                 placeholder="السعر"
                 value={searchPrice}
                 onChange={(e) => setSearchPrice(e.target.value)}
@@ -532,7 +532,7 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
               <label className="block text-xs font-semibold text-slate-700 text-right">الباركود</label>
               <Input
                 ref={searchBarcodeRef}
-                className="w-full"
+                className="h-11 w-full rounded-xl border-blue-100 bg-blue-50/40 shadow-sm focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-blue-100"
                 placeholder="الباركود"
                 value={searchBarcode}
                 onChange={(e) => setSearchBarcode(e.target.value)}
@@ -585,7 +585,7 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
         <div className="mt-2 flex min-h-0 flex-1 flex-col gap-3 sm:gap-4 sm:overflow-hidden">
           <div className="shrink-0 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:rounded-3xl">
             <h4 className="text-sm font-semibold mb-3 text-slate-700 text-right">نتائج البحث</h4>
-            <div className="h-[32dvh] min-h-[220px] w-full overflow-hidden sm:h-[24vh] sm:min-h-[180px]">
+            <div className="modern-search-grid h-[32dvh] min-h-[220px] w-full overflow-hidden sm:h-[24vh] sm:min-h-[180px]">
               <DataGridView
                 style={responsiveGridStyle}
                 containerStyle={responsiveGridStyle}
@@ -595,6 +595,7 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
                 onRowDoubleClick={handleProductDoubleClick}
                 selectionChanged={selectionChanged}
                 onKeyDown={(s: any, e: any) => onKeyDownGrid(s, e)}
+                selectionMode={wjGrid.SelectionMode.Row}
                 keyActionEnter="None"
                 dontConvertToCards={true}
                 showContextMenu={false}

@@ -5,6 +5,7 @@ import { Sidebar } from "./sidebar";
 import { Header } from "./header";
 import { ChatWidget } from "./chat/chat-widget";
 import { MenuThemeProvider } from "@/contexts/menu-theme-context";
+import PersonalAssistantWizard from "@/components/onboarding/personal-assistant-wizard";
 
 interface ERPLayoutProps {
   children: React.ReactNode;
@@ -89,6 +90,7 @@ export function ERPLayout({ children, activeSection, onSectionChange }: ERPLayou
         </div>
 
         <ChatWidget />
+        <PersonalAssistantWizard />
       </div>
     </MenuThemeProvider>
   );

@@ -1505,14 +1505,19 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
       return false
     }
 
-    if (trimmedName.length > 150) {
-      showValidationMessage("اسم الحساب يجب ألا يتجاوز 150 حرفاً")
+    if (trimmedName.length > 100) {
+      showValidationMessage("اسم الحساب يجب ألا يتجاوز 100 حرف")
       return false
     }
 
     const trimmedEnglishName = formData.name_lang2.trim()
     if (trimmedEnglishName.length > 150) {
       showValidationMessage("اسم الحساب بالإنجليزية يجب ألا يتجاوز 150 حرفاً")
+      return false
+    }
+
+    if (!["1", "2", "3"].includes(financialListType)) {
+      showValidationMessage("يرجى اختيار القائمة المالية")
       return false
     }
 
@@ -2273,6 +2278,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
                 <Input
                   ref={accountNameInputRef}
                   value={formData.name}
+                  maxLength={100}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   placeholder="اسم الحساب"
                   className="text-right text-lg"
@@ -2402,6 +2408,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
                       value={financialListType}
                       disabled={Number(formData.father_id || 0) > 0}
                       options={[
+                        { label: "اختر", value: "" },
                         { label: "الميزانية العمومية", value: "1" },
                         { label: "قائمة الدخل", value: "2" },
                         { label: "تقييم بضاعة", value: "3" },

@@ -82,6 +82,13 @@
   background: #f1f9f5;
 }
 
+/* Account Excel preview/export: preserve readable contrast on alternating rows. */
+.excel-account-grid .wj-flexgrid .wj-row:hover .wj-cell:not(.wj-header),
+.excel-account-grid .wj-flexgrid .wj-row:nth-child(even):hover .wj-cell:not(.wj-header) {
+  background: #dbeafe !important;
+  color: #172554 !important;
+}
+
 /* Keep selected rows visually stable on hover */
 .wj-flexgrid .wj-report-row-selected:hover .wj-cell,
 .wj-flexgrid .wj-report-row-selected:hover .wj-cell:hover,
@@ -475,4 +482,61 @@ html[dir="rtl"] .wj-flexgrid .wj-header {
 .modernVoucherGrid .wj-flexgrid .wj-row .wj-cell.wj-state-selected:not(.wj-header),
 .modernVoucherGrid .wj-flexgrid .wj-report-row-selected .wj-cell {
   background: var(--datagrid-selected-row-color, #6fe27b) !important;
+}
+
+/* Search dialogs use row selection: the focused cell must not have a different color. */
+.modern-search-grid .wj-flexgrid .wj-cell.wj-state-selected:not(.wj-header),
+.modern-search-grid .wj-flexgrid .wj-row .wj-cell.wj-state-selected:not(.wj-header),
+.modern-search-grid .wj-flexgrid .wj-cell.wj-state-selected:focus:not(.wj-header) {
+  background: #bfdbfe !important;
+  color: #1e3a8a !important;
+  box-shadow: none !important;
+}
+
+.modern-search-grid .wj-flexgrid .wj-row:hover .wj-cell.wj-state-selected:not(.wj-header) {
+  background: #bfdbfe !important;
+  color: #1e3a8a !important;
+}
+
+/* Account import preview selects a complete row: Wijmo marks the active cell as
+   selected and the remaining row cells as multi-selected. Keep both states
+   identical so no white text is rendered over white alternating rows. */
+.excel-account-grid .wj-flexgrid .wj-cell.wj-state-selected:not(.wj-header),
+.excel-account-grid .wj-flexgrid .wj-cell.wj-state-multi-selected:not(.wj-header),
+.excel-account-grid .wj-flexgrid .wj-row:hover .wj-cell.wj-state-selected:not(.wj-header),
+.excel-account-grid .wj-flexgrid .wj-row:hover .wj-cell.wj-state-multi-selected:not(.wj-header) {
+  background: #bbf7d0 !important;
+  color: #14532d !important;
+  border-color: #86efac !important;
+}
+
+/* Order/delivery source pickers: compact, colorful read-only grids. */
+.invoice-source-grid .wj-flexgrid {
+  border: 0;
+  border-radius: 0;
+  font-size: 14px;
+}
+
+.invoice-source-grid .wj-flexgrid .wj-header {
+  background: linear-gradient(135deg, #1e3a8a, #2563eb) !important;
+  color: #fff !important;
+  border-color: #3b82f6 !important;
+  font-weight: 800 !important;
+}
+
+.invoice-source-grid .wj-flexgrid .wj-row:nth-child(even) .wj-cell:not(.wj-header) {
+  background: #f8fafc;
+  color: #1e293b;
+}
+
+.invoice-source-grid .wj-flexgrid .wj-row:hover .wj-cell:not(.wj-header) {
+  background: #e0f2fe !important;
+  color: #0c4a6e !important;
+}
+
+.invoice-source-grid .wj-flexgrid .wj-cell.wj-state-selected:not(.wj-header),
+.invoice-source-grid .wj-flexgrid .wj-cell:focus:not(.wj-header) {
+  background: #bfdbfe !important;
+  color: #1e3a8a !important;
+  box-shadow: none !important;
 }

@@ -7,7 +7,7 @@ import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import PrimeDropdown from "@/components/common/FocusDropdown"
-import { CellRange } from "@grapecity/wijmo.grid"
+import { CellRange, SelectionMode } from "@grapecity/wijmo.grid"
 import DataGridView from "../common/DataGridView"
 
 // كل كلمة في نص البحث يجب أن تكون موجودة في النص الهدف (بأي ترتيب) — وليس تطابق سلسلة متتالية
@@ -728,7 +728,7 @@ export default function AccountSearchDialog({
                     )
                   })}
                 </div>
-                <div className="hidden h-full sm:block">
+                <div className="modern-search-grid hidden h-full sm:block">
                   <DataGridView
                     innerRef={gridRef}
                     containerStyle={{ height: "100%", minHeight: 0, maxHeight: "100%" }}
@@ -741,6 +741,7 @@ export default function AccountSearchDialog({
                     onRowClick={(account: AccountItem) => setSelectedAccount(account)}
                     onRowDoubleClick={handleRowDoubleClick}
                     onKeyDown={handleGridKeyDown}
+                    selectionMode={SelectionMode.Row}
                   />
                 </div>
               </>

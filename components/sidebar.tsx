@@ -41,6 +41,7 @@ import {
   KanbanSquare,
   PackageCheck,
   Grid3x3,
+  Wrench,
   LucideIcon,
 } from "lucide-react"
 import { useWindowManager } from "@/contexts/window-manager-context"
@@ -80,6 +81,7 @@ const ACCENTS: Record<string, Accent> = {
   orders: { gradient: "from-rose-400 to-pink-600", glow: "shadow-rose-500/40", chip: "bg-rose-500/15 text-rose-700 dark:text-rose-200" },
   reports: { gradient: "from-teal-400 to-cyan-600", glow: "shadow-teal-500/40", chip: "bg-teal-500/15 text-teal-700 dark:text-teal-200" },
   settings: { gradient: "from-slate-400 to-slate-600", glow: "shadow-slate-500/40", chip: "bg-slate-500/15 text-slate-700 dark:text-slate-200" },
+  tools: { gradient: "from-cyan-500 to-blue-600", glow: "shadow-cyan-500/40", chip: "bg-cyan-500/15 text-cyan-700 dark:text-cyan-200" },
 }
 
 const DEFAULT_ACCENT: Accent = ACCENTS["home-dashboard"]
@@ -273,6 +275,14 @@ export const menuItems: MenuItem[] = [
       { title: "اعدادات عامة", section: "vouchers-general-settings", icon: Settings },
     ],
   },
+  {
+    id: "tools",
+    title: "أدوات",
+    icon: Wrench,
+    submenu: [
+      { title: "مساعدك الشخصي", section: "personal-assistant", icon: Sparkles },
+    ],
+  },
 
 ]
 
@@ -321,6 +331,10 @@ export function Sidebar({
     }
 
     if (item.section) {
+      if (item.section === "personal-assistant") {
+        window.dispatchEvent(new CustomEvent("erp:open-personal-assistant"))
+        return
+      }
       onSectionChange(item.section)
     }
   }

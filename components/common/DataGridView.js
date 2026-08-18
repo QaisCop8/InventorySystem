@@ -938,6 +938,13 @@ createButtonTemplate = (col) => (ctx) => {
           this.props.onKeyDown(this.flex, e);
         });
       }
+      // Some editable grids must commit and navigate on the same Enter press.
+      // Capture runs before Wijmo consumes Enter to merely close its editor.
+      if (this.props.onKeyDownCapture) {
+        this.flex.hostElement.addEventListener('keydown', (e) => {
+          this.props.onKeyDownCapture(this.flex, e);
+        }, true);
+      }
       if (this.props.onMouseDown) {
         this.flex.hostElement.addEventListener('mousedown', (e) => {
           this.props.onMouseDown(this.flex, e);

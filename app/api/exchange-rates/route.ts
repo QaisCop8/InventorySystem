@@ -2,8 +2,8 @@ import { type NextRequest, NextResponse } from "next/server"
 import type { PoolClient } from "pg"
 import { getCurrenciesWithLatestRate, getOrCreateRatesForDate, getTenantPool, updateExchangeRate } from "@/lib/database"
 
-const MIN_EXCHANGE_RATE = 0.0001
-const MAX_EXCHANGE_RATE = 10000
+const MIN_EXCHANGE_RATE = 0.001
+const MAX_EXCHANGE_RATE = 100000
 
 // ==============================
 // GET - Fetch currencies + rates
@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
       )
     ) {
       return NextResponse.json(
-        { error: "سعر الشراء وسعر البيع وسعر الصرف يجب أن تكون بين 0.0001 و 10000" },
+        { error: "سعر الشراء وسعر البيع وسعر الصرف يجب أن تكون بين 0.001 و 100000" },
         { status: 400 },
       )
     }

@@ -88,6 +88,14 @@ interface UnifiedAccountsProps {
   onOpenChange?: (open: boolean) => void
 }
 
+const normalizeAccountCode = (value: string) =>
+  String(value ?? "").replace(/[^A-Za-z0-9]/g, "").toUpperCase().slice(0, 10)
+
+const completeAccountCode = (value: string) => {
+  const normalized = normalizeAccountCode(value)
+  return normalized ? normalized.padEnd(10, "0") : ""
+}
+
 export default function UnifiedAccounts({ action, onOpenChange }: UnifiedAccountsProps) {
   const searchParams = useSearchParams()
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -274,7 +282,11 @@ export default function UnifiedAccounts({ action, onOpenChange }: UnifiedAccount
     setMessage("")
 
     if (!formData.code.trim() || !formData.name.trim()) {
-      setError("Code and Name are required")
+      setError("رقم الحساب واسم الحساب مطلوبان")
+      return
+    }
+    if (!["1", "2", "3"].includes(formData.finanical_list_id)) {
+      setError("يرجى اختيار القائمة المالية")
       return
     }
 
@@ -288,7 +300,7 @@ export default function UnifiedAccounts({ action, onOpenChange }: UnifiedAccount
       const method = isEdit ? "PUT" : "POST"
 
       const payload = {
-        code: formData.code.trim(),
+        code: completeAccountCode(formData.code),
         name: formData.name.trim(),
         name_lang2: formData.name_lang2.trim() || null,
         type: formData.type ? Number(formData.type) : null,
@@ -513,17 +525,21 @@ export default function UnifiedAccounts({ action, onOpenChange }: UnifiedAccount
 
             <div className="grid gap-4 md:grid-cols-2">
               <div>
-                <Label className="mb-2 block">Code *</Label>
+                <Label className="mb-2 block">رقم الحساب *</Label>
                 <Input
                   value={formData.code}
-                  onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-                  placeholder="Account code"
+                  maxLength={10}
+                  dir="ltr"
+                  onChange={(e) => setFormData({ ...formData, code: normalizeAccountCode(e.target.value) })}
+                  onBlur={() => setFormData((current) => ({ ...current, code: completeAccountCode(current.code) }))}
+                  placeholder="A100000000"
                 />
               </div>
               <div>
-                <Label className="mb-2 block">Name (AR) *</Label>
+                <Label className="mb-2 block">اسم الحساب *</Label>
                 <Input
                   value={formData.name}
+                  maxLength={100}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   placeholder="Account name"
                 />
@@ -580,12 +596,19 @@ export default function UnifiedAccounts({ action, onOpenChange }: UnifiedAccount
               </div>
               <div>
                 <Label className="mb-2 block">القائمة المالية</Label>
-                <Input
-                  type="number"
-                  value={formData.finanical_list_id}
+                <Select
+                  value={formData.finanical_list_id || "__choose__"}
                   disabled={Boolean(formData.father_id)}
-                  onChange={(e) => setFormData({ ...formData, finanical_list_id: e.target.value })}
-                />
+                  onValueChange={(value) => setFormData({ ...formData, finanical_list_id: value === "__choose__" ? "" : value })}
+                >
+                  <SelectTrigger><SelectValue placeholder="اختر" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__choose__">اختر</SelectItem>
+                    <SelectItem value="1">الميزانية العمومية</SelectItem>
+                    <SelectItem value="2">قائمة الدخل</SelectItem>
+                    <SelectItem value="3">تقييم بضاعة</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div>
                 <Label className="mb-2 block">أصول الميزانية</Label>

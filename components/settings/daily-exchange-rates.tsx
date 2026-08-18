@@ -80,9 +80,19 @@ export function DailyExchangeRatesDialog({ open, onOpenChange, onSaved }: DailyE
   const pendingNavigationRef = useRef<{ row: number; col: number } | null>(null)
   const [collectionView] = useState(() => new wjcCore.CollectionView<CurrencyRateRow>([]))
   useEffect(() => {
+    if (!open) return
+    const currentRows = collectionView.sourceCollection as CurrencyRateRow[]
+    const isSameGridData =
+      currentRows.length === rows.length && currentRows.every((row, index) => row === rows[index])
+    // Cell editing already mutates the object used by FlexGrid. Refreshing the
+    // CollectionView for that same set of objects resets its selection to row 0.
+    if (isSameGridData) {
+      gridRef.current?.invalidate?.()
+      return
+    }
     collectionView.sourceCollection = rows
     collectionView.refresh()
-  }, [rows, collectionView])
+  }, [open, rows, collectionView])
 
   useEffect(() => {
     if (!open) return
@@ -115,7 +125,13 @@ export function DailyExchangeRatesDialog({ open, onOpenChange, onSaved }: DailyE
   }, [open, rateDate])
 
   const updateRow = (currencyId: number, field: (typeof EDITABLE_COLUMNS)[number], value: number) => {
-    setRows((prev) => withDerivedFields(prev.map((row) => (row.currency_id === currencyId ? { ...row, [field]: value } : row))))
+    setRows((prev) => {
+      const row = prev.find((item) => item.currency_id === currencyId)
+      if (!row) return prev
+      row[field] = value
+      row.inverse_rate = row.exchange_rate > 0 ? 1 / row.exchange_rate : 0
+      return [...prev]
+    })
   }
 
   // يمنع بدء تحرير خلايا السعر (شراء/بيع/صرف) لسطر العملة الرئيسية — سعرها ثابت دوماً عند 1.
@@ -228,6 +244,20 @@ export function DailyExchangeRatesDialog({ open, onOpenChange, onSaved }: DailyE
     }
   }
 
+  useEffect(() => {
+    if (!open) return
+    const handleShortcut = (event: KeyboardEvent) => {
+      if (event.key !== "F3") return
+      event.preventDefault()
+      event.stopPropagation()
+      if (!savingRef.current && !loading && rowsRef.current.length > 0) {
+        void handleSave()
+      }
+    }
+    document.addEventListener("keydown", handleShortcut, true)
+    return () => document.removeEventListener("keydown", handleShortcut, true)
+  }, [open, loading])
+
   return (
     <Dialog
       open={open}
@@ -264,12 +294,12 @@ export function DailyExchangeRatesDialog({ open, onOpenChange, onSaved }: DailyE
           <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>
         )}
 
-        {loading ? (
-          <div className="flex items-center justify-center py-10">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-          </div>
-        ) : (
-          <div className="min-h-0 w-full flex-1 overflow-hidden [&_.wj-flexgrid]:overflow-x-hidden">
+        <div className="relative min-h-0 w-full flex-1 overflow-hidden [&_.wj-flexgrid]:overflow-x-hidden">
+          {loading && (
+            <div className="absolute inset-0 z-20 flex items-center justify-center bg-white/75 backdrop-blur-[1px]">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          )}
             <DataGridView
               innerRef={gridRef}
               containerStyle={{ height: "100%", minHeight: 0, maxHeight: "100%", overflow: "hidden" }}
@@ -281,15 +311,14 @@ export function DailyExchangeRatesDialog({ open, onOpenChange, onSaved }: DailyE
               showContextMenu={false}
               cellEditEnded={(s: any, e: any) => handleCellEditEnded(s, e)}
               beginningEdit={(s: any, e: any) => handleBeginningEdit(s, e)}
-              onKeyDown={(s: any, e: any) => handleKeyDown(s, e)}
+              onKeyDownCapture={(s: any, e: any) => handleKeyDown(s, e)}
               keyActionEnter={KeyAction.None}
               keyActionTab={KeyAction.None}
               dontConvertToCards={true}
             />
-          </div>
-        )}
+        </div>
 
-        <div className="flex shrink-0 justify-end gap-2">
+        <div className="flex shrink-0 justify-center gap-3">
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
             إغلاق
           </Button>

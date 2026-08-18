@@ -55,14 +55,14 @@ const inter = Inter({
 })
 
 export const metadata: Metadata = {
-  title: "نظام إدارة الموارد - ERP System",
-  description: "نظام إدارة الموارد المتكامل باللغة العربية",
+  title: "أساس للحلول المحاسبية",
+  description: "أساس للحلول المحاسبية",
   generator: "v0.app",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "نظام الطلبيات",
+    title: "أساس للحلول المحاسبية",
   },
   icons: {
     icon: "/icon-192.png",

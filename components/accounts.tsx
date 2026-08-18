@@ -1421,7 +1421,11 @@ export default function Accounts() {
     setMessage("")
 
     if (!formData.code.trim() || !formData.name.trim()) {
-      setError("Code and Name are required")
+      setError("رقم الحساب واسم الحساب مطلوبان")
+      return
+    }
+    if (!["1", "2", "3"].includes(formData.finanical_list_id)) {
+      setError("يرجى اختيار القائمة المالية")
       return
     }
 
@@ -1432,7 +1436,7 @@ export default function Accounts() {
       const method = isEdit ? "PUT" : "POST"
 
       const payload = {
-        code: formData.code.trim(),
+        code: normalizeAccountCode(formData.code),
         name: formData.name.trim(),
         name_lang2: formData.name_lang2.trim() || null,
         type: formData.type ? Number(formData.type) : null,
@@ -1612,11 +1616,17 @@ export default function Accounts() {
               <div className="grid gap-4 lg:grid-cols-2">
                 <div>
                   <Label className="mb-2 block">كود الحساب</Label>
-                  <Input value={formData.code} onChange={(e) => setFormData({ ...formData, code: e.target.value })} />
+                  <Input
+                    value={formData.code}
+                    maxLength={10}
+                    dir="ltr"
+                    onChange={(e) => setFormData({ ...formData, code: e.target.value.replace(/[^A-Za-z0-9]/g, "").toUpperCase().slice(0, 10) })}
+                    onBlur={() => setFormData((current) => ({ ...current, code: normalizeAccountCode(current.code) }))}
+                  />
                 </div>
                 <div>
                   <Label className="mb-2 block">اسم الحساب</Label>
-                  <Input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
+                  <Input maxLength={100} value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
                 </div>
               </div>
 
@@ -1649,6 +1659,7 @@ export default function Accounts() {
                     inputId="financial_list_id"
                     value={formData.finanical_list_id}
                     options={[
+                      { label: "اختر", value: "" },
                       { label: "الميزانية العمومية", value: "1" },
                       { label: "قائمة الدخل", value: "2" },
                       { label: "تقييم بضاعة", value: "3" },
@@ -1780,7 +1791,7 @@ export default function Accounts() {
                   {/* flex-1 min-h-0 بدل max-height ثابت (vh/px) — يملأ الشبكة كل المساحة الرأسية
                       المتبقية فعلياً حتى أزرار الحوار أسفله، لا فقط ارتفاعاً أدنى/أقصى قد لا يطابق
                       المساحة الحقيقية المتاحة داخل حوار بات الآن قابلاً للتمدد (min-h-[75vh]). */}
-                  <div className="w-full flex-1 min-h-[220px] overflow-y-auto rounded-md border">
+                  <div className="excel-account-grid w-full flex-1 min-h-[220px] overflow-y-auto rounded-md border">
                     <DataGridView
                       style={{ height: "100%", width: "100%" }}
                       idProperty="rowIndex"
@@ -1799,7 +1810,7 @@ export default function Accounts() {
 
               {excelStep === "preview" && excelRows.length > 0 && (
                 <div className="flex min-h-0 flex-1 flex-col space-y-4">
-                  <div className="w-full flex-1 min-h-[220px] overflow-y-auto rounded-md border">
+                  <div className="excel-account-grid w-full flex-1 min-h-[220px] overflow-y-auto rounded-md border">
                     <DataGridView
                       style={{ height: "100%", width: "100%" }}
                       idProperty="rowIndex"

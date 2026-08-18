@@ -51,6 +51,7 @@ export async function GET() {
     const units = await sql`
       SELECT 
         id,
+        unit_code,
         unit_name,
         unit_name_en,
         description,

@@ -6,6 +6,7 @@ import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import AccountSearchDialog, { type AccountItem } from "@/components/customer/account-search-dialog"
 import DataGridView from "@/components/common/DataGridView"
+import { PackageCheck, Truck, UserRound } from "lucide-react"
 import type { SalesVoucherItemRow } from "@/components/sales/unified-sales-delivery"
 
 interface DeliveryHeader {
@@ -313,27 +314,28 @@ export default function InvoiceFromDeliveryPopup({
   return (
     <Dialog open={open} onOpenChange={handleDialogOpenChange}>
       <DialogContent
-        className="max-w-[60vw] max-h-[90vh] p-0 border border-slate-300 shadow-2xl"
+        hideCloseButton
+        className="flex h-[92vh] max-h-[92vh] w-[96vw] max-w-[1500px] flex-col overflow-hidden rounded-3xl border border-slate-200 bg-slate-50 p-0 shadow-2xl"
         onInteractOutside={(event) => {
           event.preventDefault()
         }}
       >
-        <div className="flex h-full min-h-[520px] flex-col bg-white" dir="rtl">
-          <div className="border-b border-slate-300 bg-slate-50 p-4">
+        <div className="flex h-full min-h-0 flex-col bg-slate-50" dir="rtl">
+          <div className="shrink-0 bg-gradient-to-l from-emerald-700 via-emerald-600 to-teal-600 px-5 py-4 text-white shadow-lg">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <p className="text-lg font-semibold text-slate-900">{title}</p>
-                <p className="text-sm text-slate-500">
+                <p className="flex items-center gap-2 text-xl font-extrabold"><Truck className="h-5 w-5" />{title}</p>
+                <p className="mt-1 text-sm text-emerald-50">
                   اختر العميل أولاً ثم حدد إرسالية مرحلة، ثم استخدم الأسهم لإضافة أو إزالة العناصر من القائمة.
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="space-y-4 p-4">
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4 sm:p-5">
             <div className="grid gap-3 sm:grid-cols-2">
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                <Label className="mb-2 block text-sm font-medium">العميل</Label>
+              <div className="rounded-2xl border border-emerald-100 bg-white p-4 shadow-sm">
+                <Label className="mb-2 flex items-center gap-2 text-sm font-bold text-emerald-900"><UserRound className="h-4 w-4 text-emerald-600" />العميل</Label>
                 {selectedCustomer ? (
                   <div className="space-y-2">
                     <div className="rounded-2xl bg-white p-3 shadow-sm">
@@ -354,8 +356,8 @@ export default function InvoiceFromDeliveryPopup({
                 )}
               </div>
 
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                <Label className="mb-2 block text-sm font-medium">{deliveryLabel}</Label>
+              <div className="rounded-2xl border border-teal-100 bg-white p-4 shadow-sm">
+                <Label className="mb-2 flex items-center gap-2 text-sm font-bold text-teal-900"><PackageCheck className="h-4 w-4 text-teal-600" />{deliveryLabel}</Label>
                 <p className="text-sm text-slate-600">اختر إرسالية مرحلة لتحميل سطور البضاعة إلى الفاتورة.</p>
                 <div className="mt-3 text-sm text-slate-500">
                   {selectedDelivery ? `الإرسالية المحددة: ${selectedDelivery.vch_code}` : "لم يتم اختيار إرسالية بعد."}
@@ -364,7 +366,7 @@ export default function InvoiceFromDeliveryPopup({
             </div>
 
             <div className="grid gap-4 lg:grid-cols-[1.2fr_1fr]">
-              <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+              <div className="rounded-2xl border border-emerald-100 bg-white p-4 shadow-sm">
                 <div className="mb-3 flex items-center justify-between gap-3">
                   <span className="text-sm font-semibold text-slate-700">قائمة الإرساليات</span>
                 </div>
@@ -375,7 +377,7 @@ export default function InvoiceFromDeliveryPopup({
                 ) : deliveries.length === 0 ? (
                   <div className="py-12 text-center text-sm text-slate-500">لا توجد إرساليات تم العثور عليها للعميل المحدد.</div>
                 ) : (
-                  <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white">
+                  <div className="invoice-source-grid overflow-hidden rounded-xl border border-slate-200 bg-white">
                     <DataGridView
                       scheme={deliveriesScheme}
                       dataSource={deliveries.map((delivery, index) => ({
@@ -392,7 +394,7 @@ export default function InvoiceFromDeliveryPopup({
                 )}
               </div>
 
-              <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+              <div className="rounded-2xl border border-teal-100 bg-white p-4 shadow-sm">
                 <div className="mb-3 flex items-center justify-between gap-3">
                   <span className="text-sm font-semibold text-slate-700">عناصر الفاتورة المختارة</span>
                 </div>
@@ -403,7 +405,7 @@ export default function InvoiceFromDeliveryPopup({
                 ) : selectedDeliveryItems.length === 0 ? (
                   <div className="py-12 text-center text-sm text-slate-500">لم يتم إضافة أي عناصر بعد. اضغط على السهم الأيسر لإضافة عناصر إرسالية.</div>
                 ) : (
-                  <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white">
+                  <div className="invoice-source-grid overflow-hidden rounded-xl border border-slate-200 bg-white">
                     <DataGridView
                       scheme={selectedItemsScheme}
                       dataSource={selectedDeliveryItems}
@@ -419,7 +421,7 @@ export default function InvoiceFromDeliveryPopup({
             </div>
           </div>
 
-          <div className="flex items-center justify-end gap-2 border-t border-slate-200 p-4 bg-white">
+          <div className="flex shrink-0 items-center justify-end gap-2 border-t border-slate-200 bg-white/95 p-4 backdrop-blur">
             <Button variant="outline" onClick={handleClose}>إغلاق</Button>
             <Button disabled={selectedDeliveryItems.length === 0 || itemsLoading} onClick={handleConfirm}>
               موافق

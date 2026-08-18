@@ -231,6 +231,12 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     if (!accountName) {
       return NextResponse.json({ error: "اسم الحساب مطلوب" }, { status: 400 })
     }
+    if (accountName.length > 100) {
+      return NextResponse.json({ error: "اسم الحساب يجب ألا يتجاوز 100 حرف" }, { status: 400 })
+    }
+    if (![1, 2, 3].includes(financialListId)) {
+      return NextResponse.json({ error: "القائمة المالية غير صحيحة" }, { status: 400 })
+    }
 
     if (parentAccountId === null && parentCode) {
       const parentByCode = await sql`SELECT id FROM account_tbl WHERE LOWER(code) = LOWER(${parentCode}) LIMIT 1`

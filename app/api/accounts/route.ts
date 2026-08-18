@@ -327,6 +327,12 @@ export async function POST(request: NextRequest) {
     if (!accountName) {
       return NextResponse.json({ error: "اسم الحساب مطلوب" }, { status: 400 })
     }
+    if (accountName.length > 100) {
+      return NextResponse.json({ error: "اسم الحساب يجب ألا يتجاوز 100 حرف" }, { status: 400 })
+    }
+    if (![1, 2, 3].includes(financialListId)) {
+      return NextResponse.json({ error: "القائمة المالية غير صحيحة" }, { status: 400 })
+    }
 
     if (parentAccountId === null && parentCode) {
       const parentByCode = await sql`
