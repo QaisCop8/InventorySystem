@@ -27,7 +27,7 @@ export function validateDraftPayload(data: any) {
 }
 
 export async function validateDraftReferences(client: PoolClient, data: any) {
-  const accountResult = await client.query("SELECT id, name FROM account_tbl WHERE id=$1 AND type=2 AND COALESCE(status,1) IN (1,2) LIMIT 1", [Number(data.account_id)])
+  const accountResult = await client.query("SELECT id, name FROM account_tbl WHERE id=$1 AND type=2 AND COALESCE(status::text,'1') IN ('1','2','active','ACTIVE','نشط') LIMIT 1", [Number(data.account_id)])
   if (!accountResult.rowCount) throw new DraftValidationError("حساب العميل غير موجود أو ليس من النوع 2")
   const ids = [...new Set(data.items.map((item: any) => Number(item.product_id)))]
   const productsResult = await client.query("SELECT id, product_name, minimum_order_quantity FROM products WHERE id=ANY($1::int[])", [ids])
@@ -46,7 +46,7 @@ export async function syncDepositReceipt(client: PoolClient, args: { draftId: nu
     if (receiptId) await client.query("UPDATE voucher_header_tbl SET status=3, vch_status=1, amount=0, cash_amount=0, last_update_date=CURRENT_TIMESTAMP WHERE id=$1 AND status<>2", [receiptId])
     return receiptId
   }
-  const defaults = await client.query(`SELECT u.currency_id,u.account_id AS cash_account_id FROM users_currencies_default_account_tbl u JOIN account_tbl a ON a.id=u.account_id WHERE u.user_id=$1 AND u.currency_id IS NOT NULL AND COALESCE(a.status,1) IN (1,2) ORDER BY u.currency_id LIMIT 1`, [userId])
+  const defaults = await client.query(`SELECT u.currency_id,u.account_id AS cash_account_id FROM users_currencies_default_account_tbl u JOIN account_tbl a ON a.id=u.account_id WHERE u.user_id=$1 AND u.currency_id IS NOT NULL AND COALESCE(a.status::text,'1') IN ('1','2','active','ACTIVE','نشط') ORDER BY u.currency_id LIMIT 1`, [userId])
   if (!defaults.rowCount) throw new DraftValidationError("يجب تعريف حساب النقدية والعملة الافتراضية للمستخدم قبل حفظ عربون")
   const { currency_id: currencyId, cash_account_id: cashAccountId } = defaults.rows[0]
   const note = `عربون مسودة طلبية ${draftNumber}`
