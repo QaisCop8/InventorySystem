@@ -42,14 +42,13 @@ export async function GET(request: NextRequest) {
                 FROM voucher_items_tbl vi
                 JOIN voucher_header_tbl vh ON vh.id = vi.voucher_id
                 WHERE vh.vch_type = ${SALES_INVOICE_TYPE}
-                  AND vh.status <> 3
+                  AND vh.status = 2
                   AND vi.order_item_id = oi.id
               ) inv ON TRUE
               WHERE oi.order_id = o.id
-                AND (
-                  oi.quantity > COALESCE(inv.invoiced_quantity, 0)
-                  OR COALESCE(oi.bonus, oi.quantity, 0) > COALESCE(inv.invoiced_bonus, 0)
-                )
+                AND oi.item_status IN (2, 3)
+                AND COALESCE(oi.quantity, 0) + COALESCE(oi.bonus, 0)
+                    > COALESCE(inv.invoiced_quantity, 0) + COALESCE(inv.invoiced_bonus, 0)
             )
           ORDER BY o.order_date DESC, o.id DESC
         `
@@ -73,7 +72,7 @@ export async function GET(request: NextRequest) {
                 FROM voucher_items_tbl vi
                 JOIN voucher_header_tbl vh ON vh.id = vi.voucher_id
                 WHERE vh.vch_type = ${PURCHASE_INVOICE_TYPE}
-                  AND vh.status <> 3
+                  AND vh.status = 2
                   AND vi.order_item_id = poi.id
               ) inv ON TRUE
               WHERE poi.order_id = po.id

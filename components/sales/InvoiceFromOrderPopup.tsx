@@ -92,17 +92,8 @@ export default function InvoiceFromOrderPopup({
       source_rate: order.exchange_rate ?? 1,
     }))
 
-    setSelectedOrderItems((prev) => {
-      const next = [...prev, ...newItems]
-      return next.filter((entry, index, all) =>
-        all.findIndex(
-          (candidate) =>
-            candidate.source_voucher_id === entry.source_voucher_id &&
-            candidate.order_item_id === entry.order_item_id,
-        ) === index,
-      )
-    })
-    setSelectedOrderHeaders((prev) => (prev.some((entry) => entry.id === order.id) ? prev : [...prev, order]))
+    setSelectedOrderItems(newItems)
+    setSelectedOrderHeaders([order])
   }
 
   const handleRemoveOrderItems = (orderId: number) => {
@@ -192,7 +183,6 @@ export default function InvoiceFromOrderPopup({
         { header: "الكمية", name: "quantity", width: 90, isReadOnly: true },
         { header: "البونص", name: "bonus_quantity", width: 90, isReadOnly: true },
         { header: "الكمية المرسلة", name: "sent_quantity", width: 110, isReadOnly: true },
-        { header: "البونص المرسل", name: "sent_bonus", width: 110, isReadOnly: true },
         { header: "الوحدة", name: "unit", width: 90, isReadOnly: true },
         {
           header: "السعر",
@@ -202,6 +192,27 @@ export default function InvoiceFromOrderPopup({
           body: (cell: any) => <span>{Number(cell.row.dataItem.unit_price || 0).toFixed(2)}</span>,
         },
         { header: orderLabel, name: "source_voucher_code", width: 120, isReadOnly: true },
+        {
+          header: "إزالة",
+          name: "remove",
+          width: 70,
+          isReadOnly: true,
+          body: (cell: any) => (
+            <button
+              type="button"
+              className="rounded-md border border-red-200 px-2 py-1 text-sm text-red-700 hover:bg-red-50"
+              onClick={(event) => {
+                event.stopPropagation()
+                const row = cell.row.dataItem as SalesVoucherItemRow
+                setSelectedOrderItems((current) => current.filter((item) =>
+                  !(item.source_voucher_id === row.source_voucher_id && item.order_item_id === row.order_item_id),
+                ))
+              }}
+            >
+              ×
+            </button>
+          ),
+        },
       ],
     }),
     [orderLabel],
@@ -267,8 +278,8 @@ export default function InvoiceFromOrderPopup({
             warehouse_id: item.warehouse_id != null ? Number(item.warehouse_id) : null,
             warehouse_name: String(item.warehouse_name || item.store_name || item.warehouse || ""),
             unit: String(item.unit || ""),
-            quantity: Number(item.quantity || 0),
-            bonus_quantity: Number(item.bonus_quantity || 0),
+            quantity: Number(item.remaining_quantity || 0),
+            bonus_quantity: Number(item.remaining_bonus || 0),
             unit_price: Number(item.unit_price || 0),
             discount_percent: Number(item.discount_percent || item.discount_percentage || 0),
             total_price: Number(item.total_price || 0),

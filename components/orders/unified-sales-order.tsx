@@ -3107,6 +3107,7 @@ function UnifiedSalesOrder({
           gap-0
           flex
           flex-col
+          overflow-hidden
         "
         onPointerDownOutside={(event) => event.preventDefault()}
         onEscapeKeyDown={(event) => { if (!doHotKeys.current) event.preventDefault() }}
@@ -3140,7 +3141,7 @@ function UnifiedSalesOrder({
           <Messages innerRef={message} />
         </div>
 
-        <div className="flex-1 overflow-y-auto">
+        <div className="min-h-0 flex-1 overflow-y-auto">
 
           <div className="p-6 space-y-6">
             <Toast ref={toast} position={'top-left'} className="erp-toast-host" style={{ top: 100, whiteSpace: 'pre-line' }} />

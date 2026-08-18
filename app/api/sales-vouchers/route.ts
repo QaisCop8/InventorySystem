@@ -87,6 +87,80 @@ const validateCodeFormat = async (requestUrl: string, vchType: number, vchBookId
 const DELIVERY_VOUCHER_TYPES = [DELIVERY_SELL_VCH_TYPE, DELIVERY_CONSIGNMENT_SALE_VCH_TYPE, DELIVERY_PAY_VCH_TYPE] as const
 const ORDER_SOURCE_VOUCHER_TYPE = 3
 
+const getSalesOrderIdsForVoucher = async (voucherId: number): Promise<number[]> => {
+  const rows = await sql`
+    SELECT DISTINCT oi.order_id
+    FROM voucher_items_tbl vi
+    JOIN order_items oi ON oi.id = vi.order_item_id
+    WHERE vi.voucher_id = ${voucherId}
+  `
+  return rows.map((row: any) => Number(row.order_id)).filter((id: number) => id > 0)
+}
+
+const refreshSalesOrderFulfillment = async (orderIds: number[]) => {
+  if (orderIds.length === 0) return
+
+  await sql`
+    WITH invoiced AS (
+      SELECT vi.order_item_id,
+             COALESCE(SUM(vi.qnty), 0) + COALESCE(SUM(vi.bonus), 0) AS sent_total
+      FROM voucher_items_tbl vi
+      JOIN voucher_header_tbl vh ON vh.id = vi.voucher_id
+      WHERE vh.vch_type = ${SALES_INVOICE_VCH_TYPE}
+        AND vh.status = 2
+        AND vi.order_item_id IS NOT NULL
+      GROUP BY vi.order_item_id
+    )
+    UPDATE order_items oi
+    SET item_status = CASE
+      WHEN COALESCE(inv.sent_total, 0) >= COALESCE(oi.quantity, 0) + COALESCE(oi.bonus, 0) THEN 4
+      WHEN COALESCE(inv.sent_total, 0) > 0 THEN 3
+      ELSE 2
+    END,
+    updated_at = CURRENT_TIMESTAMP
+    FROM invoiced inv
+    WHERE oi.order_id = ANY(${orderIds}::int[])
+      AND oi.item_status IN (2, 3, 4)
+      AND inv.order_item_id = oi.id
+  `
+
+  await sql`
+    UPDATE order_items oi
+    SET item_status = 2, updated_at = CURRENT_TIMESTAMP
+    WHERE oi.order_id = ANY(${orderIds}::int[])
+      AND oi.item_status IN (3, 4)
+      AND NOT EXISTS (
+        SELECT 1
+        FROM voucher_items_tbl vi
+        JOIN voucher_header_tbl vh ON vh.id = vi.voucher_id
+        WHERE vi.order_item_id = oi.id
+          AND vh.vch_type = ${SALES_INVOICE_VCH_TYPE}
+          AND vh.status = 2
+      )
+  `
+
+  await sql`
+    WITH item_state AS (
+      SELECT order_id,
+             BOOL_AND(item_status = 4) AS all_sent,
+             BOOL_OR(item_status IN (3, 4)) AS any_sent
+      FROM order_items
+      WHERE order_id = ANY(${orderIds}::int[])
+        AND item_status IN (2, 3, 4)
+      GROUP BY order_id
+    )
+    UPDATE orders o
+    SET order_status = CASE
+      WHEN item_state.all_sent THEN 4
+      WHEN item_state.any_sent THEN 3
+      ELSE 2
+    END,
+    updated_at = CURRENT_TIMESTAMP
+    FROM item_state
+    WHERE o.id = item_state.order_id
+  `
+}
+
 const validatePayload = (data: any, items: any[]): string | null => {
   if (!SALES_VOUCHER_TYPES.includes(Number(data.vch_type) as any) || !data.vch_code || !data.vch_date) {
     return "بيانات السند غير مكتملة"
@@ -290,14 +364,17 @@ const validateSourceInvoice = async (itemsOrData: any, maybeData?: any, excludeV
     }
 
     const existing = invoiceTotals.get(orderItemId) ?? { invoiced_quantity: 0, invoiced_bonus: 0 }
-    const remainingQuantity = Math.max(0, Number(orderItem.quantity || 0) - existing.invoiced_quantity)
-    const remainingBonus = Math.max(0, Number(orderItem.bonus || 0) - existing.invoiced_bonus)
+    const remainingTotal = Math.max(
+      0,
+      Number(orderItem.quantity || 0) + Number(orderItem.bonus || 0)
+        - existing.invoiced_quantity - existing.invoiced_bonus,
+    )
 
-    if (totals.quantity > remainingQuantity || totals.bonus > remainingBonus) {
+    if (totals.quantity + totals.bonus > remainingTotal) {
       return "الكمية أو البونص المحدد يتجاوز المتبقي في الطلبية"
     }
 
-    if (remainingQuantity === 0 && remainingBonus === 0) {
+    if (remainingTotal === 0) {
       return "تمت فاتورة هذا العنصر بالكامل سابقاً"
     }
   }
@@ -394,6 +471,9 @@ export async function POST(request: NextRequest) {
     }
     if (status === 2) {
       await applySalesVoucherStockEffect(vchType, voucher.id, savedItems)
+      if (vchType === SALES_INVOICE_VCH_TYPE && invoiceSourceType === 3) {
+        await refreshSalesOrderFulfillment(await getSalesOrderIdsForVoucher(voucher.id))
+      }
     }
 
     const savedItemsWithNames = await fetchSalesVoucherItems(voucher.id, journalTypes?.itemJournalType)
@@ -534,9 +614,13 @@ export async function PUT(request: NextRequest) {
         }))
 
     if (status === 3) {
+      const affectedOrderIds = vchType === SALES_INVOICE_VCH_TYPE
+        ? await getSalesOrderIdsForVoucher(voucher.id)
+        : []
       await reverseSalesVoucherStockMovement(voucher.id)
       await sql`DELETE FROM voucher_journal_detail_tbl WHERE voucher_id = ${voucher.id}`
       await sql`DELETE FROM voucher_items_tbl WHERE voucher_id = ${voucher.id}`
+      await refreshSalesOrderFulfillment(affectedOrderIds)
       return NextResponse.json({ ...voucher, city_id: voucher.location_id, items: [] })
     }
 
@@ -547,6 +631,9 @@ export async function PUT(request: NextRequest) {
     }
     if (status === 2 && previousStatus !== 2) {
       await applySalesVoucherStockEffect(vchType, voucher.id, savedItems)
+      if (vchType === SALES_INVOICE_VCH_TYPE && invoiceSourceType === 3) {
+        await refreshSalesOrderFulfillment(await getSalesOrderIdsForVoucher(voucher.id))
+      }
     }
 
     const savedItemsWithNames = await fetchSalesVoucherItems(voucher.id, journalTypes?.itemJournalType)

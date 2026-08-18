@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
                COALESCE(oi.bonus, 0) AS bonus_quantity,
                oi.quantity,
                oi.quantity AS remaining_quantity_raw,
-               COALESCE(inv.invoiced_quantity, 0) AS sent_quantity,
+               COALESCE(inv.invoiced_quantity, 0) + COALESCE(inv.invoiced_bonus, 0) AS sent_quantity,
                COALESCE(inv.invoiced_bonus, 0) AS sent_bonus,
                GREATEST(oi.quantity - COALESCE(inv.invoiced_quantity, 0), 0) AS remaining_quantity,
                GREATEST(COALESCE(oi.bonus, 0) - COALESCE(inv.invoiced_bonus, 0), 0) AS remaining_bonus
@@ -67,10 +67,9 @@ export async function GET(request: NextRequest) {
         LEFT JOIN units u ON u.id = oi.unit_id
         LEFT JOIN warehouses wh ON wh.id = oi.store_id
         WHERE oi.order_id = ${orderId}
-          AND (
-            oi.quantity > COALESCE(inv.invoiced_quantity, 0)
-            OR COALESCE(oi.bonus, 0) > COALESCE(inv.invoiced_bonus, 0)
-          )
+          AND oi.item_status IN (2, 3)
+          AND COALESCE(oi.quantity, 0) + COALESCE(oi.bonus, 0)
+              > COALESCE(inv.invoiced_quantity, 0) + COALESCE(inv.invoiced_bonus, 0)
         ORDER BY oi.id
       `
 
