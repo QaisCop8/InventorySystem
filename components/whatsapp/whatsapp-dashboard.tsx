@@ -163,7 +163,7 @@ export function WhatsAppDashboard() {
       })
 
       if (response.ok) {
-        alert("تم إنشاء القالب بنجاح")
+        alert("تم إنشاء النموذج بنجاح")
         setShowTemplateDialog(false)
         setTemplateForm({
           template_name: "",
@@ -175,11 +175,11 @@ export function WhatsAppDashboard() {
         fetchTemplates()
       } else {
         const error = await response.json()
-        alert(`فشل إنشاء القالب: ${error.error}`)
+        alert(`فشل إنشاء النموذج: ${error.error}`)
       }
     } catch (error) {
       console.error("Error creating template:", error)
-      alert("حدث خطأ أثناء إنشاء القالب")
+      alert("حدث خطأ أثناء إنشاء النموذج")
     } finally {
       setLoading(false)
     }
@@ -242,7 +242,7 @@ export function WhatsAppDashboard() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">إدارة الواتساب</h1>
-          <p className="text-muted-foreground">إدارة الرسائل والقوالب واستفسارات العملاء</p>
+          <p className="text-muted-foreground">إدارة الرسائل والنماذج واستفسارات العملاء</p>
         </div>
         <div className="flex gap-2">
           <Button onClick={() => setShowSendDialog(true)}>
@@ -251,7 +251,7 @@ export function WhatsAppDashboard() {
           </Button>
           <Button variant="outline" onClick={() => setShowTemplateDialog(true)}>
             <FileText className="ml-2 h-4 w-4" />
-            قالب جديد
+            نموذج جديد
           </Button>
         </div>
       </div>
@@ -293,12 +293,12 @@ export function WhatsAppDashboard() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">القوالب النشطة</CardTitle>
+            <CardTitle className="text-sm font-medium">النماذج النشطة</CardTitle>
             <FileText className="h-4 w-4 text-purple-600" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{templates.filter((t) => t.status === "active").length}</div>
-            <p className="text-xs text-muted-foreground">قوالب جاهزة للاستخدام</p>
+            <p className="text-xs text-muted-foreground">نماذج جاهزة للاستخدام</p>
           </CardContent>
         </Card>
       </div>
@@ -307,7 +307,7 @@ export function WhatsAppDashboard() {
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="messages">الرسائل</TabsTrigger>
-          <TabsTrigger value="templates">القوالب</TabsTrigger>
+          <TabsTrigger value="templates">النماذج</TabsTrigger>
           <TabsTrigger value="inquiries">الاستفسارات</TabsTrigger>
         </TabsList>
 
@@ -391,8 +391,8 @@ export function WhatsAppDashboard() {
         <TabsContent value="templates" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>قوالب الرسائل</CardTitle>
-              <CardDescription>قوالب جاهزة لإرسال رسائل سريعة</CardDescription>
+              <CardTitle>نماذج الرسائل</CardTitle>
+              <CardDescription>نماذج جاهزة لإرسال رسائل سريعة</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -427,7 +427,7 @@ export function WhatsAppDashboard() {
                   </Card>
                 ))}
                 {templates.length === 0 && (
-                  <div className="col-span-full text-center text-muted-foreground py-8">لا توجد قوالب</div>
+                  <div className="col-span-full text-center text-muted-foreground py-8">لا توجد نماذج</div>
                 )}
               </div>
             </CardContent>
@@ -515,7 +515,7 @@ export function WhatsAppDashboard() {
         <DialogContent className="max-w-2xl" dir="rtl">
           <DialogHeader>
             <DialogTitle>إرسال رسالة واتساب</DialogTitle>
-            <DialogDescription>أرسل رسالة نصية أو استخدم قالب جاهز</DialogDescription>
+            <DialogDescription>أرسل رسالة نصية أو استخدم نموذج جاهز</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
@@ -528,16 +528,16 @@ export function WhatsAppDashboard() {
             </div>
 
             <div className="space-y-2">
-              <Label>القالب (اختياري)</Label>
+              <Label>النموذج (اختياري)</Label>
               <Select
                 value={sendForm.template_code}
                 onValueChange={(value) => setSendForm({ ...sendForm, template_code: value })}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="اختر قالب..." />
+                  <SelectValue placeholder="اختر نموذج..." />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">بدون قالب</SelectItem>
+                  <SelectItem value="none">بدون نموذج</SelectItem>
                   {templates
                     .filter((t) => t.status === "active")
                     .map((template) => (
@@ -576,13 +576,13 @@ export function WhatsAppDashboard() {
       <Dialog open={showTemplateDialog} onOpenChange={setShowTemplateDialog}>
         <DialogContent className="max-w-2xl" dir="rtl">
           <DialogHeader>
-            <DialogTitle>إنشاء قالب جديد</DialogTitle>
-            <DialogDescription>أنشئ قالب رسالة قابل لإعادة الاستخدام</DialogDescription>
+            <DialogTitle>إنشاء نموذج جديد</DialogTitle>
+            <DialogDescription>أنشئ نموذج رسالة قابل لإعادة الاستخدام</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>اسم القالب</Label>
+                <Label>اسم النموذج</Label>
                 <Input
                   placeholder="مثال: ترحيب بالعملاء"
                   value={templateForm.template_name}
@@ -591,7 +591,7 @@ export function WhatsAppDashboard() {
               </div>
 
               <div className="space-y-2">
-                <Label>كود القالب</Label>
+                <Label>كود النموذج</Label>
                 <Input
                   placeholder="welcome_customer"
                   value={templateForm.template_code}
@@ -637,7 +637,7 @@ export function WhatsAppDashboard() {
             </div>
 
             <div className="space-y-2">
-              <Label>محتوى القالب</Label>
+              <Label>محتوى النموذج</Label>
               <Textarea
                 placeholder="مرحباً {{customer_name}}، شكراً لتعاملك معنا..."
                 value={templateForm.content}
@@ -660,7 +660,7 @@ export function WhatsAppDashboard() {
                 }
               >
                 <FileText className="ml-2 h-4 w-4" />
-                إنشاء القالب
+                إنشاء النموذج
               </Button>
             </div>
           </div>

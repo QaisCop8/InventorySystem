@@ -3,7 +3,7 @@
 import { forwardRef, useRef } from "react"
 import { Dropdown as PrimeDropdown, type DropdownProps, type DropdownChangeEvent } from "primereact/dropdown"
 
-// غلاف شفاف حول Dropdown من PrimeReact — لا يُغيّر أي شكل/سلوك افتراضي (بلا قوالب عرض خاصة، بلا
+// غلاف شفاف حول Dropdown من PrimeReact — لا يُغيّر أي شكل/سلوك افتراضي (بلا نماذج عرض خاصة، بلا
 // div إضافي)، يُضيف فقط: إعادة التركيز لحقل القائمة المنسدلة بعد اختيار عنصر (بالنقر بالماوس تحديداً
 // — التنقل بلوحة المفاتيح يُبقي التركيز أصلاً، لكن اختيار عنصر بالنقر يفقد التركيز فيغلق القائمة دون
 // أن يتمكن المستخدم من متابعة التنقل/الكتابة فوراً). يُستبدَل به `import { Dropdown as PrimeDropdown }

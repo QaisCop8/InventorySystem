@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState, useRef } from "react"
-import { Search, X, Wallet, ListFilter } from "lucide-react"
+import { Search, X, Wallet, ListFilter, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
@@ -220,6 +220,14 @@ export default function AccountSearchDialog({
   )
 
   const allowedTypeValuesKey = allowedTypeValues ? allowedTypeValues.join(",") : ""
+  const [refreshVersion, setRefreshVersion] = useState(0)
+
+  useEffect(() => {
+    if (!open) return
+    const refreshAfterReturn = () => setRefreshVersion((value) => value + 1)
+    window.addEventListener("focus", refreshAfterReturn)
+    return () => window.removeEventListener("focus", refreshAfterReturn)
+  }, [open])
 
   useEffect(() => {
     if (!open) {
@@ -293,7 +301,7 @@ export default function AccountSearchDialog({
     }
 
     void loadFreshAccounts()
-  }, [open, defaultTypeValue, allowedTypeValuesKey, deliveryVchTypes.join(","), orderType, showOrderOnlyFilter, showDeliveryOnlyFilter])
+  }, [open, defaultTypeValue, allowedTypeValuesKey, deliveryVchTypes.join(","), orderType, showOrderOnlyFilter, showDeliveryOnlyFilter, refreshVersion])
 
   useEffect(() => {
     if (!open) return
@@ -508,6 +516,14 @@ export default function AccountSearchDialog({
               <h2 className="text-lg font-extrabold tracking-tight text-white sm:text-xl">بحث الحسابات</h2>
             </div>
             <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                onClick={() => window.open("/admin/accounts?new=1", "_blank", "noopener,noreferrer")}
+                className="h-9 gap-2 rounded-xl bg-white text-emerald-700 hover:bg-emerald-50"
+              >
+                <Plus className="h-4 w-4" />
+                إضافة حساب
+              </Button>
               {searchResults.length > 0 && (
                 <span className="hidden rounded-full bg-white/15 px-3 py-1 text-xs font-semibold text-white ring-1 ring-white/30 sm:inline-block">
                   {searchResults.length} نتيجة

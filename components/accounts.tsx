@@ -1023,7 +1023,7 @@ export default function Accounts() {
 
         // البند موجود مسبقاً فعلياً بقاعدة البيانات لكن ذاكرة التخزين المؤقت (cache، مُهيَّأة من
         // حالة المكوّن عند فتح شاشة الاستيراد) لم تعرفه — بسبب فارق تطبيع بسيط بين النص كما جاء من
-        // Excel/القالب والاسم الفعلي المخزَّن (مسافات إضافية، حرف مختلف...)، أو لأن سطراً سابقاً بنفس
+        // Excel/النموذج والاسم الفعلي المخزَّن (مسافات إضافية، حرف مختلف...)، أو لأن سطراً سابقاً بنفس
         // الدفعة أنشأه للتو ولم تُحدَّث القائمة الأصلية بعد. بدل فشل الاستيراد بالكامل (كان الخطأ هنا
         // يوقف حلقة for بأكملها فتُعلَّم كل الصفوف فاشلة)، يُعاد البحث عن البند بالاسم فعلياً بدل اعتباره
         // خطأً قاطعاً.
@@ -1712,7 +1712,7 @@ export default function Accounts() {
             onPointerDownOutside={(event) => event.preventDefault()}
           >
             <div className="flex min-h-0 flex-1 flex-col">
-              <ExcelImportHeader title="استيراد الحسابات من Excel" description="اختر القالب أو ارفع ملفاً، راجع الحسابات، ثم ابدأ الاستيراد." step={excelStep} hideMapping />
+              <ExcelImportHeader title="استيراد الحسابات من Excel" description="اختر النموذج أو ارفع ملفاً، راجع الحسابات، ثم ابدأ الاستيراد." step={excelStep} hideMapping />
 
               {/* خارج المنطقة القابلة للتمرير (overflow-y-auto) عمداً — لوحة PrimeDropdown المنبثقة
                   (appendTo="self") تبقى فعلياً حفيدة لأي حاوية overflow:auto تحتضنها (position:absolute
@@ -1742,7 +1742,7 @@ export default function Accounts() {
                     />
                   </div>
                   <Button variant="outline" className="gap-2 shrink-0" onClick={() => { void downloadExcelTemplate(excelTemplateType) }}>
-                    <Download className="h-4 w-4" /> تحميل قالب
+                    <Download className="h-4 w-4" /> تحميل نموذج
                   </Button>
                   <Button
                     variant="secondary"

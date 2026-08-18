@@ -135,7 +135,7 @@ export function UniversalToolbar({
 
   return (
     <div
-      className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-slate-950/95 p-2.5 shadow-[0_25px_55px_-28px_rgba(2,8,23,0.85)]"
+      className="universal-toolbar relative overflow-hidden rounded-2xl border border-slate-200/80 bg-slate-950/95 p-2.5 shadow-[0_25px_55px_-28px_rgba(2,8,23,0.85)]"
       dir="rtl"
     >
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(14,165,233,0.18),_transparent_42%),radial-gradient(circle_at_bottom_left,_rgba(16,185,129,0.18),_transparent_40%)]" />

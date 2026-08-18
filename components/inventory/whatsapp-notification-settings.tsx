@@ -303,7 +303,7 @@ export function WhatsAppNotificationSettings() {
           {/* Message Template */}
           <div>
             <Label htmlFor="message-template" className="text-base font-semibold mb-2 block">
-              قالب الرسالة
+              نموذج الرسالة
             </Label>
             <p className="text-sm text-muted-foreground mb-2">
               استخدم المتغيرات: {"{product_name}"}, {"{product_code}"}, {"{current_stock}"}, {"{reorder_point}"},{" "}

@@ -348,6 +348,117 @@ html[dir="rtl"] .wj-flexgrid .wj-header {
   border-radius: 10px !important;
 }
 
+/* Every DataGridView action is a labelled, full-cell button. Schemes may use
+   buttonLabel for custom wording; otherwise DataGridView supplies a concise
+   label from iconType (حذف، تعديل، بحث...). */
+.wj-flexgrid .wj-cell:has(> .wj-cell-maker-btn) {
+  padding: 3px !important;
+}
+
+.wj-flexgrid .wj-cell > .wj-cell-maker-btn {
+  width: 100% !important;
+  min-width: 100% !important;
+  height: 100% !important;
+  min-height: 100% !important;
+  margin: 0 !important;
+  padding-inline: 8px !important;
+  border: 1px solid color-mix(in srgb, currentColor 20%, transparent) !important;
+  border-radius: 8px !important;
+  gap: 6px;
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* Customer/product template grids: keep the destructive row action visible and
+   let its hit target occupy the complete action cell. */
+.customer-products-template-editor .wj-flexgrid .wj-cell:has(> button[title*="حذف"]) {
+  padding: 3px !important;
+  overflow: visible !important;
+}
+
+.customer-products-template-editor .wj-flexgrid .wj-cell > button[title*="حذف"] {
+  width: 100% !important;
+  min-width: 100% !important;
+  height: 100% !important;
+  min-height: 100% !important;
+  margin: 0 !important;
+  border: 1px solid color-mix(in srgb, var(--destructive) 24%, transparent) !important;
+  border-radius: 8px !important;
+  background: color-mix(in srgb, var(--destructive) 14%, var(--background)) !important;
+  color: var(--destructive) !important;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, white 45%, transparent);
+}
+
+.customer-products-template-editor .wj-flexgrid .wj-cell > button[title*="حذف"]:hover {
+  background: var(--destructive) !important;
+  color: var(--destructive-foreground) !important;
+  box-shadow: 0 3px 10px color-mix(in srgb, var(--destructive) 30%, transparent) !important;
+  transform: translateY(-1px);
+}
+
+/* Make the customer/product template editor a near full-screen dialog. The
+   first dialog row is reserved exclusively for the close button, above the
+   toolbar, and the auto margin pins it to the physical left in RTL layouts. */
+[role="dialog"]:has(.customer-products-template-editor) {
+  display: flex !important;
+  flex-direction: column !important;
+  width: min(1400px, calc(100vw - 3rem)) !important;
+  max-width: min(1400px, calc(100vw - 3rem)) !important;
+  height: auto !important;
+  max-height: 94vh !important;
+}
+
+@media (max-width: 768px) {
+  [role="dialog"]:has(.customer-products-template-editor) {
+    width: calc(100vw - 1rem) !important;
+    max-width: calc(100vw - 1rem) !important;
+  }
+}
+
+[role="dialog"]:has(.customer-products-template-editor) > div:first-of-type {
+  position: absolute;
+  z-index: 30;
+  top: 0;
+  left: 0;
+  display: block !important;
+  width: 0;
+  height: 0;
+  overflow: visible;
+}
+
+[role="dialog"]:has(.customer-products-template-editor) > div:first-of-type button {
+  position: absolute !important;
+  top: 10px;
+  left: 14px;
+  margin: 0 !important;
+  border-color: color-mix(in srgb, var(--destructive) 35%, transparent) !important;
+  background: color-mix(in srgb, var(--destructive) 12%, transparent) !important;
+  color: var(--destructive) !important;
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--destructive) 20%, transparent);
+}
+
+[role="dialog"]:has(.customer-products-template-editor) > div:has(> .customer-products-template-editor) {
+  order: 0;
+  min-height: 0;
+  max-height: 94vh;
+  flex: 1 1 auto;
+}
+
+[role="dialog"]:has(.customer-products-template-editor) .customer-products-template-editor {
+  max-height: 94vh;
+}
+
+/* Reserve the toolbar's left edge for the overlaid close action. */
+[role="dialog"]:has(.customer-products-template-editor)
+  .customer-products-template-editor
+  > :first-child {
+  padding-left: 4.25rem !important;
+}
+
 /* Final user overrides must remain after the named grid themes above. */
 .wj-flexgrid .wj-header,
 .modernVoucherGrid .wj-flexgrid .wj-header {

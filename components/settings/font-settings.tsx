@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { createContext, useContext, useState, useEffect } from "react"
+import { createContext, useContext, useState, useEffect, useRef } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -11,6 +11,7 @@ import { Slider } from "@/components/ui/slider"
 import { Separator } from "@/components/ui/separator"
 import { Type, Palette, RotateCcw } from "@/components/ui/icons"
 import { useAuth } from "@/components/auth/auth-context"
+import Messages from "@/components/common/Messages"
 
 // Font Settings Context
 interface FontSettings {
@@ -125,7 +126,7 @@ export const FontSettings: React.FC = () => {
   const { settings, updateSettings, resetSettings } = useFontSettings()
   const { user } = useAuth()
   const [isSaving, setIsSaving] = useState(false)
-  const [saveMessage, setSaveMessage] = useState("")
+  const messagesRef = useRef<any>(null)
 
   useEffect(() => {
     if (!user?.id) return
@@ -149,7 +150,7 @@ export const FontSettings: React.FC = () => {
   const saveUserFontSettings = async () => {
     if (!user?.id) return
     setIsSaving(true)
-    setSaveMessage("")
+    messagesRef.current?.clear?.()
     try {
       const response = await fetch("/api/settings/user", {
         method: "PUT",
@@ -167,11 +168,15 @@ export const FontSettings: React.FC = () => {
           },
         }),
       })
-      if (!response.ok) throw new Error("Failed to save font settings")
-      setSaveMessage("تم حفظ إعدادات الخط للمستخدم")
+      if (!response.ok) {
+        const result = await response.json().catch(() => null)
+        throw new Error(result?.error || result?.details || "تعذر حفظ إعدادات الخط")
+      }
+      messagesRef.current?.show?.([{ severity: "success", summary: "", detail: "تم حفظ إعدادات الخط للمستخدم", life: 4000 }])
     } catch (error) {
       console.error(error)
-      setSaveMessage("تعذر حفظ إعدادات الخط")
+      const reason = error instanceof Error ? error.message : "تعذر حفظ إعدادات الخط"
+      messagesRef.current?.show?.([{ severity: "error", summary: "", detail: `${reason} - لم يتم الحفظ`, life: 5000 }])
     } finally {
       setIsSaving(false)
     }
@@ -202,9 +207,22 @@ export const FontSettings: React.FC = () => {
 
   return (
     <div className="space-y-6" dir="rtl">
-      <div className="flex items-center gap-3 mb-6">
-        <Type className="h-6 w-6 text-primary" />
-        <h2 className="text-2xl font-bold text-right">إعدادات الخطوط</h2>
+      <div className="flex flex-wrap items-center justify-end gap-3 rounded-xl border bg-card p-3 shadow-sm">
+        <Button variant="outline" onClick={resetSettings} className="flex items-center gap-2 bg-transparent">
+          <RotateCcw className="h-4 w-4" />
+          إعادة تعيين
+        </Button>
+        <Button className="flex items-center gap-2" onClick={saveUserFontSettings} disabled={isSaving || !user?.id}>
+          <Type className="h-4 w-4" />
+          {isSaving ? "جاري الحفظ..." : "حفظ الإعدادات"}
+        </Button>
+      </div>
+      <Messages innerRef={messagesRef} />
+      <div className="mb-6 flex items-center gap-3">
+        <div className="flex items-center gap-3">
+          <Type className="h-6 w-6 text-primary" />
+          <h2 className="text-2xl font-bold text-right">إعدادات الخطوط</h2>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -452,18 +470,6 @@ export const FontSettings: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* Action Buttons */}
-      <div className="flex gap-4 justify-end">
-        <Button variant="outline" onClick={resetSettings} className="flex items-center gap-2 bg-transparent">
-          <RotateCcw className="h-4 w-4" />
-          إعادة تعيين
-        </Button>
-        <Button className="flex items-center gap-2" onClick={saveUserFontSettings} disabled={isSaving || !user?.id}>
-          <Type className="h-4 w-4" />
-          حفظ الإعدادات
-        </Button>
-      </div>
-      {saveMessage && <p className="text-right text-sm text-muted-foreground">{saveMessage}</p>}
     </div>
   )
 }

@@ -7,6 +7,7 @@ interface ItemGroupDB {
   group_code: string
   group_name: string
   description: string | null
+  parent_id: number | null
   status: number | null
   product_count: number | null
   created_at: string
@@ -18,6 +19,7 @@ interface ItemGroup {
   group_code: string
   group_name: string
   description: string | null
+  parent_id: number | null
   status: "نشط" | "غير نشط"
   product_count: number
   created_at: string
@@ -95,13 +97,14 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   if (!sql) return NextResponse.json({ error: "Database not initialized" }, { status: 500 })
 
   try {
+    await sql`ALTER TABLE item_groups ADD COLUMN IF NOT EXISTS parent_id INTEGER`
     const id = Number(params.id)
     if (!Number.isFinite(id)) {
       return NextResponse.json({ error: "معرف المجموعة غير صالح" }, { status: 400 })
     }
 
     const rows: ItemGroupDB[] = await sql`
-      SELECT id, group_code, group_name, description, status, created_at, updated_at
+      SELECT id, group_code, group_name, description, parent_id, status, created_at, updated_at
       FROM item_groups
       WHERE id = ${id}
         AND status <> 3
@@ -124,6 +127,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
   if (!sql) return NextResponse.json({ error: "Database not initialized" }, { status: 500 })
 
   try {
+    await sql`ALTER TABLE item_groups ADD COLUMN IF NOT EXISTS parent_id INTEGER`
     await sql`ALTER TABLE item_groups ALTER COLUMN group_code TYPE VARCHAR(10)`
     const id = Number(params.id)
     const data = await request.json()
@@ -138,12 +142,26 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
 
     const groupCode = await ensureUniqueGroupCode(data.group_code, id)
     const statusValue = toDbStatus(data.status)
+    const parentId = data.parent_id ? Number(data.parent_id) : null
+    if (parentId === id) return NextResponse.json({ error: "لا يمكن أن تكون المجموعة أباً لنفسها" }, { status: 400 })
+    if (parentId) {
+      const invalidParent = await sql`
+        WITH RECURSIVE descendants AS (
+          SELECT id FROM item_groups WHERE parent_id = ${id} AND status <> 3
+          UNION ALL
+          SELECT child.id FROM item_groups child JOIN descendants d ON child.parent_id = d.id WHERE child.status <> 3
+        ) SELECT id FROM descendants WHERE id = ${parentId} LIMIT 1
+      `
+      if (invalidParent.length) return NextResponse.json({ error: "لا يمكن اختيار مجموعة فرعية كمجموعة أب" }, { status: 400 })
+      const parent = await sql`SELECT id FROM item_groups WHERE id = ${parentId} AND status <> 3 LIMIT 1`
+      if (!parent.length) return NextResponse.json({ error: "المجموعة الأب غير صالحة" }, { status: 400 })
+    }
 
     const rows: ItemGroupDB[] = await sql`
       UPDATE item_groups
-      SET group_code = ${groupCode}, group_name = ${data.group_name}, description = ${data.description || ""}, status = ${statusValue}
+      SET group_code = ${groupCode}, group_name = ${data.group_name}, description = ${data.description || ""}, parent_id = ${parentId}, status = ${statusValue}
       WHERE id = ${id}
-      RETURNING id, group_code, group_name, description, status, created_at, updated_at
+      RETURNING id, group_code, group_name, description, parent_id, status, created_at, updated_at
     `
 
     if (rows.length === 0) {
@@ -162,6 +180,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
   if (!sql) return NextResponse.json({ error: "Database not initialized" }, { status: 500 })
 
   try {
+    await sql`ALTER TABLE item_groups ADD COLUMN IF NOT EXISTS parent_id INTEGER`
     const id = Number(params.id)
     if (!Number.isFinite(id)) {
       return NextResponse.json({ error: "معرف المجموعة غير صالح" }, { status: 400 })
@@ -176,6 +195,11 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
 
     if (existing.length === 0) {
       return NextResponse.json({ error: "المجموعة غير موجودة" }, { status: 404 })
+    }
+
+    const childGroup = await sql`SELECT id FROM item_groups WHERE parent_id = ${id} AND status <> 3 LIMIT 1`
+    if (childGroup.length > 0) {
+      return NextResponse.json({ error: "لا يمكن حذف مجموعة مرتبطة بمجموعات فرعية" }, { status: 409 })
     }
 
     // منع حذف مجموعة صنف مرتبطة بأصناف فعلية — عمود products.group_id قد لا يكون موجوداً في كل

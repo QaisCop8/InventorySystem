@@ -592,6 +592,14 @@ export async function createOrder(
     for (const item of items) {
       if (!item.product_name || (!item.quantity && !item.delivered_quantity)) continue;
 
+      // حالة طلبية المبيعات تتحكم بحالة أصنافها: غير جاهز/جاهز يطبّقان على جميع
+      // السطور، أما إغلاق الطلبية فيلغي السطور غير المرسلة فقط ويحافظ على 3 و4.
+      if (Number(orderData.order_type) === 1) {
+        const orderStatus = Number(orderData.order_status)
+        if (orderStatus === 1 || orderStatus === 2) item.item_status = orderStatus
+        else if (orderStatus === 6 && ![3, 4].includes(Number(item.item_status))) item.item_status = 5
+      }
+
       let carriedWorkflowId: number | null = null;
       if (item.product_id != null) {
         const list = priorWorkflowByProduct.get(item.product_id);

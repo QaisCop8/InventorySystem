@@ -15,6 +15,8 @@ interface ItemGroup {
   group_name: string
   description?: string | null
   product_count?: number | null
+  parent_id?: number | null
+  parent_name?: string | null
   status: "نشط" | "غير نشط" | "متوقف"
 }
 
@@ -23,6 +25,7 @@ interface FormData {
   group_code: string
   group_name: string
   description: string
+  parent_id: number | null
   status: "نشط" | "غير نشط"
 }
 
@@ -31,6 +34,7 @@ const buildEmptyForm = (): FormData => ({
   group_code: "",
   group_name: "",
   description: "",
+  parent_id: null,
   status: "نشط",
 })
 
@@ -76,6 +80,7 @@ export default function ProductGroups() {
     group_code: value.group_code,
     group_name: value.group_name,
     description: value.description,
+    parent_id: value.parent_id,
     status: value.status,
   }), [])
 
@@ -165,6 +170,7 @@ export default function ProductGroups() {
       group_code: group.group_code,
       group_name: group.group_name,
       description: group.description || "",
+      parent_id: group.parent_id ?? null,
       status: normalizeGroupStatus(group.status === "متوقف" ? "نشط" : group.status || "نشط"),
     }
     setForm(nextForm)
@@ -193,6 +199,7 @@ export default function ProductGroups() {
         group_code: existingGroup.group_code,
         group_name: existingGroup.group_name,
         description: existingGroup.description || "",
+        parent_id: existingGroup.parent_id ?? null,
         status: existingGroup.status === "غير نشط" ? "غير نشط" : "نشط",
       })
       setCurrentIndex(targetIndex >= 0 ? targetIndex : 0)
@@ -298,6 +305,7 @@ export default function ProductGroups() {
           group_code: nextGroup.group_code,
           group_name: nextGroup.group_name,
           description: nextGroup.description || "",
+          parent_id: nextGroup.parent_id ?? null,
           status: normalizeGroupStatus(nextGroup.status === "متوقف" ? "نشط" : nextGroup.status || "نشط"),
         }
         setForm(nextForm)
@@ -328,6 +336,7 @@ export default function ProductGroups() {
       group_code: record.group_code,
       group_name: record.group_name,
       description: record.description || "",
+      parent_id: record.parent_id ?? null,
       status: normalizeGroupStatus(record.status === "متوقف" ? "نشط" : record.status || "نشط"),
     }
     setForm(nextForm)
@@ -389,7 +398,7 @@ export default function ProductGroups() {
     setPendingAction(null)
   }, [])
 
-  const handleFormChange = useCallback((field: string, value: string) => {
+  const handleFormChange = useCallback((field: string, value: string | number | null) => {
     setValidationError("")
     setForm((prev) => ({ ...prev, [field]: value }))
   }, [])
@@ -406,6 +415,7 @@ export default function ProductGroups() {
       group_code: group.group_code,
       group_name: group.group_name,
       description: group.description || "",
+      parent_id: group.parent_id ?? null,
       status: isFrozen ? "غير نشط" : "نشط",
     })
     setCurrentIndex(index)
@@ -453,6 +463,7 @@ export default function ProductGroups() {
             group_code: updated.group_code,
             group_name: updated.group_name,
             description: updated.description || "",
+            parent_id: updated.parent_id ?? null,
             status: updated.status === "غير نشط" ? "غير نشط" : "نشط",
           }
           setForm(nextForm)
@@ -573,6 +584,7 @@ export default function ProductGroups() {
               <th className="p-4 text-right font-semibold">رقم المجموعة</th>
               <th className="p-4 text-right font-semibold">اسم المجموعة</th>
               <th className="p-4 text-right font-semibold">الوصف</th>
+              <th className="p-4 text-right font-semibold">المجموعة الأب</th>
               <th className="p-4 text-right font-semibold">عدد الأصناف</th>
               <th className="p-4 text-right font-semibold">الحالة</th>
               <th className="p-4 text-right font-semibold">إجراءات</th>
@@ -584,6 +596,7 @@ export default function ProductGroups() {
                 <td className="p-4 font-mono">{group.group_code}</td>
                 <td className="p-4 font-semibold">{group.group_name}</td>
                 <td className="p-4">{group.description || "-"}</td>
+                <td className="p-4">{itemGroups.find((parent) => parent.id === group.parent_id)?.group_name || "-"}</td>
                 <td className="p-4 font-medium">{group.product_count || 0}</td>
                 <td className="p-4">{group.status === "نشط" ? <Badge className="bg-green-100 text-green-800">نشط</Badge> : <Badge className="bg-red-100 text-red-800">غير نشط</Badge>}</td>
                 <td className="p-4">
@@ -632,6 +645,7 @@ export default function ProductGroups() {
         onDelete={handleDelete}
         onNavigateRecord={handleNavigateRecord}
         onFormChange={handleFormChange}
+        groups={itemGroups}
         onCodeBlur={handleGroupCodeBlur}
         canSave={true}
         hasDuplicateCode={hasDuplicateCode}

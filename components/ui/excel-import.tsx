@@ -1,4 +1,4 @@
-﻿"use client"
+"use client"
 
 import React, { useState, useRef, useEffect } from "react"
 import * as XLSX from "xlsx"
@@ -252,7 +252,7 @@ export function ExcelImport({ entityType, isOpen, onClose, onImportComplete }: E
   // Generic Excel processing function
   // يبني تخميناً أولياً للمطابقة (fieldKey → عنوان عمود بملف المستخدم) بمطابقة تامة (بلا حساسية
   // لحالة الأحرف) بين عنوان عمود الملف وإما تسمية الحقل العربية (label) أو مفتاحه الإنجليزي (key)
-  // — يغطي كلا حالتَي الاستخدام السابقتين (ملء قالبنا بعناوينه العربية، أو ملف جاهز بمفاتيح
+  // — يغطي كلا حالتَي الاستخدام السابقتين (ملء نموذجنا بعناوينه العربية، أو ملف جاهز بمفاتيح
   // إنجليزية) تلقائياً، ويترك الباقي للمستخدم ليختاره يدوياً بخطوة المطابقة.
   const guessColumnMapping = (headers: string[]): Record<string, string> => {
     const mapping: Record<string, string> = {}
@@ -490,7 +490,7 @@ export function ExcelImport({ entityType, isOpen, onClose, onImportComplete }: E
 
         <div className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden px-4 py-5 sm:px-6" dir="rtl">
           {/* UPLOAD STEP — نفس تصميم رفع ملف الأصناف (components/products/excel-import-dialog.tsx):
-              بطاقة واحدة مدمجة (زر تحميل القالب + حقل اختيار ملف) بدل صندوقين كبيرين متجاورين، ثم
+              بطاقة واحدة مدمجة (زر تحميل النموذج + حقل اختيار ملف) بدل صندوقين كبيرين متجاورين، ثم
               تنبيه تعليمات أسفلها. */}
           {step === "upload" && (
             <div className="space-y-6">

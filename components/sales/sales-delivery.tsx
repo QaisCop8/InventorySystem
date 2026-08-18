@@ -548,6 +548,7 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
     const items = (data.items || []).filter((i) => i.product_id)
     if (items.length === 0) return "يجب إدخال صنف واحد على الأقل"
     if (items.some((i) => !i.warehouse_id)) return "يجب اختيار المستودع لكل صنف"
+    if (items.some((i) => !i.unit_id && !String(i.unit_name || i.unit || "").trim())) return "يجب اختيار الوحدة لكل صنف"
     if (items.some((i) => !(Number(i.quantity || 0) > 0))) return "يجب إدخال الكمية لكل صنف"
     if (items.some((i) => Number(i.discount_percent || 0) < 0 || Number(i.discount_percent || 0) > 100)) {
       return "نسبة الخصم يجب ألا تتجاوز 100% لكل صنف"

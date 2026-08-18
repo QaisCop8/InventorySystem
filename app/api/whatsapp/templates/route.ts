@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getAllTemplates } from "@/lib/whatsapp-service"
 import sql from "@/lib/database"
-// الحصول على جميع القوالب
+// الحصول على جميع النماذج
 export async function GET() {
   try {
     const templates = await getAllTemplates()
@@ -16,7 +16,7 @@ export async function GET() {
   }
 }
 
-// إنشاء قالب جديد
+// إنشاء نموذج جديد
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// تحديث قالب
+// تحديث نموذج
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json()
@@ -84,7 +84,7 @@ export async function PUT(request: NextRequest) {
   }
 }
 
-// حذف قالب
+// حذف نموذج
 export async function DELETE(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)

@@ -145,8 +145,11 @@ export function DailyExchangeRatesDialog({ open, onOpenChange, onSaved }: DailyE
     if (!grid || !grid.selection || !e || typeof e.keyCode === "undefined") return
     if (e.keyCode !== Util_TAB && e.keyCode !== Util_ENTER) return
     if (e.defaultPrevented || pendingNavigationRef.current) return
-    const row = grid.selection.row
-    const col = grid.selection.col
+    // أثناء التحرير قد يعيد Wijmo selection لأول صف قبل وصول keydown؛ editRange
+    // هو المصدر الصحيح لموقع الخلية التي كتب فيها المستخدم.
+    const editRange = grid.editRange
+    const row = editRange?.row ?? grid.selection.row
+    const col = editRange?.col ?? grid.selection.col
     if (row < 0 || col < 0) return
     const colName = grid.columns[col]?.binding
     const idx = EDITABLE_COLUMNS.indexOf(colName as any)
@@ -172,7 +175,8 @@ export function DailyExchangeRatesDialog({ open, onOpenChange, onSaved }: DailyE
     pendingNavigationRef.current = { row: nextRow, col: nextColIndex }
     // Move after Wijmo has completed the current editor lifecycle; otherwise its
     // own edit-ending work may restore the selection to the cell just committed.
-    setTimeout(() => {
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
       try {
         const target = pendingNavigationRef.current
         if (!target) return
@@ -186,7 +190,8 @@ export function DailyExchangeRatesDialog({ open, onOpenChange, onSaved }: DailyE
       } finally {
         pendingNavigationRef.current = null
       }
-    }, 0)
+      })
+    })
   }
 
   const handleSave = async () => {

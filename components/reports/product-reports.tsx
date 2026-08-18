@@ -531,7 +531,7 @@ export function ProductReports() {
                 </Button>
                 <Button variant="outline" className="border-green-300 text-green-700 hover:bg-green-50 bg-transparent">
                   <Download className="h-4 w-4 ml-2" />
-                  تحميل قالب الجرد
+                  تحميل نموذج الجرد
                 </Button>
                 <Button variant="outline" className="border-blue-300 text-blue-700 hover:bg-blue-50 bg-transparent">
                   <FileText className="h-4 w-4 ml-2" />

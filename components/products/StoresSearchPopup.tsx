@@ -25,6 +25,7 @@ const StoresSearchPopup: React.FC<StoresSearchPopupProps> = ({
     stores,
 }) => {
     const [selectedStore, setSelectedStore] = useState<Store | null>(null);
+    const [availableStores, setAvailableStores] = useState<Store[]>(stores || []);
     const selectedStoreRef = useRef<Store | null>(null);
     const gridRef = useRef<any>(null);
     const popupRef = useRef<HTMLDivElement | null>(null);
@@ -37,12 +38,29 @@ const StoresSearchPopup: React.FC<StoresSearchPopupProps> = ({
         const grid = getGridInstance();
         const rowIndex = grid?.selection?.row ?? -1;
         const currentRowStore = rowIndex >= 0 ? (grid?.rows?.[rowIndex]?.dataItem as Store | undefined) : undefined;
-        const storeToSelect = selectedStoreRef.current || currentRowStore || stores?.[0] || null;
+        const storeToSelect = selectedStoreRef.current || currentRowStore || availableStores?.[0] || null;
 
         if (!storeToSelect) return;
         onSelect(storeToSelect);
         onClose();
-    }, [getGridInstance, stores, onSelect, onClose]);
+    }, [getGridInstance, availableStores, onSelect, onClose]);
+
+    useEffect(() => { setAvailableStores(stores || []); }, [stores]);
+
+    useEffect(() => {
+        if (!visible) return;
+        const refreshAfterReturn = async () => {
+            try {
+                const response = await fetch("/api/warehouses", { cache: "no-store" });
+                if (!response.ok) return;
+                const data = await response.json();
+                const nextStores = Array.isArray(data) ? data : (data?.warehouses || []);
+                if (nextStores.length) setAvailableStores(nextStores);
+            } catch { /* keep the caller-provided list */ }
+        };
+        window.addEventListener("focus", refreshAfterReturn);
+        return () => window.removeEventListener("focus", refreshAfterReturn);
+    }, [visible]);
 
 
     const handleRowDoubleClick = useCallback(
@@ -65,8 +83,8 @@ const StoresSearchPopup: React.FC<StoresSearchPopupProps> = ({
     useEffect(() => {
         if (!visible) return;
 
-        setSelectedStore(stores?.[0] ?? null);
-        selectedStoreRef.current = stores?.[0] ?? null;
+        setSelectedStore(availableStores?.[0] ?? null);
+        selectedStoreRef.current = availableStores?.[0] ?? null;
 
         setTimeout(() => {
             const grid = getGridInstance();
@@ -101,7 +119,7 @@ const StoresSearchPopup: React.FC<StoresSearchPopupProps> = ({
         return () => {
             window.removeEventListener("keydown", handleKeyDown, true);
         };
-    }, [visible, onClose, getGridInstance]);
+    }, [visible, onClose, getGridInstance, availableStores]);
     if (!visible) return null;
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
@@ -111,13 +129,11 @@ const StoresSearchPopup: React.FC<StoresSearchPopupProps> = ({
                 dir="rtl"
                 style={{ height: "650px" }}
             >
-                <h3 className="text-lg font-semibold mb-4 text-right">
-                    اختيار المستودع
-                </h3>
+                <div className="mb-4 flex items-center justify-between gap-3"><h3 className="text-lg font-semibold text-right">اختيار المستودع</h3><Button className="erp-btn-primary search-button" onClick={() => window.open("/admin/definitions?section=warehouses&new=1", "_blank", "noopener,noreferrer")}>إضافة مستودع</Button></div>
 
                 <DataGridView
                     ref={gridRef}
-                    dataSource={stores}
+                    dataSource={availableStores}
                     scheme={{
                         isReport: true,
                         columns: [

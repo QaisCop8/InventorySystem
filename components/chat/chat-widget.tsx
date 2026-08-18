@@ -71,6 +71,7 @@ export function ChatWidget() {
   const activeContactRef = useRef(activeContact)
   const seenLatestIdRef = useRef<number | null>(null)
   const hasPolledOnceRef = useRef(false)
+  const sessionRejectedRef = useRef(false)
 
   useEffect(() => {
     openRef.current = open
@@ -89,8 +90,18 @@ export function ChatWidget() {
   }, [])
 
   const fetchUnreadTotal = useCallback(async () => {
+    if (sessionRejectedRef.current) return
     try {
       const res = await fetch("/api/chat/unread-count")
+      if (res.status === 401) {
+        // The client-side login can outlive the server session (for example after
+        // deploying server-session support). Stop the poller instead of producing
+        // a 401 request every eight seconds; the next authenticated user/session
+        // change enables it again.
+        sessionRejectedRef.current = true
+        setUnreadTotal(0)
+        return
+      }
       if (!res.ok) return
       const data = await res.json()
       setUnreadTotal(typeof data.count === "number" ? data.count : 0)
@@ -148,10 +159,11 @@ export function ChatWidget() {
   // استطلاع إجمالي غير المقروء دائماً طالما المستخدم مسجّل دخوله (يغذّي شارة الفقاعة العائمة)
   useEffect(() => {
     if (!isAuthenticated) return
+    sessionRejectedRef.current = false
     fetchUnreadTotal()
     const interval = setInterval(fetchUnreadTotal, UNREAD_POLL_MS)
     return () => clearInterval(interval)
-  }, [isAuthenticated, fetchUnreadTotal])
+  }, [isAuthenticated, user?.id, fetchUnreadTotal])
 
   // استطلاع قائمة جهات الاتصال فقط أثناء عرضها (اللوحة مفتوحة وبلا محادثة نشطة)
   useEffect(() => {

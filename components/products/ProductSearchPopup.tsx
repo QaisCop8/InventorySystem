@@ -8,7 +8,7 @@ import DataGridView from "../common/DataGridView";
 import MultiSelect from "../common/MultiSelect";
 import * as wjGrid from "@grapecity/wijmo.grid";
 import { useTranslation } from 'react-i18next';
-import { X } from "lucide-react";
+import { Plus, X } from "lucide-react";
 // -----------------------
 // Types
 // -----------------------
@@ -86,6 +86,7 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
   const gridUnitsRef = useRef<wjGrid.FlexGrid | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [attributeError, setAttributeError] = useState("");
+  const [refreshVersion, setRefreshVersion] = useState(0);
   const searchTextRef = useRef<HTMLInputElement>(null);
   const ws = useRef<WebSocket | null>(null);
   const { t, i18n } = useTranslation();
@@ -181,7 +182,14 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
       focusAttemptCancelled = true
       if (ws.current) ws.current.close();
     };
-  }, [visible, priceCategoryId, selectedTypes, searchText]);
+  }, [visible, priceCategoryId, selectedTypes, searchText, refreshVersion]);
+
+  useEffect(() => {
+    if (!visible) return;
+    const refreshAfterReturn = () => setRefreshVersion((value) => value + 1);
+    window.addEventListener("focus", refreshAfterReturn);
+    return () => window.removeEventListener("focus", refreshAfterReturn);
+  }, [visible]);
 
   useEffect(() => {
     if (!visible) return;
@@ -469,6 +477,8 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
         {attributeError && <div className="mb-3 rounded-md border border-red-200 bg-red-50 p-2 text-sm font-semibold text-red-700">{attributeError}</div>}
         <div className="flex shrink-0 items-center justify-between gap-3">
           <h3 className="text-xl font-semibold text-slate-900">{title || "بحث الأصناف"}</h3>
+          <div className="flex items-center gap-2">
+          <Button type="button" onClick={() => window.open("/products?new=1", "_blank", "noopener,noreferrer")} className="gap-2 bg-emerald-600 text-white hover:bg-emerald-700"><Plus className="h-4 w-4"/>إضافة صنف</Button>
           <Button
             type="button"
             variant="ghost"
@@ -479,6 +489,7 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
           >
             <X className="h-5 w-5" />
           </Button>
+          </div>
         </div>
 
         <div className="mt-3 shrink-0 rounded-2xl border border-slate-200 bg-slate-50 p-3 shadow-sm sm:mt-4 sm:rounded-3xl sm:p-4">

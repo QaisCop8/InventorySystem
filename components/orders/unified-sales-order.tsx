@@ -2866,6 +2866,9 @@ function UnifiedSalesOrder({
             batch: item.batch ?? "",
             expiry_date: item.expiry_date ?? "",
             discount: Number(item.discount ?? item.discount_percentage ?? 0),
+            // السجل المحفوظ يحتفظ بحالته من قاعدة البيانات؛ السجلات القديمة التي لا تحمل
+            // item_status ترث حالة الطلبية الحالية.
+            item_status: Number(item.item_status ?? mappedOrder.order_status ?? 1),
           }
         });
         // Replace the CollectionView contents with the loaded items
@@ -3521,12 +3524,9 @@ function UnifiedSalesOrder({
                       <Dropdown
                         value={state.formData.order_status ?? 1}
                         options={[
-                          { value: 1, label: "غير جاهزة" },
-                          { value: 2, label: "جاهزة" },
-                          { value: 3, label: "مرسلة جزئيا" },
-                          { value: 4, label: "مرسلة كليا" },
-                          { value: 5, label: "ملغاة" },
-                          { value: 6, label: "مغلقة" },
+                          { value: 1, label: "غير جاهز" },
+                          { value: 2, label: "جاهز" },
+                          { value: 6, label: "مغلق" },
                         ]}
                         optionLabel="label"
                         optionValue="value"
@@ -3535,12 +3535,22 @@ function UnifiedSalesOrder({
                         panelClassName="invoice-currency-dropdown-panel"
                         appendTo="self"
                         panelStyle={{ zIndex: 10000 }}
-                        onChange={(e: any) =>
+                        onChange={(e: any) => {
+                          const nextStatus = Number(e.value)
+                          CollectionView.sourceCollection.forEach((item: any) => {
+                            if (!item?.id && !item?.product_id) return
+                            if (nextStatus === 6) {
+                              if (![3, 4].includes(Number(item.item_status))) item.item_status = 5
+                            } else {
+                              item.item_status = nextStatus
+                            }
+                          })
+                          CollectionView.refresh()
                           setState(prev => ({
                             ...prev,
-                            formData: { ...prev.formData, order_status: e.value }
+                            formData: { ...prev.formData, order_status: nextStatus }
                           }))
-                        }
+                        }}
                       />
                     </div>
 

@@ -3,6 +3,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { UniversalToolbar } from "@/components/ui/universal-toolbar"
 import ConfirmDialogYesNo from "@/components/ui/ConfirmDialogYesNo"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -15,6 +16,8 @@ interface ItemGroup {
   group_name: string
   description?: string | null
   product_count?: number | null
+  parent_id?: number | null
+  parent_name?: string | null
   status: "نشط" | "غير نشط" | "متوقف"
 }
 
@@ -27,6 +30,7 @@ interface UnifiedProductGroupsProps {
     group_code: string
     group_name: string
     description: string
+    parent_id: number | null
     status: "نشط" | "غير نشط"
   }
   isSaving: boolean
@@ -37,7 +41,8 @@ interface UnifiedProductGroupsProps {
   onSave: (options?: { afterSaveAction?: "new" | "close" }) => void | Promise<void>
   onDelete?: () => void
   onNavigateRecord?: (record: ItemGroup) => void
-  onFormChange: (field: string, value: string) => void
+  onFormChange: (field: string, value: string | number | null) => void
+  groups: ItemGroup[]
   onConfirmDelete: () => void
   onCancelDelete: () => void
   onCodeBlur?: (group_code: string) => void
@@ -66,6 +71,7 @@ export default function UnifiedProductGroups({
   onDelete,
   onNavigateRecord,
   onFormChange,
+  groups,
   onConfirmDelete,
   onCancelDelete,
   onCodeBlur,
@@ -114,6 +120,7 @@ export default function UnifiedProductGroups({
           group_code: record.group_code,
           group_name: record.group_name,
           description: record.description || "",
+          parent_id: record.parent_id ?? null,
           product_count: record.product_count || 0,
           status: record.status || "نشط",
         })
@@ -257,6 +264,21 @@ export default function UnifiedProductGroups({
                   value={form.description}
                   onChange={(e) => onFormChange("description", e.target.value)}
                 />
+              </div>
+              <div className="grid gap-2">
+                <Label>المجموعة الأب</Label>
+                <Select
+                  value={form.parent_id ? String(form.parent_id) : "none"}
+                  onValueChange={(value) => onFormChange("parent_id", value === "none" ? null : Number(value))}
+                >
+                  <SelectTrigger><SelectValue placeholder="بدون مجموعة أب" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">بدون مجموعة أب</SelectItem>
+                    {groups.filter((group) => group.id !== form.id).map((group) => (
+                      <SelectItem key={group.id} value={String(group.id)}>{group.group_code} - {group.group_name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               {deleteError && <p className="text-sm text-destructive">{deleteError}</p>}
             </div>

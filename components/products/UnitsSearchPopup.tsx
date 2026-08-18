@@ -34,13 +34,14 @@ const UnitsSearchPopup: React.FC<UnitsSearchPopupProps> = ({
 }) => {
   const [selectedUnit, setSelectedUnit] = useState<Unit | null>(null);
   const [resolvedUnits, setResolvedUnits] = useState<Unit[]>([]);
+  const [refreshVersion, setRefreshVersion] = useState(0);
   const gridRef = useRef<wjGrid.FlexGrid | null>(null);
 
   useEffect(() => {
     if (!visible) return;
 
     const sourceUnits = Array.isArray(units) && units.length > 0 ? units : [];
-    if (sourceUnits.length > 0) {
+    if (sourceUnits.length > 0 && refreshVersion === 0) {
       setResolvedUnits(sourceUnits);
       setSelectedUnit(sourceUnits[0] ?? null);
       return;
@@ -86,7 +87,14 @@ const UnitsSearchPopup: React.FC<UnitsSearchPopupProps> = ({
     return () => {
       isActive = false;
     };
-  }, [visible, product?.id, units, priceCategoryId]);
+  }, [visible, product?.id, units, priceCategoryId, refreshVersion]);
+
+  useEffect(() => {
+    if (!visible) return;
+    const refreshAfterReturn = () => setRefreshVersion((value) => value + 1);
+    window.addEventListener("focus", refreshAfterReturn);
+    return () => window.removeEventListener("focus", refreshAfterReturn);
+  }, [visible]);
 
   const handleRowDoubleClick = (unit: Unit) => {
     onSelect({ product, selected_unit: unit });
@@ -128,9 +136,7 @@ const UnitsSearchPopup: React.FC<UnitsSearchPopupProps> = ({
         dir="rtl"
         style={{ height: "650px" }}
       >
-        <h3 className="text-lg font-semibold mb-4 text-right">
-          وحدات الصنف: {product.name}
-        </h3>
+        <div className="mb-4 flex items-center justify-between gap-3"><h3 className="text-lg font-semibold text-right">وحدات الصنف: {product.name}</h3><Button className="erp-btn-primary search-button" onClick={() => window.open("/admin/definitions?section=units&new=1", "_blank", "noopener,noreferrer")}>إضافة وحدة</Button></div>
 
         <DataGridView
           ref={gridRef}

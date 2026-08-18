@@ -16,5 +16,6 @@ export async function ensureOrderDraftTables() {
   await sql`ALTER TABLE sales_order_drafts ALTER COLUMN customer_id DROP NOT NULL`
   await sql`ALTER TABLE sales_order_drafts ALTER COLUMN account_id SET NOT NULL`
   await sql`CREATE TABLE IF NOT EXISTS sales_order_draft_items (id SERIAL PRIMARY KEY, draft_id INTEGER NOT NULL REFERENCES sales_order_drafts(id) ON DELETE CASCADE, product_id INTEGER NOT NULL REFERENCES products(id), product_name VARCHAR(255) NOT NULL, quantity NUMERIC(15,4) NOT NULL, price NUMERIC(15,4) NOT NULL DEFAULT 0, discount NUMERIC(15,2) NOT NULL DEFAULT 0, unit_id INTEGER, barcode VARCHAR(100))`
+  await sql`ALTER TABLE sales_order_draft_items ADD COLUMN IF NOT EXISTS store_id INTEGER`
   readyDatabases.add(databaseName)
 }

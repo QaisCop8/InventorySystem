@@ -260,6 +260,22 @@
   }
 }
 
+/* Dialogs with UniversalToolbar keep the close action in the toolbar's
+   physical left edge. Dialogs without the toolbar retain their normal close
+   button placement. */
+[role="dialog"]:has(.universal-toolbar) .universal-toolbar {
+  padding-left: 4.25rem !important;
+}
+
+[role="dialog"]:has(.universal-toolbar) > .universal-dialog-close {
+  top: 10px !important;
+  left: 14px !important;
+  border: 1px solid color-mix(in srgb, var(--destructive) 35%, transparent) !important;
+  background: color-mix(in srgb, var(--destructive) 12%, var(--background)) !important;
+  color: var(--destructive) !important;
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--destructive) 20%, transparent) !important;
+}
+
 /* Ensure sidebar/header primitives inherit the current user's typography. */
 .user-typography,
 .user-typography * {

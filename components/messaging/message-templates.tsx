@@ -76,9 +76,9 @@ export function MessageTemplates() {
         body: JSON.stringify(formData),
       })
 
-      if (!response.ok) throw new Error("فشل في حفظ القالب")
+      if (!response.ok) throw new Error("فشل في حفظ النموذج")
 
-      setMessage({ type: "success", text: "تم حفظ القالب بنجاح" })
+      setMessage({ type: "success", text: "تم حفظ النموذج بنجاح" })
       setIsDialogOpen(false)
       fetchTemplates()
       resetForm()
@@ -88,16 +88,16 @@ export function MessageTemplates() {
   }
 
   const handleDeleteTemplate = async (id: number) => {
-    if (!confirm("هل أنت متأكد من حذف هذا القالب؟")) return
+    if (!confirm("هل أنت متأكد من حذف هذا النموذج؟")) return
 
     try {
       const response = await fetch(`/api/messaging/templates/${id}`, {
         method: "DELETE",
       })
 
-      if (!response.ok) throw new Error("فشل في حذف القالب")
+      if (!response.ok) throw new Error("فشل في حذف النموذج")
 
-      setMessage({ type: "success", text: "تم حذف القالب بنجاح" })
+      setMessage({ type: "success", text: "تم حذف النموذج بنجاح" })
       fetchTemplates()
     } catch (error) {
       setMessage({ type: "error", text: "حدث خطأ أثناء الحذف" })
@@ -162,24 +162,24 @@ export function MessageTemplates() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold">قوالب الرسائل</h2>
-          <p className="text-muted-foreground">إدارة قوالب الرسائل القابلة لإعادة الاستخدام</p>
+          <h2 className="text-2xl font-bold">نماذج الرسائل</h2>
+          <p className="text-muted-foreground">إدارة نماذج الرسائل القابلة لإعادة الاستخدام</p>
         </div>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button onClick={resetForm} className="gap-2">
               <Plus className="h-4 w-4" />
-              قالب جديد
+              نموذج جديد
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-2xl" dir="rtl">
             <DialogHeader>
-              <DialogTitle>{editingTemplate ? "تعديل القالب" : "قالب جديد"}</DialogTitle>
-              <DialogDescription>أنشئ قالب رسالة قابل لإعادة الاستخدام</DialogDescription>
+              <DialogTitle>{editingTemplate ? "تعديل النموذج" : "نموذج جديد"}</DialogTitle>
+              <DialogDescription>أنشئ نموذج رسالة قابل لإعادة الاستخدام</DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
               <div>
-                <Label>اسم القالب</Label>
+                <Label>اسم النموذج</Label>
                 <Input
                   value={formData.template_name}
                   onChange={(e) => setFormData({ ...formData, template_name: e.target.value })}
@@ -187,7 +187,7 @@ export function MessageTemplates() {
                 />
               </div>
               <div>
-                <Label>كود القالب</Label>
+                <Label>كود النموذج</Label>
                 <Input
                   value={formData.template_code}
                   onChange={(e) => setFormData({ ...formData, template_code: e.target.value })}
@@ -228,7 +228,7 @@ export function MessageTemplates() {
                 <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
                   إلغاء
                 </Button>
-                <Button onClick={handleSaveTemplate}>حفظ القالب</Button>
+                <Button onClick={handleSaveTemplate}>حفظ النموذج</Button>
               </div>
             </div>
           </DialogContent>
@@ -329,11 +329,11 @@ export function MessageTemplates() {
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <FileText className="h-12 w-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold mb-2">لا توجد قوالب</h3>
-            <p className="text-muted-foreground text-center mb-4">ابدأ بإنشاء قالب رسالة جديد</p>
+            <h3 className="text-lg font-semibold mb-2">لا توجد نماذج</h3>
+            <p className="text-muted-foreground text-center mb-4">ابدأ بإنشاء نموذج رسالة جديد</p>
             <Button onClick={() => setIsDialogOpen(true)} className="gap-2">
               <Plus className="h-4 w-4" />
-              إنشاء قالب
+              إنشاء نموذج
             </Button>
           </CardContent>
         </Card>

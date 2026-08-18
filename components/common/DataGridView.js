@@ -222,6 +222,7 @@ createButtonsColumns = () => {
             // كتلميح (tooltip) لأي عمود زر لم يُحدَّد له title صراحةً.
             attributes: { title: col.title || '', style: this.getButtonInlineStyle(col.className) },
             cssClass: this.setButtonClass(col.className, col.iconType),
+            text: this.getButtonLabel(col),
             click: col.onClick,
           }),
         });
@@ -588,7 +589,7 @@ createButtonTemplate = (col) => (ctx) => {
   btn.title = col.title || '';
   // use helper to derive consistent css classes for grid buttons
   btn.className = this.setButtonClass(col.className, col.iconType);
-  btn.innerHTML = col.iconType ? `<i class="${col.iconType}"></i>` : col.title;
+  btn.textContent = this.getButtonLabel(col);
 
   // Inline style fallback so colors appear even when global CSS is overridden
   const inline = this.getButtonInlineStyle(col.className);
@@ -722,6 +723,22 @@ createButtonTemplate = (col) => (ctx) => {
     }
 
     return classes.join(' ');
+  };
+
+  getButtonLabel = (col = {}) => {
+    if (col.buttonLabel) return col.buttonLabel;
+
+    const labels = {
+      delete: 'حذف',
+      edit: 'تعديل',
+      search: 'بحث',
+      view: 'عرض',
+      eye: 'عرض',
+      add: 'إضافة',
+      save: 'حفظ',
+    };
+
+    return labels[String(col.iconType || '').toLowerCase()] || col.title || '';
   };
 
   // Returns inline style string for a given button class to be used as a

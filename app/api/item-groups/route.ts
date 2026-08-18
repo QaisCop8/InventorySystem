@@ -8,6 +8,7 @@ interface ItemGroupDB {
   group_code: string
   group_name: string
   description: string | null
+  parent_id: number | null
   status: number | null
   product_count: number | null
   created_at: string
@@ -19,6 +20,7 @@ interface ItemGroup {
   group_code: string
   group_name: string
   description: string | null
+  parent_id: number | null
   status: "نشط" | "غير نشط"
   product_count: number
   created_at: string
@@ -33,6 +35,7 @@ export async function GET(request: NextRequest) {
   if (!sql) return NextResponse.json({ error: "Database not initialized" }, { status: 500 })
 
   try {
+    await sql`ALTER TABLE item_groups ADD COLUMN IF NOT EXISTS parent_id INTEGER`
     const code = request.nextUrl.searchParams.get("code")?.trim().toUpperCase()
     const query = sql as any
 
@@ -44,6 +47,7 @@ export async function GET(request: NextRequest) {
           group_code,
           group_name,
           description,
+          parent_id,
           status,
           created_at,
           updated_at
@@ -70,6 +74,7 @@ export async function GET(request: NextRequest) {
         group_code,
         group_name,
         description,
+        parent_id,
         status,
         created_at,
         updated_at
@@ -164,10 +169,16 @@ export async function POST(request: NextRequest) {
   if (!sql) return NextResponse.json({ error: "Database not initialized" }, { status: 500 })
 
   try {
+    await sql`ALTER TABLE item_groups ADD COLUMN IF NOT EXISTS parent_id INTEGER`
     await sql`ALTER TABLE item_groups ALTER COLUMN group_code TYPE VARCHAR(10)`
     const data = await request.json()
     const statusValue = toDbStatus(data.status)
     const query = sql as any
+    const parentId = data.parent_id ? Number(data.parent_id) : null
+    if (parentId) {
+      const parent = await query`SELECT id FROM item_groups WHERE id = ${parentId} AND status <> 3 LIMIT 1`
+      if (!parent.length) return NextResponse.json({ error: "المجموعة الأب غير صالحة" }, { status: 400 })
+    }
 
     if (await isDuplicateGroupName(data.group_name)) {
       return NextResponse.json({ error: "اسم المجموعة مكرر لا يمكن الاستمرار" }, { status: 409 })
@@ -180,10 +191,10 @@ export async function POST(request: NextRequest) {
       try {
         result = await query`
           INSERT INTO item_groups (
-            group_code, group_name, description, status
+            group_code, group_name, description, parent_id, status
           ) VALUES (
-            ${groupCode}, ${data.group_name}, ${data.description || ""}, ${statusValue}
-          ) RETURNING id, group_code, group_name, description, status, created_at, updated_at
+            ${groupCode}, ${data.group_name}, ${data.description || ""}, ${parentId}, ${statusValue}
+          ) RETURNING id, group_code, group_name, description, parent_id, status, created_at, updated_at
         `
         break
       } catch (error: unknown) {

@@ -346,7 +346,7 @@ export function ExcelImportDialog({ open, onOpenChange, onImportComplete }: Exce
       URL.revokeObjectURL(url);
     } catch (error) {
       console.error("Error downloading template:", error);
-      alert("حدث خطأ في تحميل القالب. يرجى المحاولة مرة أخرى.");
+      alert("حدث خطأ في تحميل النموذج. يرجى المحاولة مرة أخرى.");
     }
   };
 
@@ -374,7 +374,7 @@ export function ExcelImportDialog({ open, onOpenChange, onImportComplete }: Exce
 
   // يبني تخميناً أولياً للمطابقة (fieldKey → عنوان عمود بملف المستخدم) بمطابقة تامة (بلا حساسية
   // لحالة الأحرف/فراغات طرفية) بين مفتاح الحقل وعناوين أعمدة الملف الفعلية — يغطي حالة الاستخدام
-  // الأكثر شيوعاً (ملء قالبنا نفسه دون تغيير رؤوس الأعمدة) تلقائياً، ويترك البقية للمستخدم ليختارها
+  // الأكثر شيوعاً (ملء نموذجنا نفسه دون تغيير رؤوس الأعمدة) تلقائياً، ويترك البقية للمستخدم ليختارها
   // يدوياً بخطوة المطابقة إن اختلفت رؤوس عمود ملفه عن أسماء حقولنا.
   const guessColumnMapping = (headers: string[]): Record<string, string> => {
     const mapping: Record<string, string> = {}
@@ -514,7 +514,7 @@ export function ExcelImportDialog({ open, onOpenChange, onImportComplete }: Exce
 
   // نفس حسابات الأصناف الافتراضية (تبويب "الحسابات الافتراضية للاصناف" بإعدادات النظام) التي
   // تُطبَّق تلقائياً عند إضافة صنف واحد يدوياً عبر compact-product-form.tsx (loadProductAccountDefaults
-  // هناك) — قالب استيراد Excel لا يحوي أعمدة حسابات إطلاقاً (طُلِب صراحةً عدم إضافتها كأعمدة)، فبلا
+  // هناك) — نموذج استيراد Excel لا يحوي أعمدة حسابات إطلاقاً (طُلِب صراحةً عدم إضافتها كأعمدة)، فبلا
   // هذا يبقى كل صنف مستورَد بلا أي حساب مرتبط أصلاً. تُحمَّل مرة واحدة قبل حلقة الاستيراد (لا لكل
   // سطر) وتُطبَّق على كل الأصناف المستورَدة بنفس القيم.
   const loadDefaultItemAccounts = async () => {
@@ -846,10 +846,10 @@ export function ExcelImportDialog({ open, onOpenChange, onImportComplete }: Exce
                       className="flex items-center gap-2 bg-transparent"
                     >
                       <Download className="h-4 w-4" />
-                      تحميل القالب
+                      تحميل النموذج
                     </Button>
                     <span className="text-sm text-muted-foreground">
-                      قم بتحميل القالب أولاً لمعرفة تنسيق البيانات المطلوب
+                      قم بتحميل النموذج أولاً لمعرفة تنسيق البيانات المطلوب
                     </span>
                   </div>
 
@@ -878,7 +878,7 @@ export function ExcelImportDialog({ open, onOpenChange, onImportComplete }: Exce
                 <AlertDescription>
                   <strong>تعليمات الاستيراد:</strong>
                   <ul className="list-disc list-inside mt-2 space-y-1 text-sm">
-                    <li>قم بتحميل القالب الذي يحتوي على جميع حقول الصنف (أكثر من 40 حقل)</li>
+                    <li>قم بتحميل النموذج الذي يحتوي على جميع حقول الصنف (أكثر من 40 حقل)</li>
                     <li>املأ البيانات الأساسية: كود الصنف الاسم، الفئة، وسعر الشراء (مطلوبة)</li>
                     <li>يمكن ملء الحقول الاختيارية مثل: الأسعار المختلفة، المقاسات، الألوان، والمواصفات</li>
 

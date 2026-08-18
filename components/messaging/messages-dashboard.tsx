@@ -188,7 +188,7 @@ export function MessagesDashboard() {
           </TabsTrigger>
           <TabsTrigger value="templates" className="gap-2">
             <FileText className="h-4 w-4" />
-            القوالب
+            النماذج
           </TabsTrigger>
           <TabsTrigger value="log" className="gap-2">
             <MessageSquare className="h-4 w-4" />

@@ -1,4 +1,4 @@
-﻿"use client"
+"use client"
 
 import { useState, useCallback, useMemo, useEffect } from "react"
 import { Button } from "@/components/ui/button"
@@ -476,7 +476,7 @@ export default function GeneralSettings() {
                       </div>
 
                       <div className="space-y-2">
-                        <Label className="text-gray-700 font-medium">قالب رسالة الطلبية</Label>
+                        <Label className="text-gray-700 font-medium">نموذج رسالة الطلبية</Label>
                         <Textarea
                           rows={3}
                           placeholder="مرحباً {اسم_العميل}، تم إنشاء طلبيتك رقم {رقم_الطلبية} بنجاح. إجمالي المبلغ: {المبلغ}"
@@ -571,7 +571,7 @@ export default function GeneralSettings() {
                       </div>
 
                       <div className="space-y-2">
-                        <Label className="text-gray-700 font-medium">قالب إيميل الفاتورة</Label>
+                        <Label className="text-gray-700 font-medium">نموذج إيميل الفاتورة</Label>
                         <Textarea
                           rows={4}
                           placeholder="عزيزي {اسم_العميل}، نرفق لك فاتورتك رقم {رقم_الفاتورة}. مع تحيات فريق العمل."
