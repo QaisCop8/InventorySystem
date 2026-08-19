@@ -14,6 +14,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { UniversalToolbar } from "@/components/ui/universal-toolbar"
 import { ReportGenerator } from "@/components/ui/report-generator"
 import { useRecordNavigation } from "@/hooks/use-record-navigation"
+import TransactionBranchField from "@/components/common/transaction-branch-field"
 import {
   Plus,
   Trash2,
@@ -192,6 +193,7 @@ interface OrderItem {
 
 interface OrderFormData {
   id?: number
+  branch_id?: number | null
   order_number: string
   order_date: string
   supplier_id: number | null
@@ -229,6 +231,7 @@ interface OrderFormData {
 }
 
 const initialFormData: OrderFormData = {
+  branch_id: null,
   order_number: "",
   order_date: new Date().toISOString().split("T")[0],
   supplier_id: null,
@@ -695,6 +698,8 @@ function UnifiedPurchaseOrder({
     }
 
     const orderData = {
+      id: state.formData.id,
+      branch_id: state.formData.branch_id,
       order_number: state.formData.order_number,
       order_date: state.formData.order_date,
       supplier_id: state.formData.supplier_id,
@@ -736,7 +741,7 @@ function UnifiedPurchaseOrder({
     console.log("[v0] Sending items data:", items)
 
     const method = isNewRecord ? "POST" : "PUT"
-    const url = isNewRecord ? "/api/purchase-orders" : `/api/purchase-orders/${orderToSave.id}`
+    const url = "/api/purchase-orders"
 
     const response = await fetch(url, {
       method,
@@ -788,7 +793,7 @@ function UnifiedPurchaseOrder({
       throw new Error("تم إلغاء العملية")
     }
 
-    const response = await fetch(`/api/purchase-orders/${orderToDelete.id}`, {
+    const response = await fetch(`/api/purchase-orders?id=${orderToDelete.id}`, {
       method: "DELETE",
     })
 
@@ -949,6 +954,14 @@ function UnifiedPurchaseOrder({
             isFirstRecord={isFirstRecord}
             isLastRecord={isLastRecord}
           />
+          <div className="pt-3">
+            <TransactionBranchField
+              family="purchase_order"
+              action={state.formData.id ? "update" : "create"}
+              value={state.formData.branch_id}
+              onChange={(branchId) => setState((prev) => ({ ...prev, formData: { ...prev.formData, branch_id: branchId } }))}
+            />
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto">

@@ -1,9 +1,12 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getSalesOrders, getPurchaseOrders, createOrder, createPurchaseOrder } from "@/lib/orders"
 import { createOrderWorkflowStatus } from "@/lib/workflow"
+import { authorizeTransaction } from "@/lib/transaction-permissions"
 
 export async function GET(request: NextRequest) {
   try {
+    const authorization = await authorizeTransaction(request, "sales_order", "view")
+    if (!authorization.ok) return authorization.response
     const { searchParams } = new URL(request.url)
 
     const type = searchParams.get("type") || "1" // 1 = sales, 2 = purchase
@@ -14,7 +17,8 @@ export async function GET(request: NextRequest) {
       dateFrom: searchParams.get("dateFrom") || undefined,
       dateTo: searchParams.get("dateTo") || undefined,
       customerId: searchParams.get("customerId") ? Number.parseInt(searchParams.get("customerId")!) : undefined,
-      order_type : type
+      order_type : type,
+      branchId: authorization.branchId,
     }
 
     const orders = await getSalesOrders(filters)
@@ -34,6 +38,11 @@ export async function POST(request: NextRequest) {
 
     const orderData = od || rest; // fallback if no nested orderData
     const items = it || requestData.items || [];
+
+    const action = orderData?.id && Number(orderData.id) > 0 ? "update" : "create"
+    const authorization = await authorizeTransaction(request, "sales_order", action, orderData?.branch_id)
+    if (!authorization.ok) return authorization.response
+    orderData.branch_id = authorization.branchId
 
     if (!orderData) return NextResponse.json({ error: "بيانات الطلبية مطلوبة" }, { status: 400 });
     if (!orderData.customer_name && !orderData.customer_id)

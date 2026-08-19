@@ -43,6 +43,7 @@ const buildInitialForm = (): JournalVoucherRecord => ({
   vch_code: "",
   vch_date: new Date().toISOString().slice(0, 10),
   vch_book_id: null,
+  branch_id: null,
   currency_id: null,
   rate: 1,
   manual_voucher: "",
@@ -78,7 +79,7 @@ const normalizeVoucher = (record: Partial<JournalVoucherRecord>): JournalVoucher
 })
 
 export default function Journal() {
-  const { user } = useAuth()
+  const { user, activeBranchId } = useAuth()
 
   const [vouchers, setVouchers] = useState<JournalVoucherRecord[]>([])
   const [currencies, setCurrencies] = useState<CurrencyOption[]>([])

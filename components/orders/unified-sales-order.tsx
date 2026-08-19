@@ -13,6 +13,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { UniversalToolbar } from "@/components/ui/universal-toolbar"
 import { ReportGenerator } from "@/components/ui/report-generator"
 import { useRecordNavigation } from "@/hooks/use-record-navigation"
+import TransactionBranchField from "@/components/common/transaction-branch-field"
 import * as wjcCore from '@grapecity/wijmo';
 import { Toast } from 'primereact/toast';
 import * as XLSX from "xlsx";
@@ -193,6 +194,7 @@ interface OrderItem {
 
 interface OrderFormData {
   id?: number
+  branch_id?: number | null
   order_number: string | null
   order_date: string | null
   invoice_number: string | null
@@ -242,6 +244,7 @@ interface OrderFormData {
 
 const initialFormData: OrderFormData = {
   id: 0,
+  branch_id: null,
   order_number: "",
   order_date: new Date().toISOString().split("T")[0],
   invoice_number: "",
@@ -2202,7 +2205,7 @@ function UnifiedSalesOrder({
         received_by: state.formData.received_by || "",
         customer_order_no: state.formData.customer_order_no || "",
         user_id: user.id,
-        branch_id: activeBranchId ?? null,
+        branch_id: state.formData.branch_id ?? activeBranchId ?? null,
       };
 
       const items = CollectionView.items.map((item) => ({
@@ -3138,6 +3141,14 @@ function UnifiedSalesOrder({
             isLastRecord={isLastRecord}
             onClone={handleClone}
           />
+          <div className="px-6 pb-3 bg-background">
+            <TransactionBranchField
+              family="sales_order"
+              action={state.formData.id ? "update" : "create"}
+              value={state.formData.branch_id}
+              onChange={(branchId) => setState((prev) => ({ ...prev, formData: { ...prev.formData, branch_id: branchId } }))}
+            />
+          </div>
           <Messages innerRef={message} />
         </div>
 

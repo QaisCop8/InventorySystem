@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
 import { fetchVoucherItems, archiveAndDeleteStockVoucher } from "../_lib"
+import { authorizeStoredVoucher } from "@/lib/transaction-permissions"
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
@@ -8,6 +9,8 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     if (!id) {
       return NextResponse.json({ error: "معرف السند غير صالح" }, { status: 400 })
     }
+    const authorization = await authorizeStoredVoucher(request, id, "view")
+    if (!authorization.ok) return authorization.response
 
     const rows = await sql`SELECT * FROM voucher_header_tbl WHERE id = ${id}`
     if (rows.length === 0) {
@@ -30,6 +33,8 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     if (!id) {
       return NextResponse.json({ error: "معرف السند غير صالح" }, { status: 400 })
     }
+    const authorization = await authorizeStoredVoucher(request, id, "view")
+    if (!authorization.ok) return authorization.response
 
     const result = await sql`
       UPDATE voucher_header_tbl SET is_printed = 1 WHERE id = ${id} AND status = 2
@@ -54,6 +59,8 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
     if (!id) {
       return NextResponse.json({ error: "معرف السند غير صالح" }, { status: 400 })
     }
+    const authorization = await authorizeStoredVoucher(request, id, "delete")
+    if (!authorization.ok) return authorization.response
 
     const result = await archiveAndDeleteStockVoucher(id)
     if (result.error) {

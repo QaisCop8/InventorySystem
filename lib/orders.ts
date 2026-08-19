@@ -105,6 +105,7 @@ export interface PurchaseOrder {
   attachments?: string
   created_at: Date
   updated_at: Date
+  branch_id?: number | null
 }
 
 export interface OrderItem {
@@ -146,7 +147,7 @@ export interface OrderFilters {
 
 
 export async function getSalesOrders(filters: any = {}) {
-  const { search = null, status = null, salesman = null, dateFrom = null, dateTo = null, customerId = null, order_type = null } = filters;
+  const { search = null, status = null, salesman = null, dateFrom = null, dateTo = null, customerId = null, order_type = null, branchId = null } = filters;
 
   const whereClauses: string[] = [];
   const params: any[] = [];
@@ -186,6 +187,11 @@ export async function getSalesOrders(filters: any = {}) {
   if (customerId) {
     whereClauses.push(`so.customer_id = $${paramIndex}`);
     params.push(customerId);
+    paramIndex++;
+  }
+  if (branchId) {
+    whereClauses.push(`so.branch_id = $${paramIndex}`);
+    params.push(branchId);
     paramIndex++;
   }
 
@@ -776,6 +782,7 @@ export async function createOrder(
 }
 export async function createPurchaseOrder(orderData: Partial<PurchaseOrder>, items: Partial<OrderItem>[]) {
   try {
+    await sql`ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS branch_id INTEGER`
     // Generate order number if not provided
     if (!orderData.order_number) {
       const lastOrder = await sql`
@@ -799,13 +806,13 @@ export async function createPurchaseOrder(orderData: Partial<PurchaseOrder>, ite
       INSERT INTO purchase_orders (
         order_number, order_date, supplier_id, supplier_name, salesman,
         total_amount, currency_code, currency_name, exchange_rate,
-        workflow_status, expected_delivery_date, manual_document, notes
+        workflow_status, expected_delivery_date, manual_document, notes, branch_id
       ) VALUES (
         ${orderData.order_number}, ${orderData.order_date}, ${orderData.supplier_id},
         ${orderData.supplier_name}, ${orderData.salesman}, ${orderData.total_amount},
         ${orderData.currency_code}, ${orderData.currency_name}, ${orderData.exchange_rate},
         ${orderData.workflow_status || "pending"}, ${orderData.expected_delivery_date || null},
-        ${orderData.manual_document || null}, ${orderData.notes || null}
+        ${orderData.manual_document || null}, ${orderData.notes || null}, ${orderData.branch_id ?? null}
       )
       RETURNING *
     `

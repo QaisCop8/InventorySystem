@@ -36,6 +36,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator"
 import { FileText, Package, Calculator, MessageSquare, Wallet, TrendingUp, Percent } from "lucide-react"
 import { readVoucherClipboard, writeVoucherClipboard, type VoucherClipboardPayload } from "@/lib/voucher-clipboard"
+import TransactionBranchField from "@/components/common/transaction-branch-field"
 
 // vch_type per voucher_types_tbl (app/api/sales-vouchers/_lib.ts, IDs 16-23) — هذا المكوّن يخدم
 // الأنواع الثمانية جميعها الآن عبر خاصية voucherType (بنفس أسلوب unified-stock-voucher.tsx مع
@@ -165,6 +166,7 @@ export interface SalesDeliveryRecord {
   vch_code: string
   vch_date: string
   vch_book_id: number | null
+  branch_id: number | null
   currency_id: number | null
   rate: number
   account_id: number | null
@@ -2328,6 +2330,8 @@ export default function UnifiedSalesDelivery({
               )}
             </DialogTitle>
           </DialogHeader>
+
+          <TransactionBranchField voucherType={voucherType} action={form.id ? "update" : "create"} value={form.branch_id} onChange={(id) => onFormChange("branch_id", id)} disabled={isLocked} />
 
           <div className="sticky top-0 z-40 mb-3 rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-teal-50 shadow-md">
             <div className="flex flex-wrap items-center justify-between gap-4 p-4">

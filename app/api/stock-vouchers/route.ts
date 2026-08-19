@@ -25,6 +25,7 @@ import {
 // مستخدم آخر) — وقاية من حلقة لا نهائية في الحالة النادرة لفشل توليد رقم صالح باستمرار.
 const MAX_CODE_RETRY_ATTEMPTS = 5
 import { saveJournalRows, validateJournalAccountCurrencies } from "../receipts/_lib"
+import { authorizeTransaction, transactionFamilyForVoucherType } from "@/lib/transaction-permissions"
 
 export async function GET(request: NextRequest) {
   try {
@@ -32,10 +33,14 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url)
     const vchType = Number(searchParams.get("vch_type") || STOCK_VOUCHER_TYPES[0])
+    const family = transactionFamilyForVoucherType(vchType)
+    if (!family) return NextResponse.json({ error: "نوع الحركة غير صالح" }, { status: 400 })
+    const authorization = await authorizeTransaction(request, family, "view", searchParams.get("branch_id"))
+    if (!authorization.ok) return authorization.response
 
     const rows = await sql`
       SELECT * FROM voucher_header_tbl
-      WHERE vch_type = ${vchType} AND status != 3
+      WHERE vch_type = ${vchType} AND status != 3 AND branch_id = ${authorization.branchId}
       ORDER BY id DESC
     `
 
@@ -50,6 +55,14 @@ export async function POST(request: NextRequest) {
   try {
     await ensureTables()
     const data = await request.json()
+    const family = transactionFamilyForVoucherType(Number(data.vch_type))
+    if (!family) return NextResponse.json({ error: "نوع الحركة غير صالح" }, { status: 400 })
+    const authorization = await authorizeTransaction(request, family, "create", data.branch_id)
+    if (!authorization.ok) return authorization.response
+    if (Number(data.status || 1) === 2) {
+      const posting = await authorizeTransaction(request, family, "post", authorization.branchId)
+      if (!posting.ok) return posting.response
+    }
 
     const vchType = Number(data.vch_type)
     if (!STOCK_VOUCHER_TYPES.includes(vchType as any) || !data.vch_code || !data.vch_date) {
@@ -139,12 +152,12 @@ export async function POST(request: NextRequest) {
     const status = Number(data.status || 1)
     const result = await sql`
       INSERT INTO voucher_header_tbl (
-        vch_type, vch_code, vch_date, vch_book_id, currency_id, rate,
+        vch_type, vch_code, vch_date, vch_book_id, branch_id, currency_id, rate,
         account_id, customer_name, to_store_id, from_store_id,
         amount, manual_voucher, manual_date, note, status, vch_status, is_printed,
         insert_user
       ) VALUES (
-        ${vchType}, ${vchCode}, ${data.vch_date}, ${data.vch_book_id || null}, ${data.currency_id || null}, ${Number(data.rate || 1)},
+        ${vchType}, ${vchCode}, ${data.vch_date}, ${data.vch_book_id || null}, ${authorization.branchId}, ${data.currency_id || null}, ${Number(data.rate || 1)},
         ${data.account_id || null}, ${data.customer_name || ""}, ${data.to_store_id || null}, ${data.from_store_id || null},
         ${amount}, ${data.manual_voucher || ""}, ${data.manual_date || null}, ${data.note || ""}, ${status}, ${status === 2 ? 2 : 1}, ${Number(data.is_printed || 0)},
         ${data.insert_user || null}
@@ -173,6 +186,15 @@ export async function PUT(request: NextRequest) {
   try {
     await ensureTables()
     const data = await request.json()
+    const family = transactionFamilyForVoucherType(Number(data.vch_type))
+    if (!family) return NextResponse.json({ error: "نوع الحركة غير صالح" }, { status: 400 })
+    const action = Number(data.status) === 3 ? "delete" : "update"
+    const authorization = await authorizeTransaction(request, family, action, data.branch_id)
+    if (!authorization.ok) return authorization.response
+    if (Number(data.status) === 2) {
+      const posting = await authorizeTransaction(request, family, "post", authorization.branchId)
+      if (!posting.ok) return posting.response
+    }
 
     if (!data.id) {
       return NextResponse.json({ error: "معرف السند مطلوب" }, { status: 400 })
@@ -285,6 +307,7 @@ export async function PUT(request: NextRequest) {
         vch_code = ${data.vch_code},
         vch_date = ${data.vch_date},
         vch_book_id = ${data.vch_book_id || null},
+        branch_id = ${authorization.branchId},
         currency_id = ${data.currency_id || null},
         rate = ${Number(data.rate || 1)},
         account_id = ${data.account_id || null},

@@ -31,6 +31,7 @@ import Util from "@/components/common/Util"
 import { useToast } from "@/hooks/use-toast"
 import PrimeDropdown from "@/components/common/FocusDropdown"
 import { useAuth } from "@/components/auth/auth-context"
+import TransactionBranchField from "@/components/common/transaction-branch-field"
 
 export interface VoucherJournalRow {
   account_id: number | null
@@ -83,6 +84,7 @@ export interface VoucherRecord {
   vch_code: string
   vch_date: string
   vch_book_id: number | null
+  branch_id: number | null
   currency_id: number | null
   rate: number
   account_id: number | null
@@ -1772,6 +1774,8 @@ export default function UnifiedReceiptVoucher({
                 )}
               </DialogTitle>
             </DialogHeader>
+
+            <TransactionBranchField voucherType={form.vch_type} action={form.id ? "update" : "create"} value={form.branch_id} onChange={(id) => onFormChange("branch_id", id)} disabled={isLocked} />
 
             <Messages innerRef={messagesRef} />
 

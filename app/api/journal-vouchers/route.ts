@@ -10,14 +10,18 @@ import {
   validateJournalAccountCurrencies,
   type JournalRow,
 } from "./_lib"
+import { authorizeTransaction } from "@/lib/transaction-permissions"
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     await ensureTables()
+    const searchParams = new URL(request.url).searchParams
+    const authorization = await authorizeTransaction(request, "journal", "view", searchParams.get("branch_id"))
+    if (!authorization.ok) return authorization.response
 
     const rows = await sql`
       SELECT * FROM voucher_header_tbl
-      WHERE vch_type = ${JOURNAL_VCH_TYPE} AND status != 3
+      WHERE vch_type = ${JOURNAL_VCH_TYPE} AND status != 3 AND branch_id = ${authorization.branchId}
       ORDER BY id DESC
     `
 
@@ -42,6 +46,12 @@ export async function POST(request: NextRequest) {
   try {
     await ensureTables()
     const data = await request.json()
+    const authorization = await authorizeTransaction(request, "journal", "create", data.branch_id)
+    if (!authorization.ok) return authorization.response
+    if (Number(data.status || 1) === 2) {
+      const posting = await authorizeTransaction(request, "journal", "post", authorization.branchId)
+      if (!posting.ok) return posting.response
+    }
 
     if (!data.vch_code || !data.vch_date) {
       return NextResponse.json({ error: "بيانات السند غير مكتملة" }, { status: 400 })
@@ -67,11 +77,11 @@ export async function POST(request: NextRequest) {
     const insertStatus = Number(data.status || 1)
     const result = await sql`
       INSERT INTO voucher_header_tbl (
-        vch_type, vch_code, vch_date, vch_book_id, currency_id, rate,
+        vch_type, vch_code, vch_date, vch_book_id, branch_id, currency_id, rate,
         amount, payment_classification_id, salesman_id, manual_voucher, manual_date, note, status, vch_status, is_printed,
         insert_user
       ) VALUES (
-        ${JOURNAL_VCH_TYPE}, ${data.vch_code}, ${data.vch_date}, ${data.vch_book_id || null}, ${data.currency_id || null}, ${Number(data.rate || 1)},
+        ${JOURNAL_VCH_TYPE}, ${data.vch_code}, ${data.vch_date}, ${data.vch_book_id || null}, ${authorization.branchId}, ${data.currency_id || null}, ${Number(data.rate || 1)},
         ${amount}, ${data.payment_classification_id || null}, ${data.salesman_id || null}, ${data.manual_voucher || ""}, ${data.manual_date || null}, ${data.note || ""}, ${insertStatus}, ${insertStatus === 2 ? 2 : 1}, ${Number(data.is_printed || 0)},
         ${data.insert_user || null}
       )
@@ -94,6 +104,13 @@ export async function PUT(request: NextRequest) {
   try {
     await ensureTables()
     const data = await request.json()
+    const action = Number(data.status) === 3 ? "delete" : "update"
+    const authorization = await authorizeTransaction(request, "journal", action, data.branch_id)
+    if (!authorization.ok) return authorization.response
+    if (Number(data.status) === 2) {
+      const posting = await authorizeTransaction(request, "journal", "post", authorization.branchId)
+      if (!posting.ok) return posting.response
+    }
 
     if (!data.id) return NextResponse.json({ error: "معرف السند مطلوب" }, { status: 400 })
     if (!data.vch_code || !data.vch_date) {
@@ -137,6 +154,7 @@ export async function PUT(request: NextRequest) {
         vch_code = ${data.vch_code},
         vch_date = ${data.vch_date},
         vch_book_id = ${data.vch_book_id || null},
+        branch_id = ${authorization.branchId},
         currency_id = ${data.currency_id || null},
         rate = ${Number(data.rate || 1)},
         amount = ${amount},

@@ -83,7 +83,7 @@ const emptyItemRow: SalesVoucherItemRow = {
 }
 
 export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
-  const { user } = useAuth()
+  const { user, activeBranchId } = useAuth()
   const TITLE = SALES_VOUCHER_TYPE_LABELS[voucherType].title
   const LIST_TITLE = SALES_VOUCHER_TYPE_LABELS[voucherType].listTitle
 
@@ -136,6 +136,7 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
     vch_code: "",
     vch_date: new Date().toISOString().slice(0, 10),
     vch_book_id: null,
+    branch_id: activeBranchId ?? null,
     currency_id: null,
     rate: 1,
     account_id: null,

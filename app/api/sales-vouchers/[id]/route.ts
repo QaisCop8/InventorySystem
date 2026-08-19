@@ -8,6 +8,7 @@ import {
   resolveSalesVoucherJournalTypes,
   ITEM_ACCOUNT_VCH_TYPES,
 } from "../_lib"
+import { authorizeStoredVoucher } from "@/lib/transaction-permissions"
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -16,6 +17,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     if (!id) {
       return NextResponse.json({ error: "معرف السند غير صالح" }, { status: 400 })
     }
+
+    const authorization = await authorizeStoredVoucher(request, id, "view")
+    if (!authorization.ok) return authorization.response
 
     const rows = await sql`
       SELECT vh.*, EXISTS(
@@ -75,6 +79,9 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       return NextResponse.json({ error: "معرف السند غير صالح" }, { status: 400 })
     }
 
+    const authorization = await authorizeStoredVoucher(request, id, "view")
+    if (!authorization.ok) return authorization.response
+
     const result = await sql`
       UPDATE voucher_header_tbl SET is_printed = 1 WHERE id = ${id} AND status = 2
       RETURNING id
@@ -97,6 +104,9 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     if (!id) {
       return NextResponse.json({ error: "معرف السند غير صالح" }, { status: 400 })
     }
+
+    const authorization = await authorizeStoredVoucher(request, id, "delete")
+    if (!authorization.ok) return authorization.response
 
     const result = await archiveAndDeleteSalesVoucher(id)
     if (result.error) {

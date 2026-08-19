@@ -1,10 +1,16 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getTenantPool } from "@/lib/database"
 import { deleteSalesOrder, updatePrintSalesOrder } from "@/lib/orders"
+import { authorizeTransaction } from "@/lib/transaction-permissions"
 
 async function getOrderType(id: number): Promise<number | null> {
   const result = await (await getTenantPool()).query(`SELECT order_type FROM orders WHERE id = $1`, [id])
   return result.rows[0]?.order_type ?? null
+}
+
+async function getOrderBranch(id: number): Promise<number | null> {
+  const result = await (await getTenantPool()).query(`SELECT branch_id FROM orders WHERE id = $1`, [id])
+  return result.rows[0]?.branch_id ?? null
 }
 
 export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
@@ -19,6 +25,8 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     }
 
     if (data.printed) {
+      const authorization = await authorizeTransaction(request, "sales_order", "update", await getOrderBranch(id))
+      if (!authorization.ok) return authorization.response
       await updatePrintSalesOrder(id, orderType, userId)
     }
 
@@ -39,6 +47,8 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
       return NextResponse.json({ error: "الطلبية غير موجودة" }, { status: 404 })
     }
 
+    const authorization = await authorizeTransaction(request, "sales_order", "delete", await getOrderBranch(id))
+    if (!authorization.ok) return authorization.response
     await deleteSalesOrder(id, orderType, userId)
 
     return NextResponse.json({ success: true })

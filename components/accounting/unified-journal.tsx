@@ -21,6 +21,7 @@ import Util from "@/components/common/Util"
 import { useToast } from "@/hooks/use-toast"
 import { CellRange, KeyAction } from "@grapecity/wijmo.grid"
 import PrimeDropdown from "@/components/common/FocusDropdown"
+import TransactionBranchField from "@/components/common/transaction-branch-field"
 
 const voucherTabTriggerClass =
   "data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-teal-600 data-[state=active]:text-white data-[state=active]:shadow-md"
@@ -44,6 +45,7 @@ export interface JournalVoucherRecord {
   vch_code: string
   vch_date: string
   vch_book_id: number | null
+  branch_id: number | null
   currency_id: number | null
   rate: number
   amount?: number
@@ -875,6 +877,8 @@ export default function UnifiedJournal({
                 )}
               </DialogTitle>
             </DialogHeader>
+
+            <TransactionBranchField voucherType={1} action={form.id ? "update" : "create"} value={form.branch_id} onChange={(id) => onFormChange("branch_id", id)} disabled={isLocked} />
 
             <Messages innerRef={messagesRef} />
 

@@ -31,6 +31,7 @@ import Util from "@/components/common/Util"
 import { useToast } from "@/hooks/use-toast"
 import { FileText, Package, Calculator, MessageSquare, RefreshCw } from "lucide-react"
 import { readVoucherClipboard, writeVoucherClipboard, type VoucherClipboardPayload } from "@/lib/voucher-clipboard"
+import TransactionBranchField from "@/components/common/transaction-branch-field"
 
 // vch_type per voucher_types_tbl: 12=سند ادخال بضاعة, 13=سند اخراج بضاعة,
 // 14=ارسالية داخلية, 15=سند استعمال.
@@ -103,6 +104,7 @@ export interface VoucherRecord {
   vch_code: string
   vch_date: string
   vch_book_id: number | null
+  branch_id: number | null
   currency_id: number | null
   rate: number
   account_id: number | null
@@ -2071,6 +2073,8 @@ export default function UnifiedStockVoucher({
               )}
             </DialogTitle>
           </DialogHeader>
+
+          <TransactionBranchField voucherType={voucherType} action={form.id ? "update" : "create"} value={form.branch_id} onChange={(id) => onFormChange("branch_id", id)} disabled={isLocked} />
 
           {/* لا يُستخدَم <fieldset disabled={isLocked}> هنا (كما في تبويبات الأصناف) عمداً: يحتاج
               حقل "رقم السند" البقاء قابلاً للتعديل حتى لسند مُقفَل (مُرحَّل/ملغى) للتنقل إلى سند آخر

@@ -61,6 +61,7 @@ export const ensureTables = async () => {
   await sql`ALTER TABLE voucher_header_tbl ALTER COLUMN vch_code TYPE VARCHAR(30)`
 
   await sql`ALTER TABLE voucher_header_tbl ADD COLUMN IF NOT EXISTS vch_book_id INTEGER`
+  await sql`ALTER TABLE voucher_header_tbl ADD COLUMN IF NOT EXISTS branch_id INTEGER`
   // account_id: الحساب/الزبون الرئيسي للسند (سُمِّي customer_account_id سابقاً؛ أُعيدت تسميته
   // أعلاه ليطابق المرجع). to_account_id يبقى منفصلاً عمداً (لم يُدمَج فيه) — الاثنان يُدخَلان
   // فعلياً بحقلين مستقلين في الواجهة وقد يختلفان (مثال: القبض من زبون لكن الإقفال على حساب

@@ -25,6 +25,7 @@ import {
   resolveSalesVoucherJournalTypes,
 } from "./_lib"
 import { validateItemReferences } from "@/app/api/stock-vouchers/_lib"
+import { authorizeTransaction, transactionFamilyForVoucherType } from "@/lib/transaction-permissions"
 
 const MAX_CODE_RETRY_ATTEMPTS = 5
 
@@ -34,6 +35,10 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url)
     const vchType = Number(searchParams.get("vch_type") || SALES_VOUCHER_TYPES[1])
+    const family = transactionFamilyForVoucherType(vchType)
+    if (!family) return NextResponse.json({ error: "نوع الحركة غير صالح" }, { status: 400 })
+    const authorization = await authorizeTransaction(request, family, "view", searchParams.get("branch_id"))
+    if (!authorization.ok) return authorization.response
 
     const rows = await sql`
       SELECT vh.*, EXISTS(
@@ -46,7 +51,7 @@ export async function GET(request: NextRequest) {
           )
       ) AS has_linked_invoice
       FROM voucher_header_tbl vh
-      WHERE vh.vch_type = ${vchType} AND vh.status != 3
+      WHERE vh.vch_type = ${vchType} AND vh.status != 3 AND vh.branch_id = ${authorization.branchId}
       ORDER BY vh.id DESC
     `
 
@@ -386,6 +391,14 @@ export async function POST(request: NextRequest) {
   try {
     await ensureTables()
     const data = await request.json()
+    const family = transactionFamilyForVoucherType(Number(data.vch_type))
+    if (!family) return NextResponse.json({ error: "نوع الحركة غير صالح" }, { status: 400 })
+    const authorization = await authorizeTransaction(request, family, "create", data.branch_id)
+    if (!authorization.ok) return authorization.response
+    if (Number(data.status || 1) === 2) {
+      const posting = await authorizeTransaction(request, family, "post", authorization.branchId)
+      if (!posting.ok) return posting.response
+    }
     const vchType = Number(data.vch_type)
     const items = Array.isArray(data.items) ? data.items.filter((i: any) => i?.product_id) : []
 
@@ -443,7 +456,7 @@ export async function POST(request: NextRequest) {
 
     const result = await sql`
       INSERT INTO voucher_header_tbl (
-        vch_type, vch_code, vch_date, vch_book_id, currency_id, rate,
+        vch_type, vch_code, vch_date, vch_book_id, branch_id, currency_id, rate,
         account_id, customer_name, to_store_id,
         amount, manual_voucher, manual_date, note, status, vch_status, is_printed,
         insert_user, shipping_address, salesman_id, linked_order_id,
@@ -451,7 +464,7 @@ export async function POST(request: NextRequest) {
         cash_account_id, vat_classification_id, invoice_type, vat_included, is_maqasa, maqasa_type,
         phone, due_date, is_exported_sales, location_id
       ) VALUES (
-        ${vchType}, ${vchCode}, ${data.vch_date}, ${data.vch_book_id || null}, ${data.currency_id || null}, ${Number(data.rate || 1)},
+        ${vchType}, ${vchCode}, ${data.vch_date}, ${data.vch_book_id || null}, ${authorization.branchId}, ${data.currency_id || null}, ${Number(data.rate || 1)},
         ${data.account_id}, ${data.customer_name || ""}, ${data.to_store_id || null},
         ${amount}, ${data.manual_voucher || ""}, ${data.manual_date || null}, ${data.note || ""}, ${status}, ${status === 2 ? 2 : 1}, ${Number(data.is_printed || 0)},
         ${data.insert_user || null}, ${data.shipping_address || ""}, ${data.salesman_id || null}, ${data.linked_order_id || null},
@@ -505,6 +518,15 @@ export async function PUT(request: NextRequest) {
   try {
     await ensureTables()
     const data = await request.json()
+    const family = transactionFamilyForVoucherType(Number(data.vch_type))
+    if (!family) return NextResponse.json({ error: "نوع الحركة غير صالح" }, { status: 400 })
+    const action = Number(data.status) === 3 ? "delete" : "update"
+    const authorization = await authorizeTransaction(request, family, action, data.branch_id)
+    if (!authorization.ok) return authorization.response
+    if (Number(data.status) === 2) {
+      const posting = await authorizeTransaction(request, family, "post", authorization.branchId)
+      if (!posting.ok) return posting.response
+    }
     if (!data.id) return NextResponse.json({ error: "معرف السند مطلوب" }, { status: 400 })
 
     const vchType = Number(data.vch_type)
@@ -569,6 +591,7 @@ export async function PUT(request: NextRequest) {
         vch_code = ${data.vch_code},
         vch_date = ${data.vch_date},
         vch_book_id = ${data.vch_book_id || null},
+        branch_id = ${authorization.branchId},
         currency_id = ${data.currency_id || null},
         rate = ${Number(data.rate || 1)},
         account_id = ${data.account_id || null},
