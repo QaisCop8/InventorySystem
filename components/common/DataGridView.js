@@ -32,6 +32,11 @@ import { Toast } from 'primereact/toast';
 import 'primeicons/primeicons.css';
 import './DataGridView.scss';
 import * as wjSpark from '@grapecity/wijmo.chart.finance.analytics';
+
+const wijmoLicenseKey = typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_WIJMO_LICENSE_KEY : '';
+if (wijmoLicenseKey) {
+  wjcCore.setLicenseKey(wijmoLicenseKey);
+}
 // import './DataGridView.css';
 
 const defaultStrings = {
@@ -138,10 +143,6 @@ export default class DataGridView extends React.Component {
     // because the grid wasn't fully initialized yet.
     try {
       window.addEventListener('resize', this._updateGridLayout);
-      if (this.flex) {
-        // FlexGrid.addEventListener(target, type, handler)
-        this.flex.addEventListener(window, 'resize', this._updateGridLayout);
-      }
     } catch (err) {
       // Defensive fallback: schedule registration on next tick if something goes wrong now.
       console.error('[v0] Failed to attach resize handlers, deferring:', err);
@@ -150,7 +151,6 @@ export default class DataGridView extends React.Component {
         if (this._isUnmounted) return;
         try {
           window.addEventListener('resize', this._updateGridLayout);
-          if (this.flex) this.flex.addEventListener(window, 'resize', this._updateGridLayout);
         } catch (e) {
           console.error('[v0] Deferred resize handler registration failed:', e);
         }
@@ -203,14 +203,6 @@ export default class DataGridView extends React.Component {
         window.removeEventListener('system-settings-updated', this._onSystemSettingsUpdated);
       }
       window.removeEventListener('datagrid-settings-updated', this._applyUserGridSettings);
-    } catch (e) {
-      /* ignore */
-    }
-
-    try {
-      if (this.flex && this.flex.removeEventListener) {
-        this.flex.removeEventListener(window, 'resize', this._updateGridLayout);
-      }
     } catch (e) {
       /* ignore */
     }
@@ -1676,7 +1668,7 @@ createButtonTemplate = (col) => (ctx) => {
       }
 
       this.flex.headersVisibility = narrow ? 'None' : this.props.headersVisibility ? this.props.headersVisibility : 'Column';
-      this.setState({ narrow: narrow });
+      if (this.state.narrow !== narrow) this.setState({ narrow: narrow });
     }
   };
 

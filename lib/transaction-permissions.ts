@@ -67,6 +67,13 @@ export function transactionPermissionName(family: TransactionFamily, action: Tra
 
 export async function ensureTransactionPermission(family: TransactionFamily, action: TransactionAction): Promise<number> {
   await ensurePermissionTables(await resolveCurrentDbName())
+  await sql`
+    SELECT setval(
+      pg_get_serial_sequence('access_category', 'id'),
+      GREATEST(COALESCE((SELECT MAX(id) FROM access_category), 0), 1),
+      true
+    )
+  `
   const categoryName = "صلاحيات الحركات"
   const permissionName = transactionPermissionName(family, action)
   const categoryRows = await sql`

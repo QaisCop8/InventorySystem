@@ -148,7 +148,7 @@ export async function getSalesVouchers(filters: any = {}) {
 			COALESCE(SUM(vi.quantity), 0) AS total_quantity
 		FROM vouchers v
 		LEFT JOIN customers c ON v.customer_id = c.id
-		LEFT JOIN voucher_items vi ON v.id = vi.voucher_id
+		LEFT JOIN voucher_items_tbl vi ON v.id = vi.voucher_id
 		WHERE ${whereClauses.join(" AND ")}
 		GROUP BY v.id, c.name
 		ORDER BY v.created_at DESC

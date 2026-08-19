@@ -309,8 +309,13 @@ function HomePageContent() {
   }, [])
 
   useEffect(() => {
+    let frameId: number | null = null
+    let pendingRoots: HTMLElement[] = []
+
     const removeLicenseNodes = (root: ParentNode) => {
-      const elements = root instanceof HTMLElement ? [root, ...root.querySelectorAll<HTMLElement>("*")] : root.querySelectorAll<HTMLElement>("*")
+      const elements = root instanceof HTMLElement
+        ? [root, ...root.querySelectorAll<HTMLElement>("*")]
+        : Array.from(root.querySelectorAll<HTMLElement>("*"))
       elements.forEach((element) => {
         const text = element.innerText
         const isLicenseText = text?.includes("Wijmo Evaluation") || text?.includes("Wijmo License")
@@ -322,18 +327,29 @@ function HomePageContent() {
       })
     }
 
-    // One initial scan, then inspect only nodes added by Wijmo. The previous
-    // implementation rescanned the entire document after every DOM mutation.
-    removeLicenseNodes(document.body)
+    //removeLicenseNodes(document.body)
     const observer = new MutationObserver((records) => {
       records.forEach((record) => record.addedNodes.forEach((node) => {
-        if (node instanceof HTMLElement) removeLicenseNodes(node)
+        if (node instanceof HTMLElement) pendingRoots.push(node)
       }))
-    })
-    observer.observe(document.body, { childList: true, subtree: true });
 
-    return () => observer.disconnect();
-  }, []);
+      if (frameId !== null || pendingRoots.length === 0) return
+      frameId = window.requestAnimationFrame(() => {
+        const roots = pendingRoots
+        pendingRoots = []
+        frameId = null
+        roots.forEach(removeLicenseNodes)
+      })
+    })
+    observer.observe(document.body, { childList: true, subtree: true })
+
+    return () => {
+      observer.disconnect()
+      pendingRoots = []
+      if (frameId !== null) window.cancelAnimationFrame(frameId)
+    }
+  }, [])
+
   const [user, setUser] = useState<any>(null)
 
   useEffect(() => {
