@@ -119,6 +119,8 @@ export default class DataGridView extends React.Component {
   }
 
   componentDidMount = () => {
+    this._isUnmounted = false;
+    this._deferredInitTimer = null;
     //GridGlobalization();
     
     this.setState(
@@ -143,7 +145,9 @@ export default class DataGridView extends React.Component {
     } catch (err) {
       // Defensive fallback: schedule registration on next tick if something goes wrong now.
       console.error('[v0] Failed to attach resize handlers, deferring:', err);
-      setTimeout(() => {
+      this._deferredInitTimer = setTimeout(() => {
+        this._deferredInitTimer = null;
+        if (this._isUnmounted) return;
         try {
           window.addEventListener('resize', this._updateGridLayout);
           if (this.flex) this.flex.addEventListener(window, 'resize', this._updateGridLayout);
@@ -175,6 +179,23 @@ export default class DataGridView extends React.Component {
   };
 
   componentWillUnmount() {
+    this._isUnmounted = true;
+    if (this._deferredInitTimer) {
+      clearTimeout(this._deferredInitTimer);
+      this._deferredInitTimer = null;
+    }
+    try {
+      if (this.columnTooltips && this.columnTooltips.dispose) {
+        this.columnTooltips.dispose();
+        this.columnTooltips = null;
+      }
+      if (typeof window !== 'undefined' && window.grid === this.flex) {
+        delete window.grid;
+      }
+    } catch (e) {
+      /* ignore */
+    }
+
     try {
       window.removeEventListener('resize', this._updateGridLayout);
       window.removeEventListener('resize', this.updatePredicate);
@@ -879,6 +900,7 @@ createButtonTemplate = (col) => (ctx) => {
   };
 
   initialized(flexgrid) {
+    if (this._isUnmounted) return;
     this.flex = flexgrid;
     // Defensive init: sometimes Wijmo initializes before the host has layout/size
     // causing assertions. If the host is not sized yet or initialization throws,
@@ -894,7 +916,10 @@ createButtonTemplate = (col) => (ctx) => {
           this._initAttempts = attempts + 1;
           const delay = 50 * Math.pow(2, attempts); // 50,100,200,...
           console.warn('[v0] FlexGrid host has no size yet, deferring initialization by', delay, 'ms (attempt', this._initAttempts, ')');
-          setTimeout(() => this.initialized(flexgrid), delay);
+          this._deferredInitTimer = setTimeout(() => {
+            this._deferredInitTimer = null;
+            this.initialized(flexgrid);
+          }, delay);
           return;
         }
       }
@@ -1601,6 +1626,7 @@ createButtonTemplate = (col) => (ctx) => {
   }
 
   _updateGridLayout = () => {
+    if (this._isUnmounted || !this.flex || !this.flex.hostElement) return;
     const schemePtr = schemeHelper.create(this.props.scheme);
     // show/hide columns
     //let narrow = this.flex ? this.flex.hostElement.clientWidth < 400 && !this.restoreLayout : false;

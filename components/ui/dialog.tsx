@@ -9,6 +9,20 @@ import { useWorkspaceDialog } from "@/contexts/workspace-dialog-context"
 
 function Dialog(props: React.ComponentProps<typeof DialogPrimitive.Root>) {
   const { confined } = useWorkspaceDialog()
+  React.useEffect(() => {
+    if (props.open) return
+
+    const cleanupTimer = window.setTimeout(() => {
+      const hasOpenDialog = document.querySelector('[role="dialog"][data-state="open"]')
+      const hasOpenOverlay = document.querySelector('[data-radix-dialog-overlay][data-state="open"]')
+      if (!hasOpenDialog && !hasOpenOverlay && document.body.style.pointerEvents === "none") {
+        document.body.style.pointerEvents = ""
+      }
+    }, 250)
+
+    return () => window.clearTimeout(cleanupTimer)
+  }, [props.open])
+
   return <DialogPrimitive.Root {...props} modal={props.modal ?? !confined} />
 }
 
@@ -29,6 +43,7 @@ const DialogOverlay = React.forwardRef<
   return (
     <DialogPrimitive.Overlay
       ref={ref}
+      data-radix-dialog-overlay="true"
       className={cn(
         confined ? "absolute" : "fixed",
         confined ? "pointer-events-none" : "pointer-events-auto",

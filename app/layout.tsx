@@ -65,8 +65,8 @@ export const metadata: Metadata = {
     title: "أساس للحلول المحاسبية",
   },
   icons: {
-    icon: "/icon-192.png",
-    apple: "/icon-192.png",
+    icon: "/icon-192.jpg",
+    apple: "/icon-192.jpg",
   },
   other: {
     "mobile-web-app-capable": "yes",
