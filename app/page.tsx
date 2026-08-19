@@ -313,21 +313,28 @@ function HomePageContent() {
     let pendingRoots: HTMLElement[] = []
 
     const removeLicenseNodes = (root: ParentNode) => {
+      if (root instanceof HTMLElement && root.parentElement === document.body) {
+        const rootText = root.textContent || ""
+        if (rootText.includes("Wijmo License") || rootText.includes("The Wijmo license")) {
+          root.remove()
+          return
+        }
+      }
+
       const elements = root instanceof HTMLElement
         ? [root, ...root.querySelectorAll<HTMLElement>("*")]
         : Array.from(root.querySelectorAll<HTMLElement>("*"))
       elements.forEach((element) => {
-        const text = element.innerText
+        const text = element.textContent
         const isLicenseText = text?.includes("Wijmo Evaluation") || text?.includes("Wijmo License")
         const hasMatchingChild = Array.from(element.children).some((child) => {
-          const childText = (child as HTMLElement).innerText
+          const childText = child.textContent
           return childText?.includes("Wijmo Evaluation") || childText?.includes("Wijmo License")
         })
         if (isLicenseText && !hasMatchingChild) element.remove()
       })
     }
 
-    //removeLicenseNodes(document.body)
     const observer = new MutationObserver((records) => {
       records.forEach((record) => record.addedNodes.forEach((node) => {
         if (node instanceof HTMLElement) pendingRoots.push(node)
@@ -338,7 +345,9 @@ function HomePageContent() {
         const roots = pendingRoots
         pendingRoots = []
         frameId = null
+        observer.disconnect()
         roots.forEach(removeLicenseNodes)
+        observer.observe(document.body, { childList: true, subtree: true })
       })
     })
     observer.observe(document.body, { childList: true, subtree: true })

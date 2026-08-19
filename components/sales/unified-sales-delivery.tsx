@@ -34,7 +34,7 @@ import Util from "@/components/common/Util"
 import { useToast } from "@/hooks/use-toast"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
-import { FileText, Package, Calculator, MessageSquare, Wallet, TrendingUp, Percent } from "lucide-react"
+import { FileText, Package, Calculator, MessageSquare, UserRound, Wallet, TrendingUp, Percent } from "lucide-react"
 import { readVoucherClipboard, writeVoucherClipboard, type VoucherClipboardPayload } from "@/lib/voucher-clipboard"
 import TransactionBranchField from "@/components/common/transaction-branch-field"
 
@@ -2271,7 +2271,7 @@ export default function UnifiedSalesDelivery({
       }}
     >
       <DialogContent
-          className="sales-delivery-form flex h-[96vh] w-[94vw] max-w-[1500px] max-h-[96vh] flex-col overflow-hidden p-0 transition-shadow"
+          className="sales-delivery-form flex h-[92vh] w-[90vw] max-w-[1400px] max-h-[92vh] flex-col overflow-hidden p-0 text-[13px] transition-shadow [&_label]:text-xs [&_input:not([type=checkbox])]:h-8 [&_input:not([type=checkbox])]:px-2.5 [&_.p-dropdown]:min-h-8 [&_.p-dropdown-label]:py-1.5 [&_.p-calendar]:h-8 [&_.p-calendar_input]:h-8"
           dir="rtl"
           onPointerDownOutside={(event) => event.preventDefault()}
           onInteractOutside={(event) => event.preventDefault()}
@@ -2303,14 +2303,14 @@ export default function UnifiedSalesDelivery({
         />
 
         <div
-          className="relative min-h-0 flex-1 overflow-y-auto rounded-b-3xl bg-slate-50/60 px-4 py-3 sm:px-6 sm:py-4 [&::-webkit-scrollbar]:w-0 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-transparent"
+          className="relative min-h-0 flex-1 overflow-y-auto rounded-b-3xl bg-slate-50/60 px-3 py-2 sm:px-4 sm:py-3 [&::-webkit-scrollbar]:w-0 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-transparent"
           style={{ scrollbarWidth: "none", msOverflowStyle: "none" as any }}
           onKeyDown={handleFormEnterAsTab}
         >
           <ProgressSpinner loading={isSaving || isLoading} />
           <Messages innerRef={messagesRef} />
 
-          <DialogHeader className="mb-3 overflow-hidden rounded-2xl bg-gradient-to-l from-emerald-600 via-emerald-600 to-teal-600 px-5 py-3 shadow-lg">
+          <DialogHeader className="mb-2 overflow-hidden rounded-xl bg-gradient-to-l from-emerald-600 via-emerald-600 to-teal-600 px-3 py-1.5 shadow-lg">
             <DialogTitle className="flex flex-wrap items-center gap-2 text-lg font-extrabold tracking-tight text-white sm:text-xl">
               <Package className="h-5 w-5" />
               {TITLE}
@@ -2331,15 +2331,13 @@ export default function UnifiedSalesDelivery({
             </DialogTitle>
           </DialogHeader>
 
-          <TransactionBranchField voucherType={voucherType} action={form.id ? "update" : "create"} value={form.branch_id} onChange={(id) => onFormChange("branch_id", id)} disabled={isLocked} />
-
-          <div className="sticky top-0 z-40 mb-3 rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-teal-50 shadow-md">
-            <div className="flex flex-wrap items-center justify-between gap-4 p-4">
+          <div className="sticky top-0 z-40 mb-2 rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-teal-50 shadow-md">
+            <div className="flex flex-wrap items-center justify-between gap-3 p-2.5">
               <div className="flex items-center gap-2">
                 <TrendingUp className="h-5 w-5 text-emerald-700" />
                 <span className="text-sm font-medium">{summaryLabel}</span>
               </div>
-              <div className="flex flex-wrap items-center gap-6 text-sm">
+              <div className="flex flex-wrap items-center gap-4 text-sm">
                 <div className="flex flex-col items-end">
                   <span className="text-xs text-muted-foreground">المجموع الفرعي</span>
                   <span className="font-semibold">{Util.formatNumber(totals.subtotal, Util.getSystemSetting(17))}</span>
@@ -2361,13 +2359,14 @@ export default function UnifiedSalesDelivery({
             </div>
           </div>
 
-          <div className="space-y-3 rounded-2xl border border-slate-200 bg-white p-3 sm:p-5 shadow-sm">
+          <div className="grid items-start gap-2 lg:grid-cols-2">
+            <div className="min-w-0 space-y-1.5 rounded-xl border border-slate-200 bg-white p-2 shadow-sm sm:p-2.5">
             <div className="flex items-center gap-2 text-sm font-bold text-emerald-700">
               <FileText className="h-3.5 w-3.5" />
               تفاصيل السند
             </div>
-            <div className="grid gap-3">
-              <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 md:grid-cols-5 lg:grid-cols-5">
+            <div className="grid gap-2">
+              <div className="grid gap-2 grid-cols-1 sm:grid-cols-2 md:grid-cols-4">
                 <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
                   <Label>دفتر السندات *</Label>
                   <PrimeDropdown
@@ -2406,6 +2405,16 @@ export default function UnifiedSalesDelivery({
                     onChange={(value) => onFormChange("vch_date", value)}
                   />
                 </div>
+                <TransactionBranchField
+                  voucherType={voucherType}
+                  action={form.id ? "update" : "create"}
+                  value={form.branch_id}
+                  onChange={(id) => onFormChange("branch_id", id)}
+                  disabled={isLocked}
+                />
+              </div>
+
+              <div className="grid gap-2 grid-cols-1 sm:grid-cols-2">
                 <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
                   <Label>العملة *</Label>
                   <PrimeDropdown
@@ -2437,8 +2446,36 @@ export default function UnifiedSalesDelivery({
                   />
                 </div>
               </div>
+            </div>
+            </div>
 
-              <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
+            <div className="min-w-0 space-y-1.5 rounded-xl border border-slate-200 bg-white p-2 shadow-sm sm:p-2.5">
+              <div className="flex items-center gap-2 text-sm font-bold text-emerald-700">
+                <UserRound className="h-3.5 w-3.5" />
+                تفاصيل العميل
+              </div>
+              {(voucherType === SALES_INVOICE_VCH_TYPE || voucherType === PURCHASE_INVOICE_VCH_TYPE) && (
+                <div className="grid gap-1.5 invoice-currency-dropdown-wrap sm:max-w-[50%]">
+                  <Label>نوع الفاتورة</Label>
+                  <PrimeDropdown
+                    value={form.invoice_source_type || 1}
+                    options={INVOICE_SOURCE_TYPE_OPTIONS}
+                    optionLabel="label"
+                    optionValue="value"
+                    placeholder="اختر"
+                    disabled={isLocked}
+                    className="invoice-currency-dropdown w-full"
+                    panelClassName="invoice-currency-dropdown-panel"
+                    appendTo="self"
+                    panelStyle={{ zIndex: 10000 }}
+                    onChange={(e: any) => {
+                      const value = Number(e.value) || 1
+                      handleInvoiceSourceTypeChange(value)
+                    }}
+                  />
+                </div>
+              )}
+              <div className="grid gap-2 grid-cols-1 sm:grid-cols-2">
                 <div className="col-span-1">
                   <AutoCompleteAccount
                     label={isPurchaseDeliveryVoucher ? "المورد *" : "العميل *"}
@@ -2466,7 +2503,7 @@ export default function UnifiedSalesDelivery({
                     disabled={isLocked || isFromDelivery}
                   />
                 </div>
-                <div className="col-span-2 grid gap-1.5">
+                <div className="col-span-1 grid gap-1.5">
                   <Label htmlFor="payer-name">اسم الدافع</Label>
                   <Input
                     id="payer-name"
@@ -2478,32 +2515,7 @@ export default function UnifiedSalesDelivery({
                 </div>
               </div>
 
-              <div className={`grid gap-3 ${
-                (voucherType === SALES_INVOICE_VCH_TYPE || voucherType === PURCHASE_INVOICE_VCH_TYPE)
-                  ? "grid-cols-1 sm:grid-cols-2 md:grid-cols-3"
-                  : "grid-cols-1 sm:grid-cols-2 md:grid-cols-2"
-              }`}>
-                {(voucherType === SALES_INVOICE_VCH_TYPE || voucherType === PURCHASE_INVOICE_VCH_TYPE) && (
-                  <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
-                    <Label>نوع الفاتورة</Label>
-                    <PrimeDropdown
-                      value={form.invoice_source_type || 1}
-                      options={INVOICE_SOURCE_TYPE_OPTIONS}
-                      optionLabel="label"
-                      optionValue="value"
-                      placeholder="اختر"
-                      disabled={isLocked}
-                      className="invoice-currency-dropdown w-full"
-                      panelClassName="invoice-currency-dropdown-panel"
-                      appendTo="self"
-                      panelStyle={{ zIndex: 10000 }}
-                      onChange={(e: any) => {
-                        const value = Number(e.value) || 1
-                        handleInvoiceSourceTypeChange(value)
-                      }}
-                    />
-                  </div>
-                )}
+              <div className="grid gap-2 grid-cols-1 sm:grid-cols-2">
                 <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
                   <Label>المندوب</Label>
                   <PrimeDropdown
@@ -2539,7 +2551,9 @@ export default function UnifiedSalesDelivery({
                   />
                 </div>
               </div>
+            </div>
 
+            <div className="min-w-0 space-y-1.5 rounded-xl border border-slate-200 bg-white p-2 shadow-sm sm:col-span-2 sm:p-2.5">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="grid gap-1.5">
                   <Label htmlFor="vch-manual-code">سند يدوي</Label>
@@ -2640,7 +2654,7 @@ export default function UnifiedSalesDelivery({
             </div>
           </div>
 
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-4">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-2">
             <TabsList dir="rtl" className="flex h-auto flex-wrap justify-start gap-1 bg-slate-100 p-1">
               <TabsTrigger value="items" className={voucherTabTriggerClass}>الاصناف</TabsTrigger>
               {showAccountsTab && <TabsTrigger value="accounts" className={voucherTabTriggerClass}>تفاصيل حسابات الاصناف</TabsTrigger>}
@@ -2652,7 +2666,7 @@ export default function UnifiedSalesDelivery({
             </TabsList>
 
             <fieldset disabled={isLocked} className="contents">
-              <TabsContent value="items" className="mt-4 min-h-[360px] space-y-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+              <TabsContent value="items" className="mt-2 min-h-[300px] space-y-2 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
                 <div className="w-full max-w-full overflow-x-auto">
                   <DataGridView
                     allowSorting={false}

@@ -52,7 +52,7 @@ export function WorkspacePane({ paneId, showTabStrip, showFocusRing, renderSecti
           <div className="h-full overflow-auto">{renderSection(section)}</div>
           {/* Keep workspace dialogs above global dialog overlays (z-40). The
               previous equal z-index let a later portal dim/block the voucher. */}
-          <div ref={setDialogContainer} className="pointer-events-none absolute inset-0 z-50" />
+          <div ref={setDialogContainer} className="pointer-events-none absolute inset-0 z-[100] isolate overflow-visible" />
         </WorkspaceDialogProvider>
       </div>
     </div>

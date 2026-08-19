@@ -437,6 +437,20 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
   }
 
   const openNewDialog = async () => {
+    const cachedBookId = defaultBookId
+    const cachedCurrencyId = baseCurrencyId
+    const cachedCashAccount = resolveCashAccountForCurrency(cachedCurrencyId)
+
+    setForm({
+      ...buildInitialForm(),
+      vch_book_id: cachedBookId,
+      currency_id: cachedCurrencyId,
+      cash_account_id: cachedCashAccount?.id ?? null,
+      cash_account_code: cachedCashAccount?.code ?? "",
+      cash_account_name: cachedCashAccount?.name ?? "",
+    })
+    setErrorMessages([])
+    setDialogOpen(true)
     setIsLoading(true)
     try {
       const defaults = await fetchDefaults()
@@ -451,8 +465,6 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
         cash_account_code: cashAccount?.code ?? "",
         cash_account_name: cashAccount?.name ?? "",
       })
-      setErrorMessages([])
-      setDialogOpen(true)
     } finally {
       setIsLoading(false)
     }

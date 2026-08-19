@@ -59,7 +59,7 @@ export function DraftOrdersPage() {
         {draft.status === "draft" && <div className="grid grid-cols-2 gap-2"><Button variant="outline" onClick={() => { setEditingDraft(draft); setOpen(true) }}><Edit className="ml-2 h-4 w-4" />تعديل</Button><Button variant="outline" className="text-red-600 hover:bg-red-50 hover:text-red-700" onClick={() => void removeDraft(draft)}><Trash2 className="ml-2 h-4 w-4" />حذف</Button></div>}
       </CardContent></Card>)}</div>}
 
-    <Dialog modal={false} open={open} onOpenChange={setOpen}><DialogContent className="max-h-[94vh] w-[96vw] max-w-[1400px] overflow-y-auto p-0" dir="rtl" onPointerDownOutside={(event) => event.preventDefault()} onInteractOutside={(event) => event.preventDefault()}>
+    <Dialog modal={false} open={open} onOpenChange={setOpen}><DialogContent className="min-w-0 max-h-[94vh] w-[calc(100%-1rem)] max-w-[1400px] overflow-x-hidden overflow-y-auto p-0" dir="rtl" onPointerDownOutside={(event) => event.preventDefault()} onInteractOutside={(event) => event.preventDefault()}>
       <DialogHeader className="sticky top-0 z-10 border-b bg-background px-6 py-4"><DialogTitle>{editingDraft ? "تعديل مسودة طلبية" : "إنشاء مسودة طلبية"}</DialogTitle></DialogHeader>
       <DraftOrderForm key={editingDraft?.id || "new"} initialDraft={editingDraft} onSaved={() => { setOpen(false); setEditingDraft(null); void load() }} />
     </DialogContent></Dialog>
