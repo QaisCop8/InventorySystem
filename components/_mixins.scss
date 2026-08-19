@@ -1,10 +1,12 @@
+@use 'sass:map';
+
 @mixin themify($themes) {
   @each $theme, $map in $themes {
     :global(.theme-#{$theme + ''}) & {
       $theme-map: () !global;
       @each $key, $submap in $map {
-        $value: map-get(map-get($themes, $theme), '#{$key}');
-        $theme-map: map-merge(
+        $value: map.get(map.get($themes, $theme), '#{$key}');
+        $theme-map: map.merge(
           $theme-map,
           (
             $key: $value,
@@ -17,5 +19,5 @@
   }
 }
 @function themed($key) {
-  @return map-get($theme-map, $key);
+  @return map.get($theme-map, $key);
 }

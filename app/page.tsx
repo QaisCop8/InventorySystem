@@ -76,6 +76,7 @@ const UserSettings = lazyNamed(() => import("@/components/settings/user-settings
 const ThemeCustomization = lazyNamed(() => import("@/components/settings/theme-customization"), "ThemeCustomization")
 const Definitions = lazyNamed(() => import("@/components/settings/definitions"), "Definitions")
 const FontSettings = lazyDefault(() => import("@/components/settings/font-settings"))
+const VirtualAccounts = lazyDefault(() => import("@/components/settings/virtual-accounts"))
 const QADashboard = lazyDefault(() => import("@/components/qa-dashboard"))
 const WelcomeDashboard = lazyDefault(() => import("@/components/dashboard/welcome-dashboard"))
 const PervasiveSettings = lazyDefault(() => import("@/app/settings/pervasive/page"))
@@ -162,10 +163,7 @@ const componentMap: Record<string, React.ComponentType<any>> = {
   "exchange-rates": ExchangeRates,
   "system-settings": SystemSettings,
   "user-settings": UserSettings,
-  "user-default-accounts": (props: any) => {
-    const Component = require('@/components/settings/virtual-accounts').default
-    return <Component {...props} />
-  },
+  "user-default-accounts": VirtualAccounts,
   "font-settings": FontSettings,
   "qa-dashboard": QADashboard,
   "home-dashboard": WelcomeDashboard,

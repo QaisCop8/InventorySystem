@@ -1,4 +1,5 @@
-@import './mixins';
+@forward './mixins';
+@use './mixins' as *;
 
 $magentaPrimary: #191d38;
 $magentaSecondary: #736cc7;

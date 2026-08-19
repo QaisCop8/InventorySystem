@@ -1,11 +1,13 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import dynamic from "next/dynamic";
 import { Sidebar } from "./sidebar";
 import { Header } from "./header";
-import { ChatWidget } from "./chat/chat-widget";
 import { MenuThemeProvider } from "@/contexts/menu-theme-context";
-import PersonalAssistantWizard from "@/components/onboarding/personal-assistant-wizard";
+
+const ChatWidget = dynamic(() => import("./chat/chat-widget").then((module) => module.ChatWidget), { ssr: false });
+const PersonalAssistantWizard = dynamic(() => import("@/components/onboarding/personal-assistant-wizard"), { ssr: false });
 
 interface ERPLayoutProps {
   children: React.ReactNode;
@@ -16,6 +18,7 @@ interface ERPLayoutProps {
 export function ERPLayout({ children, activeSection, onSectionChange }: ERPLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [deferredToolsReady, setDeferredToolsReady] = useState(false);
 
   useEffect(() => {
     const checkMobile = () => {
@@ -27,6 +30,16 @@ export function ERPLayout({ children, activeSection, onSectionChange }: ERPLayou
     checkMobile();
     window.addEventListener("resize", checkMobile);
     return () => window.removeEventListener("resize", checkMobile);
+  }, []);
+
+  useEffect(() => {
+    const activate = () => setDeferredToolsReady(true);
+    const idleCallback = (window as any).requestIdleCallback?.(activate, { timeout: 1200 });
+    const timeout = idleCallback == null ? window.setTimeout(activate, 500) : null;
+    return () => {
+      if (idleCallback != null) (window as any).cancelIdleCallback?.(idleCallback);
+      if (timeout != null) window.clearTimeout(timeout);
+    };
   }, []);
 
   const handleSidebarToggle = () => setSidebarOpen(!sidebarOpen);
@@ -89,8 +102,8 @@ export function ERPLayout({ children, activeSection, onSectionChange }: ERPLayou
           </main>
         </div>
 
-        <ChatWidget />
-        <PersonalAssistantWizard />
+        {deferredToolsReady && <ChatWidget />}
+        {deferredToolsReady && <PersonalAssistantWizard />}
       </div>
     </MenuThemeProvider>
   );

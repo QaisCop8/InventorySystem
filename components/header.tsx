@@ -1,9 +1,9 @@
 ﻿"use client";
 
 import { useEffect, useState, forwardRef } from "react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
-import { NotificationCenter } from "@/components/notifications/notification-center";
 import { useAuth } from "@/components/auth/auth-context";
 import {
   DropdownMenu,
@@ -19,10 +19,21 @@ import { DisplayModeMenu } from "@/components/workspace/display-mode-menu";
 import { Loader2, Building2, ChevronDown, ArrowLeftRight } from "lucide-react";
 import { activateCompany } from "@/lib/tenant-client";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { DailyExchangeRatesDialog } from "@/components/settings/daily-exchange-rates";
 import { useDailyExchangeRatesCheck } from "@/hooks/use-daily-exchange-rates-check";
 import { useToast } from "@/hooks/use-toast";
-import { ApplicationMenu } from "@/components/navigation/application-menu";
+
+const DailyExchangeRatesDialog = dynamic(
+  () => import("@/components/settings/daily-exchange-rates").then((module) => module.DailyExchangeRatesDialog),
+  { ssr: false },
+);
+const NotificationCenter = dynamic(
+  () => import("@/components/notifications/notification-center").then((module) => module.NotificationCenter),
+  { ssr: false },
+);
+const ApplicationMenu = dynamic(
+  () => import("@/components/navigation/application-menu").then((module) => module.ApplicationMenu),
+  { ssr: false },
+);
 
 interface HeaderCompany {
   id: number;

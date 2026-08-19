@@ -44,7 +44,11 @@ const cell = (row: Record<string, any>, names: string[]) => {
   return ""
 }
 
-const normalizeLookup = (value: unknown) => String(value ?? "").trim().toLowerCase()
+const normalizeLookup = (value: unknown) => String(value ?? "")
+  .normalize("NFKC")
+  .trim()
+  .replace(/\s+/g, " ")
+  .toLocaleLowerCase("ar")
 const isNoDisplayChoice = (value: unknown) => ["", "عدم الإظهار", "عدم الاظهار", "none", "null", "0"].includes(normalizeLookup(value))
 
 const resolveLookupId = (value: unknown, rows: any[], idFields: string[], codeFields: string[], nameFields: string[]) => {
@@ -258,13 +262,13 @@ export default function PersonalAssistantWizard() {
         const response = await fetch("/api/onboarding-assistant")
         const data = response.ok ? await response.json() : null
         if (data?.dismissed) {
-          window.alert("تم اختيار عدم إظهار المساعد الشخصي مجدداً، لذلك لا يمكن الرجوع إليه.")
+          window.alert("تم اختيار عدم إظهار البداية السريعة مجدداً، لذلك لا يمكن الرجوع إليها.")
           return
         }
         setStep(Math.max(0, Math.min(6, Number(data?.current_step) || 0)))
         setOpen(true)
       } catch {
-        window.alert("تعذر فتح المساعد الشخصي")
+        window.alert("تعذر فتح البداية السريعة")
       }
     }
     window.addEventListener("erp:open-personal-assistant", openFromMenu)
@@ -349,6 +353,19 @@ export default function PersonalAssistantWizard() {
   const addLookup = async (definition: typeof lookupDefinitions[number]) => {
     const value = String(lookupValues[definition.key] || "").trim()
     if (!value) return
+    const existingRows = savedLookups[definition.key] || []
+    const duplicate = existingRows.some((row) => normalizeLookup(
+      row?.[definition.field]
+      ?? row?.name
+      ?? row?.warehouse_name
+      ?? row?.unit_name
+      ?? row?.branch_name
+      ?? row?.department_name,
+    ) === normalizeLookup(value))
+    if (duplicate) {
+      showResult("error", `اسم ${definition.label} موجود مسبقاً`)
+      return
+    }
     setBusy(true)
     try {
       await post(definition.endpoint, { [definition.field]: value, status: 1, is_active: true })
@@ -487,24 +504,24 @@ export default function PersonalAssistantWizard() {
   const StepIcon = steps[step].icon
   return <>
     <Dialog open={open} onOpenChange={() => undefined}>
-      <DialogContent hideCloseButton className="flex h-[94vh] w-[98vw] max-w-[1500px] flex-col overflow-hidden rounded-[30px] border-0 bg-slate-50 p-0 shadow-2xl" dir="rtl">
-        <header className={`relative shrink-0 overflow-hidden bg-gradient-to-l ${steps[step].color} px-6 py-5 text-white`}>
+      <DialogContent hideCloseButton className="flex h-[100dvh] w-screen max-w-[1500px] flex-col overflow-hidden rounded-none border-0 bg-slate-50 p-0 shadow-2xl sm:h-[94vh] sm:w-[98vw] sm:rounded-[30px]" dir="rtl">
+        <header className={`relative shrink-0 overflow-hidden bg-gradient-to-l ${steps[step].color} px-4 py-3 text-white sm:px-6 sm:py-5`}>
           <div className="absolute inset-0 opacity-15 [background-image:radial-gradient(circle_at_20%_20%,white_0,transparent_35%),radial-gradient(circle_at_80%_80%,white_0,transparent_30%)]" />
           <div className="relative flex items-center justify-between gap-4">
-            <div className="flex items-center gap-4"><div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/30"><Sparkles className="h-7 w-7" /></div><div><h2 className="text-2xl font-black">المساعد الشخصي</h2><p className="mt-1 text-sm text-white/85">إعداد شركتك بخطوات بسيطة وواضحة</p></div></div>
+            <div className="flex items-center gap-4"><div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/30"><Sparkles className="h-7 w-7" /></div><div><h2 className="text-2xl font-black">البداية السريعة</h2><p className="mt-1 text-sm text-white/85">إعداد شركتك بخطوات بسيطة وواضحة</p></div></div>
             <button onClick={postpone} className="rounded-full bg-white/15 p-3 transition hover:bg-white/25" title="تأجيل"><X className="h-5 w-5" /></button>
           </div>
         </header>
 
-        <div className="shrink-0 border-b border-slate-200 bg-white px-5 py-4">
+        <div className="shrink-0 border-b border-slate-200 bg-white px-3 py-2 sm:px-5 sm:py-4">
           <div className="flex items-center justify-between gap-2 overflow-x-auto">
             {steps.map((item, index) => { const Icon = item.icon; const active = index === step; const done = index < step; return <button key={item.title} onClick={() => void move(index)} className={`flex min-w-[150px] items-center gap-2 rounded-2xl px-3 py-2 text-right transition ${active ? "bg-slate-900 text-white shadow-lg" : done ? "bg-emerald-50 text-emerald-800" : "bg-slate-50 text-slate-500"}`}><span className={`flex h-8 w-8 items-center justify-center rounded-xl ${done ? "bg-emerald-500 text-white" : "bg-white/15"}`}>{done ? <Check className="h-4 w-4" /> : <Icon className="h-4 w-4" />}</span><span><span className="block text-xs opacity-70">الخطوة {index + 1}</span><span className="font-bold">{item.title}</span></span></button> })}
           </div>
         </div>
 
-        <main className={`min-h-0 flex-1 p-5 sm:p-7 ${step >= 1 ? "flex overflow-hidden" : "overflow-y-auto"}`}>
+        <main className={`min-h-0 flex-1 overflow-y-auto p-3 sm:p-7 ${step >= 1 ? "md:flex md:overflow-hidden" : ""}`}>
           <div className={step >= 1 ? "flex min-h-0 w-full flex-1 flex-col" : "mx-auto max-w-4xl"}>
-            <div className="mb-6 flex items-center gap-4"><div className={`flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br ${steps[step].color} text-white shadow-lg`}><StepIcon className="h-7 w-7" /></div><div><h3 className="text-2xl font-black text-slate-900">{steps[step].title}</h3><p className="text-slate-500">{steps[step].description}</p></div></div>
+            <div className="mb-4 flex items-center gap-3 sm:mb-6 sm:gap-4"><div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br sm:h-14 sm:w-14 ${steps[step].color} text-white shadow-lg`}><StepIcon className="h-6 w-6 sm:h-7 sm:w-7" /></div><div><h3 className="text-xl font-black text-slate-900 sm:text-2xl">{steps[step].title}</h3><p className="text-sm text-slate-500 sm:text-base">{steps[step].description}</p></div></div>
             {notice && <div className={`mb-4 rounded-2xl border px-4 py-3 text-sm font-bold ${notice.type === "success" ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-red-200 bg-red-50 text-red-700"}`}>{notice.text}</div>}
 
             {step === 0 && <div className="space-y-5"><section className="grid gap-4 rounded-3xl border border-emerald-100 bg-white p-5 shadow-sm sm:grid-cols-3"><Field label="رمز العملة" value={currency.code} onChange={(value) => setCurrency({ ...currency, code: value.toUpperCase() })} placeholder="USD" maxLength={3} /><Field label="اسم العملة" value={currency.name} onChange={(value) => setCurrency({ ...currency, name: value })} placeholder="دولار أمريكي" maxLength={30} /><Field label={isFirstCurrency ? "سعر الصرف (العملة الأساسية)" : "سعر الصرف"} value={currency.rate} onChange={(value) => setCurrency({ ...currency, rate: value })} placeholder="3.40" type="number" min={0.001} max={100000} step="0.001" disabled={isFirstCurrency} /><AddButton busy={busy} onClick={addCurrent} label="إضافة العملة" /></section><section className="overflow-hidden rounded-3xl border border-emerald-100 bg-white shadow-sm"><div className="flex items-center justify-between border-b border-emerald-100 bg-emerald-50/70 px-5 py-3"><h4 className="font-black text-emerald-950">العملات المحفوظة</h4><span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-800">{savedCurrencies.length} عملة</span></div>{savedCurrencies.length === 0 ? <div className="px-5 py-8 text-center text-sm text-slate-400">لم تتم إضافة عملات بعد</div> : <div className="overflow-x-auto"><table className="w-full text-sm"><thead className="bg-slate-900 text-white"><tr><th className="px-4 py-3 text-right">#</th><th className="px-4 py-3 text-right">رمز العملة</th><th className="px-4 py-3 text-right">اسم العملة</th><th className="px-4 py-3 text-right">سعر الصرف</th></tr></thead><tbody>{savedCurrencies.map((item, index) => <tr key={item.currency_id ?? item.id ?? index} className="border-b border-slate-100 last:border-0 even:bg-slate-50/70"><td className="px-4 py-3 text-slate-400">{index + 1}</td><td className="px-4 py-3 font-black text-slate-800">{item.currency_code}</td><td className="px-4 py-3 text-slate-700">{item.currency_name}</td><td className="px-4 py-3 font-semibold text-emerald-700">{Number(item.exchange_rate || 0).toLocaleString(undefined, { maximumFractionDigits: 6 })}</td></tr>)}</tbody></table></div>}</section></div>}
@@ -517,14 +534,14 @@ export default function PersonalAssistantWizard() {
           </div>
         </main>
 
-        <footer className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-slate-200 bg-white px-5 py-4">
+        <footer className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-slate-200 bg-white px-3 py-2 sm:gap-3 sm:px-5 sm:py-4">
           <Button variant="ghost" onClick={() => setConfirmDismiss(true)} className="text-slate-500 hover:bg-red-50 hover:text-red-700">عدم الإظهار مجدداً</Button>
           <div className="flex gap-2"><Button variant="outline" onClick={postpone} className="rounded-xl">تأجيل</Button>{step > 0 && <Button variant="outline" onClick={() => void move(step - 1)} className="rounded-xl"><ArrowRight className="ml-2 h-4 w-4" />السابق</Button>}<Button onClick={() => step === 6 ? void finish() : void move(step + 1)} className={`rounded-xl bg-gradient-to-l ${steps[step].color} px-6 text-white`}>{step === 6 ? "إنهاء" : "التالي"}{step < 6 && <ArrowLeft className="mr-2 h-4 w-4" />}</Button></div>
         </footer>
         <input ref={fileRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; if (file) void importExcel(file) }} />
       </DialogContent>
     </Dialog>
-    <ConfirmDialogYesNo visible={confirmDismiss} message="هل أنت متأكد؟ لن تستطيع الرجوع إلى المساعد الشخصي في حال التأكيد" onCancel={() => setConfirmDismiss(false)} onConfirm={() => { setConfirmDismiss(false); void saveProgress(step, true, false).then(() => setOpen(false)) }} />
+    <ConfirmDialogYesNo visible={confirmDismiss} message="هل أنت متأكد؟ لن تستطيع الرجوع إلى البداية السريعة في حال التأكيد" onCancel={() => setConfirmDismiss(false)} onConfirm={() => { setConfirmDismiss(false); void saveProgress(step, true, false).then(() => setOpen(false)) }} />
     <style jsx global>{`
       .rounded-2xl.border.border-slate-200 > .bg-slate-900 {
         background: linear-gradient(to left, #6d28d9, #4f46e5);
@@ -543,7 +560,7 @@ function LookupTabs({ activeKey, onTabChange, values, onValueChange, records, bu
   const rows = records[active.key] || []
   const getName = (row: any) => String(row?.[active.field] ?? row?.name ?? row?.warehouse_name ?? row?.unit_name ?? row?.branch_name ?? row?.department_name ?? row?.label ?? "")
 
-  return <section className="flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-3xl border border-violet-100 bg-white shadow-sm"><div className="flex shrink-0 gap-2 overflow-x-auto border-b border-violet-100 bg-violet-50/70 p-3">{lookupDefinitions.map((definition) => <button key={definition.key} type="button" onClick={() => onTabChange(definition.key)} className={`shrink-0 rounded-xl px-4 py-2 text-sm font-bold transition ${active.key === definition.key ? "bg-violet-600 text-white shadow-md" : "bg-white text-slate-600 hover:bg-violet-100"}`}>{definition.label}<span className={`mr-2 rounded-full px-2 py-0.5 text-[10px] ${active.key === definition.key ? "bg-white/20" : "bg-slate-100"}`}>{(records[definition.key] || []).length}</span></button>)}</div><div className="flex min-h-0 flex-1 flex-col p-5"><div className="mb-5 shrink-0 rounded-2xl border border-violet-100 bg-slate-50/70 p-4"><Label className="mb-2 block font-bold text-slate-800">إضافة {active.label}</Label><div className="flex gap-2"><Input value={values[active.key] || ""} onChange={(event) => onValueChange(active.key, event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") void onAdd(active) }} className="h-11 rounded-xl bg-white" placeholder={`اسم ${active.label}`} /><Button disabled={busy || !String(values[active.key] || "").trim()} onClick={() => void onAdd(active)} className="h-11 rounded-xl bg-violet-600 px-6 hover:bg-violet-700">إضافة</Button></div></div><div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200"><div className="flex shrink-0 items-center justify-between bg-slate-900 px-4 py-3 text-white"><h4 className="font-bold">السجلات المحفوظة</h4><span className="rounded-full bg-white/15 px-3 py-1 text-xs">{rows.length} سجل</span></div>{rows.length === 0 ? <div className="flex flex-1 items-center justify-center text-sm text-slate-400">لا توجد سجلات محفوظة في هذا التبويب</div> : <div className="min-h-0 flex-1 overflow-auto"><table className="w-full text-sm"><thead className="sticky top-0 bg-slate-100 text-slate-600"><tr><th className="w-20 px-4 py-3 text-right">#</th><th className="px-4 py-3 text-right">الاسم</th></tr></thead><tbody>{rows.map((row, index) => <tr key={row?.id ?? `${active.key}-${index}`} className="border-t border-slate-100 even:bg-slate-50/70"><td className="px-4 py-3 text-slate-400">{index + 1}</td><td className="px-4 py-3 font-semibold text-slate-800">{getName(row) || "-"}</td></tr>)}</tbody></table></div>}</div></div></section>
+  return <section className="flex min-h-[500px] w-full flex-1 flex-col overflow-hidden rounded-3xl border border-violet-100 bg-white shadow-sm md:min-h-0"><div className="flex shrink-0 gap-2 overflow-x-auto border-b border-violet-100 bg-violet-50/70 p-3">{lookupDefinitions.map((definition) => <button key={definition.key} type="button" onClick={() => onTabChange(definition.key)} className={`shrink-0 rounded-xl px-4 py-2 text-sm font-bold transition ${active.key === definition.key ? "bg-violet-600 text-white shadow-md" : "bg-white text-slate-600 hover:bg-violet-100"}`}>{definition.label}<span className={`mr-2 rounded-full px-2 py-0.5 text-[10px] ${active.key === definition.key ? "bg-white/20" : "bg-slate-100"}`}>{(records[definition.key] || []).length}</span></button>)}</div><div className="flex min-h-0 flex-1 flex-col p-3 sm:p-5"><div className="mb-3 shrink-0 rounded-2xl border border-violet-100 bg-slate-50/70 p-3 sm:mb-5 sm:p-4"><Label className="mb-2 block font-bold text-slate-800">إضافة {active.label}</Label><div className="flex gap-2"><Input value={values[active.key] || ""} onChange={(event) => onValueChange(active.key, event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") void onAdd(active) }} className="h-11 rounded-xl bg-white" placeholder={`اسم ${active.label}`} /><Button disabled={busy || !String(values[active.key] || "").trim()} onClick={() => void onAdd(active)} className="h-11 rounded-xl bg-violet-600 px-4 hover:bg-violet-700 sm:px-6">إضافة</Button></div></div><div className="flex min-h-[230px] flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200 md:min-h-0"><div className="flex shrink-0 items-center justify-between bg-slate-900 px-4 py-3 text-white"><h4 className="font-bold">السجلات المحفوظة</h4><span className="rounded-full bg-white/15 px-3 py-1 text-xs">{rows.length} سجل</span></div>{rows.length === 0 ? <div className="flex flex-1 items-center justify-center px-3 text-center text-sm text-slate-400">لا توجد سجلات محفوظة في هذا التبويب</div> : <div className="min-h-0 flex-1 overflow-auto"><table className="w-full text-sm"><thead className="sticky top-0 bg-slate-100 text-slate-600"><tr><th className="w-20 px-4 py-3 text-right">#</th><th className="px-4 py-3 text-right">الاسم</th></tr></thead><tbody>{rows.map((row, index) => <tr key={row?.id ?? `${active.key}-${index}`} className="border-t border-slate-100 even:bg-slate-50/70"><td className="px-4 py-3 text-slate-400">{index + 1}</td><td className="px-4 py-3 font-semibold text-slate-800">{getName(row) || "-"}</td></tr>)}</tbody></table></div>}</div></div></section>
 }
 
 function Field({ label, value, onChange, onBlur, placeholder, type = "text", maxLength, min, max, step, disabled }: { label: string; value: string; onChange: (value: string) => void; onBlur?: () => void; placeholder?: string; type?: string; maxLength?: number; min?: number; max?: number; step?: string; disabled?: boolean }) {

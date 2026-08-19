@@ -280,7 +280,7 @@ export const menuItems: MenuItem[] = [
     title: "أدوات",
     icon: Wrench,
     submenu: [
-      { title: "مساعدك الشخصي", section: "personal-assistant", icon: Sparkles },
+      { title: "البداية السريعة", section: "personal-assistant", icon: Sparkles },
     ],
   },
 

@@ -32,7 +32,7 @@ export async function GET() {
     return NextResponse.json({ current_step: 0, dismissed: false, completed: false, shouldShow: fresh })
   } catch (error) {
     console.error("onboarding assistant GET", error)
-    return NextResponse.json({ error: "تعذر تحميل حالة المساعد الشخصي" }, { status: 500 })
+    return NextResponse.json({ error: "تعذر تحميل حالة البداية السريعة" }, { status: 500 })
   }
 }
 
@@ -53,6 +53,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error("onboarding assistant POST", error)
-    return NextResponse.json({ error: "تعذر حفظ تقدم المساعد الشخصي" }, { status: 500 })
+    return NextResponse.json({ error: "تعذر حفظ تقدم البداية السريعة" }, { status: 500 })
   }
 }

@@ -8,17 +8,17 @@ const Dashboard = dynamic(() => import("@/components/dashboard").then((mod) => m
 
 // Dynamically import heavy client-only components to prevent server-side
 // evaluation of browser-only libs (e.g. @grapecity/wijmo).
-import {SalesOrders} from "@/components/orders/sales-orders"
+const SalesOrders = dynamic(() => import("@/components/orders/sales-orders").then((m) => m.SalesOrders), { ssr: false })
 const PurchaseOrders = dynamic(() => import("@/components/orders/purchase-orders").then((m) => m.PurchaseOrders), { ssr: false })
 const Products = dynamic(() => import("@/components/products/products").then((m) => m.Products), { ssr: false })
 const Customers = dynamic(() => import("@/components/products/customers").then((m) => m.default), { ssr: false })
 const UnifiedCustomers = dynamic(() => import("@/components/products/unified-customers").then((m) => m.default), { ssr: false })
-import { OrderReports } from "@/components/reports/order-reports"
-import { ProductReports } from "@/components/reports/product-reports"
-import DocumentSettings from "@/components/settings/document-settings"
-import GeneralSettings from "@/components/settings/general-settings"
-import PervasiveSettings from "@/app/settings/pervasive/page"
-import UnifiedAccounts from "@/components/customer/unified-accounts-refactored"
+const OrderReports = dynamic(() => import("@/components/reports/order-reports").then((m) => m.OrderReports), { ssr: false })
+const ProductReports = dynamic(() => import("@/components/reports/product-reports").then((m) => m.ProductReports), { ssr: false })
+const DocumentSettings = dynamic(() => import("@/components/settings/document-settings"), { ssr: false })
+const GeneralSettings = dynamic(() => import("@/components/settings/general-settings"), { ssr: false })
+const PervasiveSettings = dynamic(() => import("@/app/settings/pervasive/page"), { ssr: false })
+const UnifiedAccounts = dynamic(() => import("@/components/customer/unified-accounts-refactored"), { ssr: false })
 
 const componentMap: Record<string, React.ComponentType<any>> = {
   dashboard: Dashboard,
