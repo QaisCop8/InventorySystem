@@ -3,6 +3,17 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* PrimeReact keeps its modal mask mounted while a dialog is leaving. Under
+   slower/public-network renders that mask can outlive the dialog and leave the
+   whole workspace dimmed and unable to receive clicks. Only a mask explicitly
+   marked visible may paint or intercept pointer events. */
+.p-dialog-mask:not(.p-dialog-visible) {
+  background: transparent !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  visibility: hidden !important;
+}
+
 :root {
   /* Enhanced dynamic theme variables that can be overridden by the theme system */
   --background: #fafbfc;

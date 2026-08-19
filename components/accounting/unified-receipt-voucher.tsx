@@ -367,6 +367,7 @@ export default function UnifiedReceiptVoucher({
   const messagesRef = useRef<any>(null)
   const { toast } = useToast()
   const [activeTab, setActiveTab] = useState("main")
+  const [renderChequeGrid, setRenderChequeGrid] = useState(false)
   const [navLoading, setNavLoading] = useState(false)
   const [accountsList, setAccountsList] = useState<AccountItem[]>([])
   const [journalSearchOpen, setJournalSearchOpen] = useState(false)
@@ -381,6 +382,26 @@ export default function UnifiedReceiptVoucher({
   const [dueDatePickerOpen, setDueDatePickerOpen] = useState(false)
   const [dueDateRow, setDueDateRow] = useState<number | null>(null)
   const chequeGridRef = useRef<any>(null)
+
+  // Wijmo measures and focuses the grid while it mounts. Mounting it in the
+  // same event that changes a Radix tab can leave the tab/dialog focus layer
+  // in an intermediate state (the visible symptom is a dim, blocked dialog).
+  // Let the tab become visible and complete layout before creating the grid.
+  useEffect(() => {
+    if (activeTab !== "cheques") {
+      setRenderChequeGrid(false)
+      return
+    }
+
+    let secondFrame = 0
+    const firstFrame = requestAnimationFrame(() => {
+      secondFrame = requestAnimationFrame(() => setRenderChequeGrid(true))
+    })
+    return () => {
+      cancelAnimationFrame(firstFrame)
+      if (secondFrame) cancelAnimationFrame(secondFrame)
+    }
+  }, [activeTab])
   const journalGridRef = useRef<any>(null)
   const [postDialogOpen, setPostDialogOpen] = useState(false)
   const doHotKeys = useRef(true)
@@ -2105,19 +2126,23 @@ export default function UnifiedReceiptVoucher({
                   </Button>
                 </div>
                 <div className="w-full max-w-full overflow-x-auto">
-                  <DataGridView
-                    innerRef={chequeGridRef}
-                    style={{ height: "240px" }}
-                    scheme={chequeScheme}
-                    dataSource={chequesCollectionView}
-                    idProperty="ser"
-                    isReport={isLocked}
-                    showContextMenu={false}
-                    cellEditEnded={(s: any, e: any) => handleChequeCellEditEnded(s, e)}
-                    onKeyDown={(s: any, e: any) => handleChequeKeyDown(s, e)}
-                    keyActionEnter="None"
-                    dontConvertToCards={true}
-                  />
+                  {renderChequeGrid ? (
+                    <DataGridView
+                      innerRef={chequeGridRef}
+                      style={{ height: "240px" }}
+                      scheme={chequeScheme}
+                      dataSource={chequesCollectionView}
+                      idProperty="ser"
+                      isReport={isLocked}
+                      showContextMenu={false}
+                      cellEditEnded={(s: any, e: any) => handleChequeCellEditEnded(s, e)}
+                      onKeyDown={(s: any, e: any) => handleChequeKeyDown(s, e)}
+                      keyActionEnter="None"
+                      dontConvertToCards={true}
+                    />
+                  ) : (
+                    <div className="h-[240px] rounded-xl border border-slate-200 bg-slate-50/50" aria-hidden="true" />
+                  )}
                 </div>
                 <div className={`text-sm font-semibold ${chequesTotal === Number(form.check_amount || 0) ? "text-emerald-700" : "text-rose-600"}`}>
                   إجمالي الشيكات: {chequesTotal.toLocaleString()}

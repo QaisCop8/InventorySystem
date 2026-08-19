@@ -121,6 +121,10 @@ export default function PersonalAssistantWizard() {
       .then((response) => response.ok ? response.json() : null)
       .then((data) => {
         if (!data?.shouldShow) return
+        // This component mounts after the main workspace. Do not let its
+        // deferred automatic dialog open over a transaction the user has
+        // already opened; it remains available from the application menu.
+        if (document.querySelector('[role="dialog"][data-state="open"]')) return
         setStep(Math.max(0, Math.min(7, Number(data.current_step) || 0)))
         setOpen(true)
       })
