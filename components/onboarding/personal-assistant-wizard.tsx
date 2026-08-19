@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import ConfirmDialogYesNo from "@/components/ui/ConfirmDialogYesNo"
 import AutoCompleteAccount from "@/components/customer/auto-complete-account"
+import { useAuth } from "@/components/auth/auth-context"
 
 const steps = [
   { title: "العملات", description: "أضف العملات وأسعار الصرف الأساسية", icon: Coins, color: "from-emerald-300 to-green-400" },
@@ -15,6 +16,7 @@ const steps = [
   { title: "الحسابات", description: "أنشئ دليل الحسابات أو استورده من Excel", icon: Building2, color: "from-blue-600 to-indigo-600" },
   { title: "الحسابات الافتراضية", description: "حدد الحسابات الافتراضية للنظام", icon: Building2, color: "from-sky-600 to-blue-600" },
   { title: "حسابات الأصناف", description: "حدد الحسابات الافتراضية لحركات الأصناف", icon: Package, color: "from-teal-600 to-emerald-600" },
+  { title: "حسابات الصناديق والبنوك الافتراضية", description: "حدد حسابات الصندوق والشيكات والبطاقات لكل عملة", icon: Building2, color: "from-cyan-600 to-sky-700" },
   { title: "الأصناف", description: "أضف الأصناف أو استوردها من Excel", icon: Package, color: "from-emerald-600 to-teal-600" },
   { title: "العملاء", description: "أضف العملاء أو استوردهم من Excel", icon: Users, color: "from-cyan-600 to-blue-600" },
 ]
@@ -38,6 +40,15 @@ const productAccountFields = [
 
 type Notice = { type: "success" | "error"; text: string } | null
 type AccountPreviewRow = { rowNumber: number; payload: Record<string, any>; errors: string[] }
+type CurrencyDefaultAccountRow = {
+  currency_id: number
+  currency_code: string
+  currency_name: string
+  cash_account_id: string
+  incoming_checks_account_id: string
+  returned_checks_account_id: string
+  card_account_id: string
+}
 
 const cell = (row: Record<string, any>, names: string[]) => {
   for (const name of names) if (row[name] !== undefined && row[name] !== null) return row[name]
@@ -80,6 +91,7 @@ const lookupDefinitions = [
 ] as const
 
 export default function PersonalAssistantWizard() {
+  const { user } = useAuth()
   const [open, setOpen] = useState(false)
   const [step, setStep] = useState(0)
   const [busy, setBusy] = useState(false)
@@ -93,6 +105,7 @@ export default function PersonalAssistantWizard() {
   const [savedAccounts, setSavedAccounts] = useState<any[]>([])
   const [accountPreview, setAccountPreview] = useState<AccountPreviewRow[]>([])
   const [systemAccountSettings, setSystemAccountSettings] = useState<Record<string, string>>({})
+  const [currencyDefaultAccounts, setCurrencyDefaultAccounts] = useState<CurrencyDefaultAccountRow[]>([])
   const [defaultAccountStructure, setDefaultAccountStructure] = useState("commercial")
   const [financialItems, setFinancialItems] = useState<{ assets: any[]; liabilities: any[]; income: any[] }>({ assets: [], liabilities: [], income: [] })
   const [lookupValues, setLookupValues] = useState<Record<string, string>>({})
@@ -108,7 +121,7 @@ export default function PersonalAssistantWizard() {
       .then((response) => response.ok ? response.json() : null)
       .then((data) => {
         if (!data?.shouldShow) return
-        setStep(Math.max(0, Math.min(6, Number(data.current_step) || 0)))
+        setStep(Math.max(0, Math.min(7, Number(data.current_step) || 0)))
         setOpen(true)
       })
       .catch(() => undefined)
@@ -152,7 +165,32 @@ export default function PersonalAssistantWizard() {
   }, [open, step])
 
   useEffect(() => {
-    if (!open || step !== 5) return
+    if (!open || step !== 5 || !user?.id) return
+    Promise.all([
+      fetch("/api/exchange-rates").then((response) => response.ok ? response.json() : []),
+      fetch(`/api/settings/users-currencies-default?user_id=${encodeURIComponent(user.id)}`).then((response) => response.ok ? response.json() : { rows: [] }),
+    ]).then(([currenciesData, mappingsData]) => {
+      const currencies = Array.isArray(currenciesData?.rates) ? currenciesData.rates : Array.isArray(currenciesData) ? currenciesData : []
+      const mappings = Array.isArray(mappingsData?.rows) ? mappingsData.rows : []
+      setSavedCurrencies(currencies)
+      setCurrencyDefaultAccounts(currencies.map((currency: any) => {
+        const currencyId = Number(currency.currency_id ?? currency.id)
+        const mapping = mappings.find((item: any) => Number(item.currency_id) === currencyId)
+        return {
+          currency_id: currencyId,
+          currency_code: String(currency.currency_code ?? currency.code ?? ""),
+          currency_name: String(currency.currency_name ?? currency.name ?? ""),
+          cash_account_id: mapping?.cash_account_id ? String(mapping.cash_account_id) : "",
+          incoming_checks_account_id: mapping?.incoming_checks_account_id ? String(mapping.incoming_checks_account_id) : "",
+          returned_checks_account_id: mapping?.returned_checks_account_id ? String(mapping.returned_checks_account_id) : "",
+          card_account_id: mapping?.card_account_id ? String(mapping.card_account_id) : "",
+        }
+      }))
+    }).catch(() => showResult("error", "تعذر تحميل حسابات الصناديق والبنوك الافتراضية"))
+  }, [open, step, user?.id])
+
+  useEffect(() => {
+    if (!open || step !== 6) return
     Promise.all([
       fetch("/api/units").then((response) => response.ok ? response.json() : []),
       fetch("/api/pricecategory").then((response) => response.ok ? response.json() : []),
@@ -164,6 +202,39 @@ export default function PersonalAssistantWizard() {
       setSavedProducts(Array.isArray(products) ? products : [])
     }).catch(() => undefined)
   }, [open, step])
+
+  const saveCurrencyDefaultAccounts = async () => {
+    if (!user?.id) {
+      showResult("error", "تعذر تحديد المستخدم الحالي")
+      return false
+    }
+    setBusy(true)
+    try {
+      const response = await fetch("/api/settings/users-currencies-default", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: user.id,
+          rows: currencyDefaultAccounts.map((row) => ({
+            currency_id: row.currency_id,
+            cash_account_id: row.cash_account_id ? Number(row.cash_account_id) : null,
+            incoming_checks_account_id: row.incoming_checks_account_id ? Number(row.incoming_checks_account_id) : null,
+            returned_checks_account_id: row.returned_checks_account_id ? Number(row.returned_checks_account_id) : null,
+            card_account_id: row.card_account_id ? Number(row.card_account_id) : null,
+          })),
+        }),
+      })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok || data?.success === false) throw new Error(data?.error || "تعذر الحفظ")
+      showResult("success", "تم حفظ حسابات الصناديق والبنوك الافتراضية بنجاح")
+      return true
+    } catch (error) {
+      showResult("error", error instanceof Error ? error.message : "تعذر الحفظ")
+      return false
+    } finally {
+      setBusy(false)
+    }
+  }
 
   const saveAccountSettings = async (fields: readonly (readonly [string, string])[]) => {
     setBusy(true)
@@ -213,7 +284,7 @@ export default function PersonalAssistantWizard() {
   }
 
   useEffect(() => {
-    if (!open || (step !== 2 && step !== 5 && step !== 6)) return
+    if (!open || (step !== 2 && step !== 6 && step !== 7)) return
     const handleEnterNavigation = (event: KeyboardEvent) => {
       if (event.key !== "Enter" || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return
       const target = event.target as HTMLElement | null
@@ -265,7 +336,7 @@ export default function PersonalAssistantWizard() {
           window.alert("تم اختيار عدم إظهار البداية السريعة مجدداً، لذلك لا يمكن الرجوع إليها.")
           return
         }
-        setStep(Math.max(0, Math.min(6, Number(data?.current_step) || 0)))
+        setStep(Math.max(0, Math.min(7, Number(data?.current_step) || 0)))
         setOpen(true)
       } catch {
         window.alert("تعذر فتح البداية السريعة")
@@ -321,7 +392,7 @@ export default function PersonalAssistantWizard() {
         await post("/api/accounts", { account_code: accountCode, account_name: account.name.trim(), company_id: 1, finanical_list_id: Number(account.financialListId), finanical_list_assests_id: account.assetsId ? Number(account.assetsId) : null, finanical_list_liabilities_id: account.liabilitiesId ? Number(account.liabilitiesId) : null, finanical_list_income_id: account.incomeId ? Number(account.incomeId) : null, currency_id: Number(account.currencyId), status: "نشط" })
         setAccount({ code: "", name: "", financialListId: "", assetsId: "", liabilitiesId: "", incomeId: "", currencyId: "" })
         await refreshSavedAccounts()
-      } else if (step === 5) {
+      } else if (step === 6) {
         if (!product.code.trim() || !product.name.trim()) throw new Error("أدخل رقم الصنف واسمه")
         if (!/^[A-Z0-9]{10}$/.test(product.code)) throw new Error("رقم الصنف يجب أن يتكون من 10 أحرف إنجليزية كبيرة أو أرقام")
         if (product.name.trim().length > 100) throw new Error("اسم الصنف يجب ألا يتجاوز 100 حرف")
@@ -337,7 +408,7 @@ export default function PersonalAssistantWizard() {
         if (Number(productResult?.failed || 0) > 0 || Number(productResult?.duplicates || 0) > 0) throw new Error(productResult?.errors?.[0] || "تعذر إضافة الصنف")
         setProduct({ code: "", name: "", unitId: "", sellingPrice: "", barcode: "" })
         await refreshSavedProducts()
-      } else if (step === 6) {
+      } else if (step === 7) {
         if (!customer.name.trim()) throw new Error("أدخل اسم العميل")
         await post("/api/import/customers", { data: [{ rowIndex: 1, isValid: true, customer_code: customer.code, customer_name: customer.name, mobile1: customer.phone, type: 1 }] })
         setCustomer({ code: "", name: "", phone: "" })
@@ -453,9 +524,9 @@ export default function PersonalAssistantWizard() {
         })
         setAccountPreview(preparedRows)
         showResult(preparedRows.some((row) => row.errors.length) ? "error" : "success", `تم تجهيز ${preparedRows.length} حساباً للمراجعة قبل الحفظ`)
-      } else if (step === 5) {
-        await post("/api/import/products", { data: rows.map((row) => { const rawCode = String(cell(row, ["رمز الصنف", "رقم الصنف", "product_code"]) || ""); return { product_code: rawCode.replace(/[^A-Za-z0-9]/g, "").toUpperCase().slice(0, 10).padEnd(10, "0"), product_name: String(cell(row, ["اسم الصنف", "product_name", "name"]) || "").trim().slice(0, 100), main_unit: cell(row, ["الوحدة", "main_unit", "unit"]) || "قطعة", selling_price: Number(cell(row, ["سعر البيع", "selling_price", "sale_price", "price"])) || 0, barcode: String(cell(row, ["الباركود", "barcode", "unit_1_barcode"]) || "").trim() } }) })
       } else if (step === 6) {
+        await post("/api/import/products", { data: rows.map((row) => { const rawCode = String(cell(row, ["رمز الصنف", "رقم الصنف", "product_code"]) || ""); return { product_code: rawCode.replace(/[^A-Za-z0-9]/g, "").toUpperCase().slice(0, 10).padEnd(10, "0"), product_name: String(cell(row, ["اسم الصنف", "product_name", "name"]) || "").trim().slice(0, 100), main_unit: cell(row, ["الوحدة", "main_unit", "unit"]) || "قطعة", selling_price: Number(cell(row, ["سعر البيع", "selling_price", "sale_price", "price"])) || 0, barcode: String(cell(row, ["الباركود", "barcode", "unit_1_barcode"]) || "").trim() } }) })
+      } else if (step === 7) {
         await post("/api/import/customers", { data: rows.map((row, index) => ({ rowIndex: index + 2, isValid: Boolean(cell(row, ["اسم العميل", "customer_name", "name"])), customer_code: cell(row, ["رقم العميل", "customer_code", "code"]), customer_name: cell(row, ["اسم العميل", "customer_name", "name"]), mobile1: cell(row, ["الجوال", "mobile", "mobile1", "phone"]), type: 1 })) })
       }
       if (step !== 2) showResult("success", `تم استيراد ${rows.length} سطراً`)
@@ -484,9 +555,10 @@ export default function PersonalAssistantWizard() {
   }
 
   const move = async (next: number) => {
-    const bounded = Math.max(0, Math.min(6, next))
+    const bounded = Math.max(0, Math.min(7, next))
     if (bounded > step && step === 3 && !(await saveAccountSettings(defaultAccountFields))) return
     if (bounded > step && step === 4 && !(await saveAccountSettings(productAccountFields))) return
+    if (bounded > step && step === 5 && !(await saveCurrencyDefaultAccounts())) return
     setStep(bounded)
     await saveProgress(bounded)
   }
@@ -539,14 +611,15 @@ export default function PersonalAssistantWizard() {
             {step === 2 && <DataStep title="إضافة حساب سريع" busy={busy} onAdd={addCurrent} onImport={() => fileRef.current?.click()} fields={<><Field label="رقم الحساب" value={account.code} onChange={(value) => setAccount({ ...account, code: value.replace(/[^A-Za-z0-9]/g, "").toUpperCase().slice(0, 10) })} onBlur={() => setAccount((current) => ({ ...current, code: current.code ? current.code.padEnd(10, "0") : "" }))} maxLength={10} /><Field label="اسم الحساب" value={account.name} onChange={(value) => setAccount({ ...account, name: value })} maxLength={100} /><NativeSelect label="القائمة المالية" value={account.financialListId} onChange={(value) => setAccount({ ...account, financialListId: value, assetsId: "", liabilitiesId: "", incomeId: "" })} options={[{ value: "1", label: "الميزانية العمومية" }, { value: "2", label: "قائمة الدخل" }, { value: "3", label: "تقييم بضاعة" }]} />{account.financialListId === "1" && <><NativeSelect label="أصول الميزانية" value={account.assetsId} onChange={(value) => setAccount({ ...account, assetsId: value })} emptyLabel="عدم الإظهار" options={financialItems.assets.map((item) => ({ value: String(item.id), label: item.name }))} /><NativeSelect label="خصوم الميزانية" value={account.liabilitiesId} onChange={(value) => setAccount({ ...account, liabilitiesId: value })} emptyLabel="عدم الإظهار" options={financialItems.liabilities.map((item) => ({ value: String(item.id), label: item.name }))} /></>}{account.financialListId === "2" && <NativeSelect label="بند قائمة الدخل" value={account.incomeId} onChange={(value) => setAccount({ ...account, incomeId: value })} options={financialItems.income.map((item) => ({ value: String(item.id), label: item.name }))} />}{account.financialListId === "3" && <><NativeSelect label="أصول الميزانية" value={account.assetsId} onChange={(value) => setAccount({ ...account, assetsId: value })} emptyLabel="عدم الإظهار" options={financialItems.assets.map((item) => ({ value: String(item.id), label: item.name }))} /><NativeSelect label="بند قائمة الدخل" value={account.incomeId} onChange={(value) => setAccount({ ...account, incomeId: value })} options={financialItems.income.map((item) => ({ value: String(item.id), label: item.name }))} /></>}<NativeSelect label="العملة" value={account.currencyId} onChange={(value) => setAccount({ ...account, currencyId: value })} options={savedCurrencies.map((item) => ({ value: String(item.currency_id ?? item.id), label: `${item.currency_code} - ${item.currency_name}` }))} /><NativeSelect label="نوع هيكل الحسابات الافتراضي" value={defaultAccountStructure} onChange={setDefaultAccountStructure} options={[{ value: "commercial", label: "مؤسسة تجارية" }, { value: "commercial_continuous_inventory", label: "مؤسسة تجارية - جرد مستمر" }, { value: "services", label: "خدمات" }]} /><div className="flex items-end"><Button type="button" disabled={busy} onClick={() => void importDefaultAccounts()} className="h-11 w-full rounded-xl bg-emerald-600 px-6 hover:bg-emerald-700"><Building2 className="ml-2 h-4 w-4" />استيراد هيكل الحسابات الافتراضي</Button></div></>} savedContent={<><AccountImportPreview rows={accountPreview} busy={busy} onDelete={(index) => setAccountPreview((current) => current.filter((_, rowIndex) => rowIndex !== index))} onSave={() => void saveAccountPreview()} /><SavedAccountsTable accounts={savedAccounts} currencies={savedCurrencies} /></>} />}
             {step === 3 && <AccountSettingsStep title="الحسابات الافتراضية" fields={defaultAccountFields} values={systemAccountSettings} onChange={(key, value) => setSystemAccountSettings((current) => ({ ...current, [key]: value }))} busy={busy} onSave={() => void saveAccountSettings(defaultAccountFields)} />}
             {step === 4 && <AccountSettingsStep title="حسابات الأصناف" fields={productAccountFields} values={systemAccountSettings} onChange={(key, value) => setSystemAccountSettings((current) => ({ ...current, [key]: value }))} busy={busy} onSave={() => void saveAccountSettings(productAccountFields)} />}
-            {step === 5 && <DataStep title="إضافة صنف سريع" busy={busy} onAdd={addCurrent} onImport={() => fileRef.current?.click()} fields={<><Field label="رقم الصنف" value={product.code} onChange={(value) => setProduct({ ...product, code: value.replace(/[^A-Za-z0-9]/g, "").toUpperCase().slice(0, 10) })} onBlur={() => setProduct((current) => ({ ...current, code: current.code ? current.code.padEnd(10, "0") : "" }))} maxLength={10} /><Field label="اسم الصنف" value={product.name} onChange={(value) => setProduct({ ...product, name: value })} maxLength={100} /><NativeSelect label="الوحدة" value={product.unitId} onChange={(value) => setProduct({ ...product, unitId: value })} emptyLabel="اختر الوحدة" options={productDefinitions.units.map((item) => ({ value: String(item.id), label: [item.unit_code, item.unit_name].filter(Boolean).join(" - ") }))} /><div><Label className="mb-2 block text-sm font-bold text-slate-700">فئة السعر</Label><div className={`flex h-11 items-center rounded-xl border px-3 text-sm font-bold ${productDefinitions.priceCategories.length ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-red-200 bg-red-50 text-red-700"}`}>{productDefinitions.priceCategories[0]?.name || "يجب تعريف فئة سعر أولاً"}</div></div><Field label="سعر البيع" value={product.sellingPrice} onChange={(value) => setProduct({ ...product, sellingPrice: value })} type="number" min={0} max={10000000} /><Field label="الباركود" value={product.barcode} onChange={(value) => setProduct({ ...product, barcode: value })} maxLength={30} /></>} savedContent={<SavedProductsTable products={savedProducts} />}/>}
-            {step === 6 && <DataStep title="إضافة عميل سريع" busy={busy} onAdd={addCurrent} onImport={() => fileRef.current?.click()} fields={<><Field label="رقم العميل (اختياري)" value={customer.code} onChange={(value) => setCustomer({ ...customer, code: value })} /><Field label="اسم العميل" value={customer.name} onChange={(value) => setCustomer({ ...customer, name: value })} /><Field label="الجوال" value={customer.phone} onChange={(value) => setCustomer({ ...customer, phone: value })} /></>} />}
+            {step === 5 && <CurrencyDefaultAccountsStep rows={currencyDefaultAccounts} busy={busy} onChange={(currencyId, field, value) => setCurrencyDefaultAccounts((current) => current.map((row) => row.currency_id === currencyId ? { ...row, [field]: value } : row))} onSave={() => void saveCurrencyDefaultAccounts()} />}
+            {step === 6 && <DataStep title="إضافة صنف سريع" busy={busy} onAdd={addCurrent} onImport={() => fileRef.current?.click()} fields={<><Field label="رقم الصنف" value={product.code} onChange={(value) => setProduct({ ...product, code: value.replace(/[^A-Za-z0-9]/g, "").toUpperCase().slice(0, 10) })} onBlur={() => setProduct((current) => ({ ...current, code: current.code ? current.code.padEnd(10, "0") : "" }))} maxLength={10} /><Field label="اسم الصنف" value={product.name} onChange={(value) => setProduct({ ...product, name: value })} maxLength={100} /><NativeSelect label="الوحدة" value={product.unitId} onChange={(value) => setProduct({ ...product, unitId: value })} emptyLabel="اختر الوحدة" options={productDefinitions.units.map((item) => ({ value: String(item.id), label: [item.unit_code, item.unit_name].filter(Boolean).join(" - ") }))} /><div><Label className="mb-2 block text-sm font-bold text-slate-700">فئة السعر</Label><div className={`flex h-11 items-center rounded-xl border px-3 text-sm font-bold ${productDefinitions.priceCategories.length ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-red-200 bg-red-50 text-red-700"}`}>{productDefinitions.priceCategories[0]?.name || "يجب تعريف فئة سعر أولاً"}</div></div><Field label="سعر البيع" value={product.sellingPrice} onChange={(value) => setProduct({ ...product, sellingPrice: value })} type="number" min={0} max={10000000} /><Field label="الباركود" value={product.barcode} onChange={(value) => setProduct({ ...product, barcode: value })} maxLength={30} /></>} savedContent={<SavedProductsTable products={savedProducts} />}/>}
+            {step === 7 && <DataStep title="إضافة عميل سريع" busy={busy} onAdd={addCurrent} onImport={() => fileRef.current?.click()} fields={<><Field label="رقم العميل (اختياري)" value={customer.code} onChange={(value) => setCustomer({ ...customer, code: value })} /><Field label="اسم العميل" value={customer.name} onChange={(value) => setCustomer({ ...customer, name: value })} /><Field label="الجوال" value={customer.phone} onChange={(value) => setCustomer({ ...customer, phone: value })} /></>} />}
           </div>
         </main>
 
         <footer className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-slate-200 bg-white px-3 py-2 sm:gap-3 sm:px-5 sm:py-4">
           <Button variant="ghost" onClick={() => setConfirmDismiss(true)} className="text-slate-500 hover:bg-red-50 hover:text-red-700">عدم الإظهار مجدداً</Button>
-          <div className="flex gap-2"><Button variant="outline" onClick={postpone} className="rounded-xl">تأجيل</Button>{step > 0 && <Button variant="outline" onClick={() => void move(step - 1)} className="rounded-xl"><ArrowRight className="ml-2 h-4 w-4" />السابق</Button>}<Button onClick={() => step === 6 ? void finish() : void move(step + 1)} className={`rounded-xl bg-gradient-to-l ${steps[step].color} px-6 text-white`}>{step === 6 ? "إنهاء" : "التالي"}{step < 6 && <ArrowLeft className="mr-2 h-4 w-4" />}</Button></div>
+          <div className="flex gap-2"><Button variant="outline" onClick={postpone} className="rounded-xl">تأجيل</Button>{step > 0 && <Button variant="outline" onClick={() => void move(step - 1)} className="rounded-xl"><ArrowRight className="ml-2 h-4 w-4" />السابق</Button>}<Button onClick={() => step === 7 ? void finish() : void move(step + 1)} className={`rounded-xl bg-gradient-to-l ${steps[step].color} px-6 text-white`}>{step === 7 ? "إنهاء" : "التالي"}{step < 7 && <ArrowLeft className="mr-2 h-4 w-4" />}</Button></div>
         </footer>
         <input ref={fileRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; if (file) void importExcel(file) }} />
       </DialogContent>
@@ -583,6 +656,36 @@ function NativeSelect({ label, value, onChange, options, emptyLabel = "اختر"
 
 function AddButton({ busy, onClick, label }: { busy: boolean; onClick: () => void; label: string }) {
   return <div className="flex items-end"><Button disabled={busy} onClick={onClick} className="h-11 w-full rounded-xl bg-slate-900 px-6 hover:bg-slate-800">{label}</Button></div>
+}
+
+const currencyAccountFields = [
+  ["cash_account_id", "حساب الصندوق"],
+  ["incoming_checks_account_id", "حساب الشيكات الواردة"],
+  ["returned_checks_account_id", "حساب الشيكات المرتجعة"],
+  ["card_account_id", "حساب البطاقات"],
+] as const
+
+function CurrencyDefaultAccountsStep({ rows, busy, onChange, onSave }: {
+  rows: CurrencyDefaultAccountRow[]
+  busy: boolean
+  onChange: (currencyId: number, field: typeof currencyAccountFields[number][0], value: string) => void
+  onSave: () => void
+}) {
+  return <section className="flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-3xl border border-cyan-100 bg-white shadow-sm">
+    <div className="flex shrink-0 items-center justify-between bg-gradient-to-l from-cyan-700 to-sky-700 px-5 py-4 text-white">
+      <div><h4 className="text-lg font-black">حسابات الصناديق والبنوك الافتراضية</h4><p className="mt-1 text-xs text-cyan-100">حدد الحسابات الافتراضية للمستخدم الحالي لكل عملة</p></div>
+      <Button type="button" disabled={busy || rows.length === 0} onClick={onSave} className="rounded-xl bg-white text-sky-800 hover:bg-cyan-50">حفظ</Button>
+    </div>
+    {rows.length === 0 ? <div className="flex flex-1 items-center justify-center p-8 text-sm text-slate-400">يجب تعريف عملة واحدة على الأقل أولاً</div> :
+      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4 sm:p-5">
+        {rows.map((row) => <div key={row.currency_id} className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
+          <div className="mb-4 flex items-center gap-2"><span className="rounded-lg bg-sky-700 px-3 py-1 text-sm font-black text-white">{row.currency_code}</span><h5 className="font-bold text-slate-800">{row.currency_name}</h5></div>
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            {currencyAccountFields.map(([field, label]) => <div key={field}><Label className="mb-2 block text-sm font-bold text-slate-700">{label}</Label><AutoCompleteAccount label="" value={row[field]} valueMode="id" onValueChange={(value) => onChange(row.currency_id, field, String(value || ""))} onAccountSelect={(account) => onChange(row.currency_id, field, account ? String(account.id) : "")} placeholder="ابحث عن الحساب" className="w-full" showCostCenterButton={false} requiredTypeValues={[1]} leafOnly /></div>)}
+          </div>
+        </div>)}
+      </div>}
+  </section>
 }
 
 function AccountSettingsStep({ title, fields, values, onChange, busy, onSave }: { title: string; fields: readonly (readonly [string, string])[]; values: Record<string, string>; onChange: (key: string, value: string) => void; busy: boolean; onSave: () => void }) {

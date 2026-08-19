@@ -36,8 +36,6 @@ export function WindowManagerProvider({ children }: { children: React.ReactNode 
   const [activeWindowId, setActiveWindowId] = useState<string | null>(null)
   const [nextZIndex, setNextZIndex] = useState(1000)
 
-  console.log("[v0] WindowManager state:", { windowCount: windows.length, activeWindowId })
-
   const openWindow = useCallback(
     (windowData: Omit<WindowState, "id">) => {
       if (windowData.type === "tab") {

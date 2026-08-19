@@ -11,7 +11,8 @@ RUN npm ci
 FROM node:20-bookworm-slim AS builder
 
 WORKDIR /app
-ENV NEXT_TELEMETRY_DISABLED=1
+ENV NEXT_TELEMETRY_DISABLED=1 \
+    STANDALONE_BUILD=true
 
 COPY --from=dependencies /app/node_modules ./node_modules
 COPY . .
