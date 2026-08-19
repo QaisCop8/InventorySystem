@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
   try {
     await ensureState()
     const body = await request.json()
-    const step = Math.max(0, Math.min(6, Number(body.current_step) || 0))
+    const step = Math.max(0, Math.min(7, Number(body.current_step) || 0))
     await sql`
       INSERT INTO onboarding_assistant_state (id, current_step, dismissed, completed, updated_at)
       VALUES (1, ${step}, ${Boolean(body.dismissed)}, ${Boolean(body.completed)}, CURRENT_TIMESTAMP)

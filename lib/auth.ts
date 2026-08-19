@@ -95,16 +95,6 @@ async function verifyPassword(password: string, hashedPassword: string): Promise
 // مسبقاً عبر جلسة الإدارة mgmt_session): تحديث آخر دخول، بناء كائن المستخدم، تسجيل الحدث، وإصدار
 // رمز الجلسة.
 async function finalizeLogin(dbUser: any, ip?: string, userAgent?: string): Promise<AuthResult> {
-  try {
-    await sql`
-      UPDATE user_settings
-      SET last_login = NOW(), updated_at = NOW()
-      WHERE user_id = ${dbUser.id}
-    `
-  } catch (updateError) {
-    console.log("[v0] Failed to update last login:", updateError)
-  }
-
   const user: User = {
     id: dbUser.id,
     username: dbUser.username,
@@ -121,18 +111,21 @@ async function finalizeLogin(dbUser: any, ip?: string, userAgent?: string): Prom
     branchName: dbUser.branchName ?? undefined,
   }
 
-  try {
-    await logAuditEvent({
+  await Promise.allSettled([
+    sql`
+      UPDATE user_settings
+      SET last_login = NOW(), updated_at = NOW()
+      WHERE user_id = ${dbUser.id}
+    `,
+    logAuditEvent({
       userId: dbUser.id,
       userName: dbUser.fullName,
       action: "login",
       module: "authentication",
       status: "success",
       details: `User login successful from IP: ${ip || "unknown"}`,
-    })
-  } catch (auditError) {
-    console.log("[v0] Failed to log audit event:", auditError)
-  }
+    }),
+  ])
 
   return {
     success: true,

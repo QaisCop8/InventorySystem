@@ -175,23 +175,22 @@ export function AuthProvider({ children }: AuthProviderProps) {
             // قبل تحديث صلاحيات المستخدم مباشرة (السطر التالي) حتى يظهر أي تعريف جديد أُضيف هناك
             // فوراً بنفس هذا التحميل، بلا أي سكربت يدوي لكل شركة. فشلها لا يمنع تسجيل الدخول (best
             // effort — انظر lib/permissions.ts).
-            try {
-              await fetch("/api/settings/permissions/sync", { method: "POST" })
-            } catch (syncError) {
-              console.error("[v0] Failed to sync permission definitions on init:", syncError)
-            }
+            window.setTimeout(() => {
+              void fetch("/api/settings/permissions/sync", { method: "POST" })
+                .then((response) => {
+                  if (response.ok) return refreshUserPermissions(userData.id, permissionBranchId)
+                })
+                .catch((syncError) => console.error("[v0] Failed to sync permission definitions on init:", syncError))
+            }, 1500)
 
             // إعادة جلب صلاحيات المستخدم من قاعدة الشركة الحالية دوماً عند تحميل الصفحة — لا يكفي
             // الاكتفاء بما كان مخزَّناً في localStorage من آخر مرة، فهذا الاستدعاء نفسه هو ما يُشغَّل
             // بعد التبديل بين الشركات (activateCompany يُتبَع دوماً بإعادة تحميل/تنقّل كامل يُعيد
             // تركيب AuthProvider)، وبلا هذا التحديث تبقى صلاحيات الشركة السابقة معروضة خطأً هنا.
-            try {
-              await refreshUserPermissions(userData.id, permissionBranchId)
-            } catch (permError) {
-              console.error("[v0] Failed to refresh permissions on init:", permError)
-            }
             setUser(userData)
             setIsAuthenticated(true)
+            void refreshUserPermissions(userData.id, permissionBranchId)
+              .catch((permError) => console.error("[v0] Failed to refresh permissions on init:", permError))
           } else {
             clearAuthData()
           }
@@ -346,13 +345,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
         // الترتيب يُعيد ProtectedRoute عرض الصفحة المحمية فوراً بمجرد setIsAuthenticated(true) بينما
         // localStorage لا يزال فارغاً (تحديثه لاحق وغير متزامن معه)، فتفشل شاشات مثل "الاصناف" التي
         // تتحقق من الصلاحية عند أول عرض (Util.checkUserAccess) رغم أن الصلاحية فعلاً ممنوحة في القاعدة.
+        let loginBranchId: number | null = null
         try {
-          await fetch("/api/settings/permissions/sync", { method: "POST" })
-        } catch (syncError) {
-          console.error("[v0] Failed to sync permission definitions on login:", syncError)
-        }
-        try {
-          const loginBranchId = Number(result.user.branchId) || null
+          loginBranchId = Number(result.user.branchId) || null
           if (loginBranchId) {
             const loginBranch = { id: loginBranchId, name: result.user.branchName || "" }
             setActiveBranchId(loginBranch.id)
@@ -366,6 +361,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
         setUser(result.user)
         setIsAuthenticated(true)
+        window.setTimeout(() => {
+          void fetch("/api/settings/permissions/sync", { method: "POST" })
+            .then((response) => {
+              if (response.ok) return refreshUserPermissions(result.user.id, loginBranchId)
+            })
+            .catch((syncError) => console.error("[v0] Failed to sync permission definitions on login:", syncError))
+        }, 1500)
 
         if (result.user.department) {
           setActiveDepartment(result.user.department)
@@ -415,12 +417,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const fetchSettings = async () => {
     try {
-      const screenRes = await fetch(
-        `/api/voucher-settings?target=screen`
-      );
-      const printRes = await fetch(
-        `/api/voucher-settings?&target=print`
-      );
+      const [screenRes, printRes] = await Promise.all([
+        fetch(`/api/voucher-settings?target=screen`),
+        fetch(`/api/voucher-settings?target=print`),
+      ]);
 
       const screenData = await screenRes.json();
       const printData = await printRes.json();

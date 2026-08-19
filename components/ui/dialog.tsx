@@ -31,7 +31,8 @@ const DialogOverlay = React.forwardRef<
       ref={ref}
       className={cn(
         confined ? "absolute" : "fixed",
-        "pointer-events-auto inset-0 z-50 bg-white/70 backdrop-blur-[2px] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+        confined ? "pointer-events-none" : "pointer-events-auto",
+        "inset-0 z-40 bg-white/70 backdrop-blur-[2px] data-[state=open]:animate-in data-[state=closed]:pointer-events-none data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
         className,
       )}
       {...props}
@@ -47,8 +48,9 @@ interface DialogContentProps extends React.ComponentPropsWithoutRef<typeof Dialo
 const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   DialogContentProps
->(({ className, children, hideCloseButton, ...props }, ref) => {
+>(({ className, children, hideCloseButton, style, ...props }, ref) => {
   const { confined } = useWorkspaceDialog()
+  const isLargeTransactionDialog = typeof className === "string" && /(?:sales-delivery|stock-voucher)-form/.test(className)
   return <DialogPortal>
     <DialogOverlay />
     <DialogPrimitive.Content
@@ -60,6 +62,12 @@ const DialogContent = React.forwardRef<
         "pointer-events-auto z-50 grid w-full max-w-lg gap-4 border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 sm:rounded-lg",
         className,
       )}
+      style={{
+        ...(confined && isLargeTransactionDialog
+          ? { width: "calc(100% - 1.5rem)", maxWidth: "calc(100% - 1.5rem)" }
+          : {}),
+        ...style,
+      }}
       {...props}
     >
       {children}

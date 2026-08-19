@@ -2269,7 +2269,7 @@ export default function UnifiedSalesDelivery({
       }}
     >
       <DialogContent
-          className="sales-delivery-form flex h-[96vh] w-[97vw] max-w-[1800px] max-h-[96vh] flex-col overflow-hidden p-0 transition-shadow"
+          className="sales-delivery-form flex h-[96vh] w-[94vw] max-w-[1500px] max-h-[96vh] flex-col overflow-hidden p-0 transition-shadow"
           dir="rtl"
           onPointerDownOutside={(event) => event.preventDefault()}
           onInteractOutside={(event) => event.preventDefault()}

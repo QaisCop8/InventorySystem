@@ -170,7 +170,7 @@ export const FontSettings: React.FC = () => {
       })
       if (!response.ok) {
         const result = await response.json().catch(() => null)
-        throw new Error(result?.error || result?.details || "تعذر حفظ إعدادات الخط")
+        throw new Error(result?.details || result?.error || "تعذر حفظ إعدادات الخط")
       }
       messagesRef.current?.show?.([{ severity: "success", summary: "", detail: "تم حفظ إعدادات الخط للمستخدم", life: 4000 }])
     } catch (error) {

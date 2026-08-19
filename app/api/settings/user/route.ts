@@ -19,6 +19,35 @@ function ensureBranchColumn() {
       await sql`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS font_family VARCHAR(100) DEFAULT 'Cairo'`
       await sql`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS font_size INTEGER DEFAULT 14`
       await sql`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS datagrid_settings JSONB DEFAULT '{}'::jsonb`
+      await sql`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`
+      // Some older tenant databases already have these columns with legacy
+      // text types, so ADD COLUMN IF NOT EXISTS alone does not repair them.
+      await sql`
+        DO $$
+        BEGIN
+          IF EXISTS (
+            SELECT 1 FROM information_schema.columns
+            WHERE table_schema = current_schema() AND table_name = 'user_settings'
+              AND column_name = 'font_size' AND data_type <> 'integer'
+          ) THEN
+            ALTER TABLE user_settings ALTER COLUMN font_size TYPE INTEGER
+            USING CASE WHEN TRIM(font_size::text) ~ '^[0-9]+$' THEN font_size::integer ELSE 14 END;
+          END IF;
+
+          IF EXISTS (
+            SELECT 1 FROM information_schema.columns
+            WHERE table_schema = current_schema() AND table_name = 'user_settings'
+              AND column_name = 'datagrid_settings' AND data_type NOT IN ('json', 'jsonb')
+          ) THEN
+            ALTER TABLE user_settings ALTER COLUMN datagrid_settings TYPE JSONB
+            USING CASE
+              WHEN datagrid_settings IS NULL OR TRIM(datagrid_settings::text) = '' THEN '{}'::jsonb
+              WHEN pg_input_is_valid(datagrid_settings::text, 'jsonb') THEN datagrid_settings::jsonb
+              ELSE '{}'::jsonb
+            END;
+          END IF;
+        END $$
+      `
     })().catch((error: unknown) => {
       branchColumnEnsured = null
       throw error
