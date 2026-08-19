@@ -519,7 +519,17 @@ export default function PersonalAssistantWizard() {
           </div>
         </div>
 
-        <main className={`min-h-0 flex-1 overflow-y-auto p-3 sm:p-7 ${step >= 1 ? "md:flex md:overflow-hidden" : ""}`}>
+        <main
+          className={`min-h-0 flex-1 overflow-y-auto p-3 sm:p-7 ${step >= 1 ? "md:flex md:overflow-hidden" : ""}`}
+          onKeyDown={(event) => {
+            if (step !== 0 || event.key !== "Enter" || event.nativeEvent.isComposing || !(event.target instanceof HTMLInputElement)) return
+            const focusable = Array.from(event.currentTarget.querySelectorAll<HTMLElement>('input:not([disabled]), button:not([disabled])'))
+            const next = focusable[focusable.indexOf(event.target) + 1]
+            if (!next) return
+            event.preventDefault()
+            next.focus()
+          }}
+        >
           <div className={step >= 1 ? "flex min-h-0 w-full flex-1 flex-col" : "mx-auto max-w-4xl"}>
             <div className="mb-4 flex items-center gap-3 sm:mb-6 sm:gap-4"><div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br sm:h-14 sm:w-14 ${steps[step].color} text-white shadow-lg`}><StepIcon className="h-6 w-6 sm:h-7 sm:w-7" /></div><div><h3 className="text-xl font-black text-slate-900 sm:text-2xl">{steps[step].title}</h3><p className="text-sm text-slate-500 sm:text-base">{steps[step].description}</p></div></div>
             {notice && <div className={`mb-4 rounded-2xl border px-4 py-3 text-sm font-bold ${notice.type === "success" ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-red-200 bg-red-50 text-red-700"}`}>{notice.text}</div>}
