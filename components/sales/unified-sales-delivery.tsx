@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
@@ -100,6 +101,10 @@ export interface SalesVoucherItemRow {
   product_id: number | null
   product_code: string
   product_name: string
+  base_product_name?: string
+  attributes?: Array<{ name: string; values: string[]; value_images?: Record<string, string | null> }>
+  selected_attributes?: Record<string, string>
+  attribute_summary?: string
   barcode: string
   warehouse_id: number | null
   warehouse_name: string
@@ -1194,6 +1199,22 @@ export default function UnifiedSalesDelivery({
     requestAnimationFrame(refreshItemsGrid)
   }
 
+  const openAttributeEditor = async (rowIndex: number) => {
+    const row = itemsRef.current[rowIndex]
+    if (!row?.product_id || !Array.isArray(row.attributes) || row.attributes.length === 0) return
+    const editable = form.id === 0 || form.status === 1
+    const selected = await requestProductVariant({ ...row, id: row.product_id, product_name: row.base_product_name || row.product_name }, { forceEdit: true, readOnly: !editable })
+    if (selected && editable) {
+      patchItemRow(rowIndex, {
+        product_name: selected.product_name || row.product_name,
+        base_product_name: selected.base_product_name || row.base_product_name,
+        attributes: selected.attributes,
+        selected_attributes: selected.selected_attributes,
+        attribute_summary: selected.attribute_summary,
+      })
+    }
+  }
+
   const addItemRow = () => {
     if (isLocked) return
     const next = [...itemsRef.current, { ...emptyItemRow }]
@@ -1591,6 +1612,10 @@ export default function UnifiedSalesDelivery({
         product_id: product.id,
         product_code: product.product_code,
         product_name: product.product_name,
+        base_product_name: product.base_product_name || product.product_name,
+        attributes: product.attributes,
+        selected_attributes: product.selected_attributes,
+        attribute_summary: product.attribute_summary,
         barcode: product.barcode || product.first_barcode || "",
         unit: product.unit_name || currentRow?.unit || "",
         unit_name: product.unit_name || currentRow?.unit_name || currentRow?.unit || "",
@@ -1784,42 +1809,56 @@ export default function UnifiedSalesDelivery({
   }
 
   const handleProductSelect = async (products: any[]) => {
-    const product = products?.[0]
+    const selectedProducts = Array.isArray(products) ? products.filter(Boolean) : []
     setProductSearchOpen(false)
     popupHasClosed()
-    if (!product) {
+    if (selectedProducts.length === 0) {
       restoreGridFocus(lastFocusedCellRef.current)
       return
     }
     const row = pendingFocusRow.current ?? itemsRef.current.length - 1
-    const unit = product.units?.[0]
-    const currentRow = itemsRef.current[row]
-    const warehousePatch = resolveDefaultWarehouse(product)
-    const { hasExpiry, hasBatch } = resolveBatchExpiryFlags(product)
-    const itemAccount = showAccountsTab ? await resolveItemAccountDefault(product) : null
-    if (!isMountedRef.current) return
-    const unitPrice = unit?.price ?? product.first_price ?? 0
-    const patched: SalesVoucherItemRow = {
-      ...currentRow,
-      product_id: product.id,
-      product_code: product.product_code,
-      product_name: product.product_name,
-      barcode: product.barcode || product.first_barcode || "",
-      unit: unit?.unit_name || product.first_unit || "",
-      unit_name: unit?.unit_name || product.first_unit || "",
-      unit_price: unitPrice,
-      units: normalizeUnits(product.units),
-      has_expiry: hasExpiry,
-      has_batch: hasBatch,
-      measurment_id: product.measurment_id != null ? Number(product.measurment_id) : 1,
-      product_length: product.length != null ? Number(product.length) : null,
-      product_width: product.width != null ? Number(product.width) : null,
-      product_density: product.density != null ? Number(product.density) : null,
-      count: 1,
-      ...(warehousePatch ? { warehouse_id: warehousePatch.id, warehouse_name: warehousePatch.name } : {}),
-      ...(itemAccount ? { account_id: itemAccount.id, account_code: itemAccount.code, account_name: itemAccount.name } : {}),
+    const nextRows = [...itemsRef.current]
+    for (let index = 0; index < selectedProducts.length; index += 1) {
+      const product = selectedProducts[index]
+      const targetRow = index === 0 ? row : nextRows.length
+      const currentRow = index === 0 ? nextRows[targetRow] : { ...emptyItemRow }
+      const unit = product.selected_unit || product.units?.[0]
+      const warehousePatch = resolveDefaultWarehouse(product)
+      const { hasExpiry, hasBatch } = resolveBatchExpiryFlags(product)
+      const itemAccount = showAccountsTab ? await resolveItemAccountDefault(product) : null
+      if (!isMountedRef.current) return
+      const unitPrice = unit?.price ?? product.first_price ?? 0
+      const patched: SalesVoucherItemRow = {
+        ...currentRow,
+        product_id: product.id,
+        product_code: product.product_code,
+        product_name: product.product_name,
+        base_product_name: product.base_product_name || product.product_name,
+        attributes: product.attributes,
+        selected_attributes: product.selected_attributes,
+        attribute_summary: product.attribute_summary,
+        barcode: product.barcode || product.first_barcode || "",
+        unit: unit?.unit_name || product.first_unit || "",
+        unit_name: unit?.unit_name || product.first_unit || "",
+        unit_price: unitPrice,
+        quantity: 1,
+        units: normalizeUnits(product.units),
+        has_expiry: hasExpiry,
+        has_batch: hasBatch,
+        measurment_id: product.measurment_id != null ? Number(product.measurment_id) : 1,
+        product_length: product.length != null ? Number(product.length) : null,
+        product_width: product.width != null ? Number(product.width) : null,
+        product_density: product.density != null ? Number(product.density) : null,
+        count: 1,
+        ...(warehousePatch ? { warehouse_id: warehousePatch.id, warehouse_name: warehousePatch.name } : {}),
+        ...(itemAccount ? { account_id: itemAccount.id, account_code: itemAccount.code, account_name: itemAccount.name } : {}),
+      }
+      if (index === 0) nextRows[targetRow] = { ...patched, ...recalcLineAmounts(patched) }
+      else nextRows.push({ ...patched, ...recalcLineAmounts(patched) })
     }
-    patchItemRow(row, { ...patched, ...recalcLineAmounts(patched) })
+    itemsRef.current = nextRows
+    onItemsChange(nextRows)
+    requestAnimationFrame(refreshItemsGrid)
     const grid = resolveFlexControl(itemsGridRef.current)
     const nextFieldIndex = findNextRelevantFieldIndex(grid, fieldOrder.indexOf("product_code") + 1)
     pendingFocusRef.current = { row, col: nextFieldIndex === -1 ? "quantity" : fieldOrder[nextFieldIndex] }
@@ -2043,6 +2082,19 @@ export default function UnifiedSalesDelivery({
         },
         { header: "اسم الصنف", name: "product_name", width: "*", minWidth: 160, isReadOnly: isLocked || isFromDelivery },
         {
+          header: "القيم والمتغيرات",
+          name: "btnAttributes",
+          width: 75,
+          buttonBody: "button",
+          align: "center",
+          title: "عرض وتعديل القيم والمتغيرات",
+          iconType: "edit",
+          isReadOnly: true,
+          visible: true,
+          visibleInColumnChooser: true,
+          onClick: (e: any, ctx: any) => { void openAttributeEditor(ctx.row.index) },
+        },
+        {
           header: "المستودع",
           name: "warehouse_name",
           width: 120,
@@ -2151,7 +2203,7 @@ export default function UnifiedSalesDelivery({
       ],
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }),
-    [isLocked, isFromDelivery, showExpiryColumn],
+    [isLocked, isFromDelivery, showExpiryColumn, form.id, form.status],
   )
 
   // شبكة تبويب "تفاصيل حسابات الاصناف" — تُبنى من نفس itemsCollectionView (نفس الأسطر بنفس
@@ -2260,7 +2312,8 @@ export default function UnifiedSalesDelivery({
           onOpenChange(true)
           return
         }
-        // Prevent closing while saving or when any inner popup is open
+        // Prevent closing while saving or when any inner popup is open. If the form changed,
+        // route the explicit X command through the existing confirmation dialog.
         if (isSaving || anyInnerPopupOpen()) {
           // optionally notify user when trying to close during save
           if (isSaving) messagesRef.current?.show?.([{ severity: "warn", summary: "", detail: "جاري الحفظ... الرجاء الانتظار", life: 2000 }])
@@ -2959,7 +3012,7 @@ export default function UnifiedSalesDelivery({
           }}
           onSelect={handleProductSelect}
           priceCategoryId={0}
-          ShowSelect={false}
+          ShowSelect={true}
           searchText=""
         />
         {showAccountsTab && (

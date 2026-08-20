@@ -1013,8 +1013,11 @@ function UnifiedSalesOrder({
     const grid = gridRef.current?.flex;
     if (!grid) return;
 
+    const selectedItems = Array.isArray(items) ? items.filter(Boolean) : items ? [items] : [];
+    if (selectedItems.length === 0) return;
+
     try {
-      await FillItemInner(items, grid);
+      await FillItemInner(selectedItems, grid);
     } catch (error: any) {
       // استثناء غير معالَج هنا سابقاً (كخطأ شبكة عند جلب وحدات الصنف) كان يهرب كـ unhandled promise
       // rejection بعد إغلاق نافذة البحث أصلاً — يظهر للمستخدم كأن التطبيق "تعطّل" رغم أن الإضافة قد

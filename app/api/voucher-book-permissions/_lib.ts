@@ -40,14 +40,30 @@ export const ensureTables = async () => {
     await sql`DROP TABLE voucher_types`
   }
 
-  // اشعار دائن/مدين (credit-notes/_lib.ts) — نوعا سند جديدان لا يوجدان في أي جدول قديم مهاجَر،
-  // فيُدرجان صراحة هنا. لازمان لتظهرا في شاشة صلاحيات دفاتر السندات (fetchPermissionsForUser)
-  // ولأن voucher_book_user_permissions_tbl.voucher_type_id مرتبط بمفتاح خارجي مع هذا الجدول.
+  // Keep the reference IDs and names aligned with the application contract and the
+  // company bootstrap list. This also repairs older company databases on screen open.
   await sql`
     INSERT INTO voucher_types_tbl (id, name, status) VALUES
+      (1, 'طلبية مبيعات', 1),
+      (2, 'طلبية مشتريات', 1),
+      (3, 'سند قيد', 1),
+      (4, 'سند قبض', 1),
+      (5, 'سند صرف', 1),
       (6, 'اشعار دائن', 1),
-      (7, 'اشعار مدين', 1)
-    ON CONFLICT (id) DO NOTHING
+      (7, 'اشعار مدين', 1),
+      (8, 'سند ادخال بضاعة', 1),
+      (9, 'سند اخراج بضاعة', 1),
+      (10, 'ارسالية داخلية', 1),
+      (11, 'سند استعمال', 1),
+      (12, 'فاتورة مبيعات', 1),
+      (13, 'إرسالية مبيعات', 1),
+      (14, 'إرسالية برسم البيع', 1),
+      (15, 'مرتجع إرسالية برسم البيع', 1),
+      (16, 'مرتجع مبيعات', 1),
+      (17, 'فاتورة مشتريات', 1),
+      (18, 'إرسالية مشتريات', 1),
+      (19, 'مرتجع مشتريات', 1)
+    ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, status = EXCLUDED.status
   `
 
   // --- voucher_books_tbl (renamed from legacy voucher_books) ---
@@ -68,6 +84,16 @@ export const ensureTables = async () => {
   await sql`
     INSERT INTO voucher_books_tbl (name)
     SELECT '0' WHERE NOT EXISTS (SELECT 1 FROM voucher_books_tbl WHERE name = '0')
+  `
+  // Repair older company databases when the permissions screen is opened: every
+  // company must expose the complete set of books 0 and A-Z.
+  await sql`
+    INSERT INTO voucher_books_tbl (name)
+    SELECT book_name
+    FROM unnest(ARRAY['0', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z']) AS book_names(book_name)
+    WHERE NOT EXISTS (
+      SELECT 1 FROM voucher_books_tbl existing WHERE existing.name = book_name
+    )
   `
 
   await sql`

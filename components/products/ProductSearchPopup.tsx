@@ -86,7 +86,7 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
   const gridProductsRef = useRef<wjGrid.FlexGrid | null>(null);
   const gridUnitsRef = useRef<wjGrid.FlexGrid | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [attributeError, setAttributeError] = useState("");
+  const [selectedAttributeKeysByProduct, setSelectedAttributeKeysByProduct] = useState<Record<string, Set<string>>>({});
   const [refreshVersion, setRefreshVersion] = useState(0);
   const searchTextRef = useRef<HTMLInputElement>(null);
   const ws = useRef<WebSocket | null>(null);
@@ -111,16 +111,14 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
           // reset any previous selection state when opening so stale selections do not
           // persist across open/close cycles (causes confusing UI and race conditions)
           const normalized = Array.isArray(data)
-            ? data.flatMap((p: any) => {
-                const attributes: any[] = (Array.isArray(p.attributes) ? p.attributes : []).filter((attribute: any) => attribute?.name && Array.isArray(attribute?.values) && attribute.values.length > 0)
-                if (attributes.length === 0) return [{ ...p, attributes: [], attributes_display: "", _variant_key: `${p.id}:default`, selected: false, selected_unit: p.selected_unit || null }]
-                const combinations = attributes.reduce<Record<string, string>[]>((items: Record<string, string>[], attribute: any) => items.flatMap((item) => attribute.values.map((value: string) => ({ ...item, [attribute.name]: value }))), [{}])
-                return combinations.map((selection: Record<string, string>, index: number) => {
-                  const summary = attributes.map((attribute: any) => `${attribute.name}: ${selection[attribute.name]}`).join("، ")
-                  const variantImage = attributes.map((attribute: any) => attribute.value_images?.[selection[attribute.name]]).find(Boolean)
-                  return { ...p, attributes, selected_attributes: selection, attribute_summary: summary, attributes_display: summary, display_image: variantImage || p.product_image || p.image_url || null, _variant_key: `${p.id}:${index}:${summary}`, selected: false, selected_unit: p.selected_unit || null }
-                })
-              })
+            ? data.map((p: any) => ({
+                ...p,
+                attributes: (Array.isArray(p.attributes) ? p.attributes : []).filter((attribute: any) => attribute?.name && Array.isArray(attribute?.values) && attribute.values.length > 0),
+                attributes_display: "",
+                _variant_key: `${p.id}:default`,
+                selected: false,
+                selected_unit: p.selected_unit || null,
+              }))
             : [];
           setProducts(normalized);
           setSelectedProduct(null);
@@ -210,7 +208,6 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
       { header: "صورة الصنف", name: "display_image", width: 90, minWidth: 76, isReadOnly: true, align: "center", body: productImageCellTemplate },
       { header: "رقم الصنف", name: "product_code", width: 120, isReadOnly: true },
       { header: "اسم الصنف", name: "product_name", width: "*", isReadOnly: true,minWidth: 200 },
-      { header: "الخصائص", name: "attributes_display", width: 280, minWidth: 180, isReadOnly: true },
       { header: "الوحدة", name: "first_unit", width: 80, isReadOnly: true },
       { header: "السعر", name: "first_price", width: 80, isReadOnly: true },
       { header: "باركود", name: "first_barcode", width: 150, isReadOnly: true },
@@ -227,6 +224,19 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
       { header: "باركود", name: "barcode", width: 150, isReadOnly: true },
     ]
   }), []);
+
+  const selectedAttributeRows = useMemo(() => {
+    const attributes = Array.isArray(selectedProduct?.attributes) ? selectedProduct.attributes : []
+    const productKey = selectedProduct?._variant_key || (selectedProduct ? String(selectedProduct.id) : "")
+    const selectedAttributeKeys = selectedAttributeKeysByProduct[productKey] || new Set<string>()
+    return attributes.flatMap((attribute: any) => (Array.isArray(attribute.values) ? attribute.values : []).map((value: string) => ({
+      attribute_name: attribute.name,
+      value_name: value,
+      attribute_key: `${attribute.name}::${value}`,
+      selected: selectedAttributeKeys.has(`${attribute.name}::${value}`),
+      image_url: attribute.value_images?.[value] || selectedProduct?.product_image || selectedProduct?.image_url || null,
+    })))
+  }, [selectedProduct, selectedAttributeKeysByProduct])
 
   // -----------------------
   // Filtered products
@@ -274,10 +284,57 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
     setSelectedProduct(product);
   }, []);
 
+  const getProductSelectionKey = (product: Product) => product._variant_key || String(product.id);
+
+  const attributeSelectionCellTemplate = useCallback((cell: any) => {
+    const row = cell?.row?.dataItem as { attribute_key?: string; selected?: boolean } | undefined;
+    const productKey = selectedProduct ? getProductSelectionKey(selectedProduct) : "";
+    const selectedKeys = selectedAttributeKeysByProduct[productKey] || new Set<string>();
+    const checked = !!row?.attribute_key && selectedKeys.has(row.attribute_key);
+    return (
+      <input
+        type="checkbox"
+        checked={checked}
+        aria-label="اختيار القيمة"
+        className="h-4 w-4 cursor-pointer accent-green-600"
+        onChange={() => {
+          if (!row?.attribute_key || !productKey) return;
+          setSelectedAttributeKeysByProduct((current) => {
+            const next = new Set(current[productKey] || []);
+            if (next.has(row.attribute_key!)) next.delete(row.attribute_key!);
+            else next.add(row.attribute_key!);
+            return { ...current, [productKey]: next };
+          });
+        }}
+      />
+    );
+  }, [selectedProduct, selectedAttributeKeysByProduct]);
+
+  const attributeScheme = useMemo(() => ({
+    columns: [
+      { header: "✅", name: "selected", width: 50, isReadOnly: true, visible: ShowSelect, body: attributeSelectionCellTemplate },
+      { header: "المتغير", name: "attribute_name", width: 180, isReadOnly: true },
+      { header: "الخصائص", name: "value_name", width: "*", minWidth: 160, isReadOnly: true },
+      { header: "الصورة", name: "image_url", width: 90, isReadOnly: true, align: "center", body: productImageCellTemplate },
+    ],
+  }), [ShowSelect, attributeSelectionCellTemplate]);
+
+  const buildSelectedVariants = useCallback((product: Product, rows: typeof selectedAttributeRows) => {
+    const baseName = product.product_name.replace(/\s*\([^)]*\)\s*$/, "");
+    return rows.map((row) => ({
+      ...product,
+      product_name: `${baseName} (${row.attribute_name}: ${row.value_name})`,
+      selected_attributes: { ...(product.selected_attributes || {}), [row.attribute_name]: row.value_name },
+      attribute_summary: `${row.attribute_name}: ${row.value_name}`,
+      selected: true,
+    }));
+  }, []);
+
   const finishOrConfigureProduct = useCallback((product: Product) => {
     const attributes = Array.isArray(product.attributes) ? product.attributes.filter((attribute) => attribute.name && attribute.values?.length) : [];
     if (attributes.length > 0 && !product.selected_attributes) {
-      setAttributeError("اختر صف تركيبة من عمود الخصائص")
+      setSelectedProduct(product);
+      setTimeout(() => gridUnitsRef.current?.focus(), 0);
       return;
     }
     const name = product.attribute_summary ? `${product.product_name} (${product.attribute_summary})` : product.product_name
@@ -307,8 +364,26 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
       prev.map(p => p._variant_key === product._variant_key ? updatedProduct : p)
     );
 
+    const attributes = Array.isArray(updatedProduct.attributes)
+      ? updatedProduct.attributes.filter((attribute) => attribute.name && attribute.values?.length)
+      : [];
+    if (attributes.length > 0 && !updatedProduct.selected_attributes) {
+      const firstAttribute = attributes[0];
+      const firstValue = firstAttribute.values[0];
+      const [firstVariant] = buildSelectedVariants(updatedProduct, [{
+        attribute_name: firstAttribute.name,
+        value_name: firstValue,
+        attribute_key: `${firstAttribute.name}::${firstValue}`,
+        selected: true,
+        image_url: firstAttribute.value_images?.[firstValue] || updatedProduct.product_image || updatedProduct.image_url || null,
+      }]);
+      onSelect([firstVariant]);
+      onClose();
+      return;
+    }
+
     finishOrConfigureProduct(updatedProduct);
-  }, [finishOrConfigureProduct, priceCategoryId]);
+  }, [finishOrConfigureProduct, priceCategoryId, buildSelectedVariants, onSelect, onClose]);
   // -----------------------
   // Fetch units when product selected
   // -----------------------
@@ -330,6 +405,10 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
     }
   }, [priceCategoryId]);
 
+  const handleAttributeCellEditEnded = useCallback((grid: wjGrid.FlexGrid, event: any) => {
+    return;
+  }, []);
+
   // -----------------------
   // Select unit for product
   // -----------------------
@@ -345,6 +424,14 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
   const handleUnitRowDoubleClick = useCallback((unit: Unit) => {
     if (!selectedProduct || !unit) return;
 
+    const attributeRow = unit as Unit & { attribute_key?: string; attribute_name?: string; value_name?: string };
+    if (attributeRow.attribute_key && attributeRow.attribute_name && attributeRow.value_name) {
+      const [variant] = buildSelectedVariants(selectedProduct, [attributeRow as typeof selectedAttributeRows[number]]);
+      onSelect([variant]);
+      onClose();
+      return;
+    }
+
     // Combine product info + selected unit
     const productWithUnit = {
       ...selectedProduct,       // all product fields
@@ -357,20 +444,41 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
 
     // Pass it to parent and close popup
     finishOrConfigureProduct(productWithUnit);
-  }, [selectedProduct, finishOrConfigureProduct]);
+  }, [selectedProduct, buildSelectedVariants, onSelect, onClose, finishOrConfigureProduct]);
   // -----------------------
   // Confirm selection
   // -----------------------
   const handleConfirm = () => {
-    let selectedItems = products.filter(p => p.selected);
-
-    // If no products are selected, pick the currently focused row in the grid
-    if (selectedItems.length === 0 && selectedProduct) {
-      selectedItems.push(selectedProduct);
-
+    const checkedProducts = products.filter((product) => product.selected);
+    const selectedProducts = checkedProducts.length > 0 ? checkedProducts : (selectedProduct ? [selectedProduct] : []);
+    const pendingAttributeProduct = selectedProducts.find((product) => {
+      if (!product || !Array.isArray(product.attributes) || product.attributes.length === 0) return false;
+      const selectedKeys = selectedAttributeKeysByProduct[getProductSelectionKey(product)] || new Set<string>();
+      return !product.selected_attributes && selectedKeys.size === 0;
+    });
+    if (pendingAttributeProduct) {
+      setSelectedProduct(pendingAttributeProduct);
+      setTimeout(() => gridUnitsRef.current?.focus(), 0);
+      return;
     }
 
-    if (selectedItems.length === 0) return; // nothing to select
+    if (selectedProducts.length === 0) return;
+
+    const selectedItems = selectedProducts.flatMap((product) => {
+      const selectedKeys = selectedAttributeKeysByProduct[getProductSelectionKey(product)] || new Set<string>();
+      const attributes = Array.isArray(product.attributes) ? product.attributes.filter((attribute) => attribute.name && attribute.values?.length) : [];
+      if (attributes.length === 0 || product.selected_attributes) return [product];
+      const rows = attributes.flatMap((attribute) => attribute.values.map((value) => ({
+        attribute_name: attribute.name,
+        value_name: value,
+        attribute_key: `${attribute.name}::${value}`,
+        selected: selectedKeys.has(`${attribute.name}::${value}`),
+        image_url: attribute.value_images?.[value] || product.product_image || product.image_url || null,
+      }))).filter((row) => selectedKeys.has(row.attribute_key));
+      return buildSelectedVariants(product, rows);
+    });
+
+    if (selectedItems.length === 0) return;
 
     // Reset selection flags
     setProducts(prev => prev.map(p => ({ ...p, selected: false })));
@@ -474,7 +582,6 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
       }}
     >
       <div className="relative flex h-[100dvh] max-h-[100dvh] w-full max-w-[1500px] flex-col overflow-y-auto rounded-none border-0 border-slate-200 bg-slate-50 p-3 shadow-2xl overscroll-contain sm:h-[92dvh] sm:max-h-[92dvh] sm:overflow-hidden sm:rounded-3xl sm:border sm:p-5" dir="rtl">
-        {attributeError && <div className="mb-3 rounded-md border border-red-200 bg-red-50 p-2 text-sm font-semibold text-red-700">{attributeError}</div>}
         <div className="flex shrink-0 items-center justify-between gap-3 rounded-2xl bg-gradient-to-l from-blue-700 via-blue-600 to-cyan-600 px-4 py-3 shadow-lg sm:px-6 sm:py-4">
           <div className="flex items-center gap-3"><div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/30"><Search className="h-5 w-5 text-white" /></div><h3 className="text-lg font-extrabold text-white sm:text-xl">{title || "بحث الأصناف"}</h3></div>
           <div className="flex items-center gap-2">
@@ -497,7 +604,7 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
             <p className="flex items-center gap-2 text-sm font-bold text-blue-900"><SlidersHorizontal className="h-4 w-4 text-blue-600" />الفلاتر</p>
           </div>
 
-          <div ref={filterContainerRef} className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3 xl:grid-cols-[0.8fr_2fr_0.8fr_0.8fr_1fr]">
+          <div ref={filterContainerRef} className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3 xl:grid-cols-[0.8fr_1.4fr_0.8fr_0.8fr_1.3fr]">
             <div className="space-y-1">
               <label className="block text-xs font-semibold text-slate-700 text-right">رقم الصنف</label>
               <Input
@@ -585,7 +692,7 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
         <div className="mt-2 flex min-h-0 flex-1 flex-col gap-3 sm:gap-4 sm:overflow-hidden">
           <div className="shrink-0 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:rounded-3xl">
             <h4 className="text-sm font-semibold mb-3 text-slate-700 text-right">نتائج البحث</h4>
-            <div className="modern-search-grid h-[32dvh] min-h-[220px] w-full overflow-hidden sm:h-[24vh] sm:min-h-[180px]">
+            <div className="modern-search-grid h-[32dvh] min-h-[220px] w-full overflow-auto sm:h-[24vh] sm:min-h-[180px]">
               <DataGridView
                 style={responsiveGridStyle}
                 containerStyle={responsiveGridStyle}
@@ -594,6 +701,7 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
                 scheme={productScheme}
                 onRowDoubleClick={handleProductDoubleClick}
                 selectionChanged={selectionChanged}
+                defaultRowHeight={34}
                 onKeyDown={(s: any, e: any) => onKeyDownGrid(s, e)}
                 selectionMode={wjGrid.SelectionMode.Row}
                 keyActionEnter="None"
@@ -604,15 +712,17 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
           </div>
 
           <div className="shrink-0 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:rounded-3xl">
-            <h4 className="text-sm font-semibold mb-3 text-slate-700 text-right">وحدات الصنف</h4>
+            <h4 className="text-sm font-semibold mb-3 text-slate-700 text-right">{selectedAttributeRows.length ? "المتغيرات والخصائص" : "وحدات الصنف"}</h4>
             <div className="text-sm text-slate-500 mb-3 text-right">{selectedProduct?.product_name || "لا يوجد صنف محدد"}</div>
-            <div className="h-[24dvh] min-h-[180px] w-full overflow-hidden sm:h-[12vh] sm:min-h-[100px]">
+            <div className="h-[34dvh] min-h-[260px] w-full overflow-y-auto sm:h-[24vh] sm:min-h-[180px]">
               <DataGridView
                 innerRef={gridUnitsRef}
                 style={responsiveGridStyle}
                 containerStyle={responsiveGridStyle}
-                dataSource={selectedProduct?.units || []}
-                scheme={unitScheme}
+                dataSource={selectedAttributeRows.length ? selectedAttributeRows : selectedProduct?.units || []}
+                scheme={selectedAttributeRows.length ? attributeScheme : unitScheme}
+                defaultRowHeight={32}
+                cellEditEnded={selectedAttributeRows.length ? handleAttributeCellEditEnded : undefined}
                 onRowDoubleClick={handleUnitRowDoubleClick}
               />
             </div>

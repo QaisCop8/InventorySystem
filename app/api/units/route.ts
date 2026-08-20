@@ -17,11 +17,25 @@ export async function GET() {
       )
     `
 
+    // Older company bootstrap databases do not have unit_code even though the
+    // current API contract returns it. Add the compatibility columns before
+    // reading the table so the wizard works for both old and new companies.
+    await sql`ALTER TABLE units ADD COLUMN IF NOT EXISTS unit_code VARCHAR(10)`
+    await sql`ALTER TABLE units ADD COLUMN IF NOT EXISTS unit_name_en VARCHAR(50)`
+    await sql`ALTER TABLE units ADD COLUMN IF NOT EXISTS description TEXT`
+    await sql`ALTER TABLE units ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true`
     await sql`ALTER TABLE units ADD COLUMN IF NOT EXISTS status INTEGER DEFAULT 1`
+    await sql`ALTER TABLE units ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`
+    await sql`ALTER TABLE units ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`
+    await sql`
+      UPDATE units
+      SET unit_code = 'U' || LPAD(id::text, 9, '0')
+      WHERE unit_code IS NULL OR TRIM(unit_code) = ''
+    `
 
     const existingUnits = await sql`SELECT COUNT(*) as count FROM units`
 
-    if (existingUnits[0].count === 0) {
+    if (Number(existingUnits[0]?.count || 0) === 0) {
       const defaultUnits = [
         { code: "PCS", name: "قطعة", name_en: "Piece" },
         { code: "KG", name: "كيلو", name_en: "Kilogram" },

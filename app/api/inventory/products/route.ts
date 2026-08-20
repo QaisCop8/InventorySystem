@@ -276,6 +276,11 @@ export async function GET(request: NextRequest) {
 
   try {
     await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS attributes JSONB NOT NULL DEFAULT '[]'::jsonb`
+    await sql`ALTER TABLE IF EXISTS product_attributes_tbl RENAME TO attributes_tbl`
+    await sql`ALTER TABLE IF EXISTS product_attribute_values_tbl RENAME TO attribute_values_tbl`
+    await sql`CREATE TABLE IF NOT EXISTS attributes_tbl (id SERIAL PRIMARY KEY, name TEXT NOT NULL UNIQUE)`
+    await sql`CREATE TABLE IF NOT EXISTS attribute_values_tbl (id SERIAL PRIMARY KEY, attr_id INTEGER NOT NULL REFERENCES attributes_tbl(id) ON DELETE CASCADE, name TEXT NOT NULL, UNIQUE(attr_id, name))`
+    await sql`CREATE TABLE IF NOT EXISTS product_atrributes_values_tbl (id BIGSERIAL UNIQUE, product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE, attr_id INTEGER NOT NULL REFERENCES attributes_tbl(id) ON DELETE CASCADE, value_id INTEGER NOT NULL REFERENCES attribute_values_tbl(id) ON DELETE CASCADE, image_url TEXT, PRIMARY KEY(product_id, attr_id, value_id))`
     // قد لا يكون product_branches موجوداً بعد (يُنشَأ أصلاً ضمن POST) على قاعدة لم يُحفَظ بها أي
     // صنف مقيَّد بفرع بعد — الاستعلام أدناه يستخدمه دوماً بمجرّد وجود هيدر x-branch-id، فيُضمَن
     // وجوده هنا أيضاً بدل تفويت ذلك لِـPOST فقط.
@@ -448,6 +453,34 @@ export async function GET(request: NextRequest) {
 
     const productsResult = await (await getTenantPool()).query(productsQuery)
     const products = productsResult.rows
+    const productIds = products.map((product: any) => Number(product.id)).filter((id: number) => Number.isInteger(id) && id > 0)
+    if (productIds.length) {
+      const attributeLinks = await (await getTenantPool()).query(
+        `SELECT pav.product_id, a.name AS attribute_name, v.name AS value_name, pav.image_url
+         FROM product_atrributes_values_tbl pav
+         JOIN attributes_tbl a ON a.id = pav.attr_id
+         JOIN attribute_values_tbl v ON v.id = pav.value_id
+         WHERE pav.product_id = ANY($1::int[])
+         ORDER BY pav.product_id, a.name, v.name`,
+        [productIds],
+      )
+      const grouped = new Map<number, any[]>()
+      for (const row of attributeLinks.rows) {
+        const id = Number(row.product_id)
+        let attribute = (grouped.get(id) || []).find((item) => item.name === row.attribute_name)
+        if (!attribute) {
+          attribute = { name: row.attribute_name, values: [], value_images: {} }
+          if (!grouped.has(id)) grouped.set(id, [])
+          grouped.get(id)!.push(attribute)
+        }
+        attribute.values.push(row.value_name)
+        if (row.image_url) attribute.value_images[row.value_name] = row.image_url
+      }
+      for (const product of products) {
+        const joined = grouped.get(Number(product.id))
+        if (joined?.length) product.attributes = joined
+      }
+    }
 
     // Map product status & tracking
     const mappedProducts = products.map((product: any) => ({
@@ -613,6 +646,40 @@ async function ensureProductUnitLinkTables(client: any) {
   await client.query(`CREATE INDEX IF NOT EXISTS idx_product_prices_product_id ON product_prices(product_id)`, [])
 }
 
+async function ensureProductAttributeTables(client: any) {
+  await client.query(`ALTER TABLE IF EXISTS product_attributes_tbl RENAME TO attributes_tbl`)
+  await client.query(`ALTER TABLE IF EXISTS product_attribute_values_tbl RENAME TO attribute_values_tbl`)
+  await client.query(`CREATE TABLE IF NOT EXISTS attributes_tbl (id SERIAL PRIMARY KEY, name TEXT NOT NULL UNIQUE)`)
+  await client.query(`CREATE TABLE IF NOT EXISTS attribute_values_tbl (id SERIAL PRIMARY KEY, attr_id INTEGER NOT NULL REFERENCES attributes_tbl(id) ON DELETE CASCADE, name TEXT NOT NULL, UNIQUE(attr_id, name))`)
+  await client.query(`CREATE TABLE IF NOT EXISTS product_atrributes_values_tbl (id BIGSERIAL UNIQUE, product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE, attr_id INTEGER NOT NULL REFERENCES attributes_tbl(id) ON DELETE CASCADE, value_id INTEGER NOT NULL REFERENCES attribute_values_tbl(id) ON DELETE CASCADE, image_url TEXT, PRIMARY KEY(product_id, attr_id, value_id))`)
+}
+
+async function persistProductAttributes(client: any, productId: number, attributes: any[]) {
+  await ensureProductAttributeTables(client)
+  await client.query(`DELETE FROM product_atrributes_values_tbl WHERE product_id = $1`, [productId])
+  for (const attribute of Array.isArray(attributes) ? attributes : []) {
+    const name = String(attribute?.name || "").trim()
+    if (!name) continue
+    const attributeResult = await client.query(
+      `INSERT INTO attributes_tbl (name) VALUES ($1) ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name RETURNING id`,
+      [name],
+    )
+    const attrId = Number(attributeResult.rows[0].id)
+    for (const rawValue of Array.isArray(attribute?.values) ? attribute.values : []) {
+      const value = String(rawValue || "").trim()
+      if (!value) continue
+      const valueResult = await client.query(
+        `INSERT INTO attribute_values_tbl (attr_id, name) VALUES ($1, $2) ON CONFLICT (attr_id, name) DO UPDATE SET name = EXCLUDED.name RETURNING id`,
+        [attrId, value],
+      )
+      await client.query(
+        `INSERT INTO product_atrributes_values_tbl (product_id, attr_id, value_id, image_url) VALUES ($1, $2, $3, $4) ON CONFLICT (product_id, attr_id, value_id) DO UPDATE SET image_url = EXCLUDED.image_url`,
+        [productId, attrId, Number(valueResult.rows[0].id), attribute?.value_images?.[value] || null],
+      )
+    }
+  }
+}
+
 async function resolveProductUnitId(client: any, productId: number, candidateUnitId: number | null): Promise<number | null> {
   const raw = Number(candidateUnitId ?? 0)
   if (!Number.isFinite(raw) || raw <= 0) return null
@@ -676,6 +743,7 @@ export async function POST(request: NextRequest) {
     await ensureProductBrandsTable(client)
     await ensureProductNumbersTable(client)
     await ensureProductUnitLinkTables(client)
+    await ensureProductAttributeTables(client)
     // تقييد ظهور الصنف بفروع معيّنة (اختياري) — بلا أي صف هنا لهذا الصنف يبقى ظاهراً لكل الفروع
     // (السلوك الحالي دون تغيير)؛ بصف واحد أو أكثر يظهر فقط لمستخدم فرعه أحد هذه الصفوف (انظر تصفية
     // GET أدناه عبر هيدر x-branch-id). نفس نمط product_warehouses تماماً (جدول علاقة بسيط).
@@ -714,7 +782,7 @@ export async function POST(request: NextRequest) {
     if (nameCheck.rows.length > 0) {
       await client.query("ROLLBACK");
       //client.release();
-      return NextResponse.json({ success: false, message: "ط§ط³ظ… ط§ظ„طµظ†ظپ ظ…ظƒط±ط±" }, { status: 400 });
+      return NextResponse.json({ success: false, error: "اسم الصنف مكرر لا يمكن الحفظ" }, { status: 400 });
     }
     if (Array.isArray(productData.units)) {
       for (const unit of productData.units) {
@@ -1265,6 +1333,7 @@ export async function POST(request: NextRequest) {
       JSON.stringify(productData.attributes || []),
       productId,
     ])
+    await persistProductAttributes(client, productId, productData.attributes)
 
     await client.query("COMMIT");
     return NextResponse.json({ success: true, productId });

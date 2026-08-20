@@ -375,6 +375,11 @@ export const fetchSalesVoucherJournalAccounts = async (voucherId: number, vchTyp
 // الاستعمال حصراً.
 export const saveSalesVoucherItems = async (voucherId: number, items: any[]) => {
   await sql`DELETE FROM voucher_items_tbl WHERE voucher_id = ${voucherId}`
+  await sql`CREATE TABLE IF NOT EXISTS attributes_tbl (id SERIAL PRIMARY KEY, name TEXT NOT NULL UNIQUE)`
+  await sql`CREATE TABLE IF NOT EXISTS attribute_values_tbl (id SERIAL PRIMARY KEY, attr_id INTEGER NOT NULL REFERENCES attributes_tbl(id) ON DELETE CASCADE, name TEXT NOT NULL, UNIQUE(attr_id, name))`
+  await sql`CREATE TABLE IF NOT EXISTS product_atrributes_values_tbl (id BIGSERIAL UNIQUE, product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE, attr_id INTEGER NOT NULL REFERENCES attributes_tbl(id) ON DELETE CASCADE, value_id INTEGER NOT NULL REFERENCES attribute_values_tbl(id) ON DELETE CASCADE, image_url TEXT, PRIMARY KEY(product_id, attr_id, value_id))`
+  await sql`CREATE TABLE IF NOT EXISTS voucher_item_attributes_tbl (id BIGSERIAL PRIMARY KEY, voucher_item_id INTEGER NOT NULL REFERENCES voucher_items_tbl(id) ON DELETE CASCADE, product_attribute_value_id BIGINT NOT NULL REFERENCES product_atrributes_values_tbl(id) ON DELETE CASCADE, UNIQUE(voucher_item_id, product_attribute_value_id))`
+  await sql`CREATE TABLE IF NOT EXISTS order_item_attributes_tbl (id BIGSERIAL PRIMARY KEY, order_item_id INTEGER NOT NULL, product_attribute_value_id BIGINT NOT NULL REFERENCES product_atrributes_values_tbl(id) ON DELETE CASCADE, UNIQUE(order_item_id, product_attribute_value_id))`
   const rows = (Array.isArray(items) ? items : []).filter((row) => row?.product_id && Number(row?.quantity || 0) > 0)
 
   const productIds = [...new Set(rows.map((r) => Number(r.product_id)).filter((id) => Number.isFinite(id) && id > 0))]
@@ -439,6 +444,17 @@ export const saveSalesVoucherItems = async (voucherId: number, items: any[]) => 
       ) RETURNING id
     `
     savedRows.push({ ...row, id: Number(inserted[0].id) })
+    const selected = row.selected_attributes && typeof row.selected_attributes === "object" ? Object.values(row.selected_attributes).map(String) : []
+    for (const value of selected) {
+      await sql`INSERT INTO voucher_item_attributes_tbl (voucher_item_id, product_attribute_value_id)
+        SELECT ${inserted[0].id}, pav.id FROM product_atrributes_values_tbl pav JOIN attribute_values_tbl av ON av.id = pav.value_id
+        WHERE pav.product_id = ${Number(row.product_id)} AND av.name = ${value}
+        ON CONFLICT DO NOTHING`
+      if (row.order_item_id) await sql`INSERT INTO order_item_attributes_tbl (order_item_id, product_attribute_value_id)
+        SELECT ${Number(row.order_item_id)}, pav.id FROM product_atrributes_values_tbl pav JOIN attribute_values_tbl av ON av.id = pav.value_id
+        WHERE pav.product_id = ${Number(row.product_id)} AND av.name = ${value}
+        ON CONFLICT DO NOTHING`
+    }
   }
   return savedRows
 }

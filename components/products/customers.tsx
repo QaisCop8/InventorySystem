@@ -760,12 +760,13 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
       return
     }
 
+    const customerRecord = customer as Customer & { customer_name?: string; customer_name_en?: string }
 
     setFormData({
       id: customer.id || 0,
       customer_code: customer.customer_code || "",
-      name: customer.name || "",
-      name_en: (customer as any).customer_name_en || "",
+      name: customer.name || customerRecord.customer_name || "",
+      name_en: customerRecord.customer_name_en || (customer as any).name_en || "",
       mobile1: customer.mobile1 || "",
       mobile2: customer.mobile2 || "",
       whatsapp1: customer.whatsapp1 || "",
@@ -875,17 +876,16 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
       }
 
 
-      const newFormData = {
-        ...customer
-      };
-      setFormData(customer);
-      console.log("newFormData ", newFormData)
+      updateFormData(customer);
+      console.log("newFormData ", customer)
 
       // Establish the baseline from the exact payload being committed. Keeping
       // this inside a timer allowed user input (or child synchronization) to
       // happen first and made genuine edits look unchanged intermittently.
       initialHash.current = getFormDataHash(customer)
-      setCurrentCustomerId(customer.id)
+      setCurrentCustomerId(Number(customer.id))
+      const customerIndex = customers.findIndex((item) => Number(item.id) === Number(customer.id))
+      if (customerIndex >= 0) setCurrentIndex(customerIndex)
 
       setTimeout(() => {
         customer_name.current?.focus();
@@ -1025,7 +1025,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
         if (!silent) setIsLoading(false);
       }
     },
-    [isSupplier]
+    [customers, formData, isSupplier, updateFormData]
   );
 
 
@@ -1990,12 +1990,12 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
               onExportExcel={() => console.log("Export to Excel")}
               onPrint={() => console.log("Print customer")}
               onCustomerSelect={(customer) => {
-                setFormData((prev) => ({
-                  ...prev,
-                  id: Number(customer.id),
-                  account_id: customer.account_id ?? null,
-                }))
-                loadData("ById", customer.id)
+                const customerId = Number(customer.id)
+                const customerIndex = customers.findIndex((item) => Number(item.id) === customerId)
+                if (customerIndex >= 0) setCurrentIndex(customerIndex)
+                setCurrentCustomerId(customerId)
+                updateFormData({ ...customer, id: customerId, account_id: customer.account_id ?? null })
+                void loadData("ByIdEdit", customerId, isSupplier, false)
               }}
               onClassificationRowsChange={setCustomerAccountClassifications}
               onCostCenterRowsChange={(rows) => setFormData((prev) => ({ ...prev, cost_centers: rows }))}

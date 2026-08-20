@@ -380,6 +380,14 @@ async function ensureModernProductColumns(tenantClient: ReturnType<typeof getPoo
   for (const [columnName, columnType] of productColumns) {
     await tenantClient.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS ${columnName} ${columnType}`, [])
   }
+
+  await tenantClient.query(`ALTER TABLE IF EXISTS product_attributes_tbl RENAME TO attributes_tbl`, [])
+  await tenantClient.query(`ALTER TABLE IF EXISTS product_attribute_values_tbl RENAME TO attribute_values_tbl`, [])
+  await tenantClient.query(`CREATE TABLE IF NOT EXISTS attributes_tbl (id SERIAL PRIMARY KEY, name TEXT NOT NULL UNIQUE)`, [])
+  await tenantClient.query(`CREATE TABLE IF NOT EXISTS attribute_values_tbl (id SERIAL PRIMARY KEY, attr_id INTEGER NOT NULL REFERENCES attributes_tbl(id) ON DELETE CASCADE, name TEXT NOT NULL, UNIQUE(attr_id, name))`, [])
+  await tenantClient.query(`CREATE TABLE IF NOT EXISTS product_atrributes_values_tbl (id BIGSERIAL UNIQUE, product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE, attr_id INTEGER NOT NULL REFERENCES attributes_tbl(id) ON DELETE CASCADE, value_id INTEGER NOT NULL REFERENCES attribute_values_tbl(id) ON DELETE CASCADE, image_url TEXT, PRIMARY KEY(product_id, attr_id, value_id))`, [])
+  await tenantClient.query(`CREATE TABLE IF NOT EXISTS voucher_item_attributes_tbl (id BIGSERIAL PRIMARY KEY, voucher_item_id INTEGER NOT NULL REFERENCES voucher_items_tbl(id) ON DELETE CASCADE, product_attribute_value_id BIGINT NOT NULL REFERENCES product_atrributes_values_tbl(id) ON DELETE CASCADE, UNIQUE(voucher_item_id, product_attribute_value_id))`, [])
+  await tenantClient.query(`CREATE TABLE IF NOT EXISTS order_item_attributes_tbl (id BIGSERIAL PRIMARY KEY, order_item_id INTEGER NOT NULL, product_attribute_value_id BIGINT NOT NULL REFERENCES product_atrributes_values_tbl(id) ON DELETE CASCADE, UNIQUE(order_item_id, product_attribute_value_id))`, [])
 }
 
 // بعد إنشاء قاعدة الشركة من dump المشروع مباشرة، نمنح admin جميع التعريفات الموجودة في قاعدة
@@ -446,6 +454,18 @@ async function seedVoucherBookPermissionsForAdmin(
       )
     }
   }
+}
+
+async function ensureDefaultVoucherBooks(tenantClient: ReturnType<typeof getPoolForDb>) {
+  await tenantClient.query(
+    `INSERT INTO voucher_books_tbl (name)
+     SELECT book_name
+     FROM unnest(ARRAY['0', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z']) AS book_names(book_name)
+     WHERE NOT EXISTS (
+       SELECT 1 FROM voucher_books_tbl existing WHERE existing.name = book_name
+     )`,
+    [],
+  )
 }
 
 // فرع وقسم افتراضيان لكل شركة جديدة — بلا أي فرع/قسم، شاشات كثيرة (تسجيل الدخول نفسه عبر
@@ -618,6 +638,7 @@ export async function provisionCompanyDatabase(
   await ensureModernProductColumns(tenantClient)
   await ensureModernVoucherItemsTable(tenantClient)
   await clearFreshCompanyNonLookupData(tenantClient)
+  await ensureDefaultVoucherBooks(tenantClient)
   const branchId = await seedDefaultBranchAndSection(tenantClient)
   await seedDefaultStore(tenantClient)
   await seedDefaultSystemSettings(tenantClient)

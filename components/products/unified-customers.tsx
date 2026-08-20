@@ -1103,8 +1103,8 @@ export default function UnifiedCustomers({
       {/* شريط الأدوات ثابت أعلى النافذة دوماً (لا يتحرَّك مع تمرير المحتوى) — بنفس أسلوب
           components/customer/unified-accounts-refactored.tsx (flex-shrink-0 لرأس + flex-1
           overflow-y-auto لجسم قابل للتمرير)، بدل sticky/هوامش سالبة أقل ثباتاً. */}
-      <div className="flex flex-shrink-0 items-start gap-2 px-6 pb-3 pt-6" dir="rtl">
-        <div className="flex-1">
+      <div className="relative flex flex-shrink-0 px-6 pb-3 pt-10" dir="rtl">
+        <div className="w-full">
           <UniversalToolbar
             onFirst={onFirst}
             onPrevious={onPrevious}
@@ -1127,7 +1127,7 @@ export default function UnifiedCustomers({
         <button
           type="button"
           onClick={() => onOpenChange(false)}
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/95 text-slate-900 shadow-lg ring-1 ring-slate-200 transition-opacity hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-sky-400"
+          className="absolute left-6 top-1 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-white/95 text-slate-900 shadow-lg ring-1 ring-slate-200 transition-opacity hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-sky-400"
         >
           <X className="h-4 w-4" />
           <span className="sr-only">إغلاق</span>
@@ -1169,36 +1169,44 @@ export default function UnifiedCustomers({
                 </div>
               </div>
 
-              <div>
-                <Label htmlFor="customer_name" className="text-sm font-medium">
-                  {isSupplier ? "اسم المورد *" : "اسم العميل *"}
-                </Label>
-                <Input
-                  id="customer_name"
-                  ref={customerNameRef}
-                  value={formData.name}
-                  onChange={(e) => updateField("name", e.target.value.slice(0, 100))}
-                  className={`text-right ${validationErrors.name ? "border-red-500" : ""}`}
-                  placeholder=""
-                  maxLength={100}
-                  required
-                />
-                {validationErrors.name && <p className="text-red-500 text-xs mt-1">{validationErrors.name}</p>}
-              </div>
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                <div className="space-y-1">
+                  <Label htmlFor="customer_name" className="text-xs font-medium text-slate-600">
+                    {isSupplier ? "اسم المورد *" : "اسم العميل *"}
+                  </Label>
+                  <Input
+                    id="customer_name"
+                    ref={customerNameRef}
+                    value={formData.name}
+                    onChange={(e) => updateField("name", e.target.value.slice(0, 100))}
+                    onBlur={() => {
+                      if (!formData.name_en.trim() && formData.name.trim()) updateField("name_en", formData.name.trim())
+                    }}
+                    className={`h-9 border-slate-200 bg-slate-50/60 text-right shadow-none focus-visible:border-slate-400 focus-visible:ring-1 focus-visible:ring-slate-200 ${validationErrors.name ? "border-red-500" : ""}`}
+                    placeholder=""
+                    maxLength={100}
+                    required
+                  />
+                  {validationErrors.name && <p className="text-red-500 text-xs mt-1">{validationErrors.name}</p>}
+                </div>
 
-              <div>
-                <Label htmlFor="customer_name_en" className="text-sm font-medium">
-                  {isSupplier ? "اسم المورد بالانجليزي" : "اسم العميل بالانجليزي"}
-                </Label>
-                <Input
-                  id="customer_name_en"
-                  value={formData.name_en}
-                  onChange={(e) => updateField("name_en", e.target.value.slice(0, 100))}
-                  className="text-right"
-                  placeholder=""
-                  maxLength={100}
-                  dir="ltr"
-                />
+                <div className="space-y-1">
+                  <Label htmlFor="customer_name_en" className="text-xs font-medium text-slate-600">
+                    {isSupplier ? "اسم المورد بالانجليزي" : "اسم العميل بالانجليزي"}
+                  </Label>
+                  <Input
+                    id="customer_name_en"
+                    value={formData.name_en}
+                    onChange={(e) => updateField("name_en", e.target.value.slice(0, 100))}
+                    onBlur={() => {
+                      if (!formData.name_en.trim() && formData.name.trim()) updateField("name_en", formData.name.trim())
+                    }}
+                    className="h-9 border-slate-200 bg-slate-50/60 text-left shadow-none focus-visible:border-slate-400 focus-visible:ring-1 focus-visible:ring-slate-200"
+                    placeholder=""
+                    maxLength={100}
+                    dir="ltr"
+                  />
+                </div>
               </div>
             </div>
 

@@ -45,6 +45,10 @@ export interface VoucherItemRow {
   product_id: number | null
   product_code: string
   product_name: string
+  base_product_name?: string
+  attributes?: Array<{ name: string; values: string[]; value_images?: Record<string, string | null> }>
+  selected_attributes?: Record<string, string>
+  attribute_summary?: string
   // للقراءة فقط، يُملأ تلقائياً عند اختيار الصنف (products.barcode/first_barcode بحسب مصدر البيانات
   // — انظر تعليق handleProductSelect/lookupProductByCode) — عمود اختياري تتحكم به إعدادات السند
   // (الاعمدة التي تظهر في السند ← الباركود) مثل باقي الأعمدة الاختيارية.
@@ -921,6 +925,22 @@ export default function UnifiedStockVoucher({
     onItemsChange(next)
   }
 
+  const openAttributeEditor = async (rowIndex: number) => {
+    const row = itemsRef.current[rowIndex]
+    if (!row?.product_id || !Array.isArray(row.attributes) || row.attributes.length === 0) return
+    const editable = form.id === 0 || form.status === 1
+    const selected = await requestProductVariant({ ...row, id: row.product_id, product_name: row.base_product_name || row.product_name }, { forceEdit: true, readOnly: !editable })
+    if (selected && editable) {
+      patchItemRow(rowIndex, {
+        product_name: selected.product_name || row.product_name,
+        base_product_name: selected.base_product_name || row.base_product_name,
+        attributes: selected.attributes,
+        selected_attributes: selected.selected_attributes,
+        attribute_summary: selected.attribute_summary,
+      })
+    }
+  }
+
   const addItemRow = () => {
     if (isLocked) return
     const next = [...itemsRef.current, { ...emptyItemRow }]
@@ -1023,6 +1043,10 @@ export default function UnifiedStockVoucher({
         product_id: product.id,
         product_code: product.product_code,
         product_name: product.product_name,
+        base_product_name: product.base_product_name || product.product_name,
+        attributes: product.attributes,
+        selected_attributes: product.selected_attributes,
+        attribute_summary: product.attribute_summary,
         // بحث الكود عبر /api/inventory/products/search يُرجع barcode، وبحث القائمة عبر
         // /api/inventory/products (نافذة البحث) يُرجع first_barcode — نفس ازدواجية unit_name/
         // first_unit وprice/first_price المُعالَجة أدناه لذات المصدرين.
@@ -1488,45 +1512,58 @@ export default function UnifiedStockVoucher({
   }
 
   const handleProductSelect = async (products: any[]) => {
-    const product = products?.[0]
+    const selectedProducts = Array.isArray(products) ? products.filter(Boolean) : []
     setProductSearchOpen(false)
     popupHasClosed()
-    if (!product) {
+    if (selectedProducts.length === 0) {
       restoreGridFocus(lastFocusedCellRef.current)
       return
     }
     const row = pendingFocusRow.current ?? itemsRef.current.length - 1
-    const unit = product.units?.[0]
-    const currentRow = itemsRef.current[row]
-    const warehousePatch = resolveDefaultWarehouse(product)
-    const { hasExpiry, hasBatch } = resolveBatchExpiryFlags(product)
-    const { purchase, expense } = await resolveAccountDefaults(product)
-    if (!isMountedRef.current) return
-    patchItemRow(row, {
-      product_id: product.id,
-      product_code: product.product_code,
-      product_name: product.product_name,
-      barcode: product.barcode || product.first_barcode || "",
-      unit: unit?.unit_name || product.first_unit || "",
-      unit_price: unit?.price ?? product.first_price ?? 0,
-      total_price: recalcAmount(itemsRef.current[row]?.quantity ?? 0, unit?.price ?? product.first_price ?? 0),
-      units: normalizeUnits(product.units),
-      has_expiry: hasExpiry,
-      has_batch: hasBatch,
-      // نوع القياس وأبعاد الصنف الافتراضية (لحالتَي 9/10 في recalcQuantityFromMeasurement) —
-      // العدد يُصفَّر لـ1 دوماً عند اختيار صنف مطابقاً لِـfillItemInfo المرجعي.
-      measurment_id: product.measurment_id != null ? Number(product.measurment_id) : 1,
-      product_length: product.length != null ? Number(product.length) : null,
-      product_width: product.width != null ? Number(product.width) : null,
-      product_density: product.density != null ? Number(product.density) : null,
-      count: 1,
-      ...(warehousePatch ? { warehouse_id: warehousePatch.id, warehouse_name: warehousePatch.name } : {}),
-      ...(hasExpiry && !currentRow?.expiry_date ? { expiry_date: DEFAULT_EXPIRY_DATE } : {}),
-      ...(purchase
-        ? { purchase_account_id: purchase.id, purchase_account_code: purchase.code, purchase_account_name: purchase.name }
-        : {}),
-      ...(expense ? { expense_account_id: expense.id, expense_account_code: expense.code, expense_account_name: expense.name } : {}),
-    })
+    const nextRows = [...itemsRef.current]
+    for (let index = 0; index < selectedProducts.length; index += 1) {
+      const product = selectedProducts[index]
+      const targetRow = index === 0 ? row : nextRows.length
+      const currentRow = index === 0 ? nextRows[targetRow] : { ...emptyItemRow }
+      const unit = product.selected_unit || product.units?.[0]
+      const warehousePatch = resolveDefaultWarehouse(product)
+      const { hasExpiry, hasBatch } = resolveBatchExpiryFlags(product)
+      const { purchase, expense } = await resolveAccountDefaults(product)
+      if (!isMountedRef.current) return
+      const unitPrice = unit?.price ?? product.first_price ?? 0
+      const patched: VoucherItemRow = {
+        ...currentRow,
+        product_id: product.id,
+        product_code: product.product_code,
+        product_name: product.product_name,
+        base_product_name: product.base_product_name || product.product_name,
+        attributes: product.attributes,
+        selected_attributes: product.selected_attributes,
+        attribute_summary: product.attribute_summary,
+        barcode: product.barcode || product.first_barcode || "",
+        unit: unit?.unit_name || product.first_unit || "",
+        unit_price: unitPrice,
+        quantity: 1,
+        total_price: recalcAmount(1, unitPrice),
+        units: normalizeUnits(product.units),
+        has_expiry: hasExpiry,
+        has_batch: hasBatch,
+        measurment_id: product.measurment_id != null ? Number(product.measurment_id) : 1,
+        product_length: product.length != null ? Number(product.length) : null,
+        product_width: product.width != null ? Number(product.width) : null,
+        product_density: product.density != null ? Number(product.density) : null,
+        count: 1,
+        ...(warehousePatch ? { warehouse_id: warehousePatch.id, warehouse_name: warehousePatch.name } : {}),
+        ...(hasExpiry && !currentRow?.expiry_date ? { expiry_date: DEFAULT_EXPIRY_DATE } : {}),
+        ...(purchase ? { purchase_account_id: purchase.id, purchase_account_code: purchase.code, purchase_account_name: purchase.name } : {}),
+        ...(expense ? { expense_account_id: expense.id, expense_account_code: expense.code, expense_account_name: expense.name } : {}),
+      }
+      if (index === 0) nextRows[targetRow] = patched
+      else nextRows.push(patched)
+    }
+    itemsRef.current = nextRows
+    onItemsChange(nextRows)
+    requestAnimationFrame(refreshItemsGrid)
     // الوجهة التالية بعد اختيار صنف تعتمد على نوع قياسه: عادي (1) ⇐ الكمية كالمعتاد، غير ذلك ⇐ أول
     // عمود بُعد يحتاجه فعلياً (بترتيب طول←عرض←ارتفاع←عدد، متخطّياً غير المطلوب منها) — نفس منطق
     // findNextRelevantFieldIndex المستخدَم بتنقّل Tab/Enter، مطبَّقاً هنا لحظة اختيار الصنف مباشرة.
@@ -1614,6 +1651,19 @@ export default function UnifiedStockVoucher({
         },
         
         { header: "اسم الصنف", name: "product_name", width: "*", minWidth: 180, isReadOnly: true },
+        {
+          header: "القيم والمتغيرات",
+          name: "btnAttributes",
+          width: 75,
+          buttonBody: "button",
+          align: "center",
+          title: "عرض وتعديل القيم والمتغيرات",
+          iconType: "edit",
+          isReadOnly: true,
+          visible: true,
+          visibleInColumnChooser: true,
+          onClick: (e: any, ctx: any) => { void openAttributeEditor(ctx.row.index) },
+        },
         // عمود "المستودع" بالسطر مرئي لسند الاستعمال وسند ادخال بضاعة (showRowWarehouseColumn) —
         // أصناف هذين النوعين قد تدخل/تُصرف من مستودعات مختلفة لكل سطر، بخلاف اخراج البضاعة
         // والإرسالية الداخلية التي تختار مستودعاً واحداً من رأس السند (المستودع/من والى مستودع)
@@ -1752,7 +1802,7 @@ export default function UnifiedStockVoucher({
       ],
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }),
-    [isLocked, isInternalDelivery, voucherType],
+    [isLocked, isInternalDelivery, voucherType, form.id, form.status],
   )
 
   // شبكة تبويب "تفاصيل حسابات الاصناف" (سند الاستعمال فقط) — تُبنى من نفس itemsCollectionView
@@ -2384,7 +2434,7 @@ export default function UnifiedStockVoucher({
           }}
           onSelect={handleProductSelect}
           priceCategoryId={0}
-          ShowSelect={false}
+          ShowSelect={true}
           searchText=""
         />
         <StoresSearchPopup

@@ -330,6 +330,10 @@ export async function createOrder(
   const client = await (await getTenantPool()).connect();
   try {
     await client.query("BEGIN");
+    await client.query(`CREATE TABLE IF NOT EXISTS attributes_tbl (id SERIAL PRIMARY KEY, name TEXT NOT NULL UNIQUE)`)
+    await client.query(`CREATE TABLE IF NOT EXISTS attribute_values_tbl (id SERIAL PRIMARY KEY, attr_id INTEGER NOT NULL REFERENCES attributes_tbl(id) ON DELETE CASCADE, name TEXT NOT NULL, UNIQUE(attr_id, name))`)
+    await client.query(`CREATE TABLE IF NOT EXISTS product_atrributes_values_tbl (id BIGSERIAL UNIQUE, product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE, attr_id INTEGER NOT NULL REFERENCES attributes_tbl(id) ON DELETE CASCADE, value_id INTEGER NOT NULL REFERENCES attribute_values_tbl(id) ON DELETE CASCADE, image_url TEXT, PRIMARY KEY(product_id, attr_id, value_id))`)
+    await client.query(`CREATE TABLE IF NOT EXISTS order_item_attributes_tbl (id BIGSERIAL PRIMARY KEY, order_item_id INTEGER NOT NULL, product_attribute_value_id BIGINT NOT NULL REFERENCES product_atrributes_values_tbl(id) ON DELETE CASCADE, UNIQUE(order_item_id, product_attribute_value_id))`)
     // Check for duplicate reference number
     if (orderData.reference_number && orderData.reference_number.trim() !== "") {
       let queryText = `SELECT id FROM orders WHERE reference_number = $1 AND deleted = false AND id != $2`;
@@ -590,6 +594,7 @@ export async function createOrder(
       }
 
       // Delete existing items first
+      await client.query(`DELETE FROM order_item_attributes_tbl WHERE order_item_id IN (SELECT id FROM order_items WHERE order_id = $1)`, [order.id]);
       await client.query(`DELETE FROM order_items WHERE order_id = $1`, [order.id]);
       await client.query(`DELETE FROM stock_batch WHERE order_id = $1`, [order.id]);
     }
@@ -643,6 +648,12 @@ export async function createOrder(
 
       const insertResult = await client.query(itemInsertQuery, itemValues);
       insertedItems.push({ dbId: insertResult.rows[0].id, item, workflowId: carriedWorkflowId });
+      const selected = (item as any).selected_attributes && typeof (item as any).selected_attributes === "object" ? Object.values((item as any).selected_attributes).map(String) : []
+      for (const value of selected) {
+        await client.query(`INSERT INTO order_item_attributes_tbl (order_item_id, product_attribute_value_id)
+          SELECT $1, pav.id FROM product_atrributes_values_tbl pav JOIN attribute_values_tbl av ON av.id = pav.value_id
+          WHERE pav.product_id = $2 AND av.name = $3 ON CONFLICT DO NOTHING`, [insertResult.rows[0].id, item.product_id, value])
+      }
     }
 
     if (orderData.order_type === 2) {

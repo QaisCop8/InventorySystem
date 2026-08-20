@@ -151,6 +151,38 @@ export default function VoucherBookPermissions() {
     }
   }
 
+  const copyPickerToAll = async () => {
+    if (!selectedUserId || !pickerRow) return
+    if (pickerDefaultBook && !pickerSelectedBooks.includes(pickerDefaultBook)) {
+      showPickerError("الدفتر الافتراضي يجب ان يكون احد الدفاتر المختارة من الاسفل")
+      return
+    }
+
+    try {
+      const targetRows = rows.filter((row) => row.voucher_type_id !== pickerRow.voucher_type_id)
+      await Promise.all(
+        [pickerRow, ...targetRows].map(async (row) => {
+          const response = await fetch("/api/voucher-book-permissions", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              user_id: selectedUserId,
+              voucher_type_id: row.voucher_type_id,
+              book_ids: pickerSelectedBooks,
+              default_book_id: pickerDefaultBook,
+            }),
+          })
+          if (!response.ok) throw new Error("copy failed")
+        }),
+      )
+      await fetchPermissions(selectedUserId)
+      setPickerOpen(false)
+    } catch (error) {
+      console.error("Failed to copy voucher book permissions to all voucher types", error)
+      showPickerError("فشل تطبيق الدفاتر على جميع أنواع السندات")
+    }
+  }
+
   const runCopy = async () => {
     if (!selectedUserId || !copyFromUserId) return
     try {
@@ -333,9 +365,13 @@ export default function VoucherBookPermissions() {
 
             <Messages innerRef={messagesRef} />
 
-            <div className="flex justify-center gap-2 border-t pt-4">
+            <div className="flex flex-wrap justify-center gap-2 border-t pt-4">
               <Button onClick={savePicker} className="search-button shadow-sm">
                 موافق
+              </Button>
+              <Button onClick={copyPickerToAll} variant="secondary" className="search-button shadow-sm">
+                <Copy className="h-4 w-4" />
+                تطبيق على الجميع
               </Button>
               <Button variant="outline" onClick={() => setPickerOpen(false)} className="search-button shadow-sm">
                 إغلاق

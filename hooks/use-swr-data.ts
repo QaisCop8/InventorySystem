@@ -151,7 +151,7 @@ export function useExchangeRates() {
 
 
   return {
-    rates: data?.rates || data || [],
+    rates: Array.isArray(data?.rates) ? data.rates : Array.isArray(data) ? data : [],
     isLoading,
     isError: error,
     refresh: mutate,

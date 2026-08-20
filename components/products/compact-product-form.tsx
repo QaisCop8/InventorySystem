@@ -52,8 +52,48 @@ interface ProductAttributeLine {
 
 interface AttributeCatalogItem extends ProductAttributeLine {}
 
-function AttributeValueInput({ values, valueImages = {}, suggestions, onChange, onImageChange }: { values: string[]; valueImages?: Record<string, string | null>; suggestions: string[]; onChange: (values: string[]) => void; onImageChange: (value: string, image: string | null) => void }) {
+function AttributeNameInput({ value, catalog, onChange, onCreate }: { value: string; catalog: AttributeCatalogItem[]; onChange: (value: string) => void; onCreate: (name: string) => void }) {
+  const [query, setQuery] = useState(value)
+  const [open, setOpen] = useState(false)
+  const rootRef = useRef<HTMLDivElement>(null)
+  useEffect(() => setQuery(value), [value])
+  useEffect(() => {
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) {
+        setOpen(false)
+        setQuery(value)
+      }
+    }
+    document.addEventListener("pointerdown", handlePointerDown)
+    return () => document.removeEventListener("pointerdown", handlePointerDown)
+  }, [value])
+  const matches = catalog.filter((item) => item.name.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()))
+  const exactMatch = catalog.some((item) => item.name.toLocaleLowerCase() === query.trim().toLocaleLowerCase())
+  return <div ref={rootRef} className="relative">
+    <Input value={query} placeholder="ابحث أو اكتب متغيراً" onFocus={() => setOpen(true)} onChange={(event) => { setQuery(event.target.value); setOpen(true) }} />
+    {open && <div className="absolute z-30 mt-1 max-h-44 w-full overflow-auto rounded-md border bg-popover p-1 shadow-lg">
+      {matches.map((item) => <button type="button" key={item.name} className="block w-full rounded px-3 py-2 text-right text-sm hover:bg-muted" onMouseDown={(event) => event.preventDefault()} onClick={() => { setQuery(item.name); setOpen(false); onChange(item.name) }}>{item.name}</button>)}
+      {query.trim() && !exactMatch && <button type="button" className="block w-full rounded px-3 py-2 text-right text-sm font-semibold text-emerald-700 hover:bg-emerald-50" onMouseDown={(event) => event.preventDefault()} onClick={() => { setOpen(false); onCreate(query.trim()) }}>
+        + إنشاء المتغير “{query.trim()}”
+      </button>}
+    </div>}
+  </div>
+}
+
+function AttributeValueInput({ values, valueImages = {}, suggestions, disabled = false, onChange, onImageChange, onCreate }: { values: string[]; valueImages?: Record<string, string | null>; suggestions: string[]; disabled?: boolean; onChange: (values: string[]) => void; onImageChange: (value: string, image: string | null) => void; onCreate: (value: string) => void }) {
   const [query, setQuery] = useState("")
+  const [open, setOpen] = useState(false)
+  const rootRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) {
+        setOpen(false)
+        setQuery("")
+      }
+    }
+    document.addEventListener("pointerdown", handlePointerDown)
+    return () => document.removeEventListener("pointerdown", handlePointerDown)
+  }, [])
   const normalizedQuery = query.trim().toLocaleLowerCase()
   const filtered = suggestions.filter((value) => value.toLocaleLowerCase().includes(normalizedQuery) && !values.includes(value))
   const exactMatch = suggestions.find((value) => value.toLocaleLowerCase() === normalizedQuery)
@@ -62,20 +102,21 @@ function AttributeValueInput({ values, valueImages = {}, suggestions, onChange, 
     if (!text || values.some((item) => item.toLocaleLowerCase() === text.toLocaleLowerCase())) return
     onChange([...values, text])
     setQuery("")
+    setOpen(false)
   }
-  return <div className="relative min-w-0">
+  return <div ref={rootRef} className={`relative min-w-0 ${disabled ? "opacity-60" : ""}`}>
     <div className="flex min-h-10 flex-wrap items-center gap-1 rounded-md border bg-background px-2 py-1">
       {values.map((value) => <span key={value} className="inline-flex items-center gap-2 rounded-xl bg-violet-100 px-2 py-1 text-xs font-medium text-violet-800">
         <ImageUploadField value={valueImages[value]} onChange={(image) => onImageChange(value, image)} size={36} rounded="2xl" />
         <span>{value}</span><button type="button" title="إزالة القيمة" onClick={() => onChange(values.filter((item) => item !== value))}><X className="h-3 w-3" /></button>
       </span>)}
-      <input className="h-7 min-w-[120px] flex-1 bg-transparent text-sm outline-none" value={query} placeholder="اكتب قيمة ثم مسافة" onChange={(event) => setQuery(event.target.value)} onKeyDown={(event) => {
+      <input disabled={disabled} className="h-7 min-w-[120px] flex-1 bg-transparent text-sm outline-none" value={query} placeholder={disabled ? "اختر متغيراً أولاً" : "ابحث أو اكتب قيمة"} onFocus={() => setOpen(true)} onChange={(event) => { setQuery(event.target.value); setOpen(true) }} onKeyDown={(event) => {
         if ((event.key === " " || event.key === "Enter") && query.trim()) { event.preventDefault(); addValue(exactMatch || query) }
       }} />
     </div>
-    {query.trim() && <div className="absolute z-30 mt-1 max-h-44 w-full overflow-auto rounded-md border bg-popover p-1 shadow-lg">
+    {open && !disabled && <div className="absolute z-30 mt-1 max-h-44 w-full overflow-auto rounded-md border bg-popover p-1 shadow-lg">
       {filtered.map((value) => <button type="button" key={value} className="block w-full rounded px-3 py-2 text-right text-sm hover:bg-muted" onMouseDown={(event) => event.preventDefault()} onClick={() => addValue(value)}>{value}</button>)}
-      {!exactMatch && <button type="button" className="block w-full rounded px-3 py-2 text-right text-sm font-semibold text-emerald-700 hover:bg-emerald-50" onMouseDown={(event) => event.preventDefault()} onClick={() => addValue(query)}>+ إنشاء “{query.trim()}”</button>}
+      {query.trim() && !exactMatch && <button type="button" className="block w-full rounded px-3 py-2 text-right text-sm font-semibold text-emerald-700 hover:bg-emerald-50" onMouseDown={(event) => event.preventDefault()} onClick={() => { addValue(query); onCreate(query.trim()) }}>+ إنشاء القيمة “{query.trim()}”</button>}
     </div>}
   </div>
 }
@@ -401,6 +442,28 @@ export function CompactProductForm({
     if (!visible || isService) return
     fetch("/api/product-attributes").then((response) => response.ok ? response.json() : []).then((data) => setAttributeCatalog(Array.isArray(data) ? data : [])).catch(() => setAttributeCatalog([]))
   }, [visible, isService])
+  const createAttributeCatalogItem = async (name: string, value?: string) => {
+    const cleanName = name.trim()
+    const cleanValue = value?.trim() || ""
+    if (!cleanName || (value !== undefined && !cleanValue)) return
+    try {
+      const response = await fetch("/api/product-attributes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: cleanName, value: cleanValue || undefined }),
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data?.error || "تعذر إنشاء المتغير")
+      setAttributeCatalog((current) => {
+        const existing = current.find((item) => item.name.toLocaleLowerCase() === cleanName.toLocaleLowerCase())
+        if (existing) return current.map((item) => item === existing && cleanValue && !item.values.includes(cleanValue) ? { ...item, values: [...item.values, cleanValue] } : item)
+        return [...current, { name: cleanName, values: cleanValue ? [cleanValue] : [] }]
+      })
+      toast.current?.show({ severity: "success", summary: "نجاح", detail: "تم إنشاء المتغير أو القيمة", life: 1800 })
+    } catch (error) {
+      toast.current?.show({ severity: "error", summary: "خطأ", detail: error instanceof Error ? error.message : "تعذر الإنشاء", life: 2500 })
+    }
+  }
   const validateProduct = () => {
     if (formData.product_code === "") {
       toast.current?.show({
@@ -575,7 +638,7 @@ export function CompactProductForm({
 
       const responseData = await response.json()
       if (!response.ok) {
-        throw new Error(responseData.error || "فشل في حفظ المنتج")
+        throw new Error(responseData.error || responseData.message || "فشل في حفظ المنتج")
       }
 
       setSuccess(formData.id ? "تم تحديث المنتج بنجاح ✅" : "تم إنشاء المنتج بنجاح ✅")
@@ -593,7 +656,7 @@ export function CompactProductForm({
       toast.current?.show({
         severity: 'error',
         summary: 'خطأ',
-        detail: 'فشلت العملية',
+        detail: err instanceof Error ? err.message : 'فشلت العملية',
         life: 5000
       });
     } finally {
@@ -2395,7 +2458,7 @@ export function CompactProductForm({
                 <TabsTrigger value="accounts" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-emerald-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">{isService ? 'الحسابات المحاسبية' : 'الحسابات'}</TabsTrigger>
                 {isService ? null : (
                   <>
-                    <TabsTrigger value="attributes" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-violet-500 data-[state=active]:to-purple-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">الخصائص والقيم</TabsTrigger>
+                    <TabsTrigger value="attributes" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-violet-500 data-[state=active]:to-purple-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">المتغيرات والخصائص</TabsTrigger>
                     <TabsTrigger value="brand" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-orange-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">العلامة التجارية</TabsTrigger>
                     <TabsTrigger value="measurements" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-red-500 data-[state=active]:to-red-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">القياسات</TabsTrigger>
                     <TabsTrigger value="pricing" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-cyan-500 data-[state=active]:to-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">سعر الشراء والضريبة</TabsTrigger>
@@ -2631,20 +2694,20 @@ export function CompactProductForm({
                 <>
                   <TabsContent value="attributes">
                     <Card>
-                      <CardHeader className="pb-3"><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><CardTitle className="flex items-center gap-2 text-lg"><SlidersHorizontal className="h-5 w-5 text-violet-600" />الخصائص والقيم</CardTitle><Button type="button" variant="outline" onClick={() => setFormData((previous) => ({ ...previous, attributes: [...(previous.attributes || []), { name: "", values: [] }] }))}><Plus className="ml-2 h-4 w-4" />إضافة خاصية</Button></div></CardHeader>
+                      <CardHeader className="pb-3"><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><CardTitle className="flex items-center gap-2 text-lg"><SlidersHorizontal className="h-5 w-5 text-violet-600" />المتغيرات والخصائص</CardTitle><Button type="button" variant="outline" onClick={() => setFormData((previous) => ({ ...previous, attributes: [...(previous.attributes || []), { name: "", values: [] }] }))}><Plus className="ml-2 h-4 w-4" />إضافة متغير</Button></div></CardHeader>
                       <CardContent className="space-y-3">
-                        {!(formData.attributes || []).length && <button type="button" onClick={() => setFormData((previous) => ({ ...previous, attributes: [{ name: "", values: [] }] }))} className="w-full rounded-xl border-2 border-dashed p-8 text-muted-foreground hover:border-violet-400 hover:text-violet-700">+ إضافة أول خاصية للصنف</button>}
+                        {!(formData.attributes || []).length && <button type="button" onClick={() => setFormData((previous) => ({ ...previous, attributes: [{ name: "", values: [] }] }))} className="w-full rounded-xl border-2 border-dashed p-8 text-muted-foreground hover:border-violet-400 hover:text-violet-700">+ إضافة أول متغير للصنف</button>}
                         {(formData.attributes || []).map((attribute, index) => {
                           const normalizedName = attribute.name.trim().toLocaleLowerCase()
                           const catalogEntry = attributeCatalog.find((item) => item.name.toLocaleLowerCase() === normalizedName)
                           const updateAttribute = (patch: Partial<ProductAttributeLine>) => setFormData((previous) => ({ ...previous, attributes: (previous.attributes || []).map((item, itemIndex) => itemIndex === index ? { ...item, ...patch } : item) }))
                           return <div key={index} className="grid min-w-0 gap-3 rounded-xl border bg-card p-4 md:grid-cols-[minmax(180px,.7fr)_minmax(260px,1.3fr)_44px]">
-                            <div className="min-w-0"><Label>الخاصية *</Label><Input className="mt-1" value={attribute.name} placeholder="مثال: اللون" onChange={(event) => updateAttribute({ name: event.target.value })} list={`attribute-options-${index}`} /><datalist id={`attribute-options-${index}`}>{attributeCatalog.map((item) => <option key={item.name} value={item.name} />)}</datalist>{attribute.name.trim() && !catalogEntry && <p className="mt-1 text-xs font-semibold text-emerald-700">+ إنشاء “{attribute.name.trim()}” عند الحفظ</p>}</div>
-                            <div className="min-w-0"><Label>القيم *</Label><div className="mt-1"><AttributeValueInput values={attribute.values} valueImages={attribute.value_images} suggestions={catalogEntry?.values || []} onChange={(values) => updateAttribute({ values, value_images: Object.fromEntries(Object.entries(attribute.value_images || {}).filter(([value]) => values.includes(value))) })} onImageChange={(value, image) => updateAttribute({ value_images: { ...(attribute.value_images || {}), [value]: image } })} /></div></div>
+                            <div className="min-w-0"><Label>المتغير *</Label><div className="mt-1"><AttributeNameInput value={attribute.name} catalog={attributeCatalog} onChange={(name) => updateAttribute({ name })} onCreate={(name) => { updateAttribute({ name }); void createAttributeCatalogItem(name) }} /></div></div>
+                            <div className="min-w-0"><Label>الخصائص *</Label><div className="mt-1"><AttributeValueInput disabled={!catalogEntry} values={attribute.values} valueImages={attribute.value_images} suggestions={catalogEntry?.values || []} onChange={(values) => updateAttribute({ values, value_images: Object.fromEntries(Object.entries(attribute.value_images || {}).filter(([value]) => values.includes(value))) })} onImageChange={(value, image) => updateAttribute({ value_images: { ...(attribute.value_images || {}), [value]: image } })} onCreate={(value) => void createAttributeCatalogItem(attribute.name, value)} /></div></div>
                             <Button type="button" size="icon" variant="ghost" className="self-end text-red-600" onClick={() => setFormData((previous) => ({ ...previous, attributes: (previous.attributes || []).filter((_, itemIndex) => itemIndex !== index) }))}><X className="h-4 w-4" /></Button>
                           </div>
                         })}
-                        <p className="text-xs text-muted-foreground">يبقى هذا صنفاً واحداً؛ تُختار قيم الخصائص المطلوبة عند إضافته إلى أي حركة.</p>
+                        <p className="text-xs text-muted-foreground">يبقى هذا صنفاً واحداً؛ تُختار خصائص المتغير المطلوبة عند إضافته إلى أي حركة.</p>
                       </CardContent>
                     </Card>
                   </TabsContent>
