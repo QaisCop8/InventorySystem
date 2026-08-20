@@ -1749,7 +1749,7 @@ export default function UnifiedReceiptVoucher({
           />
 
           <div
-            className="relative min-h-0 flex-1 overflow-y-auto rounded-b-3xl bg-slate-50/60 px-6 py-4"
+            className="relative min-h-0 flex-1 overflow-x-hidden overflow-y-auto rounded-b-3xl bg-slate-50/60 px-6 py-4"
             onKeyDown={handleFormEnterAsTab}
           >
             <ProgressSpinner loading={isSaving || navLoading} />
@@ -2129,7 +2129,7 @@ export default function UnifiedReceiptVoucher({
                     إضافة شيك
                   </Button>
                 </div>
-                <div className="w-full max-w-full overflow-x-auto">
+                <div className="receipt-grid-scroll w-full max-w-full">
                   {renderChequeGrid ? (
                     <DataGridView
                       innerRef={chequeGridRef}
@@ -2221,7 +2221,7 @@ export default function UnifiedReceiptVoucher({
                     إضافة سطر
                   </Button>
                 </div>
-                <div className="w-full max-w-full overflow-x-auto">
+                <div className="receipt-grid-scroll w-full max-w-full">
                   <DataGridView
                     innerRef={journalGridRef}
                     style={{ height: "240px" }}

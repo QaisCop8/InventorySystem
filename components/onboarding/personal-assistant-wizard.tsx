@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, ArrowRight, Boxes, Building2, Check, Coins, FileSpreadsheet, Package, Sparkles, Trash2, Upload, Users, X } from "lucide-react"
+import { ArrowLeft, ArrowRight, Boxes, Building2, Check, Coins, FileSpreadsheet, Package, Sparkles, Trash2, Upload, Users } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -11,7 +11,7 @@ import AutoCompleteAccount from "@/components/customer/auto-complete-account"
 import { useAuth } from "@/components/auth/auth-context"
 
 const steps = [
-  { title: "معلومات الشركة", description: "أدخل بيانات الشركة الأساسية", icon: Building2, color: "from-slate-600 to-slate-800" },
+  { title: "معلومات الشركة", description: "أدخل بيانات الشركة الأساسية", icon: Building2, color: "from-teal-200 via-cyan-100 to-slate-50" },
   { title: "العملات", description: "أضف العملات وأسعار الصرف الأساسية", icon: Coins, color: "from-emerald-300 to-green-400" },
   { title: "التعريفات", description: "التعريفات الأساسية وبنود القوائم المالية", icon: Boxes, color: "from-violet-600 to-fuchsia-600" },
   { title: "الحسابات", description: "أنشئ دليل الحسابات أو استورده من Excel", icon: Building2, color: "from-blue-600 to-indigo-600" },
@@ -95,13 +95,24 @@ export default function PersonalAssistantWizard() {
   const router = useRouter()
   const { user } = useAuth()
   const open = true
-  const [step, setStep] = useState(0)
+  // -1 is the new company step; 0..7 retain the existing content-step indexes.
+  const [step, setStep] = useState(-1)
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState<Notice>(null)
   const [confirmDismiss, setConfirmDismiss] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
   const [currency, setCurrency] = useState({ code: "", name: "", rate: "" })
-  const [company, setCompany] = useState({ licensedWorkerNumber: "", taxNumber: "" })
+  const [company, setCompany] = useState({
+    companyName: "",
+    companyNameEn: "",
+    licensedWorkerNumber: "",
+    taxNumber: "",
+    commercialRegister: "",
+    address: "",
+    phone: "",
+    email: "",
+    website: "",
+  })
   const [isFirstCurrency, setIsFirstCurrency] = useState(false)
   const [savedCurrencies, setSavedCurrencies] = useState<any[]>([])
   const [account, setAccount] = useState({ code: "", name: "", financialListId: "", assetsId: "", liabilitiesId: "", incomeId: "", currencyId: "" })
@@ -124,13 +135,13 @@ export default function PersonalAssistantWizard() {
       .then((response) => response.ok ? response.json() : null)
       .then((data) => {
         if (!data?.shouldShow) return
-        setStep(Math.max(0, Math.min(8, Number(data.current_step) || 0)))
+        setStep(Math.max(-1, Math.min(7, (Number(data.current_step) || 0) - 1)))
       })
       .catch(() => undefined)
   }, [])
 
   useEffect(() => {
-    if (!open || step !== 1) return
+    if (!open || step !== -1) return
     fetch("/api/exchange-rates")
       .then((response) => response.ok ? response.json() : [])
       .then((data) => {
@@ -148,14 +159,21 @@ export default function PersonalAssistantWizard() {
     fetch("/api/settings/system")
       .then((response) => response.ok ? response.json() : {})
       .then((data: any) => setCompany({
+        companyName: String(data?.company_name ?? ""),
+        companyNameEn: String(data?.company_name_en ?? ""),
         licensedWorkerNumber: String(data?.licensed_worker_number ?? ""),
         taxNumber: String(data?.tax_number ?? ""),
+        commercialRegister: String(data?.commercial_register ?? ""),
+        address: String(data?.company_address ?? ""),
+        phone: String(data?.company_phone ?? ""),
+        email: String(data?.company_email ?? ""),
+        website: String(data?.company_website ?? ""),
       }))
-      .catch(() => setCompany({ licensedWorkerNumber: "", taxNumber: "" }))
+      .catch(() => setCompany({ companyName: "", companyNameEn: "", licensedWorkerNumber: "", taxNumber: "", commercialRegister: "", address: "", phone: "", email: "", website: "" }))
   }, [open, step])
 
   useEffect(() => {
-    if (!open || step !== 3) return
+    if (!open || step !== 2) return
     Promise.all([
       fetch("/api/exchange-rates").then((response) => response.ok ? response.json() : []),
       fetch("/api/balance-sheet-assets-items").then((response) => response.ok ? response.json() : []),
@@ -170,7 +188,7 @@ export default function PersonalAssistantWizard() {
   }, [open, step])
 
   useEffect(() => {
-    if (!open || (step !== 4 && step !== 5)) return
+    if (!open || (step !== 3 && step !== 4)) return
     fetch("/api/settings/system")
       .then((response) => response.ok ? response.json() : {})
       .then((data: any) => setSystemAccountSettings(Object.fromEntries([...defaultAccountFields, ...productAccountFields].map(([key]) => [key, data?.[key] ? String(data[key]) : ""]))))
@@ -178,7 +196,7 @@ export default function PersonalAssistantWizard() {
   }, [open, step])
 
   useEffect(() => {
-    if (!open || step !== 6 || !user?.id) return
+    if (!open || step !== 5 || !user?.id) return
     Promise.all([
       fetch("/api/exchange-rates").then((response) => response.ok ? response.json() : []),
       fetch(`/api/settings/users-currencies-default?user_id=${encodeURIComponent(user.id)}`).then((response) => response.ok ? response.json() : { rows: [] }),
@@ -203,7 +221,7 @@ export default function PersonalAssistantWizard() {
   }, [open, step, user?.id])
 
   useEffect(() => {
-    if (!open || step !== 7) return
+    if (!open || step !== 6) return
     Promise.all([
       fetch("/api/units").then((response) => response.ok ? response.json() : []),
       fetch("/api/pricecategory").then((response) => response.ok ? response.json() : []),
@@ -297,7 +315,7 @@ export default function PersonalAssistantWizard() {
   }
 
   useEffect(() => {
-    if (!open || (step !== 3 && step !== 7 && step !== 8)) return
+    if (!open || (step !== 2 && step !== 6 && step !== 7)) return
     const handleEnterNavigation = (event: KeyboardEvent) => {
       if (event.key !== "Enter" || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return
       const target = event.target as HTMLElement | null
@@ -335,7 +353,7 @@ export default function PersonalAssistantWizard() {
   }
 
   useEffect(() => {
-    if (!open || step !== 2) return
+    if (!open || step !== 1) return
     const definition = lookupDefinitions.find((item) => item.key === activeLookupKey) || lookupDefinitions[0]
     void loadLookupRecords(definition)
   }, [open, step, activeLookupKey])
@@ -344,7 +362,7 @@ export default function PersonalAssistantWizard() {
     await fetch("/api/onboarding-assistant", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ current_step: nextStep, dismissed, completed }),
+      body: JSON.stringify({ current_step: completed ? steps.length - 1 : Math.max(0, nextStep + 1), dismissed, completed }),
     })
   }
 
@@ -363,17 +381,27 @@ export default function PersonalAssistantWizard() {
   const addCurrent = async () => {
     setBusy(true)
     try {
-      if (step === 0) {
+      if (step === -1) {
         if (!/^[A-Za-z0-9]{0,30}$/.test(company.licensedWorkerNumber)) throw new Error("رقم المشتغل المرخص يجب أن يحتوي أحرفاً إنجليزية أو أرقاماً فقط وبحد أقصى 30 حرفاً")
         if (!/^[A-Za-z0-9]{0,20}$/.test(company.taxNumber)) throw new Error("الرقم الضريبي يجب أن يحتوي أحرفاً إنجليزية أو أرقاماً فقط وبحد أقصى 20 حرفاً")
         const response = await fetch("/api/settings/system", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ licensed_worker_number: company.licensedWorkerNumber, tax_number: company.taxNumber }),
+          body: JSON.stringify({
+            company_name: company.companyName,
+            company_name_en: company.companyNameEn,
+            licensed_worker_number: company.licensedWorkerNumber,
+            tax_number: company.taxNumber,
+            commercial_register: company.commercialRegister,
+            company_address: company.address,
+            company_phone: company.phone,
+            company_email: company.email,
+            company_website: company.website,
+          }),
         })
         if (!response.ok) throw new Error("تعذر حفظ معلومات الشركة")
         showResult("success", "تم حفظ معلومات الشركة")
-      } else if (step === 1) {
+      } else if (step === 0) {
         const code = currency.code.trim().toUpperCase()
         const name = currency.name.trim()
         const rate = isFirstCurrency ? 1 : Number(currency.rate)
@@ -385,7 +413,7 @@ export default function PersonalAssistantWizard() {
         setIsFirstCurrency(false)
         const refreshed = await fetch("/api/exchange-rates").then((response) => response.ok ? response.json() : { rates: [] })
         setSavedCurrencies(Array.isArray(refreshed?.rates) ? refreshed.rates : [])
-      } else if (step === 3) {
+      } else if (step === 2) {
         if (!account.code.trim() || !account.name.trim()) throw new Error("أدخل رقم الحساب واسمه")
         if (account.name.trim().length > 100) throw new Error("اسم الحساب يجب ألا يتجاوز 100 حرف")
         if (!["1", "2", "3"].includes(account.financialListId)) throw new Error("اختر القائمة المالية")
@@ -396,7 +424,7 @@ export default function PersonalAssistantWizard() {
         await post("/api/accounts", { account_code: accountCode, account_name: account.name.trim(), company_id: 1, finanical_list_id: Number(account.financialListId), finanical_list_assests_id: account.assetsId ? Number(account.assetsId) : null, finanical_list_liabilities_id: account.liabilitiesId ? Number(account.liabilitiesId) : null, finanical_list_income_id: account.incomeId ? Number(account.incomeId) : null, currency_id: Number(account.currencyId), status: "نشط" })
         setAccount({ code: "", name: "", financialListId: "", assetsId: "", liabilitiesId: "", incomeId: "", currencyId: "" })
         await refreshSavedAccounts()
-      } else if (step === 7) {
+      } else if (step === 6) {
         if (!product.code.trim() || !product.name.trim()) throw new Error("أدخل رقم الصنف واسمه")
         if (!/^[A-Z0-9]{10}$/.test(product.code)) throw new Error("رقم الصنف يجب أن يتكون من 10 أحرف إنجليزية كبيرة أو أرقام")
         if (product.name.trim().length > 100) throw new Error("اسم الصنف يجب ألا يتجاوز 100 حرف")
@@ -412,7 +440,7 @@ export default function PersonalAssistantWizard() {
         if (Number(productResult?.failed || 0) > 0 || Number(productResult?.duplicates || 0) > 0) throw new Error(productResult?.errors?.[0] || "تعذر إضافة الصنف")
         setProduct({ code: "", name: "", unitId: "", sellingPrice: "", barcode: "" })
         await refreshSavedProducts()
-      } else if (step === 8) {
+      } else if (step === 7) {
         if (!customer.name.trim()) throw new Error("أدخل اسم العميل")
         await post("/api/import/customers", { data: [{ rowIndex: 1, isValid: true, customer_code: customer.code, customer_name: customer.name, mobile1: customer.phone, type: 1 }] })
         setCustomer({ code: "", name: "", phone: "" })
@@ -469,7 +497,7 @@ export default function PersonalAssistantWizard() {
         rows = XLSX.utils.sheet_to_json<Record<string, any>>(workbook.Sheets[workbook.SheetNames[0]], { defval: "" })
       }
       if (!rows.length) throw new Error("ملف الاستيراد فارغ")
-      if (step === 3) {
+      if (step === 2) {
         const [currenciesData, assetsData, liabilitiesData, incomeData, accountsData] = await Promise.all([
           fetch("/api/exchange-rates").then((response) => response.ok ? response.json() : []),
           fetch("/api/balance-sheet-assets-items").then((response) => response.ok ? response.json() : []),
@@ -528,12 +556,12 @@ export default function PersonalAssistantWizard() {
         })
         setAccountPreview(preparedRows)
         showResult(preparedRows.some((row) => row.errors.length) ? "error" : "success", `تم تجهيز ${preparedRows.length} حساباً للمراجعة قبل الحفظ`)
-      } else if (step === 7) {
+      } else if (step === 6) {
         await post("/api/import/products", { data: rows.map((row) => { const rawCode = String(cell(row, ["رمز الصنف", "رقم الصنف", "product_code"]) || ""); return { product_code: rawCode.replace(/[^A-Za-z0-9]/g, "").toUpperCase().slice(0, 10).padEnd(10, "0"), product_name: String(cell(row, ["اسم الصنف", "product_name", "name"]) || "").trim().slice(0, 100), main_unit: cell(row, ["الوحدة", "main_unit", "unit"]) || "قطعة", selling_price: Number(cell(row, ["سعر البيع", "selling_price", "sale_price", "price"])) || 0, barcode: String(cell(row, ["الباركود", "barcode", "unit_1_barcode"]) || "").trim() } }) })
-      } else if (step === 8) {
+      } else if (step === 7) {
         await post("/api/import/customers", { data: rows.map((row, index) => ({ rowIndex: index + 2, isValid: Boolean(cell(row, ["اسم العميل", "customer_name", "name"])), customer_code: cell(row, ["رقم العميل", "customer_code", "code"]), customer_name: cell(row, ["اسم العميل", "customer_name", "name"]), mobile1: cell(row, ["الجوال", "mobile", "mobile1", "phone"]), type: 1 })) })
       }
-      if (step !== 3) showResult("success", `تم استيراد ${rows.length} سطراً`)
+      if (step !== 2) showResult("success", `تم استيراد ${rows.length} سطراً`)
     } catch (error) {
       showResult("error", error instanceof Error ? error.message : "تعذر استيراد الملف")
     } finally {
@@ -572,7 +600,17 @@ export default function PersonalAssistantWizard() {
       const response = await fetch("/api/settings/system", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ licensed_worker_number: company.licensedWorkerNumber, tax_number: company.taxNumber }),
+        body: JSON.stringify({
+          company_name: company.companyName,
+          company_name_en: company.companyNameEn,
+          licensed_worker_number: company.licensedWorkerNumber,
+          tax_number: company.taxNumber,
+          commercial_register: company.commercialRegister,
+          company_address: company.address,
+          company_phone: company.phone,
+          company_email: company.email,
+          company_website: company.website,
+        }),
       })
       if (!response.ok) throw new Error("تعذر حفظ معلومات الشركة")
       return true
@@ -585,11 +623,11 @@ export default function PersonalAssistantWizard() {
   }
 
   const move = async (next: number) => {
-    const bounded = Math.max(0, Math.min(8, next))
-    if (bounded > step && step === 0 && !(await saveCompany())) return
-    if (bounded > step && step === 4 && !(await saveAccountSettings(defaultAccountFields))) return
-    if (bounded > step && step === 5 && !(await saveAccountSettings(productAccountFields))) return
-    if (bounded > step && step === 6 && !(await saveCurrencyDefaultAccounts())) return
+    const bounded = Math.max(-1, Math.min(7, next))
+    if (bounded > step && step === -1 && !(await saveCompany())) return
+    if (bounded > step && step === 3 && !(await saveAccountSettings(defaultAccountFields))) return
+    if (bounded > step && step === 4 && !(await saveAccountSettings(productAccountFields))) return
+    if (bounded > step && step === 5 && !(await saveCurrencyDefaultAccounts())) return
     setStep(bounded)
     await saveProgress(bounded)
   }
@@ -600,31 +638,31 @@ export default function PersonalAssistantWizard() {
   }
 
   const finish = async () => {
-    await saveProgress(8, false, true)
+    await saveProgress(7, false, true)
     router.push("/")
   }
 
-  const StepIcon = steps[step].icon
+  const displayStep = step + 1
+  const StepIcon = steps[displayStep].icon
   return <>
     <div className="flex min-h-0 h-full w-full flex-col overflow-hidden rounded-2xl bg-slate-50 shadow-sm" dir="rtl">
-        <header className={`relative shrink-0 overflow-hidden bg-gradient-to-l ${steps[step].color} px-4 py-3 text-white sm:px-6 sm:py-5`}>
+        <header className={`relative shrink-0 overflow-hidden bg-gradient-to-l ${steps[displayStep].color} px-4 py-3 ${displayStep === 0 ? "text-teal-950" : "text-white"} sm:px-6 sm:py-5`}>
           <div className="absolute inset-0 opacity-15 [background-image:radial-gradient(circle_at_20%_20%,white_0,transparent_35%),radial-gradient(circle_at_80%_80%,white_0,transparent_30%)]" />
           <div className="relative flex items-center justify-between gap-4">
-            <div className="flex items-center gap-4"><div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/30"><Sparkles className="h-7 w-7" /></div><div><h2 className="text-2xl font-black">البداية السريعة</h2><p className="mt-1 text-sm text-white/85">إعداد شركتك بخطوات بسيطة وواضحة</p></div></div>
-            <button onClick={postpone} className="rounded-full bg-white/15 p-3 transition hover:bg-white/25" title="تأجيل"><X className="h-5 w-5" /></button>
+            <div className="flex items-center gap-4"><div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/55 ring-1 ring-teal-500/30"><Sparkles className="h-7 w-7 text-teal-800" /></div><div><h2 className="text-2xl font-black">البداية السريعة</h2><p className={displayStep === 0 ? "mt-1 text-sm text-teal-800" : "mt-1 text-sm text-white/85"}>إعداد شركتك بخطوات بسيطة وواضحة</p></div></div>
           </div>
         </header>
 
         <div className="shrink-0 border-b border-slate-200 bg-white px-3 py-2 sm:px-5 sm:py-4">
           <div className="flex items-center justify-between gap-2 overflow-x-auto">
-            {steps.map((item, index) => { const Icon = item.icon; const active = index === step; const done = index < step; return <button key={item.title} onClick={() => void move(index)} className={`flex min-w-[150px] items-center gap-2 rounded-2xl px-3 py-2 text-right transition ${active ? "bg-slate-900 text-white shadow-lg" : done ? "bg-emerald-50 text-emerald-800" : "bg-slate-50 text-slate-500"}`}><span className={`flex h-8 w-8 items-center justify-center rounded-xl ${done ? "bg-emerald-500 text-white" : "bg-white/15"}`}>{done ? <Check className="h-4 w-4" /> : <Icon className="h-4 w-4" />}</span><span><span className="block text-xs opacity-70">الخطوة {index + 1}</span><span className="font-bold">{item.title}</span></span></button> })}
+            {steps.map((item, index) => { const Icon = item.icon; const active = index === displayStep; const done = index < displayStep; const companyStep = index === 0; return <button key={item.title} onClick={() => void move(index - 1)} className={`flex min-w-[150px] items-center gap-2 rounded-2xl px-3 py-2 text-right transition ${active ? companyStep ? "bg-teal-200 text-teal-950 shadow-lg ring-1 ring-teal-300" : "bg-slate-900 text-white shadow-lg" : done ? "bg-emerald-50 text-emerald-800" : "bg-slate-50 text-slate-500"}`}><span className={`flex h-8 w-8 items-center justify-center rounded-xl ${active && companyStep ? "bg-teal-600 text-white" : done ? "bg-emerald-500 text-white" : "bg-white/15"}`}>{done ? <Check className="h-4 w-4" /> : <Icon className="h-4 w-4" />}</span><span><span className="block text-xs opacity-70">الخطوة {index + 1}</span><span className="font-bold">{item.title}</span></span></button> })}
           </div>
         </div>
 
         <main
           className={`min-h-0 flex-1 overflow-y-auto p-3 sm:p-7 ${step >= 1 ? "md:flex" : ""}`}
           onKeyDown={(event) => {
-            if (step !== 0 || event.key !== "Enter" || event.nativeEvent.isComposing || !(event.target instanceof HTMLInputElement)) return
+            if (event.key !== "Enter" || event.nativeEvent.isComposing || !(event.target instanceof HTMLInputElement)) return
             const focusable = Array.from(event.currentTarget.querySelectorAll<HTMLElement>('input:not([disabled]), button:not([disabled])'))
             const next = focusable[focusable.indexOf(event.target) + 1]
             if (!next) return
@@ -632,9 +670,10 @@ export default function PersonalAssistantWizard() {
             next.focus()
           }}
         >
-          <div className={step >= 1 ? "flex min-h-0 w-full flex-1 flex-col" : "quick-start-step w-full"}>
-            <div className="mb-4 flex items-center gap-3 sm:mb-6 sm:gap-4"><div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br sm:h-14 sm:w-14 ${steps[step].color} text-white shadow-lg`}><StepIcon className="h-6 w-6 sm:h-7 sm:w-7" /></div><div><h3 className="text-xl font-black text-slate-900 sm:text-2xl">{steps[step].title}</h3><p className="text-sm text-slate-500 sm:text-base">{steps[step].description}</p></div></div>
+          <div className={step >= 0 ? "quick-start-step flex min-h-0 w-full flex-1 flex-col" : "quick-start-step w-full"}>
+            <div className="mb-4 flex items-center gap-3 sm:mb-6 sm:gap-4"><div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br sm:h-14 sm:w-14 ${steps[displayStep].color} ${displayStep === 0 ? "text-teal-900 ring-1 ring-teal-300" : "text-white"} shadow-lg`}><StepIcon className="h-6 w-6 sm:h-7 sm:w-7" /></div><div><h3 className="text-xl font-black text-slate-900 sm:text-2xl">{steps[displayStep].title}</h3><p className="text-sm text-slate-500 sm:text-base">{steps[displayStep].description}</p></div></div>
             {notice && <div className={`mb-4 rounded-2xl border px-4 py-3 text-sm font-bold ${notice.type === "success" ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-red-200 bg-red-50 text-red-700"}`}>{notice.text}</div>}
+            {step === -1 && <CompanyInfoStep company={company} onChange={setCompany} />}
 
             {step === 0 && <div className="space-y-5"><section className="grid gap-4 rounded-3xl border border-emerald-100 bg-white p-5 shadow-sm sm:grid-cols-3"><Field label="رمز العملة" value={currency.code} onChange={(value) => setCurrency({ ...currency, code: value.toUpperCase() })} placeholder="USD" maxLength={3} /><Field label="اسم العملة" value={currency.name} onChange={(value) => setCurrency({ ...currency, name: value })} placeholder="دولار أمريكي" maxLength={30} /><Field label={isFirstCurrency ? "سعر الصرف (العملة الأساسية)" : "سعر الصرف"} value={currency.rate} onChange={(value) => setCurrency({ ...currency, rate: value })} placeholder="3.40" type="number" min={0.001} max={100000} step="0.001" disabled={isFirstCurrency} /><AddButton busy={busy} onClick={addCurrent} label="إضافة العملة" /></section><section className="overflow-hidden rounded-3xl border border-emerald-100 bg-white shadow-sm"><div className="flex items-center justify-between border-b border-emerald-100 bg-emerald-50/70 px-5 py-3"><h4 className="font-black text-emerald-950">العملات المحفوظة</h4><span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-800">{savedCurrencies.length} عملة</span></div>{savedCurrencies.length === 0 ? <div className="px-5 py-8 text-center text-sm text-slate-400">لم تتم إضافة عملات بعد</div> : <div className="overflow-x-auto"><table className="w-full text-sm"><thead className="bg-slate-900 text-white"><tr><th className="px-4 py-3 text-right">#</th><th className="px-4 py-3 text-right">رمز العملة</th><th className="px-4 py-3 text-right">اسم العملة</th><th className="px-4 py-3 text-right">سعر الصرف</th></tr></thead><tbody>{savedCurrencies.map((item, index) => <tr key={item.currency_id ?? item.id ?? index} className="border-b border-slate-100 last:border-0 even:bg-slate-50/70"><td className="px-4 py-3 text-slate-400">{index + 1}</td><td className="px-4 py-3 font-black text-slate-800">{item.currency_code}</td><td className="px-4 py-3 text-slate-700">{item.currency_name}</td><td className="px-4 py-3 font-semibold text-emerald-700">{Number(item.exchange_rate || 0).toLocaleString(undefined, { maximumFractionDigits: 6 })}</td></tr>)}</tbody></table></div>}</section></div>}
             {step === 1 && <LookupTabs activeKey={activeLookupKey} onTabChange={setActiveLookupKey} values={lookupValues} onValueChange={(key, value) => setLookupValues((current) => ({ ...current, [key]: value }))} records={savedLookups} busy={busy} onAdd={addLookup} />}
@@ -649,7 +688,7 @@ export default function PersonalAssistantWizard() {
 
         <footer className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-slate-200 bg-white px-3 py-2 sm:gap-3 sm:px-5 sm:py-4">
           <Button variant="ghost" onClick={() => setConfirmDismiss(true)} className="text-slate-500 hover:bg-red-50 hover:text-red-700">عدم الإظهار مجدداً</Button>
-          <div className="flex gap-2"><Button variant="outline" onClick={postpone} className="rounded-xl">تأجيل</Button>{step > 0 && <Button variant="outline" onClick={() => void move(step - 1)} className="rounded-xl"><ArrowRight className="ml-2 h-4 w-4" />السابق</Button>}<Button onClick={() => step === 7 ? void finish() : void move(step + 1)} className={`rounded-xl bg-gradient-to-l ${steps[step].color} px-6 text-white`}>{step === 7 ? "إنهاء" : "التالي"}{step < 7 && <ArrowLeft className="mr-2 h-4 w-4" />}</Button></div>
+          <div className="flex gap-2"><Button variant="outline" onClick={postpone} className="rounded-xl">تأجيل</Button>{step > -1 && <Button variant="outline" onClick={() => void move(step - 1)} className="rounded-xl"><ArrowRight className="ml-2 h-4 w-4" />السابق</Button>}<Button onClick={() => step === 7 ? void finish() : void move(step + 1)} className={`rounded-xl bg-gradient-to-l ${steps[displayStep].color} px-6 text-white`}>{step === 7 ? "إنهاء" : "التالي"}{step < 7 && <ArrowLeft className="mr-2 h-4 w-4" />}</Button></div>
         </footer>
         <input ref={fileRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; if (file) void importExcel(file) }} />
     </div>
@@ -665,6 +704,44 @@ export default function PersonalAssistantWizard() {
       }
     `}</style>
   </>
+}
+
+function CompanyInfoStep({ company, onChange }: { company: { companyName: string; companyNameEn: string; licensedWorkerNumber: string; taxNumber: string; commercialRegister: string; address: string; phone: string; email: string; website: string }; onChange: (value: typeof company) => void }) {
+  const filterValue = (value: string, maxLength: number) => value.replace(/[^A-Za-z0-9]/g, "").slice(0, maxLength)
+
+  return (
+    <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="اسم الشركة (عربي)" value={company.companyName} onChange={(value) => onChange({ ...company, companyName: value })} />
+        <Field label="اسم الشركة (إنجليزي)" value={company.companyNameEn} onChange={(value) => onChange({ ...company, companyNameEn: value })} />
+        <Field
+          label="رقم المشتغل المرخص"
+          value={company.licensedWorkerNumber}
+          onChange={(value) => onChange({ ...company, licensedWorkerNumber: filterValue(value, 30) })}
+          maxLength={30}
+        />
+        <Field
+          label="الرقم الضريبي"
+          value={company.taxNumber}
+          onChange={(value) => onChange({ ...company, taxNumber: filterValue(value, 20) })}
+          maxLength={20}
+        />
+        <Field label="السجل التجاري" value={company.commercialRegister} onChange={(value) => onChange({ ...company, commercialRegister: value })} />
+        <Field label="الهاتف" value={company.phone} onChange={(value) => onChange({ ...company, phone: value })} />
+        <Field label="البريد الإلكتروني" value={company.email} onChange={(value) => onChange({ ...company, email: value })} type="email" />
+        <Field label="الموقع الإلكتروني" value={company.website} onChange={(value) => onChange({ ...company, website: value })} />
+        <div className="sm:col-span-2">
+          <Label className="mb-2 block text-sm font-bold text-slate-700">العنوان</Label>
+          <textarea
+            value={company.address}
+            onChange={(event) => onChange({ ...company, address: event.target.value })}
+            className="min-h-20 w-full rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-100"
+            rows={3}
+          />
+        </div>
+      </div>
+    </section>
+  )
 }
 
 function LookupTabs({ activeKey, onTabChange, values, onValueChange, records, busy, onAdd }: { activeKey: string; onTabChange: (key: string) => void; values: Record<string, string>; onValueChange: (key: string, value: string) => void; records: Record<string, any[]>; busy: boolean; onAdd: (definition: typeof lookupDefinitions[number]) => void }) {

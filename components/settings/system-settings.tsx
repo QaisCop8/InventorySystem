@@ -75,6 +75,7 @@ export function SystemSettings() {
     // Company Settings
     companyName: "",
     companyNameEn: "",
+    licensedWorkerNumber: "",
     taxNumber: "",
     commercialRegister: "",
     address: "",
@@ -213,6 +214,7 @@ export function SystemSettings() {
             ...prev,
             companyName: String(settingsPayload.company_name ?? ""),
             companyNameEn: String(settingsPayload.company_name_en ?? ""),
+            licensedWorkerNumber: String(settingsPayload.licensed_worker_number ?? ""),
             address: String(settingsPayload.company_address ?? ""),
             phone: String(settingsPayload.company_phone ?? ""),
             email: String(settingsPayload.company_email ?? ""),
@@ -441,6 +443,7 @@ export function SystemSettings() {
         body: JSON.stringify({
           company_name: settings.companyName,
           company_name_en: settings.companyNameEn,
+          licensed_worker_number: settings.licensedWorkerNumber,
           company_address: settings.address,
           company_phone: settings.phone,
           company_email: settings.email,
@@ -563,7 +566,8 @@ export function SystemSettings() {
       setSettings({
         companyName: "",
         companyNameEn: "",
-        taxNumber: "",
+            licensedWorkerNumber: "",
+            taxNumber: "",
         commercialRegister: "",
         address: "",
         phone: "",
@@ -653,7 +657,7 @@ export function SystemSettings() {
   }
 
   return (
-    <div className="space-y-6" dir="rtl">
+    <div className="system-settings-form space-y-6" dir="rtl">
       <Messages innerRef={message} />
       {/* Header */}
       <Card className="erp-card">
@@ -724,15 +728,29 @@ export function SystemSettings() {
                   />
                 </div>
                 <div>
+                  <Label htmlFor="licensedWorkerNumber" className="text-right block">
+                    رقم المشتغل المرخص
+                  </Label>
+                  <Input
+                    id="licensedWorkerNumber"
+                    value={settings.licensedWorkerNumber}
+                    onChange={(e) => setSettings({ ...settings, licensedWorkerNumber: e.target.value.replace(/[^A-Za-z0-9]/g, "").slice(0, 30) })}
+                    maxLength={30}
+                    className="text-left"
+                    dir="ltr"
+                  />
+                </div>
+                <div>
                   <Label htmlFor="taxNumber" className="text-right block">
                     الرقم الضريبي
                   </Label>
                   <Input
                     id="taxNumber"
                     value={settings.taxNumber}
-                    onChange={(e) => setSettings({ ...settings, taxNumber: e.target.value })}
-                    className="text-right"
-                    dir="rtl"
+                    onChange={(e) => setSettings({ ...settings, taxNumber: e.target.value.replace(/[^A-Za-z0-9]/g, "").slice(0, 20) })}
+                    maxLength={20}
+                    className="text-left"
+                    dir="ltr"
                   />
                 </div>
                 <div>

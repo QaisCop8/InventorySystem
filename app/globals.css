@@ -1176,8 +1176,137 @@ td {
     width: 100% !important;
   }
 
+  .sales-delivery-form,
+  .stock-voucher-form,
+  .voucher-form,
+  .sales-order-form {
+    --compact-field-height: 34px;
+  }
+
+  .voucher-form {
+    overflow-x: hidden !important;
+  }
+
+  .voucher-form .receipt-grid-scroll {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: thin;
+  }
+
+  .voucher-form .receipt-grid-scroll > * {
+    min-width: max-content;
+  }
+
+  .sales-delivery-form input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]):not(.date-time-control-input),
+  .stock-voucher-form input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]):not(.date-time-control-input),
+  .voucher-form input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]):not(.date-time-control-input),
+  .sales-order-form input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]):not(.date-time-control-input),
+  .sales-delivery-form select,
+  .stock-voucher-form select,
+  .voucher-form select,
+  .sales-order-form select {
+    height: 34px !important;
+    min-height: 34px !important;
+    padding-block: 4px !important;
+    border-radius: 8px !important;
+    font-size: 0.8rem !important;
+  }
+
+  .sales-delivery-form textarea,
+  .stock-voucher-form textarea,
+  .voucher-form textarea,
+  .sales-order-form textarea {
+    min-height: 34px !important;
+    border-radius: 8px !important;
+    font-size: 0.8rem !important;
+  }
+
+  .sales-delivery-form .p-dropdown,
+  .stock-voucher-form .p-dropdown,
+  .voucher-form .p-dropdown,
+  .sales-order-form .p-dropdown,
+  .sales-delivery-form .date-time-control,
+  .stock-voucher-form .date-time-control,
+  .voucher-form .date-time-control,
+  .sales-order-form .date-time-control {
+    height: 34px !important;
+    min-height: 34px !important;
+    border-radius: 8px !important;
+  }
+
+  .sales-delivery-form .p-dropdown .p-dropdown-label,
+  .stock-voucher-form .p-dropdown .p-dropdown-label,
+  .voucher-form .p-dropdown .p-dropdown-label,
+  .sales-order-form .p-dropdown .p-dropdown-label {
+    height: 32px !important;
+    min-height: 32px !important;
+    padding-block: 4px !important;
+    font-size: 0.8rem !important;
+  }
+
+  .sales-delivery-form .date-time-control-icon,
+  .stock-voucher-form .date-time-control-icon,
+  .voucher-form .date-time-control-icon,
+  .sales-order-form .date-time-control-icon {
+    width: 32px !important;
+    height: 32px !important;
+  }
+
+  .sales-delivery-form .date-time-control-input,
+  .stock-voucher-form .date-time-control-input,
+  .voucher-form .date-time-control-input,
+  .sales-order-form .date-time-control-input {
+    height: 32px !important;
+    font-size: 0.8rem !important;
+  }
+
+  .sales-delivery-form label,
+  .stock-voucher-form label,
+  .voucher-form label,
+  .sales-order-form label {
+    line-height: 1.1 !important;
+    font-size: 0.75rem !important;
+  }
+
   .quick-start-step > section:first-of-type {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .quick-start-step input:not([type="checkbox"]):not([type="radio"]),
+  .quick-start-step select,
+  .system-settings-form input:not([type="checkbox"]):not([type="radio"]),
+  .system-settings-form select,
+  .system-settings-form textarea {
+    height: 34px !important;
+    min-height: 34px !important;
+    border: 2px solid #cbd5e1 !important;
+    border-radius: 8px !important;
+    font-size: 0.8rem !important;
+    padding-block: 4px !important;
+  }
+
+  .quick-start-step textarea,
+  .system-settings-form textarea {
+    height: auto !important;
+    min-height: 60px !important;
+  }
+
+  .quick-start-step label,
+  .system-settings-form label {
+    font-size: 0.75rem !important;
+    line-height: 1.1 !important;
+  }
+
+  .quick-start-step .p-dropdown,
+  .quick-start-step .date-time-control,
+  .system-settings-form .p-dropdown,
+  .system-settings-form .date-time-control {
+    height: 34px !important;
+    min-height: 34px !important;
+    border: 2px solid #cbd5e1 !important;
+    border-radius: 8px !important;
   }
 
   @media (min-width: 640px) {

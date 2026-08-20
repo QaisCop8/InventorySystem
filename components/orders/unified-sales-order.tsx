@@ -3098,7 +3098,7 @@ function UnifiedSalesOrder({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange || handleCancel}>
-      <DialogContent className="
+      <DialogContent className="sales-order-form
           w-full
           max-w-[95vw]
           sm:max-w-[90vw]
