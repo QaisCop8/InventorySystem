@@ -1201,9 +1201,29 @@ export default function UnifiedSalesDelivery({
 
   const openAttributeEditor = async (rowIndex: number) => {
     const row = itemsRef.current[rowIndex]
-    if (!row?.product_id || !Array.isArray(row.attributes) || row.attributes.length === 0) return
+    if (!row?.product_id) return
+    let product = row
+    if (!Array.isArray(product.attributes) || product.attributes.length === 0) {
+      try {
+        const response = await fetch(`/api/inventory/products?productId=${product.product_id}`)
+        const products = response.ok ? await response.json() : []
+        const fetchedProduct = Array.isArray(products) ? products[0] : null
+        if (fetchedProduct) {
+          product = {
+            ...row,
+            ...fetchedProduct,
+            product_id: row.product_id,
+            product_name: row.product_name,
+            selected_attributes: row.selected_attributes || fetchedProduct.selected_attributes,
+          }
+        }
+      } catch (error) {
+        console.error("Failed to load product attributes", error)
+      }
+    }
+    if (!Array.isArray(product.attributes) || product.attributes.length === 0) return
     const editable = form.id === 0 || form.status === 1
-    const selected = await requestProductVariant({ ...row, id: row.product_id, product_name: row.base_product_name || row.product_name }, { forceEdit: true, readOnly: !editable })
+    const selected = await requestProductVariant({ ...product, id: product.product_id, product_name: product.base_product_name || product.product_name }, { forceEdit: true, readOnly: !editable })
     if (selected && editable) {
       patchItemRow(rowIndex, {
         product_name: selected.product_name || row.product_name,
@@ -2275,9 +2295,7 @@ export default function UnifiedSalesDelivery({
       messagesRef.current?.show?.([{ severity: "error", summary: "", detail: error, sticky: false, life: 4000 }])
       return
     }
-    // The toolbar Save command is an explicit save action. Persist it immediately;
-    // posting/printing choices remain available through their dedicated flow.
-    onSave("save")
+    setPostDialogOpen(true)
   }
   handleRequestSaveRef.current = handleRequestSave
 

@@ -1025,7 +1025,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
         if (!silent) setIsLoading(false);
       }
     },
-    [customers, formData, isSupplier, updateFormData]
+    [entityTypeCode, isSupplier]
   );
 
 
