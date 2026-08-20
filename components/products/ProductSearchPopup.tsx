@@ -581,7 +581,7 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
         }
       }}
     >
-      <div className="relative flex h-[100dvh] max-h-[100dvh] w-full max-w-[1500px] flex-col overflow-y-auto rounded-none border-0 border-slate-200 bg-slate-50 p-3 shadow-2xl overscroll-contain sm:h-[92dvh] sm:max-h-[92dvh] sm:overflow-hidden sm:rounded-3xl sm:border sm:p-5" dir="rtl">
+      <div className="relative flex h-[100dvh] max-h-[100dvh] w-full max-w-[1500px] flex-col overflow-hidden rounded-none border-0 border-slate-200 bg-slate-50 p-3 shadow-2xl overscroll-contain sm:h-[92dvh] sm:max-h-[92dvh] sm:rounded-3xl sm:border sm:p-5" dir="rtl">
         <div className="flex shrink-0 items-center justify-between gap-3 rounded-2xl bg-gradient-to-l from-blue-700 via-blue-600 to-cyan-600 px-4 py-3 shadow-lg sm:px-6 sm:py-4">
           <div className="flex items-center gap-3"><div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/30"><Search className="h-5 w-5 text-white" /></div><h3 className="text-lg font-extrabold text-white sm:text-xl">{title || "بحث الأصناف"}</h3></div>
           <div className="flex items-center gap-2">
@@ -689,7 +689,7 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
         </div>
 
 
-        <div className="mt-2 flex min-h-0 flex-1 flex-col gap-3 sm:gap-4 sm:overflow-hidden">
+        <div className="mt-2 flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto sm:gap-4 sm:overflow-hidden">
           <div className="shrink-0 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:rounded-3xl">
             <h4 className="text-sm font-semibold mb-3 text-slate-700 text-right">نتائج البحث</h4>
             <div className="modern-search-grid h-[32dvh] min-h-[220px] w-full overflow-auto sm:h-[24vh] sm:min-h-[180px]">
@@ -729,7 +729,7 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
           </div>
         </div>
 
-        <div className="sticky bottom-0 z-10 mt-3 flex shrink-0 gap-3 border-t border-slate-200 bg-white/95 py-3 backdrop-blur sm:static sm:mt-5 sm:justify-center sm:border-0 sm:bg-transparent sm:py-0">
+        <div className="static z-10 mt-3 flex shrink-0 gap-3 border-t border-slate-200 bg-white/95 py-3 backdrop-blur sm:mt-5 sm:justify-center sm:border-0 sm:bg-transparent sm:py-0">
           <Button className="erp-btn-primary search-button min-w-0 flex-1 sm:min-w-[120px] sm:flex-none" onClick={handleConfirm}>
             موافق
           </Button>
