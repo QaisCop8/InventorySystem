@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
@@ -2365,53 +2364,54 @@ export default function UnifiedSalesDelivery({
               <FileText className="h-3.5 w-3.5" />
               تفاصيل السند
             </div>
-            <div className="grid gap-2">
-              <div className="grid gap-2 grid-cols-1 sm:grid-cols-2 md:grid-cols-4">
-                <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
-                  <Label>دفتر السندات *</Label>
-                  <PrimeDropdown
-                    value={form.vch_book_id}
-                    options={voucherBooks}
-                    optionLabel="name"
-                    optionValue="id"
-                    placeholder="اختر"
-                    filter
+              <div className="grid gap-2">
+                <div className="voucher-header-grid grid gap-2 grid-cols-1 sm:grid-cols-2 md:grid-cols-12">
+                  <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
+                    <Label>دفتر السندات *</Label>
+                    <PrimeDropdown
+                      value={form.vch_book_id}
+                      options={voucherBooks}
+                      optionLabel="name"
+                      optionValue="id"
+                      placeholder="اختر"
+                      filter
+                      disabled={isLocked}
+                      className="invoice-currency-dropdown w-full"
+                      panelClassName="invoice-currency-dropdown-panel"
+                      appendTo="self"
+                      panelStyle={{ zIndex: 10000 }}
+                      onChange={(e: any) => (onBookChange ? onBookChange(e.value ?? null) : onFormChange("vch_book_id", e.value ?? null))}
+                    />
+                  </div>
+                  <div className="grid gap-1.5">
+                    <Label htmlFor="vch-code">رقم السند *</Label>
+                    <Input
+                      ref={vchCodeInputRef}
+                      id="vch-code"
+                      value={form.vch_code}
+                      onChange={(e) => onFormChange("vch_code", normalizeVoucherCode(e.target.value))}
+                      onBlur={handleCodeBlur}
+                      maxLength={10}
+                    />
+                  </div>
+                  <div className="grid gap-1.5">
+                    <Label htmlFor="vch-date">تاريخ السند *</Label>
+                    <DateTimeControl
+                      id="vch-date"
+                      ref={dateInputRef}
+                      value={form.vch_date ? form.vch_date.slice(0, 10) : ""}
+                      disabled={isLocked}
+                      onChange={(value) => onFormChange("vch_date", value)}
+                    />
+                  </div>
+                  <TransactionBranchField
+                    voucherType={voucherType}
+                    action={form.id ? "update" : "create"}
+                    value={form.branch_id}
+                    onChange={(id) => onFormChange("branch_id", id)}
                     disabled={isLocked}
-                    className="invoice-currency-dropdown w-full"
-                    panelClassName="invoice-currency-dropdown-panel"
-                    appendTo="self"
-                    panelStyle={{ zIndex: 10000 }}
-                    onChange={(e: any) => (onBookChange ? onBookChange(e.value ?? null) : onFormChange("vch_book_id", e.value ?? null))}
                   />
                 </div>
-                <div className="grid gap-1.5">
-                  <Label htmlFor="vch-code">رقم السند *</Label>
-                  <Input
-                    ref={vchCodeInputRef}
-                    id="vch-code"
-                    value={form.vch_code}
-                    onChange={(e) => onFormChange("vch_code", normalizeVoucherCode(e.target.value))}
-                    onBlur={handleCodeBlur}
-                    maxLength={10}
-                  />
-                </div>
-                <div className="grid gap-1.5">
-                  <Label htmlFor="vch-date">تاريخ السند *</Label>
-                  <DateTimeControl
-                    id="vch-date"
-                    ref={dateInputRef}
-                    value={form.vch_date ? form.vch_date.slice(0, 10) : ""}
-                    disabled={isLocked}
-                    onChange={(value) => onFormChange("vch_date", value)}
-                  />
-                </div>
-                <TransactionBranchField
-                  voucherType={voucherType}
-                  action={form.id ? "update" : "create"}
-                  value={form.branch_id}
-                  onChange={(id) => onFormChange("branch_id", id)}
-                  disabled={isLocked}
-                />
               </div>
 
               <div className="grid gap-2 grid-cols-1 sm:grid-cols-2">
@@ -2446,7 +2446,6 @@ export default function UnifiedSalesDelivery({
                   />
                 </div>
               </div>
-            </div>
             </div>
 
             <div className="min-w-0 space-y-1.5 rounded-xl border border-slate-200 bg-white p-2 shadow-sm sm:p-2.5">

@@ -79,6 +79,7 @@ const FontSettings = lazyDefault(() => import("@/components/settings/font-settin
 const VirtualAccounts = lazyDefault(() => import("@/components/settings/virtual-accounts"))
 const QADashboard = lazyDefault(() => import("@/components/qa-dashboard"))
 const WelcomeDashboard = lazyDefault(() => import("@/components/dashboard/welcome-dashboard"))
+const PersonalAssistantWizard = lazyDefault(() => import("@/components/onboarding/personal-assistant-wizard"))
 const PervasiveSettings = lazyDefault(() => import("@/app/settings/pervasive/page"))
 const OrderMigrate = lazyNamed(() => import("@/components/Migration/orders-migration"), "OrderMigrate")
 const OrderManagement = lazyNamed(() => import("@/components/orders/order-management"), "OrderManagement")
@@ -167,6 +168,7 @@ const componentMap: Record<string, React.ComponentType<any>> = {
   "font-settings": FontSettings,
   "qa-dashboard": QADashboard,
   "home-dashboard": WelcomeDashboard,
+  "personal-assistant": PersonalAssistantWizard,
   "pervasive-settings": PervasiveSettings,
   "customer-portal-admin": CustomerPortalAdmin,
   "ai-assistant": AIChat,

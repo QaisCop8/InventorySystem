@@ -1021,6 +1021,177 @@ td {
     pointer-events: none;
   }
 
+  /* Compact controls for the dense sales delivery form. */
+  .sales-delivery-form input:not([type="checkbox"]):not([type="radio"]):not(.date-time-control-input),
+  .sales-delivery-form select,
+  .sales-delivery-form textarea {
+    min-height: 32px !important;
+    border: 2px solid #cbd5e1 !important;
+    border-radius: 8px !important;
+    background: #ffffff !important;
+    padding-inline: 10px !important;
+    font-size: 0.8rem !important;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04) !important;
+    transition: border-color 150ms ease, box-shadow 150ms ease, background-color 150ms ease !important;
+  }
+
+  .sales-delivery-form .p-dropdown,
+  .sales-delivery-form .date-time-control {
+    border: 2px solid #cbd5e1 !important;
+    border-radius: 8px !important;
+    background: #ffffff !important;
+  }
+
+  .sales-delivery-form input:not([type="checkbox"]):not([type="radio"]):not(.date-time-control-input),
+  .sales-delivery-form select {
+    height: 32px !important;
+  }
+
+  .sales-delivery-form input:not([type="checkbox"]):not([type="radio"]):not(.date-time-control-input):focus,
+  .sales-delivery-form select:focus {
+    border-color: #3b82f6 !important;
+    outline: none !important;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12) !important;
+  }
+
+  .sales-delivery-form .invoice-currency-dropdown {
+    min-height: 32px !important;
+    height: 32px !important;
+    width: 100% !important;
+    margin-inline: 0 !important;
+    border-radius: 8px !important;
+    background: #ffffff !important;
+  }
+
+  .sales-delivery-form .invoice-currency-dropdown .p-dropdown-label {
+    min-height: 30px !important;
+    height: 30px !important;
+    padding-inline: 10px 30px !important;
+    font-size: 0.8rem !important;
+    font-weight: 600 !important;
+  }
+
+  .sales-delivery-form .invoice-currency-dropdown .p-dropdown-trigger {
+    width: 30px !important;
+  }
+
+  .sales-delivery-form .date-time-control {
+    min-height: 32px !important;
+    height: 32px !important;
+    border-radius: 8px !important;
+    background: #ffffff !important;
+  }
+
+  .sales-delivery-form .date-time-control-icon {
+    width: 30px !important;
+    height: 30px !important;
+  }
+
+  .sales-delivery-form .date-time-control-input {
+    height: 30px !important;
+    padding-inline-end: 8px !important;
+    font-size: 0.8rem !important;
+  }
+
+  .sales-delivery-form label {
+    line-height: 1.1 !important;
+  }
+
+  .sales-delivery-form > .universal-toolbar + div {
+    padding-top: 2px !important;
+  }
+
+  .sales-delivery-form .invoice-currency-dropdown-wrap {
+    width: 100% !important;
+    min-width: 0 !important;
+    display: grid !important;
+    align-items: stretch !important;
+  }
+
+  .sales-delivery-form .invoice-currency-dropdown-wrap > label,
+  .sales-delivery-form .invoice-currency-dropdown-wrap > .invoice-currency-dropdown,
+  .sales-delivery-form .invoice-currency-dropdown-wrap > div {
+    width: 100% !important;
+    min-width: 0 !important;
+    text-align: right !important;
+  }
+
+  .sales-delivery-form select {
+    width: 100% !important;
+    min-width: 0 !important;
+    text-align: right !important;
+  }
+
+  @media (min-width: 768px) {
+    .sales-delivery-form .voucher-header-grid {
+      grid-template-columns: repeat(12, minmax(0, 1fr));
+    }
+
+    .sales-delivery-form .voucher-header-grid > * {
+      min-width: 0;
+    }
+
+    .sales-delivery-form .voucher-header-grid > :nth-child(1) {
+      grid-column: span 2;
+      grid-row: 2;
+    }
+
+    .sales-delivery-form .voucher-header-grid > :nth-child(2) {
+      grid-column: span 5;
+      grid-row: 2;
+    }
+
+    .sales-delivery-form .voucher-header-grid > :nth-child(3) {
+      grid-column: span 5;
+      grid-row: 2;
+    }
+
+    .sales-delivery-form .voucher-header-grid > :nth-child(4) {
+      grid-column: span 6;
+      grid-row: 1;
+    }
+  }
+
+  .sales-delivery-form .voucher-header-grid > * {
+    width: 100% !important;
+    min-width: 0 !important;
+    align-items: stretch !important;
+  }
+
+  .sales-delivery-form .voucher-header-grid > * > label,
+  .sales-delivery-form .voucher-header-grid > * > .date-time-control,
+  .sales-delivery-form .voucher-header-grid > * > select,
+  .sales-delivery-form .voucher-header-grid > * > input,
+  .sales-delivery-form .voucher-header-grid > * > .invoice-currency-dropdown-wrap {
+    width: 100% !important;
+    text-align: right !important;
+  }
+
+  .sales-delivery-form .voucher-header-grid .invoice-currency-dropdown {
+    width: 100% !important;
+    margin-inline: 0 !important;
+  }
+
+  .sales-delivery-form .voucher-header-grid .date-time-control {
+    width: 100% !important;
+  }
+
+  .quick-start-step > section:first-of-type {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  @media (min-width: 640px) {
+    .quick-start-step > section:first-of-type {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .quick-start-step > section:first-of-type {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+  }
+
   .date-time-control-error-text {
     margin-top: 4px;
     font-size: 0.75rem;

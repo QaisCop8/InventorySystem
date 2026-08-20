@@ -1,8 +1,8 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
+import { useRouter } from "next/navigation"
 import { ArrowLeft, ArrowRight, Boxes, Building2, Check, Coins, FileSpreadsheet, Package, Sparkles, Trash2, Upload, Users, X } from "lucide-react"
-import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -11,6 +11,7 @@ import AutoCompleteAccount from "@/components/customer/auto-complete-account"
 import { useAuth } from "@/components/auth/auth-context"
 
 const steps = [
+  { title: "معلومات الشركة", description: "أدخل بيانات الشركة الأساسية", icon: Building2, color: "from-slate-600 to-slate-800" },
   { title: "العملات", description: "أضف العملات وأسعار الصرف الأساسية", icon: Coins, color: "from-emerald-300 to-green-400" },
   { title: "التعريفات", description: "التعريفات الأساسية وبنود القوائم المالية", icon: Boxes, color: "from-violet-600 to-fuchsia-600" },
   { title: "الحسابات", description: "أنشئ دليل الحسابات أو استورده من Excel", icon: Building2, color: "from-blue-600 to-indigo-600" },
@@ -91,14 +92,16 @@ const lookupDefinitions = [
 ] as const
 
 export default function PersonalAssistantWizard() {
+  const router = useRouter()
   const { user } = useAuth()
-  const [open, setOpen] = useState(false)
+  const open = true
   const [step, setStep] = useState(0)
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState<Notice>(null)
   const [confirmDismiss, setConfirmDismiss] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
   const [currency, setCurrency] = useState({ code: "", name: "", rate: "" })
+  const [company, setCompany] = useState({ licensedWorkerNumber: "", taxNumber: "" })
   const [isFirstCurrency, setIsFirstCurrency] = useState(false)
   const [savedCurrencies, setSavedCurrencies] = useState<any[]>([])
   const [account, setAccount] = useState({ code: "", name: "", financialListId: "", assetsId: "", liabilitiesId: "", incomeId: "", currencyId: "" })
@@ -121,18 +124,13 @@ export default function PersonalAssistantWizard() {
       .then((response) => response.ok ? response.json() : null)
       .then((data) => {
         if (!data?.shouldShow) return
-        // This component mounts after the main workspace. Do not let its
-        // deferred automatic dialog open over a transaction the user has
-        // already opened; it remains available from the application menu.
-        if (document.querySelector('[role="dialog"][data-state="open"]')) return
-        setStep(Math.max(0, Math.min(7, Number(data.current_step) || 0)))
-        setOpen(true)
+        setStep(Math.max(0, Math.min(8, Number(data.current_step) || 0)))
       })
       .catch(() => undefined)
   }, [])
 
   useEffect(() => {
-    if (!open || step !== 0) return
+    if (!open || step !== 1) return
     fetch("/api/exchange-rates")
       .then((response) => response.ok ? response.json() : [])
       .then((data) => {
@@ -146,7 +144,18 @@ export default function PersonalAssistantWizard() {
   }, [open, step])
 
   useEffect(() => {
-    if (!open || step !== 2) return
+    if (!open || step !== 0) return
+    fetch("/api/settings/system")
+      .then((response) => response.ok ? response.json() : {})
+      .then((data: any) => setCompany({
+        licensedWorkerNumber: String(data?.licensed_worker_number ?? ""),
+        taxNumber: String(data?.tax_number ?? ""),
+      }))
+      .catch(() => setCompany({ licensedWorkerNumber: "", taxNumber: "" }))
+  }, [open, step])
+
+  useEffect(() => {
+    if (!open || step !== 3) return
     Promise.all([
       fetch("/api/exchange-rates").then((response) => response.ok ? response.json() : []),
       fetch("/api/balance-sheet-assets-items").then((response) => response.ok ? response.json() : []),
@@ -161,7 +170,7 @@ export default function PersonalAssistantWizard() {
   }, [open, step])
 
   useEffect(() => {
-    if (!open || (step !== 3 && step !== 4)) return
+    if (!open || (step !== 4 && step !== 5)) return
     fetch("/api/settings/system")
       .then((response) => response.ok ? response.json() : {})
       .then((data: any) => setSystemAccountSettings(Object.fromEntries([...defaultAccountFields, ...productAccountFields].map(([key]) => [key, data?.[key] ? String(data[key]) : ""]))))
@@ -169,7 +178,7 @@ export default function PersonalAssistantWizard() {
   }, [open, step])
 
   useEffect(() => {
-    if (!open || step !== 5 || !user?.id) return
+    if (!open || step !== 6 || !user?.id) return
     Promise.all([
       fetch("/api/exchange-rates").then((response) => response.ok ? response.json() : []),
       fetch(`/api/settings/users-currencies-default?user_id=${encodeURIComponent(user.id)}`).then((response) => response.ok ? response.json() : { rows: [] }),
@@ -194,7 +203,7 @@ export default function PersonalAssistantWizard() {
   }, [open, step, user?.id])
 
   useEffect(() => {
-    if (!open || step !== 6) return
+    if (!open || step !== 7) return
     Promise.all([
       fetch("/api/units").then((response) => response.ok ? response.json() : []),
       fetch("/api/pricecategory").then((response) => response.ok ? response.json() : []),
@@ -288,7 +297,7 @@ export default function PersonalAssistantWizard() {
   }
 
   useEffect(() => {
-    if (!open || (step !== 2 && step !== 6 && step !== 7)) return
+    if (!open || (step !== 3 && step !== 7 && step !== 8)) return
     const handleEnterNavigation = (event: KeyboardEvent) => {
       if (event.key !== "Enter" || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return
       const target = event.target as HTMLElement | null
@@ -326,29 +335,10 @@ export default function PersonalAssistantWizard() {
   }
 
   useEffect(() => {
-    if (!open || step !== 1) return
+    if (!open || step !== 2) return
     const definition = lookupDefinitions.find((item) => item.key === activeLookupKey) || lookupDefinitions[0]
     void loadLookupRecords(definition)
   }, [open, step, activeLookupKey])
-
-  useEffect(() => {
-    const openFromMenu = async () => {
-      try {
-        const response = await fetch("/api/onboarding-assistant")
-        const data = response.ok ? await response.json() : null
-        if (data?.dismissed) {
-          window.alert("تم اختيار عدم إظهار البداية السريعة مجدداً، لذلك لا يمكن الرجوع إليها.")
-          return
-        }
-        setStep(Math.max(0, Math.min(7, Number(data?.current_step) || 0)))
-        setOpen(true)
-      } catch {
-        window.alert("تعذر فتح البداية السريعة")
-      }
-    }
-    window.addEventListener("erp:open-personal-assistant", openFromMenu)
-    return () => window.removeEventListener("erp:open-personal-assistant", openFromMenu)
-  }, [])
 
   const saveProgress = async (nextStep: number, dismissed = false, completed = false) => {
     await fetch("/api/onboarding-assistant", {
@@ -374,6 +364,16 @@ export default function PersonalAssistantWizard() {
     setBusy(true)
     try {
       if (step === 0) {
+        if (!/^[A-Za-z0-9]{0,30}$/.test(company.licensedWorkerNumber)) throw new Error("رقم المشتغل المرخص يجب أن يحتوي أحرفاً إنجليزية أو أرقاماً فقط وبحد أقصى 30 حرفاً")
+        if (!/^[A-Za-z0-9]{0,20}$/.test(company.taxNumber)) throw new Error("الرقم الضريبي يجب أن يحتوي أحرفاً إنجليزية أو أرقاماً فقط وبحد أقصى 20 حرفاً")
+        const response = await fetch("/api/settings/system", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ licensed_worker_number: company.licensedWorkerNumber, tax_number: company.taxNumber }),
+        })
+        if (!response.ok) throw new Error("تعذر حفظ معلومات الشركة")
+        showResult("success", "تم حفظ معلومات الشركة")
+      } else if (step === 1) {
         const code = currency.code.trim().toUpperCase()
         const name = currency.name.trim()
         const rate = isFirstCurrency ? 1 : Number(currency.rate)
@@ -385,7 +385,7 @@ export default function PersonalAssistantWizard() {
         setIsFirstCurrency(false)
         const refreshed = await fetch("/api/exchange-rates").then((response) => response.ok ? response.json() : { rates: [] })
         setSavedCurrencies(Array.isArray(refreshed?.rates) ? refreshed.rates : [])
-      } else if (step === 2) {
+      } else if (step === 3) {
         if (!account.code.trim() || !account.name.trim()) throw new Error("أدخل رقم الحساب واسمه")
         if (account.name.trim().length > 100) throw new Error("اسم الحساب يجب ألا يتجاوز 100 حرف")
         if (!["1", "2", "3"].includes(account.financialListId)) throw new Error("اختر القائمة المالية")
@@ -396,7 +396,7 @@ export default function PersonalAssistantWizard() {
         await post("/api/accounts", { account_code: accountCode, account_name: account.name.trim(), company_id: 1, finanical_list_id: Number(account.financialListId), finanical_list_assests_id: account.assetsId ? Number(account.assetsId) : null, finanical_list_liabilities_id: account.liabilitiesId ? Number(account.liabilitiesId) : null, finanical_list_income_id: account.incomeId ? Number(account.incomeId) : null, currency_id: Number(account.currencyId), status: "نشط" })
         setAccount({ code: "", name: "", financialListId: "", assetsId: "", liabilitiesId: "", incomeId: "", currencyId: "" })
         await refreshSavedAccounts()
-      } else if (step === 6) {
+      } else if (step === 7) {
         if (!product.code.trim() || !product.name.trim()) throw new Error("أدخل رقم الصنف واسمه")
         if (!/^[A-Z0-9]{10}$/.test(product.code)) throw new Error("رقم الصنف يجب أن يتكون من 10 أحرف إنجليزية كبيرة أو أرقام")
         if (product.name.trim().length > 100) throw new Error("اسم الصنف يجب ألا يتجاوز 100 حرف")
@@ -412,7 +412,7 @@ export default function PersonalAssistantWizard() {
         if (Number(productResult?.failed || 0) > 0 || Number(productResult?.duplicates || 0) > 0) throw new Error(productResult?.errors?.[0] || "تعذر إضافة الصنف")
         setProduct({ code: "", name: "", unitId: "", sellingPrice: "", barcode: "" })
         await refreshSavedProducts()
-      } else if (step === 7) {
+      } else if (step === 8) {
         if (!customer.name.trim()) throw new Error("أدخل اسم العميل")
         await post("/api/import/customers", { data: [{ rowIndex: 1, isValid: true, customer_code: customer.code, customer_name: customer.name, mobile1: customer.phone, type: 1 }] })
         setCustomer({ code: "", name: "", phone: "" })
@@ -469,7 +469,7 @@ export default function PersonalAssistantWizard() {
         rows = XLSX.utils.sheet_to_json<Record<string, any>>(workbook.Sheets[workbook.SheetNames[0]], { defval: "" })
       }
       if (!rows.length) throw new Error("ملف الاستيراد فارغ")
-      if (step === 2) {
+      if (step === 3) {
         const [currenciesData, assetsData, liabilitiesData, incomeData, accountsData] = await Promise.all([
           fetch("/api/exchange-rates").then((response) => response.ok ? response.json() : []),
           fetch("/api/balance-sheet-assets-items").then((response) => response.ok ? response.json() : []),
@@ -528,12 +528,12 @@ export default function PersonalAssistantWizard() {
         })
         setAccountPreview(preparedRows)
         showResult(preparedRows.some((row) => row.errors.length) ? "error" : "success", `تم تجهيز ${preparedRows.length} حساباً للمراجعة قبل الحفظ`)
-      } else if (step === 6) {
-        await post("/api/import/products", { data: rows.map((row) => { const rawCode = String(cell(row, ["رمز الصنف", "رقم الصنف", "product_code"]) || ""); return { product_code: rawCode.replace(/[^A-Za-z0-9]/g, "").toUpperCase().slice(0, 10).padEnd(10, "0"), product_name: String(cell(row, ["اسم الصنف", "product_name", "name"]) || "").trim().slice(0, 100), main_unit: cell(row, ["الوحدة", "main_unit", "unit"]) || "قطعة", selling_price: Number(cell(row, ["سعر البيع", "selling_price", "sale_price", "price"])) || 0, barcode: String(cell(row, ["الباركود", "barcode", "unit_1_barcode"]) || "").trim() } }) })
       } else if (step === 7) {
+        await post("/api/import/products", { data: rows.map((row) => { const rawCode = String(cell(row, ["رمز الصنف", "رقم الصنف", "product_code"]) || ""); return { product_code: rawCode.replace(/[^A-Za-z0-9]/g, "").toUpperCase().slice(0, 10).padEnd(10, "0"), product_name: String(cell(row, ["اسم الصنف", "product_name", "name"]) || "").trim().slice(0, 100), main_unit: cell(row, ["الوحدة", "main_unit", "unit"]) || "قطعة", selling_price: Number(cell(row, ["سعر البيع", "selling_price", "sale_price", "price"])) || 0, barcode: String(cell(row, ["الباركود", "barcode", "unit_1_barcode"]) || "").trim() } }) })
+      } else if (step === 8) {
         await post("/api/import/customers", { data: rows.map((row, index) => ({ rowIndex: index + 2, isValid: Boolean(cell(row, ["اسم العميل", "customer_name", "name"])), customer_code: cell(row, ["رقم العميل", "customer_code", "code"]), customer_name: cell(row, ["اسم العميل", "customer_name", "name"]), mobile1: cell(row, ["الجوال", "mobile", "mobile1", "phone"]), type: 1 })) })
       }
-      if (step !== 2) showResult("success", `تم استيراد ${rows.length} سطراً`)
+      if (step !== 3) showResult("success", `تم استيراد ${rows.length} سطراً`)
     } catch (error) {
       showResult("error", error instanceof Error ? error.message : "تعذر استيراد الملف")
     } finally {
@@ -558,29 +558,55 @@ export default function PersonalAssistantWizard() {
     }
   }
 
+  const saveCompany = async () => {
+    if (!/^[A-Za-z0-9]{0,30}$/.test(company.licensedWorkerNumber)) {
+      showResult("error", "رقم المشتغل المرخص يجب أن يحتوي أحرفاً إنجليزية أو أرقاماً فقط وبحد أقصى 30 حرفاً")
+      return false
+    }
+    if (!/^[A-Za-z0-9]{0,20}$/.test(company.taxNumber)) {
+      showResult("error", "الرقم الضريبي يجب أن يحتوي أحرفاً إنجليزية أو أرقاماً فقط وبحد أقصى 20 حرفاً")
+      return false
+    }
+    setBusy(true)
+    try {
+      const response = await fetch("/api/settings/system", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ licensed_worker_number: company.licensedWorkerNumber, tax_number: company.taxNumber }),
+      })
+      if (!response.ok) throw new Error("تعذر حفظ معلومات الشركة")
+      return true
+    } catch (error) {
+      showResult("error", error instanceof Error ? error.message : "تعذر حفظ معلومات الشركة")
+      return false
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const move = async (next: number) => {
-    const bounded = Math.max(0, Math.min(7, next))
-    if (bounded > step && step === 3 && !(await saveAccountSettings(defaultAccountFields))) return
-    if (bounded > step && step === 4 && !(await saveAccountSettings(productAccountFields))) return
-    if (bounded > step && step === 5 && !(await saveCurrencyDefaultAccounts())) return
+    const bounded = Math.max(0, Math.min(8, next))
+    if (bounded > step && step === 0 && !(await saveCompany())) return
+    if (bounded > step && step === 4 && !(await saveAccountSettings(defaultAccountFields))) return
+    if (bounded > step && step === 5 && !(await saveAccountSettings(productAccountFields))) return
+    if (bounded > step && step === 6 && !(await saveCurrencyDefaultAccounts())) return
     setStep(bounded)
     await saveProgress(bounded)
   }
 
   const postpone = async () => {
     await saveProgress(step)
-    setOpen(false)
+    router.push("/")
   }
 
   const finish = async () => {
-    await saveProgress(6, false, true)
-    setOpen(false)
+    await saveProgress(8, false, true)
+    router.push("/")
   }
 
   const StepIcon = steps[step].icon
   return <>
-    <Dialog open={open} onOpenChange={() => undefined}>
-      <DialogContent hideCloseButton className="flex h-[100dvh] w-screen max-w-[1500px] flex-col overflow-hidden rounded-none border-0 bg-slate-50 p-0 shadow-2xl sm:h-[94vh] sm:w-[98vw] sm:rounded-[30px]" dir="rtl">
+    <div className="flex min-h-0 h-full w-full flex-col overflow-hidden rounded-2xl bg-slate-50 shadow-sm" dir="rtl">
         <header className={`relative shrink-0 overflow-hidden bg-gradient-to-l ${steps[step].color} px-4 py-3 text-white sm:px-6 sm:py-5`}>
           <div className="absolute inset-0 opacity-15 [background-image:radial-gradient(circle_at_20%_20%,white_0,transparent_35%),radial-gradient(circle_at_80%_80%,white_0,transparent_30%)]" />
           <div className="relative flex items-center justify-between gap-4">
@@ -596,7 +622,7 @@ export default function PersonalAssistantWizard() {
         </div>
 
         <main
-          className={`min-h-0 flex-1 overflow-y-auto p-3 sm:p-7 ${step >= 1 ? "md:flex md:overflow-hidden" : ""}`}
+          className={`min-h-0 flex-1 overflow-y-auto p-3 sm:p-7 ${step >= 1 ? "md:flex" : ""}`}
           onKeyDown={(event) => {
             if (step !== 0 || event.key !== "Enter" || event.nativeEvent.isComposing || !(event.target instanceof HTMLInputElement)) return
             const focusable = Array.from(event.currentTarget.querySelectorAll<HTMLElement>('input:not([disabled]), button:not([disabled])'))
@@ -606,7 +632,7 @@ export default function PersonalAssistantWizard() {
             next.focus()
           }}
         >
-          <div className={step >= 1 ? "flex min-h-0 w-full flex-1 flex-col" : "mx-auto max-w-4xl"}>
+          <div className={step >= 1 ? "flex min-h-0 w-full flex-1 flex-col" : "quick-start-step w-full"}>
             <div className="mb-4 flex items-center gap-3 sm:mb-6 sm:gap-4"><div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br sm:h-14 sm:w-14 ${steps[step].color} text-white shadow-lg`}><StepIcon className="h-6 w-6 sm:h-7 sm:w-7" /></div><div><h3 className="text-xl font-black text-slate-900 sm:text-2xl">{steps[step].title}</h3><p className="text-sm text-slate-500 sm:text-base">{steps[step].description}</p></div></div>
             {notice && <div className={`mb-4 rounded-2xl border px-4 py-3 text-sm font-bold ${notice.type === "success" ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-red-200 bg-red-50 text-red-700"}`}>{notice.text}</div>}
 
@@ -626,9 +652,8 @@ export default function PersonalAssistantWizard() {
           <div className="flex gap-2"><Button variant="outline" onClick={postpone} className="rounded-xl">تأجيل</Button>{step > 0 && <Button variant="outline" onClick={() => void move(step - 1)} className="rounded-xl"><ArrowRight className="ml-2 h-4 w-4" />السابق</Button>}<Button onClick={() => step === 7 ? void finish() : void move(step + 1)} className={`rounded-xl bg-gradient-to-l ${steps[step].color} px-6 text-white`}>{step === 7 ? "إنهاء" : "التالي"}{step < 7 && <ArrowLeft className="mr-2 h-4 w-4" />}</Button></div>
         </footer>
         <input ref={fileRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; if (file) void importExcel(file) }} />
-      </DialogContent>
-    </Dialog>
-    <ConfirmDialogYesNo visible={confirmDismiss} message="هل أنت متأكد؟ لن تستطيع الرجوع إلى البداية السريعة في حال التأكيد" onCancel={() => setConfirmDismiss(false)} onConfirm={() => { setConfirmDismiss(false); void saveProgress(step, true, false).then(() => setOpen(false)) }} />
+    </div>
+    <ConfirmDialogYesNo visible={confirmDismiss} message="هل أنت متأكد؟ لن تستطيع الرجوع إلى البداية السريعة في حال التأكيد" onCancel={() => setConfirmDismiss(false)} onConfirm={() => { setConfirmDismiss(false); void saveProgress(step, true, false).then(() => router.push("/")) }} />
     <style jsx global>{`
       .rounded-2xl.border.border-slate-200 > .bg-slate-900 {
         background: linear-gradient(to left, #6d28d9, #4f46e5);

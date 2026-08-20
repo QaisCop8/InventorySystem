@@ -7,7 +7,6 @@ import { Header } from "./header";
 import { MenuThemeProvider } from "@/contexts/menu-theme-context";
 
 const ChatWidget = dynamic(() => import("./chat/chat-widget").then((module) => module.ChatWidget), { ssr: false });
-const PersonalAssistantWizard = dynamic(() => import("@/components/onboarding/personal-assistant-wizard"), { ssr: false });
 
 interface ERPLayoutProps {
   children: React.ReactNode;
@@ -47,7 +46,7 @@ export function ERPLayout({ children, activeSection, onSectionChange }: ERPLayou
 
   const handleProfileClick = () => onSectionChange("user-profile");
   const handleSettingsClick = () => onSectionChange("user-settings");
-  const sidebarOffset = isMobile ? 0 : sidebarOpen ? 384 : 112;
+  const sidebarOffset = isMobile ? 0 : sidebarOpen ? 320 : 80;
 
   return (
     <MenuThemeProvider>
@@ -103,7 +102,6 @@ export function ERPLayout({ children, activeSection, onSectionChange }: ERPLayou
         </div>
 
         {deferredToolsReady && <ChatWidget />}
-        {deferredToolsReady && <PersonalAssistantWizard />}
       </div>
     </MenuThemeProvider>
   );

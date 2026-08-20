@@ -331,10 +331,6 @@ export function Sidebar({
     }
 
     if (item.section) {
-      if (item.section === "personal-assistant") {
-        window.dispatchEvent(new CustomEvent("erp:open-personal-assistant"))
-        return
-      }
       onSectionChange(item.section)
     }
   }
@@ -354,7 +350,7 @@ export function Sidebar({
     // الداخلي تحتاج سلفاً حاملاً لـ.dark فعلياً (محدِّد نسل)، لا العنصر نفسه، حتى تتفعّل بصرياً.
     <div className={`user-typography ${menuDarkMode ? "dark" : ""}`}>
     <div
-      className={`fixed top-0 right-0 z-40 flex h-screen flex-col border-l border-slate-200 dark:border-white/10 bg-white dark:bg-[radial-gradient(circle_at_top_right,_rgba(56,189,248,0.16),_transparent_45%),radial-gradient(circle_at_bottom_left,_rgba(167,139,250,0.14),_transparent_50%),linear-gradient(180deg,_#0b1120_0%,_#0f172a_55%,_#0b1120_100%)] text-slate-800 dark:text-slate-100 shadow-[0_25px_80px_-24px_rgba(15,23,42,0.12)] dark:shadow-[0_25px_80px_-24px_rgba(2,6,23,0.9)] backdrop-blur-xl transition-all duration-300 ${isMobile ? "w-96 z-50" : isOpen ? "w-96" : "w-24"} ${isMobile && !isOpen ? "translate-x-full" : "translate-x-0"}`}
+      className={`fixed top-0 right-0 z-40 flex h-screen flex-col border-l border-slate-200 dark:border-white/10 bg-white dark:bg-[radial-gradient(circle_at_top_right,_rgba(56,189,248,0.16),_transparent_45%),radial-gradient(circle_at_bottom_left,_rgba(167,139,250,0.14),_transparent_50%),linear-gradient(180deg,_#0b1120_0%,_#0f172a_55%,_#0b1120_100%)] text-slate-800 dark:text-slate-100 shadow-[0_25px_80px_-24px_rgba(15,23,42,0.12)] dark:shadow-[0_25px_80px_-24px_rgba(2,6,23,0.9)] backdrop-blur-xl transition-all duration-300 ${isMobile ? "w-96 z-50" : isOpen ? "w-80" : "w-20"} ${isMobile && !isOpen ? "translate-x-full" : "translate-x-0"}`}
       dir="rtl"
     >
       {/* Header */}
