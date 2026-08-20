@@ -2275,7 +2275,9 @@ export default function UnifiedSalesDelivery({
       messagesRef.current?.show?.([{ severity: "error", summary: "", detail: error, sticky: false, life: 4000 }])
       return
     }
-    setPostDialogOpen(true)
+    // The toolbar Save command is an explicit save action. Persist it immediately;
+    // posting/printing choices remain available through their dedicated flow.
+    onSave("save")
   }
   handleRequestSaveRef.current = handleRequestSave
 
