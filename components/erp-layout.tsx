@@ -48,8 +48,6 @@ export function ERPLayout({ children, activeSection, onSectionChange }: ERPLayou
 
   const handleProfileClick = () => onSectionChange("user-profile");
   const handleSettingsClick = () => onSectionChange("user-settings");
-  const sidebarOffset = isMobile ? 0 : sidebarOpen ? 320 : 80;
-
   return (
     <MenuThemeProvider>
       <div className="flex h-screen bg-background" dir="rtl">
@@ -84,11 +82,7 @@ export function ERPLayout({ children, activeSection, onSectionChange }: ERPLayou
 
         {/* Main content */}
         <div
-          className="flex-1 flex flex-col overflow-hidden transition-all duration-300"
-          style={{
-            marginRight: sidebarOffset,
-            marginLeft: 0,
-          }}
+          className="min-w-0 flex-1 flex flex-col overflow-hidden transition-all duration-300"
         >
           <Header
             onMenuClick={handleSidebarToggle}
