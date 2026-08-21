@@ -3279,7 +3279,7 @@ function Definitions() {
 
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
             {/* Customer Categories */}
             <Card dir="rtl">
               <CardHeader>
@@ -3356,24 +3356,25 @@ function Definitions() {
                       dir="rtl"
                     >
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Button variant="outline" size="sm" onClick={() => handleEditCustomerCategory(category)}>
-                            <Edit className="h-3 w-3" />
-                          </Button>
-                          {category.status !== 3 && <Button variant="outline" size="sm" onClick={() => updateCategoryStatus("/api/customer-categories", category, fetchCustomerCategories)}>
-                            {getToggleStatusLabel(category.status)}
-                          </Button>}
-                          <Button variant="destructive" size="sm" onClick={() => openDeleteConfirm("هل أنت متأكد من حذف هذا التصنيف؟", () => deleteCategory(`/api/customer-categories?id=${category.id}`, fetchCustomerCategories))}>
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
-                          <Badge variant={getStatusBadgeVariant(category.status)}>{getStatusLabel(category.status)}</Badge>
+                        <div className="flex min-w-0 items-center gap-2 text-right">
                           <div className="w-3 h-3 rounded-full" style={{ backgroundColor: colors[index % colors.length] }} />
                           <div className="text-right">
                             <h4 className="font-medium text-sm">{category.name}</h4>
                             <p className="text-xs text-muted-foreground">خصم {category.discount}%</p>
                           </div>
                         </div>
-
+                        <div className="flex shrink-0 items-center gap-2">
+                          <Badge variant={getStatusBadgeVariant(category.status)}>{getStatusLabel(category.status)}</Badge>
+                          {category.status !== 3 && <Button variant="outline" size="sm" onClick={() => updateCategoryStatus("/api/customer-categories", category, fetchCustomerCategories)}>
+                            {getToggleStatusLabel(category.status)}
+                          </Button>}
+                          <Button variant="destructive" size="sm" onClick={() => openDeleteConfirm("هل أنت متأكد من حذف هذا التصنيف؟", () => deleteCategory(`/api/customer-categories?id=${category.id}`, fetchCustomerCategories))}>
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                          <Button variant="outline" size="sm" onClick={() => handleEditCustomerCategory(category)}>
+                            <Edit className="h-3 w-3" />
+                          </Button>
+                        </div>
                       </div>
                       <div className="mt-2">
 
@@ -3448,24 +3449,25 @@ function Definitions() {
                       dir="rtl"
                     >
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Button variant="outline" size="sm" onClick={() => handleEditSupplierCategory(category)}>
-                            <Edit className="h-3 w-3" />
-                          </Button>
-                          {category.status !== 3 && <Button variant="outline" size="sm" onClick={() => updateCategoryStatus("/api/supplier-categories", category, fetchsupplierCategories)}>
-                            {getToggleStatusLabel(category.status)}
-                          </Button>}
-                          <Button variant="destructive" size="sm" onClick={() => openDeleteConfirm("هل أنت متأكد من حذف هذا التصنيف؟", () => deleteCategory(`/api/supplier-categories?id=${category.id}`, fetchsupplierCategories))}>
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
-                          <Badge variant={getStatusBadgeVariant(category.status)}>{getStatusLabel(category.status)}</Badge>
+                        <div className="flex min-w-0 items-center gap-2 text-right">
                           <div className="w-3 h-3 rounded-full" style={{ backgroundColor: colors[index % colors.length] }} />
                           <div className="text-right">
                             <h4 className="font-medium text-sm">{category.name}</h4>
                             <p className="text-xs text-muted-foreground">{category.paymentterms}</p>
                           </div>
                         </div>
-
+                        <div className="flex shrink-0 items-center gap-2">
+                          <Badge variant={getStatusBadgeVariant(category.status)}>{getStatusLabel(category.status)}</Badge>
+                          {category.status !== 3 && <Button variant="outline" size="sm" onClick={() => updateCategoryStatus("/api/supplier-categories", category, fetchsupplierCategories)}>
+                            {getToggleStatusLabel(category.status)}
+                          </Button>}
+                          <Button variant="destructive" size="sm" onClick={() => openDeleteConfirm("هل أنت متأكد من حذف هذا التصنيف؟", () => deleteCategory(`/api/supplier-categories?id=${category.id}`, fetchsupplierCategories))}>
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                          <Button variant="outline" size="sm" onClick={() => handleEditSupplierCategory(category)}>
+                            <Edit className="h-3 w-3" />
+                          </Button>
+                        </div>
                       </div>
 
                     </div>
@@ -3532,23 +3534,24 @@ function Definitions() {
                       dir="rtl"
                     >
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Button variant="outline" size="sm" onClick={() => handleEditProductCategory(category)}>
-                            <Edit className="h-3 w-3" />
-                          </Button>
+                        <div className="flex min-w-0 items-center gap-2 text-right">
+                          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: colors[index % colors.length] }} />
+                          <div className="text-right">
+                            <h4 className="font-medium text-sm">{category.name}</h4>
+                          </div>
+                        </div>
+                        <div className="flex shrink-0 items-center gap-2">
+                          <Badge variant={getStatusBadgeVariant(category.status)}>{getStatusLabel(category.status)}</Badge>
                           {category.status !== 3 && <Button variant="outline" size="sm" onClick={() => updateCategoryStatus("/api/product-categories", category, fetchProductCategories)}>
                             {getToggleStatusLabel(category.status)}
                           </Button>}
                           <Button variant="destructive" size="sm" onClick={() => openDeleteConfirm("هل أنت متأكد من حذف هذا التصنيف؟", () => deleteCategory(`/api/product-categories?id=${category.id}`, fetchProductCategories))}>
                             <Trash2 className="h-3 w-3" />
                           </Button>
-                          <Badge variant={getStatusBadgeVariant(category.status)}>{getStatusLabel(category.status)}</Badge>
-                          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: colors[index % colors.length] }} />
-                          <div className="text-right">
-                            <h4 className="font-medium text-sm">{category.name}</h4>
-                          </div>
+                          <Button variant="outline" size="sm" onClick={() => handleEditProductCategory(category)}>
+                            <Edit className="h-3 w-3" />
+                          </Button>
                         </div>
-
                       </div>
                       <div className="mt-2">
 

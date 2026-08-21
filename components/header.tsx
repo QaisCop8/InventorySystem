@@ -327,9 +327,9 @@ export function Header({ onMenuClick, activeSection, onProfileClick, onSettingsC
               <div className="w-7 h-7 md:w-8 md:h-8 bg-emerald-600 rounded-full flex items-center justify-center">
                 <Icons.User className="h-3 w-3 md:h-4 md:w-4 text-white" />
               </div>
-              <div className="text-right hidden md:block">
-                <p className="text-sm font-medium">{user?.fullName}</p>
-                <p className="text-xs text-muted-foreground">{user?.email}</p>
+              <div className="hidden min-w-0 max-w-36 text-right xl:block">
+                <p className="truncate text-sm font-medium">{user?.fullName}</p>
+                <p className="truncate text-xs text-muted-foreground">{user?.email}</p>
               </div>
             </RefButton>
           </DropdownMenuTrigger>
