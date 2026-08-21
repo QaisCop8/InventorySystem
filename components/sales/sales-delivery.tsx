@@ -596,7 +596,15 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
   const saveVoucher = async (action: PostVoucherAction = "save"): Promise<boolean> => {
     const status = action === "save" || action === "save_print" ? form.status || 1 : 2
     const isPrinted = action === "post_print" ? 1 : form.is_printed || 0
-    const dataToSave: SalesDeliveryRecord = { ...form, status, is_printed: isPrinted }
+    const dataToSave: SalesDeliveryRecord = {
+      ...form,
+      status,
+      is_printed: isPrinted,
+      items: form.items.map((item) => ({
+        ...item,
+        price: item.unit_price == null ? 0 : Number(item.unit_price),
+      })) as SalesVoucherItemRow[],
+    }
 
     const validationError = validateVoucher(dataToSave)
     if (validationError) {
