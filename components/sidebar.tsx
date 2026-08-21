@@ -42,6 +42,7 @@ import {
   PackageCheck,
   Grid3x3,
   Wrench,
+  ClipboardCheck,
   LucideIcon,
 } from "lucide-react"
 import { useWindowManager } from "@/contexts/window-manager-context"
@@ -183,6 +184,28 @@ export const menuItems: MenuItem[] = [
           { title: "سند اخراج بضاعة", section: "stock-out-vouchers", icon: ArrowUpCircle },
           { title: "ارسالية داخلية", section: "internal-delivery-vouchers", icon: Truck },
           { title: "سند استعمال", section: "use-vouchers", icon: FileMinus2 },
+        ],
+      },
+      {
+        title: "طلبات بضاعة داخلي",
+        section: "internal-manufacturing-orders",
+        icon: ClipboardCheck,
+        submenu: [
+          { title: "إعدادات طلب بضاعة داخلي", section: "internal-manufacturing-settings", icon: Settings },
+          {
+            title: "طلب بضاعة داخلي",
+            section: "internal-manufacturing-request-group",
+            icon: ClipboardCheck,
+            submenu: [
+              { title: "طلب بضاعة داخلي", section: "internal-manufacturing-request", icon: FilePlus2 },
+              { title: "تدقيق طلب البضاعة", section: "internal-manufacturing-request-audit", icon: Shield },
+              { title: "تجهيز طلبات البضاعة الداخلية", section: "internal-manufacturing-preparation", icon: PackageCheck },
+              { title: "تدقيق الطلبات الجاهزة", section: "internal-manufacturing-ready-audit", icon: Shield },
+              { title: "إرسال طلبات البضاعة", section: "internal-manufacturing-send", icon: ArrowUpCircle },
+              { title: "استلام طلبات البضاعة", section: "internal-manufacturing-receive", icon: ArrowDownCircle },
+              { title: "تدقيق البضاعة المستلمة", section: "internal-manufacturing-received-audit", icon: Shield },
+            ],
+          },
         ],
       },
     ],
@@ -350,7 +373,7 @@ export function Sidebar({
     // الداخلي تحتاج سلفاً حاملاً لـ.dark فعلياً (محدِّد نسل)، لا العنصر نفسه، حتى تتفعّل بصرياً.
     <div className={`user-typography ${menuDarkMode ? "dark" : ""}`}>
     <div
-      className={`fixed top-0 right-0 z-40 flex h-screen flex-col border-l border-slate-200 dark:border-white/10 bg-white dark:bg-[radial-gradient(circle_at_top_right,_rgba(56,189,248,0.16),_transparent_45%),radial-gradient(circle_at_bottom_left,_rgba(167,139,250,0.14),_transparent_50%),linear-gradient(180deg,_#0b1120_0%,_#0f172a_55%,_#0b1120_100%)] text-slate-800 dark:text-slate-100 shadow-[0_25px_80px_-24px_rgba(15,23,42,0.12)] dark:shadow-[0_25px_80px_-24px_rgba(2,6,23,0.9)] backdrop-blur-xl transition-all duration-300 ${isMobile ? "w-96 z-50" : isOpen ? "w-80" : "w-20"} ${isMobile && !isOpen ? "translate-x-full" : "translate-x-0"}`}
+      className={`fixed top-0 right-0 z-40 flex h-screen flex-col border-l border-slate-200 dark:border-white/10 bg-white dark:bg-[radial-gradient(circle_at_top_right,_rgba(56,189,248,0.16),_transparent_45%),radial-gradient(circle_at_bottom_left,_rgba(167,139,250,0.14),_transparent_50%),linear-gradient(180deg,_#0b1120_0%,_#0f172a_55%,_#0b1120_100%)] text-slate-800 dark:text-slate-100 shadow-[0_25px_80px_-24px_rgba(15,23,42,0.12)] dark:shadow-[0_25px_80px_-24px_rgba(2,6,23,0.9)] backdrop-blur-xl transition-all duration-300 ${isMobile ? "w-[min(20rem,calc(100vw-1rem))] z-50" : isOpen ? "w-80" : "w-20"} ${isMobile && !isOpen ? "translate-x-full" : "translate-x-0"}`}
       dir="rtl"
     >
       {/* Header */}

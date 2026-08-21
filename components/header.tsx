@@ -219,7 +219,7 @@ export function Header({ onMenuClick, activeSection, onProfileClick, onSettingsC
       {/* Right: Search, notifications, user */}
       <div className="flex items-center gap-2 md:gap-4 shrink-0">
         {/* Branch / Department context */}
-        <div className="hidden md:flex items-center gap-2 rounded-md border border-border bg-muted/50 px-2 py-1.5">
+        <div className="hidden xl:flex items-center gap-2 rounded-md border border-border bg-muted/50 px-2 py-1.5">
           <select
             className="bg-transparent text-sm text-right outline-none min-w-[140px]"
             value={activeBranchId?.toString() || ""}
@@ -248,7 +248,7 @@ export function Header({ onMenuClick, activeSection, onProfileClick, onSettingsC
 
         {/* الشركة الحالية — قائمة منسدلة بكل شركات المستخدم، التبديل يعيد تحميل النظام على الشركة الجديدة */}
         {myCompanies.length > 0 && (
-          <div className="hidden md:flex items-center gap-1.5 rounded-md border border-border bg-muted/50 px-2 py-1.5">
+          <div className="hidden xl:flex items-center gap-1.5 rounded-md border border-border bg-muted/50 px-2 py-1.5">
             <Building2 className="h-4 w-4 shrink-0 text-muted-foreground" />
             <select
               className="bg-transparent text-sm font-medium text-card-foreground outline-none max-w-[160px] truncate"
@@ -272,7 +272,7 @@ export function Header({ onMenuClick, activeSection, onProfileClick, onSettingsC
         )}
 
         {/* Search */}
-        <div className="hidden lg:flex items-center gap-2 rounded-md border border-border bg-muted/50 px-3 focus-within:bg-background">
+        <div className="hidden xl:flex items-center gap-2 rounded-md border border-border bg-muted/50 px-3 focus-within:bg-background">
           <Icons.Search className="shrink-0 text-muted-foreground h-4 w-4" />
           <Input
             placeholder="البحث..."
@@ -313,7 +313,9 @@ export function Header({ onMenuClick, activeSection, onProfileClick, onSettingsC
         </DropdownMenu>
 
         {/* طريقة عرض الصفحات: شاشة مقسمة / تبويبات — تفضيل شخصي (dashboard_layout.display_mode) */}
-        <DisplayModeMenu userId={user?.id} />
+        <div className="hidden xl:block">
+          <DisplayModeMenu userId={user?.id} />
+        </div>
 
         {/* Dark / light mode */}
         <QuickThemeToggle />

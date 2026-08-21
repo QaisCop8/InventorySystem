@@ -1,0 +1,6 @@
+import { NextRequest, NextResponse } from "next/server"
+import { getSessionUser } from "@/lib/tenant-auth"
+import { authorizeInternalManufacturing, ensureInternalManufacturingTables, processInternalManufacturingAction, type InternalManufacturingAction } from "@/lib/internal-manufacturing-request"
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try { await ensureInternalManufacturingTables(); const user = await getSessionUser(request); if (!user) return NextResponse.json({ error: "يجب تسجيل الدخول" }, { status: 401 }); const input = await request.json(); const action = String(input.action) as Exclude<InternalManufacturingAction, "create">; const allowed = ["requestAudit", "prepare", "readyAudit", "send", "receive", "receivedAudit"]; if (!allowed.includes(action)) return NextResponse.json({ error: "المرحلة غير صالحة" }, { status: 400 }); const branchId = Number(input.branch_id || request.headers.get("x-branch-id")); await authorizeInternalManufacturing(user.user_id, branchId, action); return NextResponse.json(await processInternalManufacturingAction(Number((await params).id), action, Number(user.user_id), input)) } catch (error: any) { return NextResponse.json({ error: error.message }, { status: 409 }) }
+}

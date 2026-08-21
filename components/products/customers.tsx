@@ -856,7 +856,8 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
       if (navigationType === "ById" && customerId) {
         url.searchParams.set("id", String(customerId));
       } else if (navigationType === "previous" || navigationType === "next") {
-        url.searchParams.set("currentId", currentCustomerId.toString());
+        const navigationCurrentId = currentCustomerId || Number(customers[currentIndex]?.id || 0)
+        url.searchParams.set("currentId", String(navigationCurrentId));
       }
 
       // Pass type (customer/supplier/salesman/subscriber)
@@ -916,8 +917,8 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
   }, [customers])
 
   const handleNext = useCallback(() => {
-    if (customers.length > 0 && currentIndex >= 0) {
-      const newIndex = currentIndex + 1
+    if (customers.length > 0 && currentIndex >= 0 && currentIndex < customers.length - 1) {
+      const newIndex = Math.min(currentIndex + 1, customers.length - 1)
       console.log("newIndex ", newIndex)
       setCurrentIndex(newIndex)
       setEditingCustomer(true)
@@ -926,9 +927,8 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
   }, [customers, currentIndex])
 
   const handlePrevious = useCallback(() => {
-
-    if (customers.length > 0 && currentIndex <= customers.length - 1) {
-      let newIndex = currentIndex - 1
+    if (customers.length > 0 && currentIndex > 0) {
+      const newIndex = Math.max(currentIndex - 1, 0)
       console.log("currentCustomer ", editingCustomer)
       if (!editingCustomerRef.current) {
         handleLast();
@@ -1014,6 +1014,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
 
           if (filteredRecords.length > 0) {
             setCurrentIndex((prevIndex) => (prevIndex >= filteredRecords.length ? 0 : prevIndex));
+              setCurrentCustomerId((currentId) => currentId || Number(filteredRecords[0].id));
           }
         } else {
           setError(isSupplier ? "فشل في تحميل بيانات الموردين" : "فشل في تحميل بيانات الزبائن");

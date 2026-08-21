@@ -21,7 +21,9 @@ export function ERPLayout({ children, activeSection, onSectionChange }: ERPLayou
 
   useEffect(() => {
     const checkMobile = () => {
-      const mobile = window.innerWidth < 768;
+      // Tablet browsers can report a 1024px or 1280px CSS viewport depending on
+      // device scale. Keep the sidebar as a drawer until the layout has desktop room.
+      const mobile = window.innerWidth < 1280;
       setIsMobile(mobile);
       setSidebarOpen(!mobile); // open sidebar by default on desktop
     };

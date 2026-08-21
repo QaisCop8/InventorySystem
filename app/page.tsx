@@ -91,6 +91,18 @@ const DraftOrdersPage = lazyNamed(() => import("@/components/order-drafts/draft-
 const OrderConfirmationBoard = lazyNamed(() => import("@/components/order-drafts/order-confirmation-board"), "OrderConfirmationBoard")
 const ChecklistDesigner = lazyNamed(() => import("@/components/order-drafts/checklist-designer"), "ChecklistDesigner")
 const CustomerProductTemplates = lazyDefault(() => import("@/components/products/customer-product-templates"))
+const InternalManufacturingSettingsPage = lazyNamed(() => import("@/components/manufacturing/internal-manufacturing-pages"), "InternalManufacturingSettingsPage")
+const InternalManufacturingRequestPage = lazyNamed(() => import("@/components/manufacturing/internal-manufacturing-pages"), "InternalManufacturingRequestPage")
+const InternalManufacturingRequestAuditPage = lazyNamed(() => import("@/components/manufacturing/internal-manufacturing-pages"), "InternalManufacturingRequestAuditPage")
+const InternalManufacturingReceiveRequestPage = lazyNamed(() => import("@/components/manufacturing/internal-manufacturing-pages"), "InternalManufacturingReceiveRequestPage")
+const InternalManufacturingAuditPage = lazyNamed(() => import("@/components/manufacturing/internal-manufacturing-pages"), "InternalManufacturingAuditPage")
+const InternalManufacturingSendPage = lazyNamed(() => import("@/components/manufacturing/internal-manufacturing-pages"), "InternalManufacturingSendPage")
+const InternalManufacturingReceivePage = lazyNamed(() => import("@/components/manufacturing/internal-manufacturing-pages"), "InternalManufacturingReceivePage")
+const InternalManufacturingPreparationPage = lazyNamed(() => import("@/components/manufacturing/internal-manufacturing-pages"), "InternalManufacturingPreparationPage")
+const InternalManufacturingReadyAuditPage = lazyNamed(() => import("@/components/manufacturing/internal-manufacturing-pages"), "InternalManufacturingReadyAuditPage")
+const InternalManufacturingReceivedAuditPage = lazyNamed(() => import("@/components/manufacturing/internal-manufacturing-pages"), "InternalManufacturingReceivedAuditPage")
+const InternalManufacturingDraftPage = lazyNamed(() => import("@/components/manufacturing/internal-manufacturing-pages"), "InternalManufacturingDraftPage")
+const InternalManufacturingConfirmationPage = lazyNamed(() => import("@/components/manufacturing/internal-manufacturing-pages"), "InternalManufacturingConfirmationPage")
 const componentMap: Record<string, React.ComponentType<any>> = {
   dashboard: Dashboard,
   "inventory-analytics": InventoryAnalytics,
@@ -184,6 +196,18 @@ const componentMap: Record<string, React.ComponentType<any>> = {
   "order-confirmation": OrderConfirmationBoard,
   "order-checklists": ChecklistDesigner,
   "customer-product-templates": CustomerProductTemplates,
+  "internal-manufacturing-settings": InternalManufacturingSettingsPage,
+  "internal-manufacturing-request": InternalManufacturingRequestPage,
+  "internal-manufacturing-request-audit": InternalManufacturingRequestAuditPage,
+  "internal-manufacturing-receive-request": InternalManufacturingReceiveRequestPage,
+  "internal-manufacturing-audit": InternalManufacturingAuditPage,
+  "internal-manufacturing-send": InternalManufacturingSendPage,
+  "internal-manufacturing-receive": InternalManufacturingReceivePage,
+  "internal-manufacturing-preparation": InternalManufacturingPreparationPage,
+  "internal-manufacturing-ready-audit": InternalManufacturingReadyAuditPage,
+  "internal-manufacturing-received-audit": InternalManufacturingReceivedAuditPage,
+  "internal-manufacturing-draft": InternalManufacturingDraftPage,
+  "internal-manufacturing-confirmation": InternalManufacturingConfirmationPage,
 }
 
 const titleFor = (section: string) => SECTION_TITLES[section] || section

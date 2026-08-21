@@ -572,7 +572,7 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
       // ويُعيد تفعيلها فقط على عقدة الطبقة الخاصة به — لا على عناصر أخرى ملحقة بـbody كهذه، فتُصبح
       // كل عناصر هذه اللوحة غير قابلة للنقر بالكامل (فقط لوحة المفاتيح، كـEscape، تبقى تعمل) ما لم
       // تُفرَض pointer-events: auto صراحة هنا بمعزل عن أي وراثة من body.
-      className="pointer-events-auto fixed inset-0 z-[100] flex items-stretch justify-center bg-black/40 p-0 sm:items-center sm:px-4 sm:py-6"
+      className="pointer-events-auto fixed inset-0 z-[100] flex items-stretch justify-center overflow-hidden bg-black/45 p-0 sm:items-center sm:px-3 sm:py-4"
       onKeyDown={(e) => {
         if (e.key === "Escape") {
           e.preventDefault();
@@ -581,17 +581,17 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
         }
       }}
     >
-      <div className="relative flex h-[100dvh] max-h-[100dvh] w-full max-w-[1500px] flex-col overflow-hidden rounded-none border-0 border-slate-200 bg-slate-50 p-3 shadow-2xl overscroll-contain sm:h-[92dvh] sm:max-h-[92dvh] sm:rounded-3xl sm:border sm:p-5" dir="rtl">
-        <div className="flex shrink-0 items-center justify-between gap-3 rounded-2xl bg-gradient-to-l from-blue-700 via-blue-600 to-cyan-600 px-4 py-3 shadow-lg sm:px-6 sm:py-4">
-          <div className="flex items-center gap-3"><div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/30"><Search className="h-5 w-5 text-white" /></div><h3 className="text-lg font-extrabold text-white sm:text-xl">{title || "بحث الأصناف"}</h3></div>
-          <div className="flex items-center gap-2">
-          <Button type="button" onClick={() => window.open("/products?new=1", "_blank", "noopener,noreferrer")} className="gap-2 rounded-xl bg-white text-blue-700 hover:bg-blue-50"><Plus className="h-4 w-4"/>إضافة صنف</Button>
+      <div className="relative flex h-[100dvh] max-h-[100dvh] w-[100vw] max-w-[100vw] min-w-0 flex-col overflow-hidden rounded-none border-0 border-slate-200 bg-slate-50 p-2 shadow-2xl overscroll-contain sm:h-[92dvh] sm:max-h-[92dvh] sm:w-full sm:max-w-[1180px] sm:rounded-3xl sm:border sm:p-4" dir="rtl">
+        <div className="flex min-w-0 shrink-0 items-center justify-between gap-2 rounded-2xl bg-gradient-to-l from-blue-700 via-blue-600 to-cyan-600 px-3 py-3 shadow-lg sm:gap-3 sm:px-5 sm:py-4">
+          <div className="flex min-w-0 items-center gap-2"><div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/15 ring-1 ring-white/30 sm:h-11 sm:w-11 sm:rounded-2xl"><Search className="h-4 w-4 text-white sm:h-5 sm:w-5" /></div><h3 className="truncate text-base font-extrabold text-white sm:text-xl">{title || "بحث الأصناف"}</h3></div>
+          <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+          <Button type="button" onClick={() => window.open("/products?new=1", "_blank", "noopener,noreferrer")} className="gap-1 rounded-lg bg-white px-2 text-xs text-blue-700 hover:bg-blue-50 sm:gap-2 sm:rounded-xl sm:px-3 sm:text-sm"><Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4"/><span className="sm:hidden">إضافة</span><span className="hidden sm:inline">إضافة صنف</span></Button>
           <Button
             type="button"
             variant="ghost"
             size="icon"
             onClick={onClose}
-            className="h-10 w-10 shrink-0 rounded-full bg-white/15 text-white hover:bg-white/25 hover:text-white"
+            className="h-9 w-9 shrink-0 rounded-full bg-white/15 text-white hover:bg-white/25 hover:text-white sm:h-10 sm:w-10"
             aria-label="إغلاق"
           >
             <X className="h-5 w-5" />
@@ -599,12 +599,12 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
           </div>
         </div>
 
-        <div className="mt-3 shrink-0 rounded-2xl border border-blue-100 bg-white p-3 shadow-sm sm:mt-4 sm:p-4">
+        <div className="mt-2 min-w-0 shrink-0 overflow-hidden rounded-2xl border border-blue-100 bg-white p-2 shadow-sm sm:mt-3 sm:p-4">
           <div className="mb-3 text-right sm:mb-4">
             <p className="flex items-center gap-2 text-sm font-bold text-blue-900"><SlidersHorizontal className="h-4 w-4 text-blue-600" />الفلاتر</p>
           </div>
 
-          <div ref={filterContainerRef} className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3 xl:grid-cols-[0.8fr_1.4fr_0.8fr_0.8fr_1.3fr]">
+          <div ref={filterContainerRef} className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3 lg:grid-cols-3 xl:grid-cols-5">
             <div className="space-y-1">
               <label className="block text-xs font-semibold text-slate-700 text-right">رقم الصنف</label>
               <Input
@@ -689,10 +689,10 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
         </div>
 
 
-        <div className="mt-2 flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain sm:gap-4">
-          <div className="shrink-0 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:rounded-3xl">
+        <div className="mt-2 flex min-h-0 min-w-0 flex-1 flex-col gap-2 overflow-x-hidden overflow-y-auto overscroll-contain sm:gap-3">
+          <div className="min-w-0 shrink-0 rounded-2xl border border-slate-200 bg-white p-2 shadow-sm sm:rounded-3xl sm:p-3">
             <h4 className="text-sm font-semibold mb-3 text-slate-700 text-right">نتائج البحث</h4>
-            <div className="modern-search-grid h-[32dvh] min-h-[220px] w-full overflow-auto sm:h-[24vh] sm:min-h-[180px]">
+            <div className="modern-search-grid h-[30dvh] min-h-[190px] w-full min-w-0 max-w-full overflow-auto sm:h-[25vh] sm:min-h-[180px]">
               <DataGridView
                 style={responsiveGridStyle}
                 containerStyle={responsiveGridStyle}
@@ -705,16 +705,16 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
                 onKeyDown={(s: any, e: any) => onKeyDownGrid(s, e)}
                 selectionMode={wjGrid.SelectionMode.Row}
                 keyActionEnter="None"
-                dontConvertToCards={true}
+                dontConvertToCards={false}
                 showContextMenu={false}
               />
             </div>
           </div>
 
-          <div className="shrink-0 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:rounded-3xl">
+          <div className="min-w-0 shrink-0 rounded-2xl border border-slate-200 bg-white p-2 shadow-sm sm:rounded-3xl sm:p-3">
             <h4 className="text-sm font-semibold mb-3 text-slate-700 text-right">{selectedAttributeRows.length ? "المتغيرات والخصائص" : "وحدات الصنف"}</h4>
             <div className="text-sm text-slate-500 mb-3 text-right">{selectedProduct?.product_name || "لا يوجد صنف محدد"}</div>
-            <div className="h-[34dvh] min-h-[260px] w-full overflow-hidden sm:h-[24vh] sm:min-h-[180px]">
+            <div className="h-[28dvh] min-h-[190px] w-full min-w-0 max-w-full overflow-auto sm:h-[25vh] sm:min-h-[180px]">
               <DataGridView
                 innerRef={gridUnitsRef}
                 style={responsiveGridStyle}
@@ -729,7 +729,7 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
           </div>
         </div>
 
-        <div className="static z-10 mt-3 flex shrink-0 gap-3 border-t border-slate-200 bg-white/95 py-3 backdrop-blur sm:mt-5 sm:justify-center sm:border-0 sm:bg-transparent sm:py-0">
+        <div className="sticky bottom-0 z-10 mt-2 flex shrink-0 gap-2 border-t border-slate-200 bg-white/95 py-2 backdrop-blur sm:mt-3 sm:justify-center sm:border-0 sm:bg-transparent sm:py-0">
           <Button className="erp-btn-primary search-button min-w-0 flex-1 sm:min-w-[120px] sm:flex-none" onClick={handleConfirm}>
             موافق
           </Button>
