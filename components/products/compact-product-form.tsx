@@ -2157,7 +2157,7 @@ export function CompactProductForm({
     <div className="h-full min-h-[70vh] min-w-0 flex flex-col bg-background overflow-hidden text-lg compact-product-form-root" dir="rtl">
       {/* زر الإغلاق فوق شريط الأدوات مباشرة (لا بجانبه) حتى لا يزاحمه أفقياً فيضطر للف على
           سطرين — الشريط يأخذ العرض الكامل دوماً. */}
-      <div className="flex flex-shrink-0 flex-col gap-2 px-2 pt-2 sm:px-4 sm:pt-4" dir="rtl">
+      <div className="flex flex-shrink-0 items-center justify-end px-2 pt-2 sm:px-4 sm:pt-4" dir="rtl">
         <button
           type="button"
           onClick={(e) => onHideDialog(e)}
@@ -2166,7 +2166,8 @@ export function CompactProductForm({
           <X className="h-4 w-4" />
           <span className="sr-only">إغلاق</span>
         </button>
-        <UniversalToolbar
+      </div>
+      <UniversalToolbar
           currentRecord={1}
           totalRecords={1}
           onFirst={async () => { await loadData('first') }}
@@ -2184,8 +2185,7 @@ export function CompactProductForm({
           canDelete={currentProductId > 0}
           isFirstRecord={true}
           isLastRecord={true}
-        />
-      </div>
+      />
       <ConfirmDialogYesNo
         visible={showConfirm}
         onConfirm={confirmDelete}

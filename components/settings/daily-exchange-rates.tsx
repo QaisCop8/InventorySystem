@@ -318,13 +318,13 @@ export function DailyExchangeRatesDialog({ open, onOpenChange, onSaved }: DailyE
             />
         </div>
 
-        <div className="flex shrink-0 justify-center gap-3">
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
-            إغلاق
-          </Button>
+        <div className="flex shrink-0 justify-end gap-3">
           <Button onClick={handleSave} disabled={saving || loading || rows.length === 0}>
             {saving ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Save className="ml-2 h-4 w-4" />}
             حفظ
+          </Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
+            إغلاق
           </Button>
         </div>
       </DialogContent>
