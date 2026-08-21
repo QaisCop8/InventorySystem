@@ -188,7 +188,7 @@ export default function UnifiedCars({
       <ProgressSpinner loading={combinedLoading} />
       <Dialog open={dialogOpen} onOpenChange={handleDialogOpenChange}>
         <DialogContent
-          className="w-full max-w-3xl overflow-hidden p-0"
+          className="w-[calc(100vw-2rem)] max-w-5xl overflow-hidden p-0"
           dir="rtl"
           onOpenAutoFocus={(event) => event.preventDefault()}
           onCloseAutoFocus={(event) => event.preventDefault()}

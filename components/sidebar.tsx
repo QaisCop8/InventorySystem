@@ -194,7 +194,7 @@ export const menuItems: MenuItem[] = [
           { title: "إعدادات طلب بضاعة داخلي", section: "internal-manufacturing-settings", icon: Settings },
           {
             title: "طلب بضاعة داخلي",
-            section: "internal-manufacturing-request-group",
+            section: "internal-manufacturing-request",
             icon: ClipboardCheck,
             submenu: [
               { title: "طلب بضاعة داخلي", section: "internal-manufacturing-request", icon: FilePlus2 },
@@ -350,6 +350,9 @@ export function Sidebar({
     if (item.submenu) {
       const menuId = item.id ?? item.section ?? item.title
       toggleMenu(menuId)
+      if (item.section === "internal-manufacturing-request") {
+        onSectionChange(item.section)
+      }
       return
     }
 
