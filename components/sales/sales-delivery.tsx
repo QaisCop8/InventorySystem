@@ -605,7 +605,7 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
         price: item.unit_price == null ? 0 : Number(item.unit_price),
       })) as SalesVoucherItemRow[],
     }
-
+    console.log("Saving voucher", { action, dataToSave })
     const validationError = validateVoucher(dataToSave)
     if (validationError) {
       setErrorMessages([validationError])

@@ -1788,7 +1788,7 @@ export default function UnifiedStockVoucher({
           // أدناه (isReadOnly هنا خاصية عمود ثابتة لا تفرّق بين الأسطر، فلا تكفي وحدها إذ قد تختلف
           // أنواع القياس بين أسطر نفس السند).
         },
-        { header: "السعر", name: "unit_price", width: 100, dataType: wjcCore.DataType.Number, visible: Util.getVoucherSettingScreenData(voucherType, "price") },
+        { header: "السعر", name: "price", width: 100, dataType: wjcCore.DataType.Number, visible: Util.getVoucherSettingScreenData(voucherType, "price") },
         { header: "المبلغ", name: "total_price", width: 110, dataType: wjcCore.DataType.Number, isReadOnly: false },
         {
           header: "الرقم التشغيلي",
