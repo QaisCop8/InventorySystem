@@ -2,9 +2,15 @@
 import { type NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
 
+async function ensureCustomerCategoryStatus() {
+  await sql`ALTER TABLE customer_categories ADD COLUMN IF NOT EXISTS status INTEGER NOT NULL DEFAULT 1`
+  await sql`ALTER TABLE customer_categories ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`
+}
+
 // GET all customer categories
 export async function GET() {
   try {
+    await ensureCustomerCategoryStatus()
     const categories = await sql`SELECT * FROM customer_categories ORDER BY id`
     return NextResponse.json({ categories })
   } catch (error) {
@@ -16,8 +22,9 @@ export async function GET() {
 // POST a new customer category
 export async function POST(request: NextRequest) {
   try {
+    await ensureCustomerCategoryStatus()
     const body = await request.json()
-    const { name, discount } = body
+    const { name, discount, status } = body
 
     if (!name) {
       return NextResponse.json({ error: "Category name is required" }, { status: 400 })
@@ -29,8 +36,8 @@ export async function POST(request: NextRequest) {
     const newId = lastId + 1
 
     const result = await sql`
-      INSERT INTO customer_categories (id, name, discount)
-      VALUES (${newId}, ${name}, ${discount || 0})
+      INSERT INTO customer_categories (id, name, discount, status)
+      VALUES (${newId}, ${name}, ${discount || 0}, ${status ?? 1})
       RETURNING *
     `
 
@@ -44,7 +51,8 @@ export async function POST(request: NextRequest) {
 // PUT to update an existing category
 export async function PUT(request: NextRequest) {
   try {
-    const { id, name, discount } = await request.json()
+    await ensureCustomerCategoryStatus()
+    const { id, name, discount, status } = await request.json()
 
     if (!id) {
       return NextResponse.json({ error: "Category ID is required" }, { status: 400 })
@@ -55,6 +63,7 @@ export async function PUT(request: NextRequest) {
       SET
         name = COALESCE(${name}, name),
         discount = COALESCE(${discount}, discount),
+        status = COALESCE(${status}, status),
         updated_at = CURRENT_TIMESTAMP
       WHERE id = ${id}
       RETURNING *
@@ -68,5 +77,19 @@ export async function PUT(request: NextRequest) {
   } catch (error) {
     console.error("Error updating customer category:", error)
     return NextResponse.json({ error: "Failed to update customer category" }, { status: 500 })
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    await ensureCustomerCategoryStatus()
+    const id = Number(new URL(request.url).searchParams.get("id"))
+    if (!id) return NextResponse.json({ error: "Category ID is required" }, { status: 400 })
+    const deleted = await sql`UPDATE customer_categories SET status = 3, updated_at = CURRENT_TIMESTAMP WHERE id = ${id} RETURNING *`
+    if (!deleted.length) return NextResponse.json({ error: "Category not found" }, { status: 404 })
+    return NextResponse.json({ category: deleted[0] })
+  } catch (error) {
+    console.error("Error deleting customer category:", error)
+    return NextResponse.json({ error: "Failed to delete customer category" }, { status: 500 })
   }
 }

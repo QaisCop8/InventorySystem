@@ -207,15 +207,15 @@ export function UniversalToolbar({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="min-w-48" dir="rtl">
-              {onPrint && !compactActionVisible(0) && <DropdownMenuItem disabled={isLoading || isSaving || !canPrint} onSelect={onPrint}><Printer className="ml-2 h-4 w-4" />{labels.print}</DropdownMenuItem>}
-              {onClone && !compactActionVisible(1) && <DropdownMenuItem disabled={isLoading || !canClone} onSelect={onClone}><Copy className="ml-2 h-4 w-4" />{labels.clone}</DropdownMenuItem>}
-              {onFirst && !compactActionVisible(2) && <DropdownMenuItem disabled={isFirstRecord} onSelect={handleFirst}><ChevronsRight className="ml-2 h-4 w-4" />{labels.first}</DropdownMenuItem>}
-              {onPrevious && !compactActionVisible(3) && <DropdownMenuItem disabled={isFirstRecord} onSelect={handlePrevious}><ChevronRight className="ml-2 h-4 w-4" />{labels.previous}</DropdownMenuItem>}
-              {onNext && !compactActionVisible(4) && <DropdownMenuItem disabled={isLastRecord} onSelect={handleNext}><ChevronLeft className="ml-2 h-4 w-4" />{labels.next}</DropdownMenuItem>}
-              {onLast && !compactActionVisible(5) && <DropdownMenuItem disabled={isLastRecord} onSelect={handleLast}><ChevronsLeft className="ml-2 h-4 w-4" />{labels.last}</DropdownMenuItem>}
-              {onDelete && !compactActionVisible(6) && <DropdownMenuItem disabled={isLoading || !canDelete} onSelect={onDelete}><Trash2 className="ml-2 h-4 w-4 text-red-600" />{labels.delete}</DropdownMenuItem>}
-              {onReport && <DropdownMenuItem onSelect={onReport}><FileText className="ml-2 h-4 w-4" />{labels.report}</DropdownMenuItem>}
-              {onExportExcel && <DropdownMenuItem onSelect={onExportExcel}><Download className="ml-2 h-4 w-4" />{labels.exportExcel}</DropdownMenuItem>}
+              {onPrint && <DropdownMenuItem disabled={isLoading || isSaving || !canPrint} onSelect={() => onPrint()}><Printer className="ml-2 h-4 w-4" />{labels.print}</DropdownMenuItem>}
+              {onClone && <DropdownMenuItem disabled={isLoading || !canClone} onSelect={() => onClone()}><Copy className="ml-2 h-4 w-4" />{labels.clone}</DropdownMenuItem>}
+              {onFirst && <DropdownMenuItem disabled={isFirstRecord} onSelect={handleFirst}><ChevronsRight className="ml-2 h-4 w-4" />{labels.first}</DropdownMenuItem>}
+              {onPrevious && <DropdownMenuItem disabled={isFirstRecord} onSelect={handlePrevious}><ChevronRight className="ml-2 h-4 w-4" />{labels.previous}</DropdownMenuItem>}
+              {onNext && <DropdownMenuItem disabled={isLastRecord} onSelect={handleNext}><ChevronLeft className="ml-2 h-4 w-4" />{labels.next}</DropdownMenuItem>}
+              {onLast && <DropdownMenuItem disabled={isLastRecord} onSelect={handleLast}><ChevronsLeft className="ml-2 h-4 w-4" />{labels.last}</DropdownMenuItem>}
+              {onDelete && <DropdownMenuItem disabled={isLoading || !canDelete} onSelect={() => onDelete()}><Trash2 className="ml-2 h-4 w-4 text-red-600" />{labels.delete}</DropdownMenuItem>}
+              {onReport && <DropdownMenuItem onSelect={() => onReport()}><FileText className="ml-2 h-4 w-4" />{labels.report}</DropdownMenuItem>}
+              {onExportExcel && <DropdownMenuItem onSelect={() => onExportExcel()}><Download className="ml-2 h-4 w-4" />{labels.exportExcel}</DropdownMenuItem>}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

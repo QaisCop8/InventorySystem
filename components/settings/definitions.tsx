@@ -69,15 +69,18 @@ interface Customer_Categories {
   id: number
   name: string
   discount: number
+  status?: number
 }
 interface Supplier_Categories {
   id: number
   name: string
   paymentterms: string
+  status?: number
 }
 interface Product_Categories {
   id: number
   name: string
+  status?: number
 }
 interface License_Type {
   id: number
@@ -251,6 +254,9 @@ function Definitions() {
   const [showCustomerCategoryForm, setShowCustomerCategoryForm] = useState(false)
   const [showSupplierCategoryForm, setShowSupplierCategoryForm] = useState(false)
   const [showProductCategoryForm, setShowProductCategoryForm] = useState(false)
+  const [editingCustomerCategoryId, setEditingCustomerCategoryId] = useState<number | null>(null)
+  const [editingSupplierCategoryId, setEditingSupplierCategoryId] = useState<number | null>(null)
+  const [editingProductCategoryId, setEditingProductCategoryId] = useState<number | null>(null)
   const [currentBranchIndex, setCurrentBranchIndex] = useState(0)
   const [currentDepartmentIndex, setCurrentDepartmentIndex] = useState(0)
   const [currentCityIndex, setCurrentCityIndex] = useState(0)
@@ -266,14 +272,17 @@ function Definitions() {
   })
   const [customercategoryForm, setCustomercategoryForm] = useState({
     name: "",
-    discount: 0
+    discount: 0,
+    status: 1,
   })
   const [suppliercategoryForm, setSuppliercategoryForm] = useState({
     name: "",
-    paymentterms: ""
+    paymentterms: "",
+    status: 1,
   })
   const [productcategoryForm, setProductcategoryForm] = useState({
     name: "",
+    status: 1,
   })
   const [licenseTypeForm, setLicenseTypeForm] = useState({
     name: "",
@@ -643,7 +652,7 @@ function Definitions() {
       if (response.ok) {
         const data = await response.json()
         console.log("datadatadatadatadatadata data ", data)
-        setCustomerCategories(data.categories)
+        setCustomerCategories((data.categories || []).filter((category: Customer_Categories) => category.status !== 3))
       } else {
         setCustomerCategories(customerCategories_initial)
       }
@@ -658,7 +667,7 @@ function Definitions() {
       if (response.ok) {
         const data = await response.json()
         console.log("TTTTTTTTT ", data)
-        setSupplierCategories(data.categories)
+        setSupplierCategories((data.categories || []).filter((category: Supplier_Categories) => category.status !== 3))
       } else {
         setSupplierCategories(supplierCategories_initial)
       }
@@ -673,7 +682,7 @@ function Definitions() {
       const response = await fetch("/api/product-categories")
       if (response.ok) {
         const data = await response.json()
-        setProductCategories(data.categories)
+        setProductCategories((data.categories || []).filter((category: Product_Categories) => category.status !== 3))
       } else {
         setProductCategories(productCategories_initial)
       }
@@ -864,9 +873,9 @@ function Definitions() {
 
     try {
       const response = await fetch("/api/customer-categories", {
-        method: "POST",
+        method: editingCustomerCategoryId ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(customercategoryForm),
+        body: JSON.stringify({ ...customercategoryForm, id: editingCustomerCategoryId }),
       })
 
       if (response.ok) {
@@ -875,8 +884,9 @@ function Definitions() {
           description: "تم إضافة التصنيف بنجاح",
         })
         await fetchCustomerCategories()
-        setCustomercategoryForm({ name: "", discount: 0 })
+        setCustomercategoryForm({ name: "", discount: 0, status: 1 })
         setShowCustomerCategoryForm(false)
+        setEditingCustomerCategoryId(null)
       } else {
         const error = await response.json()
         toast({
@@ -909,9 +919,9 @@ function Definitions() {
 
     try {
       const response = await fetch("/api/supplier-categories", {
-        method: "POST",
+        method: editingSupplierCategoryId ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(suppliercategoryForm),
+        body: JSON.stringify({ ...suppliercategoryForm, id: editingSupplierCategoryId }),
       })
 
       if (response.ok) {
@@ -920,8 +930,9 @@ function Definitions() {
           description: "تم إضافة التصنيف بنجاح",
         })
         await fetchsupplierCategories()
-        setSuppliercategoryForm({ name: "", paymentterms: "" })
+        setSuppliercategoryForm({ name: "", paymentterms: "", status: 1 })
         setShowSupplierCategoryForm(false)
+        setEditingSupplierCategoryId(null)
       } else {
         const error = await response.json()
         toast({
@@ -955,9 +966,9 @@ function Definitions() {
 
     try {
       const response = await fetch("/api/product-categories", {
-        method: "POST",
+        method: editingProductCategoryId ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(productcategoryForm),
+        body: JSON.stringify({ ...productcategoryForm, id: editingProductCategoryId }),
       })
 
       if (response.ok) {
@@ -966,8 +977,9 @@ function Definitions() {
           description: "تم إضافة التصنيف بنجاح",
         })
         await fetchProductCategories()
-        setProductcategoryForm({ name: "" })
+        setProductcategoryForm({ name: "", status: 1 })
         setShowProductCategoryForm(false)
+        setEditingProductCategoryId(null)
       } else {
         const error = await response.json()
         toast({
@@ -984,6 +996,49 @@ function Definitions() {
         variant: "destructive",
       })
     }
+  }
+
+  const updateCategoryStatus = async (endpoint: string, category: { id: number; status?: number }, fetchCategories: () => Promise<void>) => {
+    const nextStatus = getToggledStatus(category.status)
+    try {
+      const response = await fetch(endpoint, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: category.id, status: nextStatus }),
+      })
+      if (!response.ok) throw new Error("تعذر تحديث حالة التصنيف")
+      await fetchCategories()
+      toast({ title: nextStatus === 2 ? "تم التجميد" : "تم إلغاء التجميد", description: nextStatus === 2 ? "تم تجميد التصنيف" : "تم إلغاء تجميد التصنيف" })
+    } catch (error) {
+      toast({ title: "فشل تحديث الحالة", description: error instanceof Error ? error.message : "تعذر تحديث حالة التصنيف", variant: "destructive" })
+    }
+  }
+
+  const deleteCategory = async (endpoint: string, fetchCategories: () => Promise<void>) => {
+    try {
+      const response = await fetch(endpoint, { method: "DELETE" })
+      if (!response.ok) throw new Error("تعذر حذف التصنيف")
+      await fetchCategories()
+      toast({ title: "تم الحذف", description: "تم حذف التصنيف" })
+    } catch (error) {
+      toast({ title: "فشل الحذف", description: error instanceof Error ? error.message : "تعذر حذف التصنيف", variant: "destructive" })
+    }
+  }
+
+  const handleEditCustomerCategory = (category: Customer_Categories) => {
+    setCustomercategoryForm({ name: category.name, discount: category.discount, status: category.status ?? 1 })
+    setEditingCustomerCategoryId(category.id)
+    setShowCustomerCategoryForm(true)
+  }
+  const handleEditSupplierCategory = (category: Supplier_Categories) => {
+    setSuppliercategoryForm({ name: category.name, paymentterms: category.paymentterms || "", status: category.status ?? 1 })
+    setEditingSupplierCategoryId(category.id)
+    setShowSupplierCategoryForm(true)
+  }
+  const handleEditProductCategory = (category: Product_Categories) => {
+    setProductcategoryForm({ name: category.name, status: category.status ?? 1 })
+    setEditingProductCategoryId(category.id)
+    setShowProductCategoryForm(true)
   }
 
   const handleAddLicenseType = async (e: React.FormEvent) => {
@@ -3236,7 +3291,11 @@ function Definitions() {
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => setShowCustomerCategoryForm(!showCustomerCategoryForm)}
+                    onClick={() => {
+                      setShowCustomerCategoryForm(!showCustomerCategoryForm)
+                      setEditingCustomerCategoryId(null)
+                      setCustomercategoryForm({ name: "", discount: 0, status: 1 })
+                    }}
                   >
                     <Plus className="h-3 w-3" />
                   </Button>
@@ -3298,6 +3357,16 @@ function Definitions() {
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
+                          <Button variant="outline" size="sm" onClick={() => handleEditCustomerCategory(category)}>
+                            <Edit className="h-3 w-3" />
+                          </Button>
+                          {category.status !== 3 && <Button variant="outline" size="sm" onClick={() => updateCategoryStatus("/api/customer-categories", category, fetchCustomerCategories)}>
+                            {getToggleStatusLabel(category.status)}
+                          </Button>}
+                          <Button variant="destructive" size="sm" onClick={() => openDeleteConfirm("هل أنت متأكد من حذف هذا التصنيف؟", () => deleteCategory(`/api/customer-categories?id=${category.id}`, fetchCustomerCategories))}>
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                          <Badge variant={getStatusBadgeVariant(category.status)}>{getStatusLabel(category.status)}</Badge>
                           <div className="w-3 h-3 rounded-full" style={{ backgroundColor: colors[index % colors.length] }} />
                           <div className="text-right">
                             <h4 className="font-medium text-sm">{category.name}</h4>
@@ -3326,7 +3395,11 @@ function Definitions() {
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => setShowSupplierCategoryForm(!showSupplierCategoryForm)}
+                    onClick={() => {
+                      setShowSupplierCategoryForm(!showSupplierCategoryForm)
+                      setEditingSupplierCategoryId(null)
+                      setSuppliercategoryForm({ name: "", paymentterms: "", status: 1 })
+                    }}
                   >
                     <Plus className="h-3 w-3" />
                   </Button>
@@ -3376,6 +3449,16 @@ function Definitions() {
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
+                          <Button variant="outline" size="sm" onClick={() => handleEditSupplierCategory(category)}>
+                            <Edit className="h-3 w-3" />
+                          </Button>
+                          {category.status !== 3 && <Button variant="outline" size="sm" onClick={() => updateCategoryStatus("/api/supplier-categories", category, fetchsupplierCategories)}>
+                            {getToggleStatusLabel(category.status)}
+                          </Button>}
+                          <Button variant="destructive" size="sm" onClick={() => openDeleteConfirm("هل أنت متأكد من حذف هذا التصنيف؟", () => deleteCategory(`/api/supplier-categories?id=${category.id}`, fetchsupplierCategories))}>
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                          <Badge variant={getStatusBadgeVariant(category.status)}>{getStatusLabel(category.status)}</Badge>
                           <div className="w-3 h-3 rounded-full" style={{ backgroundColor: colors[index % colors.length] }} />
                           <div className="text-right">
                             <h4 className="font-medium text-sm">{category.name}</h4>
@@ -3402,7 +3485,11 @@ function Definitions() {
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => setShowProductCategoryForm(!showProductCategoryForm)}
+                    onClick={() => {
+                      setShowProductCategoryForm(!showProductCategoryForm)
+                      setEditingProductCategoryId(null)
+                      setProductcategoryForm({ name: "", status: 1 })
+                    }}
                   >
                     <Plus className="h-3 w-3" />
                   </Button>
@@ -3446,6 +3533,16 @@ function Definitions() {
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
+                          <Button variant="outline" size="sm" onClick={() => handleEditProductCategory(category)}>
+                            <Edit className="h-3 w-3" />
+                          </Button>
+                          {category.status !== 3 && <Button variant="outline" size="sm" onClick={() => updateCategoryStatus("/api/product-categories", category, fetchProductCategories)}>
+                            {getToggleStatusLabel(category.status)}
+                          </Button>}
+                          <Button variant="destructive" size="sm" onClick={() => openDeleteConfirm("هل أنت متأكد من حذف هذا التصنيف؟", () => deleteCategory(`/api/product-categories?id=${category.id}`, fetchProductCategories))}>
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                          <Badge variant={getStatusBadgeVariant(category.status)}>{getStatusLabel(category.status)}</Badge>
                           <div className="w-3 h-3 rounded-full" style={{ backgroundColor: colors[index % colors.length] }} />
                           <div className="text-right">
                             <h4 className="font-medium text-sm">{category.name}</h4>

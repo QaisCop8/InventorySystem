@@ -15,6 +15,7 @@ async function ensureSupplierCategoriesTable() {
   await sql`ALTER TABLE supplier_categories ADD COLUMN IF NOT EXISTS paymentterms VARCHAR(200) NOT NULL DEFAULT ''`
   await sql`ALTER TABLE supplier_categories ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`
   await sql`ALTER TABLE supplier_categories ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`
+  await sql`ALTER TABLE supplier_categories ADD COLUMN IF NOT EXISTS status INTEGER NOT NULL DEFAULT 1`
   await sql`CREATE SEQUENCE IF NOT EXISTS supplier_categories_id_seq`
   await sql`ALTER SEQUENCE supplier_categories_id_seq OWNED BY supplier_categories.id`
   await sql`ALTER TABLE supplier_categories ALTER COLUMN id SET DEFAULT nextval('supplier_categories_id_seq')`
@@ -38,15 +39,15 @@ export async function POST(request: NextRequest) {
   try {
     await ensureSupplierCategoriesTable()
     const body = await request.json()
-    const { name, paymentTerms, paymentterms } = body
+    const { name, paymentTerms, paymentterms, status } = body
 
     if (!name) {
       return NextResponse.json({ error: "Category name is required" }, { status: 400 })
     }
 
     const result = await sql`
-      INSERT INTO supplier_categories (name, paymentterms)
-      VALUES (${name}, ${paymentTerms ?? paymentterms ?? ""})
+      INSERT INTO supplier_categories (name, paymentterms, status)
+      VALUES (${name}, ${paymentTerms ?? paymentterms ?? ""}, ${status ?? 1})
       RETURNING *
     `
 
@@ -61,7 +62,7 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     await ensureSupplierCategoriesTable()
-    const { id, name, paymentTerms, paymentterms } = await request.json()
+    const { id, name, paymentTerms, paymentterms, status } = await request.json()
 
     if (!id) {
       return NextResponse.json({ error: "Category ID is required" }, { status: 400 })
@@ -72,6 +73,7 @@ export async function PUT(request: NextRequest) {
       SET
         name = COALESCE(${name}, name),
         paymentterms = COALESCE(${paymentTerms ?? paymentterms}, paymentterms),
+        status = COALESCE(${status}, status),
         updated_at = CURRENT_TIMESTAMP
       WHERE id = ${id}
       RETURNING *
@@ -85,5 +87,19 @@ export async function PUT(request: NextRequest) {
   } catch (error) {
     console.error("Error updating supplier category:", error)
     return NextResponse.json({ error: "Failed to update supplier category" }, { status: 500 })
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    await ensureSupplierCategoriesTable()
+    const id = Number(new URL(request.url).searchParams.get("id"))
+    if (!id) return NextResponse.json({ error: "Category ID is required" }, { status: 400 })
+    const deleted = await sql`UPDATE supplier_categories SET status = 3, updated_at = CURRENT_TIMESTAMP WHERE id = ${id} RETURNING *`
+    if (!deleted.length) return NextResponse.json({ error: "Category not found" }, { status: 404 })
+    return NextResponse.json({ category: deleted[0] })
+  } catch (error: any) {
+    console.error("Error deleting supplier category:", error)
+    return NextResponse.json({ error: error?.message || "Failed to delete supplier category" }, { status: 500 })
   }
 }
