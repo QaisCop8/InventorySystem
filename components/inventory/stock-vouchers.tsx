@@ -359,10 +359,11 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
     try {
       const details = await fetchVoucherDetails(id)
       if (!details) return
-      const index = vouchers.findIndex((v) => v.id === id)
+      const index = filteredVouchers.findIndex((v) => v.id === id)
       setForm(normalizeVoucher(details, voucherType))
       setCurrentIndex(index >= 0 ? index : 0)
       setErrorMessages([])
+      setDialogOpen(true)
     } finally {
       setIsLoading(false)
     }

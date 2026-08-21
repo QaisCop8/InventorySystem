@@ -617,6 +617,9 @@ export default function UnifiedStockVoucher({
         messagesRef.current?.show?.([{ severity: "error", summary: "", detail: data.error || "تعذر تحديد رقم السند", life: 3000 }])
         return
       }
+      if (data.code && data.code !== form.vch_code) {
+        onFormChange("vch_code", data.code)
+      }
       if (data.exists && data.id) {
         if (data.id === form.id) return
         guardedAction(() => onCodeResolved?.(data.id))
@@ -660,10 +663,13 @@ export default function UnifiedStockVoucher({
   const defaultItemWarehouseIdRef = useRef(defaultItemWarehouseId)
   defaultItemWarehouseIdRef.current = defaultItemWarehouseId
 
-  const [itemsCollectionView] = useState(() => new wjcCore.CollectionView<any>([]))
+  const itemsCollectionView = useMemo(
+    () => new wjcCore.CollectionView<any>([]),
+    [dialogOpen, form.id],
+  )
   const chequeGridRef = useRef<any>(null) // اسم مطابق للاصطلاح المستخدم سابقاً (مرجع للشبكة الرئيسية)
   const pendingFocusRef = useRef<{ row: number; col: string } | null>(null)
-  // شبكة تبويب "تفاصيل حسابات الاصناف" (accountsScheme) مرتبطة بنفس itemsCollectionView لكنها
+  // شبكة تبويب "تفاصيل حسابات الاصناف" (accountsScheme) تستخدم نفس صفوف الأصناف لكنها
   // FlexGrid منفصل فعلياً عن الشبكة الرئيسية (chequeGridRef) — تحتاج مرجع تركيز خاصاً بها، وإلا
   // فـselectCell/restoreGridFocus أعلاه ستُطبَّق خطأً على الشبكة الرئيسية (وقد تكون غير ظاهرة أصلاً
   // إن كان المستخدم على تبويب "الحسابات") بدل شبكة الحسابات التي فتحت نافذة البحث فعلياً.
@@ -883,25 +889,17 @@ export default function UnifiedStockVoucher({
       const prevSelection = readGridSelection(gridBeforeSync)
 
       try {
-        safeFinishEditing(gridBeforeSync)
         itemsCollectionView.sourceCollection = items.map((row, i) => ({ ...row, ser: i + 1 }))
         itemsCollectionView.refresh()
       } catch {
-        // Wijmo can briefly expose a torn-down editor while the dialog is reopening.
-        return
+        // Ignore a transient grid lifecycle failure; the fresh CollectionView is retried on the next render.
       }
 
       const pending = pendingFocusRef.current
       if (pending) {
         pendingFocusRef.current = null
-      // إعادة تعيين itemsCollectionView.sourceCollection أعلاه (مصفوفة جديدة كل مرة) تُصفِّر
-      // currentPosition الداخلي لِـWijmo فوراً، فيُزامِن الأخير تحديد الشبكة مع الصفر تلقائياً بعد
-      // .refresh() مباشرة — إن جرى استرجاع الصف المطلوب هنا لاحقاً فقط عبر waitForGridReady
-      // (المبنية على setTimeout)، يتسابق ذلك مع مزامنة Wijmo الداخلية الفورية، وقد تكسبها هي فتُعاد
-      // الشبكة لأول صف بدل الصف الصحيح (هذا بالضبط ما كان يحدث عند "موافق" على أي صف غير الأول).
-      // يُطبَّق الاسترجاع أولاً بنفس التِّك مباشرة إن كانت الشبكة جاهزة فعلاً (الحالة المعتادة، إذ
-      // هذا تحديث لا تركيب أول) بنفس أسلوب فرع prevSelection أدناه المُثبَت أصلاً، ولا يُلجَأ
-      // لِـwaitForGridReady إلا إن لم تكن الشبكة جاهزة بعد (تركيب أول فقط).
+      // تُستعاد الخلية المحددة بعد تركيب الصفوف الجديدة إن كانت الشبكة جاهزة، وإلا ننتظر
+      // اكتمال تركيبها عبر waitForGridReady.
         const gridNow = resolveFlexControl(chequeGridRef.current)
         if (gridNow && gridNow.rows && gridNow.rows.length > pending.row) {
           selectCell(gridNow, pending.row, pending.col)
@@ -1859,7 +1857,7 @@ export default function UnifiedStockVoucher({
     [isLocked, isInternalDelivery, voucherType, form.id, form.status],
   )
 
-  // شبكة تبويب "تفاصيل حسابات الاصناف" (سند الاستعمال فقط) — تُبنى من نفس itemsCollectionView
+  // شبكة تبويب "تفاصيل حسابات الاصناف" (سند الاستعمال فقط) — تُبنى من نفس صفوف الأصناف
   // (نفس الأسطر بنفس الترتيب/الفهرسة الفعلية بالضبط كشبكة الاصناف الرئيسية)؛ محمول Wijmo يدعم
   // ربط أكثر من FlexGrid بنفس الـCollectionView دون تعارض.
   const accountsScheme = useMemo(

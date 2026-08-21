@@ -1000,6 +1000,8 @@ export default function UnifiedSalesDelivery({
   }, [dialogOpen, form.id, form.status, showDeleteConfirm, postDialogOpen, showUnsavedConfirm])
 
   useEffect(() => {
+    if (!dialogOpen) return
+
     try {
       const gridBeforeSync = resolveFlexControl(itemsGridRef.current)
       const prevSelection = readGridSelection(gridBeforeSync)
@@ -1029,14 +1031,18 @@ export default function UnifiedSalesDelivery({
       }
       const syncCollectionView = (view: any, grid: any) => {
         if (!view || !Array.isArray(normalizedItems)) return
+        // Attach the current grid first. During reopen, the old grid may still be
+        // subscribed to the CollectionView and can fail when its editor is torn down.
+        if (grid) {
+          try {
+            grid.itemsSource = view
+          } catch {}
+        }
         view.sourceCollection = normalizedItems
         try {
           view.refresh()
         } catch {}
         if (grid) {
-          try {
-            grid.itemsSource = view
-          } catch {}
           if (typeof grid.invalidate === "function") {
             try {
               grid.invalidate()
@@ -1142,7 +1148,7 @@ export default function UnifiedSalesDelivery({
       console.error("Error synchronizing items grid:", err)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [items, form.vat_percent])
+  }, [items, form.vat_percent, dialogOpen])
 
   // تفاصيل كميات الصنف: يجلب current_stock الفعلي (product_stock) لكل صنف مختلف بالسند عبر
   // /api/inventory/products?id=<id> — يُعاد الجلب فقط عند تغيّر مجموعة الأصناف المختارة فعلياً (لا
@@ -2330,15 +2336,31 @@ export default function UnifiedSalesDelivery({
     }
   }, [serialsOpen, serialsRow])
 
+  const commitGridItemsBeforeSave = () => {
+    safeFinishEditing(itemsGridRef.current)
+    const gridItems = itemsCollectionViewRef.current?.items
+    if (!Array.isArray(gridItems)) return
+    const nextItems = gridItems.map(({ ser, ...row }: any) => ({
+      ...row,
+      unit_price: row.unit_price == null ? null : Number(row.unit_price),
+    }))
+    itemsRef.current = nextItems
+    onItemsChange(nextItems)
+  }
+
   const handleRequestSave = () => {
     if (isLocked) return
-    const error = onValidateSave?.()
-    if (error) {
-      messagesRef.current?.clear?.()
-      messagesRef.current?.show?.([{ severity: "error", summary: "", detail: error, sticky: false, life: 4000 }])
-      return
-    }
-    setPostDialogOpen(true)
+    commitGridItemsBeforeSave()
+    setTimeout(() => {
+      if (!isMountedRef.current || isLocked) return
+      const error = onValidateSave?.()
+      if (error) {
+        messagesRef.current?.clear?.()
+        messagesRef.current?.show?.([{ severity: "error", summary: "", detail: error, sticky: false, life: 4000 }])
+        return
+      }
+      setPostDialogOpen(true)
+    }, 0)
   }
   handleRequestSaveRef.current = handleRequestSave
 
