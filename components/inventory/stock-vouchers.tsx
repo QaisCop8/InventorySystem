@@ -641,16 +641,30 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
   }
 
   const handleNavigate = async (direction: "first" | "previous" | "next" | "last") => {
-    if (filteredVouchers.length === 0) return
-    let targetIndex = currentIndex
-    if (direction === "first") targetIndex = 0
-    else if (direction === "last") targetIndex = filteredVouchers.length - 1
-    else if (direction === "previous") targetIndex = Math.max(0, currentIndex - 1)
-    else targetIndex = Math.min(filteredVouchers.length - 1, currentIndex + 1)
+    try {
+      if (filteredVouchers.length === 0) return
+      let targetIndex = currentIndex
+      if (direction === "first") targetIndex = 0
+      else if (direction === "last") targetIndex = filteredVouchers.length - 1
+      else if (direction === "previous") targetIndex = Math.max(0, currentIndex - 1)
+      else targetIndex = Math.min(filteredVouchers.length - 1, currentIndex + 1)
 
-    const record = filteredVouchers[targetIndex]
-    if (!record) return
-    await openRow(record, targetIndex)
+      const record = filteredVouchers[targetIndex]
+      if (!record) return
+
+      setIsLoading(true)
+      try {
+        const details = await fetchVoucherDetails(record.id)
+        setForm(normalizeVoucher(details || record, voucherType))
+        setCurrentIndex(targetIndex)
+        setErrorMessages([])
+        setDialogOpen(true)
+      } finally {
+        setIsLoading(false)
+      }
+    } catch (error) {
+      console.error("Failed to navigate stock vouchers", error)
+    }
   }
 
   const onFormChange = <K extends keyof VoucherRecord>(field: K, value: VoucherRecord[K]) => {

@@ -57,6 +57,7 @@ const PostVoucherDialog: React.FC<PostVoucherDialogProps> = ({ visible, isSaving
       }}
     >
       <DialogContent
+        hideCloseButton
         className="z-[3001] w-[min(440px,calc(100vw-2rem))] overflow-hidden rounded-[24px] border border-slate-200/80 bg-gradient-to-br from-white to-slate-50 p-0 text-center shadow-[0_20px_60px_-20px_rgba(15,23,42,0.35)]"
         dir="rtl"
         onPointerDownOutside={(event) => event.preventDefault()}

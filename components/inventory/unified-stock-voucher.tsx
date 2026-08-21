@@ -597,6 +597,10 @@ export default function UnifiedStockVoucher({
     }
   }
 
+  const focusVoucherDate = () => {
+    setTimeout(() => dateInputRef.current?.focus(), 0)
+  }
+
   // كتابة يدوية في رقم السند (مثال R1 أو 1 فقط) تُعاد صياغتها دائماً كـ {بادئة}{رمز الدفتر}
   // {تسلسل مبطّن} عبر /resolve-code، ثم يُعرض السند إن كان موجوداً بهذا الرقم (بعد التأكد من عدم
   // وجود تعديلات غير محفوظة في السند الحالي)، أو تُصفَّر كل الحقول والشبكات لسند جديد بهذا الرقم
@@ -613,14 +617,14 @@ export default function UnifiedStockVoucher({
         messagesRef.current?.show?.([{ severity: "error", summary: "", detail: data.error || "تعذر تحديد رقم السند", life: 3000 }])
         return
       }
-      if (data.code && data.code !== form.vch_code) {
-        onFormChange("vch_code", data.code)
-      }
       if (data.exists && data.id) {
         if (data.id === form.id) return
         guardedAction(() => onCodeResolved?.(data.id))
       } else if (!data.exists && data.code) {
-        guardedAction(() => onCodeNotFound?.(data.code))
+        guardedAction(() => {
+          onCodeNotFound?.(data.code)
+          focusVoucherDate()
+        })
       }
     } catch (error) {
       console.error("Failed to resolve voucher code", error)
@@ -872,15 +876,24 @@ export default function UnifiedStockVoucher({
   }, [dialogOpen, form.id, form.status, showDeleteConfirm, postDialogOpen, showUnsavedConfirm])
 
   useEffect(() => {
-    const gridBeforeSync = resolveFlexControl(chequeGridRef.current)
-    const prevSelection = readGridSelection(gridBeforeSync)
+    if (!dialogOpen) return
 
-    itemsCollectionView.sourceCollection = items.map((row, i) => ({ ...row, ser: i + 1 }))
-    itemsCollectionView.refresh()
+    let frameId: number | null = requestAnimationFrame(() => {
+      const gridBeforeSync = resolveFlexControl(chequeGridRef.current)
+      const prevSelection = readGridSelection(gridBeforeSync)
 
-    const pending = pendingFocusRef.current
-    if (pending) {
-      pendingFocusRef.current = null
+      try {
+        safeFinishEditing(gridBeforeSync)
+        itemsCollectionView.sourceCollection = items.map((row, i) => ({ ...row, ser: i + 1 }))
+        itemsCollectionView.refresh()
+      } catch {
+        // Wijmo can briefly expose a torn-down editor while the dialog is reopening.
+        return
+      }
+
+      const pending = pendingFocusRef.current
+      if (pending) {
+        pendingFocusRef.current = null
       // إعادة تعيين itemsCollectionView.sourceCollection أعلاه (مصفوفة جديدة كل مرة) تُصفِّر
       // currentPosition الداخلي لِـWijmo فوراً، فيُزامِن الأخير تحديد الشبكة مع الصفر تلقائياً بعد
       // .refresh() مباشرة — إن جرى استرجاع الصف المطلوب هنا لاحقاً فقط عبر waitForGridReady
@@ -889,43 +902,48 @@ export default function UnifiedStockVoucher({
       // يُطبَّق الاسترجاع أولاً بنفس التِّك مباشرة إن كانت الشبكة جاهزة فعلاً (الحالة المعتادة، إذ
       // هذا تحديث لا تركيب أول) بنفس أسلوب فرع prevSelection أدناه المُثبَت أصلاً، ولا يُلجَأ
       // لِـwaitForGridReady إلا إن لم تكن الشبكة جاهزة بعد (تركيب أول فقط).
-      const gridNow = resolveFlexControl(chequeGridRef.current)
-      if (gridNow && gridNow.rows && gridNow.rows.length > pending.row) {
-        selectCell(gridNow, pending.row, pending.col)
-        gridNow.focus()
-      } else {
+        const gridNow = resolveFlexControl(chequeGridRef.current)
+        if (gridNow && gridNow.rows && gridNow.rows.length > pending.row) {
+          selectCell(gridNow, pending.row, pending.col)
+          gridNow.focus()
+        } else {
+          waitForGridReady(
+            () => chequeGridRef.current,
+            (grid) => {
+              selectCell(grid, pending.row, pending.col)
+              grid.focus()
+            },
+            20,
+            pending.row + 1,
+          )
+        }
+      } else if (prevSelection) {
+        const grid = resolveFlexControl(chequeGridRef.current)
+        if (grid && grid.rows && grid.rows.length > prevSelection.row) {
+          grid.select(new CellRange(prevSelection.row, prevSelection.col))
+        }
+      }
+
+      const pendingAccounts = pendingAccountsFocusRef.current
+      if (pendingAccounts) {
+        pendingAccountsFocusRef.current = null
         waitForGridReady(
-          () => chequeGridRef.current,
+          () => accountsGridRef.current,
           (grid) => {
-            selectCell(grid, pending.row, pending.col)
+            selectCell(grid, pendingAccounts.row, pendingAccounts.col)
             grid.focus()
           },
           20,
-          pending.row + 1,
+          pendingAccounts.row + 1,
         )
       }
-    } else if (prevSelection) {
-      const grid = resolveFlexControl(chequeGridRef.current)
-      if (grid && grid.rows && grid.rows.length > prevSelection.row) {
-        grid.select(new CellRange(prevSelection.row, prevSelection.col))
-      }
-    }
-
-    const pendingAccounts = pendingAccountsFocusRef.current
-    if (pendingAccounts) {
-      pendingAccountsFocusRef.current = null
-      waitForGridReady(
-        () => accountsGridRef.current,
-        (grid) => {
-          selectCell(grid, pendingAccounts.row, pendingAccounts.col)
-          grid.focus()
-        },
-        20,
-        pendingAccounts.row + 1,
-      )
+    })
+    return () => {
+      if (frameId !== null) cancelAnimationFrame(frameId)
+      frameId = null
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [items])
+  }, [items, dialogOpen])
 
   const patchItemRow = (index: number, patch: Partial<VoucherItemRow>) => {
     if (isLocked) return
@@ -2104,7 +2122,7 @@ export default function UnifiedStockVoucher({
 
   return (
     <>
-      <Dialog open={dialogOpen} onOpenChange={(open) => (open ? onOpenChange(open) : guardedAction(() => onOpenChange(false)))}>
+      <Dialog open={dialogOpen} onOpenChange={onOpenChange}>
       <DialogContent
         className="stock-voucher-form flex h-[96vh] w-[97vw] max-w-[1500px] max-h-[96vh] flex-col overflow-hidden p-0"
         dir="rtl"
@@ -2114,13 +2132,16 @@ export default function UnifiedStockVoucher({
         <UniversalToolbar
           currentRecord={currentIndex + 1}
           totalRecords={totalRecords}
-          onNew={() => guardedAction(() => onNew?.())}
+          onNew={() => guardedAction(() => {
+            onNew?.()
+            focusVoucherDate()
+          })}
           onSave={handleRequestSave}
           onDelete={() => setShowDeleteConfirm(true)}
-          onFirst={() => guardedAction(() => onNavigate?.("last"))}
-          onPrevious={() => guardedAction(() => onNavigate?.("next"))}
-          onNext={() => guardedAction(() => onNavigate?.("previous"))}
-          onLast={() => guardedAction(() => onNavigate?.("first"))}
+          onFirst={() => guardedAction(() => onNavigate?.("first"))}
+          onPrevious={() => guardedAction(() => onNavigate?.("previous"))}
+          onNext={() => guardedAction(() => onNavigate?.("next"))}
+          onLast={() => guardedAction(() => onNavigate?.("last"))}
           onPrint={onPrint}
           onClone={onClone}
           isSaving={isSaving}
