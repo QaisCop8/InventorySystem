@@ -716,7 +716,7 @@ export const fetchVoucherItems = async (voucherId: number) => {
   // أيضاً على حسابي المصروف/المشتريات لسند الاستعمال (تفاصيل حسابات الاصناف).
   // جدول الحسابات الفعلي account_tbl (بعمودي code/name خامين) — وليس accounts (غير موجود؛ هذا هو
   // اسم النوع TypeScript المستخدَم في الواجهة فقط)؛ مؤكَّد عبر app/api/accounts/route.ts.
-  return sql`
+  const rows = await sql`
     SELECT
       vi.id,
       vi.voucher_id,
@@ -763,6 +763,47 @@ export const fetchVoucherItems = async (voucherId: number) => {
     WHERE vi.voucher_id = ${voucherId}
     ORDER BY vi.id
   `
+
+  const itemIds = (rows as any[]).map((row) => Number(row.id)).filter((id) => id > 0)
+  if (itemIds.length === 0) return rows
+  const attributeRows = await sql`
+    SELECT
+      vi.id AS voucher_item_id,
+      a.name AS attribute_name,
+      av.name AS value_name,
+      pav.image_url,
+      via.id IS NOT NULL AS is_selected
+    FROM voucher_items_tbl vi
+    JOIN product_atrributes_values_tbl pav ON pav.product_id = vi.item_id
+    JOIN attributes_tbl a ON a.id = pav.attr_id
+    JOIN attribute_values_tbl av ON av.id = pav.value_id
+    LEFT JOIN voucher_item_attributes_tbl via
+      ON via.voucher_item_id = vi.id
+     AND via.product_attribute_value_id = pav.id
+    WHERE vi.id = ANY(${itemIds}::bigint[])
+    ORDER BY vi.id, a.name, av.name
+  `
+  const byItem = new Map<number, { attributes: any[]; selected: Record<string, string> }>()
+  for (const row of attributeRows as any[]) {
+    const itemId = Number(row.voucher_item_id)
+    let entry = byItem.get(itemId)
+    if (!entry) {
+      entry = { attributes: [], selected: {} }
+      byItem.set(itemId, entry)
+    }
+    let attribute = entry.attributes.find((candidate) => candidate.name === row.attribute_name)
+    if (!attribute) {
+      attribute = { name: row.attribute_name, values: [], value_images: {} }
+      entry.attributes.push(attribute)
+    }
+    attribute.values.push(row.value_name)
+    if (row.image_url) attribute.value_images[row.value_name] = row.image_url
+    if (row.is_selected) entry.selected[row.attribute_name] = row.value_name
+  }
+  return (rows as any[]).map((row) => {
+    const entry = byItem.get(Number(row.id))
+    return entry ? { ...row, attributes: entry.attributes, selected_attributes: entry.selected } : row
+  })
 }
 
 // كمية موقّعة حسب اتجاه الحركة — 'in' تزيد current_stock، 'out' تنقصه. warehouseId هنا اسمي

@@ -80,6 +80,7 @@ async function ensureProductSchemaColumns(client: any) {
     ["color", "TEXT"],
     ["size", "TEXT"],
     ["notes", "TEXT"],
+    ["transaction_notes", "VARCHAR(100)"],
     ["manufacturer_company", "TEXT"],
     ["product_image", "TEXT"],
     ["selling_account_id", "INTEGER"],
@@ -276,6 +277,7 @@ export async function GET(request: NextRequest) {
 
   try {
     await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS attributes JSONB NOT NULL DEFAULT '[]'::jsonb`
+    await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS transaction_notes VARCHAR(100)`
     await sql`ALTER TABLE IF EXISTS product_attributes_tbl RENAME TO attributes_tbl`
     await sql`ALTER TABLE IF EXISTS product_attribute_values_tbl RENAME TO attribute_values_tbl`
     await sql`CREATE TABLE IF NOT EXISTS attributes_tbl (id SERIAL PRIMARY KEY, name TEXT NOT NULL UNIQUE)`
@@ -874,10 +876,11 @@ export async function POST(request: NextRequest) {
           color=$40::text,
           size=$41::text,
           notes=$42::text,
-          manufacturer_company=$43::text,
-          product_image=$44::text,
+          transaction_notes=$43::varchar(100),
+          manufacturer_company=$44::text,
+          product_image=$45::text,
           updated_at=NOW()
-         WHERE id=$45::int`
+         WHERE id=$46::int`
         : `UPDATE products SET
           product_code=$1::text,
           product_name=$2::text,
@@ -920,10 +923,11 @@ export async function POST(request: NextRequest) {
           color=$39::text,
           size=$40::text,
           notes=$41::text,
-          manufacturer_company=$42::text,
-          product_image=$43::text,
+          transaction_notes=$42::varchar(100),
+          manufacturer_company=$43::text,
+          product_image=$44::text,
           updated_at=NOW()
-         WHERE id=$44::int`
+         WHERE id=$45::int`
 
       const updateValues = canSaveDefaultStore
         ? [
@@ -969,6 +973,7 @@ export async function POST(request: NextRequest) {
             productData.color,
             productData.size,
             productData.notes,
+            productData.transaction_notes,
             productData.manufacturer_company,
             productData.image_url || productData.product_image || null,
             productId,
@@ -1015,6 +1020,7 @@ export async function POST(request: NextRequest) {
             productData.color,
             productData.size,
             productData.notes,
+            productData.transaction_notes,
             productData.manufacturer_company,
             productData.image_url || productData.product_image || null,
             productId,
@@ -1077,6 +1083,7 @@ export async function POST(request: NextRequest) {
           'color',
           'size',
           'notes',
+          'transaction_notes',
           'serial_tracking',
           'manufacturer_company',
           'product_image',
@@ -1121,6 +1128,7 @@ export async function POST(request: NextRequest) {
           'color',
           'size',
           'notes',
+          'transaction_notes',
           'serial_tracking',
           'manufacturer_company',
           'product_image',
@@ -1168,6 +1176,7 @@ export async function POST(request: NextRequest) {
           productData.color,
           productData.size,
           productData.notes,
+          productData.transaction_notes,
           productData.serial_tracking,
           productData.manufacturer_company,
           productData.image_url || productData.product_image || null,
@@ -1212,6 +1221,7 @@ export async function POST(request: NextRequest) {
           productData.color,
           productData.size,
           productData.notes,
+          productData.transaction_notes,
           productData.serial_tracking,
           productData.manufacturer_company,
           productData.image_url || productData.product_image || null,

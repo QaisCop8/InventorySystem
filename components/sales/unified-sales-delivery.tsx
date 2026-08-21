@@ -101,6 +101,7 @@ export interface SalesVoucherItemRow {
   product_id: number | null
   product_code: string
   product_name: string
+  transaction_notes?: string
   base_product_name?: string
   attributes?: Array<{ name: string; values: string[]; value_images?: Record<string, string | null> }>
   selected_attributes?: Record<string, string>
@@ -269,7 +270,7 @@ interface UnifiedSalesDeliveryProps {
   isFirstRecord?: boolean
   isLastRecord?: boolean
   onNew?: () => void
-  onSave: (action?: PostVoucherAction) => void
+  onSave: (action?: PostVoucherAction) => void | Promise<boolean>
   onValidateSave?: () => string | null
   onDelete?: () => void
   onNavigate?: (direction: "first" | "previous" | "next" | "last") => void
@@ -865,11 +866,21 @@ export default function UnifiedSalesDelivery({
         setTimeout(() => handleRequestSaveRef.current(), 0)
         return
       }
-      if (event.key === "F4") {
+      if (event.key === "F8") {
         event.preventDefault()
         if (form.id > 0 && form.status === 1) {
           setShowDeleteConfirm(true)
         }
+        return
+      }
+      if (event.key === "F9") {
+        event.preventDefault()
+        if (form.id > 0) onPrint?.()
+        return
+      }
+      if (event.key === "F5") {
+        event.preventDefault()
+        guardedAction(() => onNew?.())
         return
       }
 
@@ -1202,19 +1213,30 @@ export default function UnifiedSalesDelivery({
   const openAttributeEditor = async (rowIndex: number) => {
     const row = itemsRef.current[rowIndex]
     if (!row?.product_id) return
+    const productId = row.product_id
+    const existingSelection = row.selected_attributes && Object.keys(row.selected_attributes).length > 0
+      ? row.selected_attributes
+      : (row.attributes || []).reduce<Record<string, string>>((selection, attribute) => {
+          const source = row.attribute_summary || row.product_name || ""
+          const value = attribute.values.find((candidate) => source.includes(`${attribute.name}: ${candidate}`))
+          if (value) selection[attribute.name] = value
+          return selection
+        }, {})
     let product = row
     if (!Array.isArray(product.attributes) || product.attributes.length === 0) {
       try {
-        const response = await fetch(`/api/inventory/products?productId=${product.product_id}`)
+        const response = await fetch(`/api/inventory/products?productId=${productId}`)
         const products = response.ok ? await response.json() : []
         const fetchedProduct = Array.isArray(products) ? products[0] : null
         if (fetchedProduct) {
           product = {
             ...row,
             ...fetchedProduct,
-            product_id: row.product_id,
+            product_id: productId,
             product_name: row.product_name,
-            selected_attributes: row.selected_attributes || fetchedProduct.selected_attributes,
+            selected_attributes: Object.keys(existingSelection).length > 0
+              ? existingSelection
+              : fetchedProduct.selected_attributes,
           }
         }
       } catch (error) {
@@ -1222,8 +1244,21 @@ export default function UnifiedSalesDelivery({
       }
     }
     if (!Array.isArray(product.attributes) || product.attributes.length === 0) return
+    const savedSelection = Object.keys(existingSelection).length > 0
+      ? existingSelection
+      : product.attributes.reduce<Record<string, string>>((selection, attribute) => {
+          const source = row.product_name || row.item_name || ""
+          const value = attribute.values.find((candidate) => source.includes(`${attribute.name}: ${candidate}`))
+          if (value) selection[attribute.name] = value
+          return selection
+        }, {})
     const editable = form.id === 0 || form.status === 1
-    const selected = await requestProductVariant({ ...product, id: product.product_id, product_name: product.base_product_name || product.product_name }, { forceEdit: true, readOnly: !editable })
+    const selected = await requestProductVariant({
+      ...product,
+      id: productId,
+      product_name: product.base_product_name || product.product_name,
+      selected_attributes: savedSelection,
+    }, { forceEdit: true, readOnly: !editable })
     if (selected && editable) {
       patchItemRow(rowIndex, {
         product_name: selected.product_name || row.product_name,
@@ -1613,7 +1648,7 @@ export default function UnifiedSalesDelivery({
     previousRow?: SalesVoucherItemRow,
   ) => {
     try {
-      const res = await fetch(`/api/inventory/products/search?query=${encodeURIComponent(code)}&priceCategoryId=0`)
+      const res = await fetch(`/api/inventory/products/search?query=${encodeURIComponent(code)}&priceCategoryId=1`)
       if (!isMountedRef.current) return
       let product = await res.json()
       if (!res.ok) throw new Error("not found")
@@ -1632,6 +1667,7 @@ export default function UnifiedSalesDelivery({
         product_id: product.id,
         product_code: product.product_code,
         product_name: product.product_name,
+        transaction_notes: product.transaction_notes || "",
         base_product_name: product.base_product_name || product.product_name,
         attributes: product.attributes,
         selected_attributes: product.selected_attributes,
@@ -1654,6 +1690,9 @@ export default function UnifiedSalesDelivery({
         ...(itemAccount ? { account_id: itemAccount.id, account_code: itemAccount.code, account_name: itemAccount.name } : {}),
       }
       patchItemRow(row, { ...patched, ...recalcLineAmounts(patched) })
+      if (product.transaction_notes?.trim()) {
+        messagesRef.current?.show?.([{ severity: "info", summary: "ملاحظات الصنف", detail: product.transaction_notes, life: 5000 }])
+      }
       if (autoAdvanceOnSuccess) {
         const grid = resolveFlexControl(itemsGridRef.current)
         const nextFieldIndex = findNextRelevantFieldIndex(grid, fieldOrder.indexOf("product_code") + 1)
@@ -1840,6 +1879,9 @@ export default function UnifiedSalesDelivery({
     const nextRows = [...itemsRef.current]
     for (let index = 0; index < selectedProducts.length; index += 1) {
       const product = selectedProducts[index]
+      if (product.transaction_notes?.trim()) {
+        messagesRef.current?.show?.([{ severity: "info", summary: "ملاحظات الصنف", detail: product.transaction_notes, life: 5000 }])
+      }
       const targetRow = index === 0 ? row : nextRows.length
       const currentRow = index === 0 ? nextRows[targetRow] : { ...emptyItemRow }
       const unit = product.selected_unit || product.units?.[0]
@@ -1853,6 +1895,7 @@ export default function UnifiedSalesDelivery({
         product_id: product.id,
         product_code: product.product_code,
         product_name: product.product_name,
+        transaction_notes: product.transaction_notes || "",
         base_product_name: product.base_product_name || product.product_name,
         attributes: product.attributes,
         selected_attributes: product.selected_attributes,
@@ -2102,12 +2145,12 @@ export default function UnifiedSalesDelivery({
         },
         { header: "اسم الصنف", name: "product_name", width: "*", minWidth: 160, isReadOnly: isLocked || isFromDelivery },
         {
-          header: "القيم والمتغيرات",
+          header: "المتغيرات والخصائص",
           name: "btnAttributes",
           width: 75,
           buttonBody: "button",
           align: "center",
-          title: "عرض وتعديل القيم والمتغيرات",
+          title: "عرض وتعديل المتغيرات والخصائص",
           iconType: "edit",
           isReadOnly: true,
           visible: true,
@@ -2320,9 +2363,18 @@ export default function UnifiedSalesDelivery({
     if (index >= 0 && index < focusable.length - 1) focusable[index + 1]?.focus()
   }
 
-  const anyInnerPopupOpen = () =>
-    productSearchOpen || warehouseSearchOpen || unitsSearchOpen || expiryLotPickerOpen || measurementDialogOpen ||
-    invoiceFromDeliveryOpen || invoiceFromOrderOpen || itemAccountsSearchOpen || itemCostCenterOpen || showVatRestoreConfirm || showDeleteConfirm || postDialogOpen || showUnsavedConfirm
+  const closeInnerPopups = () => {
+    setProductSearchOpen(false)
+    setWarehouseSearchOpen(false)
+    setUnitsSearchOpen(false)
+    setExpiryLotPickerOpen(false)
+    setMeasurementDialogOpen(false)
+    setInvoiceFromDeliveryOpen(false)
+    setInvoiceFromOrderOpen(false)
+    setItemAccountsSearchOpen(false)
+    setItemCostCenterOpen(false)
+    popupHasClosed()
+  }
 
   return (
     <Dialog
@@ -2334,10 +2386,19 @@ export default function UnifiedSalesDelivery({
         }
         // Prevent closing while saving or when any inner popup is open. If the form changed,
         // route the explicit X command through the existing confirmation dialog.
-        if (isSaving || anyInnerPopupOpen()) {
+        if (isSaving) {
           // optionally notify user when trying to close during save
-          if (isSaving) messagesRef.current?.show?.([{ severity: "warn", summary: "", detail: "جاري الحفظ... الرجاء الانتظار", life: 2000 }])
+          messagesRef.current?.show?.([{ severity: "warn", summary: "", detail: "جاري الحفظ... الرجاء الانتظار", life: 2000 }])
           return
+        }
+        if (productSearchOpen || warehouseSearchOpen || unitsSearchOpen || expiryLotPickerOpen || measurementDialogOpen ||
+          invoiceFromDeliveryOpen || invoiceFromOrderOpen || itemAccountsSearchOpen || itemCostCenterOpen) {
+          closeInnerPopups()
+          return
+        }
+        if (showDeleteConfirm || showUnsavedConfirm || showVatRestoreConfirm) return
+        if (postDialogOpen) {
+          setPostDialogOpen(false)
         }
         guardedAction(() => onOpenChange(false))
       }}
@@ -2737,7 +2798,7 @@ export default function UnifiedSalesDelivery({
               <TabsTrigger value="custom_fields" className={voucherTabTriggerClass}>الحقول الإضافية</TabsTrigger>
             </TabsList>
 
-            <fieldset disabled={isLocked} className="contents">
+            <fieldset className="contents">
               <TabsContent value="items" className="mt-2 min-h-[300px] space-y-2 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
                 <div className="w-full max-w-full overflow-x-auto">
                   <DataGridView
@@ -3031,7 +3092,7 @@ export default function UnifiedSalesDelivery({
             restoreGridFocus(lastFocusedCellRef.current)
           }}
           onSelect={handleProductSelect}
-          priceCategoryId={0}
+          priceCategoryId={1}
           ShowSelect={true}
           searchText=""
         />
@@ -3101,7 +3162,7 @@ export default function UnifiedSalesDelivery({
                 ? Number(itemsRef.current[unitsSearchRow].product_id)
                 : null,
           }}
-          priceCategoryId={0}
+          priceCategoryId={1}
           units={unitsSearchRow !== null ? itemsRef.current[unitsSearchRow]?.units || [] : []}
           onClose={() => {
             setUnitsSearchOpen(false)
@@ -3372,11 +3433,15 @@ export default function UnifiedSalesDelivery({
         <PostVoucherDialog
           visible={postDialogOpen}
           isSaving={isSaving}
-          onSelect={(action) => {
-            setPostDialogOpen(false)
-            onSave(action)
+          onSelect={async (action) => {
+            const saved = await onSave(action)
+            if (saved !== false) {
+              setPostDialogOpen(false)
+            }
           }}
-          onCancel={() => setPostDialogOpen(false)}
+          onCancel={() => {
+            setPostDialogOpen(false)
+          }}
         />
 
         {serialsOpen && serialsRow !== null && (

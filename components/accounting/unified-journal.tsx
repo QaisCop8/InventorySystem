@@ -381,10 +381,19 @@ export default function UnifiedJournal({
         handleRequestSave()
         return
       }
-      if (event.key === "F4") {
+      if (event.key === "F8") {
         event.preventDefault()
-        if (form.id > 0) onDelete?.()
-        else guardedAction(() => onOpenChange(false))
+        if (form.id > 0 && form.status === 1) onDelete?.()
+        return
+      }
+      if (event.key === "F9") {
+        event.preventDefault()
+        if (form.id > 0) onPrint?.()
+        return
+      }
+      if (event.key === "F5") {
+        event.preventDefault()
+        guardedAction(() => onNew?.())
       }
     }
 

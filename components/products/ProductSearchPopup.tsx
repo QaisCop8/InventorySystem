@@ -689,7 +689,7 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
         </div>
 
 
-        <div className="mt-2 flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto sm:gap-4 sm:overflow-hidden">
+        <div className="mt-2 flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain sm:gap-4">
           <div className="shrink-0 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:rounded-3xl">
             <h4 className="text-sm font-semibold mb-3 text-slate-700 text-right">نتائج البحث</h4>
             <div className="modern-search-grid h-[32dvh] min-h-[220px] w-full overflow-auto sm:h-[24vh] sm:min-h-[180px]">
@@ -714,7 +714,7 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
           <div className="shrink-0 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:rounded-3xl">
             <h4 className="text-sm font-semibold mb-3 text-slate-700 text-right">{selectedAttributeRows.length ? "المتغيرات والخصائص" : "وحدات الصنف"}</h4>
             <div className="text-sm text-slate-500 mb-3 text-right">{selectedProduct?.product_name || "لا يوجد صنف محدد"}</div>
-            <div className="h-[34dvh] min-h-[260px] w-full overflow-y-auto sm:h-[24vh] sm:min-h-[180px]">
+            <div className="h-[34dvh] min-h-[260px] w-full overflow-hidden sm:h-[24vh] sm:min-h-[180px]">
               <DataGridView
                 innerRef={gridUnitsRef}
                 style={responsiveGridStyle}

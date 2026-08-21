@@ -228,13 +228,21 @@ export default function UnifiedCreditNote({
         handleRequestSave()
         return
       }
-      if (event.key === "F4") {
+      if (event.key === "F8") {
         event.preventDefault()
-        if (form.id > 0) {
+        if (form.id > 0 && form.status === 1) {
           onDelete?.()
-        } else {
-          guardedAction(() => onOpenChange(false))
         }
+        return
+      }
+      if (event.key === "F9") {
+        event.preventDefault()
+        if (form.id > 0) onPrint?.()
+        return
+      }
+      if (event.key === "F5") {
+        event.preventDefault()
+        guardedAction(() => onNew?.())
       }
     }
 

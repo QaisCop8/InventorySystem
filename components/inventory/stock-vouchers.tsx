@@ -454,6 +454,16 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
     }
     if (items.some((i) => !i.warehouse_id)) return "يجب اختيار المستودع لكل صنف"
     if (items.some((i) => !(Number(i.quantity || 0) > 0))) return "يجب إدخال الكمية لكل صنف"
+    const itemWithMissingAttributes = items.find((item) => {
+      const attributes = Array.isArray((item as any).attributes) ? (item as any).attributes : []
+      const selected = (item as any).selected_attributes && typeof (item as any).selected_attributes === "object"
+        ? (item as any).selected_attributes
+        : {}
+      return attributes.length > 0 && attributes.some((attribute: any) => !String(selected[attribute.name] || "").trim())
+    })
+    if (itemWithMissingAttributes) {
+      return `الصنف - ${itemWithMissingAttributes.product_name || itemWithMissingAttributes.product_code} له ميزات وخصائص يجب تحديدها لا يمكن حفظ السند`
+    }
     // أبعاد/عدد الصنف (نوع قياس غير عادي) — يُفحَص لكل أنواع السندات (لا سند ادخال بضاعة فقط)، إذ
     // الأبعاد خاصية بمستوى السطر مستقلة عن اتجاه الحركة. الخادم يعيد نفس الفحص مستقلاً (_lib.ts).
     for (const item of items) {

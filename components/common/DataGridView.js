@@ -403,9 +403,8 @@ createButtonsColumns = () => {
           initialized={this.initialized.bind(this)}
           itemsSource={this.props.dataSource}
           {...gridProps}
-          wordWrap={true}
           allowMerging={true}
-          loadingRows={() => this.columnTooltips.dispose()}
+          loadingRows={() => this.columnTooltips?.dispose?.()}
           {...(this.props.isReport ? { keyActionEnter: '0' } : {})}
         >
           {this.props.allowDragging && (this.props.allowDragging === 'Rows' || this.props.allowDragging === 'Both') && (

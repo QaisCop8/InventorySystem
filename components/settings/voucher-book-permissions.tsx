@@ -160,21 +160,19 @@ export default function VoucherBookPermissions() {
 
     try {
       const targetRows = rows.filter((row) => row.voucher_type_id !== pickerRow.voucher_type_id)
-      await Promise.all(
-        [pickerRow, ...targetRows].map(async (row) => {
-          const response = await fetch("/api/voucher-book-permissions", {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              user_id: selectedUserId,
-              voucher_type_id: row.voucher_type_id,
-              book_ids: pickerSelectedBooks,
-              default_book_id: pickerDefaultBook,
-            }),
-          })
-          if (!response.ok) throw new Error("copy failed")
-        }),
-      )
+      for (const row of [pickerRow, ...targetRows]) {
+        const response = await fetch("/api/voucher-book-permissions", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            user_id: selectedUserId,
+            voucher_type_id: row.voucher_type_id,
+            book_ids: pickerSelectedBooks,
+            default_book_id: pickerDefaultBook,
+          }),
+        })
+        if (!response.ok) throw new Error("copy failed")
+      }
       await fetchPermissions(selectedUserId)
       setPickerOpen(false)
     } catch (error) {

@@ -186,6 +186,7 @@ interface ProductFormData {
   size: string
 
   notes: string
+  transaction_notes: string
   entry_date: string
   selling_account_id: number
   selling_account_code: string
@@ -262,6 +263,7 @@ export const initialFormData: ProductFormData = {
   size: "",
 
   notes: "",
+  transaction_notes: "",
   entry_date: new Date().toISOString().split("T")[0],
   selling_account_id: 0,
   selling_account_code: "",
@@ -824,6 +826,11 @@ export function CompactProductForm({
       cost_centers: costCenterRows,
       product_brands: brandRows,
       default_store: product.default_store ?? 0,
+      notes: product.notes ?? "",
+      transaction_notes: product.transaction_notes ?? "",
+      original_numbers: Array.isArray(product.original_numbers) ? product.original_numbers : [],
+      factory_numbers: Array.isArray(product.factory_numbers) ? product.factory_numbers : [],
+      branch_ids: Array.isArray(product.branch_ids) ? product.branch_ids : [],
       // GET /api/inventory/ProductsNavigations/[navigationType] يُعيد "SELECT * FROM products"
       // خاماً — أعمدة الصلاحية/الدفعة الفعلية على الجدول هي has_expiry_date/has_batch_number لا
       // expiry_tracking/batch_tracking (المستخدَمان في formData وفي حفظ /api/inventory/products
@@ -1725,6 +1732,11 @@ export function CompactProductForm({
             prices: pricesWithNames,
             cost_centers: costCenterRows,
             product_brands: brandRows,
+            notes: product.notes ?? "",
+            transaction_notes: product.transaction_notes ?? "",
+            original_numbers: Array.isArray(product.original_numbers) ? product.original_numbers : [],
+            factory_numbers: Array.isArray(product.factory_numbers) ? product.factory_numbers : [],
+            branch_ids: Array.isArray(product.branch_ids) ? product.branch_ids : [],
 
           });
           setCurrentProductId(product.id);
@@ -2155,19 +2167,17 @@ export function CompactProductForm({
 
   return (
     <div className="h-full min-h-[70vh] min-w-0 flex flex-col bg-background overflow-hidden text-lg compact-product-form-root" dir="rtl">
-      {/* زر الإغلاق فوق شريط الأدوات مباشرة (لا بجانبه) حتى لا يزاحمه أفقياً فيضطر للف على
-          سطرين — الشريط يأخذ العرض الكامل دوماً. */}
-      <div className="flex flex-shrink-0 items-center justify-end px-2 pt-2 sm:px-4 sm:pt-4" dir="rtl">
+      {/* زر الإغلاق يطفو على الحافة اليسرى لشريط الأدوات في نفس الصف العلوي، كما في شاشات السندات. */}
+      <div className="relative flex flex-shrink-0 items-center px-2 pt-2 sm:px-4 sm:pt-4" dir="rtl">
         <button
           type="button"
           onClick={(e) => onHideDialog(e)}
-          className="flex h-10 w-10 shrink-0 items-center justify-center self-end rounded-full bg-white/95 text-slate-900 shadow-lg ring-1 ring-slate-200 transition-opacity hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-sky-400"
+          className="absolute left-3 top-1/2 z-20 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/95 text-slate-900 shadow-lg ring-1 ring-slate-200 transition-opacity hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-sky-400 sm:left-5"
         >
           <X className="h-4 w-4" />
           <span className="sr-only">إغلاق</span>
         </button>
-      </div>
-      <UniversalToolbar
+        <UniversalToolbar
           currentRecord={1}
           totalRecords={1}
           onFirst={async () => { await loadData('first') }}
@@ -2185,7 +2195,8 @@ export function CompactProductForm({
           canDelete={currentProductId > 0}
           isFirstRecord={true}
           isLastRecord={true}
-      />
+        />
+      </div>
       <ConfirmDialogYesNo
         visible={showConfirm}
         onConfirm={confirmDelete}
@@ -3211,6 +3222,21 @@ export function CompactProductForm({
                             rows={3}
                             placeholder="أي ملاحظات أو تفاصيل إضافية حول الصنف"
                           />
+                          <Label htmlFor="transaction_notes" className="mt-4 block text-sm font-medium">
+                            ملاحظات تظهر في الحركات
+                          </Label>
+                          <Textarea
+                            id="transaction_notes"
+                            value={formData.transaction_notes ?? ""}
+                            maxLength={100}
+                            onChange={(e) => updateFormData("transaction_notes", e.target.value.slice(0, 100))}
+                            className="text-right"
+                            rows={3}
+                            placeholder="ملاحظة تظهر عند اختيار الصنف في الحركات"
+                          />
+                          <div className="mt-1 text-left text-xs text-muted-foreground">
+                            {(formData.transaction_notes ?? "").length}/100
+                          </div>
                         </div>
                       </CardContent>
                     </Card>

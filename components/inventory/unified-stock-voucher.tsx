@@ -45,6 +45,7 @@ export interface VoucherItemRow {
   product_id: number | null
   product_code: string
   product_name: string
+  transaction_notes?: string
   base_product_name?: string
   attributes?: Array<{ name: string; values: string[]; value_images?: Record<string, string | null> }>
   selected_attributes?: Record<string, string>
@@ -733,11 +734,21 @@ export default function UnifiedStockVoucher({
         setTimeout(() => handleRequestSaveRef.current(), 0)
         return
       }
-      if (event.key === "F4") {
+      if (event.key === "F8") {
         event.preventDefault()
         if (form.id > 0 && form.status === 1) {
           setShowDeleteConfirm(true)
         }
+        return
+      }
+      if (event.key === "F9") {
+        event.preventDefault()
+        if (form.id > 0) onPrint?.()
+        return
+      }
+      if (event.key === "F5") {
+        event.preventDefault()
+        guardedAction(() => onNew?.())
         return
       }
 
@@ -928,8 +939,16 @@ export default function UnifiedStockVoucher({
   const openAttributeEditor = async (rowIndex: number) => {
     const row = itemsRef.current[rowIndex]
     if (!row?.product_id || !Array.isArray(row.attributes) || row.attributes.length === 0) return
+    const savedSelection = row.selected_attributes && Object.keys(row.selected_attributes).length > 0
+      ? row.selected_attributes
+      : row.attributes.reduce<Record<string, string>>((selection, attribute) => {
+          const source = row.product_name || row.item_name || ""
+          const value = attribute.values.find((candidate) => source.includes(`${attribute.name}: ${candidate}`))
+          if (value) selection[attribute.name] = value
+          return selection
+        }, {})
     const editable = form.id === 0 || form.status === 1
-    const selected = await requestProductVariant({ ...row, id: row.product_id, product_name: row.base_product_name || row.product_name }, { forceEdit: true, readOnly: !editable })
+    const selected = await requestProductVariant({ ...row, id: row.product_id, product_name: row.base_product_name || row.product_name, selected_attributes: savedSelection }, { forceEdit: true, readOnly: !editable })
     if (selected && editable) {
       patchItemRow(rowIndex, {
         product_name: selected.product_name || row.product_name,
@@ -1043,6 +1062,7 @@ export default function UnifiedStockVoucher({
         product_id: product.id,
         product_code: product.product_code,
         product_name: product.product_name,
+        transaction_notes: product.transaction_notes || "",
         base_product_name: product.base_product_name || product.product_name,
         attributes: product.attributes,
         selected_attributes: product.selected_attributes,
@@ -1071,6 +1091,9 @@ export default function UnifiedStockVoucher({
           : {}),
         ...(expense ? { expense_account_id: expense.id, expense_account_code: expense.code, expense_account_name: expense.name } : {}),
       })
+      if (product.transaction_notes?.trim()) {
+        messagesRef.current?.show?.([{ severity: "info", summary: "ملاحظات الصنف", detail: product.transaction_notes, life: 5000 }])
+      }
       if (autoAdvanceOnSuccess) {
         // نفس منطق handleProductSelect بعد اختيار صنف من النافذة المنبثقة: العمود التالي لِـ"رقم
         // الصنف" يعتمد على نوع قياس الصنف (طول/عرض/ارتفاع/عدد إن لزم، وإلا الكمية مباشرة) — تُطبَّق
@@ -1230,13 +1253,22 @@ export default function UnifiedStockVoucher({
     // يُستدعى مرتين لكل ضغطة مفتاح فعلياً: مرة بمعطيات Wijmo الصحيحة، ومرة أخرى بمعطيات غير مكتملة
     // (onKeyDown ليس حدثاً مُوثَّقاً بـFlexGridInputs) — بلا هذا الحارس، قراءة e.keyCode على undefined
     // بالاستدعاء الثاني تُطلِق استثناءً غير مُلتقَط يمنع Wijmo من بدء تحرير الخلية بعد أول ضغطة مفتاح.
-    if (!grid || !grid.selection || !e || typeof e.keyCode === "undefined") return
-    chequeGridRef.current = grid
+    if (!grid || !e || typeof e.keyCode === "undefined") return
+    const control = resolveFlexControl(grid)
+    if (!control) return
+    let selection: any
+    try {
+      selection = control.selection
+    } catch {
+      return
+    }
+    if (!selection) return
+    chequeGridRef.current = control
     if (doHotKeys.current === false) return
-    const row = grid.selection.row
-    const col = grid.selection.col
+    const row = selection.row
+    const col = selection.col
     if (row < 0 || col < 0) return
-    const colName = grid.columns[col]?.binding
+    const colName = control.columns[col]?.binding
 
     if (e.keyCode === Util.keyboardKeys.F7) {
       e.preventDefault()
@@ -1523,6 +1555,9 @@ export default function UnifiedStockVoucher({
     const nextRows = [...itemsRef.current]
     for (let index = 0; index < selectedProducts.length; index += 1) {
       const product = selectedProducts[index]
+      if (product.transaction_notes?.trim()) {
+        messagesRef.current?.show?.([{ severity: "info", summary: "ملاحظات الصنف", detail: product.transaction_notes, life: 5000 }])
+      }
       const targetRow = index === 0 ? row : nextRows.length
       const currentRow = index === 0 ? nextRows[targetRow] : { ...emptyItemRow }
       const unit = product.selected_unit || product.units?.[0]
@@ -1536,6 +1571,7 @@ export default function UnifiedStockVoucher({
         product_id: product.id,
         product_code: product.product_code,
         product_name: product.product_name,
+        transaction_notes: product.transaction_notes || "",
         base_product_name: product.base_product_name || product.product_name,
         attributes: product.attributes,
         selected_attributes: product.selected_attributes,
@@ -1652,12 +1688,12 @@ export default function UnifiedStockVoucher({
         
         { header: "اسم الصنف", name: "product_name", width: "*", minWidth: 180, isReadOnly: true },
         {
-          header: "القيم والمتغيرات",
+          header: "المتغيرات والخصائص",
           name: "btnAttributes",
           width: 75,
           buttonBody: "button",
           align: "center",
-          title: "عرض وتعديل القيم والمتغيرات",
+          title: "عرض وتعديل المتغيرات والخصائص",
           iconType: "edit",
           isReadOnly: true,
           visible: true,
@@ -2067,7 +2103,8 @@ export default function UnifiedStockVoucher({
   )
 
   return (
-    <Dialog open={dialogOpen} onOpenChange={(open) => (open ? onOpenChange(open) : guardedAction(() => onOpenChange(false)))}>
+    <>
+      <Dialog open={dialogOpen} onOpenChange={(open) => (open ? onOpenChange(open) : guardedAction(() => onOpenChange(false)))}>
       <DialogContent
         className="stock-voucher-form flex h-[96vh] w-[97vw] max-w-[1500px] max-h-[96vh] flex-col overflow-hidden p-0"
         dir="rtl"
@@ -2323,7 +2360,7 @@ export default function UnifiedStockVoucher({
               <TabsTrigger value="notes" className={voucherTabTriggerClass}>ملاحظات</TabsTrigger>
             </TabsList>
 
-            <fieldset disabled={isLocked} className="contents">
+            <fieldset className="contents">
               <TabsContent value="items" className="mt-4 min-h-[360px] space-y-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
                 <div className="w-full max-w-full overflow-x-auto">
                   <DataGridView
@@ -2686,16 +2723,17 @@ export default function UnifiedStockVoucher({
           onCancel={() => setShowPriceRecalcConfirm(false)}
         />
 
-        <PostVoucherDialog
-          visible={postDialogOpen}
-          isSaving={isSaving}
-          onSelect={(action) => {
-            setPostDialogOpen(false)
-            onSave(action)
-          }}
-          onCancel={() => setPostDialogOpen(false)}
-        />
       </DialogContent>
-    </Dialog>
+      </Dialog>
+      <PostVoucherDialog
+        visible={postDialogOpen}
+        isSaving={isSaving}
+        onSelect={(action) => {
+          setPostDialogOpen(false)
+          void onSave(action)
+        }}
+        onCancel={() => setPostDialogOpen(false)}
+      />
+    </>
   )
 }

@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect } from "react"
-import { Dialog } from "primereact/dialog"
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Save, CheckCircle2, Printer } from "lucide-react"
 
@@ -17,8 +17,7 @@ interface PostVoucherDialogProps {
 // يظهر عند الضغط على "حفظ" قبل تنفيذ الحفظ فعلياً — يتيح للمستخدم اختيار حفظ عادي (السند يبقى
 // قابلاً للتعديل)، أو حفظ وطباعته كـ"نسخة للتدقيق" دون ترحيل، أو ترحيله (status=2) دون طباعة،
 // أو ترحيله ثم طباعته كـ"نسخة اصلية". أرقام (1-5) تُنفَّذ أيضاً بلوحة المفاتيح طالما النافذة ظاهرة.
-// لا يوجد زر إغلاق (X) عمداً — الخروج فقط عبر "إلغاء" أو مفتاح 5، لمنع إغلاق غير مقصود بالنقر
-// خارج النافذة أو على أيقونة الإغلاق أثناء اتخاذ قرار الحفظ.
+// يمكن الخروج عبر "إلغاء" أو مفتاح 5 أو زر الإغلاق (X)، مع منع الإغلاق أثناء تنفيذ الحفظ.
 const PostVoucherDialog: React.FC<PostVoucherDialogProps> = ({ visible, isSaving = false, onSelect, onCancel }) => {
   useEffect(() => {
     if (!visible || isSaving) return
@@ -52,21 +51,23 @@ const PostVoucherDialog: React.FC<PostVoucherDialogProps> = ({ visible, isSaving
 
   return (
     <Dialog
-      visible={visible}
-      onHide={onCancel}
-      modal
-      closable={false}
-      closeOnEscape={!isSaving}
-      className="overflow-hidden rounded-[24px] border border-slate-200/80 shadow-[0_20px_60px_-20px_rgba(15,23,42,0.35)]"
-      style={{
-        width: "440px",
-        direction: "rtl",
-        textAlign: "center",
-        background: "linear-gradient(135deg, rgba(255,255,255,0.98), rgba(248,250,252,0.97))",
+      open={visible}
+      onOpenChange={(open) => {
+        if (!open && !isSaving) onCancel()
       }}
     >
-      <div className="flex flex-col items-center gap-4 px-3 py-5">
-        <p className="text-base font-semibold text-slate-700">كيف تريد حفظ السند؟</p>
+      <DialogContent
+        className="z-[3001] w-[min(440px,calc(100vw-2rem))] overflow-hidden rounded-[24px] border border-slate-200/80 bg-gradient-to-br from-white to-slate-50 p-0 text-center shadow-[0_20px_60px_-20px_rgba(15,23,42,0.35)]"
+        dir="rtl"
+        onPointerDownOutside={(event) => event.preventDefault()}
+        onInteractOutside={(event) => event.preventDefault()}
+        onEscapeKeyDown={(event) => {
+          if (isSaving) event.preventDefault()
+        }}
+      >
+        <DialogTitle className="sr-only">اختيار إجراء حفظ السند</DialogTitle>
+        <div className="flex flex-col items-center gap-4 px-3 py-5">
+          <p className="text-base font-semibold text-slate-700">كيف تريد حفظ السند؟</p>
 
         <div className="flex w-full flex-col gap-2.5">
           <Button
@@ -114,7 +115,8 @@ const PostVoucherDialog: React.FC<PostVoucherDialogProps> = ({ visible, isSaving
         >
           إلغاء (5)
         </Button>
-      </div>
+        </div>
+      </DialogContent>
     </Dialog>
   )
 }

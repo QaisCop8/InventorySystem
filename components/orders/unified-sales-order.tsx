@@ -32,10 +32,10 @@ import {
   Currency,
 } from "lucide-react"
 import { useDocumentSettings } from "@/hooks/use-document-settings"
+import { requestProductVariant } from "@/components/products/product-variant-service"
 import { useAuth } from "@/components/auth/auth-context"
 import { LotSelector } from "@/components/inventory/lot-selector"
 import ProductSearchPopup from "../products/ProductSearchPopup"
-import { requestProductVariant } from "@/components/products/product-variant-service"
 import * as wjGrid from "@grapecity/wijmo.grid";
 import DataGridView from "../common/DataGridView"
 import Messages from "../common/Messages"
@@ -159,6 +159,7 @@ interface Product {
   id: number
   product_code: string
   name: string
+  transaction_notes?: string
   main_unit: string
   last_purchase_price: number
   selling_price?: number
@@ -187,6 +188,9 @@ interface OrderItem {
   expiry_date: string
   batch_number: string
   notes: string
+  attributes?: Array<{ name: string; values: string[]; value_images?: Record<string, string | null> }>
+  selected_attributes?: Record<string, string>
+  attribute_summary?: string
   // New fields for lot selection
   lot_id?: number | null
   lotAllocations?: any[] // To store detailed lot allocations
@@ -725,16 +729,27 @@ function UnifiedSalesOrder({
         e.preventDefault()
         setState((prev) => ({ ...prev, showCustomerSearch: true }))
       }
-      // F3 for product search in focused row
+      // F3 saves the current transaction.
       if (e.key === "F3" && !e.ctrlKey && !e.altKey) {
         e.preventDefault()
-        const activeElement = document.activeElement as HTMLElement
-        if (activeElement?.closest("[data-product-row]")) {
-          const rowId = activeElement.closest("[data-product-row]")?.getAttribute("data-product-row")
-          if (rowId) {
-            setState((prev) => ({ ...prev, showProductSearch: true, activeItemId: rowId }))
-          }
-        }
+        ;(document.activeElement as HTMLElement)?.blur()
+        handleSave()
+        return
+      }
+      if (e.key === "F5" && !e.ctrlKey && !e.altKey) {
+        e.preventDefault()
+        handleNewRecord(true)
+        return
+      }
+      if (e.key === "F8" && !e.ctrlKey && !e.altKey) {
+        e.preventDefault()
+        if (state.formData.id > 0 && state.formData.order_status === 1) handleDeleteClick(false)
+        return
+      }
+      if (e.key === "F9" && !e.ctrlKey && !e.altKey) {
+        e.preventDefault()
+        if (state.formData.id > 0) handlePrint()
+        return
       }
       // Escape to close search
       if (e.key === "Escape") {
@@ -1062,6 +1077,9 @@ function UnifiedSalesOrder({
     }
     for (let i = 0; i < items.length; i++) {
       const ii = items[i];
+      if (ii.transaction_notes?.trim()) {
+        toast.current?.show({ severity: "info", summary: "ملاحظات الصنف", detail: ii.transaction_notes, life: 5000 });
+      }
       console.log("ii ", ii)
       const index = selectedIndexL + i; // new row index
       let item = CollectionView.items[index];
@@ -1547,6 +1565,34 @@ function UnifiedSalesOrder({
     }
   };
 
+  const openAttributeEditor = async (item: OrderItem) => {
+    if (!item?.product_id) return
+    let product: any = item
+    if (!Array.isArray(product.attributes) || product.attributes.length === 0) {
+      try {
+        const response = await fetch(`/api/inventory/products?productId=${item.product_id}`)
+        const products = response.ok ? await response.json() : []
+        const fetchedProduct = Array.isArray(products) ? products[0] : null
+        if (fetchedProduct) product = { ...fetchedProduct, ...item, attributes: fetchedProduct.attributes }
+      } catch (error) {
+        console.error("Failed to load product attributes", error)
+      }
+    }
+    if (!Array.isArray(product.attributes) || product.attributes.length === 0) return
+    const selected = await requestProductVariant({
+      ...product,
+      id: Number(item.product_id),
+      product_name: item.product_name || item.name,
+      selected_attributes: item.selected_attributes || product.selected_attributes,
+    }, true)
+    if (!selected) return
+    updateOrderItem(item.id, "product_name", selected.product_name || item.product_name || item.name)
+    updateOrderItem(item.id, "name", selected.product_name || item.name)
+    updateOrderItem(item.id, "attributes", selected.attributes)
+    updateOrderItem(item.id, "selected_attributes", selected.selected_attributes)
+    updateOrderItem(item.id, "attribute_summary", selected.attribute_summary)
+  }
+
   const getScheme = () => {
     let scheme = {
       name: 'UnitsScheme_Table',
@@ -1606,6 +1652,12 @@ function UnifiedSalesOrder({
 
         {
           header: "اسم الصنف", name: "name", width: "*", minWidth: 150, maxLength: 100
+        },
+        {
+          header: "المتغيرات والخصائص", name: "btnAttributes", width: 75,
+          buttonBody: 'button', align: 'center', title: 'عرض وتعديل المتغيرات والخصائص',
+          iconType: 'edit', isReadOnly: true, visible: true, visibleInColumnChooser: true,
+          onClick: (e: any, ctx: any) => { void openAttributeEditor(ctx.item as OrderItem) },
         },
         { header: "رقم المستودع", name: "store_id", width: 150, visible: false },
         { header: "المستودع", name: "store_name", width: 100, visible: Util.getVoucherSettingScreenData(vch_type, 'store') },

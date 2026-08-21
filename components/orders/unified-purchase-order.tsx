@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
@@ -12,6 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Separator } from "@/components/ui/separator"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { UniversalToolbar } from "@/components/ui/universal-toolbar"
+import ConfirmDialogYesNo from "@/components/ui/ConfirmDialogYesNo"
 import { ReportGenerator } from "@/components/ui/report-generator"
 import { useRecordNavigation } from "@/hooks/use-record-navigation"
 import TransactionBranchField from "@/components/common/transaction-branch-field"
@@ -330,6 +331,13 @@ function UnifiedPurchaseOrder({
   })
 
   const [showReport, setShowReport] = useState(false)
+  const [showUnsavedConfirm, setShowUnsavedConfirm] = useState(false)
+  const initialSnapshotRef = useRef(
+    JSON.stringify({
+      formData: order ? { ...initialFormData, ...order } : initialFormData,
+      orderItems: order?.items || [{ ...initialOrderItem, id: "1" }],
+    }),
+  )
 
   const createNewOrder = (): PurchaseOrder => ({
     id: 0,
@@ -383,6 +391,10 @@ function UnifiedPurchaseOrder({
 
   useEffect(() => {
     if (currentRecord && currentRecord.id !== state.formData.id) {
+      initialSnapshotRef.current = JSON.stringify({
+        formData: { ...initialFormData, ...currentRecord },
+        orderItems: currentRecord.items || [{ ...initialOrderItem, id: "1" }],
+      })
       setState((prev) => ({
         ...prev,
         formData: { ...initialFormData, ...currentRecord },
@@ -410,16 +422,27 @@ function UnifiedPurchaseOrder({
         e.preventDefault()
         setState((prev) => ({ ...prev, showSupplierSearch: true }))
       }
-      // F3 for product search in focused row
+      // F3 saves the current transaction.
       if (e.key === "F3" && !e.ctrlKey && !e.altKey) {
         e.preventDefault()
-        const activeElement = document.activeElement as HTMLElement
-        if (activeElement?.closest("[data-product-row]")) {
-          const rowId = activeElement.closest("[data-product-row]")?.getAttribute("data-product-row")
-          if (rowId) {
-            setState((prev) => ({ ...prev, showProductSearch: true, activeItemId: rowId }))
-          }
-        }
+        ;(document.activeElement as HTMLElement)?.blur()
+        handleSave()
+        return
+      }
+      if (e.key === "F5" && !e.ctrlKey && !e.altKey) {
+        e.preventDefault()
+        onNew()
+        return
+      }
+      if (e.key === "F8" && !e.ctrlKey && !e.altKey) {
+        e.preventDefault()
+        if (state.formData.id > 0 && state.formData.workflow_status === "pending") handleDelete()
+        return
+      }
+      if (e.key === "F9" && !e.ctrlKey && !e.altKey) {
+        e.preventDefault()
+        if (state.formData.id > 0) handlePrint()
+        return
       }
       // Escape to close search
       if (e.key === "Escape") {
@@ -837,10 +860,13 @@ function UnifiedPurchaseOrder({
 
   const onNew = () => {
     setEditingOrder?.(null)
+    const nextFormData = initialFormData
+    const nextOrderItems = [{ ...initialOrderItem, id: "1" }]
+    initialSnapshotRef.current = JSON.stringify({ formData: nextFormData, orderItems: nextOrderItems })
     setState({
       ...state,
-      formData: initialFormData,
-      orderItems: [{ ...initialOrderItem, id: "1" }],
+      formData: nextFormData,
+      orderItems: nextOrderItems,
       supplierSearch: "",
       showSupplierSearch: false,
       showProductSearch: false,
@@ -848,6 +874,15 @@ function UnifiedPurchaseOrder({
       showOrderSearch: false,
     })
     generateOrderNumber()
+  }
+
+  const requestNew = () => {
+    const snapshot = JSON.stringify({ formData: state.formData, orderItems: state.orderItems })
+    if (snapshot !== initialSnapshotRef.current) {
+      setShowUnsavedConfirm(true)
+      return
+    }
+    onNew()
   }
 
   const handleSave = async () => {
@@ -931,7 +966,8 @@ function UnifiedPurchaseOrder({
   ]
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange || handleCancel}>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange || handleCancel}>
       <DialogContent className="max-w-[98vw] w-full h-[95vh] p-0 gap-0 flex flex-col">
         <div className="sticky top-0 z-50 bg-background border-b px-6 py-4">
           <UniversalToolbar
@@ -941,7 +977,7 @@ function UnifiedPurchaseOrder({
             onPrevious={goToPrevious}
             onNext={goToNext}
             onLast={goToLast}
-            onNew={onNew}
+            onNew={requestNew}
             onSave={handleSave}
             onDelete={handleDelete}
             onReport={handleReport}
@@ -1832,7 +1868,19 @@ function UnifiedPurchaseOrder({
           onClose={() => setShowReport(false)}
         />
       </DialogContent>
-    </Dialog>
+      </Dialog>
+      <ConfirmDialogYesNo
+        visible={showUnsavedConfirm}
+        message="تم تعديل البيانات، هل تريد إنشاء سند جديد دون حفظ التغييرات؟"
+        showBack
+        onConfirm={() => {
+          setShowUnsavedConfirm(false)
+          onNew()
+        }}
+        onCancel={() => setShowUnsavedConfirm(false)}
+        onBack={() => setShowUnsavedConfirm(false)}
+      />
+    </>
   )
 }
 

@@ -47,6 +47,7 @@ export async function GET(request: NextRequest) {
     // [navigationType]/route.ts.
     const pool = await getTenantPool();
     const client = await pool.connect();
+    await client.query("ALTER TABLE products ADD COLUMN IF NOT EXISTS transaction_notes VARCHAR(100)");
     await ensureProductCostCentersTable(client)
     const canJoinDefaultStore = await hasDefaultStoreColumn(client)
 

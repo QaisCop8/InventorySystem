@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Edit, Plus, Search } from "lucide-react"
 import { useAuth } from "@/components/auth/auth-context"
+import VoucherPrintLayout, { type VoucherPrintData } from "@/components/common/voucher-print-layout"
 import UnifiedSalesDelivery, {
   type SalesDeliveryRecord,
   type SalesVoucherItemRow,
@@ -194,10 +195,10 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
           unit_name: String(item.unit_name || item.unit || "").trim(),
           quantity: item.quantity ?? item.qnty ?? null,
           bonus_quantity: item.bonus_quantity ?? item.bonus ?? null,
-          unit_price: item.unit_price ?? item.price ?? null,
+          unit_price: item.price ?? item.unit_price ?? null,
           discount_percent: item.discount_percent ?? item.discount ?? null,
-          total_price: item.total_price ?? item.amount ?? item.line_amount ?? (Number(item.quantity ?? item.qnty ?? 0) * Number(item.unit_price ?? item.price ?? 0)),
-          line_amount: item.line_amount ?? item.amount ?? item.total_price ?? (Number(item.quantity ?? item.qnty ?? 0) * Number(item.unit_price ?? item.price ?? 0)),
+          total_price: item.total_price ?? item.amount ?? item.line_amount ?? (Number(item.quantity ?? item.qnty ?? 0) * Number(item.price ?? item.unit_price ?? 0)),
+          line_amount: item.line_amount ?? item.amount ?? item.total_price ?? (Number(item.quantity ?? item.qnty ?? 0) * Number(item.price ?? item.unit_price ?? 0)),
           batch_number: String(item.batch_number || item.batch_no || ""),
           expiry_date: toGridDateString(item.expiry_date),
           serial_numbers: Array.isArray(item.serial_numbers) ? item.serial_numbers : [],
@@ -231,6 +232,13 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [currentIndex, setCurrentIndex] = useState(0)
   const [errorMessages, setErrorMessages] = useState<string[]>([])
+  const [printData, setPrintData] = useState<VoucherPrintData | null>(null)
+
+  useEffect(() => {
+    if (!printData) return
+    const timer = setTimeout(() => window.print(), 150)
+    return () => clearTimeout(timer)
+  }, [printData])
 
   const [searchFilters, setSearchFilters] = useState({ code: "", dateFrom: "", dateTo: "" })
 
@@ -566,6 +574,16 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
     if (items.some((i) => Number(i.discount_percent || 0) < 0 || Number(i.discount_percent || 0) > 100)) {
       return "نسبة الخصم يجب ألا تتجاوز 100% لكل صنف"
     }
+    const itemWithMissingAttributes = items.find((item) => {
+      const attributes = Array.isArray((item as any).attributes) ? (item as any).attributes : []
+      const selected = (item as any).selected_attributes && typeof (item as any).selected_attributes === "object"
+        ? (item as any).selected_attributes
+        : {}
+      return attributes.length > 0 && attributes.some((attribute: any) => !String(selected[attribute.name] || "").trim())
+    })
+    if (itemWithMissingAttributes) {
+      return `الصنف - ${itemWithMissingAttributes.product_name || itemWithMissingAttributes.product_code} له ميزات وخصائص يجب تحديدها لا يمكن حفظ السند`
+    }
     // فاتورة مبيعات/مشتريات ومردود مبيعات/مشتريات فقط: تبويب "تفاصيل حسابات الاصناف" يُنشئ قيداً
     // محاسبياً لكل صنف (buildSalesVoucherJournalRows في app/api/sales-vouchers/_lib.ts)، فيجب أن
     // يحمل كل صنف حساباً قبل الحفظ وإلا يبقى القيد غير مكتمل/غير متوازن.
@@ -575,7 +593,7 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
     return null
   }
 
-  const saveVoucher = async (action: PostVoucherAction = "save") => {
+  const saveVoucher = async (action: PostVoucherAction = "save"): Promise<boolean> => {
     const status = action === "save" || action === "save_print" ? form.status || 1 : 2
     const isPrinted = action === "post_print" ? 1 : form.is_printed || 0
     const dataToSave: SalesDeliveryRecord = { ...form, status, is_printed: isPrinted }
@@ -583,7 +601,7 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
     const validationError = validateVoucher(dataToSave)
     if (validationError) {
       setErrorMessages([validationError])
-      return
+      return false
     }
     setIsSaving(true)
     setErrorMessages([])
@@ -595,20 +613,54 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
         body: JSON.stringify(dataToSave),
       })
       if (!response.ok) {
-        const error = await response.json()
-        setErrorMessages([error.error || "فشل في حفظ السند"])
-        return
+        const responseText = await response.text()
+        let errorMessage = ""
+        try {
+          const error = JSON.parse(responseText)
+          const messages: unknown[] = Array.isArray(error?.errors) ? error.errors : [error?.error, error?.message]
+          errorMessage = messages.filter((message): message is string => typeof message === "string" && Boolean(message.trim())).join("\n")
+        } catch {
+          errorMessage = responseText.trim()
+        }
+        setErrorMessages([errorMessage || "فشل في حفظ السند"])
+        return false
       }
 
-      await fetchVouchers()
-      const defaults = await fetchDefaults()
-      const bookId = form.vch_book_id ?? defaults.bookId
-      const code = await generateCode(bookId)
-      setForm({ ...buildInitialForm(), vch_code: code, vch_book_id: bookId, currency_id: defaults.currencyId })
+      const savedVoucher = normalizeVoucher(await response.json())
+      if (action === "save_print" || action === "post_print") {
+        setPrintData({
+          title: SALES_VOUCHER_TYPE_LABELS[voucherType].title,
+          copyLabel: action === "post_print" ? "نسخة اصلية" : "نسخة للتدقيق",
+          vch_code: savedVoucher.vch_code,
+          vch_date: savedVoucher.vch_date,
+          amount: Number(savedVoucher.amount || 0),
+          manual_voucher: savedVoucher.manual_voucher,
+          note: savedVoucher.note,
+          rows: savedVoucher.items.filter((item) => item.product_id).map((item) => ({
+            account_code: item.product_code,
+            account_name: item.product_name,
+            debit: Number(item.line_amount ?? item.total_price ?? 0),
+            credit: null,
+            note: item.note,
+          })),
+        })
+      }
+
+      try {
+        await fetchVouchers()
+        const defaults = await fetchDefaults()
+        const bookId = form.vch_book_id ?? defaults.bookId
+        const code = await generateCode(bookId)
+        setForm({ ...buildInitialForm(), vch_code: code, vch_book_id: bookId, currency_id: defaults.currencyId })
+      } catch (refreshError) {
+        console.error("Voucher saved, but refreshing the voucher screen failed", refreshError)
+      }
       setDialogOpen(true)
+      return true
     } catch (error) {
       console.error(error)
       setErrorMessages(["فشل في حفظ السند"])
+      return false
     } finally {
       setIsSaving(false)
     }
@@ -870,6 +922,7 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
         onCodeNotFound={handleCodeNotFound}
         errorMessages={errorMessages}
       />
+      <VoucherPrintLayout data={printData} />
     </div>
   )
 }

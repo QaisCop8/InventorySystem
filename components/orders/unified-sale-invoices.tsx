@@ -788,16 +788,27 @@ function UnifiedSaleInvoices({
         e.preventDefault()
         setState((prev) => ({ ...prev, showCustomerSearch: true }))
       }
-      // F3 for product search in focused row
+      // F3 saves the current transaction.
       if (e.key === "F3" && !e.ctrlKey && !e.altKey) {
         e.preventDefault()
-        const activeElement = document.activeElement as HTMLElement
-        if (activeElement?.closest("[data-product-row]")) {
-          const rowId = activeElement.closest("[data-product-row]")?.getAttribute("data-product-row")
-          if (rowId) {
-            setState((prev) => ({ ...prev, showProductSearch: true, activeItemId: rowId }))
-          }
-        }
+        ;(document.activeElement as HTMLElement)?.blur()
+        handleSave()
+        return
+      }
+      if (e.key === "F5" && !e.ctrlKey && !e.altKey) {
+        e.preventDefault()
+        handleNewRecord(true)
+        return
+      }
+      if (e.key === "F8" && !e.ctrlKey && !e.altKey) {
+        e.preventDefault()
+        if (state.formData.id > 0 && state.formData.order_status === 1) handleDeleteClick(false)
+        return
+      }
+      if (e.key === "F9" && !e.ctrlKey && !e.altKey) {
+        e.preventDefault()
+        if (state.formData.id > 0) handlePrint()
+        return
       }
       // Escape to close search
       if (e.key === "Escape") {
