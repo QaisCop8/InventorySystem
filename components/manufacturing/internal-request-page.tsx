@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import Messages from "@/components/common/Messages"
+import ConfirmDialogYesNo from "@/components/ui/ConfirmDialogYesNo"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { ClipboardCheck, Plus, Search, Trash2 } from "lucide-react"
 import ProductSearchPopup from "@/components/products/ProductSearchPopup"
@@ -40,6 +41,7 @@ export default function InternalRequestPage() {
   const [requestAuditRequired, setRequestAuditRequired] = useState(true)
   const [editing, setEditing] = useState(false)
   const [editingRequest, setEditingRequest] = useState<InternalRequest | null>(null)
+  const [deleteRequestId, setDeleteRequestId] = useState<number | null>(null)
   const messagesRef = useRef<any>(null)
 
   const showMessage = (detail: string, severity: "success" | "error") => {
@@ -50,7 +52,7 @@ export default function InternalRequestPage() {
   const loadRequests = async () => {
     setLoading(true)
     try {
-      const response = await fetch("/api/internal-manufacturing-requests", { headers: { "x-branch-id": String(activeBranchId || "") } })
+      const response = await fetch(`/api/internal-manufacturing-requests?_=${Date.now()}`, { cache: "no-store", headers: { "x-branch-id": String(activeBranchId || "") } })
       const data = await response.json()
       setRequests(response.ok && Array.isArray(data) ? data : [])
     } finally {
@@ -105,17 +107,22 @@ export default function InternalRequestPage() {
       const data = await response.json()
       if (!response.ok) { showMessage(data.error || "تعذر حفظ الطلب", "error"); return }
       showMessage(`تم حفظ الطلب ${data.vch_code}`, "success")
+      setRequests((current) => [data, ...current.filter((request) => request.id !== data.id)])
       setOpen(false)
       setEditing(false)
       setEditingRequest(null)
       await loadRequests()
     } finally { setLoading(false) }
   }
-  const deleteRequest = async (requestId: number) => {
-    if (!window.confirm("هل أنت متأكد من حذف الطلب؟")) return
-    const response = await fetch(`/api/internal-manufacturing-requests/${requestId}`, { method: "DELETE" })
+  const deleteRequest = (requestId: number) => {
+    setDeleteRequestId(requestId)
+  }
+
+  const performDeleteRequest = async (requestId: number) => {
+    const response = await fetch(`/api/internal-manufacturing-requests/${requestId}?_=${Date.now()}`, { method: "DELETE", cache: "no-store" })
     const data = await response.json()
     if (!response.ok) { showMessage(data.error || "تعذر حذف الطلب", "error"); return }
+    setRequests((current) => current.filter((request) => request.id !== requestId))
     await loadRequests()
   }
 
@@ -123,6 +130,7 @@ export default function InternalRequestPage() {
     <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"><div><h1 className="text-2xl font-bold">طلب بضاعة داخلي</h1><p className="mt-1 text-sm text-muted-foreground">أنشئ وتابع طلبات البضاعة الداخلية.</p></div><Button onClick={openNewRequest}><Plus className="ml-2 h-4 w-4" />إضافة طلب داخلي</Button></div>
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{requests.map((request) => { const status = Number(request.internal_status); const editable = canEditOrDelete(request); const statusLabel = status === 2 ? "قيد التدقيق" : status === 3 ? "قيد التجهيز" : status === 1 ? "مسودة" : "قيد المعالجة"; return <Card key={request.id}><CardHeader className="pb-3"><CardTitle className="flex items-center justify-between text-base"><span>{request.vch_code}</span><Badge>{statusLabel}</Badge></CardTitle></CardHeader><CardContent className="space-y-3 text-sm"><div>التاريخ: <b>{String(request.vch_date).slice(0, 10)}</b></div><div>فرع البضاعة: <b>{branchName(request.manufacturing_branch_id)}</b></div><div>المستودع: <b>{warehouseName(request.destination_warehouse_id)}</b></div><div className="flex gap-2"><Button className="flex-1" variant="outline" onClick={() => openExistingRequest(request)}>{editable ? "تعديل" : <><Search className="ml-2 h-4 w-4" />مشاهدة</>}</Button>{editable && <Button variant="destructive" onClick={() => void deleteRequest(request.id)}><Trash2 className="h-4 w-4" /></Button>}</div></CardContent></Card> })}</div>
     {!loading && requests.length === 0 && <div className="rounded-xl border-2 border-dashed py-16 text-center"><ClipboardCheck className="mx-auto mb-3 h-10 w-10 text-emerald-600" /><h2 className="font-bold">لا توجد مسودات معروضة</h2></div>}
+    <ConfirmDialogYesNo visible={deleteRequestId !== null} message="هل أنت متأكد من حذف الطلب؟" onConfirm={() => { const requestId = deleteRequestId; setDeleteRequestId(null); if (requestId !== null) void performDeleteRequest(requestId) }} onCancel={() => setDeleteRequestId(null)} />
     <Dialog open={open} onOpenChange={setOpen}><DialogContent dir="rtl" className="max-h-[94vh] max-w-4xl overflow-y-auto" onPointerDownOutside={(event) => event.preventDefault()} onInteractOutside={(event) => event.preventDefault()}><DialogHeader><DialogTitle>{selectedRequest ? "مشاهدة طلب البضاعة" : "إضافة طلب داخلي"}</DialogTitle></DialogHeader><Messages innerRef={messagesRef} />{selectedRequest ? <div className="space-y-4"><div className="grid gap-3 rounded border p-4 sm:grid-cols-2"><div>رقم الطلب: <b>{selectedRequest.vch_code}</b></div><div>التاريخ: <b>{String(selectedRequest.vch_date).slice(0, 10)}</b></div><div>فرع البضاعة: <b>{branchName(selectedRequest.manufacturing_branch_id)}</b></div><div>المستودع: <b>{warehouseName(selectedRequest.destination_warehouse_id)}</b></div></div><Button className="w-full" variant="outline" onClick={() => setOpen(false)}>إغلاق</Button></div> : <div className="space-y-4"><div className="grid gap-3 sm:grid-cols-2"><div className="sm:col-span-2 sm:w-1/2"><Label>تاريخ الطلب</Label><Input type="date" value={date} onChange={(event) => setDate(event.target.value)} /></div><div><Label>فرع مقدم الطلب</Label><Input value={branchName(Number(activeBranchId))} disabled /></div><div><Label>مستودع مقدم الطلب</Label><select className="w-full rounded border p-2" value={sourceWarehouse} onChange={(event) => setSourceWarehouse(event.target.value)}><option value="">اختر المستودع</option>{warehouses.map((warehouse) => <option key={warehouse.id} value={warehouse.id}>{warehouse.warehouse_name || warehouse.name}</option>)}</select></div><div><Label>الفرع المطلوب منه البضاعة</Label><select className="w-full rounded border p-2" value={destinationBranch} onChange={(event) => setDestinationBranch(event.target.value)}><option value="">اختر الفرع</option>{branches.filter((branch) => Number(branch.id) !== Number(activeBranchId)).map((branch) => <option key={branch.id} value={branch.id}>{branch.branch_name}</option>)}</select></div><div><Label>المستودع المطلوب منه البضاعة</Label><select className="w-full rounded border p-2" value={destinationWarehouse} onChange={(event) => setDestinationWarehouse(event.target.value)}><option value="">اختر المستودع</option>{warehouses.map((warehouse) => <option key={warehouse.id} value={warehouse.id}>{warehouse.warehouse_name || warehouse.name}</option>)}</select></div></div><div className="rounded border p-3"><div className="mb-3 flex items-center justify-between"><h3 className="font-bold">الأصناف</h3><Button type="button" variant="outline" onClick={() => setProductOpen(true)}><Plus className="ml-2 h-4 w-4" />إضافة صنف</Button></div>{items.map((item, index) => <div key={`${item.product_id}-${index}`} className="mb-2 grid grid-cols-[1fr_100px_40px] items-center gap-2"><Input value={item.product_name} disabled /><Input type="number" min="1" value={item.quantity} onChange={(event) => setItems((current) => current.map((entry, itemIndex) => itemIndex === index ? { ...entry, quantity: Number(event.target.value) } : entry))} /><Button type="button" variant="ghost" size="icon" onClick={() => setItems((current) => current.filter((_, itemIndex) => itemIndex !== index))}><Trash2 className="h-4 w-4" /></Button></div>)}</div><Button className="w-full" onClick={() => void saveRequest()} disabled={loading}>حفظ مسودة الطلب</Button>{productOpen && <ProductSearchPopup open={productOpen} onClose={() => setProductOpen(false)} onSelect={addProduct} />}</div>}</DialogContent></Dialog>
   </div>
 }

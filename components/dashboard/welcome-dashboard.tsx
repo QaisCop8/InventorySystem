@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import { ArrowRight, BarChart3, BellRing, CircleDollarSign, Clock3, Package, Sparkles, TrendingUp, AlertTriangle, CheckCircle2, Users2, Wallet2, CreditCard, FilePlus, ShoppingCart, UserPlus, PieChart as PieChartIcon } from "lucide-react"
+import { ArrowRight, BarChart3, BellRing, CircleDollarSign, Clock3, Package, Sparkles, TrendingUp, AlertTriangle, CheckCircle2, Users2, Wallet2, CreditCard, FilePlus, ShoppingCart, UserPlus, ClipboardList, PieChart as PieChartIcon } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { useExchangeRates } from "@/hooks/use-swr-data"
 import { getFirstCurrencyLabel } from "@/lib/currency-display"
@@ -383,6 +383,7 @@ export default function WelcomeDashboard({ onOpenSection }: WelcomeDashboardProp
     { label: "إضافة عميل", section: "customers", icon: UserPlus, tone: "from-sky-500 to-blue-600" },
     { label: "إنشاء فاتورة", section: "sale-invoices", icon: FilePlus, tone: "from-emerald-500 to-teal-600" },
     { label: "إنشاء طلب", section: "sales-orders", icon: ShoppingCart, tone: "from-orange-500 to-amber-600", onClick: () => setShowQuickOrder(true) },
+    { label: "طلب بضاعة داخلي", section: "internal-manufacturing-request", icon: ClipboardList, tone: "from-cyan-500 to-sky-600" },
     { label: "إدخال صنف", section: "products", icon: Package, tone: "from-violet-500 to-fuchsia-600" },
     { label: "إدخال دفع", section: "accounts", icon: CreditCard, tone: "from-emerald-500 to-green-600" },
     { label: "الحسابات", section: "accounts", icon: Wallet2, tone: "from-sky-500 to-indigo-600" },
@@ -499,8 +500,8 @@ export default function WelcomeDashboard({ onOpenSection }: WelcomeDashboardProp
                 )}
               </div>
 
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                {homeActions.slice(0, 4).map((action) => {
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+                {homeActions.slice(0, 5).map((action) => {
                   const Icon = action.icon
                   return (
                     <button

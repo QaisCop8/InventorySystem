@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -78,7 +78,14 @@ export function DailyExchangeRatesDialog({ open, onOpenChange, onSaved }: DailyE
 
   const gridRef = useRef<any>(null)
   const pendingNavigationRef = useRef<{ row: number; col: number } | null>(null)
-  const [collectionView] = useState(() => new wjcCore.CollectionView<CurrencyRateRow>([]))
+  // Wijmo keeps editor state on the CollectionView/grid pair. Reusing it after
+  // the dialog closes can make a new grid finish an editor owned by the old grid.
+  const collectionView = useMemo(() => new wjcCore.CollectionView<CurrencyRateRow>([]), [open])
+  useEffect(() => {
+    if (open) return
+    pendingNavigationRef.current = null
+    gridRef.current = null
+  }, [open])
   useEffect(() => {
     if (!open) return
     const currentRows = collectionView.sourceCollection as CurrencyRateRow[]
@@ -301,6 +308,7 @@ export function DailyExchangeRatesDialog({ open, onOpenChange, onSaved }: DailyE
             </div>
           )}
             <DataGridView
+              key={open ? "daily-exchange-rates-open" : "daily-exchange-rates-closed"}
               innerRef={gridRef}
               containerStyle={{ height: "100%", minHeight: 0, maxHeight: "100%", overflow: "hidden" }}
               style={{ height: "100%", minHeight: 0, maxHeight: "100%", width: "100%", overflowX: "hidden" }}

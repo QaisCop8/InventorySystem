@@ -31,6 +31,7 @@ export default function InternalRequestAuditPage() {
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState("")
+  const [popupMessage, setPopupMessage] = useState("")
 
   const branchName = (id: number) => branches.find((branch) => Number(branch.id) === Number(id))?.branch_name || String(id)
   const warehouseName = (id: number | null) => warehouses.find((warehouse) => Number(warehouse.id) === Number(id))?.warehouse_name || "-"
@@ -43,26 +44,26 @@ export default function InternalRequestAuditPage() {
     } finally { setLoading(false) }
   }
   useEffect(() => { void load(); Promise.all([fetch("/api/branches"), fetch("/api/warehouses")]).then(async ([branchResponse, warehouseResponse]) => { const [branchData, warehouseData] = await Promise.all([branchResponse.json(), warehouseResponse.json()]); setBranches(Array.isArray(branchData) ? branchData.sort((a, b) => Number(a.id) - Number(b.id)) : []); setWarehouses(Array.isArray(warehouseData) ? warehouseData.sort((a, b) => Number(a.id) - Number(b.id)) : []) }) }, [activeBranchId])
-  const openRequest = (request: AuditRequest) => { setSelected(request); setItems((request.items || []).map((item) => ({ ...item, quantity: Number(item.qnty) }))); setMessage("") }
+  const openRequest = (request: AuditRequest) => { setSelected(request); setItems((request.items || []).map((item) => ({ ...item, quantity: Number(item.qnty) }))); setMessage(""); setPopupMessage("") }
   const saveItems = async () => {
     if (!selected) return
-    if (items.length === 0) { setMessage("يجب اضافة صنف واحد على الأقل"); return }
-    if (items.some((item) => !Number.isFinite(Number(item.quantity)) || Number(item.quantity) <= 0)) { setMessage("يجب أن تكون كمية كل صنف أكبر من صفر"); return }
+    if (items.length === 0) { setPopupMessage("يجب اضافة صنف واحد على الأقل"); return }
+    if (items.some((item) => !Number.isFinite(Number(item.quantity)) || Number(item.quantity) <= 0)) { setPopupMessage("يجب أن تكون كمية كل صنف أكبر من صفر"); return }
     setSaving(true)
     try {
       const response = await fetch(`/api/internal-manufacturing-requests/${selected.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ branch_id: selected.branch_id, manufacturing_branch_id: selected.manufacturing_branch_id, source_warehouse_id: selected.to_store_id, destination_warehouse_id: selected.destination_warehouse_id, vch_date: selected.vch_date, items: items.map((item) => ({ product_id: item.item_id, product_name: item.item_name, unit_id: item.unit_id, quantity: Number(item.quantity), barcode: item.barcode })) }) })
       const data = await response.json()
-      if (!response.ok) { setMessage(data.error || "تعذر حفظ التعديلات"); return }
-      setMessage("تم حفظ تعديلات الطلب")
+      if (!response.ok) { setPopupMessage(data.error || "تعذر حفظ التعديلات"); return }
+      setPopupMessage("تم حفظ تعديلات الطلب")
       await load()
       setSelected(null)
     } finally { setSaving(false) }
   }
   const complete = async () => {
     if (!selected) return
-    const response = await fetch(`/api/internal-manufacturing-requests/${selected.id}/actions`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "requestAudit" }) })
+    const response = await fetch(`/api/internal-manufacturing-requests/${selected.id}/actions`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "requestAudit", branch_id: selected.branch_id }) })
     const data = await response.json()
-    if (!response.ok) { setMessage(data.error || "تعذر اعتماد الطلب"); return }
+    if (!response.ok) { setPopupMessage(data.error || "تعذر اعتماد الطلب"); return }
     setSelected(null)
     setMessage("تم اعتماد الطلب بنجاح")
     await load()

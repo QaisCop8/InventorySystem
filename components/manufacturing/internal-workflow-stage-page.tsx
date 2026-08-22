@@ -50,7 +50,7 @@ export default function InternalWorkflowStagePage({ stage }: { stage: WorkflowSt
   }
   const complete = async () => {
     if (!selected) return
-    const response = await fetch(`/api/internal-manufacturing-requests/${selected.id}/actions`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: stage.action }) })
+    const response = await fetch(`/api/internal-manufacturing-requests/${selected.id}/actions`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: stage.action, branch_id: selected.branch_id }) })
     const data = await response.json()
     if (!response.ok) { setMessage(data.error || "تعذر اعتماد الطلب"); return }
     setSelected(null)
