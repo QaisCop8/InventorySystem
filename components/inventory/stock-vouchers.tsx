@@ -110,6 +110,7 @@ const normalizeVoucher = (record: Partial<VoucherRecord>, voucherType: StockVouc
         product_name: String(item.product_name || item.current_product_name || item.item_name || "").trim(),
         warehouse_id: item.warehouse_id ?? item.store_id ?? null,
         warehouse_name: item.warehouse_name || "",
+        unit: String(item.unit ?? item.unit_name ?? ""),
         batch_number: String(item.batch_number || item.batch_no || ""),
         expiry_date: toGridDateString(item.expiry_date),
         quantity: item.quantity ?? item.qnty ?? null,

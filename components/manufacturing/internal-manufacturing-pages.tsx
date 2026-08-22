@@ -217,8 +217,8 @@ export const InternalManufacturingDraftPage = LegacyInternalManufacturingRequest
 export const InternalManufacturingConfirmationPage = () => <StageBoard stage={stages[0]} />
 export const InternalManufacturingRequestAuditPage = InternalRequestAuditPage
 export const InternalManufacturingPreparationPage = () => <InternalWorkflowStagePage stage={{ ...stages[1], preparation: true }} />
-export const InternalManufacturingReadyAuditPage = () => <InternalWorkflowStagePage stage={stages[2]} />
-export const InternalManufacturingSendPage = () => <InternalWorkflowStagePage stage={stages[3]} />
+export const InternalManufacturingReadyAuditPage = () => <InternalWorkflowStagePage stage={{ ...stages[2], preparation: true, preparedAudit: true }} />
+export const InternalManufacturingSendPage = () => <InternalWorkflowStagePage stage={{ ...stages[3], preparation: true, preparedAudit: true }} />
 export const InternalManufacturingReceivePage = () => <InternalReceiveStagePage stage={{ title: stages[4].title, status: stages[4].status, action: "receive" }} />
 export const InternalManufacturingReceivedAuditPage = () => <InternalReceiveStagePage stage={{ title: stages[5].title, status: stages[5].status, action: "receivedAudit" }} />
 // Compatibility aliases for tabs saved before the workflow stage names were changed.

@@ -9,7 +9,7 @@ import { CheckCircle2, Edit, FileText, GripVertical, RefreshCw, Save } from "luc
 import { useAuth } from "@/components/auth/auth-context"
 
 type Request = { id: number; vch_code: string; vch_date: string; branch_id: number; manufacturing_branch_id: number; to_store_id: number | null; destination_warehouse_id: number | null; requester_name?: string; items?: any[] }
-type Stage = { title: string; status: number; action: string; preparation?: boolean; receiving?: boolean; finalAudit?: boolean }
+type Stage = { title: string; status: number; action: string; preparation?: boolean; preparedAudit?: boolean; receiving?: boolean; finalAudit?: boolean }
 
 export default function InternalWorkflowStagePageV2({ stage }: { stage: Stage }) {
   const { activeBranchId } = useAuth()
@@ -32,7 +32,7 @@ export default function InternalWorkflowStagePageV2({ stage }: { stage: Stage })
     setRequests(response.ok && Array.isArray(data) ? data : [])
   }
   useEffect(() => { void load(); Promise.all([fetch("/api/branches"), fetch("/api/warehouses")]).then(async ([branchesResponse, warehousesResponse]) => { setBranches(await branchesResponse.json()); setWarehouses(await warehousesResponse.json()) }) }, [activeBranchId, stage.status])
-  const openRequest = (request: Request) => { setSelected(request); setPopupMessage(""); setItems((request.items || []).map((item) => ({ ...item, editableQuantity: stage.preparation ? (Number(item.prepared_quantity) > 0 ? Number(item.prepared_quantity) : Number(item.qnty)) : Number(item.qnty), editableReceivedQuantity: (stage.receiving || stage.finalAudit) ? (Number(item.received_quantity) > 0 ? Number(item.received_quantity) : Number(item.prepared_quantity || item.qnty)) : Number(item.received_quantity || 0) }))) }
+  const openRequest = (request: Request) => { setSelected(request); setPopupMessage(""); setItems((request.items || []).map((item) => ({ ...item, editableQuantity: stage.preparedAudit ? Number(item.prepared_quantity || 0) : stage.preparation ? (Number(item.prepared_quantity) > 0 ? Number(item.prepared_quantity) : Number(item.qnty)) : Number(item.qnty), editableReceivedQuantity: (stage.receiving || stage.finalAudit) ? (Number(item.received_quantity) > 0 ? Number(item.received_quantity) : Number(item.prepared_quantity || item.qnty)) : Number(item.received_quantity || 0) }))) }
   useEffect(() => {
     if (!selected || !stage.preparation) return
     requestAnimationFrame(() => {
@@ -40,21 +40,32 @@ export default function InternalWorkflowStagePageV2({ stage }: { stage: Stage })
       document.querySelector<HTMLInputElement>('input[aria-label="الكمية المجهزة"]')?.focus()
     })
   }, [selected, stage.preparation])
+  useEffect(() => {
+    if (!selected || stage.action !== "send") return
+    requestAnimationFrame(() => {
+      document.querySelectorAll<HTMLInputElement>('input[aria-label="الكمية المجهزة"]').forEach((input) => { input.readOnly = true })
+      const actionButton = Array.from(document.querySelectorAll<HTMLButtonElement>("button")).find((button) => button.textContent?.includes("حفظ الكمية المجهزة"))
+      if (actionButton) {
+        const icon = actionButton.querySelector("svg")
+        actionButton.replaceChildren(...(icon ? [icon, document.createTextNode("إرسال الطلب")] : [document.createTextNode("إرسال الطلب")]))
+      }
+    })
+  }, [selected, stage.action])
   const dropRequest = () => { const request = requests.find((item) => item.id === draggedId); if (request) openRequest(request); setDraggedId(null) }
   const complete = async () => {
     if (!selected) return
     if ((stage.receiving || stage.finalAudit) && items.some((item) => !Number.isFinite(Number(item.editableReceivedQuantity)) || Number(item.editableReceivedQuantity) < 0 || Number(item.editableReceivedQuantity) > 100000)) { setPopupMessage("الكمية المستلمة يجب أن تكون بين 0 و100000"); return }
-    if (stage.preparation && items.some((item) => !Number.isFinite(Number(item.editableQuantity)) || Number(item.editableQuantity) < 0 || Number(item.editableQuantity) > 100000)) {
+    if ((stage.preparation || stage.preparedAudit) && items.some((item) => !Number.isFinite(Number(item.editableQuantity)) || Number(item.editableQuantity) < 0 || Number(item.editableQuantity) > 100000)) {
       setPopupMessage("الكمية المجهزة يجب أن تكون بين 0 و100000")
       return
     }
     setSaving(true)
     try {
-      const body = stage.preparation ? { action: "prepare", prepared_items: items.map((item) => ({ id: item.id, prepared_quantity: Number(item.editableQuantity) })) } : stage.receiving ? { action: "receive", received_items: items.map((item) => ({ id: item.id, received_quantity: Number(item.editableReceivedQuantity) })) } : stage.finalAudit ? { action: "receivedAudit", received_items: items.map((item) => ({ id: item.id, received_quantity: Number(item.editableReceivedQuantity) })) } : { action: stage.action, branch_id: selected.branch_id }
+      const body = (stage.action === "prepare" || stage.action === "readyAudit") && (stage.preparation || stage.preparedAudit) ? { action: stage.action, prepared_items: items.map((item) => ({ id: item.id, prepared_quantity: Number(item.editableQuantity) })) } : stage.receiving ? { action: "receive", received_items: items.map((item) => ({ id: item.id, received_quantity: Number(item.editableReceivedQuantity) })) } : stage.finalAudit ? { action: "receivedAudit", received_items: items.map((item) => ({ id: item.id, received_quantity: Number(item.editableReceivedQuantity) })) } : { action: stage.action, branch_id: selected.branch_id }
       const response = await fetch(`/api/internal-manufacturing-requests/${selected.id}/actions`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
       const data = await response.json()
       if (!response.ok) { setPopupMessage(data.error || "تعذر اعتماد الطلب"); return }
-      setSelected(null); setMessage(stage.preparation ? "تم حفظ الكمية المجهزة" : "تم اعتماد الطلب بنجاح"); await load()
+      setSelected(null); setMessage(stage.action === "prepare" ? "تم حفظ الكمية المجهزة" : "تم اعتماد الطلب بنجاح"); await load()
     } catch (error: any) { setPopupMessage(error.message || "تعذر اعتماد الطلب") } finally { setSaving(false) }
   }
 

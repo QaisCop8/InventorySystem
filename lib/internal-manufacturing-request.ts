@@ -72,10 +72,17 @@ async function ensureInternalManufacturingPermissions() {
     const accessId = rows[0]?.id || (await sql`SELECT id FROM access_list WHERE name = ${name} LIMIT 1`)[0]?.id
     if (accessId) await sql`INSERT INTO role_permissions (role_id, access_id, is_granted) SELECT id, ${accessId}, TRUE FROM job_roles WHERE LOWER(name) = LOWER('مدير') ON CONFLICT (role_id, access_id) DO NOTHING`
   }
+  await migrateLegacyPermission("استلام طلب الصناعة", ACTION_PERMISSIONS.receive)
+  await migrateLegacyPermission("تدقيق الصناعة", ACTION_PERMISSIONS.requestAudit)
+  await migrateLegacyPermission("استلام الصناعة من الفرع", ACTION_PERMISSIONS.receive)
   await migrateLegacyPermission("إنشاء طلب صناعة داخلي", ACTION_PERMISSIONS.create)
   await migrateLegacyPermission("تدقيق طلب الصناعة", ACTION_PERMISSIONS.requestAudit)
   await migrateLegacyPermission("تجهيز طلبات البضاعة", ACTION_PERMISSIONS.prepare)
   await migrateLegacyPermission("إرسال طلب الصناعة", ACTION_PERMISSIONS.send)
+  await sql`ALTER TABLE access_list ADD COLUMN IF NOT EXISTS sort_order INTEGER`
+  for (const [sortOrder, name] of Object.values(ACTION_PERMISSIONS).entries()) {
+    await sql`UPDATE access_list SET sort_order = ${sortOrder + 1}, updated_at = CURRENT_TIMESTAMP WHERE name = ${name}`
+  }
 }
 
 async function migrateLegacyPermission(legacyName: string, currentName: string) {
@@ -175,7 +182,7 @@ export async function processInternalManufacturingAction(id: number, action: Exc
     if (!result.rowCount || Number(result.rows[0].internal_status) !== expected[action]) throw new Error("الطلب غير موجود أو ليس في المرحلة المطلوبة")
     const request = result.rows[0]
     const items = (await client.query(`SELECT * FROM voucher_items_tbl WHERE voucher_id=$1 FOR UPDATE`, [id])).rows
-    if (action === "prepare") {
+    if (action === "prepare" || action === "readyAudit") {
       const preparedItems = Array.isArray(input.prepared_items) ? input.prepared_items : []
       for (const item of items) {
         const value = Number(preparedItems.find((candidate: any) => Number(candidate.id) === Number(item.id))?.prepared_quantity)
@@ -187,8 +194,9 @@ export async function processInternalManufacturingAction(id: number, action: Exc
       const receivedItems = Array.isArray(input.received_items) ? input.received_items : []
       for (const item of items) {
         const value = Number(receivedItems.find((candidate: any) => Number(candidate.id) === Number(item.id))?.received_quantity)
-        if (!Number.isFinite(value) || value < 0 || value > Number(item.qnty)) throw new Error("الكمية المستلمة غير صالحة")
+        if (!Number.isFinite(value) || value < 0 || value > 100000) throw new Error("الكمية المستلمة غير صالحة")
         await client.query(`UPDATE voucher_items_tbl SET received_quantity=$1 WHERE id=$2`, [value, item.id])
+        item.received_quantity = value
       }
     }
     const next = nextInternalManufacturingStatus(Number(request.internal_status) as InternalManufacturingStatus, settings, action)
@@ -198,21 +206,24 @@ export async function processInternalManufacturingAction(id: number, action: Exc
     if (action === "receive") {
       const currencyResult = await client.query("SELECT id FROM currency ORDER BY id ASC LIMIT 1")
       if (!currencyResult.rowCount) throw new Error("يجب تعريف عملة قبل اعتماد الارسالية الداخلية")
-      const priceCategoryResult = await client.query("SELECT id FROM pricecategory ORDER BY id ASC LIMIT 1")
+      const priceCategoryResult = await client.query("SELECT id FROM pricecategory ORDER BY CASE WHEN id = 1 THEN 0 ELSE 1 END, id ASC LIMIT 1")
       if (!priceCategoryResult.rowCount) throw new Error("يجب تعريف فئة سعر قبل اعتماد الارسالية الداخلية")
       const voucherBookId = 0
       const codePrefix = "T0"
       await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [codePrefix])
       const codeResult = await client.query("SELECT vch_code FROM voucher_header_tbl WHERE vch_type = 10 AND vch_code LIKE $1", [`${codePrefix}%`])
       const lastSerial = codeResult.rows.reduce((highest: number, row: any) => { const match = String(row.vch_code).match(/^T0(\d+)$/); return match ? Math.max(highest, Number(match[1])) : highest }, 0)
-      const transferCode = `${codePrefix}${String(lastSerial + 1).padStart(6, "0")}`
+      const nextSerial = lastSerial + 1
+      if (nextSerial > 99999999) throw new Error("تم تجاوز الحد الأقصى لأرقام الارساليات الداخلية")
+      const transferCode = `${codePrefix}${String(nextSerial).padStart(8, "0")}`
       for (const item of items) {
-        const priceResult = await client.query(`SELECT COALESCE(pp.price,0) AS price FROM product_prices pp WHERE pp.product_id=$1 AND pp.unit_id=COALESCE($2,(SELECT unit_id FROM product_units WHERE product_id=$1 ORDER BY id LIMIT 1)) AND pp.price_category_id=$3 ORDER BY pp.id LIMIT 1`, [item.item_id, item.unit_id || null, priceCategoryResult.rows[0].id])
+        const priceResult = await client.query(`SELECT pu.unit_id, COALESCE(pp_selected.price, pp_fallback.price, 0) AS price FROM product_units pu LEFT JOIN product_prices pp_selected ON pp_selected.product_id=pu.product_id AND pp_selected.unit_id=pu.unit_id AND pp_selected.price_category_id=$3 LEFT JOIN product_prices pp_fallback ON pp_fallback.product_id=pu.product_id AND pp_fallback.unit_id=pu.unit_id AND pp_fallback.price_category_id=1 WHERE pu.product_id=$1 AND ($2::int IS NULL OR pu.unit_id=$2) ORDER BY CASE WHEN $2::int IS NOT NULL AND pu.unit_id=$2 THEN 0 ELSE 1 END, pu.id LIMIT 1`, [item.item_id, item.unit_id || null, priceCategoryResult.rows[0].id])
+        item.unit_id = Number(priceResult.rows[0]?.unit_id || item.unit_id || 0) || null
         item.price = Number(priceResult.rows[0]?.price || 0)
       }
       const transferTotal = items.reduce((total: number, item: any) => total + Number(item.received_quantity || 0) * Number(item.price || 0), 0)
       const transfer = await client.query(`INSERT INTO voucher_header_tbl (vch_type,vch_code,vch_date,vch_book_id,currency_id,rate,branch_id,to_store_id,from_store_id,amount,status,vch_status,insert_user,internal_voucher_id,note) VALUES (10,$1,CURRENT_DATE,$2,$3,1,$4,$5,$6,$7,1,1,$8,$9,$10) RETURNING id`, [transferCode, voucherBookId, currencyResult.rows[0].id, request.branch_id, request.to_store_id || null, request.destination_warehouse_id || null, transferTotal, userId, id, `طلب بضاعة داخلي ${request.vch_code}`])
-      for (const item of items) await client.query(`INSERT INTO voucher_items_tbl (voucher_id,item_id,item_name,unit_id,store_id,qnty,price,barcode,item_properties) VALUES ($1,$2,$3,COALESCE($4,(SELECT unit_id FROM product_units WHERE product_id=$2 ORDER BY id LIMIT 1)),$5,$6,(SELECT COALESCE(pp.price,0) FROM product_prices pp WHERE pp.product_id=$2 AND pp.unit_id=COALESCE($4,(SELECT unit_id FROM product_units WHERE product_id=$2 ORDER BY id LIMIT 1)) AND pp.price_category_id=$7 ORDER BY pp.id LIMIT 1),$8,$9)`, [transfer.rows[0].id, item.item_id, item.item_name, item.unit_id, request.to_store_id || null, Number(item.received_quantity), priceCategoryResult.rows[0].id, item.barcode, item.item_properties ? JSON.stringify(item.item_properties) : null])
+      for (const item of items) await client.query(`INSERT INTO voucher_items_tbl (voucher_id,item_id,item_name,unit_id,store_id,qnty,price,barcode,item_properties) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`, [transfer.rows[0].id, item.item_id, item.item_name, item.unit_id, request.to_store_id || null, Number(item.received_quantity), Number(item.price || 0), item.barcode, item.item_properties ? JSON.stringify(item.item_properties) : null])
     }
     await client.query("COMMIT")
     return { status: next }

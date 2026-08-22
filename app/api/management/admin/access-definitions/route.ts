@@ -14,7 +14,7 @@ export async function GET() {
       SELECT al.id, al.name, al.category_id, ac.name AS category_name, al.created_at, al.updated_at
       FROM access_list al
       LEFT JOIN access_category ac ON ac.id = al.category_id
-      ORDER BY ac.id, al.id
+      ORDER BY ac.id, COALESCE(al.sort_order, 999999), al.id
     `
     return NextResponse.json(rows)
   } catch (error) {

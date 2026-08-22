@@ -724,6 +724,8 @@ export const fetchVoucherItems = async (voucherId: number) => {
       vi.item_id AS item_id,
       vi.item_name AS item_name,
       vi.unit_id,
+      COALESCE(u.unit_name, fallback_unit.unit_name, '') AS unit_name,
+      COALESCE(u.unit_name, fallback_unit.unit_name, '') AS unit,
       vi.qnty AS quantity,
       vi.bonus,
       vi.discount,
@@ -731,6 +733,7 @@ export const fetchVoucherItems = async (voucherId: number) => {
       vi.vat_amount,
       vi.vat_ratio,
       vi.price AS unit_price,
+      vi.price AS price,
       vi.note,
       vi.cost_price,
       vi.barcode,
@@ -759,6 +762,15 @@ export const fetchVoucherItems = async (voucherId: number) => {
       (vi.qnty * vi.price) AS line_amount
     FROM voucher_items_tbl vi
     LEFT JOIN products p ON p.id = vi.item_id
+    LEFT JOIN units u ON u.id = vi.unit_id
+    LEFT JOIN LATERAL (
+      SELECT fallback_u.unit_name
+      FROM product_units fallback_pu
+      JOIN units fallback_u ON fallback_u.id = fallback_pu.unit_id
+      WHERE fallback_pu.product_id = vi.item_id
+      ORDER BY fallback_pu.unit_id
+      LIMIT 1
+    ) fallback_unit ON true
     LEFT JOIN warehouses w ON w.id = vi.store_id
     WHERE vi.voucher_id = ${voucherId}
     ORDER BY vi.id

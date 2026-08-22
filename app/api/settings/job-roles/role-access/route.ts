@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
       LEFT JOIN role_branch_permissions rbp
         ON rbp.access_id = al.id AND rbp.role_id = ${roleId} AND rbp.branch_id = ${branchId}
       LEFT JOIN role_permissions rp ON rp.access_id = al.id AND rp.role_id = ${roleId}
-      ORDER BY ac.id, al.id
+      ORDER BY ac.id, COALESCE(al.sort_order, 999999), al.id
     `
 
     return NextResponse.json(rows)

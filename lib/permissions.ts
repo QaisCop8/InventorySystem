@@ -44,6 +44,14 @@ export function ensurePermissionTables(dbName: string): Promise<void> {
         [],
       )
       await client.query(
+        `ALTER TABLE access_list ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`,
+        [],
+      )
+      await client.query(
+        `ALTER TABLE access_list ADD COLUMN IF NOT EXISTS sort_order INTEGER`,
+        [],
+      )
+      await client.query(
         `CREATE TABLE IF NOT EXISTS job_roles (
           id SERIAL PRIMARY KEY,
           name VARCHAR(100) NOT NULL,

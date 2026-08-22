@@ -56,6 +56,7 @@ export interface VoucherItemRow {
   barcode: string
   warehouse_id: number | null
   warehouse_name: string
+  unit_id?: number | null
   unit: string
   quantity: number | null
   unit_price: number | null
@@ -954,17 +955,48 @@ export default function UnifiedStockVoucher({
 
   const openAttributeEditor = async (rowIndex: number) => {
     const row = itemsRef.current[rowIndex]
-    if (!row?.product_id || !Array.isArray(row.attributes) || row.attributes.length === 0) return
-    const savedSelection = row.selected_attributes && Object.keys(row.selected_attributes).length > 0
+    if (!row?.product_id) return
+    const productId = row.product_id
+    const existingSelection = row.selected_attributes && Object.keys(row.selected_attributes).length > 0
       ? row.selected_attributes
-      : row.attributes.reduce<Record<string, string>>((selection, attribute) => {
-          const source = row.product_name || row.item_name || ""
+      : (row.attributes || []).reduce<Record<string, string>>((selection, attribute) => {
+          const source = row.attribute_summary || row.product_name || ""
+          const value = attribute.values.find((candidate) => source.includes(`${attribute.name}: ${candidate}`))
+          if (value) selection[attribute.name] = value
+          return selection
+        }, {})
+    let product = row
+    if (!Array.isArray(product.attributes) || product.attributes.length === 0) {
+      try {
+        const response = await fetch(`/api/inventory/products?productId=${productId}`)
+        const products = response.ok ? await response.json() : []
+        const fetchedProduct = Array.isArray(products) ? products[0] : null
+        if (fetchedProduct) {
+          product = {
+            ...row,
+            ...fetchedProduct,
+            product_id: productId,
+            product_name: row.product_name,
+            selected_attributes: Object.keys(existingSelection).length > 0
+              ? existingSelection
+              : fetchedProduct.selected_attributes,
+          }
+        }
+      } catch (error) {
+        console.error("Failed to load product attributes", error)
+      }
+    }
+    if (!Array.isArray(product.attributes) || product.attributes.length === 0) return
+    const savedSelection = Object.keys(existingSelection).length > 0
+      ? existingSelection
+      : product.attributes.reduce<Record<string, string>>((selection, attribute) => {
+          const source = row.attribute_summary || row.product_name || ""
           const value = attribute.values.find((candidate) => source.includes(`${attribute.name}: ${candidate}`))
           if (value) selection[attribute.name] = value
           return selection
         }, {})
     const editable = form.id === 0 || form.status === 1
-    const selected = await requestProductVariant({ ...row, id: row.product_id, product_name: row.base_product_name || row.product_name, selected_attributes: savedSelection }, { forceEdit: true, readOnly: !editable })
+    const selected = await requestProductVariant({ ...product, id: productId, product_name: product.base_product_name || product.product_name, selected_attributes: savedSelection }, { forceEdit: true, readOnly: !editable })
     if (selected && editable) {
       patchItemRow(rowIndex, {
         product_name: selected.product_name || row.product_name,
@@ -1615,7 +1647,6 @@ export default function UnifiedStockVoucher({
     }
     itemsRef.current = nextRows
     onItemsChange(nextRows)
-    requestAnimationFrame(refreshItemsGrid)
     // الوجهة التالية بعد اختيار صنف تعتمد على نوع قياسه: عادي (1) ⇐ الكمية كالمعتاد، غير ذلك ⇐ أول
     // عمود بُعد يحتاجه فعلياً (بترتيب طول←عرض←ارتفاع←عدد، متخطّياً غير المطلوب منها) — نفس منطق
     // findNextRelevantFieldIndex المستخدَم بتنقّل Tab/Enter، مطبَّقاً هنا لحظة اختيار الصنف مباشرة.
@@ -1788,7 +1819,7 @@ export default function UnifiedStockVoucher({
           // أدناه (isReadOnly هنا خاصية عمود ثابتة لا تفرّق بين الأسطر، فلا تكفي وحدها إذ قد تختلف
           // أنواع القياس بين أسطر نفس السند).
         },
-        { header: "السعر", name: "price", width: 100, dataType: wjcCore.DataType.Number, visible: Util.getVoucherSettingScreenData(voucherType, "price") },
+        { header: "السعر", name: "unit_price", width: 100, dataType: wjcCore.DataType.Number, visible: Util.getVoucherSettingScreenData(voucherType, "price") },
         { header: "المبلغ", name: "total_price", width: 110, dataType: wjcCore.DataType.Number, isReadOnly: false },
         {
           header: "الرقم التشغيلي",
@@ -2147,8 +2178,9 @@ export default function UnifiedStockVoucher({
           canPrint={form.id > 0}
           canClone={form.id > 0}
           canDelete={form.id > 0 && form.status !== 3}
-          isFirstRecord={isFirstRecord}
-          isLastRecord={isLastRecord}
+          isFirstRecord={form.id === 0 ? totalRecords === 0 : isFirstRecord}
+          isLastRecord={form.id === 0 ? totalRecords === 0 : isLastRecord}
+          isNewRecord={form.id === 0}
         />
 
         <div

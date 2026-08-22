@@ -153,6 +153,19 @@ export function ensureManagementTables(): Promise<void> {
           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
       `
+      await sql`ALTER TABLE access_list ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`
+      await sql`ALTER TABLE access_list ADD COLUMN IF NOT EXISTS sort_order INTEGER`
+      await sql`DELETE FROM access_list WHERE name IN ('استلام طلب الصناعة', 'تدقيق الصناعة', 'استلام الصناعة من الفرع')`
+      await sql`UPDATE access_list SET sort_order = CASE name
+        WHEN 'إنشاء طلب بضاعة داخلي' THEN 1
+        WHEN 'تدقيق طلب البضاعة' THEN 2
+        WHEN 'تجهيز طلبات البضاعة الداخلية' THEN 3
+        WHEN 'تدقيق الطلبات الجاهزة' THEN 4
+        WHEN 'إرسال طلبات البضاعة' THEN 5
+        WHEN 'استلام طلبات البضاعة' THEN 6
+        WHEN 'تدقيق البضاعة المستلمة' THEN 7
+        ELSE sort_order END
+        WHERE name IN ('إنشاء طلب بضاعة داخلي', 'تدقيق طلب البضاعة', 'تجهيز طلبات البضاعة الداخلية', 'تدقيق الطلبات الجاهزة', 'إرسال طلبات البضاعة', 'استلام طلبات البضاعة', 'تدقيق البضاعة المستلمة')`
       // مجهود أفضل (best effort): هذا استيراد لمرة واحدة من قاعدة مرجعية خارجية قد لا تملك الجداول
       // المتوقعة أو يتعذّر الاتصال بها — فشله يجب ألّا يُسقِط إنشاء جداول الإدارة نفسها، وإلا ستفشل
       // كل عملية تعتمد على ensureManagementTables (مثل إضافة صلاحية جديدة من "تعريف الصلاحيات")
