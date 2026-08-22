@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -9,7 +9,7 @@ import { CheckCircle2, Edit, FileText, GripVertical, RefreshCw, Save } from "luc
 import { useAuth } from "@/components/auth/auth-context"
 
 type Request = { id: number; vch_code: string; vch_date: string; branch_id: number; manufacturing_branch_id: number; to_store_id: number | null; destination_warehouse_id: number | null; requester_name?: string; items?: any[] }
-type Stage = { title: string; status: number; action: string; preparation?: boolean }
+type Stage = { title: string; status: number; action: string; preparation?: boolean; receiving?: boolean; finalAudit?: boolean }
 
 export default function InternalWorkflowStagePageV2({ stage }: { stage: Stage }) {
   const { activeBranchId } = useAuth()
@@ -22,6 +22,7 @@ export default function InternalWorkflowStagePageV2({ stage }: { stage: Stage })
   const [popupMessage, setPopupMessage] = useState("")
   const [saving, setSaving] = useState(false)
   const [draggedId, setDraggedId] = useState<number | null>(null)
+  const preparedQuantityRef = useRef<HTMLInputElement | null>(null)
 
   const branchName = (id: number) => branches.find((branch) => Number(branch.id) === Number(id))?.branch_name || String(id)
   const warehouseName = (id: number | null) => warehouses.find((warehouse) => Number(warehouse.id) === Number(id))?.warehouse_name || "-"
@@ -31,13 +32,25 @@ export default function InternalWorkflowStagePageV2({ stage }: { stage: Stage })
     setRequests(response.ok && Array.isArray(data) ? data : [])
   }
   useEffect(() => { void load(); Promise.all([fetch("/api/branches"), fetch("/api/warehouses")]).then(async ([branchesResponse, warehousesResponse]) => { setBranches(await branchesResponse.json()); setWarehouses(await warehousesResponse.json()) }) }, [activeBranchId, stage.status])
-  const openRequest = (request: Request) => { setSelected(request); setPopupMessage(""); setItems((request.items || []).map((item) => ({ ...item, editableQuantity: stage.preparation ? (Number(item.prepared_quantity) > 0 ? Number(item.prepared_quantity) : Number(item.qnty)) : Number(item.qnty) }))) }
+  const openRequest = (request: Request) => { setSelected(request); setPopupMessage(""); setItems((request.items || []).map((item) => ({ ...item, editableQuantity: stage.preparation ? (Number(item.prepared_quantity) > 0 ? Number(item.prepared_quantity) : Number(item.qnty)) : Number(item.qnty), editableReceivedQuantity: (stage.receiving || stage.finalAudit) ? (Number(item.received_quantity) > 0 ? Number(item.received_quantity) : Number(item.prepared_quantity || item.qnty)) : Number(item.received_quantity || 0) }))) }
+  useEffect(() => {
+    if (!selected || !stage.preparation) return
+    requestAnimationFrame(() => {
+      preparedQuantityRef.current?.focus()
+      document.querySelector<HTMLInputElement>('input[aria-label="الكمية المجهزة"]')?.focus()
+    })
+  }, [selected, stage.preparation])
   const dropRequest = () => { const request = requests.find((item) => item.id === draggedId); if (request) openRequest(request); setDraggedId(null) }
   const complete = async () => {
     if (!selected) return
+    if ((stage.receiving || stage.finalAudit) && items.some((item) => !Number.isFinite(Number(item.editableReceivedQuantity)) || Number(item.editableReceivedQuantity) < 0 || Number(item.editableReceivedQuantity) > 100000)) { setPopupMessage("الكمية المستلمة يجب أن تكون بين 0 و100000"); return }
+    if (stage.preparation && items.some((item) => !Number.isFinite(Number(item.editableQuantity)) || Number(item.editableQuantity) < 0 || Number(item.editableQuantity) > 100000)) {
+      setPopupMessage("الكمية المجهزة يجب أن تكون بين 0 و100000")
+      return
+    }
     setSaving(true)
     try {
-      const body = stage.preparation ? { action: "prepare", prepared_items: items.map((item) => ({ id: item.id, prepared_quantity: Number(item.editableQuantity) })) } : { action: stage.action, branch_id: selected.branch_id }
+      const body = stage.preparation ? { action: "prepare", prepared_items: items.map((item) => ({ id: item.id, prepared_quantity: Number(item.editableQuantity) })) } : stage.receiving ? { action: "receive", received_items: items.map((item) => ({ id: item.id, received_quantity: Number(item.editableReceivedQuantity) })) } : stage.finalAudit ? { action: "receivedAudit", received_items: items.map((item) => ({ id: item.id, received_quantity: Number(item.editableReceivedQuantity) })) } : { action: stage.action, branch_id: selected.branch_id }
       const response = await fetch(`/api/internal-manufacturing-requests/${selected.id}/actions`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
       const data = await response.json()
       if (!response.ok) { setPopupMessage(data.error || "تعذر اعتماد الطلب"); return }

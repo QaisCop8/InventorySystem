@@ -14,6 +14,7 @@ import { useAuth } from "@/components/auth/auth-context"
 import { useToast } from "@/hooks/use-toast"
 import InternalRequestAuditPage from "./internal-request-audit-page-v2"
 import InternalWorkflowStagePage from "./internal-workflow-stage-page-v2"
+import InternalReceiveStagePage from "./internal-receive-stage-page"
 
 type PageKind = "settings" | "request" | "requestAudit" | "preparation" | "readyAudit" | "send" | "receive" | "receivedAudit" | "receiveManufacturing"
 type Stage = { key: Exclude<PageKind, "settings" | "request">; title: string; status: number; action: string }
@@ -218,8 +219,8 @@ export const InternalManufacturingRequestAuditPage = InternalRequestAuditPage
 export const InternalManufacturingPreparationPage = () => <InternalWorkflowStagePage stage={{ ...stages[1], preparation: true }} />
 export const InternalManufacturingReadyAuditPage = () => <InternalWorkflowStagePage stage={stages[2]} />
 export const InternalManufacturingSendPage = () => <InternalWorkflowStagePage stage={stages[3]} />
-export const InternalManufacturingReceivePage = () => <InternalWorkflowStagePage stage={stages[4]} />
-export const InternalManufacturingReceivedAuditPage = () => <InternalWorkflowStagePage stage={stages[5]} />
+export const InternalManufacturingReceivePage = () => <InternalReceiveStagePage stage={{ title: stages[4].title, status: stages[4].status, action: "receive" }} />
+export const InternalManufacturingReceivedAuditPage = () => <InternalReceiveStagePage stage={{ title: stages[5].title, status: stages[5].status, action: "receivedAudit" }} />
 // Compatibility aliases for tabs saved before the workflow stage names were changed.
 export const InternalManufacturingReceiveRequestPage = InternalManufacturingPreparationPage
 export const InternalManufacturingAuditPage = InternalManufacturingReadyAuditPage

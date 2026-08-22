@@ -91,7 +91,7 @@ export default function InternalRequestPage() {
     const product = products[0]
     if (!product) return
     const unit = product.selected_unit || product.units?.[0]
-    setItems((current) => [...current, { product_id: product.id, product_name: product.product_name, unit_id: unit?.unit_id, quantity: 1 }])
+    setItems((current) => [...current, { product_id: product.id, product_name: product.product_name, unit_id: unit?.unit_id, quantity: 1, properties: product.properties || product.features || product.attributes || null }])
     setProductOpen(false)
   }
   const saveRequest = async () => {
