@@ -191,6 +191,7 @@ export function InternalManufacturingRequestPage() {
       <Button onClick={openNewRequest}><Plus className="ml-2 h-4 w-4" />إضافة طلب داخلي</Button>
     </div>
     {message && <div className="rounded border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">{message}</div>}
+    <Messages innerRef={requestMessagesRef} />
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
       {requests.map((request) => {
         const isNew = Number(request.internal_status) === 1
