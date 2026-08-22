@@ -31,13 +31,13 @@ export async function GET(request: NextRequest) {
           SELECT id, branch_code, branch_name, bank_id, address, manager, phone, status
           FROM branches
           WHERE status != 3 AND bank_id = ${bankId}
-          ORDER BY branch_code ASC
+          ORDER BY id ASC
         `
       : await sql`
           SELECT id, branch_code, branch_name, bank_id, address, manager, phone, status
           FROM branches
           WHERE status != 3
-          ORDER BY branch_code ASC
+          ORDER BY id ASC
         `
 
     return NextResponse.json(branches)

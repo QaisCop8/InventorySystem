@@ -97,14 +97,16 @@ export function nextInternalManufacturingStatus(current: InternalManufacturingSt
 }
 
 export async function listInternalManufacturingRequests(status?: number) {
-  const rows = await sql`SELECT * FROM voucher_header_tbl WHERE vch_type = 20 AND status <> 3 ${status ? sql`AND internal_status = ${status}` : sql``} ORDER BY id DESC`
+  const rows = await sql`SELECT voucher_header_tbl.*, requester.full_name AS requester_name FROM voucher_header_tbl LEFT JOIN user_settings requester ON requester.user_id = CAST(voucher_header_tbl.insert_user AS TEXT) WHERE voucher_header_tbl.vch_type = 20 AND voucher_header_tbl.status <> 3 ${status ? sql`AND voucher_header_tbl.internal_status = ${status}` : sql``} ORDER BY voucher_header_tbl.id DESC`
   for (const row of rows) row.items = await sql`SELECT * FROM voucher_items_tbl WHERE voucher_id = ${row.id} ORDER BY id`
   return rows
 }
 
 export async function createInternalManufacturingRequest(input: any, userId: number) {
   const items = Array.isArray(input.items) ? input.items.filter((item: any) => Number(item.product_id) > 0 && Number(item.quantity) > 0) : []
-  if (!Number(input.branch_id) || !Number(input.manufacturing_branch_id) || !items.length) throw new Error("بيانات طلب الصناعة غير مكتملة")
+  if (!Number(input.branch_id)) throw new Error("يجب تحديد فرع مقدم الطلب")
+  if (!Number(input.manufacturing_branch_id)) throw new Error("يجب اختيار الفرع المطلوب منه البضاعة")
+  if (!items.length) throw new Error("يجب اضافة صنف واحد على الأقل")
   if (!Number(input.source_warehouse_id) || !Number(input.destination_warehouse_id)) throw new Error("يجب اختيار مستودع مقدم الطلب والمستودع المطلوب منه البضاعة")
   if (Number(input.source_warehouse_id) === Number(input.destination_warehouse_id)) throw new Error("لا يمكن أن يكون نفس المستودع")
   const settings = await getInternalManufacturingSettings()
@@ -141,6 +143,14 @@ export async function processInternalManufacturingAction(id: number, action: Exc
     if (!result.rowCount || Number(result.rows[0].internal_status) !== expected[action]) throw new Error("الطلب غير موجود أو ليس في المرحلة المطلوبة")
     const request = result.rows[0]
     const items = (await client.query(`SELECT * FROM voucher_items_tbl WHERE voucher_id=$1 FOR UPDATE`, [id])).rows
+    if (action === "prepare") {
+      const preparedItems = Array.isArray(input.prepared_items) ? input.prepared_items : []
+      for (const item of items) {
+        const value = Number(preparedItems.find((candidate: any) => Number(candidate.id) === Number(item.id))?.prepared_quantity)
+        if (!Number.isFinite(value) || value < 0 || value > Number(item.qnty)) throw new Error("الكمية المجهزة غير صالحة")
+        await client.query(`UPDATE voucher_items_tbl SET prepared_quantity=$1 WHERE id=$2`, [value, item.id])
+      }
+    }
     if (action === "receive") {
       const receivedItems = Array.isArray(input.received_items) ? input.received_items : []
       for (const item of items) {
@@ -159,5 +169,34 @@ export async function processInternalManufacturingAction(id: number, action: Exc
     }
     await client.query("COMMIT")
     return { status: next }
+  } catch (error) { await client.query("ROLLBACK"); throw error } finally { client.release() }
+}
+
+export function canEditInternalManufacturingRequest(status: number, settings: InternalManufacturingSettings) {
+  return status === INTERNAL_MANUFACTURING_STATUS.RequestAudit || (!settings.requestAudit && status === INTERNAL_MANUFACTURING_STATUS.Preparation)
+}
+
+export async function updateInternalManufacturingRequest(id: number, input: any, userId: number) {
+  const items = Array.isArray(input.items) ? input.items.filter((item: any) => Number(item.product_id) > 0 && Number(item.quantity) > 0) : []
+  if (!Number(input.branch_id)) throw new Error("يجب تحديد فرع مقدم الطلب")
+  if (!Number(input.manufacturing_branch_id)) throw new Error("يجب اختيار الفرع المطلوب منه البضاعة")
+  if (!items.length) throw new Error("يجب اضافة صنف واحد على الأقل")
+  if (!Number(input.source_warehouse_id)) throw new Error("يجب اختيار مستودع مقدم الطلب")
+  if (!Number(input.destination_warehouse_id)) throw new Error("يجب اختيار المستودع المطلوب منه البضاعة")
+  if (Number(input.source_warehouse_id) === Number(input.destination_warehouse_id)) throw new Error("لا يمكن أن يكون نفس المستودع")
+  const settings = await getInternalManufacturingSettings()
+  const client = await (await getTenantPool()).connect()
+  try {
+    await client.query("BEGIN")
+    const result = await client.query("SELECT branch_id, internal_status FROM voucher_header_tbl WHERE id=$1 AND vch_type=20 AND status<>3 FOR UPDATE", [id])
+    if (!result.rowCount) throw new Error("الطلب غير موجود")
+    const request = result.rows[0]
+    if (!canEditInternalManufacturingRequest(Number(request.internal_status), settings)) throw new Error("لا يمكن تعديل طلب بدأ سيره")
+    if (Number(request.branch_id) !== Number(input.branch_id)) throw new Error("فرع مقدم الطلب غير مطابق")
+    await client.query("UPDATE voucher_header_tbl SET vch_date=$1, to_store_id=$2, manufacturing_branch_id=$3, destination_warehouse_id=$4, update_user=$5, last_update_date=CURRENT_TIMESTAMP WHERE id=$6", [input.vch_date, input.source_warehouse_id, input.manufacturing_branch_id, input.destination_warehouse_id, userId, id])
+    await client.query("DELETE FROM voucher_items_tbl WHERE voucher_id=$1", [id])
+    for (const item of items) await client.query("INSERT INTO voucher_items_tbl (voucher_id,item_id,item_name,unit_id,store_id,qnty,barcode,free_quantity,received_quantity,prepared_quantity) VALUES ($1,$2,$3,$4,$5,$6,$7,0,0,0)", [id, item.product_id, item.product_name || null, item.unit_id || null, input.destination_warehouse_id, Number(item.quantity), item.barcode || null])
+    await client.query("COMMIT")
+    return { success: true }
   } catch (error) { await client.query("ROLLBACK"); throw error } finally { client.release() }
 }

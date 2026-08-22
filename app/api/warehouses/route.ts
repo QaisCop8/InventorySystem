@@ -66,7 +66,7 @@ export async function GET() {
         updated_at
       FROM warehouses
       WHERE status != 3
-      ORDER BY warehouse_code ASC
+      ORDER BY id ASC
     `
 
     return NextResponse.json(warehouses.map((w: Warehouse) => ({ ...w, name: w.warehouse_name })))

@@ -7,5 +7,5 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  try { await ensureInternalManufacturingTables(); const user = await getSessionUser(request); if (!user) return NextResponse.json({ error: "يجب تسجيل الدخول" }, { status: 401 }); const input = await request.json(); await authorizeInternalManufacturing(user.user_id, Number(input.manufacturing_branch_id), "create"); return NextResponse.json(await createInternalManufacturingRequest(input, Number(user.user_id)), { status: 201 }) } catch (error: any) { return NextResponse.json({ error: error.message }, { status: 400 }) }
+  try { await ensureInternalManufacturingTables(); const user = await getSessionUser(request); if (!user) return NextResponse.json({ error: "يجب تسجيل الدخول" }, { status: 401 }); const input = await request.json(); await authorizeInternalManufacturing(user.user_id, Number(input.branch_id), "create"); return NextResponse.json(await createInternalManufacturingRequest(input, Number(user.user_id)), { status: 201 }) } catch (error: any) { return NextResponse.json({ error: error.message }, { status: 400 }) }
 }

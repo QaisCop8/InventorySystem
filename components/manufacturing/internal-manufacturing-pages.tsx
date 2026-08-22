@@ -12,6 +12,8 @@ import { CalendarDays, CheckCircle2, ClipboardCheck, FileText, GripVertical, Plu
 import ProductSearchPopup from "@/components/products/ProductSearchPopup"
 import { useAuth } from "@/components/auth/auth-context"
 import { useToast } from "@/hooks/use-toast"
+import InternalRequestAuditPage from "./internal-request-audit-page"
+import InternalWorkflowStagePage from "./internal-workflow-stage-page"
 
 type PageKind = "settings" | "request" | "requestAudit" | "preparation" | "readyAudit" | "send" | "receive" | "receivedAudit" | "receiveManufacturing"
 type Stage = { key: Exclude<PageKind, "settings" | "request">; title: string; status: number; action: string }
@@ -40,7 +42,7 @@ function StageBoard({ stage }: { stage: Stage }) {
   return <div dir="rtl" className="space-y-5 p-3 md:p-6"><div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"><div><h1 className="text-2xl font-bold">{stage.title}</h1><p className="mt-1 text-sm text-muted-foreground">اسحب الطلب إلى منطقة الاعتماد أو افتحه للمراجعة.</p></div><Button variant="outline" onClick={() => void load()} disabled={loading}><RefreshCw className={`ml-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />تحديث</Button></div>{message && <div className="rounded border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">{message}</div>}<div className="grid gap-6 lg:grid-cols-2"><section className="min-h-[460px] rounded-xl border bg-muted/30 p-4"><h2 className="mb-4 font-bold">الطلبات بانتظار المعالجة ({requests.length})</h2><div className="grid gap-3 sm:grid-cols-2">{!loading && requests.map((request) => <RequestCard key={request.id} request={request} onOpen={() => setSelected(request)} />)}</div>{!loading && requests.length === 0 && <div className="py-16 text-center text-sm text-muted-foreground"><FileText className="mx-auto mb-3 h-10 w-10" />لا توجد طلبات في هذه المرحلة</div>}</section><section onDragOver={(event) => event.preventDefault()} onDrop={(event) => { const request = requests.find((item) => item.id === Number(event.dataTransfer.getData("request"))); if (request) setSelected(request) }} className="flex min-h-[460px] items-center justify-center rounded-xl border-2 border-dashed border-emerald-400 bg-emerald-50/40 p-6 text-center"><div><CheckCircle2 className="mx-auto mb-3 h-14 w-14 text-emerald-600" /><h2 className="text-xl font-bold">اسحب الطلب هنا للاعتماد</h2><p className="text-muted-foreground">ستتم معالجة الطلب بعد مراجعة بياناته.</p></div></section></div>{selected && <Dialog open={!!selected} onOpenChange={(open) => !open && setSelected(null)}><DialogContent dir="rtl" className="max-h-[90vh] max-w-4xl overflow-y-auto"><DialogHeader><DialogTitle>مراجعة {selected.vch_code}</DialogTitle></DialogHeader><div className="space-y-5"><div className="grid gap-3 rounded border p-4 text-sm md:grid-cols-3"><div>فرع مقدم الطلب: <b>{selected.branch_id}</b></div><div>فرع البضاعة: <b>{selected.manufacturing_branch_id}</b></div><div>التاريخ: <b>{selected.vch_date}</b></div></div><div className="overflow-x-auto rounded border"><table className="w-full min-w-[620px] text-sm"><thead className="bg-muted/60"><tr><th className="p-3 text-right">الصنف</th><th className="p-3 text-right">الكمية الأصلية</th><th className="p-3 text-right">الكمية الحرة</th><th className="p-3 text-right">الكمية المستلمة</th></tr></thead><tbody>{selected.items?.map((item: any) => <tr className="border-t" key={item.id}><td className="p-3">{item.item_name}</td><td className="p-3">{item.qnty}</td><td className="p-3">{item.free_quantity || 0}</td><td className="p-3">{stage.key === "receiveManufacturing" ? <Input type="number" min="0" max={item.qnty} value={item.received_quantity || ""} onChange={(event) => { item.received_quantity = Number(event.target.value); setSelected({ ...selected }) }} placeholder="أدخل الكمية" /> : item.received_quantity || 0}</td></tr>)}</tbody></table></div><Button className="w-full" onClick={() => complete({ ...selected, received_items: selected.items?.map((item: any) => ({ id: item.id, received_quantity: Number(item.received_quantity) })) })}><CheckCircle2 className="ml-2 h-4 w-4" />اعتماد المرحلة</Button></div></DialogContent></Dialog>}</div>
 }
 
-function LegacyInternalManufacturingRequestPage() {
+function LegacyInternalManufacturingOldRequestPage() {
   const { activeBranchId, user, hasPermission } = useAuth()
   const [branches, setBranches] = useState<any[]>([])
   const [warehouses, setWarehouses] = useState<any[]>([])
@@ -102,7 +104,7 @@ type InternalRequestCard = {
   items?: any[]
 }
 
-export function InternalManufacturingRequestPage() {
+function LegacyInternalManufacturingRequestPage() {
   const { activeBranchId } = useAuth()
   const [requests, setRequests] = useState<InternalRequestCard[]>([])
   const [branches, setBranches] = useState<any[]>([])
@@ -191,7 +193,6 @@ export function InternalManufacturingRequestPage() {
       <Button onClick={openNewRequest}><Plus className="ml-2 h-4 w-4" />إضافة طلب داخلي</Button>
     </div>
     {message && <div className="rounded border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">{message}</div>}
-    <Messages innerRef={requestMessagesRef} />
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
       {requests.map((request) => {
         const isNew = Number(request.internal_status) === 1
@@ -209,14 +210,15 @@ export function InternalManufacturingRequestPage() {
 }
 export function InternalManufacturingSettingsPage() { const [settings, setSettings] = useState({ requestAudit: true, preparation: true, readyAudit: true, send: true, receive: true, receivedAudit: true }); const [saved, setSaved] = useState(false); const { toast } = useToast(); useEffect(() => { fetch("/api/internal-manufacturing-requests/settings").then((response) => response.json()).then((data) => setSettings((current) => ({ ...current, ...data }))) }, []); const saveSettings = async () => { try { const response = await fetch("/api/internal-manufacturing-requests/settings", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(settings) }); if (!response.ok) throw new Error("تعذر حفظ الإعدادات"); setSaved(true); toast({ title: "تمت العملية بنجاح", description: "تم حفظ إعدادات طلب بضاعة داخلي" }); } catch (error: any) { toast({ title: "فشل الحفظ", description: error.message || "تعذر حفظ الإعدادات", variant: "destructive", }); } }; const stages = [{ key: "requestAudit", label: "تدقيق طلب البضاعة", mandatory: false }, { key: "preparation", label: "تجهيز الطلبات", mandatory: true }, { key: "readyAudit", label: "تدقيق الطلبات الجاهزة", mandatory: false }, { key: "send", label: "إرسال الطلبات", mandatory: false }, { key: "receive", label: "استلام الطلبات", mandatory: true }, { key: "receivedAudit", label: "تدقيق البضاعة المستلمة", mandatory: false }] as const; return <div dir="rtl" className="space-y-5 p-3 md:p-6"><h1 className="text-2xl font-bold">إعدادات طلب بضاعة داخلي</h1><Card><CardHeader><CardTitle>مراحل سير الطلب</CardTitle></CardHeader><CardContent className="space-y-3"><div className="flex justify-between rounded border p-3"><span>طلب بضاعة داخلي</span><Badge>إجباري</Badge></div>{stages.map(({ key, label, mandatory }) => <label key={key} className="flex justify-between rounded border p-3"><span>{label}</span>{mandatory ? <Badge>إجباري</Badge> : <input type="checkbox" checked={settings[key]} onChange={(event) => setSettings({ ...settings, [key]: event.target.checked })} />}</label>)}<Button onClick={saveSettings}>حفظ الإعدادات</Button>{saved && <span className="mr-3 text-sm text-emerald-700">تم الحفظ</span>}</CardContent></Card></div> }
 
-export const InternalManufacturingDraftPage = InternalManufacturingRequestPage
+export { default as InternalManufacturingRequestPage } from "./internal-request-page"
+export const InternalManufacturingDraftPage = LegacyInternalManufacturingRequestPage
 export const InternalManufacturingConfirmationPage = () => <StageBoard stage={stages[0]} />
-export const InternalManufacturingRequestAuditPage = () => <StageBoard stage={stages[0]} />
-export const InternalManufacturingPreparationPage = () => <StageBoard stage={stages[1]} />
-export const InternalManufacturingReadyAuditPage = () => <StageBoard stage={stages[2]} />
-export const InternalManufacturingSendPage = () => <StageBoard stage={stages[3]} />
-export const InternalManufacturingReceivePage = () => <StageBoard stage={stages[4]} />
-export const InternalManufacturingReceivedAuditPage = () => <StageBoard stage={stages[5]} />
+export const InternalManufacturingRequestAuditPage = InternalRequestAuditPage
+export const InternalManufacturingPreparationPage = () => <InternalWorkflowStagePage stage={{ ...stages[1], preparation: true }} />
+export const InternalManufacturingReadyAuditPage = () => <InternalWorkflowStagePage stage={stages[2]} />
+export const InternalManufacturingSendPage = () => <InternalWorkflowStagePage stage={stages[3]} />
+export const InternalManufacturingReceivePage = () => <InternalWorkflowStagePage stage={stages[4]} />
+export const InternalManufacturingReceivedAuditPage = () => <InternalWorkflowStagePage stage={stages[5]} />
 // Compatibility aliases for tabs saved before the workflow stage names were changed.
 export const InternalManufacturingReceiveRequestPage = InternalManufacturingPreparationPage
 export const InternalManufacturingAuditPage = InternalManufacturingReadyAuditPage

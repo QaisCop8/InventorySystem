@@ -40,11 +40,12 @@ interface Product {
 }
 
 interface ProductSearchPopupProps {
-  visible: boolean;
+  visible?: boolean;
+  open?: boolean;
   onClose: () => void;
   onSelect: (products: Product[]) => void;
-  priceCategoryId: number;
-  ShowSelect: boolean;
+  priceCategoryId?: number;
+  ShowSelect?: boolean;
   searchText?: string;
   productTypes?: number[];
   title?: string;
@@ -58,7 +59,8 @@ const productImageCellTemplate = (cell: any) => {
     : <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-lg border bg-slate-50 text-[10px] text-slate-400">لا صورة</div>
 }
 
-const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClose, onSelect, priceCategoryId, ShowSelect, searchText = "", productTypes, title }) => {
+const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibleProp, open, onClose, onSelect, priceCategoryId = 0, ShowSelect = false, searchText = "", productTypes, title }) => {
+  const visible = visibleProp ?? open ?? false;
   const [products, setProducts] = useState<Product[]>([]);
   const [searchCode, setSearchCode] = useState("");
   const [searchName, setSearchName] = useState("");
