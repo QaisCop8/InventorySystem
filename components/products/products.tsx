@@ -317,6 +317,12 @@ export function Products({ entityType = "products" }: ProductsProps) {
   }, [state.products])
 
   useEffect(() => {
+    if (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("new") === "1") {
+      setState((prev) => ({ ...prev, showDialog: true, editingProduct: null, formData: initialFormData }))
+    }
+  }, [])
+
+  useEffect(() => {
     fetchProducts()
     fetchDefinitions()
   }, [])

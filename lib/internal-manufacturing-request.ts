@@ -21,12 +21,14 @@ export type InternalManufacturingAction = "create" | "requestAudit" | "prepare" 
 
 export type InternalManufacturingSettings = {
   requestAudit: boolean
-  manufacturingAudit: boolean
+  preparation: boolean
+  readyAudit: boolean
   send: boolean
-  receiveManufacturing: boolean
+  receive: boolean
+  receivedAudit: boolean
 }
 
-const DEFAULT_SETTINGS: InternalManufacturingSettings = { requestAudit: true, manufacturingAudit: true, send: true, receiveManufacturing: true }
+const DEFAULT_SETTINGS: InternalManufacturingSettings = { requestAudit: true, preparation: true, readyAudit: true, send: true, receive: true, receivedAudit: true }
 const ACTION_PERMISSIONS: Record<InternalManufacturingAction, string> = {
   create: "إنشاء طلب صناعة داخلي",
   requestAudit: "تدقيق طلب الصناعة",
@@ -46,6 +48,7 @@ export async function ensureInternalManufacturingTables() {
   await sql`ALTER TABLE voucher_header_tbl ADD COLUMN IF NOT EXISTS internal_status INTEGER DEFAULT 1`
   await sql`ALTER TABLE voucher_header_tbl ADD COLUMN IF NOT EXISTS manufacturing_branch_id INTEGER`
   await sql`ALTER TABLE voucher_header_tbl ADD COLUMN IF NOT EXISTS destination_warehouse_id INTEGER`
+  await sql`ALTER TABLE voucher_header_tbl ADD COLUMN IF NOT EXISTS to_branch_id INTEGER`
   await sql`ALTER TABLE voucher_items_tbl ADD COLUMN IF NOT EXISTS free_quantity DOUBLE PRECISION DEFAULT 0`
   await sql`ALTER TABLE voucher_items_tbl ADD COLUMN IF NOT EXISTS received_quantity DOUBLE PRECISION DEFAULT 0`
   await sql`ALTER TABLE voucher_items_tbl ADD COLUMN IF NOT EXISTS prepared_quantity DOUBLE PRECISION DEFAULT 0`
@@ -85,10 +88,10 @@ export async function saveInternalManufacturingSettings(value: Partial<InternalM
 export function nextInternalManufacturingStatus(current: InternalManufacturingStatus, settings: InternalManufacturingSettings, action: InternalManufacturingAction): InternalManufacturingStatus {
   if (action === "create") return settings.requestAudit ? INTERNAL_MANUFACTURING_STATUS.RequestAudit : INTERNAL_MANUFACTURING_STATUS.Preparation
   if (action === "requestAudit") return INTERNAL_MANUFACTURING_STATUS.Preparation
-  if (action === "prepare") return settings.manufacturingAudit ? INTERNAL_MANUFACTURING_STATUS.ReadyAudit : settings.send ? INTERNAL_MANUFACTURING_STATUS.Send : INTERNAL_MANUFACTURING_STATUS.Receive
+  if (action === "prepare") return settings.readyAudit ? INTERNAL_MANUFACTURING_STATUS.ReadyAudit : settings.send ? INTERNAL_MANUFACTURING_STATUS.Send : INTERNAL_MANUFACTURING_STATUS.Receive
   if (action === "readyAudit") return settings.send ? INTERNAL_MANUFACTURING_STATUS.Send : INTERNAL_MANUFACTURING_STATUS.Receive
   if (action === "send") return INTERNAL_MANUFACTURING_STATUS.Receive
-  if (action === "receive") return INTERNAL_MANUFACTURING_STATUS.ReceivedAudit
+  if (action === "receive") return settings.receivedAudit ? INTERNAL_MANUFACTURING_STATUS.ReceivedAudit : INTERNAL_MANUFACTURING_STATUS.Completed
   if (action === "receivedAudit") return INTERNAL_MANUFACTURING_STATUS.Completed
   return current
 }
@@ -102,12 +105,25 @@ export async function listInternalManufacturingRequests(status?: number) {
 export async function createInternalManufacturingRequest(input: any, userId: number) {
   const items = Array.isArray(input.items) ? input.items.filter((item: any) => Number(item.product_id) > 0 && Number(item.quantity) > 0) : []
   if (!Number(input.branch_id) || !Number(input.manufacturing_branch_id) || !items.length) throw new Error("بيانات طلب الصناعة غير مكتملة")
+  if (!Number(input.source_warehouse_id) || !Number(input.destination_warehouse_id)) throw new Error("يجب اختيار مستودع مقدم الطلب والمستودع المطلوب منه البضاعة")
+  if (Number(input.source_warehouse_id) === Number(input.destination_warehouse_id)) throw new Error("لا يمكن أن يكون نفس المستودع")
   const settings = await getInternalManufacturingSettings()
   const status = nextInternalManufacturingStatus(INTERNAL_MANUFACTURING_STATUS.Created, settings, "create")
   const client = await (await getTenantPool()).connect()
   try {
     await client.query("BEGIN")
-    const header = await client.query(`INSERT INTO voucher_header_tbl (vch_type,vch_code,vch_date,branch_id,manufacturing_branch_id,destination_warehouse_id,note,status,vch_status,insert_user,internal_status) VALUES (20,$1,CURRENT_DATE,$2,$3,$4,$5,1,1,$6,$7) RETURNING *`, [`IM-${Date.now()}`, input.branch_id, input.manufacturing_branch_id, input.destination_warehouse_id || null, input.note || null, userId, status])
+    const currencyResult = await client.query("SELECT id FROM currency ORDER BY id ASC LIMIT 1")
+    if (!currencyResult.rowCount) throw new Error("يجب تعريف عملة أساسية قبل حفظ طلب البضاعة")
+    const currencyId = Number(currencyResult.rows[0].id)
+    const codeResult = await client.query("SELECT vch_code FROM voucher_header_tbl WHERE vch_type = 20")
+    const usedCodes = new Set(codeResult.rows.map((row: any) => String(row.vch_code)))
+    let codeNumber = Number(String(Date.now()).slice(-8))
+    let vchCode = `IM${String(codeNumber).padStart(8, "0")}`
+    while (usedCodes.has(vchCode)) {
+      codeNumber = (codeNumber + 1) % 100000000
+      vchCode = `IM${String(codeNumber).padStart(8, "0")}`
+    }
+    const header = await client.query(`INSERT INTO voucher_header_tbl (vch_type,vch_code,vch_date,currency_id,rate,branch_id,to_branch_id,to_store_id,manufacturing_branch_id,destination_warehouse_id,note,status,vch_status,insert_user,internal_status) VALUES (20,$1,CURRENT_DATE,$2,$3,$4,$5,$6,$7,$8,$9,1,1,$10,$11) RETURNING *`, [vchCode, currencyId, 1, input.manufacturing_branch_id, input.branch_id, input.source_warehouse_id || null, input.manufacturing_branch_id, input.destination_warehouse_id || null, input.note || null, userId, status])
     for (const item of items) await client.query(`INSERT INTO voucher_items_tbl (voucher_id,item_id,item_name,unit_id,store_id,qnty,barcode,free_quantity,received_quantity,prepared_quantity) VALUES ($1,$2,$3,$4,$5,$6,$7,COALESCE((SELECT available_stock FROM product_stock WHERE product_id=$2),0),0,0)`, [header.rows[0].id, item.product_id, item.product_name || null, item.unit_id || null, input.destination_warehouse_id || null, Number(item.quantity), item.barcode || null])
     await client.query(`INSERT INTO internal_manufacturing_events (voucher_id,action,to_status,user_id) VALUES ($1,'create',$2,$3)`, [header.rows[0].id, status, userId])
     await client.query("COMMIT")

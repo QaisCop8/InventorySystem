@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import {
   LayoutDashboard,
@@ -192,20 +192,13 @@ export const menuItems: MenuItem[] = [
         icon: ClipboardCheck,
         submenu: [
           { title: "إعدادات طلب بضاعة داخلي", section: "internal-manufacturing-settings", icon: Settings },
-          {
-            title: "طلب بضاعة داخلي",
-            section: "internal-manufacturing-request",
-            icon: ClipboardCheck,
-            submenu: [
-              { title: "طلب بضاعة داخلي", section: "internal-manufacturing-request", icon: FilePlus2 },
-              { title: "تدقيق طلب البضاعة", section: "internal-manufacturing-request-audit", icon: Shield },
-              { title: "تجهيز طلبات البضاعة الداخلية", section: "internal-manufacturing-preparation", icon: PackageCheck },
-              { title: "تدقيق الطلبات الجاهزة", section: "internal-manufacturing-ready-audit", icon: Shield },
-              { title: "إرسال طلبات البضاعة", section: "internal-manufacturing-send", icon: ArrowUpCircle },
-              { title: "استلام طلبات البضاعة", section: "internal-manufacturing-receive", icon: ArrowDownCircle },
-              { title: "تدقيق البضاعة المستلمة", section: "internal-manufacturing-received-audit", icon: Shield },
-            ],
-          },
+          { title: "طلب بضاعة داخلي", section: "internal-manufacturing-request", icon: FilePlus2 },
+          { title: "تدقيق طلب البضاعة", section: "internal-manufacturing-request-audit", icon: Shield },
+          { title: "تجهيز الطلبات", section: "internal-manufacturing-preparation", icon: PackageCheck },
+          { title: "تدقيق الطلبات الجاهزة", section: "internal-manufacturing-ready-audit", icon: Shield },
+          { title: "إرسال الطلبات", section: "internal-manufacturing-send", icon: ArrowUpCircle },
+          { title: "استلام الطلبات", section: "internal-manufacturing-receive", icon: ArrowDownCircle },
+          { title: "تدقيق البضاعة المستلمة", section: "internal-manufacturing-received-audit", icon: Shield },
         ],
       },
     ],
@@ -331,6 +324,11 @@ export function Sidebar({
   const [expandedMenus, setExpandedMenus] = useState<string[]>([])
   const { openWindow } = useWindowManager()
   const { menuDarkMode } = useMenuTheme()
+
+  useEffect(() => {
+    if (!activeSection.startsWith("internal-manufacturing-")) return
+    setExpandedMenus((current) => Array.from(new Set([...current, "item-management", "internal-manufacturing-orders", "internal-manufacturing-request"])))
+  }, [activeSection])
 
   const toggleMenu = (menuId: string) => {
     setExpandedMenus(prev =>
@@ -495,7 +493,7 @@ export function Sidebar({
                       return (
                         <div key={subItemId}>
                           {hasNestedSubmenu ? (
-                            <button type="button" onClick={() => toggleMenu(subItemId)} className={subItemClassName}>
+                            <button type="button" onClick={() => handleItemClick(subItem)} className={subItemClassName}>
                               {subItemContent}
                             </button>
                           ) : (

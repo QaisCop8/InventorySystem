@@ -8,7 +8,7 @@ import DataGridView from "../common/DataGridView";
 import MultiSelect from "../common/MultiSelect";
 import * as wjGrid from "@grapecity/wijmo.grid";
 import { useTranslation } from 'react-i18next';
-import { Plus, Search, SlidersHorizontal, X } from "lucide-react";
+import { Plus, RotateCcw, Search, SlidersHorizontal, X } from "lucide-react";
 // -----------------------
 // Types
 // -----------------------
@@ -276,6 +276,15 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
 
     });
   }, [products, searchCode, searchName, searchPrice, searchBarcode]);
+
+  const clearFilters = useCallback(() => {
+    setSearchCode("");
+    setSearchName("");
+    setSearchPrice("");
+    setSearchBarcode("");
+    setSelectedTypes(Array.isArray(productTypes) && productTypes.length > 0 ? Array.from(new Set(productTypes)) : [1, 2]);
+    searchNameRef.current?.focus();
+  }, [productTypes]);
 
   // -----------------------
   // Select product row
@@ -581,11 +590,11 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
         }
       }}
     >
-      <div className="relative flex h-[100dvh] max-h-[100dvh] w-[100vw] max-w-[100vw] min-w-0 flex-col overflow-hidden rounded-none border-0 border-slate-200 bg-slate-50 p-2 shadow-2xl overscroll-contain sm:h-[92dvh] sm:max-h-[92dvh] sm:w-full sm:max-w-[1180px] sm:rounded-3xl sm:border sm:p-4" dir="rtl">
-        <div className="flex min-w-0 shrink-0 items-center justify-between gap-2 rounded-2xl bg-gradient-to-l from-blue-700 via-blue-600 to-cyan-600 px-3 py-3 shadow-lg sm:gap-3 sm:px-5 sm:py-4">
+      <div className="relative flex h-[100dvh] max-h-[100dvh] w-full min-w-0 max-w-full flex-col overflow-hidden rounded-none border-0 border-slate-200 bg-slate-50 p-2 shadow-2xl overscroll-contain sm:h-[92dvh] sm:max-h-[92dvh] sm:w-full sm:max-w-[1180px] sm:rounded-3xl sm:border sm:p-4" dir="rtl">
+        <div className="flex min-w-0 shrink-0 flex-wrap items-center justify-between gap-2 rounded-2xl bg-gradient-to-l from-blue-700 via-blue-600 to-cyan-600 px-3 py-3 shadow-lg sm:flex-nowrap sm:gap-3 sm:px-5 sm:py-4">
           <div className="flex min-w-0 items-center gap-2"><div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/15 ring-1 ring-white/30 sm:h-11 sm:w-11 sm:rounded-2xl"><Search className="h-4 w-4 text-white sm:h-5 sm:w-5" /></div><h3 className="truncate text-base font-extrabold text-white sm:text-xl">{title || "بحث الأصناف"}</h3></div>
           <div className="flex shrink-0 items-center gap-1 sm:gap-2">
-          <Button type="button" onClick={() => window.open("/products?new=1", "_blank", "noopener,noreferrer")} className="gap-1 rounded-lg bg-white px-2 text-xs text-blue-700 hover:bg-blue-50 sm:gap-2 sm:rounded-xl sm:px-3 sm:text-sm"><Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4"/><span className="sm:hidden">إضافة</span><span className="hidden sm:inline">إضافة صنف</span></Button>
+          <Button type="button" onClick={() => window.open("/?section=products&new=1", "_blank", "noopener,noreferrer")} className="gap-1 rounded-lg bg-white px-2 text-xs text-blue-700 hover:bg-blue-50 sm:gap-2 sm:rounded-xl sm:px-3 sm:text-sm"><Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4"/><span className="sm:hidden">إضافة</span><span className="hidden sm:inline">إضافة صنف</span></Button>
           <Button
             type="button"
             variant="ghost"
@@ -604,7 +613,7 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
             <p className="flex items-center gap-2 text-sm font-bold text-blue-900"><SlidersHorizontal className="h-4 w-4 text-blue-600" />الفلاتر</p>
           </div>
 
-          <div ref={filterContainerRef} className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3 lg:grid-cols-3 xl:grid-cols-5">
+          <div ref={filterContainerRef} className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
             <div className="space-y-1">
               <label className="block text-xs font-semibold text-slate-700 text-right">رقم الصنف</label>
               <Input
@@ -686,13 +695,36 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
               )}
             </div>
           </div>
+
+          <div className="mt-3 flex flex-col-reverse gap-2 border-t border-slate-100 pt-3 sm:flex-row sm:justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={clearFilters}
+              className="h-10 rounded-xl border-slate-200 px-4 text-slate-600 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
+            >
+              <RotateCcw className="ml-2 h-4 w-4" />
+              مسح الفلاتر
+            </Button>
+            <Button
+              type="button"
+              onClick={() => focusFirstGridRow()}
+              className="h-10 rounded-xl bg-blue-600 px-5 text-white shadow-sm hover:bg-blue-700"
+            >
+              <Search className="ml-2 h-4 w-4" />
+              بحث
+            </Button>
+          </div>
         </div>
 
 
         <div className="mt-2 flex min-h-0 min-w-0 flex-1 flex-col gap-2 overflow-x-hidden overflow-y-auto overscroll-contain sm:gap-3">
           <div className="min-w-0 shrink-0 rounded-2xl border border-slate-200 bg-white p-2 shadow-sm sm:rounded-3xl sm:p-3">
-            <h4 className="text-sm font-semibold mb-3 text-slate-700 text-right">نتائج البحث</h4>
-            <div className="modern-search-grid h-[30dvh] min-h-[190px] w-full min-w-0 max-w-full overflow-auto sm:h-[25vh] sm:min-h-[180px]">
+            <div className="mb-3 flex items-center justify-between gap-3" dir="rtl">
+              <h4 className="text-sm font-semibold text-slate-700">نتائج البحث</h4>
+              <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">{filteredProducts.length} نتائج</span>
+            </div>
+            <div className="modern-search-grid h-[24dvh] min-h-[150px] w-full min-w-0 max-w-full overflow-auto sm:h-[25vh] sm:min-h-[180px]">
               <DataGridView
                 style={responsiveGridStyle}
                 containerStyle={responsiveGridStyle}
@@ -712,9 +744,12 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible, onClos
           </div>
 
           <div className="min-w-0 shrink-0 rounded-2xl border border-slate-200 bg-white p-2 shadow-sm sm:rounded-3xl sm:p-3">
-            <h4 className="text-sm font-semibold mb-3 text-slate-700 text-right">{selectedAttributeRows.length ? "المتغيرات والخصائص" : "وحدات الصنف"}</h4>
+            <div className="mb-3 flex items-center justify-between gap-3" dir="rtl">
+              <h4 className="text-sm font-semibold text-slate-700">{selectedAttributeRows.length ? "المتغيرات والخصائص" : "وحدات الصنف"}</h4>
+              {selectedProduct && <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">تم الاختيار</span>}
+            </div>
             <div className="text-sm text-slate-500 mb-3 text-right">{selectedProduct?.product_name || "لا يوجد صنف محدد"}</div>
-            <div className="h-[28dvh] min-h-[190px] w-full min-w-0 max-w-full overflow-auto sm:h-[25vh] sm:min-h-[180px]">
+            <div className="h-[22dvh] min-h-[150px] w-full min-w-0 max-w-full overflow-auto sm:h-[25vh] sm:min-h-[180px]">
               <DataGridView
                 innerRef={gridUnitsRef}
                 style={responsiveGridStyle}
