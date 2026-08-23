@@ -726,7 +726,7 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
               <h4 className="text-sm font-semibold text-slate-700">نتائج البحث</h4>
               <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">{filteredProducts.length} نتائج</span>
             </div>
-            <div className="modern-search-grid h-[24dvh] min-h-[150px] w-full min-w-0 max-w-full overflow-auto sm:h-[25vh] sm:min-h-[180px]">
+            <div className="modern-search-grid h-[24dvh] min-h-[150px] w-full min-w-0 max-w-full overflow-x-auto overflow-y-hidden sm:h-[25vh] sm:min-h-[180px]">
               <DataGridView
                 style={responsiveGridStyle}
                 containerStyle={responsiveGridStyle}
@@ -751,7 +751,7 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
               {selectedProduct && <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">تم الاختيار</span>}
             </div>
             <div className="text-sm text-slate-500 mb-3 text-right">{selectedProduct?.product_name || "لا يوجد صنف محدد"}</div>
-            <div className="h-[22dvh] min-h-[150px] w-full min-w-0 max-w-full overflow-auto sm:h-[25vh] sm:min-h-[180px]">
+            <div className="h-[22dvh] min-h-[150px] w-full min-w-0 max-w-full overflow-x-auto overflow-y-hidden sm:h-[25vh] sm:min-h-[180px]">
               <DataGridView
                 innerRef={gridUnitsRef}
                 style={responsiveGridStyle}

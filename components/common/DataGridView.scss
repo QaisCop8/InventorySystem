@@ -89,6 +89,11 @@
   color: #172554 !important;
 }
 
+/* Product Excel preview: keep Wijmo's row viewport scrollable inside the dialog. */
+.excel-product-grid.wj-flexgrid {
+  overflow-y: auto !important;
+}
+
 /* Keep selected rows visually stable on hover */
 .wj-flexgrid .wj-report-row-selected:hover .wj-cell,
 .wj-flexgrid .wj-report-row-selected:hover .wj-cell:hover,

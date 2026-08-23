@@ -62,6 +62,12 @@ interface ExcelImportDialogProps {
   onImportComplete: () => void
 }
 
+interface ExcelColumn {
+  key: string
+  label: string
+  normalized: string
+}
+
 // حقول النظام التي يُبنى منها كل صنف مستورَد (مطابقة لحقول ExcelProduct أعلاه حرفياً) — تُعرَض
 // كقائمة بخطوة "مطابقة الأعمدة" الجديدة بين رفع الملف والمعاينة، بدل افتراض أن أعمدة ملف المستخدم
 // تحمل بالضبط أسماء المفاتيح هذه (product_code، product_name...) كما كان الحال سابقاً. required
@@ -112,9 +118,9 @@ export function ExcelImportDialog({ open, onOpenChange, onImportComplete }: Exce
   const [isImporting, setIsImporting] = useState(false)
   const [importProgress, setImportProgress] = useState({ current: 0, total: 0 })
   const [loading, setLoading] = useState(false);
-  // خطوة مطابقة الأعمدة: rawRows/excelHeaders تُملأ فور رفع الملف (processExcelFile)، ثم
+  // خطوة مطابقة الأعمدة: rawRows/excelColumns تُملأ فور رفع الملف (processExcelFile)، ثم
   // buildProductsFromMapping تبني منها products الفعلية وفق ما اختاره المستخدم بـcolumnMapping.
-  const [excelHeaders, setExcelHeaders] = useState<string[]>([])
+  const [excelColumns, setExcelColumns] = useState<ExcelColumn[]>([])
   const [rawRows, setRawRows] = useState<any[]>([])
   const [columnMapping, setColumnMapping] = useState<Record<string, string>>({})
   const [showMapping, setShowMapping] = useState(false)
@@ -367,6 +373,7 @@ export function ExcelImportDialog({ open, onOpenChange, onImportComplete }: Exce
   const adjustProductCodeTo10 = (rawCode: string): string => {
     const code = String(rawCode || "").trim()
     if (!code || code.length >= 10) return code
+    if (/^\d+$/.test(code)) return code.padStart(10, "0")
     const prefix = code.slice(0, 1)
     const suffix = code.slice(1)
     return prefix + suffix.padStart(10 - prefix.length, "0")
@@ -376,12 +383,11 @@ export function ExcelImportDialog({ open, onOpenChange, onImportComplete }: Exce
   // لحالة الأحرف/فراغات طرفية) بين مفتاح الحقل وعناوين أعمدة الملف الفعلية — يغطي حالة الاستخدام
   // الأكثر شيوعاً (ملء نموذجنا نفسه دون تغيير رؤوس الأعمدة) تلقائياً، ويترك البقية للمستخدم ليختارها
   // يدوياً بخطوة المطابقة إن اختلفت رؤوس عمود ملفه عن أسماء حقولنا.
-  const guessColumnMapping = (headers: string[]): Record<string, string> => {
+  const guessColumnMapping = (columns: ExcelColumn[]): Record<string, string> => {
     const mapping: Record<string, string> = {}
-    const normalizedHeaders = headers.map((h) => ({ raw: h, normalized: String(h ?? "").trim().toLowerCase() }))
     for (const field of PRODUCT_FIELD_DEFS) {
-      const match = normalizedHeaders.find((h) => h.normalized === field.key.toLowerCase())
-      mapping[field.key] = match ? match.raw : NO_MAPPING_VALUE
+      const match = columns.find((column) => column.normalized === field.key.toLowerCase())
+      mapping[field.key] = match ? match.key : NO_MAPPING_VALUE
     }
     return mapping
   }
@@ -393,18 +399,34 @@ export function ExcelImportDialog({ open, onOpenChange, onImportComplete }: Exce
       const workbook = XLSX.read(data, { type: "array" });
       const sheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[sheetName];
-      const jsonData = XLSX.utils.sheet_to_json(worksheet) as any[];
-      const headerRow = (XLSX.utils.sheet_to_json(worksheet, { header: 1 })[0] as any[]) || [];
-      const headers = headerRow.map((h) => String(h ?? "").trim()).filter((h) => h.length > 0);
+      const matrix = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" }) as any[][];
+      const headerRow = matrix[0] || [];
+      const usedLabels: Record<string, number> = {}
+      const columns: ExcelColumn[] = headerRow.map((header, index) => {
+        const label = String(header ?? "").trim() || `عمود ${index + 1}`
+        const occurrence = (usedLabels[label] || 0) + 1
+        usedLabels[label] = occurrence
+        return {
+          key: `column_${index}`,
+          label: occurrence === 1 ? label : `${label} (${occurrence})`,
+          normalized: label.toLowerCase(),
+        }
+      })
+      const jsonData = matrix.slice(1).map((row) =>
+        columns.reduce<Record<string, any>>((record, column, index) => {
+          record[column.key] = row[index]
+          return record
+        }, {}),
+      )
 
-      if (jsonData.length === 0 || headers.length === 0) {
+      if (jsonData.length === 0 || columns.length === 0) {
         alert("الملف فارغ أو لا يحتوي على صف عناوين أعمدة صالح");
         return;
       }
 
       setRawRows(jsonData);
-      setExcelHeaders(headers);
-      setColumnMapping(guessColumnMapping(headers));
+      setExcelColumns(columns);
+      setColumnMapping(guessColumnMapping(columns));
       setShowMapping(true);
     } catch (error) {
       console.error("Error processing Excel file:", error);
@@ -417,11 +439,12 @@ export function ExcelImportDialog({ open, onOpenChange, onImportComplete }: Exce
   // يبني products الفعلية من rawRows بحسب مطابقة الأعمدة التي أكّدها/عدّلها المستخدم بخطوة
   // المطابقة — نفس منطق بناء/تحقق كل صف الذي كان سابقاً بجسم processExcelFile مباشرة، فقط يقرأ كل
   // حقل عبر columnMapping[key] (عنوان عمود ملف المستخدم) بدل افتراض أنه يطابق key حرفياً.
-  const buildProductsFromMapping = () => {
+  const buildProductsFromMapping = async () => {
+    setIsProcessing(true)
     const readField = (row: any, key: string) => {
-      const header = columnMapping[key]
-      if (!header || header === NO_MAPPING_VALUE) return undefined
-      return row[header]
+      const columnKey = columnMapping[key]
+      if (!columnKey || columnKey === NO_MAPPING_VALUE) return undefined
+      return row[columnKey]
     }
     // نصوص الملف قد تصل كأرقام (خلية Excel مُنسَّقة كرقم لا نص، كرقم صنف "12345" بلا صياغة نصية
     // صريحة) — XLSX.utils.sheet_to_json يُرجعها عندئذ number لا string، فيتحطّم أي .trim() لاحق
@@ -432,7 +455,9 @@ export function ExcelImportDialog({ open, onOpenChange, onImportComplete }: Exce
       return value === undefined || value === null ? "" : String(value).trim()
     }
 
-    const processedProducts: ExcelProduct[] = rawRows.map((row, index) => {
+    const processedProducts: ExcelProduct[] = []
+    for (let index = 0; index < rawRows.length; index++) {
+      const row = rawRows[index]
       const product: ExcelProduct = {
         product_code: adjustProductCodeTo10(readText(row, "product_code")),
         product_name: readText(row, "product_name"),
@@ -504,12 +529,18 @@ export function ExcelImportDialog({ open, onOpenChange, onImportComplete }: Exce
       product.errors = errors;
       product.isValid = errors.length === 0;
 
-      return product;
-    });
+      processedProducts.push(product)
+
+      // Yield periodically so large files do not block the browser event loop.
+      if (index > 0 && index % 250 === 0) {
+        await new Promise<void>((resolve) => setTimeout(resolve, 0))
+      }
+    }
 
     setProducts(processedProducts);
     setShowMapping(false);
     setShowPreview(true);
+    setIsProcessing(false)
   };
 
   // نفس حسابات الأصناف الافتراضية (تبويب "الحسابات الافتراضية للاصناف" بإعدادات النظام) التي
@@ -749,7 +780,7 @@ export function ExcelImportDialog({ open, onOpenChange, onImportComplete }: Exce
     setProducts([])
     setShowPreview(false)
     setShowMapping(false)
-    setExcelHeaders([])
+    setExcelColumns([])
     setRawRows([])
     setColumnMapping({})
     setImportResults(null)
@@ -798,6 +829,7 @@ export function ExcelImportDialog({ open, onOpenChange, onImportComplete }: Exce
   ]
 
   const productsGridScheme = { isReport: true, columns: productsGridColumns }
+  const previewProducts = products.slice(0, 200)
 
   const buildProductGridRow = (product: ExcelProduct, index: number) => ({
     ...product,
@@ -904,9 +936,12 @@ export function ExcelImportDialog({ open, onOpenChange, onImportComplete }: Exce
                   </Button>
                   <Button
                     onClick={buildProductsFromMapping}
-                    disabled={PRODUCT_FIELD_DEFS.some(
-                      (f) => f.required && (!columnMapping[f.key] || columnMapping[f.key] === NO_MAPPING_VALUE),
-                    )}
+                    disabled={
+                      isProcessing ||
+                      PRODUCT_FIELD_DEFS.some(
+                        (f) => f.required && (!columnMapping[f.key] || columnMapping[f.key] === NO_MAPPING_VALUE),
+                      )
+                    }
                   >
                     <ArrowLeft className="h-4 w-4 mr-2 rotate-180" /> متابعة للمعاينة
                   </Button>
@@ -927,11 +962,11 @@ export function ExcelImportDialog({ open, onOpenChange, onImportComplete }: Exce
                       <SelectTrigger className="text-right" dir="rtl">
                         <SelectValue placeholder="اختر العمود" />
                       </SelectTrigger>
-                      <SelectContent dir="rtl">
+                      <SelectContent className="z-[10000]" dir="rtl" side="top" sideOffset={4}>
                         <SelectItem value={NO_MAPPING_VALUE}>بدون مطابقة</SelectItem>
-                        {excelHeaders.map((header) => (
-                          <SelectItem key={header} value={header}>
-                            {header}
+                        {excelColumns.map((column) => (
+                          <SelectItem key={column.key} value={column.key}>
+                            {column.label}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -948,6 +983,9 @@ export function ExcelImportDialog({ open, onOpenChange, onImportComplete }: Exce
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <h3 className="text-lg font-semibold">معاينة البيانات</h3>
+                  {products.length > previewProducts.length && (
+                    <span className="text-sm text-muted-foreground">عرض أول {previewProducts.length} صفاً من أصل {products.length}</span>
+                  )}
                   <div className="flex gap-2">
                     <Badge variant="secondary" className="bg-green-100 text-green-800">
                       صحيح: {validProductsCount}
@@ -975,19 +1013,22 @@ export function ExcelImportDialog({ open, onOpenChange, onImportComplete }: Exce
                   (overflow-x-auto)، لا على مستوى الحوار كاملاً — DialogContent أعلاه لذلك بلا
                   overflow-x إطلاقاً (overflow-x-hidden)، وmin-w-0 بكل سلف flex بينهما يمنع محتوى
                   الشبكة العريض من توسيع تلك الأسلاف بدل التمرير داخل حدوده الخاصة فقط. */}
-              <div className="w-full min-w-0 h-[520px] overflow-x-auto overflow-y-hidden rounded-lg border" dir="rtl">
-                <DataGridView
-                  style={{ height: "100%", width: "100%" }}
-                  idProperty="rowNumber"
-                  scheme={productsGridScheme}
-                  dataSource={products.map(buildProductGridRow)}
-                  showContextMenu={false}
-                  copyItemStoreDown={true}
-                  dontConvertToCards={true}
-                  isReport={true}
-                  hideSearch={true}
-                  allowSorting={true}
-                />
+              <div className="excel-account-grid w-full min-w-0 h-[520px] overflow-x-auto overflow-y-hidden rounded-lg border" dir="rtl">
+                <div className="h-full min-w-[4700px]">
+                  <DataGridView
+                    containerStyle={{ height: "100%", width: "100%" }}
+                    className="excel-product-grid"
+                    idProperty="rowNumber"
+                    scheme={productsGridScheme}
+                    dataSource={previewProducts.map(buildProductGridRow)}
+                    showContextMenu={false}
+                    copyItemStoreDown={true}
+                    dontConvertToCards={true}
+                    isReport={true}
+                    hideSearch={true}
+                    allowSorting={true}
+                  />
+                </div>
               </div>
             </div>
 

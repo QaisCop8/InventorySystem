@@ -167,7 +167,10 @@ export default function UnifiedCreditNote({
   const pendingActionRef = useRef<(() => void) | null>(null)
 
   useEffect(() => {
-    initialSnapshotRef.current = JSON.stringify(form)
+    const snapshotTimer = window.setTimeout(() => {
+      initialSnapshotRef.current = JSON.stringify(form)
+    }, 0)
+    return () => window.clearTimeout(snapshotTimer)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dialogOpen, form.id, form.vch_code, isNewMode])
 

@@ -474,8 +474,11 @@ export default function UnifiedReceiptVoucher({
   const pendingActionRef = useRef<(() => void) | null>(null)
 
   useEffect(() => {
-    initialSnapshotRef.current = JSON.stringify(form)
+    const snapshotTimer = window.setTimeout(() => {
+      initialSnapshotRef.current = JSON.stringify(form)
+    }, 0)
     setActiveTab("main")
+    return () => window.clearTimeout(snapshotTimer)
     // form.vch_code يتغيّر أيضاً عند إعادة تصفير النموذج لمسودة جديدة بعد حفظ ناجح (id يبقى 0 في
     // الحالتين) — بدونه تبقى initialSnapshotRef محتفظة بلقطة المسودة القديمة (قبل الحفظ)، فتُقارَن
     // المسودة الجديدة الفارغة بها وتظهر "تم تعديل البيانات، هل تريد الحفظ؟" رغم عدم لمس المستخدم لها.

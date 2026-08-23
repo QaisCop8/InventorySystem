@@ -146,9 +146,10 @@ export default function UnifiedChequesBooks({
   const pendingActionRef = useRef<(() => void) | null>(null)
 
   useEffect(() => {
+    if (!dialogOpen || isLoading) return
     initialSnapshotRef.current = JSON.stringify(form)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dialogOpen, form.id, isNewMode])
+  }, [dialogOpen, form.id, isNewMode, isLoading])
 
   const guardedAction = (action: () => void) => {
     if (showUnsavedConfirm) return
@@ -482,7 +483,7 @@ export default function UnifiedChequesBooks({
         onOpenChange={(open) => (open ? onOpenChange(open) : guardedAction(() => onOpenChange(false)))}
       >
         <DialogContent
-          className="voucher-form w-[95vw] max-w-[1200px] p-0 overflow-hidden max-h-[92vh] overflow-y-auto"
+          className="voucher-form w-[95vw] max-w-[1200px] p-0 overflow-hidden max-h-[92vh] overflow-y-auto lg:overflow-y-hidden"
           dir="rtl"
           onPointerDownOutside={(event) => {
             if (showUnsavedConfirm || showDeleteConfirm || bankSearchOpen) event.preventDefault()
@@ -638,7 +639,7 @@ export default function UnifiedChequesBooks({
               </div>
 
               <DataGridView
-                style={{ height: "300px" }}
+                style={{ height: "200px" }}
                 scheme={chequeScheme}
                 dataSource={chequeGridData}
                 idProperty="ser"
