@@ -15,6 +15,7 @@ export function DraftOrdersPage() {
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState("")
   const [editingDraft, setEditingDraft] = useState<any>(null)
+  const [readOnly, setReadOnly] = useState(false)
 
   const load = async () => {
     setLoading(true)
@@ -32,7 +33,7 @@ export function DraftOrdersPage() {
   }, [drafts, search])
 
   const statusLabel = (status: string) => status === "confirmed" ? "تم التأكيد" : status === "cancelled" ? "ملغاة" : "مسودة"
-  const createNew = () => { setEditingDraft(null); setOpen(true) }
+  const createNew = () => { setEditingDraft(null); setReadOnly(false); setOpen(true) }
   const removeDraft = async (draft: any) => {
     if (!confirm(`هل تريد حذف المسودة ${draft.draft_number}؟`)) return
     const response = await fetch(`/api/order-drafts/${draft.id}`, { method: "DELETE" })
@@ -56,12 +57,13 @@ export function DraftOrdersPage() {
         <div className="flex items-start justify-between gap-3"><div><div className="font-bold">{draft.draft_number}</div><div className="mt-1 text-sm text-muted-foreground">{draft.customer_name}</div></div><Badge variant={draft.status === "confirmed" ? "default" : "secondary"}>{statusLabel(draft.status)}</Badge></div>
         <div className="grid grid-cols-2 gap-3 text-sm"><div className="flex items-center gap-2"><CalendarDays className="h-4 w-4 text-emerald-600" /><span>التسليم<br /><b>{draft.requested_delivery_date}</b></span></div><div className="flex items-center gap-2"><WalletCards className="h-4 w-4 text-amber-600" /><span>العربون<br /><b>{Number(draft.deposit_amount || 0).toFixed(2)}</b></span></div></div>
         <div className="flex items-center justify-between border-t pt-3 text-xs text-muted-foreground"><span>{draft.items?.length || 0} أصناف</span><span className="flex items-center gap-1"><Paperclip className="h-3.5 w-3.5" />{draft.attachments?.length || 0} مرفقات</span></div>
-        {draft.status === "draft" && <div className="grid grid-cols-2 gap-2"><Button variant="outline" onClick={() => { setEditingDraft(draft); setOpen(true) }}><Edit className="ml-2 h-4 w-4" />تعديل</Button><Button variant="outline" className="text-red-600 hover:bg-red-50 hover:text-red-700" onClick={() => void removeDraft(draft)}><Trash2 className="ml-2 h-4 w-4" />حذف</Button></div>}
+        {draft.status === "draft" && <div className="grid grid-cols-2 gap-2"><Button variant="outline" onClick={() => { setEditingDraft(draft); setReadOnly(false); setOpen(true) }}><Edit className="ml-2 h-4 w-4" />تعديل</Button><Button variant="outline" className="text-red-600 hover:bg-red-50 hover:text-red-700" onClick={() => void removeDraft(draft)}><Trash2 className="ml-2 h-4 w-4" />حذف</Button></div>}
+        {draft.status !== "draft" && <Button variant="outline" className="w-full" onClick={() => { setEditingDraft(draft); setReadOnly(true); setOpen(true) }}><Search className="ml-2 h-4 w-4" />مشاهدة</Button>}
       </CardContent></Card>)}</div>}
 
     <Dialog modal={false} open={open} onOpenChange={setOpen}><DialogContent className="min-w-0 max-h-[94vh] w-[calc(100%-1rem)] max-w-[1400px] overflow-x-hidden overflow-y-auto p-0" dir="rtl" onPointerDownOutside={(event) => event.preventDefault()} onInteractOutside={(event) => event.preventDefault()}>
-      <DialogHeader className="sticky top-0 z-10 border-b bg-background px-6 py-4"><DialogTitle>{editingDraft ? "تعديل مسودة طلبية" : "إنشاء مسودة طلبية"}</DialogTitle></DialogHeader>
-      <DraftOrderForm key={editingDraft?.id || "new"} initialDraft={editingDraft} onSaved={() => { setOpen(false); setEditingDraft(null); void load() }} />
+      <DialogHeader className="sticky top-0 z-10 border-b bg-background px-6 py-4"><DialogTitle>{readOnly ? "مشاهدة مسودة طلبية" : editingDraft ? "تعديل مسودة طلبية" : "إنشاء مسودة طلبية"}</DialogTitle></DialogHeader>
+      <DraftOrderForm key={`${editingDraft?.id || "new"}-${readOnly}`} initialDraft={editingDraft} readOnly={readOnly} onSaved={() => { setOpen(false); setEditingDraft(null); void load() }} />
     </DialogContent></Dialog>
   </div>
 }

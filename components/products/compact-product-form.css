@@ -65,6 +65,18 @@
   min-height: 70vh;
   min-width: 0;
   max-width: 100%;
+  background: linear-gradient(135deg, #f8fafc 0%, #eef6f4 100%);
+  color: #172033;
+}
+
+.compact-product-form-root > div:first-child {
+  background: #071c22;
+  box-shadow: 0 8px 24px rgba(7, 28, 34, 0.16);
+}
+
+.compact-product-form-root [role="tablist"] {
+  border-bottom: 1px solid #dbe7e5;
+  background: rgba(255, 255, 255, 0.72);
 }
 
 .compact-product-form-root .w-full {

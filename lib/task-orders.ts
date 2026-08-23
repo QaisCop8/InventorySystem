@@ -125,6 +125,16 @@ export function ensureTaskOrderTables(): Promise<void> {
       // للقراءة فقط ويشترط فحص كل صنف قبل إنهاء المرحلة (انظر completeTask)، و'normal' (الافتراضي)
       // يبقي السلوك الحالي دون أي لوحة إضافية.
       await sql`ALTER TABLE task_workflow_steps ADD COLUMN IF NOT EXISTS step_type VARCHAR(20) NOT NULL DEFAULT 'normal'`
+      await sql`ALTER TABLE task_workflow_steps ADD COLUMN IF NOT EXISTS show_all_items BOOLEAN NOT NULL DEFAULT false`
+      await sql`ALTER TABLE task_workflow_steps ADD COLUMN IF NOT EXISTS print_barcode BOOLEAN NOT NULL DEFAULT false`
+      await sql`ALTER TABLE task_workflow_steps ADD COLUMN IF NOT EXISTS attachment_required BOOLEAN NOT NULL DEFAULT false`
+      await sql`ALTER TABLE task_workflow_steps ADD COLUMN IF NOT EXISTS mandatory BOOLEAN NOT NULL DEFAULT false`
+      await sql`CREATE TABLE IF NOT EXISTS task_step_types (id SERIAL PRIMARY KEY, name VARCHAR(150) NOT NULL UNIQUE, code VARCHAR(80) UNIQUE, mandatory BOOLEAN NOT NULL DEFAULT false, show_all_items BOOLEAN NOT NULL DEFAULT false, print_barcode BOOLEAN NOT NULL DEFAULT false, attachment_required BOOLEAN NOT NULL DEFAULT false, is_active BOOLEAN NOT NULL DEFAULT true, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`
+      await sql`ALTER TABLE task_step_types ADD COLUMN IF NOT EXISTS code VARCHAR(80)`
+      await sql`ALTER TABLE task_step_types ADD COLUMN IF NOT EXISTS attachment_required BOOLEAN NOT NULL DEFAULT false`
+      await sql`UPDATE task_step_types SET code = CASE name WHEN 'خطوة عادية' THEN 'normal' WHEN 'تدقيق' THEN 'audit' WHEN 'اعتماد' THEN 'approval' WHEN 'تجهيز' THEN 'preparation' WHEN 'تحميل' THEN 'loading' ELSE 'step_' || id::text END WHERE code IS NULL`
+      await sql`CREATE UNIQUE INDEX IF NOT EXISTS task_step_types_code_unique ON task_step_types(code)`
+      await sql`INSERT INTO task_step_types (name, code, mandatory, show_all_items, print_barcode) VALUES ('خطوة عادية', 'normal', false, false, false), ('تدقيق', 'audit', false, true, false), ('اعتماد', 'approval', false, true, false), ('تجهيز', 'preparation', false, true, false), ('تحميل', 'loading', false, true, true) ON CONFLICT (code) DO NOTHING`
       await sql`
         CREATE TABLE IF NOT EXISTS task_workflow_transitions (
           id SERIAL PRIMARY KEY,
@@ -624,6 +634,21 @@ export async function deleteWorkflow(id: number, userId: string) {
 
 export type StepType = "audit" | "approval" | "preparation" | "normal" | "loading"
 
+export type TaskStepType = { id: number; name: string; code: string; mandatory: boolean; show_all_items: boolean; print_barcode: boolean; attachment_required: boolean; is_active: boolean }
+
+export async function listStepTypes() {
+  await ensureTaskOrderTables()
+  return sql`SELECT * FROM task_step_types WHERE is_active = true ORDER BY id`
+}
+
+export async function saveStepType(data: { id?: number; name: string; code?: string; mandatory?: boolean; show_all_items?: boolean; print_barcode?: boolean; attachment_required?: boolean }) {
+  await ensureTaskOrderTables()
+  if (!data.name.trim()) throw new Error("اسم نوع الخطوة مطلوب")
+  const code = data.code?.trim() || `step_${Date.now()}`
+  if (data.id) return (await sql`UPDATE task_step_types SET name=${data.name.trim()}, mandatory=${Boolean(data.mandatory)}, show_all_items=${Boolean(data.show_all_items)}, print_barcode=${Boolean(data.print_barcode)}, attachment_required=${Boolean(data.attachment_required)}, updated_at=CURRENT_TIMESTAMP WHERE id=${data.id} RETURNING *`)[0]
+  return (await sql`INSERT INTO task_step_types (name, code, mandatory, show_all_items, print_barcode, attachment_required) VALUES (${data.name.trim()}, ${code}, ${Boolean(data.mandatory)}, ${Boolean(data.show_all_items)}, ${Boolean(data.print_barcode)}, ${Boolean(data.attachment_required)}) RETURNING *`)[0]
+}
+
 interface StepInput {
   key: string
   label: string
@@ -635,6 +660,10 @@ interface StepInput {
   is_conditional?: boolean
   sla_actions?: string[]
   step_type?: StepType
+  mandatory?: boolean
+  show_all_items?: boolean
+  print_barcode?: boolean
+  attachment_required?: boolean
 }
 interface TransitionInput {
   from_key: string
@@ -687,6 +716,13 @@ export async function saveWorkflowSteps(workflowId: number, steps: StepInput[], 
   const current = (await sql`SELECT * FROM task_workflows WHERE id = ${workflowId}`)[0]
   if (!current) throw new Error("سير العمل غير موجود")
 
+  const mandatoryTypes = await sql`SELECT name, code FROM task_step_types WHERE mandatory = true AND is_active = true`
+  for (const type of mandatoryTypes) {
+    if (!steps.some((step) => step.step_type === String(type.code))) throw new Error(`يجب اضافة خطوة - ${type.name} الى مخطط سير العمل لانها اجبارية`)
+  }
+  const typeSettings = await sql`SELECT code, mandatory, show_all_items, print_barcode, attachment_required FROM task_step_types WHERE is_active = true`
+  const typeSettingsByCode = new Map(typeSettings.map((type: any) => [String(type.code), type]))
+
   const usage = await sql`SELECT id FROM task_order_items WHERE workflow_id = ${workflowId} LIMIT 1`
   let targetWorkflowId = workflowId
   // Always overwrite steps/transitions on the same workflow rather than creating a new version.
@@ -696,11 +732,11 @@ export async function saveWorkflowSteps(workflowId: number, steps: StepInput[], 
   const keyToId: Record<string, number> = {}
   for (const step of steps) {
     const inserted = await sql`
-      INSERT INTO task_workflow_steps (workflow_id, key, label, section_id, assignment_type, assigned_user_id, is_start, is_end, join_type, sla_hours, is_conditional, sla_actions, step_type)
+      INSERT INTO task_workflow_steps (workflow_id, key, label, section_id, assignment_type, assigned_user_id, is_start, is_end, join_type, sla_hours, is_conditional, sla_actions, step_type, mandatory, show_all_items, print_barcode, attachment_required)
         VALUES (
           ${targetWorkflowId}, ${step.key}, ${step.label}, ${step.section_id}, ${step.assignment_type || "all"},
           ${step.assigned_user_id || null}, ${isStartKey(step.key)}, ${isEndKey(step.key)}, ${step.join_type || "none"}, ${step.sla_hours ?? null},
-          false, ${step.sla_actions || []}, ${step.step_type || "normal"}
+          false, ${step.sla_actions || []}, ${step.step_type || "normal"}, ${Boolean(typeSettingsByCode.get(String(step.step_type || "normal"))?.mandatory)}, ${Boolean(typeSettingsByCode.get(String(step.step_type || "normal"))?.show_all_items)}, ${Boolean(typeSettingsByCode.get(String(step.step_type || "normal"))?.print_barcode)}, ${Boolean(typeSettingsByCode.get(String(step.step_type || "normal"))?.attachment_required)}
         )
       RETURNING id
     `
@@ -970,7 +1006,7 @@ export async function listOrderItems(filters: { workflowId?: number; status?: st
 export async function listOpenTasks(filters: { workflowId?: number; sectionId?: number; assigneeId?: string; search?: string }) {
   await ensureTaskOrderTables()
   const rows = await sql`
-    SELECT si.*, st.key AS step_key, st.label AS step_label, st.step_type, st.assignment_type, st.sla_hours, st.is_end,
+    SELECT si.*, st.key AS step_key, st.label AS step_label, st.step_type, st.assignment_type, st.sla_hours, st.is_end, st.mandatory, st.show_all_items, st.print_barcode, st.attachment_required,
       COALESCE(si.override_section_id, st.section_id) AS effective_section_id,
       sec.name AS section_name,
       i.id AS order_item_id, i.item_code, i.title, i.description, i.priority AS item_priority, i.workflow_id, i.status AS item_status,
@@ -1023,7 +1059,7 @@ export async function getOrderItemDetail(orderItemId: number) {
   if (items.length === 0) return null
 
   const instances = await sql`
-    SELECT si.*, st.key AS step_key, st.label AS step_label, st.step_type, st.assignment_type, st.is_end, st.join_type,
+    SELECT si.*, st.key AS step_key, st.label AS step_label, st.step_type, st.assignment_type, st.is_end, st.join_type, st.mandatory, st.show_all_items, st.print_barcode, st.attachment_required,
       COALESCE(si.override_section_id, st.section_id) AS effective_section_id,
       sec.name AS section_name, u.full_name AS claimed_by_name
     FROM task_step_instances si
@@ -1160,7 +1196,7 @@ export async function setLoadingChecked(itemId: number, checked: boolean, userId
 
 async function getInstanceContext(instanceId: number) {
   const rows = await sql`
-    SELECT si.*, st.section_id AS step_section_id, st.assignment_type, st.assigned_user_id, st.is_end, st.step_type,
+    SELECT si.*, st.section_id AS step_section_id, st.assignment_type, st.assigned_user_id, st.is_end, st.step_type, st.attachment_required,
       COALESCE(si.override_section_id, st.section_id) AS effective_section_id,
       i.id AS order_item_id, i.item_code, i.title, i.created_by, i.customer_order_id
     FROM task_step_instances si
@@ -1359,6 +1395,10 @@ export async function completeTask(instanceId: number, userId: string, note?: st
       SELECT COUNT(*) AS c FROM task_order_items WHERE customer_order_id = ${ctx.customer_order_id} AND loading_checked_at IS NULL
     `
     if (Number(unchecked[0].c) > 0) throw new Error("يجب فحص كل الأصناف والموافقة عليها قبل إنهاء هذه المرحلة")
+  }
+  if (!isForce && ctx.attachment_required) {
+    const attachments = await sql`SELECT COUNT(*) AS c FROM attachment_tbl WHERE model_name = 'task_order_item' AND record_id = ${ctx.order_item_id}`
+    if (Number(attachments[0].c) === 0) throw new Error("يجب ارفاق ملف قبل انهاء المهمة")
   }
 
   const durationSeconds = await logTerminalAction(instanceId, ctx.order_item_id, userId, isForce ? "force_complete" : "complete", note)

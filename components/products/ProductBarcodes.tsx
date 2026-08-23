@@ -3,7 +3,6 @@
 import * as React from "react";
 import { Button } from "@/components/ui/button";
 import DataGrid from "@/components/common/DataGrid";
-import { Trash2 } from "lucide-react";
 import * as wjGrid from "@grapecity/wijmo.grid";
 interface ProductBarcodesProps {
     open: boolean;
@@ -93,14 +92,17 @@ export default function ProductBarcodes({
     if (!open) return null;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-            <div className="bg-white w-[600px] max-w-full rounded shadow-lg p-4 space-y-4 max-h-[80vh] overflow-y-auto">
-                <div className="flex justify-between items-center">
-                    <h2 className="text-lg font-bold">{unitName}</h2>
-                    <Button type="button" onClick={() => onOpenChange(false)}>اغلاق</Button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-sm">
+            <div className="w-[600px] max-w-full space-y-5 overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl max-h-[80vh]">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+                    <div>
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-600">باركود الوحدة</p>
+                        <h2 className="mt-1 text-xl font-bold text-slate-900">{unitName || "الوحدة"}</h2>
+                    </div>
+                    <Button variant="outline" type="button" onClick={() => onOpenChange(false)}>اغلاق</Button>
                 </div>
 
-                <Button className="mb-2" type="button" onClick={handleAdd}>+ اضافة باركود</Button>
+                <Button className="mb-2 bg-emerald-600 shadow-sm hover:bg-emerald-700" type="button" onClick={handleAdd}>+ اضافة باركود</Button>
 
                 <DataGrid
                     ref={flexRef}

@@ -21,6 +21,7 @@ import * as wjGrid from "@grapecity/wijmo.grid";
 import { readonly } from "zod/v4"
 import ProductBarcodes from "./ProductBarcodes"
 import ProductNumbers from "./ProductNumbers"
+import ProductSearchPopup from "./ProductSearchPopup"
 import { Toast } from 'primereact/toast';
 import PrimeDropdown from '@/components/common/FocusDropdown'
 import MultiSelect from '@/components/common/MultiSelect'
@@ -143,6 +144,15 @@ interface ProductBrandItem {
   brand_name?: string
 }
 
+interface RelatedProductItem {
+  id?: number
+  product_id: number
+  related_id: number
+  related_code?: string
+  related_name?: string
+  ser?: number
+}
+
 interface ProductFormData {
   id: number
   product_code: string
@@ -158,6 +168,7 @@ interface ProductFormData {
   measurment_id: number
   last_purchase_price: number
   minimum_order_quantity: number
+  related_items_mode: number
 
   currency_id: number
   tax_rate: number
@@ -234,6 +245,7 @@ export const initialFormData: ProductFormData = {
   measurment_id: 1,
   last_purchase_price: 0,
   minimum_order_quantity: 0,
+  related_items_mode: 1,
 
   currency_id: 0,
   tax_rate: 15,
@@ -406,6 +418,9 @@ export function CompactProductForm({
   const [brandSearchOpen, setBrandSearchOpen] = useState(false)
   const [selectedBrandRowIndex, setSelectedBrandRowIndex] = useState<number | null>(null)
   const [selectedBrandType, setSelectedBrandType] = useState<{ id: number; name: string } | null>(null)
+  const [relatedProducts, setRelatedProducts] = useState<RelatedProductItem[]>([])
+  const [relatedProductSearchOpen, setRelatedProductSearchOpen] = useState(false)
+  const [relatedProductRow, setRelatedProductRow] = useState<number | null>(null)
   // منتقيات SimpleListPicker لأعمدة الوحدات/الأسعار/المستودعات/حالة مركز التكلفة — بديل موحَّد عن
   // Column.editor المباشر (DataGridView الفعلي يتطلّب عنصر تحكم Wijmo حقيقياً لا JSX، انظر
   // editor?: Control | null في @grapecity/wijmo.react.grid/index.d.ts)، بنفس نمط أزرار البحث
@@ -642,6 +657,8 @@ export function CompactProductForm({
       if (!response.ok) {
         throw new Error(responseData.error || responseData.message || "فشل في حفظ المنتج")
       }
+      const savedProductId = Number(responseData.id || responseData.productId || responseData.product?.id || formData.id)
+      if (savedProductId > 0) await saveRelatedProducts(savedProductId)
 
       setSuccess(formData.id ? "تم تحديث المنتج بنجاح ✅" : "تم إنشاء المنتج بنجاح ✅")
       toast.current?.show({
@@ -834,6 +851,7 @@ export function CompactProductForm({
       original_numbers: Array.isArray(product.original_numbers) ? product.original_numbers : [],
       factory_numbers: Array.isArray(product.factory_numbers) ? product.factory_numbers : [],
       branch_ids: Array.isArray(product.branch_ids) ? product.branch_ids : [],
+      related_products: Array.isArray(product.related_products) ? product.related_products : [],
       // GET /api/inventory/ProductsNavigations/[navigationType] يُعيد "SELECT * FROM products"
       // خاماً — أعمدة الصلاحية/الدفعة الفعلية على الجدول هي has_expiry_date/has_batch_number لا
       // expiry_tracking/batch_tracking (المستخدَمان في formData وفي حفظ /api/inventory/products
@@ -843,6 +861,8 @@ export function CompactProductForm({
       batch_tracking: Boolean(product.batch_tracking ?? product.has_batch_number ?? product.has_batch ?? false),
     };
     setFormData(newFormData);
+    setRelatedProducts([])
+    if (Number(product.id) > 0) fetch(`/api/inventory/products/${product.id}/related-items`).then((r) => r.ok ? r.json() : []).then((rows) => setRelatedProducts(Array.isArray(rows) ? rows.map((row: RelatedProductItem, index: number) => ({ ...row, product_id: Number(product.id), ser: index + 1 })) : [])).catch(() => setRelatedProducts([]))
     initialHash.current = getFormDataHash(newFormData);
     setCurrentProductId(product.id);
     setIsUsedInVouchers(false);
@@ -1160,6 +1180,7 @@ export function CompactProductForm({
     }
 
     setFormData(newFormData);
+    setRelatedProducts([])
     initialHash.current = getFormDataHash(newFormData);
     setCurrentProductId(0);
     setIsUsedInVouchers(false);
@@ -1263,6 +1284,10 @@ export function CompactProductForm({
       if (e.key === "F5") {
         e.preventDefault();
         if (doHotKeys.current) onNew(true)
+      }
+      if (e.key === "F7") {
+        e.preventDefault();
+        if (activeTab === "related") deleteRelatedProduct(relatedProductRow ?? -1)
       }
     };
 
@@ -1445,7 +1470,7 @@ export function CompactProductForm({
   // "صنف جديد" بخطأ Wijmo الداخلي "Element is already hosting a control"). هذا النمط (نص + زر بحث)
   // مطابق تماماً لبقية أعمدة الاختيار في شاشات السندات (بحث صنف/مستودع/وحدة/حساب).
   const selectionChanged = (s: wjGrid.FlexGrid, e: wjGrid.CellRangeEventArgs) => {
-    setUnitCurrentRow(s.selection._row);
+    setUnitCurrentRow(Math.max(0, s.selection.row));
   }
   const cellEditEnded = (s: wjGrid.FlexGrid, e: wjGrid.CellRangeEventArgs) => {
     const editedItem = s.rows[e.row]?.dataItem;
@@ -1681,6 +1706,42 @@ export function CompactProductForm({
       }
     ]
   });
+
+  const relatedProductScheme = useMemo(() => ({
+    name: "ProductRelatedItemsScheme",
+    responsiveColumnIndex: 2,
+    columns: [
+      { header: "##", name: "ser", width: 55 },
+      { header: "رقم الصنف", name: "related_code", width: 180, isReadOnly: true },
+      { header: "اسم الصنف", name: "related_name", width: "*", minWidth: 220, isReadOnly: true },
+      { header: "", name: "delete", width: 80, buttonBody: "button" as const, iconType: "delete", title: "حذف", onClick: (_e: any, ctx: any) => deleteRelatedProduct(Number(ctx.row.dataItem?.ser || 0) - 1) },
+    ],
+  }), [])
+
+  const addRelatedProduct = (product: any) => {
+    const relatedId = Number(product?.id)
+    if (!relatedId || relatedId === Number(formData.id)) {
+      toast.current?.show({ severity: "error", summary: "", detail: "لا يمكن إضافة الصنف نفسه ضمن الأصناف التابعة", life: 3000 })
+      return
+    }
+    if (relatedProducts.some((row) => Number(row.related_id) === relatedId)) {
+      toast.current?.show({ severity: "error", summary: "", detail: "الصنف التابع مضاف مسبقاً", life: 3000 })
+      return
+    }
+    setRelatedProducts((current) => [...current, { product_id: Number(formData.id), related_id: relatedId, related_code: product.product_code, related_name: product.product_name, ser: current.length + 1 }])
+    setRelatedProductSearchOpen(false)
+  }
+
+  const deleteRelatedProduct = (index: number) => {
+    if (index < 0 || index >= relatedProducts.length) return
+    setRelatedProducts((current) => current.filter((_row, rowIndex) => rowIndex !== index).map((row, rowIndex) => ({ ...row, ser: rowIndex + 1 })))
+    setRelatedProductRow(null)
+  }
+
+  const saveRelatedProducts = async (productId: number) => {
+    const response = await fetch(`/api/inventory/products/${productId}/related-items`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ related_ids: relatedProducts.map((row) => row.related_id) }) })
+    if (!response.ok) { const data = await response.json().catch(() => null); throw new Error(data?.error || "فشل حفظ الأصناف التابعة") }
+  }
   const searchProductByCode = async (code: string) => {
     if (!code || code.length === 0) return
 
@@ -2179,7 +2240,7 @@ export function CompactProductForm({
   }), [formData.product_brands])
 
   return (
-    <div className="h-full min-h-[70vh] min-w-0 flex flex-col bg-background overflow-hidden text-lg compact-product-form-root" dir="rtl">
+    <div className="h-full min-h-[70vh] min-w-0 flex flex-col overflow-hidden text-lg compact-product-form-root" dir="rtl">
       {/* زر الإغلاق يطفو على الحافة اليسرى لشريط الأدوات في نفس الصف العلوي، كما في شاشات السندات. */}
       <div className="relative flex flex-shrink-0 items-center px-2 pt-2 sm:px-4 sm:pt-4" dir="rtl">
         <button
@@ -2191,8 +2252,8 @@ export function CompactProductForm({
           <span className="sr-only">إغلاق</span>
         </button>
         <UniversalToolbar
-          currentRecord={1}
-          totalRecords={1}
+          currentRecord={currentProductId > 0 ? currentProductId : 0}
+          totalRecords={currentProductId > 0 ? currentProductId : 0}
           onFirst={async () => { await loadData('first') }}
           onPrevious={async () => { await loadData('previous') }}
           onNext={async () => { await loadData('next') }}
@@ -2206,8 +2267,9 @@ export function CompactProductForm({
           isSaving={isSubmitting}
           canSave={true}
           canDelete={currentProductId > 0}
-          isFirstRecord={false}
+          isFirstRecord={currentProductId <= 1}
           isLastRecord={false}
+          isNewRecord={currentProductId === 0}
         />
       </div>
       <ConfirmDialogYesNo
@@ -2491,6 +2553,7 @@ export function CompactProductForm({
                     <TabsTrigger value="costcenters" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-fuchsia-500 data-[state=active]:to-fuchsia-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">مراكز التكلفة</TabsTrigger>
                     <TabsTrigger value="notes" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-slate-600 data-[state=active]:to-slate-700 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">ملاحظات</TabsTrigger>
                     <TabsTrigger value="attachments" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-slate-600 data-[state=active]:to-slate-700 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">المرفقات</TabsTrigger>
+                    <TabsTrigger value="related" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-teal-500 data-[state=active]:to-teal-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">الأصناف التابعة</TabsTrigger>
                   </>
                 )}
               </TabsList>
@@ -2735,7 +2798,6 @@ export function CompactProductForm({
                       </CardContent>
                     </Card>
                   </TabsContent>
-
                   <TabsContent value="brand">
                     <Card>
                       <CardHeader className="pb-4">
@@ -3265,6 +3327,12 @@ export function CompactProductForm({
                       </CardContent>
                     </Card>
                   </TabsContent>
+                  {!isService && <TabsContent value="related">
+                    <Card>
+                      <CardHeader className="pb-2"><div className="flex items-center justify-between gap-2"><CardTitle className="text-lg">الأصناف التابعة</CardTitle><Button type="button" onClick={() => setRelatedProductSearchOpen(true)} disabled={!formData.id}><Plus className="ml-2 h-4 w-4" />إضافة صنف</Button></div></CardHeader>
+                      <CardContent><div className="mb-4 max-w-xl"><Label>إضافة الأصناف التابعة في طلبية المبيعات</Label><select className="mt-1 h-10 w-full rounded-md border bg-background px-3" value={formData.related_items_mode || 1} onChange={(event) => updateFormData("related_items_mode", Number(event.target.value))}><option value={1}>عدم المعالجة</option><option value={2}>إضافة الأصناف التابعة فقط</option><option value={3}>إضافة الصنف والاصناف التابعة</option></select></div>{!formData.id && <p className="mb-3 text-sm text-muted-foreground">احفظ الصنف أولاً لإضافة أصناف تابعة.</p>}<div className="w-full overflow-x-auto rounded-lg border"><DataGridView style={{ height: TABS_GRID_HEIGHT }} dataSource={relatedProducts} scheme={relatedProductScheme} selectionChanged={(grid: wjGrid.FlexGrid) => setRelatedProductRow(grid.selection.row)} isReport={false} showContextMenu={false} dontConvertToCards={true} /></div><p className="mt-2 text-xs text-muted-foreground">F7: حذف الصف المحدد</p></CardContent>
+                    </Card>
+                  </TabsContent>}
                 </>
               )}
             </Tabs>
@@ -3285,6 +3353,15 @@ export function CompactProductForm({
         excludeProductId={formData.id}
         currentProductName={formData.product_name}
         onDuplicateError={(message) => toast.current?.show({ severity: "error", summary: "", detail: message, life: 4000 })}
+      />
+      <ProductSearchPopup
+        visible={relatedProductSearchOpen}
+        onClose={() => { setRelatedProductSearchOpen(false); setRelatedProductRow(null) }}
+        onSelect={(products) => addRelatedProduct(products[0])}
+        priceCategoryId={1}
+        ShowSelect={false}
+        searchText=""
+        productTypes={[1]}
       />
       <ProductNumbers
         open={factoryNumbersDialogOpen}

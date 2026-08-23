@@ -22,7 +22,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
          FROM product_units pu
          LEFT JOIN units u ON pu.unit_id = u.id
          LEFT JOIN product_unit_barcodes pub
-           ON pu.product_id = pub.product_id AND pu.unit_id = pub.unit_id
+           ON pu.product_id = pub.product_id AND pu.id = pub.unit_id
          LEFT JOIN product_prices pp_selected
            ON pu.product_id = pp_selected.product_id
            AND pu.unit_id = pp_selected.unit_id

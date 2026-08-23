@@ -15,7 +15,7 @@ import { Separator } from "@/components/ui/separator"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import ConfirmDialogYesNo from "@/components/ui/ConfirmDialogYesNo"
 import { Plus, Trash2, Loader2, Save, Users, Search, Pencil, GitBranch, Building2, UserRoundCheck, RefreshCw } from "lucide-react"
-import type { AppUser, StepType, TaskSection, TaskWorkflow, TaskWorkflowStep, TaskWorkflowTransition } from "./types"
+import type { AppUser, StepType, TaskSection, TaskStepType, TaskWorkflow, TaskWorkflowStep, TaskWorkflowTransition } from "./types"
 import ItemGroupSearch, { type ItemGroupRecord } from "./item-group-search"
 
 // فروع النظام الحقيقية (تعريفات) — لا علاقة لها بـtask_branches المحلي القديم؛ نفس الجدول
@@ -47,6 +47,7 @@ export function TaskAdmin() {
   const [sections, setSections] = useState<TaskSection[]>([])
   const [workflows, setWorkflows] = useState<TaskWorkflow[]>([])
   const [users, setUsers] = useState<AppUser[]>([])
+  const [stepTypes, setStepTypes] = useState<TaskStepType[]>([])
   // منفصلة عن كل تحديث لاحق (بعد كل حفظ) عمداً — إظهار مؤشر التحميل بعد كل حفظ كان يُخفي كامل
   // الشجرة (Tabs وكل شيء تحتها)، فتُعاد Tabs للتبويب الافتراضي (defaultValue غير مُتحكَّم به)
   // وتفقد WorkflowsAdmin كل حالتها المحلية (السير المختار، النموذج المفتوح، الخطوات قيد التحرير).
@@ -57,12 +58,13 @@ export function TaskAdmin() {
 
   const loadAll = async () => {
     try {
-      const [branchesRes, departmentsRes, sectionsRes, workflowsRes, usersRes] = await Promise.all([
+      const [branchesRes, departmentsRes, sectionsRes, workflowsRes, usersRes, stepTypesRes] = await Promise.all([
         fetch("/api/branches"),
         fetch("/api/departments"),
         fetch("/api/task-orders/sections"),
         fetch("/api/task-orders/workflows"),
         fetch("/api/settings/user"),
+        fetch("/api/task-orders/step-types"),
       ])
       setBranches(await branchesRes.json())
       const departmentsData = await departmentsRes.json()
@@ -71,6 +73,8 @@ export function TaskAdmin() {
       setWorkflows(await workflowsRes.json())
       const usersData = await usersRes.json()
       setUsers(Array.isArray(usersData) ? usersData : [])
+      const stepTypesData = await stepTypesRes.json()
+      setStepTypes(Array.isArray(stepTypesData) ? stepTypesData : [])
     } catch {
       toast({ title: "خطأ", description: "فشل في جلب بيانات الإدارة", variant: "destructive" })
     } finally {
@@ -100,8 +104,9 @@ export function TaskAdmin() {
       </div>
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <div className="flex flex-col gap-3 rounded-2xl border bg-white p-3 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-          <TabsList className="grid h-auto w-full grid-cols-2 rounded-xl bg-slate-100 p-1 sm:w-[420px]">
+          <TabsList className="grid h-auto w-full grid-cols-3 rounded-xl bg-slate-100 p-1 sm:w-[620px]">
             <TabsTrigger value="sections" className="gap-2 rounded-lg py-2.5 data-[state=active]:bg-white data-[state=active]:text-indigo-700 data-[state=active]:shadow-sm"><Users className="h-4 w-4" />الأقسام والأعضاء</TabsTrigger>
+            <TabsTrigger value="step-types" className="gap-2 rounded-lg py-2.5">انواع الخطوات</TabsTrigger>
             <TabsTrigger value="workflows" className="gap-2 rounded-lg py-2.5 data-[state=active]:bg-white data-[state=active]:text-violet-700 data-[state=active]:shadow-sm"><GitBranch className="h-4 w-4" />مخطط سير العمل</TabsTrigger>
           </TabsList>
           <Button variant="outline" size="sm" onClick={() => void loadAll()}><RefreshCw className="ml-2 h-4 w-4" />تحديث البيانات</Button>
@@ -109,6 +114,7 @@ export function TaskAdmin() {
         <TabsContent value="sections" className="mt-4 w-full">
           <SectionsAdmin sections={sections} branches={branches} departments={departments} users={users} userId={userId} onChanged={loadAll} />
         </TabsContent>
+        <TabsContent value="step-types" className="mt-4 w-full"><StepTypesAdmin stepTypes={stepTypes} onChanged={loadAll} /></TabsContent>
         <TabsContent value="workflows" className="mt-4 w-full">
           <WorkflowsAdmin
             workflows={workflows}
@@ -117,6 +123,7 @@ export function TaskAdmin() {
             branches={branches}
             users={users}
             userId={userId}
+            stepTypes={stepTypes}
             onChanged={loadAll}
           />
         </TabsContent>
@@ -333,15 +340,12 @@ interface EditableStep {
   sla_hours: string
   sla_actions: string[]
   step_type: StepType
+  mandatory?: boolean
+  show_all_items?: boolean
+  print_barcode?: boolean
+  attachment_required?: boolean
 }
 
-const STEP_TYPE_OPTIONS: { value: StepType; label: string }[] = [
-  { value: "normal", label: "خطوة عادية" },
-  { value: "audit", label: "تدقيق" },
-  { value: "approval", label: "اعتماد" },
-  { value: "preparation", label: "تجهيز" },
-  { value: "loading", label: "تحميل" },
-]
 interface EditableTransition {
   from_key: string
   to_key: string
@@ -371,6 +375,9 @@ function stepToEditable(s: TaskWorkflowStep): EditableStep {
     sla_hours: s.sla_hours != null ? String(s.sla_hours) : "",
     sla_actions: s.sla_actions || [],
     step_type: s.step_type || "normal",
+    mandatory: s.mandatory,
+    show_all_items: s.show_all_items,
+    print_barcode: s.print_barcode,
   }
 }
 function transitionToEditable(t: TaskWorkflowTransition, steps: TaskWorkflowStep[]): EditableTransition {
@@ -380,6 +387,35 @@ function transitionToEditable(t: TaskWorkflowTransition, steps: TaskWorkflowStep
   }
 }
 
+function StepTypesAdmin({ stepTypes, onChanged }: { stepTypes: TaskStepType[]; onChanged: () => void }) {
+  const { toast } = useToast()
+  const [drafts, setDrafts] = useState<Record<number, TaskStepType>>({})
+  const [saving, setSaving] = useState<number | null>(null)
+  const [newName, setNewName] = useState("")
+  useEffect(() => {
+    setDrafts(Object.fromEntries(stepTypes.map((type) => [type.id, { ...type }])))
+  }, [stepTypes])
+  const save = async (type: TaskStepType) => {
+    setSaving(type.id)
+    try {
+      const response = await fetch("/api/task-orders/step-types", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(drafts[type.id]) })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error)
+      toast({ title: "تم", description: "تم حفظ نوع الخطوة" })
+      onChanged()
+    } catch (error: any) { toast({ title: "تعذر الحفظ", description: error.message, variant: "destructive" }) } finally { setSaving(null) }
+  }
+  const add = async () => {
+    if (!newName.trim()) return
+    const response = await fetch("/api/task-orders/step-types", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: newName }) })
+    const data = await response.json()
+    if (!response.ok) { toast({ title: "تعذر الإضافة", description: data.error, variant: "destructive" }); return }
+    setNewName("")
+    onChanged()
+  }
+  return <Card><CardHeader><CardTitle className="text-base">انواع الخطوات</CardTitle></CardHeader><CardContent className="space-y-3"><div className="flex gap-2"><Input value={newName} onChange={(event) => setNewName(event.target.value)} placeholder="اسم نوع خطوة جديد" /><Button onClick={() => void add()}><Plus className="ml-2 h-4 w-4" />إضافة</Button></div>{stepTypes.map((type) => { const draft = drafts[type.id] || type; return <div key={type.id} className="grid gap-3 rounded-lg border p-3 md:grid-cols-[1fr_auto_auto_auto_auto_auto]"><Input value={draft.name} onChange={(event) => setDrafts((current) => ({ ...current, [type.id]: { ...draft, name: event.target.value } }))} /><Label className="flex items-center gap-2"><Checkbox checked={draft.mandatory} onCheckedChange={(checked) => setDrafts((current) => ({ ...current, [type.id]: { ...draft, mandatory: checked === true } }))} />اجباري</Label><Label className="flex items-center gap-2"><Checkbox checked={draft.show_all_items} onCheckedChange={(checked) => setDrafts((current) => ({ ...current, [type.id]: { ...draft, show_all_items: checked === true } }))} />إظهار كافة أصناف الطلبية</Label><Label className="flex items-center gap-2"><Checkbox checked={draft.print_barcode} onCheckedChange={(checked) => setDrafts((current) => ({ ...current, [type.id]: { ...draft, print_barcode: checked === true } }))} />طباعة باركود</Label><Label className="flex items-center gap-2"><Checkbox checked={draft.attachment_required} onCheckedChange={(checked) => setDrafts((current) => ({ ...current, [type.id]: { ...draft, attachment_required: checked === true } }))} />المرفق اجباري</Label><Button onClick={() => void save(draft)} disabled={saving === type.id}><Save className="ml-2 h-4 w-4" />حفظ</Button></div>})}</CardContent></Card>
+}
+
 function WorkflowsAdmin({
   workflows,
   sections,
@@ -387,6 +423,7 @@ function WorkflowsAdmin({
   branches,
   users,
   userId,
+  stepTypes,
   onChanged,
 }: {
   workflows: TaskWorkflow[]
@@ -395,6 +432,7 @@ function WorkflowsAdmin({
   branches: RealBranch[]
   users: AppUser[]
   userId: string | null
+  stepTypes: TaskStepType[]
   onChanged: () => void
 }) {
   const { toast } = useToast()
@@ -550,6 +588,10 @@ function WorkflowsAdmin({
         sla_hours: "",
         sla_actions: [],
         step_type: "normal",
+        mandatory: false,
+        show_all_items: false,
+        print_barcode: false,
+        attachment_required: false,
       },
     ])
   }
@@ -604,6 +646,10 @@ function WorkflowsAdmin({
               is_conditional: false,
             sla_actions: s.sla_actions,
             step_type: s.step_type,
+            mandatory: s.mandatory,
+            show_all_items: s.show_all_items,
+            print_barcode: s.print_barcode,
+            attachment_required: s.attachment_required,
           })),
           transitions: editTransitions.map((t) => ({
             from_key: t.from_key,
@@ -862,7 +908,7 @@ function WorkflowsAdmin({
                       <div className="invoice-currency-dropdown-wrap">
                         <PrimeDropdown
                           value={step.step_type}
-                          options={STEP_TYPE_OPTIONS}
+                          options={stepTypes.map((type) => ({ value: type.code, label: type.name }))}
                           optionLabel="label"
                           optionValue="value"
                           className="invoice-currency-dropdown w-full"

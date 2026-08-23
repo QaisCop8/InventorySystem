@@ -21,6 +21,7 @@ import type { TaskOpenTask, TaskOrderItemDetail, TaskSection, TaskStepInstance, 
 import { ACTION_LABELS, PRIORITY_LABELS, STEP_STATUS_LABELS, STEP_TYPE_LABELS } from "./types"
 import { PRIORITY_BADGE_CLASS, PRIORITY_CARD_ACCENT, STATUS_BADGE_CLASS, columnColor, elapsedSecondsSince, formatDuration, initials } from "./utils"
 import { OrderItemsPanel } from "./order-items-panel"
+import AttachmentManager from "@/components/common/AttachmentManager"
 import ConfirmDialogYesNo from "@/components/ui/ConfirmDialogYesNo"
 
 const SPECIAL_STEP_TYPES = new Set(["audit", "approval", "preparation", "loading"])
@@ -233,7 +234,7 @@ export function TaskBoard() {
     const groups = new Map<string, GroupedTask>()
     const passthrough: GroupedTask[] = []
     for (const t of list) {
-      if (!SPECIAL_STEP_TYPES.has(t.step_type) || !t.customer_order_id) {
+      if (!(SPECIAL_STEP_TYPES.has(t.step_type) || t.show_all_items || t.print_barcode) || !t.customer_order_id) {
         passthrough.push({ ...t, siblingItemIds: [t.order_item_id] })
         continue
       }
@@ -935,7 +936,7 @@ export function TaskBoard() {
 
               {(() => {
                 const activeSpecialInstance = detailItem.instances.find(
-                  (i) => ["pending", "in_progress", "paused"].includes(i.status) && SPECIAL_STEP_TYPES.has(i.step_type),
+                  (i) => ["pending", "in_progress", "paused"].includes(i.status) && (SPECIAL_STEP_TYPES.has(i.step_type) || !!i.show_all_items || !!i.print_barcode || !!i.attachment_required),
                 )
                 if (!activeSpecialInstance || !userId) return null
                 // مطابق لشرط الوصول الخادمي (assertOrderItemStepAccess بـlib/task-orders.ts): مستلم
@@ -948,9 +949,14 @@ export function TaskBoard() {
                 const loadingBlocked = activeSpecialInstance.step_type === "loading" && !allLoadingChecked
                 return (
                   <>
+                    {activeSpecialInstance.attachment_required && (
+                      <AttachmentManager modelName="task_order_item" recordId={detailItem.id} uploadedBy={Number(userId)} />
+                    )}
                     <OrderItemsPanel
                       customerOrderId={detailItem.customer_order_id}
                       stepType={activeSpecialInstance.step_type}
+                      showAllItems={activeSpecialInstance.show_all_items}
+                      printBarcode={activeSpecialInstance.print_barcode}
                       userId={userId}
                       canEdit={canActOnSpecial}
                       onAllLoadingCheckedChange={setAllLoadingChecked}

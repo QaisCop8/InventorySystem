@@ -42,6 +42,7 @@ async function ensureProductTypeColumns() {
     await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS municipality_service_account_id INTEGER`
     await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS lsti3mal_account_id INTEGER`
     await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS measurment_id INTEGER DEFAULT 1`
+    await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS related_items_mode INTEGER NOT NULL DEFAULT 1`
   } catch (error) {
     console.error("[v0] Failed to ensure product type columns:", error)
   }
@@ -98,6 +99,7 @@ async function ensureProductSchemaColumns(client: any) {
     ["entry_date", "DATE DEFAULT CURRENT_DATE"],
     ["has_colors", "BOOLEAN DEFAULT false"],
     ["attributes", "JSONB NOT NULL DEFAULT '[]'::jsonb"],
+    ["related_items_mode", "INTEGER NOT NULL DEFAULT 1"],
   ]
 
   for (const [columnName, columnType] of columns) {
@@ -377,7 +379,7 @@ export async function GET(request: NextRequest) {
         FROM product_units pu
         LEFT JOIN product_unit_barcodes pub
           ON pub.product_id = pu.product_id
-          AND pub.unit_id = pu.unit_id
+          AND pub.unit_id = pu.id
         WHERE pu.product_id = p.id
         ORDER BY pu.id ASC
         LIMIT 1
@@ -432,7 +434,7 @@ export async function GET(request: NextRequest) {
         FROM product_units pu
         LEFT JOIN product_unit_barcodes pub
           ON pub.product_id = pu.product_id
-          AND pub.unit_id = pu.unit_id
+          AND pub.unit_id = pu.id
         WHERE pu.product_id = p.id
         ORDER BY pu.id ASC
         LIMIT 1
@@ -1036,6 +1038,7 @@ export async function POST(request: NextRequest) {
       }
 
       await client.query(updateQuery, updateValues)
+      await client.query("UPDATE products SET related_items_mode = $1 WHERE id = $2", [Math.min(3, Math.max(1, Number(productData.related_items_mode || 1))), productId])
       await client.query(`DELETE FROM product_units WHERE product_id=$1`, [productId]);
       await client.query(`DELETE FROM product_unit_barcodes WHERE product_id=$1`, [productId]);
       await client.query(`DELETE FROM product_prices WHERE product_id=$1`, [productId]);
@@ -1246,6 +1249,7 @@ export async function POST(request: NextRequest) {
 
 
       productId = result.rows[0].id;
+      await client.query("UPDATE products SET related_items_mode = $1 WHERE id = $2", [Math.min(3, Math.max(1, Number(productData.related_items_mode || 1))), productId])
 
     }
 
@@ -1263,8 +1267,12 @@ export async function POST(request: NextRequest) {
         )
 
         const barcodeList = Array.isArray(unit.barcode_list) ? unit.barcode_list : []
-        const savedUnitId = await resolveProductUnitId(client, productId, realUnitId)
-        if (!savedUnitId) continue
+        const productUnitResult = await client.query(
+          `SELECT id FROM product_units WHERE product_id = $1 AND unit_id = $2 LIMIT 1`,
+          [productId, realUnitId],
+        )
+        const productUnitRowId = Number(productUnitResult.rows[0]?.id || 0)
+        if (!productUnitRowId) continue
 
         for (const barcode of barcodeList) {
           const normalizedBarcode = String(barcode ?? "").trim();
@@ -1274,7 +1282,7 @@ export async function POST(request: NextRequest) {
             `INSERT INTO product_unit_barcodes (product_id, unit_id, barcode)
              VALUES ($1::int, $2::int, $3::text)
              ON CONFLICT (product_id, unit_id, barcode) DO NOTHING`,
-            [productId, savedUnitId, normalizedBarcode]
+            [productId, productUnitRowId, normalizedBarcode]
           )
         }
       }

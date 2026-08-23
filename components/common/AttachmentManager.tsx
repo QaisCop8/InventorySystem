@@ -7,7 +7,7 @@ import { Paperclip, Download, Trash2, Loader2, UploadCloud, FileText } from "luc
 
 // نظام مرفقات عام (على نمط Odoo): يُستخدَم بنفس الشكل لأي شاشة — سند (أي نوع)، عميل، أو صنف —
 // فقط بتمرير modelName/recordId مختلفين؛ لا حاجة لأي مكوّن مخصَّص جديد لكل شاشة.
-export type AttachmentModel = "voucher" | "customer" | "product"
+export type AttachmentModel = "voucher" | "customer" | "product" | "task_order_item"
 
 export interface AttachmentItem {
   id: number

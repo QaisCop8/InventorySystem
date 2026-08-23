@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Calendar, CheckCircle2, GripVertical, Paperclip } from "lucide-react"
+import { Calendar, CheckCircle2, Download, GripVertical, Paperclip, Search } from "lucide-react"
 import { useAuth } from "@/components/auth/auth-context"
 import { useToast } from "@/hooks/use-toast"
 
@@ -20,12 +20,26 @@ export function OrderConfirmationBoard() {
   const [values, setValues] = useState<Record<string, any>>({})
   const [message, setMessage] = useState("")
   const [confirming, setConfirming] = useState(false)
+  const [availability, setAvailability] = useState<any[] | null>(null)
+  const [checkingAvailability, setCheckingAvailability] = useState(false)
 
   const load = () => Promise.all([fetch("/api/order-drafts").then((r) => r.json()), fetch("/api/order-checklists").then((r) => r.json())]).then(([d, t]) => { setDrafts(Array.isArray(d) ? d : []); setTemplates(Array.isArray(t) ? t : []) })
   useEffect(() => { void load() }, [])
 
-  const openDraft = (draft: any) => { setSelected(draft); setValues(draft.checklist_values || {}); setMessage("") }
+  const openDraft = (draft: any) => { setSelected(draft); setValues(draft.checklist_values || {}); setMessage(""); setAvailability(null) }
   const template = templates.find((item) => Number(item.id) === Number(selected?.checklist_template_id))
+  const checkAvailability = async () => {
+    if (!selected || checkingAvailability) return
+    setCheckingAvailability(true)
+    try {
+      const response = await fetch(`/api/order-drafts/${selected.id}/availability`)
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || "تعذر فحص توفر مواد الانتاج")
+      setAvailability(data.items || [])
+    } catch (error: any) {
+      setMessage(error.message || "تعذر فحص توفر مواد الانتاج")
+    } finally { setCheckingAvailability(false) }
+  }
 
   const confirm = async () => {
     if (confirming || !selected) return
@@ -73,14 +87,17 @@ export function OrderConfirmationBoard() {
     <h1 className="text-2xl font-bold">تأكيد الطلبيات</h1>
     <p className="mb-5 text-muted-foreground">اسحب بطاقة المسودة إلى منطقة التأكيد، أكمل قائمة التحقق، ثم أنشئ الطلبية.</p>
     <div className="grid gap-6 lg:grid-cols-2">
-      <section className="min-h-[500px] rounded-xl border bg-muted/30 p-4"><h2 className="mb-4 font-bold">المسودات بانتظار المراجعة ({drafts.filter((d) => d.status === "draft").length})</h2><div className="grid gap-3 sm:grid-cols-2">{drafts.filter((d) => d.status === "draft").map((draft) => <Card key={draft.id} draggable onDragStart={(event) => event.dataTransfer.setData("draft", String(draft.id))} className="cursor-grab"><CardHeader className="pb-2"><CardTitle className="flex items-center justify-between text-base"><span>{draft.draft_number}</span><GripVertical className="h-4 w-4" /></CardTitle></CardHeader><CardContent className="space-y-2 text-sm"><b>{draft.customer_name}</b><div className="flex gap-2"><Calendar className="h-4 w-4" />التسليم: {draft.requested_delivery_date}</div><div>{draft.items.length} أصناف · عربون {Number(draft.deposit_amount).toFixed(2)}</div>{draft.attachments?.length > 0 && <div className="flex gap-1"><Paperclip className="h-4 w-4" />{draft.attachments.length} مرفقات</div>}<Badge>{draft.priority === "urgent" ? "عاجلة" : draft.priority === "high" ? "عالية" : "عادية"}</Badge></CardContent></Card>)}</div></section>
+      <section className="min-h-[500px] rounded-xl border bg-muted/30 p-4"><h2 className="mb-4 font-bold">المسودات بانتظار المراجعة ({drafts.filter((d) => d.status === "draft").length})</h2><div className="grid gap-3 sm:grid-cols-2">{drafts.filter((d) => d.status === "draft").map((draft) => <Card key={draft.id} draggable role="button" tabIndex={0} onClick={() => openDraft(draft)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); openDraft(draft) } }} onDragStart={(event) => event.dataTransfer.setData("draft", String(draft.id))} className="cursor-pointer transition hover:-translate-y-0.5 hover:border-emerald-400 hover:shadow-md"><CardHeader className="pb-2"><CardTitle className="flex items-center justify-between text-base"><span>{draft.draft_number}</span><GripVertical className="h-4 w-4" /></CardTitle></CardHeader><CardContent className="space-y-2 text-sm"><b>{draft.customer_name}</b><div className="flex gap-2"><Calendar className="h-4 w-4" />التسليم: {draft.requested_delivery_date}</div><div>{draft.items.length} أصناف · عربون {Number(draft.deposit_amount).toFixed(2)}</div>{draft.attachments?.length > 0 && <div className="flex gap-1"><Paperclip className="h-4 w-4" />{draft.attachments.length} مرفقات</div>}<Badge>{draft.priority === "urgent" ? "عاجلة" : draft.priority === "high" ? "عالية" : "عادية"}</Badge></CardContent></Card>)}</div></section>
       <section onDragOver={(event) => event.preventDefault()} onDrop={(event) => { const draft = drafts.find((item) => item.id === Number(event.dataTransfer.getData("draft"))); if (draft) openDraft(draft) }} className="flex min-h-[500px] items-center justify-center rounded-xl border-2 border-dashed border-emerald-400 bg-emerald-50/40 p-6 text-center"><div><CheckCircle2 className="mx-auto mb-3 h-14 w-14 text-emerald-600" /><h2 className="text-xl font-bold">اسحب الطلبية هنا للتأكيد</h2><p className="text-muted-foreground">سيتم فحص الكميات وجميع الحقول الإلزامية قبل إنشاء الطلبية.</p></div></section>
     </div>
 
     <Dialog open={!!selected} onOpenChange={(open) => !open && setSelected(null)}><DialogContent dir="rtl" className="max-h-[90vh] max-w-3xl overflow-y-auto"><DialogHeader><DialogTitle>مراجعة {selected?.draft_number}</DialogTitle></DialogHeader>{selected && <div className="space-y-5">
       <div className="grid gap-2 rounded border p-3 sm:grid-cols-2"><div>العميل: <b>{selected.customer_name}</b></div><div>التسليم: <b>{selected.requested_delivery_date}</b></div>{selected.items.map((item: any) => <div key={item.id} className="sm:col-span-2">{item.product_name}: {Number(item.quantity)} × {Number(item.price).toFixed(2)}</div>)}</div>
+      {selected.attachments?.length > 0 && <div className="space-y-2 rounded border p-3"><h3 className="font-bold">المرفقات</h3>{selected.attachments.map((file: any, index: number) => <div key={index} className="flex items-center justify-between gap-2 rounded bg-muted px-2 py-1 text-sm"><span className="flex items-center gap-2"><Paperclip className="h-4 w-4" />{file.name}</span>{file.data && <a className="text-emerald-600 underline" href={file.data} download={file.name}><Download className="inline h-4 w-4" /> تنزيل</a>}</div>)}</div>}
       {template ? <div><h3 className="mb-3 font-bold">قائمة التحقق: {template.name}</h3>{template.fields.map((field: any) => <div key={field.id} className="mb-3"><label className="mb-1 block text-sm">{field.label}{field.is_required && <span className="text-red-600"> *</span>}</label>{field.field_type === "textarea" ? <Textarea maxLength={field.max_length || undefined} value={values[field.id] || ""} onChange={(event) => setValues({ ...values, [field.id]: event.target.value })} /> : field.field_type === "boolean" ? <label className="flex gap-2"><input type="checkbox" checked={values[field.id] === true} onChange={(event) => setValues({ ...values, [field.id]: event.target.checked })} />تم التحقق</label> : <Input type={field.field_type === "date" ? "date" : ["integer", "decimal"].includes(field.field_type) ? "number" : "text"} step={field.field_type === "decimal" ? "any" : undefined} maxLength={field.max_length || undefined} value={values[field.id] ?? ""} onChange={(event) => setValues({ ...values, [field.id]: event.target.value })} />}</div>)}</div> : <div className="rounded bg-muted p-3">لا توجد قائمة تحقق مرتبطة بهذه المسودة.</div>}
       {message && <div className="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">{message}</div>}
+      <Button type="button" variant="outline" onClick={() => void checkAvailability()} disabled={checkingAvailability} className="w-full"><Search className="ml-2 h-4 w-4" />{checkingAvailability ? "جاري الفحص..." : "فحص توفر مواد الانتاج"}</Button>
+      {availability && <div className="space-y-1 rounded border p-3 text-sm">{availability.map((item: any, index: number) => <div key={index} className={item.available ? "text-emerald-700" : "text-red-700"}>{item.product_name}: المطلوب {item.quantity}، المتوفر {item.available_stock} {item.available ? "متوفر" : "غير متوفر بالكامل"}</div>)}</div>}
       <Button onClick={confirm} disabled={confirming} className="w-full"><CheckCircle2 className="ml-2 h-4 w-4" />{confirming ? "جاري إنشاء الطلبية..." : "تأكيد وإنشاء طلبية المبيعات"}</Button>
     </div>}</DialogContent></Dialog>
   </div>

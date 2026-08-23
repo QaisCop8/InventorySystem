@@ -107,9 +107,11 @@ export async function POST(request: NextRequest) {
         const unitId = Number(item.unit_id || 0)
         const priceCategoryId = Number(item.price_category_id || 0)
         if (productId > 0 && unitId > 0) {
-          await sql`INSERT INTO product_units (product_id, unit_id, to_main_qnty) VALUES (${productId}, ${unitId}, 1) ON CONFLICT DO NOTHING`
+          const productUnit = await sql`INSERT INTO product_units (product_id, unit_id, to_main_qnty) VALUES (${productId}, ${unitId}, 1) ON CONFLICT DO NOTHING RETURNING id`
+          const productUnitId = Number(productUnit[0]?.id || 0)
           if (String(item.barcode || "").trim()) {
-            await sql`INSERT INTO product_unit_barcodes (product_id, unit_id, barcode) VALUES (${productId}, ${unitId}, ${String(item.barcode).trim()}) ON CONFLICT DO NOTHING`
+            const resolvedProductUnit = productUnitId > 0 ? productUnitId : Number((await sql`SELECT id FROM product_units WHERE product_id = ${productId} AND unit_id = ${unitId} LIMIT 1`)[0]?.id || 0)
+            if (resolvedProductUnit > 0) await sql`INSERT INTO product_unit_barcodes (product_id, unit_id, barcode) VALUES (${productId}, ${resolvedProductUnit}, ${String(item.barcode).trim()}) ON CONFLICT DO NOTHING`
           }
           if (priceCategoryId > 0) {
             await sql`INSERT INTO product_prices (product_id, price_category_id, unit_id, price, currency_id) VALUES (${productId}, ${priceCategoryId}, ${unitId}, ${sellingPrice}, ${Number(item.currency_id || 1)}) ON CONFLICT DO NOTHING`

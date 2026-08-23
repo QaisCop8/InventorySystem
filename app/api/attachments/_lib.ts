@@ -27,7 +27,7 @@ export const ensureTables = async () => {
 // أسماء نماذج مسموحة فقط — يمنع أي model_name عشوائي من الوصول لبناء مسارات ملفات غير متوقَّعة.
 // "voucher" يخدم كل أنواع السندات معاً (فاتورة/إرسالية مبيعات، مشتريات، قبض/صرف، مخزون...) لأنها
 // جميعاً صفوف في نفس الجدول المشترك voucher_header_tbl، فمعرّفها (id) فريد عالمياً أصلاً.
-export const ALLOWED_MODELS = ["voucher", "customer", "product"] as const
+export const ALLOWED_MODELS = ["voucher", "customer", "product", "task_order_item"] as const
 export type AttachmentModel = (typeof ALLOWED_MODELS)[number]
 
 export const isAllowedModel = (value: string): value is AttachmentModel =>

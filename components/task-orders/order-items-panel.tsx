@@ -13,6 +13,8 @@ import { printItemBarcode } from "./print-item-barcode"
 interface OrderItemsPanelProps {
   customerOrderId: number | null
   stepType: StepType
+  showAllItems?: boolean
+  printBarcode?: boolean
   userId: string
   // هل المستخدم الحالي فعلاً يملك هذه المهمة (مستلمها، أو عضو بقسمها لخطوة assignment_type='all'،
   // أو مدير نظام)؟ من يفتح نافذة صنف بخطوة ليست له (كعرض فقط بنطاق "كل المهام"/"أقسامي") يجب ألا
@@ -24,7 +26,7 @@ interface OrderItemsPanelProps {
 
 // لوحة الأصناف الشقيقة — تظهر داخل نافذة تفاصيل المهمة (task-board.tsx) فقط أثناء العمل على خطوة
 // نوعها تدقيق/اعتماد/تجهيز/تحميل؛ خطوة عادية لا تعرضها إطلاقاً فيبقى سلوك النافذة كما هو تماماً.
-export function OrderItemsPanel({ customerOrderId, stepType, userId, canEdit, onAllLoadingCheckedChange }: OrderItemsPanelProps) {
+export function OrderItemsPanel({ customerOrderId, stepType, showAllItems = false, printBarcode = false, userId, canEdit, onAllLoadingCheckedChange }: OrderItemsPanelProps) {
   const { toast } = useToast()
   const [items, setItems] = useState<SiblingOrderItem[]>([])
   const [loading, setLoading] = useState(false)
@@ -35,6 +37,7 @@ export function OrderItemsPanel({ customerOrderId, stepType, userId, canEdit, on
   const canDelete = canEdit && (stepType === "audit" || stepType === "approval")
   const canEditPrepared = canEdit && stepType === "preparation"
   const isLoadingStep = stepType === "loading"
+  const showBarcode = printBarcode || isLoadingStep
   const canCheckLoading = canEdit && isLoadingStep
 
   const fetchItems = async () => {
@@ -96,7 +99,7 @@ export function OrderItemsPanel({ customerOrderId, stepType, userId, canEdit, on
   }
 
   if (!customerOrderId) return null
-  if (!canEditQty && !canEditPrepared && !isLoadingStep) return null
+  if (!showAllItems && !isLoadingStep && !showBarcode) return null
 
   return (
     <div className="space-y-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
@@ -168,7 +171,7 @@ export function OrderItemsPanel({ customerOrderId, stepType, userId, canEdit, on
                 </div>
               </div>
 
-              {isLoadingStep && (
+              {showBarcode && (
                 <div className="flex items-center justify-between gap-2 border-t border-dashed border-slate-200 pt-2">
                   <label className="flex items-center gap-2 text-sm">
                     <Checkbox

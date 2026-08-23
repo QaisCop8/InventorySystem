@@ -28,7 +28,7 @@ export interface TaskSection {
 
 export type AssignmentType = "all" | "specific"
 export type JoinType = "none" | "and" | "or"
-export type StepType = "audit" | "approval" | "preparation" | "normal" | "loading"
+export type StepType = string
 
 export interface TaskWorkflowStep {
   id: number
@@ -46,6 +46,10 @@ export interface TaskWorkflowStep {
   is_conditional: boolean
   sla_actions: string[]
   step_type: StepType
+  mandatory?: boolean
+  show_all_items?: boolean
+  print_barcode?: boolean
+  attachment_required?: boolean
 }
 
 export interface TaskWorkflowTransition {
@@ -98,6 +102,10 @@ export interface TaskOpenTask {
   step_key: string
   step_label: string
   step_type: StepType
+  mandatory?: boolean
+  show_all_items?: boolean
+  print_barcode?: boolean
+  attachment_required?: boolean
   assignment_type: AssignmentType
   sla_hours: number | null
   is_end: boolean
