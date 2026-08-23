@@ -54,6 +54,28 @@ export default function InternalRequestAuditPageV2() {
     })
   }, [activeBranchId])
 
+  useEffect(() => {
+    if (!selected) return
+    requestAnimationFrame(() => {
+      const dialog = document.querySelector('[role="dialog"][data-state="open"]')
+      const itemNames = Array.from(dialog?.querySelectorAll("span.rounded.border.p-2") || [])
+      items.forEach((item, index) => {
+        const name = itemNames[index] as HTMLElement | undefined
+        if (!name) return
+        name.classList.add("text-lg")
+        const product = name.querySelector("[data-internal-product]") || name
+        product.classList.add("font-bold", "text-blue-600")
+        if (item.unit_name && !name.querySelector("[data-internal-unit]")) {
+          const unit = document.createElement("span")
+          unit.dataset.internalUnit = "true"
+          unit.className = "mr-2 font-normal text-red-600"
+          unit.textContent = `- ${item.unit_name}`
+          name.appendChild(unit)
+        }
+      })
+    })
+  }, [selected, items])
+
   const branchName = (id: number) => branches.find((branch) => Number(branch.id) === Number(id))?.branch_name || String(id)
   const warehouseName = (id: number | null) => warehouses.find((warehouse) => Number(warehouse.id) === Number(id))?.warehouse_name || "-"
 

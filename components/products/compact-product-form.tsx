@@ -778,6 +778,8 @@ export function CompactProductForm({
   // إذ تغييرها بأثر رجعي على صنف استُخدِم فعلياً يُناقض بيانات تلك السطور القائمة. يُعاد ضبطه false
   // عند فتح صنف جديد (reset_fields) وعند كل تحميل صنف موجود (loadData) قبل الفحص الفعلي.
   const [isUsedInVouchers, setIsUsedInVouchers] = useState(false);
+  const navigationRequestRef = useRef(0)
+  const navigationBusyRef = useRef(false)
 
   // يُطبَّق على أي صنف مُحمَّل بنجاح (تصفّح تسلسلي أو اختيار مباشر عبر البحث بـByid) — مُستخرَجة
   // كدالة مشتركة بدل تكرارها لكل مسار، بعد أن كانت مسارات النجاح المختلفة (لا الأخطاء فقط) تُكرِّر
@@ -820,6 +822,7 @@ export function CompactProductForm({
 
     const newFormData = {
       ...product,
+      product_type: Number(product.product_type ?? 1) || 1,
       units: unitsWithNames,
       prices: pricesWithNames,
       stores: storesWithNames,
@@ -861,6 +864,10 @@ export function CompactProductForm({
       setNextFunction(() => () => loadData(navigationType, productId, false));
       return
     }
+    if (navigationBusyRef.current) return
+    navigationBusyRef.current = true
+    const requestId = navigationRequestRef.current + 1
+    navigationRequestRef.current = requestId
     try {
       if (!Util.checkUserAccess(10)) {
         toast.current?.show({
@@ -884,6 +891,7 @@ export function CompactProductForm({
       }
 
       const res = await fetch(url.toString());
+      if (requestId !== navigationRequestRef.current) return
       console.log("loadData response:", res);
 
       // Byid (اختيار صنف من نافذة البحث) له معالجة أخطاء مستقلة عن رسائل حدود التصفّح
@@ -940,6 +948,10 @@ export function CompactProductForm({
       await applyLoadedProduct(product)
     } catch (err) {
       console.error(err);
+      toast.current?.show({ severity: 'error', summary: '', detail: 'تعذر تحميل بيانات الصنف', life: 3000 })
+    } finally {
+      navigationBusyRef.current = false
+      if (requestId === navigationRequestRef.current) setLoading(false)
     }
   };
 
@@ -1728,6 +1740,7 @@ export function CompactProductForm({
 
           setFormData({
             ...product,
+            product_type: Number(product.product_type ?? 1) || 1,
             units: unitsWithNames,
             prices: pricesWithNames,
             cost_centers: costCenterRows,
@@ -2193,8 +2206,8 @@ export function CompactProductForm({
           isSaving={isSubmitting}
           canSave={true}
           canDelete={currentProductId > 0}
-          isFirstRecord={true}
-          isLastRecord={true}
+          isFirstRecord={false}
+          isLastRecord={false}
         />
       </div>
       <ConfirmDialogYesNo
@@ -2335,7 +2348,7 @@ export function CompactProductForm({
                             placeholder="اختر التصنيف"
                             className={`${sharedDropdownStyles.dropDown} w-full`}
                             panelClassName={sharedDropdownStyles.dropDownPanel}
-                            appendTo="self"
+                            appendTo={() => document.body}
                             onChange={(e: any) => updateFormData("category_id", Number(e.value) || 0)}
                           />
                         </div>
@@ -2361,7 +2374,7 @@ export function CompactProductForm({
                             placeholder="اختر المجموعة"
                             className={`${sharedDropdownStyles.dropDown} w-full`}
                             panelClassName={sharedDropdownStyles.dropDownPanel}
-                            appendTo="self"
+                            appendTo={() => document.body}
                             onChange={(e: any) => updateFormData("main_stock_id", Number(e.value) || 0)}
                           />
                         </div>
@@ -2381,7 +2394,7 @@ export function CompactProductForm({
                             placeholder="اختر نوع الصنف"
                             className={`${sharedDropdownStyles.dropDown} w-full`}
                             panelClassName={sharedDropdownStyles.dropDownPanel}
-                            appendTo="self"
+                            appendTo={() => document.body}
                             onChange={(e: any) => updateFormData("product_type", e.value || 1)}
                           />
                         </div>
@@ -2403,7 +2416,7 @@ export function CompactProductForm({
                             placeholder="اختر التصنيف الضريبي"
                             className={`${sharedDropdownStyles.dropDown} w-full`}
                             panelClassName={sharedDropdownStyles.dropDownPanel}
-                            appendTo="self"
+                            appendTo={() => document.body}
                             onChange={(e: any) => updateFormData("tax_classification_id", Number(e.value) || 0)}
                           />
                         </div>
@@ -2772,7 +2785,7 @@ export function CompactProductForm({
                                 placeholder="اختر نوع القياس"
                                 className={`${sharedDropdownStyles.dropDown} w-full`}
                                 panelClassName={sharedDropdownStyles.dropDownPanel}
-                                appendTo="self"
+                                appendTo={() => document.body}
                                 onChange={(e: any) => {
                                   const newValue = Number(e.value) || 1
                                   if (
@@ -2914,7 +2927,7 @@ export function CompactProductForm({
                                 placeholder="اختر العملة"
                                 className={`${sharedDropdownStyles.dropDown} w-full`}
                                 panelClassName={sharedDropdownStyles.dropDownPanel}
-                                appendTo="self"
+                                appendTo={() => document.body}
                                 onChange={(e: any) => updateFormData("currency_id", Number(e.value) || 0)}
                               />
                             </div>
@@ -2999,7 +3012,7 @@ export function CompactProductForm({
                                 placeholder="عشري"
                                 className={`${sharedDropdownStyles.dropDown} w-full`}
                                 panelClassName={sharedDropdownStyles.dropDownPanel}
-                                appendTo="self"
+                                appendTo={() => document.body}
                                 onChange={(e: any) => updateFormData("measurment_unit", Number(e.value) || 1)}
                               />
                             </div>

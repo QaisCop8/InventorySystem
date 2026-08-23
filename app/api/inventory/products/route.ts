@@ -141,11 +141,11 @@ function normalizeProductPayload(productData: any) {
   const normalizeBarcodeList = (value: any): string[] => {
     if (value == null) return []
     if (Array.isArray(value)) {
-      return value.map((barcode: any) => safeText(barcode, "")).filter(Boolean)
+      return Array.from(new Set(value.map((barcode: any) => safeText(barcode, "").trim()).filter(Boolean)))
     }
     const raw = String(value)
       .split(/[;,]+/)
-      .map((barcode) => safeText(barcode, ""))
+      .map((barcode) => safeText(barcode, "").trim())
       .filter(Boolean)
     return Array.from(new Set(raw))
   }
@@ -790,7 +790,10 @@ export async function POST(request: NextRequest) {
       for (const unit of productData.units) {
         if (Array.isArray(unit.barcode_list) && unit.barcode_list.length > 0) {
           const barcodeCheck = await client.query(
-            `SELECT id FROM product_unit_barcodes WHERE barcode = ANY($1::text[]) AND product_id <> $2`,
+            `SELECT id FROM product_unit_barcodes WHERE barcode = ANY($1::text[]) AND product_id <> $2
+             UNION ALL
+             SELECT id FROM products WHERE TRIM(COALESCE(barcode, '')) = ANY($1::text[]) AND id <> $2
+             LIMIT 1`,
             [unit.barcode_list,productData.id]
           );
           if (barcodeCheck.rows.length > 0) {

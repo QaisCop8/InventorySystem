@@ -46,6 +46,7 @@ interface Product {
   barcode?: string
   description?: string
   category: string
+  product_type?: number
   subcategory?: string
   brand?: string
   model?: string
@@ -958,6 +959,7 @@ export function Products({ entityType = "products" }: ProductsProps) {
                       <TableHead className="text-right w-12"></TableHead>
                       <TableHead className="text-right">رقم الصنف</TableHead>
                       <TableHead className="text-right">اسم الصنف</TableHead>
+                      <TableHead className="text-right">نوع الصنف</TableHead>
                       <TableHead className="text-right">التصنيف</TableHead>
                       <TableHead className="text-right">الوحدة</TableHead>
                       <TableHead className="text-right">المستودع الافتراضي</TableHead>
@@ -987,6 +989,14 @@ export function Products({ entityType = "products" }: ProductsProps) {
                             )}
                           </div>
                         </TableCell>
+                        <TableCell>{({
+                          1: "بضاعة تجارية",
+                          2: "مواد خام",
+                          3: "لوازم إنتاج",
+                          4: "تحت التصنيع",
+                          5: "بضاعة مصنعة",
+                          6: "مواد للاستهلاك",
+                        } as Record<number, string>)[Number(product.product_type) || 1] || "بضاعة تجارية"}</TableCell>
                         <TableCell>{product.category}</TableCell>
                         <TableCell>{product.main_unit}</TableCell>
                         <TableCell>{product.default_store_name || "بلا تحديد"}</TableCell>

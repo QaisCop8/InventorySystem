@@ -17,40 +17,26 @@ import DataGridView from "@/components/common/DataGridView"
 import { ExcelImportHeader, ExcelImportProgress, ExcelImportStats, type ExcelImportStep } from "@/components/ui/excel-import-layout"
 
 interface ExcelProduct {
+  [key: string]: any
   product_code: string
   product_name: string
   product_name_en?: string
   description?: string
-  status?: string
   category_id: number
-  main_stock_id: number
-  brand?: string
-  model?: string
-  manufacturer_company?: string
-  measurment_unit: number
+  main_stock_group?: string
   unit_1?: string
-  unit_1_barcode?: string
-  unit_2?: string
-  unit_2_barcode?: string
-  unit_2_to_main_qnty?: number
-  weight?: number
-  length?: number
-  width?: number
-  height?: number
-  density?: number
-  color?: string
-  size?: string
+  unit_1?: string
+  main_stock_group?: string
   notes?: string
   expiry_tracking: boolean
   batch_tracking: boolean
   serial_tracking?: boolean
-  store_id: number
-  price_1?: number
-  price_2?: number
-  price_3?: number
-  price_4?: number
-  price_5?: number
-  price_6?: number
+  factory_number_1?: string
+  factory_number_2?: string
+  factory_number_3?: string
+  original_number_1?: string
+  original_number_2?: string
+  original_number_3?: string
   rowIndex?: number
   errors?: string[]
   isValid?: boolean
@@ -78,35 +64,42 @@ const PRODUCT_FIELD_DEFS: { key: string; label: string; required?: boolean }[] =
   { key: "product_name_en", label: "اسم الصنف إنجليزي" },
   { key: "description", label: "الوصف" },
   { key: "category_id", label: "التصنيف (رقم)" },
-  { key: "main_stock_id", label: "مجموعة الصنف (رقم)" },
-  { key: "brand", label: "العلامة التجارية" },
-  { key: "model", label: "الموديل" },
-  { key: "manufacturer_company", label: "الشركة المصنعة" },
-  { key: "measurment_unit", label: "وحدة القياس (رقم)" },
+  { key: "main_stock_group", label: "رقم المجموعة" },
   { key: "unit_1", label: "الوحدة 1" },
-  { key: "unit_1_barcode", label: "باركود الوحدة 1" },
-  { key: "unit_2", label: "الوحدة 2" },
-  { key: "unit_2_barcode", label: "باركود الوحدة 2" },
-  { key: "unit_2_to_main_qnty", label: "معامل تحويل الوحدة 2" },
-  { key: "weight", label: "الوزن" },
-  { key: "length", label: "الطول" },
-  { key: "width", label: "العرض" },
-  { key: "height", label: "الارتفاع" },
-  { key: "density", label: "الكثافة" },
-  { key: "color", label: "اللون" },
-  { key: "size", label: "المقاس" },
   { key: "notes", label: "ملاحظات" },
   { key: "expiry_tracking", label: "له تاريخ صلاحية" },
   { key: "batch_tracking", label: "له رقم تشغيلي" },
   { key: "serial_tracking", label: "له رقم متسلسل" },
-  { key: "store_id", label: "المستودع (رقم)" },
-  { key: "price_1", label: "السعر 1" },
-  { key: "price_2", label: "السعر 2" },
-  { key: "price_3", label: "السعر 3" },
-  { key: "price_4", label: "السعر 4" },
-  { key: "price_5", label: "السعر 5" },
-  { key: "price_6", label: "السعر 6" },
+  { key: "factory_number_1", label: "رقم المصنع 1" },
+  { key: "factory_number_2", label: "رقم المصنع 2" },
+  { key: "factory_number_3", label: "رقم المصنع 3" },
+  { key: "original_number_1", label: "الرقم الأصلي 1" },
+  { key: "original_number_2", label: "الرقم الأصلي 2" },
+  { key: "original_number_3", label: "الرقم الأصلي 3" },
 ]
+
+for (let unitNumber = 1; unitNumber <= 6; unitNumber++) {
+  if (unitNumber > 1) {
+    PRODUCT_FIELD_DEFS.splice(
+      PRODUCT_FIELD_DEFS.findIndex((field) => field.key === "notes"),
+      0,
+      { key: `unit_${unitNumber}`, label: `الوحدة ${unitNumber}` },
+      { key: `unit_${unitNumber}_to_main_qnty`, label: `العلاقة بالوحدة الرئيسية ${unitNumber}` },
+    )
+  }
+  for (let barcodeNumber = 1; barcodeNumber <= 6; barcodeNumber++) {
+    PRODUCT_FIELD_DEFS.splice(
+      PRODUCT_FIELD_DEFS.findIndex((field) => field.key === "notes"),
+      0,
+      { key: `unit_${unitNumber}_barcode_${barcodeNumber}`, label: `باركود الوحدة ${unitNumber} - ${barcodeNumber}` },
+    )
+  }
+  PRODUCT_FIELD_DEFS.splice(
+    PRODUCT_FIELD_DEFS.findIndex((field) => field.key === "notes"),
+    0,
+    { key: `unit_${unitNumber}_sale_price`, label: `سعر بيع الوحدة ${unitNumber}` },
+  )
+}
 
 // لا خيار مطابقة لهذا الحقل — يبقى بقيمته الافتراضية (فارغ/0/false) لكل صف.
 const NO_MAPPING_VALUE = "__none__"
@@ -124,6 +117,7 @@ export function ExcelImportDialog({ open, onOpenChange, onImportComplete }: Exce
   const [rawRows, setRawRows] = useState<any[]>([])
   const [columnMapping, setColumnMapping] = useState<Record<string, string>>({})
   const [showMapping, setShowMapping] = useState(false)
+  const importAbortControllerRef = useRef<AbortController | null>(null)
   const [importResults, setImportResults] = useState<{
     success: number
     failed: number
@@ -225,116 +219,47 @@ export function ExcelImportDialog({ open, onOpenChange, onImportComplete }: Exce
   }, [])
 
   const downloadTemplate = () => {
-    const templateData = [
-      {
+    const templateData = [{
         product_code: "A000000001",
         product_name: "منتج تجريبي",
         product_name_en: "Sample Product",
         description: "وصف المنتج التفصيلي",
         category_id: 1,
-        main_stock_id: 1,
-        brand: "سامسونج",
-        model: "Galaxy S24",
-        manufacturer_company: "Samsung Electronics",
-        measurment_unit: 1,
-        unit_1: "حبة",
-        unit_1_barcode: "123456",
-        unit_2: "كرتونة",
-        unit_2_barcode: "111222",
-        unit_2_to_main_qnty: 12,
-        weight: 0.2,
-        length: 15,
-        width: 7,
-        height: 0.8,
-        density: 0,
-        color: "أسود",
-        size: "متوسط",
+        main_stock_group: "مجموعة تجريبية",
         notes: "منتج عالي الجودة مع ضمان شامل",
         expiry_tracking: false,
         batch_tracking: true,
         serial_tracking: false,
-        store_id: 1,
-        price_1: 100,
-        price_2: 200,
-        price_3: 300,
-        price_4: 400,
-        price_5: 500,
-        price_6: 600
-      },
-      {
+        factory_number_1: "FAC-001", factory_number_2: "", factory_number_3: "",
+        original_number_1: "ORG-001", original_number_2: "", original_number_3: "",
+      }, {
         product_code: "B000000002",
         product_name: "منتج غذائي",
         product_name_en: "Food Product",
         description: "منتج غذائي طبيعي",
         category_id: 2,
-        main_stock_id: 2,
-        brand: "الطبيعة",
-        model: "",
-        manufacturer_company: "مصنع الأغذية الطبيعية",
-        measurment_unit: 1,
-        unit_1: "حبة",
-        unit_1_barcode: "123456",
-        unit_2: "كرتونة",
-        unit_2_barcode: "111222",
-        unit_2_to_main_qnty: 12,
-        weight: 0.4,
-        length: 10,
-        width: 10,
-        height: 5,
-        density: 0,
-        color: "",
-        size: "400 جرام",
+        main_stock_group: "مواد غذائية",
         notes: "يحفظ في مكان بارد وجاف",
         expiry_tracking: true,
         batch_tracking: true,
         serial_tracking: false,
-        store_id: 1,
-        price_1: 100,
-        price_2: 200,
-        price_3: 300,
-        price_4: 400,
-        price_5: 500,
-        price_6: 600
+        factory_number_1: "", factory_number_2: "", factory_number_3: "",
+        original_number_1: "", original_number_2: "", original_number_3: "",
+      }]
+
+    for (const row of templateData) {
+      for (let unitNumber = 1; unitNumber <= 6; unitNumber++) {
+        row[`unit_${unitNumber}`] = unitNumber === 1 ? "حبة" : ""
+        row[`unit_${unitNumber}_sale_price`] = unitNumber === 1 ? 100 : ""
+        if (unitNumber > 1) row[`unit_${unitNumber}_to_main_qnty`] = ""
+        for (let barcodeNumber = 1; barcodeNumber <= 6; barcodeNumber++) {
+          row[`unit_${unitNumber}_barcode_${barcodeNumber}`] = barcodeNumber === 1 && unitNumber === 1 ? "123456" : ""
+        }
       }
-    ];
+    }
 
     const ws = XLSX.utils.json_to_sheet(templateData);
-    const colWidths = [
-      { wch: 12 }, // product_code
-      { wch: 25 }, // product_name
-      { wch: 25 }, // product_name_en
-      { wch: 30 }, // description
-      { wch: 12 }, // category_id
-      { wch: 12 }, // main_stock_id
-      { wch: 15 }, // brand
-      { wch: 15 }, // model
-      { wch: 20 }, // manufacturer_company
-      { wch: 12 }, // measurment_unit
-      { wch: 15 }, // unit_1
-      { wch: 15 }, // unit_1_barcode
-      { wch: 15 }, // unit_2
-      { wch: 15 }, // unit_2_barcode
-      { wch: 15 }, // unit_2_to_main_qnty
-      { wch: 10 }, // weight
-      { wch: 10 }, // length
-      { wch: 10 }, // width
-      { wch: 10 }, // height
-      { wch: 10 }, // density
-      { wch: 10 }, // color
-      { wch: 10 }, // size
-      { wch: 30 }, // notes
-      { wch: 12 }, // expiry_tracking
-      { wch: 12 }, // batch_tracking
-      { wch: 12 }, // serial_tracking
-      { wch: 12 }, // store_id
-      { wch: 10 }, // price_1
-      { wch: 10 }, // price_2
-      { wch: 10 }, // price_3
-      { wch: 10 }, // price_4
-      { wch: 10 }, // price_5
-      { wch: 10 }  // price_6
-    ];
-    ws["!cols"] = colWidths;
+    ws["!cols"] = Object.keys(templateData[0]).map(() => ({ wch: 18 }));
 
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Products Template");
@@ -456,6 +381,7 @@ export function ExcelImportDialog({ open, onOpenChange, onImportComplete }: Exce
     }
 
     const processedProducts: ExcelProduct[] = []
+    const barcodeRows = new Map<string, number>()
     for (let index = 0; index < rawRows.length; index++) {
       const row = rawRows[index]
       const product: ExcelProduct = {
@@ -464,65 +390,83 @@ export function ExcelImportDialog({ open, onOpenChange, onImportComplete }: Exce
         product_name_en: readText(row, "product_name_en"),
         description: readText(row, "description"),
         category_id: Number(readField(row, "category_id")) || 0,
-        main_stock_id: Number(readField(row, "main_stock_id")) || 0,
-        brand: readText(row, "brand"),
-        model: readText(row, "model"),
-        manufacturer_company: readText(row, "manufacturer_company"),
-        measurment_unit: readField(row, "measurment_unit") || 1,
+        main_stock_group: readText(row, "main_stock_group"),
+        last_purchase_price: Number(readField(row, "last_purchase_price")) || 0,
+        minimum_order_quantity: Number(readField(row, "minimum_order_quantity")) || 0,
+        currency_id: Number(readField(row, "currency_id")) || 1,
+        tax_rate: Number(readField(row, "tax_rate")) || 0,
+        discount_rate: Number(readField(row, "discount_rate")) || 0,
         unit_1: readText(row, "unit_1"),
-        unit_1_barcode: readText(row, "unit_1_barcode"),
-        unit_2: readText(row, "unit_2"),
-        unit_2_barcode: readText(row, "unit_2_barcode"),
-        unit_2_to_main_qnty: Number(readField(row, "unit_2_to_main_qnty")) || 1,
-        weight: Number(readField(row, "weight")) || 0,
-        length: Number(readField(row, "length")) || 0,
-        width: Number(readField(row, "width")) || 0,
-        height: Number(readField(row, "height")) || 0,
-        density: Number(readField(row, "density")) || 0,
-        color: readText(row, "color"),
-        size: readText(row, "size"),
         notes: readText(row, "notes"),
-        expiry_tracking: false,
-        batch_tracking: false,
-        serial_tracking: false,
-        store_id: Number(readField(row, "store_id")) || 0,
-        price_1: Number(readField(row, "price_1")) || 0,
-        price_2: Number(readField(row, "price_2")) || 0,
-        price_3: Number(readField(row, "price_3")) || 0,
-        price_4: Number(readField(row, "price_4")) || 0,
-        price_5: Number(readField(row, "price_5")) || 0,
-        price_6: Number(readField(row, "price_6")) || 0,
+        expiry_tracking: readField(row, "expiry_tracking") === true || String(readField(row, "expiry_tracking") ?? "").trim().toLowerCase() === "true" || String(readField(row, "expiry_tracking") ?? "").trim() === "1",
+        batch_tracking: readField(row, "batch_tracking") === true || String(readField(row, "batch_tracking") ?? "").trim().toLowerCase() === "true" || String(readField(row, "batch_tracking") ?? "").trim() === "1",
+        serial_tracking: readField(row, "serial_tracking") === true || String(readField(row, "serial_tracking") ?? "").trim().toLowerCase() === "true" || String(readField(row, "serial_tracking") ?? "").trim() === "1",
+        default_store: Number(readField(row, "default_store")) || 0,
+        status: Number(readField(row, "status")) || 1,
+        type: Number(readField(row, "type")) || 1,
+        service_type: Number(readField(row, "service_type")) || 0,
+        product_type: 1,
+        tax_classification_id: Number(readField(row, "tax_classification_id")) || 0,
+        transaction_notes: readText(row, "transaction_notes"),
+        entry_date: readText(row, "entry_date"),
         rowIndex: index + 2,
         errors: [],
       };
 
+      for (let unitNumber = 1; unitNumber <= 6; unitNumber++) {
+        product[`unit_${unitNumber}`] = readText(row, `unit_${unitNumber}`)
+        product[`unit_${unitNumber}_to_main_qnty`] = unitNumber === 1 ? 1 : Number(readField(row, `unit_${unitNumber}_to_main_qnty`)) || 0
+        product[`unit_${unitNumber}_sale_price`] = Number(readField(row, `unit_${unitNumber}_sale_price`)) || 0
+        for (let barcodeNumber = 1; barcodeNumber <= 6; barcodeNumber++) {
+          product[`unit_${unitNumber}_barcode_${barcodeNumber}`] = readText(row, `unit_${unitNumber}_barcode_${barcodeNumber}`)
+        }
+      }
+      for (let numberIndex = 1; numberIndex <= 3; numberIndex++) {
+        product[`factory_number_${numberIndex}`] = readText(row, `factory_number_${numberIndex}`)
+        product[`original_number_${numberIndex}`] = readText(row, `original_number_${numberIndex}`)
+      }
+
       const errors: string[] = [];
+      const rowBarcodes = new Set<string>()
+      for (let unitNumber = 1; unitNumber <= 6; unitNumber++) {
+        for (let barcodeNumber = 1; barcodeNumber <= 6; barcodeNumber++) {
+          const barcode = String(product[`unit_${unitNumber}_barcode_${barcodeNumber}`] || "").trim()
+          if (!barcode) continue
+          const normalizedBarcode = barcode.toLowerCase()
+          if (rowBarcodes.has(normalizedBarcode)) {
+            errors.push(`الباركود ${barcode} مكرر داخل نفس الصنف`)
+          } else {
+            rowBarcodes.add(normalizedBarcode)
+          }
+          const previousRow = barcodeRows.get(normalizedBarcode)
+          if (previousRow !== undefined) {
+            errors.push(`الباركود ${barcode} مكرر مع السطر ${previousRow}`)
+          } else {
+            barcodeRows.set(normalizedBarcode, index + 2)
+          }
+        }
+      }
       if (!product.product_code.trim()) errors.push("رقم الصنف مطلوب");
       if (!product.product_name.trim()) errors.push("اسم الصنف مطلوب");
       if (!product.unit_1 || !String(product.unit_1).trim()) {
         errors.push("الوحدة الرئيسية مطلوبة");
       }
-      if (product.store_id > 0) {
-        const warehouseExists = definitionsRef.current.warehouses.some(w => w.id === product.store_id)
-        if (!warehouseExists) errors.push(`المستودع (store_id: ${product.store_id}) غير موجود في النظام`)
+      if (product.default_store > 0) {
+        const warehouseExists = definitionsRef.current.warehouses.some(w => w.id === product.default_store)
+        if (!warehouseExists) errors.push(`المستودع (default_store: ${product.default_store}) غير موجود في النظام`)
       }
       if (product.category_id > 0) {
         const categoryExists = definitionsRef.current.product_category.some(w => w.id === product.category_id)
         if (!categoryExists) errors.push(`التصنيف (category_id: ${product.category_id}) غير موجود في النظام`)
       }
-      if (product.main_stock_id > 0) {
-        const mainExists = definitionsRef.current.categories.some(w => w.id === product.main_stock_id)
-        if (!mainExists) errors.push(`مجموعة الصنف (main_stock_id: ${product.main_stock_id}) غير موجود في النظام`)
+      for (let unitNumber = 2; unitNumber <= 6; unitNumber++) {
+        if (product[`unit_${unitNumber}`] && Number(product[`unit_${unitNumber}_to_main_qnty`]) <= 0) {
+          errors.push(`العلاقة بالوحدة الرئيسية ${unitNumber} يجب أن تكون أكبر من صفر`)
+        }
       }
-      for (let i = 1; i <= 6; i++) {
-        const priceValue = Number(product[`price_${i}` as keyof typeof product]);
-
-        if (priceValue > 0) {
-          const priceCategory = definitionsRef.current.price_category.length > i - 1;
-
-          if (!priceCategory) {
-            errors.push(`فئة السعر رقم ${i} غير موجودة في النظام`);
-          }
+      for (let unitNumber = 1; unitNumber <= 6; unitNumber++) {
+        if (Number(product[`unit_${unitNumber}_sale_price`]) < 0) {
+          errors.push(`سعر بيع الوحدة ${unitNumber} يجب ألا يكون سالباً`)
         }
       }
 
@@ -605,6 +549,8 @@ export function ExcelImportDialog({ open, onOpenChange, onImportComplete }: Exce
       )
     }
 
+    const abortController = new AbortController()
+    importAbortControllerRef.current = abortController
     const ensureUnitExists = async (unitName: string): Promise<number | null> => {
       const value = String(unitName || "").trim();
       if (!value) return null;
@@ -617,6 +563,7 @@ export function ExcelImportDialog({ open, onOpenChange, onImportComplete }: Exce
       const response = await fetch("/api/units", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal: abortController.signal,
         body: JSON.stringify({
           unit_name: value,
           unit_name_en: value,
@@ -643,19 +590,44 @@ export function ExcelImportDialog({ open, onOpenChange, onImportComplete }: Exce
       return createdUnitId;
     };
 
+    const resolveMainStockGroup = async (value: string): Promise<number | null> => {
+      const text = String(value || "").trim()
+      if (!text) return null
+      const existing = definitionsRef.current.categories.find((group: any) =>
+        String(group.group_name || "").trim().toLowerCase() === text.toLowerCase() ||
+        String(group.group_code || "").trim().toLowerCase() === text.toLowerCase() ||
+        String(group.id) === text,
+      )
+      if (existing) return existing.id
+      const response = await fetch("/api/item-groups", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        signal: abortController.signal,
+        body: JSON.stringify({ group_name: text, group_code: text, status: "نشط" }),
+      })
+      if (!response.ok) throw new Error(`فشل إنشاء مجموعة الصنف: ${text}`)
+      const created = await response.json()
+      definitionsRef.current.categories = [...definitionsRef.current.categories, created]
+      return Number(created.id) || null
+    }
+
     setIsImporting(true);
     setImportProgress({ current: 0, total: validProducts.length });
     const results = { success: 0, failed: 0, errors: [] as string[] };
     const defaultItemAccounts = await loadDefaultItemAccounts();
+    if (abortController.signal.aborted) {
+      setIsImporting(false)
+      return
+    }
 
-    for (let i = 0; i < validProducts.length; i++) {
+    for (let i = 0; i < validProducts.length && !abortController.signal.aborted; i++) {
       const product = validProducts[i];
 
       try {
-        const mainUnitId = product.unit_1 ? await ensureUnitExists(product.unit_1) : null;
-        const secondaryUnitId = product.unit_2 ? await ensureUnitExists(product.unit_2) : null;
+        const mainStockId = await resolveMainStockGroup(product.main_stock_group)
 
         const unitEntries = new Map<number, { unit_id: number; to_main_qnty: number; barcode_list: string[] }>();
+        const unitIdsByNumber = new Map<number, number>()
 
         const addUnitEntry = (unitId: number | null, multiplier: number, barcodes: string[]) => {
           if (!unitId || !Number.isFinite(unitId)) return;
@@ -669,18 +641,20 @@ export function ExcelImportDialog({ open, onOpenChange, onImportComplete }: Exce
           });
         };
 
-        if (mainUnitId) {
-          addUnitEntry(mainUnitId, 1, normalizeBarcodeList(product.unit_1_barcode));
-        }
-
-        if (secondaryUnitId) {
-          addUnitEntry(secondaryUnitId, Number(product.unit_2_to_main_qnty) || 1, normalizeBarcodeList(product.unit_2_barcode));
+        for (let unitNumber = 1; unitNumber <= 6; unitNumber++) {
+          const unitName = String(product[`unit_${unitNumber}`] || "").trim()
+          if (!unitName) continue
+          const unitId = await ensureUnitExists(unitName)
+          if (!unitId) continue
+          unitIdsByNumber.set(unitNumber, unitId)
+          const barcodes = Array.from({ length: 6 }, (_, barcodeIndex) => product[`unit_${unitNumber}_barcode_${barcodeIndex + 1}`])
+          addUnitEntry(unitId, Number(product[`unit_${unitNumber}_to_main_qnty`]) || 1, normalizeBarcodeList(barcodes))
         }
 
         const units = Array.from(unitEntries.values());
 
-        const stores = product.store_id ? [{
-          store_id: product.store_id,
+        const stores = product.default_store ? [{
+          store_id: product.default_store,
           shelf: "",
           reorder_quantity: 0,
           max_quantity: 0,
@@ -688,24 +662,12 @@ export function ExcelImportDialog({ open, onOpenChange, onImportComplete }: Exce
         }] : [];
 
         const prices: { price_category_id: number; unit_id: number; price: number; currency_id: number }[] = [];
-        const priceUnitIds = units.map((unit) => unit.unit_id);
 
-        for (let p = 1; p <= 6; p++) {
-          const rawValue = product[`price_${p}` as keyof typeof product];
-          const priceValue = Number(rawValue);
-
-          if (!isNaN(priceValue) && priceValue > 0) {
-            const priceCategory = definitionsRef.current.price_category.find(pc => pc.id === p);
-            if (!priceCategory) continue;
-
-            for (const selectedUnitId of priceUnitIds) {
-              prices.push({
-                price_category_id: priceCategory.id,
-                unit_id: selectedUnitId,
-                price: priceValue,
-                currency_id: 1,
-              });
-            }
+        for (let unitNumber = 1; unitNumber <= 6; unitNumber++) {
+          const priceValue = Number(product[`unit_${unitNumber}_sale_price`])
+          const unitId = unitIdsByNumber.get(unitNumber)
+          if (priceValue > 0 && unitId) {
+            prices.push({ price_category_id: definitionsRef.current.price_category[0]?.id || 1, unit_id: unitId, price: priceValue, currency_id: 1 })
           }
         }
 
@@ -715,28 +677,27 @@ export function ExcelImportDialog({ open, onOpenChange, onImportComplete }: Exce
           product_name_en: product.product_name_en,
           description: product.description,
           category_id: product.category_id || null,
-          main_stock_id: product.main_stock_id || null,
-          brand: product.brand,
-          model: product.model,
+          main_stock_id: mainStockId,
           factory_number: "",
           original_number: "",
-          measurment_unit: 1,
-          last_purchase_price: 0,
-          currency_id: 1,
-          tax_rate: 16,
-          discount_rate: 0,
-          expiry_tracking: false,
-          batch_tracking: false,
-          serial_tracking: false,
-          status: 1,
-          length: product.length,
-          width: product.width,
-          height: product.height,
-          density: product.weight,
-          color: product.color,
-          size: product.size,
+          factory_numbers: [1, 2, 3].map((numberIndex) => product[`factory_number_${numberIndex}`]).filter(Boolean),
+          original_numbers: [1, 2, 3].map((numberIndex) => product[`original_number_${numberIndex}`]).filter(Boolean),
+          last_purchase_price: product.last_purchase_price,
+          currency_id: product.currency_id,
+          tax_rate: product.tax_rate,
+          discount_rate: product.discount_rate,
+          expiry_tracking: product.expiry_tracking,
+          batch_tracking: product.batch_tracking,
+          serial_tracking: product.serial_tracking,
+          status: product.status,
+          type: product.type,
+          service_type: product.service_type,
+          product_type: 1,
+          tax_classification_id: product.tax_classification_id,
+          minimum_order_quantity: product.minimum_order_quantity,
+          entry_date: product.entry_date,
           notes: product.notes,
-          manufacturer_company: product.manufacturer_company,
+          transaction_notes: product.transaction_notes,
           units,
           stores,
           prices,
@@ -746,6 +707,7 @@ export function ExcelImportDialog({ open, onOpenChange, onImportComplete }: Exce
         const response = await fetch("/api/inventory/products", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          signal: abortController.signal,
           body: JSON.stringify(bodyData),
         });
 
@@ -761,6 +723,7 @@ export function ExcelImportDialog({ open, onOpenChange, onImportComplete }: Exce
 
         results.success++;
       } catch (error) {
+        if (abortController.signal.aborted) break
         results.errors.push(`الصنف ${product.product_code}: خطأ غير متوقع`);
         results.failed++;
       }
@@ -768,14 +731,22 @@ export function ExcelImportDialog({ open, onOpenChange, onImportComplete }: Exce
       setImportProgress({ current: i + 1, total: validProducts.length });
     }
 
+    if (abortController.signal.aborted) {
+      setIsImporting(false)
+      return
+    }
+
     setImportResults(results);
     setIsImporting(false);
+    importAbortControllerRef.current = null
 
     //if (results.success > 0) onImportComplete();
   };
 
 
   const resetDialog = () => {
+    importAbortControllerRef.current?.abort()
+    importAbortControllerRef.current = null
     setFile(null)
     setProducts([])
     setShowPreview(false)
@@ -785,6 +756,7 @@ export function ExcelImportDialog({ open, onOpenChange, onImportComplete }: Exce
     setColumnMapping({})
     setImportResults(null)
     setImportProgress({ current: 0, total: 0 })
+    setIsImporting(false)
   }
 
   const validProductsCount = products.filter((p) => p.isValid).length
@@ -799,34 +771,37 @@ export function ExcelImportDialog({ open, onOpenChange, onImportComplete }: Exce
     { header: "اسم الصنف إنجليزي", name: "product_name_en", width: 200, isReadOnly: true },
     { header: "الوصف", name: "description", width: 250, isReadOnly: true },
     { header: "التصنيف", name: "category_id", width: 130, isReadOnly: true },
-    { header: "المخزون الرئيسي", name: "main_stock_id", width: 150, isReadOnly: true },
-    { header: "العلامة التجارية", name: "brand", width: 150, isReadOnly: true },
-    { header: "الموديل", name: "model", width: 120, isReadOnly: true },
-    { header: "الشركة المصنعة", name: "manufacturer_company", width: 180, isReadOnly: true },
-    { header: "الوحدة 1", name: "unit_1", width: 120, isReadOnly: true },
-    { header: "باركود الوحدة 1", name: "unit_1_barcode", width: 150, isReadOnly: true },
-    { header: "الوحدة 2", name: "unit_2", width: 120, isReadOnly: true },
-    { header: "باركود الوحدة 2", name: "unit_2_barcode", width: 150, isReadOnly: true },
-    { header: "معامل تحويل 2", name: "unit_2_to_main_qnty", width: 120, isReadOnly: true },
-    { header: "الوزن", name: "weight", width: 100, isReadOnly: true, dataType: "Number" },
-    { header: "الطول", name: "length", width: 100, isReadOnly: true, dataType: "Number" },
-    { header: "العرض", name: "width", width: 100, isReadOnly: true, dataType: "Number" },
-    { header: "الارتفاع", name: "height", width: 100, isReadOnly: true, dataType: "Number" },
-    { header: "اللون", name: "color", width: 120, isReadOnly: true },
-    { header: "المقاس", name: "size", width: 120, isReadOnly: true },
+    { header: "رقم المجموعة", name: "main_stock_group", width: 150, isReadOnly: true },
+    { header: "آخر سعر شراء", name: "last_purchase_price", width: 130, isReadOnly: true, dataType: "Number" },
+    { header: "الحد الأدنى للطلب", name: "minimum_order_quantity", width: 150, isReadOnly: true, dataType: "Number" },
     { header: "له صلاحية", name: "expiry_tracking_label", width: 100, isReadOnly: true },
     { header: "له تشغيله", name: "batch_tracking_label", width: 100, isReadOnly: true },
     { header: "له سيريال", name: "serial_tracking_label", width: 100, isReadOnly: true },
     { header: "المستودع", name: "store_name", width: 150, isReadOnly: true },
+    { header: "الضريبة", name: "tax_rate", width: 100, isReadOnly: true, dataType: "Number" },
+    { header: "الخصم", name: "discount_rate", width: 100, isReadOnly: true, dataType: "Number" },
     { header: "ملاحظات", name: "notes", width: 200, isReadOnly: true },
-    { header: "السعر 1", name: "price_1", width: 120, isReadOnly: true, dataType: "Number" },
-    { header: "السعر 2", name: "price_2", width: 120, isReadOnly: true, dataType: "Number" },
-    { header: "السعر 3", name: "price_3", width: 120, isReadOnly: true, dataType: "Number" },
-    { header: "السعر 4", name: "price_4", width: 120, isReadOnly: true, dataType: "Number" },
-    { header: "السعر 5", name: "price_5", width: 120, isReadOnly: true, dataType: "Number" },
-    { header: "السعر 6", name: "price_6", width: 120, isReadOnly: true, dataType: "Number" },
+    { header: "ملاحظات المعاملات", name: "transaction_notes", width: 200, isReadOnly: true },
+    { header: "تاريخ الإدخال", name: "entry_date", width: 130, isReadOnly: true },
     { header: "الأخطاء", name: "errors_text", width: 240, isReadOnly: true },
   ]
+
+for (let unitNumber = 1; unitNumber <= 6; unitNumber++) {
+  productsGridColumns.push(
+    { header: `الوحدة ${unitNumber}`, name: `unit_${unitNumber}`, width: 120, isReadOnly: true },
+    { header: `العلاقة بالوحدة الرئيسية ${unitNumber}`, name: `unit_${unitNumber}_to_main_qnty`, width: 170, isReadOnly: true },
+    { header: `سعر بيع الوحدة ${unitNumber}`, name: `unit_${unitNumber}_sale_price`, width: 150, isReadOnly: true, dataType: "Number" },
+    ...Array.from({ length: 6 }, (_, barcodeIndex) => ({ header: `باركود الوحدة ${unitNumber} - ${barcodeIndex + 1}`, name: `unit_${unitNumber}_barcode_${barcodeIndex + 1}`, width: 170, isReadOnly: true })),
+  )
+}
+productsGridColumns.push(
+  { header: "رقم المصنع 1", name: "factory_number_1", width: 150, isReadOnly: true },
+  { header: "رقم المصنع 2", name: "factory_number_2", width: 150, isReadOnly: true },
+  { header: "رقم المصنع 3", name: "factory_number_3", width: 150, isReadOnly: true },
+  { header: "الرقم الأصلي 1", name: "original_number_1", width: 150, isReadOnly: true },
+  { header: "الرقم الأصلي 2", name: "original_number_2", width: 150, isReadOnly: true },
+  { header: "الرقم الأصلي 3", name: "original_number_3", width: 150, isReadOnly: true },
+)
 
   const productsGridScheme = { isReport: true, columns: productsGridColumns }
   const previewProducts = products.slice(0, 200)
@@ -837,8 +812,8 @@ export function ExcelImportDialog({ open, onOpenChange, onImportComplete }: Exce
     expiry_tracking_label: product.expiry_tracking ? "نعم" : "لا",
     batch_tracking_label: product.batch_tracking ? "نعم" : "لا",
     serial_tracking_label: product.serial_tracking ? "نعم" : "لا",
-    store_name: product.store_id
-      ? definitionsRef.current.warehouses.find((w) => w.id === product.store_id)?.warehouse_name || "غير محدد"
+    store_name: product.default_store
+      ? definitionsRef.current.warehouses.find((w) => w.id === product.default_store)?.warehouse_name || "غير محدد"
       : "غير محدد",
     errors_text: product.errors?.length ? product.errors.join(", ") : "",
   })
@@ -910,11 +885,12 @@ export function ExcelImportDialog({ open, onOpenChange, onImportComplete }: Exce
                 <AlertDescription>
                   <strong>تعليمات الاستيراد:</strong>
                   <ul className="list-disc list-inside mt-2 space-y-1 text-sm">
-                    <li>قم بتحميل النموذج الذي يحتوي على جميع حقول الصنف (أكثر من 40 حقل)</li>
-                    <li>املأ البيانات الأساسية: كود الصنف الاسم، الفئة، وسعر الشراء (مطلوبة)</li>
-                    <li>يمكن ملء الحقول الاختيارية مثل: الأسعار المختلفة، المقاسات، الألوان، والمواصفات</li>
-
-                    <li>جميع الحقول المالية والكميات يجب أن تكون أرقام صحيحة</li>
+                    <li>قم بتحميل النموذج ثم طابق أعمدته مع حقول الاستيراد قبل المعاينة.</li>
+                    <li>الحقول المطلوبة هي: رقم الصنف، اسم الصنف، والوحدة الرئيسية.</li>
+                    <li>يمكن إدخال مجموعة الصنف بالاسم أو الكود؛ إذا لم تكن موجودة فسيتم إنشاؤها تلقائياً.</li>
+                    <li>يمكن إضافة حتى 6 وحدات، و6 باركودات لكل وحدة، وسعر بيع لكل وحدة ضمن أول فئة سعر.</li>
+                    <li>عند إدخال وحدة إضافية، يجب أن تكون العلاقة بالوحدة الرئيسية أكبر من صفر، والباركودات المكررة مرفوضة.</li>
+                    <li>يجب إدخال الأسعار والكميات وعلاقات التحويل كأرقام صحيحة أو عشرية صحيحة.</li>
                   </ul>
                 </AlertDescription>
               </Alert>
@@ -995,7 +971,7 @@ export function ExcelImportDialog({ open, onOpenChange, onImportComplete }: Exce
                     )}
                   </div>
 
-                  <Button variant="outline" disabled={isImporting} onClick={resetDialog}>
+                  <Button variant="outline" onClick={resetDialog}>
                     <X className="h-4 w-4 mr-2" /> إلغاء
                   </Button>
                   <Button
@@ -1013,7 +989,7 @@ export function ExcelImportDialog({ open, onOpenChange, onImportComplete }: Exce
                   (overflow-x-auto)، لا على مستوى الحوار كاملاً — DialogContent أعلاه لذلك بلا
                   overflow-x إطلاقاً (overflow-x-hidden)، وmin-w-0 بكل سلف flex بينهما يمنع محتوى
                   الشبكة العريض من توسيع تلك الأسلاف بدل التمرير داخل حدوده الخاصة فقط. */}
-              <div className="excel-account-grid w-full min-w-0 h-[520px] overflow-x-auto overflow-y-hidden rounded-lg border" dir="rtl">
+              <div className="excel-account-grid w-full min-w-0 h-[520px] overflow-x-hidden overflow-y-hidden rounded-lg border" dir="rtl">
                 <div className="h-full min-w-[4700px]">
                   <DataGridView
                     containerStyle={{ height: "100%", width: "100%" }}

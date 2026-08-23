@@ -22,6 +22,25 @@ export default function InternalReceiveStagePage({ stage }: { stage: Stage }) {
   const receivedRef = useRef<HTMLInputElement | null>(null)
   const load = async () => { const response = await fetch(`/api/internal-manufacturing-requests?status=${stage.status}&_=${Date.now()}`, { cache: "no-store", headers: { "x-branch-id": String(activeBranchId || "") } }); const data = await response.json(); setRequests(response.ok && Array.isArray(data) ? data : []) }
   useEffect(() => { void load() }, [activeBranchId, stage.status])
+  useEffect(() => {
+    if (!selected) return
+    requestAnimationFrame(() => {
+      const dialog = document.querySelector('[role="dialog"][data-state="open"]')
+      const itemNames = Array.from(dialog?.querySelectorAll("span.rounded.border.p-2") || [])
+      items.forEach((item, index) => {
+        const name = itemNames[index] as HTMLElement | undefined
+        if (!name) return
+        name.classList.add("text-lg", "font-bold", "text-blue-600")
+        if (item.unit_name && !name.querySelector("[data-internal-unit]")) {
+          const unit = document.createElement("span")
+          unit.dataset.internalUnit = "true"
+          unit.className = "mr-2 font-normal text-red-600"
+          unit.textContent = `- ${item.unit_name}`
+          name.appendChild(unit)
+        }
+      })
+    })
+  }, [selected, items])
   const openRequest = (request: Request) => { setSelected(request); setPopupMessage(""); setItems((request.items || []).map((item) => ({ ...item, receivedInput: Number(item.received_quantity) > 0 ? Number(item.received_quantity) : Number(item.prepared_quantity || item.qnty) }))) }
   useEffect(() => { if (!selected) return; requestAnimationFrame(() => receivedRef.current?.focus()) }, [selected])
   const dropRequest = () => { const request = requests.find((item) => item.id === draggedId); if (request) openRequest(request); setDraggedId(null) }

@@ -40,6 +40,26 @@ export default function InternalWorkflowStagePageV2({ stage }: { stage: Stage })
       document.querySelector<HTMLInputElement>('input[aria-label="الكمية المجهزة"]')?.focus()
     })
   }, [selected, stage.preparation])
+
+  useEffect(() => {
+    if (!selected) return
+    requestAnimationFrame(() => {
+      const dialog = document.querySelector('[role="dialog"][data-state="open"]')
+      const itemNames = Array.from(dialog?.querySelectorAll("span.rounded.border.p-2") || [])
+      items.forEach((item, index) => {
+        const name = itemNames[index] as HTMLElement | undefined
+        if (!name) return
+        name.classList.add("text-lg", "font-bold", "text-blue-600")
+        if (item.unit_name && !name.querySelector("[data-internal-unit]")) {
+          const unit = document.createElement("span")
+          unit.dataset.internalUnit = "true"
+          unit.className = "mr-2 font-normal text-red-600"
+          unit.textContent = `- ${item.unit_name}`
+          name.appendChild(unit)
+        }
+      })
+    })
+  }, [selected, items])
   useEffect(() => {
     if (!selected || stage.action !== "send") return
     requestAnimationFrame(() => {
