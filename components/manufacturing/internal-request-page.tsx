@@ -97,19 +97,39 @@ export default function InternalRequestPage() {
 
   useEffect(() => {
     if (!itemsPanelElement) return
-    const productInputs = Array.from(itemsPanelElement.parentElement?.querySelectorAll("input[disabled]") || []) as HTMLInputElement[]
-    items.forEach((item, index) => {
-      const input = productInputs[index]
-      if (!input) return
-      input.classList.add("text-lg", "font-bold", "text-blue-600")
-      if (!item.unit_name || input.parentElement?.querySelector("[data-internal-request-unit]")) return
-      const unitLabel = document.createElement("span")
-      unitLabel.dataset.internalRequestUnit = "true"
-      unitLabel.className = "mr-2 text-base font-normal text-red-600"
-      unitLabel.textContent = `- ${item.unit_name}`
-      input.parentElement?.appendChild(unitLabel)
-    })
-  }, [itemsPanelElement, items])
+    itemsPanelElement.classList.add("flex-wrap", "w-full")
+    return () => itemsPanelElement.classList.remove("flex-wrap", "w-full")
+  }, [itemsPanelElement])
+  
+    useEffect(() => {
+      if (!itemsPanelElement) return
+      const rows = Array.from(itemsPanelElement.parentElement?.querySelectorAll<HTMLElement>("div.mb-2.grid") || [])
+      rows.forEach((row, index) => {
+        const item = items[index]
+        if (!item) return
+        row.querySelectorAll("[data-internal-item-detail]").forEach((detail) => detail.remove())
+        const detail = document.createElement("div")
+        detail.dataset.internalItemDetail = "true"
+        detail.className = "mt-1 min-w-0"
+        if (item.product_image) {
+          const image = document.createElement("img")
+          image.src = item.product_image
+          image.alt = item.product_name || ""
+          image.className = "mb-1 h-10 w-10 rounded border object-cover"
+          detail.appendChild(image)
+        }
+        const unit = document.createElement("div")
+        unit.className = "text-sm font-medium text-red-600"
+        unit.textContent = item.unit_name || "بدون وحدة"
+        detail.appendChild(unit)
+        const nameInput = row.querySelector("input[disabled]")
+        if (nameInput) {
+          nameInput.classList.add("font-bold", "!text-blue-600", "!opacity-100")
+          nameInput.parentElement?.appendChild(detail)
+        }
+      })
+      return () => rows.forEach((row) => row.querySelectorAll("[data-internal-item-detail]").forEach((detail) => detail.remove()))
+    }, [itemsPanelElement, items])
 
   useEffect(() => {
     Promise.all([fetch("/api/branches"), fetch("/api/warehouses")]).then(async ([branchResponse, warehouseResponse]) => {
@@ -155,7 +175,7 @@ export default function InternalRequestPage() {
     const product = products[0]
     if (!product) return
     const unit = product.selected_unit || product.units?.[0]
-    setItems((current) => [...current, { product_id: product.id, product_name: product.product_name, base_product_name: product.product_name, unit_id: unit?.unit_id, unit_name: unit?.unit_name || "", quantity: 1, barcode: unit?.barcode || product.barcode || "", properties: product.properties || product.features || product.attributes || null }])
+    setItems((current) => [...current, { product_id: product.id, product_name: product.product_name, base_product_name: product.product_name, product_image: product.product_image || product.image_url || product.display_image || null, unit_id: unit?.unit_id, unit_name: unit?.unit_name || "", quantity: 1, barcode: unit?.barcode || product.barcode || "", properties: product.properties || product.features || product.attributes || null }])
     setProductOpen(false)
     window.setTimeout(() => barcodeInputRef.current?.focus(), 0)
   }
@@ -171,7 +191,7 @@ export default function InternalRequestPage() {
         return
       }
       const unit = product.units?.find((item: any) => Number(item.unit_id) === Number(product.unit_id)) || product.selected_unit || product.units?.[0]
-      setItems((current) => [...current, { product_id: product.id, product_name: product.product_name, base_product_name: product.product_name, unit_id: unit?.unit_id, unit_name: unit?.unit_name || "", quantity: 1, barcode, properties: product.properties || product.features || product.attributes || null }])
+      setItems((current) => [...current, { product_id: product.id, product_name: product.product_name, base_product_name: product.product_name, product_image: product.product_image || product.image_url || product.display_image || null, unit_id: unit?.unit_id, unit_name: unit?.unit_name || "", quantity: 1, barcode, properties: product.properties || product.features || product.attributes || null }])
       setBarcodeInput("")
     } catch {
       showMessage("رقم الباركود المدخل غير صحيح", "error")
@@ -181,7 +201,7 @@ export default function InternalRequestPage() {
     }
   }
   const barcodePortal = itemsPanelElement && open && !selectedRequest
-    ? createPortal(<div className="order-last mb-3 w-full basis-full rounded-lg border bg-muted/20 p-3"><div className="flex flex-col gap-2 sm:flex-row sm:items-end"><div className="min-w-0 flex-1"><Label className="text-base" htmlFor="internal-request-barcode">الباركود</Label><Input className="text-base" id="internal-request-barcode" ref={barcodeInputRef} value={barcodeInput} disabled={barcodeSearching} onChange={(event) => setBarcodeInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); void addProductByBarcode() } }} placeholder="أدخل الباركود" /></div><Button type="button" className="shrink-0 text-base" disabled={barcodeSearching || !barcodeInput.trim()} onClick={() => void addProductByBarcode()}>{barcodeSearching ? "بحث..." : "بحث"}</Button></div></div>, itemsPanelElement)
+    ? createPortal(<div className="order-last mb-3 w-full basis-full rounded-lg border bg-muted/20 p-3"><div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-end"><div className="min-w-0 flex-1"><Label className="text-base" htmlFor="internal-request-barcode">الباركود</Label><Input className="w-full text-base" id="internal-request-barcode" ref={barcodeInputRef} value={barcodeInput} disabled={barcodeSearching} onChange={(event) => setBarcodeInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); void addProductByBarcode() } }} placeholder="أدخل الباركود" /></div><Button type="button" className="shrink-0 text-base" disabled={barcodeSearching || !barcodeInput.trim()} onClick={() => void addProductByBarcode()}>{barcodeSearching ? "بحث..." : "بحث"}</Button></div></div>, itemsPanelElement)
     : null
   const saveRequest = async () => {
     messagesRef.current?.clear?.()

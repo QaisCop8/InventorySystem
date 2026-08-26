@@ -23276,7 +23276,7 @@ ALTER TABLE ONLY public.sales_order_items
 --
 
 ALTER TABLE ONLY public.orders
-    ADD CONSTRAINT sales_orders_customer_id_fkey FOREIGN KEY (customer_id) REFERENCES public.customers(id);
+    ADD CONSTRAINT sales_orders_customer_id_fkey FOREIGN KEY (customer_id) REFERENCES public.account_tbl(id);
 
 
 --

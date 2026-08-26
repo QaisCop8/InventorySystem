@@ -54,28 +54,6 @@ export default function InternalRequestAuditPageV2() {
     })
   }, [activeBranchId])
 
-  useEffect(() => {
-    if (!selected) return
-    requestAnimationFrame(() => {
-      const dialog = document.querySelector('[role="dialog"][data-state="open"]')
-      const itemNames = Array.from(dialog?.querySelectorAll("span.rounded.border.p-2") || [])
-      items.forEach((item, index) => {
-        const name = itemNames[index] as HTMLElement | undefined
-        if (!name) return
-        name.classList.add("text-lg")
-        const product = name.querySelector("[data-internal-product]") || name
-        product.classList.add("font-bold", "text-blue-600")
-        if (item.unit_name && !name.querySelector("[data-internal-unit]")) {
-          const unit = document.createElement("span")
-          unit.dataset.internalUnit = "true"
-          unit.className = "mr-2 font-normal text-red-600"
-          unit.textContent = `- ${item.unit_name}`
-          name.appendChild(unit)
-        }
-      })
-    })
-  }, [selected, items])
-
   const branchName = (id: number) => branches.find((branch) => Number(branch.id) === Number(id))?.branch_name || String(id)
   const warehouseName = (id: number | null) => warehouses.find((warehouse) => Number(warehouse.id) === Number(id))?.warehouse_name || "-"
 
@@ -142,6 +120,26 @@ export default function InternalRequestAuditPageV2() {
     }
   }
 
+  useEffect(() => {
+    const cards = Array.from(document.querySelectorAll<HTMLElement>("div.cursor-grab"))
+    cards.slice(0, requests.length).forEach((card, index) => {
+      card.classList.add("!border-2", "!border-slate-300", "!shadow-sm")
+      card.querySelector("div.grid.grid-cols-3.gap-1")?.remove()
+      const openButton = Array.from(card.querySelectorAll<HTMLButtonElement>("button")).find((button) => button.textContent?.includes("فتح الطلب"))
+      if (openButton) openButton.textContent = "تدقيق الطلب"
+    })
+    if (!selected) return
+  }, [requests, selected, items])
+
+  useEffect(() => {
+    if (!selected) return
+    const frame = requestAnimationFrame(() => {
+      const button = Array.from(document.querySelectorAll<HTMLButtonElement>('[role="dialog"][data-state="open"] button')).find((item) => item.textContent?.includes("اعتماد الطلب"))
+      if (button) button.replaceChildren(document.createTextNode("تدقيق الطلب"))
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [selected])
+
   return (
     <div dir="rtl" className="space-y-5 p-3 md:p-6">
       <div className="flex items-center justify-between">
@@ -151,7 +149,7 @@ export default function InternalRequestAuditPageV2() {
       {message && <div className="rounded border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">{message}</div>}
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(560px,720px)]">
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {requests.map((request) => <Card key={request.id} draggable onDragStart={(event) => event.dataTransfer.setData("internal-request-id", String(request.id))} className="cursor-grab" onClick={() => openRequest(request)}><CardHeader className="pb-3"><CardTitle className="flex items-center justify-between text-base"><span>{request.vch_code}</span><GripVertical className="h-4 w-4 text-muted-foreground" /></CardTitle></CardHeader><CardContent className="space-y-2 text-sm"><div>التاريخ: <b>{String(request.vch_date).slice(0, 10)}</b></div><div>مقدم الطلب: <b>{request.requester_name || "-"}</b></div><div>الأصناف: <b>{request.items?.length || 0}</b></div><Button className="w-full" variant="outline" onClick={(event) => { event.stopPropagation(); openRequest(request) }}><Edit className="ml-2 h-4 w-4" />فتح الطلب</Button></CardContent></Card>)}
+          {requests.map((request) => <Card key={request.id} draggable onDragStart={(event) => event.dataTransfer.setData("internal-request-id", String(request.id))} className="cursor-grab border-2 border-slate-200" onClick={() => openRequest(request)}><CardHeader className="pb-3"><CardTitle className="flex items-center justify-between text-base"><span>{request.vch_code}</span><GripVertical className="h-4 w-4 text-muted-foreground" /></CardTitle></CardHeader><CardContent className="space-y-2 text-sm"><div>التاريخ: <b>{String(request.vch_date).slice(0, 10)}</b></div><div>مقدم الطلب: <b>{request.requester_name || "-"}</b></div><div>الأصناف: <b>{request.items?.length || 0}</b></div><div className="grid grid-cols-3 gap-1">{(request.items || []).slice(0, 3).map((item, index) => item.product_image ? <img key={index} src={item.product_image} alt={item.item_name || ""} className="h-12 w-full rounded border object-cover" /> : <div key={index} className="flex h-12 items-center justify-center rounded border text-[10px] text-muted-foreground">لا صورة</div>)}</div><Button className="w-full" variant="outline" onClick={(event) => { event.stopPropagation(); openRequest(request) }}><Edit className="ml-2 h-4 w-4" />فتح الطلب</Button></CardContent></Card>)}
           {!loading && requests.length === 0 && <div className="col-span-full rounded-xl border-2 border-dashed py-16 text-center"><FileText className="mx-auto mb-3 h-10 w-10 text-emerald-600" />لا توجد طلبات قيد التدقيق</div>}
         </div>
         <div onDragOver={(event) => event.preventDefault()} onDrop={openDraggedRequest} className="flex min-h-[700px] items-center justify-center rounded-xl border-2 border-dashed border-emerald-400 bg-emerald-50/50 p-12 text-center lg:min-h-[820px]"><div><CheckCircle2 className="mx-auto mb-6 h-24 w-24 text-emerald-600" /><h2 className="text-3xl font-bold">اسحب الطلب هنا</h2><p className="mt-4 text-xl text-muted-foreground">لفتحه ومراجعته</p></div></div>
@@ -160,7 +158,7 @@ export default function InternalRequestAuditPageV2() {
         <DialogContent dir="rtl" className="max-h-[94vh] max-w-4xl overflow-y-auto">
           <DialogHeader><DialogTitle>تدقيق طلب {selected?.vch_code}</DialogTitle></DialogHeader>
           {popupMessage && <div className="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">{popupMessage}</div>}
-          {selected && <div className="space-y-4"><div className="grid gap-3 rounded border p-4 sm:grid-cols-2"><div>فرع مقدم الطلب: <b>{branchName(selected.branch_id)}</b></div><div>فرع البضاعة: <b>{branchName(selected.manufacturing_branch_id)}</b></div><div>مستودع مقدم الطلب: <b>{warehouseName(selected.to_store_id)}</b></div><div>مستودع المطلوب منه البضاعة: <b>{warehouseName(selected.destination_warehouse_id)}</b></div><div>مقدم الطلب: <b>{selected.requester_name || "-"}</b></div><div>التاريخ: <b>{selected.vch_date}</b></div></div><div className="space-y-2 rounded border p-4"><h2 className="text-lg font-bold">الأصناف</h2>{items.map((item, index) => <div key={item.id || index} className="flex items-center gap-2"><span className="flex-1 rounded border p-2">{item.item_name || "صنف جديد"}</span><input className="w-28 rounded border p-2" type="number" min="1" value={item.quantity} onChange={(event) => setItems((current) => current.map((row, rowIndex) => rowIndex === index ? { ...row, quantity: Number(event.target.value) } : row))} /></div>)}</div><div className="flex gap-2"><Button className="flex-1" onClick={() => void approve()} disabled={saving}><CheckCircle2 className="ml-2 h-4 w-4" />اعتماد الطلب</Button><Button className="flex-1" onClick={() => void saveItems()} disabled={saving}><Save className="ml-2 h-4 w-4" />حفظ التعديلات</Button></div></div>}
+          {selected && <div className="space-y-4"><div className="grid gap-3 rounded border p-4 sm:grid-cols-2"><div>فرع مقدم الطلب: <b>{branchName(selected.branch_id)}</b></div><div>فرع البضاعة: <b>{branchName(selected.manufacturing_branch_id)}</b></div><div>مستودع مقدم الطلب: <b>{warehouseName(selected.to_store_id)}</b></div><div>مستودع المطلوب منه البضاعة: <b>{warehouseName(selected.destination_warehouse_id)}</b></div><div>مقدم الطلب: <b>{selected.requester_name || "-"}</b></div><div>التاريخ: <b>{selected.vch_date}</b></div></div><div className="space-y-2 rounded border p-4"><h2 className="text-lg font-bold">الأصناف</h2>{items.map((item, index) => <div key={item.id || index} className="flex items-center gap-3 rounded border p-2"><div className="flex h-16 w-16 shrink-0 items-center justify-center">{item.product_image ? <img src={item.product_image} alt={item.item_name || ""} className="h-16 w-16 rounded border object-cover" /> : <span className="text-xs text-muted-foreground">لا صورة</span>}</div><span className="flex-1 rounded border p-2 font-bold text-blue-600">{item.item_name || "صنف جديد"}<span className="mt-1 block text-sm font-normal text-red-600">{item.unit_name || "بدون وحدة"}</span></span><input className="w-28 rounded border p-2" type="number" min="1" value={item.quantity} onChange={(event) => setItems((current) => current.map((row, rowIndex) => rowIndex === index ? { ...row, quantity: Number(event.target.value) } : row))} /></div>)}</div><div className="flex gap-2"><Button className="flex-1" onClick={() => void approve()} disabled={saving}><CheckCircle2 className="ml-2 h-4 w-4" />تدقيق الطلب</Button><Button className="flex-1" onClick={() => void saveItems()} disabled={saving}><Save className="ml-2 h-4 w-4" />حفظ التعديلات</Button></div></div>}
         </DialogContent>
       </Dialog>
     </div>

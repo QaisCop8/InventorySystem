@@ -13,6 +13,7 @@ export function validateDraftPayload(data: any) {
   if (!Number.isFinite(deposit) || deposit < 0) throw new DraftValidationError("مبلغ العربون يجب أن يكون صفراً أو أكبر")
   if (!Array.isArray(data.items) || data.items.length === 0) throw new DraftValidationError("يجب إدخال صنف واحد على الأقل")
   for (const item of data.items) {
+    if (!(Number(item.store_id) > 0)) throw new DraftValidationError("يجب تعريف مستودع واحد على الاقل")
     const quantity = Number(item.quantity), price = Number(item.price), discount = Number(item.discount)
     if (!Number.isInteger(Number(item.product_id)) || Number(item.product_id) <= 0 || !Number.isFinite(quantity) || quantity <= 0) throw new DraftValidationError("بيانات الصنف أو الكمية غير صالحة")
     if (!Number.isFinite(price) || price < 0) throw new DraftValidationError(`سعر الصنف ${item.product_name || ""} غير صالح`)
@@ -31,10 +32,16 @@ export async function validateDraftReferences(client: PoolClient, data: any) {
   if (!accountResult.rowCount) throw new DraftValidationError("حساب العميل غير موجود أو ليس من النوع 2")
   const ids = [...new Set(data.items.map((item: any) => Number(item.product_id)))]
   const productsResult = await client.query("SELECT id, product_name, minimum_order_quantity FROM products WHERE id=ANY($1::int[])", [ids])
+  const warehouseIds = [...new Set(data.items.map((item: any) => Number(item.store_id)).filter((id: number) => Number.isInteger(id) && id > 0))]
+  const warehousesResult = await client.query("SELECT id, warehouse_name, status, is_active FROM warehouses WHERE id=ANY($1::int[])", [warehouseIds])
+  const warehousesById = new Map(warehousesResult.rows.map((warehouse: any) => [Number(warehouse.id), warehouse]))
   for (const item of data.items) {
     const product = productsResult.rows.find((row: any) => Number(row.id) === Number(item.product_id))
     if (!product) throw new DraftValidationError("أحد الأصناف المحددة غير موجود")
     if (Number(item.quantity) < Number(product.minimum_order_quantity || 0)) throw new DraftValidationError(`الحد الأدنى لطلب ${product.product_name} هو ${product.minimum_order_quantity}`)
+    const warehouse = warehousesById.get(Number(item.store_id))
+    if (!warehouse || Number(warehouse.status) === 3) throw new DraftValidationError(`المستودع - ${warehouse?.warehouse_name || item.store_name || "غير معروف"} محذوف لا يمكن حفظ الحركة`)
+    if (Number(warehouse.status) !== 1 || warehouse.is_active === false) throw new DraftValidationError(`المستودع - ${warehouse.warehouse_name} مجمد لا يمكن حفظ الحركة`)
   }
   return accountResult.rows[0]
 }

@@ -19,6 +19,24 @@ function ensureOrderWorkflowColumns() {
     orderWorkflowColumnsEnsured = (async () => {
       await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS branch_id INTEGER`
       await sql`ALTER TABLE order_items ADD COLUMN IF NOT EXISTS workflow_id INTEGER`
+      await sql`
+        DO $$
+        BEGIN
+          IF EXISTS (
+            SELECT 1 FROM pg_constraint
+            WHERE conrelid = 'orders'::regclass AND conname = 'sales_orders_customer_id_fkey'
+          ) THEN
+            ALTER TABLE orders DROP CONSTRAINT sales_orders_customer_id_fkey;
+          END IF;
+          IF NOT EXISTS (
+            SELECT 1 FROM pg_constraint
+            WHERE conrelid = 'orders'::regclass AND contype = 'f'
+              AND pg_get_constraintdef(oid) = 'FOREIGN KEY (customer_id) REFERENCES account_tbl(id)'
+          ) THEN
+            ALTER TABLE orders ADD CONSTRAINT orders_customer_id_fkey FOREIGN KEY (customer_id) REFERENCES account_tbl(id);
+          END IF;
+        END $$;
+      `
       // order_number كان VARCHAR(8) بالمخطط الأصلي (scripts/ME/Scripts28122025.txt) — لا يكفي
       // للتنسيق الفعلي المولَّد بـgetNextSequentialNumber (بادئة حرفين "O"/"T" + رمز دفتر السند +
       // 9 أرقام، انظر lib/number-generator.ts validateNumberFormat)، فيفشل الحفظ بـ"value too long
@@ -201,14 +219,14 @@ export async function getSalesOrders(filters: any = {}) {
   const queryText = `
     SELECT 
       so.*,
-      COALESCE(c.name, '') AS customer_name,
+      COALESCE(c.name, c.account_name, '') AS customer_name,
       COALESCE(COUNT(oi.id), 0) AS item_count,
       COALESCE(SUM(oi.quantity), 0) AS total_quantity
     FROM orders so
-    LEFT JOIN customers c ON so.customer_id = c.id
+    LEFT JOIN account_tbl c ON so.customer_id = c.id
     LEFT JOIN order_items oi ON so.id = oi.order_id
     ${whereSQL}
-    GROUP BY so.id, c.name
+    GROUP BY so.id, c.name, c.account_name
     ORDER BY so.created_at DESC
   `;
 

@@ -26,6 +26,7 @@ interface Product {
   first_unit: string;
   first_price: number;
   first_barcode: string;
+  barcode?: string | null;
   units?: Unit[];
   selected?: boolean;
   selected_unit?: Unit;
@@ -59,7 +60,7 @@ const productImageCellTemplate = (cell: any) => {
     : <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-lg border bg-slate-50 text-[10px] text-slate-400">لا صورة</div>
 }
 
-const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibleProp, open, onClose, onSelect, priceCategoryId = 0, ShowSelect = false, searchText = "", productTypes, title }) => {
+const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibleProp, open, onClose, onSelect, priceCategoryId = 0, ShowSelect = true, searchText = "", productTypes, title }) => {
   const visible = visibleProp ?? open ?? false;
   const [products, setProducts] = useState<Product[]>([]);
   const [searchCode, setSearchCode] = useState("");
@@ -235,6 +236,7 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
       attribute_name: attribute.name,
       value_name: value,
       attribute_key: `${attribute.name}::${value}`,
+      barcode: selectedProduct?.first_barcode || (selectedProduct as any)?.barcode || "",
       selected: selectedAttributeKeys.has(`${attribute.name}::${value}`),
       image_url: attribute.value_images?.[value] || selectedProduct?.product_image || selectedProduct?.image_url || null,
     })))
@@ -268,16 +270,17 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
 
       const matchPrice =
         !searchPrice ||
-        String(p.first_price).includes(searchPrice);
+        String(p.first_price ?? (p as any).price ?? "").includes(searchPrice);
 
       const matchBarcode =
         !searchBarcode ||
-        p.first_barcode?.toLowerCase().includes(searchBarcode.toLowerCase());
+        [p.first_barcode, (p as any).barcode, ...(p.units || []).map((unit: Unit) => unit.barcode)].filter(Boolean).some((barcode) => String(barcode).toLowerCase().includes(searchBarcode.toLowerCase()));
 
       return matchCode && matchName && matchPrice && matchBarcode;
 
     });
   }, [products, searchCode, searchName, searchPrice, searchBarcode]);
+  const visibleProducts = useMemo(() => filteredProducts.slice(0, 200), [filteredProducts]);
 
   const clearFilters = useCallback(() => {
     setSearchCode("");
@@ -326,6 +329,7 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
       { header: "✅", name: "selected", width: 50, isReadOnly: true, visible: ShowSelect, body: attributeSelectionCellTemplate },
       { header: "المتغير", name: "attribute_name", width: 180, isReadOnly: true },
       { header: "الخصائص", name: "value_name", width: "*", minWidth: 160, isReadOnly: true },
+      { header: "باركود", name: "barcode", width: 150, isReadOnly: true },
       { header: "الصورة", name: "image_url", width: 90, isReadOnly: true, align: "center", body: productImageCellTemplate },
     ],
   }), [ShowSelect, attributeSelectionCellTemplate]);
@@ -416,6 +420,23 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
     }
   }, [priceCategoryId]);
 
+  const handleMobileProductSelect = useCallback(async (product: Product) => {
+    setSelectedProduct(product);
+    if (product.units?.length) return;
+    try {
+      const response = await fetch(`/api/products/${product.id}/units?price_category_id=${priceCategoryId}`);
+      const units: Unit[] = response.ok ? await response.json() : [];
+      setSelectedProduct({ ...product, units });
+    } catch {
+      setSelectedProduct({ ...product, units: [] });
+    }
+  }, [priceCategoryId]);
+
+  const toggleProductChecked = useCallback((event: React.SyntheticEvent, product: Product) => {
+    event.stopPropagation();
+    setProducts((current) => current.map((item) => item._variant_key === product._variant_key ? { ...item, selected: !item.selected } : item));
+  }, []);
+
   const handleAttributeCellEditEnded = useCallback((grid: wjGrid.FlexGrid, event: any) => {
     return;
   }, []);
@@ -456,6 +477,14 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
     // Pass it to parent and close popup
     finishOrConfigureProduct(productWithUnit);
   }, [selectedProduct, buildSelectedVariants, onSelect, onClose, finishOrConfigureProduct]);
+
+  const handleAttributeDoubleClick = useCallback((row: typeof selectedAttributeRows[number]) => {
+    if (!selectedProduct || !row) return;
+    const [variant] = buildSelectedVariants(selectedProduct, [row]);
+    if (!variant) return;
+    onSelect([variant]);
+    onClose();
+  }, [selectedProduct, buildSelectedVariants, onSelect, onClose]);
   // -----------------------
   // Confirm selection
   // -----------------------
@@ -592,7 +621,7 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
         }
       }}
     >
-      <div className="relative flex h-[100dvh] max-h-[100dvh] w-full min-w-0 max-w-full flex-col overflow-hidden rounded-none border-0 border-slate-200 bg-slate-50 p-2 shadow-2xl overscroll-contain sm:h-[92dvh] sm:max-h-[92dvh] sm:w-full sm:max-w-[1180px] sm:rounded-3xl sm:border sm:p-4" dir="rtl">
+      <div className="relative flex h-[100dvh] max-h-[100dvh] w-full min-w-0 max-w-full flex-col overflow-y-auto rounded-none border-0 border-slate-200 bg-slate-50 p-2 shadow-2xl overscroll-contain sm:h-[92dvh] sm:max-h-[92dvh] sm:w-full sm:max-w-[1500px] sm:overflow-hidden sm:rounded-3xl sm:border sm:p-4" dir="rtl">
         <div className="flex min-w-0 shrink-0 flex-wrap items-center justify-between gap-2 rounded-2xl bg-gradient-to-l from-blue-700 via-blue-600 to-cyan-600 px-3 py-3 shadow-lg sm:flex-nowrap sm:gap-3 sm:px-5 sm:py-4">
           <div className="flex min-w-0 items-center gap-2"><div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/15 ring-1 ring-white/30 sm:h-11 sm:w-11 sm:rounded-2xl"><Search className="h-4 w-4 text-white sm:h-5 sm:w-5" /></div><h3 className="truncate text-base font-extrabold text-white sm:text-xl">{title || "بحث الأصناف"}</h3></div>
           <div className="flex shrink-0 items-center gap-1 sm:gap-2">
@@ -615,7 +644,8 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
             <p className="flex items-center gap-2 text-sm font-bold text-blue-900"><SlidersHorizontal className="h-4 w-4 text-blue-600" />الفلاتر</p>
           </div>
 
-          <div ref={filterContainerRef} className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          <div className="flex min-w-0 flex-col gap-3 lg:flex-row lg:items-end">
+          <div ref={filterContainerRef} className="grid min-w-0 flex-1 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-[repeat(4,minmax(0,1fr))_minmax(0,1.5fr)]">
             <div className="space-y-1">
               <label className="block text-xs font-semibold text-slate-700 text-right">رقم الصنف</label>
               <Input
@@ -698,7 +728,7 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
             </div>
           </div>
 
-          <div className="mt-3 flex flex-col-reverse gap-2 border-t border-slate-100 pt-3 sm:flex-row sm:justify-end">
+          <div className="flex shrink-0 flex-col-reverse gap-2 border-t border-slate-100 pt-3 sm:flex-row sm:justify-end lg:border-t-0 lg:pt-0">
             <Button
               type="button"
               variant="outline"
@@ -717,16 +747,42 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
               بحث
             </Button>
           </div>
+          </div>
         </div>
 
 
-        <div className="mt-2 flex min-h-0 min-w-0 flex-1 flex-col gap-2 overflow-x-hidden overflow-y-auto overscroll-contain sm:gap-3">
-          <div className="min-w-0 shrink-0 rounded-2xl border border-slate-200 bg-white p-2 shadow-sm sm:rounded-3xl sm:p-3">
+        <div className="mt-2 flex min-h-0 min-w-0 flex-1 flex-col gap-2 overflow-x-hidden overflow-y-auto overscroll-contain sm:overflow-hidden sm:gap-3">
+          <div className="flex min-h-[220px] min-w-0 flex-1 flex-col rounded-2xl border border-slate-200 bg-white p-2 shadow-sm sm:min-h-0 sm:rounded-3xl sm:p-3">
             <div className="mb-3 flex items-center justify-between gap-3" dir="rtl">
               <h4 className="text-sm font-semibold text-slate-700">نتائج البحث</h4>
-              <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">{filteredProducts.length} نتائج</span>
+              <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">{filteredProducts.length} نتائج{filteredProducts.length > 200 ? " - عرض أول 200" : ""}</span>
             </div>
-            <div className="modern-search-grid h-[24dvh] min-h-[150px] w-full min-w-0 max-w-full overflow-x-auto overflow-y-hidden sm:h-[25vh] sm:min-h-[180px]">
+            <div className="block min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain">
+              {filteredProducts.length === 0 ? (
+                <div className="flex h-40 items-center justify-center rounded-2xl border border-dashed border-slate-200 text-sm text-slate-500">لا توجد أصناف مطابقة</div>
+              ) : visibleProducts.map((product) => {
+                const image = product.display_image || product.product_image || product.image_url;
+                return <button
+                  type="button"
+                  key={product._variant_key || product.id}
+                  onClick={() => void handleMobileProductSelect(product)}
+                  onDoubleClick={() => void handleProductDoubleClick(product)}
+                  className={`flex w-full min-w-0 items-center gap-3 rounded-2xl border p-3 text-right transition ${product.selected || selectedProduct?._variant_key === product._variant_key ? "border-blue-500 bg-blue-50 ring-2 ring-blue-100" : "border-slate-200 bg-white hover:border-blue-300"}`}
+                >
+                  {image ? <img src={image} alt="" className="h-14 w-14 shrink-0 rounded-xl border object-cover" /> : <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-[10px] text-slate-400">لا صورة</div>}
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-bold text-slate-800">{product.product_name}</span>
+                    <span className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-500">
+                      <span>{product.product_code || "بدون رقم"}</span>
+                      <span>{product.first_price ?? 0}</span>
+                      {product.first_unit && <span>{product.first_unit}</span>}
+                    </span>
+                  </span>
+                  {ShowSelect && <input type="checkbox" checked={!!product.selected} aria-label={`اختيار ${product.product_name}`} onClick={(event) => event.stopPropagation()} onChange={(event) => { event.stopPropagation(); toggleProductChecked(event, product); }} className="relative z-10 block h-6 w-6 shrink-0 cursor-pointer appearance-auto border-2 border-blue-600 bg-white accent-blue-600 opacity-100" />}
+                </button>;
+              })}
+            </div>
+            <div className="hidden modern-search-grid h-[24dvh] min-h-[150px] w-full min-w-0 max-w-full overflow-x-auto overflow-y-hidden sm:h-[25vh] sm:min-h-[180px]">
               <DataGridView
                 style={responsiveGridStyle}
                 containerStyle={responsiveGridStyle}
@@ -745,19 +801,27 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
             </div>
           </div>
 
-          <div className="min-w-0 shrink-0 rounded-2xl border border-slate-200 bg-white p-2 shadow-sm sm:rounded-3xl sm:p-3">
+          <div className="flex min-h-[180px] min-w-0 flex-1 flex-col rounded-2xl border border-slate-200 bg-white p-2 shadow-sm sm:min-h-0 sm:rounded-3xl sm:p-3">
             <div className="mb-3 flex items-center justify-between gap-3" dir="rtl">
               <h4 className="text-sm font-semibold text-slate-700">{selectedAttributeRows.length ? "المتغيرات والخصائص" : "وحدات الصنف"}</h4>
               {selectedProduct && <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">تم الاختيار</span>}
             </div>
             <div className="text-sm text-slate-500 mb-3 text-right">{selectedProduct?.product_name || "لا يوجد صنف محدد"}</div>
-            <div className="h-[22dvh] min-h-[150px] w-full min-w-0 max-w-full overflow-x-auto overflow-y-hidden sm:h-[25vh] sm:min-h-[180px]">
+            <div className="block min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain">
+              {!selectedProduct ? <div className="flex h-28 items-center justify-center rounded-2xl border border-dashed border-slate-200 text-sm text-slate-500">اختر صنفًا لعرض الوحدات</div> : selectedAttributeRows.length ? selectedAttributeRows.map((row) => {
+                const productKey = getProductSelectionKey(selectedProduct);
+                const checked = (selectedAttributeKeysByProduct[productKey] || new Set<string>()).has(row.attribute_key);
+                return <button type="button" key={row.attribute_key} onClick={() => setSelectedAttributeKeysByProduct((current) => { const next = new Set(current[productKey] || []); checked ? next.delete(row.attribute_key) : next.add(row.attribute_key); return { ...current, [productKey]: next }; })} onDoubleClick={() => handleAttributeDoubleClick(row)} className={`flex w-full items-center justify-between rounded-xl border p-3 text-right ${checked ? "border-emerald-500 bg-emerald-50" : "border-slate-200 bg-white"}`}><span><span className="block font-semibold">{row.attribute_name}</span><span className="text-sm text-slate-500">{row.value_name}</span><span className="text-xs text-slate-500">الباركود: {row.barcode || "بدون باركود"}</span></span><span className="text-lg">{checked ? "✓" : "○"}</span></button>;
+              }) : selectedProduct.units?.length ? selectedProduct.units.map((unit) => <button type="button" key={unit.unit_id} onClick={() => handleSelectUnit(unit)} onDoubleClick={() => handleUnitRowDoubleClick(unit)} className={`flex w-full items-center justify-between rounded-xl border p-3 text-right ${selectedProduct.selected_unit?.unit_id === unit.unit_id ? "border-emerald-500 bg-emerald-50" : "border-slate-200 bg-white"}`}><span className="font-semibold">{unit.unit_name}</span><span className="text-sm text-slate-500">{unit.price} | {unit.barcode || "بدون باركود"}</span></button>) : <div className="flex h-28 items-center justify-center rounded-2xl border border-dashed border-slate-200 text-sm text-slate-500">لا توجد وحدات</div>}
+            </div>
+            <div className="hidden h-[22dvh] min-h-[150px] w-full min-w-0 max-w-full overflow-x-auto overflow-y-hidden sm:h-[25vh] sm:min-h-[180px]">
               <DataGridView
                 innerRef={gridUnitsRef}
                 style={responsiveGridStyle}
                 containerStyle={responsiveGridStyle}
                 dataSource={selectedAttributeRows.length ? selectedAttributeRows : selectedProduct?.units || []}
                 scheme={selectedAttributeRows.length ? attributeScheme : unitScheme}
+                dontConvertToCards={false}
                 defaultRowHeight={32}
                 cellEditEnded={selectedAttributeRows.length ? handleAttributeCellEditEnded : undefined}
                 onRowDoubleClick={handleUnitRowDoubleClick}

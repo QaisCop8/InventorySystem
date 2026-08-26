@@ -499,7 +499,7 @@ export function UserSettings() {
       </Card>
 
       <Dialog open={showUserDialog} onOpenChange={setShowUserDialog}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto" dir="rtl">
+        <DialogContent className="w-[calc(100vw-1rem)] max-w-4xl max-h-[90dvh] overflow-x-hidden overflow-y-auto p-4 sm:w-full sm:p-6" dir="rtl">
           <DialogHeader>
             <DialogTitle>تعديل المستخدم {selectedUser?.full_name}</DialogTitle>
           </DialogHeader>
@@ -562,7 +562,7 @@ export function UserSettings() {
                 saveUser(userData)
               }}
             >
-              <div className="space-y-6" dir="rtl">
+              <div className="min-w-0 space-y-6" dir="rtl">
                 <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
                   <h3 className="text-lg font-semibold text-blue-800 mb-4 flex items-center gap-2">
                     <Key className="h-5 w-5" />
@@ -808,7 +808,7 @@ export function UserSettings() {
                   </div>
                 </div>
 
-                <div className="flex gap-2 justify-end">
+                <div className="flex w-full flex-wrap justify-end gap-2">
                   <Button type="button" variant="outline" onClick={() => setShowUserDialog(false)}>
                     إلغاء
                   </Button>
@@ -821,7 +821,7 @@ export function UserSettings() {
       </Dialog>
 
       <Dialog open={showNewUserDialog} onOpenChange={setShowNewUserDialog}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto" dir="rtl">
+        <DialogContent className="w-[calc(100vw-1rem)] max-w-4xl max-h-[90dvh] overflow-x-hidden overflow-y-auto p-4 sm:w-full sm:p-6" dir="rtl">
           <DialogHeader>
             <DialogTitle>إضافة مستخدم جديد</DialogTitle>
           </DialogHeader>
@@ -879,7 +879,7 @@ export function UserSettings() {
               saveUser(userData, true)
             }}
           >
-            <div className="space-y-6" dir="rtl">
+            <div className="min-w-0 space-y-6" dir="rtl">
               <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
                 <h3 className="text-lg font-semibold text-blue-800 mb-4 flex items-center gap-2">
                   <Key className="h-5 w-5" />
@@ -1070,7 +1070,7 @@ export function UserSettings() {
                 </div>
               </div>
 
-              <div className="flex gap-2 justify-end">
+              <div className="flex w-full flex-wrap justify-end gap-2">
                 <Button type="button" variant="outline" onClick={() => setShowNewUserDialog(false)}>
                   إلغاء
                 </Button>

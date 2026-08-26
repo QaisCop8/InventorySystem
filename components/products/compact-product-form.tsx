@@ -153,6 +153,16 @@ interface RelatedProductItem {
   ser?: number
 }
 
+interface ManufacturingComponentItem {
+  id?: number
+  product_id: number
+  component_id: number
+  component_code?: string
+  component_name?: string
+  quantity: number
+  ser?: number
+}
+
 interface ProductFormData {
   id: number
   product_code: string
@@ -421,6 +431,8 @@ export function CompactProductForm({
   const [relatedProducts, setRelatedProducts] = useState<RelatedProductItem[]>([])
   const [relatedProductSearchOpen, setRelatedProductSearchOpen] = useState(false)
   const [relatedProductRow, setRelatedProductRow] = useState<number | null>(null)
+  const [manufacturingComponents, setManufacturingComponents] = useState<ManufacturingComponentItem[]>([])
+  const [manufacturingComponentSearchOpen, setManufacturingComponentSearchOpen] = useState(false)
   // منتقيات SimpleListPicker لأعمدة الوحدات/الأسعار/المستودعات/حالة مركز التكلفة — بديل موحَّد عن
   // Column.editor المباشر (DataGridView الفعلي يتطلّب عنصر تحكم Wijmo حقيقياً لا JSX، انظر
   // editor?: Control | null في @grapecity/wijmo.react.grid/index.d.ts)، بنفس نمط أزرار البحث
@@ -641,6 +653,28 @@ export function CompactProductForm({
         setIsSubmitting(false)
         return
       }
+        const componentIds = new Set<number>()
+        for (const component of manufacturingComponents) {
+          if (Number(component.component_id) === Number(formData.id)) {
+            setActiveTab("manufacturing-components")
+            toast.current?.show({ severity: "error", summary: "خطأ", detail: "لا يمكن إضافة الصنف نفسه كمكون تصنيع", life: 3000 })
+            setIsSubmitting(false)
+            return
+          }
+          if (componentIds.has(Number(component.component_id))) {
+            setActiveTab("manufacturing-components")
+            toast.current?.show({ severity: "error", summary: "خطأ", detail: "مكون التصنيع مكرر", life: 3000 })
+            setIsSubmitting(false)
+            return
+          }
+          if (!Number.isFinite(Number(component.quantity)) || Number(component.quantity) <= 0) {
+            setActiveTab("manufacturing-components")
+            toast.current?.show({ severity: "error", summary: "خطأ", detail: "يجب أن تكون كمية كل مكون أكبر من صفر", life: 3000 })
+            setIsSubmitting(false)
+            return
+          }
+          componentIds.add(Number(component.component_id))
+        }
 
       const response = await fetch("/api/inventory/products", {
         method: "POST",
@@ -659,6 +693,7 @@ export function CompactProductForm({
       }
       const savedProductId = Number(responseData.id || responseData.productId || responseData.product?.id || formData.id)
       if (savedProductId > 0) await saveRelatedProducts(savedProductId)
+      if (savedProductId > 0) await saveManufacturingComponents(savedProductId)
 
       setSuccess(formData.id ? "تم تحديث المنتج بنجاح ✅" : "تم إنشاء المنتج بنجاح ✅")
       toast.current?.show({
@@ -862,7 +897,9 @@ export function CompactProductForm({
     };
     setFormData(newFormData);
     setRelatedProducts([])
+    setManufacturingComponents([])
     if (Number(product.id) > 0) fetch(`/api/inventory/products/${product.id}/related-items`).then((r) => r.ok ? r.json() : []).then((rows) => setRelatedProducts(Array.isArray(rows) ? rows.map((row: RelatedProductItem, index: number) => ({ ...row, product_id: Number(product.id), ser: index + 1 })) : [])).catch(() => setRelatedProducts([]))
+    if (Number(product.id) > 0) fetch(`/api/inventory/products/${product.id}/manufacturing-components`).then((r) => r.ok ? r.json() : []).then((rows) => setManufacturingComponents(Array.isArray(rows) ? rows.map((row: ManufacturingComponentItem, index: number) => ({ ...row, product_id: Number(product.id), ser: index + 1 })) : [])).catch(() => setManufacturingComponents([]))
     initialHash.current = getFormDataHash(newFormData);
     setCurrentProductId(product.id);
     setIsUsedInVouchers(false);
@@ -1181,6 +1218,7 @@ export function CompactProductForm({
 
     setFormData(newFormData);
     setRelatedProducts([])
+    setManufacturingComponents([])
     initialHash.current = getFormDataHash(newFormData);
     setCurrentProductId(0);
     setIsUsedInVouchers(false);
@@ -1741,6 +1779,34 @@ export function CompactProductForm({
   const saveRelatedProducts = async (productId: number) => {
     const response = await fetch(`/api/inventory/products/${productId}/related-items`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ related_ids: relatedProducts.map((row) => row.related_id) }) })
     if (!response.ok) { const data = await response.json().catch(() => null); throw new Error(data?.error || "فشل حفظ الأصناف التابعة") }
+  }
+  const manufacturingComponentScheme = useMemo(() => ({
+    name: "ProductManufacturingComponentsScheme",
+    columns: [
+      { header: "##", name: "ser", width: 55 },
+      { header: "رقم الصنف", name: "component_code", width: 180, isReadOnly: true },
+      { header: "اسم الصنف", name: "component_name", width: "*", minWidth: 220, isReadOnly: true },
+      { header: "الكمية المطلوبة", name: "quantity", width: 150, isReadOnly: false },
+      { header: "", name: "delete", width: 80, buttonBody: "button" as const, iconType: "delete", title: "حذف", onClick: (_e: any, ctx: any) => deleteManufacturingComponent(Number(ctx.row.dataItem?.ser || 0) - 1) },
+    ],
+  }), [])
+  const addManufacturingComponent = (product: any) => {
+    const componentId = Number(product?.id)
+    if (!componentId || componentId === Number(formData.id)) {
+      toast.current?.show({ severity: "error", summary: "", detail: "لا يمكن إضافة الصنف نفسه كمكون تصنيع", life: 3000 })
+      return
+    }
+    if (manufacturingComponents.some((row) => Number(row.component_id) === componentId)) {
+      toast.current?.show({ severity: "error", summary: "", detail: "مكون التصنيع مكرر", life: 3000 })
+      return
+    }
+    setManufacturingComponents((current) => [...current, { product_id: Number(formData.id), component_id: componentId, component_code: product.product_code, component_name: product.product_name, quantity: 1, ser: current.length + 1 }])
+    setManufacturingComponentSearchOpen(false)
+  }
+  const deleteManufacturingComponent = (index: number) => setManufacturingComponents((current) => current.filter((_row, rowIndex) => rowIndex !== index).map((row, rowIndex) => ({ ...row, ser: rowIndex + 1 })))
+  const saveManufacturingComponents = async (productId: number) => {
+    const response = await fetch(`/api/inventory/products/${productId}/manufacturing-components`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ components: manufacturingComponents.map((row) => ({ component_id: row.component_id, quantity: row.quantity })) }) })
+    if (!response.ok) { const data = await response.json().catch(() => null); throw new Error(data?.error || "فشل حفظ مكونات التصنيع") }
   }
   const searchProductByCode = async (code: string) => {
     if (!code || code.length === 0) return
@@ -2554,6 +2620,7 @@ export function CompactProductForm({
                     <TabsTrigger value="notes" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-slate-600 data-[state=active]:to-slate-700 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">ملاحظات</TabsTrigger>
                     <TabsTrigger value="attachments" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-slate-600 data-[state=active]:to-slate-700 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">المرفقات</TabsTrigger>
                     <TabsTrigger value="related" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-teal-500 data-[state=active]:to-teal-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">الأصناف التابعة</TabsTrigger>
+                    <TabsTrigger value="manufacturing-components" className="whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 sm:px-4 sm:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-emerald-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=inactive]:hover:bg-slate-200/40">مكونات التصنيع</TabsTrigger>
                   </>
                 )}
               </TabsList>
@@ -3333,6 +3400,12 @@ export function CompactProductForm({
                       <CardContent><div className="mb-4 max-w-xl"><Label>إضافة الأصناف التابعة في طلبية المبيعات</Label><select className="mt-1 h-10 w-full rounded-md border bg-background px-3" value={formData.related_items_mode || 1} onChange={(event) => updateFormData("related_items_mode", Number(event.target.value))}><option value={1}>عدم المعالجة</option><option value={2}>إضافة الأصناف التابعة فقط</option><option value={3}>إضافة الصنف والاصناف التابعة</option></select></div>{!formData.id && <p className="mb-3 text-sm text-muted-foreground">احفظ الصنف أولاً لإضافة أصناف تابعة.</p>}<div className="w-full overflow-x-auto rounded-lg border"><DataGridView style={{ height: TABS_GRID_HEIGHT }} dataSource={relatedProducts} scheme={relatedProductScheme} selectionChanged={(grid: wjGrid.FlexGrid) => setRelatedProductRow(grid.selection.row)} isReport={false} showContextMenu={false} dontConvertToCards={true} /></div><p className="mt-2 text-xs text-muted-foreground">F7: حذف الصف المحدد</p></CardContent>
                     </Card>
                   </TabsContent>}
+                  {!isService && <TabsContent value="manufacturing-components">
+                    <Card>
+                      <CardHeader className="pb-2"><div className="flex items-center justify-between gap-2"><CardTitle className="text-lg">مكونات التصنيع</CardTitle><Button type="button" onClick={() => setManufacturingComponentSearchOpen(true)} disabled={!formData.id}><Plus className="ml-2 h-4 w-4" />إضافة مكون</Button></div></CardHeader>
+                      <CardContent>{!formData.id && <p className="mb-3 text-sm text-muted-foreground">احفظ الصنف أولاً لإضافة مكونات التصنيع.</p>}<div className="w-full overflow-x-auto rounded-lg border"><DataGridView style={{ height: TABS_GRID_HEIGHT }} dataSource={manufacturingComponents} scheme={manufacturingComponentScheme} isReport={false} showContextMenu={false} dontConvertToCards={true} /></div><p className="mt-2 text-xs text-muted-foreground">يمكن تعديل الكمية مباشرة، واستخدام زر الحذف لإزالة المكون.</p></CardContent>
+                    </Card>
+                  </TabsContent>}
                 </>
               )}
             </Tabs>
@@ -3362,6 +3435,16 @@ export function CompactProductForm({
         ShowSelect={false}
         searchText=""
         productTypes={[1]}
+      />
+      <ProductSearchPopup
+        visible={manufacturingComponentSearchOpen}
+        onClose={() => setManufacturingComponentSearchOpen(false)}
+        onSelect={(products) => addManufacturingComponent(products[0])}
+        priceCategoryId={1}
+        ShowSelect={false}
+        searchText=""
+        productTypes={[1]}
+        title="اختيار مكون تصنيع"
       />
       <ProductNumbers
         open={factoryNumbersDialogOpen}
