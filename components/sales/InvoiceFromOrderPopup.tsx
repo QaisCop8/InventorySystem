@@ -107,6 +107,14 @@ export default function InvoiceFromOrderPopup({
     setSelectedOrderHeaders((current) => current.some((entry) => entry.id === order.id) ? current : [...current, order])
   }
 
+  const toggleSelectedOrderItem = (row: SalesVoucherItemRow) => {
+    const key = itemKey(row)
+    setSelectedOrderItems((current) => {
+      const exists = current.some((item) => itemKey(item) === key)
+      return exists ? current.filter((item) => itemKey(item) !== key) : [...current, row]
+    })
+  }
+
   const handleRemoveOrderItems = (orderId: number) => {
     setSelectedOrderItems((prev) => prev.filter((item) => item.source_voucher_id !== orderId))
     setOrderItems((prev) => prev.filter((item) => item.source_voucher_id !== orderId))
@@ -450,6 +458,14 @@ export default function InvoiceFromOrderPopup({
                       dontConvertToCards={true}
                       containerStyle={{ height: "100%", minHeight: 0 }}
                       style={{ height: "100%", minHeight: 0 }}
+                      onRowDoubleClick={(row: OrderHeader) => {
+                        if (!row) return
+                        if (selectedOrderIds.has(row.id)) {
+                          handleRemoveOrderItems(row.id)
+                        } else {
+                          void handleAddOrderItems(row)
+                        }
+                      }}
                     />
                   )}
                 </div>
@@ -474,6 +490,10 @@ export default function InvoiceFromOrderPopup({
                       dontConvertToCards={true}
                       containerStyle={{ height: "100%", minHeight: 0 }}
                       style={{ height: "100%", minHeight: 0 }}
+                      onRowDoubleClick={(row: SalesVoucherItemRow) => {
+                        if (!row) return
+                        toggleSelectedOrderItem(row)
+                      }}
                     />
                   )}
                 </div>

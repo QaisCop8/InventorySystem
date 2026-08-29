@@ -35,6 +35,9 @@ const SALES_INVOICE_TYPE = 12
 const SALES_DELIVERY_TYPES = [13, 14]
 const PURCHASE_DELIVERY_TYPES = [18]
 
+const deliveryItemKey = (item: SalesVoucherItemRow) =>
+  `${item.source_voucher_id ?? "delivery"}:${item.order_item_id ?? item.delivery_item_id ?? `${item.product_id ?? "item"}:${item.unit ?? ""}`}`
+
 export default function InvoiceFromDeliveryPopup({
   open,
   onOpenChange,
@@ -95,11 +98,23 @@ export default function InvoiceFromDeliveryPopup({
       delivery_item_id: item.delivery_item_id ?? null,
     }))
 
+    setDeliveryItems((prev) => {
+      const existing = new Set(prev.map(deliveryItemKey))
+      return [...prev, ...newItems.filter((item) => !existing.has(deliveryItemKey(item)))]
+    })
     setSelectedDeliveryItems((prev) => {
-      const next = [...prev, ...newItems]
-      return next.filter((entry, index, all) => all.findIndex((candidate) => candidate.source_voucher_id === entry.source_voucher_id && candidate.product_id === entry.product_id && candidate.unit === entry.unit && index === all.findIndex((other) => other.source_voucher_id === entry.source_voucher_id && other.product_id === entry.product_id && other.unit === entry.unit)) === index)
+      const existing = new Set(prev.map(deliveryItemKey))
+      return [...prev, ...newItems.filter((item) => !existing.has(deliveryItemKey(item)))]
     })
     setSelectedDeliveryHeaders((prev) => (prev.some((entry) => entry.id === delivery.id) ? prev : [...prev, delivery]))
+  }
+
+  const toggleSelectedDeliveryItem = (row: SalesVoucherItemRow) => {
+    const key = deliveryItemKey(row)
+    setSelectedDeliveryItems((prev) => {
+      const exists = prev.some((item) => deliveryItemKey(item) === key)
+      return exists ? prev.filter((item) => deliveryItemKey(item) !== key) : [...prev, row]
+    })
   }
 
   const handleRemoveDeliveryItems = (deliveryId: number) => {
@@ -169,6 +184,35 @@ export default function InvoiceFromDeliveryPopup({
     () => ({
       name: "SelectedItemsScheme",
       columns: [
+        {
+          header: "اختيار",
+          name: "selected",
+          width: 70,
+          isReadOnly: true,
+          body: (cell: any) => {
+            const row = cell.row.dataItem as SalesVoucherItemRow
+            const key = deliveryItemKey(row)
+            const checked = selectedDeliveryItems.some((item) => deliveryItemKey(item) === key)
+            return (
+              <input
+                type="checkbox"
+                checked={checked}
+                aria-label={`اختيار ${row.product_name || row.item_name || "الصنف"}`}
+                onChange={(event) => {
+                  event.stopPropagation()
+                  if (event.target.checked) {
+                    setSelectedDeliveryItems((current) => {
+                      const exists = current.some((item) => deliveryItemKey(item) === key)
+                      return exists ? current : [...current, row]
+                    })
+                  } else {
+                    setSelectedDeliveryItems((current) => current.filter((item) => deliveryItemKey(item) !== key))
+                  }
+                }}
+              />
+            )
+          },
+        },
         { header: "الصنف", name: "product_name", width: "*", isReadOnly: true },
         { header: "الكمية", name: "quantity", width: 90, isReadOnly: true },
         { header: "الوحدة", name: "unit", width: 90, isReadOnly: true },
@@ -182,7 +226,7 @@ export default function InvoiceFromDeliveryPopup({
         { header: "الإرسالية", name: "source_voucher_code", width: 120, isReadOnly: true },
       ],
     }),
-    [],
+    [selectedDeliveryItems],
   )
 
   useEffect(() => {
@@ -389,6 +433,14 @@ export default function InvoiceFromDeliveryPopup({
                       isReport={false}
                       defaultRowHeight={38}
                       containerStyle={{ height: 260 }}
+                      onRowDoubleClick={(row: DeliveryHeader) => {
+                        if (!row) return
+                        if (selectedDeliveryIds.has(row.id)) {
+                          handleRemoveDeliveryItems(row.id)
+                        } else {
+                          void handleAddDeliveryItems(row)
+                        }
+                      }}
                     />
                   </div>
                 )}
@@ -414,6 +466,10 @@ export default function InvoiceFromDeliveryPopup({
                       isReport={false}
                       defaultRowHeight={38}
                       containerStyle={{ height: 260 }}
+                      onRowDoubleClick={(row: SalesVoucherItemRow) => {
+                        if (!row) return
+                        toggleSelectedDeliveryItem(row)
+                      }}
                     />
                   </div>
                 )}

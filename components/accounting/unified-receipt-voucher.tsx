@@ -239,6 +239,18 @@ const selectCell = (rawGrid: any, row: number, colName: string) => {
   }
 }
 
+const commitActiveGridEdits = (...grids: any[]) => {
+  for (const grid of grids) {
+    const control = resolveFlexControl(grid)
+    if (!control || typeof control.finishEditing !== "function") continue
+    try {
+      control.finishEditing()
+    } catch (error) {
+      console.warn("[UnifiedReceiptVoucher] finishEditing guard failed", error)
+    }
+  }
+}
+
 // بعد التبديل إلى تبويب "الحسابات" قد يُعاد إنشاء الشبكة (Radix يُلغي تركيب التبويبات غير
 // النشطة)، فيتأخر جاهزية الـ ref قليلاً — نعيد المحاولة بدل الاعتماد على مهلة ثابتة قد تسبق
 // اكتمال إعادة التركيب فتترك grid كائناً قديماً بلا columns. minRows: عند استهداف سطر جديد أُضيف
@@ -530,6 +542,7 @@ export default function UnifiedReceiptVoucher({
   // لسند غير صالح أصلاً (رقم ناقص، مبالغ غير متطابقة...)؛ رسالة الخطأ تظهر مباشرة بدل فتح النافذة.
   const handleRequestSave = () => {
     if (isLocked) return
+    commitActiveGridEdits(journalGridRef.current, chequeGridRef.current)
     const error = onValidateSave?.()
     if (error) {
       messagesRef.current?.clear?.()
