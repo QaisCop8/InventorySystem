@@ -623,7 +623,7 @@ function UnifiedSalesOrder({
         ]);
 
         // Initialize new record
-        if (order) {
+        if (order?.id) {
           // طلبية موجودة: دفتر السندات يأتي من الطلبية نفسها (loadOrderData) — لا يُستبدَل بالافتراضي.
           loadOrderData("Byid", order.id)
           //fromSearch = false
@@ -634,6 +634,12 @@ function UnifiedSalesOrder({
           // غير متزامن)، ثم يُولَّد رقم الطلبية بناءً عليه مباشرة بنفس اللفة — لا توليد أول بدفتر
           // خاطئ يليه توليد ثانٍ مصحَّح.
           reset_order(defaultBookName ?? undefined);
+          if (Array.isArray(order?.items) && order.items.length) {
+            const prefilledItems = order.items.map((item: any, index: number) => ({ ser: index + 1, id: Number(item.product_id), product_id: Number(item.product_id), code: item.product_code || "", name: item.product_name || "", product_name: item.product_name || "", barcode: item.barcode || "", qnty: Number(item.qnty ?? item.quantity ?? 0), bonus: 0, price: Number(item.unit_price || 0), price_incl_tax: Number(item.unit_price || 0), amount: Number(item.qnty ?? item.quantity ?? 0) * Number(item.unit_price || 0), unit_id: item.unit_id || 0, unit_name: item.unit_name || item.unit || "", units: [], store_id: Number(item.store_id || 0), store_name: item.store_name || "", item_status: 1, measurment_id: Number(item.measurment_id || 1), length: item.length == null ? null : Number(item.length), width: item.width == null ? null : Number(item.width), height: item.height == null ? null : Number(item.height), count: item.count == null ? null : Number(item.count), selected_attributes: item.selected_attributes || item.features || {}, attribute_summary: Object.values(item.selected_attributes || item.features || {}).join("، "), specifications: item.specifications || { product: item.features || {}, reviewed: true } }))
+            CollectionView.sourceCollection.splice(0, CollectionView.sourceCollection.length, ...prefilledItems)
+            CollectionView.refresh()
+            setState((prev) => ({ ...prev, formData: { ...prev.formData, general_notes: order.general_notes || prev.formData.general_notes }, activeTab: "items" }))
+          }
         }
       } catch (error) {
         console.error("Failed to fetch definitions:", error);
@@ -1781,7 +1787,7 @@ function UnifiedSalesOrder({
       ...prev,
       formData: {
         ...prev.formData,
-        customer_id: customer.id,
+        customer_id: Number(customer.account_id ?? customer.id),
         customer_name: customer.customer_name || customer.name,
         customer_code: customer.customer_code,
         customer_address: customer.address || "",
@@ -1818,7 +1824,7 @@ function UnifiedSalesOrder({
       ...prev,
       formData: {
         ...prev.formData,
-        customer_id: customer.id,
+        customer_id: Number((customer as any).account_id ?? customer.id),
         customer_name: customer.customer_name,
         customer_code: customer.customer_code,
         customer_address: customer.address || "",
@@ -2278,6 +2284,8 @@ function UnifiedSalesOrder({
         batch_number: item.batch || null,
         item_status: item.item_status,
         name: item.name,
+        selected_attributes: item.selected_attributes || {},
+        specifications: { ...(item.specifications || {}), product: item.specifications?.product || item.selected_attributes || {}, reviewed: true, measurement: { measurment_id: Number(item.measurment_id || 1), length: item.length ?? null, width: item.width ?? null, height: item.height ?? null, count: item.count ?? null } },
       }));
 
       const response = await fetch("/api/orders/sales", {
@@ -2307,6 +2315,10 @@ function UnifiedSalesOrder({
       }
 
       const result = await response.json();
+
+      // Keep the parent list and toolbar navigation in sync immediately after a
+      // successful save instead of waiting for the order dialog to close.
+      await onOrderSaved?.(result);
 
       const id = result.id;
 

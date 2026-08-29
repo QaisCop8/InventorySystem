@@ -23,12 +23,12 @@ export async function GET(request: NextRequest) {
       ? await sql`
           SELECT o.id, o.order_number, o.order_date, o.total_amount AS amount, o.order_status,
                  o.discount_type, o.discount_amount, o.vat_percent, o.currency_id, o.exchange_rate,
-                 COALESCE(c.name, '') AS account_name,
+                 COALESCE(NULLIF(o.customer_name, ''), c.name, '') AS account_name,
                  COALESCE(cur.currency_code, '') AS currency_code
           FROM orders o
           INNER JOIN account_tbl c ON c.id = o.customer_id
           INNER JOIN currency cur ON cur.id = o.currency_id
-          WHERE o.deleted = false
+          WHERE COALESCE(o.deleted, false) = false
             AND o.order_type = 1
             AND o.customer_id = ${customerId}
             AND o.order_status IN (2, 3)
@@ -44,6 +44,7 @@ export async function GET(request: NextRequest) {
                 WHERE vh.vch_type = ${SALES_INVOICE_TYPE}
                   AND vh.status = 2
                   AND vi.order_item_id = oi.id
+                  AND vi.delivery_item_id IS NULL
               ) inv ON TRUE
               WHERE oi.order_id = o.id
                 AND oi.item_status IN (2, 3)
@@ -58,7 +59,7 @@ export async function GET(request: NextRequest) {
                  COALESCE(po.currency_code, cur.currency_code, '') AS currency_code,
                  COALESCE(s.name, '') AS account_name
           FROM orders po
-          LEFT JOIN account_tbl s ON s.id = po.supplier_id
+          INNER JOIN account_tbl s ON s.id = po.supplier_id
           LEFT JOIN currency cur ON cur.id = po.currency_id
           WHERE po.supplier_id = ${supplierId}
             AND COALESCE(po.workflow_status, '') != 'cancelled'

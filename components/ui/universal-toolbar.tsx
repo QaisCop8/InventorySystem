@@ -118,8 +118,28 @@ export function UniversalToolbar({
 
   // New and Save are always kept in the compact row. The remaining actions are
   // progressively added only when the measured toolbar width can accommodate them.
-  const compactVisibleCount = compactWidth < 500 ? 0 : compactWidth < 600 ? 1 : compactWidth < 700 ? 2 : compactWidth < 800 ? 3 : compactWidth < 900 ? 4 : 7;
+  const compactVisibleCount = compactWidth < 500 ? 0 : compactWidth < 650 ? 1 : compactWidth < 800 ? 2 : compactWidth < 950 ? 3 : compactWidth < 1100 ? 4 : compactWidth < 1250 ? 5 : compactWidth < 1400 ? 6 : 7;
   const compactActionVisible = (index: number) => index < compactVisibleCount;
+  // Use the overflow layout only when the actions that were actually supplied
+  // cannot fit. A fixed breakpoint made small toolbars show "Other" even when
+  // there was ample room for every available customer action.
+  const requiredFullWidth = 48
+    + (onNew ? 120 : 0)
+    + (onSave ? 120 : 0)
+    + (onPrint ? 105 : 0)
+    + (onClone ? 100 : 0)
+    + (onFirst ? 95 : 0)
+    + (onPrevious ? 105 : 0)
+    + (onNext ? 95 : 0)
+    + (onLast ? 95 : 0)
+    + (onDelete ? 100 : 0)
+    + (onReport ? 115 : 0)
+    + (onExportExcel ? 145 : 0)
+    + (onLast ? 130 : 0);
+  const useCompactToolbar = compactWidth > 0 && compactWidth < requiredFullWidth;
+  const compactActions = [onPrint, onClone, onFirst, onPrevious, onNext, onLast, onDelete];
+  const hasHiddenCompactActions = compactActions.some((action, index) => Boolean(action) && !compactActionVisible(index));
+  const hasOverflowActions = hasHiddenCompactActions || Boolean(onReport) || Boolean(onExportExcel);
 
   const handleFirst = () => {
     /*if (!hasRecords) {
@@ -160,7 +180,7 @@ export function UniversalToolbar({
     >
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(14,165,233,0.18),_transparent_42%),radial-gradient(circle_at_bottom_left,_rgba(16,185,129,0.18),_transparent_40%)]" />
       <div className="relative flex min-w-0 flex-nowrap items-center justify-start gap-2">
-        <div className="order-last flex min-w-0 flex-nowrap items-center gap-2 lg:hidden">
+        <div className={useCompactToolbar ? "order-last flex min-w-0 flex-nowrap items-center gap-2" : "hidden"}>
           {onNew && (
             <Button
               className="group inline-flex shrink-0 items-center gap-2 rounded-xl border border-emerald-400/30 bg-gradient-to-r from-emerald-500 to-teal-500 px-3 py-2.5 text-sm font-semibold text-white shadow-[0_12px_24px_-12px_rgba(16,185,129,0.95)]"
@@ -194,33 +214,33 @@ export function UniversalToolbar({
           {onLast && compactActionVisible(5) && <Button onClick={handleLast} disabled={isLastRecord} className="shrink-0 rounded-xl bg-white/10 px-3 py-2.5 text-sm text-slate-100"><ChevronsLeft className="h-4 w-4" /><span>{labels.last}</span></Button>}
           {onDelete && compactActionVisible(6) && <Button onClick={onDelete} disabled={isLoading || !canDelete} className="shrink-0 rounded-xl bg-gradient-to-r from-rose-500 to-red-500 px-3 py-2.5 text-sm font-semibold text-white"><Trash2 className="h-4 w-4" /><span>{labels.delete}</span></Button>}
 
-          <DropdownMenu>
+          {hasOverflowActions && <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
                 type="button"
                 variant="ghost"
-                size="icon"
                 aria-label="المزيد"
-                className="h-10 w-10 shrink-0 rounded-xl border border-white/10 bg-white/10 text-slate-100 hover:bg-white/20 hover:text-white"
+                className="h-10 shrink-0 gap-2 rounded-xl border border-white/10 bg-white/10 px-3 text-slate-100 hover:bg-white/20 hover:text-white"
               >
                 <Menu className="h-5 w-5" />
+                <span>{"\u0623\u062e\u0631\u0649"}</span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="min-w-48" dir="rtl">
-              {onPrint && <DropdownMenuItem disabled={isLoading || isSaving || !canPrint} onSelect={() => onPrint()}><Printer className="ml-2 h-4 w-4" />{labels.print}</DropdownMenuItem>}
-              {onClone && <DropdownMenuItem disabled={isLoading || !canClone} onSelect={() => onClone()}><Copy className="ml-2 h-4 w-4" />{labels.clone}</DropdownMenuItem>}
-              {onFirst && <DropdownMenuItem disabled={isFirstRecord} onSelect={handleFirst}><ChevronsRight className="ml-2 h-4 w-4" />{labels.first}</DropdownMenuItem>}
-              {onPrevious && <DropdownMenuItem disabled={isFirstRecord} onSelect={handlePrevious}><ChevronRight className="ml-2 h-4 w-4" />{labels.previous}</DropdownMenuItem>}
-              {onNext && <DropdownMenuItem disabled={isLastRecord} onSelect={handleNext}><ChevronLeft className="ml-2 h-4 w-4" />{labels.next}</DropdownMenuItem>}
-              {onLast && <DropdownMenuItem disabled={isLastRecord} onSelect={handleLast}><ChevronsLeft className="ml-2 h-4 w-4" />{labels.last}</DropdownMenuItem>}
-              {onDelete && <DropdownMenuItem disabled={isLoading || !canDelete} onSelect={() => onDelete()}><Trash2 className="ml-2 h-4 w-4 text-red-600" />{labels.delete}</DropdownMenuItem>}
+              {onPrint && !compactActionVisible(0) && <DropdownMenuItem disabled={isLoading || isSaving || !canPrint} onSelect={() => onPrint()}><Printer className="ml-2 h-4 w-4" />{labels.print}</DropdownMenuItem>}
+              {onClone && !compactActionVisible(1) && <DropdownMenuItem disabled={isLoading || !canClone} onSelect={() => onClone()}><Copy className="ml-2 h-4 w-4" />{labels.clone}</DropdownMenuItem>}
+              {onFirst && !compactActionVisible(2) && <DropdownMenuItem disabled={isFirstRecord} onSelect={handleFirst}><ChevronsRight className="ml-2 h-4 w-4" />{labels.first}</DropdownMenuItem>}
+              {onPrevious && !compactActionVisible(3) && <DropdownMenuItem disabled={isFirstRecord} onSelect={handlePrevious}><ChevronRight className="ml-2 h-4 w-4" />{labels.previous}</DropdownMenuItem>}
+              {onNext && !compactActionVisible(4) && <DropdownMenuItem disabled={isLastRecord} onSelect={handleNext}><ChevronLeft className="ml-2 h-4 w-4" />{labels.next}</DropdownMenuItem>}
+              {onLast && !compactActionVisible(5) && <DropdownMenuItem disabled={isLastRecord} onSelect={handleLast}><ChevronsLeft className="ml-2 h-4 w-4" />{labels.last}</DropdownMenuItem>}
+              {onDelete && !compactActionVisible(6) && <DropdownMenuItem disabled={isLoading || !canDelete} onSelect={() => onDelete()}><Trash2 className="ml-2 h-4 w-4 text-red-600" />{labels.delete}</DropdownMenuItem>}
               {onReport && <DropdownMenuItem onSelect={() => onReport()}><FileText className="ml-2 h-4 w-4" />{labels.report}</DropdownMenuItem>}
               {onExportExcel && <DropdownMenuItem onSelect={() => onExportExcel()}><Download className="ml-2 h-4 w-4" />{labels.exportExcel}</DropdownMenuItem>}
             </DropdownMenuContent>
-          </DropdownMenu>
+          </DropdownMenu>}
         </div>
 
-        <div className="hidden min-w-0 flex-nowrap items-center gap-2 lg:flex">
+        <div className={useCompactToolbar ? "hidden" : "flex min-w-0 flex-nowrap items-center gap-2"}>
         {onNew && (
           <Button
             className="group inline-flex items-center gap-2 rounded-xl border border-emerald-400/30 bg-gradient-to-r from-emerald-500 to-teal-500 px-3.5 py-2.5 text-sm font-semibold text-white shadow-[0_12px_24px_-12px_rgba(16,185,129,0.95)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_16px_30px_-12px_rgba(16,185,129,0.9)]"
@@ -329,6 +349,20 @@ export function UniversalToolbar({
               <Trash2 className="h-4 w-4" />
             </span>
             <span>{labels.delete}</span>
+          </Button>
+        )}
+
+        {onReport && (
+          <Button onClick={onReport} className="group inline-flex items-center gap-2 rounded-xl border border-indigo-400/30 bg-gradient-to-r from-indigo-500 to-violet-500 px-3.5 py-2.5 text-sm font-semibold text-white">
+            <FileText className="h-4 w-4" />
+            <span>{labels.report}</span>
+          </Button>
+        )}
+
+        {onExportExcel && (
+          <Button onClick={onExportExcel} className="group inline-flex items-center gap-2 rounded-xl border border-green-400/30 bg-gradient-to-r from-green-600 to-emerald-600 px-3.5 py-2.5 text-sm font-semibold text-white">
+            <Download className="h-4 w-4" />
+            <span>{labels.exportExcel}</span>
           </Button>
         )}
 

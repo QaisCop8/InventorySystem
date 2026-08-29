@@ -144,6 +144,7 @@ export interface OrderItem {
   unit_id?: number | null;
   store_id?: number | null;
   workflow_id?: number | null;
+  specifications?: any;
   created_at: Date;
   updated_at: Date;
 }
@@ -165,20 +166,25 @@ export interface OrderFilters {
 
 
 export async function getSalesOrders(filters: any = {}) {
+  // The draft table owns the durable link to the sales order created from it.
+  // Ensure older tenant databases have the table before using it in this query.
+  const { ensureOrderDraftTables } = await import("@/lib/order-drafts")
+  await ensureOrderDraftTables()
   const { search = null, status = null, salesman = null, dateFrom = null, dateTo = null, customerId = null, order_type = null, branchId = null } = filters;
 
   const whereClauses: string[] = [];
   const params: any[] = [];
   let paramIndex = 1;
 
-  whereClauses.push(` deleted = false `);
+  // Older tenant databases may have NULL in deleted for otherwise active orders.
+  whereClauses.push(` COALESCE(so.deleted, false) = false `);
   if (order_type !== null && order_type != -1) {
-    whereClauses.push(`order_type = $${paramIndex}`);
+    whereClauses.push(`so.order_type = $${paramIndex}`);
     params.push(order_type);
     paramIndex++;
   }
   if (search) {
-    whereClauses.push(`(so.order_number ILIKE $${paramIndex} OR c.name ILIKE $${paramIndex})`);
+    whereClauses.push(`(so.order_number ILIKE $${paramIndex} OR so.customer_name ILIKE $${paramIndex} OR c.name ILIKE $${paramIndex})`);
     params.push(`%${search}%`);
     paramIndex++;
   }
@@ -219,14 +225,17 @@ export async function getSalesOrders(filters: any = {}) {
   const queryText = `
     SELECT 
       so.*,
-      COALESCE(c.name, c.account_name, '') AS customer_name,
+      COALESCE(NULLIF(so.customer_name, ''), c.name, '') AS customer_name,
+      draft.id AS source_draft_id,
+      draft.draft_number AS source_draft_number,
       COALESCE(COUNT(oi.id), 0) AS item_count,
       COALESCE(SUM(oi.quantity), 0) AS total_quantity
     FROM orders so
     LEFT JOIN account_tbl c ON so.customer_id = c.id
     LEFT JOIN order_items oi ON so.id = oi.order_id
+    LEFT JOIN sales_order_drafts draft ON draft.confirmed_order_id = so.id
     ${whereSQL}
-    GROUP BY so.id, c.name, c.account_name
+    GROUP BY so.id, c.name, draft.id, draft.draft_number
     ORDER BY so.created_at DESC
   `;
 
@@ -352,6 +361,7 @@ export async function createOrder(
     await client.query(`CREATE TABLE IF NOT EXISTS attribute_values_tbl (id SERIAL PRIMARY KEY, attr_id INTEGER NOT NULL REFERENCES attributes_tbl(id) ON DELETE CASCADE, name TEXT NOT NULL, UNIQUE(attr_id, name))`)
     await client.query(`CREATE TABLE IF NOT EXISTS product_atrributes_values_tbl (id BIGSERIAL UNIQUE, product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE, attr_id INTEGER NOT NULL REFERENCES attributes_tbl(id) ON DELETE CASCADE, value_id INTEGER NOT NULL REFERENCES attribute_values_tbl(id) ON DELETE CASCADE, image_url TEXT, PRIMARY KEY(product_id, attr_id, value_id))`)
     await client.query(`CREATE TABLE IF NOT EXISTS order_item_attributes_tbl (id BIGSERIAL PRIMARY KEY, order_item_id INTEGER NOT NULL, product_attribute_value_id BIGINT NOT NULL REFERENCES product_atrributes_values_tbl(id) ON DELETE CASCADE, UNIQUE(order_item_id, product_attribute_value_id))`)
+    await client.query(`ALTER TABLE order_items ADD COLUMN IF NOT EXISTS specifications JSONB NOT NULL DEFAULT '{}'::jsonb`)
     // Check for duplicate reference number
     if (orderData.reference_number && orderData.reference_number.trim() !== "") {
       let queryText = `SELECT id FROM orders WHERE reference_number = $1 AND deleted = false AND id != $2`;
@@ -539,13 +549,14 @@ export async function createOrder(
           printed_count,
           order_status2,
           branch_id,
+          deleted,
           created_at,
           updated_at
         ) VALUES (
           $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,
           $11,$12,$13,$14,$15,$16,$17,$18,$19,$20,
           $21,$22,$23,$24,$25,$26,$27,$28,$29,$30,
-          $31,
+          $31,$32,
           NOW(),NOW()
         )
         RETURNING *;
@@ -584,6 +595,7 @@ export async function createOrder(
         "0",
         orderData.order_status2 || 0,
         orderData.branch_id ?? null,
+        false,
       ];
 
 
@@ -639,9 +651,9 @@ export async function createOrder(
         INSERT INTO order_items (
           order_id, product_id, product_name, quantity, bonus, price, discount,
           barcode, unit_id, store_id, delivered_quantity,
-          expiry_date, batch_number, item_status, workflow_id, created_at, updated_at
+          expiry_date, batch_number, item_status, workflow_id, specifications, created_at, updated_at
         ) VALUES (
-          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,NOW(),NOW()
+          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16::jsonb,NOW(),NOW()
         )
         RETURNING id
       `;
@@ -662,6 +674,7 @@ export async function createOrder(
         item.batch_number || null,
         item.item_status || 0,
         carriedWorkflowId,
+        JSON.stringify(item.specifications || {}),
       ];
 
       const insertResult = await client.query(itemInsertQuery, itemValues);
@@ -672,6 +685,8 @@ export async function createOrder(
           SELECT $1, pav.id FROM product_atrributes_values_tbl pav JOIN attribute_values_tbl av ON av.id = pav.value_id
           WHERE pav.product_id = $2 AND av.name = $3 ON CONFLICT DO NOTHING`, [insertResult.rows[0].id, item.product_id, value])
       }
+      const selectedValueIds = (item as any).specifications?.product && typeof (item as any).specifications.product === "object" ? Object.values((item as any).specifications.product).map(Number).filter(Number.isInteger) : []
+      for (const valueId of selectedValueIds) await client.query(`INSERT INTO order_item_attributes_tbl (order_item_id, product_attribute_value_id) SELECT $1,id FROM product_atrributes_values_tbl WHERE product_id=$2 AND value_id=$3 ON CONFLICT DO NOTHING`, [insertResult.rows[0].id, item.product_id, valueId])
     }
 
     if (orderData.order_type === 2) {
@@ -948,10 +963,19 @@ export async function getCustomers() {
     console.log("[v0] Fetching customers from database...")
 
     const result = await sql`
-      SELECT id, customer_code, customer_name, email, mobile1, status
-      FROM customers
-      WHERE status = 'active'
-      ORDER BY customer_name
+      SELECT a.id,
+             a.id AS account_id,
+             a.code AS customer_code,
+             COALESCE(a.name, '') AS customer_name,
+             a.name,
+             a.code,
+             NULL::text AS email,
+             NULL::text AS mobile1,
+             a.status
+      FROM account_tbl a
+      WHERE a.type IN (2, 3, 5)
+        AND COALESCE(a.status::text, '1') IN ('1', '2', 'active', 'ACTIVE', 'نشط')
+      ORDER BY COALESCE(a.name, '')
     `
 
     console.log("[v0] Customers fetched:", result.length, "records")

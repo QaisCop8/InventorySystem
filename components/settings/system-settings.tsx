@@ -96,6 +96,7 @@ export function SystemSettings() {
     fiscalYearStart: "01/01",
     workingDays: ["sunday", "monday", "tuesday", "wednesday", "thursday"],
     workingHours: "08:00-17:00",
+    allowOrderConfirmationWithoutProductionMaterials: false,
 
     // Security Settings
     sessionTimeout: 30,
@@ -297,6 +298,8 @@ export function SystemSettings() {
                 })()
               : prev.workingDays,
             workingHours: settingsPayload.working_hours || prev.workingHours,
+            allowOrderConfirmationWithoutProductionMaterials:
+              settingsPayload.allow_order_confirmation_without_production_materials === true,
             sessionTimeout: settingsPayload.session_timeout ?? prev.sessionTimeout,
             passwordPolicy: settingsPayload.password_policy === "strong",
             twoFactorAuth: settingsPayload.two_factor_auth || prev.twoFactorAuth,
@@ -509,6 +512,8 @@ export function SystemSettings() {
           tax_rate_clearing: Number(settings.taxRateClearing) || 0,
           working_days: settings.workingDays,
           working_hours: settings.workingHours,
+          allow_order_confirmation_without_production_materials:
+            settings.allowOrderConfirmationWithoutProductionMaterials,
           sessionTimeout: settings.sessionTimeout,
           passwordPolicy: settings.passwordPolicy ? "strong" : "medium",
           twoFactorAuth: settings.twoFactorAuth,
@@ -583,6 +588,7 @@ export function SystemSettings() {
         fiscalYearStart: "01/01",
         workingDays: ["sunday", "monday", "tuesday", "wednesday", "thursday"],
         workingHours: "08:00-17:00",
+        allowOrderConfirmationWithoutProductionMaterials: false,
         sessionTimeout: 30,
         passwordPolicy: true,
         twoFactorAuth: false,
@@ -972,6 +978,18 @@ export function SystemSettings() {
                     onChange={(e) => setSettings({ ...settings, workingHours: e.target.value })}
                     className="text-right"
                     dir="rtl"
+                  />
+                </div>
+                <div className="flex items-center justify-between gap-4 rounded-lg border p-4 md:col-span-2">
+                  <Label htmlFor="allowOrderConfirmationWithoutProductionMaterials" className="cursor-pointer text-right leading-6">
+                    الاستمرار في تأكيد الطلبيات في حال عدم توفر مواد الانتاج
+                  </Label>
+                  <Switch
+                    id="allowOrderConfirmationWithoutProductionMaterials"
+                    checked={settings.allowOrderConfirmationWithoutProductionMaterials}
+                    onCheckedChange={(checked) =>
+                      setSettings({ ...settings, allowOrderConfirmationWithoutProductionMaterials: checked })
+                    }
                   />
                 </div>
               </div>

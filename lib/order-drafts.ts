@@ -14,8 +14,23 @@ export async function ensureOrderDraftTables() {
   await sql`DO $$ BEGIN IF to_regclass('public.customers') IS NOT NULL THEN UPDATE sales_order_drafts d SET account_id = COALESCE(c.account_id, d.customer_id) FROM customers c WHERE d.account_id IS NULL AND c.id = d.customer_id; END IF; END $$`
   await sql`UPDATE sales_order_drafts SET account_id = customer_id WHERE account_id IS NULL AND customer_id IS NOT NULL`
   await sql`ALTER TABLE sales_order_drafts ALTER COLUMN customer_id DROP NOT NULL`
-  await sql`ALTER TABLE sales_order_drafts ALTER COLUMN account_id SET NOT NULL`
+  // Legacy drafts can legitimately predate both account_id and customer_id. Do not let one
+  // such row break every sales-order list/search request. New draft writes validate account_id.
+  await sql`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (SELECT 1 FROM sales_order_drafts WHERE account_id IS NULL) THEN
+        ALTER TABLE sales_order_drafts ALTER COLUMN account_id SET NOT NULL;
+      END IF;
+    END $$
+  `
   await sql`CREATE TABLE IF NOT EXISTS sales_order_draft_items (id SERIAL PRIMARY KEY, draft_id INTEGER NOT NULL REFERENCES sales_order_drafts(id) ON DELETE CASCADE, product_id INTEGER NOT NULL REFERENCES products(id), product_name VARCHAR(255) NOT NULL, quantity NUMERIC(15,4) NOT NULL, price NUMERIC(15,4) NOT NULL DEFAULT 0, discount NUMERIC(15,2) NOT NULL DEFAULT 0, unit_id INTEGER, barcode VARCHAR(100))`
   await sql`ALTER TABLE sales_order_draft_items ADD COLUMN IF NOT EXISTS store_id INTEGER`
+  await sql`ALTER TABLE sales_order_draft_items ADD COLUMN IF NOT EXISTS specifications JSONB NOT NULL DEFAULT '{}'::jsonb`
+  await sql`CREATE TABLE IF NOT EXISTS product_manufacturing_components (id SERIAL PRIMARY KEY, product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE, component_id INTEGER NOT NULL REFERENCES products(id) ON DELETE RESTRICT, quantity NUMERIC(18,6) NOT NULL CHECK (quantity > 0), UNIQUE(product_id, component_id), CHECK (product_id <> component_id))`
+  await sql`ALTER TABLE product_manufacturing_components ADD COLUMN IF NOT EXISTS length NUMERIC(18,6)`
+  await sql`ALTER TABLE product_manufacturing_components ADD COLUMN IF NOT EXISTS width NUMERIC(18,6)`
+  await sql`ALTER TABLE product_manufacturing_components ADD COLUMN IF NOT EXISTS height NUMERIC(18,6)`
+  await sql`ALTER TABLE product_manufacturing_components ADD COLUMN IF NOT EXISTS count NUMERIC(18,6)`
   readyDatabases.add(databaseName)
 }

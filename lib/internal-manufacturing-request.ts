@@ -54,6 +54,9 @@ export async function ensureInternalManufacturingTables() {
   await sql`ALTER TABLE voucher_items_tbl ADD COLUMN IF NOT EXISTS prepared_quantity DOUBLE PRECISION DEFAULT 0`
   await sql`ALTER TABLE voucher_items_tbl ADD COLUMN IF NOT EXISTS item_properties JSONB`
   await sql`CREATE TABLE IF NOT EXISTS internal_manufacturing_events (id SERIAL PRIMARY KEY, voucher_id INTEGER NOT NULL REFERENCES voucher_header_tbl(id) ON DELETE CASCADE, action VARCHAR(40) NOT NULL, from_status INTEGER, to_status INTEGER, user_id INTEGER, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`
+  await sql`ALTER TABLE internal_manufacturing_events ADD COLUMN IF NOT EXISTS before_snapshot JSONB`
+  await sql`ALTER TABLE internal_manufacturing_events ADD COLUMN IF NOT EXISTS after_snapshot JSONB`
+  await sql`ALTER TABLE internal_manufacturing_events ADD COLUMN IF NOT EXISTS request_snapshot JSONB`
   await sql`CREATE INDEX IF NOT EXISTS idx_internal_manufacturing_events_voucher ON internal_manufacturing_events(voucher_id, created_at)`
   await ensureInternalManufacturingPermissions()
 }
@@ -132,7 +135,64 @@ export function nextInternalManufacturingStatus(current: InternalManufacturingSt
 
 export async function listInternalManufacturingRequests(status?: number, branchId?: number, userId?: string) {
   const rows = await sql`SELECT voucher_header_tbl.*, requester.full_name AS requester_name FROM voucher_header_tbl LEFT JOIN user_settings requester ON requester.user_id = CAST(voucher_header_tbl.insert_user AS TEXT) WHERE voucher_header_tbl.vch_type = 20 AND voucher_header_tbl.status <> 3 ${status ? sql`AND voucher_header_tbl.internal_status = ${status}` : sql``} ${branchId && userId ? sql`AND (voucher_header_tbl.branch_id = ${branchId} OR CAST(voucher_header_tbl.insert_user AS TEXT) = ${userId})` : branchId ? sql`AND voucher_header_tbl.branch_id = ${branchId}` : sql``} ORDER BY voucher_header_tbl.id DESC`
-  for (const row of rows) row.items = await sql`SELECT vi.*, u.unit_name, COALESCE(p.product_image, p.image_url) AS product_image FROM voucher_items_tbl vi LEFT JOIN units u ON u.id = vi.unit_id LEFT JOIN products p ON p.id = vi.item_id WHERE vi.voucher_id = ${row.id} ORDER BY vi.id`
+  for (const row of rows) row.items = await sql`SELECT vi.*, COALESCE(vi.item_name, p.product_name, '') AS item_name, u.unit_name, p.product_image AS product_image FROM voucher_items_tbl vi LEFT JOIN units u ON u.id = vi.unit_id LEFT JOIN products p ON p.id = vi.item_id WHERE vi.voucher_id = ${row.id} ORDER BY vi.id`
+  return rows
+}
+
+function itemSnapshot(items: any[]) {
+  return items.map((item) => ({
+    id: Number(item.id || 0),
+    item_id: Number(item.item_id || item.product_id || 0),
+    item_name: item.item_name || item.product_name || "",
+    unit_id: Number(item.unit_id || 0) || null,
+    unit_name: item.unit_name || null,
+    requested_quantity: Number(item.qnty ?? item.quantity ?? 0),
+    prepared_quantity: Number(item.prepared_quantity || 0),
+    received_quantity: Number(item.received_quantity || 0),
+  }))
+}
+
+function requestSnapshot(request: any) {
+  return {
+    vch_code: request.vch_code,
+    vch_date: request.vch_date,
+    branch_id: Number(request.branch_id || 0),
+    manufacturing_branch_id: Number(request.manufacturing_branch_id || 0),
+    source_warehouse_id: Number(request.to_store_id || 0) || null,
+    destination_warehouse_id: Number(request.destination_warehouse_id || 0) || null,
+  }
+}
+
+export async function listInternalManufacturingArchive(filters: { from?: string; to?: string; search?: string; branchId?: number } = {}) {
+  const search = String(filters.search || "").trim()
+  const values: unknown[] = []
+  const conditions = ["vh.vch_type = 20"]
+  if (filters.from) { values.push(filters.from); conditions.push(`vh.vch_date >= $${values.length}::date`) }
+  if (filters.to) { values.push(filters.to); conditions.push(`vh.vch_date < ($${values.length}::date + INTERVAL '1 day')`) }
+  if (filters.branchId) { values.push(filters.branchId); conditions.push(`(vh.branch_id = $${values.length} OR vh.manufacturing_branch_id = $${values.length})`) }
+  if (search) { values.push(`%${search}%`); conditions.push(`(vh.vch_code ILIKE $${values.length} OR COALESCE(requester.full_name, '') ILIKE $${values.length})`) }
+  const result = await (await getTenantPool()).query(`
+    SELECT vh.id, vh.vch_code, vh.vch_date, vh.internal_status, vh.status, vh.branch_id,
+      vh.manufacturing_branch_id, vh.to_store_id, vh.destination_warehouse_id,
+      requester.full_name AS requester_name,
+      COALESCE(json_agg(json_build_object(
+        'id', e.id, 'action', e.action, 'from_status', e.from_status, 'to_status', e.to_status,
+        'created_at', e.created_at, 'user_id', e.user_id,
+        'user_name', COALESCE(actor.full_name, actor.username, CAST(e.user_id AS TEXT)),
+        'before_snapshot', e.before_snapshot, 'after_snapshot', e.after_snapshot,
+        'request_snapshot', e.request_snapshot
+      ) ORDER BY e.created_at, e.id) FILTER (WHERE e.id IS NOT NULL), '[]'::json) AS events
+    FROM voucher_header_tbl vh
+    LEFT JOIN user_settings requester ON requester.user_id = CAST(vh.insert_user AS TEXT)
+    LEFT JOIN internal_manufacturing_events e ON e.voucher_id = vh.id
+    LEFT JOIN user_settings actor ON actor.user_id = CAST(e.user_id AS TEXT)
+    WHERE ${conditions.join(" AND ")}
+    GROUP BY vh.id, requester.full_name
+    ORDER BY vh.vch_date DESC, vh.id DESC`, values)
+  const rows = result.rows
+  for (const row of rows) {
+    row.items = await sql`SELECT vi.id, vi.item_id, vi.item_name, vi.qnty AS requested_quantity, vi.prepared_quantity, vi.received_quantity, u.unit_name, p.product_image AS product_image FROM voucher_items_tbl vi LEFT JOIN units u ON u.id=vi.unit_id LEFT JOIN products p ON p.id=vi.item_id WHERE vi.voucher_id=${row.id} ORDER BY vi.id`
+  }
   return rows
 }
 
@@ -164,9 +224,10 @@ export async function createInternalManufacturingRequest(input: any, userId: num
     const nextSerial = lastSerial + 1
     if (nextSerial > 999999) throw new Error(`تم تجاوز الحد الأقصى لأرقام طلبات البضاعة لسنة ${yearCode}`)
     const vchCode = `${codePrefix}${String(nextSerial).padStart(6, "0")}`
-    const header = await client.query(`INSERT INTO voucher_header_tbl (vch_type,vch_code,vch_date,currency_id,rate,branch_id,to_branch_id,to_store_id,manufacturing_branch_id,destination_warehouse_id,note,status,vch_status,insert_user,internal_status) VALUES (20,$1,CURRENT_DATE,$2,$3,$4,$5,$6,$7,$8,$9,1,1,$10,$11) RETURNING *`, [vchCode, currencyId, 1, input.branch_id, input.manufacturing_branch_id, input.source_warehouse_id || null, input.manufacturing_branch_id, input.destination_warehouse_id || null, input.note || null, userId, status])
+    const header = await client.query(`INSERT INTO voucher_header_tbl (vch_type,vch_code,vch_date,currency_id,rate,branch_id,to_branch_id,to_store_id,manufacturing_branch_id,destination_warehouse_id,note,status,vch_status,insert_user,internal_status) VALUES (20,$1,$2::date + LOCALTIME,$3,$4,$5,$6,$7,$8,$9,$10,1,1,$11,$12) RETURNING *`, [vchCode, input.vch_date || new Date().toISOString().slice(0, 10), currencyId, 1, input.branch_id, input.manufacturing_branch_id, input.source_warehouse_id || null, input.manufacturing_branch_id, input.destination_warehouse_id || null, input.note || null, userId, status])
     for (const item of items) await client.query(`INSERT INTO voucher_items_tbl (voucher_id,item_id,item_name,unit_id,store_id,qnty,barcode,item_properties,free_quantity,received_quantity,prepared_quantity) VALUES ($1,$2,$3,COALESCE($4,(SELECT unit_id FROM product_units WHERE product_id=$2 ORDER BY id LIMIT 1)),$5,$6,$7,$8,COALESCE((SELECT available_stock FROM product_stock WHERE product_id=$2),0),0,0)`, [header.rows[0].id, item.product_id, item.product_name || null, Number(item.unit_id ?? item.unitId ?? 0) || null, input.destination_warehouse_id || null, Number(item.quantity), item.barcode || null, item.properties || item.features || item.attributes ? JSON.stringify(item.properties || item.features || item.attributes) : null])
-    await client.query(`INSERT INTO internal_manufacturing_events (voucher_id,action,to_status,user_id) VALUES ($1,'create',$2,$3)`, [header.rows[0].id, status, userId])
+    const createdItems = (await client.query(`SELECT * FROM voucher_items_tbl WHERE voucher_id=$1 ORDER BY id`, [header.rows[0].id])).rows
+    await client.query(`INSERT INTO internal_manufacturing_events (voucher_id,action,to_status,user_id,after_snapshot,request_snapshot) VALUES ($1,'create',$2,$3,$4,$5)`, [header.rows[0].id, status, userId, JSON.stringify(itemSnapshot(createdItems)), JSON.stringify(requestSnapshot(header.rows[0]))])
     await client.query("COMMIT")
     return header.rows[0]
   } catch (error) { await client.query("ROLLBACK"); throw error } finally { client.release() }
@@ -182,6 +243,7 @@ export async function processInternalManufacturingAction(id: number, action: Exc
     if (!result.rowCount || Number(result.rows[0].internal_status) !== expected[action]) throw new Error("الطلب غير موجود أو ليس في المرحلة المطلوبة")
     const request = result.rows[0]
     const items = (await client.query(`SELECT * FROM voucher_items_tbl WHERE voucher_id=$1 FOR UPDATE`, [id])).rows
+    const beforeSnapshot = itemSnapshot(items)
     if (action === "prepare" || action === "readyAudit") {
       const preparedItems = Array.isArray(input.prepared_items) ? input.prepared_items : []
       for (const item of items) {
@@ -202,7 +264,8 @@ export async function processInternalManufacturingAction(id: number, action: Exc
     const next = nextInternalManufacturingStatus(Number(request.internal_status) as InternalManufacturingStatus, settings, action)
     const updated = await client.query(`UPDATE voucher_header_tbl SET internal_status=$1,update_user=$2,last_update_date=CURRENT_TIMESTAMP WHERE id=$3 AND internal_status=$4 RETURNING id`, [next, userId, id, request.internal_status])
     if (!updated.rowCount) throw new Error("تمت معالجة الطلب من مستخدم آخر")
-    await client.query(`INSERT INTO internal_manufacturing_events (voucher_id,action,from_status,to_status,user_id) VALUES ($1,$2,$3,$4,$5)`, [id, action, request.internal_status, next, userId])
+    const afterItems = (await client.query(`SELECT * FROM voucher_items_tbl WHERE voucher_id=$1 ORDER BY id`, [id])).rows
+    await client.query(`INSERT INTO internal_manufacturing_events (voucher_id,action,from_status,to_status,user_id,before_snapshot,after_snapshot,request_snapshot) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`, [id, action, request.internal_status, next, userId, JSON.stringify(beforeSnapshot), JSON.stringify(itemSnapshot(afterItems)), JSON.stringify(requestSnapshot(request))])
     if (action === "receive") {
       const currencyResult = await client.query("SELECT id FROM currency ORDER BY id ASC LIMIT 1")
       if (!currencyResult.rowCount) throw new Error("يجب تعريف عملة قبل اعتماد الارسالية الداخلية")
@@ -222,7 +285,7 @@ export async function processInternalManufacturingAction(id: number, action: Exc
         item.price = Number(priceResult.rows[0]?.price || 0)
       }
       const transferTotal = items.reduce((total: number, item: any) => total + Number(item.received_quantity || 0) * Number(item.price || 0), 0)
-      const transfer = await client.query(`INSERT INTO voucher_header_tbl (vch_type,vch_code,vch_date,vch_book_id,currency_id,rate,branch_id,to_store_id,from_store_id,amount,status,vch_status,insert_user,internal_voucher_id,note) VALUES (10,$1,CURRENT_DATE,$2,$3,1,$4,$5,$6,$7,1,1,$8,$9,$10) RETURNING id`, [transferCode, voucherBookId, currencyResult.rows[0].id, request.branch_id, request.to_store_id || null, request.destination_warehouse_id || null, transferTotal, userId, id, `طلب بضاعة داخلي ${request.vch_code}`])
+      const transfer = await client.query(`INSERT INTO voucher_header_tbl (vch_type,vch_code,vch_date,vch_book_id,currency_id,rate,branch_id,to_store_id,from_store_id,amount,status,vch_status,insert_user,internal_voucher_id,note) VALUES (10,$1,CURRENT_TIMESTAMP,$2,$3,1,$4,$5,$6,$7,1,1,$8,$9,$10) RETURNING id`, [transferCode, voucherBookId, currencyResult.rows[0].id, request.branch_id, request.to_store_id || null, request.destination_warehouse_id || null, transferTotal, userId, id, `طلب بضاعة داخلي ${request.vch_code}`])
       for (const item of items) await client.query(`INSERT INTO voucher_items_tbl (voucher_id,item_id,item_name,unit_id,store_id,qnty,price,barcode,item_properties) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`, [transfer.rows[0].id, item.item_id, item.item_name, Number(item.unit_id ?? item.unitId ?? 0) || null, request.to_store_id || null, Number(item.received_quantity), Number(item.price || 0), item.barcode, item.item_properties ? JSON.stringify(item.item_properties) : null])
     }
     await client.query("COMMIT")
@@ -246,14 +309,17 @@ export async function updateInternalManufacturingRequest(id: number, input: any,
   const client = await (await getTenantPool()).connect()
   try {
     await client.query("BEGIN")
-    const result = await client.query("SELECT branch_id, internal_status FROM voucher_header_tbl WHERE id=$1 AND vch_type=20 AND status<>3 FOR UPDATE", [id])
+    const result = await client.query("SELECT * FROM voucher_header_tbl WHERE id=$1 AND vch_type=20 AND status<>3 FOR UPDATE", [id])
     if (!result.rowCount) throw new Error("الطلب غير موجود")
     const request = result.rows[0]
     if (!canEditInternalManufacturingRequest(Number(request.internal_status), settings)) throw new Error("لا يمكن تعديل طلب بدأ سيره")
     if (Number(request.branch_id) !== Number(input.branch_id)) throw new Error("فرع مقدم الطلب غير مطابق")
-    await client.query("UPDATE voucher_header_tbl SET vch_date=$1, to_store_id=$2, manufacturing_branch_id=$3, destination_warehouse_id=$4, update_user=$5, last_update_date=CURRENT_TIMESTAMP WHERE id=$6", [input.vch_date, input.source_warehouse_id, input.manufacturing_branch_id, input.destination_warehouse_id, userId, id])
+    await client.query("UPDATE voucher_header_tbl SET vch_date=$1::date + vch_date::time, to_store_id=$2, manufacturing_branch_id=$3, destination_warehouse_id=$4, update_user=$5, last_update_date=CURRENT_TIMESTAMP WHERE id=$6", [input.vch_date, input.source_warehouse_id, input.manufacturing_branch_id, input.destination_warehouse_id, userId, id])
+    const beforeItems = (await client.query("SELECT * FROM voucher_items_tbl WHERE voucher_id=$1 ORDER BY id", [id])).rows
     await client.query("DELETE FROM voucher_items_tbl WHERE voucher_id=$1", [id])
     for (const item of items) await client.query("INSERT INTO voucher_items_tbl (voucher_id,item_id,item_name,unit_id,store_id,qnty,barcode,item_properties,free_quantity,received_quantity,prepared_quantity) VALUES ($1,$2,$3,COALESCE($4,(SELECT unit_id FROM product_units WHERE product_id=$2 ORDER BY id LIMIT 1)),$5,$6,$7,$8,0,0,0)", [id, item.product_id, item.product_name || null, item.unit_id || null, input.destination_warehouse_id, Number(item.quantity), item.barcode || null, item.properties || item.features || item.attributes ? JSON.stringify(item.properties || item.features || item.attributes) : null])
+    const afterItems = (await client.query("SELECT * FROM voucher_items_tbl WHERE voucher_id=$1 ORDER BY id", [id])).rows
+    await client.query(`INSERT INTO internal_manufacturing_events (voucher_id,action,from_status,to_status,user_id,before_snapshot,after_snapshot,request_snapshot) VALUES ($1,'update',$2,$2,$3,$4,$5,$6)`, [id, request.internal_status, userId, JSON.stringify(itemSnapshot(beforeItems)), JSON.stringify(itemSnapshot(afterItems)), JSON.stringify(requestSnapshot({ ...request, vch_date: input.vch_date, to_store_id: input.source_warehouse_id, manufacturing_branch_id: input.manufacturing_branch_id, destination_warehouse_id: input.destination_warehouse_id }))])
     await client.query("COMMIT")
     return { success: true }
   } catch (error) { await client.query("ROLLBACK"); throw error } finally { client.release() }

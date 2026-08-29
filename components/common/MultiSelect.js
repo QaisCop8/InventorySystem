@@ -56,6 +56,24 @@ export default class MultiSelect extends React.Component {
 
   render() {
     const panelClassName = `${styles.panelClassRight} ${this.props.panelClassName ?? ''}`.trim();
+    const options = Array.isArray(this.props.options) ? this.props.options : [];
+    const selectedValues = Array.isArray(this.props.value) ? this.props.value : [];
+    const optionValue = (option) => this.props.optionValue && option !== null && typeof option === 'object' ? option[this.props.optionValue] : option;
+    const valuesEqual = (left, right) => String(optionValue(left)) === String(optionValue(right));
+    const allSelected = options.length > 0 && options.every((option) => selectedValues.some((value) => valuesEqual(value, option)));
+    // PrimeReact reports `checked` as the current state, while consumers expect the
+    // state after clicking. Normalize it here and include the complete next value.
+    const selectAllHandler = this.props.onSelectAll
+      ? (event) => this.props.onSelectAll({
+          ...event,
+          checked: !event.checked,
+          value: event.checked ? [] : options.map(optionValue),
+        })
+      : this.props.handleSelectAll
+        ? this.props.handleSelectAll
+        : this.props.parent
+          ? this.handleSelectAll
+          : undefined;
     // Avoid forwarding internal-only props to underlying DOM elements
     const passProps = { ...this.props };
     if (Object.prototype.hasOwnProperty.call(passProps, 'showFilter')) delete passProps.showFilter;
@@ -110,6 +128,7 @@ export default class MultiSelect extends React.Component {
               appendTo={this.props.appendTo ?? 'self'}
               filter={this.props.showFilter ?? this.props.filter}
               showSelectAll={this.props.showCheck ?? this.props.showSelectAll}
+              selectAll={allSelected}
               // showSelectAll={this.props.options&&this.props.options.length>SELECTALLMAXLIMIT && !this.props.showSelectAllAlways ?false:true}
               tooltipOptions={{ position: 'bottom', style: { direction: 'rtl' } }}
               panelClassName={panelClassName}
@@ -119,7 +138,7 @@ export default class MultiSelect extends React.Component {
               emptyMessage={this.props.emptyMessage ?? 'لا توجد خيارات متاحة'}
               emptyFilterMessage={this.props.emptyFilterMessage ?? 'لا توجد نتائج مطابقة'}
               resetFilterOnHide={true}
-              onSelectAll={this.props.handleSelectAll ? this.props.handleSelectAll : this.props.parent ? this.handleSelectAll : undefined}
+              onSelectAll={selectAllHandler}
               //options={this.state.filteredItems ?? this.props.options}
               //onFilter={this.onFilter}
 
@@ -167,6 +186,7 @@ export default class MultiSelect extends React.Component {
             appendTo={this.props.appendTo ?? 'self'}
             filter={this.props.showFilter ?? this.props.filter}
             showSelectAll={this.props.showCheck ?? this.props.showSelectAll}
+            selectAll={allSelected}
             display={this.props.showMultiSelect ? 'chip' : this.props.display}
             tooltipOptions={{ position: 'bottom', style: { direction: 'rtl' } }}
             panelClassName={panelClassName}
@@ -177,7 +197,7 @@ export default class MultiSelect extends React.Component {
             emptyFilterMessage={this.props.emptyFilterMessage ?? 'لا توجد نتائج مطابقة'}
             selectedItemsLabel={this.props.selectedItemsLabel ?? (this.props.value ? `تم تحديد ${this.props.value.length} عناصر` : '')}
             resetFilterOnHide={true}
-            onSelectAll={this.props.handleSelectAll ? this.props.handleSelectAll : this.props.parent ? this.handleSelectAll : undefined}
+            onSelectAll={selectAllHandler}
           >
             {this.props.children}
           </PrimeMultiSelect>
@@ -201,7 +221,6 @@ export default class MultiSelect extends React.Component {
         {showSelectAll && (
           <div className={styles.selectAllRow}>
             {options.checkboxElement}
-            <span>{this.props.selectAllLabel ?? 'تحديد الكل'}</span>
           </div>
         )}
       </div>

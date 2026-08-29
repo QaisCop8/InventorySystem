@@ -16,10 +16,10 @@ export async function GET(request: NextRequest) {
 
     if (orderType === 1) {
       const orders = await sql`
-        SELECT o.*, COALESCE(c.account_name, '') AS account_name,
+        SELECT o.*, COALESCE(NULLIF(o.customer_name, ''), c.name, '') AS account_name,
                COALESCE(cur.currency_code, '') AS currency_code
         FROM orders o
-        LEFT JOIN accounts c ON c.id = o.customer_id
+        INNER JOIN account_tbl c ON c.id = o.customer_id
         LEFT JOIN currency cur ON cur.id = o.currency_id
         WHERE o.id = ${orderId}
         LIMIT 1
@@ -62,6 +62,7 @@ export async function GET(request: NextRequest) {
           WHERE vh.vch_type = ${SALES_INVOICE_TYPE}
             AND vh.status = 2
             AND vi.order_item_id = oi.id
+            AND vi.delivery_item_id IS NULL
         ) inv ON TRUE
         LEFT JOIN products p ON p.id = oi.product_id
         LEFT JOIN units u ON u.id = oi.unit_id
@@ -78,9 +79,9 @@ export async function GET(request: NextRequest) {
 
     if (orderType === 2) {
       const orders = await sql`
-        SELECT po.*, COALESCE(s.account_name, '') AS account_name
+        SELECT po.*, COALESCE(s.name, '') AS account_name
         FROM purchase_orders po
-        LEFT JOIN accounts s ON s.id = po.supplier_id
+        INNER JOIN account_tbl s ON s.id = po.supplier_id
         WHERE po.id = ${orderId}
         LIMIT 1
       `

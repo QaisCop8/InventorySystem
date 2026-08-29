@@ -24,9 +24,9 @@ export async function GET(request: NextRequest) {
     const orders = await getSalesOrders(filters)
 
     return NextResponse.json(orders)
-  } catch (error) {
+  } catch (error: any) {
     console.error("Orders API error:", error)
-    return NextResponse.json({ error: "حدث خطأ في جلب الطلبات" }, { status: 500 })
+    return NextResponse.json({ error: error?.message || "حدث خطأ في جلب الطلبات" }, { status: 500 })
   }
 }
 

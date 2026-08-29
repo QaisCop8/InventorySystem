@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
-import { Plus, Trash2, ListPlus, FileText, User, Wallet, MessageSquare, Landmark, CreditCard, BookOpen } from "lucide-react"
+import { Plus, Trash2, ListPlus, FileText, User, Wallet, MessageSquare, Landmark, CreditCard, BookOpen, X } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -1730,6 +1730,7 @@ export default function UnifiedReceiptVoucher({
       >
         <DialogContent
           className="voucher-form flex min-h-[80vh] w-full max-w-[1850px] flex-col overflow-hidden p-0"
+          hideCloseButton
           dir="rtl"
           onPointerDownOutside={(event) => event.preventDefault()}
           onInteractOutside={(event) => event.preventDefault()}
@@ -1738,6 +1739,14 @@ export default function UnifiedReceiptVoucher({
               event.preventDefault()
           }}
         >
+          <button
+            type="button"
+            aria-label="إغلاق"
+            onClick={() => guardedAction(() => onOpenChange(false))}
+            className="universal-dialog-close absolute left-[14px] top-[10px] z-[100] inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/95 text-slate-900 shadow-lg ring-1 ring-slate-200 transition-opacity hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-sky-400 focus:ring-offset-2"
+          >
+            <X className="h-4 w-4" />
+          </button>
           <UniversalToolbar
             currentRecord={currentIndex + 1}
             totalRecords={totalRecords}

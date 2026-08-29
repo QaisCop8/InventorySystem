@@ -13,7 +13,8 @@ export function validateDraftPayload(data: any) {
   if (!Number.isFinite(deposit) || deposit < 0) throw new DraftValidationError("مبلغ العربون يجب أن يكون صفراً أو أكبر")
   if (!Array.isArray(data.items) || data.items.length === 0) throw new DraftValidationError("يجب إدخال صنف واحد على الأقل")
   for (const item of data.items) {
-    if (!(Number(item.store_id) > 0)) throw new DraftValidationError("يجب تعريف مستودع واحد على الاقل")
+    if (!Number.isInteger(Number(item.unit_id)) || Number(item.unit_id) <= 0) throw new DraftValidationError(`يجب تحديد وحدة للصنف ${item.product_name || ""}`)
+    if (!(Number(item.store_id) > 0)) throw new DraftValidationError(`يجب تحديد المستودع للصنف ${item.product_name || ""}`)
     const quantity = Number(item.quantity), price = Number(item.price), discount = Number(item.discount)
     if (!Number.isInteger(Number(item.product_id)) || Number(item.product_id) <= 0 || !Number.isFinite(quantity) || quantity <= 0) throw new DraftValidationError("بيانات الصنف أو الكمية غير صالحة")
     if (!Number.isFinite(price) || price < 0) throw new DraftValidationError(`سعر الصنف ${item.product_name || ""} غير صالح`)
@@ -32,6 +33,9 @@ export async function validateDraftReferences(client: PoolClient, data: any) {
   if (!accountResult.rowCount) throw new DraftValidationError("حساب العميل غير موجود أو ليس من النوع 2")
   const ids = [...new Set(data.items.map((item: any) => Number(item.product_id)))]
   const productsResult = await client.query("SELECT id, product_name, minimum_order_quantity FROM products WHERE id=ANY($1::int[])", [ids])
+  const componentResult = await client.query("SELECT product_id,component_id FROM product_manufacturing_components WHERE product_id=ANY($1::int[])", [ids]).catch(() => ({ rows: [] as any[] }))
+  const specificationProductIds = [...new Set([...ids, ...componentResult.rows.map((row: any) => Number(row.component_id))])]
+  const attributeResult = specificationProductIds.length ? await client.query("SELECT product_id,attr_id,value_id FROM product_atrributes_values_tbl WHERE product_id=ANY($1::int[])", [specificationProductIds]).catch(() => ({ rows: [] as any[] })) : { rows: [] as any[] }
   const warehouseIds = [...new Set(data.items.map((item: any) => Number(item.store_id)).filter((id: number) => Number.isInteger(id) && id > 0))]
   const warehousesResult = await client.query("SELECT id, warehouse_name, status, is_active FROM warehouses WHERE id=ANY($1::int[])", [warehouseIds])
   const warehousesById = new Map(warehousesResult.rows.map((warehouse: any) => [Number(warehouse.id), warehouse]))
@@ -42,6 +46,19 @@ export async function validateDraftReferences(client: PoolClient, data: any) {
     const warehouse = warehousesById.get(Number(item.store_id))
     if (!warehouse || Number(warehouse.status) === 3) throw new DraftValidationError(`المستودع - ${warehouse?.warehouse_name || item.store_name || "غير معروف"} محذوف لا يمكن حفظ الحركة`)
     if (Number(warehouse.status) !== 1 || warehouse.is_active === false) throw new DraftValidationError(`المستودع - ${warehouse.warehouse_name} مجمد لا يمكن حفظ الحركة`)
+    const components = componentResult.rows.filter((row: any) => Number(row.product_id) === Number(item.product_id))
+    const productAttributes = attributeResult.rows.filter((row: any) => Number(row.product_id) === Number(item.product_id))
+    const specifications = item.specifications && typeof item.specifications === "object" ? item.specifications : {}
+    const selectedProduct = specifications.product || {}
+    const selectedComponents = specifications.components || {}
+    const requiredProductAttributes = [...new Set(productAttributes.map((row: any) => Number(row.attr_id)))]
+    const productComplete = requiredProductAttributes.every((attributeId) => productAttributes.some((row: any) => Number(row.attr_id) === attributeId && Number(row.value_id) === Number(selectedProduct[attributeId])))
+    const componentsComplete = components.every((component: any) => {
+      const componentAttributes = attributeResult.rows.filter((row: any) => Number(row.product_id) === Number(component.component_id))
+      const required = [...new Set(componentAttributes.map((row: any) => Number(row.attr_id)))]
+      return required.every((attributeId) => componentAttributes.some((row: any) => Number(row.attr_id) === attributeId && Number(row.value_id) === Number(selectedComponents[component.component_id]?.[attributeId])))
+    })
+    if ((components.length || requiredProductAttributes.length) && (!specifications.reviewed || !productComplete || !componentsComplete)) throw new DraftValidationError("يجب تعبئة مواصفات الصنف - وذلك بالضغط على زر المواصفات")
   }
   return accountResult.rows[0]
 }

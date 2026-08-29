@@ -114,6 +114,7 @@ const refreshSalesOrderFulfillment = async (orderIds: number[]) => {
       WHERE vh.vch_type = ${SALES_INVOICE_VCH_TYPE}
         AND vh.status = 2
         AND vi.order_item_id IS NOT NULL
+        AND vi.delivery_item_id IS NULL
       GROUP BY vi.order_item_id
     )
     UPDATE order_items oi
@@ -141,6 +142,7 @@ const refreshSalesOrderFulfillment = async (orderIds: number[]) => {
         WHERE vi.order_item_id = oi.id
           AND vh.vch_type = ${SALES_INVOICE_VCH_TYPE}
           AND vh.status = 2
+          AND vi.delivery_item_id IS NULL
       )
   `
 
@@ -323,6 +325,7 @@ const validateSourceInvoice = async (itemsOrData: any, maybeData?: any, excludeV
       AND vh.status = 2
       AND vh.id != ${excludeVoucherId}
       AND vi.order_item_id = ANY(${orderItemIds}::int[])
+      AND vi.delivery_item_id IS NULL
     GROUP BY vi.order_item_id
   `
 
@@ -369,13 +372,11 @@ const validateSourceInvoice = async (itemsOrData: any, maybeData?: any, excludeV
     }
 
     const existing = invoiceTotals.get(orderItemId) ?? { invoiced_quantity: 0, invoiced_bonus: 0 }
-    const remainingTotal = Math.max(
-      0,
-      Number(orderItem.quantity || 0) + Number(orderItem.bonus || 0)
-        - existing.invoiced_quantity - existing.invoiced_bonus,
-    )
+    const remainingQuantity = Math.max(0, Number(orderItem.quantity || 0) - existing.invoiced_quantity)
+    const remainingBonus = Math.max(0, Number(orderItem.bonus || 0) - existing.invoiced_bonus)
+    const remainingTotal = remainingQuantity + remainingBonus
 
-    if (totals.quantity + totals.bonus > remainingTotal) {
+    if (totals.quantity > remainingQuantity || totals.bonus > remainingBonus) {
       return "الكمية أو البونص المحدد يتجاوز المتبقي في الطلبية"
     }
 

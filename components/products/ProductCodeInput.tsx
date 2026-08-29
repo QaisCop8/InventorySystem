@@ -34,6 +34,7 @@ interface ProductCodeInputProps {
     searchTitle?: string;
     priceCategoryId?: number;
     productTypes?: number[];
+    onRequestSearch?: (openSearch: () => void) => void;
 }
 
 const ProductCodeInput = ({
@@ -46,6 +47,7 @@ const ProductCodeInput = ({
     searchTitle,
     priceCategoryId = 1,
     productTypes,
+    onRequestSearch,
 }: ProductCodeInputProps) => {
     const [showDialog, setShowDialog] = useState(false);
 
@@ -120,7 +122,11 @@ const ProductCodeInput = ({
                     // (كود جديد مولَّد تلقائياً لصنف لم يُحفَظ بعد مثلاً)، فيُفرَّغ ما أُدخِل بالفعل
                     // قبل أن تُفتَح نافذة البحث أصلاً.
                     onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => setShowDialog(true)}
+                    onClick={() => {
+                        const openSearch = () => setShowDialog(true);
+                        if (onRequestSearch) onRequestSearch(openSearch);
+                        else openSearch();
+                    }}
                 >
                     <Search className="w-4 h-4" />
                 </Button>

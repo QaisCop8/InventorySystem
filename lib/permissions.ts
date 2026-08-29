@@ -1,5 +1,5 @@
 import sql, { getPoolForDb } from "@/lib/database"
-import managementSql from "@/lib/management-db"
+import managementSql, { ensureSalesDraftPermissionDefinitions } from "@/lib/management-db"
 
 // نظام الأدوار الوظيفية (job_roles/role_permissions) + الصلاحية الفعّالة للمستخدم = مركز صريح
 // (user_access) إن وُجد → وإلا صلاحية دوره الوظيفي (role_permissions) → وإلا رفض. انظر خطة
@@ -192,7 +192,18 @@ export async function requireBranchAccess(userId: string | null, accessId: numbe
 // سكربت يدوي لكل شركة: أي تعريف صلاحية/دور جديد يُضاف هنا هنا تلقائياً بأول تحميل صفحة لاحق.
 export async function syncPermissionDefinitions(dbName: string): Promise<void> {
   await ensurePermissionTables(dbName)
+  await ensureSalesDraftPermissionDefinitions()
   const client = getPoolForDb(dbName)
+
+  // Preserve the access id and all existing role/user grants when standardizing
+  // the sales-draft create permission name in older company databases.
+  await client.query(
+    `UPDATE access_list
+     SET name = $1::varchar, updated_at = CURRENT_TIMESTAMP
+     WHERE name = $2::varchar
+       AND NOT EXISTS (SELECT 1 FROM access_list existing WHERE existing.name = $1::varchar)`,
+    ["إضافة مسودة طلبية مبيعات", "ادخال مسودة طلبية مبيعات"],
+  )
 
   // 1) نسخ أي صف access_category/access_list جديد من قاعدة الإدارة (management) لم يصل هذه الشركة
   //    بعد — لا يُحدَّث أي صف موجود مسبقاً إطلاقاً، فتخصيصات المسؤول (إعادة تسمية فئة/صلاحية) تبقى
@@ -210,6 +221,33 @@ export async function syncPermissionDefinitions(dbName: string): Promise<void> {
       `INSERT INTO access_list (id, name, category_id) VALUES ($1, $2, $3) ON CONFLICT (id) DO NOTHING`,
       [item.id, item.name, item.category_id],
     )
+  }
+
+  // Name-based fallback for tenant databases whose locally-created access ids
+  // collide with newer management ids. This guarantees these definitions are
+  // visible in صلاحيات المستخدمين even when an id-based copy is skipped.
+  const draftCategoryRows = await client.query(
+    `INSERT INTO access_category (name)
+     SELECT $1::varchar WHERE NOT EXISTS (SELECT 1 FROM access_category WHERE name = $1::varchar)
+     RETURNING id`,
+    ["الحركات"],
+  )
+  const draftCategory =
+    draftCategoryRows[0] ||
+    (await client.query(`SELECT id FROM access_category WHERE name = $1::varchar ORDER BY id LIMIT 1`, ["الحركات"]))[0]
+  if (draftCategory?.id) {
+    for (const permissionName of [
+      "إضافة مسودة طلبية مبيعات",
+      "تعديل مسودة طلبية مبيعات",
+      "استعلام مسودة طلبية مبيعات",
+    ]) {
+      await client.query(
+        `INSERT INTO access_list (name, category_id)
+         SELECT $1::varchar, $2::integer
+         WHERE NOT EXISTS (SELECT 1 FROM access_list WHERE name = $1::varchar)`,
+        [permissionName, draftCategory.id],
+      )
+    }
   }
 
   // 2) زرع الأدوار الوظيفية الافتراضية الثلاثة (بلا تكرار حسب الاسم) — و"مدير" فقط، وفقط أول مرة

@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Calendar, CheckCircle2, Download, GripVertical, Paperclip, Search } from "lucide-react"
+import { Calendar, CheckCircle2, Download, GripVertical, Paperclip, Search, ShoppingCart } from "lucide-react"
 import { useAuth } from "@/components/auth/auth-context"
 import { useToast } from "@/hooks/use-toast"
 
@@ -21,12 +21,13 @@ export function OrderConfirmationBoard() {
   const [message, setMessage] = useState("")
   const [confirming, setConfirming] = useState(false)
   const [availability, setAvailability] = useState<any[] | null>(null)
+  const [specificationErrors, setSpecificationErrors] = useState<string[]>([])
   const [checkingAvailability, setCheckingAvailability] = useState(false)
 
   const load = () => Promise.all([fetch("/api/order-drafts").then((r) => r.json()), fetch("/api/order-checklists").then((r) => r.json())]).then(([d, t]) => { setDrafts(Array.isArray(d) ? d : []); setTemplates(Array.isArray(t) ? t : []) })
   useEffect(() => { void load() }, [])
 
-  const openDraft = (draft: any) => { setSelected(draft); setValues(draft.checklist_values || {}); setMessage(""); setAvailability(null) }
+  const openDraft = (draft: any) => { setSelected(draft); setValues(draft.checklist_values || {}); setMessage(""); setAvailability(null); setSpecificationErrors([]) }
   const template = templates.find((item) => Number(item.id) === Number(selected?.checklist_template_id))
   const checkAvailability = async () => {
     if (!selected || checkingAvailability) return
@@ -36,6 +37,7 @@ export function OrderConfirmationBoard() {
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || "تعذر فحص توفر مواد الانتاج")
       setAvailability(data.items || [])
+      setSpecificationErrors(data.specification_errors || [])
     } catch (error: any) {
       setMessage(error.message || "تعذر فحص توفر مواد الانتاج")
     } finally { setCheckingAvailability(false) }
@@ -83,6 +85,18 @@ export function OrderConfirmationBoard() {
     } finally { setConfirming(false) }
   }
 
+  const createPurchaseOrderForShortages = () => {
+    const shortages = (availability || []).filter((item: any) => !item.available).map((item: any, index: number) => {
+      const shortage = Math.max(0, Number(item.quantity || 0) - Number(item.available_stock || 0))
+      const measuredBase = Number(item.length || 0) * Number(item.width || 0) * (Number(item.measurment_id || 1) === 3 ? Number(item.height || 0) : 1)
+      return { ...item, id: `shortage-${index}-${item.product_id}`, qnty: shortage, quantity: shortage, count: Number(item.measurment_id || 1) === 1 || measuredBase <= 0 ? item.count : shortage / measuredBase, selected_attributes: item.features || {}, specifications: { product: item.features || {}, reviewed: true } }
+    }).filter((item: any) => item.qnty > 0)
+    if (!shortages.length) return
+    const token = `purchase-shortage-${Date.now()}-${Math.random().toString(36).slice(2)}`
+    localStorage.setItem(token, JSON.stringify({ created_at: Date.now(), source_draft_id: selected?.id, source_draft_number: selected?.draft_number, items: shortages }))
+    window.open(`/?section=purchase-orders&new=1&purchase_prefill=${encodeURIComponent(token)}`, "_blank", "noopener,noreferrer")
+  }
+
   return <div dir="rtl" className="p-4">
     <h1 className="text-2xl font-bold">تأكيد الطلبيات</h1>
     <p className="mb-5 text-muted-foreground">اسحب بطاقة المسودة إلى منطقة التأكيد، أكمل قائمة التحقق، ثم أنشئ الطلبية.</p>
@@ -97,7 +111,8 @@ export function OrderConfirmationBoard() {
       {template ? <div><h3 className="mb-3 font-bold">قائمة التحقق: {template.name}</h3>{template.fields.map((field: any) => <div key={field.id} className="mb-3"><label className="mb-1 block text-sm">{field.label}{field.is_required && <span className="text-red-600"> *</span>}</label>{field.field_type === "textarea" ? <Textarea maxLength={field.max_length || undefined} value={values[field.id] || ""} onChange={(event) => setValues({ ...values, [field.id]: event.target.value })} /> : field.field_type === "boolean" ? <label className="flex gap-2"><input type="checkbox" checked={values[field.id] === true} onChange={(event) => setValues({ ...values, [field.id]: event.target.checked })} />تم التحقق</label> : <Input type={field.field_type === "date" ? "date" : ["integer", "decimal"].includes(field.field_type) ? "number" : "text"} step={field.field_type === "decimal" ? "any" : undefined} maxLength={field.max_length || undefined} value={values[field.id] ?? ""} onChange={(event) => setValues({ ...values, [field.id]: event.target.value })} />}</div>)}</div> : <div className="rounded bg-muted p-3">لا توجد قائمة تحقق مرتبطة بهذه المسودة.</div>}
       {message && <div className="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">{message}</div>}
       <Button type="button" variant="outline" onClick={() => void checkAvailability()} disabled={checkingAvailability} className="w-full"><Search className="ml-2 h-4 w-4" />{checkingAvailability ? "جاري الفحص..." : "فحص توفر مواد الانتاج"}</Button>
-      {availability && <div className="space-y-1 rounded border p-3 text-sm">{availability.map((item: any, index: number) => <div key={index} className={item.available ? "text-emerald-700" : "text-red-700"}>{item.product_name}: المطلوب {item.quantity}، المتوفر {item.available_stock} {item.available ? "متوفر" : "غير متوفر بالكامل"}</div>)}</div>}
+      {availability && <div className="space-y-1 rounded border p-3 text-sm">{specificationErrors.map((error, index) => <div key={`spec-${index}`} className="text-red-700">{error}</div>)}{availability.map((item: any, index: number) => <div key={index} className={item.available ? "text-emerald-700" : "text-red-700"}>{item.source_type === "component" ? `${item.parent_product_name} ← ${item.product_name}` : item.product_name}: المطلوب {Number(item.quantity).toFixed(4)}، المتوفر {Number(item.available_stock).toFixed(4)} بالوحدة الرئيسية {item.available ? "متوفر" : "غير متوفر بالكامل"}</div>)}</div>}
+      {availability?.some((item: any) => !item.available) && <Button type="button" onClick={createPurchaseOrderForShortages} className="w-full bg-amber-600 hover:bg-amber-700"><ShoppingCart className="ml-2 h-4 w-4" />إنشاء طلبية مشتريات</Button>}
       <Button onClick={confirm} disabled={confirming} className="w-full"><CheckCircle2 className="ml-2 h-4 w-4" />{confirming ? "جاري إنشاء الطلبية..." : "تأكيد وإنشاء طلبية المبيعات"}</Button>
     </div>}</DialogContent></Dialog>
   </div>

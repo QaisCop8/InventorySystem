@@ -38,8 +38,32 @@ function StageBoard({ stage }: { stage: Stage }) {
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState("")
   const [popupMessage, setPopupMessage] = useState("")
-  const load = async () => { setLoading(true); try { const response = await fetch(`/api/internal-manufacturing-requests?status=${stage.status}`, { headers: { "x-branch-id": String(activeBranchId || "") } }); const data = await response.json(); setRequests(Array.isArray(data) ? data : []) } finally { setLoading(false) } }
-  useEffect(() => { void load() }, [stage.status, activeBranchId])
+  const loadSequenceRef = useRef(0)
+  const load = async () => { const branchId = Number(activeBranchId || 0); const sequence = ++loadSequenceRef.current; if (!branchId) return; setLoading(true); try { const response = await fetch(`/api/internal-manufacturing-requests?status=${stage.status}&_=${Date.now()}`, { cache: "no-store", headers: { "x-branch-id": String(branchId) } }); const data = await response.json(); if (sequence !== loadSequenceRef.current) return; if (response.ok && Array.isArray(data)) setRequests(data); else setMessage(data.error || "تعذر تحميل الطلبات") } finally { if (sequence === loadSequenceRef.current) setLoading(false) } }
+  useEffect(() => { if (activeBranchId) void load(); else { loadSequenceRef.current += 1; setRequests([]); setLoading(false) } }, [stage.status, activeBranchId])
+  useEffect(() => {
+    if (!selected) return
+    const frame = window.requestAnimationFrame(() => {
+      const dialog = document.querySelector('[role="dialog"][data-state="open"]')
+      const cells = Array.from(dialog?.querySelectorAll<HTMLElement>("tbody tr td:first-child") || [])
+      cells.forEach((cell, index) => {
+        const item = selected.items?.[index]
+        if (!item || cell.querySelector("[data-internal-item-image]")) return
+        cell.classList.add("flex", "items-center", "gap-3", "font-bold", "text-blue-600")
+        const image = document.createElement(item.product_image ? "img" : "div")
+        image.dataset.internalItemImage = "true"
+        image.className = "flex h-12 w-12 shrink-0 items-center justify-center rounded border bg-muted/30 object-cover text-[10px] text-muted-foreground"
+        if (image instanceof HTMLImageElement) { image.src = item.product_image; image.alt = item.item_name || "" }
+        else image.textContent = "لا صورة"
+        const unit = document.createElement("span")
+        unit.className = "mr-auto text-xs font-normal text-red-600"
+        unit.textContent = item.unit_name || "بدون وحدة"
+        cell.prepend(image)
+        cell.append(unit)
+      })
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [selected])
   const complete = async (request: any) => { const response = await fetch(`/api/internal-manufacturing-requests/${request.id}/actions`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: stage.action, branch_id: request.branch_id || activeBranchId, received_items: request.received_items }) }); const data = await response.json(); const resultMessage = response.ok ? "تم اعتماد المرحلة بنجاح" : data.error || "تعذر اعتماد المرحلة"; if (!response.ok) setPopupMessage(resultMessage); setMessage(resultMessage); if (response.ok) { setSelected(null); void load() } }
   return <div dir="rtl" className="space-y-5 p-3 md:p-6"><div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"><div><h1 className="text-2xl font-bold">{stage.title}</h1><p className="mt-1 text-sm text-muted-foreground">اسحب الطلب إلى منطقة الاعتماد أو افتحه للمراجعة.</p></div><Button variant="outline" onClick={() => void load()} disabled={loading}><RefreshCw className={`ml-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />تحديث</Button></div>{message && <div className="rounded border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">{message}</div>}<div className="grid gap-6 lg:grid-cols-2"><section className="min-h-[460px] rounded-xl border bg-muted/30 p-4"><h2 className="mb-4 font-bold">الطلبات بانتظار المعالجة ({requests.length})</h2><div className="grid gap-3 sm:grid-cols-2">{!loading && requests.map((request) => <RequestCard key={request.id} request={request} onOpen={() => setSelected(request)} />)}</div>{!loading && requests.length === 0 && <div className="py-16 text-center text-sm text-muted-foreground"><FileText className="mx-auto mb-3 h-10 w-10" />لا توجد طلبات في هذه المرحلة</div>}</section><section onDragOver={(event) => event.preventDefault()} onDrop={(event) => { const request = requests.find((item) => item.id === Number(event.dataTransfer.getData("request"))); if (request) setSelected(request) }} className="flex min-h-[460px] items-center justify-center rounded-xl border-2 border-dashed border-emerald-400 bg-emerald-50/40 p-6 text-center"><div><CheckCircle2 className="mx-auto mb-3 h-14 w-14 text-emerald-600" /><h2 className="text-xl font-bold">اسحب الطلب هنا للاعتماد</h2><p className="text-muted-foreground">ستتم معالجة الطلب بعد مراجعة بياناته.</p></div></section></div>{selected && <Dialog open={!!selected} onOpenChange={(open) => !open && setSelected(null)}><DialogContent dir="rtl" className="max-h-[90vh] max-w-4xl overflow-y-auto"><DialogHeader><DialogTitle>مراجعة {selected.vch_code}</DialogTitle></DialogHeader><div className="space-y-5"><div className="grid gap-3 rounded border p-4 text-sm md:grid-cols-3"><div>فرع مقدم الطلب: <b>{selected.branch_id}</b></div><div>فرع البضاعة: <b>{selected.manufacturing_branch_id}</b></div><div>التاريخ: <b>{selected.vch_date}</b></div></div><div className="overflow-x-auto rounded border"><table className="w-full min-w-[620px] text-sm"><thead className="bg-muted/60"><tr><th className="p-3 text-right">الصنف</th><th className="p-3 text-right">الكمية الأصلية</th><th className="p-3 text-right">الكمية الحرة</th><th className="p-3 text-right">الكمية المستلمة</th></tr></thead><tbody>{selected.items?.map((item: any) => <tr className="border-t" key={item.id}><td className="p-3">{item.item_name}</td><td className="p-3">{item.qnty}</td><td className="p-3">{item.free_quantity || 0}</td><td className="p-3">{stage.key === "receiveManufacturing" ? <Input type="number" min="0" max={item.qnty} value={item.received_quantity || ""} onChange={(event) => { item.received_quantity = Number(event.target.value); setSelected({ ...selected }) }} placeholder="أدخل الكمية" /> : item.received_quantity || 0}</td></tr>)}</tbody></table></div><Button className="w-full" onClick={() => complete({ ...selected, received_items: selected.items?.map((item: any) => ({ id: item.id, received_quantity: Number(item.received_quantity) })) })}><CheckCircle2 className="ml-2 h-4 w-4" />اعتماد المرحلة</Button></div></DialogContent></Dialog>}</div>
 }
@@ -122,6 +146,7 @@ function LegacyInternalManufacturingRequestPage() {
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState("")
   const requestMessagesRef = useRef<any>(null)
+  const loadRequestsSequenceRef = useRef(0)
 
   const showRequestMessage = (detail: string, severity: "success" | "error") => {
     requestMessagesRef.current?.clear?.()
@@ -129,21 +154,26 @@ function LegacyInternalManufacturingRequestPage() {
   }
 
   const loadRequests = async () => {
+    const branchId = Number(activeBranchId || 0)
+    const sequence = ++loadRequestsSequenceRef.current
+    if (!branchId) return
     setLoading(true)
     try {
-      const response = await fetch("/api/internal-manufacturing-requests", { headers: { "x-branch-id": String(activeBranchId || "") } })
+      const response = await fetch(`/api/internal-manufacturing-requests?_=${Date.now()}`, { cache: "no-store", headers: { "x-branch-id": String(branchId) } })
       const data = await response.json()
+      if (sequence !== loadRequestsSequenceRef.current) return
       if (!response.ok) throw new Error(data.error || "تعذر تحميل الطلبات")
-      setRequests(Array.isArray(data) ? data : [])
+      if (Array.isArray(data)) setRequests(data)
     } catch (error: any) {
       setMessage(error.message || "تعذر تحميل الطلبات")
     } finally {
-      setLoading(false)
+      if (sequence === loadRequestsSequenceRef.current) setLoading(false)
     }
   }
 
   useEffect(() => {
-    void loadRequests()
+    if (activeBranchId) void loadRequests()
+    else { loadRequestsSequenceRef.current += 1; setRequests([]); setLoading(false) }
     Promise.all([fetch("/api/branches"), fetch("/api/warehouses")]).then(async ([branchResponse, warehouseResponse]) => {
       const branchData = await branchResponse.json()
       const warehouseData = await warehouseResponse.json()

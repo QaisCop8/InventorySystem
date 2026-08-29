@@ -160,6 +160,11 @@ interface ManufacturingComponentItem {
   component_code?: string
   component_name?: string
   quantity: number
+  measurment_id?: number | null
+  length?: number | null
+  width?: number | null
+  height?: number | null
+  count?: number | null
   ser?: number
 }
 
@@ -630,7 +635,7 @@ export function CompactProductForm({
 
     return true;
   }
-  const handleSaveProduct = async () => {
+  const handleSaveProduct = async (): Promise<boolean | undefined> => {
     try {
       const productNameEn = formData.product_name_en.trim()
       let permission = 1
@@ -704,6 +709,7 @@ export function CompactProductForm({
       });
       onSuccess?.()
       await reset_fields()
+      return true
 
     } catch (err) {
       console.error("[ProductDialog] Error saving product:", err)
@@ -713,6 +719,7 @@ export function CompactProductForm({
         detail: err instanceof Error ? err.message : 'فشلت العملية',
         life: 5000
       });
+      return false
     } finally {
       setIsSubmitting(false)
     }
@@ -921,7 +928,6 @@ export function CompactProductForm({
       setNextFunction(() => () => loadData(navigationType, productId, false));
       return
     }
-    if (navigationBusyRef.current) return
     navigationBusyRef.current = true
     const requestId = navigationRequestRef.current + 1
     navigationRequestRef.current = requestId
@@ -1152,6 +1158,10 @@ export function CompactProductForm({
   const stockStatuses = ["متوفر", "تحت الحد الأدنى", "نفد المخزون", "محجوز", "تالف"]
   const doHotKeys = useRef(true)
   const reset_fields = async (from_code = 0, code = "") => {
+    // Cancel any product navigation still in flight. Otherwise a slow response
+    // can overwrite the new blank form after the user presses "جديد".
+    navigationRequestRef.current += 1
+    navigationBusyRef.current = false
     
     let newCode = code;
     if (from_code === 0) newCode = await getNewProductCode();
@@ -1245,7 +1255,11 @@ export function CompactProductForm({
   }
 
   useEffect(() => {
-    if (initialized.current) return;
+    if (initialized.current) {
+      const requestedId = Number(editingProduct?.id || 0)
+      if (visible && requestedId > 0 && requestedId !== currentProductId) void loadData("Byid", requestedId, false)
+      return;
+    }
     initialized.current = true;
     const initFormData = async () => {
       setLoading(true)
@@ -1271,7 +1285,7 @@ export function CompactProductForm({
     };
 
     void initFormData();
-  }, [editingProduct]);
+  }, [editingProduct?.id, visible]);
 
   // يضمن ظهور مراكز التكلفة في الشبكة حتى لو اكتمل جلبها (fetchDefinitions) بعد استدعاء
   // reset_fields/loadData بلحظة — نفس مصدر البيانات المستخدَم في unified-accounts-refactored.tsx
@@ -1780,16 +1794,54 @@ export function CompactProductForm({
     const response = await fetch(`/api/inventory/products/${productId}/related-items`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ related_ids: relatedProducts.map((row) => row.related_id) }) })
     if (!response.ok) { const data = await response.json().catch(() => null); throw new Error(data?.error || "فشل حفظ الأصناف التابعة") }
   }
+  const calculateManufacturingComponentQuantity = (row: ManufacturingComponentItem) => {
+    if (Number(row.measurment_id || 1) === 1) return Number(row.quantity || 0)
+    return Number(row.length || 0) * Number(row.width || 0) * (Number(row.measurment_id) === 3 ? Number(row.height || 0) : 1) * Number(row.count || 0)
+  }
+
+  // Use one guard for actions that leave or replace the currently edited product.
+  // The pending action is resumed only after Save succeeds, or immediately when
+  // the user chooses No. Back/Cancel clears it and keeps the current form open.
+  const requestAfterUnsavedCheck = (action: () => void) => {
+    if (getFormDataHash(formData) !== initialHash.current) {
+      setNextFunction(() => action)
+      setShowUnsaved(true)
+      popupHasCalled()
+      return
+    }
+    action()
+  }
+  const hasMeasuredComponents = manufacturingComponents.some((row) => Number(row.measurment_id || 1) !== 1)
+  const hasVolumeComponents = manufacturingComponents.some((row) => Number(row.measurment_id) === 3)
   const manufacturingComponentScheme = useMemo(() => ({
     name: "ProductManufacturingComponentsScheme",
     columns: [
       { header: "##", name: "ser", width: 55 },
       { header: "رقم الصنف", name: "component_code", width: 180, isReadOnly: true },
       { header: "اسم الصنف", name: "component_name", width: "*", minWidth: 220, isReadOnly: true },
+      { header: "الطول", name: "length", width: 110, dataType: "Number", visible: hasMeasuredComponents },
+      { header: "العرض", name: "width", width: 110, dataType: "Number", visible: hasMeasuredComponents },
+      { header: "الارتفاع", name: "height", width: 110, dataType: "Number", visible: hasVolumeComponents },
+      { header: "العدد", name: "count", width: 110, dataType: "Number", visible: hasMeasuredComponents },
       { header: "الكمية المطلوبة", name: "quantity", width: 150, isReadOnly: false },
       { header: "", name: "delete", width: 80, buttonBody: "button" as const, iconType: "delete", title: "حذف", onClick: (_e: any, ctx: any) => deleteManufacturingComponent(Number(ctx.row.dataItem?.ser || 0) - 1) },
     ],
-  }), [])
+  }), [hasMeasuredComponents, hasVolumeComponents])
+  const manufacturingComponentBeginningEdit = (grid: wjGrid.FlexGrid, event: wjGrid.CellRangeEventArgs) => {
+    const row = grid.rows[event.row]?.dataItem as ManufacturingComponentItem | undefined
+    const column = grid.columns[event.col]?.name
+    if (row && column === "quantity" && Number(row.measurment_id || 1) !== 1) event.cancel = true
+    if (row && ["length", "width", "height", "count"].includes(column || "") && Number(row.measurment_id || 1) === 1) event.cancel = true
+    if (row && column === "height" && Number(row.measurment_id) !== 3) event.cancel = true
+  }
+  const manufacturingComponentCellEditEnded = (grid: wjGrid.FlexGrid, event: wjGrid.CellRangeEventArgs) => {
+    const column = grid.columns[event.col]?.name
+    if (!["length", "width", "height", "count"].includes(column || "")) return
+    const edited = grid.rows[event.row]?.dataItem as ManufacturingComponentItem | undefined
+    if (!edited || Number(edited.measurment_id || 1) === 1) return
+    edited.quantity = calculateManufacturingComponentQuantity(edited)
+    setManufacturingComponents((current) => current.map((row, index) => index === event.row ? { ...edited } : row))
+  }
   const addManufacturingComponent = (product: any) => {
     const componentId = Number(product?.id)
     if (!componentId || componentId === Number(formData.id)) {
@@ -1800,12 +1852,16 @@ export function CompactProductForm({
       toast.current?.show({ severity: "error", summary: "", detail: "مكون التصنيع مكرر", life: 3000 })
       return
     }
-    setManufacturingComponents((current) => [...current, { product_id: Number(formData.id), component_id: componentId, component_code: product.product_code, component_name: product.product_name, quantity: 1, ser: current.length + 1 }])
+    // Manufacturing components reference the base product itself, not a temporary
+    // attribute choice made in ProductSearchPopup (for example "النوع: MDF").
+    const componentName = String(product.base_product_name || product.product_name || "").replace(/\s*\([^)]*\)\s*$/, "").trim()
+    const measurmentId = Number(product.measurment_id || 1)
+    setManufacturingComponents((current) => [...current, { product_id: Number(formData.id), component_id: componentId, component_code: product.product_code, component_name: componentName, measurment_id: measurmentId, length: measurmentId === 1 ? null : 1, width: measurmentId === 1 ? null : 1, height: measurmentId === 3 ? 1 : null, count: measurmentId === 1 ? null : 1, quantity: 1, ser: current.length + 1 }])
     setManufacturingComponentSearchOpen(false)
   }
   const deleteManufacturingComponent = (index: number) => setManufacturingComponents((current) => current.filter((_row, rowIndex) => rowIndex !== index).map((row, rowIndex) => ({ ...row, ser: rowIndex + 1 })))
   const saveManufacturingComponents = async (productId: number) => {
-    const response = await fetch(`/api/inventory/products/${productId}/manufacturing-components`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ components: manufacturingComponents.map((row) => ({ component_id: row.component_id, quantity: row.quantity })) }) })
+    const response = await fetch(`/api/inventory/products/${productId}/manufacturing-components`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ components: manufacturingComponents.map((row) => ({ component_id: row.component_id, quantity: calculateManufacturingComponentQuantity(row), length: row.length, width: row.width, height: row.height, count: row.count })) }) })
     if (!response.ok) { const data = await response.json().catch(() => null); throw new Error(data?.error || "فشل حفظ مكونات التصنيع") }
   }
   const searchProductByCode = async (code: string) => {
@@ -1840,6 +1896,13 @@ export function CompactProductForm({
             await reset_fields()
             return
           }
+
+          // Use the single navigation loader for every existing product. The old
+          // code below rebuilt only part of the form from the code-search response,
+          // racing with ProductCodeInput's Byid request and sometimes replacing
+          // prices/navigation state with an incomplete product snapshot.
+          await loadData("Byid", Number(product.id), false)
+          return
 
           const unitsWithNames = (product.units ?? []).map((unit: any) => {
             const unitDef = definitions.units.find((u: any) => u.id === unit.unit_id);
@@ -2307,12 +2370,13 @@ export function CompactProductForm({
 
   return (
     <div className="h-full min-h-[70vh] min-w-0 flex flex-col overflow-hidden text-lg compact-product-form-root" dir="rtl">
-      {/* زر الإغلاق يطفو على الحافة اليسرى لشريط الأدوات في نفس الصف العلوي، كما في شاشات السندات. */}
-      <div className="relative flex flex-shrink-0 items-center px-2 pt-2 sm:px-4 sm:pt-4" dir="rtl">
+      {/* Keep the toolbar flush with the dialog, matching the sales-delivery form. */}
+      <div className="relative flex flex-shrink-0 items-center" dir="rtl">
         <button
           type="button"
-          onClick={(e) => onHideDialog(e)}
-          className="absolute left-3 top-1/2 z-20 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/95 text-slate-900 shadow-lg ring-1 ring-slate-200 transition-opacity hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-sky-400 sm:left-5"
+          onClick={() => requestAfterUnsavedCheck(() => onHideDialog(true))}
+          aria-label="إغلاق"
+          className="absolute left-[14px] top-[10px] z-50 inline-flex h-10 w-10 items-center justify-center rounded-full border border-rose-300/60 bg-rose-50 text-rose-600 shadow-lg transition-colors hover:bg-rose-100 focus:outline-none focus:ring-2 focus:ring-rose-400 focus:ring-offset-2"
         >
           <X className="h-4 w-4" />
           <span className="sr-only">إغلاق</span>
@@ -2327,9 +2391,7 @@ export function CompactProductForm({
           onNew={() => onNew(true)}
           onSave={() => { handleSaveProduct(); }}
           onDelete={() => { handleDeleteClick(true) }}
-          onReport={() => undefined}
-          onExportExcel={() => undefined}
-          isLoading={isSearching}
+          isLoading={loading || isSearching}
           isSaving={isSubmitting}
           canSave={true}
           canDelete={currentProductId > 0}
@@ -2347,7 +2409,14 @@ export function CompactProductForm({
 
       <ConfirmDialogYesNo
         visible={showUnsaved}
-        onConfirm={() => { setShowUnsaved(false); handleSaveProduct() }}
+        onConfirm={async () => {
+          const requestedAction = nextFunction
+          setShowUnsaved(false)
+          const saved = await handleSaveProduct()
+          popupHasClosed()
+          if (saved && requestedAction) requestedAction()
+          if (saved) setNextFunction(null)
+        }}
         onCancel={async () => {
           setShowUnsaved(false); popupHasClosed();
           if (nextFunction) {
@@ -2357,7 +2426,7 @@ export function CompactProductForm({
           }
         }}
         message="تم تعديل السجل هل تريد الحفظ؟"
-        onBack={() => { setShowUnsaved(false); popupHasClosed(); }}
+        onBack={() => { setShowUnsaved(false); setNextFunction(null); popupHasClosed(); }}
         showBack={true}
       />
 
@@ -2407,6 +2476,7 @@ export function CompactProductForm({
                           visible={true}
                           priceCategoryId={1}
                           productTypes={isService ? [2] : [1]}
+                          onRequestSearch={(openSearch) => requestAfterUnsavedCheck(openSearch)}
                           codeLabel={isService ? "رقم الخدمة *" : "رقم الصنف *"}
                           searchTitle={isService ? "بحث الخدمات" : "بحث الأصناف"}
                         />
@@ -2648,6 +2718,7 @@ export function CompactProductForm({
                       <div className="col-span-12 md:col-span-12">
                         <div className="w-full overflow-x-auto">
                           <DataGridView
+                            key={`product-prices-${currentProductId}`}
                             style={{ height: TABS_GRID_HEIGHT }}
                             dataSource={formData.units ?? []}
                             scheme={getScheme()}
@@ -3403,7 +3474,7 @@ export function CompactProductForm({
                   {!isService && <TabsContent value="manufacturing-components">
                     <Card>
                       <CardHeader className="pb-2"><div className="flex items-center justify-between gap-2"><CardTitle className="text-lg">مكونات التصنيع</CardTitle><Button type="button" onClick={() => setManufacturingComponentSearchOpen(true)} disabled={!formData.id}><Plus className="ml-2 h-4 w-4" />إضافة مكون</Button></div></CardHeader>
-                      <CardContent>{!formData.id && <p className="mb-3 text-sm text-muted-foreground">احفظ الصنف أولاً لإضافة مكونات التصنيع.</p>}<div className="w-full overflow-x-auto rounded-lg border"><DataGridView style={{ height: TABS_GRID_HEIGHT }} dataSource={manufacturingComponents} scheme={manufacturingComponentScheme} isReport={false} showContextMenu={false} dontConvertToCards={true} /></div><p className="mt-2 text-xs text-muted-foreground">يمكن تعديل الكمية مباشرة، واستخدام زر الحذف لإزالة المكون.</p></CardContent>
+                      <CardContent>{!formData.id && <p className="mb-3 text-sm text-muted-foreground">احفظ الصنف أولاً لإضافة مكونات التصنيع.</p>}<div className="w-full overflow-x-auto rounded-lg border"><DataGridView style={{ height: TABS_GRID_HEIGHT }} dataSource={manufacturingComponents} scheme={manufacturingComponentScheme} isReport={false} showContextMenu={false} dontConvertToCards={true} beginningEdit={manufacturingComponentBeginningEdit} cellEditEnded={manufacturingComponentCellEditEnded} /></div><p className="mt-2 text-xs text-muted-foreground">الكمية تُحتسب تلقائياً من الأبعاد والعدد لمكونات القياس غير العادي، ويمكن تعديلها مباشرة للمكونات العادية.</p></CardContent>
                     </Card>
                   </TabsContent>}
                 </>
@@ -3444,6 +3515,7 @@ export function CompactProductForm({
         ShowSelect={false}
         searchText=""
         productTypes={[1]}
+        selectBaseProduct
         title="اختيار مكون تصنيع"
       />
       <ProductNumbers

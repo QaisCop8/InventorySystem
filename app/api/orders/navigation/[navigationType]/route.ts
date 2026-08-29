@@ -12,12 +12,12 @@ export async function GET(request: Request, { params }: { params: { navigationTy
     const orderType = orderTypeParam ? Number(orderTypeParam) : null;
 
     const selectOrderBase = `
-      SELECT so.*, COALESCE(c.name, '') AS customer_name, COALESCE(c.code, '') AS customer_code
+      SELECT so.*, COALESCE(NULLIF(so.customer_name, ''), c.name, '') AS customer_name, COALESCE(c.code, '') AS customer_code
       FROM orders so
-      Inner JOIN account_tbl c ON so.customer_id = c.id
+      LEFT JOIN account_tbl c ON so.customer_id = c.id
     `;
 
-    const baseWhere = `WHERE so.deleted = false`;
+    const baseWhere = `WHERE COALESCE(so.deleted, false) = false`;
     if(navigationType === "previous" && !currentId) navigationType = "last"
     if(navigationType === "next" && !currentId) navigationType = "first"
     if (navigationType === "first" || navigationType === "last" || navigationType === "previous" || navigationType === "next") {
@@ -89,10 +89,10 @@ export async function GET(request: Request, { params }: { params: { navigationTy
       }
 
       const orderResult = await pool.query(
-        `SELECT so.*, COALESCE(c.name, '') AS customer_name, COALESCE(c.code, '') AS customer_code
+        `SELECT so.*, COALESCE(NULLIF(so.customer_name, ''), c.name, '') AS customer_name, COALESCE(c.code, '') AS customer_code
          FROM orders so
-         INNER JOIN account_tbl c ON so.customer_id = c.id
-         WHERE so.id = $1 AND so.deleted = false
+         LEFT JOIN account_tbl c ON so.customer_id = c.id
+         WHERE so.id = $1 AND COALESCE(so.deleted, false) = false
          LIMIT 1`,
         [id]
       );
@@ -135,11 +135,11 @@ export async function GET(request: Request, { params }: { params: { navigationTy
       const queryText = `
         SELECT
           so.*,
-          COALESCE(c.name, '') AS customer_name,
+          COALESCE(NULLIF(so.customer_name, ''), c.name, '') AS customer_name,
           COALESCE(c.code, '') AS customer_code
         FROM orders so
         LEFT JOIN account_tbl c ON so.customer_id = c.id
-        WHERE so.order_number = $1 AND so.deleted = false
+        WHERE so.order_number = $1 AND COALESCE(so.deleted, false) = false
         LIMIT 1
       `;
 

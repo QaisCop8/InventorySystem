@@ -155,6 +155,35 @@ export function ensureManagementTables(): Promise<void> {
       `
       await sql`ALTER TABLE access_list ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`
       await sql`ALTER TABLE access_list ADD COLUMN IF NOT EXISTS sort_order INTEGER`
+      await sql`
+        UPDATE access_list
+        SET name = 'إضافة مسودة طلبية مبيعات', updated_at = CURRENT_TIMESTAMP
+        WHERE name = 'ادخال مسودة طلبية مبيعات'
+          AND NOT EXISTS (
+            SELECT 1 FROM access_list existing
+            WHERE existing.name = 'إضافة مسودة طلبية مبيعات'
+          )
+      `
+      const draftCategoryRows = await sql`
+        INSERT INTO access_category (name)
+        SELECT 'الحركات'
+        WHERE NOT EXISTS (SELECT 1 FROM access_category WHERE name = 'الحركات')
+        RETURNING id
+      `
+      const draftCategory = draftCategoryRows[0] || (await sql`SELECT id FROM access_category WHERE name = 'الحركات' ORDER BY id LIMIT 1`)[0]
+      if (draftCategory?.id) {
+        for (const permissionName of [
+          'إضافة مسودة طلبية مبيعات',
+          'تعديل مسودة طلبية مبيعات',
+          'استعلام مسودة طلبية مبيعات',
+        ]) {
+          await sql`
+            INSERT INTO access_list (name, category_id)
+            SELECT ${permissionName}, ${draftCategory.id}
+            WHERE NOT EXISTS (SELECT 1 FROM access_list WHERE name = ${permissionName})
+          `
+        }
+      }
       await sql`DELETE FROM access_list WHERE name IN ('استلام طلب الصناعة', 'تدقيق الصناعة', 'استلام الصناعة من الفرع')`
       await sql`UPDATE access_list SET sort_order = CASE name
         WHEN 'إنشاء طلب بضاعة داخلي' THEN 1
@@ -176,6 +205,48 @@ export function ensureManagementTables(): Promise<void> {
     })
   }
   return managementDbEnsured
+}
+
+/**
+ * Idempotent repair used by the permissions screen. Unlike the one-time table
+ * initializer, this runs on every permission-definition sync, so a long-lived
+ * server process also receives newly deployed access definitions immediately.
+ */
+export async function ensureSalesDraftPermissionDefinitions(): Promise<void> {
+  await ensureManagementTables()
+
+  await sql`
+    UPDATE access_list
+    SET name = 'إضافة مسودة طلبية مبيعات', updated_at = CURRENT_TIMESTAMP
+    WHERE name = 'ادخال مسودة طلبية مبيعات'
+      AND NOT EXISTS (
+        SELECT 1 FROM access_list existing
+        WHERE existing.name = 'إضافة مسودة طلبية مبيعات'
+      )
+  `
+
+  const insertedCategories = await sql`
+    INSERT INTO access_category (name)
+    SELECT 'الحركات'
+    WHERE NOT EXISTS (SELECT 1 FROM access_category WHERE name = 'الحركات')
+    RETURNING id
+  `
+  const category = insertedCategories[0] || (await sql`
+    SELECT id FROM access_category WHERE name = 'الحركات' ORDER BY id LIMIT 1
+  `)[0]
+
+  if (!category?.id) return
+  for (const permissionName of [
+    "إضافة مسودة طلبية مبيعات",
+    "تعديل مسودة طلبية مبيعات",
+    "استعلام مسودة طلبية مبيعات",
+  ]) {
+    await sql`
+      INSERT INTO access_list (name, category_id)
+      SELECT ${permissionName}, ${category.id}
+      WHERE NOT EXISTS (SELECT 1 FROM access_list WHERE name = ${permissionName})
+    `
+  }
 }
 
 let managementPool: Pool | null = null

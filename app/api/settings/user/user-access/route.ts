@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import sql, { resolveCurrentDbName } from "@/lib/database"
-import { ensurePermissionTables } from "@/lib/permissions"
+import { syncPermissionDefinitions } from "@/lib/permissions"
 import { getSessionUser } from "@/lib/tenant-auth"
 
 export async function GET(req: NextRequest) {
@@ -25,7 +25,9 @@ export async function GET(req: NextRequest) {
             branchId = Number(userRows[0]?.branch_id) || 0
         }
 
-        await ensurePermissionTables(await resolveCurrentDbName())
+        // Always synchronize management definitions before rendering صلاحيات المستخدمين,
+        // so newly added permissions appear without a manual migration or restart.
+        await syncPermissionDefinitions(await resolveCurrentDbName())
 
         const rows = await sql`
       SELECT

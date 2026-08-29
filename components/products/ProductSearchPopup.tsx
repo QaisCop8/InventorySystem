@@ -17,6 +17,7 @@ interface Unit {
   unit_name: string;
   price: number;
   barcode: string;
+  primary_barcode?: string;
 }
 
 interface Product {
@@ -50,6 +51,7 @@ interface ProductSearchPopupProps {
   searchText?: string;
   productTypes?: number[];
   title?: string;
+  selectBaseProduct?: boolean;
 }
 
 const productImageCellTemplate = (cell: any) => {
@@ -60,7 +62,7 @@ const productImageCellTemplate = (cell: any) => {
     : <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-lg border bg-slate-50 text-[10px] text-slate-400">لا صورة</div>
 }
 
-const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibleProp, open, onClose, onSelect, priceCategoryId = 0, ShowSelect = true, searchText = "", productTypes, title }) => {
+const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibleProp, open, onClose, onSelect, priceCategoryId = 0, ShowSelect = true, searchText = "", productTypes, title, selectBaseProduct = false }) => {
   const visible = visibleProp ?? open ?? false;
   const [products, setProducts] = useState<Product[]>([]);
   const [searchCode, setSearchCode] = useState("");
@@ -224,7 +226,7 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
     columns: [
       { header: "الوحدة", name: "unit_name", width: "*", isReadOnly: true },
       { header: "سعر الوحدة", name: "price", width: 90, isReadOnly: true },
-      { header: "باركود", name: "barcode", width: 150, isReadOnly: true },
+      { header: "باركود", name: "barcode", width: 190, isReadOnly: true },
     ]
   }), []);
 
@@ -346,6 +348,12 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
   }, []);
 
   const finishOrConfigureProduct = useCallback((product: Product) => {
+    if (selectBaseProduct) {
+      const baseName = product.product_name.replace(/\s*\([^)]*\)\s*$/, "").trim();
+      onSelect([{ ...product, product_name: baseName, selected_attributes: undefined, attribute_summary: undefined }]);
+      onClose();
+      return;
+    }
     const attributes = Array.isArray(product.attributes) ? product.attributes.filter((attribute) => attribute.name && attribute.values?.length) : [];
     if (attributes.length > 0 && !product.selected_attributes) {
       setSelectedProduct(product);
@@ -355,7 +363,7 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
     const name = product.attribute_summary ? `${product.product_name} (${product.attribute_summary})` : product.product_name
     onSelect([{ ...product, product_name: name }]);
     onClose();
-  }, [onSelect, onClose]);
+  }, [onSelect, onClose, selectBaseProduct]);
 
   const handleProductDoubleClick = useCallback(async (product: Product) => {
     if (!product) return;
@@ -379,6 +387,11 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
       prev.map(p => p._variant_key === product._variant_key ? updatedProduct : p)
     );
 
+    if (selectBaseProduct) {
+      finishOrConfigureProduct(updatedProduct);
+      return;
+    }
+
     const attributes = Array.isArray(updatedProduct.attributes)
       ? updatedProduct.attributes.filter((attribute) => attribute.name && attribute.values?.length)
       : [];
@@ -398,7 +411,7 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
     }
 
     finishOrConfigureProduct(updatedProduct);
-  }, [finishOrConfigureProduct, priceCategoryId, buildSelectedVariants, onSelect, onClose]);
+  }, [finishOrConfigureProduct, priceCategoryId, buildSelectedVariants, onSelect, onClose, selectBaseProduct]);
   // -----------------------
   // Fetch units when product selected
   // -----------------------
@@ -470,7 +483,7 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
       selected_unit: unit,      // attach the double-clicked unit
       unit_name: unit.unit_name,
       unit_id: unit.unit_id,
-      first_barcode: unit.barcode,  // override barcode
+      first_barcode: unit.primary_barcode || unit.barcode,  // use one barcode for transaction persistence
       first_price: unit.price,      // override price
     };
 
@@ -491,7 +504,7 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
   const handleConfirm = () => {
     const checkedProducts = products.filter((product) => product.selected);
     const selectedProducts = checkedProducts.length > 0 ? checkedProducts : (selectedProduct ? [selectedProduct] : []);
-    const pendingAttributeProduct = selectedProducts.find((product) => {
+    const pendingAttributeProduct = !selectBaseProduct && selectedProducts.find((product) => {
       if (!product || !Array.isArray(product.attributes) || product.attributes.length === 0) return false;
       const selectedKeys = selectedAttributeKeysByProduct[getProductSelectionKey(product)] || new Set<string>();
       return !product.selected_attributes && selectedKeys.size === 0;
@@ -504,7 +517,12 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
 
     if (selectedProducts.length === 0) return;
 
-    const selectedItems = selectedProducts.flatMap((product) => {
+    const selectedItems = selectBaseProduct ? selectedProducts.map((product) => ({
+      ...product,
+      product_name: product.product_name.replace(/\s*\([^)]*\)\s*$/, "").trim(),
+      selected_attributes: undefined,
+      attribute_summary: undefined,
+    })) : selectedProducts.flatMap((product) => {
       const selectedKeys = selectedAttributeKeysByProduct[getProductSelectionKey(product)] || new Set<string>();
       const attributes = Array.isArray(product.attributes) ? product.attributes.filter((attribute) => attribute.name && attribute.values?.length) : [];
       if (attributes.length === 0 || product.selected_attributes) return [product];
@@ -523,7 +541,7 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
     // Reset selection flags
     setProducts(prev => prev.map(p => ({ ...p, selected: false })));
 
-    onSelect(selectedItems.map((product) => ({ ...product, product_name: product.attribute_summary ? `${product.product_name} (${product.attribute_summary})` : product.product_name })));
+    onSelect(selectedItems);
     onClose();
   };
 
@@ -621,7 +639,7 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
         }
       }}
     >
-      <div className="relative flex h-[100dvh] max-h-[100dvh] w-full min-w-0 max-w-full flex-col overflow-y-auto rounded-none border-0 border-slate-200 bg-slate-50 p-2 shadow-2xl overscroll-contain sm:h-[92dvh] sm:max-h-[92dvh] sm:w-full sm:max-w-[1500px] sm:overflow-hidden sm:rounded-3xl sm:border sm:p-4" dir="rtl">
+      <div className="relative flex h-[100dvh] max-h-[100dvh] w-full min-w-0 max-w-full flex-col overflow-y-auto rounded-none border-4 border-emerald-600 bg-slate-50 p-2 shadow-2xl ring-2 ring-emerald-600/20 overscroll-contain sm:h-[92dvh] sm:max-h-[92dvh] sm:w-full sm:max-w-[1500px] sm:overflow-hidden sm:rounded-3xl sm:p-4" dir="rtl">
         <div className="flex min-w-0 shrink-0 flex-wrap items-center justify-between gap-2 rounded-2xl bg-gradient-to-l from-blue-700 via-blue-600 to-cyan-600 px-3 py-3 shadow-lg sm:flex-nowrap sm:gap-3 sm:px-5 sm:py-4">
           <div className="flex min-w-0 items-center gap-2"><div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/15 ring-1 ring-white/30 sm:h-11 sm:w-11 sm:rounded-2xl"><Search className="h-4 w-4 text-white sm:h-5 sm:w-5" /></div><h3 className="truncate text-base font-extrabold text-white sm:text-xl">{title || "بحث الأصناف"}</h3></div>
           <div className="flex shrink-0 items-center gap-1 sm:gap-2">

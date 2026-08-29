@@ -2426,7 +2426,7 @@ export default function UnifiedSalesDelivery({
       }}
     >
       <DialogContent
-          className="sales-delivery-form flex h-[92vh] w-[90vw] max-w-[1400px] max-h-[92vh] flex-col overflow-hidden p-0 text-[13px] transition-shadow [&_label]:text-xs [&_input:not([type=checkbox])]:h-8 [&_input:not([type=checkbox])]:px-2.5 [&_.p-dropdown]:min-h-8 [&_.p-dropdown-label]:py-1.5 [&_.p-calendar]:h-8 [&_.p-calendar_input]:h-8"
+          className="sales-delivery-form flex h-[calc(100dvh-1rem)] max-h-[92vh] w-[calc(100vw-1rem)] max-w-[1400px] flex-col overflow-hidden p-0 text-[13px] transition-shadow sm:h-[92vh] sm:w-[96vw] xl:w-[92vw] [&_label]:text-xs [&_input:not([type=checkbox])]:h-8 [&_input:not([type=checkbox])]:px-2.5 [&_.p-dropdown]:min-h-8 [&_.p-dropdown-label]:py-1.5 [&_.p-calendar]:h-8 [&_.p-calendar_input]:h-8"
           dir="rtl"
           onPointerDownOutside={(event) => event.preventDefault()}
           onInteractOutside={(event) => event.preventDefault()}
@@ -2514,7 +2514,7 @@ export default function UnifiedSalesDelivery({
             </div>
           </div>
 
-          <div className="grid items-start gap-2 lg:grid-cols-2">
+          <div className="sales-delivery-details-grid grid min-w-0 items-start gap-2">
             <div className="min-w-0 space-y-1.5 rounded-xl border border-slate-200 bg-white p-2 shadow-sm sm:p-2.5">
             <div className="flex items-center gap-2 text-sm font-bold text-emerald-700">
               <FileText className="h-3.5 w-3.5" />

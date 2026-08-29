@@ -23,7 +23,7 @@ export const ensureTables = async () => {
       id SERIAL PRIMARY KEY,
       vch_type INTEGER NOT NULL,
       vch_code VARCHAR(30) NOT NULL,
-      vch_date DATE NOT NULL,
+      vch_date TIMESTAMP WITHOUT TIME ZONE NOT NULL,
       currency_id INTEGER,
       rate DOUBLE PRECISION DEFAULT 1,
       cash_amount DOUBLE PRECISION DEFAULT 0,
@@ -59,6 +59,17 @@ export const ensureTables = async () => {
     END$$;
   `
   await sql`ALTER TABLE voucher_header_tbl ALTER COLUMN vch_code TYPE VARCHAR(30)`
+  await sql`DO $$
+    BEGIN
+      IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'voucher_header_tbl' AND column_name = 'vch_date' AND data_type <> 'timestamp without time zone') THEN
+        ALTER TABLE voucher_header_tbl ALTER COLUMN vch_date TYPE TIMESTAMP WITHOUT TIME ZONE
+        USING CASE
+          WHEN vch_date IS NULL THEN NULL
+          WHEN regexp_replace(vch_date::text, '[^0-9]', '', 'g') ~ '^[0-9]{8}$' THEN to_date(vch_date::text, 'YYYYMMDD')::timestamp
+          ELSE vch_date::text::timestamp
+        END;
+      END IF;
+    END $$`
 
   await sql`ALTER TABLE voucher_header_tbl ADD COLUMN IF NOT EXISTS vch_book_id INTEGER`
   await sql`ALTER TABLE voucher_header_tbl ADD COLUMN IF NOT EXISTS branch_id INTEGER`
@@ -285,7 +296,7 @@ export const ensureTables = async () => {
       id INTEGER NOT NULL,
       vch_type INTEGER,
       vch_code VARCHAR(30),
-      vch_date DATE,
+      vch_date TIMESTAMP WITHOUT TIME ZONE,
       currency_id INTEGER,
       rate DOUBLE PRECISION,
       cash_amount DOUBLE PRECISION,
@@ -309,6 +320,7 @@ export const ensureTables = async () => {
       deleted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `
+  await sql`ALTER TABLE voucher_header_log_tbl ALTER COLUMN vch_date TYPE TIMESTAMP WITHOUT TIME ZONE USING vch_date::timestamp`
   // نفس عمليات إعادة التسمية/الإضافة المطبَّقة على voucher_header_tbl أعلاه — الجدولان يجب أن
   // يبقيا متطابقين في البنية دائماً (أرشفة تنسخ صفاً كاملاً من الأول إلى الثاني حرفياً).
   await sql`

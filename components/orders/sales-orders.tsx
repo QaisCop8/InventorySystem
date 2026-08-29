@@ -1,6 +1,7 @@
 ﻿"use client"
 
 import { useState, useEffect, useMemo, useRef } from "react"
+import { useSearchParams } from "next/navigation"
 import { useAuth } from "@/components/auth/auth-context"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -10,6 +11,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import UnifiedSalesOrder from "./unified-sales-order"
+import { DraftOrderForm } from "@/components/order-drafts/draft-order-form"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { SearchButton } from "@/components/search/search-button"
 import {
   Plus,
@@ -61,6 +64,8 @@ interface SalesOrder {
   received_by: string,
   customer_order_no: string,
   ser: number
+  source_draft_id?: number | null
+  source_draft_number?: string | null
 }
 
 interface OrderAnalytics {
@@ -75,7 +80,27 @@ interface OrderAnalytics {
 }
 
 export function SalesOrders({ isPurchase }: OrdersProps) {
+  const searchParams = useSearchParams()
   const { user } = useAuth()
+  const [sourceDraft, setSourceDraft] = useState<any>(null)
+  const [draftLoading, setDraftLoading] = useState(false)
+  const [draftError, setDraftError] = useState("")
+
+  const openSourceDraft = async (order: SalesOrder) => {
+    if (!order.source_draft_id) return
+    setDraftLoading(true)
+    setDraftError("")
+    try {
+      const response = await fetch(`/api/order-drafts/${order.source_draft_id}`, { cache: "no-store" })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || "تعذر تحميل المسودة")
+      setSourceDraft(data)
+    } catch (error: any) {
+      setDraftError(error.message || "تعذر تحميل المسودة")
+    } finally {
+      setDraftLoading(false)
+    }
+  }
   type ViewType = "grid" | "list" | "kanban";
   const getSavedView = (): ViewType => {
     if (typeof window === "undefined") return "list"
@@ -105,6 +130,7 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
     sortBy: string;
     sortOrder: "asc" | "desc";
   }>({
+    fromSearch: false,
     salesOrders: [],
     loading: true,
     error: null, // ✅ string or null
@@ -251,6 +277,20 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
     console.log("AAAAA")
   }, [])
   useEffect(() => {
+    if (!isPurchase) return
+    const token = searchParams.get("purchase_prefill")
+    if (!token) return
+    try {
+      const raw = localStorage.getItem(token)
+      if (!raw) return
+      const payload = JSON.parse(raw)
+      localStorage.removeItem(token)
+      setState((prev) => ({ ...prev, showNewOrderDialog: true, fromSearch: false, selectedOrder: { id: 0, order_number: "", order_date: new Date().toISOString(), customer_name: "", customer_id: 0, total_amount: 0, order_status: 1, financial_status: "unpaid", salesman: "", delivery_date: new Date().toISOString(), created_at: new Date().toISOString(), updated_at: new Date().toISOString(), printed: 0, is_exported: 0, items: payload.items || [], general_notes: payload.source_draft_number ? `احتياج مواد للمسودة ${payload.source_draft_number}` : "احتياج مواد تصنيع" } as any }))
+    } catch (error) {
+      console.error("Failed to load purchase shortage prefill", error)
+    }
+  }, [isPurchase, searchParams])
+  useEffect(() => {
     if (state.showNewOrderDialog === false) fetchSalesOrders()
   }, [state.showNewOrderDialog])
 
@@ -260,13 +300,11 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
     try {
       const response = await fetch(`/api/orders/sales?type=${isPurchase ? 2 : 1}`);
       console.log("response  ", response)
+      const data = await response.json();
       if (!response.ok) {
-        throw new Error(
-          !isPurchase ? "فشل في تحميل طلبيات المبيعات" : "فشل في تحميل طلبيات المشتريات"
-        );
+        throw new Error(data?.error || (!isPurchase ? "فشل في تحميل طلبيات المبيعات" : "فشل في تحميل طلبيات المشتريات"));
       }
 
-      const data: SalesOrder[] = await response.json();
       const numberedData = Array.isArray(data)
         ? data.map((order, index) => ({ ...order, ser: index + 1 }))
         : [];
@@ -485,6 +523,7 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
 
   return (
     <div className="space-y-6 p-6 bg-gradient-to-br from-slate-50 to-blue-50 min-h-screen" dir="rtl">
+      {state.error && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{state.error}</div>}
       {/* Header Section */}
       <div className="flex items-center justify-between">
         <div>
@@ -867,6 +906,18 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
 
                       <div className="flex justify-between items-center mt-6 pt-4 border-t border-slate-100">
                         <div className="flex gap-2">
+                          {order.source_draft_id && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                              disabled={draftLoading}
+                              onClick={() => void openSourceDraft(order)}
+                            >
+                              <FileText className="ml-1 h-4 w-4" />
+                              فتح المسودة
+                            </Button>
+                          )}
                           <Button
                             variant="outline"
                             size="sm"
@@ -944,6 +995,18 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
 
                         <td className="p-4">
                           <div className="flex justify-center gap-2">
+                            {order.source_draft_id && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                                disabled={draftLoading}
+                                onClick={() => void openSourceDraft(order)}
+                              >
+                                <FileText className="ml-1 h-4 w-4" />
+                                فتح المسودة
+                              </Button>
+                            )}
                             <Button
                               variant="outline"
                               size="sm"
@@ -1009,8 +1072,8 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
           }
           order={state.selectedOrder}
           fromSearch={state.fromSearch}
-          allOrders={[]}
-          onOrderSaved={null}
+          allOrders={state.salesOrders as any}
+          onOrderSaved={() => fetchSalesOrders()}
           vch_type={isPurchase ? 2 : 1}
           onCancel={() => {
             setState((prev) => ({
@@ -1021,6 +1084,19 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
             }));
           }}
         />
+      )}
+      <Dialog open={!!sourceDraft} onOpenChange={(open) => !open && setSourceDraft(null)}>
+        <DialogContent className="max-h-[94vh] w-[calc(100%-1rem)] max-w-[1400px] overflow-x-hidden overflow-y-auto p-0" dir="rtl">
+          <DialogHeader className="sticky top-0 z-10 border-b bg-background px-6 py-4">
+            <DialogTitle>المسودة الأصلية {sourceDraft?.draft_number}</DialogTitle>
+          </DialogHeader>
+          {sourceDraft && <DraftOrderForm initialDraft={sourceDraft} readOnly />}
+        </DialogContent>
+      </Dialog>
+      {draftError && (
+        <div className="fixed bottom-5 left-5 z-[100] rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 shadow-lg">
+          {draftError}
+        </div>
       )}
     </div>
   )

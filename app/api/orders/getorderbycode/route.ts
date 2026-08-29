@@ -18,11 +18,11 @@ export async function GET(request: Request) {
     const queryText = `
       SELECT 
         so.*,
-        COALESCE(c.name, '') AS customer_name,
+        COALESCE(NULLIF(so.customer_name, ''), c.name, '') AS customer_name,
         COALESCE(c.code, '') AS customer_code
       FROM orders so
       LEFT JOIN account_tbl c ON so.customer_id = c.id
-      WHERE so.order_number = $1 AND so.deleted = false
+      WHERE so.order_number = $1 AND COALESCE(so.deleted, false) = false
       LIMIT 1
     `;
 

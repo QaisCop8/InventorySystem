@@ -1594,12 +1594,6 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
     fetchBranches()
   }, [fetchCustomers, fetchClassifications, fetchSalesmen, fetchPriceClass, fetchBranches])
 
-  useEffect(() => {
-    console.log("[v0] Current customer changed:", currentCustomer)
-    if (currentCustomer) {
-      updateFormData(currentCustomer)
-    }
-  }, [currentCustomer, updateFormData])
   const { isAuthenticated, hasPermission } = useAuth()
   if (isloading) {
     return (
@@ -1956,7 +1950,6 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
         <DialogContent className="h-[94dvh] max-h-[94dvh] w-[96vw] max-w-[1400px] overflow-hidden p-0 sm:h-[92dvh] sm:max-h-[92dvh]" dir="rtl"
           onPointerDownOutside={(event) => event.preventDefault()}
           onEscapeKeyDown={(event) => event.preventDefault()}
-          hideCloseButton
         >
           <div className="flex h-full min-h-0 flex-col overflow-hidden bg-background">
             <UnifiedCustomers

@@ -18,7 +18,7 @@ import ConfirmDialogYesNo from "@/components/ui/ConfirmDialogYesNo"
 import DataGridView from "../common/DataGridView"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Plus, AlertCircle, X } from "lucide-react"
+import { Plus, AlertCircle } from "lucide-react"
 import { RefObject, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import PrimeDropdown from "@/components/common/FocusDropdown"
 import MultiSelect from "@/components/common/MultiSelect"
@@ -1103,7 +1103,7 @@ export default function UnifiedCustomers({
       {/* شريط الأدوات ثابت أعلى النافذة دوماً (لا يتحرَّك مع تمرير المحتوى) — بنفس أسلوب
           components/customer/unified-accounts-refactored.tsx (flex-shrink-0 لرأس + flex-1
           overflow-y-auto لجسم قابل للتمرير)، بدل sticky/هوامش سالبة أقل ثباتاً. */}
-      <div className="relative flex flex-shrink-0 px-6 pb-3 pt-10" dir="rtl">
+      <div className="flex-shrink-0" dir="rtl">
         <div className="w-full">
           <UniversalToolbar
             onFirst={onFirst}
@@ -1124,14 +1124,6 @@ export default function UnifiedCustomers({
             isNewRecord={isNewRecord}
           />
         </div>
-        <button
-          type="button"
-          onClick={() => onOpenChange(false)}
-          className="absolute left-6 top-1 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-white/95 text-slate-900 shadow-lg ring-1 ring-slate-200 transition-opacity hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-sky-400"
-        >
-          <X className="h-4 w-4" />
-          <span className="sr-only">إغلاق</span>
-        </button>
       </div>
 
       <div ref={formRootRef} className="flex-1 space-y-3 overflow-y-auto px-3 pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:px-5 sm:pb-5 lg:px-6">

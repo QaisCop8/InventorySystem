@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server"
 import { NextResponse } from "next/server"
 import crypto from "crypto"
 import sql, { resolveCurrentDbName } from "./database"
-import { ensurePermissionTables, hasEffectivePermission } from "./permissions"
+import { ensurePermissionTables, hasEffectivePermission, syncPermissionDefinitions } from "./permissions"
 import { shouldUseSecureCookies } from "./cookie-security"
 
 // جلسة خادمية حقيقية لتسجيل دخول الشركة (تينانت) — نفس نمط management_sessions/mgmt_session في
@@ -100,6 +100,31 @@ export async function requirePermission(request: NextRequest, accessId: number):
   const granted = await hasEffectivePermission(user.user_id, accessId, branchId)
   if (!granted) {
     return { ok: false, response: NextResponse.json({ error: "لا يوجد لديك صلاحية" }, { status: 403 }) }
+  }
+  return { ok: true, user }
+}
+
+export async function requirePermissionByName(
+  request: NextRequest,
+  permissionName: string,
+  branchIdOverride?: number | null,
+): Promise<PermissionCheckResult> {
+  const user = await getSessionUser(request)
+  if (!user) {
+    return { ok: false, response: NextResponse.json({ error: "يجب تسجيل الدخول" }, { status: 401 }) }
+  }
+  await syncPermissionDefinitions(await resolveCurrentDbName())
+  const access = (await sql`SELECT id FROM access_list WHERE name = ${permissionName} ORDER BY id LIMIT 1`)[0]
+  if (!access) {
+    return { ok: false, response: NextResponse.json({ error: `صلاحية ${permissionName} غير معرفة` }, { status: 403 }) }
+  }
+  const headerBranchId = Number(request.headers.get("x-branch-id"))
+  const branchId = Number.isInteger(branchIdOverride) && Number(branchIdOverride) > 0
+    ? Number(branchIdOverride)
+    : Number.isInteger(headerBranchId) && headerBranchId > 0 ? headerBranchId : null
+  const granted = await hasEffectivePermission(user.user_id, Number(access.id), branchId)
+  if (!granted) {
+    return { ok: false, response: NextResponse.json({ error: `لا يوجد لديك صلاحية ${permissionName}` }, { status: 403 }) }
   }
   return { ok: true, user }
 }

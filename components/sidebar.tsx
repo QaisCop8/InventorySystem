@@ -199,6 +199,7 @@ export const menuItems: MenuItem[] = [
           { title: "إرسال الطلبات", section: "internal-manufacturing-send", icon: ArrowUpCircle },
           { title: "استلام الطلبات", section: "internal-manufacturing-receive", icon: ArrowDownCircle },
           { title: "تدقيق البضاعة المستلمة", section: "internal-manufacturing-received-audit", icon: Shield },
+          { title: "تقرير أرشفة الطلبات الداخلية", section: "internal-manufacturing-archive-report", icon: Archive },
         ],
       },
     ],

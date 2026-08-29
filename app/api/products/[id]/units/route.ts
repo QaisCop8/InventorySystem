@@ -17,12 +17,16 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     try {
       const result = await client.query(
         `SELECT u.id AS unit_id, u.unit_name, pu.to_main_qnty,
-                pub.barcode,
+                pub.barcode AS primary_barcode, pub.barcode_list AS barcode,
                 COALESCE(pp_selected.price, pp_fallback.price, 0) AS price
          FROM product_units pu
          LEFT JOIN units u ON pu.unit_id = u.id
-         LEFT JOIN product_unit_barcodes pub
-           ON pu.product_id = pub.product_id AND pu.id = pub.unit_id
+         LEFT JOIN LATERAL (
+           SELECT MIN(pub.barcode) AS barcode,
+                  STRING_AGG(DISTINCT pub.barcode, ', ' ORDER BY pub.barcode) AS barcode_list
+           FROM product_unit_barcodes pub
+           WHERE pub.product_id = pu.product_id AND pub.unit_id = pu.unit_id
+         ) pub ON TRUE
          LEFT JOIN product_prices pp_selected
            ON pu.product_id = pp_selected.product_id
            AND pu.unit_id = pp_selected.unit_id

@@ -12,9 +12,21 @@ import DataGridView from "../common/DataGridView"
 
 // كل كلمة في نص البحث يجب أن تكون موجودة في النص الهدف (بأي ترتيب) — وليس تطابق سلسلة متتالية
 // فقط، فيجد "احمد علي" نتيجة عند البحث "علي احمد" أيضاً.
+const normalizeSearchText = (value: string): string =>
+  String(value || "")
+    .normalize("NFKD")
+    .replace(/[\u064B-\u065F\u0670\u0640]/g, "")
+    .replace(/[أإآٱ]/g, "ا")
+    .replace(/ى/g, "ي")
+    .replace(/ؤ/g, "و")
+    .replace(/ئ/g, "ي")
+    .toLocaleLowerCase("ar")
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .trim()
+
 const searchWordsMatch = (text: string, searchQuery: string): boolean => {
-  const words = searchQuery.trim().toLowerCase().split(/\s+/)
-  const normalizedText = text.toLowerCase()
+  const words = normalizeSearchText(searchQuery).split(/\s+/).filter(Boolean)
+  const normalizedText = normalizeSearchText(text)
   return words.every((word) => normalizedText.includes(word))
 }
 
@@ -343,7 +355,7 @@ export default function AccountSearchDialog({
       if (searchFilters.accountNumber && !account.code.includes(searchFilters.accountNumber)) {
         return false
       }
-      if (searchFilters.accountName && !searchWordsMatch(account.name, searchFilters.accountName)) {
+      if (searchFilters.accountName && !searchWordsMatch(`${account.name} ${account.name_lang2 || ""}`, searchFilters.accountName)) {
         return false
       }
       if (searchFilters.financialList !== "__all__" && String(getFinancialListId(account)) !== searchFilters.financialList) {
@@ -374,7 +386,7 @@ export default function AccountSearchDialog({
       if (filters.accountNumber && !account.code.includes(filters.accountNumber)) {
         return false
       }
-      if (filters.accountName && !searchWordsMatch(account.name, filters.accountName)) {
+      if (filters.accountName && !searchWordsMatch(`${account.name} ${account.name_lang2 || ""}`, filters.accountName)) {
         return false
       }
       if (filters.financialList !== "__all__" && String(getFinancialListId(account)) !== filters.financialList) {
@@ -501,28 +513,28 @@ export default function AccountSearchDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         hideCloseButton
-        className="h-[100dvh] max-h-[100dvh] w-screen max-w-none overflow-hidden rounded-none border-0 bg-white p-0 shadow-2xl backdrop-blur sm:h-[92vh] sm:max-h-[92vh] sm:w-[96vw] sm:max-w-[1500px] sm:rounded-3xl sm:border sm:border-slate-200"
+        className="h-[100dvh] max-h-[100dvh] w-screen max-w-none overflow-hidden rounded-none border-0 bg-white p-0 shadow-2xl backdrop-blur sm:h-[min(92dvh,900px)] sm:max-h-[calc(100dvh-1rem)] sm:w-[calc(100vw-1rem)] sm:max-w-[1400px] sm:rounded-2xl sm:border sm:border-emerald-200"
         dir="rtl"
         onCloseAutoFocus={(event) => event.preventDefault()}
         onInteractOutside={(event) => event.preventDefault()}
       >
         <div className="flex h-full min-h-0 flex-col gap-3 overflow-y-auto overscroll-contain p-3 sm:gap-4 sm:overflow-hidden sm:p-5">
           {/* Header */}
-          <div className="flex shrink-0 items-center justify-between gap-3 rounded-2xl bg-gradient-to-l from-emerald-600 via-emerald-600 to-teal-600 px-3 py-3 shadow-lg sm:px-6 sm:py-4">
-            <div className="flex items-center gap-3">
+          <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 rounded-2xl bg-gradient-to-l from-emerald-600 via-emerald-600 to-teal-600 px-3 py-3 shadow-lg sm:px-6 sm:py-4">
+            <div className="flex min-w-0 items-center gap-3">
               <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/30">
                 <Search className="h-5 w-5 text-white" />
               </div>
               <h2 className="text-lg font-extrabold tracking-tight text-white sm:text-xl">بحث الحسابات</h2>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <Button
                 type="button"
                 onClick={() => window.open("/admin/accounts?new=1", "_blank", "noopener,noreferrer")}
                 className="h-9 gap-2 rounded-xl bg-white text-emerald-700 hover:bg-emerald-50"
               >
                 <Plus className="h-4 w-4" />
-                إضافة حساب
+                <span className="hidden sm:inline">إضافة حساب</span><span className="sm:hidden">إضافة</span>
               </Button>
               {searchResults.length > 0 && (
                 <span className="hidden rounded-full bg-white/15 px-3 py-1 text-xs font-semibold text-white ring-1 ring-white/30 sm:inline-block">
@@ -648,8 +660,17 @@ export default function AccountSearchDialog({
                   }}
                 />
               </div>
+              <div className="flex items-end">
+                <Button
+                  onClick={handleSearchAccounts}
+                  className="flex h-[42px] w-full items-center justify-center gap-2 rounded-xl border-0 bg-gradient-to-l from-emerald-600 to-teal-500 px-5 font-bold text-white shadow-md transition hover:-translate-y-0.5 hover:from-emerald-700 hover:to-teal-600"
+                >
+                  <Search className="h-4 w-4" />
+                  بحث
+                </Button>
+              </div>
             </div>
-            <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            {(showDeliveryOnlyFilter || showOrderOnlyFilter) && <div className="mt-3 flex flex-col gap-2 rounded-xl bg-white px-3 py-2 sm:flex-row sm:items-center">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                 {showDeliveryOnlyFilter ? (
                   <div className="flex items-center gap-2">
@@ -688,16 +709,7 @@ export default function AccountSearchDialog({
                   </div>
                 ) : null}
               </div>
-              <div className="flex items-end">
-                <Button
-                  onClick={handleSearchAccounts}
-                  className="flex h-[42px] w-full items-center gap-2 rounded-xl border-0 bg-gradient-to-l from-emerald-600 to-emerald-500 px-4 text-white shadow-md transition-transform hover:scale-[1.01] hover:from-emerald-700 hover:to-emerald-600"
-                >
-                  <Search className="h-4 w-4" />
-                  بحث
-                </Button>
-              </div>
-            </div>
+            </div>}
           </div>
 
           {/* Results grid */}

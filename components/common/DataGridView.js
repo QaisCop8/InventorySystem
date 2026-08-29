@@ -403,6 +403,8 @@ createButtonsColumns = () => {
           initialized={this.initialized.bind(this)}
           itemsSource={this.props.dataSource}
           {...gridProps}
+          beginningEdit={this.props.beginningEdit}
+          cellEditEnded={this.props.cellEditEnded}
           allowMerging={true}
           loadingRows={() => this.columnTooltips?.dispose?.()}
           {...(this.props.isReport ? { keyActionEnter: '0' } : {})}

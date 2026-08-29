@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
-import { FileText, User, Percent, Users2, MessageSquare, Wallet } from "lucide-react"
+import { FileText, User, Percent, Users2, MessageSquare, Wallet, X } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -396,6 +396,7 @@ export default function UnifiedCreditNote({
       <Dialog open={dialogOpen} onOpenChange={(open) => (open ? onOpenChange(open) : guardedAction(() => onOpenChange(false)))}>
         <DialogContent
           className="voucher-form w-[97vw] max-w-[1400px] p-0 overflow-hidden max-h-[92vh] overflow-y-auto"
+          hideCloseButton
           dir="rtl"
           onPointerDownOutside={(event) => event.preventDefault()}
           onInteractOutside={(event) => event.preventDefault()}
@@ -403,6 +404,14 @@ export default function UnifiedCreditNote({
             if (showUnsavedConfirm || showDeleteConfirm || postDialogOpen) event.preventDefault()
           }}
         >
+          <button
+            type="button"
+            aria-label="إغلاق"
+            onClick={() => guardedAction(() => onOpenChange(false))}
+            className="universal-dialog-close absolute left-[14px] top-[10px] z-[100] inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/95 text-slate-900 shadow-lg ring-1 ring-slate-200 transition-opacity hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-sky-400 focus:ring-offset-2"
+          >
+            <X className="h-4 w-4" />
+          </button>
           <UniversalToolbar
             currentRecord={currentIndex + 1}
             totalRecords={totalRecords}

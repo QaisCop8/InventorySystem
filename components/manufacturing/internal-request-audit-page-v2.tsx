@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -31,22 +31,29 @@ export default function InternalRequestAuditPageV2() {
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState("")
   const [popupMessage, setPopupMessage] = useState("")
+  const loadSequenceRef = useRef(0)
 
   const load = async () => {
+    const branchId = Number(activeBranchId || 0)
+    const sequence = ++loadSequenceRef.current
+    if (!branchId) return
     setLoading(true)
     try {
-      const response = await fetch(`/api/internal-manufacturing-requests?status=2&_=${Date.now()}`, { cache: "no-store", headers: { "x-branch-id": String(activeBranchId || "") } })
+      const response = await fetch(`/api/internal-manufacturing-requests?status=2&_=${Date.now()}`, { cache: "no-store", headers: { "x-branch-id": String(branchId) } })
       const data = await response.json()
-      setRequests(response.ok && Array.isArray(data) ? data : [])
+      if (sequence !== loadSequenceRef.current) return
+      if (response.ok && Array.isArray(data)) setRequests(data)
+      else setMessage(data.error || "تعذر تحميل الطلبات")
     } catch (error: any) {
       setMessage(error.message || "تعذر تحميل الطلبات")
     } finally {
-      setLoading(false)
+      if (sequence === loadSequenceRef.current) setLoading(false)
     }
   }
 
   useEffect(() => {
-    void load()
+    if (activeBranchId) void load()
+    else { loadSequenceRef.current += 1; setRequests([]); setLoading(false) }
     Promise.all([fetch("/api/branches"), fetch("/api/warehouses")]).then(async ([branchResponse, warehouseResponse]) => {
       const [branchData, warehouseData] = await Promise.all([branchResponse.json(), warehouseResponse.json()])
       setBranches(Array.isArray(branchData) ? branchData : [])

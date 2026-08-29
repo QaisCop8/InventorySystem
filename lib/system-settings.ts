@@ -25,15 +25,16 @@ export async function getSystemSettings(): Promise<Record<string, unknown>> {
 
   try {
     const rows = await sql`
-      SELECT id, value
+      SELECT id, description, value
       FROM system_settings
       ORDER BY id ASC
     `
 
     const settings: Record<string, unknown> = {}
     for (const row of rows) {
-      if (row.id) {
-        settings[String(row.id)] = deserializeSettingValue(row.value)
+      const key = row.description || row.id
+      if (key) {
+        settings[String(key)] = deserializeSettingValue(row.value)
       }
     }
 

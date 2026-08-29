@@ -21,23 +21,23 @@
 .multiselectRoot :global(.p-multiselect) {
   width: 100% !important;
   min-width: 150px !important;
-  min-height: 52px;
-  border: 1px solid #dbe3ee !important;
-  border-radius: 16px !important;
-  background: #fff !important;
-  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.05);
+  min-height: 46px;
+  border: 1px solid #d1e7df !important;
+  border-radius: 12px !important;
+  background: linear-gradient(180deg, #ffffff 0%, #fbfefc 100%) !important;
+  box-shadow: 0 3px 12px rgba(5, 150, 105, 0.06);
   outline: none !important;
   direction: rtl !important;
   transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
 }
 
 .multiselectRoot :global(.p-multiselect:not(.p-disabled):hover) {
-  border-color: #93b4e8 !important;
+  border-color: #6ee7b7 !important;
 }
 
 .multiselectRoot :global(.p-multiselect.p-focus) {
-  border-color: #3b82f6 !important;
-  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.12) !important;
+  border-color: #10b981 !important;
+  box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.12) !important;
 }
 
 .multiselectRoot :global(.p-multiselect.p-disabled) {
@@ -52,7 +52,7 @@
 
 .multiselectRoot :global(.p-multiselect-label) {
   display: flex;
-  min-height: 50px;
+  min-height: 44px;
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
@@ -75,10 +75,10 @@
   gap: 8px;
   margin: 0 !important;
   padding: 5px 8px 5px 12px !important;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #a7f3d0;
   border-radius: 999px !important;
-  background: #fff !important;
-  color: #172033 !important;
+  background: #ecfdf5 !important;
+  color: #047857 !important;
   box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
   font-size: 13px;
   font-weight: 500;
@@ -116,9 +116,9 @@
   overflow: hidden !important;
   margin-top: 8px !important;
   border: 1px solid #e2e8f0 !important;
-  border-radius: 20px !important;
+  border-radius: 16px !important;
   background: #fff !important;
-  box-shadow: 0 24px 60px rgba(30, 64, 175, 0.16) !important;
+  box-shadow: 0 24px 60px rgba(6, 95, 70, 0.18) !important;
 }
 
 .panelClassRight {
@@ -135,8 +135,8 @@
   align-items: stretch !important;
   gap: 8px;
   padding: 14px 14px 10px !important;
-  border-bottom: 1px solid #dbeafe !important;
-  background: #fff !important;
+  border-bottom: 1px solid #d1fae5 !important;
+  background: #f8fffb !important;
 }
 
 .panelClassRight .panelHeader {
@@ -180,8 +180,8 @@
 
 .panelClassRight :global(.p-multiselect-filter:focus),
 .panelClassLeft :global(.p-multiselect-filter:focus) {
-  border-color: #3b82f6 !important;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12) !important;
+  border-color: #10b981 !important;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.12) !important;
 }
 
 .panelClassRight :global(.p-multiselect-filter-icon) {
@@ -270,8 +270,8 @@
 .panelClassLeft :global(.p-checkbox-box.p-highlight),
 .panelClassRight :global(.p-checkbox-box[data-p-highlight='true']),
 .panelClassLeft :global(.p-checkbox-box[data-p-highlight='true']) {
-  border-color: #2f80ed !important;
-  background: #2f80ed !important;
+  border-color: #10b981 !important;
+  background: #10b981 !important;
 }
 
 .panelClassRight :global(.p-multiselect-item .p-checkbox-box),
@@ -281,13 +281,13 @@
 
 .panelClassRight :global(.p-multiselect-item:hover),
 .panelClassLeft :global(.p-multiselect-item:hover) {
-  background: #f5f9ff !important;
+  background: #f0fdf4 !important;
   color: #172033 !important;
 }
 
 .panelClassRight :global(.p-multiselect-item.p-highlight),
 .panelClassLeft :global(.p-multiselect-item.p-highlight) {
-  background: #eef5ff !important;
+  background: #ecfdf5 !important;
   color: #172033 !important;
   font-weight: 500;
 }

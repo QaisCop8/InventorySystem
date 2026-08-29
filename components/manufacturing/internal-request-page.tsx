@@ -14,6 +14,7 @@ import { createPortal } from "react-dom"
 import ProductSearchPopup from "@/components/products/ProductSearchPopup"
 import { useAuth } from "@/components/auth/auth-context"
 import MultiSelect from "@/components/common/MultiSelect"
+import { expandProductWithRelatedItems } from "@/lib/product-related-items-client"
 
 type InternalRequest = {
   id: number
@@ -24,17 +25,6 @@ type InternalRequest = {
   destination_warehouse_id: number | null
   internal_status: number
   items?: any[]
-}
-
-const getCurrentMonthDateRange = () => {
-  const today = new Date()
-  const year = today.getFullYear()
-  const month = today.getMonth()
-  const formatDate = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`
-  return {
-    from: formatDate(new Date(year, month, 1)),
-    to: formatDate(new Date(year, month + 1, 0)),
-  }
 }
 
 export default function InternalRequestPage() {
@@ -55,14 +45,14 @@ export default function InternalRequestPage() {
   const [editing, setEditing] = useState(false)
   const [editingRequest, setEditingRequest] = useState<InternalRequest | null>(null)
   const [deleteRequestId, setDeleteRequestId] = useState<number | null>(null)
-  const currentMonthDateRange = getCurrentMonthDateRange()
-  const [fromDate, setFromDate] = useState(currentMonthDateRange.from)
-  const [toDate, setToDate] = useState(currentMonthDateRange.to)
+  const [fromDate, setFromDate] = useState("")
+  const [toDate, setToDate] = useState("")
   const [requesterBranches, setRequesterBranches] = useState<number[]>([])
   const [manufacturingBranches, setManufacturingBranches] = useState<number[]>([])
   const [sourceWarehouses, setSourceWarehouses] = useState<number[]>([])
   const [destinationWarehouses, setDestinationWarehouses] = useState<number[]>([])
   const messagesRef = useRef<any>(null)
+  const loadRequestsSequenceRef = useRef(0)
   const barcodeInputRef = useRef<HTMLInputElement>(null)
   const [barcodeInput, setBarcodeInput] = useState("")
   const [barcodeSearching, setBarcodeSearching] = useState(false)
@@ -74,17 +64,30 @@ export default function InternalRequestPage() {
   }
 
   const loadRequests = async () => {
+    const branchId = Number(activeBranchId || 0)
+    const sequence = ++loadRequestsSequenceRef.current
+    if (!branchId) return
+
     setLoading(true)
     try {
-      const response = await fetch(`/api/internal-manufacturing-requests?_=${Date.now()}`, { cache: "no-store", headers: { "x-branch-id": String(activeBranchId || "") } })
+      const response = await fetch(`/api/internal-manufacturing-requests?_=${Date.now()}`, { cache: "no-store", headers: { "x-branch-id": String(branchId) } })
       const data = await response.json()
-      setRequests(response.ok && Array.isArray(data) ? data : [])
+      if (sequence !== loadRequestsSequenceRef.current) return
+      if (response.ok && Array.isArray(data)) setRequests(data)
     } finally {
-      setLoading(false)
+      if (sequence === loadRequestsSequenceRef.current) setLoading(false)
     }
   }
 
-  useEffect(() => { void loadRequests() }, [activeBranchId])
+  useEffect(() => {
+    if (!activeBranchId) {
+      loadRequestsSequenceRef.current += 1
+      setRequests([])
+      setLoading(false)
+      return
+    }
+    void loadRequests()
+  }, [activeBranchId])
 
   useEffect(() => {
     if (!open || selectedRequest) { setItemsPanelElement(null); return }
@@ -132,6 +135,44 @@ export default function InternalRequestPage() {
     }, [itemsPanelElement, items])
 
   useEffect(() => {
+    if (!open || !selectedRequest) return
+    const frame = window.requestAnimationFrame(() => {
+      const dialog = document.querySelector<HTMLElement>('[role="dialog"][data-state="open"]')
+      const content = dialog?.querySelector<HTMLElement>("div.space-y-4")
+      if (!content || content.querySelector("[data-internal-view-items]")) return
+      const panel = document.createElement("div")
+      panel.dataset.internalViewItems = "true"
+      panel.className = "space-y-2 rounded border p-4"
+      const heading = document.createElement("h3")
+      heading.className = "mb-3 font-bold"
+      heading.textContent = "الأصناف"
+      panel.appendChild(heading)
+      ;(selectedRequest.items || []).forEach((item) => {
+        const row = document.createElement("div")
+        row.className = "flex items-center gap-3 rounded border p-2 text-sm"
+        const image = document.createElement(item.product_image ? "img" : "div")
+        image.className = "flex h-16 w-16 shrink-0 items-center justify-center rounded border bg-muted/30 object-cover text-[10px] text-muted-foreground"
+        if (image instanceof HTMLImageElement) {
+          image.src = item.product_image
+          image.alt = item.item_name || ""
+        } else {
+          image.textContent = "لا صورة"
+        }
+        const name = document.createElement("span")
+        name.className = "min-w-0 flex-1 font-bold text-blue-600"
+        name.textContent = item.item_name || "-"
+        const quantity = document.createElement("span")
+        quantity.className = "shrink-0"
+        quantity.textContent = `الكمية: ${item.qnty}`
+        row.append(image, name, quantity)
+        panel.appendChild(row)
+      })
+      content.insertBefore(panel, content.lastElementChild)
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [open, selectedRequest])
+
+  useEffect(() => {
     Promise.all([fetch("/api/branches"), fetch("/api/warehouses")]).then(async ([branchResponse, warehouseResponse]) => {
       const [branchData, warehouseData] = await Promise.all([branchResponse.json(), warehouseResponse.json()])
       setBranches(Array.isArray(branchData) ? [...branchData].sort((left, right) => Number(left.id) - Number(right.id)) : [])
@@ -168,16 +209,23 @@ export default function InternalRequestPage() {
     setSourceWarehouse(String((request as any).to_store_id || ""))
     setDestinationBranch(String(request.manufacturing_branch_id || ""))
     setDestinationWarehouse(String(request.destination_warehouse_id || ""))
-    setItems((request.items || []).map((item: any) => { const [baseProductName, ...unitParts] = String(item.item_name || "").split(" - "); return { product_id: item.item_id, product_name: baseProductName, base_product_name: baseProductName, unit_id: item.unit_id, unit_name: item.unit_name || unitParts.join(" - "), quantity: Number(item.qnty), barcode: item.barcode } }))
+    setItems((request.items || []).map((item: any) => { const [baseProductName, ...unitParts] = String(item.item_name || "").split(" - "); return { product_id: item.item_id, product_name: baseProductName, base_product_name: baseProductName, product_image: item.product_image || item.image_url || null, unit_id: item.unit_id, unit_name: item.unit_name || unitParts.join(" - "), quantity: Number(item.qnty), barcode: item.barcode } }))
     setOpen(true)
   }
-  const addProduct = (products: any[]) => {
-    const product = products[0]
-    if (!product) return
-    const unit = product.selected_unit || product.units?.[0]
-    setItems((current) => [...current, { product_id: product.id, product_name: product.product_name, base_product_name: product.product_name, product_image: product.product_image || product.image_url || product.display_image || null, unit_id: unit?.unit_id, unit_name: unit?.unit_name || "", quantity: 1, barcode: unit?.barcode || product.barcode || "", properties: product.properties || product.features || product.attributes || null }])
-    setProductOpen(false)
-    window.setTimeout(() => barcodeInputRef.current?.focus(), 0)
+  const buildRequestItem = (product: any, barcodeOverride?: string) => {
+    const unit = product.units?.find((item: any) => Number(item.unit_id) === Number(product.unit_id)) || product.selected_unit || product.units?.[0] || (product.unit_id ? { unit_id: product.unit_id, unit_name: product.unit_name, barcode: product.barcode } : null)
+    return { product_id: product.id, product_name: product.product_name, base_product_name: product.product_name, product_image: product.product_image || product.image_url || product.display_image || null, unit_id: unit?.unit_id, unit_name: unit?.unit_name || product.first_unit || "", quantity: 1, barcode: barcodeOverride || unit?.primary_barcode || unit?.barcode || product.first_barcode || product.barcode || "", properties: product.properties || product.features || product.attributes || null }
+  }
+  const addProduct = async (products: any[]) => {
+    if (!Array.isArray(products) || products.length === 0) return
+    try {
+      const groups = await Promise.all(products.map((product) => expandProductWithRelatedItems(product)))
+      setItems((current) => { const next = [...current]; for (const product of groups.flat()) if (!next.some((item) => Number(item.product_id) === Number(product.id))) next.push(buildRequestItem(product)); return next })
+      setProductOpen(false)
+      window.setTimeout(() => barcodeInputRef.current?.focus(), 0)
+    } catch (error) {
+      showMessage(error instanceof Error ? error.message : "تعذر إضافة توابع الصنف", "error")
+    }
   }
   const addProductByBarcode = async () => {
     const barcode = barcodeInput.trim()
@@ -190,8 +238,8 @@ export default function InternalRequestPage() {
         showMessage("رقم الباركود المدخل غير صحيح", "error")
         return
       }
-      const unit = product.units?.find((item: any) => Number(item.unit_id) === Number(product.unit_id)) || product.selected_unit || product.units?.[0]
-      setItems((current) => [...current, { product_id: product.id, product_name: product.product_name, base_product_name: product.product_name, product_image: product.product_image || product.image_url || product.display_image || null, unit_id: unit?.unit_id, unit_name: unit?.unit_name || "", quantity: 1, barcode, properties: product.properties || product.features || product.attributes || null }])
+      const expanded = await expandProductWithRelatedItems(product)
+      setItems((current) => { const next = [...current]; for (const expandedProduct of expanded) if (!next.some((item) => Number(item.product_id) === Number(expandedProduct.id))) next.push(buildRequestItem(expandedProduct, Number(expandedProduct.id) === Number(product.id) ? barcode : undefined)); return next })
       setBarcodeInput("")
     } catch {
       showMessage("رقم الباركود المدخل غير صحيح", "error")
@@ -243,6 +291,6 @@ export default function InternalRequestPage() {
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{filteredRequests.map((request) => { const status = Number(request.internal_status); const editable = canEditOrDelete(request); const statusLabel = status === 2 ? "قيد التدقيق" : status === 3 ? "قيد التجهيز" : status === 1 ? "مسودة" : "قيد المعالجة"; return <Card key={request.id}><CardHeader className="pb-3"><CardTitle className="flex items-center justify-between text-base"><span>{request.vch_code}</span><Badge>{statusLabel}</Badge></CardTitle></CardHeader><CardContent className="space-y-3 text-sm"><div>التاريخ: <b>{String(request.vch_date).slice(0, 10)}</b></div><div>فرع البضاعة: <b>{branchName(request.manufacturing_branch_id)}</b></div><div>المستودع: <b>{warehouseName(request.destination_warehouse_id)}</b></div><div className="flex gap-2"><Button className="flex-1" variant="outline" onClick={() => openExistingRequest(request)}>{editable ? "تعديل" : <><Search className="ml-2 h-4 w-4" />مشاهدة</>}</Button>{editable && <Button variant="destructive" onClick={() => void deleteRequest(request.id)}><Trash2 className="h-4 w-4" /></Button>}</div></CardContent></Card> })}</div>
     {!loading && filteredRequests.length === 0 && <div className="rounded-xl border-2 border-dashed py-16 text-center"><ClipboardCheck className="mx-auto mb-3 h-10 w-10 text-emerald-600" /><h2 className="font-bold">لا توجد طلبات مطابقة للفلاتر</h2></div>}
     <ConfirmDialogYesNo visible={deleteRequestId !== null} message="هل أنت متأكد من حذف الطلب؟" onConfirm={() => { const requestId = deleteRequestId; setDeleteRequestId(null); if (requestId !== null) void performDeleteRequest(requestId) }} onCancel={() => setDeleteRequestId(null)} />
-    <Dialog open={open} onOpenChange={setOpen}><DialogContent dir="rtl" className="max-h-[94vh] max-w-4xl overflow-y-auto" onPointerDownOutside={(event) => event.preventDefault()} onInteractOutside={(event) => event.preventDefault()}><DialogHeader><DialogTitle>{selectedRequest ? "مشاهدة طلب البضاعة" : "إضافة طلب داخلي"}</DialogTitle></DialogHeader><Messages innerRef={messagesRef} />{selectedRequest ? <div className="space-y-4"><div className="grid gap-3 rounded border p-4 sm:grid-cols-2"><div>رقم الطلب: <b>{selectedRequest.vch_code}</b></div><div>التاريخ: <b>{String(selectedRequest.vch_date).slice(0, 10)}</b></div><div>فرع البضاعة: <b>{branchName(selectedRequest.manufacturing_branch_id)}</b></div><div>المستودع: <b>{warehouseName(selectedRequest.destination_warehouse_id)}</b></div></div><Button className="w-full" variant="outline" onClick={() => setOpen(false)}>إغلاق</Button></div> : <div className="space-y-4"><div className="grid gap-3 sm:grid-cols-2"><div className="sm:col-span-2 sm:w-1/2"><Label>تاريخ الطلب</Label><Input type="date" value={date} onChange={(event) => setDate(event.target.value)} /></div><div><Label>فرع مقدم الطلب</Label><Input value={branchName(Number(activeBranchId))} disabled /></div><div><Label>مستودع مقدم الطلب</Label><select className="w-full rounded border p-2" value={sourceWarehouse} onChange={(event) => setSourceWarehouse(event.target.value)}><option value="">اختر المستودع</option>{warehouses.map((warehouse) => <option key={warehouse.id} value={warehouse.id}>{warehouse.warehouse_name || warehouse.name}</option>)}</select></div><div><Label>الفرع المطلوب منه البضاعة</Label><select className="w-full rounded border p-2" value={destinationBranch} onChange={(event) => setDestinationBranch(event.target.value)}><option value="">اختر الفرع</option>{branches.filter((branch) => Number(branch.id) !== Number(activeBranchId)).map((branch) => <option key={branch.id} value={branch.id}>{branch.branch_name}</option>)}</select></div><div><Label>المستودع المطلوب منه البضاعة</Label><select className="w-full rounded border p-2" value={destinationWarehouse} onChange={(event) => setDestinationWarehouse(event.target.value)}><option value="">اختر المستودع</option>{warehouses.map((warehouse) => <option key={warehouse.id} value={warehouse.id}>{warehouse.warehouse_name || warehouse.name}</option>)}</select></div></div><div className="rounded border p-3"><div className="mb-3 flex items-center justify-between"><h3 className="font-bold">الأصناف</h3><Button type="button" variant="outline" onClick={() => setProductOpen(true)}><Plus className="ml-2 h-4 w-4" />إضافة صنف</Button></div>{items.map((item, index) => <div key={`${item.product_id}-${index}`} className="mb-2 grid grid-cols-[1fr_100px_40px] items-center gap-2"><Input value={item.product_name} disabled /><Input type="number" min="1" value={item.quantity} onChange={(event) => setItems((current) => current.map((entry, itemIndex) => itemIndex === index ? { ...entry, quantity: Number(event.target.value) } : entry))} /><Button type="button" variant="ghost" size="icon" onClick={() => setItems((current) => current.filter((_, itemIndex) => itemIndex !== index))}><Trash2 className="h-4 w-4" /></Button></div>)}</div><Button className="w-full" onClick={() => void saveRequest()} disabled={loading}>حفظ مسودة الطلب</Button>{productOpen && <ProductSearchPopup open={productOpen} onClose={() => setProductOpen(false)} onSelect={addProduct} />}</div>}</DialogContent></Dialog>
+    <Dialog open={open} onOpenChange={setOpen}><DialogContent dir="rtl" className="max-h-[94vh] max-w-4xl overflow-y-auto" onPointerDownOutside={(event) => event.preventDefault()} onInteractOutside={(event) => event.preventDefault()}><DialogHeader><DialogTitle>{selectedRequest ? "مشاهدة طلب البضاعة" : "إضافة طلب داخلي"}</DialogTitle></DialogHeader><Messages innerRef={messagesRef} />{selectedRequest ? <div className="space-y-4"><div className="grid gap-3 rounded border p-4 sm:grid-cols-2"><div>رقم الطلب: <b>{selectedRequest.vch_code}</b></div><div>التاريخ: <b>{String(selectedRequest.vch_date).slice(0, 10)}</b></div><div>فرع البضاعة: <b>{branchName(selectedRequest.manufacturing_branch_id)}</b></div><div>المستودع: <b>{warehouseName(selectedRequest.destination_warehouse_id)}</b></div></div><Button className="w-full" variant="outline" onClick={() => setOpen(false)}>إغلاق</Button></div> : <div className="space-y-4"><div className="grid gap-3 sm:grid-cols-2"><div className="sm:col-span-2 sm:w-1/2"><Label>تاريخ الطلب</Label><Input type="date" value={date} onChange={(event) => setDate(event.target.value)} /></div><div><Label>فرع مقدم الطلب</Label><Input value={branchName(Number(activeBranchId))} disabled /></div><div><Label>مستودع مقدم الطلب</Label><select className="w-full rounded border p-2" value={sourceWarehouse} onChange={(event) => setSourceWarehouse(event.target.value)}><option value="">اختر المستودع</option>{warehouses.map((warehouse) => <option key={warehouse.id} value={warehouse.id}>{warehouse.warehouse_name || warehouse.name}</option>)}</select></div><div><Label>الفرع المطلوب منه البضاعة</Label><select className="w-full rounded border p-2" value={destinationBranch} onChange={(event) => setDestinationBranch(event.target.value)}><option value="">اختر الفرع</option>{branches.map((branch) => <option key={branch.id} value={branch.id}>{branch.branch_name}</option>)}</select></div><div><Label>المستودع المطلوب منه البضاعة</Label><select className="w-full rounded border p-2" value={destinationWarehouse} onChange={(event) => setDestinationWarehouse(event.target.value)}><option value="">اختر المستودع</option>{warehouses.map((warehouse) => <option key={warehouse.id} value={warehouse.id}>{warehouse.warehouse_name || warehouse.name}</option>)}</select></div></div><div className="rounded border p-3"><div className="mb-3 flex items-center justify-between"><h3 className="font-bold">الأصناف</h3><Button type="button" variant="outline" onClick={() => setProductOpen(true)}><Plus className="ml-2 h-4 w-4" />إضافة صنف</Button></div>{items.map((item, index) => <div key={`${item.product_id}-${index}`} className="mb-2 grid grid-cols-[1fr_100px_40px] items-center gap-2"><Input value={item.product_name} disabled /><Input type="number" min="1" value={item.quantity} onChange={(event) => setItems((current) => current.map((entry, itemIndex) => itemIndex === index ? { ...entry, quantity: Number(event.target.value) } : entry))} /><Button type="button" variant="ghost" size="icon" onClick={() => setItems((current) => current.filter((_, itemIndex) => itemIndex !== index))}><Trash2 className="h-4 w-4" /></Button></div>)}</div><Button className="w-full" onClick={() => void saveRequest()} disabled={loading}>حفظ مسودة الطلب</Button>{productOpen && <ProductSearchPopup open={productOpen} onClose={() => setProductOpen(false)} onSelect={addProduct} />}</div>}</DialogContent></Dialog>
   </div>
 }

@@ -275,7 +275,7 @@ async function ensureModernVoucherItemsTable(tenantClient: ReturnType<typeof get
       id SERIAL PRIMARY KEY,
       voucher_type_id INTEGER,
       vch_book_id INTEGER,
-      vch_date DATE,
+      vch_date TIMESTAMP WITHOUT TIME ZONE,
       vch_code VARCHAR(50),
       branch_id INTEGER,
       user_id VARCHAR(50),
