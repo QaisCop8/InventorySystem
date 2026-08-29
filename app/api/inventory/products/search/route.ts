@@ -57,13 +57,13 @@ export async function GET(request: NextRequest) {
       SELECT p.*, COALESCE(w.warehouse_name, 'بلا تحديد') AS default_store_name
       FROM products p
       LEFT JOIN warehouses w ON w.id = p.default_store
-      WHERE p.product_code = $1 
+      WHERE TRIM(p.product_code) = TRIM($1::text)
       LIMIT 1
     `
       : `
       SELECT p.*, 'بلا تحديد' AS default_store_name
       FROM products p
-      WHERE p.product_code = $1 
+      WHERE TRIM(p.product_code) = TRIM($1::text)
       LIMIT 1
     `;
     let productResult = await client.query(productQuery, [query]);
@@ -72,7 +72,7 @@ export async function GET(request: NextRequest) {
 
       const productQuery = `
       SELECT p.* FROM product_unit_barcodes p
-      WHERE p.barcode = $1
+      WHERE TRIM(p.barcode) = TRIM($1::text)
       LIMIT 1
     `;
       const barcodeResult = await client.query(productQuery, [query]);

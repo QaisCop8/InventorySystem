@@ -450,13 +450,36 @@ export function DraftOrderForm({
         { cache: "no-store" },
       );
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "تعذر البحث عن الباركود");
-      const found = Array.isArray(data)
+      const responseProduct = response.ok && Array.isArray(data)
         ? data[0]
-        : Array.isArray(data?.products)
+        : response.ok && Array.isArray(data?.products)
           ? data.products[0]
-          : data;
-      if (!found) throw new Error("لم يتم العثور على صنف بهذا الباركود");
+          : response.ok
+            ? data
+            : null;
+      const found = responseProduct?.id
+        ? responseProduct
+        : products.find((product) => {
+            const barcodes = [
+              product.first_barcode,
+              product.barcode,
+              ...(Array.isArray(product.units)
+                ? product.units.flatMap((unit: any) => [
+                    unit.barcode,
+                    unit.primary_barcode,
+                  ])
+                : []),
+            ];
+            return barcodes.some(
+              (value) => String(value ?? "").trim() === barcode,
+            );
+          });
+      if (!found)
+        throw new Error(
+          response.ok
+            ? "لم يتم العثور على صنف بهذا الباركود"
+            : data?.error || "تعذر البحث عن الباركود",
+        );
       const expanded = await expandProducts(found);
       setItems((current) => {
         const next = [...current];
