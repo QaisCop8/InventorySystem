@@ -34,6 +34,9 @@ export function attachEnterAsTab(root: HTMLElement, enabledRef: { current: boole
     const target = e.target as HTMLElement
     if (!target || !root.contains(target)) return
     if (target.tagName === "TEXTAREA" || target.tagName === "BUTTON") return
+    // Some inputs use Enter as their primary action (for example barcode
+    // scanning). Let their React handler receive Enter instead of moving focus.
+    if (target.hasAttribute("data-enter-action")) return
     if (target.closest(SKIP_ANCESTOR_SELECTOR)) return
 
     const focusable = getFocusable(root)

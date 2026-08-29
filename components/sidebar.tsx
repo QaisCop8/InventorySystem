@@ -106,7 +106,15 @@ export const menuItems: MenuItem[] = [
       { title: "متابعة طلباتي", section: "task-orders-board", icon: KanbanSquare },
       { title: "تأكيد الطلبيات", section: "order-confirmation", icon: PackageCheck },
       { title: "اعتماد الطلبيات الجاهزة", section: "task-orders-approval", icon: PackageCheck },
-      { title: "التقارير", section: "task-orders-report", icon: BarChart3 },
+      {
+        title: "التقارير",
+        section: "task-orders-reports",
+        icon: BarChart3,
+        submenu: [
+          { title: "تقارير أوامر العمل", section: "task-orders-report", icon: BarChart3 },
+          { title: "تقرير ارشفة مسودات طلبيات المبيعات", section: "sales-drafts-archive-report", icon: Archive },
+        ],
+      },
     ],
   },
   //{ id: "lot-opener", title: "فتح الدفعات", icon: Unlock, section: "lot-opener" },
@@ -323,6 +331,8 @@ export function Sidebar({
   isMobile = false,
 }: SidebarProps) {
   const [expandedMenus, setExpandedMenus] = useState<string[]>([])
+  const [companyLogo, setCompanyLogo] = useState("")
+  const [companyName, setCompanyName] = useState("أساس للحلول المحاسبية")
   const { openWindow } = useWindowManager()
   const { menuDarkMode } = useMenuTheme()
 
@@ -330,6 +340,24 @@ export function Sidebar({
     if (!activeSection.startsWith("internal-manufacturing-")) return
     setExpandedMenus((current) => Array.from(new Set([...current, "item-management", "internal-manufacturing-orders", "internal-manufacturing-request"])))
   }, [activeSection])
+
+  useEffect(() => {
+    const loadCompanyBrand = async () => {
+      try {
+        const response = await fetch("/api/settings/system")
+        if (!response.ok) return
+        const data = await response.json()
+        const settings = data?.settings ?? data
+        setCompanyLogo(typeof settings?.company_logo === "string" ? settings.company_logo : "")
+        setCompanyName(String(settings?.company_name || "أساس للحلول المحاسبية"))
+      } catch (error) {
+        console.error("Failed to load company branding", error)
+      }
+    }
+    void loadCompanyBrand()
+    window.addEventListener("system-settings-updated", loadCompanyBrand)
+    return () => window.removeEventListener("system-settings-updated", loadCompanyBrand)
+  }, [])
 
   const toggleMenu = (menuId: string) => {
     setExpandedMenus(prev =>
@@ -383,13 +411,17 @@ export function Sidebar({
         <div className="flex items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
             <div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-400 via-blue-500 to-violet-600 shadow-lg shadow-blue-500/30">
-              <Sparkles className="h-5 w-5 text-white" />
+              {companyLogo ? (
+                <img src={companyLogo} alt={companyName} className="h-full w-full rounded-2xl bg-white object-contain" />
+              ) : (
+                <Sparkles className="h-5 w-5 text-white" />
+              )}
               <span className="absolute -bottom-1 -left-1 h-3 w-3 rounded-full bg-emerald-400 ring-2 ring-white dark:ring-slate-950" />
             </div>
             {isOpen && (
               <div className="min-w-0">
                 <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-cyan-600 dark:text-cyan-300/80">نظام</p>
-                <h2 className="truncate text-[15px] font-bold text-slate-900 dark:text-white">أساس للحلول المحاسبية</h2>
+                <h2 className="truncate text-[15px] font-bold text-slate-900 dark:text-white">{companyName}</h2>
               </div>
             )}
           </div>

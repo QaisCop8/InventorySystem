@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { Plus, ListPlus, Paperclip, FileText } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { useWorkspace } from "@/contexts/workspace-context"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
@@ -270,6 +271,7 @@ export default function UnifiedJournal({
   isNewMode,
   errorMessages = [],
 }: UnifiedJournalProps) {
+  const { fullscreenEnabled } = useWorkspace()
   const dateInputRef = useRef<HTMLInputElement | null>(null)
   const messagesRef = useRef<any>(null)
   const { toast } = useToast()
@@ -830,8 +832,9 @@ export default function UnifiedJournal({
 
   return (
     <>
-      <Dialog open={dialogOpen} onOpenChange={(open) => (open ? onOpenChange(open) : guardedAction(() => onOpenChange(false)))}>
+      <Dialog open={dialogOpen} onOpenChange={onOpenChange}>
         <DialogContent
+          inline={fullscreenEnabled && dialogOpen}
           className="voucher-form w-[97vw] max-w-[1500px] p-0 overflow-hidden max-h-[92vh] overflow-y-auto"
           dir="rtl"
           onPointerDownOutside={(event) => event.preventDefault()}

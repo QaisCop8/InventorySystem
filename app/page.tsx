@@ -104,6 +104,7 @@ const InternalManufacturingReceivedAuditPage = lazyNamed(() => import("@/compone
 const InternalManufacturingDraftPage = lazyNamed(() => import("@/components/manufacturing/internal-manufacturing-pages"), "InternalManufacturingDraftPage")
 const InternalManufacturingConfirmationPage = lazyNamed(() => import("@/components/manufacturing/internal-manufacturing-pages"), "InternalManufacturingConfirmationPage")
 const InternalRequestsArchiveReport = lazyDefault(() => import("@/components/manufacturing/internal-requests-archive-report"))
+const SalesDraftsArchiveReport = lazyDefault(() => import("@/components/order-drafts/sales-drafts-archive-report"))
 const componentMap: Record<string, React.ComponentType<any>> = {
   dashboard: Dashboard,
   "inventory-analytics": InventoryAnalytics,
@@ -210,6 +211,7 @@ const componentMap: Record<string, React.ComponentType<any>> = {
   "internal-manufacturing-draft": InternalManufacturingDraftPage,
   "internal-manufacturing-confirmation": InternalManufacturingConfirmationPage,
   "internal-manufacturing-archive-report": InternalRequestsArchiveReport,
+  "sales-drafts-archive-report": SalesDraftsArchiveReport,
 }
 
 const titleFor = (section: string) => SECTION_TITLES[section] || section

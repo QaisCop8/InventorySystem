@@ -68,6 +68,7 @@ interface VouchersGeneralSettingsState {
   generalItemCostMethod: string
   includePurchaseReturnsInCost: boolean
   allowNegativeItemBalances: boolean
+  allowOrderConfirmationWithoutProductionMaterials: boolean
   defaultBarcodeColumnValue: string
   showZeroQuantityItemsInSearch: boolean
   serialNumberLength: number
@@ -94,6 +95,7 @@ const defaultSettings: VouchersGeneralSettingsState = {
   generalItemCostMethod: "last_purchase_price",
   includePurchaseReturnsInCost: false,
   allowNegativeItemBalances: true,
+  allowOrderConfirmationWithoutProductionMaterials: false,
   defaultBarcodeColumnValue: "none",
   showZeroQuantityItemsInSearch: true,
   serialNumberLength: 15,
@@ -176,6 +178,10 @@ export default function VouchersGeneralSettings() {
         allowNegativeItemBalances: Boolean(
           payload.allow_negative_item_balances ?? prev.allowNegativeItemBalances,
         ),
+        allowOrderConfirmationWithoutProductionMaterials: Boolean(
+          payload.allow_order_confirmation_without_production_materials ??
+            prev.allowOrderConfirmationWithoutProductionMaterials,
+        ),
         defaultBarcodeColumnValue: payload.default_barcode_column_value || prev.defaultBarcodeColumnValue,
         showZeroQuantityItemsInSearch: Boolean(
           payload.show_zero_quantity_items_in_search ?? prev.showZeroQuantityItemsInSearch,
@@ -224,6 +230,8 @@ export default function VouchersGeneralSettings() {
           general_item_cost_method: settings.generalItemCostMethod,
           include_purchase_returns_in_cost: settings.includePurchaseReturnsInCost,
           allow_negative_item_balances: settings.allowNegativeItemBalances,
+          allow_order_confirmation_without_production_materials:
+            settings.allowOrderConfirmationWithoutProductionMaterials,
           default_barcode_column_value: settings.defaultBarcodeColumnValue,
           show_zero_quantity_items_in_search: settings.showZeroQuantityItemsInSearch,
           serial_number_length: settings.serialNumberLength,
@@ -480,6 +488,19 @@ export default function VouchersGeneralSettings() {
                   }
                 />
                 <span>السماح بكميات سالبة في ارصدة الاصناف</span>
+              </label>
+
+              <label className="flex items-center gap-3 cursor-pointer">
+                <Checkbox
+                  checked={settings.allowOrderConfirmationWithoutProductionMaterials}
+                  onCheckedChange={(checked) =>
+                    setSettings((s) => ({
+                      ...s,
+                      allowOrderConfirmationWithoutProductionMaterials: Boolean(checked),
+                    }))
+                  }
+                />
+                <span>الاستمرار في تأكيد الطلبيات في حال عدم توفر مواد الانتاج</span>
               </label>
 
               <div className="grid gap-1.5 invoice-currency-dropdown-wrap">

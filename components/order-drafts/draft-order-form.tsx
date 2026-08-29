@@ -411,7 +411,7 @@ export function DraftOrderForm({
           ? {
               unit_id: p.unit_id,
               unit_name: p.unit_name,
-              price: p.first_price,
+              price: p.price ?? p.first_price,
               barcode: p.first_barcode || p.barcode,
             }
           : null) ||
@@ -1223,6 +1223,7 @@ export function DraftOrderForm({
               <Input
                 ref={barcodeInputRef}
                 id="draft-barcode"
+                data-enter-action="barcode-search"
                 className="mt-1"
                 value={barcodeInput}
                 onChange={(event) => setBarcodeInput(event.target.value)}

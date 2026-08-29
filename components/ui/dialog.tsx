@@ -29,8 +29,8 @@ function Dialog(props: React.ComponentProps<typeof DialogPrimitive.Root>) {
 const DialogTrigger = DialogPrimitive.Trigger
 
 function DialogPortal(props: React.ComponentProps<typeof DialogPrimitive.Portal>) {
-  const { confined, container } = useWorkspaceDialog()
-  return <DialogPrimitive.Portal {...props} container={confined && container ? container : props.container} />
+  const { container } = useWorkspaceDialog()
+  return <DialogPrimitive.Portal {...props} container={container ?? props.container} />
 }
 
 const DialogClose = DialogPrimitive.Close
@@ -58,14 +58,38 @@ DialogOverlay.displayName = DialogPrimitive.Overlay.displayName
 
 interface DialogContentProps extends React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> {
   hideCloseButton?: boolean
+  inline?: boolean
 }
 
 const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   DialogContentProps
->(({ className, children, hideCloseButton, style, ...props }, ref) => {
+>(({ className, children, hideCloseButton, inline, style, ...props }, ref) => {
   const { confined } = useWorkspaceDialog()
   const isLargeTransactionDialog = typeof className === "string" && /(?:sales-delivery|stock-voucher)-form/.test(className)
+  if (inline) {
+    const { onPointerDownOutside: _onPointerDownOutside, onInteractOutside: _onInteractOutside, onEscapeKeyDown: _onEscapeKeyDown, ...inlineProps } = props
+    return (
+      <div
+        ref={ref as React.Ref<HTMLDivElement>}
+        className={cn("!absolute !inset-0 z-30 grid !h-full !max-h-full !w-full !max-w-none gap-4 overflow-hidden border-4 border-emerald-600 bg-background shadow-none", className)}
+        style={style}
+        {...inlineProps}
+      >
+        {children}
+        {!hideCloseButton && (
+          <DialogPrimitive.Close
+            type="button"
+            aria-label="Close"
+            className="universal-dialog-close absolute left-4 top-4 z-50 inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/95 text-slate-900 shadow-lg ring-1 ring-slate-200 transition-opacity duration-200 hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-sky-400 focus:ring-offset-2 disabled:pointer-events-none"
+          >
+            <X className="h-4 w-4" />
+            <span className="sr-only">Close</span>
+          </DialogPrimitive.Close>
+        )}
+      </div>
+    )
+  }
   return <DialogPortal>
     <DialogOverlay />
     <DialogPrimitive.Content

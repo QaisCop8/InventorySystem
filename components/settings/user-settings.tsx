@@ -25,7 +25,7 @@ interface User {
   job_role_id?: number | null
   is_active: boolean
   last_login?: string
-  dashboard_layout?: { default_screen: string }
+  dashboard_layout?: { default_screen: string; open_screens_fullscreen?: boolean }
   notifications_enabled?: boolean
   email_notifications?: boolean
 }
@@ -82,11 +82,13 @@ export function UserSettings() {
   const [editDepartment, setEditDepartment] = useState("")
   const [editBranchId, setEditBranchId] = useState<number | null>(null)
   const [editDefaultScreen, setEditDefaultScreen] = useState("dashboard")
+  const [editOpenScreensFullscreen, setEditOpenScreensFullscreen] = useState(false)
   const [editJobRoleId, setEditJobRoleId] = useState<number | null>(null)
 
   const [newDepartment, setNewDepartment] = useState("")
   const [newBranchId, setNewBranchId] = useState<number | null>(null)
   const [newDefaultScreen, setNewDefaultScreen] = useState("dashboard")
+  const [newOpenScreensFullscreen, setNewOpenScreensFullscreen] = useState(false)
   const [newJobRoleId, setNewJobRoleId] = useState<number | null>(null)
 
   const loadBranches = async () => {
@@ -234,6 +236,7 @@ export function UserSettings() {
     setEditBranchId(user.branch_id ?? branches[0]?.id ?? null)
     setEditJobRoleId(user.job_role_id ?? null)
     setEditDefaultScreen(user.dashboard_layout?.default_screen || "dashboard")
+    setEditOpenScreensFullscreen(Boolean(user.dashboard_layout?.open_screens_fullscreen))
     setShowEditPassword(false)
     setShowUserDialog(true)
   }
@@ -385,6 +388,7 @@ export function UserSettings() {
                   setNewDepartment(activeDepartments[0]?.department_name ?? "")
                   setNewBranchId(branches[0]?.id ?? null)
                   setNewDefaultScreen("dashboard")
+                  setNewOpenScreensFullscreen(false)
                   setShowNewUserDialog(true)
                 }}
                 className="erp-btn-primary"
@@ -540,6 +544,7 @@ export function UserSettings() {
                 const dashboardLayout = {
                   ...selectedUser.dashboard_layout,
                   default_screen: editDefaultScreen,
+                  open_screens_fullscreen: editOpenScreensFullscreen,
                 }
                 const userData = {
                   user_id: selectedUser.user_id,
@@ -691,6 +696,13 @@ export function UserSettings() {
                       <p className="text-sm text-muted-foreground mt-1 text-right">
                         سيتم توجيه المستخدم إلى هذه الشاشة مباشرة بعد تسجيل الدخول حسب صلاحياته
                       </p>
+                    </div>
+                    <div className="md:col-span-2 flex items-center justify-between rounded-lg border border-blue-200 bg-white p-4">
+                      <div className="space-y-1 text-right">
+                        <Label htmlFor="openScreensFullscreen">فتح الشاشة بشاشة كاملة</Label>
+                        <p className="text-sm text-muted-foreground">يُطبّق على شاشات السندات والحسابات والعملاء والأصناف والخدمات</p>
+                      </div>
+                      <Switch id="openScreensFullscreen" checked={editOpenScreensFullscreen} onCheckedChange={setEditOpenScreensFullscreen} />
                     </div>
                   </div>
                 </div>
@@ -858,6 +870,7 @@ export function UserSettings() {
               const newEmail = formData.get("email") as string
               const dashboardLayout = {
                 default_screen: newDefaultScreen || "dashboard",
+                open_screens_fullscreen: newOpenScreensFullscreen,
               }
               const userData = {
                 username: newEmail,
@@ -988,6 +1001,13 @@ export function UserSettings() {
                     <p className="text-sm text-muted-foreground mt-1 text-right">
                       سيتم توجيه المستخدم إلى هذه الشاشة مباشرة بعد تسجيل الدخول حسب صلاحياته
                     </p>
+                  </div>
+                  <div className="md:col-span-2 flex items-center justify-between rounded-lg border border-blue-200 bg-white p-4">
+                    <div className="space-y-1 text-right">
+                      <Label htmlFor="newOpenScreensFullscreen">فتح الشاشة بشاشة كاملة</Label>
+                      <p className="text-sm text-muted-foreground">يُطبّق على شاشات السندات والحسابات والعملاء والأصناف والخدمات</p>
+                    </div>
+                    <Switch id="newOpenScreensFullscreen" checked={newOpenScreensFullscreen} onCheckedChange={setNewOpenScreensFullscreen} />
                   </div>
                 </div>
               </div>

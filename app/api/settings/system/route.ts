@@ -65,6 +65,7 @@ function normalizePayload(data: unknown): Record<string, unknown> {
     company_phone: ["company_phone", "companyPhone", "phone"],
     company_email: ["company_email", "companyEmail", "email"],
     company_website: ["company_website", "companyWebsite", "website"],
+    company_logo: ["company_logo", "companyLogo"],
     tax_number: ["tax_number", "taxNumber"],
     commercial_register: ["commercial_register", "commercialRegister"],
     default_currency: ["default_currency", "defaultCurrency"],

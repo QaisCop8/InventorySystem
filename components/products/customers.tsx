@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { useWorkspace } from "@/contexts/workspace-context"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
@@ -179,6 +180,7 @@ interface NotificationSettings {
 }
 
 export default function Customers({ isSupplier, isSubscriber, isSalesman }: CustomersProps) {
+  const { fullscreenEnabled } = useWorkspace()
   // نوع الجهة (customers.type) بحسب أي تبويب/شاشة فتحت هذا المكوّن المشترك — عميل=1، مورد=2،
   // مندوب=3، مشترك=4. كان الكود سابقاً يفترض في عدة أماكن أن "ليس مورداً" تعني "عميل" حصراً،
   // فيُخطئ في شاشتي المندوبين والمشتركين (يحفظ/يبحث/يولّد رقماً بنوع "عميل" بدلاً من نوعها الفعلي).
@@ -1265,7 +1267,14 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
         pricecategory: customerData.pricecategory,
         account_id: customerData.account_id,
         cost_centers: costCenters,
-        stop_transactions: customerData.stop_transactions || [],
+        // account_stop_transactions_tbl stores stopped movements only. Sending
+        // unchecked grid rows would make them appear checked after reopening.
+        stop_transactions: (customerData.stop_transactions || [])
+          .filter((row) => Boolean(row.is_stopped))
+          .map((row) => ({
+            voucher_types_id: row.voucher_types_id,
+            stop_date: row.stop_date || null,
+          })),
         currency_id: customerData.currency_id,
         allow_trans_with_diff_curr: customerData.allow_trans_with_diff_curr,
         iscalc_curr_diff_rates: customerData.iscalc_curr_diff_rates,
@@ -1947,7 +1956,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
           if (open) setShowNewCustomerDialog(true);
         }}
       >
-        <DialogContent className="h-[94dvh] max-h-[94dvh] w-[96vw] max-w-[1400px] overflow-hidden p-0 sm:h-[92dvh] sm:max-h-[92dvh]" dir="rtl"
+        <DialogContent inline={fullscreenEnabled && showNewCustomerDialog} className="h-[94dvh] max-h-[94dvh] w-[96vw] max-w-[1400px] overflow-hidden p-0 sm:h-[92dvh] sm:max-h-[92dvh]" dir="rtl"
           onPointerDownOutside={(event) => event.preventDefault()}
           onEscapeKeyDown={(event) => event.preventDefault()}
         >

@@ -43,6 +43,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     const updatedResult = await client.query(`UPDATE sales_order_drafts SET account_id=$2,customer_name=$3,order_date=$4,requested_delivery_date=$5,deposit_amount=$6,notes=$7,delivery_address=$8,contact_phone=$9,priority=$10,checklist_template_id=$11,attachments=$12::jsonb,branch_id=$13,updated_at=NOW() WHERE id=$1 RETURNING *`, [id, Number(data.account_id), account.name, data.order_date, data.requested_delivery_date, deposit, data.notes || null, data.delivery_address || null, data.contact_phone || null, data.priority || "normal", data.checklist_template_id || null, JSON.stringify(attachments), data.branch_id || current.branch_id || null])
     await client.query("DELETE FROM sales_order_draft_items WHERE draft_id=$1", [id])
     for (const item of data.items) await client.query(`INSERT INTO sales_order_draft_items (draft_id,product_id,product_name,quantity,price,discount,unit_id,barcode,store_id,specifications) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb)`, [id, Number(item.product_id), item.product_name, Number(item.quantity), Number(item.price), Number(item.discount), item.unit_id || null, item.barcode || null, item.store_id || null, JSON.stringify(item.specifications || {})])
+    await client.query(`INSERT INTO sales_order_draft_events (draft_id,event_type,user_id,details) VALUES ($1,'updated',$2,$3::jsonb)`, [id, permission.user.user_id, JSON.stringify({ item_count: data.items.length })])
     const receiptVoucherId = await syncDepositReceipt(client, { draftId: id, draftNumber: current.draft_number, receiptVoucherId: current.receipt_voucher_id, accountId: Number(data.account_id), customerName: account.name, orderDate: data.order_date, deposit, userId: Number(data.created_by || current.created_by) })
     await client.query("COMMIT")
     const { customer_id: _deprecatedCustomerId, ...savedDraft } = updatedResult.rows[0]
@@ -60,8 +61,9 @@ export async function DELETE(_request: NextRequest, { params }: { params: Promis
     if (!permission.ok) return permission.response
     await ensureOrderDraftTables()
     const id = Number((await params).id)
-    const deleted = await sql`DELETE FROM sales_order_drafts WHERE id=${id} AND status='draft' RETURNING id`
+    const deleted = await sql`UPDATE sales_order_drafts SET status='cancelled', updated_at=NOW() WHERE id=${id} AND status='draft' RETURNING id`
     if (!deleted.length) return NextResponse.json({ error: "لا يمكن حذف مسودة مؤكدة أو غير موجودة" }, { status: 409 })
+    await sql`INSERT INTO sales_order_draft_events (draft_id,event_type,user_id,details) VALUES (${id}, 'cancelled', ${permission.user.user_id}, '{}'::jsonb)`
     return NextResponse.json({ success: true })
   } catch (error: any) { return NextResponse.json({ error: error.message }, { status: 500 }) }
 }

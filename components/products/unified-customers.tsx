@@ -300,7 +300,15 @@ export default function UnifiedCustomers({
       return {
         voucher_types_id: voucherTypeId,
         voucher_type_name: voucherType.name || "",
-        is_stopped: Boolean(stopRow),
+        // Local form state contains a row for every voucher type, including
+        // unchecked ones. Presence alone must not turn an unchecked row on.
+        // Older API rows omit is_stopped and represent a stopped movement by
+        // their presence, so retain that compatibility explicitly.
+        is_stopped: stopRow
+          ? stopRow.is_stopped == null
+            ? true
+            : Boolean(stopRow.is_stopped)
+          : false,
         stop_date: stopRow?.stop_date ? String(stopRow.stop_date).slice(0, 10) : "",
       }
     })

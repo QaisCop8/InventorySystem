@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { useWorkspace } from "@/contexts/workspace-context"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -458,6 +459,7 @@ export default function UnifiedStockVoucher({
   onCodeNotFound,
   errorMessages = [],
 }: UnifiedStockVoucherProps) {
+  const { fullscreenEnabled } = useWorkspace()
   const labels = TYPE_LABELS[voucherType]
   const { toast } = useToast()
   const isInternalDelivery = voucherType === INTERNAL_DELIVERY_VCH_TYPE
@@ -2153,6 +2155,7 @@ export default function UnifiedStockVoucher({
     <>
       <Dialog open={dialogOpen} onOpenChange={onOpenChange}>
       <DialogContent
+        inline={fullscreenEnabled && dialogOpen}
         className="stock-voucher-form flex h-[96vh] w-[97vw] max-w-[1500px] max-h-[96vh] flex-col overflow-hidden p-0"
         dir="rtl"
         onPointerDownOutside={(event) => event.preventDefault()}

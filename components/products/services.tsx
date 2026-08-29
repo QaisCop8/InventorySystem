@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
+import { useWorkspace } from "@/contexts/workspace-context"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Plus, Search, Edit, CheckCircle, X, Package, AlertTriangle, Warehouse } from "lucide-react"
@@ -160,6 +161,7 @@ const initialFormData: ProductFormData = {
 }
 
 export function Services() {
+  const { fullscreenEnabled } = useWorkspace()
   const [state, setState] = useState({
     products: [] as Product[],
     categories: [] as string[],
@@ -585,7 +587,7 @@ export function Services() {
       />
 
       <Dialog open={state.showDialog} onOpenChange={(open) => setState((prev) => ({ ...prev, showDialog: open, error: null, ...(open ? {} : { editingProduct: null, formData: initialFormData }) }))}>
-        <DialogContent className="max-w-[95vw] sm:max-w-[90vw] md:max-w-[80vw] lg:max-w-[70vw] max-h-[95vh] overflow-hidden p-0" dir="rtl" onPointerDownOutside={(event) => event.preventDefault()} onEscapeKeyDown={(event) => event.preventDefault()} hideCloseButton>
+        <DialogContent inline={fullscreenEnabled && state.showDialog} className="max-w-[95vw] sm:max-w-[90vw] md:max-w-[80vw] lg:max-w-[70vw] max-h-[95vh] overflow-hidden p-0" dir="rtl" onPointerDownOutside={(event) => event.preventDefault()} onEscapeKeyDown={(event) => event.preventDefault()} hideCloseButton>
           <CompactServiceForm
             visible={state.showDialog}
             editingProduct={state.editingProduct}

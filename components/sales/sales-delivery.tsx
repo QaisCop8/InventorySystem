@@ -25,6 +25,7 @@ import UnifiedSalesDelivery, {
   toGridDateString,
 } from "./unified-sales-delivery"
 import type { PostVoucherAction } from "@/components/common/post-voucher-dialog"
+import { useWorkspace } from "@/contexts/workspace-context"
 
 interface LookupOption {
   id: number
@@ -85,6 +86,7 @@ const emptyItemRow: SalesVoucherItemRow = {
 
 export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
   const { user, activeBranchId } = useAuth()
+  const { fullscreenEnabled } = useWorkspace()
   const TITLE = SALES_VOUCHER_TYPE_LABELS[voucherType].title
   const LIST_TITLE = SALES_VOUCHER_TYPE_LABELS[voucherType].listTitle
 
@@ -774,8 +776,11 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
     setForm((f) => ({ ...f, [field]: value }))
   }
 
+  const useFullPageMode = fullscreenEnabled
+
   return (
-    <div className="w-full max-w-full space-y-6" dir="rtl">
+    <div className={`w-full max-w-full ${useFullPageMode && dialogOpen ? "h-full" : "space-y-6"}`} dir="rtl">
+      {!(useFullPageMode && dialogOpen) && <>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-3xl font-bold">{LIST_TITLE}</h1>
         <Button onClick={openNewDialog} className="flex items-center gap-2">
@@ -896,9 +901,12 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
         </CardContent>
       </Card>
 
+      </>}
+
       <UnifiedSalesDelivery
         voucherType={voucherType}
         dialogOpen={dialogOpen}
+        openFullscreen={useFullPageMode}
         onOpenChange={setDialogOpen}
         form={form}
         onFormChange={onFormChange}

@@ -239,6 +239,7 @@ interface WarehouseOption {
 interface UnifiedSalesDeliveryProps {
   voucherType: SalesVoucherSubType
   dialogOpen: boolean
+  openFullscreen?: boolean
   onOpenChange: (open: boolean) => void
   form: SalesDeliveryRecord
   onFormChange: <K extends keyof SalesDeliveryRecord>(field: K, value: SalesDeliveryRecord[K]) => void
@@ -408,6 +409,7 @@ const recalcLineAmounts = (row: SalesVoucherItemRow): Pick<SalesVoucherItemRow, 
 export default function UnifiedSalesDelivery({
   voucherType,
   dialogOpen,
+  openFullscreen = false,
   onOpenChange,
   form,
   onFormChange,
@@ -2398,6 +2400,10 @@ export default function UnifiedSalesDelivery({
     popupHasClosed()
   }
 
+  // Inline page mode is not managed by Radix Presence, so do not mount the
+  // form until the user opens a record/new voucher.
+  if (openFullscreen && !dialogOpen) return null
+
   return (
     <Dialog
       open={dialogOpen}
@@ -2426,11 +2432,16 @@ export default function UnifiedSalesDelivery({
       }}
     >
       <DialogContent
-          className="sales-delivery-form flex h-[calc(100dvh-1rem)] max-h-[92vh] w-[calc(100vw-1rem)] max-w-[1400px] flex-col overflow-hidden p-0 text-[13px] transition-shadow sm:h-[92vh] sm:w-[96vw] xl:w-[92vw] [&_label]:text-xs [&_input:not([type=checkbox])]:h-8 [&_input:not([type=checkbox])]:px-2.5 [&_.p-dropdown]:min-h-8 [&_.p-dropdown-label]:py-1.5 [&_.p-calendar]:h-8 [&_.p-calendar_input]:h-8"
+          inline={openFullscreen}
+          className={`sales-delivery-form flex h-[calc(100dvh-1rem)] max-h-[92vh] w-[calc(100vw-1rem)] max-w-[1400px] flex-col overflow-hidden p-0 text-[13px] transition-shadow sm:h-[92vh] sm:w-[96vw] xl:w-[92vw] [&_label]:text-xs [&_input:not([type=checkbox])]:h-8 [&_input:not([type=checkbox])]:px-2.5 [&_.p-dropdown]:min-h-8 [&_.p-dropdown-label]:py-1.5 [&_.p-calendar]:h-8 [&_.p-calendar_input]:h-8 ${openFullscreen ? "!left-0 !top-0 !h-full !max-h-full !w-full !max-w-none !translate-x-0 !translate-y-0 !rounded-none" : ""}`}
           dir="rtl"
           onPointerDownOutside={(event) => event.preventDefault()}
           onInteractOutside={(event) => event.preventDefault()}
-          style={dialogOpen ? { border: "1px solid rgba(16,185,129,0.22)", boxShadow: "0 20px 60px rgba(16,185,129,0.12)" } : undefined}
+          style={dialogOpen ? {
+            border: "1px solid rgba(16,185,129,0.22)",
+            boxShadow: "0 20px 60px rgba(16,185,129,0.12)",
+            ...(openFullscreen ? { width: "100%", maxWidth: "100%", height: "100%", maxHeight: "100%" } : {}),
+          } : undefined}
         >
         <UniversalToolbar
           currentRecord={currentIndex + 1}

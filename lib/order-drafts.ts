@@ -27,6 +27,8 @@ export async function ensureOrderDraftTables() {
   await sql`CREATE TABLE IF NOT EXISTS sales_order_draft_items (id SERIAL PRIMARY KEY, draft_id INTEGER NOT NULL REFERENCES sales_order_drafts(id) ON DELETE CASCADE, product_id INTEGER NOT NULL REFERENCES products(id), product_name VARCHAR(255) NOT NULL, quantity NUMERIC(15,4) NOT NULL, price NUMERIC(15,4) NOT NULL DEFAULT 0, discount NUMERIC(15,2) NOT NULL DEFAULT 0, unit_id INTEGER, barcode VARCHAR(100))`
   await sql`ALTER TABLE sales_order_draft_items ADD COLUMN IF NOT EXISTS store_id INTEGER`
   await sql`ALTER TABLE sales_order_draft_items ADD COLUMN IF NOT EXISTS specifications JSONB NOT NULL DEFAULT '{}'::jsonb`
+  await sql`CREATE TABLE IF NOT EXISTS sales_order_draft_events (id SERIAL PRIMARY KEY, draft_id INTEGER NOT NULL REFERENCES sales_order_drafts(id) ON DELETE CASCADE, event_type VARCHAR(50) NOT NULL, user_id VARCHAR(100), details JSONB NOT NULL DEFAULT '{}'::jsonb, created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP)`
+  await sql`CREATE INDEX IF NOT EXISTS idx_sales_order_draft_events_draft ON sales_order_draft_events(draft_id, created_at, id)`
   await sql`CREATE TABLE IF NOT EXISTS product_manufacturing_components (id SERIAL PRIMARY KEY, product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE, component_id INTEGER NOT NULL REFERENCES products(id) ON DELETE RESTRICT, quantity NUMERIC(18,6) NOT NULL CHECK (quantity > 0), UNIQUE(product_id, component_id), CHECK (product_id <> component_id))`
   await sql`ALTER TABLE product_manufacturing_components ADD COLUMN IF NOT EXISTS length NUMERIC(18,6)`
   await sql`ALTER TABLE product_manufacturing_components ADD COLUMN IF NOT EXISTS width NUMERIC(18,6)`

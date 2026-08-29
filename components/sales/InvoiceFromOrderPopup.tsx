@@ -6,7 +6,7 @@ import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import AccountSearchDialog, { type AccountItem } from "@/components/customer/account-search-dialog"
 import DataGridView from "@/components/common/DataGridView"
-import { PackageCheck, ShoppingCart, UserRound } from "lucide-react"
+import { ArrowLeft, ArrowRight, PackageCheck, ShoppingCart, UserRound } from "lucide-react"
 import type { SalesVoucherItemRow } from "@/components/sales/unified-sales-delivery"
 
 interface OrderHeader {
@@ -34,6 +34,9 @@ interface InvoiceFromOrderPopupProps {
 const SALES_INVOICE_TYPE = 12
 const PURCHASE_INVOICE_TYPE = 17
 const ORDER_SOURCE_VOUCHER_TYPE = 3
+
+const itemKey = (item: SalesVoucherItemRow) =>
+  `${item.source_voucher_id ?? "order"}:${item.order_item_id ?? `${item.product_id ?? "item"}:${item.unit ?? ""}`}`
 
 export default function InvoiceFromOrderPopup({
   open,
@@ -93,9 +96,15 @@ export default function InvoiceFromOrderPopup({
       source_rate: order.exchange_rate ?? 1,
     }))
 
-    setOrderItems(newItems)
-    setSelectedOrderItems([])
-    setSelectedOrderHeaders([order])
+    setOrderItems((current) => {
+      const existing = new Set(current.map(itemKey))
+      return [...current, ...newItems.filter((item) => !existing.has(itemKey(item)))]
+    })
+    setSelectedOrderItems((current) => {
+      const existing = new Set(current.map(itemKey))
+      return [...current, ...newItems.filter((item) => !existing.has(itemKey(item)))]
+    })
+    setSelectedOrderHeaders((current) => current.some((entry) => entry.id === order.id) ? current : [...current, order])
   }
 
   const handleRemoveOrderItems = (orderId: number) => {
@@ -181,8 +190,9 @@ export default function InvoiceFromOrderPopup({
           isReadOnly: true,
           body: (cell: any) => {
             const row = cell.row.dataItem as SalesVoucherItemRow
-            const checked = selectedOrderItems.some((item) => item.order_item_id === row.order_item_id)
-            return <input type="checkbox" checked={checked} aria-label={`اختيار ${row.item_name || row.product_name}`} onChange={(event) => setSelectedOrderItems((current) => event.target.checked ? [...current.filter((item) => item.order_item_id !== row.order_item_id), row] : current.filter((item) => item.order_item_id !== row.order_item_id))} />
+            const key = itemKey(row)
+            const checked = selectedOrderItems.some((item) => itemKey(item) === key)
+            return <input type="checkbox" checked={checked} aria-label={`اختيار ${row.item_name || row.product_name}`} onChange={(event) => setSelectedOrderItems((current) => event.target.checked ? [...current.filter((item) => itemKey(item) !== key), row] : current.filter((item) => itemKey(item) !== key))} />
           },
         },
         {
@@ -218,9 +228,7 @@ export default function InvoiceFromOrderPopup({
               onClick={(event) => {
                 event.stopPropagation()
                 const row = cell.row.dataItem as SalesVoucherItemRow
-                setSelectedOrderItems((current) => current.filter((item) =>
-                  !(item.source_voucher_id === row.source_voucher_id && item.order_item_id === row.order_item_id),
-                ))
+                setSelectedOrderItems((current) => current.filter((item) => itemKey(item) !== itemKey(row)))
               }}
             >
               ×

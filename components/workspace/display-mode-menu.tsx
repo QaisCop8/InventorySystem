@@ -17,7 +17,7 @@ interface DisplayModeMenuProps {
 // البيانات عند الإقلاع (لا الاعتماد على erp_user المخزَّن محلياً، الذي لا يتحدَّث بعد أي PUT هنا —
 // نفس نمط components/theme-loader.tsx لـtheme_preference).
 export function DisplayModeMenu({ userId }: DisplayModeMenuProps) {
-  const { splitEnabled, tabsEnabled, popupsInTab, setSplitEnabled, setTabsEnabled, setPopupsInTab, hydrateModes } = useWorkspace()
+  const { splitEnabled, tabsEnabled, fullscreenEnabled, setSplitEnabled, setTabsEnabled, setFullscreenEnabled, hydrateModes } = useWorkspace()
   const dashboardLayoutRef = useRef<Record<string, any>>({})
   const [saving, setSaving] = useState(false)
 
@@ -31,8 +31,12 @@ export function DisplayModeMenu({ userId }: DisplayModeMenuProps) {
         if (cancelled || !data) return
         const dashboardLayout = data.dashboard_layout || {}
         dashboardLayoutRef.current = dashboardLayout
-        const displayMode = dashboardLayout.display_mode || { split: false, tabs: false, popupsInTab: false }
-        hydrateModes({ split: !!displayMode.split, tabs: !!displayMode.tabs, popupsInTab: !!displayMode.popupsInTab })
+        const displayMode = dashboardLayout.display_mode || { split: false, tabs: false }
+        hydrateModes({
+          split: !!displayMode.split,
+          tabs: !!displayMode.tabs,
+          fullscreen: !!dashboardLayout.open_screens_fullscreen,
+        })
       })
       .catch(() => {
         // تجاهل — يبقى الوضع الافتراضي (بلا شاشة مقسمة/تبويبات) كما لو لم يُحفَظ تفضيل من قبل
@@ -43,9 +47,16 @@ export function DisplayModeMenu({ userId }: DisplayModeMenuProps) {
     }
   }, [userId, hydrateModes])
 
-  const persist = async (next: { split: boolean; tabs: boolean; popupsInTab: boolean }) => {
+  const persist = async (
+    next: { split: boolean; tabs: boolean },
+    fullscreen = fullscreenEnabled,
+  ) => {
     if (!userId) return
-    const nextDashboardLayout = { ...dashboardLayoutRef.current, display_mode: next }
+    const nextDashboardLayout = {
+      ...dashboardLayoutRef.current,
+      display_mode: next,
+      open_screens_fullscreen: fullscreen,
+    }
     dashboardLayoutRef.current = nextDashboardLayout
     setSaving(true)
     try {
@@ -66,6 +77,7 @@ export function DisplayModeMenu({ userId }: DisplayModeMenuProps) {
           // تجاهل — قيمة مخزَّنة غير متوقعة، لا تستحق فشل الحفظ الأساسي
         }
       }
+      window.dispatchEvent(new CustomEvent("user-fullscreen-setting-changed", { detail: fullscreen }))
     } finally {
       setSaving(false)
     }
@@ -91,7 +103,7 @@ export function DisplayModeMenu({ userId }: DisplayModeMenuProps) {
               disabled={saving}
               onCheckedChange={(checked) => {
                 setSplitEnabled(checked)
-                void persist({ split: checked, tabs: tabsEnabled, popupsInTab })
+                void persist({ split: checked, tabs: tabsEnabled })
               }}
             />
           </div>
@@ -106,22 +118,25 @@ export function DisplayModeMenu({ userId }: DisplayModeMenuProps) {
               disabled={saving}
               onCheckedChange={(checked) => {
                 setTabsEnabled(checked)
-                void persist({ split: splitEnabled, tabs: checked, popupsInTab })
+                void persist({ split: splitEnabled, tabs: checked })
               }}
             />
           </div>
           <div className="flex items-center justify-between gap-4">
             <div>
-              <Label htmlFor="popups-in-tab-toggle">فتح النوافذ داخل التبويب</Label>
-              <p className="text-xs text-muted-foreground">حصر التعتيم والنافذة داخل التبويب النشط دون قفل النظام</p>
+              <Label htmlFor="fullscreen-screens-toggle">فتح الشاشات بصورة كاملة</Label>
+              <p className="text-xs text-muted-foreground">فتح شاشات السندات والحسابات والعملاء والأصناف والخدمات كصفحة كاملة</p>
             </div>
             <Switch
-              id="popups-in-tab-toggle"
-              checked={popupsInTab}
+              id="fullscreen-screens-toggle"
+              checked={fullscreenEnabled}
               disabled={saving}
               onCheckedChange={(checked) => {
-                setPopupsInTab(checked)
-                void persist({ split: splitEnabled, tabs: tabsEnabled, popupsInTab: checked })
+                setFullscreenEnabled(checked)
+                void persist(
+                  { split: splitEnabled, tabs: tabsEnabled },
+                  checked,
+                )
               }}
             />
           </div>

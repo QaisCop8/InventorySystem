@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
+import { useWorkspace } from "@/contexts/workspace-context"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { UniversalToolbar } from "@/components/ui/universal-toolbar"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -219,6 +220,7 @@ interface ProductsState {
 }
 
 export function Products({ entityType = "products" }: ProductsProps) {
+  const { fullscreenEnabled } = useWorkspace()
   const { permissionVersion } = useAuth()
   const isService = entityType === "services"
   const canViewProducts = useMemo(() => Util.checkUserAccess(10), [permissionVersion])
@@ -1100,7 +1102,7 @@ export function Products({ entityType = "products" }: ProductsProps) {
       <Dialog open={state.showDialog} onOpenChange={(open) => {
         if (open) setState((prev) => ({ ...prev, showDialog: true }))
       }} >
-        <DialogContent className="h-[calc(100%-1.5rem)] max-h-[calc(100%-1.5rem)] w-[calc(100%-1.5rem)] max-w-[95vw] overflow-hidden p-0 sm:max-w-[90vw] lg:max-w-[80vw] xl:max-w-[75vw] 2xl:max-w-[70vw]" dir="rtl"
+        <DialogContent inline={fullscreenEnabled && state.showDialog} className="h-[calc(100%-1.5rem)] max-h-[calc(100%-1.5rem)] w-[calc(100%-1.5rem)] max-w-[95vw] overflow-hidden p-0 sm:max-w-[90vw] lg:max-w-[80vw] xl:max-w-[75vw] 2xl:max-w-[70vw]" dir="rtl"
         onPointerDownOutside={(event) => event.preventDefault()}
         onEscapeKeyDown={(event) => event.preventDefault()}
         hideCloseButton

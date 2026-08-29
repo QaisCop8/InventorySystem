@@ -20,13 +20,13 @@ export interface WorkspacePaneState {
 interface DisplayModes {
   split: boolean
   tabs: boolean
-  popupsInTab?: boolean
+  fullscreen?: boolean
 }
 
 interface WorkspaceContextType {
   splitEnabled: boolean
   tabsEnabled: boolean
-  popupsInTab: boolean
+  fullscreenEnabled: boolean
   panes: WorkspacePaneState[]
   focusedPaneId: PaneId
   currentSection: (paneId: PaneId) => string | null
@@ -36,7 +36,7 @@ interface WorkspaceContextType {
   setFocusedPane: (paneId: PaneId) => void
   setSplitEnabled: (enabled: boolean) => void
   setTabsEnabled: (enabled: boolean) => void
-  setPopupsInTab: (enabled: boolean) => void
+  setFullscreenEnabled: (enabled: boolean) => void
   // يُستخدم مرة واحدة عند الإقلاع لتحميل تفضيل المستخدم من قاعدة البيانات (dashboard_layout.display_mode)
   // بلا تشغيل نفس آثار setSplitEnabled/setTabsEnabled المزدوجة لو استُدعيا منفصلين.
   hydrateModes: (modes: DisplayModes) => void
@@ -55,7 +55,7 @@ const WorkspaceContext = createContext<WorkspaceContextType | undefined>(undefin
 export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   const [splitEnabled, setSplitEnabledState] = useState(false)
   const [tabsEnabled, setTabsEnabledState] = useState(false)
-  const [popupsInTab, setPopupsInTab] = useState(false)
+  const [fullscreenEnabled, setFullscreenEnabled] = useState(false)
   const [panes, setPanes] = useState<WorkspacePaneState[]>([makeEmptyPane("a")])
   const [focusedPaneId, setFocusedPaneIdState] = useState<PaneId>("a")
 
@@ -143,7 +143,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     (modes: DisplayModes) => {
       setSplitEnabledState(modes.split)
       setTabsEnabledState(modes.tabs)
-      setPopupsInTab(!!modes.popupsInTab)
+      setFullscreenEnabled(!!modes.fullscreen)
       applySplit(modes.split)
     },
     [applySplit],
@@ -152,7 +152,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   const value: WorkspaceContextType = {
     splitEnabled,
     tabsEnabled,
-    popupsInTab,
+    fullscreenEnabled,
     panes,
     focusedPaneId,
     currentSection,
@@ -162,7 +162,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     setFocusedPane,
     setSplitEnabled,
     setTabsEnabled,
-    setPopupsInTab,
+    setFullscreenEnabled,
     hydrateModes,
   }
 

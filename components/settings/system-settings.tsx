@@ -11,7 +11,6 @@ import { Switch } from "@/components/ui/switch"
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion"
 import AutoCompleteAccount from "@/components/customer/auto-complete-account"
 import Messages from "@/components/common/Messages"
-import Util from "@/components/common/Util"
 import { Save, Settings, Building2, Globe, Shield, Printer, FileText, Loader2, AlertCircle } from "lucide-react"
 import { buildVoucherCode } from "@/lib/voucher-code"
 
@@ -75,6 +74,7 @@ export function SystemSettings() {
     // Company Settings
     companyName: "",
     companyNameEn: "",
+    companyLogo: "",
     licensedWorkerNumber: "",
     taxNumber: "",
     commercialRegister: "",
@@ -96,7 +96,6 @@ export function SystemSettings() {
     fiscalYearStart: "01/01",
     workingDays: ["sunday", "monday", "tuesday", "wednesday", "thursday"],
     workingHours: "08:00-17:00",
-    allowOrderConfirmationWithoutProductionMaterials: false,
 
     // Security Settings
     sessionTimeout: 30,
@@ -171,6 +170,7 @@ export function SystemSettings() {
   const [initialLoading, setInitialLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const message = useRef<any>(null)
+  const savingRef = useRef(false)
   const [hasTransactions, setHasTransactions] = useState(false)
   const [numberingLocks, setNumberingLocks] = useState({
     invoice: false,
@@ -215,6 +215,7 @@ export function SystemSettings() {
             ...prev,
             companyName: String(settingsPayload.company_name ?? ""),
             companyNameEn: String(settingsPayload.company_name_en ?? ""),
+            companyLogo: String(settingsPayload.company_logo ?? ""),
             licensedWorkerNumber: String(settingsPayload.licensed_worker_number ?? ""),
             address: String(settingsPayload.company_address ?? ""),
             phone: String(settingsPayload.company_phone ?? ""),
@@ -298,8 +299,6 @@ export function SystemSettings() {
                 })()
               : prev.workingDays,
             workingHours: settingsPayload.working_hours || prev.workingHours,
-            allowOrderConfirmationWithoutProductionMaterials:
-              settingsPayload.allow_order_confirmation_without_production_materials === true,
             sessionTimeout: settingsPayload.session_timeout ?? prev.sessionTimeout,
             passwordPolicy: settingsPayload.password_policy === "strong",
             twoFactorAuth: settingsPayload.two_factor_auth || prev.twoFactorAuth,
@@ -341,6 +340,26 @@ export function SystemSettings() {
   }
 
   const handleSave = async () => {
+    if (savingRef.current) return
+    savingRef.current = true
+
+    const showMessage = (detail: string, severity: "success" | "error") => {
+      message.current?.clear?.()
+      message.current?.show?.([
+        {
+          severity,
+          summary: "",
+          detail,
+          sticky: severity === "error",
+          life: severity === "success" ? 4000 : undefined,
+        },
+      ])
+    }
+    const validationError = (detail: string) => {
+      setError(detail)
+      showMessage(detail, "error")
+    }
+
     try {
       setLoading(true)
       setError(null)
@@ -350,7 +369,7 @@ export function SystemSettings() {
 
       // Validation
       if (!settings.companyName.trim()) {
-        setError("اسم الشركة مطلوب")
+        validationError("اسم الشركة مطلوب")
         return
       }
 
@@ -381,7 +400,7 @@ export function SystemSettings() {
 
       for (const prefix of prefixes) {
         if (!isValidPrefix(prefix.value)) {
-          setError(`${prefix.label}: مسموح فقط بحروف إنجليزية كبيرة A-Z وبحد أقصى 3 أحرف، بدون أرقام أو رموز خاصة`)
+          validationError(`${prefix.label}: مسموح فقط بحروف إنجليزية كبيرة A-Z وبحد أقصى 3 أحرف، بدون أرقام أو رموز خاصة`)
           return
         }
       }
@@ -408,7 +427,7 @@ export function SystemSettings() {
       ]
       for (const start of voucherStarts) {
         if (!isValidVoucherStart(start.value)) {
-          setError(`${start.label}: يجب أن يكون رقمًا صحيحًا من 1 إلى 10000`)
+          validationError(`${start.label}: يجب أن يكون رقمًا صحيحًا من 1 إلى 10000`)
           return
         }
       }
@@ -424,17 +443,17 @@ export function SystemSettings() {
 
       for (const start of starts) {
         if (!isValidStart(start.value)) {
-          setError(`${start.label}: يجب أن تكون رقمًا صحيحًا من 1 إلى 999`)
+          validationError(`${start.label}: يجب أن تكون رقمًا صحيحًا من 1 إلى 999`)
           return
         }
       }
 
       if (!settings.orderStart || settings.orderStart < 1) {
-        setError("بداية ترقيم طلبات المبيعات مطلوبة ويجب أن تكون أكبر من صفر")
+        validationError("بداية ترقيم طلبات المبيعات مطلوبة ويجب أن تكون أكبر من صفر")
         return
       }
       if (!settings.purchaseStart || settings.purchaseStart < 1) {
-        setError("بداية ترقيم طلبات الشراء مطلوبة ويجب أن تكون أكبر من صفر")
+        validationError("بداية ترقيم طلبات الشراء مطلوبة ويجب أن تكون أكبر من صفر")
         return
       }
 
@@ -446,6 +465,7 @@ export function SystemSettings() {
         body: JSON.stringify({
           company_name: settings.companyName,
           company_name_en: settings.companyNameEn,
+          company_logo: settings.companyLogo,
           licensed_worker_number: settings.licensedWorkerNumber,
           company_address: settings.address,
           company_phone: settings.phone,
@@ -512,8 +532,6 @@ export function SystemSettings() {
           tax_rate_clearing: Number(settings.taxRateClearing) || 0,
           working_days: settings.workingDays,
           working_hours: settings.workingHours,
-          allow_order_confirmation_without_production_materials:
-            settings.allowOrderConfirmationWithoutProductionMaterials,
           sessionTimeout: settings.sessionTimeout,
           passwordPolicy: settings.passwordPolicy ? "strong" : "medium",
           twoFactorAuth: settings.twoFactorAuth,
@@ -555,13 +573,14 @@ export function SystemSettings() {
       const result = await response.json()
       console.log("تم حفظ الإعدادات بنجاح:", result)
       window.dispatchEvent(new CustomEvent("system-settings-updated", { detail: result }))
-      Util.showSuccessMessage(message, "تم حفظ الإعدادات بنجاح")
+      showMessage("تم حفظ الاعدادات بنجاح", "success")
     } catch (err) {
       console.error("Error saving settings:", err)
       const errorMessage = err instanceof Error ? err.message : "حدث خطأ أثناء حفظ الإعدادات"
       setError(errorMessage)
-      Util.showErrorMessage(message, errorMessage)
+      showMessage(errorMessage, "error")
     } finally {
+      savingRef.current = false
       setLoading(false)
     }
   }
@@ -571,6 +590,7 @@ export function SystemSettings() {
       setSettings({
         companyName: "",
         companyNameEn: "",
+        companyLogo: "",
             licensedWorkerNumber: "",
             taxNumber: "",
         commercialRegister: "",
@@ -588,7 +608,6 @@ export function SystemSettings() {
         fiscalYearStart: "01/01",
         workingDays: ["sunday", "monday", "tuesday", "wednesday", "thursday"],
         workingHours: "08:00-17:00",
-        allowOrderConfirmationWithoutProductionMaterials: false,
         sessionTimeout: 30,
         passwordPolicy: true,
         twoFactorAuth: false,
@@ -732,6 +751,38 @@ export function SystemSettings() {
                     className="text-left"
                     dir="ltr"
                   />
+                </div>
+                <div className="md:col-span-2">
+                  <Label htmlFor="companyLogo" className="mb-2 block text-right">شعار الشركة</Label>
+                  <div className="flex flex-wrap items-center gap-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
+                    <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-xl border bg-white">
+                      {settings.companyLogo ? (
+                        <img src={settings.companyLogo} alt="شعار الشركة" className="h-full w-full object-contain" />
+                      ) : (
+                        <Building2 className="h-8 w-8 text-slate-400" />
+                      )}
+                    </div>
+                    <div className="min-w-[220px] flex-1 space-y-2">
+                      <Input
+                        id="companyLogo"
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                        onChange={(event) => {
+                          const file = event.target.files?.[0]
+                          if (!file) return
+                          const reader = new FileReader()
+                          reader.onload = () => setSettings((current) => ({ ...current, companyLogo: String(reader.result || "") }))
+                          reader.readAsDataURL(file)
+                        }}
+                      />
+                      <p className="text-xs text-muted-foreground">PNG أو JPG أو WEBP أو SVG. سيظهر الشعار أعلى القائمة الجانبية.</p>
+                      {settings.companyLogo && (
+                        <Button type="button" variant="outline" size="sm" onClick={() => setSettings((current) => ({ ...current, companyLogo: "" }))}>
+                          إزالة الشعار
+                        </Button>
+                      )}
+                    </div>
+                  </div>
                 </div>
                 <div>
                   <Label htmlFor="licensedWorkerNumber" className="text-right block">
@@ -978,18 +1029,6 @@ export function SystemSettings() {
                     onChange={(e) => setSettings({ ...settings, workingHours: e.target.value })}
                     className="text-right"
                     dir="rtl"
-                  />
-                </div>
-                <div className="flex items-center justify-between gap-4 rounded-lg border p-4 md:col-span-2">
-                  <Label htmlFor="allowOrderConfirmationWithoutProductionMaterials" className="cursor-pointer text-right leading-6">
-                    الاستمرار في تأكيد الطلبيات في حال عدم توفر مواد الانتاج
-                  </Label>
-                  <Switch
-                    id="allowOrderConfirmationWithoutProductionMaterials"
-                    checked={settings.allowOrderConfirmationWithoutProductionMaterials}
-                    onCheckedChange={(checked) =>
-                      setSettings({ ...settings, allowOrderConfirmationWithoutProductionMaterials: checked })
-                    }
                   />
                 </div>
               </div>

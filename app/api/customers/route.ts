@@ -64,6 +64,7 @@ const persistCustomerStopTransactions = async (accountId: number, rows: any[] | 
   if (!Array.isArray(rows)) return
 
   for (const row of rows) {
+    if (row?.is_stopped === false) continue
     const voucherTypeId = toNullableInt(row?.voucher_types_id)
     if (!voucherTypeId) continue
 

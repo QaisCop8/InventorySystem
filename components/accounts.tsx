@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { useWorkspace } from "@/contexts/workspace-context"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Textarea } from "@/components/ui/textarea"
 import PrimeDropdown from "@/components/common/FocusDropdown"
@@ -109,6 +110,7 @@ type ExcelImportSummary = {
 }
 
 export default function Accounts() {
+  const { fullscreenEnabled } = useWorkspace()
   const [dialogOpen, setDialogOpen] = useState(false)
   const [showUnifiedPopup, setShowUnifiedPopup] = useState(false)
   const [showExcelImportDialog, setShowExcelImportDialog] = useState(false)
@@ -2009,7 +2011,7 @@ export default function Accounts() {
         </Card>
         {/* Unified accounts opened as local popup (like فاتورة جديدة) */}
         <Dialog open={showUnifiedPopup} onOpenChange={setShowUnifiedPopup}>
-          <DialogContent className="max-w-[95vw] sm:max-w-[90vw] md:max-w-[80vw] lg:max-w-[70vw] max-h-[95vh] overflow-hidden p-0" dir="rtl"
+          <DialogContent inline={fullscreenEnabled && showUnifiedPopup} className="max-w-[95vw] sm:max-w-[90vw] md:max-w-[80vw] lg:max-w-[70vw] max-h-[95vh] overflow-hidden p-0" dir="rtl"
                     onPointerDownOutside={(event) => event.preventDefault()}
                     onEscapeKeyDown={(event) => event.preventDefault()}
                   >

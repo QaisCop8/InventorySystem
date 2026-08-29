@@ -270,6 +270,7 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
     }
   }, [state.salesOrders])
   const hasFetched = useRef(false);
+  const openedOrderFromReportRef = useRef(0)
   useEffect(() => {
     if (hasFetched.current) return;
     hasFetched.current = true;
@@ -293,6 +294,15 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
   useEffect(() => {
     if (state.showNewOrderDialog === false) fetchSalesOrders()
   }, [state.showNewOrderDialog])
+  useEffect(() => {
+    if (isPurchase || !state.salesOrders.length) return
+    const orderId = Number(searchParams.get("open_order_id") || 0)
+    if (!orderId || openedOrderFromReportRef.current === orderId) return
+    const order = state.salesOrders.find((item) => Number(item.id) === orderId)
+    if (!order) return
+    openedOrderFromReportRef.current = orderId
+    setState((prev) => ({ ...prev, showNewOrderDialog: true, selectedOrder: order, fromSearch: true }))
+  }, [isPurchase, searchParams, state.salesOrders])
 
   const fetchSalesOrders = async () => {
     setState(prev => ({ ...prev, loading: true, error: null }));
