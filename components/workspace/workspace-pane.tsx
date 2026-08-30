@@ -71,7 +71,13 @@ function MountedWorkspaceTab({
   const [dialogContainer, setDialogContainer] = useState<HTMLDivElement | null>(null)
 
   return (
-    <div className={cn("absolute inset-0", !active && "hidden")} aria-hidden={!active}>
+    <div
+      className={cn(
+        "absolute inset-0",
+        active ? "visible z-10" : "invisible z-0 pointer-events-none",
+      )}
+      aria-hidden={!active}
+    >
       <WorkspaceDialogProvider container={dialogContainer} confined>
         <div className="h-full overflow-auto">{renderSection(tab.section)}</div>
         <div ref={setDialogContainer} className="pointer-events-none absolute inset-0 z-[100] isolate overflow-visible" />

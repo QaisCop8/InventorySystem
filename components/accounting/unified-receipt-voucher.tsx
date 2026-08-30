@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState, type MutableRefObject } from "react"
 import { Plus, Trash2, ListPlus, FileText, User, Wallet, MessageSquare, Landmark, CreditCard, BookOpen, X } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useWorkspace } from "@/contexts/workspace-context"
@@ -398,6 +398,36 @@ export default function UnifiedReceiptVoucher({
   const [dueDatePickerOpen, setDueDatePickerOpen] = useState(false)
   const [dueDateRow, setDueDateRow] = useState<number | null>(null)
   const chequeGridRef = useRef<any>(null)
+  const journalGridRef = useRef<any>(null)
+
+  const detachGridItemsSource = (gridRef: MutableRefObject<any>) => {
+    const grid = resolveFlexControl(gridRef.current)
+    if (!grid) return
+    try {
+      grid.finishEditing?.()
+    } catch {}
+    try {
+      grid.itemsSource = null
+    } catch {}
+    gridRef.current = null
+  }
+
+  const handleTabChange = (nextTab: string) => {
+    // Radix unmounts inactive TabsContent during the same state update. Detach first so the
+    // CollectionView cannot notify a disposed FlexGrid on the next form update.
+    if (activeTab === "cheques" && nextTab !== "cheques") detachGridItemsSource(chequeGridRef)
+    if (activeTab === "journal" && nextTab !== "journal") detachGridItemsSource(journalGridRef)
+    setActiveTab(nextTab)
+  }
+
+  useEffect(() => {
+    return () => {
+      detachGridItemsSource(chequeGridRef)
+      detachGridItemsSource(journalGridRef)
+    }
+    // Grid refs are stable for this component lifetime.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Wijmo measures and focuses the grid while it mounts. Mounting it in the
   // same event that changes a Radix tab can leave the tab/dialog focus layer
@@ -418,7 +448,6 @@ export default function UnifiedReceiptVoucher({
       if (secondFrame) cancelAnimationFrame(secondFrame)
     }
   }, [activeTab])
-  const journalGridRef = useRef<any>(null)
   const [postDialogOpen, setPostDialogOpen] = useState(false)
   const doHotKeys = useRef(true)
   const isReceipt = form.vch_type === 4 // per voucher_types_tbl: 4 = سند قبض, 5 = سند صرف
@@ -483,25 +512,34 @@ export default function UnifiedReceiptVoucher({
     }
   }, [errorMessages])
 
-  const initialSnapshotRef = useRef<string>(JSON.stringify(form))
+  const hashForm = (value: VoucherRecord) => {
+    const serialized = JSON.stringify(value)
+    let hash = 0
+    for (let index = 0; index < serialized.length; index += 1) {
+      hash = (hash << 5) - hash + serialized.charCodeAt(index)
+      hash |= 0
+    }
+    return hash
+  }
+
+  const initialFormHashRef = useRef<number>(hashForm(form))
   const [showUnsavedConfirm, setShowUnsavedConfirm] = useState(false)
   const pendingActionRef = useRef<(() => void) | null>(null)
 
   useEffect(() => {
     const snapshotTimer = window.setTimeout(() => {
-      initialSnapshotRef.current = JSON.stringify(form)
+      initialFormHashRef.current = hashForm(form)
     }, 0)
     setActiveTab("main")
     return () => window.clearTimeout(snapshotTimer)
-    // form.vch_code يتغيّر أيضاً عند إعادة تصفير النموذج لمسودة جديدة بعد حفظ ناجح (id يبقى 0 في
-    // الحالتين) — بدونه تبقى initialSnapshotRef محتفظة بلقطة المسودة القديمة (قبل الحفظ)، فتُقارَن
-    // المسودة الجديدة الفارغة بها وتظهر "تم تعديل البيانات، هل تريد الحفظ؟" رغم عدم لمس المستخدم لها.
+    // لا تعتمد على form.vch_code هنا: كل حرف يكتبه المستخدم كان يعيد ضبط لقطة التغييرات غير
+    // المحفوظة ويعيد التبويب إلى الرئيسية، فيُعامَل تعديل رقم السند كأنه لم يحدث.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dialogOpen, form.id, form.vch_code, isNewMode])
+  }, [dialogOpen, form.id, isNewMode])
 
   const guardedAction = (action: () => void) => {
     if (showUnsavedConfirm) return
-    if (JSON.stringify(form) !== initialSnapshotRef.current) {
+    if (hashForm(form) !== initialFormHashRef.current) {
       pendingActionRef.current = action
       setShowUnsavedConfirm(true)
     } else {
@@ -634,10 +672,10 @@ export default function UnifiedReceiptVoucher({
     if (typeof window === "undefined" || !dialogOpen) return
     const t = setTimeout(() => dateInputRef.current?.focus(), 120)
     return () => clearTimeout(t)
-    // form.vch_code يتغيّر أيضاً عند الضغط على "جديد" مرتين متتاليتين قبل الحفظ (id يبقى 0 في
-    // الحالتين)، لذا نعتمد عليه أيضاً حتى تعمل إعادة تركيز التاريخ في هذه الحالة أيضاً.
+    // لا تضع form.vch_code ضمن الاعتماديات: تغيّره مع كل ضغطة مفتاح كان ينقل التركيز تلقائياً
+    // من رقم السند إلى التاريخ قبل أن يضغط المستخدم Enter أو Tab.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dialogOpen, form.id, form.vch_code, isNewMode])
+  }, [dialogOpen, form.id, isNewMode])
 
   const totalAmount = Number(form.amount || 0)
 
@@ -1741,7 +1779,7 @@ export default function UnifiedReceiptVoucher({
     <>
       <Dialog
         open={dialogOpen}
-        onOpenChange={onOpenChange}
+        onOpenChange={(open) => (open ? onOpenChange(true) : guardedAction(() => onOpenChange(false)))}
       >
         <DialogContent
           inline={fullscreenEnabled && dialogOpen}
@@ -1758,7 +1796,7 @@ export default function UnifiedReceiptVoucher({
           <button
             type="button"
             aria-label="إغلاق"
-            onClick={() => onOpenChange(false)}
+            onClick={() => guardedAction(() => onOpenChange(false))}
             className="universal-dialog-close absolute left-[14px] top-[10px] z-[100] inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/95 text-slate-900 shadow-lg ring-1 ring-slate-200 transition-opacity hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-sky-400 focus:ring-offset-2"
           >
             <X className="h-4 w-4" />
@@ -2060,7 +2098,7 @@ export default function UnifiedReceiptVoucher({
             </div>
 
             {/* Tabs: الرئيسية, الشيكات, تفاصيل البطاقة, الحسابات, ملاحظات, المرفقات, الحقول الإضافية */}
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="pt-4">
+            <Tabs value={activeTab} onValueChange={handleTabChange} className="pt-4">
               <TabsList className="flex h-auto flex-wrap justify-start gap-1 bg-slate-100 p-1">
                 <TabsTrigger value="main" className={voucherTabTriggerClass}>الرئيسية</TabsTrigger>
                 <TabsTrigger value="cheques" className={voucherTabTriggerClass}>الشيكات</TabsTrigger>
