@@ -20,6 +20,46 @@ export default function ClientProviders({ children }: { children: React.ReactNod
     void syncSystemSettingsToLocalStorage()
   }, [])
 
+  // Browsers heavily throttle close-animation timers while a tab is sleeping. If a Radix modal
+  // closes or unmounts during that time, its global `body { pointer-events: none }` lock can survive
+  // after the modal itself is gone, making every button and page look frozen until a full refresh.
+  // Recover only when no modal is genuinely open, then notify grids/layouts that the page is visible
+  // again so controls suspended in the background can recalculate their bounds.
+  useEffect(() => {
+    let frameId: number | null = null
+
+    const recoverInteraction = () => {
+      if (document.visibilityState === "hidden") return
+      const hasOpenDialog = document.querySelector('[role="dialog"][data-state="open"]')
+      const hasOpenOverlay = document.querySelector('[data-radix-dialog-overlay][data-state="open"]')
+
+      if (!hasOpenDialog && !hasOpenOverlay && document.body.style.pointerEvents === "none") {
+        document.body.style.pointerEvents = ""
+      }
+
+      if (frameId !== null) window.cancelAnimationFrame(frameId)
+      frameId = window.requestAnimationFrame(() => {
+        frameId = null
+        window.dispatchEvent(new Event("resize"))
+      })
+    }
+
+    const handleVisibilityChange = () => recoverInteraction()
+    document.addEventListener("visibilitychange", handleVisibilityChange)
+    window.addEventListener("focus", recoverInteraction)
+    window.addEventListener("pageshow", recoverInteraction)
+    window.addEventListener("online", recoverInteraction)
+    recoverInteraction()
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange)
+      window.removeEventListener("focus", recoverInteraction)
+      window.removeEventListener("pageshow", recoverInteraction)
+      window.removeEventListener("online", recoverInteraction)
+      if (frameId !== null) window.cancelAnimationFrame(frameId)
+    }
+  }, [])
+
   return (
     <PrimeReactProvider>
       <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>

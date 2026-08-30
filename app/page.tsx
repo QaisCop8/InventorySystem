@@ -265,9 +265,13 @@ function HomePageContent() {
   // useState (نفّذ مرة واحدة عند أول عرض فقط)، الآن عبر workspace بدل حالة activeSection مباشرة.
   useEffect(() => {
     const fromUrl = searchParams.get("section")
-    if (!fromUrl) return
-    const resolved = fromUrl === "home-dashboard" || fromUrl === "dashboard" || componentMap[fromUrl] ? fromUrl : null
-    if (resolved) openSection(resolved, titleFor(resolved), "a")
+    const resolved =
+      !fromUrl || fromUrl === "home-dashboard" || fromUrl === "dashboard"
+        ? "home-dashboard"
+        : componentMap[fromUrl]
+          ? fromUrl
+          : "home-dashboard"
+    openSection(resolved, titleFor(resolved), "a")
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
