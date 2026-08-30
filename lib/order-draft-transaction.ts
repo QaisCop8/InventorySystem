@@ -67,7 +67,10 @@ export async function syncDepositReceipt(client: PoolClient, args: { draftId: nu
   const { draftId, draftNumber, accountId, customerName, orderDate, deposit, userId } = args
   let receiptId = Number(args.receiptVoucherId || 0) || null
   if (deposit <= 0) {
-    if (receiptId) await client.query("UPDATE voucher_header_tbl SET status=3, vch_status=1, amount=0, cash_amount=0, last_update_date=CURRENT_TIMESTAMP WHERE id=$1 AND status<>2", [receiptId])
+    if (receiptId) {
+      await client.query("UPDATE voucher_header_tbl SET status=3, vch_status=1, amount=0, last_update_date=CURRENT_TIMESTAMP WHERE id=$1 AND status<>2", [receiptId])
+      await client.query("DELETE FROM voucher_journal_detail_tbl WHERE voucher_id=$1", [receiptId])
+    }
     return receiptId
   }
   const defaults = await client.query(`SELECT u.currency_id,u.account_id AS cash_account_id FROM users_currencies_default_account_tbl u JOIN account_tbl a ON a.id=u.account_id WHERE u.user_id=$1 AND u.currency_id IS NOT NULL AND COALESCE(a.status::text,'1') IN ('1','2','active','ACTIVE','نشط') ORDER BY u.currency_id LIMIT 1`, [userId])
@@ -75,11 +78,11 @@ export async function syncDepositReceipt(client: PoolClient, args: { draftId: nu
   const { currency_id: currencyId, cash_account_id: cashAccountId } = defaults.rows[0]
   const note = `عربون مسودة طلبية ${draftNumber}`
   if (receiptId) {
-    const updated = await client.query(`UPDATE voucher_header_tbl SET vch_date=$2,currency_id=$3,rate=1,account_id=$4,customer_name=$5,to_account_id=$4,cash_amount=$6,cash_account_id=$7,check_amount=0,credit_card_amount=0,amount=$6,note=$8,status=1,vch_status=1,draft_code=$9,last_update_date=CURRENT_TIMESTAMP WHERE id=$1 AND status<>2 RETURNING id`, [receiptId, orderDate, currencyId, accountId, customerName, deposit, cashAccountId, note, draftNumber])
+    const updated = await client.query(`UPDATE voucher_header_tbl SET vch_date=$2,currency_id=$3,rate=1,account_id=$4,customer_name=$5,to_account_id=$4,amount=$6,note=$7,status=1,vch_status=1,draft_code=$8,last_update_date=CURRENT_TIMESTAMP WHERE id=$1 AND status<>2 RETURNING id`, [receiptId, orderDate, currencyId, accountId, customerName, deposit, note, draftNumber])
     if (!updated.rowCount) throw new DraftValidationError("سند العربون مُرحّل ولا يمكن تعديل المسودة")
   } else {
     const code = `DEP-${draftNumber}`.slice(0, 30)
-    const inserted = await client.query(`INSERT INTO voucher_header_tbl (vch_type,vch_code,vch_date,currency_id,rate,account_id,customer_name,to_account_id,cash_amount,cash_account_id,check_amount,credit_card_amount,amount,note,status,vch_status,is_printed,insert_user,draft_code) VALUES (4,$1,$2,$3,1,$4,$5,$4,$6,$7,0,0,$6,$8,1,1,0,$9,$10) RETURNING id`, [code, orderDate, currencyId, accountId, customerName, deposit, cashAccountId, note, userId, draftNumber])
+    const inserted = await client.query(`INSERT INTO voucher_header_tbl (vch_type,vch_code,vch_date,currency_id,rate,account_id,customer_name,to_account_id,amount,note,status,vch_status,is_printed,insert_user,draft_code) VALUES (4,$1,$2,$3,1,$4,$5,$4,$6,$7,1,1,0,$8,$9) RETURNING id`, [code, orderDate, currencyId, accountId, customerName, deposit, note, userId, draftNumber])
     receiptId = inserted.rows[0].id
     await client.query("UPDATE sales_order_drafts SET receipt_voucher_id=$1 WHERE id=$2", [receiptId, draftId])
   }

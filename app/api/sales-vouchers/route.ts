@@ -462,7 +462,7 @@ export async function POST(request: NextRequest) {
         amount, manual_voucher, manual_date, note, status, vch_status, is_printed,
         insert_user, shipping_address, salesman_id, linked_order_id,
         discount_type, discount_value, vat_percent,
-        cash_account_id, vat_classification_id, invoice_type, vat_included, is_maqasa, maqasa_type,
+        vat_classification_id, invoice_type, vat_included, is_maqasa, maqasa_type,
         phone, due_date, is_exported_sales, location_id
       ) VALUES (
         ${vchType}, ${vchCode}, ${data.vch_date}, ${data.vch_book_id || null}, ${authorization.branchId}, ${data.currency_id || null}, ${Number(data.rate || 1)},
@@ -470,7 +470,7 @@ export async function POST(request: NextRequest) {
         ${amount}, ${data.manual_voucher || ""}, ${data.manual_date || null}, ${data.note || ""}, ${status}, ${status === 2 ? 2 : 1}, ${Number(data.is_printed || 0)},
         ${data.insert_user || null}, ${data.shipping_address || ""}, ${data.salesman_id || null}, ${data.linked_order_id || null},
         ${discountType}, ${Number(data.discount_value || 0)}, ${Number(data.vat_percent || 0)},
-        ${data.cash_account_id || null}, ${Number(data.vat_classification_id) || 1}, ${Number(data.invoice_type) || 1},
+        ${Number(data.vat_classification_id) || 1}, ${Number(data.invoice_type) || 1},
         ${Boolean(data.vat_included)}, ${Boolean(data.is_maqasa)}, ${data.is_maqasa ? Number(data.maqasa_type) || 1 : null},
         ${data.phone || ""}, ${data.due_date || null}, ${Boolean(data.is_exported_sales)}, ${data.city_id || null}
       )
@@ -611,7 +611,6 @@ export async function PUT(request: NextRequest) {
         discount_type = ${discountType},
         discount_value = ${Number(data.discount_value || 0)},
         vat_percent = ${Number(data.vat_percent || 0)},
-        cash_account_id = ${data.cash_account_id || null},
         vat_classification_id = ${Number(data.vat_classification_id) || 1},
         invoice_type = ${Number(data.invoice_type) || 1},
         vat_included = ${Boolean(data.vat_included)},

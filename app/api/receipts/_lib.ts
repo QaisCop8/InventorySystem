@@ -26,8 +26,6 @@ export const ensureTables = async () => {
       vch_date TIMESTAMP WITHOUT TIME ZONE NOT NULL,
       currency_id INTEGER,
       rate DOUBLE PRECISION DEFAULT 1,
-      cash_amount DOUBLE PRECISION DEFAULT 0,
-      cash_account_id INTEGER,
       amount DOUBLE PRECISION DEFAULT 0,
       note VARCHAR(200),
       status INTEGER DEFAULT 1,
@@ -80,10 +78,6 @@ export const ensureTables = async () => {
   await sql`ALTER TABLE voucher_header_tbl ADD COLUMN IF NOT EXISTS account_id INTEGER`
   await sql`ALTER TABLE voucher_header_tbl ADD COLUMN IF NOT EXISTS customer_name VARCHAR(150)`
   await sql`ALTER TABLE voucher_header_tbl ADD COLUMN IF NOT EXISTS to_account_id INTEGER`
-  await sql`ALTER TABLE voucher_header_tbl ADD COLUMN IF NOT EXISTS check_amount DOUBLE PRECISION DEFAULT 0`
-  await sql`ALTER TABLE voucher_header_tbl ADD COLUMN IF NOT EXISTS check_account_id INTEGER`
-  await sql`ALTER TABLE voucher_header_tbl ADD COLUMN IF NOT EXISTS credit_card_amount DOUBLE PRECISION DEFAULT 0`
-  await sql`ALTER TABLE voucher_header_tbl ADD COLUMN IF NOT EXISTS credit_card_account_id INTEGER`
   await sql`ALTER TABLE voucher_header_tbl ADD COLUMN IF NOT EXISTS payment_classification_id INTEGER`
   await sql`ALTER TABLE voucher_header_tbl ADD COLUMN IF NOT EXISTS salesman_id INTEGER`
   await sql`ALTER TABLE voucher_header_tbl ADD COLUMN IF NOT EXISTS manual_voucher VARCHAR(30)`
@@ -239,14 +233,70 @@ export const ensureTables = async () => {
   // النتيجة بغضّ النظر عن عدد مرات التشغيل: buildJournalRows يضع دائماً note='نقدي'/'شيكات'/
   // 'بطاقات' لهذه الأنواع الثلاثة تحديداً (وليس أي سطر آخر)، وأي سطر آخر (حساب مقابل لسند قبض/صرف
   // أو سطر سند قيد) هو دائماً النوع 5.
-  await sql`UPDATE voucher_journal_detail_tbl SET journal_type_id = ${JOURNAL_TYPE_CASH} WHERE note = 'نقدي' AND journal_type_id IS DISTINCT FROM ${JOURNAL_TYPE_CASH}`
-  await sql`UPDATE voucher_journal_detail_tbl SET journal_type_id = ${JOURNAL_TYPE_CHEQUE} WHERE note = 'شيكات' AND journal_type_id IS DISTINCT FROM ${JOURNAL_TYPE_CHEQUE}`
-  await sql`UPDATE voucher_journal_detail_tbl SET journal_type_id = ${JOURNAL_TYPE_CARD} WHERE note = 'بطاقات' AND journal_type_id IS DISTINCT FROM ${JOURNAL_TYPE_CARD}`
+  await sql`UPDATE voucher_journal_detail_tbl vjd SET journal_type_id = ${JOURNAL_TYPE_CASH} FROM voucher_header_tbl vh WHERE vh.id = vjd.voucher_id AND vh.vch_type IN (4, 5) AND vjd.note = 'نقدي' AND vjd.journal_type_id IS DISTINCT FROM ${JOURNAL_TYPE_CASH}`
+  await sql`UPDATE voucher_journal_detail_tbl vjd SET journal_type_id = ${JOURNAL_TYPE_CHEQUE} FROM voucher_header_tbl vh WHERE vh.id = vjd.voucher_id AND vh.vch_type IN (4, 5) AND vjd.note = 'شيكات' AND vjd.journal_type_id IS DISTINCT FROM ${JOURNAL_TYPE_CHEQUE}`
+  await sql`UPDATE voucher_journal_detail_tbl vjd SET journal_type_id = ${JOURNAL_TYPE_CARD} FROM voucher_header_tbl vh WHERE vh.id = vjd.voucher_id AND vh.vch_type IN (4, 5) AND vjd.note = 'بطاقات' AND vjd.journal_type_id IS DISTINCT FROM ${JOURNAL_TYPE_CARD}`
   await sql`
-    UPDATE voucher_journal_detail_tbl SET journal_type_id = ${JOURNAL_TYPE_COUNTER_ACCOUNT}
-    WHERE (note IS NULL OR note NOT IN ('نقدي', 'شيكات', 'بطاقات'))
-      AND journal_type_id IS DISTINCT FROM ${JOURNAL_TYPE_COUNTER_ACCOUNT}
+    UPDATE voucher_journal_detail_tbl vjd SET journal_type_id = ${JOURNAL_TYPE_COUNTER_ACCOUNT}
+    FROM voucher_header_tbl vh
+    WHERE vh.id = vjd.voucher_id AND vh.vch_type IN (4, 5)
+      AND (vjd.note IS NULL OR vjd.note NOT IN ('نقدي', 'شيكات', 'بطاقات'))
+      AND vjd.journal_type_id IS DISTINCT FROM ${JOURNAL_TYPE_COUNTER_ACCOUNT}
   `
+
+  // One-time migration from the six legacy payment columns on voucher_header_tbl.
+  // Each payment method is now represented exclusively by its journal_type_id row.
+  await sql`
+    DO $$
+    BEGIN
+      IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = current_schema() AND table_name = 'voucher_header_tbl' AND column_name = 'cash_amount'
+      ) THEN
+        INSERT INTO voucher_journal_detail_tbl (
+          voucher_id, order_no, journal_type_id, account_id, credit_debit,
+          amount, currency_id, rate, base_curr_amount, account_currency_id, account_rate, account_amount, note
+        )
+        SELECT h.id, COALESCE((SELECT MAX(j.order_no) + 1 FROM voucher_journal_detail_tbl j WHERE j.voucher_id = h.id), 1),
+          2, h.cash_account_id, CASE WHEN h.vch_type = 4 THEN 1 ELSE 2 END,
+          h.cash_amount, h.currency_id, COALESCE(h.rate, 1), h.cash_amount * COALESCE(h.rate, 1),
+          h.currency_id, COALESCE(h.rate, 1), h.cash_amount, 'نقدي'
+        FROM voucher_header_tbl h
+        WHERE COALESCE(h.cash_amount, 0) > 0 AND h.cash_account_id IS NOT NULL
+          AND NOT EXISTS (SELECT 1 FROM voucher_journal_detail_tbl j WHERE j.voucher_id = h.id AND j.journal_type_id = 2);
+
+        INSERT INTO voucher_journal_detail_tbl (
+          voucher_id, order_no, journal_type_id, account_id, credit_debit,
+          amount, currency_id, rate, base_curr_amount, account_currency_id, account_rate, account_amount, note
+        )
+        SELECT h.id, COALESCE((SELECT MAX(j.order_no) + 1 FROM voucher_journal_detail_tbl j WHERE j.voucher_id = h.id), 1),
+          3, h.check_account_id, CASE WHEN h.vch_type = 4 THEN 1 ELSE 2 END,
+          h.check_amount, h.currency_id, COALESCE(h.rate, 1), h.check_amount * COALESCE(h.rate, 1),
+          h.currency_id, COALESCE(h.rate, 1), h.check_amount, 'شيكات'
+        FROM voucher_header_tbl h
+        WHERE COALESCE(h.check_amount, 0) > 0 AND h.check_account_id IS NOT NULL
+          AND NOT EXISTS (SELECT 1 FROM voucher_journal_detail_tbl j WHERE j.voucher_id = h.id AND j.journal_type_id = 3);
+
+        INSERT INTO voucher_journal_detail_tbl (
+          voucher_id, order_no, journal_type_id, account_id, credit_debit,
+          amount, currency_id, rate, base_curr_amount, account_currency_id, account_rate, account_amount, note
+        )
+        SELECT h.id, COALESCE((SELECT MAX(j.order_no) + 1 FROM voucher_journal_detail_tbl j WHERE j.voucher_id = h.id), 1),
+          4, h.credit_card_account_id, CASE WHEN h.vch_type = 4 THEN 1 ELSE 2 END,
+          h.credit_card_amount, h.currency_id, COALESCE(h.rate, 1), h.credit_card_amount * COALESCE(h.rate, 1),
+          h.currency_id, COALESCE(h.rate, 1), h.credit_card_amount, 'بطاقات'
+        FROM voucher_header_tbl h
+        WHERE COALESCE(h.credit_card_amount, 0) > 0 AND h.credit_card_account_id IS NOT NULL
+          AND NOT EXISTS (SELECT 1 FROM voucher_journal_detail_tbl j WHERE j.voucher_id = h.id AND j.journal_type_id = 4);
+      END IF;
+    END $$
+  `
+  await sql`ALTER TABLE voucher_header_tbl DROP COLUMN IF EXISTS cash_amount`
+  await sql`ALTER TABLE voucher_header_tbl DROP COLUMN IF EXISTS cash_account_id`
+  await sql`ALTER TABLE voucher_header_tbl DROP COLUMN IF EXISTS check_amount`
+  await sql`ALTER TABLE voucher_header_tbl DROP COLUMN IF EXISTS check_account_id`
+  await sql`ALTER TABLE voucher_header_tbl DROP COLUMN IF EXISTS credit_card_amount`
+  await sql`ALTER TABLE voucher_header_tbl DROP COLUMN IF EXISTS credit_card_account_id`
 
   await sql`
     CREATE TABLE IF NOT EXISTS voucher_costcenter_tbl (
@@ -981,7 +1031,7 @@ export const fetchDetails = async (voucherId: number) => {
       ORDER BY vjd.order_no, vjd.id
     `,
     sql`
-      SELECT id, journal_type_id FROM voucher_journal_detail_tbl
+      SELECT id, journal_type_id, account_id, amount FROM voucher_journal_detail_tbl
       WHERE voucher_id = ${voucherId}
         AND journal_type_id = ANY(${[JOURNAL_TYPE_CASH, JOURNAL_TYPE_CHEQUE, JOURNAL_TYPE_CARD]}::int[])
     `,
@@ -1027,11 +1077,23 @@ export const fetchDetails = async (voucherId: number) => {
     cashCheckCardCostCenters.set(row.journal_type_id, costCentersByJournalId.get(row.id) || [])
   }
 
+  const paymentRowByType = new Map<number, any>()
+  for (const row of cashCheckCardRows) paymentRowByType.set(Number(row.journal_type_id), row)
+  const cashRow = paymentRowByType.get(JOURNAL_TYPE_CASH)
+  const chequeRow = paymentRowByType.get(JOURNAL_TYPE_CHEQUE)
+  const cardRow = paymentRowByType.get(JOURNAL_TYPE_CARD)
+
   return {
     journal,
     cheques,
     notes,
     cards,
+    cash_amount: cashRow?.amount == null ? null : Number(cashRow.amount),
+    cash_account_id: cashRow?.account_id == null ? null : Number(cashRow.account_id),
+    check_amount: chequeRow?.amount == null ? null : Number(chequeRow.amount),
+    check_account_id: chequeRow?.account_id == null ? null : Number(chequeRow.account_id),
+    credit_card_amount: cardRow?.amount == null ? null : Number(cardRow.amount),
+    credit_card_account_id: cardRow?.account_id == null ? null : Number(cardRow.account_id),
     cash_account_cost_centers: cashCheckCardCostCenters.get(JOURNAL_TYPE_CASH) || [],
     check_account_cost_centers: cashCheckCardCostCenters.get(JOURNAL_TYPE_CHEQUE) || [],
     credit_card_account_cost_centers: cashCheckCardCostCenters.get(JOURNAL_TYPE_CARD) || [],
@@ -1065,10 +1127,10 @@ export const archiveAndDeleteVoucher = async (voucherId: number): Promise<{ erro
       is_exported_sales, draft_code, twins_vch_id
     )
     SELECT
-      id, vch_type, vch_code, vch_date, currency_id, rate, cash_amount, cash_account_id,
+      id, vch_type, vch_code, vch_date, currency_id, rate, 0, NULL,
       amount, note, status, vch_status, vch_book_id, account_id,
-      customer_name, to_account_id, check_amount, check_account_id, credit_card_amount,
-      credit_card_account_id, payment_classification_id, salesman_id, manual_voucher,
+      customer_name, to_account_id, 0, NULL, 0,
+      NULL, payment_classification_id, salesman_id, manual_voucher,
       manual_date, is_printed, insert_user, update_user, insert_date, last_update_date,
       company_id, discount, updated_vch_id, payment_type_id, approved, location_id,
       internal_voucher_id, language_id, print_setting_id, print_attachment_id, phone,

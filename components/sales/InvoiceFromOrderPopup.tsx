@@ -168,7 +168,9 @@ export default function InvoiceFromOrderPopup({
                   }}
                   disabled={added}
                   title={added ? "تمت الإضافة بالفعل" : "أضف عناصر هذه الطلبية"}
-                >←</button>
+                >
+                  <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+                </button>
                 <button
                   type="button"
                   className="rounded-md border border-slate-300 bg-white px-2 py-1 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
@@ -177,7 +179,9 @@ export default function InvoiceFromOrderPopup({
                     handleRemoveOrderItems(row.id)
                   }}
                   title="إزالة عناصر هذه الطلبية"
-                >→</button>
+                >
+                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                </button>
               </div>
             )
           },
@@ -200,7 +204,16 @@ export default function InvoiceFromOrderPopup({
             const row = cell.row.dataItem as SalesVoucherItemRow
             const key = itemKey(row)
             const checked = selectedOrderItems.some((item) => itemKey(item) === key)
-            return <input type="checkbox" checked={checked} aria-label={`اختيار ${row.item_name || row.product_name}`} onChange={(event) => setSelectedOrderItems((current) => event.target.checked ? [...current.filter((item) => itemKey(item) !== key), row] : current.filter((item) => itemKey(item) !== key))} />
+            return (
+              <input
+                type="checkbox"
+                checked={checked}
+                className="h-4 w-4 cursor-pointer accent-emerald-600"
+                aria-label={`اختيار ${row.item_name || row.product_name || "الصنف"}`}
+                onClick={(event) => event.stopPropagation()}
+                onChange={() => toggleSelectedOrderItem(row)}
+              />
+            )
           },
         },
         {
@@ -224,25 +237,6 @@ export default function InvoiceFromOrderPopup({
           body: (cell: any) => <span>{Number(cell.row.dataItem.unit_price || 0).toFixed(2)}</span>,
         },
         { header: orderLabel, name: "source_voucher_code", width: 120, isReadOnly: true },
-        {
-          header: "إزالة",
-          name: "remove",
-          width: 70,
-          isReadOnly: true,
-          body: (cell: any) => (
-            <button
-              type="button"
-              className="rounded-md border border-red-200 px-2 py-1 text-sm text-red-700 hover:bg-red-50"
-              onClick={(event) => {
-                event.stopPropagation()
-                const row = cell.row.dataItem as SalesVoucherItemRow
-                setSelectedOrderItems((current) => current.filter((item) => itemKey(item) !== itemKey(row)))
-              }}
-            >
-              ×
-            </button>
-          ),
-        },
       ],
     }),
     [orderLabel, selectedOrderItems],
@@ -292,7 +286,6 @@ export default function InvoiceFromOrderPopup({
   const loadOrderItems = async (orderId: number): Promise<SalesVoucherItemRow[]> => {
     setItemsLoading(true)
     setItemsError(null)
-    setOrderItems([])
     try {
       const query = new URLSearchParams({ order_id: String(orderId), order_type: String(orderType) })
       const response = await fetch(`/api/sales-vouchers/order-items?${query.toString()}`)
@@ -340,7 +333,6 @@ export default function InvoiceFromOrderPopup({
             account_cost_centers: Array.isArray(item.account_cost_centers) ? item.account_cost_centers : [],
           }))
         : []
-      setOrderItems(items)
       return items
     } catch (err) {
       console.error("InvoiceFromOrderPopup loadOrderItems error:", err)
@@ -384,7 +376,7 @@ export default function InvoiceFromOrderPopup({
     <Dialog open={open} onOpenChange={handleDialogOpenChange}>
       <DialogContent
         hideCloseButton
-        className="flex h-auto max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-[1280px] flex-col overflow-hidden rounded-2xl border border-emerald-200 bg-white p-0 shadow-2xl sm:w-[96vw]"
+        className="flex h-[92vh] max-h-[92vh] w-[96vw] max-w-[1500px] flex-col overflow-hidden rounded-3xl border border-slate-200 bg-slate-50 p-0 shadow-2xl"
         onInteractOutside={(event) => {
           event.preventDefault()
         }}
@@ -450,12 +442,16 @@ export default function InvoiceFromOrderPopup({
                     <div className="text-sm text-slate-500">لا توجد طلبات متاحة.</div>
                   ) : (
                     <DataGridView
-                      dataSource={orders}
+                      dataSource={orders.map((order, index) => ({ ...order, index }))}
                       scheme={ordersScheme}
                       idProperty="id"
                       isReadOnly={true}
                       showContextMenu={false}
                       dontConvertToCards={true}
+                      allowDragging="Rows"
+                      headersVisibility="Column"
+                      isReport={false}
+                      defaultRowHeight={38}
                       containerStyle={{ height: "100%", minHeight: 0 }}
                       style={{ height: "100%", minHeight: 0 }}
                       onRowDoubleClick={(row: OrderHeader) => {
@@ -488,6 +484,10 @@ export default function InvoiceFromOrderPopup({
                       isReadOnly={true}
                       showContextMenu={false}
                       dontConvertToCards={true}
+                      allowDragging="Rows"
+                      headersVisibility="Column"
+                      isReport={false}
+                      defaultRowHeight={38}
                       containerStyle={{ height: "100%", minHeight: 0 }}
                       style={{ height: "100%", minHeight: 0 }}
                       onRowDoubleClick={(row: SalesVoucherItemRow) => {

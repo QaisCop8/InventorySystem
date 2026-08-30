@@ -887,15 +887,54 @@ export default function UnifiedStockVoucher({
   useEffect(() => {
     if (!dialogOpen) return
 
+    let retryId: ReturnType<typeof setTimeout> | null = null
     let frameId: number | null = requestAnimationFrame(() => {
       const gridBeforeSync = resolveFlexControl(chequeGridRef.current)
       const prevSelection = readGridSelection(gridBeforeSync)
 
       try {
-        itemsCollectionView.sourceCollection = items.map((row, i) => ({ ...row, ser: i + 1 }))
+        const normalizedItems = items.map((row, i) => ({ ...row, ser: i + 1 }))
+
+        // Keep the visible FlexGrid attached to the stable CollectionView before replacing
+        // its source. Without this, Wijmo can retain the previous row set until a tab change
+        // forces a layout refresh (the same lifecycle race fixed in sales-delivery).
+        if (gridBeforeSync) {
+          try {
+            gridBeforeSync.finishEditing?.()
+            gridBeforeSync.itemsSource = itemsCollectionView
+          } catch {}
+        }
+
+        itemsCollectionView.sourceCollection = normalizedItems
         itemsCollectionView.refresh()
+
+        for (const gridRef of [chequeGridRef, accountsGridRef]) {
+          const grid = resolveFlexControl(gridRef.current)
+          if (!grid) continue
+          try {
+            grid.itemsSource = itemsCollectionView
+          } catch {}
+          try {
+            grid.invalidate?.()
+          } catch {}
+          try {
+            grid.refresh?.()
+          } catch {}
+        }
       } catch {
-        // Ignore a transient grid lifecycle failure; the fresh CollectionView is retried on the next render.
+        // A grid can still be mounting when a product popup closes. Retry once after it settles.
+        retryId = setTimeout(() => {
+          try {
+            itemsCollectionView.sourceCollection = items.map((row, i) => ({ ...row, ser: i + 1 }))
+            itemsCollectionView.refresh()
+            const grid = resolveFlexControl(chequeGridRef.current)
+            if (grid) {
+              grid.itemsSource = itemsCollectionView
+              grid.invalidate?.()
+              grid.refresh?.()
+            }
+          } catch {}
+        }, 80)
       }
 
       const pending = pendingFocusRef.current
@@ -941,7 +980,9 @@ export default function UnifiedStockVoucher({
     })
     return () => {
       if (frameId !== null) cancelAnimationFrame(frameId)
+      if (retryId !== null) clearTimeout(retryId)
       frameId = null
+      retryId = null
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items, dialogOpen])

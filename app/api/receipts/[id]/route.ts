@@ -1,10 +1,11 @@
 import { type NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
-import { fetchDetails, archiveAndDeleteVoucher, markVoucherPrinted } from "../_lib"
+import { ensureTables, fetchDetails, archiveAndDeleteVoucher, markVoucherPrinted } from "../_lib"
 import { authorizeStoredVoucher } from "@/lib/transaction-permissions"
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
+    await ensureTables()
     const id = Number(params.id)
     if (!id) {
       return NextResponse.json({ error: "معرف السند غير صالح" }, { status: 400 })

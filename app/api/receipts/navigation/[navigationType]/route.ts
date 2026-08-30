@@ -1,9 +1,10 @@
 import { type NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
-import { fetchDetails } from "../../_lib"
+import { ensureTables, fetchDetails } from "../../_lib"
 
 export async function GET(request: NextRequest, { params }: { params: { navigationType: string } }) {
   try {
+    await ensureTables()
     const { navigationType } = params
     const currentId = Number(request.nextUrl.searchParams.get("currentId") || 0)
     const vchType = Number(request.nextUrl.searchParams.get("vch_type") || 1)

@@ -197,7 +197,7 @@ export const ensureTables = async () => {
   await sql`ALTER TABLE voucher_header_tbl ADD COLUMN IF NOT EXISTS discount_type VARCHAR(20) DEFAULT 'percentage'`
   await sql`ALTER TABLE voucher_header_tbl ADD COLUMN IF NOT EXISTS discount_value DOUBLE PRECISION DEFAULT 0`
   await sql`ALTER TABLE voucher_header_tbl ADD COLUMN IF NOT EXISTS vat_percent DOUBLE PRECISION DEFAULT 0`
-  // بقية الحقول الجديدة (cash_account_id، vat_classification_id/invoice_type/vat_included/
+  // بقية الحقول الجديدة (vat_classification_id/invoice_type/vat_included/
   // is_maqasa/maqasa_type، phone/due_date/is_exported_sales، location_id) محجوزة أصلاً على
   // voucher_header_tbl من receipts/_lib.ts — بلا ADD COLUMN هنا. حساب الضريبة تحديداً لا يُخزَّن
   // كعمود بالرأس إطلاقاً؛ بل كسطر قيد في voucher_journal_detail_tbl (انظر buildSalesVoucherJournalRows

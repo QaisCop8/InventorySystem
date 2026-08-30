@@ -208,13 +208,13 @@ export function UniversalToolbar({
 
           {onPrint && compactActionVisible(0) && <Button onClick={onPrint} disabled={isLoading || isSaving || !canPrint} className="shrink-0 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 px-3 py-2.5 text-sm font-semibold text-white"><Printer className="h-4 w-4" /><span>{labels.print}</span></Button>}
           {onClone && compactActionVisible(1) && <Button onClick={onClone} disabled={isLoading || !canClone} className="shrink-0 rounded-xl bg-gradient-to-r from-sky-500 to-blue-500 px-3 py-2.5 text-sm font-semibold text-white"><Copy className="h-4 w-4" /><span>{labels.clone}</span></Button>}
-          {onFirst && compactActionVisible(2) && <Button onClick={handleFirst} disabled={isFirstRecord} className="shrink-0 rounded-xl bg-white/10 px-3 py-2.5 text-sm text-slate-100"><ChevronsRight className="h-4 w-4" /><span>{labels.first}</span></Button>}
-          {onPrevious && compactActionVisible(3) && <Button onClick={handlePrevious} disabled={isFirstRecord} className="shrink-0 rounded-xl bg-white/10 px-3 py-2.5 text-sm text-slate-100"><ChevronRight className="h-4 w-4" /><span>{labels.previous}</span></Button>}
-          {onNext && compactActionVisible(4) && <Button onClick={handleNext} disabled={isLastRecord} className="shrink-0 rounded-xl bg-white/10 px-3 py-2.5 text-sm text-slate-100"><ChevronLeft className="h-4 w-4" /><span>{labels.next}</span></Button>}
-          {onLast && compactActionVisible(5) && <Button onClick={handleLast} disabled={isLastRecord} className="shrink-0 rounded-xl bg-white/10 px-3 py-2.5 text-sm text-slate-100"><ChevronsLeft className="h-4 w-4" /><span>{labels.last}</span></Button>}
+          {onFirst && compactActionVisible(2) && <Button onClick={handleFirst} className="shrink-0 rounded-xl bg-white/10 px-3 py-2.5 text-sm text-slate-100"><ChevronsRight className="h-4 w-4" /><span>{labels.first}</span></Button>}
+          {onPrevious && compactActionVisible(3) && <Button onClick={handlePrevious} className="shrink-0 rounded-xl bg-white/10 px-3 py-2.5 text-sm text-slate-100"><ChevronRight className="h-4 w-4" /><span>{labels.previous}</span></Button>}
+          {onNext && compactActionVisible(4) && <Button onClick={handleNext} className="shrink-0 rounded-xl bg-white/10 px-3 py-2.5 text-sm text-slate-100"><ChevronLeft className="h-4 w-4" /><span>{labels.next}</span></Button>}
+          {onLast && compactActionVisible(5) && <Button onClick={handleLast} className="shrink-0 rounded-xl bg-white/10 px-3 py-2.5 text-sm text-slate-100"><ChevronsLeft className="h-4 w-4" /><span>{labels.last}</span></Button>}
           {onDelete && compactActionVisible(6) && <Button onClick={onDelete} disabled={isLoading || !canDelete} className="shrink-0 rounded-xl bg-gradient-to-r from-rose-500 to-red-500 px-3 py-2.5 text-sm font-semibold text-white"><Trash2 className="h-4 w-4" /><span>{labels.delete}</span></Button>}
 
-          {hasOverflowActions && <DropdownMenu>
+          {hasOverflowActions && <DropdownMenu modal={false}>
             <DropdownMenuTrigger asChild>
               <Button
                 type="button"
@@ -226,13 +226,13 @@ export function UniversalToolbar({
                 <span>{"\u0623\u062e\u0631\u0649"}</span>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="min-w-48" dir="rtl">
+            <DropdownMenuContent align="start" className="z-[100] min-w-48 [direction:rtl]">
               {onPrint && !compactActionVisible(0) && <DropdownMenuItem disabled={isLoading || isSaving || !canPrint} onSelect={() => onPrint()}><Printer className="ml-2 h-4 w-4" />{labels.print}</DropdownMenuItem>}
               {onClone && !compactActionVisible(1) && <DropdownMenuItem disabled={isLoading || !canClone} onSelect={() => onClone()}><Copy className="ml-2 h-4 w-4" />{labels.clone}</DropdownMenuItem>}
-              {onFirst && !compactActionVisible(2) && <DropdownMenuItem disabled={isFirstRecord} onSelect={handleFirst}><ChevronsRight className="ml-2 h-4 w-4" />{labels.first}</DropdownMenuItem>}
-              {onPrevious && !compactActionVisible(3) && <DropdownMenuItem disabled={isFirstRecord} onSelect={handlePrevious}><ChevronRight className="ml-2 h-4 w-4" />{labels.previous}</DropdownMenuItem>}
-              {onNext && !compactActionVisible(4) && <DropdownMenuItem disabled={isLastRecord} onSelect={handleNext}><ChevronLeft className="ml-2 h-4 w-4" />{labels.next}</DropdownMenuItem>}
-              {onLast && !compactActionVisible(5) && <DropdownMenuItem disabled={isLastRecord} onSelect={handleLast}><ChevronsLeft className="ml-2 h-4 w-4" />{labels.last}</DropdownMenuItem>}
+              {onFirst && !compactActionVisible(2) && <DropdownMenuItem onSelect={handleFirst}><ChevronsRight className="ml-2 h-4 w-4" />{labels.first}</DropdownMenuItem>}
+              {onPrevious && !compactActionVisible(3) && <DropdownMenuItem onSelect={handlePrevious}><ChevronRight className="ml-2 h-4 w-4" />{labels.previous}</DropdownMenuItem>}
+              {onNext && !compactActionVisible(4) && <DropdownMenuItem onSelect={handleNext}><ChevronLeft className="ml-2 h-4 w-4" />{labels.next}</DropdownMenuItem>}
+              {onLast && !compactActionVisible(5) && <DropdownMenuItem onSelect={handleLast}><ChevronsLeft className="ml-2 h-4 w-4" />{labels.last}</DropdownMenuItem>}
               {onDelete && !compactActionVisible(6) && <DropdownMenuItem disabled={isLoading || !canDelete} onSelect={() => onDelete()}><Trash2 className="ml-2 h-4 w-4 text-red-600" />{labels.delete}</DropdownMenuItem>}
               {onReport && <DropdownMenuItem onSelect={() => onReport()}><FileText className="ml-2 h-4 w-4" />{labels.report}</DropdownMenuItem>}
               {onExportExcel && <DropdownMenuItem onSelect={() => onExportExcel()}><Download className="ml-2 h-4 w-4" />{labels.exportExcel}</DropdownMenuItem>}

@@ -37,7 +37,10 @@ export async function GET(request: NextRequest) {
       ORDER BY id DESC
     `
 
-    return NextResponse.json(rows)
+    const vouchers = await Promise.all(
+      rows.map(async (voucher: any) => ({ ...voucher, ...(await fetchDetails(Number(voucher.id))) })),
+    )
+    return NextResponse.json(vouchers)
   } catch (error) {
     console.error("Error fetching vouchers:", error)
     return NextResponse.json({ error: "Failed to fetch vouchers" }, { status: 500 })
@@ -106,15 +109,11 @@ export async function POST(request: NextRequest) {
       INSERT INTO voucher_header_tbl (
         vch_type, vch_code, vch_date, vch_book_id, branch_id, currency_id, rate,
         account_id, customer_name, to_account_id,
-        cash_amount, cash_account_id, check_amount, check_account_id,
-        credit_card_amount, credit_card_account_id,
         amount, payment_classification_id, salesman_id, manual_voucher, manual_date, note, status, vch_status, is_printed,
         insert_user
       ) VALUES (
         ${vchType}, ${data.vch_code}, ${data.vch_date}, ${data.vch_book_id || null}, ${authorization.branchId}, ${data.currency_id || null}, ${Number(data.rate || 1)},
         ${data.account_id || null}, ${data.customer_name || ""}, ${data.to_account_id || null},
-        ${cashAmount}, ${data.cash_account_id || null}, ${checkAmount}, ${data.check_account_id || null},
-        ${creditCardAmount}, ${data.credit_card_account_id || null},
         ${amount}, ${data.payment_classification_id || null}, ${data.salesman_id || null}, ${data.manual_voucher || ""}, ${data.manual_date || null}, ${data.note || ""}, ${status}, ${status === 2 ? 2 : 1}, ${Number(data.is_printed || 0)},
         ${data.insert_user || null}
       )
@@ -228,12 +227,6 @@ export async function PUT(request: NextRequest) {
         account_id = ${data.account_id || null},
         customer_name = ${data.customer_name || ""},
         to_account_id = ${data.to_account_id || null},
-        cash_amount = ${cashAmount},
-        cash_account_id = ${data.cash_account_id || null},
-        check_amount = ${checkAmount},
-        check_account_id = ${data.check_account_id || null},
-        credit_card_amount = ${creditCardAmount},
-        credit_card_account_id = ${data.credit_card_account_id || null},
         amount = ${amount},
         payment_classification_id = ${data.payment_classification_id || null},
         salesman_id = ${data.salesman_id || null},

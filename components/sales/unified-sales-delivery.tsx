@@ -2220,7 +2220,7 @@ export default function UnifiedSalesDelivery({
           // خاصية عمود ثابتة لا تفرّق بين الأسطر).
         },
         { header: "البونص", name: "bonus_quantity", width: 80, dataType: wjcCore.DataType.Number, visible: Util.getVoucherSettingScreenData(voucherType, "bonus"), isReadOnly: isLocked || isFromDelivery },
-        { header: "السعر", name: "price", width: 90, dataType: wjcCore.DataType.Number, visible: Util.getVoucherSettingScreenData(voucherType, "price"), isReadOnly: isLocked },
+        { header: "السعر", name: "unit_price", width: 90, dataType: wjcCore.DataType.Number, visible: Util.getVoucherSettingScreenData(voucherType, "price"), isReadOnly: isLocked },
         {
           header: "الخصم %",
           name: "discount_percent",

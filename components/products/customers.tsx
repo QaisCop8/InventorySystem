@@ -1951,9 +1951,8 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
       <Dialog
         open={showNewCustomerDialog}
         onOpenChange={(open) => {
-          // The form closes only through its explicit close button. Saving or a nested
-          // popup must not toggle the parent dialog off and mount it again.
-          if (open) setShowNewCustomerDialog(true);
+          setShowNewCustomerDialog(open)
+          if (!open) void fetchCustomers()
         }}
       >
         <DialogContent inline={fullscreenEnabled && showNewCustomerDialog} className="h-[94dvh] max-h-[94dvh] w-[96vw] max-w-[1400px] overflow-hidden p-0 sm:h-[92dvh] sm:max-h-[92dvh]" dir="rtl"
