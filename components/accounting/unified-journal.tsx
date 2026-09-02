@@ -581,7 +581,6 @@ export default function UnifiedJournal({
   }
 
   const openJournalCostCenter = (index: number) => {
-    if (isLocked) return
     const row = journal[index]
     if (!row?.account_id) {
       messagesRef.current?.show?.([{ severity: "error", summary: "", detail: "يجب تحديد الحساب أولاً", life: 3000 }])
@@ -632,7 +631,7 @@ export default function UnifiedJournal({
       sortable: false,
       columns: [
         { header: "#", name: "ser", width: 50, isReadOnly: true },
-        { header: "رقم الحساب", name: "account_code", width: 130, minWidth: 110, maxLength: ACCOUNT_CODE_LENGTH },
+        { header: "رقم الحساب", name: "account_code", width: 130, minWidth: 110, maxLength: ACCOUNT_CODE_LENGTH, isReadOnly: isLocked },
         {
           name: "btnSearch",
           header: " ",
@@ -647,12 +646,12 @@ export default function UnifiedJournal({
             setJournalSearchRow(ctx.row.index)
             setJournalSearchOpen(true)
           },
-          visible: true,
+          visible: !isLocked,
         },
         { header: "اسم الحساب", name: "account_name", width: "*", minWidth: 180, isReadOnly: true },
-        { header: "مدين", name: "debit", width: 120, minWidth: 110, dataType: "Number", maxLength: 30 },
-        { header: "دائن", name: "credit", width: 120, minWidth: 110, dataType: "Number", maxLength: 30 },
-        { header: "ملاحظات", name: "note", width: 220, minWidth: 180, maxLength: 100 },
+        { header: "مدين", name: "debit", width: 120, minWidth: 110, dataType: "Number", maxLength: 30, isReadOnly: isLocked },
+        { header: "دائن", name: "credit", width: 120, minWidth: 110, dataType: "Number", maxLength: 30, isReadOnly: isLocked },
+        { header: "ملاحظات", name: "note", width: 220, minWidth: 180, maxLength: 100, isReadOnly: isLocked },
         {
           name: "btnCostCenter",
           header: "مراكز التكلفة",
@@ -663,7 +662,7 @@ export default function UnifiedJournal({
           iconType: "money",
           isReadOnly: true,
           onClick: (e: any, ctx: any) => openJournalCostCenter(ctx.row.index),
-          visible: true,
+          visible: !isLocked,
         },
         {
           name: "btnDelete",
@@ -680,7 +679,7 @@ export default function UnifiedJournal({
       ],
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [journal, accountsList],
+    [journal, accountsList, isLocked],
   )
 
   const journalGridData = useMemo(() => journal.map((row, i) => ({ ...row, ser: i + 1 })), [journal])
@@ -909,7 +908,7 @@ export default function UnifiedJournal({
 
             <Messages innerRef={messagesRef} />
 
-            <fieldset disabled={isLocked} className="contents">
+            <fieldset className="contents">
             <div className="grid shrink-0 gap-2 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
               <div className="flex items-center gap-2 text-sm font-bold text-emerald-700">
                 <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-50 ring-1 ring-emerald-100">
@@ -948,6 +947,7 @@ export default function UnifiedJournal({
                     onChange={(e) => setVoucherCodeDraft(normalizeVoucherCode(e.target.value))}
                     onBlur={(e) => void handleCodeBlur(e.currentTarget.value)}
                     maxLength={10}
+                    disabled={isLocked}
                   />
                 </div>
                 <div className="grid gap-1.5">
@@ -996,7 +996,7 @@ export default function UnifiedJournal({
                     value={numberValue(form.rate)}
                     onKeyDown={blockNonNumericKey}
                     onChange={(e) => onFormChange("rate", e.target.value ? Number(e.target.value) : 1)}
-                    disabled={form.currency_id != null && form.currency_id === baseCurrencyId}
+                    disabled={isLocked || (form.currency_id != null && form.currency_id === baseCurrencyId)}
                   />
                 </div>
                 <div className="grid gap-1.5">
@@ -1006,6 +1006,7 @@ export default function UnifiedJournal({
                     value={form.manual_voucher}
                     onChange={(e) => onFormChange("manual_voucher", e.target.value)}
                     maxLength={30}
+                    disabled={isLocked}
                   />
                 </div>
               </div>
@@ -1027,6 +1028,7 @@ export default function UnifiedJournal({
                     value={form.note}
                     onChange={(e) => onFormChange("note", e.target.value)}
                     maxLength={200}
+                    disabled={isLocked}
                     onKeyDown={(e) => {
                       if (e.key !== "Tab" && e.key !== "Enter") return
                       e.preventDefault()
@@ -1074,7 +1076,7 @@ export default function UnifiedJournal({
                     dataSource={journalGridData}
                     idProperty="ser"
                     isReport={false}
-                    isReadOnly={isLocked}
+                    isReadOnly={false}
                     showContextMenu={false}
                     cellEditEnded={handleJournalCellEditEnded}
                     onKeyDown={handleJournalKeyDown}
