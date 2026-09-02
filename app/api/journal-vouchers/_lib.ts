@@ -24,6 +24,7 @@ export {
   archiveAndDeleteVoucher,
   markVoucherPrinted,
   validateJournalAccountCurrencies,
+  JOURNAL_TYPE_COUNTER_ACCOUNT,
 }
 
 // per voucher_types_tbl (3 = "سند قيد", مختلف عن سند القبض/الصرف 4/5).

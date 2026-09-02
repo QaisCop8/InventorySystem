@@ -43,6 +43,7 @@ import {
   Grid3x3,
   Wrench,
   ClipboardCheck,
+  BriefcaseBusiness,
   LucideIcon,
 } from "lucide-react"
 import { useWindowManager } from "@/contexts/window-manager-context"
@@ -126,7 +127,6 @@ export const menuItems: MenuItem[] = [
       { title: "العملاء", section: "customers", icon: Users },
       { title: "الموردين", section: "suppliers", icon: Truck },
       { title: "المشتركين", section: "subscribers", icon: UserCheck },
-      { title: "المندوبين", section: "salesmen", icon: UserCheck },
       { title: "السيارات", section: "cars", icon: Car },
       { title: "السائقين", section: "drivers", icon: IdCard },
       { title: "التعريفات", section: "definitions", icon: Settings },
@@ -163,6 +163,24 @@ export const menuItems: MenuItem[] = [
           { title: "اشعار مدين", section: "debit-notes", icon: FileMinus2 },
         ],
       },
+    ],
+  },
+  {
+    id: "employees-payroll",
+    title: "الموظفين والرواتب",
+    icon: BriefcaseBusiness,
+    submenu: [
+      { title: "الموظفين", section: "employees", icon: Users },
+      { title: "الوظائف", section: "employee-jobs", icon: BriefcaseBusiness },
+      { title: "بنود الراتب", section: "salary-items", icon: DollarSign },
+      { title: "قوانين ضريبة الدخل", section: "tax-rules", icon: FileText },
+      { title: "الإعفاءات الضريبية", section: "tax-exemptions", icon: FileText },
+      { title: "بنود رواتب الموظفين", section: "employee-salary-items", icon: Wallet },
+      { title: "فتح راتب شهر", section: "salary-periods", icon: Unlock },
+      { title: "إغلاق وتنفيذ قيد الراتب", section: "salary-journal", icon: Receipt },
+      { title: "كشف الرواتب", section: "payroll", icon: Receipt },
+      { title: "تقرير بنود الرواتب", section: "salary-items-report", icon: BarChart3 },
+      { title: "ضريبة دخل الموظفين", section: "income-tax-report", icon: BarChart3 },
     ],
   },
   {
@@ -240,6 +258,7 @@ export const menuItems: MenuItem[] = [
         section: "sales-purchase-vouchers-files",
         icon: Users,
         submenu: [
+          { title: "المندوبين", section: "salesmen", icon: UserCheck },
           { title: "نماذج العملاء والأصناف", section: "customer-product-templates", icon: Grid3x3 },
         ],
       },

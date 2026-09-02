@@ -64,12 +64,14 @@ function normalizePayload(data: unknown): Record<string, unknown> {
     order_prefix: ["order_prefix", "orderPrefix"],
     purchase_prefix: ["purchase_prefix", "purchasePrefix"],
     customer_prefix: ["customer_prefix", "customerPrefix"],
+    employee_prefix: ["employee_prefix", "employeePrefix"],
     supplier_prefix: ["supplier_prefix", "supplierPrefix"],
     item_group_prefix: ["item_group_prefix", "itemGroupPrefix"],
     invoice_start: ["invoice_start", "invoiceStart"],
     order_start: ["order_start", "orderStart"],
     purchase_start: ["purchase_start", "purchaseStart"],
     customer_start: ["customer_start", "customerStart"],
+    employee_start: ["employee_start", "employeeStart"],
     supplier_start: ["supplier_start", "supplierStart"],
     item_group_start: ["item_group_start", "itemGroupStart"],
     item_start: ["item_start", "itemStart"],
@@ -148,6 +150,8 @@ async function ensureSettingsTable(): Promise<void> {
   await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS purchase_start`
   await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS customer_prefix`
   await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS customer_start`
+  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS employee_prefix`
+  await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS employee_start`
   await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS supplier_prefix`
   await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS supplier_start`
   await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS item_prefix`

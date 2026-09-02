@@ -1443,8 +1443,9 @@ createButtonTemplate = (col) => (ctx) => {
           try {
             if (flexgrid.selection && flexgrid.selection._row > -1) {
               let hti = flexgrid.hitTest(e);
-              if (hti.cellType === wjGrid.CellType.Cell && (e.target.classList[0] === 'wj-cell' || e.target.classList.length <= 0)) {
-                this.props.onRowDoubleClick(flexgrid.rows[flexgrid.selection._row].dataItem, flexgrid.selection);
+              if (hti.cellType === wjGrid.CellType.Cell && hti.row > -1 && (e.target.classList[0] === 'wj-cell' || e.target.classList.length <= 0)) {
+                flexgrid.select(hti.row, hti.col);
+                this.props.onRowDoubleClick(flexgrid.rows[hti.row].dataItem, flexgrid.selection);
               }
             }
           } catch (e) {

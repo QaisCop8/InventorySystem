@@ -2,9 +2,9 @@ import { type NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
 import { JOURNAL_VCH_TYPE, fetchDetails } from "../../_lib"
 
-export async function GET(request: NextRequest, { params }: { params: { navigationType: string } }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ navigationType: string }> }) {
   try {
-    const { navigationType } = params
+    const { navigationType } = await params
     const currentId = Number(request.nextUrl.searchParams.get("currentId") || 0)
 
     let rows: any[] = []

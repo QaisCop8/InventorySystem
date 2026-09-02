@@ -31,6 +31,7 @@ const BrandTypes = lazyDefault(() => import("@/components/products/brand-types")
 const Brands = lazyDefault(() => import("@/components/products/brands"))
 const Cars = lazyDefault(() => import("@/components/products/cars"))
 const Drivers = lazyDefault(() => import("@/components/products/drivers"))
+const SalesmenPage = lazyDefault(() => import("@/components/salesmen/salesmen-pages"))
 const ExchangeRates = lazyNamed(() => import("@/components/data/exchange-rates"), "ExchangeRates")
 const BatchMovements = lazyNamed(() => import("@/components/inventory/batch-movements"), "BatchMovements")
 const BatchReports = lazyNamed(() => import("@/components/reports/batch-reports"), "BatchReports")
@@ -105,6 +106,16 @@ const InternalManufacturingDraftPage = lazyNamed(() => import("@/components/manu
 const InternalManufacturingConfirmationPage = lazyNamed(() => import("@/components/manufacturing/internal-manufacturing-pages"), "InternalManufacturingConfirmationPage")
 const InternalRequestsArchiveReport = lazyDefault(() => import("@/components/manufacturing/internal-requests-archive-report"))
 const SalesDraftsArchiveReport = lazyDefault(() => import("@/components/order-drafts/sales-drafts-archive-report"))
+const EmployeeJobsPage = lazyNamed(() => import("@/components/hr/employee-jobs-page"), "EmployeeJobsPage")
+const DepartmentsPage = lazyNamed(() => import("@/components/hr/departments-page"), "DepartmentsPage")
+const SalaryItemsPage = lazyNamed(() => import("@/components/hr/salary-items-page"), "SalaryItemsPage")
+const TaxRulesPage = lazyNamed(() => import("@/components/hr/tax-rules-page"), "TaxRulesPage")
+const TaxExemptionsPage = lazyNamed(() => import("@/components/hr/tax-exemptions-page"), "TaxExemptionsPage")
+const EmployeesPage = lazyNamed(() => import("@/components/hr/employees-page"), "EmployeesPage")
+const EmployeeSalaryItemsPage = lazyNamed(() => import("@/components/hr/employee-salary-items-page"), "EmployeeSalaryItemsPage")
+const SalaryPeriodsPage = lazyNamed(() => import("@/components/hr/salary-periods-page"), "SalaryPeriodsPage")
+const SalaryJournalPage = lazyNamed(() => import("@/components/hr/salary-journal-page"), "SalaryJournalPage")
+const PayrollPage = lazyNamed(() => import("@/components/hr/payroll-page"), "PayrollPage")
 const componentMap: Record<string, React.ComponentType<any>> = {
   dashboard: Dashboard,
   "inventory-analytics": InventoryAnalytics,
@@ -128,7 +139,7 @@ const componentMap: Record<string, React.ComponentType<any>> = {
   customers: Customers,
   suppliers: (props: any) => <Customers {...props} isSupplier={true} />,
   subscribers: (props: any) => <Customers {...props} isSubscriber={true} />,
-  salesmen: (props: any) => <Customers {...props} isSalesman={true} />,
+  salesmen: SalesmenPage,
   cars: Cars,
   drivers: Drivers,
   banks: Banks,
@@ -212,6 +223,18 @@ const componentMap: Record<string, React.ComponentType<any>> = {
   "internal-manufacturing-confirmation": InternalManufacturingConfirmationPage,
   "internal-manufacturing-archive-report": InternalRequestsArchiveReport,
   "sales-drafts-archive-report": SalesDraftsArchiveReport,
+  "employee-jobs": EmployeeJobsPage,
+  "hr-departments": DepartmentsPage,
+  "salary-items": SalaryItemsPage,
+  "tax-rules": TaxRulesPage,
+  "tax-exemptions": TaxExemptionsPage,
+  employees: EmployeesPage,
+  "employee-salary-items": EmployeeSalaryItemsPage,
+  "salary-periods": SalaryPeriodsPage,
+  "salary-journal": SalaryJournalPage,
+  payroll: PayrollPage,
+  "salary-items-report": (props: any) => <PayrollPage {...props} report="items" />,
+  "income-tax-report": (props: any) => <PayrollPage {...props} report="tax" />,
 }
 
 const titleFor = (section: string) => SECTION_TITLES[section] || section

@@ -1,4 +1,4 @@
-﻿"use client"
+"use client"
 
 import { useState, useEffect, useRef } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -124,6 +124,8 @@ export function SystemSettings() {
     returnPurchasePrefix: "RPU",
     journalPrefix: "J",
     customerPrefix: "C",
+    salesmanPrefix: "M",
+    employeePrefix: "E",
     supplierPrefix: "S",
     itemGroupPrefix: "G",
     accountPrefix: "A",
@@ -150,6 +152,8 @@ export function SystemSettings() {
     returnPurchaseStart: 1,
     journalStart: 1,
     customerStart: 1,
+    salesmanStart: 1,
+    employeeStart: 1,
     supplierStart: 1,
     itemGroupStart: 1,
     itemStart: 1,
@@ -244,6 +248,8 @@ export function SystemSettings() {
             returnPurchasePrefix: settingsPayload.return_purchase_prefix || prev.returnPurchasePrefix,
             journalPrefix: settingsPayload.journal_prefix || prev.journalPrefix,
             customerPrefix: settingsPayload.customer_prefix || prev.customerPrefix,
+            salesmanPrefix: settingsPayload.salesman_prefix || prev.salesmanPrefix,
+            employeePrefix: settingsPayload.employee_prefix || prev.employeePrefix,
             supplierPrefix: settingsPayload.supplier_prefix || prev.supplierPrefix,
             itemGroupPrefix: settingsPayload.item_group_prefix || prev.itemGroupPrefix,
             accountPrefix: settingsPayload.account_prefix || prev.accountPrefix,
@@ -268,6 +274,8 @@ export function SystemSettings() {
             returnPurchaseStart: settingsPayload.return_purchase_start ?? prev.returnPurchaseStart,
             journalStart: settingsPayload.journal_start ?? prev.journalStart,
             customerStart: settingsPayload.customer_start ?? prev.customerStart,
+            salesmanStart: settingsPayload.salesman_start ?? prev.salesmanStart,
+            employeeStart: settingsPayload.employee_start ?? prev.employeeStart,
             supplierStart: settingsPayload.supplier_start ?? prev.supplierStart,
             itemGroupStart: settingsPayload.item_group_start ?? prev.itemGroupStart,
             itemStart: settingsPayload.item_start ?? prev.itemStart,
@@ -394,6 +402,7 @@ export function SystemSettings() {
         { label: "بادئة مرتجع مشتريات", value: settings.returnPurchasePrefix },
         { label: "بادئة سندات القيد", value: settings.journalPrefix },
         { label: "بادئة العملاء", value: settings.customerPrefix },
+        { label: "بادئة الموظفين", value: settings.employeePrefix },
         { label: "بادئة الموردين", value: settings.supplierPrefix },
         { label: "بادئة مجموعات الأصناف", value: settings.itemGroupPrefix },
       ]
@@ -436,6 +445,7 @@ export function SystemSettings() {
         { label: "بداية ترقيم طلبات المبيعات", value: settings.orderStart },
         { label: "بداية ترقيم طلبات الشراء", value: settings.purchaseStart },
         { label: "بداية ترقيم العملاء", value: settings.customerStart },
+        { label: "الرقم يبدأ من (الموظفين)", value: settings.employeeStart },
         { label: "بداية ترقيم الموردين", value: settings.supplierStart },
         { label: "بداية ترقيم مجموعات الأصناف", value: settings.itemGroupStart },
         { label: "بداية ترقيم الأصناف", value: settings.itemStart },
@@ -494,6 +504,8 @@ export function SystemSettings() {
           return_purchase_prefix: settings.returnPurchasePrefix.trim().toUpperCase(),
           journal_prefix: settings.journalPrefix.trim().toUpperCase(),
           customer_prefix: settings.customerPrefix.trim().toUpperCase(),
+          salesman_prefix: settings.salesmanPrefix.trim().toUpperCase(),
+          employee_prefix: settings.employeePrefix.trim().toUpperCase(),
           supplier_prefix: settings.supplierPrefix.trim().toUpperCase(),
           item_group_prefix: settings.itemGroupPrefix.trim().toUpperCase(),
           account_prefix: settings.accountPrefix.trim().toUpperCase(),
@@ -518,6 +530,8 @@ export function SystemSettings() {
           return_purchase_start: settings.returnPurchaseStart,
           journal_start: settings.journalStart,
           customer_start: settings.customerStart || null,
+          salesman_start: settings.salesmanStart || null,
+          employee_start: settings.employeeStart || null,
           supplier_start: settings.supplierStart || null,
           item_group_start: settings.itemGroupStart || null,
           item_start: settings.itemStart || null,
@@ -632,6 +646,7 @@ export function SystemSettings() {
         returnPurchasePrefix: "INV",
         journalPrefix: "J",
         customerPrefix: "C",
+        employeePrefix: "E",
         supplierPrefix: "S",
         itemGroupPrefix: "G",
         accountPrefix: "A",
@@ -657,6 +672,7 @@ export function SystemSettings() {
         returnPurchaseStart: 1,
         journalStart: 1,
         customerStart: 1,
+        employeeStart: 1,
         supplierStart: 1,
         itemGroupStart: 1,
         itemStart: 1,
@@ -1821,6 +1837,30 @@ export function SystemSettings() {
                       مثال: {settings.customerPrefix}
                       {String(settings.customerStart).padStart(4, "0")}
                     </div>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="salesmanPrefix" className="text-right block">بادئة المندوبين</Label>
+                    <Input id="salesmanPrefix" value={settings.salesmanPrefix} onChange={(e) => setSettings({ ...settings, salesmanPrefix: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 9) })} className="text-right" dir="rtl" placeholder="M" />
+                  </div>
+                  <div>
+                    <Label htmlFor="salesmanStart" className="text-right block">الترقيم يبدأ من</Label>
+                    <Input id="salesmanStart" type="number" min="1" value={settings.salesmanStart} onChange={(e) => setSettings({ ...settings, salesmanStart: e.target.value === "" ? 1 : Number.parseInt(e.target.value) })} className="text-right" dir="rtl" placeholder="1" />
+                  </div>
+                  <div className="flex items-end">
+                    <div className="text-sm text-muted-foreground">مثال: {settings.salesmanPrefix}{String(settings.salesmanStart).padStart(Math.max(1, 10 - settings.salesmanPrefix.length), "0")}</div>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="employeePrefix" className="text-right block">بادئة الموظفين</Label>
+                    <Input id="employeePrefix" value={settings.employeePrefix} onChange={(e) => setSettings({ ...settings, employeePrefix: e.target.value })} className="text-right" dir="rtl" placeholder="E" />
+                  </div>
+                  <div>
+                    <Label htmlFor="employeeStart" className="text-right block">الرقم يبدأ من</Label>
+                    <Input id="employeeStart" type="number" min="1" value={settings.employeeStart} onChange={(e) => setSettings({ ...settings, employeeStart: e.target.value === "" ? 1 : Number.parseInt(e.target.value) })} className="text-right" dir="rtl" placeholder="1" />
+                  </div>
+                  <div className="flex items-end">
+                    <div className="text-sm text-muted-foreground">مثال: {settings.employeePrefix}{String(settings.employeeStart).padStart(Math.max(1, 10 - settings.employeePrefix.length), "0")}</div>
                   </div>
 
                   <div>

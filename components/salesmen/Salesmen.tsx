@@ -9,8 +9,15 @@ import { Badge } from "@/components/ui/badge";
 import { Plus, Edit, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+interface SalesmanListItem {
+  id: number;
+  code: string;
+  name: string;
+  is_active: boolean;
+}
+
 export default function Salesmen() {
-  const [salesmen, setSalesmen] = useState([]);
+  const [salesmen, setSalesmen] = useState<SalesmanListItem[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [currentIndex, setCurrentIndex] = useState<number | null>(null);

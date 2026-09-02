@@ -17,8 +17,6 @@ import ConfirmDialogYesNo from "@/components/ui/ConfirmDialogYesNo"
 import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
 import { LoadingCard } from "@/components/ui/loading-spinner"
-import salesmen from "../salesmen/Salesmen"
-import Salesmen from "../salesmen/Salesmen"
 
 interface City {
   id: number
@@ -3272,11 +3270,6 @@ function Definitions() {
                 </div>
               </CardContent>
             </Card>
-
-
-            <Salesmen
-            />
-
           </div>
 
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">

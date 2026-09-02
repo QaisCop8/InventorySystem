@@ -59,7 +59,7 @@ const scheme = {
 // بنفس افتراض /api/exchange-rates/lookup. تغيير التاريخ يُعيد التحميل من /api/exchange-rates?date=...
 // التي تعرض السعر المسجَّل لذلك التاريخ إن وُجد، أو تنسخ آخر سعر سابق وتحفظه تلقائياً كسعر ذلك اليوم
 // إن لم يوجد (انظر lib/database.ts's getOrCreateRatesForDate).
-export function DailyExchangeRatesDialog({ open, onOpenChange, onSaved }: DailyExchangeRatesDialogProps) {
+export function DailyExchangeRatesDialog({ open, onOpenChange }: DailyExchangeRatesDialogProps) {
   const now = new Date()
   const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`
   const [rateDate, setRateDate] = useState(today)
@@ -241,7 +241,6 @@ export function DailyExchangeRatesDialog({ open, onOpenChange, onSaved }: DailyE
         })
         if (!res.ok) throw new Error("فشل حفظ سعر صرف بعض العملات")
       }
-      onSaved?.()
       onOpenChange(false)
     } catch (err) {
       setError(err instanceof Error ? err.message : "حدث خطأ أثناء الحفظ")
@@ -249,6 +248,11 @@ export function DailyExchangeRatesDialog({ open, onOpenChange, onSaved }: DailyE
       savingRef.current = false
       setSaving(false)
     }
+  }
+
+  const handleClose = () => {
+    if (savingRef.current) return
+    onOpenChange(false)
   }
 
   useEffect(() => {
@@ -270,7 +274,8 @@ export function DailyExchangeRatesDialog({ open, onOpenChange, onSaved }: DailyE
       open={open}
       onOpenChange={(nextOpen) => {
         if (!nextOpen && savingRef.current) return
-        onOpenChange(nextOpen)
+        if (!nextOpen) handleClose()
+        else onOpenChange(true)
       }}
     >
       <DialogContent
@@ -331,7 +336,7 @@ export function DailyExchangeRatesDialog({ open, onOpenChange, onSaved }: DailyE
             {saving ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Save className="ml-2 h-4 w-4" />}
             حفظ
           </Button>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
+          <Button variant="outline" onClick={handleClose} disabled={saving}>
             إغلاق
           </Button>
         </div>

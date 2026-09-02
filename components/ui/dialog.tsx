@@ -7,6 +7,12 @@ import { X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useWorkspaceDialog } from "@/contexts/workspace-dialog-context"
 
+const PreventDialogOutsideCloseContext = React.createContext(false)
+
+function PreventDialogOutsideClose({ children }: { children: React.ReactNode }) {
+  return <PreventDialogOutsideCloseContext.Provider value>{children}</PreventDialogOutsideCloseContext.Provider>
+}
+
 function Dialog(props: React.ComponentProps<typeof DialogPrimitive.Root>) {
   const { confined } = useWorkspaceDialog()
   React.useEffect(() => {
@@ -66,6 +72,7 @@ const DialogContent = React.forwardRef<
   DialogContentProps
 >(({ className, children, hideCloseButton, inline, style, ...props }, ref) => {
   const { confined } = useWorkspaceDialog()
+  const preventOutsideClose = React.useContext(PreventDialogOutsideCloseContext)
   const isLargeTransactionDialog = typeof className === "string" && /(?:sales-delivery|stock-voucher)-form/.test(className)
   if (inline) {
     const { onPointerDownOutside: _onPointerDownOutside, onInteractOutside: _onInteractOutside, onEscapeKeyDown: _onEscapeKeyDown, ...inlineProps } = props
@@ -108,6 +115,10 @@ const DialogContent = React.forwardRef<
         ...style,
       }}
       {...props}
+      {...(preventOutsideClose ? {
+        onPointerDownOutside: (event: Parameters<NonNullable<DialogContentProps["onPointerDownOutside"]>>[0]) => { props.onPointerDownOutside?.(event); event.preventDefault() },
+        onInteractOutside: (event: Parameters<NonNullable<DialogContentProps["onInteractOutside"]>>[0]) => { props.onInteractOutside?.(event); event.preventDefault() },
+      } : {})}
     >
       {children}
       {!hideCloseButton && (
@@ -156,6 +167,7 @@ const DialogDescription = React.forwardRef<
 DialogDescription.displayName = DialogPrimitive.Description.displayName
 
 export {
+  PreventDialogOutsideClose,
   Dialog,
   DialogPortal,
   DialogOverlay,

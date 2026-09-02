@@ -42,7 +42,7 @@ interface AutoCompleteAccountProps {
   notFoundMessage?: string
 }
 
-const normalizeAccountCode = (value: string) => value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 8)
+const normalizeAccountCode = (value: string) => value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 50)
 
 const formatAccountLabel = (account: AccountItem, displayNameFirst = false, displayIdOnly = false) =>
   displayIdOnly

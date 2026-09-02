@@ -3,6 +3,7 @@ import sql from "@/lib/database"
 import {
   ensureTables,
   JOURNAL_VCH_TYPE,
+  JOURNAL_TYPE_COUNTER_ACCOUNT,
   buildJournalRows,
   saveJournalRows,
   saveNoteRows,
@@ -20,9 +21,19 @@ export async function GET(request: NextRequest) {
     if (!authorization.ok) return authorization.response
 
     const rows = await sql`
-      SELECT * FROM voucher_header_tbl
-      WHERE vch_type = ${JOURNAL_VCH_TYPE} AND status != 3 AND branch_id = ${authorization.branchId}
-      ORDER BY id DESC
+      SELECT vh.*,
+        COALESCE((
+          SELECT json_agg(json_build_object(
+            'id',vjd.id,'account_id',vjd.account_id,'account_code',acc.code,'account_name',acc.name,
+            'credit_debit',vjd.credit_debit,'amount',vjd.amount,'note',vjd.note,'cost_centers','[]'::json
+          ) ORDER BY vjd.order_no,vjd.id)
+          FROM voucher_journal_detail_tbl vjd
+          LEFT JOIN account_tbl acc ON acc.id=vjd.account_id
+          WHERE vjd.voucher_id=vh.id AND vjd.journal_type_id=${JOURNAL_TYPE_COUNTER_ACCOUNT}
+        ),'[]'::json) journal
+      FROM voucher_header_tbl vh
+      WHERE vh.vch_type = ${JOURNAL_VCH_TYPE} AND vh.status != 3 AND vh.branch_id = ${authorization.branchId}
+      ORDER BY vh.id DESC
     `
 
     return NextResponse.json(rows)
@@ -177,6 +188,8 @@ export async function PUT(request: NextRequest) {
     if (status !== 3) {
       await saveJournalRows(voucher.id, journalRows)
       await saveNoteRows(voucher.id, data.notes)
+    } else {
+      await sql`UPDATE payroll_tbl SET journal_id=NULL WHERE journal_id=${voucher.id}`
     }
 
     const details = await fetchDetails(voucher.id)

@@ -769,6 +769,7 @@ export const saveJournalRows = async (voucherId: number, journalRows: any[]) => 
   await sql`DELETE FROM voucher_journal_detail_tbl WHERE voucher_id = ${voucherId}`
 
   const accountCurrencyCache = new Map<number, number | null>()
+  const accountCostCentersCache = new Map<number, any[]>()
   const insertedIds: number[] = []
 
   for (const row of journalRows) {
@@ -800,7 +801,22 @@ export const saveJournalRows = async (voucherId: number, journalRows: any[]) => 
     const journalId = inserted[0].id
     insertedIds.push(Number(journalId))
 
-    for (const costCenter of row.cost_centers || []) {
+    let rowCostCenters = Array.isArray(row.cost_centers) ? row.cost_centers.filter((item: any) => item?.cost_center_id) : []
+    if (!rowCostCenters.length) {
+      let defaults = accountCostCentersCache.get(Number(row.account_id))
+      if (!defaults) {
+        defaults = await sql`
+          SELECT cost_center_type_id, default_cost_center_id AS cost_center_id
+          FROM account_costcenters_tbl
+          WHERE account_id=${Number(row.account_id)} AND default_cost_center_id IS NOT NULL
+          ORDER BY id
+        `
+        accountCostCentersCache.set(Number(row.account_id), defaults)
+      }
+      rowCostCenters = defaults
+    }
+
+    for (const costCenter of rowCostCenters) {
       if (!costCenter?.cost_center_id) continue
       await sql`
         INSERT INTO voucher_costcenter_tbl (voucher_journal_id, cost_center_id)

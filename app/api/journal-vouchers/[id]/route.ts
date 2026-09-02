@@ -3,9 +3,9 @@ import sql from "@/lib/database"
 import { fetchDetails, archiveAndDeleteVoucher, markVoucherPrinted } from "../_lib"
 import { authorizeStoredVoucher } from "@/lib/transaction-permissions"
 
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const id = Number(params.id)
+    const id = Number((await params).id)
     if (!id) {
       return NextResponse.json({ error: "معرف السند غير صالح" }, { status: 400 })
     }
@@ -27,9 +27,9 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 
 // حذف فعلي (مع أرشفة إلى جداول log) — متاح فقط لسند بحالة "فعال" (status=1). سند مُرحَّل
 // يُلغى منطقياً عبر PUT بـ status=3 بدل هذا المسار (انظر archiveAndDeleteVoucher في receipts/_lib.ts).
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const id = Number(params.id)
+    const id = Number((await params).id)
     if (!id) {
       return NextResponse.json({ error: "معرف السند غير صالح" }, { status: 400 })
     }
@@ -40,6 +40,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
     if (result.error) {
       return NextResponse.json({ error: result.error }, { status: 400 })
     }
+    await sql`UPDATE payroll_tbl SET journal_id=NULL WHERE journal_id=${id}`
 
     return NextResponse.json({ success: true })
   } catch (error) {
@@ -50,9 +51,9 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
 
 // يُستدعى عند ضغط زر الطباعة على سند مُرحَّل بالفعل — يسجّل printed=1 دون المرور بمسار PUT
 // الرئيسي الذي يرفض أي تعديل على سند مُرحَّل (انظر markVoucherPrinted في receipts/_lib.ts).
-export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const id = Number(params.id)
+    const id = Number((await params).id)
     if (!id) {
       return NextResponse.json({ error: "معرف السند غير صالح" }, { status: 400 })
     }
