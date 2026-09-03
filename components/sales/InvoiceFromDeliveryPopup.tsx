@@ -27,6 +27,7 @@ interface InvoiceFromDeliveryPopupProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   voucherType: number
+  branchId?: number | null
   onSelect: (delivery: DeliveryHeader, customer: AccountItem, items: SalesVoucherItemRow[], selectedDeliveries: DeliveryHeader[]) => void
   onCancel?: () => void
 }
@@ -42,6 +43,7 @@ export default function InvoiceFromDeliveryPopup({
   open,
   onOpenChange,
   voucherType,
+  branchId,
   onSelect,
   onCancel,
 }: InvoiceFromDeliveryPopupProps) {
@@ -254,6 +256,7 @@ export default function InvoiceFromDeliveryPopup({
         customer_id: String(customerId),
         delivery_types: sourceDeliveryTypes.join(","),
       })
+      if (Number(branchId) > 0) query.set("branch_id", String(branchId))
       const response = await fetch(`/api/sales-vouchers/delivery-list?${query.toString()}`)
       const data = await response.json()
       if (!response.ok) {
@@ -499,6 +502,7 @@ export default function InvoiceFromDeliveryPopup({
         allowedTypeValues={allowedAccountTypes}
         showDeliveryOnlyFilter={true}
         deliveryVchTypes={sourceDeliveryTypes}
+        branchId={branchId}
         onSelect={handleCustomerSelect}
       />
     </Dialog>

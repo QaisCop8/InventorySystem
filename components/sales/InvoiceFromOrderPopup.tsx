@@ -27,6 +27,7 @@ interface InvoiceFromOrderPopupProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   voucherType: number
+  branchId?: number | null
   onSelect: (order: OrderHeader, customer: AccountItem, items: SalesVoucherItemRow[], selectedOrders: OrderHeader[]) => void
   onCancel?: () => void
 }
@@ -34,6 +35,7 @@ interface InvoiceFromOrderPopupProps {
 const SALES_INVOICE_TYPE = 12
 const PURCHASE_INVOICE_TYPE = 17
 const ORDER_SOURCE_VOUCHER_TYPE = 3
+const standardGridShell = "invoice-source-grid min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-white"
 
 const itemKey = (item: SalesVoucherItemRow) =>
   `${item.source_voucher_id ?? "order"}:${item.order_item_id ?? `${item.product_id ?? "item"}:${item.unit ?? ""}`}`
@@ -42,6 +44,7 @@ export default function InvoiceFromOrderPopup({
   open,
   onOpenChange,
   voucherType,
+  branchId,
   onSelect,
   onCancel,
 }: InvoiceFromOrderPopupProps) {
@@ -269,6 +272,7 @@ export default function InvoiceFromOrderPopup({
         order_type: String(orderType),
         ...(orderType === 1 ? { customer_id: String(accountId) } : { supplier_id: String(accountId) }),
       })
+      if (Number(branchId) > 0) query.set("branch_id", String(branchId))
       const response = await fetch(`/api/sales-vouchers/order-list?${query.toString()}`)
       const data = await response.json()
       if (!response.ok) {
@@ -376,34 +380,30 @@ export default function InvoiceFromOrderPopup({
     <Dialog open={open} onOpenChange={handleDialogOpenChange}>
       <DialogContent
         hideCloseButton
-        className="flex h-[92vh] max-h-[92vh] w-[96vw] max-w-[1500px] flex-col overflow-hidden rounded-3xl border border-slate-200 bg-slate-50 p-0 shadow-2xl"
+        className="flex h-[calc(100dvh-0.5rem)] max-h-[calc(100dvh-0.5rem)] w-[calc(100vw-0.5rem)] max-w-[1400px] flex-col overflow-hidden rounded-xl border border-slate-200 bg-slate-50 p-0 shadow-2xl sm:h-auto sm:max-h-[92vh] sm:w-[96vw] sm:rounded-2xl"
         onInteractOutside={(event) => {
           event.preventDefault()
         }}
       >
         <div className="flex h-full min-h-0 flex-col bg-slate-50" dir="rtl">
-          <div className="shrink-0 border-b border-emerald-200 bg-gradient-to-l from-emerald-100 via-green-50 to-teal-50 px-4 py-3 text-slate-800 sm:px-5">
-            <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="shrink-0 bg-gradient-to-l from-emerald-700 via-emerald-600 to-teal-600 px-4 py-3 text-white shadow-md sm:px-5 sm:py-4">
+            <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="flex items-center gap-2 text-lg font-extrabold text-emerald-950 sm:text-xl"><span className="rounded-xl bg-emerald-600 p-2 text-white"><ShoppingCart className="h-4 w-4 sm:h-5 sm:w-5" /></span>{title}</p>
-                <p className="mt-1 text-xs text-emerald-800 sm:text-sm">
+                <p className="flex items-center gap-2 text-lg font-extrabold sm:text-xl"><span className="rounded-xl bg-white/15 p-2 ring-1 ring-white/20"><ShoppingCart className="h-4 w-4 sm:h-5 sm:w-5" /></span>{title}</p>
+                <p className="mt-1 hidden text-xs text-emerald-50 sm:block sm:text-sm">
                   اختر {isSalesInvoice ? "العميل" : "المورد"} أولاً ثم حدد طلبية مرحَلة، ثم استخدم الأسهم لإضافة أو إزالة العناصر من القائمة.
                 </p>
-              </div>
-              <div className="flex shrink-0 items-center gap-2">
-                <Button size="sm" variant="outline" className="border-emerald-300 bg-white hover:bg-emerald-50" onClick={() => handleClose()}>إلغاء</Button>
-                <Button size="sm" className="bg-emerald-600 px-5 hover:bg-emerald-700" disabled={!selectedCustomer || selectedOrderItems.length === 0} onClick={handleConfirm}>تأكيد العناصر</Button>
               </div>
             </div>
           </div>
 
-          <div className="min-h-0 flex-1 space-y-3 overflow-y-auto bg-slate-50/70 p-3 sm:p-4">
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto bg-slate-50/70 p-3 sm:p-5">
             <div className="grid gap-3 sm:grid-cols-2">
-              <div className="rounded-xl border border-emerald-100 bg-white p-3 shadow-sm">
+              <div className="rounded-2xl border border-emerald-100 bg-white p-3 shadow-sm sm:p-4">
                 <Label className="mb-1.5 flex items-center gap-2 text-sm font-bold text-emerald-900"><UserRound className="h-4 w-4 text-emerald-600" />{isSalesInvoice ? "العميل" : "المورد"}</Label>
                 {selectedCustomer ? (
                   <div className="space-y-2">
-                    <div className="rounded-lg bg-emerald-50/70 px-3 py-2">
+                    <div className="rounded-xl bg-emerald-50/70 px-3 py-2">
                       <div className="text-sm font-semibold">{selectedCustomer.name}</div>
                       <div className="text-sm text-slate-600">رقم الحساب: {selectedCustomer.code}</div>
                     </div>
@@ -421,19 +421,19 @@ export default function InvoiceFromOrderPopup({
                 )}
               </div>
 
-              <div className="rounded-xl border border-emerald-100 bg-white p-3 shadow-sm">
+              <div className="rounded-2xl border border-teal-100 bg-white p-3 shadow-sm sm:p-4">
                 <Label className="mb-1.5 flex items-center gap-2 text-sm font-bold text-emerald-900"><PackageCheck className="h-4 w-4 text-emerald-600" />{orderLabel}</Label>
                 <p className="text-sm text-slate-600">اختر طلبية لتنزيل سطور البضاعة إلى الفاتورة.</p>
-                <div className="mt-2 rounded-lg bg-emerald-50/70 px-3 py-2 text-sm text-slate-600">
+                <div className="mt-2 rounded-xl bg-teal-50/70 px-3 py-2 text-sm text-slate-600">
                   {selectedOrder ? `${orderLabel} المحددة: ${selectedOrder.order_number}` : `لم يتم اختيار ${orderLabel} بعد.`}
                 </div>
               </div>
             </div>
 
-            <div className="grid min-w-0 gap-3 lg:grid-cols-2">
-              <div className="min-w-0 rounded-xl border border-emerald-100 bg-white p-3 shadow-sm">
-                <div className="mb-2 text-sm font-bold text-emerald-900">الطلبيات الجاهزة</div>
-                <div className="invoice-source-grid h-[clamp(180px,27vh,280px)] min-w-0 overflow-auto rounded-lg border border-slate-200">
+            <div className="grid min-w-0 gap-4">
+              <div className="min-w-0 rounded-2xl border border-emerald-100 bg-white p-3 shadow-sm sm:p-4">
+                <div className="mb-3 flex items-center justify-between gap-2"><span className="text-sm font-bold text-slate-800">الطلبيات الجاهزة</span><span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600">{orders.length}</span></div>
+                <div className={standardGridShell}>
                   {loading ? (
                     <div className="text-sm text-slate-500">جاري تحميل الطلبات...</div>
                   ) : error ? (
@@ -452,8 +452,7 @@ export default function InvoiceFromOrderPopup({
                       headersVisibility="Column"
                       isReport={false}
                       defaultRowHeight={38}
-                      containerStyle={{ height: "100%", minHeight: 0 }}
-                      style={{ height: "100%", minHeight: 0 }}
+                      containerStyle={{ height: 240 }}
                       onRowDoubleClick={(row: OrderHeader) => {
                         if (!row) return
                         if (selectedOrderIds.has(row.id)) {
@@ -467,9 +466,9 @@ export default function InvoiceFromOrderPopup({
                 </div>
               </div>
 
-              <div className="min-w-0 rounded-xl border border-emerald-100 bg-white p-3 shadow-sm">
-                <div className="mb-2 text-sm font-bold text-emerald-900">العناصر المحددة</div>
-                <div className="invoice-source-grid h-[clamp(180px,27vh,280px)] min-w-0 overflow-auto rounded-lg border border-slate-200">
+              <div className="min-w-0 rounded-2xl border border-teal-100 bg-white p-3 shadow-sm sm:p-4">
+                <div className="mb-3 flex items-center justify-between gap-2"><span className="text-sm font-bold text-slate-800">العناصر المحددة</span><span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-800">{selectedOrderItems.length}</span></div>
+                <div className={standardGridShell}>
                   {itemsLoading ? (
                     <div className="text-sm text-slate-500">جاري تحميل عناصر الطلب...</div>
                   ) : itemsError ? (
@@ -488,8 +487,7 @@ export default function InvoiceFromOrderPopup({
                       headersVisibility="Column"
                       isReport={false}
                       defaultRowHeight={38}
-                      containerStyle={{ height: "100%", minHeight: 0 }}
-                      style={{ height: "100%", minHeight: 0 }}
+                      containerStyle={{ height: 260 }}
                       onRowDoubleClick={(row: SalesVoucherItemRow) => {
                         if (!row) return
                         toggleSelectedOrderItem(row)
@@ -501,12 +499,10 @@ export default function InvoiceFromOrderPopup({
             </div>
           </div>
 
-          <div className="mt-auto shrink-0 border-t border-emerald-200 bg-emerald-50/95 px-4 py-3 backdrop-blur">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <Button size="sm" variant="outline" className="border-emerald-300 bg-white" onClick={() => handleClose()}>
-                إلغاء
-              </Button>
-              <Button size="sm" className="bg-emerald-600 px-6 hover:bg-emerald-700" disabled={!selectedCustomer || selectedOrderItems.length === 0} onClick={handleConfirm}>
+          <div className="mt-auto shrink-0 border-t border-slate-200 bg-white/95 px-4 py-3 backdrop-blur sm:px-5">
+            <div className="flex items-center justify-end gap-2">
+              <Button variant="outline" onClick={() => handleClose()}>إلغاء</Button>
+              <Button className="bg-emerald-600 px-6 hover:bg-emerald-700" disabled={!selectedCustomer || selectedOrderItems.length === 0} onClick={handleConfirm}>
                 تأكيد العناصر
               </Button>
             </div>
@@ -526,6 +522,7 @@ export default function InvoiceFromOrderPopup({
         allowedTypeValues={allowedAccountTypes}
         showOrderOnlyFilter={true}
         orderType={orderType}
+        branchId={branchId}
         onSelect={handleCustomerSelect}
       />
     </Dialog>

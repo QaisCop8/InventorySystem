@@ -48,6 +48,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const deliverySourceItem = items.find((item: any) => Number(item.delivery_item_id) > 0)
     const orderSourceItem = items.find((item: any) => Number(item.order_item_id) > 0)
     const invoiceSourceType = deliverySourceItem ? 2 : orderSourceItem ? 3 : 1
+    const sourceItem = deliverySourceItem || orderSourceItem
     const journalAccounts = hasJournalAccounts
       ? await fetchSalesVoucherJournalAccounts(id, Number(voucher.vch_type), Boolean(voucher.account_id))
       : { taxAccount: null, cashAccount: null }
@@ -55,8 +56,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       ...voucher,
       city_id: voucher.location_id,
       invoice_source_type: invoiceSourceType,
-      source_voucher_id: deliverySourceItem?.source_voucher_id ?? null,
-      source_voucher_type: deliverySourceItem?.source_voucher_type ?? null,
+      source_voucher_id: sourceItem?.source_voucher_id ?? null,
+      source_voucher_type: sourceItem?.source_voucher_type ?? null,
       cash_account_id: journalAccounts.cashAccount?.id ?? null,
       cash_account_code: journalAccounts.cashAccount?.code ?? "",
       cash_account_name: journalAccounts.cashAccount?.name ?? "",

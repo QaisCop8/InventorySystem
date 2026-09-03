@@ -512,9 +512,13 @@ export const fetchSalesVoucherItems = async (voucherId: number, itemJournalTypeI
       vi.count,
       vi.order_item_id,
       vi.delivery_item_id,
-      source_delivery_header.id AS source_voucher_id,
-      source_delivery_header.vch_type AS source_voucher_type,
-      source_delivery_header.vch_code AS source_voucher_code,
+      COALESCE(source_delivery_header.id, source_order.id) AS source_voucher_id,
+      CASE
+        WHEN source_delivery_header.id IS NOT NULL THEN source_delivery_header.vch_type
+        WHEN source_order.id IS NOT NULL THEN 3
+        ELSE NULL
+      END AS source_voucher_type,
+      COALESCE(source_delivery_header.vch_code, source_order.order_number) AS source_voucher_code,
       vi.production_date,
       vi.expiry_date,
       vi.batch_no AS batch_number,
@@ -555,6 +559,8 @@ export const fetchSalesVoucherItems = async (voucherId: number, itemJournalTypeI
     LEFT JOIN warehouses w ON w.id = vi.store_id
     LEFT JOIN voucher_items_tbl source_delivery_item ON source_delivery_item.id = vi.delivery_item_id
     LEFT JOIN voucher_header_tbl source_delivery_header ON source_delivery_header.id = source_delivery_item.voucher_id
+    LEFT JOIN order_items source_order_item ON source_order_item.id = vi.order_item_id
+    LEFT JOIN orders source_order ON source_order.id = source_order_item.order_id
     WHERE vi.voucher_id = ${voucherId}
     ORDER BY vi.id
   `
@@ -647,10 +653,90 @@ export const archiveAndDeleteSalesVoucher = async (voucherId: number): Promise<{
     return { error: "لا يمكن حذف هذه الإرسالية لأنها مرتبطة بفاتورة" }
   }
 
+  // Preserve originating sales orders before their voucher-item links are
+  // removed, then reopen any quantity released by this invoice deletion.
+  const affectedOrderRows = Number(voucher.vch_type) === SALES_INVOICE_VCH_TYPE
+    ? await sql`
+        SELECT DISTINCT oi.order_id
+        FROM voucher_items_tbl vi
+        JOIN order_items oi ON oi.id = vi.order_item_id
+        WHERE vi.voucher_id = ${voucherId}
+          AND vi.delivery_item_id IS NULL
+      `
+    : []
+  const affectedOrderIds = affectedOrderRows
+    .map((row: any) => Number(row.order_id))
+    .filter((id: number) => id > 0)
+
   await reverseSalesVoucherStockMovement(voucherId)
   await sql`DELETE FROM voucher_journal_detail_tbl WHERE voucher_id = ${voucherId}`
   await sql`DELETE FROM voucher_items_tbl WHERE voucher_id = ${voucherId}`
   await sql`DELETE FROM voucher_header_tbl WHERE id = ${voucherId}`
+
+  if (affectedOrderIds.length > 0) {
+    await sql`
+      WITH invoiced AS (
+        SELECT vi.order_item_id,
+               COALESCE(SUM(vi.qnty), 0) AS sent_quantity,
+               COALESCE(SUM(vi.bonus), 0) AS sent_bonus
+        FROM voucher_items_tbl vi
+        JOIN voucher_header_tbl vh ON vh.id = vi.voucher_id
+        WHERE vi.delivery_item_id IS NULL
+          AND vh.vch_type = ${SALES_INVOICE_VCH_TYPE}
+          AND vh.status <> 3
+        GROUP BY vi.order_item_id
+      )
+      UPDATE order_items oi
+      SET item_status = CASE
+        WHEN COALESCE(inv.sent_quantity, 0) >= COALESCE(oi.quantity, 0)
+         AND COALESCE(inv.sent_bonus, 0) >= COALESCE(oi.bonus, 0) THEN 4
+        WHEN COALESCE(inv.sent_quantity, 0) > 0 OR COALESCE(inv.sent_bonus, 0) > 0 THEN 3
+        ELSE 2
+      END,
+      updated_at = CURRENT_TIMESTAMP
+      FROM invoiced inv
+      WHERE oi.order_id = ANY(${affectedOrderIds}::int[])
+        AND oi.item_status IN (2, 3, 4)
+        AND inv.order_item_id = oi.id
+    `
+
+    await sql`
+      UPDATE order_items oi
+      SET item_status = 2, updated_at = CURRENT_TIMESTAMP
+      WHERE oi.order_id = ANY(${affectedOrderIds}::int[])
+        AND oi.item_status IN (3, 4)
+        AND NOT EXISTS (
+          SELECT 1
+          FROM voucher_items_tbl vi
+          JOIN voucher_header_tbl vh ON vh.id = vi.voucher_id
+          WHERE vi.order_item_id = oi.id
+            AND vi.delivery_item_id IS NULL
+            AND vh.vch_type = ${SALES_INVOICE_VCH_TYPE}
+            AND vh.status <> 3
+        )
+    `
+
+    await sql`
+      WITH item_state AS (
+        SELECT order_id,
+               BOOL_AND(item_status = 4) AS all_sent,
+               BOOL_OR(item_status IN (3, 4)) AS any_sent
+        FROM order_items
+        WHERE order_id = ANY(${affectedOrderIds}::int[])
+          AND item_status IN (2, 3, 4)
+        GROUP BY order_id
+      )
+      UPDATE orders o
+      SET order_status = CASE
+        WHEN item_state.all_sent THEN 4
+        WHEN item_state.any_sent THEN 3
+        ELSE 2
+      END,
+      updated_at = CURRENT_TIMESTAMP
+      FROM item_state
+      WHERE o.id = item_state.order_id
+    `
+  }
 
   return {}
 }

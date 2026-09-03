@@ -1,5 +1,17 @@
 import sql, { getPoolForDb } from "@/lib/database"
-import managementSql, { ensureSalesDraftPermissionDefinitions } from "@/lib/management-db"
+import managementSql, {
+  ensureSalesDraftPermissionDefinitions,
+  ensureTransactionPermissionDefinitions,
+} from "@/lib/management-db"
+import {
+  legacyTransactionPermissionName,
+  TRANSACTION_ACTION_LABELS,
+  TRANSACTION_FAMILIES,
+  TRANSACTION_PERMISSION_CATEGORY,
+  transactionPermissionName,
+  type TransactionAction,
+  type TransactionFamily,
+} from "@/lib/transaction-permission-definitions"
 
 // نظام الأدوار الوظيفية (job_roles/role_permissions) + الصلاحية الفعّالة للمستخدم = مركز صريح
 // (user_access) إن وُجد → وإلا صلاحية دوره الوظيفي (role_permissions) → وإلا رفض. انظر خطة
@@ -193,7 +205,23 @@ export async function requireBranchAccess(userId: string | null, accessId: numbe
 export async function syncPermissionDefinitions(dbName: string): Promise<void> {
   await ensurePermissionTables(dbName)
   await ensureSalesDraftPermissionDefinitions()
+  await ensureTransactionPermissionDefinitions()
   const client = getPoolForDb(dbName)
+
+  // Keep the existing access id so all role/user/branch grants survive the
+  // terminology change from "عرض" to "استعلام".
+  for (const family of Object.keys(TRANSACTION_FAMILIES) as TransactionFamily[]) {
+    for (const action of Object.keys(TRANSACTION_ACTION_LABELS) as TransactionAction[]) {
+      const legacyName = legacyTransactionPermissionName(family, action)
+      if (!legacyName) continue
+      await client.query(
+        `UPDATE access_list SET name = $1::varchar, updated_at = CURRENT_TIMESTAMP
+         WHERE name = $2::varchar
+           AND NOT EXISTS (SELECT 1 FROM access_list WHERE name = $1::varchar)`,
+        [transactionPermissionName(family, action), legacyName],
+      )
+    }
+  }
 
   // Preserve the access id and all existing role/user grants when standardizing
   // the sales-draft create permission name in older company databases.
@@ -221,6 +249,34 @@ export async function syncPermissionDefinitions(dbName: string): Promise<void> {
       `INSERT INTO access_list (id, name, category_id) VALUES ($1, $2, $3) ON CONFLICT (id) DO NOTHING`,
       [item.id, item.name, item.category_id],
     )
+  }
+
+  // Management ids can collide with tenant-local ids. Ensure the complete
+  // transaction matrix by name as well, using the tenant's category id.
+  const transactionCategoryRows = await client.query(
+    `INSERT INTO access_category (name)
+     SELECT $1::varchar
+     WHERE NOT EXISTS (SELECT 1 FROM access_category WHERE name = $1::varchar)
+     RETURNING id`,
+    [TRANSACTION_PERMISSION_CATEGORY],
+  )
+  const transactionCategory =
+    transactionCategoryRows[0] ||
+    (await client.query(`SELECT id FROM access_category WHERE name = $1::varchar ORDER BY id LIMIT 1`, [
+      TRANSACTION_PERMISSION_CATEGORY,
+    ]))[0]
+  if (transactionCategory?.id) {
+    for (const family of Object.keys(TRANSACTION_FAMILIES) as TransactionFamily[]) {
+      for (const action of Object.keys(TRANSACTION_ACTION_LABELS) as TransactionAction[]) {
+        const name = transactionPermissionName(family, action)
+        await client.query(
+          `INSERT INTO access_list (name, category_id)
+           SELECT $1::varchar, $2::integer
+           WHERE NOT EXISTS (SELECT 1 FROM access_list WHERE name = $1::varchar)`,
+          [name, transactionCategory.id],
+        )
+      }
+    }
   }
 
   // Name-based fallback for tenant databases whose locally-created access ids

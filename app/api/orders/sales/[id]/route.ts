@@ -13,6 +13,11 @@ async function getOrderBranch(id: number): Promise<number | null> {
   return result.rows[0]?.branch_id ?? null
 }
 
+async function getOrderStatus(id: number): Promise<number | null> {
+  const result = await (await getTenantPool()).query(`SELECT order_status FROM orders WHERE id = $1`, [id])
+  return result.rows[0]?.order_status == null ? null : Number(result.rows[0].order_status)
+}
+
 export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const id = Number(params.id)
@@ -45,6 +50,17 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
     const orderType = await getOrderType(id)
     if (orderType === null) {
       return NextResponse.json({ error: "الطلبية غير موجودة" }, { status: 404 })
+    }
+
+    const orderStatus = await getOrderStatus(id)
+    if (orderStatus === null) {
+      return NextResponse.json({ error: "الطلبية غير موجودة" }, { status: 404 })
+    }
+    if (![1, 2].includes(orderStatus)) {
+      return NextResponse.json(
+        { error: "لا يمكن حذف الطلبية، تم إصدار فاتورة/فواتير من الطلبية" },
+        { status: 400 },
+      )
     }
 
     const authorization = await authorizeTransaction(request, "sales_order", "delete", await getOrderBranch(id))

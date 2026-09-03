@@ -434,6 +434,7 @@ createButtonsColumns = () => {
                 isContentHtml={col.isContentHtml}
                 cellTemplate={col.buttonBody === 'button' ? this.createButton(col) : undefined}
                 editor={col.editor ? col.editor : undefined}
+                dataMap={col.dataMap ? col.dataMap : undefined}
                 align={col.align}
                 maxLength={col.maxLength}
                 cssClass={col.align && col.align === 'left' ? styles.valueLeftStyle : ''}
@@ -445,7 +446,7 @@ createButtonsColumns = () => {
               >
                 {col.body && col.body === 'serial' && <FlexGridCellTemplate cellType="Cell" template={this.getSerialTemplate} />}
                 {col.body && col.body !== 'serial' && <FlexGridCellTemplate cellType="Cell" template={col.body} />}
-                {!col.body && this.isStatusColumn(col.name) && (
+                {!col.body && !col.dataMap && this.isStatusColumn(col.name) && (
                   <FlexGridCellTemplate cellType="Cell" template={(cell) => this.getTemplate(cell, col.name)} />
                 )}
                 {!col.body &&col.name === 'campaign' && (
@@ -1226,7 +1227,11 @@ createButtonTemplate = (col) => (ctx) => {
             // كانت تمحو ذلك الـinput بنص ثابت في كل مرة، فيبدو العمود كأنه للقراءة فقط (خصوصاً
             // بمجرد إضافة dataType: Number لأي عمود، حتى بلا isReadOnly صراحةً).
             const isEditingThisCell = flexgrid.editRange && flexgrid.editRange.row === e.row && flexgrid.editRange.col === e.col;
-            if (col.dataType === 2 && !isEditingThisCell) {
+            // A DataMap owns the displayed text (for example an item-status
+            // dropdown). Formatting its underlying numeric key here replaces
+            // the mapped label with values such as 4.000 and can also disrupt
+            // the dropdown editor when the user enters the cell.
+            if (col.dataType === 2 && !col.dataMap && !isEditingThisCell) {
               let value = flexgrid.getCellData(e.row, e.col, false);
 
               const _col = this.props.scheme.columns.filter((c) => c.name === col.name);

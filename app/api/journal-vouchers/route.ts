@@ -25,7 +25,15 @@ export async function GET(request: NextRequest) {
         COALESCE((
           SELECT json_agg(json_build_object(
             'id',vjd.id,'account_id',vjd.account_id,'account_code',acc.code,'account_name',acc.name,
-            'credit_debit',vjd.credit_debit,'amount',vjd.amount,'note',vjd.note,'cost_centers','[]'::json
+            'credit_debit',vjd.credit_debit,'amount',vjd.amount,'note',vjd.note,
+            'cost_centers',COALESCE((
+              SELECT json_agg(json_build_object(
+                'cost_center_id',vc.cost_center_id,'cost_center_type_id',cc.cost_type_id,'cost_center_name',cc.name
+              ) ORDER BY vc.id)
+              FROM voucher_costcenter_tbl vc
+              LEFT JOIN cost_centers cc ON cc.id=vc.cost_center_id
+              WHERE vc.voucher_journal_id=vjd.id
+            ),'[]'::json)
           ) ORDER BY vjd.order_no,vjd.id)
           FROM voucher_journal_detail_tbl vjd
           LEFT JOIN account_tbl acc ON acc.id=vjd.account_id

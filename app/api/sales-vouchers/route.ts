@@ -108,19 +108,21 @@ const refreshSalesOrderFulfillment = async (orderIds: number[]) => {
   await sql`
     WITH invoiced AS (
       SELECT vi.order_item_id,
-             COALESCE(SUM(vi.qnty), 0) + COALESCE(SUM(vi.bonus), 0) AS sent_total
+             COALESCE(SUM(vi.qnty), 0) AS sent_quantity,
+             COALESCE(SUM(vi.bonus), 0) AS sent_bonus
       FROM voucher_items_tbl vi
       JOIN voucher_header_tbl vh ON vh.id = vi.voucher_id
       WHERE vh.vch_type = ${SALES_INVOICE_VCH_TYPE}
-        AND vh.status = 2
+        AND vh.status <> 3
         AND vi.order_item_id IS NOT NULL
         AND vi.delivery_item_id IS NULL
       GROUP BY vi.order_item_id
     )
     UPDATE order_items oi
     SET item_status = CASE
-      WHEN COALESCE(inv.sent_total, 0) >= COALESCE(oi.quantity, 0) + COALESCE(oi.bonus, 0) THEN 4
-      WHEN COALESCE(inv.sent_total, 0) > 0 THEN 3
+      WHEN COALESCE(inv.sent_quantity, 0) >= COALESCE(oi.quantity, 0)
+       AND COALESCE(inv.sent_bonus, 0) >= COALESCE(oi.bonus, 0) THEN 4
+      WHEN COALESCE(inv.sent_quantity, 0) > 0 OR COALESCE(inv.sent_bonus, 0) > 0 THEN 3
       ELSE 2
     END,
     updated_at = CURRENT_TIMESTAMP
@@ -141,7 +143,7 @@ const refreshSalesOrderFulfillment = async (orderIds: number[]) => {
         JOIN voucher_header_tbl vh ON vh.id = vi.voucher_id
         WHERE vi.order_item_id = oi.id
           AND vh.vch_type = ${SALES_INVOICE_VCH_TYPE}
-          AND vh.status = 2
+          AND vh.status <> 3
           AND vi.delivery_item_id IS NULL
       )
   `
@@ -322,7 +324,7 @@ const validateSourceInvoice = async (itemsOrData: any, maybeData?: any, excludeV
     FROM voucher_items_tbl vi
     JOIN voucher_header_tbl vh ON vh.id = vi.voucher_id
     WHERE vh.vch_type = ${vchType}
-      AND vh.status = 2
+      AND vh.status <> 3
       AND vh.id != ${excludeVoucherId}
       AND vi.order_item_id = ANY(${orderItemIds}::int[])
       AND vi.delivery_item_id IS NULL
@@ -485,9 +487,10 @@ export async function POST(request: NextRequest) {
     }
     if (status === 2) {
       await applySalesVoucherStockEffect(vchType, voucher.id, savedItems)
-      if (vchType === SALES_INVOICE_VCH_TYPE && invoiceSourceType === 3) {
-        await refreshSalesOrderFulfillment(await getSalesOrderIdsForVoucher(voucher.id))
-      }
+    }
+    if (vchType === SALES_INVOICE_VCH_TYPE) {
+      const linkedOrderIds = await getSalesOrderIdsForVoucher(voucher.id)
+      if (linkedOrderIds.length > 0) await refreshSalesOrderFulfillment(linkedOrderIds)
     }
 
     const savedItemsWithNames = await fetchSalesVoucherItems(voucher.id, journalTypes?.itemJournalType)
@@ -654,9 +657,10 @@ export async function PUT(request: NextRequest) {
     }
     if (status === 2 && previousStatus !== 2) {
       await applySalesVoucherStockEffect(vchType, voucher.id, savedItems)
-      if (vchType === SALES_INVOICE_VCH_TYPE && invoiceSourceType === 3) {
-        await refreshSalesOrderFulfillment(await getSalesOrderIdsForVoucher(voucher.id))
-      }
+    }
+    if (vchType === SALES_INVOICE_VCH_TYPE) {
+      const linkedOrderIds = await getSalesOrderIdsForVoucher(voucher.id)
+      if (linkedOrderIds.length > 0) await refreshSalesOrderFulfillment(linkedOrderIds)
     }
 
     const savedItemsWithNames = await fetchSalesVoucherItems(voucher.id, journalTypes?.itemJournalType)

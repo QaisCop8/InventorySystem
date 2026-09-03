@@ -60,7 +60,7 @@ export async function GET(request: NextRequest) {
           FROM voucher_items_tbl vi
           JOIN voucher_header_tbl vh ON vh.id = vi.voucher_id
           WHERE vh.vch_type = ${SALES_INVOICE_TYPE}
-            AND vh.status = 2
+            AND vh.status <> 3
             AND vi.order_item_id = oi.id
             AND vi.delivery_item_id IS NULL
         ) inv ON TRUE
@@ -68,9 +68,11 @@ export async function GET(request: NextRequest) {
         LEFT JOIN units u ON u.id = oi.unit_id
         LEFT JOIN warehouses wh ON wh.id = oi.store_id
         WHERE oi.order_id = ${orderId}
-          AND oi.item_status IN (2, 3)
-          AND COALESCE(oi.quantity, 0) + COALESCE(oi.bonus, 0)
-              > COALESCE(inv.invoiced_quantity, 0) + COALESCE(inv.invoiced_bonus, 0)
+          AND oi.item_status IN (2, 3, 4)
+          AND (
+            COALESCE(oi.quantity, 0) > COALESCE(inv.invoiced_quantity, 0)
+            OR COALESCE(oi.bonus, 0) > COALESCE(inv.invoiced_bonus, 0)
+          )
         ORDER BY oi.id
       `
 
@@ -120,7 +122,7 @@ export async function GET(request: NextRequest) {
           FROM voucher_items_tbl vi
           JOIN voucher_header_tbl vh ON vh.id = vi.voucher_id
           WHERE vh.vch_type = ${PURCHASE_INVOICE_TYPE}
-            AND vh.status = 2
+            AND vh.status <> 3
             AND vi.order_item_id = poi.id
         ) inv ON TRUE
         LEFT JOIN products p ON p.id = poi.product_id

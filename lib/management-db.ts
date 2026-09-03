@@ -249,6 +249,48 @@ export async function ensureSalesDraftPermissionDefinitions(): Promise<void> {
   }
 }
 
+/** Seeds the canonical transaction/action permission matrix in management DB. */
+export async function ensureTransactionPermissionDefinitions(): Promise<void> {
+  await ensureManagementTables()
+  const {
+    TRANSACTION_ACTION_LABELS,
+    TRANSACTION_FAMILIES,
+    TRANSACTION_PERMISSION_CATEGORY,
+    legacyTransactionPermissionName,
+    transactionPermissionName,
+  } = await import("@/lib/transaction-permission-definitions")
+
+  const inserted = await sql`
+    INSERT INTO access_category (name)
+    SELECT ${TRANSACTION_PERMISSION_CATEGORY}
+    WHERE NOT EXISTS (SELECT 1 FROM access_category WHERE name = ${TRANSACTION_PERMISSION_CATEGORY})
+    RETURNING id
+  `
+  const category = inserted[0] || (await sql`
+    SELECT id FROM access_category WHERE name = ${TRANSACTION_PERMISSION_CATEGORY} ORDER BY id LIMIT 1
+  `)[0]
+  if (!category?.id) return
+
+  for (const family of Object.keys(TRANSACTION_FAMILIES) as Array<keyof typeof TRANSACTION_FAMILIES>) {
+    for (const action of Object.keys(TRANSACTION_ACTION_LABELS) as Array<keyof typeof TRANSACTION_ACTION_LABELS>) {
+      const name = transactionPermissionName(family, action)
+      const legacyName = legacyTransactionPermissionName(family, action)
+      if (legacyName) {
+        await sql`
+          UPDATE access_list SET name = ${name}, category_id = ${category.id}, updated_at = CURRENT_TIMESTAMP
+          WHERE name = ${legacyName}
+            AND NOT EXISTS (SELECT 1 FROM access_list WHERE name = ${name})
+        `
+      }
+      await sql`
+        INSERT INTO access_list (name, category_id)
+        SELECT ${name}, ${category.id}
+        WHERE NOT EXISTS (SELECT 1 FROM access_list WHERE name = ${name})
+      `
+    }
+  }
+}
+
 let managementPool: Pool | null = null
 
 // pg.Pool حقيقي لقاعدة الإدارة — يحتاجه أي كود يريد معاملة (BEGIN/COMMIT/ROLLBACK) عبر عدة استعلامات

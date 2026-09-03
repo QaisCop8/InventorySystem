@@ -638,7 +638,7 @@ export async function createOrder(
       if (Number(orderData.order_type) === 1) {
         const orderStatus = Number(orderData.order_status)
         if (orderStatus === 1 || orderStatus === 2) item.item_status = orderStatus
-        else if (orderStatus === 6 && ![3, 4].includes(Number(item.item_status))) item.item_status = 5
+        else if (orderStatus === 6 && ![4].includes(Number(item.item_status))) item.item_status = 6
       }
 
       let carriedWorkflowId: number | null = null;
@@ -1095,6 +1095,34 @@ export async function deleteSalesOrder(
   const client = await (await getTenantPool()).connect(); // افترض أنك عندك pool
   try {
     await client.query('BEGIN'); // بدء المعاملة
+
+    // Lock the order while checking it. This prevents another user from
+    // invoicing/changing it between validation and deletion.
+    const currentOrder = await client.query(
+      `SELECT order_status FROM orders WHERE id = $1 AND COALESCE(deleted, false) = false FOR UPDATE`,
+      [orderId]
+    );
+    if (currentOrder.rows.length === 0) {
+      throw new Error("الطلبية غير موجودة");
+    }
+    if (![1, 2].includes(Number(currentOrder.rows[0].order_status))) {
+      throw new Error("لا يمكن حذف الطلبية، تم إصدار فاتورة/فواتير من الطلبية");
+    }
+
+    const issuedInvoices = await client.query(
+      `SELECT 1
+       FROM voucher_items_tbl vi
+       JOIN voucher_header_tbl vh ON vh.id = vi.voucher_id
+       JOIN order_items oi ON oi.id = vi.order_item_id
+       WHERE oi.order_id = $1
+         AND vh.vch_type = 12
+         AND COALESCE(vh.status, 1) <> 3
+       LIMIT 1`,
+      [orderId]
+    );
+    if (issuedInvoices.rows.length > 0) {
+      throw new Error("لا يمكن حذف الطلبية، تم إصدار فاتورة/فواتير من الطلبية");
+    }
 
     // امنع حذف السند إن كان أي بند فيه مرتبطاً بمخطط سير عمل تتبع طلبيات فعلي (workflow_id يُضبط
     // تلقائياً عند حفظ طلبية بيع جديدة) — حذف السند دون هذا التحقق يترك مهام/مراحل "لوحة تتبع

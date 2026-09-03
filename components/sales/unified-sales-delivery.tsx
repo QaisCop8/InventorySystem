@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -453,6 +454,8 @@ export default function UnifiedSalesDelivery({
   const { toast } = useToast()
   const isLocked = form.status === 2 || form.status === 3
   const isFromDelivery = Number(form.invoice_source_type || 1) === 2
+  const hasDeliverySourceItems = items.some((item) => Number(item.delivery_item_id || 0) > 0)
+  const hasOrderSourceItems = !hasDeliverySourceItems && items.some((item) => Number(item.order_item_id || 0) > 0)
   const statusBadge = form.has_linked_invoice
     ? "مرحل - تم إصدار فاتورة"
     : form.status === 3
@@ -538,25 +541,32 @@ export default function UnifiedSalesDelivery({
   }
 
   const handleInvoiceSourceTypeChange = (value: number) => {
+    const currentValue = Number(form.invoice_source_type || 1)
+    if (value === currentValue) return
+
+    // Changing the invoice source invalidates the customer and rows inherited
+    // from the previous source. Reset them first so dirty checking observes the
+    // change and an order/delivery can never be saved with stale item links.
+    setInvoiceFromDeliveryOpen(false)
+    setInvoiceFromOrderOpen(false)
     onFormChange("invoice_source_type", value)
+    onFormChange("source_voucher_id" as keyof SalesDeliveryRecord, null)
+    onFormChange("source_voucher_type" as keyof SalesDeliveryRecord, null)
+    onFormChange("linked_order_id", null)
+    onFormChange("account_id", null)
+    onFormChange("customer_name", "")
+    onFormChange("discount_type", "percentage")
+    onFormChange("discount_value", 0)
+    const resetItems = [{ ...emptyItemRow }]
+    itemsRef.current = resetItems
+    onItemsChange(resetItems)
+
     if (value === 2 && dialogOpen) {
-      setInvoiceFromDeliveryOpen(true)
+      setTimeout(() => setInvoiceFromDeliveryOpen(true), 0)
       return
     }
     if (value === 3 && dialogOpen) {
-      setInvoiceFromOrderOpen(true)
-      return
-    }
-    if (value !== 2 && value !== 3) {
-      onFormChange("source_voucher_id" as keyof SalesDeliveryRecord, null)
-      onFormChange("source_voucher_type" as keyof SalesDeliveryRecord, null)
-      onItemsChange(
-        form.items.map((item) => ({
-          ...item,
-          source_voucher_id: null,
-          source_voucher_type: null,
-        })),
-      )
+      setTimeout(() => setInvoiceFromOrderOpen(true), 0)
     }
   }
   // نافذة اختيار الدفعة/تاريخ الصلاحية — إرسالية المبيعات تستهلك من مخزون قائم دوماً (بخلاف سند
@@ -868,16 +878,16 @@ export default function UnifiedSalesDelivery({
         setTimeout(() => handleRequestSaveRef.current(), 0)
         return
       }
-      if (event.key === "F8") {
-        event.preventDefault()
-        if (form.id > 0 && form.status === 1) {
-          setShowDeleteConfirm(true)
-        }
-        return
-      }
       if (event.key === "F9") {
         event.preventDefault()
-        if (form.id > 0) onPrint?.()
+        if (form.id > 0 && form.status !== 3) {
+          if (form.has_linked_invoice) {
+            messagesRef.current?.clear?.()
+            messagesRef.current?.show?.([{ severity: "error", summary: "", detail: "لا يمكن حذف هذه الإرسالية لأنها مرتبطة بفاتورة", life: 4000 }])
+          } else {
+            setShowDeleteConfirm(true)
+          }
+        }
         return
       }
       if (event.key === "F5") {
@@ -2350,7 +2360,7 @@ export default function UnifiedSalesDelivery({
     onItemsChange(nextItems)
   }
 
-  const handleRequestSave = () => {
+  const completeSaveRequest = () => {
     if (isLocked) return
     commitGridItemsBeforeSave()
     setTimeout(() => {
@@ -2363,6 +2373,16 @@ export default function UnifiedSalesDelivery({
       }
       setPostDialogOpen(true)
     }, 0)
+  }
+
+  const handleRequestSave = () => {
+    if (isLocked) return
+    if (activeTab !== "items") {
+      setActiveTab("items")
+      requestAnimationFrame(() => requestAnimationFrame(() => completeSaveRequest()))
+      return
+    }
+    completeSaveRequest()
   }
   handleRequestSaveRef.current = handleRequestSave
 
@@ -2451,7 +2471,14 @@ export default function UnifiedSalesDelivery({
             guardedAction(() => onNew?.())
           }}
           onSave={handleRequestSave}
-          onDelete={() => setShowDeleteConfirm(true)}
+          onDelete={() => {
+            if (form.has_linked_invoice) {
+              messagesRef.current?.clear?.()
+              messagesRef.current?.show?.([{ severity: "error", summary: "", detail: "لا يمكن حذف هذه الإرسالية لأنها مرتبطة بفاتورة", life: 4000 }])
+              return
+            }
+            setShowDeleteConfirm(true)
+          }}
           onFirst={() => { console.debug('[UnifiedSalesDelivery] toolbar: first clicked'); guardedAction(() => onNavigate?.("last")) }}
           onPrevious={() => { console.debug('[UnifiedSalesDelivery] toolbar: previous clicked'); guardedAction(() => onNavigate?.("next")) }}
           onNext={() => { console.debug('[UnifiedSalesDelivery] toolbar: next clicked'); guardedAction(() => onNavigate?.("previous")) }}
@@ -2463,7 +2490,7 @@ export default function UnifiedSalesDelivery({
           canSave={!isLocked}
           canPrint={form.id > 0}
           canClone={form.id > 0}
-          canDelete={form.id > 0 && form.status !== 3 && !form.has_linked_invoice}
+          canDelete={form.id > 0 && form.status !== 3}
           isFirstRecord={isFirstRecord}
           isLastRecord={isLastRecord}
         />
@@ -2649,24 +2676,18 @@ export default function UnifiedSalesDelivery({
                     valueMode="id"
                     onValueChange={() => {}}
                     onAccountSelect={(account) => {
-                      if (isFromDelivery) {
-                        messagesRef.current?.show?.([
-                          {
-                            severity: "warn",
-                            summary: "",
-                            detail: isPurchaseDeliveryVoucher
-                              ? "لا يمكن تغيير المورد لفاتورة من إرسالية. لحساب مورد جديد، أغلق الفاتورة واحفظ التغييرات أولاً."
-                              : "لا يمكن تغيير العميل لفاتورة من إرسالية. لحساب عميل جديد، أغلق الفاتورة واحفظ التغييرات أولاً.",
-                            life: 5000,
-                          },
-                        ])
-                        return
-                      }
                       onFormChange("account_id", account?.id ?? null)
                       onFormChange("customer_name", account?.name ?? "")
                     }}
                     searchAllowedTypeValues={isPurchaseDeliveryVoucher ? [3, 5] : [2, 5]}
-                    disabled={isLocked || isFromDelivery}
+                    showOrderOnlyFilter={hasOrderSourceItems}
+                    lockOrderOnlyFilter={hasOrderSourceItems}
+                    showDeliveryOnlyFilter={hasDeliverySourceItems}
+                    lockDeliveryOnlyFilter={hasDeliverySourceItems}
+                    deliveryVchTypes={isPurchaseDeliveryVoucher ? [18] : [13, 14]}
+                    orderType={isPurchaseDeliveryVoucher ? 2 : 1}
+                    branchId={form.branch_id}
+                    disabled={isLocked}
                   />
                 </div>
                 <div className="col-span-1 grid gap-1.5">
@@ -2675,7 +2696,7 @@ export default function UnifiedSalesDelivery({
                     id="payer-name"
                     value={form.customer_name}
                     onChange={(e) => onFormChange("customer_name", e.target.value)}
-                    disabled={isLocked || isFromDelivery}
+                    disabled={isLocked}
                     className="text-right"
                   />
                 </div>
@@ -3211,6 +3232,7 @@ export default function UnifiedSalesDelivery({
             setInvoiceFromDeliveryOpen(open)
           }}
           voucherType={voucherType}
+          branchId={form.branch_id}
           onCancel={() => {
             handleInvoiceSourceTypeChange(1)
           }}
@@ -3278,6 +3300,7 @@ export default function UnifiedSalesDelivery({
             setInvoiceFromOrderOpen(open)
           }}
           voucherType={voucherType}
+          branchId={form.branch_id}
           onCancel={() => {
             handleInvoiceSourceTypeChange(1)
           }}
@@ -3407,15 +3430,20 @@ export default function UnifiedSalesDelivery({
           }}
         />
 
-        <ConfirmDialogYesNo
-          visible={showDeleteConfirm}
-          message={form.status === 2 ? "السند مرحل هل تريد الغاؤه منطقياً؟" : `هل تريد حذف هذا ${TITLE}؟`}
-          onConfirm={() => {
-            setShowDeleteConfirm(false)
-            onDelete?.()
-          }}
-          onCancel={() => setShowDeleteConfirm(false)}
-        />
+        <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+          <AlertDialogContent dir="rtl" className="z-[10050] max-w-md">
+            <AlertDialogHeader>
+              <AlertDialogTitle>تأكيد الحذف</AlertDialogTitle>
+              <AlertDialogDescription className="text-right">
+                {form.status === 2 ? "السند مرحل، هل تريد إلغاءه منطقياً؟" : `هل تريد حذف هذا ${TITLE}؟`}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="gap-2 sm:justify-start">
+              <AlertDialogAction className="bg-red-600 hover:bg-red-700" onClick={() => onDelete?.()}>تأكيد</AlertDialogAction>
+              <AlertDialogCancel>إلغاء</AlertDialogCancel>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         <ConfirmDialogYesNo
           visible={showCurrencyRecalcConfirm}
@@ -3445,23 +3473,40 @@ export default function UnifiedSalesDelivery({
           onCancel={() => setShowVatRestoreConfirm(false)}
         />
 
-        <ConfirmDialogYesNo
-          visible={showUnsavedConfirm}
-          message="تم تعديل البيانات، هل تريد الحفظ؟"
-          showBack
-          onConfirm={() => {
-            setShowUnsavedConfirm(false)
-            pendingActionRef.current = null
-            onSave("save")
-          }}
-          onCancel={() => {
-            setShowUnsavedConfirm(false)
-            const action = pendingActionRef.current
-            pendingActionRef.current = null
-            action?.()
-          }}
-          onBack={() => setShowUnsavedConfirm(false)}
-        />
+        <AlertDialog open={showUnsavedConfirm} onOpenChange={setShowUnsavedConfirm}>
+          <AlertDialogContent dir="rtl" className="z-[10060] max-w-md">
+            <AlertDialogHeader>
+              <AlertDialogTitle>تم تعديل البيانات</AlertDialogTitle>
+              <AlertDialogDescription className="text-right">
+                هل تريد حفظ التعديلات قبل المتابعة؟
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="gap-2 sm:justify-start">
+              <AlertDialogAction
+                className="bg-emerald-600 hover:bg-emerald-700"
+                onClick={() => {
+                  pendingActionRef.current = null
+                  onSave("save")
+                }}
+              >
+                نعم، حفظ
+              </AlertDialogAction>
+              <AlertDialogAction
+                className="bg-slate-600 hover:bg-slate-700"
+                onClick={() => {
+                  const action = pendingActionRef.current
+                  pendingActionRef.current = null
+                  action?.()
+                }}
+              >
+                لا، متابعة
+              </AlertDialogAction>
+              <AlertDialogCancel onClick={() => { pendingActionRef.current = null }}>
+                رجوع
+              </AlertDialogCancel>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         <PostVoucherDialog
           visible={postDialogOpen}

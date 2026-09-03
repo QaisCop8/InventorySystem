@@ -11,6 +11,7 @@ export async function GET(request: NextRequest) {
     const orderType = Number(searchParams.get("order_type") || 1)
     const customerId = Number(searchParams.get("customer_id") || 0)
     const supplierId = Number(searchParams.get("supplier_id") || 0)
+    const branchId = Number(searchParams.get("branch_id") || 0)
 
     if (orderType === 1 && !customerId) {
       return NextResponse.json({ error: "معرف العميل مطلوب" }, { status: 400 })
@@ -31,7 +32,8 @@ export async function GET(request: NextRequest) {
           WHERE COALESCE(o.deleted, false) = false
             AND o.order_type = 1
             AND o.customer_id = ${customerId}
-            AND o.order_status IN (2, 3)
+            AND (${branchId} = 0 OR o.branch_id = ${branchId})
+            AND o.order_status IN (2, 3, 4)
             AND EXISTS (
               SELECT 1
               FROM order_items oi
@@ -42,14 +44,16 @@ export async function GET(request: NextRequest) {
                 FROM voucher_items_tbl vi
                 JOIN voucher_header_tbl vh ON vh.id = vi.voucher_id
                 WHERE vh.vch_type = ${SALES_INVOICE_TYPE}
-                  AND vh.status = 2
+                  AND vh.status <> 3
                   AND vi.order_item_id = oi.id
                   AND vi.delivery_item_id IS NULL
               ) inv ON TRUE
               WHERE oi.order_id = o.id
-                AND oi.item_status IN (2, 3)
-                AND COALESCE(oi.quantity, 0) + COALESCE(oi.bonus, 0)
-                    > COALESCE(inv.invoiced_quantity, 0) + COALESCE(inv.invoiced_bonus, 0)
+                AND oi.item_status IN (2, 3, 4)
+                AND (
+                  COALESCE(oi.quantity, 0) > COALESCE(inv.invoiced_quantity, 0)
+                  OR COALESCE(oi.bonus, 0) > COALESCE(inv.invoiced_bonus, 0)
+                )
             )
           ORDER BY o.order_date DESC, o.id DESC
         `
@@ -62,6 +66,7 @@ export async function GET(request: NextRequest) {
           INNER JOIN account_tbl s ON s.id = po.supplier_id
           LEFT JOIN currency cur ON cur.id = po.currency_id
           WHERE po.supplier_id = ${supplierId}
+            AND (${branchId} = 0 OR po.branch_id = ${branchId})
             AND COALESCE(po.workflow_status, '') != 'cancelled'
             AND EXISTS (
               SELECT 1
@@ -73,7 +78,7 @@ export async function GET(request: NextRequest) {
                 FROM voucher_items_tbl vi
                 JOIN voucher_header_tbl vh ON vh.id = vi.voucher_id
                 WHERE vh.vch_type = ${PURCHASE_INVOICE_TYPE}
-                  AND vh.status = 2
+                  AND vh.status <> 3
                   AND vi.order_item_id = poi.id
               ) inv ON TRUE
               WHERE poi.order_id = po.id

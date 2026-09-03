@@ -1,6 +1,9 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getManagementSession } from "@/lib/management-auth"
-import managementSql, { ensureManagementTables } from "@/lib/management-db"
+import managementSql, {
+  ensureManagementTables,
+  ensureTransactionPermissionDefinitions,
+} from "@/lib/management-db"
 
 export async function GET() {
   try {
@@ -9,6 +12,7 @@ export async function GET() {
     if (!session || !session.is_platform_admin) {
       return NextResponse.json({ error: "لا تملك صلاحية الوصول لهذه الصفحة" }, { status: 403 })
     }
+    await ensureTransactionPermissionDefinitions()
 
     const rows = await managementSql`
       SELECT al.id, al.name, al.category_id, ac.name AS category_name, al.created_at, al.updated_at

@@ -10,10 +10,37 @@ import {
   mapAccountRow,
 } from "./_lib"
 
+const ensureBranchesTable = () => sql`
+  CREATE TABLE IF NOT EXISTS branches (
+    id SERIAL PRIMARY KEY,
+    branch_code VARCHAR(20) UNIQUE NOT NULL,
+    branch_name VARCHAR(100) NOT NULL,
+    bank_id INTEGER,
+    address TEXT,
+    manager VARCHAR(100),
+    phone VARCHAR(20),
+    status INTEGER DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )
+`
+
+const ensureAccountClassificationTypesTable = () => sql`
+  CREATE TABLE IF NOT EXISTS account_classification_types (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL UNIQUE,
+    status INTEGER NOT NULL DEFAULT 1 CHECK (status IN (1, 2, 3)),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  )
+`
+
 export async function GET(request: NextRequest) {
   try {
     await ensureAccountsTable()
     await ensureAccountRelatedTables()
+    await ensureBranchesTable()
+    await ensureAccountClassificationTypesTable()
     await sql`
       CREATE TABLE IF NOT EXISTS account_branches (
         account_id INTEGER NOT NULL REFERENCES account_tbl(id) ON DELETE CASCADE,
@@ -26,8 +53,11 @@ export async function GET(request: NextRequest) {
     // للجميع، وحساب مقيَّد بفرع/فروع معيّنة لا يظهر إلا لمستخدم فرعه أحدها. activeBranchId مُتحقَّق
     // كعدد صحيح صراحة قبل تضمينه حرفياً بنص الاستعلام (نفس سبب app/api/customers/route.ts: fragment
     // sql.unsafe المُضمَّن لا يُعيد ترقيم معاملاته الداخلية بالنسبة لمعاملات الاستعلام المحيط).
+    const requestedBranchId = Number(new URL(request.url).searchParams.get('branch_id'))
     const activeBranchIdHeader = Number(request.headers.get('x-branch-id'))
-    const activeBranchId = Number.isInteger(activeBranchIdHeader) && activeBranchIdHeader > 0 ? activeBranchIdHeader : null
+    const activeBranchId = Number.isInteger(requestedBranchId) && requestedBranchId > 0
+      ? requestedBranchId
+      : Number.isInteger(activeBranchIdHeader) && activeBranchIdHeader > 0 ? activeBranchIdHeader : null
     const branchFilterSql = activeBranchId !== null
       ? `AND (NOT EXISTS (SELECT 1 FROM account_branches ab WHERE ab.account_id = a.id)
           OR EXISTS (SELECT 1 FROM account_branches ab WHERE ab.account_id = a.id AND ab.branch_id = ${activeBranchId}))`
@@ -46,6 +76,7 @@ export async function GET(request: NextRequest) {
     const orderTypeParam = searchParams.get('order_type')
     const orderType = orderTypeParam ? Number(orderTypeParam) : null
     const ORDER_SOURCE_VOUCHER_TYPE = 3
+    const sourceInvoiceType = orderType === 2 ? 17 : 12
 
     const hasDeliveriesCondition = deliveryVchTypes.length > 0
       ? sql`
@@ -56,6 +87,7 @@ export async function GET(request: NextRequest) {
             WHERE vch.account_id = a.id
               AND vch.vch_type = ANY(${deliveryVchTypes})
               AND vch.status = 2
+              AND (${activeBranchId ?? 0} = 0 OR vch.branch_id = ${activeBranchId ?? 0})
               AND (
                 (
                   ivch.qnty - (
@@ -72,17 +104,54 @@ export async function GET(request: NextRequest) {
           )`
       : sql`FALSE`
 
-    const hasOrdersCondition = orderType !== null
+    const hasOrdersCondition = orderType === 1
       ? sql`
           EXISTS (
             SELECT 1
             FROM orders oh
             INNER JOIN order_items oi ON oi.order_id = oh.id
-            WHERE oh.customer_id = a.id
-              AND oh.deleted = FALSE
-              AND oh.order_status IN (2, 3)
-              AND oi.item_status IN (2, 3)
+            LEFT JOIN LATERAL (
+              SELECT COALESCE(SUM(vi.qnty), 0) AS sent_quantity,
+                     COALESCE(SUM(vi.bonus), 0) AS sent_bonus
+              FROM voucher_items_tbl vi
+              INNER JOIN voucher_header_tbl vh ON vh.id=vi.voucher_id
+              WHERE vi.order_item_id=oi.id
+                AND vh.vch_type=${sourceInvoiceType}
+                AND vh.status<>3
+                AND vi.delivery_item_id IS NULL
+            ) sent ON TRUE
+            WHERE oh.customer_id=a.id
+              AND (${activeBranchId ?? 0} = 0 OR oh.branch_id = ${activeBranchId ?? 0})
+              AND COALESCE(oh.deleted,FALSE)=FALSE
+              AND oh.order_status IN (2,3,4)
+              AND (
+                COALESCE(oi.quantity,0)>COALESCE(sent.sent_quantity,0)
+                OR COALESCE(oi.bonus,0)>COALESCE(sent.sent_bonus,0)
+              )
           )`
+      : orderType === 2
+        ? sql`
+            EXISTS (
+              SELECT 1
+              FROM orders oh
+              INNER JOIN order_items oi ON oi.order_id = oh.id
+              LEFT JOIN LATERAL (
+                SELECT COALESCE(SUM(vi.qnty), 0) AS sent_quantity,
+                       COALESCE(SUM(vi.bonus), 0) AS sent_bonus
+                FROM voucher_items_tbl vi
+                INNER JOIN voucher_header_tbl vh ON vh.id = vi.voucher_id
+                WHERE vi.order_item_id = oi.id
+                  AND vh.vch_type = ${sourceInvoiceType}
+                  AND vh.status <> 3
+              ) sent ON TRUE
+              WHERE oh.supplier_id = a.id
+                AND (${activeBranchId ?? 0} = 0 OR oh.branch_id = ${activeBranchId ?? 0})
+                AND COALESCE(oh.workflow_status, '') <> 'cancelled'
+                AND (
+                  COALESCE(oi.quantity, 0) > COALESCE(sent.sent_quantity, 0)
+                  OR COALESCE(oi.bonus, 0) > COALESCE(sent.sent_bonus, 0)
+                )
+            )`
       : sql`FALSE`
 
     let rows
@@ -274,6 +343,8 @@ export async function POST(request: NextRequest) {
   try {
     await ensureAccountsTable()
     await ensureAccountRelatedTables()
+    await ensureBranchesTable()
+    await ensureAccountClassificationTypesTable()
     await sql`
       CREATE TABLE IF NOT EXISTS account_branches (
         account_id INTEGER NOT NULL REFERENCES account_tbl(id) ON DELETE CASCADE,

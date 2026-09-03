@@ -206,6 +206,8 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
           serial_numbers: Array.isArray(item.serial_numbers) ? item.serial_numbers : [],
           source_voucher_id: item.source_voucher_id ?? null,
           source_voucher_type: item.source_voucher_type ?? null,
+          order_item_id: item.order_item_id == null ? null : Number(item.order_item_id),
+          delivery_item_id: item.delivery_item_id == null ? null : Number(item.delivery_item_id),
           note: String(item.note || ""),
           length: item.length ?? null,
           width: item.width ?? null,
@@ -546,6 +548,9 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
     if (data.invoice_source_type === 2 && (!data.source_voucher_id || !data.source_voucher_type)) {
       return "يجب اختيار الإرسالية المصدرية للفاتورة"
     }
+    if (data.invoice_source_type === 3 && (!data.source_voucher_id || !data.source_voucher_type)) {
+      return "يجب اختيار الطلبية المصدرية للفاتورة"
+    }
     const isDeliveryVoucherType = [DELIVERY_SELL_VCH_TYPE, DELIVERY_CONSIGNMENT_SALE_VCH_TYPE, RETURN_DELIVERY_CONSIGNMENT_SALE_VCH_TYPE, DELIVERY_PAY_VCH_TYPE].includes(voucherType)
     const isPurchaseDeliveryVoucherType = voucherType === DELIVERY_PAY_VCH_TYPE
 
@@ -744,7 +749,12 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
       console.debug("handleNavigate called", { direction, currentIndex, filteredLength: filteredVouchers.length })
       if (filteredVouchers.length === 0) return
       let targetIndex = currentIndex
-      if (direction === "first") targetIndex = 0
+      // A newly generated voucher is conceptually positioned immediately after
+      // the last saved voucher. The RTL toolbar maps its visible "previous"
+      // action to `next`, so navigate to the actual last saved record instead
+      // of advancing from the stale index of the record that was open before New.
+      if (form.id <= 0 && direction === "next") targetIndex = filteredVouchers.length - 1
+      else if (direction === "first") targetIndex = 0
       else if (direction === "last") targetIndex = filteredVouchers.length - 1
       else if (direction === "previous") targetIndex = Math.max(0, currentIndex - 1)
       else targetIndex = Math.min(filteredVouchers.length - 1, currentIndex + 1)

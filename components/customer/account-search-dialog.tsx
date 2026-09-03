@@ -80,9 +80,12 @@ interface AccountSearchDialogProps {
   showFinancialListFilter?: boolean
   showTypeFilter?: boolean
   showDeliveryOnlyFilter?: boolean
+  lockDeliveryOnlyFilter?: boolean
   deliveryVchTypes?: number[]
   showOrderOnlyFilter?: boolean
+  lockOrderOnlyFilter?: boolean
   orderType?: number | null
+  branchId?: number | null
 }
 
 interface CurrencyOption {
@@ -131,9 +134,12 @@ export default function AccountSearchDialog({
   showFinancialListFilter = true,
   showTypeFilter = true,
   showDeliveryOnlyFilter = false,
+  lockDeliveryOnlyFilter = false,
   deliveryVchTypes = [],
   showOrderOnlyFilter = false,
+  lockOrderOnlyFilter = false,
   orderType = null,
+  branchId = null,
 }: AccountSearchDialogProps) {
   const [searchResults, setSearchResults] = useState<AccountItem[]>([])
   const [allAccounts, setAllAccounts] = useState<AccountItem[]>([])
@@ -258,16 +264,6 @@ export default function AccountSearchDialog({
       return
     }
 
-    const nextFilters = {
-      accountNumber: "",
-      accountName: "",
-      financialList: "__all__",
-      type: defaultTypeValue,
-      currency: "__all__",
-      deliveryOnly: Boolean(showDeliveryOnlyFilter),
-      orderOnly: Boolean(showOrderOnlyFilter),
-    }
-
     const loadFreshAccounts = async () => {
       setLoading(true)
       try {
@@ -277,6 +273,9 @@ export default function AccountSearchDialog({
         }
         if (orderType != null) {
           url.searchParams.set("order_type", String(orderType))
+        }
+        if (Number(branchId) > 0) {
+          url.searchParams.set("branch_id", String(branchId))
         }
         const response = await fetch(url.toString())
         if (!response.ok) return
@@ -305,15 +304,17 @@ export default function AccountSearchDialog({
         }))
 
         setAllAccounts(nextAccounts)
-        setSearchFilters(nextFilters)
-        applySearchFilters(nextFilters, nextAccounts)
+        // Closing the dialog already resets filters. While it remains open,
+        // refreshes (including window-focus refreshes) must preserve what the
+        // user checked or unchecked instead of restoring the default-only flag.
+        applySearchFilters(searchFilters, nextAccounts)
       } finally {
         setLoading(false)
       }
     }
 
     void loadFreshAccounts()
-  }, [open, defaultTypeValue, allowedTypeValuesKey, deliveryVchTypes.join(","), orderType, showOrderOnlyFilter, showDeliveryOnlyFilter, refreshVersion])
+  }, [open, defaultTypeValue, allowedTypeValuesKey, deliveryVchTypes.join(","), orderType, branchId, showOrderOnlyFilter, showDeliveryOnlyFilter, refreshVersion])
 
   useEffect(() => {
     if (!open) return
@@ -381,7 +382,10 @@ export default function AccountSearchDialog({
 
   const applySearchFilters = (nextFilters?: typeof searchFilters, sourceAccounts?: AccountItem[]) => {
     const filters = nextFilters || searchFilters
-    const list = sourceAccounts || visibleAccounts
+    // Always start again from the complete API result. Re-filtering a derived
+    // list can leave the dialog empty after an "only" checkbox is cleared,
+    // because accounts excluded by the previous filter are no longer present.
+    const list = sourceAccounts || allAccounts
     const results = list.filter((account) => {
       if (filters.accountNumber && !account.code.includes(filters.accountNumber)) {
         return false
@@ -678,12 +682,20 @@ export default function AccountSearchDialog({
                       id="deliveryOnly"
                       type="checkbox"
                       checked={searchFilters.deliveryOnly}
+                      disabled={lockDeliveryOnlyFilter}
                       onChange={(e) => {
-                        const nextFilters = { ...searchFilters, deliveryOnly: e.target.checked }
+                        const nextFilters = {
+                          ...searchFilters,
+                          deliveryOnly: e.target.checked,
+                          // The two source filters are alternatives. Requiring
+                          // both at once can hide every customer.
+                          orderOnly: e.target.checked ? false : searchFilters.orderOnly,
+                        }
                         setSearchFilters(nextFilters)
                         applySearchFilters(nextFilters)
+                        setRefreshVersion((value) => value + 1)
                       }}
-                      className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                      className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 disabled:cursor-not-allowed disabled:opacity-60"
                     />
                     <label htmlFor="deliveryOnly" className="text-sm font-medium text-slate-600">
                       إظهار الزبائن الذين لديهم ارساليات فقط
@@ -696,12 +708,18 @@ export default function AccountSearchDialog({
                       id="orderOnly"
                       type="checkbox"
                       checked={searchFilters.orderOnly}
+                      disabled={lockOrderOnlyFilter}
                       onChange={(e) => {
-                        const nextFilters = { ...searchFilters, orderOnly: e.target.checked }
+                        const nextFilters = {
+                          ...searchFilters,
+                          orderOnly: e.target.checked,
+                          deliveryOnly: e.target.checked ? false : searchFilters.deliveryOnly,
+                        }
                         setSearchFilters(nextFilters)
                         applySearchFilters(nextFilters)
+                        setRefreshVersion((value) => value + 1)
                       }}
-                      className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                      className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 disabled:cursor-not-allowed disabled:opacity-60"
                     />
                     <label htmlFor="orderOnly" className="text-sm font-medium text-slate-600">
                       إظهار الزبائن الذين لديهم طلبيات فقط

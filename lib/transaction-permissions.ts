@@ -2,40 +2,18 @@ import { NextResponse, type NextRequest } from "next/server"
 import sql, { resolveCurrentDbName } from "@/lib/database"
 import { ensurePermissionTables, hasEffectivePermission } from "@/lib/permissions"
 import { getSessionUser } from "@/lib/tenant-auth"
+import {
+  legacyTransactionPermissionName,
+  TRANSACTION_ACTION_LABELS,
+  TRANSACTION_FAMILIES,
+  TRANSACTION_PERMISSION_CATEGORY,
+  transactionPermissionName,
+  type TransactionAction,
+  type TransactionFamily,
+} from "@/lib/transaction-permission-definitions"
 
-export type TransactionAction = "view" | "create" | "update" | "delete" | "post"
-
-export const TRANSACTION_FAMILIES = {
-  sales_invoice: "فاتورة مبيعات",
-  sales_delivery: "إرسالية مبيعات",
-  consignment_delivery: "إرسالية برسم البيع",
-  consignment_return: "مرتجع إرسالية برسم البيع",
-  sales_return: "مرتجع مبيعات",
-  purchase_invoice: "فاتورة مشتريات",
-  purchase_delivery: "إرسالية مشتريات",
-  purchase_return: "مرتجع مشتريات",
-  stock_in: "سند إدخال بضاعة",
-  stock_out: "سند إخراج بضاعة",
-  internal_delivery: "إرسالية داخلية",
-  stock_use: "سند استعمال",
-  receipt: "سند قبض",
-  payment: "سند صرف",
-  journal: "سند قيد",
-  credit_note: "إشعار دائن",
-  debit_note: "إشعار مدين",
-  sales_order: "طلبية مبيعات",
-  purchase_order: "طلبية مشتريات",
-} as const
-
-export type TransactionFamily = keyof typeof TRANSACTION_FAMILIES
-
-const ACTION_LABELS: Record<TransactionAction, string> = {
-  view: "عرض",
-  create: "إدخال",
-  update: "تعديل",
-  delete: "حذف",
-  post: "ترحيل وإلغاء ترحيل",
-}
+export { TRANSACTION_FAMILIES, transactionPermissionName }
+export type { TransactionAction, TransactionFamily }
 
 const VOUCHER_FAMILIES: Record<number, TransactionFamily> = {
   1: "journal",
@@ -61,10 +39,6 @@ export function transactionFamilyForVoucherType(vchType: number): TransactionFam
   return VOUCHER_FAMILIES[Number(vchType)] || null
 }
 
-export function transactionPermissionName(family: TransactionFamily, action: TransactionAction) {
-  return `${ACTION_LABELS[action]} ${TRANSACTION_FAMILIES[family]}`
-}
-
 export async function ensureTransactionPermission(family: TransactionFamily, action: TransactionAction): Promise<number> {
   await ensurePermissionTables(await resolveCurrentDbName())
   await sql`
@@ -74,8 +48,9 @@ export async function ensureTransactionPermission(family: TransactionFamily, act
       true
     )
   `
-  const categoryName = "صلاحيات الحركات"
+  const categoryName = TRANSACTION_PERMISSION_CATEGORY
   const permissionName = transactionPermissionName(family, action)
+  const legacyName = legacyTransactionPermissionName(family, action)
   const categoryRows = await sql`
     INSERT INTO access_category (name)
     SELECT ${categoryName}
@@ -83,6 +58,14 @@ export async function ensureTransactionPermission(family: TransactionFamily, act
     RETURNING id
   `
   const category = categoryRows[0] || (await sql`SELECT id FROM access_category WHERE name = ${categoryName} ORDER BY id LIMIT 1`)[0]
+  if (legacyName) {
+    await sql`
+      UPDATE access_list
+      SET name = ${permissionName}, category_id = ${category.id}, updated_at = CURRENT_TIMESTAMP
+      WHERE name = ${legacyName}
+        AND NOT EXISTS (SELECT 1 FROM access_list WHERE name = ${permissionName})
+    `
+  }
   const inserted = await sql`
     INSERT INTO access_list (name, category_id)
     SELECT ${permissionName}, ${category.id}
@@ -150,7 +133,7 @@ export async function authorizeStoredVoucher(request: NextRequest, voucherId: nu
 
 export async function ensureAllTransactionPermissions() {
   for (const family of Object.keys(TRANSACTION_FAMILIES) as TransactionFamily[]) {
-    for (const action of Object.keys(ACTION_LABELS) as TransactionAction[]) {
+    for (const action of Object.keys(TRANSACTION_ACTION_LABELS) as TransactionAction[]) {
       await ensureTransactionPermission(family, action)
     }
   }

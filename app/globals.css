@@ -385,6 +385,33 @@ td {
   font-size: var(--font-size-custom, 14px) !important;
 }
 
+/* Source-selection grids use the same dark header treatment as the ERP data grids. */
+.invoice-source-grid .wj-flexgrid .wj-colheaders .wj-cell,
+.invoice-source-grid .wj-flexgrid .wj-header {
+  background: #263b4e !important;
+  color: #ffffff !important;
+  border-color: #40556a !important;
+  font-weight: 700 !important;
+}
+
+.invoice-source-grid .wj-flexgrid {
+  border: 0 !important;
+  width: 100% !important;
+}
+
+.invoice-source-grid .wj-flexgrid .wj-state-selected,
+.invoice-source-grid .wj-flexgrid .wj-state-multi-selected {
+  background: #d1fae5 !important;
+  color: #0f172a !important;
+}
+
+@media (max-width: 640px) {
+  .invoice-source-grid {
+    max-width: 100%;
+    overflow-x: auto !important;
+  }
+}
+
 @layer components {
   .erp-toast-host {
     width: 30rem !important;

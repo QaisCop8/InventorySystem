@@ -407,7 +407,7 @@ export default function UnifiedJournal({
       }
       if (event.key === "F5") {
         event.preventDefault()
-        guardedAction(() => onNew?.())
+        onNew?.()
       }
     }
 
@@ -466,9 +466,9 @@ export default function UnifiedJournal({
       if (data.code && data.code !== form.vch_code) onFormChange("vch_code", data.code)
       if (data.exists && data.id) {
         if (data.id === form.id) return
-        guardedAction(() => onCodeResolved?.(data.id))
+        await onCodeResolved?.(data.id)
       } else if (!data.exists && data.code) {
-        guardedAction(() => onCodeNotFound?.(data.code))
+        onCodeNotFound?.(data.code)
       }
     } catch (error) {
       console.error("Failed to resolve journal voucher code", error)
@@ -655,14 +655,14 @@ export default function UnifiedJournal({
         {
           name: "btnCostCenter",
           header: "مراكز التكلفة",
-          width: 100,
+          width: 150,
           buttonBody: "button",
           align: "center",
           title: "مراكز التكلفة",
           iconType: "money",
           isReadOnly: true,
           onClick: (e: any, ctx: any) => openJournalCostCenter(ctx.row.index),
-          visible: !isLocked,
+          visible: true,
         },
         {
           name: "btnDelete",
@@ -674,7 +674,7 @@ export default function UnifiedJournal({
           iconType: "delete",
           isReadOnly: true,
           onClick: (e: any, ctx: any) => deleteJournalRow(ctx.row.index),
-          visible: true,
+          visible: !isLocked,
         },
       ],
     }),
@@ -845,7 +845,7 @@ export default function UnifiedJournal({
       <Dialog open={dialogOpen} onOpenChange={onOpenChange}>
         <DialogContent
           inline={fullscreenEnabled && dialogOpen}
-          className="voucher-form flex h-[calc(100dvh-1rem)] max-h-[92vh] w-[calc(100vw-1rem)] max-w-[1400px] flex-col overflow-hidden p-0 text-[13px] transition-shadow sm:h-[92vh] sm:w-[96vw] xl:w-[92vw] [&_label]:text-xs [&_input:not([type=checkbox])]:h-8 [&_input:not([type=checkbox])]:px-2.5 [&_.p-dropdown]:min-h-8 [&_.p-dropdown-label]:py-1.5 [&_.p-calendar]:h-8 [&_.p-calendar_input]:h-8"
+          className="voucher-form flex h-[calc(100dvh-1rem)] max-h-[96vh] w-[calc(100vw-0.5rem)] max-w-[1700px] flex-col overflow-hidden p-0 text-[13px] transition-shadow sm:w-[98vw] [&_label]:text-xs [&_input:not([type=checkbox])]:h-8 [&_input:not([type=checkbox])]:px-2.5 [&_.p-dropdown]:min-h-8 [&_.p-dropdown-label]:py-1.5 [&_.p-calendar]:h-8 [&_.p-calendar_input]:h-8"
           dir="rtl"
           onPointerDownOutside={(event) => event.preventDefault()}
           onInteractOutside={(event) => event.preventDefault()}
@@ -857,20 +857,21 @@ export default function UnifiedJournal({
           <UniversalToolbar
             currentRecord={currentIndex + 1}
             totalRecords={totalRecords}
-            onNew={() => guardedAction(() => onNew?.())}
+            onNew={() => onNew?.()}
             onSave={handleRequestSave}
             onDelete={onDelete}
             onClone={onClone}
             onPrint={onPrint}
-            onFirst={() => guardedAction(() => void handleNavigate("first"))}
-            onPrevious={() => guardedAction(() => void handleNavigate("previous"))}
-            onNext={() => guardedAction(() => void handleNavigate("next"))}
-            onLast={() => guardedAction(() => void handleNavigate("last"))}
+            onFirst={() => void handleNavigate("first")}
+            onPrevious={() => void handleNavigate("previous")}
+            onNext={() => void handleNavigate("next")}
+            onLast={() => void handleNavigate("last")}
             isSaving={isSaving}
             canSave={canSave && form.status !== 2 && form.status !== 3}
             canDelete={form.id > 0 && form.status !== 3}
             canClone={form.id > 0}
             canPrint={form.id > 0 && form.status !== 3}
+            isNewRecord={form.id <= 0}
             isFirstRecord={isFirstRecord}
             isLastRecord={isLastRecord}
           />
@@ -1054,7 +1055,7 @@ export default function UnifiedJournal({
                 <TabsTrigger value="attachments" className={voucherTabTriggerClass}>المرفقات</TabsTrigger>
               </TabsList>
 
-              <TabsContent value="journal" className="mt-3 flex min-h-0 flex-1 flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+              <TabsContent value="journal" className="mt-3 flex flex-none flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
                 <div className="flex items-center justify-between">
                   <div
                     className={`text-sm font-semibold ${journalDiff === 0 ? "text-emerald-700" : "text-rose-600"}`}
@@ -1062,12 +1063,12 @@ export default function UnifiedJournal({
                     إجمالي المدين: {totalDebit.toLocaleString()} — إجمالي الدائن: {totalCredit.toLocaleString()}
                     {journalDiff !== 0 && ` — الفرق: ${journalDiff.toLocaleString()}`}
                   </div>
-                  <Button type="button" variant="outline" size="sm" onClick={() => addJournalRow()}>
+                  <Button type="button" variant="outline" size="sm" disabled={isLocked} onClick={() => addJournalRow()}>
                     <Plus className="ml-1 h-4 w-4" />
                     إضافة سطر
                   </Button>
                 </div>
-                <div className="min-h-0 w-full flex-1 overflow-hidden">
+                <div className="h-[clamp(240px,38vh,440px)] min-h-0 w-full overflow-hidden">
                   <DataGridView
                     innerRef={gridRef}
                     containerStyle={{ height: "100%", minHeight: 0 }}

@@ -35,6 +35,13 @@ interface AutoCompleteAccountProps {
   searchDefaultTypeValue?: string
   showFinancialListFilter?: boolean
   showTypeFilter?: boolean
+  showDeliveryOnlyFilter?: boolean
+  lockDeliveryOnlyFilter?: boolean
+  deliveryVchTypes?: number[]
+  showOrderOnlyFilter?: boolean
+  lockOrderOnlyFilter?: boolean
+  orderType?: number | null
+  branchId?: number | null
   displayIdOnly?: boolean
   // يظهر فقط عندما يُمرَّر requiredTypeValues: عند مغادرة الحقل (بعد كتابة يدوية) إن لم يوجد
   // الحساب أصلاً أو كان موجوداً لكن نوعه خارج requiredTypeValues، تُمسح القيمة المدخلة وتُعرض
@@ -118,6 +125,13 @@ export default function AutoCompleteAccount({
   searchDefaultTypeValue,
   showFinancialListFilter,
   showTypeFilter = true,
+  showDeliveryOnlyFilter = false,
+  lockDeliveryOnlyFilter = false,
+  deliveryVchTypes = [],
+  showOrderOnlyFilter = false,
+  lockOrderOnlyFilter = false,
+  orderType = null,
+  branchId = null,
   displayIdOnly = false,
   notFoundMessage,
 }: AutoCompleteAccountProps) {
@@ -432,6 +446,13 @@ export default function AutoCompleteAccount({
         defaultTypeValue={searchDefaultTypeValue}
         showFinancialListFilter={showFinancialListFilter}
         showTypeFilter={showTypeFilter}
+        showDeliveryOnlyFilter={showDeliveryOnlyFilter}
+        lockDeliveryOnlyFilter={lockDeliveryOnlyFilter}
+        deliveryVchTypes={deliveryVchTypes}
+        showOrderOnlyFilter={showOrderOnlyFilter}
+        lockOrderOnlyFilter={lockOrderOnlyFilter}
+        orderType={orderType}
+        branchId={branchId}
       />
 
       {showCostCenterDialog && (

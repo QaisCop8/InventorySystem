@@ -9,6 +9,7 @@ export async function GET(request: NextRequest) {
     const customerId = Number(searchParams.get("customer_id") || 0)
     const voucherType = Number(searchParams.get("voucher_type") || 0)
     const deliveryTypesParam = searchParams.get("delivery_types") || ""
+    const branchId = Number(searchParams.get("branch_id") || 0)
 
     if (!customerId) {
       return NextResponse.json({ error: "معرف العميل مطلوب" }, { status: 400 })
@@ -35,6 +36,7 @@ export async function GET(request: NextRequest) {
       JOIN voucher_items_tbl vi ON vi.voucher_id = vh.id
       WHERE vh.status = 2
         AND vh.account_id = ${customerId}
+        AND (${branchId} = 0 OR vh.branch_id = ${branchId})
         AND vh.vch_type = ANY(${deliveryTypes})
       AND NOT EXISTS (
           SELECT 1

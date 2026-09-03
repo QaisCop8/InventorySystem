@@ -14,6 +14,7 @@ import { UniversalToolbar } from "@/components/ui/universal-toolbar"
 import { ReportGenerator } from "@/components/ui/report-generator"
 import { useRecordNavigation } from "@/hooks/use-record-navigation"
 import TransactionBranchField from "@/components/common/transaction-branch-field"
+import { useWorkspace } from "@/contexts/workspace-context"
 import * as wjcCore from '@grapecity/wijmo';
 import { Toast } from 'primereact/toast';
 import * as XLSX from "xlsx";
@@ -53,6 +54,15 @@ import MeasurementInputDialog from "@/components/common/MeasurementInputDialog"
 import { stat } from "fs"
 import { set } from "date-fns"
 import React from "react"
+
+const ORDER_ITEM_STATUS_OPTIONS = [
+  { value: 1, label: "غير جاهز" },
+  { value: 2, label: "جاهز" },
+  { value: 3, label: "أرسلت جزئياً" },
+  { value: 4, label: "أرسلت كلياً" },
+  { value: 5, label: "ملغي" },
+  { value: 6, label: "مغلق" },
+]
 const InlineProductSearch = ({ onSelect, onClose, products }: any) => {
   const [searchTerm, setSearchTerm] = useState("")
 
@@ -308,6 +318,7 @@ function UnifiedSalesOrder({
   fromSearch = false,
 }: UnifiedSalesOrderProps) {
   const { activeBranchId, user } = useAuth()
+  const { fullscreenEnabled } = useWorkspace()
   const {
     settings,
     loading: settingsLoading,
@@ -749,7 +760,7 @@ function UnifiedSalesOrder({
       }
       if (e.key === "F8" && !e.ctrlKey && !e.altKey) {
         e.preventDefault()
-        if (state.formData.id > 0 && state.formData.order_status === 1) handleDeleteClick(false)
+        if (state.formData.id > 0 && [1, 2].includes(Number(state.formData.order_status))) handleDeleteClick(false)
         return
       }
       if (e.key === "F9" && !e.ctrlKey && !e.altKey) {
@@ -1286,6 +1297,18 @@ function UnifiedSalesOrder({
     const taxPercentage = parseFloat(state.formData.vat_percent ?? 0);
     console.log(" row  row ", row)
     setSelectedIndex(row)
+    if (colName === "item_status") {
+      const statuses = CollectionView.items
+        .filter((item: any) => item?.id || item?.product_id)
+        .map((item: any) => Number(item.item_status || 1))
+      const nextOrderStatus = statuses.length > 0 && statuses.every((status: number) => status === 4)
+        ? 4
+        : statuses.some((status: number) => status === 3 || status === 4)
+          ? 3
+          : statuses.length > 0 && statuses.every((status: number) => status === 2) ? 2 : 1
+      setState((prev) => ({ ...prev, formData: { ...prev.formData, order_status: nextOrderStatus } }))
+      return
+    }
     if (colName === 'code' || colName === 'barcode') {
       console.log("value value ", editedValue)
       let code = editedValue;
@@ -1387,6 +1410,11 @@ function UnifiedSalesOrder({
   const onBeginningEdit = (grid: any, e: any) => {
     const colName = grid?.columns?.[e.col]?.binding
     const item = grid?.rows?.[e.row]?.dataItem ?? CollectionView.items[e.row]
+    if (colName === "item_status" && [4, 6].includes(Number(state.formData.order_status))) {
+      e.cancel = true
+      Util.showErrorMessage(message, "لا يمكن تغيير حالة الصنف عندما تكون الطلبية مرسلة كلياً أو مغلقة")
+      return
+    }
     if (!item || Number(item.measurment_id || 1) === 1) return
 
     if (colName === "qnty") {
@@ -1613,21 +1641,12 @@ function UnifiedSalesOrder({
         },
 
         {
-          header: "حالة الصنف", name: "item_status", width: 100, visible: false,
-        },
-        {
-          header: "حالة الصنف", name: "item_status_name", width: 100, visible: true,
-          cellTemplate: (ctx: any) => {
-            const statusMap: { [key: number]: string } = {
-              1: 'غير جاهز',
-              2: 'جاهز',
-              3: 'مرسلة جزئيا',
-              4: 'مرسلة كليا',
-              5: 'ملغي',
-              6: 'مغلق'
-            };
-            return statusMap[ctx.item?.item_status] || '';
-          }
+          header: "حالة الصنف",
+          name: "item_status",
+          width: 145,
+          visible: true,
+          dataType: wjcCore.DataType.Number,
+          dataMap: new wjGrid.DataMap(ORDER_ITEM_STATUS_OPTIONS, "value", "label"),
         },
         {
           header: "الباركود", name: "barcode", width: 120, visible: Util.getVoucherSettingScreenData(vch_type, 'barcode')
@@ -2283,6 +2302,7 @@ function UnifiedSalesOrder({
         expiry_date: item.expiry_date || null,
         batch_number: item.batch || null,
         item_status: item.item_status,
+        order_item_id: item.order_item_id ?? null,
         name: item.name,
         selected_attributes: item.selected_attributes || {},
         specifications: { ...(item.specifications || {}), product: item.specifications?.product || item.selected_attributes || {}, reviewed: true, measurement: { measurment_id: Number(item.measurment_id || 1), length: item.length ?? null, width: item.width ?? null, height: item.height ?? null, count: item.count ?? null } },
@@ -2352,12 +2372,14 @@ function UnifiedSalesOrder({
 
   const handleDeleteClick = (checkUnsaved: any) => {
     let newFormData = {
+      form: getFormChangeSnapshot(state.formData),
       order_date: state.formData.order_date,
       customer_id: state.formData.customer_id,
       customer_name: state.formData.customer_name,
 
       currency_id: state.formData.currency_id,
       exchange_rate: state.formData.exchange_rate,
+      items: getItemsChangeSnapshot(CollectionView.items),
       //total: totals.total,
     };
     const currentHash = getFormDataHash(newFormData);
@@ -2374,6 +2396,10 @@ function UnifiedSalesOrder({
         life: 3000
       });
       return;
+    }
+    if (![1, 2].includes(Number(state.formData.order_status))) {
+      Util.showErrorMessage(message, "لا يمكن حذف الطلبية إلا عندما تكون حالتها غير جاهز أو جاهز")
+      return
     }
     message.current?.clear();
     if (state.formData.is_exported) {
@@ -2432,7 +2458,10 @@ function UnifiedSalesOrder({
     });
     if (!response.ok) {
       setLoading(false)
-      throw new Error("فشل في حذف الطلبية")
+      const payload = await response.json().catch(() => null)
+      const detail = payload?.error || "فشل في حذف الطلبية"
+      Util.showErrorMessage(message, detail)
+      return
     }
     Util.showSuccessMessage(message, 'تم حذف الطلبية بنجاح ✅')
     reset_order()
@@ -2443,22 +2472,7 @@ function UnifiedSalesOrder({
 
   // Handle navigation for UniversalToolbar
   const handleNavigate = (direction: "first" | "previous" | "next" | "last") => {
-    switch (direction) {
-      case "first":
-        goToFirst()
-        break
-      case "previous":
-        goToPrevious()
-        break
-      case "next":
-        goToNext()
-        break
-      case "last":
-        goToLast()
-        break
-      default:
-        break
-    }
+    loadOrderData(direction, undefined, undefined, true)
   }
 
 
@@ -2580,6 +2594,8 @@ function UnifiedSalesOrder({
         order_number: order_num, // generate new number
         order_date: new Date().toISOString().split("T")[0], // today
         delivery_date: new Date().toISOString().split("T")[0], // today
+        order_status: 1,
+        order_status2: 1,
         printed: 0,
         is_exported: 0
       };
@@ -2592,6 +2608,11 @@ function UnifiedSalesOrder({
         ...prev,
         formData: clonedFormData,
       }));
+
+      CollectionView.items.forEach((item: any) => {
+        item.item_status = 1
+      })
+      CollectionView.refresh()
 
       // 4️⃣ Focus on first input (order date)
       setTimeout(() => orderdateRef.current?.focus(), 50)
@@ -2711,12 +2732,14 @@ function UnifiedSalesOrder({
   const importOrderFromExcel = (checkUnsaved = true) => {
 
     let newFormData = {
+      form: getFormChangeSnapshot(state.formData),
       order_date: state.formData.order_date,
       customer_id: state.formData.customer_id,
       customer_name: state.formData.customer_name,
       delivery_date: state.formData.delivery_date,
       currency_id: state.formData.currency_id,
       exchange_rate: state.formData.exchange_rate,
+      items: getItemsChangeSnapshot(CollectionView.items),
       //total: totals.total,
     };
     const currentHash = getFormDataHash(newFormData);
@@ -2800,6 +2823,7 @@ function UnifiedSalesOrder({
       customer.customer_code.toLowerCase().includes(state.customerSearch.toLowerCase()),
   )
   const initialHash = useRef(0);
+  const initialFullHash = useRef(0);
   const hashCode = (str: string) => {
     let hash = 0;
     for (let i = 0; i < str.length; i++) {
@@ -2812,6 +2836,30 @@ function UnifiedSalesOrder({
   const getFormDataHash = (data: any) => {
     return hashCode(JSON.stringify(data));
   };
+  const getFormChangeSnapshot = (form: OrderFormData) => {
+    const editableKeys: Array<keyof OrderFormData> = [
+      "branch_id", "order_number", "order_date", "invoice_number", "reference_number",
+      "customer_id", "customer_name", "customer_code", "customer_address", "customer_tax_number",
+      "customer_number", "customer_phone", "salesman", "sales_representative", "currency_id",
+      "currency_name", "exchange_rate", "payment_terms", "delivery_date", "delivery_address",
+      "delivery_notes", "order_status", "order_status2", "financial_status", "order_decision",
+      "source", "order_source", "general_notes", "internal_notes", "discount_type",
+      "discount_amount", "vat_percent", "shipping_cost", "other_charges", "vch_book",
+      "received_by", "customer_order_no",
+    ]
+    return Object.fromEntries(editableKeys.map((key) => [key, form[key] ?? null]))
+  };
+  const getItemsChangeSnapshot = (items: any[] = []) => items.map((item: any) => ({
+    id: Number(item.id || item.product_id || 0),
+    code: String(item.code || item.product_code || ""),
+    qnty: Number(item.qnty ?? item.quantity ?? 0),
+    bonus: Number(item.bonus ?? item.bonus_quantity ?? 0),
+    price: Number(item.price ?? item.unit_price ?? 0),
+    discount: Number(item.discount ?? item.discount_percent ?? 0),
+    unit_id: Number(item.unit_id || 0),
+    store_id: Number(item.store_id || 0),
+    item_status: Number(item.item_status || 1),
+  }));
   const [currentOrderId, setCurrentOrderId] = useState<number>(0);
   const loadOrderData = async (
     navigationType: "first" | "previous" | "next" | "last" | "Byid" | "ByCode",
@@ -2819,19 +2867,22 @@ function UnifiedSalesOrder({
     orderCode?: string,
     checkUnsaved: boolean = true
   ) => {
-    setLoading(true)
     let newFormData = {
+      form: getFormChangeSnapshot(state.formData),
       order_date: state.formData.order_date,
       customer_id: state.formData.customer_id,
       customer_name: state.formData.customer_name,
       delivery_date: state.formData.delivery_date,
       currency_id: state.formData.currency_id,
       exchange_rate: state.formData.exchange_rate,
+      items: getItemsChangeSnapshot(CollectionView.items),
       //total: totals.total,
     };
-    const currentHash = getFormDataHash(newFormData);
-    console.log("loadOrderData currentHash ", currentHash, " initialHash ", initialHash.current)
-    if (checkUnsaved && currentHash !== initialHash.current && initialHash.current != 0) {
+    const currentFullHash = getFormDataHash({
+      form: newFormData.form,
+      items: newFormData.items,
+    })
+    if (checkUnsaved && initialFullHash.current !== 0 && currentFullHash !== initialFullHash.current) {
       setShowUnsaved(true);
       setNextFunction(() =>
         () => loadOrderData(navigationType, orderId, orderCode, false)
@@ -2839,6 +2890,7 @@ function UnifiedSalesOrder({
       return;
     }
 
+    setLoading(true)
     try {
       /*if (!hasPermission("orders-view")) {
         toast.current?.show({
@@ -2904,7 +2956,7 @@ function UnifiedSalesOrder({
           ...order,
           order_date: onlyOrderDate, // only date part
           delivery_date: onlyDeliveryDate,
-          vch_book: mappedOrder.order_number[1],
+          vch_book: mappedOrder.vch_book || mappedOrder.order_number?.[1] || lastVchBook.current || initialFormData.vch_book,
           salesman: mappedOrder.salesman_id ? mappedOrder.salesman_id : "-1",
           discount_type: mappedOrder.discount_type === 1 ? "percentage" : "amount",
           discount_amount: mappedOrder.discount_type === 1 ? Number(mappedOrder.discount_amount) * 100 / (Number(mappedOrder.total_amount) + Number(mappedOrder.discount_amount) - Number(mappedOrder.vat_amount)) : mappedOrder.discount_amount
@@ -2915,11 +2967,12 @@ function UnifiedSalesOrder({
 
       if (mappedOrder.items?.length) {
         let ser = 1;
-        const updatedItems = mappedOrder.items.map((item: any) => {
+        const updatedItems = mappedOrder.items.map((item: any, index: number) => {
           const quantity = Number(item.qnty ?? item.quantity ?? 0) || 0
           const unitPrice = Number(item.price || 0)
           return {
             ...item,
+            ser: index + 1,
             id: item.product_id,
             item_id: item.product_id,
             code: item.product_code,
@@ -2939,6 +2992,7 @@ function UnifiedSalesOrder({
             // السجل المحفوظ يحتفظ بحالته من قاعدة البيانات؛ السجلات القديمة التي لا تحمل
             // item_status ترث حالة الطلبية الحالية.
             item_status: Number(item.item_status ?? mappedOrder.order_status ?? 1),
+            order_item_id: Number(item.id || 0) || null,
           }
         });
         // Replace the CollectionView contents with the loaded items
@@ -2961,17 +3015,32 @@ function UnifiedSalesOrder({
 
 
       let newFormData = {
-        order_date: mappedOrder.order_date,
+        form: getFormChangeSnapshot({
+          ...state.formData,
+          ...order,
+          order_date: onlyOrderDate,
+          delivery_date: onlyDeliveryDate,
+          vch_book: mappedOrder.vch_book || mappedOrder.order_number?.[1] || lastVchBook.current || initialFormData.vch_book,
+          salesman: mappedOrder.salesman_id ? mappedOrder.salesman_id : "-1",
+          discount_type: mappedOrder.discount_type === 1 ? "percentage" : "amount",
+          discount_amount: mappedOrder.discount_type === 1 ? Number(mappedOrder.discount_amount) * 100 / (Number(mappedOrder.total_amount) + Number(mappedOrder.discount_amount) - Number(mappedOrder.vat_amount)) : mappedOrder.discount_amount,
+        }),
+        order_date: onlyOrderDate,
         customer_id: mappedOrder.customer_id,
         customer_name: mappedOrder.customer_name,
-        delivery_date: mappedOrder.delivery_date,
+        delivery_date: onlyDeliveryDate,
         currency_id: mappedOrder.currency_id,
         exchange_rate: mappedOrder.exchange_rate,
+        items: getItemsChangeSnapshot(CollectionView.items),
         //total: Number(mappedOrder.total_amount),
       };
       const newHash = getFormDataHash(newFormData);
       console.log("newFormData ", newFormData)
       initialHash.current = newHash;
+      initialFullHash.current = getFormDataHash({
+        form: newFormData.form,
+        items: newFormData.items,
+      });
 
       setCurrentOrderId(order.id);
     } catch (err) {
@@ -2990,12 +3059,14 @@ function UnifiedSalesOrder({
   const handleNewRecord = (checkUnsaved: any) => {
 
     let newFormData = {
+      form: getFormChangeSnapshot(state.formData),
       order_date: state.formData.order_date,
       customer_id: state.formData.customer_id,
       customer_name: state.formData.customer_name,
       delivery_date: state.formData.delivery_date,
       currency_id: state.formData.currency_id,
       exchange_rate: state.formData.exchange_rate,
+      items: getItemsChangeSnapshot(CollectionView.items),
       //total: totals.total,
     };
     const currentHash = getFormDataHash(newFormData);
@@ -3048,16 +3119,22 @@ function UnifiedSalesOrder({
 
     console.log("initialFormData ", initialFormData)
     let newFormData = {
+      form: getFormChangeSnapshot({ ...initialFormData, vat_percent: defaultVatPercentRef.current, vch_book: resolvedVchBook }),
       order_date: initialFormData.order_date,
       customer_id: initialFormData.customer_id,
       customer_name: initialFormData.customer_name,
       delivery_date: initialFormData.delivery_date,
       currency_id: initialFormData.currency_id,
       exchange_rate: initialFormData.exchange_rate,
+      items: getItemsChangeSnapshot([{ ser: 1 }]),
       //total: 0
     };
     const currentHash = getFormDataHash(newFormData);
     initialHash.current = currentHash;
+    initialFullHash.current = getFormDataHash({
+      form: newFormData.form,
+      items: newFormData.items,
+    });
 
     setTimeout(() => {
       orderdateRef.current?.focus();
@@ -3151,6 +3228,19 @@ function UnifiedSalesOrder({
     printOrder(state.formData, CollectionView.items, {}, showMsg)
   }
 
+  const guardToolbarAction = (action: () => void | Promise<void>) => {
+    const currentFullHash = getFormDataHash({
+      form: getFormChangeSnapshot(state.formData),
+      items: getItemsChangeSnapshot(CollectionView.items),
+    })
+    if (initialFullHash.current !== 0 && currentFullHash !== initialFullHash.current) {
+      setNextFunction(() => () => { void action() })
+      setShowUnsaved(true)
+      return
+    }
+    void action()
+  }
+
   const reportColumns = [
     { key: "order_number", label: "رقم الطلبية", width: "120px" },
     { key: "order_date", label: "التاريخ", width: "100px" },
@@ -3165,20 +3255,22 @@ function UnifiedSalesOrder({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange || handleCancel}>
-      <DialogContent className="sales-order-form
-          w-full
-          max-w-[95vw]
-          sm:max-w-[90vw]
-          md:max-w-[80vw]
-          lg:max-w-[135vh]
-          h-[95vh]
-          max-h-[95vh]
+      <DialogContent
+        inline={fullscreenEnabled && open}
+        className={`sales-order-form
+          h-[calc(100dvh-1rem)]
+          max-h-[94vh]
+          w-[calc(100vw-1rem)]
+          max-w-[1400px]
+          sm:h-[92vh]
+          sm:w-[96vw]
           p-0
           gap-0
           flex
           flex-col
           overflow-hidden
-        "
+          ${fullscreenEnabled && open ? "!left-0 !top-0 !h-full !max-h-full !w-full !max-w-none !translate-x-0 !translate-y-0 !rounded-none" : ""}
+        `}
         onPointerDownOutside={(event) => event.preventDefault()}
         onEscapeKeyDown={(event) => { if (!doHotKeys.current) event.preventDefault() }}
 
@@ -3192,36 +3284,26 @@ function UnifiedSalesOrder({
             onPrevious={async () => { await loadOrderData('previous') }}
             onNext={async () => { await loadOrderData('next') }}
             onLast={async () => { await loadOrderData('last') }}
-            onNew={() => handleNewRecord(true)}
+            onNew={() => guardToolbarAction(() => handleNewRecord(false))}
             onSave={handleSave}
-            onDelete={() => { handleDeleteClick(false) }}
-            onReport={handleReport}
-            onExportExcel={handleExportExcel}
-            onPrint={handlePrint}
+            onDelete={() => guardToolbarAction(() => handleDeleteClick(false))}
+            onPrint={() => guardToolbarAction(() => handlePrint())}
             isLoading={navLoading}
             isSaving={state.isSaving}
             canSave={canSave}
             canPrint={state.formData.id > 0 ? true : false}
-            canDelete={state.formData.id > 0 ? true : false}
+            canDelete={state.formData.id > 0 && [1, 2].includes(Number(state.formData.order_status))}
             canClone={state.formData.id > 0 ? true : false}
             isFirstRecord={isFirstRecord}
             isLastRecord={isLastRecord}
-            onClone={handleClone}
+            onClone={() => guardToolbarAction(handleClone)}
           />
-          <div className="px-6 pb-3 bg-background">
-            <TransactionBranchField
-              family="sales_order"
-              action={state.formData.id ? "update" : "create"}
-              value={state.formData.branch_id}
-              onChange={(branchId) => setState((prev) => ({ ...prev, formData: { ...prev.formData, branch_id: branchId } }))}
-            />
-          </div>
           <Messages innerRef={message} />
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto">
 
-          <div className="p-6 space-y-6">
+          <div className="space-y-4 p-3 sm:p-4 lg:p-5">
             <Toast ref={toast} position={'top-left'} className="erp-toast-host" style={{ top: 100, whiteSpace: 'pre-line' }} />
             <ProgressSpinner loading={loading} />
 
@@ -3444,23 +3526,23 @@ function UnifiedSalesOrder({
                 </div>
               </CardContent>
             </Card>
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6" dir="rtl">
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2" dir="rtl">
 
               {/* ===================== */}
               {/* معلومات الطلبية (يمين) */}
               {/* ===================== */}
               <Card className="h-full">
-                <CardHeader className="pb-4">
+                <CardHeader className="pb-3">
                   <CardTitle className="text-lg flex items-center gap-2">
                     <FileText className="h-5 w-5 text-primary" />
                     معلومات الطلبية الأساسية
                   </CardTitle>
                 </CardHeader>
 
-                <CardContent className="space-y-10">
+                <CardContent className="space-y-4 p-3 sm:p-4">
 
                   {/* الصف الأول */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
                     {/* دفتر السندات */}
                     <div className="invoice-currency-dropdown-wrap">
                       <Label>دفتر السندات</Label>
@@ -3545,10 +3627,22 @@ function UnifiedSalesOrder({
                         className="h-11"
                       />
                     </div>
+
+                    <div className="min-w-0">
+                      <TransactionBranchField
+                        family="sales_order"
+                        action={state.formData.id ? "update" : "create"}
+                        value={state.formData.branch_id}
+                        onChange={(branchId) => setState((prev) => ({
+                          ...prev,
+                          formData: { ...prev.formData, branch_id: branchId },
+                        }))}
+                      />
+                    </div>
                   </div>
 
                   {/* الصف الثاني */}
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
                     {/* العملة */}
                     <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
                       <Label>العملة</Label>
@@ -3602,11 +3696,9 @@ function UnifiedSalesOrder({
                       <Label>حالة الطلبية</Label>
                       <Dropdown
                         value={state.formData.order_status ?? 1}
-                        options={[
-                          { value: 1, label: "غير جاهز" },
-                          { value: 2, label: "جاهز" },
-                          { value: 6, label: "مغلق" },
-                        ]}
+                        options={ORDER_ITEM_STATUS_OPTIONS.filter((option) =>
+                          [1, 2, 6].includes(option.value) || option.value === Number(state.formData.order_status)
+                        )}
                         optionLabel="label"
                         optionValue="value"
                         placeholder="اختر حالة الطلبية"
@@ -3614,13 +3706,15 @@ function UnifiedSalesOrder({
                         panelClassName="invoice-currency-dropdown-panel"
                         appendTo="self"
                         panelStyle={{ zIndex: 10000 }}
+                        disabled={[3, 4].includes(Number(state.formData.order_status))}
                         onChange={(e: any) => {
                           const nextStatus = Number(e.value)
                           CollectionView.sourceCollection.forEach((item: any) => {
                             if (!item?.id && !item?.product_id) return
+                            const currentStatus = Number(item.item_status || 1)
                             if (nextStatus === 6) {
-                              if (![3, 4].includes(Number(item.item_status))) item.item_status = 5
-                            } else {
+                              if ([1, 2, 3].includes(currentStatus)) item.item_status = 6
+                            } else if ([1, 2].includes(nextStatus) && currentStatus !== 4) {
                               item.item_status = nextStatus
                             }
                           })
@@ -3661,7 +3755,7 @@ function UnifiedSalesOrder({
 
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
                     <div>
                       <Label className="text-sm font-medium">
                         {"السند اليدوي"}
