@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server"
 import sql, { resolveCurrentDbName } from "@/lib/database"
-import { ensurePermissionTables, hasEffectivePermission } from "@/lib/permissions"
+import { ensurePermissionTables, getGrantedBranchIds, hasEffectivePermission } from "@/lib/permissions"
 import { getSessionUser } from "@/lib/tenant-auth"
 import {
   legacyTransactionPermissionName,
@@ -100,12 +100,38 @@ export async function authorizeTransaction(
   family: TransactionFamily,
   action: TransactionAction,
   branchValue?: unknown,
-): Promise<{ ok: true; userId: string; branchId: number; accessId: number } | { ok: false; response: NextResponse }> {
+): Promise<{ ok: true; userId: string; branchId: number; branchIds: number[]; accessId: number } | { ok: false; response: NextResponse }> {
   const user = await getSessionUser(request)
   if (!user) return { ok: false, response: NextResponse.json({ error: "يجب تسجيل الدخول" }, { status: 401 }) }
 
-  const requested = Number(branchValue ?? request.headers.get("x-branch-id"))
+  const rawRequested = branchValue ?? request.headers.get("x-branch-id")
+  const requested = Number(rawRequested)
   const userRow = (await sql`SELECT branch_id FROM user_settings WHERE user_id = ${user.user_id} LIMIT 1`)[0]
+  const accessId = await ensureTransactionPermission(family, action)
+
+  // A list/query without an explicit branch must include every branch where
+  // the user has the requested view permission, not only their default branch.
+  if (action === "view" && (rawRequested == null || rawRequested === "")) {
+    const membershipRows = await sql`SELECT branch_id FROM user_branches WHERE user_id = ${user.user_id}`
+    const memberships = new Set(membershipRows.map((row: any) => Number(row.branch_id)))
+    const granted = await getGrantedBranchIds(user.user_id, accessId)
+    const branchIds = membershipRows.length ? granted.filter((id) => memberships.has(id)) : granted
+    if (!branchIds.length) {
+      return {
+        ok: false,
+        response: NextResponse.json({ error: `لا توجد لديك صلاحية ${transactionPermissionName(family, action)}` }, { status: 403 }),
+      }
+    }
+    const defaultBranch = Number(userRow?.branch_id)
+    return {
+      ok: true,
+      userId: user.user_id,
+      branchId: branchIds.includes(defaultBranch) ? defaultBranch : branchIds[0],
+      branchIds,
+      accessId,
+    }
+  }
+
   const branchId = Number.isInteger(requested) && requested > 0 ? requested : Number(userRow?.branch_id)
   if (!Number.isInteger(branchId) || branchId <= 0) {
     return { ok: false, response: NextResponse.json({ error: "يجب تحديد الفرع" }, { status: 400 }) }
@@ -113,14 +139,13 @@ export async function authorizeTransaction(
   if (!(await userHasBranchMembership(user.user_id, branchId))) {
     return { ok: false, response: NextResponse.json({ error: "المستخدم غير مخول للعمل على هذا الفرع" }, { status: 403 }) }
   }
-  const accessId = await ensureTransactionPermission(family, action)
   if (!(await hasEffectivePermission(user.user_id, accessId, branchId))) {
     return {
       ok: false,
       response: NextResponse.json({ error: `لا توجد لديك صلاحية ${transactionPermissionName(family, action)} على هذا الفرع` }, { status: 403 }),
     }
   }
-  return { ok: true, userId: user.user_id, branchId, accessId }
+  return { ok: true, userId: user.user_id, branchId, branchIds: [branchId], accessId }
 }
 
 export async function authorizeStoredVoucher(request: NextRequest, voucherId: number, action: TransactionAction) {

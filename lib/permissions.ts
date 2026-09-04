@@ -27,6 +27,72 @@ export const DEFAULT_JOB_ROLES = [
 // (lib/auth.ts) أو ensureThemeSettingsColumns (app/api/settings/theme/route.ts): تينانت لاحق يصل
 // لنفس عملية Node الدافئة بعد أن اكتمل أول تينانت مختلف كان سيتخطّى DDL هذه القاعدة بالخطأ لولا هذا
 // المفتاح — نفس نمط clientCache/rawPoolCache في lib/database.ts.
+async function mergeDuplicateAccessDefinitions(client: ReturnType<typeof getPoolForDb>): Promise<void> {
+  const permissionTables = [
+    { table: "role_permissions", keys: ["role_id"] },
+    { table: "role_branch_permissions", keys: ["role_id", "branch_id"] },
+    { table: "user_branch_permissions", keys: ["user_id", "branch_id"] },
+    { table: "user_access", keys: ["user_id"] },
+  ] as const
+
+  for (const { table, keys } of permissionTables) {
+    const exists = await client.query(`SELECT to_regclass($1) AS table_name`, [table])
+    if (!exists[0]?.table_name) continue
+    const keyList = keys.join(", ")
+    const sourceKeys = keys.map((key) => `source.${key}`).join(", ")
+    const targetMatch = keys.map((key) => `target.${key} = source.${key}`).join(" AND ")
+    const grantMatch = keys.map((key) => `target.${key} = grants.${key}`).join(" AND ")
+    await client.query(
+      `WITH duplicate_map AS (
+         SELECT duplicate.id AS duplicate_id, MIN(canonical.id) AS canonical_id
+         FROM access_list duplicate
+         JOIN access_list canonical ON LOWER(BTRIM(canonical.name)) = LOWER(BTRIM(duplicate.name))
+         GROUP BY duplicate.id
+       ), source AS (
+         SELECT ${keyList}, duplicate_map.canonical_id AS access_id, BOOL_OR(grant_row.is_granted) AS is_granted
+         FROM ${table} grant_row
+         JOIN duplicate_map ON duplicate_map.duplicate_id = grant_row.access_id
+         GROUP BY ${keyList}, duplicate_map.canonical_id
+       )
+       INSERT INTO ${table} (${keyList}, access_id, is_granted)
+       SELECT ${sourceKeys}, source.access_id, source.is_granted FROM source
+       WHERE NOT EXISTS (
+         SELECT 1 FROM ${table} target
+         WHERE ${targetMatch} AND target.access_id = source.access_id
+       )`,
+      [],
+    )
+    await client.query(
+      `WITH duplicate_map AS (
+         SELECT duplicate.id AS duplicate_id, MIN(canonical.id) AS canonical_id
+         FROM access_list duplicate
+         JOIN access_list canonical ON LOWER(BTRIM(canonical.name)) = LOWER(BTRIM(duplicate.name))
+         GROUP BY duplicate.id
+       ), grants AS (
+         SELECT ${keyList}, duplicate_map.canonical_id AS access_id, BOOL_OR(grant_row.is_granted) AS is_granted
+         FROM ${table} grant_row
+         JOIN duplicate_map ON duplicate_map.duplicate_id = grant_row.access_id
+         GROUP BY ${keyList}, duplicate_map.canonical_id
+       )
+       UPDATE ${table} target SET is_granted = grants.is_granted
+       FROM grants WHERE ${grantMatch} AND target.access_id = grants.access_id`,
+      [],
+    )
+  }
+
+  await client.query(
+    `DELETE FROM access_list duplicate USING access_list canonical
+     WHERE LOWER(BTRIM(duplicate.name)) = LOWER(BTRIM(canonical.name))
+       AND duplicate.id > canonical.id`,
+    [],
+  )
+  await client.query(
+    `CREATE UNIQUE INDEX IF NOT EXISTS idx_access_list_normalized_name
+     ON access_list (LOWER(BTRIM(name)))`,
+    [],
+  )
+}
+
 const ensuredTenants = new Map<string, Promise<void>>()
 
 export function ensurePermissionTables(dbName: string): Promise<void> {
@@ -204,8 +270,15 @@ export async function requireBranchAccess(userId: string | null, accessId: numbe
 // سكربت يدوي لكل شركة: أي تعريف صلاحية/دور جديد يُضاف هنا هنا تلقائياً بأول تحميل صفحة لاحق.
 export async function syncPermissionDefinitions(dbName: string): Promise<void> {
   await ensurePermissionTables(dbName)
-  await ensureSalesDraftPermissionDefinitions()
-  await ensureTransactionPermissionDefinitions()
+  try {
+    await ensureSalesDraftPermissionDefinitions()
+    await ensureTransactionPermissionDefinitions()
+  } catch (error) {
+    // A temporary management DB/schema failure must never prevent tenant login
+    // or permission refresh. Canonical transaction permissions are also seeded
+    // locally by name below.
+    console.error("[permissions] management permission seed failed; continuing with tenant definitions", error)
+  }
   const client = getPoolForDb(dbName)
 
   // Keep the existing access id so all role/user/branch grants survive the
@@ -236,20 +309,46 @@ export async function syncPermissionDefinitions(dbName: string): Promise<void> {
   // 1) نسخ أي صف access_category/access_list جديد من قاعدة الإدارة (management) لم يصل هذه الشركة
   //    بعد — لا يُحدَّث أي صف موجود مسبقاً إطلاقاً، فتخصيصات المسؤول (إعادة تسمية فئة/صلاحية) تبقى
   //    كما هي دوماً.
-  const categories = await managementSql`SELECT id, name FROM access_category ORDER BY id`
+  let categories: any[] = []
+  let accessItems: any[] = []
+  try {
+    categories = await managementSql`SELECT id, name FROM access_category ORDER BY id`
+    accessItems = await managementSql`SELECT id, name, category_id FROM access_list ORDER BY id`
+  } catch (error) {
+    console.error("[permissions] management permission read failed; continuing with tenant definitions", error)
+  }
   for (const category of categories) {
     await client.query(
       `INSERT INTO access_category (id, name) VALUES ($1, $2) ON CONFLICT (id) DO NOTHING`,
       [category.id, category.name],
     )
   }
-  const accessItems = await managementSql`SELECT id, name, category_id FROM access_list ORDER BY id`
   for (const item of accessItems) {
     await client.query(
       `INSERT INTO access_list (id, name, category_id) VALUES ($1, $2, $3) ON CONFLICT (id) DO NOTHING`,
       [item.id, item.name, item.category_id],
     )
   }
+
+  // Rows copied from management retain their explicit ids. Advance both local
+  // sequences before any name-based fallback inserts, otherwise PostgreSQL can
+  // reuse an occupied id and make permission refresh fail with HTTP 500.
+  await client.query(
+    `SELECT setval(
+       pg_get_serial_sequence('access_category', 'id'),
+       GREATEST(COALESCE((SELECT MAX(id) FROM access_category), 0), 1),
+       true
+     )`,
+    [],
+  )
+  await client.query(
+    `SELECT setval(
+       pg_get_serial_sequence('access_list', 'id'),
+       GREATEST(COALESCE((SELECT MAX(id) FROM access_list), 0), 1),
+       true
+     )`,
+    [],
+  )
 
   // Management ids can collide with tenant-local ids. Ensure the complete
   // transaction matrix by name as well, using the tenant's category id.
@@ -275,6 +374,7 @@ export async function syncPermissionDefinitions(dbName: string): Promise<void> {
            WHERE NOT EXISTS (SELECT 1 FROM access_list WHERE name = $1::varchar)`,
           [name, transactionCategory.id],
         )
+        await client.query(`UPDATE access_list SET category_id = $2::integer WHERE name = $1::varchar`, [name, transactionCategory.id])
       }
     }
   }
@@ -309,6 +409,10 @@ export async function syncPermissionDefinitions(dbName: string): Promise<void> {
   // 2) زرع الأدوار الوظيفية الافتراضية الثلاثة (بلا تكرار حسب الاسم) — و"مدير" فقط، وفقط أول مرة
   //    يُزرَع فيها فعلياً (لا كل مرة يُوجَد فيها الصف مسبقاً)، يُمنَح كل صلاحية حالية بالشركة. هذا
   //    الفارق مهم: إعادة منح كل شيء لصف "مدير" موجود مسبقاً قد يُلغي إلغاءً متعمَّداً قام به المسؤول.
+  // Older databases may contain the same permission under multiple groups.
+  // Merge those rows by normalized name while retaining all effective grants.
+  await mergeDuplicateAccessDefinitions(client)
+
   const currentAccessIds: number[] = (await client.query(`SELECT id FROM access_list`, [])).map(
     (row: any) => Number(row.id),
   )

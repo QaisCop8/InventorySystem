@@ -454,8 +454,6 @@ export default function UnifiedSalesDelivery({
   const { toast } = useToast()
   const isLocked = form.status === 2 || form.status === 3
   const isFromDelivery = Number(form.invoice_source_type || 1) === 2
-  const hasDeliverySourceItems = items.some((item) => Number(item.delivery_item_id || 0) > 0)
-  const hasOrderSourceItems = !hasDeliverySourceItems && items.some((item) => Number(item.order_item_id || 0) > 0)
   const statusBadge = form.has_linked_invoice
     ? "مرحل - تم إصدار فاتورة"
     : form.status === 3
@@ -721,6 +719,8 @@ export default function UnifiedSalesDelivery({
   }, [])
 
   const items = form.items || []
+  const hasDeliverySourceItems = items.some((item) => Number(item.delivery_item_id || 0) > 0)
+  const hasOrderSourceItems = !hasDeliverySourceItems && items.some((item) => Number(item.order_item_id || 0) > 0)
   const itemsRef = useRef(items)
   itemsRef.current = items
   // نفس نمط formRef في unified-stock-voucher.tsx — يقرأه معالِج Alt+C (نسخ سند للحافظة العابرة

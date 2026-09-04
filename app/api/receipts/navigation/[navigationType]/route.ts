@@ -24,16 +24,16 @@ export async function GET(request: NextRequest, { params }: { params: { navigati
 
     switch (navigationType) {
       case "first":
-        rows = await sql`SELECT * FROM voucher_header_tbl WHERE vch_type = ${vchType} AND status != 3 AND branch_id = ${authorization.branchId} ORDER BY id DESC LIMIT 1`
+        rows = await sql`SELECT * FROM voucher_header_tbl WHERE vch_type = ${vchType} AND status != 3 AND branch_id = ANY(${authorization.branchIds}::int[]) ORDER BY id DESC LIMIT 1`
         break
       case "last":
-        rows = await sql`SELECT * FROM voucher_header_tbl WHERE vch_type = ${vchType} AND status != 3 AND branch_id = ${authorization.branchId} ORDER BY id ASC LIMIT 1`
+        rows = await sql`SELECT * FROM voucher_header_tbl WHERE vch_type = ${vchType} AND status != 3 AND branch_id = ANY(${authorization.branchIds}::int[]) ORDER BY id ASC LIMIT 1`
         break
       case "previous":
-        rows = await sql`SELECT * FROM voucher_header_tbl WHERE id > ${currentId || 0} AND vch_type = ${vchType} AND status != 3 AND branch_id = ${authorization.branchId} ORDER BY id ASC LIMIT 1`
+        rows = await sql`SELECT * FROM voucher_header_tbl WHERE id > ${currentId || 0} AND vch_type = ${vchType} AND status != 3 AND branch_id = ANY(${authorization.branchIds}::int[]) ORDER BY id ASC LIMIT 1`
         break
       case "next":
-        rows = await sql`SELECT * FROM voucher_header_tbl WHERE id < ${currentId || 0} AND vch_type = ${vchType} AND status != 3 AND branch_id = ${authorization.branchId} ORDER BY id DESC LIMIT 1`
+        rows = await sql`SELECT * FROM voucher_header_tbl WHERE id < ${currentId || 0} AND vch_type = ${vchType} AND status != 3 AND branch_id = ANY(${authorization.branchIds}::int[]) ORDER BY id DESC LIMIT 1`
         break
       default:
         return NextResponse.json({ error: "Invalid navigation type" }, { status: 400 })

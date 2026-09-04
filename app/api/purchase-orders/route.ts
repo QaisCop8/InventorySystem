@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
         po.currency_name,
         po.currency_code
       FROM purchase_orders po
-      WHERE po.branch_id = ${authorization.branchId}
+      WHERE po.branch_id = ANY(${authorization.branchIds}::int[])
       ORDER BY po.created_at DESC
     `
 

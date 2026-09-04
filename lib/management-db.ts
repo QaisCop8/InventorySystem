@@ -260,6 +260,21 @@ export async function ensureTransactionPermissionDefinitions(): Promise<void> {
     transactionPermissionName,
   } = await import("@/lib/transaction-permission-definitions")
 
+  await sql`
+    SELECT setval(
+      pg_get_serial_sequence('access_category', 'id'),
+      GREATEST(COALESCE((SELECT MAX(id) FROM access_category), 0), 1),
+      true
+    )
+  `
+  await sql`
+    SELECT setval(
+      pg_get_serial_sequence('access_list', 'id'),
+      GREATEST(COALESCE((SELECT MAX(id) FROM access_list), 0), 1),
+      true
+    )
+  `
+
   const inserted = await sql`
     INSERT INTO access_category (name)
     SELECT ${TRANSACTION_PERMISSION_CATEGORY}
@@ -287,8 +302,20 @@ export async function ensureTransactionPermissionDefinitions(): Promise<void> {
         SELECT ${name}, ${category.id}
         WHERE NOT EXISTS (SELECT 1 FROM access_list WHERE name = ${name})
       `
+      await sql`UPDATE access_list SET category_id = ${category.id} WHERE name = ${name}`
     }
   }
+
+  await sql`
+    DELETE FROM access_list duplicate
+    USING access_list canonical
+    WHERE LOWER(BTRIM(duplicate.name)) = LOWER(BTRIM(canonical.name))
+      AND duplicate.id > canonical.id
+  `
+  await sql`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_access_list_normalized_name
+    ON access_list (LOWER(BTRIM(name)))
+  `
 }
 
 let managementPool: Pool | null = null

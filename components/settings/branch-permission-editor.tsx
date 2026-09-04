@@ -10,8 +10,8 @@ import { CheckCheck, RotateCcw, Search, ShieldCheck, X } from "lucide-react"
 
 export interface PermissionItem {
   access_id: number
-  access_name: string
-  category_name: string
+  access_name: string | null
+  category_name: string | null
   is_granted: boolean
   permission_source?: string
 }
@@ -29,9 +29,15 @@ interface Props {
 export function BranchPermissionEditor({ items, values, onChange, search, onSearchChange, loading, dirty }: Props) {
   const categories = useMemo(() => {
     const term = search.trim().toLocaleLowerCase("ar")
+    const seenNames = new Set<string>()
     return items.reduce<Record<string, PermissionItem[]>>((result, item) => {
-      if (term && !item.access_name.toLocaleLowerCase("ar").includes(term) && !item.category_name.toLocaleLowerCase("ar").includes(term)) return result
-      ;(result[item.category_name || "أخرى"] ??= []).push(item)
+      const accessName = String(item.access_name || "")
+      const categoryName = String(item.category_name || "أخرى")
+      const normalizedName = accessName.trim().toLocaleLowerCase("ar")
+      if (!normalizedName || seenNames.has(normalizedName)) return result
+      seenNames.add(normalizedName)
+      if (term && !accessName.toLocaleLowerCase("ar").includes(term) && !categoryName.toLocaleLowerCase("ar").includes(term)) return result
+      ;(result[categoryName] ??= []).push({ ...item, access_name: accessName, category_name: categoryName })
       return result
     }, {})
   }, [items, search])

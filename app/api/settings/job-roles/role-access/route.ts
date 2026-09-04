@@ -21,8 +21,8 @@ export async function GET(req: NextRequest) {
     const rows = await sql`
       SELECT
         al.id AS access_id,
-        al.name AS access_name,
-        ac.name AS category_name,
+        COALESCE(al.name, '') AS access_name,
+        COALESCE(ac.name, 'أخرى') AS category_name,
         COALESCE(rbp.is_granted, rp.is_granted, FALSE) AS is_granted,
         CASE WHEN rbp.access_id IS NOT NULL THEN 'branch_role' WHEN rp.access_id IS NOT NULL THEN 'role' ELSE 'none' END AS permission_source
       FROM access_list al

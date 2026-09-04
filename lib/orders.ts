@@ -170,7 +170,7 @@ export async function getSalesOrders(filters: any = {}) {
   // Ensure older tenant databases have the table before using it in this query.
   const { ensureOrderDraftTables } = await import("@/lib/order-drafts")
   await ensureOrderDraftTables()
-  const { search = null, status = null, salesman = null, dateFrom = null, dateTo = null, customerId = null, order_type = null, branchId = null } = filters;
+  const { search = null, status = null, salesman = null, dateFrom = null, dateTo = null, customerId = null, order_type = null, branchId = null, branchIds = null } = filters;
 
   const whereClauses: string[] = [];
   const params: any[] = [];
@@ -213,7 +213,11 @@ export async function getSalesOrders(filters: any = {}) {
     params.push(customerId);
     paramIndex++;
   }
-  if (branchId) {
+  if (Array.isArray(branchIds) && branchIds.length) {
+    whereClauses.push(`so.branch_id = ANY($${paramIndex}::int[])`);
+    params.push(branchIds);
+    paramIndex++;
+  } else if (branchId) {
     whereClauses.push(`so.branch_id = $${paramIndex}`);
     params.push(branchId);
     paramIndex++;

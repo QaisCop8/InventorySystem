@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import sql, { resolveCurrentDbName } from "@/lib/database"
-import { syncPermissionDefinitions } from "@/lib/permissions"
+import { ensurePermissionTables, syncPermissionDefinitions } from "@/lib/permissions"
 import { getSessionUser } from "@/lib/tenant-auth"
 
 export async function GET(req: NextRequest) {
@@ -25,15 +25,21 @@ export async function GET(req: NextRequest) {
             branchId = Number(userRows[0]?.branch_id) || 0
         }
 
-        // Always synchronize management definitions before rendering صلاحيات المستخدمين,
-        // so newly added permissions appear without a manual migration or restart.
-        await syncPermissionDefinitions(await resolveCurrentDbName())
+        const dbName = await resolveCurrentDbName()
+        await ensurePermissionTables(dbName)
+        // A legacy management database must not prevent loading the permissions that
+        // already exist in the tenant database.
+        try {
+          await syncPermissionDefinitions(dbName)
+        } catch (syncError) {
+          console.error("[user-access] permission definition sync failed; continuing", syncError)
+        }
 
         const rows = await sql`
       SELECT
         al.id AS access_id,
-        al.name AS access_name,
-        ac.name AS category_name,
+        COALESCE(al.name, '') AS access_name,
+        COALESCE(ac.name, 'أخرى') AS category_name,
         COALESCE(ubp.is_granted, ua.is_granted, rbp.is_granted, rp.is_granted, FALSE) AS is_granted,
         CASE
           WHEN ubp.access_id IS NOT NULL THEN 'branch_user'
@@ -59,7 +65,7 @@ export async function GET(req: NextRequest) {
 
         return NextResponse.json(data)
     } catch (err) {
-        console.error(err)
-        return NextResponse.json({ error: "Failed to fetch access" }, { status: 500 })
+      console.error("[user-access] failed to fetch access", err)
+      return NextResponse.json({ error: "تعذر تحميل صلاحيات المستخدمين", details: err instanceof Error ? err.message : "Unknown error" }, { status: 500 })
     }
 }

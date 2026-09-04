@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
           WHERE vjd.voucher_id=vh.id AND vjd.journal_type_id=${JOURNAL_TYPE_COUNTER_ACCOUNT}
         ),'[]'::json) journal
       FROM voucher_header_tbl vh
-      WHERE vh.vch_type = ${JOURNAL_VCH_TYPE} AND vh.status != 3 AND vh.branch_id = ${authorization.branchId}
+      WHERE vh.vch_type = ${JOURNAL_VCH_TYPE} AND vh.status != 3 AND vh.branch_id = ANY(${authorization.branchIds}::int[])
       ORDER BY vh.id DESC
     `
 

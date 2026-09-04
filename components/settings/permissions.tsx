@@ -82,7 +82,10 @@ export default function Permissions() {
       setPermissionsLoading(true)
       try {
         const response = await fetch(`/api/settings/user/user-access?userId=${encodeURIComponent(selectedUserId)}&branchId=${selectedBranchId}`)
-        if (!response.ok) throw new Error("تعذر تحميل صلاحيات المستخدم")
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}))
+          throw new Error(errorData.details || errorData.error || "تعذر تحميل صلاحيات المستخدم")
+        }
         const data: PermissionItem[] = await response.json()
         const next = Object.fromEntries(data.map((item) => [item.access_id, Boolean(item.is_granted)]))
         setItems(data); setValues(next); setInitialValues(next)

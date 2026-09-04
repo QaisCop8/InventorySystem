@@ -75,7 +75,7 @@ export async function GET(request: NextRequest) {
       dateTo: searchParams.get("dateTo") || undefined,
       customerId: searchParams.get("customerId") ? Number.parseInt(searchParams.get("customerId")!) : undefined,
       order_type : type,
-      branchId: authorization.branchId,
+      branchIds: authorization.branchIds,
     }
 
     const orders = await getSalesOrders(filters)

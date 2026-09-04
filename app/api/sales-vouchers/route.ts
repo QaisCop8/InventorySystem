@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
           )
       ) AS has_linked_invoice
       FROM voucher_header_tbl vh
-      WHERE vh.vch_type = ${vchType} AND vh.status != 3 AND vh.branch_id = ${authorization.branchId}
+      WHERE vh.vch_type = ${vchType} AND vh.status != 3 AND vh.branch_id = ANY(${authorization.branchIds}::int[])
       ORDER BY vh.id DESC
     `
 

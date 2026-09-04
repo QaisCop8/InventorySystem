@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
 
     const rows = await sql`
       SELECT * FROM voucher_header_tbl
-      WHERE vch_type = ${vchType} AND status != 3 AND branch_id = ${authorization.branchId}
+      WHERE vch_type = ${vchType} AND status != 3 AND branch_id = ANY(${authorization.branchIds}::int[])
       ORDER BY id DESC
     `
 

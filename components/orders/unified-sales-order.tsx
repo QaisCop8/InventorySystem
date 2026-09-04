@@ -58,8 +58,8 @@ import React from "react"
 const ORDER_ITEM_STATUS_OPTIONS = [
   { value: 1, label: "غير جاهز" },
   { value: 2, label: "جاهز" },
-  { value: 3, label: "أرسلت جزئياً" },
-  { value: 4, label: "أرسلت كلياً" },
+  { value: 3, label: "أرسلت جزئياً", disabled: true },
+  { value: 4, label: "أرسلت كلياً", disabled: true },
   { value: 5, label: "ملغي" },
   { value: 6, label: "مغلق" },
 ]
@@ -1410,9 +1410,9 @@ function UnifiedSalesOrder({
   const onBeginningEdit = (grid: any, e: any) => {
     const colName = grid?.columns?.[e.col]?.binding
     const item = grid?.rows?.[e.row]?.dataItem ?? CollectionView.items[e.row]
-    if (colName === "item_status" && [4, 6].includes(Number(state.formData.order_status))) {
+    if (colName === "item_status" && ([3, 4].includes(Number(item?.item_status)) || [4, 6].includes(Number(state.formData.order_status)))) {
       e.cancel = true
-      Util.showErrorMessage(message, "لا يمكن تغيير حالة الصنف عندما تكون الطلبية مرسلة كلياً أو مغلقة")
+      Util.showErrorMessage(message, "لا يمكن تغيير حالة صنف مرسل جزئياً أو مرسل كلياً")
       return
     }
     if (!item || Number(item.measurment_id || 1) === 1) return
@@ -2226,16 +2226,16 @@ function UnifiedSalesOrder({
     }, 1000)
   };
 
-  async function handleSaveOrder(orderToSave: any, isNewRecord: boolean): Promise<void> {
+  async function handleSaveOrder(orderToSave: any, isNewRecord: boolean, showPrintPrompt = true): Promise<boolean> {
 
     // ✅ HARD LOCK FIRST
-    if (isSaving.current) return;
+    if (isSaving.current) return false;
     isSaving.current = true;
 
     try {
       console.log("[v0] Starting save process...");
 
-      if (!validateOrder()) return;
+      if (!validateOrder()) return false;
 
       const savedUser =
         localStorage.getItem("erp_user") ||
@@ -2243,14 +2243,14 @@ function UnifiedSalesOrder({
 
       if (!savedUser) {
         Util.showErrorMessage(message, "المستخدم غير معرف يرجى تسجيل الدخول من جديد");
-        return;
+        return false;
       }
 
       const user = JSON.parse(savedUser);
 
       if (!user?.id) {
         Util.showErrorMessage(message, "المستخدم غير معرف يرجى تسجيل الدخول من جديد");
-        return;
+        return false;
       }
 
       const orderData = {
@@ -2331,7 +2331,7 @@ function UnifiedSalesOrder({
           message,
           errorData.error || "فشل في حفظ طلبية المبيعات"
         );
-        return;
+        return false;
       }
 
       const result = await response.json();
@@ -2351,18 +2351,17 @@ function UnifiedSalesOrder({
 
       Util.showSuccessMessage(message);
       lastVchBook.current = state.formData.vch_book;
-      popupHasCalled();
-      setAlertMessage("هل تريد طباعة الطلبية؟");
 
-      setState((prev) => ({
-        ...prev,
-        FormDataBackup: orderDataBackup,
-      }));
-
-      CollectionViewBackupRef.current = itemsBackup;
-      setShowAlert(true);
+      if (showPrintPrompt) {
+        popupHasCalled();
+        setAlertMessage("هل تريد طباعة الطلبية؟");
+        setState((prev) => ({ ...prev, FormDataBackup: orderDataBackup }));
+        CollectionViewBackupRef.current = itemsBackup;
+        setShowAlert(true);
+      }
 
       reset_order();
+      return true;
 
     } finally {
       // ✅ ALWAYS RELEASE LOCK
@@ -2476,8 +2475,8 @@ function UnifiedSalesOrder({
   }
 
 
-  const handleSave = async () => {
-    if (isHandlingSave.current) return;
+  const handleSave = async (showPrintPrompt = true): Promise<boolean> => {
+    if (isHandlingSave.current) return false;
     isHandlingSave.current = true;
     message.current?.clear();
 
@@ -2485,12 +2484,12 @@ function UnifiedSalesOrder({
       Util.showErrorMessage(message, "الطلبية مرحلة الى النظام المحاسبي لن تتم عملية الحفظ");
 
       //Util.showInfoToast(toast.current, "الطلبية مرحلة الى النظام المحاسبي لن تتم عملية الحفظ");
-      return;
+      return false;
     }
     if (state.formData.id > 0 && state.formData.order_decision >= 4) {
       Util.showErrorMessage(message, "الطلبية معتمدة/مدققة لن تتم عملية التعديل");
 
-      return;
+      return false;
     }
     setState((prev) => ({ ...prev, isSaving: true }))
     try {
@@ -2518,7 +2517,7 @@ function UnifiedSalesOrder({
         // Add other relevant fields if needed by useRecordNavigation for its save logic
       }
 
-      await handleSaveOrder(currentOrderForNavigation, isNewRecord)
+      return await handleSaveOrder(currentOrderForNavigation, isNewRecord, showPrintPrompt)
       //alert("تم حفظ الطلبية بنجاح")
 
       // After successful save, update the state with the latest data if it was a new record
@@ -2540,6 +2539,7 @@ function UnifiedSalesOrder({
     } catch (err: any) {
       console.error("Error saving sales order:", err)
       alert(err.message || "حدث خطأ أثناء حفظ البيانات")
+      return false
     } finally {
       setState((prev) => ({ ...prev, isSaving: false }))
       isHandlingSave.current = false;
@@ -3382,7 +3382,16 @@ function UnifiedSalesOrder({
             />
             <ConfirmDialogYesNo
               visible={showUnsaved}
-              onConfirm={() => { setShowUnsaved(false); handleSave() }}
+              onConfirm={async () => {
+                setShowUnsaved(false)
+                popupHasClosed()
+                const pendingAction = nextFunction
+                const saved = await handleSave(false)
+                if (saved && pendingAction) {
+                  setNextFunction(null)
+                  pendingAction()
+                }
+              }}
               onCancel={async () => {
                 setShowUnsaved(false); popupHasClosed();
                 if (nextFunction) {
@@ -3696,11 +3705,10 @@ function UnifiedSalesOrder({
                       <Label>حالة الطلبية</Label>
                       <Dropdown
                         value={state.formData.order_status ?? 1}
-                        options={ORDER_ITEM_STATUS_OPTIONS.filter((option) =>
-                          [1, 2, 6].includes(option.value) || option.value === Number(state.formData.order_status)
-                        )}
+                        options={ORDER_ITEM_STATUS_OPTIONS}
                         optionLabel="label"
                         optionValue="value"
+                        optionDisabled="disabled"
                         placeholder="اختر حالة الطلبية"
                         className="invoice-currency-dropdown w-full"
                         panelClassName="invoice-currency-dropdown-panel"
