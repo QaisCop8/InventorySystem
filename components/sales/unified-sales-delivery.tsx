@@ -281,6 +281,7 @@ interface UnifiedSalesDeliveryProps {
   onCodeResolved?: (id: number) => void
   onCodeNotFound?: (code: string) => void
   errorMessages?: string[]
+  gridResetToken?: number
 }
 
 // تاريخ اصطلاحي لصنف بلا تتبع صلاحية فعلي — نفس القيمة والسبب المُستخدَمين في unified-stock-voucher.tsx
@@ -442,6 +443,7 @@ export default function UnifiedSalesDelivery({
   onCodeResolved,
   onCodeNotFound,
   errorMessages = [],
+  gridResetToken = 0,
 }: UnifiedSalesDeliveryProps) {
   const TITLE = SALES_VOUCHER_TYPE_LABELS[voucherType].title
   const isDeliveryVoucher = [DELIVERY_SELL_VCH_TYPE, DELIVERY_CONSIGNMENT_SALE_VCH_TYPE, RETURN_DELIVERY_CONSIGNMENT_SALE_VCH_TYPE, DELIVERY_PAY_VCH_TYPE].includes(voucherType)
@@ -454,6 +456,7 @@ export default function UnifiedSalesDelivery({
   const { toast } = useToast()
   const isLocked = form.status === 2 || form.status === 3
   const isFromDelivery = Number(form.invoice_source_type || 1) === 2
+  const isFromOrder = Number(form.invoice_source_type || 1) === 3
   const statusBadge = form.has_linked_invoice
     ? "مرحل - تم إصدار فاتورة"
     : form.status === 3
@@ -2080,6 +2083,8 @@ export default function UnifiedSalesDelivery({
       if (colName === "product_code") {
         const rawValue = String(grid.getCellData(row, col, false) ?? "").trim()
         if (!rawValue) {
+          safeFinishEditing(grid)
+          grid.focus()
           pendingFocusRow.current = row
           lastFocusedCellRef.current = { row, col: "product_code" }
           popupHasCalled()
@@ -2684,9 +2689,9 @@ export default function UnifiedSalesDelivery({
                     lockOrderOnlyFilter={hasOrderSourceItems}
                     showDeliveryOnlyFilter={hasDeliverySourceItems}
                     lockDeliveryOnlyFilter={hasDeliverySourceItems}
-                    deliveryVchTypes={isPurchaseDeliveryVoucher ? [18] : [13, 14]}
-                    orderType={isPurchaseDeliveryVoucher ? 2 : 1}
-                    branchId={form.branch_id}
+                    deliveryVchTypes={isFromDelivery ? (isPurchaseDeliveryVoucher ? [18] : [13, 14]) : []}
+                    orderType={isFromOrder ? (isPurchaseDeliveryVoucher ? 2 : 1) : null}
+                    branchId={isFromOrder || isFromDelivery ? form.branch_id : null}
                     disabled={isLocked}
                   />
                 </div>
@@ -2856,6 +2861,7 @@ export default function UnifiedSalesDelivery({
               <TabsContent value="items" className="mt-2 min-h-[300px] space-y-2 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
                 <div className="w-full max-w-full overflow-x-auto">
                   <DataGridView
+                    key={`sales-delivery-items-${gridResetToken}`}
                     allowSorting={false}
                     innerRef={itemsGridRef}
                     style={{ height: "300px" }}
@@ -2868,7 +2874,7 @@ export default function UnifiedSalesDelivery({
                     copyItemStoreDown={true}
                     cellEditEnded={(s: any, e: any) => handleCellEditEnded(s, e)}
                     beginningEdit={(s: any, e: any) => handleBeginningEdit(s, e)}
-                    onKeyDown={(s: any, e: any) => handleKeyDown(s, e)}
+                    onKeyDownCapture={(s: any, e: any) => handleKeyDown(s, e)}
                     keyActionEnter={KeyAction.None}
                     keyActionTab={KeyAction.None}
                     dontConvertToCards={true}

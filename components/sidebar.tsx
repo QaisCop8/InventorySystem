@@ -43,6 +43,9 @@ import {
   Grid3x3,
   Wrench,
   ClipboardCheck,
+  Clock3,
+  CalendarDays,
+  Settings2,
   BriefcaseBusiness,
   LucideIcon,
 } from "lucide-react"
@@ -181,6 +184,10 @@ export const menuItems: MenuItem[] = [
       { title: "كشف الرواتب", section: "payroll", icon: Receipt },
       { title: "تقرير بنود الرواتب", section: "salary-items-report", icon: BarChart3 },
       { title: "ضريبة دخل الموظفين", section: "income-tax-report", icon: BarChart3 },
+      { title: "الحضور والدوام", section: "attendance-records", icon: Clock3 },
+      { title: "الورديات والجداول الأسبوعية", section: "shifts", icon: Clock3 },
+      { title: "العطل الرسمية", section: "official-holidays", icon: CalendarDays },
+      { title: "إعداد أجهزة الحضور", section: "attendance-devices", icon: Settings2 },
     ],
   },
   {

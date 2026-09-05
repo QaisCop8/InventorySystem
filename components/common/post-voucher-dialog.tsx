@@ -70,40 +70,40 @@ const PostVoucherDialog: React.FC<PostVoucherDialogProps> = ({ visible, isSaving
         <div className="flex flex-col items-center gap-4 px-3 py-5">
           <p className="text-base font-semibold text-slate-700">كيف تريد حفظ السند؟</p>
 
-        <div className="flex w-full flex-col gap-2.5">
+        <div className="mx-auto flex w-full max-w-sm flex-col gap-3">
           <Button
             disabled={isSaving}
             onClick={() => onSelect("save")}
-            className="flex w-full items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 shadow-sm transition-all hover:-translate-y-0.5 hover:bg-slate-50"
+            className="flex h-14 w-full items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-700 shadow-sm transition-all hover:-translate-y-0.5 hover:bg-slate-50"
           >
-            <Save className="h-4 w-4" />
+            <Save className="h-5 w-5 text-slate-500" />
             حفظ (1)
           </Button>
 
           <Button
             disabled={isSaving}
             onClick={() => onSelect("save_print")}
-            className="flex w-full items-center justify-center gap-2 rounded-2xl border border-transparent bg-gradient-to-r from-sky-500 to-blue-500 px-5 py-3 text-sm font-semibold text-white shadow-[0_10px_25px_-12px_rgba(14,165,233,0.9)] transition-all hover:-translate-y-0.5 hover:shadow-[0_14px_30px_-12px_rgba(14,165,233,0.9)]"
+            className="flex h-14 w-full items-center justify-center gap-3 rounded-2xl border border-transparent bg-gradient-to-r from-sky-500 to-blue-500 px-5 text-sm font-semibold text-white shadow-[0_10px_25px_-12px_rgba(14,165,233,0.9)] transition-all hover:-translate-y-0.5 hover:shadow-[0_14px_30px_-12px_rgba(14,165,233,0.9)]"
           >
-            <Printer className="h-4 w-4" />
+            <Printer className="h-5 w-5" />
             حفظ وطباعة (2)
           </Button>
 
           <Button
             disabled={isSaving}
             onClick={() => onSelect("post")}
-            className="flex w-full items-center justify-center gap-2 rounded-2xl border border-transparent bg-gradient-to-r from-emerald-500 to-teal-500 px-5 py-3 text-sm font-semibold text-white shadow-[0_10px_25px_-12px_rgba(16,185,129,0.9)] transition-all hover:-translate-y-0.5 hover:shadow-[0_16px_30px_-12px_rgba(16,185,129,0.9)]"
+            className="flex h-14 w-full items-center justify-center gap-3 rounded-2xl border border-transparent bg-gradient-to-r from-emerald-500 to-teal-500 px-5 text-sm font-semibold text-white shadow-[0_10px_25px_-12px_rgba(16,185,129,0.9)] transition-all hover:-translate-y-0.5 hover:shadow-[0_16px_30px_-12px_rgba(16,185,129,0.9)]"
           >
-            <CheckCircle2 className="h-4 w-4" />
+            <CheckCircle2 className="h-5 w-5" />
             حفظ وترحيل (3)
           </Button>
 
           <Button
             disabled={isSaving}
             onClick={() => onSelect("post_print")}
-            className="flex w-full items-center justify-center gap-2 rounded-2xl border border-transparent bg-gradient-to-r from-amber-500 to-orange-500 px-5 py-3 text-sm font-semibold text-white shadow-[0_10px_25px_-12px_rgba(245,158,11,0.9)] transition-all hover:-translate-y-0.5 hover:shadow-[0_14px_30px_-12px_rgba(245,158,11,0.9)]"
+            className="flex h-14 w-full items-center justify-center gap-3 rounded-2xl border border-transparent bg-gradient-to-r from-amber-500 to-orange-500 px-5 text-sm font-semibold text-white shadow-[0_10px_25px_-12px_rgba(245,158,11,0.9)] transition-all hover:-translate-y-0.5 hover:shadow-[0_14px_30px_-12px_rgba(245,158,11,0.9)]"
           >
-            <Printer className="h-4 w-4" />
+            <Printer className="h-5 w-5" />
             ترحيل وطباعة (4)
           </Button>
         </div>
@@ -112,8 +112,9 @@ const PostVoucherDialog: React.FC<PostVoucherDialogProps> = ({ visible, isSaving
           disabled={isSaving}
           variant="outline"
           onClick={onCancel}
-          className="w-full rounded-2xl border-slate-200 bg-white text-slate-500 shadow-sm transition-all hover:bg-slate-50 hover:text-slate-700"
+          className="mx-auto h-12 w-full max-w-sm rounded-2xl border-slate-200 bg-white text-slate-500 shadow-sm transition-all hover:bg-slate-50 hover:text-slate-700"
         >
+          <span className="ml-2 text-base">×</span>
           إلغاء (5)
         </Button>
         </div>

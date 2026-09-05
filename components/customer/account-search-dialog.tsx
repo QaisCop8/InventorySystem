@@ -251,6 +251,7 @@ export default function AccountSearchDialog({
     if (!open) {
       setSearchResults([])
       setAllAccounts([])
+      setCurrencies([])
       setSelectedAccount(null)
       setSearchFilters({
         accountNumber: "",
@@ -315,6 +316,32 @@ export default function AccountSearchDialog({
 
     void loadFreshAccounts()
   }, [open, defaultTypeValue, allowedTypeValuesKey, deliveryVchTypes.join(","), orderType, branchId, showOrderOnlyFilter, showDeliveryOnlyFilter, refreshVersion])
+
+  useEffect(() => {
+    if (!open) return
+    let cancelled = false
+
+    fetch(CURRENCIES_API_URL)
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data) => {
+        if (cancelled) return
+        const rates = Array.isArray(data?.rates) ? data.rates : []
+        setCurrencies(
+          rates.map((currency: any) => ({
+            currency_id: Number(currency.currency_id ?? currency.id),
+            currency_name: currency.currency_name ?? currency.name,
+            currency_code: currency.currency_code ?? currency.code,
+          })),
+        )
+      })
+      .catch(() => {
+        if (!cancelled) setCurrencies([])
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [open])
 
   useEffect(() => {
     if (!open) return

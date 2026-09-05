@@ -3280,10 +3280,10 @@ function UnifiedSalesOrder({
           <UniversalToolbar
             currentRecord={currentIndex}
             totalRecords={navTotalRecords}
-            onFirst={async () => { await loadOrderData('first') }}
-            onPrevious={async () => { await loadOrderData('previous') }}
-            onNext={async () => { await loadOrderData('next') }}
-            onLast={async () => { await loadOrderData('last') }}
+            onFirst={() => guardToolbarAction(() => handleNavigate('first'))}
+            onPrevious={() => guardToolbarAction(() => handleNavigate('previous'))}
+            onNext={() => guardToolbarAction(() => handleNavigate('next'))}
+            onLast={() => guardToolbarAction(() => handleNavigate('last'))}
             onNew={() => guardToolbarAction(() => handleNewRecord(false))}
             onSave={handleSave}
             onDelete={() => guardToolbarAction(() => handleDeleteClick(false))}

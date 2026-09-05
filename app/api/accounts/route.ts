@@ -85,7 +85,7 @@ export async function GET(request: NextRequest) {
             FROM voucher_header_tbl vch
             INNER JOIN voucher_items_tbl ivch ON ivch.voucher_id = vch.id
             WHERE vch.account_id = a.id
-              AND vch.vch_type = ANY(${deliveryVchTypes})
+              AND vch.vch_type = ANY(${deliveryVchTypes}::int[])
               AND vch.status = 2
               AND (${activeBranchId ?? 0} = 0 OR vch.branch_id = ${activeBranchId ?? 0})
               AND (

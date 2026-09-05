@@ -145,6 +145,17 @@ export async function GET(request: NextRequest, { params }: { params: { resource
         ORDER BY sp.year DESC,sp.month DESC,e.employee_code
       `)
     }
+    if (resource === "attendance-devices") return NextResponse.json(await sql`SELECT d.*, b.branch_name FROM attendance_devices_tbl d LEFT JOIN branches b ON b.id=d.branch_id ORDER BY d.name`)
+    if (resource === "attendance-records") {
+      const from = request.nextUrl.searchParams.get("from") || "1900-01-01"
+      const to = request.nextUrl.searchParams.get("to") || "2999-12-31"
+      const deviceId = Number(request.nextUrl.searchParams.get("device_id") || 0)
+      return NextResponse.json(await sql`SELECT l.*, d.name device_name, e.full_name employee_name FROM attendance_logs_tbl l LEFT JOIN attendance_devices_tbl d ON d.id=l.device_id LEFT JOIN employees_tbl e ON e.id=l.employee_id WHERE l.punch_time >= ${from}::date AND l.punch_time < (${to}::date + INTERVAL '1 day') AND (${deviceId}=0 OR l.device_id=${deviceId}) ORDER BY l.punch_time DESC`)
+    }
+    if (resource === "shifts") return NextResponse.json(await sql`SELECT * FROM shift_definitions_tbl ORDER BY start_time, name`)
+    if (resource === "shift-assignments") return NextResponse.json(await sql`SELECT a.*,e.employee_code,e.full_name employee_name,s.name shift_name,CASE a.weekday WHEN 0 THEN 'الأحد' WHEN 1 THEN 'الاثنين' WHEN 2 THEN 'الثلاثاء' WHEN 3 THEN 'الأربعاء' WHEN 4 THEN 'الخميس' WHEN 5 THEN 'الجمعة' WHEN 6 THEN 'السبت' END weekday_name FROM employee_shift_assignments_tbl a JOIN employees_tbl e ON e.id=a.employee_id LEFT JOIN shift_definitions_tbl s ON s.id=a.shift_id ORDER BY e.employee_code,a.weekday`)
+    if (resource === "official-holidays") return NextResponse.json(await sql`SELECT h.*,COUNT(e.id)::int distributed_count FROM official_holidays_tbl h LEFT JOIN employee_holiday_exceptions_tbl e ON e.holiday_id=h.id GROUP BY h.id ORDER BY h.holiday_date DESC`)
+    if (resource === "shift-schedules") return NextResponse.json(await sql`SELECT r.*,r.date_from work_date,e.employee_code,e.full_name employee_name,d.department_name,s.name shift_name,s.start_time,s.end_time,CASE EXTRACT(DOW FROM r.date_from) WHEN 0 THEN 'الأحد' WHEN 1 THEN 'الاثنين' WHEN 2 THEN 'الثلاثاء' WHEN 3 THEN 'الأربعاء' WHEN 4 THEN 'الخميس' WHEN 5 THEN 'الجمعة' WHEN 6 THEN 'السبت' END weekday_name FROM shift_schedule_rules_tbl r LEFT JOIN employees_tbl e ON e.id=r.employee_id LEFT JOIN departments d ON d.id=r.department_id LEFT JOIN shift_definitions_tbl s ON s.id=r.shift_id ORDER BY r.date_from ASC,e.employee_code`)
     return NextResponse.json({ error: "Unknown HR resource" }, { status: 404 })
   } catch (error) { console.error("HR GET", error); return NextResponse.json({ error: "تعذر تحميل البيانات" }, { status: 500 }) }
 }
@@ -158,6 +169,52 @@ export async function POST(request: NextRequest, { params }: { params: { resourc
       const values = fields.map(f => body[f]); const placeholders = fields.map((_, i) => `$${i + 1}`).join(",")
       const rows = await sql.unsafe(`INSERT INTO ${ident(d.table)} (${fields.map(ident).join(",")}) VALUES (${placeholders}) RETURNING *`, values)
       return NextResponse.json(rows[0], { status: 201 })
+    }
+    if (resource === "shifts") {
+      if (!String(body.code || "").trim() || !String(body.name || "").trim()) return NextResponse.json({ error: "رمز الوردية واسمها مطلوبان" }, { status: 400 })
+      const rows = await sql`INSERT INTO shift_definitions_tbl(code,name,start_time,end_time,break_minutes,grace_minutes,is_overnight,is_active) VALUES(${String(body.code).trim()},${String(body.name).trim()},${body.start_time || "08:00"},${body.end_time || "17:00"},${Number(body.break_minutes) || 0},${Number(body.grace_minutes) || 0},${body.is_overnight === true},${body.is_active !== false}) RETURNING *`
+      return NextResponse.json(rows[0], { status: 201 })
+    }
+    if (resource === "shift-assignments") {
+      if (!Number(body.employee_id) || Number(body.weekday) < 0 || Number(body.weekday) > 6) return NextResponse.json({ error: "الموظف واليوم مطلوبان" }, { status: 400 })
+      if (!body.is_day_off && !Number(body.shift_id)) return NextResponse.json({ error: "اختر الوردية أو حدد اليوم عطلة" }, { status: 400 })
+      const rows = await sql`INSERT INTO employee_shift_assignments_tbl(employee_id,weekday,shift_id,is_day_off) VALUES(${Number(body.employee_id)},${Number(body.weekday)},${body.is_day_off ? null : Number(body.shift_id)},${body.is_day_off === true}) ON CONFLICT(employee_id,weekday) DO UPDATE SET shift_id=EXCLUDED.shift_id,is_day_off=EXCLUDED.is_day_off RETURNING *`
+      return NextResponse.json(rows[0], { status: 201 })
+    }
+    if (resource === "official-holidays") {
+      if (body.action === "distribute") {
+        const holidayId = Number(body.holiday_id)
+        const holiday = (await sql`SELECT id FROM official_holidays_tbl WHERE id=${holidayId}`)[0]
+        if (!holiday) return NextResponse.json({ error: "العطلة غير موجودة" }, { status: 404 })
+        const employees = await sql`SELECT DISTINCT a.employee_id FROM employee_shift_assignments_tbl a JOIN employees_tbl e ON e.id=a.employee_id WHERE COALESCE(e.status,1)=1`
+        for (const employee of employees) await sql`INSERT INTO employee_holiday_exceptions_tbl(holiday_id,employee_id,is_day_off) VALUES(${holidayId},${employee.employee_id},true) ON CONFLICT(holiday_id,employee_id) DO UPDATE SET is_day_off=true`
+        return NextResponse.json({ ok: true, count: employees.length })
+      }
+      if (!String(body.name || "").trim() || !body.holiday_date || !body.end_date) return NextResponse.json({ error: "اسم العطلة والتاريخ مطلوبان" }, { status: 400 })
+      if (String(body.end_date) < String(body.holiday_date)) return NextResponse.json({ error: "تاريخ النهاية غير صحيح" }, { status: 400 })
+      const rows = await sql`INSERT INTO official_holidays_tbl(name,holiday_date,end_date,is_paid,notes) VALUES(${String(body.name).trim()},${body.holiday_date},${body.end_date},${body.is_paid !== false},${body.notes || null}) RETURNING *`
+      return NextResponse.json(rows[0], { status: 201 })
+    }
+    if (resource === "shift-schedules") {
+      const dateFrom = String(body.date_from || "")
+      const dateTo = String(body.date_to || "")
+      const weekday = Number(body.weekday)
+      if (!dateFrom || !dateTo || dateTo < dateFrom || weekday < 0 || weekday > 6) return NextResponse.json({ error: "الفترة واليوم مطلوبة" }, { status: 400 })
+      if (!body.employee_id && !body.department_id) return NextResponse.json({ error: "اختر موظفاً أو قسماً" }, { status: 400 })
+      if (!body.is_day_off && !body.shift_id) return NextResponse.json({ error: "اختر الوردية أو حدد اليوم عطلة" }, { status: 400 })
+      const values = body.department_id
+        ? (await sql`SELECT id FROM employees_tbl WHERE department_id=${Number(body.department_id)} AND COALESCE(status,1)=1`).map((row: any) => ({ employeeId: Number(row.id), departmentId: null }))
+        : [{ employeeId: Number(body.employee_id), departmentId: null }]
+      let count = 0
+      for (const target of values) {
+        await sql`DELETE FROM shift_schedule_rules_tbl WHERE employee_id=${target.employeeId || null} AND date_from <= ${dateTo} AND date_to >= ${dateFrom}`
+        for (let current = new Date(`${dateFrom}T00:00:00Z`); current <= new Date(`${dateTo}T00:00:00Z`); current.setUTCDate(current.getUTCDate() + 1)) {
+          const date = current.toISOString().slice(0, 10)
+          await sql`INSERT INTO shift_schedule_rules_tbl(employee_id,department_id,date_from,date_to,weekday,shift_id,is_day_off) VALUES(${target.employeeId || null},${target.departmentId || null},${date},${date},${current.getUTCDay()},${body.is_day_off ? null : Number(body.shift_id)},${body.is_day_off === true})`
+          count++
+        }
+      }
+      return NextResponse.json({ ok: true, count }, { status: 201 })
     }
     if (resource === "employees") {
       body.salary_account = await canonicalSalaryAccountId(body.salary_account)
@@ -306,6 +363,18 @@ export async function POST(request: NextRequest, { params }: { params: { resourc
       }
       return NextResponse.json({ ok: true, count: calculatedRows.length })
     }
+    if (resource === "attendance-devices") {
+      if (!String(body.name || "").trim() || !String(body.code || "").trim() || !String(body.ip_address || "").trim()) return NextResponse.json({ error: "اسم الجهاز والرمز والعنوان مطلوبون" }, { status: 400 })
+      const rows = await sql`INSERT INTO attendance_devices_tbl(name,code,device_type,ip_address,port,branch_id,is_active) VALUES(${String(body.name).trim()},${String(body.code).trim()},${body.device_type || "zkteco"},${String(body.ip_address).trim()},${Number(body.port) || 4370},${body.branch_id || null},${body.is_active !== false}) RETURNING *`
+      return NextResponse.json(rows[0], { status: 201 })
+    }
+    if (resource === "attendance-records") {
+      if (body.action === "read") return NextResponse.json({ count: 0, message: "قراءة الجهاز تحتاج موصل البروتوكول الخاص بالطراز" })
+      if (!String(body.employee_code || "").trim() || !body.punch_time) return NextResponse.json({ error: "رقم الموظف ووقت الحركة مطلوبان" }, { status: 400 })
+      const employee = body.employee_id ? { id: Number(body.employee_id) } : (await sql`SELECT id FROM employees_tbl WHERE employee_code=${String(body.employee_code).trim()} LIMIT 1`)[0]
+      const rows = await sql`INSERT INTO attendance_logs_tbl(device_id,employee_id,employee_code,device_user_id,punch_time,punch_type,verification_type,sync_status,notes) VALUES(${body.device_id || null},${employee?.id || null},${String(body.employee_code).trim()},${body.device_user_id || body.employee_code},${body.punch_time}::timestamp,${body.punch_type || "unknown"},${body.verification_type || "manual"},${body.sync_status || "manual"},${body.notes || null}) ON CONFLICT(device_id,device_user_id,punch_time) DO UPDATE SET employee_id=EXCLUDED.employee_id,punch_type=EXCLUDED.punch_type,verification_type=EXCLUDED.verification_type,notes=EXCLUDED.notes RETURNING *`
+      return NextResponse.json(rows[0], { status: 201 })
+    }
     return NextResponse.json({ error:"Unknown HR resource" },{status:404})
   } catch(error:any) { console.error("HR POST",error); return NextResponse.json({error:error?.message||"تعذر حفظ البيانات"},{status:500}) }
 }
@@ -318,8 +387,26 @@ export async function PUT(request: NextRequest, { params }: { params: { resource
     if(resource==="employees") { body.salary_account = await canonicalSalaryAccountId(body.salary_account); const validationError = validateEmployee(body); if (validationError) return NextResponse.json({ error: validationError }, { status: 400 }); const rows=await sql`UPDATE employees_tbl SET employee_code=${body.employee_code},full_name=${body.full_name},other_name=${body.other_name||null},image_url=${body.image_url||null},national_id=${body.national_id||null},passport_no=${body.passport_no||null},gender=${body.gender||null},birth_date=${body.birth_date||null},hire_date=${body.hire_date},end_date=${body.end_date||null},department_id=${body.department_id||null},job_id=${body.job_id||null},branch_id=${body.branch_id||null},salary_type=${body.salary_type||"monthly"},basic_salary=${Number(body.basic_salary)||0},salary_currency=${body.salary_currency||null},contract_type=${body.contract_type||null},bank_name=${body.bank_name||null},bank_branch=${body.bank_branch||null},bank_account=${body.bank_account||null},iban=${body.iban||null},salary_account=${body.salary_account||null},phone=${body.phone||null},email=${body.email||null},address=${body.address||null},region=${body.region||null},permanent_address=${body.permanent_address||null},tax_exemption_id=${body.tax_exemption_id||null},tax_law_id=${body.tax_law_id||null},is_taxed=${body.is_taxed!==false},social_status=${body.social_status||null},father_account_code=${body.father_account_code||null},account_currency=${body.account_currency||null},allow_different_currency=${body.allow_different_currency === true || String(body.allow_different_currency) === "1"},currency_difference=${!!body.currency_difference},stop_transactions=${!!body.stop_transactions},status=${body.status??1},notes=${body.notes||null},updated_at=CURRENT_TIMESTAMP WHERE id=${body.id} RETURNING *`; await sql`DELETE FROM employee_salary_items_tbl WHERE employee_id=${body.id}`; for(const item of body.salary_items||[]) if(item.salary_item_id) await sql`INSERT INTO employee_salary_items_tbl(employee_id,salary_item_id,amount,percentage) VALUES(${body.id},${item.salary_item_id},${Number(item.amount)||0},${Number(item.percentage)||0}) ON CONFLICT(employee_id,salary_item_id) DO UPDATE SET amount=EXCLUDED.amount,percentage=EXCLUDED.percentage`; await sql`DELETE FROM employee_tax_exemptions_tbl WHERE employee_id=${body.id}`; for(const item of body.tax_exemptions||[]) if(item.tax_exemption_id) await sql`INSERT INTO employee_tax_exemptions_tbl(employee_id,tax_exemption_id,exemption_type,amount) VALUES(${body.id},${item.tax_exemption_id},${item.exemption_type||"annual"},${Number(item.amount)||0}) ON CONFLICT(employee_id,tax_exemption_id) DO UPDATE SET exemption_type=EXCLUDED.exemption_type,amount=EXCLUDED.amount`; await sql`DELETE FROM employee_stop_transactions_tbl WHERE employee_id=${body.id}`; for(const item of body.stop_transactions||[]) if(item.is_stopped) await sql`INSERT INTO employee_stop_transactions_tbl(employee_id,voucher_type_id,is_stopped,stop_date) VALUES(${body.id},${item.voucher_type_id},true,${item.stop_date||null})`; return NextResponse.json(rows[0]) }
     if(resource==="tax-laws") { const rows=await sql`UPDATE tax_laws_tbl SET name=${body.name},other_name=${body.other_name||""},account_code=${body.account_code||null},currency=${body.currency||null},max_discount=${body.max_discount===""?null:Number(body.max_discount)},discount_percent=${Number(body.discount_percent)||0},is_active=${body.is_active!==false},updated_at=CURRENT_TIMESTAMP WHERE id=${body.id} RETURNING *`; await sql`DELETE FROM tax_law_brackets_tbl WHERE tax_law_id=${body.id}`; for(const bracket of body.brackets||[]) await sql`INSERT INTO tax_law_brackets_tbl(tax_law_id,from_amount,to_amount,tax_percent) VALUES(${body.id},${Number(bracket.from_amount)||0},${bracket.to_amount===""||bracket.to_amount==null?null:Number(bracket.to_amount)},${Number(bracket.tax_percent)||0})`; return NextResponse.json(rows[0]) }
     if(resource==="periods"&&body.action==="close") { const rows=await sql`UPDATE salary_periods_tbl SET status='closed',closed_at=CURRENT_TIMESTAMP WHERE id=${body.id} RETURNING *`; return NextResponse.json(rows[0]) }
+    if(resource==="attendance-devices") { const rows=await sql`UPDATE attendance_devices_tbl SET name=${String(body.name).trim()},code=${String(body.code).trim()},device_type=${body.device_type||"zkteco"},ip_address=${String(body.ip_address).trim()},port=${Number(body.port)||4370},branch_id=${body.branch_id||null},is_active=${body.is_active!==false},updated_at=CURRENT_TIMESTAMP WHERE id=${body.id} RETURNING *`; return NextResponse.json(rows[0]) }
+    if(resource==="shifts") { const rows=await sql`UPDATE shift_definitions_tbl SET code=${String(body.code).trim()},name=${String(body.name).trim()},start_time=${body.start_time||"08:00"},end_time=${body.end_time||"17:00"},break_minutes=${Number(body.break_minutes)||0},grace_minutes=${Number(body.grace_minutes)||0},is_overnight=${body.is_overnight===true},is_active=${body.is_active!==false},updated_at=CURRENT_TIMESTAMP WHERE id=${body.id} RETURNING *`; return NextResponse.json(rows[0]) }
+    if(resource==="shift-schedules") {
+      if (!body.id || (!body.is_day_off && !body.shift_id)) return NextResponse.json({ error: "اختر الوردية أو حدد اليوم عطلة" }, { status: 400 })
+      const current = (await sql`SELECT employee_id,date_from,weekday FROM shift_schedule_rules_tbl WHERE id=${body.id}`)[0]
+      if (!current) return NextResponse.json({ error: "السجل غير موجود" }, { status: 404 })
+      const applyWeekday = body.apply_weekday === true
+      const applyEmployees = body.apply_employees === true
+      const rows = applyWeekday && applyEmployees
+        ? await sql`UPDATE shift_schedule_rules_tbl SET shift_id=${body.is_day_off ? null : Number(body.shift_id)},is_day_off=${body.is_day_off === true} WHERE weekday=${current.weekday} RETURNING *`
+        : applyWeekday
+          ? await sql`UPDATE shift_schedule_rules_tbl SET shift_id=${body.is_day_off ? null : Number(body.shift_id)},is_day_off=${body.is_day_off === true} WHERE employee_id=${current.employee_id} AND weekday=${current.weekday} RETURNING *`
+          : applyEmployees
+            ? await sql`UPDATE shift_schedule_rules_tbl SET shift_id=${body.is_day_off ? null : Number(body.shift_id)},is_day_off=${body.is_day_off === true} WHERE date_from=${current.date_from} AND date_to=${current.date_from} RETURNING *`
+            : await sql`UPDATE shift_schedule_rules_tbl SET shift_id=${body.is_day_off ? null : Number(body.shift_id)},is_day_off=${body.is_day_off === true} WHERE id=${body.id} RETURNING *`
+      return NextResponse.json(rows[0])
+    }
+    if(resource==="official-holidays") { const rows=await sql`UPDATE official_holidays_tbl SET name=${String(body.name).trim()},holiday_date=${body.holiday_date},end_date=${body.end_date},is_paid=${body.is_paid!==false},notes=${body.notes||null} WHERE id=${body.id} RETURNING *`; return NextResponse.json(rows[0]) }
     return NextResponse.json({error:"Unknown HR resource"},{status:404})
   } catch(error:any){ return NextResponse.json({error:error?.message||"تعذر التعديل"},{status:500}) }
 }
 
-export async function DELETE(request:NextRequest,{params}:{params:{resource:string}}){ await ensureHrSchema(); const id=Number(request.nextUrl.searchParams.get("id")); if(params.resource==="tax-laws"&&id){await sql`DELETE FROM tax_laws_tbl WHERE id=${id}`;return NextResponse.json({ok:true})} if(params.resource==="employees"&&id){try{await sql`DELETE FROM payroll_tbl WHERE employee_id=${id}`;await sql`DELETE FROM employee_stop_transactions_tbl WHERE employee_id=${id}`;await sql`DELETE FROM employee_tax_exemptions_tbl WHERE employee_id=${id}`;await sql`DELETE FROM employee_salary_items_tbl WHERE employee_id=${id}`;await sql`DELETE FROM employees_tbl WHERE id=${id}`;return NextResponse.json({ok:true})}catch(error){console.error("[hr/employees] delete failed",error);return NextResponse.json({error:"تعذر حذف الموظف لوجود حركات مرتبطة به"},{status:409})}} const d=definitions[params.resource]; if(!d||!id)return NextResponse.json({error:"Invalid request"},{status:400}); await sql.unsafe(`DELETE FROM ${ident(d.table)} WHERE id=$1`,[id]); return NextResponse.json({ok:true}) }
+export async function DELETE(request:NextRequest,{params}:{params:{resource:string}}){ await ensureHrSchema(); const id=Number(request.nextUrl.searchParams.get("id")); if(params.resource==="attendance-devices"&&id){await sql`DELETE FROM attendance_devices_tbl WHERE id=${id}`;return NextResponse.json({ok:true})} if(params.resource==="shifts"&&id){await sql`DELETE FROM shift_definitions_tbl WHERE id=${id}`;return NextResponse.json({ok:true})} if(params.resource==="shift-assignments"&&id){await sql`DELETE FROM employee_shift_assignments_tbl WHERE id=${id}`;return NextResponse.json({ok:true})} if(params.resource==="official-holidays"&&id){await sql`DELETE FROM official_holidays_tbl WHERE id=${id}`;return NextResponse.json({ok:true})} if(params.resource==="tax-laws"&&id){await sql`DELETE FROM tax_laws_tbl WHERE id=${id}`;return NextResponse.json({ok:true})} if(params.resource==="employees"&&id){try{await sql`DELETE FROM payroll_tbl WHERE employee_id=${id}`;await sql`DELETE FROM employee_stop_transactions_tbl WHERE employee_id=${id}`;await sql`DELETE FROM employee_tax_exemptions_tbl WHERE employee_id=${id}`;await sql`DELETE FROM employee_salary_items_tbl WHERE employee_id=${id}`;await sql`DELETE FROM employees_tbl WHERE id=${id}`;return NextResponse.json({ok:true})}catch(error){console.error("[hr/employees] delete failed",error);return NextResponse.json({error:"تعذر حذف الموظف لوجود حركات مرتبطة به"},{status:409})}} const d=definitions[params.resource]; if(!d||!id)return NextResponse.json({error:"Invalid request"},{status:400}); await sql.unsafe(`DELETE FROM ${ident(d.table)} WHERE id=$1`,[id]); return NextResponse.json({ok:true}) }

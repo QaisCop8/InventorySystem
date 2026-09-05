@@ -60,6 +60,8 @@ export function ensureHrSchema() {
     await sql`ALTER TABLE employees_tbl ADD COLUMN IF NOT EXISTS stop_transactions BOOLEAN DEFAULT false`
     await sql`ALTER TABLE employees_tbl ADD COLUMN IF NOT EXISTS tax_law_id INTEGER REFERENCES tax_laws_tbl(id)`
     await sql`ALTER TABLE employees_tbl ADD COLUMN IF NOT EXISTS image_url TEXT`
+    await sql`ALTER TABLE employees_tbl ADD COLUMN IF NOT EXISTS device_user_id VARCHAR(100)`
+    await sql`CREATE UNIQUE INDEX IF NOT EXISTS employees_device_user_id_unique ON employees_tbl(device_user_id) WHERE device_user_id IS NOT NULL AND device_user_id <> ''`
     await sql`CREATE TABLE IF NOT EXISTS employee_salary_items_tbl (id SERIAL PRIMARY KEY, employee_id INTEGER NOT NULL REFERENCES employees_tbl(id) ON DELETE CASCADE, salary_item_id INTEGER NOT NULL REFERENCES salary_items_tbl(id), amount NUMERIC(18,3) DEFAULT 0, UNIQUE(employee_id, salary_item_id))`
     await sql`ALTER TABLE employee_salary_items_tbl ADD COLUMN IF NOT EXISTS percentage NUMERIC(9,4) DEFAULT 0`
     await sql`CREATE TABLE IF NOT EXISTS employee_stop_transactions_tbl (id SERIAL PRIMARY KEY, employee_id INTEGER NOT NULL REFERENCES employees_tbl(id) ON DELETE CASCADE, voucher_type_id INTEGER NOT NULL REFERENCES voucher_types_tbl(id), is_stopped BOOLEAN DEFAULT false, stop_date DATE, UNIQUE(employee_id, voucher_type_id))`
@@ -69,6 +71,87 @@ export function ensureHrSchema() {
     await sql`ALTER TABLE payroll_tbl ADD COLUMN IF NOT EXISTS is_closed BOOLEAN DEFAULT false`
     await sql`ALTER TABLE payroll_tbl ADD COLUMN IF NOT EXISTS closed_at TIMESTAMP`
     await sql`ALTER TABLE payroll_tbl ADD COLUMN IF NOT EXISTS journal_id INTEGER`
+    await sql`CREATE TABLE IF NOT EXISTS attendance_devices_tbl (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(150) NOT NULL,
+      code VARCHAR(50) NOT NULL UNIQUE,
+      device_type VARCHAR(30) NOT NULL DEFAULT 'zkteco',
+      ip_address VARCHAR(255) NOT NULL,
+      port INTEGER NOT NULL DEFAULT 4370,
+      serial_number VARCHAR(100),
+      branch_id INTEGER REFERENCES branches(id),
+      is_active BOOLEAN NOT NULL DEFAULT true,
+      last_sync_at TIMESTAMP,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`
+    await sql`CREATE TABLE IF NOT EXISTS attendance_logs_tbl (
+      id BIGSERIAL PRIMARY KEY,
+      device_id INTEGER REFERENCES attendance_devices_tbl(id) ON DELETE SET NULL,
+      employee_id INTEGER REFERENCES employees_tbl(id) ON DELETE SET NULL,
+      employee_code VARCHAR(100) NOT NULL,
+      device_user_id VARCHAR(100),
+      punch_time TIMESTAMP NOT NULL,
+      punch_type VARCHAR(20) NOT NULL DEFAULT 'unknown',
+      verification_type VARCHAR(30) NOT NULL DEFAULT 'unknown',
+      sync_status VARCHAR(20) NOT NULL DEFAULT 'manual',
+      raw_payload JSONB,
+      notes TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(device_id, device_user_id, punch_time)
+    )`
+    await sql`CREATE TABLE IF NOT EXISTS shift_definitions_tbl (
+      id SERIAL PRIMARY KEY,
+      code VARCHAR(30) NOT NULL UNIQUE,
+      name VARCHAR(150) NOT NULL,
+      start_time TIME NOT NULL DEFAULT '08:00',
+      end_time TIME NOT NULL DEFAULT '17:00',
+      break_minutes INTEGER NOT NULL DEFAULT 0,
+      grace_minutes INTEGER NOT NULL DEFAULT 0,
+      is_overnight BOOLEAN NOT NULL DEFAULT false,
+      is_active BOOLEAN NOT NULL DEFAULT true,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`
+    await sql`CREATE TABLE IF NOT EXISTS employee_shift_assignments_tbl (
+      id SERIAL PRIMARY KEY,
+      employee_id INTEGER NOT NULL REFERENCES employees_tbl(id) ON DELETE CASCADE,
+      weekday INTEGER NOT NULL CHECK (weekday BETWEEN 0 AND 6),
+      shift_id INTEGER REFERENCES shift_definitions_tbl(id) ON DELETE SET NULL,
+      is_day_off BOOLEAN NOT NULL DEFAULT false,
+      UNIQUE(employee_id, weekday)
+    )`
+    await sql`CREATE TABLE IF NOT EXISTS official_holidays_tbl (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(200) NOT NULL,
+      holiday_date DATE NOT NULL,
+      end_date DATE NOT NULL,
+      is_paid BOOLEAN NOT NULL DEFAULT true,
+      notes TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(name, holiday_date, end_date)
+    )`
+    await sql`CREATE TABLE IF NOT EXISTS employee_holiday_exceptions_tbl (
+      id SERIAL PRIMARY KEY,
+      holiday_id INTEGER NOT NULL REFERENCES official_holidays_tbl(id) ON DELETE CASCADE,
+      employee_id INTEGER NOT NULL REFERENCES employees_tbl(id) ON DELETE CASCADE,
+      is_day_off BOOLEAN NOT NULL DEFAULT true,
+      UNIQUE(holiday_id, employee_id)
+    )`
+    await sql`CREATE TABLE IF NOT EXISTS shift_schedule_rules_tbl (
+      id SERIAL PRIMARY KEY,
+      employee_id INTEGER REFERENCES employees_tbl(id) ON DELETE CASCADE,
+      department_id INTEGER REFERENCES departments(id) ON DELETE CASCADE,
+      date_from DATE NOT NULL,
+      date_to DATE NOT NULL,
+      weekday INTEGER NOT NULL CHECK (weekday BETWEEN 0 AND 6),
+      shift_id INTEGER REFERENCES shift_definitions_tbl(id) ON DELETE SET NULL,
+      is_day_off BOOLEAN NOT NULL DEFAULT false,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      CHECK (date_to >= date_from),
+      CHECK ((employee_id IS NOT NULL) <> (department_id IS NOT NULL)),
+      CHECK (is_day_off = true OR shift_id IS NOT NULL)
+    )`
   })().catch((error) => { ready = null; throw error })
   return ready
 }

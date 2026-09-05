@@ -116,6 +116,10 @@ const EmployeeSalaryItemsPage = lazyNamed(() => import("@/components/hr/employee
 const SalaryPeriodsPage = lazyNamed(() => import("@/components/hr/salary-periods-page"), "SalaryPeriodsPage")
 const SalaryJournalPage = lazyNamed(() => import("@/components/hr/salary-journal-page"), "SalaryJournalPage")
 const PayrollPage = lazyNamed(() => import("@/components/hr/payroll-page"), "PayrollPage")
+const AttendanceDevicesPage = lazyNamed(() => import("@/components/hr/attendance-pages"), "AttendanceDevicesPage")
+const AttendanceRecordsPage = lazyNamed(() => import("@/components/hr/attendance-pages"), "AttendanceRecordsPage")
+const ShiftsPage = lazyNamed(() => import("@/components/hr/shifts-page"), "ShiftsPage")
+const OfficialHolidaysPage = lazyNamed(() => import("@/components/hr/official-holidays-page"), "OfficialHolidaysPage")
 const componentMap: Record<string, React.ComponentType<any>> = {
   dashboard: Dashboard,
   "inventory-analytics": InventoryAnalytics,
@@ -233,6 +237,10 @@ const componentMap: Record<string, React.ComponentType<any>> = {
   "salary-periods": SalaryPeriodsPage,
   "salary-journal": SalaryJournalPage,
   payroll: PayrollPage,
+  "attendance-devices": AttendanceDevicesPage,
+  "attendance-records": AttendanceRecordsPage,
+  shifts: ShiftsPage,
+  "official-holidays": OfficialHolidaysPage,
   "salary-items-report": (props: any) => <PayrollPage {...props} report="items" />,
   "income-tax-report": (props: any) => <PayrollPage {...props} report="tax" />,
 }

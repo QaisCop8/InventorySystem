@@ -237,6 +237,7 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [errorMessages, setErrorMessages] = useState<string[]>([])
   const [printData, setPrintData] = useState<VoucherPrintData | null>(null)
+  const [gridResetToken, setGridResetToken] = useState(0)
 
   useEffect(() => {
     if (!printData) return
@@ -461,6 +462,7 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
       cash_account_code: cachedCashAccount?.code ?? "",
       cash_account_name: cachedCashAccount?.name ?? "",
     })
+    setGridResetToken((value) => value + 1)
     setErrorMessages([])
     setDialogOpen(true)
     setIsLoading(true)
@@ -607,7 +609,7 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
       ...form,
       status,
       is_printed: isPrinted,
-      items: form.items.map((item) => ({
+      items: form.items.filter((item) => item.product_id).map((item) => ({
         ...item,
         price: item.unit_price == null ? 0 : Number(item.unit_price),
       })) as SalesVoucherItemRow[],
@@ -667,6 +669,7 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
         const bookId = form.vch_book_id ?? defaults.bookId
         const code = await generateCode(bookId)
         setForm({ ...buildInitialForm(), vch_code: code, vch_book_id: bookId, currency_id: defaults.currencyId })
+        setGridResetToken((value) => value + 1)
       } catch (refreshError) {
         console.error("Voucher saved, but refreshing the voucher screen failed", refreshError)
       }
@@ -923,6 +926,7 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
         onBookChange={handleBookChange}
         onCurrencyChange={handleCurrencyChange}
         onItemsChange={(items) => setForm((f) => ({ ...f, items }))}
+        gridResetToken={gridResetToken}
         voucherBooks={voucherBooks}
         currencyOptions={currencyOptions}
         baseCurrencyId={baseCurrencyId}
