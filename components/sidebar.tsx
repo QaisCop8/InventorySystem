@@ -185,6 +185,8 @@ export const menuItems: MenuItem[] = [
       { title: "تقرير بنود الرواتب", section: "salary-items-report", icon: BarChart3 },
       { title: "ضريبة دخل الموظفين", section: "income-tax-report", icon: BarChart3 },
       { title: "الحضور والدوام", section: "attendance-records", icon: Clock3 },
+      { title: "دخول الموظفين تفصيلي", section: "attendance-detailed-report", icon: BarChart3 },
+      { title: "دخول الموظفين إجمالي", section: "attendance-summary-report", icon: BarChart3 },
       { title: "الورديات والجداول الأسبوعية", section: "shifts", icon: Clock3 },
       { title: "العطل الرسمية", section: "official-holidays", icon: CalendarDays },
       { title: "إعداد أجهزة الحضور", section: "attendance-devices", icon: Settings2 },

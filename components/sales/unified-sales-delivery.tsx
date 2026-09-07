@@ -2085,6 +2085,7 @@ export default function UnifiedSalesDelivery({
         if (!rawValue) {
           safeFinishEditing(grid)
           grid.focus()
+          if (e.keyCode === Util.keyboardKeys.Tab) return
           pendingFocusRow.current = row
           lastFocusedCellRef.current = { row, col: "product_code" }
           popupHasCalled()

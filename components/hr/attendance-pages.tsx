@@ -10,16 +10,19 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Activity, Cable, CheckCircle2, Clock3, Download, Pencil, Plus, RefreshCw, Save, Trash2, Wifi } from "lucide-react"
 import { FilterBar, Grid, HrPage, ListActions, inputClass, selectClass, type Column } from "./hr-shared"
 
-type Device = { id?: number; name: string; code: string; device_type: string; ip_address: string; port: number; branch_id: number | null; branch_name?: string; is_active: boolean; last_sync_at?: string | null }
+type DeviceSymbol = { symbol_key: "entry" | "exit" | "overtime_entry" | "overtime_exit"; symbol_value: string; label: string }
+type Device = { id?: number; name: string; code: string; device_type: string; ip_address: string; port: number; serial_number: string; branch_id: number | null; branch_name?: string; is_active: boolean; last_sync_at?: string | null; symbols: DeviceSymbol[] }
 type AttendanceLog = { id?: number; device_id: number | null; device_name?: string; employee_id: number | null; employee_code: string; employee_name?: string; device_user_id: string; punch_time: string; punch_type: string; verification_type: string; sync_status: string; notes?: string }
 
-const emptyDevice: Device = { name: "", code: "", device_type: "zkteco", ip_address: "", port: 4370, branch_id: null, is_active: true }
+const defaultSymbols: DeviceSymbol[] = [{ symbol_key: "entry", symbol_value: "I", label: "دخول" }, { symbol_key: "exit", symbol_value: "O", label: "خروج" }, { symbol_key: "overtime_entry", symbol_value: "OI", label: "دخول وقت إضافي" }, { symbol_key: "overtime_exit", symbol_value: "OO", label: "خروج وقت إضافي" }]
+const emptyDevice: Device = { name: "", code: "", device_type: "zkteco", ip_address: "", port: 4370, serial_number: "", branch_id: null, is_active: true, symbols: defaultSymbols.map(symbol => ({ ...symbol })) }
 const emptyLog: AttendanceLog = { device_id: null, employee_id: null, employee_code: "", device_user_id: "", punch_time: new Date().toISOString().slice(0, 16), punch_type: "in", verification_type: "fingerprint", sync_status: "manual", notes: "" }
 
 const deviceColumns: Column[] = [
   { key: "code", label: "الرمز", width: 120 },
   { key: "name", label: "اسم الجهاز" },
   { key: "device_type", label: "النوع", width: 120 },
+  { key: "serial_number", label: "الرقم التسلسلي", width: 150 },
   { key: "ip_address", label: "العنوان", width: 150 },
   { key: "port", label: "المنفذ", width: 90, type: "number" },
   { key: "branch_name", label: "الفرع", width: 150 },
@@ -49,13 +52,13 @@ export function AttendanceDevicesPage() {
 
   const load = useCallback(async () => {
     const [devicesResponse, lookupsResponse] = await Promise.all([fetch("/api/hr/attendance-devices"), fetch("/api/hr/lookups")])
-    setRows(devicesResponse.ok ? await devicesResponse.json() : [])
+    setRows(devicesResponse.ok ? (await devicesResponse.json()).map((row: Device) => ({ ...row, symbols: defaultSymbols.map(defaultSymbol => row.symbols?.find(symbol => symbol.symbol_key === defaultSymbol.symbol_key) || { ...defaultSymbol }) })) : [])
     if (lookupsResponse.ok) setBranches((await lookupsResponse.json()).branches || [])
   }, [])
   useEffect(() => { void load() }, [load])
 
   const save = async () => {
-    if (!form.name.trim() || !form.code.trim() || !form.ip_address.trim()) return setMessage("اسم الجهاز والرمز والعنوان مطلوبون")
+    if (!form.name.trim() || !form.code.trim() || !form.serial_number.trim()) return setMessage("اسم الجهاز والرمز والرقم التسلسلي مطلوبون")
     setSaving(true); setMessage("")
     const response = await fetch("/api/hr/attendance-devices", { method: form.id ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) })
     if (response.ok) { await load(); setOpen(false); setForm(emptyDevice) } else setMessage((await response.json()).error || "تعذر حفظ الجهاز")
@@ -75,11 +78,13 @@ export function AttendanceDevicesPage() {
         <div><Label>اسم الجهاز *</Label><Input className={inputClass} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></div>
         <div><Label>الرمز *</Label><Input className={inputClass} value={form.code} onChange={e => setForm({ ...form, code: e.target.value.toUpperCase() })} /></div>
         <div><Label>نوع الجهاز</Label><select className={selectClass} value={form.device_type} onChange={e => setForm({ ...form, device_type: e.target.value })}><option value="zkteco">ZKTeco / ZK</option><option value="generic_tcp">TCP عام</option><option value="generic_http">HTTP API</option></select></div>
+        <div><Label>الرقم التسلسلي ADMS *</Label><Input dir="ltr" className={inputClass} value={form.serial_number} onChange={e => setForm({ ...form, serial_number: e.target.value.trim() })} placeholder="SN من إعدادات الجهاز" /></div>
         <div><Label>الفرع</Label><select className={selectClass} value={form.branch_id ?? ""} onChange={e => setForm({ ...form, branch_id: e.target.value ? Number(e.target.value) : null })}><option value="">كل الفروع</option>{branches.map(branch => <option key={branch.id} value={branch.id}>{branch.branch_name}</option>)}</select></div>
-        <div><Label>عنوان IP / المضيف *</Label><Input dir="ltr" className={inputClass} value={form.ip_address} onChange={e => setForm({ ...form, ip_address: e.target.value })} /></div>
+        <div><Label>عنوان IP / المضيف</Label><Input dir="ltr" className={inputClass} value={form.ip_address || ""} onChange={e => setForm({ ...form, ip_address: e.target.value })} /></div>
         <div><Label>المنفذ</Label><Input dir="ltr" type="number" className={inputClass} value={form.port} onChange={e => setForm({ ...form, port: Number(e.target.value) || 0 })} /></div>
         <label className="flex items-center gap-2"><input type="checkbox" checked={form.is_active} onChange={e => setForm({ ...form, is_active: e.target.checked })} /> جهاز فعال</label>
       </div>
+      <div className="mt-4 overflow-hidden rounded-lg border border-slate-200"><div className="border-b bg-slate-50 px-3 py-2 text-sm font-semibold">رموز حركات الجهاز</div><table className="w-full text-sm"><thead><tr className="border-b text-right"><th className="p-2">الحركة</th><th className="p-2">الرمز في الجهاز</th><th className="p-2">الافتراضي</th></tr></thead><tbody>{form.symbols.map((symbol, index) => <tr key={symbol.symbol_key} className="border-b last:border-0"><td className="p-2">{symbol.label}</td><td className="p-2"><Input dir="ltr" className="h-8" value={symbol.symbol_value} onChange={e => setForm({ ...form, symbols: form.symbols.map((item, itemIndex) => itemIndex === index ? { ...item, symbol_value: e.target.value } : item) })} /></td><td className="p-2 text-slate-500" dir="ltr">{defaultSymbols.find(item => item.symbol_key === symbol.symbol_key)?.symbol_value}</td></tr>)}</tbody></table></div>
       {message && <p className="text-sm text-red-600">{message}</p>}
       <div className="flex justify-between gap-2"><Button variant="destructive" disabled={!form.id} onClick={() => void remove()}><Trash2 className="ml-2 h-4 w-4" />حذف</Button><Button disabled={saving} onClick={() => void save()}><Save className="ml-2 h-4 w-4" />حفظ</Button></div>
     </DialogContent></Dialog>

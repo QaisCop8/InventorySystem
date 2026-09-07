@@ -76,7 +76,7 @@ export function ensureHrSchema() {
       name VARCHAR(150) NOT NULL,
       code VARCHAR(50) NOT NULL UNIQUE,
       device_type VARCHAR(30) NOT NULL DEFAULT 'zkteco',
-      ip_address VARCHAR(255) NOT NULL,
+      ip_address VARCHAR(255),
       port INTEGER NOT NULL DEFAULT 4370,
       serial_number VARCHAR(100),
       branch_id INTEGER REFERENCES branches(id),
@@ -84,6 +84,18 @@ export function ensureHrSchema() {
       last_sync_at TIMESTAMP,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`
+    await sql`ALTER TABLE attendance_devices_tbl ALTER COLUMN ip_address DROP NOT NULL`
+    await sql`CREATE UNIQUE INDEX IF NOT EXISTS attendance_devices_serial_unique ON attendance_devices_tbl(serial_number) WHERE serial_number IS NOT NULL AND serial_number <> ''`
+    await sql`CREATE TABLE IF NOT EXISTS attendance_device_symbols_tbl (
+      id SERIAL PRIMARY KEY,
+      device_id INTEGER NOT NULL REFERENCES attendance_devices_tbl(id) ON DELETE CASCADE,
+      symbol_key VARCHAR(40) NOT NULL,
+      symbol_value VARCHAR(40) NOT NULL,
+      label VARCHAR(100) NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(device_id, symbol_key)
     )`
     await sql`CREATE TABLE IF NOT EXISTS attendance_logs_tbl (
       id BIGSERIAL PRIMARY KEY,
