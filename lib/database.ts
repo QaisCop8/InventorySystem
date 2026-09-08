@@ -66,6 +66,7 @@ export function getPoolForDb(dbName: string): TenantClient {
 // Postgres السلكي القياسي مدعوم من Neon، لا يقتصر الاتصال به على عميل neon() المبني على HTTP فقط).
 // مُخصَّص لقاعدة الشركة الحالية (نفس كوكي tenant_db)، ومُخزَّن مؤقتاً بالذاكرة لكل قاعدة كذلك.
 const rawPoolCache = new Map<string, Pool>()
+const transactionClientStorage = new AsyncLocalStorage<TenantClient>()
 
 export async function getTenantPool(): Promise<Pool> {
   const dbName = await resolveCurrentDbName()
@@ -76,6 +77,33 @@ export async function getTenantPool(): Promise<Pool> {
     rawPoolCache.set(dbName, pool)
   }
   return pool
+}
+
+/** Run all sql tagged-template calls in fn on one PostgreSQL connection. */
+export async function withTenantTransaction<T>(fn: () => Promise<T>): Promise<T> {
+  if (transactionClientStorage.getStore()) return fn()
+
+  const pool = await getTenantPool()
+  const client = await pool.connect()
+  const transactionClient: TenantClient = {
+    query: async (text, params) => (await client.query(text, params)).rows,
+  }
+
+  try {
+    await client.query("BEGIN")
+    const result = await transactionClientStorage.run(transactionClient, fn)
+    await client.query("COMMIT")
+    return result
+  } catch (error) {
+    try {
+      await client.query("ROLLBACK")
+    } catch (rollbackError) {
+      console.error("[database] Transaction rollback failed:", rollbackError)
+    }
+    throw error
+  } finally {
+    client.release()
+  }
 }
 
 // قائمة أسماء قواعد الشركات المعتمَدة (status='approved') — مخزَّنة مؤقتاً دقيقة واحدة، حتى لا
@@ -186,6 +214,8 @@ function makeAwaitableFragment(text: string, params: any[]): any {
   const fragment: any = new SqlFragment(text, params)
   fragment.then = (resolve: any, reject: any) => {
     ;(async () => {
+      const transactionClient = transactionClientStorage.getStore()
+      if (transactionClient) return transactionClient.query(text, params)
       const dbName = await resolveCurrentDbName()
       const client = getClientForDbName(dbName)
       return client.query(text, params)

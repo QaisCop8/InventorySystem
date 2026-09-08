@@ -67,11 +67,14 @@ const extractJson = (text: string) => {
 
 const toEnglishDigits = (value: string) => value.replace(/[٠-٩]/g, (digit) => String("٠١٢٣٤٥٦٧٨٩".indexOf(digit)))
 
+const mentionsChequePayment = (value: string) => /(?:شيكات|شيك)(?=\s|$|[،,.:؛])/i.test(value)
+const mentionsCardPayment = (value: string) => /(?:بطاقه|بطاقه\s+ائتمان|فيزا|ماستركارد)(?=\s|$|[،,.:؛])/i.test(normalizeArabicText(value))
+
 const extractClearCommand = (command: string, currencies: CurrencyRow[]) => {
   const normalized = normalizeArabicText(toEnglishDigits(command))
   const intent = /(?:سند\s*صرف|اصرف|ادفع|دفعنا)/i.test(normalized)
     ? "create_payment" as const
-    : /(?:سند\s*قبض|اقبض|قبضنا|استلمنا|استلام)/i.test(normalized)
+    : /(?:سند\s*(?:ال)?قبض|(?:^|\s)قبض(?=\s|$)|اقبض|قبضنا|استلمنا|استلام)/i.test(normalized)
       ? "create_receipt" as const
       : null
   const numberValue = (match: RegExpMatchArray | null) => match ? Number(match[1].replace(/,/g, "")) : null
@@ -96,7 +99,8 @@ const extractClearCommand = (command: string, currencies: CurrencyRow[]) => {
   const bank = normalized.match(/((?:البنك|بنك)\s+.+?)(?=\s+فرع\s|\s+تاريخ\s*الاستحقاق|\s+رقم\s*الحساب|$)/i)?.[1]?.trim() || null
   const branch = normalized.match(/فرع\s+(.+?)(?=\s+تاريخ\s*الاستحقاق|\s+رقم\s*الحساب|$)/i)?.[1]?.trim() || null
   const bankAccount = normalized.match(/رقم\s*الحساب\s*[:#-]?\s*([\w-]+)/i)?.[1] || null
-  const hasCheque = checkAmount != null || /(?:شيك|شيكات)/i.test(normalized)
+  // Do not treat the currency name "شيكل" as the cheque keyword "شيك".
+  const hasCheque = checkAmount != null || mentionsChequePayment(normalized)
   return {
     intent, amount, account, currency: currency?.currency_name || currency?.currency_code || null,
     payment_method: hasCheque ? (cashAmount ? "mixed" as const : "cheques" as const) : (amount ? "cash" as const : null),
@@ -123,7 +127,7 @@ export async function POST(request: Request) {
       const result = await generateText({
         model: google("gemini-2.5-flash"),
         system: `حلل رسالة المستخدم كاملة بالعربية أو الإنجليزية، بما فيها العامية وترتيب الكلمات المختلف. أعد JSON فقط بلا markdown.
-intent: "create_receipt" عندما يطلب إنشاء سند قبض أو تسجيل مبلغ مستلم. intent: "create_payment" عندما يطلب إنشاء سند صرف أو تسجيل مبلغ مدفوع. الأسئلة والبحث والأمثلة والنفي أعد لها "other".
+intent: "create_receipt" عندما يطلب إنشاء سند قبض أو تسجيل مبلغ مستلم، وكلمة "قبض" وحدها تعامل مثل "سند قبض". intent: "create_payment" عندما يطلب إنشاء سند صرف أو تسجيل مبلغ مدفوع. الأسئلة والبحث والأمثلة والنفي أعد لها "other".
 account: اسم الحساب أو العميل أو رمزه كما ذكره المستخدم، دون كلمات الطلب أو المبلغ أو العملة أو الملاحظات. حافظ على كلمات الاسم نفسه، مثلاً "للزبون زبون للفحص" يصبح "زبون للفحص".
 amount: المبلغ كرقم موجب، وحول الأرقام العربية والمبالغ المكتوبة بالكلمات إلى أرقام.
 currency: العملة المذكورة صراحة فقط، وإلا null (سيختار النظام أول عملة). لا تستنتج العملة من اسم العميل.
@@ -140,6 +144,9 @@ ${paymentPrompt}
       if (!local.intent) throw error
       console.warn("AI receipt parsing failed; using deterministic command parser", error)
     }
+    const normalizedCommand = normalizeArabicText(toEnglishDigits(commandText))
+    const hasExplicitCheque = mentionsChequePayment(normalizedCommand)
+    const hasExplicitCard = mentionsCardPayment(normalizedCommand)
     const parsed: z.infer<typeof draftSchema> = {
       intent: local.intent || ai?.intent || "other",
       account: local.account || ai?.account || null,
@@ -147,12 +154,12 @@ ${paymentPrompt}
       currency: local.currency || ai?.currency || null,
       date: ai?.date || null,
       note: ai?.note || null,
-      payment_method: local.payment_method || ai?.payment_method || null,
-      cash_amount: local.cash_amount ?? ai?.cash_amount ?? null,
-      check_amount: local.check_amount ?? ai?.check_amount ?? null,
-      credit_card_amount: ai?.credit_card_amount ?? null,
-      cheques: local.cheques || ai?.cheques || null,
-      cards: ai?.cards || null,
+      payment_method: !hasExplicitCheque && !hasExplicitCard ? "cash" : local.payment_method || ai?.payment_method || null,
+      cash_amount: !hasExplicitCheque && !hasExplicitCard ? (local.amount || ai?.amount || null) : local.cash_amount ?? ai?.cash_amount ?? null,
+      check_amount: hasExplicitCheque ? local.check_amount ?? ai?.check_amount ?? null : null,
+      credit_card_amount: hasExplicitCard ? ai?.credit_card_amount ?? null : null,
+      cheques: hasExplicitCheque ? local.cheques || ai?.cheques || null : null,
+      cards: hasExplicitCard ? ai?.cards || null : null,
     }
     if (parsed.intent === "other") {
       return Response.json({ type: "other" })

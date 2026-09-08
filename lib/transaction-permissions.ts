@@ -33,6 +33,7 @@ const VOUCHER_FAMILIES: Record<number, TransactionFamily> = {
   17: "purchase_invoice",
   18: "purchase_delivery",
   19: "purchase_return",
+  21: "cheque_payment",
 }
 
 export function transactionFamilyForVoucherType(vchType: number): TransactionFamily | null {

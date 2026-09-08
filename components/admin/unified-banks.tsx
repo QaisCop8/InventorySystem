@@ -146,7 +146,7 @@ export default function UnifiedBanks({
 
             <div className="grid gap-4 py-4">
               <div className="grid gap-2">
-                <Label htmlFor="bank-code">رمز البنك</Label>
+                <Label htmlFor="bank-code">رقم البنك</Label>
                 <Input
                   id="bank-code"
                   value={form.bank_code}
@@ -156,7 +156,7 @@ export default function UnifiedBanks({
                   maxLength={4}
                 />
                 {hasDuplicateCode && (
-                  <p className="text-sm text-destructive">هذا الرمز مستخدم بالفعل. الرجاء اختيار رمز آخر.</p>
+                  <p className="text-sm text-destructive">هذا الرقم مستخدم بالفعل. الرجاء اختيار رقم آخر.</p>
                 )}
               </div>
               <div className="grid gap-2">
@@ -195,4 +195,3 @@ export default function UnifiedBanks({
     </>
   )
 }
-

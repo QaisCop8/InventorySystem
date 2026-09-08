@@ -26,6 +26,26 @@ CREATE TABLE IF NOT EXISTS companies (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Central ADMS router. A clock serial belongs to exactly one company, while
+-- attendance details remain inside that company's database.
+CREATE TABLE IF NOT EXISTS attendance_device_registry (
+  id BIGSERIAL PRIMARY KEY,
+  serial_number VARCHAR(100) NOT NULL UNIQUE,
+  company_id INTEGER NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+  tenant_device_id INTEGER,
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  last_seen_at TIMESTAMP,
+  last_ip VARCHAR(100),
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS attendance_device_registry_company_idx
+  ON attendance_device_registry(company_id);
+CREATE INDEX IF NOT EXISTS attendance_device_registry_company_device_idx
+  ON attendance_device_registry(company_id, tenant_device_id)
+  WHERE tenant_device_id IS NOT NULL;
+
 CREATE TABLE IF NOT EXISTS user_company (
   id SERIAL PRIMARY KEY,
   user_id INTEGER REFERENCES users(id),

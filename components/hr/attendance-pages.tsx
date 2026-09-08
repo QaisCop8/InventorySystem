@@ -11,7 +11,7 @@ import { Activity, Cable, CheckCircle2, Clock3, Download, Pencil, Plus, RefreshC
 import { FilterBar, Grid, HrPage, ListActions, inputClass, selectClass, type Column } from "./hr-shared"
 
 type DeviceSymbol = { symbol_key: "entry" | "exit" | "overtime_entry" | "overtime_exit"; symbol_value: string; label: string }
-type Device = { id?: number; name: string; code: string; device_type: string; ip_address: string; port: number; serial_number: string; branch_id: number | null; branch_name?: string; is_active: boolean; last_sync_at?: string | null; symbols: DeviceSymbol[] }
+type Device = { id?: number; name: string; code: string; device_type: string; ip_address: string; port: number; serial_number: string; branch_id: number | null; branch_name?: string; is_active: boolean; last_sync_at?: string | null; adms_status?: string; adms_registry_error?: string; symbols: DeviceSymbol[] }
 type AttendanceLog = { id?: number; device_id: number | null; device_name?: string; employee_id: number | null; employee_code: string; employee_name?: string; device_user_id: string; punch_time: string; punch_type: string; verification_type: string; sync_status: string; notes?: string }
 
 const defaultSymbols: DeviceSymbol[] = [{ symbol_key: "entry", symbol_value: "I", label: "دخول" }, { symbol_key: "exit", symbol_value: "O", label: "خروج" }, { symbol_key: "overtime_entry", symbol_value: "OI", label: "دخول وقت إضافي" }, { symbol_key: "overtime_exit", symbol_value: "OO", label: "خروج وقت إضافي" }]
@@ -27,6 +27,7 @@ const deviceColumns: Column[] = [
   { key: "port", label: "المنفذ", width: 90, type: "number" },
   { key: "branch_name", label: "الفرع", width: 150 },
   { key: "is_active", label: "فعال", width: 80, type: "boolean" },
+  { key: "adms_status", label: "ربط ADMS", width: 140 },
   { key: "last_sync_at", label: "آخر قراءة", width: 170 },
 ]
 
@@ -72,13 +73,13 @@ export function AttendanceDevicesPage() {
 
   return <HrPage title="إعداد أجهزة الحضور" subtitle="تعريف أجهزة البصمة وربطها بالفروع">
     <ListActions onNew={() => { setForm(emptyDevice); setMessage(""); setOpen(true) }} onRefresh={() => void load()} />
-    <Grid rows={rows.map(row => ({ ...row, last_sync_at: formatDate(row.last_sync_at) }))} columns={deviceColumns} onDoubleClick={row => { setForm(row); setOpen(true) }} />
+    <Grid rows={rows.map(row => ({ ...row, last_sync_at: formatDate(row.last_sync_at) }))} columns={deviceColumns} onDoubleClick={row => { setForm(row); setMessage(row.adms_registry_error || ""); setOpen(true) }} />
     <Dialog open={open} onOpenChange={setOpen}><DialogContent dir="rtl" className="max-w-2xl"><DialogHeader><DialogTitle>{form.id ? "تعديل جهاز" : "إضافة جهاز حضور"}</DialogTitle></DialogHeader>
       <div className="grid gap-4 sm:grid-cols-2">
         <div><Label>اسم الجهاز *</Label><Input className={inputClass} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></div>
         <div><Label>الرمز *</Label><Input className={inputClass} value={form.code} onChange={e => setForm({ ...form, code: e.target.value.toUpperCase() })} /></div>
         <div><Label>نوع الجهاز</Label><select className={selectClass} value={form.device_type} onChange={e => setForm({ ...form, device_type: e.target.value })}><option value="zkteco">ZKTeco / ZK</option><option value="generic_tcp">TCP عام</option><option value="generic_http">HTTP API</option></select></div>
-        <div><Label>الرقم التسلسلي ADMS *</Label><Input dir="ltr" className={inputClass} value={form.serial_number} onChange={e => setForm({ ...form, serial_number: e.target.value.trim() })} placeholder="SN من إعدادات الجهاز" /></div>
+        <div><Label>الرقم التسلسلي ADMS *</Label><Input dir="ltr" className={inputClass} value={form.serial_number} onChange={e => setForm({ ...form, serial_number: e.target.value.trim().toUpperCase() })} placeholder="SN من إعدادات الجهاز" /></div>
         <div><Label>الفرع</Label><select className={selectClass} value={form.branch_id ?? ""} onChange={e => setForm({ ...form, branch_id: e.target.value ? Number(e.target.value) : null })}><option value="">كل الفروع</option>{branches.map(branch => <option key={branch.id} value={branch.id}>{branch.branch_name}</option>)}</select></div>
         <div><Label>عنوان IP / المضيف</Label><Input dir="ltr" className={inputClass} value={form.ip_address || ""} onChange={e => setForm({ ...form, ip_address: e.target.value })} /></div>
         <div><Label>المنفذ</Label><Input dir="ltr" type="number" className={inputClass} value={form.port} onChange={e => setForm({ ...form, port: Number(e.target.value) || 0 })} /></div>

@@ -360,29 +360,57 @@ html[dir="rtl"] .wj-flexgrid .wj-header {
   border-radius: 10px !important;
 }
 
-/* Every DataGridView action is a labelled, full-cell button. Schemes may use
-   buttonLabel for custom wording; otherwise DataGridView supplies a concise
-   label from iconType (حذف، تعديل، بحث...). */
+/* Grid actions are compact icon buttons. Their action name remains available
+   through title/aria-label; a scheme can still request a text button explicitly
+   with buttonLabel. */
 .wj-flexgrid .wj-cell:has(> .wj-cell-maker-btn) {
-  padding: 3px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 4px !important;
+  overflow: visible !important;
 }
 
 .wj-flexgrid .wj-cell > .wj-cell-maker-btn {
-  width: 100% !important;
-  min-width: 100% !important;
-  height: 100% !important;
-  min-height: 100% !important;
+  width: clamp(28px, calc(var(--datagrid-row-height, 50px) - 10px), 36px) !important;
+  min-width: clamp(28px, calc(var(--datagrid-row-height, 50px) - 10px), 36px) !important;
+  height: clamp(28px, calc(var(--datagrid-row-height, 50px) - 10px), 36px) !important;
+  min-height: clamp(28px, calc(var(--datagrid-row-height, 50px) - 10px), 36px) !important;
   margin: 0 !important;
-  padding-inline: 8px !important;
+  padding: 0 !important;
   border: 1px solid color-mix(in srgb, currentColor 20%, transparent) !important;
-  border-radius: 8px !important;
+  border-radius: 11px !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08), inset 0 1px 0 color-mix(in srgb, white 60%, transparent);
+  overflow: visible;
+  font-size: 0;
+  line-height: 1;
+}
+
+.wj-flexgrid .wj-cell > .wj-cell-maker-btn:not(:empty) {
+  width: calc(100% - 2px) !important;
+  min-width: 0 !important;
+  padding-inline: 10px !important;
   gap: 6px;
   overflow: hidden;
   font-size: 12px;
   font-weight: 700;
-  line-height: 1;
   white-space: nowrap;
   text-overflow: ellipsis;
+}
+
+.wj-flexgrid .wj-cell > .wj-cell-maker-btn::before {
+  font-size: 15px !important;
+  line-height: 1 !important;
+}
+
+.wj-flexgrid .wj-cell > .wj-cell-maker-btn:hover {
+  transform: translateY(-1px) scale(1.04);
+  box-shadow: 0 5px 12px color-mix(in srgb, currentColor 18%, transparent) !important;
+}
+
+.wj-flexgrid .wj-cell > .wj-cell-maker-btn:focus-visible {
+  outline: 2px solid color-mix(in srgb, currentColor 45%, transparent) !important;
+  outline-offset: 2px;
 }
 
 /* Customer/product template grids: keep the destructive row action visible and

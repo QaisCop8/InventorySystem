@@ -24,6 +24,7 @@ function ensureThemeSettingsColumns(): Promise<void> {
       await sql`ALTER TABLE theme_settings ADD COLUMN IF NOT EXISTS rtl_support BOOLEAN DEFAULT true`
       await sql`ALTER TABLE theme_settings ADD COLUMN IF NOT EXISTS card_style VARCHAR(20) DEFAULT 'elevated'`
       await sql`ALTER TABLE theme_settings ADD COLUMN IF NOT EXISTS button_style VARCHAR(20) DEFAULT 'rounded'`
+      await sql`ALTER TABLE theme_settings ADD COLUMN IF NOT EXISTS toolbar_style VARCHAR(20) DEFAULT 'modern'`
       await sql`ALTER TABLE theme_settings ADD COLUMN IF NOT EXISTS animation_speed VARCHAR(20) DEFAULT 'normal'`
       await sql`ALTER TABLE theme_settings ADD COLUMN IF NOT EXISTS high_contrast BOOLEAN DEFAULT false`
     })()
@@ -53,12 +54,16 @@ const getDefaultSettings = (organizationId = 1, userId: string | null = null) =>
   rtl_support: true,
   card_style: "elevated",
   button_style: "rounded",
+  toolbar_style: "modern",
   animation_speed: "normal",
   compact_mode: false,
   high_contrast: false,
   created_at: new Date().toISOString(),
   updated_at: new Date().toISOString(),
 })
+
+const normalizeToolbarStyle = (value: unknown) =>
+  ["modern", "gradient", "compact", "classic"].includes(String(value)) ? String(value) : "modern"
 
 export async function GET(request: NextRequest) {
   try {
@@ -119,7 +124,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(result, {
       headers: {
-        "Cache-Control": "public, max-age=60",
+          "Cache-Control": userId ? "private, no-store, max-age=0" : "public, max-age=60",
       },
     })
   } catch (error) {
@@ -150,7 +155,7 @@ export async function POST(request: NextRequest) {
         organization_id, user_id, theme_name, primary_color, secondary_color, accent_color,
         background_color, text_color, font_family, font_size, font_weight,
         line_height, letter_spacing, border_radius, sidebar_width, header_height,
-        dark_mode, rtl_support, card_style, button_style, animation_speed,
+        dark_mode, rtl_support, card_style, button_style, toolbar_style, animation_speed,
         compact_mode, high_contrast
       ) VALUES (
         ${organizationId}, ${userId}, ${data.theme_name || "default"}, 
@@ -163,6 +168,7 @@ export async function POST(request: NextRequest) {
         ${data.header_height || 64}, ${data.dark_mode || false}, 
         ${data.rtl_support !== undefined ? data.rtl_support : true},
         ${data.card_style || "elevated"}, ${data.button_style || "rounded"},
+        ${normalizeToolbarStyle(data.toolbar_style)},
         ${data.animation_speed || "normal"}, ${data.compact_mode || false},
         ${data.high_contrast || false}
       )
@@ -224,6 +230,7 @@ export async function PUT(request: NextRequest) {
             rtl_support = ${data.rtl_support !== undefined ? data.rtl_support : true},
             card_style = ${data.card_style || "elevated"},
             button_style = ${data.button_style || "rounded"},
+            toolbar_style = ${normalizeToolbarStyle(data.toolbar_style)},
             animation_speed = ${data.animation_speed || "normal"},
             compact_mode = ${data.compact_mode || false},
             high_contrast = ${data.high_contrast || false},
@@ -238,7 +245,7 @@ export async function PUT(request: NextRequest) {
             organization_id, user_id, theme_name, primary_color, secondary_color, accent_color,
             background_color, text_color, font_family, font_size, font_weight,
             line_height, letter_spacing, border_radius, sidebar_width, header_height,
-            dark_mode, rtl_support, card_style, button_style, animation_speed,
+            dark_mode, rtl_support, card_style, button_style, toolbar_style, animation_speed,
             compact_mode, high_contrast
           ) VALUES (
             ${organizationId}, ${userId}, ${data.theme_name || "default"}, 
@@ -251,6 +258,7 @@ export async function PUT(request: NextRequest) {
             ${data.header_height || 64}, ${data.dark_mode || false}, 
             ${data.rtl_support !== undefined ? data.rtl_support : true},
             ${data.card_style || "elevated"}, ${data.button_style || "rounded"},
+            ${normalizeToolbarStyle(data.toolbar_style)},
             ${data.animation_speed || "normal"}, ${data.compact_mode || false},
             ${data.high_contrast || false}
           )
@@ -280,6 +288,7 @@ export async function PUT(request: NextRequest) {
           rtl_support = ${data.rtl_support !== undefined ? data.rtl_support : true},
           card_style = ${data.card_style || "elevated"},
           button_style = ${data.button_style || "rounded"},
+          toolbar_style = ${normalizeToolbarStyle(data.toolbar_style)},
           animation_speed = ${data.animation_speed || "normal"},
           compact_mode = ${data.compact_mode || false},
           high_contrast = ${data.high_contrast || false},
@@ -299,7 +308,7 @@ export async function PUT(request: NextRequest) {
           organization_id, user_id, theme_name, primary_color, secondary_color, accent_color,
           background_color, text_color, font_family, font_size, font_weight,
           line_height, letter_spacing, border_radius, sidebar_width, header_height,
-          dark_mode, rtl_support, card_style, button_style, animation_speed,
+          dark_mode, rtl_support, card_style, button_style, toolbar_style, animation_speed,
           compact_mode, high_contrast
         ) VALUES (
           ${organizationId}, ${userId}, ${data.theme_name || "default"}, 
@@ -312,6 +321,7 @@ export async function PUT(request: NextRequest) {
           ${data.header_height || 64}, ${data.dark_mode || false}, 
           ${data.rtl_support !== undefined ? data.rtl_support : true},
           ${data.card_style || "elevated"}, ${data.button_style || "rounded"},
+          ${normalizeToolbarStyle(data.toolbar_style)},
           ${data.animation_speed || "normal"}, ${data.compact_mode || false},
           ${data.high_contrast || false}
         )

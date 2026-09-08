@@ -571,8 +571,8 @@ export default function AccountSearchDialog({
       <DialogContent
         hideCloseButton
         className={confined
-          ? "account-search-dialog-shell h-[calc(100%-1rem)] max-h-[calc(100%-1rem)] w-[calc(100%-1rem)] max-w-[calc(100%-1rem)] overflow-hidden rounded-xl border border-slate-300 bg-white p-0 shadow-2xl"
-          : "account-search-dialog-shell h-[100dvh] max-h-[100dvh] w-screen max-w-none overflow-hidden rounded-none border-0 bg-white p-0 shadow-2xl sm:h-[min(92dvh,900px)] sm:max-h-[calc(100dvh-1rem)] sm:w-[calc(100vw-1rem)] sm:max-w-[1400px] sm:rounded-2xl sm:border sm:border-slate-300"}
+          ? "account-search-dialog-shell h-[min(680px,calc(100%-1.5rem))] max-h-[calc(100%-1.5rem)] w-[min(980px,calc(100%-1.5rem))] max-w-[calc(100%-1.5rem)] overflow-hidden rounded-xl border border-slate-300 bg-white p-0 shadow-2xl"
+          : "account-search-dialog-shell h-[calc(100dvh-1rem)] max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-[980px] overflow-hidden rounded-xl border border-slate-300 bg-white p-0 shadow-2xl sm:h-[min(76dvh,680px)] sm:min-h-[520px]"}
         dir="rtl"
         onCloseAutoFocus={(event) => event.preventDefault()}
         onInteractOutside={(event) => event.preventDefault()}
@@ -831,6 +831,7 @@ export default function AccountSearchDialog({
                     wordWrap={false}
                     dataSource={gridDataSource}
                     scheme={accountScheme}
+                    isReport
                     onRowClick={(account: AccountItem) => {
                       setSelectedAccount(account)
                       window.requestAnimationFrame(() => lockGridRowHeights())

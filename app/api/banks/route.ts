@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
     const data = await request.json()
 
     if (!data.bank_code || !data.bank_name) {
-      return NextResponse.json({ error: "رمز البنك واسم البنك مطلوبان" }, { status: 400 })
+      return NextResponse.json({ error: "رقم البنك واسم البنك مطلوبان" }, { status: 400 })
     }
 
     const existingBank = await sql`
@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
     `
 
     if (existingBank.length > 0) {
-      return NextResponse.json({ error: "رمز البنك موجود مسبقاً" }, { status: 400 })
+      return NextResponse.json({ error: "رقم البنك موجود مسبقاً" }, { status: 400 })
     }
 
     const status = Number(data.status ?? 1)
@@ -68,7 +68,7 @@ export async function PUT(request: NextRequest) {
     }
 
     if (!data.bank_code || String(data.bank_code).trim().length > 4) {
-      return NextResponse.json({ error: "رمز البنك يجب أن يتكون من 1 إلى 4 أحرف" }, { status: 400 })
+      return NextResponse.json({ error: "رقم البنك يجب أن يتكون من 1 إلى 4 أحرف" }, { status: 400 })
     }
 
     const status = Number(data.status ?? 1)

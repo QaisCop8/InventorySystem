@@ -12,6 +12,7 @@ import {
   type JournalRow,
 } from "./_lib"
 import { authorizeTransaction } from "@/lib/transaction-permissions"
+import { rollbackChequeOperationsForVoucher } from "@/app/api/cheques/_lib"
 
 export async function GET(request: NextRequest) {
   try {
@@ -153,6 +154,13 @@ export async function PUT(request: NextRequest) {
     const currentRows = await sql`SELECT status FROM voucher_header_tbl WHERE id = ${data.id}`
     if (currentRows.length > 0 && Number(currentRows[0].status) === 2 && status !== 3) {
       return NextResponse.json({ error: "السند مرحل ولا يمكن تعديله" }, { status: 400 })
+    }
+
+    // A cheque-operation journal may only be cancelled while it is still the latest operation
+    // on every related cheque. Once validated, restore each cheque to the status held before it.
+    if (status === 3 && currentRows.length > 0 && Number(currentRows[0].status) !== 3) {
+      const chequeRollback = await rollbackChequeOperationsForVoucher(Number(data.id))
+      if (chequeRollback.error) return NextResponse.json({ error:chequeRollback.error },{status:409})
     }
 
     // الحذف الناعم (status=3) يتخطى شرط توازن القيد — السند يُلغى وليس يُرحَّل.

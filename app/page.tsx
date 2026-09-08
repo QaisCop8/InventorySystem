@@ -22,7 +22,7 @@ const SaleInvoices = dynamic(() => import("@/components/orders/sale-invoices").t
 const Products = dynamic(() => import("@/components/products/products").then(mod => mod.Products), { ssr: false })
 const Services = dynamic(() => import("@/components/products/services").then(mod => mod.Services), { ssr: false })
 const lazyNamed = (loader: () => Promise<any>, name: string) => dynamic(() => loader().then((mod) => mod[name]), { ssr: false })
-const lazyDefault = (loader: () => Promise<any>) => dynamic(loader, { ssr: false })
+const lazyDefault = (loader: () => Promise<any>): React.ComponentType<any> => dynamic(loader, { ssr: false })
 const OrderReports = lazyNamed(() => import("@/components/reports/order-reports"), "OrderReports")
 const ProductReports = lazyNamed(() => import("@/components/reports/product-reports"), "ProductReports")
 const Customers = lazyDefault(() => import("@/components/products/customers"))
@@ -36,6 +36,16 @@ const ExchangeRates = lazyNamed(() => import("@/components/data/exchange-rates")
 const BatchMovements = lazyNamed(() => import("@/components/inventory/batch-movements"), "BatchMovements")
 const BatchReports = lazyNamed(() => import("@/components/reports/batch-reports"), "BatchReports")
 const BatchLogReport = lazyNamed(() => import("@/components/reports/batch-log-report"), "BatchLogReport")
+const ReceivablesStatementReport = lazyNamed(() => import("@/components/reports/account-statement-report"), "ReceivablesStatementReport")
+const AccountingStatementReport = lazyNamed(() => import("@/components/reports/account-statement-report"), "AccountingStatementReport")
+const VouchersReport = lazyNamed(() => import("@/components/reports/financial-report"), "VouchersReport")
+const TransactionsReport = lazyNamed(() => import("@/components/reports/financial-report"), "TransactionsReport")
+const TrialBalanceReport = lazyNamed(() => import("@/components/reports/financial-report"), "TrialBalanceReport")
+const BalanceSheetReport = lazyNamed(() => import("@/components/reports/financial-report"), "BalanceSheetReport")
+const IncomeStatementReport = lazyNamed(() => import("@/components/reports/financial-report"), "IncomeStatementReport")
+const ChequesPage = lazyNamed(() => import("@/components/accounting/cheques-management"), "ChequesPage")
+const ChequeOperationsPage = lazyNamed(() => import("@/components/accounting/cheques-management"), "ChequeOperationsPage")
+const ChequePaymentVouchers = lazyDefault(() => import("@/components/accounting/cheque-payment-vouchers"))
 const InventoryAnalytics = lazyNamed(() => import("@/components/inventory/inventory-analytics"), "InventoryAnalytics")
 const AutomatedReorderSystem = lazyNamed(() => import("@/components/inventory/automated-reorder-system"), "AutomatedReorderSystem")
 const BarcodeManagement = lazyNamed(() => import("@/components/barcode/barcode-management"), "BarcodeManagement")
@@ -135,6 +145,13 @@ const componentMap: Record<string, React.ComponentType<any>> = {
   "order-reports": OrderReports,
   "product-reports": ProductReports,
   "batch-log-report": BatchLogReport,
+  "receivables-statement-report": ReceivablesStatementReport,
+  "accounting-statement-report": AccountingStatementReport,
+  "vouchers-report": VouchersReport,
+  "transactions-report": TransactionsReport,
+  "trial-balance-report": TrialBalanceReport,
+  "balance-sheet-report": BalanceSheetReport,
+  "income-statement-report": IncomeStatementReport,
   "batch-reports": BatchReports,
   "sales-orders": SalesOrders,
   "sale-invoices": SaleInvoices,
@@ -157,11 +174,14 @@ const componentMap: Record<string, React.ComponentType<any>> = {
   // مطابقة تماماً لما بعد إعادة الترقيم.
   "receipt-vouchers": (props: any) => <Receipts {...props} voucherType={4} />,
   "payment-vouchers": (props: any) => <Receipts {...props} voucherType={5} />,
+  "cheque-payment-vouchers": ChequePaymentVouchers,
   "journal-vouchers": Journal,
   "credit-notes": (props: any) => <CreditNote {...props} voucherType={6} />,
   "debit-notes": (props: any) => <CreditNote {...props} voucherType={7} />,
   "credit-cards": CreditCards,
   "cheques-books": ChequesBooks,
+  cheques: ChequesPage,
+  "cheque-operations": ChequeOperationsPage,
   "voucher-book-permissions": VoucherBookPermissions,
   warehouses: Warehouses,
   "stock-in-vouchers": (props: any) => <StockVouchers {...props} voucherType={8} />,

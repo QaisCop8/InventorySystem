@@ -10,7 +10,7 @@ import { Slider } from "@/components/ui/slider"
 import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
-import { Palette, Type, Sparkles, RotateCcw, Download, Upload, Save } from "lucide-react"
+import { Palette, Type, Sparkles, RotateCcw, Download, Upload, Save, Check, PanelsTopLeft } from "lucide-react"
 import { useThemeSettings } from "@/contexts/theme-context"
 
 const colorSchemes = [
@@ -21,6 +21,45 @@ const colorSchemes = [
   { id: "rose", name: "الوردي", primary: "#e11d48", accent: "#f43f5e" },
   { id: "slate", name: "الرمادي", primary: "#475569", accent: "#64748b" },
 ]
+
+const toolbarTemplates = [
+  {
+    id: "modern",
+    name: "عصري",
+    description: "سطح أبيض وأزرار واضحة بحواف ناعمة",
+    surface: "rounded-xl border-slate-200 bg-white shadow-sm",
+    primary: "rounded-lg bg-slate-900",
+    save: "rounded-lg bg-indigo-600",
+    navigation: "rounded-lg bg-slate-100",
+  },
+  {
+    id: "gradient",
+    name: "متدرج",
+    description: "ألوان داكنة متدرجة ومظهر حيوي",
+    surface: "rounded-xl border-indigo-400/30 bg-gradient-to-l from-slate-900 via-indigo-900 to-teal-800 shadow-lg",
+    primary: "rounded-lg bg-white",
+    save: "rounded-lg bg-gradient-to-l from-cyan-400 to-indigo-500",
+    navigation: "rounded-lg bg-white/15",
+  },
+  {
+    id: "compact",
+    name: "مدمج",
+    description: "مساحة أقل وأزرار أيقونات سريعة",
+    surface: "rounded-lg border-slate-300 bg-white",
+    primary: "h-5 w-5 rounded bg-slate-900",
+    save: "h-5 w-5 rounded bg-indigo-600",
+    navigation: "h-5 rounded bg-slate-100",
+  },
+  {
+    id: "classic",
+    name: "كلاسيكي",
+    description: "شريط عملي بإطار واضح وأزرار تقليدية",
+    surface: "rounded border-slate-400 bg-gradient-to-b from-slate-50 to-slate-200 shadow-sm",
+    primary: "rounded-sm bg-slate-700",
+    save: "rounded-sm bg-blue-600",
+    navigation: "rounded-sm border border-slate-400 bg-slate-300",
+  },
+] as const
 
 const fontFamilies = [
   { id: "geist", name: "Geist (افتراضي)", value: "var(--font-geist-sans)" },
@@ -225,6 +264,49 @@ export function ThemeCustomization() {
                     </div>
                   </div>
                 </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <PanelsTopLeft className="h-5 w-5 text-primary" />
+                <CardTitle>شكل شريط الأزرار</CardTitle>
+              </div>
+              <CardDescription>اختر قالب شريط الأوامر. ستظهر المعاينة مباشرة في جميع شاشات النظام.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4" dir="rtl">
+                {toolbarTemplates.map((template) => {
+                  const selected = settings.toolbar_style === template.id
+                  return (
+                    <button
+                      key={template.id}
+                      type="button"
+                      aria-pressed={selected}
+                      onClick={() => updateSettings({ toolbar_style: template.id })}
+                      className={`group relative overflow-hidden rounded-2xl border-2 p-3 text-right transition-all hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${
+                        selected ? "border-primary bg-primary/5 shadow-md" : "border-border bg-card"
+                      }`}
+                    >
+                      {selected && (
+                        <span className="absolute left-3 top-3 flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm">
+                          <Check className="h-4 w-4" />
+                        </span>
+                      )}
+                      <div className={`mb-3 flex h-14 items-center gap-1.5 border p-2 ${template.surface}`}>
+                        <span className={`block h-7 w-10 ${template.primary}`} />
+                        <span className={`block h-7 w-10 ${template.save}`} />
+                        <span className={`mr-auto block h-7 w-20 ${template.navigation}`}>
+                          <span className="mx-auto mt-2 block h-1.5 w-10 rounded-full bg-slate-500/50" />
+                        </span>
+                      </div>
+                      <div className="font-bold text-foreground">{template.name}</div>
+                      <div className="mt-1 text-xs leading-5 text-muted-foreground">{template.description}</div>
+                    </button>
+                  )
+                })}
               </div>
             </CardContent>
           </Card>

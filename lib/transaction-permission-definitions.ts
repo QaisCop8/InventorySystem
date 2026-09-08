@@ -15,6 +15,7 @@ export const TRANSACTION_FAMILIES = {
   stock_use: "سند استعمال",
   receipt: "سند قبض",
   payment: "سند صرف",
+  cheque_payment: "سند صرف شيكات",
   journal: "سند قيد",
   credit_note: "إشعار دائن",
   debit_note: "إشعار مدين",

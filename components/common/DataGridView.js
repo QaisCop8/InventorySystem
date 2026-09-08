@@ -233,7 +233,11 @@ createButtonsColumns = () => {
             // col.title || '' وليس col.title مباشرة — setAttribute('title', undefined) في DOM
             // يضبط الخاصية فعلياً على النص الحرفي "undefined" بدل تركها فارغة، فتظهر "undefined"
             // كتلميح (tooltip) لأي عمود زر لم يُحدَّد له title صراحةً.
-            attributes: { title: col.title || '', style: this.getButtonInlineStyle(col.className) },
+            attributes: {
+              title: col.title || this.getButtonLabel(col),
+              'aria-label': col.title || this.getButtonLabel(col) || col.name || 'action',
+              style: this.getButtonInlineStyle(col.className),
+            },
             cssClass: this.setButtonClass(col.className, col.iconType),
             text: this.getButtonLabel(col),
             click: col.onClick,
@@ -742,18 +746,7 @@ createButtonTemplate = (col) => (ctx) => {
 
   getButtonLabel = (col = {}) => {
     if (col.buttonLabel) return col.buttonLabel;
-
-    const labels = {
-      delete: 'حذف',
-      edit: 'تعديل',
-      search: 'بحث',
-      view: 'عرض',
-      eye: 'عرض',
-      add: 'إضافة',
-      save: 'حفظ',
-    };
-
-    return labels[String(col.iconType || '').toLowerCase()] || col.title || '';
+    return '';
   };
 
   // Returns inline style string for a given button class to be used as a
@@ -785,8 +778,8 @@ createButtonTemplate = (col) => (ctx) => {
       if (!this.flex || !this.flex.hostElement) return;
       const rootStyles = typeof window !== 'undefined' ? getComputedStyle(document.documentElement) : null;
       const configuredRowHeight = parseInt(rootStyles?.getPropertyValue('--datagrid-row-height'), 10) || 50;
-      const buttonSize = Math.max(20, Math.min(32, configuredRowHeight - 8));
-      const buttonRadius = Math.max(6, Math.min(10, Math.round(buttonSize * 0.3)));
+      const buttonSize = Math.max(28, Math.min(36, configuredRowHeight - 10));
+      const buttonRadius = Math.round(buttonSize * 0.32);
       const btns = this.flex.hostElement.querySelectorAll('button');
       btns.forEach((btn) => {
         const cls = (btn.className || '').toLowerCase();
@@ -796,7 +789,8 @@ createButtonTemplate = (col) => (ctx) => {
         btn.style.minWidth = `${buttonSize}px`;
         btn.style.padding = btn.style.padding || '0';
         btn.style.borderRadius = `${buttonRadius}px`;
-        btn.style.border = btn.style.border || 'none';
+        btn.style.border = '1px solid color-mix(in srgb, currentColor 18%, transparent)';
+        btn.style.boxShadow = '0 1px 2px rgba(15, 23, 42, 0.08)';
 
         if (cls.indexOf('pi-trash') > -1 || cls.indexOf('btn-danger') > -1) {
           btn.style.background = 'color-mix(in srgb, var(--destructive) 13%, transparent)';

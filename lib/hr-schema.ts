@@ -1,10 +1,12 @@
-import sql from "@/lib/database"
+import sql, { resolveCurrentDbName, withTenantDb } from "@/lib/database"
 
-let ready: Promise<void> | null = null
+const readyByDatabase = new Map<string, Promise<void>>()
 
-export function ensureHrSchema() {
-  if (ready) return ready
-  ready = (async () => {
+export async function ensureHrSchema() {
+  const dbName = await resolveCurrentDbName()
+  const existing = readyByDatabase.get(dbName)
+  if (existing) return existing
+  const ready = withTenantDb(dbName, async () => {
     await sql`CREATE TABLE IF NOT EXISTS employee_jobs_tbl (id SERIAL PRIMARY KEY, code VARCHAR(30) UNIQUE NOT NULL, name VARCHAR(150) NOT NULL, is_active BOOLEAN DEFAULT true, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`
     await sql`CREATE TABLE IF NOT EXISTS salary_items_tbl (id SERIAL PRIMARY KEY, code VARCHAR(30) UNIQUE NOT NULL, name VARCHAR(150) NOT NULL, item_type VARCHAR(20) NOT NULL CHECK (item_type IN ('earning','deduction')), calculation_type VARCHAR(20) NOT NULL DEFAULT 'fixed', default_amount NUMERIC(18,3) DEFAULT 0, taxable BOOLEAN DEFAULT false, is_active BOOLEAN DEFAULT true, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`
     await sql`ALTER TABLE salary_items_tbl DROP CONSTRAINT IF EXISTS salary_items_tbl_item_type_check`
@@ -164,6 +166,7 @@ export function ensureHrSchema() {
       CHECK ((employee_id IS NOT NULL) <> (department_id IS NOT NULL)),
       CHECK (is_day_off = true OR shift_id IS NOT NULL)
     )`
-  })().catch((error) => { ready = null; throw error })
+  }).catch((error) => { readyByDatabase.delete(dbName); throw error })
+  readyByDatabase.set(dbName, ready)
   return ready
 }

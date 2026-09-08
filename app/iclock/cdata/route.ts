@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server"
-import sql from "@/lib/database"
+import sql, { withTenantDb } from "@/lib/database"
 import { ensureHrSchema } from "@/lib/hr-schema"
+import {
+  markAttendanceDeviceSeen,
+  normalizeAttendanceSerial,
+  resolveAttendanceDeviceTenant,
+} from "@/lib/attendance-device-registry"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -24,34 +29,60 @@ const parseRecords = (body: string) => {
 }
 
 const normalizeTime = (value: string) => value.replace("T", " ").replace(/Z$/, "")
+const requestIp = (request: NextRequest) =>
+  request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || request.headers.get("x-real-ip") || null
 
 export async function GET(request: NextRequest) {
-  await ensureHrSchema()
-  const serial = request.nextUrl.searchParams.get("SN") || request.nextUrl.searchParams.get("sn") || ""
-  const device = serial ? (await sql`SELECT id FROM attendance_devices_tbl WHERE serial_number=${serial} AND is_active=true LIMIT 1`)[0] : null
-  if (serial && !device) return textResponse("ERROR: Invalid device", 404)
-  return textResponse("GET OPTION FROM: SN=\nStamp=0\nOpStamp=0\nErrorDelay=60\nDelay=30\nTransTimes=00:00;14:00\nTransInterval=1\nTransFlag=1000\nRealtime=1\nEncrypt=0\n")
+  try {
+    const serial = normalizeAttendanceSerial(request.nextUrl.searchParams.get("SN") || request.nextUrl.searchParams.get("sn"))
+    if (!serial) return textResponse("ERROR: SN is required", 400)
+    const tenant = await resolveAttendanceDeviceTenant(serial)
+    if (!tenant) return textResponse("ERROR: Invalid or unregistered device", 404)
+
+    return await withTenantDb(tenant.dbName, async () => {
+      await ensureHrSchema()
+      const device = (await sql`SELECT id FROM attendance_devices_tbl WHERE UPPER(BTRIM(serial_number))=${serial} AND is_active=true LIMIT 1`)[0]
+      if (!device) return textResponse("ERROR: Invalid device", 404)
+      await markAttendanceDeviceSeen(serial, requestIp(request))
+      return textResponse(`GET OPTION FROM: ${serial}\nStamp=0\nOpStamp=0\nErrorDelay=60\nDelay=30\nTransTimes=00:00;14:00\nTransInterval=1\nTransFlag=1000\nRealtime=1\nEncrypt=0\n`)
+    })
+  } catch (error) {
+    console.error("[ADMS] Failed to resolve device", error)
+    return textResponse("ERROR: Server unavailable", 503)
+  }
 }
 
 export async function POST(request: NextRequest) {
-  await ensureHrSchema()
-  const serial = request.nextUrl.searchParams.get("SN") || request.nextUrl.searchParams.get("sn") || ""
-  if (!serial) return textResponse("ERROR: SN is required", 400)
-  const device = (await sql`SELECT id,jsonb_build_object('entry','I','exit','O','overtime_entry','OI','overtime_exit','OO') || COALESCE((SELECT jsonb_object_agg(symbol_key,symbol_value) FROM attendance_device_symbols_tbl WHERE device_id=attendance_devices_tbl.id),'{}'::jsonb) symbols FROM attendance_devices_tbl WHERE serial_number=${serial} AND is_active=true LIMIT 1`)[0]
-  if (!device) return textResponse("ERROR: Invalid device", 404)
-  const records = parseRecords(await request.text())
-  let count = 0
-  for (const record of records) {
-    const employeeCode = String(value(record, "employee_code", "PIN", "pin", "user_id", "userid")).trim()
-    const punchTime = normalizeTime(String(value(record, "punch_time", "DateTime", "datetime", "timestamp", "time")))
-    if (!employeeCode || !punchTime) continue
-    const employee = (await sql`SELECT id FROM employees_tbl WHERE employee_code=${employeeCode} OR device_user_id=${employeeCode} LIMIT 1`)[0]
-    const rawType = value(record, "punch_type", "Status", "status") || "unknown"
-    const symbols = device.symbols || {}
-    const punchType = rawType === symbols.entry ? "in" : rawType === symbols.exit ? "out" : rawType === symbols.overtime_entry ? "overtime_in" : rawType === symbols.overtime_exit ? "overtime_out" : rawType
-    await sql`INSERT INTO attendance_logs_tbl(device_id,employee_id,employee_code,device_user_id,punch_time,punch_type,verification_type,sync_status,raw_payload) VALUES(${device.id},${employee?.id || null},${employeeCode},${value(record, "device_user_id", "PIN", "pin") || employeeCode},${punchTime}::timestamp,${punchType},${value(record, "verification_type", "Verify", "verify") || "device"},'adms',${JSON.stringify({ ...record, raw_punch_type: rawType })}::jsonb) ON CONFLICT(device_id,device_user_id,punch_time) DO UPDATE SET employee_id=EXCLUDED.employee_id,punch_type=EXCLUDED.punch_type,verification_type=EXCLUDED.verification_type,sync_status='adms',raw_payload=EXCLUDED.raw_payload`
-    count++
+  try {
+    const serial = normalizeAttendanceSerial(request.nextUrl.searchParams.get("SN") || request.nextUrl.searchParams.get("sn"))
+    if (!serial) return textResponse("ERROR: SN is required", 400)
+    const tenant = await resolveAttendanceDeviceTenant(serial)
+    if (!tenant) return textResponse("ERROR: Invalid or unregistered device", 404)
+    const body = await request.text()
+
+    return await withTenantDb(tenant.dbName, async () => {
+      await ensureHrSchema()
+      const device = (await sql`SELECT id,jsonb_build_object('entry','I','exit','O','overtime_entry','OI','overtime_exit','OO') || COALESCE((SELECT jsonb_object_agg(symbol_key,symbol_value) FROM attendance_device_symbols_tbl WHERE device_id=attendance_devices_tbl.id),'{}'::jsonb) symbols FROM attendance_devices_tbl WHERE UPPER(BTRIM(serial_number))=${serial} AND is_active=true LIMIT 1`)[0]
+      if (!device) return textResponse("ERROR: Invalid device", 404)
+      const records = parseRecords(body)
+      let count = 0
+      for (const record of records) {
+        const employeeCode = String(value(record, "employee_code", "PIN", "pin", "user_id", "userid")).trim()
+        const punchTime = normalizeTime(String(value(record, "punch_time", "DateTime", "datetime", "timestamp", "time")))
+        if (!employeeCode || !punchTime) continue
+        const employee = (await sql`SELECT id FROM employees_tbl WHERE employee_code=${employeeCode} OR device_user_id=${employeeCode} LIMIT 1`)[0]
+        const rawType = value(record, "punch_type", "Status", "status") || "unknown"
+        const symbols = device.symbols || {}
+        const punchType = rawType === symbols.entry ? "in" : rawType === symbols.exit ? "out" : rawType === symbols.overtime_entry ? "overtime_in" : rawType === symbols.overtime_exit ? "overtime_out" : rawType
+        await sql`INSERT INTO attendance_logs_tbl(device_id,employee_id,employee_code,device_user_id,punch_time,punch_type,verification_type,sync_status,raw_payload) VALUES(${device.id},${employee?.id || null},${employeeCode},${value(record, "device_user_id", "PIN", "pin") || employeeCode},${punchTime}::timestamp,${punchType},${value(record, "verification_type", "Verify", "verify") || "device"},'adms',${JSON.stringify({ ...record, raw_punch_type: rawType, serial_number: serial })}::jsonb) ON CONFLICT(device_id,device_user_id,punch_time) DO UPDATE SET employee_id=EXCLUDED.employee_id,punch_type=EXCLUDED.punch_type,verification_type=EXCLUDED.verification_type,sync_status='adms',raw_payload=EXCLUDED.raw_payload`
+        count++
+      }
+      await sql`UPDATE attendance_devices_tbl SET last_sync_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP WHERE id=${device.id}`
+      await markAttendanceDeviceSeen(serial, requestIp(request))
+      return textResponse(`OK: ${count}`)
+    })
+  } catch (error) {
+    console.error("[ADMS] Failed to save attendance data", error)
+    return textResponse("ERROR: Server unavailable", 503)
   }
-  await sql`UPDATE attendance_devices_tbl SET last_sync_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP WHERE id=${device.id}`
-  return textResponse(`OK: ${count}`)
 }

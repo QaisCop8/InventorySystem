@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
 import { fetchDetails, archiveAndDeleteVoucher, markVoucherPrinted } from "../_lib"
 import { authorizeStoredVoucher } from "@/lib/transaction-permissions"
+import { rollbackChequeOperationsForVoucher } from "@/app/api/cheques/_lib"
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -35,6 +36,15 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     }
     const authorization = await authorizeStoredVoucher(request, id, "delete")
     if (!authorization.ok) return authorization.response
+
+    const voucher = (await sql`SELECT status FROM voucher_header_tbl WHERE id=${id}`)[0]
+    if (!voucher) return NextResponse.json({error:"السند غير موجود"},{status:404})
+    if (Number(voucher.status)!==1) return NextResponse.json({error:"لا يمكن الحذف الفعلي إلا لسند بحالة فعال (غير مرحّل)"},{status:400})
+
+    const chequeRollback = await rollbackChequeOperationsForVoucher(id)
+    if (chequeRollback.error) {
+      return NextResponse.json({ error:chequeRollback.error },{status:409})
+    }
 
     const result = await archiveAndDeleteVoucher(id)
     if (result.error) {

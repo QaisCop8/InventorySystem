@@ -285,6 +285,7 @@ export default function UnifiedJournal({
   const [costCenterAccount, setCostCenterAccount] = useState<AccountItem | null>(null)
   const [costCenterRow, setCostCenterRow] = useState<number | null>(null)
   const gridRef = useRef<any>(null)
+  const pendingJournalFocusRef = useRef<{ row: number; colName: string } | null>(null)
   // يميّز نافذة بحث الحساب بين "تم الاختيار" (ينتقل التركيز إلى مدين) و"إلغاء/إغلاق دون اختيار"
   // (يعود التركيز إلى رقم الحساب) — كلا المسارين يُغلقان النافذة عبر onOpenChange نفسه.
   const accountJustSelectedRef = useRef(false)
@@ -494,19 +495,38 @@ export default function UnifiedJournal({
   //     دورة رسم لاحقة وليس بالضرورة بشكل متزامن مع تحديث React، فيتغلب على أي selectCell سابق.
   // لذا: انتظار دورتي رسم (لتجاوز الأول)، ثم إعادة فرض التحديد مرة أخرى بعد مهلة أطول قليلاً
   // (لتجاوز الثاني إن حدث متأخراً) بدل الاكتفاء بمحاولة واحدة قد يسبقها كلا السباقين.
-  const focusGridCell = (row: number, colName: string) => {
-    const applyFocus = () => {
-      waitForGridReady(
-        () => gridRef.current,
-        (grid) => {
-          selectCell(grid, row, colName)
-          grid.focus()
-        },
-      )
-    }
-    requestAnimationFrame(() => requestAnimationFrame(applyFocus))
-    setTimeout(applyFocus, 120)
+  const applyPendingJournalFocus = () => {
+    const target = pendingJournalFocusRef.current
+    if (!target) return
+    waitForGridReady(
+      () => gridRef.current,
+      (grid) => {
+        const safeRow = Math.max(0, Math.min(target.row, grid.rows.length - 1))
+        selectCell(grid, safeRow, target.colName)
+        grid.focus()
+        pendingJournalFocusRef.current = null
+      },
+    )
   }
+
+  const focusGridCell = (row: number, colName: string) => {
+    pendingJournalFocusRef.current = { row, colName }
+    // المسار الأساسي يتم بعد إعادة رسم dataSource في useEffect أدناه. هذه المحاولة الاحتياطية
+    // تغطي التنقل الذي لا يغيّر بيانات الصف (مثل Enter على خلية لم تتغير).
+    setTimeout(() => {
+      if (pendingJournalFocusRef.current) applyPendingJournalFocus()
+    }, 160)
+  }
+
+  useEffect(() => {
+    if (!pendingJournalFocusRef.current) return
+    const frame = requestAnimationFrame(() => {
+      requestAnimationFrame(() => applyPendingJournalFocus())
+    })
+    return () => cancelAnimationFrame(frame)
+    // يجب التنفيذ بعد أن يعيد React ربط بيانات شبكة الحسابات.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.journal, activeTab])
 
   const patchJournalRow = (index: number, patch: Partial<JournalEntryRow>) => {
     if (isLocked) return
@@ -613,11 +633,13 @@ export default function UnifiedJournal({
   const validateRowComplete = (index: number): boolean => {
     const row = journalRef.current[index]
     if (!row?.account_id) {
-      messagesRef.current?.show?.([{ severity: "error", summary: "", detail: "يجب تحديد رقم الحساب أولاً", life: 3000 }])
+      messagesRef.current?.show?.([{ severity: "error", summary: "", detail: "يجب ادخال الحساب اولا", life: 3000 }])
+      focusGridCell(index, "account_code")
       return false
     }
     if (!(Number(row.debit || 0) > 0) && !(Number(row.credit || 0) > 0)) {
-      messagesRef.current?.show?.([{ severity: "error", summary: "", detail: "يجب إدخال مبلغ مدين أو دائن أولاً", life: 3000 }])
+      messagesRef.current?.show?.([{ severity: "error", summary: "", detail: "يجب ادخال قيمة المدين او الدائن", life: 3000 }])
+      focusGridCell(index, "debit")
       return false
     }
     return true
@@ -753,38 +775,57 @@ export default function UnifiedJournal({
     }
 
     if (e.key === "Tab" || e.key === "Enter") {
+      e.preventDefault()
+      e.stopPropagation()
       const isLastRow = row === journalRef.current.length - 1
       if (colName === "account_code") {
-        e.preventDefault()
-        const code = journalRef.current[row]?.account_code?.trim()
-        // لا يوجد تعديل معلَّق هنا (الكود مُحلَّل مسبقاً)، فلا سباق مع Wijmo — التنقّل المتزامن
-        // آمن. الحالة الجديدة (تحليل كود لم يُحلَّل بعد) تُدار عبر resolveJournalAccountByCode
-        // نفسها + focusGridCell بعد معرفة النتيجة الفعلية (انظر تعليقها أعلاه).
-        if (code) selectCell(grid, row, "debit")
-        else {
-          setJournalSearchRow(row)
-          setJournalSearchOpen(true)
+        const liveCode = String(grid.activeEditor?.value ?? grid.getCellData(row, col, false) ?? "").trim()
+        if (!liveCode) {
+          if (grid.activeEditor) grid.finishEditing()
+          messagesRef.current?.show?.([{ severity: "error", summary: "", detail: "يجب ادخال الحساب اولا", life: 3000 }])
+          focusGridCell(row, "account_code")
+          return
         }
+
+        // إنهاء التحرير يشغّل cellEditEnded بشكل متزامن، والذي يحل رقم الحساب ثم ينقل التركيز
+        // إلى مدين بعد اكتمال تحديث dataSource.
+        if (grid.activeEditor) {
+          grid.finishEditing()
+          return
+        }
+
+        if (journalRef.current[row]?.account_id) focusGridCell(row, "debit")
+        else void resolveJournalAccountByCode(row, liveCode)
       } else if (colName === "debit" || colName === "credit" || colName === "note") {
-        // خلاف account_code: مغادرة أي من هذه الأعمدة عبر Tab/Enter تُنهي تحرير الخلية أولاً،
-        // مما يُشغّل cellEditEnded -> patchJournalRow -> مصفوفة journal جديدة -> إعادة ربط
-        // itemsSource في Wijmo -> تصفير تحديده إلى (0,0) — وقد يحدث هذا بعد selectCell المتزامن
-        // هنا فيُبطله (نفس سباق resolveJournalAccountByCode). لذا focusGridCell (بتكرارها
-        // المُقاوم للتوقيت) بدل selectCell المباشر لكل تنقّل يتبع تعديل خلية.
-        e.preventDefault()
-        if (colName === "debit") {
-          focusGridCell(row, "credit")
-        } else if (colName === "credit") {
-          focusGridCell(row, "note")
-        } else if (colName === "note") {
-          if (!validateRowComplete(row)) return
-          if (isLastRow) {
-            addJournalRow()
-            focusGridCell(row + 1, "account_code")
-          } else {
-            focusGridCell(row + 1, "account_code")
-          }
+        if (!journalRef.current[row]?.account_id) {
+          if (grid.activeEditor) grid.finishEditing()
+          messagesRef.current?.show?.([{ severity: "error", summary: "", detail: "يجب ادخال الحساب اولا", life: 3000 }])
+          focusGridCell(row, "account_code")
+          return
         }
+
+        // في آخر خلية يجب تثبيت قيمة المحرر قبل التحقق، ثم يبقى هدف التركيز محفوظاً خلال
+        // إعادة ربط بيانات الشبكة عند فشل التحقق أو إضافة صف جديد.
+        const noteEditFinished = colName === "note" && grid.activeEditor
+          ? grid.finishEditing() !== false
+          : false
+        if (colName === "note" && !validateRowComplete(row)) return
+
+        const target = colName === "debit"
+          ? { row, colName: "credit" }
+          : colName === "credit"
+            ? { row, colName: "note" }
+            : { row: row + 1, colName: "account_code" }
+
+        // احفظ وجهة Enter قبل finishEditing؛ لأن cellEditEnded يحدّث React وWijmo يعيد
+        // التحديد مؤقتاً إلى أول صف عند استبدال itemsSource.
+        pendingJournalFocusRef.current = target
+        if (!noteEditFinished && grid.activeEditor && grid.finishEditing() === false) {
+          pendingJournalFocusRef.current = null
+          return
+        }
+        if (colName === "note" && isLastRow) addJournalRow()
+        focusGridCell(target.row, target.colName)
       }
     }
   }
@@ -845,7 +886,7 @@ export default function UnifiedJournal({
       <Dialog open={dialogOpen} onOpenChange={onOpenChange}>
         <DialogContent
           inline={fullscreenEnabled && dialogOpen}
-          className="voucher-form flex h-[calc(100dvh-1rem)] max-h-[96vh] w-[calc(100vw-0.5rem)] max-w-[1700px] flex-col overflow-hidden p-0 text-[13px] transition-shadow sm:w-[98vw] [&_label]:text-xs [&_input:not([type=checkbox])]:h-8 [&_input:not([type=checkbox])]:px-2.5 [&_.p-dropdown]:min-h-8 [&_.p-dropdown-label]:py-1.5 [&_.p-calendar]:h-8 [&_.p-calendar_input]:h-8"
+          className="journal-voucher-form voucher-form flex h-[calc(100dvh-1rem)] max-h-[96vh] w-[calc(100vw-0.5rem)] max-w-[1700px] min-w-0 flex-col overflow-hidden p-0 text-[13px] transition-shadow sm:w-[98vw] [&_label]:text-xs [&_input:not([type=checkbox])]:h-8 [&_input:not([type=checkbox])]:px-2.5 [&_.p-dropdown]:min-h-8 [&_.p-dropdown-label]:py-1.5 [&_.p-calendar]:h-8 [&_.p-calendar_input]:h-8"
           dir="rtl"
           onPointerDownOutside={(event) => event.preventDefault()}
           onInteractOutside={(event) => event.preventDefault()}
@@ -877,7 +918,7 @@ export default function UnifiedJournal({
           />
 
           <div
-            className="relative flex min-h-0 flex-1 flex-col overflow-y-auto rounded-b-3xl bg-slate-50/60 px-3 py-2 sm:px-4 sm:py-3 [&::-webkit-scrollbar]:w-0"
+            className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto rounded-b-3xl bg-slate-50/60 px-2 py-2 sm:px-4 sm:py-3 [&::-webkit-scrollbar]:w-0"
             style={{ scrollbarWidth: "none", msOverflowStyle: "none" as any }}
             onKeyDown={handleFormEnterAsTab}
             data-enter-tab-root="true"
@@ -909,7 +950,7 @@ export default function UnifiedJournal({
 
             <Messages innerRef={messagesRef} />
 
-            <fieldset className="contents">
+            <fieldset className="contents min-w-0">
             <div className="grid shrink-0 gap-2 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
               <div className="flex items-center gap-2 text-sm font-bold text-emerald-700">
                 <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-50 ring-1 ring-emerald-100">
@@ -917,7 +958,7 @@ export default function UnifiedJournal({
                 </span>
                 تفاصيل السند
               </div>
-              <div className="grid gap-4 md:grid-cols-3">
+              <div className="journal-voucher-field-grid grid gap-4 md:grid-cols-3">
                 <div
                   className="grid gap-1.5"
                   onKeyDownCapture={createDropdownKeyHandler(voucherBooks, "id", form.vch_book_id, (value) =>
@@ -966,7 +1007,7 @@ export default function UnifiedJournal({
                 </div>
               </div>
 
-              <div className="grid gap-4 md:grid-cols-3">
+              <div className="journal-voucher-field-grid grid gap-4 md:grid-cols-3">
                 <div
                   className="grid gap-1.5 invoice-currency-dropdown-wrap"
                   onKeyDownCapture={createDropdownKeyHandler(currencyOptions, "value", form.currency_id, (value) =>
@@ -1012,7 +1053,7 @@ export default function UnifiedJournal({
                 </div>
               </div>
 
-              <div className="grid gap-4 md:grid-cols-3">
+              <div className="journal-voucher-field-grid grid gap-4 md:grid-cols-3">
                 <div className="grid gap-1.5">
                   <Label htmlFor="manual-date">تاريخ السند اليدوي</Label>
                   <DateTimeControl
@@ -1022,7 +1063,7 @@ export default function UnifiedJournal({
                     onChange={(value) => onFormChange("manual_date", value)}
                   />
                 </div>
-                <div className="grid gap-1.5 md:col-span-2">
+                <div className="journal-voucher-note grid gap-1.5 md:col-span-2">
                   <Label htmlFor="vch-note">الملاحظة</Label>
                   <Input
                     id="vch-note"
@@ -1033,21 +1074,16 @@ export default function UnifiedJournal({
                     onKeyDown={(e) => {
                       if (e.key !== "Tab" && e.key !== "Enter") return
                       e.preventDefault()
+                      e.stopPropagation()
                       setActiveTab("journal")
-                      waitForGridReady(
-                        () => gridRef.current,
-                        (grid) => {
-                          selectCell(grid, 0, "account_code")
-                          grid.focus()
-                        },
-                      )
+                      focusGridCell(0, "account_code")
                     }}
                   />
                 </div>
               </div>
             </div>
 
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="flex min-h-0 flex-1 flex-col pt-3">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="flex min-h-0 min-w-0 flex-1 flex-col pt-3">
               <TabsList className="flex h-auto flex-wrap justify-start gap-1 bg-slate-100 p-1">
                 <TabsTrigger value="journal" className={voucherTabTriggerClass}>الحسابات</TabsTrigger>
                 <TabsTrigger value="extra-data" className={voucherTabTriggerClass}>بيانات اضافية</TabsTrigger>
@@ -1056,7 +1092,7 @@ export default function UnifiedJournal({
               </TabsList>
 
               <TabsContent value="journal" className="mt-3 flex flex-none flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
-                <div className="flex items-center justify-between">
+                <div className="journal-voucher-summary flex flex-wrap items-center justify-between gap-2">
                   <div
                     className={`text-sm font-semibold ${journalDiff === 0 ? "text-emerald-700" : "text-rose-600"}`}
                   >
@@ -1068,11 +1104,11 @@ export default function UnifiedJournal({
                     إضافة سطر
                   </Button>
                 </div>
-                <div className="h-[clamp(240px,38vh,440px)] min-h-0 w-full overflow-hidden">
+                <div className="h-[clamp(240px,38vh,440px)] min-h-0 w-full max-w-full overflow-auto">
                   <DataGridView
                     innerRef={gridRef}
-                    containerStyle={{ height: "100%", minHeight: 0 }}
-                    style={{ height: "100%", minHeight: 0 }}
+                    containerStyle={{ height: "100%", minHeight: 0, width: "100%", maxWidth: "100%", overflow: "auto" }}
+                    style={{ height: "100%", minHeight: 0, width: "100%", maxWidth: "100%" }}
                     scheme={journalScheme}
                     dataSource={journalGridData}
                     idProperty="ser"

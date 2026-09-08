@@ -1,9 +1,15 @@
 import { NextRequest, NextResponse } from "next/server"
-import sql from "@/lib/database"
+import sql, { resolveCurrentDbName } from "@/lib/database"
 import { ensureHrSchema } from "@/lib/hr-schema"
+import {
+  normalizeAttendanceSerial,
+  registerAttendanceDevice,
+  unregisterAttendanceDevice,
+} from "@/lib/attendance-device-registry"
 import { ensureTables as ensureVoucherTables, saveJournalRows, JOURNAL_TYPE_COUNTER_ACCOUNT } from "@/app/api/receipts/_lib"
 import { buildVoucherCode } from "@/lib/voucher-code"
 import { authorizeTransaction } from "@/lib/transaction-permissions"
+import { getSessionUser } from "@/lib/tenant-auth"
 
 const definitions: Record<string, { table: string; fields: string[]; order: string }> = {
   jobs: { table: "employee_jobs_tbl", fields: ["code", "name", "is_active"], order: "code" },
@@ -145,7 +151,21 @@ export async function GET(request: NextRequest, { params }: { params: { resource
         ORDER BY sp.year DESC,sp.month DESC,e.employee_code
       `)
     }
-    if (resource === "attendance-devices") return NextResponse.json(await sql`SELECT d.*,b.branch_name,COALESCE((SELECT json_agg(json_build_object('symbol_key',x.symbol_key,'symbol_value',x.symbol_value,'label',x.label) ORDER BY x.id) FROM attendance_device_symbols_tbl x WHERE x.device_id=d.id),'[]') symbols FROM attendance_devices_tbl d LEFT JOIN branches b ON b.id=d.branch_id ORDER BY d.name`)
+    if (resource === "attendance-devices") {
+      if (!(await getSessionUser(request))) return NextResponse.json({ error: "يجب تسجيل الدخول" }, { status: 401 })
+      const rows = await sql`SELECT d.*,b.branch_name,COALESCE((SELECT json_agg(json_build_object('symbol_key',x.symbol_key,'symbol_value',x.symbol_value,'label',x.label) ORDER BY x.id) FROM attendance_device_symbols_tbl x WHERE x.device_id=d.id),'[]') symbols FROM attendance_devices_tbl d LEFT JOIN branches b ON b.id=d.branch_id ORDER BY d.name`
+      const dbName = await resolveCurrentDbName()
+      const synchronized = await Promise.all(rows.map(async (device: any) => {
+        try {
+          await registerAttendanceDevice({ serialNumber: device.serial_number, dbName, tenantDeviceId: Number(device.id), isActive: device.is_active !== false })
+          return { ...device, adms_status: device.is_active === false ? "متوقف" : "مرتبط" }
+        } catch (error: any) {
+          console.error(`[attendance-devices] Registry sync failed for ${device.serial_number}`, error)
+          return { ...device, adms_status: "تعارض الرقم التسلسلي", adms_registry_error: error?.message }
+        }
+      }))
+      return NextResponse.json(synchronized)
+    }
     if (resource === "attendance-records") {
       const from = request.nextUrl.searchParams.get("from") || "1900-01-01"
       const to = request.nextUrl.searchParams.get("to") || "2999-12-31"
@@ -411,8 +431,15 @@ export async function POST(request: NextRequest, { params }: { params: { resourc
       return NextResponse.json({ ok: true, count: calculatedRows.length })
     }
     if (resource === "attendance-devices") {
-      if (!String(body.name || "").trim() || !String(body.code || "").trim() || !String(body.serial_number || "").trim()) return NextResponse.json({ error: "اسم الجهاز والرمز والرقم التسلسلي مطلوبون" }, { status: 400 })
-      const rows = await sql`INSERT INTO attendance_devices_tbl(name,code,device_type,ip_address,port,serial_number,branch_id,is_active) VALUES(${String(body.name).trim()},${String(body.code).trim()},${body.device_type || "zkteco"},${String(body.ip_address || "").trim() || null},${Number(body.port) || 4370},${String(body.serial_number).trim()},${body.branch_id || null},${body.is_active !== false}) RETURNING *`
+      if (!(await getSessionUser(request))) return NextResponse.json({ error: "يجب تسجيل الدخول" }, { status: 401 })
+      const serialNumber = normalizeAttendanceSerial(body.serial_number)
+      if (!String(body.name || "").trim() || !String(body.code || "").trim() || !serialNumber) return NextResponse.json({ error: "اسم الجهاز والرمز والرقم التسلسلي مطلوبون" }, { status: 400 })
+      const duplicate = (await sql`SELECT id FROM attendance_devices_tbl WHERE UPPER(BTRIM(serial_number))=${serialNumber} LIMIT 1`)[0]
+      if (duplicate) return NextResponse.json({ error: "الرقم التسلسلي مستخدم مسبقاً" }, { status: 409 })
+      const dbName = await resolveCurrentDbName()
+      await registerAttendanceDevice({ serialNumber, dbName, isActive: body.is_active !== false })
+      const rows = await sql`INSERT INTO attendance_devices_tbl(name,code,device_type,ip_address,port,serial_number,branch_id,is_active) VALUES(${String(body.name).trim()},${String(body.code).trim()},${body.device_type || "zkteco"},${String(body.ip_address || "").trim() || null},${Number(body.port) || 4370},${serialNumber},${body.branch_id || null},${body.is_active !== false}) RETURNING *`
+      await registerAttendanceDevice({ serialNumber, dbName, tenantDeviceId: Number(rows[0].id), isActive: body.is_active !== false })
       for (const symbol of body.symbols || []) if (String(symbol.symbol_value || "").trim()) await sql`INSERT INTO attendance_device_symbols_tbl(device_id,symbol_key,symbol_value,label) VALUES(${rows[0].id},${String(symbol.symbol_key)},${String(symbol.symbol_value).trim()},${String(symbol.label || symbol.symbol_key)}) ON CONFLICT(device_id,symbol_key) DO UPDATE SET symbol_value=EXCLUDED.symbol_value,label=EXCLUDED.label,updated_at=CURRENT_TIMESTAMP`
       return NextResponse.json(rows[0], { status: 201 })
     }
@@ -424,7 +451,7 @@ export async function POST(request: NextRequest, { params }: { params: { resourc
       return NextResponse.json(rows[0], { status: 201 })
     }
     return NextResponse.json({ error:"Unknown HR resource" },{status:404})
-  } catch(error:any) { console.error("HR POST",error); return NextResponse.json({error:error?.message||"تعذر حفظ البيانات"},{status:500}) }
+  } catch(error:any) { console.error("HR POST",error); const status=String(error?.message||"").includes("مسجل لشركة أخرى")?409:500; return NextResponse.json({error:error?.message||"تعذر حفظ البيانات"},{status}) }
 }
 
 export async function PUT(request: NextRequest, { params }: { params: { resource: string } }) {
@@ -435,7 +462,28 @@ export async function PUT(request: NextRequest, { params }: { params: { resource
     if(resource==="employees") { body.salary_account = await canonicalSalaryAccountId(body.salary_account); const validationError = validateEmployee(body); if (validationError) return NextResponse.json({ error: validationError }, { status: 400 }); const rows=await sql`UPDATE employees_tbl SET employee_code=${body.employee_code},full_name=${body.full_name},other_name=${body.other_name||null},image_url=${body.image_url||null},national_id=${body.national_id||null},passport_no=${body.passport_no||null},gender=${body.gender||null},birth_date=${body.birth_date||null},hire_date=${body.hire_date},end_date=${body.end_date||null},department_id=${body.department_id||null},job_id=${body.job_id||null},branch_id=${body.branch_id||null},salary_type=${body.salary_type||"monthly"},basic_salary=${Number(body.basic_salary)||0},salary_currency=${body.salary_currency||null},contract_type=${body.contract_type||null},bank_name=${body.bank_name||null},bank_branch=${body.bank_branch||null},bank_account=${body.bank_account||null},iban=${body.iban||null},salary_account=${body.salary_account||null},phone=${body.phone||null},email=${body.email||null},address=${body.address||null},region=${body.region||null},permanent_address=${body.permanent_address||null},tax_exemption_id=${body.tax_exemption_id||null},tax_law_id=${body.tax_law_id||null},is_taxed=${body.is_taxed!==false},social_status=${body.social_status||null},father_account_code=${body.father_account_code||null},account_currency=${body.account_currency||null},allow_different_currency=${body.allow_different_currency === true || String(body.allow_different_currency) === "1"},currency_difference=${!!body.currency_difference},stop_transactions=${!!body.stop_transactions},status=${body.status??1},notes=${body.notes||null},updated_at=CURRENT_TIMESTAMP WHERE id=${body.id} RETURNING *`; await sql`DELETE FROM employee_salary_items_tbl WHERE employee_id=${body.id}`; for(const item of body.salary_items||[]) if(item.salary_item_id) await sql`INSERT INTO employee_salary_items_tbl(employee_id,salary_item_id,amount,percentage) VALUES(${body.id},${item.salary_item_id},${Number(item.amount)||0},${Number(item.percentage)||0}) ON CONFLICT(employee_id,salary_item_id) DO UPDATE SET amount=EXCLUDED.amount,percentage=EXCLUDED.percentage`; await sql`DELETE FROM employee_tax_exemptions_tbl WHERE employee_id=${body.id}`; for(const item of body.tax_exemptions||[]) if(item.tax_exemption_id) await sql`INSERT INTO employee_tax_exemptions_tbl(employee_id,tax_exemption_id,exemption_type,amount) VALUES(${body.id},${item.tax_exemption_id},${item.exemption_type||"annual"},${Number(item.amount)||0}) ON CONFLICT(employee_id,tax_exemption_id) DO UPDATE SET exemption_type=EXCLUDED.exemption_type,amount=EXCLUDED.amount`; await sql`DELETE FROM employee_stop_transactions_tbl WHERE employee_id=${body.id}`; for(const item of body.stop_transactions||[]) if(item.is_stopped) await sql`INSERT INTO employee_stop_transactions_tbl(employee_id,voucher_type_id,is_stopped,stop_date) VALUES(${body.id},${item.voucher_type_id},true,${item.stop_date||null})`; return NextResponse.json(rows[0]) }
     if(resource==="tax-laws") { const rows=await sql`UPDATE tax_laws_tbl SET name=${body.name},other_name=${body.other_name||""},account_code=${body.account_code||null},currency=${body.currency||null},max_discount=${body.max_discount===""?null:Number(body.max_discount)},discount_percent=${Number(body.discount_percent)||0},is_active=${body.is_active!==false},updated_at=CURRENT_TIMESTAMP WHERE id=${body.id} RETURNING *`; await sql`DELETE FROM tax_law_brackets_tbl WHERE tax_law_id=${body.id}`; for(const bracket of body.brackets||[]) await sql`INSERT INTO tax_law_brackets_tbl(tax_law_id,from_amount,to_amount,tax_percent) VALUES(${body.id},${Number(bracket.from_amount)||0},${bracket.to_amount===""||bracket.to_amount==null?null:Number(bracket.to_amount)},${Number(bracket.tax_percent)||0})`; return NextResponse.json(rows[0]) }
     if(resource==="periods"&&body.action==="close") { const rows=await sql`UPDATE salary_periods_tbl SET status='closed',closed_at=CURRENT_TIMESTAMP WHERE id=${body.id} RETURNING *`; return NextResponse.json(rows[0]) }
-    if(resource==="attendance-devices") { if (!String(body.serial_number || "").trim()) return NextResponse.json({ error: "الرقم التسلسلي مطلوب" }, { status: 400 }); const rows=await sql`UPDATE attendance_devices_tbl SET name=${String(body.name).trim()},code=${String(body.code).trim()},device_type=${body.device_type||"zkteco"},ip_address=${String(body.ip_address || "").trim() || null},port=${Number(body.port)||4370},serial_number=${String(body.serial_number).trim()},branch_id=${body.branch_id||null},is_active=${body.is_active!==false},updated_at=CURRENT_TIMESTAMP WHERE id=${body.id} RETURNING *`; for (const symbol of body.symbols || []) if (String(symbol.symbol_value || "").trim()) await sql`INSERT INTO attendance_device_symbols_tbl(device_id,symbol_key,symbol_value,label) VALUES(${rows[0].id},${String(symbol.symbol_key)},${String(symbol.symbol_value).trim()},${String(symbol.label || symbol.symbol_key)}) ON CONFLICT(device_id,symbol_key) DO UPDATE SET symbol_value=EXCLUDED.symbol_value,label=EXCLUDED.label,updated_at=CURRENT_TIMESTAMP`; return NextResponse.json(rows[0]) }
+    if(resource==="attendance-devices") {
+      if (!(await getSessionUser(request))) return NextResponse.json({ error: "يجب تسجيل الدخول" }, { status: 401 })
+      const serialNumber=normalizeAttendanceSerial(body.serial_number)
+      if (!serialNumber) return NextResponse.json({ error: "الرقم التسلسلي مطلوب" }, { status: 400 })
+      const current=(await sql`SELECT id,serial_number,is_active FROM attendance_devices_tbl WHERE id=${body.id} LIMIT 1`)[0]
+      if (!current) return NextResponse.json({ error: "الجهاز غير موجود" }, { status: 404 })
+      const duplicate=(await sql`SELECT id FROM attendance_devices_tbl WHERE UPPER(BTRIM(serial_number))=${serialNumber} AND id<>${body.id} LIMIT 1`)[0]
+      if (duplicate) return NextResponse.json({ error: "الرقم التسلسلي مستخدم مسبقاً" }, { status: 409 })
+      const dbName=await resolveCurrentDbName()
+      const oldSerial=normalizeAttendanceSerial(current.serial_number)
+      await registerAttendanceDevice({serialNumber,dbName,tenantDeviceId:Number(body.id),isActive:body.is_active!==false})
+      try {
+        const rows=await sql`UPDATE attendance_devices_tbl SET name=${String(body.name).trim()},code=${String(body.code).trim()},device_type=${body.device_type||"zkteco"},ip_address=${String(body.ip_address || "").trim() || null},port=${Number(body.port)||4370},serial_number=${serialNumber},branch_id=${body.branch_id||null},is_active=${body.is_active!==false},updated_at=CURRENT_TIMESTAMP WHERE id=${body.id} RETURNING *`
+        for (const symbol of body.symbols || []) if (String(symbol.symbol_value || "").trim()) await sql`INSERT INTO attendance_device_symbols_tbl(device_id,symbol_key,symbol_value,label) VALUES(${rows[0].id},${String(symbol.symbol_key)},${String(symbol.symbol_value).trim()},${String(symbol.label || symbol.symbol_key)}) ON CONFLICT(device_id,symbol_key) DO UPDATE SET symbol_value=EXCLUDED.symbol_value,label=EXCLUDED.label,updated_at=CURRENT_TIMESTAMP`
+        if (oldSerial && oldSerial!==serialNumber) await unregisterAttendanceDevice({dbName,serialNumber:oldSerial,tenantDeviceId:Number(body.id)})
+        return NextResponse.json(rows[0])
+      } catch (error) {
+        if (oldSerial!==serialNumber) await unregisterAttendanceDevice({dbName,serialNumber,tenantDeviceId:Number(body.id)}).catch(()=>undefined)
+        if (oldSerial) await registerAttendanceDevice({serialNumber:oldSerial,dbName,tenantDeviceId:Number(body.id),isActive:current.is_active!==false}).catch(()=>undefined)
+        throw error
+      }
+    }
     if(resource==="shifts") { const rows=await sql`UPDATE shift_definitions_tbl SET code=${String(body.code).trim()},name=${String(body.name).trim()},start_time=${body.start_time||"08:00"},end_time=${body.end_time||"17:00"},break_minutes=${Number(body.break_minutes)||0},grace_minutes=${Number(body.grace_minutes)||0},is_overnight=${body.is_overnight===true},is_active=${body.is_active!==false},updated_at=CURRENT_TIMESTAMP WHERE id=${body.id} RETURNING *`; return NextResponse.json(rows[0]) }
     if(resource==="shift-schedules") {
       if (!body.id || (!body.is_day_off && !body.shift_id)) return NextResponse.json({ error: "اختر الوردية أو حدد اليوم عطلة" }, { status: 400 })
@@ -454,7 +502,29 @@ export async function PUT(request: NextRequest, { params }: { params: { resource
     }
     if(resource==="official-holidays") { const rows=await sql`UPDATE official_holidays_tbl SET name=${String(body.name).trim()},holiday_date=${body.holiday_date},end_date=${body.end_date},is_paid=${body.is_paid!==false},notes=${body.notes||null} WHERE id=${body.id} RETURNING *`; return NextResponse.json(rows[0]) }
     return NextResponse.json({error:"Unknown HR resource"},{status:404})
-  } catch(error:any){ return NextResponse.json({error:error?.message||"تعذر التعديل"},{status:500}) }
+  } catch(error:any){ const status=String(error?.message||"").includes("مسجل لشركة أخرى")?409:500; return NextResponse.json({error:error?.message||"تعذر التعديل"},{status}) }
 }
 
-export async function DELETE(request:NextRequest,{params}:{params:{resource:string}}){ await ensureHrSchema(); const id=Number(request.nextUrl.searchParams.get("id")); if(params.resource==="attendance-devices"&&id){await sql`DELETE FROM attendance_devices_tbl WHERE id=${id}`;return NextResponse.json({ok:true})} if(params.resource==="shifts"&&id){await sql`DELETE FROM shift_definitions_tbl WHERE id=${id}`;return NextResponse.json({ok:true})} if(params.resource==="shift-assignments"&&id){await sql`DELETE FROM employee_shift_assignments_tbl WHERE id=${id}`;return NextResponse.json({ok:true})} if(params.resource==="official-holidays"&&id){await sql`DELETE FROM official_holidays_tbl WHERE id=${id}`;return NextResponse.json({ok:true})} if(params.resource==="tax-laws"&&id){await sql`DELETE FROM tax_laws_tbl WHERE id=${id}`;return NextResponse.json({ok:true})} if(params.resource==="employees"&&id){try{await sql`DELETE FROM payroll_tbl WHERE employee_id=${id}`;await sql`DELETE FROM employee_stop_transactions_tbl WHERE employee_id=${id}`;await sql`DELETE FROM employee_tax_exemptions_tbl WHERE employee_id=${id}`;await sql`DELETE FROM employee_salary_items_tbl WHERE employee_id=${id}`;await sql`DELETE FROM employees_tbl WHERE id=${id}`;return NextResponse.json({ok:true})}catch(error){console.error("[hr/employees] delete failed",error);return NextResponse.json({error:"تعذر حذف الموظف لوجود حركات مرتبطة به"},{status:409})}} const d=definitions[params.resource]; if(!d||!id)return NextResponse.json({error:"Invalid request"},{status:400}); await sql.unsafe(`DELETE FROM ${ident(d.table)} WHERE id=$1`,[id]); return NextResponse.json({ok:true}) }
+export async function DELETE(request:NextRequest,{params}:{params:{resource:string}}){
+  await ensureHrSchema()
+  const id=Number(request.nextUrl.searchParams.get("id"))
+  if(params.resource==="attendance-devices"&&id){
+    if (!(await getSessionUser(request))) return NextResponse.json({ error: "يجب تسجيل الدخول" }, { status: 401 })
+    const device=(await sql`SELECT serial_number FROM attendance_devices_tbl WHERE id=${id} LIMIT 1`)[0]
+    await sql`DELETE FROM attendance_devices_tbl WHERE id=${id}`
+    if(device?.serial_number){
+      const dbName=await resolveCurrentDbName()
+      await unregisterAttendanceDevice({dbName,serialNumber:device.serial_number,tenantDeviceId:id})
+    }
+    return NextResponse.json({ok:true})
+  }
+  if(params.resource==="shifts"&&id){await sql`DELETE FROM shift_definitions_tbl WHERE id=${id}`;return NextResponse.json({ok:true})}
+  if(params.resource==="shift-assignments"&&id){await sql`DELETE FROM employee_shift_assignments_tbl WHERE id=${id}`;return NextResponse.json({ok:true})}
+  if(params.resource==="official-holidays"&&id){await sql`DELETE FROM official_holidays_tbl WHERE id=${id}`;return NextResponse.json({ok:true})}
+  if(params.resource==="tax-laws"&&id){await sql`DELETE FROM tax_laws_tbl WHERE id=${id}`;return NextResponse.json({ok:true})}
+  if(params.resource==="employees"&&id){try{await sql`DELETE FROM payroll_tbl WHERE employee_id=${id}`;await sql`DELETE FROM employee_stop_transactions_tbl WHERE employee_id=${id}`;await sql`DELETE FROM employee_tax_exemptions_tbl WHERE employee_id=${id}`;await sql`DELETE FROM employee_salary_items_tbl WHERE employee_id=${id}`;await sql`DELETE FROM employees_tbl WHERE id=${id}`;return NextResponse.json({ok:true})}catch(error){console.error("[hr/employees] delete failed",error);return NextResponse.json({error:"تعذر حذف الموظف لوجود حركات مرتبطة به"},{status:409})}}
+  const d=definitions[params.resource]
+  if(!d||!id)return NextResponse.json({error:"Invalid request"},{status:400})
+  await sql.unsafe(`DELETE FROM ${ident(d.table)} WHERE id=$1`,[id])
+  return NextResponse.json({ok:true})
+}

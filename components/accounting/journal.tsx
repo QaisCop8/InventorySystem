@@ -508,7 +508,7 @@ export default function Journal() {
     } catch (error) {
       console.error(error)
       setShowDeleteConfirm(false)
-      setErrorMessages(["فشل في إلغاء سند القيد"])
+      setErrorMessages([error instanceof Error ? error.message : "فشل في إلغاء سند القيد"])
     } finally {
       setIsSaving(false)
     }
@@ -529,7 +529,7 @@ export default function Journal() {
     } catch (error) {
       console.error(error)
       setShowDeleteConfirm(false)
-      setErrorMessages(["فشل في حذف سند القيد"])
+      setErrorMessages([error instanceof Error ? error.message : "فشل في حذف سند القيد"])
     } finally {
       setIsSaving(false)
     }

@@ -62,7 +62,8 @@ export const ensureTables = async () => {
       (16, 'مرتجع مبيعات', 1),
       (17, 'فاتورة مشتريات', 1),
       (18, 'إرسالية مشتريات', 1),
-      (19, 'مرتجع مشتريات', 1)
+      (19, 'مرتجع مشتريات', 1),
+      (21, 'سند صرف شيكات', 1)
     ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, status = EXCLUDED.status
   `
 

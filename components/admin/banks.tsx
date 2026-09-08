@@ -297,7 +297,7 @@ export default function Banks() {
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <div className="flex items-center gap-2">
             <Input
-              placeholder="بحث برمز أو اسم البنك"
+              placeholder="بحث برقم أو اسم البنك"
               value={searchText}
               onChange={(e) => handleSearchTextChange(e.target.value)}
               className="min-w-[260px]"
@@ -318,7 +318,7 @@ export default function Banks() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="text-right">رمز البنك</TableHead>
+              <TableHead className="text-right">رقم البنك</TableHead>
               <TableHead className="text-right">اسم البنك</TableHead>
               <TableHead className="text-right">اسم البنك انجليزي</TableHead>
               <TableHead className="text-right">الحالة</TableHead>

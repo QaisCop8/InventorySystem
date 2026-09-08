@@ -26,6 +26,7 @@ export interface ThemeSettings {
   rtl_support: boolean
   card_style: "flat" | "elevated" | "outlined"
   button_style: "rounded" | "square" | "pill"
+  toolbar_style: "modern" | "gradient" | "compact" | "classic"
   animation_speed: "slow" | "normal" | "fast"
   compact_mode: boolean
   high_contrast: boolean
@@ -63,6 +64,7 @@ const defaultSettings: ThemeSettings = {
   rtl_support: true,
   card_style: "elevated",
   button_style: "rounded",
+  toolbar_style: "modern",
   animation_speed: "normal",
   compact_mode: false,
   high_contrast: false,
@@ -119,6 +121,9 @@ export function ThemeSettingsProvider({ children }: ThemeSettingsProviderProps) 
           theme_name: data.theme_name || defaultSettings.theme_name,
           primary_color: data.primary_color || defaultSettings.primary_color,
           font_family: data.font_family || defaultSettings.font_family,
+          toolbar_style: ["modern", "gradient", "compact", "classic"].includes(data.toolbar_style)
+            ? data.toolbar_style
+            : defaultSettings.toolbar_style,
           rtl_support: data.rtl_support !== undefined ? data.rtl_support : defaultSettings.rtl_support,
         }
         setSettings(loadedSettings)
@@ -257,6 +262,7 @@ export function ThemeSettingsProvider({ children }: ThemeSettingsProviderProps) 
     root.style.setProperty("--border-radius-custom", `${settings.border_radius}px`)
     root.style.setProperty("--sidebar-width-custom", `${settings.sidebar_width}px`)
     root.style.setProperty("--header-height-custom", `${settings.header_height}px`)
+    root.dataset.toolbarStyle = settings.toolbar_style
 
     // Apply animation speed
     const animationDuration = {

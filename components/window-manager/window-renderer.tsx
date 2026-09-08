@@ -15,6 +15,16 @@ const Customers = dynamic(() => import("@/components/products/customers").then((
 const UnifiedCustomers = dynamic(() => import("@/components/products/unified-customers").then((m) => m.default), { ssr: false })
 const OrderReports = dynamic(() => import("@/components/reports/order-reports").then((m) => m.OrderReports), { ssr: false })
 const ProductReports = dynamic(() => import("@/components/reports/product-reports").then((m) => m.ProductReports), { ssr: false })
+const ReceivablesStatementReport = dynamic(() => import("@/components/reports/account-statement-report").then((m) => m.ReceivablesStatementReport), { ssr: false })
+const AccountingStatementReport = dynamic(() => import("@/components/reports/account-statement-report").then((m) => m.AccountingStatementReport), { ssr: false })
+const VouchersReport = dynamic(() => import("@/components/reports/financial-report").then((m) => m.VouchersReport), { ssr: false })
+const TransactionsReport = dynamic(() => import("@/components/reports/financial-report").then((m) => m.TransactionsReport), { ssr: false })
+const TrialBalanceReport = dynamic(() => import("@/components/reports/financial-report").then((m) => m.TrialBalanceReport), { ssr: false })
+const BalanceSheetReport = dynamic(() => import("@/components/reports/financial-report").then((m) => m.BalanceSheetReport), { ssr: false })
+const IncomeStatementReport = dynamic(() => import("@/components/reports/financial-report").then((m) => m.IncomeStatementReport), { ssr: false })
+const ChequesPage = dynamic(() => import("@/components/accounting/cheques-management").then((m) => m.ChequesPage), { ssr: false })
+const ChequeOperationsPage = dynamic(() => import("@/components/accounting/cheques-management").then((m) => m.ChequeOperationsPage), { ssr: false })
+const ChequePaymentVouchers = dynamic(() => import("@/components/accounting/cheque-payment-vouchers"), { ssr: false })
 const DocumentSettings = dynamic(() => import("@/components/settings/document-settings"), { ssr: false })
 const GeneralSettings = dynamic(() => import("@/components/settings/general-settings"), { ssr: false })
 const PervasiveSettings = dynamic(() => import("@/app/settings/pervasive/page"), { ssr: false })
@@ -29,6 +39,16 @@ const componentMap: Record<string, React.ComponentType<any>> = {
   "unified-customers": UnifiedCustomers,
   "order-reports": OrderReports,
   "product-reports": ProductReports,
+  "receivables-statement-report": ReceivablesStatementReport,
+  "accounting-statement-report": AccountingStatementReport,
+  "vouchers-report": VouchersReport,
+  "transactions-report": TransactionsReport,
+  "trial-balance-report": TrialBalanceReport,
+  "balance-sheet-report": BalanceSheetReport,
+  "income-statement-report": IncomeStatementReport,
+  cheques: ChequesPage,
+  "cheque-operations": ChequeOperationsPage,
+  "cheque-payment-vouchers": ChequePaymentVouchers,
   "document-settings": DocumentSettings,
   "general-settings": GeneralSettings,
   "pervasive-settings": PervasiveSettings,

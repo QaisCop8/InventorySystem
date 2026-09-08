@@ -120,7 +120,7 @@ export default function BanksSearch({ open, onOpenChange, banks, onSelect }: Ban
     () => ({
       name: "BanksSearchScheme",
       columns: [
-        { header: "رمز البنك", name: "bank_code", width: 140, isReadOnly: true },
+        { header: "رقم البنك", name: "bank_code", width: 140, isReadOnly: true },
         { header: "اسم البنك", name: "bank_name", width: "*", minWidth: 220, isReadOnly: true },
       ],
     }),
@@ -161,11 +161,11 @@ export default function BanksSearch({ open, onOpenChange, banks, onSelect }: Ban
 
           <div className="grid gap-2 grid-cols-1 sm:grid-cols-2 border-b border-slate-200 pb-3 sm:pb-4" ref={filterContainerRef}>
             <div>
-              <Label className="mb-2 block text-sm font-medium">رمز البنك</Label>
+              <Label className="mb-2 block text-sm font-medium">رقم البنك</Label>
               <Input
                 value={codeFilter}
                 onChange={(e) => setCodeFilter(e.target.value)}
-                placeholder="ابحث برمز البنك"
+                placeholder="ابحث برقم البنك"
                 className="h-10 rounded-xl border border-slate-200 bg-white text-right shadow-sm focus:border-blue-300 focus:bg-white"
               />
             </div>
