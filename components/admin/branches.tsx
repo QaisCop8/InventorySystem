@@ -146,7 +146,7 @@ export default function Branches() {
       bank_id: normalizeBankId(form.bank_id),
     }
 
-    const hasValidBranchCode = normalizedForm.id === 0 || (branchCode.trim().length > 0 && /^\d+$/.test(branchCode))
+    const hasValidBranchCode = /^\d{1,4}$/.test(branchCode)
     const hasValidBank = normalizedForm.bank_id !== null
 
     if (!hasValidBranchCode) {
@@ -374,7 +374,7 @@ export default function Branches() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-right">رمز الفرع</TableHead>
+                    <TableHead className="text-right">رقم الفرع</TableHead>
                     <TableHead className="text-right">اسم الفرع</TableHead>
                     <TableHead className="text-right">البنك</TableHead>
                     <TableHead className="text-right">الحالة</TableHead>
@@ -428,11 +428,9 @@ export default function Branches() {
         onNavigateRecord={handleNavigateRecord}
         onFormChange={(field, value) => {
           if (field === "branch_code") {
-            const numericValue = sanitizeNumericCode(value)
+            const numericValue = sanitizeNumericCode(value).slice(0, 4)
             setForm((f) => ({ ...f, branch_code: numericValue }))
-            if (numericValue.length > 0) {
-              setShowBranchCodeValidationError(false)
-            }
+            setShowBranchCodeValidationError(numericValue.length === 0)
             return
           }
 
@@ -451,7 +449,14 @@ export default function Branches() {
         banks={banks}
         showBankValidationError={showBankValidationError && hasBankSelectionBeenTouched}
         showBranchCodeValidationError={showBranchCodeValidationError}
-        canSave={!!form.branch_name.trim() && !!form.bank_id && Number(form.bank_id) > 0}
+        canSave={
+          /^\d{1,4}$/.test(form.branch_code) &&
+          !!form.branch_name.trim() &&
+          !!form.bank_id &&
+          Number(form.bank_id) > 0 &&
+          !branches.some((b) => b.branch_code === form.branch_code && b.id !== form.id) &&
+          !hasDuplicateName(form.branch_name, form.id)
+        }
         hasDuplicateCode={branches.some((b) => b.branch_code === form.branch_code && b.id !== form.id)}
         hasDuplicateName={hasDuplicateName(form.branch_name, form.id)}
         isFirstRecord={currentIndex <= 0}

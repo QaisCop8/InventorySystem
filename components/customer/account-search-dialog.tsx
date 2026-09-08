@@ -7,8 +7,9 @@ import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import PrimeDropdown from "@/components/common/FocusDropdown"
-import { CellRange, SelectionMode } from "@grapecity/wijmo.grid"
+import { CellRange, KeyAction, SelectionMode } from "@grapecity/wijmo.grid"
 import DataGridView from "../common/DataGridView"
+import { useWorkspaceDialog } from "@/contexts/workspace-dialog-context"
 
 // كل كلمة في نص البحث يجب أن تكون موجودة في النص الهدف (بأي ترتيب) — وليس تطابق سلسلة متتالية
 // فقط، فيجد "احمد علي" نتيجة عند البحث "علي احمد" أيضاً.
@@ -141,6 +142,7 @@ export default function AccountSearchDialog({
   orderType = null,
   branchId = null,
 }: AccountSearchDialogProps) {
+  const { confined } = useWorkspaceDialog()
   const [searchResults, setSearchResults] = useState<AccountItem[]>([])
   const [allAccounts, setAllAccounts] = useState<AccountItem[]>([])
   const [currencies, setCurrencies] = useState<CurrencyOption[]>([])
@@ -407,6 +409,15 @@ export default function AccountSearchDialog({
     setSelectedAccount(null)
   }
 
+  const handleSearchButtonKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>) => {
+    if (event.key !== "Enter") return
+    event.preventDefault()
+    event.stopPropagation()
+    handleSearchAccounts()
+    // Wait until React has rendered the new result set before focusing its first row.
+    window.requestAnimationFrame(() => window.requestAnimationFrame(focusGridFirstRow))
+  }
+
   const applySearchFilters = (nextFilters?: typeof searchFilters, sourceAccounts?: AccountItem[]) => {
     const filters = nextFilters || searchFilters
     // Always start again from the complete API result. Re-filtering a derived
@@ -445,8 +456,27 @@ export default function AccountSearchDialog({
     applySearchFilters()
   }
 
+  const resolveSearchGrid = () => gridRef.current?.control || gridRef.current
+
+  const lockGridRowHeights = (candidate?: any) => {
+    const grid = candidate?.rows ? candidate : resolveSearchGrid()
+    if (!grid?.rows) return
+    grid.rows.defaultSize = 48
+    for (let index = 0; index < grid.rows.length; index += 1) {
+      grid.rows[index].height = 48
+    }
+    if (grid.columnHeaders?.rows?.[0]) grid.columnHeaders.rows[0].height = 48
+    grid.invalidate?.()
+  }
+
+  useEffect(() => {
+    if (!open || searchResults.length === 0) return
+    const frame = window.requestAnimationFrame(() => lockGridRowHeights())
+    return () => window.cancelAnimationFrame(frame)
+  }, [open, searchResults])
+
   const focusGridFirstRow = () => {
-    const grid = gridRef.current
+    const grid = resolveSearchGrid()
     if (!grid || !grid.columns || !grid.rows || grid.rows.length === 0) return
     grid.select(new CellRange(0, 0))
     grid.focus()
@@ -514,6 +544,8 @@ export default function AccountSearchDialog({
     const item = grid.rows[row]?.dataItem
     if (!item) return
     e.preventDefault()
+    e.stopPropagation()
+    lockGridRowHeights(grid)
     handleRowDoubleClick(item)
   }
 
@@ -530,13 +562,7 @@ export default function AccountSearchDialog({
     }
   }
 
-  // Tailwind's JIT scanner needs each grid-cols-N class to appear literally in the source (a
-  // template-literal interpolation like `xl:grid-cols-${n}` would never be generated), hence
-  // this fixed lookup instead of computing the class name dynamically.
-  const extraFilterCount = (showFinancialListFilter ? 1 : 0) + (showTypeFilter ? 1 : 0)
-  const filterGridColsClass =
-    { 0: "xl:grid-cols-4", 1: "xl:grid-cols-5", 2: "xl:grid-cols-6" }[extraFilterCount] ?? "xl:grid-cols-6"
-  const filterGridClassName = `grid gap-3 grid-cols-1 sm:grid-cols-2 ${filterGridColsClass} border-b border-slate-200/80 pb-4 sm:pb-5`
+  const filterGridClassName = "account-search-filter-grid grid gap-4"
 
   const dropdownStyle = { height: "42px", borderRadius: "12px", backgroundColor: "#fff" }
 
@@ -544,32 +570,37 @@ export default function AccountSearchDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         hideCloseButton
-        className="h-[100dvh] max-h-[100dvh] w-screen max-w-none overflow-hidden rounded-none border-0 bg-white p-0 shadow-2xl backdrop-blur sm:h-[min(92dvh,900px)] sm:max-h-[calc(100dvh-1rem)] sm:w-[calc(100vw-1rem)] sm:max-w-[1400px] sm:rounded-2xl sm:border sm:border-emerald-200"
+        className={confined
+          ? "account-search-dialog-shell h-[calc(100%-1rem)] max-h-[calc(100%-1rem)] w-[calc(100%-1rem)] max-w-[calc(100%-1rem)] overflow-hidden rounded-xl border border-slate-300 bg-white p-0 shadow-2xl"
+          : "account-search-dialog-shell h-[100dvh] max-h-[100dvh] w-screen max-w-none overflow-hidden rounded-none border-0 bg-white p-0 shadow-2xl sm:h-[min(92dvh,900px)] sm:max-h-[calc(100dvh-1rem)] sm:w-[calc(100vw-1rem)] sm:max-w-[1400px] sm:rounded-2xl sm:border sm:border-slate-300"}
         dir="rtl"
         onCloseAutoFocus={(event) => event.preventDefault()}
         onInteractOutside={(event) => event.preventDefault()}
       >
-        <div className="flex h-full min-h-0 flex-col gap-3 overflow-y-auto overscroll-contain p-3 sm:gap-4 sm:overflow-hidden sm:p-5">
+        <div className="flex h-full min-h-0 flex-col overflow-y-auto overscroll-contain bg-slate-100 sm:overflow-hidden">
           {/* Header */}
-          <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 rounded-2xl bg-gradient-to-l from-emerald-600 via-emerald-600 to-teal-600 px-3 py-3 shadow-lg sm:px-6 sm:py-4">
+          <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-slate-700 bg-slate-950 px-4 py-4 sm:px-7">
             <div className="flex min-w-0 items-center gap-3">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/30">
-                <Search className="h-5 w-5 text-white" />
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-cyan-400 text-slate-950 shadow-lg shadow-cyan-950/30">
+                <Wallet className="h-5 w-5" />
               </div>
-              <h2 className="text-lg font-extrabold tracking-tight text-white sm:text-xl">بحث الحسابات</h2>
+              <div>
+                <h2 className="text-lg font-extrabold tracking-tight text-white sm:text-xl">دليل الحسابات</h2>
+                <p className="mt-0.5 hidden text-xs text-slate-400 sm:block">ابحث، راجع التفاصيل، ثم اختر الحساب المطلوب</p>
+              </div>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <Button
                 type="button"
                 onClick={() => window.open("/admin/accounts?new=1", "_blank", "noopener,noreferrer")}
-                className="h-9 gap-2 rounded-xl bg-white text-emerald-700 hover:bg-emerald-50"
+                className="h-9 gap-2 rounded-lg bg-cyan-400 text-slate-950 hover:bg-cyan-300"
               >
                 <Plus className="h-4 w-4" />
                 <span className="hidden sm:inline">إضافة حساب</span><span className="sm:hidden">إضافة</span>
               </Button>
               {searchResults.length > 0 && (
                 <span className="hidden rounded-full bg-white/15 px-3 py-1 text-xs font-semibold text-white ring-1 ring-white/30 sm:inline-block">
-                  {searchResults.length} نتيجة
+                  {searchResults.length} حساب
                 </span>
               )}
               <Button
@@ -584,11 +615,12 @@ export default function AccountSearchDialog({
             </div>
           </div>
 
+          <div className="account-search-workspace grid min-h-0 flex-1 gap-0">
           {/* Filters */}
-          <div className="shrink-0 rounded-2xl border border-slate-200 bg-slate-50/60 p-3 sm:p-4">
-            <div className="mb-3 flex items-center gap-2 text-xs font-bold text-slate-500">
+          <aside className="account-search-filters shrink-0 border-b border-slate-200 bg-white p-4">
+            <div className="mb-4 flex items-center gap-2 text-sm font-extrabold text-slate-800">
               <ListFilter className="h-3.5 w-3.5" />
-              خيارات البحث
+              تصفية الحسابات
             </div>
             <div className={filterGridClassName} ref={filterContainerRef}>
               <div>
@@ -694,7 +726,8 @@ export default function AccountSearchDialog({
               <div className="flex items-end">
                 <Button
                   onClick={handleSearchAccounts}
-                  className="flex h-[42px] w-full items-center justify-center gap-2 rounded-xl border-0 bg-gradient-to-l from-emerald-600 to-teal-500 px-5 font-bold text-white shadow-md transition hover:-translate-y-0.5 hover:from-emerald-700 hover:to-teal-600"
+                  onKeyDown={handleSearchButtonKeyDown}
+                  className="flex h-[42px] w-full items-center justify-center gap-2 rounded-xl border-0 bg-slate-900 px-5 font-bold text-white shadow-md transition hover:bg-slate-800"
                 >
                   <Search className="h-4 w-4" />
                   بحث
@@ -755,7 +788,9 @@ export default function AccountSearchDialog({
                 ) : null}
               </div>
             </div>}
-          </div>
+          </aside>
+
+          <div className="flex min-h-0 min-w-0 flex-col gap-3 p-3 sm:p-4">
 
           {/* Results grid */}
           <div className="h-[42dvh] min-h-[240px] shrink-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm sm:h-auto sm:min-h-0 sm:flex-1">
@@ -785,20 +820,27 @@ export default function AccountSearchDialog({
                     )
                   })}
                 </div>
-                <div className="modern-search-grid hidden h-full sm:block">
+                <div className="account-search-results-grid hidden h-full sm:block">
                   <DataGridView
                     innerRef={gridRef}
                     containerStyle={{ height: "100%", minHeight: 0, maxHeight: "100%" }}
                     style={{ height: "100%", minHeight: 0, maxHeight: "100%" }}
-                    defaultRowHeight={42}
+                    defaultRowHeight={48}
+                    columnHeaderHeight={48}
                     autoRowHeights={false}
                     wordWrap={false}
                     dataSource={gridDataSource}
                     scheme={accountScheme}
-                    onRowClick={(account: AccountItem) => setSelectedAccount(account)}
+                    onRowClick={(account: AccountItem) => {
+                      setSelectedAccount(account)
+                      window.requestAnimationFrame(() => lockGridRowHeights())
+                    }}
                     onRowDoubleClick={handleRowDoubleClick}
-                    onKeyDown={handleGridKeyDown}
+                    onKeyDownCapture={handleGridKeyDown}
+                    keyActionEnter={KeyAction.None}
                     selectionMode={SelectionMode.Row}
+                    dontConvertToCards
+                    showContextMenu={false}
                   />
                 </div>
               </>
@@ -813,22 +855,24 @@ export default function AccountSearchDialog({
           </div>
 
           {/* Footer */}
-          <div className="sticky bottom-0 z-10 flex shrink-0 gap-3 border-t border-slate-200 bg-white/95 py-3 backdrop-blur sm:static sm:justify-center sm:bg-white sm:pb-0 sm:pt-4">
+          <div className="sticky bottom-0 z-10 flex shrink-0 gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm backdrop-blur sm:static sm:justify-end">
             <Button
               onClick={handleConfirm}
               disabled={!selectedAccount}
-              className="flex-1 rounded-xl border-0 bg-gradient-to-l from-emerald-600 to-emerald-500 px-4 text-white shadow-md transition-transform hover:scale-[1.01] hover:from-emerald-700 hover:to-emerald-600 sm:flex-none sm:px-8"
+              className="flex-1 rounded-lg border-0 bg-cyan-500 px-4 font-bold text-slate-950 shadow-sm hover:bg-cyan-400 sm:flex-none sm:px-8"
             >
               موافق
             </Button>
             <Button
               variant="outline"
               onClick={() => onOpenChange(false)}
-              className="flex-1 rounded-xl border-emerald-200 px-4 text-emerald-700 shadow-sm hover:bg-emerald-50 hover:text-emerald-800 sm:flex-none sm:px-8"
+              className="flex-1 rounded-lg border-slate-300 px-4 text-slate-700 shadow-sm hover:bg-slate-100 sm:flex-none sm:px-8"
             >
               إغلاق
             </Button>
           </div>
+        </div>
+        </div>
         </div>
       </DialogContent>
     </Dialog>

@@ -10,6 +10,7 @@
     "start": "next start"
   },
   "dependencies": {
+    "@ai-sdk/google": "^3.0.121",
     "@ai-sdk/xai": "latest",
     "@grapecity/wijmo.chart.finance.analytics": "^5.20252.42",
     "@grapecity/wijmo.grid": "^5.20252.42",

@@ -56,6 +56,25 @@ interface ReceiptsProps {
   voucherType: 4 | 5
 }
 
+interface AIReceiptDraft {
+  voucher_type: 4 | 5
+  amount: number
+  account_id: number
+  account_code: string
+  account_name: string
+  customer_name: string
+  vch_date: string
+  note: string
+  payment_method: "cash" | "cheques" | "card" | "mixed"
+  cash_amount?: number
+  check_amount?: number
+  credit_card_amount?: number
+  cheques?: Partial<VoucherChequeRow>[]
+  cards?: Partial<VoucherCardRow>[]
+  currency_id?: number | null
+  directSave?: boolean
+}
+
 const TYPE_LABELS: Record<4 | 5, { title: string; listTitle: string; addLabel: string; customerLabel: string }> = {
   4: { title: "سند قبض", listTitle: "سندات القبض", addLabel: "إضافة سند قبض", customerLabel: "المقبوض منه" },
   5: { title: "سند صرف", listTitle: "سندات الصرف", addLabel: "إضافة سند صرف", customerLabel: "المدفوع له" },
@@ -335,7 +354,7 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
 
   // يجلب دفتر السندات الافتراضي وأول عملة مباشرة من الخادم بدل الاعتماد على state قد لا يكون
   // اكتمل تحميله بعد (مثلاً إن ضغط المستخدم "جديد" قبل أن يكتمل fetchLookups عند فتح الصفحة).
-  const fetchDefaults = async (): Promise<{ bookId: number | null; currencyId: number | null }> => {
+  const fetchDefaults = async (): Promise<{ bookId: number | null; currencyId: number | null; currencies: CurrencyOption[] }> => {
     try {
       const booksUrl = `/api/receipts/voucher-books?vch_type=${voucherType}${
         user?.id ? `&user_id=${encodeURIComponent(user.id)}` : ""
@@ -354,9 +373,10 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
       }
 
       let currencyId: number | null = null
+      let rates: CurrencyOption[] = []
       if (currenciesRes?.ok) {
         const data = await currenciesRes.json()
-        const rates = Array.isArray(data?.rates) ? data.rates : []
+        rates = Array.isArray(data?.rates) ? data.rates : []
         setCurrencies(rates)
         currencyId = rates.reduce((min: number | null, c: CurrencyOption) => {
           const id = Number(c.currency_id ?? c.id)
@@ -365,10 +385,10 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
         }, null)
       }
 
-      return { bookId, currencyId }
+      return { bookId, currencyId, currencies: rates }
     } catch (error) {
       console.error("Failed to fetch voucher defaults", error)
-      return { bookId: defaultBookId, currencyId: firstCurrencyId() }
+      return { bookId: defaultBookId, currencyId: firstCurrencyId(), currencies }
     }
   }
 
@@ -385,10 +405,14 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
       if (!response.ok) return empty
       const data = await response.json()
       const row = Array.isArray(data?.rows) ? data.rows.find((r: any) => Number(r.currency_id) === currencyId) : null
+      const accountId = (value: unknown) => {
+        const id = Number(value)
+        return Number.isInteger(id) && id > 0 ? id : null
+      }
       return {
-        cash_account_id: row?.cash_account_id ?? null,
-        check_account_id: row?.incoming_checks_account_id ?? null,
-        credit_card_account_id: row?.card_account_id ?? null,
+        cash_account_id: accountId(row?.cash_account_id),
+        check_account_id: accountId(row?.incoming_checks_account_id),
+        credit_card_account_id: accountId(row?.card_account_id),
       }
     } catch (error) {
       console.error("Failed to fetch default accounts for currency", error)
@@ -396,22 +420,93 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
     }
   }
 
-  const openNewDialog = async () => {
+  const openNewDialog = async (draft?: AIReceiptDraft) => {
     const defaults = await fetchDefaults()
-    const accountDefaults = await fetchAccountDefaultsForCurrency(defaults.currencyId)
+    const currencyId = draft?.currency_id ?? defaults.currencyId
+    const accountDefaults = await fetchAccountDefaultsForCurrency(currencyId)
     const code = await generateCode(defaults.bookId)
-    setForm({
+    const amount = draft ? Number(draft.amount) : 0
+    const draftAccount = draft
+      ? { id: draft.account_id, code: draft.account_code, name: draft.account_name }
+      : null
+    const nextForm: VoucherRecord = {
       ...buildInitialForm(voucherType),
       vch_code: code,
       vch_book_id: defaults.bookId,
-      currency_id: defaults.currencyId,
+      currency_id: currencyId,
       ...accountDefaults,
-      cards: [{ ...emptyCardRow, currency_id: defaults.currencyId }],
-    })
+      ...(draft ? {
+        vch_date: draft.vch_date,
+        manual_date: draft.vch_date,
+        account_id: draft.account_id,
+        customer_name: draft.customer_name,
+        to_account_id: draft.account_id,
+        cash_amount: draft.cash_amount ?? (draft.payment_method === "cash" ? amount : 0),
+        check_amount: draft.check_amount ?? 0,
+        credit_card_amount: draft.credit_card_amount ?? 0,
+        cheques: draft.cheques?.map((row) => ({ ...emptyChequeRow, ...row })) || [],
+        amount,
+        note: draft.note,
+        journal: [{ ...emptyJournalRow, ...draftAccount, amount }],
+      } : {}),
+      cards: draft?.cards?.length
+        ? draft.cards.map((row) => ({ ...emptyCardRow, currency_id: currencyId, ...row }))
+        : [{ ...emptyCardRow, currency_id: currencyId }],
+    }
+    setForm(nextForm)
     setIsNewMode(true)
     setErrorMessages([])
-    setDialogOpen(true)
+    if (draft?.directSave) {
+      // This async call still holds the render's old state after setCurrencies.
+      const result = await saveVoucher("save", nextForm, { openDialogAfterSave: false, currencies: defaults.currencies })
+      const saveResult = { ...result, voucherType }
+      sessionStorage.setItem("ai_voucher_save_result", JSON.stringify(saveResult))
+      window.dispatchEvent(new CustomEvent("ai-receipt-save-result", { detail: saveResult }))
+    } else {
+      setDialogOpen(true)
+    }
   }
+
+  useEffect(() => {
+    const handleAIReceiptDraft = (event: Event) => {
+      const draft = (event as CustomEvent<AIReceiptDraft>).detail
+      if (draft?.voucher_type === voucherType && draft?.account_id && Number(draft.amount) > 0) {
+        sessionStorage.removeItem("ai_receipt_draft")
+        void openNewDialog(draft)
+      }
+    }
+    window.addEventListener("ai-receipt-draft", handleAIReceiptDraft)
+    const storedDraft = sessionStorage.getItem("ai_receipt_draft")
+    if (storedDraft) {
+      try {
+        handleAIReceiptDraft(new CustomEvent("ai-receipt-draft", { detail: JSON.parse(storedDraft) }))
+      } catch {
+        sessionStorage.removeItem("ai_receipt_draft")
+      }
+    }
+    return () => window.removeEventListener("ai-receipt-draft", handleAIReceiptDraft)
+  }, [voucherType, user?.id])
+
+  useEffect(() => {
+    const openSavedVoucher = async () => {
+      const raw = sessionStorage.getItem("ai_open_saved_voucher")
+      if (!raw) return
+      try {
+        const target = JSON.parse(raw) as { id?: number; voucher_type?: 4 | 5 }
+        if (target.voucher_type !== voucherType || !target.id) return
+        const details = await fetchVoucherDetails(Number(target.id))
+        if (!details) return
+        sessionStorage.removeItem("ai_open_saved_voucher")
+        handleNavigateRecord(details)
+      } catch {
+        sessionStorage.removeItem("ai_open_saved_voucher")
+      }
+    }
+    window.addEventListener("ai-open-saved-voucher", openSavedVoucher)
+    void openSavedVoucher()
+    return () => window.removeEventListener("ai-open-saved-voucher", openSavedVoucher)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [voucherType])
 
   // نسخ السند الحالي إلى سند جديد غير محفوظ: نفس البيانات (العميل/الحسابات/الشيكات/البطاقات)
   // برقم ودفتر وتاريخ جديد بدل مسحها، ليحفظها المستخدم كسند مستقل دون إعادة إدخالها.
@@ -476,7 +571,7 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
     setErrorMessages([])
   }
 
-  const validateVoucher = (data: VoucherRecord): string | null => {
+  const validateVoucher = (data: VoucherRecord, availableCurrencies = currencies): string | null => {
     const code = data.vch_code.trim()
     if (!code) return "رقم السند مطلوب"
     if (!/^[A-Z0-9-]+$/.test(code)) return "رقم السند يجب أن يحتوي على أحرف إنجليزية كبيرة وأرقام و - فقط"
@@ -485,7 +580,7 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
 
     if (voucherBooks.length > 0 && !data.vch_book_id) return "يجب اختيار دفتر السندات"
 
-    if (!data.currency_id || !currencies.some((c) => Number(c.currency_id ?? c.id) === data.currency_id)) {
+    if (!data.currency_id || !availableCurrencies.some((c) => Number(c.currency_id ?? c.id) === data.currency_id)) {
       return "يجب اختيار العملة"
     }
     if (!(Number(data.rate) > 0)) return "سعر الصرف يجب أن يكون أكبر من صفر"
@@ -564,30 +659,35 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
     return null
   }
 
-  const saveVoucher = async (action: PostVoucherAction = "save") => {
-    const error = validateVoucher(form)
+  const saveVoucher = async (
+    action: PostVoucherAction = "save",
+    overrideForm?: VoucherRecord,
+    options?: { openDialogAfterSave?: boolean; currencies?: CurrencyOption[] },
+  ): Promise<{ ok: boolean; error?: string; id?: number; code?: string }> => {
+    const record = overrideForm || form
+    const error = validateVoucher(record, options?.currencies)
     if (error) {
       setErrorMessages([error])
-      return
+      return { ok: false, error }
     }
     setErrorMessages([])
 
     setIsSaving(true)
     try {
-      const method = form.id > 0 ? "PUT" : "POST"
+      const method = record.id > 0 ? "PUT" : "POST"
       // حفظ عادي / حفظ وطباعة: تبقى الحالة كما هي (لا ترحيل). حفظ وترحيل / ترحيل وطباعة: تصبح
       // status=2 (مرحل) ويُقفل السند بعدها. علامة الطباعة (is_printed=1) تُسجَّل فقط عند "ترحيل
       // وطباعة" — أي طباعة أخرى (بما فيها حفظ وطباعة) لا تُغيّرها هنا إطلاقاً.
-      const status = action === "save" || action === "save_print" ? form.status : 2
-      const isPrinted = action === "post_print" ? 1 : form.is_printed || 0
+      const status = action === "save" || action === "save_print" ? record.status : 2
+      const isPrinted = action === "post_print" ? 1 : record.is_printed || 0
       // المبلغ في تبويب تفاصيل البطاقة يتبع حقل "بطاقات" في الرئيسية دائماً. حساب صندوق الشيكات
       // (form.check_account_id) وصل هنا مُعبَّأً بالفعل — في سند الصرف تُبقيه المزامنة في
       // unified-receipt-voucher.tsx متوافقاً دائماً مع jary_account_id للحساب البنكي المختار.
       const dataToSave: VoucherRecord = {
-        ...form,
+        ...record,
         status,
         is_printed: isPrinted,
-        cards: [{ ...(form.cards?.[0] || emptyCardRow), amount: form.credit_card_amount }],
+        cards: [{ ...(record.cards?.[0] || emptyCardRow), amount: record.credit_card_amount }],
       }
       const response = await fetch("/api/receipts", {
         method,
@@ -598,8 +698,9 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
       })
       if (!response.ok) {
         const responseError = await response.json()
-        setErrorMessages([responseError.error || "فشل في حفظ السند"])
-        return
+        const message = responseError.error || "فشل في حفظ السند"
+        setErrorMessages([message])
+        return { ok: false, error: message }
       }
       const saved = await response.json()
 
@@ -629,7 +730,7 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
       const accountDefaults = await fetchAccountDefaultsForCurrency(defaults.currencyId)
       // يبقى دفتر السندات كما هو (نفس الدفتر المستخدم للسند الذي حُفظ للتو) بدل الرجوع للدفتر
       // الافتراضي — أكثر ملاءمة عند إدخال عدة سندات متتالية على نفس الدفتر.
-      const bookId = form.vch_book_id ?? defaults.bookId
+      const bookId = record.vch_book_id ?? defaults.bookId
       const code = await generateCode(bookId)
       setForm({
         ...buildInitialForm(voucherType),
@@ -640,10 +741,13 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
         cards: [{ ...emptyCardRow, currency_id: defaults.currencyId }],
       })
       setIsNewMode(true)
-      setDialogOpen(true)
+      setDialogOpen(options?.openDialogAfterSave !== false)
+      return { ok: true, id: Number(saved.id), code: String(saved.vch_code || record.vch_code) }
     } catch (error) {
       console.error(error)
-      setErrorMessages(["فشل في حفظ السند"])
+      const message = error instanceof Error ? error.message : "فشل في حفظ السند"
+      setErrorMessages([message])
+      return { ok: false, error: message }
     } finally {
       setIsSaving(false)
     }
@@ -799,7 +903,7 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-3xl font-bold">{labels.listTitle}</h1>
-        <Button onClick={openNewDialog} className="flex items-center gap-2">
+        <Button onClick={() => void openNewDialog()} className="flex items-center gap-2">
           <Plus className="h-4 w-4" />
           {labels.addLabel}
         </Button>
@@ -1046,6 +1150,7 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
         onPrint={handlePrint}
         onNavigateRecord={handleNavigateRecord}
         onFormChange={(field, value) => setForm((f) => ({ ...f, [field]: value }))}
+        onFormPatch={(patch) => setForm((f) => ({ ...f, ...patch }))}
         onBookChange={handleBookChange}
         onCodeResolved={handleCodeResolved}
         onCodeNotFound={handleCodeNotFound}

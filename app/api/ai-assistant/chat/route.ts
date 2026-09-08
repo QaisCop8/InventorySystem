@@ -1,12 +1,16 @@
 import { streamText, tool } from "ai"
+import { google } from "@ai-sdk/google"
 import { z } from "zod"
 import sql from "@/lib/database"
 export async function POST(request: Request) {
   try {
+    if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
+      return new Response("لم يتم إعداد GOOGLE_GENERATIVE_AI_API_KEY للمساعد الذكي", { status: 503 })
+    }
     const { messages } = await request.json()
 
     const result = streamText({
-      model: "xai/grok-3",
+      model: google("gemini-2.5-flash"),
       messages,
       system: `أنت مساعد ذكي لنظام ERP عربي متقدم. اسمك "مساعد النظام الذكي".
 

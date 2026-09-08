@@ -2477,7 +2477,7 @@ function Definitions() {
                     <form className="space-y-4" onSubmit={handleAddBranch}>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="text-right">
-                          <Label className="erp-label text-right block">رمز الفرع</Label>
+                          <Label className="erp-label text-right block">رقم الفرع</Label>
                           <Input
                             readOnly
                             className="erp-input bg-muted text-right"

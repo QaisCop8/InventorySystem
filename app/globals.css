@@ -274,8 +274,10 @@
 /* Dialogs with UniversalToolbar keep the close action in the toolbar's
    physical left edge. Dialogs without the toolbar retain their normal close
    button placement. */
-[role="dialog"]:has(.universal-toolbar) .universal-toolbar {
+[role="dialog"]:has(.universal-toolbar) .universal-toolbar,
+.voucher-form > .universal-toolbar {
   padding-left: 4.25rem !important;
+  flex-shrink: 0;
 }
 
 [role="dialog"]:has(.universal-toolbar) > .universal-dialog-close {
@@ -403,6 +405,81 @@ td {
 .invoice-source-grid .wj-flexgrid .wj-state-multi-selected {
   background: #d1fae5 !important;
   color: #0f172a !important;
+}
+
+/* Account picker rows keep identical geometry before and after selection. Wijmo
+   otherwise may reuse a measured row height when the selected-row style changes. */
+.account-search-results-grid .wj-flexgrid {
+  border: 0 !important;
+  background: #fff !important;
+}
+
+.account-search-results-grid .wj-flexgrid .wj-cell {
+  height: 48px !important;
+  max-height: 48px !important;
+  min-height: 48px !important;
+  box-sizing: border-box !important;
+  display: flex !important;
+  align-items: center !important;
+  overflow: hidden !important;
+  white-space: nowrap !important;
+  text-overflow: ellipsis !important;
+  border-color: #e2e8f0 !important;
+  padding: 0 14px !important;
+}
+
+.account-search-results-grid .wj-flexgrid .wj-header {
+  background: #f1f5f9 !important;
+  color: #334155 !important;
+  font-weight: 800 !important;
+}
+
+.account-search-results-grid .wj-flexgrid .wj-state-selected,
+.account-search-results-grid .wj-flexgrid .wj-state-multi-selected {
+  height: 48px !important;
+  max-height: 48px !important;
+  min-height: 48px !important;
+  background: #cffafe !important;
+  color: #0f172a !important;
+  box-shadow: inset 4px 0 0 #06b6d4 !important;
+}
+
+.account-search-dialog-shell {
+  container-type: inline-size;
+}
+
+.account-search-workspace {
+  grid-template-columns: minmax(0, 1fr);
+  overflow-y: auto;
+}
+
+.account-search-filter-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@container (min-width: 640px) {
+  .account-search-filter-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@container (min-width: 1050px) {
+  .account-search-workspace {
+    grid-template-columns: 340px minmax(0, 1fr);
+    overflow: hidden;
+  }
+
+  .account-search-filters {
+    min-height: 0;
+    overflow-y: auto;
+    border-bottom: 0;
+    border-left: 1px solid #e2e8f0;
+    padding: 1.25rem;
+  }
+
+  .account-search-filter-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 @media (max-width: 640px) {

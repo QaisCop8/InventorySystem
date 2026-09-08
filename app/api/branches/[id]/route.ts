@@ -30,13 +30,21 @@ export async function PUT(request: NextRequest, context: RouteContext) {
     const branchId = await resolveBranchId(context)
     if (!branchId) return NextResponse.json({ error: "معرف الفرع غير صالح" }, { status: 400 })
     const data = await request.json()
+    const branchCode = String(data.branch_code || "").trim()
+    if (!/^\d{1,4}$/.test(branchCode)) {
+      return NextResponse.json({ error: "رقم الفرع مطلوب ويجب أن يتكون من 1 إلى 4 أرقام فقط" }, { status: 400 })
+    }
     if (!String(data.branch_name || "").trim()) {
       return NextResponse.json({ error: "اسم الفرع مطلوب" }, { status: 400 })
     }
+    if (!Number.isInteger(Number(data.bank_id)) || Number(data.bank_id) <= 0) {
+      return NextResponse.json({ error: "يجب اختيار البنك" }, { status: 400 })
+    }
     const rows = await sql`
       UPDATE branches SET
+        branch_code = ${branchCode},
         branch_name = ${String(data.branch_name).trim()},
-        bank_id = ${data.bank_id ? Number(data.bank_id) : null},
+        bank_id = ${Number(data.bank_id)},
         address = ${data.address || ""},
         manager = ${data.manager || ""},
         phone = ${data.phone || ""},
@@ -49,6 +57,9 @@ export async function PUT(request: NextRequest, context: RouteContext) {
     return NextResponse.json(rows[0])
   } catch (error) {
     console.error("Error updating branch:", error)
+    if ((error as { code?: string })?.code === "23505") {
+      return NextResponse.json({ error: "رقم الفرع مستخدم بالفعل" }, { status: 409 })
+    }
     return NextResponse.json({ error: "فشل في تعديل الفرع" }, { status: 500 })
   }
 }

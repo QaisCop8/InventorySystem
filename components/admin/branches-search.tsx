@@ -118,7 +118,7 @@ export default function BranchesSearch({ open, onOpenChange, branches, bankId, o
     () => ({
       name: "BranchesSearchScheme",
       columns: [
-        { header: "رمز الفرع", name: "branch_code", width: 140, isReadOnly: true },
+        { header: "رقم الفرع", name: "branch_code", width: 140, isReadOnly: true },
         { header: "اسم الفرع", name: "branch_name", width: "*", minWidth: 220, isReadOnly: true },
       ],
     }),
@@ -163,11 +163,11 @@ export default function BranchesSearch({ open, onOpenChange, branches, bankId, o
 
           <div className="grid gap-2 grid-cols-1 sm:grid-cols-2 border-b border-slate-200 pb-3 sm:pb-4" ref={filterContainerRef}>
             <div>
-              <Label className="mb-2 block text-sm font-medium">رمز الفرع</Label>
+              <Label className="mb-2 block text-sm font-medium">رقم الفرع</Label>
               <Input
                 value={codeFilter}
                 onChange={(e) => setCodeFilter(e.target.value)}
-                placeholder="ابحث برمز الفرع"
+                placeholder="ابحث برقم الفرع"
                 className="h-10 rounded-xl border border-slate-200 bg-white text-right shadow-sm focus:border-blue-300 focus:bg-white"
               />
             </div>

@@ -97,7 +97,7 @@ const getAccent = (id?: string): Accent => (id && ACCENTS[id]) || DEFAULT_ACCENT
 // مساحة العمل) دون تكرار نفس القائمة الضخمة — البيانات ثابتة أصلاً، لا تعتمد على أي prop/hook.
 export const menuItems: MenuItem[] = [
   { id: "home-dashboard", title: "الرئيسية", icon: LayoutDashboard, section: "home-dashboard" },
-  //{ id: "ai-assistant", title: "المساعد الذكي", icon: Sparkles, section: "ai-assistant" },
+  { id: "ai-assistant", title: "المساعد الذكي", icon: Sparkles, section: "ai-assistant" },
   { id: "smart-analytics", title: "التحليلات الذكية", icon: BarChart3, section: "smart-analytics" },
   {
     id: "task-orders",

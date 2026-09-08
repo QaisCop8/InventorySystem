@@ -102,6 +102,7 @@ const ConfirmDialogYesNo: React.FC<ConfirmDialogProps> = ({
       className="overflow-hidden rounded-[24px] border border-slate-200/80 shadow-[0_20px_60px_-20px_rgba(15,23,42,0.35)]"
       style={{
         width: isCompact ? "420px" : "520px",
+        maxWidth: "calc(100vw - 2rem)",
         direction: "rtl",
         textAlign: "center",
         background: "linear-gradient(135deg, rgba(255,255,255,0.98), rgba(248,250,252,0.97))",

@@ -260,7 +260,7 @@ export function ChatWidget() {
                 {messages.length === 0 ? (
                   <div className="text-center text-sm text-muted-foreground py-8">لا توجد رسائل بعد</div>
                 ) : (
-                  <div className="flex flex-col gap-2">
+                  <div dir="ltr" className="flex flex-col gap-2">
                     {messages.map((m) => {
                       // مقارنة نصّية صريحة: user_settings.user_id قد يعود كرقم JS من الاستعلامات
                       // (العمود INTEGER في القاعدة رغم استخدامه كمعرّف نصّي في كل مكان آخر بالتطبيق)

@@ -212,6 +212,23 @@ export default function InternalRequestPage() {
     setItems((request.items || []).map((item: any) => { const [baseProductName, ...unitParts] = String(item.item_name || "").split(" - "); return { product_id: item.item_id, product_name: baseProductName, base_product_name: baseProductName, product_image: item.product_image || item.image_url || null, unit_id: item.unit_id, unit_name: item.unit_name || unitParts.join(" - "), quantity: Number(item.qnty), barcode: item.barcode } }))
     setOpen(true)
   }
+  useEffect(() => {
+    const openFromAI = () => {
+      const raw = sessionStorage.getItem("ai_open_document")
+      if (!raw) return
+      try {
+        const target = JSON.parse(raw) as { section?: string; id?: number }
+        if (target.section !== "internal-manufacturing-request" || !target.id) return
+        const request = requests.find((row) => Number(row.id) === Number(target.id))
+        if (!request) return
+        sessionStorage.removeItem("ai_open_document")
+        openExistingRequest(request)
+      } catch { sessionStorage.removeItem("ai_open_document") }
+    }
+    window.addEventListener("ai-open-document", openFromAI)
+    openFromAI()
+    return () => window.removeEventListener("ai-open-document", openFromAI)
+  }, [requests])
   const buildRequestItem = (product: any, barcodeOverride?: string) => {
     const unit = product.units?.find((item: any) => Number(item.unit_id) === Number(product.unit_id)) || product.selected_unit || product.units?.[0] || (product.unit_id ? { unit_id: product.unit_id, unit_name: product.unit_name, barcode: product.barcode } : null)
     return { product_id: product.id, product_name: product.product_name, base_product_name: product.product_name, product_image: product.product_image || product.image_url || product.display_image || null, unit_id: unit?.unit_id, unit_name: unit?.unit_name || product.first_unit || "", quantity: 1, barcode: barcodeOverride || unit?.primary_barcode || unit?.barcode || product.first_barcode || product.barcode || "", properties: product.properties || product.features || product.attributes || null }

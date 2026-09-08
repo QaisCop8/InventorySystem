@@ -157,18 +157,20 @@ export default function UnifiedBranches({
 
             <div className="grid gap-4 py-4">
               <div className="grid gap-2">
-                <Label htmlFor="branch-code">رمز الفرع</Label>
+                <Label htmlFor="branch-code">رقم الفرع</Label>
                 <Input
                   id="branch-code"
                   value={form.branch_code}
-                  readOnly
-                  placeholder="يتم توليده تلقائياً"
-                  className="bg-muted"
+                  onChange={(e) => onFormChange("branch_code", e.target.value.replace(/\D/g, "").slice(0, 4))}
+                  placeholder="أدخل رقماً من 1 إلى 4 خانات"
                   ref={codeInputRef}
                   maxLength={4}
+                  inputMode="numeric"
+                  pattern="[0-9]{1,4}"
+                  autoComplete="off"
                 />
                 {showBranchCodeValidationError && (
-                  <p className="text-sm text-destructive">يجب إدخال رمز فرع رقمي فقط.</p>
+                  <p className="text-sm text-destructive">رقم الفرع مطلوب ويجب أن يتكون من 1 إلى 4 أرقام فقط.</p>
                 )}
                 {hasDuplicateCode && (
                   <p className="text-sm text-destructive">هذا الرمز مستخدم بالفعل. الرجاء اختيار رمز آخر.</p>
@@ -195,6 +197,9 @@ export default function UnifiedBranches({
                   onChange={(e) => onFormChange("bank_id", e.target.value ? Number(e.target.value) : null)}
                   className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
                 >
+                  <option value="" disabled>
+                    اختر البنك
+                  </option>
                   {banks.length > 0 ? (
                     banks.map((bank) => (
                       <option key={bank.id} value={bank.id}>

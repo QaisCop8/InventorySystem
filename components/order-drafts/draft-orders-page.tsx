@@ -33,6 +33,27 @@ export function DraftOrdersPage() {
   }
   useEffect(() => { void load() }, [])
 
+  useEffect(() => {
+    const openFromAI = async () => {
+      const raw = sessionStorage.getItem("ai_open_document")
+      if (!raw) return
+      try {
+        const target = JSON.parse(raw) as { section?: string; id?: number }
+        if (target.section !== "draft-sales-order" || !target.id) return
+        const response = await fetch(`/api/order-drafts/${target.id}`)
+        const draft = await response.json()
+        if (!response.ok) return
+        sessionStorage.removeItem("ai_open_document")
+        setEditingDraft(draft)
+        setReadOnly(draft.status !== "draft")
+        setOpen(true)
+      } catch { sessionStorage.removeItem("ai_open_document") }
+    }
+    window.addEventListener("ai-open-document", openFromAI)
+    void openFromAI()
+    return () => window.removeEventListener("ai-open-document", openFromAI)
+  }, [])
+
   const visible = useMemo(() => {
     const term = search.trim().toLowerCase()
     return drafts.filter((draft) => {

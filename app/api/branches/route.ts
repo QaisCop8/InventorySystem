@@ -50,32 +50,37 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const data = await request.json()
+    const branchCode = String(data.branch_code || "").trim()
 
-    if (!data.branch_name) {
+    if (!/^\d{1,4}$/.test(branchCode)) {
+      return NextResponse.json({ error: "رقم الفرع مطلوب ويجب أن يتكون من 1 إلى 4 أرقام فقط" }, { status: 400 })
+    }
+    if (!String(data.branch_name || "").trim()) {
       return NextResponse.json({ error: "اسم الفرع مطلوب" }, { status: 400 })
     }
-
+    if (!Number.isInteger(Number(data.bank_id)) || Number(data.bank_id) <= 0) {
+      return NextResponse.json({ error: "يجب اختيار البنك" }, { status: 400 })
+    }
     const result = await sql`
-      WITH next_branch AS (
-        SELECT nextval(pg_get_serial_sequence('branches', 'id')) AS id
-      )
-      INSERT INTO branches (id, branch_code, branch_name, bank_id, address, manager, phone, status)
-      SELECT
-        id,
-        LPAD(id::text, 4, '0'),
-        ${data.branch_name},
-        ${data.bank_id || null},
+      INSERT INTO branches (branch_code, branch_name, bank_id, address, manager, phone, status)
+      VALUES (
+        ${branchCode},
+        ${String(data.branch_name).trim()},
+        ${Number(data.bank_id)},
         ${data.address || ""},
         ${data.manager || ""},
         ${data.phone || ""},
         ${Number(data.status || 1)}
-      FROM next_branch
+      )
       RETURNING id, branch_code, branch_name, bank_id, address, manager, phone, status
     `
 
     return NextResponse.json(result[0], { status: 201 })
   } catch (error) {
     console.error("Error creating branch:", error)
+    if ((error as { code?: string })?.code === "23505") {
+      return NextResponse.json({ error: "رقم الفرع مستخدم بالفعل" }, { status: 409 })
+    }
     return NextResponse.json({ error: "Failed to create branch" }, { status: 500 })
   }
 }
@@ -83,16 +88,27 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const data = await request.json()
+    const branchCode = String(data.branch_code || "").trim()
 
     if (!data.id) {
       return NextResponse.json({ error: "معرف الفرع مطلوب" }, { status: 400 })
     }
+    if (!/^\d{1,4}$/.test(branchCode)) {
+      return NextResponse.json({ error: "رقم الفرع مطلوب ويجب أن يتكون من 1 إلى 4 أرقام فقط" }, { status: 400 })
+    }
+    if (!String(data.branch_name || "").trim()) {
+      return NextResponse.json({ error: "اسم الفرع مطلوب" }, { status: 400 })
+    }
+    if (!Number.isInteger(Number(data.bank_id)) || Number(data.bank_id) <= 0) {
+      return NextResponse.json({ error: "يجب اختيار البنك" }, { status: 400 })
+    }
 
     const result = await sql`
       UPDATE branches
-      SET 
-        branch_name = ${data.branch_name},
-        bank_id = ${data.bank_id || null},
+      SET
+        branch_code = ${branchCode},
+        branch_name = ${String(data.branch_name).trim()},
+        bank_id = ${Number(data.bank_id)},
         address = ${data.address || ""},
         manager = ${data.manager || ""},
         phone = ${data.phone || ""},
@@ -109,6 +125,9 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json(result[0])
   } catch (error) {
     console.error("Error updating branch:", error)
+    if ((error as { code?: string })?.code === "23505") {
+      return NextResponse.json({ error: "رقم الفرع مستخدم بالفعل" }, { status: 409 })
+    }
     return NextResponse.json({ error: "Failed to update branch" }, { status: 500 })
   }
 }

@@ -172,6 +172,7 @@ interface UnifiedReceiptVoucherProps {
   onPrint?: () => void
   onNavigateRecord?: (record: VoucherRecord) => void
   onFormChange: (field: string, value: string | number | null | JournalCostCenterSelection[]) => void
+  onFormPatch?: (patch: Partial<VoucherRecord>) => void
   onBookChange?: (bookId: number | null) => void
   onCodeResolved?: (id: number) => void
   onCodeNotFound?: (code: string) => void
@@ -362,6 +363,7 @@ export default function UnifiedReceiptVoucher({
   onPrint,
   onNavigateRecord,
   onFormChange,
+  onFormPatch,
   onBookChange,
   onCodeResolved,
   onCodeNotFound,
@@ -523,13 +525,24 @@ export default function UnifiedReceiptVoucher({
   }
 
   const initialFormHashRef = useRef<number>(hashForm(form))
+  const latestFormRef = useRef(form)
+  latestFormRef.current = form
   const [showUnsavedConfirm, setShowUnsavedConfirm] = useState(false)
   const pendingActionRef = useRef<(() => void) | null>(null)
+  const codeAtFocusRef = useRef(form.vch_code)
+  const codeRequestRef = useRef(0)
 
   useEffect(() => {
+    codeRequestRef.current += 1
+    codeAtFocusRef.current = form.vch_code
+  }, [dialogOpen, form.id])
+
+  useEffect(() => {
+    // Child controls populate defaults immediately after a record opens. Capture the
+    // settled form so those initialization changes do not block close/navigation.
     const snapshotTimer = window.setTimeout(() => {
-      initialFormHashRef.current = hashForm(form)
-    }, 0)
+      initialFormHashRef.current = hashForm(latestFormRef.current)
+    }, 350)
     setActiveTab("main")
     return () => window.clearTimeout(snapshotTimer)
     // لا تعتمد على form.vch_code هنا: كل حرف يكتبه المستخدم كان يعيد ضبط لقطة التغييرات غير
@@ -538,6 +551,7 @@ export default function UnifiedReceiptVoucher({
   }, [dialogOpen, form.id, isNewMode])
 
   const guardedAction = (action: () => void) => {
+    codeRequestRef.current += 1
     if (showUnsavedConfirm) return
     if (hashForm(form) !== initialFormHashRef.current) {
       pendingActionRef.current = action
@@ -552,12 +566,14 @@ export default function UnifiedReceiptVoucher({
   // وجود تعديلات غير محفوظة في السند الحالي)، أو تُصفَّر كل الحقول والشبكات لسند جديد بهذا الرقم.
   const handleCodeBlur = async () => {
     const raw = form.vch_code.trim()
-    if (!raw) return
+    if (!raw || raw === codeAtFocusRef.current.trim()) return
+    const requestId = ++codeRequestRef.current
     try {
       const query = new URLSearchParams({ vch_type: String(form.vch_type), raw })
       if (form.vch_book_id) query.set("vch_book_id", String(form.vch_book_id))
       const response = await fetch(`/api/receipts/resolve-code?${query.toString()}`)
       const data = await response.json()
+      if (requestId !== codeRequestRef.current) return
       if (!response.ok) {
         messagesRef.current?.show?.([{ severity: "error", summary: "", detail: data.error || "تعذر تحديد رقم السند", life: 3000 }])
         return
@@ -643,6 +659,7 @@ export default function UnifiedReceiptVoucher({
   )
 
   const handleNavigate = async (direction: "first" | "previous" | "next" | "last") => {
+    codeRequestRef.current += 1
     setNavLoading(true)
     try {
       const currentId = form.id > 0 ? form.id : 0
@@ -655,9 +672,11 @@ export default function UnifiedReceiptVoucher({
       query.set("vch_type", String(form.vch_type))
 
       const response = await fetch(`/api/receipts/navigation/${effectiveDirection}?${query.toString()}`)
-      if (!response.ok) return
-
       const record = await response.json()
+      if (!response.ok) {
+        messagesRef.current?.show?.([{ severity: "error", summary: "", detail: record.error || "تعذر التنقل بين السندات", life: 3000 }])
+        return
+      }
       if (record?.id) onNavigateRecord?.(record)
     } catch (error) {
       console.error("Failed to navigate voucher", error)
@@ -1638,20 +1657,48 @@ export default function UnifiedReceiptVoucher({
   // <= تاريخ السند من exchange_rates)، وتحميل الحسابات الافتراضية للمستخدم الحالي لهذه العملة
   // من users_currencies_default_account_tbl.
   const handleCurrencyChange = async (newCurrencyId: number | null) => {
-    onFormChange("currency_id", newCurrencyId)
+    const currencyId = newCurrencyId == null ? null : Number(newCurrencyId)
+    onFormChange("currency_id", currencyId)
 
-    if (card.card_type_id && !cardTypes.some((t) => t.id === card.card_type_id && Number(t.currency_id) === newCurrencyId)) {
+    if (card.card_type_id && !cardTypes.some((t) => t.id === card.card_type_id && Number(t.currency_id) === currencyId)) {
       patchCard({ card_type_id: null, card_type_name: "", account_id: null, account_code: "", account_name: "", currency_id: null })
     }
 
-    if (!newCurrencyId) return
+    if (!currencyId) return
 
-    if (newCurrencyId === baseCurrencyId) {
+    // Populate the configured accounts before looking up the exchange rate, so an
+    // exchange-rate failure cannot leave the fund account fields empty.
+    if (user?.id) {
+      try {
+        const response = await fetch(`/api/settings/users-currencies-default?user_id=${encodeURIComponent(user.id)}`)
+        const data = response.ok ? await response.json() : null
+        const row = Array.isArray(data?.rows) ? data.rows.find((r: any) => Number(r.currency_id) === currencyId) : null
+        const accountId = (value: unknown) => {
+          const id = Number(value)
+          return Number.isInteger(id) && id > 0 ? id : null
+        }
+        const accountPatch = {
+          cash_account_id: accountId(row?.cash_account_id),
+          check_account_id: accountId(row?.incoming_checks_account_id),
+          credit_card_account_id: accountId(row?.card_account_id),
+        }
+        if (onFormPatch) onFormPatch(accountPatch)
+        else {
+          onFormChange("cash_account_id", accountPatch.cash_account_id)
+          onFormChange("check_account_id", accountPatch.check_account_id)
+          onFormChange("credit_card_account_id", accountPatch.credit_card_account_id)
+        }
+      } catch (error) {
+        console.error("Failed to fetch default accounts for currency", error)
+      }
+    }
+
+    if (currencyId === baseCurrencyId) {
       onFormChange("rate", 1)
     } else {
       try {
         const query = new URLSearchParams({
-          currency_id: String(newCurrencyId),
+          currency_id: String(currencyId),
           date: form.vch_date ? form.vch_date.slice(0, 10) : "",
         })
         const response = await fetch(`/api/exchange-rates/lookup?${query.toString()}`)
@@ -1663,18 +1710,6 @@ export default function UnifiedReceiptVoucher({
       }
     }
 
-    if (user?.id) {
-      try {
-        const response = await fetch(`/api/settings/users-currencies-default?user_id=${encodeURIComponent(user.id)}`)
-        const data = response.ok ? await response.json() : null
-        const row = Array.isArray(data?.rows) ? data.rows.find((r: any) => Number(r.currency_id) === newCurrencyId) : null
-        onFormChange("cash_account_id", row?.cash_account_id ?? null)
-        onFormChange("check_account_id", row?.incoming_checks_account_id ?? null)
-        onFormChange("credit_card_account_id", row?.card_account_id ?? null)
-      } catch (error) {
-        console.error("Failed to fetch default accounts for currency", error)
-      }
-    }
   }
 
   // ---- ملاحظات ----
@@ -1779,11 +1814,12 @@ export default function UnifiedReceiptVoucher({
     <>
       <Dialog
         open={dialogOpen}
-        onOpenChange={(open) => (open ? onOpenChange(true) : guardedAction(() => onOpenChange(false)))}
+        modal={showUnsavedConfirm || showDeleteConfirm || postDialogOpen ? false : undefined}
+        onOpenChange={(open) => (open ? onOpenChange(true) : onOpenChange(false))}
       >
         <DialogContent
           inline={fullscreenEnabled && dialogOpen}
-          className="voucher-form flex min-h-[80vh] w-full max-w-[1850px] flex-col overflow-hidden p-0"
+          className="voucher-form flex h-[90dvh] min-h-0 w-full max-w-[1850px] flex-col overflow-hidden p-0"
           hideCloseButton
           dir="rtl"
           onPointerDownOutside={(event) => event.preventDefault()}
@@ -1796,7 +1832,10 @@ export default function UnifiedReceiptVoucher({
           <button
             type="button"
             aria-label="إغلاق"
-            onClick={() => guardedAction(() => onOpenChange(false))}
+            onClick={() => {
+              codeRequestRef.current += 1
+              onOpenChange(false)
+            }}
             className="universal-dialog-close absolute left-[14px] top-[10px] z-[100] inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/95 text-slate-900 shadow-lg ring-1 ring-slate-200 transition-opacity hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-sky-400 focus:ring-offset-2"
           >
             <X className="h-4 w-4" />
@@ -1809,11 +1848,13 @@ export default function UnifiedReceiptVoucher({
             onDelete={onDelete}
             onClone={onClone}
             onPrint={onPrint}
-            onFirst={() => guardedAction(() => void handleNavigate("first"))}
-            onPrevious={() => guardedAction(() => void handleNavigate("previous"))}
-            onNext={() => guardedAction(() => void handleNavigate("next"))}
-            onLast={() => guardedAction(() => void handleNavigate("last"))}
+            onFirst={() => void handleNavigate("first")}
+            onPrevious={() => void handleNavigate("previous")}
+            onNext={() => void handleNavigate("next")}
+            onLast={() => void handleNavigate("last")}
             isSaving={isSaving}
+            isLoading={navLoading}
+            isNewRecord={form.id <= 0}
             canSave={canSave && form.status !== 2 && form.status !== 3}
             canDelete={form.id > 0 && form.status !== 3}
             canClone={form.id > 0}
@@ -1823,7 +1864,7 @@ export default function UnifiedReceiptVoucher({
           />
 
           <div
-            className="relative min-h-0 flex-1 overflow-x-hidden overflow-y-auto rounded-b-3xl bg-slate-50/60 px-6 py-4"
+            className="relative min-h-0 flex-1 overflow-x-hidden overflow-y-auto rounded-b-3xl bg-slate-50/60 px-2 py-4 sm:px-6"
             onKeyDown={handleFormEnterAsTab}
           >
             <ProgressSpinner loading={isSaving || navLoading} />
@@ -1887,6 +1928,7 @@ export default function UnifiedReceiptVoucher({
                       <Input
                         id="vch-code"
                         value={form.vch_code}
+                        onFocus={() => { codeAtFocusRef.current = form.vch_code }}
                         onChange={(e) => onFormChange("vch_code", normalizeVoucherCode(e.target.value))}
                         onBlur={handleCodeBlur}
                         maxLength={10}

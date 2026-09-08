@@ -109,7 +109,10 @@ export function UniversalToolbar({
   useEffect(() => {
     const element = toolbarRef.current;
     if (!element) return;
-    const updateWidth = () => setCompactWidth(element.clientWidth);
+    const updateWidth = () => {
+      const style = window.getComputedStyle(element);
+      setCompactWidth(element.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight));
+    };
     updateWidth();
     const observer = new ResizeObserver(updateWidth);
     observer.observe(element);
@@ -136,7 +139,7 @@ export function UniversalToolbar({
     + (onReport ? 115 : 0)
     + (onExportExcel ? 145 : 0)
     + (onLast ? 130 : 0);
-  const useCompactToolbar = compactWidth > 0 && compactWidth < requiredFullWidth;
+  const useCompactToolbar = compactWidth < requiredFullWidth;
   const compactActions = [onPrint, onClone, onFirst, onPrevious, onNext, onLast, onDelete];
   const hasHiddenCompactActions = compactActions.some((action, index) => Boolean(action) && !compactActionVisible(index));
   const hasOverflowActions = hasHiddenCompactActions || Boolean(onReport) || Boolean(onExportExcel);
@@ -179,8 +182,8 @@ export function UniversalToolbar({
       dir="rtl"
     >
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(14,165,233,0.18),_transparent_42%),radial-gradient(circle_at_bottom_left,_rgba(16,185,129,0.18),_transparent_40%)]" />
-      <div className="relative flex min-w-0 flex-nowrap items-center justify-start gap-2">
-        <div className={useCompactToolbar ? "order-last flex min-w-0 flex-nowrap items-center gap-2" : "hidden"}>
+      <div className="relative flex min-w-0 flex-wrap items-center justify-start gap-2">
+        <div className={useCompactToolbar ? "order-last flex min-w-0 flex-wrap items-center gap-2" : "hidden"}>
           {onNew && (
             <Button
               className="group inline-flex shrink-0 items-center gap-2 rounded-xl border border-emerald-400/30 bg-gradient-to-r from-emerald-500 to-teal-500 px-3 py-2.5 text-sm font-semibold text-white shadow-[0_12px_24px_-12px_rgba(16,185,129,0.95)]"

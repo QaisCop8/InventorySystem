@@ -12,6 +12,7 @@ import Messages from "@/components/common/Messages"
 import AccountSearchDialog from "@/components/customer/account-search-dialog"
 import StoresSearchPopup from "@/components/products/StoresSearchPopup"
 import { ChevronDown, ChevronUp, Search, Eraser } from "lucide-react"
+import { KeyAction } from "@grapecity/wijmo.grid"
 
 type WarehouseField = "default_item_warehouse_id" | "finished_goods_warehouse_id" | "raw_materials_warehouse_id"
 
@@ -225,6 +226,75 @@ export default function VirtualAccounts() {
     setRows(nextRows)
   }, [currencies, userCurrencyMappings])
 
+  const accountColumns = [
+    { name: 'cash_account_display', field: 'cash_account' },
+    { name: 'incoming_checks_account_display', field: 'incoming_checks_account' },
+    { name: 'returned_checks_account_display', field: 'returned_checks_account' },
+    { name: 'card_account_display', field: 'card_account' },
+  ] as const
+
+  const openAccountSearch = (rowIndex: number, field: (typeof accountColumns)[number]['field']) => {
+    if (!selectedUser) {
+      showErrorMessage('اختر مستخدما اولا')
+      return
+    }
+    setSelectedRowIndex(rowIndex)
+    setSelectedField(field)
+    setAccountDialogOpen(true)
+  }
+
+  // Enter and Tab move through account cells in row order. Shift reverses the
+  // direction. F2 opens account search and Delete clears the selected account.
+  const handleGridKeyDown = (grid: any, event: KeyboardEvent) => {
+    if (!selectedUser || !grid?.selection || !event) return
+    const row = grid.selection.row
+    const col = grid.selection.col
+    if (row < 0 || col < 0) return
+    const binding = grid.columns?.[col]?.binding
+    const accountColumnIndex = accountColumns.findIndex((item) => item.name === binding)
+
+    if (event.key === 'F2' && accountColumnIndex >= 0) {
+      event.preventDefault()
+      event.stopPropagation()
+      openAccountSearch(row, accountColumns[accountColumnIndex].field)
+      return
+    }
+
+    if (event.key === 'Delete' && accountColumnIndex >= 0) {
+      event.preventDefault()
+      const field = accountColumns[accountColumnIndex].field
+      const idField = field === 'cash_account'
+        ? 'cash_account_id'
+        : field === 'incoming_checks_account'
+          ? 'incoming_checks_account_id'
+          : field === 'returned_checks_account'
+            ? 'returned_checks_account_id'
+            : 'card_account_id'
+      setRows((current) => current.map((item, index) => index === row ? { ...item, [idField]: null, [binding]: '' } : item))
+      return
+    }
+
+    if (event.key !== 'Enter' && event.key !== 'Tab') return
+    event.preventDefault()
+    event.stopPropagation()
+
+    let position = accountColumnIndex >= 0 ? accountColumnIndex : (event.shiftKey ? accountColumns.length : -1)
+    let targetRow = row
+    position += event.shiftKey ? -1 : 1
+    if (position >= accountColumns.length) {
+      position = 0
+      targetRow += 1
+    } else if (position < 0) {
+      position = accountColumns.length - 1
+      targetRow -= 1
+    }
+    if (targetRow < 0 || targetRow >= grid.rows.length) return
+    const targetCol = grid.columns.findIndex((column: any) => column.binding === accountColumns[position].name)
+    if (targetCol < 0) return
+    grid.select(targetRow, targetCol)
+    grid.focus()
+  }
+
   const scheme = useMemo(() => ({
     name: 'UserCurrencyAccounts',
     allowGrouping: false,
@@ -242,15 +312,13 @@ export default function VirtualAccounts() {
         iconType: 'search',
         className: 'btn-search',
         isReadOnly: true,
-        onClick: (e, ctx) => {
+        onClick: (e: any, ctx: any) => {
           e.stopPropagation()
           if (!selectedUser) {
             showErrorMessage('اختر مستخدما اولا')
             return
           }
-          setSelectedRowIndex(ctx.row.index)
-          setSelectedField('cash_account')
-          setAccountDialogOpen(true)
+          openAccountSearch(ctx.row.index, 'cash_account')
         },
       },
       {
@@ -263,7 +331,7 @@ export default function VirtualAccounts() {
         iconType: 'delete',
         className: 'btn-delete',
         isReadOnly: true,
-        onClick: (e, ctx) => {
+        onClick: (e: any, ctx: any) => {
           e.stopPropagation()
           setRows((prev) => prev.map((r, i) => (i === ctx.row.index ? { ...r, cash_account_id: null, cash_account_display: '' } : r)))
         },
@@ -279,15 +347,13 @@ export default function VirtualAccounts() {
         iconType: 'search',
         className: 'btn-search',
         isReadOnly: true,
-        onClick: (e, ctx) => {
+        onClick: (e: any, ctx: any) => {
           e.stopPropagation()
           if (!selectedUser) {
             showErrorMessage('اختر مستخدما اولا')
             return
           }
-          setSelectedRowIndex(ctx.row.index)
-          setSelectedField('incoming_checks_account')
-          setAccountDialogOpen(true)
+          openAccountSearch(ctx.row.index, 'incoming_checks_account')
         },
       },
       {
@@ -300,7 +366,7 @@ export default function VirtualAccounts() {
         iconType: 'delete',
         className: 'btn-delete',
         isReadOnly: true,
-        onClick: (e, ctx) => {
+        onClick: (e: any, ctx: any) => {
           e.stopPropagation()
           setRows((prev) => prev.map((r, i) => (i === ctx.row.index ? { ...r, incoming_checks_account_id: null, incoming_checks_account_display: '' } : r)))
         },
@@ -316,15 +382,13 @@ export default function VirtualAccounts() {
         iconType: 'search',
         className: 'btn-search',
         isReadOnly: true,
-        onClick: (e, ctx) => {
+        onClick: (e: any, ctx: any) => {
           e.stopPropagation()
           if (!selectedUser) {
             showErrorMessage('اختر مستخدما اولا')
             return
           }
-          setSelectedRowIndex(ctx.row.index)
-          setSelectedField('returned_checks_account')
-          setAccountDialogOpen(true)
+          openAccountSearch(ctx.row.index, 'returned_checks_account')
         },
       },
       {
@@ -337,7 +401,7 @@ export default function VirtualAccounts() {
         iconType: 'delete',
         className: 'btn-delete',
         isReadOnly: true,
-        onClick: (e, ctx) => {
+        onClick: (e: any, ctx: any) => {
           e.stopPropagation()
           setRows((prev) => prev.map((r, i) => (i === ctx.row.index ? { ...r, returned_checks_account_id: null, returned_checks_account_display: '' } : r)))
         },
@@ -353,15 +417,13 @@ export default function VirtualAccounts() {
         iconType: 'search',
         className: 'btn-search',
         isReadOnly: true,
-        onClick: (e, ctx) => {
+        onClick: (e: any, ctx: any) => {
           e.stopPropagation()
           if (!selectedUser) {
             showErrorMessage('اختر مستخدما اولا')
             return
           }
-          setSelectedRowIndex(ctx.row.index)
-          setSelectedField('card_account')
-          setAccountDialogOpen(true)
+          openAccountSearch(ctx.row.index, 'card_account')
         },
       },
       {
@@ -374,7 +436,7 @@ export default function VirtualAccounts() {
         iconType: 'delete',
         className: 'btn-delete',
         isReadOnly: true,
-        onClick: (e, ctx) => {
+        onClick: (e: any, ctx: any) => {
           e.stopPropagation()
           setRows((prev) => prev.map((r, i) => (i === ctx.row.index ? { ...r, card_account_id: null, card_account_display: '' } : r)))
         },
@@ -382,7 +444,7 @@ export default function VirtualAccounts() {
     ],
   }), [selectedUser])
 
-  const handleAccountSelect = (account) => {
+  const handleAccountSelect = (account: { id: number; code: string; name: string }) => {
     if (selectedRowIndex < 0 || !selectedField) return
 
     setRows((prev) =>
@@ -483,24 +545,42 @@ export default function VirtualAccounts() {
         </div>
       </div>
 
-      <Card className="w-full">
-        <CardHeader>
-          <CardTitle>حسابات الصناديق والبنوك الافتراضية</CardTitle>
+      <Card className="w-full overflow-hidden border-slate-200 shadow-sm">
+        <CardHeader className="border-b border-slate-200 bg-gradient-to-l from-slate-900 via-slate-800 to-slate-900 px-6 py-5 text-white">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <CardTitle className="text-lg text-white">حسابات الصناديق والبنوك الافتراضية</CardTitle>
+              <p className="mt-1 text-xs text-slate-300">Enter أو Tab للتنقل، Shift للرجوع، F2 للبحث، وDelete للمسح</p>
+            </div>
+            <div className="rounded-full bg-white/10 px-3 py-1 text-xs text-slate-200 ring-1 ring-white/15">{rows.length} عملات</div>
+          </div>
         </CardHeader>
-        <CardContent className="flex flex-col p-0">
+        <CardContent className="flex flex-col bg-slate-50/70 p-0">
           <div className="px-6 pt-6">
             <Messages innerRef={messagesRef} />
           </div>
-          <div className="relative mt-4 overflow-hidden rounded-md border border-slate-300 bg-white" style={{ height: '260px' }}>
+          <div className="relative m-4 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm" style={{ height: `${Math.max(170, Math.min(420, 94 + rows.length * 46))}px` }}>
             <div className="h-full w-full overflow-hidden">
               <DataGridView
-                className="h-full w-full"
+                className="h-full w-full border-0 [&_.wj-cell]:!border-slate-200 [&_.wj-cell]:!px-3 [&_.wj-cell]:!text-sm [&_.wj-header]:!bg-slate-800 [&_.wj-header]:!font-bold [&_.wj-header]:!text-white [&_.wj-state-selected]:!bg-emerald-100 [&_.wj-state-selected]:!text-emerald-950"
                 scheme={scheme}
                 dataSource={rows}
                 innerRef={gridRef}
                 isReadOnly={!selectedUser}
-                defaultRowHeight={34}
+                defaultRowHeight={44}
                 autoRowHeights={false}
+                columnHeaderHeight={46}
+                onKeyDownCapture={(grid: any, event: KeyboardEvent) => handleGridKeyDown(grid, event)}
+                onRowDoubleClick={(_row: any, selection: any) => {
+                  const control = gridRef.current?.control || gridRef.current
+                  const binding = control?.columns?.[selection?.col]?.binding
+                  const accountColumn = accountColumns.find((item) => item.name === binding)
+                  if (accountColumn && selection?.row >= 0) openAccountSearch(selection.row, accountColumn.field)
+                }}
+                keyActionEnter={KeyAction.None}
+                keyActionTab={KeyAction.None}
+                dontConvertToCards
+                showContextMenu={false}
                 containerStyle={{ height: '100%', minHeight: 0, maxHeight: '100%' }}
                 style={{ height: '100%', minHeight: 0, maxHeight: '100%', width: '100%' }}
               />
