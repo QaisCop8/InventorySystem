@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
     const toDate = date(p.get("to_date"), today)
     const accountIds = ids(p.get("account_ids")), currencyIds = ids(p.get("currency_ids")), branchIds = ids(p.get("branch_ids")), salesmanIds = ids(p.get("salesman_ids")), voucherTypes = ids(p.get("voucher_types"))
     const level = Math.max(0, Number(p.get("level")) || 0)
-    const status = ["all","draft","posted"].includes(p.get("status") || "") ? p.get("status")! : "posted"
+    const status = ["all","draft","posted"].includes(p.get("status") || "") ? p.get("status")! : "all"
     const includeZero = p.get("include_zero") === "1", baseCurrency = p.get("base_currency") === "1", showCounter = p.get("show_counter_accounts") === "1"
     const memberships = await sql`SELECT branch_id FROM user_branches WHERE user_id=${user.user_id}`
     const permitted = memberships.map((row:any)=>Number(row.branch_id)).filter(Number.isFinite)

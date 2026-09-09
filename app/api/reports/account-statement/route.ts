@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
     const today = new Date().toISOString().slice(0, 10)
     const fromDate = validDate(params.get("from_date"), `${today.slice(0, 4)}-01-01`)
     const toDate = validDate(params.get("to_date"), today)
-    const status = ["all", "draft", "posted"].includes(params.get("status") || "") ? params.get("status")! : "posted"
+    const status = ["all", "draft", "posted"].includes(params.get("status") || "") ? params.get("status")! : "all"
     const useBaseCurrency = params.get("base_currency") === "1"
     const showCounterAccounts = params.get("show_counter_accounts") === "1"
     const showCheques = kind === "receivables" && params.get("show_cheques") === "1"

@@ -1,5 +1,7 @@
 "use client"
 
+import { useVoucherDeepLink } from "@/hooks/use-voucher-deep-link"
+
 import { useEffect, useMemo, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -506,10 +508,15 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
       setForm(normalizeVoucher(details))
       setCurrentIndex(index >= 0 ? index : 0)
       setErrorMessages([])
+      return true
     } finally {
       setIsLoading(false)
     }
   }
+
+  useVoucherDeepLink(async id => {
+    if (await handleCodeResolved(id)) setDialogOpen(true)
+  }, Boolean(user?.id), voucherType)
 
   const handleCodeNotFound = (code: string) => {
     setForm((f) => ({

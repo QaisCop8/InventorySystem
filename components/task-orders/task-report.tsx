@@ -1,5 +1,7 @@
 "use client"
 
+import { ReportFilters } from "@/components/reports/report-filters"
+
 import { useEffect, useMemo, useState } from "react"
 import { useToast } from "@/hooks/use-toast"
 import { Button } from "@/components/ui/button"
@@ -136,7 +138,7 @@ export function TaskReport() {
         </Card>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
+      <ReportFilters><div className="flex flex-wrap items-center gap-2">
         <div className="relative w-64">
           <Search className="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="بحث برقم الصنف أو العنوان" className="pr-8" />
@@ -166,10 +168,10 @@ export function TaskReport() {
             ))}
           </SelectContent>
         </Select>
-        <Button variant="outline" size="icon" onClick={fetchItems} title="تحديث">
+        <Button data-report-apply variant="outline" size="icon" onClick={fetchItems} title="تحديث">
           <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
         </Button>
-      </div>
+      </div></ReportFilters>
 
       <Card>
         <CardContent className="p-0">

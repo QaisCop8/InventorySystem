@@ -1,5 +1,7 @@
 "use client"
 
+import { ReportFilters } from "@/components/reports/report-filters"
+
 import { useState, useEffect, useMemo } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -273,13 +275,8 @@ export function LotInventoryReport() {
       </div>
 
       {/* Filters */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Filter className="h-5 w-5" />
-            البحث والتصفية
-          </CardTitle>
-        </CardHeader>
+      <ReportFilters>
+
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-4">
             <div>
@@ -388,7 +385,7 @@ export function LotInventoryReport() {
             </div>
           </div>
         </CardContent>
-      </Card>
+      </ReportFilters>
 
       {/* Report Table */}
       <Card>

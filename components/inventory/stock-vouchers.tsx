@@ -1,5 +1,7 @@
 "use client"
 
+import { useVoucherDeepLink } from "@/hooks/use-voucher-deep-link"
+
 import { useEffect, useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -365,6 +367,7 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
       setCurrentIndex(index >= 0 ? index : 0)
       setErrorMessages([])
       setDialogOpen(true)
+      return true
     } finally {
       setIsLoading(false)
     }
@@ -372,6 +375,10 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
 
   // رقم لا يخص أي سند محفوظ -> تصفير كل الحقول والشبكات لسند جديد بهذا الرقم، مع إبقاء دفتر
   // السندات والعملة الحاليين لأنهما جزء من السياق الذي أُنشئ منه الرقم نفسه.
+  useVoucherDeepLink(async id => {
+    if (await handleCodeResolved(id)) setDialogOpen(true)
+  }, Boolean(user?.id), voucherType)
+
   const handleCodeNotFound = (code: string) => {
     setForm((f) => ({
       ...buildInitialForm(voucherType),

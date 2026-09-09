@@ -1,4 +1,5 @@
 "use client"
+import { useVoucherDeepLink } from "@/hooks/use-voucher-deep-link"
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
@@ -229,6 +230,11 @@ export default function InternalRequestPage() {
     openFromAI()
     return () => window.removeEventListener("ai-open-document", openFromAI)
   }, [requests])
+  useVoucherDeepLink(id => {
+    const request = requests.find(row => Number(row.id) === id)
+    if (request) openExistingRequest(request)
+  }, requests.length > 0, 20)
+
   const buildRequestItem = (product: any, barcodeOverride?: string) => {
     const unit = product.units?.find((item: any) => Number(item.unit_id) === Number(product.unit_id)) || product.selected_unit || product.units?.[0] || (product.unit_id ? { unit_id: product.unit_id, unit_name: product.unit_name, barcode: product.barcode } : null)
     return { product_id: product.id, product_name: product.product_name, base_product_name: product.product_name, product_image: product.product_image || product.image_url || product.display_image || null, unit_id: unit?.unit_id, unit_name: unit?.unit_name || product.first_unit || "", quantity: 1, barcode: barcodeOverride || unit?.primary_barcode || unit?.barcode || product.first_barcode || product.barcode || "", properties: product.properties || product.features || product.attributes || null }

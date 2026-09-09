@@ -1,5 +1,7 @@
 ﻿"use client"
 
+import { ReportFilters } from "@/components/reports/report-filters"
+
 import { useState, useEffect, useMemo, useCallback } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -212,13 +214,8 @@ export function OrderReports() {
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">{filteredSummaryCards}</div>
 
-      <Card className="erp-card shadow-sm">
-        <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-t-lg">
-          <CardTitle className="flex items-center text-blue-800">
-            <Search className="h-5 w-5 ml-2" />
-            فلاتر التقارير
-          </CardTitle>
-        </CardHeader>
+      <ReportFilters>
+
         <CardContent className="pt-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-4">
             <div>
@@ -281,7 +278,7 @@ export function OrderReports() {
             </div>
           </div>
           <div className="flex gap-2 flex-wrap">
-            <Button onClick={applyFilters} className="bg-blue-600 hover:bg-blue-700 text-white">
+            <Button data-report-apply onClick={applyFilters} className="bg-blue-600 hover:bg-blue-700 text-white">
               <Search className="h-4 w-4 ml-2" />
               تطبيق الفلتر
             </Button>
@@ -319,7 +316,7 @@ export function OrderReports() {
             </Button>
           </div>
         </CardContent>
-      </Card>
+      </ReportFilters>
 
       {/* Reports Tabs */}
       <Tabs value={state.activeTab} onValueChange={(value) => setState((prev) => ({ ...prev, activeTab: value }))}>

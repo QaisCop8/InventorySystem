@@ -1,5 +1,7 @@
 "use client"
 
+import { ReportFilters } from "@/components/reports/report-filters"
+
 import { useEffect, useMemo, useState } from "react"
 import { Archive, CalendarDays, ChevronDown, ChevronUp, Clock3, PackageCheck, RefreshCw, Search, UserRound } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
@@ -67,7 +69,7 @@ export default function InternalRequestsArchiveReport() {
       {[["إجمالي الطلبات", totals.requests, Archive, "text-violet-600 bg-violet-50"], ["الطلبات المكتملة", totals.completed, PackageCheck, "text-emerald-600 bg-emerald-50"], ["الحركات المسجلة", totals.events, Clock3, "text-sky-600 bg-sky-50"], ["إجمالي الكمية المطلوبة", totals.quantities, PackageCheck, "text-amber-600 bg-amber-50"]].map(([label, value, Icon, tone]: any) => <Card key={label} className="border-0 shadow-sm"><CardContent className="flex items-center justify-between p-5"><div><p className="text-sm text-muted-foreground">{label}</p><p className="mt-1 text-2xl font-bold">{value}</p></div><div className={`rounded-2xl p-3 ${tone}`}><Icon className="h-6 w-6" /></div></CardContent></Card>)}
     </div>
 
-    <Card className="border-0 shadow-sm"><CardContent className="grid gap-3 p-4 md:grid-cols-[1fr_180px_180px_auto] md:items-end"><div><Label>بحث</Label><div className="relative mt-1"><Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input className="pr-9" value={search} onChange={(event) => setSearch(event.target.value)} onKeyDown={(event) => event.key === "Enter" && void load()} placeholder="رقم الطلب أو اسم مقدم الطلب" /></div></div><div><Label>من تاريخ الطلب</Label><Input className="mt-1" type="date" value={from} onChange={(event) => setFrom(event.target.value)} /></div><div><Label>إلى تاريخ الطلب</Label><Input className="mt-1" type="date" value={to} onChange={(event) => setTo(event.target.value)} /></div><Button onClick={() => void load()}>تطبيق الفلاتر</Button></CardContent></Card>
+    <ReportFilters><CardContent className="grid gap-3 p-4 md:grid-cols-[1fr_180px_180px_auto] md:items-end"><div><Label>بحث</Label><div className="relative mt-1"><Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input data-report-apply-on-enter className="pr-9" value={search} onChange={(event) => setSearch(event.target.value)} onKeyDown={(event) => event.key === "Enter" && void load()} placeholder="رقم الطلب أو اسم مقدم الطلب" /></div></div><div><Label>من تاريخ الطلب</Label><Input className="mt-1" type="date" value={from} onChange={(event) => setFrom(event.target.value)} /></div><div><Label>إلى تاريخ الطلب</Label><Input className="mt-1" type="date" value={to} onChange={(event) => setTo(event.target.value)} /></div><Button data-report-apply onClick={() => void load()}>تطبيق الفلاتر</Button></CardContent></ReportFilters>
     {error && <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">{error}</div>}
 
     <div className="overflow-hidden rounded-2xl border bg-white shadow-sm">

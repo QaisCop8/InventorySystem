@@ -1,4 +1,6 @@
 "use client"
+
+import { ReportFilters } from "@/components/reports/report-filters"
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -423,13 +425,8 @@ export function BatchReports() {
 
         <TabsContent value="movements" className="space-y-4">
           {/* Filters */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Filter className="h-5 w-5" />
-                فلاتر التقرير
-              </CardTitle>
-            </CardHeader>
+          <ReportFilters>
+
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                 <div>
@@ -494,14 +491,14 @@ export function BatchReports() {
                 </div>
 
                 <div className="flex items-end">
-                  <Button onClick={fetchMovements} className="w-full">
+                  <Button data-report-apply onClick={fetchMovements} className="w-full">
                     <Search className="ml-2 h-4 w-4" />
                     تطبيق الفلاتر
                   </Button>
                 </div>
               </div>
             </CardContent>
-          </Card>
+          </ReportFilters>
 
           {/* Movements Table */}
           <Card>

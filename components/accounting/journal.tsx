@@ -1,5 +1,7 @@
 "use client"
 
+import { useVoucherDeepLink } from "@/hooks/use-voucher-deep-link"
+
 import { useEffect, useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -309,7 +311,12 @@ export default function Journal() {
     setCurrentIndex(index >= 0 ? index : 0)
     setIsNewMode(false)
     setErrorMessages([])
+    return true
   }
+
+  useVoucherDeepLink(async id => {
+    if (await handleCodeResolved(id)) setDialogOpen(true)
+  }, Boolean(user?.id))
 
   const handleCodeNotFound = (code: string) => {
     setForm((f) => ({

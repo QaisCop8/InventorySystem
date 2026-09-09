@@ -11,7 +11,8 @@ import DataGridView from "@/components/common/DataGridView"
 import Messages from "@/components/common/Messages"
 import AccountSearchDialog from "@/components/customer/account-search-dialog"
 import StoresSearchPopup from "@/components/products/StoresSearchPopup"
-import { ChevronDown, ChevronUp, Search, Eraser } from "lucide-react"
+import "./virtual-accounts.css"
+import { ChevronDown, ChevronUp, Search, Eraser, Save, RefreshCw, Loader2 } from "lucide-react"
 import { KeyAction } from "@grapecity/wijmo.grid"
 
 type WarehouseField = "default_item_warehouse_id" | "finished_goods_warehouse_id" | "raw_materials_warehouse_id"
@@ -38,6 +39,8 @@ export default function VirtualAccounts() {
   const [rows, setRows] = useState<any[]>([])
   const [userCurrencyMappings, setUserCurrencyMappings] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const requestRef = useRef(0)
   const [accountDialogOpen, setAccountDialogOpen] = useState(false)
   const [selectedRowIndex, setSelectedRowIndex] = useState(-1)
   const [selectedField, setSelectedField] = useState<string | null>(null)
@@ -81,7 +84,7 @@ export default function VirtualAccounts() {
       const res = await fetch('/api/exchange-rates')
       const data = await res.json()
       const list = data?.rates ?? []
-      setCurrencies(list)
+      setCurrencies(list.map((currency: any) => ({ ...currency, id: currency.currency_id ?? currency.id })))
     } catch (err) {
       console.error(err)
     }
@@ -104,55 +107,37 @@ export default function VirtualAccounts() {
     loadWarehouses()
   }, [])
 
-  const loadWarehouseDefaults = async (userId: string) => {
-    try {
-      const res = await fetch(`/api/settings/user-warehouse-defaults?user_id=${encodeURIComponent(userId)}`)
-      if (!res.ok) {
-        setWarehouseDefaults(emptyWarehouseDefaults)
-        setPriceEntryIncludesTax(false)
-        return
-      }
-      const data = await res.json()
-      setWarehouseDefaults({
-        default_item_warehouse_id: data.default_item_warehouse_id ?? null,
-        default_item_warehouse_name: data.default_item_warehouse_name || '',
-        finished_goods_warehouse_id: data.finished_goods_warehouse_id ?? null,
-        finished_goods_warehouse_name: data.finished_goods_warehouse_name || '',
-        raw_materials_warehouse_id: data.raw_materials_warehouse_id ?? null,
-        raw_materials_warehouse_name: data.raw_materials_warehouse_name || '',
-      })
-      setPriceEntryIncludesTax(Boolean(data.price_entry_includes_tax))
-    } catch (err) {
-      console.error(err)
-      setWarehouseDefaults(emptyWarehouseDefaults)
-      setPriceEntryIncludesTax(false)
-    }
-  }
-
-  const loadUserMappings = async (userId: string | number) => {
+  const loadDefaults = async (userId: string | number) => {
+    const requestId = ++requestRef.current
     setLoading(true)
     try {
-      const res = await fetch(`/api/settings/users-currencies-default?user_id=${userId}`)
-      const data = await res.json()
-      setUserCurrencyMappings(Array.isArray(data?.rows) ? data.rows : [])
-    } catch (err) {
-      console.error(err)
-      setUserCurrencyMappings([])
+      const query = encodeURIComponent(String(userId))
+      const responses = await Promise.all([
+        fetch(`/api/settings/users-currencies-default?user_id=${query}`, { cache: 'no-store' }),
+        fetch(`/api/settings/user-warehouse-defaults?user_id=${query}`, { cache: 'no-store' }),
+      ])
+      const [accounts, defaults] = await Promise.all(responses.map(response => response.json()))
+      if (!responses[0].ok || !responses[1].ok) throw new Error(accounts.error || defaults.error || 'Failed to load defaults')
+      if (requestId !== requestRef.current) return false
+      setUserCurrencyMappings(Array.isArray(accounts.rows) ? accounts.rows : [])
+      setWarehouseDefaults({ ...emptyWarehouseDefaults, ...defaults })
+      setPriceEntryIncludesTax(Boolean(defaults.price_entry_includes_tax))
+      return true
+    } catch (error) {
+      if (requestId === requestRef.current) showErrorMessage(error instanceof Error ? error.message : 'Failed to load defaults')
+      return false
     } finally {
-      setLoading(false)
+      if (requestId === requestRef.current) setLoading(false)
     }
   }
 
   useEffect(() => {
-    if (!selectedUser) {
-      setUserCurrencyMappings([])
-      setWarehouseDefaults(emptyWarehouseDefaults)
-      setPriceEntryIncludesTax(false)
-      return
-    }
-
-    loadUserMappings(selectedUser.user_id)
-    loadWarehouseDefaults(selectedUser.user_id)
+    setUserCurrencyMappings([])
+    setWarehouseDefaults(emptyWarehouseDefaults)
+    setPriceEntryIncludesTax(false)
+    if (selectedUser) void loadDefaults(selectedUser.user_id)
+    else setLoading(false)
+    return () => { requestRef.current += 1 }
   }, [selectedUser])
 
   const openWarehouseSearch = (field: WarehouseField) => {
@@ -472,7 +457,7 @@ export default function VirtualAccounts() {
   }
 
   const handleSaveAll = async () => {
-    if (!selectedUser) { showErrorMessage('اختر مستخدما اولا'); return }
+    if (!selectedUser || saving || loading) { showErrorMessage('اختر مستخدما اولا'); return }
     const payload = {
       user_id: selectedUser.user_id,
       rows: rows.map((r) => ({
@@ -483,6 +468,8 @@ export default function VirtualAccounts() {
         card_account_id: r.card_account_id,
       })),
     }
+    setSaving(true)
+    try {
     const [accountsRes, warehousesRes] = await Promise.all([
       fetch('/api/settings/users-currencies-default', {
         method: 'POST',
@@ -504,27 +491,32 @@ export default function VirtualAccounts() {
     const data = await accountsRes.json()
     const warehousesData = await warehousesRes.json()
     if (accountsRes.ok && data.success && warehousesRes.ok && warehousesData.success) {
-      showSuccessMessage('تمت العملية بنجاح')
-      // Keep the current grid values on successful save.
+      if (await loadDefaults(selectedUser.user_id)) showSuccessMessage('تم الحفظ وإعادة تحميل الإعدادات بنجاح')
     } else {
       showErrorMessage(data.error || warehousesData.error || 'فشلت العملية')
+    }
+    } catch (error) {
+      showErrorMessage(error instanceof Error ? error.message : 'تعذر حفظ الإعدادات')
+    } finally {
+      setSaving(false)
     }
   }
 
   return (
-    <div className="flex flex-col min-h-screen w-full">
+    <div dir="rtl" className="virtual-accounts-page flex min-h-screen w-full flex-col gap-1 bg-slate-50/50 p-4 dark:bg-slate-950">
       <div className="flex flex-col gap-3 mb-4">
         <div className="flex items-center justify-between">
           <h2 className="text-2xl font-bold">اعدادات</h2>
           <div className="flex gap-2">
-            <Button onClick={handleSaveAll} disabled={!selectedUser}>حفظ</Button>
-            <Button variant="outline" onClick={() => { if (selectedUser) loadUserMappings(selectedUser.user_id) }}>تحديث</Button>
+            <Button className="gap-2 rounded-xl bg-teal-600 hover:bg-teal-700" onClick={handleSaveAll} disabled={!selectedUser || loading || saving || !rows.length}>{saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}حفظ</Button>
+            <Button variant="outline" className="gap-2 rounded-xl" disabled={!selectedUser || loading || saving} onClick={() => { if (selectedUser) void loadDefaults(selectedUser.user_id) }}><RefreshCw className="h-4 w-4" />تحديث</Button>
           </div>
         </div>
 
         <div className="w-full max-w-sm invoice-currency-dropdown-wrap">
           <Dropdown
             caption="المستخدم"
+            disabled={saving}
             placeholder="اختر مستخدما"
             optionLabel="display_name"
             optionValue="id"
@@ -546,13 +538,13 @@ export default function VirtualAccounts() {
       </div>
 
       <Card className="w-full overflow-hidden border-slate-200 shadow-sm">
-        <CardHeader className="border-b border-slate-200 bg-gradient-to-l from-slate-900 via-slate-800 to-slate-900 px-6 py-5 text-white">
+        <CardHeader className="border-b border-slate-200 bg-gradient-to-l from-teal-50 to-sky-50 px-6 py-5 dark:from-slate-900 dark:to-slate-900">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <CardTitle className="text-lg text-white">حسابات الصناديق والبنوك الافتراضية</CardTitle>
-              <p className="mt-1 text-xs text-slate-300">Enter أو Tab للتنقل، Shift للرجوع، F2 للبحث، وDelete للمسح</p>
+              <CardTitle className="text-lg text-slate-900 dark:text-slate-100">حسابات الصناديق والبنوك الافتراضية</CardTitle>
+              <p className="mt-1 text-xs text-slate-500">Enter أو Tab للتنقل، Shift للرجوع، F2 للبحث، وDelete للمسح</p>
             </div>
-            <div className="rounded-full bg-white/10 px-3 py-1 text-xs text-slate-200 ring-1 ring-white/15">{rows.length} عملات</div>
+            <div className="rounded-full bg-white px-3 py-1 text-xs text-teal-700 ring-1 ring-teal-200">{rows.length} عملات</div>
           </div>
         </CardHeader>
         <CardContent className="flex flex-col bg-slate-50/70 p-0">
@@ -562,11 +554,11 @@ export default function VirtualAccounts() {
           <div className="relative m-4 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm" style={{ height: `${Math.max(170, Math.min(420, 94 + rows.length * 46))}px` }}>
             <div className="h-full w-full overflow-hidden">
               <DataGridView
-                className="h-full w-full border-0 [&_.wj-cell]:!border-slate-200 [&_.wj-cell]:!px-3 [&_.wj-cell]:!text-sm [&_.wj-header]:!bg-slate-800 [&_.wj-header]:!font-bold [&_.wj-header]:!text-white [&_.wj-state-selected]:!bg-emerald-100 [&_.wj-state-selected]:!text-emerald-950"
+                className="h-full w-full border-0 [&_.wj-cell]:!border-slate-200 [&_.wj-cell]:!text-sm [&_.wj-header]:!bg-teal-50 [&_.wj-header]:!font-bold [&_.wj-header]:!text-teal-900 [&_.wj-state-selected]:!bg-emerald-100 [&_.wj-state-selected]:!text-emerald-950"
                 scheme={scheme}
                 dataSource={rows}
                 innerRef={gridRef}
-                isReadOnly={!selectedUser}
+                isReadOnly={!selectedUser || loading || saving}
                 defaultRowHeight={44}
                 autoRowHeights={false}
                 columnHeaderHeight={46}
@@ -585,7 +577,7 @@ export default function VirtualAccounts() {
                 style={{ height: '100%', minHeight: 0, maxHeight: '100%', width: '100%' }}
               />
             </div>
-            {loading && (
+            {(loading || saving) && (
               <div className="absolute inset-0 flex items-center justify-center bg-white/70 backdrop-blur-[1px]">
                 <div className="flex items-center gap-2 text-sm text-slate-500">
                   <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-slate-600" />

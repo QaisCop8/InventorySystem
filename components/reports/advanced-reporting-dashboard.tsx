@@ -1,5 +1,7 @@
 "use client"
 
+import { ReportFilters } from "@/components/reports/report-filters"
+
 import { useState, useMemo, useCallback } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -197,7 +199,7 @@ export function AdvancedReportingDashboard() {
   return (
     <div className="space-y-6">
       {/* Header with filters and actions */}
-      <Card className="erp-card shadow-sm">
+      <ReportFilters>
         <CardHeader className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-t-lg">
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center text-blue-800">
@@ -205,7 +207,7 @@ export function AdvancedReportingDashboard() {
               لوحة التقارير المتقدمة
             </CardTitle>
             <div className="flex gap-2">
-              <Button
+              <Button data-report-apply
                 onClick={refreshData}
                 disabled={state.refreshing}
                 variant="outline"
@@ -302,7 +304,7 @@ export function AdvancedReportingDashboard() {
             </div>
           </div>
         </CardContent>
-      </Card>
+      </ReportFilters>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">{kpiCards}</div>

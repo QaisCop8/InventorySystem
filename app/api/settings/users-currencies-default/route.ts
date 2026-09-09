@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import sql from "@/lib/database"
+import sql, { getTenantPool } from "@/lib/database"
 
 const ensureTables = async () => {
   await sql`
@@ -87,27 +87,30 @@ export async function POST(request: NextRequest) {
     await ensureTables()
     const { primaryId } = await resolveUserKeys(user_id)
     if (!primaryId) return NextResponse.json({ error: "user_id invalid" }, { status: 400 })
-    await sql`DELETE FROM users_currencies_default_account_tbl WHERE user_id = ${primaryId}`
-
-    for (const r of rows) {
-      await sql`
-        INSERT INTO users_currencies_default_account_tbl (
-          user_id,
-          currency_id,
-          account_id,
-          received_cheqs_account_id,
-          returned_cheqs_account_id,
-          cards_account_id
+    const pool = await getTenantPool()
+    const client = await pool.connect()
+    try {
+      await client.query('BEGIN')
+      // Serialize saves for this user and roll back the replacement if any row fails.
+      await client.query('SELECT pg_advisory_xact_lock($1::int, $2::int)', [72411, primaryId])
+      const currencies = await client.query('SELECT id FROM currency WHERE id = ANY($1::int[])', [currencyIds])
+      if (currencies.rows.length !== currencyIds.length) {
+        await client.query('ROLLBACK')
+        return NextResponse.json({ error: 'Unknown currency' }, { status: 400 })
+      }
+      await client.query('DELETE FROM users_currencies_default_account_tbl WHERE user_id = $1', [primaryId])
+      for (const row of rows) {
+        await client.query(
+          'INSERT INTO users_currencies_default_account_tbl (user_id, currency_id, account_id, received_cheqs_account_id, returned_cheqs_account_id, cards_account_id) VALUES ($1, $2, $3, $4, $5, $6)',
+          [primaryId, Number(row.currency_id), ...accountFields.map(field => row[field] == null ? null : Number(row[field]))],
         )
-        VALUES (
-          ${primaryId},
-          ${r.currency_id || null},
-          ${r.cash_account_id || null},
-          ${r.incoming_checks_account_id || null},
-          ${r.returned_checks_account_id || null},
-          ${r.card_account_id || null}
-        )
-      `
+      }
+      await client.query('COMMIT')
+    } catch (error) {
+      await client.query('ROLLBACK')
+      throw error
+    } finally {
+      client.release()
     }
 
     return NextResponse.json({ success: true })

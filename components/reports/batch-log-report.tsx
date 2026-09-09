@@ -1,5 +1,7 @@
 "use client"
 
+import { ReportFilters } from "@/components/reports/report-filters"
+
 import React, { useEffect, useState } from "react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -133,7 +135,7 @@ export function BatchLogReport() {
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Filters */}
-          <div className="flex flex-wrap gap-4 items-end">
+          <ReportFilters><div className="flex flex-wrap gap-4 items-end">
             {/* رقم الصنف */}
             <div className="flex flex-col flex-1 min-w-[280px]">
               <label className="text-sm mb-1">رقم الصنف</label>
@@ -210,14 +212,14 @@ export function BatchLogReport() {
 
             {/* زر البحث */}
             <div className="flex items-end flex-shrink-0">
-              <Button
+              <Button data-report-apply
                 onClick={fetchLogs}
                 className="h-11 w-full sm:w-auto flex items-center justify-center"
               >
                 <Search className="ml-2 h-4 w-4" /> بحث
               </Button>
             </div>
-          </div>
+          </div></ReportFilters>
 
           <CardContent>
             <DataGridView

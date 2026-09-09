@@ -1,5 +1,7 @@
 "use client"
 
+import { ReportFilters } from "@/components/reports/report-filters"
+
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { BarChart3, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -38,14 +40,14 @@ const detailColumns = (pairCount: number): Column[] => {
 }
 
 function ReportFiltersBar({ value, lookups, onChange, onLoad }: { value: ReportFilters; lookups: LookupData; onChange: (value: ReportFilters) => void; onLoad: () => void }) {
-  return <div className="grid gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm md:grid-cols-2 xl:grid-cols-5">
+  return <ReportFilters><div className="grid gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm md:grid-cols-2 xl:grid-cols-5">
     <div><Label>من تاريخ</Label><Input type="date" className={inputClass} value={value.from} onChange={e => onChange({ ...value, from: e.target.value })} /></div>
     <div><Label>إلى تاريخ</Label><Input type="date" className={inputClass} value={value.to} onChange={e => onChange({ ...value, to: e.target.value })} /></div>
     <div><Label>الموظفون</Label><select multiple className={`${selectClass} h-24`} value={value.employee_ids} onChange={e => onChange({ ...value, employee_ids: Array.from(e.target.selectedOptions, option => option.value) })}>{lookups.employees.map(employee => <option key={employee.id} value={employee.id}>{employee.employee_code} - {employee.full_name}</option>)}</select></div>
     <div><Label>القسم</Label><select className={selectClass} value={value.department_id} onChange={e => onChange({ ...value, department_id: e.target.value })}><option value="">كل الأقسام</option>{lookups.departments.map(item => <option key={item.id} value={item.id}>{item.department_name}</option>)}</select></div>
     <div><Label>الفرع</Label><select className={selectClass} value={value.branch_id} onChange={e => onChange({ ...value, branch_id: e.target.value })}><option value="">كل الفروع</option>{lookups.branches.map(item => <option key={item.id} value={item.id}>{item.branch_name}</option>)}</select></div>
-    <div className="flex items-end"><Button onClick={onLoad}><RefreshCw className="ml-2 h-4 w-4" />تحديث التقرير</Button></div>
-  </div>
+    <div className="flex items-end"><Button data-report-apply onClick={onLoad}><RefreshCw className="ml-2 h-4 w-4" />تحديث التقرير</Button></div>
+  </div></ReportFilters>
 }
 
 function useReportData() {
