@@ -8,7 +8,7 @@ const TYPES = ["vouchers", "transactions", "trial-balance", "balance-sheet", "in
 type ReportType = (typeof TYPES)[number]
 const ids = (value: string | null) => String(value || "").split(",").map(Number).filter(value => Number.isInteger(value) && value > 0)
 const date = (value: string | null, fallback: string) => value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : fallback
-const voucherNames: Record<number, string> = { 4:"سند قبض",5:"سند صرف",6:"إشعار دائن",7:"إشعار مدين",8:"سند إدخال",9:"سند إخراج",10:"إرسالية داخلية",11:"سند استعمال",12:"فاتورة مبيعات",13:"إرسالية مبيعات",14:"إرسالية برسم البيع",15:"مرتجع إرسالية برسم البيع",16:"مرتجع مبيعات",17:"فاتورة مشتريات",18:"إرسالية مشتريات",19:"مرتجع مشتريات",20:"طلب صناعة داخلي" }
+const voucherNames: Record<number, string> = { 4:"سند قبض",5:"سند صرف",6:"إشعار دائن",7:"إشعار مدين",8:"سند إدخال",9:"سند إخراج",10:"إرسالية داخلية",11:"سند استعمال",12:"فاتورة مبيعات",13:"إرسالية مبيعات",14:"إرسالية برسم البيع",15:"مرتجع إرسالية برسم البيع",16:"مرتجع مبيعات",17:"فاتورة مشتريات",18:"إرسالية مشتريات",19:"مرتجع مشتريات",20:"طلب صناعة داخلي",21:"سند صرف شيكات" }
 const voucherCase = `CASE vh.vch_type ${Object.entries(voucherNames).map(([id,name]) => `WHEN ${id} THEN '${name}'`).join(" ")} ELSE 'سند قيد' END`
 
 async function ensureFinancialDefinitions() {

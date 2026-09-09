@@ -1,12 +1,12 @@
 {
-  "name": "نظام إدارة الطلبيات",
-  "short_name": "الطلبيات",
-  "description": "تطبيق إدخال الطلبيات للموبايل",
-  "start_url": "/mobile",
+  "name": "شامل للأعمال ونقاط البيع",
+  "short_name": "شامل POS",
+  "description": "نظام الأعمال ونقطة البيع المتصلة وغير المتصلة",
+  "start_url": "/?section=pos-cashier",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#2563eb",
-  "orientation": "portrait",
+  "orientation": "any",
   "dir": "rtl",
   "lang": "ar",
   "icons": [
@@ -25,6 +25,13 @@
   ],
   "categories": ["business", "productivity"],
   "shortcuts": [
+    {
+      "name": "كاشير نقطة البيع",
+      "short_name": "الكاشير",
+      "description": "فتح نقطة البيع مباشرة",
+      "url": "/?section=pos-cashier",
+      "icons": [{ "src": "/icon-192.jpg", "sizes": "192x192" }]
+    },
     {
       "name": "طلبية جديدة",
       "short_name": "طلبية جديدة",

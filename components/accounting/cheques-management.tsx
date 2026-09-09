@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -9,15 +9,16 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import Messages from "@/components/common/Messages"
 import { Activity, ArrowLeftRight, Banknote, CalendarClock, CheckCircle2, ChevronLeft, CircleDollarSign, Download, Eye, FileClock, History, Landmark, Loader2, RefreshCcw, RotateCcw, Search, ShieldCheck, Undo2, WalletCards } from "lucide-react"
 
 type Option={id:number;name?:string;code?:string;currency_code?:string;currency_name?:string;bank_code?:string;bank_name?:string;bank_account_id?:number;jary_account_id?:number;tahsil_account_id?:number;branch_name?:string}
-type Operation={code:string;name:string;needsDate?:boolean;needsAccount?:boolean;accountKind?:"bank"|"ledger"}
+type Operation={code:string;name:string;needsDate?:boolean;needsAccount?:boolean;accountKind?:"bank"|"ledger";createsJournal?:boolean}
 type Cheque={id:number;cheq_type:number;cheq_num:string;bank_account:string;amount:number;rate:number;received_date?:string;due_date?:string;pay_date?:string;return_date?:string;cheq_owner_name?:string;status_id:number;status_name:string;currency_code?:string;currency_name?:string;bank_name?:string;branch_name?:string;bank_account_code?:string;bank_account_name?:string;customer_code?:string;customer_name?:string;current_account_code?:string;current_account_name?:string;vch_code?:string;last_update_date:string;allowed_operations?:Operation[]}
 type Meta={statuses:Option[];currencies:Option[];banks:Option[];bank_accounts:Option[];accounts:Option[]}
 type Summary={count:number;total:number;due:number;returned:number}
 type Filters={q:string;statusId:string;currencyId:string;bankId:string;fromDueDate:string;toDueDate:string;minAmount:string;maxAmount:string}
-type Log={id:number;operation_name:string;operation_date:string;previous_status_name?:string;new_status_name?:string;account_code?:string;account_name?:string;note?:string;user_name?:string}
+type Log={id:number;operation_name:string;operation_date:string;previous_status_name?:string;new_status_name?:string;account_code?:string;account_name?:string;note?:string;user_name?:string;journal_voucher_code?:string}
 
 const emptyMeta:Meta={statuses:[],currencies:[],banks:[],bank_accounts:[],accounts:[]}
 const emptySummary:Summary={count:0,total:0,due:0,returned:0}
@@ -38,9 +39,9 @@ function Field({label,type="text",value,onChange}:{label:string;type?:string;val
 
 function SummaryCards({summary}:{summary:Summary}){const cards=[{label:"عدد الشيكات",value:String(summary.count),icon:FileClock,color:"text-sky-600 bg-sky-50"},{label:"إجمالي القيمة",value:money.format(summary.total),icon:Banknote,color:"text-emerald-600 bg-emerald-50"},{label:"قيد الاستحقاق",value:String(summary.due),icon:CalendarClock,color:"text-amber-600 bg-amber-50"},{label:"شيكات راجعة",value:String(summary.returned),icon:Undo2,color:"text-rose-600 bg-rose-50"}];return <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{cards.map(item=><Card key={item.label} className="overflow-hidden"><CardContent className="flex items-center justify-between p-4"><div><p className="text-xs text-muted-foreground">{item.label}</p><p className="mt-1 text-xl font-black" dir="ltr">{item.value}</p></div><span className={`rounded-xl p-3 ${item.color}`}><item.icon className="h-5 w-5"/></span></CardContent></Card>)}</div>}
 
-function ChequesTable({rows,selectedId,onSelect,onDetails,operations}:{rows:Cheque[];selectedId?:number;onSelect?:(row:Cheque)=>void;onDetails:(row:Cheque)=>void;operations?:boolean}){return <div className="overflow-auto rounded-2xl border bg-white shadow-sm dark:bg-slate-950"><table className="w-full min-w-[1180px] text-sm"><thead className="sticky top-0 z-10 bg-slate-900 text-white"><tr>{["رقم الشيك","الحساب البنكي","صاحب الشيك / المستفيد","المبلغ","العملة","الاستحقاق","البنك والفرع","السند","الحالة",operations?"اختيار":"تفاصيل"].map(title=><th key={title} className="whitespace-nowrap px-3 py-3 text-right text-xs font-semibold">{title}</th>)}</tr></thead><tbody>{rows.map((row,index)=><tr key={row.id} onClick={()=>onSelect?.(row)} onDoubleClick={()=>onDetails(row)} className={`cursor-pointer border-b transition hover:bg-cyan-50/70 dark:hover:bg-cyan-950/20 ${selectedId===row.id?"bg-cyan-100 ring-1 ring-inset ring-cyan-400 dark:bg-cyan-950/40":index%2?"bg-slate-50/70 dark:bg-slate-900/40":""}`}><td className="px-3 py-3 font-mono font-black text-cyan-700">{row.cheq_num||"—"}</td><td className="px-3 py-3"><div className="font-semibold">{row.bank_account_name||row.bank_account||"—"}</div><div className="text-xs text-muted-foreground" dir="ltr">{row.bank_account_code||row.bank_account||""}</div></td><td className="px-3 py-3"><div className="font-semibold">{row.customer_name||row.cheq_owner_name||"—"}</div><div className="text-xs text-muted-foreground">{row.customer_code||row.cheq_owner_name||""}</div></td><td className="px-3 py-3 font-black text-emerald-700" dir="ltr">{money.format(Number(row.amount||0))}</td><td className="px-3 py-3">{row.currency_code||row.currency_name||"—"}</td><td className="px-3 py-3" dir="ltr">{dateText(row.due_date)}</td><td className="px-3 py-3"><div>{row.bank_name||"—"}</div><div className="text-xs text-muted-foreground">{row.branch_name||""}</div></td><td className="px-3 py-3 font-mono">{row.vch_code||"—"}</td><td className="px-3 py-3"><span className={`rounded-full px-2.5 py-1 text-xs font-bold ${statusTone(Number(row.status_id))}`}>{row.status_name||"—"}</span></td><td className="px-3 py-3"><Button size="sm" variant={selectedId===row.id?"default":"outline"} onClick={event=>{event.stopPropagation();operations?onSelect?.(row):onDetails(row)}} className="gap-1">{operations?<CheckCircle2 className="h-4 w-4"/>:<Eye className="h-4 w-4"/>}{operations?"تحديد":"عرض"}</Button></td></tr>)}</tbody></table>{!rows.length&&<div className="py-16 text-center text-muted-foreground"><FileClock className="mx-auto mb-3 h-10 w-10 text-slate-300"/>لا توجد شيكات مطابقة للفلاتر</div>}</div>}
+function ChequesTable({rows,selectedId,onSelect,onDetails,operations}:{rows:Cheque[];selectedId?:number;onSelect?:(row:Cheque)=>void;onDetails:(row:Cheque)=>void;operations?:boolean}){return <div className="overflow-auto rounded-2xl border bg-white shadow-sm dark:bg-slate-950"><table className="w-full min-w-[1180px] text-sm"><thead className="sticky top-0 z-10 bg-slate-900 text-white"><tr>{["رقم الشيك","الحساب البنكي","صاحب الشيك / المستفيد","المبلغ","العملة","الاستحقاق","البنك والفرع","السند","الحالة",operations?"عملية":"تفاصيل"].map(title=><th key={title} className="whitespace-nowrap px-3 py-3 text-right text-xs font-semibold">{title}</th>)}</tr></thead><tbody>{rows.map((row,index)=><tr key={row.id} onClick={()=>onSelect?.(row)} onDoubleClick={()=>onDetails(row)} className={`cursor-pointer border-b transition hover:bg-cyan-50/70 dark:hover:bg-cyan-950/20 ${selectedId===row.id?"bg-cyan-100 ring-1 ring-inset ring-cyan-400 dark:bg-cyan-950/40":index%2?"bg-slate-50/70 dark:bg-slate-900/40":""}`}><td className="px-3 py-3 font-mono font-black text-cyan-700">{row.cheq_num||"—"}</td><td className="px-3 py-3"><div className="font-semibold">{row.bank_account_name||row.bank_account||"—"}</div><div className="text-xs text-muted-foreground" dir="ltr">{row.bank_account_code||row.bank_account||""}</div></td><td className="px-3 py-3"><div className="font-semibold">{row.customer_name||row.cheq_owner_name||"—"}</div><div className="text-xs text-muted-foreground">{row.customer_code||row.cheq_owner_name||""}</div></td><td className="px-3 py-3 font-black text-emerald-700" dir="ltr">{money.format(Number(row.amount||0))}</td><td className="px-3 py-3">{row.currency_code||row.currency_name||"—"}</td><td className="px-3 py-3" dir="ltr">{dateText(row.due_date)}</td><td className="px-3 py-3"><div>{row.bank_name||"—"}</div><div className="text-xs text-muted-foreground">{row.branch_name||""}</div></td><td className="px-3 py-3 font-mono">{row.vch_code||"—"}</td><td className="px-3 py-3"><span className={`rounded-full px-2.5 py-1 text-xs font-bold ${statusTone(Number(row.status_id))}`}>{row.status_name||"—"}</span></td><td className="px-3 py-3"><Button size="sm" variant={selectedId===row.id?"default":"outline"} onClick={event=>{event.stopPropagation();operations?onSelect?.(row):onDetails(row)}} className="gap-1">{operations?<CheckCircle2 className="h-4 w-4"/>:<Eye className="h-4 w-4"/>}{operations?"تنفيذ":"عرض"}</Button></td></tr>)}</tbody></table>{!rows.length&&<div className="py-16 text-center text-muted-foreground"><FileClock className="mx-auto mb-3 h-10 w-10 text-slate-300"/>لا توجد شيكات مطابقة للفلاتر</div>}</div>}
 
-function DetailsDialog({cheque,open,onOpenChange}:{cheque:Cheque|null;open:boolean;onOpenChange:(value:boolean)=>void}){const [logs,setLogs]=useState<Log[]>([]),[loading,setLoading]=useState(false);useEffect(()=>{if(!open||!cheque)return;setLoading(true);fetch(`/api/cheques/operations?cheque_id=${cheque.id}`).then(r=>r.json()).then(data=>setLogs(data.logs||[])).finally(()=>setLoading(false))},[open,cheque]);if(!cheque)return null;return <Dialog open={open} onOpenChange={onOpenChange}><DialogContent dir="rtl" className="max-h-[88vh] max-w-3xl overflow-y-auto"><DialogHeader><DialogTitle className="flex items-center gap-2 text-xl"><span className="rounded-xl bg-cyan-100 p-2 text-cyan-700"><History className="h-5 w-5"/></span>تفاصيل الشيك رقم {cheque.cheq_num}</DialogTitle><DialogDescription>بيانات الشيك وسجل العمليات الكامل</DialogDescription></DialogHeader><div className="grid gap-3 rounded-2xl bg-slate-50 p-4 sm:grid-cols-2 lg:grid-cols-3 dark:bg-slate-900"><Info label="المبلغ" value={`${money.format(Number(cheque.amount||0))} ${cheque.currency_code||""}`}/><Info label="الحالة" value={cheque.status_name}/><Info label="تاريخ الاستحقاق" value={dateText(cheque.due_date)}/><Info label="الحساب البنكي" value={cheque.bank_account_name||cheque.bank_account}/><Info label="العميل / المستفيد" value={cheque.customer_name||cheque.cheq_owner_name}/><Info label="السند المصدر" value={cheque.vch_code}/></div><div><h3 className="mb-3 font-bold">سجل العمليات</h3>{loading?<Loader2 className="mx-auto h-6 w-6 animate-spin"/>:<div className="space-y-2">{logs.map(log=><div key={log.id} className="rounded-xl border p-3"><div className="flex flex-wrap items-center justify-between gap-2"><b>{log.operation_name}</b><span className="text-xs text-muted-foreground" dir="ltr">{String(log.operation_date).slice(0,16).replace("T"," ")}</span></div><div className="mt-1 text-xs text-muted-foreground">{log.previous_status_name||"—"} <ChevronLeft className="inline h-3 w-3"/> {log.new_status_name||"—"}{log.account_name&&` · ${log.account_code} - ${log.account_name}`}{log.user_name&&` · ${log.user_name}`}</div>{log.note&&<p className="mt-2 text-sm">{log.note}</p>}</div>)}{!logs.length&&<p className="rounded-xl border border-dashed py-8 text-center text-sm text-muted-foreground">لم تُنفذ عمليات على هذا الشيك بعد</p>}</div>}</div></DialogContent></Dialog>}
+function DetailsDialog({cheque,open,onOpenChange}:{cheque:Cheque|null;open:boolean;onOpenChange:(value:boolean)=>void}){const [logs,setLogs]=useState<Log[]>([]),[loading,setLoading]=useState(false);useEffect(()=>{if(!open||!cheque)return;setLoading(true);fetch(`/api/cheques/operations?cheque_id=${cheque.id}`).then(r=>r.json()).then(data=>setLogs(data.logs||[])).finally(()=>setLoading(false))},[open,cheque]);if(!cheque)return null;return <Dialog open={open} onOpenChange={onOpenChange}><DialogContent dir="rtl" className="max-h-[88vh] max-w-3xl overflow-y-auto"><DialogHeader><DialogTitle className="flex items-center gap-2 text-xl"><span className="rounded-xl bg-cyan-100 p-2 text-cyan-700"><History className="h-5 w-5"/></span>تفاصيل الشيك رقم {cheque.cheq_num}</DialogTitle><DialogDescription>بيانات الشيك وسجل العمليات الكامل</DialogDescription></DialogHeader><div className="grid gap-3 rounded-2xl bg-slate-50 p-4 sm:grid-cols-2 lg:grid-cols-3 dark:bg-slate-900"><Info label="المبلغ" value={`${money.format(Number(cheque.amount||0))} ${cheque.currency_code||""}`}/><Info label="الحالة" value={cheque.status_name}/><Info label="تاريخ الاستحقاق" value={dateText(cheque.due_date)}/><Info label="الحساب البنكي" value={cheque.bank_account_name||cheque.bank_account}/><Info label="العميل / المستفيد" value={cheque.customer_name||cheque.cheq_owner_name}/><Info label="السند المصدر" value={cheque.vch_code}/></div><div><h3 className="mb-3 font-bold">سجل العمليات</h3>{loading?<Loader2 className="mx-auto h-6 w-6 animate-spin"/>:<div className="space-y-2">{logs.map(log=><div key={log.id} className="rounded-xl border p-3"><div className="flex flex-wrap items-center justify-between gap-2"><b>{log.operation_name}</b><span className="text-xs text-muted-foreground" dir="ltr">{String(log.operation_date).slice(0,16).replace("T"," ")}</span></div><div className="mt-1 text-xs text-muted-foreground">{log.previous_status_name||"—"} <ChevronLeft className="inline h-3 w-3"/> {log.new_status_name||"—"}{log.account_name&&` · ${log.account_code} - ${log.account_name}`}{log.user_name&&` · ${log.user_name}`}</div>{log.journal_voucher_code&&<div className="mt-2 inline-flex rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">سند القيد: {log.journal_voucher_code}</div>}{log.note&&<p className="mt-2 text-sm">{log.note}</p>}</div>)}{!logs.length&&<p className="rounded-xl border border-dashed py-8 text-center text-sm text-muted-foreground">لم تُنفذ عمليات على هذا الشيك بعد</p>}</div>}</div></DialogContent></Dialog>}
 function Info({label,value}:{label:string;value?:string}){return <div><span className="text-xs text-muted-foreground">{label}</span><p className="mt-1 font-semibold">{value||"—"}</p></div>}
 
 function PageHeader({operations,type,setType}:{operations?:boolean;type:number;setType:(value:number)=>void}){return <div className={`overflow-hidden rounded-3xl bg-gradient-to-l ${operations?"from-indigo-700 via-violet-700 to-fuchsia-700":"from-slate-950 via-cyan-950 to-emerald-800"} p-5 text-white shadow-xl sm:p-7`}><div className="flex flex-col justify-between gap-5 lg:flex-row lg:items-center"><div className="flex items-start gap-4"><span className="rounded-2xl bg-white/15 p-3 backdrop-blur">{operations?<ArrowLeftRight className="h-7 w-7"/>:<WalletCards className="h-7 w-7"/>}</span><div><h1 className="text-2xl font-black sm:text-3xl">{operations?"عمليات الشيكات":"الشيكات"}</h1><p className="mt-1 max-w-2xl text-sm text-white/75">{operations?"نفّذ عمليات الإيداع والإرجاع والتجيير وتغيير الاستحقاق مع حفظ سجل كامل لكل حركة.":"تابع الشيكات الواردة والصادرة، تواريخ الاستحقاق والحالة الحالية من مكان واحد."}</p></div></div><ChequeTypeTabs value={type} onChange={setType}/></div></div>}
@@ -49,6 +50,157 @@ function useCheques(type:number){const [meta,setMeta]=useState<Meta>(emptyMeta),
 
 export function ChequesPage(){const [type,setType]=useState(1),[details,setDetails]=useState<Cheque|null>(null);const state=useCheques(type);const exportCsv=()=>{const headers=["رقم الشيك","الحساب البنكي","العميل / المستفيد","المبلغ","العملة","الاستحقاق","البنك","الفرع","رقم السند","الحالة"],quote=(v:unknown)=>`"${String(v??"").replace(/"/g,'""')}"`,lines=state.rows.map(r=>[r.cheq_num,r.bank_account_name||r.bank_account,r.customer_name||r.cheq_owner_name,r.amount,r.currency_code||r.currency_name,dateText(r.due_date),r.bank_name,r.branch_name,r.vch_code,r.status_name].map(quote).join(",")),blob=new Blob(["\ufeff"+[headers.join(","),...lines].join("\n")],{type:"text/csv;charset=utf-8"}),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`cheques-${type}-${today()}.csv`;a.click();URL.revokeObjectURL(a.href)};return <main dir="rtl" className="min-h-full space-y-4 bg-slate-50/70 p-3 sm:p-5 dark:bg-slate-950"><PageHeader type={type} setType={value=>{setType(value);setDetails(null)}}/><FiltersPanel {...state} onSearch={state.load}/>{state.error&&<div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm font-semibold text-rose-700">{state.error}</div>}<div className="flex flex-wrap items-center justify-between gap-2"><SummaryCards summary={state.summary}/><Button variant="outline" onClick={exportCsv} disabled={!state.rows.length} className="gap-2"><Download className="h-4 w-4"/>تصدير CSV</Button></div><ChequesTable rows={state.rows} onDetails={row=>setDetails(row)}/><DetailsDialog cheque={details} open={Boolean(details)} onOpenChange={open=>!open&&setDetails(null)}/></main>}
 
-export function ChequeOperationsPage(){const [type,setType]=useState(1),[selected,setSelected]=useState<Cheque|null>(null),[operation,setOperation]=useState<Operation|null>(null),[operationDate,setOperationDate]=useState(today()),[newDueDate,setNewDueDate]=useState(""),[accountId,setAccountId]=useState(""),[note,setNote]=useState(""),[saving,setSaving]=useState(false),[message,setMessage]=useState<{kind:"ok"|"error";text:string}|null>(null),[detailsOpen,setDetailsOpen]=useState(false);const state=useCheques(type);const available=selected?.allowed_operations||[];useEffect(()=>{setSelected(null);setOperation(null)},[type]);const accountOptions=useMemo(()=>operation?.accountKind==="bank"?state.meta.bank_accounts:state.meta.accounts,[operation,state.meta]);const execute=async()=>{if(!selected||!operation)return;setSaving(true);setMessage(null);try{const response=await fetch("/api/cheques/operations",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({cheque_id:selected.id,operation_code:operation.code,operation_date:operationDate,new_due_date:newDueDate||null,account_id:accountId===""?null:Number(accountId),note,last_update_date:selected.last_update_date})}),data=await response.json();if(!response.ok)throw new Error(data.error||"تعذر تنفيذ العملية");setMessage({kind:"ok",text:data.message});setSelected(current=>current?{...current,...data.cheque}:data.cheque);setOperation(null);setNewDueDate("");setAccountId("");setNote("");await state.load()}catch(reason){setMessage({kind:"error",text:reason instanceof Error?reason.message:"تعذر تنفيذ العملية"})}finally{setSaving(false)}};return <main dir="rtl" className="min-h-full space-y-4 bg-slate-50/70 p-3 sm:p-5 dark:bg-slate-950"><PageHeader operations type={type} setType={setType}/><FiltersPanel {...state} onSearch={state.load}/>{(state.error||message)&&<div className={`rounded-xl border p-3 text-sm font-semibold ${(state.error||message?.kind==="error")?"border-rose-200 bg-rose-50 text-rose-700":"border-emerald-200 bg-emerald-50 text-emerald-700"}`}>{state.error||message?.text}</div>}<div className="grid items-start gap-4 2xl:grid-cols-[minmax(0,1fr)_380px]"><ChequesTable rows={state.rows} selectedId={selected?.id} onSelect={row=>{setSelected(row);setOperation(null);setMessage(null)}} onDetails={row=>{setSelected(row);setDetailsOpen(true)}} operations/><aside className="space-y-4 2xl:sticky 2xl:top-3"><section className="rounded-2xl border bg-white p-4 shadow-sm dark:bg-slate-950"><div className="mb-4 flex items-center gap-2"><span className="rounded-xl bg-violet-100 p-2 text-violet-700"><Activity className="h-5 w-5"/></span><div><h2 className="font-black">تنفيذ عملية</h2><p className="text-xs text-muted-foreground">اختر شيكًا من الجدول</p></div></div>{selected?<><div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-900"><div className="flex items-center justify-between"><b className="font-mono text-lg">#{selected.cheq_num}</b><span className={`rounded-full px-2 py-1 text-xs font-bold ${statusTone(selected.status_id)}`}>{selected.status_name}</span></div><p className="mt-2 text-sm">{selected.customer_name||selected.cheq_owner_name||"—"}</p><p className="mt-1 font-black text-emerald-700" dir="ltr">{money.format(Number(selected.amount||0))} {selected.currency_code||""}</p></div><div className="mt-4 grid gap-2">{available.map(item=><button key={item.code} onClick={()=>{setOperation(item);setAccountId("");setNewDueDate("")}} className={`flex items-center justify-between rounded-xl border p-3 text-right text-sm font-bold transition ${operation?.code===item.code?"border-violet-500 bg-violet-50 text-violet-800":"hover:border-violet-300 hover:bg-violet-50/50"}`}><span>{item.name}</span><ChevronLeft className="h-4 w-4"/></button>)}{!available.length&&<p className="rounded-xl border border-dashed p-4 text-center text-sm text-muted-foreground">لا توجد عمليات متاحة للحالة الحالية</p>}</div>{operation&&<div className="mt-4 space-y-3 border-t pt-4"><div className="rounded-xl bg-violet-50 p-3 text-sm font-bold text-violet-800">{operation.name}</div><Field label="تاريخ العملية" type="date" value={operationDate} onChange={setOperationDate}/>{operation.needsDate&&<Field label="تاريخ الاستحقاق الجديد" type="date" value={newDueDate} onChange={setNewDueDate}/>} {operation.needsAccount&&<div><Label>{operation.accountKind==="bank"?"حساب البنك":"الحساب الجديد"}</Label><Select value={accountId} onValueChange={setAccountId}><SelectTrigger className="mt-1"><SelectValue placeholder="اختر الحساب"/></SelectTrigger><SelectContent>{accountOptions.map(option=><SelectItem key={option.id} value={String(option.id)}>{option.code?`${option.code} - `:""}{option.name}{option.bank_name?` · ${option.bank_name}`:""}</SelectItem>)}</SelectContent></Select></div>}<div><Label>ملاحظة العملية</Label><Input className="mt-1" value={note} onChange={e=>setNote(e.target.value)} placeholder="ملاحظة اختيارية..."/></div><Button onClick={execute} disabled={saving||(operation.needsDate&&!newDueDate)||(operation.needsAccount&&!accountId)} className="w-full gap-2 bg-violet-700 hover:bg-violet-800">{saving?<Loader2 className="h-4 w-4 animate-spin"/>:<ShieldCheck className="h-4 w-4"/>}تنفيذ العملية</Button></div>}<Button variant="ghost" className="mt-3 w-full gap-2" onClick={()=>setDetailsOpen(true)}><History className="h-4 w-4"/>عرض سجل العمليات</Button></>:<div className="py-12 text-center text-muted-foreground"><Landmark className="mx-auto mb-3 h-10 w-10 text-slate-300"/><p className="text-sm">حدد صفًا لعرض العمليات المتاحة</p></div>}</section></aside></div><DetailsDialog cheque={selected} open={detailsOpen} onOpenChange={setDetailsOpen}/></main>}
+export function ChequeOperationsPage() {
+  const [type, setType] = useState(1)
+  const [selected, setSelected] = useState<Cheque | null>(null)
+  const [operation, setOperation] = useState<Operation | null>(null)
+  const [operationDate, setOperationDate] = useState(today())
+  const [newDueDate, setNewDueDate] = useState("")
+  const [accountId, setAccountId] = useState("")
+  const [note, setNote] = useState("")
+  const [saving, setSaving] = useState(false)
+  const [operationOpen, setOperationOpen] = useState(false)
+  const [detailsOpen, setDetailsOpen] = useState(false)
+  const operationMessagesRef = useRef<any>(null)
+  const state = useCheques(type)
+  const available = selected?.allowed_operations || []
+  const accountOptions = useMemo(
+    () => operation?.accountKind === "bank" ? state.meta.bank_accounts : state.meta.accounts,
+    [operation, state.meta],
+  )
 
-export default ChequesPage
+  const resetOperationFields = useCallback(() => {
+    setOperation(null)
+    setOperationDate(today())
+    setNewDueDate("")
+    setAccountId("")
+    setNote("")
+    operationMessagesRef.current?.clear?.()
+  }, [])
+
+  useEffect(() => {
+    setSelected(null)
+    setOperationOpen(false)
+    resetOperationFields()
+  }, [type, resetOperationFields])
+
+  const openOperation = (cheque: Cheque) => {
+    setSelected(cheque)
+    resetOperationFields()
+    setOperationOpen(true)
+  }
+
+  const showOperationMessage = (severity: "success" | "error", detail: string) => {
+    operationMessagesRef.current?.clear?.()
+    operationMessagesRef.current?.show?.([{ severity, summary: "", detail, sticky: true }])
+  }
+
+  const execute = async () => {
+    if (!selected || !operation) return
+    setSaving(true)
+    operationMessagesRef.current?.clear?.()
+    try {
+      const response = await fetch("/api/cheques/operations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          cheque_id: selected.id,
+          operation_code: operation.code,
+          operation_date: operationDate,
+          new_due_date: newDueDate || null,
+          account_id: accountId === "" ? null : Number(accountId),
+          note,
+        }),
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || "تعذر تنفيذ العملية")
+
+      setSelected(current => current ? { ...current, ...data.cheque } : data.cheque)
+      setOperation(null)
+      setNewDueDate("")
+      setAccountId("")
+      setNote("")
+      showOperationMessage("success", data.message || "تم تنفيذ عملية الشيك بنجاح")
+      await state.load()
+    } catch (reason) {
+      showOperationMessage("error", reason instanceof Error ? reason.message : "تعذر تنفيذ العملية")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return <main dir="rtl" className="min-h-full space-y-4 bg-slate-50/70 p-3 sm:p-5 dark:bg-slate-950">
+    <PageHeader operations type={type} setType={setType}/>
+    <FiltersPanel {...state} onSearch={state.load}/>
+    {state.error && <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm font-semibold text-rose-700">{state.error}</div>}
+    <ChequesTable
+      rows={state.rows}
+      selectedId={selected?.id}
+      onSelect={openOperation}
+      onDetails={row => { setSelected(row); setDetailsOpen(true) }}
+      operations
+    />
+
+    <Dialog open={operationOpen} onOpenChange={open => { setOperationOpen(open); if (!open) resetOperationFields() }}>
+      <DialogContent dir="rtl" className="flex max-h-[92vh] max-w-3xl flex-col overflow-hidden p-0">
+        <DialogHeader className="shrink-0 bg-gradient-to-l from-indigo-800 via-violet-700 to-fuchsia-700 px-5 py-5 text-white">
+          <DialogTitle className="flex items-center gap-3 text-xl">
+            <span className="rounded-xl bg-white/15 p-2"><Activity className="h-5 w-5"/></span>
+            تنفيذ عملية على الشيك #{selected?.cheq_num}
+          </DialogTitle>
+          <DialogDescription className="text-violet-100">تظهر العمليات المسموحة فقط وفق حالة الشيك الحالية.</DialogDescription>
+        </DialogHeader>
+
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-5">
+          <Messages innerRef={operationMessagesRef}/>
+          {selected && <>
+            <div className="grid gap-3 rounded-2xl border bg-slate-50 p-4 sm:grid-cols-3 dark:bg-slate-900">
+              <Info label="حالة الشيك" value={selected.status_name}/>
+              <Info label="صاحب الشيك / المستفيد" value={selected.customer_name || selected.cheq_owner_name}/>
+              <Info label="المبلغ" value={`${money.format(Number(selected.amount || 0))} ${selected.currency_code || ""}`}/>
+              <Info label="تاريخ الاستحقاق" value={dateText(selected.due_date)}/>
+              <Info label="البنك" value={selected.bank_name}/>
+              <Info label="الحساب الحالي" value={selected.current_account_name || selected.bank_account_name || selected.bank_account}/>
+            </div>
+
+            <section>
+              <h3 className="mb-2 text-sm font-black">العمليات المتاحة</h3>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {available.map(item => <button
+                  type="button"
+                  key={item.code}
+                  onClick={() => { setOperation(item); setAccountId(""); setNewDueDate(""); operationMessagesRef.current?.clear?.() }}
+                  className={`flex items-center justify-between rounded-xl border p-3 text-right text-sm font-bold transition ${operation?.code === item.code ? "border-violet-500 bg-violet-50 text-violet-800 ring-2 ring-violet-100" : "hover:border-violet-300 hover:bg-violet-50/50"}`}
+                >
+                  <span className="flex items-center gap-2">{item.name}{item.createsJournal&&<span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-black text-emerald-700">سند قيد</span>}</span><ChevronLeft className="h-4 w-4"/>
+                </button>)}
+              </div>
+              {!available.length && <p className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">لا توجد عمليات متاحة لحالة هذا الشيك.</p>}
+            </section>
+
+            {operation && <section className="space-y-3 rounded-2xl border border-violet-100 bg-violet-50/40 p-4 dark:border-violet-900 dark:bg-violet-950/20">
+              <div className="flex items-center justify-between gap-2 rounded-xl bg-violet-100 p-3 text-sm font-black text-violet-900 dark:bg-violet-900 dark:text-violet-100"><span>{operation.name}</span>{operation.createsJournal&&<span className="rounded-full bg-emerald-600 px-2.5 py-1 text-[10px] text-white">سيُنشأ سند قيد مرحّل</span>}</div>
+              <Field label="تاريخ العملية" type="date" value={operationDate} onChange={setOperationDate}/>
+              {operation.needsDate && <Field label="تاريخ الاستحقاق الجديد" type="date" value={newDueDate} onChange={setNewDueDate}/>}
+              {operation.needsAccount && <div>
+                <Label>{operation.accountKind === "bank" ? "حساب البنك" : "الحساب الجديد"}</Label>
+                <Select value={accountId} onValueChange={setAccountId}>
+                  <SelectTrigger className="mt-1 bg-white dark:bg-slate-950"><SelectValue placeholder="اختر الحساب"/></SelectTrigger>
+                  <SelectContent>{accountOptions.map(option => <SelectItem key={option.id} value={String(option.id)}>{option.code ? `${option.code} - ` : ""}{option.name}{option.bank_name ? ` · ${option.bank_name}` : ""}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>}
+              <div><Label>ملاحظة العملية</Label><Input className="mt-1 bg-white dark:bg-slate-950" value={note} onChange={event => setNote(event.target.value)} placeholder="ملاحظة اختيارية..."/></div>
+              <Button onClick={execute} disabled={saving || (operation.needsDate && !newDueDate) || (operation.needsAccount && !accountId)} className="w-full gap-2 bg-violet-700 hover:bg-violet-800">
+                {saving ? <Loader2 className="h-4 w-4 animate-spin"/> : <ShieldCheck className="h-4 w-4"/>}تنفيذ العملية
+              </Button>
+            </section>}
+
+            <Button variant="outline" className="w-full gap-2" onClick={() => setDetailsOpen(true)}><History className="h-4 w-4"/>عرض سجل عمليات الشيك</Button>
+          </>}
+        </div>
+      </DialogContent>
+    </Dialog>
+
+    <DetailsDialog cheque={selected} open={detailsOpen} onOpenChange={setDetailsOpen}/>
+  </main>
+}

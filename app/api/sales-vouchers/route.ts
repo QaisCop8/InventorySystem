@@ -178,7 +178,8 @@ const validatePayload = (data: any, items: any[]): string | null => {
   // العميل نفسه اختياري (بيع نقدي بلا عميل مسجَّل) — لكن عندها يجب تحديد حساب الصندوق واسم الدافع
   // معاً كحد أدنى للتوثيق المحاسبي بدلاً من حساب العميل.
   if (!data.account_id) {
-    if (!data.cash_account_id) return "يجب اختيار حساب الصندوق عند عدم اختيار العميل"
+    const hasPosPaymentAccount = Array.isArray(data.pos_payments) && data.pos_payments.some((payment: any) => Number(payment?.amount || 0) > 0 && Number(payment?.account_id || 0) > 0)
+    if (!data.cash_account_id && !hasPosPaymentAccount) return "يجب اختيار حساب الصندوق عند عدم اختيار العميل"
     if (!String(data.customer_name || "").trim()) return "يجب إدخال اسم الدافع عند عدم اختيار العميل"
   }
   if (
@@ -394,6 +395,14 @@ export async function POST(request: NextRequest) {
   try {
     await ensureTables()
     const data = await request.json()
+    const posClientSaleId = String(data.pos_client_sale_id || "").trim() || null
+    if (posClientSaleId) {
+      const existing = await sql`SELECT * FROM voucher_header_tbl WHERE pos_client_sale_id = ${posClientSaleId} LIMIT 1`
+      if (existing[0]) {
+        const existingItems = await fetchSalesVoucherItems(Number(existing[0].id))
+        return NextResponse.json({ ...existing[0], items: existingItems, duplicate: true })
+      }
+    }
     const family = transactionFamilyForVoucherType(Number(data.vch_type))
     if (!family) return NextResponse.json({ error: "نوع الحركة غير صالح" }, { status: 400 })
     const authorization = await authorizeTransaction(request, family, "create", data.branch_id)
@@ -422,6 +431,28 @@ export async function POST(request: NextRequest) {
     if (conflict) return NextResponse.json({ error: "رقم السند مستخدم مسبقاً" }, { status: 400 })
 
     const breakdown = computeAmountBreakdown(items, data)
+    const posPayments = Array.isArray(data.pos_payments)
+      ? data.pos_payments
+          .map((payment: any) => ({
+            payment_method: ["cash", "card", "cheque", "account", "gift_card"].includes(String(payment?.payment_method))
+              ? String(payment.payment_method)
+              : "cash",
+            amount: Math.round(Number(payment?.amount || 0) * 100) / 100,
+            account_id: Number(payment?.account_id || 0),
+            reference: String(payment?.reference || "").trim() || null,
+            due_date: payment?.due_date || null,
+          }))
+          .filter((payment: any) => payment.amount > 0)
+      : []
+    if (posPayments.some((payment: any) => !payment.account_id)) {
+      return NextResponse.json({ error: "يجب تحديد الحساب لكل طريقة دفع" }, { status: 400 })
+    }
+    if (posPayments.length) {
+      const paymentsTotal = Math.round(posPayments.reduce((sum: number, payment: any) => sum + payment.amount, 0) * 100) / 100
+      if (Math.abs(paymentsTotal - Math.round(breakdown.total * 100) / 100) > 0.009) {
+        return NextResponse.json({ error: "مجموع الدفعات يجب أن يساوي إجمالي الفاتورة" }, { status: 400 })
+      }
+    }
     let journalRows: any[] = []
     let journalTypes = null
     if ((ITEM_ACCOUNT_VCH_TYPES as readonly number[]).includes(vchType)) {
@@ -430,13 +461,31 @@ export async function POST(request: NextRequest) {
       journalRows = buildSalesVoucherJournalRows(
         vchType,
         items,
-        data.account_id ?? data.cash_account_id ?? null,
+        data.account_id ?? data.cash_account_id ?? posPayments[0]?.account_id ?? null,
         data.currency_id || null,
         Number(data.rate || 1),
         journalTypes,
         data.tax_account_id ?? null,
         breakdown.tax,
       )
+      if (posPayments.length && journalRows.length) {
+        const counterRow = journalRows.find((row: any) => Number(row.order_no) === 1)
+        if (counterRow) {
+          journalRows = [
+            ...posPayments.map((payment: any, index: number) => ({
+              ...counterRow,
+              order_no: index + 1,
+              account_id: payment.account_id,
+              amount: payment.amount,
+              base_curr_amount: Math.round(payment.amount * Number(data.rate || 1) * 100) / 100,
+              note: ({ cash: "دفعة نقدية", card: "دفعة بطاقة", cheque: "دفعة شيك", account: "دفعة على الحساب", gift_card: "بطاقة هدية" } as Record<string,string>)[payment.payment_method] + " - نقطة البيع",
+            })),
+            ...journalRows
+              .filter((row: any) => row !== counterRow)
+              .map((row: any) => ({ ...row, order_no: Number(row.order_no || 1) + posPayments.length - 1 })),
+          ]
+        }
+      }
       const currencyError = await validateJournalAccountCurrencies(journalRows, data.currency_id ? Number(data.currency_id) : null)
       if (currencyError) return NextResponse.json({ error: currencyError }, { status: 400 })
     }
@@ -465,7 +514,7 @@ export async function POST(request: NextRequest) {
         insert_user, shipping_address, salesman_id, linked_order_id,
         discount_type, discount_value, vat_percent,
         vat_classification_id, invoice_type, vat_included, is_maqasa, maqasa_type,
-        phone, due_date, is_exported_sales, location_id
+        phone, due_date, is_exported_sales, location_id, pos_client_sale_id
       ) VALUES (
         ${vchType}, ${vchCode}, ${data.vch_date}, ${data.vch_book_id || null}, ${authorization.branchId}, ${data.currency_id || null}, ${Number(data.rate || 1)},
         ${data.account_id}, ${data.customer_name || ""}, ${data.to_store_id || null},
@@ -474,12 +523,18 @@ export async function POST(request: NextRequest) {
         ${discountType}, ${Number(data.discount_value || 0)}, ${Number(data.vat_percent || 0)},
         ${Number(data.vat_classification_id) || 1}, ${Number(data.invoice_type) || 1},
         ${Boolean(data.vat_included)}, ${Boolean(data.is_maqasa)}, ${data.is_maqasa ? Number(data.maqasa_type) || 1 : null},
-        ${data.phone || ""}, ${data.due_date || null}, ${Boolean(data.is_exported_sales)}, ${data.city_id || null}
+        ${data.phone || ""}, ${data.due_date || null}, ${Boolean(data.is_exported_sales)}, ${data.city_id || null}, ${posClientSaleId}
       )
       RETURNING *
     `
 
     const voucher = result[0]
+    for (const payment of posPayments) {
+      await sql`
+        INSERT INTO pos_sale_payments_tbl (voucher_id, payment_method, amount, account_id, reference, due_date)
+        VALUES (${voucher.id}, ${payment.payment_method}, ${payment.amount}, ${payment.account_id}, ${payment.reference}, ${payment.due_date})
+      `
+    }
     const savedItems = await saveSalesVoucherItems(voucher.id, itemsToSave)
     if ((ITEM_ACCOUNT_VCH_TYPES as readonly number[]).includes(vchType)) {
       const journalIds = await saveJournalRows(voucher.id, journalRows)

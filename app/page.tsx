@@ -45,6 +45,9 @@ const BalanceSheetReport = lazyNamed(() => import("@/components/reports/financia
 const IncomeStatementReport = lazyNamed(() => import("@/components/reports/financial-report"), "IncomeStatementReport")
 const ChequesPage = lazyNamed(() => import("@/components/accounting/cheques-management"), "ChequesPage")
 const ChequeOperationsPage = lazyNamed(() => import("@/components/accounting/cheques-management"), "ChequeOperationsPage")
+const ChequeDepositBulkPage = lazyNamed(() => import("@/components/accounting/bulk-cheque-operations"), "ChequeDepositBulkPage")
+const ChequeEndorseBulkPage = lazyNamed(() => import("@/components/accounting/bulk-cheque-operations"), "ChequeEndorseBulkPage")
+const OutgoingChequeClearBulkPage = lazyNamed(() => import("@/components/accounting/bulk-cheque-operations"), "OutgoingChequeClearBulkPage")
 const ChequePaymentVouchers = lazyDefault(() => import("@/components/accounting/cheque-payment-vouchers"))
 const InventoryAnalytics = lazyNamed(() => import("@/components/inventory/inventory-analytics"), "InventoryAnalytics")
 const AutomatedReorderSystem = lazyNamed(() => import("@/components/inventory/automated-reorder-system"), "AutomatedReorderSystem")
@@ -68,6 +71,8 @@ const VoucherBookPermissions = lazyDefault(() => import("@/components/settings/v
 const Warehouses = lazyDefault(() => import("@/components/admin/warehouses"))
 const StockVouchers = dynamic(() => import("@/components/inventory/stock-vouchers"), { ssr: false })
 const SalesDelivery = dynamic(() => import("@/components/sales/sales-delivery"), { ssr: false })
+const PosCashier = dynamic(() => import("@/components/pos/pos-cashier"), { ssr: false })
+const PosPointsSettings = dynamic(() => import("@/components/pos/pos-points-settings"), { ssr: false })
 
 const AIChat = lazyNamed(() => import("@/components/ai-assistant/ai-chat"), "AIChat")
 const SmartAnalyticsDashboard = lazyNamed(() => import("@/components/ai-analytics/smart-analytics-dashboard"), "SmartAnalyticsDashboard")
@@ -182,6 +187,9 @@ const componentMap: Record<string, React.ComponentType<any>> = {
   "cheques-books": ChequesBooks,
   cheques: ChequesPage,
   "cheque-operations": ChequeOperationsPage,
+  "cheque-deposit-bulk": ChequeDepositBulkPage,
+  "cheque-endorse-bulk": ChequeEndorseBulkPage,
+  "outgoing-cheque-clear-bulk": OutgoingChequeClearBulkPage,
   "voucher-book-permissions": VoucherBookPermissions,
   warehouses: Warehouses,
   "stock-in-vouchers": (props: any) => <StockVouchers {...props} voucherType={8} />,
@@ -189,6 +197,8 @@ const componentMap: Record<string, React.ComponentType<any>> = {
   "internal-delivery-vouchers": (props: any) => <StockVouchers {...props} voucherType={10} />,
   "use-vouchers": (props: any) => <StockVouchers {...props} voucherType={11} />,
   "sales-invoices": (props: any) => <SalesDelivery {...props} voucherType={12} />,
+  "pos-cashier": PosCashier,
+  "pos-points-settings": PosPointsSettings,
   "sales-delivery": (props: any) => <SalesDelivery {...props} voucherType={13} />,
   "delivery-consignment-sale": (props: any) => <SalesDelivery {...props} voucherType={14} />,
   "return-delivery-consignment-sale": (props: any) => <SalesDelivery {...props} voucherType={15} />,

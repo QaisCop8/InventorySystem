@@ -19,7 +19,7 @@ const voucherTypeName = `CASE period.vch_type
   WHEN 12 THEN 'فاتورة مبيعات' WHEN 13 THEN 'إرسالية مبيعات'
   WHEN 14 THEN 'إرسالية برسم البيع' WHEN 15 THEN 'مرتجع إرسالية برسم البيع'
   WHEN 16 THEN 'مرتجع مبيعات' WHEN 17 THEN 'فاتورة مشتريات'
-  WHEN 18 THEN 'إرسالية مشتريات' WHEN 19 THEN 'مرتجع مشتريات'
+  WHEN 18 THEN 'إرسالية مشتريات' WHEN 19 THEN 'مرتجع مشتريات' WHEN 21 THEN 'سند صرف شيكات'
   ELSE 'سند قيد' END`
 
 export async function GET(request: NextRequest) {

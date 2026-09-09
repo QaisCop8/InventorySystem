@@ -1,10 +1,10 @@
 import sql from "@/lib/database"
 import { ensureTables as ensureReceiptTables } from "@/app/api/receipts/_lib"
 import { ensureTables as ensureVoucherTypeTables } from "@/app/api/voucher-book-permissions/_lib"
-import { ensureChequeOperationsTable } from "@/app/api/cheques/_lib"
+import { CHEQUE_OPERATIONS, ensureChequeOperationsTable } from "@/app/api/cheques/_lib"
 
 export const CHEQUE_PAYMENT_VCH_TYPE = 21
-export const ENDORSEMENT_STATUS_IDS = [1,3,5]
+export const ENDORSEMENT_STATUS_IDS = CHEQUE_OPERATIONS.find(operation => operation.code === "endorse")?.allowed ?? [1,3,5]
 
 export async function ensureChequePaymentTables() {
   await ensureReceiptTables()

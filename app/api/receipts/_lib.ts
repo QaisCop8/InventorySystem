@@ -983,11 +983,12 @@ export const saveChequeRows = async (voucherId: number, cheques: any[], ctx: Che
       INSERT INTO cheques_tbl (
         voucher_id, cheq_type, bank_account, bank_account_id, cheq_num, bank_id, branch_id, amount,
         currency_id, rate, received_date, trans_date, due_date, cheq_owner_name,
-        rec_cheq_account_id, current_account_id, status_id, manual_insert, cheq_book_id, is_printed, order_no
+        customer_id, rec_cheq_account_id, current_account_id, status_id, manual_insert, cheq_book_id, is_printed, order_no
       ) VALUES (
         ${voucherId}, ${cheqType}, ${row.bank_account || ""}, ${row.bank_account_id || null}, ${row.cheq_num || ""}, ${row.bank_id || null}, ${row.branch_id || null},
         ${Number(row.amount || 0)}, ${ctx.currencyId}, ${ctx.rate}, ${ctx.vchDate}, ${ctx.vchDate}, ${row.due_date || null},
-        ${row.cheq_owner_name || ""}, ${ctx.checkAccountId}, ${ctx.checkAccountId}, 1, ${row.cheque_book_cheque_id ? 0 : 1}, ${row.cheque_book_cheque_id || null}, 0, ${i + 1}
+        ${row.cheq_owner_name || ""}, (SELECT account_id FROM voucher_header_tbl WHERE id=${voucherId}),
+        ${ctx.checkAccountId}, ${ctx.checkAccountId}, 1, ${row.cheque_book_cheque_id ? 0 : 1}, ${row.cheque_book_cheque_id || null}, 0, ${i + 1}
       )
     `
   }

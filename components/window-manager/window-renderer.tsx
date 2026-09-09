@@ -24,7 +24,12 @@ const BalanceSheetReport = dynamic(() => import("@/components/reports/financial-
 const IncomeStatementReport = dynamic(() => import("@/components/reports/financial-report").then((m) => m.IncomeStatementReport), { ssr: false })
 const ChequesPage = dynamic(() => import("@/components/accounting/cheques-management").then((m) => m.ChequesPage), { ssr: false })
 const ChequeOperationsPage = dynamic(() => import("@/components/accounting/cheques-management").then((m) => m.ChequeOperationsPage), { ssr: false })
+const ChequeDepositBulkPage = dynamic(() => import("@/components/accounting/bulk-cheque-operations").then((m) => m.ChequeDepositBulkPage), { ssr: false })
+const ChequeEndorseBulkPage = dynamic(() => import("@/components/accounting/bulk-cheque-operations").then((m) => m.ChequeEndorseBulkPage), { ssr: false })
+const OutgoingChequeClearBulkPage = dynamic(() => import("@/components/accounting/bulk-cheque-operations").then((m) => m.OutgoingChequeClearBulkPage), { ssr: false })
 const ChequePaymentVouchers = dynamic(() => import("@/components/accounting/cheque-payment-vouchers"), { ssr: false })
+const PosCashier = dynamic(() => import("@/components/pos/pos-cashier"), { ssr: false })
+const PosPointsSettings = dynamic(() => import("@/components/pos/pos-points-settings"), { ssr: false })
 const DocumentSettings = dynamic(() => import("@/components/settings/document-settings"), { ssr: false })
 const GeneralSettings = dynamic(() => import("@/components/settings/general-settings"), { ssr: false })
 const PervasiveSettings = dynamic(() => import("@/app/settings/pervasive/page"), { ssr: false })
@@ -48,7 +53,12 @@ const componentMap: Record<string, React.ComponentType<any>> = {
   "income-statement-report": IncomeStatementReport,
   cheques: ChequesPage,
   "cheque-operations": ChequeOperationsPage,
+  "cheque-deposit-bulk": ChequeDepositBulkPage,
+  "cheque-endorse-bulk": ChequeEndorseBulkPage,
+  "outgoing-cheque-clear-bulk": OutgoingChequeClearBulkPage,
   "cheque-payment-vouchers": ChequePaymentVouchers,
+  "pos-cashier": PosCashier,
+  "pos-points-settings": PosPointsSettings,
   "document-settings": DocumentSettings,
   "general-settings": GeneralSettings,
   "pervasive-settings": PervasiveSettings,

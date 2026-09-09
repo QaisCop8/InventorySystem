@@ -1,5 +1,5 @@
-const CACHE_NAME = "orders-app-v2"
-const APP_SHELL = ["/mobile", "/manifest.json"]
+const CACHE_NAME = "shamel-app-v3"
+const APP_SHELL = ["/", "/mobile", "/manifest.json"]
 
 // API responses depend on the signed-in user and must never be pre-cached.
 // Cache shell resources independently so one unavailable URL cannot reject
@@ -39,12 +39,17 @@ self.addEventListener("fetch", (event) => {
     return
   }
 
-  if (request.mode === "navigate" && url.pathname.startsWith("/mobile")) {
+  if (request.mode === "navigate") {
     event.respondWith(
-      fetch(request).catch(async () => {
-        const cachedPage = await caches.match("/mobile")
-        return cachedPage || Response.error()
-      }),
+      fetch(request)
+        .then(async (response) => {
+          if (response.ok) {
+            const cache = await caches.open(CACHE_NAME)
+            await cache.put(request, response.clone())
+          }
+          return response
+        })
+        .catch(async () => (await caches.match(request)) || (await caches.match(url.pathname.startsWith("/mobile") ? "/mobile" : "/")) || Response.error()),
     )
     return
   }

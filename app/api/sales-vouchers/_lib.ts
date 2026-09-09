@@ -197,6 +197,25 @@ export const ensureTables = async () => {
   await sql`ALTER TABLE voucher_header_tbl ADD COLUMN IF NOT EXISTS discount_type VARCHAR(20) DEFAULT 'percentage'`
   await sql`ALTER TABLE voucher_header_tbl ADD COLUMN IF NOT EXISTS discount_value DOUBLE PRECISION DEFAULT 0`
   await sql`ALTER TABLE voucher_header_tbl ADD COLUMN IF NOT EXISTS vat_percent DOUBLE PRECISION DEFAULT 0`
+  // A browser generated id makes queued POS sales safe to replay after the
+  // connection returns. The unique index is deliberately tenant-local because
+  // every company owns its voucher_header_tbl.
+  await sql`ALTER TABLE voucher_header_tbl ADD COLUMN IF NOT EXISTS pos_client_sale_id TEXT`
+  await sql`CREATE UNIQUE INDEX IF NOT EXISTS uq_voucher_header_pos_client_sale_id ON voucher_header_tbl(pos_client_sale_id) WHERE pos_client_sale_id IS NOT NULL`
+  await sql`
+    CREATE TABLE IF NOT EXISTS pos_sale_payments_tbl (
+      id BIGSERIAL PRIMARY KEY,
+      voucher_id INTEGER NOT NULL REFERENCES voucher_header_tbl(id) ON DELETE CASCADE,
+      payment_method VARCHAR(20) NOT NULL,
+      amount DOUBLE PRECISION NOT NULL,
+      account_id INTEGER NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `
+  await sql`ALTER TABLE pos_sale_payments_tbl ADD COLUMN IF NOT EXISTS reference VARCHAR(160)`
+  await sql`ALTER TABLE pos_sale_payments_tbl ADD COLUMN IF NOT EXISTS due_date DATE`
+  await sql`ALTER TABLE pos_sale_payments_tbl ADD COLUMN IF NOT EXISTS pos_point_id INTEGER`
+  await sql`ALTER TABLE pos_sale_payments_tbl ADD COLUMN IF NOT EXISTS session_id BIGINT`
   // بقية الحقول الجديدة (vat_classification_id/invoice_type/vat_included/
   // is_maqasa/maqasa_type، phone/due_date/is_exported_sales، location_id) محجوزة أصلاً على
   // voucher_header_tbl من receipts/_lib.ts — بلا ADD COLUMN هنا. حساب الضريبة تحديداً لا يُخزَّن
@@ -218,19 +237,24 @@ const SALES_VOUCHER_SETTINGS_KEY: Record<number, { prefix: string; start: string
 // رقم السند = بادئة (إعدادات النظام) + رمز دفتر السندات + رقم تسلسلي، بنفس منطق
 // getStockVoucherNumberSettings في stock-vouchers/_lib.ts.
 export const getSalesVoucherNumberSettings = async (
-  requestUrl: string,
+  _requestUrl: string,
   vchType: number,
 ): Promise<{ prefix: string; startNumber: number }> => {
   const key = SALES_VOUCHER_SETTINGS_KEY[vchType]
   const defaultPrefix = key?.defaultPrefix || "SV"
   try {
-    const settingsUrl = String(requestUrl || "").trim()
-    const response = await fetch(settingsUrl ? new URL("/api/settings/system", settingsUrl) : "/api/settings/system")
-    if (!response.ok) return { prefix: defaultPrefix, startNumber: 1 }
-    const settings = await response.json()
-    const prefixRaw = String(settings?.[key?.prefix || ""] || defaultPrefix).trim().toUpperCase()
+    const settingKeys = [key?.prefix, key?.start].filter((value): value is string => Boolean(value))
+    const rows = settingKeys.length
+      ? await sql`
+          SELECT COALESCE(description, id::text) AS setting_key, value
+          FROM system_settings
+          WHERE description = ANY(${settingKeys}::text[]) OR id::text = ANY(${settingKeys}::text[])
+        `
+      : []
+    const settings = Object.fromEntries(rows.map((row: any) => [String(row.setting_key), row.value]))
+    const prefixRaw = String(settings[key?.prefix || ""] || defaultPrefix).trim().toUpperCase()
     const prefix = /^[A-Z]{1,3}$/.test(prefixRaw) ? prefixRaw : defaultPrefix
-    const startNumber = Number(settings?.[key?.start || ""]) || 1
+    const startNumber = Number(settings[key?.start || ""]) || 1
     return { prefix, startNumber }
   } catch (error) {
     console.error("Failed to load sales voucher numbering settings, using defaults:", error)

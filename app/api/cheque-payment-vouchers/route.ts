@@ -60,10 +60,12 @@ export async function POST(request:NextRequest){
     return await withTenantTransaction(async()=>{
     const account=(await sql`SELECT id,currency_id,allow_trans_with_diff_curr FROM account_tbl WHERE id=${accountId} AND COALESCE(status,1)<>3`)[0]
     if(!account)return NextResponse.json({error:"الحساب المحدد غير موجود أو غير فعال"},{status:400})
-    const chosen=await sql`SELECT * FROM cheques_tbl WHERE id=ANY(${chequeIds}::int[]) ORDER BY id FOR UPDATE`
+    const chosen=await sql`SELECT c.*,source.branch_id source_branch_id FROM cheques_tbl c LEFT JOIN voucher_header_tbl source ON source.id=c.voucher_id WHERE c.id=ANY(${chequeIds}::int[]) ORDER BY c.id FOR UPDATE OF c`
     if(chosen.length!==chequeIds.length)return NextResponse.json({error:"أحد الشيكات المحددة غير موجود"},{status:409})
     const invalid=chosen.find((c:any)=>Number(c.cheq_type)!==1||!ENDORSEMENT_STATUS_IDS.includes(Number(c.status_id))||!c.current_account_id)
     if(invalid)return NextResponse.json({error:`الشيك رقم ${invalid.cheq_num} لم يعد متاحاً للتجيير، حدّث البحث`},{status:409})
+    const outsideBranch=chosen.find((c:any)=>Number(c.source_branch_id)!==authorization.branchId)
+    if(outsideBranch)return NextResponse.json({error:`الشيك رقم ${outsideBranch.cheq_num} لا يتبع الفرع المحدد`},{status:403})
     const currencies=new Set(chosen.map((c:any)=>Number(c.currency_id)))
     if(currencies.size!==1)return NextResponse.json({error:"يجب أن تكون جميع الشيكات المختارة من نفس العملة"},{status:400})
     const currencyId=Number(chosen[0].currency_id),rate=Number(chosen[0].rate||1)

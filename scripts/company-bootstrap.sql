@@ -20210,6 +20210,7 @@ COPY public.voucher_types_tbl (id, name, status) FROM stdin;
 17	فاتورة مشتريات	1
 18	إرسالية مشتريات	1
 19	مرتجع مشتريات	1
+21	سند صرف شيكات	1
 \.
 
 

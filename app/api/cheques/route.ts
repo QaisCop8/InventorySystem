@@ -55,6 +55,10 @@ export async function GET(request: NextRequest) {
              customer.code customer_code,customer.name customer_name,
              current_account.code current_account_code,current_account.name current_account_name,
              vh.vch_code,vh.vch_date,vh.branch_id voucher_branch_id,
+             EXISTS (SELECT 1 FROM cheque_operations_log_tbl operation_log
+                     WHERE operation_log.cheque_id=c.id AND COALESCE(operation_log.status,1)<>9) has_operations,
+             (c.due_date::date > CURRENT_DATE) due_after_today,
+             CURRENT_DATE::text business_date,
              COUNT(*) OVER() total_count
       FROM cheques_tbl c
       LEFT JOIN cheque_status_tbl cs ON cs.id=c.status_id
@@ -66,7 +70,6 @@ export async function GET(request: NextRequest) {
       LEFT JOIN account_tbl current_account ON current_account.id=c.current_account_id
       LEFT JOIN voucher_header_tbl vh ON vh.id=c.voucher_id
       WHERE c.cheq_type=${chequeType}
-        AND (${statusId}::int IS NULL OR c.status_id=${statusId})
         AND (${currencyId}::int IS NULL OR c.currency_id=${currencyId})
         AND (${bankId}::int IS NULL OR c.bank_id=${bankId})
         AND (${fromDueDate}::date IS NULL OR c.due_date>=${fromDueDate}::date)
@@ -80,7 +83,10 @@ export async function GET(request: NextRequest) {
       LIMIT 2000
     `
 
-    const rows = rawRows.map(withAllowedChequeOperations)
+    const effectiveRows = rawRows.map((row: any) => withAllowedChequeOperations(row,String(row.business_date)))
+    const rows = statusId
+      ? effectiveRows.filter((row: any) => Number(row.status_id) === statusId)
+      : effectiveRows
     const summary = {
       count: rows.length,
       total: rows.reduce((sum: number, row: any) => sum + Number(row.amount || 0), 0),

@@ -49,6 +49,7 @@ import {
   CalendarDays,
   Settings2,
   BriefcaseBusiness,
+  Store,
   LucideIcon,
 } from "lucide-react"
 import { useWindowManager } from "@/contexts/window-manager-context"
@@ -86,6 +87,7 @@ const ACCENTS: Record<string, Accent> = {
   "general-accounting": { gradient: "from-amber-400 to-orange-500", glow: "shadow-amber-500/40", chip: "bg-amber-500/15 text-amber-700 dark:text-amber-200" },
   "item-management": { gradient: "from-lime-400 to-green-600", glow: "shadow-lime-500/40", chip: "bg-lime-500/15 text-lime-700 dark:text-lime-200" },
   orders: { gradient: "from-rose-400 to-pink-600", glow: "shadow-rose-500/40", chip: "bg-rose-500/15 text-rose-700 dark:text-rose-200" },
+  "retail-pos": { gradient: "from-emerald-400 to-cyan-500", glow: "shadow-emerald-500/40", chip: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-200" },
   reports: { gradient: "from-teal-400 to-cyan-600", glow: "shadow-teal-500/40", chip: "bg-teal-500/15 text-teal-700 dark:text-teal-200" },
   settings: { gradient: "from-slate-400 to-slate-600", glow: "shadow-slate-500/40", chip: "bg-slate-500/15 text-slate-700 dark:text-slate-200" },
   tools: { gradient: "from-cyan-500 to-blue-600", glow: "shadow-cyan-500/40", chip: "bg-cyan-500/15 text-cyan-700 dark:text-cyan-200" },
@@ -101,6 +103,15 @@ export const menuItems: MenuItem[] = [
   { id: "home-dashboard", title: "الرئيسية", icon: LayoutDashboard, section: "home-dashboard" },
   { id: "ai-assistant", title: "المساعد الذكي", icon: Sparkles, section: "ai-assistant" },
   { id: "smart-analytics", title: "التحليلات الذكية", icon: BarChart3, section: "smart-analytics" },
+  {
+    id: "retail-pos",
+    title: "نظام البيع بالتجزئة",
+    icon: Store,
+    submenu: [
+      { title: "إعداد نقاط البيع", section: "pos-points-settings", icon: Settings },
+      { title: "كاشير نقطة البيع", section: "pos-cashier", icon: ShoppingCart },
+    ],
+  },
   {
     id: "task-orders",
     title: "تتبع أوامر العمل",
@@ -169,6 +180,9 @@ export const menuItems: MenuItem[] = [
           { title: "اشعار مدين", section: "debit-notes", icon: FileMinus2 },
           { title: "الشيكات", section: "cheques", icon: WalletCards },
           { title: "عمليات الشيكات", section: "cheque-operations", icon: ArrowLeftRight },
+          { title: "إيداع الشيكات", section: "cheque-deposit-bulk", icon: ArrowDownCircle },
+          { title: "تجيير الشيكات", section: "cheque-endorse-bulk", icon: ArrowLeftRight },
+          { title: "إخراج الشيكات الصادرة", section: "outgoing-cheque-clear-bulk", icon: ArrowUpCircle },
         ],
       },
     ],
