@@ -388,7 +388,7 @@ export default function UnifiedJournal({
 
   useEffect(() => {
     if (typeof window === "undefined" || !dialogOpen) return
-    if (showDeleteConfirm || showUnsavedConfirm) return
+    if (showDeleteConfirm || showUnsavedConfirm || journalSearchOpen || costCenterOpen || postDialogOpen || isSaving) return
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "F3") {
@@ -396,14 +396,10 @@ export default function UnifiedJournal({
         handleRequestSave()
         return
       }
-      if (event.key === "F8") {
-        event.preventDefault()
-        if (form.id > 0 && form.status === 1) onDelete?.()
-        return
-      }
       if (event.key === "F9") {
         event.preventDefault()
-        if (form.id > 0) onPrint?.()
+        event.stopPropagation()
+        if (!event.repeat && form.id > 0 && form.status !== 3) onDelete?.()
         return
       }
       if (event.key === "F5") {
@@ -412,9 +408,9 @@ export default function UnifiedJournal({
       }
     }
 
-    window.addEventListener("keydown", handleKeyDown)
-    return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [dialogOpen, form.id, isLocked, onDelete, onOpenChange, guardedAction, showDeleteConfirm, showUnsavedConfirm])
+    window.addEventListener("keydown", handleKeyDown, true)
+    return () => window.removeEventListener("keydown", handleKeyDown, true)
+  }, [dialogOpen, form.id, form.status, isSaving, isLocked, onDelete, onOpenChange, guardedAction, showDeleteConfirm, showUnsavedConfirm, journalSearchOpen, costCenterOpen, postDialogOpen])
 
   useEffect(() => {
     if (typeof window === "undefined" || !dialogOpen) return
@@ -909,7 +905,7 @@ export default function UnifiedJournal({
             onLast={() => void handleNavigate("last")}
             isSaving={isSaving}
             canSave={canSave && form.status !== 2 && form.status !== 3}
-            canDelete={form.id > 0 && form.status !== 3}
+            canDelete={form.id > 0 && form.status !== 3 && !isSaving}
             canClone={form.id > 0}
             canPrint={form.id > 0 && form.status !== 3}
             isNewRecord={form.id <= 0}
@@ -1250,6 +1246,10 @@ export default function UnifiedJournal({
 
       <ConfirmDialogYesNo
         visible={showDeleteConfirm}
+        useAppDialog
+        busy={isSaving}
+        confirmLabel="نعم"
+        cancelLabel="لا"
         message={isPosted ? "السند مرحل هل تريد الغاؤه منطقياً؟" : "هل تريد حذف سند القيد هذا؟"}
         onConfirm={onConfirmDelete}
         onCancel={onCancelDelete}

@@ -1,3 +1,4 @@
+import { reportAmountSql } from "@/lib/report-currency"
 import { NextResponse, type NextRequest } from "next/server"
 import sql from "@/lib/database"
 import { getSessionUser } from "@/lib/tenant-auth"
@@ -46,7 +47,11 @@ export async function GET(request: NextRequest) {
     const meta = { accounts,currencies,branches,salesmen,voucher_types:Object.entries(voucherNames).map(([id,name])=>({id:Number(id),name})) }
     if (p.get("meta") === "1") return NextResponse.json({meta})
 
-    const amount = `ABS(CASE WHEN ${baseCurrency ? "TRUE" : "FALSE"} THEN COALESCE(NULLIF(vjd.base_curr_amount,0),vjd.amount*COALESCE(vjd.rate,1)) ELSE vjd.amount END)`
+    const baseId = Number(currencies[0]?.id)
+    const targetId = Number(p.get("report_currency_id") || baseId)
+    const targetCurrency = currencies.find((currency:any) => Number(currency.id) === targetId)
+    if (!targetCurrency) return NextResponse.json({error:"Invalid report currency"},{status:400})
+    const amount = reportAmountSql(targetId, baseId)
     const list = (values:number[]) => values.join(",")
     // Every interpolated list contains validated positive integers only; the remaining choices
     // come from closed enums above. Keeping this fragment parameter-free also avoids nested
@@ -75,7 +80,7 @@ export async function GET(request: NextRequest) {
     } else if (reportType === "vouchers") {
       rows = await sql`WITH selected AS (SELECT DISTINCT vh.id FROM voucher_header_tbl vh JOIN voucher_journal_detail_tbl vjd ON vjd.voucher_id=vh.id WHERE ${common} AND vh.vch_date>=${fromDate}::date AND vh.vch_date<(${toDate}::date+INTERVAL '1 day'))
         SELECT vh.id,vh.vch_date,vh.vch_code,vh.vch_type,${sql.unsafe(voucherCase)} voucher_type_name,vh.status voucher_status,
-          c.currency_code,c.currency_name,vh.rate,vh.amount,vh.note,b.branch_name,s.name salesman_name,
+          c.currency_code,c.currency_name,vh.rate,${sql.unsafe(reportAmountSql(targetId, baseId, "vh"))} amount,vh.note,b.branch_name,s.name salesman_name,
           string_agg(DISTINCT a.code||' - '||a.name,'، ') accounts,
           SUM(CASE WHEN vjd.credit_debit=1 THEN ${sql.unsafe(amount)} ELSE 0 END) debit,
           SUM(CASE WHEN vjd.credit_debit=2 THEN ${sql.unsafe(amount)} ELSE 0 END) credit
@@ -102,14 +107,16 @@ export async function GET(request: NextRequest) {
         ORDER BY a.code`
     }
 
+    rows = rows.map(row => ({...row, transaction_currency_code:row.currency_code, transaction_currency_name:row.currency_name, currency_code:targetCurrency.currency_code, currency_name:targetCurrency.currency_name}))
     const num=(value:unknown)=>Number(value||0)
     const summary = reportType === "vouchers"
       ? { count:rows.length,total:rows.reduce((s,r)=>s+num(r.amount),0),debit:rows.reduce((s,r)=>s+num(r.debit),0),credit:rows.reduce((s,r)=>s+num(r.credit),0) }
       : reportType === "transactions"
         ? { count:rows.length,debit:rows.reduce((s,r)=>s+num(r.debit),0),credit:rows.reduce((s,r)=>s+num(r.credit),0),balance:rows.reduce((s,r)=>s+num(r.debit)-num(r.credit),0) }
         : { count:rows.length,opening:rows.reduce((s,r)=>s+num(r.opening_balance),0),debit:rows.reduce((s,r)=>s+num(r.debit),0),credit:rows.reduce((s,r)=>s+num(r.credit),0),balance:rows.reduce((s,r)=>s+num(r.balance),0),assets:rows.filter(r=>r.statement_side==="assets").reduce((s,r)=>s+num(r.balance),0),liabilities:rows.filter(r=>r.statement_side==="liabilities").reduce((s,r)=>s+Math.abs(num(r.balance)),0),income:rows.filter(r=>num(r.balance)<0).reduce((s,r)=>s+Math.abs(num(r.balance)),0),expenses:rows.filter(r=>num(r.balance)>0).reduce((s,r)=>s+num(r.balance),0) }
-    return NextResponse.json({meta,rows,summary,filters:{report_type:reportType,from_date:fromDate,to_date:toDate,base_currency:baseCurrency}})
+    return NextResponse.json({meta,rows,summary,filters:{report_type:reportType,from_date:fromDate,to_date:toDate,base_currency:baseCurrency,report_currency_id:targetId}})
   } catch(error) {
+    if ((error as {code?:string})?.code === "22012") return NextResponse.json({error:"لا يوجد سعر صرف صالح لعملة التقرير بتاريخ إحدى الحركات. يرجى تعريف سعر الصرف وإعادة عرض التقرير."},{status:400})
     console.error("Financial report error:",error)
     return NextResponse.json({error:"تعذر تحميل التقرير المالي"},{status:500})
   }

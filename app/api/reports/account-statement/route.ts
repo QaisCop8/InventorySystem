@@ -1,3 +1,4 @@
+import { reportAmountSql } from "@/lib/report-currency"
 import { NextResponse, type NextRequest } from "next/server"
 import sql from "@/lib/database"
 import { getSessionUser } from "@/lib/tenant-auth"
@@ -69,6 +70,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "لا تملك صلاحية على الفروع المحددة" }, { status: 403 })
     }
 
+    const baseId = Number(currencies[0]?.id)
+    const targetId = Number(params.get("report_currency_id") || baseId)
+    const targetCurrency = currencies.find((currency:any) => Number(currency.id) === targetId)
+    if (!targetCurrency) return NextResponse.json({error:"Invalid report currency"},{status:400})
+    const amount = reportAmountSql(targetId, baseId)
     const rows = await sql`
       WITH RECURSIVE selected_accounts AS (
         SELECT id FROM account_tbl WHERE id=ANY(${accountIds}::int[])
@@ -80,9 +86,7 @@ export async function GET(request: NextRequest) {
                a.code account_code, a.name account_name,
                c.currency_code, c.currency_name,
                b.branch_name, s.name salesman_name,
-               ABS(CASE WHEN ${useBaseCurrency}
-                 THEN COALESCE(NULLIF(vjd.base_curr_amount,0),vjd.amount*COALESCE(vjd.rate,1))
-                 ELSE vjd.amount END) line_amount
+               ${sql.unsafe(amount)} line_amount
         FROM voucher_journal_detail_tbl vjd
         JOIN voucher_header_tbl vh ON vh.id=vjd.voucher_id
         JOIN account_tbl a ON a.id=vjd.account_id
@@ -134,8 +138,8 @@ export async function GET(request: NextRequest) {
       )
       SELECT a.id account_id,a.code account_code,a.name account_name,
         COALESCE(SUM(CASE WHEN vjd.credit_debit=1
-          THEN ABS(CASE WHEN ${useBaseCurrency} THEN COALESCE(NULLIF(vjd.base_curr_amount,0),vjd.amount*COALESCE(vjd.rate,1)) ELSE vjd.amount END)
-          ELSE -ABS(CASE WHEN ${useBaseCurrency} THEN COALESCE(NULLIF(vjd.base_curr_amount,0),vjd.amount*COALESCE(vjd.rate,1)) ELSE vjd.amount END) END)
+          THEN ${sql.unsafe(amount)}
+          ELSE -${sql.unsafe(amount)} END)
           FILTER (WHERE vh.vch_date<${fromDate}::date),0) opening_balance
       FROM selected_accounts sa JOIN account_tbl a ON a.id=sa.id
       LEFT JOIN voucher_journal_detail_tbl vjd ON vjd.account_id=a.id
@@ -165,12 +169,13 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       meta: { accounts, currencies, branches, salesmen },
-      rows: visibleRows,
+      rows: visibleRows.map((row:any) => ({...row, transaction_currency_id:row.currency_id, transaction_currency_code:row.currency_code, transaction_currency_name:row.currency_name, currency_id:targetId, currency_code:targetCurrency.currency_code, currency_name:targetCurrency.currency_name})),
       opening: visibleOpeningRows,
       summary: { opening_balance: openingBalance, total_debit: totalDebit, total_credit: totalCredit, final_balance: openingBalance + totalDebit - totalCredit },
-      filters: { kind, from_date: fromDate, to_date: toDate, base_currency: useBaseCurrency },
+      filters: { kind, from_date: fromDate, to_date: toDate, base_currency: useBaseCurrency, report_currency_id: targetId },
     })
   } catch (error) {
+    if ((error as {code?:string})?.code === "22012") return NextResponse.json({error:"لا يوجد سعر صرف صالح لعملة التقرير بتاريخ إحدى الحركات. يرجى تعريف سعر الصرف وإعادة عرض التقرير."},{status:400})
     console.error("Account statement report error:", error)
     return NextResponse.json({ error: "تعذر تحميل كشف الحساب" }, { status: 500 })
   }

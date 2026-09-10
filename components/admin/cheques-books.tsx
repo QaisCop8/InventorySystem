@@ -1,4 +1,5 @@
 "use client"
+import "@/components/accounting/cheque-theme.css"
 
 import { useEffect, useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
@@ -297,7 +298,7 @@ export default function ChequesBooks() {
   return (
     <div className="space-y-4" dir="rtl">
       <div className="grid gap-4 sm:grid-cols-2">
-        <Card className="bg-slate-50">
+        <Card className="border-emerald-200 bg-emerald-50">
           <CardHeader>
             <CardTitle className="text-base">إجمالي دفاتر الشيكات</CardTitle>
           </CardHeader>
@@ -306,7 +307,7 @@ export default function ChequesBooks() {
             <div className="text-sm text-muted-foreground">عدد الدفاتر المسجلة</div>
           </CardContent>
         </Card>
-        <Card className="bg-blue-50">
+        <Card className="border-emerald-200 bg-emerald-50">
           <CardHeader>
             <CardTitle className="text-base">إجمالي الشيكات</CardTitle>
           </CardHeader>
@@ -317,7 +318,7 @@ export default function ChequesBooks() {
         </Card>
       </div>
 
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="cheque-page-header flex flex-col gap-4 rounded-2xl p-5 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-col gap-2">
           <div className="text-xl font-semibold">دفاتر الشيكات</div>
           <div className="text-sm text-muted-foreground">إدارة دفاتر الشيكات البنكية وإصدار الشيكات</div>
@@ -345,7 +346,7 @@ export default function ChequesBooks() {
 
       <div className="overflow-auto rounded-lg border border-slate-200">
         <Table>
-          <TableHeader>
+          <TableHeader className="cheque-table-header">
             <TableRow>
               <TableHead className="text-right">رقم الدفتر</TableHead>
               <TableHead className="text-right">رقم الحساب البنكي</TableHead>

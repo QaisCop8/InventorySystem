@@ -1,0 +1,83 @@
+/* Each template changes the composition as well as its color palette. */
+.universal-toolbar[data-toolbar-template="modern"] .universal-toolbar-layout {
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.universal-toolbar[data-toolbar-template="gradient"] .universal-toolbar-layout {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 12px;
+}
+
+.universal-toolbar[data-toolbar-template="gradient"] .universal-toolbar-primary > button {
+  height: 64px;
+  min-width: 76px;
+  flex-direction: column;
+  gap: 5px;
+  border-radius: 16px;
+}
+
+.universal-toolbar[data-toolbar-template="gradient"] .universal-toolbar-utilities {
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.universal-toolbar[data-toolbar-template="gradient"] .universal-toolbar-nav-wrap {
+  grid-column: 1 / -1;
+  order: 3;
+  justify-content: center;
+  padding-top: 8px;
+  border-top: 1px solid rgb(255 255 255 / 20%);
+}
+
+.universal-toolbar[data-toolbar-template="compact"] .universal-toolbar-layout {
+  gap: 4px;
+}
+
+.universal-toolbar[data-toolbar-template="compact"] .universal-toolbar-primary {
+  gap: 3px;
+  padding-inline-end: 6px;
+  border-inline-end: 1px solid #cbd5e1;
+}
+
+.universal-toolbar[data-toolbar-template="compact"] .universal-toolbar-utilities > button {
+  width: 32px;
+  min-width: 32px;
+  padding: 0 !important;
+}
+
+.universal-toolbar[data-toolbar-template="classic"] .universal-toolbar-layout {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px;
+}
+
+.universal-toolbar[data-toolbar-template="classic"] .universal-toolbar-nav-wrap {
+  grid-column: 1 / -1;
+  order: -1;
+  justify-content: flex-start;
+  border-bottom: 1px solid #94a3b8;
+  padding: 0 0 6px;
+}
+
+.universal-toolbar[data-toolbar-template="classic"] .universal-toolbar-primary > button {
+  min-width: 80px;
+  border: 1px solid rgb(15 23 42 / 25%);
+}
+
+.universal-toolbar[data-toolbar-template="classic"] .universal-toolbar-utilities {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 2px;
+}
+
+.universal-toolbar[data-toolbar-template="classic"] .universal-toolbar-utilities > button {
+  border: 1px solid #cbd5e1;
+  background: rgb(255 255 255 / 70%);
+}
+
+.universal-toolbar[data-toolbar-narrow="true"] .universal-toolbar-primary > button {
+  min-width: 40px;
+}

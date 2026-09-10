@@ -246,7 +246,7 @@ export default function UnifiedProductGroups({
                   ref={codeInputRef}
                   maxLength={10}
                 />
-                
+
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="group-name">اسم المجموعة</Label>
@@ -288,6 +288,8 @@ export default function UnifiedProductGroups({
 
       <ConfirmDialogYesNo
         visible={showDeleteConfirm}
+        useAppDialog
+        title="تأكيد حذف المجموعة"
         message={deleteConfirmMessage || "هل تريد حذف هذه المجموعة؟"}
         onConfirm={onConfirmDelete}
         onCancel={onCancelDelete}

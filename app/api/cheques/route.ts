@@ -3,7 +3,7 @@ import sql from "@/lib/database"
 import { getSessionUser } from "@/lib/tenant-auth"
 import { ensureAccountsTable } from "@/app/api/accounts/_lib"
 import { ensureTables as ensureVoucherTables } from "@/app/api/receipts/_lib"
-import { ensureChequeOperationsTable, withAllowedChequeOperations } from "./_lib"
+import { CHEQUE_OPERATIONS, ensureChequeOperationsTable, withAllowedChequeOperations } from "./_lib"
 
 const validDate = (value: string | null) => value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null
 const positiveNumber = (value: string | null) => {
@@ -21,6 +21,7 @@ export async function GET(request: NextRequest) {
 
     const params = request.nextUrl.searchParams
     const chequeType = params.get("type") === "2" ? 2 : 1
+    const operation = CHEQUE_OPERATIONS.find(item => item.code === params.get("operation_code") && item.type === chequeType)
     const statusId = positiveNumber(params.get("status_id"))
     const currencyId = positiveNumber(params.get("currency_id"))
     const bankId = positiveNumber(params.get("bank_id"))
@@ -40,14 +41,14 @@ export async function GET(request: NextRequest) {
       sql`SELECT ba.id,ba.code,ba.name,ba.currency_id,ba.branch_id,ba.jary_account_id,ba.tahsil_account_id,b.bank_name,br.branch_name
           FROM bank_accounts ba LEFT JOIN branches br ON br.id=ba.branch_id LEFT JOIN banks b ON b.id=br.bank_id
           WHERE COALESCE(ba.status,1)<>3 ORDER BY ba.code`,
-      sql`SELECT id,code,name,currency_id FROM account_tbl WHERE COALESCE(status,1)<>3 ORDER BY code LIMIT 5000`,
+      sql`SELECT id,code,name,type,currency_id FROM account_tbl WHERE COALESCE(status,1)<>3 ORDER BY code LIMIT 5000`,
     ])
     const meta = { statuses, currencies, banks, bank_accounts: bankAccounts, accounts }
     if (params.get("meta") === "1") return NextResponse.json({ meta })
 
     const rawRows = await sql`
-      SELECT c.id,c.cheq_type,c.bank_account,c.cheq_num,c.amount,c.rate,c.received_date,c.trans_date,
-             c.due_date,c.pay_date,c.return_date,c.hold_date,c.first_due_date,c.cheq_owner_name,
+      SELECT c.id,c.cheq_type,c.currency_id,c.bank_account,c.cheq_num,c.amount,c.rate,c.received_date,c.trans_date,
+             c.due_date::date::text due_date,c.pay_date,c.return_date,c.hold_date,c.first_due_date,c.cheq_owner_name,
              c.status_id,c.old_status_id,c.return_count,c.current_account_id,c.bank_account_id,
              c.last_update_date,c.voucher_id,c.last_voucher_id,
              cs.name status_name,cur.currency_code,cur.currency_name,
@@ -70,6 +71,13 @@ export async function GET(request: NextRequest) {
       LEFT JOIN account_tbl current_account ON current_account.id=c.current_account_id
       LEFT JOIN voucher_header_tbl vh ON vh.id=c.voucher_id
       WHERE c.cheq_type=${chequeType}
+        AND (${!operation} OR (
+          (CASE WHEN c.status_id IN (1,2) AND c.due_date IS NOT NULL
+            AND NOT EXISTS (SELECT 1 FROM cheque_operations_log_tbl l WHERE l.cheque_id=c.id AND COALESCE(l.status,1)<>9)
+            THEN CASE WHEN c.due_date::date>CURRENT_DATE THEN 2 ELSE 1 END ELSE c.status_id END)
+            = ANY(${operation?.allowed || []}::int[])
+          AND (${!operation?.requiresDue} OR c.due_date IS NULL OR c.due_date::date<=CURRENT_DATE)
+        ))
         AND (${currencyId}::int IS NULL OR c.currency_id=${currencyId})
         AND (${bankId}::int IS NULL OR c.bank_id=${bankId})
         AND (${fromDueDate}::date IS NULL OR c.due_date>=${fromDueDate}::date)

@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
     if (code) {
       const normalizedCode = normalizeGroupCode(code)
       const rows: ItemGroupDB[] = await query`
-        SELECT 
+        SELECT
           id,
           group_code,
           group_name,
@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
     }
 
     const itemGroups: ItemGroupDB[] = await query`
-      SELECT 
+      SELECT
         id,
         group_code,
         group_name,
@@ -80,7 +80,7 @@ export async function GET(request: NextRequest) {
         updated_at
       FROM item_groups
       WHERE status <> 3
-      ORDER BY id 
+      ORDER BY id
     `
 
     const formattedGroups: ItemGroup[] = itemGroups.map((group) => ({
@@ -170,7 +170,6 @@ export async function POST(request: NextRequest) {
 
   try {
     await sql`ALTER TABLE item_groups ADD COLUMN IF NOT EXISTS parent_id INTEGER`
-    await sql`ALTER TABLE item_groups ALTER COLUMN group_code TYPE VARCHAR(10)`
     const data = await request.json()
     const statusValue = toDbStatus(data.status)
     const query = sql as any

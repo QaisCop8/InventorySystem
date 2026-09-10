@@ -1,0 +1,49 @@
+.cheque-page-header {
+  background: linear-gradient(110deg, #f0fdf4, #dcfce7) !important;
+  color: #14532d !important;
+  border: 1px solid #bbf7d0;
+  box-shadow: 0 4px 16px rgb(22 101 52 / 8%) !important;
+}
+
+.cheque-page-header :is(h1, h2, h3, p, small, span, svg) {
+  color: #166534 !important;
+}
+
+.cheque-page-header button {
+  background: #fff !important;
+  color: #166534 !important;
+  border-color: #86efac !important;
+}
+
+.cheque-page-header button:hover {
+  background: #dcfce7 !important;
+}
+
+.cheque-page-header button[data-state="active"] {
+  background: #bbf7d0 !important;
+  box-shadow: inset 0 0 0 1px #4ade80;
+  font-weight: 700;
+}
+
+.cheque-table-header,
+.cheque-table-header :is(th, tr) {
+  background: #dcfce7 !important;
+  color: #14532d !important;
+  border-color: #bbf7d0 !important;
+}
+
+.cheque-operation-panel {
+  background: #f0fdf4 !important;
+  color: #14532d !important;
+  border: 1px solid #bbf7d0;
+}
+
+.cheque-operation-panel :is(h2, p, small, label) {
+  color: #166534 !important;
+}
+
+.cheque-operation-panel :is(input, textarea) {
+  background: #fff !important;
+  color: #14532d !important;
+  border-color: #bbf7d0 !important;
+}

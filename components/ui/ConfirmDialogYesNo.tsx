@@ -4,25 +4,36 @@ import { Dialog } from "primereact/dialog";
 import { Button } from "@/components/ui/button";
 import { ShieldAlert, SaveAll, Sparkles } from "lucide-react";
 import React, { useEffect, useRef } from "react";
+import { Dialog as AppDialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
 interface ConfirmDialogProps {
   visible: boolean;
+  title?: string;
   message?: string;
   onConfirm: () => void;
   onCancel: () => void;
   onBack?: () => void; // handler for "إلغاء"
   showBack?: boolean;  // true = show third button (unsaved changes mode)
   isCompact?: boolean; // true = smaller fonts and icons for compact mode
+  useAppDialog?: boolean;
+  busy?: boolean;
+  confirmLabel?: string;
+  cancelLabel?: string;
 }
 
 const ConfirmDialogYesNo: React.FC<ConfirmDialogProps> = ({
   visible,
+  title = "تأكيد حذف سند القيد",
   message = "هل أنت متأكد من الحذف؟",
   onConfirm,
   onCancel,
   onBack,
   showBack = false,
   isCompact = false,
+  useAppDialog = false,
+  busy = false,
+  confirmLabel,
+  cancelLabel,
 }) => {
 
   // أول Escape لا يُغلق النافذة — فقط "يُسلّحها"، ويُغلقها الضغط الثاني المتتالي. هذا يمنع
@@ -34,7 +45,7 @@ const ConfirmDialogYesNo: React.FC<ConfirmDialogProps> = ({
   }, [visible]);
 
   useEffect(() => {
-    if (!visible) return;
+    if (!visible || busy) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "F3") {
@@ -59,25 +70,29 @@ const ConfirmDialogYesNo: React.FC<ConfirmDialogProps> = ({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [visible, onConfirm, onCancel, onBack, showBack]);
+  }, [visible, busy, onConfirm, onCancel, onBack, showBack]);
 
   const footer = (
     <div className={`flex justify-center gap-3 ${isCompact ? "mt-3" : "mt-5"}`}>
       <Button
+        type="button"
+        disabled={busy}
         onClick={() => {
           onConfirm();
         }}
         className={`${isCompact ? "px-5 py-2 text-sm" : "px-7 py-3 text-base"} rounded-2xl border border-transparent bg-gradient-to-r from-rose-500 to-rose-600 text-white shadow-[0_10px_25px_-12px_rgba(244,63,94,0.9)] transition-all hover:-translate-y-0.5 hover:shadow-[0_14px_30px_-12px_rgba(244,63,94,0.9)]`}
       >
-        {showBack ? "نعم" : "تأكيد"}
+        {confirmLabel ?? (showBack ? "نعم" : "تأكيد")}
       </Button>
 
       <Button
+        type="button"
+        disabled={busy}
         onClick={onCancel}
         variant="outline"
         className={`${isCompact ? "px-5 py-2 text-sm" : "px-7 py-3 text-base"} rounded-2xl border-slate-200 bg-white text-slate-700 shadow-sm transition-all hover:-translate-y-0.5 hover:bg-slate-50`}
       >
-        {showBack ? "لا" : "إلغاء"}
+        {cancelLabel ?? (showBack ? "لا" : "إلغاء")}
       </Button>
 
       {showBack && onBack && (
@@ -89,6 +104,17 @@ const ConfirmDialogYesNo: React.FC<ConfirmDialogProps> = ({
         </Button>
       )}
     </div>
+  );
+
+  if (useAppDialog) return (
+    <AppDialog modal open={visible} onOpenChange={open => { if (!open && !busy) onCancel() }}>
+      <DialogContent dir="rtl" hideCloseButton className="z-[1100] max-w-md rounded-2xl p-6 text-center" onPointerDownOutside={event => event.preventDefault()} onEscapeKeyDown={event => event.preventDefault()}>
+        <ShieldAlert className="mx-auto h-10 w-10 text-rose-600" aria-hidden="true" />
+        <DialogTitle>{title}</DialogTitle>
+        <DialogDescription className="text-center leading-7">{message}</DialogDescription>
+        {footer}
+      </DialogContent>
+    </AppDialog>
   );
 
   return (

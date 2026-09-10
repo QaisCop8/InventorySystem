@@ -128,7 +128,6 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
 
   try {
     await sql`ALTER TABLE item_groups ADD COLUMN IF NOT EXISTS parent_id INTEGER`
-    await sql`ALTER TABLE item_groups ALTER COLUMN group_code TYPE VARCHAR(10)`
     const id = Number(params.id)
     const data = await request.json()
 

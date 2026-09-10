@@ -9,10 +9,10 @@ export async function GET(request:NextRequest) {
     const pointId=Number(request.nextUrl.searchParams.get("point_id")||0), userId=requestUserId(request)
     if(!pointId||!userId)return NextResponse.json({error:"نقطة البيع والمستخدم مطلوبان"},{status:400})
     const point=await getPosPoint(pointId,userId,requestBranchId(request)); if(!point)return NextResponse.json({error:"نقطة البيع غير متاحة لهذا المستخدم أو الفرع"},{status:403})
-    const [products,customers,rates,session]=await Promise.all([
+    const [products,customers,rates,session,salesmen]=await Promise.all([
       sql`
         SELECT p.id,p.product_code,p.product_name,p.barcode,p.product_image,p.selling_account_id,p.selling_returns_account_id,
-               COALESCE(NULLIF(p.classifications,''),'غير مصنف') category_name,
+               COALESCE(NULLIF(ig.group_name,''),'غير مصنف') category_name,
                u.id unit_id,u.unit_name,COALESCE(pu.first_barcode,p.barcode,'') first_barcode,
                COALESCE(pr.price,0) first_price,
                COALESCE(
@@ -21,6 +21,7 @@ export async function GET(request:NextRequest) {
                  CASE WHEN COALESCE(p.main_stock_id,p.default_store)=${Number(point.main_warehouse_id)} THEN ps.available_stock ELSE 0 END,0
                ) available_stock
         FROM products p
+        LEFT JOIN item_groups ig ON ig.id=p.category_id
         LEFT JOIN product_stock ps ON ps.product_id=p.id AND ps.organization_id=1
         LEFT JOIN LATERAL (SELECT x.*,b.barcode first_barcode FROM product_units x LEFT JOIN product_unit_barcodes b ON b.product_id=x.product_id AND b.unit_id=x.id WHERE x.product_id=p.id ORDER BY x.id LIMIT 1) pu ON TRUE
         LEFT JOIN units u ON u.id=pu.unit_id
@@ -30,10 +31,11 @@ export async function GET(request:NextRequest) {
                OR EXISTS(SELECT 1 FROM product_warehouses pw WHERE pw.product_id=p.id AND pw.warehouse_id=${Number(point.main_warehouse_id)}))
         ORDER BY p.product_code
       `,
-      sql`SELECT id,name,account_id FROM customers WHERE COALESCE(isDeleted,false)=false AND COALESCE(type,1)=1 ORDER BY name LIMIT 10000`,
+      sql`SELECT id,code,name,id account_id FROM account_tbl WHERE COALESCE(status,1)<>3 AND type IN (2,3,5) ORDER BY name`,
       sql`SELECT c.id currency_id,c.currency_name,c.currency_code,COALESCE((SELECT er.exchange_rate FROM exchange_rates er WHERE er.currency_id=c.id ORDER BY er.rate_date DESC,er.id DESC LIMIT 1),1) exchange_rate FROM currency c WHERE c.id=${Number(point.currency_id)}`,
       getOpenPosSession(pointId,userId),
+      sql`SELECT id,code,name FROM salesmen WHERE COALESCE(is_active,true) ORDER BY name`,
     ])
-    return NextResponse.json({point:{...point,exchange_rate:Number(rates[0]?.exchange_rate||1)},products,customers,currencies:rates,session,server_time:new Date().toISOString()})
+    return NextResponse.json({point:{...point,exchange_rate:Number(rates[0]?.exchange_rate||1)},products,customers,salesmen,currencies:rates,session,server_time:new Date().toISOString()})
   } catch(error){console.error("POS catalog error",error);return NextResponse.json({error:error instanceof Error?error.message:"تعذر تحميل أصناف نقطة البيع"},{status:500})}
 }

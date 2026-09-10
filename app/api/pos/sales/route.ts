@@ -27,12 +27,12 @@ export async function POST(request: NextRequest) {
       if(Number(data.pos_session_id)!==Number(session.id))return NextResponse.json({error:"جلسة العهدة تغيرت؛ حدّث الشاشة وحاول مرة أخرى"},{status:409})
       const isReturn=data.pos_mode==="return"
       if(isReturn&&!point.allow_returns)return NextResponse.json({error:"المردودات غير مفعلة لهذه النقطة"},{status:400})
-      if(!isReturn&&data.items.some((item:any)=>Number(item.quantity||item.qnty||0)>Number(item.available_stock??Number.MAX_SAFE_INTEGER)))return NextResponse.json({error:"كمية أحد الأصناف أكبر من رصيد المخزن الرئيسي"},{status:400})
       const payments=(Array.isArray(data.pos_payments)?data.pos_payments:[]).map((payment:any)=>{
-        const method=String(payment.payment_method||"cash")
+        const method=String(payment.payment_method||payment.method||"cash")
         const configured:Record<string,number|null>={cash:Number(point.cash_account_id)||null,card:Number(point.card_account_id)||null,cheque:Number(point.cheque_account_id)||null,account:Number(data.account_id||point.receivable_account_id)||null,gift_card:Number(point.gift_account_id)||null}
         return {...payment,payment_method:method,account_id:configured[method]||null}
       })
+      if(isReturn&&payments.some((payment:any)=>Number(payment.amount)>0&&!['cash','account'].includes(payment.payment_method)))return NextResponse.json({error:"المردودات متاحة نقداً أو على الذمة فقط"},{status:400})
       for(const payment of payments){if(!payment.account_id)return NextResponse.json({error:`لم يتم تعيين حساب لطريقة الدفع ${payment.payment_method}`},{status:400});if(payment.payment_method==="gift_card"){
         const gift=(await sql`SELECT * FROM pos_gift_cards_tbl WHERE code=${String(payment.reference||"").trim()} AND status=1 FOR UPDATE`)[0];if(!gift||Number(gift.currency_id)!==Number(point.currency_id)||Number(gift.balance)+.009<Number(payment.amount))return NextResponse.json({error:"بطاقة الهدية غير صالحة أو رصيدها غير كافٍ"},{status:400})
       }}

@@ -542,7 +542,10 @@ export default function Journal() {
     }
   }
 
-  const handleConfirmDelete = () => (form.status === 2 ? logicalCancelVoucher() : physicalDeleteVoucher())
+  const handleConfirmDelete = () => {
+    if (isSaving || !form.id || form.status === 3) return
+    return form.status === 2 ? logicalCancelVoucher() : physicalDeleteVoucher()
+  }
 
   const handleDialogOpenChange = (open: boolean) => {
     if (!open && showDeleteConfirm) return
@@ -793,7 +796,7 @@ export default function Journal() {
         onNew={openNewDialog}
         onSave={saveVoucher}
         onValidateSave={() => validateVoucher(form)}
-        onDelete={() => form.id && setShowDeleteConfirm(true)}
+        onDelete={() => { if (form.id > 0 && form.status !== 3 && !isSaving) setShowDeleteConfirm(true) }}
         onClone={cloneVoucher}
         onPrint={handlePrint}
         onNavigateRecord={handleNavigateRecord}

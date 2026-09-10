@@ -32,7 +32,9 @@ export const CHEQUE_OPERATIONS: ChequeOperation[] = [
   { code:"postpone_outgoing",name:"تغيير تاريخ الاستحقاق",type:2,allowed:[1,2,3,5],status:3,needsDate:true },
 ]
 
-const dateOnly = (value: unknown) => String(value || "").slice(0,10)
+const dateOnly = (value: unknown) => value instanceof Date
+  ? (Number.isNaN(value.getTime()) ? "" : value.toISOString().slice(0,10))
+  : String(value || "").slice(0,10)
 
 export const effectiveChequeStatusId = (row: any, asOfDate = new Date().toISOString().slice(0,10)) => {
   const storedStatus = Number(row?.status_id)

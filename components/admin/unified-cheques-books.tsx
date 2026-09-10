@@ -1,4 +1,5 @@
 "use client"
+import "@/components/accounting/cheque-theme.css"
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import { Search, Plus, Trash2 } from "lucide-react"

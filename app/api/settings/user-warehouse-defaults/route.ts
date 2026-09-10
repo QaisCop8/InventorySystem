@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
       LEFT JOIN warehouses w1 ON w1.id = us.default_item_warehouse_id
       LEFT JOIN warehouses w2 ON w2.id = us.finished_goods_warehouse_id
       LEFT JOIN warehouses w3 ON w3.id = us.raw_materials_warehouse_id
-      WHERE us.user_id = ${userId}
+      WHERE us.user_id = ${userId}::text
     `
 
     if (rows.length === 0) {
@@ -67,7 +67,7 @@ export async function PUT(request: NextRequest) {
         raw_materials_warehouse_id = ${data.raw_materials_warehouse_id ?? null},
         price_entry_includes_tax = ${Boolean(data.price_entry_includes_tax)},
         updated_at = CURRENT_TIMESTAMP
-      WHERE user_id = ${data.user_id}
+      WHERE user_id = ${data.user_id}::text
       RETURNING id
     `
 

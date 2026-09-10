@@ -10,8 +10,10 @@ import { Label } from "@/components/ui/label"
 import { Slider } from "@/components/ui/slider"
 import { Separator } from "@/components/ui/separator"
 import { Type, Palette, RotateCcw } from "@/components/ui/icons"
+import { Check, PanelsTopLeft } from "lucide-react"
 import { useAuth } from "@/components/auth/auth-context"
 import Messages from "@/components/common/Messages"
+import { useThemeSettings } from "@/contexts/theme-context"
 
 // Font Settings Context
 interface FontSettings {
@@ -46,6 +48,13 @@ const defaultSettings: FontSettings = {
   gridRowHeight: 50,
   gridSelectedRowColor: "#6fe27b",
 }
+
+const toolbarTemplates = [
+  { id: "modern", name: "عصري", description: "سطح أبيض وأزرار واضحة بحواف ناعمة", surface: "rounded-xl border-slate-200 bg-white shadow-sm", primary: "rounded-lg bg-slate-900", save: "rounded-lg bg-indigo-600", navigation: "rounded-lg bg-slate-100" },
+  { id: "gradient", name: "متدرج", description: "ألوان داكنة متدرجة ومظهر حيوي", surface: "rounded-xl border-indigo-400/30 bg-gradient-to-l from-slate-900 via-indigo-900 to-teal-800 shadow-lg", primary: "rounded-lg bg-white", save: "rounded-lg bg-gradient-to-l from-cyan-400 to-indigo-500", navigation: "rounded-lg bg-white/15" },
+  { id: "compact", name: "مدمج", description: "مساحة أقل وأزرار أيقونات سريعة", surface: "rounded-lg border-slate-300 bg-white", primary: "h-5 w-5 rounded bg-slate-900", save: "h-5 w-5 rounded bg-indigo-600", navigation: "h-5 rounded bg-slate-100" },
+  { id: "classic", name: "كلاسيكي", description: "شريط عملي بإطار واضح وأزرار تقليدية", surface: "rounded border-slate-400 bg-gradient-to-b from-slate-50 to-slate-200 shadow-sm", primary: "rounded-sm bg-slate-700", save: "rounded-sm bg-blue-600", navigation: "rounded-sm border border-slate-400 bg-slate-300" },
+] as const
 
 const FontContext = createContext<FontContextType | undefined>(undefined)
 
@@ -124,6 +133,7 @@ export const useFontSettings = () => {
 // Font Settings Component
 export const FontSettings: React.FC = () => {
   const { settings, updateSettings, resetSettings } = useFontSettings()
+  const { settings: themeSettings, updateSettings: updateThemeSettings, saveSettings } = useThemeSettings()
   const { user } = useAuth()
   const [isSaving, setIsSaving] = useState(false)
   const messagesRef = useRef<any>(null)
@@ -172,6 +182,7 @@ export const FontSettings: React.FC = () => {
         const result = await response.json().catch(() => null)
         throw new Error(result?.details || result?.error || "تعذر حفظ إعدادات الخط")
       }
+      await saveSettings()
       messagesRef.current?.show?.([{ severity: "success", summary: "", detail: "تم حفظ إعدادات الخط للمستخدم", life: 4000 }])
     } catch (error) {
       console.error(error)
@@ -435,6 +446,39 @@ export const FontSettings: React.FC = () => {
               معاينة الصف المحدد
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-right">
+            <PanelsTopLeft className="h-5 w-5" />
+            قوالب شريط الأوامر
+          </CardTitle>
+          <CardDescription className="text-right">اختر شكل شريط الأوامر الموحد في شاشات النظام</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {toolbarTemplates.map((template) => {
+            const selected = themeSettings.toolbar_style === template.id
+            return (
+              <button
+                key={template.id}
+                type="button"
+                aria-pressed={selected}
+                onClick={() => updateThemeSettings({ toolbar_style: template.id })}
+                className={`group relative overflow-hidden rounded-2xl border-2 p-3 text-right transition-all hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${selected ? "border-primary bg-primary/5 shadow-md" : "border-border bg-card"}`}
+              >
+                {selected && <span className="absolute left-3 top-3 flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm"><Check className="h-4 w-4" /></span>}
+                <div className={`mb-3 items-center gap-1.5 border p-2 ${template.id === "gradient" || template.id === "classic" ? "grid h-24 grid-cols-2" : "flex h-14"} ${template.surface}`}>
+                  <span className={`block ${template.id === "gradient" ? "h-10 w-12" : template.id === "compact" ? "h-5 w-5" : "h-7 w-10"} ${template.primary}`} />
+                  <span className={`block ${template.id === "gradient" ? "h-10 w-12" : template.id === "compact" ? "h-5 w-5" : "h-7 w-10"} ${template.save}`} />
+                  <span className={`block h-7 ${template.id === "gradient" ? "col-span-2 w-full" : template.id === "classic" ? "order-first col-span-2 w-full" : "mr-auto w-20"} ${template.navigation}`}><span className="mx-auto mt-2 block h-1.5 w-10 rounded-full bg-slate-500/50" /></span>
+                </div>
+                <div className="font-bold text-foreground">{template.name}</div>
+                <div className="mt-1 text-xs leading-5 text-muted-foreground">{template.description}</div>
+              </button>
+            )
+          })}
         </CardContent>
       </Card>
 

@@ -115,6 +115,7 @@ export function AccountStatementReport({ kind }: { kind: ReportKind }) {
     setLoading(true); setError("")
     try {
       const params = new URLSearchParams({ kind, account_ids: String(accountId), from_date: filters.fromDate, to_date: filters.toDate, behavior: filters.behavior, status: filters.status })
+      if (filters.currencyIds[0]) params.set("report_currency_id", String(filters.currencyIds[0]))
       if (!filters.showOtherCurrencies && filters.currencyIds.length) params.set("currency_ids", filters.currencyIds.join(","))
       if (filters.branchIds.length) params.set("branch_ids", filters.branchIds.join(","))
       if (filters.salesmanIds.length) params.set("salesman_ids", filters.salesmanIds.join(","))

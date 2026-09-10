@@ -29,14 +29,14 @@ const resolveUserKeys = async (rawUserId: unknown) => {
   const users = await sql`
     SELECT id, user_id
     FROM user_settings
-    WHERE user_id = ${requested}
+     WHERE user_id = ${requested}::text
        OR (${numericRequested}::int IS NOT NULL AND id = ${numericRequested})
-    ORDER BY CASE WHEN user_id = ${requested} THEN 0 ELSE 1 END
+     ORDER BY CASE WHEN user_id = ${requested}::text THEN 0 ELSE 1 END
     LIMIT 1
   `
   const internalId = users[0]?.id == null ? null : Number(users[0].id)
   const businessNumericId = /^\d+$/.test(String(users[0]?.user_id || "")) ? Number(users[0].user_id) : null
-  const lookupIds = Array.from(new Set([numericRequested, internalId, businessNumericId].filter((id): id is number => Number.isInteger(id) && id > 0)))
+  const lookupIds = Array.from(new Set([numericRequested, internalId, businessNumericId].filter((id): id is number => id !== null && Number.isInteger(id) && id > 0)))
   return { primaryId: internalId || numericRequested, lookupIds }
 }
 
@@ -66,8 +66,8 @@ export async function GET(request: NextRequest) {
       LEFT JOIN account_tbl a_incoming ON a_incoming.id = u.received_cheqs_account_id
       LEFT JOIN account_tbl a_returned ON a_returned.id = u.returned_cheqs_account_id
       LEFT JOIN account_tbl a_cards ON a_cards.id = u.cards_account_id
-      WHERE u.user_id = ANY(${lookupIds}::int[])
-      ORDER BY u.currency_id, CASE WHEN u.user_id = ${primaryId} THEN 0 ELSE 1 END, u.id DESC
+      WHERE u.user_id::text = ANY(${lookupIds.map(String)}::text[])
+      ORDER BY u.currency_id, CASE WHEN u.user_id::text = ${String(primaryId)}::text THEN 0 ELSE 1 END, u.id DESC
     `
 
     return NextResponse.json({ rows })
@@ -83,6 +83,12 @@ export async function POST(request: NextRequest) {
     const { user_id, rows } = data
     if (!user_id) return NextResponse.json({ error: "user_id required" }, { status: 400 })
     if (!Array.isArray(rows)) return NextResponse.json({ error: "rows required" }, { status: 400 })
+    const accountFields = ["cash_account_id", "incoming_checks_account_id", "returned_checks_account_id", "card_account_id"] as const
+    if (rows.some(row => !row || !Number.isSafeInteger(Number(row.currency_id)) || Number(row.currency_id) <= 0 || accountFields.some(field => row[field] != null && (!Number.isSafeInteger(Number(row[field])) || Number(row[field]) <= 0)))) {
+      return NextResponse.json({ error: "بيانات العملة أو الحساب غير صالحة" }, { status: 400 })
+    }
+    const currencyIds = Array.from(new Set(rows.map((row: any) => Number(row.currency_id)).filter((id: number) => Number.isInteger(id) && id > 0)))
+    if (currencyIds.length !== rows.length) return NextResponse.json({ error: "Invalid currency_id" }, { status: 400 })
 
     await ensureTables()
     const { primaryId } = await resolveUserKeys(user_id)
@@ -98,7 +104,7 @@ export async function POST(request: NextRequest) {
         await client.query('ROLLBACK')
         return NextResponse.json({ error: 'Unknown currency' }, { status: 400 })
       }
-      await client.query('DELETE FROM users_currencies_default_account_tbl WHERE user_id = $1', [primaryId])
+      await client.query('DELETE FROM users_currencies_default_account_tbl WHERE user_id::text = $1::text', [String(primaryId)])
       for (const row of rows) {
         await client.query(
           'INSERT INTO users_currencies_default_account_tbl (user_id, currency_id, account_id, received_cheqs_account_id, returned_cheqs_account_id, cards_account_id) VALUES ($1, $2, $3, $4, $5, $6)',

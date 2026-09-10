@@ -662,6 +662,8 @@ export default function ProductGroups() {
 
       <ConfirmDialogYesNo
         visible={showUnsavedConfirm}
+        useAppDialog
+        title="حفظ التغييرات"
         message="تم تعديل السجل هل تريد الحفظ؟"
         onConfirm={handleUnsavedConfirm}
         onCancel={handleDiscardUnsaved}
@@ -670,6 +672,8 @@ export default function ProductGroups() {
       />
       <ConfirmDialogYesNo
         visible={showFreezeConfirm}
+        useAppDialog
+        title="تأكيد حالة المجموعة"
         message={freezeConfirmMessage || "هل أنت متأكد؟"}
         onConfirm={handleConfirmFreeze}
         onCancel={handleCancelFreeze}
