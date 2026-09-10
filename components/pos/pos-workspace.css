@@ -54,6 +54,32 @@
 .pos-total-due strong { font-size:25px; }
 .pos-workspace button:disabled { opacity:.45; cursor:not-allowed; }
 .pos-workspace button:focus-visible,.pos-workspace select:focus-visible { outline:2px solid #179468; outline-offset:3px; }
+.pos-topbar { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); align-items:center; gap:12px; padding:10px 14px; border:1px solid #cfe3d7; border-radius:14px; background:linear-gradient(110deg,#fff,#eaf6ef); }
+.pos-topbar .pos-toolbar { border:0; background:transparent; border-radius:0; padding:0; gap:8px; }
+.pos-topbar .pos-toolbar h1 { font-size:20px !important; line-height:1.3; margin:0; }
+.pos-topbar .pos-toolbar>div:nth-child(2) { order:3; flex-basis:100%; gap:5px; }
+.pos-topbar .pos-toolbar button { height:32px; padding:5px 9px; font-size:11px; }
+.pos-topbar .pos-overview { grid-template-columns:minmax(160px,1fr) 140px; gap:8px 12px; padding:0; border:0; background:transparent; }
+.pos-topbar .pos-categories { grid-column:1/-1; grid-row:2; gap:6px; padding:0; }
+.pos-topbar .pos-categories button { min-height:32px; padding:5px 12px; border-radius:8px; }
+.pos-topbar .pos-context { gap:3px; }
+.pos-topbar .pos-context select { padding:5px 8px; font-size:12px; }
+.pos-topbar .pos-net { grid-column:2; grid-row:1; }
+.pos-topbar .pos-net strong { font-size:25px; }
+@media(min-width:901px) {
+ .pos-workspace { height:calc(100dvh - 140px); min-height:0; gap:8px; padding:8px; }
+ .pos-layout { min-height:0; }
+ .pos-catalog,.pos-sale { min-height:0; }
+ .pos-products { flex:1; min-height:0; max-height:none; }
+ .pos-cart { min-height:80px; max-height:none; }
+ .pos-cart .pos-empty { min-height:100%; padding:16px; }
+ .pos-panel-heading { padding:9px 12px; }
+ .pos-workspace .pos-checkout-dock { flex-shrink:0; grid-template-columns:145px minmax(0,1fr) 180px; gap:8px; padding:9px; margin:0 8px 8px; max-height:50dvh; overflow-y:auto; }
+ .pos-workspace .pos-totals { grid-column:auto; gap:6px; }
+ .pos-actions button { padding:7px 4px; }
+ .pos-keypad-keys button { min-height:28px; }
+}
+@media(max-width:900px) { .pos-topbar { grid-template-columns:1fr; } }
 @media(min-width:1600px) { .pos-products { grid-template-columns:repeat(3,minmax(0,1fr)); } }
 @media(max-width:1200px) { .pos-checkout-dock { grid-template-columns:150px minmax(0,1fr); } .pos-totals { grid-column:1/-1; } .pos-overview { grid-template-columns:220px minmax(0,1fr) 170px; } }
 @media(max-width:900px) { .pos-layout { grid-template-columns:1fr; } .pos-overview { grid-template-columns:1fr 160px; } .pos-categories { grid-column:1/-1; grid-row:2; } .pos-products { grid-template-columns:repeat(3,minmax(0,1fr)); min-height:180px; max-height:320px; } .pos-cart { max-height:450px; } }

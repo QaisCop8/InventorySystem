@@ -594,7 +594,7 @@ export async function createOrder(
         orderData.delivery_notes || "",
         orderData.received_by || "",
         orderData.customer_order_no || "",
-        orderData.user_id || "",
+        orderData.user_id || null,
         "0",
         "0",
         orderData.order_status2 || 0,
@@ -738,7 +738,7 @@ export async function createOrder(
         await client.query(insertLogQuery, [
           item.product_id,
           batchId,
-          orderData.user_id || '', // use the current user, fallback to 'system'
+          orderData.user_id || null, // use the current user, fallback to 'system'
           1                               // same status as stock_batch
         ]);
       }

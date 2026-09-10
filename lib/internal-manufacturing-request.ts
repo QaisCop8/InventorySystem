@@ -134,7 +134,7 @@ export function nextInternalManufacturingStatus(current: InternalManufacturingSt
 }
 
 export async function listInternalManufacturingRequests(status?: number, branchId?: number, userId?: string) {
-  const rows = await sql`SELECT voucher_header_tbl.*, requester.full_name AS requester_name FROM voucher_header_tbl LEFT JOIN user_settings requester ON requester.user_id = CAST(voucher_header_tbl.insert_user AS TEXT) WHERE voucher_header_tbl.vch_type = 20 AND voucher_header_tbl.status <> 3 ${status ? sql`AND voucher_header_tbl.internal_status = ${status}` : sql``} ${branchId && userId ? sql`AND (voucher_header_tbl.branch_id = ${branchId} OR CAST(voucher_header_tbl.insert_user AS TEXT) = ${userId})` : branchId ? sql`AND voucher_header_tbl.branch_id = ${branchId}` : sql``} ORDER BY voucher_header_tbl.id DESC`
+  const rows = await sql`SELECT voucher_header_tbl.*, requester.full_name AS requester_name FROM voucher_header_tbl LEFT JOIN user_settings requester ON requester.user_id = voucher_header_tbl.insert_user WHERE voucher_header_tbl.vch_type = 20 AND voucher_header_tbl.status <> 3 ${status ? sql`AND voucher_header_tbl.internal_status = ${status}` : sql``} ${branchId && userId ? sql`AND (voucher_header_tbl.branch_id = ${branchId} OR CAST(voucher_header_tbl.insert_user AS TEXT) = ${userId})` : branchId ? sql`AND voucher_header_tbl.branch_id = ${branchId}` : sql``} ORDER BY voucher_header_tbl.id DESC`
   for (const row of rows) row.items = await sql`SELECT vi.*, COALESCE(vi.item_name, p.product_name, '') AS item_name, u.unit_name, p.product_image AS product_image FROM voucher_items_tbl vi LEFT JOIN units u ON u.id = vi.unit_id LEFT JOIN products p ON p.id = vi.item_id WHERE vi.voucher_id = ${row.id} ORDER BY vi.id`
   return rows
 }
@@ -183,9 +183,9 @@ export async function listInternalManufacturingArchive(filters: { from?: string;
         'request_snapshot', e.request_snapshot
       ) ORDER BY e.created_at, e.id) FILTER (WHERE e.id IS NOT NULL), '[]'::json) AS events
     FROM voucher_header_tbl vh
-    LEFT JOIN user_settings requester ON requester.user_id = CAST(vh.insert_user AS TEXT)
+    LEFT JOIN user_settings requester ON requester.user_id = vh.insert_user
     LEFT JOIN internal_manufacturing_events e ON e.voucher_id = vh.id
-    LEFT JOIN user_settings actor ON actor.user_id = CAST(e.user_id AS TEXT)
+    LEFT JOIN user_settings actor ON actor.user_id = e.user_id
     WHERE ${conditions.join(" AND ")}
     GROUP BY vh.id, requester.full_name
     ORDER BY vh.vch_date DESC, vh.id DESC`, values)

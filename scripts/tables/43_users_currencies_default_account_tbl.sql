@@ -1,7 +1,7 @@
 -- Create the users currencies default account mapping table
 CREATE TABLE IF NOT EXISTS users_currencies_default_account_tbl (
   id SERIAL PRIMARY KEY,
-  user_id VARCHAR(255),
+  user_id INTEGER,
   currency_id INTEGER,
   account_type VARCHAR(50) NOT NULL,
   account_id INTEGER,

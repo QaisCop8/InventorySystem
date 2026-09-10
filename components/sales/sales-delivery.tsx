@@ -5,6 +5,7 @@ import { useVoucherDeepLink } from "@/hooks/use-voucher-deep-link"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import DataGridView from "@/components/common/DataGridView"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Edit, Plus, Search } from "lucide-react"
@@ -870,53 +871,23 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
           <CardTitle>{`${LIST_TITLE} (${filteredVouchers.length})`}</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse border border-gray-300">
-              <thead>
-                <tr className="bg-gray-50">
-                  <th className="border border-gray-300 px-4 py-2 text-right">رقم السند</th>
-                  <th className="border border-gray-300 px-4 py-2 text-right">التاريخ</th>
-                  <th className="border border-gray-300 px-4 py-2 text-right">العميل</th>
-                  <th className="border border-gray-300 px-4 py-2 text-right">المبلغ</th>
-                  <th className="border border-gray-300 px-4 py-2 text-center">الحالة</th>
-                  <th className="border border-gray-300 px-4 py-2 text-center">الإجراءات</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredVouchers.map((voucher, index) => (
-                  <tr key={voucher.id} className="cursor-pointer hover:bg-gray-50" onDoubleClick={() => openRow(voucher, index)}>
-                    <td className="border border-gray-300 px-4 py-2">{voucher.vch_code}</td>
-                    <td className="border border-gray-300 px-4 py-2">{voucher.vch_date?.slice(0, 10)}</td>
-                    <td className="border border-gray-300 px-4 py-2">{voucher.customer_name}</td>
-                    <td className="border border-gray-300 px-4 py-2">{Number(voucher.amount || 0).toLocaleString()}</td>
-                    <td className="border border-gray-300 px-4 py-2 text-center">
-          {voucher.has_linked_invoice ? "تم إصدار فاتورة" : voucher.status === 2 ? "مرحل" : "مسودة"}
-        </td>
-                    <td className="border border-gray-300 px-4 py-2 text-center">
-                      <div className="flex justify-center">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            openRow(voucher, index)
-                          }}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-                {filteredVouchers.length === 0 && (
-                  <tr>
-                    <td colSpan={6} className="border border-gray-300 px-4 py-6 text-center text-muted-foreground">
-                      لا توجد سندات
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+          <div className="min-h-0 overflow-auto rounded-xl border p-2">
+            <DataGridView
+              dataSource={filteredVouchers.map((voucher) => ({ ...voucher, display_date: voucher.vch_date?.slice(0, 10), display_amount: Number(voucher.amount || 0).toLocaleString(), display_status: voucher.has_linked_invoice ? "تم إصدار فاتورة" : voucher.status === 2 ? "مرحل" : "مسودة" }))}
+              style={{ height: "420px" }}
+              isReport
+              isReadOnly
+              dontConvertToCards
+              onRowDoubleClick={(row: any) => { const voucher = row.item || row; openRow(voucher, filteredVouchers.findIndex((item) => item.id === voucher.id)) }}
+              scheme={{ columns: [
+                { header: "رقم السند", name: "vch_code", width: 150, isReadOnly: true },
+                { header: "التاريخ", name: "display_date", width: 130, isReadOnly: true },
+                { header: "العميل", name: "customer_name", width: "*", isReadOnly: true },
+                { header: "المبلغ", name: "display_amount", width: 130, isReadOnly: true },
+                { header: "الحالة", name: "display_status", width: 150, isReadOnly: true },
+              ] }}
+            />
+            {!filteredVouchers.length && <p className="py-4 text-center text-sm text-muted-foreground">لا توجد سندات</p>}
           </div>
         </CardContent>
       </Card>

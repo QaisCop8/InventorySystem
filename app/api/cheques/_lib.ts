@@ -76,7 +76,7 @@ export async function ensureChequeOperationsTable() {
       new_due_date TIMESTAMP,
       account_id INTEGER,
       note TEXT,
-      user_id VARCHAR(100),
+      user_id INTEGER REFERENCES user_settings(user_id),
       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
     )
   `

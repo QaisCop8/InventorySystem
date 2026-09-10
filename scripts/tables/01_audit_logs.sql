@@ -1,7 +1,7 @@
 -- جدول سجلات التدقيق
 CREATE TABLE IF NOT EXISTS audit_logs (
     id SERIAL PRIMARY KEY,
-    user_id VARCHAR(255),
+    user_id INTEGER,
     user_name VARCHAR(255),
     session_id VARCHAR(255),
     action VARCHAR(100),

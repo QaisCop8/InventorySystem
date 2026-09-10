@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS error_logs (
     message TEXT NOT NULL,
     stack TEXT,
     url TEXT,
-    user_id VARCHAR(255),
+    user_id INTEGER,
     user_agent TEXT,
     context JSONB,
     timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,

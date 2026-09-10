@@ -17,9 +17,9 @@ const emptyMeta:Meta={currencies:[],banks:[],bank_accounts:[],accounts:[]}
 const today=()=>new Date().toISOString().slice(0,10)
 const money=new Intl.NumberFormat("ar",{minimumFractionDigits:2,maximumFractionDigits:2})
 const config:Record<Mode,{title:string;description:string;operation:string;type:number;icon:any;gradient:string;targetLabel?:string}>={
- deposit:{title:"إيداع الشيكات الواردة",description:"حدد عدة شيكات مستحقة وأودعها بحساب البنك في عملية واحدة.",operation:"deposit",type:1,icon:ArrowDownToLine,gradient:"from-emerald-700 via-teal-700 to-cyan-800",targetLabel:"حساب البنك"},
- endorse:{title:"تجيير الشيكات",description:"اختر الشيكات الواردة وحساب المستفيد وأنشئ سند قيد مجمع.",operation:"endorse",type:1,icon:Send,gradient:"from-violet-700 via-indigo-700 to-blue-800",targetLabel:"حساب المستفيد"},
- clear_outgoing:{title:"إخراج الشيكات الصادرة",description:"رحّل عدة شيكات صادرة مستحقة من حساباتها البنكية معًا.",operation:"clear_outgoing",type:2,icon:ArrowUpFromLine,gradient:"from-rose-700 via-orange-700 to-amber-700"},
+ deposit:{title:"إيداع الشيكات الواردة",description:"حدد عدة شيكات مستحقة وأودعها بحساب البنك، مع إنشاء سند مستقل لكل شيك.",operation:"deposit",type:1,icon:ArrowDownToLine,gradient:"from-emerald-700 via-teal-700 to-cyan-800",targetLabel:"حساب البنك"},
+ endorse:{title:"تجيير الشيكات",description:"اختر الشيكات الواردة وحساب المستفيد، وسيُنشأ سند مستقل لكل شيك.",operation:"endorse",type:1,icon:Send,gradient:"from-violet-700 via-indigo-700 to-blue-800",targetLabel:"حساب المستفيد"},
+ clear_outgoing:{title:"إخراج الشيكات الصادرة",description:"رحّل عدة شيكات صادرة مستحقة، مع إنشاء سند مستقل لكل شيك.",operation:"clear_outgoing",type:2,icon:ArrowUpFromLine,gradient:"from-rose-700 via-orange-700 to-amber-700"},
 }
 
 function BulkChequeOperation({mode}:{mode:Mode}){

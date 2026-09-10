@@ -1,0 +1,29 @@
+"use client"
+
+import { useCallback, useEffect, useState } from "react"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Dialog, DialogContent } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Megaphone, Pencil, Plus, RefreshCw, Search, Trash2 } from "lucide-react"
+import UnifiedCampaigns, { type CampaignRecord } from "./unified-campaigns"
+
+type Product = { id: number; code?: string; name: string; sale_price?: number }
+type Warehouse = { id: number; code?: string; name: string }
+
+export default function Campaigns() {
+  const [campaigns, setCampaigns] = useState<CampaignRecord[]>([])
+  const [products, setProducts] = useState<Product[]>([])
+  const [warehouses, setWarehouses] = useState<Warehouse[]>([])
+  const [selected, setSelected] = useState<CampaignRecord | null>(null)
+  const [open, setOpen] = useState(false)
+  const [query, setQuery] = useState("")
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState("")
+  const load = useCallback(async () => { setLoading(true); setError(""); try { const response = await fetch("/api/campaigns?meta=1", { cache: "no-store" }); const data = await response.json(); if (!response.ok) throw new Error(data.error || "تعذر تحميل الحملات"); setCampaigns(data.campaigns || []); setProducts(data.products || []); setWarehouses(data.warehouses || []) } catch (reason) { setError(reason instanceof Error ? reason.message : "تعذر تحميل الحملات") } finally { setLoading(false) } }, [])
+  useEffect(() => { void load() }, [load])
+  const filtered = campaigns.filter(campaign => `${campaign.code} ${campaign.name}`.toLowerCase().includes(query.toLowerCase()))
+  const edit = (campaign?: CampaignRecord) => { setSelected(campaign || null); setOpen(true) }
+  const remove = async (campaign: CampaignRecord) => { if (!campaign.id || !confirm(`حذف الحملة ${campaign.name}؟`)) return; const response = await fetch(`/api/campaigns?id=${campaign.id}`, { method: "DELETE" }); if (!response.ok) { const data = await response.json(); setError(data.error || "تعذر حذف الحملة"); return } await load() }
+  return <main dir="rtl" className="min-h-full w-full bg-gradient-to-br from-emerald-50 via-white to-cyan-50 p-3 sm:p-6"><div className="w-full space-y-5"><header className="flex flex-wrap items-center justify-between gap-4 rounded-[28px] bg-gradient-to-l from-emerald-700 via-teal-600 to-cyan-600 p-6 text-white shadow-xl"><div className="flex items-center gap-4"><span className="rounded-2xl bg-white/15 p-3"><Megaphone className="h-7 w-7"/></span><div><p className="text-xs font-bold text-emerald-100">نظام البيع بالتجزئة</p><h1 className="text-3xl font-black">الحملات</h1><p className="mt-1 text-sm text-emerald-50/80">إدارة عروض البيع والخصومات والأصناف المجانية</p></div></div><div className="flex gap-2"><Button variant="outline" onClick={()=>void load()} className="border-white/30 bg-white/10 text-white hover:bg-white/20"><RefreshCw className="ml-2 h-4 w-4"/>تحديث</Button><Button onClick={()=>edit()} className="bg-white font-black text-emerald-700 hover:bg-emerald-50"><Plus className="ml-2 h-4 w-4"/>حملة جديدة</Button></div></header>{error&&<div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</div>}<section className="rounded-2xl border bg-white p-4 shadow-sm"><div className="relative max-w-xl"><Search className="absolute right-3 top-2.5 h-4 w-4 text-muted-foreground"/><Input value={query} onChange={e=>setQuery(e.target.value)} className="pr-9" placeholder="ابحث برمز أو اسم الحملة..."/></div></section>{loading?<div className="grid h-64 place-items-center"><RefreshCw className="h-7 w-7 animate-spin text-emerald-600"/></div>:<section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{filtered.map(campaign=><article key={campaign.id} className="overflow-hidden rounded-3xl border bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-xl"><div className="h-2 bg-gradient-to-l from-emerald-400 to-cyan-500"/><div className="space-y-4 p-5"><div className="flex items-start justify-between gap-3"><div><Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">{campaign.code}</Badge><h2 className="mt-3 text-xl font-black">{campaign.name}</h2></div><div className="flex gap-1"><Button size="icon" variant="ghost" onClick={()=>edit(campaign)}><Pencil className="h-4 w-4"/></Button><Button size="icon" variant="ghost" className="text-rose-600" onClick={()=>void remove(campaign)}><Trash2 className="h-4 w-4"/></Button></div></div><div className="grid grid-cols-2 gap-2 text-sm"><div className="rounded-xl bg-slate-50 p-3"><span className="text-xs text-muted-foreground">البداية</span><p className="font-bold">{campaign.start_date || "—"}</p></div><div className="rounded-xl bg-slate-50 p-3"><span className="text-xs text-muted-foreground">النهاية</span><p className="font-bold">{campaign.end_date || "مفتوحة"}</p></div><div className="rounded-xl bg-slate-50 p-3"><span className="text-xs text-muted-foreground">الخصم</span><p className="font-bold">{Number(campaign.discount_perc || 0)}%</p></div><div className="rounded-xl bg-slate-50 p-3"><span className="text-xs text-muted-foreground">الأصناف</span><p className="font-bold">{Array.isArray(campaign.items) ? campaign.items.length : 0}</p></div></div></div></article>)}{!filtered.length&&<div className="col-span-full rounded-2xl border border-dashed bg-white py-16 text-center text-muted-foreground">لا توجد حملات</div>}</section>}</div><Dialog open={open} onOpenChange={setOpen}><DialogContent className="max-h-[95vh] max-w-7xl overflow-y-auto p-5"><UnifiedCampaigns campaign={selected} products={products} warehouses={warehouses} onSaved={()=>{setOpen(false);void load()}} onCancel={()=>setOpen(false)}/></DialogContent></Dialog></main>
+}

@@ -73,6 +73,7 @@ export default function PosCashier(){
  const actions=[{label:"تفاصيل الدفع",icon:CreditCard,onClick:openCheckout},{label:"خصم",icon:Percent,onClick:()=>setDiscountOpen(true)},{label:mode==="return"?"إلغاء المردود":"مردودات",icon:RotateCcw,onClick:()=>{if(!point?.allow_returns)return setMessage({type:"error",text:"المردودات غير مفعلة لهذه النقطة"});setMode(m=>m==="sale"?"return":"sale");setCart([])}},{label:"هدية",icon:Gift,onClick:()=>{if(!point?.allow_gifts)return setMessage({type:"error",text:"الهدايا غير مفعلة لهذه النقطة"});setCart(c=>c.length?c.map((l,i)=>i===c.length-1?{...l,gift:!l.gift,discount:l.gift?0:100}:l):c)}},{label:"ملاحظة",icon:StickyNote,onClick:()=>setNoteOpen(true)},{label:"الفواتير",icon:History,onClick:()=>void loadHistory()},{label:"العهدة F8",icon:HandCoins,onClick:()=>setCustodyOpen(true)},{label:"تحديث",icon:RefreshCw,onClick:()=>void loadCatalogData()}]
  return <div dir="rtl" className="pos-workspace">
   {noPoints&&<div role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-6 text-center text-lg font-bold text-amber-800">يجب تعريف نقطة بيع اولا</div>}
+  <div className="pos-topbar">
   <header className="pos-toolbar">
    <div className="flex items-center gap-3"><span className="pos-brand"><ShoppingBag size={23}/></span><div><h1 className="font-black">نقطة البيع</h1><p className="text-xs text-slate-500">{point?.name||"اختر نقطة البيع للبدء"}</p></div></div>
    <div className="flex flex-wrap items-center gap-2">
@@ -89,6 +90,7 @@ export default function PosCashier(){
    <div className="pos-categories" aria-label="تصنيفات الأصناف"><button aria-pressed={category==="all"} onClick={()=>setCategory("all")}>كل الأصناف</button>{categories.map(c=><button key={c} aria-pressed={category===c} onClick={()=>setCategory(c)}>{c}</button>)}</div>
    <div className="pos-net"><span>{mode==="return"?"الصافي للاسترجاع":"الصافي للدفع"}</span><strong>{total.toFixed(2)} <small>{point?.currency_code}</small></strong></div>
   </section>
+  </div>
   {message&&<div role="status" className={cn("flex items-center justify-between rounded-xl border px-4 py-3 text-sm",message.type==="error"?"border-rose-200 bg-rose-50 text-rose-700":"border-emerald-200 bg-emerald-50 text-emerald-700")}><span>{message.text}</span><button aria-label="إغلاق الرسالة" onClick={()=>setMessage(null)}><X size={16}/></button></div>}
   <main className="pos-layout">
    <section className="pos-catalog">

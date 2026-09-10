@@ -100,14 +100,14 @@ export async function GET(request: NextRequest) {
     const chequeId = Number(request.nextUrl.searchParams.get("cheque_id"))
     if (!Number.isInteger(chequeId) || chequeId <= 0) return NextResponse.json({ error:"رقم الشيك غير صحيح" },{status:400})
     const logs = await sql`
-      SELECT l.*,old_status.name previous_status_name,new_status.name new_status_name,a.code account_code,a.name account_name,
-             vh.vch_code journal_voucher_code,COALESCE(u.full_name,u.username,l.user_id) user_name
+            SELECT l.*,old_status.name previous_status_name,new_status.name new_status_name,a.code account_code,a.name account_name,
+              vh.vch_code journal_voucher_code,COALESCE(NULLIF(u.full_name,''),NULLIF(u.username,''),l.user_id::text) user_name
       FROM cheque_operations_log_tbl l
       LEFT JOIN cheque_status_tbl old_status ON old_status.id=l.previous_status_id
       LEFT JOIN cheque_status_tbl new_status ON new_status.id=l.new_status_id
       LEFT JOIN account_tbl a ON a.id=l.account_id
       LEFT JOIN voucher_header_tbl vh ON vh.id=l.voucher_id
-      LEFT JOIN user_settings u ON u.user_id::text=l.user_id
+      LEFT JOIN user_settings u ON u.user_id=l.user_id
       WHERE l.cheque_id=${chequeId} AND COALESCE(l.status,1)<>9 ORDER BY l.operation_date DESC,l.id DESC`
     return NextResponse.json({ logs })
   } catch(error) {

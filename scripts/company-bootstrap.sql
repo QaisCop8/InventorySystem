@@ -1680,7 +1680,7 @@ CREATE TABLE public.orders (
     deleted boolean DEFAULT false NOT NULL,
     received_by character varying(15) DEFAULT ''::character varying,
     customer_order_no character varying(15) DEFAULT ''::character varying,
-    user_id character varying(255),
+    user_id INTEGER,
     printed integer,
     printed_count integer,
     is_exported integer DEFAULT 0,
@@ -2344,7 +2344,7 @@ CREATE TABLE public.stock_batch_log (
     id integer NOT NULL,
     product_id integer NOT NULL,
     stock_batch_id integer,
-    user_id character varying(255),
+    user_id INTEGER,
     status integer,
     log_date timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
@@ -2523,7 +2523,7 @@ CREATE TABLE public.task_customer_orders (
     customer_id integer,
     status character varying(20) DEFAULT 'in_progress'::character varying NOT NULL,
     priority character varying(20) DEFAULT 'normal'::character varying NOT NULL,
-    created_by character varying(255),
+    created_by INTEGER,
     created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
     updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
     completed_at timestamp without time zone
@@ -2558,7 +2558,7 @@ CREATE TABLE public.task_execution_logs (
     id integer NOT NULL,
     step_instance_id integer NOT NULL,
     order_item_id integer NOT NULL,
-    user_id character varying(255),
+    user_id INTEGER,
     action character varying(20) NOT NULL,
     at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
     duration_sec integer DEFAULT 0 NOT NULL,
@@ -2603,7 +2603,7 @@ CREATE TABLE public.task_order_items (
     workflow_id integer NOT NULL,
     priority character varying(20) DEFAULT 'normal'::character varying NOT NULL,
     status character varying(20) DEFAULT 'in_workflow'::character varying NOT NULL,
-    created_by character varying(255),
+    created_by INTEGER,
     created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
     updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
     completed_at timestamp without time zone
@@ -2637,7 +2637,7 @@ ALTER SEQUENCE public.task_order_items_id_seq OWNED BY public.task_order_items.i
 CREATE TABLE public.task_section_users (
     id integer NOT NULL,
     section_id integer NOT NULL,
-    user_id character varying(255) NOT NULL,
+    user_id INTEGER NOT NULL,
     is_manager boolean DEFAULT false,
     created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP
 );
@@ -2707,7 +2707,7 @@ CREATE TABLE public.task_step_instances (
     order_item_id integer NOT NULL,
     step_id integer NOT NULL,
     status character varying(20) DEFAULT 'pending'::character varying NOT NULL,
-    claimed_by_user_id character varying(255),
+    claimed_by_user_id INTEGER,
     override_section_id integer,
     first_started_at timestamp without time zone,
     completed_at timestamp without time zone,
@@ -2748,9 +2748,9 @@ CREATE TABLE public.task_transfer_logs (
     order_item_id integer NOT NULL,
     from_section_id integer,
     to_section_id integer,
-    from_user_id character varying(255),
-    to_user_id character varying(255),
-    admin_id character varying(255) NOT NULL,
+    from_user_id INTEGER,
+    to_user_id INTEGER,
+    admin_id INTEGER NOT NULL,
     reason text NOT NULL,
     at timestamp without time zone DEFAULT CURRENT_TIMESTAMP
 );
@@ -2818,7 +2818,7 @@ CREATE TABLE public.task_workflow_steps (
     label character varying(150) NOT NULL,
     section_id integer NOT NULL,
     assignment_type character varying(20) DEFAULT 'all'::character varying NOT NULL,
-    assigned_user_id character varying(255),
+    assigned_user_id INTEGER,
     is_start boolean DEFAULT false,
     is_end boolean DEFAULT false,
     join_type character varying(10) DEFAULT 'none'::character varying NOT NULL,
@@ -2965,7 +2965,7 @@ ALTER SEQUENCE public.tax_classifications_id_seq OWNED BY public.tax_classificat
 
 CREATE TABLE public.theme_settings (
     id integer NOT NULL,
-    user_id character varying(255),
+    user_id INTEGER,
     color_scheme character varying(50) DEFAULT 'emerald'::character varying,
     primary_color character varying(7) DEFAULT '#059669'::character varying,
     accent_color character varying(7) DEFAULT '#10b981'::character varying,
@@ -3058,7 +3058,7 @@ ALTER SEQUENCE public.units_id_seq OWNED BY public.units.id;
 
 CREATE TABLE public.user_access (
     id integer NOT NULL,
-    user_id character varying(255) NOT NULL,
+    user_id INTEGER NOT NULL,
     access_id integer NOT NULL,
     is_granted boolean DEFAULT false NOT NULL,
     created_at timestamp without time zone DEFAULT now() NOT NULL,
@@ -3092,7 +3092,7 @@ ALTER SEQUENCE public.user_access_id_seq OWNED BY public.user_access.id;
 
 CREATE TABLE public.user_settings (
     id integer NOT NULL,
-    user_id character varying(255) NOT NULL,
+    user_id INTEGER NOT NULL,
     username character varying(100) NOT NULL,
     password_hash character varying(255),
     email character varying(255),
@@ -3170,7 +3170,7 @@ CREATE TABLE public.users (
 
 CREATE TABLE public.users_currencies_default_account_tbl (
     id integer NOT NULL,
-    user_id character varying(50) NOT NULL,
+    user_id INTEGER NOT NULL,
     currency_id integer NOT NULL,
     account_id integer,
     created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
@@ -4021,7 +4021,7 @@ CREATE TABLE public.vouchers (
     deleted boolean DEFAULT false NOT NULL,
     received_by character varying(15) DEFAULT ''::character varying,
     customer_order_no character varying(15) DEFAULT ''::character varying,
-    user_id character varying(255),
+    user_id INTEGER,
     printed integer,
     printed_count integer,
     is_exported integer DEFAULT 0,
@@ -4056,7 +4056,7 @@ CREATE TABLE public.vouchers_log (
     id integer NOT NULL,
     voucher_id integer NOT NULL,
     voucher_type integer NOT NULL,
-    user_id character varying(255),
+    user_id INTEGER,
     status_id integer,
     log_date timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
@@ -23660,6 +23660,18 @@ CREATE TABLE IF NOT EXISTS public.order_item_attributes_tbl (
     product_attribute_value_id bigint NOT NULL REFERENCES public.product_atrributes_values_tbl(id) ON DELETE CASCADE,
     CONSTRAINT order_item_attributes_unique UNIQUE (order_item_id, product_attribute_value_id)
 );
+
+-- New company users receive integer IDs from PostgreSQL, not MAX(id) in application code.
+CREATE SEQUENCE IF NOT EXISTS public.user_settings_user_id_seq AS integer;
+ALTER SEQUENCE public.user_settings_user_id_seq OWNED BY public.user_settings.user_id;
+ALTER TABLE public.user_settings ALTER COLUMN user_id
+    SET DEFAULT nextval('public.user_settings_user_id_seq'::regclass);
+SELECT setval('public.user_settings_user_id_seq',
+    GREATEST(COALESCE((SELECT MAX(user_id) FROM public.user_settings), 0) + 1, 1), false);
+
+-- Provisioning validates and installs all company-user foreign keys after clearing
+-- sample transaction data and seeding the actual company administrator.
+-- See scripts/migrate-integer-user-ids.cjs, invoked by lib/provisioning.ts.
 
 -- PostgreSQL database dump complete
 --

@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS scheduled_messages (
     repeat_until DATE,
     status VARCHAR(50) DEFAULT 'pending',
     sent_at TIMESTAMP,
-    created_by VARCHAR(255),
+    created_by INTEGER,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

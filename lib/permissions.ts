@@ -164,7 +164,7 @@ export function ensurePermissionTables(dbName: string): Promise<void> {
       )
       await client.query(
         `CREATE TABLE IF NOT EXISTS user_branch_permissions (
-          user_id VARCHAR(255) NOT NULL,
+          user_id INTEGER REFERENCES user_settings(user_id) NOT NULL,
           branch_id INTEGER NOT NULL,
           access_id INTEGER NOT NULL REFERENCES access_list(id) ON DELETE CASCADE,
           is_granted BOOLEAN NOT NULL DEFAULT true,
@@ -179,7 +179,7 @@ export function ensurePermissionTables(dbName: string): Promise<void> {
       // بلا FK صريح على branch_id، بنفس أسلوب user_branch_permissions/role_branch_permissions أعلاه.
       await client.query(
         `CREATE TABLE IF NOT EXISTS user_branches (
-          user_id VARCHAR(255) NOT NULL,
+          user_id INTEGER REFERENCES user_settings(user_id) NOT NULL,
           branch_id INTEGER NOT NULL,
           PRIMARY KEY (user_id, branch_id)
         )`,
@@ -191,7 +191,7 @@ export function ensurePermissionTables(dbName: string): Promise<void> {
       await client.query(
         `CREATE TABLE IF NOT EXISTS tenant_sessions (
           id SERIAL PRIMARY KEY,
-          user_id VARCHAR(255) NOT NULL,
+          user_id INTEGER REFERENCES user_settings(user_id) NOT NULL,
           session_token VARCHAR(255) UNIQUE NOT NULL,
           expires_at TIMESTAMP NOT NULL,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP

@@ -1,4 +1,5 @@
 import crypto from "crypto"
+import { Client } from "pg"
 import path from "path"
 import { spawn } from "child_process"
 import { existsSync } from "fs"
@@ -225,7 +226,7 @@ async function ensureBasicProductsTable(tenantClient: ReturnType<typeof getPoolF
   await tenantClient.query(
     `CREATE TABLE IF NOT EXISTS user_settings (
       id SERIAL PRIMARY KEY,
-      user_id VARCHAR(50),
+      user_id INTEGER,
       username VARCHAR(100),
       email VARCHAR(100),
       password_hash VARCHAR(255),
@@ -247,7 +248,7 @@ async function ensureBasicProductsTable(tenantClient: ReturnType<typeof getPoolF
   await tenantClient.query(
     `CREATE TABLE IF NOT EXISTS user_access (
       id SERIAL PRIMARY KEY,
-      user_id VARCHAR(50),
+      user_id INTEGER,
       access_id INTEGER,
       is_granted BOOLEAN DEFAULT false,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -258,7 +259,7 @@ async function ensureBasicProductsTable(tenantClient: ReturnType<typeof getPoolF
   await tenantClient.query(
     `CREATE TABLE IF NOT EXISTS voucher_book_user_permissions_tbl (
       id SERIAL PRIMARY KEY,
-      user_id VARCHAR(50),
+      user_id INTEGER,
       voucher_type_id INTEGER,
       vch_book_id INTEGER,
       is_default BOOLEAN DEFAULT false,
@@ -278,7 +279,7 @@ async function ensureModernVoucherItemsTable(tenantClient: ReturnType<typeof get
       vch_date TIMESTAMP WITHOUT TIME ZONE,
       vch_code VARCHAR(50),
       branch_id INTEGER,
-      user_id VARCHAR(50),
+      user_id INTEGER,
       notes TEXT,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )`,
@@ -652,11 +653,11 @@ export async function provisionCompanyDatabase(
      WHERE user_id IN (
        SELECT id FROM user_settings WHERE user_id = $1 OR LOWER(username) = LOWER($2)
      )`,
-    ["1", "admin"],
+    [1, "admin"],
   )
   await tenantClient.query(
     `DELETE FROM user_settings WHERE user_id = $1 OR LOWER(username) = LOWER($2)`,
-    ["1", "admin"],
+    [1, "admin"],
   )
   const insertedAdmin = await tenantClient.query(
     `INSERT INTO user_settings (
@@ -665,7 +666,7 @@ export async function provisionCompanyDatabase(
     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
     RETURNING id`,
     [
-      "1",
+      1,
       "admin",
       company.requestedByEmail,
       company.requestedByPasswordHash,
@@ -685,6 +686,18 @@ export async function provisionCompanyDatabase(
 
   await seedAccessListsAndGrantAdmin(tenantClient)
   await seedVoucherBookPermissionsForAdmin(tenantClient, adminUserRowId)
+
+  // Seed first, then validate every existing reference and establish integer user IDs.
+  const migrationUrl = new URL(process.env.DATABASE_URL!)
+  migrationUrl.pathname = `/${dbName}`
+  const migrationClient = new Client({ connectionString: migrationUrl.toString() })
+  try {
+    await migrationClient.connect()
+    const { migrate } = require("../scripts/migrate-integer-user-ids.cjs")
+    await migrate(migrationClient, true)
+  } finally {
+    await migrationClient.end()
+  }
 
   // اشتراك بمدة expiryDays (سنة واحدة افتراضياً) من تاريخ الاعتماد الفعلي، ونطاق مستخدمين افتراضي
   // = 1 (محجوز لاستخدام مستقبلي — لا فرض/تحقق فعلي لعدد المستخدمين مقابل هذا الحد بعد).

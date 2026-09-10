@@ -1,7 +1,7 @@
 -- جدول إعدادات المظهر
 CREATE TABLE IF NOT EXISTS theme_settings (
     id SERIAL PRIMARY KEY,
-    user_id VARCHAR(255),
+    user_id INTEGER,
     organization_id INTEGER,
     theme_name VARCHAR(100),
     dark_mode BOOLEAN DEFAULT false,

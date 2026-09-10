@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS message_templates (
     is_active BOOLEAN DEFAULT true,
     usage_count INTEGER DEFAULT 0,
     last_used_at TIMESTAMP,
-    created_by VARCHAR(255),
+    created_by INTEGER,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
       sql`SELECT id,currency_code code,currency_name name FROM currency WHERE COALESCE(is_active,true) ORDER BY id`,
       sql`SELECT id,name FROM voucher_books_tbl ORDER BY name`,
       sql`SELECT id,code,name,currency_id FROM account_tbl WHERE COALESCE(status,1)<>3 ORDER BY code LIMIT 10000`,
-      sql`SELECT user_id,COALESCE(NULLIF(full_name,''),NULLIF(username,''),user_id) name FROM user_settings ORDER BY user_id`,
+      sql`SELECT user_id,COALESCE(NULLIF(full_name,''),NULLIF(username,''),user_id::text) name FROM user_settings ORDER BY user_id`,
     ])
     return NextResponse.json({points,meta:{branches,warehouses,currencies,books,accounts,users}})
   } catch(error) { return NextResponse.json({error:error instanceof Error?error.message:"تعذر تحميل نقاط البيع"},{status:500}) }

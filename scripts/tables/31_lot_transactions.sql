@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS lot_transactions (
     quantity NUMERIC(15,2) NOT NULL,
     unit_cost NUMERIC(15,2),
     notes TEXT,
-    created_by VARCHAR(255),
+    created_by INTEGER,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 

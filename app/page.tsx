@@ -38,6 +38,8 @@ const BatchReports = lazyNamed(() => import("@/components/reports/batch-reports"
 const BatchLogReport = lazyNamed(() => import("@/components/reports/batch-log-report"), "BatchLogReport")
 const ReceivablesStatementReport = lazyNamed(() => import("@/components/reports/account-statement-report"), "ReceivablesStatementReport")
 const AccountingStatementReport = lazyNamed(() => import("@/components/reports/account-statement-report"), "AccountingStatementReport")
+const ReceivablesBalancesReport = lazyNamed(() => import("@/components/reports/account-balances-report"), "ReceivablesBalancesReport")
+const AccountingBalancesReport = lazyNamed(() => import("@/components/reports/account-balances-report"), "AccountingBalancesReport")
 const VouchersReport = lazyNamed(() => import("@/components/reports/financial-report"), "VouchersReport")
 const TransactionsReport = lazyNamed(() => import("@/components/reports/financial-report"), "TransactionsReport")
 const TrialBalanceReport = lazyNamed(() => import("@/components/reports/financial-report"), "TrialBalanceReport")
@@ -73,6 +75,8 @@ const StockVouchers = dynamic(() => import("@/components/inventory/stock-voucher
 const SalesDelivery = dynamic(() => import("@/components/sales/sales-delivery"), { ssr: false })
 const PosCashier = dynamic(() => import("@/components/pos/pos-cashier"), { ssr: false })
 const PosPointsSettings = dynamic(() => import("@/components/pos/pos-points-settings"), { ssr: false })
+const Campaigns = dynamic(() => import("@/components/pos/campaigns"), { ssr: false })
+const UnifiedCampaigns = dynamic(() => import("@/components/pos/unified-campaigns"), { ssr: false })
 
 const AIChat = lazyNamed(() => import("@/components/ai-assistant/ai-chat"), "AIChat")
 const SmartAnalyticsDashboard = lazyNamed(() => import("@/components/ai-analytics/smart-analytics-dashboard"), "SmartAnalyticsDashboard")
@@ -152,6 +156,8 @@ const componentMap: Record<string, React.ComponentType<any>> = {
   "batch-log-report": BatchLogReport,
   "receivables-statement-report": ReceivablesStatementReport,
   "accounting-statement-report": AccountingStatementReport,
+  "receivables-balances-report": ReceivablesBalancesReport,
+  "accounting-balances-report": AccountingBalancesReport,
   "vouchers-report": VouchersReport,
   "transactions-report": TransactionsReport,
   "trial-balance-report": TrialBalanceReport,
@@ -199,6 +205,8 @@ const componentMap: Record<string, React.ComponentType<any>> = {
   "sales-invoices": (props: any) => <SalesDelivery {...props} voucherType={12} />,
   "pos-cashier": PosCashier,
   "pos-points-settings": PosPointsSettings,
+  campaigns: Campaigns,
+  "unified-campaigns": UnifiedCampaigns,
   "sales-delivery": (props: any) => <SalesDelivery {...props} voucherType={13} />,
   "delivery-consignment-sale": (props: any) => <SalesDelivery {...props} voucherType={14} />,
   "return-delivery-consignment-sale": (props: any) => <SalesDelivery {...props} voucherType={15} />,

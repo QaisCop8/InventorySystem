@@ -29,9 +29,9 @@ const resolveUserKeys = async (rawUserId: unknown) => {
   const users = await sql`
     SELECT id, user_id
     FROM user_settings
-     WHERE user_id = ${requested}::text
+     WHERE user_id = ${requested}::integer
        OR (${numericRequested}::int IS NOT NULL AND id = ${numericRequested})
-     ORDER BY CASE WHEN user_id = ${requested}::text THEN 0 ELSE 1 END
+     ORDER BY CASE WHEN user_id = ${requested}::integer THEN 0 ELSE 1 END
     LIMIT 1
   `
   const internalId = users[0]?.id == null ? null : Number(users[0].id)

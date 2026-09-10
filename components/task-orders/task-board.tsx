@@ -168,7 +168,7 @@ export function TaskBoard() {
 
   const mySectionIds = useMemo(() => {
     if (!userId) return new Set<number>()
-    return new Set(sections.filter((s) => s.members.some((m) => m.user_id === userId)).map((s) => s.id))
+    return new Set(sections.filter((s) => s.members.some((m) => Number(m.user_id) === Number(userId))).map((s) => s.id))
   }, [sections, userId])
 
   // فرع "الكل" (branch_id = null) في سير عمل أو قسم يُعامَل كمتقاطع مع كل فرع محدَّد — نفس منطق
@@ -210,8 +210,8 @@ export function TaskBoard() {
         return b === null || b === undefined || b === branchId
       })
     }
-    if (scope === "mine") list = list.filter((t) => t.claimed_by_user_id === userId)
-    else if (scope === "section") list = list.filter((t) => mySectionIds.has(t.effective_section_id) || t.claimed_by_user_id === userId)
+    if (scope === "mine") list = list.filter((t) => Number(t.claimed_by_user_id) === Number(userId))
+    else if (scope === "section") list = list.filter((t) => mySectionIds.has(t.effective_section_id) || Number(t.claimed_by_user_id) === Number(userId))
     if (searchText.trim()) {
       const q = searchText.trim().toLowerCase()
       list = list.filter((t) => t.title.toLowerCase().includes(q) || t.item_code.toLowerCase().includes(q))
@@ -944,7 +944,7 @@ export function TaskBoard() {
                 // فقط ولا يظهر له تم/رفض إطلاقاً.
                 const canActOnSpecial =
                   isAdmin ||
-                  activeSpecialInstance.claimed_by_user_id === userId ||
+                  Number(activeSpecialInstance.claimed_by_user_id) === Number(userId) ||
                   (activeSpecialInstance.assignment_type === "all" && mySectionIds.has(activeSpecialInstance.effective_section_id))
                 const loadingBlocked = activeSpecialInstance.step_type === "loading" && !allLoadingChecked
                 return (

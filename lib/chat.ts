@@ -13,8 +13,8 @@ export function ensureChatTables(dbName: string): Promise<void> {
       await client.query(
         `CREATE TABLE IF NOT EXISTS chat_messages (
           id SERIAL PRIMARY KEY,
-          sender_id VARCHAR(255) NOT NULL,
-          receiver_id VARCHAR(255) NOT NULL,
+          sender_id INTEGER REFERENCES user_settings(user_id) NOT NULL,
+          receiver_id INTEGER REFERENCES user_settings(user_id) NOT NULL,
           body TEXT NOT NULL,
           is_read BOOLEAN NOT NULL DEFAULT false,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -84,7 +84,7 @@ export async function getChatContacts(meId: string): Promise<ChatContact[]> {
     username: r.username,
     last_message: r.last_message,
     last_message_at: r.last_message_at,
-    last_message_from_me: r.last_message_sender_id === meId,
+    last_message_from_me: String(r.last_message_sender_id) === String(meId),
     unread_count: r.unread_count,
   }))
 }

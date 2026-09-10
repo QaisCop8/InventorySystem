@@ -166,7 +166,7 @@ interface UnifiedReceiptVoucherProps {
   onOpenChange: (open: boolean) => void
   onNew?: () => void
   onSave: (action?: PostVoucherAction) => void
-  onValidateSave?: () => string | null
+  onValidateSave?: (data?: VoucherRecord) => string | null
   onDelete?: () => void
   onClone?: () => void
   onPrint?: () => void
@@ -597,7 +597,12 @@ export default function UnifiedReceiptVoucher({
   const handleRequestSave = () => {
     if (isLocked) return
     commitActiveGridEdits(journalGridRef.current, chequeGridRef.current)
-    const error = onValidateSave?.()
+    const validationData: VoucherRecord = {
+      ...latestFormRef.current,
+      journal: [...journalRef.current],
+      cheques: [...chequesRef.current],
+    }
+    const error = onValidateSave?.(validationData)
     if (error) {
       messagesRef.current?.clear?.()
       messagesRef.current?.show?.([{ severity: "error", summary: "", detail: error, sticky: false, life: 4000 }])
@@ -1437,7 +1442,7 @@ export default function UnifiedReceiptVoucher({
     // مطابق لـ onAddCheckClick في QabdVoucher.js: Insert يعتمد دائماً على آخر سطر في الشبكة
     // (lastRow/lastRowIndex هناك) لا على سطر التأشير الحالي — فيضيف دائماً بعد آخر سطر فعلي، بغضّ
     // النظر عن مكان المؤشر وقت الضغط (تجنّباً لالتباس الإضافة "في المنتصف" حين يوجد سطر فارغ بينهما).
-    if (e.keyCode === Util.keyboardKeys.Insert) {
+    if (e.key === "Insert" || e.keyCode === Util.keyboardKeys.Insert) {
       e.preventDefault()
       const control = resolveFlexControl(grid)
       control?.finishEditing?.()
@@ -1452,10 +1457,46 @@ export default function UnifiedReceiptVoucher({
         !lastRow?.cheq_owner_name?.trim()
         
       if (isLastRowEmpty) {
-        setTimeout(() => {
-          selectCell(grid, lastIndex, "bank_account")
-          grid.focus()
-        }, 0)
+        const previousRow = chequesRef.current[lastIndex - 1]
+        if (!previousRow?.cheq_num && !previousRow?.bank_account && !previousRow?.amount) {
+          setTimeout(() => {
+            selectCell(grid, lastIndex, "bank_account")
+            grid.focus()
+          }, 0)
+          return
+        }
+        const enteredWithoutEmptyRow = chequesRef.current
+          .slice(0, lastIndex)
+          .reduce((sum, row) => sum + Number(row.amount || 0), 0)
+        const remaining = Math.round((Number(form.check_amount || 0) - enteredWithoutEmptyRow) * 100) / 100
+        if (remaining <= 0) {
+          messagesRef.current?.show?.([{ severity: "info", summary: "", detail: "تم إدخال كامل مبلغ الشيكات، لا حاجة لسطر إضافي", life: 3000 }])
+          return
+        }
+        const nextChequeNum = previousRow.cheq_num && /^\d+$/.test(previousRow.cheq_num)
+          ? String(Number(previousRow.cheq_num) + 1).padStart(previousRow.cheq_num.length, "0")
+          : ""
+        const nextDate = previousRow.due_date ? new Date(previousRow.due_date) : new Date()
+        nextDate.setMonth(nextDate.getMonth() + 1)
+        const nextRow: VoucherChequeRow = {
+          ...emptyChequeRow,
+          bank_account: previousRow.bank_account || "",
+          bank_account_id: previousRow.bank_account_id ?? null,
+          jary_account_id: previousRow.jary_account_id ?? null,
+          bank_no: previousRow.bank_no || "",
+          bank_id: previousRow.bank_id ?? null,
+          bank_name: previousRow.bank_name || "",
+          branch_no: previousRow.branch_no || "",
+          branch_id: previousRow.branch_id ?? null,
+          branch_name: previousRow.branch_name || "",
+          cheq_num: nextChequeNum,
+          due_date: nextDate.toISOString().slice(0, 10),
+          amount: Math.min(Number(previousRow.amount || 0), remaining) || remaining,
+        }
+        const next = [...chequesRef.current.slice(0, lastIndex), nextRow]
+        chequesRef.current = next
+        pendingChequeFocusRef.current = { row: next.length - 1, col: "amount" }
+        onChequesChange(next)
         return
       }
 
@@ -1501,7 +1542,7 @@ export default function UnifiedReceiptVoucher({
 
         const enteredTotal = chequesRef.current.reduce((sum, r) => sum + Number(r.amount || 0), 0)
         const remaining = Math.round((Number(form.check_amount || 0) - enteredTotal) * 100) / 100
-        const nextAmount = remaining > 0 ? remaining : null
+        const nextAmount = remaining > 0 ? Math.min(Number(lastRow?.amount || remaining), remaining) : null
 
         const newRow: VoucherChequeRow = {
           ...emptyChequeRow,

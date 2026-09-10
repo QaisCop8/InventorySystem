@@ -348,39 +348,24 @@ export async function createUser(userData: {
     // Update hashPassword call to be async
     const passwordHash = await hashPassword(userData.password)
 
-    const existingUserIds = await sql`
-      SELECT user_id FROM user_settings 
-      WHERE user_id ~ '^[0-9]+$'
-      ORDER BY CAST(user_id AS INTEGER) DESC 
-      LIMIT 1
-    `
-
-    let nextUserId = "1"
-    if (existingUserIds.length > 0) {
-      const lastId = Number.parseInt(existingUserIds[0].user_id)
-      nextUserId = (lastId + 1).toString()
-    }
-
-    console.log("[v0] Creating user with sequential ID:", nextUserId)
-
     // Insert new user
-    await sql`
+    const createdUsers = await sql`
       INSERT INTO user_settings (
-        user_id, username, email, password_hash, full_name, role, department,
+        username, email, password_hash, full_name, role, department,
         organization_id, permissions, branch_id, job_role_id, management_user_id, is_active, language, timezone,
         date_format, time_format, notifications_enabled, email_notifications,
         sms_notifications, theme_preference, sidebar_collapsed, created_at, updated_at
       ) VALUES (
-        ${nextUserId}, ${userData.username}, ${userData.email}, ${passwordHash},
+        ${userData.username}, ${userData.email}, ${passwordHash},
         ${userData.fullName}, ${userData.role}, ${userData.department},
         ${userData.organizationId}, ${JSON.stringify(userData.permissions || ["جميع الصلاحيات"])},
         ${userData.branchId ?? null}, ${userData.jobRoleId ?? null}, ${userData.managementUserId ?? null},
         true, 'ar', 'Asia/Riyadh', 'DD/MM/YYYY', '24h', true, true, false,
         'slate', false, NOW(), NOW()
-      )
+      ) RETURNING user_id
     `
 
-    console.log("[v0] User created successfully with sequential ID:", nextUserId)
+    const nextUserId = String(createdUsers[0].user_id)
     return { success: true, userId: nextUserId }
   } catch (error) {
     console.error("Create user error:", error)

@@ -5,7 +5,7 @@ import {authorizeTransaction} from "@/lib/transaction-permissions"
 import {ensureTables as ensureVoucherTables} from "@/app/api/receipts/_lib"
 import {ensureTables as ensureVoucherBookTables} from "@/app/api/voucher-book-permissions/_lib"
 import {CHEQUE_OPERATIONS,ensureChequeOperationsTable,isChequeOperationAllowed} from "@/app/api/cheques/_lib"
-import {createChequeBulkOperationJournal} from "@/app/api/cheques/_journal"
+import {createChequeOperationJournal} from "@/app/api/cheques/_journal"
 
 const supported={deposit:{type:1,name:"إيداع الشيكات الواردة"},endorse:{type:1,name:"تجيير الشيكات"},clear_outgoing:{type:2,name:"إخراج الشيكات الصادرة"}} as const
 const dateValue=(value:unknown)=>/^\d{4}-\d{2}-\d{2}$/.test(String(value||""))?String(value):new Date().toISOString().slice(0,10)
@@ -39,23 +39,19 @@ export async function POST(request:NextRequest){
    }else if(code==="endorse"){
     if(!requestedAccountId)return NextResponse.json({error:"اختر حساب المستفيد من التجيير"},{status:400});const account=(await sql`SELECT id FROM account_tbl WHERE id=${requestedAccountId} AND type>1 AND COALESCE(status,1)<>3`)[0];if(!account)return NextResponse.json({error:"حساب المستفيد غير موجود أو غير فعال"},{status:400});targetAccountId=Number(account.id)
    }
-   const lines:any[]=[]
-   for(const cheque of cheques){const current=Number(cheque.current_account_id||cheque.rec_cheq_account_id),rate=Number(cheque.rate||1),amount=Number(cheque.amount||0),currencyId=Number(cheque.currency_id)||null;if(!current||amount<=0)return NextResponse.json({error:`تعذر تحديد حساب أو قيمة الشيك ${cheque.cheq_num}`},{status:400})
-    if(code==="deposit"||code==="endorse"){lines.push({branchId:Number(cheque.source_branch_id),accountId:Number(targetAccountId),creditDebit:1,amount,currencyId,rate,note:`${config.name} - شيك ${cheque.cheq_num}`},{branchId:Number(cheque.source_branch_id),accountId:current,creditDebit:2,amount,currencyId,rate,note:`${config.name} - شيك ${cheque.cheq_num}`})}
-    else{const bankId=Number(cheque.bank_account_id);if(!bankId)return NextResponse.json({error:`لا يوجد حساب بنك مرتبط بالشيك ${cheque.cheq_num}`},{status:400});const bank=(await sql`SELECT jary_account_id FROM bank_accounts WHERE id=${bankId} AND COALESCE(status,1)<>3`)[0];if(!bank?.jary_account_id)return NextResponse.json({error:`الحساب الجاري غير معرّف للشيك ${cheque.cheq_num}`},{status:400});cheque.target_account_id=Number(bank.jary_account_id);lines.push({branchId:Number(cheque.source_branch_id),accountId:current,creditDebit:1,amount,currencyId,rate,note:`${config.name} - شيك ${cheque.cheq_num}`},{branchId:Number(cheque.source_branch_id),accountId:Number(bank.jary_account_id),creditDebit:2,amount,currencyId,rate,note:`${config.name} - شيك ${cheque.cheq_num}`})}
-   }
-   const journals=new Map<number,{id:number;code:string}>()
-   for(const branchId of branchIds){
-    const branchCheques=cheques.filter((cheque:any)=>Number(cheque.source_branch_id)===branchId)
-    const journal=await createChequeBulkOperationJournal({userId:String(user.user_id),branchId,operationName:config.name,operationDate,currencyId:currencyIds[0]||null,rate:Number(branchCheques[0].rate||1),note:note||config.name,lines:lines.filter(line=>line.branchId===branchId)})
-    if(!journal.ok)throw new Error(journal.error)
-    journals.set(branchId,{id:journal.id,code:journal.code})
-   }
-   for(const cheque of cheques){const journal=journals.get(Number(cheque.source_branch_id))!;const newCurrent=code==="clear_outgoing"?Number(cheque.target_account_id):Number(targetAccountId),newStatus=code==="endorse"?7:4,accountId=newCurrent,bankId=code==="deposit"?targetBankAccountId:(Number(cheque.bank_account_id)||null)
+  const journals:{id:number;code:string}[]=[]
+  for(const cheque of cheques){const current=Number(cheque.current_account_id||cheque.rec_cheq_account_id),rate=Number(cheque.rate||1),amount=Number(cheque.amount||0),currencyId=Number(cheque.currency_id)||null;if(!current||amount<=0)return NextResponse.json({error:`تعذر تحديد حساب أو قيمة الشيك ${cheque.cheq_num}`},{status:400})
+   let debitAccountId:number,creditAccountId:number
+   if(code==="deposit"||code==="endorse"){debitAccountId=Number(targetAccountId);creditAccountId=current}
+   else{const bankId=Number(cheque.bank_account_id);if(!bankId)return NextResponse.json({error:`لا يوجد حساب بنك مرتبط بالشيك ${cheque.cheq_num}`},{status:400});const bank=(await sql`SELECT jary_account_id FROM bank_accounts WHERE id=${bankId} AND COALESCE(status,1)<>3`)[0];if(!bank?.jary_account_id)return NextResponse.json({error:`الحساب الجاري غير معرّف للشيك ${cheque.cheq_num}`},{status:400});cheque.target_account_id=Number(bank.jary_account_id);debitAccountId=current;creditAccountId=Number(bank.jary_account_id)}
+   const journal=await createChequeOperationJournal({userId:String(user.user_id),branchId:Number(cheque.source_branch_id),chequeNumber:String(cheque.cheq_num),operationName:config.name,operationDate,debitAccountId,creditAccountId,amount,currencyId,rate,note:note||config.name})
+   if(!journal.ok)throw new Error(journal.error)
+   journals.push({id:journal.id,code:journal.code})
+   const newCurrent=code==="clear_outgoing"?Number(cheque.target_account_id):Number(targetAccountId),newStatus=code==="endorse"?7:4,accountId=newCurrent,bankId=code==="deposit"?targetBankAccountId:(Number(cheque.bank_account_id)||null)
     await sql`UPDATE cheques_tbl SET old_status_id=status_id,status_id=${newStatus},current_account_id=${newCurrent},bank_account_id=${bankId},pay_date=CASE WHEN ${code!=="endorse"} THEN ${operationDate}::date ELSE pay_date END,trans_date=CASE WHEN ${code==="endorse"} THEN ${operationDate}::date ELSE trans_date END,last_voucher_id=${journal.id},update_user_id=${Number(user.user_id)||null},last_update_date=NOW() WHERE id=${Number(cheque.id)}`
     await sql`INSERT INTO cheque_operations_log_tbl(cheque_id,voucher_id,operation_code,operation_name,previous_status_id,new_status_id,operation_date,account_id,note,user_id,previous_current_account_id,previous_rec_cheq_account_id,previous_bank_account_id,previous_due_date,previous_voucher_id) VALUES(${Number(cheque.id)},${journal.id},${code},${config.name},${Number(cheque.status_id)},${newStatus},${operationDate}::date,${accountId},${note},${String(user.user_id)},${cheque.current_account_id||null},${cheque.rec_cheq_account_id||null},${cheque.bank_account_id||null},${cheque.due_date||null},${cheque.last_voucher_id||null})`
    }
-   return NextResponse.json({message:`تم تنفيذ ${config.name} لعدد ${ids.length} شيكات وإنشاء سند القيد ${Array.from(journals.values()).map(journal=>journal.code).join(", ")}`,count:ids.length,journal_voucher:Array.from(journals.values())[0],journal_vouchers:Array.from(journals.values())})
+  return NextResponse.json({message:`تم تنفيذ ${config.name} لعدد ${ids.length} شيكات وإنشاء سند مستقل لكل شيك: ${journals.map(journal=>journal.code).join(", ")}`,count:ids.length,journal_voucher:journals[0],journal_vouchers:journals})
   })
  }catch(error){console.error("Bulk cheque operation error",error);return NextResponse.json({error:error instanceof Error?error.message:"تعذر تنفيذ عملية الشيكات الجماعية"},{status:500})}
 }

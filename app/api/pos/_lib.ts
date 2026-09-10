@@ -34,7 +34,7 @@ export async function ensurePosTables() {
   await sql`
     CREATE TABLE IF NOT EXISTS pos_point_users_tbl (
       pos_point_id INTEGER NOT NULL REFERENCES pos_points_tbl(id) ON DELETE CASCADE,
-      user_id VARCHAR(255) NOT NULL,
+      user_id INTEGER REFERENCES user_settings(user_id) NOT NULL,
       is_default BOOLEAN NOT NULL DEFAULT false,
       PRIMARY KEY (pos_point_id, user_id)
     )
@@ -43,13 +43,13 @@ export async function ensurePosTables() {
     CREATE TABLE IF NOT EXISTS pos_sessions_tbl (
       id BIGSERIAL PRIMARY KEY,
       pos_point_id INTEGER NOT NULL REFERENCES pos_points_tbl(id),
-      user_id VARCHAR(255) NOT NULL,
+      user_id INTEGER REFERENCES user_settings(user_id) NOT NULL,
       status VARCHAR(24) NOT NULL DEFAULT 'open',
       opening_cash NUMERIC(18,4) NOT NULL DEFAULT 0,
       expected_cash NUMERIC(18,4) NOT NULL DEFAULT 0,
       counted_cash NUMERIC(18,4),
       handover_amount NUMERIC(18,4),
-      handover_to_user_id VARCHAR(255),
+      handover_to_user_id INTEGER REFERENCES user_settings(user_id),
       received_from_session_id BIGINT REFERENCES pos_sessions_tbl(id),
       notes TEXT,
       opened_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -66,7 +66,7 @@ export async function ensurePosTables() {
       amount NUMERIC(18,4) NOT NULL,
       reference VARCHAR(120),
       note TEXT,
-      user_id VARCHAR(255) NOT NULL,
+      user_id INTEGER REFERENCES user_settings(user_id) NOT NULL,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `

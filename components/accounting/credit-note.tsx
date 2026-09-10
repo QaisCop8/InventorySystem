@@ -5,6 +5,7 @@ import { useVoucherDeepLink } from "@/hooks/use-voucher-deep-link"
 import { useEffect, useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import DataGridView from "@/components/common/DataGridView"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -732,52 +733,24 @@ export default function CreditNote({ voucherType }: CreditNoteProps) {
           <CardTitle>{`${labels.listTitle} (${filteredVouchers.length})`}</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse border border-gray-300">
-              <thead>
-                <tr className="bg-gray-50">
-                  <th className="border border-gray-300 px-4 py-2 text-right">رقم السند</th>
-                  <th className="border border-gray-300 px-4 py-2 text-right">التاريخ</th>
-                  <th className="border border-gray-300 px-4 py-2 text-right">العميل</th>
-                  <th className="border border-gray-300 px-4 py-2 text-right">العملة</th>
-                  <th className="border border-gray-300 px-4 py-2 text-right">المجموع</th>
-                  <th className="border border-gray-300 px-4 py-2 text-center">الإجراءات</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pagedVouchers.map((voucher) => (
-                  <tr key={voucher.id} className="cursor-pointer hover:bg-gray-50" onDoubleClick={() => openRow(voucher)}>
-                    <td className="border border-gray-300 px-4 py-2">{voucher.vch_code}</td>
-                    <td className="border border-gray-300 px-4 py-2">{voucher.vch_date?.slice(0, 10)}</td>
-                    <td className="border border-gray-300 px-4 py-2">{voucher.customer_name}</td>
-                    <td className="border border-gray-300 px-4 py-2">{currencyName(voucher.currency_id)}</td>
-                    <td className="border border-gray-300 px-4 py-2">{Number(voucher.amount || 0).toLocaleString()}</td>
-                    <td className="border border-gray-300 px-4 py-2 text-center">
-                      <div className="flex justify-center">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            openRow(voucher)
-                          }}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-                {pagedVouchers.length === 0 && (
-                  <tr>
-                    <td colSpan={6} className="border border-gray-300 px-4 py-6 text-center text-muted-foreground">
-                      لا توجد نتائج
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-
+          <div className="min-h-0 overflow-auto rounded-xl border p-2">
+            <DataGridView
+              dataSource={pagedVouchers.map((voucher) => ({ ...voucher, display_date: voucher.vch_date?.slice(0, 10), display_currency: currencyName(voucher.currency_id), display_amount: Number(voucher.amount || 0).toLocaleString() }))}
+              style={{ height: "420px" }}
+              isReport
+              isReadOnly
+              dontConvertToCards
+              onRowDoubleClick={(row: any) => openRow(row.item || row)}
+              scheme={{ columns: [
+                { header: "رقم السند", name: "vch_code", width: 150, isReadOnly: true },
+                { header: "التاريخ", name: "display_date", width: 130, isReadOnly: true },
+                { header: "العميل", name: "customer_name", width: "*", isReadOnly: true },
+                { header: "العملة", name: "display_currency", width: 120, isReadOnly: true },
+                { header: "المجموع", name: "display_amount", width: 130, isReadOnly: true },
+              ] }}
+            />
+            {!pagedVouchers.length && <p className="py-4 text-center text-sm text-muted-foreground">لا توجد نتائج</p>}
+          </div>
             <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="text-sm text-muted-foreground">
                 عرض {pageStart} إلى {pageEnd} من {filteredVouchers.length}
@@ -813,7 +786,6 @@ export default function CreditNote({ voucherType }: CreditNoteProps) {
                 </Select>
               </div>
             </div>
-          </div>
         </CardContent>
       </Card>
 

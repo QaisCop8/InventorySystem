@@ -833,15 +833,22 @@ export const saveJournalRows = async (voucherId: number, journalRows: any[]) => 
 // تكراراً)؛ عند سند جديد (voucherId = null) لا يوجد استثناء فيُقارَن مع كل السندات المحفوظة.
 export const validateChequeDuplicates = async (voucherId: number | null, cheques: any[]): Promise<string | null> => {
   const rows = (Array.isArray(cheques) ? cheques : []).filter((row) => row?.cheq_num && row?.bank_account)
+  const seen = new Set<string>()
 
   for (const row of rows) {
-    const cheqNum = String(row.cheq_num)
-    const bankAccount = String(row.bank_account)
+    const cheqNum = String(row.cheq_num).trim()
+    const bankAccount = String(row.bank_account).trim()
+    const duplicateKey = `${bankAccount}\u0000${cheqNum}`
+    if (seen.has(duplicateKey)) {
+      return `رقم الشيك ${cheqNum} مكرر لنفس الحساب البنكي داخل السند`
+    }
+    seen.add(duplicateKey)
     const matches = await sql`
       SELECT vh.vch_code
       FROM cheques_tbl c
       JOIN voucher_header_tbl vh ON vh.id = c.voucher_id
       WHERE c.cheq_num = ${cheqNum} AND c.bank_account = ${bankAccount}
+        AND vh.status <> 3
         AND c.voucher_id IS DISTINCT FROM ${voucherId ?? -1}
       LIMIT 1
     `

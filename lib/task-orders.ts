@@ -50,7 +50,7 @@ export function ensureTaskOrderTables(): Promise<void> {
         CREATE TABLE IF NOT EXISTS task_section_users (
           id SERIAL PRIMARY KEY,
           section_id INTEGER NOT NULL REFERENCES task_sections(id) ON DELETE CASCADE,
-          user_id VARCHAR(255) NOT NULL,
+          user_id INTEGER REFERENCES user_settings(user_id) NOT NULL,
           is_manager BOOLEAN DEFAULT false,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           UNIQUE(section_id, user_id)
@@ -106,7 +106,7 @@ export function ensureTaskOrderTables(): Promise<void> {
           label VARCHAR(150) NOT NULL,
           section_id INTEGER NOT NULL REFERENCES task_sections(id),
           assignment_type VARCHAR(20) NOT NULL DEFAULT 'all',
-          assigned_user_id VARCHAR(255),
+          assigned_user_id INTEGER REFERENCES user_settings(user_id),
           is_start BOOLEAN DEFAULT false,
           is_end BOOLEAN DEFAULT false,
           join_type VARCHAR(10) NOT NULL DEFAULT 'none',
@@ -153,7 +153,7 @@ export function ensureTaskOrderTables(): Promise<void> {
           customer_id INTEGER,
           status VARCHAR(20) NOT NULL DEFAULT 'in_progress',
           priority VARCHAR(20) NOT NULL DEFAULT 'normal',
-          created_by VARCHAR(255),
+          created_by INTEGER REFERENCES user_settings(user_id),
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           completed_at TIMESTAMP
@@ -165,7 +165,7 @@ export function ensureTaskOrderTables(): Promise<void> {
       // approveTaskCustomerOrder) — بعدها تخرج الطلبية من قائمة "قابلة للاعتماد".
       await sql`ALTER TABLE task_customer_orders ADD COLUMN IF NOT EXISTS source_order_id INTEGER`
       await sql`ALTER TABLE task_customer_orders ADD COLUMN IF NOT EXISTS approved_at TIMESTAMP`
-      await sql`ALTER TABLE task_customer_orders ADD COLUMN IF NOT EXISTS approved_by VARCHAR(255)`
+      await sql`ALTER TABLE task_customer_orders ADD COLUMN IF NOT EXISTS approved_by INTEGER REFERENCES user_settings(user_id)`
       // attributes: JSONB حرّة تحمل سمات الصنف (كـ"النوع الفرعي"، أو أي مفتاح/قيمة يلزم انتقالات
       // سير العمل الشرطية — condition_key/condition_value أعلاه تُقارَن مباشرة بهذا الحقل).
       await sql`
@@ -182,7 +182,7 @@ export function ensureTaskOrderTables(): Promise<void> {
           workflow_id INTEGER NOT NULL REFERENCES task_workflows(id),
           priority VARCHAR(20) NOT NULL DEFAULT 'normal',
           status VARCHAR(20) NOT NULL DEFAULT 'in_workflow',
-          created_by VARCHAR(255),
+          created_by INTEGER REFERENCES user_settings(user_id),
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           completed_at TIMESTAMP
@@ -204,7 +204,7 @@ export function ensureTaskOrderTables(): Promise<void> {
           order_item_id INTEGER NOT NULL REFERENCES task_order_items(id) ON DELETE CASCADE,
           step_id INTEGER NOT NULL REFERENCES task_workflow_steps(id),
           status VARCHAR(20) NOT NULL DEFAULT 'pending',
-          claimed_by_user_id VARCHAR(255),
+          claimed_by_user_id INTEGER REFERENCES user_settings(user_id),
           override_section_id INTEGER REFERENCES task_sections(id),
           first_started_at TIMESTAMP,
           completed_at TIMESTAMP,
@@ -222,7 +222,7 @@ export function ensureTaskOrderTables(): Promise<void> {
           id SERIAL PRIMARY KEY,
           step_instance_id INTEGER NOT NULL REFERENCES task_step_instances(id) ON DELETE CASCADE,
           order_item_id INTEGER NOT NULL REFERENCES task_order_items(id) ON DELETE CASCADE,
-          user_id VARCHAR(255),
+          user_id INTEGER REFERENCES user_settings(user_id),
           action VARCHAR(20) NOT NULL,
           at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           duration_sec INTEGER NOT NULL DEFAULT 0,
@@ -236,9 +236,9 @@ export function ensureTaskOrderTables(): Promise<void> {
           order_item_id INTEGER NOT NULL REFERENCES task_order_items(id) ON DELETE CASCADE,
           from_section_id INTEGER,
           to_section_id INTEGER,
-          from_user_id VARCHAR(255),
-          to_user_id VARCHAR(255),
-          admin_id VARCHAR(255) NOT NULL,
+          from_user_id INTEGER REFERENCES user_settings(user_id),
+          to_user_id INTEGER REFERENCES user_settings(user_id),
+          admin_id INTEGER REFERENCES user_settings(user_id) NOT NULL,
           reason TEXT NOT NULL,
           at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
@@ -1141,7 +1141,7 @@ async function assertOrderItemStepAccess(orderItemId: number, userId: string, al
       AND st.step_type = ANY(${allowedStepTypes}::text[])
   `
   for (const inst of openInstances) {
-    if (inst.claimed_by_user_id === userId) return
+    if (Number(inst.claimed_by_user_id) === Number(userId)) return
     if (inst.assignment_type === "all") {
       const membership = await isSectionMember(inst.step_section_id, userId)
       if (membership.isMember) return
@@ -1237,10 +1237,10 @@ export async function startTask(instanceId: number, userId: string) {
   if (!["pending", "paused"].includes(ctx.status)) throw new Error("لا يمكن بدء هذه المهمة بحالتها الحالية")
 
   await assertSectionAccess(ctx.effective_section_id, userId)
-  if (ctx.assignment_type === "specific" && ctx.assigned_user_id && ctx.assigned_user_id !== userId) {
+  if (ctx.assignment_type === "specific" && ctx.assigned_user_id && Number(ctx.assigned_user_id) !== Number(userId)) {
     throw new Error("هذه المهمة مسندة لمستخدم محدد")
   }
-  if (ctx.claimed_by_user_id && ctx.claimed_by_user_id !== userId) {
+  if (ctx.claimed_by_user_id && Number(ctx.claimed_by_user_id) !== Number(userId)) {
     throw new Error("تم استلام هذه المهمة من مستخدم آخر")
   }
 
@@ -1278,7 +1278,7 @@ export async function stopTask(instanceId: number, userId: string, note?: string
   const ctx = await getInstanceContext(instanceId)
   if (!ctx) throw new Error("المهمة غير موجودة")
   if (ctx.status !== "in_progress") throw new Error("لا يوجد عمل جارٍ على هذه المهمة")
-  if (ctx.claimed_by_user_id !== userId && !(await isWorkspaceAdmin(userId))) {
+  if (Number(ctx.claimed_by_user_id) !== Number(userId) && !(await isWorkspaceAdmin(userId))) {
     throw new Error("لا تملك صلاحية إيقاف مهمة مستخدم آخر")
   }
 
@@ -1385,7 +1385,7 @@ export async function completeTask(instanceId: number, userId: string, note?: st
   } else {
     await assertSectionAccess(ctx.effective_section_id, userId)
     if (ctx.status !== "in_progress") throw new Error("يجب بدء المهمة أولاً قبل إنهائها")
-    if (ctx.claimed_by_user_id !== userId) throw new Error("لا تملك صلاحية إنهاء مهمة مستخدم آخر")
+    if (Number(ctx.claimed_by_user_id) !== Number(userId)) throw new Error("لا تملك صلاحية إنهاء مهمة مستخدم آخر")
   }
 
   // خطوة تحميل: يُمنع إنهاؤها ما لم تُفحص كل أصناف نفس الطلبية (loading_checked_at) — الإنهاء

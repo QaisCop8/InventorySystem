@@ -43,6 +43,7 @@ import {
   KanbanSquare,
   PackageCheck,
   Grid3x3,
+  Megaphone,
   Wrench,
   ClipboardCheck,
   Clock3,
@@ -109,6 +110,7 @@ export const menuItems: MenuItem[] = [
     icon: Store,
     submenu: [
       { title: "إعداد نقاط البيع", section: "pos-points-settings", icon: Settings },
+      { title: "الحملات", section: "campaigns", icon: Megaphone },
       { title: "كاشير نقطة البيع", section: "pos-cashier", icon: ShoppingCart },
     ],
   },
@@ -327,6 +329,8 @@ export const menuItems: MenuItem[] = [
         submenu: [
           { title: "كشف حساب ذمة", section: "receivables-statement-report", icon: Users },
           { title: "كشف حساب محاسبي", section: "accounting-statement-report", icon: BookOpen },
+          { title: "تقرير أرصدة الذمم بتاريخ معين", section: "receivables-balances-report", icon: BarChart3 },
+          { title: "تقرير أرصدة الحسابات بتاريخ معين", section: "accounting-balances-report", icon: BarChart3 },
           { title: "تقرير السندات", section: "vouchers-report", icon: FileText },
           { title: "تقرير الحركات", section: "transactions-report", icon: TrendingUp },
           { title: "ميزان المراجعة", section: "trial-balance-report", icon: BarChart3 },
