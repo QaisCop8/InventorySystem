@@ -100,11 +100,20 @@ export const ensureTables = async () => {
   await sql`
     CREATE TABLE IF NOT EXISTS voucher_book_user_permissions_tbl (
       id SERIAL PRIMARY KEY,
-      user_id INTEGER REFERENCES user_settings(id) ON DELETE CASCADE,
+      user_id INTEGER REFERENCES user_settings(user_id) ON DELETE CASCADE,
       voucher_type_id INTEGER REFERENCES voucher_types_tbl(id) ON DELETE CASCADE,
       vch_book_id INTEGER,
       is_default INTEGER DEFAULT 0
     )
+  `
+  // Older deployments created this FK against user_settings.id. The permission
+  // APIs use the stable user_settings.user_id identity, so repair the legacy FK
+  // before loading or saving rows.
+  await sql`ALTER TABLE voucher_book_user_permissions_tbl DROP CONSTRAINT IF EXISTS voucher_book_user_permissions_tbl_user_id_fkey`
+  await sql`
+    ALTER TABLE voucher_book_user_permissions_tbl
+    ADD CONSTRAINT voucher_book_user_permissions_tbl_user_id_fkey
+    FOREIGN KEY (user_id) REFERENCES user_settings(user_id) ON DELETE CASCADE
   `
   await sql`ALTER TABLE voucher_book_user_permissions_tbl DROP CONSTRAINT IF EXISTS voucher_book_user_permissions_tbl_vch_book_id_fkey`
   await sql`

@@ -7,6 +7,7 @@ import { getSessionUser } from "@/lib/tenant-auth"
 import managementSql from "@/lib/management-db"
 
 let branchColumnEnsured: Promise<void> | null = null
+let fontColumnsEnsured: Promise<void> | null = null
 // شركات زُوِّدت قبل توحيد بنية user_settings (عبر النسخة القديمة من lib/provisioning.ts) قد
 // تفتقد أعمدة مثل phone/avatar_url رغم استخدامها في استعلام GET أدناه — بلا هذا الإصلاح الذاتي
 // تفشل الصفحة بكاملها (relation/column does not exist) على أي شركة أُنشئت بتلك النسخة القديمة.
@@ -54,6 +55,20 @@ function ensureBranchColumn() {
     })
   }
   return branchColumnEnsured
+}
+
+function ensureFontColumns(): Promise<void> {
+  if (!fontColumnsEnsured) {
+    fontColumnsEnsured = (async () => {
+      await sql`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS font_family VARCHAR(100) DEFAULT 'Cairo'`
+      await sql`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS font_size INTEGER DEFAULT 14`
+      await sql`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS datagrid_settings JSONB DEFAULT '{}'::jsonb`
+    })().catch((error: unknown) => {
+      fontColumnsEnsured = null
+      throw error
+    })
+  }
+  return fontColumnsEnsured
 }
 
 export async function GET(request: NextRequest) {
@@ -207,6 +222,7 @@ export async function PUT(request: NextRequest) {
     if (!(await getSessionUser(request))) {
       return NextResponse.json({ error: "يجب تسجيل الدخول" }, { status: 401 })
     }
+    await ensureFontColumns()
     await ensureBranchColumn()
     await ensurePermissionTables(await resolveCurrentDbName())
     const data = await request.json()
@@ -272,6 +288,7 @@ export async function PUT(request: NextRequest) {
       fontPreferenceKeys.length > 0 &&
       fontPreferenceKeys.every((key) => key === "font_family" || key === "font_size" || key === "datagrid_settings")
     ) {
+      await ensureFontColumns()
       const fontFamily = String(data.font_family || "Cairo").trim().slice(0, 100)
       const requestedFontSize = Number(data.font_size ?? 14)
       const fontSize = Math.min(24, Math.max(10, Number.isFinite(requestedFontSize) ? Math.round(requestedFontSize) : 14))

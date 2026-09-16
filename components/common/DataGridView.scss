@@ -413,6 +413,23 @@ html[dir="rtl"] .wj-flexgrid .wj-header {
   outline-offset: 2px;
 }
 
+/* Keep selected-row content readable. Wijmo/theme rules can apply a white
+   foreground after the selected green background, especially in report grids. */
+.wj-flexgrid .wj-row.wj-report-row-selected .wj-cell,
+.wj-flexgrid .wj-row.wj-report-row-selected .wj-cell *,
+.wj-flexgrid .wj-row .wj-cell.wj-state-selected:not(.wj-header),
+.wj-flexgrid .wj-row .wj-cell.wj-state-selected:not(.wj-header) *,
+.wj-flexgrid .wj-cell.wj-state-selected:not(.wj-header),
+.wj-flexgrid .wj-cell.wj-state-selected:not(.wj-header) * {
+  color: #164e63 !important;
+}
+
+.wj-flexgrid .wj-row.wj-report-row-selected .wj-cell,
+.wj-flexgrid .wj-row .wj-cell.wj-state-selected:not(.wj-header),
+.wj-flexgrid .wj-cell.wj-state-selected:not(.wj-header) {
+  background: var(--datagrid-selected-row-color, #bbf7d0) !important;
+}
+
 /* Customer/product template grids: keep the destructive row action visible and
    let its hit target occupy the complete action cell. */
 .customer-products-template-editor .wj-flexgrid .wj-cell:has(> button[title*="حذف"]) {
@@ -510,11 +527,33 @@ html[dir="rtl"] .wj-flexgrid .wj-header {
 
 .wj-flexgrid .wj-state-selected:not(.wj-header),
 .wj-flexgrid .wj-row .wj-cell.wj-state-selected:not(.wj-header),
+.wj-flexgrid .wj-cell.wj-state-multi-selected:not(.wj-header),
+.wj-flexgrid .wj-row .wj-cell.wj-state-multi-selected:not(.wj-header),
 .wj-flexgrid .wj-report-row-selected .wj-cell,
 .modernVoucherGrid .wj-flexgrid .wj-state-selected:not(.wj-header),
 .modernVoucherGrid .wj-flexgrid .wj-row .wj-cell.wj-state-selected:not(.wj-header),
+.modernVoucherGrid .wj-flexgrid .wj-row .wj-cell.wj-state-multi-selected:not(.wj-header),
 .modernVoucherGrid .wj-flexgrid .wj-report-row-selected .wj-cell {
   background: var(--datagrid-selected-row-color, #6fe27b) !important;
+  color: #14532d !important;
+}
+
+/* Row selection marks the active cell as selected and the other cells as
+   multi-selected. Give both the same contrast, including on hover. */
+.wj-flexgrid .wj-row .wj-cell.wj-state-multi-selected:not(.wj-header) *,
+.wj-flexgrid .wj-cell.wj-state-multi-selected:not(.wj-header) *,
+.wj-flexgrid .wj-row .wj-cell.wj-state-selected:not(.wj-header) *,
+.wj-flexgrid .wj-row.wj-report-row-selected .wj-cell * {
+  color: #14532d !important;
+}
+
+.wj-flexgrid .wj-row:hover .wj-cell.wj-state-selected:not(.wj-header),
+.wj-flexgrid .wj-row:hover .wj-cell.wj-state-multi-selected:not(.wj-header),
+.wj-flexgrid .wj-cell.wj-state-selected:focus:not(.wj-header),
+.wj-flexgrid .wj-cell.wj-state-multi-selected:focus:not(.wj-header),
+.wj-flexgrid .wj-row.wj-report-row-selected:hover .wj-cell:not(.wj-header) {
+  background: var(--datagrid-selected-row-color, #6fe27b) !important;
+  color: #14532d !important;
 }
 
 /* Search dialogs use row selection: the focused cell must not have a different color. */
@@ -572,4 +611,130 @@ html[dir="rtl"] .wj-flexgrid .wj-header {
   background: #bfdbfe !important;
   color: #1e3a8a !important;
   box-shadow: none !important;
+}
+
+/* DataGridView actions: compact modern controls with stable action colors. */
+.wj-flexgrid .wj-cell:has(> .wj-cell-maker-btn) {
+  gap: 6px;
+  padding: 5px !important;
+}
+
+.wj-flexgrid .wj-cell > .wj-cell-maker-btn {
+  width: min(36px, calc(var(--datagrid-row-height, 50px) - 10px)) !important;
+  min-width: min(36px, calc(var(--datagrid-row-height, 50px) - 10px)) !important;
+  height: min(36px, calc(var(--datagrid-row-height, 50px) - 10px)) !important;
+  min-height: min(36px, calc(var(--datagrid-row-height, 50px) - 10px)) !important;
+  border: 1px solid #dbe3ec !important;
+  border-radius: 12px !important;
+  background: linear-gradient(180deg, #fff, #f1f5f9) !important;
+  color: #475569 !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, .08), 0 4px 10px rgba(15, 23, 42, .05) !important;
+  font-weight: 700;
+  transform: none;
+}
+
+.wj-flexgrid .wj-cell > .wj-cell-maker-btn:hover {
+  border-color: #94a3b8 !important;
+  background: linear-gradient(180deg, #f8fafc, #e2e8f0) !important;
+  color: #0f172a !important;
+  box-shadow: 0 6px 14px rgba(15, 23, 42, .16) !important;
+  transform: translateY(-2px) !important;
+}
+
+.wj-flexgrid .wj-cell > .wj-cell-maker-btn:active {
+  box-shadow: 0 1px 3px rgba(15, 23, 42, .12) !important;
+  transform: translateY(0) scale(.96) !important;
+}
+
+.wj-flexgrid .wj-cell > .wj-cell-maker-btn:focus-visible {
+  outline: 3px solid rgba(14, 165, 233, .28) !important;
+  outline-offset: 2px;
+}
+
+.wj-flexgrid .wj-cell > .wj-cell-maker-btn:disabled {
+  filter: grayscale(.35);
+  opacity: .42;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+.wj-flexgrid .wj-cell > .wj-cell-maker-btn.btn-info,
+.wj-flexgrid .wj-cell > .wj-cell-maker-btn.pi-search,
+.wj-flexgrid .wj-cell > .wj-cell-maker-btn.pi-pencil,
+.wj-flexgrid .wj-cell > .wj-cell-maker-btn.pi-eye {
+  border-color: #bae6fd !important;
+  background: linear-gradient(180deg, #f0f9ff, #e0f2fe) !important;
+  color: #0369a1 !important;
+}
+
+.wj-flexgrid .wj-cell > .wj-cell-maker-btn.btn-info:hover,
+.wj-flexgrid .wj-cell > .wj-cell-maker-btn.pi-search:hover,
+.wj-flexgrid .wj-cell > .wj-cell-maker-btn.pi-pencil:hover,
+.wj-flexgrid .wj-cell > .wj-cell-maker-btn.pi-eye:hover {
+  border-color: #0284c7 !important;
+  background: linear-gradient(135deg, #0284c7, #0369a1) !important;
+  color: #fff !important;
+  box-shadow: 0 7px 16px rgba(2, 132, 199, .28) !important;
+}
+
+.wj-flexgrid .wj-cell > .wj-cell-maker-btn.btn-success,
+.wj-flexgrid .wj-cell > .wj-cell-maker-btn.pi-plus,
+.wj-flexgrid .wj-cell > .wj-cell-maker-btn.pi-save {
+  border-color: #bbf7d0 !important;
+  background: linear-gradient(180deg, #f0fdf4, #dcfce7) !important;
+  color: #15803d !important;
+}
+
+.wj-flexgrid .wj-cell > .wj-cell-maker-btn.btn-success:hover,
+.wj-flexgrid .wj-cell > .wj-cell-maker-btn.pi-plus:hover,
+.wj-flexgrid .wj-cell > .wj-cell-maker-btn.pi-save:hover {
+  border-color: #16a34a !important;
+  background: linear-gradient(135deg, #16a34a, #15803d) !important;
+  color: #fff !important;
+  box-shadow: 0 7px 16px rgba(22, 163, 74, .28) !important;
+}
+
+.wj-flexgrid .wj-cell > .wj-cell-maker-btn.btn-warning,
+.wj-flexgrid .wj-cell > .wj-cell-maker-btn.pi-calendar,
+.wj-flexgrid .wj-cell > .wj-cell-maker-btn.pi-money-bill {
+  border-color: #fde68a !important;
+  background: linear-gradient(180deg, #fffbeb, #fef3c7) !important;
+  color: #b45309 !important;
+}
+
+.wj-flexgrid .wj-cell > .wj-cell-maker-btn.btn-warning:hover,
+.wj-flexgrid .wj-cell > .wj-cell-maker-btn.pi-calendar:hover,
+.wj-flexgrid .wj-cell > .wj-cell-maker-btn.pi-money-bill:hover {
+  border-color: #d97706 !important;
+  background: linear-gradient(135deg, #f59e0b, #d97706) !important;
+  color: #fff !important;
+  box-shadow: 0 7px 16px rgba(217, 119, 6, .28) !important;
+}
+
+.wj-flexgrid .wj-cell > .wj-cell-maker-btn.btn-danger,
+.wj-flexgrid .wj-cell > .wj-cell-maker-btn.pi-trash {
+  border-color: #fecdd3 !important;
+  background: linear-gradient(180deg, #fff1f2, #ffe4e6) !important;
+  color: #be123c !important;
+}
+
+.wj-flexgrid .wj-cell > .wj-cell-maker-btn.btn-danger:hover,
+.wj-flexgrid .wj-cell > .wj-cell-maker-btn.pi-trash:hover {
+  border-color: #e11d48 !important;
+  background: linear-gradient(135deg, #f43f5e, #be123c) !important;
+  color: #fff !important;
+  box-shadow: 0 7px 16px rgba(225, 29, 72, .3) !important;
+}
+
+.wj-flexgrid .wj-cell > .wj-cell-maker-btn::before,
+.wj-flexgrid .wj-cell > .wj-cell-maker-btn i,
+.wj-flexgrid .wj-cell > .wj-cell-maker-btn svg {
+  color: inherit !important;
+  font-size: 15px !important;
+}
+
+.dark .wj-flexgrid .wj-cell > .wj-cell-maker-btn.btn-default {
+  border-color: #475569 !important;
+  background: linear-gradient(180deg, #334155, #1e293b) !important;
+  color: #e2e8f0 !important;
 }

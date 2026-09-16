@@ -13,6 +13,7 @@ async function validate(data: any) {
   if (!optionalId(data.main_warehouse_id)) return "المخزن الرئيسي مطلوب"
   if (!optionalId(data.currency_id)) return "العملة مطلوبة"
   if (!optionalId(data.sales_book_id)) return "دفتر فواتير البيع مطلوب"
+  if (!optionalId(data.price_category_id)) return "فئة السعر مطلوبة"
   if (!optionalId(data.cash_account_id)) return "حساب الصندوق مطلوب"
   const refs = await Promise.all([
     sql`SELECT id FROM branches WHERE id=${Number(data.branch_id)} AND COALESCE(status,1)<>3`,
@@ -20,6 +21,7 @@ async function validate(data: any) {
     sql`SELECT id FROM currency WHERE id=${Number(data.currency_id)} AND COALESCE(is_active,true)`,
     sql`SELECT id FROM voucher_books_tbl WHERE id=${Number(data.sales_book_id)}`,
     sql`SELECT id FROM account_tbl WHERE id=${Number(data.cash_account_id)} AND COALESCE(status,1)<>3`,
+    sql`SELECT id FROM pricecategory WHERE id=${Number(data.price_category_id)} AND COALESCE(status,1)=1`,
   ])
   if (refs.some((rows) => !rows[0])) return "أحد إعدادات نقطة البيع غير موجود أو غير نشط"
   return null
@@ -43,15 +45,16 @@ export async function GET(request: NextRequest) {
       ORDER BY p.name
     `
     if (request.nextUrl.searchParams.get("meta") !== "1") return NextResponse.json({points})
-    const [branches,warehouses,currencies,books,accounts,users]=await Promise.all([
+    const [branches,warehouses,currencies,books,accounts,users,priceCategories]=await Promise.all([
       sql`SELECT id,branch_code code,branch_name name FROM branches WHERE COALESCE(status,1)<>3 ORDER BY branch_name`,
       sql`SELECT id,warehouse_code code,warehouse_name name FROM warehouses WHERE COALESCE(status,1)<>3 ORDER BY warehouse_name`,
       sql`SELECT id,currency_code code,currency_name name FROM currency WHERE COALESCE(is_active,true) ORDER BY id`,
       sql`SELECT id,name FROM voucher_books_tbl ORDER BY name`,
       sql`SELECT id,code,name,currency_id FROM account_tbl WHERE COALESCE(status,1)<>3 ORDER BY code LIMIT 10000`,
       sql`SELECT user_id,COALESCE(NULLIF(full_name,''),NULLIF(username,''),user_id::text) name FROM user_settings ORDER BY user_id`,
+      sql`SELECT id,name FROM pricecategory WHERE COALESCE(status,1)=1 ORDER BY id`,
     ])
-    return NextResponse.json({points,meta:{branches,warehouses,currencies,books,accounts,users}})
+    return NextResponse.json({points,meta:{branches,warehouses,currencies,books,accounts,users,priceCategories}})
   } catch(error) { return NextResponse.json({error:error instanceof Error?error.message:"تعذر تحميل نقاط البيع"},{status:500}) }
 }
 

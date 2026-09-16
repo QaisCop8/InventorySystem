@@ -571,8 +571,8 @@ export default function AccountSearchDialog({
       <DialogContent
         hideCloseButton
         className={confined
-          ? "account-search-dialog-shell h-[min(700px,calc(100%-1.5rem))] max-h-[calc(100%-1.5rem)] w-[min(1020px,calc(100%-1.5rem))] max-w-[calc(100%-1.5rem)] overflow-hidden rounded-xl border border-slate-300 bg-white p-0 shadow-2xl"
-          : "account-search-dialog-shell h-[calc(100dvh-1rem)] max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-[1020px] overflow-hidden rounded-xl border border-slate-300 bg-white p-0 shadow-2xl sm:h-[min(78dvh,700px)] sm:min-h-[540px]"}
+          ? "account-search-dialog-shell h-[min(760px,calc(100%-1.5rem))] max-h-[calc(100%-1.5rem)] w-[min(1100px,calc(100%-1.5rem))] max-w-[calc(100%-1.5rem)] overflow-hidden rounded-xl border border-slate-300 bg-white p-0 shadow-2xl"
+          : "account-search-dialog-shell h-[calc(100dvh-1rem)] max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-[1100px] overflow-hidden rounded-xl border border-slate-300 bg-white p-0 shadow-2xl sm:h-[min(82dvh,760px)] sm:min-h-[560px]"}
         dir="rtl"
         onCloseAutoFocus={(event) => event.preventDefault()}
         onInteractOutside={(event) => event.preventDefault()}

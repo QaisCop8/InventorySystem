@@ -61,6 +61,7 @@ export default function CustomFlexGrid({
     beginningEdit,
     selectionChanged,
     onRowDoubleClick,
+    keyActionEnter,
     ref: forwardedRef
 }: CustomFlexGridProps) {
 
@@ -102,6 +103,7 @@ export default function CustomFlexGrid({
                 beginningEdit={beginningEdit}
                 selectionChanged={selectionChanged}
                 onRowDoubleClick={onRowDoubleClick}
+                keyActionEnter={keyActionEnter}
             >
                 {/* Optional row headers for numbering */}
                 {allowDragging && (allowDragging === "Rows" || allowDragging === "Both") && (

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import sql from "@/lib/database"
+import sql, { withTenantTransaction } from "@/lib/database"
 
 async function ensureTables() {
   await sql`
@@ -57,7 +57,7 @@ const date = (value: unknown) => value ? String(value) : null
 
 async function meta() {
   const [products, warehouses] = await Promise.all([
-    sql`SELECT id, product_code code, name, COALESCE(sale_price,0) sale_price FROM products WHERE status IS NULL OR status::text IN ('1','نشط','active','ACTIVE') ORDER BY name`,
+    sql`SELECT id, product_code code, product_name name, COALESCE(selling_price,0) sale_price FROM products WHERE status IS NULL OR status::text IN ('1','نشط','active','ACTIVE') ORDER BY product_name`,
     sql`SELECT id, warehouse_code code, warehouse_name name FROM warehouses WHERE COALESCE(status,1)<>3 ORDER BY warehouse_name`,
   ])
   return { products, warehouses }
@@ -65,7 +65,7 @@ async function meta() {
 
 async function campaignRows() {
   return sql`
-    SELECT h.*, COALESCE((SELECT json_agg(json_build_object('id',i.id,'item_id',i.item_id,'item_name',COALESCE(i.item_name,p.name,''),'item_code',p.product_code,'unit_id',i.unit_id,'price',i.original_unit_price,'discount',i.unit_discount_value,'quantity',i.campaign_qnty,'type',i.type) ORDER BY i.id) FROM pos_campaign_items_tbl i LEFT JOIN products p ON p.id=i.item_id WHERE i.campaign_id=h.id),'[]') items,
+    SELECT h.*, COALESCE((SELECT json_agg(json_build_object('id',i.id,'item_id',i.item_id,'item_name',COALESCE(i.item_name,p.product_name,''),'item_code',p.product_code,'unit_id',i.unit_id,'price',i.original_unit_price,'discount_type',i.discount_type,'discount',i.unit_discount_value,'quantity',i.campaign_qnty,'notes',i.notes,'type',i.type) ORDER BY i.id) FROM pos_campaign_items_tbl i LEFT JOIN products p ON p.id=i.item_id WHERE i.campaign_id=h.id),'[]') items,
     COALESCE((SELECT json_agg(w.warehouse_id ORDER BY w.warehouse_id) FROM pos_campaign_warehouses_tbl w WHERE w.campaign_id=h.id),'[]') warehouse_ids
     FROM pos_campaign_header_tbl h WHERE COALESCE(h.status,1)<>3 ORDER BY h.id DESC
   `
@@ -99,9 +99,18 @@ async function save(request: NextRequest, updating: boolean) {
     await ensureTables()
     const data = await request.json()
     if (!String(data.name || "").trim()) return NextResponse.json({ error: "اسم الحملة مطلوب" }, { status: 400 })
+    const typeId = number(data.type_id, 1)
+    if (![1, 2, 3, 4].includes(typeId)) return NextResponse.json({ error: "نوع الحملة غير صالح" }, { status: 400 })
+    if (!data.start_date || !data.end_date || String(data.start_date) > String(data.end_date)) return NextResponse.json({ error: "فترة الحملة غير صالحة" }, { status: 400 })
+    const buyItems = Array.isArray(data.buy_items) ? data.buy_items : []
+    const addedItems = Array.isArray(data.added_items) ? data.added_items : []
+    if (typeId !== 3 && !buyItems.some((item: any) => number(item.item_id) > 0)) return NextResponse.json({ error: "أضف صنف شراء واحدًا على الأقل" }, { status: 400 })
+    if (typeId !== 1 && !addedItems.some((item: any) => number(item.item_id) > 0) && number(data.discount_perc) <= 0) return NextResponse.json({ error: "حدد الأصناف المضافة أو نسبة الخصم" }, { status: 400 })
+    if (number(data.discount_perc) < 0 || number(data.discount_perc) > 100 || number(data.max_campaigns, 1) < 1) return NextResponse.json({ error: "قيم الخصم أو حد التطبيق غير صالحة" }, { status: 400 })
     const code = String(data.code || `CMP-${Date.now()}`).trim().toUpperCase()
     const existing = await sql`SELECT id FROM pos_campaign_header_tbl WHERE code=${code} AND COALESCE(status,1)<>3 AND id<>${number(data.id)}`
     if (existing[0]) return NextResponse.json({ error: "رمز الحملة مستخدم مسبقاً" }, { status: 400 })
+    return await withTenantTransaction(async () => {
     let campaignId = number(data.id)
     if (updating && campaignId) {
       await sql`UPDATE pos_campaign_header_tbl SET code=${code},name=${String(data.name).trim()},start_date=${date(data.start_date)},end_date=${date(data.end_date)},time_type=${number(data.time_type,1)},from_time=${data.from_time||null},to_time=${data.to_time||null},notes=${data.notes||null},type_id=${number(data.type_id,1)},from_amount=${number(data.from_amount)},to_amount=${number(data.to_amount)},discount_perc=${number(data.discount_perc)},condition_items_opt=${number(data.condition_items_opt,1)},condition_items_val=${number(data.condition_items_val)},added_items_option=${number(data.added_items_option,1)},added_items_value=${number(data.added_items_value)},price_class=${number(data.price_class,1)},max_campaigns=${number(data.max_campaigns,1)},last_modify_date=NOW() WHERE id=${campaignId}`
@@ -110,17 +119,18 @@ async function save(request: NextRequest, updating: boolean) {
       campaignId = Number(inserted[0].id)
     }
     await sql`DELETE FROM pos_campaign_items_tbl WHERE campaign_id=${campaignId}`
-    for (const item of Array.isArray(data.buy_items) ? data.buy_items : []) {
+    for (const item of typeId === 3 ? [] : buyItems) {
       if (!number(item.item_id)) continue
       await sql`INSERT INTO pos_campaign_items_tbl(campaign_id,item_id,unit_id,item_name,original_unit_price,discount_type,unit_discount_value,campaign_qnty,notes,type) VALUES(${campaignId},${number(item.item_id)},${number(item.unit_id)||null},${item.item_name||null},${number(item.price)},${number(item.discount_type,1)},${number(item.discount)},${number(item.quantity,1)},${item.notes||null},1)`
     }
-    for (const item of Array.isArray(data.added_items) ? data.added_items : []) {
+    for (const item of typeId === 1 ? [] : addedItems) {
       if (!number(item.item_id)) continue
       await sql`INSERT INTO pos_campaign_items_tbl(campaign_id,item_id,unit_id,item_name,original_unit_price,discount_type,unit_discount_value,campaign_qnty,notes,type) VALUES(${campaignId},${number(item.item_id)},${number(item.unit_id)||null},${item.item_name||null},${number(item.price)},${number(item.discount_type,1)},${number(item.discount)},${number(item.quantity,1)},${item.notes||null},2)`
     }
     await sql`DELETE FROM pos_campaign_warehouses_tbl WHERE campaign_id=${campaignId}`
     for (const warehouseId of Array.isArray(data.warehouse_ids) ? data.warehouse_ids : []) if (number(warehouseId)) await sql`INSERT INTO pos_campaign_warehouses_tbl(campaign_id,warehouse_id) VALUES(${campaignId},${number(warehouseId)}) ON CONFLICT DO NOTHING`
     return NextResponse.json({ success: true, id: campaignId })
+    })
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "تعذر حفظ الحملة" }, { status: 500 })
   }

@@ -141,7 +141,7 @@ export function ModalWindow({ window, children }: ModalWindowProps) {
       </div>
 
       {/* Window Content */}
-      <div className="flex-1 overflow-auto p-4">{children}</div>
+      <div className="min-h-0 flex-1 overflow-auto p-4">{children}</div>
     </div>
   )
 }

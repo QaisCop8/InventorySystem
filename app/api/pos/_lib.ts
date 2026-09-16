@@ -42,6 +42,7 @@ export async function ensurePosTables() {
   await sql`
     CREATE TABLE IF NOT EXISTS pos_sessions_tbl (
       id BIGSERIAL PRIMARY KEY,
+      shift_guid UUID NOT NULL DEFAULT gen_random_uuid(),
       pos_point_id INTEGER NOT NULL REFERENCES pos_points_tbl(id),
       user_id INTEGER REFERENCES user_settings(user_id) NOT NULL,
       status VARCHAR(24) NOT NULL DEFAULT 'open',
@@ -57,7 +58,20 @@ export async function ensurePosTables() {
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `
+  await sql`ALTER TABLE pos_sessions_tbl ADD COLUMN IF NOT EXISTS shift_guid UUID DEFAULT gen_random_uuid()`
+  await sql`UPDATE pos_sessions_tbl SET shift_guid=gen_random_uuid() WHERE shift_guid IS NULL`
+  await sql`ALTER TABLE pos_sessions_tbl ALTER COLUMN shift_guid SET NOT NULL`
+  await sql`CREATE UNIQUE INDEX IF NOT EXISTS uq_pos_sessions_shift_guid ON pos_sessions_tbl(shift_guid)`
   await sql`CREATE UNIQUE INDEX IF NOT EXISTS uq_pos_open_session_user ON pos_sessions_tbl(pos_point_id, user_id) WHERE status = 'open'`
+  await sql`CREATE TABLE IF NOT EXISTS pos_session_currencies_tbl (
+    session_id BIGINT NOT NULL REFERENCES pos_sessions_tbl(id) ON DELETE CASCADE,
+    currency_id INTEGER NOT NULL REFERENCES currency(id),
+    opening_amount NUMERIC(18,4) NOT NULL DEFAULT 0,
+    expected_amount NUMERIC(18,4) NOT NULL DEFAULT 0,
+    handover_amount NUMERIC(18,4),
+    rate_to_point NUMERIC(18,8) NOT NULL,
+    PRIMARY KEY(session_id,currency_id)
+  )`
   await sql`
     CREATE TABLE IF NOT EXISTS pos_cash_movements_tbl (
       id BIGSERIAL PRIMARY KEY,
@@ -70,10 +84,17 @@ export async function ensurePosTables() {
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `
+  await sql`ALTER TABLE pos_cash_movements_tbl ADD COLUMN IF NOT EXISTS currency_id INTEGER REFERENCES currency(id)`
+  await sql`ALTER TABLE pos_cash_movements_tbl ADD COLUMN IF NOT EXISTS currency_amount NUMERIC(18,4)`
   await sql`ALTER TABLE pos_sale_payments_tbl ADD COLUMN IF NOT EXISTS pos_point_id INTEGER`
   await sql`ALTER TABLE pos_sale_payments_tbl ADD COLUMN IF NOT EXISTS session_id BIGINT`
   await sql`ALTER TABLE pos_sale_payments_tbl ADD COLUMN IF NOT EXISTS reference VARCHAR(160)`
   await sql`ALTER TABLE pos_sale_payments_tbl ADD COLUMN IF NOT EXISTS due_date DATE`
+  await sql`ALTER TABLE voucher_header_tbl ADD COLUMN IF NOT EXISTS pos_point_id INTEGER`
+  await sql`ALTER TABLE voucher_header_tbl ADD COLUMN IF NOT EXISTS pos_session_id BIGINT`
+  await sql`ALTER TABLE voucher_header_tbl ADD COLUMN IF NOT EXISTS shift_guid UUID`
+  await sql`UPDATE voucher_header_tbl vh SET shift_guid=s.shift_guid FROM pos_sessions_tbl s WHERE vh.pos_session_id=s.id AND vh.shift_guid IS NULL`
+  await sql`UPDATE voucher_header_tbl vh SET shift_guid=s.shift_guid FROM pos_sale_payments_tbl p JOIN pos_sessions_tbl s ON s.id=p.session_id WHERE p.voucher_id=vh.id AND vh.shift_guid IS NULL`
   await sql`
     CREATE TABLE IF NOT EXISTS pos_gift_cards_tbl (
       id BIGSERIAL PRIMARY KEY,

@@ -22,3 +22,20 @@ export function PosDiscountDialog({subtotal,itemDiscount,customer,maximum,initia
   <DialogFooter><Button variant="outline" onClick={onClose}>إغلاق Esc</Button><Button disabled={!valid||subtotal<=0} onClick={()=>onApply(percent)}>موافق</Button></DialogFooter>
  </DialogContent></Dialog>
 }
+
+export function PosItemDiscountDialog({itemName,gross,maximum,initialPercent,onApply,onClose}:{itemName:string;gross:number;maximum:number;initialPercent:number;onApply:(percent:number)=>void;onClose:()=>void}){
+ const [percentText,setPercentText]=useState(String(initialPercent))
+ const [amountText,setAmountText]=useState(String(Number((gross*initialPercent/100).toFixed(2))))
+ const limit=Math.min(100,Math.max(0,maximum))
+ const percent=Number(percentText),amount=Number(amountText)
+ const valid=percentText!==""&&amountText!==""&&Number.isFinite(percent)&&Number.isFinite(amount)&&percent>=0&&percent<=limit&&amount>=0&&amount<=gross+0.001
+ const changePercent=(text:string)=>{setPercentText(text);setAmountText(text===""?"":String(Number((gross*Number(text)/100).toFixed(2))))}
+ const changeAmount=(text:string)=>{setAmountText(text);setPercentText(text===""?"":gross>0?String(Number((Number(text)/gross*100).toFixed(6))):"0")}
+ return <Dialog open onOpenChange={open=>{if(!open)onClose()}}><DialogContent dir="rtl" className="w-[calc(100%-1.5rem)] max-w-md"><DialogHeader><DialogTitle>خصم الصنف: {itemName}</DialogTitle></DialogHeader>
+  <p className="text-sm text-slate-600">قيمة الصنف قبل الخصم: <strong>{gross.toFixed(2)}</strong></p>
+  <div className="grid gap-3 sm:grid-cols-2"><div className="space-y-2"><Label htmlFor="pos-item-discount-amount">مبلغ الخصم</Label><Input id="pos-item-discount-amount" autoFocus type="number" min="0" max={gross} step="0.01" value={amountText} onChange={event=>changeAmount(event.target.value)}/></div><div className="space-y-2"><Label htmlFor="pos-item-discount-percent">نسبة الخصم %</Label><Input id="pos-item-discount-percent" type="number" min="0" max={limit} step="0.01" value={percentText} onChange={event=>changePercent(event.target.value)}/></div></div>
+  <p className="text-sm">الصافي بعد الخصم: <strong>{valid?Math.max(0,gross-amount).toFixed(2):"—"}</strong></p>
+  {!valid&&<p role="alert" className="text-sm text-rose-700">يجب ألا يتجاوز الخصم قيمة الصنف أو {limit}%.</p>}
+  <DialogFooter><Button variant="outline" onClick={onClose}>إلغاء</Button><Button disabled={!valid} onClick={()=>onApply(percent)}>تطبيق الخصم</Button></DialogFooter>
+ </DialogContent></Dialog>
+}

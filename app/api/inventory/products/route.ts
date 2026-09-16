@@ -688,20 +688,21 @@ async function resolveProductUnitId(client: any, productId: number, candidateUni
   const raw = Number(candidateUnitId ?? 0)
   if (!Number.isFinite(raw) || raw <= 0) return null
 
-  const byProductUnitRow = await client.query(
-    `SELECT unit_id FROM product_units WHERE product_id = $1 AND id = $2 LIMIT 1`,
-    [productId, raw],
-  )
-  if (byProductUnitRow.rows[0]?.unit_id != null) {
-    return Number(byProductUnitRow.rows[0].unit_id)
-  }
-
+  // The product form sends units.id, so resolve that before trying legacy product_units.id values.
   const byUnitsTableId = await client.query(
     `SELECT unit_id FROM product_units WHERE product_id = $1 AND unit_id = $2 LIMIT 1`,
     [productId, raw],
   )
   if (byUnitsTableId.rows[0]?.unit_id != null) {
     return Number(byUnitsTableId.rows[0].unit_id)
+  }
+
+  const byProductUnitRow = await client.query(
+    `SELECT unit_id FROM product_units WHERE product_id = $1 AND id = $2 LIMIT 1`,
+    [productId, raw],
+  )
+  if (byProductUnitRow.rows[0]?.unit_id != null) {
+    return Number(byProductUnitRow.rows[0].unit_id)
   }
 
   return raw

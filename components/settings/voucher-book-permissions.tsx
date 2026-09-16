@@ -12,7 +12,7 @@ import Messages from "@/components/common/Messages"
 
 interface UserOption {
   id: number
-  user_id: string
+  user_id: number
   full_name: string
   username: string
 }
@@ -61,7 +61,7 @@ export default function VoucherBookPermissions() {
       const data = await response.json()
       const list = Array.isArray(data) ? data : []
       setUsers(list)
-      if (list.length > 0) setSelectedUserId(list[0].id)
+      if (list.length > 0) setSelectedUserId(Number(list[0].user_id ?? list[0].id))
     } catch (error) {
       console.error("Failed to fetch users", error)
       setUsers([])

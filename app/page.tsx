@@ -25,6 +25,9 @@ const lazyNamed = (loader: () => Promise<any>, name: string) => dynamic(() => lo
 const lazyDefault = (loader: () => Promise<any>): React.ComponentType<any> => dynamic(loader, { ssr: false })
 const OrderReports = lazyNamed(() => import("@/components/reports/order-reports"), "OrderReports")
 const ProductReports = lazyNamed(() => import("@/components/reports/product-reports"), "ProductReports")
+const ItemBalancesReport = lazyNamed(() => import("@/components/reports/item-balances-report"), "ItemBalancesReport")
+const ItemValuationReport = lazyNamed(() => import("@/components/reports/item-valuation-report"), "ItemValuationReport")
+const ItemCardReport = lazyNamed(() => import("@/components/reports/item-card-report"), "ItemCardReport")
 const Customers = lazyDefault(() => import("@/components/products/customers"))
 const ProductGroups = lazyDefault(() => import("@/components/products/product-groups"))
 const BrandTypes = lazyDefault(() => import("@/components/products/brand-types"))
@@ -153,6 +156,9 @@ const componentMap: Record<string, React.ComponentType<any>> = {
   "theme-customization": ThemeCustomization,
   "order-reports": OrderReports,
   "product-reports": ProductReports,
+  "item-balances-report": ItemBalancesReport,
+  "item-valuation-report": ItemValuationReport,
+  "item-card-report": ItemCardReport,
   "batch-log-report": BatchLogReport,
   "receivables-statement-report": ReceivablesStatementReport,
   "accounting-statement-report": AccountingStatementReport,

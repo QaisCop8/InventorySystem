@@ -43,7 +43,8 @@ export async function GET(request: NextRequest) {
     const status = ["all", "draft", "posted"].includes(params.get("status") || "") ? params.get("status")! : "all"
     const useBaseCurrency = params.get("base_currency") === "1"
     const showCounterAccounts = params.get("show_counter_accounts") === "1"
-    const showCheques = kind === "receivables" && params.get("show_cheques") === "1"
+    const showCheques = params.get("show_cheques") === "1"
+    const showInvoiceDetails = params.get("show_invoice_details") === "1"
 
     const memberships = await sql`SELECT branch_id FROM user_branches WHERE user_id = ${user.user_id}`
     const permittedBranchIds = memberships.map((row: any) => Number(row.branch_id)).filter(Number.isFinite)
@@ -126,7 +127,16 @@ export async function GET(request: NextRequest) {
             'bank_account',ch.bank_account,'owner',ch.cheq_owner_name,'status',cs.name) ORDER BY ch.id)
           FROM cheques_tbl ch LEFT JOIN cheque_status_tbl cs ON cs.id=ch.status_id
           WHERE ch.voucher_id=period.voucher_id
-        ),'[]'::json) ELSE '[]'::json END cheques
+        ),'[]'::json) ELSE '[]'::json END cheques,
+        CASE WHEN ${showInvoiceDetails} AND period.vch_type IN (12,16,17,19) THEN COALESCE((
+          SELECT json_agg(json_build_object('code',product.product_code,'name',COALESCE(item.item_name,product.product_name),
+            'quantity',item.qnty,'unit',unit.unit_name,'unit_price',item.price,
+            'discount_percent',item.discount,'total_price',item.qnty * item.price * (1 - COALESCE(item.discount,0) / 100)) ORDER BY item.id)
+          FROM voucher_items_tbl item
+          LEFT JOIN products product ON product.id=item.item_id
+          LEFT JOIN units unit ON unit.id=item.unit_id
+          WHERE item.voucher_id=period.voucher_id
+        ),'[]'::json) ELSE '[]'::json END invoice_items
       FROM period LEFT JOIN opening ON opening.account_id=period.account_id
       ORDER BY period.account_code,period.vch_date,period.voucher_id,period.order_no,period.id
     `

@@ -66,6 +66,9 @@ export async function GET(request: NextRequest) {
     const totalCredit = rows.reduce((sum: number, row: any) => sum + Number(row.credit || 0), 0)
     return NextResponse.json({ meta, rows: rows.map((row: any) => ({ ...row, currency_id: selectedCurrency, currency_code: targetCurrency.currency_code, currency_name: targetCurrency.currency_name })), summary: { total_debit: totalDebit, total_credit: totalCredit, balance: totalDebit - totalCredit }, filters: { kind, to_date: date, report_currency_id: selectedCurrency } })
   } catch (error) {
+    if ((error as { code?: string })?.code === "22012") {
+      return NextResponse.json({ error: "لا يوجد سعر صرف صالح لعملة التقرير بتاريخ إحدى الحركات. يرجى تعريف سعر الصرف وإعادة عرض التقرير." }, { status: 400 })
+    }
     console.error("Account balances report error:", error)
     return NextResponse.json({ error: "تعذر تحميل تقرير الأرصدة" }, { status: 500 })
   }

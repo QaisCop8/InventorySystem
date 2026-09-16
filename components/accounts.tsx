@@ -2011,7 +2011,7 @@ export default function Accounts() {
         </Card>
         {/* Unified accounts opened as local popup (like فاتورة جديدة) */}
         <Dialog open={showUnifiedPopup} onOpenChange={setShowUnifiedPopup}>
-          <DialogContent inline={fullscreenEnabled && showUnifiedPopup} className="max-w-[95vw] sm:max-w-[90vw] md:max-w-[80vw] lg:max-w-[70vw] max-h-[95vh] overflow-hidden p-0" dir="rtl"
+          <DialogContent inline={fullscreenEnabled && showUnifiedPopup} className="flex h-[min(90dvh,900px)] max-h-[calc(100dvh-1rem)] w-[95vw] max-w-[1200px] flex-col overflow-hidden p-0" dir="rtl"
                     onPointerDownOutside={(event) => event.preventDefault()}
                     onEscapeKeyDown={(event) => event.preventDefault()}
                   >

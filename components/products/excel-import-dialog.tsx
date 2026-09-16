@@ -931,22 +931,37 @@ productsGridColumns.push(
                       {field.label}
                       {field.required && <span className="text-red-600"> *</span>}
                     </Label>
-                    <Select
-                      value={columnMapping[field.key] || NO_MAPPING_VALUE}
-                      onValueChange={(value) => setColumnMapping((prev) => ({ ...prev, [field.key]: value }))}
-                    >
-                      <SelectTrigger className="text-right" dir="rtl">
-                        <SelectValue placeholder="اختر العمود" />
-                      </SelectTrigger>
-                      <SelectContent className="z-[10000]" dir="rtl" side="top" sideOffset={4}>
-                        <SelectItem value={NO_MAPPING_VALUE}>بدون مطابقة</SelectItem>
-                        {excelColumns.map((column) => (
-                          <SelectItem key={column.key} value={column.key}>
-                            {column.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <div className="flex items-center gap-1">
+                      <Select
+                        value={columnMapping[field.key] || NO_MAPPING_VALUE}
+                        onValueChange={(value) => setColumnMapping((prev) => ({ ...prev, [field.key]: value }))}
+                      >
+                        <SelectTrigger className="min-w-0 flex-1 text-right" dir="rtl">
+                          <SelectValue placeholder="اختر العمود" />
+                        </SelectTrigger>
+                        <SelectContent className="z-[10000]" dir="rtl" side="top" sideOffset={4}>
+                          <SelectItem value={NO_MAPPING_VALUE}>بدون مطابقة</SelectItem>
+                          {excelColumns.map((column) => (
+                            <SelectItem key={column.key} value={column.key}>
+                              {column.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {columnMapping[field.key] && columnMapping[field.key] !== NO_MAPPING_VALUE && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          title="إزالة المطابقة"
+                          aria-label={`إزالة مطابقة ${field.label}`}
+                          onClick={() => setColumnMapping((prev) => ({ ...prev, [field.key]: NO_MAPPING_VALUE }))}
+                          className="h-9 w-9 shrink-0 rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-600"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -989,7 +1004,7 @@ productsGridColumns.push(
                   (overflow-x-auto)، لا على مستوى الحوار كاملاً — DialogContent أعلاه لذلك بلا
                   overflow-x إطلاقاً (overflow-x-hidden)، وmin-w-0 بكل سلف flex بينهما يمنع محتوى
                   الشبكة العريض من توسيع تلك الأسلاف بدل التمرير داخل حدوده الخاصة فقط. */}
-              <div className="excel-account-grid w-full min-w-0 h-[520px] overflow-x-hidden overflow-y-hidden rounded-lg border" dir="rtl">
+              <div className="excel-account-grid w-full min-w-0 h-[520px] overflow-x-auto overflow-y-hidden overscroll-x-contain rounded-lg border" dir="rtl">
                 <div className="h-full min-w-[4700px]">
                   <DataGridView
                     containerStyle={{ height: "100%", width: "100%" }}

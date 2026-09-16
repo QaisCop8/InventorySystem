@@ -441,6 +441,14 @@ export async function POST(request: NextRequest) {
             account_id: Number(payment?.account_id || 0),
             reference: String(payment?.reference || "").trim() || null,
             due_date: payment?.due_date || null,
+            currency_id: Number(payment?.currency_id || data.currency_id || 0) || null,
+            currency_amount: Number(payment?.currency_amount ?? payment?.amount ?? 0),
+            exchange_rate: Number(payment?.exchange_rate || 1),
+            cheque_account: payment?.payment_method === "cheque" ? String(payment?.cheque_account || "").trim() : null,
+            bank_id: payment?.payment_method === "cheque" ? Number(payment?.bank_id || 0) || null : null,
+            branch_id: payment?.payment_method === "cheque" ? Number(payment?.branch_id || 0) || null : null,
+            card_type_id: payment?.payment_method === "card" ? Number(payment?.card_type_id || 0) || null : null,
+            card_expiry: payment?.payment_method === "card" ? String(payment?.card_expiry || "") || null : null,
           }))
           .filter((payment: any) => payment.amount > 0)
       : []
@@ -531,8 +539,8 @@ export async function POST(request: NextRequest) {
     const voucher = result[0]
     for (const payment of posPayments) {
       await sql`
-        INSERT INTO pos_sale_payments_tbl (voucher_id, payment_method, amount, account_id, reference, due_date)
-        VALUES (${voucher.id}, ${payment.payment_method}, ${payment.amount}, ${payment.account_id}, ${payment.reference}, ${payment.due_date})
+        INSERT INTO pos_sale_payments_tbl (voucher_id, payment_method, amount, account_id, reference, due_date,currency_id,currency_amount,exchange_rate,cheque_account,bank_id,branch_id,card_type_id,card_expiry)
+        VALUES (${voucher.id}, ${payment.payment_method}, ${payment.amount}, ${payment.account_id}, ${payment.reference}, ${payment.due_date},${payment.currency_id},${payment.currency_amount},${payment.exchange_rate},${payment.cheque_account},${payment.bank_id},${payment.branch_id},${payment.card_type_id},${payment.card_expiry})
       `
     }
     const savedItems = await saveSalesVoucherItems(voucher.id, itemsToSave)

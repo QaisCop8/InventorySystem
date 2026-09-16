@@ -585,6 +585,15 @@ export function CompactProductForm({
     if (formData.prices && formData.prices.length > 0) {
       const priceKeys = new Set<string>();
       for (const price of formData.prices) {
+        if (!unitIds.has(Number(price.unit_id))) {
+          toast.current?.show({
+            severity: "error",
+            summary: "خطأ",
+            detail: `وحدة سعر البيع ${price.unit_name || ""} غير مضافة إلى وحدات الصنف. اختر وحدة من وحدات الصنف.`,
+            life: 3000,
+          });
+          return false;
+        }
         const key = `${price.unit_id}-${price.price_category_id}`;
         if (priceKeys.has(key)) {
           toast.current?.show({
@@ -850,17 +859,18 @@ export function CompactProductForm({
     // دوماً بقيمتها الأولية الفارغة عند أول تحميل صنف — تماماً سبب ظهور اسم الوحدة/فئة السعر فارغين
     // بتبويب "أسعار البيع" عند فتح/حفظ صنف لأول مرة. نفس النمط الصحيح المُستخدَم أصلاً أدناه لـ
     // costCenterRows/brandRows.
-    const unitsWithNames = (product.units ?? []).map((unit: any) => {
+    const unitsWithNames = (product.units ?? []).map((unit: any, index: number) => {
       const unitDef = definitionsRef.current.units.find((u: any) => u.id === unit.unit_id);
-      return { ...unit, unit_name: unitDef?.unit_name || "" };
+      return { ...unit, ser: index + 1, unit_name: unitDef?.unit_name || "" };
     });
 
-    const pricesWithNames = (product.prices ?? []).map((price: any) => {
+    const pricesWithNames = (product.prices ?? []).map((price: any, index: number) => {
       const unitDef = definitionsRef.current.units.find((u: any) => u.id === price.unit_id);
       const priceCategoryDef = definitionsRef.current.price_category.find((p: any) => p.id === price.price_category_id);
       const currencyDef = definitionsRef.current.currencies.find((c: any) => c.id === price.currency_id);
       return {
         ...price,
+        ser: index + 1,
         unit_name: unitDef?.unit_name || "",
         price_name: priceCategoryDef?.name || "",
         currency_name: currencyDef?.currency_name || "",
@@ -1111,6 +1121,23 @@ export function CompactProductForm({
       prices[index] = { ...prices[index], ...patch }
       return { ...prev, prices }
     })
+  }
+
+  const moveGridOnEnter = (grid: wjGrid.FlexGrid, event: KeyboardEvent) => {
+    if (event.key !== "Enter" || event.shiftKey || event.ctrlKey || event.altKey || event.metaKey) return
+    const selection = grid.selection
+    if (!selection || selection.row < 0 || selection.col < 0) return
+    event.preventDefault()
+    event.stopPropagation()
+    grid.finishEditing()
+    const editableColumns = grid.columns.filter((column: any) => column.visible && !column.isReadOnly)
+    const current = editableColumns.findIndex((column: any) => column.index === selection.col)
+    let row = selection.row
+    let column = editableColumns[current + 1]
+    if (!column) { row += 1; column = editableColumns[0] }
+    if (!column || row >= grid.rows.length) return
+    grid.select(row, column.index)
+    grid.startEditing(true, row, column.index)
   }
 
   const updateStoreRow = (index: number, patch: Partial<StoreItem>) => {
@@ -1468,7 +1495,8 @@ export function CompactProductForm({
       const maxSer = prevPrices.reduce((max, row) => (row.ser > max ? row.ser : max), 0);
 
       const firstPrice = definitionsRef.current.price_category[0] || { id: 0, name: "" };
-      const firstUnit = definitionsRef.current.units[0] || { id: 0, unit_name: "" };
+      const productUnit = prev.units?.[0];
+      const firstUnit = productUnit ? { id: productUnit.unit_id, unit_name: productUnit.unit_name || "" } : { id: 0, unit_name: "" };
       const firstCurrency = definitionsRef.current.currencies[0] || { id: 0, currency_name: "" };
 
       const newPrice: PriceItem = {
@@ -1480,6 +1508,7 @@ export function CompactProductForm({
         unit_name: firstUnit.unit_name,
         currency_id: firstCurrency.id,
         currency_name: firstCurrency.currency_name,
+        price: 0,
       };
 
       return {
@@ -1593,6 +1622,7 @@ export function CompactProductForm({
           title: "باركود",
           isReadOnly: true,
           onClick: (e: any, ctx: any) => {
+            setUnitCurrentRow(Math.max(0, Number(ctx.row.dataItem?.ser || 1) - 1));
             handleBarcodeClick(ctx.row.dataItem);
           }
         },
@@ -2724,6 +2754,7 @@ export function CompactProductForm({
                             scheme={getScheme()}
                             selectionChanged={selectionChanged}
                             cellEditEnded={(s: any, e: any) => cellEditEnded(s, e)}
+                            onKeyDownCapture={moveGridOnEnter}
                             isReport={false}
                             showContextMenu={false}
                             dontConvertToCards={true}
@@ -2768,6 +2799,7 @@ export function CompactProductForm({
                             style={{ height: TABS_GRID_HEIGHT }}
                             dataSource={formData.prices ?? []}
                             scheme={getPricesScheme()}
+                            onKeyDownCapture={moveGridOnEnter}
                             isReport={false}
                             showContextMenu={false}
                             dontConvertToCards={true}
@@ -3571,7 +3603,7 @@ export function CompactProductForm({
           pricesPickerField === "category"
             ? (definitions.price_category || []).map((c: any): SimpleListPickerItem => ({ id: c.id, label: c.name }))
             : pricesPickerField === "unit"
-              ? (definitions.units || []).map((u: any): SimpleListPickerItem => ({ id: u.id, label: u.unit_name }))
+              ? Array.from(new Map((formData.units || []).filter((u: UnitItem) => Number(u.unit_id) > 0).map((u: UnitItem) => [Number(u.unit_id), { id: Number(u.unit_id), label: String(u.unit_name || "") }])).values()) as SimpleListPickerItem[]
               : (definitions.currencies || []).map((c: any): SimpleListPickerItem => ({ id: c.id, label: c.currency_name }))
         }
         onSelect={(item) => {

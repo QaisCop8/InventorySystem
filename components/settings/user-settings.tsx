@@ -308,7 +308,7 @@ export function UserSettings() {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            user_id: selectedUser.user_id,
+            user_id: Number(selectedUser.user_id) || selectedUser.id,
             username: userData.username,
             email: userData.email,
             full_name: userData.full_name,
@@ -547,7 +547,7 @@ export function UserSettings() {
                   open_screens_fullscreen: editOpenScreensFullscreen,
                 }
                 const userData = {
-                  user_id: selectedUser.user_id,
+                  user_id: Number(selectedUser.user_id) || selectedUser.id,
                   username: email,
                   full_name: formData.get("fullName") as string,
                   email,

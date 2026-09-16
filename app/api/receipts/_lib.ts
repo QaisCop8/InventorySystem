@@ -70,6 +70,8 @@ export const ensureTables = async () => {
     END $$`
 
   await sql`ALTER TABLE voucher_header_tbl ADD COLUMN IF NOT EXISTS vch_book_id INTEGER`
+  await sql`ALTER TABLE voucher_header_tbl ADD COLUMN IF NOT EXISTS shift_guid UUID`
+  await sql`CREATE INDEX IF NOT EXISTS idx_voucher_header_shift_guid ON voucher_header_tbl(shift_guid) WHERE shift_guid IS NOT NULL`
   await sql`ALTER TABLE voucher_header_tbl ADD COLUMN IF NOT EXISTS branch_id INTEGER`
   // account_id: الحساب/الزبون الرئيسي للسند (سُمِّي customer_account_id سابقاً؛ أُعيدت تسميته
   // أعلاه ليطابق المرجع). to_account_id يبقى منفصلاً عمداً (لم يُدمَج فيه) — الاثنان يُدخَلان

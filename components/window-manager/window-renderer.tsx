@@ -15,6 +15,9 @@ const Customers = dynamic(() => import("@/components/products/customers").then((
 const UnifiedCustomers = dynamic(() => import("@/components/products/unified-customers").then((m) => m.default), { ssr: false })
 const OrderReports = dynamic(() => import("@/components/reports/order-reports").then((m) => m.OrderReports), { ssr: false })
 const ProductReports = dynamic(() => import("@/components/reports/product-reports").then((m) => m.ProductReports), { ssr: false })
+const ItemBalancesReport = dynamic(() => import("@/components/reports/item-balances-report").then((m) => m.ItemBalancesReport), { ssr: false })
+const ItemValuationReport = dynamic(() => import("@/components/reports/item-valuation-report").then((m) => m.ItemValuationReport), { ssr: false })
+const ItemCardReport = dynamic(() => import("@/components/reports/item-card-report").then((m) => m.ItemCardReport), { ssr: false })
 const ReceivablesStatementReport = dynamic(() => import("@/components/reports/account-statement-report").then((m) => m.ReceivablesStatementReport), { ssr: false })
 const AccountingStatementReport = dynamic(() => import("@/components/reports/account-statement-report").then((m) => m.AccountingStatementReport), { ssr: false })
 const VouchersReport = dynamic(() => import("@/components/reports/financial-report").then((m) => m.VouchersReport), { ssr: false })
@@ -44,6 +47,9 @@ const componentMap: Record<string, React.ComponentType<any>> = {
   "unified-customers": UnifiedCustomers,
   "order-reports": OrderReports,
   "product-reports": ProductReports,
+  "item-balances-report": ItemBalancesReport,
+  "item-valuation-report": ItemValuationReport,
+  "item-card-report": ItemCardReport,
   "receivables-statement-report": ReceivablesStatementReport,
   "accounting-statement-report": AccountingStatementReport,
   "vouchers-report": VouchersReport,

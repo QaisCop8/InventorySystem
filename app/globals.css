@@ -3,6 +3,45 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Accounting reports stay compact even when the global user font preference is large. */
+.accounting-report {
+  font-size: 14px !important;
+}
+
+.accounting-report h1 {
+  font-size: 24px !important;
+  line-height: 1.25 !important;
+}
+
+.accounting-report h2,
+.accounting-report h3 {
+  font-size: 16px !important;
+  line-height: 1.35 !important;
+}
+
+.accounting-report [class*="text-3xl"],
+.accounting-report [class*="text-2xl"] {
+  font-size: 20px !important;
+  line-height: 1.35 !important;
+}
+
+.accounting-report [class*="text-xl"] {
+  font-size: 18px !important;
+  line-height: 1.35 !important;
+}
+
+.accounting-report [class*="text-sm"],
+.accounting-report label,
+.accounting-report input,
+.accounting-report button,
+.accounting-report select {
+  font-size: 13px !important;
+}
+
+.accounting-report table {
+  font-size: 12px !important;
+}
+
 /* PrimeReact keeps its modal mask mounted while a dialog is leaving. Under
    slower/public-network renders that mask can outlive the dialog and leave the
    whole workspace dimmed and unable to receive clicks. Only a mask explicitly

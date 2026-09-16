@@ -2191,7 +2191,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
 
   if (inWindowManager) {
     return (
-      <div className="h-full min-h-[90vh] min-w-0 flex flex-col bg-background overflow-hidden text-lg compact-product-form-root" dir="rtl">
+      <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-background text-lg compact-product-form-root" dir="rtl">
       {/* Universal Toolbar - Fixed at top */}
       <div className="flex-shrink-0">
           <UniversalToolbar
@@ -2227,7 +2227,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
           <h2 className="text-2xl font-bold">{formData.id === 0 ? "إضافة حساب جديد" : "تعديل حساب"}</h2>
         </div>
 
-        <div ref={formRootRef} className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+        <div ref={formRootRef} className="min-h-0 flex-1 overflow-y-auto px-6 py-4 space-y-4">
           {error && (
             <Alert variant="destructive">
               <AlertDescription>{error}</AlertDescription>

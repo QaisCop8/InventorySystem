@@ -216,6 +216,14 @@ export const ensureTables = async () => {
   await sql`ALTER TABLE pos_sale_payments_tbl ADD COLUMN IF NOT EXISTS due_date DATE`
   await sql`ALTER TABLE pos_sale_payments_tbl ADD COLUMN IF NOT EXISTS pos_point_id INTEGER`
   await sql`ALTER TABLE pos_sale_payments_tbl ADD COLUMN IF NOT EXISTS session_id BIGINT`
+  await sql`ALTER TABLE pos_sale_payments_tbl ADD COLUMN IF NOT EXISTS currency_id INTEGER`
+  await sql`ALTER TABLE pos_sale_payments_tbl ADD COLUMN IF NOT EXISTS currency_amount NUMERIC(18,4)`
+  await sql`ALTER TABLE pos_sale_payments_tbl ADD COLUMN IF NOT EXISTS exchange_rate NUMERIC(18,8)`
+  await sql`ALTER TABLE pos_sale_payments_tbl ADD COLUMN IF NOT EXISTS cheque_account VARCHAR(160)`
+  await sql`ALTER TABLE pos_sale_payments_tbl ADD COLUMN IF NOT EXISTS bank_id INTEGER`
+  await sql`ALTER TABLE pos_sale_payments_tbl ADD COLUMN IF NOT EXISTS branch_id INTEGER`
+  await sql`ALTER TABLE pos_sale_payments_tbl ADD COLUMN IF NOT EXISTS card_type_id INTEGER`
+  await sql`ALTER TABLE pos_sale_payments_tbl ADD COLUMN IF NOT EXISTS card_expiry VARCHAR(7)`
   // بقية الحقول الجديدة (vat_classification_id/invoice_type/vat_included/
   // is_maqasa/maqasa_type، phone/due_date/is_exported_sales، location_id) محجوزة أصلاً على
   // voucher_header_tbl من receipts/_lib.ts — بلا ADD COLUMN هنا. حساب الضريبة تحديداً لا يُخزَّن
