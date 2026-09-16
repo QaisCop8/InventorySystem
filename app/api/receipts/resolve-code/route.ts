@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
 import { ensureTables, getVoucherNumberSettings, buildVoucherCode, resolveVoucherBookName } from "../_lib"
+import { authorizeStoredVoucher } from "@/lib/transaction-permissions"
 
 // عند الخروج من حقل رقم السند بعد كتابة يدوية (مثال: "R1" أو "1" فقط): يُحلَّل النص إلى
 // بادئة حروف اختيارية + رقم، ثم يُعاد بناؤه دائماً بصيغة {بادئة}{رمز الدفتر}{رقم مبطّن 5 خانات}
@@ -15,6 +16,15 @@ export async function GET(request: NextRequest) {
     const raw = (searchParams.get("raw") || "").trim()
 
     if (!raw) return NextResponse.json({ code: "", exists: false })
+
+    // A complete stored code takes precedence over the selected book/settings,
+    // including cancelled vouchers, which remain available for inspection.
+    const exact = (await sql`SELECT id,vch_code,status FROM voucher_header_tbl WHERE vch_type=${vchType} AND UPPER(vch_code)=${raw.toUpperCase()} LIMIT 1`)[0]
+    if (exact) {
+      const authorization = await authorizeStoredVoucher(request, Number(exact.id), "view")
+      if (!authorization.ok) return authorization.response
+      return NextResponse.json({ code: exact.vch_code, exists: true, id: Number(exact.id), status: Number(exact.status) })
+    }
 
     const bookName = await resolveVoucherBookName(vchBookId)
     if (!bookName) {
@@ -47,10 +57,14 @@ export async function GET(request: NextRequest) {
 
     const code = buildVoucherCode(configuredPrefix, bookName, Number(typedNumber), prefix)
 
-    const rows = await sql`SELECT id FROM voucher_header_tbl WHERE vch_type = ${vchType} AND vch_code = ${code}`
+    const rows = await sql`SELECT id,status FROM voucher_header_tbl WHERE vch_type = ${vchType} AND vch_code = ${code}`
     const existingId = rows[0]?.id ?? null
+    if (existingId) {
+      const authorization = await authorizeStoredVoucher(request, Number(existingId), "view")
+      if (!authorization.ok) return authorization.response
+    }
 
-    return NextResponse.json({ code, exists: Boolean(existingId), id: existingId })
+    return NextResponse.json({ code, exists: Boolean(existingId), id: existingId, status: rows[0] ? Number(rows[0].status) : null })
   } catch (error) {
     console.error("Error resolving voucher code:", error)
     return NextResponse.json({ error: "Failed to resolve voucher code" }, { status: 500 })

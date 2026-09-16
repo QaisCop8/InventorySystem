@@ -230,7 +230,7 @@ export function Header({ onMenuClick, activeSection, onProfileClick, onSettingsC
           <Icons.Menu />
         </RefButton>
         <h1 className="text-sm md:text-xl font-semibold text-card-foreground truncate">
-          {sectionTitles[activeSection] || "نظام أساس للحلول المحاسبية"}
+          {sectionTitles[activeSection] || "ARAAK ERP System"}
         </h1>
       </div>
 

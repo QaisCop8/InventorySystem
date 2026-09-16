@@ -6,11 +6,14 @@ import DataGrid from "@/components/common/DataGrid";
 import * as wjGrid from "@grapecity/wijmo.grid";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Barcode, Check, Plus, X } from "lucide-react";
+import { isScaleItemBarcode, SCALE_BARCODE_ERROR } from "@/lib/scale-barcode";
 interface ProductBarcodesProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     unitName: string;
     barcodes: string[];
+    reservedBarcodes?: string[];
+    soldUsingScale?: boolean;
     onUpdateBarcodes: (newBarcodes: string[]) => void;
 }
 
@@ -19,12 +22,16 @@ export default function ProductBarcodes({
     onOpenChange,
     unitName,
     barcodes,
+    reservedBarcodes = [],
+    soldUsingScale = false,
     onUpdateBarcodes
 }: ProductBarcodesProps) {
     const [dialogData, setDialogData] = React.useState<{ ser: number; barcode: string }[]>([]);
+    const [duplicateError, setDuplicateError] = React.useState("");
 
     React.useEffect(() => {
         setDialogData(barcodes.map((b, i) => ({ ser: i + 1, barcode: b })));
+        setDuplicateError("");
     }, [barcodes]);
 
     const handleDelete = (index: number) => {
@@ -55,10 +62,36 @@ export default function ProductBarcodes({
     };
     const cellEditEnded = (s: any, e: any) => {
         const editedItem = s.rows[e.row].dataItem;
+        const barcode = String(editedItem?.barcode ?? "").trim();
 
         setDialogData(prev => {
             const newData = [...prev];
-            newData[e.row] = { ...editedItem };
+            const key = barcode.toLocaleLowerCase("en");
+            if (soldUsingScale && barcode && !isScaleItemBarcode(barcode)) {
+                setDuplicateError(SCALE_BARCODE_ERROR);
+                newData[e.row] = { ...editedItem, barcode: "" };
+                onUpdateBarcodes(newData.map(d => d.barcode));
+                return newData;
+            }
+            const duplicateInUnit = barcode && newData.some((row, index) => index !== e.row && String(row.barcode ?? "").trim().toLocaleLowerCase("en") === key);
+            const duplicateInOtherUnit = barcode && reservedBarcodes.some(value => String(value ?? "").trim().toLocaleLowerCase("en") === key);
+
+            if (duplicateInUnit || duplicateInOtherUnit) {
+                setDuplicateError(duplicateInUnit
+                    ? `الباركود ${barcode} مكرر في نفس الوحدة`
+                    : `الباركود ${barcode} مستخدم في وحدة أخرى من نفس الصنف`);
+                newData[e.row] = { ...editedItem, barcode: "" };
+                onUpdateBarcodes(newData.map(d => d.barcode));
+                requestAnimationFrame(() => {
+                    s.invalidate?.();
+                    s.select?.(e.row, e.col);
+                    s.startEditing?.(true, e.row, e.col);
+                });
+                return newData;
+            }
+
+            setDuplicateError("");
+            newData[e.row] = { ...editedItem, barcode };
 
             // ✅ Call onUpdateBarcodes *inside* the same callback
             // so it uses the updated array, not the stale one
@@ -96,6 +129,7 @@ export default function ProductBarcodes({
                     <div className="flex items-center gap-3"><span className="flex size-11 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25"><Barcode className="size-5" /></span><div><DialogTitle className="text-lg font-bold text-white">باركود الوحدة</DialogTitle><DialogDescription className="mt-1 text-emerald-50">{unitName || "الوحدة"} · أضف باركوداً أو أكثر لهذه الوحدة</DialogDescription></div></div>
                 </DialogHeader>
                 <div className="flex min-h-0 flex-1 flex-col gap-4 bg-slate-50 p-4 sm:p-6">
+                    {duplicateError && <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">{duplicateError}</div>}
                     <div className="flex items-center justify-between rounded-2xl border bg-white p-3 shadow-sm"><div><b className="text-sm">الباركودات المعرفة</b><p className="text-xs text-slate-500">اضغط Enter للانتقال إلى الخلية التالية</p></div><span className="rounded-full bg-emerald-100 px-3 py-1 text-sm font-bold text-emerald-800">{dialogData.length}</span></div>
                     <Button className="w-fit rounded-xl bg-emerald-600 shadow-sm hover:bg-emerald-700" type="button" onClick={handleAdd}><Plus className="ml-2 size-4" />إضافة باركود</Button>
                     <div className="min-h-64 flex-1 overflow-hidden rounded-2xl border bg-white p-2 shadow-sm"><DataGrid ref={flexRef} dataSource={dialogData} scheme={getScheme()} keyActionEnter="MoveAcross" cellEditEnded={(s: any, e: any) => cellEditEnded(s, e)} /></div>

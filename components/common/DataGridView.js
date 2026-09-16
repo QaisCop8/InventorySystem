@@ -778,8 +778,9 @@ createButtonTemplate = (col) => (ctx) => {
       if (!this.flex || !this.flex.hostElement) return;
       const rootStyles = typeof window !== 'undefined' ? getComputedStyle(document.documentElement) : null;
       const configuredRowHeight = parseInt(rootStyles?.getPropertyValue('--datagrid-row-height'), 10) || 50;
-      const buttonSize = Math.max(28, Math.min(36, configuredRowHeight - 10));
-      const buttonRadius = Math.round(buttonSize * 0.32);
+      const actualRowHeight = Number(this.flex.rows?.defaultSize) || configuredRowHeight;
+      const buttonSize = Math.max(22, Math.min(30, actualRowHeight - 6));
+      const buttonRadius = Math.max(7, Math.round(buttonSize * 0.3));
       const btns = this.flex.hostElement.querySelectorAll('button');
       btns.forEach((btn) => {
         const cls = (btn.className || '').toLowerCase();
@@ -798,7 +799,7 @@ createButtonTemplate = (col) => (ctx) => {
         } else if (cls.indexOf('pi-calendar') > -1) {
           btn.style.background = 'color-mix(in srgb, #8b5cf6 14%, transparent)';
           btn.style.color = '#8b5cf6';
-        } else if (cls.indexOf('pi-search') > -1 || cls.indexOf('pi-pencil') > -1 || cls.indexOf('btn-info') > -1) {
+        } else if (cls.indexOf('pi-search') > -1 || cls.indexOf('pi-pencil') > -1 || cls.indexOf('pi-qrcode') > -1 || cls.indexOf('btn-info') > -1) {
           btn.style.background = 'color-mix(in srgb, var(--primary) 12%, transparent)';
           btn.style.color = 'var(--primary)';
         } else if (cls.indexOf('btn-warning') > -1) {

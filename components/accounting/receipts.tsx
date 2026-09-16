@@ -160,6 +160,7 @@ const buildInitialForm = (voucherType: 4 | 5): VoucherRecord => ({
 const normalizeVoucher = (record: Partial<VoucherRecord>, voucherType: 4 | 5): VoucherRecord => ({
   ...buildInitialForm(voucherType),
   ...record,
+  status: Number(record.status ?? 1),
   manual_date: record.manual_date || record.vch_date || buildInitialForm(voucherType).manual_date,
   journal: record.journal?.length ? (record.journal as VoucherJournalRow[]) : [{ ...emptyJournalRow }],
   cheques: record.cheques?.length ? (record.cheques as VoucherChequeRow[]) : [{ ...emptyChequeRow }],

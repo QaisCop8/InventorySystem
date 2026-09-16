@@ -23,7 +23,7 @@ export function ManagementAuthShell({ eyebrow, title, description, children, com
             <Boxes className="h-5 w-5" />
             <span className="absolute -left-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full border border-violet-100 bg-white text-violet-600 shadow-sm"><Sparkles className="h-3 w-3" /></span>
           </div>
-          <div><div className="text-base font-black tracking-tight">نظام أساس</div><div className="text-[9px] font-bold tracking-[0.22em] text-slate-400">ASAS MANAGEMENT CLOUD</div></div>
+          <div><div className="text-base font-black tracking-tight">ARAAK ERP System</div><div className="text-[9px] font-bold tracking-[0.22em] text-slate-400">ARAAK MANAGEMENT CLOUD</div></div>
         </header>
 
         <section className="relative overflow-hidden rounded-[26px] border border-slate-200/80 bg-white shadow-[0_28px_75px_-38px_rgba(15,23,42,0.32)]">

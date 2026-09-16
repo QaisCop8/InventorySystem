@@ -25,7 +25,7 @@ export async function POST(request:NextRequest){
     SELECT c.*,c.due_date::date::text due_date,source.branch_id source_branch_id,source.account_id source_account_id,CURRENT_DATE::text business_date,
       EXISTS(SELECT 1 FROM cheque_operations_log_tbl l WHERE l.cheque_id=c.id AND COALESCE(l.status,1)<>9) has_operations
     FROM cheques_tbl c LEFT JOIN voucher_header_tbl source ON source.id=c.voucher_id
-    WHERE c.id=ANY(${ids}::int[]) FOR UPDATE OF c
+    WHERE c.id=ANY(${ids}::int[]) AND COALESCE(source.status,1)<>3 FOR UPDATE OF c
    `
    if(cheques.length!==ids.length)return NextResponse.json({error:"أحد الشيكات المحددة غير موجود"},{status:409})
    const branchIds=Array.from(new Set<number>(cheques.map((x:any)=>Number(x.source_branch_id)).filter(Boolean))),currencyIds=Array.from(new Set<number>(cheques.map((x:any)=>Number(x.currency_id)||0)))

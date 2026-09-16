@@ -3,6 +3,7 @@ import sql from "@/lib/database"
 export const POS_PAYMENT_METHODS = ["cash", "card", "cheque", "account", "gift_card"] as const
 
 export async function ensurePosTables() {
+  await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS pos_sold_using_scale BOOLEAN NOT NULL DEFAULT FALSE`
   await sql`
     CREATE TABLE IF NOT EXISTS pos_points_tbl (
       id SERIAL PRIMARY KEY,

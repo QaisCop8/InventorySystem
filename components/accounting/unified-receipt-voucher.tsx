@@ -663,7 +663,10 @@ export default function UnifiedReceiptVoucher({
     [currencies],
   )
 
+  const navigationPending = useRef(false)
   const handleNavigate = async (direction: "first" | "previous" | "next" | "last") => {
+    if (navigationPending.current || isSaving) return
+    navigationPending.current = true
     codeRequestRef.current += 1
     setNavLoading(true)
     try {
@@ -676,7 +679,7 @@ export default function UnifiedReceiptVoucher({
       query.set("currentId", String(currentId))
       query.set("vch_type", String(form.vch_type))
 
-      const response = await fetch(`/api/receipts/navigation/${effectiveDirection}?${query.toString()}`)
+      const response = await fetch(`/api/receipts/navigation/${effectiveDirection}?${query.toString()}`, { cache: "no-store" })
       const record = await response.json()
       if (!response.ok) {
         messagesRef.current?.show?.([{ severity: "error", summary: "", detail: record.error || "تعذر التنقل بين السندات", life: 3000 }])
@@ -686,6 +689,7 @@ export default function UnifiedReceiptVoucher({
     } catch (error) {
       console.error("Failed to navigate voucher", error)
     } finally {
+      navigationPending.current = false
       setNavLoading(false)
     }
   }
@@ -1889,10 +1893,10 @@ export default function UnifiedReceiptVoucher({
             onDelete={onDelete}
             onClone={onClone}
             onPrint={onPrint}
-            onFirst={() => void handleNavigate("first")}
-            onPrevious={() => void handleNavigate("previous")}
-            onNext={() => void handleNavigate("next")}
-            onLast={() => void handleNavigate("last")}
+            onFirst={() => guardedAction(() => void handleNavigate("first"))}
+            onPrevious={() => guardedAction(() => void handleNavigate("previous"))}
+            onNext={() => guardedAction(() => void handleNavigate("next"))}
+            onLast={() => guardedAction(() => void handleNavigate("last"))}
             isSaving={isSaving}
             isLoading={navLoading}
             isNewRecord={form.id <= 0}
@@ -2181,6 +2185,7 @@ export default function UnifiedReceiptVoucher({
             </div>
 
             {/* Tabs: الرئيسية, الشيكات, تفاصيل البطاقة, الحسابات, ملاحظات, المرفقات, الحقول الإضافية */}
+            </fieldset>
             <Tabs value={activeTab} onValueChange={handleTabChange} className="pt-4">
               <TabsList className="flex h-auto flex-wrap justify-start gap-1 bg-slate-100 p-1">
                 <TabsTrigger value="main" className={voucherTabTriggerClass}>الرئيسية</TabsTrigger>
@@ -2196,6 +2201,7 @@ export default function UnifiedReceiptVoucher({
 
               {/* الرئيسية */}
               <TabsContent value="main" className="min-h-[260px] space-y-4 pt-4 sm:min-h-[360px]">
+                <fieldset disabled={isLocked} className="contents">
                 <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
                   <div className="flex items-center gap-2 text-sm font-bold text-amber-700">
                     <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-50 ring-1 ring-amber-100">
@@ -2276,10 +2282,12 @@ export default function UnifiedReceiptVoucher({
                   </div>
                 </div>
                 </div>
+              </fieldset>
               </TabsContent>
 
               {/* الشيكات */}
               <TabsContent value="cheques" className="mt-4 min-h-[260px] space-y-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+                <fieldset disabled={isLocked} className="contents">
                 <div className="flex items-center justify-end">
                   <Button type="button" variant="outline" size="sm" onClick={addChequeRow}>
                     <Plus className="ml-1 h-4 w-4" />
@@ -2308,11 +2316,13 @@ export default function UnifiedReceiptVoucher({
                 <div className={`text-sm font-semibold ${chequesTotal === Number(form.check_amount || 0) ? "text-emerald-700" : "text-rose-600"}`}>
                   إجمالي الشيكات: {chequesTotal.toLocaleString()}
                 </div>
+              </fieldset>
               </TabsContent>
 
               {/* تفاصيل البطاقة — غير متاحة إطلاقاً في سند الصرف */}
               {!isPayment && (
               <TabsContent value="card" className="mt-4 min-h-[260px] space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+                <fieldset disabled={isLocked} className="contents">
                 <div className="grid gap-3 md:grid-cols-3">
                   <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
                     <Label>نوع البطاقة</Label>
@@ -2364,11 +2374,13 @@ export default function UnifiedReceiptVoucher({
                     />
                   </div>
                 </div>
+              </fieldset>
               </TabsContent>
               )}
 
               {/* الحسابات */}
               <TabsContent value="journal" className="mt-4 min-h-[260px] space-y-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+                <fieldset disabled={isLocked} className="contents">
                 <div className="flex items-center justify-between">
                   <p className="text-xs text-slate-500">
                     تُستخدم عند توزيع مبلغ السند على أكثر من حساب مقابل بدلاً من حقل "على حساب" وحده. اختيار حساب يفعّل زر مراكز التكلفة الخاص به.
@@ -2398,10 +2410,12 @@ export default function UnifiedReceiptVoucher({
                   إجمالي الحسابات: {journalTotal.toLocaleString()}
                   {journalDiff !== 0 && journalTotal > 0 && ` — الفرق عن المبلغ الإجمالي: ${journalDiff.toLocaleString()}`}
                 </div>
+              </fieldset>
               </TabsContent>
 
               {/* ملاحظات */}
               <TabsContent value="notes" className="mt-4 min-h-[260px] space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+                <fieldset disabled={isLocked} className="contents">
                 <div className="flex items-center justify-end">
                   <Button type="button" variant="outline" size="sm" onClick={addNoteRow}>
                     <ListPlus className="ml-1 h-4 w-4" />
@@ -2432,19 +2446,23 @@ export default function UnifiedReceiptVoucher({
                   ))}
                   {notes.length === 0 && <p className="py-4 text-center text-sm text-slate-400">لا توجد ملاحظات</p>}
                 </div>
+              </fieldset>
               </TabsContent>
 
               {/* المرفقات */}
               <TabsContent value="attachments" className="mt-4 min-h-[260px] rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+                <fieldset disabled={isLocked} className="contents">
                 <AttachmentManager modelName="voucher" recordId={form.id > 0 ? form.id : null} disabled={isLocked} />
+              </fieldset>
               </TabsContent>
 
               {/* الحقول الإضافية */}
               <TabsContent value="extra" className="mt-4 min-h-[260px] rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+                <fieldset disabled={isLocked} className="contents">
                 <p className="py-4 text-center text-sm text-slate-400">لا توجد حقول إضافية معرّفة لهذا النوع من السندات</p>
+              </fieldset>
               </TabsContent>
             </Tabs>
-            </fieldset>
           </div>
         </DialogContent>
       </Dialog>
@@ -2572,6 +2590,8 @@ export default function UnifiedReceiptVoucher({
       />
 
       <ConfirmDialogYesNo
+        useAppDialog
+        title={`تأكيد حذف ${title}`}
         visible={showDeleteConfirm}
         message={isPosted ? "السند مرحل هل تريد الغاؤه منطقياً؟" : `هل تريد حذف هذا ${title}؟`}
         onConfirm={onConfirmDelete}
@@ -2579,6 +2599,8 @@ export default function UnifiedReceiptVoucher({
       />
 
       <ConfirmDialogYesNo
+        useAppDialog
+        title="حفظ التغييرات"
         visible={showUnsavedConfirm}
         message="تم تعديل البيانات، هل تريد الحفظ؟"
         showBack

@@ -2,7 +2,7 @@
 
 import { useVoucherDeepLink } from "@/hooks/use-voucher-deep-link"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import DataGridView from "@/components/common/DataGridView"
@@ -650,30 +650,28 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
     }
   }
 
+  const navigationPending = useRef(false)
   const handleNavigate = async (direction: "first" | "previous" | "next" | "last") => {
+    if (navigationPending.current || isLoading || isSaving) return
+    navigationPending.current = true
+    setIsLoading(true)
     try {
-      if (filteredVouchers.length === 0) return
-      let targetIndex = currentIndex
-      if (direction === "first") targetIndex = 0
-      else if (direction === "last") targetIndex = filteredVouchers.length - 1
-      else if (direction === "previous") targetIndex = Math.max(0, currentIndex - 1)
-      else targetIndex = Math.min(filteredVouchers.length - 1, currentIndex + 1)
-
-      const record = filteredVouchers[targetIndex]
-      if (!record) return
-
-      setIsLoading(true)
-      try {
-        const details = await fetchVoucherDetails(record.id)
-        setForm(normalizeVoucher(details || record, voucherType))
-        setCurrentIndex(targetIndex)
-        setErrorMessages([])
-        setDialogOpen(true)
-      } finally {
-        setIsLoading(false)
-      }
+      const query = new URLSearchParams({ direction, currentId: String(Math.max(0, form.id)), vch_type: String(voucherType) })
+      const response = await fetch(`/api/transaction-navigation?${query}`, { cache: "no-store" })
+      const record = await response.json()
+      if (!response.ok) throw new Error(record?.error || "تعذر التنقل بين السندات")
+      if (!record?.id) return
+      const details = await fetchVoucherDetails(record.id)
+      if (!details) throw new Error("تعذر تحميل تفاصيل السند")
+      setForm(normalizeVoucher(details, voucherType))
+      setCurrentIndex(filteredVouchers.findIndex(row => row.id === record.id))
+      setErrorMessages([])
+      setDialogOpen(true)
     } catch (error) {
-      console.error("Failed to navigate stock vouchers", error)
+      setErrorMessages([error instanceof Error ? error.message : "تعذر التنقل بين السندات"])
+    } finally {
+      navigationPending.current = false
+      setIsLoading(false)
     }
   }
 
@@ -791,6 +789,7 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
         currentIndex={currentIndex}
         totalRecords={filteredVouchers.length}
         isFirstRecord={currentIndex <= 0}
+        isLoading={isLoading}
         isLastRecord={currentIndex >= filteredVouchers.length - 1}
         onNew={openNewDialog}
         onSave={saveVoucher}

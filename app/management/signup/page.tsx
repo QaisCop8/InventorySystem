@@ -74,7 +74,7 @@ export default function ManagementSignupPage() {
             </div>
             <span className="text-sm font-semibold uppercase tracking-[0.24em] text-emerald-700">حساب إدارة جديد</span>
             <h1 className="mt-4 text-3xl font-bold tracking-tight text-slate-950">إنشاء مستخدم جديد</h1>
-            <p className="mt-3 text-sm leading-6 text-slate-500">املأ التفاصيل أدناه للوصول إلى إدارة أساس ومتابعة الشركات والفروع من بوابة واحدة.</p>
+            <p className="mt-3 text-sm leading-6 text-slate-500">املأ التفاصيل أدناه للوصول إلى ARAAK ERP System ومتابعة الشركات والفروع من بوابة واحدة.</p>
           </div>
 
           {success ? (

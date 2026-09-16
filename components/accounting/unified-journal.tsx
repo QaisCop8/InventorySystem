@@ -421,7 +421,10 @@ export default function UnifiedJournal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dialogOpen, form.id, form.vch_code, isNewMode])
 
+  const navigationPending = useRef(false)
   const handleNavigate = async (direction: "first" | "previous" | "next" | "last") => {
+    if (navigationPending.current || isSaving) return
+    navigationPending.current = true
     setNavLoading(true)
     try {
       const currentId = form.id > 0 ? form.id : 0
@@ -432,7 +435,7 @@ export default function UnifiedJournal({
       const query = new URLSearchParams()
       if (effectiveDirection === "previous" || effectiveDirection === "next") query.set("currentId", String(currentId))
 
-      const response = await fetch(`/api/journal-vouchers/navigation/${effectiveDirection}?${query.toString()}`)
+      const response = await fetch(`/api/journal-vouchers/navigation/${effectiveDirection}?${query.toString()}`, { cache: "no-store" })
       if (!response.ok) return
 
       const record = await response.json()
@@ -440,6 +443,7 @@ export default function UnifiedJournal({
     } catch (error) {
       console.error("Failed to navigate journal voucher", error)
     } finally {
+      navigationPending.current = false
       setNavLoading(false)
     }
   }
@@ -899,10 +903,11 @@ export default function UnifiedJournal({
             onDelete={onDelete}
             onClone={onClone}
             onPrint={onPrint}
-            onFirst={() => void handleNavigate("first")}
-            onPrevious={() => void handleNavigate("previous")}
-            onNext={() => void handleNavigate("next")}
-            onLast={() => void handleNavigate("last")}
+            onFirst={() => guardedAction(() => void handleNavigate("first"))}
+            onPrevious={() => guardedAction(() => void handleNavigate("previous"))}
+            onNext={() => guardedAction(() => void handleNavigate("next"))}
+            onLast={() => guardedAction(() => void handleNavigate("last"))}
+            isLoading={navLoading}
             isSaving={isSaving}
             canSave={canSave && form.status !== 2 && form.status !== 3}
             canDelete={form.id > 0 && form.status !== 3 && !isSaving}

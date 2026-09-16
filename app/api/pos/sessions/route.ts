@@ -3,6 +3,7 @@ import sql,{withTenantTransaction} from "@/lib/database"
 import {ensureTables as ensureSalesTables} from "@/app/api/sales-vouchers/_lib"
 import {ensurePosTables,getOpenPosSession,getPosPoint,requestBranchId,requestUserId} from "../_lib"
 import {getPosCurrencies, type PosCurrency} from "@/lib/pos-currencies"
+import {reconcileCancelledPosPayments} from "../_session-payments"
 
 const amount=(value:unknown)=>Math.round(Number(value||0)*100)/100
 
@@ -23,14 +24,17 @@ function currencyAmounts(input:unknown, currencies:PosCurrency[], pointCurrencyI
 const evaluated=(rows:Array<{amount:number;rate_to_point:number}>)=>amount(rows.reduce((sum,row)=>sum+row.amount*row.rate_to_point,0))
 
 async function sessionDetails(pointId:number,userId:string){
-  const session=await getOpenPosSession(pointId,userId); if(!session)return null
+  return withTenantTransaction(async()=>{
+  let session=await getOpenPosSession(pointId,userId); if(!session)return null
+  if(await reconcileCancelledPosPayments(Number(session.id))){session=await getOpenPosSession(pointId,userId);if(!session)return null}
   const [movements,payments,totals]=await Promise.all([
     sql`SELECT m.*,c.currency_code FROM pos_cash_movements_tbl m LEFT JOIN currency c ON c.id=m.currency_id WHERE m.session_id=${Number(session.id)} ORDER BY m.id DESC LIMIT 100`,
-    sql`SELECT p.payment_method,COALESCE(SUM(CASE WHEN v.vch_type=16 THEN 0 ELSE p.amount END),0) sale_amount,COALESCE(SUM(CASE WHEN v.vch_type=16 THEN p.amount ELSE 0 END),0) refund_amount,COALESCE(SUM(CASE WHEN v.vch_type=16 THEN -p.amount ELSE p.amount END),0) amount,COUNT(*) count FROM pos_sale_payments_tbl p JOIN voucher_header_tbl v ON v.id=p.voucher_id WHERE p.session_id=${Number(session.id)} GROUP BY p.payment_method ORDER BY p.payment_method`,
+    sql`SELECT p.payment_method,COALESCE(SUM(CASE WHEN v.vch_type=16 THEN 0 ELSE p.amount END),0) sale_amount,COALESCE(SUM(CASE WHEN v.vch_type=16 THEN p.amount ELSE 0 END),0) refund_amount,COALESCE(SUM(CASE WHEN v.vch_type=16 THEN -p.amount ELSE p.amount END),0) amount,COUNT(*) count FROM pos_sale_payments_tbl p JOIN voucher_header_tbl v ON v.id=p.voucher_id WHERE p.session_id=${Number(session.id)} AND v.status<>3 GROUP BY p.payment_method ORDER BY p.payment_method`,
     sql`SELECT movement_type,COALESCE(SUM(amount),0) amount,COUNT(*) count FROM pos_cash_movements_tbl WHERE session_id=${Number(session.id)} GROUP BY movement_type`,
   ])
   const currencies=await sql`SELECT sc.*,c.currency_code,c.currency_name FROM pos_session_currencies_tbl sc JOIN currency c ON c.id=sc.currency_id WHERE sc.session_id=${Number(session.id)} ORDER BY sc.currency_id`
   return {...session,movements,payments,movement_totals:totals,currencies}
+  })
 }
 
 export async function GET(request:NextRequest){try{await ensureSalesTables();await ensurePosTables();const pointId=Number(request.nextUrl.searchParams.get("point_id")||0),userId=requestUserId(request);if(!pointId||!userId)return NextResponse.json({error:"بيانات الجلسة غير مكتملة"},{status:400});const point=await getPosPoint(pointId,userId,requestBranchId(request));if(!point)return NextResponse.json({error:"نقطة البيع غير متاحة"},{status:403});const session=await sessionDetails(pointId,userId);const activeShift=(await sql`SELECT s.id,s.shift_guid,us.full_name user_name FROM pos_sessions_tbl s LEFT JOIN user_settings us ON us.user_id=s.user_id WHERE s.pos_point_id=${pointId} AND s.status='open' ORDER BY s.id DESC LIMIT 1`)[0]||null;const pending=await sql`SELECT s.*,p.name point_name,c.currency_name,c.currency_code,us.full_name from_user_name,
@@ -70,10 +74,10 @@ export async function POST(request:NextRequest){
           }
         } else if(action==="handover"){const current=await sql`SELECT currency_id,expected_amount,rate_to_point FROM pos_session_currencies_tbl WHERE session_id=${Number(session.id)}`;const entered=currencyAmounts(data.currency_amounts,await getPosCurrencies(Number(point.currency_id)),Number(point.currency_id),value||amount(session.expected_cash));const handover=evaluated(entered);if(handover<0||(current.length===0&&handover>Number(session.expected_cash)+.009))return NextResponse.json({error:"مبلغ التسليم أكبر من رصيد العهدة"},{status:400});for(const item of entered){const available=current.find((row:any)=>Number(row.currency_id)===item.currency_id);if(item.amount>Number(available?.expected_amount||0)+.009&&current.length)return NextResponse.json({error:`مبلغ ${item.currency_code} أكبر من الرصيد المتاح`},{status:400})}for(const item of entered){await sql`INSERT INTO pos_session_currencies_tbl(session_id,currency_id,opening_amount,expected_amount,handover_amount,rate_to_point) VALUES(${Number(session.id)},${item.currency_id},0,0,${item.amount},${item.rate_to_point}) ON CONFLICT(session_id,currency_id) DO UPDATE SET handover_amount=${item.amount}`};await sql`UPDATE pos_sessions_tbl SET status='handover_pending',handover_amount=${handover},counted_cash=${handover},handover_to_user_id=${String(data.to_user_id||"")||null},updated_at=NOW() WHERE id=${Number(session.id)}`;await sql`INSERT INTO pos_cash_movements_tbl(session_id,movement_type,amount,note,user_id) VALUES(${Number(session.id)},'handover',${handover},${String(data.note||"")},${userId})`;session=null
         } else if(action==="close"){
-          const balances=await sql`SELECT expected_amount,rate_to_point FROM pos_session_currencies_tbl WHERE session_id=${Number(session.id)}`
-          const counted=balances.length
-            ? amount(balances.reduce((sum:number,row:any)=>sum+Number(row.expected_amount||0)*Number(row.rate_to_point||1),0))
-            : amount(session.expected_cash)
+          const balances=await sql`SELECT currency_id,expected_amount,rate_to_point FROM pos_session_currencies_tbl WHERE session_id=${Number(session.id)}`
+          const currencies=await getPosCurrencies(Number(point.currency_id))
+          const entered=currencyAmounts(data.currency_amounts,currencies,Number(point.currency_id),amount(data.amount ?? session.expected_cash))
+          const counted=evaluated(entered.map(row=>({...row,rate_to_point:Number(balances.find((balance:any)=>Number(balance.currency_id)===row.currency_id)?.rate_to_point||row.rate_to_point)})))
           await sql`UPDATE pos_sessions_tbl SET status='closed',counted_cash=${counted},closed_at=NOW(),updated_at=NOW() WHERE id=${Number(session.id)}`
           await sql`INSERT INTO pos_cash_movements_tbl(session_id,movement_type,amount,note,user_id) VALUES(${Number(session.id)},'close',${counted},${String(data.note||"")},${userId})`
           session=null

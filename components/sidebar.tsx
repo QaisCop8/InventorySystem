@@ -406,7 +406,7 @@ export function Sidebar({
 }: SidebarProps) {
   const [expandedMenus, setExpandedMenus] = useState<string[]>([])
   const [companyLogo, setCompanyLogo] = useState("")
-  const [companyName, setCompanyName] = useState("أساس للحلول المحاسبية")
+  const [companyName, setCompanyName] = useState("ARAAK ERP System")
   const { openWindow } = useWindowManager()
   const { menuDarkMode } = useMenuTheme()
 
@@ -423,7 +423,7 @@ export function Sidebar({
         const data = await response.json()
         const settings = data?.settings ?? data
         setCompanyLogo(typeof settings?.company_logo === "string" ? settings.company_logo : "")
-        setCompanyName(String(settings?.company_name || "أساس للحلول المحاسبية"))
+        setCompanyName(String(settings?.company_name || "ARAAK ERP System"))
       } catch (error) {
         console.error("Failed to load company branding", error)
       }

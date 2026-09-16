@@ -59,8 +59,8 @@ export async function GET(request: NextRequest) {
     ])
     const shifts = reportType === "vouchers" || reportType === "transactions"
       ? effectiveBranches.length
-        ? await sql`SELECT vh.shift_guid::text shift_guid, MIN(vh.vch_date)::date first_date FROM voucher_header_tbl vh WHERE vh.shift_guid IS NOT NULL AND vh.branch_id=ANY(${effectiveBranches}::int[]) GROUP BY vh.shift_guid ORDER BY MIN(vh.vch_date) DESC`
-        : await sql`SELECT vh.shift_guid::text shift_guid, MIN(vh.vch_date)::date first_date FROM voucher_header_tbl vh WHERE vh.shift_guid IS NOT NULL GROUP BY vh.shift_guid ORDER BY MIN(vh.vch_date) DESC`
+        ? await sql`SELECT vh.shift_guid::text shift_guid, MIN(vh.vch_date)::date first_date, string_agg(DISTINCT us.full_name,'، ') user_name, string_agg(DISTINCT pp.name,'، ') point_name FROM voucher_header_tbl vh LEFT JOIN pos_sessions_tbl ps ON ps.shift_guid=vh.shift_guid LEFT JOIN user_settings us ON us.user_id=ps.user_id LEFT JOIN pos_points_tbl pp ON pp.id=ps.pos_point_id WHERE vh.shift_guid IS NOT NULL AND vh.branch_id=ANY(${effectiveBranches}::int[]) GROUP BY vh.shift_guid ORDER BY MIN(vh.vch_date) DESC`
+        : await sql`SELECT vh.shift_guid::text shift_guid, MIN(vh.vch_date)::date first_date, string_agg(DISTINCT us.full_name,'، ') user_name, string_agg(DISTINCT pp.name,'، ') point_name FROM voucher_header_tbl vh LEFT JOIN pos_sessions_tbl ps ON ps.shift_guid=vh.shift_guid LEFT JOIN user_settings us ON us.user_id=ps.user_id LEFT JOIN pos_points_tbl pp ON pp.id=ps.pos_point_id WHERE vh.shift_guid IS NOT NULL GROUP BY vh.shift_guid ORDER BY MIN(vh.vch_date) DESC`
       : []
     const meta = { accounts,currencies,branches,salesmen,shifts,voucher_types:Object.entries(voucherNames).map(([id,name])=>({id:Number(id),name})) }
     if (p.get("meta") === "1") return NextResponse.json({meta})

@@ -216,7 +216,7 @@ export default function ManagementCompaniesPage() {
               <path d="M12 8.8l3.4 1.9v3.8L12 16.4l-3.4-1.9v-3.8L12 8.8z" fill="currentColor" opacity="0.65" />
             </svg>
           </div>
-          <span className="hidden text-sm font-semibold text-slate-700 sm:inline">أساس لإدارة الحلول المحاسبية</span>
+          <span className="hidden text-sm font-semibold text-slate-700 sm:inline">ARAAK ERP System</span>
         </div>
         <div className="flex items-center gap-1 sm:gap-2">
           {isPlatformAdmin && (

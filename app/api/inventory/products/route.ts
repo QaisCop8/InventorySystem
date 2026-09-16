@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import sql, { getTenantPool, resolveCurrentDbName } from "@/lib/database"
+import { isScaleProduct, validateScaleProductBarcodes } from "@/lib/scale-barcode"
 import { requireBranchAccess, PermissionDeniedError, ensurePermissionTables } from "@/lib/permissions"
 
 
@@ -29,6 +30,7 @@ async function ensureProductTypeColumns() {
 
   try {
     await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS type INTEGER DEFAULT 1`
+    await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS pos_sold_using_scale BOOLEAN NOT NULL DEFAULT FALSE`
     await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS service_type INTEGER DEFAULT 0`
     await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS product_type INTEGER DEFAULT 1`
     await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS tax_classification_id INTEGER`
@@ -143,13 +145,13 @@ function normalizeProductPayload(productData: any) {
   const normalizeBarcodeList = (value: any): string[] => {
     if (value == null) return []
     if (Array.isArray(value)) {
-      return Array.from(new Set(value.map((barcode: any) => safeText(barcode, "").trim()).filter(Boolean)))
+      return value.map((barcode: any) => safeText(barcode, "").trim()).filter(Boolean)
     }
     const raw = String(value)
       .split(/[;,]+/)
       .map((barcode) => safeText(barcode, "").trim())
       .filter(Boolean)
-    return Array.from(new Set(raw))
+    return raw
   }
 
   const normalizedUnits = Array.isArray(productData?.units)
@@ -789,22 +791,47 @@ export async function POST(request: NextRequest) {
       //client.release();
       return NextResponse.json({ success: false, error: "اسم الصنف مكرر لا يمكن الحفظ" }, { status: 400 });
     }
-    if (Array.isArray(productData.units)) {
-      for (const unit of productData.units) {
-        if (Array.isArray(unit.barcode_list) && unit.barcode_list.length > 0) {
-          const barcodeCheck = await client.query(
-            `SELECT id FROM product_unit_barcodes WHERE barcode = ANY($1::text[]) AND product_id <> $2
-             UNION ALL
-             SELECT id FROM products WHERE TRIM(COALESCE(barcode, '')) = ANY($1::text[]) AND id <> $2
-             LIMIT 1`,
-            [unit.barcode_list,productData.id]
-          );
-          if (barcodeCheck.rows.length > 0) {
-            await client.query("ROLLBACK");
-            //client.release();
-            return NextResponse.json({ success: false, message: `ط£ط­ط¯ ط§ظ„ط¨ط§ط±ظƒظˆط¯ط§طھ ظ…ظˆط¬ظˆط¯ ظ…ط³ط¨ظ‚ط§ظ‹: ${unit.barcode_list.join(", ")}` }, { status: 400 });
-          }
-        }
+    const submittedBarcodes = [
+      safeText(productData.barcode, "").trim(),
+      ...(Array.isArray(productData.units)
+        ? productData.units.flatMap((unit: any) => Array.isArray(unit.barcode_list) ? unit.barcode_list : [])
+        : []),
+    ].filter(Boolean).map((barcode) => String(barcode).trim());
+    const barcodeByKey = new Map<string, string>();
+    const scaleError = validateScaleProductBarcodes(productData.pos_sold_using_scale, submittedBarcodes);
+    if (scaleError) {
+      await client.query("ROLLBACK");
+      return NextResponse.json({ success: false, error: scaleError }, { status: 400 });
+    }
+    let duplicateSubmittedBarcode = "";
+    for (const barcode of submittedBarcodes) {
+      const key = barcode.toLocaleLowerCase("en");
+      if (barcodeByKey.has(key)) {
+        duplicateSubmittedBarcode = barcode;
+        break;
+      }
+      barcodeByKey.set(key, barcode);
+    }
+    if (duplicateSubmittedBarcode) {
+      await client.query("ROLLBACK");
+      return NextResponse.json({ success: false, error: `الباركود ${duplicateSubmittedBarcode} مكرر بين وحدات الصنف` }, { status: 400 });
+    }
+
+    const uniqueBarcodes = Array.from(barcodeByKey.values());
+    if (uniqueBarcodes.length > 0) {
+      const barcodeCheck = await client.query(
+        `SELECT TRIM(barcode) AS barcode FROM product_unit_barcodes
+         WHERE LOWER(TRIM(barcode)) = ANY($1::text[]) AND product_id <> $2
+         UNION ALL
+         SELECT TRIM(barcode) AS barcode FROM products
+         WHERE LOWER(TRIM(COALESCE(barcode, ''))) = ANY($1::text[]) AND id <> $2
+         LIMIT 1`,
+        [uniqueBarcodes.map((barcode) => barcode.toLocaleLowerCase("en")), productData.id]
+      );
+      if (barcodeCheck.rows.length > 0) {
+        await client.query("ROLLBACK");
+        const conflictingBarcode = String(barcodeCheck.rows[0]?.barcode || "");
+        return NextResponse.json({ success: false, error: `الباركود ${conflictingBarcode} مستخدم مسبقاً في صنف أو وحدة أخرى` }, { status: 400 });
       }
     }
     // 1ï¸ڈâƒ£ Insert or update product
@@ -1340,6 +1367,8 @@ export async function POST(request: NextRequest) {
     }
 
     await persistProductCostCenters(client, productId, productData.cost_centers)
+    await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS pos_sold_using_scale BOOLEAN NOT NULL DEFAULT FALSE`)
+    await client.query(`UPDATE products SET pos_sold_using_scale=$1 WHERE id=$2`, [isScaleProduct(productData.pos_sold_using_scale), productId])
     await persistProductBrands(client, productId, productData.product_brands)
     await persistProductNumbers(client, productId, productData.original_numbers, productData.factory_numbers)
 
@@ -1399,6 +1428,13 @@ export async function PUT(request: NextRequest) {
     }
 
     const productData = normalizeProductPayload(requestBody)
+    const currentScaleRows = await sql`SELECT pos_sold_using_scale FROM products WHERE id=${normalizedId}`
+    const scaleEnabled = isScaleProduct(requestBody.pos_sold_using_scale ?? currentScaleRows[0]?.pos_sold_using_scale)
+    if (scaleEnabled) {
+      const unitBarcodes = await sql`SELECT barcode FROM product_unit_barcodes WHERE product_id=${normalizedId}`
+      const scaleError = validateScaleProductBarcodes(true, [productData.barcode, ...unitBarcodes.map((row:any) => row.barcode)])
+      if (scaleError) return NextResponse.json({ error: scaleError }, { status: 400 })
+    }
     const { id, ...updateData } = productData
     const statusValue = normalizeStatus(updateData.status, 1)
 
@@ -1407,6 +1443,7 @@ export async function PUT(request: NextRequest) {
     const result = await sql`
       UPDATE products SET
         product_name = ${safeText(updateData.product_name, "")},
+        pos_sold_using_scale = ${scaleEnabled},
         barcode = ${safeText(updateData.barcode, "")},
         description = ${safeText(updateData.description, "")},
         category_id = ${safeNumber(updateData.category_id, 0) || null},

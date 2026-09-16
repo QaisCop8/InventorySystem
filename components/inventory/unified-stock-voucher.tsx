@@ -166,6 +166,7 @@ interface UnifiedStockVoucherProps {
   currentIndex?: number
   totalRecords?: number
   isFirstRecord?: boolean
+  isLoading?: boolean
   isLastRecord?: boolean
   onNew?: () => void
   onSave: (action?: PostVoucherAction) => void
@@ -447,6 +448,7 @@ export default function UnifiedStockVoucher({
   currentIndex = 0,
   totalRecords = 0,
   isFirstRecord = true,
+  isLoading = false,
   isLastRecord = true,
   onNew,
   onSave,
@@ -2218,6 +2220,7 @@ export default function UnifiedStockVoucher({
           onPrint={onPrint}
           onClone={onClone}
           isSaving={isSaving}
+          isLoading={isLoading}
           canSave={!isLocked}
           canPrint={form.id > 0}
           canClone={form.id > 0}

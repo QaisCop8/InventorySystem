@@ -64,8 +64,8 @@ export function LoginPage({ onLogin, footer, usernameDirection = "rtl" }: LoginP
                 <Boxes className="h-5 w-5" />
               </div>
               <div>
-                <div className="text-base font-bold">نظام أساس</div>
-                <div className="text-[11px] font-medium tracking-[0.12em] text-slate-500">ASAS ERP</div>
+                <div className="text-base font-bold">ARAAK ERP System</div>
+                <div className="text-[11px] font-medium tracking-[0.12em] text-slate-500">ARAAK ERP</div>
               </div>
             </div>
             <div className="flex items-center gap-1.5 rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700">
@@ -123,7 +123,7 @@ export function LoginPage({ onLogin, footer, usernameDirection = "rtl" }: LoginP
           </div>
 
           <footer className="flex items-center justify-between gap-4 border-t border-slate-100 pt-5 text-[11px] text-slate-400">
-            <span>© {new Date().getFullYear()} نظام أساس</span>
+            <span>© {new Date().getFullYear()} ARAAK ERP System</span>
             <span className="flex items-center gap-1.5"><ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />بياناتك محمية ومشفّرة</span>
           </footer>
         </div>

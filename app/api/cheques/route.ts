@@ -71,6 +71,7 @@ export async function GET(request: NextRequest) {
       LEFT JOIN account_tbl current_account ON current_account.id=c.current_account_id
       LEFT JOIN voucher_header_tbl vh ON vh.id=c.voucher_id
       WHERE c.cheq_type=${chequeType}
+        AND COALESCE(vh.status,1)<>3
         AND (${!operation} OR (
           (CASE WHEN c.status_id IN (1,2) AND c.due_date IS NOT NULL
             AND NOT EXISTS (SELECT 1 FROM cheque_operations_log_tbl l WHERE l.cheque_id=c.id AND COALESCE(l.status,1)<>9)

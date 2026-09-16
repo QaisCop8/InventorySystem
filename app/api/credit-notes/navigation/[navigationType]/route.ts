@@ -3,9 +3,9 @@ import sql from "@/lib/database"
 import { fetchCreditNoteDetails } from "../../_lib"
 import { authorizeTransaction, transactionFamilyForVoucherType } from "@/lib/transaction-permissions"
 
-export async function GET(request: NextRequest, { params }: { params: { navigationType: string } }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ navigationType: string }> }) {
   try {
-    const { navigationType } = params
+    const { navigationType } = await params
     const currentId = Number(request.nextUrl.searchParams.get("currentId") || 0)
     const vchType = Number(request.nextUrl.searchParams.get("vch_type") || 10)
     const family = transactionFamilyForVoucherType(vchType)

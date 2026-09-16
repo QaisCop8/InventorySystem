@@ -66,21 +66,20 @@ export function UniversalToolbar({
   const compact = width < (iconOnly ? 620 : 920)
   const veryCompact = width < 560
   const hasUtilities = Boolean(onPrint || onClone || onReport || onExportExcel || onDelete)
-  const disablePrevious = isLoading || !hasRecords || (!isNewRecord && isFirstRecord)
-  const disableNext = isLoading || !hasRecords || (!isNewRecord && isLastRecord)
+  const navigationBusy = isLoading || isSaving
   const previous = () => isNewRecord ? onLast?.() : onPrevious?.()
   const next = () => isNewRecord ? onLast?.() : onNext?.()
 
   const navigation = (
     <div className="universal-toolbar-navigation flex items-center gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1" aria-label="التنقل بين السجلات">
-      {onFirst && <Button type="button" variant="ghost" title={labels.first} onClick={onFirst} disabled={false} className={navClass}><ChevronsRight className="h-4 w-4" /></Button>}
-      {onPrevious && <Button type="button" variant="ghost" title={labels.previous} onClick={previous} disabled={false} className={navClass}><ChevronRight className="h-4 w-4" /></Button>}
+      {onFirst && <Button type="button" variant="ghost" title={labels.first} onClick={onFirst} disabled={navigationBusy} className={navClass}><ChevronsRight className="h-4 w-4" /></Button>}
+      {onPrevious && <Button type="button" variant="ghost" title={labels.previous} onClick={previous} disabled={navigationBusy} className={navClass}><ChevronRight className="h-4 w-4" /></Button>}
       <div className="universal-toolbar-record flex h-9 min-w-[84px] items-center justify-center gap-1.5 rounded-lg bg-white px-3 text-xs font-bold text-slate-700 shadow-sm ring-1 ring-slate-200">
         {isLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin text-indigo-500" /> : <span className="h-2 w-2 rounded-full bg-indigo-500" />}
         <span dir="ltr">{hasRecords ? `${Math.max(1, currentRecord)} / ${totalRecords}` : "0 / 0"}</span>
       </div>
-      {onNext && <Button type="button" variant="ghost" title={labels.next} onClick={next} disabled={false} className={navClass}><ChevronLeft className="h-4 w-4" /></Button>}
-      {onLast && <Button type="button" variant="ghost" title={labels.last} onClick={onLast} disabled={false} className={navClass}><ChevronsLeft className="h-4 w-4" /></Button>}
+      {onNext && <Button type="button" variant="ghost" title={labels.next} onClick={next} disabled={navigationBusy} className={navClass}><ChevronLeft className="h-4 w-4" /></Button>}
+      {onLast && <Button type="button" variant="ghost" title={labels.last} onClick={onLast} disabled={navigationBusy} className={navClass}><ChevronsLeft className="h-4 w-4" /></Button>}
     </div>
   )
 

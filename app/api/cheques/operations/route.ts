@@ -133,6 +133,7 @@ export async function POST(request: NextRequest) {
         FROM cheques_tbl c
         LEFT JOIN voucher_header_tbl source ON source.id=c.voucher_id
         WHERE c.id=${chequeId}
+          AND COALESCE(source.status,1)<>3
         FOR UPDATE OF c
       `)[0]
       if (!cheque) return NextResponse.json({error:"الشيك غير موجود"},{status:404})

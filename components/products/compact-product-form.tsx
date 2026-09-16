@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
+import { isScaleProduct, validateScaleProductBarcodes } from "@/lib/scale-barcode"
 import { Separator } from "@/components/ui/separator"
 import { UniversalToolbar } from "@/components/ui/universal-toolbar"
 import { Package, Save, X, Barcode, DollarSign, Warehouse, Truck, Info, Settings, Package2, Plus, Currency, SlidersHorizontal } from "lucide-react"
@@ -184,6 +185,8 @@ interface ProductFormData {
   last_purchase_price: number
   minimum_order_quantity: number
   related_items_mode: number
+  pos_sold_using_scale: boolean
+  barcode?: string
 
   currency_id: number
   tax_rate: number
@@ -261,6 +264,7 @@ export const initialFormData: ProductFormData = {
   last_purchase_price: 0,
   minimum_order_quantity: 0,
   related_items_mode: 1,
+  pos_sold_using_scale: false,
 
   currency_id: 0,
   tax_rate: 15,
@@ -556,6 +560,12 @@ export function CompactProductForm({
     }
 
     const unitIds = new Set<number>();
+    const scaleError = validateScaleProductBarcodes(formData.pos_sold_using_scale, [formData.barcode, ...(formData.units ?? []).flatMap(unit => unit.barcode_list ?? [])]);
+    if (scaleError) {
+      toast.current?.show({ severity: "error", summary: "باركود الميزان", detail: scaleError, life: 4000 });
+      return false;
+    }
+    const barcodeOwners = new Map<string, string>();
     for (const unit of formData.units ?? []) {
       if (unitIds.has(unit.unit_id)) {
         toast.current?.show({
@@ -567,6 +577,23 @@ export function CompactProductForm({
         return false;
       }
       unitIds.add(unit.unit_id);
+      for (const rawBarcode of unit.barcode_list ?? []) {
+        const barcode = String(rawBarcode ?? "").trim();
+        if (!barcode) continue;
+        const key = barcode.toLocaleLowerCase("en");
+        const previousUnit = barcodeOwners.get(key);
+        if (previousUnit) {
+          toast.current?.show({
+            severity: "error",
+            summary: "باركود مكرر",
+            detail: `الباركود ${barcode} مكرر في وحدتي ${previousUnit} و${unit.unit_name || "بدون اسم"}`,
+            life: 4000,
+          });
+          setActiveTab("units");
+          return false;
+        }
+        barcodeOwners.set(key, unit.unit_name || "بدون اسم");
+      }
     }
 
     const storeIds = new Set<number>();
@@ -891,6 +918,7 @@ export function CompactProductForm({
 
     const newFormData = {
       ...product,
+      pos_sold_using_scale: isScaleProduct(product.pos_sold_using_scale),
       product_type: Number(product.product_type ?? 1) || 1,
       units: unitsWithNames,
       prices: pricesWithNames,
@@ -2768,6 +2796,8 @@ export function CompactProductForm({
                           }}
                           unitName={dialogUnitName}
                           barcodes={dialogBarcodes}
+                          reservedBarcodes={(formData.units ?? []).flatMap((unit, index) => index === unitCurrentRow ? [] : (unit.barcode_list ?? []))}
+                          soldUsingScale={Boolean(formData.pos_sold_using_scale)}
                           onUpdateBarcodes={(newBarcodes) => setDialogBarcodes(newBarcodes)}
                         />
                       </div>
@@ -3252,6 +3282,10 @@ export function CompactProductForm({
                         </div>
                         <Separator className="my-4" />
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                          {!isService && <div className="space-y-2 sm:col-span-3">
+                            <div className="flex items-center gap-2"><Checkbox id="pos_sold_using_scale" checked={Boolean(formData.pos_sold_using_scale)} onCheckedChange={checked => updateFormData("pos_sold_using_scale", checked === true)} /><Label htmlFor="pos_sold_using_scale">يباع بالميزان الالكتروني</Label></div>
+                            {formData.pos_sold_using_scale && <p className="text-xs text-muted-foreground">باركود الصنف 7 أرقام مثل 2000001. الأرقام الستة التالية في باركود الميزان تمثل الكمية مقسومة على 1000.</p>}
+                          </div>}
                           <div className="flex items-center gap-2">
                             <Checkbox
                               id="expiry_tracking"

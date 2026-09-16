@@ -275,7 +275,10 @@ export default function UnifiedCreditNote({
     [currencies],
   )
 
+  const navigationPending = useRef(false)
   const handleNavigate = async (direction: "first" | "previous" | "next" | "last") => {
+    if (navigationPending.current || isSaving) return
+    navigationPending.current = true
     setNavLoading(true)
     try {
       const currentId = form.id > 0 ? form.id : 0
@@ -287,7 +290,7 @@ export default function UnifiedCreditNote({
       query.set("currentId", String(currentId))
       query.set("vch_type", String(form.vch_type))
 
-      const response = await fetch(`/api/credit-notes/navigation/${effectiveDirection}?${query.toString()}`)
+      const response = await fetch(`/api/credit-notes/navigation/${effectiveDirection}?${query.toString()}`, { cache: "no-store" })
       if (!response.ok) return
 
       const record = await response.json()
@@ -295,6 +298,7 @@ export default function UnifiedCreditNote({
     } catch (error) {
       console.error("Failed to navigate voucher", error)
     } finally {
+      navigationPending.current = false
       setNavLoading(false)
     }
   }
@@ -427,6 +431,7 @@ export default function UnifiedCreditNote({
             onPrevious={() => guardedAction(() => void handleNavigate("previous"))}
             onNext={() => guardedAction(() => void handleNavigate("next"))}
             onLast={() => guardedAction(() => void handleNavigate("last"))}
+            isLoading={navLoading}
             isSaving={isSaving}
             canSave={canSave && form.status !== 2 && form.status !== 3}
             canDelete={form.id > 0 && form.status !== 3}

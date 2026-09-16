@@ -8,6 +8,7 @@ import { Search } from "lucide-react"
 export type PosInvoice = {
   id: number; vch_code: string; vch_date: string; vch_type: number; customer_name: string
   amount: number; status: number; payments?: Array<{ method: string; amount: number; reference?: string }>
+  pos_receipt_voucher_id?: number | null; receipt_vch_code?: string | null
   items?: Array<{ id: number; product_name?: string; item_name?: string; qnty?: number; quantity?: number; price?: number; discount?: number; total_price?: number; line_amount?: number }>
 }
 type Props = {
@@ -34,7 +35,7 @@ export function PosInvoiceHistoryDialog(p: Props) {
       {error && <p className="mx-4 mt-3 rounded-xl bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
       <div className="min-h-0 flex-1 overflow-y-auto bg-slate-50 p-3 dark:bg-slate-900">
         {rows.map(row => <button key={row.id} type="button" onClick={() => onSelect(row)} className="mb-2 flex w-full items-center justify-between gap-3 rounded-xl border bg-white p-3 text-right transition hover:border-emerald-400 hover:bg-emerald-50 dark:bg-slate-950">
-          <div className="min-w-0"><div className="flex items-center gap-2"><strong>{row.vch_code}</strong><span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px]">{typeName(row.vch_type)}</span></div><p className="mt-1 truncate text-xs text-slate-500">{row.customer_name || "عميل نقدي"} · {String(row.vch_date).slice(0, 10)}</p></div>
+          <div className="min-w-0"><div className="flex items-center gap-2"><strong>{row.vch_code}</strong><span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px]">{typeName(row.vch_type)}</span></div><p className="mt-1 truncate text-xs text-slate-500">{row.customer_name || "عميل نقدي"} · {String(row.vch_date).slice(0, 10)}</p>{row.receipt_vch_code && <p className="mt-1 text-xs text-emerald-700 dark:text-emerald-400">سند قبض: {row.receipt_vch_code}</p>}</div>
           <b dir="ltr" className="shrink-0 tabular-nums">{money(row.amount)} {currencyCode}</b>
         </button>)}
         {!rows.length && <p className="py-12 text-center text-sm text-slate-500">{loading ? "جاري التحميل..." : "لا توجد فواتير مطابقة"}</p>}

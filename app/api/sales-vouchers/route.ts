@@ -1,5 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
-import sql from "@/lib/database"
+import sql, { withTenantTransaction } from "@/lib/database"
+import { deletePosReceipt } from "@/app/api/pos/_receipts"
+import { reversePosSessionPayments } from "@/app/api/pos/_session-payments"
 import {
   ensureTables,
   saveSalesVoucherItems,
@@ -583,6 +585,7 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
+    return await withTenantTransaction(async () => {
     await ensureTables()
     const data = await request.json()
     const family = transactionFamilyForVoucherType(Number(data.vch_type))
@@ -599,11 +602,26 @@ export async function PUT(request: NextRequest) {
     const vchType = Number(data.vch_type)
     const status = Number(data.status ?? 1)
 
-    const currentRows = await sql`SELECT status FROM voucher_header_tbl WHERE id = ${data.id}`
+    const currentRows = await sql`SELECT * FROM voucher_header_tbl WHERE id = ${data.id} FOR UPDATE`
     if (currentRows.length === 0) return NextResponse.json({ error: "السند غير موجود" }, { status: 404 })
     const previousStatus = Number(currentRows[0].status)
-    if (previousStatus === 2 && status !== 3) {
+    if ([2, 3].includes(previousStatus) && status !== 3) {
       return NextResponse.json({ error: "السند مرحل ولا يمكن تعديله" }, { status: 400 })
+    }
+
+    if (status === 3) {
+      const voucher = currentRows[0]
+      if (previousStatus !== 3) {
+        await deletePosReceipt(request, Number(voucher.id))
+        await reversePosSessionPayments(voucher)
+        const affectedOrderIds = Number(voucher.vch_type) === SALES_INVOICE_VCH_TYPE
+          ? await getSalesOrderIdsForVoucher(voucher.id) : []
+        await reverseSalesVoucherStockMovement(voucher.id)
+        await sql`UPDATE voucher_header_tbl SET status=3,vch_status=1,last_update_date=CURRENT_TIMESTAMP WHERE id=${voucher.id}`
+        await refreshSalesOrderFulfillment(affectedOrderIds)
+      }
+      const savedItems = await fetchSalesVoucherItems(Number(voucher.id))
+      return NextResponse.json({ ...voucher, status: 3, vch_status: 1, city_id: voucher.location_id, items: savedItems })
     }
 
     let items: any[] = []
@@ -702,17 +720,6 @@ export async function PUT(request: NextRequest) {
           order_item_id: null,
         }))
 
-    if (status === 3) {
-      const affectedOrderIds = vchType === SALES_INVOICE_VCH_TYPE
-        ? await getSalesOrderIdsForVoucher(voucher.id)
-        : []
-      await reverseSalesVoucherStockMovement(voucher.id)
-      await sql`DELETE FROM voucher_journal_detail_tbl WHERE voucher_id = ${voucher.id}`
-      await sql`DELETE FROM voucher_items_tbl WHERE voucher_id = ${voucher.id}`
-      await refreshSalesOrderFulfillment(affectedOrderIds)
-      return NextResponse.json({ ...voucher, city_id: voucher.location_id, items: [] })
-    }
-
     const savedItems = await saveSalesVoucherItems(voucher.id, itemsToSave)
     if ((ITEM_ACCOUNT_VCH_TYPES as readonly number[]).includes(vchType)) {
       const journalIds = await saveJournalRows(voucher.id, journalRows)
@@ -741,9 +748,10 @@ export async function PUT(request: NextRequest) {
       tax_account_name: journalAccounts.taxAccount?.name ?? "",
       items: savedItemsWithNames,
     })
+    })
   } catch (error) {
     console.error("Error updating sales voucher:", error)
     const message = error instanceof Error ? error.message : String(error)
-    return NextResponse.json({ error: message || "Failed to update sales voucher" }, { status: 500 })
+    return NextResponse.json({ error: message || "Failed to update sales voucher" }, { status: Number((error as {status?:number})?.status)||500 })
   }
 }

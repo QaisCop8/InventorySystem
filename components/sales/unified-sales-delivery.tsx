@@ -2485,10 +2485,10 @@ export default function UnifiedSalesDelivery({
             }
             setShowDeleteConfirm(true)
           }}
-          onFirst={() => { console.debug('[UnifiedSalesDelivery] toolbar: first clicked'); guardedAction(() => onNavigate?.("last")) }}
-          onPrevious={() => { console.debug('[UnifiedSalesDelivery] toolbar: previous clicked'); guardedAction(() => onNavigate?.("next")) }}
-          onNext={() => { console.debug('[UnifiedSalesDelivery] toolbar: next clicked'); guardedAction(() => onNavigate?.("previous")) }}
-          onLast={() => { console.debug('[UnifiedSalesDelivery] toolbar: last clicked'); guardedAction(() => onNavigate?.("first")) }}
+          onFirst={() => guardedAction(() => onNavigate?.("first"))}
+          onPrevious={() => guardedAction(() => onNavigate?.("previous"))}
+          onNext={() => guardedAction(() => onNavigate?.("next"))}
+          onLast={() => guardedAction(() => onNavigate?.("last"))}
           onPrint={onPrint}
           onClone={onClone}
           isSaving={isSaving}

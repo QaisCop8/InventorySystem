@@ -188,6 +188,7 @@ export const ensureTables = async () => {
   await sql`ALTER TABLE voucher_header_tbl ADD COLUMN IF NOT EXISTS shipping_address TEXT`
   await sql`ALTER TABLE voucher_header_tbl ADD COLUMN IF NOT EXISTS salesman_id INTEGER`
   await sql`ALTER TABLE voucher_header_tbl ADD COLUMN IF NOT EXISTS linked_order_id INTEGER`
+  await sql`ALTER TABLE voucher_header_tbl ADD COLUMN IF NOT EXISTS pos_receipt_voucher_id INTEGER REFERENCES voucher_header_tbl(id)`
   // Drop deprecated header-level source columns — linkage is item-level now.
   await sql`ALTER TABLE voucher_header_tbl DROP COLUMN IF EXISTS invoice_source_type`
   await sql`ALTER TABLE voucher_header_tbl DROP COLUMN IF EXISTS source_voucher_id`

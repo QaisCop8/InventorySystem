@@ -615,17 +615,17 @@ html[dir="rtl"] .wj-flexgrid .wj-header {
 
 /* DataGridView actions: compact modern controls with stable action colors. */
 .wj-flexgrid .wj-cell:has(> .wj-cell-maker-btn) {
-  gap: 6px;
-  padding: 5px !important;
+  gap: 4px;
+  padding: 3px !important;
 }
 
 .wj-flexgrid .wj-cell > .wj-cell-maker-btn {
-  width: min(36px, calc(var(--datagrid-row-height, 50px) - 10px)) !important;
-  min-width: min(36px, calc(var(--datagrid-row-height, 50px) - 10px)) !important;
-  height: min(36px, calc(var(--datagrid-row-height, 50px) - 10px)) !important;
-  min-height: min(36px, calc(var(--datagrid-row-height, 50px) - 10px)) !important;
+  width: 30px !important;
+  min-width: 30px !important;
+  height: 30px !important;
+  min-height: 30px !important;
   border: 1px solid #dbe3ec !important;
-  border-radius: 12px !important;
+  border-radius: 9px !important;
   background: linear-gradient(180deg, #fff, #f1f5f9) !important;
   color: #475569 !important;
   box-shadow: 0 1px 2px rgba(15, 23, 42, .08), 0 4px 10px rgba(15, 23, 42, .05) !important;
@@ -661,7 +661,8 @@ html[dir="rtl"] .wj-flexgrid .wj-header {
 .wj-flexgrid .wj-cell > .wj-cell-maker-btn.btn-info,
 .wj-flexgrid .wj-cell > .wj-cell-maker-btn.pi-search,
 .wj-flexgrid .wj-cell > .wj-cell-maker-btn.pi-pencil,
-.wj-flexgrid .wj-cell > .wj-cell-maker-btn.pi-eye {
+.wj-flexgrid .wj-cell > .wj-cell-maker-btn.pi-eye,
+.wj-flexgrid .wj-cell > .wj-cell-maker-btn.pi-qrcode {
   border-color: #bae6fd !important;
   background: linear-gradient(180deg, #f0f9ff, #e0f2fe) !important;
   color: #0369a1 !important;
@@ -670,7 +671,8 @@ html[dir="rtl"] .wj-flexgrid .wj-header {
 .wj-flexgrid .wj-cell > .wj-cell-maker-btn.btn-info:hover,
 .wj-flexgrid .wj-cell > .wj-cell-maker-btn.pi-search:hover,
 .wj-flexgrid .wj-cell > .wj-cell-maker-btn.pi-pencil:hover,
-.wj-flexgrid .wj-cell > .wj-cell-maker-btn.pi-eye:hover {
+.wj-flexgrid .wj-cell > .wj-cell-maker-btn.pi-eye:hover,
+.wj-flexgrid .wj-cell > .wj-cell-maker-btn.pi-qrcode:hover {
   border-color: #0284c7 !important;
   background: linear-gradient(135deg, #0284c7, #0369a1) !important;
   color: #fff !important;
@@ -730,7 +732,14 @@ html[dir="rtl"] .wj-flexgrid .wj-header {
 .wj-flexgrid .wj-cell > .wj-cell-maker-btn i,
 .wj-flexgrid .wj-cell > .wj-cell-maker-btn svg {
   color: inherit !important;
-  font-size: 15px !important;
+  font-size: 14px !important;
+  font-weight: 700 !important;
+}
+
+/* Keep compact rows from clipping action controls into tiny circles. */
+.wj-flexgrid .wj-row .wj-cell > .wj-cell-maker-btn {
+  max-width: calc(100% - 2px);
+  max-height: calc(100% - 2px);
 }
 
 .dark .wj-flexgrid .wj-cell > .wj-cell-maker-btn.btn-default {

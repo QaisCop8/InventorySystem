@@ -6,6 +6,8 @@ import { regenerateVoucherCode, STOCK_OUT_VCH_TYPE } from "@/app/api/stock-vouch
 import { ensureTables, generateSalesVoucherCode, SALES_INVOICE_VCH_TYPE, RETURN_SELL_VCH_TYPE } from "@/app/api/sales-vouchers/_lib"
 import { ensurePosTables, getOpenPosSession, getPosPoint, requestBranchId, requestUserId } from "../_lib"
 import { getPosCurrencies } from "@/lib/pos-currencies"
+import { needsPosReceipt } from "@/lib/pos-receipt"
+import { createPosReceipt } from "../_receipts"
 
 export async function POST(request: NextRequest) {
   try {
@@ -68,6 +70,18 @@ export async function POST(request: NextRequest) {
         const configured:Record<string,number|null>={cash:Number(point.cash_account_id)||null,card:Number(point.card_account_id)||null,cheque:Number(point.cheque_account_id)||null,account:Number(data.account_id||point.receivable_account_id)||null,gift_card:Number(point.gift_account_id)||null}
         return {...payment,payment_method:method,account_id:configured[method]||null}
       })
+      const customerRequired = payments.some((payment:any)=>Number(payment.currency_amount??payment.amount)>0&&["cheque","account"].includes(payment.payment_method))
+      if(customerRequired){
+        const customerId=Number(data.pos_customer_id)
+        const customer=customerId?(await sql`SELECT id,name FROM account_tbl WHERE id=${customerId} AND COALESCE(status,1)<>3 AND type IN (2,3,5)`)[0]:null
+        if(!customer||customerId===Number(point.walk_in_account_id))return NextResponse.json({error:"اختر العميل في تفاصيل الدفع بدلاً من العميل النقدي"},{status:400})
+        data.account_id=Number(customer.id);data.customer_name=String(customer.name)
+        for(const payment of payments)if(payment.payment_method==="account")payment.account_id=Number(customer.id)
+      }else if(payments.some((payment:any)=>payment.payment_method==="card"&&Number(payment.currency_amount??payment.amount)>0)){
+        const walkInId=Number(point.walk_in_account_id)
+        const walkIn=walkInId?(await sql`SELECT id FROM account_tbl WHERE id=${walkInId} AND COALESCE(status,1)<>3`)[0]:null
+        data.account_id=walkIn?walkInId:null;data.customer_name="عميل نقدي"
+      }
       if(Array.isArray(data.cash_currency_amounts)){
         const currencies=await getPosCurrencies(Number(point.currency_id)),seen=new Set<number>()
         const cashPayments=[] as any[]
@@ -145,11 +159,17 @@ export async function POST(request: NextRequest) {
         }),
       })
       const response=await createSalesVoucher(forwarded)
-      if(!response.ok)return response
+      if(!response.ok){const failure=await response.json();throw Object.assign(new Error(String(failure.error||"تعذر حفظ الفاتورة")),{status:response.status})}
       const saved=await response.clone().json()
+      const receipt=!isReturn&&needsPosReceipt(payments)?await createPosReceipt(request,saved,point,userId,payments):null
       await sql`UPDATE pos_sale_payments_tbl SET pos_point_id=${pointId},session_id=${Number(session.id)} WHERE voucher_id=${Number(saved.id)}`
       await sql`UPDATE voucher_header_tbl SET pos_session_id=${Number(session.id)},shift_guid=${String(session.shift_guid)}::uuid WHERE id=${Number(saved.id)}`
       for(const payment of payments.filter((p:any)=>p.payment_method==="cheque")){
+        if(receipt){
+          await sql`UPDATE cheques_tbl SET amount=${Number(payment.currency_amount??payment.amount)},currency_id=${Number(payment.currency_id||point.currency_id)},rate=${Number(availableCurrencies.find(row=>row.currency_id===Number(payment.currency_id||point.currency_id))?.exchange_rate||data.rate||1)}
+            WHERE voucher_id=${Number(receipt.id)} AND cheq_num=${String(payment.reference||"").trim()} AND bank_account=${String(payment.cheque_account||"").trim()}`
+          continue
+        }
         await sql`
           INSERT INTO cheques_tbl (
             voucher_id,cheq_type,bank_account,cheq_num,bank_id,branch_id,amount,currency_id,rate,
@@ -173,10 +193,10 @@ export async function POST(request: NextRequest) {
           ON CONFLICT(session_id,currency_id) DO UPDATE SET expected_amount=pos_session_currencies_tbl.expected_amount+${delta}`
       }
       for(const payment of payments.filter((p:any)=>p.payment_method==="gift_card"))await sql`UPDATE pos_gift_cards_tbl SET balance=balance-${Number(payment.amount)},updated_at=NOW() WHERE code=${String(payment.reference||"").trim()}`
-      return response
+      return NextResponse.json({...saved,pos_receipt_voucher_id:receipt?Number(receipt.id):null,receipt_vch_code:receipt?.vch_code||null},{status:201})
     })
   } catch (error) {
     console.error("Error creating POS sale:", error)
-    return NextResponse.json({ error: error instanceof Error ? error.message : "فشل حفظ عملية البيع" }, { status: 500 })
+    return NextResponse.json({ error: error instanceof Error ? error.message : "فشل حفظ عملية البيع" }, { status: Number((error as {status?:number})?.status)||500 })
   }
 }

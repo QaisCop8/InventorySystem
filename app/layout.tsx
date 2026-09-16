@@ -55,14 +55,14 @@ const inter = Inter({
 })
 
 export const metadata: Metadata = {
-  title: "أساس للحلول المحاسبية",
-  description: "أساس للحلول المحاسبية",
+  title: "ARAAK ERP System",
+  description: "ARAAK ERP System",
   generator: "v0.app",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "أساس للحلول المحاسبية",
+    title: "ARAAK ERP System",
   },
   icons: {
     icon: "/icon-192.jpg",

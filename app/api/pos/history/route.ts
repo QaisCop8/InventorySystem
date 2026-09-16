@@ -25,6 +25,8 @@ export async function GET(request: NextRequest) {
 
     const rows = await sql`
       SELECT vh.id, vh.vch_code, vh.vch_date, vh.vch_type, vh.customer_name, vh.amount, vh.status,
+        vh.pos_receipt_voucher_id,
+        (SELECT receipt.vch_code FROM voucher_header_tbl receipt WHERE receipt.id=vh.pos_receipt_voucher_id) receipt_vch_code,
         COALESCE((SELECT json_agg(json_build_object('method', p.payment_method, 'amount', p.amount, 'reference', p.reference, 'due_date', p.due_date) ORDER BY p.id) FROM pos_sale_payments_tbl p WHERE p.voucher_id = vh.id), '[]') payments
       FROM voucher_header_tbl vh
       WHERE (EXISTS (SELECT 1 FROM pos_sale_payments_tbl p WHERE p.voucher_id = vh.id AND p.pos_point_id = ${pointId}) OR (vh.pos_point_id = ${pointId} AND vh.vch_type = 9))
@@ -67,7 +69,6 @@ export async function DELETE(request: NextRequest) {
         return NextResponse.json({ error: "يمكن حذف فواتير الوردية الحالية فقط" }, { status: 400 })
       if (Number(voucher.status) === 3)
         return NextResponse.json({ error: "الفاتورة محذوفة بالفعل" }, { status: 400 })
-      const payments = Number(voucher.vch_type) === 9 ? [] : await sql`SELECT * FROM pos_sale_payments_tbl WHERE voucher_id = ${id} FOR UPDATE`
       const forwarded = new NextRequest(new URL(Number(voucher.vch_type) === 9 ? "/api/stock-vouchers" : "/api/sales-vouchers", request.url), {
         method: "PUT", headers: request.headers, body: JSON.stringify({ ...voucher, id, status: 3, items: [] }),
       })
@@ -76,21 +77,6 @@ export async function DELETE(request: NextRequest) {
         const failure = await result.json()
         throw Object.assign(new Error(String(failure?.error || "تعذر حذف الفاتورة")), { status: result.status })
       }
-      const cash = payments.filter((row: any) => row.payment_method === "cash")
-      const sign = Number(voucher.vch_type) === 16 ? 1 : -1
-      const cashTotal = cash.reduce((sum: number, row: any) => sum + Number(row.amount || 0), 0)
-      if (cashTotal) {
-        await sql`UPDATE pos_sessions_tbl SET expected_cash = expected_cash + ${sign * cashTotal}, updated_at = NOW() WHERE id = ${Number(session.id)}`
-        await sql`DELETE FROM pos_cash_movements_tbl WHERE session_id = ${Number(session.id)} AND reference = ${String(voucher.vch_code)} AND movement_type IN ('sale','refund')`
-      }
-      for (const payment of cash) {
-        const currencyId = Number(payment.currency_id || point.currency_id)
-        const original = Number(payment.currency_amount ?? payment.amount)
-        await sql`UPDATE pos_session_currencies_tbl SET expected_amount = expected_amount + ${sign * original} WHERE session_id = ${Number(session.id)} AND currency_id = ${currencyId}`
-      }
-      for (const payment of payments.filter((row: any) => row.payment_method === "gift_card"))
-        await sql`UPDATE pos_gift_cards_tbl SET balance = balance + ${Number(payment.amount)}, updated_at = NOW() WHERE code = ${String(payment.reference || "")}`
-      await sql`DELETE FROM pos_sale_payments_tbl WHERE voucher_id = ${id}`
       return NextResponse.json({ success: true })
     })
   } catch (error) {

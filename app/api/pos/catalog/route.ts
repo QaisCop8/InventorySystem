@@ -11,10 +11,26 @@ export async function GET(request:NextRequest) {
     const point=await getPosPoint(pointId,userId,requestBranchId(request)); if(!point)return NextResponse.json({error:"نقطة البيع غير متاحة لهذا المستخدم أو الفرع"},{status:403})
     const [products,customers,rates,session,salesmen,banks,bankBranches,cardTypes]=await Promise.all([
       sql`
-        SELECT p.id,p.product_code,p.product_name,p.barcode,p.product_image,p.selling_account_id,p.selling_returns_account_id,
+        SELECT p.id,p.product_code,p.product_name,p.barcode,p.product_image,p.selling_account_id,p.selling_returns_account_id,p.pos_sold_using_scale,
                COALESCE(NULLIF(ig.group_name,''),NULLIF(main_group.group_name,''),'غير مصنف') category_name,
                u.id unit_id,u.unit_name,COALESCE(pu.first_barcode,p.barcode,'') first_barcode,
                COALESCE(pr.price,0) source_price,pr.currency_id price_currency_id,
+               COALESCE((
+                 SELECT jsonb_agg(jsonb_build_object(
+                   'barcode',pub.barcode,'unit_id',all_pu.unit_id,'unit_name',all_u.unit_name,
+                   'source_price',COALESCE(all_pr.price,0),'price_currency_id',all_pr.currency_id
+                 ) ORDER BY pub.id)
+                 FROM product_unit_barcodes pub
+                 JOIN product_units all_pu ON all_pu.id=pub.unit_id AND all_pu.product_id=p.id
+                 JOIN units all_u ON all_u.id=all_pu.unit_id
+                 LEFT JOIN LATERAL (
+                   SELECT pp.price,pp.currency_id FROM product_prices pp
+                   WHERE pp.product_id=p.id AND pp.price_category_id=${Number(point.price_category_id)}
+                     AND pp.unit_id IN (all_pu.id,all_pu.unit_id)
+                   ORDER BY CASE WHEN pp.unit_id=all_pu.id THEN 0 ELSE 1 END,pp.id DESC LIMIT 1
+                 ) all_pr ON TRUE
+                 WHERE pub.product_id=p.id
+               ),'[]'::jsonb) barcode_options,
                COALESCE(
                  (SELECT SUM(CASE WHEN it.transaction_type='in' THEN it.quantity ELSE -it.quantity END)
                   FROM inventory_transactions it WHERE it.product_id=p.id AND it.warehouse_id=${Number(point.main_warehouse_id)}),
@@ -65,7 +81,14 @@ export async function GET(request:NextRequest) {
       if(!sourceRate||sourceRate<=0)throw new Error(`لا يوجد سعر صرف صالح لعملة بيع الصنف ${product.product_code||product.product_name} حتى اليوم`)
       const firstPrice=sourceCurrencyId===pointCurrencyId?sourcePrice:Math.round(sourcePrice*sourceRate/pointRate*10000)/10000
       const {source_price,price_currency_id,...rest}=product
-      return {...rest,first_price:firstPrice}
+      const barcodeOptions=(Array.isArray(product.barcode_options)?product.barcode_options:[]).map((option:any)=>{
+        const optionSourcePrice=Number(option.source_price||0)
+        const optionCurrencyId=Number(option.price_currency_id||pointCurrencyId)
+        const optionRate=optionCurrencyId===pointCurrencyId?pointRate:rateByCurrency.get(optionCurrencyId)
+        if(!optionRate||optionRate<=0)throw new Error(`لا يوجد سعر صرف صالح لعملة بيع الصنف ${product.product_code||product.product_name} حتى اليوم`)
+        return {barcode:String(option.barcode||''),unit_id:Number(option.unit_id)||null,unit_name:String(option.unit_name||''),price:optionCurrencyId===pointCurrencyId?optionSourcePrice:Math.round(optionSourcePrice*optionRate/pointRate*10000)/10000}
+      })
+      return {...rest,first_price:firstPrice,barcode_options:barcodeOptions}
     })
     return NextResponse.json({point:{...point,exchange_rate:pointRate},products:pricedProducts,customers,salesmen,banks,bankBranches,cardTypes,
       currencies:rates.filter((row:any)=>Number(row.exchange_rate)>0).map((row:any)=>({...row,rate_to_point:Number(row.exchange_rate)/pointRate})),

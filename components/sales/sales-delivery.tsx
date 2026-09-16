@@ -735,6 +735,7 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
           return
         }
         const saved = await response.json()
+        window.dispatchEvent(new Event("pos-session-changed"))
         await fetchVouchers()
         setForm(normalizeVoucher(saved))
         setDialogOpen(true)
@@ -755,41 +756,28 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
     }
   }
 
+  const navigationPending = useRef(false)
   const handleNavigate = async (direction: "first" | "previous" | "next" | "last") => {
+    if (navigationPending.current || isLoading || isSaving) return
+    navigationPending.current = true
+    setIsLoading(true)
     try {
-      console.debug("handleNavigate called", { direction, currentIndex, filteredLength: filteredVouchers.length })
-      if (filteredVouchers.length === 0) return
-      let targetIndex = currentIndex
-      // A newly generated voucher is conceptually positioned immediately after
-      // the last saved voucher. The RTL toolbar maps its visible "previous"
-      // action to `next`, so navigate to the actual last saved record instead
-      // of advancing from the stale index of the record that was open before New.
-      if (form.id <= 0 && direction === "next") targetIndex = filteredVouchers.length - 1
-      else if (direction === "first") targetIndex = 0
-      else if (direction === "last") targetIndex = filteredVouchers.length - 1
-      else if (direction === "previous") targetIndex = Math.max(0, currentIndex - 1)
-      else targetIndex = Math.min(filteredVouchers.length - 1, currentIndex + 1)
-
-      const record = filteredVouchers[targetIndex]
-      if (!record) {
-        console.warn("handleNavigate: no record at targetIndex", { targetIndex, filteredLength: filteredVouchers.length })
-        return
-      }
-
-      // Fetch fresh details from API (in case other users added/updated the record)
-      setIsLoading(true)
-      try {
-        const details = await fetchVoucherDetails(record.id)
-        setForm(normalizeVoucher(details || record))
-        setCurrentIndex(targetIndex)
-        setErrorMessages([])
-        setDialogOpen(true)
-      } finally {
-        setIsLoading(false)
-      }
-    } catch (err) {
-      console.error("handleNavigate error", err)
-      throw err
+      const query = new URLSearchParams({ direction, currentId: String(Math.max(0, form.id)), vch_type: String(voucherType) })
+      const response = await fetch(`/api/transaction-navigation?${query}`, { cache: "no-store" })
+      const record = await response.json()
+      if (!response.ok) throw new Error(record?.error || "تعذر التنقل بين السندات")
+      if (!record?.id) return
+      const details = await fetchVoucherDetails(record.id)
+      if (!details) throw new Error("تعذر تحميل تفاصيل السند")
+      setForm(normalizeVoucher(details))
+      setCurrentIndex(filteredVouchers.findIndex(row => row.id === record.id))
+      setErrorMessages([])
+      setDialogOpen(true)
+    } catch (error) {
+      setErrorMessages([error instanceof Error ? error.message : "تعذر التنقل بين السندات"])
+    } finally {
+      navigationPending.current = false
+      setIsLoading(false)
     }
   }
 

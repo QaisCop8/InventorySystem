@@ -3,10 +3,10 @@ import sql from "@/lib/database"
 import { authorizeTransaction, transactionFamilyForVoucherType } from "@/lib/transaction-permissions"
 import { ensureTables, fetchDetails } from "../../_lib"
 
-export async function GET(request: NextRequest, { params }: { params: { navigationType: string } }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ navigationType: string }> }) {
   try {
     await ensureTables()
-    const { navigationType } = params
+    const { navigationType } = await params
     const currentId = Number(request.nextUrl.searchParams.get("currentId") || 0)
     const vchType = Number(request.nextUrl.searchParams.get("vch_type") || 1)
     const family = transactionFamilyForVoucherType(vchType)

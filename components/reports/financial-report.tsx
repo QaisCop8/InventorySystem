@@ -1,5 +1,6 @@
 "use client"
 
+import { ReportShiftFilter, type ReportShift } from "@/components/reports/report-shift-filter"
 import { ReportFilters } from "@/components/reports/report-filters"
 import { BalanceSheetTable, IncomeStatementTable } from "@/components/reports/statement-tables"
 
@@ -17,7 +18,7 @@ import { ReportMultiChoice, type ReportOption } from "@/components/reports/accou
 import { Activity, ArrowDownLeft, ArrowUpRight, BarChart3, BookOpen, CalendarRange, Download, FileBarChart, FileText, Landmark, Loader2, Printer, RefreshCcw, Search, Scale, SlidersHorizontal } from "lucide-react"
 
 export type FinancialReportType = "vouchers" | "transactions" | "trial-balance" | "balance-sheet" | "income-statement"
-type Meta = { accounts: ReportOption[]; currencies: ReportOption[]; branches: ReportOption[]; salesmen: ReportOption[]; voucher_types: ReportOption[]; shifts: Array<{ shift_guid: string; first_date: string }> }
+type Meta = { accounts: ReportOption[]; currencies: ReportOption[]; branches: ReportOption[]; salesmen: ReportOption[]; voucher_types: ReportOption[]; shifts: ReportShift[] }
 type Row = Record<string, any> & { id: number }
 type Summary = Record<string, number>
 
@@ -60,7 +61,7 @@ export function FinancialReport({type}:{type:FinancialReportType}) {
     <ReportFilters><div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-6">
       <ReportMultiChoice label="الحسابات" options={meta.accounts} selected={filters.accountIds} onChange={accountIds=>setFilters({...filters,accountIds})} placeholder={loadingMeta?"جاري التحميل...":"جميع الحسابات"}/>
       <ReportMultiChoice label="أنواع السندات" options={meta.voucher_types} selected={filters.voucherTypes} onChange={voucherTypes=>setFilters({...filters,voucherTypes})} placeholder="جميع أنواع السندات"/>
-      {isDetail&&<div className="space-y-2"><Label>الوردية</Label><Select value={filters.shiftGuid||"all"} onValueChange={value=>setFilters({...filters,shiftGuid:value==="all"?"":value})}><SelectTrigger className="rounded-xl"><SelectValue placeholder="جميع الورديات"/></SelectTrigger><SelectContent><SelectItem value="all">جميع الورديات</SelectItem>{meta.shifts.map(shift=><SelectItem key={shift.shift_guid} value={shift.shift_guid}>{shift.shift_guid} · {String(shift.first_date||"").slice(0,10)}</SelectItem>)}</SelectContent></Select></div>}
+      {isDetail&&<ReportShiftFilter shifts={meta.shifts} value={filters.shiftGuid} onChange={shiftGuid=>setFilters(current=>({...current,shiftGuid}))}/>}
       <div className="space-y-2"><Label>من تاريخ</Label><div className="relative"><CalendarRange className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-indigo-600"/><Input type="date" className="rounded-xl pr-9" value={filters.fromDate} onChange={event=>setFilters({...filters,fromDate:event.target.value})}/></div></div>
       <div className="space-y-2"><Label>إلى تاريخ</Label><Input type="date" className="rounded-xl" value={filters.toDate} onChange={event=>setFilters({...filters,toDate:event.target.value})}/></div>
       <ReportCurrencyFilter currencies={meta.currencies} value={filters.currencyIds[0]} onChange={id=>setFilters({...filters,currencyIds:[id]})}/>
