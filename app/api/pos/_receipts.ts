@@ -26,6 +26,7 @@ export async function createPosReceipt(request: NextRequest, invoice: any, point
   const totals = posReceiptAmounts(payments)
   const customerAccountId = Number(invoice.account_id) || null
   const settlementAccountId = customerAccountId || Number(point.cash_account_id)
+  if (!settlementAccountId) throw Object.assign(new Error("يجب تعريف حساب الصندوق في نقطة البيع أو في حسابات المستخدم لعملة نقطة البيع"), { status: 400 })
   const receipt = await receiptResult(await createReceipt(new NextRequest(new URL("/api/receipts", request.url), {
     method: "POST", headers: request.headers, body: JSON.stringify({
       vch_type: RECEIPT_VCH_TYPE, vch_code: buildVoucherCode(prefix, book.name, sequence), vch_book_id: Number(book.id),

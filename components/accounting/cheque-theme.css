@@ -47,3 +47,15 @@
   color: #14532d !important;
   border-color: #bbf7d0 !important;
 }
+
+.cheque-payment-fullscreen {
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: 50 !important;
+  width: 100% !important;
+  max-width: none !important;
+  height: 100% !important;
+  max-height: none !important;
+  transform: none !important;
+  border-radius: 0 !important;
+}

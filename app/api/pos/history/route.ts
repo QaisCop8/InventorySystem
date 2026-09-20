@@ -24,10 +24,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "معرف الفاتورة غير صالح" }, { status: 400 })
 
     const rows = await sql`
-      SELECT vh.id, vh.vch_code, vh.vch_date, vh.vch_type, vh.customer_name, vh.amount, vh.status,
+      SELECT vh.id, vh.vch_code, vh.vch_date, vh.vch_type, vh.customer_name, vh.account_id, vh.salesman_id, vh.note, vh.amount, vh.status,
         vh.pos_receipt_voucher_id,
         (SELECT receipt.vch_code FROM voucher_header_tbl receipt WHERE receipt.id=vh.pos_receipt_voucher_id) receipt_vch_code,
-        COALESCE((SELECT json_agg(json_build_object('method', p.payment_method, 'amount', p.amount, 'reference', p.reference, 'due_date', p.due_date) ORDER BY p.id) FROM pos_sale_payments_tbl p WHERE p.voucher_id = vh.id), '[]') payments
+        COALESCE((SELECT json_agg(json_build_object('method', p.payment_method, 'amount', p.amount, 'currency_id', p.currency_id, 'currency_amount', p.currency_amount, 'reference', p.reference, 'due_date', p.due_date, 'bank_id', p.bank_id, 'branch_id', p.branch_id, 'cheque_account', p.cheque_account, 'card_type_id', p.card_type_id, 'card_expiry', p.card_expiry) ORDER BY p.id) FROM pos_sale_payments_tbl p WHERE p.voucher_id = vh.id), '[]') payments
       FROM voucher_header_tbl vh
       WHERE (EXISTS (SELECT 1 FROM pos_sale_payments_tbl p WHERE p.voucher_id = vh.id AND p.pos_point_id = ${pointId}) OR (vh.pos_point_id = ${pointId} AND vh.vch_type = 9))
         AND (${sessionId} = 0 OR vh.pos_session_id = ${sessionId} OR EXISTS (SELECT 1 FROM pos_sale_payments_tbl p WHERE p.voucher_id = vh.id AND p.session_id = ${sessionId} AND p.pos_point_id = ${pointId}))

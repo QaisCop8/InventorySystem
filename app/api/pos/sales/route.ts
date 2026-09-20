@@ -41,6 +41,8 @@ export async function POST(request: NextRequest) {
       if(!["sale","return","gift"].includes(String(data.pos_mode)))return NextResponse.json({error:"نوع حركة نقطة البيع غير صالح"},{status:400})
       const isReturn=data.pos_mode==="return"
       const isGift=data.pos_mode==="gift"
+      const availableCurrencies=await getPosCurrencies(Number(point.currency_id))
+      const pointRate=Number(availableCurrencies.find(row=>row.currency_id===Number(point.currency_id))?.exchange_rate)||1
       if(isReturn&&!point.allow_returns)return NextResponse.json({error:"المردودات غير مفعلة لهذه النقطة"},{status:400})
       if(isGift){
         if(!point.allow_gifts)return NextResponse.json({error:"الهدايا غير مفعلة لهذه النقطة"},{status:400})
@@ -52,7 +54,7 @@ export async function POST(request: NextRequest) {
           method:"POST",headers:request.headers,body:JSON.stringify({
             vch_type:STOCK_OUT_VCH_TYPE,vch_code:code,vch_book_id:bookId,
             vch_date:data.vch_date,manual_date:data.manual_date,branch_id:Number(point.branch_id),
-            currency_id:Number(point.currency_id),rate:Number(data.rate||1),
+            currency_id:Number(point.currency_id),rate:pointRate,
             to_store_id:Number(point.main_warehouse_id),account_id:data.account_id||null,
             customer_name:data.customer_name||"",note:data.note||"هدية من نقطة البيع",
             status:2,insert_user:userId,
@@ -67,23 +69,21 @@ export async function POST(request: NextRequest) {
       }
       let payments=(Array.isArray(data.pos_payments)?data.pos_payments:[]).map((payment:any)=>{
         const method=String(payment.payment_method||payment.method||"cash")
-        const configured:Record<string,number|null>={cash:Number(point.cash_account_id)||null,card:Number(point.card_account_id)||null,cheque:Number(point.cheque_account_id)||null,account:Number(data.account_id||point.receivable_account_id)||null,gift_card:Number(point.gift_account_id)||null}
+        const configured:Record<string,number|null>={cash:Number(point.cash_account_id)||null,card:Number(point.card_account_id)||null,cheque:Number(point.cheque_account_id)||null,account:null,gift_card:Number(point.gift_account_id)||null}
         return {...payment,payment_method:method,account_id:configured[method]||null}
       })
-      const customerRequired = payments.some((payment:any)=>Number(payment.currency_amount??payment.amount)>0&&["cheque","account"].includes(payment.payment_method))
-      if(customerRequired){
+      const customerRequired = payments.some((payment:any)=>Number(payment.currency_amount??payment.amount)>0&&payment.payment_method==="account")
+      if(customerRequired || Number(data.pos_customer_id)>0){
         const customerId=Number(data.pos_customer_id)
         const customer=customerId?(await sql`SELECT id,name FROM account_tbl WHERE id=${customerId} AND COALESCE(status,1)<>3 AND type IN (2,3,5)`)[0]:null
-        if(!customer||customerId===Number(point.walk_in_account_id))return NextResponse.json({error:"اختر العميل في تفاصيل الدفع بدلاً من العميل النقدي"},{status:400})
+        if(!customer)return NextResponse.json({error:"اختر العميل في تفاصيل الدفع بدلاً من العميل النقدي"},{status:400})
         data.account_id=Number(customer.id);data.customer_name=String(customer.name)
         for(const payment of payments)if(payment.payment_method==="account")payment.account_id=Number(customer.id)
-      }else if(payments.some((payment:any)=>payment.payment_method==="card"&&Number(payment.currency_amount??payment.amount)>0)){
-        const walkInId=Number(point.walk_in_account_id)
-        const walkIn=walkInId?(await sql`SELECT id FROM account_tbl WHERE id=${walkInId} AND COALESCE(status,1)<>3`)[0]:null
-        data.account_id=walkIn?walkInId:null;data.customer_name="عميل نقدي"
+      }else{
+        data.account_id=null;data.customer_name="عميل نقدي"
       }
       if(Array.isArray(data.cash_currency_amounts)){
-        const currencies=await getPosCurrencies(Number(point.currency_id)),seen=new Set<number>()
+        const currencies=availableCurrencies,seen=new Set<number>()
         const cashPayments=[] as any[]
         for(const entry of data.cash_currency_amounts){
           const currencyId=Number(entry.currency_id),currency=currencies.find(row=>row.currency_id===currencyId),original=Number(entry.amount)
@@ -94,7 +94,6 @@ export async function POST(request: NextRequest) {
         }
         payments=[...payments.filter((payment:any)=>payment.payment_method!=="cash"),...cashPayments]
       }
-      const availableCurrencies=await getPosCurrencies(Number(point.currency_id))
       for(const payment of payments){
         if(payment.payment_method==="cash"&&payment.currency_id)continue
         const currencyId=Number(payment.currency_id||point.currency_id),currency=availableCurrencies.find(row=>row.currency_id===currencyId)
@@ -107,14 +106,14 @@ export async function POST(request: NextRequest) {
         payment.amount=Math.round(original*currency.rate_to_point*100)/100
       }
       for(const payment of payments.filter((row:any)=>Number(row.amount)>0)){
-        if(["cheque","account"].includes(payment.payment_method)){
+        if(payment.payment_method==="account"){
           const customerId=Number(data.pos_customer_id)
           if(!customerId||customerId!==Number(data.account_id)||!(await sql`SELECT id FROM account_tbl WHERE id=${customerId} AND COALESCE(status,1)<>3 AND type IN (2,3,5)`)[0])
             return NextResponse.json({error:"اختر عميلاً صالحاً لتفاصيل الدفع"},{status:400})
         }
         if(payment.payment_method==="cheque"){
-          if(!Number(data.pos_customer_id)||!String(payment.cheque_account||"").trim()||!String(payment.reference||"").trim())
-            return NextResponse.json({error:"العميل ورقم الحساب ورقم الشيك مطلوبة"},{status:400})
+          if(!String(payment.cheque_account||"").trim()||!String(payment.reference||"").trim())
+            return NextResponse.json({error:"رقم الحساب ورقم الشيك مطلوبان"},{status:400})
           if(String(payment.cheque_account).trim().length>20||String(payment.reference).trim().length>20)
             return NextResponse.json({error:"رقم الحساب ورقم الشيك يجب ألا يتجاوزا 20 حرفاً"},{status:400})
           const due=String(payment.due_date||"")
@@ -130,7 +129,7 @@ export async function POST(request: NextRequest) {
           const cardTypeId=Number(payment.card_type_id),expiry=String(payment.card_expiry||"")
           if(!/^\d{12,19}$/.test(digits)||!cardTypeId||!/^\d{4}-(0[1-9]|1[0-2])$/.test(expiry)||expiry<new Date().toISOString().slice(0,7))
             return NextResponse.json({error:"بيانات البطاقة أو تاريخ انتهائها غير صالحة"},{status:400})
-          if(!(await sql`SELECT id FROM credit_cards_types_tbl WHERE id=${cardTypeId} AND COALESCE(status,1)=1`)[0])
+          if(!(await sql`SELECT id FROM credit_cards_types_tbl WHERE id=${cardTypeId} AND currency_id=${Number(point.currency_id)} AND COALESCE(status,1)=1`)[0])
             return NextResponse.json({error:"نوع البطاقة غير متاح"},{status:400})
           payment.reference=`****${digits.slice(-4)}`
         }
@@ -152,10 +151,10 @@ export async function POST(request: NextRequest) {
         method: "POST",
         headers: request.headers,
         body: JSON.stringify({
-          ...data,vch_type:vchType,vch_code:vchCode,vch_book_id:vchBookId,branch_id:Number(point.branch_id),
+          ...data,vch_type:vchType,vch_code:vchCode,vch_book_id:vchBookId,branch_id:Number(point.branch_id),rate:pointRate,
           currency_id:Number(point.currency_id),to_store_id:Number(point.main_warehouse_id),cash_account_id:Number(point.cash_account_id),
           tax_account_id:Number(point.tax_account_id)||null,vat_percent:Number(point.tax_percent||0),pos_payments:payments,
-          items:data.items.map((item:any)=>({...item,warehouse_id:Number(point.main_warehouse_id),store_id:Number(point.main_warehouse_id)})),
+          items:data.items.map((item:any)=>({...item,account_id:isReturn?(point.return_account_id||item.account_id):item.account_id,warehouse_id:Number(point.main_warehouse_id),store_id:Number(point.main_warehouse_id)})),
         }),
       })
       const response=await createSalesVoucher(forwarded)
@@ -166,7 +165,7 @@ export async function POST(request: NextRequest) {
       await sql`UPDATE voucher_header_tbl SET pos_session_id=${Number(session.id)},shift_guid=${String(session.shift_guid)}::uuid WHERE id=${Number(saved.id)}`
       for(const payment of payments.filter((p:any)=>p.payment_method==="cheque")){
         if(receipt){
-          await sql`UPDATE cheques_tbl SET amount=${Number(payment.currency_amount??payment.amount)},currency_id=${Number(payment.currency_id||point.currency_id)},rate=${Number(availableCurrencies.find(row=>row.currency_id===Number(payment.currency_id||point.currency_id))?.exchange_rate||data.rate||1)}
+          await sql`UPDATE cheques_tbl SET amount=${Number(payment.currency_amount??payment.amount)},currency_id=${Number(payment.currency_id||point.currency_id)},rate=${Number(availableCurrencies.find(row=>row.currency_id===Number(payment.currency_id||point.currency_id))?.exchange_rate??1)}
             WHERE voucher_id=${Number(receipt.id)} AND cheq_num=${String(payment.reference||"").trim()} AND bank_account=${String(payment.cheque_account||"").trim()}`
           continue
         }
@@ -177,7 +176,7 @@ export async function POST(request: NextRequest) {
             current_account_id,status_id,manual_insert,is_printed,order_no
           ) VALUES (
             ${Number(saved.id)},${isReturn?2:1},${String(payment.cheque_account||"").trim()},${String(payment.reference||"").trim()},${Number(payment.bank_id)},${Number(payment.branch_id)},${Number(payment.currency_amount??payment.amount)},
-            ${Number(payment.currency_id||point.currency_id)},${Number(availableCurrencies.find(row=>row.currency_id===Number(payment.currency_id||point.currency_id))?.exchange_rate||data.rate||1)},${data.vch_date||new Date().toISOString().slice(0,10)},
+            ${Number(payment.currency_id||point.currency_id)},${Number(availableCurrencies.find(row=>row.currency_id===Number(payment.currency_id||point.currency_id))?.exchange_rate??1)},${data.vch_date||new Date().toISOString().slice(0,10)},
             ${data.vch_date||new Date().toISOString().slice(0,10)},${payment.due_date||data.vch_date||null},
             ${String(data.customer_name||"")},${Number(data.account_id)||null},${Number(point.cheque_account_id)},
             ${Number(point.cheque_account_id)},1,1,0,1

@@ -68,7 +68,7 @@ export function UniversalToolbar({
   const hasUtilities = Boolean(onPrint || onClone || onReport || onExportExcel || onDelete)
   const navigationBusy = isLoading || isSaving
   const previous = () => isNewRecord ? onLast?.() : onPrevious?.()
-  const next = () => isNewRecord ? onLast?.() : onNext?.()
+  const next = () => isNewRecord ? onFirst?.() : onNext?.()
 
   const navigation = (
     <div className="universal-toolbar-navigation flex items-center gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1" aria-label="التنقل بين السجلات">

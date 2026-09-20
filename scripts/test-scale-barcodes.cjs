@@ -19,6 +19,13 @@ test('the requested barcode means item 2000001 and quantity 15', () => {
   assert.equal(resolvePosBarcode([scale], '2000001015000').product, scale)
 })
 
+test('a twelve-digit barcode uses the first seven digits and the rest as quantity / 10000', () => {
+  assert.deepEqual(parseScaleBarcode('200000101500'), { barcode: '2000001', quantity: 0.15 })
+  const result = resolvePosBarcode([scale], '200000101500')
+  assert.equal(result.product, scale)
+  assert.equal(result.quantity, 0.15)
+})
+
 test('fractional weights retain all three decimals', () => {
   assert.equal(parseScaleBarcode('2000001000001').quantity, 0.001)
   assert.equal(parseScaleBarcode('2000001001500').quantity, 1.5)
@@ -41,6 +48,7 @@ test('zero weights and malformed labels are rejected', () => {
 
 test('a prefix match must belong to a scale-enabled product', () => {
   assert.equal(resolvePosBarcode([{ ...scale, soldUsingScale: false }], '2000001015000'), null)
+  assert.equal(resolvePosBarcode([{ ...scale, soldUsingScale: false }], '200000101500'), null)
   assert.equal(resolvePosBarcode([scale], '2000099015000'), null)
 })
 

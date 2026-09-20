@@ -19,6 +19,8 @@ interface ConfirmDialogProps {
   busy?: boolean;
   confirmLabel?: string;
   cancelLabel?: string;
+  backLabel?: string;
+  onDismiss?: () => void;
 }
 
 const ConfirmDialogYesNo: React.FC<ConfirmDialogProps> = ({
@@ -34,6 +36,8 @@ const ConfirmDialogYesNo: React.FC<ConfirmDialogProps> = ({
   busy = false,
   confirmLabel,
   cancelLabel,
+  backLabel,
+  onDismiss,
 }) => {
 
   // أول Escape لا يُغلق النافذة — فقط "يُسلّحها"، ويُغلقها الضغط الثاني المتتالي. هذا يمنع
@@ -100,14 +104,14 @@ const ConfirmDialogYesNo: React.FC<ConfirmDialogProps> = ({
           onClick={onBack}
           className={`${isCompact ? "px-3 py-2 text-xs" : "px-4 py-2 text-sm"} rounded-2xl border border-slate-200 bg-slate-100 text-slate-700 transition-all hover:bg-slate-200`}
         >
-          رجوع
+          {backLabel ?? "رجوع"}
         </Button>
       )}
     </div>
   );
 
   if (useAppDialog) return (
-    <AppDialog modal open={visible} onOpenChange={open => { if (!open && !busy) onCancel() }}>
+    <AppDialog modal open={visible} onOpenChange={open => { if (!open && !busy) (onDismiss ?? onCancel)() }}>
       <DialogContent dir="rtl" hideCloseButton className="z-[1100] max-w-md rounded-2xl p-6 text-center" onPointerDownOutside={event => event.preventDefault()} onEscapeKeyDown={event => event.preventDefault()}>
         <ShieldAlert className="mx-auto h-10 w-10 text-rose-600" aria-hidden="true" />
         <DialogTitle>{title}</DialogTitle>
@@ -120,7 +124,7 @@ const ConfirmDialogYesNo: React.FC<ConfirmDialogProps> = ({
   return (
     <Dialog
       visible={visible}
-      onHide={onCancel}
+      onHide={onDismiss ?? onCancel}
       footer={footer}
       modal
       closable={false}

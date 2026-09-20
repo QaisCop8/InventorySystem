@@ -30,7 +30,7 @@ const ChequeOperationsPage = dynamic(() => import("@/components/accounting/chequ
 const ChequeDepositBulkPage = dynamic(() => import("@/components/accounting/bulk-cheque-operations").then((m) => m.ChequeDepositBulkPage), { ssr: false })
 const ChequeEndorseBulkPage = dynamic(() => import("@/components/accounting/bulk-cheque-operations").then((m) => m.ChequeEndorseBulkPage), { ssr: false })
 const OutgoingChequeClearBulkPage = dynamic(() => import("@/components/accounting/bulk-cheque-operations").then((m) => m.OutgoingChequeClearBulkPage), { ssr: false })
-const ChequePaymentVouchers = dynamic(() => import("@/components/accounting/cheque-payment-vouchers"), { ssr: false })
+const ChequePaymentVouchers = dynamic(() => import("@/components/accounting/unified-cheque-payment-voucher"), { ssr: false })
 const PosCashier = dynamic(() => import("@/components/pos/pos-cashier"), { ssr: false })
 const PosPointsSettings = dynamic(() => import("@/components/pos/pos-points-settings"), { ssr: false })
 const DocumentSettings = dynamic(() => import("@/components/settings/document-settings"), { ssr: false })

@@ -6,7 +6,7 @@ import { ensureTables, fetchDetails } from "../../_lib"
 export async function GET(request: NextRequest, { params }: { params: Promise<{ navigationType: string }> }) {
   try {
     await ensureTables()
-    const { navigationType } = await params
+    let { navigationType } = await params
     const currentId = Number(request.nextUrl.searchParams.get("currentId") || 0)
     const vchType = Number(request.nextUrl.searchParams.get("vch_type") || 1)
     const family = transactionFamilyForVoucherType(vchType)
@@ -19,6 +19,12 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       request.nextUrl.searchParams.get("branch_id"),
     )
     if (!authorization.ok) return authorization.response
+
+    if (!Number.isSafeInteger(currentId) || currentId < 0) {
+      return NextResponse.json({ error: "Invalid currentId" }, { status: 400 })
+    }
+    if (!currentId && navigationType === "previous") navigationType = "last"
+    if (!currentId && navigationType === "next") navigationType = "first"
 
     let rows: any[] = []
 
@@ -40,7 +46,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     }
 
     if (!rows.length) {
-      return NextResponse.json({ error: "No voucher found" }, { status: 404 })
+      return NextResponse.json(null)
     }
 
     const voucher = rows[0]

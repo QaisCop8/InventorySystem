@@ -23,6 +23,24 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     if (!authorization.ok) return authorization.response
 
     return await withTenantTransaction(async () => {
+      const changed = await sql`
+        SELECT c.cheq_num, c.status_id, latest.new_status_id
+        FROM cheque_payment_voucher_items i
+        JOIN cheques_tbl c ON c.id = i.cheque_id
+        LEFT JOIN LATERAL (
+          SELECT l.new_status_id
+          FROM cheque_operations_log_tbl l
+          WHERE l.cheque_id = c.id AND l.voucher_id = ${id} AND COALESCE(l.status, 1) <> 9
+          ORDER BY l.operation_date DESC, l.id DESC
+          LIMIT 1
+        ) latest ON TRUE
+        WHERE i.voucher_id = ${id}
+        FOR UPDATE OF c
+      `
+      const invalid = changed.find((row: any) => Number(row.status_id) !== Number(row.new_status_id))
+      if (invalid) {
+        return NextResponse.json({ error: `لا يمكن حذف السند: تغيّرت حالة الشيك رقم ${invalid.cheq_num} بعد هذا السند` }, { status: 409 })
+      }
       const rollback = await rollbackChequeOperationsForVoucher(id)
       if (rollback.error) return NextResponse.json({ error: rollback.error }, { status: 409 })
 

@@ -2,6 +2,7 @@ import { NextResponse,type NextRequest } from "next/server"
 import sql,{withTenantTransaction} from "@/lib/database"
 import { authorizeTransaction } from "@/lib/transaction-permissions"
 import { CHEQUE_PAYMENT_VCH_TYPE,ENDORSEMENT_STATUS_IDS,ensureChequePaymentTables,fetchChequePaymentVoucher,nextChequePaymentCode } from "./_lib"
+import { resolveVoucherBookName } from "@/app/api/receipts/_lib"
 
 const ids=(value:unknown)=>Array.from(new Set((Array.isArray(value)?value:[]).map(Number).filter(id=>Number.isInteger(id)&&id>0))).slice(0,200)
 
@@ -70,12 +71,14 @@ export async function POST(request:NextRequest){
     if(currencies.size!==1)return NextResponse.json({error:"يجب أن تكون جميع الشيكات المختارة من نفس العملة"},{status:400})
     const currencyId=Number(chosen[0].currency_id),rate=Number(chosen[0].rate||1)
     if(Number(account.currency_id)!==currencyId&&!Number(account.allow_trans_with_diff_curr))return NextResponse.json({error:"عملة الحساب تختلف عن عملة الشيكات ولا يسمح الحساب بالحركة بعملة مختلفة"},{status:400})
-    const code=String(data.vch_code||await nextChequePaymentCode()).trim().toUpperCase()
-    if(!/^CQ\d{8}$/.test(code))return NextResponse.json({error:"رقم السند يجب أن يكون بصيغة CQ متبوعة بثمانية أرقام"},{status:400})
+    const bookId=Number(data.vch_book_id)||0
+    if(!await resolveVoucherBookName(bookId))return NextResponse.json({error:"يجب اختيار دفتر السندات"},{status:400})
+    const code=String(data.vch_code||"").trim().toUpperCase()
+    if(!code||!/^[A-Z0-9-]+$/.test(code))return NextResponse.json({error:"رقم السند غير صحيح"},{status:400})
     if((await sql`SELECT id FROM voucher_header_tbl WHERE vch_type=${CHEQUE_PAYMENT_VCH_TYPE} AND vch_code=${code}`).length)return NextResponse.json({error:"رقم السند مستخدم مسبقاً"},{status:409})
     const total=chosen.reduce((sum:number,c:any)=>sum+Number(c.amount||0),0),note=String(data.note||"").trim().slice(0,500)
-    const header=(await sql`INSERT INTO voucher_header_tbl(vch_type,vch_code,vch_date,branch_id,currency_id,rate,amount,check_amount,account_id,note,status,vch_status,internal_voucher_id,cheq_operation_id,insert_user)
-      VALUES(${CHEQUE_PAYMENT_VCH_TYPE},${code},${vchDate},${authorization.branchId},${currencyId},${rate},${total},${total},${accountId},${note},2,2,1,6,${Number(authorization.userId)||null}) RETURNING *`)[0]
+    const header=(await sql`INSERT INTO voucher_header_tbl(vch_type,vch_code,vch_date,vch_book_id,branch_id,currency_id,rate,amount,account_id,note,status,vch_status,internal_voucher_id,cheq_operation_id,insert_user)
+      VALUES(${CHEQUE_PAYMENT_VCH_TYPE},${code},${vchDate},${bookId},${authorization.branchId},${currencyId},${rate},${total},${accountId},${note},2,2,1,6,${Number(authorization.userId)||null}) RETURNING *`)[0]
     await sql`INSERT INTO voucher_journal_detail_tbl(voucher_id,order_no,journal_type_id,account_id,credit_debit,amount,currency_id,rate,base_curr_amount,note)
       VALUES(${header.id},1,5,${accountId},1,${total},${currencyId},${rate},${total*rate},${note||"سند صرف شيكات"})`
     let order=2
@@ -85,8 +88,12 @@ export async function POST(request:NextRequest){
       await sql`INSERT INTO cheque_payment_voucher_items(voucher_id,cheque_id,amount,order_no) VALUES(${header.id},${Number(cheque.id)},${Number(cheque.amount)},${order-2})`
       await sql`INSERT INTO cheque_operations_log_tbl(cheque_id,voucher_id,operation_code,operation_name,previous_status_id,new_status_id,operation_date,account_id,note,user_id,previous_current_account_id,previous_bank_account_id,previous_due_date,previous_voucher_id)
         VALUES(${Number(cheque.id)},${header.id},'endorse','تحويل / تجيير الشيك',${Number(cheque.status_id)},7,${vchDate},${accountId},${note},${String(authorization.userId)},${Number(cheque.current_account_id)},${cheque.bank_account_id||null},${cheque.due_date||null},${cheque.last_voucher_id||null})`
+      // The cheque was selected with FOR UPDATE above, so this transaction already
+      // serializes concurrent operations. Do not compare last_update_date here: legacy
+      // cheque rows may contain NULL or a timestamp with lower precision, which would
+      // reject a valid single-user operation as a false concurrency conflict.
       const updated=await sql`UPDATE cheques_tbl SET old_status_id=status_id,status_id=7,current_account_id=${accountId},last_voucher_id=${header.id},trans_date=${vchDate},update_user_id=${Number(authorization.userId)||null},last_update_date=CURRENT_TIMESTAMP
-        WHERE id=${Number(cheque.id)} AND status_id=${Number(cheque.status_id)} AND last_update_date=${cheque.last_update_date} RETURNING id`
+        WHERE id=${Number(cheque.id)} AND status_id=${Number(cheque.status_id)} RETURNING id`
       if(!updated.length)throw new ChequePaymentConflict(`تم تعديل الشيك رقم ${cheque.cheq_num} بواسطة مستخدم آخر`)
     }
     return NextResponse.json(await fetchChequePaymentVoucher(header.id),{status:201})
@@ -94,6 +101,6 @@ export async function POST(request:NextRequest){
   }catch(error){
     if(error instanceof ChequePaymentConflict)return NextResponse.json({error:error.message},{status:409})
     console.error("Cheque payment voucher POST error:",error)
-    return NextResponse.json({error:"تعذر حفظ سند صرف الشيكات"},{status:500})
+    return NextResponse.json({error:error instanceof Error ? error.message : "تعذر حفظ سند صرف الشيكات"},{status:500})
   }
 }

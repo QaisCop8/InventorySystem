@@ -6,10 +6,10 @@ import { Input } from "@/components/ui/input"
 import { Search } from "lucide-react"
 
 export type PosInvoice = {
-  id: number; vch_code: string; vch_date: string; vch_type: number; customer_name: string
+  id: number; vch_code: string; vch_date: string; vch_type: number; customer_name: string; account_id?: number | null; salesman_id?: number | null; note?: string
   amount: number; status: number; payments?: Array<{ method: string; amount: number; reference?: string }>
   pos_receipt_voucher_id?: number | null; receipt_vch_code?: string | null
-  items?: Array<{ id: number; product_name?: string; item_name?: string; qnty?: number; quantity?: number; price?: number; discount?: number; total_price?: number; line_amount?: number }>
+  items?: Array<{ id: number; product_id?: number; product_code?: string; product_name?: string; item_name?: string; unit_id?: number | null; unit_name?: string; qnty?: number; quantity?: number; price?: number; discount?: number; discount_percent?: number; account_id?: number | null; total_price?: number; line_amount?: number }>
 }
 type Props = {
   open: boolean; onOpenChange: (open: boolean) => void; rows: PosInvoice[]

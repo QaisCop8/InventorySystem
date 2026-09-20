@@ -876,7 +876,39 @@ function UnifiedPurchaseOrder({
     generateOrderNumber()
   }
 
+  const navigationPending = useRef(false)
+  const [navigationLoading, setNavigationLoading] = useState(false)
+  const pendingNavigation = useRef<null | (() => void)>(null)
+  const navigateOrder = async (direction: "first" | "previous" | "next" | "last", checkUnsaved = true) => {
+    if (navigationPending.current || state.isSaving) return
+    if (checkUnsaved && JSON.stringify({ formData: state.formData, orderItems: state.orderItems }) !== initialSnapshotRef.current) {
+      pendingNavigation.current = () => { void navigateOrder(direction, false) }
+      setShowUnsavedConfirm(true)
+      return
+    }
+    navigationPending.current = true
+    setNavigationLoading(true)
+    try {
+      const query = new URLSearchParams({ currentId: String(state.formData.id || 0), order_type: "2" })
+      const response = await fetch("/api/orders/navigation/" + direction + "?" + query, { cache: "no-store" })
+      const record = await response.json()
+      if (!response.ok) throw new Error(record?.error || "تعذر التنقل بين الطلبيات")
+      if (!record?.id) return
+      const formData = { ...initialFormData, ...record, supplier_id: record.supplier_id ?? record.customer_id, supplier_name: record.supplier_name ?? record.customer_name }
+      const orderItems = (record.items || []).map((item: any) => ({ ...initialOrderItem, ...item }))
+      initialSnapshotRef.current = JSON.stringify({ formData, orderItems })
+      updateRecord({ ...formData, items: orderItems })
+      setState(prev => ({ ...prev, formData, orderItems, currentRecordId: record.id }))
+    } catch (reason) {
+      alert(reason instanceof Error ? reason.message : "تعذر التنقل بين الطلبيات")
+    } finally {
+      navigationPending.current = false
+      setNavigationLoading(false)
+    }
+  }
+
   const requestNew = () => {
+    pendingNavigation.current = null
     const snapshot = JSON.stringify({ formData: state.formData, orderItems: state.orderItems })
     if (snapshot !== initialSnapshotRef.current) {
       setShowUnsavedConfirm(true)
@@ -973,17 +1005,17 @@ function UnifiedPurchaseOrder({
           <UniversalToolbar
             currentRecord={currentIndex}
             totalRecords={navTotalRecords}
-            onFirst={goToFirst}
-            onPrevious={goToPrevious}
-            onNext={goToNext}
-            onLast={goToLast}
+            onFirst={() => void navigateOrder("first")}
+            onPrevious={() => void navigateOrder("previous")}
+            onNext={() => void navigateOrder("next")}
+            onLast={() => void navigateOrder("last")}
             onNew={requestNew}
             onSave={handleSave}
             onDelete={handleDelete}
             onReport={handleReport}
             onExportExcel={handleExportExcel}
             onPrint={handlePrint}
-            isLoading={navLoading}
+            isLoading={navLoading || navigationLoading}
             isSaving={state.isSaving}
             canSave={canSave}
             canDelete={canDelete}
@@ -1871,11 +1903,14 @@ function UnifiedPurchaseOrder({
       </Dialog>
       <ConfirmDialogYesNo
         visible={showUnsavedConfirm}
-        message="تم تعديل البيانات، هل تريد إنشاء سند جديد دون حفظ التغييرات؟"
+        message="تم تعديل البيانات، هل تريد المتابعة دون حفظ التغييرات؟"
         showBack
         onConfirm={() => {
           setShowUnsavedConfirm(false)
-          onNew()
+          const action = pendingNavigation.current
+          pendingNavigation.current = null
+          if (action) action()
+          else onNew()
         }}
         onCancel={() => setShowUnsavedConfirm(false)}
         onBack={() => setShowUnsavedConfirm(false)}

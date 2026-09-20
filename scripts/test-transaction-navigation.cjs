@@ -6,7 +6,7 @@ const fs = require('node:fs')
 const ts = require('typescript')
 
 function load(file, dependencies) {
-  const { outputText } = ts.transpileModule(fs.readFileSync(file, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020, esModuleInterop: true } })
+  const { outputText } = ts.transpileModule(fs.readFileSync(file, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020, jsx: ts.JsxEmit.ReactJSX, esModuleInterop: true } })
   const module = { exports: {} }
   new Function('require', 'module', 'exports', outputText)(name => {
     if (!(name in dependencies)) throw new Error(`Unexpected dependency ${name}`)
@@ -24,6 +24,7 @@ const records = [
   { id: 16, vch_type: 12, status: 2, branch_id: 2 },
   { id: 20, vch_type: 12, status: 1, branch_id: 1 },
   { id: 35, vch_type: 12, status: 2, branch_id: 1 },
+  { id: 41, vch_type: 21, status: 1, branch_id: 1 },
 ]
 function harness(denied = false) {
   const queries = []
@@ -40,7 +41,7 @@ function harness(denied = false) {
   const route = load('app/api/transaction-navigation/route.ts', {
     'next/server': next, '@/lib/database': sql,
     '@/lib/transaction-permissions': {
-      transactionFamilyForVoucherType: type => ({ 12: 'sales_invoice', 17: 'purchase_invoice' })[type],
+      transactionFamilyForVoucherType: type => ({ 12: 'sales_invoice', 17: 'purchase_invoice', 21: 'cheque_payment' })[type],
       authorizeTransaction: async () => denied ? { ok: false, response: Response.json({ error: 'Forbidden' }, { status: 403 }) } : { ok: true, branchIds: [1] },
     },
   })
@@ -59,6 +60,7 @@ test('navigation excludes cancelled vouchers, other voucher types and unauthoriz
   const { route } = harness()
   assert.deepEqual(await (await route.GET(request({ direction: 'next', currentId: 2, vch_type: 12 }))).json(), { id: 20 })
   assert.deepEqual(await (await route.GET(request({ direction: 'first', vch_type: 17 }))).json(), { id: 12 })
+  assert.deepEqual(await (await route.GET(request({ direction: 'first', vch_type: 21 }))).json(), { id: 41 })
 })
 test('new records navigate to the last or first saved voucher', async () => {
   const { route } = harness()
@@ -95,5 +97,59 @@ test('receipt and credit-note navigation await route parameters and return fresh
     assert.equal(response.status, 200)
     assert.deepEqual((await response.json()).items, [{ voucher_id: 35 }])
     assert.match(queries[0], /id > .*ORDER BY id ASC LIMIT 1/)
+  }
+})
+
+
+test('accounting navigation handles new forms and boundaries consistently', async () => {
+  for (const resource of ['receipts', 'credit-notes', 'journal-vouchers']) {
+    const queries = []
+    const route = load('app/api/' + resource + '/navigation/[navigationType]/route.ts', {
+      'next/server': next,
+      '@/lib/database': async parts => { queries.push(parts.join('?')); return [] },
+      '@/lib/transaction-permissions': { transactionFamilyForVoucherType: () => 'receipt', authorizeTransaction: async () => ({ ok: true, branchIds: [1] }) },
+      '../../_lib': { JOURNAL_VCH_TYPE: 1, ensureTables: async () => {}, fetchDetails: async () => { throw new Error('No details expected') }, fetchCreditNoteDetails: async () => { throw new Error('No details expected') } },
+    })
+    for (const direction of ['previous', 'next']) {
+      const response = await route.GET(request({ currentId: 0, vch_type: 4 }), { params: Promise.resolve({ navigationType: direction }) })
+      assert.equal(response.status, 200)
+      assert.equal(await response.json(), null)
+      assert.match(queries.at(-1), direction === 'previous' ? /ORDER BY id DESC LIMIT 1/ : /ORDER BY id ASC LIMIT 1/)
+      assert.doesNotMatch(queries.at(-1), /WHERE id [<>]/)
+    }
+    const count = queries.length
+    assert.equal((await route.GET(request({ currentId: -1, vch_type: 4 }), { params: Promise.resolve({ navigationType: 'next' }) })).status, 400)
+    assert.equal(queries.length, count)
+  }
+})
+
+
+test('toolbar navigation stays available with no loaded rows and maps a new record correctly', () => {
+  const jsx = (type, props) => ({ type, props })
+  const component = load('components/ui/universal-toolbar.tsx', {
+    react: { useEffect: () => {}, useRef: () => ({ current: null }), useState: value => [value, () => {}] },
+    'react/jsx-runtime': { jsx, jsxs: jsx },
+    'lucide-react': {}, '@/components/ui/button': { Button: 'button' },
+    '@/components/ui/dropdown-menu': {}, './universal-toolbar.css': {},
+    '@/contexts/theme-context': { useThemeSettings: () => ({ settings: {} }) },
+  })
+  const calls = []
+  const labels = { first: 'first', previous: 'previous', next: 'next', last: 'last' }
+  function buttons(node, result = []) {
+    if (!node || typeof node !== 'object') return result
+    if (node.type === 'button') result.push(node)
+    for (const child of [node.props?.children].flat(Infinity)) buttons(child, result)
+    return result
+  }
+  for (const isNewRecord of [true, false]) {
+    calls.length = 0
+    const tree = component.UniversalToolbar({ totalRecords: 0, isNewRecord, labels,
+      onFirst: () => calls.push('first'), onPrevious: () => calls.push('previous'),
+      onNext: () => calls.push('next'), onLast: () => calls.push('last'),
+    })
+    const navigation = buttons(tree).filter(button => Object.values(labels).includes(button.props.title))
+    assert.equal(navigation.length, 4)
+    for (const button of navigation) { assert.equal(button.props.disabled, false); button.props.onClick() }
+    assert.deepEqual(calls, isNewRecord ? ['first', 'last', 'first', 'last'] : ['first', 'previous', 'next', 'last'])
   }
 })

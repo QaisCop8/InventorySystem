@@ -4,6 +4,7 @@ import { ensureTables as ensureVoucherTypeTables } from "@/app/api/voucher-book-
 import { CHEQUE_OPERATIONS, ensureChequeOperationsTable } from "@/app/api/cheques/_lib"
 
 export const CHEQUE_PAYMENT_VCH_TYPE = 21
+export const CHEQUE_PAYMENT_CODE_PREFIX = "Q"
 export const ENDORSEMENT_STATUS_IDS = CHEQUE_OPERATIONS.find(operation => operation.code === "endorse")?.allowed ?? [1,3,5]
 
 export async function ensureChequePaymentTables() {

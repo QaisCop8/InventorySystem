@@ -55,17 +55,26 @@ async function ensureTables() {
 const number = (value: unknown, fallback = 0) => Number.isFinite(Number(value)) ? Number(value) : fallback
 const date = (value: unknown) => value ? String(value) : null
 
-async function meta() {
-  const [products, warehouses] = await Promise.all([
-    sql`SELECT id, product_code code, product_name name, COALESCE(selling_price,0) sale_price FROM products WHERE status IS NULL OR status::text IN ('1','نشط','active','ACTIVE') ORDER BY product_name`,
+async function meta(priceClass = 1) {
+  const [products, warehouses, priceClasses] = await Promise.all([
+    sql`SELECT p.id,p.product_code code,p.product_name name,pu.unit_id,u.unit_name,
+      COALESCE(price.price,0) sale_price
+      FROM products p
+      LEFT JOIN LATERAL (SELECT id,unit_id FROM product_units WHERE product_id=p.id ORDER BY id LIMIT 1) pu ON TRUE
+      LEFT JOIN units u ON u.id=pu.unit_id
+      LEFT JOIN LATERAL (SELECT pp.price FROM product_prices pp WHERE pp.product_id=p.id
+        AND pp.price_category_id=${priceClass} AND pp.unit_id IN (pu.unit_id,pu.id)
+        ORDER BY CASE WHEN pp.unit_id=pu.unit_id THEN 0 ELSE 1 END,pp.id DESC LIMIT 1) price ON TRUE
+      WHERE COALESCE(p.deleted,false)=false AND (p.status IS NULL OR p.status::text IN ('1','نشط','active','ACTIVE')) ORDER BY p.product_name`,
     sql`SELECT id, warehouse_code code, warehouse_name name FROM warehouses WHERE COALESCE(status,1)<>3 ORDER BY warehouse_name`,
+    sql`SELECT id,name FROM pricecategory WHERE COALESCE(status,1)=1 ORDER BY id`,
   ])
-  return { products, warehouses }
+  return { products, warehouses, priceClasses }
 }
 
 async function campaignRows() {
   return sql`
-    SELECT h.*, COALESCE((SELECT json_agg(json_build_object('id',i.id,'item_id',i.item_id,'item_name',COALESCE(i.item_name,p.product_name,''),'item_code',p.product_code,'unit_id',i.unit_id,'price',i.original_unit_price,'discount_type',i.discount_type,'discount',i.unit_discount_value,'quantity',i.campaign_qnty,'notes',i.notes,'type',i.type) ORDER BY i.id) FROM pos_campaign_items_tbl i LEFT JOIN products p ON p.id=i.item_id WHERE i.campaign_id=h.id),'[]') items,
+    SELECT h.*, COALESCE((SELECT json_agg(json_build_object('id',i.id,'item_id',i.item_id,'item_name',COALESCE(i.item_name,p.product_name,''),'item_code',p.product_code,'unit_id',i.unit_id,'unit_name',u.unit_name,'price',i.original_unit_price,'discount_type',i.discount_type,'discount',i.unit_discount_value,'quantity',i.campaign_qnty,'notes',i.notes,'type',i.type) ORDER BY i.id) FROM pos_campaign_items_tbl i LEFT JOIN products p ON p.id=i.item_id LEFT JOIN units u ON u.id=i.unit_id WHERE i.campaign_id=h.id),'[]') items,
     COALESCE((SELECT json_agg(w.warehouse_id ORDER BY w.warehouse_id) FROM pos_campaign_warehouses_tbl w WHERE w.campaign_id=h.id),'[]') warehouse_ids
     FROM pos_campaign_header_tbl h WHERE COALESCE(h.status,1)<>3 ORDER BY h.id DESC
   `
@@ -75,7 +84,9 @@ export async function GET(request: NextRequest) {
   try {
     await ensureTables()
     const id = Number(request.nextUrl.searchParams.get("id") || 0)
-    if (request.nextUrl.searchParams.get("meta") === "1") return NextResponse.json({ campaigns: await campaignRows(), ...(await meta()) })
+    const priceClass = Math.max(1, number(request.nextUrl.searchParams.get("price_class"), 1))
+    if (request.nextUrl.searchParams.get("catalog") === "1") return NextResponse.json(await meta(priceClass))
+    if (request.nextUrl.searchParams.get("meta") === "1") return NextResponse.json({ campaigns: await campaignRows(), ...(await meta(priceClass)) })
     if (id) {
       const rows = await campaignRows()
       return NextResponse.json(rows.find((row: any) => Number(row.id) === id) || null)
@@ -104,6 +115,13 @@ async function save(request: NextRequest, updating: boolean) {
     if (!data.start_date || !data.end_date || String(data.start_date) > String(data.end_date)) return NextResponse.json({ error: "فترة الحملة غير صالحة" }, { status: 400 })
     const buyItems = Array.isArray(data.buy_items) ? data.buy_items : []
     const addedItems = Array.isArray(data.added_items) ? data.added_items : []
+    const activeItems = [...(typeId === 3 ? [] : buyItems), ...(typeId === 1 ? [] : addedItems)]
+    if (activeItems.some((item: any) => !Number.isFinite(Number(item.quantity)) || Number(item.quantity) <= 0
+      || !Number.isFinite(Number(item.price)) || Number(item.price) < 0
+      || !Number.isFinite(Number(item.discount)) || Number(item.discount) < 0
+      || Number(item.discount) > Number(item.quantity) * Number(item.price))) {
+      return NextResponse.json({ error: "تحقق من الكمية والسعر؛ الخصم لا يتجاوز القيمة الأصلية للصنف" }, { status: 400 })
+    }
     if (typeId !== 3 && !buyItems.some((item: any) => number(item.item_id) > 0)) return NextResponse.json({ error: "أضف صنف شراء واحدًا على الأقل" }, { status: 400 })
     if (typeId !== 1 && !addedItems.some((item: any) => number(item.item_id) > 0) && number(data.discount_perc) <= 0) return NextResponse.json({ error: "حدد الأصناف المضافة أو نسبة الخصم" }, { status: 400 })
     if (number(data.discount_perc) < 0 || number(data.discount_perc) > 100 || number(data.max_campaigns, 1) < 1) return NextResponse.json({ error: "قيم الخصم أو حد التطبيق غير صالحة" }, { status: 400 })

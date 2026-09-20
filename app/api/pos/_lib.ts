@@ -1,8 +1,13 @@
+import { resolvePosAccounts } from "@/lib/pos-accounts"
 import sql from "@/lib/database"
 
 export const POS_PAYMENT_METHODS = ["cash", "card", "cheque", "account", "gift_card"] as const
 
 export async function ensurePosTables() {
+  await sql`CREATE TABLE IF NOT EXISTS users_currencies_default_account_tbl (
+    id SERIAL PRIMARY KEY, user_id INTEGER, currency_id INTEGER, account_id INTEGER,
+    received_cheqs_account_id INTEGER, returned_cheqs_account_id INTEGER, cards_account_id INTEGER
+  )`
   await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS pos_sold_using_scale BOOLEAN NOT NULL DEFAULT FALSE`
   await sql`
     CREATE TABLE IF NOT EXISTS pos_points_tbl (
@@ -14,7 +19,7 @@ export async function ensurePosTables() {
       currency_id INTEGER NOT NULL,
       sales_book_id INTEGER NOT NULL,
       return_book_id INTEGER,
-      cash_account_id INTEGER NOT NULL,
+      cash_account_id INTEGER,
       card_account_id INTEGER,
       cheque_account_id INTEGER,
       receivable_account_id INTEGER,
@@ -108,6 +113,27 @@ export async function ensurePosTables() {
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `
+  await sql`
+    CREATE TABLE IF NOT EXISTS pos_sale_drafts_tbl (
+      id BIGSERIAL PRIMARY KEY,
+      draft_code VARCHAR(40) NOT NULL UNIQUE,
+      pos_point_id INTEGER NOT NULL REFERENCES pos_points_tbl(id),
+      pos_session_id BIGINT REFERENCES pos_sessions_tbl(id),
+      user_id INTEGER NOT NULL REFERENCES user_settings(user_id),
+      customer_id INTEGER,
+      salesman_id INTEGER,
+      mode VARCHAR(12) NOT NULL DEFAULT 'sale',
+      note TEXT,
+      discount_value NUMERIC(12,4) NOT NULL DEFAULT 0,
+      items JSONB NOT NULL DEFAULT '[]'::jsonb,
+      status VARCHAR(16) NOT NULL DEFAULT 'draft',
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )
+  `
+  await sql`ALTER TABLE pos_points_tbl ALTER COLUMN cash_account_id DROP NOT NULL`
+  await sql`ALTER TABLE pos_points_tbl ADD COLUMN IF NOT EXISTS return_account_id INTEGER`
+  await sql`CREATE INDEX IF NOT EXISTS idx_pos_sale_drafts_owner ON pos_sale_drafts_tbl(pos_point_id,user_id,status,updated_at DESC)`
 }
 
 export function requestUserId(request: Request) {
@@ -135,7 +161,7 @@ export async function getPosPoint(pointId: number, userId: string, branchId?: nu
            OR EXISTS (SELECT 1 FROM pos_point_users_tbl x WHERE x.pos_point_id=p.id AND x.user_id=${userId}))
     LIMIT 1
   `
-  return rows[0] || null
+  return rows[0] ? resolvePosAccounts(rows[0], userId) : null
 }
 
 export async function getOpenPosSession(pointId: number, userId: string) {

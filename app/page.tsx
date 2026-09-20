@@ -53,7 +53,7 @@ const ChequeOperationsPage = lazyNamed(() => import("@/components/accounting/che
 const ChequeDepositBulkPage = lazyNamed(() => import("@/components/accounting/bulk-cheque-operations"), "ChequeDepositBulkPage")
 const ChequeEndorseBulkPage = lazyNamed(() => import("@/components/accounting/bulk-cheque-operations"), "ChequeEndorseBulkPage")
 const OutgoingChequeClearBulkPage = lazyNamed(() => import("@/components/accounting/bulk-cheque-operations"), "OutgoingChequeClearBulkPage")
-const ChequePaymentVouchers = lazyDefault(() => import("@/components/accounting/cheque-payment-vouchers"))
+const ChequePaymentVouchers = lazyDefault(() => import("@/components/accounting/unified-cheque-payment-voucher"))
 const InventoryAnalytics = lazyNamed(() => import("@/components/inventory/inventory-analytics"), "InventoryAnalytics")
 const AutomatedReorderSystem = lazyNamed(() => import("@/components/inventory/automated-reorder-system"), "AutomatedReorderSystem")
 const BarcodeManagement = lazyNamed(() => import("@/components/barcode/barcode-management"), "BarcodeManagement")

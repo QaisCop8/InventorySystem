@@ -11,8 +11,8 @@ export function validateScaleProductBarcodes(enabled: unknown, barcodes: unknown
 
 export function parseScaleBarcode(value: string) {
   const barcode = value.trim()
-  if (!/^\d{13}$/.test(barcode)) return null
-  const quantity = Number(barcode.slice(7)) / 1000
+  if (!/^\d{12,13}$/.test(barcode)) return null
+  const quantity = Number(barcode.slice(7)) / (barcode.length === 12 ? 10000 : 1000)
   return quantity > 0 ? { barcode: barcode.slice(0, 7), quantity } : null
 }
 
