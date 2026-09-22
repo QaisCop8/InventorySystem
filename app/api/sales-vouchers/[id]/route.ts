@@ -26,7 +26,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         SELECT 1
         FROM voucher_items_tbl inv_item
         JOIN voucher_header_tbl inv ON inv.id = inv_item.voucher_id
-        WHERE inv.vch_type IN (12, 17)
+        WHERE COALESCE(inv.status,1) <> 3 AND inv.vch_type IN (12, 17)
           AND inv_item.delivery_item_id IN (
             SELECT id FROM voucher_items_tbl WHERE voucher_id = vh.id
           )

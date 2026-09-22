@@ -1,5 +1,7 @@
 "use client"
 
+import { ReportPage, ReportHeader } from "@/components/reports/report-page"
+
 import { ReportFilters } from "@/components/reports/report-filters"
 
 import { useState, useMemo, useCallback } from "react"
@@ -197,16 +199,8 @@ export function AdvancedReportingDashboard() {
   }, [])
 
   return (
-    <div className="space-y-6">
-      {/* Header with filters and actions */}
-      <ReportFilters>
-        <CardHeader className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-t-lg">
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center text-blue-800">
-              <BarChart3 className="h-6 w-6 ml-2" />
-              لوحة التقارير المتقدمة
-            </CardTitle>
-            <div className="flex gap-2">
+    <ReportPage>
+<ReportHeader title="لوحة التقارير المتقدمة" actions={<>
               <Button data-report-apply
                 onClick={refreshData}
                 disabled={state.refreshing}
@@ -226,9 +220,10 @@ export function AdvancedReportingDashboard() {
                 <Download className="h-4 w-4 ml-2" />
                 تصدير شامل
               </Button>
-            </div>
-          </div>
-        </CardHeader>
+            </>} />
+      {/* Header with filters and actions */}
+      <ReportFilters>
+
         <CardContent className="pt-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 mb-4">
             <div>
@@ -631,6 +626,6 @@ export function AdvancedReportingDashboard() {
           </Card>
         </TabsContent>
       </Tabs>
-    </div>
+    </ReportPage>
   )
 }

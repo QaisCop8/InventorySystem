@@ -338,7 +338,7 @@ export async function createUser(userData: {
     // Check if username or email already exists
     const existingUsers = await sql`
       SELECT user_id FROM user_settings
-      WHERE username = ${userData.username} OR email = ${userData.email}
+      WHERE username = ${userData.username} OR LOWER(TRIM(email)) = ${userData.email.trim().toLowerCase()}
     `
 
     if (existingUsers.length > 0) {
@@ -373,10 +373,8 @@ export async function createUser(userData: {
   }
 }
 
-// إنشاء موظف شركة جديد بهويّة عامة موحّدة عبر النظام (management.users) — يضمن تفرّد البريد
-// الإلكتروني عالمياً (لا شركة أخرى تستطيع تسجيل نفس البريد كموظف لديها)، مع بقاء تسجيل الدخول
-// اليومي بلا أي تغيير (مباشرة على قاعدة الشركة نفسها، انظر authenticateUser أعلاه — لا يمر إطلاقاً
-// عبر قاعدة الإدارة). انظر خطة الصلاحيات لتفاصيل التصميم الكامل والمفاضلات.
+// Email uniqueness is local to the company. An existing management identity may
+// join another company without changing its password or existing memberships.
 export async function createTenantEmployeeWithManagementLink(userData: {
   username: string
   email: string
@@ -396,12 +394,9 @@ export async function createTenantEmployeeWithManagementLink(userData: {
 
   await ensureManagementTables()
 
-  // فحص مبدئي (الفحص الحاسم الفعلي هو قيد UNIQUE على management.users.email أدناه — قد يتسابق
-  // مسؤولا شركتين مختلفتين على نفس البريد بين هذا الفحص والإدراج، فيُلتقَط ذلك عبر رمز خطأ postgres
-  // 23505 لا الاعتماد على هذا الفحص وحده).
-  const existingManagementUser = await managementSql`SELECT id FROM users WHERE email = ${email}`
-  if (existingManagementUser.length > 0) {
-    return { success: false, error: "البريد الإلكتروني مستخدَم في شركة أخرى بالفعل" }
+  const existingTenantUser = await sql`SELECT user_id FROM user_settings WHERE LOWER(TRIM(email)) = ${email}`
+  if (existingTenantUser.length) {
+    return { success: false, error: "البريد الإلكتروني مستخدَم بالفعل لمستخدم آخر في هذه الشركة" }
   }
 
   const currentDbName = await resolveCurrentDbName()
@@ -423,24 +418,22 @@ export async function createTenantEmployeeWithManagementLink(userData: {
   try {
     await managementClient.query("BEGIN")
 
-    let managementUserId: number
-    try {
+    const existing = await managementClient.query(`SELECT id FROM users WHERE LOWER(email) = $1`, [email])
+    let managementUserId: number = existing.rows[0]?.id
+    if (!managementUserId) {
       const inserted = await managementClient.query(
         `INSERT INTO users (full_name, email, password_hash, email_verified, is_active)
-         VALUES ($1, $2, $3, true, true) RETURNING id`,
+         VALUES ($1, $2, $3, true, true) ON CONFLICT (email) DO NOTHING RETURNING id`,
         [userData.fullName, email, passwordHash],
       )
-      managementUserId = inserted.rows[0].id
-    } catch (insertError: any) {
-      if (insertError?.code === "23505") {
-        await managementClient.query("ROLLBACK")
-        return { success: false, error: "البريد الإلكتروني مستخدَم في شركة أخرى بالفعل" }
-      }
-      throw insertError
+      managementUserId = inserted.rows[0]?.id
+        ?? (await managementClient.query(`SELECT id FROM users WHERE email = $1`, [email])).rows[0]?.id
+      if (!managementUserId) throw new Error("Unable to resolve management identity")
     }
 
     await managementClient.query(
-      `INSERT INTO user_company (user_id, company_id, role, is_active) VALUES ($1, $2, 'employee', true)`,
+      `INSERT INTO user_company (user_id, company_id, role, is_active) VALUES ($1, $2, 'employee', true)
+       ON CONFLICT (user_id, company_id) DO NOTHING`,
       [managementUserId, companyId],
     )
 

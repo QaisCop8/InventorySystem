@@ -37,3 +37,21 @@ test('POS catalog resolves the selected customer category through the linked acc
  const response=await route.GET({nextUrl:new URL('http://localhost/api/pos/catalog?point_id=1&customer_id=50')})
  assert.equal(response.status,200);assert.equal(categories.length,5)
 })
+
+
+test('customer selection prompts for existing items, auto-prices an empty cart, and keeps cancellation separate from No',()=>{
+ const source=fs.readFileSync('components/pos/pos-cashier.tsx','utf8')
+ const start=source.indexOf(' const selectCustomer=')
+ const end=source.indexOf(' const [unsavedActionOpen',start)
+ const compiled=ts.transpileModule(source.slice(start,end),{compilerOptions:{target:ts.ScriptTarget.ES2020}}).outputText
+ function setup(cart){
+  const state={customer:1,pending:null,repriced:0,products:'unchanged'}
+  const customer={id:2,pricecategory:7}
+  const api=new Function('pricingBusy','saving','customerId','catalog','point','cart','pendingCustomer','setCustomerId','setCustomerProducts','setPendingCustomer','applyCustomerPrices',compiled+';return {selectCustomer,keepCustomerPrices,cancelCustomerSelection}')(false,false,1,{customers:[customer]},{price_category_id:3},cart,customer,id=>state.customer=id,value=>state.products=value,value=>state.pending=value,()=>state.repriced++)
+  return {state,...api}
+ }
+ const existing=setup([{id:1}]);existing.selectCustomer(2);assert.equal(existing.state.pending.id,2);assert.equal(existing.state.customer,1);assert.equal(existing.state.repriced,0)
+ existing.cancelCustomerSelection();assert.equal(existing.state.customer,1);assert.equal(existing.state.pending,null)
+ existing.keepCustomerPrices();assert.equal(existing.state.customer,2);assert.equal(existing.state.products,'unchanged');assert.equal(existing.state.repriced,0)
+ const empty=setup([]);empty.selectCustomer(2);assert.equal(empty.state.repriced,1);assert.equal(empty.state.pending,null)
+})

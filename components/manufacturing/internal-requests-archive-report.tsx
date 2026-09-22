@@ -1,5 +1,7 @@
 "use client"
 
+import { ReportPage, ReportHeader } from "@/components/reports/report-page"
+
 import { ReportFilters } from "@/components/reports/report-filters"
 
 import { useEffect, useMemo, useState } from "react"
@@ -60,10 +62,8 @@ export default function InternalRequestsArchiveReport() {
     quantities: rows.reduce((sum, row) => sum + (row.items || []).reduce((itemSum: number, item: any) => itemSum + Number(item.requested_quantity || 0), 0), 0),
   }), [rows])
 
-  return <div dir="rtl" className="archive-report min-h-full space-y-5 bg-gradient-to-b from-slate-50/80 to-white p-3 md:p-6">
-    <div className="overflow-hidden rounded-2xl border border-emerald-200 bg-gradient-to-l from-emerald-50 via-green-100 to-teal-50 p-6 text-emerald-950 shadow-lg">
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between"><div className="flex items-center gap-4"><div className="rounded-2xl bg-white/10 p-3 ring-1 ring-white/20"><Archive className="h-7 w-7 text-emerald-300" /></div><div><h1 className="text-2xl font-bold">تقرير أرشفة الطلبات الداخلية</h1><p className="mt-1 text-sm text-slate-300">سجل إداري كامل لجميع المراحل والتغييرات والكميات والمستخدمين.</p></div></div><Button className="bg-white text-slate-950 hover:bg-slate-100" onClick={() => void load()} disabled={loading}><RefreshCw className={`ml-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />تحديث التقرير</Button></div>
-    </div>
+  return <ReportPage>
+    <ReportHeader title={<>تقرير أرشفة الطلبات الداخلية</>} description={<>سجل إداري كامل لجميع المراحل والتغييرات والكميات والمستخدمين.</>} actions={<Button className="bg-white text-slate-950 hover:bg-slate-100" onClick={() => void load()} disabled={loading}><RefreshCw className={`ml-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />تحديث التقرير</Button>} />
 
     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
       {[["إجمالي الطلبات", totals.requests, Archive, "text-violet-600 bg-violet-50"], ["الطلبات المكتملة", totals.completed, PackageCheck, "text-emerald-600 bg-emerald-50"], ["الحركات المسجلة", totals.events, Clock3, "text-sky-600 bg-sky-50"], ["إجمالي الكمية المطلوبة", totals.quantities, PackageCheck, "text-amber-600 bg-amber-50"]].map(([label, value, Icon, tone]: any) => <Card key={label} className="border-0 shadow-sm"><CardContent className="flex items-center justify-between p-5"><div><p className="text-sm text-muted-foreground">{label}</p><p className="mt-1 text-2xl font-bold">{value}</p></div><div className={`rounded-2xl p-3 ${tone}`}><Icon className="h-6 w-6" /></div></CardContent></Card>)}
@@ -78,7 +78,7 @@ export default function InternalRequestsArchiveReport() {
     </div>
     <Dialog open={expanded !== null} onOpenChange={(open) => !open && setExpanded(null)}><DialogContent dir="rtl" className="max-h-[94vh] max-w-6xl overflow-y-auto"><DialogHeader><DialogTitle>عرض الطلب وكامل الأرشيف</DialogTitle></DialogHeader>{expanded !== null && (() => { const row = rows.find((item) => Number(item.id) === Number(expanded)); return row ? <div className="space-y-5"><div className="grid gap-3 rounded-2xl bg-black p-5 text-white sm:grid-cols-3"><div>رقم الطلب: <b>{row.vch_code}</b></div><div>التاريخ: <b>{String(row.vch_date).slice(0, 10)}</b></div><div>مقدم الطلب: <b>{row.requester_name || "-"}</b></div></div><ArchiveDetails row={row} /></div> : null })()}</DialogContent></Dialog>
     <style jsx global>{`.archive-report time,.archive-report b{font-variant-numeric:tabular-nums}.archive-report [class*="bg-zinc-100"] b{direction:ltr;unicode-bidi:isolate;display:inline-block}.archive-report>div:first-child .text-slate-300{color:#047857!important}.archive-report>div:first-child .bg-white\/10{background:#fff!important}.archive-report table thead{background:#d1fae5!important;color:#064e3b!important}.archive-report table thead th{border-color:#a7f3d0!important}[role="dialog"] .bg-black{background:#d1fae5!important;color:#064e3b!important;border:1px solid #a7f3d0}`}</style>
-  </div>
+  </ReportPage>
 }
 
 function ArchiveDetails({ row }: { row: any }) {

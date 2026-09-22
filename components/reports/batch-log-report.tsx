@@ -1,5 +1,7 @@
 "use client"
 
+import { ReportPage, ReportHeader } from "@/components/reports/report-page"
+
 import { ReportFilters } from "@/components/reports/report-filters"
 
 import React, { useEffect, useState } from "react"
@@ -109,7 +111,8 @@ export function BatchLogReport() {
   }
 
   return (
-    <div className="space-y-6">
+    <ReportPage>
+<ReportHeader title="أرشفة حركات الرقم التشغيلي" />
       <Card>
         <ProductSearchPopup
           visible={showItemSearch}
@@ -130,9 +133,7 @@ export function BatchLogReport() {
           priceCategoryId={1}
           ShowSelect={false}
         />
-        <CardHeader>
-          <CardTitle>تقرير ارشفة حركات الرقم التشغيلي</CardTitle>
-        </CardHeader>
+
         <CardContent className="space-y-4">
           {/* Filters */}
           <ReportFilters><div className="flex flex-wrap gap-4 items-end">
@@ -240,6 +241,6 @@ export function BatchLogReport() {
 
         </CardContent>
       </Card>
-    </div>
+    </ReportPage>
   )
 }

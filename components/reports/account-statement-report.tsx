@@ -1,5 +1,7 @@
 "use client"
 
+import { ReportPage, ReportHeader } from "@/components/reports/report-page"
+
 import { ReportFilters } from "@/components/reports/report-filters"
 
 import { Fragment, useEffect, useId, useMemo, useRef, useState } from "react"
@@ -168,14 +170,9 @@ export function AccountStatementReport({ kind }: { kind: ReportKind }) {
     { label: "الرصيد النهائي", value: summary.final_balance },
   ]
 
-  return <main dir="rtl" style={{ fontSize: "clamp(12px, var(--font-size-custom, 14px), 18px)" }} className="accounting-report min-h-full w-full overflow-y-auto bg-[radial-gradient(circle_at_top_right,rgba(20,184,166,.10),transparent 28%),radial-gradient(circle_at_top_left,rgba(99,102,241,.08),transparent 25%)] p-3 md:h-full md:min-h-0 sm:p-5 lg:p-7 print:h-auto print:overflow-visible print:bg-white print:p-0">
-    <section className="w-full space-y-5 md:flex md:h-full md:min-h-0 md:flex-col md:gap-5 md:space-y-0">
-      <header className="relative shrink-0 overflow-hidden rounded-[28px] bg-gradient-to-l from-emerald-700 via-teal-600 to-green-500 px-5 py-6 text-white shadow-xl shadow-emerald-900/20 sm:px-8">
-        <div className="absolute -left-12 -top-16 h-48 w-48 rounded-full bg-white/20 blur-3xl"/><div className="absolute -bottom-20 right-1/3 h-44 w-44 rounded-full bg-indigo-300/20 blur-3xl"/><div className="relative flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-4"><span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/10 ring-1 ring-white/15 backdrop-blur"><Landmark className="h-7 w-7 text-teal-300"/></span><div><Badge className="mb-2 border-0 bg-teal-400/15 text-teal-200">التقارير المحاسبية</Badge><h1 className="text-2xl font-black sm:text-3xl">{title}</h1><p className="mt-1 max-w-2xl text-sm text-slate-300">{subtitle}</p></div></div>
-          <div className="flex gap-2 print:hidden"><Button variant="secondary" onClick={exportCsv} disabled={!visibleRows.length}><Download className="ml-2 h-4 w-4"/>تصدير</Button><Button className="bg-white text-slate-900 hover:bg-slate-100" onClick={() => window.print()} disabled={!visibleRows.length}><Printer className="ml-2 h-4 w-4"/>طباعة</Button></div>
-        </div>
-      </header>
+  return <ReportPage>
+
+      <ReportHeader icon={Landmark} category="تقارير محاسبية" title={<>{title}</>} description={<>{subtitle}</>} actions={<><Button variant="secondary" onClick={exportCsv} disabled={!visibleRows.length}><Download className="ml-2 h-4 w-4"/>تصدير</Button><Button className="bg-white text-slate-900 hover:bg-slate-100" onClick={() => window.print()} disabled={!visibleRows.length}><Printer className="ml-2 h-4 w-4"/>طباعة</Button></>} />
 
       <ReportFilters>
 
@@ -199,11 +196,11 @@ export function AccountStatementReport({ kind }: { kind: ReportKind }) {
       <section dir="rtl" className="grid shrink-0 grid-cols-1 gap-[10px] sm:grid-cols-2 lg:grid-cols-4">{statCards.map(card => <ReportSummaryCard key={card.label} label={card.label} highlight={card.tone === "debit"}>{money.format(card.value)}</ReportSummaryCard>)}</section>
 
       <section className={`grid min-h-[430px] flex-1 gap-4 ${selectedAccounts.length > 1 ? "xl:grid-cols-[360px_minmax(0,1fr)]" : "grid-cols-1"}`}>
-        {selectedAccounts.length > 1 && <aside className="flex min-h-[430px] flex-col overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-xl dark:border-slate-800 dark:bg-slate-950 print:hidden">
+        {selectedAccounts.length > 1 && <aside className="report-results print:hidden">
           <div className="shrink-0 border-b bg-gradient-to-l from-teal-50 to-white p-4 dark:from-teal-950/40 dark:to-slate-950"><div className="flex items-center gap-2"><span className="grid h-9 w-9 place-items-center rounded-xl bg-teal-600 text-white"><UsersRound className="h-4 w-4"/></span><div><h2 className="font-black">{isReceivables ? "الذمم المحددة" : "الحسابات المحددة"}</h2><p className="text-xs text-muted-foreground">اختر {isReceivables ? "ذمة" : "حسابًا"} لعرض حركاته</p></div></div></div>
           <div className="min-h-0 flex-1 overflow-y-auto"><table className="w-full table-fixed text-sm"><thead className="sticky top-0 z-10 bg-gradient-to-l from-teal-700 to-sky-700 text-white"><tr><th className="px-3 py-2.5 text-right">{isReceivables ? "اسم الذمة" : "اسم الحساب"}</th><th className="w-20 px-2 py-2.5 text-center">الإجراء</th></tr></thead><tbody>{selectedAccounts.map(account => { const isActive = Number(account.id) === activeAccountId; return <tr key={account.id} className={`border-b transition ${isActive ? "bg-teal-50 dark:bg-teal-950/30" : "hover:bg-slate-50 dark:hover:bg-slate-900"}`}><td className="min-w-0 px-3 py-3"><p className={`truncate font-bold ${isActive ? "text-teal-800 dark:text-teal-200" : ""}`} title={account.name || account.account_name}>{account.name || account.account_name}</p><p className="mt-1 truncate font-mono text-xs text-muted-foreground">{account.code || account.account_code}</p></td><td className="px-2 py-3 text-center"><Button size="sm" variant={isActive ? "default" : "outline"} disabled={loading && isActive} onClick={() => void runReport(Number(account.id))} className={`h-8 rounded-lg px-3 ${isActive ? "bg-teal-600 hover:bg-teal-700" : ""}`}>{loading && isActive ? <Loader2 className="h-3.5 w-3.5 animate-spin"/> : "عرض"}</Button></td></tr>})}</tbody></table></div>
         </aside>}
-        <section className="flex min-h-[430px] min-w-0 flex-col overflow-hidden rounded-[24px] border bg-background shadow-xl">
+        <section className="report-results">
         <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b p-4 print:hidden"><div><h2 className="font-bold">حركات الحساب{activeAccount ? ` — ${activeAccount.name || activeAccount.account_name}` : ""}</h2><p className="text-xs text-muted-foreground">{visibleRows.length.toLocaleString("ar")} حركة ضمن الفترة المحددة</p></div><div className="relative w-full sm:w-80"><Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"/><Input value={search} onChange={e => setSearch(e.target.value)} placeholder="ابحث في النتائج..." className="rounded-xl bg-muted/40 pr-9"/></div></div>
         <div className="min-h-[350px] flex-1 overflow-auto overscroll-contain print:max-h-none print:overflow-visible"><table className="w-full min-w-[1100px] border-collapse text-sm"><thead className="sticky top-0 z-10 bg-gradient-to-l from-teal-700 via-cyan-700 to-sky-700 text-white print:static"><tr>{["التاريخ","السند","الحركة","الحساب","مدين","دائن","الرصيد",...(filters.showTransactionCurrency?["العملة"]:[]),"الملاحظة",...(filters.showCounterAccounts?["الحساب المقابل"]:[])].map(label => <th key={label} className="whitespace-nowrap px-3 py-3 text-right text-xs font-semibold">{label}</th>)}</tr></thead>
           <tbody>{filters.showOpening && (rows.length > 0 || summary.opening_balance !== 0) && <tr className="bg-indigo-50 font-bold text-indigo-900 dark:bg-indigo-950/30 dark:text-indigo-200"><td className="px-3 py-3">{filters.fromDate}</td><td colSpan={3}>الرصيد السابق للفترة</td><td className="px-3 py-3 tabular-nums" dir="ltr">{summary.opening_balance>0?money.format(summary.opening_balance):"—"}</td><td className="px-3 py-3 tabular-nums" dir="ltr">{summary.opening_balance<0?money.format(Math.abs(summary.opening_balance)):"—"}</td><td className="px-3 py-3 tabular-nums" dir="ltr">{money.format(summary.opening_balance)}</td><td colSpan={6}/></tr>}
@@ -215,8 +212,8 @@ export function AccountStatementReport({ kind }: { kind: ReportKind }) {
         </table></div>
         </section>
       </section>
-    </section>
-  </main>
+
+  </ReportPage>
 }
 
 export function ReceivablesStatementReport() { return <AccountStatementReport kind="receivables"/> }

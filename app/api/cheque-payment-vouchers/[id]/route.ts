@@ -61,3 +61,30 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     return NextResponse.json({ error: "تعذر إلغاء سند صرف الشيكات" }, { status: 500 })
   }
 }
+
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    await ensureChequePaymentTables()
+    const id = Number((await params).id)
+    const { action } = await request.json()
+    if (!["save", "save_print", "post", "post_print"].includes(action)) {
+      return NextResponse.json({ error: "إجراء الحفظ غير صحيح" }, { status: 400 })
+    }
+    const posting = action === "post" || action === "post_print"
+    const authorization = await authorizeStoredVoucher(request, id, posting ? "post" : "update")
+    if (!authorization.ok) return authorization.response
+    return await withTenantTransaction(async () => {
+      const rows = await sql`SELECT id,status FROM voucher_header_tbl WHERE id=${id} AND vch_type=21 FOR UPDATE`
+      if (!rows[0] || Number(rows[0].status) !== 1) {
+        return NextResponse.json({ error: "السند غير موجود أو مرحل أو ملغي" }, { status: 409 })
+      }
+      if (posting) {
+        await sql`UPDATE voucher_header_tbl SET status=2,vch_status=2,is_printed=${action === "post_print" ? 1 : 0},last_update_date=CURRENT_TIMESTAMP WHERE id=${id}`
+      }
+      return NextResponse.json(await fetchChequePaymentVoucher(id))
+    })
+  } catch (error) {
+    console.error("Cheque payment save error:", error)
+    return NextResponse.json({ error: "تعذر حفظ سند صرف الشيكات" }, { status: 500 })
+  }
+}

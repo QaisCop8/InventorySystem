@@ -2153,9 +2153,13 @@ export function CompactProductForm({
       const currenciesResponse = await fetchDefinition("/api/exchange-rates")
       if (currenciesResponse.ok) {
         const currenciesData = await currenciesResponse.json()
-        definitionsObj.currenciesData = currenciesData.rates
-        definitionsRef.current.currencies = currenciesData.rates
-        setDefinitions((prev) => ({ ...prev, currencies: currenciesData.rates }))
+        // The response id belongs to exchange_rates; product_prices references currency.id.
+        const currencies = (currenciesData.rates || [])
+          .map((currency: any) => ({ ...currency, id: Number(currency.currency_id) }))
+          .filter((currency: any) => Number.isInteger(currency.id) && currency.id > 0)
+        definitionsObj.currenciesData = currencies
+        definitionsRef.current.currencies = currencies
+        setDefinitions((prev) => ({ ...prev, currencies }))
       }
 
       // Price categories

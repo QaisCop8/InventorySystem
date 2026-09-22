@@ -1,5 +1,7 @@
 "use client"
 
+import { ReportPage, ReportHeader } from "@/components/reports/report-page"
+
 import { ReportFilters } from "@/components/reports/report-filters"
 
 import { useState, useMemo, useCallback } from "react"
@@ -189,7 +191,8 @@ export function ProductReports() {
   }, [])
 
   return (
-    <div className="space-y-6">
+    <ReportPage>
+<ReportHeader title="تقارير الأصناف والمخزون" />
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">{summaryCards}</div>
 
       <ReportFilters>
@@ -544,6 +547,6 @@ export function ProductReports() {
           </Card>
         </TabsContent>
       </Tabs>
-    </div>
+    </ReportPage>
   )
 }

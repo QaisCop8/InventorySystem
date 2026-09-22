@@ -10,9 +10,5 @@ const BatchLogReportClient = NextDynamic(
 )
 
 export default function ReportsBatchLogPage() {
-  return (
-    <div className="container mx-auto p-6">
-      <BatchLogReportClient />
-    </div>
-  )
+  return <BatchLogReportClient />
 }

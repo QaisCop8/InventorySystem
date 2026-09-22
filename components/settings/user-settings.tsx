@@ -1,5 +1,5 @@
 "use client"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -9,6 +9,8 @@ import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Badge } from "@/components/ui/badge"
 import { Plus, Search, Edit, Shield, Key, User, Users, UserCheck, UserX, Clock, Eye, EyeOff } from "lucide-react"
+
+import Messages from "@/components/common/Messages"
 
 const roles = ["مدير النظام", "مدير المبيعات", "مدير المشتريات", "محاسب", "مندوب مبيعات", "موظف مخازن"]
 interface User {
@@ -76,6 +78,16 @@ export function UserSettings() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [showPasswordReset, setShowPasswordReset] = useState(false)
   const [showEditPassword, setShowEditPassword] = useState(false)
+
+  const pageMessages = useRef<any>(null)
+  const editMessages = useRef<any>(null)
+  const newMessages = useRef<any>(null)
+  const resetMessages = useRef<any>(null)
+  const showMessage = (detail: string, severity: "error" | "success" = "error") => {
+    const target = showNewUserDialog ? newMessages : showUserDialog ? editMessages : showPasswordReset ? resetMessages : pageMessages
+    target.current?.clear?.()
+    target.current?.show?.([{ severity, summary: "", detail, life: 6000 }])
+  }
 
   // حقول القوائم المنسدلة (PrimeDropdown) بحوارَي التعديل والإضافة — تُدار بحالة React بدل
   // FormData لأن PrimeDropdown ليس عنصر <select> حقيقياً فلا تلتقطه FormData تلقائياً.
@@ -255,7 +267,6 @@ export function UserSettings() {
   }
 
   const saveUser = async (userData, isNew = false) => {
-    console.log("[v0] Saving user:", userData, "isNew:", isNew)
 
     try {
       if (isNew) {
@@ -271,6 +282,7 @@ export function UserSettings() {
             role: userData.role,
             department: userData.department,
             branch_id: userData.branch_id,
+            job_role_id: userData.job_role_id,
             phone: userData.phone,
             language: userData.language || "ar",
             theme_preference: userData.theme || "light",
@@ -287,7 +299,7 @@ export function UserSettings() {
         if (!response.ok || !data.success) {
           const message = data.error || "فشل في حفظ المستخدم";
           console.error("[v0] User creation failed:", message);
-          alert("حدث خطأ في حفظ المستخدم: " + message);
+          showMessage("حدث خطأ في حفظ المستخدم: " + message);
           return;
         }
 
@@ -315,6 +327,7 @@ export function UserSettings() {
             role: userData.role,
             department: userData.department,
             branch_id: userData.branch_id,
+            job_role_id: userData.job_role_id,
             phone: userData.phone,
             language: userData.language || "ar",
             theme_preference: userData.theme || "light",
@@ -331,7 +344,7 @@ export function UserSettings() {
         if (!response.ok || !data.success) {
           const message = data.error || "فشل في حفظ المستخدم";
           console.error("[v0] User creation failed:", message);
-          alert("حدث خطأ في حفظ المستخدم: " + message);
+          showMessage("حدث خطأ في حفظ المستخدم: " + message);
           return;
         }
 
@@ -342,10 +355,10 @@ export function UserSettings() {
       console.log("errorerrorerrorerror ", error)
       if (error instanceof Error) {
         console.error("[v0] Error saving user:", error.message)
-        alert("حدث خطأ في حفظ المستخدم: " + error.message)
+        showMessage("حدث خطأ في حفظ المستخدم: " + error.message)
       } else {
         console.error("[v0] Unknown error:", error)
-        alert("حدث خطأ غير معروف أثناء حفظ المستخدم")
+        showMessage("حدث خطأ غير معروف أثناء حفظ المستخدم")
       }
     }
   }
@@ -363,6 +376,7 @@ export function UserSettings() {
 
   return (
     <div className="space-y-6">
+      <Messages innerRef={pageMessages} />
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {userSummary.map((item, index) => (
           <Card key={index} className="erp-card">
@@ -507,6 +521,7 @@ export function UserSettings() {
           <DialogHeader>
             <DialogTitle>تعديل المستخدم {selectedUser?.full_name}</DialogTitle>
           </DialogHeader>
+          <Messages innerRef={editMessages} />
           {selectedUser && (
             <form
               onSubmit={(e) => {
@@ -518,25 +533,25 @@ export function UserSettings() {
 
                 if (showEditPassword && password) {
                   if (password !== confirmPassword) {
-                    alert("كلمة المرور وتأكيد كلمة المرور غير متطابقتان")
+                    showMessage("كلمة المرور وتأكيد كلمة المرور غير متطابقتان")
                     return
                   }
                   if (password.length < 6) {
-                    alert("كلمة المرور يجب أن تكون 6 أحرف على الأقل")
+                    showMessage("كلمة المرور يجب أن تكون 6 أحرف على الأقل")
                     return
                   }
                 }
 
                 if (!editDepartment) {
-                  alert("يجب اختيار القسم")
+                  showMessage("يجب اختيار القسم")
                   return
                 }
                 if (!editBranchId) {
-                  alert("يجب اختيار الفرع")
+                  showMessage("يجب اختيار الفرع")
                   return
                 }
                 if (!editJobRoleId) {
-                  alert("يجب اختيار الدور الوظيفي")
+                  showMessage("يجب اختيار الدور الوظيفي")
                   return
                 }
 
@@ -837,6 +852,7 @@ export function UserSettings() {
           <DialogHeader>
             <DialogTitle>إضافة مستخدم جديد</DialogTitle>
           </DialogHeader>
+          <Messages innerRef={newMessages} />
           <form
             onSubmit={(e) => {
               e.preventDefault()
@@ -845,25 +861,25 @@ export function UserSettings() {
               const confirmPassword = formData.get("confirmPassword") as string
 
               if (password !== confirmPassword) {
-                alert("كلمة المرور وتأكيد كلمة المرور غير متطابقتان")
+                showMessage("كلمة المرور وتأكيد كلمة المرور غير متطابقتان")
                 return
               }
 
               if (password.length < 6) {
-                alert("كلمة المرور يجب أن تكون 6 أحرف على الأقل")
+                showMessage("كلمة المرور يجب أن تكون 6 أحرف على الأقل")
                 return
               }
 
               if (!newDepartment) {
-                alert("يجب اختيار القسم")
+                showMessage("يجب اختيار القسم")
                 return
               }
               if (!newBranchId) {
-                alert("يجب اختيار الفرع")
+                showMessage("يجب اختيار الفرع")
                 return
               }
               if (!newJobRoleId) {
-                alert("يجب اختيار الدور الوظيفي")
+                showMessage("يجب اختيار الدور الوظيفي")
                 return
               }
 
@@ -1106,6 +1122,7 @@ export function UserSettings() {
           <DialogHeader>
             <DialogTitle>إعادة تعيين كلمة المرور</DialogTitle>
           </DialogHeader>
+          <Messages innerRef={resetMessages} />
           {selectedUser && (
             <div className="space-y-4" dir="rtl">
               <div className="text-center">
@@ -1125,7 +1142,7 @@ export function UserSettings() {
                 <Button
                   onClick={() => {
                     // Here you would typically call an API to send password reset email
-                    alert(`تم إرسال رابط إعادة تعيين كلمة المرور إلى ${selectedUser.email}`)
+                    showMessage(`تم إرسال رابط إعادة تعيين كلمة المرور إلى ${selectedUser.email}`)
                     setShowPasswordReset(false)
                   }}
                 >

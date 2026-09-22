@@ -1,6 +1,7 @@
 "use client";
 
 import React from 'react';
+import { gridActionClass, gridActionStyle, gridActionLabel } from './grid-action-icons';
 import { FlexGridColumn, FlexGrid, FlexGridCellTemplate } from '@grapecity/wijmo.react.grid';
 import * as wjcCore from '@grapecity/wijmo';
 import { GroupPanel } from '@grapecity/wijmo.react.grid.grouppanel';
@@ -234,9 +235,10 @@ createButtonsColumns = () => {
             // يضبط الخاصية فعلياً على النص الحرفي "undefined" بدل تركها فارغة، فتظهر "undefined"
             // كتلميح (tooltip) لأي عمود زر لم يُحدَّد له title صراحةً.
             attributes: {
-              title: col.title || this.getButtonLabel(col),
-              'aria-label': col.title || this.getButtonLabel(col) || col.name || 'action',
-              style: this.getButtonInlineStyle(col.className),
+              type: 'button',
+              title: col.title || this.getButtonLabel(col) || gridActionLabel(col.iconType, col.className),
+              'aria-label': col.title || this.getButtonLabel(col) || gridActionLabel(col.iconType, col.className),
+              style: this.getButtonInlineStyle(col.className, col.iconType),
             },
             cssClass: this.setButtonClass(col.className, col.iconType),
             text: this.getButtonLabel(col),
@@ -605,13 +607,15 @@ createButtonTemplate = (col) => (ctx) => {
   cell.style.alignItems = 'center';
 
   const btn = document.createElement('button');
-  btn.title = col.title || '';
+  btn.title = col.title || this.getButtonLabel(col) || gridActionLabel(col.iconType, col.className);
+  btn.type = 'button';
+  btn.setAttribute('aria-label', btn.title);
   // use helper to derive consistent css classes for grid buttons
   btn.className = this.setButtonClass(col.className, col.iconType);
   btn.textContent = this.getButtonLabel(col);
 
   // Inline style fallback so colors appear even when global CSS is overridden
-  const inline = this.getButtonInlineStyle(col.className);
+  const inline = this.getButtonInlineStyle(col.className, col.iconType);
   if (inline) btn.style.cssText += inline;
 
   btn.addEventListener('click', (e) => col.onClick?.(ctx.item, e));
@@ -685,141 +689,24 @@ createButtonTemplate = (col) => (ctx) => {
 
   
 
-  setButtonClass = (className, iconType) => {
-    const classes = ['wj-cell-maker-btn'];
-    const cls = (className || 'default').toLowerCase();
-    const icon = (iconType || '').toLowerCase();
-
-    switch (cls) {
-      case 'danger':
-        classes.push('btn-danger');
-        break;
-      case 'warning':
-        classes.push('btn-warning');
-        break;
-      case 'info':
-        classes.push('btn-info');
-        break;
-      case 'success':
-        classes.push('btn-success');
-        break;
-      default:
-        classes.push('btn-default');
-        break;
-    }
-
-    switch (icon) {
-      case 'search':
-        classes.push('pi', 'pi-search');
-        break;
-      case 'edit':
-        classes.push('pi', 'pi-pencil');
-        break;
-      case 'delete':
-        classes.push('pi', 'pi-trash');
-        break;
-      case 'add':
-        classes.push('pi', 'pi-plus');
-        break;
-      case 'view':
-      case 'eye':
-        classes.push('pi', 'pi-eye');
-        break;
-      case 'save':
-        classes.push('pi', 'pi-save');
-        break;
-      case 'calendar':
-        classes.push('pi', 'pi-calendar');
-        break;
-      case 'money':
-        classes.push('pi', 'pi-money-bill');
-        break;
-      case 'barcode':
-        classes.push('pi', 'pi-qrcode');
-        break;
-      default:
-        break;
-    }
-
-    return classes.join(' ');
-  };
+  setButtonClass = (className, iconType) => gridActionClass(className, iconType);
 
   getButtonLabel = (col = {}) => {
     if (col.buttonLabel) return col.buttonLabel;
     return '';
   };
 
-  // Returns inline style string for a given button class to be used as a
-  // fallback when CSS rules are overridden or not applied by the environment.
-  getButtonInlineStyle = (className) => {
-    // نفس تدرّجات "soft-fill" بـDataGridView.scss (لون خفيف منذ حالة السكون) — احتياطي فقط لبيئات
-    // يتعذّر فيها تحميل/تطبيق تلك القواعد الخارجية؛ color-mix مدعوم أصلاً بالمتصفحات المستهدَفة إذ
-    // يُستخدَم بنفس ملف الـSCSS الأساسي بلا مشاكل.
-    const cls = (className || 'default').toLowerCase();
-    switch (cls) {
-      case 'danger':
-        return 'background:color-mix(in srgb, var(--destructive) 13%, transparent);color:var(--destructive);border:none;';
-      case 'warning':
-        return 'background:color-mix(in srgb, #f59e0b 14%, transparent);color:#b45309;border:none;';
-      case 'info':
-        return 'background:color-mix(in srgb, var(--primary) 12%, transparent);color:var(--primary);border:none;';
-      case 'success':
-        return 'background:color-mix(in srgb, #22c55e 14%, transparent);color:#15803d;border:none;';
-      default:
-        return 'background:color-mix(in srgb, var(--foreground) 7%, transparent);color:var(--muted-foreground);border:none;';
-    }
-  };
+  getButtonInlineStyle = (className, iconType) => gridActionStyle(className, iconType);
 
-  // Apply inline colors/styles to any buttons inside the grid host.
-  // This is a runtime fallback for environments where external CSS is
-  // overridden or CellMaker doesn't propagate classes/styles reliably.
+  // Fit action controls to the row height and allow text labels to expand.
   applyButtonColors = () => {
-    try {
-      if (!this.flex || !this.flex.hostElement) return;
-      const rootStyles = typeof window !== 'undefined' ? getComputedStyle(document.documentElement) : null;
-      const configuredRowHeight = parseInt(rootStyles?.getPropertyValue('--datagrid-row-height'), 10) || 50;
-      const actualRowHeight = Number(this.flex.rows?.defaultSize) || configuredRowHeight;
-      const buttonSize = Math.max(22, Math.min(30, actualRowHeight - 6));
-      const buttonRadius = Math.max(7, Math.round(buttonSize * 0.3));
-      const btns = this.flex.hostElement.querySelectorAll('button');
-      btns.forEach((btn) => {
-        const cls = (btn.className || '').toLowerCase();
-        // size and base styles — نفس تدرّجات "soft-fill" بـDataGridView.scss، احتياطي فقط
-        btn.style.height = `${buttonSize}px`;
-        btn.style.width = `${buttonSize}px`;
-        btn.style.minWidth = `${buttonSize}px`;
-        btn.style.padding = btn.style.padding || '0';
-        btn.style.borderRadius = `${buttonRadius}px`;
-        btn.style.border = '1px solid color-mix(in srgb, currentColor 18%, transparent)';
-        btn.style.boxShadow = '0 1px 2px rgba(15, 23, 42, 0.08)';
-
-        if (cls.indexOf('pi-trash') > -1 || cls.indexOf('btn-danger') > -1) {
-          btn.style.background = 'color-mix(in srgb, var(--destructive) 13%, transparent)';
-          btn.style.color = 'var(--destructive)';
-        } else if (cls.indexOf('pi-calendar') > -1) {
-          btn.style.background = 'color-mix(in srgb, #8b5cf6 14%, transparent)';
-          btn.style.color = '#8b5cf6';
-        } else if (cls.indexOf('pi-search') > -1 || cls.indexOf('pi-pencil') > -1 || cls.indexOf('pi-qrcode') > -1 || cls.indexOf('btn-info') > -1) {
-          btn.style.background = 'color-mix(in srgb, var(--primary) 12%, transparent)';
-          btn.style.color = 'var(--primary)';
-        } else if (cls.indexOf('btn-warning') > -1) {
-          btn.style.background = 'color-mix(in srgb, #f59e0b 14%, transparent)';
-          btn.style.color = '#b45309';
-        } else if (cls.indexOf('btn-success') > -1) {
-          btn.style.background = 'color-mix(in srgb, #22c55e 14%, transparent)';
-          btn.style.color = '#15803d';
-        } else if (cls.indexOf('btn-default') > -1 || cls.indexOf('wj-cell-maker') > -1 || cls.indexOf('wj-cell-maker-btn') > -1) {
-          // default neutral look
-          btn.style.background = 'color-mix(in srgb, var(--foreground) 7%, transparent)';
-          btn.style.color = 'var(--muted-foreground)';
-        }
-        // ensure icon color follows button
-        const icon = btn.querySelector('i');
-        if (icon) icon.style.color = 'inherit';
-      });
-    } catch (e) {
-      /* ignore */
-    }
+    if (!this.flex?.hostElement) return;
+    const rowHeight = Number(this.flex.rows?.defaultSize) || 50;
+    const size = Math.max(22, Math.min(32, rowHeight - 6));
+    this.flex.hostElement.querySelectorAll('button.dgv-action').forEach(button => {
+      button.style.setProperty('--dgv-action-size', size + 'px');
+      button.classList.toggle('has-label', Boolean(button.textContent?.trim()));
+    });
   };
 
   filter = (e) => {

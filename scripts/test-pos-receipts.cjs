@@ -80,6 +80,7 @@ function harness(options = {}) {
   })
   const salesLib = { ensureTables: async () => {}, generateSalesVoucherCode: async () => 'INV100', SALES_INVOICE_VCH_TYPE: 12, RETURN_SELL_VCH_TYPE: 16, ITEM_ACCOUNT_VCH_TYPES: [12,16], reverseSalesVoucherStockMovement: async () => {}, fetchSalesVoucherItems: async () => state.invoice.items }
   const route = load('app/api/pos/sales/route.ts', {
+    '@/lib/pos-account-validation': load('lib/pos-account-validation.ts'),
     'next/server': next, '@/lib/database': { default: sql, withTenantTransaction: transaction, __esModule: true },
     '@/app/api/sales-vouchers/route': { POST: async req => {
       const data = await req.json()
@@ -89,7 +90,7 @@ function harness(options = {}) {
       return Response.json(state.invoice, { status: 201 })
     } },
     '@/app/api/stock-vouchers/route': {}, '@/app/api/stock-vouchers/_lib': {}, '@/app/api/sales-vouchers/_lib': salesLib,
-    '../_lib': { ensurePosTables: async () => {}, getOpenPosSession: async () => ({ id: 1, shift_guid: 'shift' }), getPosPoint: async () => options.noWalkIn ? { ...point, walk_in_account_id: null } : point, requestBranchId: () => 1, requestUserId: () => 'user' },
+    '../_lib': { ensurePosTables: async () => {}, getOpenPosSession: async () => ({ id: 1, shift_guid: 'shift' }), getPosPoint: async () => ({ ...point, ...options.pointOverrides, ...(options.noWalkIn ? { walk_in_account_id: null } : {}) }), requestBranchId: () => 1, requestUserId: () => 'user' },
     '@/lib/pos-currencies': { getPosCurrencies: async (...args) => { assert.equal(args.length, 1); return [{ currency_id: 1, rate_to_point: 1, exchange_rate: options.pointRate ?? 1 }, { currency_id: 2, rate_to_point: 3.5, exchange_rate: 3.5 }] } },
     '@/lib/pos-receipt': receiptLogic, '../_receipts': receipts,
   })
@@ -156,6 +157,16 @@ test('account payments require an actual selected customer', async () => {
     const { state, route } = harness()
     assert.equal((await route.POST(request({ ...payload([payment]), pos_customer_id: null }))).status, 400)
     assert.equal(state.invoice, null)
+  }
+})
+
+test('missing payment or tax defaults report a configuration message before creating an invoice', async () => {
+  for (const pointOverrides of [{ cash_account_id: null }, { tax_percent: 16, tax_account_id: null }]) {
+    const { state, route } = harness({ pointOverrides })
+    const response = await route.POST(request(payload([{ ...cash, amount: 100 }])))
+    assert.equal(response.status, 400)
+    assert.match((await response.json()).error, /تعريف نقطة البيع/)
+    assert.equal(state.invoiceCreates, 0)
   }
 })
 
@@ -431,6 +442,7 @@ test('account payments use the selected customer instead of submitted receivable
 test('POS definition accepts unset accounts and stores null overrides', async () => {
   const writes = []
   const route = load('app/api/pos/points/route.ts', {
+    '@/lib/pos-point-users': load('lib/pos-point-users.ts'),
     'next/server': next,
     '@/lib/database': async (parts, ...values) => {
       const query = parts.join('?')

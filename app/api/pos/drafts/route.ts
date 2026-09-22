@@ -30,6 +30,10 @@ export async function POST(request: NextRequest) {
   try {
     await ensurePosTables()
     const data = await request.json()
+    const draftId = Number(data.id || 0)
+    if (!Number.isSafeInteger(draftId) || draftId < 0 || (request.method === "PUT" && !draftId)) {
+      return NextResponse.json({ error: "معرف المسودة غير صالح" }, { status: 400 })
+    }
     const pointId = Number(data.pos_point_id || 0)
     const userId = requestUserId(request)
     if (!pointId || !userId || !Array.isArray(data.items) || !data.items.length) return NextResponse.json({ error: "بيانات المسودة غير مكتملة" }, { status: 400 })
@@ -37,6 +41,19 @@ export async function POST(request: NextRequest) {
     if (!point) return NextResponse.json({ error: "نقطة البيع غير متاحة" }, { status: 403 })
     const session = await getOpenPosSession(pointId, userId)
     if (!session) return NextResponse.json({ error: "يجب فتح العهدة قبل حفظ المسودة" }, { status: 400 })
+    if (draftId) {
+      const rows = await sql`
+        UPDATE pos_sale_drafts_tbl SET
+          pos_session_id=${Number(session.id)},customer_id=${Number(data.pos_customer_id)||null},
+          salesman_id=${Number(data.salesman_id)||null},mode=${String(data.pos_mode||"sale")},
+          note=${String(data.note||"")},discount_value=${Number(data.discount_value||0)},
+          items=${JSON.stringify(data.items)}::jsonb,updated_at=NOW()
+        WHERE id=${draftId} AND pos_point_id=${pointId} AND user_id=${Number(userId)} AND status='draft'
+        RETURNING *
+      `
+      if (!rows.length) return NextResponse.json({ error: "المسودة غير موجودة أو لم تعد قابلة للتعديل" }, { status: 409 })
+      return NextResponse.json(rows[0])
+    }
     const code = `TMP-${Date.now().toString(36).toUpperCase()}`
     const rows = await sql`
       INSERT INTO pos_sale_drafts_tbl(draft_code,pos_point_id,pos_session_id,user_id,customer_id,salesman_id,mode,note,discount_value,items)
@@ -47,6 +64,10 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     return NextResponse.json({ error: errorText(error, "تعذر حفظ مسودة الكاشير") }, { status: 500 })
   }
+}
+
+export async function PUT(request: NextRequest) {
+  return POST(request)
 }
 
 export async function DELETE(request: NextRequest) {

@@ -1,0 +1,10 @@
+import React from 'react'; import {createRoot} from 'react-dom/client';
+import {ItemCardReport} from '@/components/reports/item-card-report';
+import {ItemBalancesReport} from '@/components/reports/item-balances-report';
+import {ItemValuationReport} from '@/components/reports/item-valuation-report';
+import * as wijmo from '@grapecity/wijmo'; window.wijmoTest=wijmo;
+const products=[{id:1,product_code:'000001',product_name:'قهوة عربية',type:1},{id:2,product_code:'000002',product_name:'شاي أخضر',type:1}];
+window.fetch=async url=>{const p=new URL(url,location.origin);window.requests.push(p.search);let data;
+if(p.pathname.includes('item-card')) data=p.searchParams.has('product_id')?{product:{...products[Number(p.searchParams.get('product_id'))-1],main_unit:'قطعة'},opening_balance:1250,closing_balance:1255.5,received_quantity:10.5,issued_quantity:5,rows:[{id:'1-1',voucher_id:1,vch_type:17,vch_code:'P000000001',voucher_type_name:'فاتورة مشتريات',movement_date:'2026-09-01',item_unit:'قطعة',quantity_in:10.5,quantity_out:0,paid_quantity_in:10,paid_quantity_out:0,bonus:0.5,balance:1260.5,price:24.75,amount:247.5,currency_code:'ILS',customer_name:'المورد الأول',account_code:'2001',store_name:'المستودع الرئيسي'},{id:'2--1',voucher_id:2,vch_type:12,vch_code:'S000000002',voucher_type_name:'فاتورة مبيعات',movement_date:'2026-09-02',item_unit:'قطعة',quantity_in:0,quantity_out:5,paid_quantity_in:0,paid_quantity_out:5,bonus:0,balance:1255.5,price:30,amount:150,currency_code:'ILS'}]}:{products,warehouses:[{id:1,name:'المستودع الرئيسي'}],groups:[]};
+else data={rows:[{id:1,product_code:'000001',product_name:'قهوة عربية',main_unit:'قطعة',category:'المشروبات',balance:1255.5,received_quantity:1260.5,issued_quantity:5,valuation_price:24.75,valuation_amount:31073.625,last_movement_at:'2026-09-02'}]};return {ok:true,json:async()=>data};};
+const Report=location.hash==='#valuation'?ItemValuationReport:location.hash==='#balances'?ItemBalancesReport:ItemCardReport;createRoot(document.getElementById('root')).render(<Report/>);

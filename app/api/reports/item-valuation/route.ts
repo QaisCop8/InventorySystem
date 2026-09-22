@@ -11,15 +11,14 @@ export async function GET(request: NextRequest) {
     const productId = Number(params.get("product_id") || 0)
     const search = (params.get("search") || "").trim()
     const toDate = reportDate(params.get("to_date"))
-    const priceWay = params.get("price_way") === "last" ? "last" : "average"
+    const priceWay = ["last", "fifo"].includes(params.get("price_way") || "") ? params.get("price_way") : "average"
     const withZeros = params.get("with_zeros") === "1"
     const [products, balances] = await Promise.all([
       getInventoryReportProducts(organizationId, productId, search),
       getProductBalances(organizationId, toDate, productId, search),
     ])
     const rows = balances.filter((row: any) => withZeros || Math.abs(Number(row.balance || 0)) > 0.000001).map((row: any) => {
-      const quantity = Number(row.cost_quantity || 0)
-      const price = priceWay === "last" || quantity <= 0 ? Number(row.last_incoming_cost || 0) : Number(row.received_value || 0) / quantity
+      const price = Number(priceWay === "last" ? row.last_incoming_cost : priceWay === "fifo" ? row.fifo_cost : row.average_cost) || 0
       return { ...row, valuation_price: price, valuation_amount: Number(row.balance || 0) * price }
     })
     return NextResponse.json({ report: "item-valuation", to_date: toDate, products, rows })

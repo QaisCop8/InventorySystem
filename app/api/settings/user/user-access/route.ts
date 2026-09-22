@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import sql, { resolveCurrentDbName } from "@/lib/database"
-import { ensurePermissionTables, syncPermissionDefinitions } from "@/lib/permissions"
+import { ensurePermissionTables, syncPermissionDefinitions, LEGACY_FULL_ACCESS_SQL } from "@/lib/permissions"
 import { getSessionUser } from "@/lib/tenant-auth"
 
 export async function GET(req: NextRequest) {
@@ -40,12 +40,13 @@ export async function GET(req: NextRequest) {
         al.id AS access_id,
         COALESCE(al.name, '') AS access_name,
         COALESCE(ac.name, 'أخرى') AS category_name,
-        COALESCE(ubp.is_granted, ua.is_granted, rbp.is_granted, rp.is_granted, FALSE) AS is_granted,
+        COALESCE(ubp.is_granted, ua.is_granted, rbp.is_granted, rp.is_granted, ${sql.unsafe(LEGACY_FULL_ACCESS_SQL)}) AS is_granted,
         CASE
           WHEN ubp.access_id IS NOT NULL THEN 'branch_user'
           WHEN ua.access_id IS NOT NULL THEN 'user'
           WHEN rbp.access_id IS NOT NULL THEN 'branch_role'
           WHEN rp.access_id IS NOT NULL THEN 'role'
+          WHEN ${sql.unsafe(LEGACY_FULL_ACCESS_SQL)} THEN 'legacy'
           ELSE 'none'
         END AS permission_source
       FROM access_list al

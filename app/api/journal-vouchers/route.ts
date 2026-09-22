@@ -1,5 +1,6 @@
+import { unlinkPayrollJournal } from "./_lib"
 import { type NextRequest, NextResponse } from "next/server"
-import sql from "@/lib/database"
+import sql, { withTenantTransaction } from "@/lib/database"
 import {
   ensureTables,
   JOURNAL_VCH_TYPE,
@@ -123,6 +124,7 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     await ensureTables()
+    return await withTenantTransaction(async () => {
     const data = await request.json()
     const action = Number(data.status) === 3 ? "delete" : "update"
     const authorization = await authorizeTransaction(request, "journal", action, data.branch_id)
@@ -151,7 +153,7 @@ export async function PUT(request: NextRequest) {
 
     // سند مُرحَّل (status=2) مقفل: التعديل العادي عليه ممنوع من الواجهة، ونمنعه هنا أيضاً كخط
     // دفاع ثانٍ — الاستثناء الوحيد هو إلغاؤه منطقياً (status=3) عبر تأكيد الحذف.
-    const currentRows = await sql`SELECT status FROM voucher_header_tbl WHERE id = ${data.id}`
+    const currentRows = await sql`SELECT status FROM voucher_header_tbl WHERE id = ${data.id} FOR UPDATE`
     if (currentRows.length > 0 && Number(currentRows[0].status) === 2 && status !== 3) {
       return NextResponse.json({ error: "السند مرحل ولا يمكن تعديله" }, { status: 400 })
     }
@@ -205,11 +207,12 @@ export async function PUT(request: NextRequest) {
       await saveJournalRows(voucher.id, journalRows)
       await saveNoteRows(voucher.id, data.notes)
     } else {
-      await sql`UPDATE payroll_tbl SET journal_id=NULL WHERE journal_id=${voucher.id}`
+      await unlinkPayrollJournal(voucher.id)
     }
 
     const details = await fetchDetails(voucher.id)
     return NextResponse.json({ ...voucher, ...details })
+    })
   } catch (error) {
     console.error("Error updating journal voucher:", error)
     return NextResponse.json({ error: "Failed to update journal voucher" }, { status: 500 })

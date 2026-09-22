@@ -3,6 +3,7 @@
 import { useId, useRef, useState, type ReactNode } from "react"
 import { ChevronDown, Filter, Pin, PinOff } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import "./report-theme.css"
 
 /** Mark explicit report actions with data-report-apply; live filter edits stay open. */
 export function ReportFilters({ children, title = "فلاتر التقرير" }: { children: ReactNode; title?: string }) {
@@ -16,8 +17,8 @@ export function ReportFilters({ children, title = "فلاتر التقرير" }:
     trigger.current?.focus()
   }
 
-  return <section dir="rtl" className="shrink-0 rounded-2xl border border-slate-200 bg-background shadow-sm dark:border-slate-800 print:hidden">
-    <div className="flex items-center gap-2 px-4 py-2">
+  return <section dir="rtl" className="report-filters shrink-0 rounded-xl border border-slate-200 bg-background dark:border-slate-800 print:hidden">
+    <div className="report-filters-bar">
       <h2 className="min-w-0 flex-1">
         <button ref={trigger} type="button" id={`${id}-trigger`} aria-expanded={open} aria-controls={id} onClick={() => setOpen(value => !value)} className="flex w-full items-center gap-2 rounded-lg py-2 text-right font-bold focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-600">
           <Filter className="h-4 w-4 text-teal-600" aria-hidden="true" />
@@ -30,7 +31,7 @@ export function ReportFilters({ children, title = "فلاتر التقرير" }:
         <span className="mr-1">تثبيت</span>
       </Button>
     </div>
-    <div id={id} role="region" aria-labelledby={`${id}-trigger`} hidden={!open} className="border-t p-4"
+    <div id={id} role="region" aria-labelledby={`${id}-trigger`} hidden={!open} className="report-filters-body"
       onClick={event => {
         const button = (event.target as Element).closest<HTMLButtonElement>("button[data-report-apply]")
         if (button && event.currentTarget.contains(button) && !button.disabled && !event.defaultPrevented) collapse()

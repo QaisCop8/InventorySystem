@@ -177,6 +177,7 @@ export default function UnifiedCreditNote({
   }, [dialogOpen, form.id, form.vch_code, isNewMode])
 
   const guardedAction = (action: () => void) => {
+    if ([2, 3].includes(Number(form.status))) { action(); return }
     if (showUnsavedConfirm) return
     if (JSON.stringify(form) !== initialSnapshotRef.current) {
       pendingActionRef.current = action

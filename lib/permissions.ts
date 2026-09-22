@@ -23,6 +23,10 @@ export const DEFAULT_JOB_ROLES = [
   { name: "كاشير", grantAll: false },
 ] as const
 
+// Legacy full-access users still inherit access when no explicit user/role
+// decision exists. An explicit denial always takes precedence.
+export const LEGACY_FULL_ACCESS_SQL = `COALESCE(us.permissions::jsonb @> '["جميع الصلاحيات"]'::jsonb, FALSE)`
+
 // مُذاكَرة مفتاحها اسم قاعدة الشركة (dbName) — لا علم واحد للعملية بأكملها كما في ensureBranchColumn
 // (lib/auth.ts) أو ensureThemeSettingsColumns (app/api/settings/theme/route.ts): تينانت لاحق يصل
 // لنفس عملية Node الدافئة بعد أن اكتمل أول تينانت مختلف كان سيتخطّى DDL هذه القاعدة بالخطأ لولا هذا
@@ -212,7 +216,7 @@ export function ensurePermissionTables(dbName: string): Promise<void> {
 export async function hasEffectivePermission(userId: string, accessId: number, branchId?: number | null): Promise<boolean> {
   const requestedBranchId = Number.isInteger(branchId) && Number(branchId) > 0 ? Number(branchId) : null
   const rows = await sql`
-    SELECT COALESCE(ubp.is_granted, ua.is_granted, rbp.is_granted, rp.is_granted, FALSE) AS is_granted
+    SELECT COALESCE(ubp.is_granted, ua.is_granted, rbp.is_granted, rp.is_granted, ${sql.unsafe(LEGACY_FULL_ACCESS_SQL)}) AS is_granted
     FROM user_settings us
     LEFT JOIN user_branch_permissions ubp
       ON ubp.user_id = us.user_id
@@ -242,12 +246,12 @@ export async function getGrantedBranchIds(userId: string, accessId: number): Pro
   const rows = await sql`
     SELECT b.id
     FROM branches b
-    CROSS JOIN (SELECT job_role_id FROM user_settings WHERE user_id = ${userId} LIMIT 1) us
+    CROSS JOIN (SELECT job_role_id, permissions FROM user_settings WHERE user_id = ${userId} LIMIT 1) us
     LEFT JOIN user_branch_permissions ubp ON ubp.user_id = ${userId} AND ubp.branch_id = b.id AND ubp.access_id = ${accessId}
     LEFT JOIN user_access ua ON ua.access_id = ${accessId} AND ua.user_id = ${userId}
     LEFT JOIN role_branch_permissions rbp ON rbp.role_id = us.job_role_id AND rbp.branch_id = b.id AND rbp.access_id = ${accessId}
     LEFT JOIN role_permissions rp ON rp.role_id = us.job_role_id AND rp.access_id = ${accessId}
-    WHERE COALESCE(ubp.is_granted, ua.is_granted, rbp.is_granted, rp.is_granted, FALSE) = TRUE
+    WHERE COALESCE(ubp.is_granted, ua.is_granted, rbp.is_granted, rp.is_granted, ${sql.unsafe(LEGACY_FULL_ACCESS_SQL)}) = TRUE
   `
   return rows.map((r: any) => Number(r.id))
 }

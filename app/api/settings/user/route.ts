@@ -178,9 +178,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "البريد الإلكتروني مستخدَم بالفعل لمستخدم آخر في هذه الشركة" }, { status: 400 })
     }
 
-    // يضيف الموظف أولاً إلى management.users (هوية عامة موحَّدة، تفرّد البريد الإلكتروني عبر كل
-    // الشركات) ثم يربطه بهذه الشركة عبر management.user_company، وأخيراً يُنشئ صفه المحلي بقاعدة
-    // الشركة كما كان يعمل تماماً من قبل — انظر lib/auth.ts وخطة الصلاحيات لتفاصيل التصميم الكامل.
+    // Reuse the management identity while keeping the new user local to this company.
     const result = await createTenantEmployeeWithManagementLink({
       username: data.username,
       email: data.email,
@@ -411,18 +409,10 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "User not found" }, { status: 404 })
     }
 
-    // مزامنة كلمة المرور/حالة النشاط مع قاعدة الإدارة إن كان هذا المستخدم مرتبطاً بحساب عام هناك
-    // (management_user_id — مضبوط فقط للموظفين المُنشَأين عبر المسار الثنائي أعلاه، NULL لكل من
-    // سبقهم) — مجهود أفضل (best effort): فشلها لا يُسقِط حفظ المستخدم محلياً، إذ تسجيل الدخول
-    // اليومي لا يمر بقاعدة الإدارة إطلاقاً أصلاً (authenticateUser). التنشيط/الإيقاف يُقيَّد بعلاقة
-    // هذه الشركة تحديداً (user_company.is_active) لا بالحساب العام (users.is_active، محجوز لمسؤول
-    // المنصة فقط بلوحة التحكم).
+    // Company administrators can change local credentials and this company membership only.
     const updatedUser = result[0]
     if (updatedUser.management_user_id) {
       try {
-        if (passwordHash) {
-          await managementSql`UPDATE users SET password_hash = ${passwordHash}, updated_at = CURRENT_TIMESTAMP WHERE id = ${updatedUser.management_user_id}`
-        }
         if (data.is_active !== undefined) {
           const currentDbName = await resolveCurrentDbName()
           await managementSql`

@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server"
 import sql from "@/lib/database"
 import { getSessionUser } from "@/lib/tenant-auth"
+import { authorizeTransaction } from "@/lib/transaction-permissions"
 import { ensureAccountsTable } from "@/app/api/accounts/_lib"
 import { ensureTables as ensureVoucherTables } from "@/app/api/receipts/_lib"
 import { CHEQUE_OPERATIONS, ensureChequeOperationsTable, withAllowedChequeOperations } from "./_lib"
@@ -20,8 +21,13 @@ export async function GET(request: NextRequest) {
     await ensureChequeOperationsTable()
 
     const params = request.nextUrl.searchParams
-    const chequeType = params.get("type") === "2" ? 2 : 1
-    const operation = CHEQUE_OPERATIONS.find(item => item.code === params.get("operation_code") && item.type === chequeType)
+    const paymentPicker = params.get("picker") === "cheque_payment"
+    const chequeType = !paymentPicker && params.get("type") === "2" ? 2 : 1
+    const operationCode = paymentPicker ? "endorse" : params.get("operation_code")
+    const operation = CHEQUE_OPERATIONS.find(item => item.code === operationCode && item.type === chequeType)
+    const excluded = paymentPicker
+      ? Array.from(new Set(String(params.get("exclude") || "").split(",").map(Number).filter(id => Number.isInteger(id) && id > 0))).slice(0, 200)
+      : []
     const statusId = positiveNumber(params.get("status_id"))
     const currencyId = positiveNumber(params.get("currency_id"))
     const bankId = positiveNumber(params.get("bank_id"))
@@ -31,10 +37,17 @@ export async function GET(request: NextRequest) {
     const maxAmount = positiveNumber(params.get("max_amount"))
     const query = String(params.get("q") || "").trim().slice(0, 100)
 
-    const memberships = await sql`SELECT branch_id FROM user_branches WHERE user_id=${user.user_id}`
-    const permittedBranches = memberships.map((row: any) => Number(row.branch_id)).filter(Number.isFinite)
+    let permittedBranches: number[]
+    if (paymentPicker) {
+      const authorization = await authorizeTransaction(request, "cheque_payment", "view", params.get("branch_id"))
+      if (!authorization.ok) return authorization.response
+      permittedBranches = authorization.branchIds
+    } else {
+      const memberships = await sql`SELECT branch_id FROM user_branches WHERE user_id=${user.user_id}`
+      permittedBranches = memberships.map((row: any) => Number(row.branch_id)).filter(Number.isFinite)
+    }
 
-    const [statuses, currencies, banks, bankAccounts, accounts] = await Promise.all([
+    const [statuses, currencies, banks, bankAccounts, accounts] = paymentPicker ? [[], [], [], [], []] : await Promise.all([
       sql`SELECT id,name FROM cheque_status_tbl ORDER BY id`,
       sql`SELECT id,currency_code,currency_name FROM currency WHERE COALESCE(is_active,true) ORDER BY id`,
       sql`SELECT id,bank_code,bank_name FROM banks WHERE COALESCE(status,1)<>3 ORDER BY bank_name`,
@@ -44,7 +57,7 @@ export async function GET(request: NextRequest) {
       sql`SELECT id,code,name,type,currency_id FROM account_tbl WHERE COALESCE(status,1)<>3 ORDER BY code LIMIT 5000`,
     ])
     const meta = { statuses, currencies, banks, bank_accounts: bankAccounts, accounts }
-    if (params.get("meta") === "1") return NextResponse.json({ meta })
+    if (params.get("meta") === "1") return NextResponse.json({ meta }, { headers: { "Cache-Control": "private, no-store" } })
 
     const rawRows = await sql`
       SELECT c.id,c.cheq_type,c.currency_id,c.bank_account,c.cheq_num,c.amount,c.rate,c.received_date,c.trans_date,
@@ -72,6 +85,8 @@ export async function GET(request: NextRequest) {
       LEFT JOIN voucher_header_tbl vh ON vh.id=c.voucher_id
       WHERE c.cheq_type=${chequeType}
         AND COALESCE(vh.status,1)<>3
+        AND (${!paymentPicker} OR c.current_account_id IS NOT NULL)
+        AND (${excluded.length === 0} OR NOT(c.id=ANY(${excluded}::int[])))
         AND (${!operation} OR (
           (CASE WHEN c.status_id IN (1,2) AND c.due_date IS NOT NULL
             AND NOT EXISTS (SELECT 1 FROM cheque_operations_log_tbl l WHERE l.cheque_id=c.id AND COALESCE(l.status,1)<>9)
@@ -85,11 +100,11 @@ export async function GET(request: NextRequest) {
         AND (${toDueDate}::date IS NULL OR c.due_date<(${toDueDate}::date+INTERVAL '1 day'))
         AND (${minAmount}::double precision IS NULL OR c.amount>=${minAmount})
         AND (${maxAmount}::double precision IS NULL OR c.amount<=${maxAmount})
-        AND (${permittedBranches.length === 0} OR vh.branch_id=ANY(${permittedBranches}::int[]))
+        AND (${!paymentPicker && permittedBranches.length === 0} OR vh.branch_id=ANY(${permittedBranches}::int[]))
         AND (${query}='' OR CONCAT_WS(' ',c.cheq_num,c.bank_account,c.cheq_owner_name,vh.vch_code,
              customer.code,customer.name,bk.bank_name,br.branch_name,ba.code,ba.name) ILIKE ${`%${query}%`})
       ORDER BY c.due_date NULLS LAST,c.id DESC
-      LIMIT 2000
+      LIMIT ${paymentPicker ? 500 : 2000}
     `
 
     const effectiveRows = rawRows.map((row: any) => withAllowedChequeOperations(row,String(row.business_date)))
@@ -102,7 +117,7 @@ export async function GET(request: NextRequest) {
       due: rows.filter((row: any) => [1, 2, 3].includes(Number(row.status_id))).length,
       returned: rows.filter((row: any) => Number(row.status_id) === 5).length,
     }
-    return NextResponse.json({ meta, rows, summary })
+    return NextResponse.json({ meta, rows, summary }, { headers: { "Cache-Control": "private, no-store" } })
   } catch (error) {
     console.error("Cheques query error:", error)
     return NextResponse.json({ error: "تعذر تحميل بيانات الشيكات" }, { status: 500 })

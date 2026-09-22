@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import sql, { getTenantPool, resolveCurrentDbName } from "@/lib/database"
 import { isScaleProduct, validateScaleProductBarcodes } from "@/lib/scale-barcode"
+import { validateProductPriceCurrencies } from "@/lib/product-price-currencies"
 import { requireBranchAccess, PermissionDeniedError, ensurePermissionTables } from "@/lib/permissions"
 
 
@@ -776,7 +777,11 @@ export async function POST(request: NextRequest) {
 
     await client.query("BEGIN");
 
-
+    const priceCurrencyError = await validateProductPriceCurrencies(client, productData.prices)
+    if (priceCurrencyError) {
+      await client.query("ROLLBACK")
+      return NextResponse.json({ success: false, error: priceCurrencyError }, { status: 400 })
+    }
 
     const nameCheck = await client.query(
       productData.id > 0
@@ -1391,6 +1396,9 @@ export async function POST(request: NextRequest) {
   } catch (err) {
     await client.query("ROLLBACK");
     console.error("Products POST error:", err instanceof Error ? err.message : err, err)
+    if ((err as { constraint?: string })?.constraint === "fk_product_prices_currency") {
+      return NextResponse.json({ error: "عملة أسعار البيع غير موجودة. أعد تحميل العملات واختيار العملة ثم احفظ الصنف." }, { status: 400 })
+    }
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Unexpected error" },
       { status: 500 }

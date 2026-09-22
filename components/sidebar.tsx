@@ -90,6 +90,7 @@ const ACCENTS: Record<string, Accent> = {
   orders: { gradient: "from-rose-400 to-pink-600", glow: "shadow-rose-500/40", chip: "bg-rose-500/15 text-rose-700 dark:text-rose-200" },
   "retail-pos": { gradient: "from-emerald-400 to-cyan-500", glow: "shadow-emerald-500/40", chip: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-200" },
   reports: { gradient: "from-teal-400 to-cyan-600", glow: "shadow-teal-500/40", chip: "bg-teal-500/15 text-teal-700 dark:text-teal-200" },
+  "item-reports": { gradient: "from-teal-400 to-cyan-600", glow: "shadow-teal-500/40", chip: "bg-teal-500/15 text-teal-700 dark:text-teal-200" },
   settings: { gradient: "from-slate-400 to-slate-600", glow: "shadow-slate-500/40", chip: "bg-slate-500/15 text-slate-700 dark:text-slate-200" },
   tools: { gradient: "from-cyan-500 to-blue-600", glow: "shadow-cyan-500/40", chip: "bg-cyan-500/15 text-cyan-700 dark:text-cyan-200" },
 }
@@ -318,6 +319,16 @@ export const menuItems: MenuItem[] = [
   },
 
   {
+    id: "item-reports",
+    title: "تقارير الأصناف",
+    icon: BarChart3,
+    submenu: [
+      { title: "بطاقة صنف", section: "item-card-report", icon: Package },
+      { title: "أرصدة المخزون بتاريخ معين", section: "item-balances-report", icon: BarChart3 },
+      { title: "تقييم المخزون بتاريخ معين", section: "item-valuation-report", icon: DollarSign },
+    ],
+  },
+  {
     id: "reports",
     title: "التقارير",
     icon: FileText,
@@ -339,9 +350,6 @@ export const menuItems: MenuItem[] = [
         ],
       },
       { title: "تقارير الطلبيات", section: "order-reports", icon: BarChart3 },
-      { title: "أرصدة الأصناف بتاريخ معين", section: "item-balances-report", icon: BarChart3 },
-      { title: "تقييم البضاعة بتاريخ معين", section: "item-valuation-report", icon: DollarSign },
-      { title: "بطاقة صنف", section: "item-card-report", icon: Package },
       { title: "أرشفة الرقم التشغيلي", section: "batch-log-report", icon: Package },
     ],
   },

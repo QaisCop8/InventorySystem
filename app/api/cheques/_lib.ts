@@ -36,6 +36,8 @@ const dateOnly = (value: unknown) => value instanceof Date
   ? (Number.isNaN(value.getTime()) ? "" : value.toISOString().slice(0,10))
   : String(value || "").slice(0,10)
 
+export const isChequeDue = (row: any, asOfDate: string) => dateOnly(row?.due_date) <= asOfDate
+
 export const effectiveChequeStatusId = (row: any, asOfDate = new Date().toISOString().slice(0,10)) => {
   const storedStatus = Number(row?.status_id)
   const hasOperations = row?.has_operations === true || String(row?.has_operations) === "true"
@@ -48,7 +50,7 @@ export const effectiveChequeStatusId = (row: any, asOfDate = new Date().toISOStr
 export const isChequeOperationAllowed = (operation: ChequeOperation, row: any, asOfDate = new Date().toISOString().slice(0,10)) => {
   const effectiveStatus = effectiveChequeStatusId(row,asOfDate)
   if (operation.type !== Number(row?.cheq_type) || !operation.allowed.includes(effectiveStatus)) return false
-  if (operation.requiresDue && dateOnly(row?.due_date) > asOfDate) return false
+  if (operation.requiresDue && !isChequeDue(row, asOfDate)) return false
   return true
 }
 
@@ -93,38 +95,48 @@ export async function ensureChequeOperationsTable() {
 
 export async function rollbackChequeOperationsForVoucher(voucherId: number): Promise<{ error?: string; restored: number }> {
   await ensureChequeOperationsTable()
+  // Lock first, then read history in a fresh statement. A concurrent cheque
+  // operation can finish while this request waits for its row lock.
+  await sql`
+    SELECT c.id FROM cheques_tbl c
+    WHERE c.last_voucher_id=${voucherId}
+       OR EXISTS (SELECT 1 FROM cheque_operations_log_tbl l WHERE l.cheque_id=c.id AND l.voucher_id=${voucherId} AND COALESCE(l.status,1)<>9)
+    ORDER BY c.id FOR UPDATE OF c
+  `
   const cheques = await sql`
     SELECT c.id,c.cheq_num,c.status_id,c.old_status_id,c.last_voucher_id,
-      latest.id latest_log_id,latest.voucher_id latest_log_voucher_id,latest.previous_status_id,
+      latest.id latest_log_id,latest.voucher_id latest_log_voucher_id,latest.previous_status_id,latest.new_status_id latest_status_id,
       latest.previous_current_account_id,latest.previous_rec_cheq_account_id,latest.previous_bank_account_id,latest.previous_due_date,
       latest.previous_voucher_id latest_previous_voucher_id,
       previous.voucher_id prior_log_voucher_id,previous.previous_status_id previous_previous_status_id
     FROM cheques_tbl c
     LEFT JOIN LATERAL (
-      SELECT l.id,l.voucher_id,l.previous_status_id,l.previous_current_account_id,l.previous_rec_cheq_account_id,l.previous_bank_account_id,l.previous_due_date,l.previous_voucher_id
+      SELECT l.id,l.voucher_id,l.previous_status_id,l.new_status_id,l.previous_current_account_id,l.previous_rec_cheq_account_id,l.previous_bank_account_id,l.previous_due_date,l.previous_voucher_id
       FROM cheque_operations_log_tbl l
       WHERE l.cheque_id=c.id AND COALESCE(l.status,1)<>9
-      ORDER BY l.operation_date DESC,l.id DESC LIMIT 1
+      ORDER BY l.id DESC LIMIT 1
     ) latest ON TRUE
     LEFT JOIN LATERAL (
       SELECT l.voucher_id,l.previous_status_id
       FROM cheque_operations_log_tbl l
       WHERE l.cheque_id=c.id AND COALESCE(l.status,1)<>9 AND l.id<>COALESCE(latest.id,0)
-      ORDER BY l.operation_date DESC,l.id DESC LIMIT 1
+      ORDER BY l.id DESC LIMIT 1
     ) previous ON TRUE
     WHERE c.last_voucher_id=${voucherId}
        OR EXISTS (SELECT 1 FROM cheque_operations_log_tbl l WHERE l.cheque_id=c.id AND l.voucher_id=${voucherId} AND COALESCE(l.status,1)<>9)
-       OR EXISTS (SELECT 1 FROM voucher_related_vch_tbl r WHERE r.voucher_id=${voucherId} AND r.related_vch_id=c.id)
     FOR UPDATE OF c
   `
   if (!cheques.length) return { restored:0 }
 
   for (const cheque of cheques) {
+    if (cheque.latest_log_id && Number(cheque.status_id) !== Number(cheque.latest_status_id)) {
+      return { error:`تغيّرت حالة الشيك رقم ${cheque.cheq_num || cheque.id}، لا يمكن حذف سند القيد`,restored:0 }
+    }
     if (Number(cheque.last_voucher_id || 0) !== voucherId) {
-      return { error:`يوجد عملية أحدث على الشيك رقم ${cheque.cheq_num || cheque.id}، لا يمكن حذف سند القيد`,restored:0 }
+      return { error:`لا يمكن حذف سند القيد لأنه ليس آخر قيد على الشيك رقم ${cheque.cheq_num || cheque.id}`,restored:0 }
     }
     if (cheque.latest_log_id && Number(cheque.latest_log_voucher_id || 0) !== voucherId) {
-      return { error:`يوجد عملية أحدث على الشيك رقم ${cheque.cheq_num || cheque.id}، لا يمكن حذف سند القيد`,restored:0 }
+      return { error:`لا يمكن حذف سند القيد لوجود عملية أحدث على الشيك رقم ${cheque.cheq_num || cheque.id}`,restored:0 }
     }
   }
 

@@ -8,6 +8,7 @@ import {
   CHEQUE_OPERATIONS,
   ensureChequeOperationsTable,
   isChequeOperationAllowed,
+  isChequeDue,
   withAllowedChequeOperations,
   type ChequeOperation,
 } from "@/app/api/cheques/_lib"
@@ -101,7 +102,7 @@ export async function GET(request: NextRequest) {
     if (!Number.isInteger(chequeId) || chequeId <= 0) return NextResponse.json({ error:"رقم الشيك غير صحيح" },{status:400})
     const logs = await sql`
             SELECT l.*,old_status.name previous_status_name,new_status.name new_status_name,a.code account_code,a.name account_name,
-              vh.vch_code journal_voucher_code,COALESCE(NULLIF(u.full_name,''),NULLIF(u.username,''),l.user_id::text) user_name
+              vh.vch_code journal_voucher_code,vh.vch_type voucher_type,COALESCE(NULLIF(u.full_name,''),NULLIF(u.username,''),l.user_id::text) user_name
       FROM cheque_operations_log_tbl l
       LEFT JOIN cheque_status_tbl old_status ON old_status.id=l.previous_status_id
       LEFT JOIN cheque_status_tbl new_status ON new_status.id=l.new_status_id
@@ -109,7 +110,13 @@ export async function GET(request: NextRequest) {
       LEFT JOIN voucher_header_tbl vh ON vh.id=l.voucher_id
       LEFT JOIN user_settings u ON u.user_id=l.user_id
       WHERE l.cheque_id=${chequeId} AND COALESCE(l.status,1)<>9 ORDER BY l.operation_date DESC,l.id DESC`
-    return NextResponse.json({ logs })
+    const currentCheque = (await sql`SELECT c.id,c.cheq_type,c.status_id,c.due_date::date::text due_date,cs.name status_name,
+      EXISTS (SELECT 1 FROM cheque_operations_log_tbl l WHERE l.cheque_id=c.id AND COALESCE(l.status,1)<>9) has_operations,
+      CURRENT_DATE::text business_date
+      FROM cheques_tbl c LEFT JOIN cheque_status_tbl cs ON cs.id=c.status_id
+      WHERE c.id=${chequeId}`)[0]
+    const cheque = currentCheque ? withAllowedChequeOperations(currentCheque, String(currentCheque.business_date)) : null
+    return NextResponse.json({ logs, cheque }, { headers: { "Cache-Control": "private, no-store" } })
   } catch(error) {
     console.error("Cheque operations log error:",error)
     return NextResponse.json({error:"تعذر تحميل سجل عمليات الشيك"},{status:500})
@@ -128,7 +135,7 @@ export async function POST(request: NextRequest) {
 
     return await withTenantTransaction(async () => {
       const cheque = (await sql`
-        SELECT c.*,source.branch_id source_branch_id,source.account_id source_account_id,CURRENT_DATE::text business_date,
+        SELECT c.*,c.due_date::date::text due_date,source.branch_id source_branch_id,source.account_id source_account_id,CURRENT_DATE::text business_date,
           EXISTS(SELECT 1 FROM cheque_operations_log_tbl log WHERE log.cheque_id=c.id AND COALESCE(log.status,1)<>9) has_operations
         FROM cheques_tbl c
         LEFT JOIN voucher_header_tbl source ON source.id=c.voucher_id
@@ -139,7 +146,7 @@ export async function POST(request: NextRequest) {
       if (!cheque) return NextResponse.json({error:"الشيك غير موجود"},{status:404})
       if (Number(cheque.cheq_type)!==operation.type) return NextResponse.json({error:"العملية لا تتوافق مع نوع الشيك"},{status:400})
       const businessDate = String(cheque.business_date || today())
-      if (operation.requiresDue && String(cheque.due_date || "").slice(0,10) > businessDate) {
+      if (operation.requiresDue && !isChequeDue(cheque, businessDate)) {
         return NextResponse.json({error:`الشيك رقم ${cheque.cheq_num} غير مستحق ولا يمكن تنفيذ ${operation.name}`},{status:409})
       }
       if (!isChequeOperationAllowed(operation,cheque,businessDate)) {
@@ -235,7 +242,7 @@ export async function POST(request: NextRequest) {
       `
       if (!result.length) return NextResponse.json({error:"تعذر تحديث بيانات الشيك"},{status:409})
       const savedCheque = (await sql`
-        SELECT c.*,cs.name status_name,cur.currency_code,cur.currency_name,
+        SELECT c.*,c.due_date::date::text due_date,cs.name status_name,cur.currency_code,cur.currency_name,
           bk.bank_name,br.branch_name,ba.code bank_account_code,ba.name bank_account_name,
           customer.code customer_code,customer.name customer_name,
           current_account.code current_account_code,current_account.name current_account_name,

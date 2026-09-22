@@ -1,5 +1,7 @@
 "use client"
 
+import { ReportPage, ReportHeader } from "@/components/reports/report-page"
+
 import { ReportFilters } from "@/components/reports/report-filters"
 
 import { useState, useEffect, useMemo } from "react"
@@ -201,7 +203,14 @@ export function LotInventoryReport() {
   }
 
   return (
-    <div className="space-y-6 p-6 bg-background min-h-screen" dir="rtl">
+    <ReportPage>
+<ReportHeader title="تقرير المخزون حسب الدفعات" description={<>عرض تفصيلي لجميع دفعات المنتجات في المخزون</>} actions={<>
+          <BatchPrintDialog />
+          <Button onClick={exportToExcel} className="bg-green-600 hover:bg-green-700">
+            <Download className="ml-2 h-4 w-4" />
+            تصدير Excel
+          </Button>
+        </>} />
       {error && (
         <Alert variant="destructive">
           <AlertTriangle className="h-4 w-4" />
@@ -209,19 +218,7 @@ export function LotInventoryReport() {
         </Alert>
       )}
 
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">تقرير المخزون حسب الدفعات</h1>
-          <p className="text-muted-foreground mt-1">عرض تفصيلي لجميع دفعات المنتجات في المخزون</p>
-        </div>
-        <div className="flex gap-2">
-          <BatchPrintDialog />
-          <Button onClick={exportToExcel} className="bg-green-600 hover:bg-green-700">
-            <Download className="ml-2 h-4 w-4" />
-            تصدير Excel
-          </Button>
-        </div>
-      </div>
+
 
       {/* Statistics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -445,6 +442,6 @@ export function LotInventoryReport() {
           )}
         </CardContent>
       </Card>
-    </div>
+    </ReportPage>
   )
 }

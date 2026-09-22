@@ -360,6 +360,7 @@ export default function UnifiedJournal({
   }, [dialogOpen, form.id, form.vch_code, isNewMode])
 
   const guardedAction = (action: () => void) => {
+    if ([2, 3].includes(Number(form.status))) { action(); return }
     if (showUnsavedConfirm) return
     if (isLocked) {
       action()

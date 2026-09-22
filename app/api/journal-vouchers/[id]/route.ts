@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
-import sql from "@/lib/database"
-import { fetchDetails, archiveAndDeleteVoucher, markVoucherPrinted } from "../_lib"
+import sql, { withTenantTransaction } from "@/lib/database"
+import { fetchDetails, unlinkPayrollJournal, archiveAndDeleteVoucher, markVoucherPrinted } from "../_lib"
 import { authorizeStoredVoucher } from "@/lib/transaction-permissions"
 import { rollbackChequeOperationsForVoucher } from "@/app/api/cheques/_lib"
 
@@ -37,7 +37,8 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     const authorization = await authorizeStoredVoucher(request, id, "delete")
     if (!authorization.ok) return authorization.response
 
-    const voucher = (await sql`SELECT status FROM voucher_header_tbl WHERE id=${id}`)[0]
+    return await withTenantTransaction(async () => {
+    const voucher = (await sql`SELECT status FROM voucher_header_tbl WHERE id=${id} FOR UPDATE`)[0]
     if (!voucher) return NextResponse.json({error:"السند غير موجود"},{status:404})
     if (Number(voucher.status)!==1) return NextResponse.json({error:"لا يمكن الحذف الفعلي إلا لسند بحالة فعال (غير مرحّل)"},{status:400})
 
@@ -48,11 +49,12 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
 
     const result = await archiveAndDeleteVoucher(id)
     if (result.error) {
-      return NextResponse.json({ error: result.error }, { status: 400 })
+      throw new Error(result.error)
     }
-    await sql`UPDATE payroll_tbl SET journal_id=NULL WHERE journal_id=${id}`
+    await unlinkPayrollJournal(id)
 
     return NextResponse.json({ success: true })
+    })
   } catch (error) {
     console.error("Error deleting journal voucher:", error)
     return NextResponse.json({ error: "Failed to delete journal voucher" }, { status: 500 })

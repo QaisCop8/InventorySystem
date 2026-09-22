@@ -7,6 +7,7 @@ import { ensureTables, generateSalesVoucherCode, SALES_INVOICE_VCH_TYPE, RETURN_
 import { ensurePosTables, getOpenPosSession, getPosPoint, requestBranchId, requestUserId } from "../_lib"
 import { getPosCurrencies } from "@/lib/pos-currencies"
 import { needsPosReceipt } from "@/lib/pos-receipt"
+import { validatePosAccounts } from "@/lib/pos-account-validation"
 import { createPosReceipt } from "../_receipts"
 
 export async function POST(request: NextRequest) {
@@ -105,6 +106,8 @@ export async function POST(request: NextRequest) {
         payment.currency_id=currencyId;payment.currency_amount=original;payment.exchange_rate=currency.rate_to_point
         payment.amount=Math.round(original*currency.rate_to_point*100)/100
       }
+      const accountIssue=validatePosAccounts(point,payments,{mode:String(data.pos_mode),taxAmount:Number(point.tax_percent),returnAccountIds:data.items.map((item:any)=>item.account_id),customerAccountId:data.account_id})
+      if(accountIssue)return NextResponse.json({error:accountIssue},{status:400})
       for(const payment of payments.filter((row:any)=>Number(row.amount)>0)){
         if(payment.payment_method==="account"){
           const customerId=Number(data.pos_customer_id)
@@ -137,6 +140,7 @@ export async function POST(request: NextRequest) {
         if(payment.payment_method==="gift_card"&&!String(payment.reference||"").trim())return NextResponse.json({error:"رقم بطاقة الهدية مطلوب"},{status:400})
       }
       if(payments.some((payment:any)=>!Number.isFinite(Number(payment.amount))||Number(payment.amount)<0))return NextResponse.json({error:"مبلغ الدفع غير صالح"},{status:400})
+      payments=payments.filter((payment:any)=>Number(payment.amount)>0)
       if(isReturn&&payments.some((payment:any)=>Number(payment.amount)>0&&!['cash','account'].includes(payment.payment_method)))return NextResponse.json({error:"المردودات متاحة نقداً أو على الذمة فقط"},{status:400})
       for(const payment of payments){if(!payment.account_id)return NextResponse.json({error:`لم يتم تعيين حساب لطريقة الدفع ${payment.payment_method}`},{status:400});if(payment.payment_method==="gift_card"){
         const gift=(await sql`SELECT * FROM pos_gift_cards_tbl WHERE code=${String(payment.reference||"").trim()} AND status=1 FOR UPDATE`)[0];if(!gift||Number(gift.currency_id)!==Number(point.currency_id)||Number(gift.balance)+.009<Number(payment.amount))return NextResponse.json({error:"بطاقة الهدية غير صالحة أو رصيدها غير كافٍ"},{status:400})

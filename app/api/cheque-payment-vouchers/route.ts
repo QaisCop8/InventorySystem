@@ -32,7 +32,7 @@ export async function GET(request:NextRequest){
           AND (${authorization.branchIds.length===0} OR source.branch_id=ANY(${authorization.branchIds}::int[]))
           AND (${q}='' OR CONCAT_WS(' ',c.cheq_num,c.bank_account,c.cheq_owner_name,customer.code,customer.name,bk.bank_name,br.branch_name) ILIKE ${`%${q}%`})
         ORDER BY c.due_date NULLS LAST,c.id DESC LIMIT 500`
-      return NextResponse.json({rows})
+      return NextResponse.json({rows}, {headers:{"Cache-Control":"private, no-store"}})
     }
     const [rows,accounts,currencies,branches]=await Promise.all([
       sql`SELECT vh.id,vh.vch_code,vh.vch_date,vh.amount,vh.status,vh.account_id,vh.currency_id,vh.branch_id,vh.note,
@@ -54,8 +54,11 @@ export async function POST(request:NextRequest){
     const data=await request.json(),chequeIds=ids(data.cheque_ids)
     const authorization=await authorizeTransaction(request,"cheque_payment","create",data.branch_id)
     if(!authorization.ok)return authorization.response
-    const posting=await authorizeTransaction(request,"cheque_payment","post",authorization.branchId)
-    if(!posting.ok)return posting.response
+    const action=data.action ?? "post"
+    if (!["save","save_print","post","post_print"].includes(action)) return NextResponse.json({error:"Invalid save action"},{status:400})
+    const status=action === "save" || action === "save_print" ? 1 : 2
+    if(status===2){const posting=await authorizeTransaction(request,"cheque_payment","post",authorization.branchId)
+    if(!posting.ok)return posting.response}
     const accountId=Number(data.account_id),vchDate=String(data.vch_date||"")
     if(!accountId||!/^\d{4}-\d{2}-\d{2}$/.test(vchDate)||!chequeIds.length)return NextResponse.json({error:"يجب إدخال الحساب والتاريخ واختيار شيك واحد على الأقل"},{status:400})
     return await withTenantTransaction(async()=>{
@@ -77,8 +80,8 @@ export async function POST(request:NextRequest){
     if(!code||!/^[A-Z0-9-]+$/.test(code))return NextResponse.json({error:"رقم السند غير صحيح"},{status:400})
     if((await sql`SELECT id FROM voucher_header_tbl WHERE vch_type=${CHEQUE_PAYMENT_VCH_TYPE} AND vch_code=${code}`).length)return NextResponse.json({error:"رقم السند مستخدم مسبقاً"},{status:409})
     const total=chosen.reduce((sum:number,c:any)=>sum+Number(c.amount||0),0),note=String(data.note||"").trim().slice(0,500)
-    const header=(await sql`INSERT INTO voucher_header_tbl(vch_type,vch_code,vch_date,vch_book_id,branch_id,currency_id,rate,amount,account_id,note,status,vch_status,internal_voucher_id,cheq_operation_id,insert_user)
-      VALUES(${CHEQUE_PAYMENT_VCH_TYPE},${code},${vchDate},${bookId},${authorization.branchId},${currencyId},${rate},${total},${accountId},${note},2,2,1,6,${Number(authorization.userId)||null}) RETURNING *`)[0]
+    const header=(await sql`INSERT INTO voucher_header_tbl(vch_type,vch_code,vch_date,vch_book_id,branch_id,currency_id,rate,amount,account_id,note,status,vch_status,internal_voucher_id,cheq_operation_id,insert_user,is_printed)
+      VALUES(${CHEQUE_PAYMENT_VCH_TYPE},${code},${vchDate},${bookId},${authorization.branchId},${currencyId},${rate},${total},${accountId},${note},${status},${status},1,6,${Number(authorization.userId)||null},${action === "post_print" ? 1 : 0}) RETURNING *`)[0]
     await sql`INSERT INTO voucher_journal_detail_tbl(voucher_id,order_no,journal_type_id,account_id,credit_debit,amount,currency_id,rate,base_curr_amount,note)
       VALUES(${header.id},1,5,${accountId},1,${total},${currencyId},${rate},${total*rate},${note||"سند صرف شيكات"})`
     let order=2

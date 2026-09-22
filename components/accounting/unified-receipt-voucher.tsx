@@ -551,6 +551,7 @@ export default function UnifiedReceiptVoucher({
   }, [dialogOpen, form.id, isNewMode])
 
   const guardedAction = (action: () => void) => {
+    if ([2, 3].includes(Number(form.status))) { action(); return }
     codeRequestRef.current += 1
     if (showUnsavedConfirm) return
     if (hashForm(form) !== initialFormHashRef.current) {

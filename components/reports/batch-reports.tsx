@@ -1,5 +1,7 @@
 "use client"
 
+import { ReportPage, ReportHeader } from "@/components/reports/report-page"
+
 import { ReportFilters } from "@/components/reports/report-filters"
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -245,20 +247,15 @@ export function BatchReports() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-bold">تقارير حركات الدفعات</h2>
-          <p className="text-muted-foreground">تقارير شاملة وإحصائيات مفصلة لحركات الدفعات</p>
-        </div>
-        <div className="flex gap-2">
+    <ReportPage>
+<ReportHeader title="تقارير حركات الدفعات" description={<>تقارير شاملة وإحصائيات مفصلة لحركات الدفعات</>} actions={<>
           <SearchButton type="products" onSelect={handleProductSelect} variant="outline" />
           <Button onClick={() => exportReport(activeTab)} variant="outline">
             <Download className="ml-2 h-4 w-4" />
             تصدير التقرير
           </Button>
-        </div>
-      </div>
+        </>} />
+
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-4">
@@ -720,6 +717,6 @@ export function BatchReports() {
           )}
         </TabsContent>
       </Tabs>
-    </div>
+    </ReportPage>
   )
 }

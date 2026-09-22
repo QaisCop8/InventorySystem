@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
         SELECT 1
         FROM voucher_items_tbl inv_item
         JOIN voucher_header_tbl inv ON inv.id = inv_item.voucher_id
-        WHERE inv.vch_type IN (${SALES_INVOICE_VCH_TYPE}, ${PURCHASE_INVOICE_VCH_TYPE})
+        WHERE COALESCE(inv.status,1) <> 3 AND inv.vch_type IN (${SALES_INVOICE_VCH_TYPE}, ${PURCHASE_INVOICE_VCH_TYPE})
           AND inv_item.delivery_item_id IN (
             SELECT id FROM voucher_items_tbl WHERE voucher_id = vh.id
           )
@@ -263,7 +263,7 @@ const validateSourceInvoice = async (itemsOrData: any, maybeData?: any, excludeV
       ? await sql`
           SELECT vh.id
           FROM voucher_header_tbl vh
-          WHERE vh.id != ${excludeVoucherId}
+          WHERE COALESCE(vh.status,1) <> 3 AND vh.id != ${excludeVoucherId}
             AND vh.vch_type IN (${SALES_INVOICE_VCH_TYPE}, ${PURCHASE_INVOICE_VCH_TYPE})
             AND EXISTS (
               SELECT 1
@@ -278,7 +278,7 @@ const validateSourceInvoice = async (itemsOrData: any, maybeData?: any, excludeV
       : await sql`
           SELECT vh.id
           FROM voucher_header_tbl vh
-          WHERE vh.id != ${excludeVoucherId}
+          WHERE COALESCE(vh.status,1) <> 3 AND vh.id != ${excludeVoucherId}
             AND vh.vch_type IN (${SALES_INVOICE_VCH_TYPE}, ${PURCHASE_INVOICE_VCH_TYPE})
             AND EXISTS (
               SELECT 1
@@ -295,7 +295,7 @@ const validateSourceInvoice = async (itemsOrData: any, maybeData?: any, excludeV
     const existing = await sql`
       SELECT vh.id
       FROM voucher_header_tbl vh
-      WHERE vh.id != ${excludeVoucherId}
+      WHERE COALESCE(vh.status,1) <> 3 AND vh.id != ${excludeVoucherId}
         AND vh.vch_type IN (${SALES_INVOICE_VCH_TYPE}, ${PURCHASE_INVOICE_VCH_TYPE})
         AND EXISTS (
           SELECT 1

@@ -1,5 +1,7 @@
 "use client"
 
+import { ReportPage, ReportHeader } from "@/components/reports/report-page"
+
 import { ReportFilters } from "@/components/reports/report-filters"
 
 import { useEffect, useMemo, useState } from "react"
@@ -105,11 +107,8 @@ export function TaskReport() {
   }, [items])
 
   return (
-    <div dir="rtl" className="space-y-4">
-      <div>
-        <h1 className="text-xl font-bold text-slate-800">تقرير متابعة أصناف الطلبية</h1>
-        <p className="text-sm text-slate-500">كل الأصناف بحالاتها ومراحلها الحالية وآخر ملاحظة مسجَّلة عليها</p>
-      </div>
+    <ReportPage>
+      <ReportHeader title={<>تقرير متابعة أصناف الطلبية</>} description={<>كل الأصناف بحالاتها ومراحلها الحالية وآخر ملاحظة مسجَّلة عليها</>} />
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Card>
@@ -302,6 +301,6 @@ export function TaskReport() {
           )}
         </DialogContent>
       </Dialog>
-    </div>
+    </ReportPage>
   )
 }

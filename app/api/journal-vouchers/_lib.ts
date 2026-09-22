@@ -17,6 +17,13 @@ export { buildVoucherCode, normalizeVoucherPrefix }
 // voucher_costcenter_tbl / voucher_notes_tbl) — الفرق الوحيد هنا: كل سطر في "الحسابات" هو
 // طرف مدين أو دائن مباشرة (لا صناديق/شيكات/بطاقات)، ولا يوجد عميل/حساب مقابل منفصل.
 export const ensureTables = ensureVoucherTables
+
+export async function unlinkPayrollJournal(voucherId: number) {
+  // Payroll is optional and its journal column is installed by the HR schema.
+  const columns = await sql`SELECT 1 FROM pg_attribute
+    WHERE attrelid=to_regclass('payroll_tbl') AND attname='journal_id' AND NOT attisdropped`
+  if (columns.length) await sql`UPDATE payroll_tbl SET journal_id=NULL WHERE journal_id=${voucherId}`
+}
 export {
   saveJournalRows,
   saveNoteRows,

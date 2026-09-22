@@ -543,6 +543,11 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
       manual_date: today,
       status: 1,
       is_printed: 0,
+      invoice_source_type: 1,
+      source_voucher_id: null,
+      source_voucher_type: null,
+      has_linked_invoice: false,
+      items: f.items.map(item => ({ ...item, order_item_id: null, delivery_item_id: null, source_voucher_id: null, source_voucher_type: null })),
     }))
     setErrorMessages([])
     } finally {

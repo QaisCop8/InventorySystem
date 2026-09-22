@@ -747,3 +747,59 @@ html[dir="rtl"] .wj-flexgrid .wj-header {
   background: linear-gradient(180deg, #334155, #1e293b) !important;
   color: #e2e8f0 !important;
 }
+
+/* SVG action icons: no font glyphs, QR substitutions, or clipped labels. */
+.wj-flexgrid .wj-cell > button.dgv-action {
+  --dgv-tone:#247987;
+  --dgv-fill:#edf7f8;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  width:var(--dgv-action-size,32px) !important;
+  min-width:var(--dgv-action-size,32px) !important;
+  height:var(--dgv-action-size,32px) !important;
+  min-height:var(--dgv-action-size,32px) !important;
+  border:1px solid color-mix(in srgb,var(--dgv-tone) 22%,transparent) !important;
+  border-radius:8px !important;
+  background:var(--dgv-fill) !important;
+  color:var(--dgv-tone) !important;
+  box-shadow:inset 0 1px #ffffff90,0 1px 2px #203a4910 !important;
+  font-family:inherit;
+  transition:background .15s,border-color .15s;
+}
+.wj-flexgrid .wj-cell > button.dgv-action.btn-danger { --dgv-tone:#b9455d; --dgv-fill:#fff1f3; }
+.wj-flexgrid .wj-cell > button.dgv-action.btn-success { --dgv-tone:#258169; --dgv-fill:#edf8f2; }
+.wj-flexgrid .wj-cell > button.dgv-action.btn-warning { --dgv-tone:#a37835; --dgv-fill:#fff8eb; }
+.wj-flexgrid .wj-cell > button.dgv-action:not(:empty),.wj-flexgrid .wj-cell > button.dgv-action.has-label {
+  width:auto !important;
+  min-width:var(--dgv-action-size,32px) !important;
+  max-width:100%;
+  padding-inline:8px !important;
+  font-size:11px;
+  font-weight:600;
+  line-height:1.2;
+}
+.wj-flexgrid .wj-cell > button.dgv-action::before {
+  content:"" !important;
+  display:block;
+  flex:0 0 17px;
+  width:17px;
+  height:17px;
+  background:currentColor;
+  mask:var(--dgv-icon) center / contain no-repeat;
+  -webkit-mask:var(--dgv-icon) center / contain no-repeat;
+}
+.wj-flexgrid .wj-cell > button.dgv-action:hover:not(:disabled) {
+  background:color-mix(in srgb,var(--dgv-tone) 14%,var(--dgv-fill)) !important;
+  color:var(--dgv-tone) !important;
+  border-color:var(--dgv-tone) !important;
+  box-shadow:0 2px 5px #203a4915 !important;
+  transform:none !important;
+}
+.wj-flexgrid .wj-cell > button.dgv-action:focus-visible { outline:2px solid var(--dgv-tone) !important; outline-offset:2px; }
+.dark .wj-flexgrid .wj-cell > button.dgv-action { --dgv-fill:#213840; --dgv-tone:#8cc7d0; box-shadow:none !important; }
+.dark .wj-flexgrid .wj-cell > button.dgv-action.btn-danger { --dgv-fill:#412730; --dgv-tone:#f2a0af; }
+.dark .wj-flexgrid .wj-cell > button.dgv-action.btn-success { --dgv-fill:#1e3e35; --dgv-tone:#8bd4b6; }
+.dark .wj-flexgrid .wj-cell > button.dgv-action.btn-warning { --dgv-fill:#3e3527; --dgv-tone:#e9c88f; }
+@media(prefers-reduced-motion:reduce) { .wj-flexgrid .wj-cell > button.dgv-action { transition:none; } }

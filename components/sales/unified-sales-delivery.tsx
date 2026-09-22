@@ -654,6 +654,7 @@ export default function UnifiedSalesDelivery({
   }, [dialogOpen, form.id, form.vch_code])
 
   const guardedAction = (action: () => void) => {
+    if ([2, 3].includes(Number(form.status))) { action(); return }
     if (showUnsavedConfirm) return
     if (JSON.stringify(form) !== initialSnapshotRef.current) {
       pendingActionRef.current = action
@@ -1216,11 +1217,14 @@ export default function UnifiedSalesDelivery({
   }
 
   const patchItemRow = (index: number, patch: Partial<SalesVoucherItemRow>) => {
-    if (isLocked) return
+    // A retained grid callback may belong to the posted/deleted source voucher.
+    // Always apply edits using the current form after cloning or navigation.
+    const currentForm = formRef.current
+    if (Number(currentForm.status) === 2 || Number(currentForm.status) === 3) return
     // If caller updated unit_price without providing base_unit_price, compute base price
     const incoming = { ...patch }
     if (incoming.unit_price !== undefined && incoming.base_unit_price === undefined) {
-      const rate = Number(form.rate || 1)
+      const rate = Number(currentForm.rate || 1)
       const unitPriceNum = incoming.unit_price != null ? Number(incoming.unit_price) : null
       incoming.base_unit_price = unitPriceNum != null ? unitPriceNum * rate : null
     }
@@ -1801,7 +1805,7 @@ export default function UnifiedSalesDelivery({
       // "السعر عند الادخال يشمل الضريبة" (إعدادات المستخدم): ما كتبه المستخدم هنا يُعامَل كسعر شامل
       // الضريبة، فيُحوَّل فوراً لغير شامل (السعر ÷ (1+نسبة الضريبة/100)) قبل تخزينه في unit_price —
       // unit_price يبقى دوماً غير شامل الضريبة داخلياً (نفس أساس عمود "السعر شامل" أعلاه).
-      const vatPercent = Number(form.vat_percent || 0)
+      const vatPercent = Number(formRef.current.vat_percent || 0)
       const unitPrice =
         rawUnitPrice !== null && priceEntryIncludesTax && vatPercent > 0
           ? Math.round((rawUnitPrice / (1 + vatPercent / 100)) * 100) / 100
@@ -2862,7 +2866,7 @@ export default function UnifiedSalesDelivery({
               <TabsContent value="items" className="mt-2 min-h-[300px] space-y-2 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
                 <div className="w-full max-w-full overflow-x-auto">
                   <DataGridView
-                    key={`sales-delivery-items-${gridResetToken}`}
+                    key={`sales-delivery-items-${gridResetToken}-${form.id}-${form.status}`}
                     allowSorting={false}
                     innerRef={itemsGridRef}
                     style={{ height: "300px" }}

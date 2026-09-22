@@ -6,7 +6,7 @@ import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import AccountSearchDialog, { type AccountItem } from "@/components/customer/account-search-dialog"
 import DataGridView from "@/components/common/DataGridView"
-import { PackageCheck, Truck, UserRound } from "lucide-react"
+import { ArrowLeft, ArrowRight, PackageCheck, Truck, UserRound } from "lucide-react"
 import type { SalesVoucherItemRow } from "@/components/sales/unified-sales-delivery"
 
 interface DeliveryHeader {
@@ -31,6 +31,8 @@ interface InvoiceFromDeliveryPopupProps {
   onSelect: (delivery: DeliveryHeader, customer: AccountItem, items: SalesVoucherItemRow[], selectedDeliveries: DeliveryHeader[]) => void
   onCancel?: () => void
 }
+
+const standardGridShell = "invoice-source-grid min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-white"
 
 const SALES_INVOICE_TYPE = 12
 const SALES_DELIVERY_TYPES = [13, 14]
@@ -136,14 +138,14 @@ export default function InvoiceFromDeliveryPopup({
           body: (cell: any) => <span className="block text-center text-sm">{cell.row.index + 1}</span>,
         },
         { header: "رقم الإرسالية", name: "vch_code", width: 130, isReadOnly: true },
-        { header: "التاريخ", name: "vch_date", width: 110, isReadOnly: true },
+        { header: "التاريخ", name: "vch_date", width: '*', isReadOnly: true },
         { header: "العملة", name: "currency_code", width: 110, isReadOnly: true },
         { header: "سعر الصرف", name: "rate", width: 110, isReadOnly: true },
         { header: "المبلغ", name: "amount", width: 100, isReadOnly: true },
         {
           header: "الإجراء",
           name: "actions",
-          width: "*",
+          width: 110,
           isReadOnly: true,
           body: (cell: any) => {
             const row = cell.row.dataItem as DeliveryHeader
@@ -186,36 +188,7 @@ export default function InvoiceFromDeliveryPopup({
     () => ({
       name: "SelectedItemsScheme",
       columns: [
-        {
-          header: "اختيار",
-          name: "selected",
-          width: 70,
-          isReadOnly: true,
-          body: (cell: any) => {
-            const row = cell.row.dataItem as SalesVoucherItemRow
-            const key = deliveryItemKey(row)
-            const checked = selectedDeliveryItems.some((item) => deliveryItemKey(item) === key)
-            return (
-              <input
-                type="checkbox"
-                checked={checked}
-                aria-label={`اختيار ${row.product_name || row.item_name || "الصنف"}`}
-                onChange={(event) => {
-                  event.stopPropagation()
-                  if (event.target.checked) {
-                    setSelectedDeliveryItems((current) => {
-                      const exists = current.some((item) => deliveryItemKey(item) === key)
-                      return exists ? current : [...current, row]
-                    })
-                  } else {
-                    setSelectedDeliveryItems((current) => current.filter((item) => deliveryItemKey(item) !== key))
-                  }
-                }}
-              />
-            )
-          },
-        },
-        { header: "الصنف", name: "product_name", width: "*", isReadOnly: true },
+        { header: "الصنف", name: "product_name", width: "*", minWidth: 180, isReadOnly: true },
         { header: "الكمية", name: "quantity", width: 90, isReadOnly: true },
         { header: "الوحدة", name: "unit", width: 90, isReadOnly: true },
         {
@@ -362,80 +335,79 @@ export default function InvoiceFromDeliveryPopup({
     <Dialog open={open} onOpenChange={handleDialogOpenChange}>
       <DialogContent
         hideCloseButton
-        className="flex h-[92vh] max-h-[92vh] w-[96vw] max-w-[1500px] flex-col overflow-hidden rounded-3xl border border-slate-200 bg-slate-50 p-0 shadow-2xl"
+        className="flex h-[calc(100dvh-0.5rem)] max-h-[calc(100dvh-0.5rem)] w-[calc(100vw-0.5rem)] max-w-[1400px] flex-col overflow-hidden rounded-xl border border-slate-200 bg-slate-50 p-0 shadow-2xl sm:h-auto sm:max-h-[92vh] sm:w-[96vw] sm:rounded-2xl"
         onInteractOutside={(event) => {
           event.preventDefault()
         }}
       >
-        <div className="flex h-full min-h-0 flex-col bg-slate-50" dir="rtl">
-          <div className="shrink-0 bg-gradient-to-l from-emerald-700 via-emerald-600 to-teal-600 px-5 py-4 text-white shadow-lg">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex h-full min-h-0 min-w-0 flex-col bg-slate-50" dir="rtl">
+          <div className="shrink-0 bg-gradient-to-l from-emerald-700 via-emerald-600 to-teal-600 px-4 py-3 text-white shadow-md sm:px-5 sm:py-4">
+            <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="flex items-center gap-2 text-xl font-extrabold"><Truck className="h-5 w-5" />{title}</p>
-                <p className="mt-1 text-sm text-emerald-50">
-                  اختر العميل أولاً ثم حدد إرسالية مرحلة، ثم استخدم الأسهم لإضافة أو إزالة العناصر من القائمة.
+                <p className="flex items-center gap-2 text-lg font-extrabold sm:text-xl"><span className="rounded-xl bg-white/15 p-2 ring-1 ring-white/20"><Truck className="h-4 w-4 sm:h-5 sm:w-5" /></span>{title}</p>
+                <p className="mt-1 hidden text-xs text-emerald-50 sm:block sm:text-sm">
+                  اختر {isSalesInvoice ? "العميل" : "المورد"} أولاً ثم حدد إرسالية مرحَلة، ثم استخدم الأسهم لإضافة أو إزالة العناصر من القائمة.
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4 sm:p-5">
+          <div className="min-h-0 min-w-0 flex-1 space-y-4 overflow-y-auto bg-slate-50/70 p-3 sm:p-5">
             <div className="grid gap-3 sm:grid-cols-2">
-              <div className="rounded-2xl border border-emerald-100 bg-white p-4 shadow-sm">
-                <Label className="mb-2 flex items-center gap-2 text-sm font-bold text-emerald-900"><UserRound className="h-4 w-4 text-emerald-600" />العميل</Label>
+              <div className="rounded-2xl border border-emerald-100 bg-white p-3 shadow-sm sm:p-4">
+                <Label className="mb-1.5 flex items-center gap-2 text-sm font-bold text-emerald-900"><UserRound className="h-4 w-4 text-emerald-600" />{isSalesInvoice ? "العميل" : "المورد"}</Label>
                 {selectedCustomer ? (
                   <div className="space-y-2">
-                    <div className="rounded-2xl bg-white p-3 shadow-sm">
+                    <div className="rounded-xl bg-emerald-50/70 px-3 py-2">
                       <div className="text-sm font-semibold">{selectedCustomer.name}</div>
                       <div className="text-sm text-slate-600">رقم الحساب: {selectedCustomer.code}</div>
                     </div>
                     <Button size="sm" variant="outline" onClick={() => setCustomerSearchOpen(true)}>
-                      تغيير العميل
+                      تغيير {isSalesInvoice ? "العميل" : "المورد"}
                     </Button>
                   </div>
                 ) : (
                   <div>
-                    <p className="mb-3 text-sm text-slate-600">لم يتم اختيار عميل بعد.</p>
+                    <p className="mb-3 text-sm text-slate-600">لم يتم اختيار {isSalesInvoice ? "عميل" : "مورد"} بعد.</p>
                     <Button size="sm" onClick={() => setCustomerSearchOpen(true)}>
-                      اختر العميل
+                      اختر {isSalesInvoice ? "العميل" : "المورد"}
                     </Button>
                   </div>
                 )}
               </div>
 
-              <div className="rounded-2xl border border-teal-100 bg-white p-4 shadow-sm">
-                <Label className="mb-2 flex items-center gap-2 text-sm font-bold text-teal-900"><PackageCheck className="h-4 w-4 text-teal-600" />{deliveryLabel}</Label>
-                <p className="text-sm text-slate-600">اختر إرسالية مرحلة لتحميل سطور البضاعة إلى الفاتورة.</p>
-                <div className="mt-3 text-sm text-slate-500">
-                  {selectedDelivery ? `الإرسالية المحددة: ${selectedDelivery.vch_code}` : "لم يتم اختيار إرسالية بعد."}
+              <div className="rounded-2xl border border-teal-100 bg-white p-3 shadow-sm sm:p-4">
+                <Label className="mb-1.5 flex items-center gap-2 text-sm font-bold text-emerald-900"><PackageCheck className="h-4 w-4 text-emerald-600" />{deliveryLabel}</Label>
+                <p className="text-sm text-slate-600">اختر إرسالية لتنزيل سطور البضاعة إلى الفاتورة.</p>
+                <div className="mt-2 rounded-xl bg-teal-50/70 px-3 py-2 text-sm text-slate-600">
+                  {selectedDelivery ? `${deliveryLabel} المحددة: ${selectedDelivery.vch_code}` : `لم يتم اختيار ${deliveryLabel} بعد.`}
                 </div>
               </div>
             </div>
 
-            <div className="grid gap-4 lg:grid-cols-[1.2fr_1fr]">
-              <div className="rounded-2xl border border-emerald-100 bg-white p-4 shadow-sm">
-                <div className="mb-3 flex items-center justify-between gap-3">
-                  <span className="text-sm font-semibold text-slate-700">قائمة الإرساليات</span>
-                </div>
-                {loading ? (
-                  <div className="py-12 text-center text-sm text-slate-500">جارٍ تحميل الإرساليات...</div>
-                ) : error ? (
-                  <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>
-                ) : deliveries.length === 0 ? (
-                  <div className="py-12 text-center text-sm text-slate-500">لا توجد إرساليات تم العثور عليها للعميل المحدد.</div>
-                ) : (
-                  <div className="invoice-source-grid overflow-hidden rounded-xl border border-slate-200 bg-white">
+            <div className="grid min-w-0 gap-4">
+              <div className="min-w-0 rounded-2xl border border-emerald-100 bg-white p-3 shadow-sm sm:p-4">
+                <div className="mb-3 flex items-center justify-between gap-2"><span className="text-sm font-bold text-slate-800">الإرساليات الجاهزة</span><span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600">{deliveries.length}</span></div>
+                <div className={standardGridShell}>
+                  {loading ? (
+                    <div className="text-sm text-slate-500">جاري تحميل الإرساليات...</div>
+                  ) : error ? (
+                    <div className="text-sm text-red-600">{error}</div>
+                  ) : deliveries.length === 0 ? (
+                    <div className="text-sm text-slate-500">لا توجد إرساليات متاحة.</div>
+                  ) : (
                     <DataGridView
+                      dataSource={deliveries.map((delivery, index) => ({ ...delivery, index }))}
                       scheme={deliveriesScheme}
-                      dataSource={deliveries.map((delivery, index) => ({
-                        ...delivery,
-                        index: index + 1,
-                      }))}
+                      idProperty="id"
+                      isReadOnly={true}
+                      showContextMenu={false}
+                      dontConvertToCards={true}
                       allowDragging="Rows"
                       headersVisibility="Column"
                       isReport={false}
                       defaultRowHeight={38}
-                      containerStyle={{ height: 260 }}
+                      containerStyle={{ height: 240, width: "100%", minWidth: 0 }}
                       onRowDoubleClick={(row: DeliveryHeader) => {
                         if (!row) return
                         if (selectedDeliveryIds.has(row.id)) {
@@ -445,46 +417,50 @@ export default function InvoiceFromDeliveryPopup({
                         }
                       }}
                     />
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
 
-              <div className="rounded-2xl border border-teal-100 bg-white p-4 shadow-sm">
-                <div className="mb-3 flex items-center justify-between gap-3">
-                  <span className="text-sm font-semibold text-slate-700">عناصر الفاتورة المختارة</span>
-                </div>
-                {itemsLoading ? (
-                  <div className="py-12 text-center text-sm text-slate-500">جارٍ تحميل العناصر...</div>
-                ) : itemsError ? (
-                  <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{itemsError}</div>
-                ) : selectedDeliveryItems.length === 0 ? (
-                  <div className="py-12 text-center text-sm text-slate-500">لم يتم إضافة أي عناصر بعد. اضغط على السهم الأيسر لإضافة عناصر إرسالية.</div>
-                ) : (
-                  <div className="invoice-source-grid overflow-hidden rounded-xl border border-slate-200 bg-white">
+              <div className="min-w-0 rounded-2xl border border-teal-100 bg-white p-3 shadow-sm sm:p-4">
+                <div className="mb-3 flex items-center justify-between gap-2"><span className="text-sm font-bold text-slate-800">العناصر المحددة</span><span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-800">{selectedDeliveryItems.length}</span></div>
+                <div className={standardGridShell}>
+                  {itemsLoading ? (
+                    <div className="text-sm text-slate-500">جاري تحميل عناصر الإرسالية...</div>
+                  ) : itemsError ? (
+                    <div className="text-sm text-red-600">{itemsError}</div>
+                  ) : selectedDeliveryItems.length === 0 ? (
+                    <div className="text-sm text-slate-500">لم يتم إضافة عناصر بعد.</div>
+                  ) : (
                     <DataGridView
-                      scheme={selectedItemsScheme}
                       dataSource={selectedDeliveryItems}
+                      scheme={selectedItemsScheme}
+                      idProperty="delivery_item_id"
+                      isReadOnly={true}
+                      showContextMenu={false}
+                      dontConvertToCards={true}
                       allowDragging="Rows"
                       headersVisibility="Column"
                       isReport={false}
                       defaultRowHeight={38}
-                      containerStyle={{ height: 260 }}
+                      containerStyle={{ height: 260, width: "100%", minWidth: 0 }}
                       onRowDoubleClick={(row: SalesVoucherItemRow) => {
                         if (!row) return
                         toggleSelectedDeliveryItem(row)
                       }}
                     />
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             </div>
           </div>
 
-          <div className="flex shrink-0 items-center justify-end gap-2 border-t border-slate-200 bg-white/95 p-4 backdrop-blur">
-            <Button variant="outline" onClick={handleClose}>إغلاق</Button>
-            <Button disabled={selectedDeliveryItems.length === 0 || itemsLoading} onClick={handleConfirm}>
-              موافق
-            </Button>
+          <div className="mt-auto shrink-0 border-t border-slate-200 bg-white/95 px-4 py-3 backdrop-blur sm:px-5">
+            <div className="flex items-center justify-end gap-2">
+              <Button variant="outline" onClick={() => handleClose()}>إلغاء</Button>
+              <Button className="bg-emerald-600 px-6 hover:bg-emerald-700" disabled={!selectedCustomer || selectedDeliveryItems.length === 0 || itemsLoading} onClick={handleConfirm}>
+                تأكيد العناصر
+              </Button>
+            </div>
           </div>
         </div>
       </DialogContent>
