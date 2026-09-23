@@ -152,11 +152,16 @@ export function ItemCardReport() {
   const movementScheme = useMemo(() => ({ name: "ItemCardVoucherReport", filter: true, sortable: false, showFooter: false,
     columns: columns.map(column => ({ ...column, dataType: column.numeric ? "Number" : "String", format: column.numeric ? "n3" : undefined,
       align: "right", body: ({ item }: { item: Movement }) => cell(item, column) })) }), [columns])
-  const itemScheme = { name: "ItemCardProductsReport", filter: false, sortable: true, showFooter: false, columns: [
+  const itemScheme = useMemo(() => ({ name: "ItemCardProductsReport", filter: false, sortable: true, showFooter: false, columns: [
     { name: "product_code", header: "الكود", width: 90 },
     { name: "product_name", header: "الصنف", width: "*", minWidth: 125 },
     { name: "view", header: "عرض", width: 55, body: ({ item }: { item: Product }) => <button type="button" className="item-card-view" aria-label={`عرض بطاقة ${item.product_name}`} aria-pressed={item.id === activeProduct?.id} onClick={() => selectProduct(item)}><Eye size={16} /></button> },
-  ] }
+  ] }), [activeProduct?.id])
+
+  const handleProductSelection = (ids: number[]) => {
+    // An empty selection already means "all products" when the report runs.
+    setSelectedIds(ids.length === productOptions.length ? [] : ids)
+  }
 
   const exportCsv = () => {
     const visibleColumns = columns.filter(column => column.visible !== false)
@@ -176,7 +181,7 @@ export function ItemCardReport() {
     </>} />
     <ReportFilters>
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <ReportMultiChoice label="الأصناف" options={productOptions} selected={selectedIds} onChange={setSelectedIds} placeholder={loadingProducts ? "جاري تحميل الأصناف..." : "جميع الأصناف"} />
+        <ReportMultiChoice label="الأصناف" options={productOptions} selected={selectedIds} onChange={handleProductSelection} placeholder={loadingProducts ? "جاري تحميل الأصناف..." : "جميع الأصناف"} />
         <div className="space-y-2"><Label htmlFor="item-card-from">من تاريخ</Label><Input id="item-card-from" type="date" lang="en" dir="ltr" value={fromDate} onChange={event => setFromDate(event.target.value)} /></div>
         <div className="space-y-2"><Label htmlFor="item-card-to">إلى تاريخ</Label><Input id="item-card-to" type="date" lang="en" dir="ltr" value={toDate} onChange={event => setToDate(event.target.value)} /></div>
         <ReportMultiChoice label="المستودعات" options={warehouses} selected={warehouseIds} onChange={setWarehouseIds} placeholder="جميع المستودعات" />
@@ -194,11 +199,11 @@ export function ItemCardReport() {
     </ReportFilters>
     {error && <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{error}</p>}
     <div className="item-card-workspace">
-      <aside className="report-results item-card-products print:hidden">
+      {reportProducts.length > 1 && <aside className="report-results item-card-products print:hidden">
         <div className="item-card-panel-heading"><Package size={18} /><h2>الأصناف</h2><span className="item-card-count">{numberFormat(reportProducts.length)}</span></div>
         <div className="p-3"><Input aria-label="بحث في أصناف التقرير" placeholder="بحث بالكود أو اسم الصنف" value={itemSearch} onChange={event => setItemSearch(event.target.value)} /></div>
         <DataGridView dataSource={visibleProducts} scheme={itemScheme} isReport hideSearch dontConvertToCards idProperty="id" onRowDoubleClick={selectProduct} defaultRowHeight={42} style={{ height: "100%", minHeight: 420 }} containerStyle={{ flex: 1, minHeight: 420 }} />
-      </aside>
+      </aside>}
       <section className="item-card-detail" aria-busy={loading}>
         <div className="item-card-identity">
           <div className="min-w-0"><p className="item-card-eyebrow">بطاقة حركة الصنف</p><h2>{activeProduct?.product_name || "اختر الأصناف واعرض التقرير"}</h2>

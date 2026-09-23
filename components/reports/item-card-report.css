@@ -1,4 +1,4 @@
-.item-card-workspace { display:grid; grid-template-columns:290px minmax(0,1fr); align-items:start; gap:12px; flex:1; }
+.item-card-workspace { display:grid; grid-template-columns:380px minmax(0,1fr); align-items:start; gap:12px; flex:1; }
 .item-card-detail { display:flex; flex-direction:column; gap:12px; min-width:0; }
 .item-card-products { position:sticky; top:0; max-height:800px; }
 .item-card-panel-heading { display:flex; align-items:center; gap:8px; padding:14px; border-bottom:1px solid var(--report-border); font-weight:700; }
