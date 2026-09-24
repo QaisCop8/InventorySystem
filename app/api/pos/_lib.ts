@@ -136,6 +136,19 @@ export async function ensurePosTables() {
   await sql`ALTER TABLE pos_points_tbl ADD COLUMN IF NOT EXISTS item_grouping_mode VARCHAR(16) NOT NULL DEFAULT 'on_entry' CHECK (item_grouping_mode IN ('none', 'on_entry', 'on_print'))`
   await sql`ALTER TABLE pos_points_tbl ADD COLUMN IF NOT EXISTS print_by_item_group BOOLEAN NOT NULL DEFAULT FALSE`
   await sql`CREATE INDEX IF NOT EXISTS idx_pos_sale_drafts_owner ON pos_sale_drafts_tbl(pos_point_id,user_id,status,updated_at DESC)`
+  await sql`
+    CREATE TABLE IF NOT EXISTS pos_cashier_log_tbl (
+      id BIGSERIAL PRIMARY KEY,
+      occurred_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      pos_point_id INTEGER REFERENCES pos_points_tbl(id),
+      session_id BIGINT REFERENCES pos_sessions_tbl(id),
+      user_id INTEGER REFERENCES user_settings(user_id),
+      movement_type VARCHAR(40) NOT NULL,
+      transaction_no VARCHAR(120),
+      notes TEXT
+    )
+  `
+  await sql`CREATE INDEX IF NOT EXISTS idx_pos_cashier_log_filters ON pos_cashier_log_tbl(occurred_at,pos_point_id,user_id,movement_type)`
 }
 
 export function requestUserId(request: Request) {

@@ -3261,14 +3261,21 @@ function UnifiedSalesOrder({
           h-[calc(100dvh-1rem)]
           max-h-[94vh]
           w-[calc(100vw-1rem)]
-          max-w-[1400px]
+          max-w-[1600px]
           sm:h-[92vh]
-          sm:w-[96vw]
+          sm:w-[98vw]
+          xl:w-[96vw]
           p-0
           gap-0
           flex
           flex-col
           overflow-hidden
+          text-[13px]
+          [&_label]:text-xs
+          [&_input:not([type=checkbox])]:h-8
+          [&_input:not([type=checkbox])]:px-2.5
+          [&_.p-dropdown]:min-h-8
+          [&_.p-dropdown-label]:py-1.5
           ${fullscreenEnabled && open ? "!left-0 !top-0 !h-full !max-h-full !w-full !max-w-none !translate-x-0 !translate-y-0 !rounded-none" : ""}
         `}
         onPointerDownOutside={(event) => event.preventDefault()}
@@ -3301,9 +3308,9 @@ function UnifiedSalesOrder({
           <Messages innerRef={message} />
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="sales-order-form-body min-h-0 flex-1 overflow-y-auto">
 
-          <div className="space-y-4 p-3 sm:p-4 lg:p-5">
+          <div className="space-y-3 rounded-b-3xl bg-slate-50/60 p-3 sm:p-4 lg:p-5">
             <Toast ref={toast} position={'top-left'} className="erp-toast-host" style={{ top: 100, whiteSpace: 'pre-line' }} />
             <ProgressSpinner loading={loading} />
 
@@ -3506,11 +3513,11 @@ function UnifiedSalesOrder({
                 gridRef.current?.select(selectedIndex, 'qnty');
               }}
             />
-            <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20 sticky top-0 z-40 shadow-md">
+            <Card className="sales-order-summary sticky top-0 z-40 border-emerald-200 bg-gradient-to-br from-emerald-50 to-teal-50 shadow-md">
               <CardContent className="py-4">
                 <div className="flex flex-wrap items-center justify-between gap-4">
                   <div className="flex items-center gap-2">
-                    <TrendingUp className="h-5 w-5 text-primary" />
+                    <TrendingUp className="h-5 w-5 text-emerald-700" />
                     <span className="text-sm font-medium">ملخص الطلبية</span>
                   </div>
                   <div className="flex flex-wrap items-center gap-6 text-sm">
@@ -3529,29 +3536,29 @@ function UnifiedSalesOrder({
                     <Separator orientation="vertical" className="h-10 hidden md:block" />
                     <div className="flex flex-col items-end">
                       <span className="text-xs text-muted-foreground">الإجمالي</span>
-                      <span className="text-lg font-bold text-primary">{Util.formatNumber(totals.total, Util.getSystemSetting(17))}</span>
+                      <span className="text-lg font-bold text-emerald-700">{Util.formatNumber(totals.total, Util.getSystemSetting(17))}</span>
                     </div>
                   </div>
                 </div>
               </CardContent>
             </Card>
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2" dir="rtl">
+            <div className="sales-delivery-details-grid grid min-w-0 items-start gap-2" dir="rtl">
 
               {/* ===================== */}
               {/* معلومات الطلبية (يمين) */}
               {/* ===================== */}
-              <Card className="h-full">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <FileText className="h-5 w-5 text-primary" />
+              <Card className="sales-order-details-panel min-w-0 rounded-xl border-slate-200 shadow-sm">
+                <CardHeader className="pb-2 pt-3">
+                  <CardTitle className="flex items-center gap-2 text-sm font-bold text-emerald-700">
+                    <FileText className="h-4 w-4" />
                     معلومات الطلبية الأساسية
                   </CardTitle>
                 </CardHeader>
 
-                <CardContent className="space-y-4 p-3 sm:p-4">
+                <CardContent className="space-y-3 p-2 sm:p-2.5">
 
                   {/* الصف الأول */}
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                  <div className="voucher-header-grid grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-12">
                     {/* دفتر السندات */}
                     <div className="invoice-currency-dropdown-wrap">
                       <Label>دفتر السندات</Label>
@@ -3839,15 +3846,15 @@ function UnifiedSalesOrder({
               {/* ===================== */}
               {/* معلومات العميل (يسار) */}
               {/* ===================== */}
-              <Card className="h-full">
-                <CardHeader className="pb-4">
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <User className="h-5 w-5 text-primary" />
+              <Card className="sales-order-details-panel min-w-0 rounded-xl border-slate-200 shadow-sm">
+                <CardHeader className="pb-2 pt-3">
+                  <CardTitle className="flex items-center gap-2 text-sm font-bold text-emerald-700">
+                    <User className="h-4 w-4" />
                     معلومات العميل
                   </CardTitle>
                 </CardHeader>
 
-                <CardContent className="space-y-6">
+                <CardContent className="space-y-3 p-2 sm:p-2.5">
 
                   <div className="grid grid-cols-12 gap-4">
 

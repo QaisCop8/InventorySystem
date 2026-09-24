@@ -5,9 +5,9 @@ import {Input} from "@/components/ui/input"
 import {UserRound,X} from "lucide-react"
 
 export type PosParty={id:number;name:string;code?:string}
-export function PosPartyButton({kind,selected,onOpen,onClear}:{kind:"customer"|"salesman";selected?:PosParty;onOpen:()=>void;onClear:()=>void}){
+ export function PosPartyButton({kind,selected,onOpen,onClear}:{kind:"customer"|"salesman";selected?:PosParty;onOpen:()=>void;onClear:()=>void}){
  const label=kind==="customer"?"العميل":"المندوب"
- return <div className="flex min-w-0 items-center rounded-lg border border-emerald-100 bg-white"><button type="button" className="min-w-0 flex-1" title={selected?.name||label} onClick={onOpen}><UserRound size={19}/><span className="truncate">{selected?.name||`اختيار ${label}`}</span></button>{selected&&<button type="button" aria-label={`مسح ${label}`} onClick={onClear}><X size={17}/></button>}</div>
+ return <div className="flex min-w-0 items-center rounded-lg border border-emerald-100 bg-white"><button type="button" className="min-w-0 flex-1" title={selected?.name||label} onClick={onOpen}><UserRound size={19}/><span className="truncate">{selected?.name||`اختيار ${label}`}</span><kbd>{kind==="customer"?"F8":"F9"}</kbd></button>{selected&&<button type="button" aria-label={`مسح ${label}`} onClick={onClear}><X size={17}/></button>}</div>
 }
 export function PosPartyPicker({title,rows,onSelect,onClose}:{title:string;rows:PosParty[];onSelect:(id:number)=>void;onClose:()=>void}){
  const [query,setQuery]=useState("")

@@ -49,6 +49,7 @@ export async function POST(request:NextRequest){
     return await withTenantTransaction(async()=>{
       await sql`SELECT pg_advisory_xact_lock(hashtext(${`pos-session:${pointId}`}))`
       let session=await getOpenPosSession(pointId,userId)
+      const previousSessionId=Number(session?.id||0)
       if(action==="open"){
         if(session)return NextResponse.json({error:"لديك عهدة مفتوحة على نقطة البيع"},{status:400});const otherOpen=(await sql`SELECT id FROM pos_sessions_tbl WHERE pos_point_id=${pointId} AND status='open' LIMIT 1`)[0];if(otherOpen)return NextResponse.json({error:"توجد وردية مفتوحة بالفعل على نقطة البيع. يجب إغلاقها أو تسليم عهدتها قبل فتح وردية جديدة"},{status:409});const entered=currencyAmounts(data.currency_amounts,await getPosCurrencies(Number(point.currency_id)),Number(point.currency_id),amount(data.amount));const opening=evaluated(entered);const rows=await sql`INSERT INTO pos_sessions_tbl(pos_point_id,user_id,shift_guid,opening_cash,expected_cash,notes) VALUES(${pointId},${userId},COALESCE(${shiftGuid||null}::uuid,gen_random_uuid()),${opening},${opening},${String(data.note||"")}) RETURNING *`;session=rows[0];for(const item of entered)await sql`INSERT INTO pos_session_currencies_tbl(session_id,currency_id,opening_amount,expected_amount,rate_to_point) VALUES(${Number(session.id)},${item.currency_id},${item.amount},${item.amount},${item.rate_to_point})`;await sql`INSERT INTO pos_cash_movements_tbl(session_id,movement_type,amount,note,user_id) VALUES(${Number(session.id)},'opening',${opening},${String(data.note||"")},${userId})`
       } else if(action==="receive"){
@@ -82,6 +83,10 @@ export async function POST(request:NextRequest){
           await sql`INSERT INTO pos_cash_movements_tbl(session_id,movement_type,amount,note,user_id) VALUES(${Number(session.id)},'close',${counted},${String(data.note||"")},${userId})`
           session=null
         } else return NextResponse.json({error:"عملية العهدة غير معروفة"},{status:400})
+      }
+      if(["open","receive","handover"].includes(action)){
+        const logSessionId=Number(session?.id||previousSessionId||0)
+        await sql`INSERT INTO pos_cashier_log_tbl(pos_point_id,session_id,user_id,movement_type,transaction_no,notes) VALUES(${pointId},${logSessionId||null},${Number(userId)},${action==="handover"?"تسليم عهدة":"استلام عهدة"},${logSessionId?String(logSessionId):null},${String(data.note||"")||null})`
       }
       return NextResponse.json({success:true,session:session?await sessionDetails(pointId,userId):null})
     })

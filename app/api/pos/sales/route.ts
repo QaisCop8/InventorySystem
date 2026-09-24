@@ -167,6 +167,7 @@ export async function POST(request: NextRequest) {
       const receipt=!isReturn&&needsPosReceipt(payments)?await createPosReceipt(request,saved,point,userId,payments):null
       await sql`UPDATE pos_sale_payments_tbl SET pos_point_id=${pointId},session_id=${Number(session.id)} WHERE voucher_id=${Number(saved.id)}`
       await sql`UPDATE voucher_header_tbl SET pos_session_id=${Number(session.id)},shift_guid=${String(session.shift_guid)}::uuid WHERE id=${Number(saved.id)}`
+      await sql`INSERT INTO pos_cashier_log_tbl(pos_point_id,session_id,user_id,movement_type,transaction_no,notes) VALUES(${pointId},${Number(session.id)},${Number(userId)},${String(data.cashier_action || (data.pos_mode === "return" ? "حفظ فاتورة" : "حفظ فاتورة"))},${String(saved.vch_code || "")},${String(data.note || "")})`
       for(const payment of payments.filter((p:any)=>p.payment_method==="cheque")){
         if(receipt){
           await sql`UPDATE cheques_tbl SET amount=${Number(payment.currency_amount??payment.amount)},currency_id=${Number(payment.currency_id||point.currency_id)},rate=${Number(availableCurrencies.find(row=>row.currency_id===Number(payment.currency_id||point.currency_id))?.exchange_rate??1)}

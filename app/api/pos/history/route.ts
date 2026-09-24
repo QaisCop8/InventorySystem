@@ -77,6 +77,7 @@ export async function DELETE(request: NextRequest) {
         const failure = await result.json()
         throw Object.assign(new Error(String(failure?.error || "تعذر حذف الفاتورة")), { status: result.status })
       }
+      await sql`INSERT INTO pos_cashier_log_tbl(pos_point_id,session_id,user_id,movement_type,transaction_no,notes) VALUES(${pointId},${Number(session.id)},${Number(userId)},'حذف فاتورة',${String(voucher.vch_code || "")},${String(voucher.note || "")})`
       return NextResponse.json({ success: true })
     })
   } catch (error) {

@@ -1573,6 +1573,81 @@ td {
     font-size: 0.75rem !important;
   }
 
+  .sales-order-form {
+    border: 1px solid rgba(16, 185, 129, 0.22) !important;
+    box-shadow: 0 20px 60px rgba(16, 185, 129, 0.12) !important;
+    container-type: inline-size;
+  }
+
+  .sales-order-form .sales-delivery-details-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .sales-order-form .voucher-header-grid > * {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  @container (min-width: 1180px) {
+    .sales-order-form .sales-delivery-details-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @container (min-width: 768px) {
+    .sales-order-form .voucher-header-grid > :nth-child(1),
+    .sales-order-form .voucher-header-grid > :nth-child(2),
+    .sales-order-form .voucher-header-grid > :nth-child(3),
+    .sales-order-form .voucher-header-grid > :nth-child(4) {
+      grid-column: span 6;
+    }
+  }
+
+  .sales-order-form-body {
+    scrollbar-width: thin;
+    scrollbar-color: #b8d8ce transparent;
+  }
+
+  .sales-order-form-body > div > .sales-order-summary {
+    border-radius: 1rem !important;
+    background: linear-gradient(135deg, #ecfdf5 0%, #f0fdfa 55%, #f0f9ff 100%) !important;
+  }
+
+  .sales-order-form-body > div > .grid > .sales-order-details-panel {
+    border-radius: 0.75rem !important;
+    background: #ffffff !important;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05) !important;
+  }
+
+  .sales-order-form-body > div > .grid {
+    align-items: start;
+  }
+
+  .sales-order-form .sales-order-details-panel [data-slot="card-title"] {
+    color: #047857 !important;
+  }
+
+  .sales-order-form .sales-order-summary [data-slot="card-content"] {
+    padding-top: 0.7rem !important;
+    padding-bottom: 0.7rem !important;
+  }
+
+  @media (max-width: 767px) {
+    .sales-order-form-body > div > .grid {
+      gap: 0.75rem !important;
+    }
+  }
+
+  .dark .sales-order-form-body > div > .sales-order-summary {
+    border-color: #245b50 !important;
+    background: linear-gradient(135deg, #123d35 0%, #163e42 100%) !important;
+  }
+
+  .dark .sales-order-form-body > div > .grid > .sales-order-details-panel {
+    border-color: #2d474b !important;
+    background: #183137 !important;
+  }
+
   .quick-start-step > section:first-of-type {
     grid-template-columns: minmax(0, 1fr);
   }

@@ -113,6 +113,16 @@ export const menuItems: MenuItem[] = [
       { title: "إعداد نقاط البيع", section: "pos-points-settings", icon: Settings },
       { title: "الحملات", section: "campaigns", icon: Megaphone },
       { title: "كاشير نقطة البيع", section: "pos-cashier", icon: ShoppingCart },
+      {
+        title: "التقارير",
+        section: "retail-pos-reports",
+        icon: BarChart3,
+        submenu: [
+          { title: "تقرير متابعة الكاشير", section: "cashier-log-report", icon: FileText },
+          { title: "تقرير حركات الكاشير إجمالي", section: "cashier-log-total-report", icon: TrendingUp },
+          { title: "تقرير حركات الكاشير تفصيلي", section: "cashier-log-detailed-report", icon: BarChart3 },
+        ],
+      },
     ],
   },
   {
