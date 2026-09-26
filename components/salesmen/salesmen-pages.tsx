@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Pencil, Plus, UserCheck, Users } from "lucide-react"
 
-const blank = (): SalesmanRecord => ({ code: "", name: "", other_name: "", job_title: "", classification: "", region: "", address: "", mobile: "", email: "", is_supervisor: false, supervisor_id: null, sales_commission_percent: 0, collection_commission_percent: 0, portal_active: false, login_code: "", portal_password: "", notes: "", is_active: true })
+const blank = (parent: Pick<SalesmanRecord, "parent_account_id" | "parent_account_code" | "parent_account_name"> = { parent_account_id: null, parent_account_code: "", parent_account_name: "" }): SalesmanRecord => ({ code: "", name: "", other_name: "", job_title: "", classification: "", region: "", address: "", mobile: "", email: "", ...parent, is_supervisor: false, supervisor_id: null, sales_commission_percent: 0, collection_commission_percent: 0, portal_active: false, login_code: "", portal_password: "", notes: "", is_active: true })
 
 export default function SalesmenPages() {
   const [rows, setRows] = useState<SalesmanRecord[]>([])
@@ -17,12 +17,25 @@ export default function SalesmenPages() {
   const [saving, setSaving] = useState(false)
   const [selected, setSelected] = useState<SalesmanRecord | null>(null)
   const [status, setStatus] = useState("active")
+  const [defaultParent, setDefaultParent] = useState<Pick<SalesmanRecord, "parent_account_id" | "parent_account_code" | "parent_account_name">>({ parent_account_id: null, parent_account_code: "", parent_account_name: "" })
   const messagesRef = useRef<any>(null)
 
   const load = async () => { const response = await fetch("/api/salesmen"); const data = await response.json(); setRows(data.success && Array.isArray(data.data) ? data.data : []) }
-  useEffect(() => { void load() }, [])
+  const loadDefaultParent = async () => {
+    const response = await fetch("/api/settings/system")
+    const data = await response.json()
+    const settings = data?.settings ?? data
+    const value = Number(settings?.default_salesman_parent_account ?? settings?.salesmanParentAccount ?? 0)
+    if (value <= 0) return defaultParent
+    const accountResponse = await fetch(`/api/accounts/${value}`)
+    const account = accountResponse.ok ? await accountResponse.json() : null
+    const next = { parent_account_id: value, parent_account_code: account?.code || "", parent_account_name: account?.name || "" }
+    setDefaultParent(next)
+    return next
+  }
+  useEffect(() => { void load(); void loadDefaultParent().catch(() => undefined) }, [])
   const generateCode = async () => { const response = await fetch("/api/salesmen?generate=1"); const data = await response.json(); return response.ok ? String(data.code || "") : "" }
-  const show = async (row?: SalesmanRecord) => { setForm(row ? { ...row } : { ...blank(), code: await generateCode() }); setOpen(true) }
+  const show = async (row?: SalesmanRecord) => { const parent = row ? undefined : await loadDefaultParent().catch(() => defaultParent); setForm(row ? { ...row } : { ...blank(parent), code: await generateCode() }); setOpen(true) }
   const adjustCode = (value: string) => { const code = value.trim().toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 10); const match = code.match(/^([A-Z]*)(\d*)$/); return match ? `${match[1]}${match[2].padStart(Math.max(0, 10 - match[1].length), "0")}`.slice(0, 10) : code.padEnd(10, "0") }
   const handleCodeBlur = async () => {
     const code = adjustCode(form.code)

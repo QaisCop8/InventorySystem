@@ -400,6 +400,14 @@ export default function UnifiedChequesBooks({
   }
 
   const deleteChequeRow = (index: number) => {
+    const row = chequesRef.current[index]
+    if (!row) return
+    if (row.status === CHEQUE_BOOK_STATUS.UNAVAILABLE) {
+      messagesRef.current?.show?.([
+        { severity: "error", summary: "", detail: "لا يمكن حذف شيك مستخدم فعلياً", sticky: false, life: 4000 },
+      ])
+      return
+    }
     const next = chequesRef.current.filter((_, i) => i !== index)
     chequesRef.current = next
     onChequesChange(next)
@@ -481,10 +489,10 @@ export default function UnifiedChequesBooks({
     <>
       <Dialog
         open={dialogOpen}
-        onOpenChange={(open) => (open ? onOpenChange(open) : guardedAction(() => onOpenChange(false)))}
+        onOpenChange={onOpenChange}
       >
         <DialogContent
-          className="voucher-form w-[95vw] max-w-[1200px] p-0 overflow-hidden max-h-[92vh] overflow-y-auto lg:overflow-y-hidden"
+          className="voucher-form flex w-[95vw] max-w-[1200px] flex-col overflow-hidden p-0 max-h-[92vh]"
           dir="rtl"
           onPointerDownOutside={(event) => {
             if (showUnsavedConfirm || showDeleteConfirm || bankSearchOpen) event.preventDefault()
@@ -513,7 +521,7 @@ export default function UnifiedChequesBooks({
             isLastRecord={isLastRecord}
           />
 
-          <div className="relative rounded-b-3xl bg-background px-6 py-6" onKeyDown={handleFormEnterAsTab}>
+          <div className="relative flex min-h-0 flex-1 flex-col rounded-b-3xl bg-background px-6 py-6" onKeyDown={handleFormEnterAsTab}>
             <ProgressSpinner loading={isSaving || isLoading || navLoading} />
 
             <DialogHeader className="mb-4">
@@ -598,7 +606,7 @@ export default function UnifiedChequesBooks({
               </div>
             </div>
 
-            <div className="space-y-3 pt-4">
+            <div className="flex min-h-0 flex-1 flex-col space-y-3 pt-4">
               <h4 className="text-sm font-bold text-slate-500">الشيكات</h4>
               <div className="grid grid-cols-3 gap-2 items-end">
                 <div className="grid gap-1.5">
@@ -639,16 +647,18 @@ export default function UnifiedChequesBooks({
                 )}
               </div>
 
-              <DataGridView
-                style={{ height: "200px" }}
-                scheme={chequeScheme}
-                dataSource={chequeGridData}
-                idProperty="ser"
-                isReport={false}
-                showContextMenu={false}
-                cellEditEnded={handleChequeCellEditEnded}
-                dontConvertToCards={true}
-              />
+              <div className="min-h-[200px] min-w-0 flex-1 overflow-hidden">
+                <DataGridView
+                  style={{ height: "100%" }}
+                  scheme={chequeScheme}
+                  dataSource={chequeGridData}
+                  idProperty="ser"
+                  isReport={false}
+                  showContextMenu={false}
+                  cellEditEnded={handleChequeCellEditEnded}
+                  dontConvertToCards={true}
+                />
+              </div>
               <div className="text-sm font-semibold text-slate-600">إجمالي الشيكات: {cheques.length.toLocaleString()}</div>
             </div>
           </div>

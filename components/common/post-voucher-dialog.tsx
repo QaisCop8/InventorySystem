@@ -58,7 +58,7 @@ const PostVoucherDialog: React.FC<PostVoucherDialogProps> = ({ visible, isSaving
     >
       <DialogContent
         hideCloseButton
-        className="z-[3001] w-[min(440px,calc(100vw-2rem))] overflow-hidden rounded-[24px] border border-slate-200/80 bg-gradient-to-br from-white to-slate-50 p-0 text-center shadow-[0_20px_60px_-20px_rgba(15,23,42,0.35)]"
+        className="z-[3001] w-[min(400px,calc(100vw-2rem))] overflow-hidden rounded-[20px] border border-slate-200/80 bg-white p-0 text-center shadow-[0_18px_45px_-20px_rgba(15,23,42,0.32)]"
         dir="rtl"
         onPointerDownOutside={(event) => event.preventDefault()}
         onInteractOutside={(event) => event.preventDefault()}
@@ -67,43 +67,43 @@ const PostVoucherDialog: React.FC<PostVoucherDialogProps> = ({ visible, isSaving
         }}
       >
         <DialogTitle className="sr-only">اختيار إجراء حفظ السند</DialogTitle>
-        <div className="flex flex-col items-center gap-4 px-3 py-5">
-          <p className="text-base font-semibold text-slate-700">كيف تريد حفظ السند؟</p>
+        <div className="flex flex-col items-center gap-3 px-4 py-4">
+          <p className="text-sm font-bold text-slate-700">كيف تريد حفظ السند؟</p>
 
-        <div className="mx-auto flex w-full max-w-sm flex-col gap-3">
+        <div className="mx-auto flex w-full max-w-sm flex-col gap-2">
           <Button
             disabled={isSaving}
             onClick={() => onSelect("save")}
-            className="flex h-14 w-full items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-700 shadow-sm transition-all hover:-translate-y-0.5 hover:bg-slate-50"
+            className="flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 text-xs font-semibold text-slate-700 shadow-sm transition-all hover:-translate-y-0.5 hover:bg-white hover:shadow-md"
           >
-            <Save className="h-5 w-5 text-slate-500" />
+            <Save className="h-4 w-4 text-slate-500" />
             حفظ (1)
           </Button>
 
           <Button
             disabled={isSaving}
             onClick={() => onSelect("save_print")}
-            className="flex h-14 w-full items-center justify-center gap-3 rounded-2xl border border-transparent bg-gradient-to-r from-sky-500 to-blue-500 px-5 text-sm font-semibold text-white shadow-[0_10px_25px_-12px_rgba(14,165,233,0.9)] transition-all hover:-translate-y-0.5 hover:shadow-[0_14px_30px_-12px_rgba(14,165,233,0.9)]"
+            className="flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-sky-200 bg-sky-500 px-4 text-xs font-semibold text-white shadow-sm transition-all hover:-translate-y-0.5 hover:bg-sky-600 hover:shadow-md"
           >
-            <Printer className="h-5 w-5" />
+            <Printer className="h-4 w-4" />
             حفظ وطباعة (2)
           </Button>
 
           <Button
             disabled={isSaving}
             onClick={() => onSelect("post")}
-            className="flex h-14 w-full items-center justify-center gap-3 rounded-2xl border border-transparent bg-gradient-to-r from-emerald-500 to-teal-500 px-5 text-sm font-semibold text-white shadow-[0_10px_25px_-12px_rgba(16,185,129,0.9)] transition-all hover:-translate-y-0.5 hover:shadow-[0_16px_30px_-12px_rgba(16,185,129,0.9)]"
+            className="flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-500 px-4 text-xs font-semibold text-white shadow-sm transition-all hover:-translate-y-0.5 hover:bg-emerald-600 hover:shadow-md"
           >
-            <CheckCircle2 className="h-5 w-5" />
+            <CheckCircle2 className="h-4 w-4" />
             حفظ وترحيل (3)
           </Button>
 
           <Button
             disabled={isSaving}
             onClick={() => onSelect("post_print")}
-            className="flex h-14 w-full items-center justify-center gap-3 rounded-2xl border border-transparent bg-gradient-to-r from-amber-500 to-orange-500 px-5 text-sm font-semibold text-white shadow-[0_10px_25px_-12px_rgba(245,158,11,0.9)] transition-all hover:-translate-y-0.5 hover:shadow-[0_14px_30px_-12px_rgba(245,158,11,0.9)]"
+            className="flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-orange-200 bg-orange-500 px-4 text-xs font-semibold text-white shadow-sm transition-all hover:-translate-y-0.5 hover:bg-orange-600 hover:shadow-md"
           >
-            <Printer className="h-5 w-5" />
+            <Printer className="h-4 w-4" />
             ترحيل وطباعة (4)
           </Button>
         </div>
@@ -112,7 +112,7 @@ const PostVoucherDialog: React.FC<PostVoucherDialogProps> = ({ visible, isSaving
           disabled={isSaving}
           variant="outline"
           onClick={onCancel}
-          className="mx-auto h-12 w-full max-w-sm rounded-2xl border-slate-200 bg-white text-slate-500 shadow-sm transition-all hover:bg-slate-50 hover:text-slate-700"
+          className="mx-auto h-9 w-full max-w-sm rounded-xl border-slate-200 bg-white text-xs text-slate-500 shadow-sm transition-all hover:bg-slate-50 hover:text-slate-700"
         >
           <span className="ml-2 text-base">×</span>
           إلغاء (5)

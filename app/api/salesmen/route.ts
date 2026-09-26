@@ -12,6 +12,7 @@ async function ensureSalesmenSchema() {
   await sql`ALTER TABLE salesmen ADD COLUMN IF NOT EXISTS address TEXT`
   await sql`ALTER TABLE salesmen ADD COLUMN IF NOT EXISTS mobile VARCHAR(50)`
   await sql`ALTER TABLE salesmen ADD COLUMN IF NOT EXISTS email VARCHAR(150)`
+  await sql`ALTER TABLE salesmen ADD COLUMN IF NOT EXISTS parent_account_id INTEGER`
   await sql`ALTER TABLE salesmen ADD COLUMN IF NOT EXISTS is_supervisor BOOLEAN DEFAULT false`
   await sql`ALTER TABLE salesmen ADD COLUMN IF NOT EXISTS supervisor_id INTEGER`
   await sql`ALTER TABLE salesmen ADD COLUMN IF NOT EXISTS sales_commission_percent NUMERIC(9,4) DEFAULT 0`
@@ -32,7 +33,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const requestedCode = searchParams.get("code")?.trim().toUpperCase()
     if (requestedCode) {
-      const found = await sql`SELECT s.*, supervisor.name AS supervisor_name FROM salesmen s LEFT JOIN salesmen supervisor ON supervisor.id=s.supervisor_id WHERE UPPER(s.code)=${requestedCode} LIMIT 1`
+      const found = await sql`SELECT s.*, supervisor.name AS supervisor_name, account.code AS parent_account_code, account.name AS parent_account_name FROM salesmen s LEFT JOIN salesmen supervisor ON supervisor.id=s.supervisor_id LEFT JOIN account_tbl account ON account.id=s.parent_account_id WHERE UPPER(s.code)=${requestedCode} LIMIT 1`
       return NextResponse.json({ success: true, data: found[0] || null })
     }
     if (searchParams.get("generate") === "1") {
@@ -46,8 +47,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: true, code })
     }
     const rows = await sql`
-      SELECT s.*, supervisor.name AS supervisor_name
-      FROM salesmen s LEFT JOIN salesmen supervisor ON supervisor.id = s.supervisor_id
+      SELECT s.*, supervisor.name AS supervisor_name, account.code AS parent_account_code, account.name AS parent_account_name
+      FROM salesmen s LEFT JOIN salesmen supervisor ON supervisor.id = s.supervisor_id LEFT JOIN account_tbl account ON account.id=s.parent_account_id
       ORDER BY s.id ASC
     `;
 
@@ -65,6 +66,8 @@ export async function POST(request: NextRequest) {
   try {
     await ensureSalesmenSchema()
     const data = await request.json();
+    const defaultParent = await sql`SELECT value FROM system_settings WHERE id = 'default_salesman_parent_account' LIMIT 1`
+    const parentAccountId = Number(data.parent_account_id || defaultParent[0]?.value || 0) || null
     const { code, name, is_active } = data;
 
     if (!code || !name) {
@@ -89,8 +92,8 @@ export async function POST(request: NextRequest) {
     }
 
     const inserted = await sql`
-      INSERT INTO salesmen (code, name, other_name, job_title, classification, region, address, mobile, email, is_supervisor, supervisor_id, sales_commission_percent, collection_commission_percent, portal_active, login_code, portal_password, notes, is_active)
-      VALUES (${code}, ${name}, ${data.other_name || null}, ${data.job_title || null}, ${data.classification || null}, ${data.region || null}, ${data.address || null}, ${data.mobile || null}, ${data.email || null}, ${!!data.is_supervisor}, ${data.supervisor_id || null}, ${Number(data.sales_commission_percent) || 0}, ${Number(data.collection_commission_percent) || 0}, ${!!data.portal_active}, ${data.login_code || null}, ${data.portal_password || null}, ${data.notes || null}, ${is_active ?? true})
+      INSERT INTO salesmen (code, name, other_name, job_title, classification, region, address, mobile, email, parent_account_id, is_supervisor, supervisor_id, sales_commission_percent, collection_commission_percent, portal_active, login_code, portal_password, notes, is_active)
+        VALUES (${code}, ${name}, ${data.other_name || null}, ${data.job_title || null}, ${data.classification || null}, ${data.region || null}, ${data.address || null}, ${data.mobile || null}, ${data.email || null}, ${parentAccountId}, ${!!data.is_supervisor}, ${data.supervisor_id || null}, ${Number(data.sales_commission_percent) || 0}, ${Number(data.collection_commission_percent) || 0}, ${!!data.portal_active}, ${data.login_code || null}, ${data.portal_password || null}, ${data.notes || null}, ${is_active ?? true})
       RETURNING *
     `;
 
@@ -121,6 +124,7 @@ export async function PUT(request: NextRequest) {
         name = COALESCE(${name}, name),
         other_name = ${data.other_name || null}, job_title = ${data.job_title || null}, classification = ${data.classification || null},
         region = ${data.region || null}, address = ${data.address || null}, mobile = ${data.mobile || null}, email = ${data.email || null},
+        parent_account_id = ${data.parent_account_id || null},
         is_supervisor = ${!!data.is_supervisor}, supervisor_id = ${data.supervisor_id || null},
         sales_commission_percent = ${Number(data.sales_commission_percent) || 0}, collection_commission_percent = ${Number(data.collection_commission_percent) || 0},
         portal_active = ${!!data.portal_active}, login_code = ${data.login_code || null}, portal_password = ${data.portal_password || null}, notes = ${data.notes || null},

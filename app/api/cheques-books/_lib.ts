@@ -66,17 +66,27 @@ export const resolveUserId = async (varcharUserId: string | null | undefined): P
 // عند الحفظ: الأسطر القديمة (لها id سابق) تحتفظ بمُصدرها الأصلي operation_user_id، والأسطر
 // الجديدة (من "إصدار الشيكات آلياً") تُنسب للمستخدم الحالي.
 export const saveChequeRows = async (bookId: number, cheques: any[], currentUserId: number | null) => {
-  await sql`DELETE FROM cheque_book_cheque_tbl WHERE cheque_books_id = ${bookId}`
-  const rows = (Array.isArray(cheques) ? cheques : []).filter((row) => row?.cheque_code)
+  const usedRows = await sql`
+    SELECT id, cheque_code, voucher_id, voucher_date, notes, operation_user_id, status
+    FROM cheque_book_cheque_tbl
+    WHERE cheque_books_id = ${bookId} AND status = 3
+    ORDER BY order_no, id
+  `
+  const submittedRows = (Array.isArray(cheques) ? cheques : []).filter((row) => row?.cheque_code)
+  const usedById = new Map(usedRows.map((row) => [Number(row.id), row]))
+  // الصفوف المستخدمة لا تُحذف ولا يُعاد إدراجها حتى تبقى معرفاتها وروابط السندات سليمة.
+  await sql`DELETE FROM cheque_book_cheque_tbl WHERE cheque_books_id = ${bookId} AND status != 3`
+  const rows = submittedRows.filter((row) => !usedById.has(Number(row.id)))
 
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i]
     const operationUserId = row.operation_user_id || currentUserId
     await sql`
       INSERT INTO cheque_book_cheque_tbl (
-        cheque_books_id, cheque_code, notes, operation_user_id, status, order_no
+        cheque_books_id, cheque_code, voucher_id, voucher_date, notes, operation_user_id, status, order_no
       ) VALUES (
-        ${bookId}, ${row.cheque_code}, ${row.notes || ""}, ${operationUserId}, ${row.status || 1}, ${i + 1}
+        ${bookId}, ${row.cheque_code}, ${row.voucher_id || null}, ${row.voucher_date || null},
+        ${row.notes || ""}, ${operationUserId}, ${row.status || 1}, ${i + 1}
       )
     `
   }

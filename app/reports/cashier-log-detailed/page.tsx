@@ -4,11 +4,11 @@ import NextDynamic from "next/dynamic"
 
 export const dynamic = "force-dynamic"
 
-const CashierLogDetailedReport = NextDynamic(
-  () => import("@/components/reports/cashier-log-report").then(mod => mod.CashierLogReport),
+const CashierDetailedReport = NextDynamic(
+  () => import("@/components/reports/cashier-detailed-report"),
   { ssr: false }
 )
 
 export default function CashierLogDetailedPage() {
-  return <CashierLogDetailedReport reportType="detail" />
+  return <CashierDetailedReport />
 }

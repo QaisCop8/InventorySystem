@@ -27,7 +27,11 @@ export const ensureCustomerCompatibilityColumns = async () => {
       ADD COLUMN IF NOT EXISTS type INTEGER DEFAULT 1,
       ADD COLUMN IF NOT EXISTS isDeleted BOOLEAN DEFAULT false,
       ADD COLUMN IF NOT EXISTS customer_name_en VARCHAR(255),
-      ADD COLUMN IF NOT EXISTS image_url TEXT
+      ADD COLUMN IF NOT EXISTS image_url TEXT,
+      ADD COLUMN IF NOT EXISTS job_title VARCHAR(255),
+      ADD COLUMN IF NOT EXISTS region VARCHAR(255),
+      ADD COLUMN IF NOT EXISTS sales_commission NUMERIC(12, 3) DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS collection_commission NUMERIC(12, 3) DEFAULT 0
   `
 }
 

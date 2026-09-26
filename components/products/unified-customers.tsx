@@ -1,6 +1,7 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
+import Messages from "../common/Messages"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -21,7 +22,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Plus, AlertCircle } from "lucide-react"
 import { RefObject, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import PrimeDropdown from "@/components/common/FocusDropdown"
-import MultiSelect from "@/components/common/MultiSelect"
+import { ReportMultiChoice, type ReportOption } from "@/components/reports/account-statement-report"
 import ProgressSpinner from "../ProgressSpinner/ProgressSpinner"
 import { attachEnterAsTab } from "@/components/common/enterAsTab"
 interface Classification {
@@ -86,6 +87,10 @@ export interface UnifiedCustomerFormData {
   credit_limit: string
   payment_terms: string
   discount_percentage: string
+  job_title: string
+  region: string
+  sales_commission: string
+  collection_commission: string
   pricecategory: number
   account_id?: number | null
   father_id?: string
@@ -103,6 +108,7 @@ interface UnifiedCustomersProps {
   open?: boolean
   onOpenChange?: (open: boolean) => void
   isSupplier?: boolean
+  isSalesman?: boolean
   showCustomerSearch?: boolean
   setShowCustomerSearch?: (open: boolean) => void
   formData?: UnifiedCustomerFormData
@@ -126,8 +132,8 @@ interface UnifiedCustomersProps {
   onSave?: () => void
   onDelete?: () => void
   onReport?: () => void
-  onExportExcel?: () => void
   onPrint?: () => void
+  popupMessage?: { severity: "success" | "info" | "warn" | "error"; detail: string } | null
   onCustomerSelect?: (customer: any) => void
   onCustomerCodeBlur?: (value: string) => Promise<void>
   onClassificationRowsChange?: (rows: Array<{ id: number; name: string; classification_id: number | null; classification_name: string }>) => void
@@ -162,6 +168,10 @@ const defaultFormData: UnifiedCustomerFormData = {
   credit_limit: "",
   payment_terms: "",
   discount_percentage: "",
+  job_title: "",
+  region: "",
+  sales_commission: "0",
+  collection_commission: "0",
   pricecategory: 0,
   father_id: "",
   finanical_list_id: "1",
@@ -184,6 +194,7 @@ export default function UnifiedCustomers({
   open = false,
   onOpenChange = () => undefined,
   isSupplier = false,
+  isSalesman = false,
   showCustomerSearch = false,
   setShowCustomerSearch = () => undefined,
   formData = defaultFormData,
@@ -206,8 +217,8 @@ export default function UnifiedCustomers({
   onSave = () => undefined,
   onDelete,
   onReport,
-  onExportExcel,
   onPrint,
+  popupMessage,
   onCustomerSelect,
   onCustomerCodeBlur,
   onClassificationRowsChange,
@@ -262,6 +273,13 @@ export default function UnifiedCustomers({
   const onClassificationRowsChangeRef = useRef(onClassificationRowsChange)
   const onCostCenterRowsChangeRef = useRef(onCostCenterRowsChange)
   const onStopTransactionRowsChangeRef = useRef(onStopTransactionRowsChange)
+  const messagesRef = useRef<any>(null)
+
+  useEffect(() => {
+    if (!popupMessage) return
+    messagesRef.current?.clear?.()
+    messagesRef.current?.show?.([{ severity: popupMessage.severity, summary: "", detail: popupMessage.detail, life: 4000 }])
+  }, [popupMessage])
 
   const generateCustomerCode = useCallback(async () => {
     try {
@@ -457,6 +475,10 @@ export default function UnifiedCustomers({
       updateField("credit_limit" as keyof UnifiedCustomerFormData, "" as any)
       updateField("payment_terms" as keyof UnifiedCustomerFormData, "" as any)
       updateField("discount_percentage" as keyof UnifiedCustomerFormData, "" as any)
+      updateField("job_title" as keyof UnifiedCustomerFormData, "" as any)
+      updateField("region" as keyof UnifiedCustomerFormData, "" as any)
+      updateField("sales_commission" as keyof UnifiedCustomerFormData, "0" as any)
+      updateField("collection_commission" as keyof UnifiedCustomerFormData, "0" as any)
       updateField("pricecategory" as keyof UnifiedCustomerFormData, (pricecategory[0]?.id ?? 0) as any)
       updateField("account_id" as keyof UnifiedCustomerFormData, null as any)
       updateField("father_id" as keyof UnifiedCustomerFormData, "" as any)
@@ -1126,7 +1148,6 @@ export default function UnifiedCustomers({
             isFirstRecord={currentIndex === 0}
             isLastRecord={currentIndex === Math.max(totalRecords - 1, 0)}
             isSaving={isSaving}
-            onExportExcel={onExportExcel}
             canSave={true}
             canDelete={currentCustomerId > 0}
             isNewRecord={isNewRecord}
@@ -1134,18 +1155,42 @@ export default function UnifiedCustomers({
         </div>
       </div>
 
-      <div ref={formRootRef} className="flex-1 space-y-3 overflow-y-auto px-3 pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:px-5 sm:pb-5 lg:px-6">
+      <div ref={formRootRef} className="customer-definition-form flex-1 space-y-2 overflow-y-auto px-3 pb-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:px-4 sm:pb-4 lg:px-5 [&_input]:h-9 [&_input]:rounded-lg [&_input]:border-slate-200 [&_input]:bg-slate-50/60 [&_input]:shadow-none [&_textarea]:rounded-lg [&_textarea]:border-slate-200 [&_textarea]:bg-slate-50/60 [&_textarea]:shadow-none">
+      <Messages innerRef={messagesRef} />
+      {isSalesman && (
+        <Card className="border-emerald-200 shadow-sm">
+          <CardHeader className="border-b border-emerald-100 bg-emerald-50/60 pb-3 pt-3">
+            <CardTitle className="text-base">بيانات المندوب</CardTitle>
+          </CardHeader>
+          <CardContent className="grid grid-cols-1 gap-3 p-4 md:grid-cols-3">
+            <div className="space-y-1"><Label>رقم المندوب *</Label><Input value={formData.customer_code} readOnly className="bg-slate-100" /></div>
+            <div className="space-y-1"><Label>اسم المندوب *</Label><Input ref={customerNameRef} value={formData.name} onChange={(e) => updateField("name", e.target.value)} /></div>
+            <div className="space-y-1"><Label>الاسم بالإنجليزي</Label><Input dir="ltr" value={formData.name_en} onChange={(e) => updateField("name_en", e.target.value)} /></div>
+            <div className="space-y-1"><Label>الوظيفة</Label><Input value={formData.job_title} onChange={(e) => updateField("job_title", e.target.value)} /></div>
+            <div className="space-y-1"><Label>التصنيف</Label><Input value={formData.classification} onChange={(e) => updateField("classification", e.target.value)} /></div>
+            <div className="space-y-1"><Label>المنطقة</Label><Input value={formData.region} onChange={(e) => updateField("region", e.target.value)} /></div>
+            <div className="space-y-1"><Label>الجوال</Label><Input value={formData.mobile1} onChange={(e) => updateField("mobile1", e.target.value)} /></div>
+            <div className="space-y-1"><Label>البريد الإلكتروني</Label><Input type="email" value={formData.email} onChange={(e) => updateField("email", e.target.value)} /></div>
+            <div className="space-y-1"><Label>حساب الأب (الحساب الرئيسي)</Label><AutoCompleteAccount label="" value={fatherAccountCode} placeholder="اختر حساب المندوبين" showCostCenterButton={false} requiredTypeValues={[4]} onValueChange={(value) => { setFatherAccountCode(value); if (!value) updateField("father_id", "") }} onAccountSelect={(account) => { setFatherAccountCode(account?.code || ""); updateField("father_id", account ? String(account.id) : "") }} /></div>
+            <div className="space-y-1"><Label>عمولة المبيعات %</Label><Input type="number" min="0" max="100" step="0.001" value={formData.sales_commission} onChange={(e) => updateField("sales_commission", e.target.value)} /></div>
+            <div className="space-y-1"><Label>عمولة التحصيل %</Label><Input type="number" min="0" max="100" step="0.001" value={formData.collection_commission} onChange={(e) => updateField("collection_commission", e.target.value)} /></div>
+            <div className="space-y-1 md:col-span-2"><Label>العنوان</Label><Input value={formData.address} onChange={(e) => updateField("address", e.target.value)} /></div>
+            <div className="space-y-1 md:col-span-3"><Label>ملاحظات</Label><Textarea rows={2} value={formData.general_notes} onChange={(e) => updateField("general_notes", e.target.value)} /></div>
+          </CardContent>
+        </Card>
+      )}
+      <div className={isSalesman ? "hidden" : ""}>
       <Card>
-        <CardHeader className="pb-4">
+        <CardHeader className="pb-2 pt-3">
           <CardTitle className="flex items-center gap-2 text-lg">
             <Plus className="h-5 w-5 text-primary" />
             المعلومات الأساسية والتعريف
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="flex flex-col md:flex-row items-stretch gap-4">
-            <div className="flex-1 space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <CardContent className="space-y-3 pb-3">
+          <div className="flex flex-col items-stretch gap-3 md:flex-row">
+            <div className="flex-1 space-y-3">
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
                 <div>
                   <Label htmlFor="customer_code" className="text-sm font-medium">
                     {isSupplier ? "رقم المورد *" : "رقم العميل *"}
@@ -1218,7 +1263,7 @@ export default function UnifiedCustomers({
             />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
             <div>
               <Label htmlFor="pricecategory" className="text-sm font-medium">فئة السعر</Label>
               <PrimeDropdown
@@ -1231,7 +1276,7 @@ export default function UnifiedCustomers({
                 filter={true}
                 className="invoice-currency-dropdown w-full"
                 panelClassName="invoice-currency-dropdown-panel"
-                appendTo="self"
+                appendTo={typeof document === "undefined" ? undefined : document.body}
                 filterInputAutoFocus={true}
                 onChange={(e: any) => updateField("pricecategory", e.value ?? 0)}
               />
@@ -1248,7 +1293,7 @@ export default function UnifiedCustomers({
                 filter={true}
                 className="invoice-currency-dropdown w-full"
                 panelClassName="invoice-currency-dropdown-panel"
-                appendTo="self"
+                appendTo={typeof document === "undefined" ? undefined : document.body}
                 filterInputAutoFocus={true}
                 onChange={(e: any) => updateField("salesman", e.value || "")}
               />
@@ -1265,7 +1310,7 @@ export default function UnifiedCustomers({
                     filter={true}
                     className="invoice-currency-dropdown w-full"
                     panelClassName="invoice-currency-dropdown-panel"
-                    appendTo="self"
+                    appendTo={typeof document === "undefined" ? undefined : document.body}
                     filterInputAutoFocus={true}
                     onChange={(e: any) => updateField("classification", e.value || "")}
                   />
@@ -1275,18 +1320,12 @@ export default function UnifiedCustomers({
               {/* تقييد ظهور العميل بفروع معيّنة (اختياري) — بلا أي فرع مُحدَّد هنا يبقى ظاهراً لكل
                   الفروع (السلوك الافتراضي/الحالي دون تغيير)؛ باختيار فرع أو أكثر لا يظهر بنتائج
                   البحث إلا لمستخدم فرعه النشط أحد هذه الفروع. */}
-              <MultiSelect
-                caption="الفروع (اختياري — بلا تحديد = كل الفروع)"
-                inputId="branch_ids"
-                value={formData.branch_ids || []}
-                options={branches}
-                optionLabel="branch_name"
-                optionValue="id"
+              <ReportMultiChoice
+                label="الفروع (اختياري — بلا تحديد = كل الفروع)"
+                options={branches.map((branch) => ({ id: branch.id, name: branch.branch_name }) as ReportOption)}
+                selected={formData.branch_ids || []}
                 placeholder="كل الفروع"
-                showFilter={true}
-                showCheck={true}
-                showMultiSelect={true}
-                onChange={(e: any) => updateField("branch_ids", (Array.isArray(e.value) ? e.value.map(Number) : []) as any)}
+                onChange={(ids) => updateField("branch_ids", ids as any)}
               />
             </div>
 
@@ -1323,7 +1362,7 @@ export default function UnifiedCustomers({
                     filter={true}
                     className="invoice-currency-dropdown w-full"
                     panelClassName="invoice-currency-dropdown-panel"
-                    appendTo="self"
+                    appendTo={typeof document === "undefined" ? undefined : document.body}
                     filterInputAutoFocus={true}
                     onChange={(e: any) => updateField("city", e.value || "")}
                   />
@@ -1399,7 +1438,7 @@ export default function UnifiedCustomers({
                     filter={true}
                     className="invoice-currency-dropdown w-full"
                     panelClassName="invoice-currency-dropdown-panel"
-                    appendTo="self"
+                    appendTo={typeof document === "undefined" ? undefined : document.body}
                     filterInputAutoFocus={true}
                     onChange={(e: any) => updateField("currency_id" as keyof UnifiedCustomerFormData, e.value ? String(e.value) : "" as any)}
                   />
@@ -1420,7 +1459,7 @@ export default function UnifiedCustomers({
                     filter={false}
                     className="invoice-currency-dropdown w-full"
                     panelClassName="invoice-currency-dropdown-panel"
-                    appendTo="self"
+                    appendTo={typeof document === "undefined" ? undefined : document.body}
                     onChange={(e: any) => {
                       const nextValue = String(e.value ?? "0")
                       setAllowTransWithDiffCurr(nextValue)
@@ -1459,7 +1498,7 @@ export default function UnifiedCustomers({
                     filter={false}
                     className="invoice-currency-dropdown w-full"
                     panelClassName="invoice-currency-dropdown-panel"
-                    appendTo="self"
+                    appendTo={typeof document === "undefined" ? undefined : document.body}
                     onChange={(e: any) => updateField("payment_terms", e.value || "نقدي")}
                   />
                 </div>
@@ -1518,7 +1557,7 @@ export default function UnifiedCustomers({
                                       filter={true}
                                       className="invoice-currency-dropdown w-full"
                                       panelClassName="invoice-currency-dropdown-panel"
-                                      appendTo="self"
+                                      appendTo={typeof document === "undefined" ? undefined : document.body}
                                       filterInputAutoFocus={true}
                                       onChange={(e: any) => {
                                         const selected = voucherTypes.find((item: any) => Number(item.id) === Number(e.value))
@@ -1540,7 +1579,7 @@ export default function UnifiedCustomers({
                                       filter={true}
                                       className="invoice-currency-dropdown w-full"
                                       panelClassName="invoice-currency-dropdown-panel"
-                                      appendTo="self"
+                                      appendTo={typeof document === "undefined" ? undefined : document.body}
                                       filterInputAutoFocus={true}
                                       onChange={(e: any) => {
                                         const selected = voucherBooks.find((item: any) => Number(item.id) === Number(e.value))
@@ -1644,11 +1683,38 @@ export default function UnifiedCustomers({
 
             <div className="rounded-md border border-slate-300 overflow-hidden bg-white" dir="rtl">
               {visibleStopTransactionRows.length > 0 ? (
-                <div className="h-[600px] min-h-[300px] overflow-y-auto [&::-webkit-scrollbar]:w-0 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-transparent scrollbar-hide">
-                  <DataGridView scheme={stopTransactionScheme} dataSource={visibleStopTransactionRows} />
+                <div className="max-h-[360px] overflow-y-auto">
+                  <table className="w-full border-collapse text-sm">
+                    <thead className="sticky top-0 z-10 bg-slate-100">
+                      <tr>
+                        <th className="w-28 border-b border-slate-200 px-3 py-2 text-center">إيقاف</th>
+                        <th className="border-b border-slate-200 px-3 py-2 text-right">نوع الحركة</th>
+                        <th className="w-40 border-b border-slate-200 px-3 py-2 text-center">تاريخ الإيقاف</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {visibleStopTransactionRows.map((row) => (
+                        <tr key={row.voucher_types_id} className="border-b border-slate-100 hover:bg-slate-50">
+                          <td className="px-3 py-2 text-center">
+                            <Checkbox
+                              checked={Boolean(row.is_stopped)}
+                              onCheckedChange={(checked) => {
+                                const nextValue = Boolean(checked)
+                                setStopTransactionRows((prev) => prev.map((item) => item.voucher_types_id === row.voucher_types_id
+                                  ? { ...item, is_stopped: nextValue, stop_date: nextValue ? item.stop_date || new Date().toISOString().slice(0, 10) : "" }
+                                  : item))
+                              }}
+                            />
+                          </td>
+                          <td className="px-3 py-2 text-right">{row.voucher_type_name}</td>
+                          <td className="px-3 py-2 text-center"><Input type="date" value={row.stop_date || ""} disabled={!row.is_stopped} onChange={(event) => setStopTransactionRows((prev) => prev.map((item) => item.voucher_types_id === row.voucher_types_id ? { ...item, stop_date: event.target.value } : item))} className="h-8" /></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               ) : (
-                <div className="h-[600px] flex items-center justify-center bg-slate-50">
+                <div className="h-[360px] flex items-center justify-center bg-slate-50">
                   <p className="text-slate-500 text-sm">لا توجد أنواع حركات</p>
                 </div>
               )}
@@ -1660,6 +1726,7 @@ export default function UnifiedCustomers({
           <AttachmentManager modelName="customer" recordId={formData.id > 0 ? formData.id : null} />
         </TabsContent>
       </Tabs>
+      </div>
 
       <SearchCostCenterDialog
         open={searchCostCenterOpen}
@@ -1769,7 +1836,7 @@ export default function UnifiedCustomers({
                 filter={true}
                 className="invoice-currency-dropdown w-full"
                 panelClassName="invoice-currency-dropdown-panel"
-                appendTo="self"
+                appendTo={typeof document === "undefined" ? undefined : document.body}
                 filterInputAutoFocus={true}
                 onChange={(e: any) => setNewClassificationTypeId(e.value)}
               />

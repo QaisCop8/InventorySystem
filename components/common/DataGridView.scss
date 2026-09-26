@@ -55,6 +55,18 @@
   transition: background 0.2s, color 0.2s;
 }
 
+.wj-flexgrid .wj-colfooters {
+  background: #eaf4f2 !important;
+  color: #203747 !important;
+  font-weight: 700;
+}
+
+.wj-flexgrid .wj-colfooters .wj-cell {
+  background: #eaf4f2 !important;
+  color: #203747 !important;
+  border-top: 2px solid #9fe3d1 !important;
+}
+
 /* Alternating rows */
 .wj-flexgrid .wj-row:nth-child(even) .wj-cell {
   background: #f9f9f9;

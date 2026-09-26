@@ -49,6 +49,7 @@ export const ensureTables = async () => {
       qnty DOUBLE PRECISION,
       bonus DOUBLE PRECISION,
       discount DOUBLE PRECISION,
+      campaign_discount DOUBLE PRECISION DEFAULT 0,
       vat_classification_id INTEGER,
       vat_amount DOUBLE PRECISION,
       vat_ratio DOUBLE PRECISION,
@@ -72,6 +73,7 @@ export const ensureTables = async () => {
       return_sales_invoice_id INTEGER
     )
   `
+  await sql`ALTER TABLE voucher_items_tbl ADD COLUMN IF NOT EXISTS campaign_discount DOUBLE PRECISION DEFAULT 0`
   await sql`ALTER TABLE voucher_items_tbl DROP COLUMN IF EXISTS expense_account_id`
   await sql`ALTER TABLE voucher_items_tbl DROP COLUMN IF EXISTS purchase_account_id`
   await sql`CREATE INDEX IF NOT EXISTS idx_voucher_items_tbl_voucher_id ON voucher_items_tbl(voucher_id)`

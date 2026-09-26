@@ -408,6 +408,7 @@ export const fetchSalesVoucherJournalAccounts = async (voucherId: number, vchTyp
 // الاستعمال حصراً.
 export const saveSalesVoucherItems = async (voucherId: number, items: any[]) => {
   await sql`DELETE FROM voucher_items_tbl WHERE voucher_id = ${voucherId}`
+  await sql`ALTER TABLE voucher_items_tbl ADD COLUMN IF NOT EXISTS campaign_discount DOUBLE PRECISION DEFAULT 0`
   await sql`CREATE TABLE IF NOT EXISTS attributes_tbl (id SERIAL PRIMARY KEY, name TEXT NOT NULL UNIQUE)`
   await sql`CREATE TABLE IF NOT EXISTS attribute_values_tbl (id SERIAL PRIMARY KEY, attr_id INTEGER NOT NULL REFERENCES attributes_tbl(id) ON DELETE CASCADE, name TEXT NOT NULL, UNIQUE(attr_id, name))`
   await sql`CREATE TABLE IF NOT EXISTS product_atrributes_values_tbl (id BIGSERIAL UNIQUE, product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE, attr_id INTEGER NOT NULL REFERENCES attributes_tbl(id) ON DELETE CASCADE, value_id INTEGER NOT NULL REFERENCES attribute_values_tbl(id) ON DELETE CASCADE, image_url TEXT, PRIMARY KEY(product_id, attr_id, value_id))`
@@ -441,7 +442,7 @@ export const saveSalesVoucherItems = async (voucherId: number, items: any[]) => 
     const expiryDateToSave = hasExpiry ? row.expiry_date || null : NO_EXPIRY_SENTINEL_DATE
     const inserted = await sql`
       INSERT INTO voucher_items_tbl (
-        voucher_id, item_id, item_name, unit_id, qnty, bonus, discount, vat_classification_id,
+        voucher_id, item_id, item_name, unit_id, qnty, bonus, discount, campaign_discount, vat_classification_id,
         vat_amount, vat_ratio, price, note, cost_price, barcode, size_id, color_taste_id,
         length, width, height, count, order_item_id, delivery_item_id, production_date,
         expiry_date, batch_no, store_id, journal_id, return_sales_invoice_id
@@ -453,6 +454,7 @@ export const saveSalesVoucherItems = async (voucherId: number, items: any[]) => 
         ${Number(row.qnty ?? row.quantity ?? 0)},
         ${Number(row.bonus ?? row.bonus_quantity ?? 0)},
         ${Number(row.discount ?? row.discount_percent ?? 0)},
+        ${Number(row.campaign_discount ?? row.campaign_discount_amount ?? 0)},
         ${row.vat_classification_id ?? null},
         ${Number(row.vat_amount ?? 0)},
         ${Number(row.vat_ratio ?? 0)},

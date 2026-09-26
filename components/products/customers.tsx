@@ -74,6 +74,10 @@ interface Customer {
   credit_limit?: string
   payment_terms?: string
   discount_percentage?: string,
+  job_title?: string
+  region?: string
+  sales_commission?: string
+  collection_commission?: string
   type?: number
   account_id?: number | null
   image_url?: string | null
@@ -131,6 +135,10 @@ interface CustomerFormData {
   credit_limit: string
   payment_terms: string
   discount_percentage: string,
+  job_title: string
+  region: string
+  sales_commission: string
+  collection_commission: string
   pricecategory: number,
   account_id?: number | null,
   father_id?: string,
@@ -259,6 +267,10 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
     credit_limit: "",
     payment_terms: "نقدي",
     discount_percentage: "",
+    job_title: "",
+    region: "",
+    sales_commission: "0",
+    collection_commission: "0",
     pricecategory: 0,
     account_id: null,
     cost_centers: [],
@@ -291,7 +303,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
   const [editingCustomer, setEditingCustomer] = useState(false)
   const editingCustomerRef = useRef(false)
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({})
-  const [showSuccessMessage, setShowSuccessMessage] = useState(false)
+  const [popupMessage, setPopupMessage] = useState<{ severity: "success" | "info" | "warn" | "error"; detail: string } | null>(null)
 
   const filteredCustomers = useMemo(() => {
     const cityFilter = searchFilters.city === "__all__" ? "" : searchFilters.city
@@ -759,12 +771,12 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
   const updateFormData = useCallback((customer: Customer | null) => {
     if (!customer) {
       setFormData(buildEmptyCustomerFormData())
-      return
+      return buildEmptyCustomerFormData()
     }
 
     const customerRecord = customer as Customer & { customer_name?: string; customer_name_en?: string }
 
-    setFormData({
+    const nextFormData: CustomerFormData = {
       id: customer.id || 0,
       customer_code: customer.customer_code || "",
       name: customer.name || customerRecord.customer_name || "",
@@ -790,10 +802,27 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
       credit_limit: (customer as any).credit_limit || "",
       payment_terms: (customer as any).payment_terms || "نقدي",
       discount_percentage: (customer as any).discount_percentage || "",
+      job_title: (customer as any).job_title || customer.business_nature || "",
+      region: (customer as any).region || customer.city || "",
+      sales_commission: String((customer as any).sales_commission ?? "0"),
+      collection_commission: String((customer as any).collection_commission ?? "0"),
       pricecategory: (customer as any).pricecategory || 0,
       account_id: (customer as any).account_id || null,
+      father_id: customerRecord.father_id ? String(customerRecord.father_id) : "",
+      finanical_list_id: customerRecord.finanical_list_id ? String(customerRecord.finanical_list_id) : "",
+      currency_id: customerRecord.currency_id ? String(customerRecord.currency_id) : "",
+      allow_trans_with_diff_curr: customerRecord.allow_trans_with_diff_curr != null
+        ? String(customerRecord.allow_trans_with_diff_curr)
+        : "0",
+      iscalc_curr_diff_rates: Boolean(customerRecord.iscalc_curr_diff_rates),
+      cost_centers: (customerRecord as any).cost_centers || [],
+      stop_transactions: (customerRecord as any).stop_transactions || [],
+      voucherType: (customerRecord as any).voucherType || [],
+      branch_ids: (customerRecord as any).branch_ids || [],
       image_url: (customer as any).image_url || null,
-    })
+    }
+    setFormData(nextFormData)
+    return nextFormData
   }, [buildEmptyCustomerFormData])
   const [definitions, setDefinitions] = useState({
     voucher_types: [] as Array<{ id: number; name: string }>,
@@ -866,26 +895,29 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
       url.searchParams.set("type", String(entityTypeCode));
 
       const res = await fetch(url.toString());
-      console.log("res res ", url)
       const customer = await res.json();
+      if (!res.ok) {
+        setPopupMessage({ severity: "error", detail: customer?.error || "تعذر تحميل سجل العميل" })
+        return
+      }
       console.log("navigationType ", navigationType)
       if (!customer.id || (customer.id === currentCustomerId && !dont_check)) {
 
         let msg = navigationType === "previous" || navigationType === "first"
           ? 'بداية السجلات'
           : 'نهاية السجلات';
-        Util.showErrorToast(toast.current, msg);
+        setPopupMessage({ severity: "info", detail: msg })
         return;
       }
 
 
-      updateFormData(customer);
+      const nextFormData = updateFormData(customer);
       console.log("newFormData ", customer)
 
       // Establish the baseline from the exact payload being committed. Keeping
       // this inside a timer allowed user input (or child synchronization) to
       // happen first and made genuine edits look unchanged intermittently.
-      initialHash.current = getFormDataHash(customer)
+      initialHash.current = getFormDataHash(nextFormData)
       setCurrentCustomerId(Number(customer.id))
       const customerIndex = customers.findIndex((item) => Number(item.id) === Number(customer.id))
       if (customerIndex >= 0) setCurrentIndex(customerIndex)
@@ -896,8 +928,18 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
 
     } catch (err) {
       console.error("Error loading customer:", err);
+      setPopupMessage({ severity: "error", detail: "تعذر تحميل سجل العميل" })
     }
   };
+
+  const navigateToCustomerIndex = (targetIndex: number) => {
+    const target = customers[targetIndex]
+    if (!target) {
+      setPopupMessage({ severity: "info", detail: targetIndex <= 0 ? "بداية السجلات" : "نهاية السجلات" })
+      return
+    }
+    void loadData("ById", Number(target.id), isSupplier, true)
+  }
 
   const handleFirst = useCallback(() => {
     if (customers.length > 0) {
@@ -966,7 +1008,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
     const currencyId = formData.currency_id ? Number(formData.currency_id) : 0
     if (!currencyId || currencyId <= 0) {
       errors.currency_id = "يجب تحديد العملة"
-      Util.showErrorToast(toast.current, "يجب تحديد العملة")
+      setPopupMessage({ severity: "error", detail: "يجب تحديد العملة" })
     }
 
     /*if (!formData.mobile1.trim()) {
@@ -983,8 +1025,9 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
     (formData.voucherType ?? []).forEach((v, index) => {
       if (typeSet.has(v.type_id)) {
 
-        Util.showErrorToast(toast.current, 'لا يمكن تكرار نفس نوع السند في دفاتر السندات الافتراضية للزبون');
-        errors.vocherType = "ا يمكن تكرار نفس نوع السند في دفاتر السندات الافتراضية للزبون"
+        const message = "لا يمكن تكرار نفس نوع السند في دفاتر السندات الافتراضية للزبون"
+        setPopupMessage({ severity: "error", detail: message })
+        errors.vocherType = message
       } else {
         typeSet.add(v.type_id);
       }
@@ -1175,7 +1218,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
         // Load the customer data
         if (Number(data.customer.type) !== entityTypeCode) {
           await reset_fields();
-          Util.showErrorToast(toast.current, `الرقم المدخل ليس لـ${entityTypeLabel}`)
+          setPopupMessage({ severity: "error", detail: `الرقم المدخل ليس لـ${entityTypeLabel}` })
           return
         }
         setFormData((prev) => ({
@@ -1263,6 +1306,10 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
         credit_limit: customerData.credit_limit,
         payment_terms: customerData.payment_terms,
         discount_percentage: customerData.discount_percentage,
+        job_title: customerData.job_title,
+        region: customerData.region,
+        sales_commission: customerData.sales_commission,
+        collection_commission: customerData.collection_commission,
         type: entityTypeCode,
         pricecategory: customerData.pricecategory,
         account_id: customerData.account_id,
@@ -1303,12 +1350,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
           // ignore
         }
 
-        toast.current?.show({
-          severity: "error",
-          summary: "",
-          detail: errorMessage,
-          life: 3000,
-        });
+        setPopupMessage({ severity: "error", detail: errorMessage })
 
         throw new Error(errorMessage);
       }
@@ -1322,8 +1364,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
 
       console.log("[v0] Customer saved successfully:", savedCustomer);
 
-      setShowSuccessMessage(true);
-      setTimeout(() => setShowSuccessMessage(false), 3000);
+      setPopupMessage({ severity: "success", detail: "تم حفظ البيانات بنجاح" })
 
       setEditingCustomer(false);
       editingCustomerRef.current = false;
@@ -1334,21 +1375,12 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
 
       return true;
     } catch (errorDataOrError) {
-      if (typeof errorDataOrError === "object" && errorDataOrError !== null && "message" in errorDataOrError) {
-        toast.current?.show({
-          severity: "error",
-          summary: "",
-          detail: (errorDataOrError as Error).message,
-          life: 3000,
-        });
-      } else {
-        toast.current?.show({
-          severity: "error",
-          summary: "",
-          detail: "حدث خطأ أثناء حفظ بيانات العميل",
-          life: 3000,
-        });
-      }
+      setPopupMessage({
+        severity: "error",
+        detail: typeof errorDataOrError === "object" && errorDataOrError !== null && "message" in errorDataOrError
+          ? (errorDataOrError as Error).message
+          : "حدث خطأ أثناء حفظ بيانات العميل",
+      })
 
       return false;
     } finally {
@@ -1360,12 +1392,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
   const handleDeleteClick = (checkPermission = true) => {
     if (currentCustomerId <= 0) return;
     if (checkPermission && !hasPermission("products-edit")) {
-      toast.current?.show({
-        severity: "error",
-        summary: "",
-        detail: "لا يوجد لديك صلاحية حذف زبون",
-        life: 3000,
-      });
+      setPopupMessage({ severity: "error", detail: "لا يوجد لديك صلاحية حذف زبون" })
       return;
     }
 
@@ -1382,12 +1409,8 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
   const handleDeleteCustomer = async () => {
     setIsLoading(true)
     if (!formData.id) {
-      toast.current?.show({
-        severity: 'warn',
-        summary: 'تنبيه',
-        detail: 'لا يوجد سجل لحذفه',
-        life: 3000
-      });
+      setPopupMessage({ severity: "warn", detail: "لا يوجد سجل لحذفه" })
+      setIsLoading(false)
       return;
     }
 
@@ -1402,23 +1425,13 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
         throw new Error(result.error || "فشل في حذف السجل");
       }
 
-      toast.current?.show({
-        severity: 'success',
-        summary: 'نجاح',
-        detail: 'تم حذف السجل بنجاح ✅',
-        life: 3000
-      });
+      setPopupMessage({ severity: "success", detail: "تم حذف السجل بنجاح" })
 
       reset_fields(); // clear form
 
     } catch (err) {
       console.error("Error deleting customer:", err);
-      toast.current?.show({
-        severity: 'error',
-        summary: 'خطأ',
-        detail: 'فشلت العملية ❌',
-        life: 5000
-      });
+      setPopupMessage({ severity: "error", detail: err instanceof Error ? err.message : "فشلت العملية" })
     } finally {
       setIsLoading(false)
     }
@@ -1658,12 +1671,6 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
         onBack={() => { setShowUnsaved(false); popupHasClosed(); }}
         showBack={true}
       />
-      {showSuccessMessage && (
-        <div className="fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg flex items-center gap-2 z-50">
-          <CheckCircle className="h-4 w-4" />
-          تم حفظ البيانات بنجاح
-        </div>
-      )}
       <ProgressSpinner loading={isloading} />
       <Toast ref={toast} position={'top-left'} style={{ top: 100, whiteSpace: 'pre-line' }} />
       {/* Error Message */}
@@ -1955,7 +1962,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
           if (!open) void fetchCustomers()
         }}
       >
-        <DialogContent inline={fullscreenEnabled && showNewCustomerDialog} className="h-[94dvh] max-h-[94dvh] w-[96vw] max-w-[1400px] overflow-hidden p-0 sm:h-[92dvh] sm:max-h-[92dvh]" dir="rtl"
+        <DialogContent inline={fullscreenEnabled && showNewCustomerDialog} className="h-[86dvh] max-h-[86dvh] w-[96vw] max-w-[1400px] overflow-hidden p-0 sm:h-[84dvh] sm:max-h-[84dvh]" dir="rtl"
           onPointerDownOutside={(event) => event.preventDefault()}
           onEscapeKeyDown={(event) => event.preventDefault()}
         >
@@ -1967,6 +1974,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
                 if (!open) void fetchCustomers()
               }}
               isSupplier={!!isSupplier}
+              isSalesman={!!isSalesman}
               showCustomerSearch={showCustomerSearch}
               setShowCustomerSearch={setShowCustomerSearch}
               formData={formData}
@@ -1980,17 +1988,17 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
               currentIndex={currentIndex}
               totalRecords={customers.length}
               isSaving={saving}
-              onFirst={async () => { await loadData('first', 0, isSupplier) }}
-              onPrevious={async () => { await loadData('previous', 0, isSupplier) }}
-              onNext={async () => { await loadData('next', 0, isSupplier) }}
-              onLast={async () => { await loadData('last', 0, isSupplier) }}
+              onFirst={() => navigateToCustomerIndex(0)}
+              onPrevious={() => navigateToCustomerIndex(Math.max(0, currentIndex - 1))}
+              onNext={() => navigateToCustomerIndex(Math.min(customers.length - 1, currentIndex + 1))}
+              onLast={() => navigateToCustomerIndex(Math.max(0, customers.length - 1))}
               isNewRecord={currentCustomerId <= 0}
               onNew={() => handleNewCustomer(true)}
               onSave={() => handleSaveCustomer(formData)}
               onDelete={() => handleDeleteClick(true)}
               onReport={() => console.log("Generate customer report")}
-              onExportExcel={() => console.log("Export to Excel")}
               onPrint={() => console.log("Print customer")}
+              popupMessage={popupMessage}
               onCustomerSelect={(customer) => {
                 const customerId = Number(customer.id)
                 const customerIndex = customers.findIndex((item) => Number(item.id) === customerId)

@@ -9,7 +9,8 @@ export async function GET(request: NextRequest, { params }: { params: { navigati
   try {
     const { navigationType } = params
     const typeParam = request.nextUrl.searchParams.get("type")
-    const type = typeParam === "2" ? 2 : 1
+    const parsedType = Number(typeParam)
+    const type = [1, 2, 3, 4].includes(parsedType) ? parsedType : 1
 
     let rows: any[]
 
