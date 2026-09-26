@@ -10,6 +10,12 @@ import { needsPosReceipt } from "@/lib/pos-receipt"
 import { validatePosAccounts } from "@/lib/pos-account-validation"
 import { createPosReceipt } from "../_receipts"
 
+const localDate = () => {
+  const date = new Date()
+  const pad = (value: number) => String(value).padStart(2, "0")
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+}
+
 export async function POST(request: NextRequest) {
   try {
     const data = await request.json()
@@ -181,8 +187,8 @@ export async function POST(request: NextRequest) {
             current_account_id,status_id,manual_insert,is_printed,order_no
           ) VALUES (
             ${Number(saved.id)},${isReturn?2:1},${String(payment.cheque_account||"").trim()},${String(payment.reference||"").trim()},${Number(payment.bank_id)},${Number(payment.branch_id)},${Number(payment.currency_amount??payment.amount)},
-            ${Number(payment.currency_id||point.currency_id)},${Number(availableCurrencies.find(row=>row.currency_id===Number(payment.currency_id||point.currency_id))?.exchange_rate??1)},${data.vch_date||new Date().toISOString().slice(0,10)},
-            ${data.vch_date||new Date().toISOString().slice(0,10)},${payment.due_date||data.vch_date||null},
+            ${Number(payment.currency_id||point.currency_id)},${Number(availableCurrencies.find(row=>row.currency_id===Number(payment.currency_id||point.currency_id))?.exchange_rate??1)},${data.vch_date||localDate()},
+            ${data.vch_date||localDate()},${payment.due_date||data.vch_date||null},
             ${String(data.customer_name||"")},${Number(data.account_id)||null},${Number(point.cheque_account_id)},
             ${Number(point.cheque_account_id)},1,1,0,1
           )

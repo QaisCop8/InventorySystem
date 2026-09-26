@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
       const paymentCodes = paymentMethods.map((value) => value === "نقدي" ? "cash" : value === "شيكات" ? "cheque" : value === "بطاقات" ? "card" : "account")
       const invoiceCodes = movementCodes.length ? movementCodes : [12, 16, 9]
       const rows = detail ? await sql`
-          SELECT CONCAT(vh.id, '-', vi.id) row_id, vh.id, vh.vch_type, vh.vch_date occurred_at,
+          SELECT CONCAT(vh.id, '-', vi.id) row_id, vh.id, vh.vch_type, TO_CHAR(vh.vch_date, 'YYYY-MM-DD HH24:MI:SS') occurred_at,
           CASE WHEN vh.vch_type=16 THEN 'مردودات' WHEN vh.vch_type=9 THEN 'هدايا' ELSE 'مبيعات' END movement_type,
           vh.vch_code transaction_no, vh.note notes, vi.item_name, vi.qnty quantity, vi.price,
           COALESCE(vi.discount, 0) discount_percent,
@@ -91,7 +91,7 @@ export async function GET(request: NextRequest) {
         GROUP BY vh.id, vh.vch_date, vh.vch_type, vh.vch_code, vh.note, vi.id, vi.item_name, vi.qnty, vi.price, vi.discount, vi.campaign_discount, u.full_name, u.username, ps.user_id, ps.opened_at, ps.closed_at, vh.insert_user, pp.name
         ORDER BY vh.vch_date DESC, vh.id DESC, vi.id
       ` : await sql`
-        SELECT vh.id, vh.vch_type, vh.vch_date occurred_at,
+        SELECT vh.id, vh.vch_type, TO_CHAR(vh.vch_date, 'YYYY-MM-DD HH24:MI:SS') occurred_at,
           CASE WHEN vh.vch_type=16 THEN 'مردودات' WHEN vh.vch_type=9 THEN 'هدايا' ELSE 'مبيعات' END movement_type,
           vh.vch_code transaction_no, vh.note notes, COUNT(vi.id)::int item_count,
           ROUND(COALESCE(SUM(CASE WHEN vh.vch_type=16 THEN -1 ELSE 1 END * COALESCE(vi.qnty,0) * COALESCE(vi.price,0) * (1 - COALESCE(vi.discount,0)/100)),0)::numeric, 2) total_amount,
@@ -126,7 +126,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ rows, points, cashiers, shifts, movementTypes: INVOICE_MOVEMENTS, paymentMethods: PAYMENT_METHODS })
     }
     const rows = detail ? await sql`
-      SELECT CONCAT(l.id, '-', COALESCE(vi.id, 0)) row_id, l.id log_id, l.occurred_at, l.movement_type,
+      SELECT CONCAT(l.id, '-', COALESCE(vi.id, 0)) row_id, l.id log_id, TO_CHAR(l.occurred_at, 'YYYY-MM-DD HH24:MI:SS') occurred_at, l.movement_type,
         l.transaction_no, l.notes, vi.item_name, vi.qnty quantity, vi.price,
         ROUND((COALESCE(vi.qnty, 0) * COALESCE(vi.price, 0) * (1 - COALESCE(vi.discount, 0) / 100))::numeric, 2) line_total,
         COALESCE(NULLIF(u.full_name,''),NULLIF(u.username,''),l.user_id::text) cashier_name,
@@ -147,7 +147,7 @@ export async function GET(request: NextRequest) {
         AND (${movementTypes.length === 0} OR l.movement_type=ANY(${movementTypes}::text[]))
       ORDER BY l.occurred_at DESC, l.id DESC, vi.id
     ` : await sql`
-      SELECT l.id, l.occurred_at, l.movement_type, l.transaction_no, l.notes,
+      SELECT l.id, TO_CHAR(l.occurred_at, 'YYYY-MM-DD HH24:MI:SS') occurred_at, l.movement_type, l.transaction_no, l.notes,
         COALESCE(NULLIF(u.full_name,''),NULLIF(u.username,''),l.user_id::text) cashier_name,
         p.name point_name, CONCAT_WS(' · ', COALESCE(NULLIF(su.full_name,''),NULLIF(su.username,''),l.user_id::text), TO_CHAR(COALESCE(s.opened_at,s.closed_at),'YYYY-MM-DD')) shift_name
       FROM pos_cashier_log_tbl l

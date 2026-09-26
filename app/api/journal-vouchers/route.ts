@@ -11,6 +11,10 @@ import {
   fetchDetails,
   validateJournalAccountCurrencies,
   type JournalRow,
+  getVoucherNumberSettings,
+  buildVoucherCode,
+  nextVoucherSequence,
+  resolveVoucherBookName,
 } from "./_lib"
 import { authorizeTransaction } from "@/lib/transaction-permissions"
 import { rollbackChequeOperationsForVoucher } from "@/app/api/cheques/_lib"
@@ -81,13 +85,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "سعر الصرف يجب أن يكون أكبر من صفر" }, { status: 400 })
     }
 
-    const existing = await sql`
-      SELECT id FROM voucher_header_tbl WHERE vch_type = ${JOURNAL_VCH_TYPE} AND vch_code = ${data.vch_code}
-    `
-    if (existing.length > 0) {
-      return NextResponse.json({ error: "رقم السند مستخدم مسبقاً" }, { status: 400 })
-    }
-
     const journalRows = buildJournalRows(data)
     const balanceError = validateBalance(journalRows)
     if (balanceError) return NextResponse.json({ error: balanceError }, { status: 400 })
@@ -96,18 +93,34 @@ export async function POST(request: NextRequest) {
     const amount = journalRows.filter((r) => r.credit_debit === 1).reduce((s, r) => s + r.amount, 0)
 
     const insertStatus = Number(data.status || 1)
-    const result = await sql`
+    const settings = await getVoucherNumberSettings(request.url)
+    const bookName = await resolveVoucherBookName(Number(data.vch_book_id) || null)
+    const generateNextCode = async () => buildVoucherCode(settings.prefix, bookName, await nextVoucherSequence(JOURNAL_VCH_TYPE, `${settings.prefix}${bookName}`, settings.startNumber))
+    let voucherCode = String(data.vch_code).trim()
+    let result: any[] = []
+    for (let attempt = 0; attempt < 10; attempt += 1) {
+      const existing = await sql`SELECT id FROM voucher_header_tbl WHERE vch_type = ${JOURNAL_VCH_TYPE} AND vch_code = ${voucherCode}`
+      if (existing.length > 0) voucherCode = await generateNextCode()
+      try {
+        result = await sql`
       INSERT INTO voucher_header_tbl (
         vch_type, vch_code, vch_date, vch_book_id, branch_id, currency_id, rate,
         amount, payment_classification_id, salesman_id, manual_voucher, manual_date, note, status, vch_status, is_printed,
         insert_user
       ) VALUES (
-        ${JOURNAL_VCH_TYPE}, ${data.vch_code}, ${data.vch_date}, ${data.vch_book_id || null}, ${authorization.branchId}, ${data.currency_id || null}, ${Number(data.rate || 1)},
+        ${JOURNAL_VCH_TYPE}, ${voucherCode}, ${data.vch_date}, ${data.vch_book_id || null}, ${authorization.branchId}, ${data.currency_id || null}, ${Number(data.rate || 1)},
         ${amount}, ${data.payment_classification_id || null}, ${data.salesman_id || null}, ${data.manual_voucher || ""}, ${data.manual_date || null}, ${data.note || ""}, ${insertStatus}, ${insertStatus === 2 ? 2 : 1}, ${Number(data.is_printed || 0)},
         ${data.insert_user || null}
       )
       RETURNING *
-    `
+        `
+        break
+      } catch (error: any) {
+        if (String(error?.code || "") !== "23505") throw error
+        voucherCode = await generateNextCode()
+      }
+    }
+    if (!result.length) return NextResponse.json({ error: "تعذر توليد رقم سند متاح من دفتر السندات" }, { status: 409 })
 
     const voucher = result[0]
     await saveJournalRows(voucher.id, journalRows)

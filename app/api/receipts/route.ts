@@ -17,6 +17,10 @@ import {
   validateCheckAccount,
   consumeChequeBookLeaves,
   releaseChequeBookLeaves,
+  buildVoucherCode,
+  getVoucherNumberSettings,
+  nextVoucherSequence,
+  resolveVoucherBookName,
 } from "./_lib"
 import { authorizeTransaction, transactionFamilyForVoucherType } from "@/lib/transaction-permissions"
 
@@ -68,13 +72,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "سعر الصرف يجب أن يكون أكبر من صفر" }, { status: 400 })
     }
 
-    const existing = await sql`
-      SELECT id FROM voucher_header_tbl WHERE vch_type = ${vchType} AND vch_code = ${data.vch_code}
-    `
-    if (existing.length > 0) {
-      return NextResponse.json({ error: "رقم السند مستخدم مسبقاً" }, { status: 400 })
-    }
-
     const cashAmount = Number(data.cash_amount || 0)
     const checkAmount = Number(data.check_amount || 0)
     const creditCardAmount = Number(data.credit_card_amount || 0)
@@ -105,20 +102,43 @@ export async function POST(request: NextRequest) {
     if (chequeLeavesError) return NextResponse.json({ error: chequeLeavesError }, { status: 400 })
 
     const status = Number(data.status || 1)
-    const result = await sql`
-      INSERT INTO voucher_header_tbl (
-        vch_type, vch_code, vch_date, vch_book_id, branch_id, currency_id, rate,
-        account_id, customer_name, to_account_id,
-        amount, payment_classification_id, salesman_id, manual_voucher, manual_date, note, status, vch_status, is_printed,
-        insert_user
-      ) VALUES (
-        ${vchType}, ${data.vch_code}, ${data.vch_date}, ${data.vch_book_id || null}, ${authorization.branchId}, ${data.currency_id || null}, ${Number(data.rate || 1)},
-        ${data.account_id || null}, ${data.customer_name || ""}, ${data.to_account_id || null},
-        ${amount}, ${data.payment_classification_id || null}, ${data.salesman_id || null}, ${data.manual_voucher || ""}, ${data.manual_date || null}, ${data.note || ""}, ${status}, ${status === 2 ? 2 : 1}, ${Number(data.is_printed || 0)},
-        ${data.insert_user || null}
-      )
-      RETURNING *
-    `
+    const numberSettings = await getVoucherNumberSettings(request.url, vchType)
+    const bookId = data.vch_book_id ? Number(data.vch_book_id) : null
+    const bookName = await resolveVoucherBookName(bookId)
+    const generateNextCode = async () => {
+      const codePrefix = `${numberSettings.prefix}${bookName}`
+      const sequence = await nextVoucherSequence(vchType, codePrefix, numberSettings.startNumber)
+      return buildVoucherCode(numberSettings.prefix, bookName, sequence)
+    }
+    let voucherCode = String(data.vch_code).trim()
+    let result: any[] = []
+    for (let attempt = 0; attempt < 10; attempt += 1) {
+      const existing = await sql`
+        SELECT id FROM voucher_header_tbl WHERE vch_type = ${vchType} AND vch_code = ${voucherCode}
+      `
+      if (existing.length > 0) voucherCode = await generateNextCode()
+      try {
+        result = await sql`
+          INSERT INTO voucher_header_tbl (
+            vch_type, vch_code, vch_date, vch_book_id, branch_id, currency_id, rate,
+            account_id, customer_name, to_account_id,
+            amount, payment_classification_id, salesman_id, manual_voucher, manual_date, note, status, vch_status, is_printed,
+            insert_user
+          ) VALUES (
+            ${vchType}, ${voucherCode}, ${data.vch_date}, ${bookId}, ${authorization.branchId}, ${data.currency_id || null}, ${Number(data.rate || 1)},
+            ${data.account_id || null}, ${data.customer_name || ""}, ${data.to_account_id || null},
+            ${amount}, ${data.payment_classification_id || null}, ${data.salesman_id || null}, ${data.manual_voucher || ""}, ${data.manual_date || null}, ${data.note || ""}, ${status}, ${status === 2 ? 2 : 1}, ${Number(data.is_printed || 0)},
+            ${data.insert_user || null}
+          )
+          RETURNING *
+        `
+        break
+      } catch (error: any) {
+        if (String(error?.code || "") !== "23505") throw error
+        voucherCode = await generateNextCode()
+      }
+    }
+    if (!result.length) return NextResponse.json({ error: "تعذر توليد رقم سند متاح من دفتر السندات" }, { status: 409 })
 
     const voucher = result[0]
     await saveJournalRows(voucher.id, journalRows)

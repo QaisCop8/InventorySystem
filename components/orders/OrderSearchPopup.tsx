@@ -43,10 +43,11 @@ const OrderSearchPopup: React.FC<OrderSearchPopupProps> = ({ visible, onClose, o
                 const endpoint = type >= 3 ? `/api/vouchers/sales?type=${type}` : `/api/orders/sales?type=${type}`;
                 const response = await fetch(endpoint);
                 const data = await response.json();
+                if (!response.ok || !Array.isArray(data)) throw new Error(data?.error || "تعذر تحميل الطلبيات");
                 console.log("Fetched orders data:", data);
                 if (!cancelled) {
                     // Ensure we have an array
-                    const allRecords = Array.isArray(data) ? data : data || [];
+                    const allRecords = data;
                     console.log("All orders records:", allRecords);
                     // Filter by type: 1 = customer, 2 = supplier
                     const filtered = type === -1 || type >= 3

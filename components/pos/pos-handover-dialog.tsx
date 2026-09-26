@@ -23,6 +23,7 @@ export function PosHandoverDialog(p: Props) {
   const refunds = (method: string) => payments.filter(row => row.payment_method === method).reduce((sum, row) => sum + Number(row.refund_amount || 0), 0)
   const totalSales = methods.reduce((sum, row) => sum + sales(row.key), 0)
   const totalRefunds = methods.reduce((sum, row) => sum + refunds(row.key), 0)
+  const netCashSales = sales("cash") - refunds("cash")
   const available = (id: number) => Number(session?.currencies?.find(row => row.currency_id === id)?.expected_amount || 0)
   const rate = (id: number) => Number(session?.currencies?.find(row => row.currency_id === id)?.rate_to_point || currencies.find(row => row.currency_id === id)?.rate_to_point || 1)
   const totalEntered = currencies.reduce((sum, row) => sum + Number(amounts[row.currency_id] || 0) * rate(row.currency_id), 0)
@@ -32,7 +33,7 @@ export function PosHandoverDialog(p: Props) {
     : currencies.some(row => Number(movementAmounts[row.currency_id] || 0) > 0) && currencies.every(row => { const value = Number(movementAmounts[row.currency_id] || 0); return validAmount(value) && (action !== "cash_out" || value <= available(row.currency_id) + 0.009) })
   const movements = session?.movements || []
   const movementTotal = (type: string) => (session?.movement_totals || movements).filter(row => row.movement_type === type).reduce((sum, row) => sum + Number(row.amount || 0), 0)
-  const totalRequired = Math.round((Number(session?.opening_cash || 0) + totalSales + movementTotal("cash_in") - movementTotal("cash_out")) * 100) / 100
+  const totalRequired = Math.round((Number(session?.opening_cash || 0) + netCashSales + movementTotal("cash_in") - movementTotal("cash_out")) * 100) / 100
   const difference = Math.round((totalEntered - totalRequired) * 100) / 100
   const totalsSummary = <div className="space-y-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold dark:border-emerald-900 dark:bg-emerald-950/30" aria-live="polite">
     <div className="flex items-center justify-between gap-3"><span>إجمالي المبلغ المعدود ({currencyCode})</span><strong dir="ltr" className="text-lg tabular-nums">{money(totalEntered)}</strong></div>

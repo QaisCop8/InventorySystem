@@ -550,6 +550,14 @@ export default function UnifiedReceiptVoucher({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dialogOpen, form.id, isNewMode])
 
+  useEffect(() => {
+    if (isSaving) return
+    const snapshotTimer = window.setTimeout(() => {
+      initialFormHashRef.current = hashForm(latestFormRef.current)
+    }, 350)
+    return () => window.clearTimeout(snapshotTimer)
+  }, [isSaving])
+
   const guardedAction = (action: () => void) => {
     if ([2, 3].includes(Number(form.status))) { action(); return }
     codeRequestRef.current += 1

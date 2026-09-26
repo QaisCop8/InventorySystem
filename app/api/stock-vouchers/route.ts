@@ -150,7 +150,10 @@ export async function POST(request: NextRequest) {
     }
 
     const status = Number(data.status || 1)
-    const result = await sql`
+    let result: any[] = []
+    for (let attempt = 0; attempt < MAX_CODE_RETRY_ATTEMPTS; attempt += 1) {
+      try {
+        result = await sql`
       INSERT INTO voucher_header_tbl (
         vch_type, vch_code, vch_date, vch_book_id, branch_id, currency_id, rate,
         account_id, customer_name, to_store_id, from_store_id,
@@ -163,7 +166,16 @@ export async function POST(request: NextRequest) {
         ${data.insert_user || null}
       )
       RETURNING *
-    `
+        `
+        break
+      } catch (error: any) {
+        if (String(error?.code || "") !== "23505") throw error
+        const regenerated = await regenerateVoucherCode(request.url, vchType, data.vch_book_id ?? null)
+        if (!regenerated || regenerated === vchCode) break
+        vchCode = regenerated
+      }
+    }
+    if (!result.length) return NextResponse.json({ error: "تعذر توليد رقم سند متاح من دفتر السندات" }, { status: 409 })
 
     const voucher = result[0]
     const savedItems = await saveVoucherItems(voucher.id, items)

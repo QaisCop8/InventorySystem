@@ -929,32 +929,7 @@ function UnifiedSalesOrder({
     if (!raw) return;
 
     try {
-      const params = new URLSearchParams({
-        order_number: raw,
-      });
-
-      const res = await fetch(`/api/orders/getorderbycode?${params.toString()}`);
-      const data = await res.json();
-
-      if (!res.ok) {
-        Util.showErrorMessage(message, data.error || 'تعذر تحديد رقم الطلبية');
-        return;
-      }
-
-      // If order exists
-      if (data && data.id) {
-        if (data.id === state.formData.id) return; // Same order, do nothing
-        if (data.deleted === true) {
-          Util.showErrorMessage(message, 'الطلبية محذوفة لا يمكن عرضها');
-          reset_order();
-          return;
-        }
-        // Order found, load it
-        loadOrderData('Byid', data.id);
-      } else {
-        // New order, reset
-        reset_order();
-      }
+      await loadOrderData('ByCode', undefined, raw, false);
     } catch (error) {
       console.error("Error resolving order code:", error);
       Util.showErrorMessage(message, 'حدث خطأ أثناء التحقق من رقم الطلبية');
@@ -2922,11 +2897,15 @@ function UnifiedSalesOrder({
       const res = await fetch(url.toString());
       const order = await res.json();
       console.log("Fetched order data:", order);
-      if (!order?.id || order.id === currentOrderId) {
+      if (!order?.id) {
         Util.showErrorToast(toast.current, navigationType === "previous" || navigationType === "first"
           ? "بداية السجلات"
-          : "نهاية السجلات");
+          : navigationType === "ByCode" ? "لم يتم العثور على الطلبية" : "نهاية السجلات");
 
+        setLoading(false)
+        return;
+      }
+      if (order.id === currentOrderId && navigationType !== "ByCode") {
         setLoading(false)
         return;
       }
@@ -3466,7 +3445,7 @@ function UnifiedSalesOrder({
             />
             <OrderSearchPopup
               visible={showOrderSearch}
-              type={vch_type ?? 0}
+              type={vch_type ?? 1}
 
               onClose={() => { popupHasCalled(); setShowOrderSearch(false); setTimeout(() => referenceNumberRef.current?.focus(), 50) }}
               onSelect={(order) => {
@@ -3613,7 +3592,7 @@ function UnifiedSalesOrder({
                           dir="rtl"
                           placeholder={""}
                           onBlur={handleOrderCodeBlur}
-                          maxLength={8}
+                          maxLength={10}
                         />
                       </div>
                     </div>

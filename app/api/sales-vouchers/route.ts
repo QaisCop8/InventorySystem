@@ -516,7 +516,10 @@ export async function POST(request: NextRequest) {
           order_item_id: null,
         }))
 
-    const result = await sql`
+    let result: any[] = []
+    for (let attempt = 0; attempt < MAX_CODE_RETRY_ATTEMPTS; attempt += 1) {
+      try {
+        result = await sql`
       INSERT INTO voucher_header_tbl (
         vch_type, vch_code, vch_date, vch_book_id, branch_id, currency_id, rate,
         account_id, customer_name, to_store_id,
@@ -536,7 +539,16 @@ export async function POST(request: NextRequest) {
         ${data.phone || ""}, ${data.due_date || null}, ${Boolean(data.is_exported_sales)}, ${data.city_id || null}, ${posClientSaleId}
       )
       RETURNING *
-    `
+        `
+        break
+      } catch (error: any) {
+        if (String(error?.code || "") !== "23505") throw error
+        const regenerated = await generateSalesVoucherCode(request.url, vchType, data.vch_book_id ?? null)
+        if (!regenerated || regenerated === vchCode) break
+        vchCode = regenerated
+      }
+    }
+    if (!result.length) return NextResponse.json({ error: "تعذر توليد رقم سند متاح من دفتر السندات" }, { status: 409 })
 
     const voucher = result[0]
     for (const payment of posPayments) {
