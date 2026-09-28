@@ -148,10 +148,9 @@ export const getStockVoucherNumberSettings = async (
   const key = STOCK_VOUCHER_SETTINGS_KEY[vchType]
   const defaultPrefix = key?.defaultPrefix || "SV"
   try {
-    const settingsUrl = String(requestUrl || "").trim()
-    const response = await fetch(settingsUrl ? new URL("/api/settings/system", settingsUrl) : "/api/settings/system")
-    if (!response.ok) return { prefix: defaultPrefix, startNumber: 1 }
-    const settings = await response.json()
+    // A server-to-server fetch loses the tenant cookie and reads defaults.
+    const { loadStoredSettings } = await import("@/app/api/settings/system/route")
+    const settings = await loadStoredSettings()
     const prefixRaw = String(settings?.[key?.prefix || ""] || defaultPrefix).trim().toUpperCase()
     const prefix = /^[A-Z]{1,3}$/.test(prefixRaw) ? prefixRaw : defaultPrefix
     const startNumber = Number(settings?.[key?.start || ""]) || 1

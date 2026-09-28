@@ -95,7 +95,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         // بـlocalStorage بالواجهة فقط (لا يمنع طلب fetch فعلياً، فقط يُخفي العرض). نفس مصدر المعرِّف
         // الذي تستخدمه Util.checkUserAccess نفسها (savedUser?.id ?? savedUser?.user_id) للاتساق.
         let userId: string | null = null
-        const userRaw = localStorage.getItem("erp_user") || sessionStorage.getItem("erp_user")
+        const userRaw = sessionStorage.getItem("erp_user") || localStorage.getItem("erp_user")
         if (userRaw) {
           try {
             const savedUser = JSON.parse(userRaw)
@@ -133,8 +133,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
         const savedUser = sessionStorage.getItem("erp_user") || localStorage.getItem("erp_user")
         const savedToken = sessionStorage.getItem("erp_token") || localStorage.getItem("erp_token")
         let savedSession = sessionStorage.getItem("erp_session") || localStorage.getItem("erp_session")
-        const savedBranch = localStorage.getItem("erp_active_branch") || sessionStorage.getItem("erp_active_branch")
-        const savedDepartment = localStorage.getItem("erp_active_department") || sessionStorage.getItem("erp_active_department")
+        const savedBranch = sessionStorage.getItem("erp_active_branch") || localStorage.getItem("erp_active_branch")
+        const savedDepartment = sessionStorage.getItem("erp_active_department") || localStorage.getItem("erp_active_department")
 
         if (savedUser && savedToken) {
 
@@ -151,6 +151,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
           // Check if session is still valid (24 hours)
           if (now - sessionData.timestamp < 24 * 60 * 60 * 1000) {
             const userData = JSON.parse(savedUser)
+            sessionStorage.setItem("erp_user", savedUser)
+            sessionStorage.setItem("erp_token", savedToken)
+            sessionStorage.setItem("erp_session", JSON.stringify(sessionData))
 
             let permissionBranchId: number | null = userData?.branchId ?? null
             if (savedBranch) {
@@ -208,12 +211,24 @@ export function AuthProvider({ children }: AuthProviderProps) {
     initializeAuth()
   }, [])
 
-  const clearAuthData = () => {
+  const clearAuthData = (currentUserId?: string) => {
     if (typeof window === "undefined") return
 
-    localStorage.removeItem("erp_user")
-    localStorage.removeItem("erp_token")
-    localStorage.removeItem("erp_session")
+    let shouldClearRemembered = !currentUserId
+    if (currentUserId) {
+      try {
+        const rememberedUser = JSON.parse(localStorage.getItem("erp_user") || "null")
+        const rememberedUserId = rememberedUser?.id ?? rememberedUser?.user_id
+        shouldClearRemembered = String(rememberedUserId) === String(currentUserId)
+      } catch {
+        shouldClearRemembered = false
+      }
+    }
+    if (shouldClearRemembered) {
+      localStorage.removeItem("erp_user")
+      localStorage.removeItem("erp_token")
+      localStorage.removeItem("erp_session")
+    }
     sessionStorage.removeItem("erp_user")
     sessionStorage.removeItem("erp_token")
     sessionStorage.removeItem("erp_session")
@@ -341,6 +356,37 @@ export function AuthProvider({ children }: AuthProviderProps) {
       const result = await response.json()
 
       if (result.success && result.user) {
+        const sessionData = {
+          timestamp: new Date().getTime(),
+          rememberMe: credentials.rememberMe,
+        }
+        try {
+          const serializedUser = JSON.stringify(result.user)
+          const serializedSession = JSON.stringify(sessionData)
+          sessionStorage.setItem("erp_user", serializedUser)
+          sessionStorage.setItem("erp_token", result.token)
+          sessionStorage.setItem("erp_session", serializedSession)
+          if (credentials.rememberMe) {
+            localStorage.setItem("erp_user", serializedUser)
+            localStorage.setItem("erp_token", result.token)
+            localStorage.setItem("erp_session", serializedSession)
+          } else {
+            try {
+              const rememberedUser = JSON.parse(localStorage.getItem("erp_user") || "null")
+              const rememberedUserId = rememberedUser?.id ?? rememberedUser?.user_id
+              if (String(rememberedUserId) === String(result.user.id)) {
+                localStorage.removeItem("erp_user")
+                localStorage.removeItem("erp_token")
+                localStorage.removeItem("erp_session")
+              }
+            } catch {
+              // Ignore malformed optional remembered-login data.
+            }
+          }
+        } catch (storageError) {
+          console.error("[v0] Failed to save session data:", storageError)
+        }
+
         // تُجلَب الصلاحيات وتُخزَّن في user_Access_List قبل تعليم المستخدم كـ"مُوثَّق" — بلا هذا
         // الترتيب يُعيد ProtectedRoute عرض الصفحة المحمية فوراً بمجرد setIsAuthenticated(true) بينما
         // localStorage لا يزال فارغاً (تحديثه لاحق وغير متزامن معه)، فتفشل شاشات مثل "الاصناف" التي
@@ -373,30 +419,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
           setActiveDepartment(result.user.department)
         }
 
-        const sessionData = {
-          timestamp: new Date().getTime(),
-          rememberMe: credentials.rememberMe,
-        }
-
-        try {
-          if (credentials.rememberMe) {
-            sessionStorage.removeItem("erp_user")
-            sessionStorage.removeItem("erp_token")
-            sessionStorage.removeItem("erp_session")
-            localStorage.setItem("erp_user", JSON.stringify(result.user))
-            localStorage.setItem("erp_token", result.token)
-            localStorage.setItem("erp_session", JSON.stringify(sessionData))
-          } else {
-            localStorage.removeItem("erp_user")
-            localStorage.removeItem("erp_token")
-            localStorage.removeItem("erp_session")
-            sessionStorage.setItem("erp_user", JSON.stringify(result.user))
-            sessionStorage.setItem("erp_token", result.token)
-            sessionStorage.setItem("erp_session", JSON.stringify(sessionData))
-          }
-        } catch (storageError) {
-          console.error("[v0] Failed to save session data:", storageError)
-        }
         console.log("result result result login ", result)
         // Navigate to dashboard_layout after login
         /*setTimeout(() => {
@@ -442,7 +464,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     } catch (error) {
       console.error("Logout API error:", error)
     } finally {
-      clearAuthData()
+      clearAuthData(user?.id)
       if (typeof window !== "undefined") {
         sessionStorage.clear()
         // active_tenant_db بـlocalStorage (قيمة افتراضية مشتركة لتبويبات جديدة — انظر tenant-

@@ -4,7 +4,7 @@ import { ensureTables as ensureSalesTables, fetchSalesVoucherItems } from "@/app
 import { fetchVoucherItems as fetchStockVoucherItems } from "@/app/api/stock-vouchers/_lib"
 import { PUT as updateSalesVoucher } from "@/app/api/sales-vouchers/route"
 import { PUT as updateStockVoucher } from "@/app/api/stock-vouchers/route"
-import { ensurePosTables, getOpenPosSession, getPosPoint, requestBranchId, requestUserId } from "../_lib"
+import { ensurePosTables, getOpenPosSession, getPosPoint, requestUserId } from "../_lib"
 
 export async function GET(request: NextRequest) {
   try {
@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
     const pointId = Number(request.nextUrl.searchParams.get("point_id") || 0)
     const userId = requestUserId(request)
     if (!pointId || !userId) return NextResponse.json({ error: "بيانات نقطة البيع غير مكتملة" }, { status: 400 })
-    const point = await getPosPoint(pointId, userId, requestBranchId(request))
+    const point = await getPosPoint(pointId, userId)
     if (!point) return NextResponse.json({ error: "نقطة البيع غير متاحة" }, { status: 403 })
     const q = String(request.nextUrl.searchParams.get("q") || "").trim()
     const sessionId = Number(request.nextUrl.searchParams.get("session_id") || 0)
@@ -56,7 +56,7 @@ export async function DELETE(request: NextRequest) {
     return await withTenantTransaction(async () => {
       await ensureSalesTables()
       await ensurePosTables()
-      const point = await getPosPoint(pointId, userId, requestBranchId(request))
+      const point = await getPosPoint(pointId, userId)
       if (!point) return NextResponse.json({ error: "نقطة البيع غير متاحة" }, { status: 403 })
       const session = await getOpenPosSession(pointId, userId)
       if (!session) return NextResponse.json({ error: "يجب فتح الوردية لحذف فاتورة" }, { status: 400 })

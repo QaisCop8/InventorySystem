@@ -111,7 +111,7 @@ export function BatchLogReport() {
   }
 
   return (
-    <ReportPage>
+    <ReportPage loading={loading}>
 <ReportHeader title="أرشفة حركات الرقم التشغيلي" />
       <Card>
         <ProductSearchPopup

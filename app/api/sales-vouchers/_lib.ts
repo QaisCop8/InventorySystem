@@ -151,6 +151,7 @@ export const ensureTables = async () => {
   // ensureTables هناك هنا أيضاً لضمان وجودهما حتى لو لم تُستخدَم شاشات سندات المخزون إطلاقاً بعد على
   // هذه الشركة (تنصيب جديد قد يبدأ مباشرة بشاشة إرسالية المبيعات دون المرور بها أولاً).
   await ensureStockVoucherTables()
+  await sql`ALTER TABLE voucher_items_tbl ADD COLUMN IF NOT EXISTS pos_discount_percent NUMERIC(9,4)`
 
   // voucher_header_tbl/voucher_types_tbl (الجدول الفعلي) مملوكان لـreceipts/_lib.ts وvoucher-book-
   // permissions/_lib.ts على التوالي — فقط صفوف الأنواع الثمانية الجديدة تُضاف هنا، بنفس أسلوب
@@ -409,6 +410,8 @@ export const fetchSalesVoucherJournalAccounts = async (voucherId: number, vchTyp
 export const saveSalesVoucherItems = async (voucherId: number, items: any[]) => {
   await sql`DELETE FROM voucher_items_tbl WHERE voucher_id = ${voucherId}`
   await sql`ALTER TABLE voucher_items_tbl ADD COLUMN IF NOT EXISTS campaign_discount DOUBLE PRECISION DEFAULT 0`
+  await sql`ALTER TABLE voucher_items_tbl ADD COLUMN IF NOT EXISTS campaign_id INTEGER`
+  await sql`ALTER TABLE voucher_items_tbl ADD COLUMN IF NOT EXISTS pos_discount_percent NUMERIC(9,4)`
   await sql`CREATE TABLE IF NOT EXISTS attributes_tbl (id SERIAL PRIMARY KEY, name TEXT NOT NULL UNIQUE)`
   await sql`CREATE TABLE IF NOT EXISTS attribute_values_tbl (id SERIAL PRIMARY KEY, attr_id INTEGER NOT NULL REFERENCES attributes_tbl(id) ON DELETE CASCADE, name TEXT NOT NULL, UNIQUE(attr_id, name))`
   await sql`CREATE TABLE IF NOT EXISTS product_atrributes_values_tbl (id BIGSERIAL UNIQUE, product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE, attr_id INTEGER NOT NULL REFERENCES attributes_tbl(id) ON DELETE CASCADE, value_id INTEGER NOT NULL REFERENCES attribute_values_tbl(id) ON DELETE CASCADE, image_url TEXT, PRIMARY KEY(product_id, attr_id, value_id))`
@@ -442,7 +445,7 @@ export const saveSalesVoucherItems = async (voucherId: number, items: any[]) => 
     const expiryDateToSave = hasExpiry ? row.expiry_date || null : NO_EXPIRY_SENTINEL_DATE
     const inserted = await sql`
       INSERT INTO voucher_items_tbl (
-        voucher_id, item_id, item_name, unit_id, qnty, bonus, discount, campaign_discount, vat_classification_id,
+        voucher_id, item_id, item_name, unit_id, qnty, bonus, discount, pos_discount_percent, campaign_discount, campaign_id, vat_classification_id,
         vat_amount, vat_ratio, price, note, cost_price, barcode, size_id, color_taste_id,
         length, width, height, count, order_item_id, delivery_item_id, production_date,
         expiry_date, batch_no, store_id, journal_id, return_sales_invoice_id
@@ -454,7 +457,9 @@ export const saveSalesVoucherItems = async (voucherId: number, items: any[]) => 
         ${Number(row.qnty ?? row.quantity ?? 0)},
         ${Number(row.bonus ?? row.bonus_quantity ?? 0)},
         ${Number(row.discount ?? row.discount_percent ?? 0)},
+        ${row.pos_discount_percent == null ? null : Number(row.pos_discount_percent)},
         ${Number(row.campaign_discount ?? row.campaign_discount_amount ?? 0)},
+        ${Number(row.campaign_id) || null},
         ${row.vat_classification_id ?? null},
         ${Number(row.vat_amount ?? 0)},
         ${Number(row.vat_ratio ?? 0)},
@@ -530,7 +535,10 @@ export const fetchSalesVoucherItems = async (voucherId: number, itemJournalTypeI
       u.unit_name AS unit,
       vi.qnty AS quantity,
       vi.bonus AS bonus_quantity,
-      vi.discount AS discount_percent,
+      COALESCE(vi.pos_discount_percent,vi.discount) AS discount_percent,
+      vi.discount AS effective_discount_percent,
+      COALESCE(vi.campaign_discount,0) AS campaign_discount,
+      vi.campaign_id,
       vi.vat_classification_id,
       vi.vat_amount,
       vi.vat_ratio,
@@ -581,9 +589,9 @@ export const fetchSalesVoucherItems = async (voucherId: number, itemJournalTypeI
       COALESCE(u.unit_name, '') AS unit,
       COALESCE(u.unit_name, '') AS unit_name,
       w.warehouse_name AS warehouse_name,
-      (vi.qnty * vi.price * (1 - vi.discount / 100)) AS total_price,
-      (vi.qnty * vi.price * (1 - vi.discount / 100)) AS amount,
-      (vi.qnty * vi.price * (1 - vi.discount / 100)) AS line_amount
+      (vi.qnty * vi.price * (1 - COALESCE(vi.pos_discount_percent,vi.discount) / 100) - COALESCE(vi.campaign_discount,0)) AS total_price,
+      (vi.qnty * vi.price * (1 - COALESCE(vi.pos_discount_percent,vi.discount) / 100) - COALESCE(vi.campaign_discount,0)) AS amount,
+      (vi.qnty * vi.price * (1 - COALESCE(vi.pos_discount_percent,vi.discount) / 100) - COALESCE(vi.campaign_discount,0)) AS line_amount
     FROM numbered_items vi
     LEFT JOIN voucher_journal_detail_tbl linked_journal ON linked_journal.id = vi.journal_id
     LEFT JOIN numbered_journals fallback_journal

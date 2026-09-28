@@ -203,7 +203,7 @@ export function LotInventoryReport() {
   }
 
   return (
-    <ReportPage>
+    <ReportPage loading={loading}>
 <ReportHeader title="تقرير المخزون حسب الدفعات" description={<>عرض تفصيلي لجميع دفعات المنتجات في المخزون</>} actions={<>
           <BatchPrintDialog />
           <Button onClick={exportToExcel} className="bg-green-600 hover:bg-green-700">

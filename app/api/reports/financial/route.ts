@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
     if (shiftGuid && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(shiftGuid)) return NextResponse.json({ error: "معرف الوردية غير صالح" }, { status: 400 })
     const includeZero = p.get("include_zero") === "1", baseCurrency = p.get("base_currency") === "1", showCounter = p.get("show_counter_accounts") === "1"
     const evaluateInventory = p.get("evaluate_inventory") === "1" && (reportType === "balance-sheet" || reportType === "income-statement")
-    const valuationMethod = p.get("valuation_method") === "last" ? "last" : "average"
+    const valuationMethod = ["last", "fifo"].includes(p.get("valuation_method") || "") ? p.get("valuation_method") : "average"
     const memberships = await sql`SELECT branch_id FROM user_branches WHERE user_id=${user.user_id}`
     const permitted = memberships.map((row:any)=>Number(row.branch_id)).filter(Number.isFinite)
     const effectiveBranches = branchIds.length ? branchIds.filter(id => !permitted.length || permitted.includes(id)) : permitted
@@ -179,9 +179,8 @@ export async function GET(request: NextRequest) {
         const valueOf = (balances:any[]) => balances.reduce((total,row) => {
           const quantity = Number(row.balance || 0)
           if (Math.abs(quantity) < 0.000001) return total
-          const costQuantity = Number(row.cost_quantity || 0)
-          const unitCost = valuationMethod === "last" || costQuantity <= 0
-            ? Number(row.last_incoming_cost || 0) : Number(row.received_value || 0) / costQuantity
+          const unitCost = Number(valuationMethod === "last" ? row.last_incoming_cost
+            : valuationMethod === "fifo" ? row.fifo_cost : row.average_cost) || 0
           const sourceRate = rateById.get(Number(row.currency_id || baseId))
           if (!sourceRate || sourceRate <= 0) throw new Error(`لا يوجد سعر صرف صالح لعملة الصنف ${row.product_code}`)
           return total + quantity * unitCost * sourceRate / targetRate

@@ -73,7 +73,7 @@ const DialogContent = React.forwardRef<
 >(({ className, children, hideCloseButton, inline, style, ...props }, ref) => {
   const { confined } = useWorkspaceDialog()
   const preventOutsideClose = React.useContext(PreventDialogOutsideCloseContext)
-  const isLargeTransactionDialog = typeof className === "string" && /(?:sales-delivery|stock-voucher|voucher)-form/.test(className)
+  const isLargeTransactionDialog = typeof className === "string" && /(?:sales-delivery|sales-order|stock-voucher|voucher)-form/.test(className)
   const isChequeSearchDialog = typeof className === "string" && className.includes("max-w-5xl") && className.includes("overflow-hidden") && className.includes("p-0")
   if (inline) {
     const { onPointerDownOutside: _onPointerDownOutside, onInteractOutside: _onInteractOutside, onEscapeKeyDown: _onEscapeKeyDown, ...inlineProps } = props

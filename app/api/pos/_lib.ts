@@ -32,6 +32,7 @@ export async function ensurePosTables() {
       allow_offline BOOLEAN NOT NULL DEFAULT true,
       allow_returns BOOLEAN NOT NULL DEFAULT true,
       allow_gifts BOOLEAN NOT NULL DEFAULT true,
+      print_invoices BOOLEAN NOT NULL DEFAULT false,
       status INTEGER NOT NULL DEFAULT 1,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -99,6 +100,9 @@ export async function ensurePosTables() {
   await sql`ALTER TABLE voucher_header_tbl ADD COLUMN IF NOT EXISTS pos_point_id INTEGER`
   await sql`ALTER TABLE voucher_header_tbl ADD COLUMN IF NOT EXISTS pos_session_id BIGINT`
   await sql`ALTER TABLE voucher_header_tbl ADD COLUMN IF NOT EXISTS shift_guid UUID`
+  await sql`ALTER TABLE voucher_header_tbl ADD COLUMN IF NOT EXISTS campaign_discount_amount NUMERIC(18,4) NOT NULL DEFAULT 0`
+  await sql`ALTER TABLE voucher_header_tbl ADD COLUMN IF NOT EXISTS campaign_discount_id INTEGER`
+  await sql`ALTER TABLE voucher_items_tbl ADD COLUMN IF NOT EXISTS campaign_id INTEGER`
   await sql`UPDATE voucher_header_tbl vh SET shift_guid=s.shift_guid FROM pos_sessions_tbl s WHERE vh.pos_session_id=s.id AND vh.shift_guid IS NULL`
   await sql`UPDATE voucher_header_tbl vh SET shift_guid=s.shift_guid FROM pos_sale_payments_tbl p JOIN pos_sessions_tbl s ON s.id=p.session_id WHERE p.voucher_id=vh.id AND vh.shift_guid IS NULL`
   await sql`
@@ -135,6 +139,7 @@ export async function ensurePosTables() {
   await sql`ALTER TABLE pos_points_tbl ADD COLUMN IF NOT EXISTS return_account_id INTEGER`
   await sql`ALTER TABLE pos_points_tbl ADD COLUMN IF NOT EXISTS item_grouping_mode VARCHAR(16) NOT NULL DEFAULT 'on_entry' CHECK (item_grouping_mode IN ('none', 'on_entry', 'on_print'))`
   await sql`ALTER TABLE pos_points_tbl ADD COLUMN IF NOT EXISTS print_by_item_group BOOLEAN NOT NULL DEFAULT FALSE`
+  await sql`ALTER TABLE pos_points_tbl ADD COLUMN IF NOT EXISTS print_invoices BOOLEAN NOT NULL DEFAULT FALSE`
   await sql`CREATE INDEX IF NOT EXISTS idx_pos_sale_drafts_owner ON pos_sale_drafts_tbl(pos_point_id,user_id,status,updated_at DESC)`
   await sql`
     CREATE TABLE IF NOT EXISTS pos_cashier_log_tbl (

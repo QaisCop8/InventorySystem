@@ -1946,6 +1946,10 @@ function UnifiedSalesOrder({
       Util.showErrorMessage(message, 'رقم الطلبية فارغ لا يمكن الاستمرار')
       return false
     }
+    if (!String(state.formData.vch_book || "").trim() || !voucherBooks.some(book => String(book.name).trim() === String(state.formData.vch_book).trim())) {
+      Util.showErrorMessage(message, "يجب تحديد دفتر السندات")
+      return false
+    }
     if (state.formData.currency_id === 0) {
       Util.showErrorMessage(message, 'يجب تحديد العملة')
       return false
@@ -2160,7 +2164,7 @@ function UnifiedSalesOrder({
   `;
 
     // Get saved user
-    const savedUser = localStorage.getItem("erp_user") || sessionStorage.getItem("erp_user");
+    const savedUser = sessionStorage.getItem("erp_user") || localStorage.getItem("erp_user");
     if (!savedUser) return;
     const user = JSON.parse(savedUser);
     if (!user?.id) return;
@@ -2213,8 +2217,8 @@ function UnifiedSalesOrder({
       if (!validateOrder()) return false;
 
       const savedUser =
-        localStorage.getItem("erp_user") ||
-        sessionStorage.getItem("erp_user");
+        sessionStorage.getItem("erp_user") ||
+        localStorage.getItem("erp_user");
 
       if (!savedUser) {
         Util.showErrorMessage(message, "المستخدم غير معرف يرجى تسجيل الدخول من جديد");
@@ -2411,7 +2415,7 @@ function UnifiedSalesOrder({
     if (!state.formData || !state.formData.id) {
       throw new Error("لا توجد طلبية محددة للحذف")
     }
-    const savedUser = localStorage.getItem("erp_user") || sessionStorage.getItem("erp_user")
+    const savedUser = sessionStorage.getItem("erp_user") || localStorage.getItem("erp_user")
     if (!savedUser) {
       Util.showErrorMessage(message, 'المستخدم غير معرف يرجى تسجيل الدخول من جديد')
       return
@@ -3238,12 +3242,12 @@ function UnifiedSalesOrder({
         inline={fullscreenEnabled && open}
         className={`sales-order-form
           h-[calc(100dvh-1rem)]
-          max-h-[94vh]
+          max-h-[92vh]
           w-[calc(100vw-1rem)]
-          max-w-[1600px]
+          max-w-[1400px]
           sm:h-[92vh]
-          sm:w-[98vw]
-          xl:w-[96vw]
+          sm:w-[96vw]
+          xl:w-[92vw]
           p-0
           gap-0
           flex
@@ -3257,6 +3261,7 @@ function UnifiedSalesOrder({
           [&_.p-dropdown-label]:py-1.5
           ${fullscreenEnabled && open ? "!left-0 !top-0 !h-full !max-h-full !w-full !max-w-none !translate-x-0 !translate-y-0 !rounded-none" : ""}
         `}
+        dir="rtl"
         onPointerDownOutside={(event) => event.preventDefault()}
         onEscapeKeyDown={(event) => { if (!doHotKeys.current) event.preventDefault() }}
 
@@ -3287,9 +3292,9 @@ function UnifiedSalesOrder({
           <Messages innerRef={message} />
         </div>
 
-        <div className="sales-order-form-body min-h-0 flex-1 overflow-y-auto">
+        <div className="sales-order-form-body min-h-0 min-w-0 flex-1 overflow-y-auto">
 
-          <div className="space-y-3 rounded-b-3xl bg-slate-50/60 p-3 sm:p-4 lg:p-5">
+          <div className="min-w-0 space-y-3 rounded-b-3xl bg-slate-50/60 px-3 py-2 sm:px-4 sm:py-3">
             <Toast ref={toast} position={'top-left'} className="erp-toast-host" style={{ top: 100, whiteSpace: 'pre-line' }} />
             <ProgressSpinner loading={loading} />
 
@@ -3492,14 +3497,14 @@ function UnifiedSalesOrder({
                 gridRef.current?.select(selectedIndex, 'qnty');
               }}
             />
-            <Card className="sales-order-summary sticky top-0 z-40 border-emerald-200 bg-gradient-to-br from-emerald-50 to-teal-50 shadow-md">
+            <Card className="sales-order-summary sticky top-0 z-40 gap-0 py-0 border-emerald-200 bg-gradient-to-br from-emerald-50 to-teal-50 shadow-md">
               <CardContent className="py-4">
                 <div className="flex flex-wrap items-center justify-between gap-4">
                   <div className="flex items-center gap-2">
                     <TrendingUp className="h-5 w-5 text-emerald-700" />
                     <span className="text-sm font-medium">ملخص الطلبية</span>
                   </div>
-                  <div className="flex flex-wrap items-center gap-6 text-sm">
+                  <div className="sales-order-summary-values flex flex-wrap items-center gap-6 text-sm">
                     <div className="flex flex-col items-end">
                       <span className="text-xs text-muted-foreground">المجموع الفرعي</span>
                       <span className="font-semibold">{Util.formatNumber(totals.subtotal, Util.getSystemSetting(17))} </span>
@@ -3526,20 +3531,20 @@ function UnifiedSalesOrder({
               {/* ===================== */}
               {/* معلومات الطلبية (يمين) */}
               {/* ===================== */}
-              <Card className="sales-order-details-panel min-w-0 rounded-xl border-slate-200 shadow-sm">
-                <CardHeader className="pb-2 pt-3">
+              <Card className="sales-order-details-panel min-w-0 gap-3 py-3 rounded-xl border-slate-200 shadow-sm">
+                <CardHeader className="px-3 pb-0 pt-0">
                   <CardTitle className="flex items-center gap-2 text-sm font-bold text-emerald-700">
                     <FileText className="h-4 w-4" />
                     معلومات الطلبية الأساسية
                   </CardTitle>
                 </CardHeader>
 
-                <CardContent className="space-y-3 p-2 sm:p-2.5">
+                <CardContent className="space-y-3 px-3 py-0">
 
                   {/* الصف الأول */}
-                  <div className="voucher-header-grid grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-12">
+                  <div className="voucher-header-grid grid gap-3">
                     {/* دفتر السندات */}
-                    <div className="invoice-currency-dropdown-wrap">
+                    <div className="grid content-start gap-1.5 invoice-currency-dropdown-wrap">
                       <Label>دفتر السندات</Label>
                       <Dropdown
                         value={state.formData.vch_book ?? null}
@@ -3561,13 +3566,13 @@ function UnifiedSalesOrder({
                     </div>
 
                     {/* رقم الطلبية */}
-                    <div className="space-y-2">
+                    <div className="grid content-start gap-1.5">
                       <Label className="text-sm font-medium">
                         {"رقم الطلبية"} <span className="text-red-500 mr-1">*</span>
                       </Label>
 
-                      <div className="flex flex-row-reverse gap-2 items-center">
-                        <Button type="button" onClick={() => { popupHasCalled(); setShowOrderSearch(true) }}>
+                      <div className="flex min-w-0 gap-2 items-center">
+                        <Button type="button" className="shrink-0" aria-label="بحث عن طلبية" onClick={() => { popupHasCalled(); setShowOrderSearch(true) }}>
                           🔍
                         </Button>
                         <Input
@@ -3588,7 +3593,7 @@ function UnifiedSalesOrder({
                               formData: { ...prev.formData, order_number: e.target.value },
                             }))
                           }
-                          className="text-right font-medium h-11 flex-1"
+                          className="min-w-0 text-right font-medium h-11 flex-1"
                           dir="rtl"
                           placeholder={""}
                           onBlur={handleOrderCodeBlur}
@@ -3598,7 +3603,7 @@ function UnifiedSalesOrder({
                     </div>
 
                     {/* تاريخ الطلبية */}
-                    <div>
+                    <div className="grid content-start gap-1.5">
                       <Label>تاريخ الطلبية</Label>
                       <Input
                         ref={orderdateRef}
@@ -3825,20 +3830,20 @@ function UnifiedSalesOrder({
               {/* ===================== */}
               {/* معلومات العميل (يسار) */}
               {/* ===================== */}
-              <Card className="sales-order-details-panel min-w-0 rounded-xl border-slate-200 shadow-sm">
-                <CardHeader className="pb-2 pt-3">
+              <Card className="sales-order-details-panel min-w-0 gap-3 py-3 rounded-xl border-slate-200 shadow-sm">
+                <CardHeader className="px-3 pb-0 pt-0">
                   <CardTitle className="flex items-center gap-2 text-sm font-bold text-emerald-700">
                     <User className="h-4 w-4" />
                     معلومات العميل
                   </CardTitle>
                 </CardHeader>
 
-                <CardContent className="space-y-3 p-2 sm:p-2.5">
+                <CardContent className="space-y-3 px-3 py-0">
 
-                  <div className="grid grid-cols-12 gap-4">
+                  <div className="sales-order-customer-fields grid grid-cols-12 gap-3">
 
                     {/* رقم العميل */}
-                    <div className="col-span-12 md:col-span-4">
+                    <div className="col-span-12 md:col-span-5">
                       <Label htmlFor="customer_code" className="text-sm font-medium">
                         {'رقم العميل *'}
                       </Label>
@@ -3862,11 +3867,11 @@ function UnifiedSalesOrder({
                             }
                           }
                           }
-                          className="text-right"
+                          className="min-w-0 flex-1 text-right"
                           placeholder={'رقم العميل '}
 
                         />
-                        <Button type="button" onClick={() => setShowCustomerSearch(true)}>
+                        <Button type="button" className="shrink-0" aria-label="بحث عن عميل" onClick={() => setShowCustomerSearch(true)}>
                           🔍
                         </Button>
                       </div>
@@ -3874,7 +3879,7 @@ function UnifiedSalesOrder({
 
 
                     {/* اسم العميل */}
-                    <div className="col-span-8">
+                    <div className="col-span-12 md:col-span-7">
                       <Label>اسم العميل *</Label>
                       <Input
                         ref={customerNameRef}
@@ -3994,9 +3999,10 @@ function UnifiedSalesOrder({
 
                 </div>
               </CardHeader>
-              <CardContent>
+              <CardContent className="min-w-0 px-3 pb-3 sm:px-4 sm:pb-4">
+                <div className="w-full max-w-full overflow-x-auto">
                 <DataGridView
-                  style={{ maxHeight: '280px' }}
+                  style={{ height: '300px' }}
                   ref={gridRef}
                   idProperty="ser"
                   scheme={getScheme()}
@@ -4012,6 +4018,7 @@ function UnifiedSalesOrder({
                   allowSorting={false}
                   keyActionEnter="None"
                 />
+                </div>
 
               </CardContent>
             </Card>

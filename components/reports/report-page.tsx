@@ -1,11 +1,13 @@
 "use client"
 
 import type { ReactNode } from "react"
-import { ChartNoAxesCombined, type LucideIcon } from "lucide-react"
+import { ChartNoAxesCombined, Loader2, type LucideIcon } from "lucide-react"
 import "./report-theme.css"
 
-export function ReportPage({ children }: { children: ReactNode }) {
-  return <main dir="rtl" className="report-page"><div className="report-body">{children}</div></main>
+export function ReportPage({ children, loading = false }: { children: ReactNode; loading?: boolean }) {
+  return <main dir="rtl" className="report-page" aria-busy={loading}>
+    {loading && <div role="status" className="report-loading print:hidden"><Loader2 className="h-5 w-5 animate-spin" aria-hidden="true"/>جاري تحميل بيانات التقرير...</div>}
+    <div className="report-body">{children}</div></main>
 }
 
 export function ReportHeader({ title, description, category = "التقارير", icon: Icon = ChartNoAxesCombined, actions }: {

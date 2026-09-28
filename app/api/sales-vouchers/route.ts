@@ -212,7 +212,7 @@ const computeAmountBreakdown = (items: any[], data: any) => {
   // كاملاً — نفس معادلة recalcLineAmounts في unified-sales-delivery.tsx بالضبط.
   const subtotal = items.reduce((sum: number, i: any) => {
     const lineDiscountPercent = Number(i.discount_percent || 0)
-    return sum + Number(i.quantity || 0) * Number(i.unit_price || 0) * (1 - lineDiscountPercent / 100)
+    return sum + Number(i.quantity || 0) * Number(i.unit_price || 0) * (1 - lineDiscountPercent / 100) - Number(i.campaign_discount || 0)
   }, 0)
   const discountValue = Number(data.discount_value || 0)
   const discount = data.discount_type === "amount" ? discountValue : (subtotal * discountValue) / 100

@@ -2058,7 +2058,7 @@ function UnifiedSaleInvoices({
   `;
 
     // Get saved user
-    const savedUser = localStorage.getItem("erp_user") || sessionStorage.getItem("erp_user");
+    const savedUser = sessionStorage.getItem("erp_user") || localStorage.getItem("erp_user");
     if (!savedUser) return;
     const user = JSON.parse(savedUser);
     if (!user?.id) return;
@@ -2111,8 +2111,8 @@ function UnifiedSaleInvoices({
       if (!validateOrder()) return;
 
       const savedUser =
-        localStorage.getItem("erp_user") ||
-        sessionStorage.getItem("erp_user");
+        sessionStorage.getItem("erp_user") ||
+        localStorage.getItem("erp_user");
 
       if (!savedUser) {
         Util.showErrorMessage(message, "المستخدم غير معرف يرجى تسجيل الدخول من جديد");
@@ -2299,7 +2299,7 @@ function UnifiedSaleInvoices({
     if (!state.formData || !state.formData.id) {
       throw new Error("لا توجد فاتورة محددة للحذف")
     }
-    const savedUser = localStorage.getItem("erp_user") || sessionStorage.getItem("erp_user")
+    const savedUser = sessionStorage.getItem("erp_user") || localStorage.getItem("erp_user")
     if (!savedUser) {
       Util.showErrorMessage(message, 'المستخدم غير معرف يرجى تسجيل الدخول من جديد')
       return

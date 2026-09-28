@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getSessionUser } from "@/lib/tenant-auth"
-import { getInventoryReportProducts, getProductBalances, reportDate } from "@/lib/item-inventory-reports"
+import { getInventoryReportProducts, getProductBalances, reportDate, inventoryFilters, inventoryReportMeta } from "@/lib/item-inventory-reports"
 
 export async function GET(request: NextRequest) {
   try {
@@ -8,6 +8,7 @@ export async function GET(request: NextRequest) {
     if (!user) return NextResponse.json({ error: "يجب تسجيل الدخول" }, { status: 401 })
     const params = request.nextUrl.searchParams
     const organizationId = Number((user as any).organization_id || 1)
+    if (params.get("meta") === "1") return NextResponse.json(await inventoryReportMeta(organizationId))
     const productId = Number(params.get("product_id") || 0)
     const search = (params.get("search") || "").trim()
     const toDate = reportDate(params.get("to_date"))
@@ -15,7 +16,7 @@ export async function GET(request: NextRequest) {
     const withZeros = params.get("with_zeros") === "1"
     const [products, balances] = await Promise.all([
       getInventoryReportProducts(organizationId, productId, search),
-      getProductBalances(organizationId, toDate, productId, search),
+      getProductBalances(organizationId, toDate, productId, search, inventoryFilters(params)),
     ])
     const rows = balances.filter((row: any) => withZeros || Math.abs(Number(row.balance || 0)) > 0.000001).map((row: any) => {
       const price = Number(priceWay === "last" ? row.last_incoming_cost : priceWay === "fifo" ? row.fifo_cost : row.average_cost) || 0

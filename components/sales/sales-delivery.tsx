@@ -557,7 +557,7 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
 
   const validateVoucher = (data: SalesDeliveryRecord): string | null => {
     if (!data.vch_code.trim()) return "رقم السند مطلوب"
-    if (!data.vch_book_id) return "دفتر السندات مطلوب"
+    if (!data.vch_book_id || !voucherBooks.some(book => Number(book.id) === Number(data.vch_book_id))) return "يجب تحديد دفتر السندات"
     if (!data.currency_id) return "العملة مطلوبة"
     if (!(Number(data.rate) > 0)) return "سعر الصرف يجب أن يكون أكبر من صفر"
     if (data.invoice_source_type === 2 && (!data.source_voucher_id || !data.source_voucher_type)) {

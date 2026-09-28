@@ -4,11 +4,14 @@ import { POST as createSalesVoucher } from "@/app/api/sales-vouchers/route"
 import { POST as createStockVoucher } from "@/app/api/stock-vouchers/route"
 import { regenerateVoucherCode, STOCK_OUT_VCH_TYPE } from "@/app/api/stock-vouchers/_lib"
 import { ensureTables, generateSalesVoucherCode, SALES_INVOICE_VCH_TYPE, RETURN_SELL_VCH_TYPE } from "@/app/api/sales-vouchers/_lib"
-import { ensurePosTables, getOpenPosSession, getPosPoint, requestBranchId, requestUserId } from "../_lib"
+import { ensurePosTables, getOpenPosSession, getPosPoint, requestUserId } from "../_lib"
 import { getPosCurrencies } from "@/lib/pos-currencies"
 import { needsPosReceipt } from "@/lib/pos-receipt"
 import { validatePosAccounts } from "@/lib/pos-account-validation"
 import { createPosReceipt } from "../_receipts"
+import { loadStoredSettings } from "@/app/api/settings/system/route"
+import { applyPosCampaigns, combinedDiscountPercent, type PosCampaignLine } from "@/lib/pos-campaigns"
+import { getPosCampaigns } from "@/lib/pos-campaign-storage"
 
 const localDate = () => {
   const date = new Date()
@@ -34,7 +37,9 @@ export async function POST(request: NextRequest) {
 
       const userId=requestUserId(request), pointId=Number(data.pos_point_id||0)
       if(!userId||!pointId)return NextResponse.json({error:"نقطة البيع والمستخدم مطلوبان"},{status:400})
-      const point=await getPosPoint(pointId,userId,requestBranchId(request));if(!point)return NextResponse.json({error:"نقطة البيع غير متاحة لهذا المستخدم أو الفرع"},{status:403})
+      const point=await getPosPoint(pointId,userId);if(!point)return NextResponse.json({error:"نقطة البيع غير متاحة لهذا المستخدم"},{status:403})
+      const systemSettings=await loadStoredSettings()
+      const taxRate=Math.max(0,Number(systemSettings.tax_rate||0))
       const session=await getOpenPosSession(pointId,userId);if(!session)return NextResponse.json({error:"يجب فتح أو استلام عهدة قبل البيع"},{status:400})
       if(Number(data.pos_session_id)!==Number(session.id))return NextResponse.json({error:"جلسة العهدة تغيرت؛ حدّث الشاشة وحاول مرة أخرى"},{status:409})
       const discountLimit=Math.min(100,Math.max(0,Number(point.max_discount_percent??100)))
@@ -48,6 +53,15 @@ export async function POST(request: NextRequest) {
       if(!["sale","return","gift"].includes(String(data.pos_mode)))return NextResponse.json({error:"نوع حركة نقطة البيع غير صالح"},{status:400})
       const isReturn=data.pos_mode==="return"
       const isGift=data.pos_mode==="gift"
+      const campaignRows=!isReturn&&!isGift?await getPosCampaigns():[]
+      const saleTime=new Date(String(data.vch_date||"").replace(" ","T"))
+      const campaignResult=!isReturn&&!isGift?applyPosCampaigns(data.items.map((item:any)=>({
+        id:Number(item.product_id||item.item_id),unit_id:Number(item.unit_id)||null,
+        quantity:Number(item.quantity??item.qnty??0),price:Number(item.price??item.unit_price??0),
+        discount:Number(item.discount_percent??item.discount??0),
+      })) as PosCampaignLine[],campaignRows as any[],{
+        branchId:Number(point.branch_id),warehouseId:Number(point.main_warehouse_id),priceClassId:Number(point.price_category_id),
+      },Number.isNaN(saleTime.getTime())?new Date():saleTime):{items:[],invoiceDiscount:0,campaignId:0}
       const availableCurrencies=await getPosCurrencies(Number(point.currency_id))
       const pointRate=Number(availableCurrencies.find(row=>row.currency_id===Number(point.currency_id))?.exchange_rate)||1
       if(isReturn&&!point.allow_returns)return NextResponse.json({error:"المردودات غير مفعلة لهذه النقطة"},{status:400})
@@ -74,6 +88,22 @@ export async function POST(request: NextRequest) {
         await sql`UPDATE voucher_header_tbl SET pos_client_sale_id=${clientSaleId},pos_point_id=${pointId},pos_session_id=${Number(session.id)},shift_guid=${String(session.shift_guid)}::uuid WHERE id=${Number(saved.id)}`
         return response
       }
+      const invoiceItems=data.items.map((item:any,index:number)=>{
+        const displayedPrice=Number(item.price??item.unit_price??0)
+        const taxFactor=1+taxRate/100
+        const netPrice=taxRate>0?displayedPrice/taxFactor:displayedPrice
+        const quantity=Number(item.quantity??item.qnty??0)
+        const campaignDiscount=Number(campaignResult.items[index]?.campaign_discount||0)/taxFactor
+        const roundedPrice=Math.round(netPrice*10000)/10000
+        const regularDiscountPercent=Number(item.discount_percent??item.discount??0)
+        const savedCampaignDiscount=Math.round(campaignDiscount*10000)/10000
+        const effectiveDiscountPercent=combinedDiscountPercent(quantity,roundedPrice,regularDiscountPercent,savedCampaignDiscount)
+        return {...item,unit_price:roundedPrice,price:roundedPrice,discount:effectiveDiscountPercent,discount_percent:regularDiscountPercent,pos_discount_percent:regularDiscountPercent,campaign_discount:savedCampaignDiscount,campaign_id:campaignResult.items[index]?.campaign_id||null,total_price:Math.round(roundedPrice*quantity*100)/100,line_amount:Math.max(0,Math.round((roundedPrice*quantity*(1-regularDiscountPercent/100)-savedCampaignDiscount)*100)/100)}
+      })
+      const campaignTaxFactor=1+taxRate/100
+      const itemNetSubtotal=invoiceItems.reduce((sum:number,item:any)=>sum+Number(item.unit_price)*Number(item.quantity)*(1-Number(item.discount_percent??item.discount??0)/100)-Number(item.campaign_discount||0),0)
+      const manualInvoiceDiscount=itemNetSubtotal*Math.max(0,Number(data.discount_value||0))/100
+      const totalInvoiceDiscount=manualInvoiceDiscount+campaignResult.invoiceDiscount/campaignTaxFactor
       let payments=(Array.isArray(data.pos_payments)?data.pos_payments:[]).map((payment:any)=>{
         const method=String(payment.payment_method||payment.method||"cash")
         const configured:Record<string,number|null>={cash:Number(point.cash_account_id)||null,card:Number(point.card_account_id)||null,cheque:Number(point.cheque_account_id)||null,account:null,gift_card:Number(point.gift_account_id)||null}
@@ -112,7 +142,7 @@ export async function POST(request: NextRequest) {
         payment.currency_id=currencyId;payment.currency_amount=original;payment.exchange_rate=currency.rate_to_point
         payment.amount=Math.round(original*currency.rate_to_point*100)/100
       }
-      const accountIssue=validatePosAccounts(point,payments,{mode:String(data.pos_mode),taxAmount:Number(point.tax_percent),returnAccountIds:data.items.map((item:any)=>item.account_id),customerAccountId:data.account_id})
+      const accountIssue=validatePosAccounts(point,payments,{mode:String(data.pos_mode),taxAmount:taxRate,returnAccountIds:invoiceItems.map((item:any)=>item.account_id),customerAccountId:data.account_id})
       if(accountIssue)return NextResponse.json({error:accountIssue},{status:400})
       for(const payment of payments.filter((row:any)=>Number(row.amount)>0)){
         if(payment.payment_method==="account"){
@@ -135,9 +165,9 @@ export async function POST(request: NextRequest) {
         }
         if(payment.payment_method==="card"){
           const digits=String(payment.reference||"").replace(/[\s-]/g,"")
-          const cardTypeId=Number(payment.card_type_id),expiry=String(payment.card_expiry||"")
-          if(!/^\d{12,19}$/.test(digits)||!cardTypeId||!/^\d{4}-(0[1-9]|1[0-2])$/.test(expiry)||expiry<new Date().toISOString().slice(0,7))
-            return NextResponse.json({error:"بيانات البطاقة أو تاريخ انتهائها غير صالحة"},{status:400})
+          const cardTypeId=Number(payment.card_type_id)
+          if(!/^\d+$/.test(digits)||!cardTypeId)
+            return NextResponse.json({error:"رقم البطاقة أو نوعها غير صالح"},{status:400})
           if(!(await sql`SELECT id FROM credit_cards_types_tbl WHERE id=${cardTypeId} AND currency_id=${Number(point.currency_id)} AND COALESCE(status,1)=1`)[0])
             return NextResponse.json({error:"نوع البطاقة غير متاح"},{status:400})
           payment.reference=`****${digits.slice(-4)}`
@@ -161,10 +191,10 @@ export async function POST(request: NextRequest) {
         method: "POST",
         headers: request.headers,
         body: JSON.stringify({
-          ...data,vch_type:vchType,vch_code:vchCode,vch_book_id:vchBookId,branch_id:Number(point.branch_id),rate:pointRate,
+          ...data,discount_type:"amount",discount_value:Math.round(totalInvoiceDiscount*100)/100,campaign_discount_amount:Math.round(campaignResult.invoiceDiscount/campaignTaxFactor*100)/100,campaign_discount_id:campaignResult.campaignId,vch_type:vchType,vch_code:vchCode,vch_book_id:vchBookId,branch_id:Number(point.branch_id),rate:pointRate,
           currency_id:Number(point.currency_id),to_store_id:Number(point.main_warehouse_id),cash_account_id:Number(point.cash_account_id),
-          tax_account_id:Number(point.tax_account_id)||null,vat_percent:Number(point.tax_percent||0),pos_payments:payments,
-          items:data.items.map((item:any)=>({...item,account_id:isReturn?(point.return_account_id||item.account_id):item.account_id,warehouse_id:Number(point.main_warehouse_id),store_id:Number(point.main_warehouse_id)})),
+          tax_account_id:Number(point.tax_account_id)||null,vat_percent:taxRate,pos_payments:payments,
+          items:invoiceItems.map((item:any)=>({...item,account_id:isReturn?(point.return_account_id||item.account_id):item.account_id,warehouse_id:Number(point.main_warehouse_id),store_id:Number(point.main_warehouse_id)})),
         }),
       })
       const response=await createSalesVoucher(forwarded)
@@ -172,7 +202,7 @@ export async function POST(request: NextRequest) {
       const saved=await response.clone().json()
       const receipt=!isReturn&&needsPosReceipt(payments)?await createPosReceipt(request,saved,point,userId,payments):null
       await sql`UPDATE pos_sale_payments_tbl SET pos_point_id=${pointId},session_id=${Number(session.id)} WHERE voucher_id=${Number(saved.id)}`
-      await sql`UPDATE voucher_header_tbl SET pos_session_id=${Number(session.id)},shift_guid=${String(session.shift_guid)}::uuid WHERE id=${Number(saved.id)}`
+      await sql`UPDATE voucher_header_tbl SET pos_session_id=${Number(session.id)},shift_guid=${String(session.shift_guid)}::uuid,campaign_discount_amount=${Math.round(campaignResult.invoiceDiscount/campaignTaxFactor*100)/100},campaign_discount_id=${campaignResult.campaignId||null} WHERE id=${Number(saved.id)}`
       await sql`INSERT INTO pos_cashier_log_tbl(pos_point_id,session_id,user_id,movement_type,transaction_no,notes) VALUES(${pointId},${Number(session.id)},${Number(userId)},${String(data.cashier_action || (data.pos_mode === "return" ? "حفظ فاتورة" : "حفظ فاتورة"))},${String(saved.vch_code || "")},${String(data.note || "")})`
       for(const payment of payments.filter((p:any)=>p.payment_method==="cheque")){
         if(receipt){

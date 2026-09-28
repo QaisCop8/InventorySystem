@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
-import { ensurePosTables, getOpenPosSession, getPosPoint, requestBranchId, requestUserId } from "../_lib"
+import { ensurePosTables, getOpenPosSession, getPosPoint, requestUserId } from "../_lib"
 
 const errorText = (error: unknown, fallback: string) => error instanceof Error ? error.message : fallback
 
@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
     const pointId = Number(request.nextUrl.searchParams.get("point_id") || 0)
     const userId = requestUserId(request)
     if (!pointId || !userId) return NextResponse.json({ error: "نقطة البيع والمستخدم مطلوبان" }, { status: 400 })
-    const point = await getPosPoint(pointId, userId, requestBranchId(request))
+    const point = await getPosPoint(pointId, userId)
     if (!point) return NextResponse.json({ error: "نقطة البيع غير متاحة" }, { status: 403 })
     const rows = await sql`
       SELECT d.id,d.draft_code,d.customer_id,d.salesman_id,d.mode,d.note,d.discount_value,d.items,d.created_at,d.updated_at,
@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
     const pointId = Number(data.pos_point_id || 0)
     const userId = requestUserId(request)
     if (!pointId || !userId || !Array.isArray(data.items) || !data.items.length) return NextResponse.json({ error: "بيانات المسودة غير مكتملة" }, { status: 400 })
-    const point = await getPosPoint(pointId, userId, requestBranchId(request))
+    const point = await getPosPoint(pointId, userId)
     if (!point) return NextResponse.json({ error: "نقطة البيع غير متاحة" }, { status: 403 })
     const session = await getOpenPosSession(pointId, userId)
     if (!session) return NextResponse.json({ error: "يجب فتح العهدة قبل حفظ المسودة" }, { status: 400 })

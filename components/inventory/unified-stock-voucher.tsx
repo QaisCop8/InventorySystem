@@ -2465,7 +2465,8 @@ export default function UnifiedStockVoucher({
                   <DataGridView
                   allowSorting={false}
                     innerRef={chequeGridRef}
-                    style={{ height: "300px" }}
+                    style={{ height: "clamp(300px, 48dvh, 680px)", width: "100%" }}
+                    containerStyle={{ width: "100%", minWidth: 0 }}
                     scheme={scheme}
                     dataSource={itemsCollectionView}
                     idProperty="ser"

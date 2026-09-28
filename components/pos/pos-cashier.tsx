@@ -2,8 +2,10 @@
 
 import ConfirmDialogYesNo from "@/components/ui/ConfirmDialogYesNo"
 import { repricePosCart } from "@/lib/pos-customer-prices"
+import { applyPosCampaigns, type PosCampaign, type PosCampaignLine } from "@/lib/pos-campaigns"
 
 import "./pos-workspace.css"
+import "./pos-cashier-theme.css"
 import { posCartLineKey } from "@/lib/pos-cart"
 import { validatePosAccounts } from "@/lib/pos-account-validation"
 import { isScaleProduct, resolvePosBarcode } from "@/lib/scale-barcode"
@@ -28,16 +30,16 @@ import {currentPosTenantKey,listPosSales,loadPosCatalog,markPosSaleFailed,queueP
 
 type BarcodeOption={barcode:string;price:number;unitId:number|null;unitName:string}
 type Product={unitPrices?:{unitId:number|null;price:number}[];soldUsingScale:boolean;id:number;code:string;name:string;barcode:string;price:number;unitId:number|null;unitName:string;accountId:number|null;returnAccountId:number|null;category:string;image?:string;available:number;barcodeOptions:BarcodeOption[]}
-type CartLine=Product&{quantity:number;discount:number;gift:boolean;lineId?:string}
-type Customer={pricecategory?:number;id:number;name:string;code?:string;accountId:number|null}
+type CartLine=Product&{quantity:number;discount:number;gift:boolean;lineId?:string;campaign_discount?:number;campaign_id?:number|null}
+type Customer={pricecategory?:number;id:number;name:string;code?:string;mobile1?:string;address?:string;accountId:number|null}
 type Point=Record<string,any>&{id:number;name:string;code:string;warehouse_name:string;currency_name:string;currency_code:string}
 type Session=Record<string,any>&{id:number;expected_cash:number;opening_cash:number;payments?:any[];movements?:any[]}
 type Currency={currency_id:number;currency_code:string;currency_name:string;rate_to_point:number;exchange_rate:number}
-type Catalog={point:Point|null;products:Product[];customers:Customer[];salesmen?:PosParty[];currencies:Currency[];banks:PosParty[];bankBranches:(PosParty&{bank_id?:number})[];cardTypes:(PosParty&{currency_id:number})[];session:Session|null}
+type Catalog={point:Point|null;taxRate:number;receiptSettings:Record<string,string>;products:Product[];customers:Customer[];salesmen?:PosParty[];currencies:Currency[];banks:PosParty[];bankBranches:(PosParty&{bank_id?:number})[];cardTypes:(PosParty&{currency_id:number})[];campaigns?:PosCampaign[];session:Session|null}
 type PaymentKey="cash"|"card"|"cheque"|"account"|"gift_card"
 type Payment=PaymentDetail
-type Receipt={code:string;total:number;pending:boolean;lines:CartLine[];mode:"sale"|"return"|"gift"}|null
-const EMPTY:Catalog={point:null,products:[],customers:[],currencies:[],banks:[],bankBranches:[],cardTypes:[],session:null}
+type Receipt={code:string;total:number;pending:boolean;lines:CartLine[];mode:"sale"|"return"|"gift";date:string;customerName:string;customerPhone?:string;customerAddress?:string;note:string;subtotal:number;itemDiscount:number;invoiceDiscount:number;tax:number;payments:Payment[];refundAmount:number;currencyCode:string;pointName:string}|null
+const EMPTY:Catalog={point:null,taxRate:0,receiptSettings:{},products:[],customers:[],currencies:[],banks:[],bankBranches:[],cardTypes:[],campaigns:[],session:null}
 const round=(n:number)=>Math.round(n*100)/100
 const localDate=(date=new Date())=>{const pad=(value:number)=>String(value).padStart(2,"0");return `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())}`}
 const localDateTime=(date=new Date())=>{const pad=(value:number)=>String(value).padStart(2,"0");return `${localDate(date)} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`}
@@ -46,9 +48,21 @@ const makeId=()=>globalThis.crypto?.randomUUID?.()||`pos-${Date.now()}-${Math.ra
 const paymentLabels:Record<PaymentKey,string>={cash:"نقدي",card:"بطاقة",cheque:"شيك",account:"على الحساب",gift_card:"بطاقة هدية"}
 const paymentIcons:Record<PaymentKey,any>={cash:Banknote,card:CreditCard,cheque:WalletCards,account:UserRound,gift_card:Gift}
 const errorText=(d:any,f:string)=>String(d?.error||d?.message||f)
+const isMobilePrintDevice=()=>/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1)
+const escapeHtml=(value:unknown)=>String(value??"").replace(/[&<>"']/g,char=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[char]||char))
+const receiptHtml=(receipt:NonNullable<Receipt>,settings:Record<string,string>,cashierName:string,taxRate:number)=>{
+ const money=(value:number)=>Number(value||0).toFixed(2)
+ const items=receipt.lines.map((line,index)=>`<tr><td class="item"><span class="index">${index+1}</span><strong>${escapeHtml(line.name)}</strong><small>${escapeHtml(line.code)}${line.unitName?` · ${escapeHtml(line.unitName)}`:""}${Number(line.campaign_discount||0)>0?` · خصم حملة ${money(Number(line.campaign_discount))}`:""}</small></td><td>${money(line.quantity)}</td><td>${money(line.price)}</td><td>${line.discount?`${money(line.discount)}%`:"—"}</td><td class="amount">${money(line.price*line.quantity*(1-line.discount/100)-Number(line.campaign_discount||0))}</td></tr>`).join("")
+ const payments=receipt.payments.filter(row=>row.amount>0).map(row=>`<div class="payment"><span>${escapeHtml(paymentLabels[row.method]||row.method)}${row.reference?` · ${escapeHtml(row.reference)}`:""}</span><b>${money(row.amount)} ${escapeHtml(receipt.currencyCode)}</b></div>`).join("")
+ const logo=settings.company_logo?`<img class="logo" src="${escapeHtml(settings.company_logo)}" alt="">`:""
+ return `<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title></title><style>
+*{box-sizing:border-box}body{margin:0;padding:28px;background:#edf2f4;color:#172c37;font-family:"Segoe UI",Tahoma,Arial,sans-serif}.sheet{width:min(100%,760px);margin:auto;background:#fff;border:1px solid #dce5e9;border-radius:18px;overflow:hidden;box-shadow:0 16px 48px #18374718}.top{height:8px;background:linear-gradient(90deg,#10a889,#087f73,#174b5a)}.content{padding:30px}.brand{display:flex;align-items:center;justify-content:space-between;gap:20px;padding-bottom:22px;border-bottom:1px solid #e4ecef}.company{display:flex;align-items:center;gap:14px}.logo{max-width:88px;max-height:64px;object-fit:contain}.company h1{margin:0;font-size:20px}.company p,.meta small,.muted{margin:5px 0 0;color:#71838c;font-size:12px}.badge{padding:9px 13px;border-radius:999px;background:#e8f5f1;color:#087f73;font-size:12px;font-weight:700}.title{display:flex;align-items:end;justify-content:space-between;gap:20px;padding:22px 0}.title h2{margin:0;font-size:24px}.code{text-align:left}.code small{display:block;color:#71838c;font-size:11px}.code strong{font:700 18px Consolas,monospace;color:#087f73}.meta{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:20px}.meta>div{padding:12px;border:1px solid #e3eaed;border-radius:11px;background:#fafcfc}.meta b{display:block;margin-top:5px;font-size:13px}.table-wrap{overflow:auto;border:1px solid #dce5e9;border-radius:12px}table{width:100%;border-collapse:collapse;min-width:560px}th{padding:11px 12px;background:#173b49;color:white;text-align:right;font-size:11px}td{padding:12px;border-bottom:1px solid #e7edef;font-size:12px}tbody tr:nth-child(even){background:#f7fafb}.item strong,.item small{display:block}.item small{margin-top:4px;color:#71838c;font-size:10px}.index{display:inline-grid;place-items:center;width:22px;height:22px;margin-left:7px;border-radius:7px;background:#e7f4f0;color:#087f73;font-size:10px;font-weight:700}.amount{font-weight:700;white-space:nowrap}.summary{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:22px;margin-top:22px}.notes{padding:14px;border-radius:12px;background:#f5f8f9;color:#52666f;font-size:12px;line-height:1.8}.totals{padding:16px;border:1px solid #dce5e9;border-radius:13px}.total-row,.payment{display:flex;justify-content:space-between;gap:12px;padding:7px 0;font-size:12px}.total-row.sub{color:#61747d}.total-row.final{margin-top:8px;padding-top:13px;border-top:1px solid #dce5e9;color:#087f73;font-size:18px;font-weight:800}.payments{margin-top:12px;padding-top:10px;border-top:1px dashed #d5e1e5}.payments h3{margin:0 0 5px;font-size:11px}.footer{display:flex;justify-content:space-between;gap:12px;margin-top:24px;padding-top:14px;border-top:1px solid #e4ecef;color:#71838c;font-size:10px}.footer b{color:#087f73}@page{size:auto;margin:0}@media(max-width:600px){body{padding:0;background:white}.sheet{border:0;border-radius:0;box-shadow:none}.content{padding:18px}.meta{grid-template-columns:repeat(2,minmax(0,1fr))}.summary{grid-template-columns:1fr}.title h2{font-size:20px}}@media print{body{padding:0;background:#fff}.sheet{width:100%;border:0;border-radius:0;box-shadow:none}.content{padding:0}.top{height:5px}.footer{break-inside:avoid}}
+</style></head><body><main class="sheet"><div class="top"></div><div class="content"><header class="brand"><div class="company">${logo}<div><h1>${escapeHtml(settings.company_name||receipt.pointName)}</h1><p>${escapeHtml(settings.company_address||"")}${settings.company_phone?` · ${escapeHtml(settings.company_phone)}`:""}</p>${settings.company_email?`<p>${escapeHtml(settings.company_email)}</p>`:""}</div></div><span class="badge">${receipt.pending?"نسخة غير متصلة":"فاتورة نقطة بيع"}</span></header><section class="title"><div><p class="muted">${escapeHtml(receipt.pointName)}</p><h2>${receipt.mode==="return"?"إشعار مردود مبيعات":receipt.mode==="gift"?"سند إخراج هدية":"فاتورة مبيعات"}</h2></div><div class="code"><small>رقم الفاتورة</small><strong>${escapeHtml(receipt.code)}</strong></div></section><section class="meta"><div><small>التاريخ والوقت</small><b>${escapeHtml(receipt.date)}</b></div><div><small>العميل</small><b>${escapeHtml(receipt.customerName||"عميل نقدي")}</b></div><div><small>الكاشير</small><b>${escapeHtml(cashierName||"—")}</b></div>${settings.tax_number?`<div><small>الرقم الضريبي</small><b>${escapeHtml(settings.tax_number)}</b></div>`:""}<div><small>العملة</small><b>${escapeHtml(receipt.currencyCode)}</b></div></section><div class="table-wrap"><table><thead><tr><th>الصنف</th><th>الكمية</th><th>السعر شامل الضريبة</th><th>خصم الصنف</th><th>الإجمالي</th></tr></thead><tbody>${items}</tbody></table></div><section class="summary"><div class="notes">${receipt.note?`<b>ملاحظات</b><br>${escapeHtml(receipt.note)}`:"شكراً لتسوقكم معنا"}<p class="muted">الأسعار تشمل ضريبة القيمة المضافة.</p></div><div class="totals"><div class="total-row sub"><span>مجموع الأصناف</span><b>${money(receipt.subtotal)} ${escapeHtml(receipt.currencyCode)}</b></div><div class="total-row sub"><span>خصم الأصناف</span><b>− ${money(receipt.itemDiscount)} ${escapeHtml(receipt.currencyCode)}</b></div><div class="total-row sub"><span>خصم الفاتورة</span><b>− ${money(receipt.invoiceDiscount)} ${escapeHtml(receipt.currencyCode)}</b></div><div class="total-row sub"><span>ضريبة مضمّنة (${money(taxRate)}%)</span><b>${money(receipt.tax)} ${escapeHtml(receipt.currencyCode)}</b></div><div class="total-row final"><span>${receipt.mode==="return"?"المبلغ المسترد":"الإجمالي المستحق"}</span><strong>${money(receipt.total)} ${escapeHtml(receipt.currencyCode)}</strong></div>${payments?`<div class="payments"><h3>تفاصيل الدفع</h3>${payments}</div>`:""}</div></section><footer class="footer"><span>${escapeHtml(settings.company_name||receipt.pointName)}</span><b>${receipt.pending?"بانتظار المزامنة":"نسخة العميل"}</b></footer></div></main></body></html>`
+}
 
 export default function PosCashier(){
  const {user}=useAuth(),{toast}=useToast(),baseKey=useMemo(()=>currentPosTenantKey(user?.id),[user?.id]),searchRef=useRef<HTMLInputElement>(null),syncingRef=useRef(false),focusBarcodeAfterSaveRef=useRef(false)
+ const selectedPointRef=useRef<number|null>(null),initialPointResolutionRef=useRef(false)
  const [points,setPoints]=useState<Point[]>([]),[pointId,setPointId]=useState<number|null>(null),[catalog,setCatalog]=useState<Catalog>(EMPTY),[cart,setCart]=useState<CartLine[]>([]),[query,setQuery]=useState(""),[barcodeQuery,setBarcodeQuery]=useState(""),[category,setCategory]=useState("all"),[customerId,setCustomerId]=useState<number|null>(null),[mode,setMode]=useState<"sale"|"return"|"gift">("sale"),[note,setNote]=useState("")
  const [online,setOnline]=useState(true),[loading,setLoading]=useState(true),[syncing,setSyncing]=useState(false),[pendingCount,setPendingCount]=useState(0),[message,setMessage]=useState<{type:"success"|"error"|"info";text:string}|null>(null),[receipt,setReceipt]=useState<Receipt>(null)
  const [checkoutOpen,setCheckoutOpen]=useState(false),[payments,setPayments]=useState<Payment[]>([]),[cashTendered,setCashTendered]=useState(0),[saving,setSaving]=useState(false),[custodyOpen,setCustodyOpen]=useState(false),[custodyAction,setCustodyAction]=useState("open"),[custodyAmount,setCustodyAmount]=useState(0),[custodyNote,setCustodyNote]=useState(""),[pendingHandovers,setPendingHandovers]=useState<any[]>([]),[discountOpen,setDiscountOpen]=useState(false),[discountValue,setDiscountValue]=useState(0),[noteOpen,setNoteOpen]=useState(false),[historyOpen,setHistoryOpen]=useState(false),[historyRows,setHistoryRows]=useState<any[]>([]),[historyQuery,setHistoryQuery]=useState(""),[draftNoteOpen,setDraftNoteOpen]=useState(false),[draftNote,setDraftNote]=useState(""),[draftNoteError,setDraftNoteError]=useState(""),[draftQuery,setDraftQuery]=useState("")
@@ -61,6 +75,7 @@ export default function PosCashier(){
  const [movementAmounts,setMovementAmounts]=useState<Record<number,number>>({})
  const [activePointShift,setActivePointShift]=useState<{id:number;shift_guid?:string;user_name?:string}|null>(null)
  const [cashCurrencyAmounts,setCashCurrencyAmounts]=useState<Record<number,number>>({})
+ const [posCampaigns,setPosCampaigns]=useState<PosCampaign[]>([])
  const [checkoutError,setCheckoutError]=useState("")
  const [custodyError,setCustodyError]=useState("")
  const [selectedLineId,setSelectedLineId]=useState<string|null>(null),[quantityEntry,setQuantityEntry]=useState(""),[newSaleOpen,setNewSaleOpen]=useState(false)
@@ -68,6 +83,7 @@ export default function PosCashier(){
  const [visibleLimit,setVisibleLimit]=useState(180)
  const applyQuantity=()=>{const quantity=Number(quantityEntry);if(!Number.isFinite(quantity)||quantity<=0)return;setCart(lines=>lines.map(line=>posCartLineKey(line)===selectedLineId?{...line,quantity}:line))}
  const [noPoints,setNoPoints]=useState(false)
+ const [pointChooserOpen,setPointChooserOpen]=useState(false),[pointChooserBusy,setPointChooserBusy]=useState(false),[pointChooserError,setPointChooserError]=useState("")
  const [partyPicker,setPartyPicker]=useState<"customer"|"salesman"|null>(null),[salesmanId,setSalesmanId]=useState<number|null>(null)
  const [customerProducts,setCustomerProducts]=useState<Product[]|null>(null)
  const [pendingCustomer,setPendingCustomer]=useState<Customer|null>(null)
@@ -77,7 +93,9 @@ export default function PosCashier(){
  const productsForSale=customerProducts??catalog.products
  const point=catalog.point,session=catalog.session
  const logCashierAction=useCallback((movementType:string,transactionNo="",notes="")=>{if(!pointId)return;void fetch("/api/pos/cashier-log",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({pos_point_id:pointId,session_id:session?.id,movement_type:movementType,transaction_no:transactionNo,notes})}).catch(()=>{})},[pointId,session?.id])
- const subtotal=useMemo(()=>round(cart.reduce((s,l)=>s+l.price*l.quantity*(1-l.discount/100),0)),[cart]),invoiceDiscount=mode==="gift"?0:round(subtotal*discountValue/100),tax=mode==="gift"?0:round((subtotal-invoiceDiscount)*Number(point?.tax_percent||0)/100),total=mode==="gift"?0:round(subtotal-invoiceDiscount+tax)
+ const campaignResult=useMemo(()=>mode==="sale"?applyPosCampaigns(cart.map(line=>({...line,unit_id:line.unitId})) as PosCampaignLine[],posCampaigns,{branchId:Number(point?.branch_id||0),warehouseId:Number(point?.main_warehouse_id||0),priceClassId:Number(point?.price_category_id||0)}):{items:cart.map(line=>({...line,campaign_discount:0,campaign_id:null})),invoiceDiscount:0,campaignId:0},[cart,posCampaigns,point?.branch_id,point?.main_warehouse_id,point?.price_category_id,mode])
+ const campaignItems=campaignResult.items as unknown as CartLine[]
+ const subtotal=useMemo(()=>round(campaignResult.items.reduce((sum,line)=>sum+line.price*line.quantity*(1-line.discount/100)-Number(line.campaign_discount||0),0)),[campaignResult.items]),invoiceDiscount=mode==="gift"?0:round(subtotal*discountValue/100),total=mode==="gift"?0:round(subtotal-invoiceDiscount-campaignResult.invoiceDiscount),tax=mode==="gift"?0:round(total*catalog.taxRate/(100+catalog.taxRate))
  const allocated=round(payments.reduce((s,p)=>s+p.amount,0))
  const cashPayment=round(payments.find(p=>p.method==="cash")?.amount||0)
  const nonCashPaid=round(allocated-cashPayment)
@@ -88,9 +106,57 @@ export default function PosCashier(){
  const shown=useMemo(()=>{const t=query.trim().toLocaleLowerCase("ar");return productsForSale.filter(p=>(category==="all"||p.category===category)&&(!t||p.name.toLocaleLowerCase("ar").includes(t)))},[productsForSale,category,query])
  useEffect(()=>setVisibleLimit(180),[category,query,pointId])
  const updateQueue=useCallback(async()=>{try{setPendingCount((await listPosSales(baseKey)).length)}catch{setPendingCount(0)}},[baseKey])
- const normalize=(d:any):Catalog=>({point:d.point||null,session:d.session?{...d.session,expected_cash:Number(d.session.expected_cash||0),opening_cash:Number(d.session.opening_cash||0)}:null,products:(d.products||[]).map((r:any)=>({id:Number(r.id),code:String(r.product_code||""),name:String(r.product_name||"صنف"),soldUsingScale:isScaleProduct(r.pos_sold_using_scale),barcode:String(r.first_barcode||r.barcode||""),price:Number(r.first_price||0),unitId:Number(r.unit_id)||null,unitName:String(r.unit_name||""),accountId:Number(r.selling_account_id)||null,returnAccountId:Number(r.selling_returns_account_id)||null,category:String(r.category_name||"غير مصنف"),image:r.product_image?( /^(https?:|data:|\/)/i.test(String(r.product_image))?String(r.product_image):`data:image/bmp;base64,${r.product_image}`):undefined,available:Number(r.available_stock||0),unitPrices:(Array.isArray(r.unit_prices)?r.unit_prices:[]).map((option:any)=>({unitId:Number(option.unit_id)||null,price:Number(option.price||0)})),barcodeOptions:(Array.isArray(r.barcode_options)?r.barcode_options:[]).map((option:any)=>({barcode:String(option.barcode||""),price:Number(option.price||0),unitId:Number(option.unit_id)||null,unitName:String(option.unit_name||"")}))})),currencies:(d.currencies||[]).map((r:any)=>({currency_id:Number(r.currency_id),currency_code:String(r.currency_code||""),currency_name:String(r.currency_name||""),rate_to_point:Number(r.rate_to_point||1),exchange_rate:Number(r.exchange_rate||1)})),banks:(d.banks||[]).map((r:any)=>({id:Number(r.id),code:String(r.code||""),name:String(r.name||"")})),bankBranches:(d.bankBranches||[]).map((r:any)=>({id:Number(r.id),bank_id:Number(r.bank_id)||undefined,code:String(r.code||""),name:String(r.name||"")})),cardTypes:(d.cardTypes||[]).filter((r:any)=>Number(r.currency_id)===Number(d.point?.currency_id)).map((r:any)=>({id:Number(r.id),name:String(r.name||""),currency_id:Number(r.currency_id)})),salesmen:(d.salesmen||[]).map((r:any)=>({id:Number(r.id),code:String(r.code||""),name:String(r.name||"")})),customers:(d.customers||[]).map((r:any)=>({id:Number(r.id),name:String(r.name||""),code:String(r.code||""),accountId:Number(r.account_id)||null,pricecategory:Number(r.pricecategory)||undefined}))})
- const loadPoints=useCallback(async()=>{if(!navigator.onLine){const last=Number(localStorage.getItem(`${baseKey}:last-point`)||0);if(last)setPointId(last);return}try{const r=await fetch("/api/pos/points",{cache:"no-store"}),d=await r.json();if(!r.ok)throw new Error(d.error);setPoints(d.points||[]);setNoPoints(!d.points?.length);if(!d.points?.length){setCatalog(EMPTY);setLoading(false);setCustodyOpen(false)}const saved=Number(localStorage.getItem(`${baseKey}:last-point`)||0),next=(d.points||[]).find((p:any)=>p.id===saved)?.id||d.points?.[0]?.id||null;setPointId(next)}catch(e){setMessage({type:"error",text:e instanceof Error?e.message:"تعذر تحميل نقاط البيع"})}},[baseKey])
- const loadCatalogData=useCallback(async()=>{if(!pointId)return;setLoading(true);const key=`${baseKey}:point:${pointId}`,cached=await loadPosCatalog<Catalog>(key).catch(()=>null);if(cached?.catalog)setCatalog(cached.catalog);if(!navigator.onLine){if(!cached)setMessage({type:"error",text:"افتح نقطة البيع مرة أثناء الاتصال لتنزيل أصناف المخزن الرئيسي"});setLoading(false);return}try{const r=await fetch(`/api/pos/catalog?point_id=${pointId}`,{cache:"no-store"}),d=await r.json();if(!r.ok)throw new Error(d.error);const next=normalize(d);setCatalog(next);await savePosCatalog(key,next);localStorage.setItem(`${baseKey}:last-point`,String(pointId));setMessage(null)}catch(e){if(!cached)setMessage({type:"error",text:e instanceof Error?e.message:"تعذر تحميل الكاشير"})}finally{setLoading(false)}},[baseKey,pointId])
+ const normalize=(d:any):Catalog=>({point:d.point||null,taxRate:Math.max(0,Number(d.tax_rate||0)),receiptSettings:d.receiptSettings||{},session:d.session?{...d.session,expected_cash:Number(d.session.expected_cash||0),opening_cash:Number(d.session.opening_cash||0)}:null,products:(d.products||[]).map((r:any)=>({id:Number(r.id),code:String(r.product_code||""),name:String(r.product_name||"صنف"),soldUsingScale:isScaleProduct(r.pos_sold_using_scale),barcode:String(r.first_barcode||r.barcode||""),price:Number(r.first_price||0),unitId:Number(r.unit_id)||null,unitName:String(r.unit_name||""),accountId:Number(r.selling_account_id)||null,returnAccountId:Number(r.selling_returns_account_id)||null,category:String(r.category_name||"غير مصنف"),image:r.product_image?( /^(https?:|data:|\/)/i.test(String(r.product_image))?String(r.product_image):`data:image/bmp;base64,${r.product_image}`):undefined,available:Number(r.available_stock||0),unitPrices:(Array.isArray(r.unit_prices)?r.unit_prices:[]).map((option:any)=>({unitId:Number(option.unit_id)||null,price:Number(option.price||0)})),barcodeOptions:(Array.isArray(r.barcode_options)?r.barcode_options:[]).map((option:any)=>({barcode:String(option.barcode||""),price:Number(option.price||0),unitId:Number(option.unit_id)||null,unitName:String(option.unit_name||"")}))})),currencies:(d.currencies||[]).map((r:any)=>({currency_id:Number(r.currency_id),currency_code:String(r.currency_code||""),currency_name:String(r.currency_name||""),rate_to_point:Number(r.rate_to_point||1),exchange_rate:Number(r.exchange_rate||1)})),banks:(d.banks||[]).map((r:any)=>({id:Number(r.id),code:String(r.code||""),name:String(r.name||"")})),bankBranches:(d.bankBranches||[]).map((r:any)=>({id:Number(r.id),bank_id:Number(r.bank_id)||undefined,code:String(r.code||""),name:String(r.name||"")})),cardTypes:(d.cardTypes||[]).filter((r:any)=>Number(r.currency_id)===Number(d.point?.currency_id)).map((r:any)=>({id:Number(r.id),name:String(r.name||""),currency_id:Number(r.currency_id)})),salesmen:(d.salesmen||[]).map((r:any)=>({id:Number(r.id),code:String(r.code||""),name:String(r.name||"")})),customers:(d.customers||[]).map((r:any)=>({id:Number(r.id),name:String(r.name||""),code:String(r.code||""),accountId:Number(r.account_id)||null,pricecategory:Number(r.pricecategory)||undefined}))})
+ const validatePointShift=useCallback(async(selectedPoint:Point)=>{
+  if(!navigator.onLine)throw new Error("يجب الاتصال بالإنترنت للتحقق من الوردية المفتوحة على نقطة البيع")
+  const response=await fetch(`/api/pos/sessions?point_id=${selectedPoint.id}`,{cache:"no-store"})
+  const data=await response.json()
+  if(!response.ok)throw new Error(errorText(data,"تعذر التحقق من عهدة نقطة البيع"))
+  if(data.session)return data
+  const activeShift=data.active_shift
+  if(activeShift&&Number(activeShift.user_id)!==Number(user?.id)){
+    const owner=String(activeShift.user_name||"مستخدم آخر")
+    throw new Error(`توجد وردية مفتوحة بالفعل على نقطة البيع باسم ${owner}. يجب إغلاقها أو تسليم عهدتها قبل فتح وردية جديدة.`)
+  }
+  return data
+ },[user?.id])
+ const choosePoint=useCallback(async(selectedPoint:Point)=>{
+  setPointChooserBusy(true);setPointChooserError("")
+  try{
+   const data=await validatePointShift(selectedPoint)
+   selectedPointRef.current=selectedPoint.id
+   setPointId(selectedPoint.id)
+   setPointChooserOpen(false)
+   if(data.session){setCatalog(current=>({...current,session:data.session}));setPendingHandovers(data.pending||[])}
+  }catch(error){
+   const text=error instanceof Error?error.message:"تعذر التحقق من نقطة البيع"
+   if(pointChooserOpen)setPointChooserError(text)
+   else setMessage({type:"error",text})
+  }finally{setPointChooserBusy(false)}
+ },[pointChooserOpen,validatePointShift])
+ const loadPoints=useCallback(async()=>{
+  if(!navigator.onLine){setMessage({type:"error",text:"اتصل بالإنترنت لاختيار نقطة البيع والتحقق من العهدة"});return}
+  try{
+   const response=await fetch("/api/pos/points",{cache:"no-store"}),data=await response.json()
+   if(!response.ok)throw new Error(errorText(data,"تعذر تحميل نقاط البيع"))
+   const availablePoints:Point[]=data.points||[]
+   setPoints(availablePoints);setNoPoints(!availablePoints.length)
+  if(selectedPointRef.current&&!availablePoints.some(point=>point.id===selectedPointRef.current)){
+   selectedPointRef.current=null;initialPointResolutionRef.current=false;setPointId(null);setCatalog(EMPTY)
+  }
+  if(!availablePoints.length){selectedPointRef.current=null;initialPointResolutionRef.current=false;setPointId(null);setCatalog(EMPTY);setLoading(false);setCustodyOpen(false);return}
+   if(initialPointResolutionRef.current||selectedPointRef.current)return
+   initialPointResolutionRef.current=true
+   const sessions=await Promise.all(availablePoints.map(async(point)=>{
+    try{const result=await fetch(`/api/pos/sessions?point_id=${point.id}`,{cache:"no-store"}),payload=await result.json();return result.ok?{point,payload}:null}catch{return null}
+   }))
+   const ownSession=sessions.find(entry=>entry?.payload.session)
+   if(ownSession){selectedPointRef.current=ownSession.point.id;setPointId(ownSession.point.id);setCatalog(current=>({...current,session:ownSession.payload.session}));setPendingHandovers(ownSession.payload.pending||[]);return}
+   if(availablePoints.length>1){setPointChooserError("");setPointChooserOpen(true);return}
+   await choosePoint(availablePoints[0])
+  }catch(error){setMessage({type:"error",text:error instanceof Error?error.message:"تعذر تحميل نقاط البيع"})}
+ },[baseKey,choosePoint,user?.id])
+ const loadCatalogData=useCallback(async()=>{if(!pointId)return;setLoading(true);const key=`${baseKey}:point:${pointId}`,cached=await loadPosCatalog<Catalog>(key).catch(()=>null);if(cached?.catalog){setCatalog(cached.catalog);setPosCampaigns(cached.catalog.campaigns||[])}if(!navigator.onLine){if(!cached)setMessage({type:"error",text:"افتح نقطة البيع مرة أثناء الاتصال لتنزيل أصناف المخزن الرئيسي"});setLoading(false);return}try{const r=await fetch(`/api/pos/catalog?point_id=${pointId}`,{cache:"no-store"}),d=await r.json();if(!r.ok)throw new Error(d.error);const next={...normalize(d),campaigns:d.campaigns||[]};setCatalog(next);setPosCampaigns(next.campaigns||[]);await savePosCatalog(key,next);localStorage.setItem(`${baseKey}:last-point`,String(pointId));setMessage(null)}catch(e){if(!cached)setMessage({type:"error",text:e instanceof Error?e.message:"تعذر تحميل الكاشير"})}finally{setLoading(false)}},[baseKey,pointId])
  const loadSession=useCallback(async()=>{if(!pointId||!navigator.onLine)return;try{const r=await fetch(`/api/pos/sessions?point_id=${pointId}`,{cache:"no-store"}),d=await r.json();if(r.ok){setCatalog(c=>({...c,session:d.session||null}));setPendingHandovers(d.pending||[]);setActivePointShift(d.active_shift||null);return d}}catch{}},[pointId])
  const syncPending=useCallback(async()=>{if(!navigator.onLine||syncingRef.current)return;syncingRef.current=true;setSyncing(true);try{for(const sale of await listPosSales(baseKey)){try{const r=await fetch("/api/pos/sales",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(sale.payload)}),d=await r.json();if(!r.ok){await markPosSaleFailed(sale,errorText(d,"فشلت المزامنة"));continue}await removePosSale(sale.id)}catch(e){await markPosSaleFailed(sale,e instanceof Error?e.message:"انقطع الاتصال");break}}await updateQueue();await loadSession()}finally{syncingRef.current=false;setSyncing(false)}},[baseKey,loadSession,updateQueue])
  useEffect(()=>{setOnline(navigator.onLine);void loadPoints();void updateQueue();const on=()=>{setOnline(true);void syncPending();void loadPoints()},off=()=>setOnline(false);addEventListener("online",on);addEventListener("offline",off);return()=>{removeEventListener("online",on);removeEventListener("offline",off)}},[loadPoints,syncPending,updateQueue])
@@ -128,6 +194,7 @@ export default function PosCashier(){
    const data=await response.json()
    if(!response.ok)throw new Error(data.error||"تعذر تحميل أسعار العميل")
    const nextProducts=normalize(data).products
+   setPosCampaigns(data.campaigns || [])
    const nextCart=repricePosCart(cart,nextProducts)
    if(requestId!==pricingRequestRef.current)return
    setCart(nextCart);setCustomerProducts(nextProducts);setCustomerId(customer.id);setPendingCustomer(null)
@@ -167,9 +234,9 @@ export default function PosCashier(){
  const updateCashCurrency=(currencyId:number,value:number)=>{const next={...cashCurrencyAmounts,[currencyId]:Math.max(0,round(value))};setCashCurrencyAmounts(next);const evaluated=round(catalog.currencies.reduce((sum,row)=>sum+round((next[row.currency_id]||0)*row.rate_to_point),0));setPay("cash",evaluated);setCashTendered(evaluated);setCheckoutError("")}
  const updatePayment=(method:PaymentKey,value:number,reference?:string,currencyId?:number)=>{setPayments(rows=>{const exists=rows.find(p=>p.method===method),chosen=currencyId||exists?.currency_id||Number(point?.currency_id),currency=catalog.currencies.find(row=>row.currency_id===chosen),original=Math.max(0,round(value)),next:Payment={...exists,method,amount:round(original*(currency?.rate_to_point||1)),currency_id:chosen,currency_amount:original,reference:reference??exists?.reference??"",due_date:exists?.due_date};return exists?rows.map(p=>p.method===method?next:p):[...rows,next]})}
  const updatePaymentField=(method:PaymentKey,field:keyof Payment,value:string|number)=>{setPayments(rows=>{const existing=rows.find(row=>row.method===method),next={method,amount:0,reference:"",...existing,[field]:value} as Payment;return existing?rows.map(row=>row.method===method?next:row):[...rows,next]});setCheckoutError("")}
- const buildPayload=(id:string)=>{const customer=catalog.customers.find(c=>c.id===customerId);return {pos_client_sale_id:id,pos_point_id:pointId,pos_session_id:session?.id,pos_customer_id:customerId,pos_mode:mode,cashier_action:editingInvoiceId?"تعديل فاتورة":"حفظ فاتورة",salesman_id:salesmanId,vch_date:localDateTime(),manual_date:today(),due_date:today(),account_id:customer?.accountId||null,customer_name:customer?.name||"عميل نقدي",rate:Number(point?.exchange_rate||1),discount_type:"percentage",discount_value:discountValue,vat_classification_id:1,invoice_type:1,vat_included:false,is_maqasa:false,status:2,note:note||`${mode==="return"?"مردود":mode==="gift"?"هدية":"فاتورة"} من نقطة البيع ${point?.name||""}`,insert_user:Number(user?.id)||null,pos_payments:payments.filter(p=>p.amount>0).map(p=>p.method==="cash"&&cashChangeAllowed?{...p,amount:round(p.amount-change),currency_amount:round(p.amount-change)}:p).filter(p=>p.amount>0),cash_currency_amounts:cashChangeAllowed?[{currency_id:Number(point?.currency_id),amount:round(cashPayment-change)}].filter(row=>row.amount>0):catalog.currencies.filter(row=>(cashCurrencyAmounts[row.currency_id]||0)>0).map(row=>({currency_id:row.currency_id,amount:cashCurrencyAmounts[row.currency_id]})),items:cart.map(l=>({product_id:l.id,item_id:l.id,product_code:l.code,product_name:l.name,item_name:l.name,barcode:l.barcode,unit_id:l.unitId,unit_name:l.unitName,unit:l.unitName,quantity:l.quantity,qnty:l.quantity,unit_price:l.price,price:l.price,discount_percent:l.discount,discount:l.discount,total_price:round(l.price*l.quantity*(1-l.discount/100)),line_amount:round(l.price*l.quantity*(1-l.discount/100)),account_id:mode==="return"?(point?.return_account_id||l.returnAccountId):l.accountId,available_stock:l.available}))}}
+ const buildPayload=(id:string)=>{const customer=catalog.customers.find(c=>c.id===customerId);return {pos_client_sale_id:id,pos_point_id:pointId,pos_session_id:session?.id,pos_customer_id:customerId,pos_mode:mode,cashier_action:editingInvoiceId?"تعديل فاتورة":"حفظ فاتورة",salesman_id:salesmanId,vch_date:localDateTime(),manual_date:today(),due_date:today(),account_id:customer?.accountId||null,customer_name:customer?.name||"عميل نقدي",rate:Number(point?.exchange_rate||1),discount_type:"percentage",discount_value:discountValue,vat_percent:catalog.taxRate,vat_classification_id:1,invoice_type:1,vat_included:false,is_maqasa:false,status:2,note:note||`${mode==="return"?"مردود":mode==="gift"?"هدية":"فاتورة"} من نقطة البيع ${point?.name||""}`,insert_user:Number(user?.id)||null,pos_payments:payments.filter(p=>p.amount>0).map(p=>p.method==="cash"&&cashChangeAllowed?{...p,amount:round(p.amount-change),currency_amount:round(p.amount-change)}:p).filter(p=>p.amount>0),cash_currency_amounts:cashChangeAllowed?[{currency_id:Number(point?.currency_id),amount:round(cashPayment-change)}].filter(row=>row.amount>0):catalog.currencies.filter(row=>(cashCurrencyAmounts[row.currency_id]||0)>0).map(row=>({currency_id:row.currency_id,amount:cashCurrencyAmounts[row.currency_id]})),items:campaignItems.map(l=>({product_id:l.id,item_id:l.id,product_code:l.code,product_name:l.name,item_name:l.name,barcode:l.barcode,unit_id:l.unitId,unit_name:l.unitName,unit:l.unitName,quantity:l.quantity,qnty:l.quantity,unit_price:l.price,price:l.price,discount_percent:l.discount,discount:l.discount,campaign_discount:Number(l.campaign_discount||0),campaign_id:l.campaign_id,total_price:round(l.price*l.quantity*(1-l.discount/100)-Number(l.campaign_discount||0)),line_amount:round(l.price*l.quantity*(1-l.discount/100)-Number(l.campaign_discount||0)),account_id:mode==="return"?(point?.return_account_id||l.returnAccountId):l.accountId,available_stock:l.available}))}}
  const paymentIssue=()=>{
-  const accountIssue=point&&validatePosAccounts(point,payments,{mode,taxAmount:tax,returnAccountIds:cart.map(line=>line.returnAccountId),customerAccountId:customerId})
+  const accountIssue=point&&validatePosAccounts(point,payments,{mode,taxAmount:catalog.taxRate,returnAccountIds:cart.map(line=>line.returnAccountId),customerAccountId:customerId})
   if(accountIssue)return accountIssue
   if(catalog.currencies.some(row=>{const value=cashCurrencyAmounts[row.currency_id];return value!==undefined&&(!Number.isFinite(value)||value<0||Math.abs(value*100-Math.round(value*100))>0.000001)}))return"مبلغ النقد يجب أن يكون موجباً وبدقتين عشريتين"
   for(const payment of payments.filter(row=>row.amount>0)){
@@ -184,8 +251,7 @@ export default function PosCashier(){
    }
    if(payment.method==="card"){
     if(!payment.card_type_id)return"اختر نوع البطاقة"
-    if(!/^\d{12,19}$/.test(payment.reference.replace(/[\s-]/g,"")))return"رقم البطاقة يجب أن يتكون من 12 إلى 19 رقماً"
-    if(!payment.card_expiry||payment.card_expiry<today().slice(0,7))return"تاريخ انتهاء البطاقة غير صالح"
+    if(!/^\d+$/.test(payment.reference.replace(/[\s-]/g,"")))return"أدخل رقم البطاقة"
    }
    if(payment.method==="account"&&!customerId)return"اختر العميل للدفع على الحساب"
    if(payment.method==="gift_card"&&!payment.reference.trim())return"رقم بطاقة الهدية مطلوب"
@@ -193,13 +259,214 @@ export default function PosCashier(){
   return null
  }
  const validate=()=>{if(mode==="return"&&payments.some(p=>p.amount>0&&p.method!=="cash"&&p.method!=="account"))return"المردودات متاحة نقداً أو على الذمة فقط";if(!point)return"اختر نقطة بيع";if(!session)return"يجب فتح عهدة";if(!cart.length)return"السلة فارغة";if(cart.some(line=>!Number.isFinite(line.discount)||line.discount<0||line.discount>Math.min(100,Math.max(0,Number(point.max_discount_percent??100)))||line.price*line.quantity*line.discount/100>line.price*line.quantity+0.009))return"خصم الصنف يجب ألا يتجاوز قيمته أو 100%";if(mode==="gift"){if(!point.allow_gifts)return"الهدايا غير مفعلة لهذه النقطة";if(cart.some(l=>l.quantity>l.available))return"كمية الهدية أكبر من الرصيد المتاح";return null}if(total<=0)return"لا يمكن حفظ فاتورة بإجمالي صفر";if(cashTendered<(payments.find(p=>p.method==="cash")?.amount||0))return"المبلغ النقدي المستلم أقل من الدفعة النقدية";const issue=paymentIssue();if(issue)return issue;if(allocated<total-.009)return"مجموع تفاصيل الدفع أقل من إجمالي الفاتورة";if(allocated>total+.009&&!cashChangeAllowed)return"الزيادة على إجمالي الفاتورة مسموحة للنقد بعملة نقطة البيع فقط";if(payments.some(p=>p.amount>0&&p.method==="cheque"&&!p.reference.trim()))return"رقم الشيك مطلوب";if(payments.some(p=>p.amount>0&&p.method==="gift_card"&&!p.reference.trim()))return"رقم بطاقة الهدية مطلوب";if(payments.some(p=>p.amount>0&&p.method==="account")&&!customerId)return"اختر العميل للدفع على الحساب";if(cart.some(l=>!(mode==="return"?(point.return_account_id||l.returnAccountId):l.accountId)))return mode==="return"?"يوجد صنف بلا حساب مردود مبيعات":"يوجد صنف بلا حساب مبيعات";return null}
- const finish=async()=>{if(pricingBusy)return;const v=validate();if(v){setCheckoutError(v);return}if(editingInvoiceId&&!navigator.onLine){setCheckoutError("تعديل الفاتورة يحتاج اتصالاً بالخادم");return}setSaving(true);const id=makeId(),payload=buildPayload(id),snapshot=cart.map(x=>({...x})),queued:PosQueuedSale={id,tenantKey:baseKey,createdAt:new Date().toISOString(),payload,attempts:0};let completed=false;try{if(!navigator.onLine)throw new TypeError("offline");if(editingInvoiceId){const remove=await fetch(`/api/pos/history?point_id=${pointId}&id=${editingInvoiceId}`,{method:"DELETE"}),removed=await remove.json();if(!remove.ok)throw new Error(errorText(removed,"تعذر إلغاء الفاتورة القديمة"))}const r=await fetch("/api/pos/sales",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)}),d=await r.json();if(!r.ok){setCheckoutError(errorText(d,"فشل الحفظ"));return}setReceipt({code:String(d.vch_code||""),total,pending:false,lines:snapshot,mode});setMessage({type:"success",text:`تم ${editingInvoiceId?"تعديل":"حفظ"} ${mode==="return"?"المردود":mode==="gift"?"الهدية":"الفاتورة"} ${d.vch_code||""}`});completed=true;await loadSession()}catch(e){if(!(e instanceof TypeError)&&navigator.onLine){setCheckoutError(e instanceof Error?e.message:"فشل الحفظ");return}if(!point?.allow_offline){setCheckoutError("العمل دون اتصال غير مسموح لهذه النقطة");return}await queuePosSale(queued);await updateQueue();setReceipt({code:`OFF-${id.slice(0,8).toUpperCase()}`,total,pending:true,lines:snapshot,mode});setMessage({type:"info",text:"حُفظت العملية على الجهاز وستُزامن تلقائيًا"});completed=true}finally{setSaving(false)}if(completed){setCart([]);setEditingInvoiceId(null);setEditingDraftId(null);focusBarcodeAfterSaveRef.current=true;setCheckoutOpen(false);setMode("sale");resetTransaction();if(pendingActionRef.current){setReceipt(null);resumeTransactionAction()}}}
+ const makeReceiptSnapshot=(code:string,pending:boolean,lines:CartLine[]):NonNullable<Receipt>=>{const customer=catalog.customers.find(row=>row.id===customerId);return {code,total,pending,lines,mode,date:localDateTime(),customerName:customer?.name||"عميل نقدي",customerPhone:customer?.mobile1,customerAddress:customer?.address,note,subtotal:lines.reduce((sum,line)=>sum+line.price*line.quantity,0),itemDiscount:lines.reduce((sum,line)=>sum+line.price*line.quantity*line.discount/100+Number(line.campaign_discount||0),0),invoiceDiscount:invoiceDiscount+campaignResult.invoiceDiscount,tax,payments:payments.filter(payment=>payment.amount>0),refundAmount:change,currencyCode:point?.currency_code||"",pointName:point?.name||"نقطة البيع"}}
+ const printReceiptDirect=async(receiptData:NonNullable<Receipt>,browserPrintWindow:Window|null=null)=>{
+  if(!point?.print_invoices)return
+  if(isMobilePrintDevice()){
+   if(!browserPrintWindow){setMessage({type:"error",text:"تعذر فتح صفحة الطباعة. اسمح بالنوافذ المنبثقة لهذا الموقع ثم أعد المحاولة."});return}
+   const printDocument=browserPrintWindow.document
+   printDocument.open()
+   printDocument.write(receiptHtml(receiptData,catalog.receiptSettings,user?.fullName||user?.username||"",catalog.taxRate))
+   printDocument.close()
+  const thermalPrintStyles=printDocument.createElement("style")
+  thermalPrintStyles.media="print"
+  thermalPrintStyles.textContent=`
+   @page{size:80mm auto;margin:0}
+   *,*::before,*::after{box-sizing:border-box!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+   html,body{width:80mm!important;min-width:80mm!important;max-width:80mm!important;margin:0!important;padding:0!important;background:#fff!important}
+   body{font-family:Arial,Tahoma,sans-serif!important}
+   .sheet{width:80mm!important;min-width:80mm!important;max-width:80mm!important;margin:0!important;border:0!important;border-radius:0!important;box-shadow:none!important;overflow:visible!important}
+   .content{padding:3mm!important}
+   .top{height:2mm!important}
+   .brand{gap:2mm!important;padding-bottom:3mm!important}
+   .company{min-width:0!important;gap:2mm!important}
+   .logo{max-width:16mm!important;max-height:13mm!important}
+   .company h1{font-size:13px!important;overflow-wrap:anywhere!important}
+   .company p,.meta small,.muted{font-size:9px!important}
+   .badge{padding:1.5mm!important;font-size:8px!important}
+   .title{gap:2mm!important;padding:3mm 0!important}
+   .title h2{font-size:15px!important}
+   .code strong{font-size:12px!important;overflow-wrap:anywhere!important}
+   .meta{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:1.5mm!important;margin-bottom:3mm!important}
+   .meta>div{min-width:0!important;padding:1.5mm!important;border-radius:1mm!important}
+   .meta b{font-size:10px!important;overflow-wrap:anywhere!important}
+   .table-wrap{overflow:visible!important;border-radius:1mm!important}
+   table{width:100%!important;min-width:0!important;table-layout:fixed!important}
+   th,td{padding:1.5mm 0.8mm!important;font-size:8px!important;overflow-wrap:anywhere!important}
+   th{font-size:7px!important}
+   .item strong{font-size:9px!important}
+   .item small{font-size:7px!important}
+   .index{width:5mm!important;height:5mm!important;margin-left:1mm!important}
+   .summary{grid-template-columns:1fr!important;gap:2mm!important;margin-top:3mm!important}
+   .notes,.totals{min-width:0!important;padding:2.5mm!important;border-radius:1mm!important}
+   .total-row{font-size:10px!important}
+   .total-row b{font-size:10px!important}
+   .footer{gap:2mm!important;margin-top:3mm!important;padding-top:2mm!important;font-size:8px!important;overflow-wrap:anywhere!important}
+  `
+  printDocument.head.appendChild(thermalPrintStyles)
+   browserPrintWindow.document.title=""
+   browserPrintWindow.focus()
+   window.setTimeout(()=>browserPrintWindow.print(),400)
+   return
+  }
+  const socket=new WebSocket("ws://localhost:32999/cashier")
+  const commands:Array<Record<string,string|number>>=[]
+  const text=(value:string,x:number,y:number,width:number,height:number,fontSize=9,textFormat=1,fontStyle=0,brush=2)=>commands.push({type:6,text:value,fontFamilyName:"Arial",fontSize,fontStyle,brush,x,y,width,height,textFormat})
+  const line=(x1:number,y1:number,x2:number,y2:number,brush=3)=>commands.push({type:5,x:x1,y:y1,width:x2,height:y2,brush})
+  const box=(x:number,y:number,width:number,height:number,brush=3)=>commands.push({type:3,x,y,width,height,brush})
+  const fill=(x:number,y:number,width:number,height:number)=>commands.push({type:4,x,y,width,height,brush:3})
+  const sectionTitle=(label:string)=>{fill(left,y,fullWidth,20);text(label,left+4,y+1,fullWidth-8,18,9,1,1);y+=23}
+  const money=(value:number)=>Number(value||0).toFixed(2)
+  let y=8
+  const left=18,right=297,fullWidth=right-left
+  const title=receiptData.mode==="return"?"إشعار مردود مبيعات":receiptData.mode==="gift"?"سند إخراج هدية":"فاتورة مبيعات"
+  const logo=catalog.receiptSettings.company_logo
+  if(logo)commands.push({type:1,image:logo,x:right-36,y:y,width:32,height:32})
+  const brandWidth=fullWidth-(logo?40:0)
+  text(catalog.receiptSettings.company_name||receiptData.pointName,left,y,brandWidth,18,11,1,1)
+  y+=19
+  const companyInfo=[catalog.receiptSettings.company_address,catalog.receiptSettings.company_phone].filter(Boolean).join(" | ")
+  if(companyInfo){text(companyInfo,left,y,brandWidth,13,7,1);y+=13}
+  if(catalog.receiptSettings.company_email){text(catalog.receiptSettings.company_email,left,y,brandWidth,13,7,1);y+=13}
+  y=Math.max(y,logo?41:25)
+  line(left,y,right,y,3);y+=5
+  fill(left,y,fullWidth,25)
+  text(title,left+5,y+3,fullWidth-10,19,12,1,1);y+=30
+
+  const cardGap=4,cardWidth=Math.floor((fullWidth-cardGap*2)/3)
+  const dateCardX=left+cardWidth*2+cardGap*2,customerCardX=left+cardWidth+cardGap
+  const card=(label:string,value:string,x:number,width:number)=>{
+   box(x,y,width,31,3)
+   text(label,x+3,y+2,width-6,10,6,1,0,3)
+   text(value,x+3,y+13,width-6,15,8,1,1)
+  }
+  card("التاريخ والوقت",receiptData.date,dateCardX,cardWidth)
+  card("العميل",receiptData.customerName||"عميل نقدي",customerCardX,cardWidth)
+  card("الكاشير",user?.fullName||user?.username||"—",left,cardWidth)
+  y+=35
+  if(receiptData.customerPhone){box(left,y,cardWidth,28,3);text("الهاتف",left+3,y+2,cardWidth-6,9,6,1,0,3);text(receiptData.customerPhone,left+3,y+12,cardWidth-6,13,7,1,1)}
+  if(catalog.receiptSettings.tax_number){const taxX=left+cardWidth+cardGap;box(taxX,y,cardWidth,28,3);text("الرقم الضريبي",taxX+3,y+2,cardWidth-6,9,6,1,0,3);text(catalog.receiptSettings.tax_number,taxX+3,y+12,cardWidth-6,13,7,1,1)}
+  const codeX=right-cardWidth
+  box(codeX,y,cardWidth,28,3);text("رقم الفاتورة",codeX+3,y+2,cardWidth-6,9,6,1,0,3);text(receiptData.code,codeX+3,y+12,cardWidth-6,13,8,0,1)
+  y+=32
+
+  const itemWidth=112,quantityWidth=34,priceWidth=43,discountWidth=38,amountWidth=fullWidth-itemWidth-quantityWidth-priceWidth-discountWidth
+  const itemX=right-itemWidth,quantityX=itemX-quantityWidth,priceX=quantityX-priceWidth,discountX=priceX-discountWidth,amountX=left
+  fill(left,y,fullWidth,21)
+  text("الصنف",itemX+3,y+2,itemWidth-6,16,7,1,1)
+  text("الكمية",quantityX,y+2,quantityWidth,16,6,1,1)
+  text("السعر",priceX,y+2,priceWidth,16,6,1,1)
+  text("الخصم",discountX,y+2,discountWidth,16,6,1,1)
+  text("المبلغ",amountX,y+2,amountWidth,16,6,1,1)
+  y+=23
+  for(let index=0;index<receiptData.lines.length;index++){
+   const item=receiptData.lines[index]
+    const itemLabel=`${item.name}${item.unitName?` - ${item.unitName}`:""}`
+    text(itemLabel,left+3,y+2,fullWidth-6,14,8,1,1)
+    text(money(item.quantity),quantityX,y+17,quantityWidth,13,7,1)
+    text(money(item.price),priceX,y+17,priceWidth,13,7,1)
+    text(`${money(item.discount)}%`,discountX,y+17,discountWidth,13,7,1)
+    text(money(item.price*item.quantity*(1-item.discount/100)-Number(item.campaign_discount||0)),amountX,y+17,amountWidth,13,7,1,1)
+    line(left,y+32,right,y+32,3);y+=33
+  }
+
+  y+=5
+  const panelGap=8,panelWidth=Math.floor((fullWidth-panelGap)/2),notesX=left+panelWidth+panelGap,totalsX=left
+  box(notesX,y,panelWidth,90,3)
+  text("ملاحظات",notesX+4,y+4,panelWidth-8,13,7,1,1)
+  const noteText=receiptData.note||"شكراً لتسوقكم معنا"
+  text(noteText,notesX+4,y+19,panelWidth-8,48,7,1)
+  text("الأسعار تشمل ضريبة القيمة المضافة",notesX+4,y+69,panelWidth-8,14,6,1,0,3)
+  const totalsBoxHeight=112
+  box(totalsX,y,panelWidth,totalsBoxHeight,3)
+  const totals:[string,string][]=[
+   ["مجموع الأصناف",`${money(receiptData.subtotal)} ${receiptData.currencyCode}`],
+   ["خصم الأصناف",`− ${money(receiptData.itemDiscount)} ${receiptData.currencyCode}`],
+   ["خصم الفاتورة",`− ${money(receiptData.invoiceDiscount)} ${receiptData.currencyCode}`],
+   [`ضريبة (${money(catalog.taxRate)}%)`,`${money(receiptData.tax)} ${receiptData.currencyCode}`],
+  ]
+  let totalY=y+6
+  for(const [label,value] of totals){
+   text(label,totalsX+panelWidth/2,totalY,panelWidth/2-5,16,6,1)
+   text(value,totalsX+4,totalY,panelWidth/2-5,16,7,0,1)
+   totalY+=17
+  }
+  line(totalsX+4,totalY,totalsX+panelWidth-4,totalY,3)
+  totalY+=3
+  fill(totalsX+2,totalY,panelWidth-4,22)
+  text("الإجمالي",totalsX+panelWidth/2,totalY+3,panelWidth/2-5,17,8,1,1)
+  text(`${money(receiptData.total)} ${receiptData.currencyCode}`,totalsX+5,totalY+3,panelWidth/2-5,17,9,0,1)
+  y+=totalsBoxHeight+5
+  if(receiptData.payments.length){
+   const paymentBoxHeight=22+receiptData.payments.filter(row=>row.amount>0).length*16+16
+   box(left,y,fullWidth,paymentBoxHeight,3)
+   text("تفاصيل الدفع",right-100,y+3,96,14,7,1,1)
+   let paymentY=y+19
+   for(const payment of receiptData.payments.filter(row=>row.amount>0)){
+    text(paymentLabels[payment.method]||payment.method,right-105,paymentY,100,14,6,1)
+    text(`${money(payment.amount)} ${receiptData.currencyCode}`,left+3,paymentY,fullWidth-112,14,7,1,1)
+    paymentY+=16
+   }
+   text("المبلغ للإرجاع",right-105,paymentY,100,14,6,1,1)
+   text(`${money(receiptData.refundAmount)} ${receiptData.currencyCode}`,left+3,paymentY,fullWidth-112,14,7,1,1)
+   y+=paymentBoxHeight+4
+  }
+  if(receiptData.code){
+   const barcodeWidth=205,barcodeHeight=38,barcodeX=Math.floor(left+(fullWidth-barcodeWidth)/2)
+   commands.push({type:7,image:receiptData.code,text:`invoice-${Date.now()}`,x:barcodeX,y,width:barcodeWidth,height:barcodeHeight,barcodeWidth:barcodeWidth*2,barcodeHeight:barcodeHeight*2,barcodeMargin:2})
+   y+=barcodeHeight+2
+   text(receiptData.code,left,y,fullWidth,13,7,0,1);y+=16
+  }
+  line(left,y,right,y,3);y+=4
+  const footer=[catalog.receiptSettings.company_address,catalog.receiptSettings.company_phone,catalog.receiptSettings.company_email].filter(Boolean).join(" | ")
+  if(footer){text(footer,left,y,fullWidth,18,6,1,0,3);y+=19}
+  text("شكراً لتسوقكم معنا",left,y,fullWidth,16,8,1,1);y+=19
+  try{
+   await new Promise<void>((resolve,reject)=>{
+    const timer=window.setTimeout(()=>reject(new Error("لم يتم العثور على خدمة الطباعة في هذا الجهاز")),5000)
+    socket.addEventListener("open",()=>{window.clearTimeout(timer);resolve()},{once:true})
+    socket.addEventListener("error",()=>{window.clearTimeout(timer);reject(new Error("تعذر الاتصال بخدمة الطباعة على هذا الجهاز"))},{once:true})
+   })
+  const sendRequest=(type:string,data:Record<string,string|number|boolean>)=>new Promise<void>((resolve,reject)=>{
+   const timeoutMs=type==="startPrinting"?60000:5000
+   const timer=window.setTimeout(()=>{socket.removeEventListener("message",onMessage);reject(new Error("انتهت مهلة استجابة خدمة الطباعة"))},timeoutMs)
+    const onMessage=(event:MessageEvent)=>{
+     try{
+      const envelope=JSON.parse(String(event.data))
+      if(String(envelope.Type||envelope.type||"").toLowerCase()!==type.toLowerCase())return
+      let response=envelope.Data??envelope.data
+      if(typeof response==="string")response=JSON.parse(response)
+      const result=response?.data??response
+      if(result?.success===false)throw new Error(String(result.message||"فشلت الطباعة"))
+      window.clearTimeout(timer);socket.removeEventListener("message",onMessage);resolve()
+     }catch(error){
+      if(error instanceof SyntaxError)return
+      window.clearTimeout(timer);socket.removeEventListener("message",onMessage);reject(error)
+     }
+    }
+    socket.addEventListener("message",onMessage)
+    socket.send(JSON.stringify(type==="startPrinting"?{type,...data}:{type,data}))
+   })
+   await sendRequest("initialPrinting",{})
+   for(const command of commands)await sendRequest("addPrintCommand",command)
+   await sendRequest("startPrinting",{printerName:"",paper:"POS 80mm",paperWidth:315,paperHeight:Math.max(220,y+8),openDrawer:false})
+   setMessage({type:"success",text:"تم إرسال الفاتورة إلى الطابعة الافتراضية"})
+  }catch(error){
+   setMessage({type:"error",text:error instanceof Error?error.message:"تعذرت طباعة الفاتورة. تأكد من تشغيل خدمة الطباعة"})
+  }finally{
+   socket.close()
+  }
+ }
+ const finish=async()=>{if(pricingBusy)return;const v=validate();if(v){setCheckoutError(v);return}if(editingInvoiceId&&!navigator.onLine){setCheckoutError(" تعديل الفاتورة يحتاج اتصالاً بالخادم");return}const browserPrintWindow=point?.print_invoices&&isMobilePrintDevice()?window.open("about:blank","_blank"):null;setSaving(true);
+ const id=makeId(),payload=buildPayload(id),snapshot=campaignItems.map(x=>({...x})),queued:PosQueuedSale={id,tenantKey:baseKey,createdAt:new Date().toISOString(),payload,attempts:0};let completed=false;try{
+  if(!navigator.onLine)throw new TypeError("offline");if(editingInvoiceId){const remove=await fetch(`/api/pos/history?point_id=${pointId}&id=${editingInvoiceId}`,{method:"DELETE"}),removed=await remove.json();if(!remove.ok)throw new Error(errorText(removed,"تعذر إلغاء الفاتورة القديمة"))}const r=await fetch("/api/pos/sales",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)}),d=await r.json();if(!r.ok){setCheckoutError(errorText(d,"فشل الحفظ"));browserPrintWindow?.close();return}const receiptData=makeReceiptSnapshot(String(d.vch_code||""),false,snapshot);if(point?.print_invoices)void printReceiptDirect(receiptData,browserPrintWindow);else setReceipt(null);setMessage({type:"success",text:`تم ${editingInvoiceId?"تعديل":"حفظ"} ${mode==="return"?"المردود":mode==="gift"?"الهدية":"الفاتورة"} ${d.vch_code||""}`});completed=true;await loadSession()}catch(e){if(!(e instanceof TypeError)&&navigator.onLine){setCheckoutError(e instanceof Error?e.message:"فشل الحفظ");browserPrintWindow?.close();return}if(!point?.allow_offline){setCheckoutError("العمل دون اتصال غير مسموح لهذه النقطة");browserPrintWindow?.close();return}await queuePosSale(queued);await updateQueue();const localCode=`OFF-${id.slice(0,8).toUpperCase()}`,receiptData=makeReceiptSnapshot(localCode,true,snapshot);if(point?.print_invoices)void printReceiptDirect(receiptData,browserPrintWindow);else setReceipt(null);setMessage({type:"info",text:"حُفظت العملية على الجهاز وستُزامن تلقائيًا"});completed=true}finally{setSaving(false)}if(completed){
+  setCart([]);setEditingInvoiceId(null);setEditingDraftId(null);focusBarcodeAfterSaveRef.current=true;setCheckoutOpen(false);setMode("sale");resetTransaction();if(pendingActionRef.current){setReceipt(null);resumeTransactionAction()}}}
  const custody=async(sourceId?:number,shiftGuid?:string)=>{if(saving)return;setCustodyError("");if(!navigator.onLine){setCustodyError("عمليات العهدة تحتاج اتصالاً بالخادم");return}setSaving(true);try{const closeAmounts=catalog.currencies.map(row=>({currency_id:row.currency_id,amount:Number(custodyAmounts[row.currency_id]??0)}));const closeTotal=closeAmounts.reduce((sum,row)=>sum+row.amount*Number(session?.currencies?.find((currency:any)=>Number(currency.currency_id)===row.currency_id)?.rate_to_point||catalog.currencies.find(currency=>currency.currency_id===row.currency_id)?.rate_to_point||1),0);const r=await fetch("/api/pos/sessions",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:!session?(sourceId?"receive":"open"):custodyAction,point_id:pointId,shift_guid:shiftGuid,amount:custodyAction==="close"?Math.round(closeTotal*100)/100:custodyAmount,currency_id:custodyCurrencyId||point?.currency_id,currency_amounts:(custodyAction==="cash_in"||custodyAction==="cash_out")?catalog.currencies.filter(row=>Number(movementAmounts[row.currency_id]||0)>0).map(row=>({currency_id:row.currency_id,amount:movementAmounts[row.currency_id]})):custodyAction==="close"?closeAmounts:(custodyAction==="open"||custodyAction==="handover")?catalog.currencies.map(row=>({currency_id:row.currency_id,amount:custodyAmounts[row.currency_id]||0})):undefined,note:custodyNote,source_session_id:sourceId})}),d=await r.json();if(!r.ok)throw new Error(d.error);setCatalog(c=>({...c,session:d.session||null}));setMessage({type:"success",text:"تم تنفيذ عملية العهدة بنجاح"});setCustodyOpen(false);setCustodyAmount(0);setCustodyAmounts({});setMovementAmounts({});setCustodyNote("");await loadSession()}catch(e){setCustodyError(e instanceof Error?e.message:"فشلت عملية العهدة")}finally{setSaving(false)}}
  const loadHistory=async(q=historyQuery,scope: "shift"|"all"=historyScope)=>{if(!pointId||!navigator.onLine){setHistoryError("سجل الفواتير يحتاج اتصالاً بالخادم");setHistoryOpen(true);return}const effectiveScope=scope==="shift"&&!session?.id?"all":scope;setHistoryScope(effectiveScope);setHistoryLoading(true);setHistoryError("");setHistoryOpen(true);try{const sessionFilter=effectiveScope==="shift"?`&session_id=${session?.id}`:"",r=await fetch(`/api/pos/history?point_id=${pointId}&q=${encodeURIComponent(q)}${sessionFilter}`,{cache:"no-store"}),d=await r.json();if(!r.ok)throw new Error(errorText(d,"تعذر تحميل الفواتير"));setHistoryRows(d.rows||[])}catch(e){setHistoryError(e instanceof Error?e.message:"تعذر تحميل الفواتير")}finally{setHistoryLoading(false)}}
  const saveDraft=async()=>{if(saving||draftSaving)return;if(!pointId||!cart.length){setMessage({type:"error",text:"أضف صنفاً واحداً على الأقل قبل حفظ المسودة"});return}if(!session){setMessage({type:"error",text:"يجب فتح العهدة قبل حفظ المسودة"});return}setDraftNote(note);setDraftNoteError("");setDraftNoteOpen(true)}
  const confirmDraftSave=async()=>{const requiredNote=draftNote.trim();if(!requiredNote){setDraftNoteError("ملاحظة المسودة مطلوبة");return}setDraftSaving(true);setDraftError("");try{const r=await fetch("/api/pos/drafts",{method:editingDraftId?"PUT":"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:editingDraftId,pos_point_id:pointId,pos_session_id:session?.id,pos_customer_id:customerId,salesman_id:salesmanId,pos_mode:mode,note:requiredNote,discount_value:discountValue,items:cart.map(line=>({product_id:line.id,product_code:line.code,product_name:line.name,barcode:line.barcode,unit_id:line.unitId,unit_name:line.unitName,price:line.price,quantity:line.quantity,discount:line.discount,account_id:line.accountId,return_account_id:line.returnAccountId,available:line.available}))})}),d=await r.json();if(!r.ok)throw new Error(errorText(d,"تعذر حفظ مسودة الكاشير"));setMessage({type:"success",text:`تم حفظ المسودة ${d.draft_code||""}`});setDraftNoteOpen(false);setCart([]);setCustomerId(null);setSalesmanId(null);setNote("");setDraftNote("");setDiscountValue(0);setMode("sale")}catch(e){setDraftError(e instanceof Error?e.message:"تعذر حفظ المسودة");setMessage({type:"error",text:e instanceof Error?e.message:"تعذر حفظ المسودة"})}finally{setDraftSaving(false)}}
  const loadDrafts=async()=>{if(!pointId||!navigator.onLine){setDraftError("بحث المسودات يحتاج اتصالاً بالخادم");setDraftOpen(true);return}setDraftLoading(true);setDraftError("");setDraftQuery("");setDraftOpen(true);try{const r=await fetch(`/api/pos/drafts?point_id=${pointId}`,{cache:"no-store"}),d=await r.json();if(!r.ok)throw new Error(errorText(d,"تعذر تحميل المسودات"));setDraftRows(d.rows||[])}catch(e){setDraftError(e instanceof Error?e.message:"تعذر تحميل المسودات")}finally{setDraftLoading(false)}}
- const openDraft=(draft:any)=>{const lines=(Array.isArray(draft.items)?draft.items:[]).map((item:any)=>{const product=catalog.products.find(row=>row.id===Number(item.product_id));if(!product)return null;return {...product,lineId:makeId(),barcode:String(item.barcode||product.barcode||""),unitId:Number(item.unit_id)||product.unitId,unitName:String(item.unit_name||product.unitName||""),price:Number(item.price||0),quantity:Number(item.quantity||0),discount:Number(item.discount||0),gift:false}}).filter((line:any)=>line&&line.quantity>0);if(!lines.length||lines.length!==(draft.items||[]).length){setDraftError("تعذر مطابقة أصناف المسودة مع كتالوج نقطة البيع");return}setEditingInvoiceId(null);setEditingDraftId(Number(draft.id));setCart(lines);setCustomerId(Number(draft.customer_id)||null);setSalesmanId(Number(draft.salesman_id)||null);setMode(["sale","return","gift"].includes(draft.mode)?draft.mode:"sale");setNote(String(draft.note||""));setDiscountValue(Number(draft.discount_value||0));setPayments([]);setCashCurrencyAmounts({});setCashTendered(0);setDraftOpen(false);setMessage({type:"info",text:`تم فتح المسودة ${draft.draft_code||""}`});requestAnimationFrame(()=>searchRef.current?.focus())}
+ const openDraft=(draft:any)=>{const lines=(Array.isArray(draft.items)?draft.items:[]).map((item:any)=>{const product=catalog.products.find(row=>row.id===Number(item.product_id));if(!product)return null;return {...product,lineId:makeId(),barcode:String(item.barcode||product.barcode||""),unitId:Number(item.unit_id)||product.unitId,unitName:String(item.unit_name||product.unitName||""),price:Number(item.price||0),quantity:Number(item.quantity||0),discount:Number(item.discount_percent??item.discount??0),gift:false}}).filter((line:any)=>line&&line.quantity>0);if(!lines.length||lines.length!==(draft.items||[]).length){setDraftError("تعذر مطابقة أصناف المسودة مع كتالوج نقطة البيع");return}setEditingInvoiceId(null);setEditingDraftId(Number(draft.id));setCart(lines);setCustomerId(Number(draft.customer_id)||null);setSalesmanId(Number(draft.salesman_id)||null);setMode(["sale","return","gift"].includes(draft.mode)?draft.mode:"sale");setNote(String(draft.note||""));setDiscountValue(Number(draft.discount_value||0));setPayments([]);setCashCurrencyAmounts({});setCashTendered(0);setDraftOpen(false);setMessage({type:"info",text:`تم فتح المسودة ${draft.draft_code}`});requestAnimationFrame(()=>searchRef.current?.focus())}
  const selectHistoryInvoice=async(row:PosInvoice)=>{setHistorySelected(row);setHistoryError("");setHistoryOpen(false);if(!pointId||row.items)return;try{const r=await fetch(`/api/pos/history?point_id=${pointId}&id=${row.id}`,{cache:"no-store"}),d=await r.json();if(!r.ok)throw new Error(errorText(d,"تعذر تحميل الفاتورة"));setHistorySelected(current=>Number(current?.id)===Number(row.id)?d:current)}catch(e){setMessage({type:"error",text:e instanceof Error?e.message:"تعذر تحميل الفاتورة"})}}
  const editHistoryInvoice=async()=>{const invoice=historySelected;if(!invoice?.items?.length)return;if(Number(invoice.vch_type)===9){setMessage({type:"error",text:"تعديل سند الهدية غير متاح من الكاشير"});return}const lines=invoice.items.map(item=>{const product=catalog.products.find(row=>row.id===Number(item.product_id));if(!product)return null;return {...product,lineId:makeId(),quantity:Number(item.qnty??item.quantity??0),discount:Number(item.discount_percent??item.discount??0),gift:false}}).filter((line):line is CartLine=>Boolean(line&&line.quantity>0));if(lines.length!==invoice.items.length){setMessage({type:"error",text:"تعذر مطابقة أصناف الفاتورة الحالية مع كتالوج نقطة البيع"});return}setCart(lines);setCustomerId(Number(invoice.account_id)||null);setSalesmanId(Number(invoice.salesman_id)||null);setNote(String(invoice.note||""));setMode(Number(invoice.vch_type)===16?"return":"sale");setDiscountValue(0);setPayments([]);setCashCurrencyAmounts({});setCashTendered(0);setEditingDraftId(null);setEditingInvoiceId(Number(invoice.id));setHistorySelected(null);setMessage({type:"info",text:`جاري تعديل الفاتورة ${invoice.vch_code}`});requestAnimationFrame(()=>searchRef.current?.focus())}
  const historyIndex=historySelected?historyRows.findIndex(row=>Number(row.id)===Number(historySelected.id)):-1
@@ -209,7 +476,7 @@ export default function PosCashier(){
  const actions=[{label:mode==="gift"?"تأكيد الهدية":"تفاصيل الدفع",shortcut:"F3",icon:CreditCard,onClick:openCheckout},{label:"خصم",shortcut:"F5",icon:Percent,onClick:()=>setDiscountOpen(true)},{label:mode==="return"?"إلغاء المردود":"مردودات",icon:RotateCcw,onClick:()=>{if(!point?.allow_returns)return setMessage({type:"error",text:"المردودات غير مفعلة لهذه النقطة"});const nextMode=mode==="return"?"sale":"return";requestTransactionAction(()=>{resetTransaction();setMode(nextMode)})}},{label:mode==="gift"?"إلغاء الهدية":"هدية",icon:Gift,onClick:()=>{if(!point?.allow_gifts)return setMessage({type:"error",text:"الهدايا غير مفعلة لهذه النقطة"});const nextMode=mode==="gift"?"sale":"gift";requestTransactionAction(()=>{resetTransaction();setMode(nextMode)})}},{label:"ملاحظة",shortcut:"F11",icon:StickyNote,onClick:()=>setNoteOpen(true)},{label:"الفواتير",shortcut:"F4",icon:History,onClick:()=>requestTransactionAction(()=>void loadHistory())},{label:"العهدة",shortcut:"F2",icon:HandCoins,onClick:()=>requestTransactionAction(()=>setCustodyOpen(true))},{label:"تحديث",shortcut:"F12",icon:RefreshCw,onClick:()=>void loadCatalogData()}]
  const visibleDraftRows=draftRows.filter(draft=>`${draft.draft_code||""} ${draft.customer_name||""} ${draft.note||""}`.toLowerCase().includes(draftQuery.trim().toLowerCase()))
  const discountLine=cart.find(line=>posCartLineKey(line)===itemDiscountId)
- return <div dir="rtl" className="pos-workspace" data-mode={mode}>
+ return <div dir="rtl" className="pos-workspace pos-cashier" data-mode={mode}>
   {pricingBusy && <div role="status" className="fixed inset-x-0 top-0 z-[1300] bg-teal-700 p-2 text-center text-sm text-white">جاري تحميل أسعار فئة العميل…</div>}
   <ConfirmDialogYesNo visible={Boolean(pendingCustomer)} title="فئة سعر العميل" message="فئة السعر للعميل المختار تختلف عن فئة السعر لنقطة البيع هل تريد احتساب اسعار الاصناف ؟" showBack useAppDialog busy={pricingBusy} confirmLabel="نعم" cancelLabel="لا" backLabel="إلغاء" onConfirm={()=>{if(pendingCustomer)void applyCustomerPrices(pendingCustomer)}} onCancel={keepCustomerPrices} onBack={cancelCustomerSelection} onDismiss={cancelCustomerSelection}/>
   <Dialog open={Boolean(customerPriceError)} onOpenChange={open=>{if(!open)setCustomerPriceError("")}}><DialogContent dir="rtl" className="z-[1200] max-w-md"><DialogHeader><DialogTitle>تعذر اختيار العميل</DialogTitle><DialogDescription>{customerPriceError}</DialogDescription></DialogHeader><DialogFooter><Button onClick={()=>setCustomerPriceError("")}>حسناً</Button></DialogFooter></DialogContent></Dialog>
@@ -221,6 +488,18 @@ export default function PosCashier(){
      <Button className="pos-discard-continue" variant="outline" onClick={discardAndContinue}><ArrowLeft/>تجاهل ومتابعة</Button>
      <Button variant="outline" onClick={cancelTransactionAction}><X/>إلغاء</Button>
     </DialogFooter>
+   </DialogContent>
+  </Dialog>
+  <Dialog open={pointChooserOpen} onOpenChange={open=>{if(open)setPointChooserOpen(true)}}>
+   <DialogContent dir="rtl" className="max-w-lg" onPointerDownOutside={event=>event.preventDefault()} onEscapeKeyDown={event=>event.preventDefault()}>
+    <DialogHeader><DialogTitle>اختر نقطة البيع</DialogTitle><DialogDescription>لا توجد لديك عهدة مفتوحة. اختر نقطة البيع للمتابعة.</DialogDescription></DialogHeader>
+    {pointChooserError&&<p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm leading-6 text-rose-700">{pointChooserError}</p>}
+    <div className="grid max-h-[50vh] gap-2 overflow-y-auto">
+     {points.map(posPoint=><Button key={posPoint.id} type="button" variant="outline" className="h-auto min-h-14 justify-between whitespace-normal rounded-xl px-4 py-3 text-right" disabled={pointChooserBusy} onClick={()=>void choosePoint(posPoint)}>
+      <span><strong className="block">{posPoint.name}</strong><small className="mt-1 block text-slate-500">{posPoint.code}{posPoint.warehouse_name?` · ${posPoint.warehouse_name}`:""}</small></span>
+      {pointChooserBusy&&<RefreshCw className="size-4 shrink-0 animate-spin"/>}
+     </Button>)}
+    </div>
    </DialogContent>
   </Dialog>
   {noPoints&&<div role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-6 text-center text-lg font-bold text-amber-800">يجب تعريف نقطة بيع اولا</div>}
@@ -236,10 +515,10 @@ export default function PosCashier(){
     <Button variant="outline" onClick={()=>requestTransactionAction(()=>setCustodyOpen(true))}><HandCoins size={16}/>العهدة <kbd>F2</kbd></Button>
     <button onClick={()=>void syncPending()} disabled={syncing||!online} className="pos-tool"><RefreshCw size={16} className={cn(syncing&&"animate-spin")}/>مزامنة ({pendingCount})</button>
    </nav>
-   <span className={cn("pos-connection",!online&&"is-offline")} role="status">{online?<Wifi size={15}/>:<WifiOff size={15}/>} {online?"متصل":"غير متصل"}</span>
+  <span className={cn("pos-connection",!online&&"is-offline")} role="status">{online?<Wifi size={15}/>:<WifiOff size={15}/>} {online?"متصل":"غير متصل"}</span>
   </header>
   <section className="pos-overview">
-   <div className="pos-context"><label htmlFor="pos-point">نقطة البيع الحالية</label><select id="pos-point" value={pointId||""} disabled={cart.length>0||saving} onChange={e=>setPointId(Number(e.target.value)||null)}><option value="">اختر نقطة البيع</option>{points.map(p=><option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}</select></div>
+  <div className="pos-context"><label htmlFor="pos-point">نقطة البيع الحالية</label><select id="pos-point" value={pointId||""} disabled={cart.length>0||saving||pointChooserBusy} onChange={event=>{const selected=points.find(posPoint=>posPoint.id===Number(event.target.value));if(selected)void choosePoint(selected)}}><option value="">اختر نقطة البيع</option>{points.map(p=><option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}</select></div>
    <div className="pos-shift"><div><UserRound size={15}/><b>{user?.fullName||user?.username||"الكاشير"}</b><time dateTime={today()}>{today()}</time></div><div><Warehouse size={15}/><span>{point?.warehouse_name||"المخزن"}</span><span className={cn("pos-shift-state",!session&&"is-closed")}><span/>{session?"العهدة مفتوحة":"العهدة مغلقة"}</span></div></div>
    <div className="pos-net"><span className="pos-net-icon"><WalletCards size={25}/></span><div><span>{mode==="return"?"الصافي للاسترجاع":mode==="gift"?"إجمالي الهدية":"الصافي للدفع"}</span><strong><bdi>{total.toFixed(2)}</bdi> <small>{point?.currency_code}</small></strong></div></div>
   </section>
@@ -247,8 +526,9 @@ export default function PosCashier(){
   {message&&<div role="status" className={cn("flex items-center justify-between rounded-xl border px-4 py-3 text-sm",message.type==="error"?"border-rose-200 bg-rose-50 text-rose-700":"border-emerald-200 bg-emerald-50 text-emerald-700")}><span>{message.text}</span><button aria-label="إغلاق الرسالة" onClick={()=>setMessage(null)}><X size={16}/></button></div>}
   <main className="pos-layout">
    <section className="pos-catalog">
+    <div className="pos-panel-heading"><div className="pos-panel-title"><span className="pos-heading-icon"><PackageOpen size={20}/></span><div><h2>كتالوج الأصناف</h2><p>اختر المجموعة ثم اضغط على الصنف لإضافته</p></div></div><span className="pos-count">{shown.length} صنف</span></div>
     <div className="pos-search-field"><Search size={19}/><Input aria-label="البحث باسم الصنف" value={query} onChange={e=>setQuery(e.target.value)} placeholder="ابحث باسم الصنف…"/>{query&&<button type="button" aria-label="مسح البحث" onClick={()=>setQuery("")}><X size={16}/></button>}</div>
-    <div className="pos-categories" aria-label="تصنيفات الأصناف"><button type="button" aria-pressed={category==="all"} onClick={()=>setCategory("all")} title="كل الأصناف"><span>الكل</span><small>{productsForSale.length}</small></button>{categories.map(group=><button type="button" key={group.name} aria-pressed={category===group.name} onClick={()=>setCategory(group.name)} title={group.name}><span style={{fontSize:'12px'}}>{group.name}</span><small>{group.count}</small></button>)}</div>
+    <div className="pos-categories" aria-label="تصنيفات الأصناف"><button type="button" aria-pressed={category==="all"} onClick={()=>setCategory("all")} title="كل الأصناف"><ShoppingBag size={20} aria-hidden="true"/><span>الكل</span><small>{productsForSale.length}</small></button>{categories.map(group=><button type="button" key={group.name} aria-pressed={category===group.name} onClick={()=>setCategory(group.name)} title={group.name}><FolderOpen size={20} aria-hidden="true"/><span>{group.name}</span><small>{group.count}</small></button>)}</div>
     <div className="pos-products" aria-busy={loading}>{loading?<div className="pos-empty"><RefreshCw className="animate-spin"/>جاري تحميل الأصناف…</div>:shown.length?shown.slice(0,visibleLimit).map(p=><button key={p.id} onClick={()=>add(p)} className="pos-product" aria-label={`إضافة ${p.name}`} disabled={pricingBusy}>
      <div className="pos-product-visual"><small className="pos-product-code" dir="ltr">{p.code}</small><span className={cn("pos-product-icon",p.image&&"has-image")}>{p.image?<img src={p.image} alt="" loading="lazy"/>:<PackageOpen size={34}/>}</span><span className="pos-product-add" aria-hidden="true"><Plus size={16}/></span></div>
      <div className="pos-product-details"><b>{p.name}</b><small className={cn("pos-stock",p.available<=0&&"is-unavailable")}><span/>{p.available} {p.unitName||"وحدة"}</small><strong><bdi>{p.price.toFixed(2)}</bdi><small>{point?.currency_code}</small></strong></div>
@@ -267,7 +547,7 @@ export default function PosCashier(){
        <span className="min-w-16 text-center text-xs">{historyIndex>=0?`${historyIndex+1} / ${historyRows.length}`:"—"}</span>
        <Button size="icon" variant="outline" disabled={historyIndex<0||historyIndex>=historyRows.length-1} onClick={()=>moveHistory(historyIndex+1)} aria-label="الفاتورة التالية"><ChevronLeft size={16}/></Button>
        <Button size="icon" variant="outline" disabled={historyIndex<0||historyIndex>=historyRows.length-1} onClick={()=>moveHistory(historyRows.length-1)} aria-label="آخر فاتورة"><ChevronsLeft size={16}/></Button>
-    <Button size="sm" variant="outline" disabled={!historySelected.items?.length||historyDeleting} onClick={editHistoryInvoice}><Pencil size={15}/>تعديل وحفظ</Button>
+    <Button size="sm" variant="outline" disabled={!historySelected.items?.length||historyDeleting} onClick={editHistoryInvoice}><Pencil size={15}/> تعديل وحفظ</Button>
     <Button size="sm" variant="outline" className="text-rose-700" disabled={Number(historySelected.id)<=0||historyDeleting} onClick={()=>void deleteHistoryInvoice(historySelected)}><Trash2 size={15}/>حذف <kbd>F5</kbd></Button>
       <Button size="sm" variant="outline" onClick={()=>{setHistorySelected(null);setEditingInvoiceId(null);setEditingDraftId(null);requestAnimationFrame(()=>searchRef.current?.focus())}}><Plus size={15}/>فاتورة جديدة</Button>
       </div>
@@ -276,16 +556,16 @@ export default function PosCashier(){
       {(historySelected.items||[]).map((item,index)=><article key={item.id||index} className="pos-cart-line"><div className="pos-line-name"><small>{index+1}</small><b>{item.product_name||item.item_name||"—"}</b><small>{Number(item.price||0).toFixed(2)}</small></div><strong>{Number(item.qnty??item.quantity??0)}</strong><strong className="pos-line-total">{Number(item.total_price??item.line_amount??0).toFixed(2)}</strong></article>)}
       {!historySelected.items&&<p className="py-8 text-center text-sm text-slate-500">جاري تحميل تفاصيل الفاتورة...</p>}
      </div>:cart.length?cart.map((l,index)=><article key={posCartLineKey(l)} className={cn("pos-cart-line",selectedLineId===posCartLineKey(l)&&"is-selected",l.gift&&"is-gift")}>
-      <button className="pos-line-name" aria-pressed={selectedLineId===posCartLineKey(l)} onClick={()=>{setSelectedLineId(posCartLineKey(l));setQuantityEntry(String(l.quantity))}}><small>{index+1} · {l.code}{l.barcode?` · ${l.barcode}`:""}</small><b>{l.name}</b><small>{l.price.toFixed(2)} / {l.unitName||"وحدة"}{l.gift?" · هدية":l.discount?` · خصم ${l.discount}%`:""}</small></button>
+      <button className="pos-line-name" aria-pressed={selectedLineId===posCartLineKey(l)} onClick={()=>{setSelectedLineId(posCartLineKey(l));setQuantityEntry(String(l.quantity))}}><small>{index+1} · {l.code}{l.barcode?` · ${l.barcode}`:""}</small><b>{l.name}</b><small>{l.price.toFixed(2)} / {l.unitName||"وحدة"}{l.gift?" · هدية":l.discount?` · خصم ${l.discount}%`:""}{Number(campaignItems[index]?.campaign_discount||0)>0?` · خصم حملة ${Number(campaignItems[index].campaign_discount).toFixed(2)}`:""}</small></button>
       <div className="pos-quantity"><button aria-label={`تقليل كمية ${l.name}`} onClick={()=>changeQty(posCartLineKey(l),-1)}><Minus size={16}/></button><strong>{l.quantity}</strong><button aria-label={`زيادة كمية ${l.name}`} onClick={()=>changeQty(posCartLineKey(l),1)}><Plus size={16}/></button></div>
       <button type="button" className="pos-item-discount" disabled={mode==="gift"||saving} onClick={()=>setItemDiscountId(posCartLineKey(l))} aria-label={`خصم الصنف ${l.name}`}><Percent size={15}/><span>{l.discount?`${Number(l.discount.toFixed(2))}%`:"خصم"}</span></button>
-      <strong className="pos-line-total">{round(l.price*l.quantity*(1-l.discount/100)).toFixed(2)}</strong><button className="pos-remove" aria-label={`حذف ${l.name}`} onClick={()=>{setCart(c=>c.filter(x=>posCartLineKey(x)!==posCartLineKey(l)));if(selectedLineId===posCartLineKey(l)){setSelectedLineId(null);setQuantityEntry("")}logCashierAction("حذف صنف من فاتورة","",l.name)}}><Trash2 size={17}/></button>
+      <strong className="pos-line-total">{round(l.price*l.quantity*(1-l.discount/100)-Number(campaignItems[index]?.campaign_discount||0)).toFixed(2)}</strong><button className="pos-remove" aria-label={`حذف ${l.name}`} onClick={()=>{setCart(c=>c.filter(x=>posCartLineKey(x)!==posCartLineKey(l)));if(selectedLineId===posCartLineKey(l)){setSelectedLineId(null);setQuantityEntry("")}logCashierAction("حذف صنف من فاتورة","",l.name)}}><Trash2 size={17}/></button>
      </article>):<div className="pos-empty"><span className="pos-empty-icon"><ShoppingCart size={38}/><span className="pos-empty-plus"><Plus size={16}/></span></span><h3>فاتورتك جاهزة للبدء</h3><p>اختر صنفاً من الكتالوج أو امسح الباركود</p><span className="pos-empty-hint"><Barcode size={16}/> إدخال سريع <kbd>F2</kbd></span></div>}
     </div>
     {!historySelected&&<><div className="pos-checkout-dock">
      <div className="pos-keypad"><label htmlFor="pos-quantity-entry">كمية الصنف المحدد</label><div className="flex gap-1"><Input id="pos-quantity-entry" inputMode="decimal" value={quantityEntry} disabled={!cart.some(l=>posCartLineKey(l)===selectedLineId)} onChange={e=>setQuantityEntry(e.target.value)} onKeyDown={e=>e.key==="Enter"&&applyQuantity()}/><Button variant="outline" onClick={applyQuantity} disabled={!cart.some(l=>posCartLineKey(l)===selectedLineId)}>تطبيق</Button></div><div className="pos-keypad-keys" dir="ltr">{["1","2","3","4","5","6","7","8","9","⌫","0","."].map(key=><button key={key} disabled={!cart.some(l=>posCartLineKey(l)===selectedLineId)} aria-label={key==="⌫"?"مسح رقم":key} onClick={()=>setQuantityEntry(v=>key==="⌫"?v.slice(0,-1):key==="."&&v.includes(".")?v:v+key)}>{key}</button>)}</div></div>
     <nav className="pos-actions" aria-label="إجراءات الفاتورة">{actions.map(a=><button key={a.label} onClick={a.onClick} disabled={(a.label==="تفاصيل الدفع"||a.label==="تأكيد الهدية")&&!cart.length||mode==="gift"&&a.label==="خصم"}><span><a.icon size={18}/></span>{a.label}{a.shortcut&&<kbd>{a.shortcut}</kbd>}</button>)}</nav>
-    <div className="pos-totals"><h3>ملخص الفاتورة <span>{point?.currency_code}</span></h3><div><span>مجموع الأصناف</span><b>{cart.reduce((s,l)=>s+l.price*l.quantity,0).toFixed(2)}</b></div><div><span>خصم الأصناف</span><b>{cart.reduce((s,l)=>s+l.price*l.quantity*l.discount/100,0).toFixed(2)}</b></div><div><span>الضريبة</span><b>{tax.toFixed(2)}</b></div><div><span>خصم الفاتورة</span><b>{invoiceDiscount.toFixed(2)}</b></div><div className="pos-total-due"><span>{mode==="return"?"الصافي للاسترجاع":mode==="gift"?"إجمالي الهدية":"الصافي للدفع"}</span><strong>{total.toFixed(2)}</strong></div></div>
+    <div className="pos-totals"><h3>ملخص الفاتورة <span>{point?.currency_code}</span></h3><div><span>مجموع الأصناف</span><b>{cart.reduce((s,l)=>s+l.price*l.quantity,0).toFixed(2)}</b></div><div><span>خصم الأصناف</span><b>{cart.reduce((s,l)=>s+l.price*l.quantity*l.discount/100,0).toFixed(2)}</b></div><div><span>خصم الحملات</span><b>{(campaignItems.reduce((sum,line)=>sum+Number(line.campaign_discount||0),0)+campaignResult.invoiceDiscount).toFixed(2)}</b></div><div><span>الضريبة</span><b>{tax.toFixed(2)}</b></div><div><span>خصم الفاتورة</span><b>{invoiceDiscount.toFixed(2)}</b></div><div className="pos-total-due"><span>{mode==="return"?"الصافي للاسترجاع":mode==="gift"?"إجمالي الهدية":"الصافي للدفع"}</span><strong>{total.toFixed(2)}</strong></div></div>
     </div>
     {note&&<div className="px-4 pb-3 text-xs text-slate-500">ملاحظة: {note}</div>}</>}
    </section>
@@ -296,7 +576,7 @@ export default function PosCashier(){
  <PosPaymentDetailsDialog open={checkoutOpen} onOpenChange={open=>{setCheckoutOpen(open);if(!open)pendingActionRef.current=null}} mode={mode} total={total} currencyCode={point?.currency_code||""} pointCurrencyId={Number(point?.currency_id||0)} currencies={catalog.currencies} customers={catalog.customers} customerId={customerId} onCustomerChange={selectCustomer} banks={catalog.banks} branches={catalog.bankBranches} cardTypes={catalog.cardTypes.filter(card=>Number(card.currency_id)===Number(point?.currency_id))} payments={payments} cashAmounts={cashCurrencyAmounts} onCashChange={updateCashCurrency} onPaymentAmount={(method,value,currencyId)=>{updatePayment(method,value,undefined,currencyId);setCheckoutError("")}} onPaymentField={updatePaymentField} onConfirm={()=>void finish()} onSavedClose={()=>{if(!focusBarcodeAfterSaveRef.current)return false;focusBarcodeAfterSaveRef.current=false;searchRef.current?.focus();return true}} busy={saving} error={checkoutError}/>
  <PosStartSessionDialog open={custodyOpen&&!session&&!!point&&!noPoints} onOpenChange={setCustodyOpen} userName={user?.fullName||user?.username||""} currency={point?.currency_name||""} amount={custodyAmount} onAmountChange={setCustodyAmount} currencies={catalog.currencies} amounts={custodyAmounts} onCurrencyAmountChange={(currencyId,amount)=>setCustodyAmounts(current=>({...current,[currencyId]:amount}))} busy={saving} online={online} error={custodyError} pending={pendingHandovers} activeShift={activePointShift} onConfirm={(sourceId,shiftGuid)=>void custody(sourceId,shiftGuid)}/>
  <PosHandoverDialog open={custodyOpen&&!!session} onOpenChange={setCustodyOpen} session={session} userName={user?.fullName||user?.username||""} currencyCode={point?.currency_code||""} currencies={catalog.currencies} action={custodyAction} onActionChange={action=>{setCustodyAction(action);setCustodyAmount(0);setMovementAmounts({});}} amount={custodyAmount} onAmountChange={setCustodyAmount} currencyId={custodyCurrencyId||Number(point?.currency_id||catalog.currencies[0]?.currency_id)} onCurrencyIdChange={setCustodyCurrencyId} amounts={custodyAmounts} onCurrencyAmountChange={(id,amount)=>{custodyAmountsEditedRef.current=true;setCustodyAmounts(current=>({...current,[id]:amount}))}} movementAmounts={movementAmounts} onMovementAmountChange={(id,amount)=>setMovementAmounts(current=>({...current,[id]:amount}))} note={custodyNote} onNoteChange={setCustodyNote} onConfirm={()=>void custody()} busy={saving} error={custodyError}/>
- {discountOpen&&<PosDiscountDialog subtotal={subtotal} itemDiscount={cart.reduce((sum,line)=>sum+line.price*line.quantity*line.discount/100,0)} customer={catalog.customers.find(c=>c.id===customerId)?.name||"عميل نقدي"} maximum={Number(point?.max_discount_percent??100)} initialPercent={discountValue} taxPercent={Number(point?.tax_percent||0)} onApply={percent=>{setDiscountValue(percent);setDiscountOpen(false);logCashierAction("اضافة خصم","",`${percent}%`)}} onClose={()=>setDiscountOpen(false)}/>} 
+ {discountOpen&&<PosDiscountDialog subtotal={subtotal} itemDiscount={cart.reduce((sum,line)=>sum+line.price*line.quantity*line.discount/100,0)} customer={catalog.customers.find(c=>c.id===customerId)?.name||"عميل نقدي"} maximum={Number(point?.max_discount_percent??100)} initialPercent={discountValue} onApply={percent=>{setDiscountValue(percent);setDiscountOpen(false);logCashierAction("اضافة خصم","",`${percent}%`)}} onClose={()=>setDiscountOpen(false)}/>}
  {discountLine&&<PosItemDiscountDialog key={itemDiscountId} itemName={discountLine.name} gross={discountLine.price*discountLine.quantity} maximum={Number(point?.max_discount_percent??100)} initialPercent={discountLine.discount} onApply={percent=>{setCart(lines=>lines.map(line=>posCartLineKey(line)===itemDiscountId?{...line,discount:percent}:line));setItemDiscountId(null);logCashierAction("اضافة خصم صنف","",`${discountLine.name} ${percent}%`)}} onClose={()=>setItemDiscountId(null)}/>} 
  <Dialog open={noteOpen} onOpenChange={setNoteOpen}><DialogContent className="max-w-md"><DialogHeader><DialogTitle>ملاحظة الفاتورة</DialogTitle></DialogHeader><textarea value={note} onChange={e=>setNote(e.target.value)} rows={5} className="w-full rounded-xl border p-3"/><DialogFooter><Button onClick={()=>setNoteOpen(false)}>حفظ الملاحظة</Button></DialogFooter></DialogContent></Dialog>
  <Dialog open={draftNoteOpen} onOpenChange={open=>{if(!open&&!draftSaving)setDraftNoteOpen(false)}}><DialogContent dir="rtl" className="max-w-md" onKeyDown={event=>{if(event.key==="F3"){event.preventDefault();void confirmDraftSave()}}}><DialogHeader><DialogTitle>ملاحظة المسودة</DialogTitle><DialogDescription>أدخل ملاحظة للمسودة قبل الحفظ. الملاحظة مطلوبة.</DialogDescription></DialogHeader><textarea autoFocus value={draftNote} onChange={event=>{setDraftNote(event.target.value);setDraftNoteError("")}} rows={5} placeholder="اكتب ملاحظة المسودة..." className="w-full rounded-xl border p-3"/>{draftNoteError&&<p className="text-sm text-rose-600">{draftNoteError}</p>}<DialogFooter><Button variant="outline" onClick={()=>setDraftNoteOpen(false)} disabled={draftSaving}><X className="ml-2 h-4 w-4"/>خروج</Button><Button onClick={()=>void confirmDraftSave()} disabled={draftSaving}>{draftSaving?"جاري الحفظ...":"موافق"}<kbd className="mr-2 rounded bg-white/20 px-1.5 text-xs">F3</kbd></Button></DialogFooter></DialogContent></Dialog>

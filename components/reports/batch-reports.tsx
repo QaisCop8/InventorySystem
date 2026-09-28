@@ -247,7 +247,7 @@ export function BatchReports() {
   }
 
   return (
-    <ReportPage>
+    <ReportPage loading={loading}>
 <ReportHeader title="تقارير حركات الدفعات" description={<>تقارير شاملة وإحصائيات مفصلة لحركات الدفعات</>} actions={<>
           <SearchButton type="products" onSelect={handleProductSelect} variant="outline" />
           <Button onClick={() => exportReport(activeTab)} variant="outline">

@@ -33,7 +33,7 @@ export function PosPaymentDetailsDialog(props:Props){
  const [tab,setTab]=useState<PaymentMethod>("cash")
  const amountInputRef=useRef<HTMLInputElement>(null)
  const confirmButtonRef=useRef<HTMLButtonElement>(null)
- useEffect(()=>{if(!open)return;setTab("cash");const firstCurrency=currencies[0];if(firstCurrency&&currencies.every(row=>Number(cashAmounts[row.currency_id]||0)===0))onCashChange(firstCurrency.currency_id,round(total/(firstCurrency.rate_to_point||1)));requestAnimationFrame(()=>{amountInputRef.current?.focus();amountInputRef.current?.select()})},[open])
+ useEffect(()=>{if(!open)return;setTab("cash");requestAnimationFrame(()=>{amountInputRef.current?.focus();amountInputRef.current?.select()})},[open])
  const entries:ReadonlyArray<{key:PaymentMethod;label:string;shortcut:string;icon:typeof Banknote}>=[
   {key:"cash",label:"نقدي",shortcut:"F4",icon:Banknote},{key:"cheque",label:"شيك",shortcut:"F5",icon:WalletCards},
   {key:"card",label:"فيزا",shortcut:"F6",icon:CreditCard},{key:"account",label:"ذمم",shortcut:"F7",icon:Check},

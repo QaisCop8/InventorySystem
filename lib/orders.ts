@@ -9,16 +9,18 @@ import {
   markCustomerOrderApproved,
   forceCloseCustomerOrder,
 } from "./task-orders"
-import sql, { getTenantPool } from "./database"
+import sql, { getTenantPool, resolveCurrentDbName } from "./database"
+import { ensureOrderReadColumns } from "./order-schema"
 
 export default sql
 
-let orderWorkflowColumnsEnsured: Promise<void> | null = null
-function ensureOrderWorkflowColumns() {
-  if (!orderWorkflowColumnsEnsured) {
-    orderWorkflowColumnsEnsured = (async () => {
-      await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS branch_id INTEGER`
-      await sql`ALTER TABLE order_items ADD COLUMN IF NOT EXISTS workflow_id INTEGER`
+const orderWorkflowColumnsEnsured = new Map<string, Promise<void>>()
+async function ensureOrderWorkflowColumns() {
+  const databaseName = await resolveCurrentDbName()
+  let ready = orderWorkflowColumnsEnsured.get(databaseName)
+  if (!ready) {
+    ready = (async () => {
+      await ensureOrderReadColumns()
       await sql`
         DO $$
         BEGIN
@@ -62,11 +64,12 @@ function ensureOrderWorkflowColumns() {
         END$$;
       `
     })().catch((error: unknown) => {
-      orderWorkflowColumnsEnsured = null
+      orderWorkflowColumnsEnsured.delete(databaseName)
       throw error
     })
+    orderWorkflowColumnsEnsured.set(databaseName, ready)
   }
-  return orderWorkflowColumnsEnsured
+  return ready
 }
 
 export interface SalesOrder {
@@ -166,6 +169,7 @@ export interface OrderFilters {
 
 
 export async function getSalesOrders(filters: any = {}) {
+  await ensureOrderReadColumns()
   // The draft table owns the durable link to the sales order created from it.
   // Ensure older tenant databases have the table before using it in this query.
   const { ensureOrderDraftTables } = await import("@/lib/order-drafts")

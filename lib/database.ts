@@ -1,4 +1,4 @@
-import { neon } from "@neondatabase/serverless"
+import { neon, types as neonTypes } from "@neondatabase/serverless"
 import { Pool, types } from "pg"
 import { cookies, headers } from "next/headers"
 import { AsyncLocalStorage } from "node:async_hooks"
@@ -12,6 +12,11 @@ import { withDatabaseName, getDatabaseNameFromUrl, isNeonDatabaseUrl } from "./d
 // الإصلاح المعياري الموصى به لِهذه المشكلة المعروفة في node-postgres. لا يؤثر على مسار Neon
 // (neon() أدناه) لأنه لا يستخدم سجل الأنواع هذا التابع لحزمة pg.
 types.setTypeParser(1082, (value: string) => value)
+// Accounting dates and timestamps without a zone are local wall-clock values.
+// Serializing a JS Date here shifts midnight into the previous UTC day.
+types.setTypeParser(1114, (value: string) => value.replace(" ", "T"))
+neonTypes.setTypeParser(1082, (value: string) => value)
+neonTypes.setTypeParser(1114, (value: string) => value.replace(" ", "T"))
 
 // تنفيذ استعلام خام (نص + معاملات موضعية $1,$2...) على قاعدة بعينها — واجهة موحَّدة تُخفي الفرق بين
 // pg.Pool محلياً و.unsafe() الخاصة بعميل Neon، حتى يبقى منطق تركيب الاستعلامات (أدناه) مستقلاً تماماً

@@ -44,6 +44,7 @@ export function ReportMultiChoice({ label, options, selected, onChange, placehol
 }) {
   const [query, setQuery] = useState("")
   const [open, setOpen] = useState(false)
+  const selectedSet = useMemo(() => new Set(selected), [selected])
   const triggerId = useId()
   const optionLabel = (option: ReportOption) => {
     const code = option.code || option.account_code || option.branch_code || option.currency_code || ""
@@ -70,7 +71,7 @@ export function ReportMultiChoice({ label, options, selected, onChange, placehol
         <div className="mb-2 flex shrink-0 gap-2 border-b pb-2 text-xs"><button type="button" className="text-teal-700" onClick={() => onChange(options.map(o => Number(o.id)))}>اختيار الكل</button><button type="button" className="text-muted-foreground" onClick={() => onChange([])}>إلغاء الاختيار</button></div>
         {filtered.length > visibleOptions.length && <p className="shrink-0 px-2 text-xs text-muted-foreground">اعرض أول {visibleOptions.length} من {filtered.length}. ابحث بالرقم أو الاسم للمزيد.</p>}
         <div className="min-h-0 max-h-56 space-y-1 overflow-y-auto overscroll-contain">{visibleOptions.map(option => {
-          const checked = selected.includes(Number(option.id))
+          const checked = selectedSet.has(Number(option.id))
           return <button type="button" key={option.id} aria-pressed={checked} onClick={() => onChange(checked ? selected.filter(id => id !== Number(option.id)) : [...selected, Number(option.id)])} className={`flex w-full items-center gap-2 rounded-lg px-2 py-2 text-right text-sm ${checked ? "bg-teal-50 text-teal-900 dark:bg-teal-950/40 dark:text-teal-200" : "hover:bg-muted"}`}>
             <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border ${checked ? "border-teal-600 bg-teal-600 text-white" : "border-slate-300"}`}>{checked && <Check className="h-3.5 w-3.5"/>}</span><span className="truncate">{optionLabel(option)}</span>
           </button>
@@ -170,7 +171,7 @@ export function AccountStatementReport({ kind }: { kind: ReportKind }) {
     { label: "الرصيد النهائي", value: summary.final_balance },
   ]
 
-  return <ReportPage>
+  return <ReportPage loading={loading || loadingMeta}>
 
       <ReportHeader icon={Landmark} category="تقارير محاسبية" title={<>{title}</>} description={<>{subtitle}</>} actions={<><Button variant="secondary" onClick={exportCsv} disabled={!visibleRows.length}><Download className="ml-2 h-4 w-4"/>تصدير</Button><Button className="bg-white text-slate-900 hover:bg-slate-100" onClick={() => window.print()} disabled={!visibleRows.length}><Printer className="ml-2 h-4 w-4"/>طباعة</Button></>} />
 

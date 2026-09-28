@@ -246,7 +246,7 @@ async function ensureSettingsTable(): Promise<void> {
   }
 }
 
-async function loadStoredSettings(): Promise<Record<string, unknown>> {
+export async function loadStoredSettings(): Promise<Record<string, unknown>> {
   if (!sql) return {}
 
   await ensureSettingsTable()

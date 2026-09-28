@@ -587,7 +587,7 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
 
     if (!data.vch_date) return "تاريخ السند مطلوب"
 
-    if (voucherBooks.length > 0 && !data.vch_book_id) return "يجب اختيار دفتر السندات"
+    if (!data.vch_book_id || !voucherBooks.some(book => Number(book.id) === Number(data.vch_book_id))) return "يجب تحديد دفتر السندات"
 
     if (!data.currency_id || !availableCurrencies.some((c) => Number(c.currency_id ?? c.id) === data.currency_id)) {
       return "يجب اختيار العملة"

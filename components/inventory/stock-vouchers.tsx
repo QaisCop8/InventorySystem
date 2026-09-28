@@ -451,7 +451,7 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
 
   const validateVoucher = (data: VoucherRecord): string | null => {
     if (!data.vch_code.trim()) return "رقم السند مطلوب"
-    if (!data.vch_book_id) return "دفتر السندات مطلوب"
+    if (!data.vch_book_id || !voucherBooks.some(book => Number(book.id) === Number(data.vch_book_id))) return "يجب تحديد دفتر السندات"
     if (!data.currency_id) return "العملة مطلوبة"
     if (!(Number(data.rate) > 0)) return "سعر الصرف يجب أن يكون أكبر من صفر"
     const items = (data.items || []).filter((i) => i.product_id)
@@ -786,11 +786,11 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
         priceCategories={priceCategories}
         defaultCostPriceCategoryId={defaultCostPriceCategoryId}
         isSaving={isSaving || isLoading}
-        currentIndex={currentIndex}
-        totalRecords={filteredVouchers.length}
-        isFirstRecord={currentIndex <= 0}
+        currentIndex={[...vouchers].sort((a,b)=>a.id-b.id).findIndex(row=>row.id===form.id)}
+        totalRecords={vouchers.length}
+        isFirstRecord={form.id > 0 && !vouchers.some(row=>row.id<form.id)}
         isLoading={isLoading}
-        isLastRecord={currentIndex >= filteredVouchers.length - 1}
+        isLastRecord={form.id > 0 && !vouchers.some(row=>row.id>form.id)}
         onNew={openNewDialog}
         onSave={saveVoucher}
         onValidateSave={() => validateVoucher(form)}

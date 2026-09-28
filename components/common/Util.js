@@ -810,14 +810,14 @@ const exportDefault = {
     }
 
     try {
-      const savedUserRaw = localStorage.getItem("erp_user") || sessionStorage.getItem("erp_user");
+      const savedUserRaw = sessionStorage.getItem("erp_user") || localStorage.getItem("erp_user");
       const savedBranchRaw = sessionStorage.getItem("erp_active_branch") || localStorage.getItem("erp_active_branch");
       const savedUser = savedUserRaw ? JSON.parse(savedUserRaw) : null;
       const savedBranch = savedBranchRaw ? JSON.parse(savedBranchRaw) : null;
       const userId = savedUser?.id ?? savedUser?.user_id;
       const branchId = savedBranch?.id ?? savedUser?.branchId ?? savedUser?.branch_id ?? "default";
       const scopedKey = userId ? `user_Access_List:${userId}:${branchId || "default"}` : null;
-      const accessListRaw = (scopedKey ? localStorage.getItem(scopedKey) : null) || localStorage.getItem('user_Access_List');
+      const accessListRaw = (scopedKey ? localStorage.getItem(scopedKey) : null) || (!userId ? localStorage.getItem('user_Access_List') : null);
       const userAccessList = accessListRaw ? JSON.parse(accessListRaw) : null;
 
       if (Array.isArray(userAccessList)) {

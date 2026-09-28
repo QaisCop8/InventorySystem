@@ -2,14 +2,16 @@ import { NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
 import { getPosCurrencies } from "@/lib/pos-currencies"
 import { ensureTables as ensureSalesTables } from "@/app/api/sales-vouchers/_lib"
-import { ensurePosTables, getOpenPosSession, getPosPoint, requestBranchId, requestUserId } from "../_lib"
+import { loadStoredSettings } from "@/app/api/settings/system/route"
+import { ensurePosTables, getOpenPosSession, getPosPoint, requestUserId } from "../_lib"
+import { getPosCampaigns } from "@/lib/pos-campaign-storage"
 
 export async function GET(request:NextRequest) {
   try {
     await ensureSalesTables(); await ensurePosTables()
     const pointId=Number(request.nextUrl.searchParams.get("point_id")||0), userId=requestUserId(request)
     if(!pointId||!userId)return NextResponse.json({error:"نقطة البيع والمستخدم مطلوبان"},{status:400})
-    const point=await getPosPoint(pointId,userId,requestBranchId(request)); if(!point)return NextResponse.json({error:"نقطة البيع غير متاحة لهذا المستخدم أو الفرع"},{status:403})
+    const point=await getPosPoint(pointId,userId); if(!point)return NextResponse.json({error:"نقطة البيع غير متاحة لهذا المستخدم"},{status:403})
     let priceCategoryId = Number(point.price_category_id)
     const customerId = Number(request.nextUrl.searchParams.get("customer_id") || 0)
     if (customerId) {
@@ -17,7 +19,7 @@ export async function GET(request:NextRequest) {
       if (!customer) return NextResponse.json({ error: "العميل غير موجود أو غير نشط" }, { status: 400 })
       priceCategoryId = Number(customer.pricecategory) || priceCategoryId
     }
-    const [products,customers,rates,session,salesmen,banks,bankBranches,cardTypes]=await Promise.all([
+    const [products,customers,rates,session,salesmen,banks,bankBranches,cardTypes,systemSettings]=await Promise.all([
       sql`
         SELECT p.id,p.product_code,p.product_name,p.barcode,p.product_image,p.selling_account_id,p.selling_returns_account_id,p.pos_sold_using_scale,
                COALESCE(NULLIF(ig.group_name,''),NULLIF(main_group.group_name,''),'غير مصنف') category_name,
@@ -83,6 +85,7 @@ export async function GET(request:NextRequest) {
       sql`SELECT id,bank_code code,bank_name name FROM banks WHERE COALESCE(status,1)=1 ORDER BY bank_name`,
       sql`SELECT id,bank_id,branch_code code,branch_name name FROM branches WHERE COALESCE(status,1)=1 AND bank_id IS NOT NULL ORDER BY branch_name`,
       sql`SELECT id,name,currency_id FROM credit_cards_types_tbl WHERE COALESCE(status,1)=1 AND currency_id=${Number(point.currency_id)} ORDER BY name`,
+      loadStoredSettings(),
     ])
     const pointCurrencyId=Number(point.currency_id)
     const rateByCurrency=new Map<number,number>(rates.map((row:any)=>[Number(row.currency_id),Number(row.exchange_rate)] as [number,number]))
@@ -108,7 +111,8 @@ export async function GET(request:NextRequest) {
       })
       return {...rest,first_price:firstPrice,barcode_options:barcodeOptions,unit_prices:unitPrices}
     })
-    return NextResponse.json({point:{...point,exchange_rate:pointRate},products:pricedProducts,customers,salesmen,banks,bankBranches,cardTypes,
+    const campaigns=await getPosCampaigns()
+    return NextResponse.json({point:{...point,exchange_rate:pointRate},tax_rate:Number(systemSettings.tax_rate||0),receiptSettings:{company_name:systemSettings.company_name||"",company_address:systemSettings.company_address||"",company_phone:systemSettings.company_phone||"",company_email:systemSettings.company_email||"",tax_number:systemSettings.tax_number||"",company_logo:systemSettings.company_logo||""},products:pricedProducts,customers,salesmen,banks,bankBranches,cardTypes,campaigns,
       currencies:rates.filter((row:any)=>Number(row.exchange_rate)>0).map((row:any)=>({...row,rate_to_point:Number(row.exchange_rate)/pointRate})),
       session,server_time:new Date().toISOString()})
   } catch(error){console.error("POS catalog error",error);return NextResponse.json({error:error instanceof Error?error.message:"تعذر تحميل أصناف نقطة البيع"},{status:500})}

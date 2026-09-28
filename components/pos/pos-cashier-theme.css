@@ -1,0 +1,88 @@
+/* Scoped to the cashier; shared POS dialogs retain their own styling. */
+.pos-workspace.pos-cashier {
+  --pos-ink: #24304d;
+  --pos-muted: #65718a;
+  --pos-accent: #4f46c9;
+  --pos-soft: #f3f5fc;
+  --pos-edge: #dfe4f1;
+  background: radial-gradient(ellipse at top right, #e5e7ff, transparent 55%), #f4f6fb;
+}
+.pos-cashier .pos-topbar {
+  border: 1px solid #6967c4;
+  border-radius: 22px;
+  background: linear-gradient(115deg, #262653, #433b91 60%, #5950b2);
+  box-shadow: 0 12px 30px #34317824;
+}
+.pos-cashier .pos-brand { color: #fff; background: #ffffff20; border-color: #ffffff40; width: 50px; height: 50px; }
+.pos-cashier .pos-identity h1 { font-size: 24px; }
+.pos-cashier .pos-eyebrow,
+.pos-cashier .pos-context label,
+.pos-cashier .pos-shift { color: #d6d8f4; }
+.pos-cashier .pos-overview { border-color: #ffffff26; }
+.pos-cashier .pos-context select { min-height: 44px; background: #ffffff12; border-color: #ffffff40; color: #fff; }
+.pos-cashier .pos-context option { background: #303060; }
+.pos-cashier .pos-toolbar-actions button { min-height: 42px; border-radius: 11px; background: #ffffff12; border-color: #ffffff30; color: #fff; font-size: 12px; }
+.pos-cashier .pos-toolbar-actions .pos-primary-tool { color: #fff; background: #c7512d; border-color: #ec9677; box-shadow: 0 4px 12px #20163630; }
+.pos-cashier .pos-toolbar-actions .pos-primary-tool:hover:not(:disabled) { background: #ae4020; }
+.pos-cashier .pos-toolbar-actions button:hover:not(:disabled) { background: #ffffff26; border-color: #ffffff70; }
+.pos-cashier .pos-net { background: #ffffff; border: 0; border-radius: 16px; box-shadow: 0 6px 16px #1b164c25; }
+.pos-cashier .pos-net-icon { color: #5146b6; background: #eeecff; }
+.pos-cashier .pos-net>div>span,
+.pos-cashier .pos-net small { color: #626080; }
+.pos-cashier .pos-net strong { color: #373078; }
+.pos-cashier :is(.pos-catalog,.pos-sale) { border: 1px solid var(--pos-edge); border-radius: 18px; box-shadow: 0 8px 24px #323c6810; }
+.pos-cashier .pos-panel-heading { background: var(--pos-soft); }
+.pos-cashier .pos-heading-icon { color: #5047b8; background: #e7e5ff; }
+.pos-cashier .pos-sale .pos-heading-icon { color: #b54d29; background: #ffeadf; }
+.pos-cashier .pos-count { color: var(--pos-accent); background: var(--pos-surface); }
+.pos-cashier .pos-search-field { min-height: 48px; background: var(--pos-soft); border-color: var(--pos-edge); border-radius: 12px; }
+.pos-cashier .pos-search-field:focus-within { border-color: #8278e4; box-shadow: 0 0 0 3px #8278e420; }
+.pos-cashier .pos-categories { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 9px; max-height: 230px; padding: 3px 15px 16px; }
+.pos-cashier .pos-categories button {
+  --group-color: #4f46b5;
+  --group-bg: #eeecff;
+  min-height: 68px; padding: 12px; gap: 8px; border-radius: 13px;
+  color: var(--group-color); background: var(--group-bg); border: 1px solid transparent;
+  font-size: 14px; font-weight: 750; text-align: start;
+}
+.pos-cashier .pos-categories button:nth-child(3n+2) { --group-color: #116d80; --group-bg: #e6f5fa; }
+.pos-cashier .pos-categories button:nth-child(3n+3) { --group-color: #a04c27; --group-bg: #fff0e5; }
+.pos-cashier .pos-categories button>svg { flex-shrink: 0; }
+.pos-cashier .pos-categories button>span { flex: 1; white-space: normal; overflow-wrap: anywhere; line-height: 1.5; }
+.pos-cashier .pos-categories small { flex-shrink: 0; padding: 3px 7px; font-size: 11px; border-radius: 7px; color: inherit; background: #ffffff80; }
+.pos-cashier .pos-categories button[aria-pressed=true] { color: #fff; background: #5146b9; border-color: #5146b9; box-shadow: 0 4px 10px #5146b933; }
+.pos-cashier .pos-categories button[aria-pressed=true] small { background: #ffffff25; }
+.pos-cashier .pos-product { border-radius: 15px; padding: 8px; border-color: var(--pos-edge); box-shadow: 0 2px 6px #3038650a; }
+.pos-cashier .pos-product-visual { background: linear-gradient(135deg,#eeebff,#f6f5ff); }
+.pos-cashier .pos-product-details>b { font-size: 13px; }
+.pos-cashier .pos-product-details>strong { color: var(--pos-accent); font-size: 20px; }
+.pos-cashier .pos-product-add { width: 30px; height: 30px; background: #5146b9; box-shadow: none; }
+.pos-cashier .pos-cart-line.is-selected { border-color: #8b81dc; background: var(--pos-soft); box-shadow: inset -4px 0 #7164d5; }
+.pos-cashier .pos-checkout-dock { background: var(--pos-soft); border: 1px solid var(--pos-edge); border-radius: 15px; }
+.pos-cashier .pos-actions>button { border-radius: 11px; min-height: 52px; }
+.pos-cashier .pos-total-due strong { color: var(--pos-accent); }
+.pos-cashier :is(button,select) { transition: background-color .18s ease, border-color .18s ease, box-shadow .18s ease, transform .18s ease; }
+.pos-cashier :is(button,input,select):focus-visible { outline-color: #9a8cf5; }
+@media (hover:hover) {
+  .pos-cashier .pos-categories button:hover:not([aria-pressed=true]) { background: var(--group-bg); border-color: var(--group-color); transform: translateY(-2px); }
+  .pos-cashier .pos-product:hover:not(:disabled) { border-color: #968be0; background: var(--pos-surface); box-shadow: 0 7px 18px #5146b920; }
+}
+@container cashier (max-width:610px) {
+  .pos-cashier .pos-topbar { padding: 14px; }
+  .pos-cashier .pos-categories { max-height: 190px; }
+  .pos-cashier .pos-categories button { min-height: 62px; }
+  .pos-cashier .pos-overview { grid-template-columns: minmax(0,1fr); }
+  .pos-cashier .pos-shift { grid-row: auto; }
+  .pos-cashier .pos-net-icon { display: grid; }
+  .pos-cashier .pos-actions { grid-template-columns: minmax(0,1fr); }
+}
+.dark .pos-workspace.pos-cashier { --pos-ink: #e9eaf7; --pos-muted: #b0b6cf; --pos-accent: #b6adff; --pos-surface: #22263c; --pos-soft: #292e47; --pos-edge: #3c425f; background: #191c2e; }
+.dark .pos-cashier .pos-categories button { --group-color: #d2caff; --group-bg: #363052; }
+.dark .pos-cashier .pos-categories button:nth-child(3n+2) { --group-color: #ace2f0; --group-bg: #243f50; }
+.dark .pos-cashier .pos-categories button:nth-child(3n+3) { --group-color: #ffd0b3; --group-bg: #49372f; }
+.dark .pos-cashier .pos-categories small { background: #ffffff15; }
+.dark .pos-cashier .pos-parties>div { background: var(--pos-soft); }
+@media (prefers-reduced-motion:reduce) {
+  .pos-cashier :is(button,select) { transition: none; }
+  .pos-cashier button:hover:not(:disabled), .pos-cashier button:active:not(:disabled) { transform: none; }
+}

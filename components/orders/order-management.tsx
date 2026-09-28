@@ -295,7 +295,7 @@ export const OrderManagement: React.FC = () => {
     receivedBy?: string
   ) => {
     const savedUser =
-      localStorage.getItem("erp_user") || sessionStorage.getItem("erp_user");
+      sessionStorage.getItem("erp_user") || localStorage.getItem("erp_user");
     if (!savedUser) return;
 
     const user = JSON.parse(savedUser);

@@ -5,9 +5,9 @@ import {Input} from "@/components/ui/input"
 import {Button} from "@/components/ui/button"
 import {Label} from "@/components/ui/label"
 
-export function PosDiscountDialog({subtotal,itemDiscount,customer,maximum,initialPercent,taxPercent,onApply,onClose}:{subtotal:number;itemDiscount:number;customer:string;maximum:number;initialPercent:number;taxPercent:number;onApply:(percent:number)=>void;onClose:()=>void}){
+export function PosDiscountDialog({subtotal,itemDiscount,customer,maximum,initialPercent,onApply,onClose}:{subtotal:number;itemDiscount:number;customer:string;maximum:number;initialPercent:number;onApply:(percent:number)=>void;onClose:()=>void}){
  const limit=Math.min(100,Math.max(0,maximum))
- const grossNet=subtotal*(1+taxPercent/100)
+ const grossNet=subtotal
  const [percentText,setPercentText]=useState(initialPercent.toFixed(6))
  const [amountText,setAmountText]=useState((subtotal*initialPercent/100).toFixed(2))
  const [netText,setNetText]=useState((grossNet*(1-initialPercent/100)).toFixed(2))

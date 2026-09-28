@@ -16,7 +16,7 @@ import { voucherHref } from "@/lib/voucher-links"
 import "./item-card-report.css"
 
 const DataGridView = dynamic<any>(() => import("@/components/common/DataGridView"), { ssr: false, loading: () => <p className="p-6 text-center text-sm">جاري تحميل الجدول...</p> })
-type Product = { id: number; product_code?: string; product_name?: string; category_id?: number; main_stock_id?: number; type?: number; main_unit?: string }
+type Product = { id: number; product_code?: string; product_name?: string; category_id?: number; type?: number; main_unit?: string }
 type Option = { id: number; code?: string; name?: string }
 type Movement = Record<string, any>
 type Period = { fromDate: string; toDate: string; warehouseIds: number[]; showTransfers: boolean }
@@ -33,7 +33,6 @@ export function ItemCardReport() {
   const [groups, setGroups] = useState<Option[]>([])
   const [warehouseIds, setWarehouseIds] = useState<number[]>([])
   const [groupIds, setGroupIds] = useState<number[]>([])
-  const [mainStockIds, setMainStockIds] = useState<number[]>([])
   const [itemTypes, setItemTypes] = useState<number[]>([1])
   const [selectedIds, setSelectedIds] = useState<number[]>([])
   const [reportProducts, setReportProducts] = useState<Product[]>([])
@@ -50,12 +49,10 @@ export function ItemCardReport() {
   const [hasReport, setHasReport] = useState(false)
   const [error, setError] = useState("")
 
-  const mainStockOptions = useMemo(() => groups.filter(group => products.some(product => Number(product.main_stock_id) === Number(group.id))), [groups, products])
   const eligibleProducts = useMemo(() => products.filter(product =>
     (!groupIds.length || groupIds.includes(Number(product.category_id)))
-    && (!mainStockIds.length || mainStockIds.includes(Number(product.main_stock_id)))
     && (!itemTypes.length || itemTypes.includes(Number(product.type || 1)))
-  ), [products, groupIds, mainStockIds, itemTypes])
+  ), [products, groupIds, itemTypes])
   const productOptions = useMemo(() => eligibleProducts.map(product => ({ id: Number(product.id), code: product.product_code, name: product.product_name })), [eligibleProducts])
   const visibleProducts = useMemo(() => reportProducts.filter(product => `${product.product_code} ${product.product_name}`.toLowerCase().includes(itemSearch.trim().toLowerCase())), [reportProducts, itemSearch])
 
@@ -96,7 +93,8 @@ export function ItemCardReport() {
 
   const runReport = () => {
     if (!fromDate || !toDate || fromDate > toDate) { setError("تاريخ البداية يجب أن يسبق تاريخ النهاية"); return }
-    const selected = eligibleProducts.filter(product => !selectedIds.length || selectedIds.includes(product.id))
+    const selectedSet = new Set(selectedIds)
+    const selected = eligibleProducts.filter(product => !selectedSet.size || selectedSet.has(product.id))
     if (!selected.length) { setError("لا توجد أصناف مطابقة للفلاتر المحددة"); return }
     const period = { fromDate, toDate, warehouseIds: [...warehouseIds], showTransfers }
     appliedPeriod.current = period
@@ -174,7 +172,7 @@ export function ItemCardReport() {
     link.click(); URL.revokeObjectURL(link.href)
   }
 
-  return <ReportPage>
+  return <ReportPage loading={loading || loadingProducts}>
     <ReportHeader icon={FileBarChart} category="تقارير الأصناف" title="بطاقة صنف" description="حركة السندات والأرصدة التفصيلية لكل صنف" actions={<>
       <Button variant="outline" onClick={exportCsv} disabled={!hasReport || loading}><Download className="ml-2 h-4 w-4" />تصدير</Button>
       <Button variant="outline" onClick={() => window.print()} disabled={!hasReport || loading}><Printer className="ml-2 h-4 w-4" />طباعة</Button>
@@ -184,9 +182,8 @@ export function ItemCardReport() {
         <ReportMultiChoice label="الأصناف" options={productOptions} selected={selectedIds} onChange={handleProductSelection} placeholder={loadingProducts ? "جاري تحميل الأصناف..." : "جميع الأصناف"} />
         <div className="space-y-2"><Label htmlFor="item-card-from">من تاريخ</Label><Input id="item-card-from" type="date" lang="en" dir="ltr" value={fromDate} onChange={event => setFromDate(event.target.value)} /></div>
         <div className="space-y-2"><Label htmlFor="item-card-to">إلى تاريخ</Label><Input id="item-card-to" type="date" lang="en" dir="ltr" value={toDate} onChange={event => setToDate(event.target.value)} /></div>
-        <ReportMultiChoice label="المستودعات" options={warehouses} selected={warehouseIds} onChange={setWarehouseIds} placeholder="جميع المستودعات" />
         <ReportMultiChoice label="مجموعات الأصناف" options={groups} selected={groupIds} onChange={setGroupIds} placeholder="جميع المجموعات" />
-        <ReportMultiChoice label="المخزون الرئيسي" options={mainStockOptions} selected={mainStockIds} onChange={setMainStockIds} placeholder="جميع المخازن الرئيسية" />
+        <ReportMultiChoice label="المستودع" options={warehouses} selected={warehouseIds} onChange={setWarehouseIds} placeholder="جميع المستودعات" />
         <ReportMultiChoice label="نوع الصنف" options={itemTypesList} selected={itemTypes} onChange={setItemTypes} placeholder="جميع الأنواع" />
       </div>
       <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t pt-3">
@@ -198,11 +195,11 @@ export function ItemCardReport() {
       </div>
     </ReportFilters>
     {error && <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{error}</p>}
-    <div className="item-card-workspace">
+    <div className={`item-card-workspace ${reportProducts.length > 1 ? "has-products" : ""}`}>
       {reportProducts.length > 1 && <aside className="report-results item-card-products print:hidden">
         <div className="item-card-panel-heading"><Package size={18} /><h2>الأصناف</h2><span className="item-card-count">{numberFormat(reportProducts.length)}</span></div>
         <div className="p-3"><Input aria-label="بحث في أصناف التقرير" placeholder="بحث بالكود أو اسم الصنف" value={itemSearch} onChange={event => setItemSearch(event.target.value)} /></div>
-        <DataGridView dataSource={visibleProducts} scheme={itemScheme} isReport hideSearch dontConvertToCards idProperty="id" onRowDoubleClick={selectProduct} defaultRowHeight={42} style={{ height: "100%", minHeight: 420 }} containerStyle={{ flex: 1, minHeight: 420 }} />
+        <DataGridView dataSource={visibleProducts} scheme={itemScheme} isReport hideSearch dontConvertToCards idProperty="id" onRowDoubleClick={selectProduct} defaultRowHeight={42} style={{ height: "clamp(320px, 60vh, 680px)" }} containerStyle={{ minWidth: 0 }} />
       </aside>}
       <section className="item-card-detail" aria-busy={loading}>
         <div className="item-card-identity">

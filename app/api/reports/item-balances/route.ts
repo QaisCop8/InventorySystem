@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getSessionUser } from "@/lib/tenant-auth"
-import { getInventoryReportProducts, getProductBalances, reportDate } from "@/lib/item-inventory-reports"
+import { getInventoryReportProducts, getProductBalances, reportDate, inventoryFilters, inventoryReportMeta } from "@/lib/item-inventory-reports"
 
 export async function GET(request: NextRequest) {
   try {
@@ -8,13 +8,14 @@ export async function GET(request: NextRequest) {
     if (!user) return NextResponse.json({ error: "يجب تسجيل الدخول" }, { status: 401 })
     const params = request.nextUrl.searchParams
     const organizationId = Number((user as any).organization_id || 1)
+    if (params.get("meta") === "1") return NextResponse.json(await inventoryReportMeta(organizationId))
     const productId = Number(params.get("product_id") || 0)
     const search = (params.get("search") || "").trim()
     const toDate = reportDate(params.get("to_date"))
     const withZeros = params.get("with_zeros") === "1"
     const [products, rows] = await Promise.all([
       getInventoryReportProducts(organizationId, productId, search),
-      getProductBalances(organizationId, toDate, productId, search),
+      getProductBalances(organizationId, toDate, productId, search, inventoryFilters(params)),
     ])
     return NextResponse.json({ report: "item-balances", to_date: toDate, products,
       rows: withZeros ? rows : rows.filter((row: any) => Math.abs(Number(row.balance || 0)) > 0.000001) })

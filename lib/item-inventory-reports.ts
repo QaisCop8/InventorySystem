@@ -5,6 +5,20 @@ import { getSystemSettingValue } from "@/lib/system-settings"
 export const reportDate = (value: string | null, fallback = new Date().toISOString().slice(0, 10)) =>
   value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : fallback
 
+export type InventoryReportFilters = { productIds?: number[]; warehouseIds?: number[]; branchIds?: number[] }
+export const reportIds = (value: string | null) => [...new Set((value || "").split(",").map(Number).filter(id => Number.isSafeInteger(id) && id > 0))]
+export const inventoryFilters = (params: URLSearchParams): InventoryReportFilters => ({
+  productIds: reportIds(params.get("product_ids")), warehouseIds: reportIds(params.get("warehouse_ids")), branchIds: reportIds(params.get("branch_ids")),
+})
+export async function inventoryReportMeta(organizationId: number) {
+  const [products, warehouses, branches] = await Promise.all([
+    getInventoryReportProducts(organizationId, 0, ""),
+    sql`SELECT id,warehouse_code code,warehouse_name name FROM warehouses WHERE COALESCE(status,1)<>3 ORDER BY warehouse_code`,
+    sql`SELECT id,branch_code code,branch_name name FROM branches WHERE COALESCE(status,1)<>3 ORDER BY branch_code`,
+  ])
+  return { products, warehouses, branches }
+}
+
 export async function getInventoryReportProducts(organizationId: number, productId: number, search: string) {
   return sql`
     SELECT p.id, p.product_code, p.product_name, p.category_id, p.main_stock_id, p.type
@@ -16,7 +30,8 @@ export async function getInventoryReportProducts(organizationId: number, product
   `
 }
 
-export async function getProductBalances(_organizationId: number, toDate: string, productId: number, search: string) {
+export async function getProductBalances(_organizationId: number, toDate: string, productId: number, search: string, filters: InventoryReportFilters = {}) {
+  const { productIds = [], warehouseIds = [], branchIds = [] } = filters
   // sql is already scoped to the current company's database. Neither quantities
   // nor prices for this report depend on the optional movement ledger.
   const [products, lines, includePurchaseReturns] = await Promise.all([
@@ -28,10 +43,12 @@ export async function getProductBalances(_organizationId: number, toDate: string
         LEFT JOIN item_groups groups ON groups.id=p.category_id
         WHERE COALESCE(p.deleted,false)=false AND COALESCE(p.status,1)<>3 AND COALESCE(p.type,1)=1
           AND (${productId}=0 OR p.id=${productId})
+          AND (${productIds.length}=0 OR p.id=ANY(${productIds}::int[]))
           AND (${search}='' OR p.product_code ILIKE ${`%${search}%`} OR p.product_name ILIKE ${`%${search}%`})
         ORDER BY p.product_code,p.product_name`,
     sql`
       SELECT vi.id,vh.id AS voucher_id,vi.item_id AS product_id,vh.vch_type,vh.vch_date::date::text AS movement_date,
+             vh.from_store_id,vh.to_store_id,vi.store_id,
              vi.qnty,vi.bonus,vi.delivery_item_id,COALESCE(NULLIF(pu.to_main_qnty,0),1) AS unit_factor,
              cost_item.qnty AS cost_qnty,cost_item.bonus AS cost_bonus,cost_item.price AS cost_price,
              cost_item.discount AS cost_discount,cost_item.vat_ratio AS cost_vat_ratio,
@@ -82,7 +99,10 @@ export async function getProductBalances(_organizationId: number, toDate: string
         ORDER BY er.rate_date DESC,er.id DESC LIMIT 1
       ) product_rate ON TRUE
       WHERE vh.vch_status=2 AND COALESCE(vh.status,1)<>3 AND vh.vch_date::date<=${toDate}::date
-        AND vh.vch_type IN (8,9,11,12,13,14,15,16,17,18,19)
+        AND vh.vch_type IN (8,9,10,11,12,13,14,15,16,17,18,19)
+        AND (${branchIds.length}=0 OR vh.branch_id=ANY(${branchIds}::int[]))
+        AND (${warehouseIds.length}=0 OR vi.store_id=ANY(${warehouseIds}::int[]) OR (vh.vch_type=10 AND (vh.from_store_id=ANY(${warehouseIds}::int[]) OR vh.to_store_id=ANY(${warehouseIds}::int[]))))
+        AND (${productIds.length}=0 OR p.id=ANY(${productIds}::int[]))
         AND (vh.vch_type NOT IN (12,17) OR COALESCE(vi.delivery_item_id,0)=0)
         AND COALESCE(p.deleted,false)=false AND COALESCE(p.status,1)<>3 AND COALESCE(p.type,1)=1
         AND (${productId}=0 OR p.id=${productId})
@@ -91,5 +111,13 @@ export async function getProductBalances(_organizationId: number, toDate: string
     `,
     getSystemSettingValue("include_purchase_returns_in_cost", false),
   ])
-  return summarizeVoucherInventory(products, lines, [true, 1, "1", "true"].includes(includePurchaseReturns))
+  const warehouses = new Set(warehouseIds)
+  const scopedLines = lines.flatMap((line: any) => {
+    if (Number(line.vch_type) !== 10) return [line]
+    if (!warehouses.size) return []
+    const from = warehouses.has(Number(line.from_store_id)), to = warehouses.has(Number(line.to_store_id))
+    // Transfers within the selected warehouses cancel out.
+    return from === to ? [] : [{ ...line, vch_type: to ? 15 : 9 }]
+  })
+  return summarizeVoucherInventory(products, scopedLines, [true, 1, "1", "true"].includes(includePurchaseReturns))
 }

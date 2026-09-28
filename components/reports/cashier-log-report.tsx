@@ -127,7 +127,7 @@ export function CashierLogReport({ reportType = "followup", enableInvoiceLinks =
       }
     : scheme
 
-  return <ReportPage>
+  return <ReportPage loading={loading}>
     <ReportHeader title={detail ? "تقرير حركات الكاشير تفصيلي" : reportType === "total" ? "تقرير حركات الكاشير إجمالي" : "تقرير متابعة الكاشير"} description={detail ? "تفاصيل أصناف كل حركة وفاتورة" : reportType === "total" ? "ملخص حركات الكاشير على مستوى العملية" : "متابعة جميع حركات الكاشير"} />
     <ReportFilters><div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
       <label className="text-sm">من تاريخ<Input type="date" value={filters.from_date} onChange={event => setFilters(current => ({ ...current, from_date: event.target.value }))} /></label>

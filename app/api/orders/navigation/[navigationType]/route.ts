@@ -2,6 +2,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getTenantPool } from "@/lib/database";
 import { authorizeTransaction } from "@/lib/transaction-permissions";
+import { ensureOrderReadColumns } from "@/lib/order-schema";
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ navigationType: string }> }) {
   try {
@@ -14,6 +15,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const family = orderType === 2 ? "purchase_order" : "sales_order";
     const authorization = await authorizeTransaction(request, family, "view");
     if (!authorization.ok) return authorization.response;
+    await ensureOrderReadColumns();
     const allowedBranches = authorization.branchIds.map(Number).filter(Number.isInteger);
     const branchPredicate = `so.branch_id IN (${allowedBranches.join(",")})`;
 

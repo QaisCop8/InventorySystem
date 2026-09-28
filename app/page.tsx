@@ -479,8 +479,8 @@ function HomePageContent() {
 
   useEffect(() => {
     const storedUser =
-      localStorage.getItem("erp_user") ||
-      sessionStorage.getItem("erp_user")
+      sessionStorage.getItem("erp_user") ||
+      localStorage.getItem("erp_user")
 
     if (storedUser) {
       setUser(JSON.parse(storedUser))
@@ -490,8 +490,8 @@ function HomePageContent() {
   useEffect(() => {
     const handler = () => {
       const storedUser =
-        localStorage.getItem("erp_user") ||
-        sessionStorage.getItem("erp_user")
+        sessionStorage.getItem("erp_user") ||
+        localStorage.getItem("erp_user")
 
       if (!storedUser) return
 

@@ -755,7 +755,9 @@ export default function UnifiedSalesDelivery({
     return -1
   }
 
-  const [itemsCollectionView] = useState(() => {
+  // A copied voucher gets a new grid. Give it its own view as well so the
+  // source grid's deferred disposal cannot interfere with the copy's edits.
+  const itemsCollectionView = useMemo(() => {
     const v = new wjcCore.CollectionView<any>([])
     try {
       // Avoid automatic refresh-on-edit which can trigger synchronous grid bindings
@@ -765,10 +767,10 @@ export default function UnifiedSalesDelivery({
       /* ignore if property not available */
     }
     return v
-  })
+  }, [gridResetToken, form.id, form.status])
   const itemsCollectionViewRef = useRef(itemsCollectionView)
   itemsCollectionViewRef.current = itemsCollectionView
-  const [accountsCollectionView] = useState(() => {
+  const accountsCollectionView = useMemo(() => {
     const v = new wjcCore.CollectionView<any>([])
     try {
       v.refreshOnEdit = false
@@ -776,7 +778,7 @@ export default function UnifiedSalesDelivery({
       /* ignore if property not available */
     }
     return v
-  })
+  }, [gridResetToken, form.id, form.status])
   const accountsCollectionViewRef = useRef(accountsCollectionView)
   accountsCollectionViewRef.current = accountsCollectionView
   const itemsGridRef = useRef<any>(null)
@@ -1164,7 +1166,7 @@ export default function UnifiedSalesDelivery({
       console.error("Error synchronizing items grid:", err)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [items, form.vat_percent, dialogOpen])
+  }, [items, form.vat_percent, dialogOpen, itemsCollectionView, accountsCollectionView])
 
   // تفاصيل كميات الصنف: يجلب current_stock الفعلي (product_stock) لكل صنف مختلف بالسند عبر
   // /api/inventory/products?id=<id> — يُعاد الجلب فقط عند تغيّر مجموعة الأصناف المختارة فعلياً (لا
@@ -1745,6 +1747,9 @@ export default function UnifiedSalesDelivery({
   // حسب طلب المستخدم)، مع فرع إضافي لـbonus_quantity (غير موجود هناك أصلاً) — لا خصم/ضريبة بمستوى
   // السطر هنا (نُقِلا لمستوى السند كاملاً، انظر totals/form.discount_type أعلاه).
   const handleCellEditEnded = (grid: any, e: any) => {
+    // Wijmo can finish an edit while disposing the source grid after a copy.
+    // Only the active voucher's view may commit edits or replace the grid ref.
+    if (grid?.disposed || grid?.itemsSource !== itemsCollectionViewRef.current || e.cancel) return
     itemsGridRef.current = grid
     const row = e.row
     const colName = grid?.columns?.[e.col]?.binding
@@ -2506,8 +2511,8 @@ export default function UnifiedSalesDelivery({
         />
 
         <div
-          className="relative min-h-0 flex-1 overflow-y-auto rounded-b-3xl bg-slate-50/60 px-3 py-2 sm:px-4 sm:py-3 [&::-webkit-scrollbar]:w-0 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-transparent"
-          style={{ scrollbarWidth: "none", msOverflowStyle: "none" as any }}
+          className="relative min-h-0 flex-1 overflow-y-auto rounded-b-3xl bg-slate-50/60 px-3 py-2 sm:px-4 sm:py-3 [scrollbar-color:#94a3b8_transparent] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-400 [&::-webkit-scrollbar-track]:bg-transparent"
+          style={{ scrollbarWidth: "thin" }}
           onKeyDown={handleFormEnterAsTab}
         >
           <ProgressSpinner loading={isSaving || isLoading} />
@@ -2891,6 +2896,7 @@ export default function UnifiedSalesDelivery({
                 <TabsContent value="accounts" className="mt-4 min-h-[360px] space-y-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
                   <div className="w-full max-w-full overflow-x-auto">
                     <DataGridView
+                      key={`sales-delivery-accounts-${gridResetToken}-${form.id}-${form.status}`}
                       innerRef={accountsGridRef}
                       style={{ height: "300px" }}
                       scheme={accountsScheme}
