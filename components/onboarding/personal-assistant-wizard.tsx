@@ -120,6 +120,8 @@ export default function PersonalAssistantWizard() {
   const [accountPreview, setAccountPreview] = useState<AccountPreviewRow[]>([])
   const [systemAccountSettings, setSystemAccountSettings] = useState<Record<string, string>>({})
   const [currencyDefaultAccounts, setCurrencyDefaultAccounts] = useState<CurrencyDefaultAccountRow[]>([])
+  const [defaultAccountsBranchId, setDefaultAccountsBranchId] = useState("")
+  const [defaultAccountsBranches, setDefaultAccountsBranches] = useState<any[]>([])
   const [defaultAccountStructure, setDefaultAccountStructure] = useState("commercial")
   const [financialItems, setFinancialItems] = useState<{ assets: any[]; liabilities: any[]; income: any[] }>({ assets: [], liabilities: [], income: [] })
   const [lookupValues, setLookupValues] = useState<Record<string, string>>({})
@@ -197,10 +199,13 @@ export default function PersonalAssistantWizard() {
 
   useEffect(() => {
     if (!open || step !== 5 || !user?.id) return
+    let cancelled = false
+    fetch("/api/branches").then(response => response.json()).then(data => { if (!cancelled) setDefaultAccountsBranches(Array.isArray(data) ? data : []) }).catch(() => undefined)
     Promise.all([
       fetch("/api/exchange-rates").then((response) => response.ok ? response.json() : []),
-      fetch(`/api/settings/users-currencies-default?user_id=${encodeURIComponent(user.id)}`).then((response) => response.ok ? response.json() : { rows: [] }),
+      defaultAccountsBranchId ? fetch(`/api/settings/users-currencies-default?user_id=${encodeURIComponent(user.id)}&branch_id=${defaultAccountsBranchId}`).then((response) => response.ok ? response.json() : { rows: [] }) : Promise.resolve({ rows: [] }),
     ]).then(([currenciesData, mappingsData]) => {
+      if (cancelled) return
       const currencies = Array.isArray(currenciesData?.rates) ? currenciesData.rates : Array.isArray(currenciesData) ? currenciesData : []
       const mappings = Array.isArray(mappingsData?.rows) ? mappingsData.rows : []
       setSavedCurrencies(currencies)
@@ -218,7 +223,8 @@ export default function PersonalAssistantWizard() {
         }
       }))
     }).catch(() => showResult("error", "تعذر تحميل حسابات الصناديق والبنوك الافتراضية"))
-  }, [open, step, user?.id])
+    return () => { cancelled = true }
+  }, [open, step, user?.id, defaultAccountsBranchId])
 
   useEffect(() => {
     if (!open || step !== 6) return
@@ -235,6 +241,7 @@ export default function PersonalAssistantWizard() {
   }, [open, step])
 
   const saveCurrencyDefaultAccounts = async () => {
+    if (!defaultAccountsBranchId) { showResult("error", "يجب تحديد الفرع"); return false }
     if (!user?.id) {
       showResult("error", "تعذر تحديد المستخدم الحالي")
       return false
@@ -246,6 +253,7 @@ export default function PersonalAssistantWizard() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           user_id: user.id,
+          branch_id: Number(defaultAccountsBranchId),
           rows: currencyDefaultAccounts.map((row) => ({
             currency_id: row.currency_id,
             cash_account_id: row.cash_account_id ? Number(row.cash_account_id) : null,
@@ -680,7 +688,7 @@ export default function PersonalAssistantWizard() {
             {step === 2 && <DataStep title="إضافة حساب سريع" busy={busy} onAdd={addCurrent} onImport={() => fileRef.current?.click()} fields={<><Field label="رقم الحساب" value={account.code} onChange={(value) => setAccount({ ...account, code: value.replace(/[^A-Za-z0-9]/g, "").toUpperCase().slice(0, 10) })} onBlur={() => setAccount((current) => ({ ...current, code: current.code ? current.code.padEnd(10, "0") : "" }))} maxLength={10} /><Field label="اسم الحساب" value={account.name} onChange={(value) => setAccount({ ...account, name: value })} maxLength={100} /><NativeSelect label="القائمة المالية" value={account.financialListId} onChange={(value) => setAccount({ ...account, financialListId: value, assetsId: "", liabilitiesId: "", incomeId: "" })} options={[{ value: "1", label: "الميزانية العمومية" }, { value: "2", label: "قائمة الدخل" }, { value: "3", label: "تقييم بضاعة" }]} />{account.financialListId === "1" && <><NativeSelect label="أصول الميزانية" value={account.assetsId} onChange={(value) => setAccount({ ...account, assetsId: value })} emptyLabel="عدم الإظهار" options={financialItems.assets.map((item) => ({ value: String(item.id), label: item.name }))} /><NativeSelect label="خصوم الميزانية" value={account.liabilitiesId} onChange={(value) => setAccount({ ...account, liabilitiesId: value })} emptyLabel="عدم الإظهار" options={financialItems.liabilities.map((item) => ({ value: String(item.id), label: item.name }))} /></>}{account.financialListId === "2" && <NativeSelect label="بند قائمة الدخل" value={account.incomeId} onChange={(value) => setAccount({ ...account, incomeId: value })} options={financialItems.income.map((item) => ({ value: String(item.id), label: item.name }))} />}{account.financialListId === "3" && <><NativeSelect label="أصول الميزانية" value={account.assetsId} onChange={(value) => setAccount({ ...account, assetsId: value })} emptyLabel="عدم الإظهار" options={financialItems.assets.map((item) => ({ value: String(item.id), label: item.name }))} /><NativeSelect label="بند قائمة الدخل" value={account.incomeId} onChange={(value) => setAccount({ ...account, incomeId: value })} options={financialItems.income.map((item) => ({ value: String(item.id), label: item.name }))} /></>}<NativeSelect label="العملة" value={account.currencyId} onChange={(value) => setAccount({ ...account, currencyId: value })} options={savedCurrencies.map((item) => ({ value: String(item.currency_id ?? item.id), label: `${item.currency_code} - ${item.currency_name}` }))} /><NativeSelect label="نوع هيكل الحسابات الافتراضي" value={defaultAccountStructure} onChange={setDefaultAccountStructure} options={[{ value: "commercial", label: "مؤسسة تجارية" }, { value: "commercial_continuous_inventory", label: "مؤسسة تجارية - جرد مستمر" }, { value: "services", label: "خدمات" }]} /><div className="flex items-end"><Button type="button" disabled={busy} onClick={() => void importDefaultAccounts()} className="h-11 w-full rounded-xl bg-emerald-600 px-6 hover:bg-emerald-700"><Building2 className="ml-2 h-4 w-4" />استيراد هيكل الحسابات الافتراضي</Button></div></>} savedContent={<><AccountImportPreview rows={accountPreview} busy={busy} onDelete={(index) => setAccountPreview((current) => current.filter((_, rowIndex) => rowIndex !== index))} onSave={() => void saveAccountPreview()} /><SavedAccountsTable accounts={savedAccounts} currencies={savedCurrencies} /></>} />}
             {step === 3 && <AccountSettingsStep title="الحسابات الافتراضية" fields={defaultAccountFields} values={systemAccountSettings} onChange={(key, value) => setSystemAccountSettings((current) => ({ ...current, [key]: value }))} busy={busy} onSave={() => void saveAccountSettings(defaultAccountFields)} />}
             {step === 4 && <AccountSettingsStep title="حسابات الأصناف" fields={productAccountFields} values={systemAccountSettings} onChange={(key, value) => setSystemAccountSettings((current) => ({ ...current, [key]: value }))} busy={busy} onSave={() => void saveAccountSettings(productAccountFields)} />}
-            {step === 5 && <CurrencyDefaultAccountsStep rows={currencyDefaultAccounts} busy={busy} onChange={(currencyId, field, value) => setCurrencyDefaultAccounts((current) => current.map((row) => row.currency_id === currencyId ? { ...row, [field]: value } : row))} onSave={() => void saveCurrencyDefaultAccounts()} />}
+            {step === 5 && <><NativeSelect label="الفرع *" value={defaultAccountsBranchId} onChange={setDefaultAccountsBranchId} options={defaultAccountsBranches.map(branch => ({ value: String(branch.id), label: branch.branch_name }))} /><CurrencyDefaultAccountsStep rows={currencyDefaultAccounts} busy={busy} onChange={(currencyId, field, value) => setCurrencyDefaultAccounts((current) => current.map((row) => row.currency_id === currencyId ? { ...row, [field]: value } : row))} onSave={() => void saveCurrencyDefaultAccounts()} /></>}
             {step === 6 && <DataStep title="إضافة صنف سريع" busy={busy} onAdd={addCurrent} onImport={() => fileRef.current?.click()} fields={<><Field label="رقم الصنف" value={product.code} onChange={(value) => setProduct({ ...product, code: value.replace(/[^A-Za-z0-9]/g, "").toUpperCase().slice(0, 10) })} onBlur={() => setProduct((current) => ({ ...current, code: current.code ? current.code.padEnd(10, "0") : "" }))} maxLength={10} /><Field label="اسم الصنف" value={product.name} onChange={(value) => setProduct({ ...product, name: value })} maxLength={100} /><NativeSelect label="الوحدة" value={product.unitId} onChange={(value) => setProduct({ ...product, unitId: value })} emptyLabel="اختر الوحدة" options={productDefinitions.units.map((item) => ({ value: String(item.id), label: [item.unit_code, item.unit_name].filter(Boolean).join(" - ") }))} /><div><Label className="mb-2 block text-sm font-bold text-slate-700">فئة السعر</Label><div className={`flex h-11 items-center rounded-xl border px-3 text-sm font-bold ${productDefinitions.priceCategories.length ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-red-200 bg-red-50 text-red-700"}`}>{productDefinitions.priceCategories[0]?.name || "يجب تعريف فئة سعر أولاً"}</div></div><Field label="سعر البيع" value={product.sellingPrice} onChange={(value) => setProduct({ ...product, sellingPrice: value })} type="number" min={0} max={10000000} /><Field label="الباركود" value={product.barcode} onChange={(value) => setProduct({ ...product, barcode: value })} maxLength={30} /></>} savedContent={<SavedProductsTable products={savedProducts} />}/>}
             {step === 7 && <DataStep title="إضافة عميل سريع" busy={busy} onAdd={addCurrent} onImport={() => fileRef.current?.click()} fields={<><Field label="رقم العميل (اختياري)" value={customer.code} onChange={(value) => setCustomer({ ...customer, code: value })} /><Field label="اسم العميل" value={customer.name} onChange={(value) => setCustomer({ ...customer, name: value })} /><Field label="الجوال" value={customer.phone} onChange={(value) => setCustomer({ ...customer, phone: value })} /></>} />}
           </div>

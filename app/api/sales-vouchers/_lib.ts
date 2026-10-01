@@ -190,6 +190,8 @@ export const ensureTables = async () => {
   await sql`ALTER TABLE voucher_header_tbl ADD COLUMN IF NOT EXISTS salesman_id INTEGER`
   await sql`ALTER TABLE voucher_header_tbl ADD COLUMN IF NOT EXISTS linked_order_id INTEGER`
   await sql`ALTER TABLE voucher_header_tbl ADD COLUMN IF NOT EXISTS pos_receipt_voucher_id INTEGER REFERENCES voucher_header_tbl(id)`
+  await sql`ALTER TABLE voucher_header_tbl ADD COLUMN IF NOT EXISTS pos_invoice_voucher_id INTEGER REFERENCES voucher_header_tbl(id)`
+  await sql`CREATE INDEX IF NOT EXISTS voucher_header_pos_invoice_idx ON voucher_header_tbl(pos_invoice_voucher_id) WHERE pos_invoice_voucher_id IS NOT NULL`
   // Drop deprecated header-level source columns — linkage is item-level now.
   await sql`ALTER TABLE voucher_header_tbl DROP COLUMN IF EXISTS invoice_source_type`
   await sql`ALTER TABLE voucher_header_tbl DROP COLUMN IF EXISTS source_voucher_id`
@@ -535,7 +537,7 @@ export const fetchSalesVoucherItems = async (voucherId: number, itemJournalTypeI
       u.unit_name AS unit,
       vi.qnty AS quantity,
       vi.bonus AS bonus_quantity,
-      COALESCE(vi.pos_discount_percent,vi.discount) AS discount_percent,
+      vi.discount AS discount_percent,
       vi.discount AS effective_discount_percent,
       COALESCE(vi.campaign_discount,0) AS campaign_discount,
       vi.campaign_id,

@@ -27,6 +27,7 @@ interface UniversalToolbarProps {
   canPrint?: boolean
   canDelete?: boolean
   canClone?: boolean
+  showUtilityLabels?: boolean
   isFirstRecord?: boolean
   isLastRecord?: boolean
   isNewRecord?: boolean
@@ -44,7 +45,7 @@ export function UniversalToolbar({
   currentRecord = 1, totalRecords = 0, onFirst, onPrevious, onNext, onLast, onNew, onSave, onDelete,
   onReport, onExportExcel, onPrint, onClone, isLoading = false, isSaving = false, canSave = true,
   canPrint = true, canDelete = true, canClone = true, isFirstRecord = false, isLastRecord = false,
-  isNewRecord = false, labels = defaultLabels,
+  isNewRecord = false, labels = defaultLabels, showUtilityLabels = false,
 }: UniversalToolbarProps) {
   const { settings } = useThemeSettings()
   const toolbarRef = useRef<HTMLDivElement>(null)
@@ -62,7 +63,7 @@ export function UniversalToolbar({
   }, [])
 
   const template = settings.toolbar_style || "modern"
-  const iconOnly = template === "compact"
+  const iconOnly = template === "compact" && !showUtilityLabels
   const compact = width < (iconOnly ? 620 : 920)
   const veryCompact = width < 560
   const hasUtilities = Boolean(onPrint || onClone || onReport || onExportExcel || onDelete)
@@ -84,7 +85,7 @@ export function UniversalToolbar({
   )
 
   return (
-    <div ref={toolbarRef} data-toolbar-template={template} data-toolbar-narrow={compact} className="universal-toolbar relative w-full overflow-visible rounded-2xl border border-slate-200 bg-white p-2 shadow-[0_10px_30px_-20px_rgba(15,23,42,0.45)]" dir="rtl">
+    <div ref={toolbarRef} data-toolbar-template={template} data-toolbar-narrow={compact} data-toolbar-show-utility-labels={showUtilityLabels || undefined} className="universal-toolbar relative w-full overflow-visible rounded-2xl border border-slate-200 bg-white p-2 shadow-[0_10px_30px_-20px_rgba(15,23,42,0.45)]" dir="rtl">
       <div className="universal-toolbar-accent pointer-events-none absolute inset-x-4 top-0 h-px bg-gradient-to-l from-transparent via-indigo-400 to-transparent" />
       <div className="universal-toolbar-layout flex min-w-0 flex-wrap items-center gap-2">
         <div className="universal-toolbar-primary flex shrink-0 items-center gap-2">

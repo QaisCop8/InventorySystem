@@ -99,6 +99,9 @@
 .pos-quantity button { padding:7px; color:var(--pos-accent); }
 .pos-quantity strong { min-width:22px; text-align:center; font-size:12px; }
 .pos-item-discount { display:flex; align-items:center; justify-content:center; gap:3px; padding:7px; color:var(--pos-accent); border:1px solid var(--pos-edge); border-radius:8px; background:var(--pos-soft); font-size:10px; }
+.pos-campaign-discount { display:flex; flex-direction:column; align-items:center; justify-content:center; min-width:58px; padding:4px 7px; border:1px solid #cfe6dd; border-radius:8px; background:#eff8f4; color:#27745c; font-size:9px; font-variant-numeric:tabular-nums; }
+.pos-campaign-discount small { font-size:8px; white-space:nowrap; }
+.pos-campaign-discount b { font-size:10px; }
 .pos-line-total { min-width:55px; text-align:end; font-size:13px; font-variant-numeric:tabular-nums; }
 .pos-remove { display:grid; place-items:center; padding:7px; color:#bb6270; border-radius:8px; }
 .pos-remove:hover { background:#fff0f2; }

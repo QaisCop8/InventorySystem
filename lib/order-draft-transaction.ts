@@ -73,7 +73,7 @@ export async function syncDepositReceipt(client: PoolClient, args: { draftId: nu
     }
     return receiptId
   }
-  const defaults = await client.query(`SELECT u.currency_id,u.account_id AS cash_account_id FROM users_currencies_default_account_tbl u JOIN account_tbl a ON a.id=u.account_id WHERE u.user_id=$1 AND u.currency_id IS NOT NULL AND COALESCE(a.status::text,'1') IN ('1','2','active','ACTIVE','نشط') ORDER BY u.currency_id LIMIT 1`, [userId])
+  const defaults = await client.query(`SELECT u.currency_id,u.account_id AS cash_account_id FROM users_currencies_default_account_tbl u JOIN account_tbl a ON a.id=u.account_id WHERE u.user_id=$1 AND (to_jsonb(u)->>'branch_id' IS NULL OR to_jsonb(u)->>'branch_id'=(SELECT branch_id::text FROM sales_order_drafts WHERE id=$2)) AND u.currency_id IS NOT NULL AND COALESCE(a.status::text,'1') IN ('1','2','active','ACTIVE','نشط') ORDER BY CASE WHEN to_jsonb(u)->>'branch_id' IS NOT NULL THEN 0 ELSE 1 END, u.currency_id LIMIT 1`, [userId, draftId])
   if (!defaults.rowCount) throw new DraftValidationError("يجب تعريف حساب النقدية والعملة الافتراضية للمستخدم قبل حفظ عربون")
   const { currency_id: currencyId, cash_account_id: cashAccountId } = defaults.rows[0]
   const note = `عربون مسودة طلبية ${draftNumber}`

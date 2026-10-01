@@ -108,30 +108,18 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
   // default_purchase_tax_account لأنواع المشتريات — يُحدَّد اتجاه هذا السند بمجرد اختيار voucherType
   // (خاصية ثابتة للشاشة كاملة، لا لكل سند)، فيُجلَب مرة واحدة أيضاً عند فتح الشاشة.
   const defaultTaxAccountRef = useRef<{ id: number; code: string; name: string } | null>(null)
-  // حساب الصندوق الافتراضي حسب عملة السند — من إعدادات المستخدم بحسب العملة
-  // (users_currencies_default_account_tbl)؛ خريطة كاملة currency_id -> حساب مُجهَّزة مسبقاً عند فتح
-  // الشاشة، تُقرأ عند كل تغيير عملة (handleCurrencyChange أدناه) بدل طلب شبكة جديد في كل مرة.
+  // Cache the current user's branch defaults for the initial new-voucher render.
+  // Opening the voucher or changing branch/currency refreshes these from the server.
   const cashAccountsByCurrencyRef = useRef<Map<number, { id: number; code: string; name: string }>>(new Map())
+  const cashAccountScopeRef = useRef<string>("")
   // "اعدادات اخرى" (تبويب الحسابات الافتراضية للمستخدم) — إن فُعِّل، يُعامَل ما يكتبه المستخدم في
   // عمود "السعر" كسعر شامل الضريبة فيُحوَّل فوراً لغير شامل قبل تخزينه في unit_price (انظر
   // handleCellEditEnded في unified-sales-delivery.tsx).
   const [priceEntryIncludesTax, setPriceEntryIncludesTax] = useState(false)
 
   const resolveCashAccountForCurrency = (currencyId: number | null) => {
-    if (!currencyId) return null
+    if (!currencyId || cashAccountScopeRef.current !== `${user?.id}:${activeBranchId}`) return null
     return cashAccountsByCurrencyRef.current.get(currencyId) ?? null
-  }
-
-  // يُستدعى من unified-sales-delivery.tsx عند كل تغيير للعملة (بما فيها التعيين الأولي لسند جديد)
-  // — يُحدِّث حساب الصندوق تلقائياً وفق العملة الجديدة، أو يُفرِّغه إن لم يوجد حساب مُعرَّف لتلك العملة.
-  const handleCurrencyChange = (currencyId: number | null) => {
-    const resolved = resolveCashAccountForCurrency(currencyId)
-    setForm((f) => ({
-      ...f,
-      cash_account_id: resolved?.id ?? null,
-      cash_account_code: resolved?.code ?? "",
-      cash_account_name: resolved?.name ?? "",
-    }))
   }
 
   // مُعرَّفتان هنا (لا بمستوى الوحدة) لاعتمادهما على voucherType الخاص بهذه الشاشة تحديداً — نفس
@@ -243,6 +231,39 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
   const [gridResetToken, setGridResetToken] = useState(0)
 
   useEffect(() => {
+    if (!dialogOpen || isLoading || !user?.id || !form.branch_id) return
+    let cancelled = false
+    const branchId = form.branch_id
+    const currencyId = form.currency_id
+    const voucherId = form.id
+    const originalAccountId = form.cash_account_id
+    fetch(`/api/settings/users-currencies-default?user_id=${encodeURIComponent(user.id)}&branch_id=${branchId}`, { cache: "no-store" })
+      .then(async response => {
+        if (!response.ok) throw new Error("تعذر تحميل حساب الصندوق الافتراضي")
+        return response.json()
+      })
+      .then(data => {
+        if (cancelled) return
+        const map = new Map<number, { id: number; code: string; name: string }>()
+        for (const row of Array.isArray(data?.rows) ? data.rows : []) {
+          const id = Number(row.cash_account_id)
+          if (Number.isSafeInteger(id) && id > 0) map.set(Number(row.currency_id), { id, code: row.cash_account_code || "", name: row.cash_account_name || "" })
+        }
+        cashAccountsByCurrencyRef.current = map
+        cashAccountScopeRef.current = `${user.id}:${branchId}`
+        const account = currencyId ? map.get(currencyId) : null
+        setForm(current => {
+          if (current.id !== voucherId || current.branch_id !== branchId || current.currency_id !== currencyId || current.cash_account_id !== originalAccountId || [2, 3].includes(Number(current.status))) return current
+          // Preserve a saved/manual account on opening; branch/currency changes clear it first.
+          if (current.id > 0 && current.cash_account_id) return current
+          return { ...current, cash_account_id: account?.id ?? null, cash_account_code: account?.code ?? "", cash_account_name: account?.name ?? "" }
+        })
+      })
+      .catch(error => { if (!cancelled) setErrorMessages([error.message]) })
+    return () => { cancelled = true }
+  }, [dialogOpen, isLoading, user?.id, form.id, form.branch_id, form.currency_id, gridResetToken])
+
+  useEffect(() => {
     if (!printData) return
     const timer = setTimeout(() => window.print(), 150)
     return () => clearTimeout(timer)
@@ -300,15 +321,13 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
         user?.id ? `&user_id=${encodeURIComponent(user.id)}` : ""
       }`
       const warehouseDefaultsUrl = user?.id ? `/api/settings/user-warehouse-defaults?user_id=${encodeURIComponent(user.id)}` : null
-      const currencyDefaultsUrl = user?.id ? `/api/settings/users-currencies-default?user_id=${encodeURIComponent(user.id)}` : null
-      const [currenciesRes, booksRes, warehousesRes, warehouseDefaultsRes, salesmenRes, systemSettingsRes, currencyDefaultsRes, citiesRes] = await Promise.all([
+      const [currenciesRes, booksRes, warehousesRes, warehouseDefaultsRes, salesmenRes, systemSettingsRes, citiesRes] = await Promise.all([
         fetch("/api/exchange-rates").catch(() => null),
         fetch(booksUrl).catch(() => null),
         fetch("/api/warehouses").catch(() => null),
         warehouseDefaultsUrl ? fetch(warehouseDefaultsUrl).catch(() => null) : Promise.resolve(null),
         fetch("/api/salesmen").catch(() => null),
         fetch("/api/settings/system").catch(() => null),
-        currencyDefaultsUrl ? fetch(currencyDefaultsUrl).catch(() => null) : Promise.resolve(null),
         fetch("/api/cities").catch(() => null),
       ])
       if (currenciesRes?.ok) {
@@ -362,19 +381,6 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
           }
         }
       }
-      if (currencyDefaultsRes?.ok) {
-        const data = await currencyDefaultsRes.json()
-        const rows = Array.isArray(data?.rows) ? data.rows : []
-        const map = new Map<number, { id: number; code: string; name: string }>()
-        for (const row of rows) {
-          const currencyId = Number(row.currency_id)
-          const cashAccountId = Number(row.cash_account_id)
-          if (Number.isFinite(currencyId) && Number.isFinite(cashAccountId) && cashAccountId > 0) {
-            map.set(currencyId, { id: cashAccountId, code: row.cash_account_code || "", name: row.cash_account_name || "" })
-          }
-        }
-        cashAccountsByCurrencyRef.current = map
-      }
     } catch (error) {
       console.error("Failed to fetch lookups", error)
     }
@@ -418,7 +424,7 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
   }
 
   const generateCode = async (bookId: number | null, fallbackCode = "") => {
-    if (!bookId) return fallbackCode
+    if (bookId == null) return fallbackCode
     try {
       const response = await fetch(`/api/sales-vouchers/generate-number?vch_type=${voucherType}&vch_book_id=${bookId}`)
       if (!response.ok) return fallbackCode
@@ -436,7 +442,7 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
   const handleBookChange = async (bookId: number | null) => {
     const previousCode = form.vch_code || ""
     setForm((f) => ({ ...f, vch_book_id: bookId }))
-    if (form.id > 0 || !bookId) return
+    if (form.id > 0 || bookId == null) return
     const generated = await generateCode(bookId, previousCode)
     setForm((f) => ({ ...f, vch_code: generated || previousCode }))
   }
@@ -557,7 +563,7 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
 
   const validateVoucher = (data: SalesDeliveryRecord): string | null => {
     if (!data.vch_code.trim()) return "رقم السند مطلوب"
-    if (!data.vch_book_id || !voucherBooks.some(book => Number(book.id) === Number(data.vch_book_id))) return "يجب تحديد دفتر السندات"
+    if (data.vch_book_id == null || !voucherBooks.some(book => Number(book.id) === Number(data.vch_book_id))) return "يجب تحديد دفتر السندات"
     if (!data.currency_id) return "العملة مطلوبة"
     if (!(Number(data.rate) > 0)) return "سعر الصرف يجب أن يكون أكبر من صفر"
     if (data.invoice_source_type === 2 && (!data.source_voucher_id || !data.source_voucher_type)) {
@@ -761,6 +767,37 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
     }
   }
 
+  const handlePrint = async () => {
+    if (!(form.id > 0) || form.status === 3) return
+    const copyLabel = form.status !== 2 ? "نسخة للتدقيق" : form.is_printed === 1 ? "نسخة" : "نسخة اصلية"
+    if (form.status === 2 && form.is_printed !== 1) {
+      try {
+        const response = await fetch(`/api/sales-vouchers/${form.id}`, { method: "PATCH" })
+        if (response.ok) setForm((current) => ({ ...current, is_printed: 1 }))
+      } catch (error) {
+        console.error("Failed to mark sales voucher as printed", error)
+      }
+    }
+    const currency = currencies.find((item) => Number(item.currency_id ?? item.id) === Number(form.currency_id))
+    setPrintData({
+      title: SALES_VOUCHER_TYPE_LABELS[voucherType].title,
+      copyLabel,
+      vch_code: form.vch_code,
+      vch_date: form.vch_date,
+      currency_name: currency?.currency_name || currency?.currency_code || "",
+      amount: Number(form.amount || 0),
+      manual_voucher: form.manual_voucher,
+      note: form.note,
+      rows: form.items.filter((item) => item.product_id).map((item) => ({
+        account_code: item.product_code,
+        account_name: item.product_name,
+        debit: Number(item.line_amount ?? item.total_price ?? 0),
+        credit: null,
+        note: item.note,
+      })),
+    })
+  }
+
   const navigationPending = useRef(false)
   const handleNavigate = async (direction: "first" | "previous" | "next" | "last") => {
     if (navigationPending.current || isLoading || isSaving) return
@@ -787,7 +824,7 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
   }
 
   const onFormChange = <K extends keyof SalesDeliveryRecord>(field: K, value: SalesDeliveryRecord[K]) => {
-    setForm((f) => ({ ...f, [field]: value }))
+    setForm((f) => ({ ...f, [field]: value, ...((field === "branch_id" || field === "currency_id") && f[field] !== value ? { cash_account_id: null, cash_account_code: "", cash_account_name: "" } : {}) }))
   }
 
   const useFullPageMode = fullscreenEnabled
@@ -895,7 +932,6 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
         form={form}
         onFormChange={onFormChange}
         onBookChange={handleBookChange}
-        onCurrencyChange={handleCurrencyChange}
         onItemsChange={(items) => setForm((f) => ({ ...f, items }))}
         gridResetToken={gridResetToken}
         voucherBooks={voucherBooks}
@@ -917,6 +953,7 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
         onSave={saveVoucher}
         onValidateSave={() => validateVoucher(form)}
         onDelete={handleDelete}
+        onPrint={handlePrint}
         onNavigate={handleNavigate}
         onClone={cloneVoucher}
         onCodeResolved={handleCodeResolved}

@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import sql, { withTenantTransaction } from "@/lib/database"
 import { deletePosReceipt } from "@/app/api/pos/_receipts"
+import { needsPosReceipt } from "@/lib/pos-receipt"
 import { reversePosSessionPayments } from "@/app/api/pos/_session-payments"
 import {
   ensureTables,
@@ -479,13 +480,15 @@ export async function POST(request: NextRequest) {
         breakdown.tax,
       )
       if (posPayments.length && journalRows.length) {
+        const receiptSettlementAccount = Number(data.pos_point_id) > 0 && vchType === 12 && needsPosReceipt(posPayments)
+          ? Number(data.account_id || data.cash_account_id) || null : null
         const counterRow = journalRows.find((row: any) => Number(row.order_no) === 1)
         if (counterRow) {
           journalRows = [
             ...posPayments.map((payment: any, index: number) => ({
               ...counterRow,
               order_no: index + 1,
-              account_id: payment.account_id,
+              account_id: receiptSettlementAccount && ["cash", "cheque", "card"].includes(payment.payment_method) ? receiptSettlementAccount : payment.account_id,
               amount: payment.amount,
               base_curr_amount: Math.round(payment.amount * Number(data.rate || 1) * 100) / 100,
               note: ({ cash: "دفعة نقدية", card: "دفعة بطاقة", cheque: "دفعة شيك", account: "دفعة على الحساب", gift_card: "بطاقة هدية" } as Record<string,string>)[payment.payment_method] + " - نقطة البيع",
@@ -529,7 +532,7 @@ export async function POST(request: NextRequest) {
         vat_classification_id, invoice_type, vat_included, is_maqasa, maqasa_type,
         phone, due_date, is_exported_sales, location_id, pos_client_sale_id
       ) VALUES (
-        ${vchType}, ${vchCode}, ${data.vch_date}, ${data.vch_book_id || null}, ${authorization.branchId}, ${data.currency_id || null}, ${Number(data.rate || 1)},
+        ${vchType}, ${vchCode}, ${data.vch_date}, ${data.vch_book_id ?? null}, ${authorization.branchId}, ${data.currency_id || null}, ${Number(data.rate || 1)},
         ${data.account_id}, ${data.customer_name || ""}, ${data.to_store_id || null},
         ${amount}, ${data.manual_voucher || ""}, ${data.manual_date || null}, ${data.note || ""}, ${status}, ${status === 2 ? 2 : 1}, ${Number(data.is_printed || 0)},
         ${data.insert_user || null}, ${data.shipping_address || ""}, ${data.salesman_id || null}, ${data.linked_order_id || null},
@@ -687,7 +690,7 @@ export async function PUT(request: NextRequest) {
       SET
         vch_code = ${data.vch_code},
         vch_date = ${data.vch_date},
-        vch_book_id = ${data.vch_book_id || null},
+        vch_book_id = ${data.vch_book_id ?? null},
         branch_id = ${authorization.branchId},
         currency_id = ${data.currency_id || null},
         rate = ${Number(data.rate || 1)},

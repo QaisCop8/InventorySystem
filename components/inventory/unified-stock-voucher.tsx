@@ -169,7 +169,7 @@ interface UnifiedStockVoucherProps {
   isLoading?: boolean
   isLastRecord?: boolean
   onNew?: () => void
-  onSave: (action?: PostVoucherAction) => void
+  onSave: (action?: PostVoucherAction, keepCurrent?: boolean) => Promise<boolean>
   onValidateSave?: () => string | null
   onDelete?: () => void
   onNavigate?: (direction: "first" | "previous" | "next" | "last") => void
@@ -2232,7 +2232,7 @@ export default function UnifiedStockVoucher({
         />
 
         <div
-          className="relative min-h-0 flex-1 overflow-y-auto rounded-b-3xl bg-slate-50/60 px-6 py-4 [&::-webkit-scrollbar]:w-0 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-transparent"
+          className="relative flex min-h-0 flex-1 flex-col overflow-y-auto rounded-b-3xl bg-slate-50/60 px-6 py-4 [&::-webkit-scrollbar]:w-0 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-transparent"
           style={{ scrollbarWidth: "none", msOverflowStyle: "none" as any }}
           onKeyDown={handleFormEnterAsTab}
         >
@@ -2448,7 +2448,7 @@ export default function UnifiedStockVoucher({
 
           {/* Tabs خارج fieldset عمداً — يبقى التنقل بين التبويبات ممكناً حتى لسند مُقفَل (مُرحَّل/ملغى)،
               وfieldset منفصل أدناه يُعطِّل حقول كل تبويب فقط دون تعطيل أزرار التبويبات نفسها. */}
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-4">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-4 flex flex-1 flex-col">
             {/* dir صريح هنا (بدل الاعتماد فقط على وراثته من DialogContent) لضمان أن "الاصناف" —
                 أول عنصر بترتيب DOM — يظهر في أقصى اليمين دائماً، بصرف النظر عن أي تعارض في تتالي
                 الاتجاه عبر بوابة Radix Dialog/Tabs. */}
@@ -2460,13 +2460,14 @@ export default function UnifiedStockVoucher({
             </TabsList>
 
             <fieldset className="contents">
-              <TabsContent value="items" className="mt-4 min-h-[360px] space-y-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-                <div className="w-full max-w-full overflow-x-auto">
+              <TabsContent value="items" className="mt-4 min-h-[360px] flex-1 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5 data-[state=active]:flex data-[state=active]:flex-col">
+                <div className="flex min-h-[300px] w-full max-w-full flex-1 flex-col overflow-x-auto">
                   <DataGridView
+                    key={`stock-items-${form.id}-${form.status}`}
                   allowSorting={false}
                     innerRef={chequeGridRef}
-                    style={{ height: "clamp(300px, 48dvh, 680px)", width: "100%" }}
-                    containerStyle={{ width: "100%", minWidth: 0 }}
+                    style={{ flex: "1 1 0", minHeight: "300px", width: "100%" }}
+                    containerStyle={{ display: "flex", flexDirection: "column", flex: "1 1 0", width: "100%", minWidth: 0 }}
                     scheme={scheme}
                     dataSource={itemsCollectionView}
                     idProperty="ser"
@@ -2778,12 +2779,16 @@ export default function UnifiedStockVoucher({
 
         <ConfirmDialogYesNo
           visible={showUnsavedConfirm}
+          useAppDialog
           message="تم تعديل البيانات، هل تريد الحفظ؟"
           showBack
-          onConfirm={() => {
+          busy={isSaving || isLoading}
+          onConfirm={async () => {
+            const action = pendingActionRef.current
+            if (!(await onSave("save", true))) return
             setShowUnsavedConfirm(false)
             pendingActionRef.current = null
-            onSave("save")
+            action?.()
           }}
           onCancel={() => {
             setShowUnsavedConfirm(false)

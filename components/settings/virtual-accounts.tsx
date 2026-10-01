@@ -35,6 +35,8 @@ const emptyWarehouseDefaults: Record<string, any> = {
 export default function VirtualAccounts() {
   const [users, setUsers] = useState<any[]>([])
   const [selectedUser, setSelectedUser] = useState<any>(null)
+  const [branches, setBranches] = useState<any[]>([])
+  const [branchId, setBranchId] = useState<number | null>(null)
   const [currencies, setCurrencies] = useState<any[]>([])
   const [rows, setRows] = useState<any[]>([])
   const [userCurrencyMappings, setUserCurrencyMappings] = useState<any[]>([])
@@ -105,6 +107,7 @@ export default function VirtualAccounts() {
     loadUsers()
     loadCurrencies()
     loadWarehouses()
+    fetch('/api/branches').then(response => response.json()).then(data => setBranches(Array.isArray(data) ? data : [])).catch(() => showErrorMessage('تعذر تحميل الفروع'))
   }, [])
 
   const loadDefaults = async (userId: string | number) => {
@@ -113,7 +116,7 @@ export default function VirtualAccounts() {
     try {
       const query = encodeURIComponent(String(userId))
       const responses = await Promise.all([
-        fetch(`/api/settings/users-currencies-default?user_id=${query}`, { cache: 'no-store' }),
+        branchId ? fetch(`/api/settings/users-currencies-default?user_id=${query}&branch_id=${branchId}`, { cache: 'no-store' }) : Promise.resolve(new Response(JSON.stringify({ rows: [] }))),
         fetch(`/api/settings/user-warehouse-defaults?user_id=${query}`, { cache: 'no-store' }),
       ])
       const [accounts, defaults] = await Promise.all(responses.map(response => response.json()))
@@ -138,7 +141,7 @@ export default function VirtualAccounts() {
     if (selectedUser) void loadDefaults(selectedUser.user_id)
     else setLoading(false)
     return () => { requestRef.current += 1 }
-  }, [selectedUser])
+  }, [selectedUser, branchId])
 
   const openWarehouseSearch = (field: WarehouseField) => {
     if (!selectedUser) {
@@ -457,9 +460,11 @@ export default function VirtualAccounts() {
   }
 
   const handleSaveAll = async () => {
+    if (!branchId) { showErrorMessage('يجب تحديد الفرع'); return }
     if (!selectedUser || saving || loading) { showErrorMessage('اختر مستخدما اولا'); return }
     const payload = {
       user_id: selectedUser.user_id,
+      branch_id: branchId,
       rows: rows.map((r) => ({
         currency_id: r.currency_id,
         cash_account_id: r.cash_account_id,
@@ -513,6 +518,13 @@ export default function VirtualAccounts() {
           </div>
         </div>
 
+        <div className="w-full max-w-sm">
+          <Label htmlFor="default-accounts-branch">الفرع *</Label>
+          <select id="default-accounts-branch" className="h-10 w-full rounded-md border bg-background px-3" value={branchId ?? ""} disabled={saving} onChange={event => setBranchId(Number(event.target.value) || null)}>
+            <option value="">اختر الفرع</option>
+            {branches.map(branch => <option key={branch.id} value={branch.id}>{branch.branch_name}</option>)}
+          </select>
+        </div>
         <div className="w-full max-w-sm invoice-currency-dropdown-wrap">
           <Dropdown
             caption="المستخدم"

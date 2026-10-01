@@ -19,6 +19,7 @@ const ensureTables = async () => {
   await sql`ALTER TABLE users_currencies_default_account_tbl ADD COLUMN IF NOT EXISTS received_cheqs_account_id INTEGER`
   await sql`ALTER TABLE users_currencies_default_account_tbl ADD COLUMN IF NOT EXISTS returned_cheqs_account_id INTEGER`
   await sql`ALTER TABLE users_currencies_default_account_tbl ADD COLUMN IF NOT EXISTS cards_account_id INTEGER`
+  await sql`ALTER TABLE users_currencies_default_account_tbl ADD COLUMN IF NOT EXISTS branch_id INTEGER`
 }
 
 const resolveUserKeys = async (rawUserId: unknown) => {
@@ -44,11 +45,13 @@ export async function GET(request: NextRequest) {
   try {
     await ensureTables()
     const { searchParams } = new URL(request.url)
+    const branchId = searchParams.get("branch_id") ? Number(searchParams.get("branch_id")) : null
+    if (branchId !== null && (!Number.isSafeInteger(branchId) || branchId <= 0)) return NextResponse.json({ error: "يجب تحديد الفرع" }, { status: 400 })
     const { primaryId, lookupIds } = await resolveUserKeys(searchParams.get("user_id"))
     if (!primaryId || lookupIds.length === 0) return NextResponse.json({ error: "user_id required" }, { status: 400 })
 
     const rows = await sql`
-      SELECT DISTINCT ON (u.currency_id) u.currency_id,
+      SELECT DISTINCT ON (u.currency_id) u.currency_id, u.branch_id,
              u.account_id AS cash_account_id,
              a_cash.code AS cash_account_code,
              a_cash.name AS cash_account_name,
@@ -67,6 +70,7 @@ export async function GET(request: NextRequest) {
       LEFT JOIN account_tbl a_returned ON a_returned.id = u.returned_cheqs_account_id
       LEFT JOIN account_tbl a_cards ON a_cards.id = u.cards_account_id
       WHERE u.user_id::text = ANY(${lookupIds.map(String)}::text[])
+        AND u.branch_id IS NOT DISTINCT FROM ${branchId}::integer
       ORDER BY u.currency_id, CASE WHEN u.user_id::text = ${String(primaryId)}::text THEN 0 ELSE 1 END, u.id DESC
     `
 
@@ -81,6 +85,8 @@ export async function POST(request: NextRequest) {
   try {
     const data = await request.json()
     const { user_id, rows } = data
+    const branchId = Number(data.branch_id)
+    if (!Number.isSafeInteger(branchId) || branchId <= 0) return NextResponse.json({ error: "يجب تحديد الفرع" }, { status: 400 })
     if (!user_id) return NextResponse.json({ error: "user_id required" }, { status: 400 })
     if (!Array.isArray(rows)) return NextResponse.json({ error: "rows required" }, { status: 400 })
     const accountFields = ["cash_account_id", "incoming_checks_account_id", "returned_checks_account_id", "card_account_id"] as const
@@ -99,16 +105,21 @@ export async function POST(request: NextRequest) {
       await client.query('BEGIN')
       // Serialize saves for this user and roll back the replacement if any row fails.
       await client.query('SELECT pg_advisory_xact_lock($1::int, $2::int)', [72411, primaryId])
+      const branch = await client.query('SELECT id FROM branches WHERE id = $1 AND COALESCE(status, 1) != 3', [branchId])
+      if (!branch.rows.length) {
+        await client.query('ROLLBACK')
+        return NextResponse.json({ error: 'يجب تحديد الفرع' }, { status: 400 })
+      }
       const currencies = await client.query('SELECT id FROM currency WHERE id = ANY($1::int[])', [currencyIds])
       if (currencies.rows.length !== currencyIds.length) {
         await client.query('ROLLBACK')
         return NextResponse.json({ error: 'Unknown currency' }, { status: 400 })
       }
-      await client.query('DELETE FROM users_currencies_default_account_tbl WHERE user_id::text = $1::text', [String(primaryId)])
+      await client.query('DELETE FROM users_currencies_default_account_tbl WHERE user_id::text = $1::text AND branch_id = $2', [String(primaryId), branchId])
       for (const row of rows) {
         await client.query(
-          'INSERT INTO users_currencies_default_account_tbl (user_id, currency_id, account_id, received_cheqs_account_id, returned_cheqs_account_id, cards_account_id) VALUES ($1, $2, $3, $4, $5, $6)',
-          [primaryId, Number(row.currency_id), ...accountFields.map(field => row[field] == null ? null : Number(row[field]))],
+          'INSERT INTO users_currencies_default_account_tbl (user_id, currency_id, account_id, received_cheqs_account_id, returned_cheqs_account_id, cards_account_id, branch_id) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+          [primaryId, Number(row.currency_id), ...accountFields.map(field => row[field] == null ? null : Number(row[field])), branchId],
         )
       }
       await client.query('COMMIT')

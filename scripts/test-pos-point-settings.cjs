@@ -45,29 +45,33 @@ test('POS settings save optional accounts as null and selected autocomplete ids 
     '@/lib/pos-point-users': users,
   })
   const form = { code: 'P1', name: 'POS', branch_id: 1, main_warehouse_id: 1, currency_id: 2, sales_book_id: 3, price_category_id: 1,
-    users: [{ user_id: 7 }, { user_id: '7' }, { user_id: 8 }], cash_account_id: '', card_account_id: null, cheque_account_id: '', tax_account_id: '', return_account_id: '', gift_account_id: '' }
+    users: [{ user_id: 7 }, { user_id: '7' }, { user_id: 8 }], cash_account_id: '', walk_in_account_id: '', card_account_id: null, cheque_account_id: '', tax_account_id: '', return_account_id: '', gift_account_id: '' }
   const save = data => route.POST(new Request('http://localhost/api/pos/points', { method: 'POST', body: JSON.stringify(data) }))
   assert.equal((await save(form)).status, 201)
   const insert = calls.find(call => call.query.startsWith('INSERT INTO pos_points_tbl'))
   const columns = insert.query.match(/pos_points_tbl\(([^)]+)\)/)[1].split(',')
   const values = Object.fromEntries(columns.map((column, index) => [column, insert.values[index]]))
-  for (const field of ['cash_account_id', 'card_account_id', 'cheque_account_id', 'tax_account_id', 'return_account_id', 'gift_account_id']) assert.equal(values[field], null)
+  for (const field of ['cash_account_id', 'walk_in_account_id', 'card_account_id', 'cheque_account_id', 'tax_account_id', 'return_account_id', 'gift_account_id']) assert.equal(values[field], null)
   assert.deepEqual(calls.filter(call => call.query.startsWith('INSERT INTO pos_point_users_tbl')).map(call => call.values[1]), ['7', '8'])
   calls.length = 0
-  assert.equal((await save({ ...form, cash_account_id: '123', users: [] })).status, 201)
+  assert.equal((await save({ ...form, cash_account_id: '123', walk_in_account_id: '124', users: [] })).status, 201)
   const saved = calls.find(call => call.query.startsWith('INSERT INTO pos_points_tbl'))
   assert.equal(saved.values[columns.indexOf('cash_account_id')], 123)
+  assert.equal(saved.values[columns.indexOf('walk_in_account_id')], 124)
   assert.equal(calls.some(call => call.query.startsWith('INSERT INTO pos_point_users_tbl')), false)
 })
 
-test('cashier only requires accounts for payment methods actually used', () => {
+test('cashier validates cash-card account and requires a customer for cheque or credit', () => {
   assert.equal(validatePosAccounts({ cash_account_id: 10 }, [{ method: 'cash', amount: 20 }, { method: 'card', amount: 0 }], { mode: 'sale' }), null)
   for (const [method, label] of [['cash', 'الصندوق'], ['card', 'البطاقات'], ['cheque', 'الشيكات'], ['gift_card', 'الهدايا']]) {
     const issue = validatePosAccounts({}, [{ method, amount: 20 }], { mode: 'sale' })
     assert.ok(issue.includes(label))
     assert.match(issue, /تعريف نقطة البيع.*للمستخدم.*النظام/)
   }
-  assert.equal(validatePosAccounts({}, [{ method: 'account', amount: 20 }], { mode: 'sale' }), null)
+  assert.match(validatePosAccounts({}, [{ method: 'account', amount: 20 }], { mode: 'sale' }), /اختيار العميل/)
+  assert.match(validatePosAccounts({ cash_account_id: 10, card_account_id: 11 }, [{ method: 'cash', amount: 10 }, { method: 'card', amount: 10 }], { mode: 'sale' }), /الحساب النقدي/)
+  assert.equal(validatePosAccounts({ cash_account_id: 10, card_account_id: 11, walk_in_account_id: 12 }, [{ method: 'cash', amount: 10 }, { method: 'card', amount: 10 }], { mode: 'sale' }), null)
+  assert.match(validatePosAccounts({ cash_account_id: 10, cheque_account_id: 12 }, [{ method: 'cash', amount: 10 }, { method: 'cheque', amount: 10 }, { method: 'account', amount: 10 }], { mode: 'sale' }), /اختيار العميل/)
   assert.equal(validatePosAccounts({}, [], { mode: 'gift', taxAmount: 20 }), null)
   assert.match(validatePosAccounts({ card_account_id: 11 }, [{ method: 'card', amount: 20 }], { mode: 'sale' }), /الصندوق/)
   assert.equal(validatePosAccounts({ card_account_id: 11 }, [{ method: 'card', amount: 20 }], { mode: 'sale', customerAccountId: 50 }), null)

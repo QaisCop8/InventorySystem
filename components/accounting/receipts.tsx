@@ -401,11 +401,12 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
   // العملة يدوياً ليحصل عليها.
   const fetchAccountDefaultsForCurrency = async (
     currencyId: number | null,
+    branchId: number | null = null,
   ): Promise<{ cash_account_id: number | null; check_account_id: number | null; credit_card_account_id: number | null }> => {
     const empty = { cash_account_id: null, check_account_id: null, credit_card_account_id: null }
-    if (!user?.id || !currencyId) return empty
+    if (!user?.id || !currencyId || !branchId) return empty
     try {
-      const response = await fetch(`/api/settings/users-currencies-default?user_id=${encodeURIComponent(user.id)}`)
+      const response = await fetch(`/api/settings/users-currencies-default?user_id=${encodeURIComponent(user.id)}&branch_id=${branchId}`, { cache: "no-store" })
       if (!response.ok) return empty
       const data = await response.json()
       const row = Array.isArray(data?.rows) ? data.rows.find((r: any) => Number(r.currency_id) === currencyId) : null

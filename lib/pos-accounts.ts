@@ -13,7 +13,9 @@ export async function resolvePosAccounts(point: any, userId: string) {
     SELECT d.* FROM users_currencies_default_account_tbl d
     JOIN selected_user u ON d.user_id::text=u.id::text OR d.user_id::text=u.user_id::text
     WHERE d.currency_id=${Number(point.currency_id)}
-    ORDER BY CASE WHEN d.user_id::text=u.id::text THEN 0 ELSE 1 END,d.id DESC LIMIT 1
+      AND (to_jsonb(d)->>'branch_id' IS NULL OR to_jsonb(d)->>'branch_id'=${String(point.branch_id)})
+    ORDER BY CASE WHEN to_jsonb(d)->>'branch_id'=${String(point.branch_id)} THEN 0 ELSE 1 END,
+      CASE WHEN d.user_id::text=u.id::text THEN 0 ELSE 1 END,d.id DESC LIMIT 1
   `
   const user = defaults[0] || {}
   const system = await getSystemSettings()
@@ -25,7 +27,7 @@ export async function resolvePosAccounts(point: any, userId: string) {
     card_account_id: id(point.card_account_id, user.cards_account_id),
     tax_account_id: id(point.tax_account_id, system.default_sales_tax_account),
     return_account_id: id(point.return_account_id, system.default_selling_returns_account_id),
-    walk_in_account_id: null,
+    walk_in_account_id: id(point.walk_in_account_id),
     receivable_account_id: null,
   }
 }

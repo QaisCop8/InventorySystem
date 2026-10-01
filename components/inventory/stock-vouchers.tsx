@@ -297,7 +297,7 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
   const generateCode = async (bookId: number | null, fallbackCode = "") => {
     if (!bookId) return fallbackCode
     try {
-      const response = await fetch(`/api/stock-vouchers/generate-number?vch_type=${voucherType}&vch_book_id=${bookId}`)
+      const response = await fetch(`/api/stock-vouchers/generate-number?vch_type=${voucherType}&vch_book_id=${bookId}`, { cache: "no-store" })
       if (!response.ok) return fallbackCode
       const data = await response.json()
       return data.code || fallbackCode
@@ -306,6 +306,25 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
       return fallbackCode
     }
   }
+
+  useEffect(() => {
+    if (!dialogOpen || form.id > 0 || !form.vch_book_id) return
+    let cancelled = false
+    const bookId = form.vch_book_id
+    const previousCode = form.vch_code
+    const refreshNumber = async () => {
+      const code = await generateCode(bookId, previousCode)
+      if (cancelled || code === previousCode) return
+      setForm(current => current.id === 0 && current.vch_book_id === bookId && current.vch_code === previousCode
+        ? { ...current, vch_code: code }
+        : current)
+    }
+    window.addEventListener("system-settings-updated", refreshNumber)
+    return () => {
+      cancelled = true
+      window.removeEventListener("system-settings-updated", refreshNumber)
+    }
+  }, [dialogOpen, form.id, form.vch_book_id, form.vch_code, voucherType])
 
   // تغيير دفتر السندات (لسند جديد لم يُحفَظ بعد فقط) يعيد توليد رقم السند وفق الدفتر الجديد —
   // بنفس نمط handleBookChange في credit-note.tsx/journal.tsx/receipts.tsx (لم تكن هذه الشاشة
@@ -505,7 +524,7 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
     return null
   }
 
-  const saveVoucher = async (action: PostVoucherAction = "save") => {
+  const saveVoucher = async (action: PostVoucherAction = "save", keepCurrent = false): Promise<boolean> => {
     // حفظ عادي / حفظ وطباعة: تبقى الحالة كما هي (لا ترحيل). حفظ وترحيل / ترحيل وطباعة: تصبح
     // status=2 (مرحل) ويُقفل السند بعدها ويُطبَّق أثر المخزون — نفس منطق receipts.tsx.
     const status = action === "save" || action === "save_print" ? form.status || 1 : 2
@@ -532,7 +551,7 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
     const validationError = validateVoucher(dataToSave)
     if (validationError) {
       setErrorMessages([validationError])
-      return
+      return false
     }
     setIsSaving(true)
     setErrorMessages([])
@@ -546,7 +565,7 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
       if (!response.ok) {
         const error = await response.json()
         setErrorMessages([error.error || "فشل في حفظ السند"])
-        return
+        return false
       }
       const saved = await response.json()
 
@@ -572,6 +591,10 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
       }
 
       await fetchVouchers()
+      if (keepCurrent) {
+        setForm(normalizeVoucher({ ...dataToSave, ...saved, items: dataToSave.items }, voucherType))
+        return true
+      }
       const defaults = await fetchDefaults()
       // يبقى دفتر السندات كما هو (نفس الدفتر المستخدم للسند الذي حُفظ للتو) بدل الرجوع للدفتر
       // الافتراضي — أكثر ملاءمة عند إدخال عدة سندات متتالية على نفس الدفتر.
@@ -579,9 +602,11 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
       const code = await generateCode(bookId)
       setForm({ ...buildInitialForm(voucherType), vch_code: code, vch_book_id: bookId, currency_id: defaults.currencyId })
       setDialogOpen(true)
+      return true
     } catch (error) {
       console.error(error)
       setErrorMessages(["فشل في حفظ السند"])
+      return false
     } finally {
       setIsSaving(false)
     }
@@ -753,13 +778,14 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
           <div className="min-h-0 overflow-auto rounded-xl border p-2">
             <DataGridView
               dataSource={filteredVouchers.map((voucher) => ({ ...voucher, display_date: voucher.vch_date?.slice(0, 10), display_amount: Number(voucher.amount || 0).toLocaleString(), display_status: voucher.status === 2 ? "مرحل" : "مسودة" }))}
-              style={{ height: "420px" }}
+              style={{ height: "max(420px, calc(100dvh - 340px))", width: "100%" }}
+              containerStyle={{ width: "100%", minWidth: 0 }}
               isReport
               isReadOnly
               dontConvertToCards
               onRowDoubleClick={(row: any) => { const voucher = row.item || row; openRow(voucher, filteredVouchers.findIndex((item) => item.id === voucher.id)) }}
               scheme={{ columns: [
-                { header: "رقم السند", name: "vch_code", width: 150, isReadOnly: true },
+                { header: "رقم السند", name: "vch_code", width: "*", minWidth: 150, isReadOnly: true },
                 { header: "التاريخ", name: "display_date", width: 130, isReadOnly: true },
                 { header: "المبلغ", name: "display_amount", width: 140, isReadOnly: true },
                 { header: "الحالة", name: "display_status", width: 140, isReadOnly: true },

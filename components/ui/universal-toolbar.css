@@ -48,6 +48,12 @@
   padding: 0 !important;
 }
 
+.universal-toolbar[data-toolbar-template="compact"][data-toolbar-show-utility-labels="true"] .universal-toolbar-utilities > button {
+  width: auto;
+  min-width: max-content;
+  padding-inline: 0.75rem !important;
+}
+
 .universal-toolbar[data-toolbar-template="classic"] .universal-toolbar-layout {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);

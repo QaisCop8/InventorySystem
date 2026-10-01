@@ -1710,6 +1710,43 @@ export default function UnifiedReceiptVoucher({
   // بـ credit_cards_types_tbl.currency_id)، ضبط سعر الصرف (1 لعملة الأساس، وإلا آخر سعر بتاريخ
   // <= تاريخ السند من exchange_rates)، وتحميل الحسابات الافتراضية للمستخدم الحالي لهذه العملة
   // من users_currencies_default_account_tbl.
+  const defaultAccountsRequest = useRef(0)
+  useEffect(() => () => { defaultAccountsRequest.current += 1 }, [dialogOpen, form.id, user?.id])
+  const applyDefaultAccounts = async (currencyId: number | null, branchId: number | null) => {
+    const requestId = ++defaultAccountsRequest.current
+    const voucherId = latestFormRef.current.id
+    let row: any = null
+    if (user?.id && currencyId && branchId) {
+      try {
+        const response = await fetch(`/api/settings/users-currencies-default?user_id=${encodeURIComponent(user.id)}&branch_id=${branchId}`, { cache: "no-store" })
+        if (!response.ok) throw new Error("تعذر تحميل الحسابات الافتراضية")
+        const data = await response.json()
+        row = Array.isArray(data?.rows) ? data.rows.find((r: any) => Number(r.currency_id) === currencyId) : null
+      } catch (error) {
+        console.error("Failed to fetch branch account defaults", error)
+        if (requestId === defaultAccountsRequest.current) messagesRef.current?.show?.([{ severity: "error", detail: "تعذر تحميل الحسابات الافتراضية", life: 5000 }])
+      }
+    }
+    if (requestId !== defaultAccountsRequest.current || latestFormRef.current.id !== voucherId) return
+    const accountId = (value: unknown) => Number.isSafeInteger(Number(value)) && Number(value) > 0 ? Number(value) : null
+    const patch = {
+      cash_account_id: accountId(row?.cash_account_id),
+      check_account_id: accountId(row?.incoming_checks_account_id),
+      credit_card_account_id: accountId(row?.card_account_id),
+    }
+    if (onFormPatch) onFormPatch(patch)
+    else {
+      onFormChange("cash_account_id", patch.cash_account_id)
+      onFormChange("check_account_id", patch.check_account_id)
+      onFormChange("credit_card_account_id", patch.credit_card_account_id)
+    }
+  }
+
+  const handleBranchChange = (branchId: number) => {
+    onFormChange("branch_id", branchId)
+    void applyDefaultAccounts(latestFormRef.current.currency_id ?? null, branchId)
+  }
+
   const handleCurrencyChange = async (newCurrencyId: number | null) => {
     const currencyId = newCurrencyId == null ? null : Number(newCurrencyId)
     onFormChange("currency_id", currencyId)
@@ -1718,34 +1755,10 @@ export default function UnifiedReceiptVoucher({
       patchCard({ card_type_id: null, card_type_name: "", account_id: null, account_code: "", account_name: "", currency_id: null })
     }
 
-    if (!currencyId) return
+    if (!currencyId) { await applyDefaultAccounts(null, latestFormRef.current.branch_id ?? null); return }
 
-    // Populate the configured accounts before looking up the exchange rate, so an
-    // exchange-rate failure cannot leave the fund account fields empty.
-    if (user?.id) {
-      try {
-        const response = await fetch(`/api/settings/users-currencies-default?user_id=${encodeURIComponent(user.id)}`)
-        const data = response.ok ? await response.json() : null
-        const row = Array.isArray(data?.rows) ? data.rows.find((r: any) => Number(r.currency_id) === currencyId) : null
-        const accountId = (value: unknown) => {
-          const id = Number(value)
-          return Number.isInteger(id) && id > 0 ? id : null
-        }
-        const accountPatch = {
-          cash_account_id: accountId(row?.cash_account_id),
-          check_account_id: accountId(row?.incoming_checks_account_id),
-          credit_card_account_id: accountId(row?.card_account_id),
-        }
-        if (onFormPatch) onFormPatch(accountPatch)
-        else {
-          onFormChange("cash_account_id", accountPatch.cash_account_id)
-          onFormChange("check_account_id", accountPatch.check_account_id)
-          onFormChange("credit_card_account_id", accountPatch.credit_card_account_id)
-        }
-      } catch (error) {
-        console.error("Failed to fetch default accounts for currency", error)
-      }
-    }
+    await applyDefaultAccounts(currencyId, latestFormRef.current.branch_id ?? null)
+    if (latestFormRef.current.currency_id !== currencyId) return
 
     if (currencyId === baseCurrencyId) {
       onFormChange("rate", 1)
@@ -1757,6 +1770,7 @@ export default function UnifiedReceiptVoucher({
         })
         const response = await fetch(`/api/exchange-rates/lookup?${query.toString()}`)
         const data = response.ok ? await response.json() : null
+        if (latestFormRef.current.currency_id !== currencyId) return
         onFormChange("rate", data?.rate ?? 1)
       } catch (error) {
         console.error("Failed to fetch exchange rate", error)
@@ -1944,7 +1958,7 @@ export default function UnifiedReceiptVoucher({
               </DialogTitle>
             </DialogHeader>
 
-            <TransactionBranchField voucherType={form.vch_type} action={form.id ? "update" : "create"} value={form.branch_id} onChange={(id) => onFormChange("branch_id", id)} disabled={isLocked} />
+            <TransactionBranchField voucherType={form.vch_type} action={form.id ? "update" : "create"} value={form.branch_id} onChange={handleBranchChange} disabled={isLocked} />
 
             <Messages innerRef={messagesRef} />
 

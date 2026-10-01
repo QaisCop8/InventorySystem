@@ -45,3 +45,16 @@ export async function getPosCampaigns() {
     ORDER BY h.id
   `
 }
+
+export async function getPosCampaignUsage() {
+  const rows = await sql`
+    SELECT vi.campaign_id, vi.item_id, SUM(COALESCE(vi.qnty, 0))::float8 AS quantity
+    FROM voucher_items_tbl vi
+    JOIN voucher_header_tbl vh ON vh.id = vi.voucher_id
+    WHERE vi.campaign_id IS NOT NULL
+      AND vh.vch_type = 12
+      AND COALESCE(vh.status, 1) <> 3
+    GROUP BY vi.campaign_id, vi.item_id
+  `
+  return Object.fromEntries(rows.map((row: any) => [`${Number(row.campaign_id)}:${Number(row.item_id)}`, Number(row.quantity || 0)]) as [string, number][])
+}

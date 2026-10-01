@@ -176,7 +176,7 @@ export const nextVoucherSequence = async (vchType: number, codePrefix: string, s
 }
 
 export const resolveVoucherBookName = async (bookId: number | null): Promise<string> => {
-  if (!bookId) return ""
+  if (bookId == null) return ""
   const rows = await sql`SELECT name FROM voucher_books_tbl WHERE id = ${bookId}`
   return rows[0]?.name || ""
 }

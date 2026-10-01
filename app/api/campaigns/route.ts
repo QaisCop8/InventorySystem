@@ -121,6 +121,8 @@ async function save(request: NextRequest, updating: boolean) {
     if (!String(data.name || "").trim()) return NextResponse.json({ error: "اسم الحملة مطلوب" }, { status: 400 })
     const typeId = number(data.type_id, 1)
     if (![1, 2, 3, 4, 5].includes(typeId)) return NextResponse.json({ error: "نوع الحملة غير صالح" }, { status: 400 })
+    if (typeId === 5 && (!Number.isInteger(Number(data.condition_items_val)) || Number(data.condition_items_val) < 1))
+      return NextResponse.json({ error: "كمية أول كمية يجب أن تكون عدداً صحيحاً موجباً" }, { status: 400 })
     if (!data.start_date || !data.end_date || String(data.start_date) > String(data.end_date)) return NextResponse.json({ error: "فترة الحملة غير صالحة" }, { status: 400 })
     const buyItems = Array.isArray(data.buy_items) ? data.buy_items : []
     const addedItems = Array.isArray(data.added_items) ? data.added_items : []

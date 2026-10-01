@@ -11,7 +11,7 @@ import { validatePosAccounts } from "@/lib/pos-account-validation"
 import { createPosReceipt } from "../_receipts"
 import { loadStoredSettings } from "@/app/api/settings/system/route"
 import { applyPosCampaigns, combinedDiscountPercent, type PosCampaignLine } from "@/lib/pos-campaigns"
-import { getPosCampaigns } from "@/lib/pos-campaign-storage"
+import { getPosCampaigns, getPosCampaignUsage } from "@/lib/pos-campaign-storage"
 
 const localDate = () => {
   const date = new Date()
@@ -54,6 +54,9 @@ export async function POST(request: NextRequest) {
       const isReturn=data.pos_mode==="return"
       const isGift=data.pos_mode==="gift"
       const campaignRows=!isReturn&&!isGift?await getPosCampaigns():[]
+      const hasFirstQuantityCampaign=campaignRows.some((campaign:any)=>Number(campaign.type_id)===5)
+      if(hasFirstQuantityCampaign)await sql`SELECT pg_advisory_xact_lock(hashtext('pos-first-quantity-campaigns'))`
+      const campaignUsage=hasFirstQuantityCampaign?await getPosCampaignUsage():{}
       const saleTime=new Date(String(data.vch_date||"").replace(" ","T"))
       const campaignResult=!isReturn&&!isGift?applyPosCampaigns(data.items.map((item:any)=>({
         id:Number(item.product_id||item.item_id),unit_id:Number(item.unit_id)||null,
@@ -61,8 +64,8 @@ export async function POST(request: NextRequest) {
         discount:Number(item.discount_percent??item.discount??0),
       })) as PosCampaignLine[],campaignRows as any[],{
         branchId:Number(point.branch_id),warehouseId:Number(point.main_warehouse_id),priceClassId:Number(point.price_category_id),
-      },Number.isNaN(saleTime.getTime())?new Date():saleTime):{items:[],invoiceDiscount:0,campaignId:0}
-      const availableCurrencies=await getPosCurrencies(Number(point.currency_id))
+      },Number.isNaN(saleTime.getTime())?new Date():saleTime,campaignUsage):{items:[],invoiceDiscount:0,campaignId:0}
+      const availableCurrencies=await getPosCurrencies(Number(point.currency_id), String(data.vch_date || localDate()).slice(0, 10))
       const pointRate=Number(availableCurrencies.find(row=>row.currency_id===Number(point.currency_id))?.exchange_rate)||1
       if(isReturn&&!point.allow_returns)return NextResponse.json({error:"المردودات غير مفعلة لهذه النقطة"},{status:400})
       if(isGift){
@@ -109,8 +112,25 @@ export async function POST(request: NextRequest) {
         const configured:Record<string,number|null>={cash:Number(point.cash_account_id)||null,card:Number(point.card_account_id)||null,cheque:Number(point.cheque_account_id)||null,account:null,gift_card:Number(point.gift_account_id)||null}
         return {...payment,payment_method:method,account_id:configured[method]||null}
       })
-      const customerRequired = payments.some((payment:any)=>Number(payment.currency_amount??payment.amount)>0&&payment.payment_method==="account")
-      if(customerRequired || Number(data.pos_customer_id)>0){
+      const hasChequePayment=payments.some((payment:any)=>Number(payment.currency_amount??payment.amount)>0&&payment.payment_method==="cheque")
+      const hasCreditPayment=payments.some((payment:any)=>Number(payment.currency_amount??payment.amount)>0&&payment.payment_method==="account")
+      const hasCashPayment=payments.some((payment:any)=>Number(payment.currency_amount??payment.amount)>0&&payment.payment_method==="cash")
+        ||(Array.isArray(data.cash_currency_amounts)&&data.cash_currency_amounts.some((entry:any)=>Number(entry.amount)>0))
+      const hasCardPayment=payments.some((payment:any)=>Number(payment.currency_amount??payment.amount)>0&&payment.payment_method==="card")
+      const useCashCardAccount=hasCashPayment&&hasCardPayment&&!hasChequePayment&&!hasCreditPayment
+      const customerRequired=hasChequePayment||hasCreditPayment
+      const paymentCustomerIds=payments.filter((payment:any)=>Number(payment.currency_amount??payment.amount)>0&&["cheque","account"].includes(payment.payment_method))
+        .map((payment:any)=>Number(payment.customer_id ?? data.pos_customer_id))
+      if(paymentCustomerIds.some((id:number)=>!Number.isSafeInteger(id)||id<=0))return NextResponse.json({error:"اختر العميل في تفاصيل الدفع بدلاً من العميل النقدي"},{status:400})
+      if(new Set(paymentCustomerIds).size>1)return NextResponse.json({error:"يجب أن يكون عميل الشيكات والذمم نفس العميل"},{status:400})
+      if(customerRequired)data.pos_customer_id=paymentCustomerIds[0]
+      if(useCashCardAccount){
+        const cashAccount=Number(point.walk_in_account_id)
+          ? (await sql`SELECT id,name FROM account_tbl WHERE id=${Number(point.walk_in_account_id)} AND COALESCE(status,1)<>3`)[0]
+          : null
+        if(!cashAccount)return NextResponse.json({error:"يجب تعريف الحساب النقدي في إعدادات نقطة البيع"},{status:400})
+        data.account_id=Number(cashAccount.id);data.customer_name=String(cashAccount.name)
+      }else if(customerRequired || Number(data.pos_customer_id)>0){
         const customerId=Number(data.pos_customer_id)
         const customer=customerId?(await sql`SELECT id,name FROM account_tbl WHERE id=${customerId} AND COALESCE(status,1)<>3 AND type IN (2,3,5)`)[0]:null
         if(!customer)return NextResponse.json({error:"اختر العميل في تفاصيل الدفع بدلاً من العميل النقدي"},{status:400})
@@ -205,11 +225,7 @@ export async function POST(request: NextRequest) {
       await sql`UPDATE voucher_header_tbl SET pos_session_id=${Number(session.id)},shift_guid=${String(session.shift_guid)}::uuid,campaign_discount_amount=${Math.round(campaignResult.invoiceDiscount/campaignTaxFactor*100)/100},campaign_discount_id=${campaignResult.campaignId||null} WHERE id=${Number(saved.id)}`
       await sql`INSERT INTO pos_cashier_log_tbl(pos_point_id,session_id,user_id,movement_type,transaction_no,notes) VALUES(${pointId},${Number(session.id)},${Number(userId)},${String(data.cashier_action || (data.pos_mode === "return" ? "حفظ فاتورة" : "حفظ فاتورة"))},${String(saved.vch_code || "")},${String(data.note || "")})`
       for(const payment of payments.filter((p:any)=>p.payment_method==="cheque")){
-        if(receipt){
-          await sql`UPDATE cheques_tbl SET amount=${Number(payment.currency_amount??payment.amount)},currency_id=${Number(payment.currency_id||point.currency_id)},rate=${Number(availableCurrencies.find(row=>row.currency_id===Number(payment.currency_id||point.currency_id))?.exchange_rate??1)}
-            WHERE voucher_id=${Number(receipt.id)} AND cheq_num=${String(payment.reference||"").trim()} AND bank_account=${String(payment.cheque_account||"").trim()}`
-          continue
-        }
+        if(receipt) continue
         await sql`
           INSERT INTO cheques_tbl (
             voucher_id,cheq_type,bank_account,cheq_num,bank_id,branch_id,amount,currency_id,rate,
@@ -233,7 +249,7 @@ export async function POST(request: NextRequest) {
           ON CONFLICT(session_id,currency_id) DO UPDATE SET expected_amount=pos_session_currencies_tbl.expected_amount+${delta}`
       }
       for(const payment of payments.filter((p:any)=>p.payment_method==="gift_card"))await sql`UPDATE pos_gift_cards_tbl SET balance=balance-${Number(payment.amount)},updated_at=NOW() WHERE code=${String(payment.reference||"").trim()}`
-      return NextResponse.json({...saved,pos_receipt_voucher_id:receipt?Number(receipt.id):null,receipt_vch_code:receipt?.vch_code||null},{status:201})
+      return NextResponse.json({...saved,pos_receipt_voucher_id:receipt?Number(receipt.id):null,receipt_vch_code:receipt?.vch_code||null,pos_receipts:receipt?.receipts?.map((row:any)=>({id:Number(row.id),vch_code:row.vch_code,currency_id:Number(row.currency_id),rate:Number(row.rate),amount:Number(row.amount)}))||[]},{status:201})
     })
   } catch (error) {
     console.error("Error creating POS sale:", error)

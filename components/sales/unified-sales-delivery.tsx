@@ -2500,6 +2500,7 @@ export default function UnifiedSalesDelivery({
           onLast={() => guardedAction(() => onNavigate?.("last"))}
           onPrint={onPrint}
           onClone={onClone}
+          showUtilityLabels
           isSaving={isSaving}
           isLoading={isLoading}
           canSave={!isLocked}

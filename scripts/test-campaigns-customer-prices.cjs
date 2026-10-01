@@ -53,6 +53,16 @@ test('first-quantity campaign discounts only the configured quantity and ignores
  assert.equal(result.items[0].campaign_discount,50)
  assert.equal(result.items[0].price*result.items[0].quantity-result.items[0].campaign_discount,1450)
 })
+test('first-quantity campaign uses its saved integer quantity limit in cashier',()=>{
+ const campaign={id:11,type_id:5,condition_items_val:3,start_date:'2026-09-28',end_date:'2026-09-28',time_type:2,from_time:'00:00',to_time:'23:59',price_class:0,branch_ids:[],warehouse_ids:[],items:[{item_id:11,unit_id:4,quantity:100,discount:50,type:1}]}
+ const result=applyPosCampaigns([{id:11,unit_id:4,quantity:150,price:10,discount:0}],[campaign],{branchId:1,warehouseId:1,priceClassId:1},new Date('2026-09-28T12:00:00'))
+ assert.equal(result.items[0].campaign_discount,1.5)
+})
+test('first-quantity campaign is disabled when prior sales reached its campaign-item quantity',()=>{
+ const campaign={id:12,type_id:5,condition_items_val:1,start_date:'2026-09-28',end_date:'2026-09-28',time_type:2,from_time:'00:00',to_time:'23:59',price_class:0,branch_ids:[],warehouse_ids:[],items:[{item_id:12,unit_id:4,quantity:1,discount:5,type:1}]}
+ const result=applyPosCampaigns([{id:12,unit_id:4,quantity:1,price:10,discount:0}],[campaign],{branchId:1,warehouseId:1,priceClassId:1},new Date('2026-09-28T12:00:00'),{'12:12':1})
+ assert.equal(result.items[0].campaign_discount,0)
+})
 test('first-quantity campaign applies only to the first matching row when an item is added twice',()=>{
  const campaign={id:10,type_id:5,start_date:'2026-09-28',end_date:'2026-09-28',time_type:2,from_time:'00:00',to_time:'23:59',price_class:0,max_campaigns:1,branch_ids:[],warehouse_ids:[],items:[{item_id:10,unit_id:4,quantity:100,discount:50,type:1}]}
  const cart=[{id:10,unit_id:4,quantity:60,price:10,discount:0},{id:10,unit_id:4,quantity:60,price:10,discount:0}]
@@ -61,9 +71,9 @@ test('first-quantity campaign applies only to the first matching row when an ite
 })
 test('combined row discount percent stores regular and campaign discounts without changing the net line amount',()=>{
  const effective=combinedDiscountPercent(1,4.5,0,3.5)
- assert.equal(effective,77.7778)
+ assert.ok(Math.abs(effective-77.77777777777777)<1e-12)
  assert.equal(Math.round(4.5*(1-effective/100)*10000)/10000,1)
- assert.equal(combinedDiscountPercent(1,4.5,10,3.5),87.7778)
+ assert.ok(Math.abs(combinedDiscountPercent(1,4.5,10,3.5)-87.77777777777777)<1e-12)
 })
 test('POS invoice campaign applies its percentage to qualifying net cart value',()=>{
  const campaign={id:5,type_id:3,start_date:'2026-09-28',end_date:'2026-09-28',time_type:2,from_time:'00:00',to_time:'23:59',price_class:0,branch_ids:[],warehouse_ids:[],from_amount:50,to_amount:200,discount_perc:10,items:[]}

@@ -37,6 +37,8 @@ export type PosCampaignResult = {
   campaignId: number
 }
 
+export type PosCampaignUsage = Record<string, number>
+
 const roundMoney = (value: number) => Math.round((value + Number.EPSILON) * 100) / 100
 const lineGross = (line: PosCampaignLine) => Math.max(0, Number(line.price) * Number(line.quantity))
 const lineManualDiscount = (line: PosCampaignLine) => lineGross(line) * Math.max(0, Number(line.discount || 0)) / 100
@@ -46,7 +48,7 @@ export const combinedDiscountPercent = (quantity: number, unitPrice: number, reg
   const gross = Math.max(0, Number(quantity) * Number(unitPrice))
   if (!gross) return 0
   const discountAmount = gross * Math.max(0, Number(regularPercent || 0)) / 100 + Math.max(0, Number(campaignAmount || 0))
-  return Math.min(100, Math.round(discountAmount / gross * 100 * 10000) / 10000)
+  return Math.min(100, discountAmount / gross * 100)
 }
 const matchesOffer = (line: PosCampaignLine, offer: PosCampaign["items"][number]) =>
   Number(offer.item_id) === Number(line.id)
@@ -69,6 +71,7 @@ export function applyPosCampaigns(
   campaigns: PosCampaign[],
   scope: { branchId: number; warehouseId: number; priceClassId: number },
   now = new Date(),
+  campaignUsage: PosCampaignUsage = {},
 ): PosCampaignResult {
   const items = sourceItems.map(item => ({ ...item, campaign_discount: 0, campaign_id: null }))
   const active = campaigns.filter(campaign => {
@@ -92,13 +95,20 @@ export function applyPosCampaigns(
         if (offer.quantity <= 0) continue
         const matching = items.filter(line => matchesOffer(line, offer))
         if (campaign.type_id === 5) {
-          const line = matching[0]
-          if (!line) continue
-          const appliedQuantity = Math.min(line.quantity, offer.quantity)
-          const discount = offer.discount * appliedQuantity / offer.quantity
-          if (discount > 0) {
-            line.campaign_discount = Math.min(roundMoney(discount), roundMoney(lineGross(line) - lineManualDiscount(line)))
-            line.campaign_id = campaign.id
+          if (!matching.length) continue
+          const firstQuantity = Number(campaign.condition_items_val) > 0
+            ? Number(campaign.condition_items_val)
+            : offer.quantity
+          let remainingQuantity = Math.max(0, firstQuantity - Number(campaignUsage[`${campaign.id}:${offer.item_id}`] || 0))
+          for (const line of matching) {
+            const appliedQuantity = Math.min(line.quantity, remainingQuantity)
+            const discount = offer.discount * appliedQuantity / offer.quantity
+            if (discount > 0) {
+              line.campaign_discount = Math.min(roundMoney(discount), roundMoney(lineGross(line) - lineManualDiscount(line)))
+              line.campaign_id = campaign.id
+            }
+            remainingQuantity -= appliedQuantity
+            if (remainingQuantity <= 0) break
           }
           continue
         }
