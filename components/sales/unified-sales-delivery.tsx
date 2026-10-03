@@ -648,10 +648,17 @@ export default function UnifiedSalesDelivery({
   }, [dialogOpen])
 
   const initialSnapshotRef = useRef<string>(JSON.stringify(form))
+  const saveCompletedRef = useRef(false)
+  const [savedSnapshotVersion, setSavedSnapshotVersion] = useState(0)
   useEffect(() => {
+    if (saveCompletedRef.current) {
+      initialSnapshotRef.current = JSON.stringify(form)
+      saveCompletedRef.current = false
+      return
+    }
     initialSnapshotRef.current = JSON.stringify(form)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dialogOpen, form.id, form.vch_code])
+  }, [dialogOpen, form.id, form.vch_code, savedSnapshotVersion])
 
   const guardedAction = (action: () => void) => {
     if ([2, 3].includes(Number(form.status))) { action(); return }
@@ -3532,6 +3539,8 @@ export default function UnifiedSalesDelivery({
           onSelect={async (action) => {
             const saved = await onSave(action)
             if (saved !== false) {
+              saveCompletedRef.current = true
+              setSavedSnapshotVersion((version) => version + 1)
               setPostDialogOpen(false)
             }
           }}

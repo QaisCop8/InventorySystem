@@ -223,6 +223,10 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
 
   const [dialogOpen, setDialogOpen] = useState(false)
   const [form, setForm] = useState<SalesDeliveryRecord>(buildInitialForm())
+  const formRef = useRef(form)
+  formRef.current = form
+  const bookChangeRequestRef = useRef(0)
+  const pendingBookChangeRef = useRef<Promise<void> | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [currentIndex, setCurrentIndex] = useState(0)
@@ -441,11 +445,21 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
   // محفوظاً فعلياً فلا يُعاد توليد رقمه) يعيد توليد رقم السند وفق الدفتر الجديد — بنفس نمط
   // handleBookChange في credit-note.tsx/journal.tsx/receipts.tsx (لم تكن هذه الشاشة تطبّقه إطلاقاً).
   const handleBookChange = async (bookId: number | null) => {
-    const previousCode = form.vch_code || ""
-    setForm((f) => ({ ...f, vch_book_id: bookId }))
-    if (form.id > 0 || bookId == null) return
-    const generated = await generateCode(bookId, previousCode)
-    setForm((f) => ({ ...f, vch_code: generated || previousCode }))
+    const requestId = ++bookChangeRequestRef.current
+    const current = { ...formRef.current, vch_book_id: bookId }
+    formRef.current = current
+    setForm(current)
+    if (current.id > 0 || bookId == null) return
+    const pending = (async () => {
+      const generated = await generateCode(bookId, current.vch_code || "")
+      if (requestId !== bookChangeRequestRef.current) return
+      const next = { ...formRef.current, vch_book_id: bookId, vch_code: generated || current.vch_code }
+      formRef.current = next
+      setForm(next)
+    })()
+    pendingBookChangeRef.current = pending
+    await pending
+    if (requestId === bookChangeRequestRef.current) pendingBookChangeRef.current = null
   }
 
   const fetchVoucherDetails = async (id: number): Promise<SalesDeliveryRecord | null> => {
@@ -623,13 +637,15 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
   }
 
   const saveVoucher = async (action: PostVoucherAction = "save"): Promise<boolean> => {
-    const status = action === "save" || action === "save_print" ? form.status || 1 : 2
-    const isPrinted = action === "post_print" ? 1 : form.is_printed || 0
+    await pendingBookChangeRef.current
+    const currentForm = formRef.current
+    const status = action === "save" || action === "save_print" ? currentForm.status || 1 : 2
+    const isPrinted = action === "post_print" ? 1 : currentForm.is_printed || 0
     const dataToSave: SalesDeliveryRecord = {
-      ...form,
+      ...currentForm,
       status,
       is_printed: isPrinted,
-      items: form.items.filter((item) => item.product_id).map((item) => ({
+      items: currentForm.items.filter((item) => item.product_id).map((item) => ({
         ...item,
         price: item.unit_price == null ? 0 : Number(item.unit_price),
       })) as SalesVoucherItemRow[],
@@ -643,7 +659,7 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
     setIsSaving(true)
     setErrorMessages([])
     try {
-      const method = form.id > 0 ? "PUT" : "POST"
+      const method = currentForm.id > 0 ? "PUT" : "POST"
       const response = await fetch("/api/sales-vouchers", {
         method,
         headers: { "Content-Type": "application/json" },
@@ -686,9 +702,11 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
       try {
         await fetchVouchers()
         const defaults = await fetchDefaults()
-        const bookId = form.vch_book_id ?? defaults.bookId
+        const bookId = currentForm.vch_book_id ?? defaults.bookId
         const code = await generateCode(bookId)
-        setForm({ ...buildInitialForm(), vch_code: code, vch_book_id: bookId, currency_id: defaults.currencyId })
+        const nextForm = { ...buildInitialForm(), vch_code: code, vch_book_id: bookId, currency_id: defaults.currencyId }
+        formRef.current = nextForm
+        setForm(nextForm)
         setGridResetToken((value) => value + 1)
       } catch (refreshError) {
         console.error("Voucher saved, but refreshing the voucher screen failed", refreshError)

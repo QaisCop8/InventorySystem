@@ -149,12 +149,17 @@ export default function PosCashier(){
   }finally{setPointChooserBusy(false)}
  },[pointChooserOpen,validatePointShift])
  const loadPoints=useCallback(async()=>{
-  if(!navigator.onLine){
+  const restoreCachedPoint=async()=>{
    const last=Number(localStorage.getItem(baseKey+":last-point"))
    const cached=last?await loadPosCatalog<Catalog>(baseKey+":point:"+last).catch(()=>null):null
    if(cached?.catalog.point?.allow_offline&&cached.catalog.session){
     setPoints([cached.catalog.point]);selectedPointRef.current=last;initialPointResolutionRef.current=true;setPointId(last);setCatalog(cached.catalog);setLoading(false)
-   }else{setLoading(false);setMessage({type:"error",text:"يجب فتح وردية وتحميل نقطة البيع أولاً أثناء الاتصال"})}
+    return true
+   }
+   return false
+  }
+  if(!navigator.onLine){
+   if(!await restoreCachedPoint()){setLoading(false);setMessage({type:"error",text:"يجب فتح وردية وتحميل نقطة البيع أولاً أثناء الاتصال"})}
    return
   }
   try{
@@ -171,11 +176,18 @@ export default function PosCashier(){
    const sessions=await Promise.all(availablePoints.map(async(point)=>{
     try{const result=await fetch(`/api/pos/sessions?point_id=${point.id}`,{cache:"no-store"}),payload=await result.json();return result.ok?{point,payload}:null}catch{return null}
    }))
+  if(sessions.every(entry=>entry===null)&&await restoreCachedPoint()){
+   setMessage({type:"info",text:"تعذر الاتصال بالخادم؛ تم استعادة نقطة البيع والوردية المحفوظتين"})
+   return
+  }
    const ownSession=sessions.find(entry=>entry?.payload.session)
    if(ownSession){selectedPointRef.current=ownSession.point.id;setPointId(ownSession.point.id);setCatalog(current=>({...current,session:ownSession.payload.session}));setPendingHandovers(ownSession.payload.pending||[]);return}
    if(availablePoints.length>1){setPointChooserError("");setPointChooserOpen(true);return}
    await choosePoint(availablePoints[0])
-  }catch(error){setMessage({type:"error",text:error instanceof Error?error.message:"تعذر تحميل نقاط البيع"})}
+  }catch(error){
+   if(await restoreCachedPoint()){setMessage({type:"info",text:"الخادم غير متاح؛ تعمل نقطة البيع من البيانات المحفوظة وسيتم رفع الفواتير عند عودة الاتصال"});return}
+   setLoading(false);setMessage({type:"error",text:error instanceof Error?error.message:"تعذر تحميل نقاط البيع"})
+  }
  },[baseKey,choosePoint,user?.id])
  const refreshCampaignUsage=useCallback(async()=>{if(!pointId||!navigator.onLine)return;try{const response=await fetch(`/api/pos/campaign-usage?point_id=${pointId}`,{cache:"no-store"}),data=await response.json();if(response.ok)setCatalog(current=>({...current,campaignUsage:data.campaignUsage||{}}))}catch{}},[pointId])
  const loadCatalogData=useCallback(async()=>{if(!pointId)return;setLoading(true);const key=`${baseKey}:point:${pointId}`,cached=await loadPosCatalog<Catalog>(key).catch(()=>null);if(cached?.catalog){setCatalog(cached.catalog);setPosCampaigns(cached.catalog.campaigns||[])}if(!navigator.onLine){if(!cached)setMessage({type:"error",text:"افتح نقطة البيع مرة أثناء الاتصال لتنزيل أصناف المخزن الرئيسي"});setLoading(false);return}try{const r=await fetch(`/api/pos/catalog?point_id=${pointId}`,{cache:"no-store"}),d=await r.json();if(!r.ok)throw new Error(d.error);const next={...normalize(d),campaigns:d.campaigns||[],campaignUsage:d.campaignUsage||{}};setCatalog(next);setPosCampaigns(next.campaigns||[]);await savePosCatalog(key,next);localStorage.setItem(`${baseKey}:last-point`,String(pointId));setMessage(null)}catch(e){if(!cached)setMessage({type:"error",text:e instanceof Error?e.message:"تعذر تحميل الكاشير"})}finally{setLoading(false)}},[baseKey,pointId])
