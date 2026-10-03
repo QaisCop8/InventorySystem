@@ -63,6 +63,7 @@ const receiptHtml=(receipt:NonNullable<Receipt>,settings:Record<string,string>,c
 
 export default function PosCashier(){
  const {user}=useAuth(),{toast}=useToast(),baseKey=useMemo(()=>currentPosTenantKey(user?.id),[user?.id]),searchRef=useRef<HTMLInputElement>(null),syncingRef=useRef(false),focusBarcodeAfterSaveRef=useRef(false)
+ const [restoredWorkspace,setRestoredWorkspace]=useState<string|null>(null)
  const selectedPointRef=useRef<number|null>(null),initialPointResolutionRef=useRef(false)
  const [points,setPoints]=useState<Point[]>([]),[pointId,setPointId]=useState<number|null>(null),[catalog,setCatalog]=useState<Catalog>(EMPTY),[cart,setCart]=useState<CartLine[]>([]),[query,setQuery]=useState(""),[barcodeQuery,setBarcodeQuery]=useState(""),[category,setCategory]=useState("all"),[customerId,setCustomerId]=useState<number|null>(null),[mode,setMode]=useState<"sale"|"return"|"gift">("sale"),[note,setNote]=useState("")
  const [online,setOnline]=useState(true),[loading,setLoading]=useState(true),[syncing,setSyncing]=useState(false),[pendingCount,setPendingCount]=useState(0),[message,setMessage]=useState<{type:"success"|"error"|"info";text:string}|null>(null),[receipt,setReceipt]=useState<Receipt>(null)
@@ -93,6 +94,18 @@ export default function PosCashier(){
  const pricingRequestRef=useRef(0)
  const productsForSale=customerProducts??catalog.products
  const point=catalog.point,session=catalog.session
+ useEffect(()=>{
+  if(!point?.allow_offline||!session?.id)return
+  // Retain the existing authenticated session, including its original expiry.
+  // Normal logout still removes these standard authentication keys.
+  for(const key of ["erp_user","erp_token","erp_session","erp_active_branch","erp_active_department","active_tenant_db"]){
+   const value=sessionStorage.getItem(key);if(value)localStorage.setItem(key,value)
+  }
+  if(navigator.storage?.persist)void navigator.storage.persist().catch(()=>false)
+  if("serviceWorker" in navigator)void navigator.serviceWorker.ready.then(registration=>{
+   registration.active?.postMessage({type:"CACHE_ASSETS",urls:performance.getEntriesByType("resource").map(entry=>entry.name)})
+  })
+ },[point?.allow_offline,session?.id])
  const logCashierAction=useCallback((movementType:string,transactionNo="",notes="")=>{if(!pointId)return;void fetch("/api/pos/cashier-log",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({pos_point_id:pointId,session_id:session?.id,movement_type:movementType,transaction_no:transactionNo,notes})}).catch(()=>{})},[pointId,session?.id])
  const campaignResult=useMemo(()=>mode==="sale"?applyPosCampaigns(cart.map(line=>({...line,unit_id:line.unitId})) as PosCampaignLine[],posCampaigns,{branchId:Number(point?.branch_id||0),warehouseId:Number(point?.main_warehouse_id||0),priceClassId:Number(point?.price_category_id||0)},undefined,catalog.campaignUsage||{}):{items:cart.map(line=>({...line,campaign_discount:0,campaign_id:null})),invoiceDiscount:0,campaignId:0},[cart,posCampaigns,point?.branch_id,point?.main_warehouse_id,point?.price_category_id,mode,catalog.campaignUsage])
  const campaignItems=campaignResult.items as unknown as CartLine[]
@@ -136,7 +149,14 @@ export default function PosCashier(){
   }finally{setPointChooserBusy(false)}
  },[pointChooserOpen,validatePointShift])
  const loadPoints=useCallback(async()=>{
-  if(!navigator.onLine){setMessage({type:"error",text:"اتصل بالإنترنت لاختيار نقطة البيع والتحقق من العهدة"});return}
+  if(!navigator.onLine){
+   const last=Number(localStorage.getItem(baseKey+":last-point"))
+   const cached=last?await loadPosCatalog<Catalog>(baseKey+":point:"+last).catch(()=>null):null
+   if(cached?.catalog.point?.allow_offline&&cached.catalog.session){
+    setPoints([cached.catalog.point]);selectedPointRef.current=last;initialPointResolutionRef.current=true;setPointId(last);setCatalog(cached.catalog);setLoading(false)
+   }else{setLoading(false);setMessage({type:"error",text:"يجب فتح وردية وتحميل نقطة البيع أولاً أثناء الاتصال"})}
+   return
+  }
   try{
    const response=await fetch("/api/pos/points",{cache:"no-store"}),data=await response.json()
    if(!response.ok)throw new Error(errorText(data,"تعذر تحميل نقاط البيع"))
@@ -161,9 +181,25 @@ export default function PosCashier(){
  const loadCatalogData=useCallback(async()=>{if(!pointId)return;setLoading(true);const key=`${baseKey}:point:${pointId}`,cached=await loadPosCatalog<Catalog>(key).catch(()=>null);if(cached?.catalog){setCatalog(cached.catalog);setPosCampaigns(cached.catalog.campaigns||[])}if(!navigator.onLine){if(!cached)setMessage({type:"error",text:"افتح نقطة البيع مرة أثناء الاتصال لتنزيل أصناف المخزن الرئيسي"});setLoading(false);return}try{const r=await fetch(`/api/pos/catalog?point_id=${pointId}`,{cache:"no-store"}),d=await r.json();if(!r.ok)throw new Error(d.error);const next={...normalize(d),campaigns:d.campaigns||[],campaignUsage:d.campaignUsage||{}};setCatalog(next);setPosCampaigns(next.campaigns||[]);await savePosCatalog(key,next);localStorage.setItem(`${baseKey}:last-point`,String(pointId));setMessage(null)}catch(e){if(!cached)setMessage({type:"error",text:e instanceof Error?e.message:"تعذر تحميل الكاشير"})}finally{setLoading(false)}},[baseKey,pointId])
  const loadSession=useCallback(async()=>{if(!pointId||!navigator.onLine)return;try{const r=await fetch(`/api/pos/sessions?point_id=${pointId}`,{cache:"no-store"}),d=await r.json();if(r.ok){setCatalog(c=>({...c,session:d.session||null}));setPendingHandovers(d.pending||[]);setActivePointShift(d.active_shift||null);return d}}catch{}},[pointId])
  const syncPending=useCallback(async()=>{if(!navigator.onLine||syncingRef.current)return;syncingRef.current=true;setSyncing(true);try{for(const sale of await listPosSales(baseKey)){try{const r=await fetch("/api/pos/sales",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(sale.payload)}),d=await r.json();if(!r.ok){await markPosSaleFailed(sale,errorText(d,"فشلت المزامنة"));continue}await removePosSale(sale.id)}catch(e){await markPosSaleFailed(sale,e instanceof Error?e.message:"انقطع الاتصال");break}}await updateQueue();await loadSession()}finally{syncingRef.current=false;setSyncing(false)}},[baseKey,loadSession,updateQueue])
- useEffect(()=>{setOnline(navigator.onLine);void loadPoints();void updateQueue();const on=()=>{setOnline(true);void syncPending();void loadPoints()},off=()=>setOnline(false);addEventListener("online",on);addEventListener("offline",off);return()=>{removeEventListener("online",on);removeEventListener("offline",off)}},[loadPoints,syncPending,updateQueue])
- useEffect(()=>{pricingRequestRef.current++;setCustomerProducts(null);setPendingCustomer(null);setPricingBusy(false);setCart([]);setDiscountValue(0);setCustomerId(null);setSalesmanId(null);setCategory("all");setEditingDraftId(null);void loadCatalogData()},[loadCatalogData])
- useEffect(()=>{if(pointId&&catalog.point)void savePosCatalog(`${baseKey}:point:${pointId}`,catalog)},[baseKey,catalog,pointId])
+ useEffect(()=>{setOnline(navigator.onLine);void loadPoints();void updateQueue();void syncPending();const on=()=>{setOnline(true);void syncPending();void loadPoints()},off=()=>setOnline(false);addEventListener("online",on);addEventListener("offline",off);return()=>{removeEventListener("online",on);removeEventListener("offline",off)}},[loadPoints,syncPending,updateQueue])
+ useEffect(()=>{
+  if(!pointId)return
+  const key=baseKey+":workspace:"+pointId
+  let saved:any=null
+  try{saved=JSON.parse(localStorage.getItem(key)||"null")}catch{}
+  pricingRequestRef.current++;setPendingCustomer(null);setPricingBusy(false)
+  setCart(saved?.cart||[]);setCustomerProducts(saved?.customerProducts||null);setCustomerId(saved?.customerId??null);setSalesmanId(saved?.salesmanId??null)
+  setDiscountValue(saved?.discountValue||0);setNote(saved?.note||"");setMode(saved?.mode||"sale");setPayments(saved?.payments||[]);setCashCurrencyAmounts(saved?.cashCurrencyAmounts||{});setCashTendered(saved?.cashTendered||0)
+  setEditingInvoiceId(saved?.editingInvoiceId??null);setEditingDraftId(saved?.editingDraftId??null)
+  setRestoredWorkspace(key);void loadCatalogData()
+ },[baseKey,pointId,loadCatalogData])
+ useEffect(()=>{
+  const key=baseKey+":workspace:"+pointId
+  if(!pointId||restoredWorkspace!==key)return
+  try{localStorage.setItem(key,JSON.stringify({cart,customerProducts,customerId,salesmanId,discountValue,note,mode,payments,cashCurrencyAmounts,cashTendered,editingInvoiceId,editingDraftId}))}
+  catch{setMessage({type:"error",text:"تعذر حفظ السلة على الجهاز"})}
+ },[baseKey,pointId,restoredWorkspace,cart,customerProducts,customerId,salesmanId,discountValue,note,mode,payments,cashCurrencyAmounts,cashTendered,editingInvoiceId,editingDraftId])
+ useEffect(()=>{if(pointId&&catalog.point?.id===pointId)void savePosCatalog(`${baseKey}:point:${pointId}`,catalog)},[baseKey,catalog,pointId])
  useEffect(()=>{if(custodyOpen)void loadSession()},[custodyOpen,loadSession])
  useEffect(()=>{const refresh=()=>{void loadSession()};window.addEventListener("pos-session-changed",refresh);return()=>window.removeEventListener("pos-session-changed",refresh)},[loadSession])
  useEffect(()=>{if(custodyOpen){setCustodyError("");setMessage(null)}},[custodyOpen])

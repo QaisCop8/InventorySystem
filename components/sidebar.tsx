@@ -307,6 +307,7 @@ export const menuItems: MenuItem[] = [
         icon: Users,
         submenu: [
           { title: "المندوبين", section: "salesmen", icon: UserCheck },
+          { title: "عمولات المندوبين", section: "salesman-commissions", icon: WalletCards },
           { title: "نماذج العملاء والأصناف", section: "customer-product-templates", icon: Grid3x3 },
         ],
       },

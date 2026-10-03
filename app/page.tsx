@@ -35,6 +35,7 @@ const Brands = lazyDefault(() => import("@/components/products/brands"))
 const Cars = lazyDefault(() => import("@/components/products/cars"))
 const Drivers = lazyDefault(() => import("@/components/products/drivers"))
 const SalesmenPage = lazyDefault(() => import("@/components/salesmen/salesmen-pages"))
+const SalesmanCommissionPage = lazyDefault(() => import("@/components/salesmen/salesman-commission-page"))
 const ExchangeRates = lazyNamed(() => import("@/components/data/exchange-rates"), "ExchangeRates")
 const BatchMovements = lazyNamed(() => import("@/components/inventory/batch-movements"), "BatchMovements")
 const BatchReports = lazyNamed(() => import("@/components/reports/batch-reports"), "BatchReports")
@@ -183,6 +184,7 @@ const componentMap: Record<string, React.ComponentType<any>> = {
   suppliers: (props: any) => <Customers {...props} isSupplier={true} />,
   subscribers: (props: any) => <Customers {...props} isSubscriber={true} />,
   salesmen: SalesmenPage,
+  "salesman-commissions": SalesmanCommissionPage,
   cars: Cars,
   drivers: Drivers,
   banks: Banks,

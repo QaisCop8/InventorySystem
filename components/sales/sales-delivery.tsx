@@ -353,7 +353,8 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
       }
       if (salesmenRes?.ok) {
         const data = await salesmenRes.json()
-        setSalesmen(Array.isArray(data) ? data : Array.isArray(data?.salesmen) ? data.salesmen : [])
+        const rows = Array.isArray(data) ? data : Array.isArray(data?.data) ? data.data : Array.isArray(data?.salesmen) ? data.salesmen : []
+        setSalesmen(rows.filter((salesman: LookupOption & { is_active?: boolean }) => salesman.is_active !== false))
       }
       if (citiesRes?.ok) {
         const data = await citiesRes.json()
