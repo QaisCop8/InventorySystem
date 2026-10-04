@@ -1,5 +1,7 @@
 import { resolvePosAccounts } from "@/lib/pos-accounts"
 import sql from "@/lib/database"
+import { hasPosCashierPermission } from "@/lib/permissions"
+import type { PosCashierPermission } from "@/lib/transaction-permission-definitions"
 
 export const POS_PAYMENT_METHODS = ["cash", "card", "cheque", "account", "gift_card"] as const
 
@@ -163,6 +165,10 @@ export function requestUserId(request: Request) {
 export function requestBranchId(request: Request) {
   const value = Number(request.headers.get("x-branch-id") || 0)
   return Number.isInteger(value) && value > 0 ? value : null
+}
+
+export function canUsePosCashierPermission(userId: string, branchId: number, permission: PosCashierPermission) {
+  return hasPosCashierPermission(userId, permission, branchId)
 }
 
 export async function getPosPoint(pointId: number, userId: string, branchId?: number | null) {

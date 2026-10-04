@@ -1,6 +1,7 @@
 export type TransactionAction = "view" | "create" | "update" | "delete" | "post"
 
 export const TRANSACTION_FAMILIES = {
+  salesman_commission: "عمولات المندوبين",
   sales_invoice: "فاتورة مبيعات",
   sales_delivery: "إرسالية مبيعات",
   consignment_delivery: "إرسالية برسم البيع",
@@ -34,6 +35,27 @@ export const TRANSACTION_ACTION_LABELS: Record<TransactionAction, string> = {
 }
 
 export const TRANSACTION_PERMISSION_CATEGORY = "صلاحيات الحركات"
+
+export const POS_CASHIER_PERMISSION_CATEGORY = "كاشير نقطة البيع"
+export const POS_CASHIER_PERMISSIONS = {
+  access: "استعلام الفواتير - كاشير",
+  history: "استعلام الفواتير - كاشير",
+  sale: "ادخال فاتورة كاشير",
+  return: "ادخال مردود - كاشير",
+  gift: "ادخال هدية - كاشير",
+  editInvoice: "تعديل فاتورة كاشير",
+  deleteInvoice: "حذف فاتورة كاشير",
+  drafts: "ادخال مسودة فاتورة - كاشير",
+  receiveHandover: "استلام عهدة",
+  handover: "تسليم عهدة",
+  editQuantity: "تعديل الكمية - كاشير",
+  invoiceDiscount: "ادخال خصم فاتورة - كاشير",
+  itemDiscount: "ادخال خصم صنف - كاشير",
+  createPoint: "اضافة تعريف نقطة بيع",
+  editPoint: "تعديل تعريف نقطة بيع",
+} as const
+
+export type PosCashierPermission = keyof typeof POS_CASHIER_PERMISSIONS
 
 export function transactionPermissionName(family: TransactionFamily, action: TransactionAction) {
   return `${TRANSACTION_ACTION_LABELS[action]} ${TRANSACTION_FAMILIES[family]}`

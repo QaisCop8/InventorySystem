@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
-import { ensurePosTables, getOpenPosSession, getPosPoint, requestUserId } from "../_lib"
+import { canUsePosCashierPermission, ensurePosTables, getOpenPosSession, getPosPoint, requestUserId } from "../_lib"
 
 const errorText = (error: unknown, fallback: string) => error instanceof Error ? error.message : fallback
 
@@ -12,6 +12,7 @@ export async function GET(request: NextRequest) {
     if (!pointId || !userId) return NextResponse.json({ error: "نقطة البيع والمستخدم مطلوبان" }, { status: 400 })
     const point = await getPosPoint(pointId, userId)
     if (!point) return NextResponse.json({ error: "نقطة البيع غير متاحة" }, { status: 403 })
+    if (!await canUsePosCashierPermission(userId, Number(point.branch_id), "drafts")) return NextResponse.json({ error: "لا توجد لديك صلاحية إدارة مسودات الكاشير على هذا الفرع" }, { status: 403 })
     const rows = await sql`
       SELECT d.id,d.draft_code,d.customer_id,d.salesman_id,d.mode,d.note,d.discount_value,d.items,d.created_at,d.updated_at,
              COALESCE(a.name,'عميل نقدي') customer_name
@@ -39,6 +40,7 @@ export async function POST(request: NextRequest) {
     if (!pointId || !userId || !Array.isArray(data.items) || !data.items.length) return NextResponse.json({ error: "بيانات المسودة غير مكتملة" }, { status: 400 })
     const point = await getPosPoint(pointId, userId)
     if (!point) return NextResponse.json({ error: "نقطة البيع غير متاحة" }, { status: 403 })
+    if (!await canUsePosCashierPermission(userId, Number(point.branch_id), "drafts")) return NextResponse.json({ error: "لا توجد لديك صلاحية إدارة مسودات الكاشير على هذا الفرع" }, { status: 403 })
     const session = await getOpenPosSession(pointId, userId)
     if (!session) return NextResponse.json({ error: "يجب فتح العهدة قبل حفظ المسودة" }, { status: 400 })
     if (draftId) {
@@ -76,6 +78,11 @@ export async function DELETE(request: NextRequest) {
     const id = Number(request.nextUrl.searchParams.get("id") || 0)
     const userId = requestUserId(request)
     if (!id || !userId) return NextResponse.json({ error: "معرف المسودة غير صالح" }, { status: 400 })
+    const draft = (await sql`SELECT pos_point_id FROM pos_sale_drafts_tbl WHERE id=${id} AND user_id=${Number(userId)} AND status='draft'`)[0]
+    if (!draft) return NextResponse.json({ error: "المسودة غير موجودة" }, { status: 404 })
+    const point = await getPosPoint(Number(draft.pos_point_id), userId)
+    if (!point) return NextResponse.json({ error: "نقطة البيع غير متاحة" }, { status: 403 })
+    if (!await canUsePosCashierPermission(userId, Number(point.branch_id), "drafts")) return NextResponse.json({ error: "لا توجد لديك صلاحية إدارة مسودات الكاشير على هذا الفرع" }, { status: 403 })
     const rows = await sql`UPDATE pos_sale_drafts_tbl SET status='cancelled',updated_at=NOW() WHERE id=${id} AND user_id=${Number(userId)} AND status='draft' RETURNING id`
     if (!rows.length) return NextResponse.json({ error: "المسودة غير موجودة" }, { status: 404 })
     return NextResponse.json({ success: true })

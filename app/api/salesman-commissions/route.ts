@@ -1,5 +1,6 @@
+import { buildCommissionStatements } from "@/lib/salesman-commission-reports"
 import { NextRequest, NextResponse } from "next/server"
-import sql from "@/lib/database"
+import sql, { withTenantTransaction } from "@/lib/database"
 import { authorizeTransaction } from "@/lib/transaction-permissions"
 import { calculateCommission, reverseCommission, selectCommissionRule, type CommissionRule } from "@/lib/salesman-commission"
 import { ensureTables as ensureSalesVoucherTables } from "@/app/api/sales-vouchers/_lib"
@@ -34,12 +35,26 @@ async function ensureTables() {
     applied_amount NUMERIC(18,4) NOT NULL CHECK(applied_amount > 0), allocation_date DATE NOT NULL DEFAULT CURRENT_DATE,
     created_by INTEGER, created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, UNIQUE(receipt_id,invoice_id)
   )`
+  await sql`ALTER TABLE salesman_commission_collections DROP CONSTRAINT IF EXISTS salesman_commission_collections_receipt_id_invoice_id_key`
+  await sql`ALTER TABLE salesman_commission_transactions ADD COLUMN IF NOT EXISTS original_invoice_id INTEGER`
+  await sql`ALTER TABLE salesman_commission_transactions ADD COLUMN IF NOT EXISTS calculated_by INTEGER`
+  await sql`CREATE INDEX IF NOT EXISTS salesman_commission_source_idx ON salesman_commission_transactions(source_type,source_id,source_item_id)`
+  await sql`CREATE TABLE IF NOT EXISTS salesman_commission_audit (
+    id BIGSERIAL PRIMARY KEY, transaction_id BIGINT REFERENCES salesman_commission_transactions(id),
+    action VARCHAR(30) NOT NULL, user_id INTEGER, details JSONB NOT NULL DEFAULT '{}'::jsonb,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`
   await sql`CREATE TABLE IF NOT EXISTS salesman_targets (
     id BIGSERIAL PRIMARY KEY, salesman_id INTEGER NOT NULL REFERENCES salesmen(id), period_from DATE NOT NULL, period_to DATE NOT NULL,
     sales_target NUMERIC(18,4) NOT NULL DEFAULT 0, collection_target NUMERIC(18,4) NOT NULL DEFAULT 0,
     profit_target NUMERIC(18,4) NOT NULL DEFAULT 0, created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(salesman_id,period_from,period_to)
   )`
+  await sql`ALTER TABLE salesman_targets ADD COLUMN IF NOT EXISTS branch_id INTEGER`
+  await sql`ALTER TABLE salesman_targets ADD COLUMN IF NOT EXISTS currency_id INTEGER`
+  await sql`ALTER TABLE salesman_targets DROP CONSTRAINT IF EXISTS salesman_targets_salesman_id_period_from_period_to_key`
+  await sql`CREATE UNIQUE INDEX IF NOT EXISTS salesman_targets_scope_idx ON salesman_targets(salesman_id,period_from,period_to,branch_id,currency_id)`
+  await sql`ALTER TABLE salesman_commission_rules ADD COLUMN IF NOT EXISTS tier_metric VARCHAR(24) NOT NULL DEFAULT 'sales'`
   await sql`CREATE TABLE IF NOT EXISTS salesman_commission_payments (
     id BIGSERIAL PRIMARY KEY, transaction_id BIGINT NOT NULL REFERENCES salesman_commission_transactions(id),
     payment_voucher_id INTEGER NOT NULL, amount NUMERIC(18,4) NOT NULL CHECK(amount > 0), payment_date DATE NOT NULL DEFAULT CURRENT_DATE,
@@ -48,14 +63,14 @@ async function ensureTables() {
 }
 
 const num = (value: unknown, fallback = 0) => Number.isFinite(Number(value)) ? Number(value) : fallback
-const validDate = (value: unknown) => /^\d{4}-\d{2}-\d{2}$/.test(String(value || ""))
+const validDate = (value: unknown) => /^\d{4}-\d{2}-\d{2}$/.test(String(value || "")) && Number.isFinite(Date.parse(String(value))) && new Date(String(value)).toISOString().slice(0,10) === value
 const errorResponse = (error: unknown, fallback: string) => NextResponse.json({ error: error instanceof Error ? error.message : fallback }, { status: Number((error as any)?.status) || 500 })
 
 export async function GET(request: NextRequest) {
   try {
     await ensureSalesVoucherTables()
     await ensureTables()
-    const access = await authorizeTransaction(request, "sales_invoice", "view")
+    const access = await authorizeTransaction(request, "salesman_commission", "view")
     if (!access.ok) return access.response
     const params = request.nextUrl.searchParams
     const from = params.get("from") || new Date().toISOString().slice(0, 10).slice(0, 8) + "01"
@@ -87,8 +102,9 @@ export async function GET(request: NextRequest) {
           AND (${branchId}=0 OR t.branch_id=${branchId}) AND (${currencyId}=0 OR t.currency_id=${currencyId})
           AND (${invoiceType}=0 OR t.invoice_type=${invoiceType})
         ORDER BY t.invoice_date DESC,t.id DESC LIMIT 5000`,
-      sql`SELECT t.*,s.name salesman_name FROM salesman_targets t JOIN salesmen s ON s.id=t.salesman_id
-        WHERE t.period_from<=${to}::date AND t.period_to>=${from}::date AND (${salesmanId}=0 OR t.salesman_id=${salesmanId}) ORDER BY t.period_from DESC`,
+      sql`SELECT t.*,s.name salesman_name,cu.currency_code FROM salesman_targets t JOIN salesmen s ON s.id=t.salesman_id LEFT JOIN currency cu ON cu.id=t.currency_id
+        WHERE t.branch_id=ANY(${access.branchIds}::int[]) AND (${currencyId}=0 OR t.currency_id=${currencyId})
+        AND t.period_from<=${to}::date AND t.period_to>=${from}::date AND (${salesmanId}=0 OR t.salesman_id=${salesmanId}) ORDER BY t.period_from DESC`,
       sql`SELECT a.*,receipt.vch_code receipt_code,invoice.vch_code invoice_code,s.name salesman_name
         FROM salesman_commission_collections a JOIN voucher_header_tbl receipt ON receipt.id=a.receipt_id
         JOIN voucher_header_tbl invoice ON invoice.id=a.invoice_id LEFT JOIN salesmen s ON s.id=invoice.salesman_id
@@ -100,6 +116,10 @@ export async function GET(request: NextRequest) {
             SUM(vi.qnty*COALESCE(vi.cost_price,0)) cost_amount
           FROM voucher_header_tbl vh JOIN voucher_items_tbl vi ON vi.voucher_id=vh.id
           WHERE vh.vch_type IN (12,16) AND vh.status=2 AND vh.vch_date>=${from}::date AND vh.vch_date<(${to}::date+INTERVAL '1 day')
+            AND (${customerId}=0 OR vh.account_id=${customerId}) AND (${branchId}=0 OR vh.branch_id=${branchId})
+            AND (${invoiceType}=0 OR vh.vch_type=${invoiceType})
+            AND (${itemId}=0 OR vi.item_id=${itemId}) AND (${warehouseId}=0 OR vi.store_id=${warehouseId})
+            AND (${itemGroupId}=0 OR EXISTS(SELECT 1 FROM products p WHERE p.id=vi.item_id AND p.category_id=${itemGroupId}))
             AND vh.salesman_id IS NOT NULL AND (${access.branchIds.length===0} OR vh.branch_id=ANY(${access.branchIds}::int[]))
           GROUP BY vh.id,vh.salesman_id,vh.vch_type,vh.account_id,vh.discount_type,vh.discount_value,vh.branch_id,vh.currency_id
         ), invoice_net AS (
@@ -121,6 +141,40 @@ export async function GET(request: NextRequest) {
         WHERE (${salesmanId}=0 OR s.id=${salesmanId}) AND (${currencyId}=0 OR i.currency_id=${currencyId})
         GROUP BY s.id,s.name,i.currency_id,cu.currency_code ORDER BY net_sales DESC`,
     ])
+    const historical = await sql`SELECT t.*,s.name salesman_name,v.vch_code invoice_code,c.name customer_name,cu.currency_code
+      FROM salesman_commission_transactions t JOIN salesmen s ON s.id=t.salesman_id
+      LEFT JOIN voucher_header_tbl v ON v.id=t.invoice_id LEFT JOIN account_tbl c ON c.id=t.customer_id LEFT JOIN currency cu ON cu.id=t.currency_id
+      WHERE t.invoice_date<=${to}::date AND t.branch_id=ANY(${access.branchIds}::int[])
+      AND (${salesmanId}=0 OR t.salesman_id=${salesmanId}) AND (${currencyId}=0 OR t.currency_id=${currencyId})
+      AND (${customerId}=0 OR t.customer_id=${customerId}) AND (${itemId}=0 OR t.item_id=${itemId})
+      AND (${itemGroupId}=0 OR t.item_group_id=${itemGroupId}) AND (${warehouseId}=0 OR t.warehouse_id=${warehouseId})
+      AND (${branchId}=0 OR t.branch_id=${branchId}) AND (${invoiceType}=0 OR t.invoice_type=${invoiceType})`
+    const payments = await sql`SELECT p.*,v.vch_code voucher_code FROM salesman_commission_payments p
+      JOIN salesman_commission_transactions t ON t.id=p.transaction_id LEFT JOIN voucher_header_tbl v ON v.id=p.payment_voucher_id
+      WHERE p.payment_date<=${to}::date AND t.branch_id=ANY(${access.branchIds}::int[])`
+    const statements = buildCommissionStatements(historical,payments,from,to)
+    const audit = await sql`SELECT a.*,t.salesman_id,s.name salesman_name FROM salesman_commission_audit a
+      JOIN salesman_commission_transactions t ON t.id=a.transaction_id JOIN salesmen s ON s.id=t.salesman_id
+      WHERE t.branch_id=ANY(${access.branchIds}::int[]) AND a.created_at>=${from}::date AND a.created_at<(${to}::date+INTERVAL '1 day')
+      AND (${salesmanId}=0 OR t.salesman_id=${salesmanId}) ORDER BY a.id DESC LIMIT 1000`
+    for(const target of targets) {
+      const actual=(await sql`WITH amounts AS (
+        SELECT v.id,v.vch_type,v.discount_type,v.discount_value,
+          SUM(vi.qnty*vi.price*(1-COALESCE(vi.pos_discount_percent,vi.discount,0)/100)-COALESCE(vi.campaign_discount,0)) subtotal,
+          SUM(vi.qnty*COALESCE(vi.cost_price,0)) cost
+        FROM voucher_header_tbl v JOIN voucher_items_tbl vi ON vi.voucher_id=v.id
+        WHERE v.status=2 AND v.vch_type IN(12,16) AND v.salesman_id=${target.salesman_id} AND v.branch_id=${target.branch_id} AND v.currency_id=${target.currency_id}
+          AND v.vch_date>=${target.period_from}::date AND v.vch_date<(${target.period_to}::date+INTERVAL '1 day')
+        GROUP BY v.id,v.vch_type,v.discount_type,v.discount_value
+      ), net AS (SELECT *,GREATEST(0,subtotal-CASE WHEN discount_type='amount' THEN discount_value ELSE subtotal*discount_value/100 END) sales FROM amounts)
+      SELECT COALESCE(SUM(CASE WHEN vch_type=12 THEN sales ELSE -sales END),0) sales,
+        COALESCE(SUM(CASE WHEN vch_type=12 THEN sales-cost ELSE -(sales-cost) END),0) profit FROM net`)[0]
+      const collected=(await sql`SELECT COALESCE(SUM(a.applied_amount),0) amount FROM salesman_commission_collections a
+        JOIN voucher_header_tbl v ON v.id=a.invoice_id JOIN voucher_header_tbl r ON r.id=a.receipt_id
+        WHERE v.status=2 AND r.status=2 AND v.salesman_id=${target.salesman_id} AND v.branch_id=${target.branch_id} AND v.currency_id=${target.currency_id}
+        AND a.allocation_date BETWEEN ${target.period_from}::date AND ${target.period_to}::date`)[0]
+      target.actual_sales=Number(actual.sales);target.actual_profit=Number(actual.profit);target.actual_collection=Number(collected.amount)
+    }
     const visibleBranches = new Set(access.branchIds.map(Number))
     const visibleTransactions = transactions.filter((row: any) => visibleBranches.has(Number(row.branch_id)) || access.branchIds.length === 0)
     const totals = visibleTransactions.reduce((sum: any, row: any) => ({
@@ -129,18 +183,18 @@ export async function GET(request: NextRequest) {
     }), { sales: 0, cost: 0, profit: 0, commission: 0 })
     totals.commission=visibleTransactions.filter((row:any)=>row.status!=="cancelled").reduce((sum:number,row:any)=>sum+Number(row.final_commission||0),0)
     const visiblePerformance=performance
-    return NextResponse.json({ from, to, meta: { salesmen, customers, products, groups, warehouses, branches: branches.filter((row: any) => visibleBranches.has(Number(row.id))), currencies }, rules, transactions: visibleTransactions, targets, collections, performance: visiblePerformance, totals })
+    return NextResponse.json({ from, to, statements, audit, meta: { salesmen, customers, products, groups, warehouses, branches: branches.filter((row: any) => visibleBranches.has(Number(row.id))), currencies }, rules, transactions: visibleTransactions, targets, collections, performance: visiblePerformance, totals })
   } catch (error) { return errorResponse(error, "تعذر تحميل عمولات المندوبين") }
 }
 
-export async function POST(request: NextRequest) {
+async function postAction(request: NextRequest) {
   try {
     await ensureSalesVoucherTables()
     await ensureTables()
     const data = await request.json()
     const action = String(data.action || "")
-    const permissionAction = ["approve", "post", "pay", "cancel"].includes(action) ? "approve" : "create"
-    const access = await authorizeTransaction(request, "sales_invoice", permissionAction, data.branch_id)
+    const permissionAction = ["approve", "post", "pay", "cancel"].includes(action) ? "post" : data.id ? "update" : "create"
+    const access = await authorizeTransaction(request, "salesman_commission", permissionAction, data.branch_id)
     if (!access.ok) return access.response
 
     if (action === "save_rule") {
@@ -148,28 +202,42 @@ export async function POST(request: NextRequest) {
       const basis = String(data.basis || "sales")
       if (!String(data.name || "").trim() || !["sales", "gross_profit", "collection", "tiered"].includes(basis)) return NextResponse.json({ error: "اسم القاعدة وأساس عمولة صالحان مطلوبان" }, { status: 400 })
       if (!validDate(data.effective_from) || (data.effective_to && !validDate(data.effective_to))) return NextResponse.json({ error: "تواريخ سريان القاعدة غير صالحة" }, { status: 400 })
+      const tierMetric=String(data.tier_metric||"sales")
+      if(!["sales","sales_target","profit_target","collection_target"].includes(tierMetric)) return NextResponse.json({error:"Invalid tier metric"},{status:400})
       const tiers = Array.isArray(data.tiers) ? data.tiers.map((tier: any) => ({ threshold: num(tier.threshold), rate: num(tier.rate) })).sort((a: any,b: any) => a.threshold-b.threshold) : []
       if (basis === "tiered" && (!tiers.length || tiers.some((tier: any) => tier.threshold < 0 || tier.rate < 0 || tier.rate > 100))) return NextResponse.json({ error: "شرائح العمولة غير صالحة" }, { status: 400 })
+      if (num(data.commission_percent)<0 || num(data.commission_percent)>100 || (data.effective_to && data.effective_to<data.effective_from)) return NextResponse.json({error:"Invalid commission percentage or effective period"},{status:400})
+      if (data.id) {
+        const previous=(await sql`SELECT branch_id FROM salesman_commission_rules WHERE id=${Number(data.id)} FOR UPDATE`)[0]
+        if (!previous || (previous.branch_id && !access.branchIds.includes(Number(previous.branch_id)))) return NextResponse.json({error:"Rule outside permitted branches"},{status:403})
+      }
       const values = [num(data.salesman_id)||null, String(data.name).trim(), basis, Math.max(0,num(data.commission_percent)), num(data.customer_id)||null, num(data.item_id)||null, num(data.item_group_id)||null, num(data.warehouse_id)||null, num(data.branch_id)||null, num(data.currency_id)||null, Math.max(0,num(data.minimum_sales)), JSON.stringify(tiers), data.effective_from, data.effective_to||null, data.is_active!==false]
       if(data.id)await sql`UPDATE salesman_commission_rules SET is_active=false,updated_at=NOW() WHERE id=${Number(data.id)}`
-      const rows = await sql`INSERT INTO salesman_commission_rules(salesman_id,name,basis,commission_percent,customer_id,item_id,item_group_id,warehouse_id,branch_id,currency_id,minimum_sales,tiers,effective_from,effective_to,is_active)
-        VALUES(${values[0]},${values[1]},${values[2]},${values[3]},${values[4]},${values[5]},${values[6]},${values[7]},${values[8]},${values[9]},${values[10]},${values[11]}::jsonb,${values[12]},${values[13]},${values[14]}) RETURNING *`
+      const rows = await sql`INSERT INTO salesman_commission_rules(salesman_id,name,basis,commission_percent,customer_id,item_id,item_group_id,warehouse_id,branch_id,currency_id,minimum_sales,tiers,effective_from,effective_to,is_active,tier_metric)
+        VALUES(${values[0]},${values[1]},${values[2]},${values[3]},${values[4]},${values[5]},${values[6]},${values[7]},${values[8]},${values[9]},${values[10]},${values[11]}::jsonb,${values[12]},${values[13]},${values[14]},${tierMetric}) RETURNING *`
       return NextResponse.json({ rule: rows[0] })
     }
 
     if (action === "save_target") {
       if (!num(data.salesman_id) || !validDate(data.period_from) || !validDate(data.period_to) || data.period_from > data.period_to) return NextResponse.json({ error: "بيانات الهدف غير صالحة" }, { status: 400 })
-      const rows = await sql`INSERT INTO salesman_targets(salesman_id,period_from,period_to,sales_target,collection_target,profit_target)
-        VALUES(${Number(data.salesman_id)},${data.period_from},${data.period_to},${Math.max(0,num(data.sales_target))},${Math.max(0,num(data.collection_target))},${Math.max(0,num(data.profit_target))})
-        ON CONFLICT(salesman_id,period_from,period_to) DO UPDATE SET sales_target=EXCLUDED.sales_target,collection_target=EXCLUDED.collection_target,profit_target=EXCLUDED.profit_target RETURNING *`
+      const currencyId=num(data.currency_id), branchId=num(data.branch_id)||access.branchIds[0]
+      if(!currencyId||!access.branchIds.includes(branchId)) return NextResponse.json({error:"Select a permitted branch and currency for the target"},{status:400})
+      await sql`SELECT pg_advisory_xact_lock(hashtext('commission-target:'||${String(data.salesman_id)}))`
+      const overlaps=await sql`SELECT id FROM salesman_targets WHERE salesman_id=${Number(data.salesman_id)} AND branch_id=${branchId} AND currency_id=${currencyId}
+        AND period_from<=${data.period_to}::date AND period_to>=${data.period_from}::date
+        AND NOT(period_from=${data.period_from}::date AND period_to=${data.period_to}::date)`
+      if(overlaps.length) return NextResponse.json({error:"Target periods must not overlap for the same salesman, branch and currency"},{status:409})
+      const rows = await sql`INSERT INTO salesman_targets(salesman_id,period_from,period_to,sales_target,collection_target,profit_target,branch_id,currency_id)
+        VALUES(${Number(data.salesman_id)},${data.period_from},${data.period_to},${Math.max(0,num(data.sales_target))},${Math.max(0,num(data.collection_target))},${Math.max(0,num(data.profit_target))},${branchId},${currencyId})
+        ON CONFLICT(salesman_id,period_from,period_to,branch_id,currency_id) DO UPDATE SET sales_target=EXCLUDED.sales_target,collection_target=EXCLUDED.collection_target,profit_target=EXCLUDED.profit_target RETURNING *`
       return NextResponse.json({ target: rows[0] })
     }
 
     if (action === "allocate_collection") {
       const receiptId=num(data.receipt_id), invoiceId=num(data.invoice_id), amount=num(data.amount)
       if (!receiptId || !invoiceId || amount<=0) return NextResponse.json({ error: "حدد سند القبض والفاتورة ومبلغ التخصيص" }, { status: 400 })
-      const receipt=(await sql`SELECT id,vch_type,vch_date,amount,currency_id,status,branch_id FROM voucher_header_tbl WHERE id=${receiptId} FOR UPDATE`)[0]
-      const invoice=(await sql`SELECT id,vch_type,vch_date,amount,currency_id,status,salesman_id,branch_id FROM voucher_header_tbl WHERE id=${invoiceId} FOR UPDATE`)[0]
+      const receipt=(await sql`SELECT id,vch_type,vch_date,amount,currency_id,status,branch_id,account_id FROM voucher_header_tbl WHERE id=${receiptId} FOR UPDATE`)[0]
+      const invoice=(await sql`SELECT id,vch_type,vch_date,amount,currency_id,status,salesman_id,branch_id,account_id FROM voucher_header_tbl WHERE id=${invoiceId} FOR UPDATE`)[0]
       if (!receipt || Number(receipt.vch_type)!==4 || Number(receipt.status)!==2 || !invoice || Number(invoice.vch_type)!==12 || Number(invoice.status)!==2 || !invoice.salesman_id) return NextResponse.json({ error: "سند القبض أو فاتورة المبيعات غير صالحة أو غير مرحلة" }, { status: 400 })
       if (!access.branchIds.includes(Number(invoice.branch_id)) || !access.branchIds.includes(Number(receipt.branch_id))) return NextResponse.json({ error: "غير مخول لتخصيص سند من هذا الفرع" }, { status: 403 })
       if (Number(receipt.branch_id)!==Number(invoice.branch_id)||Number(receipt.currency_id)!==Number(invoice.currency_id)||Number(receipt.account_id)!==Number(invoice.account_id)) return NextResponse.json({ error: "يجب أن يتطابق فرع وعملة وعميل سند القبض مع الفاتورة" }, { status: 400 })
@@ -177,20 +245,21 @@ export async function POST(request: NextRequest) {
       if (Number(prior.amount)+amount>Number(receipt.amount)+0.009) return NextResponse.json({ error: "مبلغ التخصيص يتجاوز سند القبض" }, { status: 400 })
       const invoicePrior=(await sql`SELECT COALESCE(SUM(applied_amount),0) amount FROM salesman_commission_collections WHERE invoice_id=${invoiceId}`)[0]
       if (Number(invoicePrior.amount)+amount>Number(invoice.amount)+0.009) return NextResponse.json({ error: "مبلغ التخصيص يتجاوز الرصيد المفتوح للفاتورة" }, { status: 400 })
-      const rows=await sql`INSERT INTO salesman_commission_collections(receipt_id,invoice_id,applied_amount,allocation_date,created_by) VALUES(${receiptId},${invoiceId},${amount},${String(receipt.vch_date).slice(0,10)},${num(access.userId)||null}) ON CONFLICT(receipt_id,invoice_id) DO UPDATE SET applied_amount=salesman_commission_collections.applied_amount+EXCLUDED.applied_amount RETURNING *`
+      const rows=await sql`INSERT INTO salesman_commission_collections(receipt_id,invoice_id,applied_amount,allocation_date,created_by) VALUES(${receiptId},${invoiceId},${amount},${String(receipt.vch_date).slice(0,10)},${num(access.userId)||null}) RETURNING *`
       return NextResponse.json({ allocation: rows[0] }, { status: 201 })
     }
 
     if (action === "calculate") return await calculatePeriod(data, access)
 
-    if (action === "approve" || action === "cancel") {
+    if (action === "approve" || action === "post" || action === "cancel") {
       const id=num(data.id)
-      const allowed=action==="approve"?"calculated":"calculated"
-      const status=action==="approve"?"approved":"cancelled"
+      const allowed=action==="post"?"approved":"calculated"
+      const status=action==="post"?"posted":action==="approve"?"approved":"cancelled"
       const existing=(await sql`SELECT branch_id FROM salesman_commission_transactions WHERE id=${id} FOR UPDATE`)[0]
       if (!existing || !access.branchIds.includes(Number(existing.branch_id))) return NextResponse.json({ error: "العمولة غير موجودة أو خارج الفروع المصرح بها" }, { status: 404 })
       const rows=await sql`UPDATE salesman_commission_transactions SET status=${status} WHERE id=${id} AND status=${allowed} RETURNING *`
       if (!rows.length) return NextResponse.json({ error: "حالة العمولة لا تسمح بهذا الإجراء" }, { status: 409 })
+      await sql`INSERT INTO salesman_commission_audit(transaction_id,action,user_id) VALUES(${id},${action},${num(access.userId)||null})`
       return NextResponse.json({ transaction: rows[0] })
     }
 
@@ -200,11 +269,15 @@ export async function POST(request: NextRequest) {
       const tx=(await sql`SELECT * FROM salesman_commission_transactions WHERE id=${id} FOR UPDATE`)[0]
       if (!tx || !["approved","posted"].includes(tx.status) || Number(tx.final_commission)<=0) return NextResponse.json({ error: "العمولة غير معتمدة أو غير قابلة للصرف" }, { status: 409 })
       if (!access.branchIds.includes(Number(tx.branch_id))) return NextResponse.json({ error: "غير مخول لصرف عمولة من هذا الفرع" }, { status: 403 })
-      const voucher=(await sql`SELECT id,vch_type,status,branch_id FROM voucher_header_tbl WHERE id=${voucherId}`)[0]
+      const voucher=(await sql`SELECT id,vch_type,status,branch_id,currency_id,amount FROM voucher_header_tbl WHERE id=${voucherId} FOR UPDATE`)[0]
       if (!voucher || Number(voucher.vch_type)!==5 || Number(voucher.status)!==2 || Number(voucher.branch_id)!==Number(tx.branch_id)) return NextResponse.json({ error: "يجب ربط العمولة بسند صرف مرحل من الفرع نفسه" }, { status: 400 })
+      if(Number(voucher.currency_id)!==Number(tx.currency_id)) return NextResponse.json({error:"Payment currency must match commission currency"},{status:400})
+      const allocated=(await sql`SELECT COALESCE(SUM(amount),0) amount FROM salesman_commission_payments WHERE payment_voucher_id=${voucherId}`)[0]
+      if(Number(allocated.amount)+amount>Number(voucher.amount)+0.009) return NextResponse.json({error:"Payment exceeds the unallocated voucher amount"},{status:400})
       const paid=(await sql`SELECT COALESCE(SUM(amount),0) amount FROM salesman_commission_payments WHERE transaction_id=${id}`)[0]
       if (Number(paid.amount)+amount>Number(tx.final_commission)+0.009) return NextResponse.json({ error: "مبلغ الصرف يتجاوز رصيد العمولة" }, { status: 400 })
       await sql`INSERT INTO salesman_commission_payments(transaction_id,payment_voucher_id,amount,created_by) VALUES(${id},${voucherId},${amount},${num(access.userId)||null})`
+      await sql`INSERT INTO salesman_commission_audit(transaction_id,action,user_id,details) VALUES(${id},'pay',${num(access.userId)||null},${JSON.stringify({voucherId,amount})}::jsonb)`
       const totalPaid=Number(paid.amount)+amount
       const status=totalPaid+0.009>=Number(tx.final_commission)?"paid":"posted"
       await sql`UPDATE salesman_commission_transactions SET status=${status},payment_voucher_id=${voucherId} WHERE id=${id}`
@@ -214,9 +287,20 @@ export async function POST(request: NextRequest) {
   } catch (error) { return errorResponse(error, "تعذر تنفيذ عملية العمولة") }
 }
 
+export async function POST(request: NextRequest) {
+  try {
+    return await withTenantTransaction(async () => {
+      const response = await postAction(request)
+      if (!response.ok) throw Object.assign(new Error("Commission operation failed"), { response })
+      return response
+    })
+  } catch (error: any) { return error.response || errorResponse(error, "Commission operation failed") }
+}
+
 async function calculatePeriod(data: any, access: { userId: string; branchIds: number[] }) {
   const from=String(data.from||""),to=String(data.to||"")
   if (!validDate(from)||!validDate(to)||from>to) return NextResponse.json({ error: "فترة الحساب غير صالحة" }, { status: 400 })
+  await sql`SELECT pg_advisory_xact_lock(hashtext('salesman-commission-calculation'))`
   const branchIds=access.branchIds.map(Number)
   const rules=(await sql`SELECT * FROM salesman_commission_rules WHERE is_active=true AND effective_from<=${to}::date AND (effective_to IS NULL OR effective_to>=${from}::date)
     AND (branch_id IS NULL OR branch_id=ANY(${access.branchIds}::int[])) ORDER BY id`) as CommissionRule[]
@@ -233,11 +317,36 @@ async function calculatePeriod(data: any, access: { userId: string; branchIds: n
       p.category_id item_group_id,vi.return_sales_invoice_id
     FROM voucher_header_tbl vh JOIN voucher_items_tbl vi ON vi.voucher_id=vh.id LEFT JOIN products p ON p.id=vi.item_id
     WHERE vh.vch_type IN (12,16) AND vh.status=2 AND vh.vch_date>=${from}::date AND vh.vch_date<(${to}::date+INTERVAL '1 day')
+      AND (${num(data.salesman_id)}=0 OR vh.salesman_id=${num(data.salesman_id)})
+      AND (${num(data.currency_id)}=0 OR vh.currency_id=${num(data.currency_id)})
+      AND (${num(data.customer_id)}=0 OR vh.account_id=${num(data.customer_id)})
       AND vh.salesman_id IS NOT NULL AND (${branchIds.length===0} OR vh.branch_id=ANY(${branchIds}::int[]))
     ORDER BY vh.vch_date,vh.id,vi.id`
   const grouped=new Map<number,any[]>()
   for(const line of lines){const list=grouped.get(Number(line.invoice_id))||[];list.push(line);grouped.set(Number(line.invoice_id),list)}
-  const cumulative=new Map<number,number>()
+  const periodTotals=new Map<string,{sales:number;profit:number}>()
+  const scopeFor=(line:any)=>({salesmanId:Number(line.salesman_id),customerId:Number(line.customer_id)||null,itemId:Number(line.item_id)||null,itemGroupId:Number(line.item_group_id)||null,warehouseId:Number(line.warehouse_id)||null,branchId:Number(line.branch_id)||null,currencyId:Number(line.currency_id)||null,amount:Number.MAX_SAFE_INTEGER})
+  const totalKey=(rule:any,line:any)=>`${rule.id}:${line.salesman_id}:${line.branch_id}:${line.currency_id}`
+  for(const invoiceLines of grouped.values()){
+    const header=invoiceLines[0]
+    const subtotal=invoiceLines.reduce((sum,line)=>sum+Math.max(0,Number(line.quantity)*Number(line.price)*(1-Number(line.discount_percent)/100)-Number(line.campaign_discount)),0)
+    const discount=header.discount_type==='amount'?Number(header.discount_value||0):subtotal*Number(header.discount_value||0)/100
+    for(const line of invoiceLines){
+      const raw=Math.max(0,Number(line.quantity)*Number(line.price)*(1-Number(line.discount_percent)/100)-Number(line.campaign_discount))
+      const net=subtotal>0?Math.max(0,raw-discount*raw/subtotal):0,sign=Number(line.vch_type)===16?-1:1
+      for(const rule of rules){
+        const day=String(line.invoice_date).slice(0,10)
+        if(!selectCommissionRule([rule],scopeFor(line))||String((rule as any).effective_from||'').slice(0,10)>day||((rule as any).effective_to&&String((rule as any).effective_to).slice(0,10)<day))continue
+        const key=totalKey(rule,line),total=periodTotals.get(key)||{sales:0,profit:0}
+        total.sales+=sign*net;total.profit+=sign*(net-Number(line.quantity)*Number(line.cost_price||0));periodTotals.set(key,total)
+      }
+    }
+  }
+  const periodTargets=await sql`SELECT * FROM salesman_targets WHERE branch_id=ANY(${branchIds}::int[]) AND period_from<=${from}::date AND period_to>=${to}::date`
+  const periodCollections=await sql`SELECT v.salesman_id,v.branch_id,v.currency_id,SUM(a.applied_amount) amount FROM salesman_commission_collections a
+    JOIN voucher_header_tbl v ON v.id=a.invoice_id JOIN voucher_header_tbl r ON r.id=a.receipt_id
+    WHERE v.status=2 AND r.status=2 AND v.branch_id=ANY(${branchIds}::int[]) AND a.allocation_date BETWEEN ${from}::date AND ${to}::date GROUP BY v.salesman_id,v.branch_id,v.currency_id`
+  const cumulative=new Map<string,number>()
   let inserted=0
   for(const invoiceLines of grouped.values()){
     const first=invoiceLines[0],salesmanId=Number(first.salesman_id),returning=Number(first.vch_type)===16
@@ -245,11 +354,14 @@ async function calculatePeriod(data: any, access: { userId: string; branchIds: n
     const subtotal=raw.reduce((sum,line)=>sum+line.net,0)
     const headerDiscount=first.discount_type==="amount"?Number(first.discount_value||0):subtotal*Number(first.discount_value||0)/100
     for(const line of raw){
+      const already=(await sql`SELECT id FROM salesman_commission_transactions WHERE source_type=${returning?'return':'invoice'} AND source_id=${Number(line.invoice_id)} AND source_item_id=${Number(line.source_item_id)} LIMIT 1`)[0]
       const allocatedHeaderDiscount=subtotal>0?headerDiscount*line.net/subtotal:0
       const netSales=Math.max(0,line.net-allocatedHeaderDiscount)
       const cost=Number(line.quantity)*Number(line.cost_price||0)
-      const prior=cumulative.get(salesmanId)||0
-      if(!returning)cumulative.set(salesmanId,prior+netSales)
+      const cumulativeKey=`${salesmanId}:${line.currency_id}:${line.branch_id}`
+      const prior=cumulative.get(cumulativeKey)||0
+      if(!returning)cumulative.set(cumulativeKey,prior+netSales)
+      if(already)continue
       let returnRule: CommissionRule | undefined
       if(returning&&Number(line.return_sales_invoice_id)>0){
         const original=(await sql`SELECT rule_id,commission_basis,commission_rate FROM salesman_commission_transactions WHERE invoice_id=${Number(line.return_sales_invoice_id)} AND item_id=${Number(line.item_id)} AND source_type='invoice' ORDER BY id DESC LIMIT 1`)[0]
@@ -257,19 +369,29 @@ async function calculatePeriod(data: any, access: { userId: string; branchIds: n
       }
       const invoiceDate=String(line.invoice_date).slice(0,10)
       const effectiveRules=rules.filter(item=>item.basis!=="collection"&&String((item as any).effective_from||"").slice(0,10)<=invoiceDate&&(!(item as any).effective_to||String((item as any).effective_to).slice(0,10)>=invoiceDate))
-      const rule=returnRule||selectCommissionRule(effectiveRules,{salesmanId,customerId:Number(line.customer_id)||null,itemId:Number(line.item_id)||null,itemGroupId:Number(line.item_group_id)||null,warehouseId:Number(line.warehouse_id)||null,branchId:Number(line.branch_id)||null,currencyId:Number(line.currency_id)||null,amount:returning?netSales:prior+netSales})
+      const eligibleRules=effectiveRules.filter(candidate=>Number(periodTotals.get(totalKey(candidate,line))?.sales||0)>=Number(candidate.minimum_sales||0))
+      const rule=returnRule||selectCommissionRule(eligibleRules,{salesmanId,customerId:Number(line.customer_id)||null,itemId:Number(line.item_id)||null,itemGroupId:Number(line.item_group_id)||null,warehouseId:Number(line.warehouse_id)||null,branchId:Number(line.branch_id)||null,currencyId:Number(line.currency_id)||null,amount:Number.MAX_SAFE_INTEGER})
       if(!rule)continue
-      const result=calculateCommission(rule,{sales:netSales,grossProfit:netSales-cost,collected:0},returning?-1:1,prior+netSales)
+      const scopeTotals=periodTotals.get(totalKey(rule,line))||{sales:0,profit:0}
+      let tierValue=scopeTotals.sales
+      if(rule.basis==='tiered'&&rule.tier_metric&&rule.tier_metric!=='sales'){
+        const target=periodTargets.find((target:any)=>Number(target.salesman_id)===salesmanId&&Number(target.branch_id)===Number(line.branch_id)&&Number(target.currency_id)===Number(line.currency_id))
+        const targetAmount=Number(target?.[rule.tier_metric]||0)
+        if(!(targetAmount>0)) throw new Error('A matching positive target is required for target-based commission')
+        const actual=rule.tier_metric==='profit_target'?scopeTotals.profit:rule.tier_metric==='collection_target'?Number(periodCollections.find((entry:any)=>Number(entry.salesman_id)===salesmanId&&Number(entry.branch_id)===Number(line.branch_id)&&Number(entry.currency_id)===Number(line.currency_id))?.amount||0):scopeTotals.sales
+        tierValue=actual/targetAmount*100
+      }
+      const result=calculateCommission(rule,{sales:netSales,grossProfit:netSales-cost,collected:0},returning?-1:1,tierValue)
       const originalSnapshot=returning&&Number(line.return_sales_invoice_id)>0
         ?(await sql`SELECT final_commission,net_sales,cost_amount,gross_profit,commission_rate,commission_basis FROM salesman_commission_transactions
           WHERE invoice_id=${Number(line.return_sales_invoice_id)} AND item_id=${Number(line.item_id)} AND source_type='invoice' ORDER BY id DESC LIMIT 1`)[0]
         :null
-      const originalBasis=rule.basis==="gross_profit"?Number(originalSnapshot?.gross_profit):Number(originalSnapshot?.net_sales)
-      const returnedBasis=rule.basis==="gross_profit"?Math.max(0,netSales-cost):netSales
-      const amount=returning&&originalSnapshot?reverseCommission(Number(originalSnapshot.final_commission),returnedBasis,originalBasis):result.amount
+      const priorReturns=originalSnapshot?(await sql`SELECT COALESCE(SUM(return_amount),0) amount FROM salesman_commission_transactions WHERE original_invoice_id=${Number(line.return_sales_invoice_id)} AND item_id=${Number(line.item_id)} AND status<>'cancelled'`)[0]:null
+      const returnedBasis=originalSnapshot?Math.min(netSales,Math.max(0,Number(originalSnapshot.net_sales)-Number(priorReturns?.amount||0))):netSales
+      const amount=returning&&originalSnapshot?reverseCommission(Number(originalSnapshot.final_commission),returnedBasis,Number(originalSnapshot.net_sales)):result.amount
       const snapshotRate=returning&&originalSnapshot?Number(originalSnapshot.commission_rate):result.rate
-      await sql`INSERT INTO salesman_commission_transactions(rule_id,salesman_id,branch_id,source_type,source_id,source_item_id,invoice_id,invoice_date,invoice_type,commission_basis,customer_id,item_id,item_group_id,warehouse_id,currency_id,quantity,net_sales,cost_amount,gross_profit,commission_rate,commission_amount,return_amount,final_commission,status)
-        VALUES(${rule.id},${salesmanId},${Number(line.branch_id)},${returning?'return':'invoice'},${Number(line.invoice_id)},${Number(line.source_item_id)},${Number(line.invoice_id)},${line.invoice_date},${Number(line.vch_type)},${rule.basis},${line.customer_id},${line.item_id},${line.item_group_id},${line.warehouse_id},${Number(line.currency_id)},${Number(line.quantity)},${returning?-netSales:netSales},${returning?-cost:cost},${returning?-(netSales-cost):netSales-cost},${snapshotRate},${amount},${returning?netSales:0},${amount},'calculated')
+      await sql`INSERT INTO salesman_commission_transactions(rule_id,salesman_id,branch_id,source_type,source_id,source_item_id,invoice_id,invoice_date,invoice_type,commission_basis,customer_id,item_id,item_group_id,warehouse_id,currency_id,quantity,net_sales,cost_amount,gross_profit,commission_rate,commission_amount,return_amount,final_commission,status,original_invoice_id,calculated_by)
+        VALUES(${rule.id},${salesmanId},${Number(line.branch_id)},${returning?'return':'invoice'},${Number(line.invoice_id)},${Number(line.source_item_id)},${Number(line.invoice_id)},${line.invoice_date},${Number(line.vch_type)},${rule.basis},${line.customer_id},${line.item_id},${line.item_group_id},${line.warehouse_id},${Number(line.currency_id)},${Number(line.quantity)},${returning?-netSales:netSales},${returning?-cost:cost},${returning?-(netSales-cost):netSales-cost},${snapshotRate},${amount},${returning?returnedBasis:0},${amount},'calculated',${Number(line.return_sales_invoice_id)||null},${Number(access.userId)||null})
         ON CONFLICT(rule_id,source_type,source_id,source_item_id) DO NOTHING RETURNING id`
       inserted++
     }
@@ -277,8 +399,13 @@ async function calculatePeriod(data: any, access: { userId: string; branchIds: n
   const allocations=await sql`SELECT a.id allocation_id,a.receipt_id,a.invoice_id,a.applied_amount,a.allocation_date,invoice.salesman_id,invoice.account_id customer_id,invoice.currency_id,invoice.branch_id,receipt.vch_code receipt_code
     FROM salesman_commission_collections a JOIN voucher_header_tbl invoice ON invoice.id=a.invoice_id JOIN voucher_header_tbl receipt ON receipt.id=a.receipt_id
     WHERE a.allocation_date BETWEEN ${from}::date AND ${to}::date AND invoice.status=2 AND receipt.status=2
+      AND (${num(data.salesman_id)}=0 OR invoice.salesman_id=${num(data.salesman_id)})
+      AND (${num(data.currency_id)}=0 OR invoice.currency_id=${num(data.currency_id)})
+      AND (${num(data.customer_id)}=0 OR invoice.account_id=${num(data.customer_id)})
       AND (${branchIds.length===0} OR invoice.branch_id=ANY(${branchIds}::int[]))`
   for(const allocation of allocations){
+    const already=(await sql`SELECT id FROM salesman_commission_transactions WHERE source_type='collection' AND source_id=${Number(allocation.receipt_id)} AND source_item_id=${Number(allocation.allocation_id)} LIMIT 1`)[0]
+    if(already)continue
     const salesmanId=Number(allocation.salesman_id),amount=Number(allocation.applied_amount)
     const allocationDate=String(allocation.allocation_date).slice(0,10)
     const effectiveCollectionRules=rules.filter(item=>item.basis==="collection"&&String((item as any).effective_from||"").slice(0,10)<=allocationDate&&(!(item as any).effective_to||String((item as any).effective_to).slice(0,10)>=allocationDate))

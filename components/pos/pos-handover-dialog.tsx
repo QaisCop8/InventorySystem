@@ -39,7 +39,7 @@ export function PosHandoverDialog(p: Props) {
     if (event.key !== "Enter" || event.altKey || event.ctrlKey || event.metaKey) return
     const target = event.target
     if (!(target instanceof HTMLInputElement || target instanceof HTMLSelectElement || target instanceof HTMLTextAreaElement)) return
-    if (target.disabled || target.readOnly || target instanceof HTMLTextAreaElement) return
+    if (target.disabled || target instanceof HTMLTextAreaElement || (target instanceof HTMLInputElement && target.readOnly)) return
     event.preventDefault()
     const controls = Array.from(new Set(event.currentTarget.querySelectorAll<HTMLElement>(
       'input:not([disabled]):not([readonly]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]), [tabindex]:not([tabindex="-1"])',
@@ -55,8 +55,8 @@ export function PosHandoverDialog(p: Props) {
 
   return <Dialog open={open} onOpenChange={onOpenChange}>
     <DialogContent dir="rtl" className="pos-custody-dialog flex h-[calc(100%-1.5rem)] max-h-[820px] w-[calc(100%-1.5rem)] max-w-[1040px] flex-col gap-0 overflow-hidden rounded-xl border border-slate-300 bg-white p-0 shadow-[0_28px_80px_-28px_rgba(15,23,42,.55)] sm:rounded-2xl dark:border-slate-700 dark:bg-slate-950" onKeyDown={event => { if (event.key === "F3") { event.preventDefault(); if (valid && !busy) onConfirm(); return } moveToNextField(event) }}>
-      <DialogHeader className="shrink-0 border-b border-slate-700 bg-slate-950 px-6 py-5 text-right text-white">
-        <div className="flex items-center gap-3"><span className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-cyan-400 text-slate-950">{closing ? <LockKeyhole className="size-5" /> : <HandCoins className="size-5" />}</span><div><DialogTitle className="text-lg font-bold text-white">{closing ? "إغلاق الوردية" : "تسليم العهدة"}</DialogTitle><DialogDescription className="mt-1 text-xs text-slate-300">{closing ? "المبلغ المعدود حسب المبالغ المدخلة في تفاصيل التسليم حسب العملة" : "إدارة عهدة الوردية والأرصدة حسب العملة"}</DialogDescription></div><span className="mr-auto hidden rounded-md border border-slate-700 px-3 py-1.5 text-xs text-slate-300 sm:inline">{userName || "الكاشير"}</span></div>
+      <DialogHeader className="shrink-0 border-b border-[#6967c4] bg-gradient-to-l from-[#262653] via-[#433b91] to-[#5950b2] px-6 py-5 text-right text-white">
+        <div className="flex items-center gap-3"><span className="flex size-11 shrink-0 items-center justify-center rounded-lg border border-white/30 bg-white/15 text-white">{closing ? <LockKeyhole className="size-5" /> : <HandCoins className="size-5" />}</span><div><DialogTitle className="text-lg font-bold text-white">{closing ? "إغلاق الوردية" : "تسليم العهدة"}</DialogTitle><DialogDescription className="mt-1 text-xs text-indigo-100">{closing ? "المبلغ المعدود حسب المبالغ المدخلة في تفاصيل التسليم حسب العملة" : "إدارة عهدة الوردية والأرصدة حسب العملة"}</DialogDescription></div><span className="mr-auto hidden rounded-md border border-white/25 bg-white/10 px-3 py-1.5 text-xs text-indigo-100 sm:inline">{userName || "الكاشير"}</span></div>
       </DialogHeader>
       <PosDialogMessages error={error} open={open} />
       <style jsx global>{`
@@ -72,7 +72,7 @@ export function PosHandoverDialog(p: Props) {
           font-size: 13px;
         }
         .dark .pos-custody-dialog section > h3 { background: #111c2c; color: #f8fafc; }
-        .pos-custody-dialog table thead { background: #172b3a !important; color: #f8fafc !important; }
+        .pos-custody-dialog table thead { background: #433b91 !important; color: #f8fafc !important; }
         .pos-custody-dialog table tbody tr { border-color: #e2e8f0 !important; }
         .pos-custody-dialog table tbody tr:nth-child(even) { background: #f1f5f9; }
         .dark .pos-custody-dialog table tbody tr:nth-child(even) { background: #111c2c; }
@@ -83,8 +83,8 @@ export function PosHandoverDialog(p: Props) {
           font-variant-numeric: tabular-nums;
         }
         .pos-custody-dialog table input:not([disabled]):focus-visible {
-          border-color: #0891b2;
-          box-shadow: 0 0 0 2px rgb(8 145 178 / 18%);
+          border-color: #5146b9;
+          box-shadow: 0 0 0 2px rgb(81 70 185 / 18%);
         }
         .dark .pos-custody-dialog table input:not([disabled]) { border-color: #475569; background: #0b1220; color: #f8fafc; }
         .pos-custody-dialog > div:last-child {
@@ -100,13 +100,22 @@ export function PosHandoverDialog(p: Props) {
         }
         .pos-custody-dialog > div:last-child button:last-child {
           border-radius: 6px;
-          background: #172b3a;
+          background: #5146b9;
           color: #fff;
         }
-        .pos-custody-dialog > div:last-child button:last-child:hover { background: #0f3d4c; }
+        .pos-custody-dialog > div:last-child button:last-child:hover { background: #433b91; }
         .dark .pos-custody-dialog > div:last-child button:first-child { border-color: #475569; background: #0f172a; color: #e2e8f0; }
-        .dark .pos-custody-dialog > div:last-child button:last-child { background: #22d3ee; color: #082f49; }
-        .dark .pos-custody-dialog > div:last-child button:last-child:hover { background: #67e8f9; }
+        .dark .pos-custody-dialog > div:last-child button:last-child { background: #655bc9; color: #fff; }
+        .dark .pos-custody-dialog > div:last-child button:last-child:hover { background: #5146b9; }
+        .pos-custody-dialog [aria-live="polite"] {
+          border-color: #6967c4 !important;
+          background: linear-gradient(115deg, #262653, #433b91 60%, #5950b2) !important;
+        }
+        .pos-custody-dialog [class*="border-cyan-"] { border-color: #5146b9 !important; }
+        .pos-custody-dialog [class*="text-cyan-"] { color: #eeecff !important; }
+        .pos-custody-dialog [class*="bg-cyan-"] { background: #5146b9 !important; color: #fff !important; }
+        .pos-custody-dialog section > h3 { border-color: #dfe4f1 !important; }
+        .dark .pos-custody-dialog section > h3 { border-color: #5146b9 !important; }
       `}</style>
       <div className="min-h-0 space-y-5 overflow-y-auto bg-slate-100 p-4 sm:p-6 dark:bg-slate-900">
         <div className="flex max-w-full gap-1 overflow-x-auto border-b border-slate-300 dark:border-slate-700">{actions.map(row => <Button key={row.key} type="button" size="sm" variant="ghost" onClick={() => onActionChange(row.key)} className={`shrink-0 rounded-t-lg rounded-b-none border-b-2 px-4 ${action === row.key ? "border-cyan-600 bg-white text-slate-950 hover:bg-white dark:bg-slate-950 dark:text-cyan-300" : "border-transparent text-slate-600 hover:bg-slate-200 dark:text-slate-300 dark:hover:bg-slate-800"}`}><row.icon className="ml-2 size-4" />{row.label}</Button>)}</div>

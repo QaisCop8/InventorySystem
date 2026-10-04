@@ -4,7 +4,7 @@ import { POST as createSalesVoucher } from "@/app/api/sales-vouchers/route"
 import { POST as createStockVoucher } from "@/app/api/stock-vouchers/route"
 import { regenerateVoucherCode, STOCK_OUT_VCH_TYPE } from "@/app/api/stock-vouchers/_lib"
 import { ensureTables, generateSalesVoucherCode, SALES_INVOICE_VCH_TYPE, RETURN_SELL_VCH_TYPE } from "@/app/api/sales-vouchers/_lib"
-import { ensurePosTables, getOpenPosSession, getPosPoint, requestUserId } from "../_lib"
+import { canUsePosCashierPermission, ensurePosTables, getOpenPosSession, getPosPoint, requestUserId } from "../_lib"
 import { getPosCurrencies } from "@/lib/pos-currencies"
 import { needsPosReceipt } from "@/lib/pos-receipt"
 import { validatePosAccounts } from "@/lib/pos-account-validation"
@@ -38,6 +38,11 @@ export async function POST(request: NextRequest) {
       const userId=requestUserId(request), pointId=Number(data.pos_point_id||0)
       if(!userId||!pointId)return NextResponse.json({error:"نقطة البيع والمستخدم مطلوبان"},{status:400})
       const point=await getPosPoint(pointId,userId);if(!point)return NextResponse.json({error:"نقطة البيع غير متاحة لهذا المستخدم"},{status:403})
+      const operationPermission=data.cashier_action==="تعديل فاتورة"?"editInvoice":data.pos_mode==="return"?"return":data.pos_mode==="gift"?"gift":"sale"
+      if(!await canUsePosCashierPermission(userId,Number(point.branch_id),operationPermission))return NextResponse.json({error:"لا توجد لديك صلاحية تنفيذ هذه الحركة من الكاشير"},{status:403})
+      if(Number(data.discount_value||0)>0&&!await canUsePosCashierPermission(userId,Number(point.branch_id),"invoiceDiscount"))return NextResponse.json({error:"لا توجد لديك صلاحية إدخال خصم فاتورة من الكاشير"},{status:403})
+      if(data.items.some((item:any)=>Number(item.discount_percent??item.discount??0)>0)&&!await canUsePosCashierPermission(userId,Number(point.branch_id),"itemDiscount"))return NextResponse.json({error:"لا توجد لديك صلاحية إدخال خصم صنف من الكاشير"},{status:403})
+      if(data.items.some((item:any)=>item.quantity_adjusted===true)&&!await canUsePosCashierPermission(userId,Number(point.branch_id),"editQuantity"))return NextResponse.json({error:"لا توجد لديك صلاحية تعديل كمية الصنف من الكاشير"},{status:403})
       const systemSettings=await loadStoredSettings()
       const taxRate=Math.max(0,Number(systemSettings.tax_rate||0))
       const session=await getOpenPosSession(pointId,userId);if(!session)return NextResponse.json({error:"يجب فتح أو استلام عهدة قبل البيع"},{status:400})

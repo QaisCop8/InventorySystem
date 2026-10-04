@@ -1,7 +1,7 @@
 import { NextRequest,NextResponse } from "next/server"
 import sql,{withTenantTransaction} from "@/lib/database"
 import {ensureTables as ensureSalesTables} from "@/app/api/sales-vouchers/_lib"
-import {ensurePosTables,getOpenPosSession,getPosPoint,requestUserId} from "../_lib"
+import {canUsePosCashierPermission,ensurePosTables,getOpenPosSession,getPosPoint,requestUserId} from "../_lib"
 import {getPosCurrencies, type PosCurrency} from "@/lib/pos-currencies"
 import {reconcileCancelledPosPayments} from "../_session-payments"
 
@@ -37,13 +37,30 @@ async function sessionDetails(pointId:number,userId:string){
   })
 }
 
-export async function GET(request:NextRequest){try{await ensureSalesTables();await ensurePosTables();const pointId=Number(request.nextUrl.searchParams.get("point_id")||0),userId=requestUserId(request);if(!pointId||!userId)return NextResponse.json({error:"بيانات الجلسة غير مكتملة"},{status:400});const point=await getPosPoint(pointId,userId);if(!point)return NextResponse.json({error:"نقطة البيع غير متاحة"},{status:403});const session=await sessionDetails(pointId,userId);const activeShift=(await sql`SELECT s.id,s.user_id,s.shift_guid,COALESCE(NULLIF(us.full_name,''),NULLIF(us.username,''),s.user_id::text) user_name FROM pos_sessions_tbl s LEFT JOIN user_settings us ON us.user_id=s.user_id WHERE s.pos_point_id=${pointId} AND s.status='open' ORDER BY s.id DESC LIMIT 1`)[0]||null;const pending=await sql`SELECT s.*,p.name point_name,c.currency_name,c.currency_code,us.full_name from_user_name,
-  COALESCE((SELECT json_agg(json_build_object('currency_id',sc.currency_id,'currency_code',cc.currency_code,'currency_name',cc.currency_name,'amount',sc.handover_amount,'rate_to_point',sc.rate_to_point) ORDER BY sc.currency_id)
-    FROM pos_session_currencies_tbl sc JOIN currency cc ON cc.id=sc.currency_id WHERE sc.session_id=s.id),'[]'::json) currency_amounts
-  FROM pos_sessions_tbl s JOIN pos_points_tbl p ON p.id=s.pos_point_id LEFT JOIN currency c ON c.id=p.currency_id LEFT JOIN user_settings us ON us.user_id=s.user_id WHERE s.pos_point_id=${pointId} AND s.status='handover_pending' AND (s.handover_to_user_id IS NULL OR s.handover_to_user_id=${userId}) ORDER BY s.id DESC`;return NextResponse.json({session,pending,active_shift:activeShift,currencies:await getPosCurrencies(Number(point.currency_id))})}catch(error){return NextResponse.json({error:error instanceof Error?error.message:"تعذر تحميل العهدة"},{status:500})}}
+export async function GET(request:NextRequest){
+  try {
+    await ensureSalesTables()
+    await ensurePosTables()
+    const pointId=Number(request.nextUrl.searchParams.get("point_id")||0)
+    const userId=requestUserId(request)
+    if(!pointId||!userId)return NextResponse.json({error:"بيانات الجلسة غير مكتملة"},{status:400})
+    const point=await getPosPoint(pointId,userId)
+    if(!point)return NextResponse.json({error:"نقطة البيع غير متاحة"},{status:403})
+    if(!await canUsePosCashierPermission(userId,Number(point.branch_id),"access"))return NextResponse.json({error:"لا توجد لديك صلاحية استخدام الكاشير على هذا الفرع"},{status:403})
+    const session=await sessionDetails(pointId,userId)
+    const activeShift=(await sql`SELECT s.id,s.user_id,s.shift_guid,COALESCE(NULLIF(us.full_name,''),NULLIF(us.username,''),s.user_id::text) user_name FROM pos_sessions_tbl s LEFT JOIN user_settings us ON us.user_id=s.user_id WHERE s.pos_point_id=${pointId} AND s.status='open' ORDER BY s.id DESC LIMIT 1`)[0]||null
+    const pending=await sql`SELECT s.*,p.name point_name,c.currency_name,c.currency_code,us.full_name from_user_name,
+      COALESCE((SELECT json_agg(json_build_object('currency_id',sc.currency_id,'currency_code',cc.currency_code,'currency_name',cc.currency_name,'amount',sc.handover_amount,'rate_to_point',sc.rate_to_point) ORDER BY sc.currency_id)
+        FROM pos_session_currencies_tbl sc JOIN currency cc ON cc.id=sc.currency_id WHERE sc.session_id=s.id),'[]'::json) currency_amounts
+      FROM pos_sessions_tbl s JOIN pos_points_tbl p ON p.id=s.pos_point_id LEFT JOIN currency c ON c.id=p.currency_id LEFT JOIN user_settings us ON us.user_id=s.user_id WHERE s.pos_point_id=${pointId} AND s.status='handover_pending' AND (s.handover_to_user_id IS NULL OR s.handover_to_user_id=${userId}) ORDER BY s.id DESC`
+    return NextResponse.json({session,pending,active_shift:activeShift,currencies:await getPosCurrencies(Number(point.currency_id))})
+  } catch(error) {
+    return NextResponse.json({error:error instanceof Error?error.message:"تعذر تحميل العهدة"},{status:500})
+  }
+}
 
 export async function POST(request:NextRequest){
-  try{await ensureSalesTables();await ensurePosTables();const data=await request.json(),action=String(data.action||""),pointId=Number(data.point_id||0),userId=requestUserId(request);if(!pointId||!userId)return NextResponse.json({error:"بيانات نقطة البيع غير مكتملة"},{status:400});const point=await getPosPoint(pointId,userId);if(!point)return NextResponse.json({error:"نقطة البيع غير متاحة"},{status:403})
+  try{await ensureSalesTables();await ensurePosTables();const data=await request.json(),action=String(data.action||""),pointId=Number(data.point_id||0),userId=requestUserId(request);if(!pointId||!userId)return NextResponse.json({error:"بيانات نقطة البيع غير مكتملة"},{status:400});const point=await getPosPoint(pointId,userId);if(!point)return NextResponse.json({error:"نقطة البيع غير متاحة"},{status:403});const custodyPermission=["handover","cash_in","cash_out","close"].includes(action)?"handover":"receiveHandover";if(!await canUsePosCashierPermission(userId,Number(point.branch_id),custodyPermission))return NextResponse.json({error:custodyPermission==="handover"?"لا توجد لديك صلاحية تسليم العهدة":"لا توجد لديك صلاحية استلام العهدة"},{status:403})
     const shiftGuid=String(data.shift_guid||"").trim()
     if(shiftGuid&&!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(shiftGuid))return NextResponse.json({error:"رقم الوردية GUID غير صالح"},{status:400})
     return await withTenantTransaction(async()=>{

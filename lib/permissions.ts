@@ -1,4 +1,4 @@
-import sql, { getPoolForDb } from "@/lib/database"
+import sql, { getPoolForDb, resolveCurrentDbName } from "@/lib/database"
 import managementSql, {
   ensureSalesDraftPermissionDefinitions,
   ensureTransactionPermissionDefinitions,
@@ -8,7 +8,10 @@ import {
   TRANSACTION_ACTION_LABELS,
   TRANSACTION_FAMILIES,
   TRANSACTION_PERMISSION_CATEGORY,
+  POS_CASHIER_PERMISSION_CATEGORY,
+  POS_CASHIER_PERMISSIONS,
   transactionPermissionName,
+  type PosCashierPermission,
   type TransactionAction,
   type TransactionFamily,
 } from "@/lib/transaction-permission-definitions"
@@ -234,6 +237,43 @@ export async function hasEffectivePermission(userId: string, accessId: number, b
   return Boolean(rows[0]?.is_granted)
 }
 
+export async function ensurePosCashierPermission(permission: PosCashierPermission): Promise<number> {
+  const name = POS_CASHIER_PERMISSIONS[permission]
+  await ensurePermissionTables(await resolveCurrentDbName())
+  const categoryRows = await sql`
+    INSERT INTO access_category (name)
+    SELECT ${POS_CASHIER_PERMISSION_CATEGORY}
+    WHERE NOT EXISTS (SELECT 1 FROM access_category WHERE name=${POS_CASHIER_PERMISSION_CATEGORY})
+    RETURNING id
+  `
+  const category = categoryRows[0] || (await sql`SELECT id FROM access_category WHERE name=${POS_CASHIER_PERMISSION_CATEGORY} ORDER BY id LIMIT 1`)[0]
+  const inserted = await sql`
+    INSERT INTO access_list (name, category_id)
+    SELECT ${name}, ${Number(category.id)}
+    WHERE NOT EXISTS (SELECT 1 FROM access_list WHERE name=${name})
+    RETURNING id
+  `
+  const access = inserted[0] || (await sql`SELECT id FROM access_list WHERE name=${name} ORDER BY id LIMIT 1`)[0]
+  await sql`UPDATE access_list SET category_id=${Number(category.id)} WHERE id=${Number(access.id)}`
+  await sql`
+    INSERT INTO role_permissions (role_id, access_id, is_granted)
+    SELECT id, ${Number(access.id)}, TRUE FROM job_roles WHERE LOWER(name)=LOWER('مدير')
+    ON CONFLICT (role_id, access_id) DO NOTHING
+  `
+  await sql`
+    INSERT INTO user_access (user_id, access_id, is_granted)
+    SELECT user_id, ${Number(access.id)}, TRUE FROM user_settings
+    WHERE permissions::text LIKE '%جميع الصلاحيات%'
+    ON CONFLICT (user_id, access_id) DO NOTHING
+  `
+  return Number(access.id)
+}
+
+export async function hasPosCashierPermission(userId: string, permission: PosCashierPermission, branchId: number): Promise<boolean> {
+  const accessId = await ensurePosCashierPermission(permission)
+  return hasEffectivePermission(userId, accessId, branchId)
+}
+
 // يُرمى عند رفض صلاحية — رسالته جاهزة للعرض مباشرة للمستخدم (تحمل اسم الصلاحية الفعلي من
 // access_list، لا معرِّفها الرقمي فقط).
 export class PermissionDeniedError extends Error {}
@@ -310,6 +350,25 @@ export async function syncPermissionDefinitions(dbName: string): Promise<void> {
     ["إضافة مسودة طلبية مبيعات", "ادخال مسودة طلبية مبيعات"],
   )
 
+  const cashierPermissionRenames: Array<[string, string]> = [
+    ["استخدام الكاشير", POS_CASHIER_PERMISSIONS.access],
+    ["إدخال فاتورة مبيعات من الكاشير", POS_CASHIER_PERMISSIONS.sale],
+    ["إدخال مردود من الكاشير", POS_CASHIER_PERMISSIONS.return],
+    ["إصدار هدية من الكاشير", POS_CASHIER_PERMISSIONS.gift],
+    ["إدارة عهدة الكاشير", POS_CASHIER_PERMISSIONS.receiveHandover],
+    ["استعلام فواتير الكاشير", POS_CASHIER_PERMISSIONS.history],
+    ["حذف فاتورة من الكاشير", POS_CASHIER_PERMISSIONS.deleteInvoice],
+    ["إدارة مسودات الكاشير", POS_CASHIER_PERMISSIONS.drafts],
+    ["تطبيق خصم في الكاشير", POS_CASHIER_PERMISSIONS.invoiceDiscount],
+  ]
+  for (const [legacyName, currentName] of cashierPermissionRenames) {
+    await client.query(
+      `UPDATE access_list SET name=$1::varchar,updated_at=CURRENT_TIMESTAMP
+       WHERE name=$2::varchar AND NOT EXISTS (SELECT 1 FROM access_list WHERE name=$1::varchar)`,
+      [currentName, legacyName],
+    )
+  }
+
   // 1) نسخ أي صف access_category/access_list جديد من قاعدة الإدارة (management) لم يصل هذه الشركة
   //    بعد — لا يُحدَّث أي صف موجود مسبقاً إطلاقاً، فتخصيصات المسؤول (إعادة تسمية فئة/صلاحية) تبقى
   //    كما هي دوماً.
@@ -380,6 +439,44 @@ export async function syncPermissionDefinitions(dbName: string): Promise<void> {
         )
         await client.query(`UPDATE access_list SET category_id = $2::integer WHERE name = $1::varchar`, [name, transactionCategory.id])
       }
+    }
+  }
+
+  const cashierCategoryRows = await client.query(
+    `INSERT INTO access_category (name)
+     SELECT $1::varchar
+     WHERE NOT EXISTS (SELECT 1 FROM access_category WHERE name = $1::varchar)
+     RETURNING id`,
+    [POS_CASHIER_PERMISSION_CATEGORY],
+  )
+  const cashierCategory = cashierCategoryRows[0] || (await client.query(
+    `SELECT id FROM access_category WHERE name = $1::varchar ORDER BY id LIMIT 1`,
+    [POS_CASHIER_PERMISSION_CATEGORY],
+  ))[0]
+  if (cashierCategory?.id) {
+    for (const name of Object.values(POS_CASHIER_PERMISSIONS)) {
+      const inserted = await client.query(
+        `INSERT INTO access_list (name, category_id)
+         SELECT $1::varchar, $2::integer
+         WHERE NOT EXISTS (SELECT 1 FROM access_list WHERE name = $1::varchar)
+         RETURNING id`,
+        [name, cashierCategory.id],
+      )
+      const access = inserted[0] || (await client.query(`SELECT id FROM access_list WHERE name = $1::varchar ORDER BY id LIMIT 1`, [name]))[0]
+      await client.query(`UPDATE access_list SET category_id = $2::integer WHERE id = $1::integer`, [access.id, cashierCategory.id])
+      await client.query(
+        `INSERT INTO role_permissions (role_id, access_id, is_granted)
+         SELECT id, $1::integer, TRUE FROM job_roles WHERE LOWER(name)=LOWER('مدير')
+         ON CONFLICT (role_id, access_id) DO NOTHING`,
+        [access.id],
+      )
+      await client.query(
+        `INSERT INTO user_access (user_id, access_id, is_granted)
+         SELECT user_id, $1::integer, TRUE FROM user_settings
+         WHERE permissions::text LIKE '%جميع الصلاحيات%'
+         ON CONFLICT (user_id, access_id) DO NOTHING`,
+        [access.id],
+      )
     }
   }
 

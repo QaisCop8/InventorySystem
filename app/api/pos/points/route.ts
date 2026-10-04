@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
 import { ensureTables as ensureVoucherTables } from "@/app/api/sales-vouchers/_lib"
-import { ensurePosTables, requestBranchId, requestUserId } from "../_lib"
+import { canUsePosCashierPermission, ensurePosTables, requestBranchId, requestUserId } from "../_lib"
 import { normalizePosPointUsers } from "@/lib/pos-point-users"
 
 const bool = (value: unknown, fallback = false) => value == null ? fallback : Boolean(value)
@@ -53,7 +53,14 @@ export async function GET(request: NextRequest) {
         AND (${request.nextUrl.searchParams.get("meta") === "1"} OR NOT EXISTS(SELECT 1 FROM pos_point_users_tbl x WHERE x.pos_point_id=p.id) OR EXISTS(SELECT 1 FROM pos_point_users_tbl x WHERE x.pos_point_id=p.id AND x.user_id=${userId}))
       ORDER BY p.name
     `
-    if (request.nextUrl.searchParams.get("meta") !== "1") return NextResponse.json({points})
+    if (request.nextUrl.searchParams.get("meta") !== "1") {
+      const allowedPoints = await Promise.all(points.map(async (point: any) =>
+        await canUsePosCashierPermission(userId, Number(point.branch_id), "access") ? point : null,
+      ))
+      const visiblePoints = allowedPoints.filter(Boolean)
+      if (points.length && !visiblePoints.length) return NextResponse.json({ error: "لا توجد لديك صلاحية استخدام الكاشير على أي فرع" }, { status: 403 })
+      return NextResponse.json({ points: visiblePoints })
+    }
     const [branches,warehouses,currencies,books,accounts,users,priceCategories]=await Promise.all([
       sql`SELECT id,branch_code code,branch_name name FROM branches WHERE COALESCE(status,1)<>3 ORDER BY branch_name`,
       sql`SELECT id,warehouse_code code,warehouse_name name FROM warehouses WHERE COALESCE(status,1)<>3 ORDER BY warehouse_name`,
@@ -76,7 +83,7 @@ async function saveUsers(pointId:number, users:any[]) {
 }
 
 export async function POST(request:NextRequest) {
-  try { await ensureVoucherTables(); await ensurePosTables(); const data=await request.json(); const error=await validate(data); if(error)return NextResponse.json({error},{status:400})
+  try { await ensureVoucherTables(); await ensurePosTables(); const data=await request.json(); const userId=requestUserId(request); if(!userId)return NextResponse.json({error:"تعذر تحديد المستخدم"},{status:401}); const error=await validate(data); if(error)return NextResponse.json({error},{status:400}); if(!await canUsePosCashierPermission(userId,Number(data.branch_id),"createPoint"))return NextResponse.json({error:"لا توجد لديك صلاحية إضافة تعريف نقطة بيع لهذا الفرع"},{status:403})
     const duplicate=await sql`SELECT id FROM pos_points_tbl WHERE UPPER(code)=UPPER(${String(data.code).trim()}) AND status<>3`; if(duplicate[0])return NextResponse.json({error:"رمز نقطة البيع مستخدم"},{status:400})
     const rows=await sql`INSERT INTO pos_points_tbl(code,name,branch_id,main_warehouse_id,currency_id,sales_book_id,return_book_id,cash_account_id,card_account_id,cheque_account_id,receivable_account_id,gift_account_id,walk_in_account_id,tax_account_id,return_account_id,price_category_id,max_discount_percent,allow_offline,allow_returns,allow_gifts,item_grouping_mode,print_by_item_group,print_invoices,status) VALUES(${String(data.code).trim().toUpperCase()},${String(data.name).trim()},${Number(data.branch_id)},${Number(data.main_warehouse_id)},${Number(data.currency_id)},${Number(data.sales_book_id)},${optionalId(data.return_book_id)},${optionalId(data.cash_account_id)},${optionalId(data.card_account_id)},${optionalId(data.cheque_account_id)},${null},${optionalId(data.gift_account_id)},${optionalId(data.walk_in_account_id)},${optionalId(data.tax_account_id)},${optionalId(data.return_account_id)},${Number(data.price_category_id||1)},${Number(data.max_discount_percent??100)},${bool(data.allow_offline,true)},${bool(data.allow_returns,true)},${bool(data.allow_gifts,true)},${data.item_grouping_mode??"on_entry"},${bool(data.print_by_item_group)},${bool(data.print_invoices)},1) RETURNING *`
     await saveUsers(Number(rows[0].id),data.users); return NextResponse.json(rows[0],{status:201})
@@ -84,8 +91,8 @@ export async function POST(request:NextRequest) {
 }
 
 export async function PUT(request:NextRequest) {
-  try { await ensureVoucherTables(); await ensurePosTables(); const data=await request.json(),id=Number(data.id); if(!id)return NextResponse.json({error:"معرف نقطة البيع مطلوب"},{status:400}); if(Number(data.status)===3){await sql`UPDATE pos_points_tbl SET status=3,updated_at=NOW() WHERE id=${id}`;return NextResponse.json({success:true})}
-    const error=await validate(data); if(error)return NextResponse.json({error},{status:400}); const duplicate=await sql`SELECT id FROM pos_points_tbl WHERE id<>${id} AND UPPER(code)=UPPER(${String(data.code).trim()}) AND status<>3`;if(duplicate[0])return NextResponse.json({error:"رمز نقطة البيع مستخدم"},{status:400})
+  try { await ensureVoucherTables(); await ensurePosTables(); const data=await request.json(),id=Number(data.id),userId=requestUserId(request); if(!userId)return NextResponse.json({error:"تعذر تحديد المستخدم"},{status:401}); if(!id)return NextResponse.json({error:"معرف نقطة البيع مطلوب"},{status:400}); const existing=(await sql`SELECT branch_id FROM pos_points_tbl WHERE id=${id} AND status<>3`)[0];if(!existing)return NextResponse.json({error:"نقطة البيع غير موجودة"},{status:404});if(!await canUsePosCashierPermission(userId,Number(existing.branch_id),"editPoint"))return NextResponse.json({error:"لا توجد لديك صلاحية تعديل تعريف نقطة البيع لهذا الفرع"},{status:403}); if(Number(data.status)===3){await sql`UPDATE pos_points_tbl SET status=3,updated_at=NOW() WHERE id=${id}`;return NextResponse.json({success:true})}
+    const error=await validate(data); if(error)return NextResponse.json({error},{status:400}); if(Number(data.branch_id)!==Number(existing.branch_id)&&!await canUsePosCashierPermission(userId,Number(data.branch_id),"editPoint"))return NextResponse.json({error:"لا توجد لديك صلاحية تعديل تعريف نقطة البيع للفرع المحدد"},{status:403}); const duplicate=await sql`SELECT id FROM pos_points_tbl WHERE id<>${id} AND UPPER(code)=UPPER(${String(data.code).trim()}) AND status<>3`;if(duplicate[0])return NextResponse.json({error:"رمز نقطة البيع مستخدم"},{status:400})
     const rows=await sql`UPDATE pos_points_tbl SET code=${String(data.code).trim().toUpperCase()},name=${String(data.name).trim()},branch_id=${Number(data.branch_id)},main_warehouse_id=${Number(data.main_warehouse_id)},currency_id=${Number(data.currency_id)},sales_book_id=${Number(data.sales_book_id)},return_book_id=${optionalId(data.return_book_id)},cash_account_id=${optionalId(data.cash_account_id)},card_account_id=${optionalId(data.card_account_id)},cheque_account_id=${optionalId(data.cheque_account_id)},receivable_account_id=${null},gift_account_id=${optionalId(data.gift_account_id)},walk_in_account_id=${optionalId(data.walk_in_account_id)},tax_account_id=${optionalId(data.tax_account_id)},return_account_id=${optionalId(data.return_account_id)},price_category_id=${Number(data.price_category_id||1)},max_discount_percent=${Number(data.max_discount_percent??100)},allow_offline=${bool(data.allow_offline,true)},allow_returns=${bool(data.allow_returns,true)},allow_gifts=${bool(data.allow_gifts,true)},item_grouping_mode=${data.item_grouping_mode??"on_entry"},print_by_item_group=${bool(data.print_by_item_group)},print_invoices=${bool(data.print_invoices)},updated_at=NOW() WHERE id=${id} AND status<>3 RETURNING *`;if(!rows[0])return NextResponse.json({error:"نقطة البيع غير موجودة"},{status:404});await saveUsers(id,data.users);return NextResponse.json(rows[0])
   } catch(error){return NextResponse.json({error:error instanceof Error?error.message:"تعذر تحديث نقطة البيع"},{status:500})}
 }

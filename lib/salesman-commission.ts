@@ -13,6 +13,7 @@ export type CommissionRule = {
   currency_id?: number | null
   minimum_sales?: number
   tiers?: CommissionTier[]
+  tier_metric?: "sales" | "sales_target" | "profit_target" | "collection_target"
 }
 export type CommissionBase = { sales: number; grossProfit: number; collected: number }
 

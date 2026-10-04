@@ -538,14 +538,17 @@ function HomePageContent() {
           ? section
           : "home-dashboard"
 
-    openSection(resolved, titleFor(resolved))
-    // يُبقي رابط العنوان مطابقاً للقسم الحالي — يتيح فتح نفس القسم في تبويب جديد
-    // (كليك أوسط/يمين على عنصر القائمة الجانبية) بدل الرجوع دائماً للرئيسية.
-    // push لا replace: كل تنقّل قسم يُضيف سجلّاً حقيقياً بتاريخ المتصفح، حتى يعمل زر "رجوع" فعلياً
-    // بالتنقّل بين الأقسام المفتوحة سابقاً — replace كانت تستبدل السجلّ الحالي في كل مرة، فيقفز زر
-    // "رجوع" مباشرة لما قبل أول تنقّل قسم على الإطلاق (شاشة تسجيل الدخول عادة) بصرف النظر عن عدد
-    // الأقسام التي زارها المستخدم بينهما.
-    router.push(resolved === "home-dashboard" ? "/" : `/?section=${resolved}`, { scroll: false })
+    const navigate = () => {
+      openSection(resolved, titleFor(resolved))
+      // Keep the URL aligned with the selected section and preserve browser history.
+      router.push(resolved === "home-dashboard" ? "/" : `/?section=${resolved}`, { scroll: false })
+    }
+    const navigationRequest = new CustomEvent("pos-cashier:navigate-request", {
+      cancelable: true,
+      detail: { continueNavigation: navigate },
+    })
+    if (!window.dispatchEvent(navigationRequest)) return
+    navigate()
   }
 
   return (

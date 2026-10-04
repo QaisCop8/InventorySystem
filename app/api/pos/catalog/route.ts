@@ -3,7 +3,7 @@ import sql from "@/lib/database"
 import { getPosCurrencies } from "@/lib/pos-currencies"
 import { ensureTables as ensureSalesTables } from "@/app/api/sales-vouchers/_lib"
 import { loadStoredSettings } from "@/app/api/settings/system/route"
-import { ensurePosTables, getOpenPosSession, getPosPoint, requestUserId } from "../_lib"
+import { canUsePosCashierPermission, ensurePosTables, getOpenPosSession, getPosPoint, requestUserId } from "../_lib"
 import { getPosCampaigns, getPosCampaignUsage } from "@/lib/pos-campaign-storage"
 
 export async function GET(request:NextRequest) {
@@ -12,6 +12,7 @@ export async function GET(request:NextRequest) {
     const pointId=Number(request.nextUrl.searchParams.get("point_id")||0), userId=requestUserId(request)
     if(!pointId||!userId)return NextResponse.json({error:"نقطة البيع والمستخدم مطلوبان"},{status:400})
     const point=await getPosPoint(pointId,userId); if(!point)return NextResponse.json({error:"نقطة البيع غير متاحة لهذا المستخدم"},{status:403})
+    if(!await canUsePosCashierPermission(userId,Number(point.branch_id),"access"))return NextResponse.json({error:"لا توجد لديك صلاحية استخدام الكاشير على هذا الفرع"},{status:403})
     let priceCategoryId = Number(point.price_category_id)
     const customerId = Number(request.nextUrl.searchParams.get("customer_id") || 0)
     if (customerId) {

@@ -4,7 +4,7 @@ import { ensureTables as ensureSalesTables, fetchSalesVoucherItems, SALES_INVOIC
 import { fetchVoucherItems as fetchStockVoucherItems } from "@/app/api/stock-vouchers/_lib"
 import { PUT as updateSalesVoucher } from "@/app/api/sales-vouchers/route"
 import { PUT as updateStockVoucher } from "@/app/api/stock-vouchers/route"
-import { ensurePosTables, getOpenPosSession, getPosPoint, requestUserId } from "../_lib"
+import { canUsePosCashierPermission, ensurePosTables, getOpenPosSession, getPosPoint, requestUserId } from "../_lib"
 
 export async function GET(request: NextRequest) {
   try {
@@ -15,6 +15,8 @@ export async function GET(request: NextRequest) {
     if (!pointId || !userId) return NextResponse.json({ error: "بيانات نقطة البيع غير مكتملة" }, { status: 400 })
     const point = await getPosPoint(pointId, userId)
     if (!point) return NextResponse.json({ error: "نقطة البيع غير متاحة" }, { status: 403 })
+    if (!await canUsePosCashierPermission(userId, Number(point.branch_id), "history"))
+      return NextResponse.json({ error: "لا توجد لديك صلاحية استعلام فواتير الكاشير على هذا الفرع" }, { status: 403 })
     const q = String(request.nextUrl.searchParams.get("q") || "").trim()
     const sourceInvoicesOnly = request.nextUrl.searchParams.get("source_invoices") === "1"
     const sessionId = Number(request.nextUrl.searchParams.get("session_id") || 0)
@@ -25,7 +27,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "معرف الفاتورة غير صالح" }, { status: 400 })
 
     const rows = await sql`
-      SELECT vh.id, vh.vch_code, vh.vch_date, vh.vch_type, vh.customer_name, vh.account_id, vh.salesman_id, vh.note, vh.amount, vh.status,
+      SELECT vh.id, vh.vch_code, vh.vch_date, vh.vch_type, vh.customer_name, vh.account_id, vh.salesman_id, vh.note, vh.amount, vh.status, vh.vat_percent,
         vh.pos_receipt_voucher_id,
         (SELECT receipt.vch_code FROM voucher_header_tbl receipt WHERE receipt.id=vh.pos_receipt_voucher_id) receipt_vch_code,
         (SELECT payment.id FROM voucher_header_tbl payment WHERE payment.pos_invoice_voucher_id=vh.id AND payment.vch_type=5 AND payment.status<>3 ORDER BY payment.id DESC LIMIT 1) pos_payment_voucher_id,
@@ -46,7 +48,14 @@ export async function GET(request: NextRequest) {
     if (!rows.length) return NextResponse.json({ error: "الفاتورة غير موجودة في نقطة البيع" }, { status: 404 })
     const voucher = rows[0]
     const items = Number(voucher.vch_type) === 9 ? await fetchStockVoucherItems(id) : await fetchSalesVoucherItems(id)
-    return NextResponse.json({ ...voucher, items })
+    const campaignTaxFactor = 1 + Math.max(0, Number(voucher.vat_percent || 0)) / 100
+    const itemsWithDisplayDiscount = Number(voucher.vch_type) === 12
+      ? items.map((item: any) => ({
+          ...item,
+          campaign_discount_display: Math.round((Number(item.campaign_discount || 0) * campaignTaxFactor + Number.EPSILON) * 100) / 100,
+        }))
+      : items
+    return NextResponse.json({ ...voucher, items: itemsWithDisplayDiscount })
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "تعذر تحميل فواتير النقطة" }, { status: 500 })
   }
@@ -64,6 +73,10 @@ export async function DELETE(request: NextRequest) {
       await ensurePosTables()
       const point = await getPosPoint(pointId, userId)
       if (!point) return NextResponse.json({ error: "نقطة البيع غير متاحة" }, { status: 403 })
+      const editRequest = request.nextUrl.searchParams.get("action") === "edit"
+      const requiredPermission = editRequest ? "editInvoice" : "deleteInvoice"
+      if (!await canUsePosCashierPermission(userId, Number(point.branch_id), requiredPermission))
+        return NextResponse.json({ error: editRequest ? "لا توجد لديك صلاحية تعديل فاتورة كاشير على هذا الفرع" : "لا توجد لديك صلاحية حذف فاتورة كاشير على هذا الفرع" }, { status: 403 })
       const session = await getOpenPosSession(pointId, userId)
       if (!session) return NextResponse.json({ error: "يجب فتح الوردية لحذف فاتورة" }, { status: 400 })
       const rows = await sql`SELECT * FROM voucher_header_tbl WHERE id = ${id} AND (pos_point_id = ${pointId} OR EXISTS (SELECT 1 FROM pos_sale_payments_tbl p WHERE p.voucher_id = ${id} AND p.pos_point_id = ${pointId})) FOR UPDATE`
