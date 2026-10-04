@@ -217,7 +217,8 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    if (!(await getSessionUser(request))) {
+    const sessionUser = await getSessionUser(request)
+    if (!sessionUser) {
       return NextResponse.json({ error: "يجب تسجيل الدخول" }, { status: 401 })
     }
     await ensureFontColumns()
@@ -265,12 +266,19 @@ export async function PUT(request: NextRequest) {
     }
 
     if (data.avatar_url !== undefined && Object.keys(data).filter((key) => key !== "user_id" && key !== "avatar_url").length === 0) {
+      if (data.avatar_url !== null && (
+        typeof data.avatar_url !== "string" ||
+        !/^data:image\/(png|jpeg|webp|gif);base64,/.test(data.avatar_url) ||
+        data.avatar_url.length > 3 * 1024 * 1024
+      )) {
+        return NextResponse.json({ error: "ملف الصورة غير صالح أو يتجاوز الحجم المسموح" }, { status: 400 })
+      }
       const result = await sql`
         UPDATE user_settings
         SET
           avatar_url = ${data.avatar_url},
           updated_at = CURRENT_TIMESTAMP
-        WHERE user_id = ${data.user_id}
+        WHERE user_id = ${sessionUser.user_id}
         RETURNING *
       `
 

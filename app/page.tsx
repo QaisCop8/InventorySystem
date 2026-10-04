@@ -23,6 +23,7 @@ const Products = dynamic(() => import("@/components/products/products").then(mod
 const Services = dynamic(() => import("@/components/products/services").then(mod => mod.Services), { ssr: false })
 const lazyNamed = (loader: () => Promise<any>, name: string) => dynamic(() => loader().then((mod) => mod[name]), { ssr: false })
 const lazyDefault = (loader: () => Promise<any>): React.ComponentType<any> => dynamic(loader, { ssr: false })
+const FixedAssetsPage = lazyDefault(() => import("@/app/fixed-assets/page"))
 const OrderReports = lazyNamed(() => import("@/components/reports/order-reports"), "OrderReports")
 const ProductReports = lazyNamed(() => import("@/components/reports/product-reports"), "ProductReports")
 const ItemBalancesReport = lazyNamed(() => import("@/components/reports/item-balances-report"), "ItemBalancesReport")
@@ -190,6 +191,7 @@ const componentMap: Record<string, React.ComponentType<any>> = {
   banks: Banks,
   branches: Branches,
   "bank-accounts": BankAccounts,
+  "fixed-assets": FixedAssetsPage,
   // أرقام أنواع السندات هنا مطابقة لـvoucher_types_tbl بعد إعادة ترقيمها (حذف المكرَّرات 3-6 في
   // 2026-07-30) — لا يمكن استيراد الثوابت الفعلية من app/api/**/_lib.ts مباشرة هنا (هذا ملف "use
   // client"، وتلك الملفات تستورد sql من lib/database.ts وهو خادمي فقط)، فتُبقى كأرقام حرفية لكن

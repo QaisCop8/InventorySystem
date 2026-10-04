@@ -909,10 +909,6 @@ td {
   }
 
   .invoice-currency-dropdown-panel {
-    position: absolute !important;
-    top: calc(100% + 0.4rem) !important;
-    left: 0 !important;
-    right: 0 !important;
     border: 1px solid rgba(148, 163, 184, 0.28) !important;
     border-radius: 16px !important;
     background: rgba(255, 255, 255, 0.98) !important;

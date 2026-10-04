@@ -35,26 +35,87 @@ export function PosHandoverDialog(p: Props) {
   const movementTotal = (type: string) => (session?.movement_totals || movements).filter(row => row.movement_type === type).reduce((sum, row) => sum + Number(row.amount || 0), 0)
   const totalRequired = Math.round((Number(session?.opening_cash || 0) + netCashSales + movementTotal("cash_in") - movementTotal("cash_out")) * 100) / 100
   const difference = Math.round((totalEntered - totalRequired) * 100) / 100
-  const totalsSummary = <div className="space-y-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold dark:border-emerald-900 dark:bg-emerald-950/30" aria-live="polite">
-    <div className="flex items-center justify-between gap-3"><span>إجمالي المبلغ المعدود ({currencyCode})</span><strong dir="ltr" className="text-lg tabular-nums">{money(totalEntered)}</strong></div>
-    <div className="flex items-center justify-between gap-3"><span>إجمالي المبلغ المطلوب ({currencyCode})</span><strong dir="ltr" className="text-lg tabular-nums">{money(totalRequired)}</strong></div>
-    <div className={"flex items-center justify-between gap-3 border-t border-emerald-200 pt-3 dark:border-emerald-900 " + (difference > 0 ? "text-green-700 dark:text-green-400" : difference < 0 ? "text-red-600 dark:text-red-400" : "text-slate-700 dark:text-slate-200")}><span>الفرق ({currencyCode})</span><strong dir="ltr" className="text-lg tabular-nums">{difference > 0 ? "+" : ""}{money(difference)}</strong></div>
+  const moveToNextField = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== "Enter" || event.altKey || event.ctrlKey || event.metaKey) return
+    const target = event.target
+    if (!(target instanceof HTMLInputElement || target instanceof HTMLSelectElement || target instanceof HTMLTextAreaElement)) return
+    if (target.disabled || target.readOnly || target instanceof HTMLTextAreaElement) return
+    event.preventDefault()
+    const controls = Array.from(new Set(event.currentTarget.querySelectorAll<HTMLElement>(
+      'input:not([disabled]):not([readonly]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]), [tabindex]:not([tabindex="-1"])',
+    ))).filter(control => control.offsetWidth > 0 || control.offsetHeight > 0)
+    const index = controls.indexOf(target)
+    controls[(index + 1) % controls.length]?.focus()
+  }
+  const totalsSummary = <div className="grid gap-3 rounded-xl border border-slate-800 bg-slate-900 px-4 py-4 text-sm font-semibold text-white sm:grid-cols-3" aria-live="polite">
+    <div className="flex items-center justify-between gap-3"><span className="text-slate-300">إجمالي المبلغ المعدود ({currencyCode})</span><strong dir="ltr" className="text-lg tabular-nums text-cyan-300">{money(totalEntered)}</strong></div>
+    <div className="flex items-center justify-between gap-3"><span className="text-slate-300">إجمالي المبلغ المطلوب ({currencyCode})</span><strong dir="ltr" className="text-lg tabular-nums">{money(totalRequired)}</strong></div>
+    <div className={"flex items-center justify-between gap-3 border-t border-slate-700 pt-3 sm:border-l sm:border-t-0 sm:pl-3 " + (difference > 0 ? "text-emerald-300" : difference < 0 ? "text-rose-300" : "text-slate-200")}><span>الفرق ({currencyCode})</span><strong dir="ltr" className="text-lg tabular-nums">{difference > 0 ? "+" : ""}{money(difference)}</strong></div>
   </div>
 
   return <Dialog open={open} onOpenChange={onOpenChange}>
-    <DialogContent dir="rtl" className="flex h-[calc(100%-1.5rem)] max-h-[760px] w-[calc(100%-1.5rem)] max-w-[920px] flex-col gap-0 overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-2xl sm:rounded-3xl dark:border-slate-800 dark:bg-slate-950" onKeyDown={event => { if (event.key === "F3") { event.preventDefault(); if (valid && !busy) onConfirm() } }}>
-      <DialogHeader className="shrink-0 border-b border-emerald-700/20 bg-gradient-to-l from-emerald-700 via-teal-700 to-sky-700 px-6 py-5 text-right text-white">
-        <div className="flex items-center gap-3"><span className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25">{closing ? <LockKeyhole className="size-5" /> : <HandCoins className="size-5" />}</span><div><DialogTitle className="text-lg font-bold text-white">{closing ? "إغلاق الوردية" : "تسليم العهدة"}</DialogTitle><DialogDescription className="mt-1 text-xs text-emerald-50">{closing ? "المبلغ المعدود حسب المبالغ المدخلة في تفاصيل التسليم حسب العملة" : "إدارة عهدة الوردية والأرصدة حسب العملة"}</DialogDescription></div></div>
+    <DialogContent dir="rtl" className="pos-custody-dialog flex h-[calc(100%-1.5rem)] max-h-[820px] w-[calc(100%-1.5rem)] max-w-[1040px] flex-col gap-0 overflow-hidden rounded-xl border border-slate-300 bg-white p-0 shadow-[0_28px_80px_-28px_rgba(15,23,42,.55)] sm:rounded-2xl dark:border-slate-700 dark:bg-slate-950" onKeyDown={event => { if (event.key === "F3") { event.preventDefault(); if (valid && !busy) onConfirm(); return } moveToNextField(event) }}>
+      <DialogHeader className="shrink-0 border-b border-slate-700 bg-slate-950 px-6 py-5 text-right text-white">
+        <div className="flex items-center gap-3"><span className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-cyan-400 text-slate-950">{closing ? <LockKeyhole className="size-5" /> : <HandCoins className="size-5" />}</span><div><DialogTitle className="text-lg font-bold text-white">{closing ? "إغلاق الوردية" : "تسليم العهدة"}</DialogTitle><DialogDescription className="mt-1 text-xs text-slate-300">{closing ? "المبلغ المعدود حسب المبالغ المدخلة في تفاصيل التسليم حسب العملة" : "إدارة عهدة الوردية والأرصدة حسب العملة"}</DialogDescription></div><span className="mr-auto hidden rounded-md border border-slate-700 px-3 py-1.5 text-xs text-slate-300 sm:inline">{userName || "الكاشير"}</span></div>
       </DialogHeader>
       <PosDialogMessages error={error} open={open} />
-      <div className="min-h-0 space-y-5 overflow-y-auto bg-slate-50/70 p-4 sm:p-6 dark:bg-slate-950">
-        <div className="flex max-w-full gap-2 overflow-x-auto rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm dark:border-slate-800 dark:bg-slate-900">{actions.map(row => <Button key={row.key} type="button" size="sm" variant="ghost" onClick={() => onActionChange(row.key)} className={`shrink-0 rounded-xl px-4 ${action === row.key ? "bg-emerald-600 text-white shadow-sm hover:bg-emerald-700 hover:text-white" : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"}`}><row.icon className="ml-2 size-4" />{row.label}</Button>)}</div>
-        {closing ? <section className="rounded-2xl border border-emerald-200 bg-gradient-to-bl from-emerald-50 to-white p-5 shadow-sm dark:border-emerald-900 dark:from-emerald-950/30 dark:to-slate-900">
-          <h3 className="mb-4 flex items-center gap-2 text-sm font-bold text-slate-900 dark:text-white"><span className="flex size-8 items-center justify-center rounded-xl bg-emerald-600 text-white"><LockKeyhole className="size-4" /></span>المبلغ المعدود</h3>
-          <div className="grid gap-4 sm:grid-cols-2">{currencies.map(row => <div key={row.currency_id} className="min-w-0 rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900"><Label htmlFor={`counted-${row.currency_id}`} className="mb-2 block text-xs font-semibold text-slate-600 dark:text-slate-300">{row.currency_name} ({row.currency_code})</Label><Input id={`counted-${row.currency_id}`} aria-label={`المبلغ المعدود ${row.currency_code}`} type="text" readOnly disabled value={money(Number(amounts[row.currency_id] ?? 0))} className="h-11 rounded-xl border-slate-200 bg-slate-50 text-left text-lg font-bold tabular-nums disabled:cursor-default disabled:opacity-100 dark:border-slate-700 dark:bg-slate-950" dir="ltr" /></div>)}</div>
+      <style jsx global>{`
+        .pos-custody-dialog section {
+          border-color: #cbd5e1 !important;
+          border-radius: 8px !important;
+          box-shadow: none !important;
+        }
+        .dark .pos-custody-dialog section { border-color: #334155 !important; }
+        .pos-custody-dialog section > h3 {
+          background: #f8fafc;
+          color: #0f172a;
+          font-size: 13px;
+        }
+        .dark .pos-custody-dialog section > h3 { background: #111c2c; color: #f8fafc; }
+        .pos-custody-dialog table thead { background: #172b3a !important; color: #f8fafc !important; }
+        .pos-custody-dialog table tbody tr { border-color: #e2e8f0 !important; }
+        .pos-custody-dialog table tbody tr:nth-child(even) { background: #f1f5f9; }
+        .dark .pos-custody-dialog table tbody tr:nth-child(even) { background: #111c2c; }
+        .pos-custody-dialog table input:not([disabled]) {
+          border-color: #94a3b8;
+          background: #fff;
+          color: #0f172a;
+          font-variant-numeric: tabular-nums;
+        }
+        .pos-custody-dialog table input:not([disabled]):focus-visible {
+          border-color: #0891b2;
+          box-shadow: 0 0 0 2px rgb(8 145 178 / 18%);
+        }
+        .dark .pos-custody-dialog table input:not([disabled]) { border-color: #475569; background: #0b1220; color: #f8fafc; }
+        .pos-custody-dialog > div:last-child {
+          border-color: #cbd5e1;
+          background: #fff;
+        }
+        .dark .pos-custody-dialog > div:last-child { border-color: #334155; background: #020617; }
+        .pos-custody-dialog > div:last-child button:first-child {
+          border-color: #cbd5e1;
+          border-radius: 6px;
+          background: #fff;
+          color: #334155;
+        }
+        .pos-custody-dialog > div:last-child button:last-child {
+          border-radius: 6px;
+          background: #172b3a;
+          color: #fff;
+        }
+        .pos-custody-dialog > div:last-child button:last-child:hover { background: #0f3d4c; }
+        .dark .pos-custody-dialog > div:last-child button:first-child { border-color: #475569; background: #0f172a; color: #e2e8f0; }
+        .dark .pos-custody-dialog > div:last-child button:last-child { background: #22d3ee; color: #082f49; }
+        .dark .pos-custody-dialog > div:last-child button:last-child:hover { background: #67e8f9; }
+      `}</style>
+      <div className="min-h-0 space-y-5 overflow-y-auto bg-slate-100 p-4 sm:p-6 dark:bg-slate-900">
+        <div className="flex max-w-full gap-1 overflow-x-auto border-b border-slate-300 dark:border-slate-700">{actions.map(row => <Button key={row.key} type="button" size="sm" variant="ghost" onClick={() => onActionChange(row.key)} className={`shrink-0 rounded-t-lg rounded-b-none border-b-2 px-4 ${action === row.key ? "border-cyan-600 bg-white text-slate-950 hover:bg-white dark:bg-slate-950 dark:text-cyan-300" : "border-transparent text-slate-600 hover:bg-slate-200 dark:text-slate-300 dark:hover:bg-slate-800"}`}><row.icon className="ml-2 size-4" />{row.label}</Button>)}</div>
+        {closing ? <section className="border-t-2 border-slate-900 bg-white p-5 dark:border-cyan-500 dark:bg-slate-950">
+          <h3 className="mb-4 flex items-center gap-2 text-sm font-bold text-slate-900 dark:text-white"><span className="flex size-8 items-center justify-center rounded-lg bg-slate-900 text-cyan-300 dark:bg-cyan-500 dark:text-slate-950"><LockKeyhole className="size-4" /></span>المبلغ المعدود</h3>
+          <div className="grid gap-4 sm:grid-cols-2">{currencies.map(row => <div key={row.currency_id} className="min-w-0 border-b border-slate-200 p-3 dark:border-slate-800"><Label htmlFor={`counted-${row.currency_id}`} className="mb-2 block text-xs font-semibold text-slate-600 dark:text-slate-300">{row.currency_name} ({row.currency_code})</Label><Input id={`counted-${row.currency_id}`} aria-label={`المبلغ المعدود ${row.currency_code}`} type="text" readOnly disabled value={money(Number(amounts[row.currency_id] ?? 0))} className="h-12 rounded-lg border-slate-300 bg-slate-100 text-left text-xl font-bold tabular-nums disabled:cursor-default disabled:opacity-100 dark:border-slate-700 dark:bg-slate-900" dir="ltr" /></div>)}</div>
           <div className="mt-4">{totalsSummary}</div>
         </section> : <>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{[{ label: "رقم الوردية", value: session?.shift_guid || "" }, { label: "تاريخ العملية", value: new Date().toLocaleString("en-GB") }, { label: "المستخدم", value: userName }, { label: "الرصيد الافتتاحي", value: `${money(Number(session?.opening_cash || 0))} ${currencyCode}` }, { label: "مجموع المبيعات", value: `${money(totalSales)} ${currencyCode}` }, { label: "الرصيد المتوقع", value: `${money(Number(session?.expected_cash || 0))} ${currencyCode}` }].map(card => <div key={card.label} className="min-w-0 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900"><div className="mb-2 text-xs text-slate-500 dark:text-slate-400">{card.label}</div><div className="truncate text-sm font-bold text-slate-900 dark:text-white" title={card.value}>{card.value}</div></div>)}</div>
+          <div className="grid gap-px overflow-hidden border border-slate-300 bg-slate-300 sm:grid-cols-2 lg:grid-cols-3 dark:border-slate-700 dark:bg-slate-700">{[{ label: "رقم الوردية", value: session?.shift_guid || "" }, { label: "تاريخ العملية", value: new Date().toLocaleString("en-GB") }, { label: "المستخدم", value: userName }, { label: "الرصيد الافتتاحي", value: `${money(Number(session?.opening_cash || 0))} ${currencyCode}` }, { label: "مجموع المبيعات", value: `${money(totalSales)} ${currencyCode}` }, { label: "الرصيد المتوقع", value: `${money(Number(session?.expected_cash || 0))} ${currencyCode}` }].map(card => <div key={card.label} className="min-w-0 bg-white px-4 py-3 dark:bg-slate-950"><div className="mb-1 text-[11px] font-medium text-slate-500 dark:text-slate-400">{card.label}</div><div className="truncate text-sm font-bold text-slate-900 dark:text-white" title={card.value}>{card.value}</div></div>)}</div>
           {action === "handover" ? <>
             <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900"><h3 className="border-b border-slate-100 px-4 py-3 text-sm font-bold dark:border-slate-800">ملخص حركة الوردية</h3><div className="overflow-x-auto"><table className="w-full min-w-[540px] text-xs"><thead className="bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"><tr><th className="p-3 text-right">التفاصيل</th><th className="p-3 text-center">المبيعات</th><th className="p-3 text-center">المردودات</th><th className="p-3 text-center">الصافي</th></tr></thead><tbody>{methods.map(row => <tr key={row.key} className="border-t border-slate-100 dark:border-slate-800"><th className="p-3 text-right font-medium">{row.label}</th><td className="p-3 text-center">{money(sales(row.key))}</td><td className="p-3 text-center">{money(refunds(row.key))}</td><td className="p-3 text-center">{money(sales(row.key) - refunds(row.key))}</td></tr>)}<tr className="border-t border-emerald-200 bg-emerald-50 font-bold text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-100"><th className="p-3 text-right">المجموع</th><td className="p-3 text-center">{money(totalSales)}</td><td className="p-3 text-center">{money(totalRefunds)}</td><td className="p-3 text-center">{money(totalSales - totalRefunds)}</td></tr></tbody></table></div></section>
             <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900"><h3 className="border-b border-slate-100 px-4 py-3 text-sm font-bold dark:border-slate-800">تفاصيل التسليم حسب العملة</h3><div className="overflow-x-auto"><table className="w-full min-w-[620px] text-xs"><thead className="bg-sky-50 text-sky-900 dark:bg-sky-950/30 dark:text-sky-100"><tr><th className="p-3 text-right">العملة</th><th className="p-3 text-center">الرصيد المتاح</th><th className="p-3 text-center">المبلغ المسلم</th><th className="p-3 text-center">سعر الصرف</th><th className="p-3 text-center">المبلغ المقيم</th></tr></thead><tbody>{currencies.map(row => <tr key={row.currency_id} className="border-t border-slate-100 dark:border-slate-800"><th className="p-3 text-right font-medium">{row.currency_name} · {row.currency_code}</th><td className="p-3 text-center">{money(available(row.currency_id))}</td><td className="p-2"><Input aria-label={`المبلغ المسلم ${row.currency_code}`} type="number" min="0" max={available(row.currency_id)} step="0.01" value={amounts[row.currency_id] ?? 0} onChange={event => onCurrencyAmountChange(row.currency_id, Number(event.target.value))} className="h-9 min-w-24 rounded-lg text-center" /></td><td className="p-3 text-center">{rate(row.currency_id).toFixed(4)}</td><td className="p-3 text-center font-bold">{money(Number(amounts[row.currency_id] || 0) * rate(row.currency_id))}</td></tr>)}</tbody></table></div></section>

@@ -1,5 +1,6 @@
 "use client"
 
+import { salesVoucherSnapshot } from "@/lib/sales-voucher-changes"
 import { useVoucherDeepLink } from "@/hooks/use-voucher-deep-link"
 
 import { useEffect, useMemo, useRef, useState } from "react"
@@ -222,9 +223,25 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
   const [cities, setCities] = useState<LookupOption[]>([])
 
   const [dialogOpen, setDialogOpen] = useState(false)
-  const [form, setForm] = useState<SalesDeliveryRecord>(buildInitialForm())
+  const [form, setFormState] = useState<SalesDeliveryRecord>(buildInitialForm())
   const formRef = useRef(form)
-  formRef.current = form
+  const cleanFormRef = useRef(form)
+  const copiedVoucherRef = useRef(false)
+  const editForm = (update: SalesDeliveryRecord | ((current: SalesDeliveryRecord) => SalesDeliveryRecord)) => {
+    const next = typeof update === "function" ? update(formRef.current) : update
+    formRef.current = next
+    setFormState(next)
+  }
+  // Only loading/new/successful-save transitions establish a clean baseline.
+  const setForm = (update: SalesDeliveryRecord | ((current: SalesDeliveryRecord) => SalesDeliveryRecord)) => {
+    bookChangeRequestRef.current++
+    pendingBookChangeRef.current = null
+    editForm(update)
+    cleanFormRef.current = structuredClone(formRef.current)
+    copiedVoucherRef.current = false
+  }
+  const hasUnsavedChanges = (items = formRef.current.items) => copiedVoucherRef.current ||
+    salesVoucherSnapshot({ ...formRef.current, items }) !== salesVoucherSnapshot(cleanFormRef.current)
   const bookChangeRequestRef = useRef(0)
   const pendingBookChangeRef = useRef<Promise<void> | null>(null)
   const [isSaving, setIsSaving] = useState(false)
@@ -256,11 +273,14 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
         cashAccountsByCurrencyRef.current = map
         cashAccountScopeRef.current = `${user.id}:${branchId}`
         const account = currencyId ? map.get(currencyId) : null
-        setForm(current => {
+        editForm(current => {
           if (current.id !== voucherId || current.branch_id !== branchId || current.currency_id !== currencyId || current.cash_account_id !== originalAccountId || [2, 3].includes(Number(current.status))) return current
           // Preserve a saved/manual account on opening; branch/currency changes clear it first.
           if (current.id > 0 && current.cash_account_id) return current
-          return { ...current, cash_account_id: account?.id ?? null, cash_account_code: account?.code ?? "", cash_account_name: account?.name ?? "" }
+          const defaults = { cash_account_id: account?.id ?? null, cash_account_code: account?.code ?? "", cash_account_name: account?.name ?? "" }
+          // Defaults are not user edits; preserve other outstanding changes.
+          cleanFormRef.current = { ...cleanFormRef.current, ...defaults }
+          return { ...current, ...defaults }
         })
       })
       .catch(error => { if (!cancelled) setErrorMessages([error.message]) })
@@ -448,14 +468,14 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
     const requestId = ++bookChangeRequestRef.current
     const current = { ...formRef.current, vch_book_id: bookId }
     formRef.current = current
-    setForm(current)
+    editForm(current)
     if (current.id > 0 || bookId == null) return
     const pending = (async () => {
       const generated = await generateCode(bookId, current.vch_code || "")
       if (requestId !== bookChangeRequestRef.current) return
       const next = { ...formRef.current, vch_book_id: bookId, vch_code: generated || current.vch_code }
       formRef.current = next
-      setForm(next)
+      editForm(next)
     })()
     pendingBookChangeRef.current = pending
     await pending
@@ -551,12 +571,14 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
   }
 
   const cloneVoucher = async () => {
+    const form = formRef.current
     if (!form.id) return
     setIsLoading(true)
     try {
       const code = await generateCode(form.vch_book_id)
     const today = new Date().toISOString().slice(0, 10)
-    setForm((f) => ({
+    copiedVoucherRef.current = true
+    editForm((f) => ({
       ...f,
       id: 0,
       vch_code: code,
@@ -636,7 +658,7 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
     return null
   }
 
-  const saveVoucher = async (action: PostVoucherAction = "save"): Promise<boolean> => {
+  const saveVoucherInternal = async (action: PostVoucherAction = "save", keepSavedVoucher = false): Promise<boolean> => {
     await pendingBookChangeRef.current
     const currentForm = formRef.current
     const status = action === "save" || action === "save_print" ? currentForm.status || 1 : 2
@@ -701,6 +723,7 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
 
       try {
         await fetchVouchers()
+        if (keepSavedVoucher) { setForm(savedVoucher); return true }
         const defaults = await fetchDefaults()
         const bookId = currentForm.vch_book_id ?? defaults.bookId
         const code = await generateCode(bookId)
@@ -709,6 +732,7 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
         setForm(nextForm)
         setGridResetToken((value) => value + 1)
       } catch (refreshError) {
+        setForm(savedVoucher)
         console.error("Voucher saved, but refreshing the voucher screen failed", refreshError)
       }
       setDialogOpen(true)
@@ -720,6 +744,15 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
     } finally {
       setIsSaving(false)
     }
+  }
+
+  const savingRequestRef = useRef(false)
+  const saveVoucher = async (action: PostVoucherAction = "save", keepSavedVoucher = false): Promise<boolean> => {
+    if (savingRequestRef.current) return false
+    savingRequestRef.current = true
+    setIsSaving(true)
+    try { return await saveVoucherInternal(action, keepSavedVoucher) }
+    finally { savingRequestRef.current = false; setIsSaving(false) }
   }
 
   const advanceAfterDelete = async () => {
@@ -787,6 +820,7 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
   }
 
   const handlePrint = async () => {
+    const form = formRef.current
     if (!(form.id > 0) || form.status === 3) return
     const copyLabel = form.status !== 2 ? "نسخة للتدقيق" : form.is_printed === 1 ? "نسخة" : "نسخة اصلية"
     if (form.status === 2 && form.is_printed !== 1) {
@@ -823,7 +857,7 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
     navigationPending.current = true
     setIsLoading(true)
     try {
-      const query = new URLSearchParams({ direction, currentId: String(Math.max(0, form.id)), vch_type: String(voucherType) })
+      const query = new URLSearchParams({ direction, currentId: String(Math.max(0, formRef.current.id)), vch_type: String(voucherType) })
       const response = await fetch(`/api/transaction-navigation?${query}`, { cache: "no-store" })
       const record = await response.json()
       if (!response.ok) throw new Error(record?.error || "تعذر التنقل بين السندات")
@@ -843,7 +877,7 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
   }
 
   const onFormChange = <K extends keyof SalesDeliveryRecord>(field: K, value: SalesDeliveryRecord[K]) => {
-    setForm((f) => ({ ...f, [field]: value, ...((field === "branch_id" || field === "currency_id") && f[field] !== value ? { cash_account_id: null, cash_account_code: "", cash_account_name: "" } : {}) }))
+    editForm((f) => ({ ...f, [field]: value, ...((field === "branch_id" || field === "currency_id") && f[field] !== value ? { cash_account_id: null, cash_account_code: "", cash_account_name: "" } : {}) }))
   }
 
   const useFullPageMode = fullscreenEnabled
@@ -951,7 +985,8 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
         form={form}
         onFormChange={onFormChange}
         onBookChange={handleBookChange}
-        onItemsChange={(items) => setForm((f) => ({ ...f, items }))}
+        onItemsChange={(items) => editForm((f) => ({ ...f, items }))}
+        hasUnsavedChanges={hasUnsavedChanges}
         gridResetToken={gridResetToken}
         voucherBooks={voucherBooks}
         currencyOptions={currencyOptions}
@@ -970,7 +1005,7 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
         isLastRecord={currentIndex >= filteredVouchers.length - 1}
         onNew={openNewDialog}
         onSave={saveVoucher}
-        onValidateSave={() => validateVoucher(form)}
+        onValidateSave={async () => { await pendingBookChangeRef.current; return validateVoucher(formRef.current) }}
         onDelete={handleDelete}
         onPrint={handlePrint}
         onNavigate={handleNavigate}

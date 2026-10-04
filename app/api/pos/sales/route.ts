@@ -8,7 +8,7 @@ import { ensurePosTables, getOpenPosSession, getPosPoint, requestUserId } from "
 import { getPosCurrencies } from "@/lib/pos-currencies"
 import { needsPosReceipt } from "@/lib/pos-receipt"
 import { validatePosAccounts } from "@/lib/pos-account-validation"
-import { createPosReceipt } from "../_receipts"
+import { createPosReceipt, createPosReturnPayment } from "../_receipts"
 import { loadStoredSettings } from "@/app/api/settings/system/route"
 import { applyPosCampaigns, combinedDiscountPercent, type PosCampaignLine } from "@/lib/pos-campaigns"
 import { getPosCampaigns, getPosCampaignUsage } from "@/lib/pos-campaign-storage"
@@ -221,6 +221,7 @@ export async function POST(request: NextRequest) {
       if(!response.ok){const failure=await response.json();throw Object.assign(new Error(String(failure.error||"تعذر حفظ الفاتورة")),{status:response.status})}
       const saved=await response.clone().json()
       const receipt=!isReturn&&needsPosReceipt(payments)?await createPosReceipt(request,saved,point,userId,payments):null
+      const returnPayment=isReturn?await createPosReturnPayment(request,saved,point,userId,payments):null
       await sql`UPDATE pos_sale_payments_tbl SET pos_point_id=${pointId},session_id=${Number(session.id)} WHERE voucher_id=${Number(saved.id)}`
       await sql`UPDATE voucher_header_tbl SET pos_session_id=${Number(session.id)},shift_guid=${String(session.shift_guid)}::uuid,campaign_discount_amount=${Math.round(campaignResult.invoiceDiscount/campaignTaxFactor*100)/100},campaign_discount_id=${campaignResult.campaignId||null} WHERE id=${Number(saved.id)}`
       await sql`INSERT INTO pos_cashier_log_tbl(pos_point_id,session_id,user_id,movement_type,transaction_no,notes) VALUES(${pointId},${Number(session.id)},${Number(userId)},${String(data.cashier_action || (data.pos_mode === "return" ? "حفظ فاتورة" : "حفظ فاتورة"))},${String(saved.vch_code || "")},${String(data.note || "")})`
@@ -249,7 +250,7 @@ export async function POST(request: NextRequest) {
           ON CONFLICT(session_id,currency_id) DO UPDATE SET expected_amount=pos_session_currencies_tbl.expected_amount+${delta}`
       }
       for(const payment of payments.filter((p:any)=>p.payment_method==="gift_card"))await sql`UPDATE pos_gift_cards_tbl SET balance=balance-${Number(payment.amount)},updated_at=NOW() WHERE code=${String(payment.reference||"").trim()}`
-      return NextResponse.json({...saved,pos_receipt_voucher_id:receipt?Number(receipt.id):null,receipt_vch_code:receipt?.vch_code||null,pos_receipts:receipt?.receipts?.map((row:any)=>({id:Number(row.id),vch_code:row.vch_code,currency_id:Number(row.currency_id),rate:Number(row.rate),amount:Number(row.amount)}))||[]},{status:201})
+      return NextResponse.json({...saved,pos_receipt_voucher_id:receipt?Number(receipt.id):null,receipt_vch_code:receipt?.vch_code||null,pos_receipts:receipt?.receipts?.map((row:any)=>({id:Number(row.id),vch_code:row.vch_code,currency_id:Number(row.currency_id),rate:Number(row.rate),amount:Number(row.amount)}))||[],pos_payment_voucher_id:returnPayment?Number(returnPayment.id):null,payment_vch_code:returnPayment?.vch_code||null},{status:201})
     })
   } catch (error) {
     console.error("Error creating POS sale:", error)

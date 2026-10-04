@@ -315,6 +315,8 @@ export const buildSalesVoucherJournalRows = (
   // (العميل/المورد) حتى يبقى القيد متوازناً — مطابق لِـSaveVoucher.cs/VoucherJournalDetail.cs.
   taxAccountId: number | null = null,
   taxAmount = 0,
+  invoiceDiscountAmount = 0,
+  voucherTotalAmount?: number,
 ) => {
   if (!typeConfig || !counterAccountId) return []
 
@@ -322,28 +324,50 @@ export const buildSalesVoucherJournalRows = (
   // حتى لو كان سعره صفراً — القيد يُسجَّل دوماً بمجرد وجود صنف بالسند، لا فقط عند وجود مبلغ فعلي؛
   // خلاف السلوك السابق الذي كان يتجاهل الصنف كلياً (لا سطر إطلاقاً) إن كان سعره صفراً.
   const itemRows: any[] = []
-  let total = 0
+  let subtotal = 0
   for (let itemIndex = 0; itemIndex < items.length; itemIndex++) {
     const item = items[itemIndex]
     if (!item.account_id) continue
-    const amount = Number(item.total_price || 0)
+    const quantity = Number(item.quantity ?? item.qnty ?? 0)
+    const unitPrice = Number(item.unit_price ?? item.price ?? 0)
+    const lineDiscountPercent = Number(item.discount_percent ?? item.discount ?? 0)
+    const amount = Math.max(0, quantity * unitPrice * (1 - lineDiscountPercent / 100) - Number(item.campaign_discount || 0))
     itemRows.push({
       journal_type_id: typeConfig.itemJournalType,
       account_id: Number(item.account_id),
       credit_debit: typeConfig.itemSide,
-      amount,
+      base_amount: amount,
       note: item.product_name || "",
       cost_centers: Array.isArray(item.account_cost_centers) ? item.account_cost_centers : [],
       item_index: itemIndex,
     })
-    total += amount
+    subtotal += amount
   }
 
   const hasItemRow = itemRows.length > 0
   const roundedTax = Math.round(Number(taxAmount || 0) * 100) / 100
   const rows: any[] = []
+  const totalDiscount = Math.min(Math.max(0, Number(invoiceDiscountAmount || 0)), subtotal)
+  const targetNet = voucherTotalAmount == null
+    ? Math.round((subtotal - totalDiscount) * 100) / 100
+    : Math.round((Number(voucherTotalAmount) - (taxAccountId ? roundedTax : 0)) * 100) / 100
+  let remainingNetCents = Math.max(0, Math.round(targetNet * 100))
+  let remainingWeight = itemRows.reduce((sum, row) => sum + Math.max(0, Number(row.base_amount || 0)), 0)
+  for (let index = 0; index < itemRows.length; index++) {
+    const row = itemRows[index]
+    const weight = Math.max(0, Number(row.base_amount || 0))
+    const allocatedCents = index === itemRows.length - 1
+      ? remainingNetCents
+      : remainingWeight > 0
+        ? Math.min(remainingNetCents, Math.round(remainingNetCents * weight / remainingWeight))
+        : 0
+    row.amount = allocatedCents / 100
+    remainingNetCents -= allocatedCents
+    remainingWeight -= weight
+  }
+  const itemTotal = itemRows.reduce((sum, row) => sum + Number(row.amount || 0), 0)
   if (hasItemRow) {
-    const counterAmount = total + (taxAccountId && roundedTax > 0 ? roundedTax : 0)
+    const counterAmount = itemTotal + (taxAccountId && roundedTax > 0 ? roundedTax : 0)
     rows.push({
       order_no: 1,
       journal_type_id: typeConfig.counterJournalType,
@@ -539,6 +563,7 @@ export const fetchSalesVoucherItems = async (voucherId: number, itemJournalTypeI
       vi.bonus AS bonus_quantity,
       vi.discount AS discount_percent,
       vi.discount AS effective_discount_percent,
+      COALESCE(vi.pos_discount_percent, vi.discount) AS regular_discount_percent,
       COALESCE(vi.campaign_discount,0) AS campaign_discount,
       vi.campaign_id,
       vi.vat_classification_id,

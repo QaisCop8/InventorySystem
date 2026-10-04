@@ -272,8 +272,8 @@ interface UnifiedSalesDeliveryProps {
   isFirstRecord?: boolean
   isLastRecord?: boolean
   onNew?: () => void
-  onSave: (action?: PostVoucherAction) => void | Promise<boolean>
-  onValidateSave?: () => string | null
+  onSave: (action?: PostVoucherAction, keepSavedVoucher?: boolean) => Promise<boolean>
+  onValidateSave?: () => string | null | Promise<string | null>
   onDelete?: () => void
   onNavigate?: (direction: "first" | "previous" | "next" | "last") => void
   onPrint?: () => void
@@ -281,6 +281,7 @@ interface UnifiedSalesDeliveryProps {
   onCodeResolved?: (id: number) => void
   onCodeNotFound?: (code: string) => void
   errorMessages?: string[]
+  hasUnsavedChanges: (items?: SalesVoucherItemRow[]) => boolean
   gridResetToken?: number
 }
 
@@ -444,6 +445,7 @@ export default function UnifiedSalesDelivery({
   onCodeNotFound,
   errorMessages = [],
   gridResetToken = 0,
+  hasUnsavedChanges,
 }: UnifiedSalesDeliveryProps) {
   const TITLE = SALES_VOUCHER_TYPE_LABELS[voucherType].title
   const isDeliveryVoucher = [DELIVERY_SELL_VCH_TYPE, DELIVERY_CONSIGNMENT_SALE_VCH_TYPE, RETURN_DELIVERY_CONSIGNMENT_SALE_VCH_TYPE, DELIVERY_PAY_VCH_TYPE].includes(voucherType)
@@ -647,28 +649,32 @@ export default function UnifiedSalesDelivery({
     }
   }, [dialogOpen])
 
-  const initialSnapshotRef = useRef<string>(JSON.stringify(form))
-  const saveCompletedRef = useRef(false)
-  const [savedSnapshotVersion, setSavedSnapshotVersion] = useState(0)
-  useEffect(() => {
-    if (saveCompletedRef.current) {
-      initialSnapshotRef.current = JSON.stringify(form)
-      saveCompletedRef.current = false
-      return
-    }
-    initialSnapshotRef.current = JSON.stringify(form)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dialogOpen, form.id, form.vch_code, savedSnapshotVersion])
+  const saveInFlightRef = useRef(false)
 
   const guardedAction = (action: () => void) => {
+    if (isSaving || isLoading || saveInFlightRef.current || showUnsavedConfirm) return
     if ([2, 3].includes(Number(form.status))) { action(); return }
-    if (showUnsavedConfirm) return
-    if (JSON.stringify(form) !== initialSnapshotRef.current) {
+    commitGridItemsBeforeSave()
+    const dirty = hasUnsavedChanges(itemsRef.current)
+    if (dirty) {
       pendingActionRef.current = action
       setShowUnsavedConfirm(true)
-    } else {
-      action()
-    }
+    } else action()
+  }
+
+  const saveAndContinue = async (action: PostVoucherAction) => {
+    if (saveInFlightRef.current || isSaving || isLoading) return
+    saveInFlightRef.current = true
+    try {
+      commitGridItemsBeforeSave()
+      const saved = await onSave(action, Boolean(pendingActionRef.current))
+      // Surface validation/server errors on the form, outside the action picker.
+      setPostDialogOpen(false)
+      if (!saved) { pendingActionRef.current = null; return }
+      const continuation = pendingActionRef.current
+      pendingActionRef.current = null
+      continuation?.()
+    } finally { saveInFlightRef.current = false }
   }
 
   // بيانات العميل الإضافية (حد الائتمان/العنوان) — تُجلَب من جدول customers عبر account_id (انظر
@@ -695,7 +701,10 @@ export default function UnifiedSalesDelivery({
     }
   }, [form.account_id])
 
+  const codeEditedRef = useRef(false)
   const handleCodeBlur = async () => {
+    if (!codeEditedRef.current) return
+    codeEditedRef.current = false
     const raw = form.vch_code.trim()
     if (!raw) return
     try {
@@ -2383,11 +2392,11 @@ export default function UnifiedSalesDelivery({
   }
 
   const completeSaveRequest = () => {
-    if (isLocked) return
+    if (isLocked || isSaving || isLoading || saveInFlightRef.current) return
     commitGridItemsBeforeSave()
-    setTimeout(() => {
+    setTimeout(async () => {
       if (!isMountedRef.current || isLocked) return
-      const error = onValidateSave?.()
+      const error = await onValidateSave?.()
       if (error) {
         messagesRef.current?.clear?.()
         messagesRef.current?.show?.([{ severity: "error", summary: "", detail: error, sticky: false, life: 4000 }])
@@ -2505,8 +2514,8 @@ export default function UnifiedSalesDelivery({
           onPrevious={() => guardedAction(() => onNavigate?.("previous"))}
           onNext={() => guardedAction(() => onNavigate?.("next"))}
           onLast={() => guardedAction(() => onNavigate?.("last"))}
-          onPrint={onPrint}
-          onClone={onClone}
+          onPrint={() => guardedAction(() => onPrint?.())}
+          onClone={() => guardedAction(() => onClone?.())}
           showUtilityLabels
           isSaving={isSaving}
           isLoading={isLoading}
@@ -2514,6 +2523,7 @@ export default function UnifiedSalesDelivery({
           canPrint={form.id > 0}
           canClone={form.id > 0}
           canDelete={form.id > 0 && form.status !== 3}
+          isNewRecord={form.id <= 0}
           isFirstRecord={isFirstRecord}
           isLastRecord={isLastRecord}
         />
@@ -2606,7 +2616,7 @@ export default function UnifiedSalesDelivery({
                       ref={vchCodeInputRef}
                       id="vch-code"
                       value={form.vch_code}
-                      onChange={(e) => onFormChange("vch_code", normalizeVoucherCode(e.target.value))}
+                      onChange={(e) => { codeEditedRef.current = true; onFormChange("vch_code", normalizeVoucherCode(e.target.value)) }}
                       onBlur={handleCodeBlur}
                       maxLength={10}
                     />
@@ -3510,8 +3520,8 @@ export default function UnifiedSalesDelivery({
               <AlertDialogAction
                 className="bg-emerald-600 hover:bg-emerald-700"
                 onClick={() => {
-                  pendingActionRef.current = null
-                  onSave("save")
+                  setShowUnsavedConfirm(false)
+                  void saveAndContinue("save")
                 }}
               >
                 نعم، حفظ
@@ -3536,14 +3546,7 @@ export default function UnifiedSalesDelivery({
         <PostVoucherDialog
           visible={postDialogOpen}
           isSaving={isSaving}
-          onSelect={async (action) => {
-            const saved = await onSave(action)
-            if (saved !== false) {
-              saveCompletedRef.current = true
-              setSavedSnapshotVersion((version) => version + 1)
-              setPostDialogOpen(false)
-            }
-          }}
+          onSelect={saveAndContinue}
           onCancel={() => {
             setPostDialogOpen(false)
           }}

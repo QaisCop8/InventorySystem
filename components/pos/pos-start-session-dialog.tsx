@@ -6,6 +6,7 @@ import {Button} from "@/components/ui/button"
 import {Input} from "@/components/ui/input"
 import {Label} from "@/components/ui/label"
 import {PosDialogMessages} from "./pos-dialog-messages"
+import {Clock3, HandCoins} from "lucide-react"
 
 type Props = {
  open:boolean; onOpenChange:(open:boolean)=>void; userName:string; currency:string;
@@ -32,8 +33,47 @@ export function PosStartSessionDialog({open,onOpenChange,userName,currency,amoun
  useEffect(()=>{if(open){setDate(new Date());setSourceId(null);setShiftGuid(globalThis.crypto?.randomUUID?.()||createShiftGuid())}},[open])
  const valid=online&&!busy&&!activeShift&&!!shiftGuid&&(pending.length>0?sourceId!==null:currencies.length>0&&currencies.every(row=>Number.isFinite(amounts[row.currency_id]||0)&&(amounts[row.currency_id]||0)>=0))
  const confirm=()=>{if(valid)onConfirm(sourceId??undefined,shiftGuid)}
- return <Dialog open={open} onOpenChange={value=>{if(!busy)onOpenChange(value)}}><DialogContent dir="rtl" className="max-h-[90dvh] max-w-3xl overflow-y-auto" onOpenAutoFocus={e=>{e.preventDefault();input.current?.focus();input.current?.select()}} onPointerDownOutside={e=>e.preventDefault()} onEscapeKeyDown={e=>{if(busy)e.preventDefault()}} onKeyDown={e=>{if(e.key==="F3"){e.preventDefault();e.stopPropagation();if(!e.repeat)confirm()}}}>
-  <DialogHeader><DialogTitle>استلام العهدة</DialogTitle><DialogDescription>لا توجد عهدة مفتوحة للمستخدم الحالي على نقطة البيع. افتح وردية أو استلم عهدة مسلّمة.</DialogDescription></DialogHeader>
+ return <Dialog open={open} onOpenChange={value=>{if(!busy)onOpenChange(value)}}><DialogContent dir="rtl" className="pos-start-session-dialog max-h-[90dvh] max-w-3xl overflow-y-auto border-slate-300 p-0 shadow-[0_28px_80px_-28px_rgba(15,23,42,.55)] dark:border-slate-700" onOpenAutoFocus={e=>{e.preventDefault();input.current?.focus();input.current?.select()}} onPointerDownOutside={e=>e.preventDefault()} onEscapeKeyDown={e=>{if(busy)e.preventDefault()}} onKeyDown={e=>{if(e.key==="F3"){e.preventDefault();e.stopPropagation();if(!e.repeat)confirm()}}}>
+    <DialogHeader className="border-b border-slate-700 bg-slate-950 px-6 py-5 text-right text-white"><div className="flex items-center gap-3"><span className="grid size-11 shrink-0 place-items-center rounded-lg bg-cyan-400 text-slate-950"><HandCoins className="size-5"/></span><div><DialogTitle className="text-lg font-bold text-white">استلام العهدة</DialogTitle><DialogDescription className="mt-1 text-xs text-slate-300">لا توجد عهدة مفتوحة للمستخدم الحالي. افتح وردية أو استلم عهدة مسلّمة.</DialogDescription></div><span className="mr-auto hidden items-center gap-2 rounded-md border border-slate-700 px-3 py-2 text-xs text-slate-300 sm:flex"><Clock3 className="size-4 text-cyan-300"/>{date.toLocaleTimeString("en-GB")}</span></div></DialogHeader>
+    <style jsx global>{`
+        .pos-start-session-dialog section {
+            border: 1px solid #cbd5e1 !important;
+            border-radius: 8px !important;
+            background: #fff !important;
+            padding: 16px !important;
+            box-shadow: none !important;
+        }
+        .dark .pos-start-session-dialog section { border-color: #334155 !important; background: #020617 !important; }
+        .pos-start-session-dialog section h3 {
+            border-color: #cbd5e1 !important;
+            color: #0f172a !important;
+            font-size: 13px;
+        }
+        .dark .pos-start-session-dialog section h3 { border-color: #334155 !important; color: #f8fafc !important; }
+        .pos-start-session-dialog section input {
+            min-height: 42px;
+            border-color: #cbd5e1;
+            border-radius: 6px;
+            background: #f8fafc;
+            font-variant-numeric: tabular-nums;
+        }
+        .pos-start-session-dialog section input:focus-visible { border-color: #0891b2; box-shadow: 0 0 0 2px rgb(8 145 178 / 18%); }
+        .dark .pos-start-session-dialog section input { border-color: #475569; background: #0b1220; }
+        .pos-start-session-dialog [role="radio"] { border-radius: 7px !important; border-color: #cbd5e1 !important; background: #fff !important; }
+        .pos-start-session-dialog [role="radio"][aria-checked="true"] { border-color: #0891b2 !important; background: #ecfeff !important; box-shadow: inset 3px 0 #0891b2; }
+        .dark .pos-start-session-dialog [role="radio"] { border-color: #334155 !important; background: #0f172a !important; }
+        .dark .pos-start-session-dialog [role="radio"][aria-checked="true"] { border-color: #22d3ee !important; background: #083344 !important; }
+        .pos-start-session-dialog > div:last-child { border-top: 1px solid #cbd5e1; padding-top: 16px; }
+        .dark .pos-start-session-dialog > div:last-child { border-color: #334155; }
+        .pos-start-session-dialog > div:last-child button { border-radius: 6px; }
+        .pos-start-session-dialog > div:last-child button:last-child { background: #172b3a; color: #fff; }
+        .pos-start-session-dialog > div:last-child button:last-child:hover { background: #0f3d4c; }
+        .dark .pos-start-session-dialog > div:last-child button:last-child { background: #22d3ee; color: #082f49; }
+        .dark .pos-start-session-dialog > div:last-child button:last-child:hover { background: #67e8f9; }
+        @media (max-width: 639px) {
+            .pos-start-session-dialog [class*="grid-cols-[1fr_1fr_1fr_1fr]"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
+    `}</style>
   <PosDialogMessages error={error} open={open}/>
   {activeShift&&<p role="alert" className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">توجد وردية مفتوحة بالفعل على نقطة البيع{activeShift.user_name?` باسم ${activeShift.user_name}`:""}. يجب إغلاقها أو تسليم عهدتها قبل فتح وردية جديدة.</p>}
   <section className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-5"><h3 className="mb-4 border-b border-emerald-200 pb-3 font-bold text-emerald-800">بيانات الوردية</h3><div className="grid grid-cols-2 gap-4">

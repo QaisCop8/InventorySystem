@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useEffect, useState, forwardRef } from "react";
+import { useEffect, useRef, useState, forwardRef } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
@@ -16,7 +16,8 @@ import {
 import { Icons } from "@/components/ui/icons";
 import { QuickThemeToggle } from "@/components/theme/theme-toggle";
 import { DisplayModeMenu } from "@/components/workspace/display-mode-menu";
-import { Loader2, Building2, ChevronDown, ArrowLeftRight } from "lucide-react";
+import { Loader2, Building2, ChevronDown, ArrowLeftRight, ImagePlus } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { activateCompany } from "@/lib/tenant-client";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useDailyExchangeRatesCheck } from "@/hooks/use-daily-exchange-rates-check";
@@ -59,7 +60,7 @@ const RefButton = forwardRef<HTMLButtonElement, React.ButtonHTMLAttributes<HTMLB
 );
 RefButton.displayName = "RefButton";
 
-export function Header({ onMenuClick, activeSection, onProfileClick, onSettingsClick, onSectionChange }: HeaderProps) {
+export function Header({ onMenuClick, activeSection, onSettingsClick, onSectionChange }: HeaderProps) {
   const router = useRouter();
   const { toast } = useToast();
   const {
@@ -73,6 +74,9 @@ export function Header({ onMenuClick, activeSection, onProfileClick, onSettingsC
   } = useAuth();
   const [search, setSearch] = useState("");
   const [loggingOut, setLoggingOut] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [avatarSaving, setAvatarSaving] = useState(false);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
   const [myCompanies, setMyCompanies] = useState<HeaderCompany[]>([]);
   const [currentCompanyId, setCurrentCompanyId] = useState<number | null>(null);
   const [switchingCompanyName, setSwitchingCompanyName] = useState<string | null>(null);
@@ -115,6 +119,60 @@ export function Header({ onMenuClick, activeSection, onProfileClick, onSettingsC
     setLoggingOut(true);
     await logout();
   };
+
+  useEffect(() => {
+    if (!user?.id) {
+      setAvatarUrl(null);
+      return;
+    }
+    const controller = new AbortController();
+    fetch(`/api/settings/user?user_id=${encodeURIComponent(user.id)}`, { signal: controller.signal, cache: "no-store" })
+      .then((response) => response.ok ? response.json() : null)
+      .then((data) => setAvatarUrl(typeof data?.avatar_url === "string" ? data.avatar_url : null))
+      .catch((error) => {
+        if (error instanceof Error && error.name !== "AbortError") console.error("Failed to load user avatar:", error);
+      });
+    return () => controller.abort();
+  }, [user?.id]);
+
+  const handleAvatarChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const input = event.currentTarget;
+    const file = input.files?.[0];
+    input.value = "";
+    if (!file) return;
+    if (!/^image\/(png|jpeg|webp|gif)$/.test(file.type)) {
+      toast({ title: "ملف غير صالح", description: "يرجى اختيار ملف صورة", variant: "destructive" });
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      toast({ title: "حجم الصورة كبير", description: "الحد الأقصى لحجم الصورة 2 ميجابايت", variant: "destructive" });
+      return;
+    }
+
+    setAvatarSaving(true);
+    try {
+      const imageData = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || ""));
+        reader.onerror = () => reject(new Error("تعذّرت قراءة الصورة"));
+        reader.readAsDataURL(file);
+      });
+      const response = await fetch("/api/settings/user", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: user?.id, avatar_url: imageData }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "تعذّر حفظ الصورة");
+      setAvatarUrl(imageData);
+      toast({ title: "تم تحديث الصورة الشخصية" });
+    } catch (error) {
+      toast({ title: "تعذّر تحديث الصورة", description: error instanceof Error ? error.message : "حدث خطأ غير متوقع", variant: "destructive" });
+    } finally {
+      setAvatarSaving(false);
+    }
+  };
+
   const [branches, setBranches] = useState<Array<{ id: number; branch_name: string }>>([]);
   const [isLoadingBranches, setIsLoadingBranches] = useState(false);
   const { dialogOpen: exchangeRatesOpen, setDialogOpen: setExchangeRatesOpen, checkNow: recheckExchangeRates } = useDailyExchangeRatesCheck();
@@ -342,9 +400,10 @@ export function Header({ onMenuClick, activeSection, onProfileClick, onSettingsC
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <RefButton className="flex items-center gap-2 h-auto p-1 md:p-2">
-              <div className="w-7 h-7 md:w-8 md:h-8 bg-emerald-600 rounded-full flex items-center justify-center">
-                <Icons.User className="h-3 w-3 md:h-4 md:w-4 text-white" />
-              </div>
+              <Avatar className="h-7 w-7 bg-emerald-600 md:h-8 md:w-8">
+                <AvatarImage src={avatarUrl || undefined} alt={user?.fullName || ""} className="object-cover" />
+                <AvatarFallback className="bg-emerald-600 text-white"><Icons.User className="h-3 w-3 md:h-4 md:w-4" /></AvatarFallback>
+              </Avatar>
               <div className="hidden min-w-0 max-w-36 text-right xl:block">
                 <p className="truncate text-sm font-medium">{user?.fullName}</p>
                 <p className="truncate text-xs text-muted-foreground">{user?.email}</p>
@@ -362,8 +421,9 @@ export function Header({ onMenuClick, activeSection, onProfileClick, onSettingsC
 
             <DropdownMenuSeparator />
 
-            <DropdownMenuItem onClick={() => onProfileClick?.()} className="justify-center cursor-pointer">
-              الملف الشخصي
+            <DropdownMenuItem onSelect={(event) => { event.preventDefault(); avatarInputRef.current?.click(); }} disabled={avatarSaving} className="justify-center cursor-pointer">
+              <ImagePlus className="ml-2 h-4 w-4" />
+              {avatarSaving ? "جاري حفظ الصورة..." : "تغيير صورة المستخدم"}
             </DropdownMenuItem>
 
             <DropdownMenuItem onClick={() => onSettingsClick?.()} className="justify-center cursor-pointer">
@@ -381,6 +441,7 @@ export function Header({ onMenuClick, activeSection, onProfileClick, onSettingsC
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+        <input ref={avatarInputRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" className="hidden" onChange={handleAvatarChange} />
       </div>
 
       {loggingOut && (

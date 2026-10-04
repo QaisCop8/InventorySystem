@@ -26,10 +26,11 @@ import {
 interface LoginPageProps {
   onLogin: (credentials: { username: string; password: string; rememberMe: boolean }) => void | Promise<void>
   footer?: ReactNode
-  usernameDirection?: "ltr" | "rtl"
+  pageDirection?: "ltr" | "rtl"
+  credentialDirection?: "ltr" | "rtl"
 }
 
-export function LoginPage({ onLogin, footer, usernameDirection = "rtl" }: LoginPageProps) {
+export function LoginPage({ onLogin, footer, pageDirection = "rtl", credentialDirection = "rtl" }: LoginPageProps) {
   const [credentials, setCredentials] = useState({ username: "", password: "", rememberMe: false })
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
@@ -52,7 +53,7 @@ export function LoginPage({ onLogin, footer, usernameDirection = "rtl" }: LoginP
   }
 
   return (
-    <main dir="rtl" className="relative min-h-screen overflow-hidden bg-[#f4f7f6] px-4 py-6 text-slate-950 sm:px-6 lg:flex lg:items-center lg:justify-center lg:py-10">
+    <main dir={pageDirection} className="relative min-h-screen overflow-hidden bg-[#f4f7f6] px-4 py-6 text-slate-950 sm:px-6 lg:flex lg:items-center lg:justify-center lg:py-10">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_90%_10%,rgba(16,185,129,0.10),transparent_30%),radial-gradient(circle_at_10%_90%,rgba(14,116,144,0.08),transparent_32%)]" />
       <div className="pointer-events-none absolute inset-0 opacity-[0.22] [background-image:linear-gradient(rgba(15,23,42,0.045)_1px,transparent_1px),linear-gradient(90deg,rgba(15,23,42,0.045)_1px,transparent_1px)] [background-size:32px_32px]" />
 
@@ -92,7 +93,7 @@ export function LoginPage({ onLogin, footer, usernameDirection = "rtl" }: LoginP
                 <Label htmlFor="login-username" className="text-sm font-semibold text-slate-700">اسم المستخدم أو البريد الإلكتروني</Label>
                 <div className="relative">
                   <UserRound className="pointer-events-none absolute right-4 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-slate-400" />
-                  <Input dir={usernameDirection} id="login-username" autoComplete="username" autoFocus value={credentials.username} onChange={(event) => setCredentials((current) => ({ ...current, username: event.target.value }))} placeholder="أدخل اسم المستخدم" className={`h-12 rounded-xl border-slate-200 bg-slate-50/70 pr-11 text-slate-950 placeholder:text-slate-400 focus-visible:border-emerald-500 focus-visible:bg-white focus-visible:ring-emerald-500/15 ${usernameDirection === "ltr" ? "text-left" : "text-right"}`} required />
+                  <Input dir={credentialDirection} id="login-username" autoComplete="username" autoFocus value={credentials.username} onChange={(event) => setCredentials((current) => ({ ...current, username: event.target.value }))} placeholder="أدخل اسم المستخدم" className={`h-12 rounded-xl border-slate-200 bg-slate-50/70 pr-11 text-slate-950 placeholder:text-slate-400 focus-visible:border-emerald-500 focus-visible:bg-white focus-visible:ring-emerald-500/15 ${credentialDirection === "ltr" ? "text-left" : "text-right"}`} required />
                 </div>
               </div>
 
@@ -103,7 +104,7 @@ export function LoginPage({ onLogin, footer, usernameDirection = "rtl" }: LoginP
                 </div>
                 <div className="relative">
                   <LockKeyhole className="pointer-events-none absolute right-4 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-slate-400" />
-                  <Input id="login-password" type={showPassword ? "text" : "password"} autoComplete="current-password" value={credentials.password} onChange={(event) => setCredentials((current) => ({ ...current, password: event.target.value }))} placeholder="أدخل كلمة المرور" className="h-12 rounded-xl border-slate-200 bg-slate-50/70 pl-12 pr-11 text-right text-slate-950 placeholder:text-slate-400 focus-visible:border-emerald-500 focus-visible:bg-white focus-visible:ring-emerald-500/15" required />
+                  <Input dir={credentialDirection} id="login-password" type={showPassword ? "text" : "password"} autoComplete="current-password" value={credentials.password} onChange={(event) => setCredentials((current) => ({ ...current, password: event.target.value }))} placeholder="أدخل كلمة المرور" className={`h-12 rounded-xl border-slate-200 bg-slate-50/70 pl-12 pr-11 text-slate-950 placeholder:text-slate-400 focus-visible:border-emerald-500 focus-visible:bg-white focus-visible:ring-emerald-500/15 ${credentialDirection === "ltr" ? "text-left" : "text-right"}`} required />
                   <button type="button" onClick={() => setShowPassword((current) => !current)} className="absolute left-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700" aria-label={showPassword ? "إخفاء كلمة المرور" : "إظهار كلمة المرور"}>
                     {showPassword ? <EyeOff className="h-[18px] w-[18px]" /> : <Eye className="h-[18px] w-[18px]" />}
                   </button>

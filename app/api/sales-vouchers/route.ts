@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import sql, { withTenantTransaction } from "@/lib/database"
-import { deletePosReceipt } from "@/app/api/pos/_receipts"
+import { deletePosRelatedVouchers } from "@/app/api/pos/_receipts"
 import { needsPosReceipt } from "@/lib/pos-receipt"
 import { reversePosSessionPayments } from "@/app/api/pos/_session-payments"
 import {
@@ -478,6 +478,8 @@ export async function POST(request: NextRequest) {
         journalTypes,
         data.tax_account_id ?? null,
         breakdown.tax,
+        breakdown.discount,
+        breakdown.total,
       )
       if (posPayments.length && journalRows.length) {
         const receiptSettlementAccount = Number(data.pos_point_id) > 0 && vchType === 12 && needsPosReceipt(posPayments)
@@ -627,7 +629,7 @@ export async function PUT(request: NextRequest) {
     if (status === 3) {
       const voucher = currentRows[0]
       if (previousStatus !== 3) {
-        await deletePosReceipt(request, Number(voucher.id))
+        await deletePosRelatedVouchers(request, Number(voucher.id))
         await reversePosSessionPayments(voucher)
         const affectedOrderIds = Number(voucher.vch_type) === SALES_INVOICE_VCH_TYPE
           ? await getSalesOrderIdsForVoucher(voucher.id) : []
@@ -673,6 +675,8 @@ export async function PUT(request: NextRequest) {
           journalTypes,
           data.tax_account_id ?? null,
           breakdown.tax,
+          breakdown.discount,
+          breakdown.total,
         )
         const currencyError = await validateJournalAccountCurrencies(journalRows, data.currency_id ? Number(data.currency_id) : null)
         if (currencyError) return NextResponse.json({ error: currencyError }, { status: 400 })

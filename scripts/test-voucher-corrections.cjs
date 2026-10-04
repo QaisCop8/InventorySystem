@@ -83,7 +83,7 @@ test('posted and deleted vouchers bypass change comparison across shared transac
     const body = source.slice(source.indexOf('const guardedAction =')).match(/=> \{([\s\S]*?)\n  \}/)[1]
     for (const status of [2, 3]) {
       let called = 0
-      new Function('form', 'action', body)({ status }, () => called++)
+      new Function('form', 'action', 'isSaving', 'isLoading', 'saveInFlightRef', 'showUnsavedConfirm', body)({ status }, () => called++, false, false, { current: false }, false)
       assert.equal(called, 1, file)
     }
   }
