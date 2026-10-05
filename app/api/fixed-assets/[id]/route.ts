@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server"
-import { deleteFixedAsset, ensureTables, getFixedAssetById, updateFixedAsset } from "../_lib"
+import { deleteFixedAsset, ensureTables, getFixedAssetById, getFixedAssetCard, updateFixedAsset } from "../_lib"
 
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     await ensureTables()
     const { id } = await params
-    const item = await getFixedAssetById(Number(id))
+    const item = await getFixedAssetCard(Number(id))
     if (!item) {
       return NextResponse.json({ error: "الأصل الثابت غير موجود" }, { status: 404 })
     }

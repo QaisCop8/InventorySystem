@@ -48,6 +48,40 @@ interface CustomersProps {
   isSubscriber?: boolean;
   isSalesman?: boolean;
 }
+
+// لقطة مُطبَّعة لما يُحفَظ فعلاً من النموذج — تُقارَن بلقطة السجل لحظة تحميله/تفريغه لمعرفة وجود
+// تعديل غير محفوظ. بدل هاش JSON للنموذج الخام (كسابقاً) الذي كان يتأثر بمزامنة النافذة لصفوف
+// مراكز التكلفة/إيقاف الحركات (تُرسَل كاملةً بما فيها الصفوف غير المُفعَّلة) وبترتيب/نوع القيم
+// (0 مقابل "0"، null مقابل "")، فيُظهر "تم تعديل السجل" دون أي تعديل حقيقي من المستخدم.
+const DIRTY_ROW_FIELDS = new Set(["cost_centers", "stop_transactions", "voucherType", "branch_ids"])
+const normalizeDirtyScalar = (value: unknown) => (value == null || value === false ? "" : String(value).trim())
+
+const buildCustomerDirtySnapshot = (data: Record<string, any> | null | undefined) => {
+  if (!data) return ""
+  const scalars: Record<string, string> = {}
+  Object.keys(data).sort().forEach((key) => {
+    const value = data[key]
+    if (DIRTY_ROW_FIELDS.has(key) || (typeof value === "object" && value !== null)) return
+    const normalized = normalizeDirtyScalar(value)
+    if (normalized) scalars[key] = normalized
+  })
+
+  // نفس منطق الحفظ: تُحفَظ الحركات الموقوفة فقط، ومراكز التكلفة ذات المركز الافتراضي فقط.
+  const stopTransactions = (Array.isArray(data.stop_transactions) ? data.stop_transactions : [])
+    .filter((row: any) => (row?.is_stopped == null ? true : Boolean(row.is_stopped)))
+    .map((row: any) => `${Number(row.voucher_types_id)}:${String(row.stop_date || "").slice(0, 10)}`)
+    .sort()
+  const costCenters = (Array.isArray(data.cost_centers) ? data.cost_centers : [])
+    .map((row: any) => ({ typeId: Number(row?.cost_center_type_id ?? row?.id), centerId: row?.default_cost_center_id ?? row?.cost_center_id, required: Number(row?.required_in_transactions ?? 1) }))
+    .filter((row: any) => row.centerId != null && row.centerId !== "")
+    .map((row: any) => `${row.typeId}:${Number(row.centerId)}:${row.required}`)
+    .sort()
+  const voucherBooks = (Array.isArray(data.voucherType) ? data.voucherType : [])
+    .map((row: any) => `${Number(row?.type_id) || 0}:${Number(row?.book_id) || 0}`)
+  const branchIds = (Array.isArray(data.branch_ids) ? data.branch_ids : []).map(Number).sort((a: number, b: number) => a - b)
+
+  return JSON.stringify({ scalars, stopTransactions, costCenters, voucherBooks, branchIds })
+}
 interface Customer {
   id: number
   customer_code: string
@@ -213,7 +247,9 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
   const [showCustomerSearch, setShowCustomerSearch] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [showUnsaved, setShowUnsaved] = useState(false);
-  const [nextFunction, setNextFunction] = useState<(() => void) | null>(null);
+  // الإجراء المؤجَّل (تنقل/جديد/إغلاق/نسخ...) حتى يجيب المستخدم على تنبيه "تم تعديل السجل".
+  const pendingActionRef = useRef<(() => void | Promise<void>) | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const bookGridRef = useRef<wjGrid.FlexGrid>(null);
   const [newUserData, setNewUserData] = useState({
     username: "",
@@ -867,11 +903,8 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
     isSupplier: boolean = false,
     checkUnsaved: boolean = true
   ) => {
-    const currentHash = getFormDataHash(formData);
-
-    if (checkUnsaved && currentHash !== initialHash.current && initialHash.current !== 0) {
-      setShowUnsaved(true);
-      setNextFunction(() => () => loadData(navigationType, customerId, isSupplier, false));
+    if (checkUnsaved && isFormDirty()) {
+      askToSaveChanges(() => loadData(navigationType, customerId, isSupplier, false));
       return;
     }
 
@@ -917,7 +950,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
       // Establish the baseline from the exact payload being committed. Keeping
       // this inside a timer allowed user input (or child synchronization) to
       // happen first and made genuine edits look unchanged intermittently.
-      initialHash.current = getFormDataHash(nextFormData)
+      markFormClean(nextFormData)
       setCurrentCustomerId(Number(customer.id))
       const customerIndex = customers.findIndex((item) => Number(item.id) === Number(customer.id))
       if (customerIndex >= 0) setCurrentIndex(customerIndex)
@@ -1209,28 +1242,38 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
       updateField("customer_code", adjustedCode);
     }
 
-    // Search for customer by code
+    // كتابة رقم في حقل الرقم طلب تنقّل، والرقم نفسه ليس "تعديلاً" — فيُفحَص باقي النموذج فقط بمقارنته
+    // باللقطة بعد إعادة الرقم الأصلي إليه.
+    const baseline = baselineSnapshotRef.current
+    const originalCode: string = baseline ? JSON.parse(baseline).scalars.customer_code ?? "" : ""
+    if (adjustedCode === originalCode) return
+    const hasOtherEdits = baseline !== null && buildCustomerDirtySnapshot({ ...formDataRef.current, customer_code: originalCode }) !== baseline
+    // يُعاد الرقم الأصلي قبل السؤال كي لا يُحفَظ السجل الحالي برقم سجل آخر عند اختيار "نعم".
+    const navigate = (action: () => void | Promise<void>) => {
+      if (!hasOtherEdits) return void action()
+      updateField("customer_code", originalCode)
+      askToSaveChanges(action)
+    }
+
     try {
       const response = await fetch(`/api/customers/by-code/${encodeURIComponent(adjustedCode)}`);
       const data = await response.json();
-      console.log("Search by code response:", data);
       if (data.found) {
-        // Load the customer data
         if (Number(data.customer.type) !== entityTypeCode) {
-          await reset_fields();
+          updateField("customer_code", originalCode)
           setPopupMessage({ severity: "error", detail: `الرقم المدخل ليس لـ${entityTypeLabel}` })
           return
         }
-        setFormData((prev) => ({
-          ...prev,
-          id: Number(data.customer.id), // use customer.id
-        }));
-        loadData("ById", data.customer.id);
-
-      } else {
-        // Reset the form since customer not found
-        await reset_fields(1, adjustedCode);
+        const foundId = Number(data.customer.id)
+        navigate(() => loadData("ByIdEdit", foundId, isSupplier, false))
+      } else if (currentCustomerId > 0) {
+        // رقم غير موجود أثناء عرض سجل قائم = سجل جديد بهذا الرقم.
+        navigate(async () => {
+          setCustomerAccountClassifications([])
+          await reset_fields(1, adjustedCode)
+        })
       }
+      // سجل جديد برقم غير مستخدم: يبقى ما كتبه المستخدم كما هو مع الرقم الجديد.
     } catch (error) {
       console.error("Error searching customer by code:", error);
       // Optionally show error message
@@ -1407,15 +1450,16 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
   };
 
   const handleDeleteCustomer = async () => {
-    setIsLoading(true)
-    if (!formData.id) {
+    const customerId = Number(formDataRef.current.id || 0)
+    if (!customerId) {
       setPopupMessage({ severity: "warn", detail: "لا يوجد سجل لحذفه" })
-      setIsLoading(false)
       return;
     }
 
+    // deleting بدل setIsLoading: الأخير يستبدل الصفحة كلها بنص التحميل فيُزيل النافذة المفتوحة.
+    setDeleting(true)
     try {
-      const response = await fetch(`/api/customers/${formData.id}`, {
+      const response = await fetch(`/api/customers/${customerId}`, {
         method: "DELETE",
       })
 
@@ -1427,32 +1471,53 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
 
       setPopupMessage({ severity: "success", detail: "تم حذف السجل بنجاح" })
 
-      reset_fields(); // clear form
+      // تحديث القائمة أولاً (عدد السجلات/التنقل) ثم تفريغ النموذج — fetchCustomers يُعيِّن أول سجل
+      // كسجل حالي إن كان المعرّف 0، لذا يجب أن يسبق reset_fields التي تُعيده إلى 0.
+      await fetchCustomers(true)
+      setCustomerAccountClassifications([])
+      await reset_fields(0, "", false)
 
     } catch (err) {
       console.error("Error deleting customer:", err);
       setPopupMessage({ severity: "error", detail: err instanceof Error ? err.message : "فشلت العملية" })
     } finally {
-      setIsLoading(false)
+      setDeleting(false)
     }
   };
 
 
 
 
-  const initialHash = useRef(0);
-  const hashCode = (str: string) => {
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-      const chr = str.charCodeAt(i);
-      hash = (hash << 5) - hash + chr;
-      hash |= 0; // Convert to 32bit integer
-    }
-    return hash;
+  // لقطة السجل كما حُمِّل/فُرِّغ آخر مرة — null = لا سجل مفتوح بعد (لا شيء للمقارنة).
+  const baselineSnapshotRef = useRef<string | null>(null);
+  const markFormClean = (data: Partial<CustomerFormData>) => {
+    baselineSnapshotRef.current = buildCustomerDirtySnapshot(data);
   };
-  const getFormDataHash = (data: any) => {
-    return hashCode(JSON.stringify(data));
+  const isFormDirty = () =>
+    baselineSnapshotRef.current !== null && buildCustomerDirtySnapshot(formDataRef.current) !== baselineSnapshotRef.current;
+
+  const askToSaveChanges = (action: () => void | Promise<void>) => {
+    pendingActionRef.current = action;
+    setShowUnsaved(true);
+    popupHasCalled();
   };
+  // يُنفِّذ الإجراء فوراً إن لم يكن هناك تعديل، وإلا يسأل أولاً (نعم = حفظ ثم متابعة، لا = متابعة دون حفظ، رجوع = إلغاء).
+  const runAfterUnsavedCheck = (action: () => void | Promise<void>) => {
+    if (isFormDirty()) askToSaveChanges(action);
+    else void action();
+  };
+
+  // قيم افتراضية تضعها النافذة نفسها (كالعملة الافتراضية لسجل جديد) — ليست تعديلاً من المستخدم،
+  // فإن كان النموذج غير مُعدَّل قبلها يبقى كذلك بعدها.
+  const applyFormDefaults = useCallback((patch: Partial<CustomerFormData>) => {
+    setFormData((prev) => {
+      const next = { ...prev, ...patch };
+      if (baselineSnapshotRef.current !== null && buildCustomerDirtySnapshot(prev) === baselineSnapshotRef.current) {
+        baselineSnapshotRef.current = buildCustomerDirtySnapshot(next);
+      }
+      return next;
+    });
+  }, []);
 
   /*const handleNewCustomer = useCallback(() => {
     console.log("AAAAa")
@@ -1467,7 +1532,9 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
     customer_name.current?.focus();
   }, [updateFormData, generateCustomerNumber])
 */
-  const reset_fields = async (from_code = 0, code = "", showLoading = true) => {
+  // showLoading افتراضياً false: كل المستدعين يعملون والنافذة مفتوحة، وisloading يستبدل الصفحة كلها
+  // بنص "جاري التحميل" فيُزيل النافذة من الشجرة (تُفقَد حالتها وتُعاد تهيئتها).
+  const reset_fields = async (from_code = 0, code = "", showLoading = false) => {
     if (showLoading) setIsLoading(true)
     updateFormData(null)
     setEditingCustomer(false)
@@ -1482,25 +1549,45 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
     // formDataRef بعد فاصل زمني ثابت (200ms) كسابقاً — تلك القراءة المؤجَّلة كانت عرضة لسباق حقيقي:
     // ضغط "السابق/التالي" بسرعة بعد "جديد" (قبل انقضاء الفاصل) يقارن هاشاً قديماً بنموذج فارغ فعلاً،
     // فيُظهر خطأً تنبيه "تم تعديل السجل هل تريد الحفظ؟" رغم عدم وجود أي تعديل حقيقي من المستخدم.
-    initialHash.current = getFormDataHash({ ...buildEmptyCustomerFormData(), customer_code: generatedCode })
+    markFormClean({ ...buildEmptyCustomerFormData(), customer_code: generatedCode })
     setCurrentCustomerId(0)
 
     setTimeout(() => {
       customer_name.current?.focus();
     }, 200);
   }
-  const handleNewCustomer = async (checkUnsaved: any) => {
-
-    const currentHash = getFormDataHash(formData);
-    if (checkUnsaved === true && currentHash !== initialHash.current && initialHash.current !== 0) {
-      setShowUnsaved(true)
-      setNextFunction(() => () => reset_fields());
-      return
+  const handleNewCustomer = async (checkUnsaved: boolean) => {
+    const startNew = async () => {
+      setShowNewCustomerDialog(true)
+      setCustomerAccountClassifications([])
+      await reset_fields(0, "", false)
     }
-    setShowNewCustomerDialog(true)
-    setCustomerAccountClassifications([])
-    await reset_fields(0, "", false)
+    if (checkUnsaved) runAfterUnsavedCheck(startNew)
+    else await startNew()
+  }
 
+  // نسخ: سجل جديد برقم جديد يحمل بيانات السجل الحالي (بلا معرّف/حساب) — يُعدّ تعديلاً غير محفوظ.
+  const handleCloneCustomer = () => {
+    if (currentCustomerId <= 0) return
+    const source = formDataRef.current
+    runAfterUnsavedCheck(async () => {
+      const generatedCode = await generateCustomerNumber()
+      markFormClean({ ...buildEmptyCustomerFormData(), customer_code: generatedCode })
+      setFormData({ ...source, id: 0, account_id: null, customer_code: generatedCode })
+      setCurrentCustomerId(0)
+      setEditingCustomer(false)
+      editingCustomerRef.current = false
+      setValidationErrors({})
+      setTimeout(() => customer_name.current?.focus(), 200)
+    })
+  }
+
+  // إغلاق النافذة يمر بنفس فحص التعديلات غير المحفوظة.
+  const requestCloseCustomerDialog = () => {
+    runAfterUnsavedCheck(() => {
+      setShowNewCustomerDialog(false)
+      void fetchCustomers()
+    })
   }
 
   const fetch_Definitions = async () => {
@@ -1658,17 +1745,23 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
 
       <ConfirmDialogYesNo
         visible={showUnsaved}
-        onConfirm={() => { setShowUnsaved(false); handleSaveCustomer(formData) }}
-        onCancel={async () => {
+        onConfirm={async () => {
+          // نعم: حفظ ثم متابعة الإجراء المؤجَّل — فقط إن نجح الحفظ (وإلا يبقى المستخدم على سجله).
+          const action = pendingActionRef.current
+          pendingActionRef.current = null
           setShowUnsaved(false); popupHasClosed();
-          if (nextFunction) {
-            nextFunction();
-            setNextFunction(null);
-
-          }
+          const saved = await handleSaveCustomer(formDataRef.current)
+          if (saved && action) await action()
+        }}
+        onCancel={async () => {
+          // لا: متابعة الإجراء دون حفظ.
+          const action = pendingActionRef.current
+          pendingActionRef.current = null
+          setShowUnsaved(false); popupHasClosed();
+          if (action) await action()
         }}
         message="تم تعديل السجل هل تريد الحفظ؟"
-        onBack={() => { setShowUnsaved(false); popupHasClosed(); }}
+        onBack={() => { pendingActionRef.current = null; setShowUnsaved(false); popupHasClosed(); }}
         showBack={true}
       />
       <ProgressSpinner loading={isloading} />
@@ -1958,8 +2051,8 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
       <Dialog
         open={showNewCustomerDialog}
         onOpenChange={(open) => {
-          setShowNewCustomerDialog(open)
-          if (!open) void fetchCustomers()
+          if (open) setShowNewCustomerDialog(true)
+          else requestCloseCustomerDialog()
         }}
       >
         <DialogContent inline={fullscreenEnabled && showNewCustomerDialog} className="h-[86dvh] max-h-[86dvh] w-[96vw] max-w-[1400px] overflow-hidden p-0 sm:h-[84dvh] sm:max-h-[84dvh]" dir="rtl"
@@ -1970,8 +2063,8 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
             <UnifiedCustomers
               open={showNewCustomerDialog}
               onOpenChange={(open) => {
-                setShowNewCustomerDialog(open)
-                if (!open) void fetchCustomers()
+                if (open) setShowNewCustomerDialog(true)
+                else requestCloseCustomerDialog()
               }}
               isSupplier={!!isSupplier}
               isSalesman={!!isSalesman}
@@ -1987,25 +2080,22 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
               currentCustomerId={currentCustomerId}
               currentIndex={currentIndex}
               totalRecords={customers.length}
-              isSaving={saving}
+              isSaving={saving || deleting}
+              hotkeysDisabled={showUnsaved || showConfirm}
               onFirst={() => navigateToCustomerIndex(0)}
               onPrevious={() => navigateToCustomerIndex(Math.max(0, currentIndex - 1))}
               onNext={() => navigateToCustomerIndex(Math.min(customers.length - 1, currentIndex + 1))}
               onLast={() => navigateToCustomerIndex(Math.max(0, customers.length - 1))}
               isNewRecord={currentCustomerId <= 0}
               onNew={() => handleNewCustomer(true)}
-              onSave={() => handleSaveCustomer(formData)}
+              onSave={() => { void handleSaveCustomer(formDataRef.current) }}
               onDelete={() => handleDeleteClick(true)}
-              onReport={() => console.log("Generate customer report")}
-              onPrint={() => console.log("Print customer")}
+              onClone={handleCloneCustomer}
+              applyFormDefaults={applyFormDefaults as any}
               popupMessage={popupMessage}
               onCustomerSelect={(customer) => {
                 const customerId = Number(customer.id)
-                const customerIndex = customers.findIndex((item) => Number(item.id) === customerId)
-                if (customerIndex >= 0) setCurrentIndex(customerIndex)
-                setCurrentCustomerId(customerId)
-                updateFormData({ ...customer, id: customerId, account_id: customer.account_id ?? null })
-                void loadData("ByIdEdit", customerId, isSupplier, false)
+                runAfterUnsavedCheck(() => loadData("ByIdEdit", customerId, isSupplier, false))
               }}
               onClassificationRowsChange={setCustomerAccountClassifications}
               onCostCenterRowsChange={(rows) => setFormData((prev) => ({ ...prev, cost_centers: rows }))}

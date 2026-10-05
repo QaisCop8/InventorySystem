@@ -39,8 +39,10 @@ const emptyMeta: Meta = { accounts: [], currencies: [], branches: [], salesmen: 
 const emptySummary: Summary = { opening_balance: 0, total_debit: 0, total_credit: 0, final_balance: 0 }
 const money = new Intl.NumberFormat("ar", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
-export function ReportMultiChoice({ label, options, selected, onChange, placeholder }: {
+export function ReportMultiChoice({ label, options, selected, onChange, placeholder, portalContainer }: {
   label: string; options: ReportOption[]; selected: number[]; onChange: (ids: number[]) => void; placeholder: string
+  // اختياري: عنصر تُفتَح فيه القائمة (كنافذة حاضنة) بدل document.body.
+  portalContainer?: HTMLElement | null
 }) {
   const [query, setQuery] = useState("")
   const [open, setOpen] = useState(false)
@@ -66,7 +68,7 @@ export function ReportMultiChoice({ label, options, selected, onChange, placehol
       <span className="truncate">{selected.length ? `تم اختيار ${selected.length}` : placeholder}</span><ChevronDown className={`h-4 w-4 transition ${open ? "rotate-180" : ""}`}/>
     </button>
     </PopoverTrigger>
-    <PopoverContent dir="rtl" align="start" collisionPadding={8} className="flex max-h-[var(--radix-popover-content-available-height)] w-[var(--radix-popover-trigger-width)] min-w-[min(260px,calc(100vw-16px))] max-w-[calc(100vw-16px)] flex-col overflow-hidden rounded-2xl p-2 shadow-2xl" aria-label={label}>
+    <PopoverContent container={portalContainer} dir="rtl" align="start" collisionPadding={8} className="flex max-h-[var(--radix-popover-content-available-height)] w-[var(--radix-popover-trigger-width)] min-w-[min(260px,calc(100vw-16px))] max-w-[calc(100vw-16px)] flex-col overflow-hidden rounded-2xl p-2 shadow-2xl" aria-label={label}>
         <div className="relative mb-2 shrink-0"><Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"/><Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="بحث بالرقم أو الاسم" className="pr-9"/></div>
         <div className="mb-2 flex shrink-0 gap-2 border-b pb-2 text-xs"><button type="button" className="text-teal-700" onClick={() => onChange(options.map(o => Number(o.id)))}>اختيار الكل</button><button type="button" className="text-muted-foreground" onClick={() => onChange([])}>إلغاء الاختيار</button></div>
         {filtered.length > visibleOptions.length && <p className="shrink-0 px-2 text-xs text-muted-foreground">اعرض أول {visibleOptions.length} من {filtered.length}. ابحث بالرقم أو الاسم للمزيد.</p>}

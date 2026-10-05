@@ -1,5 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
+import { ensureOrderReadColumns } from "@/lib/order-schema"
+import { authorizeTransaction } from "@/lib/transaction-permissions"
 
 const ORDER_SOURCE_VOUCHER_TYPE = 3
 const SALES_INVOICE_TYPE = 12
@@ -20,8 +22,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "معرف المورد مطلوب" }, { status: 400 })
     }
 
-    const rows = orderType === 1
-      ? await sql`
+    if (![1,2].includes(orderType)) return NextResponse.json({error:"Invalid order type"},{status:400})
+    await ensureOrderReadColumns()
+    const access=await authorizeTransaction(request,orderType===2?"purchase_invoice":"sales_invoice","view",branchId||undefined)
+    if(!access.ok)return access.response
+    const accountId=orderType===2?supplierId:customerId,invoiceType=orderType===2?PURCHASE_INVOICE_TYPE:SALES_INVOICE_TYPE
+    const rows = await sql`
           SELECT o.id, o.order_number, o.order_date, o.total_amount AS amount, o.order_status,
                  o.discount_type, o.discount_amount, o.vat_percent, o.currency_id, o.exchange_rate,
                  COALESCE(NULLIF(o.customer_name, ''), c.name, '') AS account_name,
@@ -30,9 +36,9 @@ export async function GET(request: NextRequest) {
           INNER JOIN account_tbl c ON c.id = o.customer_id
           INNER JOIN currency cur ON cur.id = o.currency_id
           WHERE COALESCE(o.deleted, false) = false
-            AND o.order_type = 1
-            AND o.customer_id = ${customerId}
-            AND (${branchId} = 0 OR o.branch_id = ${branchId})
+            AND o.order_type = ${orderType}
+            AND o.customer_id = ${accountId}
+            AND o.branch_id = ANY(${access.branchIds}::int[])
             AND o.order_status IN (2, 3, 4)
             AND EXISTS (
               SELECT 1
@@ -43,7 +49,7 @@ export async function GET(request: NextRequest) {
                   COALESCE(SUM(vi.bonus), 0) AS invoiced_bonus
                 FROM voucher_items_tbl vi
                 JOIN voucher_header_tbl vh ON vh.id = vi.voucher_id
-                WHERE vh.vch_type = ${SALES_INVOICE_TYPE}
+                WHERE vh.vch_type = ${invoiceType}
                   AND vh.status <> 3
                   AND vi.order_item_id = oi.id
                   AND vi.delivery_item_id IS NULL
@@ -56,38 +62,6 @@ export async function GET(request: NextRequest) {
                 )
             )
           ORDER BY o.order_date DESC, o.id DESC
-        `
-      : await sql`
-          SELECT po.id, po.order_number, po.order_date, po.total_amount AS amount, po.workflow_status AS order_status,
-                 po.discount_type, po.discount_amount, po.vat_amount AS vat_percent, po.currency_id, po.exchange_rate,
-                 COALESCE(po.currency_code, cur.currency_code, '') AS currency_code,
-                 COALESCE(s.name, '') AS account_name
-          FROM orders po
-          INNER JOIN account_tbl s ON s.id = po.supplier_id
-          LEFT JOIN currency cur ON cur.id = po.currency_id
-          WHERE po.supplier_id = ${supplierId}
-            AND (${branchId} = 0 OR po.branch_id = ${branchId})
-            AND COALESCE(po.workflow_status, '') != 'cancelled'
-            AND EXISTS (
-              SELECT 1
-              FROM order_items poi
-              LEFT JOIN LATERAL (
-                SELECT
-                  COALESCE(SUM(vi.qnty), 0) AS invoiced_quantity,
-                  COALESCE(SUM(vi.bonus), 0) AS invoiced_bonus
-                FROM voucher_items_tbl vi
-                JOIN voucher_header_tbl vh ON vh.id = vi.voucher_id
-                WHERE vh.vch_type = ${PURCHASE_INVOICE_TYPE}
-                  AND vh.status <> 3
-                  AND vi.order_item_id = poi.id
-              ) inv ON TRUE
-              WHERE poi.order_id = po.id
-                AND (
-                  poi.quantity > COALESCE(inv.invoiced_quantity, 0)
-                  OR COALESCE(poi.bonus, poi.quantity, 0) > COALESCE(inv.invoiced_bonus, 0)
-                )
-            )
-          ORDER BY po.order_date DESC, po.id DESC
         `
 
     return NextResponse.json(rows)

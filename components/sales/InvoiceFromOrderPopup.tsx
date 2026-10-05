@@ -292,6 +292,7 @@ export default function InvoiceFromOrderPopup({
     setItemsError(null)
     try {
       const query = new URLSearchParams({ order_id: String(orderId), order_type: String(orderType) })
+      if (Number(branchId)>0) query.set("branch_id",String(branchId))
       const response = await fetch(`/api/sales-vouchers/order-items?${query.toString()}`)
       const data = await response.json()
       if (!response.ok || data?.error) {
@@ -306,6 +307,7 @@ export default function InvoiceFromOrderPopup({
             barcode: String(item.barcode || ""),
             warehouse_id: item.warehouse_id != null ? Number(item.warehouse_id) : null,
             warehouse_name: String(item.warehouse_name || item.store_name || item.warehouse || ""),
+            unit_id: item.unit_id != null ? Number(item.unit_id) : null,
             unit: String(item.unit || ""),
             quantity: Number(item.remaining_quantity || 0),
             bonus_quantity: Number(item.remaining_bonus || 0),

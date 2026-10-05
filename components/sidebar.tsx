@@ -177,9 +177,9 @@ export const menuItems: MenuItem[] = [
           { title: "الفروع", section: "branches", icon: MapPin },
           { title: "حسابات البنوك", section: "bank-accounts", icon: Landmark },
           { title: "بطاقات الائتمان", section: "credit-cards", icon: CreditCard },
-          { title: "الأصول الثابتة", section: "fixed-assets", icon: Landmark },
         ],
       },
+      { title: "الأصول الثابتة", section: "fixed-assets", icon: Landmark },
       {
         title: "الحركات",
         section: "accounting-transactions",

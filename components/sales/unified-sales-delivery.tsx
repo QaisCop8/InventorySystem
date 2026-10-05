@@ -450,7 +450,7 @@ export default function UnifiedSalesDelivery({
   const TITLE = SALES_VOUCHER_TYPE_LABELS[voucherType].title
   const isDeliveryVoucher = [DELIVERY_SELL_VCH_TYPE, DELIVERY_CONSIGNMENT_SALE_VCH_TYPE, RETURN_DELIVERY_CONSIGNMENT_SALE_VCH_TYPE, DELIVERY_PAY_VCH_TYPE].includes(voucherType)
   const isSalesDeliveryVoucher = [DELIVERY_SELL_VCH_TYPE, DELIVERY_CONSIGNMENT_SALE_VCH_TYPE, RETURN_DELIVERY_CONSIGNMENT_SALE_VCH_TYPE].includes(voucherType)
-  const isPurchaseDeliveryVoucher = voucherType === DELIVERY_PAY_VCH_TYPE
+  const isPurchaseDeliveryVoucher = [PURCHASE_INVOICE_VCH_TYPE, DELIVERY_PAY_VCH_TYPE, RETURN_PURCHASE_VCH_TYPE].includes(voucherType)
   // عنوان بطاقة الملخص أعلى الشاشة يتبع نوع السند الفعلي بدل "ملخص الطلبية" الثابت: فاتورة
   // لفاتورة مبيعات/مشتريات، مرتجع لمرتجع مبيعات/مشتريات (بما فيها مرتجع إرسالية برسم البيع)،
   // وإرسالية لبقية الأنواع (إرسالية مبيعات/برسم البيع/مشتريات).
@@ -2712,7 +2712,7 @@ export default function UnifiedSalesDelivery({
                       onFormChange("account_id", account?.id ?? null)
                       onFormChange("customer_name", account?.name ?? "")
                     }}
-                    searchAllowedTypeValues={isPurchaseDeliveryVoucher ? [3, 5] : [2, 5]}
+                    searchAllowedTypeValues={isPurchaseDeliveryVoucher ? [2,3, 5] : [2,3, 5]}
                     showOrderOnlyFilter={hasOrderSourceItems}
                     lockOrderOnlyFilter={hasOrderSourceItems}
                     showDeliveryOnlyFilter={hasDeliverySourceItems}
@@ -3347,11 +3347,11 @@ export default function UnifiedSalesDelivery({
               const convertedUnitPrice = itemSourceRate && invoiceRate ? Math.round((unitPrice * itemSourceRate / invoiceRate) * 100) / 100 : unitPrice
               return {
                 ...item,
-                source_voucher_id: order.id,
+                source_voucher_id: item.source_voucher_id || order.id,
                 source_voucher_type: item.source_voucher_type ?? 3,
-                source_currency_id: order.currency_id ?? null,
-                source_currency_code: order.currency_code ?? "",
-                source_rate: order.exchange_rate ?? 1,
+                source_currency_id: item.source_currency_id ?? order.currency_id ?? null,
+                source_currency_code: item.source_currency_code || order.currency_code || "",
+                source_rate: item.source_rate ?? order.exchange_rate ?? 1,
                 unit_price: convertedUnitPrice,
                 ...recalcLineAmounts({ ...item, unit_price: convertedUnitPrice }),
               }

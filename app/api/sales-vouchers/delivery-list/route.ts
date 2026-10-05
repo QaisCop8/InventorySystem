@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
+import { authorizeTransaction } from "@/lib/transaction-permissions"
 import { ensureTables } from "../_lib"
 
 export async function GET(request: NextRequest) {
@@ -15,18 +16,13 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "معرف العميل مطلوب" }, { status: 400 })
     }
 
-    const deliveryTypes = deliveryTypesParam
-      ? deliveryTypesParam.split(",").map((value) => Number(value)).filter((value) => Number.isFinite(value) && value > 0)
-      : voucherType === 12
-      ? [13, 14]
-      : voucherType === 17
-      ? [18]
-      : []
-
+    const deliveryTypes = voucherType === 12 ? [13, 14] : voucherType === 17 ? [18] : []
     if (deliveryTypes.length === 0) {
       return NextResponse.json({ error: "نوع الفاتورة غير مدعوم" }, { status: 400 })
     }
 
+    const access=await authorizeTransaction(request,voucherType===17?"purchase_invoice":"sales_invoice","view",branchId||undefined)
+    if(!access.ok)return access.response
     const rows = await sql`
       SELECT DISTINCT vh.id, vh.vch_type, vh.vch_code, vh.vch_date, vh.amount, vh.status,
                       vh.currency_id, vh.rate, vh.discount_type, vh.discount_value,
@@ -36,13 +32,13 @@ export async function GET(request: NextRequest) {
       JOIN voucher_items_tbl vi ON vi.voucher_id = vh.id
       WHERE vh.status = 2
         AND vh.account_id = ${customerId}
-        AND (${branchId} = 0 OR vh.branch_id = ${branchId})
+        AND vh.branch_id=ANY(${access.branchIds}::int[])
         AND vh.vch_type = ANY(${deliveryTypes})
       AND NOT EXISTS (
           SELECT 1
           FROM voucher_items_tbl inv_item
           JOIN voucher_header_tbl inv ON inv.id = inv_item.voucher_id
-          WHERE inv.vch_type IN (12, 17)
+          WHERE inv.vch_type = ${voucherType} AND COALESCE(inv.status,1)<>3
             AND inv_item.delivery_item_id IN (
               SELECT id FROM voucher_items_tbl WHERE voucher_id = vh.id
             )

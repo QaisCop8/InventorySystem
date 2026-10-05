@@ -63,6 +63,12 @@ export async function ensureTables() {
       updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
     )
   `
+  await sql`ALTER TABLE fixed_assets_tbl ADD COLUMN IF NOT EXISTS branch_id INTEGER`
+  await sql`ALTER TABLE fixed_assets_tbl ADD COLUMN IF NOT EXISTS currency_id INTEGER`
+  await sql`ALTER TABLE fixed_assets_tbl ADD COLUMN IF NOT EXISTS exchange_rate NUMERIC(18,8) NOT NULL DEFAULT 1`
+  await sql`ALTER TABLE fixed_assets_tbl ADD COLUMN IF NOT EXISTS quantity NUMERIC(18,4) NOT NULL DEFAULT 1`
+  await sql`ALTER TABLE fixed_assets_tbl ADD COLUMN IF NOT EXISTS project_id INTEGER`
+  await sql`ALTER TABLE fixed_assets_tbl ADD COLUMN IF NOT EXISTS store_id INTEGER`
 
   await sql`
     CREATE TABLE IF NOT EXISTS fixed_asset_depreciation_runs_tbl (
@@ -135,17 +141,39 @@ export async function ensureTables() {
     )
   `
 
+  await sql`
+    CREATE TABLE IF NOT EXISTS fixed_asset_transactions_tbl (
+      id BIGSERIAL PRIMARY KEY,
+      asset_id INTEGER NOT NULL REFERENCES fixed_assets_tbl(id),
+      transaction_type VARCHAR(30) NOT NULL,
+      transaction_date DATE NOT NULL,
+      amount NUMERIC(18,2) NOT NULL DEFAULT 0,
+      voucher_id INTEGER,
+      description TEXT,
+      from_values JSONB NOT NULL DEFAULT '{}'::jsonb,
+      to_values JSONB NOT NULL DEFAULT '{}'::jsonb,
+      created_by INTEGER,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )
+  `
+
   await sql`CREATE INDEX IF NOT EXISTS idx_fixed_assets_category_id ON fixed_assets_tbl(category_id)`
   await sql`CREATE INDEX IF NOT EXISTS idx_fixed_assets_status ON fixed_assets_tbl(status)`
   await sql`CREATE INDEX IF NOT EXISTS idx_fixed_asset_depreciation_run_id ON fixed_asset_depreciation_lines_tbl(run_id)`
+  await sql`CREATE INDEX IF NOT EXISTS idx_fixed_asset_transactions_asset_date ON fixed_asset_transactions_tbl(asset_id,transaction_date,id)`
 }
 
 export async function listFixedAssets() {
   await ensureTables()
   return sql`
-    SELECT fa.*, fac.code AS category_code, fac.name AS category_name
+    SELECT fa.*, fac.code AS category_code, fac.name AS category_name,
+           b.branch_name,cc.name AS cost_center_name,
+           COALESCE((SELECT SUM(i.amount) FROM fixed_asset_improvements_tbl i WHERE i.asset_id=fa.id),0) additions,
+           COALESCE((SELECT SUM(fdl.depreciation_amount) FROM fixed_asset_depreciation_lines_tbl fdl JOIN fixed_asset_depreciation_runs_tbl fdr ON fdr.id=fdl.run_id AND fdr.status='posted' WHERE fdl.asset_id=fa.id),0) accumulated_depreciation
     FROM fixed_assets_tbl fa
     LEFT JOIN fixed_asset_categories_tbl fac ON fac.id = fa.category_id
+    LEFT JOIN branches b ON b.id=fa.branch_id
+    LEFT JOIN cost_centers cc ON cc.id=fa.cost_center_id
     WHERE fa.is_active = TRUE
     ORDER BY fa.id DESC
   `
@@ -161,6 +189,20 @@ export async function getFixedAssetById(id: number) {
     LIMIT 1
   `
   return rows[0] ?? null
+}
+
+export async function getFixedAssetCard(id: number) {
+  await ensureTables()
+  const asset = await getFixedAssetById(id)
+  if (!asset) return null
+  const [transactions, depreciation, transfers, disposals, improvements] = await Promise.all([
+    sql`SELECT * FROM fixed_asset_transactions_tbl WHERE asset_id=${id} ORDER BY transaction_date DESC,id DESC`,
+    sql`SELECT fdl.*,fdr.period,fdr.status run_status,fdr.voucher_id FROM fixed_asset_depreciation_lines_tbl fdl JOIN fixed_asset_depreciation_runs_tbl fdr ON fdr.id=fdl.run_id WHERE fdl.asset_id=${id} ORDER BY fdl.depreciation_date DESC,fdl.id DESC`,
+    sql`SELECT * FROM fixed_asset_transfers_tbl WHERE asset_id=${id} ORDER BY transfer_date DESC,id DESC`,
+    sql`SELECT * FROM fixed_asset_disposals_tbl WHERE asset_id=${id} ORDER BY disposal_date DESC,id DESC`,
+    sql`SELECT * FROM fixed_asset_improvements_tbl WHERE asset_id=${id} ORDER BY improvement_date DESC,id DESC`,
+  ])
+  return { ...asset, transactions, depreciation, transfers, disposals, improvements }
 }
 
 export async function createFixedAsset(input: Record<string, any>) {
@@ -189,16 +231,28 @@ export async function createFixedAsset(input: Record<string, any>) {
     is_active: input.is_active !== false,
   }
 
-  if (!payload.asset_code || !payload.name || !payload.category_id || !(payload.cost >= 0)) {
+  if (!payload.asset_code || !payload.name || !payload.category_id || !Number.isFinite(payload.cost) || payload.cost < 0
+      || !Number.isFinite(payload.useful_life_months) || payload.useful_life_months <= 0
+      || !Number.isFinite(payload.salvage_value) || payload.salvage_value < 0 || payload.salvage_value > payload.cost) {
     throw new Error("بيانات الأصل الثابت غير مكتملة")
   }
 
+  const category = (await sql`SELECT * FROM fixed_asset_categories_tbl WHERE id=${payload.category_id} AND is_active=TRUE`)[0]
+  if (!category) throw new Error("تصنيف الأصل غير موجود أو غير نشط")
+  const createAcquisitionVoucher = input.create_voucher === true
+  const assetAccountId = Number(input.asset_account_id || category.asset_account_id || 0)
+  if (createAcquisitionVoucher && payload.cost <= 0) throw new Error("تكلفة الأصل يجب أن تكون أكبر من صفر لإنشاء قيد الاقتناء")
+  if (createAcquisitionVoucher && !(Number(input.exchange_rate || 1) > 0)) throw new Error("سعر الصرف يجب أن يكون أكبر من صفر")
+  if (createAcquisitionVoucher && (!assetAccountId || !payload.supplier_account_id)) {
+    throw new Error("لإنشاء قيد الاقتناء يجب تعريف حساب الأصل في التصنيف واختيار حساب المورد")
+  }
   const result = await sql`
     INSERT INTO fixed_assets_tbl (
       asset_code,
       name,
       category_id,
       supplier_account_id,
+      purchase_voucher_id,
       purchase_invoice_no,
       purchase_date,
       capitalization_date,
@@ -214,6 +268,17 @@ export async function createFixedAsset(input: Record<string, any>) {
       serial_number,
       status,
       notes,
+      asset_account_id,
+      accumulated_depreciation_account_id,
+      depreciation_expense_account_id,
+      gain_account_id,
+      loss_account_id,
+      branch_id,
+      currency_id,
+      exchange_rate,
+      quantity,
+      project_id,
+      store_id,
       is_active,
       updated_at
     ) VALUES (
@@ -221,6 +286,7 @@ export async function createFixedAsset(input: Record<string, any>) {
       ${payload.name},
       ${payload.category_id},
       ${payload.supplier_account_id},
+      ${input.purchase_voucher_id ? Number(input.purchase_voucher_id) : null},
       ${payload.purchase_invoice_no},
       ${payload.purchase_date},
       ${payload.capitalization_date},
@@ -236,12 +302,182 @@ export async function createFixedAsset(input: Record<string, any>) {
       ${payload.serial_number},
       ${payload.status},
       ${payload.notes},
+      ${input.asset_account_id ? Number(input.asset_account_id) : category.asset_account_id},
+      ${input.accumulated_depreciation_account_id ? Number(input.accumulated_depreciation_account_id) : category.accumulated_depreciation_account_id},
+      ${input.depreciation_expense_account_id ? Number(input.depreciation_expense_account_id) : category.depreciation_expense_account_id},
+      ${input.gain_account_id ? Number(input.gain_account_id) : category.gain_account_id},
+      ${input.loss_account_id ? Number(input.loss_account_id) : category.loss_account_id},
+      ${input.branch_id ? Number(input.branch_id) : null},
+      ${input.currency_id ? Number(input.currency_id) : null},
+      ${Number(input.exchange_rate || 1)},
+      ${Number(input.quantity || 1)},
+      ${input.project_id ? Number(input.project_id) : null},
+      ${input.store_id ? Number(input.store_id) : null},
       ${payload.is_active},
       CURRENT_TIMESTAMP
     ) RETURNING *
   `
 
-  return result[0]
+  let acquisitionVoucher: any = null
+  if (createAcquisitionVoucher) {
+    const currencyId = Number(input.currency_id || 0) || null
+    const rate = Number(input.exchange_rate || 1)
+    const branchId = Number(input.branch_id || 0) || null
+    acquisitionVoucher = (await sql`
+      INSERT INTO voucher_header_tbl(vch_type,vch_code,vch_date,branch_id,currency_id,rate,amount,note,status,vch_status,is_printed,insert_user)
+      VALUES(${FIXED_ASSET_DEPRECIATION_VCH_TYPE},${`FA-ACQ-${Number(result[0].id)}`},${payload.purchase_date || payload.capitalization_date || new Date().toISOString().slice(0,10)}::date,${branchId},${currencyId},${rate},${payload.cost},${`اقتناء أصل ثابت ${payload.asset_code}`},2,2,0,${input.created_by ? Number(input.created_by) : null})
+      RETURNING *
+    `)[0]
+    await saveJournalRows(Number(acquisitionVoucher.id), [
+      { order_no: 1, journal_type_id: 5, account_id: assetAccountId, credit_debit: 1, amount: payload.cost, currency_id: currencyId, rate, base_curr_amount: Math.round(payload.cost * rate * 100) / 100, note: `تكلفة الأصل ${payload.asset_code}` },
+      { order_no: 2, journal_type_id: 5, account_id: payload.supplier_account_id, credit_debit: 2, amount: payload.cost, currency_id: currencyId, rate, base_curr_amount: Math.round(payload.cost * rate * 100) / 100, note: `مورد الأصل ${payload.asset_code}` },
+    ])
+    await sql`UPDATE fixed_assets_tbl SET purchase_voucher_id=${Number(acquisitionVoucher.id)} WHERE id=${Number(result[0].id)}`
+  }
+
+  await sql`
+    INSERT INTO fixed_asset_transactions_tbl(asset_id,transaction_type,transaction_date,amount,voucher_id,description,to_values,created_by)
+    VALUES(${Number(result[0].id)},'acquisition',COALESCE(${payload.purchase_date}::date,CURRENT_DATE),${payload.cost},${Number(acquisitionVoucher?.id || input.purchase_voucher_id) || null},${`اقتناء أصل ${payload.asset_code}`},${JSON.stringify({supplier_account_id:payload.supplier_account_id,purchase_invoice_no:payload.purchase_invoice_no,capitalization_date:payload.capitalization_date})}::jsonb,${input.created_by ? Number(input.created_by) : null})
+  `
+
+  return { ...result[0], purchase_voucher_id: Number(acquisitionVoucher?.id || input.purchase_voucher_id) || null, acquisition_voucher: acquisitionVoucher }
+}
+
+export async function transferFixedAsset(assetId: number, input: Record<string, any>) {
+  await ensureTables()
+  const asset = await getFixedAssetById(assetId)
+  if (!asset || asset.status === "disposed") throw new Error("الأصل غير موجود أو مستبعد")
+  const transferDate = String(input.transfer_date || new Date().toISOString().slice(0, 10))
+  const fromValues = {
+    branch_id: asset.branch_id ?? null,
+    department_id: asset.department_id ?? null,
+    cost_center_id: asset.cost_center_id ?? null,
+    location_id: asset.location_id ?? null,
+    responsible_employee_id: asset.responsible_employee_id ?? null,
+    store_id: asset.store_id ?? null,
+    project_id: asset.project_id ?? null,
+  }
+  const toValues = {
+    branch_id: input.branch_id ? Number(input.branch_id) : fromValues.branch_id,
+    department_id: input.department_id ? Number(input.department_id) : fromValues.department_id,
+    cost_center_id: input.cost_center_id ? Number(input.cost_center_id) : fromValues.cost_center_id,
+    location_id: input.location_id ? Number(input.location_id) : fromValues.location_id,
+    responsible_employee_id: input.responsible_employee_id ? Number(input.responsible_employee_id) : fromValues.responsible_employee_id,
+    store_id: input.store_id ? Number(input.store_id) : fromValues.store_id,
+    project_id: input.project_id ? Number(input.project_id) : fromValues.project_id,
+  }
+  const transfer = (await sql`
+    INSERT INTO fixed_asset_transfers_tbl (
+      asset_id,transfer_date,from_cost_center_id,to_cost_center_id,
+      from_department_id,to_department_id,from_location_id,to_location_id,reason
+    ) VALUES (
+      ${assetId},${transferDate}::date,${fromValues.cost_center_id},${toValues.cost_center_id},
+      ${fromValues.department_id},${toValues.department_id},${fromValues.location_id},${toValues.location_id},${String(input.reason || "")}
+    ) RETURNING *
+  `)[0]
+  const updated = (await sql`
+    UPDATE fixed_assets_tbl SET branch_id=${toValues.branch_id},department_id=${toValues.department_id},
+      cost_center_id=${toValues.cost_center_id},location_id=${toValues.location_id},
+      responsible_employee_id=${toValues.responsible_employee_id},store_id=${toValues.store_id},
+      project_id=${toValues.project_id},updated_at=CURRENT_TIMESTAMP
+    WHERE id=${assetId} RETURNING *
+  `)[0]
+  await sql`
+    INSERT INTO fixed_asset_transactions_tbl(asset_id,transaction_type,transaction_date,description,from_values,to_values,created_by)
+    VALUES(${assetId},'transfer',${transferDate}::date,${String(input.reason || "نقل أصل")},${JSON.stringify(fromValues)}::jsonb,${JSON.stringify(toValues)}::jsonb,${input.created_by ? Number(input.created_by) : null})
+  `
+  return { transfer, asset: updated }
+}
+
+export async function listFixedAssetTransactions(assetId: number) {
+  await ensureTables()
+  return sql`SELECT * FROM fixed_asset_transactions_tbl WHERE asset_id=${assetId} ORDER BY transaction_date DESC,id DESC`
+}
+
+export async function listFixedAssetTransfers() {
+  await ensureTables()
+  return sql`
+    SELECT t.*,a.asset_code,a.name asset_name
+    FROM fixed_asset_transfers_tbl t JOIN fixed_assets_tbl a ON a.id=t.asset_id
+    ORDER BY t.transfer_date DESC,t.id DESC LIMIT 500
+  `
+}
+
+export async function listFixedAssetDisposals() {
+  await ensureTables()
+  return sql`
+    SELECT d.*,a.asset_code,a.name asset_name,a.currency_id,a.branch_id
+    FROM fixed_asset_disposals_tbl d JOIN fixed_assets_tbl a ON a.id=d.asset_id
+    ORDER BY d.disposal_date DESC,d.id DESC LIMIT 500
+  `
+}
+
+export async function disposeFixedAsset(assetId: number, input: Record<string, any>) {
+  await ensureTables()
+  const asset = await getFixedAssetById(assetId)
+  if (!asset || asset.status === "disposed") throw new Error("الأصل غير موجود أو سبق استبعاده")
+  const category = (await sql`SELECT * FROM fixed_asset_categories_tbl WHERE id=${Number(asset.category_id)}`)[0]
+  const accumulatedRows = await sql`
+    SELECT COALESCE(SUM(fdl.depreciation_amount),0) accumulated
+    FROM fixed_asset_depreciation_lines_tbl fdl
+    JOIN fixed_asset_depreciation_runs_tbl fdr ON fdr.id=fdl.run_id AND fdr.status='posted'
+    WHERE fdl.asset_id=${assetId}
+  `
+  const improvements = (await sql`SELECT COALESCE(SUM(amount),0) total FROM fixed_asset_improvements_tbl WHERE asset_id=${assetId}`)[0]
+  const cost = Number(asset.cost || 0) + Number(improvements?.total || 0)
+  const accumulated = Math.min(cost, Number(accumulatedRows[0]?.accumulated || 0))
+  const bookValue = Math.max(0, Math.round((cost - accumulated) * 100) / 100)
+  const salePrice = Number(input.sale_price || 0)
+  if (!Number.isFinite(salePrice) || salePrice < 0) throw new Error("متحصلات الاستبعاد يجب ألا تكون سالبة")
+  const gainLoss = Math.round((salePrice - bookValue) * 100) / 100
+  const assetAccountId = Number(asset.asset_account_id || category?.asset_account_id || 0)
+  const accumulatedAccountId = Number(asset.accumulated_depreciation_account_id || category?.accumulated_depreciation_account_id || 0)
+  const gainAccountId = Number(asset.gain_account_id || category?.gain_account_id || 0)
+  const lossAccountId = Number(asset.loss_account_id || category?.loss_account_id || 0)
+  const proceedsAccountId = Number(input.proceeds_account_id || 0)
+  if (!assetAccountId || !accumulatedAccountId || !proceedsAccountId || (gainLoss > 0 && !gainAccountId) || (gainLoss < 0 && !lossAccountId)) {
+    throw new Error("يجب تعريف حساب الأصل والإهلاك المتراكم وحساب المتحصلات وحساب الربح أو الخسارة في التصنيف")
+  }
+  const currencyId = Number(input.currency_id || asset.currency_id || 0) || null
+  const rate = Number(input.rate || asset.exchange_rate || 1)
+  const branchId = Number(input.branch_id || asset.branch_id || 0) || null
+  const journalRows: any[] = []
+  let orderNo = 1
+  const addRow = (accountId: number, side: 1 | 2, amount: number, note: string) => {
+    if (amount <= 0) return
+    journalRows.push({
+      order_no: orderNo++, journal_type_id: 5, account_id: accountId,
+      credit_debit: side, amount, currency_id: currencyId, rate,
+      base_curr_amount: Math.round(amount * rate * 100) / 100, note,
+    })
+  }
+  addRow(proceedsAccountId, 1, salePrice, `متحصلات استبعاد ${asset.asset_code}`)
+  addRow(accumulatedAccountId, 1, accumulated, `إهلاك متراكم ${asset.asset_code}`)
+  addRow(assetAccountId, 2, cost, `تكلفة الأصل ${asset.asset_code}`)
+  if (gainLoss > 0) addRow(gainAccountId, 2, gainLoss, `ربح استبعاد ${asset.asset_code}`)
+  if (gainLoss < 0) addRow(lossAccountId, 1, Math.abs(gainLoss), `خسارة استبعاد ${asset.asset_code}`)
+  const debit = journalRows.filter(row => row.credit_debit === 1).reduce((sum, row) => sum + row.amount, 0)
+  const credit = journalRows.filter(row => row.credit_debit === 2).reduce((sum, row) => sum + row.amount, 0)
+  if (Math.round((debit - credit) * 100) / 100 !== 0) throw new Error("قيد استبعاد الأصل غير متوازن")
+
+  const disposalDate = String(input.disposal_date || new Date().toISOString().slice(0, 10))
+  const voucher = (await sql`
+    INSERT INTO voucher_header_tbl(vch_type,vch_code,vch_date,branch_id,currency_id,rate,amount,note,status,vch_status,is_printed,insert_user)
+    VALUES(${FIXED_ASSET_DEPRECIATION_VCH_TYPE},${`FA-DISP-${assetId}-${Date.now()}`},${disposalDate}::date,${branchId},${currencyId},${rate},${salePrice},${`استبعاد أصل ثابت ${asset.asset_code}`},2,2,0,${input.created_by ? Number(input.created_by) : null})
+    RETURNING *
+  `)[0]
+  await saveJournalRows(voucher.id, journalRows)
+  const disposal = (await sql`
+    INSERT INTO fixed_asset_disposals_tbl(asset_id,disposal_date,sale_price,book_value,gain_loss,reason,voucher_id)
+    VALUES(${assetId},${disposalDate}::date,${salePrice},${bookValue},${gainLoss},${String(input.reason || "")},${Number(voucher.id)})
+    RETURNING *
+  `)[0]
+  await sql`UPDATE fixed_assets_tbl SET status='disposed',is_active=TRUE,updated_at=CURRENT_TIMESTAMP WHERE id=${assetId}`
+  await sql`
+    INSERT INTO fixed_asset_transactions_tbl(asset_id,transaction_type,transaction_date,amount,voucher_id,description,created_by)
+    VALUES(${assetId},'disposal',${disposalDate}::date,${salePrice},${Number(voucher.id)},${String(input.reason || "استبعاد أصل")},${input.created_by ? Number(input.created_by) : null})
+  `
+  return { disposal, voucher, journal_rows: journalRows }
 }
 
 export async function updateFixedAsset(id: number, input: Record<string, any>) {
@@ -522,6 +758,11 @@ export async function createDepreciationRun(input: Record<string, any>) {
   const postingDate = input.posting_date || input.postingDate || new Date().toISOString().slice(0, 10)
   const shouldPost = input.create_voucher !== false && input.post_immediately !== false
 
+  if (!/^\d{4}-\d{2}$/.test(period)) throw new Error("فترة الإهلاك يجب أن تكون بصيغة YYYY-MM")
+  await sql`SELECT pg_advisory_xact_lock(hashtext(${`fixed-asset-depreciation:${period}`}))`
+  const existingRun = (await sql`SELECT id,status FROM fixed_asset_depreciation_runs_tbl WHERE period=${period} LIMIT 1`)[0]
+  if (existingRun) throw new Error(`تم إنشاء تجميع إهلاك للفترة ${period} مسبقاً`)
+
   const rows = await sql`
     SELECT fa.*, fac.asset_account_id, fac.accumulated_depreciation_account_id, fac.depreciation_expense_account_id
     FROM fixed_assets_tbl fa
@@ -530,18 +771,41 @@ export async function createDepreciationRun(input: Record<string, any>) {
       AND (fa.depreciation_start_date IS NULL OR fa.depreciation_start_date <= ${postingDate}::date)
   `
 
+  const assetIds = rows.map((asset: any) => Number(asset.id))
+  const [previousDepreciationRows, improvementRows] = assetIds.length ? await Promise.all([
+    sql`
+      SELECT fdl.asset_id,COALESCE(SUM(fdl.depreciation_amount),0) accumulated
+      FROM fixed_asset_depreciation_lines_tbl fdl
+      JOIN fixed_asset_depreciation_runs_tbl fdr ON fdr.id=fdl.run_id AND fdr.status='posted'
+      WHERE fdl.asset_id=ANY(${assetIds}::int[]) AND fdl.depreciation_date<${postingDate}::date
+      GROUP BY fdl.asset_id
+    `,
+    sql`SELECT asset_id,COALESCE(SUM(amount),0) additions FROM fixed_asset_improvements_tbl WHERE asset_id=ANY(${assetIds}::int[]) AND improvement_date<=${postingDate}::date GROUP BY asset_id`,
+  ]) : [[], []]
+  const previousByAsset = new Map<number, number>(previousDepreciationRows.map((row: any) => [Number(row.asset_id), Number(row.accumulated || 0)]))
+  const additionsByAsset = new Map<number, number>(improvementRows.map((row: any) => [Number(row.asset_id), Number(row.additions || 0)]))
+
   const lineInputs = rows.map((asset: any) => {
-    const calc = getFixedAssetDepreciationAmount(asset)
+    const totalCost = Number(asset.cost || 0) + Number(additionsByAsset.get(Number(asset.id)) || 0)
+    const accumulated = Number(previousByAsset.get(Number(asset.id)) || 0)
+    const openingBookValue = Math.max(0, totalCost - accumulated)
+    const depreciableRemaining = Math.max(0, openingBookValue - Number(asset.salvage_value || 0))
+    const lifeMonths = Math.max(1, Number(asset.useful_life_months || 60))
+    const method = String(asset.depreciation_method || "straight_line")
+    const rawAmount = method === "declining_balance"
+      ? openingBookValue * (2 / lifeMonths)
+      : (totalCost - Number(asset.salvage_value || 0)) / lifeMonths
+    const depreciationAmount = Math.round(Math.min(depreciableRemaining, Math.max(0, rawAmount)) * 100) / 100
     return {
       asset_id: asset.id,
       asset_code: asset.asset_code,
       asset_name: asset.name,
       depreciation_date: postingDate,
-      depreciation_amount: calc.amount,
-      book_value_before: calc.bookValueBefore,
-      book_value_after: calc.bookValueAfter,
-      depreciation_method: calc.method,
-      expense_account_id: asset.depreciation_expense_account_id ?? asset.asset_account_id ?? null,
+      depreciation_amount: depreciationAmount,
+      book_value_before: openingBookValue,
+      book_value_after: Math.max(Number(asset.salvage_value || 0), openingBookValue - depreciationAmount),
+      depreciation_method: method,
+      expense_account_id: asset.depreciation_expense_account_id ?? null,
       accumulated_account_id: asset.accumulated_depreciation_account_id ?? null,
       category: {
         depreciation_expense_account_id: asset.depreciation_expense_account_id,
@@ -643,6 +907,9 @@ export async function postDepreciationRun(runId: number, input: Record<string, a
     throw new Error("لا توجد بنود لإهلاك هذا التجميع")
   }
 
+  const missingAccount = lineRows.find((line: any) => !Number(line.depreciation_expense_account_id) || !Number(line.accumulated_depreciation_account_id))
+  if (missingAccount) throw new Error(`يجب تعريف حساب مصروف الإهلاك وحساب الإهلاك المتراكم لتصنيف الأصل ${missingAccount.asset_code || ""}`)
+
   const journalRows = buildFixedAssetDepreciationJournalRows(runId, lineRows.map((line) => ({
     ...line,
     asset: { asset_code: line.asset_code, name: line.asset_name },
@@ -696,6 +963,13 @@ export async function postDepreciationRun(runId: number, input: Record<string, a
 
   const voucher = voucherRows[0]
   await saveJournalRows(voucher.id, journalRows)
+
+  for (const line of lineRows) {
+    await sql`
+      INSERT INTO fixed_asset_transactions_tbl(asset_id,transaction_type,transaction_date,amount,voucher_id,description,created_by)
+      VALUES(${Number(line.asset_id)},'depreciation',${line.depreciation_date}::date,${Number(line.depreciation_amount||0)},${Number(voucher.id)},${`إهلاك ${run.period}`},${input.created_by ? Number(input.created_by) : null})
+    `
+  }
 
   await sql`
     UPDATE fixed_asset_depreciation_runs_tbl

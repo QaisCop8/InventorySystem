@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import { withTenantTransaction } from "@/lib/database"
 import { createFixedAsset, ensureTables, listFixedAssets } from "./_lib"
 
 export async function GET() {
@@ -21,7 +22,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "اسم الأصل، كود الأصل، وتصنيفه مطلوبة" }, { status: 400 })
     }
 
-    const asset = await createFixedAsset(body)
+    const asset = await withTenantTransaction(async () => createFixedAsset({ ...body, created_by: request.headers.get("x-user-id") }))
     return NextResponse.json(asset, { status: 201 })
   } catch (error: any) {
     console.error("Error creating fixed asset:", error)

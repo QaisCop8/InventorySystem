@@ -131,8 +131,13 @@ interface UnifiedCustomersProps {
   onNew?: () => void
   onSave?: () => void
   onDelete?: () => void
+  onClone?: () => void
   onReport?: () => void
   onPrint?: () => void
+  // تعطيل F3/F4/F5 بينما نافذة تأكيد مفتوحة لدى المستدعي (لها مفاتيحها الخاصة — F3 = تأكيد).
+  hotkeysDisabled?: boolean
+  // قيم افتراضية تضعها النافذة (لا يعدّها المستدعي تعديلاً من المستخدم) — بلا تمريرها تُطبَّق عبر updateField.
+  applyFormDefaults?: (patch: Partial<UnifiedCustomerFormData>) => void
   popupMessage?: { severity: "success" | "info" | "warn" | "error"; detail: string } | null
   onCustomerSelect?: (customer: any) => void
   onCustomerCodeBlur?: (value: string) => Promise<void>
@@ -183,6 +188,14 @@ const defaultFormData: UnifiedCustomerFormData = {
   branch_ids: [],
 }
 
+// قوائم الاختيار تُفتَح داخل النافذة نفسها تحت حقلها مباشرة (appendTo="self") بدل document.body:
+// النافذة Dialog مشروطة (modal) من Radix — ما يُلحَق بـbody يظهر خلفها (z-index اللوحة 40 مقابل 50
+// للنافذة)، ويرث pointer-events:none من body، ويسحب منه حابس التركيز صندوق البحث داخل القائمة.
+const popupDropdownProps = {
+  appendTo: "self" as const,
+  panelClassName: "invoice-currency-dropdown-panel customer-popup-dropdown-panel",
+}
+
 interface ClassificationTypeRow {
   id: number
   name: string
@@ -216,8 +229,11 @@ export default function UnifiedCustomers({
   onNew = () => undefined,
   onSave = () => undefined,
   onDelete,
+  onClone,
   onReport,
   onPrint,
+  hotkeysDisabled = false,
+  applyFormDefaults,
   popupMessage,
   onCustomerSelect,
   onCustomerCodeBlur,
@@ -227,6 +243,8 @@ export default function UnifiedCustomers({
   customerNameRef,
 }: UnifiedCustomersProps) {
   const [activeTab, setActiveTab] = useState("address-location")
+  // جذر النافذة — حاوية قائمة "الفروع" كي تُفتَح داخل النافذة نفسها (انظر popupDropdownProps).
+  const [popupRoot, setPopupRoot] = useState<HTMLDivElement | null>(null)
   const [costCenterTypes, setCostCenterTypes] = useState<CostCenterTypeRow[]>([])
   const [costCenters, setCostCenters] = useState<CostCenterItem[]>([])
   const [currencies, setCurrencies] = useState<any[]>([])
@@ -280,21 +298,6 @@ export default function UnifiedCustomers({
     messagesRef.current?.clear?.()
     messagesRef.current?.show?.([{ severity: popupMessage.severity, summary: "", detail: popupMessage.detail, life: 4000 }])
   }, [popupMessage])
-
-  const generateCustomerCode = useCallback(async () => {
-    try {
-      const response = await fetch(`/api/customers/generate-number?isSupplier=${isSupplier}`)
-      if (!response.ok) {
-        throw new Error(`Failed to generate customer code: ${response.status}`)
-      }
-
-      const data = await response.json()
-      return String(data?.customerNumber ?? "")
-    } catch (error) {
-      console.error("Error generating customer code for unified customers:", error)
-      return ""
-    }
-  }, [isSupplier])
 
   const focusCustomerName = useCallback(() => {
     globalThis.setTimeout(() => {
@@ -448,51 +451,14 @@ export default function UnifiedCustomers({
       const classificationTypesSource = definitions?.sortedClassificationTypes ?? classificationTypes
       const costCenterTypesSource = definitions?.costCenterTypes ?? costCenterTypes
       const costCentersSource = definitions?.costCenters ?? costCenters
-      const nextCustomerCode = await generateCustomerCode()
       const nextCostCenterRows = buildCostCenterRows(costCenterTypesSource, (formData as any).cost_centers || [], costCentersSource)
 
-      updateField("id" as keyof UnifiedCustomerFormData, 0 as any)
-      updateField("customer_code" as keyof UnifiedCustomerFormData, nextCustomerCode as any)
-      updateField("name" as keyof UnifiedCustomerFormData, "" as any)
-      updateField("mobile1" as keyof UnifiedCustomerFormData, "" as any)
-      updateField("mobile2" as keyof UnifiedCustomerFormData, "" as any)
-      updateField("whatsapp1" as keyof UnifiedCustomerFormData, "" as any)
-      updateField("whatsapp2" as keyof UnifiedCustomerFormData, "" as any)
-      updateField("city" as keyof UnifiedCustomerFormData, "" as any)
-      updateField("address" as keyof UnifiedCustomerFormData, "" as any)
-      updateField("email" as keyof UnifiedCustomerFormData, "" as any)
-      updateField("status" as keyof UnifiedCustomerFormData, "نشط" as any)
-      updateField("business_nature" as keyof UnifiedCustomerFormData, "" as any)
-      updateField("salesman" as keyof UnifiedCustomerFormData, "" as any)
-      updateField("classification" as keyof UnifiedCustomerFormData, "" as any)
-      updateField("registration_date" as keyof UnifiedCustomerFormData, "" as any)
-      updateField("web_username" as keyof UnifiedCustomerFormData, "" as any)
-      updateField("web_password" as keyof UnifiedCustomerFormData, "" as any)
-      updateField("transaction_notes" as keyof UnifiedCustomerFormData, "" as any)
-      updateField("general_notes" as keyof UnifiedCustomerFormData, "" as any)
-      updateField("tax_number" as keyof UnifiedCustomerFormData, "" as any)
-      updateField("commercial_registration" as keyof UnifiedCustomerFormData, "" as any)
-      updateField("credit_limit" as keyof UnifiedCustomerFormData, "" as any)
-      updateField("payment_terms" as keyof UnifiedCustomerFormData, "" as any)
-      updateField("discount_percentage" as keyof UnifiedCustomerFormData, "" as any)
-      updateField("job_title" as keyof UnifiedCustomerFormData, "" as any)
-      updateField("region" as keyof UnifiedCustomerFormData, "" as any)
-      updateField("sales_commission" as keyof UnifiedCustomerFormData, "0" as any)
-      updateField("collection_commission" as keyof UnifiedCustomerFormData, "0" as any)
-      updateField("pricecategory" as keyof UnifiedCustomerFormData, (pricecategory[0]?.id ?? 0) as any)
-      updateField("account_id" as keyof UnifiedCustomerFormData, null as any)
-      updateField("father_id" as keyof UnifiedCustomerFormData, "" as any)
-      updateField("finanical_list_id" as keyof UnifiedCustomerFormData, "1" as any)
-      updateField("currency_id" as keyof UnifiedCustomerFormData, "" as any)
-      updateField("allow_trans_with_diff_curr" as keyof UnifiedCustomerFormData, "0" as any)
-      updateField("iscalc_curr_diff_rates" as keyof UnifiedCustomerFormData, false as any)
-      updateField("voucherType" as keyof UnifiedCustomerFormData, [] as any)
-
+      // حقول النموذج نفسها يُفرِّغها المستدعي (reset_fields في customers.tsx — مع رقم مُولَّد وحساب
+      // أب افتراضي من إعدادات النظام). كانت تُكتَب هنا مرة ثانية بعد تحميل التعريفات فتمحو الحساب
+      // الأب الافتراضي وتجعل النموذج الفارغ يبدو "مُعدَّلاً" مباشرة بعد فتحه. هنا الحالة المحلية فقط.
       setActiveTab("address-location")
-      setFatherAccountCode("")
-      setFatherAccountName("")
-      setAllowTransWithDiffCurr("0")
-      setIscalcCurrDiffRates(false)
+      setAllowTransWithDiffCurr(String(formData.allow_trans_with_diff_curr ?? "0"))
+      setIscalcCurrDiffRates(Boolean(formData.iscalc_curr_diff_rates))
       setStopTransactionRows(buildStopTransactionRows(voucherTypesSource, []))
       setClassificationRows(
         classificationTypesSource.map((type: any) => ({
@@ -534,7 +500,7 @@ export default function UnifiedCustomers({
         })),
       )
     },
-    [buildCostCenterRows, buildStopTransactionRows, classificationTypes, costCenterTypes, costCenters, focusCustomerName, formData, generateCustomerCode, onClassificationRowsChange, updateField, voucherTypes],
+    [buildCostCenterRows, buildStopTransactionRows, classificationTypes, costCenterTypes, costCenters, focusCustomerName, formData, onClassificationRowsChange, voucherTypes],
   )
 
   useEffect(() => {
@@ -597,7 +563,9 @@ export default function UnifiedCustomers({
     if (!formData.id && !formData.currency_id && currencies.length > 0) {
       const firstCurrencyId = String(currencies[0].currency_id ?? currencies[0].id ?? "")
       if (firstCurrencyId) {
-        updateField("currency_id" as keyof UnifiedCustomerFormData, firstCurrencyId as any)
+        // عملة افتراضية لسجل جديد — ليست تعديلاً من المستخدم.
+        if (applyFormDefaults) applyFormDefaults({ currency_id: firstCurrencyId })
+        else updateField("currency_id" as keyof UnifiedCustomerFormData, firstCurrencyId as any)
       }
     }
     // Update stopTransactionRows when formData changes and we have voucherTypes
@@ -608,7 +576,7 @@ export default function UnifiedCustomers({
         setStopTransactionRows(nextStopTransactionRows)
       }
     }
-  }, [currencies, formData.currency_id, formData.id, updateField, voucherTypes, buildStopTransactionRows, formData, stopTransactionRows])
+  }, [currencies, formData.currency_id, formData.id, updateField, applyFormDefaults, voucherTypes, buildStopTransactionRows, formData, stopTransactionRows])
 
   useEffect(() => {
     onClassificationRowsChangeRef.current = onClassificationRowsChange
@@ -873,23 +841,19 @@ export default function UnifiedCustomers({
   useEffect(() => {
     if (!open) return
     const handler = (e: KeyboardEvent) => {
-      if (nestedPopupOpen) return
-      if (e.key === "F3") {
-        e.preventDefault()
-        onSave()
-      }
-      if (e.key === "F4") {
-        e.preventDefault()
-        onDelete?.()
-      }
-      if (e.key === "F5") {
-        e.preventDefault()
-        handleNew()
-      }
+      if (e.key !== "F3" && e.key !== "F4" && e.key !== "F5") return
+      // نافذة تأكيد المستدعي (حفظ التعديلات/الحذف) تستعمل F3 للتأكيد — بلا هذا الفحص كان F3 يحفظ
+      // ويؤكد معاً.
+      if (nestedPopupOpen || hotkeysDisabled) return
+      e.preventDefault()
+      if (isSaving || loading) return
+      if (e.key === "F3") onSave()
+      if (e.key === "F4" && !isNewRecord && currentCustomerId > 0) onDelete?.()
+      if (e.key === "F5") handleNew()
     }
     window.addEventListener("keydown", handler, true)
     return () => window.removeEventListener("keydown", handler, true)
-  }, [open, nestedPopupOpen, onSave, onDelete, handleNew])
+  }, [open, nestedPopupOpen, hotkeysDisabled, isSaving, loading, isNewRecord, currentCustomerId, onSave, onDelete, handleNew])
 
   const formRootRef = useRef<HTMLDivElement>(null)
   const enterAsTabEnabledRef = useRef(true)
@@ -1120,7 +1084,7 @@ export default function UnifiedCustomers({
   )
 
   return (
-    <div className="relative flex h-full flex-col">
+    <div ref={setPopupRoot} className="relative flex h-full flex-col">
       <ProgressSpinner loading={loading} />
       <CustomerSearchPopup
         visible={showCustomerSearch}
@@ -1135,6 +1099,8 @@ export default function UnifiedCustomers({
           overflow-y-auto لجسم قابل للتمرير)، بدل sticky/هوامش سالبة أقل ثباتاً. */}
       <div className="flex-shrink-0" dir="rtl">
         <div className="w-full">
+          {/* كل الأزرار مربوطة بمعالجات المستدعي، ومعطَّلة أثناء التحميل/الحفظ/الحذف (isLoading/isSaving)
+              حتى لا يُنفَّذ إجراءان متداخلان على نفس السجل. أزرار الأدوات تظهر فقط إن مُرِّر معالجها. */}
           <UniversalToolbar
             onFirst={onFirst}
             onPrevious={onPrevious}
@@ -1143,13 +1109,20 @@ export default function UnifiedCustomers({
             onNew={handleNew}
             onSave={onSave}
             onDelete={onDelete}
-            currentRecord={currentIndex + 1}
+            onClone={onClone}
+            onPrint={onPrint}
+            onReport={onReport}
+            // السجل الجديد يُعرَض بعد آخر سجل (N+1 / N) بدل رقم آخر سجل كان مفتوحاً قبله.
+            currentRecord={isNewRecord ? totalRecords + 1 : currentIndex + 1}
             totalRecords={totalRecords}
-            isFirstRecord={currentIndex === 0}
-            isLastRecord={currentIndex === Math.max(totalRecords - 1, 0)}
+            isFirstRecord={!isNewRecord && currentIndex <= 0}
+            isLastRecord={!isNewRecord && currentIndex >= totalRecords - 1}
+            isLoading={loading}
             isSaving={isSaving}
-            canSave={true}
-            canDelete={currentCustomerId > 0}
+            canSave={!loading}
+            canDelete={!isNewRecord && currentCustomerId > 0}
+            canClone={!isNewRecord && currentCustomerId > 0}
+            canPrint={!isNewRecord && currentCustomerId > 0}
             isNewRecord={isNewRecord}
           />
         </div>
@@ -1275,8 +1248,7 @@ export default function UnifiedCustomers({
                 placeholder="اختر فئة السعر"
                 filter={true}
                 className="invoice-currency-dropdown w-full"
-                panelClassName="invoice-currency-dropdown-panel"
-                appendTo={typeof document === "undefined" ? undefined : document.body}
+                {...popupDropdownProps}
                 filterInputAutoFocus={true}
                 onChange={(e: any) => updateField("pricecategory", e.value ?? 0)}
               />
@@ -1292,8 +1264,7 @@ export default function UnifiedCustomers({
                 placeholder="اختر المندوب"
                 filter={true}
                 className="invoice-currency-dropdown w-full"
-                panelClassName="invoice-currency-dropdown-panel"
-                appendTo={typeof document === "undefined" ? undefined : document.body}
+                {...popupDropdownProps}
                 filterInputAutoFocus={true}
                 onChange={(e: any) => updateField("salesman", e.value || "")}
               />
@@ -1309,8 +1280,7 @@ export default function UnifiedCustomers({
                     placeholder={isSupplier ? "اختر تصنيف المورد" : "اختر تصنيف الزبون"}
                     filter={true}
                     className="invoice-currency-dropdown w-full"
-                    panelClassName="invoice-currency-dropdown-panel"
-                    appendTo={typeof document === "undefined" ? undefined : document.body}
+                    {...popupDropdownProps}
                     filterInputAutoFocus={true}
                     onChange={(e: any) => updateField("classification", e.value || "")}
                   />
@@ -1325,6 +1295,7 @@ export default function UnifiedCustomers({
                 options={branches.map((branch) => ({ id: branch.id, name: branch.branch_name }) as ReportOption)}
                 selected={formData.branch_ids || []}
                 placeholder="كل الفروع"
+                portalContainer={popupRoot}
                 onChange={(ids) => updateField("branch_ids", ids as any)}
               />
             </div>
@@ -1361,8 +1332,7 @@ export default function UnifiedCustomers({
                     placeholder="اختر المدينة"
                     filter={true}
                     className="invoice-currency-dropdown w-full"
-                    panelClassName="invoice-currency-dropdown-panel"
-                    appendTo={typeof document === "undefined" ? undefined : document.body}
+                    {...popupDropdownProps}
                     filterInputAutoFocus={true}
                     onChange={(e: any) => updateField("city", e.value || "")}
                   />
@@ -1437,8 +1407,7 @@ export default function UnifiedCustomers({
                     placeholder="اختر العملة"
                     filter={true}
                     className="invoice-currency-dropdown w-full"
-                    panelClassName="invoice-currency-dropdown-panel"
-                    appendTo={typeof document === "undefined" ? undefined : document.body}
+                    {...popupDropdownProps}
                     filterInputAutoFocus={true}
                     onChange={(e: any) => updateField("currency_id" as keyof UnifiedCustomerFormData, e.value ? String(e.value) : "" as any)}
                   />
@@ -1458,8 +1427,7 @@ export default function UnifiedCustomers({
                     placeholder="اختر الخيار"
                     filter={false}
                     className="invoice-currency-dropdown w-full"
-                    panelClassName="invoice-currency-dropdown-panel"
-                    appendTo={typeof document === "undefined" ? undefined : document.body}
+                    {...popupDropdownProps}
                     onChange={(e: any) => {
                       const nextValue = String(e.value ?? "0")
                       setAllowTransWithDiffCurr(nextValue)
@@ -1497,8 +1465,7 @@ export default function UnifiedCustomers({
                     placeholder="اختر شروط الدفع"
                     filter={false}
                     className="invoice-currency-dropdown w-full"
-                    panelClassName="invoice-currency-dropdown-panel"
-                    appendTo={typeof document === "undefined" ? undefined : document.body}
+                    {...popupDropdownProps}
                     onChange={(e: any) => updateField("payment_terms", e.value || "نقدي")}
                   />
                 </div>
@@ -1556,8 +1523,7 @@ export default function UnifiedCustomers({
                                       placeholder="اختر نوع السند"
                                       filter={true}
                                       className="invoice-currency-dropdown w-full"
-                                      panelClassName="invoice-currency-dropdown-panel"
-                                      appendTo={typeof document === "undefined" ? undefined : document.body}
+                                      {...popupDropdownProps}
                                       filterInputAutoFocus={true}
                                       onChange={(e: any) => {
                                         const selected = voucherTypes.find((item: any) => Number(item.id) === Number(e.value))
@@ -1578,8 +1544,7 @@ export default function UnifiedCustomers({
                                       placeholder="اختر دفتر السند"
                                       filter={true}
                                       className="invoice-currency-dropdown w-full"
-                                      panelClassName="invoice-currency-dropdown-panel"
-                                      appendTo={typeof document === "undefined" ? undefined : document.body}
+                                      {...popupDropdownProps}
                                       filterInputAutoFocus={true}
                                       onChange={(e: any) => {
                                         const selected = voucherBooks.find((item: any) => Number(item.id) === Number(e.value))
@@ -1835,8 +1800,7 @@ export default function UnifiedCustomers({
                 placeholder="اختر نوع التصنيف"
                 filter={true}
                 className="invoice-currency-dropdown w-full"
-                panelClassName="invoice-currency-dropdown-panel"
-                appendTo={typeof document === "undefined" ? undefined : document.body}
+                {...popupDropdownProps}
                 filterInputAutoFocus={true}
                 onChange={(e: any) => setNewClassificationTypeId(e.value)}
               />

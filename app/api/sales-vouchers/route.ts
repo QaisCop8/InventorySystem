@@ -115,7 +115,7 @@ const refreshSalesOrderFulfillment = async (orderIds: number[]) => {
              COALESCE(SUM(vi.bonus), 0) AS sent_bonus
       FROM voucher_items_tbl vi
       JOIN voucher_header_tbl vh ON vh.id = vi.voucher_id
-      WHERE vh.vch_type = ${SALES_INVOICE_VCH_TYPE}
+      WHERE vh.vch_type IN (${SALES_INVOICE_VCH_TYPE}, ${PURCHASE_INVOICE_VCH_TYPE})
         AND vh.status <> 3
         AND vi.order_item_id IS NOT NULL
         AND vi.delivery_item_id IS NULL
@@ -145,7 +145,7 @@ const refreshSalesOrderFulfillment = async (orderIds: number[]) => {
         FROM voucher_items_tbl vi
         JOIN voucher_header_tbl vh ON vh.id = vi.voucher_id
         WHERE vi.order_item_id = oi.id
-          AND vh.vch_type = ${SALES_INVOICE_VCH_TYPE}
+          AND vh.vch_type IN (${SALES_INVOICE_VCH_TYPE}, ${PURCHASE_INVOICE_VCH_TYPE})
           AND vh.status <> 3
           AND vi.delivery_item_id IS NULL
       )
@@ -258,41 +258,19 @@ const validateSourceInvoice = async (itemsOrData: any, maybeData?: any, excludeV
       : "يجب اختيار الطلبية المصدرية للفاتورة"
   }
 
-  // Check for existing invoices referencing the same source at item level (no header columns)
-  const existing =
-    invoiceSourceType === 2
-      ? await sql`
-          SELECT vh.id
-          FROM voucher_header_tbl vh
-          WHERE COALESCE(vh.status,1) <> 3 AND vh.id != ${excludeVoucherId}
-            AND vh.vch_type IN (${SALES_INVOICE_VCH_TYPE}, ${PURCHASE_INVOICE_VCH_TYPE})
-            AND EXISTS (
-              SELECT 1
-              FROM voucher_items_tbl vi
-              WHERE vi.voucher_id = vh.id
-                AND vi.delivery_item_id IN (
-                  SELECT id FROM voucher_items_tbl WHERE voucher_id = ${sourceVoucherId}
-                )
-            )
-          LIMIT 1
-        `
-      : await sql`
-          SELECT vh.id
-          FROM voucher_header_tbl vh
-          WHERE COALESCE(vh.status,1) <> 3 AND vh.id != ${excludeVoucherId}
-            AND vh.vch_type IN (${SALES_INVOICE_VCH_TYPE}, ${PURCHASE_INVOICE_VCH_TYPE})
-            AND EXISTS (
-              SELECT 1
-              FROM voucher_items_tbl vi
-              WHERE vi.voucher_id = vh.id
-                AND (
-                  vi.order_item_id IN (SELECT id FROM order_items WHERE order_id = ${sourceVoucherId})
-                  OR vi.order_item_id IN (SELECT id FROM purchase_order_items WHERE purchase_order_id = ${sourceVoucherId})
-                )
-            )
-          LIMIT 1
-        `
   if (invoiceSourceType === 2) {
+    const deliveryItemIds = items.map((item: any) => Number(item.delivery_item_id || 0)).filter((id: number) => id > 0)
+    const allowedTypes = vchType === PURCHASE_INVOICE_VCH_TYPE ? [DELIVERY_PAY_VCH_TYPE] : [DELIVERY_SELL_VCH_TYPE, DELIVERY_CONSIGNMENT_SALE_VCH_TYPE]
+    const sourceItems = await sql`
+      SELECT vi.id,vi.voucher_id FROM voucher_items_tbl vi JOIN voucher_header_tbl source ON source.id=vi.voucher_id
+      WHERE vi.id=ANY(${deliveryItemIds}::int[]) AND source.vch_type=ANY(${allowedTypes}::int[])
+        AND source.status=2 AND source.account_id=${Number(data.account_id)} AND source.branch_id=${Number(data.branch_id)}
+    `
+    if (new Set(sourceItems.map((row: any) => Number(row.id))).size !== new Set(deliveryItemIds).size) {
+      return "الإرسالية المصدرية لا تطابق نوع الفاتورة أو الحساب أو الفرع"
+    }
+    const deliveryIds = [...new Set(sourceItems.map((row: any) => Number(row.voucher_id)))]
+    if (!deliveryIds.includes(sourceVoucherId)) return "الإرسالية المصدرية غير صالحة"
     const existing = await sql`
       SELECT vh.id
       FROM voucher_header_tbl vh
@@ -303,7 +281,7 @@ const validateSourceInvoice = async (itemsOrData: any, maybeData?: any, excludeV
           FROM voucher_items_tbl vi
           WHERE vi.voucher_id = vh.id
             AND vi.delivery_item_id IN (
-              SELECT id FROM voucher_items_tbl WHERE voucher_id = ${sourceVoucherId}
+              SELECT id FROM voucher_items_tbl WHERE voucher_id = ANY(${deliveryIds}::int[])
             )
         )
       LIMIT 1
@@ -343,17 +321,12 @@ const validateSourceInvoice = async (itemsOrData: any, maybeData?: any, excludeV
     })
   }
 
-  const orderItems = vchType === SALES_INVOICE_VCH_TYPE
-    ? await sql`
-        SELECT oi.id, oi.quantity, COALESCE(oi.bonus, 0) AS bonus, oi.order_id
-        FROM order_items oi
-        WHERE oi.id = ANY(${orderItemIds}::int[])
-      `
-    : await sql`
-        SELECT poi.id, poi.quantity, COALESCE(poi.bonus, 0) AS bonus, poi.purchase_order_id AS order_id
-        FROM purchase_order_items poi
-        WHERE poi.id = ANY(${orderItemIds}::int[])
-      `
+  const orderType=vchType===PURCHASE_INVOICE_VCH_TYPE?2:1
+  const orderItems = await sql`SELECT oi.id,oi.quantity,COALESCE(oi.bonus,0) bonus,oi.order_id
+    FROM order_items oi JOIN orders o ON o.id=oi.order_id
+    WHERE oi.id=ANY(${orderItemIds}::int[]) AND o.order_type=${orderType}
+      AND COALESCE(o.deleted,false)=false AND o.order_status IN(2,3,4) AND oi.item_status IN(2,3,4)
+      AND o.customer_id=${Number(data.account_id)} AND o.branch_id=${Number(data.branch_id)}`
 
   const orderItemById = new Map<number, any>()
   for (const row of orderItems) {
@@ -373,7 +346,7 @@ const validateSourceInvoice = async (itemsOrData: any, maybeData?: any, excludeV
 
   for (const [orderItemId, totals] of currentTotals.entries()) {
     const orderItem = orderItemById.get(orderItemId)
-    if (!orderItem || Number(orderItem.order_id) !== sourceVoucherId) {
+    if (!orderItem || !items.some((item: any) => Number(item.order_item_id) === orderItemId && Number(item.source_voucher_id || sourceVoucherId) === Number(orderItem.order_id))) {
       return "أحد عناصر الطلبية غير صالح لهذه الطلبية المصدرية"
     }
 
@@ -570,7 +543,7 @@ export async function POST(request: NextRequest) {
     if (status === 2) {
       await applySalesVoucherStockEffect(vchType, voucher.id, savedItems)
     }
-    if (vchType === SALES_INVOICE_VCH_TYPE) {
+    if ([SALES_INVOICE_VCH_TYPE, PURCHASE_INVOICE_VCH_TYPE].includes(vchType)) {
       const linkedOrderIds = await getSalesOrderIdsForVoucher(voucher.id)
       if (linkedOrderIds.length > 0) await refreshSalesOrderFulfillment(linkedOrderIds)
     }
@@ -631,7 +604,7 @@ export async function PUT(request: NextRequest) {
       if (previousStatus !== 3) {
         await deletePosRelatedVouchers(request, Number(voucher.id))
         await reversePosSessionPayments(voucher)
-        const affectedOrderIds = Number(voucher.vch_type) === SALES_INVOICE_VCH_TYPE
+        const affectedOrderIds = [SALES_INVOICE_VCH_TYPE, PURCHASE_INVOICE_VCH_TYPE].includes(Number(voucher.vch_type))
           ? await getSalesOrderIdsForVoucher(voucher.id) : []
         await reverseSalesVoucherStockMovement(voucher.id)
         await sql`UPDATE voucher_header_tbl SET status=3,vch_status=1,last_update_date=CURRENT_TIMESTAMP WHERE id=${voucher.id}`
@@ -747,7 +720,7 @@ export async function PUT(request: NextRequest) {
     if (status === 2 && previousStatus !== 2) {
       await applySalesVoucherStockEffect(vchType, voucher.id, savedItems)
     }
-    if (vchType === SALES_INVOICE_VCH_TYPE) {
+    if ([SALES_INVOICE_VCH_TYPE, PURCHASE_INVOICE_VCH_TYPE].includes(vchType)) {
       const linkedOrderIds = await getSalesOrderIdsForVoucher(voucher.id)
       if (linkedOrderIds.length > 0) await refreshSalesOrderFulfillment(linkedOrderIds)
     }

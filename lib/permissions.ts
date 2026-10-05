@@ -271,7 +271,22 @@ export async function ensurePosCashierPermission(permission: PosCashierPermissio
 
 export async function hasPosCashierPermission(userId: string, permission: PosCashierPermission, branchId: number): Promise<boolean> {
   const accessId = await ensurePosCashierPermission(permission)
-  return hasEffectivePermission(userId, accessId, branchId)
+  const rows = await sql`
+    SELECT (
+      COALESCE(ubp.is_granted, ua.is_granted, FALSE)
+      OR COALESCE(rbp.is_granted, rp.is_granted, FALSE)
+    ) AS is_granted
+    FROM user_settings us
+    LEFT JOIN user_branch_permissions ubp
+      ON ubp.user_id=us.user_id AND ubp.branch_id=${branchId} AND ubp.access_id=${accessId}
+    LEFT JOIN user_access ua ON ua.user_id=us.user_id AND ua.access_id=${accessId}
+    LEFT JOIN role_branch_permissions rbp
+      ON rbp.role_id=us.job_role_id AND rbp.branch_id=${branchId} AND rbp.access_id=${accessId}
+    LEFT JOIN role_permissions rp ON rp.role_id=us.job_role_id AND rp.access_id=${accessId}
+    WHERE us.user_id=${userId}
+    LIMIT 1
+  `
+  return Boolean(rows[0]?.is_granted)
 }
 
 // يُرمى عند رفض صلاحية — رسالته جاهزة للعرض مباشرة للمستخدم (تحمل اسم الصلاحية الفعلي من

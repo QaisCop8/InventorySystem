@@ -63,7 +63,7 @@ export default function InvoiceFromDeliveryPopup({
   const confirmedRef = useRef(false)
 
   const isSalesInvoice = voucherType === SALES_INVOICE_TYPE
-  const allowedAccountTypes = isSalesInvoice ? [2, 5] : [3, 5]
+  const allowedAccountTypes = isSalesInvoice ? [2,3, 5] : [2,3, 5]
   const sourceDeliveryTypes = isSalesInvoice ? SALES_DELIVERY_TYPES : PURCHASE_DELIVERY_TYPES
   const title = isSalesInvoice ? "تحميل عناصر من إرسالية مبيعات" : "تحميل عناصر من إرسالية مشتريات"
   const deliveryLabel = isSalesInvoice ? "إرسالية مبيعات" : "إرسالية مشتريات"
@@ -227,6 +227,7 @@ export default function InvoiceFromDeliveryPopup({
     try {
       const query = new URLSearchParams({
         customer_id: String(customerId),
+        voucher_type: String(voucherType),
         delivery_types: sourceDeliveryTypes.join(","),
       })
       if (Number(branchId) > 0) query.set("branch_id", String(branchId))

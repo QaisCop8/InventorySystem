@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import { withTenantTransaction } from "@/lib/database"
 import { createDepreciationRun, ensureTables, listDepreciationRuns } from "../_lib"
 
 export async function GET() {
@@ -19,17 +20,17 @@ export async function POST(request: NextRequest) {
     const period = String(body.period || new Date().toISOString().slice(0, 7))
     const postingDate = String(body.posting_date || body.postingDate || new Date().toISOString().slice(0, 10))
 
-    const result = await createDepreciationRun({
-      ...body,
-      period,
-      posting_date: postingDate,
-      create_voucher: body.create_voucher !== false,
-      post_immediately: body.post_immediately !== false,
-      branch_id: body.branch_id ?? body.branchId ?? null,
-      currency_id: body.currency_id ?? body.currencyId ?? null,
-      rate: body.rate ?? 1,
-      created_by: body.created_by ?? body.createdBy ?? null,
-    })
+    const result = await withTenantTransaction(() => createDepreciationRun({
+        ...body,
+        period,
+        posting_date: postingDate,
+        create_voucher: body.create_voucher !== false,
+        post_immediately: body.post_immediately !== false,
+        branch_id: body.branch_id ?? body.branchId ?? null,
+        currency_id: body.currency_id ?? body.currencyId ?? null,
+        rate: body.rate ?? 1,
+        created_by: body.created_by ?? body.createdBy ?? request.headers.get("x-user-id") ?? null,
+      }))
 
     return NextResponse.json(result, { status: 201 })
   } catch (error: any) {

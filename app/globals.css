@@ -918,6 +918,12 @@ td {
     backdrop-filter: blur(10px) !important;
   }
 
+  /* قوائم نافذة تعريف الزبون/المورد تُفتَح داخل النافذة نفسها (appendTo="self") — فوق البطاقات
+     والتبويبات المجاورة داخلها (رأس جدول إيقاف الحركات sticky بـz-10 مثلاً). */
+  .invoice-currency-dropdown-panel.customer-popup-dropdown-panel {
+    z-index: 60 !important;
+  }
+
   .invoice-currency-dropdown-panel .p-dropdown-header {
     padding: 12px !important;
     background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%) !important;

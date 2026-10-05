@@ -104,7 +104,7 @@ export async function GET(request: NextRequest) {
           )`
       : sql`FALSE`
 
-    const hasOrdersCondition = orderType === 1
+    const hasOrdersCondition = [1, 2].includes(Number(orderType))
       ? sql`
           EXISTS (
             SELECT 1
@@ -120,7 +120,7 @@ export async function GET(request: NextRequest) {
                 AND vh.status<>3
                 AND vi.delivery_item_id IS NULL
             ) sent ON TRUE
-            WHERE oh.customer_id=a.id
+            WHERE oh.customer_id=a.id AND oh.order_type=${orderType} AND oi.item_status IN(2,3,4)
               AND (${activeBranchId ?? 0} = 0 OR oh.branch_id = ${activeBranchId ?? 0})
               AND COALESCE(oh.deleted,FALSE)=FALSE
               AND oh.order_status IN (2,3,4)
@@ -129,29 +129,6 @@ export async function GET(request: NextRequest) {
                 OR COALESCE(oi.bonus,0)>COALESCE(sent.sent_bonus,0)
               )
           )`
-      : orderType === 2
-        ? sql`
-            EXISTS (
-              SELECT 1
-              FROM orders oh
-              INNER JOIN order_items oi ON oi.order_id = oh.id
-              LEFT JOIN LATERAL (
-                SELECT COALESCE(SUM(vi.qnty), 0) AS sent_quantity,
-                       COALESCE(SUM(vi.bonus), 0) AS sent_bonus
-                FROM voucher_items_tbl vi
-                INNER JOIN voucher_header_tbl vh ON vh.id = vi.voucher_id
-                WHERE vi.order_item_id = oi.id
-                  AND vh.vch_type = ${sourceInvoiceType}
-                  AND vh.status <> 3
-              ) sent ON TRUE
-              WHERE oh.supplier_id = a.id
-                AND (${activeBranchId ?? 0} = 0 OR oh.branch_id = ${activeBranchId ?? 0})
-                AND COALESCE(oh.workflow_status, '') <> 'cancelled'
-                AND (
-                  COALESCE(oi.quantity, 0) > COALESCE(sent.sent_quantity, 0)
-                  OR COALESCE(oi.bonus, 0) > COALESCE(sent.sent_bonus, 0)
-                )
-            )`
       : sql`FALSE`
 
     let rows
