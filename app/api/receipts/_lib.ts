@@ -1004,6 +1004,21 @@ export const saveChequeRows = async (voucherId: number, cheques: any[], ctx: Che
 }
 
 export const saveCardRows = async (voucherId: number, cards: any[], defaultCurrencyId: number | null) => {
+  // البطاقات التي أُنشئ لها قيد عمولة (fees_voucher_id — شاشة قيود عمولة الفيزا) يجب ألا تعود
+  // "غير معالجة" لمجرد إعادة حفظ السند (الحذف وإعادة الإدراج أدناه كانا يمحوان الربط فتُحتسَب
+  // العمولة مرتين). يُنقل الربط إلى السطر الجديد المطابق (نفس النوع والرقم والمبلغ والعملة).
+  const processed = await sql`
+    SELECT card_type_id, card_no, amount, currency_id, fees_voucher_id FROM voucher_cards_detail_tbl
+    WHERE voucher_id = ${voucherId} AND COALESCE(fees_voucher_id, 0) > 0
+  `
+  const cardKey = (typeId: unknown, cardNo: unknown, amount: unknown, currencyId: unknown) =>
+    `${Number(typeId) || 0}|${String(cardNo || "")}|${Number(amount || 0).toFixed(2)}|${Number(currencyId) || 0}`
+  const processedByKey = new Map<string, number[]>()
+  for (const row of processed) {
+    const key = cardKey(row.card_type_id, row.card_no, row.amount, row.currency_id)
+    processedByKey.set(key, [...(processedByKey.get(key) || []), Number(row.fees_voucher_id)])
+  }
+
   await sql`DELETE FROM voucher_cards_detail_tbl WHERE voucher_id = ${voucherId}`
   const rows = (Array.isArray(cards) ? cards : []).filter((row) => row?.card_no || Number(row?.amount || 0) > 0)
 
@@ -1017,14 +1032,15 @@ export const saveCardRows = async (voucherId: number, cards: any[], defaultCurre
     // Each card has its own currency (drives which نوع البطاقة options are offered),
     // separate from the voucher header's currency.
     const cardCurrencyId = row.currency_id || defaultCurrencyId
+    const feesVoucherId = processedByKey.get(cardKey(row.card_type_id, row.card_no, amount, cardCurrencyId))?.shift() ?? null
 
     await sql`
       INSERT INTO voucher_cards_detail_tbl (
         voucher_id, card_type_id, card_no, expire_date, account_id, amount, bank_amount, net_amount,
-        currency_id, bank_currency_id, card_currency_id, order_no
+        currency_id, bank_currency_id, card_currency_id, order_no, fees_voucher_id
       ) VALUES (
         ${voucherId}, ${row.card_type_id || null}, ${row.card_no || ""}, ${row.expire_date || null}, ${row.account_id || null},
-        ${amount}, ${bankAmount}, ${netAmount}, ${cardCurrencyId}, ${cardCurrencyId}, ${cardCurrencyId}, ${i + 1}
+        ${amount}, ${bankAmount}, ${netAmount}, ${cardCurrencyId}, ${cardCurrencyId}, ${cardCurrencyId}, ${i + 1}, ${feesVoucherId}
       )
     `
   }

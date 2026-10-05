@@ -53,6 +53,10 @@ const IncomeStatementReport = lazyNamed(() => import("@/components/reports/finan
 const ChequesPage = lazyNamed(() => import("@/components/accounting/cheques-management"), "ChequesPage")
 const ChequeOperationsPage = lazyNamed(() => import("@/components/accounting/cheques-management"), "ChequeOperationsPage")
 const ChequeDepositBulkPage = lazyNamed(() => import("@/components/accounting/bulk-cheque-operations"), "ChequeDepositBulkPage")
+const VisaCommissionJournalsPage = lazyNamed(() => import("@/components/accounting/auto-journals"), "VisaCommissionJournalsPage")
+const CurrencyTransferJournalPage = lazyNamed(() => import("@/components/accounting/auto-journals"), "CurrencyTransferJournalPage")
+const AccountCurrencyTransferJournalsPage = lazyNamed(() => import("@/components/accounting/auto-journals"), "AccountCurrencyTransferJournalsPage")
+const CurrencyDifferenceJournalsPage = lazyNamed(() => import("@/components/accounting/auto-journals"), "CurrencyDifferenceJournalsPage")
 const ChequeEndorseBulkPage = lazyNamed(() => import("@/components/accounting/bulk-cheque-operations"), "ChequeEndorseBulkPage")
 const OutgoingChequeClearBulkPage = lazyNamed(() => import("@/components/accounting/bulk-cheque-operations"), "OutgoingChequeClearBulkPage")
 const ChequePaymentVouchers = lazyDefault(() => import("@/components/accounting/unified-cheque-payment-voucher"))
@@ -207,6 +211,10 @@ const componentMap: Record<string, React.ComponentType<any>> = {
   cheques: ChequesPage,
   "cheque-operations": ChequeOperationsPage,
   "cheque-deposit-bulk": ChequeDepositBulkPage,
+  "visa-commission-journals": VisaCommissionJournalsPage,
+  "currency-transfer-journal": CurrencyTransferJournalPage,
+  "account-currency-transfer-journals": AccountCurrencyTransferJournalsPage,
+  "currency-difference-journals": CurrencyDifferenceJournalsPage,
   "cheque-endorse-bulk": ChequeEndorseBulkPage,
   "outgoing-cheque-clear-bulk": OutgoingChequeClearBulkPage,
   "voucher-book-permissions": VoucherBookPermissions,

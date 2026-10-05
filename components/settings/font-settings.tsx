@@ -52,8 +52,8 @@ const defaultSettings: FontSettings = {
 const toolbarTemplates = [
   { id: "modern", name: "عصري", description: "سطح أبيض وأزرار واضحة بحواف ناعمة", surface: "rounded-xl border-slate-200 bg-white shadow-sm", primary: "rounded-lg bg-slate-900", save: "rounded-lg bg-indigo-600", navigation: "rounded-lg bg-slate-100" },
   { id: "gradient", name: "متدرج", description: "ألوان داكنة متدرجة ومظهر حيوي", surface: "rounded-xl border-indigo-400/30 bg-gradient-to-l from-slate-900 via-indigo-900 to-teal-800 shadow-lg", primary: "rounded-lg bg-white", save: "rounded-lg bg-gradient-to-l from-cyan-400 to-indigo-500", navigation: "rounded-lg bg-white/15" },
-  { id: "compact", name: "مدمج", description: "مساحة أقل وأزرار أيقونات سريعة", surface: "rounded-lg border-slate-300 bg-white", primary: "h-5 w-5 rounded bg-slate-900", save: "h-5 w-5 rounded bg-indigo-600", navigation: "h-5 rounded bg-slate-100" },
-  { id: "classic", name: "كلاسيكي", description: "شريط عملي بإطار واضح وأزرار تقليدية", surface: "rounded border-slate-400 bg-gradient-to-b from-slate-50 to-slate-200 shadow-sm", primary: "rounded-sm bg-slate-700", save: "rounded-sm bg-blue-600", navigation: "rounded-sm border border-slate-400 bg-slate-300" },
+  { id: "compact", name: "مدمج", description: "شريط عائم بأزرار أيقونات دائرية خفيفة", surface: "rounded-full border-slate-200 bg-white shadow-sm", primary: "h-5 w-5 rounded-full bg-slate-900", save: "h-5 w-5 rounded-full bg-gradient-to-br from-indigo-500 to-violet-500", navigation: "h-5 rounded-full bg-slate-100" },
+  { id: "classic", name: "كلاسيكي", description: "شريط Ribbon: تنقل علوي وأزرار أيقونة فوق النص", surface: "rounded-xl border-slate-200 border-t-4 border-t-indigo-500 bg-white shadow-sm", primary: "rounded-lg bg-emerald-100 ring-1 ring-emerald-300", save: "rounded-lg bg-indigo-600", navigation: "rounded-md bg-slate-100" },
 ] as const
 
 const FontContext = createContext<FontContextType | undefined>(undefined)

@@ -1958,8 +1958,6 @@ export default function UnifiedReceiptVoucher({
               </DialogTitle>
             </DialogHeader>
 
-            <TransactionBranchField voucherType={form.vch_type} action={form.id ? "update" : "create"} value={form.branch_id} onChange={handleBranchChange} disabled={isLocked} />
-
             <Messages innerRef={messagesRef} />
 
             <fieldset disabled={isLocked} className="contents">
@@ -1973,7 +1971,8 @@ export default function UnifiedReceiptVoucher({
                   تفاصيل السند
                 </div>
                 <div className="grid gap-3">
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  {/* دفتر/رقم/تاريخ/فرع السند بشبكة 2×2 داخل "تفاصيل السند" — نفس ترتيب إرسالية المبيعات. */}
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
                       <Label>دفتر السندات *</Label>
                       <PrimeDropdown
@@ -2015,6 +2014,7 @@ export default function UnifiedReceiptVoucher({
                         }}
                       />
                     </div>
+                    <TransactionBranchField voucherType={form.vch_type} action={form.id ? "update" : "create"} value={form.branch_id} onChange={handleBranchChange} disabled={isLocked} />
                   </div>
                   <div className="grid gap-3 sm:grid-cols-2">
                     <div className="grid gap-1.5 invoice-currency-dropdown-wrap">

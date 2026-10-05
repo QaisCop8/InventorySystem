@@ -80,7 +80,9 @@ const DialogContent = React.forwardRef<
     return (
       <div
         ref={ref as React.Ref<HTMLDivElement>}
-        className={cn("!absolute !inset-0 z-30 grid !h-full !max-h-full !w-full !max-w-none gap-4 overflow-hidden border-4 border-emerald-600 bg-background shadow-none", className)}
+        // universal-dialog-inline: النسخة المضمَّنة (ملء الشاشة) بلا role="dialog"، فتحتاج قواعد globals.css
+        // الخاصة بزر الإغلاق فوق شريط الأدوات محدِّداً خاصاً بها (وإلا غطّى زر الإغلاق زر "حذف").
+        className={cn("universal-dialog-inline !absolute !inset-0 z-30 grid !h-full !max-h-full !w-full !max-w-none gap-4 overflow-hidden border-4 border-emerald-600 bg-background shadow-none", className)}
         style={style}
         {...inlineProps}
       >

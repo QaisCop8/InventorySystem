@@ -28,6 +28,10 @@ const IncomeStatementReport = dynamic(() => import("@/components/reports/financi
 const ChequesPage = dynamic(() => import("@/components/accounting/cheques-management").then((m) => m.ChequesPage), { ssr: false })
 const ChequeOperationsPage = dynamic(() => import("@/components/accounting/cheques-management").then((m) => m.ChequeOperationsPage), { ssr: false })
 const ChequeDepositBulkPage = dynamic(() => import("@/components/accounting/bulk-cheque-operations").then((m) => m.ChequeDepositBulkPage), { ssr: false })
+const VisaCommissionJournalsPage = dynamic(() => import("@/components/accounting/auto-journals").then((m) => m.VisaCommissionJournalsPage), { ssr: false })
+const CurrencyTransferJournalPage = dynamic(() => import("@/components/accounting/auto-journals").then((m) => m.CurrencyTransferJournalPage), { ssr: false })
+const AccountCurrencyTransferJournalsPage = dynamic(() => import("@/components/accounting/auto-journals").then((m) => m.AccountCurrencyTransferJournalsPage), { ssr: false })
+const CurrencyDifferenceJournalsPage = dynamic(() => import("@/components/accounting/auto-journals").then((m) => m.CurrencyDifferenceJournalsPage), { ssr: false })
 const ChequeEndorseBulkPage = dynamic(() => import("@/components/accounting/bulk-cheque-operations").then((m) => m.ChequeEndorseBulkPage), { ssr: false })
 const OutgoingChequeClearBulkPage = dynamic(() => import("@/components/accounting/bulk-cheque-operations").then((m) => m.OutgoingChequeClearBulkPage), { ssr: false })
 const ChequePaymentVouchers = dynamic(() => import("@/components/accounting/unified-cheque-payment-voucher"), { ssr: false })
@@ -60,6 +64,10 @@ const componentMap: Record<string, React.ComponentType<any>> = {
   cheques: ChequesPage,
   "cheque-operations": ChequeOperationsPage,
   "cheque-deposit-bulk": ChequeDepositBulkPage,
+  "visa-commission-journals": VisaCommissionJournalsPage,
+  "currency-transfer-journal": CurrencyTransferJournalPage,
+  "account-currency-transfer-journals": AccountCurrencyTransferJournalsPage,
+  "currency-difference-journals": CurrencyDifferenceJournalsPage,
   "cheque-endorse-bulk": ChequeEndorseBulkPage,
   "outgoing-cheque-clear-bulk": OutgoingChequeClearBulkPage,
   "cheque-payment-vouchers": ChequePaymentVouchers,

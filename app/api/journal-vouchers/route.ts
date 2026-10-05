@@ -1,4 +1,5 @@
 import { unlinkPayrollJournal } from "./_lib"
+import { releaseAutoJournal } from "@/lib/auto-journals"
 import { type NextRequest, NextResponse } from "next/server"
 import sql, { withTenantTransaction } from "@/lib/database"
 import {
@@ -221,6 +222,7 @@ export async function PUT(request: NextRequest) {
       await saveNoteRows(voucher.id, data.notes)
     } else {
       await unlinkPayrollJournal(voucher.id)
+      await releaseAutoJournal(Number(voucher.id))
     }
 
     const details = await fetchDetails(voucher.id)
