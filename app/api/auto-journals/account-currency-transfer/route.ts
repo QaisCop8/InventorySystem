@@ -3,7 +3,6 @@ import sql, { withTenantTransaction } from "@/lib/database"
 import { authorizeTransaction } from "@/lib/transaction-permissions"
 import {
   INTERNAL_VOUCHER,
-  JOURNAL_TYPE_CURRENCY_CONVERT,
   createAutoJournal,
   dateOnly,
   getBaseCurrencyId,
@@ -143,14 +142,14 @@ export async function POST(request: NextRequest) {
             // مبلغ الحساب بعملته = نفس المبلغ المحوَّل له في القيد الثاني بالضبط، فيبقى رصيده بعملته
             // دون تغيير صافٍ حتى لو عُدِّل سعر الصرف من الشاشة.
             { accountId: row.account_id, creditDebit: closeSide, amount, currencyId: row.trans_currency_id, rate: row.transRate, accountAmountOverride: row.converted },
-            { accountId: convertAccountId, creditDebit: reopenSide, amount, currencyId: row.trans_currency_id, rate: row.transRate, journalTypeId: JOURNAL_TYPE_CURRENCY_CONVERT },
+            { accountId: convertAccountId, creditDebit: reopenSide, amount, currencyId: row.trans_currency_id, rate: row.transRate },
           ],
         }, context)
         const second = await createAutoJournal({
           ...common, currencyId: row.account_currency_id, rate: row.accountRate, note: text,
           lines: [
             { accountId: row.account_id, creditDebit: reopenSide, amount: row.converted, currencyId: row.account_currency_id, rate: row.accountRate },
-            { accountId: convertAccountId, creditDebit: closeSide, amount: row.converted, currencyId: row.account_currency_id, rate: row.accountRate, journalTypeId: JOURNAL_TYPE_CURRENCY_CONVERT },
+            { accountId: convertAccountId, creditDebit: closeSide, amount: row.converted, currencyId: row.account_currency_id, rate: row.accountRate },
           ],
         }, context)
         await linkRelatedVouchers(first.id, second.id)

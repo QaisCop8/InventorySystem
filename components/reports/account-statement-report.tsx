@@ -1,4 +1,5 @@
 "use client"
+import { printReportFrom } from "@/lib/voucher-print/report-print"
 
 import { ReportPage, ReportHeader } from "@/components/reports/report-page"
 
@@ -175,7 +176,7 @@ export function AccountStatementReport({ kind }: { kind: ReportKind }) {
 
   return <ReportPage loading={loading || loadingMeta}>
 
-      <ReportHeader icon={Landmark} category="تقارير محاسبية" title={<>{title}</>} description={<>{subtitle}</>} actions={<><Button variant="secondary" onClick={exportCsv} disabled={!visibleRows.length}><Download className="ml-2 h-4 w-4"/>تصدير</Button><Button className="bg-white text-slate-900 hover:bg-slate-100" onClick={() => window.print()} disabled={!visibleRows.length}><Printer className="ml-2 h-4 w-4"/>طباعة</Button></>} />
+      <ReportHeader icon={Landmark} category="تقارير محاسبية" title={<>{title}</>} description={<>{subtitle}</>} actions={<><Button variant="secondary" onClick={exportCsv} disabled={!visibleRows.length}><Download className="ml-2 h-4 w-4"/>تصدير</Button><Button className="bg-white text-slate-900 hover:bg-slate-100" onClick={event => void printReportFrom(event.currentTarget)} disabled={!visibleRows.length}><Printer className="ml-2 h-4 w-4"/>طباعة</Button></>} />
 
       <ReportFilters>
 

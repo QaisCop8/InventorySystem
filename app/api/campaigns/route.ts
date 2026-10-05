@@ -134,6 +134,22 @@ async function save(request: NextRequest, updating: boolean) {
       return NextResponse.json({ error: "تحقق من الكمية والسعر؛ الخصم لا يتجاوز القيمة الأصلية للصنف" }, { status: 400 })
     }
     if (typeId !== 3 && !buyItems.some((item: any) => number(item.item_id) > 0)) return NextResponse.json({ error: "أضف صنف شراء واحدًا على الأقل" }, { status: 400 })
+    // ShamelWeb rules: buy items need a discount unless a bundle/"other" campaign gives added items;
+    // added items always need a discount; quantity >= 1; no repeated item in the same list.
+    const realBuy = typeId === 3 ? [] : buyItems.filter((item: any) => number(item.item_id) > 0)
+    const realAdded = [1, 5].includes(typeId) ? [] : addedItems.filter((item: any) => number(item.item_id) > 0)
+    const bundleWithGifts = (typeId === 2 || typeId === 4) && realAdded.length > 0
+    for (const [list, label, zeroAllowed] of [[realBuy, "أصناف الشراء", bundleWithGifts], [realAdded, "الأصناف المضافة", false]] as const) {
+      const seen = new Set<string>()
+      for (const item of list as any[]) {
+        const name = item.item_name || item.item_code || item.item_id
+        if (number(item.quantity) < 1) return NextResponse.json({ error: `${label}: الكمية للصنف "${name}" يجب أن تكون 1 على الأقل` }, { status: 400 })
+        if (!zeroAllowed && !(number(item.discount) > 0)) return NextResponse.json({ error: `${label}: أدخل مبلغ الخصم للصنف "${name}"` }, { status: 400 })
+        const key = `${number(item.item_id)}:${number(item.unit_id)}`
+        if (seen.has(key)) return NextResponse.json({ error: `${label}: الصنف "${name}" مكرر` }, { status: 400 })
+        seen.add(key)
+      }
+    }
     if (![1, 5].includes(typeId) && !addedItems.some((item: any) => number(item.item_id) > 0) && number(data.discount_perc) <= 0) return NextResponse.json({ error: "حدد الأصناف المضافة أو نسبة الخصم" }, { status: 400 })
     if (number(data.discount_perc) < 0 || number(data.discount_perc) > 100 || (typeId !== 5 && number(data.max_campaigns, 1) < 1)) return NextResponse.json({ error: "قيم الخصم أو حد التطبيق غير صالحة" }, { status: 400 })
     const code = String(data.code || `CMP-${Date.now()}`).trim().toUpperCase()

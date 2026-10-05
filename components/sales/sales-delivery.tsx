@@ -11,7 +11,9 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Edit, Plus, Search } from "lucide-react"
 import { useAuth } from "@/components/auth/auth-context"
-import VoucherPrintLayout, { type VoucherPrintData } from "@/components/common/voucher-print-layout"
+import { VoucherDocumentPrinter } from "@/components/common/voucher-print-layout"
+import type { PrintDocument } from "@/lib/voucher-print/document"
+import { salesVoucherDocument } from "@/lib/voucher-print/sales"
 import UnifiedSalesDelivery, {
   type SalesDeliveryRecord,
   type SalesVoucherItemRow,
@@ -248,7 +250,11 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [currentIndex, setCurrentIndex] = useState(0)
   const [errorMessages, setErrorMessages] = useState<string[]>([])
-  const [printData, setPrintData] = useState<VoucherPrintData | null>(null)
+  const [printData, setPrintData] = useState<PrintDocument | null>(null)
+  const printCurrencyName = (currencyId: number | null) => {
+    const currency = currencies.find((item) => Number(item.currency_id ?? item.id) === Number(currencyId))
+    return currency?.currency_name || currency?.currency_code || ""
+  }
   const [gridResetToken, setGridResetToken] = useState(0)
 
   useEffect(() => {
@@ -287,11 +293,6 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
     return () => { cancelled = true }
   }, [dialogOpen, isLoading, user?.id, form.id, form.branch_id, form.currency_id, gridResetToken])
 
-  useEffect(() => {
-    if (!printData) return
-    const timer = setTimeout(() => window.print(), 150)
-    return () => clearTimeout(timer)
-  }, [printData])
 
   const [searchFilters, setSearchFilters] = useState({ code: "", dateFrom: "", dateTo: "" })
 
@@ -703,22 +704,13 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
 
       const savedVoucher = normalizeVoucher(await response.json())
       if (action === "save_print" || action === "post_print") {
-        setPrintData({
+        setPrintData(salesVoucherDocument(savedVoucher, {
+          voucherTypeId: voucherType,
           title: SALES_VOUCHER_TYPE_LABELS[voucherType].title,
           copyLabel: action === "post_print" ? "نسخة اصلية" : "نسخة للتدقيق",
-          vch_code: savedVoucher.vch_code,
-          vch_date: savedVoucher.vch_date,
-          amount: Number(savedVoucher.amount || 0),
-          manual_voucher: savedVoucher.manual_voucher,
-          note: savedVoucher.note,
-          rows: savedVoucher.items.filter((item) => item.product_id).map((item) => ({
-            account_code: item.product_code,
-            account_name: item.product_name,
-            debit: Number(item.line_amount ?? item.total_price ?? 0),
-            credit: null,
-            note: item.note,
-          })),
-        })
+          currencyName: printCurrencyName(savedVoucher.currency_id),
+          partyLabel: [17, 18, 19].includes(Number(voucherType)) ? "المورد" : "العميل",
+        }))
       }
 
       try {
@@ -831,24 +823,13 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
         console.error("Failed to mark sales voucher as printed", error)
       }
     }
-    const currency = currencies.find((item) => Number(item.currency_id ?? item.id) === Number(form.currency_id))
-    setPrintData({
+    setPrintData(salesVoucherDocument(form, {
+      voucherTypeId: voucherType,
       title: SALES_VOUCHER_TYPE_LABELS[voucherType].title,
-      copyLabel,
-      vch_code: form.vch_code,
-      vch_date: form.vch_date,
-      currency_name: currency?.currency_name || currency?.currency_code || "",
-      amount: Number(form.amount || 0),
-      manual_voucher: form.manual_voucher,
-      note: form.note,
-      rows: form.items.filter((item) => item.product_id).map((item) => ({
-        account_code: item.product_code,
-        account_name: item.product_name,
-        debit: Number(item.line_amount ?? item.total_price ?? 0),
-        credit: null,
-        note: item.note,
-      })),
-    })
+      copyLabel: copyLabel,
+      currencyName: printCurrencyName(form.currency_id),
+      partyLabel: [17, 18, 19].includes(Number(voucherType)) ? "المورد" : "العميل",
+    }))
   }
 
   const navigationPending = useRef(false)
@@ -1014,7 +995,7 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
         onCodeNotFound={handleCodeNotFound}
         errorMessages={errorMessages}
       />
-      <VoucherPrintLayout data={printData} />
+      <VoucherDocumentPrinter document={printData} />
     </div>
   )
 }

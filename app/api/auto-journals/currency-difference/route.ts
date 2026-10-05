@@ -3,7 +3,6 @@ import sql, { withTenantTransaction } from "@/lib/database"
 import { authorizeTransaction } from "@/lib/transaction-permissions"
 import {
   INTERNAL_VOUCHER,
-  JOURNAL_TYPE_CURRENCY_CONVERT,
   createAutoJournal,
   dateOnly,
   getBaseCurrencyId,
@@ -138,7 +137,7 @@ export async function POST(request: NextRequest) {
           lines: [
             // إعادة التقييم تغيّر قيمة الرصيد بعملة الأساس فقط — لا أثر على رصيد الحساب بعملته.
             { accountId: Number(row.account_id), creditDebit: gain ? 1 : 2, amount, currencyId: baseCurrencyId, rate: 1, accountAmountOverride: 0 },
-            { accountId: differenceAccountId, creditDebit: gain ? 2 : 1, amount, currencyId: baseCurrencyId, rate: 1, journalTypeId: JOURNAL_TYPE_CURRENCY_CONVERT },
+            { accountId: differenceAccountId, creditDebit: gain ? 2 : 1, amount, currencyId: baseCurrencyId, rate: 1 },
           ],
         }, context)
         journals.push(journal)

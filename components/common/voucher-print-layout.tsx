@@ -1,6 +1,7 @@
 "use client"
 
-import type { CSSProperties } from "react"
+import { useVoucherPrinter } from "./use-voucher-printer"
+import type { PrintDocument } from "@/lib/voucher-print/document"
 
 export interface VoucherPrintRow {
   account_code?: string
@@ -22,80 +23,56 @@ export interface VoucherPrintData {
   rows: VoucherPrintRow[]
 }
 
-// طباعة مبسّطة (قابلة للتطوير لاحقاً): مخفية دائماً على الشاشة، وتظهر فقط عبر CSS الخاص بـ
-// @media print (انظر app/globals.css: .voucher-print-area) عند استدعاء window.print().
-export default function VoucherPrintLayout({ data }: { data: VoucherPrintData | null }) {
-  if (!data) return null
-
+export function accountVoucherDocument(data: VoucherPrintData, voucherTypeId: number): PrintDocument {
   const totalDebit = data.rows.reduce((sum, row) => sum + Number(row.debit || 0), 0)
   const totalCredit = data.rows.reduce((sum, row) => sum + Number(row.credit || 0), 0)
-
-  return (
-    <div className="voucher-print-area" dir="rtl">
-      <h2 style={{ textAlign: "center", marginBottom: 4 }}>{data.title}</h2>
-      {data.copyLabel && (
-        <p style={{ textAlign: "center", marginBottom: 8, fontWeight: "bold" }}>{data.copyLabel}</p>
-      )}
-      <table style={{ width: "100%", marginBottom: 16, fontSize: 14 }}>
-        <tbody>
-          <tr>
-            <td style={{ padding: 4 }}><strong>رقم السند:</strong> {data.vch_code}</td>
-            <td style={{ padding: 4 }}><strong>التاريخ:</strong> {data.vch_date?.slice(0, 10)}</td>
-          </tr>
-          <tr>
-            <td style={{ padding: 4 }}><strong>العملة:</strong> {data.currency_name || ""}</td>
-            <td style={{ padding: 4 }}><strong>المبلغ:</strong> {data.amount?.toLocaleString() ?? ""}</td>
-          </tr>
-          {data.manual_voucher && (
-            <tr>
-              <td style={{ padding: 4 }} colSpan={2}><strong>سند يدوي:</strong> {data.manual_voucher}</td>
-            </tr>
-          )}
-        </tbody>
-      </table>
-
-      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-        <thead>
-          <tr>
-            <th style={printCellStyle}>رقم الحساب</th>
-            <th style={printCellStyle}>اسم الحساب</th>
-            <th style={printCellStyle}>مدين</th>
-            <th style={printCellStyle}>دائن</th>
-            <th style={printCellStyle}>ملاحظات</th>
-          </tr>
-        </thead>
-        <tbody>
-          {data.rows.map((row, index) => (
-            <tr key={index}>
-              <td style={printCellStyle}>{row.account_code || ""}</td>
-              <td style={printCellStyle}>{row.account_name || ""}</td>
-              <td style={printCellStyle}>{row.debit ? Number(row.debit).toLocaleString() : ""}</td>
-              <td style={printCellStyle}>{row.credit ? Number(row.credit).toLocaleString() : ""}</td>
-              <td style={printCellStyle}>{row.note || ""}</td>
-            </tr>
-          ))}
-        </tbody>
-        <tfoot>
-          <tr>
-            <td style={printCellStyle} colSpan={2}><strong>الإجمالي</strong></td>
-            <td style={printCellStyle}><strong>{totalDebit.toLocaleString()}</strong></td>
-            <td style={printCellStyle}><strong>{totalCredit.toLocaleString()}</strong></td>
-            <td style={printCellStyle} />
-          </tr>
-        </tfoot>
-      </table>
-
-      {data.note && (
-        <p style={{ marginTop: 16, fontSize: 13 }}>
-          <strong>ملاحظة:</strong> {data.note}
-        </p>
-      )}
-    </div>
-  )
+  return {
+    voucherTypeId,
+    title: data.title,
+    copyLabel: data.copyLabel,
+    code: data.vch_code,
+    date: data.vch_date,
+    fields: [
+      { label: "العملة", value: data.currency_name },
+      { label: "المبلغ", value: data.amount === undefined ? "" : Number(data.amount).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) },
+      { label: "سند يدوي", value: data.manual_voucher },
+    ],
+    columns: [
+      { key: "account_code", label: "رقم الحساب", weight: 0.9 },
+      { key: "account_name", label: "اسم الحساب", weight: 2 },
+      { key: "debit", label: "مدين", numeric: true },
+      { key: "credit", label: "دائن", numeric: true },
+      { key: "notes", label: "البيان", weight: 1.6 },
+    ],
+    rows: data.rows.map(row => ({
+      account_code: row.account_code,
+      account_name: row.account_name,
+      debit: row.debit ? Number(row.debit) : "",
+      credit: row.credit ? Number(row.credit) : "",
+      notes: row.note,
+    })),
+    totals: [
+      { label: "إجمالي المدين", value: totalDebit },
+      { label: "إجمالي الدائن", value: totalCredit, strong: true },
+    ],
+    amount: data.amount ?? Math.max(totalDebit, totalCredit),
+    currencyName: data.currency_name,
+    notes: data.note,
+  }
 }
 
-const printCellStyle: CSSProperties = {
-  border: "1px solid #333",
-  padding: "6px 8px",
-  textAlign: "center",
+// Each new `data` object prints once through the shared engine (lib/voucher-print), using the
+// print settings saved for `voucherTypeId`: direct to the default printer via CashierWinService on
+// Windows, otherwise the browser print dialog.
+const identity = (document: PrintDocument) => document
+
+// Prints a ready-made document (built with a lib/voucher-print builder) once per new object.
+export function VoucherDocumentPrinter({ document }: { document: PrintDocument | null }) {
+  useVoucherPrinter(document, document?.voucherTypeId ?? 0, identity)
+  return null
+}
+
+export default function VoucherPrintLayout({ data, voucherTypeId }: { data: VoucherPrintData | null; voucherTypeId: number }) {
+  useVoucherPrinter(data, voucherTypeId, accountVoucherDocument)
+  return null
 }

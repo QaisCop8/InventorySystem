@@ -1,5 +1,6 @@
 import { unlinkPayrollJournal } from "./_lib"
 import { releaseAutoJournal } from "@/lib/auto-journals"
+import { FIXED_ASSET_INTERNAL_VOUCHER } from "@/lib/fixed-assets/schema"
 import { type NextRequest, NextResponse } from "next/server"
 import sql, { withTenantTransaction } from "@/lib/database"
 import {
@@ -167,9 +168,12 @@ export async function PUT(request: NextRequest) {
 
     // سند مُرحَّل (status=2) مقفل: التعديل العادي عليه ممنوع من الواجهة، ونمنعه هنا أيضاً كخط
     // دفاع ثانٍ — الاستثناء الوحيد هو إلغاؤه منطقياً (status=3) عبر تأكيد الحذف.
-    const currentRows = await sql`SELECT status FROM voucher_header_tbl WHERE id = ${data.id} FOR UPDATE`
+    const currentRows = await sql`SELECT status, internal_voucher_id FROM voucher_header_tbl WHERE id = ${data.id} FOR UPDATE`
     if (currentRows.length > 0 && Number(currentRows[0].status) === 2 && status !== 3) {
       return NextResponse.json({ error: "السند مرحل ولا يمكن تعديله" }, { status: 400 })
+    }
+    if (currentRows.length > 0 && Number(currentRows[0].internal_voucher_id) === FIXED_ASSET_INTERNAL_VOUCHER) {
+      return NextResponse.json({ error: "هذا القيد صادر من نظام الأصول الثابتة — يُعكس من شاشة الأصول (عكس الإهلاك أو العملية) وليس من سند القيد" }, { status: 409 })
     }
 
     // A cheque-operation journal may only be cancelled while it is still the latest operation

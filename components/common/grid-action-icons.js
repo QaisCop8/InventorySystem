@@ -27,6 +27,6 @@ export function gridActionClass(className, iconType) {
 }
 export function gridActionStyle(className, iconType) {
   const name = gridActionName(iconType, className)
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${paths[name]}</svg>`
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${paths[name]}</svg>`
   return `--dgv-icon:url("data:image/svg+xml,${encodeURIComponent(svg)}");`
 }

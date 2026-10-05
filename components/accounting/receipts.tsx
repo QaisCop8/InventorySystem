@@ -193,11 +193,6 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
   const [errorMessages, setErrorMessages] = useState<string[]>([])
   const [printData, setPrintData] = useState<VoucherPrintData | null>(null)
 
-  useEffect(() => {
-    if (!printData) return
-    const t = setTimeout(() => window.print(), 150)
-    return () => clearTimeout(t)
-  }, [printData])
 
   const [searchFilters, setSearchFilters] = useState({ code: "", name: "", currencyId: "__all__", dateFrom: "", dateTo: "" })
   const [currentPage, setCurrentPage] = useState(1)
@@ -1153,7 +1148,7 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
         isNewMode={isNewMode}
         errorMessages={errorMessages}
       />
-      <VoucherPrintLayout data={printData} />
+      <VoucherPrintLayout data={printData} voucherTypeId={voucherType} />
     </div>
   )
 }

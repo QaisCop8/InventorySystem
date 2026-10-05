@@ -1,4 +1,5 @@
 "use client"
+import { printReportFrom } from "@/lib/voucher-print/report-print"
 
 import dynamic from "next/dynamic"
 import { useEffect, useMemo, useRef, useState } from "react"
@@ -175,7 +176,7 @@ export function ItemCardReport() {
   return <ReportPage loading={loading || loadingProducts}>
     <ReportHeader icon={FileBarChart} category="تقارير الأصناف" title="بطاقة صنف" description="حركة السندات والأرصدة التفصيلية لكل صنف" actions={<>
       <Button variant="outline" onClick={exportCsv} disabled={!hasReport || loading}><Download className="ml-2 h-4 w-4" />تصدير</Button>
-      <Button variant="outline" onClick={() => window.print()} disabled={!hasReport || loading}><Printer className="ml-2 h-4 w-4" />طباعة</Button>
+      <Button variant="outline" onClick={event => void printReportFrom(event.currentTarget)} disabled={!hasReport || loading}><Printer className="ml-2 h-4 w-4" />طباعة</Button>
     </>} />
     <ReportFilters>
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">

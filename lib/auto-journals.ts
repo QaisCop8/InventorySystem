@@ -17,8 +17,14 @@ export const INTERNAL_VOUCHER = {
   CURRENCY_DIFFERENCE: 10, // قيود فرق العملة
 } as const
 
-export const JOURNAL_TYPE_OTHER = 1
-export const JOURNAL_TYPE_CURRENCY_CONVERT = 13 // "تحويل عملة" في voucher_journal_type_caption_tbl
+// The journal voucher screen (receipts/_lib.ts fetchDetails) only loads lines of this type, and every
+// other journal writer (manual journals, cheques, payroll) uses it — auto journals must too, or their
+// lines are saved but invisible when the journal is opened.
+export const JOURNAL_LINE_TYPE = 5
+// Types previously written by auto journals; repaired to JOURNAL_LINE_TYPE in ensureAutoJournalTables.
+const LEGACY_AUTO_LINE_TYPES = [1, 13]
+// internal_voucher_id 30 = fixed assets (lib/fixed-assets/schema.ts), which also posts through here.
+const AUTO_INTERNAL_VOUCHERS = [2, 4, 5, 10, 30]
 
 const round = (value: number, digits = 2) => {
   const factor = 10 ** digits
@@ -56,7 +62,6 @@ export type AutoJournalLine = {
   amount: number
   currencyId: number
   rate: number
-  journalTypeId?: number
   note?: string
   // مراكز تكلفة صريحة؛ بدونها تُستعمل المراكز الافتراضية للحساب (account_costcenters_tbl).
   costCenterIds?: number[]
@@ -181,7 +186,7 @@ export async function createAutoJournal(input: AutoJournalInput, context?: Journ
         voucher_id, order_no, journal_type_id, account_id, credit_debit,
         amount, currency_id, rate, base_curr_amount, account_currency_id, account_rate, account_amount, note
       ) VALUES (
-        ${voucherId}, ${index + 1}, ${line.journalTypeId ?? JOURNAL_TYPE_OTHER}, ${line.accountId}, ${line.creditDebit},
+        ${voucherId}, ${index + 1}, ${JOURNAL_LINE_TYPE}, ${line.accountId}, ${line.creditDebit},
         ${line.amount}, ${line.currencyId}, ${line.rate}, ${baseAmount}, ${accountCurrencyId}, ${accountRate}, ${accountAmount}, ${String(line.note || "").slice(0, 70)}
       ) RETURNING id
     `)[0]
@@ -221,6 +226,13 @@ export async function ensureAutoJournalTables() {
   `
   await sql`CREATE INDEX IF NOT EXISTS idx_voucher_related_vch_tbl_voucher_id ON voucher_related_vch_tbl(voucher_id)`
   await sql`ALTER TABLE voucher_cards_detail_tbl ADD COLUMN IF NOT EXISTS fees_voucher_id INTEGER`
+  await sql`
+    UPDATE voucher_journal_detail_tbl d SET journal_type_id = ${JOURNAL_LINE_TYPE}
+    FROM voucher_header_tbl h
+    WHERE h.id = d.voucher_id AND h.vch_type = ${AUTO_JOURNAL_VCH_TYPE}
+      AND h.internal_voucher_id = ANY(${AUTO_INTERNAL_VOUCHERS}::int[])
+      AND d.journal_type_id = ANY(${LEGACY_AUTO_LINE_TYPES}::int[])
+  `
 }
 
 // عند إلغاء سند قيد آلي (status=3) من شاشة سند القيد: يُحرَّر ما ربطه، ويُلغى قيده المقترن في

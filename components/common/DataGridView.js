@@ -702,7 +702,7 @@ createButtonTemplate = (col) => (ctx) => {
   applyButtonColors = () => {
     if (!this.flex?.hostElement) return;
     const rowHeight = Number(this.flex.rows?.defaultSize) || 50;
-    const size = Math.max(22, Math.min(32, rowHeight - 6));
+    const size = Math.max(24, Math.min(30, rowHeight - 10));
     this.flex.hostElement.querySelectorAll('button.dgv-action').forEach(button => {
       button.style.setProperty('--dgv-action-size', size + 'px');
       button.classList.toggle('has-label', Boolean(button.textContent?.trim()));

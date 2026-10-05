@@ -94,7 +94,6 @@ export default function UnifiedChequePaymentVoucher() {
     const [postDialogOpen, setPostDialogOpen] = useState(false)
     const [printData, setPrintData] = useState<VoucherPrintData | null>(null)
     const savingRef = useRef(false)
-    useEffect(() => { if (!printData) return; const timer = window.setTimeout(() => window.print(), 150); return () => window.clearTimeout(timer) }, [printData])
     const { user } = useAuth()
     const { fullscreenEnabled } = useWorkspace()
     const [rows, setRows] = useState<Voucher[]>([]), [meta, setMeta] = useState<Meta>(emptyMeta), [voucherBooks, setVoucherBooks] = useState<VoucherBook[]>([]), [defaultBookId, setDefaultBookId] = useState<number | null>(null), [form, setForm] = useState<Voucher>(emptyForm), [dialogOpen, setDialogOpen] = useState(false), [searchOpen, setSearchOpen] = useState(false), [loading, setLoading] = useState(false), [saving, setSaving] = useState(false), [error, setError] = useState(""), [deleteConfirm, setDeleteConfirm] = useState(false), [currentIndex, setCurrentIndex] = useState(0)
@@ -236,7 +235,7 @@ export default function UnifiedChequePaymentVoucher() {
             </Dialog>
             <ChequeSearch open={searchOpen} onOpenChange={setSearchOpen} currencyId={form.currency_id} excluded={selectedIds} onSelect={chooseCheques} />
             <PostVoucherDialog visible={postDialogOpen} isSaving={saving} onSelect={action => void save(action)} onCancel={() => setPostDialogOpen(false)} />
-            <VoucherPrintLayout data={printData} />
+            <VoucherPrintLayout data={printData} voucherTypeId={21} />
             <ConfirmDialogYesNo useAppDialog busy={saving} title="حذف سند صرف شيكات" visible={deleteConfirm} message="هل أنت متأكد من حذف سند صرف الشيكات؟" onConfirm={() => void confirmDelete()} onCancel={() => setDeleteConfirm(false)} />
         </main>
     )

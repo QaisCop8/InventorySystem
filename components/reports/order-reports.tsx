@@ -1,4 +1,5 @@
 ﻿"use client"
+import { printReportFrom } from "@/lib/voucher-print/report-print"
 
 import { ReportPage, ReportHeader } from "@/components/reports/report-page"
 
@@ -311,7 +312,7 @@ export function OrderReports() {
             </Button>
             <Button
               variant="outline"
-              onClick={() => window.print()}
+              onClick={event => void printReportFrom(event.currentTarget)}
               className="border-purple-300 text-purple-700 hover:bg-purple-50"
             >
               <Printer className="h-4 w-4 ml-2" />

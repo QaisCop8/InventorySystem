@@ -22,6 +22,7 @@ export const TRANSACTION_FAMILIES = {
   debit_note: "إشعار مدين",
   sales_order: "طلبية مبيعات",
   purchase_order: "طلبية مشتريات",
+  fixed_asset: "الأصول الثابتة",
 } as const
 
 export type TransactionFamily = keyof typeof TRANSACTION_FAMILIES

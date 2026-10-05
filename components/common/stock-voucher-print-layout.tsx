@@ -1,6 +1,7 @@
 "use client"
 
-import type { CSSProperties } from "react"
+import { useVoucherPrinter } from "./use-voucher-printer"
+import type { PrintDocument } from "@/lib/voucher-print/document"
 
 export interface StockVoucherPrintRow {
   product_code?: string
@@ -22,81 +23,44 @@ export interface StockVoucherPrintData {
   rows: StockVoucherPrintRow[]
 }
 
-// طباعة سندات المخزون (ادخال/اخراج/ارسالية/استعمال): نفس نمط voucher-print-layout.tsx
-// (مخفية دائماً على الشاشة، تظهر فقط عبر @media print عند استدعاء window.print())، لكن بأعمدة
-// الأصناف (صنف/مستودع/وحدة/كمية/سعر/مبلغ) بدل أعمدة القيد المحاسبي (حساب/مدين/دائن).
-export default function StockVoucherPrintLayout({ data }: { data: StockVoucherPrintData | null }) {
-  if (!data) return null
-
+export function stockVoucherDocument(data: StockVoucherPrintData, voucherTypeId: number): PrintDocument {
   const totalQuantity = data.rows.reduce((sum, row) => sum + Number(row.quantity || 0), 0)
   const totalAmount = data.rows.reduce((sum, row) => sum + Number(row.total_price || 0), 0)
-
-  return (
-    <div className="voucher-print-area" dir="rtl">
-      <h2 style={{ textAlign: "center", marginBottom: 4 }}>{data.title}</h2>
-      {data.copyLabel && (
-        <p style={{ textAlign: "center", marginBottom: 8, fontWeight: "bold" }}>{data.copyLabel}</p>
-      )}
-      <table style={{ width: "100%", marginBottom: 16, fontSize: 14 }}>
-        <tbody>
-          <tr>
-            <td style={{ padding: 4 }}><strong>رقم السند:</strong> {data.vch_code}</td>
-            <td style={{ padding: 4 }}><strong>التاريخ:</strong> {data.vch_date?.slice(0, 10)}</td>
-          </tr>
-          {data.manual_voucher && (
-            <tr>
-              <td style={{ padding: 4 }} colSpan={2}><strong>سند يدوي:</strong> {data.manual_voucher}</td>
-            </tr>
-          )}
-        </tbody>
-      </table>
-
-      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-        <thead>
-          <tr>
-            <th style={printCellStyle}>رقم الصنف</th>
-            <th style={printCellStyle}>اسم الصنف</th>
-            <th style={printCellStyle}>المستودع</th>
-            <th style={printCellStyle}>الوحدة</th>
-            <th style={printCellStyle}>الكمية</th>
-            <th style={printCellStyle}>السعر</th>
-            <th style={printCellStyle}>المبلغ</th>
-          </tr>
-        </thead>
-        <tbody>
-          {data.rows.map((row, index) => (
-            <tr key={index}>
-              <td style={printCellStyle}>{row.product_code || ""}</td>
-              <td style={printCellStyle}>{row.product_name || ""}</td>
-              <td style={printCellStyle}>{row.warehouse_name || ""}</td>
-              <td style={printCellStyle}>{row.unit || ""}</td>
-              <td style={printCellStyle}>{row.quantity ? Number(row.quantity).toLocaleString() : ""}</td>
-              <td style={printCellStyle}>{row.unit_price ? Number(row.unit_price).toLocaleString() : ""}</td>
-              <td style={printCellStyle}>{row.total_price ? Number(row.total_price).toLocaleString() : ""}</td>
-            </tr>
-          ))}
-        </tbody>
-        <tfoot>
-          <tr>
-            <td style={printCellStyle} colSpan={4}><strong>الإجمالي</strong></td>
-            <td style={printCellStyle}><strong>{totalQuantity.toLocaleString()}</strong></td>
-            <td style={printCellStyle} />
-            <td style={printCellStyle}><strong>{totalAmount.toLocaleString()}</strong></td>
-          </tr>
-        </tfoot>
-      </table>
-
-      {data.note && (
-        <p style={{ marginTop: 16, fontSize: 13 }}>
-          <strong>ملاحظة:</strong> {data.note}
-        </p>
-      )}
-    </div>
-  )
+  return {
+    voucherTypeId,
+    title: data.title,
+    copyLabel: data.copyLabel,
+    code: data.vch_code,
+    date: data.vch_date,
+    fields: [{ label: "سند يدوي", value: data.manual_voucher }],
+    columns: [
+      { key: "item_code", label: "رقم الصنف", weight: 0.9 },
+      { key: "item_name", label: "اسم الصنف", weight: 2.2 },
+      { key: "warehouse", label: "المستودع", weight: 1 },
+      { key: "unit", label: "الوحدة", weight: 0.7, align: "center" },
+      { key: "quantity", label: "الكمية", numeric: true, weight: 0.8 },
+      { key: "price", label: "السعر", numeric: true, weight: 0.8 },
+      { key: "total", label: "المبلغ", numeric: true },
+    ],
+    rows: data.rows.map(row => ({
+      item_code: row.product_code,
+      item_name: row.product_name,
+      warehouse: row.warehouse_name,
+      unit: row.unit,
+      quantity: row.quantity ?? "",
+      price: row.unit_price ?? "",
+      total: row.total_price ?? "",
+    })),
+    totals: [
+      { label: "إجمالي الكمية", value: totalQuantity },
+      { label: "إجمالي المبلغ", value: totalAmount, strong: true },
+    ],
+    amount: totalAmount,
+    notes: data.note,
+  }
 }
 
-const printCellStyle: CSSProperties = {
-  border: "1px solid #333",
-  padding: "6px 8px",
-  textAlign: "center",
+export default function StockVoucherPrintLayout({ data, voucherTypeId }: { data: StockVoucherPrintData | null; voucherTypeId: number }) {
+  useVoucherPrinter(data, voucherTypeId, stockVoucherDocument)
+  return null
 }

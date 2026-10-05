@@ -190,11 +190,6 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [voucherType, user?.id])
 
-  useEffect(() => {
-    if (!printData) return
-    const t = setTimeout(() => window.print(), 150)
-    return () => clearTimeout(t)
-  }, [printData])
 
   const fetchVouchers = async () => {
     try {
@@ -828,7 +823,7 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
         onCodeNotFound={handleCodeNotFound}
         errorMessages={errorMessages}
       />
-      <StockVoucherPrintLayout data={printData} />
+      <StockVoucherPrintLayout data={printData} voucherTypeId={voucherType} />
     </div>
   )
 }

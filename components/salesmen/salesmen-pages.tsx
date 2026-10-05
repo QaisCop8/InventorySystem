@@ -1,4 +1,5 @@
 "use client"
+import { printReportFrom } from "@/lib/voucher-print/report-print"
 
 import { useEffect, useRef, useState } from "react"
 import UnifiedSalesmen, { type SalesmanRecord } from "./unified-salesmen"
@@ -64,7 +65,7 @@ export default function SalesmenPages() {
 
   return <HrPage title="المندوبين" subtitle="ملفات المندوبين والعمولات والإشراف">
     <div className="flex flex-wrap items-center justify-between gap-3"><div className="grid flex-1 gap-3 sm:grid-cols-2"><Card className="border-0 bg-gradient-to-br from-indigo-500 to-indigo-600 text-white shadow-lg"><CardContent className="flex items-center justify-between p-5"><div><p className="text-sm text-indigo-100">إجمالي المندوبين</p><p className="text-3xl font-bold">{rows.length}</p></div><Users className="h-10 w-10 text-indigo-200" /></CardContent></Card><Card className="border-0 bg-gradient-to-br from-emerald-500 to-green-500 text-white shadow-lg"><CardContent className="flex items-center justify-between p-5"><div><p className="text-sm text-emerald-100">المندوبون الفعالون</p><p className="text-3xl font-bold">{rows.filter(row => row.is_active).length}</p></div><UserCheck className="h-10 w-10 text-emerald-200" /></CardContent></Card></div><Button className="h-11 bg-gradient-to-r from-indigo-600 to-purple-600 px-5 shadow-lg" onClick={() => void show()}><Plus className="ml-2 h-4 w-4" />إضافة مندوب جديد</Button></div>
-    <ListActions onEdit={() => selected && void show(selected)} onRefresh={load} onPrint={() => window.print()} />
+    <ListActions onEdit={() => selected && void show(selected)} onRefresh={load} onPrint={() => void printReportFrom(document.activeElement as HTMLElement | null)} />
     <FilterBar search={query} onSearch={setQuery} status={status} onStatus={setStatus} count={filtered.length} />
     <Grid rows={filtered} columns={columns} onSelect={setSelected} onDoubleClick={(row) => void show(row)} />
     <UnifiedSalesmen open={open} form={form} rows={rows} saving={saving} messagesRef={messagesRef} onOpenChange={setOpen} onFormChange={setForm} onCodeBlur={() => void handleCodeBlur()} onNew={() => void show()} onSave={save} onDelete={() => void remove()} onNavigate={navigate} />

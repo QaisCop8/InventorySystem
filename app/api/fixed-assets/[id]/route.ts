@@ -1,46 +1,31 @@
-import { NextRequest, NextResponse } from "next/server"
-import { deleteFixedAsset, ensureTables, getFixedAssetById, getFixedAssetCard, updateFixedAsset } from "../_lib"
+import { NextResponse, type NextRequest } from "next/server"
+import { assetBranch, handleFixedAssets, routeId } from "@/lib/fixed-assets/api"
+import { assetCard } from "@/lib/fixed-assets/queries"
+import { deleteDraftAsset, updateAsset } from "@/lib/fixed-assets/service"
 
-export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  try {
-    await ensureTables()
-    const { id } = await params
-    const item = await getFixedAssetCard(Number(id))
-    if (!item) {
-      return NextResponse.json({ error: "الأصل الثابت غير موجود" }, { status: 404 })
-    }
-    return NextResponse.json(item)
-  } catch (error) {
-    console.error("Error fetching fixed asset:", error)
-    return NextResponse.json({ error: "Failed to fetch fixed asset" }, { status: 500 })
-  }
+type Context = { params: Promise<{ id: string }> }
+
+export async function GET(request: NextRequest, { params }: Context) {
+  const id = routeId((await params).id)
+  return handleFixedAssets(request, "view", async ({ branchIds }) => {
+    const card = await assetCard(id, branchIds)
+    return card ?? NextResponse.json({ error: "الأصل غير موجود" }, { status: 404 })
+  }, { fallback: "تعذر تحميل بطاقة الأصل" })
 }
 
-export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  try {
-    await ensureTables()
-    const { id } = await params
-    const body = await request.json()
-
-    const updated = await updateFixedAsset(Number(id), body)
-    return NextResponse.json(updated)
-  } catch (error: any) {
-    console.error("Error updating fixed asset:", error)
-    return NextResponse.json({ error: error?.message || "Failed to update fixed asset" }, { status: 400 })
-  }
+export async function PUT(request: NextRequest, { params }: Context) {
+  const id = routeId((await params).id)
+  const body = await request.json().catch(() => ({}))
+  return handleFixedAssets(request, "update", async ({ userId }) => {
+    const asset = await updateAsset(id, body, userId)
+    return { id: Number(asset.id), asset_no: asset.asset_no }
+  }, { branch: () => assetBranch(id), fallback: "تعذر تعديل الأصل" })
 }
 
-export async function DELETE(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  try {
-    await ensureTables()
-    const { id } = await params
-    const deleted = await deleteFixedAsset(Number(id))
-    if (!deleted) {
-      return NextResponse.json({ error: "الأصل الثابت غير موجود" }, { status: 404 })
-    }
-    return NextResponse.json({ success: true, id: Number(id) })
-  } catch (error) {
-    console.error("Error deleting fixed asset:", error)
-    return NextResponse.json({ error: "Failed to delete fixed asset" }, { status: 500 })
-  }
+export async function DELETE(request: NextRequest, { params }: Context) {
+  const id = routeId((await params).id)
+  return handleFixedAssets(request, "delete", async () => {
+    await deleteDraftAsset(id)
+    return { success: true }
+  }, { branch: () => assetBranch(id), fallback: "تعذر حذف الأصل" })
 }

@@ -3,9 +3,9 @@ import { withTenantTransaction } from "@/lib/database"
 import { validateJournalAccountCurrencies } from "@/app/api/receipts/_lib"
 import {
   INTERNAL_VOUCHER,
-  JOURNAL_TYPE_CURRENCY_CONVERT,
   createAutoJournal,
   dateOnly,
+  getBaseCurrencyId,
   linkRelatedVouchers,
   resolveJournalContext,
 } from "@/lib/auto-journals"
@@ -29,8 +29,10 @@ export async function POST(request: NextRequest) {
     const convertAccountId = num(body.convert_account_id)
     const fromCurrencyId = num(body.from_currency_id)
     const toCurrencyId = num(body.to_currency_id)
-    const fromRate = num(body.from_rate)
-    const toRate = num(body.to_rate)
+    // عملة الأساس سعرها 1 دائماً — لا يُقبل سعر آخر لها حتى لو أُرسل من الواجهة.
+    const baseCurrencyId = await getBaseCurrencyId()
+    const fromRate = fromCurrencyId === baseCurrencyId ? 1 : num(body.from_rate)
+    const toRate = toCurrencyId === baseCurrencyId ? 1 : num(body.to_rate)
     const fromAmount = Math.abs(num(body.from_amount))
     const toAmount = Math.abs(num(body.to_amount))
 
@@ -64,7 +66,7 @@ export async function POST(request: NextRequest) {
         rate: fromRate,
         note: String(body.first_note || "").trim() || "قيد تحويل عملة",
         lines: [
-          { accountId: convertAccountId, creditDebit: 1, amount: fromAmount, currencyId: fromCurrencyId, rate: fromRate, journalTypeId: JOURNAL_TYPE_CURRENCY_CONVERT },
+          { accountId: convertAccountId, creditDebit: 1, amount: fromAmount, currencyId: fromCurrencyId, rate: fromRate },
           { accountId: fromAccountId, creditDebit: 2, amount: fromAmount, currencyId: fromCurrencyId, rate: fromRate },
         ],
       }, context)
@@ -75,7 +77,7 @@ export async function POST(request: NextRequest) {
         note: String(body.second_note || "").trim() || "قيد تحويل عملة",
         lines: [
           { accountId: toAccountId, creditDebit: 1, amount: toAmount, currencyId: toCurrencyId, rate: toRate },
-          { accountId: convertAccountId, creditDebit: 2, amount: toAmount, currencyId: toCurrencyId, rate: toRate, journalTypeId: JOURNAL_TYPE_CURRENCY_CONVERT },
+          { accountId: convertAccountId, creditDebit: 2, amount: toAmount, currencyId: toCurrencyId, rate: toRate },
         ],
       }, context)
       await linkRelatedVouchers(first.id, second.id)

@@ -375,8 +375,10 @@ export function CurrencyTransferJournalPage() {
   // عملة الطرف تتبع عملة حسابه افتراضياً، وسعرها يتبع سعر التاريخ — والاثنان قابلان للتعديل.
   useEffect(() => { const currency = accountById(fromAccountId)?.currency_id; if (currency) setFromCurrencyId(Number(currency)) }, [accountById, fromAccountId])
   useEffect(() => { const currency = accountById(toAccountId)?.currency_id; if (currency) setToCurrencyId(Number(currency)) }, [accountById, toAccountId])
-  useEffect(() => { const rate = rateOf(fromCurrencyId); setFromRate(rate ? String(rate) : "") }, [fromCurrencyId, rateOf])
-  useEffect(() => { const rate = rateOf(toCurrencyId); setToRate(rate ? String(rate) : "") }, [toCurrencyId, rateOf])
+  // عملة الأساس سعرها 1 ثابت وغير قابل للتعديل.
+  const isBase = useCallback((id: number | null) => id != null && meta.base_currency_id != null && id === Number(meta.base_currency_id), [meta.base_currency_id])
+  useEffect(() => { const rate = isBase(fromCurrencyId) ? 1 : rateOf(fromCurrencyId); setFromRate(rate ? String(rate) : "") }, [fromCurrencyId, rateOf, isBase])
+  useEffect(() => { const rate = isBase(toCurrencyId) ? 1 : rateOf(toCurrencyId); setToRate(rate ? String(rate) : "") }, [toCurrencyId, rateOf, isBase])
   useEffect(() => {
     if (toAmountEdited) return
     const amount = Number(fromAmount), source = Number(fromRate), target = Number(toRate)
@@ -421,7 +423,7 @@ export function CurrencyTransferJournalPage() {
             <AccountPicker label="الحساب المحوَّل منه" accounts={meta.accounts} value={fromAccountId} onChange={setFromAccountId} />
             <div className="grid grid-cols-2 gap-3">
               <Field label="العملة"><CurrencySelect currencies={meta.currencies} value={fromCurrencyId} onChange={setFromCurrencyId} /></Field>
-              <Field label="سعر الصرف"><Input type="number" step="0.0001" value={fromRate} onChange={(e) => setFromRate(e.target.value)} dir="ltr" /></Field>
+              <Field label="سعر الصرف"><Input type="number" step="0.0001" value={fromRate} onChange={(e) => setFromRate(e.target.value)} disabled={isBase(fromCurrencyId)} title={isBase(fromCurrencyId) ? "عملة الأساس — سعر الصرف 1" : undefined} dir="ltr" /></Field>
             </div>
             <Field label={`المبلغ المحوَّل ${fromCode}`}><Input type="number" step="0.01" value={fromAmount} onChange={(e) => setFromAmount(e.target.value)} dir="ltr" className="text-lg font-black" /></Field>
             <Field label="ملاحظة القيد الأول"><Input value={firstNote} onChange={(e) => setFirstNote(e.target.value)} placeholder="قيد تحويل عملة" /></Field>
@@ -430,7 +432,7 @@ export function CurrencyTransferJournalPage() {
             <AccountPicker label="الحساب المحوَّل إليه" accounts={meta.accounts} value={toAccountId} onChange={setToAccountId} />
             <div className="grid grid-cols-2 gap-3">
               <Field label="العملة"><CurrencySelect currencies={meta.currencies} value={toCurrencyId} onChange={setToCurrencyId} /></Field>
-              <Field label="سعر الصرف"><Input type="number" step="0.0001" value={toRate} onChange={(e) => setToRate(e.target.value)} dir="ltr" /></Field>
+              <Field label="سعر الصرف"><Input type="number" step="0.0001" value={toRate} onChange={(e) => setToRate(e.target.value)} disabled={isBase(toCurrencyId)} title={isBase(toCurrencyId) ? "عملة الأساس — سعر الصرف 1" : undefined} dir="ltr" /></Field>
             </div>
             <Field label={`المبلغ المحوَّل له ${toCode}`}>
               <Input type="number" step="0.01" value={toAmount} onChange={(e) => { setToAmount(e.target.value); setToAmountEdited(true) }} dir="ltr" className="text-lg font-black" />
