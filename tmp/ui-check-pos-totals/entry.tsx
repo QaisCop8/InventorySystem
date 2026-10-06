@@ -1,0 +1,4 @@
+import React from 'react'; import {createRoot} from 'react-dom/client'; import '@/components/pos/pos-workspace.css';
+createRoot(document.getElementById('root')).render(<div dir="rtl" className="pos-workspace pos-cashier" style={{minHeight:0,height:'auto'}}><footer className="pos-ticket-footer" style={{width:620}}><div className="pos-totals">
+<div><span>مجموع الأصناف</span><b>180.00</b></div><div><span>خصم الحملات</span><b>−20.00</b></div><div><span>الضريبة (ضمن السعر)</span><b>22.07</b></div>
+<div className="pos-totals-due"><span>إجمالي المبلغ للدفع</span><b><bdi>160.00</bdi> <small>ILS</small></b></div></div></footer></div>);

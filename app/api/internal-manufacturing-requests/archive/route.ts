@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
     const params = new URL(request.url).searchParams
     const branchId = Number(params.get("branch_id") || 0)
     if (!branchId) return NextResponse.json({ error: "يجب تحديد الفرع" }, { status: 400 })
-    await authorizeInternalManufacturing(user.user_id, branchId, "create")
+    await authorizeInternalManufacturing(user.user_id, branchId, "archive")
     return NextResponse.json(await listInternalManufacturingArchive({
       from: params.get("from") || undefined,
       to: params.get("to") || undefined,

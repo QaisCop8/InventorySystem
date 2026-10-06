@@ -568,15 +568,20 @@ export default function UnifiedCustomers({
         else updateField("currency_id" as keyof UnifiedCustomerFormData, firstCurrencyId as any)
       }
     }
-    // Update stopTransactionRows when formData changes and we have voucherTypes
-    if (voucherTypes.length > 0) {
-      const stopTransData = (formData as any).stop_transactions || []
-      const nextStopTransactionRows = buildStopTransactionRows(voucherTypes, stopTransData)
-      if (!rowsMatch(nextStopTransactionRows, stopTransactionRows)) {
-        setStopTransactionRows(nextStopTransactionRows)
-      }
-    }
-  }, [currencies, formData.currency_id, formData.id, updateField, applyFormDefaults, voucherTypes, buildStopTransactionRows, formData, stopTransactionRows])
+  }, [currencies, formData.currency_id, formData.id, updateField, applyFormDefaults])
+
+  // Rebuild the stop-transaction rows only when the parent's data really changes (a record is
+  // loaded / reset). It must not react to local row edits: the edit is sent up, comes back as
+  // formData.stop_transactions, and rebuilding against the not-yet-updated value ping-ponged the
+  // rows between old and new forever ("Maximum update depth exceeded", popup frozen).
+  const stopTransactionsFromParent = (formData as any).stop_transactions
+  useEffect(() => {
+    if (!voucherTypes.length) return
+    const incoming = Array.isArray(stopTransactionsFromParent) ? stopTransactionsFromParent : []
+    if (JSON.stringify(incoming) === lastStopTransactionRowsSentRef.current) return
+    const nextRows = buildStopTransactionRows(voucherTypes, incoming)
+    setStopTransactionRows(current => (rowsMatch(nextRows, current) ? current : nextRows))
+  }, [voucherTypes, stopTransactionsFromParent, buildStopTransactionRows])
 
   useEffect(() => {
     onClassificationRowsChangeRef.current = onClassificationRowsChange

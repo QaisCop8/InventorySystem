@@ -8,65 +8,13 @@ import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import Messages from "@/components/common/Messages"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { CalendarDays, CheckCircle2, ClipboardCheck, FileText, GripVertical, Plus, RefreshCw, Search, Trash2, X } from "lucide-react"
+import { ClipboardCheck, Plus, RefreshCw, Save, Search, Settings2, Trash2 } from "lucide-react"
+import { Switch } from "@/components/ui/switch"
 import ProductSearchPopup from "@/components/products/ProductSearchPopup"
 import { useAuth } from "@/components/auth/auth-context"
 import { useToast } from "@/hooks/use-toast"
-import InternalRequestAuditPage from "./internal-request-audit-page-v2"
-import InternalWorkflowStagePage from "./internal-workflow-stage-page-v2"
-import InternalReceiveStagePage from "./internal-receive-stage-page"
-
-type PageKind = "settings" | "request" | "requestAudit" | "preparation" | "readyAudit" | "send" | "receive" | "receivedAudit" | "receiveManufacturing"
-type Stage = { key: Exclude<PageKind, "settings" | "request">; title: string; status: number; action: string }
-const stages: Stage[] = [
-  { key: "requestAudit", title: "تدقيق طلب البضاعة", status: 2, action: "requestAudit" },
-  { key: "preparation", title: "تجهيز طلبات البضاعة الداخلية", status: 3, action: "prepare" },
-  { key: "readyAudit", title: "تدقيق الطلبات الجاهزة", status: 4, action: "readyAudit" },
-  { key: "send", title: "إرسال طلبات البضاعة", status: 5, action: "send" },
-  { key: "receive", title: "استلام طلبات البضاعة", status: 6, action: "receive" },
-  { key: "receivedAudit", title: "تدقيق البضاعة المستلمة", status: 7, action: "receivedAudit" },
-]
-
-function RequestCard({ request, onOpen }: { request: any; onOpen: () => void }) {
-  return <Card draggable onDragStart={(event) => event.dataTransfer.setData("request", String(request.id))} onClick={onOpen} className="cursor-grab transition hover:border-emerald-400 hover:shadow-md"><CardHeader className="pb-2"><CardTitle className="flex items-center justify-between text-base"><span>{request.vch_code}</span><GripVertical className="h-4 w-4 text-muted-foreground" /></CardTitle></CardHeader><CardContent className="space-y-2 text-sm"><div className="font-medium">طلب بضاعة داخلي</div><div className="flex items-center gap-2 text-muted-foreground"><CalendarDays className="h-4 w-4" />{request.vch_date}</div><div className="flex items-center justify-between"><span>{request.items?.length || 0} أصناف</span><Badge variant="secondary">قيد المعالجة</Badge></div></CardContent></Card>
-}
-
-function StageBoard({ stage }: { stage: Stage }) {
-  const { activeBranchId } = useAuth()
-  const [requests, setRequests] = useState<any[]>([])
-  const [selected, setSelected] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
-  const [message, setMessage] = useState("")
-  const [popupMessage, setPopupMessage] = useState("")
-  const loadSequenceRef = useRef(0)
-  const load = async () => { const branchId = Number(activeBranchId || 0); const sequence = ++loadSequenceRef.current; if (!branchId) return; setLoading(true); try { const response = await fetch(`/api/internal-manufacturing-requests?status=${stage.status}&_=${Date.now()}`, { cache: "no-store", headers: { "x-branch-id": String(branchId) } }); const data = await response.json(); if (sequence !== loadSequenceRef.current) return; if (response.ok && Array.isArray(data)) setRequests(data); else setMessage(data.error || "تعذر تحميل الطلبات") } finally { if (sequence === loadSequenceRef.current) setLoading(false) } }
-  useEffect(() => { if (activeBranchId) void load(); else { loadSequenceRef.current += 1; setRequests([]); setLoading(false) } }, [stage.status, activeBranchId])
-  useEffect(() => {
-    if (!selected) return
-    const frame = window.requestAnimationFrame(() => {
-      const dialog = document.querySelector('[role="dialog"][data-state="open"]')
-      const cells = Array.from(dialog?.querySelectorAll<HTMLElement>("tbody tr td:first-child") || [])
-      cells.forEach((cell, index) => {
-        const item = selected.items?.[index]
-        if (!item || cell.querySelector("[data-internal-item-image]")) return
-        cell.classList.add("flex", "items-center", "gap-3", "font-bold", "text-blue-600")
-        const image = document.createElement(item.product_image ? "img" : "div")
-        image.dataset.internalItemImage = "true"
-        image.className = "flex h-12 w-12 shrink-0 items-center justify-center rounded border bg-muted/30 object-cover text-[10px] text-muted-foreground"
-        if (image instanceof HTMLImageElement) { image.src = item.product_image; image.alt = item.item_name || "" }
-        else image.textContent = "لا صورة"
-        const unit = document.createElement("span")
-        unit.className = "mr-auto text-xs font-normal text-red-600"
-        unit.textContent = item.unit_name || "بدون وحدة"
-        cell.prepend(image)
-        cell.append(unit)
-      })
-    })
-    return () => window.cancelAnimationFrame(frame)
-  }, [selected])
-  const complete = async (request: any) => { const response = await fetch(`/api/internal-manufacturing-requests/${request.id}/actions`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: stage.action, branch_id: request.branch_id || activeBranchId, received_items: request.received_items }) }); const data = await response.json(); const resultMessage = response.ok ? "تم اعتماد المرحلة بنجاح" : data.error || "تعذر اعتماد المرحلة"; if (!response.ok) setPopupMessage(resultMessage); setMessage(resultMessage); if (response.ok) { setSelected(null); void load() } }
-  return <div dir="rtl" className="space-y-5 p-3 md:p-6"><div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"><div><h1 className="text-2xl font-bold">{stage.title}</h1><p className="mt-1 text-sm text-muted-foreground">اسحب الطلب إلى منطقة الاعتماد أو افتحه للمراجعة.</p></div><Button variant="outline" onClick={() => void load()} disabled={loading}><RefreshCw className={`ml-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />تحديث</Button></div>{message && <div className="rounded border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">{message}</div>}<div className="grid gap-6 lg:grid-cols-2"><section className="min-h-[460px] rounded-xl border bg-muted/30 p-4"><h2 className="mb-4 font-bold">الطلبات بانتظار المعالجة ({requests.length})</h2><div className="grid gap-3 sm:grid-cols-2">{!loading && requests.map((request) => <RequestCard key={request.id} request={request} onOpen={() => setSelected(request)} />)}</div>{!loading && requests.length === 0 && <div className="py-16 text-center text-sm text-muted-foreground"><FileText className="mx-auto mb-3 h-10 w-10" />لا توجد طلبات في هذه المرحلة</div>}</section><section onDragOver={(event) => event.preventDefault()} onDrop={(event) => { const request = requests.find((item) => item.id === Number(event.dataTransfer.getData("request"))); if (request) setSelected(request) }} className="flex min-h-[460px] items-center justify-center rounded-xl border-2 border-dashed border-emerald-400 bg-emerald-50/40 p-6 text-center"><div><CheckCircle2 className="mx-auto mb-3 h-14 w-14 text-emerald-600" /><h2 className="text-xl font-bold">اسحب الطلب هنا للاعتماد</h2><p className="text-muted-foreground">ستتم معالجة الطلب بعد مراجعة بياناته.</p></div></section></div>{selected && <Dialog open={!!selected} onOpenChange={(open) => !open && setSelected(null)}><DialogContent dir="rtl" className="max-h-[90vh] max-w-4xl overflow-y-auto"><DialogHeader><DialogTitle>مراجعة {selected.vch_code}</DialogTitle></DialogHeader><div className="space-y-5"><div className="grid gap-3 rounded border p-4 text-sm md:grid-cols-3"><div>فرع مقدم الطلب: <b>{selected.branch_id}</b></div><div>فرع البضاعة: <b>{selected.manufacturing_branch_id}</b></div><div>التاريخ: <b>{selected.vch_date}</b></div></div><div className="overflow-x-auto rounded border"><table className="w-full min-w-[620px] text-sm"><thead className="bg-muted/60"><tr><th className="p-3 text-right">الصنف</th><th className="p-3 text-right">الكمية الأصلية</th><th className="p-3 text-right">الكمية الحرة</th><th className="p-3 text-right">الكمية المستلمة</th></tr></thead><tbody>{selected.items?.map((item: any) => <tr className="border-t" key={item.id}><td className="p-3">{item.item_name}</td><td className="p-3">{item.qnty}</td><td className="p-3">{item.free_quantity || 0}</td><td className="p-3">{stage.key === "receiveManufacturing" ? <Input type="number" min="0" max={item.qnty} value={item.received_quantity || ""} onChange={(event) => { item.received_quantity = Number(event.target.value); setSelected({ ...selected }) }} placeholder="أدخل الكمية" /> : item.received_quantity || 0}</td></tr>)}</tbody></table></div><Button className="w-full" onClick={() => complete({ ...selected, received_items: selected.items?.map((item: any) => ({ id: item.id, received_quantity: Number(item.received_quantity) })) })}><CheckCircle2 className="ml-2 h-4 w-4" />اعتماد المرحلة</Button></div></DialogContent></Dialog>}</div>
-}
+import InternalStagePage from "./internal-stage-page"
+import { INTERNAL_STEPS, InternalLockedState, InternalPageHeader, InternalStepper, SIDE_LABELS, useInternalWorkflow, type InternalSettings } from "./internal-workflow-shared"
 
 function LegacyInternalManufacturingOldRequestPage() {
   const { activeBranchId, user, hasPermission } = useAuth()
@@ -240,17 +188,64 @@ function LegacyInternalManufacturingRequestPage() {
     <Dialog open={open} onOpenChange={setOpen}><DialogContent dir="rtl" className="max-h-[94vh] max-w-4xl overflow-y-auto" onPointerDownOutside={(event) => { if (productOpen) event.preventDefault() }} onInteractOutside={(event) => { if (productOpen) event.preventDefault() }}><DialogHeader><DialogTitle>{selectedRequest ? "مشاهدة طلب البضاعة" : "إضافة طلب داخلي"}</DialogTitle></DialogHeader>{selectedRequest ? <div className="space-y-4"><div className="grid gap-3 rounded border p-4 sm:grid-cols-2"><div>رقم الطلب: <b>{selectedRequest.vch_code}</b></div><div>التاريخ: <b>{String(selectedRequest.vch_date).slice(0, 10)}</b></div><div>فرع البضاعة: <b>{branchName(selectedRequest.manufacturing_branch_id)}</b></div><div>المستودع: <b>{warehouseName(selectedRequest.destination_warehouse_id)}</b></div></div><div className="rounded border p-4"><h3 className="mb-3 font-bold">الأصناف</h3>{(selectedRequest.items || []).map((item, index) => <div key={`${item.item_id}-${index}`} className="flex justify-between border-b py-2 text-sm last:border-0"><span>{item.item_name}</span><span>{item.qnty}</span></div>)}</div><Button className="w-full" variant="outline" onClick={() => setOpen(false)}>إغلاق</Button></div> : <div className="space-y-4"><div className="grid gap-3 sm:grid-cols-2"><div><Label>تاريخ الطلب</Label><Input type="date" value={date} onChange={(event) => setDate(event.target.value)} /></div><div><Label>فرع مقدم الطلب</Label><Input value={branchName(Number(activeBranchId))} disabled /></div><div><Label>مستودع مقدم الطلب</Label><select className="w-full rounded border p-2" value={sourceWarehouse} onChange={(event) => setSourceWarehouse(event.target.value)}><option value="">اختر المستودع</option>{warehouses.map((warehouse) => <option key={warehouse.id} value={warehouse.id}>{warehouse.warehouse_name || warehouse.name}</option>)}</select></div><div><Label>الفرع المطلوب منه البضاعة</Label><select className="w-full rounded border p-2" value={destinationBranch} onChange={(event) => setDestinationBranch(event.target.value)}><option value="">اختر الفرع</option>{branches.map((branch) => <option key={branch.id} value={branch.id}>{branch.branch_name}</option>)}</select></div><div><Label>المستودع المطلوب منه البضاعة</Label><select className="w-full rounded border p-2" value={destinationWarehouse} onChange={(event) => setDestinationWarehouse(event.target.value)}><option value="">اختر المستودع</option>{warehouses.map((warehouse) => <option key={warehouse.id} value={warehouse.id}>{warehouse.warehouse_name || warehouse.name}</option>)}</select></div></div><div className="rounded border p-3"><div className="flex items-center justify-between"><h3 className="font-bold">الأصناف</h3><Button type="button" variant="outline" onClick={() => setProductOpen(true)}><Plus className="ml-2 h-4 w-4" />إضافة صنف</Button></div>{items.map((item, index) => <div key={`${item.product_id}-${index}`} className="mt-2 flex items-center justify-between rounded bg-muted p-2 text-sm"><span>{item.product_name} - {item.quantity}</span><Button type="button" size="icon" variant="ghost" onClick={() => setItems((current) => current.filter((_, itemIndex) => itemIndex !== index))}><Trash2 className="h-4 w-4" /></Button></div>)}</div><Button className="w-full" disabled={!items.length || !sourceWarehouse || !destinationBranch || !destinationWarehouse} onClick={() => void saveNewRequest()}>حفظ مسودة الطلب</Button></div>}</DialogContent></Dialog><ProductSearchPopup visible={productOpen} onClose={() => setProductOpen(false)} onSelect={addProduct} priceCategoryId={0} ShowSelect={false} productTypes={[1]} title="اختيار الصنف" />
   </div>
 }
-export function InternalManufacturingSettingsPage() { const [settings, setSettings] = useState({ requestAudit: true, preparation: true, readyAudit: true, send: true, receive: true, receivedAudit: true }); const [saved, setSaved] = useState(false); const { toast } = useToast(); useEffect(() => { fetch("/api/internal-manufacturing-requests/settings").then((response) => response.json()).then((data) => setSettings((current) => ({ ...current, ...data }))) }, []); const saveSettings = async () => { try { const response = await fetch("/api/internal-manufacturing-requests/settings", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(settings) }); if (!response.ok) throw new Error("تعذر حفظ الإعدادات"); setSaved(true); toast({ title: "تمت العملية بنجاح", description: "تم حفظ إعدادات طلب بضاعة داخلي" }); } catch (error: any) { toast({ title: "فشل الحفظ", description: error.message || "تعذر حفظ الإعدادات", variant: "destructive", }); } }; const stages = [{ key: "requestAudit", label: "تدقيق طلب البضاعة", mandatory: false }, { key: "preparation", label: "تجهيز الطلبات", mandatory: true }, { key: "readyAudit", label: "تدقيق الطلبات الجاهزة", mandatory: false }, { key: "send", label: "إرسال الطلبات", mandatory: false }, { key: "receive", label: "استلام الطلبات", mandatory: true }, { key: "receivedAudit", label: "تدقيق البضاعة المستلمة", mandatory: false }] as const; return <div dir="rtl" className="space-y-5 p-3 md:p-6"><h1 className="text-2xl font-bold">إعدادات طلب بضاعة داخلي</h1><Card><CardHeader><CardTitle>مراحل سير الطلب</CardTitle></CardHeader><CardContent className="space-y-3"><div className="flex justify-between rounded border p-3"><span>طلب بضاعة داخلي</span><Badge>إجباري</Badge></div>{stages.map(({ key, label, mandatory }) => <label key={key} className="flex justify-between rounded border p-3"><span>{label}</span>{mandatory ? <Badge>إجباري</Badge> : <input type="checkbox" checked={settings[key]} onChange={(event) => setSettings({ ...settings, [key]: event.target.checked })} />}</label>)}<Button onClick={saveSettings}>حفظ الإعدادات</Button>{saved && <span className="mr-3 text-sm text-emerald-700">تم الحفظ</span>}</CardContent></Card></div> }
+const MANDATORY_STEPS = new Set(["request", "preparation", "receive"])
+export function InternalManufacturingSettingsPage() {
+  const workflow = useInternalWorkflow()
+  const [settings, setSettings] = useState<InternalSettings>({ requestAudit: true, preparation: true, readyAudit: true, send: true, receive: true, receivedAudit: true })
+  const [saving, setSaving] = useState(false)
+  const { toast } = useToast()
+  const canSave = workflow.permissions?.settings === true
+  useEffect(() => { if (workflow.settings) setSettings((current) => ({ ...current, ...workflow.settings })) }, [workflow.settings])
+  const saveSettings = async () => {
+    setSaving(true)
+    try {
+      const response = await fetch("/api/internal-manufacturing-requests/settings", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(settings) })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(data.error || "تعذر حفظ الإعدادات")
+      toast({ title: "تمت العملية بنجاح", description: "تم حفظ إعدادات طلب بضاعة داخلي" })
+      await workflow.reload()
+    } catch (error: any) {
+      toast({ title: "فشل الحفظ", description: error.message || "تعذر حفظ الإعدادات", variant: "destructive" })
+    } finally { setSaving(false) }
+  }
+  return <div dir="rtl" className="space-y-4 p-3 md:p-5">
+    <InternalPageHeader title="إعدادات طلب بضاعة داخلي" description="حدد المراحل الاختيارية التي يمر بها كل طلب. الصلاحيات تُمنح لكل مرحلة على مستوى الفرع من شاشة الصلاحيات." icon={Settings2}
+      branchLabel={workflow.branchId ? workflow.branchName(workflow.branchId) : undefined}
+      actions={<Button onClick={() => void saveSettings()} disabled={!canSave || saving}><Save className="ml-2 h-4 w-4" />{saving ? "جارٍ الحفظ..." : "حفظ الإعدادات"}</Button>}>
+      <InternalStepper settings={settings} permissions={workflow.permissions} />
+    </InternalPageHeader>
+    {!workflow.loading && !canSave && <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">عرض فقط — لا يوجد لديك صلاحية "إعدادات طلب بضاعة داخلي" في هذا الفرع، لذلك لا يمكنك تعديل المراحل.</div>}
+    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+      {INTERNAL_STEPS.map((step) => {
+        const mandatory = MANDATORY_STEPS.has(step.key)
+        const checked = !step.setting || settings[step.setting] !== false
+        return <div key={step.key} className={`flex flex-col gap-3 rounded-xl border bg-white p-4 shadow-sm dark:bg-slate-950 ${checked ? "" : "opacity-70"}`}>
+          <div className="flex items-start justify-between gap-2">
+            <span className="flex items-center gap-2 font-bold"><span className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700"><step.icon className="h-5 w-5" /></span>{step.title}</span>
+            {mandatory ? <Badge>إجباري</Badge> : <Switch checked={checked} disabled={!canSave} onCheckedChange={(value) => step.setting && setSettings((current) => ({ ...current, [step.setting!]: value }))} aria-label={step.title} />}
+          </div>
+          <p className="text-sm text-muted-foreground">{step.description}</p>
+          <div className="mt-auto flex flex-wrap gap-1.5 text-[11px]">
+            <span className="rounded-full bg-sky-50 px-2 py-0.5 text-sky-800">{SIDE_LABELS[step.side]}</span>
+            <span className={`rounded-full px-2 py-0.5 ${workflow.permissions?.[step.permission] ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>{workflow.permissions?.[step.permission] ? "لديك صلاحية في هذا الفرع" : "لا صلاحية في هذا الفرع"}</span>
+          </div>
+        </div>
+      })}
+    </div>
+  </div>
+}
 
 export { default as InternalManufacturingRequestPage } from "./internal-request-page"
+export { default as InternalManufacturingDashboardPage } from "./internal-dashboard-page"
 export const InternalManufacturingDraftPage = LegacyInternalManufacturingRequestPage
-export const InternalManufacturingConfirmationPage = () => <StageBoard stage={stages[0]} />
-export const InternalManufacturingRequestAuditPage = InternalRequestAuditPage
-export const InternalManufacturingPreparationPage = () => <InternalWorkflowStagePage stage={{ ...stages[1], preparation: true }} />
-export const InternalManufacturingReadyAuditPage = () => <InternalWorkflowStagePage stage={{ ...stages[2], preparation: true, preparedAudit: true }} />
-export const InternalManufacturingSendPage = () => <InternalWorkflowStagePage stage={{ ...stages[3], preparation: true, preparedAudit: true }} />
-export const InternalManufacturingReceivePage = () => <InternalReceiveStagePage stage={{ title: stages[4].title, status: stages[4].status, action: "receive" }} />
-export const InternalManufacturingReceivedAuditPage = () => <InternalReceiveStagePage stage={{ title: stages[5].title, status: stages[5].status, action: "receivedAudit" }} />
+// كل المراحل تستخدم نفس الشاشة الموحدة (internal-stage-page) — تختلف فقط بالمرحلة.
+export const InternalManufacturingRequestAuditPage = () => <InternalStagePage stageKey="requestAudit" />
+export const InternalManufacturingConfirmationPage = InternalManufacturingRequestAuditPage
+export const InternalManufacturingPreparationPage = () => <InternalStagePage stageKey="preparation" />
+export const InternalManufacturingReadyAuditPage = () => <InternalStagePage stageKey="readyAudit" />
+export const InternalManufacturingSendPage = () => <InternalStagePage stageKey="send" />
+export const InternalManufacturingReceivePage = () => <InternalStagePage stageKey="receive" />
+export const InternalManufacturingReceivedAuditPage = () => <InternalStagePage stageKey="receivedAudit" />
 // Compatibility aliases for tabs saved before the workflow stage names were changed.
 export const InternalManufacturingReceiveRequestPage = InternalManufacturingPreparationPage
 export const InternalManufacturingAuditPage = InternalManufacturingReadyAuditPage

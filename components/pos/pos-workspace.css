@@ -184,9 +184,12 @@
 
 /* ── Ticket footer: totals · keypad + actions · pay ─────────────────────── */
 .pos-ticket-footer { display: flex; flex-shrink: 0; flex-direction: column; gap: 10px; padding: 12px 14px 14px; border-top: 1px solid var(--pos-edge); background: linear-gradient(180deg, #f8fafc, var(--pos-surface)); }
-.pos-totals { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 16px; font-size: 12px; }
-.pos-totals > div { display: flex; justify-content: space-between; gap: 8px; color: var(--pos-muted); }
-.pos-totals b { color: var(--pos-ink); font-variant-numeric: tabular-nums; }
+.pos-totals { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 20px; font-size: 14px; }
+.pos-totals > div { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; color: var(--pos-muted); font-weight: 600; }
+.pos-totals b { color: var(--pos-ink); font-size: 16px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.pos-totals > .pos-totals-due { grid-column: 1 / -1; align-items: center; margin-top: 2px; padding: 8px 12px; border: 1px solid color-mix(in srgb, var(--pos-accent) 25%, transparent); border-radius: 12px; color: var(--pos-accent-strong); background: var(--pos-accent-soft); font-size: 15px; font-weight: 800; }
+.pos-totals > .pos-totals-due b { color: var(--pos-accent-strong); font-size: 24px; font-weight: 900; }
+.pos-totals > .pos-totals-due small { font-size: 12px; font-weight: 700; opacity: .75; }
 .pos-control-row { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 10px; }
 .pos-keypad { display: flex; flex-direction: column; gap: 6px; }
 .pos-keypad-entry { display: flex; gap: 4px; }

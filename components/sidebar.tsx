@@ -270,6 +270,7 @@ export const menuItems: MenuItem[] = [
         section: "internal-manufacturing-orders",
         icon: ClipboardCheck,
         submenu: [
+          { title: "لوحة متابعة الطلبات", section: "internal-manufacturing-dashboard", icon: LayoutDashboard },
           { title: "إعدادات طلب بضاعة داخلي", section: "internal-manufacturing-settings", icon: Settings },
           { title: "طلب بضاعة داخلي", section: "internal-manufacturing-request", icon: FilePlus2 },
           { title: "تدقيق طلب البضاعة", section: "internal-manufacturing-request-audit", icon: Shield },
@@ -342,6 +343,16 @@ export const menuItems: MenuItem[] = [
       { title: "بطاقة صنف", section: "item-card-report", icon: Package },
       { title: "أرصدة المخزون بتاريخ معين", section: "item-balances-report", icon: BarChart3 },
       { title: "تقييم المخزون بتاريخ معين", section: "item-valuation-report", icon: DollarSign },
+    ],
+  },
+  {
+    id: "profit-reports",
+    title: "تقارير الأرباح",
+    icon: TrendingUp,
+    submenu: [
+      { title: "تقرير نسبة أرباح الأصناف", section: "items-profit-report", icon: TrendingUp },
+      { title: "تقرير أرباح فترة معينة", section: "period-profit-report", icon: BarChart3 },
+      { title: "أرباح فاتورة معينة", section: "invoice-profit-report", icon: FileText },
     ],
   },
   {

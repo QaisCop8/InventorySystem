@@ -1,6 +1,6 @@
 import sql, { getTenantPool, resolveCurrentDbName } from "@/lib/database"
 import { ensureTables as ensureReceiptTables } from "@/app/api/receipts/_lib"
-import { ensureTables as ensureStockTables } from "@/app/api/stock-vouchers/_lib"
+import { INTERNAL_DELIVERY_VCH_TYPE, buildVoucherCode, ensureTables as ensureStockTables, getStockVoucherNumberSettings } from "@/app/api/stock-vouchers/_lib"
 import { ensurePermissionTables, hasEffectivePermission } from "@/lib/permissions"
 
 export const INTERNAL_MANUFACTURING_VOUCHER_TYPE = 20
@@ -18,6 +18,19 @@ export const INTERNAL_MANUFACTURING_STATUS = {
 
 export type InternalManufacturingStatus = (typeof INTERNAL_MANUFACTURING_STATUS)[keyof typeof INTERNAL_MANUFACTURING_STATUS]
 export type InternalManufacturingAction = "create" | "requestAudit" | "prepare" | "readyAudit" | "send" | "receive" | "receivedAudit"
+// كل صلاحيات الوحدة — مراحل السير أعلاه + عمليات الطلب نفسه والشاشات المساندة. جميعها تُفحص على
+// مستوى الفرع (role_branch_permissions / user_branch_permissions عبر hasEffectivePermission).
+export type InternalManufacturingPermission = InternalManufacturingAction | "edit" | "delete" | "dashboard" | "archive" | "settings"
+export const INTERNAL_MANUFACTURING_PERMISSION_KEYS: InternalManufacturingPermission[] = ["dashboard", "create", "edit", "delete", "requestAudit", "prepare", "readyAudit", "send", "receive", "receivedAudit", "archive", "settings"]
+
+// الفرع الذي يُنفِّذ كل مرحلة: الفرع مقدم الطلب (branch_id) يُنشئ ويدقق طلبه ويستلم البضاعة، والفرع
+// المطلوب منه البضاعة (manufacturing_branch_id) يجهزها ويدققها ويرسلها. الصلاحية تُفحص على هذا الفرع.
+export function internalManufacturingActingSide(action: InternalManufacturingPermission): "requester" | "supplier" {
+  return action === "prepare" || action === "readyAudit" || action === "send" ? "supplier" : "requester"
+}
+export function internalManufacturingActingBranch(request: { branch_id?: unknown; manufacturing_branch_id?: unknown }, action: InternalManufacturingPermission) {
+  return Number(internalManufacturingActingSide(action) === "supplier" ? request.manufacturing_branch_id : request.branch_id) || 0
+}
 
 export type InternalManufacturingSettings = {
   requestAudit: boolean
@@ -29,7 +42,7 @@ export type InternalManufacturingSettings = {
 }
 
 const DEFAULT_SETTINGS: InternalManufacturingSettings = { requestAudit: true, preparation: true, readyAudit: true, send: true, receive: true, receivedAudit: true }
-const ACTION_PERMISSIONS: Record<InternalManufacturingAction, string> = {
+const ACTION_PERMISSIONS: Record<InternalManufacturingPermission, string> = {
   create: "إنشاء طلب بضاعة داخلي",
   requestAudit: "تدقيق طلب البضاعة",
   prepare: "تجهيز طلبات البضاعة الداخلية",
@@ -37,9 +50,29 @@ const ACTION_PERMISSIONS: Record<InternalManufacturingAction, string> = {
   send: "إرسال طلبات البضاعة",
   receive: "استلام طلبات البضاعة",
   receivedAudit: "تدقيق البضاعة المستلمة",
+  edit: "تعديل طلب بضاعة داخلي",
+  delete: "حذف طلب بضاعة داخلي",
+  dashboard: "لوحة متابعة طلبات البضاعة",
+  archive: "تقرير أرشفة الطلبات الداخلية",
+  settings: "إعدادات طلب بضاعة داخلي",
+}
+// صلاحيات أُضيفت لاحقاً: عند إنشائها لأول مرة تُمنح لكل من يملك "إنشاء طلب بضاعة داخلي" (بنفس
+// الفروع)، حتى لا يفقد أي مستخدم حالي تعديل/حذف طلباته أو عرض الأرشيف بعد التحديث.
+const INHERIT_FROM_CREATE: InternalManufacturingPermission[] = ["edit", "delete", "dashboard", "archive"]
+
+// تُستدعى من كل مسار API — تُنفَّذ مرة واحدة لكل قاعدة بيانات شركة لكل عملية خادم.
+const ensuredDatabases = new Map<string, Promise<void>>()
+export async function ensureInternalManufacturingTables() {
+  const dbName = await resolveCurrentDbName()
+  let pending = ensuredDatabases.get(dbName)
+  if (!pending) {
+    pending = createInternalManufacturingTables().catch((error) => { ensuredDatabases.delete(dbName); throw error })
+    ensuredDatabases.set(dbName, pending)
+  }
+  return pending
 }
 
-export async function ensureInternalManufacturingTables() {
+async function createInternalManufacturingTables() {
   await ensureReceiptTables()
   await ensureStockTables()
   const conflict = await sql`SELECT name FROM voucher_types_tbl WHERE id = ${INTERNAL_MANUFACTURING_VOUCHER_TYPE} AND name <> 'طلب صناعة داخلي'`
@@ -70,10 +103,16 @@ async function ensureInternalManufacturingPermissions() {
     await sql`UPDATE access_list SET category_id = ${category.id} WHERE category_id = ${legacyCategory.id}`
     await sql`DELETE FROM access_category WHERE id = ${legacyCategory.id}`
   }
-  for (const name of Object.values(ACTION_PERMISSIONS)) {
+  const createdKeys: InternalManufacturingPermission[] = []
+  for (const key of INTERNAL_MANUFACTURING_PERMISSION_KEYS) {
+    const name = ACTION_PERMISSIONS[key]
     const rows = await sql`INSERT INTO access_list (name, category_id) SELECT ${name}, ${category.id} WHERE NOT EXISTS (SELECT 1 FROM access_list WHERE name = ${name}) RETURNING id`
+    if (rows[0]?.id) createdKeys.push(key)
     const accessId = rows[0]?.id || (await sql`SELECT id FROM access_list WHERE name = ${name} LIMIT 1`)[0]?.id
     if (accessId) await sql`INSERT INTO role_permissions (role_id, access_id, is_granted) SELECT id, ${accessId}, TRUE FROM job_roles WHERE LOWER(name) = LOWER('مدير') ON CONFLICT (role_id, access_id) DO NOTHING`
+  }
+  for (const key of createdKeys.filter((candidate) => INHERIT_FROM_CREATE.includes(candidate))) {
+    await copyPermissionGrants(ACTION_PERMISSIONS.create, ACTION_PERMISSIONS[key])
   }
   await migrateLegacyPermission("استلام طلب الصناعة", ACTION_PERMISSIONS.receive)
   await migrateLegacyPermission("تدقيق الصناعة", ACTION_PERMISSIONS.requestAudit)
@@ -83,9 +122,19 @@ async function ensureInternalManufacturingPermissions() {
   await migrateLegacyPermission("تجهيز طلبات البضاعة", ACTION_PERMISSIONS.prepare)
   await migrateLegacyPermission("إرسال طلب الصناعة", ACTION_PERMISSIONS.send)
   await sql`ALTER TABLE access_list ADD COLUMN IF NOT EXISTS sort_order INTEGER`
-  for (const [sortOrder, name] of Object.values(ACTION_PERMISSIONS).entries()) {
-    await sql`UPDATE access_list SET sort_order = ${sortOrder + 1}, updated_at = CURRENT_TIMESTAMP WHERE name = ${name}`
+  for (const [sortOrder, key] of INTERNAL_MANUFACTURING_PERMISSION_KEYS.entries()) {
+    await sql`UPDATE access_list SET sort_order = ${sortOrder + 1}, category_id = ${category.id}, updated_at = CURRENT_TIMESTAMP WHERE name = ${ACTION_PERMISSIONS[key]}`
   }
+}
+
+async function copyPermissionGrants(sourceName: string, targetName: string) {
+  const source = (await sql`SELECT id FROM access_list WHERE name = ${sourceName} LIMIT 1`)[0]
+  const target = (await sql`SELECT id FROM access_list WHERE name = ${targetName} LIMIT 1`)[0]
+  if (!source || !target || Number(source.id) === Number(target.id)) return
+  await sql`INSERT INTO role_permissions (role_id, access_id, is_granted) SELECT role_id, ${target.id}, is_granted FROM role_permissions WHERE access_id = ${source.id} ON CONFLICT (role_id, access_id) DO NOTHING`
+  await sql`INSERT INTO role_branch_permissions (role_id, branch_id, access_id, is_granted) SELECT role_id, branch_id, ${target.id}, is_granted FROM role_branch_permissions WHERE access_id = ${source.id} ON CONFLICT (role_id, branch_id, access_id) DO NOTHING`
+  await sql`INSERT INTO user_branch_permissions (user_id, branch_id, access_id, is_granted) SELECT user_id, branch_id, ${target.id}, is_granted FROM user_branch_permissions WHERE access_id = ${source.id} ON CONFLICT (user_id, branch_id, access_id) DO NOTHING`
+  await sql`INSERT INTO user_access (user_id, access_id, is_granted) SELECT user_id, ${target.id}, is_granted FROM user_access WHERE access_id = ${source.id} ON CONFLICT (user_id, access_id) DO NOTHING`
 }
 
 async function migrateLegacyPermission(legacyName: string, currentName: string) {
@@ -99,16 +148,54 @@ async function migrateLegacyPermission(legacyName: string, currentName: string) 
   await sql`DELETE FROM access_list WHERE id = ${legacy.id}`
 }
 
-export async function authorizeInternalManufacturing(userId: string, branchId: number, action: InternalManufacturingAction) {
-  const names = [ACTION_PERMISSIONS[action]]
-  if (action === "requestAudit") names.push("تدقيق طلب الصناعة")
-  if (action === "create") names.push("إنشاء طلب صناعة داخلي")
-  if (action === "prepare") names.push("تجهيز طلبات البضاعة")
-  if (action === "send") names.push("إرسال طلب الصناعة")
+const LEGACY_PERMISSION_NAMES: Partial<Record<InternalManufacturingPermission, string>> = {
+  requestAudit: "تدقيق طلب الصناعة",
+  create: "إنشاء طلب صناعة داخلي",
+  prepare: "تجهيز طلبات البضاعة",
+  send: "إرسال طلب الصناعة",
+}
+
+export async function hasInternalManufacturingPermission(userId: string, branchId: number, permission: InternalManufacturingPermission) {
+  if (!Number(branchId)) return false
+  const names = [ACTION_PERMISSIONS[permission], LEGACY_PERMISSION_NAMES[permission]].filter(Boolean) as string[]
   const accessRows = (await Promise.all(names.map((name) => sql`SELECT id FROM access_list WHERE name = ${name} LIMIT 1`))).flat()
   const granted = await Promise.all(accessRows.map((access) => hasEffectivePermission(userId, Number(access.id), branchId)))
-  if (!granted.some(Boolean)) throw new Error("لا توجد صلاحية لتنفيذ هذه المرحلة")
+  return granted.some(Boolean)
 }
+
+export async function authorizeInternalManufacturing(userId: string, branchId: number, permission: InternalManufacturingPermission) {
+  if (!Number(branchId)) throw new Error("يجب تحديد الفرع")
+  if (!(await hasInternalManufacturingPermission(userId, branchId, permission))) {
+    throw new Error(`لا يوجد لديك صلاحية "${ACTION_PERMISSIONS[permission]}" في هذا الفرع`)
+  }
+}
+
+export async function getInternalManufacturingPermissions(userId: string, branchId: number) {
+  const entries = await Promise.all(INTERNAL_MANUFACTURING_PERMISSION_KEYS.map(async (key) => [key, await hasInternalManufacturingPermission(userId, branchId, key)] as const))
+  return Object.fromEntries(entries) as Record<InternalManufacturingPermission, boolean>
+}
+
+// عدد الطلبات المنتظرة في كل مرحلة للفرع النشط — كل مرحلة تُعدّ من جهة الفرع المنفِّذ لها فقط.
+export async function countInternalManufacturingStages(branchId: number) {
+  const result = await (await getTenantPool()).query(
+    `SELECT internal_status,
+       COUNT(*) FILTER (WHERE branch_id = $1)::int AS requester_count,
+       COUNT(*) FILTER (WHERE manufacturing_branch_id = $1)::int AS supplier_count
+     FROM voucher_header_tbl
+     WHERE vch_type = 20 AND status <> 3 AND (branch_id = $1 OR manufacturing_branch_id = $1)
+     GROUP BY internal_status`,
+    [branchId],
+  )
+  const counts: Record<number, number> = {}
+  for (const row of result.rows) {
+    const status = Number(row.internal_status)
+    const action = STATUS_ACTIONS[status]
+    counts[status] = action && internalManufacturingActingSide(action) === "supplier" ? Number(row.supplier_count) : Number(row.requester_count)
+  }
+  return counts
+}
+
+export const STATUS_ACTIONS: Record<number, Exclude<InternalManufacturingAction, "create">> = { 2: "requestAudit", 3: "prepare", 4: "readyAudit", 5: "send", 6: "receive", 7: "receivedAudit" }
 
 export async function getInternalManufacturingSettings() {
   const rows = await sql`SELECT value FROM system_settings WHERE id = 'internal_manufacturing_settings' LIMIT 1`
@@ -133,10 +220,103 @@ export function nextInternalManufacturingStatus(current: InternalManufacturingSt
   return current
 }
 
-export async function listInternalManufacturingRequests(status?: number, branchId?: number, userId?: string) {
-  const rows = await sql`SELECT voucher_header_tbl.*, requester.full_name AS requester_name FROM voucher_header_tbl LEFT JOIN user_settings requester ON requester.user_id = voucher_header_tbl.insert_user WHERE voucher_header_tbl.vch_type = 20 AND voucher_header_tbl.status <> 3 ${status ? sql`AND voucher_header_tbl.internal_status = ${status}` : sql``} ${branchId && userId ? sql`AND (voucher_header_tbl.branch_id = ${branchId} OR CAST(voucher_header_tbl.insert_user AS TEXT) = ${userId})` : branchId ? sql`AND voucher_header_tbl.branch_id = ${branchId}` : sql``} ORDER BY voucher_header_tbl.id DESC`
-  for (const row of rows) row.items = await sql`SELECT vi.*, COALESCE(vi.item_name, p.product_name, '') AS item_name, u.unit_name, p.product_image AS product_image FROM voucher_items_tbl vi LEFT JOIN units u ON u.id = vi.unit_id LEFT JOIN products p ON p.id = vi.item_id WHERE vi.voucher_id = ${row.id} ORDER BY vi.id`
+// side: "requester" = طلبات الفرع نفسه، "supplier" = الطلبات الواردة إليه من فروع أخرى.
+export async function listInternalManufacturingRequests(options: { status?: number; branchId: number; side: "requester" | "supplier" }) {
+  const pool = await getTenantPool()
+  const values: unknown[] = [options.branchId]
+  const conditions = ["vh.vch_type = 20", "vh.status <> 3", options.side === "supplier" ? "vh.manufacturing_branch_id = $1" : "vh.branch_id = $1"]
+  if (options.status) { values.push(options.status); conditions.push(`vh.internal_status = $${values.length}`) }
+  const rows = (await pool.query(
+    `SELECT vh.*, requester.full_name AS requester_name,
+       (SELECT MAX(e.created_at) FROM internal_manufacturing_events e WHERE e.voucher_id = vh.id) AS stage_since
+     FROM voucher_header_tbl vh
+     LEFT JOIN user_settings requester ON requester.user_id = vh.insert_user
+     WHERE ${conditions.join(" AND ")}
+     ORDER BY vh.id DESC`,
+    values,
+  )).rows
+  if (!rows.length) return rows
+  const items = (await pool.query(
+    `SELECT vi.*, COALESCE(vi.item_name, p.product_name, '') AS item_name, u.unit_name, p.product_image AS product_image
+     FROM voucher_items_tbl vi LEFT JOIN units u ON u.id = vi.unit_id LEFT JOIN products p ON p.id = vi.item_id
+     WHERE vi.voucher_id = ANY($1::int[]) ORDER BY vi.id`,
+    [rows.map((row: any) => Number(row.id))],
+  )).rows
+  const byVoucher = new Map<number, any[]>()
+  for (const item of items) {
+    const list = byVoucher.get(Number(item.voucher_id)) || []
+    list.push(item)
+    byVoucher.set(Number(item.voucher_id), list)
+  }
+  for (const row of rows) row.items = byVoucher.get(Number(row.id)) || []
   return rows
+}
+
+export async function getInternalManufacturingDashboard(branchId: number, overdueDays = 2) {
+  const pool = await getTenantPool()
+  const query = async (text: string, values: unknown[] = []) => (await pool.query(text, [branchId, ...values])).rows
+  const scope = "vh.vch_type = 20 AND vh.status <> 3 AND (vh.branch_id = $1 OR vh.manufacturing_branch_id = $1)"
+  const [stageRows, kpiRows, overdue, trend, topItems, recent, partners] = await Promise.all([
+    query(`SELECT vh.internal_status AS status,
+        COUNT(*) FILTER (WHERE vh.branch_id = $1)::int AS outgoing,
+        COUNT(*) FILTER (WHERE vh.manufacturing_branch_id = $1)::int AS incoming
+      FROM voucher_header_tbl vh WHERE ${scope} GROUP BY vh.internal_status`),
+    query(`WITH done AS (
+        SELECT vh.id, vh.branch_id, vh.manufacturing_branch_id,
+          (SELECT MIN(e.created_at) FROM internal_manufacturing_events e WHERE e.voucher_id = vh.id AND e.action = 'create') AS created_at,
+          (SELECT MAX(e.created_at) FROM internal_manufacturing_events e WHERE e.voucher_id = vh.id AND e.to_status = 8) AS completed_at
+        FROM voucher_header_tbl vh WHERE ${scope} AND vh.internal_status = 8)
+      SELECT
+        COUNT(*) FILTER (WHERE completed_at >= date_trunc('month', CURRENT_DATE))::int AS completed_month,
+        COALESCE(ROUND(AVG(EXTRACT(EPOCH FROM (completed_at - created_at)) / 3600) FILTER (WHERE completed_at >= CURRENT_DATE - 30)::numeric, 1), 0) AS avg_hours,
+        (SELECT COALESCE(ROUND(100 * SUM(vi.received_quantity)::numeric / NULLIF(SUM(vi.qnty), 0)::numeric, 1), 0)
+           FROM voucher_items_tbl vi JOIN done d ON d.id = vi.voucher_id WHERE d.completed_at >= CURRENT_DATE - 30) AS fill_rate
+      FROM done`),
+    query(`SELECT vh.id, vh.vch_code, vh.vch_date, vh.internal_status, vh.branch_id, vh.manufacturing_branch_id,
+        CASE WHEN vh.branch_id = $1 THEN 'outgoing' ELSE 'incoming' END AS direction,
+        COALESCE((SELECT MAX(e.created_at) FROM internal_manufacturing_events e WHERE e.voucher_id = vh.id), vh.vch_date) AS stage_since
+      FROM voucher_header_tbl vh
+      WHERE ${scope} AND vh.internal_status BETWEEN 2 AND 7
+        AND COALESCE((SELECT MAX(e.created_at) FROM internal_manufacturing_events e WHERE e.voucher_id = vh.id), vh.vch_date) < NOW() - make_interval(days => $2::int)
+      ORDER BY stage_since ASC LIMIT 12`, [overdueDays]),
+    query(`SELECT to_char(d::date, 'YYYY-MM-DD') AS day,
+        (SELECT COUNT(*) FROM internal_manufacturing_events e JOIN voucher_header_tbl vh ON vh.id = e.voucher_id
+          WHERE ${scope} AND e.action = 'create' AND e.created_at::date = d::date)::int AS created,
+        (SELECT COUNT(*) FROM internal_manufacturing_events e JOIN voucher_header_tbl vh ON vh.id = e.voucher_id
+          WHERE ${scope} AND e.to_status = 8 AND e.from_status <> 8 AND e.created_at::date = d::date)::int AS completed
+      FROM generate_series((CURRENT_DATE - 13)::timestamp, CURRENT_DATE::timestamp, INTERVAL '1 day') d ORDER BY d`),
+    query(`SELECT vi.item_id, MAX(COALESCE(vi.item_name, p.product_name, '')) AS item_name, MAX(u.unit_name) AS unit_name,
+        MAX(p.product_image) AS product_image, SUM(vi.qnty)::float AS quantity, COUNT(DISTINCT vh.id)::int AS requests
+      FROM voucher_items_tbl vi JOIN voucher_header_tbl vh ON vh.id = vi.voucher_id
+      LEFT JOIN products p ON p.id = vi.item_id LEFT JOIN units u ON u.id = vi.unit_id
+      WHERE ${scope} AND vh.vch_date >= CURRENT_DATE - 30
+      GROUP BY vi.item_id ORDER BY quantity DESC LIMIT 8`),
+    query(`SELECT e.id, e.action, e.to_status, e.created_at, vh.vch_code, vh.id AS voucher_id,
+        COALESCE(actor.full_name, actor.username, CAST(e.user_id AS TEXT)) AS user_name
+      FROM internal_manufacturing_events e JOIN voucher_header_tbl vh ON vh.id = e.voucher_id
+      LEFT JOIN user_settings actor ON actor.user_id = e.user_id
+      WHERE ${scope} ORDER BY e.created_at DESC, e.id DESC LIMIT 10`),
+    query(`SELECT CASE WHEN vh.branch_id = $1 THEN vh.manufacturing_branch_id ELSE vh.branch_id END AS branch_id,
+        COUNT(*) FILTER (WHERE vh.branch_id = $1)::int AS outgoing,
+        COUNT(*) FILTER (WHERE vh.manufacturing_branch_id = $1)::int AS incoming
+      FROM voucher_header_tbl vh WHERE ${scope} AND vh.vch_date >= CURRENT_DATE - 90
+      GROUP BY 1 ORDER BY COUNT(*) DESC LIMIT 6`),
+  ])
+  const stages: Record<number, { outgoing: number; incoming: number }> = {}
+  for (const row of stageRows) stages[Number(row.status)] = { outgoing: Number(row.outgoing), incoming: Number(row.incoming) }
+  const kpi = kpiRows[0] || {}
+  return {
+    stages,
+    completedThisMonth: Number(kpi.completed_month || 0),
+    averageHours: Number(kpi.avg_hours || 0),
+    fillRate: Number(kpi.fill_rate || 0),
+    overdueDays,
+    overdue,
+    trend,
+    topItems,
+    recent,
+    partners,
+  }
 }
 
 function itemSnapshot(items: any[]) {
@@ -271,14 +451,36 @@ export async function processInternalManufacturingAction(id: number, action: Exc
       if (!currencyResult.rowCount) throw new Error("يجب تعريف عملة قبل اعتماد الارسالية الداخلية")
       const priceCategoryResult = await client.query("SELECT id FROM pricecategory ORDER BY CASE WHEN id = 1 THEN 0 ELSE 1 END, id ASC LIMIT 1")
       if (!priceCategoryResult.rowCount) throw new Error("يجب تعريف فئة سعر قبل اعتماد الارسالية الداخلية")
-      const voucherBookId = 0
-      const codePrefix = "T0"
-      await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [codePrefix])
-      const codeResult = await client.query("SELECT vch_code FROM voucher_header_tbl WHERE vch_type = 10 AND vch_code LIKE $1", [`${codePrefix}%`])
-      const lastSerial = codeResult.rows.reduce((highest: number, row: any) => { const match = String(row.vch_code).match(/^T0(\d+)$/); return match ? Math.max(highest, Number(match[1])) : highest }, 0)
-      const nextSerial = lastSerial + 1
-      if (nextSerial > 99999999) throw new Error("تم تجاوز الحد الأقصى لأرقام الارساليات الداخلية")
-      const transferCode = `${codePrefix}${String(nextSerial).padStart(8, "0")}`
+      // دفتر السندات الافتراضي للمستخدم المنفِّذ على نوع "ارسالية داخلية" (10) — وإن لم يوجد يُحفظ على الدفتر 0.
+      const hasBookPermissions = (await client.query("SELECT to_regclass('voucher_book_user_permissions_tbl') IS NOT NULL AND to_regclass('voucher_books_tbl') IS NOT NULL AS ok")).rows[0]?.ok
+      const defaultBook = !hasBookPermissions ? null : (await client.query(
+        `SELECT p.vch_book_id, b.name FROM voucher_book_user_permissions_tbl p JOIN voucher_books_tbl b ON b.id = p.vch_book_id
+         WHERE p.user_id = $1 AND p.voucher_type_id = $2 AND COALESCE(p.is_default, 0) = 1
+         ORDER BY p.vch_book_id LIMIT 1`,
+        [userId, INTERNAL_DELIVERY_VCH_TYPE],
+      )).rows[0]
+      const voucherBookId = Number(defaultBook?.vch_book_id || 0)
+      let transferCode: string
+      if (voucherBookId) {
+        // نفس صيغة ترقيم سندات المخزون: بادئة الإعدادات + رمز الدفتر + تسلسل.
+        const { prefix, startNumber } = await getStockVoucherNumberSettings("", INTERNAL_DELIVERY_VCH_TYPE)
+        const codePrefix = `${prefix}${String(defaultBook?.name || "").trim().toUpperCase()}`
+        await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [`stock-voucher:${INTERNAL_DELIVERY_VCH_TYPE}:${codePrefix}`])
+        const codeResult = await client.query("SELECT vch_code FROM voucher_header_tbl WHERE vch_type = $1 AND vch_code LIKE $2", [INTERNAL_DELIVERY_VCH_TYPE, `${codePrefix}%`])
+        const lastSerial = codeResult.rows.reduce((highest: number, row: any) => {
+          const match = String(row.vch_code || "").slice(codePrefix.length).match(/^[A-Za-z]?([0-9]+)$/)
+          return match ? Math.max(highest, Number(match[1])) : highest
+        }, 0)
+        transferCode = buildVoucherCode(prefix, String(defaultBook?.name || ""), lastSerial >= startNumber ? lastSerial + 1 : startNumber)
+      } else {
+        const codePrefix = "T0"
+        await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [codePrefix])
+        const codeResult = await client.query("SELECT vch_code FROM voucher_header_tbl WHERE vch_type = 10 AND vch_code LIKE $1", [`${codePrefix}%`])
+        const lastSerial = codeResult.rows.reduce((highest: number, row: any) => { const match = String(row.vch_code).match(/^T0(\d+)$/); return match ? Math.max(highest, Number(match[1])) : highest }, 0)
+        const nextSerial = lastSerial + 1
+        if (nextSerial > 99999999) throw new Error("تم تجاوز الحد الأقصى لأرقام الارساليات الداخلية")
+        transferCode = `${codePrefix}${String(nextSerial).padStart(8, "0")}`
+      }
       for (const item of items) {
         const priceResult = await client.query(`SELECT pu.unit_id, COALESCE(pp_selected.price, pp_fallback.price, 0) AS price FROM product_units pu LEFT JOIN product_prices pp_selected ON pp_selected.product_id=pu.product_id AND pp_selected.unit_id=pu.unit_id AND pp_selected.price_category_id=$3 LEFT JOIN product_prices pp_fallback ON pp_fallback.product_id=pu.product_id AND pp_fallback.unit_id=pu.unit_id AND pp_fallback.price_category_id=1 WHERE pu.product_id=$1 AND ($2::int IS NULL OR pu.unit_id=$2) ORDER BY CASE WHEN $2::int IS NOT NULL AND pu.unit_id=$2 THEN 0 ELSE 1 END, pu.id LIMIT 1`, [item.item_id, Number(item.unit_id ?? item.unitId ?? 0) || null, priceCategoryResult.rows[0].id])
         item.unit_id = Number(priceResult.rows[0]?.unit_id || item.unit_id || item.unitId || 0) || null

@@ -3,6 +3,7 @@
 import type React from "react"
 import { useWindowManager } from "@/contexts/window-manager-context"
 import { ModalWindow } from "./modal-window"
+import { useBranchReloadKey } from "@/components/auth/use-branch-reload-key"
 import dynamic from "next/dynamic"
 const Dashboard = dynamic(() => import("@/components/dashboard").then((mod) => mod.Dashboard), { ssr: false })
 
@@ -81,6 +82,7 @@ const componentMap: Record<string, React.ComponentType<any>> = {
 
 export function WindowRenderer() {
   const { windows, closeWindow } = useWindowManager()
+  const branchReloadKey = useBranchReloadKey()
 
 
   return (
@@ -99,7 +101,7 @@ export function WindowRenderer() {
 
         if (window.type === "modal") {
           return (
-            <ModalWindow key={window.id} window={window}>
+            <ModalWindow key={`${window.id}-branch-${branchReloadKey}`} window={window}>
               <Component {...(window.data || {})} inWindowManager closeWindow={() => closeWindow(window.id)} />
             </ModalWindow>
           )

@@ -1,5 +1,5 @@
 import sql from "@/lib/database"
-import { summarizeVoucherInventory } from "@/lib/voucher-inventory-valuation"
+import { summarizeVoucherInventory, type LineCost } from "@/lib/voucher-inventory-valuation"
 import { getSystemSettingValue } from "@/lib/system-settings"
 
 export const reportDate = (value: string | null, fallback = new Date().toISOString().slice(0, 10)) =>
@@ -30,7 +30,7 @@ export async function getInventoryReportProducts(organizationId: number, product
   `
 }
 
-export async function getProductBalances(_organizationId: number, toDate: string, productId: number, search: string, filters: InventoryReportFilters = {}) {
+export async function getProductBalances(_organizationId: number, toDate: string, productId: number, search: string, filters: InventoryReportFilters = {}, onLineCost?: (line: any, cost: LineCost) => void) {
   const { productIds = [], warehouseIds = [], branchIds = [] } = filters
   // sql is already scoped to the current company's database. Neither quantities
   // nor prices for this report depend on the optional movement ledger.
@@ -119,5 +119,5 @@ export async function getProductBalances(_organizationId: number, toDate: string
     // Transfers within the selected warehouses cancel out.
     return from === to ? [] : [{ ...line, vch_type: to ? 15 : 9 }]
   })
-  return summarizeVoucherInventory(products, scopedLines, [true, 1, "1", "true"].includes(includePurchaseReturns))
+  return summarizeVoucherInventory(products, scopedLines, [true, 1, "1", "true"].includes(includePurchaseReturns), onLineCost)
 }

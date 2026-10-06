@@ -2260,8 +2260,6 @@ export default function UnifiedStockVoucher({
             </DialogTitle>
           </DialogHeader>
 
-          <TransactionBranchField voucherType={voucherType} action={form.id ? "update" : "create"} value={form.branch_id} onChange={(id) => onFormChange("branch_id", id)} disabled={isLocked} />
-
           {/* لا يُستخدَم <fieldset disabled={isLocked}> هنا (كما في تبويبات الأصناف) عمداً: يحتاج
               حقل "رقم السند" البقاء قابلاً للتعديل حتى لسند مُقفَل (مُرحَّل/ملغى) للتنقل إلى سند آخر
               بكتابة رقمه مباشرة — وfieldset يُعطِّل كل حقوله الفرعية بلا استثناء بصرف النظر عن أي
@@ -2276,7 +2274,7 @@ export default function UnifiedStockVoucher({
               <div className="grid gap-3">
                 {/* دفتر السندات ← رقم السند ← تاريخ السند ← العملة ← سعر الصرف: بصف واحد بالسطر
                     الأول من البطاقة (كانا سابقاً بصفَّين منفصلين: 3 حقول ثم 2) بناءً على طلب صريح. */}
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
                   <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
                     <Label>دفتر السندات *</Label>
                     <PrimeDropdown
@@ -2315,6 +2313,7 @@ export default function UnifiedStockVoucher({
                       onChange={(value) => onFormChange("vch_date", value)}
                     />
                   </div>
+                  <TransactionBranchField voucherType={voucherType} action={form.id ? "update" : "create"} value={form.branch_id} onChange={(id) => onFormChange("branch_id", id)} disabled={isLocked} />
                   <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
                     <Label>العملة *</Label>
                     <PrimeDropdown

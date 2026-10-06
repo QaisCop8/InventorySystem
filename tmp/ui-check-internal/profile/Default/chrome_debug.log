@@ -1,0 +1,4 @@
+[1006/095406.645:INFO:CONSOLE:117111] "The width(-1) and height(-1) of chart should be greater than 0,
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width.", source: http://127.0.0.1:61234/bundle.js (117111)

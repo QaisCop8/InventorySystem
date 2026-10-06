@@ -8,8 +8,15 @@ const number = (value: unknown, fallback = 0) => {
 }
 const factor = (value: unknown) => number(value, 1) > 0 ? number(value, 1) : 1
 
-/** Quantities are in the main unit; costs are in the product's currency. */
-export function summarizeVoucherInventory(products: any[], lines: any[], includePurchaseReturnsInCost = false) {
+/** Cost of one main unit at the moment a line moved, per pricing way (product currency). */
+export type LineCost = { average: number; last: number; fifo: number }
+
+/**
+ * Quantities are in the main unit; costs are in the product's currency.
+ * onLineCost receives, for every processed line, the unit cost the line moved at — this is
+ * "تسعير الإخراجات" done in the same chronological pass that values the stock.
+ */
+export function summarizeVoucherInventory(products: any[], lines: any[], includePurchaseReturnsInCost = false, onLineCost?: (line: any, cost: LineCost) => void) {
   const balances = new Map(products.map(product => [Number(product.id), {
     ...product,
     balance: 0, received_quantity: 0, issued_quantity: 0,
@@ -31,6 +38,8 @@ export function summarizeVoucherInventory(products: any[], lines: any[], include
     if ([12, 17].includes(type) && number(line.delivery_item_id) > 0) continue
     const quantity = (number(line.qnty) + number(line.bonus)) * factor(line.unit_factor)
     const before = result.balance
+    const averageBefore = result.average_cost
+    const lastBefore = result.last_incoming_cost || number(result.initial_price)
     if (incomingTypes.has(type)) {
       result.balance += quantity
       result.received_quantity += quantity
@@ -70,6 +79,7 @@ export function summarizeVoucherInventory(products: any[], lines: any[], include
     const productId = Number(line.product_id)
     const queue = layers.get(productId) || []
     let lastCost = lastLayerCosts.get(productId) ?? result.fifo_cost
+    let fifoLineCost = lastCost
     if (incomingTypes.has(type) && quantity > 0) {
       const receiptCost = purchaseTypes.has(type) ? unitCost : lastCost
       // Receipts cover any previous shortage before creating a remaining layer.
@@ -77,13 +87,21 @@ export function summarizeVoucherInventory(products: any[], lines: any[], include
       if (remaining > 0) queue.push({ quantity: remaining, cost: receiptCost })
       lastCost = receiptCost
     } else if (outgoingTypes.has(type)) {
-      let remaining = quantity
+      let remaining = quantity, consumedValue = 0
       while (remaining > 0 && queue.length) {
         const layer = queue[0], consumed = Math.min(layer.quantity, remaining)
+        consumedValue += consumed * layer.cost
         layer.quantity -= consumed; remaining -= consumed
         if (layer.quantity <= 0.000001) queue.shift()
       }
+      // Issuing more than is on hand prices the shortage at the last known cost.
+      if (quantity > 0) fifoLineCost = (consumedValue + remaining * lastCost) / quantity
     }
+    onLineCost?.(line, {
+      average: purchaseTypes.has(type) ? unitCost : averageBefore,
+      last: purchaseTypes.has(type) ? unitCost : lastBefore,
+      fifo: purchaseTypes.has(type) ? unitCost : fifoLineCost,
+    })
     const remainingQuantity = queue.reduce((sum, layer) => sum + layer.quantity, 0)
     result.fifo_cost = remainingQuantity > 0
       ? queue.reduce((sum, layer) => sum + layer.quantity * layer.cost, 0) / remainingQuantity : lastCost

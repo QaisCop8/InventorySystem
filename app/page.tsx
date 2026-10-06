@@ -9,6 +9,7 @@ import { activateCompany } from "@/lib/tenant-client"
 import { SECTION_TITLES } from "@/components/sidebar"
 import { useWorkspace } from "@/contexts/workspace-context"
 import { WorkspacePane } from "@/components/workspace/workspace-pane"
+import { useBranchReloadKey } from "@/components/auth/use-branch-reload-key"
 
 
 // Import all components
@@ -27,6 +28,9 @@ const FixedAssetsPage = lazyDefault(() => import("@/app/fixed-assets/page"))
 const OrderReports = lazyNamed(() => import("@/components/reports/order-reports"), "OrderReports")
 const ProductReports = lazyNamed(() => import("@/components/reports/product-reports"), "ProductReports")
 const ItemBalancesReport = lazyNamed(() => import("@/components/reports/item-balances-report"), "ItemBalancesReport")
+const ItemsProfitReport = lazyNamed(() => import("@/components/reports/sales-profit-report"), "ItemsProfitReport")
+const PeriodProfitReport = lazyNamed(() => import("@/components/reports/sales-profit-report"), "PeriodProfitReport")
+const InvoiceProfitReport = lazyNamed(() => import("@/components/reports/sales-profit-report"), "InvoiceProfitReport")
 const ItemValuationReport = lazyNamed(() => import("@/components/reports/item-valuation-report"), "ItemValuationReport")
 const ItemCardReport = lazyNamed(() => import("@/components/reports/item-card-report"), "ItemCardReport")
 const Customers = lazyDefault(() => import("@/components/products/customers"))
@@ -120,6 +124,7 @@ const DraftOrdersPage = lazyNamed(() => import("@/components/order-drafts/draft-
 const OrderConfirmationBoard = lazyNamed(() => import("@/components/order-drafts/order-confirmation-board"), "OrderConfirmationBoard")
 const ChecklistDesigner = lazyNamed(() => import("@/components/order-drafts/checklist-designer"), "ChecklistDesigner")
 const CustomerProductTemplates = lazyDefault(() => import("@/components/products/customer-product-templates"))
+const InternalManufacturingDashboardPage = lazyNamed(() => import("@/components/manufacturing/internal-manufacturing-pages"), "InternalManufacturingDashboardPage")
 const InternalManufacturingSettingsPage = lazyNamed(() => import("@/components/manufacturing/internal-manufacturing-pages"), "InternalManufacturingSettingsPage")
 const InternalManufacturingRequestPage = lazyNamed(() => import("@/components/manufacturing/internal-manufacturing-pages"), "InternalManufacturingRequestPage")
 const InternalManufacturingRequestAuditPage = lazyNamed(() => import("@/components/manufacturing/internal-manufacturing-pages"), "InternalManufacturingRequestAuditPage")
@@ -164,6 +169,9 @@ const componentMap: Record<string, React.ComponentType<any>> = {
   "product-reports": ProductReports,
   "item-balances-report": ItemBalancesReport,
   "item-valuation-report": ItemValuationReport,
+  "items-profit-report": ItemsProfitReport,
+  "period-profit-report": PeriodProfitReport,
+  "invoice-profit-report": InvoiceProfitReport,
   "item-card-report": ItemCardReport,
   "batch-log-report": BatchLogReport,
   "cashier-log-report": lazyNamed(() => import("@/components/reports/cashier-followup-report"), "default"),
@@ -274,6 +282,7 @@ const componentMap: Record<string, React.ComponentType<any>> = {
   "order-confirmation": OrderConfirmationBoard,
   "order-checklists": ChecklistDesigner,
   "customer-product-templates": CustomerProductTemplates,
+  "internal-manufacturing-dashboard": InternalManufacturingDashboardPage,
   "internal-manufacturing-settings": InternalManufacturingSettingsPage,
   "internal-manufacturing-request": InternalManufacturingRequestPage,
   "internal-manufacturing-request-audit": InternalManufacturingRequestAuditPage,
@@ -353,6 +362,7 @@ function HomePageContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const { openSection, currentSection, focusedPaneId, tabsEnabled, splitEnabled } = useWorkspace()
+  const branchReloadKey = useBranchReloadKey()
   const activeSection = currentSection(focusedPaneId)
 
   // يُعمِّر تبويب البداية بالجزء "a" حسب رابط العنوان — استبدال لما كان سابقاً initializer لـ
@@ -562,7 +572,9 @@ function HomePageContent() {
   return (
     <ProtectedRoute>
       <ERPLayout activeSection={activeSection || ""} onSectionChange={handleSectionChange}>
-        <div className="flex min-h-0 flex-1 flex-row gap-2 overflow-hidden">
+        {/* Keyed by the active branch: changing الفرع remounts every open page/tab so each one
+            reloads its data (lists, defaults, permissions) for the new branch. */}
+        <div key={`branch-${branchReloadKey}`} className="flex min-h-0 flex-1 flex-row gap-2 overflow-hidden">
           <WorkspacePane
             paneId="a"
             showTabStrip={tabsEnabled}
