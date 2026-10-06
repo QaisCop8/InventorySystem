@@ -191,6 +191,18 @@ export async function saveSalesCostPrices(lines: ProfitLine[]) {
   return result.rowCount || 0
 }
 
+/** الأصناف التي لها مبيعات أو مرتجعات مرحَّلة خلال الفترة — لتقرير تكلفة مبيعات صنف. */
+export async function soldItemsInPeriod(from: string, to: string) {
+  return sql`
+    SELECT p.id, p.product_code AS code, p.product_name AS name
+    FROM products p
+    WHERE COALESCE(p.type, 1) = 1 AND EXISTS (
+      SELECT 1 FROM voucher_items_tbl vi JOIN voucher_header_tbl vh ON vh.id = vi.voucher_id
+      WHERE vi.item_id = p.id AND vh.vch_type IN (12, 16) AND vh.vch_status = 2 AND COALESCE(vh.status, 1) <> 3
+        AND vh.vch_date >= ${from}::date AND vh.vch_date < (${to}::date + INTERVAL '1 day'))
+    ORDER BY p.product_code, p.product_name`
+}
+
 export async function salesProfitMeta() {
   const [products, groups, warehouses, branches, customers, salesmen] = await Promise.all([
     sql`SELECT id, product_code AS code, product_name AS name FROM products WHERE COALESCE(deleted,false)=false AND COALESCE(status,1)<>3 AND COALESCE(type,1)=1 ORDER BY product_code, product_name`,

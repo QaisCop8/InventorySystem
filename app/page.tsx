@@ -31,6 +31,8 @@ const ItemBalancesReport = lazyNamed(() => import("@/components/reports/item-bal
 const ItemsProfitReport = lazyNamed(() => import("@/components/reports/sales-profit-report"), "ItemsProfitReport")
 const PeriodProfitReport = lazyNamed(() => import("@/components/reports/sales-profit-report"), "PeriodProfitReport")
 const InvoiceProfitReport = lazyNamed(() => import("@/components/reports/sales-profit-report"), "InvoiceProfitReport")
+const ItemSalesCostReport = lazyNamed(() => import("@/components/reports/sales-profit-report"), "ItemSalesCostReport")
+const PricingInventoryPage = lazyNamed(() => import("@/components/reports/sales-profit-report"), "PricingInventoryPage")
 const ItemValuationReport = lazyNamed(() => import("@/components/reports/item-valuation-report"), "ItemValuationReport")
 const ItemCardReport = lazyNamed(() => import("@/components/reports/item-card-report"), "ItemCardReport")
 const Customers = lazyDefault(() => import("@/components/products/customers"))
@@ -172,6 +174,8 @@ const componentMap: Record<string, React.ComponentType<any>> = {
   "items-profit-report": ItemsProfitReport,
   "period-profit-report": PeriodProfitReport,
   "invoice-profit-report": InvoiceProfitReport,
+  "item-sales-cost-report": ItemSalesCostReport,
+  "pricing-inventory": PricingInventoryPage,
   "item-card-report": ItemCardReport,
   "batch-log-report": BatchLogReport,
   "cashier-log-report": lazyNamed(() => import("@/components/reports/cashier-followup-report"), "default"),

@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { AlertTriangle, Calculator, CheckCircle2, Download, Loader2, Printer, Search, TrendingUp } from "lucide-react"
+import { AlertTriangle, Calculator, CheckCircle2, ChevronLeft, ChevronRight, Download, Loader2, Printer, Search, TrendingUp } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -15,13 +15,15 @@ import { ReportMultiChoice, type ReportOption } from "./account-statement-report
 import { ValuationMethod, valuationMethods } from "./valuation-method"
 import { VoucherLink } from "./voucher-link"
 
-type Mode = "items" | "period" | "invoice"
+type Mode = "items" | "period" | "itemCost" | "invoice" | "pricing"
 type GroupBy = "item" | "line" | "invoice" | "customer" | "salesman" | "group" | "branch" | "warehouse" | "day" | "month"
 
 const MODES: Record<Mode, { title: string; description: string; groupBy: GroupBy }> = {
-  items: { title: "تقرير نسبة أرباح الأصناف", description: "ربحية كل صنف خلال فترة مع تسعير الإخراجات تلقائياً حسب طريقة التسعير", groupBy: "item" },
+  items: { title: "تقرير نسبة أرباح المخزون", description: "ربحية كل صنف خلال فترة مع تسعير الإخراجات تلقائياً حسب طريقة التسعير", groupBy: "item" },
   period: { title: "تقرير أرباح فترة معينة", description: "أرباح المبيعات والمرتجعات خلال فترة بتفصيل أو تجميع حسب الحاجة", groupBy: "line" },
+  itemCost: { title: "تكلفة مبيعات صنف", description: "كلفة وربح كل حركة بيع أو مرتجع لصنف واحد خلال فترة", groupBy: "line" },
   invoice: { title: "أرباح فاتورة معينة", description: "تكلفة وربح كل صنف في فاتورة مبيعات أو مرتجع محدد", groupBy: "line" },
+  pricing: { title: "تسعير الإخراجات", description: "احتساب كلفة كل سطر مبيعات ومرتجع حسب طريقة التسعير وحفظها على السندات", groupBy: "item" },
 }
 const GROUP_OPTIONS: { value: GroupBy; label: string }[] = [
   { value: "item", label: "الصنف" }, { value: "line", label: "تفصيل الأسطر" }, { value: "invoice", label: "الفاتورة" },
@@ -54,6 +56,17 @@ export function SalesProfitReport({ mode = "items" }: { mode?: Mode }) {
   const [error, setError] = useState("")
   const [notice, setNotice] = useState("")
   const [search, setSearch] = useState("")
+  const [soldItems, setSoldItems] = useState<ReportOption[]>([])
+  const singleItem = mode === "itemCost"
+
+  // تكلفة مبيعات صنف: قائمة الأصناف التي تحركت مبيعاتها خلال الفترة (للاختيار والتنقل بين الأصناف).
+  useEffect(() => {
+    if (!singleItem || fromDate > toDate) return
+    const controller = new AbortController()
+    fetch(`/api/reports/sales-profit?sold_items=1&from_date=${fromDate}&to_date=${toDate}`, { signal: controller.signal })
+      .then((response) => response.json()).then((body) => { if (Array.isArray(body)) setSoldItems(body) }).catch(() => undefined)
+    return () => controller.abort()
+  }, [singleItem, fromDate, toDate])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -78,6 +91,7 @@ export function SalesProfitReport({ mode = "items" }: { mode?: Mode }) {
 
   const validate = () => {
     if (mode === "invoice" && !voucherCode.trim()) return "يجب إدخال رقم الفاتورة لجلب التقرير"
+    if (singleItem && selected.products.length !== 1) return "يجب اختيار صنف لجلب التقرير"
     if (mode !== "invoice" && fromDate > toDate) return "تاريخ البداية بعد تاريخ النهاية"
     if (mode !== "invoice" && !includeSales && !includeReturns) return "اختر المبيعات أو المرتجعات على الأقل"
     return ""
@@ -155,11 +169,18 @@ export function SalesProfitReport({ mode = "items" }: { mode?: Mode }) {
   }
 
   const choose = (key: keyof Meta) => (ids: number[]) => setSelected((current) => ({ ...current, [key]: ids }))
+  // تكلفة مبيعات صنف: صنف واحد فقط، مع التنقل للصنف السابق/التالي من أصناف الفترة.
+  const itemOptions = soldItems.length ? soldItems : meta.products
+  const currentItemIndex = itemOptions.findIndex((option) => Number(option.id) === selected.products[0])
+  const chooseItem = (ids: number[]) => setSelected((current) => ({ ...current, products: ids.slice(-1) }))
+  const stepItem = (offset: number) => { const next = itemOptions[currentItemIndex + offset]; if (next) chooseItem([Number(next.id)]) }
+  useEffect(() => { if (singleItem && selected.products.length === 1 && data) void loadReport() }, [selected.products])
+  const showDetails = groupBy === "line"
 
   return <ReportPage loading={loading || loadingMeta}>
-    <ReportHeader icon={TrendingUp} category="تقارير الأرباح" title={config.title} description={config.description}
+    <ReportHeader icon={mode === "pricing" ? Calculator : TrendingUp} category="تقارير كلفة وأرباح المخزون" title={config.title} description={config.description}
       actions={<>
-        <Button variant="secondary" onClick={() => void savePricing()} disabled={pricing || loading} title="حفظ الكلفة المحسوبة على أسطر السندات (تستخدمها عمولات المندوبين)">{pricing ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Calculator className="ml-2 h-4 w-4" />}تنفيذ تسعير الإخراجات</Button>
+        {mode !== "pricing" && <Button variant="secondary" onClick={() => void savePricing()} disabled={pricing || loading} title="حفظ الكلفة المحسوبة على أسطر السندات (تستخدمها عمولات المندوبين)">{pricing ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Calculator className="ml-2 h-4 w-4" />}تنفيذ تسعير الإخراجات</Button>}
         <Button variant="secondary" onClick={exportCsv} disabled={!rows.length}><Download className="ml-2 h-4 w-4" />تصدير</Button>
         <Button className="bg-white text-slate-900 hover:bg-slate-100" onClick={(event) => void printReportFrom(event.currentTarget)} disabled={!rows.length}><Printer className="ml-2 h-4 w-4" />طباعة</Button>
       </>} />
@@ -172,12 +193,15 @@ export function SalesProfitReport({ mode = "items" }: { mode?: Mode }) {
             <div><Label>إلى تاريخ</Label><Input type="date" lang="en" dir="ltr" value={toDate} onChange={(event) => setToDate(event.target.value)} className="rounded-xl" /></div>
           </>}
         <div><Label>طريقة تسعير الإخراجات</Label><ValuationMethod value={pricingWay} onChange={setPricingWay} /></div>
-        <div><Label>تجميع حسب</Label><Dropdown value={groupBy} options={GROUP_OPTIONS} optionLabel="label" optionValue="value" onChange={(event: any) => setGroupBy(event.value)} className="w-full rounded-xl" aria-label="تجميع حسب" /></div>
+        {mode === "pricing"
+          ? <label className="flex items-center gap-2 self-end pb-2 text-sm"><Checkbox checked={showDetails} onCheckedChange={(value) => setGroupBy(value === true ? "line" : "item")} />إظهار تفاصيل التكاليف</label>
+          : !singleItem && <div><Label>تجميع حسب</Label><Dropdown value={groupBy} options={GROUP_OPTIONS} optionLabel="label" optionValue="value" onChange={(event: any) => setGroupBy(event.value)} className="w-full rounded-xl" aria-label="تجميع حسب" /></div>}
+        {singleItem && <div className="sm:col-span-2"><ReportMultiChoice label={soldItems.length ? "الصنف (الأصناف المباعة خلال الفترة)" : "الصنف"} options={itemOptions} selected={selected.products} onChange={chooseItem} placeholder="اختر الصنف" /></div>}
         {mode !== "invoice" && <>
-          <ReportMultiChoice label="الصنف" options={meta.products} selected={selected.products} onChange={choose("products")} placeholder="جميع الأصناف" />
-          <ReportMultiChoice label="مجموعة الصنف" options={meta.groups} selected={selected.groups} onChange={choose("groups")} placeholder="جميع المجموعات" />
-          <ReportMultiChoice label="العميل" options={meta.customers} selected={selected.customers} onChange={choose("customers")} placeholder="جميع العملاء" />
-          <ReportMultiChoice label="المندوب" options={meta.salesmen} selected={selected.salesmen} onChange={choose("salesmen")} placeholder="جميع المندوبين" />
+          {!singleItem && <ReportMultiChoice label="الصنف" options={meta.products} selected={selected.products} onChange={choose("products")} placeholder="جميع الأصناف" />}
+          {!singleItem && <ReportMultiChoice label="مجموعة الصنف" options={meta.groups} selected={selected.groups} onChange={choose("groups")} placeholder="جميع المجموعات" />}
+          {mode !== "pricing" && <><ReportMultiChoice label="العميل" options={meta.customers} selected={selected.customers} onChange={choose("customers")} placeholder="جميع العملاء" />
+          <ReportMultiChoice label="المندوب" options={meta.salesmen} selected={selected.salesmen} onChange={choose("salesmen")} placeholder="جميع المندوبين" /></>}
           <ReportMultiChoice label="المستودع" options={meta.warehouses} selected={selected.warehouses} onChange={choose("warehouses")} placeholder="جميع المستودعات" />
           <ReportMultiChoice label="الفرع" options={meta.branches} selected={selected.branches} onChange={choose("branches")} placeholder="جميع الفروع" />
           <div className="flex items-end gap-5 pb-2 text-sm">
@@ -187,10 +211,20 @@ export function SalesProfitReport({ mode = "items" }: { mode?: Mode }) {
         </>}
       </div>
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t pt-4">
-        <p className="text-xs text-muted-foreground">يتم تسعير الإخراجات تلقائياً عند عرض التقرير (حسب حركة المخزون حتى تاريخ النهاية) — لا حاجة لتنفيذ آلية التسعير مسبقاً.</p>
-        <Button data-report-apply onClick={() => void loadReport()} disabled={loading || loadingMeta} className="min-w-36 rounded-xl bg-gradient-to-l from-indigo-600 to-violet-600 text-white shadow-lg">{loading ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Search className="ml-2 h-4 w-4" />}عرض التقرير</Button>
+        <p className="text-xs text-muted-foreground">{mode === "pricing" ? "تُحسب كلفة كل سطر لحظة خروج البضاعة حسب حركة المخزون، وتُحفظ على أسطر السندات ضمن الفلاتر المختارة." : "يتم تسعير الإخراجات تلقائياً عند عرض التقرير (حسب حركة المخزون حتى تاريخ النهاية) — لا حاجة لتنفيذ آلية التسعير مسبقاً."}</p>
+        <div className="flex gap-2">
+          {mode === "pricing" && <Button variant="outline" onClick={() => void loadReport()} disabled={loading || pricing || loadingMeta} className="rounded-xl"><Search className="ml-2 h-4 w-4" />معاينة بدون حفظ</Button>}
+          {mode === "pricing"
+            ? <Button data-report-apply onClick={() => void savePricing()} disabled={loading || pricing || loadingMeta} className="min-w-44 rounded-xl bg-gradient-to-l from-indigo-600 to-violet-600 text-white shadow-lg">{pricing ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Calculator className="ml-2 h-4 w-4" />}تنفيذ تسعير الإخراجات</Button>
+            : <Button data-report-apply onClick={() => void loadReport()} disabled={loading || loadingMeta} className="min-w-36 rounded-xl bg-gradient-to-l from-indigo-600 to-violet-600 text-white shadow-lg">{loading ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Search className="ml-2 h-4 w-4" />}عرض التقرير</Button>}
+        </div>
       </div>
     </ReportFilters>
+    {singleItem && currentItemIndex >= 0 && <div className="flex items-center justify-between gap-3 rounded-xl border bg-white px-4 py-2 text-sm print:hidden dark:bg-slate-950">
+      <Button variant="outline" size="sm" onClick={() => stepItem(-1)} disabled={currentItemIndex <= 0 || loading}><ChevronRight className="ml-1 h-4 w-4" />الصنف السابق</Button>
+      <span className="font-semibold"><span className="font-mono text-teal-700">{itemOptions[currentItemIndex]?.code}</span> — {itemOptions[currentItemIndex]?.name} <span className="text-xs text-muted-foreground">({currentItemIndex + 1} من {itemOptions.length})</span></span>
+      <Button variant="outline" size="sm" onClick={() => stepItem(1)} disabled={currentItemIndex >= itemOptions.length - 1 || loading}>الصنف التالي<ChevronLeft className="mr-1 h-4 w-4" /></Button>
+    </div>}
     {error && <p className="rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{error}</p>}
     {notice && <p className="flex items-center gap-2 rounded-xl bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700"><CheckCircle2 className="h-4 w-4" />{notice}</p>}
     {totals?.unpriced_lines > 0 && <p className="flex items-center gap-2 rounded-xl bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800 print:hidden"><AlertTriangle className="h-4 w-4 shrink-0" />{fmt(totals.unpriced_lines, 0)} من {fmt(totals.lines, 0)} سطر لا توجد لأصنافها كلفة معروفة (لا مشتريات ولا سعر أول المدة) — احتُسبت تكلفتها صفراً.</p>}
@@ -222,3 +256,5 @@ export function SalesProfitReport({ mode = "items" }: { mode?: Mode }) {
 export const ItemsProfitReport = () => <SalesProfitReport mode="items" />
 export const PeriodProfitReport = () => <SalesProfitReport mode="period" />
 export const InvoiceProfitReport = () => <SalesProfitReport mode="invoice" />
+export const ItemSalesCostReport = () => <SalesProfitReport mode="itemCost" />
+export const PricingInventoryPage = () => <SalesProfitReport mode="pricing" />

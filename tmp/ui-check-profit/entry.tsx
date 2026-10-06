@@ -8,8 +8,9 @@ const rows = [
 ]
 window.fetch = ((url: string, init?: any) => {
   const u = String(url)
+  if (u.includes('sold_items=1')) return json([{ id: 1, code: 'D1', name: 'سكر أبيض' }, { id: 2, code: 'D2', name: 'زيت ذرة' }])
   if (u.includes('meta=1')) return json({ products: [{ id: 1, code: 'D1', name: 'سكر' }], groups: [], warehouses: [{ id: 1, code: '1', name: 'الرئيسي' }], branches: [], customers: [], salesmen: [] })
   if (init?.method === 'POST') return json({ updated: 21, unpriced: 2 })
   return json({ rows, totals: { sale_total: 1130, cost_total: 764, bonus_cost: 19.2, profit: 262.5, lines: 23, unpriced_lines: 2, profit_margin: 23.2 }, group_by: 'item' })
 }) as any
-createRoot(document.getElementById('root')!).render(<div style={{ height: '100vh', display: 'flex' }}><SalesProfitReport mode="items" /></div>)
+createRoot(document.getElementById('root')!).render(<div style={{ height: '100vh', display: 'flex' }}><SalesProfitReport mode={(new URLSearchParams(location.search).get("mode") || "items") as any} /></div>)

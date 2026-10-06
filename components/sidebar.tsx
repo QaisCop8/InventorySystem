@@ -347,12 +347,14 @@ export const menuItems: MenuItem[] = [
   },
   {
     id: "profit-reports",
-    title: "تقارير الأرباح",
+    title: "تقارير كلفة وأرباح المخزون",
     icon: TrendingUp,
     submenu: [
-      { title: "تقرير نسبة أرباح الأصناف", section: "items-profit-report", icon: TrendingUp },
-      { title: "تقرير أرباح فترة معينة", section: "period-profit-report", icon: BarChart3 },
+      { title: "تقرير نسبة أرباح المخزون", section: "items-profit-report", icon: TrendingUp },
+      { title: "تقرير ارباح فترة معينة", section: "period-profit-report", icon: BarChart3 },
+      { title: "تكلفة مبيعات صنف", section: "item-sales-cost-report", icon: Package },
       { title: "أرباح فاتورة معينة", section: "invoice-profit-report", icon: FileText },
+      { title: "تسعير الإخراجات", section: "pricing-inventory", icon: DollarSign },
     ],
   },
   {
