@@ -17,7 +17,7 @@ import TransactionBranchField from "@/components/common/transaction-branch-field
 import { useWorkspace } from "@/contexts/workspace-context"
 import * as wjcCore from '@grapecity/wijmo';
 import { Toast } from 'primereact/toast';
-import * as XLSX from "xlsx";
+import { VoucherLinesImportDialog } from "@/components/import/voucher-lines-import";
 import { FlexGrid } from '@grapecity/wijmo.react.grid';
 import {
   Plus,
@@ -54,6 +54,8 @@ import MeasurementInputDialog from "@/components/common/MeasurementInputDialog"
 import { stat } from "fs"
 import { set } from "date-fns"
 import React from "react"
+import { useWorkspaceTabActive } from "@/contexts/workspace-tab-context"
+import { screenHotkeysAllowed } from "@/lib/hotkeys"
 
 const ORDER_ITEM_STATUS_OPTIONS = [
   { value: 1, label: "غير جاهز" },
@@ -317,6 +319,7 @@ function UnifiedSalesOrder({
   vch_type,
   fromSearch = false,
 }: UnifiedSalesOrderProps) {
+  const workspaceTabActive = useWorkspaceTabActive()
   const { activeBranchId, user } = useAuth()
   const { fullscreenEnabled } = useWorkspace()
   const {
@@ -740,34 +743,13 @@ function UnifiedSalesOrder({
     return { ...definitionsObj, defaultVoucherBook: defaultBookName }
   }
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
+    const handleKeyDown = (e: KeyboardEvent) => { if (!workspaceTabActive.current) return;
       // F2 for customer search
-      if (e.key === "F2" && !e.ctrlKey && !e.altKey) {
+      if (e.key === "F2" && !e.ctrlKey && !e.altKey && screenHotkeysAllowed()) {
         e.preventDefault()
         setState((prev) => ({ ...prev, showCustomerSearch: true }))
       }
-      // F3 saves the current transaction.
-      if (e.key === "F3" && !e.ctrlKey && !e.altKey) {
-        e.preventDefault()
-        ;(document.activeElement as HTMLElement)?.blur()
-        handleSave()
-        return
-      }
-      if (e.key === "F5" && !e.ctrlKey && !e.altKey) {
-        e.preventDefault()
-        handleNewRecord(true)
-        return
-      }
-      if (e.key === "F8" && !e.ctrlKey && !e.altKey) {
-        e.preventDefault()
-        if (state.formData.id > 0 && [1, 2].includes(Number(state.formData.order_status))) handleDeleteClick(false)
-        return
-      }
-      if (e.key === "F9" && !e.ctrlKey && !e.altKey) {
-        e.preventDefault()
-        if (state.formData.id > 0) handlePrint()
-        return
-      }
+      // F3/Ctrl+S حفظ، F9 حذف، F4 نسخ، F5 جديد، Ctrl+P طباعة: UniversalToolbar (lib/hotkeys.ts)
       // Escape to close search
       if (e.key === "Escape") {
         setState((prev) => ({
@@ -777,11 +759,6 @@ function UnifiedSalesOrder({
           activeItemId: null,
           showLotSelector: false,
         }))
-      }
-      // Ctrl+S for save
-      if (e.key === "s" && e.ctrlKey) {
-        e.preventDefault()
-        handleSave()
       }
     }
 
@@ -2636,7 +2613,7 @@ function UnifiedSalesOrder({
   }
 
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
+    const handler = (e: KeyboardEvent) => { if (!workspaceTabActive.current) return;
       if (!doHotKeys.current) return;
 
       if (e.key === "Enter" && skipNextEnterRef.current) {
@@ -2675,21 +2652,7 @@ function UnifiedSalesOrder({
         }
         return;
       }
-      if (e.key === "F3") {
-        e.preventDefault();
-
-        // Blur the active element to commit any input changes
-        (document.activeElement as HTMLElement)?.blur();
-
-        // Now state has the latest values from all inputs
-        handleSave();
-      }
-
-      if (e.key === "F4") {
-        e.preventDefault();
-        handleDelete();
-      }
-
+      // F3 حفظ / F9 حذف / F4 نسخ: UniversalToolbar (lib/hotkeys.ts)
       if (e.key === "ESC") {
         e.preventDefault();
         onCancel();
@@ -2730,71 +2693,13 @@ function UnifiedSalesOrder({
       return;
     }
     reset_order();
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = ".xlsx,.xls"; // Only Excel files
-    input.onchange = (event: Event) => {
-      const target = event.target as HTMLInputElement;
-      if (target.files && target.files.length > 0) {
-        const file = target.files[0];
-        handleImportExcel(file); // Your function to read Excel and populate collectionView
-      }
-    };
-    input.click();
+    setExcelLinesOpen(true);
   }
-  const handleImportExcel = async (file: File) => {
-    try {
-      setLoading(true);
-      setFromExcelRef.current = true
-      const data = await file.arrayBuffer();
-      const workbook = XLSX.read(data, { type: "array" });
-      const firstSheetName = workbook.SheetNames[0];
-      const sheet = workbook.Sheets[firstSheetName];
-      const rows: any[] = XLSX.utils.sheet_to_json(sheet, { defval: "" });
-
-      if (!rows || rows.length === 0) {
-        alert("الملف فارغ أو لا يحتوي على بيانات صالحة");
-        return;
-      }
-
-      const importedProducts = await Promise.all(
-        rows.map(async (row) => {
-          const codeOrBarcode = row["رقم الصنف"] || row["barcode"] || row["code"];
-          if (!codeOrBarcode) return null;
-
-          const product = await fetchProductByCodeOrBarcode(codeOrBarcode);
-          if (!product) {
-            console.warn(`المنتج غير موجود: ${codeOrBarcode}`);
-            return null;
-          }
-
-          // Update fields from Excel
-          product.price = row["السعر"] || row["price"] || row["Price"] || product.price;
-          product.qnty = row["الكمية"] || row["quantity"] || row["qnty"] || 1;
-          product.bonus = row["البونص"] || row["بونص"] || row["bonus"] || 0;
-          product.batch = row["الرقم التشغيلي"] || row["batch"] || '';
-          return product;
-        })
-      );
-
-      // Filter out nulls (products not found)
-      const validProducts = importedProducts.filter((p): p is Product => p !== null);
-      // Fill items into CollectionView
-      if (validProducts.length > 0) {
-        FillItem(validProducts);
-
-      }
-      // Update CollectionView
-      //collectionView.sourceCollection = products;
-
-    } catch (err) {
-      console.error("خطأ أثناء استيراد Excel:", err);
-      alert("حدث خطأ أثناء قراءة ملف Excel.");
-    }
-    finally {
-      setLoading(false);
-
-    }
+  // استيراد الأسطر من Excel بالمحرك الموحّد: مطابقة الأعمدة ومراجعة الأصناف غير الموجودة قبل إضافتها للشبكة
+  const [excelLinesOpen, setExcelLinesOpen] = useState(false);
+  const importExcelLines = async (products: Product[]) => {
+    setFromExcelRef.current = true
+    await FillItem(products);
   };
   const filteredCustomers = state.customers.filter(
     (customer) =>
@@ -3296,6 +3201,7 @@ function UnifiedSalesOrder({
 
           <div className="min-w-0 space-y-3 rounded-b-3xl bg-slate-50/60 px-3 py-2 sm:px-4 sm:py-3">
             <Toast ref={toast} position={'top-left'} className="erp-toast-host" style={{ top: 100, whiteSpace: 'pre-line' }} />
+            <VoucherLinesImportDialog<Product> open={excelLinesOpen} onOpenChange={setExcelLinesOpen} priceCategoryId={priceCategoryIdRef.current} resolveProduct={fetchProductByCodeOrBarcode} onLines={importExcelLines} />
             <ProgressSpinner loading={loading} />
 
             <ProductSearchPopup

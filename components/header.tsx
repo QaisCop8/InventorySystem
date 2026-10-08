@@ -297,7 +297,7 @@ export function Header({ onMenuClick, activeSection, onSettingsClick, onSectionC
       </div>
 
       {/* Right: Search, notifications, user */}
-      <div className="flex items-center gap-2 md:gap-4 shrink-0">
+      <div className="flex items-center gap-0.5 sm:gap-2 md:gap-4 shrink-0">
         {/* Branch / Department context */}
         <div className="hidden xl:flex items-center gap-2 rounded-md border border-border bg-muted/50 px-2 py-1.5">
           <select
@@ -414,7 +414,7 @@ export function Header({ onMenuClick, activeSection, onSettingsClick, onSectionC
               </div>
             </RefButton>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48 md:w-56">
+          <DropdownMenuContent align="end" className="w-64 md:w-56">
             <DropdownMenuLabel>
               <div className="flex flex-col space-y-1 text-right">
                 <p className="text-sm font-medium leading-none">{user?.fullName}</p>
@@ -422,6 +422,40 @@ export function Header({ onMenuClick, activeSection, onSettingsClick, onSectionC
                 <p className="text-xs leading-none text-muted-foreground">{user?.email}</p>
               </div>
             </DropdownMenuLabel>
+
+            {/* الشاشات الصغيرة: الفرع والشركة مخفيان من الشريط العلوي، فيُعرضان هنا. */}
+            <div className="space-y-2 border-t px-2 py-2 text-right xl:hidden" dir="rtl" onKeyDown={(event) => event.stopPropagation()}>
+              <label className="block text-xs text-muted-foreground">
+                الفرع
+                <select
+                  className="mt-1 block w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm text-foreground"
+                  value={activeBranchId?.toString() || ""}
+                  onChange={(event) => {
+                    const selected = branches.find((branch) => branch.id === Number(event.target.value));
+                    if (selected) setActiveBranchContext({ id: selected.id, name: selected.branch_name });
+                  }}
+                  disabled={isLoadingBranches || branches.length === 0}
+                >
+                  {branches.length === 0 ? <option value="">لا توجد فروع</option> : branches.map((branch) => <option key={branch.id} value={branch.id}>{branch.branch_name}</option>)}
+                </select>
+              </label>
+              {myCompanies.length > 0 && (
+                <label className="block text-xs text-muted-foreground">
+                  الشركة
+                  <select
+                    className="mt-1 block w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm text-foreground"
+                    value={currentCompanyId ?? ""}
+                    onChange={(e) => handleCompanyChange(Number(e.target.value))}
+                    disabled={!!switchingCompanyName}
+                  >
+                    {myCompanies.map((c) => {
+                      const expired = isCompanyExpired(c);
+                      return <option key={c.id} value={c.id} disabled={c.status !== "approved" || expired}>{c.name}{expired ? " (منتهي الاشتراك)" : c.status !== "approved" ? " (غير جاهزة)" : ""}</option>;
+                    })}
+                  </select>
+                </label>
+              )}
+            </div>
 
             <DropdownMenuSeparator />
 

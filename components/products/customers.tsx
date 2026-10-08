@@ -227,7 +227,12 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
   // مندوب=3، مشترك=4. كان الكود سابقاً يفترض في عدة أماكن أن "ليس مورداً" تعني "عميل" حصراً،
   // فيُخطئ في شاشتي المندوبين والمشتركين (يحفظ/يبحث/يولّد رقماً بنوع "عميل" بدلاً من نوعها الفعلي).
   const entityTypeCode = isSupplier ? 2 : isSubscriber ? 4 : isSalesman ? 3 : 1
-  const entityTypeLabel = isSupplier ? "المورد" : isSubscriber ? "المشترك" : isSalesman ? "المندوب" : "الزبون"
+  const entityTypeLabel = isSupplier ? "المورد" : isSubscriber ? "المشترك" : isSalesman ? "المندوب" : "العميل"
+  const parentAccountLabel = isSupplier ? "للموردين" : isSubscriber ? "للمشتركين" : isSalesman ? "للمندوبين" : "للعملاء"
+  // نصوص الشاشة حسب نوع الجهة (عميل/مورد/مشترك/مندوب) — نفس المكوّن يخدم الأنواع الأربعة.
+  const entityPlural = isSupplier ? "الموردين" : isSubscriber ? "المشتركين" : isSalesman ? "المندوبين" : "العملاء"
+  const entityPluralIndef = isSupplier ? "مورّدين" : isSubscriber ? "مشتركين" : isSalesman ? "مندوبين" : "عملاء"
+  const entitySingleIndef = isSupplier ? "مورد" : isSubscriber ? "مشترك" : isSalesman ? "مندوب" : "عميل"
   const [customers, setCustomers] = useState<Customer[]>([])
   const [isloading, setIsLoading] = useState(false)
   const toast = useRef(null);
@@ -871,7 +876,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
 
   });
 
-  // الحساب الاب الافتراضي لكل سجل جديد يُقرأ مرة واحدة من إعدادات النظام حسب نوع هذه الشاشة (زبون/
+  // الحساب الاب الافتراضي لكل سجل جديد يُقرأ مرة واحدة من إعدادات النظام حسب نوع هذه الشاشة (عميل/
   // مورد/مشترك/مندوب) — بدل تركه فارغاً دوماً كما كان، مما كان يجبر كل مستخدم على اختياره يدوياً في
   // كل مرة رغم وجود قيمة افتراضية واحدة ثابتة لكل نوع مُعرَّفة مسبقاً في إعدادات النظام.
   const defaultParentAccountRef = useRef("")
@@ -930,7 +935,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
       const res = await fetch(url.toString());
       const customer = await res.json();
       if (!res.ok) {
-        setPopupMessage({ severity: "error", detail: customer?.error || "تعذر تحميل سجل العميل" })
+        setPopupMessage({ severity: "error", detail: customer?.error || `تعذر تحميل سجل ${entityTypeLabel}` })
         return
       }
       console.log("navigationType ", navigationType)
@@ -961,7 +966,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
 
     } catch (err) {
       console.error("Error loading customer:", err);
-      setPopupMessage({ severity: "error", detail: "تعذر تحميل سجل العميل" })
+      setPopupMessage({ severity: "error", detail: `تعذر تحميل سجل ${entityTypeLabel}` })
     }
   };
 
@@ -1035,13 +1040,23 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
     const errors: Record<string, string> = {}
 
     if (!formData.name.trim()) {
-      errors.customer_name = "اسم الزبون مطلوب"
+      errors.customer_name = `اسم ${entityTypeLabel} مطلوب`
     }
 
     const currencyId = formData.currency_id ? Number(formData.currency_id) : 0
     if (!currencyId || currencyId <= 0) {
       errors.currency_id = "يجب تحديد العملة"
       setPopupMessage({ severity: "error", detail: "يجب تحديد العملة" })
+    }
+
+    // الحساب الرئيسي (تابع ل) إلزامي لكل عميل/مورد/مشترك/مندوب — يُعبَّأ تلقائياً لسجل جديد من
+    // "الحسابات الافتراضية"، فإن لم يكن معرَّفاً هناك يُوجَّه المستخدم لتعريفه أولاً.
+    if (!Number(formData.father_id || 0)) {
+      const message = defaultParentAccountRef.current
+        ? "يجب اختيار الحساب الرئيسي (تابع ل) في تبويب المعلومات المالية والضريبية"
+        : `يجب الذهاب الى الحسابات الافتراضية واختيار حساب الاب ${parentAccountLabel}`
+      errors.father_id = message
+      setPopupMessage({ severity: "error", detail: message })
     }
 
     /*if (!formData.mobile1.trim()) {
@@ -1058,7 +1073,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
     (formData.voucherType ?? []).forEach((v, index) => {
       if (typeSet.has(v.type_id)) {
 
-        const message = "لا يمكن تكرار نفس نوع السند في دفاتر السندات الافتراضية للزبون"
+        const message = "لا يمكن تكرار نفس نوع السند في دفاتر السندات الافتراضية للعميل"
         setPopupMessage({ severity: "error", detail: message })
         errors.vocherType = message
       } else {
@@ -1085,7 +1100,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
           const data = await response.json();
           const allRecords = Array.isArray(data) ? data : data.customers || [];
           const filteredRecords = allRecords.filter((record: { type: number }) =>
-            isSupplier ? record.type === 2 : record.type === 1
+            Number(record.type ?? 1) === entityTypeCode
           );
           filteredRecords.sort((a: Customer, b: Customer) => a.id - b.id);
           setCustomers(filteredRecords);
@@ -1095,11 +1110,11 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
               setCurrentCustomerId((currentId) => currentId || Number(filteredRecords[0].id));
           }
         } else {
-          setError(isSupplier ? "فشل في تحميل بيانات الموردين" : "فشل في تحميل بيانات الزبائن");
+          setError(`فشل في تحميل بيانات ${entityPlural}`);
         }
       } catch (error) {
         console.error("Error fetching data:", error);
-        setError(isSupplier ? "حدث خطأ في تحميل الموردين" : "حدث خطأ في تحميل الزبائن");
+        setError(`حدث خطأ في تحميل ${entityPlural}`);
       } finally {
         if (!silent) setIsLoading(false);
       }
@@ -1277,7 +1292,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
     } catch (error) {
       console.error("Error searching customer by code:", error);
       // Optionally show error message
-      setError("حدث خطأ في البحث عن العميل");
+      setError(`حدث خطأ في البحث عن ${entityTypeLabel}`);
     }
   }
 
@@ -1294,7 +1309,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
     setError(null);
 
     try {
-      // PUT الحقيقي لتحديث الزبائن معرَّف على /api/customers (المعرّف id يُقرأ من جسم الطلب، لا من
+      // PUT الحقيقي لتحديث العملاء معرَّف على /api/customers (المعرّف id يُقرأ من جسم الطلب، لا من
       // المسار) — لا يوجد PUT إطلاقاً على /api/customers/[id]، فكان استهدافه هنا يُسبّب 405 Method
       // Not Allowed عند تعديل أي سجل موجود (id > 0).
       const url = "/api/customers";
@@ -1388,7 +1403,8 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
         let errorMessage = response.statusText;
         try {
           const errorData = await response.json();
-          if (errorData?.message) errorMessage = errorData.message;
+          // الخادم يُرجع سبب الفشل في error (وأحياناً message) — بدونها يظهر فقط "Internal Server Error".
+          if (errorData?.error || errorData?.message) errorMessage = errorData.error || errorData.message;
         } catch (err) {
           // ignore
         }
@@ -1401,7 +1417,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
       const savedCustomer = await response.json();
 
       if (savedCustomer?.success === false) {
-        const message = savedCustomer?.message || "حدث خطأ أثناء حفظ بيانات العميل";
+        const message = savedCustomer?.message || `حدث خطأ أثناء حفظ بيانات ${entityTypeLabel}`;
         throw new Error(message);
       }
 
@@ -1422,7 +1438,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
         severity: "error",
         detail: typeof errorDataOrError === "object" && errorDataOrError !== null && "message" in errorDataOrError
           ? (errorDataOrError as Error).message
-          : "حدث خطأ أثناء حفظ بيانات العميل",
+          : `حدث خطأ أثناء حفظ بيانات ${entityTypeLabel}`,
       })
 
       return false;
@@ -1435,7 +1451,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
   const handleDeleteClick = (checkPermission = true) => {
     if (currentCustomerId <= 0) return;
     if (checkPermission && !hasPermission("products-edit")) {
-      setPopupMessage({ severity: "error", detail: "لا يوجد لديك صلاحية حذف زبون" })
+      setPopupMessage({ severity: "error", detail: "لا يوجد لديك صلاحية حذف عميل" })
       return;
     }
 
@@ -1490,13 +1506,26 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
 
   // لقطة السجل كما حُمِّل/فُرِّغ آخر مرة — null = لا سجل مفتوح بعد (لا شيء للمقارنة).
   const baselineSnapshotRef = useRef<string | null>(null);
+  // آخر القيم الافتراضية التي وضعتها النافذة لسجل جديد (كالعملة) — تُدمَج في لقطة أي سجل جديد
+  // لاحق لأن النافذة قد تضعها قبل أخذ اللقطة (أثناء انتظار توليد الرقم بعد الحفظ) فلا تُحتسب تعديلاً.
+  const formDefaultsRef = useRef<Partial<CustomerFormData>>({});
+  const withNewRecordDefaults = (data: Partial<CustomerFormData>) => {
+    if (Number(data.id || 0) > 0) return data;
+    const merged: Record<string, any> = { ...data };
+    for (const [key, value] of Object.entries(formDefaultsRef.current)) {
+      if (merged[key] == null || merged[key] === "") merged[key] = value;
+    }
+    return merged as Partial<CustomerFormData>;
+  };
   const markFormClean = (data: Partial<CustomerFormData>) => {
-    baselineSnapshotRef.current = buildCustomerDirtySnapshot(data);
+    baselineSnapshotRef.current = buildCustomerDirtySnapshot(withNewRecordDefaults(data));
   };
   const isFormDirty = () =>
     baselineSnapshotRef.current !== null && buildCustomerDirtySnapshot(formDataRef.current) !== baselineSnapshotRef.current;
 
   const askToSaveChanges = (action: () => void | Promise<void>) => {
+    // تنبيه مفتوح بالفعل: لا يُستبدَل إجراؤه المؤجَّل بإجراء لاحق.
+    if (pendingActionRef.current) return;
     pendingActionRef.current = action;
     setShowUnsaved(true);
     popupHasCalled();
@@ -1510,9 +1539,10 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
   // قيم افتراضية تضعها النافذة نفسها (كالعملة الافتراضية لسجل جديد) — ليست تعديلاً من المستخدم،
   // فإن كان النموذج غير مُعدَّل قبلها يبقى كذلك بعدها.
   const applyFormDefaults = useCallback((patch: Partial<CustomerFormData>) => {
+    formDefaultsRef.current = { ...formDefaultsRef.current, ...patch };
     setFormData((prev) => {
       const next = { ...prev, ...patch };
-      if (baselineSnapshotRef.current !== null && buildCustomerDirtySnapshot(prev) === baselineSnapshotRef.current) {
+      if (baselineSnapshotRef.current !== null && buildCustomerDirtySnapshot(withNewRecordDefaults(prev)) === baselineSnapshotRef.current) {
         baselineSnapshotRef.current = buildCustomerDirtySnapshot(next);
       }
       return next;
@@ -1737,13 +1767,16 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
     <div className="w-full p-6 space-y-6" dir="rtl">
       {/* Success Message */}
       <ConfirmDialogYesNo
+        useAppDialog
         visible={showConfirm}
         onConfirm={confirmDelete}
         onCancel={() => { setShowConfirm(false); popupHasClosed() }}
+        title="تأكيد الحذف"
         message="هل تريد حذف هذا السجل؟"
       />
 
       <ConfirmDialogYesNo
+        useAppDialog
         visible={showUnsaved}
         onConfirm={async () => {
           // نعم: حفظ ثم متابعة الإجراء المؤجَّل — فقط إن نجح الحفظ (وإلا يبقى المستخدم على سجله).
@@ -1760,6 +1793,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
           setShowUnsaved(false); popupHasClosed();
           if (action) await action()
         }}
+        title="حفظ التعديلات"
         message="تم تعديل السجل هل تريد الحفظ؟"
         onBack={() => { pendingActionRef.current = null; setShowUnsaved(false); popupHasClosed(); }}
         showBack={true}
@@ -1771,11 +1805,11 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
 
       {/* Header */}
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">{isSupplier ? "إدارة الموردين" : "إدارة الزبائن"} </h1>
+        <h1 className="text-3xl font-bold">{`إدارة ${entityPlural}`} </h1>
         <div className="flex gap-2">
           <Button onClick={() => handleNewCustomer(false)} className="flex items-center gap-2">
             <Plus className="h-4 w-4" />
-            {isSupplier ? "مورد جديد" : "زبون جديد"}
+            {`${entitySingleIndef} جديد`}
           </Button>
           <Button
             variant="outline"
@@ -1794,7 +1828,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
             </DialogTrigger>
             <DialogContent className="max-w-4xl">
               <DialogHeader>
-                <DialogTitle>تقارير الزبائن</DialogTitle>
+                <DialogTitle>تقارير العملاء</DialogTitle>
               </DialogHeader>
               <div className="p-4">
                 <p>سيتم إضافة التقارير هنا</p>
@@ -1810,7 +1844,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-blue-700">{isSupplier ? "إجمالي الموردين" : "إجمالي الزبائن"}</p>
+                <p className="text-sm font-medium text-blue-700">{`إجمالي ${entityPlural}`}</p>
                 <p className="text-3xl font-bold text-blue-900">{statistics.total}</p>
               </div>
               <div className="h-10 w-10 bg-blue-200 rounded-full flex items-center justify-center">
@@ -1824,7 +1858,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-green-700"> {isSupplier ? "الموردين النشطين" : "الزبائن النشطين"}</p>
+                <p className="text-sm font-medium text-green-700"> {`${entityPlural} النشطين`}</p>
                 <p className="text-3xl font-bold text-green-900">{statistics.active}</p>
               </div>
               <div className="h-10 w-10 bg-green-200 rounded-full flex items-center justify-center">
@@ -1838,7 +1872,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-red-700">{isSupplier ? "الموردين غير النشطين" : "الزبائن غير النشطين"}</p>
+                <p className="text-sm font-medium text-red-700">{`${entityPlural} غير النشطين`}</p>
                 <p className="text-3xl font-bold text-red-900">{statistics.inactive}</p>
               </div>
               <div className="h-10 w-10 bg-red-200 rounded-full flex items-center justify-center">
@@ -1852,7 +1886,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-purple-700">{isSupplier ? "مورّدين VIP" : "زبائن VIP"}</p>
+                <p className="text-sm font-medium text-purple-700">{`${entityPluralIndef} VIP`}</p>
                 <p className="text-3xl font-bold text-purple-900">{statistics.vip}</p>
               </div>
               <div className="h-10 w-10 bg-purple-200 rounded-full flex items-center justify-center">
@@ -1874,7 +1908,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
-              <Label htmlFor="search-name"> {isSupplier ? "اسم المورد" : "اسم الزبون"}</Label>
+              <Label htmlFor="search-name"> {`اسم ${entityTypeLabel}`}</Label>
               <Input
                 id="search-name"
                 value={searchFilters.name}
@@ -1954,7 +1988,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
       <Card>
         <CardHeader>
           <CardTitle>
-            {isSupplier ? `قائمة الموردين (${filteredCustomers.length})` : `قائمة الزبائن (${filteredCustomers.length})`}
+            {`قائمة ${entityPlural} (${filteredCustomers.length})`}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -1964,10 +1998,10 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
                 <tr className="bg-gray-50">
                   <th className="border border-gray-300 px-4 py-2 text-right w-12"></th>
                   <th className="border border-gray-300 px-4 py-2 text-right">
-                    {isSupplier ? "رقم المورد" : "رقم الزبون"}
+                    {`رقم ${entityTypeLabel}`}
                   </th>
                   <th className="border border-gray-300 px-4 py-2 text-right">
-                    {isSupplier ? "اسم المورد" : "اسم الزبون"}
+                    {`اسم ${entityTypeLabel}`}
                   </th>
                   <th className="border border-gray-300 px-4 py-2 text-right">الجوال</th>
                   <th className="border border-gray-300 px-4 py-2 text-right">المدينة</th>
@@ -2057,6 +2091,9 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
       >
         <DialogContent inline={fullscreenEnabled && showNewCustomerDialog} className="h-[86dvh] max-h-[86dvh] w-[96vw] max-w-[1400px] overflow-hidden p-0 sm:h-[84dvh] sm:max-h-[84dvh]" dir="rtl"
           onPointerDownOutside={(event) => event.preventDefault()}
+          // نوافذ التأكيد (حفظ التعديلات/الحذف) تُفتح خارج شجرة هذه النافذة، فانتقال التركيز إليها
+          // كان يُعدّ "تفاعلاً خارجياً" يُغلق النافذة ويستبدل الإجراء المؤجَّل (جديد) بإجراء الإغلاق.
+          onInteractOutside={(event) => event.preventDefault()}
           onEscapeKeyDown={(event) => event.preventDefault()}
         >
           <div className="flex h-full min-h-0 flex-col overflow-hidden bg-background">
@@ -2068,6 +2105,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
               }}
               isSupplier={!!isSupplier}
               isSalesman={!!isSalesman}
+              isSubscriber={!!isSubscriber}
               showCustomerSearch={showCustomerSearch}
               setShowCustomerSearch={setShowCustomerSearch}
               formData={formData}

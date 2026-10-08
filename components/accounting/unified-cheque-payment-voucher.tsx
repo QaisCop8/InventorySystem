@@ -19,6 +19,7 @@ import AutoCompleteAccount from "@/components/customer/auto-complete-account"
 import { useVoucherDeepLink } from "@/hooks/use-voucher-deep-link"
 import { useAuth } from "@/components/auth/auth-context"
 import { useWorkspace } from "@/contexts/workspace-context"
+import { useWorkspaceTabActive } from "@/contexts/workspace-tab-context"
 
 type Cheque = { status_id?: number; status_name?: string; id: number; cheque_id?: number; cheq_num: string; amount: number; due_date?: string; currency_id?: number; currency_code?: string; bank_name?: string; branch_name?: string; customer_name?: string; customer_code?: string }
 type Voucher = { id: number; vch_code: string; vch_date: string; vch_book_id: number | null; amount: number; status: number; account_id: number | null; account_code?: string; account_name?: string; currency_id: number | null; branch_id: number | null; note?: string; cheques: Cheque[] }
@@ -91,6 +92,7 @@ function ChequeSearch({ open, onOpenChange, currencyId, excluded, onSelect }: { 
 }
 
 export default function UnifiedChequePaymentVoucher() {
+  const workspaceTabActive = useWorkspaceTabActive()
     const [postDialogOpen, setPostDialogOpen] = useState(false)
     const [printData, setPrintData] = useState<VoucherPrintData | null>(null)
     const savingRef = useRef(false)
@@ -100,17 +102,7 @@ export default function UnifiedChequePaymentVoucher() {
     const load = async () => { setLoading(true); try { const response = await fetch("/api/cheque-payment-vouchers", { cache: "no-store" }); const data = await response.json(); if (!response.ok) throw new Error(data.error); setRows(data.rows || []); setMeta(data.meta || emptyMeta) } catch (reason) { setError(reason instanceof Error ? reason.message : "تعذر التحميل") } finally { setLoading(false) } }
     const loadBooks = async () => { try { const query = user?.id ? `?vch_type=21&user_id=${encodeURIComponent(user.id)}` : "?vch_type=21"; const response = await fetch(`/api/receipts/voucher-books${query}`); const data = await response.json(); if (!response.ok) throw new Error(data.error || "تعذر تحميل دفاتر السندات"); const books = Array.isArray(data.books) ? data.books : []; setVoucherBooks(books); setDefaultBookId(data.default_book_id || books[0]?.id || null); if (!books.length) setError("لا يوجد دفتر سندات مصرح به لسند صرف الشيكات") } catch (reason) { setVoucherBooks([]); setDefaultBookId(null); setError(reason instanceof Error ? reason.message : "تعذر تحميل دفاتر السندات") } }
     useEffect(() => { void load(); void loadBooks() }, [user?.id])
-    useEffect(() => {
-        if (!dialogOpen || searchOpen || postDialogOpen || deleteConfirm || saving) return
-        const handler = (event: KeyboardEvent) => {
-            const activeDialog = (event.target as HTMLElement | null)?.closest?.('[role="dialog"]')
-            if (activeDialog && !activeDialog.classList.contains("cheque-payment-editor")) return
-            if (event.key === "F3" && form.status === 1) { event.preventDefault(); setPostDialogOpen(true) }
-            if ((event.key === "F9" || event.key === "Delete") && form.id) { event.preventDefault(); remove() }
-        }
-        window.addEventListener("keydown", handler)
-        return () => window.removeEventListener("keydown", handler)
-    }, [dialogOpen, searchOpen, form, saving, postDialogOpen, deleteConfirm])
+    // F3 حفظ / F9 حذف وبقية الاختصارات الموحّدة يتولاها UniversalToolbar (lib/hotkeys.ts)
     const openRecord = async (id: number) => { setLoading(true); try { const response = await fetch(`/api/cheque-payment-vouchers/${id}`); const data = await response.json(); if (!response.ok) throw new Error(data.error); setForm({ ...data, cheques: data.cheques || [] }); setCurrentIndex(Math.max(0, rows.findIndex(row => Number(row.id) === id))); setDialogOpen(true) } catch (reason) { setError(reason instanceof Error ? reason.message : "تعذر عرض السند") } finally { setLoading(false) } }
     const generateCode = async (bookId: number) => { try { const response = await fetch(`/api/cheque-payment-vouchers/generate-number?vch_book_id=${bookId}`); const data = await response.json(); if (!response.ok || !data.code) { setError(data.error || "تعذر توليد رقم السند"); return } setForm(current => ({ ...current, vch_book_id: bookId, vch_code: data.code })) } catch { setError("تعذر توليد رقم السند") } }
     const handleBookChange = (value: number | null) => { setForm(current => ({ ...current, vch_book_id: value, vch_code: "" })); if (value && !form.id) void generateCode(value) }

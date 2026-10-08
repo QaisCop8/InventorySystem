@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { ShieldAlert, SaveAll, Sparkles } from "lucide-react";
 import React, { useEffect, useRef } from "react";
 import { Dialog as AppDialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { useWorkspaceTabActive } from "@/contexts/workspace-tab-context"
 
 interface ConfirmDialogProps {
   visible: boolean;
@@ -39,6 +40,7 @@ const ConfirmDialogYesNo: React.FC<ConfirmDialogProps> = ({
   backLabel,
   onDismiss,
 }) => {
+  const workspaceTabActive = useWorkspaceTabActive()
 
   // أول Escape لا يُغلق النافذة — فقط "يُسلّحها"، ويُغلقها الضغط الثاني المتتالي. هذا يمنع
   // إغلاقها فوراً وبشكل غير مقصود بنفس ضغطة الـ Escape التي فتحتها (مثلاً عند تعليق حفظ التغييرات).
@@ -51,7 +53,7 @@ const ConfirmDialogYesNo: React.FC<ConfirmDialogProps> = ({
   useEffect(() => {
     if (!visible || busy) return;
 
-    const handleKeyDown = (e: KeyboardEvent) => {
+    const handleKeyDown = (e: KeyboardEvent) => { if (!workspaceTabActive.current) return;
       if (e.key === "F3") {
         e.preventDefault();
         e.stopPropagation();

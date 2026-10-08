@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
+import { CompanyLicenseBar, LicenseRequestsPanel } from "@/components/management/company-license-admin"
 import { Loader2, ShieldAlert, Check, X, ArrowRight, UserCheck, UserX, Ban, RefreshCw, Clock, Plus, Trash2, Edit } from "lucide-react"
 
 interface PendingCompany {
@@ -23,6 +24,10 @@ interface AllCompany {
   db_name?: string | null
   requested_by_name?: string | null
   requested_by_email?: string | null
+  number_of_users?: number
+  number_of_branches?: number
+  usage?: { users: number; branches: number } | null
+  pending_license_requests?: number
 }
 
 const isCompanyExpired = (company: AllCompany) =>
@@ -51,7 +56,7 @@ interface AccessDefinition {
 }
 
 export default function ManagementAdminPage() {
-  const [tab, setTab] = useState<"pending" | "companies" | "users" | "permissions">("pending")
+  const [tab, setTab] = useState<"pending" | "companies" | "licenses" | "users" | "permissions">("pending")
   const [companies, setCompanies] = useState<PendingCompany[]>([])
   const [allCompanies, setAllCompanies] = useState<AllCompany[]>([])
   const [users, setUsers] = useState<ManagedUser[]>([])
@@ -94,7 +99,7 @@ export default function ManagementAdminPage() {
 
   const loadAllCompanies = async () => {
     try {
-      const res = await fetch("/api/management/companies")
+      const res = await fetch("/api/management/admin/companies?usage=1")
       const data = await res.json()
       setAllCompanies(Array.isArray(data) ? data : [])
     } catch {
@@ -399,6 +404,17 @@ export default function ManagementAdminPage() {
             الشركات
           </button>
           <button
+            onClick={() => setTab("licenses")}
+            className={`px-4 py-2 text-sm font-medium ${tab === "licenses" ? "border-b-2 border-violet-600 text-violet-700" : "text-slate-500"}`}
+          >
+            طلبات الترخيص
+            {allCompanies.reduce((sum, company) => sum + Number(company.pending_license_requests || 0), 0) > 0 && (
+              <span className="mr-1 rounded-full bg-amber-500 px-1.5 text-[10px] font-bold text-white">
+                {allCompanies.reduce((sum, company) => sum + Number(company.pending_license_requests || 0), 0)}
+              </span>
+            )}
+          </button>
+          <button
             onClick={() => setTab("users")}
             className={`px-4 py-2 text-sm font-medium ${tab === "users" ? "border-b-2 border-violet-600 text-violet-700" : "text-slate-500"}`}
           >
@@ -465,7 +481,8 @@ export default function ManagementAdminPage() {
                         : "bg-slate-100 text-slate-700 ring-1 ring-inset ring-slate-200"
 
                 return (
-                  <div key={company.id} className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                  <div key={company.id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                  <div className="flex items-center justify-between">
                     <div>
                       <div className="flex items-center gap-2 font-semibold text-slate-800">
                         {company.name}
@@ -525,10 +542,14 @@ export default function ManagementAdminPage() {
                       )}
                     </div>
                   </div>
+                  <CompanyLicenseBar company={company} onSaved={() => void loadAllCompanies()} onError={setError} />
+                  </div>
                 )
               })}
             </div>
           ))}
+
+        {tab === "licenses" && <LicenseRequestsPanel onChanged={() => void loadAllCompanies()} />}
 
         {tab === "users" &&
           (users.length === 0 ? (

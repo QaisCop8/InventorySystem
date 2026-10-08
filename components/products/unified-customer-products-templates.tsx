@@ -14,12 +14,14 @@ import ConfirmDialogYesNo from "@/components/ui/ConfirmDialogYesNo"
 import DataGridView from "@/components/common/DataGridView"
 import ProgressSpinner from "@/components/ProgressSpinner/ProgressSpinner"
 import { Package, Plus, Search, Snowflake, Trash2, Users } from "lucide-react"
+import { useWorkspaceTabActive } from "@/contexts/workspace-tab-context"
 
 type Form = { id:number; template_code:string; name_ar:string; name_en:string; start_date:string; end_date:string; notes:string; status:number; customer_ids:number[]; product_ids:number[] }
 const empty = (): Form => ({ id:0, template_code:"", name_ar:"", name_en:"", start_date:new Date().toISOString().slice(0,10), end_date:"", notes:"", status:1, customer_ids:[], product_ids:[] })
 const date = (value:any) => String(value || "").slice(0,10)
 
 export default function UnifiedCustomerProductsTemplates({ initialTemplate, onSaved }: { initialTemplate?:any; onSaved?:()=>void } = {}) {
+  const workspaceTabActive = useWorkspaceTabActive()
   const [records,setRecords] = useState<any[]>([]), [customers,setCustomers] = useState<any[]>([]), [products,setProducts] = useState<any[]>([])
   const [form,setForm] = useState<Form>(empty()), [message,setMessage] = useState(""), [saving,setSaving] = useState(false), [loading,setLoading] = useState(false)
   const [confirmDelete,setConfirmDelete] = useState(false), [confirmFreeze,setConfirmFreeze] = useState(false)
@@ -55,7 +57,7 @@ export default function UnifiedCustomerProductsTemplates({ initialTemplate, onSa
   const freeze=async()=>{setConfirmFreeze(false);if(!form.id)return;setLoading(true);try{const action=form.status===2?"unfreeze":"freeze",response=await fetch(`/api/customer-product-templates/${form.id}`,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({action})}),data=await response.json();if(!response.ok)throw new Error(data?.error||"تعذر تحديث الحالة");setForm(v=>({...v,status:Number(data.status)}));await load();setMessage(action==="freeze"?"تم تجميد النموذج":"تم فك تجميد النموذج")}catch(error){setMessage(error instanceof Error?error.message:"تعذر تحديث الحالة")}finally{setLoading(false)}}
   const nav=async(direction:string)=>{setLoading(true);try{const response=await fetch(`/api/customer-product-templates?navigation=${direction}&currentId=${form.id}`),data=await response.json();if(response.ok)apply(data);else setMessage(data?.error||"تعذر عرض النموذج")}finally{setLoading(false)}}
   saveRef.current=()=>{void save()};deleteRef.current=()=>{if(form.id)setConfirmDelete(true)}
-  useEffect(()=>{const handler=(event:KeyboardEvent)=>{if(event.key==="F3"){event.preventDefault();saveRef.current()}else if(event.key==="F8"&&form.id){event.preventDefault();deleteRef.current()}};document.addEventListener("keydown",handler,true);return()=>document.removeEventListener("keydown",handler,true)},[form.id])
+  // F3 حفظ / F9 حذف وبقية الاختصارات الموحّدة: UniversalToolbar (lib/hotkeys.ts)
   const enterAsTab=(event:React.KeyboardEvent<HTMLDivElement>)=>{if(event.key!=="Enter"||event.target instanceof HTMLTextAreaElement)return;const controls=Array.from(event.currentTarget.querySelectorAll<HTMLElement>('input:not([disabled]),textarea:not([disabled]),button:not([disabled]),[tabindex]:not([tabindex="-1"])')).filter(element=>element.offsetParent!==null);const index=controls.indexOf(event.target as HTMLElement);if(index>=0){event.preventDefault();controls[index+1]?.focus()}}
   const index=records.findIndex(record=>Number(record.id)===form.id)
 

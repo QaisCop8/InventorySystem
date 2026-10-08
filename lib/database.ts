@@ -115,26 +115,52 @@ export async function withTenantTransaction<T>(fn: () => Promise<T>): Promise<T>
 // نستعلم قاعدة الإدارة (management) في كل استعلام لكل طلب HTTP في التطبيق كله.
 let approvedDbNamesCache: { names: Set<string>; loadedAt: number } | null = null
 const APPROVED_NAMES_TTL_MS = 60_000
+const UNKNOWN_NAME_REFRESH_MS = 5_000
+let approvedRefreshPromise: Promise<void> | null = null
+let lastUnknownNameRefreshAt = 0
+
+// تحديث واحد مشترك لكل الطلبات المتزامنة (لوحة الرئيسية تطلق عشرات الطلبات معاً — كان كل منها يفتح
+// استعلاماً على قاعدة الإدارة لحظة انتهاء صلاحية الذاكرة المؤقتة). عند فشل التحديث تبقى القائمة السابقة
+// صالحة: سابقاً كان الفشل العابر يُرجع "غير معتمدة" فيُحوَّل الطلب بصمت للقاعدة الافتراضية حيث لا توجد
+// جلسة المستخدم ← "يجب تسجيل الدخول" بشكل متقطع.
+function refreshApprovedDbNames(): Promise<void> {
+  if (!approvedRefreshPromise) {
+    approvedRefreshPromise = (async () => {
+      try {
+        const managementSql = (await import("./management-db")).default
+        // تُستثنى الشركات المنتهي اشتراكها هنا أيضاً (لا فقط عند اختيار الشركة في select-company) —
+        // حاجز دفاعي إضافي يقطع كل استعلامات هذه القاعدة فوراً حتى لو بقيت كوكي tenant_db قديمة سارية
+        // من قبل تاريخ الانتهاء (المستخدم لم يُعِد اختيار الشركة، فلا مسار آخر كان سيرفض طلباته).
+        const rows = await managementSql`
+          SELECT db_name FROM companies
+          WHERE status = 'approved' AND db_name IS NOT NULL AND (expiry_date IS NULL OR expiry_date > CURRENT_TIMESTAMP)
+        `
+        approvedDbNamesCache = { names: new Set(rows.map((r: any) => r.db_name)), loadedAt: Date.now() }
+      } catch (error) {
+        console.error("[database] Failed to refresh approved tenant db list (keeping previous list):", error)
+      } finally {
+        approvedRefreshPromise = null
+      }
+    })()
+  }
+  return approvedRefreshPromise
+}
 
 async function isApprovedTenantDb(dbName: string): Promise<boolean> {
-  const now = Date.now()
-  if (!approvedDbNamesCache || now - approvedDbNamesCache.loadedAt > APPROVED_NAMES_TTL_MS) {
-    try {
-      const managementSql = (await import("./management-db")).default
-      // تُستثنى الشركات المنتهي اشتراكها هنا أيضاً (لا فقط عند اختيار الشركة في select-company) —
-      // حاجز دفاعي إضافي يقطع كل استعلامات هذه القاعدة فوراً حتى لو بقيت كوكي tenant_db قديمة سارية
-      // من قبل تاريخ الانتهاء (المستخدم لم يُعِد اختيار الشركة، فلا مسار آخر كان سيرفض طلباته).
-      const rows = await managementSql`
-        SELECT db_name FROM companies
-        WHERE status = 'approved' AND db_name IS NOT NULL AND (expiry_date IS NULL OR expiry_date > CURRENT_TIMESTAMP)
-      `
-      approvedDbNamesCache = { names: new Set(rows.map((r: any) => r.db_name)), loadedAt: now }
-    } catch (error) {
-      console.error("[database] Failed to refresh approved tenant db list:", error)
-      return false
-    }
+  if (!approvedDbNamesCache) {
+    await refreshApprovedDbNames()
+  } else if (Date.now() - approvedDbNamesCache.loadedAt > APPROVED_NAMES_TTL_MS) {
+    // قائمة قديمة: تُستخدم فوراً ويُحدَّث في الخلفية (لا ينتظر أي طلب قاعدة الإدارة)
+    void refreshApprovedDbNames()
   }
-  return approvedDbNamesCache!.names.has(dbName)
+  if (approvedDbNamesCache?.names.has(dbName)) return true
+  // اسم غير معروف — غالباً شركة اعتُمدت للتو (قبل التحديث الدوري): تحديث فوري واحد قبل الرفض
+  if (Date.now() - lastUnknownNameRefreshAt > UNKNOWN_NAME_REFRESH_MS) {
+    lastUnknownNameRefreshAt = Date.now()
+    await refreshApprovedDbNames()
+    return Boolean(approvedDbNamesCache?.names.has(dbName))
+  }
+  return false
 }
 
 // تجاوز صريح (وليس عبر كوكي/هيدر) لقاعدة الشركة الحالية ضمن نطاق دالة واحدة — يُستخدَم من

@@ -15,6 +15,7 @@ import ProgressSpinner from "@/components/ProgressSpinner/ProgressSpinner"
 import AutoCompleteAccount from "@/components/customer/auto-complete-account"
 import BankAccountsSearch from "@/components/admin/bank-accounts-search"
 import PrimeDropdown from "@/components/common/FocusDropdown"
+import { useWorkspaceTabActive } from "@/contexts/workspace-tab-context"
 
 export interface BankAccountRecord {
   id: number
@@ -113,6 +114,7 @@ export default function UnifiedBankAccounts({
   errorMessages = [],
   allBankAccounts = [],
 }: UnifiedBankAccountsProps) {
+  const workspaceTabActive = useWorkspaceTabActive()
   const codeInputRef = useRef<HTMLInputElement | null>(null)
   const messagesRef = useRef<any>(null)
   const [commissionsOpen, setCommissionsOpen] = useState(false)
@@ -170,27 +172,7 @@ export default function UnifiedBankAccounts({
 
   // F3 = save, F4 = delete (only for an already-saved record).
   // Skipped while a confirm dialog is open — those handle F3/Escape themselves.
-  useEffect(() => {
-    if (typeof window === "undefined" || !dialogOpen) return
-    if (showDeleteConfirm || showUnsavedConfirm) return
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "F3") {
-        event.preventDefault()
-        onSave()
-        return
-      }
-      if (event.key === "F4") {
-        event.preventDefault()
-        if (form.id > 0) {
-          onDelete?.()
-        }
-      }
-    }
-
-    window.addEventListener("keydown", handleKeyDown)
-    return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [dialogOpen, form.id, onSave, onDelete, showDeleteConfirm, showUnsavedConfirm])
+  // F3 حفظ / F9 حذف / F4 نسخ / F5 جديد / Ctrl+P طباعة: يتولاها UniversalToolbar (lib/hotkeys.ts)
 
   const currencyOptions = useMemo(
     () =>

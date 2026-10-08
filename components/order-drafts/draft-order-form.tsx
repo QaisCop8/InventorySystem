@@ -26,6 +26,7 @@ import ProductSearchPopup from "@/components/products/ProductSearchPopup";
 import Messages from "@/components/common/Messages";
 import { attachEnterAsTab } from "@/components/common/enterAsTab";
 import { expandProductWithRelatedItems } from "@/lib/product-related-items-client";
+import { useWorkspaceTabActive } from "@/contexts/workspace-tab-context"
 
 type Item = {
   product_id: number;
@@ -51,6 +52,7 @@ export function DraftOrderForm({
   initialDraft,
   readOnly = false,
 }: { onSaved?: () => void; initialDraft?: any; readOnly?: boolean } = {}) {
+  const workspaceTabActive = useWorkspaceTabActive()
   const { user, activeBranchId } = useAuth();
   const [customers, setCustomers] = useState<any[]>([]),
     [products, setProducts] = useState<any[]>([]),
@@ -925,7 +927,7 @@ export function DraftOrderForm({
     return () => cancelAnimationFrame(frame);
   }, [items.length, customers.length]);
   useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
+    const handleKeyDown = (event: KeyboardEvent) => { if (!workspaceTabActive.current) return;
       if (event.key === "F3") {
         event.preventDefault();
         event.stopPropagation();

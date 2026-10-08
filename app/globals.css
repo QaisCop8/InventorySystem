@@ -2703,3 +2703,34 @@ td {
     width: 100%;
   }
 }
+
+/* نموذج العملاء/الموردين/المشتركين (unified-customers): حقول أقل ارتفاعاً (34px) من الافتراضي
+   (Input = 40px، PrimeDropdown = 42-46px عبر .p-dropdown/.invoice-currency-dropdown أعلاه). محصور
+   بهذا النموذج فقط عبر .unified-customers-compact، ولا يمس الجداول أو الحقول متعددة الأسطر. */
+.unified-customers-compact input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not(.wj-flexgrid *):not(.p-dropdown-panel *):not(.p-multiselect-panel *),
+.unified-customers-compact button[role="combobox"] {
+  height: 34px !important;
+  min-height: 34px !important;
+  padding-top: 4px !important;
+  padding-bottom: 4px !important;
+}
+
+.unified-customers-compact .p-dropdown,
+.unified-customers-compact .invoice-currency-dropdown,
+.unified-customers-compact .p-multiselect {
+  height: 34px !important;
+  min-height: 34px !important;
+  border-radius: 10px !important;
+}
+
+.unified-customers-compact .p-dropdown .p-dropdown-label,
+.unified-customers-compact .p-multiselect .p-multiselect-label {
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  line-height: 32px !important;
+}
+
+.unified-customers-compact .p-dropdown .p-dropdown-trigger,
+.unified-customers-compact .p-multiselect .p-multiselect-trigger {
+  height: 32px !important;
+}

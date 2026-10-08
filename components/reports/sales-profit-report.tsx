@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { AlertTriangle, Calculator, CheckCircle2, ChevronLeft, ChevronRight, Download, Loader2, Printer, Search, TrendingUp } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -14,6 +14,7 @@ import { ReportSummaryCard } from "@/components/reports/report-summary-card"
 import { ReportMultiChoice, type ReportOption } from "./account-statement-report"
 import { ValuationMethod, valuationMethods } from "./valuation-method"
 import { VoucherLink } from "./voucher-link"
+import { InvoicePickerDialog } from "./invoice-picker-dialog"
 
 type Mode = "items" | "period" | "itemCost" | "invoice" | "pricing"
 type GroupBy = "item" | "line" | "invoice" | "customer" | "salesman" | "group" | "branch" | "warehouse" | "day" | "month"
@@ -57,6 +58,8 @@ export function SalesProfitReport({ mode = "items" }: { mode?: Mode }) {
   const [notice, setNotice] = useState("")
   const [search, setSearch] = useState("")
   const [soldItems, setSoldItems] = useState<ReportOption[]>([])
+  const [invoicePickerOpen, setInvoicePickerOpen] = useState(false)
+  const loadAfterPickRef = useRef(false)
   const singleItem = mode === "itemCost"
 
   // تكلفة مبيعات صنف: قائمة الأصناف التي تحركت مبيعاتها خلال الفترة (للاختيار والتنقل بين الأصناف).
@@ -168,6 +171,8 @@ export function SalesProfitReport({ mode = "items" }: { mode?: Mode }) {
     const link = document.createElement("a"); link.href = URL.createObjectURL(new Blob(["﻿", csv], { type: "text/csv;charset=utf-8" })); link.download = `${config.title}-${toDate}.csv`; link.click(); URL.revokeObjectURL(link.href)
   }
 
+  // اختيار فاتورة من نافذة البحث يعرض أرباحها مباشرة (بعد تحديث رقم السند في الحالة).
+  useEffect(() => { if (loadAfterPickRef.current) { loadAfterPickRef.current = false; void loadReport() } }, [voucherCode])
   const choose = (key: keyof Meta) => (ids: number[]) => setSelected((current) => ({ ...current, [key]: ids }))
   // تكلفة مبيعات صنف: صنف واحد فقط، مع التنقل للصنف السابق/التالي من أصناف الفترة.
   const itemOptions = soldItems.length ? soldItems : meta.products
@@ -187,7 +192,7 @@ export function SalesProfitReport({ mode = "items" }: { mode?: Mode }) {
     <ReportFilters>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {mode === "invoice"
-          ? <div><Label>رقم الفاتورة / المرتجع</Label><Input value={voucherCode} onChange={(event) => setVoucherCode(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") void loadReport() }} placeholder="ابحث برقم السند" className="rounded-xl" dir="ltr" /></div>
+          ? <div className="sm:col-span-2"><Label>رقم الفاتورة / المرتجع</Label><div className="flex gap-2"><Input value={voucherCode} onChange={(event) => setVoucherCode(event.target.value)} onKeyDown={(event) => { if (event.key === "F10" || (event.key === "Enter" && !voucherCode.trim())) { event.preventDefault(); setInvoicePickerOpen(true) } else if (event.key === "Enter") void loadReport() }} placeholder="رقم السند — Enter أو F10 للبحث" className="rounded-xl" dir="ltr" /><Button type="button" variant="outline" className="shrink-0 rounded-xl" onClick={() => setInvoicePickerOpen(true)} title="بحث الفواتير (F10)"><Search className="ml-1 h-4 w-4" />بحث</Button></div></div>
           : <>
             <div><Label>من تاريخ</Label><Input type="date" lang="en" dir="ltr" value={fromDate} onChange={(event) => setFromDate(event.target.value)} className="rounded-xl" /></div>
             <div><Label>إلى تاريخ</Label><Input type="date" lang="en" dir="ltr" value={toDate} onChange={(event) => setToDate(event.target.value)} className="rounded-xl" /></div>
@@ -225,6 +230,7 @@ export function SalesProfitReport({ mode = "items" }: { mode?: Mode }) {
       <span className="font-semibold"><span className="font-mono text-teal-700">{itemOptions[currentItemIndex]?.code}</span> — {itemOptions[currentItemIndex]?.name} <span className="text-xs text-muted-foreground">({currentItemIndex + 1} من {itemOptions.length})</span></span>
       <Button variant="outline" size="sm" onClick={() => stepItem(1)} disabled={currentItemIndex >= itemOptions.length - 1 || loading}>الصنف التالي<ChevronLeft className="mr-1 h-4 w-4" /></Button>
     </div>}
+    {mode === "invoice" && <InvoicePickerDialog open={invoicePickerOpen} onOpenChange={setInvoicePickerOpen} initialSearch={voucherCode} onSelect={(row) => { loadAfterPickRef.current = true; setVoucherCode(row.vch_code) }} />}
     {error && <p className="rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{error}</p>}
     {notice && <p className="flex items-center gap-2 rounded-xl bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700"><CheckCircle2 className="h-4 w-4" />{notice}</p>}
     {totals?.unpriced_lines > 0 && <p className="flex items-center gap-2 rounded-xl bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800 print:hidden"><AlertTriangle className="h-4 w-4 shrink-0" />{fmt(totals.unpriced_lines, 0)} من {fmt(totals.lines, 0)} سطر لا توجد لأصنافها كلفة معروفة (لا مشتريات ولا سعر أول المدة) — احتُسبت تكلفتها صفراً.</p>}

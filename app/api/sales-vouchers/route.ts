@@ -18,6 +18,7 @@ import {
   PURCHASE_INVOICE_VCH_TYPE,
   DELIVERY_SELL_VCH_TYPE,
   DELIVERY_CONSIGNMENT_SALE_VCH_TYPE,
+  RETURN_DELIVERY_CONSIGNMENT_SALE_VCH_TYPE,
   DELIVERY_PAY_VCH_TYPE,
   validateItemAccounts,
   buildSalesVoucherJournalRows,
@@ -29,8 +30,18 @@ import {
 } from "./_lib"
 import { validateItemReferences } from "@/app/api/stock-vouchers/_lib"
 import { authorizeTransaction, transactionFamilyForVoucherType } from "@/lib/transaction-permissions"
+import { attachItemSerials, saveVoucherSerials, validateSerialsRemoval, validateVoucherSerials } from "@/lib/item-serials"
+import { consignmentUsage, INVOICE_SOURCE_CONSIGNMENT, validateFromConsignment } from "@/lib/consignment"
 
 const MAX_CODE_RETRY_ATTEMPTS = 5
+
+// عنوان الشحن: shipping_info كائن كامل؛ shipping_address نص العنوان (المرسل إليه + العنوان + الهاتف) للطباعة والبحث.
+const shippingInfoJson = (data: any) => (data.shipping_info && typeof data.shipping_info === "object" ? JSON.stringify(data.shipping_info) : null)
+const shippingAddressText = (data: any) => {
+  const info = data.shipping_info
+  if (!info || typeof info !== "object") return data.shipping_address || ""
+  return [info.destination_name, info.address, info.po_box ? `ص.ب ${info.po_box}` : "", info.phone].map((part: unknown) => String(part || "").trim()).filter(Boolean).join(" — ")
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -173,14 +184,22 @@ const refreshSalesOrderFulfillment = async (orderIds: number[]) => {
   `
 }
 
+// أسطر تحتفظ بربطها بالسند المصدر (delivery_item_id/order_item_id): فاتورة من ارسالية/طلبية/ارسالية برسم
+// البيع، ومرتجع ارسالية برسم البيع (مصدره الارسالية دائماً).
+const keepsSourceLinks = (vchType: number, invoiceSourceType: number) =>
+  [2, 3, INVOICE_SOURCE_CONSIGNMENT].includes(invoiceSourceType) || vchType === RETURN_DELIVERY_CONSIGNMENT_SALE_VCH_TYPE
+
 const validatePayload = (data: any, items: any[]): string | null => {
   if (!SALES_VOUCHER_TYPES.includes(Number(data.vch_type) as any) || !data.vch_code || !data.vch_date) {
     return "بيانات السند غير مكتملة"
   }
   if (!(Number(data.rate) > 0)) return "سعر الصرف يجب أن يكون أكبر من صفر"
+  const isConsignmentType = [DELIVERY_CONSIGNMENT_SALE_VCH_TYPE, RETURN_DELIVERY_CONSIGNMENT_SALE_VCH_TYPE].includes(Number(data.vch_type))
+  // ارسالية برسم البيع ومرتجعها تتبع المندوب لا العميل (كما في شامل)
+  if (isConsignmentType && !(Number(data.salesman_id) > 0)) return "يجب اختيار المندوب"
   // العميل نفسه اختياري (بيع نقدي بلا عميل مسجَّل) — لكن عندها يجب تحديد حساب الصندوق واسم الدافع
   // معاً كحد أدنى للتوثيق المحاسبي بدلاً من حساب العميل.
-  if (!data.account_id) {
+  if (!data.account_id && !isConsignmentType) {
     const hasPosPaymentAccount = Array.isArray(data.pos_payments) && data.pos_payments.some((payment: any) => Number(payment?.amount || 0) > 0 && Number(payment?.account_id || 0) > 0)
     if (!data.cash_account_id && !hasPosPaymentAccount) return "يجب اختيار حساب الصندوق عند عدم اختيار العميل"
     if (!String(data.customer_name || "").trim()) return "يجب إدخال اسم الدافع عند عدم اختيار العميل"
@@ -239,6 +258,14 @@ const validateSourceInvoice = async (itemsOrData: any, maybeData?: any, excludeV
 
   const vchType = Number(data.vch_type || 0)
   const invoiceSourceType = Number(data.invoice_source_type || 1)
+  // فاتورة "من ارسالية برسم البيع" (4) ومرتجع ارسالية برسم البيع (15): الأسطر من ارسالية مرحّلة واحدة
+  // بحدود المتبقي، والمندوب يؤخذ من الارسالية.
+  if (vchType === RETURN_DELIVERY_CONSIGNMENT_SALE_VCH_TYPE || (vchType === SALES_INVOICE_VCH_TYPE && invoiceSourceType === INVOICE_SOURCE_CONSIGNMENT)) {
+    const result = await validateFromConsignment({ vchType, items, branchId: Number(data.branch_id) || null, excludeVoucherId })
+    if (result.error) return result.error
+    if (Number(result.consignment?.salesman_id) > 0) data.salesman_id = Number(result.consignment.salesman_id)
+    return null
+  }
   if (![2, 3].includes(invoiceSourceType)) return null
   const sourceVoucherId = Number(data.source_voucher_id || 0)
   const sourceVoucherType = Number(data.source_voucher_type || 0)
@@ -260,7 +287,8 @@ const validateSourceInvoice = async (itemsOrData: any, maybeData?: any, excludeV
 
   if (invoiceSourceType === 2) {
     const deliveryItemIds = items.map((item: any) => Number(item.delivery_item_id || 0)).filter((id: number) => id > 0)
-    const allowedTypes = vchType === PURCHASE_INVOICE_VCH_TYPE ? [DELIVERY_PAY_VCH_TYPE] : [DELIVERY_SELL_VCH_TYPE, DELIVERY_CONSIGNMENT_SALE_VCH_TYPE]
+    // ارسالية برسم البيع لها نوع مصدر مستقل (4) — بلا عميل وتُفوتر جزئياً
+    const allowedTypes = vchType === PURCHASE_INVOICE_VCH_TYPE ? [DELIVERY_PAY_VCH_TYPE] : [DELIVERY_SELL_VCH_TYPE]
     const sourceItems = await sql`
       SELECT vi.id,vi.voucher_id FROM voucher_items_tbl vi JOIN voucher_header_tbl source ON source.id=vi.voucher_id
       WHERE vi.id=ANY(${deliveryItemIds}::int[]) AND source.vch_type=ANY(${allowedTypes}::int[])
@@ -484,7 +512,7 @@ export async function POST(request: NextRequest) {
     const invoiceSourceType = Number(data.invoice_source_type || 1)
     const sourceVoucherId = [2, 3].includes(invoiceSourceType) ? Number(data.source_voucher_id || null) : null
     const sourceVoucherType = [2, 3].includes(invoiceSourceType) ? Number(data.source_voucher_type || null) : null
-    const itemsToSave = [2, 3].includes(invoiceSourceType)
+    const itemsToSave = keepsSourceLinks(vchType, invoiceSourceType)
       ? items
       : items.map((item: any) => ({
           ...item,
@@ -494,6 +522,10 @@ export async function POST(request: NextRequest) {
           order_item_id: null,
         }))
 
+    // أصناف لها رقم تسلسلي — نقطة البيع لا تُدخل أرقاماً فلا يُفرض العدد عليها (يُفحص ما أُرسل فقط)
+    const serialError = await validateVoucherSerials({ vchType, voucherId: null, items: itemsToSave, enforceCount: !(Number(data.pos_point_id) > 0 || posClientSaleId) })
+    if (serialError) return NextResponse.json({ error: serialError }, { status: 400 })
+
     let result: any[] = []
     for (let attempt = 0; attempt < MAX_CODE_RETRY_ATTEMPTS; attempt += 1) {
       try {
@@ -502,7 +534,7 @@ export async function POST(request: NextRequest) {
         vch_type, vch_code, vch_date, vch_book_id, branch_id, currency_id, rate,
         account_id, customer_name, to_store_id,
         amount, manual_voucher, manual_date, note, status, vch_status, is_printed,
-        insert_user, shipping_address, salesman_id, linked_order_id,
+        insert_user, shipping_address, shipping_info, salesman_id, linked_order_id,
         discount_type, discount_value, vat_percent,
         vat_classification_id, invoice_type, vat_included, is_maqasa, maqasa_type,
         phone, due_date, is_exported_sales, location_id, pos_client_sale_id
@@ -510,7 +542,7 @@ export async function POST(request: NextRequest) {
         ${vchType}, ${vchCode}, ${data.vch_date}, ${data.vch_book_id ?? null}, ${authorization.branchId}, ${data.currency_id || null}, ${Number(data.rate || 1)},
         ${data.account_id}, ${data.customer_name || ""}, ${data.to_store_id || null},
         ${amount}, ${data.manual_voucher || ""}, ${data.manual_date || null}, ${data.note || ""}, ${status}, ${status === 2 ? 2 : 1}, ${Number(data.is_printed || 0)},
-        ${data.insert_user || null}, ${data.shipping_address || ""}, ${data.salesman_id || null}, ${data.linked_order_id || null},
+        ${data.insert_user || null}, ${shippingAddressText(data)}, ${shippingInfoJson(data)}::jsonb, ${data.salesman_id || null}, ${data.linked_order_id || null},
         ${discountType}, ${Number(data.discount_value || 0)}, ${Number(data.vat_percent || 0)},
         ${Number(data.vat_classification_id) || 1}, ${Number(data.invoice_type) || 1},
         ${Boolean(data.vat_included)}, ${Boolean(data.is_maqasa)}, ${data.is_maqasa ? Number(data.maqasa_type) || 1 : null},
@@ -536,6 +568,7 @@ export async function POST(request: NextRequest) {
       `
     }
     const savedItems = await saveSalesVoucherItems(voucher.id, itemsToSave)
+    await saveVoucherSerials(voucher.id, vchType, savedItems)
     if ((ITEM_ACCOUNT_VCH_TYPES as readonly number[]).includes(vchType)) {
       const journalIds = await saveJournalRows(voucher.id, journalRows)
       await linkSalesVoucherItemsToJournals(savedItems, journalRows, journalIds)
@@ -548,7 +581,7 @@ export async function POST(request: NextRequest) {
       if (linkedOrderIds.length > 0) await refreshSalesOrderFulfillment(linkedOrderIds)
     }
 
-    const savedItemsWithNames = await fetchSalesVoucherItems(voucher.id, journalTypes?.itemJournalType)
+    const savedItemsWithNames = await attachItemSerials(await fetchSalesVoucherItems(voucher.id, journalTypes?.itemJournalType))
     const journalAccounts = (ITEM_ACCOUNT_VCH_TYPES as readonly number[]).includes(vchType)
       ? await fetchSalesVoucherJournalAccounts(voucher.id, vchType, Boolean(voucher.account_id))
       : { taxAccount: null, cashAccount: null }
@@ -602,6 +635,12 @@ export async function PUT(request: NextRequest) {
     if (status === 3) {
       const voucher = currentRows[0]
       if (previousStatus !== 3) {
+        if (Number(voucher.vch_type) === DELIVERY_CONSIGNMENT_SALE_VCH_TYPE) {
+          const usage = await consignmentUsage(Number(voucher.id))
+          if (usage.length) return NextResponse.json({ error: `لا يمكن إلغاء الارسالية: صدرت منها ${usage.map((row) => `${Number(row.vch_type) === 15 ? "مرتجع" : "فاتورة"} ${row.vch_code}`).join("، ")}` }, { status: 400 })
+        }
+        const serialsRemovalError = await validateSerialsRemoval(Number(voucher.id))
+        if (serialsRemovalError) return NextResponse.json({ error: serialsRemovalError }, { status: 400 })
         await deletePosRelatedVouchers(request, Number(voucher.id))
         await reversePosSessionPayments(voucher)
         const affectedOrderIds = [SALES_INVOICE_VCH_TYPE, PURCHASE_INVOICE_VCH_TYPE].includes(Number(voucher.vch_type))
@@ -659,6 +698,13 @@ export async function PUT(request: NextRequest) {
     const invoiceSourceType = Number(data.invoice_source_type || 1)
     const sourceVoucherId = [2, 3].includes(invoiceSourceType) ? Number(data.source_voucher_id || null) : null
     const sourceVoucherType = [2, 3].includes(invoiceSourceType) ? Number(data.source_voucher_type || null) : null
+    const serialError = await validateVoucherSerials({
+      vchType,
+      voucherId: Number(data.id),
+      items: keepsSourceLinks(vchType, invoiceSourceType) ? items : items.map((item) => ({ ...item, delivery_item_id: null })),
+      enforceCount: !(Number(data.pos_point_id) > 0 || currentRows[0].pos_client_sale_id),
+    })
+    if (serialError) return NextResponse.json({ error: serialError }, { status: 400 })
     const amount = computeTotalAmount(items, data)
     const discountType = data.discount_type === "amount" ? "amount" : "percentage"
 
@@ -681,7 +727,8 @@ export async function PUT(request: NextRequest) {
         status = ${status},
         vch_status = ${status === 2 ? 2 : 1},
         is_printed = ${Number(data.is_printed || 0)},
-        shipping_address = ${data.shipping_address || ""},
+        shipping_address = ${shippingAddressText(data)},
+        shipping_info = ${shippingInfoJson(data)}::jsonb,
         salesman_id = ${data.salesman_id || null},
         linked_order_id = ${data.linked_order_id || null},
         discount_type = ${discountType},
@@ -702,7 +749,7 @@ export async function PUT(request: NextRequest) {
     `
 
     const voucher = result[0]
-    const itemsToSave = [2, 3].includes(invoiceSourceType)
+    const itemsToSave = keepsSourceLinks(vchType, invoiceSourceType)
       ? items
       : items.map((item) => ({
           ...item,
@@ -713,6 +760,7 @@ export async function PUT(request: NextRequest) {
         }))
 
     const savedItems = await saveSalesVoucherItems(voucher.id, itemsToSave)
+    await saveVoucherSerials(voucher.id, vchType, savedItems)
     if ((ITEM_ACCOUNT_VCH_TYPES as readonly number[]).includes(vchType)) {
       const journalIds = await saveJournalRows(voucher.id, journalRows)
       await linkSalesVoucherItemsToJournals(savedItems, journalRows, journalIds)
@@ -725,7 +773,7 @@ export async function PUT(request: NextRequest) {
       if (linkedOrderIds.length > 0) await refreshSalesOrderFulfillment(linkedOrderIds)
     }
 
-    const savedItemsWithNames = await fetchSalesVoucherItems(voucher.id, journalTypes?.itemJournalType)
+    const savedItemsWithNames = await attachItemSerials(await fetchSalesVoucherItems(voucher.id, journalTypes?.itemJournalType))
     const journalAccounts = (ITEM_ACCOUNT_VCH_TYPES as readonly number[]).includes(vchType)
       ? await fetchSalesVoucherJournalAccounts(voucher.id, vchType, Boolean(voucher.account_id))
       : { taxAccount: null, cashAccount: null }

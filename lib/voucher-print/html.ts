@@ -107,7 +107,7 @@ ${options.preview ? `.copy{width:${paper.widthMm}mm;min-height:${paper.receipt ?
 .lines{width:100%;border-collapse:collapse;table-layout:fixed;font-size:${base * (compact ? 0.82 : 0.9)}px}
 .lines thead{display:table-header-group}
 .lines tr{break-inside:avoid}
-.lines th{padding:1.6mm 1.2mm;color:#fff;background:${accent};font-weight:700;text-align:center}
+.lines th{padding:1.6mm 1.2mm;color:#fff;background:${accent};font-weight:700;text-align:center;vertical-align:middle;line-height:1.25;white-space:normal;word-break:normal;overflow-wrap:break-word;hyphens:none}
 .lines td{padding:1.4mm 1.2mm;border-bottom:1px solid #e2e8f0;overflow-wrap:anywhere;vertical-align:top}
 .lines tbody tr:nth-child(even) td{background:#f8fafc}
 .lines .num{text-align:center;font-variant-numeric:tabular-nums;white-space:nowrap}

@@ -9,6 +9,7 @@ import ConfirmDialogYesNo from "@/components/ui/ConfirmDialogYesNo"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import ProgressSpinner from "@/components/ProgressSpinner/ProgressSpinner"
 import { useEffect, useRef, useState } from "react"
+import { useWorkspaceTabActive } from "@/contexts/workspace-tab-context"
 
 interface ItemGroup {
   id: number
@@ -85,6 +86,7 @@ export default function UnifiedProductGroups({
   isLastRecord,
   isNewMode,
 }: UnifiedProductGroupsProps) {
+  const workspaceTabActive = useWorkspaceTabActive()
   const [navLoading, setNavLoading] = useState(false)
   const combinedLoading = Boolean(isSaving || loading || navLoading)
   const codeInputRef = useRef<HTMLInputElement | null>(null)
@@ -153,21 +155,8 @@ export default function UnifiedProductGroups({
       focusTimerRef.current = null
     }, 120)
 
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "F3") {
-        event.preventDefault()
-        void onSave()
-        return
-      }
-
-      if (event.key === "F4") {
-        event.preventDefault()
-        if (form.id > 0) {
-          onDelete?.()
-        }
-        return
-      }
-
+    const handleKeyDown = (event: KeyboardEvent) => { if (!workspaceTabActive.current) return;
+      // F3 حفظ / F9 حذف / F4 نسخ / F5 جديد: UniversalToolbar (lib/hotkeys.ts)
       if (event.key === "Escape") {
         event.preventDefault()
         if (!combinedLoading) {

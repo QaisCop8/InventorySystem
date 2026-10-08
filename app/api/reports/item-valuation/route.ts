@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import { reportAccessDenied } from "@/lib/report-permissions"
 import { getSessionUser } from "@/lib/tenant-auth"
 import { getInventoryReportProducts, getProductBalances, reportDate, inventoryFilters, inventoryReportMeta } from "@/lib/item-inventory-reports"
 
@@ -6,6 +7,8 @@ export async function GET(request: NextRequest) {
   try {
     const user = await getSessionUser(request)
     if (!user) return NextResponse.json({ error: "يجب تسجيل الدخول" }, { status: 401 })
+    const reportDenied = await reportAccessDenied(request, ["item-valuation-report"])
+    if (reportDenied) return reportDenied
     const params = request.nextUrl.searchParams
     const organizationId = Number((user as any).organization_id || 1)
     if (params.get("meta") === "1") return NextResponse.json(await inventoryReportMeta(organizationId))
@@ -16,7 +19,7 @@ export async function GET(request: NextRequest) {
     const withZeros = params.get("with_zeros") === "1"
     const [products, balances] = await Promise.all([
       getInventoryReportProducts(organizationId, productId, search),
-      getProductBalances(organizationId, toDate, productId, search, inventoryFilters(params)),
+      getProductBalances(organizationId, toDate, productId, search, { ...inventoryFilters(params), includeUnposted: true }),
     ])
     const rows = balances.filter((row: any) => withZeros || Math.abs(Number(row.balance || 0)) > 0.000001).map((row: any) => {
       const price = Number(priceWay === "last" ? row.last_incoming_cost : priceWay === "fifo" ? row.fifo_cost : row.average_cost) || 0

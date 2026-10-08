@@ -6,11 +6,11 @@ const normalizeImportedCode = (rawValue: unknown, prefix = "S") => {
   const cleaned = String(rawValue ?? "").trim().toUpperCase().replace(/[^A-Z0-9]/g, "")
   if (!cleaned) return ""
 
-  const prefixValue = String(prefix).trim().toUpperCase()
-  const numericPart = cleaned.replace(/[^0-9]/g, "")
-  const maxDigits = Math.max(0, 10 - prefixValue.length)
-  const digits = numericPart.slice(0, maxDigits).padEnd(maxDigits, "0")
-  return `${prefixValue}${digits}`.slice(0, 10)
+  // حروف الرقم نفسه تبقى كما هي، والأرقام تُكمَّل بأصفار من اليسار حتى 10 خانات (S0000029 -> S000000029)
+  const match = cleaned.match(/^([A-Z]*)(\d*)$/)
+  if (!match) return cleaned
+  const prefixValue = match[1] || String(prefix).trim().toUpperCase()
+  return `${prefixValue}${match[2].padStart(Math.max(0, 10 - prefixValue.length), "0")}`
 }
 
 export async function POST(request: NextRequest) {

@@ -34,3 +34,5 @@ yarn-error.log*
 next-env.d.ts
 
 certificates
+# ملفات مؤقتة لفحوصات المتصفح والسجلات
+tmp/

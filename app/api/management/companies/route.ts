@@ -3,6 +3,7 @@ import { getManagementSession } from "@/lib/management-auth"
 import { ensureManagementTables } from "@/lib/management-db"
 import managementSql from "@/lib/management-db"
 import { sendMail } from "@/lib/email"
+import { ensureLicenseTables } from "@/lib/company-license"
 
 const PLATFORM_ADMIN_EMAIL = "qais.sabbah@iscosoft.com"
 
@@ -40,6 +41,12 @@ export async function POST(request: NextRequest) {
     const data = await request.json()
     const name = String(data.name || "").trim()
     if (!name) return NextResponse.json({ error: "اسم الشركة مطلوب" }, { status: 400 })
+    // الترخيص المطلوب (عدد المستخدمين والفروع) — يراه مسؤول المنصة عند الاعتماد ويمكنه تعديله.
+    const numberOfUsers = Math.floor(Number(data.number_of_users ?? 1))
+    const numberOfBranches = Math.floor(Number(data.number_of_branches ?? 1))
+    if (!Number.isFinite(numberOfUsers) || numberOfUsers < 1 || numberOfUsers > 100000) return NextResponse.json({ error: "عدد المستخدمين يجب أن يكون 1 أو أكثر" }, { status: 400 })
+    if (!Number.isFinite(numberOfBranches) || numberOfBranches < 1 || numberOfBranches > 100000) return NextResponse.json({ error: "عدد الفروع يجب أن يكون 1 أو أكثر" }, { status: 400 })
+    await ensureLicenseTables()
 
     // مطابقة بلا حساسية لحالة الأحرف/المسافات الطرفية — عبر كل الشركات (لا فقط شركات نفس المستخدم)
     // لتفادي التباس بشركتين بنفس الاسم بلوحة إدارة المنصة.
@@ -51,8 +58,8 @@ export async function POST(request: NextRequest) {
     }
 
     const inserted = await managementSql`
-      INSERT INTO companies (name, status, created_by)
-      VALUES (${name}, 'pending', ${session.id})
+      INSERT INTO companies (name, status, created_by, number_of_users, number_of_branches, license_initialized)
+      VALUES (${name}, 'pending', ${session.id}, ${numberOfUsers}, ${numberOfBranches}, true)
       RETURNING id, name, status, created_at
     `
     const company = inserted[0]
@@ -65,7 +72,7 @@ export async function POST(request: NextRequest) {
     await sendMail({
       to: PLATFORM_ADMIN_EMAIL,
       subject: "طلب إنشاء شركة جديدة بانتظار الموافقة",
-      html: `<div dir="rtl"><p>طلب المستخدم ${session.full_name} (${session.email}) إنشاء شركة جديدة باسم "${name}".</p><p>يرجى مراجعة الطلب من لوحة الإدارة.</p></div>`,
+      html: `<div dir="rtl"><p>طلب المستخدم ${session.full_name} (${session.email}) إنشاء شركة جديدة باسم "${name}".</p><p>الترخيص المطلوب: ${numberOfUsers} مستخدم، ${numberOfBranches} فرع.</p><p>يرجى مراجعة الطلب من لوحة الإدارة.</p></div>`,
     })
 
     return NextResponse.json({ success: true, company })

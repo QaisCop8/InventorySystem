@@ -1,17 +1,16 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { useState, useEffect, useRef, useCallback } from "react"
+import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Switch } from "@/components/ui/switch"
-import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion"
 import AutoCompleteAccount from "@/components/customer/auto-complete-account"
 import Messages from "@/components/common/Messages"
-import { Save, Settings, Building2, Globe, Shield, Printer, FileText, Loader2, AlertCircle } from "lucide-react"
+import { Save, Settings, Building2, Globe, FileText, Loader2, AlertCircle, Wallet, Package, RefreshCw, ChevronLeft, SlidersHorizontal } from "lucide-react"
+import VouchersGeneralSettings from "@/components/settings/vouchers-general-settings"
 import { buildVoucherCode } from "@/lib/voucher-code"
 
 const defaultAccountFields = [
@@ -69,7 +68,54 @@ const emptyProductAccountValues = productAccountFields.reduce(
   {} as Record<ProductAccountFieldKey, string>,
 )
 
-export function SystemSettings() {
+const SETTINGS_SECTIONS = [
+  { id: "company", title: "معلومات الشركة", description: "الاسم، العنوان، بيانات التواصل والشعار", icon: Building2 },
+  { id: "system", title: "إعدادات النظام", description: "العملة، اللغة، المنطقة الزمنية والتنسيقات", icon: Globe },
+  { id: "general", title: "اعدادات عامة", description: "فترة العمل، القبض والصرف، الحسابات والأصناف", icon: SlidersHorizontal },
+  { id: "accounts", title: "الحسابات الافتراضية", description: "حسابات الأب للعملاء والموردين والضرائب", icon: Wallet },
+  { id: "product_accounts", title: "حسابات الأصناف", description: "الحسابات الافتراضية للأصناف", icon: Package },
+  { id: "documents", title: "السندات والترقيم", description: "بادئات وأرقام بداية السندات والملفات", icon: FileText },
+] as const
+
+type SettingsSectionId = (typeof SETTINGS_SECTIONS)[number]["id"]
+const ACTIVE_SECTION_STORAGE_KEY = "system-settings:active-section"
+
+function SettingsSectionHeader({ id }: { id: SettingsSectionId }) {
+  const section = SETTINGS_SECTIONS.find((item) => item.id === id)!
+  const Icon = section.icon
+  return (
+    <div className="flex items-center gap-3 border-b border-slate-100 bg-gradient-to-l from-emerald-50/80 via-white to-white px-5 py-4">
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-600 to-teal-600 text-white shadow-sm">
+        <Icon className="h-5 w-5" />
+      </span>
+      <div className="min-w-0">
+        <h2 id={`settings-section-${id}`} className="text-base font-extrabold text-slate-800">{section.title}</h2>
+        <p className="truncate text-xs text-slate-500">{section.description}</p>
+      </div>
+    </div>
+  )
+}
+
+export function SystemSettings({ initialSection }: { initialSection?: SettingsSectionId } = {}) {
+  const [activeSection, setActiveSectionState] = useState<SettingsSectionId>(initialSection ?? "company")
+  useEffect(() => {
+    // فتح مباشر لتبويب محدد (مثل section=vouchers-general-settings) يتقدّم على آخر قسم محفوظ
+    if (initialSection) return
+    try {
+      const stored = window.localStorage.getItem(ACTIVE_SECTION_STORAGE_KEY)
+      if (SETTINGS_SECTIONS.some((item) => item.id === stored)) setActiveSectionState(stored as SettingsSectionId)
+    } catch {
+      // التخزين المحلي غير متاح
+    }
+  }, [])
+  const setActiveSection = (id: SettingsSectionId) => {
+    setActiveSectionState(id)
+    try {
+      window.localStorage.setItem(ACTIVE_SECTION_STORAGE_KEY, id)
+    } catch {
+      // التخزين المحلي غير متاح — يبقى القسم المختار لهذه الجلسة فقط
+    }
+  }
   const [settings, setSettings] = useState({
     // Company Settings
     companyName: "",
@@ -175,6 +221,11 @@ export function SystemSettings() {
   const [error, setError] = useState<string | null>(null)
   const message = useRef<any>(null)
   const savingRef = useRef(false)
+  // حفظ تبويب "اعدادات عامة" (مكوّن مستقل بمفاتيحه الخاصة) ضمن زر حفظ هذه الصفحة
+  const generalSaveRef = useRef<(() => Promise<boolean>) | null>(null)
+  const registerGeneralSave = useCallback((save: () => Promise<boolean>) => {
+    generalSaveRef.current = save
+  }, [])
   const [hasTransactions, setHasTransactions] = useState(false)
   const [numberingLocks, setNumberingLocks] = useState({
     invoice: false,
@@ -467,6 +518,11 @@ export function SystemSettings() {
         return
       }
 
+      // تبويب "اعدادات عامة" أولاً — يتحقق من سنة/أشهر العمل ويعرض سبب الفشل بنفسه
+      if (generalSaveRef.current && !(await generalSaveRef.current())) {
+        throw new Error("لم يتم حفظ الاعدادات العامة — راجع تبويب اعدادات عامة")
+      }
+
       const response = await fetch("/api/settings/system", {
         method: "PUT",
         headers: {
@@ -690,59 +746,92 @@ export function SystemSettings() {
 
   if (initialLoading) {
     return (
-      <div className="flex items-center justify-center p-8" dir="rtl">
-        <Loader2 className="h-8 w-8 animate-spin" />
-        <span className="mr-2">جاري تحميل الإعدادات...</span>
+      <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white p-12 shadow-sm" dir="rtl">
+        <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-600 to-teal-600 text-white shadow-sm">
+          <Loader2 className="h-6 w-6 animate-spin" />
+        </span>
+        <span className="text-sm font-semibold text-slate-600">جاري تحميل الإعدادات...</span>
       </div>
     )
   }
 
   return (
-    <div className="system-settings-form space-y-6" dir="rtl">
+    <div className="system-settings-form space-y-5" dir="rtl">
       <Messages innerRef={message} />
-      {/* Header */}
-      <Card className="erp-card">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Settings className="h-6 w-6 text-primary" />
-              <CardTitle className="text-right">إعدادات النظام</CardTitle>
-            </div>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => loadSettings()} disabled={loading}>
-                إعادة تحميل
-              </Button>
-              <Button onClick={handleSave} className="erp-btn-primary" disabled={loading}>
-                {loading ? (
-                  <>
-                    <Loader2 className="h-4 w-4 ml-2 animate-spin" />
-                    جاري الحفظ...
-                  </>
-                ) : (
-                  <>
-                    <Save className="h-4 w-4 ml-2" />
-                    حفظ الإعدادات
-                  </>
-                )}
-              </Button>
+
+      {/* الرأس: نفس تدرّج الزمردي/الفيروزي المعتمد في رؤوس السندات ومعالج الاستيراد */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-l from-emerald-700 via-emerald-600 to-teal-600 px-5 py-5 text-white shadow-lg sm:px-6">
+        <div className="pointer-events-none absolute -left-10 -top-12 h-40 w-40 rounded-full bg-white/10 blur-2xl" />
+        <div className="pointer-events-none absolute -bottom-16 left-1/3 h-40 w-40 rounded-full bg-teal-300/20 blur-2xl" />
+        <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25">
+              <Settings className="h-6 w-6" />
+            </span>
+            <div className="min-w-0">
+              <h1 className="text-xl font-extrabold tracking-tight sm:text-2xl">إعدادات النظام</h1>
+              <p className="mt-0.5 text-xs text-emerald-50/90 sm:text-sm">بيانات الشركة، الترقيم، الحسابات الافتراضية، الأمان والطباعة — في مكان واحد</p>
             </div>
           </div>
-        </CardHeader>
-      </Card>
+          <div className="flex shrink-0 gap-2">
+            <Button
+              variant="outline"
+              onClick={() => loadSettings()}
+              disabled={loading}
+              className="h-10 rounded-xl border-white/30 bg-white/10 text-white hover:bg-white/20 hover:text-white"
+            >
+              <RefreshCw className="ml-2 h-4 w-4" />
+              إعادة تحميل
+            </Button>
+            <Button onClick={handleSave} disabled={loading} className="h-10 rounded-xl bg-white font-bold text-emerald-700 shadow-sm hover:bg-emerald-50">
+              {loading ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Save className="ml-2 h-4 w-4" />}
+              {loading ? "جاري الحفظ..." : "حفظ الإعدادات"}
+            </Button>
+          </div>
+        </div>
+      </div>
 
-      {/* Settings Accordion */}
-      <Accordion type="single" collapsible defaultValue="company" className="space-y-4">
-        <AccordionItem value="company">
-          <AccordionTrigger className="text-lg font-semibold text-foreground">معلومات الشركة</AccordionTrigger>
-        <AccordionContent className="space-y-4">
-          <Card className="erp-card">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-right">
-                <Building2 className="h-5 w-5" />
-                معلومات الشركة
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
+      <div className="grid gap-5 lg:grid-cols-[260px_minmax(0,1fr)]">
+        {/* قائمة الأقسام: عمودية على الشاشات الواسعة، أفقية قابلة للتمرير على الصغيرة */}
+        <nav className="lg:sticky lg:top-4 lg:self-start" aria-label="أقسام الإعدادات">
+          <div className="flex gap-2 overflow-x-auto rounded-2xl border border-slate-200 bg-white p-2 shadow-sm lg:flex-col lg:overflow-visible">
+            {SETTINGS_SECTIONS.map((section) => {
+              const Icon = section.icon
+              const active = activeSection === section.id
+              return (
+                <button
+                  key={section.id}
+                  type="button"
+                  onClick={() => setActiveSection(section.id)}
+                  aria-current={active ? "page" : undefined}
+                  className={`group flex min-w-max items-center gap-3 rounded-xl px-3 py-2.5 text-right transition lg:min-w-0 ${
+                    active ? "bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200" : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                  }`}
+                >
+                  <span
+                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition ${
+                      active ? "bg-gradient-to-br from-emerald-600 to-teal-600 text-white shadow-sm" : "bg-slate-100 text-slate-500 group-hover:bg-white"
+                    }`}
+                  >
+                    <Icon className="h-4 w-4" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-bold">{section.title}</span>
+                    <span className="hidden truncate text-[11px] text-slate-400 lg:block">{section.description}</span>
+                  </span>
+                  <ChevronLeft className={`hidden h-4 w-4 shrink-0 transition lg:block ${active ? "text-emerald-600" : "text-transparent group-hover:text-slate-300"}`} />
+                </button>
+              )
+            })}
+          </div>
+        </nav>
+
+        {/* كل الأقسام تبقى مُركَّبة (مخفية فقط) — التنقل بينها لا يعيد تحميل الحقول ولا يفقد ما كُتب */}
+        <div className="min-w-0 space-y-4">
+        <section hidden={activeSection !== "company"} className="space-y-4" aria-labelledby="settings-section-company">
+          <Card className="erp-card overflow-hidden rounded-2xl border-slate-200 shadow-sm gap-0 py-0">
+            <SettingsSectionHeader id="company" />
+            <CardContent className="space-y-4 py-5">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="companyName" className="text-right block">
@@ -890,19 +979,11 @@ export function SystemSettings() {
               </div>
             </CardContent>
           </Card>
-        </AccordionContent>
-        </AccordionItem>
-        <AccordionItem value="system">
-          <AccordionTrigger className="text-lg font-semibold text-foreground">إعدادات النظام</AccordionTrigger>
-        <AccordionContent className="space-y-4">
-          <Card className="erp-card">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-right">
-                <Globe className="h-5 w-5" />
-                إعدادات النظام العامة
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
+        </section>
+        <section hidden={activeSection !== "system"} className="space-y-4" aria-labelledby="settings-section-system">
+          <Card className="erp-card overflow-hidden rounded-2xl border-slate-200 shadow-sm gap-0 py-0">
+            <SettingsSectionHeader id="system" />
+            <CardContent className="space-y-4 py-5">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="defaultCurrency" className="text-right block">
@@ -1006,63 +1087,20 @@ export function SystemSettings() {
               </div>
             </CardContent>
           </Card>
-        </AccordionContent>
-        </AccordionItem>
-        <AccordionItem value="business">
-          <AccordionTrigger className="text-lg font-semibold text-foreground">إعدادات العمل</AccordionTrigger>
-        <AccordionContent className="space-y-4">
-          <Card className="erp-card">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-right">إعدادات العمل</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="fiscalYearStart" className="text-right block">
-                    بداية السنة المالية
-                  </Label>
-                  <Input
-                    id="fiscalYearStart"
-                    value={settings.fiscalYearStart}
-                    onChange={(e) => setSettings({ ...settings, fiscalYearStart: e.target.value })}
-                    className="text-right"
-                    dir="rtl"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="workingDays" className="text-right block">
-                    أيام العمل
-                  </Label>
-                  {/* Working Days Select Component */}
-                </div>
-                <div>
-                  <Label htmlFor="workingHours" className="text-right block">
-                    ساعات العمل
-                  </Label>
-                  <Input
-                    id="workingHours"
-                    value={settings.workingHours}
-                    onChange={(e) => setSettings({ ...settings, workingHours: e.target.value })}
-                    className="text-right"
-                    dir="rtl"
-                  />
-                </div>
-              </div>
+        </section>
+        <section hidden={activeSection !== "general"} className="space-y-4" aria-labelledby="settings-section-general">
+          <Card className="erp-card overflow-hidden rounded-2xl border-slate-200 shadow-sm gap-0 py-0">
+            <SettingsSectionHeader id="general" />
+            <CardContent className="py-5">
+              {/* صفحة "اعدادات عامة" (كانت بالقائمة الجانبية) — تحفظ مفاتيحها الخاصة عبر زر حفظ هذه الصفحة */}
+              <VouchersGeneralSettings embedded registerSave={registerGeneralSave} />
             </CardContent>
           </Card>
-        </AccordionContent>
-        </AccordionItem>
-        <AccordionItem value="accounts">
-          <AccordionTrigger className="text-lg font-semibold text-foreground">الحسابات الافتراضية</AccordionTrigger>
-        <AccordionContent className="space-y-4">
-          <Card className="erp-card">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-right">
-                <Building2 className="h-5 w-5" />
-                الحسابات الافتراضية
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
+        </section>
+        <section hidden={activeSection !== "accounts"} className="space-y-4" aria-labelledby="settings-section-accounts">
+          <Card className="erp-card overflow-hidden rounded-2xl border-slate-200 shadow-sm gap-0 py-0">
+            <SettingsSectionHeader id="accounts" />
+            <CardContent className="space-y-4 py-5">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {defaultAccountFields.map((field) => (
                   <div key={field.key} className="space-y-2">
@@ -1094,19 +1132,11 @@ export function SystemSettings() {
               </div>
             </CardContent>
           </Card>
-        </AccordionContent>
-        </AccordionItem>
-        <AccordionItem value="product_accounts">
-          <AccordionTrigger className="text-lg font-semibold text-foreground">الحسابات الافتراضية للاصناف</AccordionTrigger>
-        <AccordionContent className="space-y-4">
-          <Card className="erp-card">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-right">
-                <Building2 className="h-5 w-5" />
-                الحسابات الافتراضية للاصناف
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
+        </section>
+        <section hidden={activeSection !== "product_accounts"} className="space-y-4" aria-labelledby="settings-section-product_accounts">
+          <Card className="erp-card overflow-hidden rounded-2xl border-slate-200 shadow-sm gap-0 py-0">
+            <SettingsSectionHeader id="product_accounts" />
+            <CardContent className="space-y-4 py-5">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {productAccountFields.map((field) => (
                   <div key={field.key} className="space-y-2">
@@ -1138,81 +1168,11 @@ export function SystemSettings() {
               </div>
             </CardContent>
           </Card>
-        </AccordionContent>
-        </AccordionItem>
-        <AccordionItem value="security">
-          <AccordionTrigger className="text-lg font-semibold text-foreground">الأمان</AccordionTrigger>
-        <AccordionContent className="space-y-4">
-          <Card className="erp-card">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-right">
-                <Shield className="h-5 w-5" />
-                إعدادات الأمان
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="sessionTimeout" className="text-right block">
-                    انتهاء الجلسة (دقيقة)
-                  </Label>
-                  <Input
-                    id="sessionTimeout"
-                    type="number"
-                    value={settings.sessionTimeout}
-                    onChange={(e) => setSettings({ ...settings, sessionTimeout: Number.parseInt(e.target.value) })}
-                    className="text-right"
-                    dir="rtl"
-                  />
-                </div>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="passwordPolicy" className="text-right block">
-                      سياسة كلمة المرور القوية
-                    </Label>
-                    <Switch
-                      id="passwordPolicy"
-                      checked={settings.passwordPolicy}
-                      onCheckedChange={(checked) => setSettings({ ...settings, passwordPolicy: checked })}
-                    />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="twoFactorAuth" className="text-right block">
-                      المصادقة الثنائية
-                    </Label>
-                    <Switch
-                      id="twoFactorAuth"
-                      checked={settings.twoFactorAuth}
-                      onCheckedChange={(checked) => setSettings({ ...settings, twoFactorAuth: checked })}
-                    />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="auditLog" className="text-right block">
-                      سجل العمليات
-                    </Label>
-                    <Switch
-                      id="auditLog"
-                      checked={settings.auditLog}
-                      onCheckedChange={(checked) => setSettings({ ...settings, auditLog: checked })}
-                    />
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </AccordionContent>
-        </AccordionItem>
-        <AccordionItem value="documents">
-          <AccordionTrigger className="text-lg font-semibold text-foreground">السندات</AccordionTrigger>
-        <AccordionContent className="space-y-4">
-          <Card className="erp-card">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-right">
-                <FileText className="h-5 w-5" />
-                إعدادات السندات والترقيم
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
+        </section>
+        <section hidden={activeSection !== "documents"} className="space-y-4" aria-labelledby="settings-section-documents">
+          <Card className="erp-card overflow-hidden rounded-2xl border-slate-200 shadow-sm gap-0 py-0">
+            <SettingsSectionHeader id="documents" />
+            <CardContent className="space-y-6 py-5">
               {hasTransactions && (
                 <div className="bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded flex items-start gap-2">
                   <AlertCircle className="h-5 w-5 mt-0.5 flex-shrink-0" />
@@ -1961,82 +1921,9 @@ export function SystemSettings() {
               </div>
             </CardContent>
           </Card>
-        </AccordionContent>
-        </AccordionItem>
-        <AccordionItem value="printing">
-          <AccordionTrigger className="text-lg font-semibold text-foreground">الطباعة</AccordionTrigger>
-        <AccordionContent className="space-y-4">
-          <Card className="erp-card">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-right">
-                <Printer className="h-5 w-5" />
-                إعدادات الطباعة
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="defaultPrinter" className="text-right block">
-                    الطابعة الافتراضية
-                  </Label>
-                  <Select
-                    value={settings.defaultPrinter}
-                    onValueChange={(value) => setSettings({ ...settings, defaultPrinter: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="HP LaserJet">HP LaserJet</SelectItem>
-                      <SelectItem value="Canon Printer">Canon Printer</SelectItem>
-                      <SelectItem value="Epson Printer">Epson Printer</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label htmlFor="paperSize" className="text-right block">
-                    حجم الورق
-                  </Label>
-                  <Select
-                    value={settings.paperSize}
-                    onValueChange={(value) => setSettings({ ...settings, paperSize: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="A4">A4</SelectItem>
-                      <SelectItem value="A5">A5</SelectItem>
-                      <SelectItem value="Letter">Letter</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="printLogo" className="text-right block">
-                    طباعة الشعار
-                  </Label>
-                  <Switch
-                    id="printLogo"
-                    checked={settings.printLogo}
-                    onCheckedChange={(checked) => setSettings({ ...settings, printLogo: checked })}
-                  />
-                </div>
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="printFooter" className="text-right block">
-                    طباعة التذييل
-                  </Label>
-                  <Switch
-                    id="printFooter"
-                    checked={settings.printFooter}
-                    onCheckedChange={(checked) => setSettings({ ...settings, printFooter: checked })}
-                  />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </AccordionContent>
-        </AccordionItem>
-      </Accordion>
+        </section>
+        </div>
+      </div>
     </div>
   )
 }

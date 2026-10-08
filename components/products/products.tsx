@@ -31,7 +31,7 @@ import {
 } from "lucide-react"
 import { CompactProductForm } from "./compact-product-form"
 import { ImageThumbnail } from "@/components/common/ImageUploadField"
-import { ExcelImportDialog } from "./excel-import-dialog"
+import { ProductsImportDialog } from "@/components/import/products-import"
 import { InitialQuantitiesDialog } from "./initial-quantities-dialog"
 import { useAuth } from "../auth/auth-context"
 import { Toast } from "primereact/toast"
@@ -1122,11 +1122,10 @@ export function Products({ entityType = "products" }: ProductsProps) {
         </DialogContent>
       </Dialog>
 
-      <ExcelImportDialog
+      <ProductsImportDialog
         open={state.showExcelImport}
         onOpenChange={(open) => setState((prev) => ({ ...prev, showExcelImport: open }))}
-        onImportComplete={fetchProducts}
-        
+        onImported={fetchProducts}
       />
 
       <InitialQuantitiesDialog

@@ -1,4 +1,5 @@
 import sql from "@/lib/database"
+import { loadStoredSettings } from "@/app/api/settings/system/route"
 
 export const toNullableInt = (value: unknown): number | null => {
   if (value === null || value === undefined || value === "") return null
@@ -55,6 +56,42 @@ export const resolveAccountHierarchy = async (fatherIdInput: unknown, levelNoInp
 
   const parentLevel = Number(parentRows[0]?.level_no ?? 0)
   return { fatherId, levelNo: parentLevel + 1 }
+}
+
+// حساب الأب لكل نوع جهة من "الحسابات الافتراضية" في إعدادات النظام (customers.type: 1=عميل,
+// 2=مورد, 3=مندوب, 4=مشترك) — نفس المفاتيح التي تقرؤها شاشة العملاء لسجل جديد.
+const PARENT_ACCOUNT_SETTING: Record<number, { key: string; label: string }> = {
+  1: { key: "default_customer_parent_account", label: "للعملاء" },
+  2: { key: "default_supplier_parent_account", label: "للموردين" },
+  3: { key: "default_salesman_parent_account", label: "للمندوبين" },
+  4: { key: "default_customer_subscription_account", label: "للمشتركين" },
+}
+
+export class MissingParentAccountError extends Error {}
+
+export const missingParentAccountMessage = (entityType: unknown) =>
+  `يجب الذهاب الى الحسابات الافتراضية واختيار حساب الاب ${(PARENT_ACCOUNT_SETTING[Number(entityType)] || PARENT_ACCOUNT_SETTING[1]).label}`
+
+// حساب الأب إلزامي: المُرسَل مع الطلب، وإلا الافتراضي من الإعدادات (لإنشاء سريع من شاشات أخرى
+// لا تُرسله)، وإلا يُرمى MissingParentAccountError. settings اختيارية لتفادي قراءتها لكل سطر استيراد.
+export const resolveRequiredParentAccount = async (
+  entityType: unknown,
+  fatherIdInput: unknown,
+  settings?: Record<string, unknown>,
+) => {
+  const requestedFatherId = toNullableInt(fatherIdInput)
+  if (requestedFatherId) return resolveAccountHierarchy(requestedFatherId, 1)
+
+  const stored = settings ?? (await loadStoredSettings())
+  const setting = PARENT_ACCOUNT_SETTING[Number(entityType)] || PARENT_ACCOUNT_SETTING[1]
+  const defaultFatherId = toNullableInt(stored[setting.key])
+  if (!defaultFatherId) throw new MissingParentAccountError(missingParentAccountMessage(entityType))
+  try {
+    return await resolveAccountHierarchy(defaultFatherId, 1)
+  } catch {
+    // الحساب المحدد في الإعدادات لم يعد موجوداً
+    throw new MissingParentAccountError(missingParentAccountMessage(entityType))
+  }
 }
 
 // نوع الحساب المرتبط بالعميل/المورد/المندوب/المشترك — إزاحة ثابتة (+1) عن نوع الجهة نفسها

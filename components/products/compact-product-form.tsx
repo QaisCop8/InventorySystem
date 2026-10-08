@@ -40,6 +40,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import AttachmentManager from "@/components/common/AttachmentManager"
 import { ImageUploadField } from "@/components/common/ImageUploadField"
 import { attachEnterAsTab } from "@/components/common/enterAsTab"
+import { useWorkspaceTabActive } from "@/contexts/workspace-tab-context"
 
 // ارتفاع موحَّد لكل شبكات DataGridView في هذه الشاشة (الوحدات/الأسعار/المستودعات/مراكز التكلفة) —
 // يُمرَّر إلى DataGridView مباشرة (كخاصية style) لا إلى العنصر الملفوف، فيتولى Wijmo تمرير الصفوف
@@ -361,6 +362,7 @@ export function CompactProductForm({
   onSuccess,
   entityType = "products",
 }: CompactProductFormProps) {
+  const workspaceTabActive = useWorkspaceTabActive()
   const isService = entityType === "services"
   const toast = useRef<Toast>(null);
   const [formData, setFormData] = useState<ProductFormData>(initialFormData)
@@ -1375,23 +1377,12 @@ export function CompactProductForm({
   useEffect(() => {
     if (!visible) return; // attach only when dialog is open
 
-    const handler = (e: KeyboardEvent) => {
+    const handler = (e: KeyboardEvent) => { if (!workspaceTabActive.current) return;
       /*if (e.key === "Escape") {
         e.preventDefault();
         if (doHotKeys.current) onHideDialog(doHotKeys.current); // close only your nested popup
       }*/
-      if (e.key === "F4") {
-        e.preventDefault();
-        if (doHotKeys.current) handleDeleteClick(true)
-      }
-      if (e.key === "F3") {
-        e.preventDefault();
-        if (doHotKeys.current) handleSaveProduct()
-      }
-      if (e.key === "F5") {
-        e.preventDefault();
-        if (doHotKeys.current) onNew(true)
-      }
+      // F3 حفظ / F9 حذف / F4 نسخ / F5 جديد: UniversalToolbar (lib/hotkeys.ts)
       if (e.key === "F7") {
         e.preventDefault();
         if (activeTab === "related") deleteRelatedProduct(relatedProductRow ?? -1)

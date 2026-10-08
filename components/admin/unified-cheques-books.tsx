@@ -15,6 +15,7 @@ import DataGridView from "@/components/common/DataGridView"
 import BankAccountsSearch from "@/components/admin/bank-accounts-search"
 import type { BankAccountRecord } from "@/components/admin/unified-bank-accounts"
 import { useAuth } from "@/components/auth/auth-context"
+import { useWorkspaceTabActive } from "@/contexts/workspace-tab-context"
 
 // حالات توفّر الورقة داخل الدفتر (منفصلة تماماً عن حالة الشيك ضمن سند فعلي).
 const CHEQUE_BOOK_STATUS = { AVAILABLE: 1, DAMAGED: 2, UNAVAILABLE: 3 } as const
@@ -116,6 +117,7 @@ export default function UnifiedChequesBooks({
   isNewMode,
   errorMessages = [],
 }: UnifiedChequesBooksProps) {
+  const workspaceTabActive = useWorkspaceTabActive()
   const { user } = useAuth()
   const codeInputRef = useRef<HTMLInputElement | null>(null)
   const messagesRef = useRef<any>(null)
@@ -162,29 +164,7 @@ export default function UnifiedChequesBooks({
     }
   }
 
-  useEffect(() => {
-    if (typeof window === "undefined" || !dialogOpen) return
-    if (showDeleteConfirm || showUnsavedConfirm) return
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "F3") {
-        event.preventDefault()
-        onSave()
-        return
-      }
-      if (event.key === "F4") {
-        event.preventDefault()
-        if (form.id > 0) {
-          onDelete?.()
-        } else {
-          guardedAction(() => onOpenChange(false))
-        }
-      }
-    }
-
-    window.addEventListener("keydown", handleKeyDown)
-    return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [dialogOpen, form.id, onSave, onDelete, onOpenChange, guardedAction, showDeleteConfirm, showUnsavedConfirm])
+  // F3 حفظ / F9 حذف / F4 نسخ / F5 جديد / Ctrl+P طباعة: يتولاها UniversalToolbar (lib/hotkeys.ts)
 
   useEffect(() => {
     if (typeof window === "undefined" || !dialogOpen) return
@@ -492,7 +472,7 @@ export default function UnifiedChequesBooks({
         onOpenChange={onOpenChange}
       >
         <DialogContent
-          className="voucher-form flex w-[95vw] max-w-[1200px] flex-col overflow-hidden p-0 max-h-[92vh]"
+          className="voucher-form flex w-[92vw] max-w-[920px] flex-col overflow-hidden p-0 max-h-[85vh]"
           dir="rtl"
           onPointerDownOutside={(event) => {
             if (showUnsavedConfirm || showDeleteConfirm || bankSearchOpen) event.preventDefault()
@@ -521,18 +501,18 @@ export default function UnifiedChequesBooks({
             isLastRecord={isLastRecord}
           />
 
-          <div className="relative flex min-h-0 flex-1 flex-col rounded-b-3xl bg-background px-6 py-6" onKeyDown={handleFormEnterAsTab}>
+          <div className="relative flex min-h-0 flex-1 flex-col overflow-y-auto rounded-b-3xl bg-background px-5 py-4" onKeyDown={handleFormEnterAsTab}>
             <ProgressSpinner loading={isSaving || isLoading || navLoading} />
 
-            <DialogHeader className="mb-4">
-              <DialogTitle className="text-xl font-semibold">
+            <DialogHeader className="mb-2">
+              <DialogTitle className="text-lg font-semibold">
                 دفاتر الشيكات {form.id > 0 ? "" : "(إضافة)"}
               </DialogTitle>
             </DialogHeader>
 
             <Messages innerRef={messagesRef} />
 
-            <div className="grid gap-3 border-b pb-6">
+            <div className="grid gap-2 border-b pb-3">
               <div className="grid grid-cols-2 gap-3 items-start">
                 <div className="grid gap-1.5">
                   <Label htmlFor="cb-code">رقم الدفتر *</Label>
@@ -606,7 +586,7 @@ export default function UnifiedChequesBooks({
               </div>
             </div>
 
-            <div className="flex min-h-0 flex-1 flex-col space-y-3 pt-4">
+            <div className="flex flex-col space-y-2 pt-3">
               <h4 className="text-sm font-bold text-slate-500">الشيكات</h4>
               <div className="grid grid-cols-3 gap-2 items-end">
                 <div className="grid gap-1.5">
@@ -647,9 +627,10 @@ export default function UnifiedChequesBooks({
                 )}
               </div>
 
-              <div className="min-h-[200px] min-w-0 flex-1 overflow-hidden">
+              <div className="h-[260px] min-w-0 overflow-hidden">
                 <DataGridView
-                  style={{ height: "100%" }}
+                  containerStyle={{ height: "100%", minHeight: 0, maxHeight: "100%" }}
+                  style={{ height: "100%", minHeight: 0 }}
                   scheme={chequeScheme}
                   dataSource={chequeGridData}
                   idProperty="ser"
@@ -673,14 +654,18 @@ export default function UnifiedChequesBooks({
       />
 
       <ConfirmDialogYesNo
+        useAppDialog
         visible={showDeleteConfirm}
+        title="تأكيد الحذف"
         message="هل تريد حذف دفتر الشيكات هذا؟"
         onConfirm={onConfirmDelete}
         onCancel={onCancelDelete}
       />
 
       <ConfirmDialogYesNo
+        useAppDialog
         visible={showUnsavedConfirm}
+        title="حفظ التعديلات"
         message="تم تعديل البيانات، هل تريد الحفظ؟"
         showBack
         onConfirm={() => {

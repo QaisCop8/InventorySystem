@@ -13,12 +13,14 @@ import { useWorkspace } from "@/contexts/workspace-context"
 import AutoCompleteAccount from "@/components/customer/auto-complete-account"
 import Messages from "@/components/common/Messages"
 import ConfirmDialogYesNo from "@/components/ui/ConfirmDialogYesNo"
+import { useWorkspaceTabActive } from "@/contexts/workspace-tab-context"
 
 type Bracket = { id?: number; from_amount: number | string; to_amount: number | string; tax_percent: number | string }
 type TaxLaw = { id?: number; name: string; other_name: string; account_code: string; currency: string; max_discount: number | string; discount_percent: number | string; is_active: boolean; brackets: Bracket[] }
 const blank = (): TaxLaw => ({ name: "", other_name: "", account_code: "", currency: "", max_discount: "", discount_percent: 0, is_active: true, brackets: [{ from_amount: 1, to_amount: "", tax_percent: "" }] })
 
 export function TaxRulesPage() {
+  const workspaceTabActive = useWorkspaceTabActive()
   const { fullscreenEnabled } = useWorkspace()
   const [rows, setRows] = useState<TaxLaw[]>([]), [form, setForm] = useState<TaxLaw>(blank()), [selected, setSelected] = useState<TaxLaw | null>(null)
   const [open, setOpen] = useState(false), [saving, setSaving] = useState(false), [search, setSearch] = useState(""), [status, setStatus] = useState("active")
@@ -40,7 +42,7 @@ export function TaxRulesPage() {
   const showMessage = (detail: string, severity = "error") => { messagesRef.current?.clear?.(); messagesRef.current?.show?.([{ severity, summary: "", detail, life: 5000 }]) }
   const save = async () => { const error = validate(); if (error) return showMessage(error); setSaving(true); const r = await fetch("/api/hr/tax-laws", { method: form.id ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) }); if (r.ok) { await load(); setOpen(false) } else showMessage((await r.json()).error || "تعذر الحفظ"); setSaving(false) }
   const remove = async () => { if (!(Number(form.id) > 0)) return; const response = await fetch(`/api/hr/tax-laws?id=${form.id}`, { method: "DELETE" }); if (response.ok) { await load(); setOpen(false) } else showMessage((await response.json()).error || "تعذر الحذف") }
-  useEffect(() => { if (!open) return; const handler = (event: KeyboardEvent) => { if (event.key === "F3") { event.preventDefault(); void save() } else if (event.key === "F9" && Number(form.id) > 0) { event.preventDefault(); setDeleteConfirm(true) } }; window.addEventListener("keydown", handler); return () => window.removeEventListener("keydown", handler) }, [open, form])
+  // F3 حفظ / F9 حذف وبقية الاختصارات الموحّدة: UniversalToolbar (lib/hotkeys.ts)
   const enterAsTab = (event: React.KeyboardEvent) => { if (event.key !== "Enter" || (event.target as HTMLElement).tagName === "TEXTAREA") return; event.preventDefault(); const controls = Array.from(event.currentTarget.querySelectorAll<HTMLElement>('input:not([disabled]),select:not([disabled]),button:not([disabled])')); controls[controls.indexOf(event.target as HTMLElement) + 1]?.focus() }
   const filtered = rows.filter(row => (status === "all" || row.is_active === (status === "active")) && `${row.name} ${row.other_name} ${row.currency} ${row.account_code}`.toLowerCase().includes(search.toLowerCase()))
   const columns: Column[] = useMemo(() => [{ key: "name", label: "اسم القانون" }, { key: "other_name", label: "الاسم بالانجليزي" }, { key: "account_code", label: "الحساب المحاسبي" }, { key: "currency", label: "العملة", width: 110 }, { key: "discount_percent", label: "نسبة الخصم %", width: 130 }, { key: "brackets", label: "عدد الشرائح", width: 110, format: value => value?.length || 0 }], [])

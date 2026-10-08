@@ -9,6 +9,7 @@ import { UniversalToolbar } from "@/components/ui/universal-toolbar"
 import ConfirmDialogYesNo from "@/components/ui/ConfirmDialogYesNo"
 import Messages from "@/components/common/Messages"
 import AutoCompleteAccount from "@/components/customer/auto-complete-account"
+import { useWorkspaceTabActive } from "@/contexts/workspace-tab-context"
 
 export interface CreditCardRecord {
   id: number
@@ -137,6 +138,7 @@ export default function UnifiedCreditCards({
   isNewMode,
   errorMessages = [],
 }: UnifiedCreditCardsProps) {
+  const workspaceTabActive = useWorkspaceTabActive()
   const nameInputRef = useRef<HTMLInputElement | null>(null)
   const messagesRef = useRef<any>(null)
 
@@ -168,29 +170,7 @@ export default function UnifiedCreditCards({
     }
   }
 
-  useEffect(() => {
-    if (typeof window === "undefined" || !dialogOpen) return
-    if (showDeleteConfirm || showUnsavedConfirm) return
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "F3") {
-        event.preventDefault()
-        onSave()
-        return
-      }
-      if (event.key === "F4") {
-        event.preventDefault()
-        if (form.id > 0) {
-          onDelete?.()
-        } else {
-          guardedAction(() => onOpenChange(false))
-        }
-      }
-    }
-
-    window.addEventListener("keydown", handleKeyDown)
-    return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [dialogOpen, form.id, onSave, onDelete, onOpenChange, guardedAction, showDeleteConfirm, showUnsavedConfirm])
+  // F3 حفظ / F9 حذف / F4 نسخ / F5 جديد / Ctrl+P طباعة: يتولاها UniversalToolbar (lib/hotkeys.ts)
 
   useEffect(() => {
     if (typeof window === "undefined" || !dialogOpen) return

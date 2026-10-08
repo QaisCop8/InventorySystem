@@ -25,11 +25,17 @@ function getTransporter(): nodemailer.Transporter | null {
 
 // أفضل جهد (best-effort) دوماً — فشل إرسال بريد (أو عدم ضبط SMTP بعد) يجب ألا يُسقط أي تدفّق
 // عمل أساسي (تسجيل مستخدم، طلب إنشاء شركة، إلخ)، نفس نمط safeNotify المعتمد بالمشروع.
-export async function sendMail({ to, subject, html }: { to: string; subject: string; html: string }): Promise<void> {
+// يُعيد true عند الإرسال الفعلي فقط — التدفقات التي يعتمد عليها المستخدم (رمز استعادة كلمة المرور،
+// دعوة مستخدم جديد) تفحص القيمة لتعرض خطأً واضحاً بدل رسالة نجاح مضلِّلة.
+export function isMailConfigured() {
+  return getTransporter() !== null
+}
+
+export async function sendMail({ to, subject, html }: { to: string; subject: string; html: string }): Promise<boolean> {
   const client = getTransporter()
   if (!client) {
     console.log(`[email] (not sent — SMTP not configured) to=${to} subject=${subject}`)
-    return
+    return false
   }
 
   try {
@@ -39,7 +45,9 @@ export async function sendMail({ to, subject, html }: { to: string; subject: str
       subject,
       html,
     })
+    return true
   } catch (error) {
     console.error("[email] Failed to send mail (non-blocking):", error)
+    return false
   }
 }

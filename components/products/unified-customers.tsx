@@ -19,12 +19,13 @@ import ConfirmDialogYesNo from "@/components/ui/ConfirmDialogYesNo"
 import DataGridView from "../common/DataGridView"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Plus, AlertCircle } from "lucide-react"
+import { Plus, AlertCircle, Search } from "lucide-react"
 import { RefObject, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import PrimeDropdown from "@/components/common/FocusDropdown"
 import { ReportMultiChoice, type ReportOption } from "@/components/reports/account-statement-report"
 import ProgressSpinner from "../ProgressSpinner/ProgressSpinner"
 import { attachEnterAsTab } from "@/components/common/enterAsTab"
+import { useWorkspaceTabActive } from "@/contexts/workspace-tab-context"
 interface Classification {
   id: number
   name?: string
@@ -109,6 +110,7 @@ interface UnifiedCustomersProps {
   onOpenChange?: (open: boolean) => void
   isSupplier?: boolean
   isSalesman?: boolean
+  isSubscriber?: boolean
   showCustomerSearch?: boolean
   setShowCustomerSearch?: (open: boolean) => void
   formData?: UnifiedCustomerFormData
@@ -208,6 +210,7 @@ export default function UnifiedCustomers({
   onOpenChange = () => undefined,
   isSupplier = false,
   isSalesman = false,
+  isSubscriber = false,
   showCustomerSearch = false,
   setShowCustomerSearch = () => undefined,
   formData = defaultFormData,
@@ -242,6 +245,11 @@ export default function UnifiedCustomers({
   onStopTransactionRowsChange,
   customerNameRef,
 }: UnifiedCustomersProps) {
+  // نوع الجهة ونصوصها — نفس النموذج يخدم العملاء/الموردين/المشتركين/المندوبين.
+  const entityTypeCode = isSupplier ? 2 : isSubscriber ? 4 : isSalesman ? 3 : 1
+  const entityLabel = isSupplier ? "المورد" : isSubscriber ? "المشترك" : isSalesman ? "المندوب" : "العميل"
+  const entityIndef = isSupplier ? "مورد" : isSubscriber ? "مشترك" : isSalesman ? "مندوب" : "عميل"
+  const workspaceTabActive = useWorkspaceTabActive()
   const [activeTab, setActiveTab] = useState("address-location")
   // جذر النافذة — حاوية قائمة "الفروع" كي تُفتَح داخل النافذة نفسها (انظر popupDropdownProps).
   const [popupRoot, setPopupRoot] = useState<HTMLDivElement | null>(null)
@@ -823,6 +831,31 @@ export default function UnifiedCustomers({
     }
   }, [newClassificationTypeName])
 
+  // "اضافة نوع مركز تكلفة جديد": يُنشأ النوع في /api/cost-center-types ويُضاف للجدول فوراً
+  const [showCostCenterTypeForm, setShowCostCenterTypeForm] = useState(false)
+  const [newCostCenterTypeName, setNewCostCenterTypeName] = useState("")
+  const [newCostCenterTypeError, setNewCostCenterTypeError] = useState("")
+  const [savingCostCenterType, setSavingCostCenterType] = useState(false)
+  const handleSaveCostCenterType = useCallback(async () => {
+    const name = newCostCenterTypeName.trim()
+    if (!name) { setNewCostCenterTypeError("اسم النوع مطلوب"); return }
+    setSavingCostCenterType(true)
+    setNewCostCenterTypeError("")
+    try {
+      const response = await fetch("/api/cost-center-types", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, status: 1 }) })
+      const saved = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(saved?.error || "فشل في حفظ نوع مركز التكلفة")
+      setCostCenterTypes((prev) => [...prev, { ...saved, id: Number(saved.id), name: saved.name ?? name, state_status: "اختياري", required_in_transactions: 1, cost_center_name: "", default_cost_center_id: null }])
+      setCostCenterTypeMessage("تمت إضافة نوع مركز التكلفة بنجاح")
+      setShowCostCenterTypeForm(false)
+      setNewCostCenterTypeName("")
+    } catch (error: any) {
+      setNewCostCenterTypeError(error?.message || "فشل في حفظ نوع مركز التكلفة")
+    } finally {
+      setSavingCostCenterType(false)
+    }
+  }, [newCostCenterTypeName])
+
   const handleAddClassificationRow = useCallback(() => {
     setNewClassificationTypeId(null)
     setNewClassificationName("")
@@ -842,23 +875,21 @@ export default function UnifiedCustomers({
     searchAccountClassificationOpen ||
     showDeleteClassificationConfirm ||
     searchCostCenterOpen ||
+    showCostCenterTypeForm ||
     showDeleteConfirm
+  // F3 حفظ / F9 حذف / F4 نسخ / F5 جديد: UniversalToolbar (lib/hotkeys.ts) — تعطَّل عبر disableHotkeys
+
+  // نسخ الاسم العربي للإنجليزي عند الخروج من الحقل فقط إن كتب المستخدم الاسم فعلاً لهذا السجل —
+  // مجرد مرور التركيز على حقل الاسم (كالتركيز التلقائي بعد تحميل سجل ثم ضغط "جديد") كان يملأ
+  // الاسم الإنجليزي الفارغ فيبدو السجل "مُعدَّلاً" ويظهر تنبيه الحفظ دون أي تعديل حقيقي.
+  const nameEditedRef = useRef(false)
   useEffect(() => {
-    if (!open) return
-    const handler = (e: KeyboardEvent) => {
-      if (e.key !== "F3" && e.key !== "F4" && e.key !== "F5") return
-      // نافذة تأكيد المستدعي (حفظ التعديلات/الحذف) تستعمل F3 للتأكيد — بلا هذا الفحص كان F3 يحفظ
-      // ويؤكد معاً.
-      if (nestedPopupOpen || hotkeysDisabled) return
-      e.preventDefault()
-      if (isSaving || loading) return
-      if (e.key === "F3") onSave()
-      if (e.key === "F4" && !isNewRecord && currentCustomerId > 0) onDelete?.()
-      if (e.key === "F5") handleNew()
-    }
-    window.addEventListener("keydown", handler, true)
-    return () => window.removeEventListener("keydown", handler, true)
-  }, [open, nestedPopupOpen, hotkeysDisabled, isSaving, loading, isNewRecord, currentCustomerId, onSave, onDelete, handleNew])
+    nameEditedRef.current = false
+  }, [formData.id, formData.customer_code])
+  const copyNameToEnglishIfEdited = () => {
+    if (!nameEditedRef.current) return
+    if (!formData.name_en.trim() && formData.name.trim()) updateField("name_en", formData.name.trim())
+  }
 
   const formRootRef = useRef<HTMLDivElement>(null)
   const enterAsTabEnabledRef = useRef(true)
@@ -1089,11 +1120,11 @@ export default function UnifiedCustomers({
   )
 
   return (
-    <div ref={setPopupRoot} className="relative flex h-full flex-col">
+    <div ref={setPopupRoot} className="unified-customers-compact relative flex h-full flex-col">
       <ProgressSpinner loading={loading} />
       <CustomerSearchPopup
         visible={showCustomerSearch}
-        type={isSupplier ? 2 : 1}
+        type={entityTypeCode}
         vch_type={0}
         onClose={() => setShowCustomerSearch(false)}
         onSelect={onCustomerSelect || (() => undefined)}
@@ -1107,6 +1138,7 @@ export default function UnifiedCustomers({
           {/* كل الأزرار مربوطة بمعالجات المستدعي، ومعطَّلة أثناء التحميل/الحفظ/الحذف (isLoading/isSaving)
               حتى لا يُنفَّذ إجراءان متداخلان على نفس السجل. أزرار الأدوات تظهر فقط إن مُرِّر معالجها. */}
           <UniversalToolbar
+            disableHotkeys={hotkeysDisabled}
             onFirst={onFirst}
             onPrevious={onPrevious}
             onNext={onNext}
@@ -1114,7 +1146,7 @@ export default function UnifiedCustomers({
             onNew={handleNew}
             onSave={onSave}
             onDelete={onDelete}
-            onClone={onClone}
+            // زر "نسخ" مخفي في شاشة العملاء/الموردين (onClone غير مُمرَّر للشريط)
             onPrint={onPrint}
             onReport={onReport}
             // السجل الجديد يُعرَض بعد آخر سجل (N+1 / N) بدل رقم آخر سجل كان مفتوحاً قبله.
@@ -1171,7 +1203,7 @@ export default function UnifiedCustomers({
               <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
                 <div>
                   <Label htmlFor="customer_code" className="text-sm font-medium">
-                    {isSupplier ? "رقم المورد *" : "رقم العميل *"}
+                    {`رقم ${entityLabel} *`}
                   </Label>
                   <div className="flex gap-2">
                     <Input
@@ -1182,11 +1214,18 @@ export default function UnifiedCustomers({
                         await onCustomerCodeBlur?.(e.target.value)
                       }}
                       className="text-right"
-                      placeholder={isSupplier ? "رقم المورد" : "رقم العميل"}
+                      placeholder={`رقم ${entityLabel}`}
                       maxLength={8}
                     />
-                    <Button type="button" onClick={() => setShowCustomerSearch(true)}>
-                      🔍
+                    <Button
+                      type="button"
+                      variant="outline"
+                      title={`بحث عن ${entityIndef}`}
+                      aria-label={`بحث عن ${entityIndef}`}
+                      onClick={() => setShowCustomerSearch(true)}
+                      className="h-9 w-10 shrink-0 rounded-lg border-indigo-200 bg-indigo-50 p-0 text-indigo-700 shadow-sm transition hover:border-indigo-300 hover:bg-indigo-100 hover:text-indigo-800"
+                    >
+                      <Search className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>
@@ -1195,16 +1234,17 @@ export default function UnifiedCustomers({
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                 <div className="space-y-1">
                   <Label htmlFor="customer_name" className="text-xs font-medium text-slate-600">
-                    {isSupplier ? "اسم المورد *" : "اسم العميل *"}
+                    {`اسم ${entityLabel} *`}
                   </Label>
                   <Input
                     id="customer_name"
                     ref={customerNameRef}
                     value={formData.name}
-                    onChange={(e) => updateField("name", e.target.value.slice(0, 100))}
-                    onBlur={() => {
-                      if (!formData.name_en.trim() && formData.name.trim()) updateField("name_en", formData.name.trim())
+                    onChange={(e) => {
+                      nameEditedRef.current = true
+                      updateField("name", e.target.value.slice(0, 100))
                     }}
+                    onBlur={copyNameToEnglishIfEdited}
                     className={`h-9 border-slate-200 bg-slate-50/60 text-right shadow-none focus-visible:border-slate-400 focus-visible:ring-1 focus-visible:ring-slate-200 ${validationErrors.name ? "border-red-500" : ""}`}
                     placeholder=""
                     maxLength={100}
@@ -1215,15 +1255,13 @@ export default function UnifiedCustomers({
 
                 <div className="space-y-1">
                   <Label htmlFor="customer_name_en" className="text-xs font-medium text-slate-600">
-                    {isSupplier ? "اسم المورد بالانجليزي" : "اسم العميل بالانجليزي"}
+                    {`اسم ${entityLabel} بالانجليزي`}
                   </Label>
                   <Input
                     id="customer_name_en"
                     value={formData.name_en}
                     onChange={(e) => updateField("name_en", e.target.value.slice(0, 100))}
-                    onBlur={() => {
-                      if (!formData.name_en.trim() && formData.name.trim()) updateField("name_en", formData.name.trim())
-                    }}
+                    onBlur={copyNameToEnglishIfEdited}
                     className="h-9 border-slate-200 bg-slate-50/60 text-left shadow-none focus-visible:border-slate-400 focus-visible:ring-1 focus-visible:ring-slate-200"
                     placeholder=""
                     maxLength={100}
@@ -1236,7 +1274,7 @@ export default function UnifiedCustomers({
             <ImageUploadField
               value={formData.image_url}
               onChange={(value) => updateField("image_url", value)}
-              label={isSupplier ? "صورة المورد" : "صورة الزبون"}
+              label={`صورة ${entityLabel}`}
               size={160}
             />
           </div>
@@ -1275,14 +1313,14 @@ export default function UnifiedCustomers({
               />
             </div>
             <div>
-                  <Label htmlFor="classification" className="text-sm font-medium">تصنيف الزبون</Label>
+                  <Label htmlFor="classification" className="text-sm font-medium">تصنيف {entityLabel}</Label>
                   <PrimeDropdown
                     inputId="classification"
                     value={formData.classification || null}
                     options={classifications.map((item) => ({ label: item.group_name || item.name || "", value: item.group_name || item.name || "" }))}
                     optionLabel="label"
                     optionValue="value"
-                    placeholder={isSupplier ? "اختر تصنيف المورد" : "اختر تصنيف الزبون"}
+                    placeholder={`اختر تصنيف ${entityLabel}`}
                     filter={true}
                     className="invoice-currency-dropdown w-full"
                     {...popupDropdownProps}
@@ -1590,8 +1628,10 @@ export default function UnifiedCustomers({
                 <h4 className="font-semibold text-base">مراكز التكلفة</h4>
               </div>
               <Button
+                type="button"
                 variant="default"
                 size="sm"
+                onClick={() => { setNewCostCenterTypeName(""); setNewCostCenterTypeError(""); setShowCostCenterTypeForm(true) }}
                 className="flex items-center gap-2 whitespace-nowrap bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white transition-all duration-200 shadow-md hover:shadow-lg"
               >
                 <Plus className="w-4 h-4" />
@@ -1735,6 +1775,39 @@ export default function UnifiedCustomers({
         }}
         isCompact={true}
       />
+
+      <Dialog open={showCostCenterTypeForm} onOpenChange={(value) => { if (!savingCostCenterType) setShowCostCenterTypeForm(value) }}>
+        <DialogContent className="max-w-md" dir="rtl">
+          <DialogHeader>
+            <DialogTitle>إضافة نوع مركز تكلفة جديد</DialogTitle>
+            <DialogDescription>أدخل اسم نوع مركز التكلفة الجديد</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {newCostCenterTypeError && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{newCostCenterTypeError}</AlertDescription>
+              </Alert>
+            )}
+            <div>
+              <Label htmlFor="costCenterTypeName" className="mb-2 block text-sm font-medium">اسم النوع *</Label>
+              <Input
+                id="costCenterTypeName"
+                value={newCostCenterTypeName}
+                onChange={(e) => setNewCostCenterTypeName(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void handleSaveCostCenterType() } }}
+                placeholder="أدخل اسم النوع"
+                className="text-right"
+                autoFocus
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" disabled={savingCostCenterType} onClick={() => setShowCostCenterTypeForm(false)}>إلغاء</Button>
+            <Button disabled={savingCostCenterType} onClick={() => void handleSaveCostCenterType()}>حفظ</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={showClassificationTypeForm} onOpenChange={setShowClassificationTypeForm}>
         <DialogContent className="max-w-md" dir="rtl">

@@ -41,7 +41,7 @@ const num = (value: unknown) => { const parsed = Number(value); return Number.is
 async function loadSalesLines(filters: ProfitFilters) {
   const values: unknown[] = [filters.from, filters.to, filters.types]
   const where = [
-    "vh.vch_type = ANY($3::int[])", "vh.vch_status = 2", "COALESCE(vh.status, 1) <> 3",
+    "vh.vch_type = ANY($3::int[])", "COALESCE(vh.status, 1) <> 3",
     "vh.vch_date >= $1::date", "vh.vch_date < ($2::date + INTERVAL '1 day')", "COALESCE(p.type, 1) = 1",
   ]
   const add = (ids: number[], column: string) => { if (ids.length) { values.push(ids); where.push(`${column} = ANY($${values.length}::int[])`) } }
@@ -107,7 +107,7 @@ export async function computeSalesProfitLines(filters: ProfitFilters): Promise<P
   // كلفة كل سطر حركة لحظة خروجه — تُحسب على كل المستودعات والفروع (كلفة الصنف على مستوى الشركة).
   const lineCosts = new Map<number, LineCost>()
   const productIds = [...new Set(sales.map((line: any) => Number(line.product_id)))]
-  const balances = await getProductBalances(0, filters.to, 0, "", { productIds }, (line, cost) => { lineCosts.set(Number(line.id), cost) })
+  const balances = await getProductBalances(0, filters.to, 0, "", { productIds, includeUnposted: true }, (line, cost) => { lineCosts.set(Number(line.id), cost) })
   const finalCosts = new Map<number, LineCost>(balances.map((row: any) => [Number(row.id), { average: num(row.average_cost), last: num(row.last_incoming_cost), fifo: num(row.fifo_cost) }]))
   return sales.map((line: any) => {
     const type = Number(line.vch_type)
@@ -191,6 +191,27 @@ export async function saveSalesCostPrices(lines: ProfitLine[]) {
   return result.rowCount || 0
 }
 
+/** بحث فواتير المبيعات والمرتجعات (غير المحذوفة) لاختيار فاتورة في تقرير أرباح فاتورة معينة. */
+export async function searchProfitVouchers(options: { search: string; from?: string; to?: string; types: number[] }) {
+  const search = options.search.trim()
+  const values: unknown[] = [options.types]
+  const where = ["vh.vch_type = ANY($1::int[])", "COALESCE(vh.status, 1) <> 3"]
+  if (options.from) { values.push(options.from); where.push(`vh.vch_date >= $${values.length}::date`) }
+  if (options.to) { values.push(options.to); where.push(`vh.vch_date < ($${values.length}::date + INTERVAL '1 day')`) }
+  if (search) { values.push(`%${search}%`); where.push(`(vh.vch_code ILIKE $${values.length} OR acc.name ILIKE $${values.length} OR acc.code ILIKE $${values.length})`) }
+  const pool = await getTenantPool()
+  return (await pool.query(`
+    SELECT vh.id, vh.vch_code, vh.vch_date::date::text AS vch_date, vh.vch_type, COALESCE(vh.status, 1) AS status,
+      acc.code AS customer_code, acc.name AS customer_name, b.branch_name, COALESCE(vh.amount, 0) AS amount,
+      (SELECT COUNT(*)::int FROM voucher_items_tbl vi WHERE vi.voucher_id = vh.id) AS lines
+    FROM voucher_header_tbl vh
+    LEFT JOIN account_tbl acc ON acc.id = vh.account_id
+    LEFT JOIN branches b ON b.id = vh.branch_id
+    WHERE ${where.join(" AND ")}
+    ORDER BY vh.vch_date DESC, vh.id DESC
+    LIMIT 200`, values)).rows
+}
+
 /** الأصناف التي لها مبيعات أو مرتجعات مرحَّلة خلال الفترة — لتقرير تكلفة مبيعات صنف. */
 export async function soldItemsInPeriod(from: string, to: string) {
   return sql`
@@ -198,7 +219,7 @@ export async function soldItemsInPeriod(from: string, to: string) {
     FROM products p
     WHERE COALESCE(p.type, 1) = 1 AND EXISTS (
       SELECT 1 FROM voucher_items_tbl vi JOIN voucher_header_tbl vh ON vh.id = vi.voucher_id
-      WHERE vi.item_id = p.id AND vh.vch_type IN (12, 16) AND vh.vch_status = 2 AND COALESCE(vh.status, 1) <> 3
+      WHERE vi.item_id = p.id AND vh.vch_type IN (12, 16) AND COALESCE(vh.status, 1) <> 3
         AND vh.vch_date >= ${from}::date AND vh.vch_date < (${to}::date + INTERVAL '1 day'))
     ORDER BY p.product_code, p.product_name`
 }

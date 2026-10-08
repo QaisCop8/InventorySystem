@@ -1,6 +1,9 @@
 import { type NextRequest, NextResponse } from "next/server"
 
 import { createTenantEmployeeWithManagementLink, hashPassword } from "@/lib/auth"
+import { assertLicenseAllows, licenseErrorResponseBody } from "@/lib/company-license"
+import { issuePasswordCode, sendAddedToCompanyEmail } from "@/lib/password-codes"
+import { randomBytes } from "crypto"
 import sql, { resolveCurrentDbName } from "@/lib/database"
 import { ensurePermissionTables } from "@/lib/permissions"
 import { getSessionUser } from "@/lib/tenant-auth"
@@ -178,11 +181,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "البريد الإلكتروني مستخدَم بالفعل لمستخدم آخر في هذه الشركة" }, { status: 400 })
     }
 
+    try {
+      await assertLicenseAllows("users")
+    } catch (error) {
+      const body = licenseErrorResponseBody(error)
+      if (body) return NextResponse.json(body, { status: 409 })
+      throw error
+    }
+
+    // بلا كلمة مرور من المسؤول: كلمة مرور عشوائية مؤقتة، ويعيّن المستخدم كلمة مروره بنفسه عبر بريد الدعوة.
+    const invite = !String(data.password || "").trim()
+    const password = invite ? randomBytes(24).toString("base64url") : String(data.password)
+
     // Reuse the management identity while keeping the new user local to this company.
     const result = await createTenantEmployeeWithManagementLink({
       username: data.username,
       email: data.email,
-      password: data.password,
+      password,
       fullName: data.full_name,
       role: data.role || "مدير النظام",
       department: data.department || "الإدارة",
@@ -205,9 +220,18 @@ export async function POST(request: NextRequest) {
     `
 
     console.log("[v0] User created successfully with sequential ID:", result.userId)
+    let invitation: { sent: boolean; existing: boolean } | null = null
+    if (invite) {
+      const dbName = await resolveCurrentDbName()
+      const companyName = (await managementSql`SELECT name FROM companies WHERE db_name = ${dbName} LIMIT 1`.catch(() => []))[0]?.name
+      invitation = result.existingIdentity
+        ? { sent: await sendAddedToCompanyEmail(String(data.email), data.full_name, companyName), existing: true }
+        : { ...(await issuePasswordCode({ email: String(data.email), purpose: "invite", tenantDb: dbName, fullName: data.full_name, companyName })), existing: false }
+    }
     return NextResponse.json({
       success: true,
       user: createdUser[0],
+      invitation,
     });
   } catch (error) {
     console.error("Database insert error:", error)
@@ -362,6 +386,20 @@ export async function PUT(request: NextRequest) {
 
     if (!hasProfileFields && !hasPreferenceFields) {
       return NextResponse.json({ error: "No updatable fields provided" }, { status: 400 })
+    }
+
+    // إعادة تفعيل مستخدم موقوف تستهلك مقعداً من الترخيص كإضافة مستخدم جديد.
+    if (data.is_active === true) {
+      const current = (await sql`SELECT is_active FROM user_settings WHERE user_id = ${data.user_id} LIMIT 1`)[0]
+      if (current && current.is_active === false) {
+        try {
+          await assertLicenseAllows("users")
+        } catch (error) {
+          const body = licenseErrorResponseBody(error)
+          if (body) return NextResponse.json(body, { status: 409 })
+          throw error
+        }
+      }
     }
 
     if (data.email && String(data.email).trim()) {

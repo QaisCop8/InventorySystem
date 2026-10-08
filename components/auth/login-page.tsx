@@ -1,6 +1,6 @@
 "use client"
 
-import { ReactNode, useState } from "react"
+import { ReactNode, useEffect, useState } from "react"
 import { PasswordReset } from "./password-reset"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -36,8 +36,22 @@ export function LoginPage({ onLogin, footer, pageDirection = "rtl", credentialDi
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
   const [showPasswordReset, setShowPasswordReset] = useState(false)
+  const [inviteLink, setInviteLink] = useState<{ email: string; code: string } | null>(null)
 
-  if (showPasswordReset) return <PasswordReset onBack={() => setShowPasswordReset(false)} />
+  // رابط "تعيين كلمة المرور" من بريد الدعوة/الاستعادة: ?set_password=1&email=...&code=...
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get("set_password") !== "1") return
+    setInviteLink({ email: params.get("email") || "", code: params.get("code") || "" })
+    setShowPasswordReset(true)
+  }, [])
+
+  const closePasswordReset = () => {
+    setShowPasswordReset(false)
+    if (inviteLink) { setInviteLink(null); window.history.replaceState(null, "", window.location.pathname) }
+  }
+
+  if (showPasswordReset) return <PasswordReset onBack={closePasswordReset} initialEmail={inviteLink?.email} initialCode={inviteLink?.code} />
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault()

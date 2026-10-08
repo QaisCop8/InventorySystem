@@ -9,6 +9,7 @@ import {
   ITEM_ACCOUNT_VCH_TYPES,
 } from "../_lib"
 import { authorizeStoredVoucher } from "@/lib/transaction-permissions"
+import { attachItemSerials } from "@/lib/item-serials"
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -41,7 +42,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const voucher = rows[0]
     const hasJournalAccounts = (ITEM_ACCOUNT_VCH_TYPES as readonly number[]).includes(Number(voucher.vch_type))
     const journalTypes = hasJournalAccounts ? await resolveSalesVoucherJournalTypes(Number(voucher.vch_type)) : null
-    const items = await fetchSalesVoucherItems(id, journalTypes?.itemJournalType)
+    const items = await attachItemSerials(await fetchSalesVoucherItems(id, journalTypes?.itemJournalType))
     // Source information is intentionally stored on voucher item links, not
     // duplicated on voucher_header_tbl. Reconstruct the invoice source when
     // displaying an existing invoice so the UI does not fall back to "normal".

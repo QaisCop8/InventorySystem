@@ -1,7 +1,8 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
-import { ChevronDown } from "lucide-react"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { CalendarRange, ChevronDown } from "lucide-react"
+import { ReportMultiChoice, type ReportOption } from "@/components/reports/account-statement-report"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -47,6 +48,20 @@ const DEFAULT_BARCODE_COLUMN_VALUE_OPTIONS = [
   { value: "main_barcode", label: "الباركود الرئيسي" },
 ]
 
+const WORKING_MONTH_OPTIONS = [
+  "كانون الثاني", "شباط", "آذار", "نيسان", "أيار", "حزيران",
+  "تموز", "آب", "أيلول", "تشرين الأول", "تشرين الثاني", "كانون الأول",
+].map((name, index): ReportOption => ({ id: index + 1, code: String(index + 1), name }))
+// سنوات العمل المتاحة: من 10 سنوات سابقة حتى 2099
+const LAST_WORKING_YEAR = 2099
+const ALL_WORKING_MONTHS = WORKING_MONTH_OPTIONS.map((month) => month.id)
+
+const normalizeWorkingMonths = (value: unknown): number[] => {
+  const list = Array.isArray(value) ? value : typeof value === "string" && value.trim() ? value.split(",") : []
+  const months = list.map(Number).filter((month) => Number.isInteger(month) && month >= 1 && month <= 12)
+  return [...new Set(months)].sort((a, b) => a - b)
+}
+
 const PRICE_SOURCE_OPTIONS = [
   { value: "main_relation", label: "من العلاقة بالرئيسية" },
   { value: "unit", label: "من الوحدة" },
@@ -77,6 +92,8 @@ interface VouchersGeneralSettingsState {
   autoAssignNextSerialOnPurchase: boolean
   serialReportDefaultDaysFilter: number
   priceSource: string
+  workingYear: number
+  workingMonths: number[]
 }
 
 const defaultSettings: VouchersGeneralSettingsState = {
@@ -104,9 +121,17 @@ const defaultSettings: VouchersGeneralSettingsState = {
   autoAssignNextSerialOnPurchase: false,
   serialReportDefaultDaysFilter: 30,
   priceSource: "main_relation",
+  workingYear: new Date().getFullYear(),
+  workingMonths: ALL_WORKING_MONTHS,
 }
 
-export default function VouchersGeneralSettings() {
+interface VouchersGeneralSettingsProps {
+  /** داخل صفحة "إعدادات النظام" كتبويب: بلا عنوان/زر حفظ خاص — زر حفظ الصفحة يستدعي registerSave */
+  embedded?: boolean
+  registerSave?: (save: () => Promise<boolean>) => void
+}
+
+export default function VouchersGeneralSettings({ embedded = false, registerSave }: VouchersGeneralSettingsProps = {}) {
   const [receiptPaymentOpen, setReceiptPaymentOpen] = useState(true)
   const [accountsOpen, setAccountsOpen] = useState(true)
   const [itemsOpen, setItemsOpen] = useState(true)
@@ -200,6 +225,11 @@ export default function VouchersGeneralSettings() {
           payload.serial_report_default_days_filter ?? prev.serialReportDefaultDaysFilter,
         ),
         priceSource: payload.price_source || prev.priceSource,
+        workingYear: Number(payload.working_year) > 0 ? Number(payload.working_year) : prev.workingYear,
+        workingMonths:
+          payload.working_months !== undefined && payload.working_months !== null && payload.working_months !== ""
+            ? normalizeWorkingMonths(payload.working_months)
+            : prev.workingMonths,
       }))
     } catch (error) {
       console.error("Failed to load general voucher settings", error)
@@ -208,7 +238,15 @@ export default function VouchersGeneralSettings() {
     }
   }
 
-  const handleSave = async () => {
+  const handleSave = async (): Promise<boolean> => {
+    if (!settings.workingYear) {
+      toast({ title: "خطأ", description: "يجب اختيار سنة العمل", variant: "destructive" })
+      return false
+    }
+    if (settings.workingMonths.length === 0) {
+      toast({ title: "خطأ", description: "يجب اختيار شهر عمل واحد على الأقل", variant: "destructive" })
+      return false
+    }
     setSaving(true)
     try {
       const response = await fetch("/api/settings/system", {
@@ -240,29 +278,85 @@ export default function VouchersGeneralSettings() {
           auto_assign_next_serial_on_purchase: settings.autoAssignNextSerialOnPurchase,
           serial_report_default_days_filter: settings.serialReportDefaultDaysFilter,
           price_source: settings.priceSource,
+          working_year: settings.workingYear,
+          working_months: settings.workingMonths,
         }),
       })
       if (!response.ok) throw new Error("Failed to save")
       // يُعيد تعبئة عدد الخانات العشرية بـlocalStorage فوراً (بدل انتظار إعادة تحميل الصفحة) —
       // يُطلِق أيضاً حدثاً تلتقطه كل شبكة DataGridView مفتوحة حالياً لإعادة تنسيق خلاياها المعروضة.
       void syncSystemSettingsToLocalStorage()
-      toast({ title: "تم الحفظ", description: "تم حفظ الإعدادات العامة بنجاح" })
+      // ضمن صفحة إعدادات النظام: رسالة النجاح تعرضها الصفحة نفسها مرة واحدة لكل الأقسام
+      if (!embedded) toast({ title: "تم الحفظ", description: "تم حفظ الإعدادات العامة بنجاح" })
+      return true
     } catch (error) {
       console.error("Failed to save general voucher settings", error)
       toast({ title: "خطأ", description: "فشل حفظ الإعدادات العامة", variant: "destructive" })
+      return false
     } finally {
       setSaving(false)
     }
   }
 
+  // أحدث نسخة من handleSave (تقرأ أحدث settings) — تُسجَّل لدى الصفحة الأم عند التضمين
+  const handleSaveRef = useRef(handleSave)
+  handleSaveRef.current = handleSave
+  useEffect(() => {
+    registerSave?.(() => handleSaveRef.current())
+  }, [registerSave])
+
+  const currentYear = new Date().getFullYear()
+  const workingYearOptions = useMemo(() => {
+    const years = new Set<number>()
+    for (let year = currentYear - 10; year <= LAST_WORKING_YEAR; year++) years.add(year)
+    if (settings.workingYear) years.add(settings.workingYear)
+    return [...years].sort((a, b) => a - b).map((year) => ({ value: year, label: String(year) }))
+  }, [currentYear, settings.workingYear])
+
   return (
     <div className="space-y-4" dir="rtl">
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold">اعدادات عامة</h2>
-        <Button onClick={handleSave} disabled={saving || loading}>
-          {saving ? "جارٍ الحفظ..." : "حفظ"}
-        </Button>
-      </div>
+      {!embedded && (
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-semibold">اعدادات عامة</h2>
+          <Button onClick={() => void handleSave()} disabled={saving || loading}>
+            {saving ? "جارٍ الحفظ..." : "حفظ"}
+          </Button>
+        </div>
+      )}
+
+      <Card className="rounded-2xl border-emerald-100 shadow-sm">
+        <CardContent className="p-4">
+          <div className="mb-3 flex items-center gap-2 text-base font-semibold">
+            <CalendarRange className="h-4 w-4 text-emerald-600" />
+            فترة العمل
+          </div>
+          <div className="grid grid-cols-1 gap-x-6 gap-y-4 md:grid-cols-2">
+            <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
+              <span className="text-sm">سنة العمل *</span>
+              <PrimeDropdown
+                value={settings.workingYear}
+                options={workingYearOptions}
+                optionLabel="label"
+                optionValue="value"
+                filter
+                className="invoice-currency-dropdown w-full"
+                panelClassName="invoice-currency-dropdown-panel"
+                appendTo="self"
+                panelStyle={{ zIndex: 10000 }}
+                onChange={(e: any) => setSettings((s) => ({ ...s, workingYear: Number(e.value) || s.workingYear }))}
+              />
+            </div>
+            {/* نفس مكوّن الاختيار المتعدد المستخدم في التقارير */}
+            <ReportMultiChoice
+              label="شهر العمل *"
+              options={WORKING_MONTH_OPTIONS}
+              selected={settings.workingMonths}
+              placeholder="اختر أشهر العمل"
+              onChange={(ids) => setSettings((s) => ({ ...s, workingMonths: normalizeWorkingMonths(ids) }))}
+            />
+          </div>
+        </CardContent>
+      </Card>
 
       <Card className="rounded-2xl shadow-sm">
         <CardContent className="p-4">

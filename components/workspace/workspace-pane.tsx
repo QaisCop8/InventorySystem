@@ -7,6 +7,7 @@ import { SECTION_TITLES } from "@/components/sidebar"
 import { TabStrip } from "./tab-strip"
 import { PaneMenu } from "./pane-menu"
 import { WorkspaceDialogProvider } from "@/contexts/workspace-dialog-context"
+import { WorkspaceTabActiveProvider } from "@/contexts/workspace-tab-context"
 
 interface WorkspacePaneProps {
   paneId: PaneId
@@ -51,6 +52,7 @@ export function WorkspacePane({ paneId, showTabStrip, showFocusRing, renderSecti
             key={tab.id}
             tab={tab}
             active={tab.id === pane.activeTabId}
+            hotkeysActive={tab.id === pane.activeTabId && (!showFocusRing || isFocused)}
             renderSection={renderSection}
           />
         ))}
@@ -62,10 +64,12 @@ export function WorkspacePane({ paneId, showTabStrip, showFocusRing, renderSecti
 function MountedWorkspaceTab({
   tab,
   active,
+  hotkeysActive,
   renderSection,
 }: {
   tab: WorkspaceTab
   active: boolean
+  hotkeysActive: boolean
   renderSection: (section: string | null) => ReactNode
 }) {
   const [dialogContainer, setDialogContainer] = useState<HTMLDivElement | null>(null)
@@ -78,10 +82,12 @@ function MountedWorkspaceTab({
       )}
       aria-hidden={!active}
     >
-      <WorkspaceDialogProvider container={dialogContainer} confined>
-        <div className="h-full overflow-auto">{renderSection(tab.section)}</div>
-        <div ref={setDialogContainer} className="pointer-events-none absolute inset-0 z-[100] isolate overflow-visible" />
-      </WorkspaceDialogProvider>
+      <WorkspaceTabActiveProvider active={hotkeysActive}>
+        <WorkspaceDialogProvider container={dialogContainer} confined>
+          <div className="h-full overflow-auto">{renderSection(tab.section)}</div>
+          <div ref={setDialogContainer} className="pointer-events-none absolute inset-0 z-[100] isolate overflow-visible" />
+        </WorkspaceDialogProvider>
+      </WorkspaceTabActiveProvider>
     </div>
   )
 }

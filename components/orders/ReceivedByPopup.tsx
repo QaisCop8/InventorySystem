@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useWorkspaceTabActive } from "@/contexts/workspace-tab-context"
 
 interface OrderForReceived {
   id: number;
@@ -25,6 +26,7 @@ const ReceivedByPopup: React.FC<ReceivedByPopupProps> = ({
   orders = [],
   defaultValue = "",
 }) => {
+  const workspaceTabActive = useWorkspaceTabActive()
   const [isBatchMode, setIsBatchMode] = useState(orders.length > 1);
   const [copyToAllValue, setCopyToAllValue] = useState("");
   const [orderValues, setOrderValues] = useState<Record<number, string>>({});
@@ -64,7 +66,7 @@ const ReceivedByPopup: React.FC<ReceivedByPopupProps> = ({
       setTimeout(() => firstOrderInputRef.current?.focus(), 0);
     }
 
-    const handleKeyDown = (e: KeyboardEvent) => {
+    const handleKeyDown = (e: KeyboardEvent) => { if (!workspaceTabActive.current) return;
       if (e.key === "F3" || e.code === "F3") {
         e.preventDefault();
         handleConfirm();

@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState, type MutableRefObject } from "react"
+import { BillsPaymentDialog } from "@/components/sales/bills-payment-dialog"
 import { Plus, Trash2, ListPlus, FileText, User, Wallet, MessageSquare, Landmark, CreditCard, BookOpen, X } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useWorkspace } from "@/contexts/workspace-context"
@@ -33,6 +34,7 @@ import { useToast } from "@/hooks/use-toast"
 import PrimeDropdown from "@/components/common/FocusDropdown"
 import { useAuth } from "@/components/auth/auth-context"
 import TransactionBranchField from "@/components/common/transaction-branch-field"
+import { useWorkspaceTabActive } from "@/contexts/workspace-tab-context"
 
 export interface VoucherJournalRow {
   account_id: number | null
@@ -379,6 +381,7 @@ export default function UnifiedReceiptVoucher({
   isNewMode,
   errorMessages = [],
 }: UnifiedReceiptVoucherProps) {
+  const workspaceTabActive = useWorkspaceTabActive()
   const { fullscreenEnabled } = useWorkspace()
   const { user } = useAuth()
   const dateInputRef = useRef<HTMLInputElement | null>(null)
@@ -453,6 +456,8 @@ export default function UnifiedReceiptVoucher({
   const [postDialogOpen, setPostDialogOpen] = useState(false)
   const doHotKeys = useRef(true)
   const isReceipt = form.vch_type === 4 // per voucher_types_tbl: 4 = سند قبض, 5 = سند صرف
+  // تسديد الفواتير: توزيع سند القبض المحفوظ على فواتير العميل المفتوحة.
+  const [billsPaymentOpen, setBillsPaymentOpen] = useState(false)
   const isPayment = form.vch_type === 5
   // إعداد "عدم السماح بادخال شيكات يدويا في سند الصرف" (vouchers-general-settings.tsx) — عند
   // تفعيله يُصبح رقم الشيك للقراءة فقط ولا يُختار إلا من دفتر شيكات الحساب البنكي المحدد.
@@ -603,9 +608,16 @@ export default function UnifiedReceiptVoucher({
 
   // يتحقق من صحة السند قبل عرض نافذة "كيف تريد الحفظ؟" — لا فائدة من تخيير المستخدم بين حفظ/ترحيل/طباعة
   // لسند غير صالح أصلاً (رقم ناقص، مبالغ غير متطابقة...)؛ رسالة الخطأ تظهر مباشرة بدل فتح النافذة.
+  const requestSaveRef = useRef<() => void>(() => {})
   const handleRequestSave = () => {
     if (isLocked) return
     commitActiveGridEdits(journalGridRef.current, chequeGridRef.current)
+    // الحفظ من تبويب آخر يفتح التبويب الرئيسي أولاً ثم يتابع الحفظ.
+    if (activeTab !== "main") {
+      handleTabChange("main")
+      requestAnimationFrame(() => requestAnimationFrame(() => requestSaveRef.current()))
+      return
+    }
     const validationData: VoucherRecord = {
       ...latestFormRef.current,
       journal: [...journalRef.current],
@@ -619,38 +631,9 @@ export default function UnifiedReceiptVoucher({
     }
     setPostDialogOpen(true)
   }
+  requestSaveRef.current = handleRequestSave
 
-  useEffect(() => {
-    if (typeof window === "undefined" || !dialogOpen) return
-    if (showDeleteConfirm || showUnsavedConfirm) return
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "F3") {
-        event.preventDefault()
-        handleRequestSave()
-        return
-      }
-      if (event.key === "F8") {
-        event.preventDefault()
-        if (form.id > 0 && form.status === 1) {
-          onDelete?.()
-        }
-        return
-      }
-      if (event.key === "F9") {
-        event.preventDefault()
-        if (form.id > 0) onPrint?.()
-        return
-      }
-      if (event.key === "F5") {
-        event.preventDefault()
-        guardedAction(() => onNew?.())
-      }
-    }
-
-    window.addEventListener("keydown", handleKeyDown)
-    return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [dialogOpen, form.id, isLocked, onDelete, onOpenChange, guardedAction, showDeleteConfirm, showUnsavedConfirm])
+  // F3 حفظ / F9 حذف / F4 نسخ / F5 جديد / Ctrl+P طباعة: يتولاها UniversalToolbar (lib/hotkeys.ts)
 
   const currencyOptions = useMemo(
     () =>
@@ -1956,7 +1939,14 @@ export default function UnifiedReceiptVoucher({
                   </span>
                 )}
               </DialogTitle>
+              {isReceipt && (
+                <button type="button" disabled={!(form.id > 0)} onClick={() => setBillsPaymentOpen(true)} title={form.id > 0 ? "تسديد الفواتير" : "احفظ السند أولاً"} className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-white/15 px-3 py-1 text-xs font-semibold text-white ring-1 ring-white/30 transition hover:bg-white/25 disabled:opacity-50">
+                  <Wallet className="h-3.5 w-3.5" />
+                  تسديد الفواتير
+                </button>
+              )}
             </DialogHeader>
+            {isReceipt && <BillsPaymentDialog open={billsPaymentOpen} onOpenChange={setBillsPaymentOpen} voucherId={form.id > 0 ? form.id : null} />}
 
             <Messages innerRef={messagesRef} />
 

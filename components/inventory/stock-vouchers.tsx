@@ -23,6 +23,7 @@ import UnifiedStockVoucher, {
 } from "./unified-stock-voucher"
 import type { PostVoucherAction } from "@/components/common/post-voucher-dialog"
 import StockVoucherPrintLayout, { type StockVoucherPrintData } from "@/components/common/stock-voucher-print-layout"
+import { serialsSummary } from "@/components/inventory/item-serials-dialog"
 
 interface StockVouchersProps {
   voucherType: StockVoucherType
@@ -129,6 +130,9 @@ const normalizeVoucher = (record: Partial<VoucherRecord>, voucherType: StockVouc
         expense_account_name: String(item.expense_account_name || ""),
         purchase_account_code: String(item.purchase_account_code || ""),
         purchase_account_name: String(item.purchase_account_name || ""),
+        has_serial: Boolean(item.has_serial),
+        serials: Array.isArray(item.serials) ? item.serials : [],
+        serials_text: serialsSummary({ ...item, quantity: item.quantity ?? item.qnty }),
       }))
     : [{ ...emptyItemRow }],
 })

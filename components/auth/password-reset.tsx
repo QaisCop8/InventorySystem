@@ -12,12 +12,22 @@ import { ArrowLeft, Mail, CheckCircle, AlertCircle, Key } from "lucide-react"
 
 interface PasswordResetProps {
   onBack: () => void
+  initialEmail?: string
+  initialCode?: string
 }
 
-export function PasswordReset({ onBack }: PasswordResetProps) {
-  const [step, setStep] = useState<"request" | "verify" | "reset">("request")
-  const [email, setEmail] = useState("")
-  const [verificationCode, setVerificationCode] = useState("")
+const callResetApi = async (body: Record<string, unknown>) => {
+  const response = await fetch("/api/auth/password-reset", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) throw new Error(data.error || "حدث خطأ في النظام")
+  return data
+}
+
+export function PasswordReset({ onBack, initialEmail = "", initialCode = "" }: PasswordResetProps) {
+  // رابط الدعوة/الاستعادة من البريد يحمل البريد والرمز — يفتح مباشرة على خطوة كلمة المرور الجديدة.
+  const [step, setStep] = useState<"request" | "verify" | "reset">(initialEmail && initialCode ? "reset" : "request")
+  const [email, setEmail] = useState(initialEmail)
+  const [verificationCode, setVerificationCode] = useState(initialCode)
   const [newPassword, setNewPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [isLoading, setIsLoading] = useState(false)
@@ -30,13 +40,8 @@ export function PasswordReset({ onBack }: PasswordResetProps) {
     setIsLoading(true)
 
     try {
-      // TODO: Implement API call to request password reset
-      console.log("[v0] Requesting password reset for:", email)
-
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 2000))
-
-      setSuccess("تم إرسال رمز التحقق إلى بريدك الإلكتروني")
+      const data = await callResetApi({ step: "request", email })
+      setSuccess(data.message || "تم إرسال رمز التحقق إلى بريدك الإلكتروني")
       setStep("verify")
     } catch (err: any) {
       setError(err.message || "حدث خطأ في إرسال رمز التحقق")
@@ -51,16 +56,7 @@ export function PasswordReset({ onBack }: PasswordResetProps) {
     setIsLoading(true)
 
     try {
-      // TODO: Implement API call to verify reset code
-      console.log("[v0] Verifying reset code:", verificationCode)
-
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1500))
-
-      if (verificationCode !== "123456") {
-        throw new Error("رمز التحقق غير صحيح")
-      }
-
+      await callResetApi({ step: "verify", email, code: verificationCode })
       setSuccess("تم التحقق من الرمز بنجاح")
       setStep("reset")
     } catch (err: any) {
@@ -87,13 +83,8 @@ export function PasswordReset({ onBack }: PasswordResetProps) {
     setIsLoading(true)
 
     try {
-      // TODO: Implement API call to reset password
-      console.log("[v0] Resetting password for:", email)
-
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 2000))
-
-      setSuccess("تم تغيير كلمة المرور بنجاح")
+      await callResetApi({ step: "reset", email, code: verificationCode, newPassword })
+      setSuccess("تم تغيير كلمة المرور بنجاح — يمكنك الآن تسجيل الدخول")
 
       // Redirect to login after 3 seconds
       setTimeout(() => {

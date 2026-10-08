@@ -32,6 +32,7 @@ import UnifiedSalesDelivery, {
 } from "./unified-sales-delivery"
 import type { PostVoucherAction } from "@/components/common/post-voucher-dialog"
 import { useWorkspace } from "@/contexts/workspace-context"
+import { serialsSummary } from "@/components/inventory/item-serials-dialog"
 
 interface LookupOption {
   id: number
@@ -141,6 +142,7 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
     to_store_id: null,
     salesman_id: null,
     shipping_address: "",
+    shipping_info: null,
     linked_order_id: null,
     discount_type: "percentage",
     discount_value: 0,
@@ -198,6 +200,9 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
           batch_number: String(item.batch_number || item.batch_no || ""),
           expiry_date: toGridDateString(item.expiry_date),
           serial_numbers: Array.isArray(item.serial_numbers) ? item.serial_numbers : [],
+          has_serial: item.has_serial === undefined ? undefined : Boolean(item.has_serial),
+          serials: Array.isArray(item.serials) ? item.serials : [],
+          serials_text: item.has_serial ? serialsSummary({ ...item, quantity: item.quantity ?? item.qnty, bonus_quantity: item.bonus_quantity ?? item.bonus }) : "",
           source_voucher_id: item.source_voucher_id ?? null,
           source_voucher_type: item.source_voucher_type ?? null,
           order_item_id: item.order_item_id == null ? null : Number(item.order_item_id),
@@ -612,8 +617,18 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
     }
     const isDeliveryVoucherType = [DELIVERY_SELL_VCH_TYPE, DELIVERY_CONSIGNMENT_SALE_VCH_TYPE, RETURN_DELIVERY_CONSIGNMENT_SALE_VCH_TYPE, DELIVERY_PAY_VCH_TYPE].includes(voucherType)
     const isPurchaseDeliveryVoucherType = voucherType === DELIVERY_PAY_VCH_TYPE
+    // ارسالية برسم البيع ومرتجعها تتبع المندوب لا العميل (كما في شامل)
+    const isSalesmanVoucherType = [DELIVERY_CONSIGNMENT_SALE_VCH_TYPE, RETURN_DELIVERY_CONSIGNMENT_SALE_VCH_TYPE].includes(voucherType)
+    if (voucherType === SALES_INVOICE_VCH_TYPE && Number(data.invoice_source_type) === 4 && !(data.items || []).some((item: any) => Number(item.delivery_item_id) > 0)) {
+      return "يجب اختيار ارسالية برسم البيع للفاتورة"
+    }
+    if (voucherType === RETURN_DELIVERY_CONSIGNMENT_SALE_VCH_TYPE && !(data.items || []).some((item: any) => Number(item.delivery_item_id) > 0)) {
+      return "يجب اختيار ارسالية برسم البيع للمرتجع"
+    }
 
-    if (isDeliveryVoucherType) {
+    if (isSalesmanVoucherType) {
+      if (!data.salesman_id) return "يجب اختيار المندوب"
+    } else if (isDeliveryVoucherType) {
       if (!data.account_id) {
         return isPurchaseDeliveryVoucherType ? "يجب إدخال المورد" : "يجب إدخال العميل"
       }
@@ -937,7 +952,7 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
         <CardContent>
           <div className="min-h-0 overflow-auto rounded-xl border p-2">
             <DataGridView
-              dataSource={filteredVouchers.map((voucher) => ({ ...voucher, display_date: voucher.vch_date?.slice(0, 10), display_amount: Number(voucher.amount || 0).toLocaleString(), display_status: voucher.has_linked_invoice ? "تم إصدار فاتورة" : voucher.status === 2 ? "مرحل" : "مسودة" }))}
+              dataSource={filteredVouchers.map((voucher) => ({ ...voucher, display_date: voucher.vch_date?.slice(0, 10), display_amount: Number(voucher.amount || 0).toLocaleString(), display_status: voucher.has_linked_invoice ? "تم إصدار فاتورة" : voucher.status === 2 ? "مرحل" : "مسودة", salesman_display: salesmen.find((salesman) => Number(salesman.id) === Number((voucher as any).salesman_id))?.name || "" }))}
               style={{ height: "420px" }}
               isReport
               isReadOnly
@@ -946,7 +961,10 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
               scheme={{ columns: [
                 { header: "رقم السند", name: "vch_code", width: 150, isReadOnly: true },
                 { header: "التاريخ", name: "display_date", width: 130, isReadOnly: true },
-                { header: "العميل", name: "customer_name", width: "*", isReadOnly: true },
+                // ارسالية برسم البيع ومرتجعها تتبع المندوب لا العميل
+                [DELIVERY_CONSIGNMENT_SALE_VCH_TYPE, RETURN_DELIVERY_CONSIGNMENT_SALE_VCH_TYPE].includes(voucherType)
+                  ? { header: "المندوب", name: "salesman_display", width: "*", isReadOnly: true }
+                  : { header: "العميل", name: "customer_name", width: "*", isReadOnly: true },
                 { header: "المبلغ", name: "display_amount", width: 130, isReadOnly: true },
                 { header: "الحالة", name: "display_status", width: 150, isReadOnly: true },
               ] }}

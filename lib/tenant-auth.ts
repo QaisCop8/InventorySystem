@@ -12,6 +12,10 @@ import { shouldUseSecureCookies } from "./cookie-security"
 // الواجهة (Util.checkUserAccess) — انظر خطة الصلاحيات لسياق كامل.
 const SESSION_DURATION_MS = 7 * 24 * 60 * 60 * 1000 // 7 days
 const SESSION_COOKIE = "tenant_session"
+// كوكي جلسة لكل قاعدة شركة: التبويبات المختلفة قد تعمل على شركات مختلفة في نفس الوقت (هيدر x-tenant-db)،
+// والكوكي المشتركة الواحدة كانت تُستبدل بجلسة آخر شركة فُتحت — فترفض الشركة الأخرى كل الطلبات
+// بـ"يجب تسجيل الدخول". الكوكي القديمة (بلا اسم القاعدة) تُقرأ احتياطياً حتى لا تُفقد الجلسات القائمة.
+const sessionCookieFor = (dbName: string) => `${SESSION_COOKIE}_${dbName}`
 
 function generateToken(): string {
   return crypto.randomBytes(32).toString("hex")
@@ -28,23 +32,20 @@ export async function createTenantSession(userId: string): Promise<void> {
   `
 
   const cookieStore = await cookies()
-  cookieStore.set(SESSION_COOKIE, sessionToken, {
-    httpOnly: true,
-    secure: await shouldUseSecureCookies(),
-    sameSite: "lax",
-    expires: expiresAt,
-    path: "/",
-  })
+  const options = { httpOnly: true, secure: await shouldUseSecureCookies(), sameSite: "lax" as const, expires: expiresAt, path: "/" }
+  cookieStore.set(sessionCookieFor(await resolveCurrentDbName()), sessionToken, options)
+  // الكوكي العامة تبقى لتوافق المسارات/الإصدارات القديمة (احتياطي فقط عند القراءة).
+  cookieStore.set(SESSION_COOKIE, sessionToken, options)
 }
 
 export async function clearTenantSession(): Promise<void> {
   try {
-    await ensurePermissionTables(await resolveCurrentDbName())
+    const dbName = await resolveCurrentDbName()
+    await ensurePermissionTables(dbName)
     const cookieStore = await cookies()
-    const sessionToken = cookieStore.get(SESSION_COOKIE)?.value
-    if (sessionToken) {
-      await sql`DELETE FROM tenant_sessions WHERE session_token = ${sessionToken}`
-    }
+    const tokens = [cookieStore.get(sessionCookieFor(dbName))?.value, cookieStore.get(SESSION_COOKIE)?.value].filter(Boolean) as string[]
+    for (const token of tokens) await sql`DELETE FROM tenant_sessions WHERE session_token = ${token}`
+    cookieStore.delete(sessionCookieFor(dbName))
     cookieStore.delete(SESSION_COOKIE)
   } catch (error) {
     console.error("[tenant-auth] clearTenantSession error:", error)
@@ -59,11 +60,18 @@ export interface TenantSessionUser {
 
 export async function getSessionUser(request: NextRequest): Promise<TenantSessionUser | null> {
   try {
-    await ensurePermissionTables(await resolveCurrentDbName())
-    const sessionToken = request.cookies.get(SESSION_COOKIE)?.value
-    if (!sessionToken) return null
+    const dbName = await resolveCurrentDbName()
+    await ensurePermissionTables(dbName)
+    // جلسة هذه الشركة أولاً، ثم الكوكي العامة (قد تحمل جلسة شركة أخرى فلا تُطابق هنا).
+    const candidates = [request.cookies.get(sessionCookieFor(dbName))?.value, request.cookies.get(SESSION_COOKIE)?.value].filter(Boolean) as string[]
+    if (!candidates.length) return null
 
-    const sessionRows = await sql`SELECT user_id, expires_at FROM tenant_sessions WHERE session_token = ${sessionToken}`
+    let sessionToken = ""
+    let sessionRows: any[] = []
+    for (const token of candidates) {
+      sessionRows = await sql`SELECT user_id, expires_at FROM tenant_sessions WHERE session_token = ${token}`
+      if (sessionRows.length) { sessionToken = token; break }
+    }
     if (sessionRows.length === 0) return null
 
     const session = sessionRows[0]

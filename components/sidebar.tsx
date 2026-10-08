@@ -1,6 +1,7 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
+import { useReportAccess } from "@/components/auth/use-report-access"
 import { Button } from "@/components/ui/button"
 import {
   LayoutDashboard,
@@ -104,7 +105,6 @@ const getAccent = (id?: string): Accent => (id && ACCENTS[id]) || DEFAULT_ACCENT
 export const menuItems: MenuItem[] = [
   { id: "home-dashboard", title: "الرئيسية", icon: LayoutDashboard, section: "home-dashboard" },
   { id: "ai-assistant", title: "المساعد الذكي", icon: Sparkles, section: "ai-assistant" },
-  { id: "smart-analytics", title: "التحليلات الذكية", icon: BarChart3, section: "smart-analytics" },
   {
     id: "retail-pos",
     title: "نظام البيع بالتجزئة",
@@ -407,8 +407,7 @@ export const menuItems: MenuItem[] = [
       { title: "إعدادات النظام", section: "system-settings", icon: Settings },
       { title: "إعدادات الطباعة", section: "print-settings", icon: Printer },
       { title: "إعدادات السندات وطباعتها", section: "voucher-settings", icon: Printer },
-      { title: "إعدادات API", section: "api-settings", icon: Database },
-      { title: "اعدادات عامة", section: "vouchers-general-settings", icon: Settings },
+      // "اعدادات عامة" أصبحت تبويباً داخل "إعدادات النظام" (المسار vouchers-general-settings باقٍ للمفضلة القديمة)
     ],
   },
   {
@@ -434,6 +433,17 @@ function flattenSectionTitles(items: MenuItem[], acc: Record<string, string> = {
 
 export const SECTION_TITLES: Record<string, string> = flattenSectionTitles(menuItems)
 
+// يُخفي التقارير التي لا يملك المستخدم صلاحية استعلامها في الفرع النشط، والمجموعات التي تفرغ بسببها.
+function filterReportItems(items: MenuItem[], canOpenReport: (section?: string | null) => boolean): MenuItem[] {
+  return items.flatMap((item) => {
+    if (item.submenu) {
+      const submenu = filterReportItems(item.submenu, canOpenReport)
+      return submenu.length ? [{ ...item, submenu }] : []
+    }
+    return canOpenReport(item.section) ? [item] : []
+  })
+}
+
 export function Sidebar({
   isOpen,
   onToggle,
@@ -441,6 +451,8 @@ export function Sidebar({
   onSectionChange,
   isMobile = false,
 }: SidebarProps) {
+  const canOpenReport = useReportAccess()
+  const visibleMenuItems = useMemo(() => filterReportItems(menuItems, canOpenReport), [canOpenReport])
   const [expandedMenus, setExpandedMenus] = useState<string[]>([])
   const [companyLogo, setCompanyLogo] = useState("")
   const [companyName, setCompanyName] = useState("ARAAK ERP System")
@@ -550,7 +562,7 @@ export function Sidebar({
       {/* Menu */}
       <div className="flex-1 overflow-y-auto overflow-x-hidden px-3 py-4 scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-white/10 scrollbar-track-transparent">
         <div className="space-y-1.5">
-          {menuItems.map((item) => {
+          {visibleMenuItems.map((item) => {
             const itemId = item.id ?? item.section ?? item.title
             const ItemIcon = item.icon
             const isActive = activeSection === item.section

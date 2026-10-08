@@ -9,6 +9,7 @@ import { Loader2, Save } from "lucide-react"
 import * as wjcCore from "@grapecity/wijmo"
 import { KeyAction } from "@grapecity/wijmo.grid"
 import DataGridView from "@/components/common/DataGridView"
+import { useWorkspaceTabActive } from "@/contexts/workspace-tab-context"
 
 interface CurrencyRateRow {
   ser: number
@@ -59,10 +60,16 @@ const scheme = {
 // بنفس افتراض /api/exchange-rates/lookup. تغيير التاريخ يُعيد التحميل من /api/exchange-rates?date=...
 // التي تعرض السعر المسجَّل لذلك التاريخ إن وُجد، أو تنسخ آخر سعر سابق وتحفظه تلقائياً كسعر ذلك اليوم
 // إن لم يوجد (انظر lib/database.ts's getOrCreateRatesForDate).
-export function DailyExchangeRatesDialog({ open, onOpenChange }: DailyExchangeRatesDialogProps) {
+export function DailyExchangeRatesDialog({ open, onOpenChange, onSaved }: DailyExchangeRatesDialogProps) {
+  const workspaceTabActive = useWorkspaceTabActive()
   const now = new Date()
   const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`
   const [rateDate, setRateDate] = useState(today)
+  // المكوّن يبقى مُركَّباً بين مرات الفتح (وقد يبقى النظام مفتوحاً بعد منتصف الليل) — كل فتح يبدأ بتاريخ اليوم الفعلي.
+  useEffect(() => {
+    if (open) setRateDate(today)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
   const [rows, setRows] = useState<CurrencyRateRow[]>([])
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -242,6 +249,7 @@ export function DailyExchangeRatesDialog({ open, onOpenChange }: DailyExchangeRa
         if (!res.ok) throw new Error("فشل حفظ سعر صرف بعض العملات")
       }
       onOpenChange(false)
+      onSaved?.()
     } catch (err) {
       setError(err instanceof Error ? err.message : "حدث خطأ أثناء الحفظ")
     } finally {
@@ -257,7 +265,7 @@ export function DailyExchangeRatesDialog({ open, onOpenChange }: DailyExchangeRa
 
   useEffect(() => {
     if (!open) return
-    const handleShortcut = (event: KeyboardEvent) => {
+    const handleShortcut = (event: KeyboardEvent) => { if (!workspaceTabActive.current) return;
       if (event.key !== "F3") return
       event.preventDefault()
       event.stopPropagation()

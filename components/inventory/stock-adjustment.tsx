@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Badge } from "@/components/ui/badge"
 import { Settings, AlertTriangle, CheckCircle } from "lucide-react"
 import { useAuth } from "@/components/auth/auth-context"
+import { useWorkspaceTabActive } from "@/contexts/workspace-tab-context"
 
 interface Product {
   id: number
@@ -24,6 +25,7 @@ interface Product {
 }
 
 export function StockAdjustment() {
+  const workspaceTabActive = useWorkspaceTabActive()
   const { user } = useAuth()
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
@@ -117,7 +119,7 @@ export function StockAdjustment() {
   }
 
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
+    const handleKeyDown = (e: KeyboardEvent) => { if (!workspaceTabActive.current) return;
       if (e.key === "F2") {
         e.preventDefault()
         const productSearchTrigger = document.querySelector('[data-search-type="products"]') as HTMLElement

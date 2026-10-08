@@ -26,6 +26,7 @@ import {
 const MAX_CODE_RETRY_ATTEMPTS = 5
 import { saveJournalRows, validateJournalAccountCurrencies } from "../receipts/_lib"
 import { authorizeTransaction, transactionFamilyForVoucherType } from "@/lib/transaction-permissions"
+import { attachItemSerials, saveVoucherSerials, validateSerialsRemoval, validateVoucherSerials } from "@/lib/item-serials"
 
 export async function GET(request: NextRequest) {
   try {
@@ -134,6 +135,11 @@ export async function POST(request: NextRequest) {
     if (availabilityError) {
       return NextResponse.json({ error: availabilityError }, { status: 400 })
     }
+    // أصناف لها رقم تسلسلي: العدد = الكمية + البونص، ومكان كل رقم (داخل/خارج المخزون، المستودع)
+    const serialError = await validateVoucherSerials({ vchType, voucherId: null, items, fromStoreId: data.from_store_id, toStoreId: data.to_store_id })
+    if (serialError) {
+      return NextResponse.json({ error: serialError }, { status: 400 })
+    }
 
     const amount = items.reduce((sum: number, i: any) => sum + Number(i.total_price || 0), 0)
 
@@ -179,6 +185,7 @@ export async function POST(request: NextRequest) {
 
     const voucher = result[0]
     const savedItems = await saveVoucherItems(voucher.id, items)
+    await saveVoucherSerials(voucher.id, vchType, savedItems, data.to_store_id || null, data.from_store_id || null)
     if (vchType === USE_VOUCHER_VCH_TYPE) {
       await saveJournalRows(voucher.id, journalRows)
     }
@@ -186,7 +193,7 @@ export async function POST(request: NextRequest) {
       await applyVoucherStockEffect(vchType, voucher.id, savedItems, data.from_store_id || null, data.to_store_id || null)
     }
 
-    const savedItemsWithNames = await fetchVoucherItems(voucher.id)
+    const savedItemsWithNames = await attachItemSerials(await fetchVoucherItems(voucher.id))
     return NextResponse.json({ ...voucher, items: savedItemsWithNames }, { status: 201 })
   } catch (error) {
     console.error("Error creating stock voucher:", error)
@@ -292,6 +299,10 @@ export async function PUT(request: NextRequest) {
       if (availabilityError) {
         return NextResponse.json({ error: availabilityError }, { status: 400 })
       }
+      const serialError = await validateVoucherSerials({ vchType, voucherId: Number(data.id), items, fromStoreId: data.from_store_id, toStoreId: data.to_store_id })
+      if (serialError) {
+        return NextResponse.json({ error: serialError }, { status: 400 })
+      }
       if (vchType === USE_VOUCHER_VCH_TYPE) {
         journalRows = buildUseVoucherJournalRows(items, data.currency_id || null, Number(data.rate || 1))
         const totalDebit = journalRows.filter((r) => r.credit_debit === 1).reduce((s, r) => s + r.amount, 0)
@@ -308,6 +319,10 @@ export async function PUT(request: NextRequest) {
       const deletionError = await validateVoucherDeletion(Number(data.id))
       if (deletionError) {
         return NextResponse.json({ error: deletionError }, { status: 400 })
+      }
+      const serialsRemovalError = await validateSerialsRemoval(Number(data.id))
+      if (serialsRemovalError) {
+        return NextResponse.json({ error: serialsRemovalError }, { status: 400 })
       }
     }
 
@@ -350,6 +365,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const savedItems = await saveVoucherItems(voucher.id, items)
+    await saveVoucherSerials(voucher.id, vchType, savedItems, data.to_store_id || null, data.from_store_id || null)
     if (vchType === USE_VOUCHER_VCH_TYPE) {
       await saveJournalRows(voucher.id, journalRows)
     }
@@ -359,7 +375,7 @@ export async function PUT(request: NextRequest) {
       await applyVoucherStockEffect(vchType, voucher.id, savedItems, data.from_store_id || null, data.to_store_id || null)
     }
 
-    const savedItemsWithNames = await fetchVoucherItems(voucher.id)
+    const savedItemsWithNames = await attachItemSerials(await fetchVoucherItems(voucher.id))
     return NextResponse.json({ ...voucher, items: savedItemsWithNames })
   } catch (error) {
     console.error("Error updating stock voucher:", error)

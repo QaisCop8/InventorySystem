@@ -43117,7 +43117,7 @@
               /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CalendarDays, { className: "h-3.5 w-3.5" }),
               dateText
             ] }),
-            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("h1", { className: "mt-1.5 text-2xl font-black sm:text-[28px]", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("h1", { className: "mt-1.5 break-words text-xl font-black leading-tight text-white sm:text-[28px]", children: [
               greeting(),
               user?.fullName || user?.username ? `\u060C ${user?.fullName || user?.username}` : ""
             ] }),
@@ -43137,12 +43137,12 @@
             ] })
           ] })
         ] }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("nav", { className: "relative mt-5 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none]", "aria-label": "\u0625\u062C\u0631\u0627\u0621\u0627\u062A \u0633\u0631\u064A\u0639\u0629", children: actions.map((action) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("nav", { className: "relative mt-5 grid grid-cols-2 gap-2 pb-1 sm:flex sm:flex-wrap", "aria-label": "\u0625\u062C\u0631\u0627\u0621\u0627\u062A \u0633\u0631\u064A\u0639\u0629", children: actions.map((action) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
           "button",
           {
             type: "button",
             onClick: () => open(action.section, action.onClick),
-            className: "flex shrink-0 items-center gap-2 rounded-xl bg-white/95 py-1.5 pl-3.5 pr-1.5 text-xs font-bold text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-white",
+            className: "flex min-w-0 shrink-0 items-center gap-2 rounded-xl bg-white/95 py-1.5 pl-3.5 pr-1.5 text-right text-xs font-bold text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-white",
             children: [
               /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: cn("grid h-7 w-7 place-items-center rounded-lg", action.tone), children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(action.icon, { className: "h-4 w-4" }) }),
               action.label
@@ -43238,7 +43238,19 @@
               ] }) }),
               /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CartesianGrid, { strokeDasharray: "3 3", vertical: false, stroke: "#e2e8f0" }),
               /* @__PURE__ */ (0, import_jsx_runtime.jsx)(XAxis, { dataKey: "label", tickLine: false, axisLine: false, tick: { fill: "#94a3b8", fontSize: 11 }, interval: range4 === "30d" ? 4 : 0, reversed: true }),
-              /* @__PURE__ */ (0, import_jsx_runtime.jsx)(YAxis, { orientation: "right", tickLine: false, axisLine: false, tick: { fill: "#94a3b8", fontSize: 11 }, tickFormatter: (value) => compact(Number(value)), width: 44 }),
+              /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+                YAxis,
+                {
+                  orientation: "right",
+                  tickLine: false,
+                  axisLine: false,
+                  tick: { fill: "#94a3b8", fontSize: 11 },
+                  tickFormatter: (value) => compact(Number(value)),
+                  width: 44,
+                  domain: [(dataMin) => dataMin < 0 ? Math.floor(dataMin) : 0, "auto"],
+                  allowDecimals: false
+                }
+              ),
               /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Tooltip, { content: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ChartTooltip, { currency, labels: { sales: "\u0635\u0627\u0641\u064A \u0627\u0644\u0645\u0628\u064A\u0639\u0627\u062A", purchases: "\u0627\u0644\u0645\u0634\u062A\u0631\u064A\u0627\u062A", receipts: "\u0627\u0644\u0645\u0642\u0628\u0648\u0636\u0627\u062A" } }) }),
               /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Area, { type: "monotone", dataKey: "sales", stroke: "#0d9488", strokeWidth: 2.5, fill: "url(#dash-sales)" }),
               /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Line, { type: "monotone", dataKey: "purchases", stroke: "#6366f1", strokeWidth: 2, dot: false }),

@@ -31,6 +31,8 @@ import {
 import { useDocumentSettings } from "@/hooks/use-document-settings"
 import { OrderSearchDialog } from "@/components/search/order-search-dialog"
 import { requestProductVariant } from "@/components/products/product-variant-service"
+import { useWorkspaceTabActive } from "@/contexts/workspace-tab-context"
+import { screenHotkeysAllowed } from "@/lib/hotkeys"
 
 const InlineSupplierSearch = ({ onSelect, onClose, suppliers }: any) => {
   const [searchTerm, setSearchTerm] = useState("")
@@ -299,6 +301,7 @@ function UnifiedPurchaseOrder({
   open = true,
   onOpenChange,
 }: UnifiedPurchaseOrderProps) {
+  const workspaceTabActive = useWorkspaceTabActive()
   const {
     settings,
     loading: settingsLoading,
@@ -416,34 +419,13 @@ function UnifiedPurchaseOrder({
   }, [])
 
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
+    const handleKeyDown = (e: KeyboardEvent) => { if (!workspaceTabActive.current) return;
       // F2 for supplier search
-      if (e.key === "F2" && !e.ctrlKey && !e.altKey) {
+      if (e.key === "F2" && !e.ctrlKey && !e.altKey && screenHotkeysAllowed()) {
         e.preventDefault()
         setState((prev) => ({ ...prev, showSupplierSearch: true }))
       }
-      // F3 saves the current transaction.
-      if (e.key === "F3" && !e.ctrlKey && !e.altKey) {
-        e.preventDefault()
-        ;(document.activeElement as HTMLElement)?.blur()
-        handleSave()
-        return
-      }
-      if (e.key === "F5" && !e.ctrlKey && !e.altKey) {
-        e.preventDefault()
-        onNew()
-        return
-      }
-      if (e.key === "F8" && !e.ctrlKey && !e.altKey) {
-        e.preventDefault()
-        if (state.formData.id > 0 && state.formData.workflow_status === "pending") handleDelete()
-        return
-      }
-      if (e.key === "F9" && !e.ctrlKey && !e.altKey) {
-        e.preventDefault()
-        if (state.formData.id > 0) handlePrint()
-        return
-      }
+      // F3/Ctrl+S حفظ، F9 حذف، F4 نسخ، F5 جديد، Ctrl+P طباعة: UniversalToolbar (lib/hotkeys.ts)
       // Escape to close search
       if (e.key === "Escape") {
         setState((prev) => ({
@@ -453,11 +435,6 @@ function UnifiedPurchaseOrder({
           activeItemId: null,
           showOrderSearch: false,
         }))
-      }
-      // Ctrl+S for save
-      if (e.key === "s" && e.ctrlKey) {
-        e.preventDefault()
-        handleSave()
       }
     }
 
@@ -1018,7 +995,7 @@ function UnifiedPurchaseOrder({
             isLoading={navLoading || navigationLoading}
             isSaving={state.isSaving}
             canSave={canSave}
-            canDelete={canDelete}
+            canDelete={canDelete && state.formData.id > 0 && state.formData.workflow_status === "pending"}
             isFirstRecord={isFirstRecord}
             isLastRecord={isLastRecord}
           />

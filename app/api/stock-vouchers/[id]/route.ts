@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
 import { fetchVoucherItems, archiveAndDeleteStockVoucher } from "../_lib"
 import { authorizeStoredVoucher } from "@/lib/transaction-permissions"
+import { attachItemSerials } from "@/lib/item-serials"
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
@@ -17,7 +18,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       return NextResponse.json({ error: "السند غير موجود" }, { status: 404 })
     }
 
-    const items = await fetchVoucherItems(id)
+    const items = await attachItemSerials(await fetchVoucherItems(id))
     return NextResponse.json({ ...rows[0], items })
   } catch (error) {
     console.error("Error fetching stock voucher:", error)

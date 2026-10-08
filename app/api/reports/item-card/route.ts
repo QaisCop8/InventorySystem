@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import { reportAccessDenied } from "@/lib/report-permissions"
 import { getSessionUser } from "@/lib/tenant-auth"
 import { getInventoryReportProducts, reportDate } from "@/lib/item-inventory-reports"
 import { buildItemCard, type ItemCardLine } from "@/lib/item-card-ledger"
@@ -10,6 +11,8 @@ export async function GET(request: NextRequest) {
   try {
     const user = await getSessionUser(request)
     if (!user) return NextResponse.json({ error: "يجب تسجيل الدخول" }, { status: 401 })
+    const reportDenied = await reportAccessDenied(request, ["item-card-report"])
+    if (reportDenied) return reportDenied
     const params = request.nextUrl.searchParams
     const organizationId = Number((user as any).organization_id || 1)
     const productId = Number(params.get("product_id") || 0)

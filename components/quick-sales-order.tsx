@@ -14,6 +14,7 @@ import CustomerSearchPopup from "./products/CustomerSearchPopup"
 import ProductSearchPopup from "./products/ProductSearchPopup"
 import { useAuth } from "./auth/auth-context"
 import MeasurementInputDialog from "./common/MeasurementInputDialog"
+import { useWorkspaceTabActive } from "@/contexts/workspace-tab-context"
 
 // نوع طلبية المبيعات ثابت في هذه النافذة السريعة — لا يُعرض للمستخدم ولا يمكن تغييره
 const SALES_ORDER_TYPE = 1
@@ -79,6 +80,7 @@ const amountOf = (item: QuickOrderItem) => {
 }
 
 export function QuickSalesOrder({ open, onOpenChange, onOrderSaved }: QuickSalesOrderProps) {
+  const workspaceTabActive = useWorkspaceTabActive()
   const { user, activeBranchId } = useAuth()
   const toast = useRef<Toast | null>(null)
 
@@ -135,7 +137,7 @@ export function QuickSalesOrder({ open, onOpenChange, onOrderSaved }: QuickSales
   // F2 لبحث العملاء أثناء فتح النافذة، بنفس اختصار نموذج طلبية المبيعات الكامل
   useEffect(() => {
     if (!open) return
-    const handleKeyDown = (e: KeyboardEvent) => {
+    const handleKeyDown = (e: KeyboardEvent) => { if (!workspaceTabActive.current) return;
       if (e.key === "F2" && !e.ctrlKey && !e.altKey) {
         e.preventDefault()
         setShowCustomerSearch(true)

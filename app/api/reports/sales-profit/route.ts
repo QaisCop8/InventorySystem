@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
+import { reportAccessDenied } from "@/lib/report-permissions"
 import { getSessionUser } from "@/lib/tenant-auth"
 import { reportDate, reportIds } from "@/lib/item-inventory-reports"
-import { PROFIT_GROUP_BY, SALES_INVOICE, SALES_RETURN, computeSalesProfitLines, groupSalesProfit, salesProfitMeta, saveSalesCostPrices, soldItemsInPeriod, type PricingWay, type ProfitFilters, type ProfitGroupBy } from "@/lib/sales-profit"
+import { PROFIT_GROUP_BY, SALES_INVOICE, SALES_RETURN, computeSalesProfitLines, groupSalesProfit, salesProfitMeta, saveSalesCostPrices, searchProfitVouchers, soldItemsInPeriod, type PricingWay, type ProfitFilters, type ProfitGroupBy } from "@/lib/sales-profit"
 
 function readFilters(params: URLSearchParams): ProfitFilters {
   const today = new Date().toISOString().slice(0, 10)
@@ -24,10 +25,18 @@ export async function GET(request: NextRequest) {
   try {
     const user = await getSessionUser(request)
     if (!user) return NextResponse.json({ error: "يجب تسجيل الدخول" }, { status: 401 })
+    const reportDenied = await reportAccessDenied(request, ["items-profit-report", "period-profit-report", "item-sales-cost-report", "invoice-profit-report", "pricing-inventory"])
+    if (reportDenied) return reportDenied
     const params = request.nextUrl.searchParams
     if (params.get("meta") === "1") return NextResponse.json(await salesProfitMeta())
     const filters = readFilters(params)
     if (params.get("sold_items") === "1") return NextResponse.json(await soldItemsInPeriod(filters.from, filters.to))
+    if (params.get("invoices") === "1") {
+      return NextResponse.json(await searchProfitVouchers({
+        search: String(params.get("search") || ""), types: filters.types,
+        from: params.get("from_date") ? filters.from : undefined, to: params.get("to_date") ? filters.to : undefined,
+      }), { headers: { "Cache-Control": "no-store" } })
+    }
     const groupBy = (PROFIT_GROUP_BY.includes(params.get("group_by") as ProfitGroupBy) ? params.get("group_by") : "item") as ProfitGroupBy
     const lines = await computeSalesProfitLines(filters)
     if (filters.voucherCode && !lines.length) return NextResponse.json({ error: "رقم السند غير صحيح أو لا يحتوي أصنافاً مخزنية" }, { status: 404 })
@@ -43,6 +52,8 @@ export async function POST(request: NextRequest) {
   try {
     const user = await getSessionUser(request)
     if (!user) return NextResponse.json({ error: "يجب تسجيل الدخول" }, { status: 401 })
+    const reportDenied = await reportAccessDenied(request, ["pricing-inventory"])
+    if (reportDenied) return reportDenied
     const filters = readFilters(request.nextUrl.searchParams)
     const lines = await computeSalesProfitLines(filters)
     const updated = await saveSalesCostPrices(lines)

@@ -4,11 +4,18 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from "react"
 import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import DataGridView from "../common/DataGridView";
 import MultiSelect from "../common/MultiSelect";
-import * as wjGrid from "@grapecity/wijmo.grid";
 import { useTranslation } from 'react-i18next';
-import { Plus, RotateCcw, Search, SlidersHorizontal, X } from "lucide-react";
+import { Boxes, Package, Plus, RotateCcw } from "lucide-react";
+import {
+  SearchDialogHeader,
+  SearchFilterField,
+  SearchResultsTable,
+  searchInputClassName,
+  useEnterAsTabFilters,
+  type SearchColumn,
+  type SearchResultsTableHandle,
+} from "@/components/common/search-dialog-kit";
 // -----------------------
 // Types
 // -----------------------
@@ -54,13 +61,10 @@ interface ProductSearchPopupProps {
   selectBaseProduct?: boolean;
 }
 
-const productImageCellTemplate = (cell: any) => {
-  const product = cell?.row?.dataItem as Product
-  const image = product?.display_image || product?.product_image || product?.image_url
-  return image
-    ? <img src={image} alt={product?.product_name || ""} className="mx-auto h-10 w-10 rounded-lg border object-cover" />
-    : <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-lg border bg-slate-50 text-[10px] text-slate-400">لا صورة</div>
-}
+const productThumb = (image?: string | null, alt = "") =>
+  image
+    ? <img src={image} alt={alt} className="mx-auto h-7 w-7 rounded-md border object-cover" />
+    : <div className="mx-auto flex h-7 w-7 items-center justify-center rounded-md bg-slate-100 text-slate-300"><Package className="h-3.5 w-3.5" /></div>
 
 const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibleProp, open, onClose, onSelect, priceCategoryId = 0, ShowSelect = true, searchText = "", productTypes, title, selectBaseProduct = false }) => {
   const visible = visibleProp ?? open ?? false;
@@ -88,8 +92,8 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
   const searchBarcodeRef = useRef<HTMLInputElement>(null);
   const filterContainerRef = useRef<HTMLDivElement>(null);
 
-  const gridProductsRef = useRef<wjGrid.FlexGrid | null>(null);
-  const gridUnitsRef = useRef<wjGrid.FlexGrid | null>(null);
+  const resultsRef = useRef<SearchResultsTableHandle | null>(null);
+  const unitsTableRef = useRef<SearchResultsTableHandle | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [selectedAttributeKeysByProduct, setSelectedAttributeKeysByProduct] = useState<Record<string, Set<string>>>({});
   const [refreshVersion, setRefreshVersion] = useState(0);
@@ -206,30 +210,6 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
   // -----------------------
   // Products grid scheme
   // -----------------------
-  const productScheme = useMemo(() => ({
-    name: "ProductsScheme",
-    columns: [
-      { header: "✅", name: "selected", width: 50, isReadOnly: false, visible: ShowSelect },
-      { header: "صورة الصنف", name: "display_image", width: 90, minWidth: 76, isReadOnly: true, align: "center", body: productImageCellTemplate },
-      { header: "رقم الصنف", name: "product_code", width: 120, isReadOnly: true },
-      { header: "اسم الصنف", name: "product_name", width: "*", isReadOnly: true,minWidth: 200 },
-      { header: "الوحدة", name: "first_unit", width: 80, isReadOnly: true },
-      { header: "السعر", name: "first_price", width: 80, isReadOnly: true },
-      { header: "باركود", name: "first_barcode", width: 150, isReadOnly: true },
-    ]
-  }), [ShowSelect]);
-
-  // -----------------------
-  // Units grid scheme
-  // -----------------------
-  const unitScheme = useMemo(() => ({
-    columns: [
-      { header: "الوحدة", name: "unit_name", width: "*", isReadOnly: true },
-      { header: "سعر الوحدة", name: "price", width: 90, isReadOnly: true },
-      { header: "باركود", name: "barcode", width: 190, isReadOnly: true },
-    ]
-  }), []);
-
   const selectedAttributeRows = useMemo(() => {
     const attributes = Array.isArray(selectedProduct?.attributes) ? selectedProduct.attributes : []
     const productKey = selectedProduct?._variant_key || (selectedProduct ? String(selectedProduct.id) : "")
@@ -302,39 +282,17 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
 
   const getProductSelectionKey = (product: Product) => product._variant_key || String(product.id);
 
-  const attributeSelectionCellTemplate = useCallback((cell: any) => {
-    const row = cell?.row?.dataItem as { attribute_key?: string; selected?: boolean } | undefined;
-    const productKey = selectedProduct ? getProductSelectionKey(selectedProduct) : "";
-    const selectedKeys = selectedAttributeKeysByProduct[productKey] || new Set<string>();
-    const checked = !!row?.attribute_key && selectedKeys.has(row.attribute_key);
-    return (
-      <input
-        type="checkbox"
-        checked={checked}
-        aria-label="اختيار القيمة"
-        className="h-4 w-4 cursor-pointer accent-green-600"
-        onChange={() => {
-          if (!row?.attribute_key || !productKey) return;
-          setSelectedAttributeKeysByProduct((current) => {
-            const next = new Set(current[productKey] || []);
-            if (next.has(row.attribute_key!)) next.delete(row.attribute_key!);
-            else next.add(row.attribute_key!);
-            return { ...current, [productKey]: next };
-          });
-        }}
-      />
-    );
-  }, [selectedProduct, selectedAttributeKeysByProduct]);
-
-  const attributeScheme = useMemo(() => ({
-    columns: [
-      { header: "✅", name: "selected", width: 50, isReadOnly: true, visible: ShowSelect, body: attributeSelectionCellTemplate },
-      { header: "المتغير", name: "attribute_name", width: 180, isReadOnly: true },
-      { header: "الخصائص", name: "value_name", width: "*", minWidth: 160, isReadOnly: true },
-      { header: "باركود", name: "barcode", width: 150, isReadOnly: true },
-      { header: "الصورة", name: "image_url", width: 90, isReadOnly: true, align: "center", body: productImageCellTemplate },
-    ],
-  }), [ShowSelect, attributeSelectionCellTemplate]);
+  // تأشير/إلغاء تأشير قيمة متغير للصنف المحدد (خانة الاختيار أو Space في جدول المتغيرات)
+  const toggleAttributeKey = useCallback((attributeKey: string) => {
+    if (!selectedProduct || !attributeKey) return;
+    const productKey = getProductSelectionKey(selectedProduct);
+    setSelectedAttributeKeysByProduct((current) => {
+      const next = new Set(current[productKey] || []);
+      if (next.has(attributeKey)) next.delete(attributeKey);
+      else next.add(attributeKey);
+      return { ...current, [productKey]: next };
+    });
+  }, [selectedProduct]);
 
   const buildSelectedVariants = useCallback((product: Product, rows: typeof selectedAttributeRows) => {
     const baseName = product.product_name.replace(/\s*\([^)]*\)\s*$/, "");
@@ -357,7 +315,7 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
     const attributes = Array.isArray(product.attributes) ? product.attributes.filter((attribute) => attribute.name && attribute.values?.length) : [];
     if (attributes.length > 0 && !product.selected_attributes) {
       setSelectedProduct(product);
-      setTimeout(() => gridUnitsRef.current?.focus(), 0);
+      setTimeout(() => unitsTableRef.current?.focusFirstRow(), 0);
       return;
     }
     const name = product.attribute_summary ? `${product.product_name} (${product.attribute_summary})` : product.product_name
@@ -415,23 +373,6 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
   // -----------------------
   // Fetch units when product selected
   // -----------------------
-  const selectionChanged = useCallback(async (grid: wjGrid.FlexGrid) => {
-    if (!grid) return;
-    const rowIndex = grid.selection?.row ?? -1;
-    if (rowIndex < 0) return;
-
-    const item = grid.rows[rowIndex]?.dataItem as Product;
-    if (!item) return;
-
-    try {
-      const response = await fetch(`/api/products/${item.id}/units?price_category_id=${priceCategoryId}`);
-      const units: Unit[] = await response.json();
-      setSelectedProduct({ ...item, units });
-    } catch (err) {
-      console.error("Error fetching units:", err);
-      setSelectedProduct({ ...item, units: [] });
-    }
-  }, [priceCategoryId]);
 
   const handleMobileProductSelect = useCallback(async (product: Product) => {
     setSelectedProduct(product);
@@ -450,8 +391,30 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
     setProducts((current) => current.map((item) => item._variant_key === product._variant_key ? { ...item, selected: !item.selected } : item));
   }, []);
 
-  const handleAttributeCellEditEnded = useCallback((grid: wjGrid.FlexGrid, event: any) => {
-    return;
+  // السطر النشط في جدول النتائج (نقر/أسهم) ⇐ يُعرض الصنف ووحداته باللوحة الجانبية. الجلب مؤجَّل قليلاً
+  // كي لا يُطلَق طلب لكل سطر يُمَرّ عليه بالأسهم، ويُتجاهَل الرد إن انتقل المستخدم لسطر آخر.
+  const unitsLoadTimerRef = useRef<number | null>(null);
+  const activeProductKeyRef = useRef<string>("");
+  const handleActiveProductChange = useCallback((product: Product | null) => {
+    if (unitsLoadTimerRef.current) window.clearTimeout(unitsLoadTimerRef.current);
+    if (!product) return;
+    const key = getProductSelectionKey(product);
+    activeProductKeyRef.current = key;
+    setSelectedProduct((current) => (current && getProductSelectionKey(current) === key ? current : product));
+    if (product.units?.length) return;
+    unitsLoadTimerRef.current = window.setTimeout(async () => {
+      try {
+        const response = await fetch(`/api/products/${product.id}/units?price_category_id=${priceCategoryId}`);
+        const units: Unit[] = response.ok ? await response.json() : [];
+        if (activeProductKeyRef.current === key) setSelectedProduct({ ...product, units });
+      } catch {
+        if (activeProductKeyRef.current === key) setSelectedProduct({ ...product, units: [] });
+      }
+    }, 150);
+  }, [priceCategoryId]);
+
+  useEffect(() => () => {
+    if (unitsLoadTimerRef.current) window.clearTimeout(unitsLoadTimerRef.current);
   }, []);
 
   // -----------------------
@@ -511,7 +474,7 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
     });
     if (pendingAttributeProduct) {
       setSelectedProduct(pendingAttributeProduct);
-      setTimeout(() => gridUnitsRef.current?.focus(), 0);
+      setTimeout(() => unitsTableRef.current?.focusFirstRow(), 0);
       return;
     }
 
@@ -545,316 +508,251 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
     onClose();
   };
 
+  // آخر فلتر (Enter) أو السهم للأسفل من أي فلتر ⇐ أول سطر في جدول النتائج
   const focusFirstGridRow = useCallback(() => {
-    const grid = gridProductsRef.current;
-    if (!grid || !grid.rows || grid.rows.length === 0) return;
-
-    grid?.focus();
-    grid.select(0, 0); // first row, first column
+    resultsRef.current?.focusFirstRow();
   }, []);
 
+  useEnterAsTabFilters(visible, filterContainerRef, focusFirstGridRow);
+
   useEffect(() => {
-  if (!visible) return;
-
-  const handleKeyDown = (e: KeyboardEvent) => {
-    const active = document.activeElement as HTMLElement | null;
-
-    if (e.key === "Escape") {
+    if (!visible) return;
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      // Escape داخل قائمة منسدلة مفتوحة يغلقها هي فقط
+      if ((e.target as HTMLElement | null)?.closest?.(".p-dropdown-panel, .p-multiselect-panel")) return;
       e.preventDefault();
       e.stopPropagation();
       onClose();
-      return;
-    }
+    };
+    document.addEventListener("keydown", handleEscape, true);
+    return () => document.removeEventListener("keydown", handleEscape, true);
+  }, [visible, onClose]);
 
-    const container = filterContainerRef.current;
-    if (!active || !container?.contains(active) || active.closest(".p-multiselect-panel")) return;
+  const resultColumns = useMemo<SearchColumn<Product>[]>(() => [
+    ...(ShowSelect ? [{
+      key: "selected",
+      header: "",
+      width: "40px",
+      align: "center" as const,
+      render: (product: Product) => (
+        <input
+          type="checkbox"
+          checked={!!product.selected}
+          aria-label={`اختيار ${product.product_name}`}
+          tabIndex={-1}
+          onClick={(event) => event.stopPropagation()}
+          onDoubleClick={(event) => event.stopPropagation()}
+          onChange={(event) => toggleProductChecked(event, product)}
+          className="h-4 w-4 cursor-pointer accent-emerald-600"
+        />
+      ),
+    }] : []),
+    { key: "image", header: "", width: "44px", align: "center", render: (product) => productThumb(product.display_image || product.product_image || product.image_url, product.product_name) },
+    { key: "product_code", header: "رقم الصنف", width: "120px", className: "font-mono text-xs text-slate-600" },
+    { key: "product_name", header: "اسم الصنف", className: "max-w-[340px] truncate font-semibold text-slate-800" },
+    { key: "first_unit", header: "الوحدة", width: "80px", className: "text-slate-600" },
+    { key: "first_price", header: "السعر", width: "90px", align: "end", className: "tabular-nums font-semibold", render: (product) => Number(product.first_price ?? 0).toLocaleString() },
+    { key: "first_barcode", header: "الباركود", width: "140px", className: "font-mono text-xs text-slate-500" },
+  ], [ShowSelect, toggleProductChecked]);
 
-    if (e.key === "ArrowDown") {
-      e.preventDefault();
-      e.stopPropagation();
-      focusFirstGridRow();
-      return;
-    }
+  type AttributeRow = (typeof selectedAttributeRows)[number];
 
-    if (e.key === "Enter") {
-      const focusable = Array.from(container.querySelectorAll<HTMLElement>(
-        'input:not([disabled]):not([type="hidden"]), select:not([disabled]), [tabindex]:not([tabindex="-1"])',
-      )).filter((element) => element.offsetParent !== null);
-      const currentIndex = focusable.indexOf(active);
-      if (currentIndex < 0) return;
-      e.preventDefault();
-      e.stopPropagation();
-      const next = focusable[currentIndex + 1];
-      if (next) next.focus();
-      else focusFirstGridRow();
-    }
-  };
+  const attributeColumns = useMemo<SearchColumn<AttributeRow>[]>(() => [
+    ...(ShowSelect ? [{
+      key: "selected",
+      header: "",
+      width: "36px",
+      align: "center" as const,
+      render: (row: AttributeRow) => (
+        <input
+          type="checkbox"
+          checked={row.selected}
+          aria-label="اختيار القيمة"
+          tabIndex={-1}
+          onClick={(event) => event.stopPropagation()}
+          onDoubleClick={(event) => event.stopPropagation()}
+          onChange={() => toggleAttributeKey(row.attribute_key)}
+          className="h-4 w-4 cursor-pointer accent-emerald-600"
+        />
+      ),
+    }] : []),
+    { key: "attribute_name", header: "المتغير", className: "font-semibold text-slate-700" },
+    { key: "value_name", header: "القيمة" },
+    { key: "image_url", header: "", width: "40px", align: "center", render: (row) => productThumb(row.image_url) },
+  ], [ShowSelect, toggleAttributeKey]);
 
-  document.addEventListener("keydown", handleKeyDown, true);
+  const unitColumns = useMemo<SearchColumn<Unit>[]>(() => [
+    { key: "unit_name", header: "الوحدة", className: "font-semibold text-slate-700" },
+    { key: "price", header: "السعر", width: "80px", align: "end", className: "tabular-nums", render: (unit) => Number(unit.price ?? 0).toLocaleString() },
+    { key: "barcode", header: "الباركود", className: "font-mono text-xs text-slate-500", render: (unit) => unit.barcode || "—" },
+  ], []);
 
-  return () => {
-    document.removeEventListener("keydown", handleKeyDown, true);
-  };
-}, [visible, onClose, focusFirstGridRow]);
-
-
-  const onKeyDownGrid = async (grid: any, e: KeyboardEvent) => {
-    // Make sure grid and selection exist
-    // يُستدعى مرتين لكل ضغطة مفتاح فعلياً (onKeyDown ليس حدثاً مُوثَّقاً بـFlexGridInputs) — الاستدعاء
-    // الثاني بمعطيات غير مكتملة، فيُطلِق قراءة e.keyCode على undefined استثناءً غير مُلتقَط بلا هذا الحارس.
-    if (!grid || !grid.selection || !e || typeof e.keyCode === "undefined") return;
-    const sel = grid.selection;
-    const row = sel.row;
-
-    if (e.keyCode === 13) {
-      const rowIndex = grid.selection?.row ?? -1;
-      if (rowIndex < 0) return;
-
-      const item = grid.rows[rowIndex]?.dataItem as Product;
-      // handleProductDoubleClick يجلب units بنفسه الآن إن لم تكن محمَّلة أصلاً — لا حاجة لجلبها هنا
-      // بمعزل ثم تجاهل النتيجة (كان الخلل السابق: الجلب هنا لا يصل إطلاقاً لِـonSelect).
-      await handleProductDoubleClick(item);
-      e.preventDefault();
-
-      return;
-    }
-  }
   if (!visible) return null;
 
-  const responsiveGridStyle = { height: '100%', minHeight: 0, maxHeight: '100%' };
+  const checkedCount = products.reduce((count, product) => count + (product.selected ? 1 : 0), 0);
+  const showingAttributes = selectedAttributeRows.length > 0;
+
   return createPortal(
     <div
-      // pointer-events-auto صريح ضروري هنا: هذه اللوحة تُركَّب عبر createPortal مباشرة إلى
-      // document.body، خارج أي عنصر تتتبّعه Radix كـ"طبقة" (DismissableLayer). أي Dialog من Radix
-      // مفتوح بنفس اللحظة (وهو الحال الافتراضي modal=true) يضبط pointerEvents="none" على body نفسه
-      // ويُعيد تفعيلها فقط على عقدة الطبقة الخاصة به — لا على عناصر أخرى ملحقة بـbody كهذه، فتُصبح
-      // كل عناصر هذه اللوحة غير قابلة للنقر بالكامل (فقط لوحة المفاتيح، كـEscape، تبقى تعمل) ما لم
-      // تُفرَض pointer-events: auto صراحة هنا بمعزل عن أي وراثة من body.
-      className="pointer-events-auto fixed inset-0 z-[100] flex items-stretch justify-center overflow-hidden bg-black/45 p-0 sm:items-center sm:px-3 sm:py-4"
-      onKeyDown={(e) => {
-        if (e.key === "Escape") {
-          e.preventDefault();
-          e.stopPropagation();
-          onClose();
-        }
-      }}
+      // pointer-events-auto صريح ضروري: اللوحة تُركَّب عبر createPortal إلى document.body خارج طبقات
+      // Radix — أي Dialog مفتوح من Radix يضبط pointerEvents="none" على body فتُصبح اللوحة غير قابلة للنقر.
+      className="pointer-events-auto fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/45 p-0 backdrop-blur-[2px] sm:p-4"
     >
-      <div className="relative flex h-[100dvh] max-h-[100dvh] w-full min-w-0 max-w-full flex-col overflow-y-auto rounded-none border-4 border-emerald-600 bg-slate-50 p-2 shadow-2xl ring-2 ring-emerald-600/20 overscroll-contain sm:h-[92dvh] sm:max-h-[92dvh] sm:w-full sm:max-w-[1500px] sm:overflow-hidden sm:rounded-3xl sm:p-4" dir="rtl">
-        <div className="flex min-w-0 shrink-0 flex-wrap items-center justify-between gap-2 rounded-2xl bg-gradient-to-l from-blue-700 via-blue-600 to-cyan-600 px-3 py-3 shadow-lg sm:flex-nowrap sm:gap-3 sm:px-5 sm:py-4">
-          <div className="flex min-w-0 items-center gap-2"><div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/15 ring-1 ring-white/30 sm:h-11 sm:w-11 sm:rounded-2xl"><Search className="h-4 w-4 text-white sm:h-5 sm:w-5" /></div><h3 className="truncate text-base font-extrabold text-white sm:text-xl">{title || "بحث الأصناف"}</h3></div>
-          <div className="flex shrink-0 items-center gap-1 sm:gap-2">
-          <Button type="button" onClick={() => window.open("/?section=products&new=1", "_blank", "noopener,noreferrer")} className="gap-1 rounded-lg bg-white px-2 text-xs text-blue-700 hover:bg-blue-50 sm:gap-2 sm:rounded-xl sm:px-3 sm:text-sm"><Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4"/><span className="sm:hidden">إضافة</span><span className="hidden sm:inline">إضافة صنف</span></Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            onClick={onClose}
-            className="h-9 w-9 shrink-0 rounded-full bg-white/15 text-white hover:bg-white/25 hover:text-white sm:h-10 sm:w-10"
-            aria-label="إغلاق"
-          >
-            <X className="h-5 w-5" />
-          </Button>
-          </div>
-        </div>
+      <div
+        className="flex h-[100dvh] w-full flex-col overflow-hidden bg-slate-50 shadow-2xl sm:h-[min(82dvh,760px)] sm:max-w-[1080px] sm:rounded-2xl sm:ring-1 sm:ring-slate-900/10"
+        dir="rtl"
+      >
+        <SearchDialogHeader
+          icon={<Boxes className="h-4 w-4" />}
+          title={title || "بحث الأصناف"}
+          subtitle="Enter للتنقل بين الفلاتر ثم للنتائج • ↑↓ للتنقل • Enter للاختيار"
+          count={filteredProducts.length}
+          onClose={onClose}
+          actions={
+            <Button
+              type="button"
+              onClick={() => window.open("/?section=products&new=1", "_blank", "noopener,noreferrer")}
+              className="h-8 gap-1.5 rounded-lg bg-white px-2.5 text-xs font-bold text-emerald-700 hover:bg-emerald-50"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">إضافة صنف</span>
+            </Button>
+          }
+        />
 
-        <div className="mt-2 min-w-0 shrink-0 overflow-hidden rounded-2xl border border-blue-100 bg-white p-2 shadow-sm sm:mt-3 sm:p-4">
-          <div className="mb-3 text-right sm:mb-4">
-            <p className="flex items-center gap-2 text-sm font-bold text-blue-900"><SlidersHorizontal className="h-4 w-4 text-blue-600" />الفلاتر</p>
-          </div>
-
-          <div className="flex min-w-0 flex-col gap-3 lg:flex-row lg:items-end">
-          <div ref={filterContainerRef} className="grid min-w-0 flex-1 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-[repeat(4,minmax(0,1fr))_minmax(0,1.5fr)]">
-            <div className="space-y-1">
-              <label className="block text-xs font-semibold text-slate-700 text-right">رقم الصنف</label>
-              <Input
-                ref={searchCodeRef}
-                className="h-11 w-full rounded-xl border-blue-100 bg-blue-50/40 shadow-sm focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-blue-100"
-                placeholder="رقم الصنف"
-                value={searchCode}
-                onChange={(e) => setSearchCode(e.target.value)}
-              />
+        {/* الفلاتر */}
+        <div className="shrink-0 border-b border-slate-200 bg-white px-4 py-3">
+          <div className="flex flex-col gap-2 lg:flex-row lg:items-end">
+            <div ref={filterContainerRef} className="grid min-w-0 flex-1 grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-[1fr_1.6fr_0.8fr_1fr_1fr]">
+              <SearchFilterField label="رقم الصنف">
+                <Input ref={searchCodeRef} className={searchInputClassName} placeholder="رقم الصنف" value={searchCode} onChange={(e) => setSearchCode(e.target.value)} />
+              </SearchFilterField>
+              <SearchFilterField label="اسم الصنف" className="col-span-2 sm:col-span-1">
+                <Input ref={searchNameRef} className={searchInputClassName} placeholder="يمكن كتابة أكثر من كلمة" value={searchName} onChange={(e) => setSearchName(e.target.value)} />
+              </SearchFilterField>
+              <SearchFilterField label="السعر">
+                <Input ref={searchPriceRef} className={searchInputClassName} placeholder="السعر" value={searchPrice} onChange={(e) => setSearchPrice(e.target.value)} />
+              </SearchFilterField>
+              <SearchFilterField label="الباركود">
+                <Input ref={searchBarcodeRef} className={searchInputClassName} placeholder="الباركود" value={searchBarcode} onChange={(e) => setSearchBarcode(e.target.value)} />
+              </SearchFilterField>
+              <SearchFilterField label="النوع" className="invoice-currency-dropdown-wrap">
+                {Array.isArray(productTypes) && productTypes.length === 1 ? (
+                  // نوع ثابت مفروض من الشاشة المستدعية — لا منتقي قابل للتعديل كي لا تُخلَط الأصناف بالخدمات.
+                  <div className="flex h-9 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-sm text-slate-600">
+                    {productTypes[0] === 2 ? "الخدمات" : "الأصناف"}
+                  </div>
+                ) : (
+                  <MultiSelect
+                    inputId="productTypeFilter"
+                    value={selectedTypes}
+                    options={[
+                      { label: "الأصناف", value: 1 },
+                      { label: "الخدمات", value: 2 },
+                    ]}
+                    optionLabel="label"
+                    optionValue="value"
+                    placeholder="اختر النوع"
+                    showFilter={true}
+                    showCheck={true}
+                    showMultiSelect={true}
+                    className="w-full"
+                    panelClassName="invoice-currency-dropdown-panel invoice-currency-dropdown-panel-left"
+                    appendTo="self"
+                    // virtualScroll الافتراضي بالمكوّن المشترك يتعارض مع خانة "تحديد الكل" بقائمة ثابتة صغيرة
+                    virtualScroll={false}
+                    onChange={(e: any) => {
+                      const values = Array.isArray(e.value) ? e.value.map(Number) : [];
+                      setSelectedTypes(values.length > 0 ? values : [1, 2]);
+                    }}
+                  />
+                )}
+              </SearchFilterField>
             </div>
-            <div className="space-y-1">
-              <label className="block text-xs font-semibold text-slate-700 text-right">اسم الصنف</label>
-              <Input
-                ref={searchNameRef}
-                className="h-11 w-full rounded-xl border-blue-100 bg-blue-50/40 shadow-sm focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-blue-100"
-                placeholder="اسم الصنف"
-                value={searchName}
-                onChange={(e) => setSearchName(e.target.value)}
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="block text-xs font-semibold text-slate-700 text-right">السعر</label>
-              <Input
-                ref={searchPriceRef}
-                className="h-11 w-full rounded-xl border-blue-100 bg-blue-50/40 shadow-sm focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-blue-100"
-                placeholder="السعر"
-                value={searchPrice}
-                onChange={(e) => setSearchPrice(e.target.value)}
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="block text-xs font-semibold text-slate-700 text-right">الباركود</label>
-              <Input
-                ref={searchBarcodeRef}
-                className="h-11 w-full rounded-xl border-blue-100 bg-blue-50/40 shadow-sm focus-visible:border-blue-500 focus-visible:bg-white focus-visible:ring-blue-100"
-                placeholder="الباركود"
-                value={searchBarcode}
-                onChange={(e) => setSearchBarcode(e.target.value)}
-              />
-            </div>
-            <div className="space-y-1 invoice-currency-dropdown-wrap">
-              <label className="block text-xs font-semibold text-slate-700 text-right">النوع</label>
-              {Array.isArray(productTypes) && productTypes.length === 1 ? (
-                // نوع ثابت مفروض من الشاشة المستدعية (مثال: نموذج الصنف يفتح البحث عن أصناف فقط، أو
-                // نموذج الخدمة يفتح البحث عن خدمات فقط) — لا يُعرض منتقي قابل للتعديل هنا كي لا يتمكن
-                // المستخدم من تحويل النتائج لتشمل النوع الآخر (صنف يختار خدمة، أو العكس) عن طريق الخطأ.
-                <div className="w-full h-10 flex items-center justify-center rounded-md border border-slate-200 bg-slate-50 text-sm text-slate-600">
-                  {productTypes[0] === 2 ? "الخدمات" : "الأصناف"}
-                </div>
-              ) : (
-                <MultiSelect
-                  inputId="productTypeFilter"
-                  value={selectedTypes}
-                  options={[
-                    { label: "الأصناف", value: 1 },
-                    { label: "الخدمات", value: 2 },
-                  ]}
-                  optionLabel="label"
-                  optionValue="value"
-                  placeholder="اختر النوع"
-                  showFilter={true}
-                  showCheck={true}
-                  showMultiSelect={true}
-                  className="w-full"
-                  panelClassName="invoice-currency-dropdown-panel invoice-currency-dropdown-panel-left"
-                  appendTo="self"
-                  // virtualScroll مفروض افتراضياً بمكوّن MultiSelect المشترك (لا يمكن تعطيله إلا
-                  // بتمريره كـprop يتغلّب على القيمة الافتراضية عبر انتشار this.props) — لا فائدة منه
-                  // لقائمتين ثابتتين فقط، وتفاعله مع panelHeaderTemplate المخصّص (خانة "تحديد الكل")
-                  // هو المرشّح الأقرب لاستثناء JS غير مُلتقَط عند فتح هذه القائمة تحديداً هنا (لوحة
-                  // بحث الأصناف هي المكان الوحيد بالمشروع الذي يعرض هذا الفلتر التفاعلي بدل تثبيت نوع
-                  // واحد عبر productTypes).
-                  virtualScroll={false}
-                  onChange={(e: any) => {
-                    const values = Array.isArray(e.value) ? e.value.map(Number) : [];
-                    setSelectedTypes(values.length > 0 ? values : [1, 2]);
-                  }}
-                />
-              )}
-            </div>
-          </div>
-
-          <div className="flex shrink-0 flex-col-reverse gap-2 border-t border-slate-100 pt-3 sm:flex-row sm:justify-end lg:border-t-0 lg:pt-0">
             <Button
               type="button"
               variant="outline"
               onClick={clearFilters}
-              className="h-10 rounded-xl border-slate-200 px-4 text-slate-600 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
+              className="h-9 shrink-0 rounded-lg border-slate-200 px-3 text-xs text-slate-600 hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700"
             >
-              <RotateCcw className="ml-2 h-4 w-4" />
+              <RotateCcw className="ml-1.5 h-3.5 w-3.5" />
               مسح الفلاتر
             </Button>
-            <Button
-              type="button"
-              onClick={() => focusFirstGridRow()}
-              className="h-10 rounded-xl bg-blue-600 px-5 text-white shadow-sm hover:bg-blue-700"
-            >
-              <Search className="ml-2 h-4 w-4" />
-              بحث
+          </div>
+        </div>
+
+        {/* النتائج + لوحة الوحدات/المتغيرات */}
+        <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden p-3 lg:flex-row">
+          <div className="flex min-h-[200px] min-w-0 flex-1 flex-col gap-1.5">
+            <div className="flex items-center justify-between px-1 text-[11px] font-bold text-slate-500">
+              <span>نتائج البحث</span>
+              <span>
+                {filteredProducts.length > 200 ? `عرض أول 200 من ${filteredProducts.length.toLocaleString()}` : `${filteredProducts.length.toLocaleString()} صنف`}
+                {checkedCount > 0 && <span className="mr-2 rounded-full bg-emerald-100 px-2 py-0.5 text-emerald-700">مؤشَّر {checkedCount}</span>}
+              </span>
+            </div>
+            <SearchResultsTable<Product>
+              ref={resultsRef}
+              rows={visibleProducts}
+              columns={resultColumns}
+              getRowKey={(product) => product._variant_key || product.id}
+              onPick={(product) => void handleProductDoubleClick(product)}
+              onActiveChange={(product) => handleActiveProductChange(product)}
+              onToggle={ShowSelect ? (product) => setProducts((current) => current.map((item) => item._variant_key === product._variant_key ? { ...item, selected: !item.selected } : item)) : undefined}
+              isRowMarked={(product) => !!product.selected}
+              emptyText="لا توجد أصناف مطابقة"
+            />
+          </div>
+
+          <div className="flex min-h-[160px] min-w-0 flex-col gap-1.5 lg:w-[300px] lg:shrink-0">
+            <div className="flex items-center justify-between gap-2 px-1 text-[11px] font-bold text-slate-500">
+              <span>{showingAttributes ? "المتغيرات والخصائص" : "وحدات الصنف"}</span>
+              <span className="truncate text-slate-700">{selectedProduct?.product_name || ""}</span>
+            </div>
+            {!selectedProduct ? (
+              <div className="flex min-h-0 flex-1 items-center justify-center rounded-xl border border-dashed border-slate-200 bg-white px-4 text-center text-xs text-slate-400">
+                اختر صنفاً من النتائج لعرض وحداته
+              </div>
+            ) : showingAttributes ? (
+              <SearchResultsTable<AttributeRow>
+                ref={unitsTableRef}
+                rows={selectedAttributeRows}
+                columns={attributeColumns}
+                getRowKey={(row) => row.attribute_key}
+                onPick={(row) => handleAttributeDoubleClick(row)}
+                onToggle={ShowSelect ? (row) => toggleAttributeKey(row.attribute_key) : undefined}
+                isRowMarked={(row) => row.selected}
+                rowHeightClassName="h-9"
+              />
+            ) : (
+              <SearchResultsTable<Unit>
+                ref={unitsTableRef}
+                rows={selectedProduct.units || []}
+                columns={unitColumns}
+                getRowKey={(unit) => unit.unit_id}
+                onPick={(unit) => handleUnitRowDoubleClick(unit)}
+                onActiveChange={(unit) => { if (unit) handleSelectUnit(unit) }}
+                isRowMarked={(unit) => selectedProduct.selected_unit?.unit_id === unit.unit_id}
+                emptyText="لا توجد وحدات"
+                rowHeightClassName="h-9"
+              />
+            )}
+          </div>
+        </div>
+
+        <div className="flex shrink-0 items-center justify-between gap-2 border-t border-slate-200 bg-white px-4 py-2.5">
+          <span className="hidden text-[11px] text-slate-400 sm:block">
+            {ShowSelect ? "Space لتأشير أكثر من صنف ثم موافق" : "نقر مزدوج أو Enter للاختيار"}
+          </span>
+          <div className="flex flex-1 gap-2 sm:flex-none">
+            <Button onClick={handleConfirm} className="h-9 flex-1 rounded-lg bg-emerald-600 px-6 font-bold text-white hover:bg-emerald-700 sm:flex-none">
+              موافق
+            </Button>
+            <Button variant="outline" onClick={onClose} className="h-9 flex-1 rounded-lg border-slate-200 px-6 text-slate-600 sm:flex-none">
+              إغلاق
             </Button>
           </div>
-          </div>
-        </div>
-
-
-        <div className="mt-2 flex min-h-0 min-w-0 flex-1 flex-col gap-2 overflow-x-hidden overflow-y-auto overscroll-contain sm:overflow-hidden sm:gap-3">
-          <div className="flex min-h-[220px] min-w-0 flex-1 flex-col rounded-2xl border border-slate-200 bg-white p-2 shadow-sm sm:min-h-0 sm:rounded-3xl sm:p-3">
-            <div className="mb-3 flex items-center justify-between gap-3" dir="rtl">
-              <h4 className="text-sm font-semibold text-slate-700">نتائج البحث</h4>
-              <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">{filteredProducts.length} نتائج{filteredProducts.length > 200 ? " - عرض أول 200" : ""}</span>
-            </div>
-            <div className="block min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain">
-              {filteredProducts.length === 0 ? (
-                <div className="flex h-40 items-center justify-center rounded-2xl border border-dashed border-slate-200 text-sm text-slate-500">لا توجد أصناف مطابقة</div>
-              ) : visibleProducts.map((product) => {
-                const image = product.display_image || product.product_image || product.image_url;
-                return <button
-                  type="button"
-                  key={product._variant_key || product.id}
-                  onClick={() => void handleMobileProductSelect(product)}
-                  onDoubleClick={() => void handleProductDoubleClick(product)}
-                  className={`flex w-full min-w-0 items-center gap-3 rounded-2xl border p-3 text-right transition ${product.selected || selectedProduct?._variant_key === product._variant_key ? "border-blue-500 bg-blue-50 ring-2 ring-blue-100" : "border-slate-200 bg-white hover:border-blue-300"}`}
-                >
-                  {image ? <img src={image} alt="" className="h-14 w-14 shrink-0 rounded-xl border object-cover" /> : <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-[10px] text-slate-400">لا صورة</div>}
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate font-bold text-slate-800">{product.product_name}</span>
-                    <span className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-500">
-                      <span>{product.product_code || "بدون رقم"}</span>
-                      <span>{product.first_price ?? 0}</span>
-                      {product.first_unit && <span>{product.first_unit}</span>}
-                    </span>
-                  </span>
-                  {ShowSelect && <input type="checkbox" checked={!!product.selected} aria-label={`اختيار ${product.product_name}`} onClick={(event) => event.stopPropagation()} onChange={(event) => { event.stopPropagation(); toggleProductChecked(event, product); }} className="relative z-10 block h-6 w-6 shrink-0 cursor-pointer appearance-auto border-2 border-blue-600 bg-white accent-blue-600 opacity-100" />}
-                </button>;
-              })}
-            </div>
-            <div className="hidden modern-search-grid h-[24dvh] min-h-[150px] w-full min-w-0 max-w-full overflow-x-auto overflow-y-hidden sm:h-[25vh] sm:min-h-[180px]">
-              <DataGridView
-                style={responsiveGridStyle}
-                containerStyle={responsiveGridStyle}
-                ref={gridProductsRef}
-                dataSource={filteredProducts}
-                scheme={productScheme}
-                onRowDoubleClick={handleProductDoubleClick}
-                selectionChanged={selectionChanged}
-                defaultRowHeight={34}
-                onKeyDown={(s: any, e: any) => onKeyDownGrid(s, e)}
-                selectionMode={wjGrid.SelectionMode.Row}
-                keyActionEnter="None"
-                dontConvertToCards={false}
-                showContextMenu={false}
-              />
-            </div>
-          </div>
-
-          <div className="flex min-h-[180px] min-w-0 flex-1 flex-col rounded-2xl border border-slate-200 bg-white p-2 shadow-sm sm:min-h-0 sm:rounded-3xl sm:p-3">
-            <div className="mb-3 flex items-center justify-between gap-3" dir="rtl">
-              <h4 className="text-sm font-semibold text-slate-700">{selectedAttributeRows.length ? "المتغيرات والخصائص" : "وحدات الصنف"}</h4>
-              {selectedProduct && <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">تم الاختيار</span>}
-            </div>
-            <div className="text-sm text-slate-500 mb-3 text-right">{selectedProduct?.product_name || "لا يوجد صنف محدد"}</div>
-            <div className="block min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain">
-              {!selectedProduct ? <div className="flex h-28 items-center justify-center rounded-2xl border border-dashed border-slate-200 text-sm text-slate-500">اختر صنفًا لعرض الوحدات</div> : selectedAttributeRows.length ? selectedAttributeRows.map((row) => {
-                const productKey = getProductSelectionKey(selectedProduct);
-                const checked = (selectedAttributeKeysByProduct[productKey] || new Set<string>()).has(row.attribute_key);
-                return <button type="button" key={row.attribute_key} onClick={() => setSelectedAttributeKeysByProduct((current) => { const next = new Set(current[productKey] || []); checked ? next.delete(row.attribute_key) : next.add(row.attribute_key); return { ...current, [productKey]: next }; })} onDoubleClick={() => handleAttributeDoubleClick(row)} className={`flex w-full items-center justify-between rounded-xl border p-3 text-right ${checked ? "border-emerald-500 bg-emerald-50" : "border-slate-200 bg-white"}`}><span><span className="block font-semibold">{row.attribute_name}</span><span className="text-sm text-slate-500">{row.value_name}</span><span className="text-xs text-slate-500">الباركود: {row.barcode || "بدون باركود"}</span></span><span className="text-lg">{checked ? "✓" : "○"}</span></button>;
-              }) : selectedProduct.units?.length ? selectedProduct.units.map((unit) => <button type="button" key={unit.unit_id} onClick={() => handleSelectUnit(unit)} onDoubleClick={() => handleUnitRowDoubleClick(unit)} className={`flex w-full items-center justify-between rounded-xl border p-3 text-right ${selectedProduct.selected_unit?.unit_id === unit.unit_id ? "border-emerald-500 bg-emerald-50" : "border-slate-200 bg-white"}`}><span className="font-semibold">{unit.unit_name}</span><span className="text-sm text-slate-500">{unit.price} | {unit.barcode || "بدون باركود"}</span></button>) : <div className="flex h-28 items-center justify-center rounded-2xl border border-dashed border-slate-200 text-sm text-slate-500">لا توجد وحدات</div>}
-            </div>
-            <div className="hidden h-[22dvh] min-h-[150px] w-full min-w-0 max-w-full overflow-x-auto overflow-y-hidden sm:h-[25vh] sm:min-h-[180px]">
-              <DataGridView
-                innerRef={gridUnitsRef}
-                style={responsiveGridStyle}
-                containerStyle={responsiveGridStyle}
-                dataSource={selectedAttributeRows.length ? selectedAttributeRows : selectedProduct?.units || []}
-                scheme={selectedAttributeRows.length ? attributeScheme : unitScheme}
-                dontConvertToCards={false}
-                defaultRowHeight={32}
-                cellEditEnded={selectedAttributeRows.length ? handleAttributeCellEditEnded : undefined}
-                onRowDoubleClick={handleUnitRowDoubleClick}
-              />
-            </div>
-          </div>
-        </div>
-
-        <div className="sticky bottom-0 z-10 mt-2 flex shrink-0 gap-2 border-t border-slate-200 bg-white/95 py-2 backdrop-blur sm:mt-3 sm:justify-center sm:border-0 sm:bg-transparent sm:py-0">
-          <Button className="erp-btn-primary search-button min-w-0 flex-1 sm:min-w-[120px] sm:flex-none" onClick={handleConfirm}>
-            موافق
-          </Button>
-          <Button variant="outline" onClick={onClose} className="search-button min-w-0 flex-1 sm:min-w-[120px] sm:flex-none">
-            إغلاق
-          </Button>
         </div>
       </div>
     </div>,

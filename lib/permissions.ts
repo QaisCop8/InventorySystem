@@ -15,6 +15,7 @@ import {
   type TransactionAction,
   type TransactionFamily,
 } from "@/lib/transaction-permission-definitions"
+import { REPORT_DEFINITIONS, REPORT_PERMISSION_CATEGORY, reportPermissionName } from "@/lib/report-permission-definitions"
 
 // نظام الأدوار الوظيفية (job_roles/role_permissions) + الصلاحية الفعّالة للمستخدم = مركز صريح
 // (user_access) إن وُجد → وإلا صلاحية دوره الوظيفي (role_permissions) → وإلا رفض. انظر خطة
@@ -454,6 +455,41 @@ export async function syncPermissionDefinitions(dbName: string): Promise<void> {
         )
         await client.query(`UPDATE access_list SET category_id = $2::integer WHERE name = $1::varchar`, [name, transactionCategory.id])
       }
+    }
+  }
+
+  // صلاحيات التقارير: صلاحية "استعلام" لكل تقرير. عند إنشائها لأول مرة في الشركة تُمنح لكل الأدوار
+  // القائمة (لا يفقد أحد وصوله للتقارير بعد التحديث) — ثم يقيّدها المسؤول من شاشة الصلاحيات.
+  const reportCategoryRows = await client.query(
+    `INSERT INTO access_category (name)
+     SELECT $1::varchar
+     WHERE NOT EXISTS (SELECT 1 FROM access_category WHERE name = $1::varchar)
+     RETURNING id`,
+    [REPORT_PERMISSION_CATEGORY],
+  )
+  const reportCategory = reportCategoryRows[0] || (await client.query(
+    `SELECT id FROM access_category WHERE name = $1::varchar ORDER BY id LIMIT 1`,
+    [REPORT_PERMISSION_CATEGORY],
+  ))[0]
+  if (reportCategory?.id) {
+    for (const [index, definition] of REPORT_DEFINITIONS.entries()) {
+      const name = reportPermissionName(definition.title)
+      const inserted = await client.query(
+        `INSERT INTO access_list (name, category_id)
+         SELECT $1::varchar, $2::integer
+         WHERE NOT EXISTS (SELECT 1 FROM access_list WHERE name = $1::varchar)
+         RETURNING id`,
+        [name, reportCategory.id],
+      )
+      if (inserted[0]?.id) {
+        await client.query(
+          `INSERT INTO role_permissions (role_id, access_id, is_granted)
+           SELECT id, $1::integer, TRUE FROM job_roles
+           ON CONFLICT (role_id, access_id) DO NOTHING`,
+          [inserted[0].id],
+        )
+      }
+      await client.query(`UPDATE access_list SET category_id = $2::integer, sort_order = $3::integer WHERE name = $1::varchar`, [name, reportCategory.id, index + 1])
     }
   }
 

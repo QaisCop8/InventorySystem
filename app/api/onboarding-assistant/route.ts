@@ -13,11 +13,24 @@ const ensureState = async () => {
   `
 }
 
+// شركة "جديدة": لا أصناف ولا سندات بعد — تُوجَّه للبداية السريعة مباشرة عند الدخول (انظر app/page.tsx).
+const isNewCompany = async () => {
+  const rows = await sql`
+    SELECT
+      (SELECT COUNT(*) FROM products)::int AS products,
+      (CASE WHEN to_regclass('voucher_header_tbl') IS NULL THEN 0 ELSE (SELECT COUNT(*) FROM voucher_header_tbl)::int END) AS vouchers
+  `.catch(() => [{ products: 0, vouchers: 0 }])
+  return Number(rows[0]?.products || 0) === 0 && Number(rows[0]?.vouchers || 0) === 0
+}
+
 export async function GET() {
   try {
     await ensureState()
     const state = await sql`SELECT current_step, dismissed, completed FROM onboarding_assistant_state WHERE id = 1`
-    if (state.length) return NextResponse.json({ ...state[0], shouldShow: !state[0].dismissed && !state[0].completed })
+    if (state.length) {
+      const shouldShow = !state[0].dismissed && !state[0].completed
+      return NextResponse.json({ ...state[0], shouldShow, isNewCompany: shouldShow ? await isNewCompany() : false })
+    }
 
     const counts = await sql`
       SELECT
@@ -29,7 +42,7 @@ export async function GET() {
     if (fresh) {
       await sql`INSERT INTO onboarding_assistant_state (id, current_step) VALUES (1, 0) ON CONFLICT (id) DO NOTHING`
     }
-    return NextResponse.json({ current_step: 0, dismissed: false, completed: false, shouldShow: fresh })
+    return NextResponse.json({ current_step: 0, dismissed: false, completed: false, shouldShow: fresh, isNewCompany: fresh ? await isNewCompany() : false })
   } catch (error) {
     console.error("onboarding assistant GET", error)
     return NextResponse.json({ error: "تعذر تحميل حالة البداية السريعة" }, { status: 500 })

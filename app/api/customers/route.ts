@@ -6,9 +6,10 @@ import {
   toInt,
   toBool,
   ensureCustomerCompatibilityColumns,
-  resolveAccountHierarchy,
   resolveAccountType,
   ensureCustomerAccount,
+  resolveRequiredParentAccount,
+  MissingParentAccountError,
 } from "./_lib"
 
 // تقييد ظهور العميل بفروع معيّنة (اختياري) — بلا أي صف هنا لهذا العميل يبقى ظاهراً لكل الفروع.
@@ -313,7 +314,7 @@ export async function POST(request: NextRequest) {
     const data = await request.json()
     console.log("[v0] Creating customer with data:", data)
 
-    const accountHierarchy = await resolveAccountHierarchy(data.father_id, data.level_no)
+    const accountHierarchy = await resolveRequiredParentAccount(data.type, data.father_id)
     const accountCurrencyId = toNullableInt(data.currency_id) ?? 1
     const accountAllowTransWithDiffCurr = toInt(data.allow_trans_with_diff_curr, 0)
     const accountIsCalcCurrDiffRates = toBool(data.iscalc_curr_diff_rates, false)
@@ -460,6 +461,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(result[0], { status: 201 })
     }
   } catch (error) {
+    if (error instanceof MissingParentAccountError) return NextResponse.json({ error: error.message }, { status: 400 })
     console.error("Error creating customer:", error)
     const message = error instanceof Error ? error.message : String(error)
     return NextResponse.json({ error: `فشل إنشاء العميل: ${message}` }, { status: 500 })
@@ -479,7 +481,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const accountType = resolveAccountType(updateData.type)
-    const accountHierarchy = await resolveAccountHierarchy(updateData.father_id, updateData.level_no)
+    const accountHierarchy = await resolveRequiredParentAccount(updateData.type, updateData.father_id)
     const accountCurrencyId = toNullableInt(updateData.currency_id) ?? 1
     const accountAllowTransWithDiffCurr = toInt(updateData.allow_trans_with_diff_curr, 0)
     const accountIsCalcCurrDiffRates = toBool(updateData.iscalc_curr_diff_rates, false)
@@ -583,6 +585,7 @@ export async function PUT(request: NextRequest) {
 
     return NextResponse.json(result[0])
   } catch (error) {
+    if (error instanceof MissingParentAccountError) return NextResponse.json({ error: error.message }, { status: 400 })
     console.error("Error updating customer:", error)
     const message = error instanceof Error ? error.message : String(error)
     return NextResponse.json({ error: `فشل تحديث العميل: ${message}` }, { status: 500 })

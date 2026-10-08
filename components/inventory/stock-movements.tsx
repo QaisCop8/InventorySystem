@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge"
 import { Plus, ArrowUpCircle, ArrowDownCircle, RotateCcw, ArrowRightLeft, Package } from "lucide-react"
 import { useAuth } from "@/components/auth/auth-context"
 import { formatDateToBritish } from "@/lib/utils"
+import { useWorkspaceTabActive } from "@/contexts/workspace-tab-context"
 
 interface StockMovement {
   id: number
@@ -39,6 +40,7 @@ interface Product {
 }
 
 export function StockMovements() {
+  const workspaceTabActive = useWorkspaceTabActive()
   const { user } = useAuth()
   const [movements, setMovements] = useState<StockMovement[]>([])
   const [products, setProducts] = useState<Product[]>([])
@@ -172,7 +174,7 @@ export function StockMovements() {
   }
 
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
+    const handleKeyDown = (e: KeyboardEvent) => { if (!workspaceTabActive.current) return;
       if (e.key === "F2") {
         e.preventDefault()
         const productSearchTrigger = document.querySelector('[data-search-type="products"]') as HTMLElement

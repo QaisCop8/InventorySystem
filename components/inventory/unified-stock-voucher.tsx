@@ -24,6 +24,7 @@ import PostVoucherDialog, { type PostVoucherAction } from "@/components/common/p
 import DatePickerDialog from "@/components/common/date-picker-dialog"
 import ItemExpiryDatePicker, { type ExpiryLotAllocation } from "@/components/common/ItemExpiryDatePicker"
 import MeasurementInputDialog from "@/components/common/MeasurementInputDialog"
+import { ItemSerialsDialog, requiredSerials, resolveSerialFlags, serialsSummary } from "@/components/inventory/item-serials-dialog"
 import { CellRange, KeyAction } from "@grapecity/wijmo.grid"
 import * as wjcCore from "@grapecity/wijmo"
 import PrimeDropdown from "@/components/common/FocusDropdown"
@@ -33,6 +34,7 @@ import { useToast } from "@/hooks/use-toast"
 import { FileText, Package, Calculator, MessageSquare, RefreshCw } from "lucide-react"
 import { readVoucherClipboard, writeVoucherClipboard, type VoucherClipboardPayload } from "@/lib/voucher-clipboard"
 import TransactionBranchField from "@/components/common/transaction-branch-field"
+import { useWorkspaceTabActive } from "@/contexts/workspace-tab-context"
 
 // vch_type per voucher_types_tbl: 12=سند ادخال بضاعة, 13=سند اخراج بضاعة,
 // 14=ارسالية داخلية, 15=سند استعمال.
@@ -83,6 +85,11 @@ export interface VoucherItemRow {
   // كل حفظ؛ الخادم يُعيد التحقق من نفس القاعدة مستقلاً عبر validateItemBatchExpiry.
   has_expiry?: boolean
   has_batch?: boolean
+  // الصنف له رقم تسلسلي (products.serial_tracking): الأرقام المُدخلة لهذا السطر (عددها = الكمية +
+  // البونص، والخادم يتحقق من مكان كل رقم)، وserials_text ملخّص للعرض في الشبكة فقط.
+  has_serial?: boolean
+  serials?: string[]
+  serials_text?: string
   // نوع القياس (products.measurment_id) مُخزَّن من الصنف عند اختياره — يقرر recalcQuantityFromMeasurement
   // كيفية احتساب "الكمية" تلقائياً من الطول/العرض/الارتفاع/العدد بدل إدخالها يدوياً (مطابق لـ
   // measurement_id وcellEditEnded حالة 'length'/'width'/'height'/'count' في StockInVoucher.js
@@ -461,6 +468,7 @@ export default function UnifiedStockVoucher({
   onCodeNotFound,
   errorMessages = [],
 }: UnifiedStockVoucherProps) {
+  const workspaceTabActive = useWorkspaceTabActive()
   const { fullscreenEnabled } = useWorkspace()
   const labels = TYPE_LABELS[voucherType]
   const { toast } = useToast()
@@ -737,36 +745,10 @@ export default function UnifiedStockVoucher({
   useEffect(() => {
     if (typeof window === "undefined" || !dialogOpen) return
 
-    const onGlobalKeyDown = (event: KeyboardEvent) => {
+    const onGlobalKeyDown = (event: KeyboardEvent) => { if (!workspaceTabActive.current) return;
       if (!doHotKeys.current || showDeleteConfirm || postDialogOpen || showUnsavedConfirm) return
-      if (event.key === "F3") {
-        event.preventDefault()
-        // خلافاً للنقر على زر "حفظ" (يُفقِد الشبكة تركيزها فيُنهي Wijmo تحرير الخلية النشطة قبل
-        // وصول الحدث)، F3 لا يُغيّر التركيز إطلاقاً — فيبقى أي تعديل نشط في خلية الشبكة (كرقم صنف
-        // كُتب للتو) غير مُطبَّق على itemsSource/form.items عند وصول هذا الحدث. يُنهى التحرير النشط
-        // صراحةً، ثم يُؤجَّل التحقق/الحفظ لِتِك التالي لِتُتاح فرصة لتحديث form.items أولاً.
-        const control = resolveFlexControl(chequeGridRef.current)
-        control?.finishEditing?.()
-        setTimeout(() => handleRequestSaveRef.current(), 0)
-        return
-      }
-      if (event.key === "F8") {
-        event.preventDefault()
-        if (form.id > 0 && form.status === 1) {
-          setShowDeleteConfirm(true)
-        }
-        return
-      }
-      if (event.key === "F9") {
-        event.preventDefault()
-        if (form.id > 0) onPrint?.()
-        return
-      }
-      if (event.key === "F5") {
-        event.preventDefault()
-        guardedAction(() => onNew?.())
-        return
-      }
+      // F3 حفظ / F9 حذف / F4 نسخ / F5 جديد / Ctrl+P طباعة: يتولاها UniversalToolbar (lib/hotkeys.ts)،
+      // بما فيها إنهاء تحرير خلية الشبكة النشطة قبل الحفظ.
 
       // Alt+C/Alt+V: نسخ/لصق سند عابر لنوع السند (سند مخزون ↔ ارسالية مبيعات بـunified-sales-
       // delivery.tsx) عبر حافظة مشتركة بـlocalStorage — انظر lib/voucher-clipboard.ts لسبب اقتصارها
@@ -994,9 +976,40 @@ export default function UnifiedStockVoucher({
     if (isLocked) return
     const safePatch =
       patch.expiry_date !== undefined ? { ...patch, expiry_date: toGridDateString(patch.expiry_date) } : patch
-    const next = itemsRef.current.map((row, i) => (i === index ? { ...row, ...safePatch } : row))
+    const next = itemsRef.current.map((row, i) => {
+      if (i !== index) return row
+      const merged = { ...row, ...safePatch }
+      return { ...merged, serials_text: serialsSummary(merged) }
+    })
     itemsRef.current = next
     onItemsChange(next)
+  }
+
+  // أسطر بلا has_serial (لصق Alt+V، سند مصدر...) — تُعرَف أصنافها ذات الرقم التسلسلي من الخادم
+  useEffect(() => {
+    let cancelled = false
+    void resolveSerialFlags(form.items || []).then((resolved) => {
+      if (cancelled || !resolved) return
+      const byIndex = resolved
+      const next = itemsRef.current.map((row, index) => (byIndex[index] && byIndex[index].product_id === row.product_id && row.has_serial === undefined ? { ...row, has_serial: byIndex[index].has_serial, serials: byIndex[index].serials, serials_text: byIndex[index].serials_text } : row))
+      itemsRef.current = next
+      onItemsChange(next)
+    })
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.items])
+
+  // نافذة الأرقام التسلسلية لسطر — fromButton: من زر العمود (تنبيه إن لم يكن للصنف رقم تسلسلي)
+  const [serialsRow, setSerialsRow] = useState<number | null>(null)
+  const openSerialsDialog = (rowIndex: number, fromButton = false) => {
+    const row = itemsRef.current[rowIndex]
+    if (!row?.product_id) return
+    if (!row.has_serial) {
+      if (fromButton) messagesRef.current?.show?.([{ severity: "info", summary: "", detail: "هذا الصنف ليس له رقم تسلسلي", life: 2500 }])
+      return
+    }
+    popupHasCalled()
+    setTimeout(() => setSerialsRow(rowIndex), 0)
   }
 
   const openAttributeEditor = async (rowIndex: number) => {
@@ -1171,6 +1184,8 @@ export default function UnifiedStockVoucher({
         units: normalizeUnits(product.units),
         has_expiry: hasExpiry,
         has_batch: hasBatch,
+        has_serial: Boolean(product.serial_tracking),
+        serials: currentRow?.product_id === product.id ? currentRow?.serials || [] : [],
         // نوع القياس وأبعاد الصنف الافتراضية (لحالتَي 9/10 في recalcQuantityFromMeasurement) —
         // العدد يُصفَّر لـ1 دوماً عند اختيار صنف مطابقاً لِـfillItemInfo المرجعي.
         measurment_id: product.measurment_id != null ? Number(product.measurment_id) : 1,
@@ -1275,6 +1290,9 @@ export default function UnifiedStockVoucher({
         setExpiryLotPickerWarehouseId(consumptionWarehouseId)
         setExpiryLotPickerReservedByLot(computeReservedByLot(row, currentRow.product_id, consumptionWarehouseId))
         setExpiryLotPickerOpen(true)
+      } else if (currentRow?.has_serial && Number(quantity || 0) > 0 && (currentRow.serials?.length || 0) !== requiredSerials(currentRow)) {
+        // صنف له رقم تسلسلي: نافذة الأرقام فور إدخال الكمية (كما في شامل)
+        openSerialsDialog(row)
       }
     } else if (colName === "unit_price") {
       const unitPrice = value === "" || value === null ? null : Number(value)
@@ -1343,6 +1361,34 @@ export default function UnifiedStockVoucher({
     }
   }
 
+  // Enter/Tab على رقم الصنف/الباركود: Wijmo يُنهي التحرير وينقل التحديد للسطر التالي قبل وصول الحدث
+  // لـhandleKeyDown (مُسجَّل بمرحلة الفقاعة) — فكان الصنف يُضاف (بحث cellEditEnded) ثم يرى handleKeyDown
+  // سطراً جديداً فارغاً فيفتح نافذة البحث. هنا (مرحلة الالتقاط، قبل Wijmo) تُحفَظ الخلية الأصلية ويُوقَف
+  // البحث التلقائي، فيُكمل handleKeyDown على الخلية الصحيحة كما صُمِّم.
+  const keySnapshotRef = useRef<{ row: number; col: number; previousRow?: VoucherItemRow } | null>(null)
+  const handleKeyDownCapture = (grid: any, e: any) => {
+    if (!grid || !e || typeof e.keyCode === "undefined") return
+    if (e.keyCode !== Util.keyboardKeys.Enter && e.keyCode !== Util.keyboardKeys.Tab) return
+    const control = resolveFlexControl(grid)
+    if (!control) return
+    let selection: any
+    try {
+      selection = control.selection
+    } catch {
+      return
+    }
+    if (!selection || selection.row < 0 || selection.col < 0) return
+    const colName = control.columns[selection.col]?.binding
+    if (colName !== "product_code" && colName !== "barcode") return
+    keySnapshotRef.current = { row: selection.row, col: selection.col, previousRow: itemsRef.current[selection.row] }
+    skipAutoLookupRef.current = true
+    // احتياط إن لم يصل الحدث لـhandleKeyDown لأي سبب — لا يبقى البحث التلقائي معطَّلاً
+    setTimeout(() => {
+      skipAutoLookupRef.current = false
+      keySnapshotRef.current = null
+    }, 0)
+  }
+
   const handleKeyDown = (grid: any, e: any) => {
     // يُستدعى مرتين لكل ضغطة مفتاح فعلياً: مرة بمعطيات Wijmo الصحيحة، ومرة أخرى بمعطيات غير مكتملة
     // (onKeyDown ليس حدثاً مُوثَّقاً بـFlexGridInputs) — بلا هذا الحارس، قراءة e.keyCode على undefined
@@ -1358,9 +1404,16 @@ export default function UnifiedStockVoucher({
     }
     if (!selection) return
     chequeGridRef.current = control
-    if (doHotKeys.current === false) return
-    const row = selection.row
-    const col = selection.col
+    // خلية رقم الصنف/الباركود كما كانت قبل معالجة Wijmo لـEnter/Tab (انظر handleKeyDownCapture)
+    const isEnterOrTab = e.keyCode === Util.keyboardKeys.Tab || e.keyCode === Util.keyboardKeys.Enter
+    const keySnapshot = isEnterOrTab ? keySnapshotRef.current : null
+    keySnapshotRef.current = null
+    if (doHotKeys.current === false) {
+      if (keySnapshot) skipAutoLookupRef.current = false
+      return
+    }
+    const row = keySnapshot ? keySnapshot.row : selection.row
+    const col = keySnapshot ? keySnapshot.col : selection.col
     if (row < 0 || col < 0) return
     const colName = control.columns[col]?.binding
 
@@ -1416,8 +1469,11 @@ export default function UnifiedStockVoucher({
       e.preventDefault()
       // يُلتَقَط قبل finishEditing (الذي يكتب القيمة الجديدة فوقه عبر handleCellEditEnded) — يُستخدَم
       // لاسترجاع كود/باركود الصنف المحمَّل سابقاً على هذا السطر إن فشل بحث القيمة الجديدة.
-      const previousRow =
-        colName === "product_code" || colName === "barcode" ? itemsRef.current[row] : undefined
+      const previousRow = keySnapshot
+        ? keySnapshot.previousRow
+        : colName === "product_code" || colName === "barcode"
+          ? itemsRef.current[row]
+          : undefined
       if (colName === "product_code" || colName === "barcode") skipAutoLookupRef.current = true
       const control = resolveFlexControl(grid)
       control?.finishEditing?.()
@@ -1678,6 +1734,8 @@ export default function UnifiedStockVoucher({
         units: normalizeUnits(product.units),
         has_expiry: hasExpiry,
         has_batch: hasBatch,
+        has_serial: Boolean(product.serial_tracking),
+        serials: [],
         measurment_id: product.measurment_id != null ? Number(product.measurment_id) : 1,
         product_length: product.length != null ? Number(product.length) : null,
         product_width: product.width != null ? Number(product.width) : null,
@@ -1688,6 +1746,7 @@ export default function UnifiedStockVoucher({
         ...(purchase ? { purchase_account_id: purchase.id, purchase_account_code: purchase.code, purchase_account_name: purchase.name } : {}),
         ...(expense ? { expense_account_id: expense.id, expense_account_code: expense.code, expense_account_name: expense.name } : {}),
       }
+      patched.serials_text = serialsSummary(patched)
       if (index === 0) nextRows[targetRow] = patched
       else nextRows.push(patched)
     }
@@ -1913,6 +1972,20 @@ export default function UnifiedStockVoucher({
           visible: voucherType === STOCK_IN_VCH_TYPE && !isInternalDelivery && Util.getVoucherSettingScreenData(voucherType, "expiry_date"),
           visibleInColumnChooser: true,
         },
+        // الأرقام التسلسلية (أصناف serial_tracking فقط) — الملخص "المُدخل/المطلوب" وزر فتح النافذة
+        { header: "الأرقام التسلسلية", name: "serials_text", width: 170, isReadOnly: true },
+        {
+          header: " ",
+          name: "btnSerials",
+          width: 50,
+          buttonBody: "button",
+          align: "center",
+          title: "الأرقام التسلسلية",
+          iconType: "barcode",
+          isReadOnly: true,
+          visibleInColumnChooser: true,
+          onClick: (e: any, ctx: any) => openSerialsDialog(ctx.row.index, true),
+        },
         { header: "ملاحظة", name: "note", width: 140 },
         {
           header: " ",
@@ -2130,6 +2203,12 @@ export default function UnifiedStockVoucher({
   // يتحقق من صحة السند قبل عرض نافذة "كيف تريد الحفظ؟" — مطابق لِـ unified-receipt-voucher.tsx.
   const handleRequestSave = () => {
     if (isLocked) return
+    // الحفظ من تبويب آخر (تفاصيل الكميات...) يفتح تبويب الأصناف أولاً ليظهر أي خطأ في مكانه ثم يتابع.
+    if (activeTab !== "items") {
+      setActiveTab("items")
+      requestAnimationFrame(() => requestAnimationFrame(() => handleRequestSaveRef.current()))
+      return
+    }
     const error = onValidateSave?.()
     if (error) {
       messagesRef.current?.clear?.()
@@ -2239,7 +2318,7 @@ export default function UnifiedStockVoucher({
           <ProgressSpinner loading={isSaving} />
           <Messages innerRef={messagesRef} />
 
-          <DialogHeader className="mb-3 overflow-hidden rounded-2xl bg-gradient-to-l from-emerald-600 via-emerald-600 to-teal-600 px-5 py-3 shadow-lg">
+          <DialogHeader className="mb-3 shrink-0 overflow-hidden rounded-2xl bg-gradient-to-l from-emerald-600 via-emerald-600 to-teal-600 px-5 py-3 shadow-lg">
             <DialogTitle className="flex flex-wrap items-center gap-2 text-lg font-extrabold tracking-tight text-white sm:text-xl">
               <Package className="h-5 w-5" />
               {labels.title}
@@ -2481,6 +2560,7 @@ export default function UnifiedStockVoucher({
                     cellEditEnded={(s: any, e: any) => handleCellEditEnded(s, e)}
                     beginningEdit={(s: any, e: any) => handleBeginningEdit(s, e)}
                     onKeyDown={(s: any, e: any) => handleKeyDown(s, e)}
+                    onKeyDownCapture={(s: any, e: any) => handleKeyDownCapture(s, e)}
                     keyActionEnter={KeyAction.None}
                     keyActionTab={KeyAction.None}
                     dontConvertToCards={true}
@@ -2619,6 +2699,23 @@ export default function UnifiedStockVoucher({
             pendingFocusRef.current = { row, col: "note" }
           }}
         />
+
+        {serialsRow !== null && itemsRef.current[serialsRow] && (
+          <ItemSerialsDialog
+            open
+            onOpenChange={(open) => { if (!open) { setSerialsRow(null); popupHasClosed() } }}
+            vchType={voucherType}
+            voucherId={form.id > 0 ? form.id : null}
+            productId={Number(itemsRef.current[serialsRow].product_id)}
+            productName={itemsRef.current[serialsRow].product_name}
+            storeId={resolveConsumptionWarehouseId(itemsRef.current[serialsRow])}
+            storeName={resolveConsumptionWarehouseName(itemsRef.current[serialsRow])}
+            required={requiredSerials(itemsRef.current[serialsRow])}
+            value={itemsRef.current[serialsRow].serials || []}
+            readOnly={isLocked}
+            onSave={(serials) => patchItemRow(serialsRow, { serials })}
+          />
+        )}
 
         <ItemExpiryDatePicker
           open={expiryLotPickerOpen}

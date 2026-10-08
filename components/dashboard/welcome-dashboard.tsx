@@ -215,27 +215,30 @@ export default function WelcomeDashboard({ onOpenSection }: WelcomeDashboardProp
   const scopeLabel = data ? (data.scope.all ? "كل الفروع" : data.scope.branches[0]?.name ?? "") : ""
 
   return <div dir="rtl" className="min-h-full space-y-4 bg-slate-50 p-3 sm:p-5 dark:bg-slate-950">
-    <header className="relative overflow-hidden rounded-2xl bg-gradient-to-l from-slate-900 via-slate-800 to-teal-900 px-5 py-5 text-white shadow-sm sm:px-7">
-      <div className="pointer-events-none absolute -left-16 -top-24 h-64 w-64 rounded-full bg-teal-400/10 blur-2xl" />
+    <header className="relative overflow-hidden rounded-2xl bg-gradient-to-l from-indigo-600 via-violet-600 to-teal-500 px-5 py-5 text-white shadow-lg shadow-indigo-500/20 sm:px-7">
+      {/* زخارف ناعمة: توهّجان ونقش نقطي خفيف */}
+      <div className="pointer-events-none absolute -left-16 -top-24 h-64 w-64 rounded-full bg-white/20 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-28 right-1/3 h-56 w-56 rounded-full bg-fuchsia-400/30 blur-3xl" />
+      <div className="pointer-events-none absolute inset-0 opacity-[0.12] [background-image:radial-gradient(white_1px,transparent_1px)] [background-size:18px_18px]" />
       <div className="relative flex flex-wrap items-end justify-between gap-4">
         <div className="min-w-0">
-          <p className="flex items-center gap-1.5 text-xs text-slate-300"><CalendarDays className="h-3.5 w-3.5" />{dateText}</p>
-          <h1 className="mt-1.5 text-2xl font-black sm:text-[28px]">{greeting()}{user?.fullName || user?.username ? `، ${user?.fullName || user?.username}` : ""}</h1>
-          <p className="mt-1 text-sm text-slate-300">{company || "لوحة المعلومات"}{scopeLabel && <span className="mr-2 rounded-full bg-white/10 px-2 py-0.5 text-[11px]">{scopeLabel}</span>}</p>
+          <p className="flex items-center gap-1.5 text-xs text-indigo-50/90"><CalendarDays className="h-3.5 w-3.5" />{dateText}</p>
+          <h1 className="mt-1.5 break-words text-xl font-black leading-tight text-white drop-shadow-sm sm:text-[28px]">{greeting()}{user?.fullName || user?.username ? `، ${user?.fullName || user?.username}` : ""}</h1>
+          <p className="mt-1 text-sm text-indigo-50/90">{company || "لوحة المعلومات"}{scopeLabel && <span className="mr-2 rounded-full bg-white/20 px-2 py-0.5 text-[11px]">{scopeLabel}</span>}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {data?.scope.canSwitch && <div className="flex rounded-xl bg-white/10 p-1 text-xs font-bold" role="group" aria-label="نطاق الفروع">
-            <button type="button" onClick={() => setScopeAll(false)} className={cn("rounded-lg px-3 py-1.5 transition", !scopeAll ? "bg-white text-slate-900" : "text-slate-200 hover:bg-white/10")}>الفرع الحالي</button>
-            <button type="button" onClick={() => setScopeAll(true)} className={cn("rounded-lg px-3 py-1.5 transition", scopeAll ? "bg-white text-slate-900" : "text-slate-200 hover:bg-white/10")}>كل الفروع</button>
+          {data?.scope.canSwitch && <div className="flex rounded-xl bg-white/15 p-1 text-xs font-bold ring-1 ring-white/20 backdrop-blur" role="group" aria-label="نطاق الفروع">
+            <button type="button" onClick={() => setScopeAll(false)} className={cn("rounded-lg px-3 py-1.5 transition", !scopeAll ? "bg-white text-indigo-700 shadow-sm" : "text-white/90 hover:bg-white/15")}>الفرع الحالي</button>
+            <button type="button" onClick={() => setScopeAll(true)} className={cn("rounded-lg px-3 py-1.5 transition", scopeAll ? "bg-white text-indigo-700 shadow-sm" : "text-white/90 hover:bg-white/15")}>كل الفروع</button>
           </div>}
-          <button type="button" onClick={() => void load()} disabled={loading} className="flex h-9 items-center gap-1.5 rounded-xl bg-white/10 px-3 text-xs font-bold transition hover:bg-white/20 disabled:opacity-60" title="تحديث">
+          <button type="button" onClick={() => void load()} disabled={loading} className="flex h-9 items-center gap-1.5 rounded-xl bg-white/15 px-3 text-xs font-bold ring-1 ring-white/20 backdrop-blur transition hover:bg-white/25 disabled:opacity-60" title="تحديث">
             <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />{data ? new Date(data.generatedAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }) : "تحديث"}
           </button>
         </div>
       </div>
-      <nav className="relative mt-5 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none]" aria-label="إجراءات سريعة">
+      <nav className="relative mt-5 grid grid-cols-2 gap-2 pb-1 sm:flex sm:flex-wrap" aria-label="إجراءات سريعة">
         {actions.map(action => <button key={action.label} type="button" onClick={() => open(action.section, action.onClick)}
-          className="flex shrink-0 items-center gap-2 rounded-xl bg-white/95 py-1.5 pl-3.5 pr-1.5 text-xs font-bold text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-white">
+          className="flex min-w-0 shrink-0 items-center gap-2 rounded-xl bg-white/95 py-1.5 pl-3.5 pr-1.5 text-right text-xs font-bold text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-white">
           <span className={cn("grid h-7 w-7 place-items-center rounded-lg", action.tone)}><action.icon className="h-4 w-4" /></span>{action.label}
         </button>)}
       </nav>

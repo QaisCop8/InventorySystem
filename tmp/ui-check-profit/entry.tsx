@@ -8,8 +8,10 @@ const rows = [
 ]
 window.fetch = ((url: string, init?: any) => {
   const u = String(url)
+  if (u.includes('invoices=1')) return json([{ id: 9, vch_code: 'INV0000009', vch_date: '2026-10-06', vch_type: 12, status: 2, customer_code: '123', customer_name: 'صيدلية الهوجي', branch_name: 'الرئيسي', amount: 258.6, lines: 1 }, { id: 112, vch_code: 'INVD000001', vch_date: '2026-09-25', vch_type: 16, status: 1, customer_code: null, customer_name: null, branch_name: 'الرئيسي', amount: 16, lines: 1 }])
   if (u.includes('sold_items=1')) return json([{ id: 1, code: 'D1', name: 'سكر أبيض' }, { id: 2, code: 'D2', name: 'زيت ذرة' }])
   if (u.includes('meta=1')) return json({ products: [{ id: 1, code: 'D1', name: 'سكر' }], groups: [], warehouses: [{ id: 1, code: '1', name: 'الرئيسي' }], branches: [], customers: [], salesmen: [] })
+  ;(window as any).__urls = [...((window as any).__urls || []), u]
   if (init?.method === 'POST') return json({ updated: 21, unpriced: 2 })
   return json({ rows, totals: { sale_total: 1130, cost_total: 764, bonus_cost: 19.2, profit: 262.5, lines: 23, unpriced_lines: 2, profit_margin: 23.2 }, group_by: 'item' })
 }) as any

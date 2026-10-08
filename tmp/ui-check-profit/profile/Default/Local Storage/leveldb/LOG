@@ -1,3 +1,3 @@
-2026/10/06-12:55:49.875 3e14 Reusing MANIFEST E:\inventory-ordering-system\tmp\ui-check-profit\profile\Default\Local Storage\leveldb/MANIFEST-000001
-2026/10/06-12:55:49.891 3e14 Recovering log #3
-2026/10/06-12:55:49.892 3e14 Reusing old log E:\inventory-ordering-system\tmp\ui-check-profit\profile\Default\Local Storage\leveldb/000003.log 
+2026/10/06-21:10:11.365 1744 Reusing MANIFEST E:\inventory-ordering-system\tmp\ui-check-profit\profile\Default\Local Storage\leveldb/MANIFEST-000001
+2026/10/06-21:10:11.374 1744 Recovering log #3
+2026/10/06-21:10:11.374 1744 Reusing old log E:\inventory-ordering-system\tmp\ui-check-profit\profile\Default\Local Storage\leveldb/000003.log 

@@ -1,6 +1,7 @@
 ﻿"use client"
 
 import type React from "react"
+import { LicenseUsageStrip, useCompanyLicense, useLicenseRequestDialog } from "@/components/settings/license-limit"
 
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
@@ -230,6 +231,8 @@ const currencies_initial = [
 
 
 function Definitions() {
+  const { license: companyLicense, reload: reloadLicense } = useCompanyLicense()
+  const branchLicenseRequest = useLicenseRequestDialog(() => void reloadLicense())
   const [cities, setCities] = useState<City[]>([])
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [customercategories, setCustomerCategories] = useState<Customer_Categories[]>([])
@@ -2315,6 +2318,7 @@ function Definitions() {
       });
 
       if (response.ok) {
+        void reloadLicense();
         toast({
           title: editingBranchId ? "تم التعديل بنجاح" : "تم الحفظ بنجاح",
           description: editingBranchId
@@ -2338,6 +2342,7 @@ function Definitions() {
         setShowBranchForm(false);
       } else {
         const error = await response.json();
+        if (branchLicenseRequest.handleLimit(error)) return;
         toast({
           title: "فشل العملية",
           description: error.error || "حدث خطأ أثناء حفظ الفرع",
@@ -2462,14 +2467,22 @@ function Definitions() {
                     <Building className="h-5 w-5 text-primary" />
                     الفروع ({branches.length})
                   </CardTitle>
-                  <Button className="erp-btn-primary" size="sm" onClick={() => setShowBranchForm(!showBranchForm)}>
+                  <Button className="erp-btn-primary" size="sm" onClick={() => {
+                    // الحد المرخّص من الفروع مكتمل: عرض طلب الزيادة بدل فتح نموذج إضافة سيُرفض حفظه.
+                    if (!showBranchForm && !editingBranchId && companyLicense && companyLicense.usage.branches >= companyLicense.limits.branches) {
+                      branchLicenseRequest.open("branches", `تم الوصول للحد المرخّص من الفروع (${companyLicense.usage.branches} من ${companyLicense.limits.branches}).`, companyLicense.pending.some((request) => request.resource === "branches"))
+                      return
+                    }
+                    setShowBranchForm(!showBranchForm)
+                  }}>
                     <Plus className="h-4 w-4 mr-2" />
                     {editingBranchId ? "تعديل الفرع" : "إضافة فرع جديد"}
                   </Button>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
-
+                {branchLicenseRequest.element}
+                <LicenseUsageStrip resource="branches" license={companyLicense} onRequest={() => branchLicenseRequest.open("branches")} />
 
                 {showBranchForm && (
                   <div className="bg-muted/30 rounded-lg p-4 border" dir="rtl">

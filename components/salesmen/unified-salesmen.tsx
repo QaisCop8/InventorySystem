@@ -9,6 +9,7 @@ import { useWorkspace } from "@/contexts/workspace-context"
 import ConfirmDialogYesNo from "@/components/ui/ConfirmDialogYesNo"
 import Messages from "@/components/common/Messages"
 import AutoCompleteAccount from "@/components/customer/auto-complete-account"
+import { useWorkspaceTabActive } from "@/contexts/workspace-tab-context"
 
 export interface SalesmanRecord {
   id?: number
@@ -51,6 +52,7 @@ interface UnifiedSalesmenProps {
 }
 
 export default function UnifiedSalesmen({ open, form, rows, saving, messagesRef, onOpenChange, onFormChange, onCodeBlur, onNew, onSave, onDelete, onNavigate }: UnifiedSalesmenProps) {
+  const workspaceTabActive = useWorkspaceTabActive()
   const { fullscreenEnabled } = useWorkspace()
   const index = rows.findIndex((row) => row.id === form.id)
   const nameRef = useRef<HTMLInputElement>(null)
@@ -62,7 +64,7 @@ export default function UnifiedSalesmen({ open, form, rows, saving, messagesRef,
   const formHash = JSON.stringify(form)
   useEffect(() => { if (!open) return; initialHashRef.current = JSON.stringify(form); window.requestAnimationFrame(() => nameRef.current?.focus()) }, [open, form.id])
   const guarded = (action: () => void) => formHash !== initialHashRef.current ? setPendingAction(() => action) : action()
-  useEffect(() => { if (!open) return; const handler = (event: KeyboardEvent) => { if (event.key === "F3") { event.preventDefault(); onSave() } else if (event.key === "F9" && form.id) { event.preventDefault(); setDeleteConfirm(true) } }; window.addEventListener("keydown", handler); return () => window.removeEventListener("keydown", handler) }, [open, form.id, onSave])
+  // F3 حفظ / F9 حذف وبقية الاختصارات الموحّدة: UniversalToolbar (lib/hotkeys.ts)
   const enterAsTab = (event: React.KeyboardEvent) => { if (event.key !== "Enter" || event.shiftKey || event.ctrlKey || event.altKey || (event.target as HTMLElement).tagName === "TEXTAREA") return; event.preventDefault(); const controls = Array.from(event.currentTarget.querySelectorAll<HTMLElement>('input:not([disabled]),select:not([disabled]),textarea:not([disabled]),button:not([disabled])')).filter(control => control.tabIndex !== -1); controls[controls.indexOf(event.target as HTMLElement) + 1]?.focus() }
 
   return <Dialog open={open} onOpenChange={(next) => next ? onOpenChange(true) : guarded(() => onOpenChange(false))}>

@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
+import { BillsPaymentDialog } from "@/components/sales/bills-payment-dialog"
 import { FileText, User, Percent, Users2, MessageSquare, Wallet, X } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useWorkspace } from "@/contexts/workspace-context"
@@ -18,6 +19,7 @@ import PostVoucherDialog, { type PostVoucherAction } from "@/components/common/p
 import { useToast } from "@/hooks/use-toast"
 import PrimeDropdown from "@/components/common/FocusDropdown"
 import TransactionBranchField from "@/components/common/transaction-branch-field"
+import { useWorkspaceTabActive } from "@/contexts/workspace-tab-context"
 
 export interface VoucherRecord {
   id: number
@@ -142,6 +144,7 @@ export default function UnifiedCreditNote({
   isNewMode,
   errorMessages = [],
 }: UnifiedCreditNoteProps) {
+  const workspaceTabActive = useWorkspaceTabActive()
   const { fullscreenEnabled } = useWorkspace()
   const dateInputRef = useRef<HTMLInputElement | null>(null)
   const messagesRef = useRef<any>(null)
@@ -150,6 +153,8 @@ export default function UnifiedCreditNote({
   const [postDialogOpen, setPostDialogOpen] = useState(false)
 
   const isCreditNote = form.vch_type === 6 // per credit-notes/_lib.ts: 6 = اشعار دائن, 7 = اشعار مدين
+  // تسديد الفواتير: توزيع الإشعار الدائن المحفوظ على فواتير العميل المفتوحة.
+  const [billsPaymentOpen, setBillsPaymentOpen] = useState(false)
   // سند مُرحَّل (status=2): مقفل بالكامل، لا يُعدَّل إلا عبر إلغائه منطقياً (زر حذف).
   const isLocked = form.status === 2 || form.status === 3
   const statusBadge =
@@ -224,38 +229,7 @@ export default function UnifiedCreditNote({
     setPostDialogOpen(true)
   }
 
-  useEffect(() => {
-    if (typeof window === "undefined" || !dialogOpen) return
-    if (showDeleteConfirm || showUnsavedConfirm) return
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "F3") {
-        event.preventDefault()
-        handleRequestSave()
-        return
-      }
-      if (event.key === "F8") {
-        event.preventDefault()
-        if (form.id > 0 && form.status === 1) {
-          onDelete?.()
-        }
-        return
-      }
-      if (event.key === "F9") {
-        event.preventDefault()
-        if (form.id > 0) onPrint?.()
-        return
-      }
-      if (event.key === "F5") {
-        event.preventDefault()
-        guardedAction(() => onNew?.())
-      }
-    }
-
-    window.addEventListener("keydown", handleKeyDown)
-    return () => window.removeEventListener("keydown", handleKeyDown)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dialogOpen, form.id, isLocked, onDelete, onOpenChange, showDeleteConfirm, showUnsavedConfirm])
+  // F3 حفظ / F9 حذف / F4 نسخ / F5 جديد / Ctrl+P طباعة: يتولاها UniversalToolbar (lib/hotkeys.ts)
 
   const currencyOptions = useMemo(
     () =>
@@ -464,7 +438,14 @@ export default function UnifiedCreditNote({
                   </span>
                 )}
               </DialogTitle>
+              {isCreditNote && (
+                <button type="button" disabled={!(form.id > 0)} onClick={() => setBillsPaymentOpen(true)} title={form.id > 0 ? "تسديد الفواتير" : "احفظ السند أولاً"} className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-white/15 px-3 py-1 text-xs font-semibold text-white ring-1 ring-white/30 transition hover:bg-white/25 disabled:opacity-50">
+                  <Wallet className="h-3.5 w-3.5" />
+                  تسديد الفواتير
+                </button>
+              )}
             </DialogHeader>
+            {isCreditNote && <BillsPaymentDialog open={billsPaymentOpen} onOpenChange={setBillsPaymentOpen} voucherId={form.id > 0 ? form.id : null} />}
 
             <TransactionBranchField voucherType={form.vch_type} action={form.id ? "update" : "create"} value={form.branch_id} onChange={(id) => onFormChange("branch_id", id)} disabled={isLocked} />
 

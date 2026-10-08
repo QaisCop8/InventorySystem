@@ -5,7 +5,9 @@ import { getSystemSettingValue } from "@/lib/system-settings"
 export const reportDate = (value: string | null, fallback = new Date().toISOString().slice(0, 10)) =>
   value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : fallback
 
-export type InventoryReportFilters = { productIds?: number[]; warehouseIds?: number[]; branchIds?: number[] }
+// includeUnposted: تقييم المخزون وتقارير الأرباح تعتمد كل السندات غير المحذوفة (مرحّلة أو غير مرحّلة)؛
+// أرصدة المخزون والقوائم المالية تبقى على السندات المرحّلة فقط.
+export type InventoryReportFilters = { productIds?: number[]; warehouseIds?: number[]; branchIds?: number[]; includeUnposted?: boolean }
 export const reportIds = (value: string | null) => [...new Set((value || "").split(",").map(Number).filter(id => Number.isSafeInteger(id) && id > 0))]
 export const inventoryFilters = (params: URLSearchParams): InventoryReportFilters => ({
   productIds: reportIds(params.get("product_ids")), warehouseIds: reportIds(params.get("warehouse_ids")), branchIds: reportIds(params.get("branch_ids")),
@@ -31,7 +33,7 @@ export async function getInventoryReportProducts(organizationId: number, product
 }
 
 export async function getProductBalances(_organizationId: number, toDate: string, productId: number, search: string, filters: InventoryReportFilters = {}, onLineCost?: (line: any, cost: LineCost) => void) {
-  const { productIds = [], warehouseIds = [], branchIds = [] } = filters
+  const { productIds = [], warehouseIds = [], branchIds = [], includeUnposted = false } = filters
   // sql is already scoped to the current company's database. Neither quantities
   // nor prices for this report depend on the optional movement ledger.
   const [products, lines, includePurchaseReturns] = await Promise.all([
@@ -75,7 +77,7 @@ export async function getProductBalances(_organizationId: number, toDate: string
         FROM voucher_items_tbl invoice_item
         JOIN voucher_header_tbl invoice ON invoice.id=invoice_item.voucher_id
         WHERE vh.vch_type=18 AND invoice_item.delivery_item_id=vi.id
-          AND invoice.vch_type=17 AND invoice.vch_status=2 AND COALESCE(invoice.status,1)<>3
+          AND invoice.vch_type=17 AND (${includeUnposted} OR invoice.vch_status=2) AND COALESCE(invoice.status,1)<>3
           AND invoice.vch_date::date<=${toDate}::date
         ORDER BY invoice.vch_date DESC,invoice_item.id DESC LIMIT 1
       ) linked_invoice ON TRUE
@@ -98,7 +100,7 @@ export async function getProductBalances(_organizationId: number, toDate: string
           AND er.rate_date::date<=cost_header.vch_date::date
         ORDER BY er.rate_date DESC,er.id DESC LIMIT 1
       ) product_rate ON TRUE
-      WHERE vh.vch_status=2 AND COALESCE(vh.status,1)<>3 AND vh.vch_date::date<=${toDate}::date
+      WHERE (${includeUnposted} OR vh.vch_status=2) AND COALESCE(vh.status,1)<>3 AND vh.vch_date::date<=${toDate}::date
         AND vh.vch_type IN (8,9,10,11,12,13,14,15,16,17,18,19)
         AND (${branchIds.length}=0 OR vh.branch_id=ANY(${branchIds}::int[]))
         AND (${warehouseIds.length}=0 OR vi.store_id=ANY(${warehouseIds}::int[]) OR (vh.vch_type=10 AND (vh.from_store_id=ANY(${warehouseIds}::int[]) OR vh.to_store_id=ANY(${warehouseIds}::int[]))))

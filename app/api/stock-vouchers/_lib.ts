@@ -1,5 +1,6 @@
 import sql from "@/lib/database"
 import { buildVoucherCode, normalizeVoucherPrefix } from "@/lib/voucher-code"
+import { validateSerialsRemoval } from "@/lib/item-serials"
 
 export { buildVoucherCode, normalizeVoucherPrefix }
 
@@ -595,6 +596,8 @@ export const saveVoucherItems = async (voucherId: number, items: any[]) => {
     (expiryFlagRows as any[]).map((r) => [Number(r.id), Boolean(r.has_expiry_date)]),
   )
 
+  // id السطر الجديد لكل صف (لربط الأرقام التسلسلية بعد الحفظ)
+  const insertedIds: number[] = []
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i]
     const unitName = String(row.unit || row.unit_name || "").trim()
@@ -639,6 +642,7 @@ export const saveVoucherItems = async (voucherId: number, items: any[]) => {
         ${row.return_sales_invoice_id ?? null}
       ) RETURNING id
     `
+    insertedIds.push(Number(inserted[0].id))
     const selected = row.selected_attributes && typeof row.selected_attributes === "object" ? Object.values(row.selected_attributes).map(String) : []
     for (const value of selected) {
       await sql`INSERT INTO voucher_item_attributes_tbl (voucher_item_id, product_attribute_value_id)
@@ -651,7 +655,7 @@ export const saveVoucherItems = async (voucherId: number, items: any[]) => {
         ON CONFLICT DO NOTHING`
     }
   }
-  return rows
+  return rows.map((row, index) => ({ ...row, id: insertedIds[index] }))
 }
 
 // عند حذف سند فعلياً (مسودة، archiveAndDeleteStockVoucher) أو إلغائه منطقياً (status=3 لسند
@@ -947,6 +951,8 @@ export const archiveAndDeleteStockVoucher = async (voucherId: number): Promise<{
 
   const deletionError = await validateVoucherDeletion(voucherId)
   if (deletionError) return { error: deletionError }
+  const serialsError = await validateSerialsRemoval(voucherId)
+  if (serialsError) return { error: serialsError }
 
   await reverseStockMovement(voucherId)
   await sql`DELETE FROM voucher_journal_detail_tbl WHERE voucher_id = ${voucherId}`

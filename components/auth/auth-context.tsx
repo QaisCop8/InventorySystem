@@ -57,6 +57,61 @@ interface AuthProviderProps {
   children: ReactNode
 }
 
+// يُثبَّت عند تحميل الوحدة في المتصفح (لا داخل useEffect فقط): تأثيرات المكوّنات الأبناء (كلوحة الرئيسية)
+// تعمل قبل تأثير AuthProvider نفسه، فكانت أول طلباتها تخرج بلا x-tenant-db وتعتمد على كوكي tenant_db
+// المشتركة بين التبويبات — إن كانت لشركة أخرى تُرفض بـ"يجب تسجيل الدخول" بشكل متقطع.
+function installTenantFetchPatch() {
+  // يُلحق كل طلب fetch من هذا التبويب بهيدر x-tenant-db (إن وُجدت شركة مُختارة له في
+  // sessionStorage، غير المشتركة بين تبويبات المتصفح) — هذا هو ما يجعل بالإمكان فتح شركات
+  // مختلفة في تبويبات مختلفة في آنٍ واحد رغم أن كوكي tenant_db وحدها مشتركة بينها جميعاً.
+  // localStorage احتياط فقط لتبويب جديد لم يختر شركته الخاصة بعد (انظر شرح tenant-client.ts).
+  // مُطبَّق مرة واحدة فقط عبر علم على window لتفادي لف fetch عدة مرات مع إعادة تركيب المكوّن.
+  if (typeof window !== "undefined" && !(window as any).__tenantFetchPatched) {
+    const originalFetch = window.fetch.bind(window)
+    window.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
+      const tenantDb = sessionStorage.getItem("active_tenant_db") || localStorage.getItem("active_tenant_db")
+      // نفس فكرة x-tenant-db أعلاه بالضبط، لكن للفرع النشط (erp_active_branch: JSON {id,name} —
+      // انظر persistBranchContext أدناه) — يحتاجه الخادم لتصفية نتائج بحث الأصناف/العملاء/الحسابات
+      // حسب صلاحيات الفرع (سجل مقيَّد بفروع معيّنة لا يظهر إلا لمستخدم فرعه أحدها؛ سجل بلا أي فرع
+      // مُحدَّد يبقى ظاهراً للجميع). كان هذا السياق عميل-فقط سابقاً (React state) بلا أي وسيلة
+      // لوصوله للخادم إطلاقاً.
+      const branchRaw = sessionStorage.getItem("erp_active_branch") || localStorage.getItem("erp_active_branch")
+      let branchId: number | null = null
+      if (branchRaw) {
+        try {
+          branchId = JSON.parse(branchRaw)?.id ?? null
+        } catch {
+          branchId = null
+        }
+      }
+      // x-user-id: يتيح لمسارات API التحقق الفعلي من صلاحيات المستخدم عبر hasEffectivePermission/
+      // getGrantedBranchIds (lib/permissions.ts) بدل الاكتفاء بقراءة Util.checkUserAccess المخزَّنة
+      // بـlocalStorage بالواجهة فقط (لا يمنع طلب fetch فعلياً، فقط يُخفي العرض). نفس مصدر المعرِّف
+      // الذي تستخدمه Util.checkUserAccess نفسها (savedUser?.id ?? savedUser?.user_id) للاتساق.
+      let userId: string | null = null
+      const userRaw = sessionStorage.getItem("erp_user") || localStorage.getItem("erp_user")
+      if (userRaw) {
+        try {
+          const savedUser = JSON.parse(userRaw)
+          userId = savedUser?.id ?? savedUser?.user_id ?? null
+        } catch {
+          userId = null
+        }
+      }
+      if (tenantDb || branchId != null || userId) {
+        const headers = new Headers(init?.headers)
+        if (tenantDb) headers.set("x-tenant-db", tenantDb)
+        if (branchId != null) headers.set("x-branch-id", String(branchId))
+        if (userId) headers.set("x-user-id", userId)
+        init = { ...init, headers }
+      }
+      return originalFetch(input, init)
+    }) as typeof window.fetch
+    ;(window as any).__tenantFetchPatched = true
+  }
+}
+installTenantFetchPatch()
+
 export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -67,54 +122,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [permissionVersion, setPermissionVersion] = useState(0)
 
   useEffect(() => {
-    // يُلحق كل طلب fetch من هذا التبويب بهيدر x-tenant-db (إن وُجدت شركة مُختارة له في
-    // sessionStorage، غير المشتركة بين تبويبات المتصفح) — هذا هو ما يجعل بالإمكان فتح شركات
-    // مختلفة في تبويبات مختلفة في آنٍ واحد رغم أن كوكي tenant_db وحدها مشتركة بينها جميعاً.
-    // localStorage احتياط فقط لتبويب جديد لم يختر شركته الخاصة بعد (انظر شرح tenant-client.ts).
-    // مُطبَّق مرة واحدة فقط عبر علم على window لتفادي لف fetch عدة مرات مع إعادة تركيب المكوّن.
-    if (typeof window !== "undefined" && !(window as any).__tenantFetchPatched) {
-      const originalFetch = window.fetch.bind(window)
-      window.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
-        const tenantDb = sessionStorage.getItem("active_tenant_db") || localStorage.getItem("active_tenant_db")
-        // نفس فكرة x-tenant-db أعلاه بالضبط، لكن للفرع النشط (erp_active_branch: JSON {id,name} —
-        // انظر persistBranchContext أدناه) — يحتاجه الخادم لتصفية نتائج بحث الأصناف/العملاء/الحسابات
-        // حسب صلاحيات الفرع (سجل مقيَّد بفروع معيّنة لا يظهر إلا لمستخدم فرعه أحدها؛ سجل بلا أي فرع
-        // مُحدَّد يبقى ظاهراً للجميع). كان هذا السياق عميل-فقط سابقاً (React state) بلا أي وسيلة
-        // لوصوله للخادم إطلاقاً.
-        const branchRaw = sessionStorage.getItem("erp_active_branch") || localStorage.getItem("erp_active_branch")
-        let branchId: number | null = null
-        if (branchRaw) {
-          try {
-            branchId = JSON.parse(branchRaw)?.id ?? null
-          } catch {
-            branchId = null
-          }
-        }
-        // x-user-id: يتيح لمسارات API التحقق الفعلي من صلاحيات المستخدم عبر hasEffectivePermission/
-        // getGrantedBranchIds (lib/permissions.ts) بدل الاكتفاء بقراءة Util.checkUserAccess المخزَّنة
-        // بـlocalStorage بالواجهة فقط (لا يمنع طلب fetch فعلياً، فقط يُخفي العرض). نفس مصدر المعرِّف
-        // الذي تستخدمه Util.checkUserAccess نفسها (savedUser?.id ?? savedUser?.user_id) للاتساق.
-        let userId: string | null = null
-        const userRaw = sessionStorage.getItem("erp_user") || localStorage.getItem("erp_user")
-        if (userRaw) {
-          try {
-            const savedUser = JSON.parse(userRaw)
-            userId = savedUser?.id ?? savedUser?.user_id ?? null
-          } catch {
-            userId = null
-          }
-        }
-        if (tenantDb || branchId != null || userId) {
-          const headers = new Headers(init?.headers)
-          if (tenantDb) headers.set("x-tenant-db", tenantDb)
-          if (branchId != null) headers.set("x-branch-id", String(branchId))
-          if (userId) headers.set("x-user-id", userId)
-          init = { ...init, headers }
-        }
-        return originalFetch(input, init)
-      }) as typeof window.fetch
-      ;(window as any).__tenantFetchPatched = true
-    }
+    installTenantFetchPatch()
 
     console.log("[v0] useEffect triggered!")
 

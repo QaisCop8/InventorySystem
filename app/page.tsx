@@ -1,6 +1,8 @@
 "use client"
 
 import type React from "react"
+import { ReportAccessGate } from "@/components/auth/report-access-gate"
+import { isReportSection } from "@/lib/report-permission-definitions"
 import { Suspense, useState, useEffect, useRef } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { ProtectedRoute } from "@/components/auth/protected-route"
@@ -104,7 +106,6 @@ const JobRoles = lazyDefault(() => import("@/components/settings/job-roles"))
 const RolePermissions = lazyDefault(() => import("@/components/settings/role-permissions"))
 const UserBranchAccessMatrix = lazyDefault(() => import("@/components/settings/user-branch-access-matrix"))
 const GeneralSettings = lazyDefault(() => import("@/components/settings/general-settings"))
-const VouchersGeneralSettings = lazyDefault(() => import("@/components/settings/vouchers-general-settings"))
 const APISettings = lazyDefault(() => import("@/components/settings/api-settings"))
 const SystemSettings = lazyNamed(() => import("@/components/settings/system-settings"), "SystemSettings")
 const UserSettings = lazyNamed(() => import("@/components/settings/user-settings"), "UserSettings")
@@ -261,7 +262,8 @@ const componentMap: Record<string, React.ComponentType<any>> = {
   "role-permissions": RolePermissions,
   "user-branch-access-matrix": UserBranchAccessMatrix,
   "general-settings": GeneralSettings,
-  "vouchers-general-settings": VouchersGeneralSettings,
+  // "اعدادات عامة" صارت تبويباً داخل إعدادات النظام — الرابط القديم يفتح الصفحة على هذا التبويب
+  "vouchers-general-settings": (props: any) => <SystemSettings {...props} initialSection="general" />,
   "api-settings": APISettings,
   "exchange-rates": ExchangeRates,
   "system-settings": SystemSettings,
@@ -336,6 +338,7 @@ function resolveSectionNode(section: string | null, onOpenSection: (section: str
     if (typeof Component !== "function") {
       console.error("[v0] Invalid component type detected for section", section, Component)
     }
+    if (isReportSection(section)) return <ReportAccessGate section={section}><Component /></ReportAccessGate>
     return <Component />
   }
 
@@ -432,18 +435,32 @@ function HomePageContent() {
   // عند كل دخول للنظام (تحميل هذا المكوّن مرة واحدة عقب تسجيل الدخول)، إن لم تكن أي عملة معرَّفة
   // بعد لهذه الشركة (شركة حديثة التزويد مثلاً)، نوجّه المستخدم مباشرة لشاشة تعريف العملات بدل ترك
   // الشاشات الأخرى (تسعير، فواتير...) تفشل بصمت لغياب عملة أساس.
+  // شركة جديدة (لا أصناف ولا سندات) لم تُكمل البداية السريعة ولم تتجاهلها: تُفتح البداية السريعة مباشرة
+  // بعد الدخول — مرة واحدة لكل جلسة متصفح لكل شركة. وإلا يبقى الفحص القديم: بلا عملات ← شاشة العملات.
   useEffect(() => {
     let cancelled = false
-    fetch("/api/exchange-rates")
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
+    const run = async () => {
+      try {
+        const company = sessionStorage.getItem("active_company_id") || localStorage.getItem("active_company_id") || "default"
+        const onboardingKey = `onboarding-redirected:${company}`
+        if (!sessionStorage.getItem(onboardingKey)) {
+          const onboarding = await fetch("/api/onboarding-assistant").then((res) => (res.ok ? res.json() : null)).catch(() => null)
+          if (cancelled) return
+          if (onboarding?.shouldShow && onboarding?.isNewCompany) {
+            sessionStorage.setItem(onboardingKey, "1")
+            handleSectionChange("personal-assistant")
+            return
+          }
+        }
+        const data = await fetch("/api/exchange-rates").then((res) => (res.ok ? res.json() : null))
         if (cancelled || !data) return
         const list = Array.isArray(data?.rates) ? data.rates : []
         if (list.length === 0) handleSectionChange("exchange-rates")
-      })
-      .catch(() => {
+      } catch {
         // تجاهل — ليست فحصاً حرجاً يمنع استخدام النظام
-      })
+      }
+    }
+    void run()
     return () => {
       cancelled = true
     }

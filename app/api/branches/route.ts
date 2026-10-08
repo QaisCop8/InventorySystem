@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
+import { assertLicenseAllows, licenseErrorResponseBody } from "@/lib/company-license"
 
 export async function GET(request: NextRequest) {
   try {
@@ -50,23 +51,38 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const data = await request.json()
-    const branchCode = String(data.branch_code || "").trim()
+    // إضافة سريعة (البداية السريعة): الاسم فقط — رقم الفرع يُولَّد تلقائياً (التالي بعد أكبر رقم رقمي
+    // حالي، 1-4 أرقام) ولا يُشترط البنك. شاشة التعريفات تبقى بقواعدها الكاملة.
+    const quick = data.quick === true
+    let branchCode = String(data.branch_code || "").trim()
+    if (quick && !branchCode) {
+      const row = (await sql`SELECT COALESCE(MAX(branch_code::int), 0) + 1 AS next, COALESCE(MAX(LENGTH(branch_code)), 4) AS width FROM branches WHERE branch_code ~ '^[0-9]{1,4}$'`)[0]
+      // نفس تنسيق الأرقام القائمة (مثل 0001 ← 0002)؛ الافتراضي 4 خانات.
+      branchCode = String(row?.next || 1).padStart(Math.min(4, Number(row?.width) || 4), "0")
+    }
 
     if (!/^\d{1,4}$/.test(branchCode)) {
-      return NextResponse.json({ error: "رقم الفرع مطلوب ويجب أن يتكون من 1 إلى 4 أرقام فقط" }, { status: 400 })
+      return NextResponse.json({ error: quick ? "لا يوجد رقم فرع متاح (1-9999)" : "رقم الفرع مطلوب ويجب أن يتكون من 1 إلى 4 أرقام فقط" }, { status: 400 })
     }
     if (!String(data.branch_name || "").trim()) {
       return NextResponse.json({ error: "اسم الفرع مطلوب" }, { status: 400 })
     }
-    if (!Number.isInteger(Number(data.bank_id)) || Number(data.bank_id) <= 0) {
+    if (!quick && (!Number.isInteger(Number(data.bank_id)) || Number(data.bank_id) <= 0)) {
       return NextResponse.json({ error: "يجب اختيار البنك" }, { status: 400 })
+    }
+    try {
+      await assertLicenseAllows("branches")
+    } catch (error) {
+      const body = licenseErrorResponseBody(error)
+      if (body) return NextResponse.json(body, { status: 409 })
+      throw error
     }
     const result = await sql`
       INSERT INTO branches (branch_code, branch_name, bank_id, address, manager, phone, status)
       VALUES (
         ${branchCode},
         ${String(data.branch_name).trim()},
-        ${Number(data.bank_id)},
+        ${Number(data.bank_id) || null},
         ${data.address || ""},
         ${data.manager || ""},
         ${data.phone || ""},

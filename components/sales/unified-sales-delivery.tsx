@@ -26,6 +26,8 @@ import InvoiceFromOrderPopup from "@/components/sales/InvoiceFromOrderPopup"
 import PostVoucherDialog, { type PostVoucherAction } from "@/components/common/post-voucher-dialog"
 import ItemExpiryDatePicker, { type ExpiryLotAllocation } from "@/components/common/ItemExpiryDatePicker"
 import MeasurementInputDialog from "@/components/common/MeasurementInputDialog"
+import { ItemSerialsDialog, requiredSerials, resolveSerialFlags, serialsSummary } from "@/components/inventory/item-serials-dialog"
+import { ConsignmentPickerDialog, type ConsignmentHeader, type ConsignmentLine as ConsignmentPickerLine } from "@/components/sales/consignment-picker-dialog"
 import { KeyAction } from "@grapecity/wijmo.grid"
 import * as wjcCore from "@grapecity/wijmo"
 import { Menu } from "@grapecity/wijmo.input"
@@ -35,9 +37,12 @@ import Util from "@/components/common/Util"
 import { useToast } from "@/hooks/use-toast"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
-import { FileText, Package, Calculator, MessageSquare, UserRound, Wallet, TrendingUp, Percent } from "lucide-react"
+import { FileText, Package, Calculator, MessageSquare, UserRound, Wallet, TrendingUp, Percent, Truck, BadgeCheck, PackageSearch } from "lucide-react"
+import { ShippingAddressDialog, shippingSummary, type ShippingInfo } from "@/components/sales/shipping-address-dialog"
+import { BillsPaymentDialog } from "@/components/sales/bills-payment-dialog"
 import { readVoucherClipboard, writeVoucherClipboard, type VoucherClipboardPayload } from "@/lib/voucher-clipboard"
 import TransactionBranchField from "@/components/common/transaction-branch-field"
+import { useWorkspaceTabActive } from "@/contexts/workspace-tab-context"
 
 // vch_type per voucher_types_tbl (app/api/sales-vouchers/_lib.ts, IDs 16-23) — هذا المكوّن يخدم
 // الأنواع الثمانية جميعها الآن عبر خاصية voucherType (بنفس أسلوب unified-stock-voucher.tsx مع
@@ -81,6 +86,8 @@ export const INVOICE_SOURCE_TYPE_OPTIONS = [
   { label: "عادية", value: 1 },
   { label: "من ارسالية", value: 2 },
   { label: "من طلبية", value: 3 },
+  // فاتورة مبيعات فقط: تُفوتر الأصناف من المتبقي في ارسالية برسم البيع (المندوب يُؤخذ منها)
+  { label: "من ارسالية برسم البيع", value: 4 },
 ]
 export const INVOICE_TYPE_OPTIONS = [
   { label: "للتجارة", value: 1 },
@@ -124,6 +131,10 @@ export interface SalesVoucherItemRow {
   batch_number: string
   expiry_date: string
   serial_numbers: string[]
+  // الصنف له رقم تسلسلي: الأرقام المُدخلة (العدد = الكمية + البونص) وملخّص العرض في الشبكة
+  has_serial?: boolean
+  serials?: string[]
+  serials_text?: string
   source_voucher_id: number | null
   source_voucher_type: number | null
   source_currency_id?: number | null
@@ -180,6 +191,7 @@ export interface SalesDeliveryRecord {
   to_store_id: number | null
   salesman_id: number | null
   shipping_address: string
+  shipping_info?: ShippingInfo | null
   linked_order_id: number | null
   // خصم/ضريبة على مستوى السند كاملاً (لا لكل سطر) — نفس نموذج unified-sales-order.tsx بالضبط:
   // discount_type "percentage"|"amount"، discount_value إما نسبة أو مبلغ ثابت بحسبه، vat_percent
@@ -306,10 +318,13 @@ const resolveFlexControl = (grid: any): any => {
   return grid.columns ? grid : null
 }
 
+// الشبكة تُزال من DOM عند الانتقال لتبويب آخر (بيانات اضافية...) لكن مرجعها (من initialized) يبقى
+// يشير للنسخة المُتلَفة — finishEditing عليها يرمي استثناءً فيوقف F3 قبل الانتقال لتبويب الأصناف والحفظ.
 const safeFinishEditing = (grid: any) => {
   const control = resolveFlexControl(grid)
   if (!control || typeof control.finishEditing !== "function") return
-  control.finishEditing()
+  if (control.hostElement && !control.hostElement.isConnected) return
+  try { control.finishEditing() } catch { /* شبكة مُتلَفة أو قيد إعادة البناء */ }
 }
 
 // قراءة .selection الآمنة — نفس عطل "Cannot read properties of null (reading 'selection')" الذي
@@ -447,6 +462,7 @@ export default function UnifiedSalesDelivery({
   gridResetToken = 0,
   hasUnsavedChanges,
 }: UnifiedSalesDeliveryProps) {
+  const workspaceTabActive = useWorkspaceTabActive()
   const TITLE = SALES_VOUCHER_TYPE_LABELS[voucherType].title
   const isDeliveryVoucher = [DELIVERY_SELL_VCH_TYPE, DELIVERY_CONSIGNMENT_SALE_VCH_TYPE, RETURN_DELIVERY_CONSIGNMENT_SALE_VCH_TYPE, DELIVERY_PAY_VCH_TYPE].includes(voucherType)
   const isSalesDeliveryVoucher = [DELIVERY_SELL_VCH_TYPE, DELIVERY_CONSIGNMENT_SALE_VCH_TYPE, RETURN_DELIVERY_CONSIGNMENT_SALE_VCH_TYPE].includes(voucherType)
@@ -457,8 +473,23 @@ export default function UnifiedSalesDelivery({
   const summaryLabel = TITLE.includes("مرتجع") ? "ملخص المرتجع" : TITLE.includes("فاتورة") ? "ملخص الفاتورة" : "ملخص الارسالية"
   const { toast } = useToast()
   const isLocked = form.status === 2 || form.status === 3
+  // عنوان الشحن (فاتورة/إرسالية مبيعات) وتسديد الفواتير (فاتورة/مرتجع مبيعات محفوظ).
+  const [shippingOpen, setShippingOpen] = useState(false)
+  const [billsPaymentOpen, setBillsPaymentOpen] = useState(false)
+  const supportsShipping = voucherType === SALES_INVOICE_VCH_TYPE || voucherType === DELIVERY_SELL_VCH_TYPE
+  const supportsBillsPayment = voucherType === SALES_INVOICE_VCH_TYPE || voucherType === RETURN_SELL_VCH_TYPE
+  const shippingText = shippingSummary(form.shipping_info)
   const isFromDelivery = Number(form.invoice_source_type || 1) === 2
   const isFromOrder = Number(form.invoice_source_type || 1) === 3
+  // ارسالية برسم البيع (14) ومرتجعها (15) تتبع المندوب لا العميل؛ الفاتورة "من ارسالية برسم البيع" (4)
+  // والمرتجع أسطرهما مربوطة بأسطر الارسالية (المتبقي فقط).
+  const isConsignment = voucherType === DELIVERY_CONSIGNMENT_SALE_VCH_TYPE
+  const isConsignmentReturn = voucherType === RETURN_DELIVERY_CONSIGNMENT_SALE_VCH_TYPE
+  const isFromConsignment = voucherType === SALES_INVOICE_VCH_TYPE && Number(form.invoice_source_type || 1) === 4
+  const isSalesmanVoucher = isConsignment || isConsignmentReturn
+  const consignmentLinked = isFromConsignment || isConsignmentReturn
+  const consignmentCode = String((form as any).consignment_code || ((form.items || []) as any[]).find((row: any) => Number(row.delivery_item_id) > 0 && row.source_voucher_code)?.source_voucher_code || "")
+  const invoiceSourceOptions = voucherType === SALES_INVOICE_VCH_TYPE ? INVOICE_SOURCE_TYPE_OPTIONS : INVOICE_SOURCE_TYPE_OPTIONS.filter((option) => option.value !== 4)
   const statusBadge = form.has_linked_invoice
     ? "مرحل - تم إصدار فاتورة"
     : form.status === 3
@@ -480,6 +511,7 @@ export default function UnifiedSalesDelivery({
   const [showVatRestoreConfirm, setShowVatRestoreConfirm] = useState(false)
   const [invoiceFromDeliveryOpen, setInvoiceFromDeliveryOpen] = useState(false)
   const [invoiceFromOrderOpen, setInvoiceFromOrderOpen] = useState(false)
+  const [consignmentPickerOpen, setConsignmentPickerOpen] = useState(false)
   const [productSearchOpen, setProductSearchOpen] = useState(false)
   const [warehouseSearchOpen, setWarehouseSearchOpen] = useState(false)
   const [warehouseSearchRow, setWarehouseSearchRow] = useState<number | null>(null)
@@ -552,6 +584,7 @@ export default function UnifiedSalesDelivery({
     // change and an order/delivery can never be saved with stale item links.
     setInvoiceFromDeliveryOpen(false)
     setInvoiceFromOrderOpen(false)
+    setConsignmentPickerOpen(false)
     onFormChange("invoice_source_type", value)
     onFormChange("source_voucher_id" as keyof SalesDeliveryRecord, null)
     onFormChange("source_voucher_type" as keyof SalesDeliveryRecord, null)
@@ -570,7 +603,71 @@ export default function UnifiedSalesDelivery({
     }
     if (value === 3 && dialogOpen) {
       setTimeout(() => setInvoiceFromOrderOpen(true), 0)
+      return
     }
+    if (value === 4 && dialogOpen) {
+      setTimeout(() => setConsignmentPickerOpen(true), 0)
+    }
+  }
+
+  // مرتجع ارسالية برسم البيع جديد: يبدأ دائماً باختيار الارسالية (لا إدخال حر — كما في شامل)
+  const consignmentAutoOpenedRef = useRef("")
+  useEffect(() => {
+    if (!dialogOpen || !isConsignmentReturn || form.id > 0 || isLocked) return
+    if ((form.items || []).some((row) => Number(row.delivery_item_id) > 0)) return
+    const key = `${form.vch_code}|${form.vch_book_id}`
+    if (consignmentAutoOpenedRef.current === key) return
+    const timer = window.setTimeout(() => { consignmentAutoOpenedRef.current = key; setConsignmentPickerOpen(true) }, 150)
+    return () => window.clearTimeout(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dialogOpen, isConsignmentReturn, form.id, form.vch_code, form.vch_book_id])
+
+  // تعبئة الفاتورة/المرتجع من ارسالية برسم البيع المختارة: أسطر بالمتبقي مربوطة بأسطر الارسالية
+  // (delivery_item_id)، والمندوب من الارسالية. الكمية قابلة للتخفيض (فاتورة جزئية) لا للزيادة.
+  const applyConsignment = async (header: ConsignmentHeader, lines: ConsignmentPickerLine[]) => {
+    setConsignmentPickerOpen(false)
+    const invoiceRate = Number(form.rate || 1)
+    const sourceRate = Number(header.rate || 1)
+    const rows = await Promise.all(lines.map(async (line) => {
+      const account = showAccountsTab ? await resolveItemAccountDefault({ selling_account_id: line.selling_account_id }) : null
+      const unitPrice = sourceRate && invoiceRate ? Math.round((line.price * sourceRate / invoiceRate) * 1e6) / 1e6 : line.price
+      const base: any = {
+        ...emptyItemRow,
+        product_id: line.product_id,
+        product_code: line.product_code,
+        product_name: line.product_name,
+        barcode: line.barcode || "",
+        unit: line.unit_name,
+        unit_name: line.unit_name,
+        unit_id: line.unit_id,
+        warehouse_id: line.store_id,
+        warehouse_name: line.warehouse_name || "",
+        quantity: line.remaining,
+        bonus_quantity: 0,
+        unit_price: unitPrice,
+        discount_percent: Number(line.discount || 0),
+        batch_number: line.batch_no || "",
+        expiry_date: line.expiry_date ? toGridDateString(line.expiry_date) : "",
+        has_expiry: Boolean(line.has_expiry),
+        has_serial: Boolean(line.has_serial),
+        serials: [],
+        delivery_item_id: line.id,
+        source_voucher_id: header.id,
+        source_voucher_type: DELIVERY_CONSIGNMENT_SALE_VCH_TYPE,
+        consignment_remaining: line.remaining,
+        ...(account ? { account_id: account.id, account_code: account.code, account_name: account.name } : {}),
+      }
+      const row = { ...base, ...recalcLineAmounts(base) }
+      row.serials_text = serialsSummary(row)
+      return row
+    }))
+    onFormChange("salesman_id", header.salesman_id ?? null)
+    onFormChange("source_voucher_id" as keyof SalesDeliveryRecord, header.id)
+    onFormChange("source_voucher_type" as keyof SalesDeliveryRecord, DELIVERY_CONSIGNMENT_SALE_VCH_TYPE)
+    onFormChange("consignment_code" as keyof SalesDeliveryRecord, header.vch_code)
+    itemsRef.current = rows
+    onItemsChange(rows)
+    requestAnimationFrame(refreshItemsGrid)
   }
   // نافذة اختيار الدفعة/تاريخ الصلاحية — إرسالية المبيعات تستهلك من مخزون قائم دوماً (بخلاف سند
   // ادخال بضاعة)، فتُفتَح دائماً لصنف متتبَّع عند إدخال كمية موجبة، بنفس منطق سند اخراج بضاعة
@@ -839,7 +936,7 @@ export default function UnifiedSalesDelivery({
 
   useEffect(() => {
     if (typeof window === "undefined" || !dialogOpen) return
-    const onGlobalKeyDown = (event: KeyboardEvent) => {
+    const onGlobalKeyDown = (event: KeyboardEvent) => { if (!workspaceTabActive.current) return;
       if (!doHotKeys.current || showDeleteConfirm || postDialogOpen || showUnsavedConfirm || isSaving) return
       // Intercept Escape to close inner popups first, and prevent closing parent dialog while saving or popups open
       if (event.key === "Escape") {
@@ -894,29 +991,7 @@ export default function UnifiedSalesDelivery({
         }
         // If none of the inner popups are open, allow Dialog to handle closing (it will run guardedAction)
       }
-      if (event.key === "F3") {
-        event.preventDefault()
-        safeFinishEditing(itemsGridRef.current)
-        setTimeout(() => handleRequestSaveRef.current(), 0)
-        return
-      }
-      if (event.key === "F9") {
-        event.preventDefault()
-        if (form.id > 0 && form.status !== 3) {
-          if (form.has_linked_invoice) {
-            messagesRef.current?.clear?.()
-            messagesRef.current?.show?.([{ severity: "error", summary: "", detail: "لا يمكن حذف هذه الإرسالية لأنها مرتبطة بفاتورة", life: 4000 }])
-          } else {
-            setShowDeleteConfirm(true)
-          }
-        }
-        return
-      }
-      if (event.key === "F5") {
-        event.preventDefault()
-        guardedAction(() => onNew?.())
-        return
-      }
+      // F3 حفظ / F9 حذف / F4 نسخ / F5 جديد / Ctrl+P طباعة: يتولاها UniversalToolbar (lib/hotkeys.ts)
 
       // Alt+C/Alt+V: نسخ/لصق سند عابر لنوع السند (ارسالية مبيعات ↔ سند مخزون بـunified-stock-
       // voucher.tsx) عبر حافظة مشتركة بـlocalStorage — نفس الآلية والتعليق التفصيلي هناك.
@@ -1247,10 +1322,45 @@ export default function UnifiedSalesDelivery({
       incoming.base_unit_price = unitPriceNum != null ? unitPriceNum * rate : null
     }
     const safePatch = incoming.expiry_date !== undefined ? { ...incoming, expiry_date: toGridDateString(incoming.expiry_date) } : incoming
-    const next = itemsRef.current.map((row, i) => (i === index ? { ...row, ...safePatch } : row))
+    const next = itemsRef.current.map((row, i) => {
+      if (i !== index) return row
+      const merged = { ...row, ...safePatch }
+      return { ...merged, serials_text: serialsSummary(merged) }
+    })
     itemsRef.current = next
     onItemsChange(next)
     requestAnimationFrame(refreshItemsGrid)
+  }
+
+  // أسطر بلا has_serial (من طلبية/ارسالية مصدر، لصق، استيراد) — تُعرَف أصنافها ذات الرقم التسلسلي
+  useEffect(() => {
+    let cancelled = false
+    void resolveSerialFlags(form.items || []).then((resolved) => {
+      if (cancelled || !resolved) return
+      const next = itemsRef.current.map((row, index) => (resolved[index] && resolved[index].product_id === row.product_id && row.has_serial === undefined ? { ...row, has_serial: resolved[index].has_serial, serials: resolved[index].serials, serials_text: resolved[index].serials_text } : row))
+      itemsRef.current = next
+      onItemsChange(next)
+      requestAnimationFrame(refreshItemsGrid)
+    })
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.items])
+
+  // نافذة الأرقام التسلسلية لسطر — سطر منقول من ارسالية يأخذ أرقامها (لا تُدخل مرة أخرى)
+  const [serialsRow, setSerialsRow] = useState<number | null>(null)
+  const openSerialsDialog = (rowIndex: number, fromButton = false) => {
+    const row = itemsRef.current[rowIndex]
+    if (!row?.product_id) return
+    if (!row.has_serial) {
+      if (fromButton) toast({ title: "هذا الصنف ليس له رقم تسلسلي" })
+      return
+    }
+    if (Number((row as any).delivery_item_id) > 0) {
+      if (fromButton) toast({ title: "أرقام هذا السطر مسجلة على الارسالية المصدر" })
+      return
+    }
+    popupHasCalled()
+    setTimeout(() => setSerialsRow(rowIndex), 0)
   }
 
   const openAttributeEditor = async (rowIndex: number) => {
@@ -1722,6 +1832,8 @@ export default function UnifiedSalesDelivery({
         units: normalizeUnits(product.units),
         has_expiry: hasExpiry,
         has_batch: hasBatch,
+        has_serial: Boolean(product.serial_tracking),
+        serials: currentRow?.product_id === product.id ? currentRow?.serials || [] : [],
         // نوع القياس وأبعاد الصنف الافتراضية — نفس lookupProductByCode في unified-stock-voucher.tsx،
         // العدد يُصفَّر لـ1 دوماً عند اختيار صنف مطابقاً لِـfillItemInfo المرجعي.
         measurment_id: product.measurment_id != null ? Number(product.measurment_id) : 1,
@@ -1794,8 +1906,14 @@ export default function UnifiedSalesDelivery({
       // Let lookup advance focus when successful so navigation is consistent with unified-sales-order
       void lookupProductByCode(row, rawValue, "barcode", true, previousRow)
     } else if (colName === "quantity") {
-      const quantity = value === "" || value === null ? null : Number(value)
+      let quantity = value === "" || value === null ? null : Number(value)
       const currentRow = itemsRef.current[row]
+      // سطر ارسالية برسم البيع: الكمية + البونص لا تتجاوز المتبقي في الارسالية
+      const consignmentRemaining = Number((currentRow as any)?.consignment_remaining)
+      if (consignmentLinked && Number.isFinite(consignmentRemaining) && quantity != null && quantity + Number(currentRow?.bonus_quantity || 0) > consignmentRemaining + 1e-9) {
+        quantity = Math.max(0, consignmentRemaining - Number(currentRow?.bonus_quantity || 0))
+        toast({ title: `المتبقي في الارسالية لهذا الصنف ${consignmentRemaining}`, variant: "destructive" })
+      }
       const patched = { ...currentRow, quantity }
       patchItemRow(row, { quantity, ...recalcLineAmounts(patched) })
       // إرسالية مبيعات تستهلك دائماً من مخزون قائم — تُفتَح نافذة اختيار الدفعة/تاريخ الصلاحية فور
@@ -1804,6 +1922,9 @@ export default function UnifiedSalesDelivery({
         if (!openExpiryLotPickerForRow(row, "quantity")) {
           patchItemRow(row, { quantity: null, ...recalcLineAmounts({ ...currentRow, quantity: null }) })
         }
+      } else if (currentRow?.has_serial && Number(quantity || 0) > 0 && (currentRow.serials?.length || 0) !== requiredSerials(patched)) {
+        // صنف له رقم تسلسلي: نافذة الأرقام فور إدخال الكمية (كما في شامل)
+        openSerialsDialog(row)
       }
     } else if (colName === "bonus_quantity") {
       const bonusQuantity = value === "" || value === null ? null : Number(value)
@@ -1820,6 +1941,8 @@ export default function UnifiedSalesDelivery({
         if (!openExpiryLotPickerForRow(row, "bonus_quantity")) {
           patchItemRow(row, { bonus_quantity: null })
         }
+      } else if (currentRow?.has_serial && Number(bonusQuantity || 0) > 0 && (currentRow.serials?.length || 0) !== requiredSerials(patched)) {
+        openSerialsDialog(row)
       }
     } else if (colName === "unit_price") {
       const rawUnitPrice = value === "" || value === null ? null : Number(value)
@@ -1859,6 +1982,14 @@ export default function UnifiedSalesDelivery({
     if (isFromDelivery && colName !== "unit_price") {
       e.cancel = true
       return
+    }
+    // أسطر من ارسالية برسم البيع: الصنف/الوحدة/المستودع ثابتة، والكمية بحدود المتبقي؛ لا أسطر حرة.
+    if (consignmentLinked) {
+      const allowed = isConsignmentReturn ? ["quantity", "note"] : ["quantity", "bonus_quantity", "unit_price", "discount_percent", "total_price", "note"]
+      if (!allowed.includes(colName) || !(Number(row?.delivery_item_id) > 0)) {
+        e.cancel = true
+        return
+      }
     }
     if (colName === "quantity") {
       if (row && Number(row.measurment_id || 1) !== 1) {
@@ -1954,6 +2085,8 @@ export default function UnifiedSalesDelivery({
         units: normalizeUnits(product.units),
         has_expiry: hasExpiry,
         has_batch: hasBatch,
+        has_serial: Boolean(product.serial_tracking),
+        serials: [],
         measurment_id: product.measurment_id != null ? Number(product.measurment_id) : 1,
         product_length: product.length != null ? Number(product.length) : null,
         product_width: product.width != null ? Number(product.width) : null,
@@ -1962,6 +2095,7 @@ export default function UnifiedSalesDelivery({
         ...(warehousePatch ? { warehouse_id: warehousePatch.id, warehouse_name: warehousePatch.name } : {}),
         ...(itemAccount ? { account_id: itemAccount.id, account_code: itemAccount.code, account_name: itemAccount.name } : {}),
       }
+      patched.serials_text = serialsSummary(patched)
       if (index === 0) nextRows[targetRow] = { ...patched, ...recalcLineAmounts(patched) }
       else nextRows.push({ ...patched, ...recalcLineAmounts(patched) })
     }
@@ -2106,7 +2240,9 @@ export default function UnifiedSalesDelivery({
       }
 
       if (colName === "product_code") {
-        const rawValue = String(grid.getCellData(row, col, false) ?? "").trim()
+        // أثناء التحرير القيمة المكتوبة ما زالت في المحرّر النشط — getCellData يعيد القيمة المحفوظة
+        // (فارغة لسطر جديد)، فكان يُفتح البحث رغم كتابة رقم صنف ثم يُضاف الصنف أيضاً عند إنهاء التحرير.
+        const rawValue = String(grid.activeEditor ? grid.activeEditor.value : grid.getCellData(row, col, false) ?? "").trim()
         if (!rawValue) {
           safeFinishEditing(grid)
           grid.focus()
@@ -2125,7 +2261,7 @@ export default function UnifiedSalesDelivery({
       }
 
       if (colName === "barcode") {
-        const rawBarcode = String(grid.getCellData(row, col, false) ?? "").trim()
+        const rawBarcode = String(grid.activeEditor ? grid.activeEditor.value : grid.getCellData(row, col, false) ?? "").trim()
         if (!rawBarcode) {
           pendingFocusRef.current = { row, col: "product_code" }
           try {
@@ -2172,8 +2308,8 @@ export default function UnifiedSalesDelivery({
       showFooter: false,
       columns: [
         { header: "#", name: "ser", width: 45, isReadOnly: true, dataType: "Number", visible: Util.getVoucherSettingScreenData(voucherType, "ser") },
-        { header: "الباركود", name: "barcode", width: 140,maxLength: 30, visible: Util.getVoucherSettingScreenData(voucherType, "barcode"), isReadOnly: isLocked || isFromDelivery },
-        { header: "رقم الصنف", name: "product_code", width: 120,maxLength: 10, visible: Util.getVoucherSettingScreenData(voucherType, "code"), isReadOnly: isLocked || isFromDelivery },
+        { header: "الباركود", name: "barcode", width: 140,maxLength: 30, visible: Util.getVoucherSettingScreenData(voucherType, "barcode"), isReadOnly: isLocked || isFromDelivery || consignmentLinked },
+        { header: "رقم الصنف", name: "product_code", width: 120,maxLength: 10, visible: Util.getVoucherSettingScreenData(voucherType, "code"), isReadOnly: isLocked || isFromDelivery || consignmentLinked },
         {
           header: " ",
           name: "btnSearchProduct",
@@ -2183,7 +2319,7 @@ export default function UnifiedSalesDelivery({
           iconType: "search",
           isReadOnly: true,
           onClick: (e: any, ctx: any) => {
-            if (isLocked || isFromDelivery) return
+            if (isLocked || isFromDelivery || consignmentLinked) return
             pendingFocusRow.current = ctx.row.index
             lastFocusedCellRef.current = { row: ctx.row.index, col: "product_code" }
             popupHasCalled()
@@ -2192,7 +2328,7 @@ export default function UnifiedSalesDelivery({
           visible: Util.getVoucherSettingScreenData(voucherType, "code"),
           visibleInColumnChooser: true,
         },
-        { header: "اسم الصنف", name: "product_name", width: "*", minWidth: 160, isReadOnly: isLocked || isFromDelivery },
+        { header: "اسم الصنف", name: "product_name", width: "*", minWidth: 160, isReadOnly: isLocked || isFromDelivery || consignmentLinked },
         {
           header: "المتغيرات والخصائص",
           name: "btnAttributes",
@@ -2222,7 +2358,7 @@ export default function UnifiedSalesDelivery({
           iconType: "search",
           isReadOnly: true,
           onClick: (e: any, ctx: any) => {
-            if (isLocked || isFromDelivery) return
+            if (isLocked || isFromDelivery || consignmentLinked) return
             setWarehouseSearchRow(ctx.row.index)
             lastFocusedCellRef.current = { row: ctx.row.index, col: "warehouse_name" }
             popupHasCalled()
@@ -2241,7 +2377,7 @@ export default function UnifiedSalesDelivery({
           iconType: "search",
           isReadOnly: true,
           onClick: (e: any, ctx: any) => {
-            if (isLocked || isFromDelivery) return
+            if (isLocked || isFromDelivery || consignmentLinked) return
             setUnitsSearchRow(ctx.row.index)
             lastFocusedCellRef.current = { row: ctx.row.index, col: "unit_name" }
             popupHasCalled()
@@ -2295,6 +2431,20 @@ export default function UnifiedSalesDelivery({
           visible: showExpiryColumn,
         },
 
+        // الأرقام التسلسلية (أصناف serial_tracking فقط) — الملخص "المُدخل/المطلوب" وزر فتح النافذة
+        { header: "الأرقام التسلسلية", name: "serials_text", width: 170, isReadOnly: true },
+        {
+          header: " ",
+          name: "btnSerials",
+          width: 50,
+          buttonBody: "button",
+          align: "center",
+          title: "الأرقام التسلسلية",
+          iconType: "barcode",
+          isReadOnly: true,
+          visibleInColumnChooser: true,
+          onClick: (e: any, ctx: any) => openSerialsDialog(ctx.row.index, true),
+        },
         { header: "ملاحظة", name: "note", width: 130, isReadOnly: isLocked || isFromDelivery },
         {
           header: " ",
@@ -2367,17 +2517,6 @@ export default function UnifiedSalesDelivery({
     }),
     [isLocked],
   )
-
-  // نافذة الأرقام التسلسلية لكل سطر — قائمة نصية بسيطة (مطابقة لـProductNumbers.tsx المستخدَم
-  // لأرقام الصنف الأصلية/المصنع) بدل جدول علاقي مستقل، إذ لا حاجة هنا لأكثر من قائمة أرقام لكل سطر.
-  const [serialsOpen, setSerialsOpen] = useState(false)
-  const [serialsRow, setSerialsRow] = useState<number | null>(null)
-  const [serialsDraft, setSerialsDraft] = useState("")
-  useEffect(() => {
-    if (serialsOpen && serialsRow !== null) {
-      setSerialsDraft((itemsRef.current[serialsRow]?.serial_numbers || []).join("\n"))
-    }
-  }, [serialsOpen, serialsRow])
 
   const commitGridItemsBeforeSave = () => {
     safeFinishEditing(itemsGridRef.current)
@@ -2515,7 +2654,8 @@ export default function UnifiedSalesDelivery({
           onNext={() => guardedAction(() => onNavigate?.("next"))}
           onLast={() => guardedAction(() => onNavigate?.("last"))}
           onPrint={() => guardedAction(() => onPrint?.())}
-          onClone={() => guardedAction(() => onClone?.())}
+          // مرتجع ارسالية برسم البيع يُنشأ من الارسالية فقط — لا نسخ (كما في شامل)
+          onClone={isConsignmentReturn ? undefined : () => guardedAction(() => onClone?.())}
           showUtilityLabels
           isSaving={isSaving}
           isLoading={isLoading}
@@ -2676,16 +2816,45 @@ export default function UnifiedSalesDelivery({
             </div>
 
             <div className="min-w-0 space-y-1.5 rounded-xl border border-slate-200 bg-white p-2 shadow-sm sm:p-2.5">
-              <div className="flex items-center gap-2 text-sm font-bold text-emerald-700">
-                <UserRound className="h-3.5 w-3.5" />
-                تفاصيل العميل
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className={`flex items-center gap-2 text-sm font-bold ${isSalesmanVoucher ? "text-violet-700" : "text-emerald-700"}`}>
+                  {isSalesmanVoucher ? <BadgeCheck className="h-3.5 w-3.5" /> : <UserRound className="h-3.5 w-3.5" />}
+                  {isSalesmanVoucher ? "تفاصيل المندوب" : "تفاصيل العميل"}
+                </div>
+                {(supportsShipping || supportsBillsPayment) && (
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {supportsShipping && (
+                      <Button type="button" size="sm" variant="outline" className="h-7 max-w-[260px] gap-1 truncate px-2 text-xs" title={shippingText || "عنوان الشحن"} onClick={() => setShippingOpen(true)}>
+                        <Truck className="h-3.5 w-3.5 shrink-0 text-sky-600" />
+                        <span className="truncate">{shippingText ? `عنوان الشحن: ${shippingText}` : "عنوان الشحن"}</span>
+                      </Button>
+                    )}
+                    {supportsBillsPayment && (
+                      <Button type="button" size="sm" variant="outline" className="h-7 gap-1 px-2 text-xs" disabled={!(form.id > 0)} title={form.id > 0 ? "تسديد الفواتير" : "احفظ السند أولاً"} onClick={() => setBillsPaymentOpen(true)}>
+                        <Wallet className="h-3.5 w-3.5 text-emerald-600" />
+                        تسديد الفواتير
+                      </Button>
+                    )}
+                  </div>
+                )}
               </div>
+              {supportsShipping && (
+                <ShippingAddressDialog
+                  open={shippingOpen}
+                  onOpenChange={setShippingOpen}
+                  value={form.shipping_info}
+                  readOnly={isLocked}
+                  defaults={{ destination_name: form.customer_name || "", phone: form.phone || "" }}
+                  onSave={(info) => onFormChange("shipping_info", info)}
+                />
+              )}
+              {supportsBillsPayment && <BillsPaymentDialog open={billsPaymentOpen} onOpenChange={setBillsPaymentOpen} voucherId={form.id > 0 ? form.id : null} />}
               {(voucherType === SALES_INVOICE_VCH_TYPE || voucherType === PURCHASE_INVOICE_VCH_TYPE) && (
                 <div className="grid gap-1.5 invoice-currency-dropdown-wrap sm:max-w-[50%]">
                   <Label>نوع الفاتورة</Label>
                   <PrimeDropdown
                     value={form.invoice_source_type || 1}
-                    options={INVOICE_SOURCE_TYPE_OPTIONS}
+                    options={invoiceSourceOptions}
                     optionLabel="label"
                     optionValue="value"
                     placeholder="اختر"
@@ -2701,7 +2870,47 @@ export default function UnifiedSalesDelivery({
                   />
                 </div>
               )}
-              <div className="grid gap-2 grid-cols-1 sm:grid-cols-2">
+              {(isFromConsignment || isConsignmentReturn) && (
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-violet-200 bg-violet-50 px-2.5 py-1.5 text-xs">
+                  <span className="flex items-center gap-1.5 font-semibold text-violet-800">
+                    <PackageSearch className="h-3.5 w-3.5" />
+                    {consignmentCode ? `من ارسالية برسم البيع: ${consignmentCode}` : "لم تُختر ارسالية برسم البيع بعد"}
+                  </span>
+                  {!isLocked && !(form.id > 0) && (
+                    <Button type="button" size="sm" variant="outline" className="h-7 border-violet-300 bg-white px-2 text-xs text-violet-700 hover:bg-violet-100" onClick={() => setConsignmentPickerOpen(true)}>
+                      {consignmentCode ? "تغيير الارسالية" : "اختيار الارسالية"}
+                    </Button>
+                  )}
+                </div>
+              )}
+              {isSalesmanVoucher && (
+                <div className="grid gap-2 grid-cols-1 sm:grid-cols-2">
+                  <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
+                    <Label>المندوب *</Label>
+                    <PrimeDropdown
+                      value={form.salesman_id}
+                      options={salesmen}
+                      optionLabel="name"
+                      optionValue="id"
+                      placeholder="اختر المندوب"
+                      filter
+                      disabled={isLocked || isConsignmentReturn}
+                      className="invoice-currency-dropdown w-full"
+                      panelClassName="invoice-currency-dropdown-panel"
+                      appendTo="self"
+                      panelStyle={{ zIndex: 10000 }}
+                      onChange={(e: any) => onFormChange("salesman_id", e.value ?? null)}
+                    />
+                  </div>
+                  <div className="grid gap-1.5">
+                    <Label>ملاحظة</Label>
+                    <div className="flex h-9 items-center rounded-md border border-violet-100 bg-violet-50/60 px-2.5 text-xs text-violet-800">
+                      {isConsignmentReturn ? "يُرجَع المتبقي من الارسالية إلى المستودع" : "البضاعة بعهدة المندوب حتى تُفوتر أو تُرجَع"}
+                    </div>
+                  </div>
+                </div>
+              )}
+              {!isSalesmanVoucher && <div className="grid gap-2 grid-cols-1 sm:grid-cols-2">
                 <div className="col-span-1">
                   <AutoCompleteAccount
                     label={isPurchaseDeliveryVoucher ? "المورد *" : "العميل *"}
@@ -2733,10 +2942,10 @@ export default function UnifiedSalesDelivery({
                     className="text-right"
                   />
                 </div>
-              </div>
+              </div>}
 
               <div className="grid gap-2 grid-cols-1 sm:grid-cols-2">
-                <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
+                {!isSalesmanVoucher && <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
                   <Label>المندوب</Label>
                   <PrimeDropdown
                     value={form.salesman_id}
@@ -2745,14 +2954,14 @@ export default function UnifiedSalesDelivery({
                     optionValue="id"
                     placeholder="اختر"
                     filter
-                    disabled={isLocked}
+                    disabled={isLocked || isFromConsignment}
                     className="invoice-currency-dropdown w-full"
                     panelClassName="invoice-currency-dropdown-panel"
                     appendTo="self"
                     panelStyle={{ zIndex: 10000 }}
                     onChange={(e: any) => onFormChange("salesman_id", e.value ?? null)}
                   />
-                </div>
+                </div>}
                 <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
                   <Label>المنطقة</Label>
                   <PrimeDropdown
@@ -3329,6 +3538,22 @@ export default function UnifiedSalesDelivery({
           }}
         />
 
+        {(isFromConsignment || isConsignmentReturn) && (
+          <ConsignmentPickerDialog
+            open={consignmentPickerOpen}
+            forType={isConsignmentReturn ? 15 : 12}
+            branchId={form.branch_id}
+            salesmen={salesmen}
+            defaultSalesmanId={form.salesman_id}
+            onOpenChange={(open) => {
+              setConsignmentPickerOpen(open)
+              // فاتورة بلا أسطر من ارسالية: الرجوع لفاتورة عادية عند الإلغاء
+              if (!open && isFromConsignment && !itemsRef.current.some((row) => Number(row.delivery_item_id) > 0)) handleInvoiceSourceTypeChange(1)
+            }}
+            onSelect={(header, lines) => { void applyConsignment(header, lines) }}
+          />
+        )}
+
         <InvoiceFromOrderPopup
           open={invoiceFromOrderOpen}
           onOpenChange={(open) => {
@@ -3552,34 +3777,21 @@ export default function UnifiedSalesDelivery({
           }}
         />
 
-        {serialsOpen && serialsRow !== null && (
-          <Dialog open={serialsOpen} onOpenChange={(open) => !open && setSerialsOpen(false)}>
-            <DialogContent className="max-w-md" dir="rtl">
-              <DialogHeader>
-                <DialogTitle>الأرقام التسلسلية — {itemsRef.current[serialsRow]?.product_name}</DialogTitle>
-              </DialogHeader>
-              <Textarea
-                value={serialsDraft}
-                onChange={(e) => setSerialsDraft(e.target.value)}
-                rows={8}
-                placeholder="رقم تسلسلي واحد في كل سطر"
-                disabled={isLocked}
-              />
-              <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={() => setSerialsOpen(false)}>إلغاء</Button>
-                <Button
-                  onClick={() => {
-                    const numbers = serialsDraft.split("\n").map((s) => s.trim()).filter(Boolean)
-                    patchItemRow(serialsRow, { serial_numbers: numbers })
-                    setSerialsOpen(false)
-                  }}
-                  disabled={isLocked}
-                >
-                  حفظ
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
+        {serialsRow !== null && itemsRef.current[serialsRow] && (
+          <ItemSerialsDialog
+            open
+            onOpenChange={(open) => { if (!open) { setSerialsRow(null); popupHasClosed() } }}
+            vchType={voucherType}
+            voucherId={form.id > 0 ? form.id : null}
+            productId={Number(itemsRef.current[serialsRow].product_id)}
+            productName={itemsRef.current[serialsRow].product_name}
+            storeId={Number((itemsRef.current[serialsRow] as any).warehouse_id ?? (itemsRef.current[serialsRow] as any).store_id) || null}
+            storeName={(itemsRef.current[serialsRow] as any).warehouse_name || ""}
+            required={requiredSerials(itemsRef.current[serialsRow])}
+            value={itemsRef.current[serialsRow].serials || []}
+            readOnly={isLocked}
+            onSave={(serials) => patchItemRow(serialsRow, { serials })}
+          />
         )}
       </DialogContent>
     </Dialog>

@@ -13,6 +13,7 @@ import { CalendarClock, CalendarRange, Megaphone, PackagePlus, SaveAll, ShieldAl
 import { campaignAmounts } from "@/lib/campaign-items"
 import { UniversalToolbar } from "@/components/ui/universal-toolbar"
 import { CampaignItemsGrid, type CampaignProduct } from "./campaign-items-grid"
+import { useWorkspaceTabActive } from "@/contexts/workspace-tab-context"
 
 export type CampaignItem = {
   item_id: number
@@ -149,6 +150,7 @@ export default function UnifiedCampaigns({
   open = true, campaign, campaigns = [], products = [], warehouses = [], branches = [],
   onSaved = () => undefined, onDeleted = () => undefined, onQuery, onCancel = () => undefined,
 }: Props) {
+  const workspaceTabActive = useWorkspaceTabActive()
   const [form, setForm] = useState<CampaignRecord>(() => normalizeCampaign(campaign || null, nextCampaignCode(campaigns)))
   const [buyItems, setBuyItems] = useState<CampaignItem[]>([])
   const [addedItems, setAddedItems] = useState<CampaignItem[]>([])
@@ -360,15 +362,7 @@ export default function UnifiedCampaigns({
 
   const requestClose = () => runAfterUnsavedCheck(onCancel)
 
-  useEffect(() => {
-    if (!open || showUnsavedConfirm || showDeleteConfirm) return
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "F3") { event.preventDefault(); void save() }
-      else if (event.key === "F4" && formRef.current.id) { event.preventDefault(); setShowDeleteConfirm(true) }
-    }
-    window.addEventListener("keydown", handleKeyDown)
-    return () => window.removeEventListener("keydown", handleKeyDown)
-  })
+  // F3 حفظ / F9 حذف وبقية الاختصارات الموحّدة: UniversalToolbar (lib/hotkeys.ts)
 
   const hasInvoiceDiscount = form.type_id === 3 || form.type_id === 4
   const hasBuyConditions = form.type_id === 2 || form.type_id === 4
@@ -580,11 +574,12 @@ function InlineConfirm({ open, tone, message, busy, yesLabel, noLabel, backLabel
   open: boolean; tone: "save" | "delete"; message: string; busy?: boolean; yesLabel: string; noLabel: string; backLabel?: string
   onYes: () => void; onNo: () => void; onBack?: () => void
 }) {
+  const workspaceTabActive = useWorkspaceTabActive()
   const yesRef = useRef<HTMLButtonElement | null>(null)
   useEffect(() => {
     if (!open) return
     const timer = window.setTimeout(() => yesRef.current?.focus(), 30)
-    const onKey = (event: KeyboardEvent) => {
+    const onKey = (event: KeyboardEvent) => { if (!workspaceTabActive.current) return;
       if (event.key !== "Escape") return
       event.preventDefault()
       event.stopPropagation()

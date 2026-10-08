@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, type CSSProperties, type ReactNode } from "react"
+import { useEffect, useState, type CSSProperties, type ReactNode } from "react"
 import { PasswordReset } from "./password-reset"
 import { Switch } from "@/components/ui/switch"
 import { AlertCircle, ArrowLeft, Building2, Database, Eye, EyeOff, KeyRound, LockKeyhole, Mail, ShieldCheck } from "lucide-react"
@@ -35,8 +35,17 @@ export function ManagementLogin({ onLogin, footer }: Props) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [showReset, setShowReset] = useState(false)
+  const [inviteLink, setInviteLink] = useState<{ email: string; code: string } | null>(null)
 
-  if (showReset) return <PasswordReset onBack={() => setShowReset(false)} />
+  // رابط "تعيين كلمة المرور" من بريد الدعوة/الاستعادة: ?set_password=1&email=...&code=...
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get("set_password") !== "1") return
+    setInviteLink({ email: params.get("email") || "", code: params.get("code") || "" })
+    setShowReset(true)
+  }, [])
+
+  if (showReset) return <PasswordReset onBack={() => { setShowReset(false); if (inviteLink) { setInviteLink(null); window.history.replaceState(null, "", window.location.pathname) } }} initialEmail={inviteLink?.email} initialCode={inviteLink?.code} />
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault()

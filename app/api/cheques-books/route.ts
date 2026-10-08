@@ -15,10 +15,21 @@ export async function GET() {
 
     const rows = await sql`
       SELECT cb.*, ba.code AS bank_account_code, ba.name AS bank_account_name, ba.currency_id,
-             cur.currency_name, cur.currency_code
+             cur.currency_name, cur.currency_code,
+             COALESCE(cc.cheques_count, 0)::int AS cheques_count,
+             COALESCE(cc.available_count, 0)::int AS available_count,
+             COALESCE(cc.used_count, 0)::int AS used_count
       FROM cheque_books_tbl cb
       LEFT JOIN bank_accounts ba ON ba.id = cb.bank_account_id
       LEFT JOIN currency cur ON cur.id = ba.currency_id
+      LEFT JOIN (
+        SELECT cheque_books_id,
+               COUNT(*) AS cheques_count,
+               COUNT(*) FILTER (WHERE status = 1) AS available_count,
+               COUNT(*) FILTER (WHERE status = 3) AS used_count
+        FROM cheque_book_cheque_tbl
+        GROUP BY cheque_books_id
+      ) cc ON cc.cheque_books_id = cb.id
       WHERE COALESCE(cb.status, 1) != 3
       ORDER BY cb.id DESC
     `

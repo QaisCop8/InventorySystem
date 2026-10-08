@@ -1,5 +1,4 @@
 "use client"
-import "@/components/accounting/cheque-theme.css"
 
 import { useEffect, useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
@@ -21,6 +20,9 @@ interface CurrencyOption {
 interface ChequeBookListRow extends ChequeBookRecord {
   currency_name?: string
   currency_code?: string
+  cheques_count?: number
+  available_count?: number
+  used_count?: number
 }
 
 const initialForm: ChequeBookRecord = {
@@ -295,101 +297,122 @@ export default function ChequesBooks() {
     openEditDialog(book, index >= 0 ? index : 0)
   }
 
+  const totalCheques = visibleBooks.reduce((sum, b) => sum + (b.cheques_count || 0), 0)
+  const availableCheques = visibleBooks.reduce((sum, b) => sum + (b.available_count || 0), 0)
+  const usedCheques = visibleBooks.reduce((sum, b) => sum + (b.used_count || 0), 0)
+
   return (
     <div className="space-y-4" dir="rtl">
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Card className="border-emerald-200 bg-emerald-50">
+      <div className="grid gap-4 sm:grid-cols-3">
+        <Card className="bg-slate-50">
           <CardHeader>
             <CardTitle className="text-base">إجمالي دفاتر الشيكات</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-4xl font-bold">{visibleBooks.length}</div>
-            <div className="text-sm text-muted-foreground">عدد الدفاتر المسجلة</div>
+            <div className="text-sm text-muted-foreground">عدد الدفاتر المسجلة ({totalCheques.toLocaleString()} شيك)</div>
           </CardContent>
         </Card>
-        <Card className="border-emerald-200 bg-emerald-50">
+        <Card className="bg-green-50">
           <CardHeader>
-            <CardTitle className="text-base">إجمالي الشيكات</CardTitle>
+            <CardTitle className="text-base">الشيكات المتوفرة</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-4xl font-bold">{visibleBooks.reduce((sum, b) => sum + (b.cheques?.length || 0), 0)}</div>
-            <div className="text-sm text-muted-foreground">عدد الشيكات الصادرة في كل الدفاتر</div>
+            <div className="text-4xl font-bold">{availableCheques.toLocaleString()}</div>
+            <div className="text-sm text-muted-foreground">شيكات جاهزة للاستخدام</div>
+          </CardContent>
+        </Card>
+        <Card className="bg-blue-50">
+          <CardHeader>
+            <CardTitle className="text-base">الشيكات المستخدمة</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-4xl font-bold">{usedCheques.toLocaleString()}</div>
+            <div className="text-sm text-muted-foreground">شيكات صُرفت ضمن سندات</div>
           </CardContent>
         </Card>
       </div>
 
-      <div className="cheque-page-header flex flex-col gap-4 rounded-2xl p-5 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-col gap-2">
-          <div className="text-xl font-semibold">دفاتر الشيكات</div>
-          <div className="text-sm text-muted-foreground">إدارة دفاتر الشيكات البنكية وإصدار الشيكات</div>
-        </div>
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <div className="flex items-center gap-2">
-            <Input
-              placeholder="بحث برقم الدفتر أو اسم الحساب"
-              value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
-              className="min-w-[260px]"
-              disabled={loading}
-            />
-            <Button variant="outline" size="sm" disabled={loading}>
-              <Search className="h-4 w-4" />
-              بحث
-            </Button>
-          </div>
-          <Button onClick={openNewDialog} className="whitespace-nowrap" disabled={loading}>
-            <Plus className="h-4 w-4" />
-            إضافة دفتر شيكات
-          </Button>
-        </div>
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>دفاتر الشيكات</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <div>
+                <div className="text-xl font-semibold">دفاتر الشيكات</div>
+                <p className="text-sm text-muted-foreground">إدارة دفاتر الشيكات البنكية وإصدار الشيكات</p>
+              </div>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <div className="relative">
+                  <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    placeholder="بحث برقم الدفتر أو اسم الحساب"
+                    value={searchText}
+                    onChange={(e) => setSearchText(e.target.value)}
+                    className="min-w-[260px] pr-9"
+                    disabled={loading}
+                  />
+                </div>
+                <Button onClick={openNewDialog} className="whitespace-nowrap" disabled={loading}>
+                  <Plus className="h-4 w-4" />
+                  إضافة دفتر شيكات
+                </Button>
+              </div>
+            </div>
 
-      <div className="overflow-auto rounded-lg border border-slate-200">
-        <Table>
-          <TableHeader className="cheque-table-header">
-            <TableRow>
-              <TableHead className="text-right">رقم الدفتر</TableHead>
-              <TableHead className="text-right">رقم الحساب البنكي</TableHead>
-              <TableHead className="text-right">اسم الحساب البنكي</TableHead>
-              <TableHead className="text-right">العملة</TableHead>
-              <TableHead className="text-right">تاريخ الاصدار</TableHead>
-              <TableHead className="text-right">عدد الشيكات</TableHead>
-              <TableHead className="text-right">إجراءات</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredBooks.map(({ book, index }) => (
-              <TableRow key={book.id} className="cursor-pointer transition hover:bg-slate-50" onClick={() => openEditDialog(book, index)}>
-                <TableCell className="text-right">{book.code}</TableCell>
-                <TableCell className="text-right">{book.bank_account_code}</TableCell>
-                <TableCell className="text-right">{book.bank_account_name}</TableCell>
-                <TableCell className="text-right">{book.currency_name || book.currency_code}</TableCell>
-                <TableCell className="text-right">{book.insert_date?.slice(0, 10)}</TableCell>
-                <TableCell className="text-right">{book.cheques?.length || 0}</TableCell>
-                <TableCell className="text-right">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      openRow(book)
-                    }}
-                  >
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
-            {filteredBooks.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={7} className="text-center text-muted-foreground">
-                  لا توجد نتائج
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </div>
+            <div className="overflow-auto rounded-lg border border-slate-200">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="text-right">رقم الدفتر</TableHead>
+                    <TableHead className="text-right">رقم الحساب البنكي</TableHead>
+                    <TableHead className="text-right">اسم الحساب البنكي</TableHead>
+                    <TableHead className="text-right">العملة</TableHead>
+                    <TableHead className="text-right">تاريخ الاصدار</TableHead>
+                    <TableHead className="text-right">عدد الشيكات</TableHead>
+                    <TableHead className="text-right">المتوفر</TableHead>
+                    <TableHead className="text-right">إجراءات</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredBooks.map(({ book, index }) => (
+                    <TableRow key={book.id} className="cursor-pointer" onDoubleClick={() => openEditDialog(book, index)}>
+                      <TableCell className="text-right">{book.code}</TableCell>
+                      <TableCell className="text-right">{book.bank_account_code}</TableCell>
+                      <TableCell className="text-right">{book.bank_account_name}</TableCell>
+                      <TableCell className="text-right">{book.currency_name || book.currency_code}</TableCell>
+                      <TableCell className="text-right">{book.insert_date?.slice(0, 10)}</TableCell>
+                      <TableCell className="text-right">{book.cheques_count || 0}</TableCell>
+                      <TableCell className="text-right">{book.available_count || 0}</TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            openRow(book)
+                          }}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {filteredBooks.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={8} className="text-center text-muted-foreground">
+                        {loading ? "جاري التحميل..." : "لا توجد نتائج"}
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       <UnifiedChequesBooks
         dialogOpen={dialogOpen}

@@ -1,14 +1,20 @@
 "use client"
 
 import { useEffect, useMemo, useState, useRef } from "react"
-import { Search, X, Wallet, ListFilter, Plus } from "lucide-react"
+import { Search, Wallet, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import PrimeDropdown from "@/components/common/FocusDropdown"
-import { CellRange, KeyAction, SelectionMode } from "@grapecity/wijmo.grid"
-import DataGridView from "../common/DataGridView"
+import {
+  SearchDialogHeader,
+  SearchFilterField,
+  SearchResultsTable,
+  searchInputClassName,
+  useEnterAsTabFilters,
+  type SearchColumn,
+  type SearchResultsTableHandle,
+} from "@/components/common/search-dialog-kit"
 import { useWorkspaceDialog } from "@/contexts/workspace-dialog-context"
 
 // كل كلمة في نص البحث يجب أن تكون موجودة في النص الهدف (بأي ترتيب) — وليس تطابق سلسلة متتالية
@@ -157,7 +163,7 @@ export default function AccountSearchDialog({
     deliveryOnly: Boolean(showDeliveryOnlyFilter),
     orderOnly: Boolean(showOrderOnlyFilter),
   })
-  const gridRef = useRef<any>(null)
+  const resultsRef = useRef<SearchResultsTableHandle | null>(null)
   const filterContainerRef = useRef<HTMLDivElement | null>(null)
   const accountNameInputRef = useRef<HTMLInputElement | null>(null)
 
@@ -205,20 +211,6 @@ export default function AccountSearchDialog({
     }
     return map
   }, [currencies])
-
-  const accountScheme = useMemo(
-    () => ({
-      name: "AccountSearchScheme",
-      columns: [
-        { header: "رقم الحساب", name: "code", width: 180, isReadOnly: true },
-        { header: "اسم الحساب", name: "name", width: "*", minWidth: 320, isReadOnly: true },
-        { header: "النوع", name: "type_name", width: 200, isReadOnly: true },
-        { header: "القائمة المالية", name: "finanical_list_id", width: 220, isReadOnly: true },
-        { header: "العملة", name: "currency_label", width: 140, isReadOnly: true },
-      ],
-    }),
-    [],
-  )
 
   const gridDataSource = useMemo(
     () =>
@@ -409,14 +401,6 @@ export default function AccountSearchDialog({
     setSelectedAccount(null)
   }
 
-  const handleSearchButtonKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>) => {
-    if (event.key !== "Enter") return
-    event.preventDefault()
-    event.stopPropagation()
-    handleSearchAccounts()
-    // Wait until React has rendered the new result set before focusing its first row.
-    window.requestAnimationFrame(() => window.requestAnimationFrame(focusGridFirstRow))
-  }
 
   const applySearchFilters = (nextFilters?: typeof searchFilters, sourceAccounts?: AccountItem[]) => {
     const filters = nextFilters || searchFilters
@@ -456,98 +440,12 @@ export default function AccountSearchDialog({
     applySearchFilters()
   }
 
-  const resolveSearchGrid = () => gridRef.current?.control || gridRef.current
-
-  const lockGridRowHeights = (candidate?: any) => {
-    const grid = candidate?.rows ? candidate : resolveSearchGrid()
-    if (!grid?.rows) return
-    grid.rows.defaultSize = 48
-    for (let index = 0; index < grid.rows.length; index += 1) {
-      grid.rows[index].height = 48
-    }
-    if (grid.columnHeaders?.rows?.[0]) grid.columnHeaders.rows[0].height = 48
-    grid.invalidate?.()
-  }
-
-  useEffect(() => {
-    if (!open || searchResults.length === 0) return
-    const frame = window.requestAnimationFrame(() => lockGridRowHeights())
-    return () => window.cancelAnimationFrame(frame)
-  }, [open, searchResults])
-
+  // آخر فلتر (Enter) أو السهم للأسفل من أي فلتر ⇐ أول سطر في جدول النتائج
   const focusGridFirstRow = () => {
-    const grid = resolveSearchGrid()
-    if (!grid || !grid.columns || !grid.rows || grid.rows.length === 0) return
-    grid.select(new CellRange(0, 0))
-    grid.focus()
+    resultsRef.current?.focusFirstRow()
   }
 
-  // PrimeReact's Dropdown registers its own Enter/Arrow handling directly on `document` (its
-  // overlay/key-navigation service, not a plain React bubble handler on the trigger element) —
-  // a handler attached anywhere inside the React tree, even with onKeyDownCapture, loses that
-  // race and only "wins" every second press once Prime's own handler has already consumed the
-  // first one. A real document-level listener registered with capture:true always fires first
-  // (capture runs top-down starting at document, which is above everything React or Prime attach
-  // to), so this is attached directly instead of through JSX props.
-  useEffect(() => {
-    if (!open) return
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      const target = event.target as HTMLElement | null
-      if (!target) return
-      const container = filterContainerRef.current
-      if (!container || !container.contains(target)) return
-      // قائمة Prime Dropdown مفتوحة فعلاً (تصفّح بالأسهم بين الخيارات) -> لا نتدخل إطلاقاً.
-      if (target.closest(".p-dropdown-panel")) return
-
-      if (event.key === "ArrowDown") {
-        event.preventDefault()
-        event.stopPropagation()
-        focusGridFirstRow()
-        return
-      }
-
-      if (event.key !== "Enter") return
-
-      // العملة هو آخر حقل قبل زر البحث/الشبكة — Enter عليه ينتقل مباشرة لأول سطر في النتائج.
-      if (target.closest('[data-filter-field="currency"]')) {
-        event.preventDefault()
-        event.stopPropagation()
-        focusGridFirstRow()
-        return
-      }
-
-      if (target.tagName === "TEXTAREA" || target.tagName === "BUTTON") return
-      const focusable = Array.from(
-        container.querySelectorAll<HTMLElement>(
-          'input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
-        ),
-      ).filter((el) => el.offsetParent !== null)
-      const currentIndex = focusable.indexOf(target)
-      if (currentIndex === -1) return
-      event.preventDefault()
-      event.stopPropagation()
-      focusable[currentIndex + 1]?.focus()
-    }
-
-    document.addEventListener("keydown", handleKeyDown, true)
-    return () => document.removeEventListener("keydown", handleKeyDown, true)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open])
-
-  // Enter والتركيز داخل الشبكة يختار السطر الحالي تماماً كما لو ضُغط زر "موافق" (بدل الاضطرار
-  // لنقر مزدوج بالماوس).
-  const handleGridKeyDown = (grid: any, e: KeyboardEvent) => {
-    if (e.key !== "Enter") return
-    const row = grid?.selection?.row
-    if (row == null || row < 0) return
-    const item = grid.rows[row]?.dataItem
-    if (!item) return
-    e.preventDefault()
-    e.stopPropagation()
-    lockGridRowHeights(grid)
-    handleRowDoubleClick(item)
-  }
+  useEnterAsTabFilters(open, filterContainerRef, focusGridFirstRow)
 
   const handleRowDoubleClick = (account: AccountItem) => {
     if (onSelect) {
@@ -562,182 +460,166 @@ export default function AccountSearchDialog({
     }
   }
 
-  const filterGridClassName = "account-search-filter-grid grid gap-4"
+  const dropdownStyle = { height: "36px", minHeight: "36px", borderRadius: "8px", backgroundColor: "#fff" }
 
-  const dropdownStyle = { height: "42px", borderRadius: "12px", backgroundColor: "#fff" }
+  const MAX_VISIBLE_RESULTS = 500
+  const visibleRows = gridDataSource.length > MAX_VISIBLE_RESULTS ? gridDataSource.slice(0, MAX_VISIBLE_RESULTS) : gridDataSource
+
+  const resultColumns: SearchColumn<(typeof gridDataSource)[number]>[] = [
+    { key: "code", header: "رقم الحساب", width: "140px", className: "font-mono text-xs text-slate-600" },
+    { key: "name", header: "اسم الحساب", className: "max-w-[380px] truncate font-semibold text-slate-800" },
+    {
+      key: "type_name",
+      header: "النوع",
+      width: "120px",
+      render: (account) => (
+        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600">{account.type_name}</span>
+      ),
+    },
+    { key: "finanical_list_id", header: "القائمة المالية", width: "140px", className: "text-xs text-slate-500" },
+    { key: "currency_label", header: "العملة", width: "80px", align: "center", className: "text-xs font-bold text-slate-600" },
+  ]
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         hideCloseButton
         className={confined
-          ? "account-search-dialog-shell h-[min(960px,calc(100%-1.5rem))] max-h-[calc(100%-1.5rem)] w-[min(1440px,calc(100%-1.5rem))] max-w-[calc(100%-1.5rem)] overflow-hidden rounded-xl border border-slate-300 bg-white p-0 shadow-2xl"
-          : "account-search-dialog-shell h-[calc(100dvh-1rem)] max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-[1440px] overflow-hidden rounded-xl border border-slate-300 bg-white p-0 shadow-2xl sm:h-[min(92dvh,960px)]"}
+          ? "h-[min(720px,calc(100%-1.5rem))] max-h-[calc(100%-1.5rem)] w-[min(1000px,calc(100%-1.5rem))] max-w-[calc(100%-1.5rem)] gap-0 overflow-hidden rounded-2xl border-0 bg-slate-50 p-0 shadow-2xl ring-1 ring-slate-900/10"
+          : "h-[100dvh] max-h-[100dvh] w-full max-w-full gap-0 overflow-hidden rounded-none border-0 bg-slate-50 p-0 shadow-2xl sm:h-[min(80dvh,720px)] sm:max-w-[1000px] sm:rounded-2xl sm:ring-1 sm:ring-slate-900/10"}
         dir="rtl"
         onCloseAutoFocus={(event) => event.preventDefault()}
         onInteractOutside={(event) => event.preventDefault()}
       >
-        <div className="flex h-full min-h-0 flex-col overflow-y-auto overscroll-contain bg-slate-100 sm:overflow-hidden">
-          {/* Header */}
-          <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-slate-700 bg-slate-950 px-4 py-4 sm:px-7">
-            <div className="flex min-w-0 items-center gap-3">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-cyan-400 text-slate-950 shadow-lg shadow-cyan-950/30">
-                <Wallet className="h-5 w-5" />
-              </div>
-              <div>
-                <h2 className="text-lg font-extrabold tracking-tight text-white sm:text-xl">دليل الحسابات</h2>
-                <p className="mt-0.5 hidden text-xs text-slate-400 sm:block">ابحث، راجع التفاصيل، ثم اختر الحساب المطلوب</p>
-              </div>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
+        <div className="flex h-full min-h-0 flex-col">
+          <SearchDialogHeader
+            icon={<Wallet className="h-4 w-4" />}
+            title="دليل الحسابات"
+            subtitle="Enter للتنقل بين الفلاتر ثم للنتائج • ↑↓ للتنقل • Enter للاختيار"
+            count={searchResults.length}
+            onClose={() => onOpenChange(false)}
+            actions={
               <Button
                 type="button"
                 onClick={() => window.open("/admin/accounts?new=1", "_blank", "noopener,noreferrer")}
-                className="h-9 gap-2 rounded-lg bg-cyan-400 text-slate-950 hover:bg-cyan-300"
+                className="h-8 gap-1.5 rounded-lg bg-white px-2.5 text-xs font-bold text-emerald-700 hover:bg-emerald-50"
               >
-                <Plus className="h-4 w-4" />
-                <span className="hidden sm:inline">إضافة حساب</span><span className="sm:hidden">إضافة</span>
+                <Plus className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">إضافة حساب</span>
               </Button>
-              {searchResults.length > 0 && (
-                <span className="hidden rounded-full bg-white/15 px-3 py-1 text-xs font-semibold text-white ring-1 ring-white/30 sm:inline-block">
-                  {searchResults.length} حساب
-                </span>
-              )}
-              <Button
-                variant="ghost"
-                onClick={() => onOpenChange(false)}
-                className="h-9 w-9 shrink-0 rounded-full bg-white/15 p-0 text-white hover:bg-white/25 hover:text-white"
-                aria-label="إغلاق"
-                title="إغلاق"
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
+            }
+          />
 
-          <div className="account-search-workspace grid min-h-0 flex-1 gap-0">
-          {/* Filters */}
-          <aside className="account-search-filters shrink-0 border-b border-slate-200 bg-white p-4">
-            <div className="mb-4 flex items-center gap-2 text-sm font-extrabold text-slate-800">
-              <ListFilter className="h-3.5 w-3.5" />
-              تصفية الحسابات
-            </div>
-            <div className={filterGridClassName} ref={filterContainerRef}>
-              <div>
-                <Label className="mb-1.5 block text-sm font-medium text-slate-600">رقم الحساب</Label>
-                <Input
-                  value={searchFilters.accountNumber}
-                  onChange={(e) => {
-                    const nextFilters = { ...searchFilters, accountNumber: e.target.value }
-                    setSearchFilters(nextFilters)
-                    applySearchFilters(nextFilters)
-                  }}
-                  placeholder="ابحث برقم الحساب"
-                  className="h-[42px] rounded-xl border-slate-200 bg-white text-right shadow-sm transition-colors focus-visible:border-blue-400 focus-visible:ring-blue-100"
-                  onBlur={handleCodeOrNameBlur}
-                />
-              </div>
-              <div>
-                <Label className="mb-1.5 block text-sm font-medium text-slate-600">الاسم</Label>
-                <Input
-                  ref={accountNameInputRef}
-                  value={searchFilters.accountName}
-                  onChange={(e) => {
-                    const nextFilters = { ...searchFilters, accountName: e.target.value }
-                    setSearchFilters(nextFilters)
-                    applySearchFilters(nextFilters)
-                  }}
-                  placeholder="ابحث باسم الحساب (يمكن كتابة أكثر من كلمة)"
-                  className="h-[42px] rounded-xl border-slate-200 bg-white text-right shadow-sm transition-colors focus-visible:border-blue-400 focus-visible:ring-blue-100"
-                  onBlur={handleCodeOrNameBlur}
-                />
-              </div>
-              {showFinancialListFilter ? (
-                <div>
-                  <Label className="mb-1.5 block text-sm font-medium text-slate-600">القائمة المالية</Label>
+          {/* الفلاتر */}
+          <div className="shrink-0 border-b border-slate-200 bg-white px-4 py-3">
+            <div className="flex flex-col gap-2 lg:flex-row lg:items-end">
+              <div ref={filterContainerRef} className="grid min-w-0 flex-1 grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-[1fr_1.6fr_1fr_1fr_0.8fr]">
+                <SearchFilterField label="رقم الحساب">
+                  <Input
+                    value={searchFilters.accountNumber}
+                    onChange={(e) => {
+                      const nextFilters = { ...searchFilters, accountNumber: e.target.value }
+                      setSearchFilters(nextFilters)
+                      applySearchFilters(nextFilters)
+                    }}
+                    placeholder="رقم الحساب"
+                    className={searchInputClassName}
+                    onBlur={handleCodeOrNameBlur}
+                  />
+                </SearchFilterField>
+                <SearchFilterField label="الاسم" className="col-span-2 sm:col-span-1">
+                  <Input
+                    ref={accountNameInputRef}
+                    value={searchFilters.accountName}
+                    onChange={(e) => {
+                      const nextFilters = { ...searchFilters, accountName: e.target.value }
+                      setSearchFilters(nextFilters)
+                      applySearchFilters(nextFilters)
+                    }}
+                    placeholder="يمكن كتابة أكثر من كلمة"
+                    className={searchInputClassName}
+                    onBlur={handleCodeOrNameBlur}
+                  />
+                </SearchFilterField>
+                {showFinancialListFilter ? (
+                  <SearchFilterField label="القائمة المالية" className="invoice-currency-dropdown-wrap">
+                    <PrimeDropdown
+                      value={searchFilters.financialList}
+                      options={financialListOptions}
+                      optionLabel="label"
+                      optionValue="value"
+                      placeholder="اختر القائمة المالية"
+                      className="invoice-currency-dropdown w-full"
+                      valueTemplate={(option) => <div className="w-full text-right">{option?.label ?? "اختر القائمة المالية"}</div>}
+                      style={dropdownStyle}
+                      panelClassName="invoice-currency-dropdown-panel"
+                      appendTo="self"
+                      onChange={(e: any) => {
+                        const nextFilters = { ...searchFilters, financialList: e.value }
+                        setSearchFilters(nextFilters)
+                        applySearchFilters(nextFilters)
+                      }}
+                    />
+                  </SearchFilterField>
+                ) : null}
+                {showTypeFilter ? (
+                  <SearchFilterField label="النوع" className="invoice-currency-dropdown-wrap">
+                    <PrimeDropdown
+                      value={searchFilters.type}
+                      options={typeOptions}
+                      optionLabel="label"
+                      optionValue="value"
+                      placeholder="اختر النوع"
+                      className="invoice-currency-dropdown w-full"
+                      valueTemplate={(option) => <div className="w-full text-right">{option?.label ?? "اختر النوع"}</div>}
+                      style={dropdownStyle}
+                      panelClassName="invoice-currency-dropdown-panel"
+                      appendTo="self"
+                      onChange={(e: any) => {
+                        const nextFilters = { ...searchFilters, type: e.value }
+                        setSearchFilters(nextFilters)
+                        applySearchFilters(nextFilters)
+                      }}
+                    />
+                  </SearchFilterField>
+                ) : null}
+                <SearchFilterField label="العملة" className="invoice-currency-dropdown-wrap" data-filter-field="currency">
                   <PrimeDropdown
-                    value={searchFilters.financialList}
-                    options={financialListOptions}
+                    value={searchFilters.currency}
+                    options={currencyOptions}
                     optionLabel="label"
                     optionValue="value"
-                    placeholder="اختر القائمة المالية"
+                    placeholder="اختر العملة"
                     className="invoice-currency-dropdown w-full"
-                    valueTemplate={(option) => (
-                      <div className="text-right w-full">{option?.label ?? "اختر القائمة المالية"}</div>
-                    )}
+                    valueTemplate={(option) => <div className="w-full text-right">{option?.label ?? "اختر العملة"}</div>}
                     style={dropdownStyle}
                     panelClassName="invoice-currency-dropdown-panel"
                     appendTo="self"
                     onChange={(e: any) => {
-                      const nextFilters = { ...searchFilters, financialList: e.value }
+                      const nextFilters = { ...searchFilters, currency: e.value }
                       setSearchFilters(nextFilters)
                       applySearchFilters(nextFilters)
                     }}
                   />
-                </div>
-              ) : null}
-              {showTypeFilter ? (
-                <div>
-                  <Label className="mb-1.5 block text-sm font-medium text-slate-600">النوع</Label>
-                  <PrimeDropdown
-                    value={searchFilters.type}
-                    options={typeOptions}
-                    optionLabel="label"
-                    optionValue="value"
-                    placeholder="اختر النوع"
-                    className="invoice-currency-dropdown w-full"
-                    valueTemplate={(option) => (
-                      <div className="text-right w-full">{option?.label ?? "اختر النوع"}</div>
-                    )}
-                    style={dropdownStyle}
-                    panelClassName="invoice-currency-dropdown-panel"
-                    appendTo="self"
-                    onChange={(e: any) => {
-                      const nextFilters = { ...searchFilters, type: e.value }
-                      setSearchFilters(nextFilters)
-                      applySearchFilters(nextFilters)
-                    }}
-                  />
-                </div>
-              ) : null}
-              <div data-filter-field="currency">
-                <Label className="mb-1.5 flex items-center gap-1 text-sm font-medium text-slate-600">
-                  <Wallet className="h-3.5 w-3.5" />
-                  العملة
-                </Label>
-                <PrimeDropdown
-                  value={searchFilters.currency}
-                  options={currencyOptions}
-                  optionLabel="label"
-                  optionValue="value"
-                  placeholder="اختر العملة"
-                  className="invoice-currency-dropdown w-full"
-                  valueTemplate={(option) => <div className="text-right w-full">{option?.label ?? "اختر العملة"}</div>}
-                  style={dropdownStyle}
-                  panelClassName="invoice-currency-dropdown-panel"
-                  appendTo="self"
-                  onChange={(e: any) => {
-                    const nextFilters = { ...searchFilters, currency: e.value }
-                    setSearchFilters(nextFilters)
-                    applySearchFilters(nextFilters)
-                  }}
-                />
+                </SearchFilterField>
               </div>
-              <div className="flex items-end">
-                <Button
-                  onClick={handleSearchAccounts}
-                  onKeyDown={handleSearchButtonKeyDown}
-                  className="flex h-[42px] w-full items-center justify-center gap-2 rounded-xl border-0 bg-slate-900 px-5 font-bold text-white shadow-md transition hover:bg-slate-800"
-                >
-                  <Search className="h-4 w-4" />
-                  بحث
-                </Button>
-              </div>
+              <Button
+                type="button"
+                onClick={() => {
+                  handleSearchAccounts()
+                  // بعد رسم النتائج الجديدة ⇐ أول سطر
+                  window.requestAnimationFrame(() => window.requestAnimationFrame(focusGridFirstRow))
+                }}
+                className="h-9 shrink-0 gap-1.5 rounded-lg bg-emerald-600 px-4 text-xs font-bold text-white hover:bg-emerald-700"
+              >
+                <Search className="h-3.5 w-3.5" />
+                بحث
+              </Button>
             </div>
-            {(showDeliveryOnlyFilter || showOrderOnlyFilter) && <div className="mt-3 flex flex-col gap-2 rounded-xl bg-white px-3 py-2 sm:flex-row sm:items-center">
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            {(showDeliveryOnlyFilter || showOrderOnlyFilter) && (
+              <div className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-1.5">
                 {showDeliveryOnlyFilter ? (
-                  <div className="flex items-center gap-2">
+                  <label htmlFor="deliveryOnly" className="flex cursor-pointer items-center gap-2 text-xs font-semibold text-slate-600">
                     <input
                       id="deliveryOnly"
                       type="checkbox"
@@ -747,23 +629,20 @@ export default function AccountSearchDialog({
                         const nextFilters = {
                           ...searchFilters,
                           deliveryOnly: e.target.checked,
-                          // The two source filters are alternatives. Requiring
-                          // both at once can hide every customer.
+                          // الفلتران بديلان — اشتراطهما معاً قد يُخفي كل العملاء
                           orderOnly: e.target.checked ? false : searchFilters.orderOnly,
                         }
                         setSearchFilters(nextFilters)
                         applySearchFilters(nextFilters)
                         setRefreshVersion((value) => value + 1)
                       }}
-                      className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 disabled:cursor-not-allowed disabled:opacity-60"
+                      className="h-4 w-4 rounded border-slate-300 accent-emerald-600 disabled:cursor-not-allowed disabled:opacity-60"
                     />
-                    <label htmlFor="deliveryOnly" className="text-sm font-medium text-slate-600">
-                      إظهار الزبائن الذين لديهم ارساليات فقط
-                    </label>
-                  </div>
+                    إظهار العملاء الذين لديهم ارساليات فقط
+                  </label>
                 ) : null}
                 {showOrderOnlyFilter ? (
-                  <div className="flex items-center gap-2">
+                  <label htmlFor="orderOnly" className="flex cursor-pointer items-center gap-2 text-xs font-semibold text-slate-600">
                     <input
                       id="orderOnly"
                       type="checkbox"
@@ -779,101 +658,57 @@ export default function AccountSearchDialog({
                         applySearchFilters(nextFilters)
                         setRefreshVersion((value) => value + 1)
                       }}
-                      className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 disabled:cursor-not-allowed disabled:opacity-60"
+                      className="h-4 w-4 rounded border-slate-300 accent-emerald-600 disabled:cursor-not-allowed disabled:opacity-60"
                     />
-                    <label htmlFor="orderOnly" className="text-sm font-medium text-slate-600">
-                      إظهار الزبائن الذين لديهم طلبيات فقط
-                    </label>
-                  </div>
+                    إظهار العملاء الذين لديهم طلبيات فقط
+                  </label>
                 ) : null}
-              </div>
-            </div>}
-          </aside>
-
-          <div className="flex min-h-0 min-w-0 flex-col gap-3 p-3 sm:p-4">
-
-          {/* Results grid */}
-          <div className="h-[42dvh] min-h-[240px] shrink-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm sm:h-auto sm:min-h-0 sm:flex-1">
-            {searchResults.length > 0 ? (
-              <>
-                <div className="h-full overflow-y-auto sm:hidden">
-                  {searchResults.map((account) => {
-                    const isSelected = selectedAccount?.id === account.id
-                    return (
-                      <button
-                        key={account.id}
-                        type="button"
-                        onClick={() => setSelectedAccount(account)}
-                        onDoubleClick={() => handleRowDoubleClick(account)}
-                        className={`flex w-full items-start justify-between gap-3 border-b border-slate-100 px-4 py-3 text-right last:border-b-0 ${
-                          isSelected ? "bg-emerald-50 ring-1 ring-inset ring-emerald-300" : "bg-white active:bg-slate-50"
-                        }`}
-                      >
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate text-sm font-semibold text-slate-900">{account.name}</span>
-                          <span className="mt-1 block text-xs text-slate-500">{getAccountTypeLabel(account)}</span>
-                        </span>
-                        <span dir="ltr" className="shrink-0 rounded-lg bg-slate-100 px-2 py-1 text-xs font-medium text-slate-700">
-                          {account.code}
-                        </span>
-                      </button>
-                    )
-                  })}
-                </div>
-                <div className="account-search-results-grid hidden h-full sm:block">
-                  <DataGridView
-                    innerRef={gridRef}
-                    containerStyle={{ height: "100%", minHeight: 0, maxHeight: "100%" }}
-                    style={{ height: "100%", minHeight: 0, maxHeight: "100%" }}
-                    defaultRowHeight={48}
-                    columnHeaderHeight={48}
-                    autoRowHeights={false}
-                    wordWrap={false}
-                    dataSource={gridDataSource}
-                    scheme={accountScheme}
-                    isReport
-                    onRowClick={(account: AccountItem) => {
-                      setSelectedAccount(account)
-                      window.requestAnimationFrame(() => lockGridRowHeights())
-                    }}
-                    onRowDoubleClick={handleRowDoubleClick}
-                    onKeyDownCapture={handleGridKeyDown}
-                    keyActionEnter={KeyAction.None}
-                    selectionMode={SelectionMode.Row}
-                    dontConvertToCards
-                    showContextMenu={false}
-                  />
-                </div>
-              </>
-            ) : (
-              <div className="flex h-full min-h-0 flex-col items-center justify-center gap-2 bg-gradient-to-b from-slate-50 to-white px-4 text-center text-slate-400">
-                <Search className="h-8 w-8 text-slate-300" />
-                <span className="text-sm text-slate-500">
-                  {loading ? "جاري تحميل البيانات ..." : "لا توجد نتائج. قم بالبحث لعرض النتائج"}
-                </span>
               </div>
             )}
           </div>
 
-          {/* Footer */}
-          <div className="sticky bottom-0 z-10 flex shrink-0 gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-sm backdrop-blur sm:static sm:justify-end">
-            <Button
-              onClick={handleConfirm}
-              disabled={!selectedAccount}
-              className="flex-1 rounded-lg border-0 bg-cyan-500 px-4 font-bold text-slate-950 shadow-sm hover:bg-cyan-400 sm:flex-none sm:px-8"
-            >
-              موافق
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              className="flex-1 rounded-lg border-slate-300 px-4 text-slate-700 shadow-sm hover:bg-slate-100 sm:flex-none sm:px-8"
-            >
-              إغلاق
-            </Button>
+          {/* النتائج */}
+          <div className="flex min-h-0 flex-1 flex-col gap-1.5 p-3">
+            <div className="flex items-center justify-between px-1 text-[11px] font-bold text-slate-500">
+              <span>نتائج البحث</span>
+              <span>
+                {searchResults.length > MAX_VISIBLE_RESULTS
+                  ? `عرض أول ${MAX_VISIBLE_RESULTS} من ${searchResults.length.toLocaleString()} — ضيّق البحث`
+                  : `${searchResults.length.toLocaleString()} حساب`}
+              </span>
+            </div>
+            <SearchResultsTable<(typeof gridDataSource)[number]>
+              ref={resultsRef}
+              rows={visibleRows}
+              columns={resultColumns}
+              getRowKey={(account) => account.id}
+              // صف العرض يحمل نصوصاً للعرض (القائمة المالية/العملة) — يُعاد دوماً الحساب الأصلي للمستدعي
+              onPick={(row) => {
+                const account = searchResults.find((item) => item.id === row.id)
+                if (account) handleRowDoubleClick(account)
+              }}
+              onActiveChange={(row) => setSelectedAccount(row ? searchResults.find((item) => item.id === row.id) ?? null : null)}
+              emptyText={loading ? "جاري تحميل البيانات ..." : "لا توجد نتائج مطابقة"}
+            />
           </div>
-        </div>
-        </div>
+
+          <div className="flex shrink-0 items-center justify-between gap-2 border-t border-slate-200 bg-white px-4 py-2.5">
+            <span className="hidden truncate text-[11px] text-slate-400 sm:block">
+              {selectedAccount ? `${selectedAccount.code} — ${selectedAccount.name}` : "نقر مزدوج أو Enter للاختيار"}
+            </span>
+            <div className="flex flex-1 gap-2 sm:flex-none">
+              <Button
+                onClick={handleConfirm}
+                disabled={!selectedAccount}
+                className="h-9 flex-1 rounded-lg bg-emerald-600 px-6 font-bold text-white hover:bg-emerald-700 sm:flex-none"
+              >
+                موافق
+              </Button>
+              <Button variant="outline" onClick={() => onOpenChange(false)} className="h-9 flex-1 rounded-lg border-slate-200 px-6 text-slate-600 sm:flex-none">
+                إغلاق
+              </Button>
+            </div>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

@@ -16,7 +16,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "معرف العميل مطلوب" }, { status: 400 })
     }
 
-    const deliveryTypes = voucherType === 12 ? [13, 14] : voucherType === 17 ? [18] : []
+    // ارسالية برسم البيع (14) لها نوع مصدر مستقل "من ارسالية برسم البيع" (/api/sales-vouchers/consignments)
+    const deliveryTypes = voucherType === 12 ? [13] : voucherType === 17 ? [18] : []
     if (deliveryTypes.length === 0) {
       return NextResponse.json({ error: "نوع الفاتورة غير مدعوم" }, { status: 400 })
     }

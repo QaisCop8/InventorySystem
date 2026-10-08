@@ -78,7 +78,7 @@ async function nextOrderSequence(codePrefix: string, startNumber: number): Promi
   return maxNumber >= startNumber ? maxNumber + 1 : startNumber
 }
 
-async function getPrefixFromSettings(type: "customer" | "supplier" | "salesman" | "subscriber" | "item_group"): Promise<string> {
+export async function getPrefixFromSettings(type: "customer" | "supplier" | "salesman" | "subscriber" | "item_group"): Promise<string> {
   try {
     if (!process.env.DATABASE_URL) {
       return type === "customer"

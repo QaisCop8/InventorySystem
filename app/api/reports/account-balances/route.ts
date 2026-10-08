@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server"
+import { reportAccessDenied } from "@/lib/report-permissions"
 import sql from "@/lib/database"
 import { getSessionUser } from "@/lib/tenant-auth"
 import { ensureAccountsTable } from "@/app/api/accounts/_lib"
@@ -12,6 +13,8 @@ export async function GET(request: NextRequest) {
   try {
     const user = await getSessionUser(request)
     if (!user) return NextResponse.json({ error: "يجب تسجيل الدخول" }, { status: 401 })
+    const reportDenied = await reportAccessDenied(request, [request.nextUrl.searchParams.get("kind") === "receivables" ? "receivables-balances-report" : "accounting-balances-report"])
+    if (reportDenied) return reportDenied
     await ensureAccountsTable()
     await ensureVoucherTables()
 

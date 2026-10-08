@@ -187,6 +187,8 @@ export const ensureTables = async () => {
   // أعمدة مستوى السند (الرأس) الخاصة بهذه الأنواع الثمانية فقط — تُضاف لـvoucher_header_tbl القائم
   // (لا تُنشئه، receipts/_lib.ts يملك ذلك) دفاعياً بـADD COLUMN IF NOT EXISTS.
   await sql`ALTER TABLE voucher_header_tbl ADD COLUMN IF NOT EXISTS shipping_address TEXT`
+  // عنوان الشحن الكامل (المرسل إليه/السيارة/السائق/المنطقة/ص.ب/الهاتف/العنوان)؛ shipping_address = نص العنوان للطباعة.
+  await sql`ALTER TABLE voucher_header_tbl ADD COLUMN IF NOT EXISTS shipping_info JSONB`
   await sql`ALTER TABLE voucher_header_tbl ADD COLUMN IF NOT EXISTS salesman_id INTEGER`
   await sql`ALTER TABLE voucher_header_tbl ADD COLUMN IF NOT EXISTS linked_order_id INTEGER`
   await sql`ALTER TABLE voucher_header_tbl ADD COLUMN IF NOT EXISTS pos_receipt_voucher_id INTEGER REFERENCES voucher_header_tbl(id)`
@@ -693,7 +695,12 @@ export const resolveStockDirection = (vchType: number): "in" | "out" | null => {
 export const applySalesVoucherStockEffect = async (vchType: number, voucherId: number, items: any[]) => {
   const direction = resolveStockDirection(vchType)
   if (!direction) return
-  await applyStockMovement(items, direction, voucherId, null, 1, SALES_VOUCHER_REFERENCE_TYPE)
+  // سطر فاتورة منقول من ارسالية (ارسالية مبيعات/مشتريات/برسم البيع): البضاعة خرجت/دخلت مع الارسالية
+  // نفسها — نفس استثناء التقارير (item-card-ledger, item-inventory-reports) حتى لا تُخصم مرتين.
+  const moving = [SALES_INVOICE_VCH_TYPE, PURCHASE_INVOICE_VCH_TYPE].includes(vchType)
+    ? items.filter((item) => !(Number(item?.delivery_item_id) > 0))
+    : items
+  await applyStockMovement(moving, direction, voucherId, null, 1, SALES_VOUCHER_REFERENCE_TYPE)
 }
 
 export const reverseSalesVoucherStockMovement = async (voucherId: number) => {

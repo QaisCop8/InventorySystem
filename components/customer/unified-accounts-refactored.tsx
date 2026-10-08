@@ -31,6 +31,7 @@ import PrimeDropdown from "@/components/common/FocusDropdown"
 import DataGridView from "../common/DataGridView"
 import Messages from "../common/Messages"
 import { isSameDay } from "date-fns"
+import { useWorkspaceTabActive } from "@/contexts/workspace-tab-context"
 
 interface AccountType {
   id: number
@@ -81,6 +82,7 @@ interface UnifiedAccountsProps {
 }
 
 export default function UnifiedAccounts({ action, accountId, onOpenChange, inWindowManager, closeWindow, onDirtyChange }: UnifiedAccountsProps) {
+  const workspaceTabActive = useWorkspaceTabActive()
   const [dialogOpen, setDialogOpen] = useState(false)
   const [activeTab, setActiveTab] = useState("main")
   const [accounts, setAccounts] = useState<AccountItem[]>([])
@@ -1836,15 +1838,21 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
     setActiveTab("main")
   }
 
-  const handleRequestClose = async () => {
+  // جديد / التنقل / الإغلاق: إن وُجدت تعديلات غير محفوظة يُسأل المستخدم أولاً، ويُنفَّذ الإجراء
+  // المعلّق بعد الحفظ (نعم) أو بدونه (لا)، أو يُلغى (رجوع).
+  const pendingUnsavedActionRef = useRef<(() => void | Promise<void>) | null>(null)
+  const guardUnsaved = (action: () => void | Promise<void>) => {
+    if (showUnsavedConfirm) return
     if (currentSnapshot !== dirtySnapshotRef.current) {
+      pendingUnsavedActionRef.current = action
       setShowUnsavedConfirm(true)
       return
     }
+    void action()
+  }
 
-    if (closeWindow) {
-      closeWindow()
-    }
+  const handleRequestClose = async () => {
+    guardUnsaved(() => closeWindow?.())
   }
 
   const handleDeleteCostCenterType = async () => {
@@ -2156,26 +2164,7 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
     showAccountDeleteConfirm ||
     showUnsavedConfirm ||
     searchModalOpen
-  useEffect(() => {
-    if (!dialogOpen) return
-    const handler = (e: KeyboardEvent) => {
-      if (nestedPopupOpen) return
-      if (e.key === "F3") {
-        e.preventDefault()
-        void handleSave()
-      }
-      if (e.key === "F4") {
-        e.preventDefault()
-        void handleDelete()
-      }
-      if (e.key === "F5") {
-        e.preventDefault()
-        void handleNew()
-      }
-    }
-    window.addEventListener("keydown", handler, true)
-    return () => window.removeEventListener("keydown", handler, true)
-  }, [dialogOpen, nestedPopupOpen, handleSave, handleDelete, handleNew])
+  // F3 حفظ / F9 حذف / F4 نسخ / F5 جديد / Ctrl+P طباعة: يتولاها UniversalToolbar (lib/hotkeys.ts)
 
   const formRootRef = useRef<HTMLDivElement>(null)
   const enterAsTabEnabledRef = useRef(true)
@@ -2197,13 +2186,13 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
           <UniversalToolbar
             currentRecord={activeAccounts.length > 0 ? currentIndex + 1 : 0}
             totalRecords={activeAccounts.length}
-            onNew={handleNew}
+            onNew={() => guardUnsaved(handleNew)}
             onSave={() => void handleSave()}
             onDelete={handleDelete}
-            onFirst={handleFirst}
-            onPrevious={handlePrevious}
-            onNext={handleNext}
-            onLast={handleLast}
+            onFirst={() => guardUnsaved(handleFirst)}
+            onPrevious={() => guardUnsaved(handlePrevious)}
+            onNext={() => guardUnsaved(handleNext)}
+            onLast={() => guardUnsaved(handleLast)}
             canDelete={formData.id !== 0}
             isSaving={saving}
             labels={{
@@ -2922,7 +2911,9 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
         />
 
         <ConfirmDialogYesNo
+          useAppDialog
           visible={showDeleteConfirm}
+          title="تأكيد الحذف"
           message="هل تريد حذف مركز التكلفة؟"
           onConfirm={handleConfirmDelete}
           onCancel={() => {
@@ -2933,7 +2924,9 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
         />
 
         <ConfirmDialogYesNo
+          useAppDialog
           visible={showDeleteClassificationConfirm}
+          title="تأكيد الحذف"
           message="هل تريد حذف التصنيف؟"
           onConfirm={handleConfirmDeleteClassification}
           onCancel={() => {
@@ -2944,7 +2937,9 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
         />
 
         <ConfirmDialogYesNo
+          useAppDialog
           visible={showAccountDeleteConfirm}
+          title="تأكيد الحذف"
           message="هل أنت متأكد من حذف السجل؟"
           onConfirm={handleConfirmDeleteAccount}
           onCancel={() => setShowAccountDeleteConfirm(false)}
@@ -3124,19 +3119,27 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
         </Dialog>
 
         <ConfirmDialogYesNo
+          useAppDialog
           visible={showUnsavedConfirm}
+          title="حفظ التعديلات"
           message="تم تعديل السجل هل تريد الحفظ؟"
           onConfirm={async () => {
             setShowUnsavedConfirm(false)
-            await handleSave({ closeAfterSave: true })
+            const action = pendingUnsavedActionRef.current
+            pendingUnsavedActionRef.current = null
+            const saved = await handleSave()
+            if (saved) await action?.()
           }}
           onCancel={() => {
             setShowUnsavedConfirm(false)
-            if (closeWindow) {
-              closeWindow()
-            }
+            const action = pendingUnsavedActionRef.current
+            pendingUnsavedActionRef.current = null
+            void action?.()
           }}
-          onBack={() => setShowUnsavedConfirm(false)}
+          onBack={() => {
+            setShowUnsavedConfirm(false)
+            pendingUnsavedActionRef.current = null
+          }}
           showBack={true}
         />
       </div>

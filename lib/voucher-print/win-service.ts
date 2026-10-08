@@ -155,16 +155,38 @@ function layoutCopy(document: PrintDocument, settings: VoucherPrintSettings, con
       ...columns.map(column => ({ key: column.key, label: column.label, width: ((column.weight || 1) / totalWeight) * width, numeric: Boolean(column.numeric) })),
     ]
     const tablePt = base * (compact ? 0.82 : 0.9)
-    const drawHeader = () => {
-      const height = lineHeight(tablePt) + 8
-      box(left, y, width, height, BLACK)
-      let x = right
-      for (const cell of cells) {
-        x -= cell.width
-        centered(cell.label, x, y + 4, cell.width, tablePt, true)
-        if (x > left + 1) line(x, y, x, y + height, BLACK)
+    // عناوين الأعمدة: تُقسَّم على حدود الكلمات (لا يكسر الطابعة كلمة في منتصفها)، ويُصغَّر الخط حتى
+    // 70% إن كانت أطول كلمة أعرض من العمود، ويتسع ارتفاع صف العناوين لأطول عنوان ويتوسطه كل عنوان.
+    const boldWidth = (value: string, pt: number) => value.length * charWidth(pt) * 1.15
+    const headerLayouts = cells.map(cell => {
+      const available = Math.max(10, cell.width - 6)
+      const words = cell.label.split(/\s+/).filter(Boolean)
+      const longest = words.reduce((max, word) => Math.max(max, boldWidth(word, 1)), 0)
+      const pt = longest > 0 ? Math.max(tablePt * 0.7, Math.min(tablePt, available / longest)) : tablePt
+      const lines: string[] = []
+      for (const word of words) {
+        const candidate = lines.length ? `${lines[lines.length - 1]} ${word}` : word
+        if (lines.length && boldWidth(candidate, pt) <= available) lines[lines.length - 1] = candidate
+        else lines.push(word)
       }
-      y += height
+      return { pt, lines: lines.length ? lines : [""] }
+    })
+    const headerHeight = Math.max(...headerLayouts.map(layout => layout.lines.length * lineHeight(layout.pt))) + 8
+    const drawHeader = () => {
+      box(left, y, width, headerHeight, BLACK)
+      let x = right
+      cells.forEach((cell, position) => {
+        x -= cell.width
+        const { pt, lines } = headerLayouts[position]
+        let lineY = y + (headerHeight - lines.length * lineHeight(pt)) / 2
+        for (const label of lines) {
+          const estimated = Math.min(cell.width - 2, boldWidth(label, pt) + 14)
+          text(label, x + (cell.width - estimated) / 2, lineY, estimated, lineHeight(pt), pt, RTL, true)
+          lineY += lineHeight(pt)
+        }
+        if (x > left + 1) line(x, y, x, y + headerHeight, BLACK)
+      })
+      y += headerHeight
     }
     ensure(lineHeight(tablePt) * 3)
     drawHeader()

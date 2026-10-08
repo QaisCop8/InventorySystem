@@ -386,7 +386,7 @@ export async function createTenantEmployeeWithManagementLink(userData: {
   permissions?: string[]
   branchId?: number | null
   jobRoleId?: number | null
-}): Promise<{ success: boolean; error?: string; userId?: string }> {
+}): Promise<{ success: boolean; error?: string; userId?: string; existingIdentity?: boolean }> {
   const email = userData.email?.trim().toLowerCase()
   if (!email) {
     return { success: false, error: "البريد الإلكتروني مطلوب" }
@@ -418,8 +418,9 @@ export async function createTenantEmployeeWithManagementLink(userData: {
   try {
     await managementClient.query("BEGIN")
 
-    const existing = await managementClient.query(`SELECT id FROM users WHERE LOWER(email) = $1`, [email])
+    const existing = await managementClient.query(`SELECT id, password_hash FROM users WHERE LOWER(email) = $1`, [email])
     let managementUserId: number = existing.rows[0]?.id
+    const existingIdentityHash: string | null = existing.rows[0]?.password_hash ?? null
     if (!managementUserId) {
       const inserted = await managementClient.query(
         `INSERT INTO users (full_name, email, password_hash, email_verified, is_active)
@@ -446,8 +447,14 @@ export async function createTenantEmployeeWithManagementLink(userData: {
       return tenantResult
     }
 
+    // حساب إدارة موجود مسبقاً (نفس الشخص بشركة أخرى): كلمة المرور واحدة للهوية — تُنسَخ تجزئتها الحالية
+    // لسجل الشركة بدل كلمة المرور المُدخلة/المولّدة، فيدخل بكلمة مروره المعتادة في كل الشركات.
+    if (existingIdentityHash && tenantResult.userId) {
+      await sql`UPDATE user_settings SET password_hash = ${existingIdentityHash} WHERE user_id = ${Number(tenantResult.userId)}`
+    }
+
     await managementClient.query("COMMIT")
-    return tenantResult
+    return { ...tenantResult, existingIdentity: Boolean(existingIdentityHash) }
   } catch (error) {
     await managementClient.query("ROLLBACK")
     console.error("[auth] createTenantEmployeeWithManagementLink error:", error)

@@ -23,6 +23,7 @@ import { useToast } from "@/hooks/use-toast"
 import { CellRange, KeyAction } from "@grapecity/wijmo.grid"
 import PrimeDropdown from "@/components/common/FocusDropdown"
 import TransactionBranchField from "@/components/common/transaction-branch-field"
+import { useWorkspaceTabActive } from "@/contexts/workspace-tab-context"
 
 const voucherTabTriggerClass =
   "data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500 data-[state=active]:to-teal-600 data-[state=active]:text-white data-[state=active]:shadow-md"
@@ -271,6 +272,7 @@ export default function UnifiedJournal({
   isNewMode,
   errorMessages = [],
 }: UnifiedJournalProps) {
+  const workspaceTabActive = useWorkspaceTabActive()
   const { fullscreenEnabled } = useWorkspace()
   const dateInputRef = useRef<HTMLInputElement | null>(null)
   const messagesRef = useRef<any>(null)
@@ -376,8 +378,15 @@ export default function UnifiedJournal({
 
   // يتحقق من صحة السند قبل عرض نافذة "كيف تريد الحفظ؟" — لا فائدة من تخيير المستخدم بين حفظ/ترحيل/طباعة
   // لسند غير صالح أصلاً (رقم ناقص، قيد غير متوازن...)؛ رسالة الخطأ تظهر مباشرة بدل فتح النافذة.
+  const requestSaveRef = useRef<() => void>(() => {})
   const handleRequestSave = () => {
     if (isLocked) return
+    // الحفظ من تبويب آخر (بيانات اضافية/ملاحظات) يفتح تبويب الحسابات أولاً ثم يتابع الحفظ.
+    if (activeTab !== "journal") {
+      setActiveTab("journal")
+      requestAnimationFrame(() => requestAnimationFrame(() => requestSaveRef.current()))
+      return
+    }
     const error = onValidateSave?.()
     if (error) {
       messagesRef.current?.clear?.()
@@ -386,32 +395,9 @@ export default function UnifiedJournal({
     }
     setPostDialogOpen(true)
   }
+  requestSaveRef.current = handleRequestSave
 
-  useEffect(() => {
-    if (typeof window === "undefined" || !dialogOpen) return
-    if (showDeleteConfirm || showUnsavedConfirm || journalSearchOpen || costCenterOpen || postDialogOpen || isSaving) return
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "F3") {
-        event.preventDefault()
-        handleRequestSave()
-        return
-      }
-      if (event.key === "F9") {
-        event.preventDefault()
-        event.stopPropagation()
-        if (!event.repeat && form.id > 0 && form.status !== 3) onDelete?.()
-        return
-      }
-      if (event.key === "F5") {
-        event.preventDefault()
-        onNew?.()
-      }
-    }
-
-    window.addEventListener("keydown", handleKeyDown, true)
-    return () => window.removeEventListener("keydown", handleKeyDown, true)
-  }, [dialogOpen, form.id, form.status, isSaving, isLocked, onDelete, onOpenChange, guardedAction, showDeleteConfirm, showUnsavedConfirm, journalSearchOpen, costCenterOpen, postDialogOpen])
+  // F3 حفظ / F9 حذف / F4 نسخ / F5 جديد / Ctrl+P طباعة: يتولاها UniversalToolbar (lib/hotkeys.ts)
 
   useEffect(() => {
     if (typeof window === "undefined" || !dialogOpen) return
@@ -887,7 +873,7 @@ export default function UnifiedJournal({
       <Dialog open={dialogOpen} onOpenChange={onOpenChange}>
         <DialogContent
           inline={fullscreenEnabled && dialogOpen}
-          className="journal-voucher-form voucher-form flex h-[calc(100dvh-1rem)] max-h-[96vh] w-[calc(100vw-0.5rem)] max-w-[1700px] min-w-0 flex-col overflow-hidden p-0 text-[13px] transition-shadow sm:w-[98vw] [&_label]:text-xs [&_input:not([type=checkbox])]:h-8 [&_input:not([type=checkbox])]:px-2.5 [&_.p-dropdown]:min-h-8 [&_.p-dropdown-label]:py-1.5 [&_.p-calendar]:h-8 [&_.p-calendar_input]:h-8"
+          className="journal-voucher-form voucher-form flex h-[calc(100dvh-1rem)] max-h-[96vh] w-[calc(100vw-0.5rem)] max-w-[1700px] min-w-0 flex-col overflow-hidden p-0 text-[13px] transition-shadow sm:w-[98vw] [&_label]:text-xs [&_input:not([type=checkbox])]:h-8 [&_input:not([type=checkbox])]:px-2.5 [&_select]:h-8 [&_select]:rounded-md [&_.p-dropdown]:min-h-8 [&_.p-dropdown-label]:py-1.5 [&_.p-calendar]:h-8 [&_.p-calendar_input]:h-8"
           dir="rtl"
           onPointerDownOutside={(event) => event.preventDefault()}
           onInteractOutside={(event) => event.preventDefault()}
@@ -948,8 +934,6 @@ export default function UnifiedJournal({
               </DialogTitle>
             </DialogHeader>
 
-            <TransactionBranchField voucherType={1} action={form.id ? "update" : "create"} value={form.branch_id} onChange={(id) => onFormChange("branch_id", id)} disabled={isLocked} />
-
             <Messages innerRef={messagesRef} />
 
             <fieldset className="contents min-w-0">
@@ -960,7 +944,7 @@ export default function UnifiedJournal({
                 </span>
                 تفاصيل السند
               </div>
-              <div className="journal-voucher-field-grid grid gap-4 md:grid-cols-3">
+              <div className="journal-voucher-field-grid grid gap-4 md:grid-cols-4">
                 <div
                   className="grid gap-1.5"
                   onKeyDownCapture={createDropdownKeyHandler(voucherBooks, "id", form.vch_book_id, (value) =>
@@ -1007,6 +991,7 @@ export default function UnifiedJournal({
                     }}
                   />
                 </div>
+                <TransactionBranchField voucherType={1} action={form.id ? "update" : "create"} value={form.branch_id} onChange={(id) => onFormChange("branch_id", id)} disabled={isLocked} />
               </div>
 
               <div className="journal-voucher-field-grid grid gap-4 md:grid-cols-3">

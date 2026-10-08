@@ -19,6 +19,7 @@ import { useWorkspace } from "@/contexts/workspace-context"
 import Messages from "@/components/common/Messages"
 import ConfirmDialogYesNo from "@/components/ui/ConfirmDialogYesNo"
 import { Calculator, ImageIcon, Lock, Pencil, Plus, Printer, RefreshCw, Search, Trash2, Unlock, Upload } from "lucide-react"
+import { useWorkspaceTabActive } from "@/contexts/workspace-tab-context"
 
 export type Option = { value: string | number; label: string }
 export type Field = { key: string; label: string; type?: "text" | "number" | "checkbox" | "select" | "date" | "textarea" | "account"; options?: Option[]; required?: boolean; span?: string }
@@ -147,6 +148,7 @@ function EmployeeTabExtra({ tab, form, lookups, onChange, onSalaryItemCreated, o
   return null
 }
 export function RecordDialog({ open, title, rows, form, fields, tabs, lookups, saving, onOpenChange, onChange, onNavigate, onCodeBlur, onSalaryItemCreated, onTaxExemptionCreated, messagesRef, onNew, onSave, onDelete }: { open: boolean; title: string; rows: any[]; form: any; fields: Field[]; tabs?: { value: string; label: string; fields: Field[] }[]; lookups?: any; saving: boolean; onOpenChange: (v: boolean) => void; onChange: (v: any) => void; onNavigate?: (v: any) => void; onCodeBlur?: () => void; onSalaryItemCreated?: (item: any) => void; onTaxExemptionCreated?: (item: any) => void; messagesRef?: any; onNew: () => void; onSave: () => void; onDelete?: () => void }) {
+  const workspaceTabActive = useWorkspaceTabActive()
   const { fullscreenEnabled } = useWorkspace()
   const index = rows.findIndex(r => r.id === form.id), nav = (i: number) => rows[i] && (onNavigate || onChange)({ ...rows[i] })
   const nameRef = useRef<HTMLInputElement>(null)
@@ -157,10 +159,9 @@ export function RecordDialog({ open, title, rows, form, fields, tabs, lookups, s
   }, [open, form.id, Boolean(tabs)])
   useEffect(() => {
     if (!open || !tabs) return
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "F3") { event.preventDefault(); onSave() }
-      else if (event.key === "F9" && Number(form.id) > 0 && onDelete) { event.preventDefault(); setDeleteConfirm(true) }
-      else if (event.key === "Enter" && !event.shiftKey && !event.ctrlKey && !event.altKey && (event.target as HTMLElement)?.tagName !== "TEXTAREA") {
+    const handleKeyDown = (event: KeyboardEvent) => { if (!workspaceTabActive.current) return;
+      // F3 حفظ / F9 حذف وبقية الاختصارات الموحّدة: UniversalToolbar (lib/hotkeys.ts)
+      if (event.key === "Enter" && !event.shiftKey && !event.ctrlKey && !event.altKey && (event.target as HTMLElement)?.tagName !== "TEXTAREA") {
         const target = event.target as HTMLElement
         const dialog = target.closest('[role="dialog"]')
         if (!dialog) return
