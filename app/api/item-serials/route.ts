@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getSessionUser } from "@/lib/tenant-auth"
-import { availableSerials, checkVoucherSerials, serialTrackedIds } from "@/lib/item-serials"
+import { availableSerials, checkVoucherSerials, serialTrackedIds, validateSerialsRemovalOnUpdate } from "@/lib/item-serials"
 
 // GET: الأرقام التسلسلية الموجودة حالياً في المخزون لصنف (ومستودع) — لاختيارها في سندات الخروج.
 export async function GET(request: NextRequest) {
@@ -32,6 +32,12 @@ export async function POST(request: NextRequest) {
   try {
     if (!(await getSessionUser(request))) return NextResponse.json({ error: "يجب تسجيل الدخول" }, { status: 401 })
     const data = await request.json().catch(() => ({}))
+    // { action: "check_removal", voucher_id, items } — قبل حذف سطر من سند محفوظ: items = الأسطر المتبقية
+    // بعد الحذف؛ يُعاد أول رقم محفوظ سيُزال وعليه حركة لاحقة في سند آخر (فلا يجوز حذف السطر).
+    if (data.action === "check_removal") {
+      const error = await validateSerialsRemovalOnUpdate(Number(data.voucher_id) || 0, Array.isArray(data.items) ? data.items : [])
+      return NextResponse.json({ error })
+    }
     const issues = await checkVoucherSerials({
       vchType: Number(data.vch_type),
       voucherId: Number(data.voucher_id) || null,

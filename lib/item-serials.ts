@@ -71,7 +71,11 @@ export type SerialIssue = { index: number; serial?: string; message: string }
 
 type LastMove = { item_id: number; serial: string; in_stock: boolean; store_id: number | null; voucher_id: number; vch_code: string; status: number; store_name: string | null }
 
-/** آخر حركة فعّالة (سند غير ملغى) لكل رقم — مع استثناء السند الجاري تعديله. */
+/**
+ * آخر حركة فعّالة (سند غير ملغى) لكل رقم — مع استثناء السند الجاري تعديله.
+ * الترتيب حسب رقم السند (voucher_id) لا رقم سطر الربط: ربط السند يُحذف ويُعاد إدراجه عند كل حفظ
+ * فيأخذ معرّفات أحدث، فكان إعادة حفظ سند قديم تجعله "آخر حركة" فيبدو رقمٌ مُباع موجوداً بالمخزون.
+ */
 async function lastMoves(pairs: Array<{ itemId: number; serial: string }>, excludeVoucherId: number | null) {
   const map = new Map<string, LastMove>()
   if (!pairs.length) return map
@@ -86,7 +90,7 @@ async function lastMoves(pairs: Array<{ itemId: number; serial: string }>, exclu
       SELECT vis.* FROM vouchers_items_serials_tbl vis
       JOIN voucher_header_tbl vh ON vh.id = vis.voucher_id
       WHERE vis.item_serial_id = s.id AND COALESCE(vh.status, 1) <> 3 AND vis.voucher_id <> ${excludeVoucherId ?? -1}
-      ORDER BY vis.id DESC LIMIT 1
+      ORDER BY vis.voucher_id DESC, vis.id DESC LIMIT 1
     ) l ON true
     JOIN voucher_header_tbl h ON h.id = l.voucher_id
     LEFT JOIN warehouses wh ON wh.id = l.store_id
@@ -223,7 +227,7 @@ export async function validateSerialsRemoval(voucherId: number): Promise<string 
     SELECT s.serial, h.vch_code, p.product_name
     FROM vouchers_items_serials_tbl mine
     JOIN items_serials_tbl s ON s.id = mine.item_serial_id
-    JOIN vouchers_items_serials_tbl later ON later.item_serial_id = mine.item_serial_id AND later.id > mine.id AND later.voucher_id <> mine.voucher_id
+    JOIN vouchers_items_serials_tbl later ON later.item_serial_id = mine.item_serial_id AND later.voucher_id > mine.voucher_id
     JOIN voucher_header_tbl h ON h.id = later.voucher_id AND COALESCE(h.status, 1) <> 3
     LEFT JOIN products p ON p.id = s.item_id
     WHERE mine.voucher_id = ${voucherId}
@@ -231,6 +235,43 @@ export async function validateSerialsRemoval(voucherId: number): Promise<string 
   `
   const row = (rows as any[])[0]
   return row ? `لا يمكن إلغاء/حذف السند: الرقم التسلسلي ${row.serial} (${row.product_name || ""}) عليه حركة لاحقة في السند ${row.vch_code}` : null
+}
+
+/**
+ * الأرقام المحفوظة حالياً على السند والتي ستُزال بالحفظ الجديد (حذف سطر، تعديل أرقامه، تغيير الصنف) —
+ * إن كان على أيٍّ منها حركة لاحقة في سند آخر غير ملغى يُرفَض (لا يُحذف الرقم إلا من آخر حركة عليه).
+ * items = أسطر السند كما ستُحفظ (بحقل serials)؛ أسطر الفاتورة من ارسالية لا تحمل ربطاً أصلاً.
+ */
+export async function findBlockedSerialRemovals(voucherId: number, items: any[]) {
+  if (!(voucherId > 0)) return [] as Array<{ serial: string; product_name: string; vch_code: string }>
+  await ensureItemSerialTables()
+  const keep = new Set<string>()
+  for (const row of Array.isArray(items) ? items : []) {
+    const itemId = Number(row?.product_id ?? row?.item_id)
+    if (!(itemId > 0)) continue
+    for (const serial of serialsOf(row)) keep.add(`${itemId}|${serial.toLowerCase()}`)
+  }
+  const rows = await sql`
+    SELECT DISTINCT ON (s.id) s.item_id, s.serial, h.vch_code, p.product_name
+    FROM vouchers_items_serials_tbl mine
+    JOIN items_serials_tbl s ON s.id = mine.item_serial_id
+    JOIN vouchers_items_serials_tbl later ON later.item_serial_id = mine.item_serial_id AND later.voucher_id > mine.voucher_id
+    JOIN voucher_header_tbl h ON h.id = later.voucher_id AND COALESCE(h.status, 1) <> 3
+    LEFT JOIN products p ON p.id = s.item_id
+    WHERE mine.voucher_id = ${voucherId}
+    ORDER BY s.id, later.voucher_id
+  `
+  return (rows as any[])
+    .filter((row) => !keep.has(`${Number(row.item_id)}|${String(row.serial).toLowerCase()}`))
+    .map((row) => ({ serial: String(row.serial), product_name: String(row.product_name || ""), vch_code: String(row.vch_code || "") }))
+}
+
+export async function validateSerialsRemovalOnUpdate(voucherId: number, items: any[]): Promise<string | null> {
+  const blocked = await findBlockedSerialRemovals(voucherId, items)
+  const first = blocked[0]
+  return first
+    ? `لا يمكن حذف السطر/الرقم التسلسلي ${first.serial} (${first.product_name}): عليه حركة لاحقة في السند ${first.vch_code} — يجب حذف تلك الحركة أولاً`
+    : null
 }
 
 /** الأرقام الموجودة حالياً في المخزون لصنف (ومستودع اختياري) — لاختيارها في سندات الخروج. */
@@ -244,7 +285,7 @@ export async function availableSerials(params: { itemId: number; storeId?: numbe
       SELECT vis.* FROM vouchers_items_serials_tbl vis
       JOIN voucher_header_tbl vh ON vh.id = vis.voucher_id
       WHERE vis.item_serial_id = s.id AND COALESCE(vh.status, 1) <> 3 AND vis.voucher_id <> ${params.excludeVoucherId ?? -1}
-      ORDER BY vis.id DESC LIMIT 1
+      ORDER BY vis.voucher_id DESC, vis.id DESC LIMIT 1
     ) l ON true
     JOIN voucher_header_tbl h ON h.id = l.voucher_id
     LEFT JOIN warehouses wh ON wh.id = l.store_id

@@ -1,4 +1,5 @@
 import sql from "@/lib/database"
+import { validateSerialsRemoval } from "@/lib/item-serials"
 import {
   buildVoucherCode,
   nextVoucherSequence,
@@ -729,6 +730,10 @@ export const archiveAndDeleteSalesVoucher = async (voucherId: number): Promise<{
   if (linkedInvoiceByItem.length > 0) {
     return { error: "لا يمكن حذف هذه الإرسالية لأنها مرتبطة بفاتورة" }
   }
+
+  // أرقام تسلسلية: الحذف مسموح فقط إن كان هذا السند آخر حركة على كل رقم فيه (كمسار الإلغاء في PUT)
+  const serialsRemovalError = await validateSerialsRemoval(voucherId)
+  if (serialsRemovalError) return { error: serialsRemovalError }
 
   // Preserve originating sales orders before their voucher-item links are
   // removed, then reopen any quantity released by this invoice deletion.

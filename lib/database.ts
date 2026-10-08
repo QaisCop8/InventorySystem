@@ -163,6 +163,13 @@ async function isApprovedTenantDb(dbName: string): Promise<boolean> {
   return false
 }
 
+export class TenantUnavailableError extends Error {
+  constructor() {
+    super("الشركة المفتوحة في هذا التبويب غير متاحة حالياً (منتهية الاشتراك أو غير معتمدة) — أعد اختيار الشركة")
+    this.name = "TenantUnavailableError"
+  }
+}
+
 // تجاوز صريح (وليس عبر كوكي/هيدر) لقاعدة الشركة الحالية ضمن نطاق دالة واحدة — يُستخدَم من
 // /api/management/select-company لتنفيذ تسجيل الدخول التلقائي على قاعدة الشركة المُختارة للتو
 // ضمن نفس الطلب، دون اعتماد على قراءة الكوكي الذي ضُبط للتو (توقيت الكتابة/القراءة داخل نفس
@@ -185,14 +192,19 @@ export async function resolveCurrentDbName(): Promise<string> {
   const override = tenantOverrideStorage.getStore()
   if (override) return override
 
+  let headerDb: string | null = null
   try {
     const headerStore = await headers()
-    const headerDb = headerStore.get("x-tenant-db")
-    if (headerDb && /^[a-zA-Z0-9_]+$/.test(headerDb) && (await isApprovedTenantDb(headerDb))) {
-      return headerDb
-    }
+    headerDb = headerStore.get("x-tenant-db")
   } catch {
     // headers() غير متاحة خارج سياق طلب فعلي.
+  }
+  if (headerDb && /^[a-zA-Z0-9_]+$/.test(headerDb)) {
+    if (await isApprovedTenantDb(headerDb)) return headerDb
+    // التبويب حدّد شركته صراحة لكنها غير متاحة (منتهية الاشتراك/غير معتمدة): يُرفض الطلب. سابقاً كان
+    // يُكمل بصمت على كوكي tenant_db (آخر شركة اختيرت في أي تبويب) أو القاعدة الافتراضية — فيقرأ/يكتب
+    // بيانات شركة أخرى (ظهور اسم شركة فارغ أو اسم شركة أخرى بإعدادات النظام، وحفظه فوقها).
+    throw new TenantUnavailableError()
   }
 
   try {

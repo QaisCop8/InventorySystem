@@ -380,6 +380,7 @@ export const menuItems: MenuItem[] = [
       },
       { title: "تقارير الطلبيات", section: "order-reports", icon: BarChart3 },
       { title: "أرشفة الرقم التشغيلي", section: "batch-log-report", icon: Package },
+      { title: "تقرير حركات السيريال", section: "serial-movements-report", icon: Package },
     ],
   },
   {

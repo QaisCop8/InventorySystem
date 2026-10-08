@@ -10,6 +10,7 @@ import {
 } from "../_lib"
 import { authorizeStoredVoucher } from "@/lib/transaction-permissions"
 import { attachItemSerials } from "@/lib/item-serials"
+import { workingPeriodErrorMessage } from "@/lib/working-period"
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -118,6 +119,6 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error("Error deleting sales voucher:", error)
-    return NextResponse.json({ error: "Failed to delete sales voucher" }, { status: 500 })
+    return NextResponse.json({ error: workingPeriodErrorMessage(error) || "Failed to delete sales voucher" }, { status: workingPeriodErrorMessage(error) ? 400 : 500 })
   }
 }

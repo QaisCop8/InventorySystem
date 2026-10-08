@@ -30,7 +30,7 @@ import {
 } from "./_lib"
 import { validateItemReferences } from "@/app/api/stock-vouchers/_lib"
 import { authorizeTransaction, transactionFamilyForVoucherType } from "@/lib/transaction-permissions"
-import { attachItemSerials, saveVoucherSerials, validateSerialsRemoval, validateVoucherSerials } from "@/lib/item-serials"
+import { attachItemSerials, saveVoucherSerials, validateSerialsRemoval, validateSerialsRemovalOnUpdate, validateVoucherSerials } from "@/lib/item-serials"
 import { consignmentUsage, INVOICE_SOURCE_CONSIGNMENT, validateFromConsignment } from "@/lib/consignment"
 
 const MAX_CODE_RETRY_ATTEMPTS = 5
@@ -431,8 +431,10 @@ export async function POST(request: NextRequest) {
     const codeFormatError = await validateCodeFormat(request.url, vchType, data.vch_book_id ?? null, data.vch_code)
     if (codeFormatError) return NextResponse.json({ error: codeFormatError }, { status: 400 })
 
-    const { code: vchCode, conflict } = await regenerateOnConflict(request.url, vchType, data.vch_book_id ?? null, String(data.vch_code))
-    if (conflict) return NextResponse.json({ error: "رقم السند مستخدم مسبقاً" }, { status: 400 })
+    const regeneratedCode = await regenerateOnConflict(request.url, vchType, data.vch_book_id ?? null, String(data.vch_code))
+    if (regeneratedCode.conflict) return NextResponse.json({ error: "رقم السند مستخدم مسبقاً" }, { status: 400 })
+    // let: يُعاد توليده أدناه إن اصطدم الإدراج برقم مكرر (23505) من حفظ متزامن
+    let vchCode = regeneratedCode.code
 
     const breakdown = computeAmountBreakdown(items, data)
     const posPayments = Array.isArray(data.pos_payments)
@@ -705,6 +707,12 @@ export async function PUT(request: NextRequest) {
       enforceCount: !(Number(data.pos_point_id) > 0 || currentRows[0].pos_client_sale_id),
     })
     if (serialError) return NextResponse.json({ error: serialError }, { status: 400 })
+    // حذف سطر/رقم تسلسلي من سند محفوظ: مسموح فقط إن كان هذا السند آخر حركة على الرقم
+    const serialRemovalError = await validateSerialsRemovalOnUpdate(
+      Number(data.id),
+      keepsSourceLinks(vchType, invoiceSourceType) ? items : items.map((item) => ({ ...item, delivery_item_id: null })),
+    )
+    if (serialRemovalError) return NextResponse.json({ error: serialRemovalError }, { status: 400 })
     const amount = computeTotalAmount(items, data)
     const discountType = data.discount_type === "amount" ? "amount" : "percentage"
 

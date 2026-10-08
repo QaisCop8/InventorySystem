@@ -854,6 +854,8 @@ export default function UnifiedSalesDelivery({
   // (تاريخ صلاحية أو رقم تشغيلي) بالسند — لا فائدة من عمود يبقى فارغاً دوماً لسند لا يحوي أي صنف متتبَّع.
   const showExpiryColumn =
     Util.getVoucherSettingScreenData(voucherType, "expiry_date") && items.some((i) => i.has_expiry || i.has_batch)
+  // عمودا الأرقام التسلسلية مخفيّان حتى يُضاف صنف بتتبّع تسلسلي (has_serial) — بنفس أسلوب عمود الصلاحية أعلاه
+  const showSerialColumns = items.some((i) => i.has_serial || (i.serials?.length ?? 0) > 0)
 
   // كل حقول fieldOrder محطة توقف دائمة الآن (الأبعاد/العدد لم تعد أعمدة شبكة، تُدخَل عبر
   // MeasurementInputDialog بدلاً من ذلك) — ابحث عن الحقل التالي الظاهر فعلياً في الشبكة.
@@ -1431,8 +1433,28 @@ export default function UnifiedSalesDelivery({
     requestAnimationFrame(refreshItemsGrid)
   }
 
-  const removeItemRow = (index: number) => {
+  const removeItemRow = async (index: number) => {
     if (isLocked) return
+    const row = itemsRef.current[index]
+    // سند محفوظ وسطر بأرقام تسلسلية: لا يُحذف إن كان على أحد أرقامه حركة لاحقة في سند آخر
+    // (يُفحص هنا للتنبيه فوراً، ويُعاد الفحص نفسه في الخادم عند الحفظ).
+    if (form.id > 0 && (row?.serials?.length ?? 0) > 0) {
+      try {
+        const remaining = itemsRef.current.filter((_, i) => i !== index)
+        const response = await fetch("/api/item-serials", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "check_removal", voucher_id: form.id, items: remaining }),
+        })
+        const result = await response.json().catch(() => ({}))
+        if (result?.error) {
+          messagesRef.current?.show?.([{ severity: "error", summary: "", detail: result.error, life: 6000 }])
+          return
+        }
+      } catch {
+        // تعذّر الفحص المسبق — يبقى فحص الخادم عند الحفظ هو الحاجز
+      }
+    }
     const next = itemsRef.current.filter((_, i) => i !== index)
     itemsRef.current = next.length > 0 ? next : [{ ...emptyItemRow }]
     onItemsChange(itemsRef.current)
@@ -2432,7 +2454,7 @@ export default function UnifiedSalesDelivery({
         },
 
         // الأرقام التسلسلية (أصناف serial_tracking فقط) — الملخص "المُدخل/المطلوب" وزر فتح النافذة
-        { header: "الأرقام التسلسلية", name: "serials_text", width: 170, isReadOnly: true },
+        { header: "الأرقام التسلسلية", name: "serials_text", width: 170, isReadOnly: true, visible: showSerialColumns },
         {
           header: " ",
           name: "btnSerials",
@@ -2442,6 +2464,7 @@ export default function UnifiedSalesDelivery({
           title: "الأرقام التسلسلية",
           iconType: "barcode",
           isReadOnly: true,
+          visible: showSerialColumns,
           visibleInColumnChooser: true,
           onClick: (e: any, ctx: any) => openSerialsDialog(ctx.row.index, true),
         },
@@ -2465,7 +2488,7 @@ export default function UnifiedSalesDelivery({
       ],
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }),
-    [isLocked, isFromDelivery, showExpiryColumn, form.id, form.status],
+    [isLocked, isFromDelivery, showExpiryColumn, showSerialColumns, form.id, form.status],
   )
 
   // شبكة تبويب "تفاصيل حسابات الاصناف" — تُبنى من نفس itemsCollectionView (نفس الأسطر بنفس

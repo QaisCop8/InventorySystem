@@ -1074,8 +1074,28 @@ export default function UnifiedStockVoucher({
     onItemsChange(next)
   }
 
-  const removeItemRow = (index: number) => {
+  const removeItemRow = async (index: number) => {
     if (isLocked) return
+    const row = itemsRef.current[index]
+    // سند محفوظ وسطر بأرقام تسلسلية: لا يُحذف إن كان على أحد أرقامه حركة لاحقة في سند آخر
+    // (يُفحص هنا للتنبيه فوراً، ويُعاد الفحص نفسه في الخادم عند الحفظ).
+    if (form.id > 0 && (row?.serials?.length ?? 0) > 0) {
+      try {
+        const remaining = itemsRef.current.filter((_, i) => i !== index)
+        const response = await fetch("/api/item-serials", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "check_removal", voucher_id: form.id, items: remaining }),
+        })
+        const result = await response.json().catch(() => ({}))
+        if (result?.error) {
+          messagesRef.current?.show?.([{ severity: "error", summary: "", detail: result.error, life: 6000 }])
+          return
+        }
+      } catch {
+        // تعذّر الفحص المسبق — يبقى فحص الخادم عند الحفظ هو الحاجز
+      }
+    }
     const next = itemsRef.current.filter((_, i) => i !== index)
     itemsRef.current = next.length > 0 ? next : [{ ...emptyItemRow }]
     onItemsChange(itemsRef.current)
@@ -1799,6 +1819,9 @@ export default function UnifiedStockVoucher({
   // MeasurementInputDialog بدلاً من ذلك) — يكفي فحص حدود المصفوفة بدل تخطٍّ شرطي.
   const findNextRelevantFieldIndex = (startIndex: number): number => (startIndex < fieldOrder.length ? startIndex : -1)
 
+  // عمودا الأرقام التسلسلية مخفيّان حتى يُضاف صنف بتتبّع تسلسلي (has_serial) — لا معنى لهما لبقية الأصناف
+  const hasSerialItems = items.some((row) => row.has_serial || (row.serials?.length ?? 0) > 0)
+
   const scheme = useMemo(
     () => ({
       name: "StockVoucherItemsScheme",
@@ -1973,7 +1996,7 @@ export default function UnifiedStockVoucher({
           visibleInColumnChooser: true,
         },
         // الأرقام التسلسلية (أصناف serial_tracking فقط) — الملخص "المُدخل/المطلوب" وزر فتح النافذة
-        { header: "الأرقام التسلسلية", name: "serials_text", width: 170, isReadOnly: true },
+        { header: "الأرقام التسلسلية", name: "serials_text", width: 170, isReadOnly: true, visible: hasSerialItems },
         {
           header: " ",
           name: "btnSerials",
@@ -1983,6 +2006,7 @@ export default function UnifiedStockVoucher({
           title: "الأرقام التسلسلية",
           iconType: "barcode",
           isReadOnly: true,
+          visible: hasSerialItems,
           visibleInColumnChooser: true,
           onClick: (e: any, ctx: any) => openSerialsDialog(ctx.row.index, true),
         },
@@ -2004,7 +2028,7 @@ export default function UnifiedStockVoucher({
       ],
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }),
-    [isLocked, isInternalDelivery, voucherType, form.id, form.status],
+    [isLocked, isInternalDelivery, voucherType, form.id, form.status, hasSerialItems],
   )
 
   // شبكة تبويب "تفاصيل حسابات الاصناف" (سند الاستعمال فقط) — تُبنى من نفس صفوف الأصناف

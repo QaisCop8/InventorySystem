@@ -20,17 +20,17 @@ export async function GET(request: NextRequest) {
         o.order_number,
         o.order_status,
         COALESCE((
-          SELECT COALESCE(us.full_name, us.username, e.user_id)
+          SELECT COALESCE(us.full_name, us.username, e.user_id::text)
           FROM sales_order_draft_events e
           LEFT JOIN user_settings us ON us.user_id::text = e.user_id::text
           WHERE e.draft_id = d.id AND e.event_type = 'created'
           ORDER BY e.created_at, e.id LIMIT 1
         ), (
-          SELECT COALESCE(us.full_name, us.username, d.created_by)
+          SELECT COALESCE(us.full_name, us.username, d.created_by::text)
           FROM user_settings us WHERE us.user_id::text = d.created_by::text LIMIT 1
-        ), d.created_by) AS created_by_name,
+        ), d.created_by::text) AS created_by_name,
         COALESCE((
-          SELECT COALESCE(us.full_name, us.username, e.user_id)
+          SELECT COALESCE(us.full_name, us.username, e.user_id::text)
           FROM sales_order_draft_events e
           LEFT JOIN user_settings us ON us.user_id::text = e.user_id::text
           WHERE e.draft_id = d.id AND e.event_type = 'confirmed'
@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
         COALESCE((
           SELECT json_agg(json_build_object(
             'id', e.id, 'event_type', e.event_type, 'user_id', e.user_id,
-            'user_name', COALESCE(us.full_name, us.username, e.user_id),
+            'user_name', COALESCE(us.full_name, us.username, e.user_id::text),
             'details', e.details, 'created_at', e.created_at
           ) ORDER BY e.created_at, e.id)
           FROM sales_order_draft_events e

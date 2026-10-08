@@ -23,6 +23,7 @@ import {
   resolveVoucherBookName,
 } from "./_lib"
 import { authorizeTransaction, transactionFamilyForVoucherType } from "@/lib/transaction-permissions"
+import { workingPeriodErrorMessage } from "@/lib/working-period"
 
 export async function GET(request: NextRequest) {
   try {
@@ -157,7 +158,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ...voucher, ...details }, { status: 201 })
   } catch (error) {
     console.error("Error creating voucher:", error)
-    return NextResponse.json({ error: "Failed to create voucher" }, { status: 500 })
+    return NextResponse.json({ error: workingPeriodErrorMessage(error) || "Failed to create voucher" }, { status: workingPeriodErrorMessage(error) ? 400 : 500 })
   }
 }
 
@@ -287,6 +288,6 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ ...voucher, ...details })
   } catch (error) {
     console.error("Error updating voucher:", error)
-    return NextResponse.json({ error: "Failed to update voucher" }, { status: 500 })
+    return NextResponse.json({ error: workingPeriodErrorMessage(error) || "Failed to update voucher" }, { status: workingPeriodErrorMessage(error) ? 400 : 500 })
   }
 }

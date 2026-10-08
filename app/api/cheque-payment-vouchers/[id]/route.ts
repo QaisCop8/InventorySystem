@@ -3,6 +3,7 @@ import sql, { withTenantTransaction } from "@/lib/database"
 import { authorizeStoredVoucher } from "@/lib/transaction-permissions"
 import { rollbackChequeOperationsForVoucher } from "@/app/api/cheques/_lib"
 import { ensureChequePaymentTables, fetchChequePaymentVoucher } from "../_lib"
+import { workingPeriodErrorMessage } from "@/lib/working-period"
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   await ensureChequePaymentTables()
@@ -58,7 +59,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
       return NextResponse.json({ error: "السند غير موجود أو ملغي" }, { status: 404 })
     }
     console.error("Cheque payment delete error:", error)
-    return NextResponse.json({ error: "تعذر إلغاء سند صرف الشيكات" }, { status: 500 })
+    return NextResponse.json({ error: workingPeriodErrorMessage(error) || "تعذر إلغاء سند صرف الشيكات" }, { status: workingPeriodErrorMessage(error) ? 400 : 500 })
   }
 }
 
@@ -85,6 +86,6 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     })
   } catch (error) {
     console.error("Cheque payment save error:", error)
-    return NextResponse.json({ error: "تعذر حفظ سند صرف الشيكات" }, { status: 500 })
+    return NextResponse.json({ error: workingPeriodErrorMessage(error) || "تعذر حفظ سند صرف الشيكات" }, { status: workingPeriodErrorMessage(error) ? 400 : 500 })
   }
 }

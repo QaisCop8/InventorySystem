@@ -4,7 +4,12 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from "react"
 import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import MultiSelect from "../common/MultiSelect";
+import { ReportMultiChoice, type ReportOption } from "@/components/reports/account-statement-report";
+
+const PRODUCT_TYPE_OPTIONS: ReportOption[] = [
+  { id: 1, name: "الأصناف" },
+  { id: 2, name: "الخدمات" },
+];
 import { useTranslation } from 'react-i18next';
 import { Boxes, Package, Plus, RotateCcw } from "lucide-react";
 import {
@@ -93,6 +98,8 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
   const filterContainerRef = useRef<HTMLDivElement>(null);
 
   const resultsRef = useRef<SearchResultsTableHandle | null>(null);
+  // عنصر النافذة نفسها — حاوية قائمة "النوع" المنسدلة (ReportMultiChoice) كي تظهر فوق اللوحة لا خلفها
+  const [dialogElement, setDialogElement] = useState<HTMLDivElement | null>(null);
   const unitsTableRef = useRef<SearchResultsTableHandle | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [selectedAttributeKeysByProduct, setSelectedAttributeKeysByProduct] = useState<Record<string, Set<string>>>({});
@@ -600,7 +607,8 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
       className="pointer-events-auto fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/45 p-0 backdrop-blur-[2px] sm:p-4"
     >
       <div
-        className="flex h-[100dvh] w-full flex-col overflow-hidden bg-slate-50 shadow-2xl sm:h-[min(82dvh,760px)] sm:max-w-[1080px] sm:rounded-2xl sm:ring-1 sm:ring-slate-900/10"
+        ref={setDialogElement}
+        className="flex h-[100dvh] w-full flex-col overflow-hidden bg-slate-50 shadow-2xl sm:h-[min(84dvh,780px)] sm:max-w-[1320px] sm:rounded-2xl sm:ring-1 sm:ring-slate-900/10"
         dir="rtl"
       >
         <SearchDialogHeader
@@ -624,7 +632,7 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
         {/* الفلاتر */}
         <div className="shrink-0 border-b border-slate-200 bg-white px-4 py-3">
           <div className="flex flex-col gap-2 lg:flex-row lg:items-end">
-            <div ref={filterContainerRef} className="grid min-w-0 flex-1 grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-[1fr_1.6fr_0.8fr_1fr_1fr]">
+            <div ref={filterContainerRef} className="grid min-w-0 flex-1 grid-cols-2 items-end gap-2 sm:grid-cols-3 lg:grid-cols-[1fr_1.8fr_0.8fr_1.1fr_1.3fr]">
               <SearchFilterField label="رقم الصنف">
                 <Input ref={searchCodeRef} className={searchInputClassName} placeholder="رقم الصنف" value={searchCode} onChange={(e) => setSearchCode(e.target.value)} />
               </SearchFilterField>
@@ -637,38 +645,25 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
               <SearchFilterField label="الباركود">
                 <Input ref={searchBarcodeRef} className={searchInputClassName} placeholder="الباركود" value={searchBarcode} onChange={(e) => setSearchBarcode(e.target.value)} />
               </SearchFilterField>
-              <SearchFilterField label="النوع" className="invoice-currency-dropdown-wrap">
-                {Array.isArray(productTypes) && productTypes.length === 1 ? (
-                  // نوع ثابت مفروض من الشاشة المستدعية — لا منتقي قابل للتعديل كي لا تُخلَط الأصناف بالخدمات.
+              {Array.isArray(productTypes) && productTypes.length === 1 ? (
+                <SearchFilterField label="النوع">
+                  {/* نوع ثابت مفروض من الشاشة المستدعية — لا منتقي قابل للتعديل كي لا تُخلَط الأصناف بالخدمات. */}
                   <div className="flex h-9 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-sm text-slate-600">
                     {productTypes[0] === 2 ? "الخدمات" : "الأصناف"}
                   </div>
-                ) : (
-                  <MultiSelect
-                    inputId="productTypeFilter"
-                    value={selectedTypes}
-                    options={[
-                      { label: "الأصناف", value: 1 },
-                      { label: "الخدمات", value: 2 },
-                    ]}
-                    optionLabel="label"
-                    optionValue="value"
-                    placeholder="اختر النوع"
-                    showFilter={true}
-                    showCheck={true}
-                    showMultiSelect={true}
-                    className="w-full"
-                    panelClassName="invoice-currency-dropdown-panel invoice-currency-dropdown-panel-left"
-                    appendTo="self"
-                    // virtualScroll الافتراضي بالمكوّن المشترك يتعارض مع خانة "تحديد الكل" بقائمة ثابتة صغيرة
-                    virtualScroll={false}
-                    onChange={(e: any) => {
-                      const values = Array.isArray(e.value) ? e.value.map(Number) : [];
-                      setSelectedTypes(values.length > 0 ? values : [1, 2]);
-                    }}
-                  />
-                )}
-              </SearchFilterField>
+                </SearchFilterField>
+              ) : (
+                // نفس مكوّن الاختيار المتعدد المستخدم في التقارير؛ القائمة تُفتح داخل النافذة (portalContainer)
+                // وإلا تظهر خلف هذه اللوحة (z-[100]) لأن Popover يُركَّب افتراضياً على document.body.
+                <ReportMultiChoice
+                  label="النوع"
+                  options={PRODUCT_TYPE_OPTIONS}
+                  selected={selectedTypes}
+                  placeholder="اختر النوع"
+                  portalContainer={dialogElement}
+                  onChange={(ids) => setSelectedTypes(ids.length > 0 ? ids.map(Number) : [1, 2])}
+                />
+              )}
             </div>
             <Button
               type="button"

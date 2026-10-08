@@ -25,6 +25,7 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
   { section: "income-statement-report", title: "قائمة الدخل" },
   { section: "order-reports", title: "تقارير الطلبيات" },
   { section: "batch-log-report", title: "أرشفة الرقم التشغيلي" },
+  { section: "serial-movements-report", title: "تقرير حركات السيريال" },
   { section: "cashier-log-report", title: "تقرير متابعة الكاشير" },
   { section: "cashier-log-total-report", title: "تقرير حركات الكاشير إجمالي" },
   { section: "cashier-log-detailed-report", title: "تقرير حركات الكاشير تفصيلي" },

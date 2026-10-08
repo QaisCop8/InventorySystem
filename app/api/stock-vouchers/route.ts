@@ -26,7 +26,8 @@ import {
 const MAX_CODE_RETRY_ATTEMPTS = 5
 import { saveJournalRows, validateJournalAccountCurrencies } from "../receipts/_lib"
 import { authorizeTransaction, transactionFamilyForVoucherType } from "@/lib/transaction-permissions"
-import { attachItemSerials, saveVoucherSerials, validateSerialsRemoval, validateVoucherSerials } from "@/lib/item-serials"
+import { attachItemSerials, saveVoucherSerials, validateSerialsRemoval, validateSerialsRemovalOnUpdate, validateVoucherSerials } from "@/lib/item-serials"
+import { workingPeriodErrorMessage } from "@/lib/working-period"
 
 export async function GET(request: NextRequest) {
   try {
@@ -197,7 +198,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ...voucher, items: savedItemsWithNames }, { status: 201 })
   } catch (error) {
     console.error("Error creating stock voucher:", error)
-    return NextResponse.json({ error: "Failed to create stock voucher" }, { status: 500 })
+    return NextResponse.json({ error: workingPeriodErrorMessage(error) || "Failed to create stock voucher" }, { status: workingPeriodErrorMessage(error) ? 400 : 500 })
   }
 }
 
@@ -303,6 +304,11 @@ export async function PUT(request: NextRequest) {
       if (serialError) {
         return NextResponse.json({ error: serialError }, { status: 400 })
       }
+      // حذف سطر/رقم تسلسلي من سند محفوظ: مسموح فقط إن كان هذا السند آخر حركة على الرقم
+      const serialRemovalError = await validateSerialsRemovalOnUpdate(Number(data.id), items)
+      if (serialRemovalError) {
+        return NextResponse.json({ error: serialRemovalError }, { status: 400 })
+      }
       if (vchType === USE_VOUCHER_VCH_TYPE) {
         journalRows = buildUseVoucherJournalRows(items, data.currency_id || null, Number(data.rate || 1))
         const totalDebit = journalRows.filter((r) => r.credit_debit === 1).reduce((s, r) => s + r.amount, 0)
@@ -379,6 +385,6 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ ...voucher, items: savedItemsWithNames })
   } catch (error) {
     console.error("Error updating stock voucher:", error)
-    return NextResponse.json({ error: "Failed to update stock voucher" }, { status: 500 })
+    return NextResponse.json({ error: workingPeriodErrorMessage(error) || "Failed to update stock voucher" }, { status: workingPeriodErrorMessage(error) ? 400 : 500 })
   }
 }

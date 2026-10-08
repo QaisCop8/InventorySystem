@@ -20,6 +20,7 @@ import {
 } from "./_lib"
 import { authorizeTransaction } from "@/lib/transaction-permissions"
 import { rollbackChequeOperationsForVoucher } from "@/app/api/cheques/_lib"
+import { workingPeriodErrorMessage } from "@/lib/working-period"
 
 export async function GET(request: NextRequest) {
   try {
@@ -132,7 +133,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ...voucher, ...details }, { status: 201 })
   } catch (error) {
     console.error("Error creating journal voucher:", error)
-    return NextResponse.json({ error: "Failed to create journal voucher" }, { status: 500 })
+    return NextResponse.json({ error: workingPeriodErrorMessage(error) || "Failed to create journal voucher" }, { status: workingPeriodErrorMessage(error) ? 400 : 500 })
   }
 }
 
@@ -234,6 +235,6 @@ export async function PUT(request: NextRequest) {
     })
   } catch (error) {
     console.error("Error updating journal voucher:", error)
-    return NextResponse.json({ error: "Failed to update journal voucher" }, { status: 500 })
+    return NextResponse.json({ error: workingPeriodErrorMessage(error) || "Failed to update journal voucher" }, { status: workingPeriodErrorMessage(error) ? 400 : 500 })
   }
 }

@@ -13,6 +13,7 @@ import {
   resolveVoucherBookName,
 } from "./_lib"
 import { authorizeTransaction, transactionFamilyForVoucherType } from "@/lib/transaction-permissions"
+import { workingPeriodErrorMessage } from "@/lib/working-period"
 
 export async function GET(request: NextRequest) {
   try {
@@ -117,7 +118,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ...voucher, ...details }, { status: 201 })
   } catch (error) {
     console.error("Error creating credit/debit note:", error)
-    return NextResponse.json({ error: "Failed to create credit/debit note" }, { status: 500 })
+    return NextResponse.json({ error: workingPeriodErrorMessage(error) || "Failed to create credit/debit note" }, { status: workingPeriodErrorMessage(error) ? 400 : 500 })
   }
 }
 
@@ -225,6 +226,6 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ ...voucher, ...details })
   } catch (error) {
     console.error("Error updating credit/debit note:", error)
-    return NextResponse.json({ error: "Failed to update credit/debit note" }, { status: 500 })
+    return NextResponse.json({ error: workingPeriodErrorMessage(error) || "Failed to update credit/debit note" }, { status: workingPeriodErrorMessage(error) ? 400 : 500 })
   }
 }

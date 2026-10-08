@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
+import { ensureWorkingPeriodGuard } from "@/lib/working-period"
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value)
 }
@@ -337,6 +338,9 @@ async function saveSettingsPayload(payload: Record<string, unknown>): Promise<Re
 export async function GET() {
   try {
     const settings = await loadStoredSettings()
+    // يُثبَّت فحص فترة العمل (سنة/أشهر العمل) على سندات هذه الشركة — مرة لكل قاعدة لكل تشغيل للخادم.
+    // لا يُفشِل قراءة الإعدادات إن تعذّر (صلاحيات قاعدة محدودة مثلاً).
+    await ensureWorkingPeriodGuard().catch((error) => console.error("Failed to install working period guard:", error))
     return NextResponse.json(settings)
   } catch (error) {
     console.error("Database query error:", error)
@@ -349,6 +353,7 @@ export async function PUT(request: NextRequest) {
     const data = await request.json()
     const payload = normalizePayload(data)
     const saved = await saveSettingsPayload(payload)
+    await ensureWorkingPeriodGuard().catch((error) => console.error("Failed to install working period guard:", error))
     return NextResponse.json(saved)
   } catch (error) {
     console.error("Database update error:", error)
