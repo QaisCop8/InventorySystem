@@ -100,9 +100,10 @@ export async function GET(request: NextRequest) {
       const total = Number(row.amount) || 0
       const percent = Number(row.vat_percent) || 0
       const classification = Number(row.classification) || 1
-      // الإشعارات: عمود vat صريح (محوَّل بنفس نسبة تحويل المبلغ)؛ بقية السندات: من النسبة
+      // عمود vat الصريح في رأس السند (الإشعارات، والفواتير المحفوظة بعد إضافة حفظه — دقيق مع الضريبة على مستوى
+      // الصنف)، محوَّلاً بنفس نسبة تحويل المبلغ؛ وإلا يُشتق من النسبة (فواتير قديمة)
       const ratio = Number(row.source_amount) ? total / Number(row.source_amount) : 1
-      const explicitVat = (vchType === CREDIT_NOTE || vchType === DEBIT_NOTE) && Number(row.source_vat) > 0 ? Number(row.source_vat) * ratio : null
+      const explicitVat = Number(row.source_vat) > 0 ? Number(row.source_vat) * ratio : null
       const taxable = classification === 1 && (percent > 0 || (explicitVat ?? 0) > 0)
       const vat = !taxable ? 0 : explicitVat ?? total - total / (1 + percent / 100)
       const net = total - vat

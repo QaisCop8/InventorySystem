@@ -1,6 +1,8 @@
 "use client"
 
 import { useState, useEffect, useMemo, useRef } from "react"
+import { computeVoucherTax } from "@/lib/item-vat"
+import { useItemVatRates } from "@/lib/use-item-vat-rates"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
@@ -31,7 +33,12 @@ import {
   MessageSquare,
   TrendingUp,
   Currency,
+  Printer,
+  CheckCircle2,
 } from "lucide-react"
+import { loadVoucherPrintSettings, printVoucherWithSettings } from "@/lib/voucher-print/print"
+import type { PrintDocument } from "@/lib/voucher-print/document"
+import { settingEnabled } from "@/lib/item-vat"
 import { useDocumentSettings } from "@/hooks/use-document-settings"
 import { requestProductVariant } from "@/components/products/product-variant-service"
 import { useAuth } from "@/components/auth/auth-context"
@@ -424,6 +431,11 @@ function UnifiedSalesOrder({
   const [alertMessage, setAlertMessage] = useState("");
   const [nextFunction, setNextFunction] = useState<(() => void) | null>(null);
   const [showPrintRefConfirm, setShowPrintRefConfirm] = useState(false);
+  // طباعة حسب المستودع (إعداد عام): زر يوزّع الأصناف على مستودعاتها ويطبع كل مجموعة على طابعة مستودعها
+  const [printByWarehouseEnabled, setPrintByWarehouseEnabled] = useState(false)
+  const [warehousesPrinted, setWarehousesPrinted] = useState(false)
+  const [warehousePrinting, setWarehousePrinting] = useState(false)
+  const [showWarehouseReprintConfirm, setShowWarehouseReprintConfirm] = useState(false)
   const [showDuplicateRefConfirm, setShowDuplicateRefConfirm] = useState(false);
   const [measurementDialogOpen, setMeasurementDialogOpen] = useState(false)
   const [measurementDialogRow, setMeasurementDialogRow] = useState<number | null>(null)
@@ -691,6 +703,7 @@ function UnifiedSalesOrder({
     if (systemResponse.ok) {
       const systemData = await systemResponse.json()
       defaultVatPercentRef.current = Number(systemData?.tax_rate) || 0
+      setPrintByWarehouseEnabled(settingEnabled(systemData?.print_order_by_warehouse ?? systemData?.settings?.print_order_by_warehouse))
     }
 
     if (user?.id) {
@@ -1857,33 +1870,34 @@ function UnifiedSalesOrder({
     discount: number;
     [key: string]: any; // allow other props
   };
+  // الضريبة على مستوى الصنف (الإعدادات العامة): نسبة كل سطر من الصنف — نفس معادلة الإرساليات/الفواتير
+  const productIdOf = (item: any) => Number(item?.product_id ?? item?.id) || null
+  const itemVat = useItemVatRates(((CollectionView?.items as OrderItemType[]) ?? []).map(productIdOf))
+  // على مستوى الصنف: نسبة التصنيف الضريبي للصنف (بلا تصنيف ⇐ 0)؛ وإلا نسبة الطلبية
+  const lineVatRate = (item: any) => itemVat.enabled ? (itemVat.rateOf(productIdOf(item)) ?? 0) : Number(state.formData.vat_percent ?? 0)
   const totals = useMemo(() => {
     // Safely get items from CollectionView
     const items: OrderItemType[] = (CollectionView?.items as OrderItemType[]) ?? [];
 
     // Update inclusive price column values for all rows when totals calculation runs
-    const vatPercent = Number(state.formData.vat_percent ?? 0)
     items.forEach((item) => {
-      item.price_incl_tax = calculateInclusivePrice(Number(item.price ?? 0), vatPercent)
+      item.price_incl_tax = calculateInclusivePrice(Number(item.price ?? 0), lineVatRate(item))
     })
 
-    // Calculate subtotal
-    const subtotal = items.reduce((sum: number, item: OrderItemType) => {
-      const quantity = Number(item.qnty ?? 0);
-      const price = Number(item.price ?? 0);
-      const discount = Number(item.discount ?? 0);
-      return sum + quantity * price - discount;
-    }, 0);
     if (!state.formData.discount_amount) state.formData.discount_amount = 0.0;
-    // Calculate discount
-    const discountValue = parseFloat(state.formData.discount_amount ?? 0);
-    const discount =
-      state.formData.discount_type === "percentage"
-        ? (subtotal * discountValue) / 100
-        : discountValue;
-    // Calculate tax
-    const taxPercentage = parseFloat(state.formData.vat_percent ?? 0);
-    const tax = ((subtotal - discount) * taxPercentage) / 100;
+    // المجموع، خصم الطلبية، والضريبة (نسبة الطلبية أو نسبة كل صنف) — lib/item-vat.ts
+    const result = computeVoucherTax(
+      items.map((item) => ({
+        quantity: Number(item.qnty ?? 0),
+        unitPrice: Number(item.price ?? 0),
+        discountAmount: Number(item.discount ?? 0),
+        vatRate: itemVat.rateOf(productIdOf(item)) ?? null,
+      })),
+      { discountType: state.formData.discount_type === "percentage" ? "percentage" : "amount", discountValue: parseFloat(state.formData.discount_amount ?? 0), vatPercent: parseFloat(state.formData.vat_percent ?? 0), itemLevel: itemVat.enabled },
+    )
+    const subtotal = result.subtotal
+    const discount = result.discount
+    const tax = result.tax;
     // Shipping and other charges
     const shippingCost = parseFloat(state.formData.shipping_cost ?? 0);
     const otherCharges = parseFloat(state.formData.other_charges ?? 0);
@@ -1904,18 +1918,31 @@ function UnifiedSalesOrder({
     state.formData.shipping_cost,
     state.formData.other_charges,
     CollectionView?.items,
+    itemVat.enabled,
+    itemVat.version,
   ]);
+
+  // الضريبة على مستوى الصنف: حقل "نسبة الضريبة" يعرض النسبة الفعلية للطلبية (ضريبة الأسطر ÷ الصافي)
+  useEffect(() => {
+    if (!itemVat.enabled) return
+    const netBase = totals.subtotal - totals.discount
+    const effective = netBase > 0 ? Math.round((totals.tax / netBase) * 10000) / 100 : 0
+    if (Math.abs(effective - Number(state.formData.vat_percent ?? 0)) > 0.001) {
+      setState((prev) => ({ ...prev, formData: { ...prev.formData, vat_percent: effective } }))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [itemVat.enabled, totals.subtotal, totals.discount, totals.tax])
 
   useEffect(() => {
     if (!CollectionView) return
-    const vatPercent = Number(state.formData.vat_percent ?? 0)
     const items: any[] = CollectionView.items ?? []
     items.forEach((item) => {
-      item.price_incl_tax = calculateInclusivePrice(Number(item.price ?? 0), vatPercent)
+      item.price_incl_tax = calculateInclusivePrice(Number(item.price ?? 0), lineVatRate(item))
     })
     CollectionView.refresh()
     gridRef.current?.refresh()
-  }, [state.formData.vat_percent, CollectionView])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.formData.vat_percent, CollectionView, itemVat.enabled, itemVat.version])
 
 
   const validateOrder = () => {
@@ -3118,6 +3145,88 @@ function UnifiedSalesOrder({
     printOrder(state.formData, CollectionView.items, {}, showMsg)
   }
 
+  // حالة "تم طباعتها مستودعات" للطلبية المعروضة
+  useEffect(() => {
+    const orderId = Number(state.formData.id) || 0
+    if (!printByWarehouseEnabled || !orderId) { setWarehousesPrinted(false); return }
+    let cancelled = false
+    fetch(`/api/orders/warehouse-print?order_id=${orderId}`, { cache: "no-store" })
+      .then((response) => response.json())
+      .then((data) => { if (!cancelled) setWarehousesPrinted(Boolean(data?.printed)) })
+      .catch(() => undefined)
+    return () => { cancelled = true }
+  }, [printByWarehouseEnabled, state.formData.id])
+
+  // توزيع أصناف الطلبية على مستودعاتها وطباعة كل مجموعة على الطابعة الافتراضية لمستودعها
+  const printByWarehouses = async (confirmed = false) => {
+    const orderId = Number(state.formData.id) || 0
+    if (!orderId) { Util.showErrorMessage(message, "يجب حفظ الطلبية أولاً"); return }
+    if (warehousesPrinted && !confirmed) { setShowWarehouseReprintConfirm(true); return }
+    const lines = ((CollectionView?.items as any[]) ?? []).filter((item) => (Number(item?.product_id ?? item?.id) || 0) > 0 && Number(item?.qnty || 0) > 0)
+    if (!lines.length) { Util.showErrorMessage(message, "لا توجد أصناف للطباعة"); return }
+    setWarehousePrinting(true)
+    try {
+      const response = await fetch(`/api/orders/warehouse-print?order_id=${orderId}`, { cache: "no-store" })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data?.error || "تعذر تحميل بيانات المستودعات")
+      const warehouseById = new Map<number, any>((data.warehouses || []).map((row: any) => [Number(row.id), row]))
+      const groups = new Map<number, any[]>()
+      for (const line of lines) {
+        const storeId = Number(line.store_id) || 0
+        groups.set(storeId, [...(groups.get(storeId) || []), line])
+      }
+      const { settings, company } = await loadVoucherPrintSettings(1)
+      const failures: string[] = []
+      for (const [storeId, groupLines] of groups) {
+        const warehouse = warehouseById.get(storeId)
+        const warehouseName = warehouse?.name || groupLines[0]?.store_name || (storeId ? `مستودع ${storeId}` : "بدون مستودع")
+        const document: PrintDocument = {
+          voucherTypeId: 1,
+          title: `طلبية مبيعات — ${warehouseName}`,
+          code: String(state.formData.order_number || ""),
+          date: String(state.formData.order_date || "").slice(0, 10),
+          fields: [
+            { label: "العميل", value: state.formData.customer_name || "" },
+            { label: "المستودع", value: warehouseName },
+            { label: "المندوب", value: (state.formData as any).salesman || "" },
+          ],
+          columns: [
+            { key: "ser", label: "#", align: "center", weight: 0.5 },
+            { key: "code", label: "رقم الصنف", weight: 1.3 },
+            { key: "name", label: "اسم الصنف", weight: 3 },
+            { key: "unit", label: "الوحدة", weight: 1 },
+            { key: "qnty", label: "الكمية", align: "end", weight: 1, numeric: true },
+            { key: "bonus", label: "البونص", align: "end", weight: 0.9, numeric: true },
+          ],
+          rows: groupLines.map((line, index) => ({
+            ser: index + 1,
+            code: line.code || line.product_code || "",
+            name: [line.name || line.product_name || "", line.attribute_summary ? `(${line.attribute_summary})` : ""].filter(Boolean).join(" "),
+            unit: line.unit_name || "",
+            qnty: Number(line.qnty || 0),
+            bonus: Number(line.bonus || 0) || null,
+          })),
+          totals: [{ label: "إجمالي الكمية", value: groupLines.reduce((sum, line) => sum + Number(line.qnty || 0) + Number(line.bonus || 0), 0), strong: true }],
+          notes: String((state.formData as any).notes || (state.formData as any).note || ""),
+        }
+        try {
+          await printVoucherWithSettings(document, { ...settings, printer_name: String(warehouse?.default_printer || "").trim() || settings.printer_name }, company)
+        } catch (error) {
+          failures.push(`${warehouseName}: ${error instanceof Error ? error.message : "تعذر الطباعة"}`)
+        }
+      }
+      if (failures.length === groups.size) throw new Error(failures.join(" — "))
+      await fetch("/api/orders/warehouse-print", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ order_id: orderId }) })
+      setWarehousesPrinted(true)
+      if (failures.length) Util.showErrorMessage(message, `طُبعت بقية المستودعات، وتعذرت: ${failures.join(" — ")}`)
+      else Util.showSuccessMessage(message, `تمت طباعة الطلبية على ${groups.size} مستودع`)
+    } catch (error) {
+      Util.showErrorMessage(message, error instanceof Error ? error.message : "تعذرت الطباعة حسب المستودع")
+    } finally {
+      setWarehousePrinting(false)
+    }
+  }
+
   const guardToolbarAction = (action: () => void | Promise<void>) => {
     const currentFullHash = getFormDataHash({
       form: getFormChangeSnapshot(state.formData),
@@ -3204,6 +3313,28 @@ function UnifiedSalesOrder({
             isLastRecord={isLastRecord}
             onClone={() => guardToolbarAction(handleClone)}
           />
+          {printByWarehouseEnabled && Number(state.formData.id) > 0 && (
+            <div className="flex flex-wrap items-center gap-2 px-3 pt-2" dir="rtl">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={warehousePrinting}
+                onClick={() => guardToolbarAction(() => printByWarehouses(false))}
+                className="h-8 gap-1.5 rounded-lg border-teal-200 bg-teal-50 font-bold text-teal-800 hover:bg-teal-100"
+                title="توزيع أصناف الطلبية على مستودعاتها وطباعة كل مجموعة على الطابعة الافتراضية لمستودعها"
+              >
+                <Printer className="h-4 w-4" />
+                {warehousePrinting ? "جاري الطباعة..." : "طباعة حسب المستودعات"}
+              </Button>
+              {warehousesPrinted && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-800 ring-1 ring-emerald-200">
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  تم طباعتها مستودعات
+                </span>
+              )}
+            </div>
+          )}
           <Messages innerRef={message} />
         </div>
 
@@ -3325,6 +3456,16 @@ function UnifiedSalesOrder({
               }}
               onCancel={() => { setShowAlert(false); popupHasClosed(); setTimeout(() => referenceNumberRef.current?.focus(), 50) }}
               message={alertMessage}
+            />
+            <ConfirmDialogYesNo
+              visible={showWarehouseReprintConfirm}
+              useAppDialog
+              title="طباعة حسب المستودعات"
+              confirmLabel="نعم"
+              cancelLabel="لا"
+              onConfirm={() => { setShowWarehouseReprintConfirm(false); popupHasClosed(); void printByWarehouses(true) }}
+              onCancel={() => { setShowWarehouseReprintConfirm(false); popupHasClosed() }}
+              message="تم طباعة الطلبية مستودعات مسبقا هل تريد طباعتها مرة أخرى؟"
             />
             <ConfirmDialogYesNo
               visible={showPrintRefConfirm}
@@ -4060,6 +4201,9 @@ function UnifiedSalesOrder({
                       min={0}
                       max={100}
                       value={state.formData.vat_percent ?? 0}
+                      // الضريبة على مستوى الصنف: النسبة من التصنيف الضريبي لكل صنف — الحقل للعرض فقط (النسبة الفعلية)
+                      disabled={itemVat.enabled}
+                      title={itemVat.enabled ? "الضريبة على مستوى الصنف مفعّلة: نسبة كل صنف من تصنيفه الضريبي، وهذه النسبة الفعلية للطلبية" : undefined}
                       onChange={(e) => {
                         const entered = Number.parseFloat(e.target.value)
                         const value = Number.isNaN(entered) ? 0 : Math.min(Math.max(entered, 0), 100)

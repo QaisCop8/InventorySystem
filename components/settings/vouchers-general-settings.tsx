@@ -83,6 +83,8 @@ interface VouchersGeneralSettingsState {
   generalItemCostMethod: string
   includePurchaseReturnsInCost: boolean
   allowNegativeItemBalances: boolean
+  vatOnItemLevel: boolean
+  printOrderByWarehouse: boolean
   allowOrderConfirmationWithoutProductionMaterials: boolean
   defaultBarcodeColumnValue: string
   showZeroQuantityItemsInSearch: boolean
@@ -112,6 +114,8 @@ const defaultSettings: VouchersGeneralSettingsState = {
   generalItemCostMethod: "last_purchase_price",
   includePurchaseReturnsInCost: false,
   allowNegativeItemBalances: true,
+  vatOnItemLevel: false,
+  printOrderByWarehouse: false,
   allowOrderConfirmationWithoutProductionMaterials: false,
   defaultBarcodeColumnValue: "none",
   showZeroQuantityItemsInSearch: true,
@@ -203,6 +207,12 @@ export default function VouchersGeneralSettings({ embedded = false, registerSave
         allowNegativeItemBalances: Boolean(
           payload.allow_negative_item_balances ?? prev.allowNegativeItemBalances,
         ),
+        vatOnItemLevel: payload.vat_on_item_level === undefined
+          ? prev.vatOnItemLevel
+          : payload.vat_on_item_level === true || payload.vat_on_item_level === "true" || payload.vat_on_item_level === 1 || payload.vat_on_item_level === "1",
+        printOrderByWarehouse: payload.print_order_by_warehouse === undefined
+          ? prev.printOrderByWarehouse
+          : payload.print_order_by_warehouse === true || payload.print_order_by_warehouse === "true" || payload.print_order_by_warehouse === 1 || payload.print_order_by_warehouse === "1",
         allowOrderConfirmationWithoutProductionMaterials: Boolean(
           payload.allow_order_confirmation_without_production_materials ??
             prev.allowOrderConfirmationWithoutProductionMaterials,
@@ -268,6 +278,8 @@ export default function VouchersGeneralSettings({ embedded = false, registerSave
           general_item_cost_method: settings.generalItemCostMethod,
           include_purchase_returns_in_cost: settings.includePurchaseReturnsInCost,
           allow_negative_item_balances: settings.allowNegativeItemBalances,
+          vat_on_item_level: settings.vatOnItemLevel,
+          print_order_by_warehouse: settings.printOrderByWarehouse,
           allow_order_confirmation_without_production_materials:
             settings.allowOrderConfirmationWithoutProductionMaterials,
           default_barcode_column_value: settings.defaultBarcodeColumnValue,
@@ -582,6 +594,26 @@ export default function VouchersGeneralSettings({ embedded = false, registerSave
                   }
                 />
                 <span>السماح بكميات سالبة في ارصدة الاصناف</span>
+              </label>
+
+              <label className="flex items-center gap-3 cursor-pointer" title="نسبة ضريبة كل سطر = نسبة الصنف (تصنيفه الضريبي)، وضريبة السند = مجموع ضرائب الأسطر — في الإرساليات والفواتير وطلبيات المبيعات">
+                <Checkbox
+                  checked={settings.vatOnItemLevel}
+                  onCheckedChange={(checked) =>
+                    setSettings((s) => ({ ...s, vatOnItemLevel: Boolean(checked) }))
+                  }
+                />
+                <span>الضريبة على مستوى الصنف</span>
+              </label>
+
+              <label className="flex items-center gap-3 cursor-pointer" title="يُضاف زر بطلبية المبيعات يوزّع أصنافها على مستودعاتها ويطبع كل مجموعة على الطابعة الافتراضية لمستودعها">
+                <Checkbox
+                  checked={settings.printOrderByWarehouse}
+                  onCheckedChange={(checked) =>
+                    setSettings((s) => ({ ...s, printOrderByWarehouse: Boolean(checked) }))
+                  }
+                />
+                <span>طباعة حسب المستودع في الطلبية</span>
               </label>
 
               <label className="flex items-center gap-3 cursor-pointer">

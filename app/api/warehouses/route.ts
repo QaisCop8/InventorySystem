@@ -33,6 +33,8 @@ export async function GET() {
     `
 
     await sql`ALTER TABLE warehouses ADD COLUMN IF NOT EXISTS status INTEGER DEFAULT 1`
+    // الطابعة الافتراضية للمستودع (طباعة الطلبية حسب المستودع)
+    await sql`ALTER TABLE warehouses ADD COLUMN IF NOT EXISTS default_printer VARCHAR(150)`
 
     const existingWarehouses = await sql`SELECT COUNT(*) as count FROM warehouses`
 
@@ -63,6 +65,7 @@ export async function GET() {
         location,
         is_active,
         status,
+        default_printer,
         created_at,
         updated_at
       FROM warehouses
@@ -106,7 +109,7 @@ export async function POST(request: NextRequest) {
         SELECT nextval(pg_get_serial_sequence('warehouses', 'id')) AS id
       )
       INSERT INTO warehouses (
-        id, warehouse_code, warehouse_name, warehouse_name_en, description, location, is_active, status
+        id, warehouse_code, warehouse_name, warehouse_name_en, description, location, is_active, status, default_printer
       ) SELECT
         id,
         LPAD(id::text, 4, '0'),
@@ -115,7 +118,8 @@ export async function POST(request: NextRequest) {
         ${data.description || ""}, 
         ${data.location || ""}, 
         ${status === 1},
-        ${status}
+        ${status},
+        ${String(data.default_printer || "").trim() || null}
       FROM next_warehouse
       RETURNING *
     `

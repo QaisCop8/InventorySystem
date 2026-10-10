@@ -20,6 +20,7 @@ interface Warehouse {
   description?: string
   location?: string
   status: number
+  default_printer?: string | null
   cost_centers?: CostCenterDefaultValue[]
 }
 
@@ -31,6 +32,7 @@ interface WarehouseForm {
   description: string
   location: string
   status: number
+  default_printer: string
   cost_centers: CostCenterDefaultValue[]
 }
 
@@ -42,6 +44,7 @@ const initialForm: WarehouseForm = {
   description: "",
   location: "",
   status: 1,
+  default_printer: "",
   cost_centers: [],
 }
 
@@ -90,6 +93,7 @@ export default function Warehouses() {
       description: warehouse.description || "",
       location: warehouse.location || "",
       status: warehouse.status,
+      default_printer: warehouse.default_printer || "",
       cost_centers: warehouse.cost_centers || [],
     })
     setErrorMessage("")
@@ -288,6 +292,18 @@ export default function Warehouses() {
                 onChange={(e) => setForm((f) => ({ ...f, location: e.target.value }))}
                 className="text-right"
               />
+            </div>
+            <div>
+              <Label htmlFor="warehouse_default_printer">الطابعة الافتراضية</Label>
+              <Input
+                id="warehouse_default_printer"
+                dir="ltr"
+                value={form.default_printer}
+                onChange={(e) => setForm((f) => ({ ...f, default_printer: e.target.value }))}
+                className="text-right"
+                placeholder="اسم الطابعة كما يظهر في ويندوز"
+              />
+              <p className="mt-1 text-xs text-muted-foreground">تُطبع عليها أصناف هذا المستودع عند "طباعة حسب المستودع" في الطلبية — فارغة: الطابعة الافتراضية في إعدادات الطباعة</p>
             </div>
             <div>
               <Label htmlFor="warehouse_description">الوصف</Label>

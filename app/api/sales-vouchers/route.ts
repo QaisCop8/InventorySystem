@@ -33,6 +33,8 @@ import { authorizeTransaction, transactionFamilyForVoucherType } from "@/lib/tra
 import { attachItemSerials, saveVoucherSerials, validateSerialsRemoval, validateSerialsRemovalOnUpdate, validateVoucherSerials } from "@/lib/item-serials"
 import { consignmentReturnBlocksDeletion, consignmentUsage, INVOICE_SOURCE_CONSIGNMENT, validateFromConsignment } from "@/lib/consignment"
 import { validateNegativeStock } from "@/lib/negative-stock-guard"
+import { computeVoucherTax } from "@/lib/item-vat"
+import { itemLevelVatEnabled, itemVatRates } from "@/lib/item-vat-server"
 
 const MAX_CODE_RETRY_ATTEMPTS = 5
 
@@ -228,6 +230,33 @@ const validatePayload = (data: any, items: any[]): string | null => {
 // لكل الأصناف)، ثم خصم السند (نسبة أو مبلغ ثابت)، ثم ضريبة على الصافي بعد الخصم.
 // مُشتركة بين computeTotalAmount (أدناه) وbuildSalesVoucherJournalRows (تحتاج مبلغ الضريبة وحده
 // لسطر قيد حساب الضريبة) — نفس معادلة totals في unified-sales-delivery.tsx بالضبط.
+// الضريبة على مستوى الصنف (إعداد عام): نسب الأصناف من قاعدة البيانات (لا تُقبل من الواجهة) — null = الإعداد غير مفعّل
+const resolveVatRates = async (items: any[]): Promise<Map<number, number | null> | null> =>
+  (await itemLevelVatEnabled()) ? itemVatRates(items.map((item: any) => Number(item.product_id ?? item.item_id))) : null
+
+// lib/item-vat.ts: نفس المعادلة في الواجهة — خصم السطر، خصم الحملة، خصم السند موزّعاً، ثم ضريبة السند أو ضريبة كل صنف
+const computeVoucherBreakdown = (items: any[], data: any, rates: Map<number, number | null> | null) => computeVoucherTax(
+  items.map((item: any) => ({
+    quantity: Number(item.quantity || 0),
+    unitPrice: Number(item.unit_price || 0),
+    discountPercent: Number(item.discount_percent || 0),
+    discountAmount: Number(item.campaign_discount || 0),
+    vatRate: rates ? rates.get(Number(item.product_id ?? item.item_id)) ?? null : null,
+  })),
+  // سند معفى/صفري (التصنيف الضريبي للسند 2/3) ⇐ بلا ضريبة حتى مع الضريبة على مستوى الصنف
+  [2, 3].includes(Number(data.vat_classification_id))
+    ? { discountType: data.discount_type === "amount" ? "amount" : "percentage", discountValue: Number(data.discount_value || 0), vatPercent: 0, itemLevel: false }
+    : { discountType: data.discount_type === "amount" ? "amount" : "percentage", discountValue: Number(data.discount_value || 0), vatPercent: Number(data.vat_percent || 0), itemLevel: Boolean(rates) },
+)
+
+// أسطر الحفظ مع نسبة ومبلغ ضريبة كل سطر (بنفس ترتيب أسطر الحساب)
+const withLineVat = (rows: any[], breakdown: ReturnType<typeof computeVoucherBreakdown>) =>
+  rows.map((row: any, index: number) => ({
+    ...row,
+    vat_ratio: breakdown.lines[index]?.rate ?? 0,
+    vat_amount: Math.round((breakdown.lines[index]?.vat ?? 0) * 100) / 100,
+  }))
+
 const computeAmountBreakdown = (items: any[], data: any) => {
   // الخصم بمستوى السطر (نسبة مئوية لكل صنف، عمود "الخصم %") يُطبَّق أولاً قبل خصم/ضريبة السند
   // كاملاً — نفس معادلة recalcLineAmounts في unified-sales-delivery.tsx بالضبط.
@@ -437,7 +466,9 @@ export async function POST(request: NextRequest) {
     // let: يُعاد توليده أدناه إن اصطدم الإدراج برقم مكرر (23505) من حفظ متزامن
     let vchCode = regeneratedCode.code
 
-    const breakdown = computeAmountBreakdown(items, data)
+    const vatRates = await resolveVatRates(items)
+    const breakdown = computeVoucherBreakdown(items, data, vatRates)
+    const saveBreakdown = breakdown
     const posPayments = Array.isArray(data.pos_payments)
       ? data.pos_payments
           .map((payment: any) => ({
@@ -575,7 +606,9 @@ export async function POST(request: NextRequest) {
         VALUES (${voucher.id}, ${payment.payment_method}, ${payment.amount}, ${payment.account_id}, ${payment.reference}, ${payment.due_date},${payment.currency_id},${payment.currency_amount},${payment.exchange_rate},${payment.cheque_account},${payment.bank_id},${payment.branch_id},${payment.card_type_id},${payment.card_expiry})
       `
     }
-    const savedItems = await saveSalesVoucherItems(voucher.id, itemsToSave)
+    const savedItems = await saveSalesVoucherItems(voucher.id, withLineVat(itemsToSave, saveBreakdown))
+    // إجمالي الضريبة في رأس السند (تعتمده التقارير الضريبية — دقيق أيضاً مع الضريبة على مستوى الصنف)
+    await sql`UPDATE voucher_header_tbl SET vat = ${Math.round(saveBreakdown.tax * 100) / 100} WHERE id = ${voucher.id}`
     await saveVoucherSerials(voucher.id, vchType, savedItems)
     if ((ITEM_ACCOUNT_VCH_TYPES as readonly number[]).includes(vchType)) {
       const journalIds = await saveJournalRows(voucher.id, journalRows)
@@ -690,7 +723,7 @@ export async function PUT(request: NextRequest) {
       if ((ITEM_ACCOUNT_VCH_TYPES as readonly number[]).includes(vchType)) {
         journalTypes = await resolveSalesVoucherJournalTypes(vchType)
         if (!journalTypes) throw new Error("تعذّر تحديد أنواع قيود الفاتورة")
-        const breakdown = computeAmountBreakdown(items, data)
+        const breakdown = computeVoucherBreakdown(items, data, await resolveVatRates(items))
         journalRows = buildSalesVoucherJournalRows(
           vchType,
           items,
@@ -733,7 +766,9 @@ export async function PUT(request: NextRequest) {
       })
       if (negativeStockError) return NextResponse.json({ error: negativeStockError }, { status: 400 })
     }
-    const amount = computeTotalAmount(items, data)
+    const putBreakdown = computeVoucherBreakdown(items, data, await resolveVatRates(items))
+    const saveBreakdown = putBreakdown
+    const amount = Math.round(putBreakdown.total * 100) / 100
     const discountType = data.discount_type === "amount" ? "amount" : "percentage"
 
     const result = await sql`
@@ -787,7 +822,9 @@ export async function PUT(request: NextRequest) {
           order_item_id: null,
         }))
 
-    const savedItems = await saveSalesVoucherItems(voucher.id, itemsToSave)
+    const savedItems = await saveSalesVoucherItems(voucher.id, withLineVat(itemsToSave, saveBreakdown))
+    // إجمالي الضريبة في رأس السند (تعتمده التقارير الضريبية — دقيق أيضاً مع الضريبة على مستوى الصنف)
+    await sql`UPDATE voucher_header_tbl SET vat = ${Math.round(saveBreakdown.tax * 100) / 100} WHERE id = ${voucher.id}`
     await saveVoucherSerials(voucher.id, vchType, savedItems)
     if ((ITEM_ACCOUNT_VCH_TYPES as readonly number[]).includes(vchType)) {
       const journalIds = await saveJournalRows(voucher.id, journalRows)

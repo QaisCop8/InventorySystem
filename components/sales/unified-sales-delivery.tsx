@@ -1,6 +1,8 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
+import { computeVoucherTax } from "@/lib/item-vat"
+import { itemVatRateFor, useItemVatRates } from "@/lib/use-item-vat-rates"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
@@ -1128,6 +1130,11 @@ export default function UnifiedSalesDelivery({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dialogOpen, form.id, form.status, showDeleteConfirm, postDialogOpen, showUnsavedConfirm])
 
+  // الضريبة على مستوى الصنف (الإعدادات العامة): نسبة كل سطر من الصنف — نفس معادلة الخادم (lib/item-vat.ts)
+  const itemVat = useItemVatRates(items.map((row) => row.product_id))
+  const itemVatRef = useRef(itemVat)
+  itemVatRef.current = itemVat
+
   useEffect(() => {
     if (!dialogOpen) return
 
@@ -1149,7 +1156,10 @@ export default function UnifiedSalesDelivery({
           unit_name: unitName,
           total_price: amount,
           line_amount: amount,
-          unit_price_incl_tax: vatPercent > 0 ? Math.round(Number(row.unit_price || 0) * (1 + vatPercent / 100) * 100) / 100 : Number(row.unit_price || 0),
+          unit_price_incl_tax: (() => {
+            const lineRate = itemVatRef.current.enabled ? (itemVatRef.current.rateOf(row.product_id) ?? 0) : vatPercent
+            return lineRate > 0 ? Math.round(Number(row.unit_price || 0) * (1 + lineRate / 100) * 100) / 100 : Number(row.unit_price || 0)
+          })(),
         }
       })
       // Ensure any in-progress cell edits are finished before we replace the collection
@@ -1277,7 +1287,7 @@ export default function UnifiedSalesDelivery({
       console.error("Error synchronizing items grid:", err)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [items, form.vat_percent, dialogOpen, itemsCollectionView, accountsCollectionView])
+  }, [items, form.vat_percent, dialogOpen, itemsCollectionView, accountsCollectionView, itemVat.version, itemVat.enabled])
 
   // تفاصيل كميات الصنف: يجلب current_stock الفعلي (product_stock) لكل صنف مختلف بالسند عبر
   // /api/inventory/products?id=<id> — يُعاد الجلب فقط عند تغيّر مجموعة الأصناف المختارة فعلياً (لا
@@ -1332,9 +1342,10 @@ export default function UnifiedSalesDelivery({
   // "السعر عند الادخال يشمل الضريبة" (إعدادات المستخدم): كل سعر يدخل السطر — يدوياً، أو من بطاقة الصنف عند
   // اختياره (رقم/باركود/بحث الأصناف)، أو عند تغيير الوحدة — يُعامَل كسعر شامل ويُحوَّل لغير شامل
   // (السعر ÷ (1+نسبة الضريبة/100))؛ unit_price يبقى دوماً غير شامل داخلياً. مثال: 4.5 بضريبة 16% ⇐ 3.88.
-  const entryPriceToNet = (price: number | null) => {
+  // lineRate: نسبة ضريبة الصنف عند تفعيل "الضريبة على مستوى الصنف" (null/undefined ⇐ نسبة السند)
+  const entryPriceToNet = (price: number | null, lineRate?: number | null) => {
     if (price === null || !Number.isFinite(price)) return price
-    const vatPercent = Number(formRef.current.vat_percent || 0)
+    const vatPercent = lineRate === undefined ? Number(formRef.current.vat_percent || 0) : (lineRate ?? 0)
     return priceEntryIncludesTax && vatPercent > 0 ? Math.round((price / (1 + vatPercent / 100)) * 100) / 100 : price
   }
 
@@ -1550,18 +1561,34 @@ export default function UnifiedSalesDelivery({
   // الأصناف، ثم خصم بمستوى السند كاملاً (نسبة أو مبلغ ثابت)، ثم ضريبة على الصافي بعد الخصم.
   const totals = useMemo(() => {
     // الخصم بمستوى السطر (عمود "الخصم %") يُطبَّق أولاً قبل خصم/ضريبة السند كاملاً — نفس معادلة
-    // computeTotalAmount في app/api/sales-vouchers/route.ts بالضبط.
-    const subtotal = items.reduce((sum, row) => {
-      const lineDiscountPercent = Number(row.discount_percent || 0)
-      return sum + Number(row.quantity || 0) * Number(row.unit_price || 0) * (1 - lineDiscountPercent / 100)
-    }, 0)
-    const discountValue = Number(form.discount_value || 0)
-    const discount = form.discount_type === "amount" ? discountValue : (subtotal * discountValue) / 100
-    const taxPercent = Number(form.vat_percent || 0)
-    const tax = ((subtotal - discount) * taxPercent) / 100
-    const total = subtotal - discount + tax
-    return { subtotal, discount, tax, total }
-  }, [items, form.discount_type, form.discount_value, form.vat_percent])
+    // app/api/sales-vouchers/route.ts بالضبط (computeVoucherTax المشتركة).
+    const result = computeVoucherTax(
+      items.map((row) => ({
+        quantity: Number(row.quantity || 0),
+        unitPrice: Number(row.unit_price || 0),
+        discountPercent: Number(row.discount_percent || 0),
+        discountAmount: Number((row as any).campaign_discount || 0),
+        vatRate: itemVat.rateOf(row.product_id) ?? null,
+      })),
+      {
+        discountType: form.discount_type,
+        discountValue: Number(form.discount_value || 0),
+        vatPercent: Number(form.vat_percent || 0),
+        itemLevel: itemVat.enabled && form.vat_classification_id !== 2 && form.vat_classification_id !== 3,
+      },
+    )
+    return { subtotal: result.subtotal, discount: result.discount, tax: result.tax, total: result.total }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items, form.discount_type, form.discount_value, form.vat_percent, form.vat_classification_id, itemVat.enabled, itemVat.version])
+
+  // الضريبة على مستوى الصنف: حقل "نسبة الضريبة" معطَّل ويعرض النسبة الفعلية للسند (ضريبة الأسطر ÷ الصافي)
+  useEffect(() => {
+    if (!itemVat.enabled || isLocked || form.vat_classification_id === 2 || form.vat_classification_id === 3) return
+    const netBase = totals.subtotal - totals.discount
+    const effective = netBase > 0 ? Math.round((totals.tax / netBase) * 10000) / 100 : 0
+    if (Math.abs(effective - Number(form.vat_percent || 0)) > 0.001) onFormChange("vat_percent", effective)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [itemVat.enabled, totals.subtotal, totals.discount, totals.tax, isLocked, form.vat_classification_id])
 
   // مسودة نص حقل "الصافي للدفع" أثناء الكتابة فيه فقط (خلاف ذلك null فتُعرَض totals.total مباشرة) —
   // إبقاء الحقل غير مربوط بـtotals.total مباشرة أثناء الكتابة يمنع "قفز" المؤشّر/القيمة المعروضة مع
@@ -1572,7 +1599,9 @@ export default function UnifiedSalesDelivery({
   // — قد تصبح قيمة الخصم سالبة إن رفع المستخدم الصافي فوق المجموع الحالي (كتقريب فاتورة 10.89 الى
   // 11 مثلاً)، وهذا مقصود ومسموح به هنا (انظر تخفيف حد قيمة الخصم الأدنى أدناه).
   const applyDesiredNetPayable = (desiredTotal: number) => {
-    const taxPercent = Number(form.vat_percent || 0)
+    // الضريبة على مستوى الصنف: النسبة الفعلية للسند (ضريبة الأسطر ÷ الصافي) بدل نسبة السند الواحدة
+    const netBase = totals.subtotal - totals.discount
+    const taxPercent = itemVat.enabled && netBase > 0 ? (totals.tax / netBase) * 100 : Number(form.vat_percent || 0)
     const netBeforeTax = taxPercent > 0 ? desiredTotal / (1 + taxPercent / 100) : desiredTotal
     const requiredDiscount = totals.subtotal - netBeforeTax
     if (form.discount_type === "amount") {
@@ -1887,7 +1916,7 @@ export default function UnifiedSalesDelivery({
       product = await requestProductVariant(product)
       if (!product || !isMountedRef.current) return
       const currentRow = itemsRef.current[row]
-      const unitPrice = entryPriceToNet(product.price != null ? Number(product.price) : 0) ?? 0
+      const unitPrice = entryPriceToNet(product.price != null ? Number(product.price) : 0, await itemVatRateFor(product.id)) ?? 0
       const warehousePatch = resolveDefaultWarehouse(product)
       const { hasExpiry, hasBatch } = resolveBatchExpiryFlags(product)
       const itemAccount = showAccountsTab ? await resolveItemAccountDefault(product) : null
@@ -2025,7 +2054,7 @@ export default function UnifiedSalesDelivery({
     } else if (colName === "unit_price") {
       const rawUnitPrice = value === "" || value === null ? null : Number(value)
       // "السعر عند الادخال يشمل الضريبة": ما كتبه المستخدم يُعامَل كسعر شامل ويُحوَّل لغير شامل (entryPriceToNet)
-      const unitPrice = entryPriceToNet(rawUnitPrice)
+      const unitPrice = entryPriceToNet(rawUnitPrice, itemVatRef.current.rateOf(itemsRef.current[row]?.product_id))
       const currentRow = itemsRef.current[row]
       const patched = { ...currentRow, unit_price: unitPrice }
       patchItemRow(row, { unit_price: unitPrice, ...recalcLineAmounts(patched) })
@@ -2101,7 +2130,7 @@ export default function UnifiedSalesDelivery({
     }
     const row = unitsSearchRow
     const currentRow = itemsRef.current[row]
-    const unitNetPrice = entryPriceToNet(selected_unit.price == null ? null : Number(selected_unit.price))
+    const unitNetPrice = entryPriceToNet(selected_unit.price == null ? null : Number(selected_unit.price), itemVatRef.current.rateOf(currentRow?.product_id))
     const patched = {
       ...currentRow,
       unit: selected_unit.unit_name,
@@ -2142,7 +2171,7 @@ export default function UnifiedSalesDelivery({
       const { hasExpiry, hasBatch } = resolveBatchExpiryFlags(product)
       const itemAccount = showAccountsTab ? await resolveItemAccountDefault(product) : null
       if (!isMountedRef.current) return
-      const unitPrice = entryPriceToNet(Number(unit?.price ?? product.first_price ?? 0)) ?? 0
+      const unitPrice = entryPriceToNet(Number(unit?.price ?? product.first_price ?? 0), await itemVatRateFor(product.id)) ?? 0
       const patched: SalesVoucherItemRow = {
         ...currentRow,
         product_id: product.id,
@@ -3400,7 +3429,9 @@ export default function UnifiedSalesDelivery({
                       value={form.vat_percent || 0}
                       // معفاه/صفرية: لا نسبة ضريبة أصلاً — تُصفَّر وتُعطَّل الكتابة المباشرة (انظر
                       // فرع vat_classification_id في PrimeDropdown أعلاه لسبب التصفير التلقائي).
-                      disabled={isLocked || form.vat_classification_id === 2 || form.vat_classification_id === 3}
+                      // الضريبة على مستوى الصنف: النسبة من التصنيف الضريبي لكل صنف — الحقل للعرض فقط (النسبة الفعلية)
+                      disabled={isLocked || itemVat.enabled || form.vat_classification_id === 2 || form.vat_classification_id === 3}
+                      title={itemVat.enabled ? "الضريبة على مستوى الصنف مفعّلة: نسبة كل صنف من تصنيفه الضريبي، وهذه النسبة الفعلية للسند" : undefined}
                       onFocus={(e) => e.target.select()}
                       onChange={(e) => onFormChange("vat_percent", Number.parseFloat(e.target.value) || 0)}
                       className="text-right"

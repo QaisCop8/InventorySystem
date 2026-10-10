@@ -18,6 +18,7 @@ async function ensureWarehousesTable() {
     )
   `
   await sql`ALTER TABLE warehouses ADD COLUMN IF NOT EXISTS status INTEGER DEFAULT 1`
+  await sql`ALTER TABLE warehouses ADD COLUMN IF NOT EXISTS default_printer VARCHAR(150)`
 }
 
 export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
@@ -38,6 +39,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
         location = ${data.location || ""},
         is_active = ${isActive},
         status = ${status},
+        default_printer = ${String(data.default_printer || "").trim() || null},
         updated_at = CURRENT_TIMESTAMP
       WHERE id = ${id}
       RETURNING *

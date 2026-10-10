@@ -180,7 +180,10 @@ const AttendanceDevicesPage = lazyNamed(() => import("@/components/hr/attendance
 const AttendanceRecordsPage = lazyNamed(() => import("@/components/hr/attendance-pages"), "AttendanceRecordsPage")
 const AttendanceDetailedReportPage = lazyNamed(() => import("@/components/hr/attendance-reports"), "AttendanceDetailedReportPage")
 const AttendanceSummaryReportPage = lazyNamed(() => import("@/components/hr/attendance-reports"), "AttendanceSummaryReportPage")
-const ShiftsPage = lazyNamed(() => import("@/components/hr/shifts-page"), "ShiftsPage")
+const ShiftRosterPage = lazyNamed(() => import("@/components/hr/shift-roster-page"), "ShiftRosterPage")
+const AttendanceProcessingPage = lazyNamed(() => import("@/components/hr/attendance-workbench"), "AttendanceProcessingPage")
+const AttendanceTransactionsPage = lazyNamed(() => import("@/components/hr/attendance-workbench"), "AttendanceTransactionsPage")
+const AttendanceEditorPage = lazyNamed(() => import("@/components/hr/attendance-workbench"), "AttendanceEditorPage")
 const OfficialHolidaysPage = lazyNamed(() => import("@/components/hr/official-holidays-page"), "OfficialHolidaysPage")
 const componentMap: Record<string, React.ComponentType<any>> = {
   dashboard: Dashboard,
@@ -362,9 +365,12 @@ const componentMap: Record<string, React.ComponentType<any>> = {
   payroll: PayrollPage,
   "attendance-devices": AttendanceDevicesPage,
   "attendance-records": AttendanceRecordsPage,
+  "attendance-processing": AttendanceProcessingPage,
+  "attendance-transactions": AttendanceTransactionsPage,
+  "attendance-editor": AttendanceEditorPage,
   "attendance-detailed-report": AttendanceDetailedReportPage,
   "attendance-summary-report": AttendanceSummaryReportPage,
-  shifts: ShiftsPage,
+  shifts: ShiftRosterPage,
   "official-holidays": OfficialHolidaysPage,
   "salary-items-report": (props: any) => <PayrollPage {...props} report="items" />,
   "income-tax-report": (props: any) => <PayrollPage {...props} report="tax" />,
