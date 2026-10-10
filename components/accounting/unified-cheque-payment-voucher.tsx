@@ -195,7 +195,7 @@ export default function UnifiedChequePaymentVoucher() {
                     className={`cheque-payment-editor flex h-[94dvh] max-h-[calc(100%-1rem)] w-[calc(100%-1rem)] max-w-[1360px] flex-col gap-0 overflow-hidden rounded-2xl border-slate-200 bg-slate-50 p-0 ${fullscreenEnabled ? "cheque-payment-fullscreen" : ""}`}
                 >
                     <div className="flex shrink-0 items-center justify-between gap-4 border-b border-emerald-100 bg-white px-4 py-4 sm:px-6">
-                        <DialogHeader className="min-w-0 text-right"><DialogTitle className="flex flex-wrap items-center gap-2 text-lg font-black text-slate-900"><FileCheck2 className="h-5 w-5 text-emerald-700" />سند صرف شيكات<span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">{statusLabel}</span></DialogTitle></DialogHeader>
+                        <DialogHeader className="min-w-0 text-right"><DialogTitle className="flex flex-wrap items-center gap-2 text-lg font-black text-slate-900"><FileCheck2 className="h-5 w-5 text-emerald-700" />سند صرف شيكات<span className={Number(form.status) === 3 ? "rounded-full bg-red-600 px-4 py-1 text-base font-extrabold text-white shadow-lg ring-2 ring-red-200" : "rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700"}>{Number(form.status) === 3 ? "ملغي منطقياً" : statusLabel}</span></DialogTitle></DialogHeader>
                         <Button type="button" size="icon" variant="ghost" disabled={saving} onClick={requestClose} aria-label="إغلاق سند صرف الشيكات" className="shrink-0 rounded-full text-slate-500"><X className="h-5 w-5" /></Button>
                     </div>
                     <div className="shrink-0 border-b bg-white px-2">

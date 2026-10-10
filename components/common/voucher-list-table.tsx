@@ -13,7 +13,7 @@ export type VoucherListColumn = { header: string; name: string; width?: number |
 const STATUS_BADGES: Record<number, string> = {
   1: "bg-amber-50 text-amber-700 ring-amber-200",
   2: "bg-emerald-50 text-emerald-700 ring-emerald-200",
-  3: "bg-rose-50 text-rose-700 ring-rose-200",
+  3: "bg-red-600 text-white ring-red-700 !text-[13px] !font-extrabold",
 }
 
 export function VoucherListTable<T extends Record<string, any>>({

@@ -31,6 +31,7 @@ const FixedAssetsPage = lazyDefault(() => import("@/app/fixed-assets/page"))
 const OrderReports = lazyNamed(() => import("@/components/reports/order-reports"), "OrderReports")
 const ProductReports = lazyNamed(() => import("@/components/reports/product-reports"), "ProductReports")
 const ItemBalancesReport = lazyNamed(() => import("@/components/reports/item-balances-report"), "ItemBalancesReport")
+const ExpiryBalancesReport = lazyNamed(() => import("@/components/reports/expiry-balances-report"), "ExpiryBalancesReport")
 const ItemsProfitReport = lazyNamed(() => import("@/components/reports/sales-profit-report"), "ItemsProfitReport")
 const PeriodProfitReport = lazyNamed(() => import("@/components/reports/sales-profit-report"), "PeriodProfitReport")
 const InvoiceProfitReport = lazyNamed(() => import("@/components/reports/sales-profit-report"), "InvoiceProfitReport")
@@ -62,6 +63,25 @@ const TransactionsReport = lazyNamed(() => import("@/components/reports/financia
 const TrialBalanceReport = lazyNamed(() => import("@/components/reports/financial-report"), "TrialBalanceReport")
 const BalanceSheetReport = lazyNamed(() => import("@/components/reports/financial-report"), "BalanceSheetReport")
 const IncomeStatementReport = lazyNamed(() => import("@/components/reports/financial-report"), "IncomeStatementReport")
+const DeliveriesListReport = lazyNamed(() => import("@/components/reports/deliveries-reports"), "DeliveriesListReport")
+const InternalDeliveriesReport = lazyNamed(() => import("@/components/reports/deliveries-reports"), "InternalDeliveriesReport")
+const ConsignmentInvoicesReport = lazyNamed(() => import("@/components/reports/deliveries-reports"), "ConsignmentInvoicesReport")
+const TaxCalculationReport = lazyNamed(() => import("@/components/reports/tax-reports"), "TaxCalculationReport")
+const TaxSalesStatementReport = lazyNamed(() => import("@/components/reports/tax-reports"), "TaxSalesStatementReport")
+const TaxPurchasesStatementReport = lazyNamed(() => import("@/components/reports/tax-reports"), "TaxPurchasesStatementReport")
+const TaxSalesPurchasesReport = lazyNamed(() => import("@/components/reports/tax-reports"), "TaxSalesPurchasesReport")
+const TaxMaqasaSalesReport = lazyNamed(() => import("@/components/reports/tax-reports"), "TaxMaqasaSalesReport")
+const TaxMaqasaPurchasesReport = lazyNamed(() => import("@/components/reports/tax-reports"), "TaxMaqasaPurchasesReport")
+const CostCenterStatementWithReport = lazyNamed(() => import("@/components/reports/cost-center-reports"), "CostCenterStatementWithReport")
+const CostCenterStatementByReport = lazyNamed(() => import("@/components/reports/cost-center-reports"), "CostCenterStatementByReport")
+const CostCenterAccountsMovementReport = lazyNamed(() => import("@/components/reports/cost-center-reports"), "CostCenterAccountsMovementReport")
+const CostCenterTransactionsReport = lazyNamed(() => import("@/components/reports/cost-center-reports"), "CostCenterTransactionsReport")
+const CostCenterTrialBalanceReport = lazyNamed(() => import("@/components/reports/cost-center-reports"), "CostCenterTrialBalanceReport")
+const CostCenterTrialBalanceAccountsReport = lazyNamed(() => import("@/components/reports/cost-center-reports"), "CostCenterTrialBalanceAccountsReport")
+const CostCenterIncomeStatementReport = lazyNamed(() => import("@/components/reports/cost-center-reports"), "CostCenterIncomeStatementReport")
+const CostCenterBalanceSheetReport = lazyNamed(() => import("@/components/reports/cost-center-reports"), "CostCenterBalanceSheetReport")
+const CostCenterIncomeStatementByReport = lazyNamed(() => import("@/components/reports/cost-center-reports"), "CostCenterIncomeStatementByReport")
+const CostCenterBalanceSheetByReport = lazyNamed(() => import("@/components/reports/cost-center-reports"), "CostCenterBalanceSheetByReport")
 const ChequesPage = lazyNamed(() => import("@/components/accounting/cheques-management"), "ChequesPage")
 const ChequeOperationsPage = lazyNamed(() => import("@/components/accounting/cheques-management"), "ChequeOperationsPage")
 const ChequeDepositBulkPage = lazyNamed(() => import("@/components/accounting/bulk-cheque-operations"), "ChequeDepositBulkPage")
@@ -175,6 +195,7 @@ const componentMap: Record<string, React.ComponentType<any>> = {
   "order-reports": OrderReports,
   "product-reports": ProductReports,
   "item-balances-report": ItemBalancesReport,
+  "expiry-balances-report": ExpiryBalancesReport,
   "item-valuation-report": ItemValuationReport,
   "items-profit-report": ItemsProfitReport,
   "period-profit-report": PeriodProfitReport,
@@ -197,6 +218,25 @@ const componentMap: Record<string, React.ComponentType<any>> = {
   "trial-balance-report": TrialBalanceReport,
   "balance-sheet-report": BalanceSheetReport,
   "income-statement-report": IncomeStatementReport,
+  "deliveries-report": DeliveriesListReport,
+  "internal-deliveries-report": InternalDeliveriesReport,
+  "consignment-invoices-report": ConsignmentInvoicesReport,
+  "tax-calculation-report": TaxCalculationReport,
+  "tax-sales-statement-report": TaxSalesStatementReport,
+  "tax-purchases-statement-report": TaxPurchasesStatementReport,
+  "tax-sales-purchases-report": TaxSalesPurchasesReport,
+  "tax-maqasa-sales-report": TaxMaqasaSalesReport,
+  "tax-maqasa-purchases-report": TaxMaqasaPurchasesReport,
+  "cc-statement-with-report": CostCenterStatementWithReport,
+  "cc-statement-by-report": CostCenterStatementByReport,
+  "cc-accounts-movement-report": CostCenterAccountsMovementReport,
+  "cc-transactions-report": CostCenterTransactionsReport,
+  "cc-trial-balance-report": CostCenterTrialBalanceReport,
+  "cc-trial-balance-accounts-report": CostCenterTrialBalanceAccountsReport,
+  "cc-income-statement-report": CostCenterIncomeStatementReport,
+  "cc-balance-sheet-report": CostCenterBalanceSheetReport,
+  "cc-income-statement-by-report": CostCenterIncomeStatementByReport,
+  "cc-balance-sheet-by-report": CostCenterBalanceSheetByReport,
   "batch-reports": BatchReports,
   "sales-orders": SalesOrders,
   "sale-invoices": SaleInvoices,

@@ -1,4 +1,5 @@
 import sql from "@/lib/database"
+import { validateNegativeStock } from "@/lib/negative-stock-guard"
 import { buildVoucherCode, normalizeVoucherPrefix } from "@/lib/voucher-code"
 import { validateSerialsRemoval } from "@/lib/item-serials"
 import { lotAvailable, normalizeExpiry } from "@/lib/stock-lots"
@@ -827,6 +828,8 @@ export const archiveAndDeleteStockVoucher = async (voucherId: number): Promise<{
 
   const deletionError = await validateVoucherDeletion(voucherId)
   if (deletionError) return { error: deletionError }
+  const negativeStockError = await validateNegativeStock({ vchType: Number(voucher.vch_type), voucherId, items: [], action: "delete" })
+  if (negativeStockError) return { error: negativeStockError }
   const serialsError = await validateSerialsRemoval(voucherId)
   if (serialsError) return { error: serialsError }
 

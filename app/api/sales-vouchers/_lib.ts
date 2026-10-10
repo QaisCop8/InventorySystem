@@ -1,6 +1,7 @@
 import sql from "@/lib/database"
 import { validateSerialsRemoval } from "@/lib/item-serials"
 import { consignmentReturnBlocksDeletion } from "@/lib/consignment"
+import { validateNegativeStock } from "@/lib/negative-stock-guard"
 import {
   buildVoucherCode,
   nextVoucherSequence,
@@ -738,6 +739,10 @@ export const archiveAndDeleteSalesVoucher = async (voucherId: number): Promise<{
   // أرقام تسلسلية: الحذف مسموح فقط إن كان هذا السند آخر حركة على كل رقم فيه (كمسار الإلغاء في PUT)
   const serialsRemovalError = await validateSerialsRemoval(voucherId)
   if (serialsRemovalError) return { error: serialsRemovalError }
+
+  // حذف فاتورة مشتريات/مرتجع مبيعات استُهلكت كميتها لاحقاً يجعل الرصيد سالباً
+  const negativeStockError = await validateNegativeStock({ vchType: Number(voucher.vch_type), voucherId, items: [], action: "delete" })
+  if (negativeStockError) return { error: negativeStockError }
 
   // Preserve originating sales orders before their voucher-item links are
   // removed, then reopen any quantity released by this invoice deletion.

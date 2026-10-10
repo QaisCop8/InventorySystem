@@ -1069,7 +1069,7 @@ export default function UnifiedJournal({
                 {statusBadge && (
                   <span
                     className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ${
-                      form.status === 3 ? "bg-rose-500/20 text-rose-50 ring-rose-200/40" : "bg-amber-400/20 text-amber-50 ring-amber-200/40"
+                      form.status === 3 ? "!px-4 !py-1 !text-base !font-extrabold bg-red-600 text-white ring-2 ring-white/70 shadow-lg" : "bg-amber-400/20 text-amber-50 ring-amber-200/40"
                     }`}
                   >
                     {statusBadge}

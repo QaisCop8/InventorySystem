@@ -32,6 +32,7 @@ import { validateItemReferences } from "@/app/api/stock-vouchers/_lib"
 import { authorizeTransaction, transactionFamilyForVoucherType } from "@/lib/transaction-permissions"
 import { attachItemSerials, saveVoucherSerials, validateSerialsRemoval, validateSerialsRemovalOnUpdate, validateVoucherSerials } from "@/lib/item-serials"
 import { consignmentReturnBlocksDeletion, consignmentUsage, INVOICE_SOURCE_CONSIGNMENT, validateFromConsignment } from "@/lib/consignment"
+import { validateNegativeStock } from "@/lib/negative-stock-guard"
 
 const MAX_CODE_RETRY_ATTEMPTS = 5
 
@@ -527,6 +528,11 @@ export async function POST(request: NextRequest) {
     // أصناف لها رقم تسلسلي — نقطة البيع لا تُدخل أرقاماً فلا يُفرض العدد عليها (يُفحص ما أُرسل فقط)
     const serialError = await validateVoucherSerials({ vchType, voucherId: null, items: itemsToSave, enforceCount: !(Number(data.pos_point_id) > 0 || posClientSaleId) })
     if (serialError) return NextResponse.json({ error: serialError }, { status: 400 })
+    // منع الرصيد السالب (إن لم يكن مسموحاً) — لا يُطبَّق على نقطة البيع حتى لا يتوقف الكاشير
+    if (!(Number(data.pos_point_id) > 0 || posClientSaleId)) {
+      const negativeStockError = await validateNegativeStock({ vchType, voucherId: null, items: itemsToSave })
+      if (negativeStockError) return NextResponse.json({ error: negativeStockError }, { status: 400 })
+    }
 
     let result: any[] = []
     for (let attempt = 0; attempt < MAX_CODE_RETRY_ATTEMPTS; attempt += 1) {
@@ -645,6 +651,9 @@ export async function PUT(request: NextRequest) {
         if (returnBlock) return NextResponse.json({ error: returnBlock }, { status: 400 })
         const serialsRemovalError = await validateSerialsRemoval(Number(voucher.id))
         if (serialsRemovalError) return NextResponse.json({ error: serialsRemovalError }, { status: 400 })
+        // إلغاء فاتورة مشتريات/مرتجع مبيعات استُهلكت كميتها لاحقاً يجعل الرصيد سالباً
+        const negativeStockError = await validateNegativeStock({ vchType: Number(voucher.vch_type), voucherId: Number(voucher.id), items: [], action: "delete" })
+        if (negativeStockError) return NextResponse.json({ error: negativeStockError }, { status: 400 })
         await deletePosRelatedVouchers(request, Number(voucher.id))
         await reversePosSessionPayments(voucher)
         const affectedOrderIds = [SALES_INVOICE_VCH_TYPE, PURCHASE_INVOICE_VCH_TYPE].includes(Number(voucher.vch_type))
@@ -715,6 +724,15 @@ export async function PUT(request: NextRequest) {
       keepsSourceLinks(vchType, invoiceSourceType) ? items : items.map((item) => ({ ...item, delivery_item_id: null })),
     )
     if (serialRemovalError) return NextResponse.json({ error: serialRemovalError }, { status: 400 })
+    // تعديل (تغيير كمية، حذف سطر، تغيير صنف/وحدة/مستودع) لا يجعل أي رصيد سالباً
+    if (!(Number(data.pos_point_id) > 0 || currentRows[0].pos_client_sale_id)) {
+      const negativeStockError = await validateNegativeStock({
+        vchType,
+        voucherId: Number(data.id),
+        items: keepsSourceLinks(vchType, invoiceSourceType) ? items : items.map((item) => ({ ...item, delivery_item_id: null })),
+      })
+      if (negativeStockError) return NextResponse.json({ error: negativeStockError }, { status: 400 })
+    }
     const amount = computeTotalAmount(items, data)
     const discountType = data.discount_type === "amount" ? "amount" : "percentage"
 

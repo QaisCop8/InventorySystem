@@ -620,6 +620,7 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
           actions={
             <Button
               type="button"
+              tabIndex={-1}
               onClick={() => window.open("/?section=products&new=1", "_blank", "noopener,noreferrer")}
               className="h-8 gap-1.5 rounded-lg bg-white px-2.5 text-xs font-bold text-emerald-700 hover:bg-emerald-50"
             >

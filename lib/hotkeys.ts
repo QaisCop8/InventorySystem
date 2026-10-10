@@ -1,6 +1,7 @@
 "use client"
 
 import { Control as WijmoControl } from "@grapecity/wijmo"
+import { focusNavigationTarget, focusTabPanelStart } from "@/lib/enter-navigation"
 
 /**
  * اختصارات موحّدة لكل الحركات (كل شاشة تستخدم UniversalToolbar):
@@ -157,14 +158,39 @@ function onEnter(event: KeyboardEvent) {
   const next = fields[index + 1]
   if (!next) return
   event.preventDefault()
-  next.focus()
-  if (next instanceof HTMLInputElement && typeof next.select === "function" && !["checkbox", "radio", "date"].includes(next.type)) {
-    try { next.select() } catch { /* some input types do not support select */ }
+  // الشبكة: أول صف وأول عمود قابل للتحرير (لا مجرد تركيز الشبكة على آخر خلية محددة)
+  focusNavigationTarget(next)
+}
+
+// Enter يصل لزر تبويب (role=tab): لا يعلق عليه — ينتقل لأول حقل في التبويب أو أول صف في الشبكة.
+// (أ) Enter أثناء التركيز على زر التبويب، (ب) تركيز زر التبويب نتيجة Enter من الحقل السابق (معالجات
+// Enter = Tab الخاصة بكل شاشة تعدّ زر التبويب النشط "الحقل التالي").
+let lastEnterAt = 0
+function onTabEnter(event: KeyboardEvent) {
+  if (event.key !== "Enter") return
+  lastEnterAt = performance.now()
+  if (event.isComposing || event.shiftKey || event.ctrlKey || event.altKey || event.metaKey) return
+  const target = event.target as HTMLElement | null
+  if (target?.getAttribute?.("role") !== "tab") return
+  if (focusTabPanelStart(target)) {
+    event.preventDefault()
+    event.stopPropagation()
   }
+}
+function onTabFocus(event: FocusEvent) {
+  const target = event.target as HTMLElement | null
+  if (target?.getAttribute?.("role") !== "tab") return
+  if (performance.now() - lastEnterAt > 250) return
+  // بعد انتهاء معالجة Enter الحالية (قد يبدّل Radix التبويب أولاً)
+  window.requestAnimationFrame(() => {
+    if (document.activeElement === target) focusTabPanelStart(target)
+  })
 }
 
 if (typeof window !== "undefined" && !(window as any).__unifiedHotkeysInstalled) {
   ;(window as any).__unifiedHotkeysInstalled = true
   window.addEventListener("keydown", onKeyDown, true)
   window.addEventListener("keydown", onEnter, false)
+  window.addEventListener("keydown", onTabEnter, true)
+  window.addEventListener("focusin", onTabFocus, true)
 }

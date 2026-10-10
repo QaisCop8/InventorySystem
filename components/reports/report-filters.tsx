@@ -26,7 +26,7 @@ export function ReportFilters({ children, title = "فلاتر التقرير" }:
           <ChevronDown className={`h-4 w-4 transition-transform ${open ? "rotate-180" : ""}`} aria-hidden="true" />
         </button>
       </h2>
-      <Button type="button" variant={pinned ? "secondary" : "ghost"} size="sm" aria-pressed={pinned} aria-label="تثبيت الفلاتر" title={pinned ? "إلغاء تثبيت الفلاتر" : "إبقاء الفلاتر مفتوحة بعد عرض التقرير"} onClick={() => { setPinned(value => !value); if (!pinned) setOpen(true) }} className={pinned ? "text-teal-700 dark:text-teal-300" : "text-muted-foreground"}>
+      <Button type="button" variant="ghost" size="sm" aria-pressed={pinned} aria-label="تثبيت الفلاتر" title={pinned ? "إلغاء تثبيت الفلاتر" : "إبقاء الفلاتر مفتوحة بعد عرض التقرير"} onClick={() => { setPinned(value => !value); if (!pinned) setOpen(true) }} className={pinned ? "bg-teal-600 text-white hover:bg-teal-700 hover:text-white" : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"}>
         {pinned ? <PinOff className="h-4 w-4" aria-hidden="true" /> : <Pin className="h-4 w-4" aria-hidden="true" />}
         <span className="mr-1">تثبيت</span>
       </Button>

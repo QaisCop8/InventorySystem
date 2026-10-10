@@ -493,6 +493,13 @@ export default function AccountSearchDialog({
         dir="rtl"
         onCloseAutoFocus={(event) => event.preventDefault()}
         onInteractOutside={(event) => event.preventDefault()}
+        // كان Radix يركّز أول زر بالنافذة (إضافة حساب) حتى ينتقل التركيز لمربع البحث بعد 120ms —
+        // فضغطة Enter سريعة بعد فتح النافذة كانت تضغط "إضافة حساب". التركيز الآن مباشرة على مربع البحث.
+        onOpenAutoFocus={(event) => {
+          event.preventDefault()
+          if (!window.matchMedia("(max-width: 639px)").matches) accountNameInputRef.current?.focus()
+          else (event.currentTarget as HTMLElement | null)?.focus?.()
+        }}
       >
         <div className="flex h-full min-h-0 flex-col">
           <SearchDialogHeader
@@ -504,6 +511,7 @@ export default function AccountSearchDialog({
             actions={
               <Button
                 type="button"
+                tabIndex={-1}
                 onClick={() => window.open("/admin/accounts?new=1", "_blank", "noopener,noreferrer")}
                 className="h-8 gap-1.5 rounded-lg bg-white px-2.5 text-xs font-bold text-emerald-700 hover:bg-emerald-50"
               >

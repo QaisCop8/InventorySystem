@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { validateNegativeStock } from "@/lib/negative-stock-guard"
 import sql from "@/lib/database"
 import {
   ensureTables,
@@ -135,6 +136,11 @@ export async function POST(request: NextRequest) {
     const availabilityError = await validateAvailableQuantity(items, vchType, null)
     if (availabilityError) {
       return NextResponse.json({ error: availabilityError }, { status: 400 })
+    }
+    // منع الرصيد السالب (إن لم يكن مسموحاً بالإعدادات العامة للسندات)
+    const negativeStockError = await validateNegativeStock({ vchType, voucherId: null, items, fromStoreId: data.from_store_id, toStoreId: data.to_store_id })
+    if (negativeStockError) {
+      return NextResponse.json({ error: negativeStockError }, { status: 400 })
     }
     // أصناف لها رقم تسلسلي: العدد = الكمية + البونص، ومكان كل رقم (داخل/خارج المخزون، المستودع)
     const serialError = await validateVoucherSerials({ vchType, voucherId: null, items, fromStoreId: data.from_store_id, toStoreId: data.to_store_id })
@@ -300,6 +306,11 @@ export async function PUT(request: NextRequest) {
       if (availabilityError) {
         return NextResponse.json({ error: availabilityError }, { status: 400 })
       }
+      // تعديل (تغيير كمية، حذف سطر، تغيير صنف/وحدة/مستودع) لا يجعل أي رصيد سالباً
+      const negativeStockError = await validateNegativeStock({ vchType, voucherId: Number(data.id), items, fromStoreId: data.from_store_id, toStoreId: data.to_store_id })
+      if (negativeStockError) {
+        return NextResponse.json({ error: negativeStockError }, { status: 400 })
+      }
       const serialError = await validateVoucherSerials({ vchType, voucherId: Number(data.id), items, fromStoreId: data.from_store_id, toStoreId: data.to_store_id })
       if (serialError) {
         return NextResponse.json({ error: serialError }, { status: 400 })
@@ -325,6 +336,10 @@ export async function PUT(request: NextRequest) {
       const deletionError = await validateVoucherDeletion(Number(data.id))
       if (deletionError) {
         return NextResponse.json({ error: deletionError }, { status: 400 })
+      }
+      const negativeStockError = await validateNegativeStock({ vchType, voucherId: Number(data.id), items: [], action: "delete" })
+      if (negativeStockError) {
+        return NextResponse.json({ error: negativeStockError }, { status: 400 })
       }
       const serialsRemovalError = await validateSerialsRemoval(Number(data.id))
       if (serialsRemovalError) {
