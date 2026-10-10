@@ -55,6 +55,7 @@ const StockCounts = lazyDefault(() => import("@/components/inventory/stock-count
 const ReceivablesStatementReport = lazyNamed(() => import("@/components/reports/account-statement-report"), "ReceivablesStatementReport")
 const AccountingStatementReport = lazyNamed(() => import("@/components/reports/account-statement-report"), "AccountingStatementReport")
 const ReceivablesBalancesReport = lazyNamed(() => import("@/components/reports/account-balances-report"), "ReceivablesBalancesReport")
+const ReceivablesAgingReport = lazyNamed(() => import("@/components/reports/receivables-aging-report"), "ReceivablesAgingReport")
 const AccountingBalancesReport = lazyNamed(() => import("@/components/reports/account-balances-report"), "AccountingBalancesReport")
 const VouchersReport = lazyNamed(() => import("@/components/reports/financial-report"), "VouchersReport")
 const TransactionsReport = lazyNamed(() => import("@/components/reports/financial-report"), "TransactionsReport")
@@ -190,6 +191,7 @@ const componentMap: Record<string, React.ComponentType<any>> = {
   "accounting-statement-report": AccountingStatementReport,
   "receivables-balances-report": ReceivablesBalancesReport,
   "accounting-balances-report": AccountingBalancesReport,
+  "receivables-aging-report": ReceivablesAgingReport,
   "vouchers-report": VouchersReport,
   "transactions-report": TransactionsReport,
   "trial-balance-report": TrialBalanceReport,

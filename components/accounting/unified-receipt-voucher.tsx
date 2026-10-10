@@ -36,6 +36,7 @@ import { useAuth } from "@/components/auth/auth-context"
 import TransactionBranchField from "@/components/common/transaction-branch-field"
 import { useWorkspaceTabActive } from "@/contexts/workspace-tab-context"
 import { useNavigationGuard } from "@/lib/navigation-guard"
+import { keepDialogOpenOnEscape } from "@/lib/dialog-escape"
 import { VoucherSearchButton, VoucherSearchDialog } from "@/components/common/voucher-search-dialog"
 
 export interface VoucherJournalRow {
@@ -1887,7 +1888,8 @@ export default function UnifiedReceiptVoucher({
       <Dialog
         open={dialogOpen}
         modal={showUnsavedConfirm || showDeleteConfirm || postDialogOpen ? false : undefined}
-        onOpenChange={(open) => (open ? onOpenChange(true) : onOpenChange(false))}
+        // الإغلاق (ESC أو زر X) يمر بالتحقق من التغييرات
+        onOpenChange={(open) => (open ? onOpenChange(true) : guardedAction(() => { codeRequestRef.current += 1; onOpenChange(false) }))}
       >
         <DialogContent
           inline={fullscreenEnabled && dialogOpen}
@@ -1897,17 +1899,16 @@ export default function UnifiedReceiptVoucher({
           onPointerDownOutside={(event) => event.preventDefault()}
           onInteractOutside={(event) => event.preventDefault()}
           onEscapeKeyDown={(event) => {
-            if (showUnsavedConfirm || showDeleteConfirm || journalSearchOpen || costCenterOpen || postDialogOpen)
-              event.preventDefault()
+            keepDialogOpenOnEscape(event, [showUnsavedConfirm, showDeleteConfirm, journalSearchOpen, costCenterOpen, postDialogOpen])
           }}
         >
           <button
             type="button"
             aria-label="إغلاق"
-            onClick={() => {
+            onClick={() => guardedAction(() => {
               codeRequestRef.current += 1
               onOpenChange(false)
-            }}
+            })}
             className="universal-dialog-close absolute left-[14px] top-[10px] z-[100] inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/95 text-slate-900 shadow-lg ring-1 ring-slate-200 transition-opacity hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-sky-400 focus:ring-offset-2"
           >
             <X className="h-4 w-4" />

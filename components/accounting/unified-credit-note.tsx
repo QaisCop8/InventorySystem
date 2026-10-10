@@ -21,6 +21,7 @@ import PrimeDropdown from "@/components/common/FocusDropdown"
 import TransactionBranchField from "@/components/common/transaction-branch-field"
 import { useWorkspaceTabActive } from "@/contexts/workspace-tab-context"
 import { useNavigationGuard } from "@/lib/navigation-guard"
+import { keepDialogOpenOnEscape } from "@/lib/dialog-escape"
 import { VoucherSearchButton, VoucherSearchDialog } from "@/components/common/voucher-search-dialog"
 
 export interface VoucherRecord {
@@ -395,7 +396,8 @@ export default function UnifiedCreditNote({
 
   return (
     <>
-      <Dialog open={dialogOpen} onOpenChange={onOpenChange}>
+      {/* الإغلاق (ESC أو زر X) يمر بالتحقق من التغييرات */}
+      <Dialog open={dialogOpen} onOpenChange={(open) => (open ? onOpenChange(true) : guardedAction(() => onOpenChange(false)))}>
         <DialogContent
           inline={fullscreenEnabled && dialogOpen}
           className="voucher-form w-[97vw] max-w-[1400px] p-0 overflow-hidden max-h-[92vh] overflow-y-auto"
@@ -404,13 +406,13 @@ export default function UnifiedCreditNote({
           onPointerDownOutside={(event) => event.preventDefault()}
           onInteractOutside={(event) => event.preventDefault()}
           onEscapeKeyDown={(event) => {
-            if (showUnsavedConfirm || showDeleteConfirm || postDialogOpen) event.preventDefault()
+            keepDialogOpenOnEscape(event, [showUnsavedConfirm, showDeleteConfirm, postDialogOpen])
           }}
         >
           <button
             type="button"
             aria-label="إغلاق"
-            onClick={() => onOpenChange(false)}
+            onClick={() => guardedAction(() => onOpenChange(false))}
             className="universal-dialog-close absolute left-[14px] top-[10px] z-[100] inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/95 text-slate-900 shadow-lg ring-1 ring-slate-200 transition-opacity hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-sky-400 focus:ring-offset-2"
           >
             <X className="h-4 w-4" />

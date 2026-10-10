@@ -25,6 +25,7 @@ import PrimeDropdown from "@/components/common/FocusDropdown"
 import TransactionBranchField from "@/components/common/transaction-branch-field"
 import { useWorkspaceTabActive } from "@/contexts/workspace-tab-context"
 import { useNavigationGuard } from "@/lib/navigation-guard"
+import { keepDialogOpenOnEscape } from "@/lib/dialog-escape"
 import { VoucherSearchButton, VoucherSearchDialog } from "@/components/common/voucher-search-dialog"
 
 const voucherTabTriggerClass =
@@ -118,6 +119,34 @@ const emptyJournalRow: JournalEntryRow = {
   credit: null,
   note: "",
   cost_centers: [],
+}
+
+// بصمة "ما أدخله المستخدم" للتحقق من التغييرات — بدل مقارنة النموذج كاملاً بـ JSON: الحقول التي تُعبّأ
+// آلياً بعد فتح النافذة (رقم السند ودفتره وصياغته، العملة وسعرها الافتراضيان، أسطر فارغة تضيفها الشبكة،
+// null مقابل 0) كانت تُظهر "تم تعديل البيانات" دون أن يلمس المستخدم شيئاً. الأسطر الفارغة تماماً تُهمَل.
+const journalDirtySignature = (form: { [key: string]: any }) => {
+  const amount = (value: unknown) => Math.round(Number(value || 0) * 1000) / 1000
+  const rows = (Array.isArray(form.journal) ? form.journal : [])
+    .map((row: any) => ({
+      account: Number(row.account_id) || null,
+      debit: amount(row.debit),
+      credit: amount(row.credit),
+      note: String(row.note || "").trim(),
+      centers: (Array.isArray(row.cost_centers) ? row.cost_centers : []).map((center: any) => Number(center?.cost_center_id) || 0).filter(Boolean),
+    }))
+    .filter((row: any) => row.account || row.debit || row.credit || row.note || row.centers.length)
+  const notes = (Array.isArray(form.notes) ? form.notes : []).map((row: any) => String(row?.note || "").trim()).filter(Boolean)
+  return JSON.stringify({
+    id: Number(form.id) || 0,
+    date: String(form.vch_date || "").slice(0, 10),
+    manualVoucher: String(form.manual_voucher || "").trim(),
+    manualDate: String(form.manual_date || "").slice(0, 10),
+    note: String(form.note || "").trim(),
+    salesman: Number(form.salesman_id) || null,
+    classification: Number(form.payment_classification_id) || null,
+    rows,
+    notes,
+  })
 }
 
 const normalizeVoucherCode = (value: string) => value.toUpperCase().replace(/[^A-Z0-9-]/g, "").slice(0, 10)
@@ -351,13 +380,15 @@ export default function UnifiedJournal({
     }
   }, [errorMessages])
 
-  const initialSnapshotRef = useRef<string>(JSON.stringify(form))
+  const latestFormRef = useRef(form)
+  latestFormRef.current = form
+  const initialSnapshotRef = useRef<string>(journalDirtySignature(form))
   const [showUnsavedConfirm, setShowUnsavedConfirm] = useState(false)
   const pendingActionRef = useRef<(() => void) | null>(null)
 
   useEffect(() => {
     const snapshotTimer = window.setTimeout(() => {
-      initialSnapshotRef.current = JSON.stringify(form)
+      initialSnapshotRef.current = journalDirtySignature(latestFormRef.current)
     }, 0)
     setActiveTab("journal")
     return () => window.clearTimeout(snapshotTimer)
@@ -367,6 +398,8 @@ export default function UnifiedJournal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dialogOpen, form.id, form.vch_code, isNewMode, isSaving])
 
+  const isFormDirty = () => journalDirtySignature(form) !== initialSnapshotRef.current
+
   const guardedAction = (action: () => void) => {
     if ([2, 3].includes(Number(form.status))) { action(); return }
     if (showUnsavedConfirm) return
@@ -374,7 +407,7 @@ export default function UnifiedJournal({
       action()
       return
     }
-    if (JSON.stringify(form) !== initialSnapshotRef.current) {
+    if (isFormDirty()) {
       pendingActionRef.current = action
       setShowUnsavedConfirm(true)
     } else {
@@ -384,7 +417,7 @@ export default function UnifiedJournal({
   // تبديل الشاشة من القائمة/إغلاق التبويب/رجوع المتصفح/تحديث الصفحة مع تغييرات غير محفوظة ⇐ نفس نافذة
   // التحقق من التغييرات (حفظ/عدم حفظ/إلغاء) — كما في كاشير نقطة البيع (lib/navigation-guard.ts)
   useNavigationGuard(
-    () => dialogOpen && ![2, 3].includes(Number(form.status)) && !isLocked && JSON.stringify(form) !== initialSnapshotRef.current,
+    () => dialogOpen && ![2, 3].includes(Number(form.status)) && !isLocked && isFormDirty(),
     (continueNavigation) => guardedAction(continueNavigation),
   )
 
@@ -406,7 +439,8 @@ export default function UnifiedJournal({
   const requestSaveRef = useRef<() => void>(() => {})
   const handleRequestSave = () => {
     if (isLocked) return
-    if (gridRef.current?.activeEditor) gridRef.current.finishEditing()
+    const liveGrid = getGrid()
+    if (liveGrid?.activeEditor) liveGrid.finishEditing()
     // الحفظ من تبويب آخر (بيانات اضافية/ملاحظات) يفتح تبويب الحسابات أولاً ثم يتابع الحفظ.
     if (activeTab !== "journal") {
       setActiveTab("journal")
@@ -498,6 +532,27 @@ export default function UnifiedJournal({
   const journalRef = useRef(journal)
   journalRef.current = journal
 
+  // gridRef يحمل غلاف React لـ FlexGrid عند التركيب، والـ control نفسه بعد أول مفتاح — نتعامل مع الحالتين
+  const getGrid = () => {
+    const current = gridRef.current
+    return current?.control ?? current
+  }
+
+  // سبب قفز المؤشر لأول صف: كل تعديل على سطر كان يُنشئ مصفوفة أسطر جديدة ⇐ Wijmo يعيد ربط itemsSource
+  // ويُصفّر التحديد للصف الأول (مع إبقاء العمود — فيظهر "الصف الأول/مدين")، ثم تحاول مؤقّتات التركيز
+  // إعادته فتسبقها أحياناً. الآن: تعديل سطر قائم يُطبَّق على كائن السطر المربوط نفسه + invalidate، فلا
+  // تُستبدل المصفوفة ولا يتغير التحديد. المصفوفة تُعاد بناؤها فقط عند تغيّر بنيوي (إضافة/حذف/تحميل سند).
+  const buildJournalGridRows = (rows: JournalEntryRow[]) => rows.map((row, i) => ({ ...row, ser: i + 1 }))
+  const emittedJournalRef = useRef<JournalEntryRow[] | null>(null)
+  const [journalGridData, setJournalGridData] = useState(() => buildJournalGridRows(journal))
+  const journalGridDataRef = useRef(journalGridData)
+  journalGridDataRef.current = journalGridData
+  useEffect(() => {
+    if (journal === emittedJournalRef.current) return
+    setJournalGridData(buildJournalGridRows(journal))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [journal])
+
   // يعيد تركيز الشبكة (وتحديد خلية بعينها) بعد إغلاق نافذة منبثقة فُتحت من سطر في الشبكة (بحث
   // حساب، مراكز تكلفة) أو بعد حذف/اختيار سطر — دون هذا يبقى التركيز عالقاً على الزر الذي فتح
   // النافذة. هناك سباقان منفصلان يجب تجاوزهما معاً، وليس أحدهما فقط:
@@ -512,10 +567,10 @@ export default function UnifiedJournal({
     const target = pendingJournalFocusRef.current
     if (!target) return
     waitForGridReady(
-      () => gridRef.current,
+      () => getGrid(),
       (grid) => {
         const place = () => {
-          const live = gridRef.current || grid
+          const live = getGrid() || grid
           if (!live?.rows?.length) return
           const safeRow = Math.max(0, Math.min(target.row, live.rows.length - 1))
           const colIndex = live.columns.findIndex((column: any) => column.binding === target.colName)
@@ -559,6 +614,12 @@ export default function UnifiedJournal({
     if (isLocked) return
     const next = journalRef.current.map((row, i) => (i === index ? { ...row, ...patch } : row))
     journalRef.current = next
+    const boundRow = journalGridDataRef.current[index]
+    if (boundRow && journalGridDataRef.current.length === next.length) {
+      Object.assign(boundRow, next[index], { ser: index + 1 })
+      emittedJournalRef.current = next
+      getGrid()?.invalidate?.()
+    }
     onJournalChange(next)
   }
   const addJournalRow = () => {
@@ -748,7 +809,6 @@ export default function UnifiedJournal({
     [isLocked],
   )
 
-  const journalGridData = useMemo(() => journal.map((row, i) => ({ ...row, ser: i + 1 })), [journal])
 
   const handleJournalCellEditEnded = (grid: any, e: any) => {
     gridRef.current = grid
@@ -954,7 +1014,8 @@ export default function UnifiedJournal({
 
   return (
     <>
-      <Dialog open={dialogOpen} onOpenChange={onOpenChange}>
+      {/* الإغلاق (ESC أو زر X) يمر بالتحقق من التغييرات */}
+      <Dialog open={dialogOpen} onOpenChange={(open) => (open ? onOpenChange(true) : guardedAction(() => onOpenChange(false)))}>
         <DialogContent
           inline={fullscreenEnabled && dialogOpen}
           className="journal-voucher-form voucher-form flex h-[calc(100dvh-1rem)] max-h-[96vh] w-[calc(100vw-0.5rem)] max-w-[1700px] min-w-0 flex-col overflow-hidden p-0 text-[13px] transition-shadow sm:w-[98vw] [&_label]:text-xs [&_input:not([type=checkbox])]:h-8 [&_input:not([type=checkbox])]:px-2.5 [&_select]:h-8 [&_select]:rounded-md [&_.p-dropdown]:min-h-8 [&_.p-dropdown-label]:py-1.5 [&_.p-calendar]:h-8 [&_.p-calendar_input]:h-8"
@@ -962,8 +1023,7 @@ export default function UnifiedJournal({
           onPointerDownOutside={(event) => event.preventDefault()}
           onInteractOutside={(event) => event.preventDefault()}
           onEscapeKeyDown={(event) => {
-            if (showUnsavedConfirm || showDeleteConfirm || journalSearchOpen || costCenterOpen || postDialogOpen)
-              event.preventDefault()
+            keepDialogOpenOnEscape(event, [showUnsavedConfirm, showDeleteConfirm, journalSearchOpen, costCenterOpen, postDialogOpen, voucherSearchOpen])
           }}
         >
           <UniversalToolbar

@@ -89,11 +89,42 @@ async function campaignRows() {
   `
 }
 
+// صنف من باركود: باركود وحدة (product_unit_barcodes — unit_id فيه قد يكون معرّف سطر product_units أو
+// معرّف الوحدة) يُرجع الصنف بتلك الوحدة وسعرها، وإلا باركود الصنف الرئيسي (products.barcode) بالوحدة الأولى.
+async function productByBarcode(barcode: string, priceClass: number) {
+  const rows = await sql`
+    WITH hit AS (
+      SELECT pub.product_id, pu.id AS product_unit_id, pu.unit_id, 0 AS rank
+      FROM product_unit_barcodes pub
+      JOIN product_units pu ON pu.product_id = pub.product_id AND pub.unit_id IN (pu.id, pu.unit_id)
+      WHERE BTRIM(pub.barcode) = ${barcode}
+      UNION ALL
+      SELECT p.id, pu.id, pu.unit_id, 1
+      FROM products p
+      LEFT JOIN LATERAL (SELECT id, unit_id FROM product_units WHERE product_id = p.id ORDER BY id LIMIT 1) pu ON TRUE
+      WHERE BTRIM(p.barcode) = ${barcode}
+    )
+    SELECT p.id, p.product_code code, p.product_name name, hit.unit_id, u.unit_name, COALESCE(price.price, 0) sale_price
+    FROM hit
+    JOIN products p ON p.id = hit.product_id
+    LEFT JOIN units u ON u.id = hit.unit_id
+    LEFT JOIN LATERAL (SELECT pp.price FROM product_prices pp WHERE pp.product_id = p.id
+      AND pp.price_category_id = ${priceClass} AND pp.unit_id IN (hit.unit_id, hit.product_unit_id)
+      ORDER BY CASE WHEN pp.unit_id = hit.unit_id THEN 0 ELSE 1 END, pp.id DESC LIMIT 1) price ON TRUE
+    WHERE COALESCE(p.deleted, false) = false
+    ORDER BY hit.rank, hit.product_unit_id
+    LIMIT 1
+  `
+  return rows[0] || null
+}
+
 export async function GET(request: NextRequest) {
   try {
     await ensureTables()
     const id = Number(request.nextUrl.searchParams.get("id") || 0)
     const priceClass = Math.max(1, number(request.nextUrl.searchParams.get("price_class"), 1))
+    const barcode = String(request.nextUrl.searchParams.get("barcode") || "").trim()
+    if (barcode) return NextResponse.json({ product: await productByBarcode(barcode, priceClass) })
     if (request.nextUrl.searchParams.get("catalog") === "1") return NextResponse.json(await meta(priceClass))
     if (request.nextUrl.searchParams.get("meta") === "1") return NextResponse.json({ campaigns: await campaignRows(), ...(await meta(priceClass)) })
     if (id) {

@@ -314,11 +314,20 @@ export default function UnifiedCampaigns({
   }
 
   const save = async () => {
-    finishGridEditing()
-    const current = formRef.current
-    const issue = validate(current)
-    if (issue) {
-      revealIssue(issue)
+    // أي استثناء قبل الإرسال (إنهاء تحرير شبكة غير مركّبة، تحقق...) كان يُبتلع بصمت فيبدو الزر بلا أثر —
+    // يُعرض الآن كرسالة خطأ بدل ذلك
+    let current: CampaignRecord
+    try {
+      try { finishGridEditing() } catch { /* شبكة تبويب الأصناف غير مركّبة حالياً */ }
+      current = formRef.current
+      const issue = validate(current)
+      if (issue) {
+        revealIssue(issue)
+        return false
+      }
+    } catch (reason) {
+      console.error("Campaign save failed before submit", reason)
+      showMessage("error", reason instanceof Error ? `تعذر حفظ الحملة: ${reason.message}` : "تعذر حفظ الحملة")
       return false
     }
     setSaving(true)
@@ -508,7 +517,7 @@ export default function UnifiedCampaigns({
                     {form.condition_items_opt !== 1 && <div className="grid gap-2"><Label htmlFor="campaign-buy-value">{form.condition_items_opt === 2 ? "عدد الأصناف" : "الكمية"}</Label>{numberInput("campaign-buy-value", form.condition_items_val, value => update({ condition_items_val: value }), { min: 1 })}</div>}
                   </div>
                 </section>}
-                {hasBuyItems && <CampaignItemsGrid title="أصناف الشراء" items={buyItems} setItems={items => { buyItemsRef.current = items; setBuyItems(items) }} products={catalogProducts} gridRef={buyGrid} onError={message => showMessage("error", message)} />}
+                {hasBuyItems && <CampaignItemsGrid title="أصناف الشراء" items={buyItems} setItems={items => { buyItemsRef.current = items; setBuyItems(items) }} products={catalogProducts} priceClass={Number(form.price_class) || 1} gridRef={buyGrid} onError={message => showMessage("error", message)} />}
                 {hasAddedItems && <>
                   <section className={cardClass}>
                     {cardTitle(<PackagePlus size={18} />, "شروط الأصناف المضافة")}
@@ -517,7 +526,7 @@ export default function UnifiedCampaigns({
                       {form.added_items_option !== 1 && <div className="grid gap-2"><Label htmlFor="campaign-added-value">{form.added_items_option === 2 ? "عدد الأصناف" : "الكمية"}</Label>{numberInput("campaign-added-value", form.added_items_value, value => update({ added_items_value: value }), { min: 1 })}</div>}
                     </div>
                   </section>
-                  <CampaignItemsGrid title="الأصناف المضافة / الهدايا" items={addedItems} setItems={items => { addedItemsRef.current = items; setAddedItems(items) }} products={catalogProducts} gridRef={addedGrid} onError={message => showMessage("error", message)} />
+                  <CampaignItemsGrid title="الأصناف المضافة / الهدايا" items={addedItems} setItems={items => { addedItemsRef.current = items; setAddedItems(items) }} products={catalogProducts} priceClass={Number(form.price_class) || 1} gridRef={addedGrid} onError={message => showMessage("error", message)} />
                 </>}
               </>}
             </TabsContent>

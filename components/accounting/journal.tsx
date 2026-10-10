@@ -563,6 +563,12 @@ export default function Journal() {
     openEditDialog(voucher, index >= 0 ? index : 0)
   }
 
+  // موقع السند الحالي بترتيب التنقل (الأقدم أولاً: الأول/التالي = id أكبر) — قائمة السندات مرتبة
+  // تنازلياً (الأحدث أولاً)، فكان استعمال موقعها مباشرة يعكس الأزرار: عند أحدث سند يُعطَّل "السابق"
+  // ويبقى "التالي" مفعّلاً بلا نتيجة، ويظهر عدّاد السجل معكوساً.
+  const listIndex = form.id > 0 ? vouchers.findIndex((v) => v.id === form.id) : -1
+  const navigationIndex = listIndex >= 0 ? vouchers.length - 1 - listIndex : vouchers.length
+
   return (
     <div className="w-full max-w-full space-y-6" dir="rtl">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -743,7 +749,7 @@ export default function Journal() {
 
       <UnifiedJournal
         dialogOpen={dialogOpen}
-        currentIndex={currentIndex}
+        currentIndex={navigationIndex}
         totalRecords={vouchers.length}
         currencies={currencies}
         voucherBooks={voucherBooks}
@@ -769,8 +775,8 @@ export default function Journal() {
         onConfirmDelete={handleConfirmDelete}
         onCancelDelete={() => setShowDeleteConfirm(false)}
         canSave={canSaveForm}
-        isFirstRecord={currentIndex <= 0}
-        isLastRecord={vouchers.length === 0 ? true : currentIndex >= vouchers.length - 1}
+        isFirstRecord={navigationIndex <= 0}
+        isLastRecord={vouchers.length === 0 ? true : navigationIndex >= vouchers.length - 1}
         isNewMode={isNewMode}
         errorMessages={errorMessages}
       />

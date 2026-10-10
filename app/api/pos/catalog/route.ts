@@ -26,7 +26,7 @@ export async function GET(request:NextRequest) {
                COALESCE(NULLIF(ig.group_name,''),NULLIF(main_group.group_name,''),'غير مصنف') category_name,
                u.id unit_id,u.unit_name,COALESCE(pu.first_barcode,p.barcode,'') first_barcode,
                COALESCE(pr.price,0) source_price,pr.currency_id price_currency_id,
-               COALESCE((SELECT jsonb_agg(jsonb_build_object('unit_id',units_price.unit_id,'source_price',COALESCE(selected_price.price,0),'price_currency_id',selected_price.currency_id))
+               COALESCE((SELECT jsonb_agg(jsonb_build_object('unit_id',units_price.unit_id,'unit_name',(SELECT unit_name FROM units WHERE units.id=units_price.unit_id),'source_price',COALESCE(selected_price.price,0),'price_currency_id',selected_price.currency_id))
                  FROM product_units units_price
                  LEFT JOIN LATERAL (SELECT pp.price,pp.currency_id FROM product_prices pp
                    WHERE pp.product_id=p.id AND pp.price_category_id=${priceCategoryId} AND pp.unit_id IN (units_price.unit_id,units_price.id)
@@ -108,7 +108,7 @@ export async function GET(request:NextRequest) {
       })
       const unitPrices=(Array.isArray(product.unit_prices)?product.unit_prices:[]).map((option:any)=>{
         const rate=rateByCurrency.get(Number(option.price_currency_id||pointCurrencyId))||1
-        return {unit_id:Number(option.unit_id),price:Math.round(Number(option.source_price||0)*rate/pointRate*10000)/10000}
+        return {unit_id:Number(option.unit_id),unit_name:String(option.unit_name||''),price:Math.round(Number(option.source_price||0)*rate/pointRate*10000)/10000}
       })
       return {...rest,first_price:firstPrice,barcode_options:barcodeOptions,unit_prices:unitPrices}
     })

@@ -41,6 +41,8 @@ export async function POST(request: Request) {
     const { command, active_branch_id, user_id } = await request.json()
     const text = String(command || "").trim()
     if (!text) return Response.json({ error: "الأمر مطلوب" }, { status: 400 })
+    // سؤال/تقرير بلا كلمات طلبيات ⇐ ليس أمر إنشاء — يُمرَّر للمحادثة مباشرة
+    if (!/(?:طلبي|طلب|مسود|مسوّد|اوردر|order)/i.test(text)) return Response.json({ type: "other" })
     const today = new Date().toISOString().slice(0, 10)
     const generated = await generateText({
       model: google("gemini-2.5-flash"),
@@ -51,7 +53,10 @@ customer اسم العميل أو رمزه لمسودة المبيعات. order_
 items مصفوفة product وquantity وprice وdiscount. حافظ على اسم/رمز الصنف كما قاله المستخدم، وحول الأرقام العربية والمكتوبة إلى أرقام. لا تخترع صنفاً أو كمية أو فرعاً أو مستودعاً.`,
       prompt: text,
     })
-    const parsed = schema.parse(extractJson(generated.text))
+    const parsedResult = (() => { try { return schema.safeParse(extractJson(generated.text)) } catch { return null } })()
+    // رد غير قابل للتحليل ⇐ ليس أمر إنشاء واضحاً؛ تُكمل المحادثة بدل رسالة خطأ
+    if (!parsedResult?.success) return Response.json({ type: "other" })
+    const parsed = parsedResult.data
     if (parsed.intent === "other") return Response.json({ type: "other" })
     if (!parsed.items.length) return Response.json({ error: "اذكر صنفاً واحداً على الأقل وكمية كل صنف" }, { status: 422 })
     const branchId = Number(active_branch_id)

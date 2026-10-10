@@ -3,6 +3,7 @@ import { google } from "@ai-sdk/google"
 import { z } from "zod"
 import sql from "@/lib/database"
 import { paymentSchema, paymentPrompt, resolveReceiptPayments } from "@/lib/ai-receipt-payments"
+import { getSystemSettingValue } from "@/lib/system-settings"
 
 const draftSchema = z.object({
   intent: z.enum(["create_receipt", "create_payment", "other"]),
@@ -72,20 +73,33 @@ const mentionsCardPayment = (value: string) => /(?:بطاقه|بطاقه\s+ائ�
 
 const extractClearCommand = (command: string, currencies: CurrencyRow[]) => {
   const normalized = normalizeArabicText(toEnglishDigits(command))
-  const intent = /(?:سند\s*صرف|اصرف|ادفع|دفعنا)/i.test(normalized)
+  const intent = /(?:سند\s*(?:ال)?صرف|(?:^|\s)صرف(?=\s|$)|اصرف|ادفع|دفعنا|(?:^|\s)دفع(?=\s|$))/i.test(normalized)
     ? "create_payment" as const
     : /(?:سند\s*(?:ال)?قبض|(?:^|\s)قبض(?=\s|$)|اقبض|قبضنا|استلمنا|استلام)/i.test(normalized)
       ? "create_receipt" as const
       : null
   const numberValue = (match: RegExpMatchArray | null) => match ? Number(match[1].replace(/,/g, "")) : null
-  const cashAmount = numberValue(normalized.match(/(?:بمبلغ\s+)?(?:نقدي(?:ة)?|كاش)\s*([\d,]+(?:\.\d+)?)/i))
-  const checkAmount = numberValue(normalized.match(/(?:و?\s*(?:شيك|شيكات))\s*(?:بمبلغ\s*)?([\d,]+(?:\.\d+)?)/i))
-  const plainAmount = numberValue(normalized.match(/(?:بمبلغ|مبلغ)\s*([\d,]+(?:\.\d+)?)/i))
+  // المبالغ تُقرأ بعد حذف "رقم الشيك ..." — وإلا يُقرأ رقم الشيك كمبلغ شيكات
+  const amountText = normalized.replace(/رقم\s*الشيك\s*[:#-]?\s*[\w-]+/gi, " ")
+  const cashAmount = numberValue(amountText.match(/(?:بمبلغ\s+)?(?:نقدي(?:ة)?|كاش)\s*([\d,]+(?:\.\d+)?)/i))
+  const checkAmount = numberValue(amountText.match(/(?:و?\s*(?:شيك|شيكات))\s*(?:بمبلغ\s*)?([\d,]+(?:\.\d+)?)/i))
+  const plainAmount = numberValue(amountText.match(/(?:بمبلغ|مبلغ)\s*([\d,]+(?:\.\d+)?)/i))
+  const looseAmount = plainAmount ?? numberValue(normalized
+    .replace(/رقم\s*الشيك\s*[:#-]?\s*[\w-]+/gi, " ")
+    .replace(/(?:من\s+)?(?:ال)?حساب\s+(?:ال)?بنك(?:ي)?\s*[:#-]?\s*[\w-]+/gi, " ")
+    .replace(/رقم\s*الحساب\s*[:#-]?\s*[\w-]+/gi, " ")
+    .replace(/\d{1,4}[\/-]\d{1,2}[\/-]\d{1,4}/g, " ")
+    .match(/(?:^|\s)([\d,]+(?:\.\d+)?)(?=\s|$)/))
   const amount = cashAmount != null || checkAmount != null
     ? (cashAmount || 0) + (checkAmount || 0)
-    : plainAmount
-  const accountMatch = normalized.match(/(?:للزبون|للعميل|لزبون|لعميل|من|الي)\s+(.+?)(?=\s+(?:بمبلغ|مبلغ|نقدي|شيك|شيكات|بطاقه)(?:\s|$)|$)/i)
-  const account = accountMatch?.[1]?.replace(/^(?:الزبون|العميل)\s+/i, "").trim() || null
+    : looseAmount
+  const accountStop = "(?=\\s+(?:بمبلغ|مبلغ|نقدي|نقدا|كاش|شيك|شيكات|بطاقه|من\\s+(?:ال)?حساب|(?:ال)?حساب\\s+(?:ال)?بنك|رقم\\s*الشيك|تاريخ|بتاريخ|[\\d,]+(?:\\.\\d+)?)(?:\\s|$)|$)"
+  const accountPatterns = [
+    "(?:للزبون|للعميل|للمورد|للموظف|للحساب|لحساب|لزبون|لعميل|لمورد|الي|لـ)\\s+(.+?)",
+    ...(intent === "create_payment" ? ["(?:^|\\s)ل(?!ل)(\\S.*?)"] : ["(?:^|\\s)من\\s+(?!(?:ال)?حساب\\s+(?:ال)?بنك)(.+?)"]),
+  ]
+  const accountMatch = accountPatterns.map((pattern) => normalized.match(new RegExp(pattern + accountStop, "i"))).find(Boolean)
+  const account = accountMatch?.[1]?.replace(/^(?:الزبون|العميل|المورد|الموظف|الحساب)\s+/i, "").trim() || null
   const currency = findCurrency(normalized, currencies)
   const chequeNumber = normalized.match(/رقم\s*الشيك\s*[:#-]?\s*([\w-]+)/i)?.[1] || null
   const dueDateText = normalized.match(/تاريخ\s*الاستحقاق\s*[:#-]?\s*(\d{1,4}[\/-]\d{1,2}[\/-]\d{1,4})/i)?.[1] || null
@@ -96,17 +110,20 @@ const extractClearCommand = (command: string, currencies: CurrencyRow[]) => {
     if (!year || !month || !day) return null
     return `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`
   }
-  const bank = normalized.match(/((?:البنك|بنك)\s+.+?)(?=\s+فرع\s|\s+تاريخ\s*الاستحقاق|\s+رقم\s*الحساب|$)/i)?.[1]?.trim() || null
+  // "حساب بنك ..." هو الحساب البنكي (سند الصرف) وليس اسم بنك الشيك
+  const bank = normalized.match(/(?<!حساب\s*)((?:البنك|بنك)\s+.+?)(?=\s+فرع\s|\s+تاريخ\s*الاستحقاق|\s+رقم\s*(?:الحساب|الشيك)|\s+(?:بمبلغ|مبلغ)\s|$)/i)?.[1]?.trim() || null
   const branch = normalized.match(/فرع\s+(.+?)(?=\s+تاريخ\s*الاستحقاق|\s+رقم\s*الحساب|$)/i)?.[1]?.trim() || null
-  const bankAccount = normalized.match(/رقم\s*الحساب\s*[:#-]?\s*([\w-]+)/i)?.[1] || null
+  const bankAccount = normalized.match(/(?:من\s+)?(?:ال)?حساب\s+(?:ال)?بنك(?:ي)?\s*[:#-]?\s*(.+?)(?=\s+(?:بمبلغ|مبلغ|رقم\s*الشيك|تاريخ|بتاريخ|شيك|نقدي)(?:\s|$)|$)/i)?.[1]?.trim()
+    || normalized.match(/رقم\s*الحساب\s*[:#-]?\s*([\w-]+)/i)?.[1] || null
   // Do not treat the currency name "شيكل" as the cheque keyword "شيك".
   const hasCheque = checkAmount != null || mentionsChequePayment(normalized)
+  const effectiveCheckAmount = checkAmount ?? (hasCheque && cashAmount == null ? amount : null)
   return {
     intent, amount, account, currency: currency?.currency_name || currency?.currency_code || null,
     payment_method: hasCheque ? (cashAmount ? "mixed" as const : "cheques" as const) : (amount ? "cash" as const : null),
     cash_amount: cashAmount ?? (hasCheque ? 0 : amount),
-    check_amount: checkAmount,
-    cheques: hasCheque && checkAmount ? [{ number: chequeNumber, due_date: toIsoDate(dueDateText), amount: checkAmount, bank, branch, bank_account: bankAccount, owner: null }] : null,
+    check_amount: effectiveCheckAmount,
+    cheques: hasCheque && effectiveCheckAmount ? [{ number: chequeNumber, due_date: toIsoDate(dueDateText), amount: effectiveCheckAmount, bank, branch, bank_account: bankAccount, owner: null }] : null,
   }
 }
 
@@ -122,6 +139,9 @@ export async function POST(request: Request) {
       ORDER BY id
     `
     const local = extractClearCommand(commandText, currencyRows)
+    // رسالة بلا أي كلمة سندات (سؤال، تقرير، استعلام) ⇐ ليست أمر سند — تُمرَّر للمحادثة دون استدعاء التحليل
+    const voucherWords = /(?:سند|قبض|اقبض|استلم|صرف|اصرف|ادفع|دفع|دفعنا|receipt|payment)/i
+    if (!local.intent && !voucherWords.test(normalizeArabicText(commandText))) return Response.json({ type: "other" })
     let ai: z.infer<typeof draftSchema> | null = null
     try {
       const result = await generateText({
@@ -141,7 +161,8 @@ ${paymentPrompt}
       if (aiResult.success) ai = aiResult.data
       else if (!local.intent) throw aiResult.error
     } catch (error) {
-      if (!local.intent) throw error
+      // تعذّر التحليل ولا يوجد أمر سند واضح ⇐ ليست أمر سند؛ تُكمل المحادثة بدل رسالة "تعذر إنشاء مسودة السند"
+      if (!local.intent) return Response.json({ type: "other" })
       console.warn("AI receipt parsing failed; using deterministic command parser", error)
     }
     const normalizedCommand = normalizeArabicText(toEnglishDigits(commandText))
@@ -237,15 +258,25 @@ ${paymentPrompt}
       return Response.json({ error: `وجدت أكثر من حساب مطابق. أعد الطلب مع رمز الحساب: ${candidates.map((row: any) => `${row.name} (${row.code})`).join("، ")}` }, { status: 422 })
     }
     const account = candidates[0]
-    const [banks, branches, cardTypes, bankAccounts] = await Promise.all([
+    // سند صرف شيكات: الحسابات البنكية + أوراق دفاتر الشيكات المتاحة (لأخذ رقم الشيك من الدفتر) + إعداد منع الإدخال اليدوي
+    const paymentCheques = voucherType === 5 && Boolean(parsed.cheques?.length)
+    const [banks, branches, cardTypes, bankAccounts, chequeLeaves, disallowManualCheque] = await Promise.all([
       parsed.cheques?.length ? sql`SELECT id, bank_code, bank_name FROM banks WHERE status != 3` : [],
       parsed.cheques?.length ? sql`SELECT id, branch_code, branch_name, bank_id FROM branches WHERE status != 3` : [],
       parsed.cards?.length ? sql`SELECT id, name, currency_id, financial_account_id FROM credit_cards_types_tbl WHERE COALESCE(status, 1) != 3 AND currency_id = ${currencyId}` : [],
-      voucherType === 5 && parsed.cheques?.length ? sql`SELECT id, branch_id, code, name, currency_id, jary_account_id FROM bank_accounts WHERE status != 3` : [],
+      paymentCheques ? sql`SELECT id, branch_id, code, actual_bank_code, name, currency_id, jary_account_id FROM bank_accounts WHERE COALESCE(status, 1) != 3` : [],
+      paymentCheques ? sql`
+        SELECT leaf.id, leaf.cheque_code, book.bank_account_id
+        FROM cheque_book_cheque_tbl leaf
+        JOIN cheque_books_tbl book ON book.id = leaf.cheque_books_id AND COALESCE(book.status, 1) != 3
+        WHERE COALESCE(leaf.status, 1) = 1 AND leaf.voucher_id IS NULL
+        ORDER BY book.id, COALESCE(leaf.order_no, leaf.id), leaf.id
+      `.catch(() => []) : [],
+      paymentCheques ? getSystemSettingValue<boolean>("disallow_manual_cheque_entry_in_payment", false) : false,
     ])
     let payments
     try {
-      payments = resolveReceiptPayments(parsed, amount, currencyId, { banks, branches, cardTypes, bankAccounts }, voucherType)
+      payments = resolveReceiptPayments(parsed, amount, currencyId, { banks, branches, cardTypes, bankAccounts, chequeLeaves, disallowManualCheque: Boolean(disallowManualCheque) }, voucherType)
     } catch (error) {
       return Response.json({ error: error instanceof Error ? error.message : "تحقق من تفاصيل الدفع" }, { status: 422 })
     }

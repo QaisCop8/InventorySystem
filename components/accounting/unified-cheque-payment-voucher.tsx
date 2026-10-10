@@ -21,6 +21,7 @@ import { useAuth } from "@/components/auth/auth-context"
 import { useWorkspace } from "@/contexts/workspace-context"
 import { useWorkspaceTabActive } from "@/contexts/workspace-tab-context"
 import { VoucherSearchButton, VoucherSearchDialog } from "@/components/common/voucher-search-dialog"
+import { keepDialogOpenOnEscape } from "@/lib/dialog-escape"
 
 type Cheque = { status_id?: number; status_name?: string; id: number; cheque_id?: number; cheq_num: string; amount: number; due_date?: string; currency_id?: number; currency_code?: string; bank_name?: string; branch_name?: string; customer_name?: string; customer_code?: string }
 type Voucher = { id: number; vch_code: string; vch_date: string; vch_book_id: number | null; amount: number; status: number; account_id: number | null; account_code?: string; account_name?: string; currency_id: number | null; branch_id: number | null; note?: string; cheques: Cheque[] }
@@ -106,6 +107,16 @@ export default function UnifiedChequePaymentVoucher() {
     const loadBooks = async () => { try { const query = user?.id ? `?vch_type=21&user_id=${encodeURIComponent(user.id)}` : "?vch_type=21"; const response = await fetch(`/api/receipts/voucher-books${query}`); const data = await response.json(); if (!response.ok) throw new Error(data.error || "تعذر تحميل دفاتر السندات"); const books = Array.isArray(data.books) ? data.books : []; setVoucherBooks(books); setDefaultBookId(data.default_book_id || books[0]?.id || null); if (!books.length) setError("لا يوجد دفتر سندات مصرح به لسند صرف الشيكات") } catch (reason) { setVoucherBooks([]); setDefaultBookId(null); setError(reason instanceof Error ? reason.message : "تعذر تحميل دفاتر السندات") } }
     useEffect(() => { void load(); void loadBooks() }, [user?.id])
     // F3 حفظ / F9 حذف وبقية الاختصارات الموحّدة يتولاها UniversalToolbar (lib/hotkeys.ts)
+
+    // التحقق من التغييرات عند الإغلاق (ESC أو زر X): السند المحفوظ للعرض فقط، فالتعديل غير المحفوظ يعني
+    // سنداً جديداً اختير له حساب مستفيد أو شيكات. نعم ⇐ الحفظ، لا ⇐ إغلاق دون حفظ، رجوع ⇐ البقاء.
+    const [closeConfirm, setCloseConfirm] = useState(false)
+    const hasUnsavedChanges = () => !form.id && (Boolean(form.account_id) || (form.cheques || []).length > 0)
+    const requestClose = () => {
+        if (saving) return
+        if (hasUnsavedChanges()) { setCloseConfirm(true); return }
+        setDialogOpen(false)
+    }
     const openRecord = async (id: number) => { setLoading(true); try { const response = await fetch(`/api/cheque-payment-vouchers/${id}`); const data = await response.json(); if (!response.ok) throw new Error(data.error); setForm({ ...data, cheques: data.cheques || [] }); setCurrentIndex(Math.max(0, rows.findIndex(row => Number(row.id) === id))); setDialogOpen(true) } catch (reason) { setError(reason instanceof Error ? reason.message : "تعذر عرض السند") } finally { setLoading(false) } }
     const generateCode = async (bookId: number) => { try { const response = await fetch(`/api/cheque-payment-vouchers/generate-number?vch_book_id=${bookId}`); const data = await response.json(); if (!response.ok || !data.code) { setError(data.error || "تعذر توليد رقم السند"); return } setForm(current => ({ ...current, vch_book_id: bookId, vch_code: data.code })) } catch { setError("تعذر توليد رقم السند") } }
     const handleBookChange = (value: number | null) => { setForm(current => ({ ...current, vch_book_id: value, vch_code: "" })); if (value && !form.id) void generateCode(value) }
@@ -174,17 +185,18 @@ export default function UnifiedChequePaymentVoucher() {
                 </div>
             </section>
 
-            <Dialog open={dialogOpen} onOpenChange={open => { if (!saving) setDialogOpen(open) }}>
+            <Dialog open={dialogOpen} onOpenChange={open => { if (open) { if (!saving) setDialogOpen(true) } else requestClose() }}>
                 <DialogContent
                     hideCloseButton
                     onPointerDownOutside={event => event.preventDefault()}
                     onInteractOutside={event => event.preventDefault()}
+                    onEscapeKeyDown={event => { keepDialogOpenOnEscape(event, [closeConfirm, deleteConfirm, postDialogOpen, searchOpen, voucherSearchOpen, saving]) }}
                     dir="rtl"
                     className={`cheque-payment-editor flex h-[94dvh] max-h-[calc(100%-1rem)] w-[calc(100%-1rem)] max-w-[1360px] flex-col gap-0 overflow-hidden rounded-2xl border-slate-200 bg-slate-50 p-0 ${fullscreenEnabled ? "cheque-payment-fullscreen" : ""}`}
                 >
                     <div className="flex shrink-0 items-center justify-between gap-4 border-b border-emerald-100 bg-white px-4 py-4 sm:px-6">
                         <DialogHeader className="min-w-0 text-right"><DialogTitle className="flex flex-wrap items-center gap-2 text-lg font-black text-slate-900"><FileCheck2 className="h-5 w-5 text-emerald-700" />سند صرف شيكات<span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">{statusLabel}</span></DialogTitle></DialogHeader>
-                        <Button type="button" size="icon" variant="ghost" disabled={saving} onClick={() => setDialogOpen(false)} aria-label="إغلاق سند صرف الشيكات" className="shrink-0 rounded-full text-slate-500"><X className="h-5 w-5" /></Button>
+                        <Button type="button" size="icon" variant="ghost" disabled={saving} onClick={requestClose} aria-label="إغلاق سند صرف الشيكات" className="shrink-0 rounded-full text-slate-500"><X className="h-5 w-5" /></Button>
                     </div>
                     <div className="shrink-0 border-b bg-white px-2">
                         <UniversalToolbar currentRecord={currentIndex + 1} totalRecords={rows.length} onNew={newRecord} onSave={() => setPostDialogOpen(true)} onDelete={form.id ? remove : undefined} onFirst={() => navigate("first")} onPrevious={() => navigate("previous")} onNext={() => navigate("next")} onLast={() => navigate("last")} isLoading={loading} isSaving={saving} canSave={form.status === 1} canDelete={!!form.id} isNewRecord={!form.id} hotkeys={{ new: !form.id && !saving && !loading ? () => setSearchOpen(true) : null }} labels={{ new: "جديد", save: "حفظ", previous: "السابق", next: "التالي", first: "الأول", last: "الأخير", delete: "حذف", report: "استعلام", exportExcel: "تصدير إكسل", print: "طباعة", clone: "نسخ" }} />
@@ -234,6 +246,20 @@ export default function UnifiedChequePaymentVoucher() {
             <ChequeSearch open={searchOpen} onOpenChange={setSearchOpen} currencyId={form.currency_id} excluded={selectedIds} onSelect={chooseCheques} />
             <PostVoucherDialog visible={postDialogOpen} isSaving={saving} onSelect={action => void save(action)} onCancel={() => setPostDialogOpen(false)} />
             <VoucherPrintLayout data={printData} voucherTypeId={21} />
+            <ConfirmDialogYesNo
+                useAppDialog
+                visible={closeConfirm}
+                title="التحقق من التغييرات"
+                message="تم تعديل البيانات، هل تريد الحفظ؟"
+                confirmLabel="نعم"
+                cancelLabel="لا"
+                backLabel="رجوع"
+                showBack
+                onConfirm={() => { setCloseConfirm(false); setPostDialogOpen(true) }}
+                onCancel={() => { setCloseConfirm(false); setDialogOpen(false) }}
+                onBack={() => setCloseConfirm(false)}
+                onDismiss={() => setCloseConfirm(false)}
+            />
             <ConfirmDialogYesNo useAppDialog busy={saving} title="حذف سند صرف شيكات" visible={deleteConfirm} message="هل أنت متأكد من حذف سند صرف الشيكات؟" onConfirm={() => void confirmDelete()} onCancel={() => setDeleteConfirm(false)} />
         </main>
     )

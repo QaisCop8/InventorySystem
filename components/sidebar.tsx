@@ -1,8 +1,8 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useReportAccess } from "@/components/auth/use-report-access"
-import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
 import {
   LayoutDashboard,
   Users,
@@ -52,9 +52,12 @@ import {
   Settings2,
   BriefcaseBusiness,
   Store,
+  Search,
+  X,
+  PanelRightClose,
+  PanelRightOpen,
   LucideIcon,
 } from "lucide-react"
-import { useWindowManager } from "@/contexts/window-manager-context"
 import { useMenuTheme } from "@/contexts/menu-theme-context"
 
 interface SidebarProps {
@@ -74,31 +77,38 @@ export interface MenuItem {
 }
 
 interface Accent {
-  gradient: string
-  glow: string
-  chip: string
+  /** مربع أيقونة القسم الرئيسي (لون هادئ بدل التدرج المشبع) */
+  tile: string
+  /** شريط العنصر النشط ونقطة المستوى الثالث */
+  bar: string
+  /** خلفية العنصر النشط/المجموعة المفتوحة */
+  soft: string
 }
 
-// Each top-level section gets its own colour identity so the whole menu reads
-// as a vivid, organised map rather than one flat colour repeated everywhere.
+// لون هادئ مميز لكل قسم رئيسي — يُسهّل تمييز الأقسام دون ازدحام بصري.
 const ACCENTS: Record<string, Accent> = {
-  "home-dashboard": { gradient: "from-cyan-400 to-blue-500", glow: "shadow-cyan-500/40", chip: "bg-cyan-500/15 text-cyan-700 dark:text-cyan-200" },
-  "smart-analytics": { gradient: "from-violet-400 to-purple-600", glow: "shadow-violet-500/40", chip: "bg-violet-500/15 text-violet-700 dark:text-violet-200" },
-  "task-orders": { gradient: "from-fuchsia-400 to-pink-600", glow: "shadow-fuchsia-500/40", chip: "bg-fuchsia-500/15 text-fuchsia-700 dark:text-fuchsia-200" },
-  definitions: { gradient: "from-emerald-400 to-teal-500", glow: "shadow-emerald-500/40", chip: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-200" },
-  "general-accounting": { gradient: "from-amber-400 to-orange-500", glow: "shadow-amber-500/40", chip: "bg-amber-500/15 text-amber-700 dark:text-amber-200" },
-  "item-management": { gradient: "from-lime-400 to-green-600", glow: "shadow-lime-500/40", chip: "bg-lime-500/15 text-lime-700 dark:text-lime-200" },
-  orders: { gradient: "from-rose-400 to-pink-600", glow: "shadow-rose-500/40", chip: "bg-rose-500/15 text-rose-700 dark:text-rose-200" },
-  "retail-pos": { gradient: "from-emerald-400 to-cyan-500", glow: "shadow-emerald-500/40", chip: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-200" },
-  reports: { gradient: "from-teal-400 to-cyan-600", glow: "shadow-teal-500/40", chip: "bg-teal-500/15 text-teal-700 dark:text-teal-200" },
-  "item-reports": { gradient: "from-teal-400 to-cyan-600", glow: "shadow-teal-500/40", chip: "bg-teal-500/15 text-teal-700 dark:text-teal-200" },
-  settings: { gradient: "from-slate-400 to-slate-600", glow: "shadow-slate-500/40", chip: "bg-slate-500/15 text-slate-700 dark:text-slate-200" },
-  tools: { gradient: "from-cyan-500 to-blue-600", glow: "shadow-cyan-500/40", chip: "bg-cyan-500/15 text-cyan-700 dark:text-cyan-200" },
+  "home-dashboard": { tile: "bg-sky-50 text-sky-600 ring-sky-100 dark:bg-sky-400/10 dark:text-sky-300 dark:ring-sky-400/20", bar: "bg-sky-500", soft: "bg-sky-50 text-sky-900 dark:bg-sky-400/10 dark:text-sky-50" },
+  "ai-assistant": { tile: "bg-violet-50 text-violet-600 ring-violet-100 dark:bg-violet-400/10 dark:text-violet-300 dark:ring-violet-400/20", bar: "bg-violet-500", soft: "bg-violet-50 text-violet-900 dark:bg-violet-400/10 dark:text-violet-50" },
+  "smart-analytics": { tile: "bg-violet-50 text-violet-600 ring-violet-100 dark:bg-violet-400/10 dark:text-violet-300 dark:ring-violet-400/20", bar: "bg-violet-500", soft: "bg-violet-50 text-violet-900 dark:bg-violet-400/10 dark:text-violet-50" },
+  "task-orders": { tile: "bg-fuchsia-50 text-fuchsia-600 ring-fuchsia-100 dark:bg-fuchsia-400/10 dark:text-fuchsia-300 dark:ring-fuchsia-400/20", bar: "bg-fuchsia-500", soft: "bg-fuchsia-50 text-fuchsia-900 dark:bg-fuchsia-400/10 dark:text-fuchsia-50" },
+  definitions: { tile: "bg-emerald-50 text-emerald-600 ring-emerald-100 dark:bg-emerald-400/10 dark:text-emerald-300 dark:ring-emerald-400/20", bar: "bg-emerald-500", soft: "bg-emerald-50 text-emerald-900 dark:bg-emerald-400/10 dark:text-emerald-50" },
+  "general-accounting": { tile: "bg-amber-50 text-amber-600 ring-amber-100 dark:bg-amber-400/10 dark:text-amber-300 dark:ring-amber-400/20", bar: "bg-amber-500", soft: "bg-amber-50 text-amber-900 dark:bg-amber-400/10 dark:text-amber-50" },
+  "item-management": { tile: "bg-lime-50 text-lime-700 ring-lime-100 dark:bg-lime-400/10 dark:text-lime-300 dark:ring-lime-400/20", bar: "bg-lime-500", soft: "bg-lime-50 text-lime-900 dark:bg-lime-400/10 dark:text-lime-50" },
+  orders: { tile: "bg-rose-50 text-rose-600 ring-rose-100 dark:bg-rose-400/10 dark:text-rose-300 dark:ring-rose-400/20", bar: "bg-rose-500", soft: "bg-rose-50 text-rose-900 dark:bg-rose-400/10 dark:text-rose-50" },
+  "retail-pos": { tile: "bg-teal-50 text-teal-600 ring-teal-100 dark:bg-teal-400/10 dark:text-teal-300 dark:ring-teal-400/20", bar: "bg-teal-500", soft: "bg-teal-50 text-teal-900 dark:bg-teal-400/10 dark:text-teal-50" },
+  reports: { tile: "bg-cyan-50 text-cyan-600 ring-cyan-100 dark:bg-cyan-400/10 dark:text-cyan-300 dark:ring-cyan-400/20", bar: "bg-cyan-500", soft: "bg-cyan-50 text-cyan-900 dark:bg-cyan-400/10 dark:text-cyan-50" },
+  "item-reports": { tile: "bg-cyan-50 text-cyan-600 ring-cyan-100 dark:bg-cyan-400/10 dark:text-cyan-300 dark:ring-cyan-400/20", bar: "bg-cyan-500", soft: "bg-cyan-50 text-cyan-900 dark:bg-cyan-400/10 dark:text-cyan-50" },
+  settings: { tile: "bg-slate-100 text-slate-600 ring-slate-200 dark:bg-white/5 dark:text-slate-300 dark:ring-white/10", bar: "bg-slate-500", soft: "bg-slate-100 text-slate-900 dark:bg-white/[0.07] dark:text-white" },
+  tools: { tile: "bg-blue-50 text-blue-600 ring-blue-100 dark:bg-blue-400/10 dark:text-blue-300 dark:ring-blue-400/20", bar: "bg-blue-500", soft: "bg-blue-50 text-blue-900 dark:bg-blue-400/10 dark:text-blue-50" },
 }
 
-const DEFAULT_ACCENT: Accent = ACCENTS["home-dashboard"]
+const DEFAULT_ACCENT: Accent = ACCENTS.definitions
 
 const getAccent = (id?: string): Accent => (id && ACCENTS[id]) || DEFAULT_ACCENT
+
+/** عرض القائمة الجانبية (مفتوحة / شريط أيقونات) — يستخدمه ERPLayout لإزاحة المحتوى. */
+export const SIDEBAR_WIDTH = 352
+export const SIDEBAR_COLLAPSED_WIDTH = 76
 
 // مُصعَّد لمستوى الوحدة (بدل داخل Sidebar) ليُصدَّر ويُعاد استخدامه بمكان آخر (شريط تبويبات
 // مساحة العمل) دون تكرار نفس القائمة الضخمة — البيانات ثابتة أصلاً، لا تعتمد على أي prop/hook.
@@ -372,6 +382,7 @@ export const menuItems: MenuItem[] = [
           { title: "بيان حساب محاسبي", section: "accounting-statement-report", icon: BookOpen },
           { title: "تقرير أرصدة الذمم بتاريخ معين", section: "receivables-balances-report", icon: BarChart3 },
           { title: "تقرير أرصدة الحسابات بتاريخ معين", section: "accounting-balances-report", icon: BarChart3 },
+          { title: "تقرير تعمير الذمم", section: "receivables-aging-report", icon: Clock3 },
           { title: "تقرير السندات", section: "vouchers-report", icon: FileText },
           { title: "تقرير الحركات", section: "transactions-report", icon: TrendingUp },
           { title: "ميزان المراجعة", section: "trial-balance-report", icon: BarChart3 },
@@ -446,6 +457,46 @@ function filterReportItems(items: MenuItem[], canOpenReport: (section?: string |
   })
 }
 
+const itemKey = (item: MenuItem) => item.id ?? item.section ?? item.title
+
+const normalizeMenuText = (value: string) =>
+  value
+    .toLowerCase()
+    .replace(/[ً-ْـ]/g, "")
+    .replace(/[أإآ]/g, "ا")
+    .replace(/ى/g, "ي")
+    .replace(/ة/g, "ه")
+    .replace(/\s+/g, " ")
+    .trim()
+
+// فلترة القائمة بنص البحث: عنصر يطابق عنوانه يظهر بكامل فروعه، وإلا تظهر فروعه المطابقة فقط.
+function filterMenuByQuery(items: MenuItem[], terms: string[]): MenuItem[] {
+  if (!terms.length) return items
+  return items.flatMap((item) => {
+    const title = normalizeMenuText(item.title)
+    if (terms.every((term) => title.includes(term))) return [item]
+    if (!item.submenu) return []
+    const submenu = filterMenuByQuery(item.submenu, terms)
+    return submenu.length ? [{ ...item, submenu }] : []
+  })
+}
+
+// مفاتيح المجموعات التي تحوي القسم النشط (لفتحها تلقائياً وإبراز القسم الرئيسي الحاوي).
+function findAncestorKeys(items: MenuItem[], section: string, trail: string[] = []): string[] | null {
+  for (const item of items) {
+    if (item.section === section && !item.submenu) return trail
+    if (item.submenu) {
+      if (item.section === section) return [...trail, itemKey(item)]
+      const found = findAncestorKeys(item.submenu, section, [...trail, itemKey(item)])
+      if (found) return found
+    }
+  }
+  return null
+}
+
+const countLeaves = (items: MenuItem[]): number =>
+  items.reduce((total, item) => total + (item.submenu ? countLeaves(item.submenu) : 1), 0)
+
 export function Sidebar({
   isOpen,
   onToggle,
@@ -456,15 +507,28 @@ export function Sidebar({
   const canOpenReport = useReportAccess()
   const visibleMenuItems = useMemo(() => filterReportItems(menuItems, canOpenReport), [canOpenReport])
   const [expandedMenus, setExpandedMenus] = useState<string[]>([])
+  const [query, setQuery] = useState("")
   const [companyLogo, setCompanyLogo] = useState("")
   const [companyName, setCompanyName] = useState("ARAAK ERP System")
-  const { openWindow } = useWindowManager()
   const { menuDarkMode } = useMenuTheme()
+  const searchInputRef = useRef<HTMLInputElement>(null)
 
+  const searchTerms = useMemo(() => normalizeMenuText(query).split(" ").filter(Boolean), [query])
+  const filteredItems = useMemo(() => filterMenuByQuery(visibleMenuItems, searchTerms), [visibleMenuItems, searchTerms])
+  const isSearching = searchTerms.length > 0
+  const activeTrail = useMemo(() => findAncestorKeys(visibleMenuItems, activeSection) ?? [], [visibleMenuItems, activeSection])
+
+  // فتح المجموعات الحاوية للقسم النشط تلقائياً (عند التنقل من الهيدر/البحث/الروابط أيضاً)
   useEffect(() => {
-    if (!activeSection.startsWith("internal-manufacturing-")) return
-    setExpandedMenus((current) => Array.from(new Set([...current, "item-management", "internal-manufacturing-orders", "internal-manufacturing-request"])))
-  }, [activeSection])
+    if (!activeTrail.length) return
+    setExpandedMenus((current) => {
+      const topLevel = activeTrail[0]
+      // قسم رئيسي واحد مفتوح في كل مرة: إغلاق بقية الأقسام الرئيسية عند الانتقال لقسم آخر
+      const topKeys = new Set(visibleMenuItems.map(itemKey))
+      const kept = current.filter((key) => !topKeys.has(key) || key === topLevel)
+      return Array.from(new Set([...kept, ...activeTrail]))
+    })
+  }, [activeTrail, visibleMenuItems])
 
   useEffect(() => {
     const loadCompanyBrand = async () => {
@@ -484,10 +548,15 @@ export function Sidebar({
     return () => window.removeEventListener("system-settings-updated", loadCompanyBrand)
   }, [])
 
+  const isTopLevel = (key: string) => visibleMenuItems.some((item) => itemKey(item) === key)
+
   const toggleMenu = (menuId: string) => {
-    setExpandedMenus(prev =>
-      prev.includes(menuId) ? prev.filter(id => id !== menuId) : [...prev, menuId]
-    )
+    setExpandedMenus((prev) => {
+      if (prev.includes(menuId)) return prev.filter((id) => id !== menuId)
+      // فتح قسم رئيسي يُغلق الأقسام الرئيسية الأخرى (أكورديون) — الفروع الداخلية تبقى كما هي
+      if (isTopLevel(menuId)) return [...prev.filter((id) => !isTopLevel(id)), menuId]
+      return [...prev, menuId]
+    })
   }
 
   // يُعيد رابطاً حقيقياً لنفس صفحة SPA (app/page.tsx) بمعامل section — تقرأه الصفحة عند
@@ -500,223 +569,277 @@ export function Sidebar({
 
   const handleItemClick = (item: MenuItem) => {
     if (item.submenu) {
-      const menuId = item.id ?? item.section ?? item.title
-      toggleMenu(menuId)
-      if (item.section === "internal-manufacturing-request") {
-        onSectionChange(item.section)
+      // شريط الأيقونات (قائمة مطوية): الضغط على قسم يفتح القائمة ويعرض فروعه
+      if (!isOpen) {
+        onToggle()
+        setExpandedMenus((prev) => [...prev.filter((id) => !isTopLevel(id)), itemKey(item)])
+      } else {
+        toggleMenu(itemKey(item))
       }
+      if (item.section === "internal-manufacturing-request") onSectionChange(item.section)
       return
     }
-
-    if (item.section) {
-      onSectionChange(item.section)
-    }
+    if (item.section) onSectionChange(item.section)
   }
 
   // عناصر القائمة بدون قائمة فرعية تُعرض كروابط <a> حقيقية (انظر getSectionUrl) — هذا يجعل
-  // الزر الأوسط (فتح بتبويب جديد) وقائمة سياق المتصفح اليمنى (فتح الرابط بتبويب جديد...) تعملان
-  // بشكل طبيعي دون أي كود إضافي. الكليك العادي فقط يُمنع افتراضياً ليُستبدل بالانتقال السريع
-  // داخل الصفحة نفسها (SPA)، أما Ctrl/Cmd/Shift+كليك فتُترك للمتصفح ليفتحها بتبويب/نافذة جديدة.
+  // الزر الأوسط (فتح بتبويب جديد) وقائمة سياق المتصفح اليمنى تعملان بشكل طبيعي. الكليك العادي
+  // فقط يُمنع ليُستبدل بالانتقال داخل الصفحة (SPA)، أما Ctrl/Cmd/Shift+كليك فتُترك للمتصفح.
   const handleItemLinkClick = (e: React.MouseEvent<HTMLAnchorElement>, item: MenuItem) => {
     if (e.ctrlKey || e.metaKey || e.shiftKey) return
     e.preventDefault()
     handleItemClick(item)
   }
 
+  const isExpanded = (item: MenuItem) => isSearching || expandedMenus.includes(itemKey(item))
+
+  // ── المستوى الثاني فأعمق ──
+  const renderSubItems = (items: MenuItem[], accent: Accent, depth: number) => (
+    <div
+      className={
+        depth === 1
+          ? "relative mr-[1.4rem] mt-1 space-y-0.5 border-r border-slate-200 pb-1 pr-2.5 dark:border-white/10"
+          : "relative mr-3 mt-0.5 space-y-0.5 border-r border-dashed border-slate-200 pr-2.5 dark:border-white/10"
+      }
+    >
+      {items.map((item) => {
+        const key = itemKey(item)
+        const Icon = item.icon
+        const hasChildren = Boolean(item.submenu?.length)
+        const active = activeSection === item.section
+        const inTrail = activeTrail.includes(key)
+        const expanded = hasChildren && isExpanded(item)
+        const rowClass = cn(
+          "group relative flex w-full items-center gap-2.5 rounded-lg px-2.5 text-right transition-colors duration-150",
+          depth === 1 ? "min-h-9 py-1.5 text-[0.84rem]" : "min-h-8 py-1 text-[0.8rem]",
+          active
+            ? cn(accent.soft, "font-bold")
+            : inTrail
+              ? "font-semibold text-slate-900 dark:text-white"
+              : "font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-white/[0.06] dark:hover:text-white",
+        )
+        const content = (
+          <>
+            {active && <span className={cn("absolute -right-[11px] top-1.5 bottom-1.5 w-[3px] rounded-full", accent.bar)} />}
+            {depth === 1 ? (
+              <Icon className={cn("h-4 w-4 shrink-0", active ? "" : "text-slate-400 group-hover:text-slate-600 dark:text-slate-500 dark:group-hover:text-slate-300")} />
+            ) : (
+              <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", active ? accent.bar : "bg-slate-300 dark:bg-slate-600")} />
+            )}
+            <span className="min-w-0 flex-1 truncate">{item.title}</span>
+            {hasChildren && (
+              <ChevronDown className={cn("h-3.5 w-3.5 shrink-0 text-slate-400 transition-transform duration-200", expanded && "rotate-180")} />
+            )}
+          </>
+        )
+        return (
+          <div key={key}>
+            {hasChildren ? (
+              <button type="button" onClick={() => handleItemClick(item)} className={rowClass} aria-expanded={expanded}>
+                {content}
+              </button>
+            ) : (
+              <a href={getSectionUrl(item.section || "")} onClick={(e) => handleItemLinkClick(e, item)} className={rowClass} aria-current={active ? "page" : undefined}>
+                {content}
+              </a>
+            )}
+            {expanded && item.submenu && renderSubItems(item.submenu, accent, depth + 1)}
+          </div>
+        )
+      })}
+    </div>
+  )
+
+  const width = isMobile ? undefined : isOpen ? SIDEBAR_WIDTH : SIDEBAR_COLLAPSED_WIDTH
+
   return (
     // اللف بعنصر خارجي حامل لصنف "dark" (بدل وضعه على نفس عنصر الجذر) — أصناف dark: في العنصر
     // الداخلي تحتاج سلفاً حاملاً لـ.dark فعلياً (محدِّد نسل)، لا العنصر نفسه، حتى تتفعّل بصرياً.
     <div className={`user-typography ${menuDarkMode ? "dark" : ""}`}>
-    <div
-      className={`fixed top-0 right-0 z-40 flex h-screen flex-col border-l border-slate-200 dark:border-white/10 bg-white dark:bg-[radial-gradient(circle_at_top_right,_rgba(56,189,248,0.16),_transparent_45%),radial-gradient(circle_at_bottom_left,_rgba(167,139,250,0.14),_transparent_50%),linear-gradient(180deg,_#0b1120_0%,_#0f172a_55%,_#0b1120_100%)] text-slate-800 dark:text-slate-100 shadow-[0_25px_80px_-24px_rgba(15,23,42,0.12)] dark:shadow-[0_25px_80px_-24px_rgba(2,6,23,0.9)] backdrop-blur-xl transition-all duration-300 ${isMobile ? "w-[min(20rem,calc(100vw-1rem))] z-50" : isOpen ? "w-80" : "w-20"} ${isMobile && !isOpen ? "translate-x-full" : "translate-x-0"}`}
-      dir="rtl"
-    >
-      {/* Header */}
-      <div className="border-b border-slate-200 dark:border-white/10 px-4 py-5">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex min-w-0 items-center gap-3">
-            <div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-400 via-blue-500 to-violet-600 shadow-lg shadow-blue-500/30">
-              {companyLogo ? (
-                <img src={companyLogo} alt={companyName} className="h-full w-full rounded-2xl bg-white object-contain" />
-              ) : (
-                <Sparkles className="h-5 w-5 text-white" />
-              )}
-              <span className="absolute -bottom-1 -left-1 h-3 w-3 rounded-full bg-emerald-400 ring-2 ring-white dark:ring-slate-950" />
-            </div>
-            {isOpen && (
-              <div className="min-w-0">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-cyan-600 dark:text-cyan-300/80">نظام</p>
-                <h2 className="truncate text-[15px] font-bold text-slate-900 dark:text-white">{companyName}</h2>
-              </div>
+      <aside
+        className={cn(
+          "fixed right-0 top-0 z-40 flex h-[100dvh] flex-col border-l border-slate-200/80 bg-white text-slate-800 shadow-[0_0_40px_-20px_rgba(15,23,42,0.25)] transition-[width,transform] duration-300 dark:border-white/10 dark:bg-[linear-gradient(180deg,#0b1220_0%,#0f172a_60%,#0b1220_100%)] dark:text-slate-100",
+          isMobile && "z-50 w-[min(22rem,calc(100vw-1rem))]",
+          isMobile && !isOpen ? "translate-x-full" : "translate-x-0",
+        )}
+        style={width ? { width } : undefined}
+        dir="rtl"
+        aria-label="القائمة الرئيسية"
+      >
+        {/* الهوية */}
+        <div className={cn("flex shrink-0 items-center gap-3 border-b border-slate-100 dark:border-white/10", isOpen ? "px-4 py-4" : "flex-col px-2 py-4")}>
+          <div className="relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 shadow-md shadow-emerald-600/20">
+            {companyLogo ? (
+              <img src={companyLogo} alt={companyName} className="h-full w-full bg-white object-contain p-1" />
+            ) : (
+              <Sparkles className="h-5 w-5 text-white" />
             )}
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
+          {isOpen && (
+            <div className="min-w-0 flex-1">
+              <h2 className="truncate text-[15px] font-extrabold leading-6 text-slate-900 dark:text-white" title={companyName}>{companyName}</h2>
+              <p className="flex items-center gap-1.5 text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                نظام إدارة الموارد
+              </p>
+            </div>
+          )}
+          <button
+            type="button"
             onClick={onToggle}
-            className="shrink-0 rounded-xl border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-200 transition-colors hover:bg-slate-200 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white"
+            title={isOpen ? "طي القائمة" : "توسيع القائمة"}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/10 dark:hover:text-white"
           >
-            <ChevronRight className={`h-5 w-5 transition-transform duration-300 ${isOpen ? "rotate-180" : ""}`} />
-          </Button>
+            {isOpen ? <PanelRightClose className="h-[18px] w-[18px]" /> : <PanelRightOpen className="h-[18px] w-[18px]" />}
+          </button>
         </div>
-      </div>
 
-      {/* Menu */}
-      <div className="flex-1 overflow-y-auto overflow-x-hidden px-3 py-4 scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-white/10 scrollbar-track-transparent">
-        <div className="space-y-1.5">
-          {visibleMenuItems.map((item) => {
-            const itemId = item.id ?? item.section ?? item.title
-            const ItemIcon = item.icon
-            const isActive = activeSection === item.section
-            const isExpanded = expandedMenus.includes(itemId)
-            const accent = getAccent(item.id)
+        {/* بحث سريع داخل القائمة */}
+        {isOpen && (
+          <div className="shrink-0 px-3 pb-2 pt-3">
+            <div className="relative">
+              <Search className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <input
+                ref={searchInputRef}
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Escape") setQuery("")
+                  if (event.key === "Enter") {
+                    // Enter يفتح أول شاشة مطابقة
+                    const firstLeaf = (function find(items: MenuItem[]): MenuItem | null {
+                      for (const item of items) {
+                        if (!item.submenu && item.section) return item
+                        const nested = item.submenu ? find(item.submenu) : null
+                        if (nested) return nested
+                      }
+                      return null
+                    })(filteredItems)
+                    if (firstLeaf) {
+                      onSectionChange(firstLeaf.section!)
+                      setQuery("")
+                    }
+                  }
+                }}
+                placeholder="ابحث في القائمة..."
+                className="h-10 w-full rounded-xl border border-slate-200 bg-slate-50 pr-9 pl-8 text-sm text-slate-800 outline-none transition-colors placeholder:text-slate-400 focus:border-emerald-400 focus:bg-white focus:ring-2 focus:ring-emerald-500/15 dark:border-white/10 dark:bg-white/5 dark:text-slate-100 dark:focus:bg-white/10"
+              />
+              {query && (
+                <button
+                  type="button"
+                  onClick={() => { setQuery(""); searchInputRef.current?.focus() }}
+                  className="absolute left-2 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-md text-slate-400 hover:bg-slate-200 hover:text-slate-700 dark:hover:bg-white/10"
+                  title="مسح"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+          </div>
+        )}
 
-            const itemClassName = `group relative flex w-full items-center gap-3 overflow-hidden rounded-2xl px-3 py-2.5 text-sm font-medium transition-all duration-200 ${
-              isActive
-                ? `bg-slate-100 dark:bg-white/[0.07] text-slate-900 dark:text-white shadow-lg ${accent.glow}`
-                : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/[0.05] hover:text-slate-900 dark:hover:text-white"
-            } ${!isOpen ? "justify-center px-2" : "justify-between"}`
-            const itemContent = (
-              <>
-                {isActive && (
-                  <span className={`absolute inset-y-1.5 right-0 w-1 rounded-full bg-gradient-to-b ${accent.gradient}`} />
-                )}
-                <div className={`flex items-center gap-3 ${!isOpen ? "justify-center" : "min-w-0 flex-1"}`}>
-                  <span
-                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${accent.gradient} text-white shadow-md transition-all duration-200 group-hover:scale-105 ${
-                      isActive ? `shadow-lg ${accent.glow}` : "opacity-90 group-hover:opacity-100"
-                    }`}
-                  >
-                    <ItemIcon className="h-5 w-5" />
+        {/* القائمة */}
+        <nav className={cn("min-h-0 flex-1 overflow-y-auto overflow-x-hidden pb-4 scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-transparent dark:scrollbar-thumb-white/10", isOpen ? "px-3 pt-1" : "px-2 pt-3")}>
+          {isOpen && (
+            <p className="px-2 pb-1.5 pt-1 text-[10.5px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+              {isSearching ? `نتائج البحث (${countLeaves(filteredItems)})` : "القائمة"}
+            </p>
+          )}
+          {isOpen && isSearching && !filteredItems.length && (
+            <div className="rounded-xl border border-dashed border-slate-200 px-3 py-6 text-center text-sm text-slate-500 dark:border-white/10">
+              لا توجد شاشة بهذا الاسم
+            </div>
+          )}
+          <div className={isOpen ? "space-y-1" : "space-y-1.5"}>
+            {(isOpen ? filteredItems : visibleMenuItems).map((item) => {
+              const key = itemKey(item)
+              const Icon = item.icon
+              const accent = getAccent(item.id)
+              const hasChildren = Boolean(item.submenu?.length)
+              const active = activeSection === item.section
+              const containsActive = activeTrail[0] === key
+              const expanded = isOpen && hasChildren && isExpanded(item)
+
+              const rowClass = cn(
+                "group relative flex w-full items-center rounded-xl text-right transition-colors duration-150",
+                isOpen ? "min-h-11 gap-3 px-2 py-1.5" : "h-12 justify-center",
+                active || (containsActive && !expanded)
+                  ? accent.soft
+                  : expanded
+                    ? "bg-slate-50 dark:bg-white/[0.04]"
+                    : "hover:bg-slate-100 dark:hover:bg-white/[0.06]",
+              )
+              const content = (
+                <>
+                  {(active || containsActive) && (
+                    <span className={cn("absolute right-0 top-2 bottom-2 w-[3px] rounded-l-full", accent.bar, !isOpen && "top-3 bottom-3")} />
+                  )}
+                  <span className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ring-1 transition-transform duration-150 group-hover:scale-[1.04]", accent.tile)}>
+                    <Icon className="h-[18px] w-[18px]" />
                   </span>
-                  {isOpen && <span className="truncate text-right text-[0.95rem] font-semibold">{item.title}</span>}
-                </div>
-                {isOpen && item.submenu && (
-                  <ChevronDown
-                    className={`h-4 w-4 shrink-0 text-slate-500 dark:text-slate-400 transition-transform duration-300 ${
-                      isExpanded ? "-rotate-180 text-slate-900 dark:text-white" : ""
-                    }`}
-                  />
-                )}
-              </>
-            )
-
-            return (
-              <div key={itemId}>
-                {item.submenu ? (
-                  <button type="button" title={!isOpen ? item.title : undefined} onClick={() => toggleMenu(itemId)} className={itemClassName}>
-                    {itemContent}
-                  </button>
-                ) : (
-                  <a
-                    href={getSectionUrl(item.section || "")}
-                    title={!isOpen ? item.title : undefined}
-                    onClick={(e) => handleItemLinkClick(e, item)}
-                    className={itemClassName}
-                  >
-                    {itemContent}
-                  </a>
-                )}
-
-                {isOpen && item.submenu && isExpanded && (
-                  <div className="mr-5 mt-1.5 space-y-1 border-r-2 border-slate-200 dark:border-white/10 py-1 pr-4">
-                    {item.submenu.map((subItem: MenuItem) => {
-                      const subItemId = subItem.id ?? subItem.section ?? subItem.title
-                      const SubItemIcon = subItem.icon
-                      const hasNestedSubmenu = Boolean(subItem.submenu)
-                      const isSubActive = activeSection === subItem.section
-                      const isSubExpanded = expandedMenus.includes(subItemId)
-
-                      const subItemClassName = `flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-medium transition-all duration-200 ${
-                        isSubActive ? `${accent.chip} font-semibold` : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white"
-                      }`
-                      const subItemContent = (
+                  {isOpen && (
+                    <>
+                      <span
+                        className={cn(
+                          "min-w-0 flex-1 truncate text-[0.92rem]",
+                          active || containsActive ? "font-extrabold text-slate-900 dark:text-white" : "font-semibold text-slate-700 dark:text-slate-200",
+                        )}
+                      >
+                        {item.title}
+                      </span>
+                      {hasChildren && (
                         <>
-                          <span
-                            className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition-all duration-200 ${
-                              isSubActive ? `bg-gradient-to-br ${accent.gradient} text-white shadow` : "bg-slate-100 dark:bg-white/5 text-slate-500 dark:text-slate-300"
-                            }`}
-                          >
-                            <SubItemIcon className="h-3.5 w-3.5" />
+                          <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-slate-500 dark:bg-white/10 dark:text-slate-400">
+                            {countLeaves(item.submenu!)}
                           </span>
-                          <span className="flex-1 truncate text-right text-[0.83rem] font-semibold">{subItem.title}</span>
-                          {hasNestedSubmenu && (
-                            <ChevronDown
-                              className={`h-3 w-3 shrink-0 transition-transform duration-300 ${isSubExpanded ? "-rotate-180" : ""}`}
-                            />
-                          )}
+                          <ChevronDown className={cn("h-4 w-4 shrink-0 text-slate-400 transition-transform duration-200", expanded && "rotate-180 text-slate-700 dark:text-slate-200")} />
                         </>
-                      )
+                      )}
+                    </>
+                  )}
+                </>
+              )
 
-                      return (
-                        <div key={subItemId}>
-                          {hasNestedSubmenu ? (
-                            <button type="button" onClick={() => handleItemClick(subItem)} className={subItemClassName}>
-                              {subItemContent}
-                            </button>
-                          ) : (
-                            <a
-                              href={getSectionUrl(subItem.section || "")}
-                              onClick={(e) => handleItemLinkClick(e, subItem)}
-                              className={subItemClassName}
-                            >
-                              {subItemContent}
-                            </a>
-                          )}
+              return (
+                <div key={key}>
+                  {hasChildren ? (
+                    <button type="button" title={!isOpen ? item.title : undefined} onClick={() => handleItemClick(item)} className={rowClass} aria-expanded={expanded}>
+                      {content}
+                    </button>
+                  ) : (
+                    <a
+                      href={getSectionUrl(item.section || "")}
+                      title={!isOpen ? item.title : undefined}
+                      onClick={(e) => handleItemLinkClick(e, item)}
+                      className={rowClass}
+                      aria-current={active ? "page" : undefined}
+                    >
+                      {content}
+                    </a>
+                  )}
+                  {expanded && item.submenu && renderSubItems(item.submenu, accent, 1)}
+                </div>
+              )
+            })}
+          </div>
+        </nav>
 
-                          {hasNestedSubmenu && isSubExpanded && subItem.submenu && (
-                            <div className="mr-4 mt-1 space-y-1 border-r border-slate-200 dark:border-white/10 py-1 pr-3">
-                              {subItem.submenu.map((nestedItem: MenuItem) => {
-                                const NestedItemIcon = nestedItem.icon
-                                const isNestedActive = activeSection === nestedItem.section
-                                return (
-                                  <a
-                                    key={nestedItem.section}
-                                    href={getSectionUrl(nestedItem.section || "")}
-                                    onClick={(e) => handleItemLinkClick(e, nestedItem)}
-                                    className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs transition-all duration-200 ${
-                                      isNestedActive ? `${accent.chip} font-semibold` : "text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white"
-                                    }`}
-                                  >
-                                    <span
-                                      className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md ${
-                                        isNestedActive ? `bg-gradient-to-br ${accent.gradient} text-white` : "bg-slate-100 dark:bg-white/5 text-slate-500 dark:text-slate-400"
-                                      }`}
-                                    >
-                                      <NestedItemIcon className="h-3 w-3" />
-                                    </span>
-                                    <span className="flex-1 truncate text-right text-[0.78rem] font-semibold">{nestedItem.title}</span>
-                                  </a>
-                                )
-                              })}
-                            </div>
-                          )}
-                        </div>
-                      )
-                    })}
-                  </div>
-                )}
-              </div>
-            )
-          })}
+        {/* التذييل */}
+        <div className={cn("shrink-0 border-t border-slate-100 dark:border-white/10", isOpen ? "px-4 py-3" : "px-2 py-3")}>
+          <div className={cn("flex items-center gap-2 text-xs font-semibold text-slate-500 dark:text-slate-400", !isOpen && "justify-center")}>
+            <span className="relative flex h-2.5 w-2.5 shrink-0">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
+              <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
+            </span>
+            {isOpen && (
+              <>
+                <span className="text-emerald-700 dark:text-emerald-300">متصل</span>
+                <span className="mr-auto font-mono text-[10.5px] text-slate-400">ARAAK ERP</span>
+              </>
+            )}
+          </div>
         </div>
-      </div>
-
-      {/* Footer */}
-      <div className="border-t border-slate-200 dark:border-white/10 px-4 py-4">
-        <div
-          className={`flex items-center gap-2 rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-3 py-2.5 text-xs font-medium text-emerald-700 dark:text-emerald-300 ${
-            !isOpen ? "justify-center" : ""
-          }`}
-        >
-          <span className="relative flex h-2.5 w-2.5 shrink-0">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-            <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400" />
-          </span>
-          {isOpen && <span>متصل</span>}
-        </div>
-      </div>
-    </div>
+      </aside>
     </div>
   )
 }

@@ -57,6 +57,7 @@ import type { AccountItem } from "@/components/customer/account-search-dialog"
 import { useWorkspaceTabActive } from "@/contexts/workspace-tab-context"
 import { screenHotkeysAllowed } from "@/lib/hotkeys"
 import { useNavigationGuard } from "@/lib/navigation-guard"
+import { keepDialogOpenOnEscape } from "@/lib/dialog-escape"
 
 // Inject CSS styles for dropdown visibility fix
 if (typeof document !== 'undefined') {
@@ -2892,6 +2893,13 @@ function UnifiedSaleInvoices({
       }
     }, 100);
   }
+  const isInvoiceDirty = () => Boolean(open && initialHash.current != 0 && getFormDataHash({ order_date: state.formData.order_date, customer_id: state.formData.customer_id, customer_name: state.formData.customer_name, delivery_date: state.formData.delivery_date, currency_id: state.formData.currency_id, exchange_rate: state.formData.exchange_rate }) !== initialHash.current)
+  const requestCloseWithCheck = () => {
+    const close = () => (onOpenChange ? onOpenChange(false) : handleCancel())
+    if (!isInvoiceDirty()) { close(); return }
+    setNextFunction(() => close)
+    setShowUnsaved(true)
+  }
   const handleCancel = () => {
     // Reset form state
     setState((prev) => ({
@@ -2980,7 +2988,8 @@ function UnifiedSaleInvoices({
 
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange || handleCancel}>
+    // الإغلاق (ESC أو زر X) يمر بالتحقق من التغييرات
+    <Dialog open={open} onOpenChange={(next) => { if (next) return; requestCloseWithCheck() }}>
       <DialogContent className="
           invoice-inline-labels
           w-full
@@ -2996,7 +3005,7 @@ function UnifiedSaleInvoices({
           flex-col
         "
         onPointerDownOutside={(event) => event.preventDefault()}
-        onEscapeKeyDown={(event) => { if (!doHotKeys.current) event.preventDefault() }}
+        onEscapeKeyDown={(event) => { if (!doHotKeys.current || showUnsaved) event.preventDefault(); else keepDialogOpenOnEscape(event) }}
 
       >
 

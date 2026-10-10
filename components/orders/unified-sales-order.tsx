@@ -57,6 +57,7 @@ import React from "react"
 import { useWorkspaceTabActive } from "@/contexts/workspace-tab-context"
 import { screenHotkeysAllowed } from "@/lib/hotkeys"
 import { useNavigationGuard } from "@/lib/navigation-guard"
+import { keepDialogOpenOnEscape } from "@/lib/dialog-escape"
 
 const ORDER_ITEM_STATUS_OPTIONS = [
   { value: 1, label: "غير جاهز" },
@@ -3150,7 +3151,8 @@ function UnifiedSalesOrder({
 
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange || handleCancel}>
+    // الإغلاق (ESC أو زر X) يمر بالتحقق من التغييرات
+    <Dialog open={open} onOpenChange={(next) => { if (next) return; guardToolbarAction(() => (onOpenChange ? onOpenChange(false) : handleCancel())) }}>
       <DialogContent
         inline={fullscreenEnabled && open}
         className={`sales-order-form
@@ -3176,7 +3178,7 @@ function UnifiedSalesOrder({
         `}
         dir="rtl"
         onPointerDownOutside={(event) => event.preventDefault()}
-        onEscapeKeyDown={(event) => { if (!doHotKeys.current) event.preventDefault() }}
+        onEscapeKeyDown={(event) => { if (!doHotKeys.current || showUnsaved) event.preventDefault(); else keepDialogOpenOnEscape(event) }}
 
       >
 

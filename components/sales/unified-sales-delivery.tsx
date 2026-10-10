@@ -44,6 +44,7 @@ import { readVoucherClipboard, writeVoucherClipboard, type VoucherClipboardPaylo
 import TransactionBranchField from "@/components/common/transaction-branch-field"
 import { useWorkspaceTabActive } from "@/contexts/workspace-tab-context"
 import { useNavigationGuard } from "@/lib/navigation-guard"
+import { keepDialogOpenOnEscape } from "@/lib/dialog-escape"
 import { VoucherSearchButton, VoucherSearchDialog } from "@/components/common/voucher-search-dialog"
 
 // vch_type per voucher_types_tbl (app/api/sales-vouchers/_lib.ts, IDs 16-23) — هذا المكوّن يخدم
@@ -2705,6 +2706,7 @@ export default function UnifiedSalesDelivery({
           dir="rtl"
           onPointerDownOutside={(event) => event.preventDefault()}
           onInteractOutside={(event) => event.preventDefault()}
+          onEscapeKeyDown={(event) => { keepDialogOpenOnEscape(event, [showDeleteConfirm, showUnsavedConfirm, showVatRestoreConfirm]) }}
           style={dialogOpen ? {
             border: "1px solid rgba(16,185,129,0.22)",
             boxShadow: "0 20px 60px rgba(16,185,129,0.12)",

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
-import { Sidebar } from "./sidebar";
+import { Sidebar, SIDEBAR_COLLAPSED_WIDTH, SIDEBAR_WIDTH } from "./sidebar";
 import { Header } from "./header";
 import { MenuThemeProvider } from "@/contexts/menu-theme-context";
 
@@ -48,7 +48,7 @@ export function ERPLayout({ children, activeSection, onSectionChange }: ERPLayou
 
   const handleProfileClick = () => onSectionChange("user-profile");
   const handleSettingsClick = () => onSectionChange("user-settings");
-  const sidebarOffset = isMobile ? 0 : sidebarOpen ? 320 : 80;
+  const sidebarOffset = isMobile ? 0 : sidebarOpen ? SIDEBAR_WIDTH : SIDEBAR_COLLAPSED_WIDTH;
   return (
     <MenuThemeProvider>
       <div className="flex h-screen bg-background" dir="rtl">
@@ -67,7 +67,7 @@ export function ERPLayout({ children, activeSection, onSectionChange }: ERPLayou
             isMobile
               ? "fixed right-0 top-0 h-full z-50 transform transition-transform duration-300 ease-in-out"
               : "relative"
-          } ${sidebarOpen ? (isMobile ? "translate-x-0" : "block") : isMobile ? "translate-x-full" : "hidden"}`}
+          } ${isMobile ? (sidebarOpen ? "translate-x-0" : "translate-x-full") : "block"}`}
         >
           <Sidebar
             isOpen={sidebarOpen}

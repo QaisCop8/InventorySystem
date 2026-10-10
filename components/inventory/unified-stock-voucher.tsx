@@ -36,6 +36,7 @@ import { readVoucherClipboard, writeVoucherClipboard, type VoucherClipboardPaylo
 import TransactionBranchField from "@/components/common/transaction-branch-field"
 import { useWorkspaceTabActive } from "@/contexts/workspace-tab-context"
 import { useNavigationGuard } from "@/lib/navigation-guard"
+import { keepDialogOpenOnEscape } from "@/lib/dialog-escape"
 import { VoucherSearchButton, VoucherSearchDialog } from "@/components/common/voucher-search-dialog"
 
 // vch_type per voucher_types_tbl: 12=سند ادخال بضاعة, 13=سند اخراج بضاعة,
@@ -2316,13 +2317,17 @@ export default function UnifiedStockVoucher({
 
   return (
     <>
-      <Dialog open={dialogOpen} onOpenChange={onOpenChange}>
+      {/* الإغلاق (ESC أو زر X) يمر بالتحقق من التغييرات */}
+      <Dialog open={dialogOpen} onOpenChange={(open) => (open ? onOpenChange(true) : guardedAction(() => onOpenChange(false)))}>
       <DialogContent
         inline={fullscreenEnabled && dialogOpen}
         className="stock-voucher-form flex h-[96vh] w-[97vw] max-w-[1500px] max-h-[96vh] flex-col overflow-hidden p-0"
         dir="rtl"
         onPointerDownOutside={(event) => event.preventDefault()}
         onInteractOutside={(event) => event.preventDefault()}
+        onEscapeKeyDown={(event) => {
+          keepDialogOpenOnEscape(event, [showUnsavedConfirm, showDeleteConfirm, postDialogOpen])
+        }}
       >
         <UniversalToolbar
           currentRecord={currentIndex + 1}

@@ -34,6 +34,7 @@ import { requestProductVariant } from "@/components/products/product-variant-ser
 import { useWorkspaceTabActive } from "@/contexts/workspace-tab-context"
 import { screenHotkeysAllowed } from "@/lib/hotkeys"
 import { useNavigationGuard } from "@/lib/navigation-guard"
+import { keepDialogOpenOnEscape } from "@/lib/dialog-escape"
 
 const InlineSupplierSearch = ({ onSelect, onClose, suppliers }: any) => {
   const [searchTerm, setSearchTerm] = useState("")
@@ -984,8 +985,15 @@ function UnifiedPurchaseOrder({
 
   return (
     <>
-      <Dialog open={open} onOpenChange={onOpenChange || handleCancel}>
-      <DialogContent className="max-w-[98vw] w-full h-[95vh] p-0 gap-0 flex flex-col">
+      {/* الإغلاق (ESC أو زر X) يمر بالتحقق من التغييرات */}
+      <Dialog open={open} onOpenChange={(next) => {
+        if (next) return
+        const close = () => (onOpenChange ? onOpenChange(false) : handleCancel())
+        if (JSON.stringify({ formData: state.formData, orderItems: state.orderItems }) === initialSnapshotRef.current) { close(); return }
+        pendingNavigation.current = close
+        setShowUnsavedConfirm(true)
+      }}>
+      <DialogContent className="max-w-[98vw] w-full h-[95vh] p-0 gap-0 flex flex-col" onEscapeKeyDown={(event) => { keepDialogOpenOnEscape(event, [showUnsavedConfirm]) }}>
         <div className="sticky top-0 z-50 bg-background border-b px-6 py-4">
           <UniversalToolbar
             currentRecord={currentIndex}
