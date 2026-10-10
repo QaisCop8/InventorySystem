@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Badge } from "@/components/ui/badge"
-import { Plus, Search, Edit, Shield, Key, User, Users, UserCheck, UserX, Clock, Eye, EyeOff } from "lucide-react"
+import { Plus, Search, Edit, Shield, Key, User, Users, UserCheck, UserX, Clock, Eye, EyeOff, Mail, Save, UserPlus, X } from "lucide-react"
 
 import Messages from "@/components/common/Messages"
 
@@ -538,13 +538,11 @@ export function UserSettings() {
       </Card>
 
       <Dialog open={showUserDialog} onOpenChange={setShowUserDialog}>
-        <DialogContent className="w-[calc(100vw-1rem)] max-w-4xl max-h-[90dvh] overflow-x-hidden overflow-y-auto p-4 sm:w-full sm:p-6" dir="rtl">
-          <DialogHeader>
-            <DialogTitle>تعديل المستخدم {selectedUser?.full_name}</DialogTitle>
-          </DialogHeader>
-          <Messages innerRef={editMessages} />
+        <DialogContent hideCloseButton className={USER_DIALOG_CLASS} dir="rtl">
+          <DialogTitle className="sr-only">تعديل المستخدم {selectedUser?.full_name}</DialogTitle>
           {selectedUser && (
             <form
+              className="flex min-h-0 flex-1 flex-col"
               onSubmit={(e) => {
                 e.preventDefault()
                 const formData = new FormData(e.currentTarget)
@@ -603,117 +601,57 @@ export function UserSettings() {
                 saveUser(userData)
               }}
             >
-              <div className="min-w-0 space-y-6" dir="rtl">
-                <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                  <h3 className="text-lg font-semibold text-blue-800 mb-4 flex items-center gap-2">
-                    <Key className="h-5 w-5" />
-                    معلومات الدخول
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="userIdDisplay">رقم المستخدم</Label>
-                      <Input
-                        id="userIdDisplay"
-                        value={selectedUser.user_id}
-                        disabled
-                        className="bg-gray-100 text-gray-600 text-right"
-                        dir="rtl"
-                      />
-                      <p className="text-sm text-muted-foreground mt-1 text-right">
-                        يتم توليد رقم المستخدم تلقائياً بشكل تسلسلي
-                      </p>
-                    </div>
-                    <div>
-                      <Label htmlFor="email">البريد الإلكتروني *</Label>
-                      <Input
-                        id="email"
-                        name="email"
-                        type="email"
-                        defaultValue={selectedUser.email}
-                        required
-                        className="text-right"
-                        dir="rtl"
-                      />
-                    </div>
+              <UserDialogHero
+                title="تعديل المستخدم"
+                name={selectedUser.full_name}
+                subtitle={selectedUser.email}
+                badge={selectedUser.is_active ? { label: "نشط", tone: "active" } : { label: "موقوف", tone: "inactive" }}
+                meta={`رقم المستخدم ${selectedUser.user_id}`}
+                onClose={() => setShowUserDialog(false)}
+              />
+
+              <div className="min-h-0 flex-1 space-y-4 overflow-y-auto bg-slate-50/70 p-3 sm:p-5 dark:bg-slate-950/40">
+                <Messages innerRef={editMessages} />
+
+                <FormSection icon={Key} title="معلومات الدخول" description="البريد الإلكتروني يُستخدم اسماً للدخول" tone="sky">
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <FieldBox label="رقم المستخدم" hint="يتم توليد رقم المستخدم تلقائياً بشكل تسلسلي">
+                      <Input id="userIdDisplay" value={selectedUser.user_id} disabled className={`${FIELD_CLASS} bg-slate-100 text-slate-500`} dir="rtl" />
+                    </FieldBox>
+                    <FieldBox label="البريد الإلكتروني *" htmlFor="email">
+                      <Input id="email" name="email" type="email" defaultValue={selectedUser.email} required className={FIELD_CLASS} dir="rtl" />
+                    </FieldBox>
 
                     <div className="md:col-span-2">
-                      <div className="flex items-center justify-between mb-3">
-                        <Label>تغيير كلمة المرور</Label>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setShowEditPassword(!showEditPassword)}
-                        >
+                      <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-dashed border-slate-200 bg-slate-50/60 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-900/40">
+                        <div className="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
+                          <Key className="h-4 w-4 text-amber-600" />
+                          كلمة المرور
+                        </div>
+                        <Button type="button" variant="outline" size="sm" className="h-8 rounded-lg" onClick={() => setShowEditPassword(!showEditPassword)}>
                           {showEditPassword ? "إلغاء تغيير كلمة المرور" : "تغيير كلمة المرور"}
                         </Button>
                       </div>
 
                       {showEditPassword && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
-                          <div>
-                            <Label htmlFor="editPassword">كلمة المرور الجديدة *</Label>
+                        <div className="mt-3 grid grid-cols-1 gap-4 rounded-xl border border-amber-200 bg-amber-50/70 p-3 md:grid-cols-2 dark:border-amber-500/30 dark:bg-amber-500/10">
+                          <FieldBox label="كلمة المرور الجديدة *" htmlFor="editPassword" hint="كلمة المرور يجب أن تكون 6 أحرف على الأقل">
                             <div className="relative">
-                              <Input
-                                id="editPassword"
-                                name="password"
-                                type={showPassword ? "text" : "password"}
-                                placeholder="أدخل كلمة المرور الجديدة"
-                                minLength={6}
-                                className="text-right pr-10"
-                                dir="rtl"
-                              />
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                                onClick={() => setShowPassword(!showPassword)}
-                              >
-                                {showPassword ? (
-                                  <EyeOff className="h-4 w-4 text-muted-foreground" />
-                                ) : (
-                                  <Eye className="h-4 w-4 text-muted-foreground" />
-                                )}
-                              </Button>
+                              <Input id="editPassword" name="password" type={showPassword ? "text" : "password"} placeholder="أدخل كلمة المرور الجديدة" minLength={6} className={`${FIELD_CLASS} pr-10`} dir="rtl" />
+                              <PasswordEye shown={showPassword} onToggle={() => setShowPassword(!showPassword)} />
                             </div>
-                            <p className="text-sm text-muted-foreground mt-1 text-right">
-                              كلمة المرور يجب أن تكون 6 أحرف على الأقل
-                            </p>
-                          </div>
-                          <div>
-                            <Label htmlFor="editConfirmPassword">تأكيد كلمة المرور الجديدة *</Label>
+                          </FieldBox>
+                          <FieldBox label="تأكيد كلمة المرور الجديدة *" htmlFor="editConfirmPassword">
                             <div className="relative">
-                              <Input
-                                id="editConfirmPassword"
-                                name="confirmPassword"
-                                type={showConfirmPassword ? "text" : "password"}
-                                placeholder="أعد إدخال كلمة المرور الجديدة"
-                                minLength={6}
-                                className="text-right pr-10"
-                                dir="rtl"
-                              />
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                              >
-                                {showConfirmPassword ? (
-                                  <EyeOff className="h-4 w-4 text-muted-foreground" />
-                                ) : (
-                                  <Eye className="h-4 w-4 text-muted-foreground" />
-                                )}
-                              </Button>
+                              <Input id="editConfirmPassword" name="confirmPassword" type={showConfirmPassword ? "text" : "password"} placeholder="أعد إدخال كلمة المرور الجديدة" minLength={6} className={`${FIELD_CLASS} pr-10`} dir="rtl" />
+                              <PasswordEye shown={showConfirmPassword} onToggle={() => setShowConfirmPassword(!showConfirmPassword)} />
                             </div>
-                          </div>
+                          </FieldBox>
                         </div>
                       )}
                     </div>
 
-                    <div className="md:col-span-2">
-                      <Label htmlFor="defaultScreen">الشاشة الافتراضية عند الدخول</Label>
+                    <FieldBox className="md:col-span-2" label="الشاشة الافتراضية عند الدخول" htmlFor="defaultScreen" hint="سيتم توجيه المستخدم إلى هذه الشاشة مباشرة بعد تسجيل الدخول حسب صلاحياته">
                       <div className="invoice-currency-dropdown-wrap">
                         <PrimeDropdown
                           id="defaultScreen"
@@ -729,49 +667,22 @@ export function UserSettings() {
                           onChange={(e: any) => setEditDefaultScreen(e.value)}
                         />
                       </div>
-                      <p className="text-sm text-muted-foreground mt-1 text-right">
-                        سيتم توجيه المستخدم إلى هذه الشاشة مباشرة بعد تسجيل الدخول حسب صلاحياته
-                      </p>
-                    </div>
-                    <div className="md:col-span-2 flex items-center justify-between rounded-lg border border-blue-200 bg-white p-4">
-                      <div className="space-y-1 text-right">
-                        <Label htmlFor="openScreensFullscreen">فتح الشاشة بشاشة كاملة</Label>
-                        <p className="text-sm text-muted-foreground">يُطبّق على شاشات السندات والحسابات والعملاء والأصناف والخدمات</p>
-                      </div>
+                    </FieldBox>
+                    <ToggleTile className="md:col-span-2" id="openScreensFullscreen" title="فتح الشاشة بشاشة كاملة" description="يُطبّق على شاشات السندات والحسابات والعملاء والأصناف والخدمات">
                       <Switch id="openScreensFullscreen" checked={editOpenScreensFullscreen} onCheckedChange={setEditOpenScreensFullscreen} />
-                    </div>
+                    </ToggleTile>
                   </div>
-                </div>
+                </FormSection>
 
-                <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-                  <h3 className="text-lg font-semibold text-green-800 mb-4 flex items-center gap-2">
-                    <User className="h-5 w-5" />
-                    المعلومات الشخصية
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="fullName">الاسم الكامل *</Label>
-                      <Input
-                        id="fullName"
-                        name="fullName"
-                        defaultValue={selectedUser.full_name}
-                        required
-                        className="text-right"
-                        dir="rtl"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="phone">رقم الهاتف</Label>
-                      <Input
-                        id="phone"
-                        name="phone"
-                        defaultValue={selectedUser.phone || ""}
-                        className="text-right"
-                        dir="rtl"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="department">القسم *</Label>
+                <FormSection icon={User} title="المعلومات الشخصية" description="الاسم والقسم والفرع والدور الوظيفي" tone="emerald">
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <FieldBox label="الاسم الكامل *" htmlFor="fullName">
+                      <Input id="fullName" name="fullName" defaultValue={selectedUser.full_name} required className={FIELD_CLASS} dir="rtl" />
+                    </FieldBox>
+                    <FieldBox label="رقم الهاتف" htmlFor="phone">
+                      <Input id="phone" name="phone" defaultValue={selectedUser.phone || ""} className={FIELD_CLASS} dir="rtl" />
+                    </FieldBox>
+                    <FieldBox label="القسم *" htmlFor="department">
                       <div className="invoice-currency-dropdown-wrap">
                         <PrimeDropdown
                           id="department"
@@ -787,9 +698,8 @@ export function UserSettings() {
                           onChange={(e: any) => setEditDepartment(e.value)}
                         />
                       </div>
-                    </div>
-                    <div>
-                      <Label htmlFor="branch">الفرع *</Label>
+                    </FieldBox>
+                    <FieldBox label="الفرع *" htmlFor="branch">
                       <div className="invoice-currency-dropdown-wrap">
                         <PrimeDropdown
                           id="branch"
@@ -805,9 +715,8 @@ export function UserSettings() {
                           onChange={(e: any) => setEditBranchId(e.value)}
                         />
                       </div>
-                    </div>
-                    <div>
-                      <Label htmlFor="editJobRole">الدور الوظيفي *</Label>
+                    </FieldBox>
+                    <FieldBox className="md:col-span-2" label="الدور الوظيفي *" htmlFor="editJobRole">
                       <div className="invoice-currency-dropdown-wrap">
                         <PrimeDropdown
                           id="editJobRole"
@@ -823,58 +732,36 @@ export function UserSettings() {
                           onChange={(e: any) => setEditJobRoleId(e.value)}
                         />
                       </div>
-                    </div>
+                    </FieldBox>
                   </div>
-                </div>
+                </FormSection>
 
-                <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
-                  <h3 className="text-lg font-semibold text-purple-800 mb-4 flex items-center gap-2">
-                    <Shield className="h-5 w-5" />
-                    تفضيلات النظام
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="active">مستخدم نشط</Label>
+                <FormSection icon={Shield} title="تفضيلات النظام" description="حالة الحساب والإشعارات" tone="violet">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    <ToggleTile id="active" title="مستخدم نشط" description="يمكنه تسجيل الدخول للنظام">
                       <Switch id="active" name="active" defaultChecked={selectedUser.is_active} />
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="notifications">تفعيل الإشعارات</Label>
-                      <Switch
-                        id="notifications"
-                        name="notifications"
-                        defaultChecked={selectedUser.notifications_enabled}
-                      />
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="emailNotifications">إشعارات البريد الإلكتروني</Label>
-                      <Switch
-                        id="emailNotifications"
-                        name="emailNotifications"
-                        defaultChecked={selectedUser.email_notifications}
-                      />
-                    </div>
+                    </ToggleTile>
+                    <ToggleTile id="notifications" title="تفعيل الإشعارات" description="إشعارات داخل النظام">
+                      <Switch id="notifications" name="notifications" defaultChecked={selectedUser.notifications_enabled} />
+                    </ToggleTile>
+                    <ToggleTile id="emailNotifications" title="إشعارات البريد الإلكتروني" description="نسخة من الإشعارات بالبريد">
+                      <Switch id="emailNotifications" name="emailNotifications" defaultChecked={selectedUser.email_notifications} />
+                    </ToggleTile>
                   </div>
-                </div>
-
-                <div className="flex w-full flex-wrap justify-end gap-2">
-                  <Button type="button" variant="outline" onClick={() => setShowUserDialog(false)}>
-                    إلغاء
-                  </Button>
-                  <Button type="submit">حفظ التغييرات</Button>
-                </div>
+                </FormSection>
               </div>
+
+              <UserDialogFooter submitLabel="حفظ التغييرات" onCancel={() => setShowUserDialog(false)} />
             </form>
           )}
         </DialogContent>
       </Dialog>
 
       <Dialog open={showNewUserDialog} onOpenChange={setShowNewUserDialog}>
-        <DialogContent className="w-[calc(100vw-1rem)] max-w-4xl max-h-[90dvh] overflow-x-hidden overflow-y-auto p-4 sm:w-full sm:p-6" dir="rtl">
-          <DialogHeader>
-            <DialogTitle>إضافة مستخدم جديد</DialogTitle>
-          </DialogHeader>
-          <Messages innerRef={newMessages} />
+        <DialogContent hideCloseButton className={USER_DIALOG_CLASS} dir="rtl">
+          <DialogTitle className="sr-only">إضافة مستخدم جديد</DialogTitle>
           <form
+            className="flex min-h-0 flex-1 flex-col"
             onSubmit={(e) => {
               e.preventDefault()
               const formData = new FormData(e.currentTarget)
@@ -912,45 +799,32 @@ export function UserSettings() {
                 is_active: true,
                 dashboard_layout: dashboardLayout,
               }
-              console.log("userDatauserDatauserData ", userData)
               saveUser(userData, true)
             }}
           >
-            <div className="min-w-0 space-y-6" dir="rtl">
-              <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                <h3 className="text-lg font-semibold text-blue-800 mb-4 flex items-center gap-2">
-                  <Key className="h-5 w-5" />
-                  معلومات الدخول
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label>رقم المستخدم</Label>
-                    <Input
-                      value="سيتم توليده تلقائياً"
-                      disabled
-                      className="bg-gray-100 text-gray-600 text-right"
-                      dir="rtl"
-                    />
-                    <p className="text-sm text-muted-foreground mt-1 text-right">
-                    </p>
-                  </div>
-                  <div>
-                    <Label htmlFor="newEmail">البريد الإلكتروني *</Label>
-                    <Input
-                      id="newEmail"
-                      name="email"
-                      type="email"
-                      placeholder="user@company.com"
-                      required
-                      className="text-right"
-                      dir="rtl"
-                    />
-                  </div>
-                  <div className="md:col-span-2 rounded-md border border-blue-200 bg-white/70 p-3 text-sm text-blue-900">
+            <UserDialogHero
+              title="إضافة مستخدم جديد"
+              subtitle="سيصل المستخدم بريد دعوة لتعيين كلمة المرور الخاصة به"
+              isNew
+              onClose={() => setShowNewUserDialog(false)}
+            />
+
+            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto bg-slate-50/70 p-3 sm:p-5 dark:bg-slate-950/40">
+              <Messages innerRef={newMessages} />
+
+              <FormSection icon={Key} title="معلومات الدخول" description="البريد الإلكتروني يُستخدم اسماً للدخول" tone="sky">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <FieldBox label="رقم المستخدم">
+                    <Input value="سيتم توليده تلقائياً" disabled className={`${FIELD_CLASS} bg-slate-100 text-slate-500`} dir="rtl" />
+                  </FieldBox>
+                  <FieldBox label="البريد الإلكتروني *" htmlFor="newEmail">
+                    <Input id="newEmail" name="email" type="email" placeholder="user@company.com" required className={FIELD_CLASS} dir="rtl" />
+                  </FieldBox>
+                  <div className="flex items-start gap-2 rounded-xl border border-sky-200 bg-sky-50/80 p-3 text-sm text-sky-900 md:col-span-2 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-100">
+                    <Mail className="mt-0.5 h-4 w-4 shrink-0" />
                     لا حاجة لإدخال كلمة مرور — سيصل المستخدم بريد دعوة برمز لتعيين كلمة المرور الخاصة به بنفسه.
                   </div>
-                  <div className="md:col-span-2">
-                    <Label htmlFor="newDefaultScreen">الشاشة الافتراضية عند الدخول</Label>
+                  <FieldBox className="md:col-span-2" label="الشاشة الافتراضية عند الدخول" htmlFor="newDefaultScreen" hint="سيتم توجيه المستخدم إلى هذه الشاشة مباشرة بعد تسجيل الدخول حسب صلاحياته">
                     <div className="invoice-currency-dropdown-wrap">
                       <PrimeDropdown
                         id="newDefaultScreen"
@@ -966,43 +840,22 @@ export function UserSettings() {
                         onChange={(e: any) => setNewDefaultScreen(e.value)}
                       />
                     </div>
-                    <p className="text-sm text-muted-foreground mt-1 text-right">
-                      سيتم توجيه المستخدم إلى هذه الشاشة مباشرة بعد تسجيل الدخول حسب صلاحياته
-                    </p>
-                  </div>
-                  <div className="md:col-span-2 flex items-center justify-between rounded-lg border border-blue-200 bg-white p-4">
-                    <div className="space-y-1 text-right">
-                      <Label htmlFor="newOpenScreensFullscreen">فتح الشاشة بشاشة كاملة</Label>
-                      <p className="text-sm text-muted-foreground">يُطبّق على شاشات السندات والحسابات والعملاء والأصناف والخدمات</p>
-                    </div>
+                  </FieldBox>
+                  <ToggleTile className="md:col-span-2" id="newOpenScreensFullscreen" title="فتح الشاشة بشاشة كاملة" description="يُطبّق على شاشات السندات والحسابات والعملاء والأصناف والخدمات">
                     <Switch id="newOpenScreensFullscreen" checked={newOpenScreensFullscreen} onCheckedChange={setNewOpenScreensFullscreen} />
-                  </div>
+                  </ToggleTile>
                 </div>
-              </div>
+              </FormSection>
 
-              <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-                <h3 className="text-lg font-semibold text-green-800 mb-4 flex items-center gap-2">
-                  <User className="h-5 w-5" />
-                  المعلومات الشخصية
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="newFullName">الاسم الكامل *</Label>
-                    <Input
-                      id="newFullName"
-                      name="fullName"
-                      placeholder="أدخل الاسم الكامل"
-                      required
-                      className="text-right"
-                      dir="rtl"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="newPhone">رقم الهاتف</Label>
-                    <Input id="newPhone" name="phone" placeholder="05xxxxxxxx" className="text-right" dir="rtl" />
-                  </div>
-                  <div>
-                    <Label htmlFor="newDepartment">القسم *</Label>
+              <FormSection icon={User} title="المعلومات الشخصية" description="الاسم والقسم والفرع والدور الوظيفي" tone="emerald">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <FieldBox label="الاسم الكامل *" htmlFor="newFullName">
+                    <Input id="newFullName" name="fullName" placeholder="أدخل الاسم الكامل" required className={FIELD_CLASS} dir="rtl" />
+                  </FieldBox>
+                  <FieldBox label="رقم الهاتف" htmlFor="newPhone">
+                    <Input id="newPhone" name="phone" placeholder="05xxxxxxxx" className={FIELD_CLASS} dir="rtl" />
+                  </FieldBox>
+                  <FieldBox label="القسم *" htmlFor="newDepartment">
                     <div className="invoice-currency-dropdown-wrap">
                       <PrimeDropdown
                         id="newDepartment"
@@ -1018,9 +871,8 @@ export function UserSettings() {
                         onChange={(e: any) => setNewDepartment(e.value)}
                       />
                     </div>
-                  </div>
-                  <div>
-                    <Label htmlFor="newBranch">الفرع *</Label>
+                  </FieldBox>
+                  <FieldBox label="الفرع *" htmlFor="newBranch">
                     <div className="invoice-currency-dropdown-wrap">
                       <PrimeDropdown
                         id="newBranch"
@@ -1036,9 +888,8 @@ export function UserSettings() {
                         onChange={(e: any) => setNewBranchId(e.value)}
                       />
                     </div>
-                  </div>
-                  <div>
-                    <Label htmlFor="newJobRole">الدور الوظيفي *</Label>
+                  </FieldBox>
+                  <FieldBox className="md:col-span-2" label="الدور الوظيفي *" htmlFor="newJobRole">
                     <div className="invoice-currency-dropdown-wrap">
                       <PrimeDropdown
                         id="newJobRole"
@@ -1054,17 +905,12 @@ export function UserSettings() {
                         onChange={(e: any) => setNewJobRoleId(e.value)}
                       />
                     </div>
-                  </div>
+                  </FieldBox>
                 </div>
-              </div>
-
-              <div className="flex w-full flex-wrap justify-end gap-2">
-                <Button type="button" variant="outline" onClick={() => setShowNewUserDialog(false)}>
-                  إلغاء
-                </Button>
-                <Button type="submit">إضافة المستخدم</Button>
-              </div>
+              </FormSection>
             </div>
+
+            <UserDialogFooter submitLabel="إضافة المستخدم" onCancel={() => setShowNewUserDialog(false)} />
           </form>
         </DialogContent>
       </Dialog>
@@ -1105,6 +951,131 @@ export function UserSettings() {
           )}
         </DialogContent>
       </Dialog>
+    </div>
+  )
+}
+
+// ── عناصر تصميم نافذتي إضافة/تعديل المستخدم ─────────────────────────────────────────────
+// ملء الشاشة على الهاتف، وبطاقة وسطية بحواف دائرية من الشاشات المتوسطة فما فوق.
+const USER_DIALOG_CLASS =
+  "flex h-[100dvh] max-h-[100dvh] w-full max-w-full flex-col gap-0 overflow-hidden rounded-none border-0 p-0 sm:h-[min(92dvh,880px)] sm:max-h-[92dvh] sm:w-[calc(100vw-2rem)] sm:max-w-4xl sm:rounded-2xl sm:border"
+const FIELD_CLASS = "h-10 rounded-xl text-right"
+
+const SECTION_TONES = {
+  sky: "bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-300",
+  emerald: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300",
+  violet: "bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300",
+} as const
+
+function initialsOf(name?: string | null) {
+  const parts = String(name || "").trim().split(/\s+/).filter(Boolean)
+  if (!parts.length) return ""
+  return parts.length === 1 ? parts[0].slice(0, 2) : `${parts[0][0]}${parts[1][0]}`
+}
+
+function UserDialogHero({ title, name, subtitle, meta, badge, isNew, onClose }: {
+  title: string
+  name?: string
+  subtitle?: string
+  meta?: string
+  badge?: { label: string; tone: "active" | "inactive" }
+  isNew?: boolean
+  onClose: () => void
+}) {
+  return (
+    <div className="relative shrink-0 overflow-hidden bg-gradient-to-l from-emerald-700 via-emerald-600 to-teal-600 px-4 py-4 text-white sm:px-6 sm:py-5">
+      <div className="pointer-events-none absolute -left-10 -top-12 h-40 w-40 rounded-full bg-white/10 blur-2xl" />
+      <div className="relative flex items-start gap-3 sm:items-center sm:gap-4">
+        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/15 text-lg font-extrabold ring-1 ring-white/30 sm:h-14 sm:w-14">
+          {isNew ? <UserPlus className="h-6 w-6" /> : initialsOf(name) || <User className="h-6 w-6" />}
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-[11px] font-semibold text-emerald-50/80">{title}</p>
+          <h2 className="truncate text-lg font-extrabold leading-tight sm:text-xl">{isNew ? "مستخدم جديد" : name}</h2>
+          {subtitle && <p className="mt-0.5 truncate text-xs text-emerald-50/90" dir="auto">{subtitle}</p>}
+          {(badge || meta) && (
+            <div className="mt-2 flex flex-wrap items-center gap-1.5">
+              {badge && (
+                <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold ${badge.tone === "active" ? "bg-white text-emerald-700" : "bg-rose-100 text-rose-700"}`}>
+                  <span className={`h-1.5 w-1.5 rounded-full ${badge.tone === "active" ? "bg-emerald-500" : "bg-rose-500"}`} />
+                  {badge.label}
+                </span>
+              )}
+              {meta && <span className="rounded-full bg-white/15 px-2 py-0.5 text-[11px] ring-1 ring-white/20">{meta}</span>}
+            </div>
+          )}
+        </div>
+        <button type="button" onClick={onClose} aria-label="إغلاق" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/15 transition hover:bg-white/25">
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function FormSection({ icon: Icon, title, description, tone, children }: {
+  icon: typeof User
+  title: string
+  description?: string
+  tone: keyof typeof SECTION_TONES
+  children: React.ReactNode
+}) {
+  return (
+    <section className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-5 dark:border-slate-800 dark:bg-slate-900">
+      <div className="mb-4 flex items-center gap-3">
+        <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${SECTION_TONES[tone]}`}>
+          <Icon className="h-[18px] w-[18px]" />
+        </span>
+        <div className="min-w-0">
+          <h3 className="text-sm font-extrabold text-slate-800 sm:text-base dark:text-slate-100">{title}</h3>
+          {description && <p className="truncate text-xs text-slate-500">{description}</p>}
+        </div>
+      </div>
+      {children}
+    </section>
+  )
+}
+
+function FieldBox({ label, htmlFor, hint, className, children }: { label: string; htmlFor?: string; hint?: string; className?: string; children: React.ReactNode }) {
+  return (
+    <div className={`min-w-0 space-y-1.5 ${className || ""}`}>
+      <Label htmlFor={htmlFor} className="text-xs font-bold text-slate-600 dark:text-slate-300">{label}</Label>
+      {children}
+      {hint && <p className="text-[11px] leading-5 text-slate-500">{hint}</p>}
+    </div>
+  )
+}
+
+function ToggleTile({ id, title, description, className, children }: { id: string; title: string; description?: string; className?: string; children: React.ReactNode }) {
+  return (
+    <label htmlFor={id} className={`flex cursor-pointer items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50/60 px-3 py-3 transition hover:border-emerald-300 hover:bg-emerald-50/40 dark:border-slate-700 dark:bg-slate-800/40 ${className || ""}`}>
+      <span className="min-w-0 text-right">
+        <span className="block text-sm font-semibold text-slate-800 dark:text-slate-100">{title}</span>
+        {description && <span className="block text-[11px] leading-5 text-slate-500">{description}</span>}
+      </span>
+      {children}
+    </label>
+  )
+}
+
+function PasswordEye({ shown, onToggle }: { shown: boolean; onToggle: () => void }) {
+  return (
+    <button type="button" onClick={onToggle} aria-label={shown ? "إخفاء كلمة المرور" : "إظهار كلمة المرور"} className="absolute right-0 top-0 flex h-full items-center px-3 text-slate-400 hover:text-slate-600">
+      {shown ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+    </button>
+  )
+}
+
+function UserDialogFooter({ submitLabel, onCancel }: { submitLabel: string; onCancel: () => void }) {
+  return (
+    <div className="flex shrink-0 flex-col-reverse gap-2 border-t border-slate-200 bg-white px-3 py-3 sm:flex-row sm:justify-end sm:px-6 dark:border-slate-800 dark:bg-slate-900">
+      <Button type="button" variant="outline" className="h-10 w-full rounded-xl sm:w-auto" onClick={onCancel}>
+        إلغاء
+      </Button>
+      <Button type="submit" className="h-10 w-full rounded-xl bg-emerald-600 px-6 font-bold hover:bg-emerald-700 sm:w-auto">
+        <Save className="ml-1.5 h-4 w-4" />
+        {submitLabel}
+      </Button>
     </div>
   )
 }

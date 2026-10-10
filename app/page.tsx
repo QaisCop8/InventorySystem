@@ -5,6 +5,7 @@ import { ReportAccessGate } from "@/components/auth/report-access-gate"
 import { isReportSection } from "@/lib/report-permission-definitions"
 import { Suspense, useState, useEffect, useRef } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
+import { requestGuardedNavigation } from "@/lib/navigation-guard"
 import { ProtectedRoute } from "@/components/auth/protected-route"
 import { ERPLayout } from "@/components/erp-layout"
 import { activateCompany } from "@/lib/tenant-client"
@@ -50,6 +51,7 @@ const BatchMovements = lazyNamed(() => import("@/components/inventory/batch-move
 const BatchReports = lazyNamed(() => import("@/components/reports/batch-reports"), "BatchReports")
 const BatchLogReport = lazyNamed(() => import("@/components/reports/batch-log-report"), "BatchLogReport")
 const SerialMovementsReport = lazyNamed(() => import("@/components/reports/serial-movements-report"), "SerialMovementsReport")
+const StockCounts = lazyDefault(() => import("@/components/inventory/stock-counts"))
 const ReceivablesStatementReport = lazyNamed(() => import("@/components/reports/account-statement-report"), "ReceivablesStatementReport")
 const AccountingStatementReport = lazyNamed(() => import("@/components/reports/account-statement-report"), "AccountingStatementReport")
 const ReceivablesBalancesReport = lazyNamed(() => import("@/components/reports/account-balances-report"), "ReceivablesBalancesReport")
@@ -238,6 +240,7 @@ const componentMap: Record<string, React.ComponentType<any>> = {
   "stock-out-vouchers": (props: any) => <StockVouchers {...props} voucherType={9} />,
   "internal-delivery-vouchers": (props: any) => <StockVouchers {...props} voucherType={10} />,
   "use-vouchers": (props: any) => <StockVouchers {...props} voucherType={11} />,
+  "stock-counts": StockCounts,
   "sales-invoices": (props: any) => <SalesDelivery {...props} voucherType={12} />,
   "pos-cashier": PosCashier,
   "pos-points-settings": PosPointsSettings,
@@ -370,7 +373,14 @@ export default function HomePage() {
 function HomePageContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
-  const { openSection, currentSection, focusedPaneId, tabsEnabled, splitEnabled } = useWorkspace()
+  const { openSection, currentSection, focusedPaneId, tabsEnabled, splitEnabled, panes } = useWorkspace()
+  // التبويبات التي سيُتلفها فتح قسم بالجزء المركّز: بلا تبويبات تُستبدل الشاشة الحالية؛ مع التبويبات
+  // يُفتح تبويب جديد (أو يُنشَّط تبويب القسم الموجود) فلا تُفقد أي شاشة.
+  const tabsReplacedByOpen = () => {
+    if (tabsEnabled) return []
+    const pane = panes.find((p) => p.id === focusedPaneId)
+    return pane?.activeTabId ? [pane.activeTabId] : []
+  }
   const branchReloadKey = useBranchReloadKey()
   const activeSection = currentSection(focusedPaneId)
 
@@ -412,6 +422,16 @@ function HomePageContent() {
           ? fromUrl
           : "home-dashboard"
     if (resolved === activeSection) return
+    // رجوع/تقدّم المتصفح مع تغييرات غير محفوظة: يُعاد الرابط فوراً للشاشة الحالية، ولا يُفتح القسم
+    // الجديد إلا بعد قرار نافذة التحقق (حفظ/عدم حفظ).
+    const replaced = tabsReplacedByOpen()
+    if (replaced.length && !requestGuardedNavigation(() => {
+      openSection(resolved, titleFor(resolved))
+      router.push(resolved === "home-dashboard" ? "/" : `/?section=${resolved}`, { scroll: false })
+    }, replaced)) {
+      router.replace(activeSection && activeSection !== "home-dashboard" ? `/?section=${activeSection}` : "/", { scroll: false })
+      return
+    }
     openSection(resolved, titleFor(resolved))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams])
@@ -589,6 +609,9 @@ function HomePageContent() {
       detail: { continueNavigation: navigate },
     })
     if (!window.dispatchEvent(navigationRequest)) return
+    // بقية الشاشات (سندات/تعريفات): نافذة التحقق من التغييرات للشاشة التي ستُستبدل (lib/navigation-guard.ts)
+    const replaced = tabsReplacedByOpen()
+    if (replaced.length && !requestGuardedNavigation(navigate, replaced)) return
     navigate()
   }
 

@@ -51,6 +51,16 @@ interface AutoCompleteAccountProps {
 
 const normalizeAccountCode = (value: string) => value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 50)
 
+// كل أكواد الحسابات بطول ثابت 10: البادئة الحرفية (إن وُجدت) + أرقام مكمَّلة بأصفار من اليسار —
+// C1 → C000000001، C200 → C000000200، 11 → 0000000011 (نفس قاعدة adjustAccountCode بقيد اليومية).
+const ACCOUNT_CODE_LENGTH = 10
+const padAccountCode = (code: string) => {
+  const match = /^([A-Z]*)(\d+)$/.exec(code)
+  if (!match || code.length >= ACCOUNT_CODE_LENGTH) return code
+  const [, prefix, digits] = match
+  return prefix + digits.padStart(ACCOUNT_CODE_LENGTH - prefix.length, "0")
+}
+
 const formatAccountLabel = (account: AccountItem, displayNameFirst = false, displayIdOnly = false) =>
   displayIdOnly
     ? String(account.id)
@@ -116,7 +126,7 @@ export default function AutoCompleteAccount({
   showCostCenterDialog = true,
   costCenters,
   onCostCentersChange,
-  leafOnly = false,
+  leafOnly = true,
   displayNameFirst = false,
   showSearchButton = true,
   showClearButton = true,
@@ -207,7 +217,12 @@ export default function AutoCompleteAccount({
       if (!normalizedCode) return null
 
       const loadedAccounts = await loadAccounts()
-      return loadedAccounts.find((account) => normalizeAccountCode(account.code) === normalizedCode) || null
+      const paddedCode = padAccountCode(normalizedCode)
+      const exact = loadedAccounts.find((account) => normalizeAccountCode(account.code) === paddedCode)
+      if (exact) return exact
+      // احتياط لأكواد مخزَّنة بطول أقصر من 10 (بيانات قديمة مثل C0000005): مطابقة بعد تكميل الطرفين
+      const candidates = loadedAccounts.filter((account) => padAccountCode(normalizeAccountCode(account.code)) === paddedCode)
+      return candidates.length === 1 ? candidates[0] : null
     },
     [loadAccounts],
   )
@@ -268,57 +283,86 @@ export default function AutoCompleteAccount({
     void loadAccounts()
   }, [])
 
+  // النص المكتوب منذ آخر تركيز (null = لم يُكتب شيء). لا يُعتمد على value القادم من الصفحة: صفحات كثيرة
+  // لا تخزّن كل حرف (تتجاهل onValueChange أو تخزّن معرّفاً بوضع id)، فكان Enter يرى الحقل "فارغاً"
+  // ويفتح البحث دائماً، وكان blur يبحث بنص قديم. في وضع id لا يُمرَّر النص المكتوب للصفحة كمعرّف
+  // (كتابة 11 كانت تختار الحساب ذا المعرّف 11 بدل الكود 0000000011).
+  const typedTextRef = useRef<string | null>(null)
+  const searchOpeningRef = useRef(false)
+
   const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const nextValue = valueMode === "id" ? event.target.value : normalizeAccountCode(event.target.value)
-    setDisplayValue(nextValue)
-    onValueChange(nextValue)
+    const text = normalizeAccountCode(event.target.value)
+    typedTextRef.current = text
+    setDisplayValue(text)
+    if (valueMode === "code") onValueChange(text)
+    else if (!text) onValueChange("")
+    notifySelection(null)
+  }
+
+  const handleOpenSearch = async () => {
+    searchOpeningRef.current = true
+    await loadAccounts()
+    setSearchDialogOpen(true)
+  }
+
+  // يُطبِّق النص المكتوب: يُكمَّل الكود لعشر خانات (C1 → C000000001) ثم يُبحث عنه. موجود ⇐ يُختار.
+  // غير موجود ⇐ عند Enter تُفتح نافذة البحث، وعند مغادرة الحقل يُمسح (مع رسالة للحقول المقيّدة بنوع).
+  const commitTypedText = async (fromEnter: boolean) => {
+    const typed = typedTextRef.current
+    if (typed === null) {
+      if (fromEnter && !selectedAccount && !normalizedValue && showSearchButton && !disabled) void handleOpenSearch()
+      return
+    }
+    if (!typed) {
+      typedTextRef.current = null
+      onValueChange("")
+      notifySelection(null)
+      if (fromEnter && showSearchButton && !disabled) void handleOpenSearch()
+      return
+    }
+
+    const padded = padAccountCode(typed)
+    setDisplayValue(padded)
+    if (valueMode === "code" && padded !== value) onValueChange(padded)
+
+    const account = await resolveAccountByCode(typed)
+    const typeOk =
+      !requiredTypeValues || requiredTypeValues.length === 0 || (account != null && requiredTypeValues.includes(Number(account.type ?? 0)))
+
+    if (account && typeOk) {
+      typedTextRef.current = null
+      notifySelection(account)
+      onValueChange(valueMode === "id" ? String(account.id) : account.code)
+      setDisplayValue(formatAccountLabel(account, displayNameFirst, displayIdOnly))
+      return
+    }
+
+    if (fromEnter && showSearchButton && !disabled) {
+      void handleOpenSearch()
+      return
+    }
+    // requiredTypeValues: الحقل لا يقبل إلا حسابات من هذا النوع — كود غير موجود أو من نوع آخر يُرفض
+    // بالكامل بدل قبوله بصمت (خلاف searchAllowedTypeValues التي تُصفّي نافذة البحث فقط).
+    if (requiredTypeValues && requiredTypeValues.length > 0) {
+      toast({ title: "خطأ", description: notFoundMessage || "الحساب غير موجود", variant: "destructive" })
+    }
+    typedTextRef.current = null
+    onValueChange("")
+    setDisplayValue("")
     notifySelection(null)
   }
 
   const handleBlur = async () => {
     setIsFocused(false)
-    const normalizedInput = valueMode === "id" ? String(value).trim() : normalizeAccountCode(value)
-    if (normalizedInput !== value) {
-      onValueChange(normalizedInput)
-    }
-
-    if (!normalizedInput) {
-      notifySelection(null)
-      return
-    }
-
-    const account =
-      valueMode === "id"
-        ? (await resolveAccountById(normalizedInput)) || (await resolveAccountByCode(normalizedInput))
-        : await resolveAccountByCode(normalizedInput)
-
-    // requiredTypeValues يعني أن الحقل لا يقبل إلا حسابات من هذا النوع — كتابة يدوية لحساب غير
-    // موجود أو موجود لكن من نوع آخر تُرفض بالكامل بدل قبولها بصمت (خلاف searchAllowedTypeValues
-    // التي تُصفّي نافذة البحث فقط دون رفض ما يُكتب يدوياً).
-    const typeOk =
-      !requiredTypeValues || requiredTypeValues.length === 0 || (account != null && requiredTypeValues.includes(Number(account.type ?? 0)))
-
-    if (!account || !typeOk) {
-      if (requiredTypeValues && requiredTypeValues.length > 0) {
-        toast({ title: "خطأ", description: notFoundMessage || "الحساب غير موجود", variant: "destructive" })
-      }
-      onValueChange("")
-      setDisplayValue("")
-      notifySelection(null)
-      return
-    }
-
-    notifySelection(account)
-    onValueChange(valueMode === "id" ? String(account.id) : account.code)
-    setDisplayValue(formatAccountLabel(account, displayNameFirst, displayIdOnly))
+    // فتح نافذة البحث (بعد Enter لكود غير موجود) يُفقد الحقل التركيز — لا يُمسح النص حينها
+    if (searchOpeningRef.current || searchDialogOpen) return
+    await commitTypedText(false)
   }
 
-  const handleOpenSearch = async () => {
-    await loadAccounts()
-    setSearchDialogOpen(true)
-  }
 
   const handleSelectFromSearch = (account: AccountItem) => {
+    typedTextRef.current = null
+    searchOpeningRef.current = false
     onValueChange(valueMode === "id" ? String(account.id) : normalizeAccountCode(account.code))
     notifySelection(account)
     setDisplayValue(formatAccountLabel(account, displayNameFirst, displayIdOnly))
@@ -355,24 +399,22 @@ export default function AutoCompleteAccount({
           onChange={handleChange}
           onBlur={handleBlur}
           onFocus={() => {
+            typedTextRef.current = null
             setIsFocused(true)
             setDisplayValue(selectedAccount ? formatAccountLabel(selectedAccount, displayNameFirst, displayIdOnly) : value)
           }}
           onKeyDown={(event) => {
             if (event.key === "Enter") {
+              // لا كتابة وحساب مختار ⇐ يُترك Enter للتنقل (Enter كـTab)
+              if (typedTextRef.current === null && (selectedAccount || normalizedValue)) return
               event.preventDefault()
-              // حقل فارغ + Enter -> فتح نافذة البحث مباشرة بدل تشغيل handleBlur على قيمة فارغة.
-              if (!value && !selectedAccount && showSearchButton && !disabled) {
-                void handleOpenSearch()
-              } else {
-                void handleBlur()
-              }
+              void commitTypedText(true)
             } else if (event.key === "F10" && showSearchButton && !disabled) {
               event.preventDefault()
               void handleOpenSearch()
             }
           }}
-          maxLength={8}
+          maxLength={10}
           placeholder={placeholder}
           className={`text-right uppercase ${inputClassName}`}
           disabled={disabled}
@@ -439,7 +481,19 @@ export default function AutoCompleteAccount({
 
       <AccountSearchDialog
         open={searchDialogOpen}
-        onOpenChange={setSearchDialogOpen}
+        onOpenChange={(open) => {
+          setSearchDialogOpen(open)
+          if (open) return
+          // أُغلقت دون اختيار: كود مكتوب غير موجود لا يبقى معلّقاً بالحقل
+          if (searchOpeningRef.current && typedTextRef.current !== null) {
+            typedTextRef.current = null
+            onValueChange("")
+            setDisplayValue("")
+            notifySelection(null)
+          }
+          searchOpeningRef.current = false
+          setTimeout(() => inputRef.current?.focus(), 50)
+        }}
         accounts={accounts}
         onSelect={handleSelectFromSearch}
         allowedTypeValues={requiredTypeValues ?? searchAllowedTypeValues}

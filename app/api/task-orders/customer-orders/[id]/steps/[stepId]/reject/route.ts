@@ -1,12 +1,14 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { resolveActingUserId, unauthenticated } from "../../../../../_auth"
 import { rejectStepForOrder } from "@/lib/task-orders"
 
 export async function POST(request: NextRequest, { params }: { params: { id: string; stepId: string } }) {
   try {
     const data = await request.json()
-    if (!data.userId) return NextResponse.json({ error: "معرف المستخدم مطلوب" }, { status: 400 })
+    const actingUserId = await resolveActingUserId(request)
+    if (!actingUserId) return unauthenticated()
     if (!data.reason) return NextResponse.json({ error: "سبب الرفض مطلوب" }, { status: 400 })
-    const item = await rejectStepForOrder(Number(params.id), Number(params.stepId), String(data.userId), String(data.reason))
+    const item = await rejectStepForOrder(Number(params.id), Number(params.stepId), actingUserId, String(data.reason))
     return NextResponse.json(item)
   } catch (error: any) {
     console.error("Error rejecting step for order:", error)

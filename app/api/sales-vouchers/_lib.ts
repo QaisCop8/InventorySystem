@@ -1,5 +1,6 @@
 import sql from "@/lib/database"
 import { validateSerialsRemoval } from "@/lib/item-serials"
+import { consignmentReturnBlocksDeletion } from "@/lib/consignment"
 import {
   buildVoucherCode,
   nextVoucherSequence,
@@ -730,6 +731,9 @@ export const archiveAndDeleteSalesVoucher = async (voucherId: number): Promise<{
   if (linkedInvoiceByItem.length > 0) {
     return { error: "لا يمكن حذف هذه الإرسالية لأنها مرتبطة بفاتورة" }
   }
+
+  const returnBlock = await consignmentReturnBlocksDeletion(voucherId)
+  if (returnBlock) return { error: returnBlock }
 
   // أرقام تسلسلية: الحذف مسموح فقط إن كان هذا السند آخر حركة على كل رقم فيه (كمسار الإلغاء في PUT)
   const serialsRemovalError = await validateSerialsRemoval(voucherId)

@@ -1,5 +1,37 @@
-import sql from "@/lib/database"
+import { AsyncLocalStorage } from "node:async_hooks"
+import sql, { withTenantTransaction } from "@/lib/database"
 import { createNotification } from "@/lib/notifications"
+
+// كل إجراء بالمحرك يعدّل أكثر من صف (بدء/إنهاء/رفض/تحويل/حفظ خطوات...) يُنفَّذ بمعاملة واحدة —
+// سابقاً كان فشل أي استعلام وسط السلسلة يترك المهمة نصف منفَّذة (مكتملة بلا مرحلة تالية مثلاً).
+// الإشعارات تُؤجَّل لما بعد COMMIT: فشل استعلام إشعار داخل المعاملة يُفسدها كلها بـPostgreSQL، ولا
+// معنى لإشعار بإجراء قد يُلغى. الاستدعاءات المتداخلة (completeStepForOrder ← completeTask) تنضم
+// للمعاملة الخارجية نفسها.
+const pendingNotifications = new AsyncLocalStorage<Array<() => Promise<void>>>()
+
+async function runAtomic<T>(fn: () => Promise<T>): Promise<T> {
+  if (pendingNotifications.getStore()) return fn()
+  const queue: Array<() => Promise<void>> = []
+  const result = await pendingNotifications.run(queue, () => withTenantTransaction(fn))
+  for (const send of queue) await send()
+  return result
+}
+
+// قفل صف الصنف طوال المعاملة: يُسلسل كل الإجراءات المتزامنة على نفس الصنف — يمنع إنهاءً مزدوجاً
+// بنقرتين، ويمنع ضياع التقاء AND حين يُنهي فرعان متوازيان في اللحظة نفسها (كلاهما كان يرى الفرع
+// الآخر غير مكتمل فلا تُنشأ خطوة الالتقاء إطلاقاً).
+async function lockInstanceItem(instanceId: number) {
+  await sql`
+    SELECT i.id FROM task_order_items i
+    JOIN task_step_instances si ON si.order_item_id = i.id
+    WHERE si.id = ${instanceId}
+    FOR UPDATE OF i
+  `
+}
+
+const PRIORITY_RANK_SQL = sql.unsafe(
+  "CASE i.priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 WHEN 'normal' THEN 2 WHEN 'low' THEN 3 ELSE 2 END",
+)
 
 // محرك "تتبع أوامر العمل" — نظام تتبع طلبيات متعدد الفروع/الأقسام مبني على سير عمل موصوف كرسم
 // بياني موجَّه (DAG): كل صنف طلبية (order_item) يمرّ عبر خطوات (workflow_steps) مترابطة بانتقالات
@@ -394,6 +426,11 @@ async function assertAdmin(userId: string) {
 // عابر) يجب ألا يُسقِط الإجراء الأساسي (بدء/إنهاء/رفض مهمة فعلية) الذي استدعاه؛ لذا كل استدعاء
 // createNotification هنا محميّ بمحاولة/التقاط صامتة (مع تسجيل الخطأ) بدل تركه يُفشل السلسلة كلها.
 async function safeNotify(payload: Parameters<typeof createNotification>[0]) {
+  const queue = pendingNotifications.getStore()
+  if (queue) {
+    queue.push(() => safeNotify(payload))
+    return
+  }
   try {
     await createNotification(payload)
   } catch (error) {
@@ -694,6 +731,32 @@ export async function saveWorkflowSteps(workflowId: number, steps: StepInput[], 
   const isStartKey = (key: string) => !incomingKeys.has(key)
   const isEndKey = (key: string) => !outgoingKeys.has(key)
 
+  // createOrderItem يفتح أول خطوة بداية فقط (LIMIT 1) — أي خطوة بداية ثانية لن تُنفَّذ أبداً، وشبكة
+  // بلا خطوة بداية (حلقة كاملة) لا يمكن إنشاء أي صنف عليها.
+  const startSteps = steps.filter((s) => isStartKey(s.key))
+  if (startSteps.length === 0) throw new Error("سير العمل يجب أن يحتوي على خطوة بداية (خطوة لا يصل إليها أي انتقال)")
+  if (startSteps.length > 1) {
+    throw new Error(`يجب أن تكون هناك خطوة بداية واحدة فقط — الخطوات بلا انتقال وارد: ${startSteps.map((s) => s.label).join("، ")}`)
+  }
+  // حلقات الانتقالات غير مدعومة بالمحرك (advanceFromStep لا يعيد إنشاء مرحلة نُفِّذت سابقاً) — الإعادة
+  // للمراحل السابقة تتم بالرفض لا بانتقال عكسي.
+  const adjacency = new Map<string, string[]>()
+  for (const t of transitions) adjacency.set(t.from_key, [...(adjacency.get(t.from_key) || []), t.to_key])
+  const visitState = new Map<string, 1 | 2>()
+  const hasCycleFrom = (key: string): boolean => {
+    visitState.set(key, 1)
+    for (const next of adjacency.get(key) || []) {
+      const state = visitState.get(next)
+      if (state === 1) return true
+      if (!state && hasCycleFrom(next)) return true
+    }
+    visitState.set(key, 2)
+    return false
+  }
+  if (steps.some((s) => !visitState.get(s.key) && hasCycleFrom(s.key))) {
+    throw new Error("الانتقالات تشكّل حلقة مغلقة — لإعادة العمل لمرحلة سابقة استخدم الرفض بدل انتقال عكسي")
+  }
+
   if (steps.length > 1) {
     // كل خطوة يجب أن تكون ضمن شبكة الانتقالات (لا خطوات معزولة بلا أي ارتباط).
     for (const step of steps) {
@@ -723,31 +786,68 @@ export async function saveWorkflowSteps(workflowId: number, steps: StepInput[], 
   const typeSettings = await sql`SELECT code, mandatory, show_all_items, print_barcode, attachment_required FROM task_step_types WHERE is_active = true`
   const typeSettingsByCode = new Map(typeSettings.map((type: any) => [String(type.code), type]))
 
-  const usage = await sql`SELECT id FROM task_order_items WHERE workflow_id = ${workflowId} LIMIT 1`
-  let targetWorkflowId = workflowId
-  // Always overwrite steps/transitions on the same workflow rather than creating a new version.
-  await sql`DELETE FROM task_workflow_transitions WHERE workflow_id = ${workflowId}`
-  await sql`DELETE FROM task_workflow_steps WHERE workflow_id = ${workflowId}`
+  const targetWorkflowId = workflowId
+  // تحديث الخطوات في مكانها حسب المفتاح (key) بدل حذفها كلها وإعادة إنشائها: الحذف الكامل كان يفشل
+  // بقيد FK (task_step_instances.step_id) لأي سير عمل عليه مهام، وبعد أن تكون الانتقالات قد حُذفت
+  // فعلاً بلا معاملة — فتعلق كل الأصناف الجارية عليه بلا مرحلة تالية. الآن: معاملة واحدة، الخطوات
+  // القائمة تحتفظ بمعرّفاتها (فالمهام الجارية تتبع التعريف الجديد)، وحذف خطوة عليها مهام مُسجَّلة يُمنع.
+  await runAtomic(async () => {
+    const existingSteps = await sql`SELECT id, key, label FROM task_workflow_steps WHERE workflow_id = ${workflowId}`
+    const existingByKey = new Map<string, any>(existingSteps.map((s: any) => [String(s.key), s]))
+    const removed = existingSteps.filter((s: any) => !keys.has(String(s.key)))
+    if (removed.length > 0) {
+      const removedIds = removed.map((s: any) => Number(s.id))
+      const used = await sql`
+        SELECT DISTINCT st.label FROM task_step_instances si
+        JOIN task_workflow_steps st ON st.id = si.step_id
+        WHERE si.step_id = ANY(${removedIds}::int[])
+      `
+      if (used.length > 0) {
+        throw new Error(`لا يمكن حذف الخطوة "${used.map((r: any) => r.label).join("، ")}" لوجود مهام مسجَّلة عليها — أنشئ سير عمل جديداً بدلاً من ذلك`)
+      }
+    }
 
-  const keyToId: Record<string, number> = {}
-  for (const step of steps) {
-    const inserted = await sql`
-      INSERT INTO task_workflow_steps (workflow_id, key, label, section_id, assignment_type, assigned_user_id, is_start, is_end, join_type, sla_hours, is_conditional, sla_actions, step_type, mandatory, show_all_items, print_barcode, attachment_required)
-        VALUES (
-          ${targetWorkflowId}, ${step.key}, ${step.label}, ${step.section_id}, ${step.assignment_type || "all"},
-          ${step.assigned_user_id || null}, ${isStartKey(step.key)}, ${isEndKey(step.key)}, ${step.join_type || "none"}, ${step.sla_hours ?? null},
-          false, ${step.sla_actions || []}, ${step.step_type || "normal"}, ${Boolean(typeSettingsByCode.get(String(step.step_type || "normal"))?.mandatory)}, ${Boolean(typeSettingsByCode.get(String(step.step_type || "normal"))?.show_all_items)}, ${Boolean(typeSettingsByCode.get(String(step.step_type || "normal"))?.print_barcode)}, ${Boolean(typeSettingsByCode.get(String(step.step_type || "normal"))?.attachment_required)}
-        )
-      RETURNING id
-    `
-    keyToId[step.key] = inserted[0].id
-  }
-  for (const t of transitions) {
-    await sql`
-      INSERT INTO task_workflow_transitions (workflow_id, from_step_id, to_step_id, condition_key, condition_value)
-      VALUES (${targetWorkflowId}, ${keyToId[t.from_key]}, ${keyToId[t.to_key]}, ${t.condition_key || null}, ${t.condition_value || null})
-    `
-  }
+    await sql`DELETE FROM task_workflow_transitions WHERE workflow_id = ${workflowId}`
+    if (removed.length > 0) {
+      await sql`DELETE FROM task_workflow_steps WHERE id = ANY(${removed.map((s: any) => Number(s.id))}::int[])`
+    }
+
+    const keyToId: Record<string, number> = {}
+    for (const step of steps) {
+      const typeCode = String(step.step_type || "normal")
+      const typeSetting: any = typeSettingsByCode.get(typeCode)
+      const existing = existingByKey.get(step.key)
+      if (existing) {
+        await sql`
+          UPDATE task_workflow_steps
+          SET label = ${step.label}, section_id = ${step.section_id}, assignment_type = ${step.assignment_type || "all"},
+              assigned_user_id = ${step.assigned_user_id || null}, is_start = ${isStartKey(step.key)}, is_end = ${isEndKey(step.key)},
+              join_type = ${step.join_type || "none"}, sla_hours = ${step.sla_hours ?? null}, sla_actions = ${step.sla_actions || []},
+              step_type = ${typeCode}, mandatory = ${Boolean(typeSetting?.mandatory)}, show_all_items = ${Boolean(typeSetting?.show_all_items)},
+              print_barcode = ${Boolean(typeSetting?.print_barcode)}, attachment_required = ${Boolean(typeSetting?.attachment_required)}
+          WHERE id = ${existing.id}
+        `
+        keyToId[step.key] = Number(existing.id)
+        continue
+      }
+      const inserted = await sql`
+        INSERT INTO task_workflow_steps (workflow_id, key, label, section_id, assignment_type, assigned_user_id, is_start, is_end, join_type, sla_hours, is_conditional, sla_actions, step_type, mandatory, show_all_items, print_barcode, attachment_required)
+          VALUES (
+            ${targetWorkflowId}, ${step.key}, ${step.label}, ${step.section_id}, ${step.assignment_type || "all"},
+            ${step.assigned_user_id || null}, ${isStartKey(step.key)}, ${isEndKey(step.key)}, ${step.join_type || "none"}, ${step.sla_hours ?? null},
+            false, ${step.sla_actions || []}, ${typeCode}, ${Boolean(typeSetting?.mandatory)}, ${Boolean(typeSetting?.show_all_items)}, ${Boolean(typeSetting?.print_barcode)}, ${Boolean(typeSetting?.attachment_required)}
+          )
+        RETURNING id
+      `
+      keyToId[step.key] = inserted[0].id
+    }
+    for (const t of transitions) {
+      await sql`
+        INSERT INTO task_workflow_transitions (workflow_id, from_step_id, to_step_id, condition_key, condition_value)
+        VALUES (${targetWorkflowId}, ${keyToId[t.from_key]}, ${keyToId[t.to_key]}, ${t.condition_key || null}, ${t.condition_value || null})
+      `
+    }
+  })
 
   const [workflow] = await sql`SELECT * FROM task_workflows WHERE id = ${targetWorkflowId}`
   const stepRows = await sql`
@@ -839,6 +939,22 @@ export async function createCustomerOrder(data: {
   sourceOrderId?: number | null
 }) {
   await ensureTaskOrderTables()
+  // تعديل طلب مبيعات قائم بإضافة بنود جديدة كان يُنشئ طلبية تتبع ثانية لنفس الطلب — فتتشتت أصنافه
+  // بين بطاقات/لوحات أصناف شقيقة منفصلة ويظهر الطلب أكثر من مرة بشاشة الاعتماد. الآن تُستأنف طلبية
+  // التتبع المفتوحة (غير الملغاة وغير المعتمدة) للطلب نفسه، وتعود "جارية" إن كانت قد اكتملت.
+  if (data.sourceOrderId) {
+    const reusable = await sql`
+      UPDATE task_customer_orders
+      SET status = 'in_progress', completed_at = NULL, updated_at = CURRENT_TIMESTAMP
+      WHERE id = (
+        SELECT id FROM task_customer_orders
+        WHERE source_order_id = ${data.sourceOrderId} AND status <> 'cancelled' AND approved_at IS NULL
+        ORDER BY id DESC LIMIT 1
+      )
+      RETURNING *
+    `
+    if (reusable.length > 0) return { ...reusable[0], reused: true }
+  }
   const inserted = await sql`
     INSERT INTO task_customer_orders (customer_id, priority, created_by, status, source_order_id)
     VALUES (${data.customerId || null}, ${data.priority || "normal"}, ${data.createdBy}, 'in_progress', ${data.sourceOrderId ?? null})
@@ -847,7 +963,18 @@ export async function createCustomerOrder(data: {
   const order = inserted[0]
   const orderCode = `ORD-${String(order.id).padStart(6, "0")}`
   await sql`UPDATE task_customer_orders SET order_code = ${orderCode} WHERE id = ${order.id}`
-  return { ...order, order_code: orderCode }
+  return { ...order, order_code: orderCode, reused: false }
+}
+
+// تنظيف طلبية تتبع أُنشئت للتو ولم يُفتح عليها أي صنف (لا سير عمل مطابق لأي بند) — كانت تبقى
+// طلبية فارغة "جارية" للأبد.
+export async function discardEmptyCustomerOrder(customerOrderId: number) {
+  await ensureTaskOrderTables()
+  await sql`
+    DELETE FROM task_customer_orders o
+    WHERE o.id = ${customerOrderId}
+      AND NOT EXISTS (SELECT 1 FROM task_order_items i WHERE i.customer_order_id = o.id)
+  `
 }
 
 export async function getCustomerOrderById(id: number) {
@@ -861,10 +988,13 @@ export async function getCustomerOrderById(id: number) {
 export async function listApprovableCustomerOrders() {
   await ensureTaskOrderTables()
   return sql`
-    SELECT o.*, c.name AS customer_name,
-      (SELECT COUNT(*) FROM task_order_items i WHERE i.customer_order_id = o.id) AS item_count
+    SELECT o.*, c.name AS customer_name, so.order_number AS source_order_number,
+      (SELECT COUNT(*) FROM task_order_items i WHERE i.customer_order_id = o.id) AS item_count,
+      (SELECT COALESCE(SUM(si.total_duration_seconds), 0) FROM task_step_instances si
+        JOIN task_order_items i ON i.id = si.order_item_id WHERE i.customer_order_id = o.id) AS total_work_seconds
     FROM task_customer_orders o
     LEFT JOIN customers c ON c.id = o.customer_id
+    LEFT JOIN orders so ON so.id = o.source_order_id
     WHERE o.source_order_id IS NOT NULL
       AND o.approved_at IS NULL
       AND EXISTS (SELECT 1 FROM task_order_items i WHERE i.customer_order_id = o.id)
@@ -876,16 +1006,31 @@ export async function listApprovableCustomerOrders() {
 // يُستدعى فقط بعد نجاح تحديث الطلب الفعلي (orders.order_status2) في lib/orders.ts
 // approveTaskCustomerOrder — يُبقي منطق "هل الطلب الفعلي موجود/جاهز للاعتماد" هناك تفادياً لاستيراد
 // دائري بين هذا الملف وlib/orders.ts (الذي يستورد من هذا الملف أصلاً).
-export async function markCustomerOrderApproved(customerOrderId: number, userId: string) {
+// يُستدعى قبل تحديث الطلب الفعلي (lib/orders.ts approveTaskCustomerOrder) — سابقاً كان التحقق يتم
+// بعد تحديث orders.order_status2 فعلاً، فاعتماد مكرَّر/مبكر يُغيّر حالة الطلب الفعلي ثم يفشل.
+export async function assertCustomerOrderApprovable(customerOrderId: number) {
   await ensureTaskOrderTables()
   const order = (await sql`SELECT * FROM task_customer_orders WHERE id = ${customerOrderId}`)[0]
   if (!order) throw new Error("الطلبية غير موجودة")
   if (order.approved_at) throw new Error("تم اعتماد هذه الطلبية مسبقاً")
-  const unfinished = await sql`SELECT COUNT(*) AS c FROM task_order_items WHERE customer_order_id = ${customerOrderId} AND status <> 'completed'`
-  if (Number(unfinished[0].c) > 0) throw new Error("لا يمكن الاعتماد قبل إكمال كل أصناف الطلبية")
-  const result = await sql`
-    UPDATE task_customer_orders SET approved_at = CURRENT_TIMESTAMP, approved_by = ${userId} WHERE id = ${customerOrderId} RETURNING *
+  if (order.status === "cancelled") throw new Error("الطلبية ملغاة")
+  const counts = await sql`
+    SELECT COUNT(*) AS total, COUNT(*) FILTER (WHERE status <> 'completed') AS unfinished
+    FROM task_order_items WHERE customer_order_id = ${customerOrderId}
   `
+  if (Number(counts[0].total) === 0) throw new Error("لا توجد أصناف على هذه الطلبية")
+  if (Number(counts[0].unfinished) > 0) throw new Error("لا يمكن الاعتماد قبل إكمال كل أصناف الطلبية")
+  return order
+}
+
+export async function markCustomerOrderApproved(customerOrderId: number, userId: string) {
+  await assertCustomerOrderApprovable(customerOrderId)
+  const result = await sql`
+    UPDATE task_customer_orders SET approved_at = CURRENT_TIMESTAMP, approved_by = ${userId}
+    WHERE id = ${customerOrderId} AND approved_at IS NULL
+    RETURNING *
+  `
+  if (result.length === 0) throw new Error("تم اعتماد هذه الطلبية مسبقاً")
   return result[0]
 }
 
@@ -915,63 +1060,75 @@ export async function createOrderItem(data: {
   // لأن الاعتماد على item_type وحده لا يُميّز بين أكثر من سير عمل عام يتشاركان item_type فارغاً/
   // نفسه) يتغلّب على قاعدة الحل التلقائي عبر product_id/item_type — تبقى تلك القاعدة متاحة لإنشاء
   // آلي مستقبلي (كربط أصناف مباشرة بمنتج فعلي بالنظام) لا يمرّ عبر هذه الشاشة.
-  const workflow = data.workflowId
-    ? (await sql`SELECT * FROM task_workflows WHERE id = ${data.workflowId} AND is_active = true`)[0]
-    : await resolveWorkflow(data.productId ?? null, data.itemType ?? null, data.branchId ?? null)
-  if (!workflow) throw new Error("لا يوجد سير عمل مطابق لهذا الصنف — أنشئ سير عمل عام أو خاص أولاً")
+  if (data.qty != null && (!Number.isFinite(Number(data.qty)) || Number(data.qty) < 0)) throw new Error("الكمية غير صالحة")
+  return runAtomic(async () => {
+    const workflow = data.workflowId
+      ? (await sql`SELECT * FROM task_workflows WHERE id = ${data.workflowId} AND is_active = true`)[0]
+      : await resolveWorkflow(data.productId ?? null, data.itemType ?? null, data.branchId ?? null)
+    if (!workflow) throw new Error("لا يوجد سير عمل مطابق لهذا الصنف — أنشئ سير عمل عام أو خاص أولاً")
 
-  const startStep = (await sql`SELECT * FROM task_workflow_steps WHERE workflow_id = ${workflow.id} AND is_start = true LIMIT 1`)[0]
-  if (!startStep) throw new Error("سير العمل لا يحتوي على خطوة بداية")
+    const startStep = (await sql`SELECT * FROM task_workflow_steps WHERE workflow_id = ${workflow.id} AND is_start = true LIMIT 1`)[0]
+    if (!startStep) throw new Error("سير العمل لا يحتوي على خطوة بداية")
 
-  const inserted = await sql`
-    INSERT INTO task_order_items (customer_order_id, title, description, product_id, item_type, qty, attributes, workflow_id, priority, created_by, status)
-    VALUES (
-      ${data.customerOrderId || null}, ${data.title}, ${data.description || null}, ${data.productId || null},
-      ${data.itemType || null}, ${data.qty ?? null}, ${JSON.stringify(data.attributes || {})}, ${workflow.id},
-      ${data.priority || "normal"}, ${data.createdBy}, 'in_workflow'
-    )
-    RETURNING *
-  `
-  const item = inserted[0]
-  const itemCode = generateItemCode(item.id)
-  await sql`UPDATE task_order_items SET item_code = ${itemCode} WHERE id = ${item.id}`
-
-  // خطوة "تحديد ل مستخدم معين" (assignment_type='specific') يجب أن تُنسَب فوراً لذلك المستخدم عند
-  // الإنشاء، لا فقط لحظة أول Start — وإلا claimed_by_user_id يبقى NULL حتى يبدأ العمل عليها فعلياً،
-  // فلا تظهر إطلاقاً بنطاق "مهامي" (task-board.tsx يُصفّي بـclaimed_by_user_id===userId حصراً لهذا
-  // النطاق) رغم كونها مُسندة له تحديداً. startTask نفسها مبنية على هذا الافتراض أصلاً (شرط WHERE
-  // بها يقبل status='pending' مع claimed_by_user_id مُسبَق التعيين، لا NULL فقط).
-  const instance = (
-    await sql`
-      INSERT INTO task_step_instances (order_item_id, step_id, status, parent_instance_id, claimed_by_user_id)
-      VALUES (${item.id}, ${startStep.id}, 'pending', NULL, ${startStep.assignment_type === "specific" ? startStep.assigned_user_id : null})
+    const inserted = await sql`
+      INSERT INTO task_order_items (customer_order_id, title, description, product_id, item_type, qty, attributes, workflow_id, priority, created_by, status)
+      VALUES (
+        ${data.customerOrderId || null}, ${data.title}, ${data.description || null}, ${data.productId || null},
+        ${data.itemType || null}, ${data.qty ?? null}, ${JSON.stringify(data.attributes || {})}, ${workflow.id},
+        ${data.priority || "normal"}, ${data.createdBy}, 'in_workflow'
+      )
       RETURNING *
     `
-  )[0]
-  await sql`
-    INSERT INTO task_execution_logs (step_instance_id, order_item_id, user_id, action, note)
-    VALUES (${instance.id}, ${item.id}, ${data.createdBy}, 'create', ${"تم إنشاء الصنف"})
-  `
+    const item = inserted[0]
+    const itemCode = generateItemCode(item.id)
+    await sql`UPDATE task_order_items SET item_code = ${itemCode} WHERE id = ${item.id}`
 
-  await notifySectionMembers(startStep.section_id, {
-    title: "مهمة جديدة بقسمك",
-    message: `${data.title} (${itemCode})`,
-    orderItemId: item.id,
-    itemCode,
+    // خطوة "تحديد ل مستخدم معين" (assignment_type='specific') يجب أن تُنسَب فوراً لذلك المستخدم عند
+    // الإنشاء، لا فقط لحظة أول Start — وإلا claimed_by_user_id يبقى NULL حتى يبدأ العمل عليها فعلياً،
+    // فلا تظهر إطلاقاً بنطاق "مهامي" (task-board.tsx يُصفّي بـclaimed_by_user_id===userId حصراً لهذا
+    // النطاق) رغم كونها مُسندة له تحديداً. startTask نفسها مبنية على هذا الافتراض أصلاً (شرط WHERE
+    // بها يقبل status='pending' مع claimed_by_user_id مُسبَق التعيين، لا NULL فقط).
+    const instance = (
+      await sql`
+        INSERT INTO task_step_instances (order_item_id, step_id, status, parent_instance_id, claimed_by_user_id)
+        VALUES (${item.id}, ${startStep.id}, 'pending', NULL, ${startStep.assignment_type === "specific" ? startStep.assigned_user_id : null})
+        RETURNING *
+      `
+    )[0]
+    await sql`
+      INSERT INTO task_execution_logs (step_instance_id, order_item_id, user_id, action, note)
+      VALUES (${instance.id}, ${item.id}, ${data.createdBy}, 'create', ${"تم إنشاء الصنف"})
+    `
+
+    await notifySectionMembers(startStep.section_id, {
+      title: "مهمة جديدة بقسمك",
+      message: `${data.title} (${itemCode})`,
+      orderItemId: item.id,
+      itemCode,
+    })
+
+    return { ...item, item_code: itemCode }
   })
-
-  return { ...item, item_code: itemCode }
 }
 
 // تقرير/قائمة كل أصناف الطلبية (وليس فقط المهام المفتوحة كما بلوحة Kanban) — current_steps تُجمِّع
 // تسميات كل مراحل التنفيذ المفتوحة حالياً (قد تكون أكثر من واحدة لصنف فيه تفرّع متوازٍ لم يلتقِ
 // بعد)، وlast_note/last_note_at آخر ملاحظة فعلية (غير فارغة) سُجِّلت على الصنف أياً كان فعلها
 // (بدء/إيقاف/إنهاء/رفض/تحويل) — تكفي هذان العمودان لقراءة سريعة بجدول التقرير قبل فتح التفاصيل.
-export async function listOrderItems(filters: { workflowId?: number; status?: string; search?: string }) {
+export async function listOrderItems(filters: { workflowId?: number; status?: string; search?: string; fromDate?: string; toDate?: string }) {
   await ensureTaskOrderTables()
+  const searchPattern = filters.search ? `%${filters.search}%` : null
   const rows = await sql`
     SELECT i.*, w.name AS workflow_name, co.order_code AS customer_order_code, c.name AS customer_name,
+      COALESCE(o.order_number, co.order_code) AS source_order_number,
       creator.full_name AS created_by_name,
+      (SELECT COALESCE(SUM(si.total_duration_seconds), 0) FROM task_step_instances si WHERE si.order_item_id = i.id) AS total_work_seconds,
+      (
+        SELECT COUNT(*) FROM task_step_instances si
+        JOIN task_workflow_steps st ON st.id = si.step_id
+        WHERE si.order_item_id = i.id AND si.status IN ('pending', 'in_progress', 'paused')
+          AND st.sla_hours IS NOT NULL AND si.created_at + (st.sla_hours * INTERVAL '1 hour') < NOW()
+      ) AS overdue_task_count,
       (SELECT COUNT(*) FROM task_step_instances si WHERE si.order_item_id = i.id AND si.status IN ('pending','in_progress','paused')) AS open_task_count,
       (
         SELECT STRING_AGG(DISTINCT st.label, '، ')
@@ -992,21 +1149,31 @@ export async function listOrderItems(filters: { workflowId?: number; status?: st
     JOIN task_workflows w ON w.id = i.workflow_id
     LEFT JOIN task_customer_orders co ON co.id = i.customer_order_id
     LEFT JOIN customers c ON c.id = co.customer_id
+    LEFT JOIN orders o ON o.id = co.source_order_id
     LEFT JOIN user_settings creator ON creator.user_id = i.created_by
     WHERE (${filters.workflowId ?? null}::int IS NULL OR i.workflow_id = ${filters.workflowId ?? null})
       AND (${filters.status ?? null}::text IS NULL OR i.status = ${filters.status ?? null})
-      AND (${filters.search ?? null}::text IS NULL OR i.title ILIKE ${filters.search ? `%${filters.search}%` : null} OR i.item_code ILIKE ${filters.search ? `%${filters.search}%` : null})
+      AND (${searchPattern}::text IS NULL OR i.title ILIKE ${searchPattern} OR i.item_code ILIKE ${searchPattern}
+        OR c.name ILIKE ${searchPattern} OR o.order_number ILIKE ${searchPattern})
+      AND (${filters.fromDate ?? null}::date IS NULL OR i.created_at >= ${filters.fromDate ?? null}::date)
+      AND (${filters.toDate ?? null}::date IS NULL OR i.created_at < ${filters.toDate ?? null}::date + 1)
     ORDER BY i.updated_at DESC
+    LIMIT 2000
   `
   return rows
 }
 
 // الوحدة الأساسية للوحة Kanban: كل صف "مهمة" مفتوحة (StepInstance) — وليس صنف الطلبية نفسه، لأن
 // التفرّع المتوازي قد يُنتج أكثر من مهمة مفتوحة بأقسام مختلفة لنفس الصنف في آنٍ واحد.
-export async function listOpenTasks(filters: { workflowId?: number; sectionId?: number; assigneeId?: string; search?: string }) {
+// completedDays: عمود "منتهية" باللوحة كان يجلب كل مهمة اكتملت منذ بداية النظام (يكبر بلا حد ويُبطئ
+// الاستطلاع الدوري كل 20 ثانية) — يقتصر الآن على ما اكتمل خلال آخر N يوم.
+export async function listOpenTasks(filters: { workflowId?: number; sectionId?: number; assigneeId?: string; search?: string; completedDays?: number }) {
   await ensureTaskOrderTables()
+  const completedDays = Math.max(0, Math.min(90, Number(filters.completedDays ?? 3) || 0))
   const rows = await sql`
     SELECT si.*, st.key AS step_key, st.label AS step_label, st.step_type, st.assignment_type, st.sla_hours, st.is_end, st.mandatory, st.show_all_items, st.print_barcode, st.attachment_required,
+      CASE WHEN st.sla_hours IS NULL THEN NULL ELSE si.created_at + (st.sla_hours * INTERVAL '1 hour') END AS due_at,
+      c.name AS customer_name, COALESCE(o.order_number, co.order_code) AS source_order_number,
       COALESCE(si.override_section_id, st.section_id) AS effective_section_id,
       sec.name AS section_name,
       i.id AS order_item_id, i.item_code, i.title, i.description, i.priority AS item_priority, i.workflow_id, i.status AS item_status,
@@ -1025,12 +1192,18 @@ export async function listOpenTasks(filters: { workflowId?: number; sectionId?: 
     JOIN task_order_items i ON i.id = si.order_item_id
     JOIN task_workflows w ON w.id = i.workflow_id
     LEFT JOIN user_settings u ON u.user_id = si.claimed_by_user_id
-    WHERE si.status IN ('pending', 'in_progress', 'paused', 'completed')
+    LEFT JOIN task_customer_orders co ON co.id = i.customer_order_id
+    LEFT JOIN customers c ON c.id = co.customer_id
+    LEFT JOIN orders o ON o.id = co.source_order_id
+    WHERE (
+        si.status IN ('pending', 'in_progress', 'paused')
+        OR (si.status = 'completed' AND si.completed_at >= NOW() - (${completedDays} * INTERVAL '1 day'))
+      )
       AND (${filters.workflowId ?? null}::int IS NULL OR i.workflow_id = ${filters.workflowId ?? null})
       AND (${filters.sectionId ?? null}::int IS NULL OR COALESCE(si.override_section_id, st.section_id) = ${filters.sectionId ?? null})
       AND (${filters.assigneeId ?? null}::text IS NULL OR si.claimed_by_user_id = ${filters.assigneeId ?? null})
       AND (${filters.search ?? null}::text IS NULL OR i.title ILIKE ${filters.search ? `%${filters.search}%` : null} OR i.item_code ILIKE ${filters.search ? `%${filters.search}%` : null})
-    ORDER BY i.priority, si.created_at
+    ORDER BY ${PRIORITY_RANK_SQL}, si.created_at
   `
   // status='in_progress' لا يعني بالضرورة أن العداد يعمل الآن فعلياً (قد يكون آخر سجل 'stop' وليس
   // 'start') — has_running_timer الحقيقي يُحسَب هنا صراحة بدل الاعتماد على status وحدها.
@@ -1150,8 +1323,14 @@ async function assertOrderItemStepAccess(orderItemId: number, userId: string, al
   throw new Error("لا تملك صلاحية التعديل على أصناف هذه الطلبية بالمرحلة الحالية")
 }
 
+function assertValidQty(value: number, label: string) {
+  if (!Number.isFinite(value) || value < 0) throw new Error(`${label} غير صالحة`)
+}
+
 export async function updateOrderItemQty(itemId: number, qty: number, userId: string) {
   await ensureTaskOrderTables()
+  assertValidQty(qty, "الكمية")
+  if (qty === 0) throw new Error("الكمية يجب أن تكون أكبر من صفر — لإلغاء الصنف استخدم الحذف")
   await assertOrderItemStepAccess(itemId, userId, ["audit", "approval"])
   const result = await sql`UPDATE task_order_items SET qty = ${qty}, updated_at = CURRENT_TIMESTAMP WHERE id = ${itemId} RETURNING *`
   if (result.length === 0) throw new Error("الصنف غير موجود")
@@ -1160,6 +1339,7 @@ export async function updateOrderItemQty(itemId: number, qty: number, userId: st
 
 export async function updatePreparedQty(itemId: number, preparedQty: number, userId: string) {
   await ensureTaskOrderTables()
+  assertValidQty(preparedQty, "الكمية المجهزة")
   await assertOrderItemStepAccess(itemId, userId, ["preparation"])
   const result = await sql`UPDATE task_order_items SET prepared_qty = ${preparedQty}, updated_at = CURRENT_TIMESTAMP WHERE id = ${itemId} RETURNING *`
   if (result.length === 0) throw new Error("الصنف غير موجود")
@@ -1169,9 +1349,30 @@ export async function updatePreparedQty(itemId: number, preparedQty: number, use
 export async function deleteOrderItem(itemId: number, userId: string) {
   await ensureTaskOrderTables()
   await assertOrderItemStepAccess(itemId, userId, ["audit", "approval"])
-  const result = await sql`DELETE FROM task_order_items WHERE id = ${itemId} RETURNING id`
-  if (result.length === 0) throw new Error("الصنف غير موجود")
-  return result[0]
+  return runAtomic(async () => {
+    const item = (await sql`SELECT id, customer_order_id FROM task_order_items WHERE id = ${itemId} FOR UPDATE`)[0]
+    if (!item) throw new Error("الصنف غير موجود")
+    // حذف آخر صنف كان يترك طلبية تتبع فارغة "جارية" للأبد مرتبطة بطلب فعلي — الإلغاء الكامل للطلبية
+    // يتم بالإغلاق الإجباري الذي يُحدِّث الطلب الفعلي أيضاً.
+    if (item.customer_order_id) {
+      const remaining = await sql`SELECT COUNT(*) AS c FROM task_order_items WHERE customer_order_id = ${item.customer_order_id} AND id <> ${itemId}`
+      if (Number(remaining[0].c) === 0) throw new Error("لا يمكن حذف آخر صنف بالطلبية — استخدم الإغلاق الإجباري لإلغاء الطلبية كاملة")
+    }
+    const result = await sql`DELETE FROM task_order_items WHERE id = ${itemId} RETURNING id`
+    // قد يكون الصنف المحذوف هو الوحيد غير المكتمل — فتكتمل الطلبية فعلياً بحذفه.
+    if (item.customer_order_id) await refreshCustomerOrderCompletion(item.customer_order_id)
+    return result[0]
+  })
+}
+
+async function refreshCustomerOrderCompletion(customerOrderId: number) {
+  await sql`
+    UPDATE task_customer_orders o
+    SET status = 'completed', completed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+    WHERE o.id = ${customerOrderId} AND o.status = 'in_progress'
+      AND EXISTS (SELECT 1 FROM task_order_items i WHERE i.customer_order_id = o.id)
+      AND NOT EXISTS (SELECT 1 FROM task_order_items i WHERE i.customer_order_id = o.id AND i.status <> 'completed')
+  `
 }
 
 export async function setLoadingChecked(itemId: number, checked: boolean, userId: string) {
@@ -1230,8 +1431,9 @@ async function logTerminalAction(
   return durationSeconds
 }
 
-export async function startTask(instanceId: number, userId: string) {
+async function startTaskTx(instanceId: number, userId: string) {
   await ensureTaskOrderTables()
+  await lockInstanceItem(instanceId)
   const ctx = await getInstanceContext(instanceId)
   if (!ctx) throw new Error("المهمة غير موجودة")
   if (!["pending", "paused"].includes(ctx.status)) throw new Error("لا يمكن بدء هذه المهمة بحالتها الحالية")
@@ -1273,8 +1475,9 @@ export async function startTask(instanceId: number, userId: string) {
   return getOrderItemDetail(ctx.order_item_id)
 }
 
-export async function stopTask(instanceId: number, userId: string, note?: string) {
+async function stopTaskTx(instanceId: number, userId: string, note?: string) {
   await ensureTaskOrderTables()
+  await lockInstanceItem(instanceId)
   const ctx = await getInstanceContext(instanceId)
   if (!ctx) throw new Error("المهمة غير موجودة")
   if (ctx.status !== "in_progress") throw new Error("لا يوجد عمل جارٍ على هذه المهمة")
@@ -1290,14 +1493,23 @@ export async function stopTask(instanceId: number, userId: string, note?: string
   return getOrderItemDetail(ctx.order_item_id)
 }
 
-export async function rejectTask(instanceId: number, userId: string, reason: string, isForce = false) {
+async function rejectTaskTx(instanceId: number, userId: string, reason: string, isForce = false) {
   await ensureTaskOrderTables()
+  await lockInstanceItem(instanceId)
   const ctx = await getInstanceContext(instanceId)
   if (!ctx) throw new Error("المهمة غير موجودة")
   if (!["pending", "paused", "in_progress"].includes(ctx.status)) throw new Error("لا يمكن رفض هذه المهمة بحالتها الحالية")
   if (!isForce && ctx.first_started_at) throw new Error("لا يمكن الرفض بعد بدء العمل على المهمة")
   if (isForce) await assertAdmin(userId)
-  else await assertSectionAccess(ctx.effective_section_id, userId)
+  else {
+    await assertSectionAccess(ctx.effective_section_id, userId)
+    if (
+      ctx.assignment_type === "specific" && ctx.assigned_user_id && Number(ctx.assigned_user_id) !== Number(userId) &&
+      !(await isWorkspaceAdmin(userId))
+    ) {
+      throw new Error("هذه المهمة مسندة لمستخدم محدد")
+    }
+  }
   if (!ctx.parent_instance_id) throw new Error("هذه أول مرحلة بسير العمل — لا توجد مرحلة سابقة للإعادة إليها")
 
   const durationSeconds = isForce && ctx.status === "in_progress" ? await logTerminalAction(instanceId, ctx.order_item_id, userId, "stop") : 0
@@ -1307,9 +1519,14 @@ export async function rejectTask(instanceId: number, userId: string, reason: str
     SET status = 'rejected', rejected_at = CURRENT_TIMESTAMP, total_duration_seconds = total_duration_seconds + ${durationSeconds}
     WHERE id = ${instanceId}
   `
+  // إعادة فتح المرحلة السابقة: completed_at يُصفَّر (كانت تبقى "مكتملة في" رغم إعادتها)، وخطوة
+  // "مستخدم محدد" تعود لمستخدمها مباشرة بدل NULL — وإلا اختفت من "مهامي" عنده.
   await sql`
-    UPDATE task_step_instances SET status = 'pending', claimed_by_user_id = NULL, first_started_at = NULL
-    WHERE id = ${ctx.parent_instance_id}
+    UPDATE task_step_instances si
+    SET status = 'pending', first_started_at = NULL, completed_at = NULL,
+        claimed_by_user_id = CASE WHEN st.assignment_type = 'specific' THEN st.assigned_user_id ELSE NULL END
+    FROM task_workflow_steps st
+    WHERE st.id = si.step_id AND si.id = ${ctx.parent_instance_id}
   `
   await sql`
     INSERT INTO task_execution_logs (step_instance_id, order_item_id, user_id, action, note)
@@ -1339,8 +1556,13 @@ async function advanceFromStep(orderItemId: number, fromStepId: number, itemAttr
     const conditionMatches = !transition.condition_key || String(itemAttributes?.[transition.condition_key] ?? "") === String(transition.condition_value ?? "")
     if (!conditionMatches) continue
 
+    // النسخ المرفوضة/الملغاة لا تُحتسب: بعد رفض مرحلة وإعادتها للسابقة ثم إنهاء السابقة مجدداً، كانت
+    // النسخة المرفوضة القديمة تمنع إنشاء نسخة جديدة — فيعلق الصنف بلا أي مهمة مفتوحة نهائياً.
     const existing = await sql`
-      SELECT id FROM task_step_instances WHERE order_item_id = ${orderItemId} AND step_id = ${transition.to_step_id} LIMIT 1
+      SELECT id FROM task_step_instances
+      WHERE order_item_id = ${orderItemId} AND step_id = ${transition.to_step_id}
+        AND status NOT IN ('rejected', 'cancelled')
+      LIMIT 1
     `
     if (existing.length > 0) continue
 
@@ -1375,8 +1597,9 @@ async function advanceFromStep(orderItemId: number, fromStepId: number, itemAttr
   }
 }
 
-export async function completeTask(instanceId: number, userId: string, note?: string, isForce = false) {
+async function completeTaskTx(instanceId: number, userId: string, note?: string, isForce = false) {
   await ensureTaskOrderTables()
+  await lockInstanceItem(instanceId)
   const ctx = await getInstanceContext(instanceId)
   if (!ctx) throw new Error("المهمة غير موجودة")
   if (isForce) {
@@ -1421,14 +1644,17 @@ export async function completeTask(instanceId: number, userId: string, note?: st
       orderItemId: item.id,
       itemCode: item.item_code,
     })
-    if (item.customer_order_id) {
-      const siblings = await sql`SELECT status FROM task_order_items WHERE customer_order_id = ${item.customer_order_id}`
-      if (siblings.every((s: any) => s.status === "completed")) {
-        await sql`UPDATE task_customer_orders SET status = 'completed', completed_at = CURRENT_TIMESTAMP WHERE id = ${item.customer_order_id}`
-      }
-    }
+    if (item.customer_order_id) await refreshCustomerOrderCompletion(item.customer_order_id)
   } else {
     await advanceFromStep(ctx.order_item_id, ctx.step_id, item.attributes || {})
+    // لا انتقال يطابق شروط الصنف ولا مهام أخرى مفتوحة عليه ⇐ كان الصنف يعلق "جارياً" للأبد بلا أي
+    // مهمة. الخطأ هنا يُلغي المعاملة كلها فتبقى المهمة الحالية مفتوحة كما كانت.
+    const open = await sql`
+      SELECT COUNT(*) AS c FROM task_step_instances WHERE order_item_id = ${ctx.order_item_id} AND status IN ('pending', 'in_progress', 'paused')
+    `
+    if (Number(open[0].c) === 0) {
+      throw new Error("لا يوجد انتقال من هذه المرحلة يطابق بيانات الصنف — راجع شروط الانتقالات في سير العمل")
+    }
   }
 
   return getOrderItemDetail(ctx.order_item_id)
@@ -1446,16 +1672,18 @@ async function openSiblingInstanceIds(customerOrderId: number, stepId: number): 
     JOIN task_order_items i ON i.id = si.order_item_id
     WHERE i.customer_order_id = ${customerOrderId} AND si.step_id = ${stepId}
       AND si.status IN ('pending', 'in_progress', 'paused')
+    ORDER BY i.id
   `
   return rows.map((r: any) => Number(r.id))
 }
 
-export async function completeStepForOrder(customerOrderId: number, stepId: number, userId: string, note?: string) {
+async function completeStepForOrderTx(customerOrderId: number, stepId: number, userId: string, note?: string) {
   await ensureTaskOrderTables()
   const instanceIds = await openSiblingInstanceIds(customerOrderId, stepId)
   if (instanceIds.length === 0) throw new Error("لا توجد مهام مفتوحة لهذه الخطوة على هذه الطلبية")
   let lastItemId: number | null = null
   for (const instanceId of instanceIds) {
+    await lockInstanceItem(instanceId)
     const ctx = await getInstanceContext(instanceId)
     if (!ctx) continue
     if (ctx.status !== "in_progress") await startTask(instanceId, userId)
@@ -1465,12 +1693,13 @@ export async function completeStepForOrder(customerOrderId: number, stepId: numb
   return lastItemId ? getOrderItemDetail(lastItemId) : null
 }
 
-export async function rejectStepForOrder(customerOrderId: number, stepId: number, userId: string, reason: string) {
+async function rejectStepForOrderTx(customerOrderId: number, stepId: number, userId: string, reason: string) {
   await ensureTaskOrderTables()
   const instanceIds = await openSiblingInstanceIds(customerOrderId, stepId)
   if (instanceIds.length === 0) throw new Error("لا توجد مهام مفتوحة لهذه الخطوة على هذه الطلبية")
   let lastItemId: number | null = null
   for (const instanceId of instanceIds) {
+    await lockInstanceItem(instanceId)
     const ctx = await getInstanceContext(instanceId)
     if (!ctx) continue
     await rejectTask(instanceId, userId, reason)
@@ -1479,13 +1708,14 @@ export async function rejectStepForOrder(customerOrderId: number, stepId: number
   return lastItemId ? getOrderItemDetail(lastItemId) : null
 }
 
-export async function adminTransferTask(
+async function adminTransferTaskTx(
   instanceId: number,
   adminUserId: string,
   data: { toSectionId?: number | null; toUserId?: string | null; reason: string },
 ) {
   await ensureTaskOrderTables()
   await assertAdmin(adminUserId)
+  await lockInstanceItem(instanceId)
   const ctx = await getInstanceContext(instanceId)
   if (!ctx) throw new Error("المهمة غير موجودة")
   if (!["pending", "paused", "in_progress"].includes(ctx.status)) throw new Error("لا يمكن تحويل هذه المهمة بحالتها الحالية")
@@ -1534,9 +1764,10 @@ export async function adminTransferTask(
 // task_execution_logs)، ويُعلِّم كل الأصناف والطلبية نفسها كملغاة. يُستدعى من lib/orders.ts
 // (forceCloseOrderFromTaskInstance) الذي يُكمِل الإغلاق على الطلب الفعلي المرتبط (orders.order_status2)
 // بعد نجاح هذا الجزء — يبقى هذا الملف بلا أي استيراد من lib/orders.ts لتفادي الاستيراد الدائري.
-export async function forceCloseCustomerOrder(instanceId: number, adminUserId: string, note?: string) {
+async function forceCloseCustomerOrderTx(instanceId: number, adminUserId: string, note?: string) {
   await ensureTaskOrderTables()
   await assertAdmin(adminUserId)
+  await lockInstanceItem(instanceId)
   const ctx = await getInstanceContext(instanceId)
   if (!ctx) throw new Error("المهمة غير موجودة")
   if (!ctx.customer_order_id) throw new Error("لا توجد طلبية مرتبطة بهذا الصنف")
@@ -1561,4 +1792,48 @@ export async function forceCloseCustomerOrder(instanceId: number, adminUserId: s
   `
 
   return { customerOrderId }
+}
+
+// ------------------------------------------------------------------
+// واجهات المحرك العامة: كل إجراء بمعاملة واحدة + إشعارات بعد COMMIT (انظر runAtomic)
+// ------------------------------------------------------------------
+
+export async function startTask(instanceId: number, userId: string) {
+  await ensureTaskOrderTables()
+  return runAtomic(() => startTaskTx(instanceId, userId))
+}
+
+export async function stopTask(instanceId: number, userId: string, note?: string) {
+  await ensureTaskOrderTables()
+  return runAtomic(() => stopTaskTx(instanceId, userId, note))
+}
+
+export async function rejectTask(instanceId: number, userId: string, reason: string, isForce = false) {
+  await ensureTaskOrderTables()
+  return runAtomic(() => rejectTaskTx(instanceId, userId, reason, isForce))
+}
+
+export async function completeTask(instanceId: number, userId: string, note?: string, isForce = false) {
+  await ensureTaskOrderTables()
+  return runAtomic(() => completeTaskTx(instanceId, userId, note, isForce))
+}
+
+export async function completeStepForOrder(customerOrderId: number, stepId: number, userId: string, note?: string) {
+  await ensureTaskOrderTables()
+  return runAtomic(() => completeStepForOrderTx(customerOrderId, stepId, userId, note))
+}
+
+export async function rejectStepForOrder(customerOrderId: number, stepId: number, userId: string, reason: string) {
+  await ensureTaskOrderTables()
+  return runAtomic(() => rejectStepForOrderTx(customerOrderId, stepId, userId, reason))
+}
+
+export async function adminTransferTask(instanceId: number, adminUserId: string, data: { toSectionId?: number | null; toUserId?: string | null; reason: string }) {
+  await ensureTaskOrderTables()
+  return runAtomic(() => adminTransferTaskTx(instanceId, adminUserId, data))
+}
+
+export async function forceCloseCustomerOrder(instanceId: number, adminUserId: string, note?: string) {
+  await ensureTaskOrderTables()
+  return runAtomic(() => forceCloseCustomerOrderTx(instanceId, adminUserId, note))
 }

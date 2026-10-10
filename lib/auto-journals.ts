@@ -1,5 +1,12 @@
 import sql from "@/lib/database"
-import { buildVoucherCode } from "@/lib/voucher-code"
+import {
+  JournalDefaultsError,
+  accountDefaultCostCenters,
+  mergeLineCostCenters,
+  nextJournalVoucherCode,
+  resolveUserDefaultJournalBook,
+  type JournalBookContext,
+} from "@/lib/journal-defaults"
 
 // قيود آلية (قيود عمولة الفيزا، تحويل عملة، تحويل عملة حساب، فرق عملة) — منقولة من ShamelAPI
 // (Features/Vouchers/*Journals). كل قيد يُحفَظ كسند قيد عادي (vch_type=3) مُرحَّل، مُعلَّم بـ
@@ -63,7 +70,7 @@ export type AutoJournalLine = {
   currencyId: number
   rate: number
   note?: string
-  // مراكز تكلفة صريحة؛ بدونها تُستعمل المراكز الافتراضية للحساب (account_costcenters_tbl).
+  // مراكز تكلفة صريحة (تتقدّم على افتراضي الحساب من نفس النوع)؛ بقية الأنواع من افتراضيات الحساب.
   costCenterIds?: number[]
   // مبلغ الحساب بعملته بدل الاحتساب التلقائي — قيد فرق العملة يغيّر قيمة الرصيد بعملة الأساس فقط
   // دون أي أثر على رصيد الحساب بعملته (0).
@@ -86,40 +93,16 @@ export type AutoJournalResult = { id: number; code: string }
 
 export class AutoJournalError extends Error {}
 
-type JournalContext = { userSettingId: number; bookId: number; bookName: string }
+type JournalContext = JournalBookContext
 
-// المستخدم المنفّذ ودفتره الافتراضي لسند القيد — نفس منطق قيود الشيكات (app/api/cheques/_journal.ts).
+// المستخدم المنفّذ ودفتره الافتراضي لسند القيد — قاعدة مشتركة لكل القيود الآلية (lib/journal-defaults.ts).
 export async function resolveJournalContext(userId: string): Promise<JournalContext> {
-  const userSetting = (await sql`SELECT id FROM user_settings WHERE user_id = ${userId} LIMIT 1`)[0]
-  if (!userSetting?.id) throw new AutoJournalError("تعذر تحديد المستخدم المنفذ للقيد")
-  const book = (await sql`
-    SELECT permission.vch_book_id, book.name
-    FROM voucher_book_user_permissions_tbl permission
-    JOIN voucher_books_tbl book ON book.id = permission.vch_book_id
-    WHERE permission.user_id = ${Number(userSetting.id)} AND permission.voucher_type_id = ${AUTO_JOURNAL_VCH_TYPE}
-    ORDER BY COALESCE(permission.is_default, 0) DESC, permission.vch_book_id
-    LIMIT 1
-  `)[0]
-  if (!book?.vch_book_id) throw new AutoJournalError("يجب تعيين دفتر افتراضي لسند القيد للمستخدم قبل تنفيذ القيود")
-  return { userSettingId: Number(userSetting.id), bookId: Number(book.vch_book_id), bookName: String(book.name || "") }
-}
-
-async function nextJournalCode(context: JournalContext): Promise<string> {
-  await sql`SELECT pg_advisory_xact_lock(hashtext(${`auto-journal-number:${context.bookId}`}))`
-  const settings = await sql`SELECT id, value FROM system_settings WHERE id IN ('journal_prefix', 'journal_start')`
-  const values = Object.fromEntries(settings.map((row: any) => [row.id, row.value]))
-  const prefixValue = String(values.journal_prefix || "J").trim().toUpperCase()
-  const prefix = /^[A-Z]{1,3}$/.test(prefixValue) ? prefixValue : "J"
-  const startNumber = Math.max(1, Number(values.journal_start) || 1)
-  const codePrefix = `${prefix}${context.bookName.trim().toUpperCase()}`
-  const existing = await sql`
-    SELECT vch_code FROM voucher_header_tbl WHERE vch_type = ${AUTO_JOURNAL_VCH_TYPE} AND vch_code LIKE ${codePrefix + "%"}
-  `
-  const maximum = existing.reduce((max: number, row: any) => {
-    const suffix = String(row.vch_code || "").slice(codePrefix.length)
-    return Math.max(max, Number(suffix.match(/(\d+)$/)?.[1] || 0))
-  }, 0)
-  return buildVoucherCode(prefix, context.bookName, Math.max(startNumber, maximum + 1))
+  try {
+    return await resolveUserDefaultJournalBook(userId)
+  } catch (error) {
+    if (error instanceof JournalDefaultsError) throw new AutoJournalError(error.message)
+    throw error
+  }
 }
 
 // يجب استدعاؤها داخل withTenantTransaction (قفل الترقيم pg_advisory_xact_lock مرتبط بالمعاملة).
@@ -150,7 +133,7 @@ export async function createAutoJournal(input: AutoJournalInput, context?: Journ
   }
 
   const ctx = context ?? (await resolveJournalContext(input.userId))
-  const code = await nextJournalCode(ctx)
+  const code = await nextJournalVoucherCode(ctx)
   const amount = round2(lines.filter((l) => l.creditDebit === 1).reduce((s, l) => s + (l.currencyId === input.currencyId ? l.amount : baseOf(l) / (input.rate || 1)), 0))
   const voucher = (await sql`
     INSERT INTO voucher_header_tbl (
@@ -164,6 +147,7 @@ export async function createAutoJournal(input: AutoJournalInput, context?: Journ
   const voucherId = Number(voucher.id)
 
   const baseCurrencyId = await getBaseCurrencyId()
+  const defaultCostCenters = await accountDefaultCostCenters(accountIds)
   const accountRateCache = new Map<number, number>()
   for (let index = 0; index < lines.length; index++) {
     const line = lines[index]
@@ -191,15 +175,9 @@ export async function createAutoJournal(input: AutoJournalInput, context?: Journ
       ) RETURNING id
     `)[0]
 
-    let costCenterIds = (line.costCenterIds || []).filter((id) => Number(id) > 0)
-    if (!costCenterIds.length) {
-      const defaults = await sql`
-        SELECT default_cost_center_id FROM account_costcenters_tbl
-        WHERE account_id = ${line.accountId} AND default_cost_center_id IS NOT NULL ORDER BY id
-      `
-      costCenterIds = defaults.map((row: any) => Number(row.default_cost_center_id))
-    }
-    for (const costCenterId of costCenterIds) {
+    // الصريحة (كمركز تكلفة الأصل) تتقدّم على افتراضي الحساب من نفس النوع؛ بقية الأنواع من افتراضيات الحساب
+    const costCenters = await mergeLineCostCenters(line.costCenterIds || [], defaultCostCenters.get(line.accountId) || [])
+    for (const { cost_center_id: costCenterId } of costCenters) {
       await sql`INSERT INTO voucher_costcenter_tbl (voucher_journal_id, cost_center_id) VALUES (${Number(inserted.id)}, ${costCenterId})`
     }
   }

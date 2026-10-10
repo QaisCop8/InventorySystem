@@ -17,3 +17,15 @@ export function WorkspaceTabActiveProvider({ active, children }: { active: boole
 export function useWorkspaceTabActive() {
   return useContext(WorkspaceTabActiveContext)
 }
+
+// رقم التبويب الحالي بمساحة العمل — حارس المغادرة (lib/navigation-guard.ts) يربط كل شاشة بتبويبها
+// ليُسأل فقط حارس التبويب الذي سيُستبدل أو يُغلق. خارج مساحة العمل: null.
+const WorkspaceTabIdContext = createContext<string | null>(null)
+
+export function WorkspaceTabIdProvider({ tabId, children }: { tabId: string; children: ReactNode }) {
+  return <WorkspaceTabIdContext.Provider value={tabId}>{children}</WorkspaceTabIdContext.Provider>
+}
+
+export function useWorkspaceTabId() {
+  return useContext(WorkspaceTabIdContext)
+}

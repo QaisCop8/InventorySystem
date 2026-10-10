@@ -463,7 +463,10 @@ export default function AccountSearchDialog({
   const dropdownStyle = { height: "36px", minHeight: "36px", borderRadius: "8px", backgroundColor: "#fff" }
 
   const MAX_VISIBLE_RESULTS = 500
-  const visibleRows = gridDataSource.length > MAX_VISIBLE_RESULTS ? gridDataSource.slice(0, MAX_VISIBLE_RESULTS) : gridDataSource
+  const visibleRows = useMemo(
+    () => (gridDataSource.length > MAX_VISIBLE_RESULTS ? gridDataSource.slice(0, MAX_VISIBLE_RESULTS) : gridDataSource),
+    [gridDataSource],
+  )
 
   const resultColumns: SearchColumn<(typeof gridDataSource)[number]>[] = [
     { key: "code", header: "رقم الحساب", width: "140px", className: "font-mono text-xs text-slate-600" },

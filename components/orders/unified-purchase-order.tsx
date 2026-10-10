@@ -33,6 +33,7 @@ import { OrderSearchDialog } from "@/components/search/order-search-dialog"
 import { requestProductVariant } from "@/components/products/product-variant-service"
 import { useWorkspaceTabActive } from "@/contexts/workspace-tab-context"
 import { screenHotkeysAllowed } from "@/lib/hotkeys"
+import { useNavigationGuard } from "@/lib/navigation-guard"
 
 const InlineSupplierSearch = ({ onSelect, onClose, suppliers }: any) => {
   const [searchTerm, setSearchTerm] = useState("")
@@ -883,6 +884,13 @@ function UnifiedPurchaseOrder({
       setNavigationLoading(false)
     }
   }
+
+  // تبديل الشاشة من القائمة/إغلاق التبويب/رجوع المتصفح/تحديث الصفحة مع تغييرات غير محفوظة ⇐ نفس نافذة
+  // التحقق من التغييرات — كما في كاشير نقطة البيع (lib/navigation-guard.ts)
+  useNavigationGuard(
+    () => Boolean(open && JSON.stringify({ formData: state.formData, orderItems: state.orderItems }) !== initialSnapshotRef.current),
+    (continueNavigation) => { pendingNavigation.current = continueNavigation; setShowUnsavedConfirm(true) },
+  )
 
   const requestNew = () => {
     pendingNavigation.current = null

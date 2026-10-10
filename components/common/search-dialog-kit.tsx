@@ -126,10 +126,13 @@ function SearchResultsTableInner<T>(
   const onActiveChangeRef = useRef(onActiveChange)
   onActiveChangeRef.current = onActiveChange
 
-  // نتائج جديدة (تغيير فلتر) ⇐ لا سطر نشط حتى يدخل المستخدم الجدول
+  // نتائج جديدة (تغيير فلتر) ⇐ لا سطر نشط حتى يدخل المستخدم الجدول. المقارنة بمفاتيح الصفوف لا بهوية
+  // المصفوفة: مستدعٍ يمرّر مصفوفة مُعاد بناؤها بكل تصيير (مثل slice) كان يُصفّر السطر النشط بعد كل سهم
+  // (onActiveChange يُعيد تصيير المستدعي) فيعلق التنقل على السطر الأول.
+  const rowsSignature = rows.map((row, index) => String(getRowKey(row, index))).join("\u0001")
   useEffect(() => {
     setActiveIndex(-1)
-  }, [rows])
+  }, [rowsSignature])
 
   const activate = useCallback(
     (index: number) => {

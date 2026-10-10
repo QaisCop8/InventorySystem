@@ -5,7 +5,6 @@ import { useVoucherDeepLink } from "@/hooks/use-voucher-deep-link"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import DataGridView from "@/components/common/DataGridView"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Edit, Plus, Search } from "lucide-react"
@@ -24,6 +23,7 @@ import UnifiedStockVoucher, {
 import type { PostVoucherAction } from "@/components/common/post-voucher-dialog"
 import StockVoucherPrintLayout, { type StockVoucherPrintData } from "@/components/common/stock-voucher-print-layout"
 import { serialsSummary } from "@/components/inventory/item-serials-dialog"
+import { VoucherListTable } from "@/components/common/voucher-list-table"
 
 interface StockVouchersProps {
   voucherType: StockVoucherType
@@ -703,6 +703,24 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
     setForm((f) => ({ ...f, [field]: value }))
   }
 
+
+  // عرض سند بالمعرّف من نافذة بحث السندات (زر البحث بجانب رقم السند) — نفس مسار التنقل
+  const openVoucherById = async (voucherId: number) => {
+    setIsLoading(true)
+    try {
+      const details = await fetchVoucherDetails(voucherId)
+      if (!details) throw new Error("تعذر تحميل تفاصيل السند")
+      setForm(normalizeVoucher(details, voucherType))
+      setCurrentIndex(filteredVouchers.findIndex(row => row.id === voucherId))
+      setErrorMessages([])
+      setDialogOpen(true)
+    } catch (error) {
+      setErrorMessages([error instanceof Error ? error.message : "تعذر عرض السند"])
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   return (
     <div className="w-full max-w-full space-y-6" dir="rtl">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -774,28 +792,23 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
           <CardTitle>{`${labels.listTitle} (${filteredVouchers.length})`}</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="min-h-0 overflow-auto rounded-xl border p-2">
-            <DataGridView
-              dataSource={filteredVouchers.map((voucher) => ({ ...voucher, display_date: voucher.vch_date?.slice(0, 10), display_amount: Number(voucher.amount || 0).toLocaleString(), display_status: voucher.status === 2 ? "مرحل" : "مسودة" }))}
-              style={{ height: "max(420px, calc(100dvh - 340px))", width: "100%" }}
-              containerStyle={{ width: "100%", minWidth: 0 }}
-              isReport
-              isReadOnly
-              dontConvertToCards
-              onRowDoubleClick={(row: any) => { const voucher = row.item || row; openRow(voucher, filteredVouchers.findIndex((item) => item.id === voucher.id)) }}
-              scheme={{ columns: [
+          <div className="min-h-0">
+            <VoucherListTable
+              rows={filteredVouchers.map((voucher) => ({ ...voucher, display_date: voucher.vch_date?.slice(0, 10), display_amount: Number(voucher.amount || 0).toLocaleString(), display_status: voucher.status === 2 ? "مرحل" : "مسودة" }))}
+              columns={[
                 { header: "رقم السند", name: "vch_code", width: "*", minWidth: 150, isReadOnly: true },
                 { header: "التاريخ", name: "display_date", width: 130, isReadOnly: true },
                 { header: "المبلغ", name: "display_amount", width: 140, isReadOnly: true },
                 { header: "الحالة", name: "display_status", width: 140, isReadOnly: true },
-              ] }}
+              ]}
+              onOpen={(row: any) => { const voucher = row.item || row; openRow(voucher, filteredVouchers.findIndex((item) => item.id === voucher.id)) }}
             />
-            {!filteredVouchers.length && <p className="py-4 text-center text-sm text-muted-foreground">لا توجد سندات</p>}
           </div>
         </CardContent>
       </Card>
 
       <UnifiedStockVoucher
+        onOpenVoucherById={(voucherId) => void openVoucherById(voucherId)}
         voucherType={voucherType}
         dialogOpen={dialogOpen}
         onOpenChange={setDialogOpen}

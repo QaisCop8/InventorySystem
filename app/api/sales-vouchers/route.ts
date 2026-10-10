@@ -31,7 +31,7 @@ import {
 import { validateItemReferences } from "@/app/api/stock-vouchers/_lib"
 import { authorizeTransaction, transactionFamilyForVoucherType } from "@/lib/transaction-permissions"
 import { attachItemSerials, saveVoucherSerials, validateSerialsRemoval, validateSerialsRemovalOnUpdate, validateVoucherSerials } from "@/lib/item-serials"
-import { consignmentUsage, INVOICE_SOURCE_CONSIGNMENT, validateFromConsignment } from "@/lib/consignment"
+import { consignmentReturnBlocksDeletion, consignmentUsage, INVOICE_SOURCE_CONSIGNMENT, validateFromConsignment } from "@/lib/consignment"
 
 const MAX_CODE_RETRY_ATTEMPTS = 5
 
@@ -641,6 +641,8 @@ export async function PUT(request: NextRequest) {
           const usage = await consignmentUsage(Number(voucher.id))
           if (usage.length) return NextResponse.json({ error: `لا يمكن إلغاء الارسالية: صدرت منها ${usage.map((row) => `${Number(row.vch_type) === 15 ? "مرتجع" : "فاتورة"} ${row.vch_code}`).join("، ")}` }, { status: 400 })
         }
+        const returnBlock = await consignmentReturnBlocksDeletion(Number(voucher.id))
+        if (returnBlock) return NextResponse.json({ error: returnBlock }, { status: 400 })
         const serialsRemovalError = await validateSerialsRemoval(Number(voucher.id))
         if (serialsRemovalError) return NextResponse.json({ error: serialsRemovalError }, { status: 400 })
         await deletePosRelatedVouchers(request, Number(voucher.id))

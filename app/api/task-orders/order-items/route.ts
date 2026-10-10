@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { resolveActingUserId, unauthenticated } from "../_auth"
 import { listOrderItems, createOrderItem } from "@/lib/task-orders"
 
 export async function GET(request: NextRequest) {
@@ -7,10 +8,14 @@ export async function GET(request: NextRequest) {
     const workflowId = searchParams.get("workflow_id")
     const status = searchParams.get("status")
     const search = searchParams.get("search")
+    const fromDate = searchParams.get("from_date")
+    const toDate = searchParams.get("to_date")
     const items = await listOrderItems({
       workflowId: workflowId ? Number(workflowId) : undefined,
       status: status || undefined,
       search: search || undefined,
+      fromDate: fromDate || undefined,
+      toDate: toDate || undefined,
     })
     return NextResponse.json(items)
   } catch (error) {
@@ -22,8 +27,10 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const data = await request.json()
-    if (!data.title || !data.userId) {
-      return NextResponse.json({ error: "العنوان والمستخدم مطلوبان" }, { status: 400 })
+    const actingUserId = await resolveActingUserId(request)
+    if (!actingUserId) return unauthenticated()
+    if (!data.title) {
+      return NextResponse.json({ error: "العنوان مطلوب" }, { status: 400 })
     }
     const item = await createOrderItem({
       customerOrderId: data.customerOrderId ? Number(data.customerOrderId) : null,
@@ -35,7 +42,7 @@ export async function POST(request: NextRequest) {
       qty: data.qty ? Number(data.qty) : null,
       attributes: data.attributes || {},
       priority: data.priority,
-      createdBy: String(data.userId),
+      createdBy: actingUserId,
     })
     return NextResponse.json(item, { status: 201 })
   } catch (error: any) {

@@ -16,6 +16,7 @@ import BankAccountsSearch from "@/components/admin/bank-accounts-search"
 import type { BankAccountRecord } from "@/components/admin/unified-bank-accounts"
 import { useAuth } from "@/components/auth/auth-context"
 import { useWorkspaceTabActive } from "@/contexts/workspace-tab-context"
+import { useNavigationGuard } from "@/lib/navigation-guard"
 
 // حالات توفّر الورقة داخل الدفتر (منفصلة تماماً عن حالة الشيك ضمن سند فعلي).
 const CHEQUE_BOOK_STATUS = { AVAILABLE: 1, DAMAGED: 2, UNAVAILABLE: 3 } as const
@@ -163,6 +164,13 @@ export default function UnifiedChequesBooks({
       action()
     }
   }
+  // تبديل الشاشة من القائمة/إغلاق التبويب/رجوع المتصفح/تحديث الصفحة مع تغييرات غير محفوظة ⇐ نفس نافذة
+  // التحقق من التغييرات (حفظ/عدم حفظ/إلغاء) — كما في كاشير نقطة البيع (lib/navigation-guard.ts)
+  useNavigationGuard(
+    () => dialogOpen && JSON.stringify(form) !== initialSnapshotRef.current,
+    (continueNavigation) => guardedAction(continueNavigation),
+  )
+
 
   // F3 حفظ / F9 حذف / F4 نسخ / F5 جديد / Ctrl+P طباعة: يتولاها UniversalToolbar (lib/hotkeys.ts)
 

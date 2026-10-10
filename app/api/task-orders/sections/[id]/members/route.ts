@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { resolveActingUserId, unauthenticated } from "../../../_auth"
 import { addSectionMember, removeSectionMember, isWorkspaceAdmin } from "@/lib/task-orders"
 
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
@@ -6,7 +7,9 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     const sectionId = Number(params.id)
     const data = await request.json()
     if (!data.user_id) return NextResponse.json({ error: "معرف المستخدم مطلوب" }, { status: 400 })
-    if (!data.userId || !(await isWorkspaceAdmin(String(data.userId)))) {
+    const actingUserId = await resolveActingUserId(request)
+    if (!actingUserId) return unauthenticated()
+    if (!(await isWorkspaceAdmin(actingUserId))) {
       return NextResponse.json({ error: "لا تملك صلاحية إدارة أعضاء الأقسام" }, { status: 403 })
     }
     const member = await addSectionMember(sectionId, String(data.user_id), !!data.is_manager)
@@ -22,7 +25,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
     const sectionId = Number(params.id)
     const { searchParams } = new URL(request.url)
     const memberUserId = searchParams.get("user_id")
-    const requesterId = searchParams.get("userId")
+    const requesterId = await resolveActingUserId(request)
     if (!memberUserId) return NextResponse.json({ error: "معرف المستخدم مطلوب" }, { status: 400 })
     if (!requesterId || !(await isWorkspaceAdmin(requesterId))) {
       return NextResponse.json({ error: "لا تملك صلاحية إدارة أعضاء الأقسام" }, { status: 403 })

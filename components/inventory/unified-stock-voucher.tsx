@@ -35,6 +35,8 @@ import { FileText, Package, Calculator, MessageSquare, RefreshCw } from "lucide-
 import { readVoucherClipboard, writeVoucherClipboard, type VoucherClipboardPayload } from "@/lib/voucher-clipboard"
 import TransactionBranchField from "@/components/common/transaction-branch-field"
 import { useWorkspaceTabActive } from "@/contexts/workspace-tab-context"
+import { useNavigationGuard } from "@/lib/navigation-guard"
+import { VoucherSearchButton, VoucherSearchDialog } from "@/components/common/voucher-search-dialog"
 
 // vch_type per voucher_types_tbl: 12=سند ادخال بضاعة, 13=سند اخراج بضاعة,
 // 14=ارسالية داخلية, 15=سند استعمال.
@@ -149,6 +151,8 @@ interface WarehouseOption {
 }
 
 interface UnifiedStockVoucherProps {
+  /** عرض سند بالمعرّف (من نافذة بحث السندات) — يحمّله المكوّن الأب */
+  onOpenVoucherById?: (voucherId: number) => void
   voucherType: StockVoucherType
   dialogOpen: boolean
   onOpenChange: (open: boolean) => void
@@ -437,6 +441,7 @@ const waitForGridReady = (getGrid: () => any, onReady: (grid: any) => void, atte
 }
 
 export default function UnifiedStockVoucher({
+  onOpenVoucherById,
   voucherType,
   dialogOpen,
   onOpenChange,
@@ -610,6 +615,17 @@ export default function UnifiedStockVoucher({
       action()
     }
   }
+  // تبديل الشاشة من القائمة/إغلاق التبويب/رجوع المتصفح/تحديث الصفحة مع تغييرات غير محفوظة ⇐ نفس نافذة
+  // التحقق من التغييرات (حفظ/عدم حفظ/إلغاء) — كما في كاشير نقطة البيع (lib/navigation-guard.ts)
+  useNavigationGuard(
+    () => dialogOpen && ![2, 3].includes(Number(form.status)) && JSON.stringify(form) !== initialSnapshotRef.current,
+    (continueNavigation) => guardedAction(continueNavigation),
+  )
+
+  // بحث السندات (زر بجانب رقم السند): اختيار سند يمرّ بنافذة التحقق من التغييرات ثم يعرضه
+  const [voucherSearchOpen, setVoucherSearchOpen] = useState(false)
+  const openSearchedVoucher = (voucherId: number) => guardedAction(() => onOpenVoucherById?.(voucherId))
+
 
   const focusVoucherDate = () => {
     setTimeout(() => dateInputRef.current?.focus(), 0)
@@ -2397,14 +2413,17 @@ export default function UnifiedStockVoucher({
                   </div>
                   <div className="grid gap-1.5">
                     <Label htmlFor="vch-code">رقم السند *</Label>
-                    <Input
-                      ref={vchCodeInputRef}
-                      id="vch-code"
-                      value={form.vch_code}
-                      onChange={(e) => onFormChange("vch_code", normalizeVoucherCode(e.target.value))}
-                      onBlur={handleCodeBlur}
-                      maxLength={10}
-                    />
+                    <div className="flex min-w-0 items-center gap-1.5">
+                      <Input
+                        ref={vchCodeInputRef}
+                        id="vch-code"
+                        value={form.vch_code}
+                        onChange={(e) => onFormChange("vch_code", normalizeVoucherCode(e.target.value))}
+                        onBlur={handleCodeBlur}
+                        maxLength={10}
+                      />
+                      <VoucherSearchButton onClick={() => setVoucherSearchOpen(true)} />
+                    </div>
                   </div>
                   <div className="grid gap-1.5">
                     <Label htmlFor="vch-date">تاريخ السند *</Label>
@@ -2897,6 +2916,14 @@ export default function UnifiedStockVoucher({
           onCancel={() => setShowDeleteConfirm(false)}
         />
 
+        <VoucherSearchDialog
+          open={voucherSearchOpen}
+          onOpenChange={setVoucherSearchOpen}
+          vchType={Number(voucherType)}
+          title={labels.title}
+          accountLabel={"الحساب"}
+          onSelect={(voucherId) => void openSearchedVoucher(voucherId)}
+        />
         <ConfirmDialogYesNo
           visible={showUnsavedConfirm}
           useAppDialog

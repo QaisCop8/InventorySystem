@@ -532,15 +532,15 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
   }
 
   return (
-    <div className="space-y-6 p-6 bg-gradient-to-br from-slate-50 to-blue-50 min-h-screen" dir="rtl">
+    <div className="w-full max-w-full space-y-6" dir="rtl">
       {state.error && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{state.error}</div>}
       {/* Header Section */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+          <h1 className="text-3xl font-bold text-slate-900">
             {isPurchase ? "طلبيات المشتريات" : "طلبيات المبيعات"}
           </h1>
-          <p className="text-slate-600 mt-2 text-lg">
+          <p className="mt-1 text-sm text-slate-500">
             {isPurchase
               ? "إدارة وتتبع جميع طلبيات المشتريات بكفاءة عالية"
               : "إدارة وتتبع جميع طلبيات المبيعات بكفاءة عالية"}
@@ -549,7 +549,7 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
         <div className="flex gap-3">
 
           <Button
-            className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg"
+            className="flex items-center gap-2"
             onClick={() => setState((prev) => ({ ...prev, showNewOrderDialog: true, selectedOrder: null, fromSearch: false }))}
           >
             <Plus className="ml-2 h-4 w-4" />
@@ -560,75 +560,75 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
 
       {/* Analytics Dashboard */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white border-0 shadow-xl">
+        <Card className="border-blue-200 bg-gradient-to-br from-blue-50 to-blue-100 shadow-sm">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-blue-100 text-sm font-medium">إجمالي الطلبيات</p>
-                <p className="text-3xl font-bold">{analytics.totalOrders}</p>
+                <p className="text-blue-700 text-sm font-medium">إجمالي الطلبيات</p>
+                <p className="text-3xl font-bold text-blue-900">{analytics.totalOrders}</p>
                 <div className="flex items-center mt-2">
-                  <ArrowUpRight className="h-4 w-4 text-blue-200" />
-                  <span className="text-blue-200 text-sm">+{analytics.weeklyGrowth}% هذا الأسبوع</span>
+                  <ArrowUpRight className="h-4 w-4 text-blue-500" />
+                  <span className="text-blue-600 text-xs">+{analytics.weeklyGrowth}% هذا الأسبوع</span>
                 </div>
               </div>
-              <div className="h-12 w-12 bg-blue-400 rounded-full flex items-center justify-center">
-                <ShoppingCart className="h-6 w-6 text-white" />
+              <div className="h-12 w-12 rounded-full bg-white/70 ring-1 ring-blue-200 flex items-center justify-center">
+                <ShoppingCart className="h-6 w-6 text-blue-600" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-amber-500 to-orange-500 text-white border-0 shadow-xl">
+        <Card className="border-amber-200 bg-gradient-to-br from-amber-50 to-amber-100 shadow-sm">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-amber-100 text-sm font-medium">قيد التنفيذ</p>
-                <p className="text-3xl font-bold">{analytics.pendingOrders}</p>
+                <p className="text-amber-700 text-sm font-medium">قيد التنفيذ</p>
+                <p className="text-3xl font-bold text-amber-900">{analytics.pendingOrders}</p>
                 <div className="flex items-center mt-2">
-                  <Clock className="h-4 w-4 text-amber-200" />
-                  <span className="text-amber-200 text-sm">يحتاج متابعة</span>
+                  <Clock className="h-4 w-4 text-amber-500" />
+                  <span className="text-amber-600 text-xs">يحتاج متابعة</span>
                 </div>
               </div>
-              <div className="h-12 w-12 bg-amber-400 rounded-full flex items-center justify-center">
-                <Clock className="h-6 w-6 text-white" />
+              <div className="h-12 w-12 rounded-full bg-white/70 ring-1 ring-amber-200 flex items-center justify-center">
+                <Clock className="h-6 w-6 text-amber-600" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-emerald-500 to-green-500 text-white border-0 shadow-xl">
+        <Card className="border-emerald-200 bg-gradient-to-br from-emerald-50 to-emerald-100 shadow-sm">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-emerald-100 text-sm font-medium">مكتملة</p>
-                <p className="text-3xl font-bold">{analytics.completedOrders}</p>
+                <p className="text-emerald-700 text-sm font-medium">مكتملة</p>
+                <p className="text-3xl font-bold text-emerald-900">{analytics.completedOrders}</p>
                 <div className="flex items-center mt-2">
-                  <CheckCircle className="h-4 w-4 text-emerald-200" />
-                  <span className="text-emerald-200 text-sm">
-                    معدل الإنجاز {Math.round((analytics.completedOrders / analytics.totalOrders) * 100)}%
+                  <CheckCircle className="h-4 w-4 text-emerald-500" />
+                  <span className="text-emerald-600 text-xs">
+                    معدل الإنجاز {analytics.totalOrders ? Math.round((analytics.completedOrders / analytics.totalOrders) * 100) : 0}%
                   </span>
                 </div>
               </div>
-              <div className="h-12 w-12 bg-emerald-400 rounded-full flex items-center justify-center">
-                <CheckCircle className="h-6 w-6 text-white" />
+              <div className="h-12 w-12 rounded-full bg-white/70 ring-1 ring-emerald-200 flex items-center justify-center">
+                <CheckCircle className="h-6 w-6 text-emerald-600" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-purple-500 to-pink-500 text-white border-0 shadow-xl">
+        <Card className="border-purple-200 bg-gradient-to-br from-purple-50 to-purple-100 shadow-sm">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-purple-100 text-sm font-medium">إجمالي القيمة</p>
-                <p className="text-3xl font-bold">{analytics.totalValue.toLocaleString()}</p>
+                <p className="text-purple-700 text-sm font-medium">إجمالي القيمة</p>
+                <p className="text-3xl font-bold text-purple-900">{analytics.totalValue.toLocaleString()}</p>
                 <div className="flex items-center mt-2">
-                  <TrendingUp className="h-4 w-4 text-purple-200" />
-                  <span className="text-purple-200 text-sm">متوسط {analytics.avgOrderValue.toLocaleString()} </span>
+                  <TrendingUp className="h-4 w-4 text-purple-500" />
+                  <span className="text-purple-600 text-xs">متوسط {analytics.avgOrderValue.toLocaleString()} </span>
                 </div>
               </div>
-              <div className="h-12 w-12 bg-purple-400 rounded-full flex items-center justify-center">
-                <DollarSign className="h-6 w-6 text-white" />
+              <div className="h-12 w-12 rounded-full bg-white/70 ring-1 ring-purple-200 flex items-center justify-center">
+                <DollarSign className="h-6 w-6 text-purple-600" />
               </div>
             </div>
           </CardContent>
@@ -636,7 +636,7 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
       </div>
 
       {/* Advanced Filters */}
-      <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
+      <Card className="shadow-sm">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-slate-800">
             <Filter className="h-5 w-5" />
@@ -772,7 +772,7 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
       </Card>
 
       {/* Orders Display */}
-      <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
+      <Card className="shadow-sm">
         <CardHeader>
           <div className="flex justify-between items-center">
             <div>
@@ -815,7 +815,7 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
                 لم يتم العثور على أي طلبات تطابق معايير البحث
               </p>
               <Button
-                className="bg-gradient-to-r from-blue-600 to-purple-600"
+                className="flex items-center gap-2"
                 onClick={() =>
                   setState((prev) => ({
                     ...prev,
@@ -836,7 +836,7 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
                 {paginatedOrders.map((order) => (
                   <Card
                     key={order.id}
-                    className="bg-white border border-slate-200 hover:shadow-lg transition-all duration-200 hover:border-blue-300"
+                    className="border border-slate-200 bg-white shadow-sm transition-all duration-200 hover:border-blue-200 hover:bg-blue-50/30 hover:shadow-md"
                   >
                     <CardContent className="p-6">
                       <div className="flex justify-between items-start mb-4">

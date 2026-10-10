@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Plus, Search, UserCog } from "lucide-react"
 import UnifiedDrivers, { type Driver, type DriverFormData, type LicenseType } from "@/components/products/unified-drivers"
 import ConfirmDialogYesNo from "@/components/ui/ConfirmDialogYesNo"
+import { useNavigationGuard } from "@/lib/navigation-guard"
 
 const buildEmptyForm = (): DriverFormData => ({
   id: 0,
@@ -50,6 +51,7 @@ export default function Drivers() {
   const [validationError, setValidationError] = useState("")
   const [showUnsavedConfirm, setShowUnsavedConfirm] = useState(false)
   const [pendingAction, setPendingAction] = useState<"new" | "close" | null>(null)
+  const navigationContinuationRef = useRef<(() => void) | null>(null)
   const initialFormHashRef = useRef("")
 
   const getFormHash = useCallback((value: DriverFormData) => JSON.stringify(value), [])
@@ -200,7 +202,7 @@ export default function Drivers() {
       } else {
         setValidationError("يرجى إدخال اسم السائق")
       }
-      return
+      return false
     }
 
     setDeleteError("")
@@ -232,7 +234,7 @@ export default function Drivers() {
       await fetchDrivers({ silent: true })
       if (options?.afterSaveAction === "close") {
         setDialogOpen(false)
-        return
+        return true
       }
 
       await initializeNewDriverForm()
@@ -324,7 +326,10 @@ export default function Drivers() {
     if (pendingAction === "new") {
       await saveDriver({ afterSaveAction: "new" })
     } else if (pendingAction === "close") {
-      await saveDriver({ afterSaveAction: "close" })
+      const saved = await saveDriver({ afterSaveAction: "close" })
+      const continuation = navigationContinuationRef.current
+      navigationContinuationRef.current = null
+      if (saved && continuation) continuation()
     }
     setPendingAction(null)
   }, [pendingAction, saveDriver])
@@ -337,12 +342,27 @@ export default function Drivers() {
     } else if (pendingAction === "close") {
       void fetchDrivers()
       setDialogOpen(false)
+      const continuation = navigationContinuationRef.current
+      navigationContinuationRef.current = null
+      continuation?.()
     }
   }, [fetchDrivers, openNewDriverDialog, pendingAction])
+
+  // تبديل الشاشة من القائمة/إغلاق التبويب/رجوع المتصفح/تحديث الصفحة مع تغييرات غير محفوظة ⇐ نفس نافذة
+  // التحقق (حفظ/عدم حفظ/إلغاء) — كما في كاشير نقطة البيع (lib/navigation-guard.ts)
+  useNavigationGuard(
+    () => dialogOpen && hasUnsavedChanges,
+    (continueNavigation) => {
+      navigationContinuationRef.current = continueNavigation
+      setPendingAction("close")
+      setShowUnsavedConfirm(true)
+    },
+  )
 
   const handleCancelUnsaved = useCallback(() => {
     setShowUnsavedConfirm(false)
     setPendingAction(null)
+    navigationContinuationRef.current = null
   }, [])
 
   const handleFormChange = useCallback((field: string, value: string | number | null) => {
@@ -464,7 +484,7 @@ export default function Drivers() {
         showDeleteConfirm={showDeleteConfirm}
         onOpenChange={handleOpenChange}
         onNew={handleRequestNew}
-        onSave={saveDriver}
+        onSave={async (options) => { await saveDriver(options) }}
         onDelete={handleDelete}
         onNavigateRecord={handleNavigateRecord}
         onFormChange={handleFormChange}

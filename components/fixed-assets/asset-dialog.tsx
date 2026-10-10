@@ -15,6 +15,7 @@ import {
   ArrowLeftRight, CirclePause, CirclePlay, FileUp, Landmark, Loader2, PackagePlus, Rocket,
   Settings2, Trash2, TrendingDown, TrendingUp, XCircle,
 } from "lucide-react"
+import { useNavigationGuard } from "@/lib/navigation-guard"
 import { ACQUISITION_SOURCES, DOCUMENT_TYPES, MAX_DOCUMENT_BYTES } from "@/lib/fixed-assets/constants"
 import { DEPRECIATION_METHODS } from "@/lib/fixed-assets/depreciation"
 import { ACTION_LABELS, AssetActionDialog, type AssetAction } from "./asset-actions"
@@ -92,6 +93,13 @@ export function AssetDialog({ open, assetId, assets, lookups, onClose, onChanged
 
   const dirty = () => snapshot(form) !== baseline.current
   const guard = (next: () => void) => { if (dirty() && editable) setPending(() => next); else next() }
+
+  // تبديل الشاشة من القائمة/إغلاق التبويب/رجوع المتصفح/تحديث الصفحة مع تغييرات غير محفوظة ⇐ نفس نافذة
+  // التحقق من التغييرات — كما في كاشير نقطة البيع (lib/navigation-guard.ts)
+  useNavigationGuard(
+    () => Boolean(open && editable && dirty()),
+    (continueNavigation) => guard(continueNavigation),
+  )
 
   const applyCategoryDefaults = (categoryId: number) => {
     const chosen = lookups.categories.find(row => Number(row.id) === categoryId)

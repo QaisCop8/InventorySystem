@@ -15,8 +15,11 @@ import {
 export { TRANSACTION_FAMILIES, transactionPermissionName }
 export type { TransactionAction, TransactionFamily }
 
+// أرقام voucher_types_tbl بعد إعادة الترقيم: 1/2 طلبيات المبيعات/المشتريات (جدول orders، لا سندات)،
+// 3 سند قيد (JOURNAL_VCH_TYPE بـapp/api/journal-vouchers/_lib.ts). كان سند القيد مسجّلاً هنا بالرقم 1
+// القديم، فكانت كل عملية صلاحيات على سند قيد محفوظ (عرض بالمعرّف/حذف/بحث) تُرفض "نوع الحركة غير صالح".
 const VOUCHER_FAMILIES: Record<number, TransactionFamily> = {
-  1: "journal",
+  3: "journal",
   4: "receipt",
   5: "payment",
   6: "credit_note",

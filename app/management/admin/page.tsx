@@ -26,7 +26,8 @@ interface AllCompany {
   requested_by_email?: string | null
   number_of_users?: number
   number_of_branches?: number
-  usage?: { users: number; branches: number } | null
+  number_of_pos_points?: number
+  usage?: { users: number; branches: number; pos_points?: number } | null
   pending_license_requests?: number
 }
 

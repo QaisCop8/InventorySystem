@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import ConfirmDialogYesNo from "@/components/ui/ConfirmDialogYesNo"
 import PrimeDropdown from "@/components/common/FocusDropdown"
 import { Edit, Plus } from "lucide-react"
+import CostCenterDefaultsEditor, { type CostCenterDefaultValue } from "@/components/common/cost-center-defaults-editor"
 
 interface Warehouse {
   id: number
@@ -19,6 +20,7 @@ interface Warehouse {
   description?: string
   location?: string
   status: number
+  cost_centers?: CostCenterDefaultValue[]
 }
 
 interface WarehouseForm {
@@ -29,6 +31,7 @@ interface WarehouseForm {
   description: string
   location: string
   status: number
+  cost_centers: CostCenterDefaultValue[]
 }
 
 const initialForm: WarehouseForm = {
@@ -39,6 +42,7 @@ const initialForm: WarehouseForm = {
   description: "",
   location: "",
   status: 1,
+  cost_centers: [],
 }
 
 export default function Warehouses() {
@@ -86,6 +90,7 @@ export default function Warehouses() {
       description: warehouse.description || "",
       location: warehouse.location || "",
       status: warehouse.status,
+      cost_centers: warehouse.cost_centers || [],
     })
     setErrorMessage("")
     setDialogOpen(true)
@@ -224,7 +229,7 @@ export default function Warehouses() {
       </Card>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent dir="rtl" className="sm:max-w-lg">
+        <DialogContent dir="rtl" className="max-h-[92vh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>{form.id > 0 ? "تعديل مستودع" : "إضافة مستودع"}</DialogTitle>
           </DialogHeader>
@@ -292,6 +297,11 @@ export default function Warehouses() {
                 onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
                 className="text-right"
               />
+            </div>
+            <div className="space-y-2">
+              <Label>مراكز التكلفة الافتراضية</Label>
+              <p className="text-xs text-muted-foreground">تُطبَّق على أصناف السندات من هذا المستودع إن لم يكن للصنف مراكز تكلفة خاصة به (الصنف ← المستودع ← حساب الصنف).</p>
+              <CostCenterDefaultsEditor value={form.cost_centers} onChange={(cost_centers) => setForm((f) => ({ ...f, cost_centers }))} />
             </div>
           </div>
           <DialogFooter className="flex items-center justify-between sm:justify-between">

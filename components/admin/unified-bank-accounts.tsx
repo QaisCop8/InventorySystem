@@ -16,6 +16,7 @@ import AutoCompleteAccount from "@/components/customer/auto-complete-account"
 import BankAccountsSearch from "@/components/admin/bank-accounts-search"
 import PrimeDropdown from "@/components/common/FocusDropdown"
 import { useWorkspaceTabActive } from "@/contexts/workspace-tab-context"
+import { useNavigationGuard } from "@/lib/navigation-guard"
 
 export interface BankAccountRecord {
   id: number
@@ -169,6 +170,13 @@ export default function UnifiedBankAccounts({
       action()
     }
   }
+  // تبديل الشاشة من القائمة/إغلاق التبويب/رجوع المتصفح/تحديث الصفحة مع تغييرات غير محفوظة ⇐ نفس نافذة
+  // التحقق من التغييرات (حفظ/عدم حفظ/إلغاء) — كما في كاشير نقطة البيع (lib/navigation-guard.ts)
+  useNavigationGuard(
+    () => dialogOpen && JSON.stringify(form) !== initialSnapshotRef.current,
+    (continueNavigation) => guardedAction(continueNavigation),
+  )
+
 
   // F3 = save, F4 = delete (only for an already-saved record).
   // Skipped while a confirm dialog is open — those handle F3/Escape themselves.

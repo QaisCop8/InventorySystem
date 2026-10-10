@@ -1,6 +1,7 @@
 import { type NextRequest } from "next/server"
 import { NextResponse } from "next/server"
 import sql from "@/lib/database"
+import { ensureWarehouseCostCentersTable, saveWarehouseCostCenters } from "@/lib/cost-center-defaults"
 type Warehouse = {
   id: number
   warehouse_code: string
@@ -69,7 +70,22 @@ export async function GET() {
       ORDER BY id ASC
     `
 
-    return NextResponse.json(warehouses.map((w: Warehouse) => ({ ...w, name: w.warehouse_name })))
+    // مراكز التكلفة الافتراضية لكل مستودع (تُستخدم لسطور الأصناف بالسندات — انظر lib/cost-center-defaults.ts)
+    // مراكز التكلفة إضافة اختيارية — فشلها لا يُفرغ قائمة المستودعات نفسها
+    let costCenterRows: any[] = []
+    try {
+      await ensureWarehouseCostCentersTable()
+      costCenterRows = (await sql`SELECT warehouse_id, cost_center_type_id, default_cost_center_id, required_in_transactions FROM warehouse_costcenters_tbl`) as any[]
+    } catch (costCenterError) {
+      console.error("Error loading warehouse cost centers:", costCenterError)
+    }
+    return NextResponse.json(warehouses.map((w: Warehouse) => ({
+      ...w,
+      name: w.warehouse_name,
+      cost_centers: costCenterRows
+        .filter((row) => Number(row.warehouse_id) === Number(w.id))
+        .map((row) => ({ cost_center_type_id: Number(row.cost_center_type_id), default_cost_center_id: row.default_cost_center_id == null ? null : Number(row.default_cost_center_id), required_in_transactions: Number(row.required_in_transactions || 1) })),
+    })))
   } catch (error) {
     console.error("Error fetching warehouses:", error)
     return NextResponse.json({ error: "Failed to fetch warehouses" }, { status: 500 })
@@ -104,6 +120,7 @@ export async function POST(request: NextRequest) {
       RETURNING *
     `
 
+    await saveWarehouseCostCenters(Number(result[0].id), data.cost_centers)
     return NextResponse.json({ ...result[0], name: result[0].warehouse_name }, { status: 201 })
   } catch (error) {
     console.error("Error creating warehouse:", error)

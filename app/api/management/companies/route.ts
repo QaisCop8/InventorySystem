@@ -46,6 +46,8 @@ export async function POST(request: NextRequest) {
     const numberOfBranches = Math.floor(Number(data.number_of_branches ?? 1))
     if (!Number.isFinite(numberOfUsers) || numberOfUsers < 1 || numberOfUsers > 100000) return NextResponse.json({ error: "عدد المستخدمين يجب أن يكون 1 أو أكثر" }, { status: 400 })
     if (!Number.isFinite(numberOfBranches) || numberOfBranches < 1 || numberOfBranches > 100000) return NextResponse.json({ error: "عدد الفروع يجب أن يكون 1 أو أكثر" }, { status: 400 })
+    const numberOfPosPoints = Math.floor(Number(data.number_of_pos_points ?? 0))
+    if (!Number.isFinite(numberOfPosPoints) || numberOfPosPoints < 0 || numberOfPosPoints > 100000) return NextResponse.json({ error: "عدد نقاط البيع يجب أن يكون 0 أو أكثر" }, { status: 400 })
     await ensureLicenseTables()
 
     // مطابقة بلا حساسية لحالة الأحرف/المسافات الطرفية — عبر كل الشركات (لا فقط شركات نفس المستخدم)
@@ -58,8 +60,8 @@ export async function POST(request: NextRequest) {
     }
 
     const inserted = await managementSql`
-      INSERT INTO companies (name, status, created_by, number_of_users, number_of_branches, license_initialized)
-      VALUES (${name}, 'pending', ${session.id}, ${numberOfUsers}, ${numberOfBranches}, true)
+      INSERT INTO companies (name, status, created_by, number_of_users, number_of_branches, number_of_pos_points, license_initialized, pos_license_initialized)
+      VALUES (${name}, 'pending', ${session.id}, ${numberOfUsers}, ${numberOfBranches}, ${numberOfPosPoints}, true, true)
       RETURNING id, name, status, created_at
     `
     const company = inserted[0]
@@ -72,7 +74,7 @@ export async function POST(request: NextRequest) {
     await sendMail({
       to: PLATFORM_ADMIN_EMAIL,
       subject: "طلب إنشاء شركة جديدة بانتظار الموافقة",
-      html: `<div dir="rtl"><p>طلب المستخدم ${session.full_name} (${session.email}) إنشاء شركة جديدة باسم "${name}".</p><p>الترخيص المطلوب: ${numberOfUsers} مستخدم، ${numberOfBranches} فرع.</p><p>يرجى مراجعة الطلب من لوحة الإدارة.</p></div>`,
+      html: `<div dir="rtl"><p>طلب المستخدم ${session.full_name} (${session.email}) إنشاء شركة جديدة باسم "${name}".</p><p>الترخيص المطلوب: ${numberOfUsers} مستخدم، ${numberOfBranches} فرع، ${numberOfPosPoints} نقطة بيع.</p><p>يرجى مراجعة الطلب من لوحة الإدارة.</p></div>`,
     })
 
     return NextResponse.json({ success: true, company })

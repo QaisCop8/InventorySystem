@@ -6,6 +6,8 @@ import {
   createCustomerOrder as createTaskCustomerOrder,
   createOrderItem as createTaskOrderItem,
   getCustomerOrderById as getTaskCustomerOrderById,
+  assertCustomerOrderApprovable,
+  discardEmptyCustomerOrder,
   markCustomerOrderApproved,
   forceCloseCustomerOrder,
 } from "./task-orders"
@@ -816,6 +818,9 @@ export async function createOrder(
               taskTracking.error = itemError?.message || "تعذّر فتح سير العمل لأحد الأصناف";
             }
           }
+          if (taskTracking.opened === 0 && !taskCustomerOrder.reused) {
+            await discardEmptyCustomerOrder(taskCustomerOrder.id);
+          }
         } catch (taskError: any) {
           console.error("[v0] Failed to open task-order tracking for sales order (non-blocking):", taskError);
           taskTracking.error = taskError?.message || "تعذّر فتح سير العمل لهذه الطلبية";
@@ -1296,8 +1301,8 @@ export async function UpdateOrderStatus(
 // نفسها كمُعتمَدة (lib/task-orders.ts markCustomerOrderApproved) لتخرج من قائمة "قابلة للاعتماد".
 // يبقى هنا (لا في lib/task-orders.ts) لتفادي استيراد دائري: task-orders.ts لا يستورد من هذا الملف.
 export async function approveTaskCustomerOrder(customerOrderId: number, userId: string, receivedBy: string | null) {
-  const order = await getTaskCustomerOrderById(customerOrderId);
-  if (!order) throw new Error("الطلبية غير موجودة");
+  // التحقق الكامل (موجودة/غير معتمدة/غير ملغاة/كل الأصناف مكتملة) قبل لمس الطلب الفعلي.
+  const order = await assertCustomerOrderApprovable(customerOrderId);
   if (!order.source_order_id) throw new Error("لا يوجد طلب فعلي مرتبط بهذه الطلبية");
   await UpdateOrderStatus(order.source_order_id, 0, 1, userId, receivedBy);
   return markCustomerOrderApproved(customerOrderId, userId);

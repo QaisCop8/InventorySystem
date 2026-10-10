@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { resolveActingUserId, unauthenticated } from "../_auth"
 import { listBranches, createBranch, isWorkspaceAdmin } from "@/lib/task-orders"
 
 export async function GET() {
@@ -15,7 +16,9 @@ export async function POST(request: NextRequest) {
   try {
     const data = await request.json()
     if (!data.code || !data.name) return NextResponse.json({ error: "رمز الفرع واسمه مطلوبان" }, { status: 400 })
-    if (!data.userId || !(await isWorkspaceAdmin(String(data.userId)))) {
+    const actingUserId = await resolveActingUserId(request)
+    if (!actingUserId) return unauthenticated()
+    if (!(await isWorkspaceAdmin(actingUserId))) {
       return NextResponse.json({ error: "لا تملك صلاحية إدارة الفروع" }, { status: 403 })
     }
     const branch = await createBranch(data)

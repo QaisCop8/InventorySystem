@@ -56,6 +56,7 @@ import { set } from "date-fns"
 import React from "react"
 import { useWorkspaceTabActive } from "@/contexts/workspace-tab-context"
 import { screenHotkeysAllowed } from "@/lib/hotkeys"
+import { useNavigationGuard } from "@/lib/navigation-guard"
 
 const ORDER_ITEM_STATUS_OPTIONS = [
   { value: 1, label: "غير جاهز" },
@@ -3128,6 +3129,13 @@ function UnifiedSalesOrder({
     }
     void action()
   }
+  // تبديل الشاشة من القائمة/إغلاق التبويب/رجوع المتصفح/تحديث الصفحة مع تغييرات غير محفوظة ⇐ نفس نافذة
+  // التحقق من التغييرات — كما في كاشير نقطة البيع (lib/navigation-guard.ts)
+  useNavigationGuard(
+    () => Boolean(open && initialFullHash.current !== 0 && getFormDataHash({ form: getFormChangeSnapshot(state.formData), items: getItemsChangeSnapshot(CollectionView.items) }) !== initialFullHash.current),
+    (continueNavigation) => guardToolbarAction(continueNavigation),
+  )
+
 
   const reportColumns = [
     { key: "order_number", label: "رقم الطلبية", width: "120px" },

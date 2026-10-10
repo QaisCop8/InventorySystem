@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { resolveActingUserId, unauthenticated } from "../_auth"
 import { listCustomerOrders, createCustomerOrder } from "@/lib/task-orders"
 
 export async function GET() {
@@ -14,11 +15,12 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const data = await request.json()
-    if (!data.userId) return NextResponse.json({ error: "معرف المستخدم مطلوب" }, { status: 400 })
+    const actingUserId = await resolveActingUserId(request)
+    if (!actingUserId) return unauthenticated()
     const order = await createCustomerOrder({
       customerId: data.customerId ? Number(data.customerId) : null,
       priority: data.priority,
-      createdBy: String(data.userId),
+      createdBy: actingUserId,
     })
     return NextResponse.json(order, { status: 201 })
   } catch (error: any) {

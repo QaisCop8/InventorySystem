@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { resolveActingUserId, unauthenticated } from "../../_auth"
 import {
   getOrderItemDetail,
   updateOrderItemQty,
@@ -22,8 +23,9 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   try {
     const id = Number(params.id)
     const data = await request.json()
-    if (!data.userId) return NextResponse.json({ error: "معرف المستخدم مطلوب" }, { status: 400 })
-    const userId = String(data.userId)
+    const actingUserId = await resolveActingUserId(request)
+    if (!actingUserId) return unauthenticated()
+    const userId = actingUserId
 
     let item
     if (data.action === "qty") {
@@ -45,8 +47,8 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const id = Number(params.id)
-    const userId = request.nextUrl.searchParams.get("userId")
-    if (!userId) return NextResponse.json({ error: "معرف المستخدم مطلوب" }, { status: 400 })
+    const userId = await resolveActingUserId(request)
+    if (!userId) return unauthenticated()
     await deleteOrderItem(id, userId)
     return NextResponse.json({ success: true })
   } catch (error: any) {

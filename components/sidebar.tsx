@@ -263,6 +263,7 @@ export const menuItems: MenuItem[] = [
           { title: "سند اخراج بضاعة", section: "stock-out-vouchers", icon: ArrowUpCircle },
           { title: "ارسالية داخلية", section: "internal-delivery-vouchers", icon: Truck },
           { title: "سند استعمال", section: "use-vouchers", icon: FileMinus2 },
+          { title: "جرد المخازن", section: "stock-counts", icon: ClipboardCheck },
         ],
       },
       {
@@ -712,7 +713,7 @@ export function Sidebar({
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
             <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400" />
           </span>
-          {isOpen && <span>النظام متصل ومستعد</span>}
+          {isOpen && <span>متصل</span>}
         </div>
       </div>
     </div>

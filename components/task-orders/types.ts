@@ -30,6 +30,17 @@ export type AssignmentType = "all" | "specific"
 export type JoinType = "none" | "and" | "or"
 export type StepType = string
 
+export interface TaskStepType {
+  id: number
+  name: string
+  code: string
+  mandatory: boolean
+  show_all_items: boolean
+  print_barcode: boolean
+  attachment_required: boolean
+  is_active: boolean
+}
+
 export interface TaskWorkflowStep {
   id: number
   workflow_id: number
@@ -119,6 +130,11 @@ export interface TaskOpenTask {
   has_running_timer: boolean
   created_at: string
   item_created_at: string
+  completed_at?: string | null
+  // موعد الاستحقاق = إنشاء المهمة + sla_hours للخطوة (NULL بلا SLA)
+  due_at?: string | null
+  customer_name?: string | null
+  source_order_number?: string | null
 }
 
 export interface TaskExecutionLog {
@@ -171,6 +187,10 @@ export interface TaskStepInstance {
   parent_instance_id: number | null
   total_duration_seconds: number
   created_at: string
+  mandatory?: boolean
+  show_all_items?: boolean
+  print_barcode?: boolean
+  attachment_required?: boolean
 }
 
 export interface TaskOrderItemRow {
@@ -185,6 +205,9 @@ export interface TaskOrderItemRow {
   priority: Priority
   status: OrderItemStatus
   open_task_count: number
+  overdue_task_count?: number
+  total_work_seconds?: number
+  source_order_number?: string | null
   current_steps: string | null
   last_note: string | null
   last_note_at: string | null
@@ -246,7 +269,9 @@ export interface ApprovableCustomerOrder {
   priority: Priority
   status: string
   source_order_id: number
+  source_order_number?: string | null
   item_count: number
+  total_work_seconds?: number
   created_at: string
   completed_at: string | null
 }

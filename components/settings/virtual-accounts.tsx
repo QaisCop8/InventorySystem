@@ -6,13 +6,13 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
-import Dropdown from "@/components/common/Dropdown"
 import DataGridView from "@/components/common/DataGridView"
 import Messages from "@/components/common/Messages"
 import AccountSearchDialog from "@/components/customer/account-search-dialog"
 import StoresSearchPopup from "@/components/products/StoresSearchPopup"
 import "./virtual-accounts.css"
-import { ChevronDown, ChevronUp, Search, Eraser, Save, RefreshCw, Loader2 } from "lucide-react"
+import { Search, Eraser, Save, RefreshCw, Loader2, Wallet, UsersRound, Info, Warehouse, SlidersHorizontal } from "lucide-react"
+import { ReportMultiChoice } from "@/components/reports/account-statement-report"
 import { KeyAction } from "@grapecity/wijmo.grid"
 
 type WarehouseField = "default_item_warehouse_id" | "finished_goods_warehouse_id" | "raw_materials_warehouse_id"
@@ -34,9 +34,15 @@ const emptyWarehouseDefaults: Record<string, any> = {
 
 export default function VirtualAccounts() {
   const [users, setUsers] = useState<any[]>([])
-  const [selectedUser, setSelectedUser] = useState<any>(null)
   const [branches, setBranches] = useState<any[]>([])
-  const [branchId, setBranchId] = useState<number | null>(null)
+  // اختيار متعدد (ReportMultiChoice): تُعرض إعدادات أول مستخدم/فرع محدَّد، والحفظ يُطبَّق على كل
+  // المستخدمين × الفروع المحددة (الحسابات لكل مستخدم+فرع، والمستودعات والإعدادات الأخرى لكل مستخدم).
+  const [selectedUserIds, setSelectedUserIds] = useState<number[]>([])
+  const [selectedBranchIds, setSelectedBranchIds] = useState<number[]>([])
+  const userKey = (user: any) => Number(user?.user_id) || Number(user?.id)
+  const selectedUser = useMemo(() => users.find((user) => userKey(user) === selectedUserIds[0]) ?? null, [users, selectedUserIds])
+  const branchId = selectedBranchIds[0] ?? null
+  const selectedUsers = useMemo(() => users.filter((user) => selectedUserIds.includes(userKey(user))), [users, selectedUserIds])
   const [currencies, setCurrencies] = useState<any[]>([])
   const [rows, setRows] = useState<any[]>([])
   const [userCurrencyMappings, setUserCurrencyMappings] = useState<any[]>([])
@@ -141,7 +147,8 @@ export default function VirtualAccounts() {
     if (selectedUser) void loadDefaults(selectedUser.user_id)
     else setLoading(false)
     return () => { requestRef.current += 1 }
-  }, [selectedUser, branchId])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedUser?.user_id, branchId])
 
   const openWarehouseSearch = (field: WarehouseField) => {
     if (!selectedUser) {
@@ -460,46 +467,51 @@ export default function VirtualAccounts() {
   }
 
   const handleSaveAll = async () => {
-    if (!branchId) { showErrorMessage('يجب تحديد الفرع'); return }
-    if (!selectedUser || saving || loading) { showErrorMessage('اختر مستخدما اولا'); return }
-    const payload = {
-      user_id: selectedUser.user_id,
-      branch_id: branchId,
-      rows: rows.map((r) => ({
-        currency_id: r.currency_id,
-        cash_account_id: r.cash_account_id,
-        incoming_checks_account_id: r.incoming_checks_account_id,
-        returned_checks_account_id: r.returned_checks_account_id,
-        card_account_id: r.card_account_id,
-      })),
-    }
+    if (!selectedBranchIds.length) { showErrorMessage('يجب تحديد الفرع'); return }
+    if (!selectedUsers.length || saving || loading) { showErrorMessage('اختر مستخدما اولا'); return }
+    const accountRows = rows.map((r) => ({
+      currency_id: r.currency_id,
+      cash_account_id: r.cash_account_id,
+      incoming_checks_account_id: r.incoming_checks_account_id,
+      returned_checks_account_id: r.returned_checks_account_id,
+      card_account_id: r.card_account_id,
+    }))
     setSaving(true)
     try {
-    const [accountsRes, warehousesRes] = await Promise.all([
-      fetch('/api/settings/users-currencies-default', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      }),
-      fetch('/api/settings/user-warehouse-defaults', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          user_id: selectedUser.user_id,
-          default_item_warehouse_id: warehouseDefaults.default_item_warehouse_id,
-          finished_goods_warehouse_id: warehouseDefaults.finished_goods_warehouse_id,
-          raw_materials_warehouse_id: warehouseDefaults.raw_materials_warehouse_id,
-          price_entry_includes_tax: priceEntryIncludesTax,
-        }),
-      }),
-    ])
-    const data = await accountsRes.json()
-    const warehousesData = await warehousesRes.json()
-    if (accountsRes.ok && data.success && warehousesRes.ok && warehousesData.success) {
-      if (await loadDefaults(selectedUser.user_id)) showSuccessMessage('تم الحفظ وإعادة تحميل الإعدادات بنجاح')
-    } else {
-      showErrorMessage(data.error || warehousesData.error || 'فشلت العملية')
-    }
+      const failures: string[] = []
+      for (const user of selectedUsers) {
+        for (const targetBranchId of selectedBranchIds) {
+          const response = await fetch('/api/settings/users-currencies-default', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_id: user.user_id, branch_id: targetBranchId, rows: accountRows }),
+          })
+          const data = await response.json().catch(() => ({}))
+          if (!response.ok || !data.success) {
+            const branchName = branches.find((branch) => branch.id === targetBranchId)?.branch_name || targetBranchId
+            failures.push(`${user.display_name} / ${branchName}: ${data.error || 'فشل الحفظ'}`)
+          }
+        }
+        const warehousesResponse = await fetch('/api/settings/user-warehouse-defaults', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            user_id: user.user_id,
+            default_item_warehouse_id: warehouseDefaults.default_item_warehouse_id,
+            finished_goods_warehouse_id: warehouseDefaults.finished_goods_warehouse_id,
+            raw_materials_warehouse_id: warehouseDefaults.raw_materials_warehouse_id,
+            price_entry_includes_tax: priceEntryIncludesTax,
+          }),
+        })
+        const warehousesData = await warehousesResponse.json().catch(() => ({}))
+        if (!warehousesResponse.ok || !warehousesData.success) failures.push(`${user.display_name}: ${warehousesData.error || 'فشل حفظ المستودعات'}`)
+      }
+      if (failures.length) {
+        showErrorMessage(failures.slice(0, 3).join(' — '))
+      } else if (selectedUser && await loadDefaults(selectedUser.user_id)) {
+        const combos = selectedUsers.length * selectedBranchIds.length
+        showSuccessMessage(combos > 1 ? `تم الحفظ على ${selectedUsers.length} مستخدم × ${selectedBranchIds.length} فرع` : 'تم الحفظ وإعادة تحميل الإعدادات بنجاح')
+      }
     } catch (error) {
       showErrorMessage(error instanceof Error ? error.message : 'تعذر حفظ الإعدادات')
     } finally {
@@ -508,46 +520,65 @@ export default function VirtualAccounts() {
   }
 
   return (
-    <div dir="rtl" className="virtual-accounts-page flex min-h-screen w-full flex-col gap-1 bg-slate-50/50 p-4 dark:bg-slate-950">
-      <div className="flex flex-col gap-3 mb-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-bold">اعدادات</h2>
+    <div dir="rtl" className="virtual-accounts-page flex min-h-screen w-full flex-col gap-4 bg-slate-50/50 p-3 sm:p-4 dark:bg-slate-950">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-l from-emerald-700 via-emerald-600 to-teal-600 px-5 py-5 text-white shadow-lg">
+        <div className="pointer-events-none absolute -left-10 -top-12 h-40 w-40 rounded-full bg-white/10 blur-2xl" />
+        <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25"><Wallet className="h-6 w-6" /></span>
+            <div>
+              <h1 className="text-xl font-extrabold sm:text-2xl">الحسابات والمستودعات الافتراضية</h1>
+              <p className="text-xs text-emerald-50/90 sm:text-sm">حسابات الصناديق والبنوك لكل عملة، والمستودعات الافتراضية — لمستخدم أو عدة مستخدمين وفروع دفعة واحدة</p>
+            </div>
+          </div>
           <div className="flex gap-2">
-            <Button className="gap-2 rounded-xl bg-teal-600 hover:bg-teal-700" onClick={handleSaveAll} disabled={!selectedUser || loading || saving || !rows.length}>{saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}حفظ</Button>
-            <Button variant="outline" className="gap-2 rounded-xl" disabled={!selectedUser || loading || saving} onClick={() => { if (selectedUser) void loadDefaults(selectedUser.user_id) }}><RefreshCw className="h-4 w-4" />تحديث</Button>
+            <Button variant="outline" className="h-10 gap-2 rounded-xl border-white/30 bg-white/10 text-white hover:bg-white/20 hover:text-white" disabled={!selectedUser || loading || saving} onClick={() => { if (selectedUser) void loadDefaults(selectedUser.user_id) }}>
+              <RefreshCw className="h-4 w-4" />تحديث
+            </Button>
+            <Button className="h-10 gap-2 rounded-xl bg-white font-bold text-emerald-700 hover:bg-emerald-50" onClick={handleSaveAll} disabled={!selectedUser || !selectedBranchIds.length || loading || saving || !rows.length}>
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}حفظ
+            </Button>
           </div>
         </div>
+      </div>
 
-        <div className="w-full max-w-sm">
-          <Label htmlFor="default-accounts-branch">الفرع *</Label>
-          <select id="default-accounts-branch" className="h-10 w-full rounded-md border bg-background px-3" value={branchId ?? ""} disabled={saving} onChange={event => setBranchId(Number(event.target.value) || null)}>
-            <option value="">اختر الفرع</option>
-            {branches.map(branch => <option key={branch.id} value={branch.id}>{branch.branch_name}</option>)}
-          </select>
+      <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <div className="mb-3 flex items-center gap-2">
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700"><UsersRound className="h-4 w-4" /></span>
+          <div>
+            <h2 className="text-sm font-extrabold text-slate-800 dark:text-slate-100">لمن تُطبَّق الإعدادات؟</h2>
+            <p className="text-xs text-slate-500">اختر مستخدماً أو أكثر وفرعاً أو أكثر</p>
+          </div>
         </div>
-        <div className="w-full max-w-sm invoice-currency-dropdown-wrap">
-          <Dropdown
-            caption="المستخدم"
-            disabled={saving}
-            placeholder="اختر مستخدما"
-            optionLabel="display_name"
-            optionValue="id"
-            options={users}
-            value={selectedUser?.id ?? null}
-            innerClass="invoice-currency-dropdown w-full"
-            panelClassName="invoice-currency-dropdown-panel"
-            appendTo="self"
-            onChange={(e: any) => {
-              const value = e.value
-              if (value && typeof value === 'object' && 'id' in value) {
-                setSelectedUser(value)
-                return
-              }
-              setSelectedUser(users.find((u) => Number(u.id) === Number(value)) ?? null)
-            }}
+        <div className="grid gap-3 md:grid-cols-2">
+          <ReportMultiChoice
+            label="المستخدمون *"
+            options={users.map((user) => ({ id: userKey(user), name: user.display_name }))}
+            selected={selectedUserIds}
+            onChange={(ids) => !saving && setSelectedUserIds(ids)}
+            placeholder="اختر مستخدماً أو أكثر"
+          />
+          <ReportMultiChoice
+            label="الفروع *"
+            options={branches.map((branch) => ({ id: Number(branch.id), name: branch.branch_name, code: branch.branch_code }))}
+            selected={selectedBranchIds}
+            onChange={(ids) => !saving && setSelectedBranchIds(ids)}
+            placeholder="اختر فرعاً أو أكثر"
           />
         </div>
-      </div>
+        {selectedUser && selectedBranchIds.length > 0 && (selectedUserIds.length > 1 || selectedBranchIds.length > 1) && (
+          <div className="mt-3 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100">
+            <Info className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>
+              يتم عرض إعدادات <b>{selectedUser.display_name}</b> في <b>{branches.find((branch) => branch.id === branchId)?.branch_name}</b>.
+              عند الحفظ تُطبَّق الحسابات على <b>{selectedUserIds.length} مستخدم × {selectedBranchIds.length} فرع</b>، والمستودعات والإعدادات الأخرى على كل المستخدمين المحددين.
+            </span>
+          </div>
+        )}
+        {(!selectedUser || !selectedBranchIds.length) && (
+          <p className="mt-3 rounded-xl border border-dashed border-slate-200 px-3 py-2 text-center text-xs text-slate-500">اختر المستخدم والفرع لعرض الإعدادات وتعديلها</p>
+        )}
+      </section>
 
       <Card className="w-full overflow-hidden border-slate-200 shadow-sm">
         <CardHeader className="border-b border-slate-200 bg-gradient-to-l from-teal-50 to-sky-50 px-6 py-5 dark:from-slate-900 dark:to-slate-900">
@@ -601,17 +632,10 @@ export default function VirtualAccounts() {
         </CardContent>
       </Card>
 
-      <Card className="w-full mt-4">
-        <button
-          type="button"
-          className="flex w-full items-center justify-between rounded-t-lg bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-200"
-          onClick={() => setWarehousesSectionOpen((prev) => !prev)}
-        >
-          {warehousesSectionOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-          <span>المستودعات</span>
-        </button>
+      <Card className="w-full overflow-hidden border-slate-200 shadow-sm">
+        <SectionHeading icon={Warehouse} title="المستودعات الافتراضية" description="تُطبَّق على المستخدم (لكل الفروع)" />
         {warehousesSectionOpen && (
-          <CardContent className="grid grid-cols-1 gap-6 pt-6 sm:grid-cols-2">
+          <CardContent className="grid grid-cols-1 gap-5 p-4 sm:grid-cols-2 sm:p-6 xl:grid-cols-3">
             {WAREHOUSE_FIELDS.map((config) => (
               <div key={config.field} className="space-y-1.5">
                 <label className="block text-right text-sm font-medium text-slate-700">{config.label}</label>
@@ -650,26 +674,22 @@ export default function VirtualAccounts() {
         )}
       </Card>
 
-      <Card className="w-full mt-4">
-        <button
-          type="button"
-          className="flex w-full items-center justify-between rounded-t-lg bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-200"
-          onClick={() => setOtherSettingsSectionOpen((prev) => !prev)}
-        >
-          {otherSettingsSectionOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-          <span>اعدادات اخرى</span>
-        </button>
+      <Card className="w-full overflow-hidden border-slate-200 shadow-sm">
+        <SectionHeading icon={SlidersHorizontal} title="اعدادات اخرى" description="تفضيلات إدخال السندات للمستخدم" />
         {otherSettingsSectionOpen && (
-          <CardContent className="flex items-center justify-between gap-4 pt-6" dir="rtl">
-            <Label htmlFor="price-entry-includes-tax" className="text-sm font-medium text-slate-700">
-              السعر عند الادخال يشمل الضريبة
-            </Label>
+          <CardContent className="p-4 sm:p-6" dir="rtl">
+            <label htmlFor="price-entry-includes-tax" className="flex cursor-pointer items-center justify-between gap-4 rounded-xl border border-slate-200 bg-slate-50/60 px-4 py-3 transition hover:border-emerald-300 hover:bg-emerald-50/40">
+            <span>
+              <span className="block text-sm font-semibold text-slate-800">السعر عند الادخال يشمل الضريبة</span>
+              <span className="block text-xs text-slate-500">السعر المُدخَل يدوياً بسندات المبيعات يُعامَل كشامل للضريبة ويُحوَّل لغير شامل</span>
+            </span>
             <Switch
               id="price-entry-includes-tax"
               checked={priceEntryIncludesTax}
               onCheckedChange={setPriceEntryIncludesTax}
               disabled={!selectedUser}
             />
+            </label>
           </CardContent>
         )}
       </Card>
@@ -687,6 +707,18 @@ export default function VirtualAccounts() {
       {accountDialogOpen && (
         <AccountSearchDialog open={accountDialogOpen} onOpenChange={setAccountDialogOpen} accounts={[]} onSelect={handleAccountSelect} />
       )}
+    </div>
+  )
+}
+
+function SectionHeading({ icon: Icon, title, description }: { icon: typeof Wallet; title: string; description?: string }) {
+  return (
+    <div className="flex items-center gap-3 border-b border-slate-200 bg-gradient-to-l from-emerald-50 to-teal-50/40 px-4 py-3 sm:px-6 dark:border-slate-800 dark:from-slate-900 dark:to-slate-900">
+      <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-sm"><Icon className="h-4 w-4" /></span>
+      <div>
+        <h3 className="text-sm font-extrabold text-slate-800 sm:text-base dark:text-slate-100">{title}</h3>
+        {description && <p className="text-xs text-slate-500">{description}</p>}
+      </div>
     </div>
   )
 }

@@ -43,6 +43,8 @@ import { BillsPaymentDialog } from "@/components/sales/bills-payment-dialog"
 import { readVoucherClipboard, writeVoucherClipboard, type VoucherClipboardPayload } from "@/lib/voucher-clipboard"
 import TransactionBranchField from "@/components/common/transaction-branch-field"
 import { useWorkspaceTabActive } from "@/contexts/workspace-tab-context"
+import { useNavigationGuard } from "@/lib/navigation-guard"
+import { VoucherSearchButton, VoucherSearchDialog } from "@/components/common/voucher-search-dialog"
 
 // vch_type per voucher_types_tbl (app/api/sales-vouchers/_lib.ts, IDs 16-23) — هذا المكوّن يخدم
 // الأنواع الثمانية جميعها الآن عبر خاصية voucherType (بنفس أسلوب unified-stock-voucher.tsx مع
@@ -250,6 +252,8 @@ interface WarehouseOption {
 }
 
 interface UnifiedSalesDeliveryProps {
+  /** عرض سند بالمعرّف (من نافذة بحث السندات) — يحمّله المكوّن الأب */
+  onOpenVoucherById?: (voucherId: number) => void
   voucherType: SalesVoucherSubType
   dialogOpen: boolean
   openFullscreen?: boolean
@@ -425,6 +429,7 @@ const recalcLineAmounts = (row: SalesVoucherItemRow): Pick<SalesVoucherItemRow, 
 }
 
 export default function UnifiedSalesDelivery({
+  onOpenVoucherById,
   voucherType,
   dialogOpen,
   openFullscreen = false,
@@ -667,6 +672,7 @@ export default function UnifiedSalesDelivery({
     onFormChange("consignment_code" as keyof SalesDeliveryRecord, header.vch_code)
     itemsRef.current = rows
     onItemsChange(rows)
+    rows.forEach((_, index) => void applyLineCostCenters(index))
     requestAnimationFrame(refreshItemsGrid)
   }
   // نافذة اختيار الدفعة/تاريخ الصلاحية — إرسالية المبيعات تستهلك من مخزون قائم دوماً (بخلاف سند
@@ -758,6 +764,17 @@ export default function UnifiedSalesDelivery({
       setShowUnsavedConfirm(true)
     } else action()
   }
+  // تبديل الشاشة من القائمة/إغلاق التبويب/رجوع المتصفح/تحديث الصفحة مع تغييرات غير محفوظة ⇐ نفس نافذة
+  // التحقق من التغييرات (حفظ/عدم حفظ/إلغاء) — كما في كاشير نقطة البيع (lib/navigation-guard.ts)
+  useNavigationGuard(
+    () => dialogOpen && ![2, 3].includes(Number(form.status)) && hasUnsavedChanges(itemsRef.current),
+    (continueNavigation) => guardedAction(continueNavigation),
+  )
+
+  // بحث السندات (زر بجانب رقم السند): اختيار سند يمرّ بنافذة التحقق من التغييرات ثم يعرضه
+  const [voucherSearchOpen, setVoucherSearchOpen] = useState(false)
+  const openSearchedVoucher = (voucherId: number) => guardedAction(() => onOpenVoucherById?.(voucherId))
+
 
   const saveAndContinue = async (action: PostVoucherAction) => {
     if (saveInFlightRef.current || isSaving || isLoading) return
@@ -1311,6 +1328,15 @@ export default function UnifiedSalesDelivery({
     }
   }
 
+  // "السعر عند الادخال يشمل الضريبة" (إعدادات المستخدم): كل سعر يدخل السطر — يدوياً، أو من بطاقة الصنف عند
+  // اختياره (رقم/باركود/بحث الأصناف)، أو عند تغيير الوحدة — يُعامَل كسعر شامل ويُحوَّل لغير شامل
+  // (السعر ÷ (1+نسبة الضريبة/100))؛ unit_price يبقى دوماً غير شامل داخلياً. مثال: 4.5 بضريبة 16% ⇐ 3.88.
+  const entryPriceToNet = (price: number | null) => {
+    if (price === null || !Number.isFinite(price)) return price
+    const vatPercent = Number(formRef.current.vat_percent || 0)
+    return priceEntryIncludesTax && vatPercent > 0 ? Math.round((price / (1 + vatPercent / 100)) * 100) / 100 : price
+  }
+
   const patchItemRow = (index: number, patch: Partial<SalesVoucherItemRow>) => {
     // A retained grid callback may belong to the posted/deleted source voucher.
     // Always apply edits using the current form after cloning or navigation.
@@ -1332,6 +1358,30 @@ export default function UnifiedSalesDelivery({
     itemsRef.current = next
     onItemsChange(next)
     requestAnimationFrame(refreshItemsGrid)
+  }
+
+  // مراكز التكلفة الافتراضية لسطر الصنف — كما في شامل (GetItemDefaultCostCenter): الصنف ← المستودع ←
+  // حساب الصنف (lib/cost-center-defaults.ts). تُطبَّق عند اختيار الصنف وتغيير المستودع وتغيير حساب الصنف،
+  // وفقط إن بقي السطر على نفس الصنف/المستودع/الحساب لحظة وصول الرد (تفادي رد متأخر يكتب فوق تغيير أحدث).
+  const applyLineCostCenters = async (index: number) => {
+    if (!showAccountsTab) return
+    const row = itemsRef.current[index]
+    if (!row?.product_id) return
+    const key = `${row.product_id}|${row.warehouse_id ?? ""}|${row.account_id ?? ""}`
+    try {
+      const query = new URLSearchParams()
+      if (row.account_id) query.set("account_id", String(row.account_id))
+      query.set("product_id", String(row.product_id))
+      if (row.warehouse_id) query.set("warehouse_id", String(row.warehouse_id))
+      const response = await fetch(`/api/cost-centers/line-defaults?${query}`, { cache: "no-store" })
+      if (!response.ok || !isMountedRef.current) return
+      const data = await response.json()
+      const current = itemsRef.current[index]
+      if (!current || `${current.product_id}|${current.warehouse_id ?? ""}|${current.account_id ?? ""}` !== key) return
+      patchItemRow(index, { account_cost_centers: Array.isArray(data?.cost_centers) ? data.cost_centers : [] })
+    } catch {
+      // مراكز التكلفة الافتراضية تحسين — فشلها لا يمنع إدخال السطر (تبقى قابلة للتحديد يدوياً)
+    }
   }
 
   // أسطر بلا has_serial (من طلبية/ارسالية مصدر، لصق، استيراد) — تُعرَف أصنافها ذات الرقم التسلسلي
@@ -1435,6 +1485,10 @@ export default function UnifiedSalesDelivery({
 
   const removeItemRow = async (index: number) => {
     if (isLocked) return
+    if (isConsignmentReturn) {
+      toast({ title: "لا يمكن حذف سطر", description: "مرتجع الارسالية يُرجع كل المتبقي من الارسالية — لا يمكن حذف صنف أو تعديل كميته", variant: "destructive" })
+      return
+    }
     const row = itemsRef.current[index]
     // سند محفوظ وسطر بأرقام تسلسلية: لا يُحذف إن كان على أحد أرقامه حركة لاحقة في سند آخر
     // (يُفحص هنا للتنبيه فوراً، ويُعاد الفحص نفسه في الخادم عند الحفظ).
@@ -1832,7 +1886,7 @@ export default function UnifiedSalesDelivery({
       product = await requestProductVariant(product)
       if (!product || !isMountedRef.current) return
       const currentRow = itemsRef.current[row]
-      const unitPrice = product.price != null ? Number(product.price) : 0
+      const unitPrice = entryPriceToNet(product.price != null ? Number(product.price) : 0) ?? 0
       const warehousePatch = resolveDefaultWarehouse(product)
       const { hasExpiry, hasBatch } = resolveBatchExpiryFlags(product)
       const itemAccount = showAccountsTab ? await resolveItemAccountDefault(product) : null
@@ -1867,6 +1921,7 @@ export default function UnifiedSalesDelivery({
         ...(itemAccount ? { account_id: itemAccount.id, account_code: itemAccount.code, account_name: itemAccount.name } : {}),
       }
       patchItemRow(row, { ...patched, ...recalcLineAmounts(patched) })
+      void applyLineCostCenters(row)
       if (product.transaction_notes?.trim()) {
         messagesRef.current?.show?.([{ severity: "info", summary: "ملاحظات الصنف", detail: product.transaction_notes, life: 5000 }])
       }
@@ -1968,14 +2023,8 @@ export default function UnifiedSalesDelivery({
       }
     } else if (colName === "unit_price") {
       const rawUnitPrice = value === "" || value === null ? null : Number(value)
-      // "السعر عند الادخال يشمل الضريبة" (إعدادات المستخدم): ما كتبه المستخدم هنا يُعامَل كسعر شامل
-      // الضريبة، فيُحوَّل فوراً لغير شامل (السعر ÷ (1+نسبة الضريبة/100)) قبل تخزينه في unit_price —
-      // unit_price يبقى دوماً غير شامل الضريبة داخلياً (نفس أساس عمود "السعر شامل" أعلاه).
-      const vatPercent = Number(formRef.current.vat_percent || 0)
-      const unitPrice =
-        rawUnitPrice !== null && priceEntryIncludesTax && vatPercent > 0
-          ? Math.round((rawUnitPrice / (1 + vatPercent / 100)) * 100) / 100
-          : rawUnitPrice
+      // "السعر عند الادخال يشمل الضريبة": ما كتبه المستخدم يُعامَل كسعر شامل ويُحوَّل لغير شامل (entryPriceToNet)
+      const unitPrice = entryPriceToNet(rawUnitPrice)
       const currentRow = itemsRef.current[row]
       const patched = { ...currentRow, unit_price: unitPrice }
       patchItemRow(row, { unit_price: unitPrice, ...recalcLineAmounts(patched) })
@@ -2006,8 +2055,9 @@ export default function UnifiedSalesDelivery({
       return
     }
     // أسطر من ارسالية برسم البيع: الصنف/الوحدة/المستودع ثابتة، والكمية بحدود المتبقي؛ لا أسطر حرة.
+    // المرتجع يُرجع كل المتبقي إجبارياً (مرتجع واحد يُغلق الارسالية) — الكمية والبونص ثابتة، الملاحظة فقط.
     if (consignmentLinked) {
-      const allowed = isConsignmentReturn ? ["quantity", "note"] : ["quantity", "bonus_quantity", "unit_price", "discount_percent", "total_price", "note"]
+      const allowed = isConsignmentReturn ? ["note"] : ["quantity", "bonus_quantity", "unit_price", "discount_percent", "total_price", "note"]
       if (!allowed.includes(colName) || !(Number(row?.delivery_item_id) > 0)) {
         e.cancel = true
         return
@@ -2037,6 +2087,7 @@ export default function UnifiedSalesDelivery({
       return
     }
     patchItemRow(warehouseSearchRow, { warehouse_id: store.id, warehouse_name: store.warehouse_name })
+    void applyLineCostCenters(warehouseSearchRow)
     pendingFocusRef.current = { row: warehouseSearchRow, col: "unit_name" }
   }
 
@@ -2049,18 +2100,19 @@ export default function UnifiedSalesDelivery({
     }
     const row = unitsSearchRow
     const currentRow = itemsRef.current[row]
+    const unitNetPrice = entryPriceToNet(selected_unit.price == null ? null : Number(selected_unit.price))
     const patched = {
       ...currentRow,
       unit: selected_unit.unit_name,
       unit_id: selected_unit.unit_id,
       unit_name: selected_unit.unit_name,
-      unit_price: selected_unit.price,
+      unit_price: unitNetPrice,
     }
     patchItemRow(row, {
       unit: selected_unit.unit_name,
       unit_id: selected_unit.unit_id,
       unit_name: selected_unit.unit_name,
-      unit_price: selected_unit.price,
+      unit_price: unitNetPrice,
       ...recalcLineAmounts(patched),
     })
     pendingFocusRef.current = { row, col: "quantity" }
@@ -2076,6 +2128,7 @@ export default function UnifiedSalesDelivery({
     }
     const row = pendingFocusRow.current ?? itemsRef.current.length - 1
     const nextRows = [...itemsRef.current]
+    const filledRows: number[] = []
     for (let index = 0; index < selectedProducts.length; index += 1) {
       const product = selectedProducts[index]
       if (product.transaction_notes?.trim()) {
@@ -2088,7 +2141,7 @@ export default function UnifiedSalesDelivery({
       const { hasExpiry, hasBatch } = resolveBatchExpiryFlags(product)
       const itemAccount = showAccountsTab ? await resolveItemAccountDefault(product) : null
       if (!isMountedRef.current) return
-      const unitPrice = unit?.price ?? product.first_price ?? 0
+      const unitPrice = entryPriceToNet(Number(unit?.price ?? product.first_price ?? 0)) ?? 0
       const patched: SalesVoucherItemRow = {
         ...currentRow,
         product_id: product.id,
@@ -2120,9 +2173,11 @@ export default function UnifiedSalesDelivery({
       patched.serials_text = serialsSummary(patched)
       if (index === 0) nextRows[targetRow] = { ...patched, ...recalcLineAmounts(patched) }
       else nextRows.push({ ...patched, ...recalcLineAmounts(patched) })
+      filledRows.push(index === 0 ? targetRow : nextRows.length - 1)
     }
     itemsRef.current = nextRows
     onItemsChange(nextRows)
+    for (const filledRow of filledRows) void applyLineCostCenters(filledRow)
     requestAnimationFrame(refreshItemsGrid)
     const grid = resolveFlexControl(itemsGridRef.current)
     const nextFieldIndex = findNextRelevantFieldIndex(grid, fieldOrder.indexOf("product_code") + 1)
@@ -2413,12 +2468,12 @@ export default function UnifiedSalesDelivery({
           name: "quantity",
           width: 90,
           dataType: wjcCore.DataType.Number,
-          isReadOnly: isLocked || isFromDelivery,
+          isReadOnly: isLocked || isFromDelivery || isConsignmentReturn,
           // للقراءة فقط لنوع قياس غير عادي — تُحتسَب تلقائياً من الأبعاد/العدد المُدخَلة عبر
           // MeasurementInputDialog؛ المنع الفعلي بمستوى الخلية عبر beginningEdit (isReadOnly هنا
           // خاصية عمود ثابتة لا تفرّق بين الأسطر).
         },
-        { header: "البونص", name: "bonus_quantity", width: 80, dataType: wjcCore.DataType.Number, visible: Util.getVoucherSettingScreenData(voucherType, "bonus"), isReadOnly: isLocked || isFromDelivery },
+        { header: "البونص", name: "bonus_quantity", width: 80, dataType: wjcCore.DataType.Number, visible: Util.getVoucherSettingScreenData(voucherType, "bonus"), isReadOnly: isLocked || isFromDelivery || isConsignmentReturn },
         { header: "السعر", name: "unit_price", width: 90, dataType: wjcCore.DataType.Number, visible: Util.getVoucherSettingScreenData(voucherType, "price"), isReadOnly: isLocked },
         {
           header: "الخصم %",
@@ -2478,10 +2533,10 @@ export default function UnifiedSalesDelivery({
           iconType: "delete",
           className: "danger",
           isReadOnly: true,
-          visible: !isLocked && !isFromDelivery,
+          visible: !isLocked && !isFromDelivery && !isConsignmentReturn,
           visibleInColumnChooser: true,
           onClick: (e: any, ctx: any) => {
-            if (isLocked || isFromDelivery) return
+            if (isLocked || isFromDelivery || isConsignmentReturn) return
             removeItemRow(ctx.row.index)
           },
         },
@@ -2775,14 +2830,17 @@ export default function UnifiedSalesDelivery({
                   </div>
                   <div className="grid gap-1.5">
                     <Label htmlFor="vch-code">رقم السند *</Label>
-                    <Input
-                      ref={vchCodeInputRef}
-                      id="vch-code"
-                      value={form.vch_code}
-                      onChange={(e) => { codeEditedRef.current = true; onFormChange("vch_code", normalizeVoucherCode(e.target.value)) }}
-                      onBlur={handleCodeBlur}
-                      maxLength={10}
-                    />
+                    <div className="flex min-w-0 items-center gap-1.5">
+                      <Input
+                        ref={vchCodeInputRef}
+                        id="vch-code"
+                        value={form.vch_code}
+                        onChange={(e) => { codeEditedRef.current = true; onFormChange("vch_code", normalizeVoucherCode(e.target.value)) }}
+                        onBlur={handleCodeBlur}
+                        maxLength={10}
+                      />
+                      <VoucherSearchButton onClick={() => setVoucherSearchOpen(true)} />
+                    </div>
                   </div>
                   <div className="grid gap-1.5">
                     <Label htmlFor="vch-date">تاريخ السند *</Label>
@@ -3442,6 +3500,7 @@ export default function UnifiedSalesDelivery({
                 account_name: account.name,
                 account_cost_centers: [],
               })
+              void applyLineCostCenters(row)
               pendingAccountsFocusRef.current = { row, col: "btnCostCenter" }
             }}
           />
@@ -3756,6 +3815,14 @@ export default function UnifiedSalesDelivery({
           onCancel={() => setShowVatRestoreConfirm(false)}
         />
 
+        <VoucherSearchDialog
+          open={voucherSearchOpen}
+          onOpenChange={setVoucherSearchOpen}
+          vchType={Number(voucherType)}
+          title={TITLE}
+          accountLabel={"العميل / المورد"}
+          onSelect={(voucherId) => void openSearchedVoucher(voucherId)}
+        />
         <AlertDialog open={showUnsavedConfirm} onOpenChange={setShowUnsavedConfirm}>
           <AlertDialogContent dir="rtl" className="z-[10060] max-w-md">
             <AlertDialogHeader>

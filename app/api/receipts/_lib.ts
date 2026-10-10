@@ -57,15 +57,37 @@ export const ensureTables = async () => {
     END$$;
   `
   await sql`ALTER TABLE voucher_header_tbl ALTER COLUMN vch_code TYPE VARCHAR(30)`
+  // تغيير نوع vch_date يفشل إن كان عمود في تعريف trigger (حارس فترة العمل voucher_working_period_trigger
+  // يراقب UPDATE OF vch_date — lib/working-period.ts) — فكان يُسقط بقية تهيئة الجداول (ومنها
+  // branch_id) لشركة جديدة يُنشأ فيها الحارس قبل التحويل ⇐ "تعذر تحميل بيانات لوحة المعلومات".
+  // تُحفظ تعريفات الـtriggers وتُحذف مؤقتاً ثم يُعاد إنشاؤها كما هي بنفس الكتلة (معاملة واحدة).
   await sql`DO $$
+    DECLARE
+      trigger_defs TEXT[];
+      trigger_names TEXT[];
+      i INTEGER;
     BEGIN
       IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'voucher_header_tbl' AND column_name = 'vch_date' AND data_type <> 'timestamp without time zone') THEN
+        SELECT array_agg(pg_get_triggerdef(t.oid)), array_agg(t.tgname::text)
+          INTO trigger_defs, trigger_names
+        FROM pg_trigger t
+        WHERE t.tgrelid = 'voucher_header_tbl'::regclass AND NOT t.tgisinternal;
+        IF trigger_names IS NOT NULL THEN
+          FOR i IN 1 .. array_length(trigger_names, 1) LOOP
+            EXECUTE format('DROP TRIGGER IF EXISTS %I ON voucher_header_tbl', trigger_names[i]);
+          END LOOP;
+        END IF;
         ALTER TABLE voucher_header_tbl ALTER COLUMN vch_date TYPE TIMESTAMP WITHOUT TIME ZONE
         USING CASE
           WHEN vch_date IS NULL THEN NULL
           WHEN regexp_replace(vch_date::text, '[^0-9]', '', 'g') ~ '^[0-9]{8}$' THEN to_date(vch_date::text, 'YYYYMMDD')::timestamp
           ELSE vch_date::text::timestamp
         END;
+        IF trigger_defs IS NOT NULL THEN
+          FOR i IN 1 .. array_length(trigger_defs, 1) LOOP
+            EXECUTE trigger_defs[i];
+          END LOOP;
+        END IF;
       END IF;
     END $$`
 

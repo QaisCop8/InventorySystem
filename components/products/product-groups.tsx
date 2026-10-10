@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Plus, Search, Download, Package, Layers, BarChart3, TrendingUp, Trash2, Edit } from "lucide-react"
 import UnifiedProductGroups from "@/components/products/unified-product-groups"
 import ConfirmDialogYesNo from "@/components/ui/ConfirmDialogYesNo"
+import { useNavigationGuard } from "@/lib/navigation-guard"
 
 interface ItemGroup {
   id: number
@@ -73,6 +74,7 @@ export default function ProductGroups() {
   const [validationError, setValidationError] = useState("")
   const [showUnsavedConfirm, setShowUnsavedConfirm] = useState(false)
   const [pendingAction, setPendingAction] = useState<"new" | "close" | null>(null)
+  const navigationContinuationRef = useRef<(() => void) | null>(null)
   const initialFormHashRef = useRef("")
 
   const getFormHash = useCallback((value: FormData) => JSON.stringify({
@@ -236,7 +238,7 @@ export default function ProductGroups() {
       } else {
         setValidationError("يرجى إدخال اسم المجموعة ورقم المجموعة")
       }
-      return
+      return false
     }
 
     setDeleteError("")
@@ -270,7 +272,7 @@ export default function ProductGroups() {
       await fetchItemGroups({ silent: true })
       if (options?.afterSaveAction === "close") {
         setDialogOpen(false)
-        return
+        return true
       }
 
       await initializeNewGroupForm()
@@ -377,7 +379,10 @@ export default function ProductGroups() {
     if (pendingAction === "new") {
       await saveGroup({ afterSaveAction: "new" })
     } else if (pendingAction === "close") {
-      await saveGroup({ afterSaveAction: "close" })
+      const saved = await saveGroup({ afterSaveAction: "close" })
+      const continuation = navigationContinuationRef.current
+      navigationContinuationRef.current = null
+      if (saved && continuation) continuation()
     }
     setPendingAction(null)
   }, [pendingAction, saveGroup])
@@ -390,12 +395,27 @@ export default function ProductGroups() {
     } else if (pendingAction === "close") {
       void fetchItemGroups()
       setDialogOpen(false)
+      const continuation = navigationContinuationRef.current
+      navigationContinuationRef.current = null
+      continuation?.()
     }
   }, [fetchItemGroups, pendingAction, syncInitialFormHash])
+
+  // تبديل الشاشة من القائمة/إغلاق التبويب/رجوع المتصفح/تحديث الصفحة مع تغييرات غير محفوظة ⇐ نفس نافذة
+  // التحقق (حفظ/عدم حفظ/إلغاء) — كما في كاشير نقطة البيع (lib/navigation-guard.ts)
+  useNavigationGuard(
+    () => dialogOpen && hasUnsavedChanges,
+    (continueNavigation) => {
+      navigationContinuationRef.current = continueNavigation
+      setPendingAction("close")
+      setShowUnsavedConfirm(true)
+    },
+  )
 
   const handleCancelUnsaved = useCallback(() => {
     setShowUnsavedConfirm(false)
     setPendingAction(null)
+    navigationContinuationRef.current = null
   }, [])
 
   const handleFormChange = useCallback((field: string, value: string | number | null) => {
@@ -641,7 +661,7 @@ export default function ProductGroups() {
         showDeleteConfirm={showDeleteConfirm}
         onOpenChange={handleOpenChange}
         onNew={handleRequestNew}
-        onSave={saveGroup}
+        onSave={async (options) => { await saveGroup(options) }}
         onDelete={handleDelete}
         onNavigateRecord={handleNavigateRecord}
         onFormChange={handleFormChange}

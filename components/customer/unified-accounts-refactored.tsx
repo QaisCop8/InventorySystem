@@ -32,6 +32,7 @@ import DataGridView from "../common/DataGridView"
 import Messages from "../common/Messages"
 import { isSameDay } from "date-fns"
 import { useWorkspaceTabActive } from "@/contexts/workspace-tab-context"
+import { useNavigationGuard } from "@/lib/navigation-guard"
 
 interface AccountType {
   id: number
@@ -1850,6 +1851,13 @@ export default function UnifiedAccounts({ action, accountId, onOpenChange, inWin
     }
     void action()
   }
+  // تبديل الشاشة من القائمة/إغلاق التبويب/رجوع المتصفح/تحديث الصفحة مع تغييرات غير محفوظة ⇐ نفس نافذة
+  // التحقق من التغييرات — كما في كاشير نقطة البيع (lib/navigation-guard.ts)
+  useNavigationGuard(
+    () => Boolean(dialogOpen && currentSnapshot !== dirtySnapshotRef.current),
+    (continueNavigation) => guardUnsaved(continueNavigation),
+  )
+
 
   const handleRequestClose = async () => {
     guardUnsaved(() => closeWindow?.())

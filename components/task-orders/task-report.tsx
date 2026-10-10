@@ -15,7 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Search, RefreshCw, Loader2, User } from "lucide-react"
+import { Search, RefreshCw, Loader2, User, ListChecks, PlayCircle, CheckCircle2, XCircle, AlarmClock, Clock } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { formatDateTimeToBritish } from "@/lib/utils"
 import type { TaskOrderItemDetail, TaskOrderItemRow, TaskWorkflow } from "./types"
@@ -41,6 +41,8 @@ export function TaskReport() {
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [workflowFilter, setWorkflowFilter] = useState("all")
+  const [fromDate, setFromDate] = useState("")
+  const [toDate, setToDate] = useState("")
 
   const [detailId, setDetailId] = useState<number | null>(null)
   const [detailItem, setDetailItem] = useState<TaskOrderItemDetail | null>(null)
@@ -63,6 +65,8 @@ export function TaskReport() {
       if (statusFilter !== "all") params.set("status", statusFilter)
       if (workflowFilter !== "all") params.set("workflow_id", workflowFilter)
       if (search.trim()) params.set("search", search.trim())
+      if (fromDate) params.set("from_date", fromDate)
+      if (toDate) params.set("to_date", toDate)
       const res = await fetch(`/api/task-orders/order-items?${params}`)
       const data = await res.json()
       setItems(Array.isArray(data) ? data : [])
@@ -81,7 +85,7 @@ export function TaskReport() {
     const timeout = setTimeout(fetchItems, 300)
     return () => clearTimeout(timeout)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [statusFilter, workflowFilter, search])
+  }, [statusFilter, workflowFilter, search, fromDate, toDate])
 
   const openDetail = async (id: number) => {
     setDetailId(id)
@@ -103,44 +107,44 @@ export function TaskReport() {
     const inWorkflow = items.filter((i) => i.status === "in_workflow").length
     const completed = items.filter((i) => i.status === "completed").length
     const cancelled = items.filter((i) => i.status === "cancelled").length
-    return { total, inWorkflow, completed, cancelled }
+    const overdue = items.filter((i) => Number(i.overdue_task_count || 0) > 0).length
+    return { total, inWorkflow, completed, cancelled, overdue }
   }, [items])
 
   return (
     <ReportPage>
       <ReportHeader title={<>تقرير متابعة أصناف الطلبية</>} description={<>كل الأصناف بحالاتها ومراحلها الحالية وآخر ملاحظة مسجَّلة عليها</>} />
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Card>
-          <CardContent className="py-4 text-center">
-            <div className="text-2xl font-bold text-slate-800">{summary.total}</div>
-            <div className="text-xs text-slate-500">الإجمالي</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="py-4 text-center">
-            <div className="text-2xl font-bold text-emerald-600">{summary.inWorkflow}</div>
-            <div className="text-xs text-slate-500">جارٍ</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="py-4 text-center">
-            <div className="text-2xl font-bold text-blue-600">{summary.completed}</div>
-            <div className="text-xs text-slate-500">مكتمل</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="py-4 text-center">
-            <div className="text-2xl font-bold text-slate-400">{summary.cancelled}</div>
-            <div className="text-xs text-slate-500">ملغى</div>
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+        {[
+          { label: "الإجمالي", value: summary.total, icon: ListChecks, tone: "bg-slate-100 text-slate-600" },
+          { label: "جارٍ بسير العمل", value: summary.inWorkflow, icon: PlayCircle, tone: "bg-emerald-100 text-emerald-700" },
+          { label: "مكتمل", value: summary.completed, icon: CheckCircle2, tone: "bg-sky-100 text-sky-700" },
+          { label: "ملغى", value: summary.cancelled, icon: XCircle, tone: "bg-slate-100 text-slate-400" },
+          { label: "متأخر عن SLA", value: summary.overdue, icon: AlarmClock, tone: "bg-red-100 text-red-600" },
+        ].map((card) => (
+          <div key={card.label} className="flex items-center justify-between rounded-2xl border bg-white p-4 shadow-sm">
+            <div>
+              <p className="text-xs text-slate-500">{card.label}</p>
+              <p className="mt-1 text-2xl font-bold text-slate-800">{card.value}</p>
+            </div>
+            <span className={cn("flex h-10 w-10 items-center justify-center rounded-xl", card.tone)}>
+              <card.icon className="h-5 w-5" />
+            </span>
+          </div>
+        ))}
       </div>
 
       <ReportFilters><div className="flex flex-wrap items-center gap-2">
         <div className="relative w-64">
           <Search className="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="بحث برقم الصنف أو العنوان" className="pr-8" />
+          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="رقم الصنف، العنوان، العميل أو الطلبية" className="pr-8" />
+        </div>
+        <div className="flex items-center gap-1 text-xs text-slate-500">
+          من
+          <Input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="w-40" />
+          إلى
+          <Input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="w-40" />
         </div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-40">
@@ -176,14 +180,16 @@ export function TaskReport() {
         <CardContent className="p-0">
           <div className="overflow-x-auto">
             <Table>
-              <TableHeader>
-                <TableRow>
+              <TableHeader className="bg-emerald-100">
+                <TableRow className="hover:bg-emerald-100">
                   <TableHead className="text-right">رقم الصنف</TableHead>
                   <TableHead className="text-right">العنوان</TableHead>
+                  <TableHead className="text-right">الطلبية / العميل</TableHead>
                   <TableHead className="text-right">سير العمل</TableHead>
                   <TableHead className="text-right">الحالة</TableHead>
                   <TableHead className="text-right">المرحلة الحالية</TableHead>
                   <TableHead className="text-right">الأولوية</TableHead>
+                  <TableHead className="text-right">وقت العمل</TableHead>
                   <TableHead className="text-right">آخر ملاحظة</TableHead>
                   <TableHead className="text-right">أنشئ بواسطة</TableHead>
                   <TableHead className="text-right">تاريخ الإنشاء</TableHead>
@@ -191,16 +197,31 @@ export function TaskReport() {
               </TableHeader>
               <TableBody>
                 {items.map((item) => (
-                  <TableRow key={item.id} className="cursor-pointer hover:bg-slate-50" onClick={() => openDetail(item.id)}>
+                  <TableRow key={item.id} className="cursor-pointer hover:bg-emerald-50/40" onClick={() => openDetail(item.id)}>
                     <TableCell className="font-mono text-xs text-slate-500">{item.item_code}</TableCell>
                     <TableCell className="max-w-[220px] truncate font-medium">{item.title}</TableCell>
+                    <TableCell className="max-w-[200px] text-xs">
+                      <div className="font-mono text-emerald-700">{item.source_order_number || item.customer_order_code || "-"}</div>
+                      {item.customer_name && <div className="truncate text-slate-500">{item.customer_name}</div>}
+                    </TableCell>
                     <TableCell className="text-xs text-slate-500">{item.workflow_name}</TableCell>
                     <TableCell>
                       <Badge className={cn("border text-[10px]", ITEM_STATUS_BADGE_CLASS[item.status])}>{ITEM_STATUS_LABELS[item.status] || item.status}</Badge>
                     </TableCell>
-                    <TableCell className="text-xs text-slate-600">{item.current_steps || (item.status === "in_workflow" ? "-" : "—")}</TableCell>
+                    <TableCell className="text-xs text-slate-600">
+                      {item.current_steps || (item.status === "in_workflow" ? "-" : "—")}
+                      {Number(item.overdue_task_count || 0) > 0 && (
+                        <span className="mr-1 inline-flex items-center gap-0.5 rounded bg-red-100 px-1 py-0.5 text-[10px] font-semibold text-red-700">
+                          <AlarmClock className="h-3 w-3" /> متأخر
+                        </span>
+                      )}
+                    </TableCell>
                     <TableCell>
                       <Badge className={cn("border text-[10px]", PRIORITY_BADGE_CLASS[item.priority])}>{PRIORITY_LABELS[item.priority] || item.priority}</Badge>
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap font-mono text-xs text-slate-600">
+                      <Clock className="ml-1 inline h-3 w-3 text-slate-400" />
+                      {formatDuration(Number(item.total_work_seconds || 0))}
                     </TableCell>
                     <TableCell className="max-w-[240px] truncate text-xs text-slate-500" title={item.last_note || ""}>
                       {item.last_note || "-"}
@@ -211,14 +232,14 @@ export function TaskReport() {
                 ))}
                 {!loading && items.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={9} className="py-10 text-center text-sm text-slate-400">
+                    <TableCell colSpan={11} className="py-10 text-center text-sm text-slate-400">
                       لا توجد أصناف مطابقة
                     </TableCell>
                   </TableRow>
                 )}
                 {loading && (
                   <TableRow>
-                    <TableCell colSpan={9} className="py-10 text-center">
+                    <TableCell colSpan={11} className="py-10 text-center">
                       <Loader2 className="mx-auto h-5 w-5 animate-spin text-slate-400" />
                     </TableCell>
                   </TableRow>

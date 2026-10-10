@@ -14,6 +14,7 @@ import { campaignAmounts } from "@/lib/campaign-items"
 import { UniversalToolbar } from "@/components/ui/universal-toolbar"
 import { CampaignItemsGrid, type CampaignProduct } from "./campaign-items-grid"
 import { useWorkspaceTabActive } from "@/contexts/workspace-tab-context"
+import { useNavigationGuard } from "@/lib/navigation-guard"
 
 export type CampaignItem = {
   item_id: number
@@ -223,6 +224,13 @@ export default function UnifiedCampaigns({
     pendingActionRef.current = action
     setShowUnsavedConfirm(true)
   }
+  // تبديل الشاشة من القائمة/إغلاق التبويب/رجوع المتصفح/تحديث الصفحة مع تغييرات غير محفوظة ⇐ نفس نافذة
+  // التحقق من التغييرات — كما في كاشير نقطة البيع (lib/navigation-guard.ts)
+  useNavigationGuard(
+    () => Boolean(open && !saving && isDirty()),
+    (continueNavigation) => runAfterUnsavedCheck(continueNavigation),
+  )
+
 
   const recordIndex = campaigns.findIndex(item => Number(item.id) === Number(form.id))
   const navigate = (index: number) => {

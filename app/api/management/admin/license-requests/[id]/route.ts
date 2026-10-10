@@ -26,8 +26,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     } else {
       const quantity = Math.floor(Number(data.approved_quantity ?? row.quantity))
       if (!Number.isFinite(quantity) || quantity < 1 || quantity > 1000) { await client.query("ROLLBACK"); return NextResponse.json({ error: "العدد المعتمد غير صالح" }, { status: 400 }) }
-      const column = row.resource === "branches" ? "number_of_branches" : "number_of_users"
-      await client.query(`UPDATE companies SET ${column} = COALESCE(${column}, 1) + $2, license_initialized = true WHERE id = $1`, [row.company_id, quantity])
+      const column = row.resource === "branches" ? "number_of_branches" : row.resource === "pos_points" ? "number_of_pos_points" : "number_of_users"
+      const initialized = row.resource === "pos_points" ? "pos_license_initialized" : "license_initialized"
+      await client.query(`UPDATE companies SET ${column} = COALESCE(${column}, ${row.resource === "pos_points" ? 0 : 1}) + $2, ${initialized} = true WHERE id = $1`, [row.company_id, quantity])
       await client.query("UPDATE company_license_requests SET status = 'approved', approved_quantity = $2, decided_by = $3, decided_at = CURRENT_TIMESTAMP, decision_note = $4 WHERE id = $1", [id, quantity, session.id, note])
     }
     await client.query("COMMIT")

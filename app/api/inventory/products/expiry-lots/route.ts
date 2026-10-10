@@ -1,6 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import sql from "@/lib/database"
-import { STOCK_IN_VCH_TYPE, STOCK_VOUCHER_TYPES } from "../../../stock-vouchers/_lib"
+import { lotBalances } from "@/lib/stock-lots"
 
 // دفعات الصنف المتاحة (رقم تشغيلي/تاريخ صلاحية + الكمية المتاحة)، مُشتقّة من voucher_items_tbl
 // نفسها — لا يوجد في هذه القاعدة جدول دفعات مخزون مستقل (product_lots في lib/lot-management.ts
@@ -32,37 +31,21 @@ export async function GET(request: NextRequest) {
     const toMainQtyParam = Number(searchParams.get("to_main_qnty"))
     const toMainQty = toMainQtyParam > 0 ? toMainQtyParam : 1
 
-    const rows = await sql`
-      SELECT
-        vi.batch_number,
-        vi.expiry_date,
-        SUM(
-          CASE WHEN vh.vch_type = ${STOCK_IN_VCH_TYPE} THEN vi.quantity * COALESCE(pu.to_main_qnty, 1)
-          ELSE -(vi.quantity * COALESCE(pu.to_main_qnty, 1)) END
-        ) AS available_quantity_main
-      FROM voucher_items_tbl vi
-      JOIN voucher_header_tbl vh ON vh.id = vi.voucher_id
-      LEFT JOIN units u ON u.unit_name = vi.unit
-      LEFT JOIN product_units pu ON pu.product_id = vi.product_id AND pu.unit_id = u.id
-      WHERE vi.product_id = ${productId}
-        AND vi.warehouse_id = ${warehouseId}
-        AND vh.status IN (1, 2)
-        AND vh.vch_type = ANY(${STOCK_VOUCHER_TYPES as unknown as number[]}::int[])
-        AND vi.expiry_date IS NOT NULL
-      GROUP BY vi.batch_number, vi.expiry_date
-      HAVING SUM(
-        CASE WHEN vh.vch_type = ${STOCK_IN_VCH_TYPE} THEN vi.quantity * COALESCE(pu.to_main_qnty, 1)
-        ELSE -(vi.quantity * COALESCE(pu.to_main_qnty, 1)) END
-      ) > 0
-      ORDER BY vi.expiry_date ASC
-    `
-
-    const available = (rows as any[]).map((row) => ({
-      lot_number: row.batch_number || "",
-      expiry_date: row.expiry_date || null,
-      available_quantity: Number(row.available_quantity_main) / toMainQty,
-      unit_cost: 0,
-    }))
+    // الدفعات المتاحة (محفوظ + مرحّل) من دفتر الدفعات الموحَّد lib/stock-lots.ts — الاستعلام السابق كان
+    // يقرأ أعمدة غير موجودة بـvoucher_items_tbl (product_id/quantity/unit/warehouse_id) فيفشل دائماً.
+    const lots = await lotBalances({ warehouseId, productIds: [productId], mode: "active" })
+    const byLot = new Map<string, { lot_number: string; expiry_date: string | null; quantity: number }>()
+    for (const lot of lots) {
+      if (!lot.expiry_date && !lot.batch_no) continue
+      const key = `${lot.batch_no.toUpperCase()}|${lot.expiry_date ?? ""}`
+      const current = byLot.get(key) || { lot_number: lot.batch_no, expiry_date: lot.expiry_date, quantity: 0 }
+      current.quantity += lot.quantity
+      byLot.set(key, current)
+    }
+    const available = [...byLot.values()]
+      .filter((lot) => lot.quantity > 1e-6)
+      .sort((x, y) => String(x.expiry_date ?? "9999").localeCompare(String(y.expiry_date ?? "9999")))
+      .map((lot) => ({ lot_number: lot.lot_number, expiry_date: lot.expiry_date, available_quantity: lot.quantity / toMainQty, unit_cost: 0 }))
 
     return NextResponse.json(available)
   } catch (error) {

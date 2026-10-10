@@ -7,7 +7,8 @@ import { SECTION_TITLES } from "@/components/sidebar"
 import { TabStrip } from "./tab-strip"
 import { PaneMenu } from "./pane-menu"
 import { WorkspaceDialogProvider } from "@/contexts/workspace-dialog-context"
-import { WorkspaceTabActiveProvider } from "@/contexts/workspace-tab-context"
+import { WorkspaceTabActiveProvider, WorkspaceTabIdProvider } from "@/contexts/workspace-tab-context"
+import { requestGuardedNavigation } from "@/lib/navigation-guard"
 
 interface WorkspacePaneProps {
   paneId: PaneId
@@ -41,7 +42,8 @@ export function WorkspacePane({ paneId, showTabStrip, showFocusRing, renderSecti
             tabs={showTabStrip ? pane.tabs : []}
             activeTabId={pane.activeTabId}
             onActivate={(tabId) => activateTab(paneId, tabId)}
-            onClose={(tabId) => closeTab(paneId, tabId)}
+            // إغلاق تبويب يُتلف شاشته — نافذة التحقق من التغييرات أولاً (lib/navigation-guard.ts)
+            onClose={(tabId) => { if (requestGuardedNavigation(() => closeTab(paneId, tabId), [tabId])) closeTab(paneId, tabId) }}
           />
           <PaneMenu onOpenSection={(newSection) => openSection(newSection, SECTION_TITLES[newSection] || newSection, paneId)} />
         </div>
@@ -83,10 +85,12 @@ function MountedWorkspaceTab({
       aria-hidden={!active}
     >
       <WorkspaceTabActiveProvider active={hotkeysActive}>
-        <WorkspaceDialogProvider container={dialogContainer} confined>
-          <div className="h-full overflow-auto">{renderSection(tab.section)}</div>
-          <div ref={setDialogContainer} className="pointer-events-none absolute inset-0 z-[100] isolate overflow-visible" />
-        </WorkspaceDialogProvider>
+        <WorkspaceTabIdProvider tabId={tab.id}>
+          <WorkspaceDialogProvider container={dialogContainer} confined>
+            <div className="h-full overflow-auto">{renderSection(tab.section)}</div>
+            <div ref={setDialogContainer} className="pointer-events-none absolute inset-0 z-[100] isolate overflow-visible" />
+          </WorkspaceDialogProvider>
+        </WorkspaceTabIdProvider>
       </WorkspaceTabActiveProvider>
     </div>
   )

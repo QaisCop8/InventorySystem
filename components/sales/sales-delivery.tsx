@@ -6,7 +6,6 @@ import { useVoucherDeepLink } from "@/hooks/use-voucher-deep-link"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import DataGridView from "@/components/common/DataGridView"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Edit, Plus, Search } from "lucide-react"
@@ -33,6 +32,7 @@ import UnifiedSalesDelivery, {
 import type { PostVoucherAction } from "@/components/common/post-voucher-dialog"
 import { useWorkspace } from "@/contexts/workspace-context"
 import { serialsSummary } from "@/components/inventory/item-serials-dialog"
+import { VoucherListTable } from "@/components/common/voucher-list-table"
 
 interface LookupOption {
   id: number
@@ -878,6 +878,24 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
 
   const useFullPageMode = fullscreenEnabled
 
+
+  // عرض سند بالمعرّف من نافذة بحث السندات (زر البحث بجانب رقم السند) — نفس مسار التنقل
+  const openVoucherById = async (voucherId: number) => {
+    setIsLoading(true)
+    try {
+      const details = await fetchVoucherDetails(voucherId)
+      if (!details) throw new Error("تعذر تحميل تفاصيل السند")
+      setForm(normalizeVoucher(details))
+      setCurrentIndex(filteredVouchers.findIndex(row => row.id === voucherId))
+      setErrorMessages([])
+      setDialogOpen(true)
+    } catch (error) {
+      setErrorMessages([error instanceof Error ? error.message : "تعذر عرض السند"])
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   return (
     <div className={`w-full max-w-full ${useFullPageMode && dialogOpen ? "h-full" : "space-y-6"}`} dir="rtl">
       {!(useFullPageMode && dialogOpen) && <>
@@ -950,15 +968,10 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
           <CardTitle>{`${LIST_TITLE} (${filteredVouchers.length})`}</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="min-h-0 overflow-auto rounded-xl border p-2">
-            <DataGridView
-              dataSource={filteredVouchers.map((voucher) => ({ ...voucher, display_date: voucher.vch_date?.slice(0, 10), display_amount: Number(voucher.amount || 0).toLocaleString(), display_status: voucher.has_linked_invoice ? "تم إصدار فاتورة" : voucher.status === 2 ? "مرحل" : "مسودة", salesman_display: salesmen.find((salesman) => Number(salesman.id) === Number((voucher as any).salesman_id))?.name || "" }))}
-              style={{ height: "420px" }}
-              isReport
-              isReadOnly
-              dontConvertToCards
-              onRowDoubleClick={(row: any) => { const voucher = row.item || row; openRow(voucher, filteredVouchers.findIndex((item) => item.id === voucher.id)) }}
-              scheme={{ columns: [
+          <div className="min-h-0">
+            <VoucherListTable
+              rows={filteredVouchers.map((voucher) => ({ ...voucher, display_date: voucher.vch_date?.slice(0, 10), display_amount: Number(voucher.amount || 0).toLocaleString(), display_status: voucher.has_linked_invoice ? "تم إصدار فاتورة" : voucher.status === 2 ? "مرحل" : "مسودة", salesman_display: salesmen.find((salesman) => Number(salesman.id) === Number((voucher as any).salesman_id))?.name || "" }))}
+              columns={[
                 { header: "رقم السند", name: "vch_code", width: 150, isReadOnly: true },
                 { header: "التاريخ", name: "display_date", width: 130, isReadOnly: true },
                 // ارسالية برسم البيع ومرتجعها تتبع المندوب لا العميل
@@ -967,9 +980,9 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
                   : { header: "العميل", name: "customer_name", width: "*", isReadOnly: true },
                 { header: "المبلغ", name: "display_amount", width: 130, isReadOnly: true },
                 { header: "الحالة", name: "display_status", width: 150, isReadOnly: true },
-              ] }}
+              ]}
+              onOpen={(row: any) => { const voucher = row.item || row; openRow(voucher, filteredVouchers.findIndex((item) => item.id === voucher.id)) }}
             />
-            {!filteredVouchers.length && <p className="py-4 text-center text-sm text-muted-foreground">لا توجد سندات</p>}
           </div>
         </CardContent>
       </Card>
@@ -977,6 +990,7 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
       </>}
 
       <UnifiedSalesDelivery
+        onOpenVoucherById={(voucherId) => void openVoucherById(voucherId)}
         voucherType={voucherType}
         dialogOpen={dialogOpen}
         openFullscreen={useFullPageMode}

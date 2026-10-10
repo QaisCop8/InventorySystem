@@ -1,6 +1,7 @@
 import sql from "@/lib/database"
 import { buildVoucherCode, normalizeVoucherPrefix } from "@/lib/voucher-code"
 import { validateSerialsRemoval } from "@/lib/item-serials"
+import { lotAvailable, normalizeExpiry } from "@/lib/stock-lots"
 
 export { buildVoucherCode, normalizeVoucherPrefix }
 
@@ -398,6 +399,43 @@ export const validateItemReferences = async (items: any[], accountFields: string
 // يُدخِل دفعات جديدة فلا "متاح" يُستهلَك منه أصلاً. excludeVoucherId يستثني سطور السند نفسه عند
 // تعديل سند موجود (PUT) — وإلا يحتسب الفحص وجود السند القديم كاستهلاك من نفسه، فيرفض حفظ سند لم
 // تتغيّر كميته إطلاقاً.
+// أسطر الطلب (product_id/warehouse_id/unit/quantity/batch_number) وصفوف القاعدة (item_id/store_id/
+// unit_id/qnty/batch_no) بأسماء حقول مختلفة — كانت هذه الدوال تقرأ أسماء الطلب من صفوف القاعدة
+// (فلا تجد شيئاً وتمر صامتة) وتستعلم أعمدة غير موجودة (vi.quantity/vi.product_id/vi.unit) فيسقط
+// سند الإخراج لأي صنف بصلاحية/رقم تشغيلي. الرصيد الفعلي للدفعة من lib/stock-lots.ts.
+type LotLine = { productId: number; storeId: number; batchNumber: string; expiryDate: string | null; unitId: number | null; unitName: string; quantity: number; label: string }
+
+const lotLineOf = (item: any, fallbackStoreId?: number | null): LotLine => ({
+  productId: Number(item.product_id ?? item.item_id) || 0,
+  storeId: Number(item.warehouse_id ?? item.store_id ?? fallbackStoreId) || 0,
+  batchNumber: String(item.batch_number ?? item.batch_no ?? "").trim(),
+  expiryDate: normalizeExpiry(item.expiry_date),
+  unitId: Number(item.unit_id) || null,
+  unitName: String(item.unit || item.unit_name || ""),
+  quantity: Number(item.quantity ?? item.qnty ?? 0) + Number(item.bonus_quantity ?? item.bonus ?? 0),
+  label: String(item.product_name || item.item_name || item.product_code || ""),
+})
+
+const isTrackedLot = (line: LotLine) => line.productId > 0 && line.storeId > 0 && (Boolean(line.batchNumber) || Boolean(line.expiryDate))
+const lotGroupKey = (line: LotLine) => `${line.productId}|${line.storeId}|${line.batchNumber.toUpperCase()}|${line.expiryDate ?? ""}`
+
+async function mainQuantityOf(lines: LotLine[]) {
+  const productIds = [...new Set(lines.map((line) => line.productId))]
+  const rows = productIds.length
+    ? ((await sql`
+        SELECT pu.product_id, pu.unit_id, u.unit_name, pu.to_main_qnty
+        FROM product_units pu LEFT JOIN units u ON u.id = pu.unit_id
+        WHERE pu.product_id = ANY(${productIds}::int[])
+      `) as any[])
+    : []
+  return (line: LotLine) => {
+    const unit = rows.find((row) => Number(row.product_id) === line.productId && (line.unitId ? Number(row.unit_id) === line.unitId : String(row.unit_name) === line.unitName))
+    return line.quantity * (Number(unit?.to_main_qnty) || 1)
+  }
+}
+
+const lotLabel = (line: LotLine) => `${line.batchNumber ? ` - دفعة ${line.batchNumber}` : ""}${line.expiryDate ? ` - صلاحية ${line.expiryDate}` : ""}`
+
 export const validateAvailableQuantity = async (
   items: any[],
   vchType: number,
@@ -406,176 +444,69 @@ export const validateAvailableQuantity = async (
   if (vchType !== STOCK_OUT_VCH_TYPE && vchType !== INTERNAL_DELIVERY_VCH_TYPE && vchType !== USE_VOUCHER_VCH_TYPE) {
     return null
   }
-
-  // فقط الأصناف المرتبطة فعلاً بدفعة/تاريخ صلاحية (رقم تشغيلي أو تاريخ صلاحية حقيقي، لا الفارغ ولا
-  // القيمة الاصطلاحية 1990-01-01 التي تحملها الأصناف غير المتتبَّعة بعد saveVoucherItems أعلاه)
-  // تحتاج فحص توفّر بمستوى الدفعة — أصناف بلا تتبع دفعة ليس لها "متاح" محدَّد الدفعة أصلاً.
-  const trackedItems = items.filter(
-    (i) => String(i.batch_number || "").trim() || (i.expiry_date && String(i.expiry_date).slice(0, 10) !== NO_EXPIRY_SENTINEL_DATE),
-  )
-  if (trackedItems.length === 0) return null
-
-  const productIds = [...new Set(trackedItems.map((i) => Number(i.product_id)).filter((id) => Number.isFinite(id) && id > 0))]
-  const unitRows = productIds.length
-    ? await sql`
-        SELECT pu.product_id, u.unit_name, pu.to_main_qnty
-        FROM product_units pu
-        LEFT JOIN units u ON pu.unit_id = u.id
-        WHERE pu.product_id = ANY(${productIds}::int[])
-      `
-    : []
-  const toMainQtyByKey = new Map<string, number>(
-    (unitRows as any[]).map((r) => [`${r.product_id}|${r.unit_name}`, Number(r.to_main_qnty) || 1]),
-  )
-
-  // تُجمَّع الكمية المطلوبة أولاً (بالوحدة الرئيسية، محوَّلة بمعامل تحويل وحدة كل سطر على حِدة —
-  // نفس السند قد يكرّر الصنف بأكثر من سطر بوحدات مختلفة) بدل فحص كل سطر بمعزل، وإلا يمر فحصان
-  // منفصلان لكل منهما نصف الكمية المطلوبة رغم تجاوز مجموعهما "المتاح" فعلياً.
-  const groups = new Map<
-    string,
-    { productId: number; storeId: number; batchNumber: string; expiryDate: string; mainQty: number; label: string }
-  >()
-  for (const item of trackedItems) {
-    const productId = Number(item.product_id)
-    const storeId = Number(item.warehouse_id)
-    if (!productId || !storeId) continue
-    const toMainQty = toMainQtyByKey.get(`${productId}|${item.unit || ""}`) ?? 1
-    const mainQty = Number(item.quantity || 0) * toMainQty
+  // فقط الأصناف المرتبطة فعلاً بدفعة/صلاحية لها "متاح" محدَّد الدفعة — تُجمَّع الكمية المطلوبة لكل
+  // دفعة أولاً (قد يتكرر الصنف بأكثر من سطر ووحدة) بدل فحص كل سطر بمعزل.
+  const lines = items.map((item) => lotLineOf(item)).filter(isTrackedLot)
+  if (!lines.length) return null
+  const toMain = await mainQuantityOf(lines)
+  const groups = new Map<string, LotLine & { mainQty: number }>()
+  for (const line of lines) {
+    const mainQty = toMain(line)
     if (mainQty <= 0) continue
-    const batchNumber = String(item.batch_number || "").trim()
-    const expiryDate = item.expiry_date ? String(item.expiry_date).slice(0, 10) : ""
-    const key = `${productId}|${storeId}|${batchNumber}|${expiryDate}`
+    const key = lotGroupKey(line)
     const existing = groups.get(key)
-    if (existing) {
-      existing.mainQty += mainQty
-    } else {
-      groups.set(key, {
-        productId,
-        storeId,
-        batchNumber,
-        expiryDate,
-        mainQty,
-        label: item.product_name || item.product_code || "",
-      })
-    }
+    if (existing) existing.mainQty += mainQty
+    else groups.set(key, { ...line, mainQty })
   }
-
   for (const group of groups.values()) {
-    const rows = await sql`
-      SELECT COALESCE(SUM(
-        CASE WHEN vh.vch_type = ${STOCK_IN_VCH_TYPE} THEN vi.quantity * COALESCE(pu.to_main_qnty, 1)
-        ELSE -(vi.quantity * COALESCE(pu.to_main_qnty, 1)) END
-      ), 0) AS available_main
-      FROM voucher_items_tbl vi
-      JOIN voucher_header_tbl vh ON vh.id = vi.voucher_id
-      LEFT JOIN units u ON u.unit_name = vi.unit
-      LEFT JOIN product_units pu ON pu.product_id = vi.product_id AND pu.unit_id = u.id
-      WHERE vi.product_id = ${group.productId}
-        AND vi.store_id = ${group.storeId}
-        AND COALESCE(vi.batch_number, '') = ${group.batchNumber}
-        AND COALESCE(vi.expiry_date::text, '') = ${group.expiryDate}
-        AND vh.status IN (1, 2)
-        AND vh.vch_type = ANY(${STOCK_VOUCHER_TYPES as unknown as number[]}::int[])
-        AND vh.id != ${excludeVoucherId ?? -1}
-    `
-    const availableMain = Number((rows as any[])[0]?.available_main || 0)
-    // هامش تسامح صغير لأخطاء الفاصلة العائمة (DOUBLE PRECISION) بدل رفض حالات متساوية فعلياً.
-    if (group.mainQty > availableMain + 1e-9) {
-      const batchLabel = group.batchNumber ? ` - دفعة ${group.batchNumber}` : ""
-      const expiryLabel = group.expiryDate ? ` - صلاحية ${group.expiryDate}` : ""
-      return `الكمية المطلوبة أكبر من الكمية المتاحة للصنف ${group.label}${batchLabel}${expiryLabel}`
-    }
+    const available = await lotAvailable({ productId: group.productId, warehouseId: group.storeId, batchNo: group.batchNumber, expiryDate: group.expiryDate, excludeVoucherId })
+    if (group.mainQty > available + 1e-9) return `الكمية المطلوبة أكبر من الكمية المتاحة للصنف ${group.label}${lotLabel(group)}`
   }
-
   return null
 }
 
-// عند تعديل سند ادخال بضاعة موجود (PUT، لا الإنشاء الجديد عبر POST — لا "أسطر قديمة" هناك أصلاً):
-// يتحقق أن استبدال أسطره القديمة بالجديدة (تغيير الصنف/الكمية/المستودع/الوحدة، أو حذف سطر بالكامل)
-// لن يجعل "المتاح" لأي مجموعة (صنف، مستودع، دفعة، تاريخ صلاحية) كانت هذه الأسطر القديمة توفّرها
-// سالباً — أي دفعة استُهلِكت فعلياً (كلياً أو جزئياً) عبر سند اخراج/استعمال/ارسالية داخلية لاحق
-// بالاعتماد على المزيج القديم (صنف/مستودع/دفعة/صلاحية)، لم يعد هذا السند يوفّره بنفس القدر بعد
-// التعديل. مطابق فكرياً لِـvalidateVoucherDeletion (نفس استعلام "المتاح باستثناء هذا السند") لكن
-// يُضيف مساهمة الأسطر الجديدة (إن بقيت تخص نفس المجموعة) بدل افتراض إزالة كاملة للسند كما هناك.
+// تعديل سند ادخال: استبدال أسطره القديمة بالجديدة يجب ألا يجعل متاح أي دفعة كانت يوفّرها سالباً.
 export const validateStockInEditAvailability = async (voucherId: number, newItems: any[]): Promise<string | null> => {
-  const oldItemsRaw = await sql`SELECT * FROM voucher_items_tbl WHERE voucher_id = ${voucherId}`
-  const oldTracked = (oldItemsRaw as any[]).filter(
-    (i) => String(i.batch_number || "").trim() || (i.expiry_date && String(i.expiry_date).slice(0, 10) !== NO_EXPIRY_SENTINEL_DATE),
-  )
-  if (oldTracked.length === 0) return null
-
-  const productIds = [...new Set(oldTracked.map((i) => Number(i.product_id)).filter((id) => Number.isFinite(id) && id > 0))]
-  const unitRows = productIds.length
-    ? await sql`
-        SELECT pu.product_id, u.unit_name, pu.to_main_qnty
-        FROM product_units pu
-        LEFT JOIN units u ON pu.unit_id = u.id
-        WHERE pu.product_id = ANY(${productIds}::int[])
-      `
-    : []
-  const toMainQtyByKey = new Map<string, number>(
-    (unitRows as any[]).map((r) => [`${r.product_id}|${r.unit_name}`, Number(r.to_main_qnty) || 1]),
-  )
-
-  // مجموعات المزيج القديم (صنف/مستودع/دفعة/صلاحية) التي ساهم بها هذا السند قبل التعديل.
-  const oldGroups = new Map<string, { productId: number; storeId: number; batchNumber: string; expiryDate: string; label: string }>()
-  for (const item of oldTracked) {
-    const productId = Number(item.product_id)
-    const storeId = Number(item.store_id)
-    if (!productId || !storeId) continue
-    const batchNumber = String(item.batch_number || "").trim()
-    const expiryDate = item.expiry_date ? String(item.expiry_date).slice(0, 10) : ""
-    const key = `${productId}|${storeId}|${batchNumber}|${expiryDate}`
-    if (!oldGroups.has(key)) {
-      oldGroups.set(key, { productId, storeId, batchNumber, expiryDate, label: item.product_name || item.product_code || "" })
+  const header = ((await sql`SELECT to_store_id FROM voucher_header_tbl WHERE id = ${voucherId}`) as any[])[0]
+  const oldLines = ((await sql`SELECT * FROM voucher_items_tbl WHERE voucher_id = ${voucherId}`) as any[])
+    .map((item) => lotLineOf(item, header?.to_store_id))
+    .filter(isTrackedLot)
+  if (!oldLines.length) return null
+  const newLines = newItems.map((item) => lotLineOf(item)).filter(isTrackedLot)
+  const toMain = await mainQuantityOf(newLines)
+  const newQty = new Map<string, number>()
+  for (const line of newLines) newQty.set(lotGroupKey(line), (newQty.get(lotGroupKey(line)) || 0) + toMain(line))
+  const seen = new Set<string>()
+  for (const line of oldLines) {
+    const key = lotGroupKey(line)
+    if (seen.has(key)) continue
+    seen.add(key)
+    const available = await lotAvailable({ productId: line.productId, warehouseId: line.storeId, batchNo: line.batchNumber, expiryDate: line.expiryDate, excludeVoucherId: voucherId })
+    if (available + (newQty.get(key) || 0) < -1e-9) {
+      return `تعديل السند تسبب بوجود كميات سالبة للصنف ${line.label}${lotLabel(line)}`
     }
   }
-
-  // مساهمة الأصناف الجديدة (بعد التعديل) لكل من نفس مفاتيح المجموعات القديمة — صفر إن لم يعد
-  // السطر الجديد يطابق نفس المزيج إطلاقاً (صنف مختلف، أو مستودع/دفعة/صلاحية مختلفة).
-  const newQtyByKey = new Map<string, number>()
-  for (const item of newItems) {
-    const productId = Number(item.product_id)
-    const storeId = Number(item.warehouse_id)
-    if (!productId || !storeId) continue
-    const toMainQty = toMainQtyByKey.get(`${productId}|${item.unit || ""}`) ?? 1
-    const mainQty = Number(item.quantity || 0) * toMainQty
-    if (mainQty <= 0) continue
-    const batchNumber = String(item.batch_number || "").trim()
-    const expiryDate = item.expiry_date ? String(item.expiry_date).slice(0, 10) : ""
-    const key = `${productId}|${storeId}|${batchNumber}|${expiryDate}`
-    newQtyByKey.set(key, (newQtyByKey.get(key) || 0) + mainQty)
-  }
-
-  for (const [key, group] of oldGroups.entries()) {
-    const rows = await sql`
-      SELECT COALESCE(SUM(
-        CASE WHEN vh.vch_type = ${STOCK_IN_VCH_TYPE} THEN vi.quantity * COALESCE(pu.to_main_qnty, 1)
-        ELSE -(vi.quantity * COALESCE(pu.to_main_qnty, 1)) END
-      ), 0) AS available_main
-      FROM voucher_items_tbl vi
-      JOIN voucher_header_tbl vh ON vh.id = vi.voucher_id
-      LEFT JOIN units u ON u.unit_name = vi.unit
-      LEFT JOIN product_units pu ON pu.product_id = vi.product_id AND pu.unit_id = u.id
-      WHERE vi.product_id = ${group.productId}
-        AND vi.store_id = ${group.storeId}
-        AND COALESCE(vi.batch_number, '') = ${group.batchNumber}
-        AND COALESCE(vi.expiry_date::text, '') = ${group.expiryDate}
-        AND vh.status IN (1, 2)
-        AND vh.vch_type = ANY(${STOCK_VOUCHER_TYPES as unknown as number[]}::int[])
-        AND vh.id != ${voucherId}
-    `
-    const availableExcludingThis = Number((rows as any[])[0]?.available_main || 0)
-    const newContribution = newQtyByKey.get(key) || 0
-    const projected = availableExcludingThis + newContribution
-    if (projected < -1e-9) {
-      const expiryLabel = group.expiryDate ? ` ${group.expiryDate}` : ""
-      return `تعديل السند تسبب بوجود كميات سالبة لتاريخ الصلاحية${expiryLabel} - ${group.label}`
-    }
-  }
-
   return null
 }
+
+// حذف/إلغاء سند: إزالة مساهمته يجب ألا تجعل متاح أي دفعة لمسها سالباً (دفعة استُهلكت لاحقاً).
+export const validateVoucherDeletion = async (voucherId: number): Promise<string | null> => {
+  const header = ((await sql`SELECT to_store_id, from_store_id FROM voucher_header_tbl WHERE id = ${voucherId}`) as any[])[0]
+  const lines = ((await sql`SELECT * FROM voucher_items_tbl WHERE voucher_id = ${voucherId}`) as any[])
+    .map((item) => lotLineOf(item, header?.to_store_id ?? header?.from_store_id))
+    .filter(isTrackedLot)
+  const seen = new Set<string>()
+  for (const line of lines) {
+    const key = lotGroupKey(line)
+    if (seen.has(key)) continue
+    seen.add(key)
+    const available = await lotAvailable({ productId: line.productId, warehouseId: line.storeId, batchNo: line.batchNumber, expiryDate: line.expiryDate, excludeVoucherId: voucherId })
+    if (available < -1e-9) return `لا يمكن حذف/إلغاء السند: كمية الصنف ${line.label}${lotLabel(line)} مُستهلَكة بالفعل في سند آخر`
+  }
+  return null
+}
+
+
 
 // تاريخ صلاحية اصطلاحي يُسجَّل للأصناف غير المتتبَّعة (has_expiry_date=false) بدل NULL — يُبقي كل
 // سطور voucher_items_tbl تحمل قيمة موحَّدة قابلة للمقارنة/التجميع دوماً (تُستخدَم كمفتاح تجميع في
@@ -658,61 +589,6 @@ export const saveVoucherItems = async (voucherId: number, items: any[]) => {
   return rows.map((row, index) => ({ ...row, id: insertedIds[index] }))
 }
 
-// عند حذف سند فعلياً (مسودة، archiveAndDeleteStockVoucher) أو إلغائه منطقياً (status=3 لسند
-// مُرحَّل، PUT أدناه) — يتحقق أن إزالة مساهمة هذا السند من ledger كل مجموعة (صنف، مستودع، دفعة،
-// تاريخ صلاحية) لمسها أحد سطوره لن تجعل "المتاح" لتلك المجموعة سالباً. الحالة الفعلية الوحيدة
-// القابلة للحدوث عملياً: حذف/إلغاء سند ادخال بضاعة (IN) دفعةٌ منه استُهلِكت فعلاً (كلياً أو جزئياً)
-// عبر سند اخراج/استعمال/ارسالية داخلية آخر لاحق — حذف/إلغاء أي من الأنواع الثلاثة الأخرى (OUT) لا
-// يمكن أن يُسبِّب قيمة سالبة إطلاقاً (إعادة كمية للمتاح فقط تزيده لا تُنقِصه)، فيبقى هذا الفحص آمناً
-// وعديم الأثر تلقائياً لتلك الأنواع دون حاجة لتمييزها صراحةً.
-export const validateVoucherDeletion = async (voucherId: number): Promise<string | null> => {
-  const items = await sql`SELECT * FROM voucher_items_tbl WHERE voucher_id = ${voucherId}`
-  const trackedItems = (items as any[]).filter(
-    (i) => String(i.batch_number || "").trim() || (i.expiry_date && String(i.expiry_date).slice(0, 10) !== NO_EXPIRY_SENTINEL_DATE),
-  )
-  if (trackedItems.length === 0) return null
-
-  const groups = new Map<string, { productId: number; storeId: number; batchNumber: string; expiryDate: string; label: string }>()
-  for (const item of trackedItems) {
-    const productId = Number(item.product_id)
-    const storeId = Number(item.stor)
-    if (!productId || !storeId) continue
-    const batchNumber = String(item.batch_number || "").trim()
-    const expiryDate = item.expiry_date ? String(item.expiry_date).slice(0, 10) : ""
-    const key = `${productId}|${storeId}|${batchNumber}|${expiryDate}`
-    if (!groups.has(key)) {
-      groups.set(key, { productId, storeId, batchNumber, expiryDate, label: item.product_name || item.product_code || "" })
-    }
-  }
-
-  for (const group of groups.values()) {
-    const rows = await sql`
-      SELECT COALESCE(SUM(
-        CASE WHEN vh.vch_type = ${STOCK_IN_VCH_TYPE} THEN vi.quantity * COALESCE(pu.to_main_qnty, 1)
-        ELSE -(vi.quantity * COALESCE(pu.to_main_qnty, 1)) END
-      ), 0) AS available_main
-      FROM voucher_items_tbl vi
-      JOIN voucher_header_tbl vh ON vh.id = vi.voucher_id
-      LEFT JOIN units u ON u.unit_name = vi.unit
-      LEFT JOIN product_units pu ON pu.product_id = vi.product_id AND pu.unit_id = u.id
-      WHERE vi.product_id = ${group.productId}
-        AND vi.store_id = ${group.storeId}
-        AND COALESCE(vi.batch_number, '') = ${group.batchNumber}
-        AND COALESCE(vi.expiry_date::text, '') = ${group.expiryDate}
-        AND vh.status IN (1, 2)
-        AND vh.vch_type = ANY(${STOCK_VOUCHER_TYPES as unknown as number[]}::int[])
-        AND vh.id != ${voucherId}
-    `
-    const availableExcludingThis = Number((rows as any[])[0]?.available_main || 0)
-    if (availableExcludingThis < -1e-9) {
-      const batchLabel = group.batchNumber ? ` - دفعة ${group.batchNumber}` : ""
-      const expiryLabel = group.expiryDate ? ` - صلاحية ${group.expiryDate}` : ""
-      return `لا يمكن حذف/إلغاء السند: كمية الصنف ${group.label}${batchLabel}${expiryLabel} مُستهلَكة بالفعل في سند آخر`
-    }
-  }
-
-  return null
-}
 
 export const fetchVoucherItems = async (voucherId: number) => {
   // voucher_items_tbl يخزّن المعرّفات فقط (store_id وغيرها من حقول السطر) — تُجلَب هنا عبر JOIN

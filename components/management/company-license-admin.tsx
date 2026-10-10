@@ -1,13 +1,13 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Building2, Check, Edit, Loader2, Save, Users, X } from "lucide-react"
+import { Building2, Check, Edit, Loader2, Monitor, Save, Users, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
-type Usage = { users: number; branches: number } | null | undefined
-export type LicensedCompany = { id: number; number_of_users?: number; number_of_branches?: number; usage?: Usage; pending_license_requests?: number; status: string }
+type Usage = { users: number; branches: number; pos_points?: number } | null | undefined
+export type LicensedCompany = { id: number; number_of_users?: number; number_of_branches?: number; number_of_pos_points?: number; usage?: Usage; pending_license_requests?: number; status: string }
 
-const RESOURCE_LABEL: Record<string, string> = { users: "المستخدمين", branches: "الفروع" }
+const RESOURCE_LABEL: Record<string, string> = { users: "المستخدمين", branches: "الفروع", pos_points: "نقاط البيع" }
 
 function Meter({ icon: Icon, label, used, limit }: { icon: typeof Users; label: string; used: number | null; limit: number }) {
   const ratio = used == null ? 0 : Math.min(1, used / Math.max(limit, 1))
@@ -30,14 +30,15 @@ export function CompanyLicenseBar({ company, onSaved, onError }: { company: Lice
   const [editing, setEditing] = useState(false)
   const [users, setUsers] = useState(String(company.number_of_users ?? 1))
   const [branches, setBranches] = useState(String(company.number_of_branches ?? 1))
+  const [posPoints, setPosPoints] = useState(String(company.number_of_pos_points ?? 0))
   const [saving, setSaving] = useState(false)
-  useEffect(() => { setUsers(String(company.number_of_users ?? 1)); setBranches(String(company.number_of_branches ?? 1)) }, [company.number_of_users, company.number_of_branches])
+  useEffect(() => { setUsers(String(company.number_of_users ?? 1)); setBranches(String(company.number_of_branches ?? 1)); setPosPoints(String(company.number_of_pos_points ?? 0)) }, [company.number_of_users, company.number_of_branches, company.number_of_pos_points])
   if (company.status === "pending" || company.status === "rejected") return null
 
   const save = async () => {
     setSaving(true)
     try {
-      const response = await fetch(`/api/management/admin/companies/${company.id}/license`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ number_of_users: Number(users), number_of_branches: Number(branches) }) })
+      const response = await fetch(`/api/management/admin/companies/${company.id}/license`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ number_of_users: Number(users), number_of_branches: Number(branches), number_of_pos_points: Number(posPoints) }) })
       const data = await response.json().catch(() => ({}))
       if (!response.ok) { onError(data.error || "تعذر تحديث الترخيص"); return }
       setEditing(false); onSaved()
@@ -54,6 +55,9 @@ export function CompanyLicenseBar({ company, onSaved, onError }: { company: Lice
           <label className="text-xs text-slate-600">عدد الفروع المرخّص
             <input type="number" min={1} value={branches} onChange={(event) => setBranches(event.target.value)} className="mt-1 block w-32 rounded-lg border border-slate-200 px-2 py-1.5 text-sm" />
           </label>
+          <label className="text-xs text-slate-600">عدد نقاط البيع المرخّص
+            <input type="number" min={0} value={posPoints} onChange={(event) => setPosPoints(event.target.value)} className="mt-1 block w-32 rounded-lg border border-slate-200 px-2 py-1.5 text-sm" />
+          </label>
           <Button size="sm" className="gap-1" disabled={saving} onClick={() => void save()}>{saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}حفظ</Button>
           <Button size="sm" variant="outline" disabled={saving} onClick={() => setEditing(false)}>إلغاء</Button>
         </div>
@@ -61,6 +65,7 @@ export function CompanyLicenseBar({ company, onSaved, onError }: { company: Lice
         <div className="flex flex-wrap items-center gap-4">
           <Meter icon={Users} label="المستخدمون" used={company.usage?.users ?? null} limit={Number(company.number_of_users ?? 1)} />
           <Meter icon={Building2} label="الفروع" used={company.usage?.branches ?? null} limit={Number(company.number_of_branches ?? 1)} />
+          <Meter icon={Monitor} label="نقاط البيع" used={company.usage?.pos_points ?? null} limit={Number(company.number_of_pos_points ?? 0)} />
           {!!company.pending_license_requests && <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-inset ring-amber-200">{company.pending_license_requests} طلب زيادة معلق</span>}
           <Button size="sm" variant="outline" className="gap-1" onClick={() => setEditing(true)}><Edit className="h-3.5 w-3.5" />تعديل الترخيص</Button>
         </div>
@@ -70,10 +75,10 @@ export function CompanyLicenseBar({ company, onSaved, onError }: { company: Lice
 }
 
 type LicenseRequest = {
-  id: number; company_name: string; resource: "users" | "branches"; quantity: number; approved_quantity: number | null
+  id: number; company_name: string; resource: "users" | "branches" | "pos_points"; quantity: number; approved_quantity: number | null
   limit_before: number | null; used_at_request: number | null; reason: string | null; status: "pending" | "approved" | "rejected"
   requested_by_name: string | null; requested_by_email: string | null; created_at: string; decided_at: string | null
-  decision_note: string | null; decided_by_name: string | null; number_of_users: number; number_of_branches: number
+  decision_note: string | null; decided_by_name: string | null; number_of_users: number; number_of_branches: number; number_of_pos_points?: number
 }
 
 /** تبويب "طلبات الترخيص": اعتماد طلبات زيادة المستخدمين/الفروع (بعدد قابل للتعديل) أو رفضها بسبب. */
@@ -125,7 +130,7 @@ export function LicenseRequestsPanel({ onChanged }: { onChanged?: () => void }) 
       {error && <p className="text-sm text-red-600">{error}</p>}
       {!loading && rows.length === 0 && <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center text-slate-400">لا توجد طلبات</div>}
       {rows.map((row) => {
-        const currentLimit = row.resource === "users" ? row.number_of_users : row.number_of_branches
+        const currentLimit = row.resource === "users" ? row.number_of_users : row.resource === "pos_points" ? Number(row.number_of_pos_points ?? 0) : row.number_of_branches
         const quantity = quantities[row.id] ?? String(row.quantity)
         return (
           <div key={row.id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">

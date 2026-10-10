@@ -71,6 +71,7 @@ export default function ManagementCompaniesPage() {
   const [newCompanyName, setNewCompanyName] = useState("")
   const [newCompanyUsers, setNewCompanyUsers] = useState("1")
   const [newCompanyBranches, setNewCompanyBranches] = useState("1")
+  const [newCompanyPosPoints, setNewCompanyPosPoints] = useState("0")
   const [saving, setSaving] = useState(false)
   const [selecting, setSelecting] = useState<number | null>(null)
   const [error, setError] = useState("")
@@ -121,7 +122,7 @@ export default function ManagementCompaniesPage() {
       const res = await fetch("/api/management/companies", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: newCompanyName.trim(), number_of_users: Number(newCompanyUsers), number_of_branches: Number(newCompanyBranches) }),
+        body: JSON.stringify({ name: newCompanyName.trim(), number_of_users: Number(newCompanyUsers), number_of_branches: Number(newCompanyBranches), number_of_pos_points: Number(newCompanyPosPoints || 0) }),
       })
       const data = await res.json()
       if (!res.ok) {
@@ -130,6 +131,7 @@ export default function ManagementCompaniesPage() {
       }
       setShowAddDialog(false)
       setNewCompanyName("")
+      setNewCompanyPosPoints("0")
       await loadCompanies()
     } catch {
       toast({ title: "خطأ", description: "تعذّر الاتصال بالخادم", variant: "destructive" })
@@ -377,7 +379,7 @@ export default function ManagementCompaniesPage() {
             <Label>اسم الشركة</Label>
             <Input value={newCompanyName} onChange={(e) => setNewCompanyName(e.target.value)} className="text-right" autoFocus />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div className="space-y-2">
               <Label>عدد المستخدمين</Label>
               <Input type="number" min={1} value={newCompanyUsers} onChange={(e) => setNewCompanyUsers(e.target.value)} className="text-right" />
@@ -386,13 +388,17 @@ export default function ManagementCompaniesPage() {
               <Label>عدد الفروع</Label>
               <Input type="number" min={1} value={newCompanyBranches} onChange={(e) => setNewCompanyBranches(e.target.value)} className="text-right" />
             </div>
+            <div className="space-y-2">
+              <Label>عدد نقاط البيع</Label>
+              <Input type="number" min={0} value={newCompanyPosPoints} onChange={(e) => setNewCompanyPosPoints(e.target.value)} className="text-right" />
+            </div>
           </div>
           <p className="text-xs text-muted-foreground">العدد المطلوب للترخيص — يُعتمد مع طلب الشركة من إدارة النظام ويمكن زيادته لاحقاً.</p>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowAddDialog(false)}>
               إلغاء
             </Button>
-            <Button onClick={handleAddCompany} disabled={saving || !newCompanyName.trim() || !(Number(newCompanyUsers) >= 1) || !(Number(newCompanyBranches) >= 1)}>
+            <Button onClick={handleAddCompany} disabled={saving || !newCompanyName.trim() || !(Number(newCompanyUsers) >= 1) || !(Number(newCompanyBranches) >= 1) || !(Number(newCompanyPosPoints || 0) >= 0)}>
               {saving ? "جاري الإنشاء..." : "إنشاء"}
             </Button>
           </DialogFooter>

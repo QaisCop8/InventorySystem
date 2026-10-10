@@ -1,13 +1,16 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { resolveActingUserId, unauthenticated } from "../../../_auth"
 import { adminTransferTask } from "@/lib/task-orders"
 
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const data = await request.json()
-    if (!data.userId || !data.reason) {
-      return NextResponse.json({ error: "معرف المستخدم وسبب التحويل مطلوبان" }, { status: 400 })
+    const actingUserId = await resolveActingUserId(request)
+    if (!actingUserId) return unauthenticated()
+    if (!data.reason) {
+      return NextResponse.json({ error: "سبب التحويل مطلوب" }, { status: 400 })
     }
-    const item = await adminTransferTask(Number(params.id), String(data.userId), {
+    const item = await adminTransferTask(Number(params.id), actingUserId, {
       toSectionId: data.toSectionId ? Number(data.toSectionId) : null,
       toUserId: data.toUserId ? String(data.toUserId) : null,
       reason: data.reason,

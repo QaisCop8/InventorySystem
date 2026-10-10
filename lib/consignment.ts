@@ -156,7 +156,36 @@ export async function validateFromConsignment(params: { vchType: number; items: 
     if (!line) return { error: "سطر غير موجود في الارسالية" }
     if (amount - line.remaining > 1e-6) return { error: `الكمية للصنف ${line.product_name} (${amount}) أكبر من المتبقي في الارسالية (${line.remaining})` }
   }
+  // المرتجع يُغلق الارسالية نهائياً (مرتجع واحد لكل ارسالية) — فيجب أن يرجع كل المتبقي من كل سطر
+  // بالكامل، وإلا تبقى كمية "معلّقة" لا يمكن فوترتها ولا إرجاعها لاحقاً.
+  if (params.vchType === CONSIGNMENT_RETURN_VCH_TYPE) {
+    for (const line of lines) {
+      if (line.remaining <= 1e-6) continue
+      const amount = requested.get(line.id) || 0
+      if (Math.abs(amount - line.remaining) > 1e-6) {
+        return { error: `يجب إرجاع كل المتبقي من الارسالية: الصنف ${line.product_name} متبقٍ ${line.remaining} والمرتجع ${amount}` }
+      }
+    }
+  }
   return { consignment }
+}
+
+/**
+ * قبل حذف/إلغاء سند صادر من ارسالية برسم البيع (فاتورة "من ارسالية"): إن وُجد مرتجع غير ملغى لنفس
+ * الارسالية يُمنع — المرتجع أُخذ بالمتبقي وقت إنشائه، وحذف الفاتورة يُعيد كميتها للمتبقي فتختلّ الارسالية.
+ */
+export async function consignmentReturnBlocksDeletion(voucherId: number) {
+  const rows = await sql`
+    SELECT DISTINCT rh.vch_code
+    FROM voucher_items_tbl vi
+    JOIN voucher_items_tbl ci ON ci.id = vi.delivery_item_id
+    JOIN voucher_header_tbl ch ON ch.id = ci.voucher_id AND ch.vch_type = ${CONSIGNMENT_VCH_TYPE}
+    JOIN voucher_items_tbl ri ON ri.delivery_item_id IN (SELECT id FROM voucher_items_tbl WHERE voucher_id = ch.id)
+    JOIN voucher_header_tbl rh ON rh.id = ri.voucher_id AND rh.vch_type = ${CONSIGNMENT_RETURN_VCH_TYPE} AND COALESCE(rh.status, 1) <> 3
+    WHERE vi.voucher_id = ${voucherId} AND rh.id <> ${voucherId}
+    LIMIT 1
+  `
+  return (rows as any[]).length ? "تم عمل مرتجع من الارسالية لا يمكن حذف الفاتورة يجب حذف المرتجع اولا" : null
 }
 
 /** قبل حذف/إلغاء/تعديل ارسالية: هل عليها فواتير أو مرتجع غير ملغى؟ */

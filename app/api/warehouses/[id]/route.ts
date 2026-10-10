@@ -1,6 +1,7 @@
 import { type NextRequest } from "next/server"
 import { NextResponse } from "next/server"
 import sql from "@/lib/database"
+import { saveWarehouseCostCenters } from "@/lib/cost-center-defaults"
 async function ensureWarehousesTable() {
   await sql`
     CREATE TABLE IF NOT EXISTS warehouses (
@@ -46,6 +47,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       return NextResponse.json({ error: "المستودع غير موجود" }, { status: 404 })
     }
 
+    await saveWarehouseCostCenters(id, data.cost_centers)
     return NextResponse.json(result[0])
   } catch (error) {
     console.error("Error updating warehouse:", error)

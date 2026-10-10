@@ -35,6 +35,8 @@ import PrimeDropdown from "@/components/common/FocusDropdown"
 import { useAuth } from "@/components/auth/auth-context"
 import TransactionBranchField from "@/components/common/transaction-branch-field"
 import { useWorkspaceTabActive } from "@/contexts/workspace-tab-context"
+import { useNavigationGuard } from "@/lib/navigation-guard"
+import { VoucherSearchButton, VoucherSearchDialog } from "@/components/common/voucher-search-dialog"
 
 export interface VoucherJournalRow {
   account_id: number | null
@@ -574,6 +576,25 @@ export default function UnifiedReceiptVoucher({
       action()
     }
   }
+  // تبديل الشاشة من القائمة/إغلاق التبويب/رجوع المتصفح/تحديث الصفحة مع تغييرات غير محفوظة ⇐ نفس نافذة
+  // التحقق من التغييرات (حفظ/عدم حفظ/إلغاء) — كما في كاشير نقطة البيع (lib/navigation-guard.ts)
+  useNavigationGuard(
+    () => dialogOpen && ![2, 3].includes(Number(form.status)) && hashForm(form) !== initialFormHashRef.current,
+    (continueNavigation) => guardedAction(continueNavigation),
+  )
+
+  // بحث السندات (زر بجانب رقم السند): اختيار سند يمرّ بنافذة التحقق من التغييرات ثم يعرضه
+  const [voucherSearchOpen, setVoucherSearchOpen] = useState(false)
+  const openSearchedVoucher = (voucherId: number) => guardedAction(async () => {
+    const response = await fetch(`/api/receipts/${voucherId}`, { cache: "no-store" })
+    const record = await response.json().catch(() => null)
+    if (!response.ok || !record?.id) {
+      messagesRef.current?.show?.([{ severity: "error", summary: "", detail: record?.error || "تعذر عرض السند", life: 3000 }])
+      return
+    }
+    onNavigateRecord?.(record)
+  })
+
 
   // كتابة يدوية في رقم السند (مثال R1 أو 1 فقط) تُعاد صياغتها دائماً كـ {بادئة}{رمز الدفتر}
   // {تسلسل مبطّن} عبر /resolve-code، ثم يُعرض السند إن كان موجوداً بهذا الرقم (بعد التأكد من عدم
@@ -1982,14 +2003,17 @@ export default function UnifiedReceiptVoucher({
                     </div>
                     <div className="grid gap-1.5">
                       <Label htmlFor="vch-code">رقم السند *</Label>
-                      <Input
-                        id="vch-code"
-                        value={form.vch_code}
-                        onFocus={() => { codeAtFocusRef.current = form.vch_code }}
-                        onChange={(e) => onFormChange("vch_code", normalizeVoucherCode(e.target.value))}
-                        onBlur={handleCodeBlur}
-                        maxLength={10}
-                      />
+                      <div className="flex min-w-0 items-center gap-1.5">
+                        <Input
+                          id="vch-code"
+                          value={form.vch_code}
+                          onFocus={() => { codeAtFocusRef.current = form.vch_code }}
+                          onChange={(e) => onFormChange("vch_code", normalizeVoucherCode(e.target.value))}
+                          onBlur={handleCodeBlur}
+                          maxLength={10}
+                        />
+                        <VoucherSearchButton onClick={() => setVoucherSearchOpen(true)} />
+                      </div>
                     </div>
                     <div className="grid gap-1.5">
                       <Label htmlFor="vch-date">تاريخ السند *</Label>
@@ -2611,6 +2635,14 @@ export default function UnifiedReceiptVoucher({
         onCancel={onCancelDelete}
       />
 
+      <VoucherSearchDialog
+        open={voucherSearchOpen}
+        onOpenChange={setVoucherSearchOpen}
+        vchType={Number(form.vch_type)}
+        title={isReceipt ? "سندات القبض" : "سندات الصرف"}
+        accountLabel={customerLabel}
+        onSelect={(voucherId) => void openSearchedVoucher(voucherId)}
+      />
       <ConfirmDialogYesNo
         useAppDialog
         title="حفظ التغييرات"

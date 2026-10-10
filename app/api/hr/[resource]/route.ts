@@ -7,7 +7,7 @@ import {
   unregisterAttendanceDevice,
 } from "@/lib/attendance-device-registry"
 import { ensureTables as ensureVoucherTables, saveJournalRows, JOURNAL_TYPE_COUNTER_ACCOUNT } from "@/app/api/receipts/_lib"
-import { buildVoucherCode } from "@/lib/voucher-code"
+import { JournalDefaultsError, nextJournalVoucherCode, resolveUserDefaultJournalBook, type JournalBookContext } from "@/lib/journal-defaults"
 import { authorizeTransaction } from "@/lib/transaction-permissions"
 import { getSessionUser } from "@/lib/tenant-auth"
 
@@ -387,28 +387,18 @@ export async function POST(request: NextRequest, { params }: { params: { resourc
         if (!authorization.ok) return authorization.response
         const postingAuthorization = await authorizeTransaction(request, "journal", "post", authorization.branchId)
         if (!postingAuthorization.ok) return postingAuthorization.response
-        const userSetting = (await sql`SELECT id FROM user_settings WHERE user_id=${authorization.userId} LIMIT 1`)[0]
-        if (!userSetting?.id) return NextResponse.json({ error: "تعذر تحديد المستخدم الذي ينفذ قيد الراتب" }, { status: 400 })
-        const bookPermission = (await sql`
-          SELECT p.vch_book_id,b.name
-          FROM voucher_book_user_permissions_tbl p
-          JOIN voucher_books_tbl b ON b.id=p.vch_book_id
-          WHERE p.user_id=${userSetting.id} AND p.voucher_type_id=3
-          ORDER BY COALESCE(p.is_default,0) DESC,p.vch_book_id
-          LIMIT 1
-        `)[0]
-        if (!bookPermission?.vch_book_id) return NextResponse.json({ error: "يجب تحديد دفتر سندات افتراضي لسند القيد للمستخدم" }, { status: 400 })
-        const numberSettings = await sql`SELECT id,value FROM system_settings WHERE id IN ('journal_prefix','journal_start')`
-        const settingValues = Object.fromEntries(numberSettings.map((row: any) => [row.id,row.value]))
-        const prefix = /^[A-Z]{1,3}$/.test(String(settingValues.journal_prefix || "J").trim().toUpperCase()) ? String(settingValues.journal_prefix || "J").trim().toUpperCase() : "J"
-        const startNumber = Math.max(1,Number(settingValues.journal_start)||1)
-        const codePrefix = `${prefix}${bookPermission.name}`
-        const existingCodes = await sql`SELECT vch_code FROM voucher_header_tbl WHERE vch_type=3 AND vch_code LIKE ${codePrefix+"%"}`
-        const maximum = existingCodes.reduce((max: number,row: any) => { const suffix=String(row.vch_code||"").slice(codePrefix.length); return Math.max(max,Number(suffix.match(/(\d+)$/)?.[1]||0)) },0)
-        const code = buildVoucherCode(prefix,String(bookPermission.name),Math.max(startNumber,maximum+1))
+        // الدفتر الافتراضي للمستخدم على سند القيد + الترقيم — نفس قاعدة كل القيود الآلية (lib/journal-defaults.ts)
+        let book: JournalBookContext
+        try {
+          book = await resolveUserDefaultJournalBook(authorization.userId)
+        } catch (error) {
+          if (error instanceof JournalDefaultsError) return NextResponse.json({ error: error.message }, { status: 400 })
+          throw error
+        }
+        const code = await nextJournalVoucherCode(book)
         const currencyId = Number(unposted[0].currency_id) || null
         const date = `${unposted[0].year}-${String(unposted[0].month).padStart(2,"0")}-${String(new Date(Number(unposted[0].year),Number(unposted[0].month),0).getDate()).padStart(2,"0")}`
-        const vouchers = await sql`INSERT INTO voucher_header_tbl(vch_type,vch_code,vch_date,vch_book_id,branch_id,currency_id,rate,amount,note,status,vch_status,is_printed,insert_user) VALUES(3,${code},${date},${bookPermission.vch_book_id},${authorization.branchId},${currencyId},1,${debit},${`قيد رواتب ${unposted[0].month}/${unposted[0].year}`},2,2,0,${userSetting.id}) RETURNING id,vch_code,vch_book_id,insert_user`
+        const vouchers = await sql`INSERT INTO voucher_header_tbl(vch_type,vch_code,vch_date,vch_book_id,branch_id,currency_id,rate,amount,note,status,vch_status,is_printed,insert_user) VALUES(3,${code},${date},${book.bookId},${authorization.branchId},${currencyId},1,${debit},${`قيد رواتب ${unposted[0].month}/${unposted[0].year}`},2,2,0,${book.userSettingId}) RETURNING id,vch_code,vch_book_id,insert_user`
         await saveJournalRows(Number(vouchers[0].id),journalRows)
         const ids = unposted.map((row: any) => Number(row.id))
         await sql`UPDATE payroll_tbl SET journal_id=${vouchers[0].id} WHERE id=ANY(${ids}::int[])`

@@ -1,11 +1,13 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { resolveActingUserId, unauthenticated } from "../../../_auth"
 import { completeTask } from "@/lib/task-orders"
 
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const data = await request.json()
-    if (!data.userId) return NextResponse.json({ error: "معرف المستخدم مطلوب" }, { status: 400 })
-    const item = await completeTask(Number(params.id), String(data.userId), data.note, !!data.force)
+    const actingUserId = await resolveActingUserId(request)
+    if (!actingUserId) return unauthenticated()
+    const item = await completeTask(Number(params.id), actingUserId, data.note, !!data.force)
     return NextResponse.json(item)
   } catch (error: any) {
     console.error("Error completing task:", error)

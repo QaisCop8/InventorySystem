@@ -140,22 +140,32 @@ export default function PersonalAssistantWizard() {
       .catch(() => undefined)
   }, [open, step])
 
+  // بيانات الشركة تُحمَّل عند خطوة "معلومات الشركة" نفسها (step = -1، أول خطوة) — كانت مشروطة بـstep === 0
+  // (خطوة العملات) فتبقى حقول الشركة فارغة رغم وجود بياناتها. تُقبل المفاتيح بالصيغتين (company_name /
+  // companyName) لبيانات قديمة حُفظت من شاشات أخرى.
   useEffect(() => {
-    if (!open || step !== 0) return
-    fetch("/api/settings/system")
+    if (!open || step !== -1) return
+    const pick = (data: any, ...keys: string[]) => {
+      for (const key of keys) {
+        const value = data?.[key]
+        if (value !== undefined && value !== null && String(value).trim() !== "") return String(value)
+      }
+      return ""
+    }
+    fetch("/api/settings/system", { cache: "no-store" })
       .then((response) => response.ok ? response.json() : {})
       .then((data: any) => setCompany({
-        companyName: String(data?.company_name ?? ""),
-        companyNameEn: String(data?.company_name_en ?? ""),
-        licensedWorkerNumber: String(data?.licensed_worker_number ?? ""),
-        taxNumber: String(data?.tax_number ?? ""),
-        commercialRegister: String(data?.commercial_register ?? ""),
-        address: String(data?.company_address ?? ""),
-        phone: String(data?.company_phone ?? ""),
-        email: String(data?.company_email ?? ""),
-        website: String(data?.company_website ?? ""),
+        companyName: pick(data, "company_name", "companyName"),
+        companyNameEn: pick(data, "company_name_en", "companyNameEn"),
+        licensedWorkerNumber: pick(data, "licensed_worker_number", "licensedWorkerNumber"),
+        taxNumber: pick(data, "tax_number", "taxNumber"),
+        commercialRegister: pick(data, "commercial_register", "commercialRegister"),
+        address: pick(data, "company_address", "companyAddress", "address"),
+        phone: pick(data, "company_phone", "companyPhone", "phone"),
+        email: pick(data, "company_email", "companyEmail", "email"),
+        website: pick(data, "company_website", "companyWebsite", "website"),
       }))
-      .catch(() => setCompany({ companyName: "", companyNameEn: "", licensedWorkerNumber: "", taxNumber: "", commercialRegister: "", address: "", phone: "", email: "", website: "" }))
+      .catch(() => undefined)
   }, [open, step])
 
   useEffect(() => {
@@ -328,8 +338,12 @@ export default function PersonalAssistantWizard() {
 
   const loadLookupRecords = async (definition: typeof lookupDefinitions[number]) => {
     const response = await fetch(definition.endpoint)
-    if (!response.ok) return
-    const data = await response.json()
+    const data = await response.json().catch(() => null)
+    // فشل التحميل كان يُتجاهل بصمت — فتظهر القائمة فارغة رغم نجاح الحفظ (وتسمح بتكرار الاسم نفسه)
+    if (!response.ok) {
+      showResult("error", data?.error || `تعذر تحميل ${definition.label}`)
+      return
+    }
     const rows = Array.isArray(data)
       ? data
       : Array.isArray(data?.data)
@@ -595,7 +609,7 @@ export default function PersonalAssistantWizard() {
 
         <footer className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-slate-200 bg-white px-3 py-2 sm:gap-3 sm:px-5 sm:py-4">
           <Button variant="ghost" onClick={() => setConfirmDismiss(true)} className="text-slate-500 hover:bg-red-50 hover:text-red-700">عدم الإظهار مجدداً</Button>
-          <div className="flex gap-2"><Button variant="outline" onClick={postpone} className="rounded-xl">تأجيل</Button>{step > -1 && <Button variant="outline" onClick={() => void move(step - 1)} className="rounded-xl"><ArrowRight className="ml-2 h-4 w-4" />السابق</Button>}<Button onClick={() => step === 7 ? void finish() : void move(step + 1)} className={`rounded-xl bg-gradient-to-l ${steps[displayStep].color} px-6 text-white`}>{step === 7 ? "إنهاء" : "التالي"}{step < 7 && <ArrowLeft className="mr-2 h-4 w-4" />}</Button></div>
+          <div className="flex gap-2"><Button variant="outline" onClick={postpone} className="rounded-xl">تأجيل</Button>{step > -1 && <Button variant="outline" onClick={() => void move(step - 1)} className="rounded-xl"><ArrowRight className="ml-2 h-4 w-4" />السابق</Button>}<Button onClick={() => step === 7 ? void finish() : void move(step + 1)} className="rounded-xl bg-gradient-to-l from-emerald-600 to-teal-600 px-6 font-bold text-white shadow-sm hover:from-emerald-700 hover:to-teal-700">{step === 7 ? "إنهاء" : "التالي"}{step < 7 && <ArrowLeft className="mr-2 h-4 w-4" />}</Button></div>
         </footer>
     </div>
     <AccountsImportDialog open={importDialog === "accounts"} templateType={accountTemplate} onOpenChange={(value) => { if (!value) setImportDialog(null) }} onImported={() => { void refreshSavedAccounts() }} />
@@ -604,7 +618,7 @@ export default function PersonalAssistantWizard() {
     <ConfirmDialogYesNo visible={confirmDismiss} message="هل أنت متأكد؟ لن تستطيع الرجوع إلى البداية السريعة في حال التأكيد" onCancel={() => setConfirmDismiss(false)} onConfirm={() => { setConfirmDismiss(false); void saveProgress(step, true, false).then(() => router.push("/")) }} />
     <style jsx global>{`
       .rounded-2xl.border.border-slate-200 > .bg-slate-900 {
-        background: linear-gradient(to left, #6d28d9, #4f46e5);
+        background: linear-gradient(to left, #047857, #0d9488);
       }
       main.flex > div.flex > section.rounded-3xl.border-slate-200 {
         width: 100%;
@@ -660,7 +674,7 @@ function LookupTabs({ activeKey, onTabChange, values, onValueChange, records, bu
   // الأقسام تُعرض مع فرعها
   const getName = (row: any) => (active.key === "department" && row?.branch_name ? `${baseName(row)} — ${row.branch_name}` : baseName(row))
 
-  return <section className="flex min-h-[500px] w-full flex-1 flex-col overflow-hidden rounded-3xl border border-violet-100 bg-white shadow-sm md:min-h-0"><div className="flex shrink-0 gap-2 overflow-x-auto border-b border-violet-100 bg-violet-50/70 p-3">{lookupDefinitions.map((definition) => <button key={definition.key} type="button" onClick={() => onTabChange(definition.key)} className={`shrink-0 rounded-xl px-4 py-2 text-sm font-bold transition ${active.key === definition.key ? "bg-violet-600 text-white shadow-md" : "bg-white text-slate-600 hover:bg-violet-100"}`}>{definition.label}<span className={`mr-2 rounded-full px-2 py-0.5 text-[10px] ${active.key === definition.key ? "bg-white/20" : "bg-slate-100"}`}>{(records[definition.key] || []).length}</span></button>)}</div><div className="flex min-h-0 flex-1 flex-col p-3 sm:p-5"><div className="mb-3 shrink-0 rounded-2xl border border-violet-100 bg-slate-50/70 p-3 sm:mb-5 sm:p-4">{extraFor[active.key] && <div className="mb-3">{extraFor[active.key]}</div>}<Label className="mb-2 block font-bold text-slate-800">إضافة {active.label}</Label><div className="flex flex-wrap gap-2 sm:flex-nowrap">{inlineFor[active.key]}<Input value={values[active.key] || ""} onChange={(event) => onValueChange(active.key, event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") void onAdd(active) }} className="h-11 rounded-xl bg-white" placeholder={`اسم ${active.label}`} /><Button disabled={busy || !String(values[active.key] || "").trim()} onClick={() => void onAdd(active)} className="h-11 rounded-xl bg-violet-600 px-4 hover:bg-violet-700 sm:px-6">إضافة</Button></div></div><div className="flex min-h-[230px] flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200 md:min-h-0"><div className="flex shrink-0 items-center justify-between bg-slate-900 px-4 py-3 text-white"><h4 className="font-bold">السجلات المحفوظة</h4><span className="rounded-full bg-white/15 px-3 py-1 text-xs">{rows.length} سجل</span></div>{rows.length === 0 ? <div className="flex flex-1 items-center justify-center px-3 text-center text-sm text-slate-400">لا توجد سجلات محفوظة في هذا التبويب</div> : <div className="min-h-0 flex-1 overflow-auto"><table className="w-full text-sm"><thead className="sticky top-0 bg-slate-100 text-slate-600"><tr><th className="w-20 px-4 py-3 text-right">#</th><th className="px-4 py-3 text-right">الاسم</th></tr></thead><tbody>{rows.map((row, index) => <tr key={row?.id ?? `${active.key}-${index}`} className="border-t border-slate-100 even:bg-slate-50/70"><td className="px-4 py-3 text-slate-400">{index + 1}</td><td className="px-4 py-3 font-semibold text-slate-800">{getName(row) || "-"}</td></tr>)}</tbody></table></div>}</div></div></section>
+  return <section className="flex min-h-[500px] w-full flex-1 flex-col overflow-hidden rounded-3xl border border-emerald-100 bg-white shadow-sm md:min-h-0"><div className="flex shrink-0 gap-2 overflow-x-auto border-b border-emerald-100 bg-emerald-50/70 p-3">{lookupDefinitions.map((definition) => <button key={definition.key} type="button" onClick={() => onTabChange(definition.key)} className={`shrink-0 rounded-xl px-4 py-2 text-sm font-bold transition ${active.key === definition.key ? "bg-emerald-600 text-white shadow-md" : "bg-white text-slate-600 hover:bg-emerald-100"}`}>{definition.label}<span className={`mr-2 rounded-full px-2 py-0.5 text-[10px] ${active.key === definition.key ? "bg-white/20" : "bg-slate-100"}`}>{(records[definition.key] || []).length}</span></button>)}</div><div className="flex min-h-0 flex-1 flex-col p-3 sm:p-5"><div className="mb-3 shrink-0 rounded-2xl border border-emerald-100 bg-slate-50/70 p-3 sm:mb-5 sm:p-4">{extraFor[active.key] && <div className="mb-3">{extraFor[active.key]}</div>}<Label className="mb-2 block font-bold text-slate-800">إضافة {active.label}</Label><div className="flex flex-wrap gap-2 sm:flex-nowrap">{inlineFor[active.key]}<Input value={values[active.key] || ""} onChange={(event) => onValueChange(active.key, event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") void onAdd(active) }} className="h-11 rounded-xl bg-white" placeholder={`اسم ${active.label}`} /><Button disabled={busy || !String(values[active.key] || "").trim()} onClick={() => void onAdd(active)} className="h-11 rounded-xl bg-emerald-600 px-4 font-bold hover:bg-emerald-700 sm:px-6">إضافة</Button></div></div><div className="flex min-h-[230px] flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200 md:min-h-0"><div className="flex shrink-0 items-center justify-between bg-slate-900 px-4 py-3 text-white"><h4 className="font-bold">السجلات المحفوظة</h4><span className="rounded-full bg-white/15 px-3 py-1 text-xs">{rows.length} سجل</span></div>{rows.length === 0 ? <div className="flex flex-1 items-center justify-center px-3 text-center text-sm text-slate-400">لا توجد سجلات محفوظة في هذا التبويب</div> : <div className="min-h-0 flex-1 overflow-auto"><table className="w-full text-sm"><thead className="sticky top-0 bg-slate-100 text-slate-600"><tr><th className="w-20 px-4 py-3 text-right">#</th><th className="px-4 py-3 text-right">الاسم</th></tr></thead><tbody>{rows.map((row, index) => <tr key={row?.id ?? `${active.key}-${index}`} className="border-t border-slate-100 even:bg-slate-50/70"><td className="px-4 py-3 text-slate-400">{index + 1}</td><td className="px-4 py-3 font-semibold text-slate-800">{getName(row) || "-"}</td></tr>)}</tbody></table></div>}</div></div></section>
 }
 
 function Field({ label, value, onChange, onBlur, placeholder, type = "text", maxLength, min, max, step, disabled }: { label: string; value: string; onChange: (value: string) => void; onBlur?: () => void; placeholder?: string; type?: string; maxLength?: number; min?: number; max?: number; step?: string; disabled?: boolean }) {
@@ -672,7 +686,7 @@ function NativeSelect({ label, value, onChange, options, emptyLabel = "اختر"
 }
 
 function AddButton({ busy, onClick, label }: { busy: boolean; onClick: () => void; label: string }) {
-  return <div className="flex items-end"><Button disabled={busy} onClick={onClick} className="h-11 w-full rounded-xl bg-slate-900 px-6 hover:bg-slate-800">{label}</Button></div>
+  return <div className="flex items-end"><Button disabled={busy} onClick={onClick} className="h-11 w-full rounded-xl bg-emerald-600 px-6 font-bold hover:bg-emerald-700">{label}</Button></div>
 }
 
 const currencyAccountFields = [

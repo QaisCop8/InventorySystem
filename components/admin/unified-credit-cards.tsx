@@ -10,6 +10,7 @@ import ConfirmDialogYesNo from "@/components/ui/ConfirmDialogYesNo"
 import Messages from "@/components/common/Messages"
 import AutoCompleteAccount from "@/components/customer/auto-complete-account"
 import { useWorkspaceTabActive } from "@/contexts/workspace-tab-context"
+import { useNavigationGuard } from "@/lib/navigation-guard"
 
 export interface CreditCardRecord {
   id: number
@@ -169,6 +170,13 @@ export default function UnifiedCreditCards({
       action()
     }
   }
+  // تبديل الشاشة من القائمة/إغلاق التبويب/رجوع المتصفح/تحديث الصفحة مع تغييرات غير محفوظة ⇐ نفس نافذة
+  // التحقق من التغييرات (حفظ/عدم حفظ/إلغاء) — كما في كاشير نقطة البيع (lib/navigation-guard.ts)
+  useNavigationGuard(
+    () => dialogOpen && JSON.stringify(form) !== initialSnapshotRef.current,
+    (continueNavigation) => guardedAction(continueNavigation),
+  )
+
 
   // F3 حفظ / F9 حذف / F4 نسخ / F5 جديد / Ctrl+P طباعة: يتولاها UniversalToolbar (lib/hotkeys.ts)
 

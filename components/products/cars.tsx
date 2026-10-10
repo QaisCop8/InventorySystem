@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Plus, Search, Car as CarIcon } from "lucide-react"
 import UnifiedCars, { type Car, type CarFormData } from "@/components/products/unified-cars"
 import ConfirmDialogYesNo from "@/components/ui/ConfirmDialogYesNo"
+import { useNavigationGuard } from "@/lib/navigation-guard"
 
 const buildEmptyForm = (): CarFormData => ({
   id: 0,
@@ -49,6 +50,7 @@ export default function Cars() {
   const [validationError, setValidationError] = useState("")
   const [showUnsavedConfirm, setShowUnsavedConfirm] = useState(false)
   const [pendingAction, setPendingAction] = useState<"new" | "close" | null>(null)
+  const navigationContinuationRef = useRef<(() => void) | null>(null)
   const initialFormHashRef = useRef("")
 
   const getFormHash = useCallback((value: CarFormData) => JSON.stringify(value), [])
@@ -184,7 +186,7 @@ export default function Cars() {
       } else {
         setValidationError("يرجى إدخال اسم السيارة")
       }
-      return
+      return false
     }
 
     setDeleteError("")
@@ -216,7 +218,7 @@ export default function Cars() {
       await fetchCars({ silent: true })
       if (options?.afterSaveAction === "close") {
         setDialogOpen(false)
-        return
+        return true
       }
 
       await initializeNewCarForm()
@@ -308,7 +310,10 @@ export default function Cars() {
     if (pendingAction === "new") {
       await saveCar({ afterSaveAction: "new" })
     } else if (pendingAction === "close") {
-      await saveCar({ afterSaveAction: "close" })
+      const saved = await saveCar({ afterSaveAction: "close" })
+      const continuation = navigationContinuationRef.current
+      navigationContinuationRef.current = null
+      if (saved && continuation) continuation()
     }
     setPendingAction(null)
   }, [pendingAction, saveCar])
@@ -321,12 +326,27 @@ export default function Cars() {
     } else if (pendingAction === "close") {
       void fetchCars()
       setDialogOpen(false)
+      const continuation = navigationContinuationRef.current
+      navigationContinuationRef.current = null
+      continuation?.()
     }
   }, [fetchCars, openNewCarDialog, pendingAction])
+
+  // تبديل الشاشة من القائمة/إغلاق التبويب/رجوع المتصفح/تحديث الصفحة مع تغييرات غير محفوظة ⇐ نفس نافذة
+  // التحقق (حفظ/عدم حفظ/إلغاء) — كما في كاشير نقطة البيع (lib/navigation-guard.ts)
+  useNavigationGuard(
+    () => dialogOpen && hasUnsavedChanges,
+    (continueNavigation) => {
+      navigationContinuationRef.current = continueNavigation
+      setPendingAction("close")
+      setShowUnsavedConfirm(true)
+    },
+  )
 
   const handleCancelUnsaved = useCallback(() => {
     setShowUnsavedConfirm(false)
     setPendingAction(null)
+    navigationContinuationRef.current = null
   }, [])
 
   const handleFormChange = useCallback((field: string, value: string) => {
@@ -447,7 +467,7 @@ export default function Cars() {
         showDeleteConfirm={showDeleteConfirm}
         onOpenChange={handleOpenChange}
         onNew={handleRequestNew}
-        onSave={saveCar}
+        onSave={async (options) => { await saveCar(options) }}
         onDelete={handleDelete}
         onNavigateRecord={handleNavigateRecord}
         onFormChange={handleFormChange}

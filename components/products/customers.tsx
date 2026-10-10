@@ -43,6 +43,7 @@ import DataGridView from "../common/DataGridView"
 import Util from "../common/Util"
 import UnifiedCustomers from "./unified-customers"
 import { ImageThumbnail } from "@/components/common/ImageUploadField"
+import { useNavigationGuard } from "@/lib/navigation-guard"
 interface CustomersProps {
   isSupplier?: boolean;
   isSubscriber?: boolean;
@@ -1586,6 +1587,13 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
       customer_name.current?.focus();
     }, 200);
   }
+  // تبديل الشاشة من القائمة/إغلاق التبويب/رجوع المتصفح/تحديث الصفحة مع تغييرات غير محفوظة ⇐ نفس نافذة
+  // التحقق من التغييرات — كما في كاشير نقطة البيع (lib/navigation-guard.ts)
+  useNavigationGuard(
+    () => Boolean(showNewCustomerDialog && isFormDirty()),
+    (continueNavigation) => runAfterUnsavedCheck(continueNavigation),
+  )
+
   const handleNewCustomer = async (checkUnsaved: boolean) => {
     const startNew = async () => {
       setShowNewCustomerDialog(true)

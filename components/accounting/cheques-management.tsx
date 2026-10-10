@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import AutoCompleteAccount from "@/components/customer/auto-complete-account"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import Messages from "@/components/common/Messages"
 import { Activity, ArrowLeftRight, Banknote, CalendarClock, CheckCircle2, ChevronLeft, CircleDollarSign, Download, Eye, FileClock, History, Landmark, Loader2, RefreshCcw, RotateCcw, Search, ShieldCheck, Undo2, WalletCards } from "lucide-react"
@@ -255,13 +256,26 @@ export function ChequeOperationsPage() {
               <div className="flex items-center justify-between gap-2 rounded-xl bg-violet-100 p-3 text-sm font-black text-violet-900 dark:bg-violet-900 dark:text-violet-100"><span>{operation.name}</span>{operation.createsJournal&&<span className="rounded-full bg-emerald-600 px-2.5 py-1 text-[10px] text-white">سيُنشأ سند قيد مرحّل</span>}</div>
               <Field label="تاريخ العملية" type="date" value={operationDate} onChange={setOperationDate}/>
               {operation.needsDate && <Field label="تاريخ الاستحقاق الجديد" type="date" value={newDueDate} onChange={setNewDueDate}/>}
-              {operation.needsAccount && <div>
-                <Label>{operation.accountKind === "bank" ? "حساب البنك" : "الحساب الجديد"}</Label>
+              {operation.needsAccount && operation.accountKind === "bank" && <div>
+                {/* حساب البنك هنا سجل من حسابات البنوك (bank_accounts) لا حساب محاسبي — يبقى قائمة اختيار */}
+                <Label>حساب البنك</Label>
                 <Select value={accountId} onValueChange={setAccountId}>
-                  <SelectTrigger className="mt-1 bg-white dark:bg-slate-950"><SelectValue placeholder="اختر الحساب"/></SelectTrigger>
+                  <SelectTrigger className="mt-1 bg-white dark:bg-slate-950"><SelectValue placeholder="اختر حساب البنك"/></SelectTrigger>
                   <SelectContent>{accountOptions.map(option => <SelectItem key={option.id} value={String(option.id)}>{option.code ? `${option.code} - ` : ""}{option.name}{option.bank_name ? ` · ${option.bank_name}` : ""}</SelectItem>)}</SelectContent>
                 </Select>
               </div>}
+              {operation.needsAccount && operation.accountKind !== "bank" && <AutoCompleteAccount
+                label="الحساب الجديد"
+                value={accountId}
+                valueMode="id"
+                onValueChange={value => setAccountId(String(value || ""))}
+                onAccountSelect={account => setAccountId(account ? String(account.id) : "")}
+                showCostCenterButton={false}
+                showCostCenterDialog={false}
+                disabled={saving}
+                placeholder="رقم الحساب أو افتح البحث"
+                inputClassName="bg-white dark:bg-slate-950"
+              />}
               <div><Label>ملاحظة العملية</Label><Input className="mt-1 bg-white dark:bg-slate-950" value={note} onChange={event => setNote(event.target.value)} placeholder="ملاحظة اختيارية..."/></div>
               <Button onClick={execute} disabled={saving || (operation.needsDate && !newDueDate) || (operation.needsAccount && !accountId)} className="w-full gap-2 bg-violet-700 hover:bg-violet-800">
                 {saving ? <Loader2 className="h-4 w-4 animate-spin"/> : <ShieldCheck className="h-4 w-4"/>}تنفيذ العملية

@@ -8,11 +8,13 @@ export async function GET(request: NextRequest) {
     const sectionId = searchParams.get("section_id")
     const assigneeId = searchParams.get("assignee_id")
     const search = searchParams.get("search")
+    const completedDays = searchParams.get("completed_days")
     const tasks = await listOpenTasks({
       workflowId: workflowId ? Number(workflowId) : undefined,
       sectionId: sectionId ? Number(sectionId) : undefined,
       assigneeId: assigneeId || undefined,
       search: search || undefined,
+      completedDays: completedDays != null ? Number(completedDays) : undefined,
     })
     return NextResponse.json(tasks)
   } catch (error) {

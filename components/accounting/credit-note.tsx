@@ -5,13 +5,13 @@ import { useVoucherDeepLink } from "@/hooks/use-voucher-deep-link"
 import { useEffect, useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import DataGridView from "@/components/common/DataGridView"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useAuth } from "@/components/auth/auth-context"
 import UnifiedCreditNote, { type VoucherRecord } from "./unified-credit-note"
 import { Edit, Plus, Search } from "lucide-react"
+import { VoucherListTable } from "@/components/common/voucher-list-table"
 import type { PostVoucherAction } from "@/components/common/post-voucher-dialog"
 import VoucherPrintLayout, { type VoucherPrintData } from "@/components/common/voucher-print-layout"
 
@@ -728,23 +728,18 @@ export default function CreditNote({ voucherType }: CreditNoteProps) {
           <CardTitle>{`${labels.listTitle} (${filteredVouchers.length})`}</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="min-h-0 overflow-auto rounded-xl border p-2">
-            <DataGridView
-              dataSource={pagedVouchers.map((voucher) => ({ ...voucher, display_date: voucher.vch_date?.slice(0, 10), display_currency: currencyName(voucher.currency_id), display_amount: Number(voucher.amount || 0).toLocaleString() }))}
-              style={{ height: "420px" }}
-              isReport
-              isReadOnly
-              dontConvertToCards
-              onRowDoubleClick={(row: any) => openRow(row.item || row)}
-              scheme={{ columns: [
+          <div className="min-h-0">
+            <VoucherListTable
+              rows={pagedVouchers.map((voucher) => ({ ...voucher, display_date: voucher.vch_date?.slice(0, 10), display_currency: currencyName(voucher.currency_id), display_amount: Number(voucher.amount || 0).toLocaleString() }))}
+              columns={[
                 { header: "رقم السند", name: "vch_code", width: 150, isReadOnly: true },
                 { header: "التاريخ", name: "display_date", width: 130, isReadOnly: true },
                 { header: "العميل", name: "customer_name", width: "*", isReadOnly: true },
                 { header: "العملة", name: "display_currency", width: 120, isReadOnly: true },
                 { header: "المجموع", name: "display_amount", width: 130, isReadOnly: true },
-              ] }}
+              ]}
+              onOpen={(row: any) => openRow(row.item || row)}
             />
-            {!pagedVouchers.length && <p className="py-4 text-center text-sm text-muted-foreground">لا توجد نتائج</p>}
           </div>
             <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="text-sm text-muted-foreground">

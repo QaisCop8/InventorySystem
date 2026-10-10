@@ -14,7 +14,10 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
 import { NotificationCenter } from "@/components/notifications/notification-center"
-import { Search, RefreshCw, Play, Pause, CheckCircle2, Undo2, ArrowRightLeft, Clock, Loader2, ShieldAlert } from "lucide-react"
+import {
+  Search, RefreshCw, Play, Pause, CheckCircle2, Undo2, ArrowRightLeft, Clock, Loader2, ShieldAlert,
+  KanbanSquare, Inbox, AlarmClock, GripVertical, Building2, Layers, FileText, Users,
+} from "lucide-react"
 import { cn } from "@/lib/utils"
 import { formatDateTimeToBritish } from "@/lib/utils"
 import type { TaskOpenTask, TaskOrderItemDetail, TaskSection, TaskStepInstance, TaskWorkflow, TaskWorkflowStep } from "./types"
@@ -29,6 +32,34 @@ const SPECIAL_STEP_TYPES = new Set(["audit", "approval", "preparation", "loading
 type GroupedTask = TaskOpenTask & { siblingItemIds: number[] }
 
 type Scope = "mine" | "section" | "all"
+
+const COMPLETED_DAYS_OPTIONS = [
+  { value: 1, label: "اليوم" },
+  { value: 3, label: "3 أيام" },
+  { value: 7, label: "أسبوع" },
+  { value: 30, label: "شهر" },
+]
+
+// حالة SLA لمهمة مفتوحة: due_at يُحسَب بالخادم (إنشاء المهمة + sla_hours للخطوة). كان sla_hours
+// يُعرَّف بإدارة سير العمل ولا يظهر في أي مكان باللوحة إطلاقاً.
+function slaInfo(task: { due_at?: string | null; status: string }): { overdue: boolean; label: string } | null {
+  if (!task.due_at || task.status === "completed") return null
+  const diffSeconds = Math.floor((new Date(task.due_at).getTime() - Date.now()) / 1000)
+  if (Number.isNaN(diffSeconds)) return null
+  const abs = Math.abs(diffSeconds)
+  const days = Math.floor(abs / 86400)
+  const hours = Math.floor((abs % 86400) / 3600)
+  const minutes = Math.floor((abs % 3600) / 60)
+  const span = days > 0 ? `${days} يوم ${hours} س` : hours > 0 ? `${hours} س ${minutes} د` : `${minutes} د`
+  return diffSeconds < 0 ? { overdue: true, label: `متأخرة ${span}` } : { overdue: false, label: `متبقٍ ${span}` }
+}
+
+const STATUS_COLUMN_STYLE: Record<string, { bar: string; chip: string; icon: any; empty: string }> = {
+  pending: { bar: "bg-slate-400", chip: "bg-slate-100 text-slate-700", icon: Inbox, empty: "لا توجد مهام جديدة" },
+  paused: { bar: "bg-amber-500", chip: "bg-amber-100 text-amber-800", icon: Pause, empty: "لا توجد مهام متوقفة" },
+  in_progress: { bar: "bg-emerald-500", chip: "bg-emerald-100 text-emerald-800", icon: Play, empty: "اسحب مهمة إلى هنا لبدء العمل" },
+  completed: { bar: "bg-sky-500", chip: "bg-sky-100 text-sky-800", icon: CheckCircle2, empty: "لا توجد مهام منتهية بالفترة" },
+}
 
 interface RealBranch {
   id: number
@@ -82,6 +113,9 @@ export function TaskBoard() {
   const [searchText, setSearchText] = useState("")
   const [scope, setScope] = useState<Scope>("mine")
   const [branchFilter, setBranchFilter] = useState<string>("all")
+  const [completedDays, setCompletedDays] = useState(3)
+  const [overdueOnly, setOverdueOnly] = useState(false)
+  const [forceRejectInstanceId, setForceRejectInstanceId] = useState<number | null>(null)
   const [, setTick] = useState(0)
 
   const [detailItemId, setDetailItemId] = useState<number | null>(null)
@@ -142,8 +176,9 @@ export function TaskBoard() {
   const fetchTasks = async (workflowId: number | "all") => {
     setLoadingTasks(true)
     try {
-      const params = workflowId === "all" ? "" : `?${new URLSearchParams({ workflow_id: String(workflowId) })}`
-      const res = await fetch(`/api/task-orders/tasks${params}`)
+      const params = new URLSearchParams({ completed_days: String(completedDays) })
+      if (workflowId !== "all") params.set("workflow_id", String(workflowId))
+      const res = await fetch(`/api/task-orders/tasks?${params}`)
       const data = await res.json()
       setTasks(Array.isArray(data) ? data : [])
     } catch {
@@ -164,7 +199,7 @@ export function TaskBoard() {
     const interval = setInterval(() => fetchTasks(selectedWorkflowId), 20000)
     return () => clearInterval(interval)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedWorkflowId])
+  }, [selectedWorkflowId, completedDays])
 
   const mySectionIds = useMemo(() => {
     if (!userId) return new Set<number>()
@@ -214,10 +249,19 @@ export function TaskBoard() {
     else if (scope === "section") list = list.filter((t) => mySectionIds.has(t.effective_section_id) || Number(t.claimed_by_user_id) === Number(userId))
     if (searchText.trim()) {
       const q = searchText.trim().toLowerCase()
-      list = list.filter((t) => t.title.toLowerCase().includes(q) || t.item_code.toLowerCase().includes(q))
+      list = list.filter(
+        (t) =>
+          t.title.toLowerCase().includes(q) ||
+          t.item_code.toLowerCase().includes(q) ||
+          (t.customer_name || "").toLowerCase().includes(q) ||
+          (t.source_order_number || "").toLowerCase().includes(q),
+      )
     }
+    if (overdueOnly) list = list.filter((t) => slaInfo(t)?.overdue)
     return list
-  }, [tasks, scope, mySectionIds, userId, searchText, branchFilter, sectionBranchMap])
+  }, [tasks, scope, mySectionIds, userId, searchText, branchFilter, sectionBranchMap, overdueOnly])
+
+  const overdueCount = visibleTasks.filter((t) => slaInfo(t)?.overdue).length
 
   interface BoardColumn {
     key: string
@@ -285,29 +329,29 @@ export function TaskBoard() {
       {
         key: "pending",
         label: "مهام جديدة",
-        subtitle: "كل المراحل تُعرض هنا أولاً",
+        subtitle: "بانتظار الاستلام والبدء",
         tasks: groupTasksForDisplay(byStatus.pending),
       },
       {
         key: "paused",
         label: "مهام متوقفة",
-        subtitle: "مؤقتة",
+        subtitle: "أُوقف العمل عليها مؤقتاً",
         tasks: groupTasksForDisplay(byStatus.paused),
       },
       {
         key: "in_progress",
         label: "مهام جارية",
-        subtitle: "اسحب من مهام جديدة أو مهام متوقفة لبدء التنفيذ",
+        subtitle: "العداد يعمل الآن",
         tasks: groupTasksForDisplay(byStatus.in_progress),
       },
       {
         key: "completed",
         label: "مهام منتهية",
-        subtitle: "مكتملة",
+        subtitle: `خلال ${COMPLETED_DAYS_OPTIONS.find((o) => o.value === completedDays)?.label || ""}`,
         tasks: groupTasksForDisplay(byStatus.completed),
       },
     ]
-  }, [visibleTasks])
+  }, [visibleTasks, completedDays])
 
   const openItem = async (id: number) => {
     setDetailItemId(id)
@@ -315,6 +359,7 @@ export function TaskBoard() {
     setRejectingInstanceId(null)
     setRejectOrderContext(null)
     setTransferringInstanceId(null)
+    setForceRejectInstanceId(null)
     setAllLoadingChecked(true)
     try {
       const res = await fetch(`/api/task-orders/order-items/${id}`)
@@ -624,139 +669,210 @@ export function TaskBoard() {
     }
   }
 
+  // بطاقات خطوات التدقيق/الاعتماد/التجهيز/التحميل تمثّل الطلبية كلها (انظر groupTasksForDisplay) —
+  // سحبها كان يبدأ/يُنهي مهمة صنف واحد فقط من الطلبية؛ إجراؤها الصحيح "تم" الجماعي من نافذة التفاصيل.
+  const isDraggableTask = (t: TaskOpenTask) =>
+    ["pending", "paused", "in_progress"].includes(t.status) &&
+    !((SPECIAL_STEP_TYPES.has(t.step_type) || t.show_all_items || t.print_barcode) && t.customer_order_id)
+
+  const statCards = [
+    { key: "pending", label: "مهام جديدة", value: statusSummary.pending.count, seconds: statusSummary.pending.totalSeconds, icon: Inbox, tone: "text-slate-600 bg-slate-100" },
+    { key: "in_progress", label: "مهام جارية", value: statusSummary.in_progress.count, seconds: statusSummary.in_progress.totalSeconds, icon: Play, tone: "text-emerald-700 bg-emerald-100" },
+    { key: "paused", label: "مهام متوقفة", value: statusSummary.paused.count, seconds: statusSummary.paused.totalSeconds, icon: Pause, tone: "text-amber-700 bg-amber-100" },
+    { key: "completed", label: "منتهية بالفترة", value: statusSummary.completed.count, seconds: statusSummary.completed.totalSeconds, icon: CheckCircle2, tone: "text-sky-700 bg-sky-100" },
+  ]
+
   return (
-    <div dir="rtl" className="flex min-h-[calc(100vh-104px)] flex-col gap-4 overflow-y-auto md:min-h-[calc(100vh-136px)]">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-bold text-slate-800">لوحة تتبع الطلبيات</h1>
-          <p className="text-sm text-slate-500">تتبّع أصناف الطلبية عبر مراحل سير العمل مع تسجيل الوقت لحظياً</p>
-        </div>
-        <div className="flex items-center gap-2">{userId && <NotificationCenter userId={userId} />}</div>
-      </div>
-
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-slate-500">سير العمل</label>
-          <div className="invoice-currency-dropdown-wrap">
-            <PrimeDropdown
-              value={selectedWorkflowId}
-              options={[
-                { id: "all", label: "الكل" },
-                ...filteredWorkflows.map((w) => ({ id: w.id, label: `${w.name}${w.version > 1 ? ` (إصدار ${w.version})` : ""}` })),
-              ]}
-              optionLabel="label"
-              optionValue="id"
-              placeholder="اختر سير العمل"
-              filter
-              className="invoice-currency-dropdown w-full"
-              panelClassName="invoice-currency-dropdown-panel"
-              appendTo="self"
-              onChange={(e: any) => setSelectedWorkflowId(e.value)}
-            />
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-slate-500">الفرع</label>
-          <div className="invoice-currency-dropdown-wrap">
-            <PrimeDropdown
-              value={branchFilter}
-              options={[{ label: "الكل", value: "all" }, ...branches.map((b) => ({ label: b.branch_name, value: String(b.id) }))]}
-              optionLabel="label"
-              optionValue="value"
-              placeholder="الفرع"
-              filter
-              className="invoice-currency-dropdown w-full"
-              panelClassName="invoice-currency-dropdown-panel"
-              appendTo="self"
-              onChange={(e: any) => setBranchFilter(e.value)}
-            />
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-slate-500">نطاق العرض</label>
-          <div className="invoice-currency-dropdown-wrap">
-            <PrimeDropdown
-              value={scope}
-              options={[
-                { label: "مهامي فقط", value: "mine" },
-                { label: "أقسامي", value: "section" },
-                ...(isAdmin ? [{ label: "كل المهام", value: "all" }] : []),
-              ]}
-              optionLabel="label"
-              optionValue="value"
-              className="invoice-currency-dropdown w-full"
-              panelClassName="invoice-currency-dropdown-panel"
-              appendTo="self"
-              onChange={(e: any) => setScope(e.value as Scope)}
-            />
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-slate-500">بحث</label>
-          <div className="flex items-center gap-2">
-            <div className="relative flex-1">
-              <Search className="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-              <Input value={searchText} onChange={(e) => setSearchText(e.target.value)} placeholder="بحث برقم الصنف أو العنوان" className="w-full pr-8" />
+    <div dir="rtl" className="flex min-h-[calc(100vh-104px)] flex-col gap-4 md:min-h-[calc(100vh-136px)]">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-l from-emerald-700 via-emerald-600 to-teal-600 px-5 py-5 text-white shadow-lg">
+        <div className="pointer-events-none absolute -left-10 -top-12 h-40 w-40 rounded-full bg-white/10 blur-2xl" />
+        <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25">
+              <KanbanSquare className="h-6 w-6" />
+            </span>
+            <div>
+              <h1 className="text-xl font-extrabold sm:text-2xl">لوحة متابعة الطلبات</h1>
+              <p className="text-xs text-emerald-50/90 sm:text-sm">تتبّع أصناف الطلبيات عبر مراحل سير العمل مع تسجيل وقت التنفيذ لحظياً</p>
             </div>
-            <Button variant="outline" size="icon" onClick={() => fetchTasks(selectedWorkflowId)} title="تحديث" className="shrink-0">
-              <RefreshCw className={cn("h-4 w-4", loadingTasks && "animate-spin")} />
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={() => fetchTasks(selectedWorkflowId)}
+              disabled={loadingTasks}
+              className="h-10 rounded-xl border-white/30 bg-white/10 text-white hover:bg-white/20 hover:text-white"
+            >
+              <RefreshCw className={cn("ml-2 h-4 w-4", loadingTasks && "animate-spin")} />
+              تحديث
             </Button>
+            {userId && (
+              <div className="rounded-xl bg-white/95 text-slate-700 shadow-sm">
+                <NotificationCenter userId={userId} />
+              </div>
+            )}
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
-        <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-          <div className="mb-2 flex items-center justify-between text-sm text-slate-600">
-            <span>مهام جديدة</span>
-            <span className="font-bold text-slate-800">{statusSummary.pending.count}</span>
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+        {statCards.map((card) => (
+          <div key={card.key} className="flex items-center justify-between rounded-2xl border bg-white p-4 shadow-sm">
+            <div className="min-w-0">
+              <p className="text-xs font-medium text-slate-500">{card.label}</p>
+              <p className="mt-1 text-2xl font-bold text-slate-800">{card.value}</p>
+              <p className="mt-0.5 flex items-center gap-1 text-[11px] text-slate-400">
+                <Clock className="h-3 w-3" /> {formatDuration(card.seconds)}
+              </p>
+            </div>
+            <span className={cn("flex h-11 w-11 shrink-0 items-center justify-center rounded-xl", card.tone)}>
+              <card.icon className="h-5 w-5" />
+            </span>
           </div>
-          <div className="text-xs text-slate-500">Est. Time</div>
-          <div className="text-lg font-bold text-slate-800">{formatDuration(statusSummary.pending.totalSeconds)}</div>
+        ))}
+        <button
+          type="button"
+          onClick={() => setOverdueOnly((v) => !v)}
+          className={cn(
+            "col-span-2 flex items-center justify-between rounded-2xl border p-4 text-right shadow-sm transition lg:col-span-1",
+            overdueOnly ? "border-red-300 bg-red-50 ring-2 ring-red-200" : "bg-white hover:border-red-200 hover:bg-red-50/40",
+          )}
+          title="عرض المهام المتأخرة عن مدة الإنجاز (SLA) فقط"
+        >
+          <div>
+            <p className="text-xs font-medium text-slate-500">متأخرة عن SLA</p>
+            <p className={cn("mt-1 text-2xl font-bold", overdueCount > 0 ? "text-red-600" : "text-slate-800")}>{overdueCount}</p>
+            <p className="mt-0.5 text-[11px] text-slate-400">{overdueOnly ? "إلغاء التصفية" : "اضغط للتصفية"}</p>
+          </div>
+          <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-red-100 text-red-600">
+            <AlarmClock className="h-5 w-5" />
+          </span>
+        </button>
+      </div>
+
+      <div className="rounded-2xl border bg-white p-3 shadow-sm">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-[1.2fr_1fr_1.4fr_1fr]">
+          <div className="flex flex-col gap-1">
+            <label className="flex items-center gap-1 text-xs font-medium text-slate-500"><Layers className="h-3.5 w-3.5" /> سير العمل</label>
+            <div className="invoice-currency-dropdown-wrap">
+              <PrimeDropdown
+                value={selectedWorkflowId}
+                options={[
+                  { id: "all", label: "الكل" },
+                  ...filteredWorkflows.map((w) => ({ id: w.id, label: `${w.name}${w.version > 1 ? ` (إصدار ${w.version})` : ""}` })),
+                ]}
+                optionLabel="label"
+                optionValue="id"
+                placeholder="اختر سير العمل"
+                filter
+                className="invoice-currency-dropdown w-full"
+                panelClassName="invoice-currency-dropdown-panel"
+                appendTo="self"
+                onChange={(e: any) => setSelectedWorkflowId(e.value)}
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label className="flex items-center gap-1 text-xs font-medium text-slate-500"><Building2 className="h-3.5 w-3.5" /> الفرع</label>
+            <div className="invoice-currency-dropdown-wrap">
+              <PrimeDropdown
+                value={branchFilter}
+                options={[{ label: "الكل", value: "all" }, ...branches.map((b) => ({ label: b.branch_name, value: String(b.id) }))]}
+                optionLabel="label"
+                optionValue="value"
+                placeholder="الفرع"
+                filter
+                className="invoice-currency-dropdown w-full"
+                panelClassName="invoice-currency-dropdown-panel"
+                appendTo="self"
+                onChange={(e: any) => setBranchFilter(e.value)}
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label className="flex items-center gap-1 text-xs font-medium text-slate-500"><Search className="h-3.5 w-3.5" /> بحث</label>
+            <div className="relative">
+              <Search className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Input
+                value={searchText}
+                onChange={(e) => setSearchText(e.target.value)}
+                placeholder="رقم الصنف، العنوان، العميل أو رقم الطلبية"
+                className="h-10 w-full rounded-xl pr-8"
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label className="flex items-center gap-1 text-xs font-medium text-slate-500"><CheckCircle2 className="h-3.5 w-3.5" /> المنتهية خلال</label>
+            <div className="flex h-10 items-center gap-1 rounded-xl bg-slate-100 p-1">
+              {COMPLETED_DAYS_OPTIONS.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => setCompletedDays(option.value)}
+                  className={cn(
+                    "h-full flex-1 rounded-lg text-xs font-semibold transition",
+                    completedDays === option.value ? "bg-white text-emerald-700 shadow-sm" : "text-slate-500 hover:text-slate-700",
+                  )}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
-        <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
-          <div className="mb-2 flex items-center justify-between text-sm text-amber-800">
-            <span>مهام متوقفة</span>
-            <span className="font-bold">{statusSummary.paused.count}</span>
-          </div>
-          <div className="text-xs text-amber-700">Est. Time</div>
-          <div className="text-lg font-bold text-amber-900">{formatDuration(statusSummary.paused.totalSeconds)}</div>
-        </div>
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
-          <div className="mb-2 flex items-center justify-between text-sm text-emerald-800">
-            <span>مهام جارية</span>
-            <span className="font-bold">{statusSummary.in_progress.count}</span>
-          </div>
-          <div className="text-xs text-emerald-700">Est. Time</div>
-          <div className="text-lg font-bold text-emerald-900">{formatDuration(statusSummary.in_progress.totalSeconds)}</div>
-        </div>
-        <div className="rounded-xl border border-blue-200 bg-blue-50 p-3">
-          <div className="mb-2 flex items-center justify-between text-sm text-blue-800">
-            <span>مهام منتهية</span>
-            <span className="font-bold">{statusSummary.completed.count}</span>
-          </div>
-          <div className="text-xs text-blue-700">Est. Time</div>
-          <div className="text-lg font-bold text-blue-900">{formatDuration(statusSummary.completed.totalSeconds)}</div>
+
+        <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-dashed pt-3">
+          <span className="flex items-center gap-1 text-xs font-medium text-slate-500"><Users className="h-3.5 w-3.5" /> نطاق العرض:</span>
+          {[
+            { label: "مهامي", value: "mine" as Scope },
+            { label: "أقسامي", value: "section" as Scope },
+            ...(isAdmin ? [{ label: "كل المهام", value: "all" as Scope }] : []),
+          ].map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => setScope(option.value)}
+              className={cn(
+                "rounded-full px-3 py-1.5 text-xs font-bold transition",
+                scope === option.value ? "bg-emerald-600 text-white" : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50",
+              )}
+            >
+              {option.label}
+            </button>
+          ))}
+          {scope === "mine" && (
+            <span className="text-[11px] text-slate-400">المهام غير المستلَمة بعد تظهر في "أقسامي"</span>
+          )}
         </div>
       </div>
 
-      {statusColumns.length === 0 ? (
-        <Card>
-          <CardContent className="py-10 text-center text-slate-500">لا يوجد سير عمل نشِط بعد — أنشئ واحداً من تبويب الإدارة</CardContent>
+      {workflows.length === 0 && !loadingTasks ? (
+        <Card className="rounded-2xl">
+          <CardContent className="py-10 text-center text-slate-500">لا يوجد سير عمل نشِط بعد — أنشئ واحداً من شاشة إدارة الأقسام وسير العمل</CardContent>
         </Card>
       ) : (
-        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-x-auto pb-3 lg:flex-row">
-          {statusColumns.map((column, columnIndex) => {
+        <div className="flex min-h-[420px] flex-1 flex-col gap-4 overflow-x-auto pb-3 lg:flex-row">
+          {statusColumns.map((column) => {
             const columnTasks = [...column.tasks].sort((a, b) => {
+              const aOverdue = slaInfo(a)?.overdue ? 0 : 1
+              const bOverdue = slaInfo(b)?.overdue ? 0 : 1
+              if (aOverdue !== bOverdue) return aOverdue - bOverdue
               const priorityRank: Record<string, number> = { urgent: 0, high: 1, normal: 2, low: 3 }
               const pr = (priorityRank[a.item_priority] ?? 2) - (priorityRank[b.item_priority] ?? 2)
               if (pr !== 0) return pr
               return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
             })
-            const palette = columnColor(columnIndex)
+            const style = STATUS_COLUMN_STYLE[column.key]
+            const ColumnIcon = style.icon
+            const draggedTask = draggedTaskId ? visibleTasks.find((item) => item.id === draggedTaskId) : null
+            const isDropTarget =
+              !!draggedTask &&
+              ((column.key === "in_progress" && ["pending", "paused"].includes(draggedTask.status)) ||
+                (column.key === "paused" && draggedTask.status === "in_progress") ||
+                (column.key === "completed" && ["in_progress", "paused"].includes(draggedTask.status)))
             return (
               <div
                 key={column.key}
@@ -774,35 +890,43 @@ export function TaskBoard() {
                     return
                   }
                   if (column.key === "paused" && task.status === "in_progress") {
-                      setNoteDialogExtra(null)
-                      openNoteDialog(task.id, "stop", "إيقاف المهمة")
-                      return
-                    }
-                    if (column.key === "completed" && task.status === "in_progress") {
-                      setNoteDialogExtra(null)
-                      openNoteDialog(task.id, "complete", "إنهاء المهمة")
-                      return
-                    }
-                    // allow paused -> completed: start then complete (shows confirmation dialog)
-                    if (column.key === "completed" && task.status === "paused") {
-                      setNoteDialogExtra({ needStartFirst: true })
-                      openNoteDialog(task.id, "complete", "إنهاء المهمة")
-                      return
-                    }
+                    setNoteDialogExtra(null)
+                    openNoteDialog(task.id, "stop", "إيقاف المهمة")
+                    return
+                  }
+                  if (column.key === "completed" && task.status === "in_progress") {
+                    setNoteDialogExtra(null)
+                    openNoteDialog(task.id, "complete", "إنهاء المهمة")
+                    return
+                  }
+                  // paused -> completed: بدء ثم إنهاء بتأكيد واحد
+                  if (column.key === "completed" && task.status === "paused") {
+                    setNoteDialogExtra({ needStartFirst: true })
+                    openNoteDialog(task.id, "complete", "إنهاء المهمة")
+                  }
                 }}
                 onTouchEnd={(e) => void handleTouchTaskEnd(e, column.key)}
                 onTouchCancel={() => {
                   setDraggedTaskId(null)
                   setDragTouchState(null)
                 }}
-                className={cn("flex h-full w-[85vw] shrink-0 flex-col rounded-2xl border-2 sm:w-96", palette.bg, palette.border)}
+                className={cn(
+                  "flex h-full w-[85vw] shrink-0 flex-col overflow-hidden rounded-2xl border bg-slate-50/70 shadow-sm transition sm:w-[340px] lg:w-auto lg:min-w-[280px] lg:flex-1",
+                  isDropTarget && "border-emerald-400 bg-emerald-50/60 ring-2 ring-emerald-200",
+                )}
               >
-                <div className={cn("flex items-center justify-between rounded-t-2xl px-4 py-3", palette.header)}>
-                  <div>
-                    <div className={cn("text-base font-bold", palette.text)}>{column.label}</div>
-                    {column.subtitle && <div className="text-xs text-slate-500">{column.subtitle}</div>}
+                <div className={cn("h-1 w-full", style.bar)} />
+                <div className="flex items-center justify-between border-b bg-white px-4 py-3">
+                  <div className="flex items-center gap-2">
+                    <span className={cn("flex h-8 w-8 items-center justify-center rounded-lg", style.chip)}>
+                      <ColumnIcon className="h-4 w-4" />
+                    </span>
+                    <div>
+                      <div className="text-sm font-bold text-slate-800">{column.label}</div>
+                      {column.subtitle && <div className="text-[11px] text-slate-400">{column.subtitle}</div>}
+                    </div>
                   </div>
-                  <Badge className={cn("h-6 min-w-6 justify-center rounded-full px-2 text-sm font-bold", palette.badge)}>{columnTasks.length}</Badge>
+                  <span className={cn("min-w-7 rounded-full px-2 py-0.5 text-center text-xs font-bold", style.chip)}>{columnTasks.length}</span>
                 </div>
                 <ScrollArea
                   className="min-h-0 flex-1"
@@ -812,16 +936,24 @@ export function TaskBoard() {
                     setDragTouchState(null)
                   }}
                 >
-                  <div className="flex flex-col gap-3 p-3">
-                    {columnTasks.length === 0 && <div className="py-8 text-center text-sm text-slate-400">لا توجد مهام</div>}
+                  <div className="flex flex-col gap-2.5 p-3">
+                    {columnTasks.length === 0 && (
+                      <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-slate-200 py-8 text-center text-xs text-slate-400">
+                        <ColumnIcon className="h-5 w-5 text-slate-300" />
+                        {style.empty}
+                      </div>
+                    )}
                     {columnTasks.map((t) => {
                       const liveSeconds = t.has_running_timer ? t.total_duration_seconds + elapsedSecondsSince(t.running_since) : t.total_duration_seconds
+                      const draggable = isDraggableTask(t)
+                      const sla = slaInfo(t)
+                      const isGroup = t.siblingItemIds.length > 1
                       return (
                         <button
-                          key={t.id}
-                          draggable={["pending", "paused", "in_progress"].includes(t.status)}
+                          key={`${t.id}-${t.siblingItemIds.length}`}
+                          draggable={draggable}
                           onDragStart={() => {
-                            if (!["pending", "paused", "in_progress"].includes(t.status)) return
+                            if (!draggable) return
                             setDraggedTaskId(t.id)
                             setDragTouchState(null)
                           }}
@@ -829,8 +961,8 @@ export function TaskBoard() {
                             setDraggedTaskId(null)
                             setDragTouchState(null)
                           }}
-                          onTouchStart={(e) => handleTouchTaskStart(e, t as GroupedTask)}
-                          onTouchMove={(e) => handleTouchTaskMove(e, t as GroupedTask)}
+                          onTouchStart={(e) => draggable && handleTouchTaskStart(e, t as GroupedTask)}
+                          onTouchMove={(e) => draggable && handleTouchTaskMove(e, t as GroupedTask)}
                           onTouchEnd={() => {
                             if (dragTouchState?.taskId !== t.id) {
                               setDraggedTaskId(null)
@@ -848,38 +980,62 @@ export function TaskBoard() {
                             }
                             openItem(t.order_item_id)
                           }}
-                          style={{ touchAction: "none" }}
+                          style={{ touchAction: draggable ? "none" : "auto" }}
                           className={cn(
-                            "text-right rounded-xl border border-r-[6px] p-5 shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all",
-                            PRIORITY_CARD_ACCENT[t.item_priority] || PRIORITY_CARD_ACCENT.normal,
+                            "group relative w-full rounded-xl border border-r-4 bg-white p-3.5 text-right shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md",
+                            PRIORITY_CARD_ACCENT[t.item_priority]?.split(" ")[0] || "border-r-blue-500",
+                            sla?.overdue && "ring-1 ring-red-200",
+                            draggedTaskId === t.id && "opacity-50",
                           )}
                         >
-                          <div className="mb-2 flex items-center justify-between gap-1">
-                            <span className="text-xs font-mono text-slate-500">{t.item_code}</span>
-                            <Badge className={cn("border text-xs", PRIORITY_BADGE_CLASS[t.item_priority])}>{PRIORITY_LABELS[t.item_priority] || t.item_priority}</Badge>
+                          <div className="mb-1.5 flex items-center justify-between gap-1">
+                            <span className="flex items-center gap-1 font-mono text-[11px] text-slate-400">
+                              {draggable && <GripVertical className="h-3.5 w-3.5 text-slate-300 group-hover:text-slate-400" />}
+                              {t.item_code}
+                            </span>
+                            <Badge className={cn("border px-1.5 py-0 text-[10px]", PRIORITY_BADGE_CLASS[t.item_priority])}>{PRIORITY_LABELS[t.item_priority] || t.item_priority}</Badge>
                           </div>
-                          <div className="line-clamp-2 text-lg font-bold text-slate-800">
-                            {t.siblingItemIds.length > 1 ? `الطلبية — ${t.siblingItemIds.length} أصناف` : t.title}
+                          <div className="line-clamp-2 text-sm font-bold leading-6 text-slate-800">
+                            {isGroup ? `الطلبية — ${t.siblingItemIds.length} أصناف` : t.title}
                           </div>
-                          {selectedWorkflowId === "all" && (
-                            <div className="mt-1 truncate text-xs text-slate-500">
-                              {t.workflow_name} · {t.step_label}
+                          {(t.customer_name || t.source_order_number) && (
+                            <div className="mt-0.5 flex items-center gap-1 truncate text-[11px] text-slate-500">
+                              <FileText className="h-3 w-3 shrink-0" />
+                              {t.source_order_number}
+                              {t.customer_name ? ` · ${t.customer_name}` : ""}
                             </div>
                           )}
-                          <div className="mt-4 flex items-center justify-between">
-                            <div className="flex items-center gap-2 text-sm text-slate-600">
-                              <Avatar className="h-9 w-9 border-2 border-white shadow">
-                                <AvatarFallback className="text-xs font-semibold">{initials(t.claimed_by_name)}</AvatarFallback>
+                          <div className="mt-2 flex flex-wrap items-center gap-1">
+                            <span className="rounded-md bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">{t.step_label}</span>
+                            <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-600">{t.section_name}</span>
+                            {selectedWorkflowId === "all" && (
+                              <span className="truncate rounded-md bg-slate-50 px-1.5 py-0.5 text-[10px] text-slate-400">{t.workflow_name}</span>
+                            )}
+                            {sla && (
+                              <span
+                                className={cn(
+                                  "flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[10px] font-semibold",
+                                  sla.overdue ? "bg-red-100 text-red-700" : "bg-amber-50 text-amber-700",
+                                )}
+                              >
+                                <AlarmClock className="h-3 w-3" /> {sla.label}
+                              </span>
+                            )}
+                          </div>
+                          <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-2.5">
+                            <div className="flex min-w-0 items-center gap-1.5 text-xs text-slate-600">
+                              <Avatar className="h-7 w-7 border border-white shadow-sm">
+                                <AvatarFallback className="bg-emerald-100 text-[10px] font-semibold text-emerald-800">{initials(t.claimed_by_name)}</AvatarFallback>
                               </Avatar>
                               <span className="max-w-[120px] truncate">{t.claimed_by_name || "غير مسند"}</span>
                             </div>
                             <div
                               className={cn(
-                                "flex items-center gap-1 rounded-full px-2.5 py-1.5 text-sm font-semibold",
-                                t.has_running_timer ? "bg-emerald-500 text-white" : "bg-slate-200 text-slate-600",
+                                "flex items-center gap-1 rounded-full px-2 py-1 font-mono text-[11px] font-semibold",
+                                t.has_running_timer ? "bg-emerald-500 text-white" : "bg-slate-100 text-slate-600",
                               )}
                             >
-                              <Clock className="h-4 w-4" />
+                              <Clock className={cn("h-3 w-3", t.has_running_timer && "animate-pulse")} />
                               {formatDuration(liveSeconds)}
                             </div>
                           </div>
@@ -897,38 +1053,43 @@ export function TaskBoard() {
       {/* نافذة تفاصيل الصنف — تعرض كل المهام (StepInstance) المفتوحة/المكتملة له معاً، لأن التفرّع
           المتوازي قد يعني أكثر من مهمة مفتوحة في آنٍ واحد بأقسام مختلفة. */}
       <Dialog open={detailItemId !== null} onOpenChange={(open) => !open && setDetailItemId(null)}>
-        <DialogContent className="w-[95vw] max-w-3xl max-h-[90vh] overflow-y-auto" dir="rtl">
+        <DialogContent className="w-[95vw] max-w-3xl max-h-[90vh] overflow-y-auto rounded-2xl p-0" dir="rtl">
           {detailLoading || !detailItem ? (
             <div className="flex items-center justify-center py-16">
               <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
             </div>
           ) : (
             <>
-              <DialogHeader>
-                <DialogTitle className="flex flex-wrap items-center gap-2">
-                  <span className="font-mono text-sm text-slate-400">{detailItem.item_code}</span>
-                  {detailItem.title}
-                  <Badge className={cn("border", STATUS_BADGE_CLASS[detailItem.status === "in_workflow" ? "in_progress" : detailItem.status])}>
+              <DialogHeader className="space-y-0 rounded-t-2xl bg-gradient-to-l from-emerald-700 via-emerald-600 to-teal-600 px-5 py-4 text-white">
+                <DialogTitle className="flex flex-wrap items-center gap-2 text-white">
+                  <span className="rounded-md bg-white/15 px-2 py-0.5 font-mono text-xs">{detailItem.item_code}</span>
+                  <span className="text-lg font-extrabold">{detailItem.title}</span>
+                </DialogTitle>
+                <div className="flex flex-wrap items-center gap-1.5 pt-2">
+                  <Badge className="border-0 bg-white/90 text-emerald-800">
                     {detailItem.status === "completed" ? "مكتمل" : detailItem.status === "cancelled" ? "ملغى" : "جارٍ بسير العمل"}
                   </Badge>
                   <Badge className={cn("border", PRIORITY_BADGE_CLASS[detailItem.priority])}>{PRIORITY_LABELS[detailItem.priority] || detailItem.priority}</Badge>
-                </DialogTitle>
+                  {detailItem.qty != null && <Badge className="border-0 bg-white/15 text-white">الكمية: {Number(detailItem.qty)}</Badge>}
+                </div>
               </DialogHeader>
 
-              <div className="grid grid-cols-2 gap-3 text-sm">
+              <div className="space-y-4 px-5 pb-5">
+              <div className="grid grid-cols-1 gap-2 rounded-xl border bg-slate-50/60 p-3 text-sm sm:grid-cols-3">
                 <div>
-                  <span className="text-slate-400">سير العمل: </span>
-                  {detailItem.workflow_name}
+                  <div className="text-[11px] text-slate-400">سير العمل</div>
+                  <div className="font-semibold text-slate-700">{detailItem.workflow_name}</div>
                 </div>
-                {detailItem.customer_order_code && (
-                  <div>
-                    <span className="text-slate-400">الطلبية: </span>
-                    {detailItem.source_order_number || detailItem.customer_order_code} {detailItem.customer_name ? `(${detailItem.customer_name})` : ""}
-                  </div>
-                )}
                 <div>
-                  <span className="text-slate-400">أنشئ بواسطة: </span>
-                  {detailItem.created_by_name || "-"}
+                  <div className="text-[11px] text-slate-400">الطلبية</div>
+                  <div className="font-semibold text-slate-700">
+                    {detailItem.customer_order_code ? detailItem.source_order_number || detailItem.customer_order_code : "-"}
+                    {detailItem.customer_name ? <span className="font-normal text-slate-500"> · {detailItem.customer_name}</span> : null}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-[11px] text-slate-400">أنشئ بواسطة</div>
+                  <div className="font-semibold text-slate-700">{detailItem.created_by_name || "-"}</div>
                 </div>
               </div>
 
@@ -1123,8 +1284,8 @@ export function TaskBoard() {
                                 className="gap-1 text-red-600"
                                 disabled={actionBusy}
                                 onClick={() => {
-                                  const reason = window.prompt("سبب الرفض الإجباري؟")
-                                  if (reason) forceReject(instance.id, reason)
+                                  setRejectNote("")
+                                  setForceRejectInstanceId(instance.id)
                                 }}
                               >
                                 <ShieldAlert className="h-3.5 w-3.5" /> رفض إجباري
@@ -1142,6 +1303,32 @@ export function TaskBoard() {
                               </Button>
                               <Button size="sm" variant="destructive" onClick={confirmReject} disabled={actionBusy || !rejectNote.trim()}>
                                 تأكيد الرفض
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+
+                        {forceRejectInstanceId === instance.id && (
+                          <div className="space-y-2 rounded-xl border border-red-200 bg-red-50 p-2.5">
+                            <div className="text-xs font-semibold text-red-700">رفض إجباري (إداري) — تُعاد المهمة للمرحلة السابقة حتى لو بدأ العمل عليها</div>
+                            <Textarea value={rejectNote} onChange={(e) => setRejectNote(e.target.value)} placeholder="سبب الرفض الإجباري (مطلوب)" rows={2} autoFocus />
+                            <div className="flex justify-end gap-2">
+                              <Button size="sm" variant="ghost" onClick={() => setForceRejectInstanceId(null)}>
+                                إلغاء
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                disabled={actionBusy || !rejectNote.trim()}
+                                onClick={async () => {
+                                  const ok = await forceReject(instance.id, rejectNote.trim())
+                                  if (ok) {
+                                    setForceRejectInstanceId(null)
+                                    setRejectNote("")
+                                  }
+                                }}
+                              >
+                                تأكيد الرفض الإجباري
                               </Button>
                             </div>
                           </div>
@@ -1222,6 +1409,7 @@ export function TaskBoard() {
                     ))}
                   </div>
                 </ScrollArea>
+              </div>
               </div>
             </>
           )}

@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState, forwardRef } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import { Input } from "@/components/ui/input";
 import { useAuth } from "@/components/auth/auth-context";
 import {
   DropdownMenu,
@@ -16,7 +15,9 @@ import {
 import { Icons } from "@/components/ui/icons";
 import { QuickThemeToggle } from "@/components/theme/theme-toggle";
 import { DisplayModeMenu } from "@/components/workspace/display-mode-menu";
-import { Loader2, Building2, ChevronDown, ArrowLeftRight, ImagePlus } from "lucide-react";
+import { Loader2, Building2, ChevronDown, ArrowLeftRight, ImagePlus, MapPin } from "lucide-react";
+import { GlobalSearch } from "@/components/navigation/global-search";
+import { menuItems, SECTION_TITLES, type MenuItem } from "@/components/sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { activateCompany } from "@/lib/tenant-client";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -72,7 +73,6 @@ export function Header({ onMenuClick, activeSection, onSettingsClick, onSectionC
     setActiveBranchContext,
     setActiveDepartmentContext,
   } = useAuth();
-  const [search, setSearch] = useState("");
   const [loggingOut, setLoggingOut] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [avatarSaving, setAvatarSaving] = useState(false);
@@ -277,141 +277,155 @@ export function Header({ onMenuClick, activeSection, onSettingsClick, onSectionC
     "api-settings": "إعدادات API والتكامل",
   };
 
+  // عنوان الشاشة + مسارها بالقائمة (مثال: المبيعات › الحركات)
+  const findPath = (items: MenuItem[], path: string[] = []): string[] | null => {
+    for (const item of items) {
+      if (item.section === activeSection && !item.submenu?.length) return path;
+      if (item.submenu?.length) {
+        const found = findPath(item.submenu, [...path, item.title]);
+        if (found) return found;
+      }
+    }
+    return null;
+  };
+  const pageTitle = sectionTitles[activeSection] || SECTION_TITLES[activeSection] || "ARAAK ERP System";
+  const pagePath = (findPath(menuItems) || []).join(" › ");
+  const toolButtonClass = "flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-background hover:text-emerald-700 hover:shadow-sm dark:hover:text-emerald-300";
+
   return (
     <header
-      className="user-typography h-14 md:h-16 border-b border-border bg-card px-3 md:px-6 flex items-center justify-between shadow-sm"
+      className="user-typography relative flex h-14 items-center gap-2 border-b border-border/70 bg-card px-3 shadow-[0_1px_12px_-6px_rgba(15,23,42,0.18)] md:h-16 md:gap-4 md:px-5"
       dir="rtl"
     >
-      {/* Left: Menu + title */}
-      <div className="flex items-center gap-2 md:gap-4 flex-1 min-w-0">
+      {/* لا backdrop-filter ولا z-index على <header>: كلاهما يحصر نافذة التطبيقات (position:fixed بملء الشاشة)
+          داخل حدود الشريط بدل الشاشة كلها. */}
+      {/* خط تمييز رفيع أسفل الشريط */}
+      <span className="pointer-events-none absolute inset-x-0 bottom-0 h-[2px] bg-gradient-to-l from-emerald-500/70 via-teal-400/50 to-transparent" />
+
+      {/* البداية: التطبيقات + القائمة + عنوان الشاشة */}
+      <div className="flex min-w-0 items-center gap-2 md:gap-3">
         <ApplicationMenu onNavigate={onSectionChange} />
         <RefButton
-          className="p-2 rounded-md hover:bg-muted"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-muted-foreground transition hover:bg-emerald-50 hover:text-emerald-700 dark:hover:bg-emerald-500/10"
           onClick={onMenuClick}
+          aria-label="القائمة"
         >
           <Icons.Menu />
         </RefButton>
-        <h1 className="text-sm md:text-xl font-semibold text-card-foreground truncate">
-          {sectionTitles[activeSection] || "ARAAK ERP System"}
-        </h1>
+        <div className="min-w-0 border-r-2 border-emerald-500/70 pr-3">
+          <h1 className="truncate text-sm font-extrabold leading-tight text-card-foreground md:text-lg">{pageTitle}</h1>
+          {pagePath && <p className="hidden truncate text-[11px] leading-tight text-muted-foreground md:block">{pagePath}</p>}
+        </div>
       </div>
 
-      {/* Right: Search, notifications, user */}
-      <div className="flex items-center gap-0.5 sm:gap-2 md:gap-4 shrink-0">
-        {/* Branch / Department context */}
-        <div className="hidden xl:flex items-center gap-2 rounded-md border border-border bg-muted/50 px-2 py-1.5">
-          <select
-            className="bg-transparent text-sm text-right outline-none min-w-[140px]"
-            value={activeBranchId?.toString() || ""}
-            onChange={(event) => {
-              const selected = branches.find((branch) => branch.id === Number(event.target.value));
-              if (selected) {
-                setActiveBranchContext({ id: selected.id, name: selected.branch_name });
-              }
-            }}
-            disabled={isLoadingBranches || branches.length === 0}
-          >
-            {branches.length === 0 ? (
-              <option value="">لا توجد فروع</option>
-            ) : (
-              branches.map((branch) => (
-                <option key={branch.id} value={branch.id}>
-                  {branch.branch_name}
-                </option>
-              ))
-            )}
-          </select>
-          <span className="text-xs text-muted-foreground">
-            {activeDepartment || user?.department || "القسم"}
-          </span>
-        </div>
+      {/* الوسط: بحث النظام */}
+      <div className="hidden min-w-0 flex-1 justify-center md:flex">
+        <GlobalSearch onNavigate={onSectionChange} className="w-full max-w-md" />
+      </div>
+      <div className="flex-1 md:hidden" />
 
-        {/* الشركة الحالية — قائمة منسدلة بكل شركات المستخدم، التبديل يعيد تحميل النظام على الشركة الجديدة */}
-        {myCompanies.length > 0 && (
-          <div className="hidden xl:flex items-center gap-1.5 rounded-md border border-border bg-muted/50 px-2 py-1.5">
-            <Building2 className="h-4 w-4 shrink-0 text-muted-foreground" />
+      {/* النهاية: سياق العمل + الأدوات + المستخدم */}
+      <div className="flex shrink-0 items-center gap-1.5 md:gap-2.5">
+        {/* الفرع والقسم والشركة — كبسولة واحدة */}
+        <div className="hidden items-center divide-x divide-x-reverse divide-border rounded-xl border border-border bg-muted/40 xl:flex">
+          <label className="flex items-center gap-1.5 px-2.5 py-1.5" title="الفرع النشط">
+            <MapPin className="h-3.5 w-3.5 shrink-0 text-emerald-600" />
             <select
-              className="bg-transparent text-sm font-medium text-card-foreground outline-none max-w-[160px] truncate"
-              value={currentCompanyId ?? ""}
-              onChange={(e) => handleCompanyChange(Number(e.target.value))}
-              disabled={!!switchingCompanyName}
+              className="max-w-[130px] cursor-pointer bg-transparent text-right text-sm font-medium outline-none"
+              value={activeBranchId?.toString() || ""}
+              onChange={(event) => {
+                const selected = branches.find((branch) => branch.id === Number(event.target.value));
+                if (selected) {
+                  setActiveBranchContext({ id: selected.id, name: selected.branch_name });
+                }
+              }}
+              disabled={isLoadingBranches || branches.length === 0}
             >
-              {myCompanies.map((c) => {
-                const expired = isCompanyExpired(c);
-                const disabled = c.status !== "approved" || expired;
-                return (
-                  <option key={c.id} value={c.id} disabled={disabled}>
-                    {c.name}
-                    {expired ? " (منتهي الاشتراك)" : c.status !== "approved" ? " (غير جاهزة)" : ""}
+              {branches.length === 0 ? (
+                <option value="">لا توجد فروع</option>
+              ) : (
+                branches.map((branch) => (
+                  <option key={branch.id} value={branch.id}>
+                    {branch.branch_name}
                   </option>
-                );
-              })}
+                ))
+              )}
             </select>
-            <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-          </div>
-        )}
+            <span className="rounded-md bg-background px-1.5 py-0.5 text-[10px] text-muted-foreground">
+              {activeDepartment || user?.department || "القسم"}
+            </span>
+          </label>
 
-        {/* Search */}
-        <div className="hidden xl:flex items-center gap-2 rounded-md border border-border bg-muted/50 px-3 focus-within:bg-background">
-          <Icons.Search className="shrink-0 text-muted-foreground h-4 w-4" />
-          <Input
-            placeholder="البحث..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-48 xl:w-64 border-0 bg-transparent shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 text-right px-0"
-          />
-        </div>
-
-        {/* أسعار الصرف اليومية */}
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <RefButton
-                className="p-2 rounded-md hover:bg-muted"
-                onClick={() => setExchangeRatesOpen(true)}
+          {/* الشركة الحالية — التبديل يعيد تحميل النظام على الشركة الجديدة */}
+          {myCompanies.length > 0 && (
+            <label className="flex items-center gap-1.5 px-2.5 py-1.5" title="الشركة">
+              <Building2 className="h-3.5 w-3.5 shrink-0 text-emerald-600" />
+              <select
+                className="max-w-[150px] cursor-pointer truncate bg-transparent text-sm font-medium text-card-foreground outline-none"
+                value={currentCompanyId ?? ""}
+                onChange={(e) => handleCompanyChange(Number(e.target.value))}
+                disabled={!!switchingCompanyName}
               >
-                <ArrowLeftRight className="h-5 w-5" />
-              </RefButton>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">اسعار الصرف اليومية</TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-
-        {/* Notifications */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <RefButton className="p-2 rounded-md hover:bg-muted">
-              <Icons.Bell className="h-5 w-5" />
-            </RefButton>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-64">
-            <NotificationCenter
-              userId={user?.id}
-              department={user?.department}
-            />
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        {/* طريقة عرض الصفحات: شاشة مقسمة / تبويبات — تفضيل شخصي (dashboard_layout.display_mode) */}
-        <div className="hidden xl:block">
-          <DisplayModeMenu userId={user?.id} />
+                {myCompanies.map((c) => {
+                  const expired = isCompanyExpired(c);
+                  const disabled = c.status !== "approved" || expired;
+                  return (
+                    <option key={c.id} value={c.id} disabled={disabled}>
+                      {c.name}
+                      {expired ? " (منتهي الاشتراك)" : c.status !== "approved" ? " (غير جاهزة)" : ""}
+                    </option>
+                  );
+                })}
+              </select>
+              <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+            </label>
+          )}
         </div>
 
-        {/* Dark / light mode */}
-        <QuickThemeToggle />
+        {/* الأدوات */}
+        <div className="flex items-center gap-0.5 rounded-xl border border-border/60 bg-muted/30 p-0.5">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <RefButton className={toolButtonClass} onClick={() => setExchangeRatesOpen(true)} aria-label="اسعار الصرف اليومية">
+                  <ArrowLeftRight className="h-[18px] w-[18px]" />
+                </RefButton>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">اسعار الصرف اليومية</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
 
-        {/* User dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <RefButton className={toolButtonClass} aria-label="الإشعارات">
+                <Icons.Bell className="h-[18px] w-[18px]" />
+              </RefButton>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-64">
+              <NotificationCenter userId={user?.id} department={user?.department} />
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/* طريقة عرض الصفحات: شاشة مقسمة / تبويبات — تفضيل شخصي (dashboard_layout.display_mode) */}
+          <div className="hidden xl:block">
+            <DisplayModeMenu userId={user?.id} />
+          </div>
+
+          <QuickThemeToggle />
+        </div>
+
+        {/* المستخدم */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <RefButton className="flex items-center gap-2 h-auto p-1 md:p-2">
-              <Avatar className="h-7 w-7 bg-emerald-600 md:h-8 md:w-8">
-                <AvatarImage src={avatarUrl || undefined} alt={user?.fullName || ""} className="object-cover" />
-                <AvatarFallback className="bg-emerald-600 text-white"><Icons.User className="h-3 w-3 md:h-4 md:w-4" /></AvatarFallback>
-              </Avatar>
+            <RefButton className="flex h-auto items-center gap-2 rounded-xl p-1 transition hover:bg-muted md:py-1 md:pl-1 md:pr-2">
               <div className="hidden min-w-0 max-w-36 text-right xl:block">
-                <p className="truncate text-sm font-medium">{user?.fullName}</p>
-                <p className="truncate text-xs text-muted-foreground">{user?.email}</p>
+                <p className="truncate text-sm font-semibold leading-tight">{user?.fullName}</p>
+                <p className="truncate text-[11px] leading-tight text-muted-foreground">{user?.email}</p>
               </div>
+              <Avatar className="h-8 w-8 bg-emerald-600 ring-2 ring-emerald-500/30 ring-offset-1 ring-offset-card md:h-9 md:w-9">
+                <AvatarImage src={avatarUrl || undefined} alt={user?.fullName || ""} className="object-cover" />
+                <AvatarFallback className="bg-gradient-to-br from-emerald-500 to-teal-600 text-white"><Icons.User className="h-3.5 w-3.5 md:h-4 md:w-4" /></AvatarFallback>
+              </Avatar>
             </RefButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-64 md:w-56">
@@ -423,8 +437,11 @@ export function Header({ onMenuClick, activeSection, onSettingsClick, onSectionC
               </div>
             </DropdownMenuLabel>
 
-            {/* الشاشات الصغيرة: الفرع والشركة مخفيان من الشريط العلوي، فيُعرضان هنا. */}
+            {/* الشاشات الصغيرة: البحث والفرع والشركة مخفية من الشريط العلوي، فتُعرض هنا. */}
             <div className="space-y-2 border-t px-2 py-2 text-right xl:hidden" dir="rtl" onKeyDown={(event) => event.stopPropagation()}>
+              <div className="md:hidden">
+                <GlobalSearch onNavigate={onSectionChange} />
+              </div>
               <label className="block text-xs text-muted-foreground">
                 الفرع
                 <select

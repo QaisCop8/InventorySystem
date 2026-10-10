@@ -3,6 +3,7 @@ import sql from "@/lib/database"
 import { ensureTables as ensureVoucherTables } from "@/app/api/sales-vouchers/_lib"
 import { canUsePosCashierPermission, ensurePosTables, requestBranchId, requestUserId } from "../_lib"
 import { normalizePosPointUsers } from "@/lib/pos-point-users"
+import { assertLicenseAllows, licenseErrorResponseBody } from "@/lib/company-license"
 
 const bool = (value: unknown, fallback = false) => value == null ? fallback : Boolean(value)
 const optionalId = (value: unknown) => Number(value || 0) || null
@@ -85,6 +86,8 @@ async function saveUsers(pointId:number, users:any[]) {
 export async function POST(request:NextRequest) {
   try { await ensureVoucherTables(); await ensurePosTables(); const data=await request.json(); const userId=requestUserId(request); if(!userId)return NextResponse.json({error:"تعذر تحديد المستخدم"},{status:401}); const error=await validate(data); if(error)return NextResponse.json({error},{status:400}); if(!await canUsePosCashierPermission(userId,Number(data.branch_id),"createPoint"))return NextResponse.json({error:"لا توجد لديك صلاحية إضافة تعريف نقطة بيع لهذا الفرع"},{status:403})
     const duplicate=await sql`SELECT id FROM pos_points_tbl WHERE UPPER(code)=UPPER(${String(data.code).trim()}) AND status<>3`; if(duplicate[0])return NextResponse.json({error:"رمز نقطة البيع مستخدم"},{status:400})
+    // ترخيص الشركة: عدد نقاط البيع المسموح به (0 افتراضياً للشركات الجديدة) — يُطلب رفعه من إدارة النظام
+    try { await assertLicenseAllows("pos_points") } catch (licenseError) { const body=licenseErrorResponseBody(licenseError); if(body)return NextResponse.json(body,{status:409}); throw licenseError }
     const rows=await sql`INSERT INTO pos_points_tbl(code,name,branch_id,main_warehouse_id,currency_id,sales_book_id,return_book_id,cash_account_id,card_account_id,cheque_account_id,receivable_account_id,gift_account_id,walk_in_account_id,tax_account_id,return_account_id,price_category_id,max_discount_percent,allow_offline,allow_returns,allow_gifts,item_grouping_mode,print_by_item_group,print_invoices,status) VALUES(${String(data.code).trim().toUpperCase()},${String(data.name).trim()},${Number(data.branch_id)},${Number(data.main_warehouse_id)},${Number(data.currency_id)},${Number(data.sales_book_id)},${optionalId(data.return_book_id)},${optionalId(data.cash_account_id)},${optionalId(data.card_account_id)},${optionalId(data.cheque_account_id)},${null},${optionalId(data.gift_account_id)},${optionalId(data.walk_in_account_id)},${optionalId(data.tax_account_id)},${optionalId(data.return_account_id)},${Number(data.price_category_id||1)},${Number(data.max_discount_percent??100)},${bool(data.allow_offline,true)},${bool(data.allow_returns,true)},${bool(data.allow_gifts,true)},${data.item_grouping_mode??"on_entry"},${bool(data.print_by_item_group)},${bool(data.print_invoices)},1) RETURNING *`
     await saveUsers(Number(rows[0].id),data.users); return NextResponse.json(rows[0],{status:201})
   } catch(error){return NextResponse.json({error:error instanceof Error?error.message:"تعذر حفظ نقطة البيع"},{status:500})}

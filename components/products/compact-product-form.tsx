@@ -41,6 +41,7 @@ import AttachmentManager from "@/components/common/AttachmentManager"
 import { ImageUploadField } from "@/components/common/ImageUploadField"
 import { attachEnterAsTab } from "@/components/common/enterAsTab"
 import { useWorkspaceTabActive } from "@/contexts/workspace-tab-context"
+import { useNavigationGuard } from "@/lib/navigation-guard"
 
 // ارتفاع موحَّد لكل شبكات DataGridView في هذه الشاشة (الوحدات/الأسعار/المستودعات/مراكز التكلفة) —
 // يُمرَّر إلى DataGridView مباشرة (كخاصية style) لا إلى العنصر الملفوف، فيتولى Wijmo تمرير الصفوف
@@ -1860,6 +1861,13 @@ export function CompactProductForm({
     }
     action()
   }
+  // تبديل الشاشة من القائمة/إغلاق التبويب/رجوع المتصفح/تحديث الصفحة مع تغييرات غير محفوظة ⇐ نفس نافذة
+  // التحقق من التغييرات — كما في كاشير نقطة البيع (lib/navigation-guard.ts)
+  useNavigationGuard(
+    () => Boolean(visible && getFormDataHash(formData) !== initialHash.current),
+    (continueNavigation) => requestAfterUnsavedCheck(continueNavigation),
+  )
+
   const hasMeasuredComponents = manufacturingComponents.some((row) => Number(row.measurment_id || 1) !== 1)
   const hasVolumeComponents = manufacturingComponents.some((row) => Number(row.measurment_id) === 3)
   const manufacturingComponentScheme = useMemo(() => ({

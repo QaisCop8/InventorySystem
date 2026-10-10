@@ -1,11 +1,14 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { resolveActingUserId, unauthenticated } from "../../_auth"
 import { updateWorkflowMeta, updateWorkflowDefinition, deleteWorkflow, isWorkspaceAdmin } from "@/lib/task-orders"
 
 export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const id = Number(params.id)
     const data = await request.json()
-    if (!data.userId || !(await isWorkspaceAdmin(String(data.userId)))) {
+    const actingUserId = await resolveActingUserId(request)
+    if (!actingUserId) return unauthenticated()
+    if (!(await isWorkspaceAdmin(actingUserId))) {
       return NextResponse.json({ error: "لا تملك صلاحية إدارة سير العمل" }, { status: 403 })
     }
     // تعديل التعريف الكامل (اسم/نوع/فرع/مجموعة/أصناف) يصل مع name — أي شيء آخر (تفعيل/تعطيل
@@ -22,8 +25,8 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
 export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const id = Number(params.id)
-    const userId = request.nextUrl.searchParams.get("userId")
-    if (!userId) return NextResponse.json({ error: "لا تملك صلاحية إدارة سير العمل" }, { status: 403 })
+    const userId = await resolveActingUserId(request)
+    if (!userId) return unauthenticated()
     await deleteWorkflow(id, userId)
     return NextResponse.json({ success: true })
   } catch (error: any) {
