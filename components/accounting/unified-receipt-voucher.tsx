@@ -281,6 +281,22 @@ const blockNonNumericKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
     e.preventDefault()
   }
 }
+// تحديد كامل القيمة عند التركيز (بالماوس أو Tab/Enter): select() المباشر يلغيه mouseup الذي يلي النقرة،
+// لذا يُحدَّد بعد استقرار التركيز ويُمنع mouseup الأول من إلغاء التحديد.
+const selectAllProps = {
+  onFocus: (e: React.FocusEvent<HTMLInputElement>) => {
+    const input = e.currentTarget
+    input.dataset.justFocused = "1"
+    requestAnimationFrame(() => { if (document.activeElement === input) input.select() })
+  },
+  onMouseUp: (e: React.MouseEvent<HTMLInputElement>) => {
+    if (e.currentTarget.dataset.justFocused) { e.preventDefault(); delete e.currentTarget.dataset.justFocused }
+  },
+  onMouseDown: (e: React.MouseEvent<HTMLInputElement>) => {
+    // نقرة ثانية على حقل مركَّز أصلاً تتصرف طبيعياً (وضع المؤشر)
+    if (document.activeElement === e.currentTarget) delete e.currentTarget.dataset.justFocused
+  },
+}
 const emptyJournalRow: VoucherJournalRow = { account_id: null, account_code: "", account_name: "", amount: null, note: "", cost_centers: [] }
 const emptyChequeRow: VoucherChequeRow = {
   bank_account: "",
@@ -2142,7 +2158,7 @@ export default function UnifiedReceiptVoucher({
                         value={numberValue(form.amount)}
                         onKeyDown={blockNonNumericKey}
                         onChange={(e) => onFormChange("amount", e.target.value ? Number(e.target.value) : 0)}
-                        onFocus={(e) => e.target.select()}
+                        {...selectAllProps}
                         onBlur={() => {
                           doCalculation("amount")
                           applyRemainingToFirstRow()
@@ -2156,23 +2172,10 @@ export default function UnifiedReceiptVoucher({
                         value={numberValue(form.cash_amount)}
                         onKeyDown={blockNonNumericKey}
                         onChange={(e) => onFormChange("cash_amount", e.target.value ? Number(e.target.value) : null)}
-                        onFocus={(e) => e.target.select()}
+                        {...selectAllProps}
                         onBlur={() => doCalculation("cash")}
                       />
                     </div>
-                    {!isPayment && (
-                      <div className="grid gap-1.5">
-                        <Label>بطاقات</Label>
-                        <Input
-                          type="number"
-                          value={numberValue(form.credit_card_amount)}
-                          onKeyDown={blockNonNumericKey}
-                          onChange={(e) => onFormChange("credit_card_amount", e.target.value ? Number(e.target.value) : null)}
-                          onFocus={(e) => e.target.select()}
-                          onBlur={() => doCalculation("credit_card")}
-                        />
-                      </div>
-                    )}
                     <div className="grid gap-1.5">
                       <Label>شيكات</Label>
                       <Input
@@ -2180,7 +2183,7 @@ export default function UnifiedReceiptVoucher({
                         value={numberValue(form.check_amount)}
                         onKeyDown={blockNonNumericKey}
                         onChange={(e) => onFormChange("check_amount", e.target.value ? Number(e.target.value) : null)}
-                        onFocus={(e) => e.target.select()}
+                        {...selectAllProps}
                         onBlur={() => {
                           doCalculation("check")
                           if (Number(form.check_amount || 0) > 0) {
@@ -2190,6 +2193,20 @@ export default function UnifiedReceiptVoucher({
                         }}
                       />
                     </div>
+                    {/* بطاقات آخر الحقول — يأخذ ما تبقى بعد النقدي والشيكات */}
+                    {!isPayment && (
+                      <div className="grid gap-1.5">
+                        <Label>بطاقات</Label>
+                        <Input
+                          type="number"
+                          value={numberValue(form.credit_card_amount)}
+                          onKeyDown={blockNonNumericKey}
+                          onChange={(e) => onFormChange("credit_card_amount", e.target.value ? Number(e.target.value) : null)}
+                          {...selectAllProps}
+                          onBlur={() => doCalculation("credit_card")}
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

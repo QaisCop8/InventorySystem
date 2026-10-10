@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server"
 import sql from "@/lib/database"
 import { getSessionUser } from "@/lib/tenant-auth"
 import { ATTENDANCE_TRANSACTION_TYPES, ensureAttendanceSchema } from "@/lib/attendance-engine"
+import { attendancePayrollSettings, closedPayrollEmployees, saveAttendancePayrollSettings } from "@/lib/attendance-payroll"
 
 // حركات الدوام: عمل إضافي، خصومات (تأخير/خروج مبكر/غياب)، مغادرات، إجازات، مكافآت، جزاءات، بدل مناوبة.
 //   GET    ?from&to&employee_ids&type&status
@@ -19,6 +20,11 @@ export async function GET(request: NextRequest) {
     if (!(await getSessionUser(request))) return NextResponse.json({ error: "يجب تسجيل الدخول" }, { status: 401 })
     await ensureAttendanceSchema()
     const p = request.nextUrl.searchParams
+    if (p.get("settings") === "1") {
+      const settings = await attendancePayrollSettings()
+      const accounts = await sql`SELECT id, code, name FROM account_tbl WHERE id = ANY(${[Number(settings.earningsAccount) || 0, Number(settings.deductionsAccount) || 0]}::int[])`
+      return NextResponse.json({ ...settings, accounts })
+    }
     const today = new Date().toISOString().slice(0, 10)
     const from = isoDate(p.get("from")) || `${today.slice(0, 7)}-01`
     const to = isoDate(p.get("to")) || today
@@ -67,10 +73,19 @@ export async function POST(request: NextRequest) {
     const body = await request.json().catch(() => ({}))
     const userId = Number((user as any).user_id) || null
 
+    if (body.action === "save-settings") {
+      await saveAttendancePayrollSettings(body.settings || {})
+      return NextResponse.json(await attendancePayrollSettings())
+    }
+
     if (body.action === "set-status") {
       const status = ["approved", "rejected", "pending"].includes(String(body.status)) ? String(body.status) : null
       const list = (Array.isArray(body.ids) ? body.ids : []).map(Number).filter((id: number) => id > 0)
       if (!status || !list.length) return NextResponse.json({ error: "حدد الحركات والحالة" }, { status: 400 })
+      // حركة دخلت راتباً مغلقاً لا يتغير اعتمادها
+      const targets = (await sql`SELECT employee_id, trans_date::text AS trans_date FROM attendance_transactions_tbl WHERE id = ANY(${list}::int[])`) as any[]
+      const closed = await closedPayrollEmployees(targets)
+      if (targets.some((row) => closed.has(`${row.employee_id}|${String(row.trans_date).slice(0, 7)}`))) return NextResponse.json({ error: "بعض الحركات تخص راتب شهر مغلق — لا يمكن تغيير اعتمادها" }, { status: 400 })
       await sql`
         UPDATE attendance_transactions_tbl SET status = ${status},
           approved_by = ${status === "approved" ? userId : null}, approved_at = CASE WHEN ${status} = 'approved' THEN CURRENT_TIMESTAMP ELSE NULL END

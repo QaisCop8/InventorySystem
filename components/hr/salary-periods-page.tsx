@@ -30,12 +30,13 @@ export function SalaryPeriodsPage() {
 
   const message = (severity: "success" | "error" | "info", detail: string) => { messagesRef.current?.clear?.(); messagesRef.current?.show?.([{ severity, summary: "", detail, life: 5000 }]) }
   const loadLookups = useCallback(async () => { const response = await fetch("/api/hr/lookups"); if (!response.ok) return; const data = await response.json(); setLookups(data); setFilters(current => ({ ...current, currency: current.currency || String(data.currencies?.[0]?.id || "") })) }, [])
-  const load = useCallback(async () => { setLoading(true); const response = await fetch(`/api/hr/salary-opening?year=${year}&month=${month}`); if (response.ok) setRows((await response.json()).map((row: any) => ({ ...row, selected: true }))); else message("error", (await response.json()).error || "تعذر تحميل الموظفين"); setLoading(false) }, [year, month])
+  const load = useCallback(async () => { setLoading(true); const response = await fetch(`/api/hr/salary-opening?year=${year}&month=${month}`); if (response.ok) setRows((await response.json()).map((row: any) => ({ ...row, selected: row.payroll_state !== "closed" }))); else message("error", (await response.json()).error || "تعذر تحميل الموظفين"); setLoading(false) }, [year, month])
   useEffect(() => { void loadLookups() }, [loadLookups])
   useEffect(() => { void load() }, [load])
 
-  const setAll = (mode: "all" | "none" | "reverse") => setRows(current => current.map(row => ({ ...row, selected: mode === "all" ? true : mode === "none" ? false : !row.selected })))
-  const toggle = (id: number) => setRows(current => current.map(row => Number(row.id) === Number(id) ? { ...row, selected: !row.selected } : row))
+  // راتب مغلق لا يُفتح ولا يُعاد احتسابه
+  const setAll = (mode: "all" | "none" | "reverse") => setRows(current => current.map(row => row.payroll_state === "closed" ? row : ({ ...row, selected: mode === "all" ? true : mode === "none" ? false : !row.selected })))
+  const toggle = (id: number) => setRows(current => current.map(row => Number(row.id) === Number(id) && row.payroll_state !== "closed" ? { ...row, selected: !row.selected } : row))
   const shown = useMemo(() => rows.filter(row => {
     if (selectedOnly && !row.selected) return false
     if (filters.currency && ![String(row.salary_currency), String(row.currency_id)].includes(filters.currency)) return false
@@ -53,15 +54,16 @@ export function SalaryPeriodsPage() {
     setSaving(true)
     const response = await fetch("/api/hr/salary-opening", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ year, month, employee_ids: employeeIds }) })
     const result = await response.json()
-    if (response.ok) { message("success", `تم فتح راتب الشهر لـ ${result.count} موظف بنجاح`); await load() } else message("error", result.error || "تعذر فتح راتب الشهر")
+    if (response.ok) { message("success", `تم فتح / إعادة احتساب راتب الشهر لـ ${result.count} موظف بنجاح (شاملاً حركات الدوام المعتمدة)`); await load() } else message("error", result.error || "تعذر فتح راتب الشهر")
     setSaving(false)
   }
 
   const columns = useMemo<Column[]>(() => [
-    { key: "selected", label: "اختر", width: 70, render: row => <div className="flex justify-center" onClick={event => event.stopPropagation()}><Checkbox checked={!!row.selected} onCheckedChange={() => toggle(row.id)} /></div> },
+    { key: "selected", label: "اختر", width: 70, render: row => <div className="flex justify-center" onClick={event => event.stopPropagation()}><Checkbox checked={!!row.selected} disabled={row.payroll_state === "closed"} onCheckedChange={() => toggle(row.id)} /></div> },
+    { key: "payroll_state", label: "حالة الراتب", width: 120, render: row => row.payroll_state === "closed" ? <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold text-slate-600">مغلق</span> : row.payroll_state === "open" ? <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-800" title="الحفظ يعيد احتسابه">مفتوح مسبقاً</span> : <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-800">جديد</span> },
     { key: "employee_code", label: "رقم الموظف", width: 125 }, { key: "full_name", label: "اسم الموظف", width: "*" },
     { key: "job_name", label: "المسمى الوظيفي", width: 145 }, { key: "department_name", label: "القسم", width: 135 }, { key: "currency_name", label: "عملة الحساب", width: 125 },
-    { key: "basic_salary", label: "الراتب الأساسي", width: 135, format: englishMoney }, { key: "total_salary", label: "إجمالي الراتب", width: 135, format: englishMoney }, { key: "income_tax", label: "الضريبة", width: 115, format: englishMoney }, { key: "net_salary", label: "الصافي", width: 130, format: englishMoney },
+    { key: "basic_salary", label: "الراتب الأساسي", width: 135, format: englishMoney }, { key: "attendance_earnings", label: "إضافي الدوام", width: 120, render: row => <span className={Number(row.attendance_earnings) ? "font-bold text-emerald-700" : "text-slate-300"} title={(row.attendance_details || []).filter((line: any) => line.kind === "earning").map((line: any) => `${line.label}: ${englishMoney(line.amount)}`).join("\n")}>{englishMoney(row.attendance_earnings)}</span> }, { key: "attendance_deductions", label: "خصومات الدوام", width: 125, render: row => <span className={Number(row.attendance_deductions) ? "font-bold text-rose-700" : "text-slate-300"} title={(row.attendance_details || []).filter((line: any) => line.kind === "deduction").map((line: any) => `${line.label}: ${englishMoney(line.amount)}`).join("\n")}>{englishMoney(row.attendance_deductions)}</span> }, { key: "total_salary", label: "إجمالي الراتب", width: 135, format: englishMoney }, { key: "income_tax", label: "الضريبة", width: 115, format: englishMoney }, { key: "net_salary", label: "الصافي", width: 130, format: englishMoney },
   ], [])
   const field = (label: string, value: string, onChange: (value: string) => void, options: Array<{ value: string; label: string }>) => <div><Label className="mb-2 block font-semibold">{label}</Label><select className={selectClass} value={value} onChange={event => onChange(event.target.value)}>{options.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select></div>
 
@@ -72,7 +74,7 @@ export function SalaryPeriodsPage() {
       {field("الشهر", String(month), value => setMonth(Number(value)), monthNames.map((name, index) => ({ value: String(index + 1), label: `${index + 1} - ${name}` })))}
       {field("عملة الحساب", filters.currency, value => setFilters(current => ({ ...current, currency: value })), [{ value: "", label: "الكل" }, ...(lookups.currencies || []).map((item: any) => ({ value: String(item.id), label: `${item.currency_code} / ${item.currency_name}` }))])}
       {field("نوع الراتب", filters.salaryType, value => setFilters(current => ({ ...current, salaryType: value })), [{ value: "all", label: "الكل" }, { value: "monthly", label: "شهري" }, { value: "daily", label: "يومي" }, { value: "hourly", label: "بالساعة" }])}
-      {field("الموظف", filters.employee, value => setFilters(current => ({ ...current, employee: value })), [{ value: "", label: "الكل" }, ...rows.map(item => ({ value: String(item.id), label: `${item.employee_code} / ${item.full_name}` }))])}
+      {field("الموظف", filters.employee, value => setFilters(current => ({ ...current, employee: value })), [{ value: "", label: "الكل" }, ...(lookups.employees || []).map((item: any) => ({ value: String(item.id), label: `${item.employee_code} / ${item.full_name}` }))])}
       {field("القسم", filters.department, value => setFilters(current => ({ ...current, department: value })), [{ value: "", label: "الكل" }, ...(lookups.departments || []).map((item: any) => ({ value: String(item.id), label: item.department_name || item.name }))])}
       {field("المسمى الوظيفي", filters.job, value => setFilters(current => ({ ...current, job: value })), [{ value: "", label: "الكل" }, ...(lookups.jobs || []).map((item: any) => ({ value: String(item.id), label: item.name }))])}
       {field("نوع العقد", filters.contractType, value => setFilters(current => ({ ...current, contractType: value })), [{ value: "all", label: "الكل" }, { value: "permanent", label: "دائم" }, { value: "temporary", label: "مؤقت" }])}

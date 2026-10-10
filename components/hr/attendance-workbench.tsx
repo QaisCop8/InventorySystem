@@ -379,6 +379,86 @@ export function AttendanceEditorPage() {
   )
 }
 
+// ═════════════════════════ إعدادات احتساب حركات الدوام في الراتب ═════════════════════════
+function AccountCodeField({ label, accountId, initial, onChange }: { label: string; accountId: string; initial?: { code: string; name: string }; onChange: (id: string) => void }) {
+  const [code, setCode] = useState(initial?.code || "")
+  const [name, setName] = useState(initial?.name || "")
+  const [error, setError] = useState("")
+  useEffect(() => { setCode(initial?.code || ""); setName(initial?.name || "") }, [initial?.code, initial?.name])
+  const resolve = async () => {
+    setError("")
+    if (!code.trim()) { setName(""); onChange(""); return }
+    const response = await fetch(`/api/accounts/search?code=${encodeURIComponent(code.trim())}`)
+    if (!response.ok) { setName(""); onChange(""); setError("الحساب غير موجود"); return }
+    const account = await response.json()
+    setName(account.name); onChange(String(account.id))
+  }
+  return (
+    <div>
+      <Label>{label}</Label>
+      <div className="flex gap-2">
+        <Input dir="ltr" className={`${inputClass} w-36 font-mono`} value={code} onChange={(e) => setCode(e.target.value)} onBlur={() => void resolve()} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void resolve() } }} placeholder="رمز الحساب" />
+        <div className={`flex flex-1 items-center rounded-md border px-3 text-sm ${accountId ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "bg-slate-50 text-slate-400"}`}>{name || "—"}</div>
+      </div>
+      {error && <p className="mt-1 text-xs text-rose-600">{error}</p>}
+    </div>
+  )
+}
+
+function PayrollSettingsDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+  const [form, setForm] = useState<any>(null)
+  const [accounts, setAccounts] = useState<any[]>([])
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState("")
+  useEffect(() => {
+    if (!open) return
+    setError("")
+    fetch("/api/hr/attendance-transactions?settings=1", { cache: "no-store" }).then((r) => r.json()).then((data) => { setAccounts(data.accounts || []); setForm(data) }).catch(() => setError("تعذر تحميل الإعدادات"))
+  }, [open])
+  const save = async () => {
+    setSaving(true); setError("")
+    try {
+      const { accounts: _ignored, ...settings } = form
+      const response = await fetch("/api/hr/attendance-transactions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "save-settings", settings }) })
+      if (!response.ok) throw new Error((await response.json()).error || "تعذر الحفظ")
+      onOpenChange(false)
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "تعذر الحفظ") } finally { setSaving(false) }
+  }
+  const accountOf = (id: string) => { const row = accounts.find((item) => String(item.id) === String(id)); return row ? { code: row.code, name: row.name } : undefined }
+  const num = (key: string, label: string, step = "1") => <div><Label>{label}</Label><Input type="number" min="0" step={step} dir="ltr" className={inputClass} value={form?.[key] ?? ""} onChange={(e) => setForm({ ...form, [key]: e.target.value })} /></div>
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent dir="rtl" className="max-w-2xl">
+        <DialogHeader className="text-right">
+          <DialogTitle>احتساب حركات الدوام في الراتب</DialogTitle>
+          <DialogDescription>الحركات المعتمدة فقط تدخل راتب الشهر عند فتح الراتب أو إعادة احتسابه. الأجر اليومي = الراتب الأساسي ÷ أيام الشهر، وأجر الساعة = اليومي ÷ ساعات اليوم. المبلغ المُدخل على الحركة يتقدّم على الاحتساب.</DialogDescription>
+        </DialogHeader>
+        {!form ? <Loader2 className="mx-auto h-6 w-6 animate-spin text-teal-600" /> : (
+          <div className="grid gap-3 sm:grid-cols-3">
+            <label className="flex items-center gap-2 text-sm font-semibold sm:col-span-3"><Checkbox checked={form.enabled !== false && form.enabled !== "false"} onCheckedChange={(v) => setForm({ ...form, enabled: v === true })} />احتساب حركات الدوام المعتمدة في الراتب</label>
+            {num("monthDays", "أيام الشهر للأجر اليومي")}
+            {num("hoursPerDay", "ساعات يوم العمل", "0.5")}
+            {num("nightAmount", "بدل المناوبة الليلية / يوم", "0.01")}
+            {num("overtimeRate", "معامل الإضافي (×أجر الساعة)", "0.25")}
+            {num("holidayRate", "معامل الإضافي في العطل", "0.25")}
+            <div className="sm:col-span-3 grid gap-3 sm:grid-cols-2">
+              <AccountCodeField label="حساب استحقاقات الدوام (مدين)" accountId={String(form.earningsAccount || "")} initial={accountOf(form.earningsAccount)} onChange={(id) => setForm((f: any) => ({ ...f, earningsAccount: id }))} />
+              <AccountCodeField label="حساب خصومات الدوام (دائن)" accountId={String(form.deductionsAccount || "")} initial={accountOf(form.deductionsAccount)} onChange={(id) => setForm((f: any) => ({ ...f, deductionsAccount: id }))} />
+            </div>
+            <div className="rounded-xl bg-slate-50 p-3 text-xs leading-6 text-slate-600 sm:col-span-3">
+              <b>استحقاق:</b> عمل إضافي (ساعات × أجر الساعة × المعامل)، إضافي في عطلة، مكافأة، بدل مناوبة ليلية.<br />
+              <b>خصم:</b> تأخير وخروج مبكر (ساعات × أجر الساعة)، غياب وإجازة بدون راتب (أيام × الأجر اليومي)، جزاء.<br />
+              <b>لا تؤثر:</b> مغادرة/إذن، إجازة مدفوعة، إجازة مرضية. الحسابان مطلوبان لتنفيذ قيد الراتب عند وجود حركات.
+            </div>
+          </div>
+        )}
+        {error && <Message text={error} />}
+        <DialogFooter><Button onClick={() => void save()} disabled={saving || !form}>{saving ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Save className="ml-2 h-4 w-4" />}حفظ</Button></DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 // ═════════════════════════ حركات الدوام ═════════════════════════
 const emptyTransaction = { id: 0, employee_id: "", trans_date: today(), trans_type: "overtime", quantity: "", amount: "", notes: "" }
 
@@ -390,6 +470,7 @@ export function AttendanceTransactionsPage() {
   const [form, setForm] = useState<any>(emptyTransaction)
   const [open, setOpen] = useState(false)
   const [generateOpen, setGenerateOpen] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
   const [generate, setGenerate] = useState({ types: ["overtime", "late_deduction", "early_leave_deduction", "absence_deduction"], minLate: "0" })
   const [message, setMessage] = useState<{ text: string; tone: "error" | "success" }>({ text: "", tone: "success" })
   const [saving, setSaving] = useState(false)
@@ -455,7 +536,9 @@ export function AttendanceTransactionsPage() {
           <Button variant="outline" className="border-emerald-200 text-emerald-700" disabled={!selected.length} onClick={() => void setStatus("approved")}><ShieldCheck className="ml-2 h-4 w-4" />اعتماد المحدد ({selected.length})</Button>
           <Button variant="outline" className="border-rose-200 text-rose-700" disabled={!selected.length} onClick={() => void setStatus("rejected")}><XCircle className="ml-2 h-4 w-4" />رفض المحدد</Button>
           <Button variant="ghost" disabled={!selected.length} onClick={() => void setStatus("pending")}>إعادة لقيد الاعتماد</Button>
+          <Button variant="outline" className="mr-auto" onClick={() => setSettingsOpen(true)}><Cog className="ml-2 h-4 w-4" />إعدادات الاحتساب في الراتب</Button>
         </div>
+        <p className="mt-2 text-xs text-slate-500">الحركات <b>المعتمدة</b> تُضاف للراتب أو تُخصم منه حسب نوعها عند فتح راتب الشهر أو إعادة احتسابه.</p>
       </div>
       <Message text={message.text} tone={message.tone} />
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
@@ -509,6 +592,7 @@ export function AttendanceTransactionsPage() {
         </DialogContent>
       </Dialog>
 
+      <PayrollSettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
       <Dialog open={generateOpen} onOpenChange={setGenerateOpen}>
         <DialogContent dir="rtl" className="max-w-md">
           <DialogHeader className="text-right">

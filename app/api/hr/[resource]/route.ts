@@ -10,6 +10,7 @@ import { ensureTables as ensureVoucherTables, saveJournalRows, JOURNAL_TYPE_COUN
 import { JournalDefaultsError, nextJournalVoucherCode, resolveUserDefaultJournalBook, type JournalBookContext } from "@/lib/journal-defaults"
 import { authorizeTransaction } from "@/lib/transaction-permissions"
 import { getSessionUser } from "@/lib/tenant-auth"
+import { attendancePayrollSettings, attendancePayrollTotals } from "@/lib/attendance-payroll"
 
 const definitions: Record<string, { table: string; fields: string[]; order: string }> = {
   jobs: { table: "employee_jobs_tbl", fields: ["code", "name", "is_active"], order: "code" },
@@ -60,15 +61,33 @@ async function getSalaryOpeningRows(year: number, month: number, excludeExisting
     GROUP BY e.id,d.department_name,j.name,c.currency_name,first_item.id,first_item.calculated_amount
     ORDER BY e.employee_code
   `
+  // حركات الدوام المعتمدة للشهر (إضافي/خصومات/مكافآت...) — تُضاف للاستحقاقات والخصومات وتدخل وعاء الضريبة
+  const { totals: attendance } = await attendancePayrollTotals(year, month, (rows as any[]).map((row) => ({ id: Number(row.id), basic_salary: Number(row.basic_salary) || 0 })))
   return rows.map((row: any) => {
     const basicSalary = Number(row.basic_salary) || 0
-    const earnings = Number(row.earnings) || 0
-    const deductions = Number(row.deductions) || 0
-    const taxableAmount = Math.max(0, (Number(row.taxable_items) || basicSalary) - (Number(row.annual_exemptions) || 0) / 12)
+    const att = attendance.get(Number(row.id))
+    const attendanceEarnings = att?.earnings || 0
+    const attendanceDeductions = att?.deductions || 0
+    const earnings = (Number(row.earnings) || 0) + attendanceEarnings
+    const deductions = (Number(row.deductions) || 0) + attendanceDeductions
+    const taxableAmount = Math.max(0, (Number(row.taxable_items) || basicSalary) + attendanceEarnings - attendanceDeductions - (Number(row.annual_exemptions) || 0) / 12)
     const bracket = (Array.isArray(row.brackets) ? row.brackets : []).filter((item: any) => taxableAmount >= Number(item.from_amount) && (item.to_amount == null || taxableAmount <= Number(item.to_amount))).at(-1)
     const incomeTax = row.is_taxed ? taxableAmount * (Number(bracket?.tax_percent) || 0) / 100 : 0
-    return { ...row, selected: true, basic_salary: basicSalary, earnings, deductions, income_tax: incomeTax, total_salary: basicSalary + earnings - deductions, net_salary: basicSalary + earnings - deductions - incomeTax }
+    return { ...row, selected: true, basic_salary: basicSalary, earnings, deductions, attendance_earnings: attendanceEarnings, attendance_deductions: attendanceDeductions, attendance_details: att?.lines || [], income_tax: incomeTax, total_salary: basicSalary + earnings - deductions, net_salary: basicSalary + earnings - deductions - incomeTax }
   })
+}
+async function savePayrollRow(periodId: number, row: any, overwriteOpen: boolean) {
+  const details = JSON.stringify(row.attendance_details || [])
+  if (overwriteOpen) {
+    return sql`INSERT INTO payroll_tbl(period_id,employee_id,basic_salary,earnings,deductions,income_tax,net_salary,attendance_earnings,attendance_deductions,attendance_details)
+      VALUES(${periodId},${row.id},${row.basic_salary},${row.earnings},${row.deductions},${row.income_tax},${row.net_salary},${row.attendance_earnings || 0},${row.attendance_deductions || 0},${details}::jsonb)
+      ON CONFLICT(period_id,employee_id) DO UPDATE SET basic_salary=EXCLUDED.basic_salary,earnings=EXCLUDED.earnings,deductions=EXCLUDED.deductions,income_tax=EXCLUDED.income_tax,net_salary=EXCLUDED.net_salary,
+        attendance_earnings=EXCLUDED.attendance_earnings,attendance_deductions=EXCLUDED.attendance_deductions,attendance_details=EXCLUDED.attendance_details
+      WHERE COALESCE(payroll_tbl.is_closed,false)=false`
+  }
+  return sql`INSERT INTO payroll_tbl(period_id,employee_id,basic_salary,earnings,deductions,income_tax,net_salary,attendance_earnings,attendance_deductions,attendance_details)
+    VALUES(${periodId},${row.id},${row.basic_salary},${row.earnings},${row.deductions},${row.income_tax},${row.net_salary},${row.attendance_earnings || 0},${row.attendance_deductions || 0},${details}::jsonb)
+    ON CONFLICT(period_id,employee_id) DO NOTHING`
 }
 const validateEmployee = (body: any) => {
   if (!body.department_id) return "القسم مطلوب"
@@ -130,7 +149,13 @@ export async function GET(request: NextRequest, { params }: { params: { resource
       const year = Number(request.nextUrl.searchParams.get("year"))
       const month = Number(request.nextUrl.searchParams.get("month"))
       if (!year || month < 1 || month > 12) return NextResponse.json({ error: "السنة والشهر مطلوبان" }, { status: 400 })
-      return NextResponse.json(await getSalaryOpeningRows(year, month))
+      // كل الموظفين المؤهلين مع حالة راتبهم لهذا الشهر: جديد / مفتوح (يُعاد احتسابه) / مغلق
+      const [rows, existing] = await Promise.all([
+        getSalaryOpeningRows(year, month, false),
+        sql`SELECT p.employee_id, COALESCE(p.is_closed,false) is_closed FROM payroll_tbl p JOIN salary_periods_tbl sp ON sp.id=p.period_id WHERE sp.year=${year} AND sp.month=${month}`,
+      ])
+      const state = new Map((existing as any[]).map((row) => [Number(row.employee_id), row.is_closed ? "closed" : "open"]))
+      return NextResponse.json(rows.map((row: any) => ({ ...row, payroll_state: state.get(Number(row.id)) || "new" })))
     }
     if (resource === "payroll") {
       const periodId = Number(request.nextUrl.searchParams.get("period_id") || 0)
@@ -307,10 +332,12 @@ export async function POST(request: NextRequest, { params }: { params: { resourc
       const employeeIds = [...new Set((body.employee_ids || []).map(Number).filter(Boolean))]
       if (!year || month < 1 || month > 12) return NextResponse.json({ error: "السنة والشهر مطلوبان" }, { status: 400 })
       if (!employeeIds.length) return NextResponse.json({ error: "يجب اختيار موظف واحد على الأقل" }, { status: 400 })
-      const eligible = (await getSalaryOpeningRows(year, month)).filter((row: any) => employeeIds.includes(Number(row.id)))
-      if (!eligible.length) return NextResponse.json({ error: "لا يوجد موظفون مؤهلون لفتح راتب هذا الشهر" }, { status: 400 })
+      // موظف جديد ⇒ فتح راتبه، موظف مفتوح راتبه ⇒ إعادة احتسابه (مع حركات الدوام المعتمدة)، المغلق لا يُمس
+      const closedIds = new Set(((await sql`SELECT p.employee_id FROM payroll_tbl p JOIN salary_periods_tbl sp ON sp.id=p.period_id WHERE sp.year=${year} AND sp.month=${month} AND COALESCE(p.is_closed,false)=true`) as any[]).map((row) => Number(row.employee_id)))
+      const eligible = (await getSalaryOpeningRows(year, month, false)).filter((row: any) => employeeIds.includes(Number(row.id)) && !closedIds.has(Number(row.id)))
+      if (!eligible.length) return NextResponse.json({ error: "لا يوجد موظفون مؤهلون لفتح راتب هذا الشهر (رواتب المحددين مغلقة)" }, { status: 400 })
       const periods = await sql`INSERT INTO salary_periods_tbl(year,month,status) VALUES(${year},${month},'open') ON CONFLICT(year,month) DO UPDATE SET status='open',closed_at=NULL RETURNING id`
-      for (const row of eligible as any[]) await sql`INSERT INTO payroll_tbl(period_id,employee_id,basic_salary,earnings,deductions,income_tax,net_salary) VALUES(${periods[0].id},${row.id},${row.basic_salary},${row.earnings},${row.deductions},${row.income_tax},${row.net_salary}) ON CONFLICT(period_id,employee_id) DO NOTHING`
+      for (const row of eligible as any[]) await savePayrollRow(Number(periods[0].id), row, true)
       return NextResponse.json({ ok: true, count: eligible.length })
     }
     if (resource === "salary-journal") {
@@ -369,6 +396,14 @@ export async function POST(request: NextRequest, { params }: { params: { resourc
             if (!amount) continue
             journalRows.push({ journal_type_id: JOURNAL_TYPE_COUNTER_ACCOUNT, account_id: await resolveAccount(item.account_code, item.name), credit_debit: item.item_type === "deduction" ? 2 : 1, amount: Math.abs(amount), currency_id: Number(payroll.currency_id) || null, rate: 1, base_curr_amount: Math.abs(amount), note: `${item.name} - ${payroll.full_name}`.slice(0, 70), order_no: orderNo++, cost_centers: [] })
           }
+          // حركات الدوام المعتمدة التي دخلت الراتب: الاستحقاقات مدين على حسابها، والخصومات دائن على حسابها
+          const attendanceEarnings = Number(payroll.attendance_earnings) || 0
+          const attendanceDeductions = Number(payroll.attendance_deductions) || 0
+          if (attendanceEarnings || attendanceDeductions) {
+            const attendanceSettings = await attendancePayrollSettings()
+            if (attendanceEarnings > 0) journalRows.push({ journal_type_id: JOURNAL_TYPE_COUNTER_ACCOUNT, account_id: await resolveAccount(attendanceSettings.earningsAccount, "استحقاقات الدوام (من إعدادات احتساب الدوام في حركات الدوام)", true), credit_debit: 1, amount: attendanceEarnings, currency_id: Number(payroll.currency_id) || null, rate: 1, base_curr_amount: attendanceEarnings, note: `إضافي ومكافآت الدوام - ${payroll.full_name}`.slice(0, 70), order_no: orderNo++, cost_centers: [] })
+            if (attendanceDeductions > 0) journalRows.push({ journal_type_id: JOURNAL_TYPE_COUNTER_ACCOUNT, account_id: await resolveAccount(attendanceSettings.deductionsAccount, "خصومات الدوام (من إعدادات احتساب الدوام في حركات الدوام)", true), credit_debit: 2, amount: attendanceDeductions, currency_id: Number(payroll.currency_id) || null, rate: 1, base_curr_amount: attendanceDeductions, note: `خصومات الدوام - ${payroll.full_name}`.slice(0, 70), order_no: orderNo++, cost_centers: [] })
+          }
           if (Number(payroll.income_tax) > 0) {
             const law = (await sql`SELECT tl.account_code,tl.name FROM employees_tbl e JOIN tax_laws_tbl tl ON tl.id=e.tax_law_id WHERE e.id=${payroll.employee_id}`)[0]
             journalRows.push({ journal_type_id: JOURNAL_TYPE_COUNTER_ACCOUNT, account_id: await resolveAccount(law?.account_code, law?.name || "ضريبة الدخل"), credit_debit: 2, amount: Number(payroll.income_tax), currency_id: Number(payroll.currency_id) || null, rate: 1, base_curr_amount: Number(payroll.income_tax), note: `ضريبة الدخل - ${payroll.full_name}`.slice(0, 70), order_no: orderNo++, cost_centers: [] })
@@ -414,10 +449,7 @@ export async function POST(request: NextRequest, { params }: { params: { resourc
 
       const calculatedRows = await getSalaryOpeningRows(Number(period.year), Number(period.month), false)
       await sql`DELETE FROM payroll_tbl WHERE period_id=${periodId}`
-      for (const row of calculatedRows) {
-        await sql`INSERT INTO payroll_tbl(period_id,employee_id,basic_salary,earnings,deductions,income_tax,net_salary)
-          VALUES(${periodId},${row.id},${row.basic_salary},${row.earnings},${row.deductions},${row.income_tax},${row.net_salary})`
-      }
+      for (const row of calculatedRows) await savePayrollRow(periodId, row, false)
       return NextResponse.json({ ok: true, count: calculatedRows.length })
     }
     if (resource === "attendance-devices") {

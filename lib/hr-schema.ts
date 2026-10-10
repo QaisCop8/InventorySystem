@@ -73,6 +73,9 @@ export async function ensureHrSchema() {
     await sql`ALTER TABLE payroll_tbl ADD COLUMN IF NOT EXISTS is_closed BOOLEAN DEFAULT false`
     await sql`ALTER TABLE payroll_tbl ADD COLUMN IF NOT EXISTS closed_at TIMESTAMP`
     await sql`ALTER TABLE payroll_tbl ADD COLUMN IF NOT EXISTS journal_id INTEGER`
+    await sql`ALTER TABLE payroll_tbl ADD COLUMN IF NOT EXISTS attendance_earnings NUMERIC(18,3) DEFAULT 0`
+    await sql`ALTER TABLE payroll_tbl ADD COLUMN IF NOT EXISTS attendance_deductions NUMERIC(18,3) DEFAULT 0`
+    await sql`ALTER TABLE payroll_tbl ADD COLUMN IF NOT EXISTS attendance_details JSONB`
     await sql`CREATE TABLE IF NOT EXISTS attendance_devices_tbl (
       id SERIAL PRIMARY KEY,
       name VARCHAR(150) NOT NULL,
