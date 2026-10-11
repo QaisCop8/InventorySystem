@@ -205,7 +205,49 @@ export function DepartmentsPage() {
 }
 
 export function EmployeesPage() {
-  const blank = () => ({ employee_code: "", full_name: "", other_name: "", image_url: "", national_id: "", passport_no: "", gender: "male", birth_date: "", hire_date: new Date().toISOString().slice(0, 10), end_date: "", department_id: "", job_id: "", branch_id: "", tax_exemption_id: "", tax_law_id: "", salary_type: "monthly", basic_salary: 0, salary_currency: "", contract_type: "permanent", bank_name: "", bank_branch: "", bank_account: "", iban: "", salary_account: "", salary_items: [], tax_exemptions: [], is_taxed: true, social_status: "", phone: "", email: "", region: "", address: "", permanent_address: "", father_account: "", account_currency: "", allow_different_currency: "0", currency_difference: false, stop_transactions: [], status: 1, notes: "" })
+  const blank = () => ({
+    employee_code: "",
+    full_name: "",
+    other_name: "",
+    image_url: "",
+    national_id: "",
+    passport_no: "",
+    gender: "male",
+    birth_date: "",
+    hire_date: new Date().toISOString().slice(0, 10),
+    end_date: "",
+    department_id: "",
+    job_id: "",
+    branch_id: "",
+    tax_exemption_id: "",
+    tax_law_id: "",
+    salary_type: "monthly",
+    basic_salary: 0,
+    salary_currency: "",
+    contract_type: "permanent",
+    bank_name: "",
+    bank_branch: "",
+    bank_account: "",
+    iban: "",
+    salary_account: "",
+    device_user_id: "", // رقم الكرت
+    salary_items: [],
+    tax_exemptions: [],
+    is_taxed: true,
+    social_status: "",
+    phone: "",
+    email: "",
+    region: "",
+    address: "",
+    permanent_address: "",
+    father_account: "",
+    account_currency: "",
+    allow_different_currency: "0",
+    currency_difference: false,
+    stop_transactions: [],
+    status: 1,
+    notes: ""
+  })
   const [rows, setRows] = useState<any[]>([]), [lookups, setLookups] = useState<any>({ jobs: [], departments: [], branches: [], exemptions: [] }), [form, setForm] = useState<any>(blank()), [selected, setSelected] = useState<any>(null), [open, setOpen] = useState(false), [saving, setSaving] = useState(false), [search, setSearch] = useState(""), [status, setStatus] = useState("active")
   const messagesRef = useRef<any>(null)
   const load = useCallback(async () => { const [employeesResponse, lookupsResponse, departmentsResponse, settingsResponse] = await Promise.all([fetch("/api/hr/employees"), fetch("/api/hr/lookups"), fetch("/api/departments"), fetch("/api/settings/system")]); if (employeesResponse.ok) setRows(await employeesResponse.json()); const lookupData = lookupsResponse.ok ? await lookupsResponse.json() : {}; const definitionDepartments = departmentsResponse.ok ? await departmentsResponse.json() : []; const settingsData = settingsResponse.ok ? await settingsResponse.json() : {}; const defaultAccountId = Number(settingsData.default_new_employee_account) || 0; let defaultEmployeeAccountCode = ""; if (defaultAccountId) { const accountResponse = await fetch(`/api/accounts/${defaultAccountId}`); if (accountResponse.ok) { const account = await accountResponse.json(); defaultEmployeeAccountCode = String(account.code || account.account_code || "") } } setLookups({ ...lookupData, departments: definitionDepartments.filter((department: any) => department.is_active !== false), defaultEmployeeAccountCode }) }, []); useEffect(() => { void load() }, [load])
@@ -238,12 +280,12 @@ export function EmployeesPage() {
   const save = async () => { if (!form.employee_code || !form.full_name || !form.hire_date || !form.department_id) return showError("رقم الموظف والاسم وتاريخ التعيين والقسم مطلوبة"); if (!form.salary_currency) return showError("عملة الراتب مطلوبة"); const salaryItems = (form.salary_items || []).filter((item: any) => item.salary_item_id); if (!salaryItems.length) return showError("يجب إضافة بند راتب واحد على الأقل"); const seenSalaryItems = new Set<string>(); const duplicateSalaryItemId = salaryItems.map((item: any) => String(item.salary_item_id)).find((id: string) => seenSalaryItems.has(id) || !seenSalaryItems.add(id)); if (duplicateSalaryItemId) { const duplicateItem = (lookups.items || []).find((item: any) => String(item.id) === duplicateSalaryItemId); return showError(`البند - ${duplicateItem?.name || duplicateSalaryItemId} مكرر`) } if (!form.tax_law_id) return showError("قانون الضريبة مطلوب"); if (!form.father_account_code) return showError("حساب الأب مطلوب"); if (!form.account_currency) return showError("عملة الحساب مطلوبة"); setSaving(true); const r = await fetch("/api/hr/employees", { method: form.id ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) }); if (r.ok) { await load(); setOpen(false) } else showError((await r.json()).error || "تعذر الحفظ"); setSaving(false) }
   const remove = async () => { if (!(Number(form.id) > 0)) return; setSaving(true); const response = await fetch(`/api/hr/employees?id=${form.id}`, { method: "DELETE" }); if (response.ok) { await load(); setOpen(false); setSelected(null) } else showError((await response.json()).error || "تعذر حذف الموظف"); setSaving(false) }
   const opts = (items: any[], name: string): Option[] => items.map(x => ({ value: x.id, label: x[name] }))
-  const fields: Field[] = [{ key: "employee_code", label: "رقم الموظف", required: true }, { key: "full_name", label: "اسم الموظف", required: true, span: "sm:col-span-2" }, { key: "national_id", label: "رقم الهوية" }, { key: "department_id", label: "القسم", type: "select", required: true, options: opts(lookups.departments, "department_name") }, { key: "job_id", label: "الوظيفة", type: "select", options: opts(lookups.jobs, "name") }, { key: "branch_id", label: "الفرع", type: "select", options: opts(lookups.branches, "branch_name") }, { key: "tax_exemption_id", label: "الإعفاء الضريبي", type: "select", options: opts(lookups.exemptions, "name") }, { key: "hire_date", label: "تاريخ التعيين", type: "date", required: true }, { key: "birth_date", label: "تاريخ الميلاد", type: "date" }, { key: "end_date", label: "انتهاء الخدمة", type: "date" }, { key: "status", label: "الحالة", type: "select", options: [{ value: 1, label: "على رأس العمل" }, { value: 2, label: "منتهي الخدمة" }] }, { key: "salary_type", label: "نوع الراتب", type: "select", options: [{ value: "monthly", label: "شهري" }, { value: "daily", label: "يومي" }, { value: "hourly", label: "بالساعة" }] }, { key: "basic_salary", label: "الراتب الأساسي", type: "number" }, { key: "bank_account", label: "الحساب البنكي" }, { key: "gender", label: "الجنس", type: "select", options: [{ value: "male", label: "ذكر" }, { value: "female", label: "أنثى" }] }, { key: "phone", label: "الهاتف" }, { key: "email", label: "البريد الإلكتروني" }, { key: "address", label: "العنوان", span: "sm:col-span-2" }, { key: "notes", label: "ملاحظات", type: "textarea", span: "sm:col-span-2 lg:col-span-4" }]
+  const fields: Field[] = [{ key: "employee_code", label: "رقم الموظف", required: true }, { key: "full_name", label: "اسم الموظف", required: true, span: "sm:col-span-2" }, { key: "device_user_id", label: "رقم الكرت عند الجهاز", span: "sm:col-span-2" }, { key: "national_id", label: "رقم الهوية" }, { key: "department_id", label: "القسم", type: "select", required: true, options: opts(lookups.departments, "department_name") }, { key: "job_id", label: "الوظيفة", type: "select", options: opts(lookups.jobs, "name") }, { key: "branch_id", label: "الفرع", type: "select", options: opts(lookups.branches, "branch_name") }, { key: "tax_exemption_id", label: "الإعفاء الضريبي", type: "select", options: opts(lookups.exemptions, "name") }, { key: "hire_date", label: "تاريخ التعيين", type: "date", required: true }, { key: "birth_date", label: "تاريخ الميلاد", type: "date" }, { key: "end_date", label: "انتهاء الخدمة", type: "date" }, { key: "status", label: "الحالة", type: "select", options: [{ value: 1, label: "على رأس العمل" }, { value: 2, label: "منتهي الخدمة" }] }, { key: "salary_type", label: "نوع الراتب", type: "select", options: [{ value: "monthly", label: "شهري" }, { value: "daily", label: "يومي" }, { value: "hourly", label: "بالساعة" }] }, { key: "basic_salary", label: "الراتب الأساسي", type: "number" }, { key: "bank_account", label: "الحساب البنكي" }, { key: "gender", label: "الجنس", type: "select", options: [{ value: "male", label: "ذكر" }, { value: "female", label: "أنثى" }] }, { key: "phone", label: "الهاتف" }, { key: "email", label: "البريد الإلكتروني" }, { key: "address", label: "العنوان", span: "sm:col-span-2" }, { key: "notes", label: "ملاحظات", type: "textarea", span: "sm:col-span-2 lg:col-span-4" }]
   const findField = (key: string) => fields.find(field => field.key === key)!
   findField("job_id").required = true
   findField("department_id").required = true
   const tabs: { value: string; label: string; fields: Field[] }[] = [
-    { value: "main", label: "الرئيسية", fields: [{ key: "salary_account", label: "حساب صرف الراتب", type: "account", required: true, span: "sm:col-span-2" }, findField("job_id"), findField("department_id")] },
+    { value: "main", label: "الرئيسية", fields: [{ key: "salary_account", label: "حساب صرف الراتب", type: "account", required: true, span: "sm:col-span-2" }, findField("job_id"), findField("department_id"), findField("device_user_id")] },
     { value: "salary", label: "تفاصيل الراتب", fields: [{ key: "salary_currency", label: "عملة الراتب", type: "select", options: (lookups.currencies || []).map((currency: any) => ({ value: currency.id, label: `${currency.currency_code} / ${currency.currency_name}` })) }, findField("salary_type"), { key: "contract_type", label: "نوع العقد", type: "select", options: [{ value: "permanent", label: "دائم" }, { value: "temporary", label: "مؤقت" }, { value: "part_time", label: "دوام جزئي" }] }, { key: "bank_name", label: "البنك" }, { key: "bank_branch", label: "فرع البنك" }, findField("bank_account"), { key: "iban", label: "IBAN" }] },
     { value: "tax", label: "تفاصيل الاقتطاعات الضريبية", fields: [{ key: "is_taxed", label: "خاضع للضريبة", type: "checkbox" }, { key: "tax_law_id", label: "قانون الضريبة", type: "select", options: opts(lookups.taxLaws || [], "name") }, findField("gender"), { key: "social_status", label: "الحالة الاجتماعية", type: "select", options: [{ value: "single", label: "أعزب" }, { value: "married", label: "متزوج" }, { value: "divorced", label: "مطلق" }, { value: "widowed", label: "أرمل" }] }] },
     { value: "account", label: "تفاصيل الحساب", fields: [{ key: "father_account", label: "حساب الأب", type: "account", required: true, span: "sm:col-span-2" }, { key: "account_currency", label: "عملة الحساب", type: "select", options: (lookups.currencies || []).map((currency: any) => ({ value: currency.id, label: `${currency.currency_code} / ${currency.currency_name}` })) }, { key: "allow_different_currency", label: "السماح بحركة بعملة مختلفة", type: "select", options: [{ value: "0", label: "غير مسموح" }, { value: "1", label: "مسموح مع تنبيه" }] }, { key: "currency_difference", label: "الحساب يخضع لفروقات العملة", type: "checkbox" }] },
@@ -251,7 +293,7 @@ export function EmployeesPage() {
     { value: "additional", label: "بيانات إضافية", fields: [findField("national_id"), { key: "passport_no", label: "رقم جواز السفر" }, findField("hire_date"), findField("end_date"), findField("birth_date"), findField("notes")] },
   ]
   const filtered = rows.filter(r => (status === "all" || (status === "active" ? r.status === 1 : r.status !== 1)) && `${r.employee_code} ${r.full_name} ${r.department_name || ""} ${r.job_name || ""}`.toLowerCase().includes(search.toLowerCase()))
-  const columns: Column[] = [{ key: "employee_code", label: "الرقم", width: 110 }, { key: "full_name", label: "اسم الموظف" }, { key: "department_name", label: "القسم" }, { key: "job_name", label: "الوظيفة" }, { key: "basic_salary", label: "الراتب الأساسي", format: money }, { key: "phone", label: "الهاتف" }, { key: "status", label: "الحالة", format: v => v === 1 ? "على رأس العمل" : "منتهي الخدمة" }]
+  const columns: Column[] = [{ key: "employee_code", label: "الرقم", width: 110 }, { key: "full_name", label: "اسم الموظف" }, { key: "device_user_id", label: "رقم الكرت", width: 140 }, { key: "department_name", label: "القسم" }, { key: "job_name", label: "الوظيفة" }, { key: "basic_salary", label: "الراتب الأساسي", format: money }, { key: "phone", label: "الهاتف" }, { key: "status", label: "الحالة", format: v => v === 1 ? "على رأس العمل" : "منتهي الخدمة" }]
   return <HrPage title="الموظفين" subtitle="ملفات الموظفين والبيانات الوظيفية والمالية"><ListActions onNew={() => void show()} onEdit={() => selected && void show(selected)} onRefresh={load} onPrint={() => void printReportFrom(document.activeElement as HTMLElement | null)} /><FilterBar search={search} onSearch={setSearch} status={status} onStatus={setStatus} count={filtered.length} /><Grid rows={filtered} columns={columns} onSelect={setSelected} onDoubleClick={row => void show(row)} /><RecordDialog open={open} title="تعريف الموظف" rows={rows} form={form} fields={fields} tabs={tabs} lookups={lookups} saving={saving} onOpenChange={setOpen} onChange={setForm} onNavigate={row => setForm(normalizeEmployee(row))} onCodeBlur={() => void handleCodeBlur()} onSalaryItemCreated={item => setLookups((current: any) => ({ ...current, items: [...(current.items || []), item] }))} onTaxExemptionCreated={item => setLookups((current: any) => ({ ...current, exemptions: [...(current.exemptions || []), item] }))} messagesRef={messagesRef} onNew={() => void show()} onSave={save} onDelete={() => void remove()} /></HrPage>
 }
 

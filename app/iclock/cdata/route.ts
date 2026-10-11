@@ -70,11 +70,12 @@ export async function POST(request: NextRequest) {
         const employeeCode = String(value(record, "employee_code", "PIN", "pin", "user_id", "userid")).trim()
         const punchTime = normalizeTime(String(value(record, "punch_time", "DateTime", "datetime", "timestamp", "time")))
         if (!employeeCode || !punchTime) continue
-        const employee = (await sql`SELECT id FROM employees_tbl WHERE employee_code=${employeeCode} OR device_user_id=${employeeCode} LIMIT 1`)[0]
+        // PIN على الجهاز = رقم الكرت للموظف (device_user_id) أولاً، ثم رقم الموظف
+        const employee = (await sql`SELECT id,employee_code FROM employees_tbl WHERE device_user_id=${employeeCode} OR employee_code=${employeeCode} ORDER BY CASE WHEN device_user_id=${employeeCode} THEN 0 ELSE 1 END LIMIT 1`)[0]
         const rawType = value(record, "punch_type", "Status", "status") || "unknown"
         const symbols = device.symbols || {}
         const punchType = rawType === symbols.entry ? "in" : rawType === symbols.exit ? "out" : rawType === symbols.overtime_entry ? "overtime_in" : rawType === symbols.overtime_exit ? "overtime_out" : rawType
-        await sql`INSERT INTO attendance_logs_tbl(device_id,employee_id,employee_code,device_user_id,punch_time,punch_type,verification_type,sync_status,raw_payload) VALUES(${device.id},${employee?.id || null},${employeeCode},${value(record, "device_user_id", "PIN", "pin") || employeeCode},${punchTime}::timestamp,${punchType},${value(record, "verification_type", "Verify", "verify") || "device"},'adms',${JSON.stringify({ ...record, raw_punch_type: rawType, serial_number: serial })}::jsonb) ON CONFLICT(device_id,device_user_id,punch_time) DO UPDATE SET employee_id=EXCLUDED.employee_id,punch_type=EXCLUDED.punch_type,verification_type=EXCLUDED.verification_type,sync_status='adms',raw_payload=EXCLUDED.raw_payload`
+        await sql`INSERT INTO attendance_logs_tbl(device_id,employee_id,employee_code,device_user_id,punch_time,punch_type,verification_type,sync_status,raw_payload) VALUES(${device.id},${employee?.id || null},${employee?.employee_code || employeeCode},${value(record, "device_user_id", "PIN", "pin") || employeeCode},${punchTime}::timestamp,${punchType},${value(record, "verification_type", "Verify", "verify") || "device"},'adms',${JSON.stringify({ ...record, raw_punch_type: rawType, serial_number: serial })}::jsonb) ON CONFLICT(device_id,device_user_id,punch_time) DO UPDATE SET employee_id=EXCLUDED.employee_id,employee_code=EXCLUDED.employee_code,punch_type=EXCLUDED.punch_type,verification_type=EXCLUDED.verification_type,sync_status='adms',raw_payload=EXCLUDED.raw_payload`
         count++
       }
       await sql`UPDATE attendance_devices_tbl SET last_sync_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP WHERE id=${device.id}`

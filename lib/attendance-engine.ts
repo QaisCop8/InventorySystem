@@ -217,7 +217,12 @@ export async function processAttendance(options: ProcessOptions) {
   const punches = (await sql`
     SELECT COALESCE(l.employee_id, e.id) AS employee_id, to_char(l.punch_time, 'YYYY-MM-DD HH24:MI') AS punch_time
     FROM attendance_logs_tbl l
-    LEFT JOIN employees_tbl e ON l.employee_id IS NULL AND e.employee_code = l.employee_code
+    -- حركة غير منسوبة: رقم الكرت (device_user_id) أولاً ثم رقم الموظف
+    LEFT JOIN LATERAL (
+      SELECT emp.id FROM employees_tbl emp
+      WHERE l.employee_id IS NULL AND (emp.device_user_id = l.device_user_id OR emp.employee_code = l.employee_code)
+      ORDER BY CASE WHEN emp.device_user_id = l.device_user_id THEN 0 ELSE 1 END LIMIT 1
+    ) e ON true
     WHERE COALESCE(l.employee_id, e.id) = ANY(${ids}::int[])
       AND l.punch_time >= (${from}::date - INTERVAL '1 day') AND l.punch_time < (${to}::date + INTERVAL '2 day')
     ORDER BY l.punch_time
