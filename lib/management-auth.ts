@@ -12,7 +12,7 @@ export interface ManagementUser {
   is_platform_admin: boolean
 }
 
-const SESSION_DURATION_MS = 7 * 24 * 60 * 60 * 1000 // 7 days
+const SESSION_DURATION_MS = 4 * 24 * 60 * 60 * 1000 // 4 days
 const SESSION_COOKIE = "mgmt_session"
 const PLATFORM_ADMIN_EMAIL = "qais_cop8@hotmail.com"
 
