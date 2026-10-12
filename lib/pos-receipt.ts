@@ -20,6 +20,10 @@ export const needsPosReceipt = (payments: PosReceiptPayment[]) =>
   || (payments.some(row => Number(row.amount) > 0 && row.payment_method === "cash")
     && payments.some(row => Number(row.amount) > 0 && row.payment_method === "account"))
 
+export const isMixedPosReturn = (payments: PosReceiptPayment[]) =>
+  payments.some(row => Number(row.amount) > 0 && row.payment_method === "cash")
+  && payments.some(row => Number(row.amount) > 0 && row.payment_method === "account")
+
 export const isPosReceiptPayment = (payment: PosReceiptPayment) =>
   Number(payment.amount) > 0 && ["cash", "cheque", "card"].includes(payment.payment_method)
 

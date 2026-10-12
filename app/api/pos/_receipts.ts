@@ -33,10 +33,9 @@ export async function createPosReceipt(request: NextRequest, invoice: any, point
 }
 
 export async function createPosReturnPayment(request: NextRequest, invoice: any, point: any, userId: string, payments: PosReceiptPayment[]) {
-  const cashAmount = Math.round(payments
-    .filter(payment => payment.payment_method === "cash")
-    .reduce((total, payment) => total + Number(payment.amount || 0), 0) * 100) / 100
-  if (cashAmount <= 0) return null
+  const cashPayments = payments.filter(payment => payment.payment_method === "cash" && Number(payment.amount) > 0)
+  const hasAccountPayment = payments.some(payment => payment.payment_method === "account" && Number(payment.amount) > 0)
+  if (!cashPayments.length || !hasAccountPayment) return null
 
   const books = await sql`
     SELECT b.id,b.name FROM voucher_book_user_permissions_tbl p
@@ -46,38 +45,61 @@ export async function createPosReturnPayment(request: NextRequest, invoice: any,
     ORDER BY p.is_default DESC,b.id LIMIT 1
   `
   const book = books[0]
-  if (!book) throw Object.assign(new Error("يجب تعيين دفتر سند صرف للمستخدم لحفظ المردود النقدي"), { status: 400 })
-  await sql`SELECT pg_advisory_xact_lock(hashtext(${`pos-payment-number:${book.id}`}))`
-  const { prefix, startNumber } = await getVoucherNumberSettings(request.url, PAYMENT_VCH_TYPE)
-  const sequence = await nextVoucherSequence(PAYMENT_VCH_TYPE, `${prefix}${book.name}`, startNumber)
-  const customerAccountId = Number(invoice.account_id) || Number(point.walk_in_account_id)
-  if (!customerAccountId || !Number(point.cash_account_id)) {
-    throw Object.assign(new Error("يجب تعريف حساب العميل وحساب الصندوق لإنشاء سند صرف المردود"), { status: 400 })
+  if (!book) throw Object.assign(new Error("يجب تعيين دفتر سند صرف للمستخدم لحفظ المردود النقدي مع الذمم"), { status: 400 })
+  const accountPayment = payments.find(payment => payment.payment_method === "account" && Number(payment.amount) > 0)
+  const customerAccountId = Number(invoice.account_id) || Number(accountPayment?.account_id)
+  if (!Number.isSafeInteger(customerAccountId) || customerAccountId <= 0) {
+    throw Object.assign(new Error("يجب اختيار حساب العميل عند وجود مبلغ على الذمم لإنشاء سند صرف المردود"), { status: 400 })
   }
 
-  const payment = await receiptResult(await createReceipt(new NextRequest(new URL("/api/receipts", request.url), {
-    method: "POST", headers: request.headers, body: JSON.stringify({
-      vch_type: PAYMENT_VCH_TYPE,
-      vch_code: buildVoucherCode(prefix, book.name, sequence),
-      vch_book_id: Number(book.id),
-      vch_date: invoice.vch_date,
-      branch_id: Number(point.branch_id),
-      currency_id: Number(invoice.currency_id),
-      rate: Number(invoice.rate),
-      account_id: customerAccountId,
-      to_account_id: customerAccountId,
-      customer_name: invoice.customer_name,
-      amount: cashAmount,
-      cash_amount: cashAmount,
-      cash_account_id: Number(point.cash_account_id),
-      status: 2,
-      insert_user: invoice.insert_user,
-      salesman_id: invoice.salesman_id,
-      note: `صرف مردود نقدي لفاتورة نقطة البيع ${invoice.vch_code}`,
-    }),
-  })))
-  await sql`UPDATE voucher_header_tbl SET pos_invoice_voucher_id=${Number(invoice.id)} WHERE id=${Number(payment.id)}`
-  return payment
+  const groups = new Map<number, { amount: number; rate: number; cashAccountId: number }>()
+  for (const payment of cashPayments) {
+    const currencyId = Number(payment.currency_id || point.currency_id)
+    const amount = Number(payment.currency_amount ?? payment.amount)
+    const rate = Number(payment.exchange_rate || 1) * Number(invoice.rate || 1)
+    const cashAccountId = Number(payment.account_id)
+    if (!Number.isSafeInteger(currencyId) || currencyId <= 0 || !(amount > 0) || !(rate > 0))
+      throw Object.assign(new Error("تعذر تحديد عملة أو سعر صرف صالح لسند صرف المردود"), { status: 400 })
+    if (!Number.isSafeInteger(cashAccountId) || cashAccountId <= 0)
+      throw Object.assign(new Error(`يجب تعريف حساب الصندوق في إعدادات نقطة البيع أو إعدادات المستخدم لعملة ${currencyId} لإنشاء سند صرف المردود`), { status: 400 })
+    const group = groups.get(currencyId) || { amount: 0, rate, cashAccountId }
+    if (Math.abs(group.rate - rate) > 0.00000001 || group.cashAccountId !== cashAccountId) {
+      throw Object.assign(new Error("حساب الصندوق أو سعر الصرف غير متطابق لعملة سند صرف المردود"), { status: 400 })
+    }
+    group.amount = Math.round((group.amount + amount) * 100) / 100
+    groups.set(currencyId, group)
+  }
+
+  await sql`SELECT pg_advisory_xact_lock(hashtext(${`pos-payment-number:${book.id}`}))`
+  const { prefix, startNumber } = await getVoucherNumberSettings(request.url, PAYMENT_VCH_TYPE)
+  const created: any[] = []
+  for (const [currencyId, group] of groups) {
+    const sequence = await nextVoucherSequence(PAYMENT_VCH_TYPE, `${prefix}${book.name}`, startNumber)
+    const payment = await receiptResult(await createReceipt(new NextRequest(new URL("/api/receipts", request.url), {
+      method: "POST", headers: request.headers, body: JSON.stringify({
+        vch_type: PAYMENT_VCH_TYPE,
+        vch_code: buildVoucherCode(prefix, book.name, sequence),
+        vch_book_id: Number(book.id),
+        vch_date: invoice.vch_date,
+        branch_id: Number(point.branch_id),
+        currency_id: currencyId,
+        rate: group.rate,
+        account_id: customerAccountId,
+        to_account_id: customerAccountId,
+        customer_name: invoice.customer_name,
+        amount: group.amount,
+        cash_amount: group.amount,
+        cash_account_id: group.cashAccountId,
+        status: 2,
+        insert_user: invoice.insert_user,
+        salesman_id: invoice.salesman_id,
+        note: `صرف مردود نقدي لفاتورة نقطة البيع ${invoice.vch_code}`,
+      }),
+    })))
+    await sql`UPDATE voucher_header_tbl SET pos_invoice_voucher_id=${Number(invoice.id)} WHERE id=${Number(payment.id)}`
+    created.push(payment)
+  }
+  return { ...created[0], payments: created }
 }
 
 async function createPosReceiptGroup(request: NextRequest, invoice: any, point: any, userId: string, payments: PosReceiptPayment[]) {

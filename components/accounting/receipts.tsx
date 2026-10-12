@@ -2,7 +2,7 @@
 
 import { useVoucherDeepLink } from "@/hooks/use-voucher-deep-link"
 
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -21,6 +21,7 @@ import { VoucherListTable } from "@/components/common/voucher-list-table"
 import type { PostVoucherAction } from "@/components/common/post-voucher-dialog"
 import VoucherPrintLayout, { type VoucherPrintData } from "@/components/common/voucher-print-layout"
 import type { BankAccountRecord } from "@/components/admin/unified-bank-accounts"
+import { useWorkspaceTabActive } from "@/contexts/workspace-tab-context"
 
 interface CurrencyOption {
   currency_id?: number
@@ -171,6 +172,7 @@ const normalizeVoucher = (record: Partial<VoucherRecord>, voucherType: 4 | 5): V
 export default function Receipts({ voucherType }: ReceiptsProps) {
   const labels = TYPE_LABELS[voucherType]
   const { user, activeBranchId } = useAuth()
+  const workspaceTabActive = useWorkspaceTabActive()
 
   const [vouchers, setVouchers] = useState<VoucherRecord[]>([])
   const [currencies, setCurrencies] = useState<CurrencyOption[]>([])
@@ -265,7 +267,7 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
     }
   }
 
-  const fetchLookups = async () => {
+  const fetchLookups = useCallback(async () => {
     try {
       const booksUrl = `/api/receipts/voucher-books?vch_type=${voucherType}${
         user?.id ? `&user_id=${encodeURIComponent(user.id)}` : ""
@@ -274,12 +276,12 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
         await Promise.all([
           fetch("/api/exchange-rates").catch(() => null),
           fetch(booksUrl).catch(() => null),
-          fetch("/api/banks").catch(() => null),
-          fetch("/api/branches").catch(() => null),
+          fetch("/api/banks", { cache: "no-store" }).catch(() => null),
+          fetch("/api/branches", { cache: "no-store" }).catch(() => null),
           fetch("/api/salesmen").catch(() => null),
           fetch("/api/payment-classifications").catch(() => null),
           fetch("/api/credit-card-types").catch(() => null),
-          fetch("/api/bank-accounts").catch(() => null),
+          fetch("/api/bank-accounts", { cache: "no-store" }).catch(() => null),
           fetch("/api/settings/system").catch(() => null),
         ])
 
@@ -324,7 +326,27 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
     } catch (error) {
       console.error("Failed to fetch lookups", error)
     }
-  }
+  }, [user?.id, voucherType])
+
+  useEffect(() => {
+    if (!dialogOpen) return
+    const refreshWhenActive = () => {
+      if (workspaceTabActive.current) void fetchLookups()
+    }
+    const refreshOnVisibility = () => {
+      if (document.visibilityState === "visible") refreshWhenActive()
+    }
+
+    void fetchLookups()
+    window.addEventListener("focus", refreshWhenActive)
+    window.addEventListener("workspace-tab-activated", refreshWhenActive)
+    document.addEventListener("visibilitychange", refreshOnVisibility)
+    return () => {
+      window.removeEventListener("focus", refreshWhenActive)
+      window.removeEventListener("workspace-tab-activated", refreshWhenActive)
+      document.removeEventListener("visibilitychange", refreshOnVisibility)
+    }
+  }, [dialogOpen, fetchLookups, workspaceTabActive])
 
   // الرقم يتضمّن رمز دفتر السندات (مثال REF00001) فلا بد من تمريره دائماً.
   const generateCode = async (bookId: number | null, fallbackCode = "") => {

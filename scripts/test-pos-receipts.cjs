@@ -91,6 +91,11 @@ function harness(options = {}) {
   const salesLib = { ensureTables: async () => {}, generateSalesVoucherCode: async () => 'INV100', SALES_INVOICE_VCH_TYPE: 12, RETURN_SELL_VCH_TYPE: 16, ITEM_ACCOUNT_VCH_TYPES: [12,16], reverseSalesVoucherStockMovement: async () => {}, fetchSalesVoucherItems: async () => state.invoice.items }
   const route = load('app/api/pos/sales/route.ts', {
     '@/lib/pos-account-validation': load('lib/pos-account-validation.ts'),
+    '@/lib/pos-accounts': { resolvePosCashAccount: async (posPoint, userId, currencyId) => {
+      assert.equal(userId, 'user')
+      const configured = Number(posPoint.pos_configured_cash_account_id)
+      return configured || options.cashAccountsByCurrency?.[currencyId] || (currencyId === Number(posPoint.currency_id) ? Number(posPoint.cash_account_id) : null)
+    } },
     'next/server': next, '@/lib/database': { default: sql, withTenantTransaction: transaction, __esModule: true },
     '@/app/api/sales-vouchers/route': { POST: async req => {
       const data = await req.json()
@@ -101,10 +106,10 @@ function harness(options = {}) {
     } },
     '@/app/api/stock-vouchers/route': {}, '@/app/api/stock-vouchers/_lib': {}, '@/app/api/sales-vouchers/_lib': salesLib,
     '../_lib': { ensurePosTables: async () => {}, getOpenPosSession: async () => ({ id: 1, shift_guid: 'shift' }), getPosPoint: async () => ({ ...point, ...options.pointOverrides, ...(options.noWalkIn ? { walk_in_account_id: null } : {}) }), requestBranchId: () => 1, requestUserId: () => 'user' },
-    '@/lib/pos-currencies': { getPosCurrencies: async (...args) => { assert.equal(args.length, 2); if (options.expectedDate) assert.equal(args[1], options.expectedDate); return [{ currency_id: 1, rate_to_point: 1, exchange_rate: options.pointRate ?? 1 }, { currency_id: 2, rate_to_point: 3.5 / (options.pointRate ?? 1), exchange_rate: 3.5 }] } },
+    '@/lib/pos-currencies': { getPosCurrencies: async (...args) => { assert.equal(args.length, 2); if (options.expectedDate) assert.equal(args[1], options.expectedDate); return [{ currency_id: 1, rate_to_point: 1, exchange_rate: options.pointRate ?? 1 }, { currency_id: 2, rate_to_point: 3.5 / (options.pointRate ?? 1), exchange_rate: 3.5 }, { currency_id: 3, rate_to_point: 5 / (options.pointRate ?? 1), exchange_rate: 5 }] } },
     '@/lib/pos-receipt': receiptLogic, '../_receipts': receipts,
     '@/lib/pos-campaigns': campaignLogic,
-    '@/app/api/settings/system/route': { loadStoredSettings: async () => ({ tax_rate: options.systemTaxRate || 0 }) },
+    '@/app/api/settings/system/route': { loadStoredSettings: async () => ({ tax_rate: options.systemTaxRate || 0, default_selling_account_id: options.defaultSellingAccountId || null }) },
     '@/lib/pos-campaign-storage': { getPosCampaigns: async () => [], getPosCampaignUsage: async () => ({}) },
   })
   const salesRoute = load('app/api/sales-vouchers/route.ts', {
@@ -244,6 +249,73 @@ test('cash-only and account-only sales do not create receipts', async () => {
     assert.equal((await route.POST(request(payload([payment])))).status, 201)
     assert.equal(state.receipt, null)
   }
+})
+
+test('POS sale falls back to the default item sales account when the product has none', async () => {
+  const { state, route } = harness({ defaultSellingAccountId: 88 })
+  const response = await route.POST(request({
+    ...payload([{ ...cash, amount: 100 }]),
+    pos_client_sale_id: 'default-selling-account',
+    items: [{ product_id: 1, price: 100, quantity: 1, account_id: null }],
+  }))
+  assert.equal(response.status, 201)
+  assert.equal(state.invoice.items[0].account_id, 88)
+})
+
+test('POS sale preserves the product sales account ahead of the configured default', async () => {
+  const { state, route } = harness({ defaultSellingAccountId: 88 })
+  const response = await route.POST(request({
+    ...payload([{ ...cash, amount: 100 }]),
+    pos_client_sale_id: 'product-selling-account',
+    items: [{ product_id: 1, price: 100, quantity: 1, account_id: 77 }],
+  }))
+  assert.equal(response.status, 201)
+  assert.equal(state.invoice.items[0].account_id, 77)
+})
+
+test('cash-only returns are saved as return invoices without a payment voucher', async () => {
+  const { state, route } = harness()
+  const response = await route.POST(request({
+    ...payload([{ ...cash, amount: 100, currency_id: 1, currency_amount: 100 }]),
+    pos_mode: 'return',
+    items: [{ product_id: 1, price: 100, quantity: 1, account_id: 20 }],
+    pos_client_sale_id: 'cash-only-return',
+  }))
+  assert.equal(response.status, 201)
+  const result = await response.json()
+  assert.equal(state.invoice.vch_type, 16)
+  assert.equal(state.invoice.amount, 100)
+  assert.equal(state.receipts.length, 0)
+  assert.equal(result.pos_payment_voucher_id, null)
+  assert.deepEqual(result.pos_payment_vouchers, [])
+})
+
+test('mixed cash and account returns create one linked payment voucher per cash currency', async () => {
+  const { state, route } = harness({
+    pointOverrides: { cash_account_id: null, pos_configured_cash_account_id: null, return_account_id: 20 },
+    cashAccountsByCurrency: { 1: 21, 2: 22, 3: 23 },
+  })
+  const response = await route.POST(request({
+    ...payload([
+      { ...cash, amount: 10, currency_id: 1, currency_amount: 10 },
+      { ...cash, amount: 10, currency_id: 2, currency_amount: 10 },
+      { ...cash, amount: 10, currency_id: 3, currency_amount: 10 },
+      { payment_method: 'account', amount: 5 },
+    ]),
+    pos_mode: 'return',
+    items: [{ product_id: 1, price: 100, quantity: 1, account_id: 20 }],
+    pos_client_sale_id: 'mixed-multi-currency-return',
+  }))
+  assert.equal(response.status, 201)
+  const result = await response.json()
+  assert.equal(state.invoice.amount, 100)
+  assert.equal(state.receipts.length, 3)
+  assert.deepEqual(state.receipts.map(row => [row.currency_id, row.amount, row.rate, row.cash_account_id]), [
+    [1, 10, 1, 21], [2, 10, 3.5, 22], [3, 10, 5, 23],
+  ])
+  assert.ok(state.receipts.every(row => row.pos_invoice_voucher_id === state.invoice.id))
+  assert.equal(result.pos_payment_vouchers.length, 3)
+  assert.deepEqual(result.pos_payment_vouchers.map(row => row.currency_id), [1, 2, 3])
 })
 
 test('account payments require an actual selected customer', async () => {

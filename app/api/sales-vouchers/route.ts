@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import sql, { withTenantTransaction } from "@/lib/database"
 import { deletePosRelatedVouchers } from "@/app/api/pos/_receipts"
-import { needsPosReceipt } from "@/lib/pos-receipt"
+import { isMixedPosReturn, needsPosReceipt } from "@/lib/pos-receipt"
 import { reversePosSessionPayments } from "@/app/api/pos/_session-payments"
 import {
   ensureTables,
@@ -15,6 +15,7 @@ import {
   SALES_VOUCHER_TYPES,
   ITEM_ACCOUNT_VCH_TYPES,
   SALES_INVOICE_VCH_TYPE,
+  RETURN_SELL_VCH_TYPE,
   PURCHASE_INVOICE_VCH_TYPE,
   DELIVERY_SELL_VCH_TYPE,
   DELIVERY_CONSIGNMENT_SALE_VCH_TYPE,
@@ -516,7 +517,8 @@ export async function POST(request: NextRequest) {
         breakdown.discount,
         breakdown.total,
       )
-      if (posPayments.length && journalRows.length) {
+      const mixedPosReturn = vchType === RETURN_SELL_VCH_TYPE && Number(data.pos_point_id) > 0 && isMixedPosReturn(posPayments)
+      if (posPayments.length && journalRows.length && !mixedPosReturn) {
         const receiptSettlementAccount = Number(data.pos_point_id) > 0 && vchType === 12 && needsPosReceipt(posPayments)
           ? Number(data.account_id || data.cash_account_id) || null : null
         const counterRow = journalRows.find((row: any) => Number(row.order_no) === 1)

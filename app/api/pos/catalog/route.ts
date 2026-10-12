@@ -113,7 +113,7 @@ export async function GET(request:NextRequest) {
       return {...rest,first_price:firstPrice,barcode_options:barcodeOptions,unit_prices:unitPrices}
     })
     const [campaigns,campaignUsage]=await Promise.all([getPosCampaigns(),getPosCampaignUsage()])
-    return NextResponse.json({point:{...point,exchange_rate:pointRate},tax_rate:Number(systemSettings.tax_rate||0),receiptSettings:{company_name:systemSettings.company_name||"",company_address:systemSettings.company_address||"",company_phone:systemSettings.company_phone||"",company_email:systemSettings.company_email||"",tax_number:systemSettings.tax_number||"",company_logo:systemSettings.company_logo||""},products:pricedProducts,customers,salesmen,banks,bankBranches,cardTypes,campaigns,
+    return NextResponse.json({point:{...point,exchange_rate:pointRate},tax_rate:Number(systemSettings.tax_rate||0),default_selling_account_id:Number(systemSettings.default_selling_account_id)||null,receiptSettings:{company_name:systemSettings.company_name||"",company_address:systemSettings.company_address||"",company_phone:systemSettings.company_phone||"",company_email:systemSettings.company_email||"",tax_number:systemSettings.tax_number||"",company_logo:systemSettings.company_logo||""},products:pricedProducts,customers,salesmen,banks,bankBranches,cardTypes,campaigns,
       campaignUsage,
       currencies:rates.filter((row:any)=>Number(row.exchange_rate)>0).map((row:any)=>({...row,rate_to_point:Number(row.exchange_rate)/pointRate})),
       session,server_time:new Date().toISOString()})

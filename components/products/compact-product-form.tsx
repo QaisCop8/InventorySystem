@@ -12,7 +12,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { isScaleProduct, validateScaleProductBarcodes } from "@/lib/scale-barcode"
 import { Separator } from "@/components/ui/separator"
 import { UniversalToolbar } from "@/components/ui/universal-toolbar"
-import { Package, Save, X, Barcode, DollarSign, Warehouse, Truck, Info, Settings, Package2, Plus, Currency, SlidersHorizontal } from "lucide-react"
+import { Package, Save, X, Barcode, DollarSign, Warehouse, Truck, Info, Settings, Package2, Plus, Currency, SlidersHorizontal, Copy } from "lucide-react"
 import { WarehouseInventoryTable } from "./warehouse-inventory-table"
 import { BatchTrackingTable } from "./batch-tracking-table"
 import { UNITS } from "@/lib/constants"
@@ -249,6 +249,28 @@ interface ProductFormData {
   branch_ids?: number[],
   attributes?: ProductAttributeLine[],
 }
+
+type ProductAccountField =
+  | "selling_account_id"
+  | "purchase_account_id"
+  | "selling_returns_account_id"
+  | "purchase_returns_account_id"
+  | "stock_end_account_id"
+  | "stock_start_account_id"
+  | "production_account_id"
+  | "lsti3mal_account_id"
+
+const PRODUCT_ACCOUNT_FIELDS: Array<{ field: ProductAccountField; label: string }> = [
+  { field: "selling_account_id", label: "حساب المبيعات" },
+  { field: "purchase_account_id", label: "حساب المشتريات" },
+  { field: "selling_returns_account_id", label: "حساب مرتجعات المبيعات" },
+  { field: "purchase_returns_account_id", label: "حساب مرتجعات المشتريات" },
+  { field: "stock_end_account_id", label: "حساب تقييم بضاعة آخر المدة" },
+  { field: "stock_start_account_id", label: "حساب تقييم بضاعة أول المدة" },
+  { field: "production_account_id", label: "حساب الإنتاج" },
+  { field: "lsti3mal_account_id", label: "حساب المصروف في سند الاستعمال" },
+]
+
 export const initialFormData: ProductFormData = {
   id: 0,
   product_code: "",
@@ -372,6 +394,8 @@ export function CompactProductForm({
   const [productCodeError, setProductCodeError] = useState("")
   const [showConfirm, setShowConfirm] = useState(false);
   const [showUnsaved, setShowUnsaved] = useState(false);
+  const [copyAccountField, setCopyAccountField] = useState<ProductAccountField | null>(null)
+  const [copyAccountBusy, setCopyAccountBusy] = useState(false)
   const [showSearchDialog, setShowSearchDialog] = useState(false);
   const [nextFunction, setNextFunction] = useState<(() => void) | null>(null);
   const [definitions, setDefinitions] = useState({
@@ -1446,6 +1470,38 @@ export function CompactProductForm({
     setFormData((prev) => ({ ...prev, [field]: value }))
   }
 
+  const copySelectedAccountToAllItems = async () => {
+    if (!copyAccountField) return
+    const accountId = Number(formData[copyAccountField])
+    if (!Number.isInteger(accountId) || accountId <= 0) return
+    setCopyAccountBusy(true)
+    try {
+      const response = await fetch("/api/inventory/products/copy-account", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ field: copyAccountField, account_id: accountId }),
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data?.error || "تعذر نسخ الحساب إلى الأصناف")
+      toast.current?.show({
+        severity: "success",
+        summary: "تم النسخ",
+        detail: `تم تحديث الحساب في ${Number(data.updated_count || 0)} صنف`,
+        life: 3500,
+      })
+      setCopyAccountField(null)
+    } catch (error) {
+      toast.current?.show({
+        severity: "error",
+        summary: "خطأ",
+        detail: error instanceof Error ? error.message : "تعذر نسخ الحساب إلى الأصناف",
+        life: 3500,
+      })
+    } finally {
+      setCopyAccountBusy(false)
+    }
+  }
+
   const fetchAccountById = async (accountId: number) => {
     if (!Number.isInteger(accountId) || accountId <= 0) return null
     try {
@@ -2491,6 +2547,16 @@ export function CompactProductForm({
       />
 
       <ConfirmDialogYesNo
+        visible={copyAccountField !== null}
+        title="تأكيد نسخ الحساب"
+        message={`سيتم نسخ ${PRODUCT_ACCOUNT_FIELDS.find(({ field }) => field === copyAccountField)?.label || "الحساب"} المحدد إلى جميع الأصناف غير المحذوفة. هل تريد المتابعة؟`}
+        confirmLabel="نسخ إلى جميع الأصناف"
+        busy={copyAccountBusy}
+        onConfirm={() => void copySelectedAccountToAllItems()}
+        onCancel={() => setCopyAccountField(null)}
+      />
+
+      <ConfirmDialogYesNo
         visible={showUnsaved}
         onConfirm={async () => {
           const requestedAction = nextFunction
@@ -2876,127 +2942,39 @@ export function CompactProductForm({
                   </CardHeader>
                   <CardContent>
                     <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-                      <div>
-                        <AutoCompleteAccount
-                          value={formData.selling_account_id ? String(formData.selling_account_id) : ""}
-                          valueMode="id"
-                          onValueChange={(value) => updateFormData("selling_account_id", Number(value) || 0)}
-                          onAccountSelect={(account) => updateFormData("selling_account_id", account?.id ?? 0)}
-                          label="حساب المبيعات"
-                          placeholder=""
-                          showClearButton={true}
-                          showSearchButton={true}
-                          className="w-full"
-                          showCostCenterButton={false}
-                          leafOnly
-                        />
-                      </div>
-                      <div>
-                        <AutoCompleteAccount
-                          value={formData.purchase_account_id ? String(formData.purchase_account_id) : ""}
-                          valueMode="id"
-                          onValueChange={(value) => updateFormData("purchase_account_id", Number(value) || 0)}
-                          onAccountSelect={(account) => updateFormData("purchase_account_id", account?.id ?? 0)}
-                          label="حساب المشتريات"
-                          placeholder=""
-                          showClearButton={true}
-                          showSearchButton={true}
-                          className="w-full"
-                          showCostCenterButton={false}
-                          leafOnly
-                        />
-                      </div>
-                      <div>
-                        <AutoCompleteAccount
-                          value={formData.selling_returns_account_id ? String(formData.selling_returns_account_id) : ""}
-                          valueMode="id"
-                          onValueChange={(value) => updateFormData("selling_returns_account_id", Number(value) || 0)}
-                          onAccountSelect={(account) => updateFormData("selling_returns_account_id", account?.id ?? 0)}
-                          label="حساب مرتجعات المبيعات"
-                          placeholder=""
-                          showClearButton={true}
-                          showSearchButton={true}
-                          className="w-full"
-                          showCostCenterButton={false}
-                          leafOnly
-                        />
-                      </div>
-                      <div>
-                        <AutoCompleteAccount
-                          value={formData.purchase_returns_account_id ? String(formData.purchase_returns_account_id) : ""}
-                          valueMode="id"
-                          onValueChange={(value) => updateFormData("purchase_returns_account_id", Number(value) || 0)}
-                          onAccountSelect={(account) => updateFormData("purchase_returns_account_id", account?.id ?? 0)}
-                          label="حساب مرتجعات المشتريات"
-                          placeholder=""
-                          showClearButton={true}
-                          showSearchButton={true}
-                          className="w-full"
-                          showCostCenterButton={false}
-                          leafOnly
-                        />
-                      </div>
-                      <div>
-                        <AutoCompleteAccount
-                          value={formData.stock_end_account_id ? String(formData.stock_end_account_id) : ""}
-                          valueMode="id"
-                          onValueChange={(value) => updateFormData("stock_end_account_id", Number(value) || 0)}
-                          onAccountSelect={(account) => updateFormData("stock_end_account_id", account?.id ?? 0)}
-                          label="حساب تقييم بضاعة آخر المدة"
-                          placeholder=""
-                          showClearButton={true}
-                          showSearchButton={true}
-                          className="w-full"
-                          showCostCenterButton={false}
-                          leafOnly
-                        />
-                      </div>
-                      <div>
-                        <AutoCompleteAccount
-                          value={formData.stock_start_account_id ? String(formData.stock_start_account_id) : ""}
-                          valueMode="id"
-                          onValueChange={(value) => updateFormData("stock_start_account_id", Number(value) || 0)}
-                          onAccountSelect={(account) => updateFormData("stock_start_account_id", account?.id ?? 0)}
-                          label="حساب تقييم بضاعة أول المدة"
-                          placeholder=""
-                          showClearButton={true}
-                          showSearchButton={true}
-                          className="w-full"
-                          showCostCenterButton={false}
-                          leafOnly
-                        />
-                      </div>
-                      <div>
-                        <AutoCompleteAccount
-                          value={formData.production_account_id ? String(formData.production_account_id) : ""}
-                          valueMode="id"
-                          onValueChange={(value) => updateFormData("production_account_id", Number(value) || 0)}
-                          onAccountSelect={(account) => updateFormData("production_account_id", account?.id ?? 0)}
-                          label="حساب الإنتاج"
-                          placeholder=""
-                          showClearButton={true}
-                          showSearchButton={true}
-                          className="w-full"
-                          showCostCenterButton={false}
-                          leafOnly
-                        />
-                      </div>
-                      
-                      <div>
-                        <AutoCompleteAccount
-                          value={formData.lsti3mal_account_id ? String(formData.lsti3mal_account_id) : ""}
-                          valueMode="id"
-                          onValueChange={(value) => updateFormData("lsti3mal_account_id", Number(value) || 0)}
-                          onAccountSelect={(account) => updateFormData("lsti3mal_account_id", account?.id ?? 0)}
-                          label="حساب المصروف في سند الاستعمال"
-                          placeholder=""
-                          showClearButton={true}
-                          showSearchButton={true}
-                          className="w-full"
-                          showCostCenterButton={false}
-                          leafOnly
-                        />
-                      </div>
+                      {PRODUCT_ACCOUNT_FIELDS.map(({ field, label }) => (
+                        <div key={field} className="flex min-w-0 items-end gap-2">
+                          <div className="min-w-0 flex-1">
+                            <AutoCompleteAccount
+                              value={formData[field] ? String(formData[field]) : ""}
+                              valueMode="id"
+                              onValueChange={(value) => updateFormData(field, Number(value) || 0)}
+                              onAccountSelect={(account) => updateFormData(field, account?.id ?? 0)}
+                              label={label}
+                              placeholder=""
+                              showClearButton={true}
+                              showSearchButton={true}
+                              className="w-full"
+                              showCostCenterButton={false}
+                              leafOnly
+                            />
+                          </div>
+                          {!isService && (
+                            <Button
+                              type="button"
+                              size="icon"
+                              variant="outline"
+                              className="mb-0.5 h-10 w-10 shrink-0"
+                              title="نسخ هذا الحساب إلى جميع الأصناف"
+                              aria-label={`نسخ ${label} إلى جميع الأصناف`}
+                              disabled={!canUpdate || !Number(formData[field]) || copyAccountBusy}
+                              onClick={() => setCopyAccountField(field)}
+                            >
+                              <Copy className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                      ))}
                     </div>
                   </CardContent>
                 </Card>

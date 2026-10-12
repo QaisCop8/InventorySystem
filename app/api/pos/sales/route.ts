@@ -8,6 +8,7 @@ import { canUsePosCashierPermission, ensurePosTables, getOpenPosSession, getPosP
 import { getPosCurrencies } from "@/lib/pos-currencies"
 import { needsPosReceipt } from "@/lib/pos-receipt"
 import { validatePosAccounts } from "@/lib/pos-account-validation"
+import { resolvePosCashAccount } from "@/lib/pos-accounts"
 import { createPosReceipt, createPosReturnPayment } from "../_receipts"
 import { loadStoredSettings } from "@/app/api/settings/system/route"
 import { applyPosCampaigns, combinedDiscountPercent, type PosCampaignLine } from "@/lib/pos-campaigns"
@@ -157,7 +158,6 @@ export async function POST(request: NextRequest) {
         payments=[...payments.filter((payment:any)=>payment.payment_method!=="cash"),...cashPayments]
       }
       for(const payment of payments){
-        if(payment.payment_method==="cash"&&payment.currency_id)continue
         const currencyId=Number(payment.currency_id||point.currency_id),currency=availableCurrencies.find(row=>row.currency_id===currencyId)
         const original=Number(payment.currency_amount??payment.amount)
         if(!currency||!Number.isFinite(original)||original<0||Math.abs(Math.round(original*100)-original*100)>0.000001)
@@ -166,6 +166,11 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({error:"بطاقة الهدية يجب أن تكون بعملة نقطة البيع"},{status:400})
         payment.currency_id=currencyId;payment.currency_amount=original;payment.exchange_rate=currency.rate_to_point
         payment.amount=Math.round(original*currency.rate_to_point*100)/100
+      }
+      if(isReturn){
+        for(const payment of payments.filter((row:any)=>row.payment_method==="cash")){
+          payment.account_id=await resolvePosCashAccount(point,userId,Number(payment.currency_id||point.currency_id))
+        }
       }
       const accountIssue=validatePosAccounts(point,payments,{mode:String(data.pos_mode),taxAmount:taxRate,returnAccountIds:invoiceItems.map((item:any)=>item.account_id),customerAccountId:data.account_id})
       if(accountIssue)return NextResponse.json({error:accountIssue},{status:400})
@@ -209,6 +214,7 @@ export async function POST(request: NextRequest) {
       const vchType=isReturn?RETURN_SELL_VCH_TYPE:SALES_INVOICE_VCH_TYPE
       const vchBookId = Number(isReturn?(point.return_book_id||point.sales_book_id):point.sales_book_id) || null
       if (!vchBookId) return NextResponse.json({ error: "يجب تعيين دفتر افتراضي لفاتورة المبيعات" }, { status: 400 })
+      const defaultSellingAccountId=Number(systemSettings.default_selling_account_id)||null
       const vchCode = await generateSalesVoucherCode(request.url, vchType, vchBookId)
       if (!vchCode) return NextResponse.json({ error: "تعذر توليد رقم فاتورة المبيعات" }, { status: 400 })
 
@@ -219,7 +225,7 @@ export async function POST(request: NextRequest) {
           ...data,discount_type:"amount",discount_value:Math.round(totalInvoiceDiscount*100)/100,campaign_discount_amount:Math.round(campaignResult.invoiceDiscount/campaignTaxFactor*100)/100,campaign_discount_id:campaignResult.campaignId,vch_type:vchType,vch_code:vchCode,vch_book_id:vchBookId,branch_id:Number(point.branch_id),rate:pointRate,
           currency_id:Number(point.currency_id),to_store_id:Number(point.main_warehouse_id),cash_account_id:Number(point.cash_account_id),
           tax_account_id:Number(point.tax_account_id)||null,vat_percent:taxRate,pos_payments:payments,
-          items:invoiceItems.map((item:any)=>({...item,account_id:isReturn?(point.return_account_id||item.account_id):item.account_id,warehouse_id:Number(point.main_warehouse_id),store_id:Number(point.main_warehouse_id)})),
+          items:invoiceItems.map((item:any)=>({...item,account_id:isReturn?(point.return_account_id||item.account_id):item.account_id||defaultSellingAccountId,warehouse_id:Number(point.main_warehouse_id),store_id:Number(point.main_warehouse_id)})),
         }),
       })
       const response=await createSalesVoucher(forwarded)
@@ -255,7 +261,7 @@ export async function POST(request: NextRequest) {
           ON CONFLICT(session_id,currency_id) DO UPDATE SET expected_amount=pos_session_currencies_tbl.expected_amount+${delta}`
       }
       for(const payment of payments.filter((p:any)=>p.payment_method==="gift_card"))await sql`UPDATE pos_gift_cards_tbl SET balance=balance-${Number(payment.amount)},updated_at=NOW() WHERE code=${String(payment.reference||"").trim()}`
-      return NextResponse.json({...saved,pos_receipt_voucher_id:receipt?Number(receipt.id):null,receipt_vch_code:receipt?.vch_code||null,pos_receipts:receipt?.receipts?.map((row:any)=>({id:Number(row.id),vch_code:row.vch_code,currency_id:Number(row.currency_id),rate:Number(row.rate),amount:Number(row.amount)}))||[],pos_payment_voucher_id:returnPayment?Number(returnPayment.id):null,payment_vch_code:returnPayment?.vch_code||null},{status:201})
+      return NextResponse.json({...saved,pos_receipt_voucher_id:receipt?Number(receipt.id):null,receipt_vch_code:receipt?.vch_code||null,pos_receipts:receipt?.receipts?.map((row:any)=>({id:Number(row.id),vch_code:row.vch_code,currency_id:Number(row.currency_id),rate:Number(row.rate),amount:Number(row.amount)}))||[],pos_payment_voucher_id:returnPayment?Number(returnPayment.id):null,payment_vch_code:returnPayment?.vch_code||null,pos_payment_vouchers:returnPayment?.payments?.map((row:any)=>({id:Number(row.id),vch_code:row.vch_code,currency_id:Number(row.currency_id),rate:Number(row.rate),amount:Number(row.amount)}))||[]},{status:201})
     })
   } catch (error) {
     console.error("Error creating POS sale:", error)

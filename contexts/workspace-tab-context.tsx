@@ -1,6 +1,6 @@
 "use client"
 
-import { createContext, useContext, useRef, type ReactNode } from "react"
+import { createContext, useContext, useEffect, useRef, type ReactNode } from "react"
 
 // كل تبويبات مساحة العمل تبقى مُركَّبة (مخفية فقط)، فمستمعات لوحة المفاتيح العامة (F3 حفظ، F5 جديد...)
 // في التبويبات المخفية تستقبل نفس الضغطة. هذا السياق يُخبر كل شاشة إن كان تبويبها هو الظاهر حالياً
@@ -10,6 +10,9 @@ const WorkspaceTabActiveContext = createContext<{ readonly current: boolean }>({
 export function WorkspaceTabActiveProvider({ active, children }: { active: boolean; children: ReactNode }) {
   const ref = useRef(active)
   ref.current = active
+  useEffect(() => {
+    if (active) window.dispatchEvent(new Event("workspace-tab-activated"))
+  }, [active])
   return <WorkspaceTabActiveContext.Provider value={ref}>{children}</WorkspaceTabActiveContext.Provider>
 }
 

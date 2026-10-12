@@ -32,6 +32,8 @@ export async function GET(request: NextRequest) {
         (SELECT receipt.vch_code FROM voucher_header_tbl receipt WHERE receipt.id=vh.pos_receipt_voucher_id) receipt_vch_code,
         (SELECT payment.id FROM voucher_header_tbl payment WHERE payment.pos_invoice_voucher_id=vh.id AND payment.vch_type=5 AND payment.status<>3 ORDER BY payment.id DESC LIMIT 1) pos_payment_voucher_id,
         (SELECT payment.vch_code FROM voucher_header_tbl payment WHERE payment.pos_invoice_voucher_id=vh.id AND payment.vch_type=5 AND payment.status<>3 ORDER BY payment.id DESC LIMIT 1) payment_vch_code,
+        COALESCE((SELECT json_agg(json_build_object('id', payment.id, 'vch_code', payment.vch_code, 'currency_id', payment.currency_id, 'rate', payment.rate, 'amount', payment.amount) ORDER BY payment.id)
+          FROM voucher_header_tbl payment WHERE payment.pos_invoice_voucher_id=vh.id AND payment.vch_type=5 AND payment.status<>3), '[]') pos_payment_vouchers,
         COALESCE((SELECT json_agg(json_build_object('id', r.id, 'vch_code', r.vch_code, 'currency_id', r.currency_id, 'rate', r.rate, 'amount', r.amount) ORDER BY r.id)
           FROM voucher_header_tbl r WHERE (r.pos_invoice_voucher_id=vh.id OR r.id=vh.pos_receipt_voucher_id) AND r.vch_type=4 AND r.status<>3), '[]') pos_receipts,
         COALESCE((SELECT json_agg(json_build_object('method', p.payment_method, 'amount', p.amount, 'currency_id', p.currency_id, 'currency_amount', p.currency_amount, 'reference', p.reference, 'due_date', p.due_date, 'bank_id', p.bank_id, 'branch_id', p.branch_id, 'cheque_account', p.cheque_account, 'card_type_id', p.card_type_id, 'card_expiry', p.card_expiry) ORDER BY p.id) FROM pos_sale_payments_tbl p WHERE p.voucher_id = vh.id), '[]') payments

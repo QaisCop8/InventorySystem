@@ -19,7 +19,7 @@ export function missingPosAccountMessage(field: keyof typeof POS_ACCOUNT_LABELS)
 }
 
 /** The point returned by the API already includes user and system defaults. */
-export function validatePosAccounts(point: Record<string, any>, payments: Array<{ method?: string; payment_method?: string; amount?: number }>, options: {
+export function validatePosAccounts(point: Record<string, any>, payments: Array<{ method?: string; payment_method?: string; amount?: number; account_id?: unknown }>, options: {
   mode: string
   taxAmount?: number
   returnAccountIds?: unknown[]
@@ -29,7 +29,7 @@ export function validatePosAccounts(point: Record<string, any>, payments: Array<
   for (const payment of payments) {
     if (!(Number(payment.amount) > 0)) continue
     const field = paymentAccounts[(payment.method || payment.payment_method) as keyof typeof paymentAccounts]
-    if (field && !hasAccount(point[field])) return missingPosAccountMessage(field)
+    if (field && !hasAccount(payment.account_id ?? point[field])) return missingPosAccountMessage(field)
   }
   if (options.mode === "sale" && !hasAccount(options.customerAccountId) && !hasAccount(point.cash_account_id)
     && payments.some(payment => Number(payment.amount) > 0 && ["cheque", "card"].includes(payment.method || payment.payment_method || ""))) {
