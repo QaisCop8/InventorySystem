@@ -59,7 +59,9 @@ export async function verifyManagementEmail(token: string) {
 
 export async function loginManagementUser(data: { email: string; password: string }) {
   await ensureManagementTables()
-
+  console.log("[LOGIN DEBUG] Database configured:",
+    !!process.env.DATABASE_URL
+  )
   const email = data.email?.trim().toLowerCase()
   if (!email || !data.password) return { success: false, error: "البريد الإلكتروني وكلمة المرور مطلوبان" }
 
@@ -67,6 +69,7 @@ export async function loginManagementUser(data: { email: string; password: strin
     SELECT id, full_name, email, password_hash, email_verified, is_platform_admin, is_active
     FROM users WHERE email = ${email}
   `
+  console.log("[LOGIN DEBUG] Matching users:", rows.length)
   if (rows.length === 0) return { success: false, error: "البريد الإلكتروني أو كلمة المرور غير صحيحة" }
 
   const user = rows[0]
