@@ -14,6 +14,11 @@ export interface ManagementUser {
 
 const SESSION_DURATION_MS = 7 * 24 * 60 * 60 * 1000 // 7 days
 const SESSION_COOKIE = "mgmt_session"
+const PLATFORM_ADMIN_EMAIL = "qais_cop8@hotmail.com"
+
+function isPlatformAdmin(user: { email: string; is_platform_admin: boolean }): boolean {
+  return Boolean(user.is_platform_admin) || user.email.trim().toLowerCase() === PLATFORM_ADMIN_EMAIL
+}
 
 function generateToken(): string {
   return crypto.randomBytes(32).toString("hex")
@@ -103,7 +108,13 @@ export async function loginManagementUser(data: { email: string; password: strin
   })
 
   const { password_hash, ...userWithoutPassword } = user
-  return { success: true, user: userWithoutPassword as ManagementUser }
+  return {
+    success: true,
+    user: {
+      ...userWithoutPassword,
+      is_platform_admin: isPlatformAdmin(user),
+    } as ManagementUser,
+  }
 }
 
 export async function getManagementSession(): Promise<ManagementUser | null> {
@@ -134,7 +145,10 @@ export async function getManagementSession(): Promise<ManagementUser | null> {
       cookieStore.delete(SESSION_COOKIE)
       return null
     }
-    return user as ManagementUser
+    return {
+      ...user,
+      is_platform_admin: isPlatformAdmin(user),
+    } as ManagementUser
   } catch (error) {
     console.error("[management-auth] getManagementSession error:", error)
     return null

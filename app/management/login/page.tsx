@@ -19,9 +19,8 @@ export default function ManagementLoginPage() {
       throw new Error(data.error || "حدث خطأ في تسجيل الدخول")
     }
 
-    // لا نختار أول شركة تلقائياً: قد يكون للمستخدم عدة قواعد. شاشة "شركاتي" تعرض فقط الروابط
-    // الموجودة في management.user_company، ومنها يحدد المستخدم قاعدة العمل الحالية.
-    router.push("/management/companies")
+    // مسؤول المنصة ينتقل إلى لوحة الإدارة؛ بقية المستخدمين يختارون الشركة من "شركاتي".
+    router.push(data.user?.is_platform_admin ? "/management/admin" : "/management/companies")
   }
 
   return <ManagementLogin onLogin={handleLogin} footer={<Link href="/management/signup" className="font-semibold text-emerald-700 transition-colors hover:text-emerald-800">إنشاء مستخدم جديد</Link>} />
