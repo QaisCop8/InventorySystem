@@ -1,3 +1,4 @@
+import { authorizeStoredProduct } from "@/app/api/inventory/products/_permissions"
 import { type NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
 export async function GET(request: NextRequest) {
@@ -9,6 +10,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Product ID is required" }, { status: 400 })
     }
 
+    const permission = await authorizeStoredProduct(request, productId, "lookup")
+    if (!permission.ok) return permission.response
     const warehouses = await sql`
       SELECT 
         pw.id,
@@ -43,6 +46,8 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const data = await request.json()
+    const permission = await authorizeStoredProduct(request, data.product_id, "update")
+    if (!permission.ok) return permission.response
     const {
       product_id,
       warehouse_id,
@@ -94,6 +99,10 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const data = await request.json()
+    const stored = (await sql`SELECT product_id FROM product_warehouses WHERE id = ${data.id} LIMIT 1`)[0]
+    if (!stored) return NextResponse.json({ error: "Product warehouse not found" }, { status: 404 })
+    const permission = await authorizeStoredProduct(request, stored.product_id, "update")
+    if (!permission.ok) return permission.response
     const { id, warehouse_id, floor, area, shelf, quantity, reserved_quantity, min_stock_level, max_stock_level } = data
 
     const result = await sql`

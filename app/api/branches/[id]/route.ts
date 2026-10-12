@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
+import { authorizeFile } from "@/lib/file-permissions"
 
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -9,8 +10,10 @@ async function resolveBranchId(context: RouteContext) {
   return Number.isInteger(branchId) && branchId > 0 ? branchId : null
 }
 
-export async function GET(_request: NextRequest, context: RouteContext) {
+export async function GET(request: NextRequest, context: RouteContext) {
   try {
+    const authorization = await authorizeFile(request, "branches", "view")
+    if (!authorization.ok) return authorization.response
     const branchId = await resolveBranchId(context)
     if (!branchId) return NextResponse.json({ error: "معرف الفرع غير صالح" }, { status: 400 })
     const rows = await sql`
@@ -27,9 +30,11 @@ export async function GET(_request: NextRequest, context: RouteContext) {
 
 export async function PUT(request: NextRequest, context: RouteContext) {
   try {
+    const data = await request.json()
+    const authorization = await authorizeFile(request, "branches", Number(data.status) === 3 ? "delete" : "update")
+    if (!authorization.ok) return authorization.response
     const branchId = await resolveBranchId(context)
     if (!branchId) return NextResponse.json({ error: "معرف الفرع غير صالح" }, { status: 400 })
-    const data = await request.json()
     const branchCode = String(data.branch_code || "").trim()
     if (!/^\d{1,4}$/.test(branchCode)) {
       return NextResponse.json({ error: "رقم الفرع مطلوب ويجب أن يتكون من 1 إلى 4 أرقام فقط" }, { status: 400 })
@@ -64,8 +69,10 @@ export async function PUT(request: NextRequest, context: RouteContext) {
   }
 }
 
-export async function DELETE(_request: NextRequest, context: RouteContext) {
+export async function DELETE(request: NextRequest, context: RouteContext) {
   try {
+    const authorization = await authorizeFile(request, "branches", "delete")
+    if (!authorization.ok) return authorization.response
     const branchId = await resolveBranchId(context)
     if (!branchId) return NextResponse.json({ error: "معرف الفرع غير صالح" }, { status: 400 })
     const rows = await sql`

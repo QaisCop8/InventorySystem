@@ -31,10 +31,9 @@ import SearchBrandDialog from "@/components/customer/search-brand-dialog"
 import './compact-product-form.css'
 import ProgressSpinner from "../ProgressSpinner/ProgressSpinner"
 import ConfirmDialogYesNo from "../ui/ConfirmDialogYesNo"
-import { useAuth } from "../auth/auth-context"
+import { useFileAccess } from "@/components/auth/use-file-access"
 import ProductCodeInput from "./ProductCodeInput"
 import AutoCompleteAccount from "@/components/customer/auto-complete-account"
-import Util from "../common/Util"
 import sharedDropdownStyles from "../common/Dropdown.module.scss"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import AttachmentManager from "@/components/common/AttachmentManager"
@@ -365,6 +364,8 @@ export function CompactProductForm({
 }: CompactProductFormProps) {
   const workspaceTabActive = useWorkspaceTabActive()
   const isService = entityType === "services"
+  const can = useFileAccess(isService ? "services" : "items")
+  const canView = can("view"), canCreate = can("create"), canUpdate = can("update"), canDelete = can("delete")
   const toast = useRef<Toast>(null);
   const [formData, setFormData] = useState<ProductFormData>(initialFormData)
   const [isSearching, setIsSearching] = useState(false)
@@ -677,9 +678,7 @@ export function CompactProductForm({
   const handleSaveProduct = async (): Promise<boolean | undefined> => {
     try {
       const productNameEn = formData.product_name_en.trim()
-      let permission = 1
-      if (formData.id > 0) permission = 2
-      if (!Util.checkUserAccess(permission)) {
+      if (!(formData.id > 0 ? canUpdate : canCreate)) {
         toast.current?.show({
           severity: 'error',
           summary: '',
@@ -728,6 +727,14 @@ export function CompactProductForm({
           product_name_en: productNameEn,
           type: isService ? 2 : 1,
           service_type: isService ? 1 : 0,
+          ...(formData.id > 0 ? {} : {
+            related_item_ids: relatedProducts.map((row) => row.related_id),
+            related_items_mode: formData.related_items_mode,
+            manufacturing_components: manufacturingComponents.map((row) => ({
+              component_id: row.component_id, quantity: calculateManufacturingComponentQuantity(row),
+              length: row.length, width: row.width, height: row.height, count: row.count,
+            })),
+          }),
         }),
       })
 
@@ -736,8 +743,8 @@ export function CompactProductForm({
         throw new Error(responseData.error || responseData.message || "فشل في حفظ المنتج")
       }
       const savedProductId = Number(responseData.id || responseData.productId || responseData.product?.id || formData.id)
-      if (savedProductId > 0) await saveRelatedProducts(savedProductId)
-      if (savedProductId > 0) await saveManufacturingComponents(savedProductId)
+      if (savedProductId > 0 && formData.id > 0 && canUpdate) await saveRelatedProducts(savedProductId)
+      if (savedProductId > 0 && formData.id > 0 && canUpdate) await saveManufacturingComponents(savedProductId)
 
       setSuccess(formData.id ? "تم تحديث المنتج بنجاح ✅" : "تم إنشاء المنتج بنجاح ✅")
       toast.current?.show({
@@ -747,7 +754,8 @@ export function CompactProductForm({
         life: 3000
       });
       onSuccess?.()
-      await reset_fields()
+      if (canCreate) await reset_fields()
+      else onHideDialog(true)
       return true
 
     } catch (err) {
@@ -771,6 +779,7 @@ export function CompactProductForm({
   };
 
   const handleDeleteClick = (checkUnsaved: any) => {
+    if (!canDelete) return
 
     const currentHash = getFormDataHash(formData);
     if (checkUnsaved === true && currentHash !== initialHash.current) {
@@ -788,7 +797,7 @@ export function CompactProductForm({
       return;
     }
 
-    if (!Util.checkUserAccess(3)) {
+    if (!canDelete) {
       toast.current?.show({
         severity: 'error',
         summary: '',
@@ -803,6 +812,7 @@ export function CompactProductForm({
   };
 
   const handleDeleteProduct = async () => {
+    if (!canDelete) return
     if (!formData.id) {
       toast.current?.show({
         severity: 'warn',
@@ -849,6 +859,7 @@ export function CompactProductForm({
 
 
   const getNewProductCode = async (): Promise<string> => {
+    if (!canCreate) return ""
     try {
       const res = await fetch("/api/utilities/getLastProductCode");
       if (!res.ok) {
@@ -883,6 +894,7 @@ export function CompactProductForm({
   // كدالة مشتركة بدل تكرارها لكل مسار، بعد أن كانت مسارات النجاح المختلفة (لا الأخطاء فقط) تُكرِّر
   // نفس تحويل الوحدات/الأسعار/المستودعات وضبط formData/initialHash/currentProductId حرفياً.
   const applyLoadedProduct = async (product: any) => {
+    if (!canView) return
     // definitionsRef.current لا الحالة definitions — الحالة مُحدَّثة عبر setDefinitions (غير متزامنة،
     // تُطبَّق بالعرض التالي) بينما هذه الدالة تُستدعى من نفس تشغيلة useEffect التي استدعت
     // fetchDefinitions أصلاً (مرة واحدة فقط، محروسة بـinitialized.current)، فتبقى definitions هنا
@@ -962,6 +974,7 @@ export function CompactProductForm({
     navigationType: "first" | "previous" | "next" | "last" | "Byid",
     productId?: number, checkUnsaved?: any // explicitly pass ID when needed
   ) => {
+    if (!canView) return
     const currentHash = getFormDataHash(formData);
     if (checkUnsaved === undefined) checkUnsaved = true
     if (checkUnsaved === true && currentHash !== initialHash.current && initialHash.current !== 0) {
@@ -973,7 +986,7 @@ export function CompactProductForm({
     const requestId = navigationRequestRef.current + 1
     navigationRequestRef.current = requestId
     try {
-      if (!Util.checkUserAccess(10)) {
+      if (!canView) {
         toast.current?.show({
           severity: 'error',
           summary: '',
@@ -1216,6 +1229,12 @@ export function CompactProductForm({
   const stockStatuses = ["متوفر", "تحت الحد الأدنى", "نفد المخزون", "محجوز", "تالف"]
   const doHotKeys = useRef(true)
   const reset_fields = async (from_code = 0, code = "") => {
+    if (!canCreate) {
+      setFormData({ ...initialFormData })
+      setCurrentProductId(0)
+      initialHash.current = getFormDataHash(initialFormData)
+      return
+    }
     // Cancel any product navigation still in flight. Otherwise a slow response
     // can overwrite the new blank form after the user presses "جديد".
     navigationRequestRef.current += 1
@@ -1297,6 +1316,7 @@ export function CompactProductForm({
 
 
   const onNew = async (checkUnsaved: any) => {
+    if (!canCreate) return
     const currentHash = getFormDataHash(formData);
     if (checkUnsaved === true && currentHash !== initialHash.current) {
       setShowUnsaved(true)
@@ -1343,7 +1363,7 @@ export function CompactProductForm({
     };
 
     void initFormData();
-  }, [editingProduct?.id, visible]);
+  }, [editingProduct?.id, visible, canView, canCreate]);
 
   // يضمن ظهور مراكز التكلفة في الشبكة حتى لو اكتمل جلبها (fetchDefinitions) بعد استدعاء
   // reset_fields/loadData بلحظة — نفس مصدر البيانات المستخدَم في unified-accounts-refactored.tsx
@@ -1922,6 +1942,7 @@ export function CompactProductForm({
     if (!response.ok) { const data = await response.json().catch(() => null); throw new Error(data?.error || "فشل حفظ مكونات التصنيع") }
   }
   const searchProductByCode = async (code: string) => {
+    if (!canView) return
     if (!code || code.length === 0) return
 
     try {
@@ -2443,6 +2464,7 @@ export function CompactProductForm({
           <span className="sr-only">إغلاق</span>
         </button>
         <UniversalToolbar
+          fileFamily={isService ? "services" : "items"}
           currentRecord={currentProductId > 0 ? currentProductId : 0}
           totalRecords={currentProductId > 0 ? currentProductId : 0}
           onFirst={async () => { await loadData('first') }}
@@ -2454,8 +2476,8 @@ export function CompactProductForm({
           onDelete={() => { handleDeleteClick(true) }}
           isLoading={loading || isSearching}
           isSaving={isSubmitting}
-          canSave={true}
-          canDelete={currentProductId > 0}
+          canSave={currentProductId > 0 ? canUpdate : canCreate}
+          canDelete={currentProductId > 0 && canDelete}
           isFirstRecord={currentProductId <= 1}
           isLastRecord={false}
           isNewRecord={currentProductId === 0}
@@ -2537,7 +2559,7 @@ export function CompactProductForm({
                           visible={true}
                           priceCategoryId={1}
                           productTypes={isService ? [2] : [1]}
-                          onRequestSearch={(openSearch) => requestAfterUnsavedCheck(openSearch)}
+                          onRequestSearch={(openSearch) => { if (canView) requestAfterUnsavedCheck(openSearch) }}
                           codeLabel={isService ? "رقم الخدمة *" : "رقم الصنف *"}
                           searchTitle={isService ? "بحث الخدمات" : "بحث الأصناف"}
                         />
@@ -3568,7 +3590,7 @@ export function CompactProductForm({
         onDuplicateError={(message) => toast.current?.show({ severity: "error", summary: "", detail: message, life: 4000 })}
       />
       <ProductSearchPopup
-        visible={relatedProductSearchOpen}
+        visible={relatedProductSearchOpen && canView && canUpdate}
         onClose={() => { setRelatedProductSearchOpen(false); setRelatedProductRow(null) }}
         onSelect={(products) => addRelatedProduct(products[0])}
         priceCategoryId={1}
@@ -3577,7 +3599,7 @@ export function CompactProductForm({
         productTypes={[1]}
       />
       <ProductSearchPopup
-        visible={manufacturingComponentSearchOpen}
+        visible={manufacturingComponentSearchOpen && canView && canUpdate}
         onClose={() => setManufacturingComponentSearchOpen(false)}
         onSelect={(products) => addManufacturingComponent(products[0])}
         priceCategoryId={1}

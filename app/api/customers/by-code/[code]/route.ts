@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
+import { authorizeCustomerType } from "@/app/api/customers/_permissions"
 
 // البحث عن زبون/مورد برقمه (customer_code، يحمل الموردون كذلك رموزهم في نفس هذا العمود بجدول
 // customers الموحَّد — بادئة S بدل C) — يستخدمه components/products/customers.tsx عند مغادرة حقل
@@ -22,6 +23,8 @@ export async function GET(request: NextRequest, { params }: { params: { code: st
       return NextResponse.json({ found: false })
     }
 
+    const permission = await authorizeCustomerType(request, rows[0].type, "lookup")
+    if (!permission.ok) return permission.response
     return NextResponse.json({ found: true, customer: rows[0] })
   } catch (error) {
     console.error("[customers/by-code] error:", error)

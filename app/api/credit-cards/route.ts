@@ -1,9 +1,12 @@
 import { type NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
+import { authorizeFile, authorizeFileRead, projectFileLookup } from "@/lib/file-permissions"
 import { ensureTables, saveHolidays } from "./_lib"
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const authorization = await authorizeFileRead(request, ["credit-cards"])
+    if (!authorization.ok) return authorization.response
     await ensureTables()
 
     const rows = await sql`
@@ -23,7 +26,7 @@ export async function GET() {
       ORDER BY c.id DESC
     `
 
-    return NextResponse.json(rows)
+    return NextResponse.json(authorization.lookupOnly ? projectFileLookup("credit-cards", rows) : rows)
   } catch (error) {
     console.error("Error fetching credit card types:", error)
     return NextResponse.json({ error: "Failed to fetch credit card types" }, { status: 500 })
@@ -45,6 +48,8 @@ const validate = (data: any): string | null => {
 
 export async function POST(request: NextRequest) {
   try {
+    const authorization = await authorizeFile(request, "credit-cards", "create")
+    if (!authorization.ok) return authorization.response
     await ensureTables()
     const data = await request.json()
 
@@ -78,8 +83,10 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    await ensureTables()
     const data = await request.json()
+    const authorization = await authorizeFile(request, "credit-cards", Number(data.status) === 3 ? "delete" : "update")
+    if (!authorization.ok) return authorization.response
+    await ensureTables()
 
     if (!data.id) return NextResponse.json({ error: "معرف البطاقة مطلوب" }, { status: 400 })
 

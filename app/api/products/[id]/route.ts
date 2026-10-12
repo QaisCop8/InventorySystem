@@ -1,8 +1,11 @@
+import { authorizeProductLookupScope } from "@/app/api/inventory/products/_permissions"
 
 import { type NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
 export async function GET(request: NextRequest) {
   try {
+    const scope = await authorizeProductLookupScope(request)
+    if (!scope.ok) return scope.response
     const { searchParams } = new URL(request.url)
     const barcode = searchParams.get("barcode")
     const query = searchParams.get("q")
@@ -35,6 +38,7 @@ export async function GET(request: NextRequest) {
             OR p.status = 'active'
             OR p.status = 'ACTIVE'
           )
+          AND COALESCE(p.type, 1) = ANY(${scope.types}::int[])
         LIMIT 1
       `
     } else if (hasBarcode === "true") {
@@ -62,7 +66,9 @@ export async function GET(request: NextRequest) {
             OR p.status = 'active'
             OR p.status = 'ACTIVE'
           )
+          AND COALESCE(p.type, 1) = ANY(${scope.types}::int[])
         ORDER BY p.product_name
+          AND COALESCE(p.type, 1) = ANY(${scope.types}::int[])
         LIMIT 100
       `
     } else if (query) {
@@ -94,6 +100,7 @@ export async function GET(request: NextRequest) {
             OR p.status = 'active'
             OR p.status = 'ACTIVE'
           )
+          AND COALESCE(p.type, 1) = ANY(${scope.types}::int[])
         ORDER BY p.product_name
         LIMIT 50
       `

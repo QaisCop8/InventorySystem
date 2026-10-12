@@ -1,8 +1,10 @@
 import { type NextRequest, NextResponse } from "next/server"
-import sql, { getTenantPool, resolveCurrentDbName } from "@/lib/database"
+import sql, { getTenantPool } from "@/lib/database"
 import { isScaleProduct, validateScaleProductBarcodes } from "@/lib/scale-barcode"
 import { validateProductPriceCurrencies } from "@/lib/product-price-currencies"
-import { requireBranchAccess, PermissionDeniedError, ensurePermissionTables } from "@/lib/permissions"
+import { getGrantedBranchIds } from "@/lib/permissions"
+import { projectFileLookup } from "@/lib/file-permissions"
+import { authorizeProductType, authorizeStoredProduct, authorizeProductLookupScope } from "./_permissions"
 
 
 
@@ -281,6 +283,28 @@ export async function GET(request: NextRequest) {
   if (!sql) return NextResponse.json({ error: 'Database client not initialized' }, { status: 500 })
 
   try {
+    const url = new URL(request.url)
+    const typeParam = url.searchParams.get('type') ?? 'NULL'
+    const priceCategoryId = Number.parseInt(url.searchParams.get('priceCategoryId') || '1', 10) || 1
+    const requestedProductId = Number.parseInt(url.searchParams.get('productId') || url.searchParams.get('id') || '0', 10) || 0
+    const activeOnly = url.searchParams.get('activeOnly') === 'true' || url.searchParams.get('activeOnly') === '1'
+    const organizationId = 1
+
+    const resolvedType =
+      typeParam === 'services'
+        ? 2
+        : typeParam === 'products'
+        ? 1
+        : Number(typeParam)
+    const effectiveType = Number.isFinite(resolvedType) && resolvedType > 0 ? resolvedType : null
+    const permission = requestedProductId > 0
+      ? await authorizeStoredProduct(request, requestedProductId, "lookup")
+      : await authorizeProductType(request, effectiveType ?? 1, "lookup")
+    if (!permission.ok) return permission.response
+    const scope = effectiveType === null && requestedProductId === 0 ? await authorizeProductLookupScope(request) : null
+    if (scope && !scope.ok) return scope.response
+    const permittedTypes = scope?.ok ? scope.types : [effectiveType ?? 1]
+    const grantedBranchIds = permission.lookupOnly ? [permission.branchId] : await getGrantedBranchIds(permission.userId, permission.accessId)
     await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS attributes JSONB NOT NULL DEFAULT '[]'::jsonb`
     await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS transaction_notes VARCHAR(100)`
     await sql`ALTER TABLE IF EXISTS product_attributes_tbl RENAME TO attributes_tbl`
@@ -299,47 +323,12 @@ export async function GET(request: NextRequest) {
       )
     `
 
-    // صلاحية "استعلام الاصناف" (access_list.id = 10) تُفرَض هنا فعلياً على الخادم — لا يكفي إخفاء
-    // الشاشة بـUtil.checkUserAccess(10) بالواجهة وحده (تلك قراءة من localStorage فقط، لا تمنع طلب
-    // fetch نفسه إطلاقاً). المستخدم يُعرَّف عبر هيدر x-user-id (يُلحقه تصحيح fetch بـauth-context.tsx
-    // تلقائياً بكل طلب). بلا أي فرع يملك المستخدم الصلاحية فيه: 403 برسالة جاهزة للعرض مباشرة.
-    const requestingUserId = request.headers.get('x-user-id')
-    let grantedBranchIds: number[]
-    try {
-      await ensurePermissionTables(await resolveCurrentDbName())
-      grantedBranchIds = await requireBranchAccess(requestingUserId, 10)
-    } catch (error) {
-      if (error instanceof PermissionDeniedError) {
-        return NextResponse.json({ error: error.message }, { status: 403 })
-      }
-      throw error
-    }
-
-    const url = new URL(request.url)
-    const typeParam = url.searchParams.get('type') ?? 'NULL'
-    const priceCategoryId = Number.parseInt(url.searchParams.get('priceCategoryId') || '1', 10) || 1
-    const requestedProductId = Number.parseInt(url.searchParams.get('productId') || url.searchParams.get('id') || '0', 10) || 0
-    const activeOnly = url.searchParams.get('activeOnly') === 'true' || url.searchParams.get('activeOnly') === '1'
-    const organizationId = 1
-
-    const resolvedType =
-      typeParam === 'services'
-        ? 2
-        : typeParam === 'products'
-        ? 1
-        : Number(typeParam)
-    const effectiveType = Number.isFinite(resolvedType) && resolvedType > 0 ? resolvedType : null
-
-    // تصفية حسب الفروع التي يملك المستخدم صلاحية "استعلام الاصناف" فيها فعلياً (grantedBranchIds
-    // أعلاه، مُتحقَّق منها على الخادم) — لا الفرع النشط وحده كما كانت التصفية السابقة (هيدر
-    // x-branch-id لا يزال يُرسَل لكنه لم يعد المصدر هنا): صنف بلا أي صف بـproduct_branches يبقى
-    // ظاهراً طالما يملك المستخدم الصلاحية بفرع واحد على الأقل (تحقَّق أعلاه بالفعل)، وصنف مقيَّد
-    // بفرع/فروع معيّنة يظهر فقط إن كان أحد تلك الفروع ضمن الفروع المصرَّح بها للمستخدم.
+    // Restrict branch-specific products to branches granted by the current file permission.
     const grantedBranchIdsLiteral = grantedBranchIds.join(',')
 
     const filterClauses = [
       '(p.deleted IS NULL OR p.deleted = false)',
-      ...(effectiveType !== null ? [`p.type = ${effectiveType}::int`] : []),
+      ...(requestedProductId > 0 && effectiveType === null ? [] : [`COALESCE(p.type, 1) = ANY(ARRAY[${permittedTypes.join(",")}]::int[])`]),
       ...(requestedProductId > 0 ? [`p.id = ${requestedProductId}::int`] : []),
       ...(activeOnly ? [`(p.status = 1 OR p.status::text = 'نشط' OR p.status::text = 'active' OR p.status::text = 'ACTIVE')`] : []),
       `(NOT EXISTS (SELECT 1 FROM product_branches pb WHERE pb.product_id = p.id)
@@ -505,7 +494,10 @@ export async function GET(request: NextRequest) {
       default_store_name: product.default_store_name || "بلا تحديد",
     }));
 
-    return NextResponse.json(mappedProducts);
+    return NextResponse.json(mappedProducts.map((product: any) => {
+      const rowPermission = scope?.ok ? Number(product.type) === 2 ? scope.services : scope.items : permission
+      return rowPermission.ok && rowPermission.lookupOnly ? projectFileLookup(Number(product.type) === 2 ? "services" : "items", [product])[0] : product
+    }));
   } catch (error) {
     console.error("Products API error:", error);
     return NextResponse.json(
@@ -731,6 +723,40 @@ async function persistProductNumbers(client: any, productId: number, originalNum
   }
 }
 
+// New records save their child definitions under the same create authorization
+// and database transaction. Existing children still use their update endpoints.
+async function persistNewProductChildren(client: any, productId: number, data: any) {
+  const relatedIds: number[] = Array.from(new Set<number>((Array.isArray(data.related_item_ids) ? data.related_item_ids : []).map(Number)))
+  const components = (Array.isArray(data.manufacturing_components) ? data.manufacturing_components : []).map((item: any) => ({
+    id: Number(item.component_id), quantity: Number(item.quantity), length: Number(item.length || 0),
+    width: Number(item.width || 0), height: Number(item.height || 0), count: Number(item.count || 0),
+  }))
+  if (relatedIds.some((id) => !Number.isInteger(id) || id <= 0 || id === productId)) throw new Error("Invalid related product")
+  const componentIds = components.map((item: any) => item.id)
+  if (componentIds.some((id: number) => !Number.isInteger(id) || id <= 0 || id === productId) || new Set(componentIds).size !== componentIds.length) throw new Error("Invalid manufacturing component")
+  const allIds = Array.from(new Set<number>([...relatedIds, ...componentIds]))
+  if (!allIds.length) return
+  const rows = (await client.query("SELECT id, COALESCE(measurment_id, 1) AS measurment_id FROM products WHERE id = ANY($1::int[])", [allIds])).rows
+  if (rows.length !== allIds.length) throw new Error("Related product or manufacturing component does not exist")
+  if (relatedIds.length) {
+    await client.query("CREATE TABLE IF NOT EXISTS product_related_items (id SERIAL PRIMARY KEY, product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE, related_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE, UNIQUE(product_id, related_id), CHECK (product_id <> related_id))")
+    for (const id of relatedIds) await client.query("INSERT INTO product_related_items (product_id, related_id) VALUES ($1, $2)", [productId, id])
+  }
+  if (components.length) {
+    await client.query("CREATE TABLE IF NOT EXISTS product_manufacturing_components (id SERIAL PRIMARY KEY, product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE, component_id INTEGER NOT NULL REFERENCES products(id) ON DELETE RESTRICT, quantity NUMERIC(18,6) NOT NULL CHECK (quantity > 0), UNIQUE(product_id, component_id), CHECK (product_id <> component_id))")
+    for (const column of ["length", "width", "height", "count"]) await client.query(`ALTER TABLE product_manufacturing_components ADD COLUMN IF NOT EXISTS ${column} NUMERIC(18,6)`)
+    for (const item of components) {
+      const measurement = Number(rows.find((row: any) => Number(row.id) === item.id)?.measurment_id || 1)
+      if (measurement !== 1) {
+        if (!(item.length > 0) || !(item.width > 0) || !(item.count > 0) || (measurement === 3 && !(item.height > 0))) throw new Error("Manufacturing component dimensions are required")
+        item.quantity = item.length * item.width * (measurement === 3 ? item.height : 1) * item.count
+      }
+      if (!Number.isFinite(item.quantity) || item.quantity <= 0) throw new Error("Manufacturing component quantity must be positive")
+      await client.query("INSERT INTO product_manufacturing_components (product_id, component_id, quantity, length, width, height, count) VALUES ($1, $2, $3, $4, $5, $6, $7)", [productId, item.id, item.quantity, measurement === 1 ? null : item.length, measurement === 1 ? null : item.width, measurement === 3 ? item.height : null, measurement === 1 ? null : item.count])
+    }
+  }
+}
+
 async function getLastProductCode() {
   const result = await (await getTenantPool()).query(`
     SELECT COALESCE(MAX(product_code), '0') AS last_code
@@ -746,6 +772,11 @@ export async function POST(request: NextRequest) {
   const client = await (await getTenantPool()).connect();
 
   try {
+    const productData = normalizeProductPayload(await request.json());
+    const permission = productData.id > 0
+      ? await authorizeStoredProduct(request, productData.id, "update", productData.type)
+      : await authorizeProductType(request, productData.type, "create")
+    if (!permission.ok) return permission.response
     await ensureProductSchemaColumns(client)
     await ensureProductCostCentersTable(client)
     await ensureProductBrandsTable(client)
@@ -763,7 +794,6 @@ export async function POST(request: NextRequest) {
       )
     `)
 
-    const productData = normalizeProductPayload(await request.json());
     const organizationId = 1; // replace with auth context
     const hasDefaultStore = await client.query(
       `SELECT EXISTS (
@@ -1390,6 +1420,7 @@ export async function POST(request: NextRequest) {
       productId,
     ])
     await persistProductAttributes(client, productId, productData.attributes)
+    if (productData.id === 0) await persistNewProductChildren(client, productId, productData)
 
     await client.query("COMMIT");
     return NextResponse.json({ success: true, productId });
@@ -1413,10 +1444,12 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ error: "ظ‚ط§ط¹ط¯ط© ط§ظ„ط¨ظٹط§ظ†ط§طھ ط؛ظٹط± ظ…طھط§ط­ط©" }, { status: 500 });
   }
 
-  await ensureProductTypeColumns()
-
   try {
     const requestBody = await request.json()
+    const statusOnly = Object.keys(requestBody).every((key) => key === "id" || key === "status")
+    const permission = await authorizeStoredProduct(request, requestBody?.id, "update", statusOnly ? undefined : requestBody?.type ?? 1)
+    if (!permission.ok) return permission.response
+    await ensureProductTypeColumns()
     const normalizedId = safeNumber(requestBody?.id, 0)
     const normalizedStatus = requestBody?.status !== undefined ? normalizeStatus(requestBody.status, null) : null
 

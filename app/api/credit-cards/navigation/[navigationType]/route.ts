@@ -1,9 +1,12 @@
 import { type NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
+import { authorizeFile } from "@/lib/file-permissions"
 import { fetchHolidays } from "../../_lib"
 
 export async function GET(request: NextRequest, { params }: { params: { navigationType: string } }) {
   try {
+    const authorization = await authorizeFile(request, "credit-cards", "view")
+    if (!authorization.ok) return authorization.response
     const { navigationType } = params
     const currentId = Number(request.nextUrl.searchParams.get("currentId") || 0)
 

@@ -11,6 +11,7 @@ import { JournalDefaultsError, nextJournalVoucherCode, resolveUserDefaultJournal
 import { authorizeTransaction } from "@/lib/transaction-permissions"
 import { getSessionUser } from "@/lib/tenant-auth"
 import { attendancePayrollSettings, attendancePayrollTotals } from "@/lib/attendance-payroll"
+import { authorizeFile, authorizeFileRead, projectFileLookup } from "@/lib/file-permissions"
 
 const definitions: Record<string, { table: string; fields: string[]; order: string }> = {
   jobs: { table: "employee_jobs_tbl", fields: ["code", "name", "is_active"], order: "code" },
@@ -139,8 +140,12 @@ const canonicalSalaryAccountId = async (storedValue: any) => {
 }
 
 export async function GET(request: NextRequest, { params }: { params: { resource: string } }) {
-  await ensureHrSchema()
   const resource = params.resource
+  const authorization = resource === "employees"
+    ? await authorizeFileRead(request, ["employees"])
+    : resource === "employee-number" ? await authorizeFile(request, "employees", "create") : null
+  if (authorization && !authorization.ok) return authorization.response
+  await ensureHrSchema()
   try {
     if (definitions[resource]) {
       const d = definitions[resource]
@@ -156,7 +161,10 @@ export async function GET(request: NextRequest, { params }: { params: { resource
       const digits = Math.max(1, 10 - prefix.length)
       return NextResponse.json({ employeeNumber: `${prefix}${String(Math.max(start, highest + 1)).padStart(digits, "0")}`.slice(0, 10) })
     }
-    if (resource === "employees") return NextResponse.json(await sql`SELECT e.*, d.department_name, j.name job_name, b.branch_name, COALESCE((SELECT json_agg(json_build_object('id',esi.id,'salary_item_id',esi.salary_item_id,'amount',esi.amount,'percentage',esi.percentage) ORDER BY esi.id) FROM employee_salary_items_tbl esi WHERE esi.employee_id=e.id),'[]') salary_items, COALESCE((SELECT json_agg(json_build_object('id',vt.id,'voucher_type_id',vt.id,'voucher_type_name',vt.name,'is_stopped',COALESCE(est.is_stopped,false),'stop_date',est.stop_date) ORDER BY vt.id) FROM voucher_types_tbl vt LEFT JOIN employee_stop_transactions_tbl est ON est.voucher_type_id=vt.id AND est.employee_id=e.id WHERE COALESCE(vt.status,1)<>3),'[]') stop_transactions, COALESCE((SELECT json_agg(json_build_object('id',ete.id,'tax_exemption_id',ete.tax_exemption_id,'exemption_type',ete.exemption_type,'amount',ete.amount) ORDER BY ete.id) FROM employee_tax_exemptions_tbl ete WHERE ete.employee_id=e.id),'[]') tax_exemptions FROM employees_tbl e LEFT JOIN departments d ON d.id=e.department_id LEFT JOIN employee_jobs_tbl j ON j.id=e.job_id LEFT JOIN branches b ON b.id=e.branch_id ORDER BY e.employee_code`)
+    if (resource === "employees") {
+      const rows = await sql`SELECT e.*, d.department_name, j.name job_name, b.branch_name, COALESCE((SELECT json_agg(json_build_object('id',esi.id,'salary_item_id',esi.salary_item_id,'amount',esi.amount,'percentage',esi.percentage) ORDER BY esi.id) FROM employee_salary_items_tbl esi WHERE esi.employee_id=e.id),'[]') salary_items, COALESCE((SELECT json_agg(json_build_object('id',vt.id,'voucher_type_id',vt.id,'voucher_type_name',vt.name,'is_stopped',COALESCE(est.is_stopped,false),'stop_date',est.stop_date) ORDER BY vt.id) FROM voucher_types_tbl vt LEFT JOIN employee_stop_transactions_tbl est ON est.voucher_type_id=vt.id AND est.employee_id=e.id WHERE COALESCE(vt.status,1)<>3),'[]') stop_transactions, COALESCE((SELECT json_agg(json_build_object('id',ete.id,'tax_exemption_id',ete.tax_exemption_id,'exemption_type',ete.exemption_type,'amount',ete.amount) ORDER BY ete.id) FROM employee_tax_exemptions_tbl ete WHERE ete.employee_id=e.id),'[]') tax_exemptions FROM employees_tbl e LEFT JOIN departments d ON d.id=e.department_id LEFT JOIN employee_jobs_tbl j ON j.id=e.job_id LEFT JOIN branches b ON b.id=e.branch_id ORDER BY e.employee_code`
+      return NextResponse.json(authorization?.ok && "lookupOnly" in authorization && authorization.lookupOnly ? projectFileLookup("employees", rows) : rows)
+    }
     if (resource === "tax-laws") return NextResponse.json(await sql`SELECT l.*, COALESCE(json_agg(json_build_object('id',b.id,'from_amount',b.from_amount,'to_amount',b.to_amount,'tax_percent',b.tax_percent) ORDER BY b.from_amount) FILTER (WHERE b.id IS NOT NULL),'[]') brackets FROM tax_laws_tbl l LEFT JOIN tax_law_brackets_tbl b ON b.tax_law_id=l.id GROUP BY l.id ORDER BY l.name`)
     if (resource === "lookups") {
       const [jobs, departments, branches, employees, items, exemptions, taxLaws, currencies, voucherTypes] = await Promise.all([sql`SELECT * FROM employee_jobs_tbl WHERE is_active ORDER BY id`, sql`SELECT * FROM departments WHERE is_active ORDER BY id`, sql`SELECT * FROM branches WHERE is_active ORDER BY id`, sql`SELECT id,employee_code,full_name,department_id,branch_id FROM employees_tbl WHERE COALESCE(status,1)=1 ORDER BY employee_code`, sql`SELECT * FROM salary_items_tbl WHERE is_active ORDER BY id`, sql`SELECT * FROM tax_exemptions_tbl WHERE is_active ORDER BY id`, sql`SELECT * FROM tax_laws_tbl WHERE is_active ORDER BY id`, sql`SELECT id, currency_code, currency_name FROM currency WHERE COALESCE(is_active,true) ORDER BY id`, sql`SELECT id,name FROM voucher_types_tbl WHERE COALESCE(status,1)<>3 ORDER BY id`])
@@ -272,7 +280,12 @@ export async function GET(request: NextRequest, { params }: { params: { resource
 }
 
 export async function POST(request: NextRequest, { params }: { params: { resource: string } }) {
-  await ensureHrSchema(); const body = await request.json(); const resource = params.resource
+  const resource = params.resource
+  if (resource === "employees") {
+    const authorization = await authorizeFile(request, "employees", "create")
+    if (!authorization.ok) return authorization.response
+  }
+  await ensureHrSchema(); const body = await request.json()
   try {
     if (definitions[resource]) {
       if (resource === "salary-items" && (body.calculation_method || body.calculation_type) === "percentage" && (Number(body.default_amount) < 0 || Number(body.default_amount) > 100)) return NextResponse.json({ error: "النسبة يجب أن تكون أقل من أو تساوي 100" }, { status: 400 })
@@ -522,7 +535,12 @@ export async function POST(request: NextRequest, { params }: { params: { resourc
 }
 
 export async function PUT(request: NextRequest, { params }: { params: { resource: string } }) {
-  await ensureHrSchema(); const body=await request.json(); const resource=params.resource
+  const body = await request.json(); const resource = params.resource
+  if (resource === "employees") {
+    const authorization = await authorizeFile(request, "employees", Number(body.status) === 3 ? "delete" : "update")
+    if (!authorization.ok) return authorization.response
+  }
+  await ensureHrSchema()
   try {
     if (definitions[resource]) { if (resource === "salary-items" && (body.calculation_method || body.calculation_type) === "percentage" && (Number(body.default_amount) < 0 || Number(body.default_amount) > 100)) return NextResponse.json({ error: "النسبة يجب أن تكون أقل من أو تساوي 100" }, { status: 400 }); const d=definitions[resource]; const fields=d.fields.filter(f=>body[f]!==undefined); const values=fields.map(f=>body[f]); values.push(body.id); const sets=fields.map((f,i)=>`${ident(f)}=$${i+1}`).join(","); const rows=await sql.unsafe(`UPDATE ${ident(d.table)} SET ${sets} WHERE id=$${values.length} RETURNING *`,values); return NextResponse.json(rows[0]) }
     if(resource==="employees") { body.father_account = await canonicalSalaryAccountId(body.father_account || body.father_account_code); if (body.id && body.father_account) await sql`UPDATE employees_tbl SET father_account=${Number(body.father_account)} WHERE id=${body.id}` }
@@ -573,6 +591,10 @@ export async function PUT(request: NextRequest, { params }: { params: { resource
 }
 
 export async function DELETE(request:NextRequest,{params}:{params:{resource:string}}){
+  if (params.resource === "employees") {
+    const authorization = await authorizeFile(request, "employees", "delete")
+    if (!authorization.ok) return authorization.response
+  }
   await ensureHrSchema()
   const id=Number(request.nextUrl.searchParams.get("id"))
   if(params.resource==="attendance-devices"&&id){

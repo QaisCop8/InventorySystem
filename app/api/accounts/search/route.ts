@@ -1,8 +1,12 @@
 import { type NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
+import { authorizeFileRead, projectFileLookup } from "@/lib/file-permissions"
+import { accountFileFamilyForType } from "../_lib"
 
 export async function GET(request: NextRequest) {
   try {
+    const authorization = await authorizeFileRead(request, ["accounts", "customers", "suppliers", "subscribers", "employees", "items", "services", "bank-accounts", "credit-cards"])
+    if (!authorization.ok) return authorization.response
     const { searchParams } = new URL(request.url)
     const code = searchParams.get("code")
 
@@ -53,6 +57,11 @@ export async function GET(request: NextRequest) {
     }
 
     const account = result[0]
+
+    const storedAuthorization = await authorizeFileRead(request, [accountFileFamilyForType(account.type), "accounts", "customers", "suppliers", "subscribers", "employees", "items", "services", "bank-accounts", "credit-cards"])
+    if (!storedAuthorization.ok) return storedAuthorization.response
+    if (account.status === 3) return NextResponse.json({ error: "Account deleted" }, { status: 403 })
+    if (storedAuthorization.lookupOnly) return NextResponse.json(projectFileLookup("accounts", [account])[0])
 
     const stopRows = await sql`
       SELECT id, account_id, voucher_types_id, stop_date

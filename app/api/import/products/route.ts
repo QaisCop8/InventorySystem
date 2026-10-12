@@ -1,7 +1,10 @@
+import { authorizeFile } from "@/lib/file-permissions"
 import { type NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
 export async function POST(request: NextRequest) {
   try {
+    const permission = await authorizeFile(request, "items", "create")
+    if (!permission.ok) return permission.response
     const { data } = await request.json()
 
     if (!Array.isArray(data) || data.length === 0) {

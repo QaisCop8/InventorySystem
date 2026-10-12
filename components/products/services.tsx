@@ -14,7 +14,7 @@ import { Plus, Search, Edit, CheckCircle, X, Package, AlertTriangle, Warehouse }
 import { Toast } from "primereact/toast"
 import { CompactServiceForm } from "./compact-service-form"
 import { ImageThumbnail } from "@/components/common/ImageUploadField"
-import Util from "@/components/common/Util"
+import { useFileAccess } from "@/components/auth/use-file-access"
 import ConfirmDialogYesNo from "@/components/ui/ConfirmDialogYesNo"
 
 interface Product {
@@ -162,6 +162,8 @@ const initialFormData: ProductFormData = {
 
 export function Services() {
   const { fullscreenEnabled } = useWorkspace()
+  const can = useFileAccess("services")
+  const canView = can("view"), canCreate = can("create"), canUpdate = can("update")
   const [state, setState] = useState({
     products: [] as Product[],
     categories: [] as string[],
@@ -207,6 +209,7 @@ export function Services() {
   }
 
   const filteredProducts = useMemo(() => {
+    if (!canView) return []
     return state.products.filter((product) => {
       const statusLabel = normalizedServiceStatus(product.status)
       if (
@@ -225,7 +228,7 @@ export function Services() {
       }
       return true
     })
-  }, [state.products, state.filters])
+  }, [canView, state.products, state.filters])
 
   const paginatedProducts = useMemo(() => {
     const startIndex = (state.currentPage - 1) * state.itemsPerPage
@@ -234,9 +237,10 @@ export function Services() {
 
   useEffect(() => {
     fetchProducts()
-  }, [])
+  }, [canView])
 
   const fetchProducts = async () => {
+    if (!canView) { setState((prev) => ({ ...prev, products: [], loading: false })); return }
     try {
       setState((prev) => ({ ...prev, loading: true, error: null }))
       const response = await fetch("/api/inventory/products?type=services")
@@ -258,6 +262,7 @@ export function Services() {
   }
 
   const handleEditProduct = (product: Product) => {
+    if (!canView) return
     setState((prev) => ({
       ...prev,
       editingProduct: product,
@@ -310,6 +315,7 @@ export function Services() {
   }
 
   const handleToggleFreeze = (product: Product) => {
+    if (!canUpdate) return
     setState((prev) => ({
       ...prev,
       pendingFreezeProduct: product,
@@ -318,6 +324,7 @@ export function Services() {
   }
 
   const confirmFreezeToggle = async () => {
+    if (!canUpdate) return
     const product = state.pendingFreezeProduct
     if (!product) return
 
@@ -367,7 +374,7 @@ export function Services() {
     }))
   }
 
-  if (!Util.checkUserAccess(10)) {
+  if (!can("access")) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
@@ -417,7 +424,8 @@ export function Services() {
         </div>
         <div className="flex gap-2">
           <Button
-            onClick={() => setState((prev) => ({
+            disabled={!canCreate}
+            onClick={() => canCreate && setState((prev) => ({
               ...prev,
               showDialog: true,
               editingProduct: null,

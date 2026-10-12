@@ -1,3 +1,4 @@
+import { authorizeFile, authorizeFileRead, projectFileLookup } from "@/lib/file-permissions"
 import { type NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
 
@@ -222,15 +223,17 @@ const normalizeEntityCode = (rawValue: unknown, prefix = "S") => {
   return `${prefixValue}${digits}`.slice(0, 10)
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const permission = await authorizeFileRead(request, ["suppliers"])
+    if (!permission.ok) return permission.response
     const suppliers = await sql`
       SELECT *
       FROM suppliers
       ORDER BY created_at DESC
     `
 
-    return NextResponse.json(suppliers)
+    return NextResponse.json(permission.lookupOnly ? projectFileLookup("suppliers", suppliers) : suppliers)
   } catch (error) {
     console.error("Error fetching suppliers:", error)
     return NextResponse.json({ error: "Failed to fetch suppliers" }, { status: 500 })
@@ -239,6 +242,8 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    const permission = await authorizeFile(request, "suppliers", "create")
+    if (!permission.ok) return permission.response
     const data = await request.json()
 
     console.log("[v0] Received supplier data:", data)
@@ -349,6 +354,8 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
+    const permission = await authorizeFile(request, "suppliers", "update")
+    if (!permission.ok) return permission.response
     const data = await request.json()
     const { id, ...updateData } = data
 
@@ -397,6 +404,8 @@ export async function PUT(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
+    const permission = await authorizeFile(request, "suppliers", "delete")
+    if (!permission.ok) return permission.response
     const { searchParams } = new URL(request.url)
     const id = searchParams.get("id")
 

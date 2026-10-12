@@ -35,6 +35,7 @@ import {
 import { ExcelImport } from "@/components/ui/excel-import"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useAuth } from "../auth/auth-context"
+import { useFileAccess } from "@/components/auth/use-file-access"
 import CustomerSearchPopup from "./CustomerSearchPopup"
 import ConfirmDialogYesNo from "../ui/ConfirmDialogYesNo"
 import DataGrid from "../common/DataGrid"
@@ -224,6 +225,10 @@ interface NotificationSettings {
 
 export default function Customers({ isSupplier, isSubscriber, isSalesman }: CustomersProps) {
   const { fullscreenEnabled } = useWorkspace()
+  const { hasPermission } = useAuth()
+  const can = useFileAccess(isSupplier ? "suppliers" : isSubscriber ? "subscribers" : isSalesman ? null : "customers")
+  const canView = isSalesman ? Util.checkUserAccess(15) : can("view")
+  const canCreate = can("create"), canUpdate = can("update"), canDelete = isSalesman ? hasPermission("products-edit") : can("delete")
   // نوع الجهة (customers.type) بحسب أي تبويب/شاشة فتحت هذا المكوّن المشترك — عميل=1، مورد=2،
   // مندوب=3، مشترك=4. كان الكود سابقاً يفترض في عدة أماكن أن "ليس مورداً" تعني "عميل" حصراً،
   // فيُخطئ في شاشتي المندوبين والمشتركين (يحفظ/يبحث/يولّد رقماً بنوع "عميل" بدلاً من نوعها الفعلي).
@@ -348,6 +353,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
   const [popupMessage, setPopupMessage] = useState<{ severity: "success" | "info" | "warn" | "error"; detail: string } | null>(null)
 
   const filteredCustomers = useMemo(() => {
+    if (!canView) return []
     const cityFilter = searchFilters.city === "__all__" ? "" : searchFilters.city
     const statusFilter = searchFilters.status === "__all__" ? "" : searchFilters.status
     const salesmanFilter = searchFilters.salesman === "__all__" ? "" : searchFilters.salesman
@@ -360,7 +366,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
         (!salesmanFilter || customer.salesman === salesmanFilter)
       )
     })
-  }, [customers, searchFilters])
+  }, [canView, customers, searchFilters])
 
   const totalPages = Math.max(1, Math.ceil(filteredCustomers.length / pageSize))
   const pageStart = filteredCustomers.length === 0 ? 0 : (currentPage - 1) * pageSize + 1
@@ -533,6 +539,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
   }
 
   const fetchPortalUsers = useCallback(async (customerId: number) => {
+    if (!canView) return
     try {
       console.log("[v0] ========== START fetchPortalUsers ==========")
       console.log("[v0] fetchPortalUsers called with customerId:", customerId)
@@ -559,7 +566,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
       setLoadingPortalUsers(false)
       console.log("[v0] Loading state set to false")
     }
-  }, [])
+  }, [canView])
   const doHotKeys = useRef(true)
   const popupHasCalled = () => {
     doHotKeys.current = false
@@ -570,6 +577,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
   };
 
   const fetchNotificationSettings = useCallback(async (customerId: number) => {
+    if (!canView) return
     try {
       console.log("[v0] Fetching notification settings for customer:", customerId)
       setLoadingNotificationSettings(true)
@@ -604,9 +612,10 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
     } finally {
       setLoadingNotificationSettings(false)
     }
-  }, [])
+  }, [canView])
 
   const handleAddPortalUser = useCallback(async () => {
+    if (!canUpdate) return
     if (!selectedCustomerForPortal || !newUserData.username || !newUserData.password) {
       setError("اسم المستخدم وكلمة المرور مطلوبان")
       return
@@ -661,9 +670,10 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
       console.error("[v0] Error adding portal user:", error)
       setError("حدث خطأ في إضافة المستخدم")
     }
-  }, [selectedCustomerForPortal, newUserData, userPermissions, fetchPortalUsers])
+  }, [canUpdate, selectedCustomerForPortal, newUserData, userPermissions, fetchPortalUsers])
 
   const handleUpdatePermissions = useCallback(async () => {
+    if (!canUpdate) return
     if (!selectedUser) return
 
     try {
@@ -686,10 +696,11 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
       console.error("Error updating permissions:", error)
       setError("حدث خطأ في تحديث الصلاحيات")
     }
-  }, [selectedUser, userPermissions, selectedCustomerForPortal, fetchPortalUsers])
+  }, [canUpdate, selectedUser, userPermissions, selectedCustomerForPortal, fetchPortalUsers])
 
   const handleToggleUserStatus = useCallback(
     async (userId: number) => {
+      if (!canUpdate) return
       try {
         const response = await fetch(`/api/admin/customer-users/${userId}/toggle`, {
           method: "PUT",
@@ -702,10 +713,11 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
         console.error("Error toggling user status:", error)
       }
     },
-    [selectedCustomerForPortal, fetchPortalUsers],
+    [canUpdate, selectedCustomerForPortal, fetchPortalUsers],
   )
 
   const handleResetPassword = useCallback(async (userId: number) => {
+    if (!canUpdate) return
     const newPassword = prompt("أدخل كلمة المرور الجديدة:")
     if (!newPassword) return
 
@@ -726,9 +738,10 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
       console.error("Error resetting password:", error)
       setError("حدث خطأ في تغيير كلمة المرور")
     }
-  }, [])
+  }, [canUpdate])
 
   const handleSaveNotificationSettings = useCallback(async () => {
+    if (!canUpdate) return
     if (!notificationSettings || !selectedCustomerForPortal) return
 
     try {
@@ -758,7 +771,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
     } finally {
       setSavingNotificationSettings(false)
     }
-  }, [notificationSettings, selectedCustomerForPortal])
+  }, [canUpdate, notificationSettings, selectedCustomerForPortal])
 
   const formatDate = (date: string | null) => {
     if (!date) return "لم يسجل دخول بعد"
@@ -909,6 +922,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
     isSupplier: boolean = false,
     checkUnsaved: boolean = true
   ) => {
+    if (!canView) return
     if (checkUnsaved && isFormDirty()) {
       askToSaveChanges(() => loadData(navigationType, customerId, isSupplier, false));
       return;
@@ -972,6 +986,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
   };
 
   const navigateToCustomerIndex = (targetIndex: number) => {
+    if (!canView) return
     const target = customers[targetIndex]
     if (!target) {
       setPopupMessage({ severity: "info", detail: targetIndex <= 0 ? "بداية السجلات" : "نهاية السجلات" })
@@ -1088,6 +1103,14 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
 
   const fetchCustomers = useCallback(
     async (silent = false) => {
+      if (!canView) {
+        setCustomers([])
+        setCurrentCustomerId(0)
+        updateFormData(null)
+        setShowNewCustomerDialog(false)
+        setIsLoading(false)
+        return
+      }
       try {
         if (!silent) {
           setIsLoading(true);
@@ -1120,7 +1143,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
         if (!silent) setIsLoading(false);
       }
     },
-    [entityTypeCode, isSupplier]
+    [canView, entityTypeCode, isSupplier]
   );
 
 
@@ -1190,6 +1213,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
 
   const generateCustomerNumber = useCallback(
     async (): Promise<string> => {
+      if (!canCreate) return ""
       try {
         setGeneratingNumber(true);
         console.log("[v0] Generating number...", entityTypeLabel);
@@ -1230,7 +1254,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
       }
       return "";
     },
-    [updateField]
+    [canCreate, updateField]
   );
 
   const adjustCode = (code: string, codeLen: number = 10): string => {
@@ -1257,6 +1281,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
     if (adjustedCode !== formData.customer_code) {
       updateField("customer_code", adjustedCode);
     }
+    if (!canView) return
 
     // كتابة رقم في حقل الرقم طلب تنقّل، والرقم نفسه ليس "تعديلاً" — فيُفحَص باقي النموذج فقط بمقارنته
     // باللقطة بعد إعادة الرقم الأصلي إليه.
@@ -1301,6 +1326,10 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
     customerData: CustomerFormData,
     accountClassifications = customerAccountClassifications,
   ) => {
+    if (!(currentCustomerId > 0 ? canUpdate : canCreate)) {
+      setPopupMessage({ severity: "error", detail: `لا يوجد لديك صلاحية ${currentCustomerId > 0 ? "تعديل" : "إضافة"} ${entityTypeLabel}` })
+      return false
+    }
     if (!validateForm()) return false;
 
     if (savingRef.current) return false;
@@ -1451,8 +1480,8 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
 
   const handleDeleteClick = (checkPermission = true) => {
     if (currentCustomerId <= 0) return;
-    if (checkPermission && !hasPermission("products-edit")) {
-      setPopupMessage({ severity: "error", detail: "لا يوجد لديك صلاحية حذف عميل" })
+    if (!canDelete) {
+      setPopupMessage({ severity: "error", detail: `لا يوجد لديك صلاحية حذف ${entityTypeLabel}` })
       return;
     }
 
@@ -1467,6 +1496,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
   };
 
   const handleDeleteCustomer = async () => {
+    if (!canDelete) return
     const customerId = Number(formDataRef.current.id || 0)
     if (!customerId) {
       setPopupMessage({ severity: "warn", detail: "لا يوجد سجل لحذفه" })
@@ -1566,6 +1596,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
   // showLoading افتراضياً false: كل المستدعين يعملون والنافذة مفتوحة، وisloading يستبدل الصفحة كلها
   // بنص "جاري التحميل" فيُزيل النافذة من الشجرة (تُفقَد حالتها وتُعاد تهيئتها).
   const reset_fields = async (from_code = 0, code = "", showLoading = false) => {
+    if (!canCreate) { setShowNewCustomerDialog(false); setCurrentCustomerId(0); updateFormData(null); return }
     if (showLoading) setIsLoading(true)
     updateFormData(null)
     setEditingCustomer(false)
@@ -1595,6 +1626,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
   )
 
   const handleNewCustomer = async (checkUnsaved: boolean) => {
+    if (!canCreate) return
     const startNew = async () => {
       setShowNewCustomerDialog(true)
       setCustomerAccountClassifications([])
@@ -1606,6 +1638,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
 
   // نسخ: سجل جديد برقم جديد يحمل بيانات السجل الحالي (بلا معرّف/حساب) — يُعدّ تعديلاً غير محفوظ.
   const handleCloneCustomer = () => {
+    if (!canCreate || !canView) return
     if (currentCustomerId <= 0) return
     const source = formDataRef.current
     runAfterUnsavedCheck(async () => {
@@ -1671,6 +1704,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
 
   const handleEditCustomer = useCallback(
     (customer: Customer) => {
+      if (!canView) return
       updateFormData(customer)
       setCurrentCustomerId(customer.id)
       setEditingCustomer(true)
@@ -1683,7 +1717,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
       void loadData("ByIdEdit", customer.id, isSupplier, false)
 
     },
-    [isSupplier, updateFormData],
+    [canView, isSupplier, updateFormData],
   )
 
   const handleManagePortal = useCallback(
@@ -1741,7 +1775,6 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
     fetchBranches()
   }, [fetchCustomers, fetchClassifications, fetchSalesmen, fetchPriceClass, fetchBranches])
 
-  const { isAuthenticated, hasPermission } = useAuth()
   if (isloading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -1760,7 +1793,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
       </div>
     )
   }*/
-  if ((!isSupplier && !Util.checkUserAccess(15)) || (isSupplier && !Util.checkUserAccess(16))) {
+  if (!(isSalesman ? Util.checkUserAccess(15) : can("access"))) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
@@ -1815,13 +1848,14 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">{`إدارة ${entityPlural}`} </h1>
         <div className="flex gap-2">
-          <Button onClick={() => handleNewCustomer(false)} className="flex items-center gap-2">
+          <Button onClick={() => handleNewCustomer(false)} disabled={!canCreate} className="flex items-center gap-2">
             <Plus className="h-4 w-4" />
             {`${entitySingleIndef} جديد`}
           </Button>
           <Button
             variant="outline"
-            onClick={() => setShowImportDialog(true)}
+            disabled={!canCreate}
+            onClick={() => { if (canCreate) setShowImportDialog(true) }}
             className="flex items-center gap-2 bg-transparent"
           >
             <Upload className="h-4 w-4" />
@@ -2115,7 +2149,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
               isSalesman={!!isSalesman}
               isSubscriber={!!isSubscriber}
               showCustomerSearch={showCustomerSearch}
-              setShowCustomerSearch={setShowCustomerSearch}
+              setShowCustomerSearch={(open) => { if (!open || canView) setShowCustomerSearch(open) }}
               formData={formData}
               updateField={updateField as any}
               validationErrors={validationErrors}
@@ -2368,7 +2402,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
                     <div className="flex justify-end pt-4 border-t">
                       <Button
                         onClick={handleSaveNotificationSettings}
-                        disabled={savingNotificationSettings}
+                        disabled={savingNotificationSettings || !canUpdate}
                         className="gap-2"
                       >
                         <Save className="h-4 w-4" />
@@ -2721,7 +2755,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
 
       <ExcelImport
         entityType={isSupplier ? "suppliers" : isSubscriber ? "subscribers" : "customers"}
-        isOpen={showImportDialog}
+        isOpen={showImportDialog && canCreate}
         onClose={() => setShowImportDialog(false)}
         onImportComplete={() => {
           fetchCustomers()

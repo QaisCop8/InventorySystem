@@ -6,10 +6,14 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
 import {
-  ArrowLeftRight, BookOpen, Boxes, Check, CheckCheck, ChevronDown, FileText, Info, LayoutGrid, Minus, PackageMinus, PackagePlus,
-  Receipt, RotateCcw, Search, ShieldCheck, ShoppingBag, ShoppingCart, Truck, Undo2, Wallet, WalletCards, X,
+  ArrowLeftRight, BookOpen, Boxes, Building2, Car, Check, CheckCheck, ChevronDown, CreditCard, FileText, FolderOpen, Info, Landmark, LayoutGrid, Minus, PackageMinus, PackagePlus,
+  Receipt, RotateCcw, Search, ShieldCheck, ShoppingBag, ShoppingCart, Truck, Undo2, Users, Wallet, WalletCards, X,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import {
+  FILE_ACTION_LABELS, FILE_FAMILIES, FILE_PERMISSION_CATEGORY, parseFilePermission,
+  type FileAction, type FileFamily,
+} from "@/lib/file-permission-definitions"
 
 export interface PermissionItem {
   access_id: number
@@ -41,6 +45,13 @@ const ACTIONS: { key: Action; label: string; tone: string }[] = [
   { key: "update", label: "تعديل", tone: "amber" },
   { key: "delete", label: "حذف", tone: "rose" },
   { key: "post", label: "ترحيل", tone: "violet" },
+]
+const FILE_ACTIONS: { key: FileAction; label: string; tone: string }[] = [
+  { key: "access", label: FILE_ACTION_LABELS.access, tone: "violet" },
+  { key: "view", label: FILE_ACTION_LABELS.view, tone: "sky" },
+  { key: "create", label: FILE_ACTION_LABELS.create, tone: "emerald" },
+  { key: "update", label: FILE_ACTION_LABELS.update, tone: "amber" },
+  { key: "delete", label: FILE_ACTION_LABELS.delete, tone: "rose" },
 ]
 const toneClasses: Record<string, { on: string; soft: string; text: string }> = {
   sky: { on: "bg-sky-500 border-sky-500 text-white", soft: "bg-sky-50", text: "text-sky-700" },
@@ -94,6 +105,36 @@ const VOUCHER_SECTIONS: { title: string; icon: any; gradient: string; vouchers: 
   },
 ]
 
+const FILE_SECTIONS: { title: string; icon: any; gradient: string; families: { family: FileFamily; icon: any }[] }[] = [
+  {
+    title: "الأشخاص والجهات", icon: Users, gradient: "from-emerald-600 to-teal-600",
+    families: [
+      { family: "customers", icon: Users },
+      { family: "suppliers", icon: Truck },
+      { family: "employees", icon: Users },
+      { family: "subscribers", icon: Users },
+    ],
+  },
+  {
+    title: "الأصناف والخدمات", icon: Boxes, gradient: "from-amber-600 to-orange-600",
+    families: [{ family: "items", icon: Boxes }, { family: "services", icon: FileText }],
+  },
+  {
+    title: "المركبات والسائقون", icon: Car, gradient: "from-sky-600 to-indigo-600",
+    families: [{ family: "cars", icon: Car }, { family: "drivers", icon: Users }],
+  },
+  {
+    title: "المالية والفروع", icon: Landmark, gradient: "from-violet-600 to-fuchsia-600",
+    families: [
+      { family: "accounts", icon: BookOpen },
+      { family: "banks", icon: Landmark },
+      { family: "branches", icon: Building2 },
+      { family: "bank-accounts", icon: Wallet },
+      { family: "credit-cards", icon: CreditCard },
+    ],
+  },
+]
+
 const normalize = (value: string) =>
   String(value || "")
     .replace(/[ً-ٟـ]/g, "")
@@ -117,14 +158,39 @@ const VOUCHER_MATCHERS = VOUCHER_SECTIONS.flatMap((section) => section.vouchers.
   .sort((a, b) => b.key.length - a.key.length)
 
 type VoucherRow = { name: string; cells: Partial<Record<Action, PermissionItem[]>>; extras: { key: string; label: string; items: PermissionItem[] }[] }
+export type FileRow = { family: FileFamily; cells: Partial<Record<FileAction, PermissionItem[]>> }
+const fileRowAll = (row: FileRow) => Object.values(row.cells).flat() as PermissionItem[]
+
+export function setFilePermissionValues(rows: FileRow[], values: Record<number, boolean>, action: FileAction | "all", value: boolean) {
+  const next = { ...values }
+  const assign = (list: PermissionItem[]) => list.forEach((item) => { next[item.access_id] = value })
+  for (const row of rows) {
+    const list = action === "all" ? fileRowAll(row) : row.cells[action] || []
+    if (!list.length) continue
+    assign(list)
+    if (action === "access" && !value) assign(fileRowAll(row))
+    if (action !== "access" && value) {
+      ;(row.cells.access || []).forEach((item) => { next[item.access_id] = true })
+    }
+  }
+  return next
+}
 
 export function classify(items: PermissionItem[]) {
   const rows = new Map<string, VoucherRow>()
+  const fileRows = new Map<FileFamily, FileRow>()
   const others = new Map<string, PermissionItem[]>()
   const seen = new Set<number>()
   for (const item of items) {
     if (seen.has(item.access_id)) continue
     seen.add(item.access_id)
+    const filePermission = parseFilePermission(item.access_name || "")
+    if (filePermission) {
+      const row: FileRow = fileRows.get(filePermission.family) ?? { family: filePermission.family, cells: {} }
+      fileRows.set(filePermission.family, row)
+      ;(row.cells[filePermission.action] ??= []).push(item)
+      continue
+    }
     const name = normalize(item.access_name || "")
     if (!name) continue
     const voucher = VOUCHER_MATCHERS.find((matcher) => name.endsWith(matcher.key) || name.includes(` ${matcher.key}`))
@@ -150,7 +216,7 @@ export function classify(items: PermissionItem[]) {
     const category = String(item.category_name || "أخرى")
     others.set(category, [...(others.get(category) || []), item])
   }
-  return { rows, others }
+  return { rows, fileRows, others }
 }
 
 const SOURCE_LABELS: Record<string, string> = {
@@ -164,11 +230,11 @@ const SOURCE_LABELS: Record<string, string> = {
 type Filter = "all" | "granted" | "denied"
 
 export function BranchPermissionEditor({ items, values, onChange, search, onSearchChange, loading, dirty }: Props) {
-  const [tab, setTab] = useState<"vouchers" | "general">("vouchers")
+  const [tab, setTab] = useState<"vouchers" | "files" | "general">("vouchers")
   const [filter, setFilter] = useState<Filter>("all")
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
 
-  const { rows, others } = useMemo(() => classify(items), [items])
+  const { rows, fileRows, others } = useMemo(() => classify(items), [items])
   const term = normalize(search)
   const isOn = (list: PermissionItem[] = []) => list.length > 0 && list.every((item) => values[item.access_id])
   const isPartial = (list: PermissionItem[] = []) => list.some((item) => values[item.access_id]) && !isOn(list)
@@ -210,6 +276,20 @@ export function BranchPermissionEditor({ items, values, onChange, search, onSear
       }),
   })).filter((section) => section.rows.length > 0), [filter, rows, term, values]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  const fileSections = useMemo(() => FILE_SECTIONS.map((section) => ({
+    ...section,
+    rows: section.families
+      .map((entry) => ({ ...entry, name: FILE_FAMILIES[entry.family], row: fileRows.get(entry.family) }))
+      .filter((entry): entry is typeof entry & { row: FileRow } => Boolean(entry.row))
+      .filter((entry) => {
+        const all = fileRowAll(entry.row)
+        if (term && !normalize(entry.name).includes(term) && !normalize(section.title).includes(term) && !normalize(FILE_PERMISSION_CATEGORY).includes(term) && !all.some((item) => normalize(item.access_name || "").includes(term))) return false
+        if (filter === "granted") return all.some((item) => values[item.access_id])
+        if (filter === "denied") return all.some((item) => !values[item.access_id])
+        return true
+      }),
+  })).filter((section) => section.rows.length > 0), [fileRows, filter, term, values])
+
   const generalGroups = useMemo(() => Array.from(others.entries())
     .map(([category, list]) => {
       const unique = new Map<string, PermissionItem[]>()
@@ -225,6 +305,7 @@ export function BranchPermissionEditor({ items, values, onChange, search, onSear
     .filter((group) => group.entries.length > 0), [filter, others, term, values]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const voucherItems = useMemo(() => Array.from(rows.values()).flatMap(rowAll), [rows]) // eslint-disable-line react-hooks/exhaustive-deps
+  const fileItems = useMemo(() => Array.from(fileRows.values()).flatMap(fileRowAll), [fileRows])
   const generalItems = useMemo(() => Array.from(others.values()).flat(), [others])
   const count = (list: PermissionItem[]) => list.filter((item) => values[item.access_id]).length
   const totalGranted = count(items)
@@ -232,7 +313,11 @@ export function BranchPermissionEditor({ items, values, onChange, search, onSear
 
   const visibleItems = tab === "vouchers"
     ? sections.flatMap((section) => section.rows.flatMap((entry) => rowAll(entry.row)))
+    : tab === "files" ? fileSections.flatMap((section) => section.rows.flatMap((entry) => fileRowAll(entry.row)))
     : generalGroups.flatMap((group) => group.entries.flat())
+  const setVisible = (value: boolean) => onChange(tab === "files"
+    ? setFilePermissionValues(fileSections.flatMap((section) => section.rows.map((entry) => entry.row)), values, "all", value)
+    : set(visibleItems, value))
   const toggleCollapsed = (key: string) => setCollapsed((current) => { const next = new Set(current); if (next.has(key)) next.delete(key); else next.add(key); return next })
 
   return (
@@ -251,7 +336,7 @@ export function BranchPermissionEditor({ items, values, onChange, search, onSear
           </div>
           <div className="relative min-w-0 flex-1">
             <Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input value={search} onChange={(event) => onSearchChange(event.target.value)} placeholder="ابحث عن سند أو صلاحية..." className="h-10 rounded-xl pr-9" />
+            <Input value={search} onChange={(event) => onSearchChange(event.target.value)} placeholder="ابحث عن سند أو ملف أو صلاحية..." className="h-10 rounded-xl pr-9" />
           </div>
           <div className="flex rounded-xl border bg-muted/50 p-1 text-xs font-semibold">
             {([["all", "الكل"], ["granted", "المفعّلة"], ["denied", "غير المفعّلة"]] as [Filter, string][]).map(([key, label]) => (
@@ -259,12 +344,13 @@ export function BranchPermissionEditor({ items, values, onChange, search, onSear
             ))}
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button type="button" variant="outline" size="sm" onClick={() => onChange(set(visibleItems, true))} disabled={!visibleItems.length}><CheckCheck className="ml-1.5 h-4 w-4" />تفعيل الظاهر</Button>
-            <Button type="button" variant="outline" size="sm" onClick={() => onChange(set(visibleItems, false))} disabled={!visibleItems.length}><X className="ml-1.5 h-4 w-4" />تعطيل الظاهر</Button>
+            <Button type="button" variant="outline" size="sm" onClick={() => setVisible(true)} disabled={!visibleItems.length}><CheckCheck className="ml-1.5 h-4 w-4" />تفعيل الظاهر</Button>
+            <Button type="button" variant="outline" size="sm" onClick={() => setVisible(false)} disabled={!visibleItems.length}><X className="ml-1.5 h-4 w-4" />تعطيل الظاهر</Button>
           </div>
         </div>
-        <div className="mt-4 grid grid-cols-2 gap-2 sm:w-fit">
+        <div className="mt-4 grid gap-2 sm:w-fit sm:grid-cols-3">
           <TabButton active={tab === "vouchers"} onClick={() => setTab("vouchers")} icon={Receipt} label="الحركات حسب نوع السند" granted={count(voucherItems)} total={voucherItems.length} />
+          <TabButton active={tab === "files"} onClick={() => setTab("files")} icon={FolderOpen} label={FILE_PERMISSION_CATEGORY} granted={count(fileItems)} total={fileItems.length} />
           <TabButton active={tab === "general"} onClick={() => setTab("general")} icon={LayoutGrid} label="الشاشات والصلاحيات العامة" granted={count(generalItems)} total={generalItems.length} />
         </div>
       </div>
@@ -379,6 +465,107 @@ export function BranchPermissionEditor({ items, values, onChange, search, onSear
                                 </td>
                                 <td className="p-2 text-center">
                                   <Switch checked={rowOn} onCheckedChange={(value) => onChange(set(all, value))} aria-label={`كل صلاحيات ${name}`} />
+                                </td>
+                              </tr>
+                            )
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </section>
+              )
+            })}
+          </>
+        )
+      ) : tab === "files" ? (
+        fileSections.length === 0 ? <Empty text="لا توجد ملفات وتعريفات مطابقة للبحث أو الفلتر." /> : (
+          <>
+            <p className="flex items-center gap-2 px-1 text-xs text-muted-foreground"><Info className="h-3.5 w-3.5 shrink-0" />تفعيل أي عملية يفعّل الدخول للشاشة تلقائياً، وإلغاء الدخول يلغي جميع صلاحيات الملف. الاستعلام مستقل عن الإضافة. اضغط رأس العمود لتبديله لكل ملفات المجموعة.</p>
+            {fileSections.map((section) => {
+              const sectionRows = section.rows.map((entry) => entry.row)
+              const sectionItems = sectionRows.flatMap(fileRowAll)
+              const sectionGranted = count(sectionItems)
+              const allOn = isOn(sectionItems)
+              const collapseKey = `files:${section.title}`
+              const open = !collapsed.has(collapseKey)
+              const SectionIcon = section.icon
+              return (
+                <section key={section.title} className="overflow-hidden rounded-2xl border bg-card shadow-sm">
+                  <header className={cn("flex flex-wrap items-center justify-between gap-3 bg-gradient-to-l p-4 text-white", section.gradient)}>
+                    <button type="button" onClick={() => toggleCollapsed(collapseKey)} aria-expanded={open} className="flex items-center gap-3 text-right">
+                      <span className="grid size-10 place-items-center rounded-xl bg-white/15"><SectionIcon className="h-5 w-5" /></span>
+                      <span>
+                        <span className="block text-base font-black">{section.title}</span>
+                        <span className="block text-xs text-white/80">{section.rows.length} ملفات · {sectionGranted}/{sectionItems.length} مفعّلة</span>
+                      </span>
+                      <ChevronDown className={cn("h-4 w-4 transition", !open && "-rotate-90")} />
+                    </button>
+                    <div className="flex items-center gap-3">
+                      <div className="hidden h-2 w-32 overflow-hidden rounded-full bg-white/25 sm:block"><div className="h-full rounded-full bg-white" style={{ width: `${sectionItems.length ? (sectionGranted / sectionItems.length) * 100 : 0}%` }} /></div>
+                      <Button type="button" size="sm" variant="secondary" className="h-8 bg-white/90 text-slate-900 hover:bg-white"
+                        aria-label={`${allOn ? "إلغاء" : "تفعيل"} كل صلاحيات ${section.title}`}
+                        onClick={() => onChange(setFilePermissionValues(sectionRows, values, "all", !allOn))}>
+                        {allOn ? <X className="ml-1.5 h-4 w-4" /> : <CheckCheck className="ml-1.5 h-4 w-4" />}{allOn ? "إلغاء الكل" : "تفعيل الكل"}
+                      </Button>
+                    </div>
+                  </header>
+                  {open && (
+                    <div className="overflow-x-auto">
+                      <table className="w-full min-w-[700px] text-sm">
+                        <caption className="sr-only">صلاحيات {section.title}: الدخول والاستعلام والإضافة والتعديل والحذف</caption>
+                        <thead>
+                          <tr className="border-b bg-muted/40">
+                            <th scope="col" className="p-3 text-right text-xs font-semibold text-muted-foreground">الملف / التعريف</th>
+                            {FILE_ACTIONS.map((action) => {
+                              const columnItems = sectionRows.flatMap((row) => row.cells[action.key] || [])
+                              const on = isOn(columnItems)
+                              const label = `${on ? "إلغاء" : "تفعيل"} ${action.label} لكل ملفات ${section.title}`
+                              return (
+                                <th key={action.key} scope="col" className="w-28 p-2 text-center">
+                                  <button type="button" disabled={!columnItems.length} aria-pressed={isPartial(columnItems) ? "mixed" : on} aria-label={label} title={label}
+                                    onClick={() => onChange(setFilePermissionValues(sectionRows, values, action.key, !on))}
+                                    className={cn("w-full rounded-lg px-2 py-1.5 text-xs font-bold transition hover:opacity-80 disabled:opacity-40", toneClasses[action.tone].soft, toneClasses[action.tone].text)}>
+                                    {action.label}
+                                  </button>
+                                </th>
+                              )
+                            })}
+                            <th scope="col" className="w-20 p-3 text-center text-xs font-semibold text-muted-foreground">الكل</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {section.rows.map(({ family, name, icon: FileIcon, row }) => {
+                            const all = fileRowAll(row)
+                            return (
+                              <tr key={family} className="border-b last:border-0 transition hover:bg-muted/30">
+                                <th scope="row" className="p-3 text-right font-normal">
+                                  <div className="flex items-center gap-2.5">
+                                    <span className={cn("grid size-8 shrink-0 place-items-center rounded-lg", count(all) ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground")}><FileIcon className="h-4 w-4" /></span>
+                                    <div><p className="font-semibold">{name}</p><p className="text-[11px] text-muted-foreground tabular-nums">{count(all)}/{all.length}</p></div>
+                                  </div>
+                                </th>
+                                {FILE_ACTIONS.map((action) => {
+                                  const list = row.cells[action.key]
+                                  if (!list?.length) return <td key={action.key} className="p-2 text-center text-muted-foreground/40">—</td>
+                                  const on = isOn(list), partial = isPartial(list)
+                                  const source = SOURCE_LABELS[list[0].permission_source || ""]
+                                  return (
+                                    <td key={action.key} className="p-2 text-center">
+                                      <button type="button" onClick={() => onChange(setFilePermissionValues([row], values, action.key, !on))}
+                                        aria-pressed={partial ? "mixed" : on} aria-label={`${action.label} ${name}`}
+                                        title={`${action.label} ${name}${source ? ` — ${source}` : ""}`}
+                                        className={cn(
+                                          "mx-auto grid size-9 place-items-center rounded-xl border-2 transition-all hover:scale-105",
+                                          on ? toneClasses[action.tone].on + " shadow-sm" : partial ? "border-dashed border-muted-foreground/50 bg-muted" : "border-muted-foreground/20 bg-background text-transparent hover:border-muted-foreground/50",
+                                        )}>
+                                        {on ? <Check className="h-4 w-4" strokeWidth={3} /> : partial ? <Minus className="h-4 w-4 text-muted-foreground" /> : <Check className="h-4 w-4" />}
+                                      </button>
+                                    </td>
+                                  )
+                                })}
+                                <td className="p-2 text-center">
+                                  <Switch checked={isOn(all)} onCheckedChange={(value) => onChange(setFilePermissionValues([row], values, "all", value))} aria-label={`كل صلاحيات ${name}`} />
                                 </td>
                               </tr>
                             )

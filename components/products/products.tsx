@@ -33,10 +33,9 @@ import { CompactProductForm } from "./compact-product-form"
 import { ImageThumbnail } from "@/components/common/ImageUploadField"
 import { ProductsImportDialog } from "@/components/import/products-import"
 import { InitialQuantitiesDialog } from "./initial-quantities-dialog"
-import { useAuth } from "../auth/auth-context"
+import { useFileAccess } from "@/components/auth/use-file-access"
 import { Toast } from "primereact/toast"
 import Definitions from "../settings/definitions"
-import Util from "../common/Util"
 import ConfirmDialogYesNo from "@/components/ui/ConfirmDialogYesNo"
 
 interface Product {
@@ -221,9 +220,9 @@ interface ProductsState {
 
 export function Products({ entityType = "products" }: ProductsProps) {
   const { fullscreenEnabled } = useWorkspace()
-  const { permissionVersion } = useAuth()
   const isService = entityType === "services"
-  const canViewProducts = useMemo(() => Util.checkUserAccess(10), [permissionVersion])
+  const can = useFileAccess(isService ? "services" : "items")
+  const canViewProducts = can("view"), canCreate = can("create"), canUpdate = can("update"), canDelete = can("delete")
   const [state, setState] = useState<ProductsState>({
     products: [] as Product[],
     categories: [] as Array<{ id: number; name: string }>,
@@ -275,6 +274,7 @@ export function Products({ entityType = "products" }: ProductsProps) {
   ]
 
   const filteredProducts = useMemo(() => {
+    if (!canViewProducts) return []
     return state.products.filter((product) => {
       if (
         state.filters.search &&
@@ -300,7 +300,7 @@ export function Products({ entityType = "products" }: ProductsProps) {
       }
       return true
     })
-  }, [state.products, state.filters])
+  }, [canViewProducts, state.products, state.filters])
 
   const paginatedProducts = useMemo(() => {
     const startIndex = (state.currentPage - 1) * state.itemsPerPage
@@ -320,20 +320,21 @@ export function Products({ entityType = "products" }: ProductsProps) {
   }, [state.products])
 
   useEffect(() => {
-    if (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("new") === "1") {
+    if (canCreate && typeof window !== "undefined" && new URLSearchParams(window.location.search).get("new") === "1") {
       setState((prev) => ({ ...prev, showDialog: true, editingProduct: null, formData: initialFormData }))
     }
-  }, [])
+  }, [canCreate])
 
   useEffect(() => {
     fetchProducts()
     fetchDefinitions()
-  }, [])
+  }, [canViewProducts])
 
   const fetchProducts = async (silent = false) => {
+    if (!canViewProducts) { setState((prev) => ({ ...prev, products: [], loading: false })); return }
     try {
       if (!silent) setState((prev) => ({ ...prev, loading: true, error: null }))
-      const response = await fetch("/api/inventory/products")
+      const response = await fetch(`/api/inventory/products?type=${isService ? "services" : "products"}`)
       const data = await response.json().catch(() => null)
       if (!response.ok) {
         const errorMessage = data?.error || "فشل في تحميل المنتجات"
@@ -382,6 +383,7 @@ export function Products({ entityType = "products" }: ProductsProps) {
   }
 
   const handleSaveProduct = async (formData: any) => {
+    if (!(state.editingProduct ? canUpdate : canCreate)) return
     try {
       setState((prev) => ({ ...prev, isSubmitting: true, error: null, successMessage: null }))
 
@@ -435,6 +437,7 @@ export function Products({ entityType = "products" }: ProductsProps) {
   }
 
   const handleDelete = async (id: number) => {
+    if (!canDelete) return
     const product = filteredProducts.find((p) => p.id === id)
     if (!product) return
 
@@ -485,6 +488,7 @@ export function Products({ entityType = "products" }: ProductsProps) {
   }
 
   const handleEditProduct = (product: Product) => {
+    if (!canViewProducts) return
     setState((prev) => ({
       ...prev,
       editingProduct: product,
@@ -537,6 +541,7 @@ export function Products({ entityType = "products" }: ProductsProps) {
   }
 
   const handleToggleFreeze = (product: Product) => {
+    if (!canUpdate) return
     setState((prev) => ({
       ...prev,
       pendingFreezeProduct: product,
@@ -545,6 +550,7 @@ export function Products({ entityType = "products" }: ProductsProps) {
   }
 
   const confirmFreezeToggle = async () => {
+    if (!canUpdate) return
     const product = state.pendingFreezeProduct
     if (!product) return
 
@@ -637,7 +643,7 @@ export function Products({ entityType = "products" }: ProductsProps) {
     }
   }
 
-  if (!canViewProducts) {
+  if (!can("access")) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
@@ -700,7 +706,8 @@ export function Products({ entityType = "products" }: ProductsProps) {
         <div className="flex gap-2">
           <Button
             variant="outline"
-            onClick={() => setState((prev) => ({ ...prev, showExcelImport: true }))}
+            disabled={!canCreate}
+            onClick={() => { if (canCreate) setState((prev) => ({ ...prev, showExcelImport: true })) }}
             className="flex items-center gap-2"
           >
             <FileSpreadsheet className="h-4 w-4" />
@@ -708,7 +715,7 @@ export function Products({ entityType = "products" }: ProductsProps) {
           </Button>
           <Button
             onClick={() => {
-              if (!Util.checkUserAccess(1)) {
+              if (!canCreate) {
                 toast.current?.show({
                   severity: 'error',
                   summary: '',
@@ -929,7 +936,7 @@ export function Products({ entityType = "products" }: ProductsProps) {
               <p className="text-muted-foreground mb-4">لم يتم العثور على أي اصناف تطابق معايير البحث</p>
               <Button
                 onClick={() => {
-                  if (!Util.checkUserAccess(10)) {
+                  if (!canCreate) {
                     toast.current?.show({
                       severity: 'error',
                       summary: '',
@@ -1022,7 +1029,7 @@ export function Products({ entityType = "products" }: ProductsProps) {
                         <TableCell>
                           <div className="flex gap-2">
                             <Button variant="outline" size="sm" onClick={() => {
-                              if (!Util.checkUserAccess(2)) {
+                              if (!canViewProducts) {
                                 toast.current?.show({
                                   severity: 'error',
                                   summary: '',
@@ -1123,13 +1130,13 @@ export function Products({ entityType = "products" }: ProductsProps) {
       </Dialog>
 
       <ProductsImportDialog
-        open={state.showExcelImport}
+        open={state.showExcelImport && canCreate}
         onOpenChange={(open) => setState((prev) => ({ ...prev, showExcelImport: open }))}
         onImported={fetchProducts}
       />
 
       <InitialQuantitiesDialog
-        open={state.showInitialQuantities}
+        open={state.showInitialQuantities && canUpdate}
         onOpenChange={(open) => setState((prev) => ({ ...prev, showInitialQuantities: open }))}
         productId={state.selectedProductForQuantities?.id}
         productName={state.selectedProductForQuantities?.product_name || ""}

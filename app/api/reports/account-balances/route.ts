@@ -7,7 +7,10 @@ import { ensureTables as ensureVoucherTables } from "@/app/api/receipts/_lib"
 import { reportAmountSql } from "@/lib/report-currency"
 
 const parseIds = (value: string | null) => String(value || "").split(",").map(Number).filter((id) => Number.isInteger(id) && id > 0)
-const validDate = (value: string | null, fallback: string) => value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : fallback
+const validDate = (value: string | null, fallback: string) => {
+  const match = value?.match(/^(\d{4}-\d{2}-\d{2})(?:T23:59:59)?$/)
+  return match ? match[1] : fallback
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -24,6 +27,7 @@ export async function GET(request: NextRequest) {
     const currencyIds = parseIds(params.get("currency_ids"))
     const branchIds = parseIds(params.get("branch_ids"))
     const date = validDate(params.get("to_date"), new Date().toISOString().slice(0, 10))
+    const toDate = `${date}T23:59:59`
     const behavior = params.get("behavior") || "all"
     const memberships = await sql`SELECT branch_id FROM user_branches WHERE user_id = ${user.user_id}`
     const permittedBranchIds = memberships.map((row: any) => Number(row.branch_id)).filter(Number.isFinite)
@@ -56,7 +60,7 @@ export async function GET(request: NextRequest) {
           AND (${kind === "receivables"} OR NOT EXISTS (SELECT 1 FROM account_tbl child WHERE child.father_id=a.id AND COALESCE(child.status,1)<>3))
         LEFT JOIN voucher_journal_detail_tbl vjd ON vjd.account_id=a.id
           AND (${currencyIds.length === 0} OR vjd.currency_id=ANY(${currencyIds}::int[]))
-        LEFT JOIN voucher_header_tbl vh ON vh.id=vjd.voucher_id AND vh.vch_date <= ${date}::date AND vh.status<>3
+        LEFT JOIN voucher_header_tbl vh ON vh.id=vjd.voucher_id AND vh.vch_date <= ${toDate}::timestamp AND vh.status<>3
           AND (${effectiveBranchIds.length === 0} OR vh.branch_id=ANY(${effectiveBranchIds}::int[]))
         GROUP BY a.id,a.code,a.name,a.type,a.currency_id
       )

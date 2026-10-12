@@ -1,3 +1,4 @@
+import { authorizeStoredProduct } from "@/app/api/inventory/products/_permissions"
 import { type NextRequest, NextResponse } from "next/server"
 import { lotBalances } from "@/lib/stock-lots"
 
@@ -15,6 +16,8 @@ import { lotBalances } from "@/lib/stock-lots"
 // في سند اخراج/استعمال يُنشَأ بعدها مباشرة، بدل انتظار الترحيل. status=3 (ملغى منطقياً) مُستبعَد دوماً.
 export async function GET(request: NextRequest) {
   try {
+    const permission = await authorizeStoredProduct(request, request.nextUrl.searchParams.get("product_id"), "lookup")
+    if (!permission.ok) return permission.response
     const { searchParams } = new URL(request.url)
     const productId = Number(searchParams.get("product_id"))
     if (!productId) {

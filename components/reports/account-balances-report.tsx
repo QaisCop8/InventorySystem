@@ -51,7 +51,7 @@ export function AccountBalancesReport({ kind }: { kind: BalanceKind }) {
     if (!filters.accountIds.length) { setError("اختر حسابًا واحدًا على الأقل"); return }
     setRunning(true); setError("")
     try {
-      const params = new URLSearchParams({ kind, account_ids: filters.accountIds.join(","), to_date: filters.toDate, behavior: filters.behavior, report_currency_id: String(filters.currencyId) })
+      const params = new URLSearchParams({ kind, account_ids: filters.accountIds.join(","), to_date: `${filters.toDate}T23:59:59`, behavior: filters.behavior, report_currency_id: String(filters.currencyId) })
       if (filters.branchIds.length) params.set("branch_ids", filters.branchIds.join(","))
       if (!filters.showOtherCurrencies) params.set("currency_ids", String(filters.currencyId))
       const response = await fetch(`/api/reports/account-balances?${params}`)

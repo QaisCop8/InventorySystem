@@ -1,3 +1,4 @@
+import { authorizeFile, authorizeFileRead, projectFileLookup } from "@/lib/file-permissions"
 import { type NextRequest, NextResponse } from "next/server"
 import sql, {
   ensureDriversTable,
@@ -10,6 +11,8 @@ import sql, {
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
+    const permission = await authorizeFile(request, "drivers", "view")
+    if (!permission.ok) return permission.response
     await ensureDriversTable()
     const id = Number(params.id)
     if (!Number.isFinite(id)) {
@@ -39,6 +42,8 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 
 export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
   try {
+    const permission = await authorizeFile(request, "drivers", "update")
+    if (!permission.ok) return permission.response
     await ensureDriversTable()
     const id = Number(params.id)
     const data = await request.json()
@@ -87,6 +92,8 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
 
 export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
   try {
+    const permission = await authorizeFile(request, "drivers", "delete")
+    if (!permission.ok) return permission.response
     await ensureDriversTable()
     const id = Number(params.id)
     if (!Number.isFinite(id)) {

@@ -3,6 +3,7 @@ import { generateCustomerNumber, getPrefixFromSettings } from "@/lib/number-gene
 import sql from "@/lib/database"
 import { ensureCustomerAccount, resolveAccountType, resolveRequiredParentAccount, MissingParentAccountError, toNullableInt, ensureCustomerCompatibilityColumns } from "@/app/api/customers/_lib"
 import { loadStoredSettings } from "@/app/api/settings/system/route"
+import { authorizeCustomerType } from "@/app/api/customers/_permissions"
 
 const CODE_LENGTH = 10
 
@@ -34,9 +35,14 @@ const defaultPrefixForType = async (type: number) => {
 
 export async function POST(request: NextRequest) {
   try {
-    await ensureCustomerCompatibilityColumns()
     const body = await request.json()
     const { data } = body
+    const types = body.check === true ? [Number(body.type) || 1] : Array.isArray(data) ? [...new Set(data.map((item: any) => Number(item?.type) || 1))] : [1]
+    for (const type of types) {
+      const permission = await authorizeCustomerType(request, type, "create")
+      if (!permission.ok) return permission.response
+    }
+    await ensureCustomerCompatibilityColumns()
 
     // فحص مسبق (شاشة مراجعة الاستيراد): أي الأرقام موجودة مسبقاً — بنفس تطبيع الرقم عند الحفظ.
     if (body.check === true) {

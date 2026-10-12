@@ -8,8 +8,11 @@ import "./universal-toolbar.css"
 import { useThemeSettings } from "@/contexts/theme-context"
 import { useWorkspaceTabActive } from "@/contexts/workspace-tab-context"
 import { HOTKEY_LABELS, registerHotkeyScope, type HotkeyAction } from "@/lib/hotkeys"
+import { useFileAccess } from "@/components/auth/use-file-access"
+import type { FileFamily } from "@/lib/file-permission-definitions"
 
 interface UniversalToolbarProps {
+  fileFamily?: FileFamily | null
   currentRecord?: number
   totalRecords?: number
   onFirst?: () => void
@@ -51,11 +54,24 @@ const defaultLabels = {
 const navClass = "h-9 w-9 shrink-0 rounded-lg border border-slate-200 bg-white p-0 text-slate-600 shadow-sm hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700 disabled:bg-slate-50 disabled:text-slate-300 disabled:shadow-none"
 
 export function UniversalToolbar({
-  currentRecord = 1, totalRecords = 0, onFirst, onPrevious, onNext, onLast, onNew, onSave, onDelete,
-  onReport, onExportExcel, onPrint, onClone, isLoading = false, isSaving = false, canSave = true,
-  canPrint = true, canDelete = true, canClone = true, isFirstRecord = false, isLastRecord = false,
+  currentRecord = 1, totalRecords = 0, onFirst: firstAction, onPrevious: previousAction, onNext: nextAction, onLast: lastAction, onNew: newAction, onSave, onDelete,
+  onReport: reportAction, onExportExcel: exportAction, onPrint, onClone, isLoading = false, isSaving = false, canSave: saveEnabled = true,
+  canPrint: printEnabled = true, canDelete: deleteEnabled = true, canClone: cloneEnabled = true, isFirstRecord = false, isLastRecord = false,
   isNewRecord = false, labels = defaultLabels, showUtilityLabels = false, hotkeys, disableHotkeys = false,
+  fileFamily,
 }: UniversalToolbarProps) {
+  const fileAccess = useFileAccess(fileFamily)
+  const canSave = saveEnabled && fileAccess(isNewRecord ? "create" : "update")
+  const canDelete = deleteEnabled && fileAccess("delete")
+  const canClone = cloneEnabled && fileAccess("create") && fileAccess("view")
+  const canPrint = printEnabled && fileAccess("view")
+  const onNew = fileAccess("create") ? newAction : undefined
+  const onFirst = fileAccess("view") ? firstAction : undefined
+  const onPrevious = fileAccess("view") ? previousAction : undefined
+  const onNext = fileAccess("view") ? nextAction : undefined
+  const onLast = fileAccess("view") ? lastAction : undefined
+  const onReport = fileAccess("view") ? reportAction : undefined
+  const onExportExcel = fileAccess("view") ? exportAction : undefined
   const { settings } = useThemeSettings()
   const toolbarRef = useRef<HTMLDivElement>(null)
   const [width, setWidth] = useState(1200)

@@ -1,8 +1,11 @@
 import { type NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
+import { authorizeFile, authorizeFileRead, projectFileLookup } from "@/lib/file-permissions"
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const authorization = await authorizeFileRead(request, ["banks", "branches", "bank-accounts", "credit-cards"])
+    if (!authorization.ok) return authorization.response
     await sql`
       CREATE TABLE IF NOT EXISTS banks (
         id SERIAL PRIMARY KEY,
@@ -22,7 +25,7 @@ export async function GET() {
       ORDER BY id
     `
 
-    return NextResponse.json(banks)
+    return NextResponse.json(authorization.lookupOnly ? projectFileLookup("banks", banks) : banks)
   } catch (error) {
     console.error("Error fetching banks:", error)
     return NextResponse.json({ error: "Failed to fetch banks" }, { status: 500 })
@@ -31,6 +34,8 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    const authorization = await authorizeFile(request, "banks", "create")
+    if (!authorization.ok) return authorization.response
     const data = await request.json()
 
     if (!data.bank_code || !data.bank_name) {
@@ -62,6 +67,8 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const data = await request.json()
+    const authorization = await authorizeFile(request, "banks", Number(data.status) === 3 ? "delete" : "update")
+    if (!authorization.ok) return authorization.response
 
     if (!data.id) {
       return NextResponse.json({ error: "معرف البنك مطلوب" }, { status: 400 })
@@ -128,6 +135,8 @@ export async function PUT(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
+    const authorization = await authorizeFile(request, "banks", "delete")
+    if (!authorization.ok) return authorization.response
     const data = await request.json()
 
     if (!data.id) {

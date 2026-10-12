@@ -1,7 +1,11 @@
+import { authorizeProductType, authorizeStoredProduct, authorizeProductLookupScope } from "@/app/api/inventory/products/_permissions"
+import { projectFileLookup } from "@/lib/file-permissions"
 import { type NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const scope = await authorizeProductLookupScope(request)
+    if (!scope.ok) return scope.response
     const products = await sql`
       SELECT 
         p.*,
@@ -17,10 +21,14 @@ export async function GET() {
         OR p.status = 'active'
         OR p.status = 'ACTIVE'
       )
+      AND COALESCE(p.type, 1) = ANY(${scope.types}::int[])
       ORDER BY p.created_at DESC
     `
 
-    return NextResponse.json(products)
+    return NextResponse.json(products.map((product: any) => {
+      const permission = Number(product.type) === 2 ? scope.services : scope.items
+      return permission.ok && permission.lookupOnly ? projectFileLookup(Number(product.type) === 2 ? "services" : "items", [product])[0] : product
+    }))
   } catch (error) {
     console.error("Error fetching products:", error)
     return NextResponse.json({ error: "Failed to fetch products" }, { status: 500 })
@@ -29,6 +37,8 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    const permission = await authorizeProductType(request, 1, "create")
+    if (!permission.ok) return permission.response
     const data = await request.json()
 
     const result = await sql`
@@ -62,6 +72,8 @@ export async function PUT(request: NextRequest) {
   try {
     const data = await request.json()
     const { id, ...updateData } = data
+    const permission = await authorizeStoredProduct(request, id, "update")
+    if (!permission.ok) return permission.response
 
     const result = await sql`
       UPDATE products SET
@@ -111,6 +123,8 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "Product ID is required" }, { status: 400 })
     }
 
+    const permission = await authorizeStoredProduct(request, id, "delete")
+    if (!permission.ok) return permission.response
     await sql`DELETE FROM products WHERE id = ${id}`
 
     return NextResponse.json({ message: "Product deleted successfully" })

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import fs from "fs"
 import path from "path"
+import { authorizeFile } from "@/lib/file-permissions"
 
 const SOURCE_FILE_PATH = path.join(process.cwd(), "data", "accounts.json")
 
@@ -13,6 +14,8 @@ const typeMap: Record<string, string | null> = {
 
 export async function GET(request: NextRequest) {
   try {
+    const permission = await authorizeFile(request, "accounts", "create")
+    if (!permission.ok) return permission.response
     const typeId = request.nextUrl.searchParams.get("type") || "none"
     const selectedType = typeMap[typeId] ?? null
 

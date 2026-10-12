@@ -1,3 +1,4 @@
+import { authorizeStoredProduct } from "@/app/api/inventory/products/_permissions"
 import { type NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
 
@@ -18,14 +19,16 @@ async function attributesFor(productIds: number[]) {
   return result
 }
 
-export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const permission = await authorizeStoredProduct(request, (await params).id, "lookup")
+    if (!permission.ok) return permission.response
     const productId = Number((await params).id)
     if (!Number.isInteger(productId) || productId <= 0) return NextResponse.json({ error: "رقم الصنف غير صالح" }, { status: 400 })
     await sql`CREATE TABLE IF NOT EXISTS product_manufacturing_components (id SERIAL PRIMARY KEY, product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE, component_id INTEGER NOT NULL REFERENCES products(id) ON DELETE RESTRICT, quantity NUMERIC(18,6) NOT NULL CHECK (quantity > 0), UNIQUE(product_id, component_id), CHECK (product_id <> component_id))`
     const product = (await sql`SELECT id,product_code,product_name,product_image FROM products WHERE id=${productId}`)[0]
     if (!product) return NextResponse.json({ error: "الصنف غير موجود" }, { status: 404 })
-    const components = await sql`SELECT pmc.component_id AS id,pmc.quantity,p.product_code,p.product_name,p.product_image FROM product_manufacturing_components pmc JOIN products p ON p.id=pmc.component_id WHERE pmc.product_id=${productId} ORDER BY pmc.id`
+    const components: any[] = await sql`SELECT pmc.component_id AS id,pmc.quantity,p.product_code,p.product_name,p.product_image FROM product_manufacturing_components pmc JOIN products p ON p.id=pmc.component_id WHERE pmc.product_id=${productId} ORDER BY pmc.id`
     const attributes = await attributesFor([productId, ...components.map((item) => Number(item.id))])
     return NextResponse.json({ ...product, attributes: attributes.get(productId) || [], components: components.map((item) => ({ ...item, attributes: attributes.get(Number(item.id)) || [] })) })
   } catch (error: any) { return NextResponse.json({ error: error.message || "تعذر تحميل مواصفات الصنف" }, { status: 500 }) }

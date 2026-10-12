@@ -1,3 +1,4 @@
+import { authorizeCustomerType } from "@/app/api/customers/_permissions"
 import { type NextRequest, NextResponse } from "next/server"
 import { generateCustomerNumber } from "@/lib/number-generator";
 import sql from "@/lib/database"
@@ -18,6 +19,8 @@ export async function GET(req: NextRequest) {
     const isSupplier = req.nextUrl.searchParams.get("isSupplier") === "true";
     const isSalesman = req.nextUrl.searchParams.get("isSalesman") === "true";
     const isSubscriber = req.nextUrl.searchParams.get("isSubscriber") === "true";
+    const permission = await authorizeCustomerType(req, isSupplier ? 2 : isSalesman ? 3 : isSubscriber ? 4 : 1, "create")
+    if (!permission.ok) return permission.response
 
     const customerNumber = await generateCustomerNumber(isSupplier, isSalesman, isSubscriber);
     console.log("[v0] API: Generated number:", customerNumber);

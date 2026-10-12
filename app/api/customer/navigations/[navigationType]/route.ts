@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
+import { authorizeCustomerType, authorizeStoredCustomer } from "@/app/api/customers/_permissions"
 
 // تصفّح سجلات الزبائن/الموردين (أول/سابق/تالي/آخر/برقم مُعيَّن) لشاشة components/products/customers.tsx —
 // كلاهما مخزَّن في نفس جدول customers (يُميَّز بينهما بعمود type: 1=زبون، 2=مورد)، بنفس شكل
@@ -11,6 +12,10 @@ export async function GET(request: NextRequest, { params }: { params: { navigati
     const typeParam = request.nextUrl.searchParams.get("type")
     const parsedType = Number(typeParam)
     const type = [1, 2, 3, 4].includes(parsedType) ? parsedType : 1
+    const permission = navigationType === "ById"
+      ? await authorizeStoredCustomer(request, request.nextUrl.searchParams.get("id"), "view")
+      : await authorizeCustomerType(request, type, "view")
+    if (!permission.ok) return permission.response
 
     let rows: any[]
 

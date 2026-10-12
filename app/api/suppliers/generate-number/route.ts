@@ -1,8 +1,12 @@
+import type { NextRequest } from "next/server"
+import { authorizeFile, authorizeFileRead, projectFileLookup } from "@/lib/file-permissions"
 import { NextResponse } from "next/server"
 import { generateSupplierNumber } from "@/lib/number-generator"
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const permission = await authorizeFile(request, "suppliers", "create")
+    if (!permission.ok) return permission.response
     console.log("[v0] API: Starting supplier number generation")
 
     if (!process.env.DATABASE_URL) {

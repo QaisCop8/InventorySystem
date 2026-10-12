@@ -1,3 +1,4 @@
+import { authorizeStoredProduct } from "@/app/api/inventory/products/_permissions"
 import { type NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
 
@@ -17,8 +18,10 @@ async function ensureTable() {
   await sql`ALTER TABLE product_manufacturing_components ADD COLUMN IF NOT EXISTS count NUMERIC(18,6)`
 }
 
-export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const permission = await authorizeStoredProduct(request, (await params).id, "lookup")
+    if (!permission.ok) return permission.response
     await ensureTable()
     const productId = Number((await params).id)
     if (!Number.isInteger(productId) || productId <= 0) return NextResponse.json({ error: "رقم الصنف غير صالح" }, { status: 400 })
@@ -30,6 +33,8 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
 }
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const permission = await authorizeStoredProduct(request, (await params).id, "update")
+  if (!permission.ok) return permission.response
   const client = await (await import("@/lib/database")).getTenantPool().then((pool) => pool.connect())
   try {
     await ensureTable()

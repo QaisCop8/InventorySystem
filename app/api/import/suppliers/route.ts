@@ -1,3 +1,4 @@
+import { authorizeFile } from "@/lib/file-permissions"
 import { type NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
 import { generateSupplierNumber } from "@/lib/number-generator"
@@ -15,6 +16,8 @@ const normalizeImportedCode = (rawValue: unknown, prefix = "S") => {
 
 export async function POST(request: NextRequest) {
   try {
+    const permission = await authorizeFile(request, "suppliers", "create")
+    if (!permission.ok) return permission.response
     const { data } = await request.json()
 
     if (!Array.isArray(data) || data.length === 0) {
@@ -75,7 +78,7 @@ export async function POST(request: NextRequest) {
         success++
       } catch (error) {
         console.error(`Error importing supplier ${item.supplier_name}:`, error)
-        errors.push(`السطر ${data.indexOf(item) + 1}: ${error.message}`)
+        errors.push(`السطر ${data.indexOf(item) + 1}: ${error instanceof Error ? error.message : String(error)}`)
         failed++
       }
     }

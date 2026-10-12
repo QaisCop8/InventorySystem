@@ -1,5 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
+import { authorizeFile, authorizeFileRead, projectFileLookup } from "@/lib/file-permissions"
+import { getSessionUser } from "@/lib/tenant-auth"
 import {
   statusLabelToCode,
   toBool,
@@ -8,10 +10,13 @@ import {
   ensureAccountsTable,
   ensureAccountRelatedTables,
   mapAccountRow,
+  accountFileFamilyForType,
 } from "../_lib"
 
 export async function GET(request: NextRequest) {
   try {
+    const authorization = await authorizeFileRead(request, ["accounts", "customers", "suppliers", "subscribers", "employees", "items", "services", "bank-accounts", "credit-cards"])
+    if (!authorization.ok) return authorization.response
     const { searchParams } = new URL(request.url)
     const code = searchParams.get("code")
 
@@ -111,6 +116,11 @@ export async function GET(request: NextRequest) {
 
     const account = result[0]
 
+    const storedAuthorization = await authorizeFileRead(request, [accountFileFamilyForType(account.type), "accounts", "customers", "suppliers", "subscribers", "employees", "items", "services", "bank-accounts", "credit-cards"])
+    if (!storedAuthorization.ok) return storedAuthorization.response
+    if (account.status === 3) return NextResponse.json({ error: "Account deleted" }, { status: 403 })
+    if (storedAuthorization.lookupOnly) return NextResponse.json(projectFileLookup("accounts", [account])[0])
+
     const stopRows = await sql`
       SELECT id, account_id, voucher_types_id, stop_date
       FROM account_stop_transactions_tbl
@@ -165,6 +175,15 @@ export async function GET(request: NextRequest) {
 // route.ts (نفس الحقول والتحقق) لكن كتحديث بدل إدراج، مع استبدال صفوف الجداول التابعة بالكامل.
 export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
   try {
+    if (!(await getSessionUser(request))) return NextResponse.json({ error: "يجب تسجيل الدخول" }, { status: 401 })
+    const data = await request.json()
+    const id = Number(params.id)
+    if (!Number.isInteger(id) || id <= 0) return NextResponse.json({ error: "معرف الحساب غير صالح" }, { status: 400 })
+    const storedAccount = (await sql`SELECT id, type FROM account_tbl WHERE id = ${id} LIMIT 1`)[0]
+    if (!storedAccount) return NextResponse.json({ error: "الحساب غير موجود" }, { status: 404 })
+    const action = Number(data.status) === 3 || statusLabelToCode(String(data.status ?? "")) === 3 ? "delete" : "update"
+    const authorization = await authorizeFile(request, accountFileFamilyForType(storedAccount.type), action)
+    if (!authorization.ok) return authorization.response
     await ensureAccountsTable()
     await ensureAccountRelatedTables()
     await sql`
@@ -175,7 +194,6 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       )
     `
 
-    const id = Number(params.id)
     if (!id) {
       return NextResponse.json({ error: "معرف الحساب غير صالح" }, { status: 400 })
     }
@@ -185,7 +203,6 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       return NextResponse.json({ error: "الحساب غير موجود" }, { status: 404 })
     }
 
-    const data = await request.json()
     const accountCode = String(data.account_code ?? data.code ?? "").trim()
     const normalizedAccountCode = accountCode
       .replace(/\s+/g, "")
@@ -219,7 +236,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     const description = String(data.description ?? data.notes ?? "").trim() || null
     const showNotesInTransactionsSoa = toBool(data.show_notes_in_transactions_soa, false)
     const statusLabel = String(data.status ?? "نشط").trim()
-    const statusCode = statusLabelToCode(statusLabel)
+    const statusCode = [1, 2, 3].includes(Number(data.status)) ? Number(data.status) : statusLabelToCode(statusLabel)
 
     const stopTransactions = Array.isArray(data.stop_transactions) ? data.stop_transactions : []
     const costCenters = Array.isArray(data.cost_centers) ? data.cost_centers : []

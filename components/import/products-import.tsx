@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { ExcelImportWizard, normalizeHeader, type ImportConfig, type ImportField, type ImportIssue } from "@/components/import/excel-import-wizard"
+import { ExcelImportWizard, type ImportConfig, type ImportField, type ImportIssue } from "@/components/import/excel-import-wizard"
 
 const UNIT_COUNT = 6
 const BARCODES_PER_UNIT = 6
@@ -17,12 +17,49 @@ export function adjustProductCodeTo10(rawCode: string): string {
 type Lookups = {
   productCategories: Array<{ id: number; name: string }>
   warehouses: Array<{ id: number; name: string }>
-  units: Array<{ id: number; unit_name: string }>
+  units: Array<{ id: number; unit_name: string; unit_name_en?: string; unit_code?: string }>
   groups: Array<{ id: number; group_name: string; group_code?: string }>
-  priceCategoryId: number
+  priceCategories: Array<{ id: number; name: string; name_en?: string }>
 }
 
 const list = (data: any, key?: string) => (Array.isArray(data) ? data : key && Array.isArray(data?.[key]) ? data[key] : [])
+const lookupKey = (value: unknown) => String(value ?? "").trim().toLowerCase()
+
+function createLookupResolver<T extends { id: number }>(records: T[], url: string, names: (record: T) => unknown[], payload: (name: string) => Record<string, unknown>, label: string, signal: AbortSignal) {
+  const resolved = new Map<string, number>()
+  return async (text: string): Promise<number> => {
+    const value = text.trim()
+    const key = lookupKey(value)
+    const cached = resolved.get(key)
+    if (cached !== undefined) return cached
+    // Prefer a real name over an alias, code or ID, regardless of list ordering.
+    let existing: T | undefined
+    let bestPriority = Infinity
+    for (const record of records) {
+      const priority = names(record).findIndex((name) => lookupKey(name) === key)
+      if (priority >= 0 && (priority < bestPriority || (priority === bestPriority && Number(record.id) < Number(existing?.id)))) {
+        existing = record
+        bestPriority = priority
+      }
+    }
+    if (existing) {
+      const id = Number(existing.id)
+      resolved.set(key, id)
+      return id
+    }
+
+    // The API checks the database again, including when the dialog's lists are stale or unavailable.
+    const response = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, signal, body: JSON.stringify({ ...payload(value), reuse_existing: true }) })
+    const record = await response.json().catch(() => ({}))
+    const id = Number(record?.id)
+    if (!response.ok || !Number.isInteger(id) || id <= 0) {
+      throw new Error(record?.error || record?.message || `فشل إنشاء ${label}: ${value}`)
+    }
+    records.push({ ...record, id })
+    resolved.set(key, id)
+    return id
+  }
+}
 
 function buildFields(lookups: Lookups): ImportField[] {
   const fields: ImportField[] = [
@@ -31,12 +68,13 @@ function buildFields(lookups: Lookups): ImportField[] {
     { key: "product_name_en", label: "اسم الصنف إنجليزي", aliases: ["product_name_en", "name_en", "english name"], maxLength: 200 },
     { key: "description", label: "الوصف", aliases: ["description"] },
     { key: "category_id", label: "التصنيف", aliases: ["category_id", "category", "التصنيف (رقم)"], options: lookups.productCategories.map((item) => ({ value: item.id, label: item.name, aliases: [String(item.id)] })) },
-    { key: "main_stock_group", label: "مجموعة الصنف", aliases: ["main_stock_group", "رقم المجموعة", "المجموعة", "group"], description: "تُنشأ تلقائياً إن لم تكن موجودة" },
+    { key: "main_stock_group", label: "مجموعة الصنف", aliases: ["main_stock_group", "main_stock_id", "item_group", "item_group_id", "group_name", "group_code", "group_id", "رقم المجموعة", "المجموعة", "group"], description: "الاسم أو الرمز أو الرقم؛ تُنشأ تلقائياً إن لم تكن موجودة" },
     { key: "default_store", label: "المستودع الافتراضي", aliases: ["default_store", "warehouse", "المستودع"], options: lookups.warehouses.map((item) => ({ value: item.id, label: item.name, aliases: [String(item.id)] })) },
     { key: "last_purchase_price", label: "آخر سعر شراء", type: "number", min: 0, aliases: ["last_purchase_price", "سعر الشراء", "التكلفة"] },
+    { key: "price_category", label: "فئة السعر", aliases: ["price_category", "price_category_id", "pricecategory", "priceCategoryId", "priceClass", "price category", "فئة البيع", "فئة الأسعار"], description: "الاسم أو الرقم؛ تُنشأ إن لم تكن موجودة. عند تركها فارغة تُستخدم فئة السعر الافتراضية" },
   ]
   for (let unit = 1; unit <= UNIT_COUNT; unit++) {
-    fields.push({ key: `unit_${unit}`, label: unit === 1 ? "الوحدة الرئيسية" : `الوحدة ${unit}`, required: unit === 1, aliases: [`unit_${unit}`, `الوحدة ${unit}`, ...(unit === 1 ? ["الوحدة", "unit", "الوحدة 1"] : [])], description: "تُنشأ تلقائياً إن لم تكن موجودة", example: unit === 1 ? "حبة" : undefined })
+    fields.push({ key: `unit_${unit}`, label: unit === 1 ? "الوحدة الرئيسية" : `الوحدة ${unit}`, required: unit === 1, aliases: [`unit_${unit}`, `الوحدة ${unit}`, ...(unit === 1 ? ["الوحدة", "unit", "unit_id", "unit_name", "unit_code", "الوحدة 1"] : [])], description: "الاسم أو الرمز أو الرقم؛ تُنشأ تلقائياً إن لم تكن موجودة", example: unit === 1 ? "حبة" : undefined })
     if (unit > 1) fields.push({ key: `unit_${unit}_to_main_qnty`, label: `العلاقة بالوحدة الرئيسية ${unit}`, type: "number", aliases: [`unit_${unit}_to_main_qnty`, `معامل التحويل ${unit}`] })
     for (let barcode = 1; barcode <= BARCODES_PER_UNIT; barcode++) {
       fields.push({ key: `unit_${unit}_barcode_${barcode}`, label: `باركود الوحدة ${unit} - ${barcode}`, aliases: [`unit_${unit}_barcode_${barcode}`, ...(unit === 1 && barcode === 1 ? ["الباركود", "barcode"] : [])], example: unit === 1 && barcode === 1 ? "6281000000001" : undefined })
@@ -101,9 +139,9 @@ export function ProductsImportDialog({ open, onOpenChange, onImported }: { open:
       setLookups({
         productCategories: list(categories, "categories").map((item: any) => ({ id: Number(item.id), name: String(item.name || item.category_name || item.id) })),
         warehouses: list(warehouses).map((item: any) => ({ id: Number(item.id), name: String(item.warehouse_name || item.name || item.id) })),
-        units: list(units).map((item: any) => ({ id: Number(item.id), unit_name: String(item.unit_name || "") })),
+        units: list(units).map((item: any) => ({ id: Number(item.id), unit_name: String(item.unit_name || ""), unit_name_en: item.unit_name_en, unit_code: item.unit_code })),
         groups: list(groups).map((item: any) => ({ id: Number(item.id), group_name: String(item.group_name || ""), group_code: item.group_code })),
-        priceCategoryId: Number(list(prices)[0]?.id || 1),
+        priceCategories: list(prices).map((item: any) => ({ id: Number(item.id), name: String(item.name || ""), name_en: item.name_en })),
       })
     })
   }, [open])
@@ -152,26 +190,17 @@ export function ProductsImportDialog({ open, onOpenChange, onImported }: { open:
       importRows: async (rows, _ctx, report, signal) => {
         const units = [...lookups.units]
         const groups = [...lookups.groups]
-        const ensureUnit = async (name: string) => {
-          const value = name.trim()
-          const existing = units.find((unit) => normalizeHeader(unit.unit_name) === normalizeHeader(value))
-          if (existing) return existing.id
-          const response = await fetch("/api/units", { method: "POST", headers: { "Content-Type": "application/json" }, signal, body: JSON.stringify({ unit_name: value, unit_name_en: value, description: "", is_active: true, status: 1 }) })
-          const created = await response.json().catch(() => ({}))
-          if (!response.ok || !created?.id) throw new Error(created?.error || `فشل إنشاء الوحدة: ${value}`)
-          units.push({ id: Number(created.id), unit_name: value })
-          return Number(created.id)
-        }
+        const priceCategories = [...lookups.priceCategories]
+        const ensureUnit = createLookupResolver(units, "/api/units", (unit) => [unit.unit_name, unit.unit_name_en, unit.unit_code, unit.id], (name) => ({ unit_name: name, unit_name_en: name, description: "", is_active: true, status: 1 }), "الوحدة", signal)
+        const resolveGroup = createLookupResolver(groups, "/api/item-groups", (group) => [group.group_name, group.group_code, group.id], (name) => ({ group_name: name, status: "نشط" }), "مجموعة الصنف", signal)
+        const resolvePriceCategory = createLookupResolver(priceCategories, "/api/pricecategory", (category) => [category.name, category.name_en, category.id], (name) => ({ name, name_en: name, status: 1 }), "فئة السعر", signal)
         const ensureGroup = async (text: string) => {
-          const value = text.trim()
-          if (!value) return null
-          const existing = groups.find((group) => [group.group_name, group.group_code, String(group.id)].some((candidate) => normalizeHeader(candidate) === normalizeHeader(value)))
-          if (existing) return existing.id
-          const response = await fetch("/api/item-groups", { method: "POST", headers: { "Content-Type": "application/json" }, signal, body: JSON.stringify({ group_name: value, group_code: value, status: "نشط" }) })
-          const created = await response.json().catch(() => ({}))
-          if (!response.ok || !created?.id) throw new Error(`فشل إنشاء مجموعة الصنف: ${value}`)
-          groups.push({ id: Number(created.id), group_name: value, group_code: value })
-          return Number(created.id)
+          return text.trim() ? resolveGroup(text) : null
+        }
+        const ensurePriceCategory = async (text: string) => {
+          if (text.trim()) return resolvePriceCategory(text)
+          const existingDefault = priceCategories[0]
+          return existingDefault ? existingDefault.id : resolvePriceCategory("سعر البيع")
         }
         const defaultAccounts = await loadDefaultItemAccounts()
         for (const row of rows) {
@@ -189,7 +218,9 @@ export function ProductsImportDialog({ open, onOpenChange, onImported }: { open:
               const existing = unitEntries.get(unitId)
               unitEntries.set(unitId, { unit_id: unitId, to_main_qnty: existing?.to_main_qnty || (unit === 1 ? 1 : Number(data[`unit_${unit}_to_main_qnty`]) || 1), barcode_list: [...new Set([...(existing?.barcode_list || []), ...barcodes])] })
             }
-            const prices = [...unitIds.entries()].filter(([unit]) => Number(data[`unit_${unit}_sale_price`]) > 0).map(([unit, unitId]) => ({ price_category_id: lookups.priceCategoryId, unit_id: unitId, price: Number(data[`unit_${unit}_sale_price`]), currency_id: 1 }))
+            const pricedUnits = [...unitIds.entries()].filter(([unit]) => Number(data[`unit_${unit}_sale_price`]) > 0)
+            const priceCategoryId = pricedUnits.length || String(data.price_category || "").trim() ? await ensurePriceCategory(String(data.price_category || "")) : null
+            const prices = pricedUnits.map(([unit, unitId]) => ({ price_category_id: priceCategoryId, unit_id: unitId, price: Number(data[`unit_${unit}_sale_price`]), currency_id: 1 }))
             const body = {
               product_code: adjustProductCodeTo10(String(data.product_code)),
               product_name: data.product_name,

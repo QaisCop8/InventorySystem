@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
+import { authorizeFile, authorizeFileRead, projectFileLookup } from "@/lib/file-permissions"
 import {
   statusLabelToCode,
   toBool,
@@ -8,6 +9,7 @@ import {
   ensureAccountsTable,
   ensureAccountRelatedTables,
   mapAccountRow,
+  accountFileFamilyForType,
 } from "./_lib"
 
 const ensureBranchesTable = () => sql`
@@ -37,6 +39,10 @@ const ensureAccountClassificationTypesTable = () => sql`
 
 export async function GET(request: NextRequest) {
   try {
+    const requestedType = new URL(request.url).searchParams.get("type")
+    const primaryFamily = accountFileFamilyForType(requestedType || 1)
+    const authorization = await authorizeFileRead(request, [primaryFamily, "accounts", "customers", "suppliers", "subscribers", "employees", "items", "services", "bank-accounts", "credit-cards"])
+    if (!authorization.ok) return authorization.response
     await ensureAccountsTable()
     await ensureAccountRelatedTables()
     await ensureBranchesTable()
@@ -298,7 +304,11 @@ export async function GET(request: NextRequest) {
       }),
     )
 
-    return NextResponse.json(items)
+    const visibleItems = items.map((item: any) => {
+      const family = accountFileFamilyForType(item.classification_type_id ?? item.type)
+      return authorization.lookupOnly || family !== primaryFamily ? projectFileLookup("accounts", [item])[0] : item
+    })
+    return NextResponse.json(visibleItems)
   } catch (error) {
     console.error("Error fetching accounts:", error)
     return NextResponse.json({ error: "Failed to fetch accounts" }, { status: 500 })
@@ -318,6 +328,8 @@ const normalizeAccountCode = (rawValue: unknown) => {
 
 export async function POST(request: NextRequest) {
   try {
+    const authorization = await authorizeFile(request, "accounts", "create")
+    if (!authorization.ok) return authorization.response
     await ensureAccountsTable()
     await ensureAccountRelatedTables()
     await ensureBranchesTable()

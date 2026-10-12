@@ -9,6 +9,7 @@ import { Plus, Search, Car as CarIcon } from "lucide-react"
 import UnifiedCars, { type Car, type CarFormData } from "@/components/products/unified-cars"
 import ConfirmDialogYesNo from "@/components/ui/ConfirmDialogYesNo"
 import { useNavigationGuard } from "@/lib/navigation-guard"
+import { useFileAccess } from "@/components/auth/use-file-access"
 
 const buildEmptyForm = (): CarFormData => ({
   id: 0,
@@ -35,6 +36,8 @@ const normalizeCarCode = (code: string): string => {
 }
 
 export default function Cars() {
+  const can = useFileAccess("cars")
+  const canView = can("view"), canCreate = can("create"), canUpdate = can("update"), canDelete = can("delete")
   const [cars, setCars] = useState<Car[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -65,6 +68,7 @@ export default function Cars() {
   }, [form, getFormHash])
 
   const filteredCars = useMemo(() => {
+    if (!canView) return []
     const search = searchTerm.trim().toLowerCase()
     return cars.filter((car) => {
       if (!search) return true
@@ -74,9 +78,10 @@ export default function Cars() {
         (car.plate_number || "").toLowerCase().includes(search)
       )
     })
-  }, [cars, searchTerm])
+  }, [canView, cars, searchTerm])
 
   const fetchCars = useCallback(async (opts?: { silent?: boolean }) => {
+    if (!canView) { setCars([]); setLoading(false); return [] }
     const silent = opts?.silent === true
     if (!silent) setLoading(true)
     if (!silent) setError(null)
@@ -92,13 +97,14 @@ export default function Cars() {
     } finally {
       if (!silent) setLoading(false)
     }
-  }, [])
+  }, [canView])
 
   useEffect(() => {
     void fetchCars()
   }, [fetchCars])
 
   const initializeNewCarForm = useCallback(async () => {
+    if (!canCreate) return buildEmptyForm()
     setDeleteError("")
     let nextForm = buildEmptyForm()
     try {
@@ -115,12 +121,13 @@ export default function Cars() {
     setValidationError("")
     setShowDeleteConfirm(false)
     return nextForm
-  }, [syncInitialFormHash])
+  }, [canCreate, syncInitialFormHash])
 
   const openNewCarDialog = useCallback(async () => {
+    if (!canCreate) return
     await initializeNewCarForm()
     setDialogOpen(true)
-  }, [initializeNewCarForm])
+  }, [canCreate, initializeNewCarForm])
 
   const carToForm = (car: Car): CarFormData => ({
     id: car.id,
@@ -133,6 +140,7 @@ export default function Cars() {
   })
 
   const openEditCarDialog = useCallback((car: Car, index: number) => {
+    if (!canView) return
     setDeleteError("")
     const nextForm = carToForm(car)
     setForm(nextForm)
@@ -140,13 +148,13 @@ export default function Cars() {
     setCurrentIndex(index)
     setIsNewMode(false)
     setDialogOpen(true)
-  }, [syncInitialFormHash])
+  }, [canView, syncInitialFormHash])
 
   const handleCarCodeBlur = useCallback(async (car_code: string) => {
     const normalized = normalizeCarCode(car_code)
     setForm((prev) => ({ ...prev, car_code: normalized }))
 
-    if (!normalized) return
+    if (!normalized || !canView) return
 
     try {
       const response = await fetch(`/api/cars?code=${encodeURIComponent(normalized)}`)
@@ -163,7 +171,7 @@ export default function Cars() {
     } catch (error) {
       console.error(error)
     }
-  }, [cars])
+  }, [canView, cars])
 
   const normalizedCarCode = useMemo(() => normalizeCarCode(form.car_code), [form.car_code])
 
@@ -180,6 +188,7 @@ export default function Cars() {
   const canSaveForm = !!form.name.trim() && !hasDuplicateName
 
   const saveCar = useCallback(async (options?: { afterSaveAction?: "new" | "close" }) => {
+    if (!(form.id > 0 ? canUpdate : canCreate)) return false
     if (!canSaveForm) {
       if (hasDuplicateName) {
         setValidationError("اسم السيارة مكرر لا يمكن الاستمرار")
@@ -216,7 +225,7 @@ export default function Cars() {
       }
 
       await fetchCars({ silent: true })
-      if (options?.afterSaveAction === "close") {
+      if (options?.afterSaveAction === "close" || !canCreate) {
         setDialogOpen(false)
         return true
       }
@@ -229,10 +238,10 @@ export default function Cars() {
     } finally {
       setIsSaving(false)
     }
-  }, [canSaveForm, fetchCars, form, hasDuplicateName, initializeNewCarForm, normalizedCarCode])
+  }, [canCreate, canUpdate, canSaveForm, fetchCars, form, hasDuplicateName, initializeNewCarForm, normalizedCarCode])
 
   const deleteCar = useCallback(async () => {
-    if (!form.id) return
+    if (!canDelete || !form.id) return
     try {
       const response = await fetch(`/api/cars/${form.id}`, { method: "DELETE" })
       if (!response.ok) {
@@ -269,9 +278,10 @@ export default function Cars() {
       setDeleteError(message)
       setShowDeleteConfirm(true)
     }
-  }, [currentIndex, fetchCars, form.id, syncInitialFormHash])
+  }, [canDelete, currentIndex, fetchCars, form.id, syncInitialFormHash])
 
   const handleNavigateRecord = useCallback((record: Car) => {
+    if (!canView) return
     const nextForm = carToForm(record)
     setForm(nextForm)
     syncInitialFormHash(nextForm)
@@ -279,16 +289,17 @@ export default function Cars() {
     setCurrentIndex(targetIndex >= 0 ? targetIndex : 0)
     setIsNewMode(false)
     setDialogOpen(true)
-  }, [filteredCars, syncInitialFormHash])
+  }, [canView, filteredCars, syncInitialFormHash])
 
   const handleRequestNew = useCallback(() => {
+    if (!canCreate) return
     if (dialogOpen && hasUnsavedChanges) {
       setPendingAction("new")
       setShowUnsavedConfirm(true)
       return
     }
     void openNewCarDialog()
-  }, [dialogOpen, hasUnsavedChanges, openNewCarDialog])
+  }, [canCreate, dialogOpen, hasUnsavedChanges, openNewCarDialog])
 
   const handleOpenChange = useCallback((open: boolean) => {
     if (!open && (showDeleteConfirm || showUnsavedConfirm)) return
@@ -350,15 +361,17 @@ export default function Cars() {
   }, [])
 
   const handleFormChange = useCallback((field: string, value: string) => {
+    if (!(form.id > 0 ? canUpdate : canCreate)) return
     setValidationError("")
     setForm((prev) => ({ ...prev, [field]: value }))
-  }, [])
+  }, [canCreate, canUpdate, form.id])
 
   const handleDelete = useCallback(() => {
+    if (!canDelete) return
     setDeleteConfirmMessage("هل تريد حذف هذه السيارة؟")
     setDeleteError("")
     setShowDeleteConfirm(true)
-  }, [])
+  }, [canDelete])
 
   const handleConfirmDelete = useCallback(() => void deleteCar(), [deleteCar])
   const handleCancelDelete = useCallback(() => setShowDeleteConfirm(false), [])
@@ -402,14 +415,14 @@ export default function Cars() {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="min-w-[260px]"
-              disabled={loading}
+              disabled={loading || !canView}
             />
-            <Button variant="outline" size="sm" disabled={loading}>
+            <Button variant="outline" size="sm" disabled={loading || !canView}>
               <Search className="h-4 w-4" />
               بحث
             </Button>
           </div>
-          <Button onClick={() => void handleRequestNew()} className="whitespace-nowrap" disabled={loading}>
+          <Button onClick={() => void handleRequestNew()} className="whitespace-nowrap" disabled={loading || !canCreate}>
             <Plus className="ml-2 h-4 w-4" /> إضافة سيارة جديدة
           </Button>
         </div>

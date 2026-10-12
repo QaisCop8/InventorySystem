@@ -16,6 +16,7 @@ import {
   type TransactionFamily,
 } from "@/lib/transaction-permission-definitions"
 import { REPORT_DEFINITIONS, REPORT_PERMISSION_CATEGORY, reportPermissionName } from "@/lib/report-permission-definitions"
+import { seedFilePermissionDefinitions } from "@/lib/file-permission-seed"
 
 // نظام الأدوار الوظيفية (job_roles/role_permissions) + الصلاحية الفعّالة للمستخدم = مركز صريح
 // (user_access) إن وُجد → وإلا صلاحية دوره الوظيفي (role_permissions) → وإلا رفض. انظر خطة
@@ -326,6 +327,21 @@ export async function requireBranchAccess(userId: string | null, accessId: numbe
   return grantedBranchIds
 }
 
+const filePermissionSeeds = new Map<string, Promise<void>>()
+
+export async function ensureFilePermissions(dbName: string): Promise<void> {
+  await ensurePermissionTables(dbName)
+  let pending = filePermissionSeeds.get(dbName)
+  if (!pending) {
+    pending = seedFilePermissionDefinitions(getPoolForDb(dbName)).catch(error => {
+      filePermissionSeeds.delete(dbName)
+      throw error
+    })
+    filePermissionSeeds.set(dbName, pending)
+  }
+  await pending
+}
+
 // تُطبَّق عند تحميل الصفحة الرئيسية (انظر نقطة الاستدعاء بـauth-context.tsx) — بلا حاجة لتشغيل أي
 // سكربت يدوي لكل شركة: أي تعريف صلاحية/دور جديد يُضاف هنا هنا تلقائياً بأول تحميل صفحة لاحق.
 export async function syncPermissionDefinitions(dbName: string): Promise<void> {
@@ -428,6 +444,8 @@ export async function syncPermissionDefinitions(dbName: string): Promise<void> {
      )`,
     [],
   )
+
+  await ensureFilePermissions(dbName)
 
   // Management ids can collide with tenant-local ids. Ensure the complete
   // transaction matrix by name as well, using the tenant's category id.

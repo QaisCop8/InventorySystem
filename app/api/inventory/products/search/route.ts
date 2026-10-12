@@ -1,3 +1,5 @@
+import { authorizeStoredProduct } from "@/app/api/inventory/products/_permissions"
+import { projectFileLookup } from "@/lib/file-permissions"
 
 import { type NextRequest, NextResponse } from "next/server"
 import { getTenantPool } from "@/lib/database"
@@ -100,6 +102,8 @@ export async function GET(request: NextRequest) {
     }
 
     const product = productResult.rows[0];
+    const permission = await authorizeStoredProduct(request, product?.id, "lookup")
+    if (!permission.ok) { client.release(); return permission.response }
 
     if (product.deleted) {
       client.release();
@@ -163,7 +167,7 @@ export async function GET(request: NextRequest) {
     product.store_id = product.default_store ?? null;
     product.store_name = product.default_store_name || "بلا تحديد";
     client.release();
-    return NextResponse.json(product);
+    return NextResponse.json(permission.lookupOnly ? projectFileLookup(Number(product.type) === 2 ? "services" : "items", [product])[0] : product);
 
   } catch (error) {
     console.error("Error searching product:", error);

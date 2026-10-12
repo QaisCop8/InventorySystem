@@ -1,6 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { generateCustomerNumber } from "@/lib/number-generator";
 import sql from "@/lib/database"
+import { projectFileLookup } from "@/lib/file-permissions"
+import { authorizeCustomerType, authorizeStoredCustomer, customerFileFamily } from "./_permissions"
 import {
   toNullableInt,
   toInt,
@@ -81,6 +83,9 @@ const persistCustomerStopTransactions = async (accountId: number, rows: any[] | 
 
 export async function GET(request: NextRequest) {
   try {
+    const requestedType = Number(request.nextUrl.searchParams.get("type")) || 1
+    const permission = await authorizeCustomerType(request, requestedType, "lookup")
+    if (!permission.ok) return permission.response
     console.log("[v0] GET /api/customers - Fetching customers with portal info")
     await ensureCustomerCompatibilityColumns()
     await ensureCustomerBranchesTable()
@@ -98,7 +103,7 @@ export async function GET(request: NextRequest) {
       : ""
 
     const typeParam = request.nextUrl.searchParams.get("type");
-    const typeFilter = typeParam === "1" || typeParam === "2" || typeParam === "3" || typeParam === "4" ? Number(typeParam) : null;
+    const typeFilter = typeParam === "1" || typeParam === "2" || typeParam === "3" || typeParam === "4" ? Number(typeParam) : 1;
     // account_id: يُستخدَم لجلب بيانات العميل (حد الائتمان/العنوان) بعد اختياره عبر AutoCompleteAccount
     // في شاشات السندات (كإرسالية مبيعات) التي تحمل account_id فقط لا customer_id — إضافي بحت، لا يمس
     // أي استعلام قائم عند غيابه.
@@ -109,10 +114,10 @@ export async function GET(request: NextRequest) {
         SELECT c.*, acc.currency_id AS currency_id
         FROM customers c
         LEFT JOIN account_tbl acc ON acc.id = c.account_id
-        WHERE c.isDeleted = false AND c.account_id = ${accountIdFilter}
+        WHERE c.isDeleted = false AND c.account_id = ${accountIdFilter} AND c.type = ${typeFilter}
         LIMIT 1
       `
-      return NextResponse.json(Array.isArray(rows) ? rows : [])
+      return NextResponse.json(permission.lookupOnly ? projectFileLookup(customerFileFamily(typeFilter) || "customers", rows) : rows)
     }
 
     const customers = typeFilter
@@ -191,6 +196,9 @@ export async function GET(request: NextRequest) {
         : null,
     })
 
+    if (permission.lookupOnly) {
+      return NextResponse.json({ customers: projectFileLookup(customerFileFamily(typeFilter) || "customers", customers) })
+    }
     const customerIds = customers.map((c: { id: any; }) => c.id);
     type VoucherItem = {
       book_name: string;
@@ -309,9 +317,11 @@ const normalizeEntityCode = (rawValue: unknown, prefix = "C") => {
 
 export async function POST(request: NextRequest) {
   try {
+    const data = await request.json()
+    const permission = await authorizeCustomerType(request, data.type, "create")
+    if (!permission.ok) return permission.response
     await ensureCustomerCompatibilityColumns()
     await ensureCustomerBranchesTable()
-    const data = await request.json()
     console.log("[v0] Creating customer with data:", data)
 
     const accountHierarchy = await resolveRequiredParentAccount(data.type, data.father_id)
@@ -471,9 +481,11 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
+    const data = await request.json()
+    const permission = await authorizeStoredCustomer(request, data.id, "update", data.type ?? 1)
+    if (!permission.ok) return permission.response
     await ensureCustomerCompatibilityColumns()
     await ensureCustomerBranchesTable()
-    const data = await request.json()
     const { id, voucher, ...updateData } = data
 
     if (!id) {
@@ -601,6 +613,8 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "Customer ID is required" }, { status: 400 })
     }
 
+    const permission = await authorizeStoredCustomer(request, id, "delete")
+    if (!permission.ok) return permission.response
     await sql`DELETE FROM customers WHERE id = ${id}`
 
     return NextResponse.json({ message: "Customer deleted successfully" })

@@ -1,3 +1,4 @@
+import { authorizeFile, authorizeFileRead, projectFileLookup } from "@/lib/file-permissions"
 import { type NextRequest, NextResponse } from "next/server"
 import sql, {
   ensureDriversTable,
@@ -12,6 +13,8 @@ import sql, {
 
 export async function GET(request: NextRequest) {
   try {
+    const permission = await authorizeFileRead(request, ["drivers"])
+    if (!permission.ok) return permission.response
     await ensureDriversTable()
 
     const code = request.nextUrl.searchParams.get("code")?.trim().toUpperCase()
@@ -31,7 +34,7 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: "السائق غير موجود" }, { status: 404 })
       }
 
-      return NextResponse.json(toDriver(rows[0]))
+      return NextResponse.json(permission.lookupOnly ? projectFileLookup("drivers", [toDriver(rows[0])])[0] : toDriver(rows[0]))
     }
 
     const rows: DriverDB[] = await sql`
@@ -43,7 +46,7 @@ export async function GET(request: NextRequest) {
       ORDER BY d.id
     `
 
-    return NextResponse.json(rows.map(toDriver))
+    return NextResponse.json(permission.lookupOnly ? projectFileLookup("drivers", rows.map(toDriver)) : rows.map(toDriver))
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error)
     console.error("Error fetching drivers:", message)
@@ -53,6 +56,8 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const permission = await authorizeFile(request, "drivers", "create")
+    if (!permission.ok) return permission.response
     await ensureDriversTable()
 
     const data = await request.json()

@@ -1,9 +1,12 @@
 import { type NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
+import { authorizeFile, authorizeFileRead, projectFileLookup } from "@/lib/file-permissions"
 import { assertLicenseAllows, licenseErrorResponseBody } from "@/lib/company-license"
 
 export async function GET(request: NextRequest) {
   try {
+    const authorization = await authorizeFileRead(request, ["branches", "banks", "bank-accounts", "accounts", "customers", "suppliers", "employees", "items", "services"])
+    if (!authorization.ok) return authorization.response
     // Create table if not exists and migrate existing schema if necessary
     await sql`
       CREATE TABLE IF NOT EXISTS branches (
@@ -41,6 +44,12 @@ export async function GET(request: NextRequest) {
           ORDER BY id ASC
         `
 
+    if (authorization.lookupOnly) {
+      const memberships = await sql`SELECT branch_id FROM user_branches WHERE user_id = ${authorization.userId}`
+      const allowedIds = new Set(memberships.map((row: any) => Number(row.branch_id)))
+      const visibleBranches = memberships.length ? branches.filter((row: any) => allowedIds.has(Number(row.id))) : branches
+      return NextResponse.json(projectFileLookup("branches", visibleBranches))
+    }
     return NextResponse.json(branches)
   } catch (error) {
     console.error("Error fetching branches:", error)
@@ -50,6 +59,8 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const authorization = await authorizeFile(request, "branches", "create")
+    if (!authorization.ok) return authorization.response
     const data = await request.json()
     // إضافة سريعة (البداية السريعة): الاسم فقط — رقم الفرع يُولَّد تلقائياً (التالي بعد أكبر رقم رقمي
     // حالي، 1-4 أرقام) ولا يُشترط البنك. شاشة التعريفات تبقى بقواعدها الكاملة.
@@ -104,6 +115,8 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const data = await request.json()
+    const authorization = await authorizeFile(request, "branches", Number(data.status) === 3 ? "delete" : "update")
+    if (!authorization.ok) return authorization.response
     const branchCode = String(data.branch_code || "").trim()
 
     if (!data.id) {
@@ -150,6 +163,8 @@ export async function PUT(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
+    const authorization = await authorizeFile(request, "branches", "delete")
+    if (!authorization.ok) return authorization.response
     const data = await request.json()
 
     if (!data.id) {

@@ -1,3 +1,4 @@
+import { authorizeFile, authorizeFileRead, projectFileLookup } from "@/lib/file-permissions"
 import { type NextRequest, NextResponse } from "next/server"
 import sql, {
   ensureCarsTable,
@@ -12,6 +13,8 @@ import sql, {
 
 export async function GET(request: NextRequest) {
   try {
+    const permission = await authorizeFileRead(request, ["cars"])
+    if (!permission.ok) return permission.response
     await ensureCarsTable()
 
     const code = request.nextUrl.searchParams.get("code")?.trim().toUpperCase()
@@ -29,7 +32,7 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: "السيارة غير موجودة" }, { status: 404 })
       }
 
-      return NextResponse.json(toCar(rows[0]))
+      return NextResponse.json(permission.lookupOnly ? projectFileLookup("cars", [toCar(rows[0])])[0] : toCar(rows[0]))
     }
 
     const rows: CarDB[] = await sql`
@@ -39,7 +42,7 @@ export async function GET(request: NextRequest) {
       ORDER BY id
     `
 
-    return NextResponse.json(rows.map(toCar))
+    return NextResponse.json(permission.lookupOnly ? projectFileLookup("cars", rows.map(toCar)) : rows.map(toCar))
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error)
     console.error("Error fetching cars:", message)
@@ -49,6 +52,8 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const permission = await authorizeFile(request, "cars", "create")
+    if (!permission.ok) return permission.response
     await ensureCarsTable()
 
     const data = await request.json()

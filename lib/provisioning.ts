@@ -529,6 +529,18 @@ async function seedDefaultStore(tenantClient: ReturnType<typeof getPoolForDb>) {
   )
 }
 
+async function seedDefaultPriceCategory(tenantClient: ReturnType<typeof getPoolForDb>) {
+  await tenantClient.query(
+    `INSERT INTO pricecategory (name, name_en, status)
+     SELECT $1::text, $1::text, 1
+     WHERE NOT EXISTS (
+       SELECT 1 FROM pricecategory
+       WHERE LOWER(TRIM(name)) = LOWER($1::text) AND COALESCE(status, 1) <> 3
+     )`,
+    ["مفرق"],
+  )
+}
+
 async function tableExists(tenantClient: ReturnType<typeof getPoolForDb>, tableName: string) {
   const rows = await tenantClient.query(
     `SELECT to_regclass($1) AS table_name`,
@@ -578,8 +590,8 @@ async function seedDefaultSystemSettings(tenantClient: ReturnType<typeof getPool
 }
 
 // Only immutable application metadata survives the bootstrap script. Editable
-// files and definitions start empty; branch, department and warehouse defaults
-// are inserted explicitly after this cleanup.
+// files and definitions start empty; branch, department, warehouse and price
+// category defaults are inserted explicitly after this cleanup.
 const FRESH_COMPANY_LOOKUP_TABLES = new Set([
   "access_category",
   "access_list",
@@ -642,6 +654,7 @@ export async function provisionCompanyDatabase(
   await ensureDefaultVoucherBooks(tenantClient)
   const branchId = await seedDefaultBranchAndSection(tenantClient)
   await seedDefaultStore(tenantClient)
+  await seedDefaultPriceCategory(tenantClient)
   await seedDefaultSystemSettings(tenantClient)
   await seedManagementAccessDefinitions(tenantClient)
 

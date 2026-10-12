@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server"
 import { getSessionUser } from "@/lib/tenant-auth"
 import { itemLevelVatEnabled, itemVatRates } from "@/lib/item-vat-server"
+import { authorizeStoredProduct } from "@/app/api/inventory/products/_permissions"
 
 // نسب ضريبة الأصناف + حالة إعداد "الضريبة على مستوى الصنف" — للإرساليات/الفواتير وطلبيات المبيعات.
 // GET /api/products/vat-rates?ids=1,2,3  ⇒  { enabled, rates: { "1": 16, "2": 0, "3": null } }
@@ -9,6 +10,10 @@ export async function GET(request: NextRequest) {
     const user = await getSessionUser(request)
     if (!user) return NextResponse.json({ error: "يجب تسجيل الدخول" }, { status: 401 })
     const ids = String(request.nextUrl.searchParams.get("ids") || "").split(",").map(Number).filter((id) => Number.isInteger(id) && id > 0).slice(0, 500)
+    for (const id of ids) {
+      const permission = await authorizeStoredProduct(request, id, "lookup")
+      if (!permission.ok) return permission.response
+    }
     const [enabled, rates] = await Promise.all([itemLevelVatEnabled(), itemVatRates(ids)])
     return NextResponse.json({ enabled, rates: Object.fromEntries(rates) })
   } catch (error) {

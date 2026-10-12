@@ -9,6 +9,7 @@ import { Plus, Search, UserCog } from "lucide-react"
 import UnifiedDrivers, { type Driver, type DriverFormData, type LicenseType } from "@/components/products/unified-drivers"
 import ConfirmDialogYesNo from "@/components/ui/ConfirmDialogYesNo"
 import { useNavigationGuard } from "@/lib/navigation-guard"
+import { useFileAccess } from "@/components/auth/use-file-access"
 
 const buildEmptyForm = (): DriverFormData => ({
   id: 0,
@@ -35,6 +36,8 @@ const normalizeDriverCode = (code: string): string => {
 }
 
 export default function Drivers() {
+  const can = useFileAccess("drivers")
+  const canView = can("view"), canCreate = can("create"), canUpdate = can("update"), canDelete = can("delete")
   const [drivers, setDrivers] = useState<Driver[]>([])
   const [licenseTypes, setLicenseTypes] = useState<LicenseType[]>([])
   const [loading, setLoading] = useState(true)
@@ -66,6 +69,7 @@ export default function Drivers() {
   }, [form, getFormHash])
 
   const filteredDrivers = useMemo(() => {
+    if (!canView) return []
     const search = searchTerm.trim().toLowerCase()
     return drivers.filter((driver) => {
       if (!search) return true
@@ -75,7 +79,7 @@ export default function Drivers() {
         (driver.phone || "").toLowerCase().includes(search)
       )
     })
-  }, [drivers, searchTerm])
+  }, [canView, drivers, searchTerm])
 
   const fetchLicenseTypes = useCallback(async () => {
     try {
@@ -90,6 +94,7 @@ export default function Drivers() {
   }, [])
 
   const fetchDrivers = useCallback(async (opts?: { silent?: boolean }) => {
+    if (!canView) { setDrivers([]); setLoading(false); return [] }
     const silent = opts?.silent === true
     if (!silent) setLoading(true)
     if (!silent) setError(null)
@@ -105,7 +110,7 @@ export default function Drivers() {
     } finally {
       if (!silent) setLoading(false)
     }
-  }, [])
+  }, [canView])
 
   useEffect(() => {
     void fetchDrivers()
@@ -113,6 +118,7 @@ export default function Drivers() {
   }, [fetchDrivers, fetchLicenseTypes])
 
   const initializeNewDriverForm = useCallback(async () => {
+    if (!canCreate) return buildEmptyForm()
     setDeleteError("")
     let nextForm = buildEmptyForm()
     try {
@@ -129,12 +135,13 @@ export default function Drivers() {
     setValidationError("")
     setShowDeleteConfirm(false)
     return nextForm
-  }, [syncInitialFormHash])
+  }, [canCreate, syncInitialFormHash])
 
   const openNewDriverDialog = useCallback(async () => {
+    if (!canCreate) return
     await initializeNewDriverForm()
     setDialogOpen(true)
-  }, [initializeNewDriverForm])
+  }, [canCreate, initializeNewDriverForm])
 
   const driverToForm = (driver: Driver): DriverFormData => ({
     id: driver.id,
@@ -147,6 +154,7 @@ export default function Drivers() {
   })
 
   const openEditDriverDialog = useCallback((driver: Driver, index: number) => {
+    if (!canView) return
     setDeleteError("")
     const nextForm = driverToForm(driver)
     setForm(nextForm)
@@ -154,13 +162,13 @@ export default function Drivers() {
     setCurrentIndex(index)
     setIsNewMode(false)
     setDialogOpen(true)
-  }, [syncInitialFormHash])
+  }, [canView, syncInitialFormHash])
 
   const handleDriverCodeBlur = useCallback(async (driver_code: string) => {
     const normalized = normalizeDriverCode(driver_code)
     setForm((prev) => ({ ...prev, driver_code: normalized }))
 
-    if (!normalized) return
+    if (!normalized || !canView) return
 
     try {
       const response = await fetch(`/api/drivers?code=${encodeURIComponent(normalized)}`)
@@ -177,7 +185,7 @@ export default function Drivers() {
     } catch (error) {
       console.error(error)
     }
-  }, [drivers])
+  }, [canView, drivers])
 
   const normalizedDriverCode = useMemo(() => normalizeDriverCode(form.driver_code), [form.driver_code])
 
@@ -194,6 +202,7 @@ export default function Drivers() {
   const canSaveForm = !!form.name.trim() && !!form.license_type_id && !hasDuplicateName
 
   const saveDriver = useCallback(async (options?: { afterSaveAction?: "new" | "close" }) => {
+    if (!(form.id > 0 ? canUpdate : canCreate)) return false
     if (!canSaveForm) {
       if (hasDuplicateName) {
         setValidationError("اسم السائق مكرر لا يمكن الاستمرار")
@@ -232,7 +241,7 @@ export default function Drivers() {
       }
 
       await fetchDrivers({ silent: true })
-      if (options?.afterSaveAction === "close") {
+      if (options?.afterSaveAction === "close" || !canCreate) {
         setDialogOpen(false)
         return true
       }
@@ -245,10 +254,10 @@ export default function Drivers() {
     } finally {
       setIsSaving(false)
     }
-  }, [canSaveForm, fetchDrivers, form, hasDuplicateName, initializeNewDriverForm, normalizedDriverCode])
+  }, [canCreate, canUpdate, canSaveForm, fetchDrivers, form, hasDuplicateName, initializeNewDriverForm, normalizedDriverCode])
 
   const deleteDriver = useCallback(async () => {
-    if (!form.id) return
+    if (!canDelete || !form.id) return
     try {
       const response = await fetch(`/api/drivers/${form.id}`, { method: "DELETE" })
       if (!response.ok) {
@@ -285,9 +294,10 @@ export default function Drivers() {
       setDeleteError(message)
       setShowDeleteConfirm(true)
     }
-  }, [currentIndex, fetchDrivers, form.id, syncInitialFormHash])
+  }, [canDelete, currentIndex, fetchDrivers, form.id, syncInitialFormHash])
 
   const handleNavigateRecord = useCallback((record: Driver) => {
+    if (!canView) return
     const nextForm = driverToForm(record)
     setForm(nextForm)
     syncInitialFormHash(nextForm)
@@ -295,16 +305,17 @@ export default function Drivers() {
     setCurrentIndex(targetIndex >= 0 ? targetIndex : 0)
     setIsNewMode(false)
     setDialogOpen(true)
-  }, [filteredDrivers, syncInitialFormHash])
+  }, [canView, filteredDrivers, syncInitialFormHash])
 
   const handleRequestNew = useCallback(() => {
+    if (!canCreate) return
     if (dialogOpen && hasUnsavedChanges) {
       setPendingAction("new")
       setShowUnsavedConfirm(true)
       return
     }
     void openNewDriverDialog()
-  }, [dialogOpen, hasUnsavedChanges, openNewDriverDialog])
+  }, [canCreate, dialogOpen, hasUnsavedChanges, openNewDriverDialog])
 
   const handleOpenChange = useCallback((open: boolean) => {
     if (!open && (showDeleteConfirm || showUnsavedConfirm)) return
@@ -366,15 +377,17 @@ export default function Drivers() {
   }, [])
 
   const handleFormChange = useCallback((field: string, value: string | number | null) => {
+    if (!(form.id > 0 ? canUpdate : canCreate)) return
     setValidationError("")
     setForm((prev) => ({ ...prev, [field]: value }) as DriverFormData)
-  }, [])
+  }, [canCreate, canUpdate, form.id])
 
   const handleDelete = useCallback(() => {
+    if (!canDelete) return
     setDeleteConfirmMessage("هل تريد حذف هذا السائق؟")
     setDeleteError("")
     setShowDeleteConfirm(true)
-  }, [])
+  }, [canDelete])
 
   const handleConfirmDelete = useCallback(() => void deleteDriver(), [deleteDriver])
   const handleCancelDelete = useCallback(() => setShowDeleteConfirm(false), [])
@@ -418,14 +431,14 @@ export default function Drivers() {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="min-w-[260px]"
-              disabled={loading}
+              disabled={loading || !canView}
             />
-            <Button variant="outline" size="sm" disabled={loading}>
+            <Button variant="outline" size="sm" disabled={loading || !canView}>
               <Search className="h-4 w-4" />
               بحث
             </Button>
           </div>
-          <Button onClick={() => void handleRequestNew()} className="whitespace-nowrap" disabled={loading}>
+          <Button onClick={() => void handleRequestNew()} className="whitespace-nowrap" disabled={loading || !canCreate}>
             <Plus className="ml-2 h-4 w-4" /> إضافة سائق جديد
           </Button>
         </div>

@@ -1,8 +1,11 @@
+import { authorizeFile, authorizeFileRead, projectFileLookup } from "@/lib/file-permissions"
 import { type NextRequest, NextResponse } from "next/server"
 import sql, { ensureCarsTable, toCar, type CarDB } from "../../_lib"
 
 export async function GET(request: NextRequest, { params }: { params: { navigationType: string } }) {
   try {
+    const permission = await authorizeFile(request, "cars", "view")
+    if (!permission.ok) return permission.response
     await ensureCarsTable()
 
     const { navigationType } = params

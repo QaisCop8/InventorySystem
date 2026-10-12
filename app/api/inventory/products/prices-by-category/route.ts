@@ -1,3 +1,4 @@
+import { authorizeStoredProduct } from "@/app/api/inventory/products/_permissions"
 import { type NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
 
@@ -32,6 +33,11 @@ export async function POST(request: NextRequest) {
     const productIds = [...new Set(items.map((i) => Number(i.product_id)).filter((id) => Number.isFinite(id) && id > 0))]
     if (productIds.length === 0) {
       return NextResponse.json({ results: [] })
+    }
+
+    for (const productId of productIds) {
+      const permission = await authorizeStoredProduct(request, productId, "lookup")
+      if (!permission.ok) return permission.response
     }
 
     if (priceCategoryId === -3 || priceCategoryId === -4 || priceCategoryId === -5) {

@@ -1,3 +1,4 @@
+import { authorizeStoredProduct, authorizeProductLookupScope } from "@/app/api/inventory/products/_permissions"
 import { type NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
 
@@ -16,11 +17,18 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ duplicate: false })
     }
 
+    const scope = await authorizeProductLookupScope(request)
+    if (!scope.ok) return scope.response
+    if (excludeId > 0) {
+      const permission = await authorizeStoredProduct(request, excludeId, "lookup")
+      if (!permission.ok) return permission.response
+    }
     const rows = await sql`
       SELECT p.id, p.product_name
       FROM product_numbers pn
       JOIN products p ON p.id = pn.product_id
       WHERE pn.type = ${type} AND LOWER(pn.number) = LOWER(${number}) AND pn.product_id != ${excludeId}
+        AND COALESCE(p.type, 1) = ANY(${scope.types}::int[])
       LIMIT 1
     `
 

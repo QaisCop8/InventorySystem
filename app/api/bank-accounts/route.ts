@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
+import { authorizeFile, authorizeFileRead, projectFileLookup } from "@/lib/file-permissions"
 
 const ensureTable = async () => {
   await sql`
@@ -34,6 +35,8 @@ const ensureTable = async () => {
 
 export async function GET(request: NextRequest) {
   try {
+    const authorization = await authorizeFileRead(request, ["bank-accounts", "credit-cards"])
+    if (!authorization.ok) return authorization.response
     await ensureTable()
 
     const { searchParams } = new URL(request.url)
@@ -44,7 +47,7 @@ export async function GET(request: NextRequest) {
       ? await sql`SELECT * FROM bank_accounts WHERE status != 3 AND branch_id = ${branchId} ORDER BY id`
       : await sql`SELECT * FROM bank_accounts WHERE status != 3 ORDER BY id`
 
-    return NextResponse.json(bankAccounts)
+    return NextResponse.json(authorization.lookupOnly ? projectFileLookup("bank-accounts", bankAccounts) : bankAccounts)
   } catch (error) {
     console.error("Error fetching bank accounts:", error)
     return NextResponse.json({ error: "Failed to fetch bank accounts" }, { status: 500 })
@@ -53,6 +56,8 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const authorization = await authorizeFile(request, "bank-accounts", "create")
+    if (!authorization.ok) return authorization.response
     await ensureTable()
     const data = await request.json()
 
@@ -98,8 +103,10 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    await ensureTable()
     const data = await request.json()
+    const authorization = await authorizeFile(request, "bank-accounts", Number(data.status) === 3 ? "delete" : "update")
+    if (!authorization.ok) return authorization.response
+    await ensureTable()
 
     if (!data.id) {
       return NextResponse.json({ error: "معرف حساب البنك مطلوب" }, { status: 400 })
@@ -157,6 +164,8 @@ export async function PUT(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
+    const authorization = await authorizeFile(request, "bank-accounts", "delete")
+    if (!authorization.ok) return authorization.response
     const data = await request.json()
 
     if (!data.id) {

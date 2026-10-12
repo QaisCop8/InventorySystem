@@ -1,3 +1,4 @@
+import { authorizeStoredProduct } from "@/app/api/inventory/products/_permissions"
 import { type NextRequest, NextResponse } from "next/server"
 import { getTenantPool } from "@/lib/database"
 
@@ -8,6 +9,8 @@ import { getTenantPool } from "@/lib/database"
 // تغيير هذه الخصائص بأثر رجعي على صنف له سطور فعلية يُناقض بيانات تلك السطور القائمة أصلاً.
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
+    const permission = await authorizeStoredProduct(request, params.id, "lookup")
+    if (!permission.ok) return permission.response
     const productId = Number(params.id)
     if (!productId) {
       return NextResponse.json({ error: "Invalid product id" }, { status: 400 })

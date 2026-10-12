@@ -1,7 +1,10 @@
 import { type NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
+import { authorizeFile } from "@/lib/file-permissions"
 export async function GET(request: NextRequest, { params }: { params: { navigationType: string } }) {
   try {
+    const authorization = await authorizeFile(request, "banks", "view")
+    if (!authorization.ok) return authorization.response
     if (!sql) {
       return NextResponse.json({ error: "Database not configured" }, { status: 500 })
     }

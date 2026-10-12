@@ -1,8 +1,11 @@
 import { type NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
+import { authorizeFile } from "@/lib/file-permissions"
 
 export async function GET(request: NextRequest) {
   try {
+    const authorization = await authorizeFile(request, "accounts", "create")
+    if (!authorization.ok) return authorization.response
     if (!sql) {
       console.error("[accounts/next-code] Database client not initialized")
       return NextResponse.json(

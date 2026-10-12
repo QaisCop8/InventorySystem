@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useReportAccess } from "@/components/auth/use-report-access"
+import { useFileSectionAccess } from "@/components/auth/use-file-access"
 import { cn } from "@/lib/utils"
 import {
   LayoutDashboard,
@@ -549,7 +550,8 @@ export function Sidebar({
   isMobile = false,
 }: SidebarProps) {
   const canOpenReport = useReportAccess()
-  const visibleMenuItems = useMemo(() => filterReportItems(menuItems, canOpenReport), [canOpenReport])
+  const canOpenFile = useFileSectionAccess()
+  const visibleMenuItems = useMemo(() => filterReportItems(menuItems, section => canOpenReport(section) && canOpenFile(section)), [canOpenReport, canOpenFile])
   const [expandedMenus, setExpandedMenus] = useState<string[]>([])
   const [query, setQuery] = useState("")
   const [companyLogo, setCompanyLogo] = useState("")

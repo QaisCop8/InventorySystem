@@ -1,4 +1,12 @@
 import sql from "@/lib/database"
+import type { FileFamily } from "@/lib/file-permissions"
+
+export const accountFileFamilyForType = (type: unknown): FileFamily => {
+  if (Number(type) === 2) return "customers"
+  if (Number(type) === 3) return "suppliers"
+  if (Number(type) === 5) return "subscribers"
+  return "accounts"
+}
 
 export const statusLabelToCode = (status: string): number => {
   if (status === "موقوف") return 2
