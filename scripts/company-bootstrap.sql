@@ -19573,9 +19573,8 @@ COPY public.tax_classifications (id, name, created_at, updated_at, tax_percent, 
 --
 -- Data for Name: theme_settings; Type: TABLE DATA; Schema: public; Owner: -
 --
-
 COPY public.theme_settings (id, user_id, color_scheme, primary_color, accent_color, font_size, font_family, border_radius, shadows, animations, compact_mode, created_at, updated_at, organization_id, theme_name, secondary_color, background_color, text_color, font_weight, line_height, letter_spacing, sidebar_width, header_height, dark_mode, rtl_support, card_style, button_style, animation_speed, high_contrast) FROM stdin;
-1	default	emerald	#059669	#10b981	14	var(--font-geist-sans)	8	t	t	f	2025-10-10 18:33:59.473212	2025-10-10 18:33:59.473212	1	default	#64748b	#ffffff	#1f2937	400	1.5	0.0	256	64	f	t	elevated	rounded	normal	f
+1	\N	emerald	#059669	#10b981	14	var(--font-geist-sans)	8	t	t	f	2025-10-10 18:33:59.473212	2025-10-10 18:33:59.473212	1	default	#64748b	#ffffff	#1f2937	400	1.5	0.0	256	64	f	t	elevated	rounded	normal	f
 \.
 
 
