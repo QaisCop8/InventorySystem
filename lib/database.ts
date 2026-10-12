@@ -42,7 +42,7 @@ function buildClientForUrl(url: string): TenantClient {
     return { query: async (text, params) => (await pool.query(text, params)).rows }
   }
   const neonClient = neon(url) as any
-  return { query: (text, params) => neonClient.unsafe(text, params) }
+  return { query: (text, params) => neonClient.query(text, params) }
 }
 
 // عميل واحد لكل قاعدة (مُخزَّن مؤقتاً بالذاكرة) — لا نفتح اتصالاً/Pool جديداً بكل استعلام، ولا حتى
