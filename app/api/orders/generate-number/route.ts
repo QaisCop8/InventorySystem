@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import { requestBranchId } from "@/lib/branch-symbol"
 import { generateSalesOrderNumber, generatePurchaseOrderNumber } from "@/lib/number-generator"
 
 // يستدعي نفس دالة الترقيم المستخدَمة فعلياً عند الحفظ (lib/orders.ts createOrder، عبر
@@ -9,7 +10,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const vchBook = searchParams.get("vch_book") ?? ""
     const vchType = Number(searchParams.get("vch_type") ?? 1)
-    const branchId = Number(searchParams.get("branch_id")) || null
+    const branchId = await requestBranchId(request, searchParams.get("branch_id"))
 
     const orderNumber =
       vchType === 2 ? await generatePurchaseOrderNumber(vchBook, branchId) : await generateSalesOrderNumber(vchBook, branchId)

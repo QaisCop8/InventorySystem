@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
 import { parseTypedVoucherCode } from "@/lib/voucher-code"
-import { resolveBranchSymbol } from "@/lib/branch-symbol"
+import { resolveBranchSymbol, requestBranchId } from "@/lib/branch-symbol"
 import { authorizeStoredVoucher } from "@/lib/transaction-permissions"
 import { buildVoucherCode, ensureTables, getVoucherNumberSettings, resolveVoucherBookName } from "@/app/api/receipts/_lib"
 import { CHEQUE_PAYMENT_CODE_PREFIX, CHEQUE_PAYMENT_VCH_TYPE, ensureChequePaymentTables } from "../_lib"
@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ code: exact.vch_code, exists: true, id: Number(exact.id), status: Number(exact.status) })
     }
 
-    const branchId = Number(request.nextUrl.searchParams.get("branch_id")) || null
+    const branchId = await requestBranchId(request, request.nextUrl.searchParams.get("branch_id"))
     const bookName = await resolveVoucherBookName(bookId, branchId)
     if (!bookName) return NextResponse.json({ error: "يجب اختيار دفتر السندات أولاً" }, { status: 400 })
     const configuredPrefix = CHEQUE_PAYMENT_CODE_PREFIX

@@ -64,11 +64,13 @@ export async function POST(request: NextRequest) {
     const authorization = await authorizeFile(request, "branches", "create")
     if (!authorization.ok) return authorization.response
     const data = await request.json()
+    // البنك إلزامي لفرع البنك فقط (bank_branch: true من شاشة فروع البنوك)، واختياري لفرع الشركة
     const bankId = Number(data.bank_id)
-    if (!Number.isInteger(bankId) || bankId <= 0) {
+    const hasBank = Number.isInteger(bankId) && bankId > 0
+    if (data.bank_branch === true && !hasBank) {
       return NextResponse.json({ error: "يجب اختيار البنك" }, { status: 400 })
     }
-    // Quick setup generates the branch code automatically and still requires a bank.
+    // Quick setup generates the branch code automatically.
     const quick = data.quick === true
     let branchCode = String(data.branch_code || "").trim()
     if (quick && !branchCode) {
@@ -98,7 +100,7 @@ export async function POST(request: NextRequest) {
         ${branchCode},
         ${String(data.branch_name).trim()},
         ${symbolCheck.symbol},
-        ${bankId},
+        ${hasBank ? bankId : null},
         ${data.address || ""},
         ${data.manager || ""},
         ${data.phone || ""},
@@ -133,7 +135,9 @@ export async function PUT(request: NextRequest) {
     if (!String(data.branch_name || "").trim()) {
       return NextResponse.json({ error: "اسم الفرع مطلوب" }, { status: 400 })
     }
-    if (!Number.isInteger(Number(data.bank_id)) || Number(data.bank_id) <= 0) {
+    const putBankId = Number(data.bank_id)
+    const putHasBank = Number.isInteger(putBankId) && putBankId > 0
+    if (data.bank_branch === true && !putHasBank) {
       return NextResponse.json({ error: "يجب اختيار البنك" }, { status: 400 })
     }
     const symbolCheck = await validateBranchSymbol(data.branch_symbol, Number(data.id))
@@ -145,7 +149,7 @@ export async function PUT(request: NextRequest) {
         branch_code = ${branchCode},
         branch_name = ${String(data.branch_name).trim()},
         branch_symbol = ${symbolCheck.symbol},
-        bank_id = ${Number(data.bank_id)},
+        bank_id = CASE WHEN ${data.bank_id === undefined}::boolean THEN bank_id ELSE ${putHasBank ? putBankId : null}::int END,
         address = ${data.address || ""},
         manager = ${data.manager || ""},
         phone = ${data.phone || ""},

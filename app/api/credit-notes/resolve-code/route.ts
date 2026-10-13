@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { parseTypedVoucherCode } from "@/lib/voucher-code"
-import { resolveBranchSymbol } from "@/lib/branch-symbol"
+import { resolveBranchSymbol, requestBranchId } from "@/lib/branch-symbol"
 import sql from "@/lib/database"
 import { ensureTables, getCreditNoteNumberSettings, buildVoucherCode, resolveVoucherBookName } from "../_lib"
 
@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
     const vchType = Number(searchParams.get("vch_type") || 10)
     const vchBookId = searchParams.get("vch_book_id") ? Number(searchParams.get("vch_book_id")) : null
     const raw = (searchParams.get("raw") || "").trim()
-    const branchId = Number(searchParams.get("branch_id")) || null
+    const branchId = await requestBranchId(request, searchParams.get("branch_id"))
 
     if (!raw) return NextResponse.json({ code: "", exists: false })
 

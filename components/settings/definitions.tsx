@@ -291,12 +291,10 @@ function Definitions() {
   const [licenseTypeForm, setLicenseTypeForm] = useState({
     name: "",
   })
-  const [branchBanks, setBranchBanks] = useState<Array<{ id: number; bank_name: string }>>([])
   const [branchForm, setBranchForm] = useState({
     id: 0,
     branch_code: "",
     branch_name: "",
-    bank_id: "" as string | number,
     branch_symbol: "",
     address: "",
     manager: "",
@@ -407,11 +405,6 @@ function Definitions() {
       setLoading(false)
     }
   }
-
-  useEffect(() => {
-    // البنوك لقائمة اختيار بنك الفرع (إلزامي)
-    fetch("/api/banks").then((r) => (r.ok ? r.json() : [])).then((data) => setBranchBanks(Array.isArray(data) ? data : [])).catch(() => setBranchBanks([]))
-  }, [])
 
   useEffect(() => {
     fetchAllData()
@@ -1228,7 +1221,6 @@ function Definitions() {
       id: branch.id,
       branch_code: branch.branch_code || "",
       branch_name: branch.branch_name || "",
-      bank_id: branch.bank_id || "",
       branch_symbol: branch.branch_symbol || "",
       phone: branch.phone || "",
       address: branch.address || "",
@@ -2317,10 +2309,6 @@ function Definitions() {
       });
       return;
     }
-    if (!(Number(branchForm.bank_id) > 0)) {
-      toast({ title: "خطأ", description: "يجب اختيار البنك", variant: "destructive" });
-      return;
-    }
     const symbol = String(branchForm.branch_symbol || "").trim().toUpperCase();
     if (!symbol) {
       toast({ title: "خطأ", description: "رمز الفرع مطلوب", variant: "destructive" });
@@ -2340,7 +2328,7 @@ function Definitions() {
       const response = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...branchForm, bank_id: Number(branchForm.bank_id), branch_symbol: symbol, ...(editingBranchId ? {} : { quick: true }) }),
+        body: JSON.stringify({ ...branchForm, branch_symbol: symbol, ...(editingBranchId ? {} : { quick: true }) }),
       });
 
       if (response.ok) {
@@ -2359,7 +2347,6 @@ function Definitions() {
           id: 0,
           branch_code: "",
           branch_name: "",
-          bank_id: "",
           branch_symbol: "",
           address: "",
           manager: "",
@@ -2541,21 +2528,6 @@ function Definitions() {
                         </div>
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="text-right">
-                          <Label className="erp-label text-right block">البنك *</Label>
-                          <select
-                            required
-                            className="erp-input w-full rounded-md border bg-background px-3 py-2 text-right text-sm"
-                            dir="rtl"
-                            value={branchForm.bank_id === "" ? "" : String(branchForm.bank_id)}
-                            onChange={(e) => setBranchForm({ ...branchForm, bank_id: e.target.value })}
-                          >
-                            <option value="" disabled>اختر البنك</option>
-                            {branchBanks.map((bank) => (
-                              <option key={bank.id} value={bank.id}>{bank.bank_name}</option>
-                            ))}
-                          </select>
-                        </div>
                         <div className="text-right">
                           <Label className="erp-label text-right block">رمز الفرع *</Label>
                           <select

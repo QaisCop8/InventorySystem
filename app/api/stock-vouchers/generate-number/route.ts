@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { requestBranchId } from "@/lib/branch-symbol"
 import { ensureTables, getStockVoucherNumberSettings, nextVoucherSequence, buildVoucherCode, resolveVoucherBookName } from "../_lib"
 
 export const dynamic = "force-dynamic"
@@ -10,7 +11,7 @@ export async function GET(request: NextRequest) {
     const vchType = Number(searchParams.get("vch_type") || 12)
     const vchBookId = searchParams.get("vch_book_id") ? Number(searchParams.get("vch_book_id")) : null
 
-    const branchId = Number(searchParams.get("branch_id")) || null
+    const branchId = await requestBranchId(request, searchParams.get("branch_id"))
 
     const bookName = await resolveVoucherBookName(vchBookId, branchId)
     if (!bookName) {

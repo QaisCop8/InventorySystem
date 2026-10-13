@@ -189,7 +189,7 @@ export default function Branches() {
       const response = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...normalizedForm, branch_symbol: symbol }),
+        body: JSON.stringify({ ...normalizedForm, branch_symbol: symbol, bank_branch: true }),
       })
       if (!response.ok) {
         const error = await response.json()
@@ -214,7 +214,7 @@ export default function Branches() {
       const response = await fetch("/api/branches", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, status: 3 }),
+        body: JSON.stringify({ ...form, status: 3, bank_branch: true }),
       })
       if (!response.ok) {
         const error = await response.json()

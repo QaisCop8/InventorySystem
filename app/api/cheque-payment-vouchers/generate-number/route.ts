@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
+import { requestBranchId } from "@/lib/branch-symbol"
 import { buildVoucherCode, ensureTables, getVoucherNumberSettings, resolveVoucherBookName } from "@/app/api/receipts/_lib"
 import { CHEQUE_PAYMENT_CODE_PREFIX, CHEQUE_PAYMENT_VCH_TYPE, ensureChequePaymentTables } from "../_lib"
 
@@ -8,7 +9,7 @@ export async function GET(request: NextRequest) {
     await ensureTables()
     await ensureChequePaymentTables()
     const bookId = Number(request.nextUrl.searchParams.get("vch_book_id")) || null
-    const branchId = Number(request.nextUrl.searchParams.get("branch_id")) || null
+    const branchId = await requestBranchId(request, request.nextUrl.searchParams.get("branch_id"))
     const bookName = await resolveVoucherBookName(bookId, branchId)
     if (!bookName) return NextResponse.json({ error: "دفتر السندات غير موجود" }, { status: 400 })
     const { startNumber } = await getVoucherNumberSettings(request.url, CHEQUE_PAYMENT_VCH_TYPE)

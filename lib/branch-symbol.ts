@@ -1,4 +1,5 @@
 import sql, { resolveCurrentDbName } from "@/lib/database"
+import { getSessionUser } from "@/lib/tenant-auth"
 import { BRANCH_SYMBOLS } from "@/lib/voucher-code"
 
 // رمز الفرع (حرف واحد: 0 أو A-Z) يدخل في كود كل سند: بادئة السند + رمز الفرع + رمز دفتر السندات
@@ -56,4 +57,22 @@ export const validateBranchSymbol = async (
   const rows = await sql`SELECT id FROM branches WHERE branch_symbol = ${symbol} AND id <> ${excludeBranchId ?? 0} LIMIT 1`
   if (rows.length > 0) return { symbol, error: "رمز الفرع مستخدم في فرع آخر" }
   return { symbol, error: null }
+}
+
+// الفرع المعتمد لتوليد/تفسير رقم السند عندما لا يُمرَّر branch_id صراحةً (مثلاً أول توليد عند فتح سند جديد قبل أن
+// يختار حقل الفرع قيمته الافتراضية): branch_id الصريح ثم الفرع النشط (هيدر x-branch-id) ثم فرع المستخدم الافتراضي.
+export const requestBranchId = async (request: Request, explicit?: string | number | null): Promise<number | null> => {
+  const fromParam = Number(explicit)
+  if (Number.isInteger(fromParam) && fromParam > 0) return fromParam
+  const fromHeader = Number(request.headers.get("x-branch-id"))
+  if (Number.isInteger(fromHeader) && fromHeader > 0) return fromHeader
+  try {
+    const user = await getSessionUser(request as any)
+    if (!user) return null
+    const row = (await sql`SELECT branch_id FROM user_settings WHERE user_id = ${user.user_id} LIMIT 1`)[0]
+    const fromUser = Number(row?.branch_id)
+    return Number.isInteger(fromUser) && fromUser > 0 ? fromUser : null
+  } catch {
+    return null
+  }
 }
