@@ -1,7 +1,7 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   // يجب أن يطابق اسم الـ Worker في لوحة Cloudflare
-  "name": "inventory-ordering-system",
+  "name": "inventorysystem",
   "main": ".open-next/worker.js",
   "compatibility_date": "2025-09-15",
   // nodejs_compat مطلوب لـ Next.js ولمكتبة pg (اتصال Postgres)
@@ -13,7 +13,7 @@
   "services": [
     {
       "binding": "WORKER_SELF_REFERENCE",
-      "service": "inventory-ordering-system"
+      "service": "inventorysystem"
     }
   ],
   "observability": {

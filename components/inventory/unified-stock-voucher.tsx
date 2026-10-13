@@ -605,6 +605,19 @@ export default function UnifiedStockVoucher({
     initialSnapshotRef.current = JSON.stringify(form)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dialogOpen, form.id, form.vch_code])
+  // تغييرات تلقائية بعد فتح السند (اختيار الفرع الافتراضي، جلب بيانات الأرقام التسلسلية للأسطر) ليست
+  // تعديلاً من المستخدم: إن كان السند بلا تعديلات قبلها تُضَم إلى اللقطة — وإلا ظهرت نافذة "تم تعديل
+  // البيانات" بمجرد فتح السند وإغلاقه.
+  const autoRebaselineRef = useRef(false)
+  // formRef مُعرَّف أدناه — يُستدعى هذا من معالجات وآثار فقط (بعد اكتمال العرض)
+  const markAutoChangeIfClean = () => {
+    if (JSON.stringify(formRef.current) === initialSnapshotRef.current) autoRebaselineRef.current = true
+  }
+  useEffect(() => {
+    if (!autoRebaselineRef.current) return
+    autoRebaselineRef.current = false
+    initialSnapshotRef.current = JSON.stringify(form)
+  }, [form])
 
   const guardedAction = (action: () => void) => {
     if ([2, 3].includes(Number(form.status))) { action(); return }
@@ -1010,6 +1023,8 @@ export default function UnifiedStockVoucher({
       if (cancelled || !resolved) return
       const byIndex = resolved
       const next = itemsRef.current.map((row, index) => (byIndex[index] && byIndex[index].product_id === row.product_id && row.has_serial === undefined ? { ...row, has_serial: byIndex[index].has_serial, serials: byIndex[index].serials, serials_text: byIndex[index].serials_text } : row))
+      if (next.every((row, index) => row === itemsRef.current[index])) return
+      markAutoChangeIfClean()
       itemsRef.current = next
       onItemsChange(next)
     })
@@ -2441,7 +2456,11 @@ export default function UnifiedStockVoucher({
                       onChange={(value) => onFormChange("vch_date", value)}
                     />
                   </div>
-                  <TransactionBranchField voucherType={voucherType} action={form.id ? "update" : "create"} value={form.branch_id} onChange={(id) => onFormChange("branch_id", id)} disabled={isLocked} />
+                  <TransactionBranchField voucherType={voucherType} action={form.id ? "update" : "create"} value={form.branch_id} onChange={(id) => {
+                    // اختيار الفرع الافتراضي تلقائياً لسند جديد (الفرع فارغ) لا يُعدّ تعديلاً
+                    if (form.branch_id == null && id != null) markAutoChangeIfClean()
+                    onFormChange("branch_id", id)
+                  }} disabled={isLocked} />
                   <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
                     <Label>العملة *</Label>
                     <PrimeDropdown
@@ -2914,6 +2933,7 @@ export default function UnifiedStockVoucher({
 
         <ConfirmDialogYesNo
           visible={showDeleteConfirm}
+          title={form.status === 2 ? `تأكيد إلغاء ${labels.title}` : `تأكيد حذف ${labels.title}`}
           message={form.status === 2 ? "السند مرحل هل تريد الغاؤه منطقياً؟" : `هل تريد حذف هذا ${labels.title}؟`}
           onConfirm={() => {
             setShowDeleteConfirm(false)
@@ -2932,6 +2952,7 @@ export default function UnifiedStockVoucher({
         />
         <ConfirmDialogYesNo
           visible={showUnsavedConfirm}
+          title={`حفظ تعديلات ${labels.title}`}
           useAppDialog
           message="تم تعديل البيانات، هل تريد الحفظ؟"
           showBack
@@ -2954,6 +2975,7 @@ export default function UnifiedStockVoucher({
 
         <ConfirmDialogYesNo
           visible={showCurrencyRecalcConfirm}
+          title="تأكيد تغيير العملة"
           message="تغيير العملة يغير سعر الصرف، هل تريد تغيير الأسعار بناءا على ذلك؟"
           onConfirm={async () => {
             setShowCurrencyRecalcConfirm(false)
@@ -2973,6 +2995,7 @@ export default function UnifiedStockVoucher({
 
         <ConfirmDialogYesNo
           visible={showPriceRecalcConfirm}
+          title="تأكيد إعادة احتساب الأسعار"
           message="سيتم إعادة احتساب أسعار جميع الأصناف حسب فئة السعر المختارة، هل تريد المتابعة؟"
           onConfirm={() => {
             setShowPriceRecalcConfirm(false)
