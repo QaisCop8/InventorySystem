@@ -240,9 +240,17 @@ export async function hasEffectivePermission(userId: string, accessId: number, b
   return Boolean(rows[0]?.is_granted)
 }
 
+// معرّف صلاحية الكاشير لكل قاعدة — كان كل فحص صلاحية (حتى 5 مع كل حفظ فاتورة) يُعيد ~7 استعلامات إنشاء/منح
+// منها مسح كامل لجدول المستخدمين. يُخزَّن فقط حين كان الصف موجوداً مسبقاً (لا حين أُنشئ للتو داخل معاملة قد
+// تُلغى)؛ منح الصلاحية للمستخدمين الجدد تتولاه مزامنة الصلاحيات (syncPermissionDefinitions).
+const posCashierAccessIds = new Map<string, number>()
+
 export async function ensurePosCashierPermission(permission: PosCashierPermission): Promise<number> {
   const name = POS_CASHIER_PERMISSIONS[permission]
-  await ensurePermissionTables(await resolveCurrentDbName())
+  const dbName = await resolveCurrentDbName()
+  const cached = posCashierAccessIds.get(`${dbName}\u0000${permission}`)
+  if (cached) return cached
+  await ensurePermissionTables(dbName)
   const categoryRows = await sql`
     INSERT INTO access_category (name)
     SELECT ${POS_CASHIER_PERMISSION_CATEGORY}
@@ -269,6 +277,7 @@ export async function ensurePosCashierPermission(permission: PosCashierPermissio
     WHERE permissions::text LIKE '%جميع الصلاحيات%'
     ON CONFLICT (user_id, access_id) DO NOTHING
   `
+  if (!inserted[0]) posCashierAccessIds.set(`${dbName}\u0000${permission}`, Number(access.id))
   return Number(access.id)
 }
 

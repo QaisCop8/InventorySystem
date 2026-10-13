@@ -796,61 +796,81 @@ export const validateJournalAccountCurrencies = async (
 export const saveJournalRows = async (voucherId: number, journalRows: any[]) => {
   await sql`DELETE FROM voucher_journal_detail_tbl WHERE voucher_id = ${voucherId}`
 
-  const accountCurrencyCache = new Map<number, number | null>()
-  const accountCostCentersCache = new Map<number, any[]>()
-  const insertedIds: number[] = []
+  if (!journalRows.length) return []
 
-  for (const row of journalRows) {
-    let accountCurrencyId = accountCurrencyCache.get(row.account_id)
-    if (accountCurrencyId === undefined) {
-      const accountRows = await sql`SELECT currency_id FROM account_tbl WHERE id = ${row.account_id}`
-      const resolvedCurrencyId: number | null = accountRows[0]?.currency_id ?? null
-      accountCurrencyId = resolvedCurrencyId
-      accountCurrencyCache.set(row.account_id, resolvedCurrencyId)
-    }
+  // دفعة واحدة بدل 2-4 رحلات لكل سطر (عملة الحساب، الإدراج، مراكز التكلفة الافتراضية، كل مركز تكلفة) —
+  // مع قاعدة بعيدة كان حفظ فاتورة كاشير بعشرة أسطر قيد يعني عشرات الرحلات المتتالية. النتيجة مطابقة تماماً.
+  const accountIds = [...new Set(journalRows.map((row) => Number(row.account_id)).filter((id) => Number.isInteger(id) && id > 0))]
+  const accountRows = accountIds.length
+    ? await sql`SELECT id, currency_id FROM account_tbl WHERE id = ANY(${accountIds}::int[])`
+    : []
+  const accountCurrencyById = new Map<number, number | null>(accountRows.map((row: any) => [Number(row.id), row.currency_id ?? null]))
 
-    // v1 simplification: no cross-rate table exists yet, so the account's own-currency
-    // amount mirrors the voucher's amount/rate even when the account's currency differs.
-    const resolvedAccountCurrencyId = accountCurrencyId ?? row.currency_id
-    const accountRate = row.rate
-    const accountAmount = row.amount
+  const accountsNeedingDefaults = [...new Set(journalRows
+    .filter((row) => !(Array.isArray(row.cost_centers) && row.cost_centers.some((item: any) => item?.cost_center_id)))
+    .map((row) => Number(row.account_id)))]
+  const defaultRows = accountsNeedingDefaults.length
+    ? await sql`
+        SELECT account_id, cost_center_type_id, default_cost_center_id AS cost_center_id
+        FROM account_costcenters_tbl
+        WHERE account_id = ANY(${accountsNeedingDefaults}::int[]) AND default_cost_center_id IS NOT NULL
+        ORDER BY id
+      `
+    : []
+  const defaultCostCentersByAccount = new Map<number, any[]>()
+  for (const row of defaultRows) {
+    const list = defaultCostCentersByAccount.get(Number(row.account_id)) || []
+    list.push(row)
+    defaultCostCentersByAccount.set(Number(row.account_id), list)
+  }
 
-    const inserted = await sql`
-      INSERT INTO voucher_journal_detail_tbl (
-        voucher_id, order_no, journal_type_id, account_id, credit_debit,
-        amount, currency_id, rate, base_curr_amount, account_currency_id, account_rate, account_amount, note
-      ) VALUES (
-        ${voucherId}, ${row.order_no}, ${row.journal_type_id}, ${row.account_id}, ${row.credit_debit},
-        ${row.amount}, ${row.currency_id}, ${row.rate}, ${row.base_curr_amount},
-        ${resolvedAccountCurrencyId}, ${accountRate}, ${accountAmount}, ${row.note || ""}
-      )
-      RETURNING id
-    `
-    const journalId = inserted[0].id
-    insertedIds.push(Number(journalId))
+  // v1 simplification: no cross-rate table exists yet, so the account's own-currency
+  // amount mirrors the voucher's amount/rate even when the account's currency differs.
+  const column = <T,>(pick: (row: any) => T) => journalRows.map(pick)
+  const inserted = await sql`
+    INSERT INTO voucher_journal_detail_tbl (
+      voucher_id, order_no, journal_type_id, account_id, credit_debit,
+      amount, currency_id, rate, base_curr_amount, account_currency_id, account_rate, account_amount, note
+    )
+    SELECT ${voucherId}, r.order_no, r.journal_type_id, r.account_id, r.credit_debit,
+           r.amount, r.currency_id, r.rate, r.base_curr_amount, r.account_currency_id, r.account_rate, r.account_amount, r.note
+    FROM unnest(
+      ${column((row) => row.order_no ?? null)}::int[],
+      ${column((row) => row.journal_type_id ?? null)}::int[],
+      ${column((row) => row.account_id ?? null)}::int[],
+      ${column((row) => row.credit_debit ?? null)}::int[],
+      ${column((row) => row.amount ?? null)}::float8[],
+      ${column((row) => row.currency_id ?? null)}::int[],
+      ${column((row) => row.rate ?? null)}::float8[],
+      ${column((row) => row.base_curr_amount ?? null)}::float8[],
+      ${column((row) => accountCurrencyById.get(Number(row.account_id)) ?? row.currency_id ?? null)}::int[],
+      ${column((row) => row.rate ?? null)}::float8[],
+      ${column((row) => row.amount ?? null)}::float8[],
+      ${column((row) => String(row.note || ""))}::text[]
+    ) WITH ORDINALITY AS r(order_no, journal_type_id, account_id, credit_debit, amount, currency_id, rate,
+                           base_curr_amount, account_currency_id, account_rate, account_amount, note, ord)
+    ORDER BY r.ord
+    RETURNING id
+  `
+  // المعرّفات تُولَّد بترتيب الإدراج (ORDER BY ord) فترتيبها تصاعدياً يعيد ترتيب الأسطر المُرسلة نفسه
+  const insertedIds = inserted.map((row: any) => Number(row.id)).sort((a: number, b: number) => a - b)
 
-    let rowCostCenters = Array.isArray(row.cost_centers) ? row.cost_centers.filter((item: any) => item?.cost_center_id) : []
-    if (!rowCostCenters.length) {
-      let defaults = accountCostCentersCache.get(Number(row.account_id))
-      if (!defaults) {
-        defaults = await sql`
-          SELECT cost_center_type_id, default_cost_center_id AS cost_center_id
-          FROM account_costcenters_tbl
-          WHERE account_id=${Number(row.account_id)} AND default_cost_center_id IS NOT NULL
-          ORDER BY id
-        `
-        accountCostCentersCache.set(Number(row.account_id), defaults)
-      }
-      rowCostCenters = defaults
-    }
-
+  const costCenterJournalIds: number[] = []
+  const costCenterIds: number[] = []
+  journalRows.forEach((row, index) => {
+    const own = Array.isArray(row.cost_centers) ? row.cost_centers.filter((item: any) => item?.cost_center_id) : []
+    const rowCostCenters = own.length ? own : defaultCostCentersByAccount.get(Number(row.account_id)) || []
     for (const costCenter of rowCostCenters) {
       if (!costCenter?.cost_center_id) continue
-      await sql`
-        INSERT INTO voucher_costcenter_tbl (voucher_journal_id, cost_center_id)
-        VALUES (${journalId}, ${Number(costCenter.cost_center_id)})
-      `
+      costCenterJournalIds.push(insertedIds[index])
+      costCenterIds.push(Number(costCenter.cost_center_id))
     }
+  })
+  if (costCenterIds.length) {
+    await sql`
+      INSERT INTO voucher_costcenter_tbl (voucher_journal_id, cost_center_id)
+      SELECT * FROM unnest(${costCenterJournalIds}::int[], ${costCenterIds}::int[])
+    `
   }
   return insertedIds
 }

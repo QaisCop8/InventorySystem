@@ -467,54 +467,71 @@ export const saveSalesVoucherItems = async (voucherId: number, items: any[]) => 
     (unitRows as any[]).map((r) => [String(r.unit_name).trim().toLowerCase(), Number(r.id)]),
   )
 
+  if (!rows.length) return []
+  // إدراج كل الأسطر باستعلام واحد بدل استعلام لكل صنف (رحلة شبكة لكل سطر مع قاعدة بعيدة) — نفس القيم تماماً
+  const col = <T,>(pick: (row: any) => T) => rows.map(pick)
+  const resolveUnitId = (row: any) => {
+    const unitName = String(row.unit || row.unit_name || "").trim()
+    const rawUnitId = row.unit_id ?? row.unitId ?? null
+    return Number(rawUnitId ?? null) > 0 ? Number(rawUnitId) : unitName ? unitIdsByName.get(unitName.toLowerCase()) ?? null : null
+  }
+  const expiryToSave = (row: any) => ((hasExpiryById.get(Number(row.product_id)) ?? false) ? row.expiry_date || null : NO_EXPIRY_SENTINEL_DATE)
+  const insertedRows = await sql`
+    INSERT INTO voucher_items_tbl (
+      voucher_id, item_id, item_name, unit_id, qnty, bonus, discount, pos_discount_percent, campaign_discount, campaign_id, vat_classification_id,
+      vat_amount, vat_ratio, price, note, cost_price, barcode, size_id, color_taste_id,
+      length, width, height, count, order_item_id, delivery_item_id, production_date,
+      expiry_date, batch_no, store_id, journal_id, return_sales_invoice_id
+    )
+    SELECT ${voucherId}, r.item_id, r.item_name, r.unit_id, r.qnty, r.bonus, r.discount, r.pos_discount_percent, r.campaign_discount, r.campaign_id, r.vat_classification_id,
+           r.vat_amount, r.vat_ratio, r.price, r.note, r.cost_price, r.barcode, r.size_id, r.color_taste_id,
+           r.length, r.width, r.height, r.count, r.order_item_id, r.delivery_item_id, r.production_date,
+           r.expiry_date, r.batch_no, r.store_id, r.journal_id, r.return_sales_invoice_id
+    FROM unnest(
+      ${col((row) => row.item_id ?? row.product_id ?? null)}::int[],
+      ${col((row) => row.item_name || row.product_name || "")}::text[],
+      ${col(resolveUnitId)}::int[],
+      ${col((row) => Number(row.qnty ?? row.quantity ?? 0))}::float8[],
+      ${col((row) => Number(row.bonus ?? row.bonus_quantity ?? 0))}::float8[],
+      ${col((row) => Number(row.discount ?? row.discount_percent ?? 0))}::float8[],
+      ${col((row) => (row.pos_discount_percent == null ? null : Number(row.pos_discount_percent)))}::numeric[],
+      ${col((row) => Number(row.campaign_discount ?? row.campaign_discount_amount ?? 0))}::float8[],
+      ${col((row) => Number(row.campaign_id) || null)}::int[],
+      ${col((row) => row.vat_classification_id ?? null)}::int[],
+      ${col((row) => Number(row.vat_amount ?? 0))}::float8[],
+      ${col((row) => Number(row.vat_ratio ?? 0))}::float8[],
+      ${col((row) => Number(row.price ?? row.unit_price ?? 0))}::float8[],
+      ${col((row) => row.note || "")}::text[],
+      ${col((row) => Number(row.cost_price ?? 0))}::float8[],
+      ${col((row) => row.barcode || "")}::text[],
+      ${col((row) => row.size_id ?? null)}::int[],
+      ${col((row) => row.color_taste_id ?? null)}::int[],
+      ${col((row) => row.length ?? null)}::int[],
+      ${col((row) => row.width ?? null)}::int[],
+      ${col((row) => row.height ?? null)}::int[],
+      ${col((row) => row.count ?? null)}::int[],
+      ${col((row) => row.order_item_id ?? null)}::int[],
+      ${col((row) => row.delivery_item_id ?? null)}::int[],
+      ${col((row) => row.production_date || null)}::date[],
+      ${col(expiryToSave)}::date[],
+      ${col((row) => row.batch_no || row.batch_number || null)}::text[],
+      ${col((row) => row.store_id ?? row.warehouse_id ?? null)}::int[],
+      ${col((row) => row.journal_id ?? null)}::int[],
+      ${col((row) => row.return_sales_invoice_id ?? null)}::int[]
+    ) WITH ORDINALITY AS r(item_id, item_name, unit_id, qnty, bonus, discount, pos_discount_percent, campaign_discount, campaign_id, vat_classification_id,
+                           vat_amount, vat_ratio, price, note, cost_price, barcode, size_id, color_taste_id,
+                           length, width, height, count, order_item_id, delivery_item_id, production_date,
+                           expiry_date, batch_no, store_id, journal_id, return_sales_invoice_id, ord)
+    ORDER BY r.ord
+    RETURNING id
+  `
+  // المعرّفات تُولَّد بترتيب الإدراج (ORDER BY ord) فترتيبها تصاعدياً يطابق ترتيب الأسطر المُرسلة
+  const insertedIds = insertedRows.map((row: any) => Number(row.id)).sort((a: number, b: number) => a - b)
+
   const savedRows: any[] = []
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i]
-    const unitName = String(row.unit || row.unit_name || "").trim()
-    const rawUnitId = row.unit_id ?? row.unitId ?? null
-    const resolvedUnitId = Number(rawUnitId ?? null) > 0 ? Number(rawUnitId) : unitName ? unitIdsByName.get(unitName.toLowerCase()) ?? null : null
-    const hasExpiry = hasExpiryById.get(Number(row.product_id)) ?? false
-    const expiryDateToSave = hasExpiry ? row.expiry_date || null : NO_EXPIRY_SENTINEL_DATE
-    const inserted = await sql`
-      INSERT INTO voucher_items_tbl (
-        voucher_id, item_id, item_name, unit_id, qnty, bonus, discount, pos_discount_percent, campaign_discount, campaign_id, vat_classification_id,
-        vat_amount, vat_ratio, price, note, cost_price, barcode, size_id, color_taste_id,
-        length, width, height, count, order_item_id, delivery_item_id, production_date,
-        expiry_date, batch_no, store_id, journal_id, return_sales_invoice_id
-      ) VALUES (
-        ${voucherId},
-        ${row.item_id ?? row.product_id ?? null},
-        ${row.item_name || row.product_name || ""},
-        ${resolvedUnitId ?? null},
-        ${Number(row.qnty ?? row.quantity ?? 0)},
-        ${Number(row.bonus ?? row.bonus_quantity ?? 0)},
-        ${Number(row.discount ?? row.discount_percent ?? 0)},
-        ${row.pos_discount_percent == null ? null : Number(row.pos_discount_percent)},
-        ${Number(row.campaign_discount ?? row.campaign_discount_amount ?? 0)},
-        ${Number(row.campaign_id) || null},
-        ${row.vat_classification_id ?? null},
-        ${Number(row.vat_amount ?? 0)},
-        ${Number(row.vat_ratio ?? 0)},
-        ${Number(row.price ?? row.unit_price ?? 0)},
-        ${row.note || ""},
-        ${Number(row.cost_price ?? 0)},
-        ${row.barcode || ""},
-        ${row.size_id ?? null},
-        ${row.color_taste_id ?? null},
-        ${row.length ?? null},
-        ${row.width ?? null},
-        ${row.height ?? null},
-        ${row.count ?? null},
-        ${row.order_item_id ?? null},
-        ${row.delivery_item_id ?? null},
-        ${row.production_date || null},
-        ${expiryDateToSave},
-        ${row.batch_no || row.batch_number || null},
-        ${row.store_id ?? row.warehouse_id ?? null},
-        ${row.journal_id ?? null},
-        ${row.return_sales_invoice_id ?? null}
-      ) RETURNING id
-    `
+    const inserted = [{ id: insertedIds[i] }]
     savedRows.push({ ...row, id: Number(inserted[0].id) })
     const selected = row.selected_attributes && typeof row.selected_attributes === "object" ? Object.values(row.selected_attributes).map(String) : []
     for (const value of selected) {
@@ -532,13 +549,21 @@ export const saveSalesVoucherItems = async (voucherId: number, items: any[]) => 
 }
 
 export const linkSalesVoucherItemsToJournals = async (savedItems: any[], journalRows: any[], journalIds: number[]) => {
+  // تحديث واحد لكل الأسطر بدل تحديث لكل سطر قيد (آخر قيد لنفس الصنف يفوز، كما في الحلقة السابقة)
+  const journalIdByItemId = new Map<number, number>()
   for (let journalIndex = 0; journalIndex < journalRows.length; journalIndex++) {
     const itemIndex = journalRows[journalIndex]?.item_index
-    const itemId = itemIndex != null ? savedItems[Number(itemIndex)]?.id : null
-    const journalId = journalIds[journalIndex]
+    const itemId = itemIndex != null ? Number(savedItems[Number(itemIndex)]?.id) : 0
+    const journalId = Number(journalIds[journalIndex])
     if (!itemId || !journalId) continue
-    await sql`UPDATE voucher_items_tbl SET journal_id = ${journalId} WHERE id = ${itemId}`
+    journalIdByItemId.set(itemId, journalId)
   }
+  if (!journalIdByItemId.size) return
+  await sql`
+    UPDATE voucher_items_tbl vi SET journal_id = link.journal_id
+    FROM unnest(${[...journalIdByItemId.keys()]}::int[], ${[...journalIdByItemId.values()]}::int[]) AS link(item_id, journal_id)
+    WHERE vi.id = link.item_id
+  `
 }
 
 export const fetchSalesVoucherItems = async (voucherId: number, itemJournalTypeId?: number | null) => {
