@@ -28,8 +28,6 @@ const nextConfig = {
         turbopack: {
           resolveAlias: {
             odbc: './lib/stubs/odbc.cjs',
-            // Server (node) only — the browser keeps the real react-dom/client.
-            'react-dom/client': { node: './lib/stubs/react-dom-client.cjs' },
           },
         },
       }
@@ -49,7 +47,18 @@ const nextConfig = {
   // Provisioning reads this file at runtime. Keep it in standalone/serverless
   // build artifacts instead of relying on it being present in the source tree.
   outputFileTracingIncludes: {
-    '/*': ['./scripts/company-bootstrap.sql'],
+    '/*': [
+      './scripts/company-bootstrap.sql',
+      // Workers: pg loads pg-cloudflare (its "workerd" export, dist/index.js) for sockets. Next traces with
+      // Node conditions so that file is never copied and the Worker bundle cannot resolve it. Both the
+      // pnpm layout (sibling of pg inside .pnpm) and the flat npm layout are listed.
+      ...(cloudflareBuild
+        ? [
+            './node_modules/.pnpm/pg@*/node_modules/pg-cloudflare/**/*',
+            './node_modules/pg-cloudflare/**/*',
+          ]
+        : []),
+    ],
   },
 
   eslint: {
