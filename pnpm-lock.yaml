@@ -14,6 +14,9 @@ importers:
       '@ai-sdk/xai':
         specifier: latest
         version: 4.0.27(zod@3.25.76)
+      '@grapecity/wijmo':
+        specifier: ^5.20252.42
+        version: 5.20261.52
       '@grapecity/wijmo.chart.finance.analytics':
         specifier: ^5.20252.42
         version: 5.20261.52
@@ -33,6 +36,9 @@ importers:
         specifier: ^5.20252.42
         version: 5.20261.52
       '@grapecity/wijmo.grid.xlsx':
+        specifier: ^5.20252.42
+        version: 5.20261.52
+      '@grapecity/wijmo.input':
         specifier: ^5.20252.42
         version: 5.20261.52
       '@grapecity/wijmo.pdf':
