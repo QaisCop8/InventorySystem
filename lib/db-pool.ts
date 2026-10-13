@@ -28,7 +28,10 @@ export function getPool(connectionString: string): Pool {
   }
   let pool = pools.get(connectionString)
   if (!pool) {
-    pool = new Pool(requestContext ? { connectionString, max: 5 } : { connectionString })
+    pool = new Pool(requestContext ? { connectionString, max: 5, idleTimeoutMillis: 1000 } : { connectionString })
+    // بلا مستمع لحدث "error" يرمي pg الخطأ عند انقطاع اتصال خامل — على Workers تُقطع اتصالات الطلب عند انتهائه،
+    // فكان ذلك يُسقط الـ Worker ويعرض صفحة خطأ HTML للطلب التالي (مثل تسجيل الدخول).
+    pool.on("error", (error) => console.error("[db-pool] idle connection error:", error.message))
     pools.set(connectionString, pool)
   }
   return pool
