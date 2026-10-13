@@ -1996,12 +1996,6 @@ export default function UnifiedReceiptVoucher({
                   </span>
                 )}
               </DialogTitle>
-              {isReceipt && (
-                <button type="button" disabled={!(form.id > 0)} onClick={() => setBillsPaymentOpen(true)} title={form.id > 0 ? "تسديد الفواتير" : "احفظ السند أولاً"} className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-white/15 px-3 py-1 text-xs font-semibold text-white ring-1 ring-white/30 transition hover:bg-white/25 disabled:opacity-50">
-                  <Wallet className="h-3.5 w-3.5" />
-                  تسديد الفواتير
-                </button>
-              )}
             </DialogHeader>
             {isReceipt && <BillsPaymentDialog open={billsPaymentOpen} onOpenChange={setBillsPaymentOpen} voucherId={form.id > 0 ? form.id : null} />}
 
@@ -2119,11 +2113,36 @@ export default function UnifiedReceiptVoucher({
               </div>
 
               <div className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-                <div className="flex items-center gap-2 text-sm font-bold text-blue-700">
-                  <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-50 ring-1 ring-blue-100">
-                    <User className="h-3.5 w-3.5" />
-                  </span>
-                  تفاصيل العميل
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 text-sm font-bold text-blue-700">
+                    <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-50 ring-1 ring-blue-100">
+                      <User className="h-3.5 w-3.5" />
+                    </span>
+                    تفاصيل العميل
+                  </div>
+                  {isReceipt && (
+                    // نفس زر "تسديد الفواتير" في فاتورة المبيعات (unified-sales-delivery.tsx). span بدور زر لا <button>:
+                    // البطاقة داخل <fieldset disabled> الذي يُعطّل أزرار السند المرحّل، والتسديد مطلوب للسند المرحّل تحديداً.
+                    <Button asChild size="sm" variant="outline" className="h-7 cursor-pointer gap-1 px-2 text-xs aria-disabled:cursor-not-allowed aria-disabled:opacity-50">
+                      <span
+                        role="button"
+                        tabIndex={form.id > 0 ? 0 : -1}
+                        aria-disabled={!(form.id > 0)}
+                        title={form.id > 0 ? "تسديد الفواتير" : "احفظ السند أولاً"}
+                        onClick={() => { if (form.id > 0) setBillsPaymentOpen(true) }}
+                        onKeyDown={(event) => {
+                          if ((event.key === "Enter" || event.key === " ") && form.id > 0) {
+                            event.preventDefault()
+                            event.stopPropagation()
+                            setBillsPaymentOpen(true)
+                          }
+                        }}
+                      >
+                        <Wallet className="h-3.5 w-3.5 text-emerald-600" />
+                        تسديد الفواتير
+                      </span>
+                    </Button>
+                  )}
                 </div>
                 <div className="grid gap-3">
                   <div className="grid gap-3 sm:grid-cols-2">

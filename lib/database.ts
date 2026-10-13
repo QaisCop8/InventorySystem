@@ -71,6 +71,40 @@ function isRepeatSafeDdl(text: string, params: any[]): boolean {
   return false
 }
 
+// "ALTER TABLE … ADD COLUMN IF NOT EXISTS" يطلب قفلاً حصرياً كاملاً على الجدول (ACCESS EXCLUSIVE) حتى لو كان
+// العمود موجوداً، و"CREATE INDEX IF NOT EXISTS" يقفل الجدول قبل أن يكتشف وجود الفهرس. فإن كانت معاملة أخرى
+// تستخدم الجدول (حفظ فاتورة كاشير يقرأ user_settings مثلاً) ينتظر الأمر انتهاءها، وكل استعلام لاحق على نفس
+// الجدول يصطف خلفه ← يتجمّد النظام كله (أو حفظ ينتظر نفسه إن صدر الأمر من اتصال آخر أثناء معاملة الحفظ).
+// لذلك يُفحص الفهرس/الجدول/الأعمدة في الكتالوج أولاً (بلا أقفال على الجدول) ولا يُنفَّذ الأمر إلا إن نقص شيء.
+const IDENT = String.raw`("(?:[^"]|"")+"|[A-Za-z_][\w$]*(?:\.(?:"(?:[^"]|"")+"|[A-Za-z_][\w$]*))?)`
+const unquoteIdent = (name: string) => (name.startsWith('"') ? name.slice(1, -1).replace(/""/g, '"') : name.toLowerCase())
+
+async function ddlAlreadySatisfied(client: TenantClient, text: string): Promise<boolean> {
+  const statement = text.trim().replace(/;\s*$/, "").replace(/\s+/g, " ")
+  const relation =
+    statement.match(new RegExp(String.raw`^CREATE (?:TABLE|SEQUENCE) IF NOT EXISTS ${IDENT}`, "i"))?.[1] ??
+    statement.match(new RegExp(String.raw`^CREATE (?:UNIQUE )?INDEX (?:CONCURRENTLY )?IF NOT EXISTS ${IDENT}`, "i"))?.[1]
+  if (relation) {
+    const [row] = await client.query(`SELECT to_regclass($1) IS NOT NULL AS ok`, [relation])
+    return Boolean(row?.ok)
+  }
+  const table = statement.match(new RegExp(String.raw`^ALTER TABLE (?:IF EXISTS )?(?:ONLY )?${IDENT}`, "i"))?.[1]
+  if (!table) return false
+  const columns = [...statement.matchAll(new RegExp(String.raw`\bADD COLUMN IF NOT EXISTS ${IDENT}`, "gi"))].map((match) => unquoteIdent(match[1]))
+  if (!columns.length) return false
+  const [row] = await client.query(
+    `SELECT COUNT(*)::int AS n FROM pg_attribute WHERE attrelid = to_regclass($1) AND attname = ANY($2::text[]) AND NOT attisdropped`,
+    [table, columns],
+  )
+  return Number(row?.n) === new Set(columns).size
+}
+
+/** يُنفّذ أمر DDL آمن التكرار فقط إن كان ينقصه شيء فعلاً (انظر ddlAlreadySatisfied). */
+async function runRepeatSafeDdl(client: TenantClient, text: string, params: any[]): Promise<any[]> {
+  if (await ddlAlreadySatisfied(client, text)) return []
+  return client.query(text, params)
+}
+
 function withDdlMemo(dbName: string, client: TenantClient): TenantClient {
   return {
     query: (text, params) => {
@@ -79,7 +113,7 @@ function withDdlMemo(dbName: string, client: TenantClient): TenantClient {
       if (completedDdl.has(key)) return Promise.resolve([])
       let pending = inFlightDdl.get(key)
       if (!pending) {
-        pending = client.query(text, params).then(
+        pending = runRepeatSafeDdl(client, text, params).then(
           (rows) => {
             completedDdl.add(key)
             inFlightDdl.delete(key)
@@ -131,8 +165,13 @@ export async function withTenantTransaction<T>(fn: () => Promise<T>): Promise<T>
 
   const pool = await getTenantPool()
   const client = await pool.connect()
-  const transactionClient: TenantClient = {
+  const rawTransactionClient: TenantClient = {
     query: async (text, params) => (await client.query(text, params)).rows,
+  }
+  // نفس الفحص داخل المعاملة: أمر DDL لا يُغيّر شيئاً لا يُنفَّذ فلا يحجز قفلاً حصرياً حتى نهاية المعاملة
+  const transactionClient: TenantClient = {
+    query: (text, params) =>
+      isRepeatSafeDdl(text, params) ? runRepeatSafeDdl(rawTransactionClient, text, params) : rawTransactionClient.query(text, params),
   }
 
   try {

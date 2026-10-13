@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server"
 import sql, { withTenantTransaction } from "@/lib/database"
 import { POST as createSalesVoucher } from "@/app/api/sales-vouchers/route"
 import { POST as createStockVoucher } from "@/app/api/stock-vouchers/route"
-import { regenerateVoucherCode, STOCK_OUT_VCH_TYPE } from "@/app/api/stock-vouchers/_lib"
+import { regenerateVoucherCode, STOCK_OUT_VCH_TYPE, ensureTables as ensureStockVoucherTables } from "@/app/api/stock-vouchers/_lib"
+import { ensureTables as ensureVoucherTables } from "@/app/api/receipts/_lib"
 import { ensureTables, generateSalesVoucherCode, SALES_INVOICE_VCH_TYPE, RETURN_SELL_VCH_TYPE } from "@/app/api/sales-vouchers/_lib"
 import { canUsePosCashierPermission, ensurePosTables, getOpenPosSession, getPosPoint, requestUserId } from "../_lib"
 import { getPosCurrencies } from "@/lib/pos-currencies"
@@ -29,8 +30,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "السلة فارغة" }, { status: 400 })
     }
 
+    // تهيئة الجداول قبل فتح المعاملة لا داخلها: أوامر ALTER/CREATE داخل المعاملة تحجز أقفالاً حصرية على الجداول
+    // (system_settings، voucher_header_tbl...) حتى نهاية الحفظ فتنتظرها كل الصفحات الأخرى، وقد تنتظر المعاملةُ
+    // نفسَها إن صدر أمر مماثل من اتصال آخر أثناء الحفظ. بعد أول تطبيق تُتخطّى كلها (runSchemaOnce) فالكلفة ضئيلة.
+    await ensureTables(); await ensurePosTables(); await ensureVoucherTables(); await ensureStockVoucherTables()
+    await loadStoredSettings()
     return await withTenantTransaction(async () => {
-      await ensureTables(); await ensurePosTables()
       await sql`SELECT pg_advisory_xact_lock(hashtext(${`pos-sale:${clientSaleId}`}))`
 
       const existing = await sql`SELECT * FROM voucher_header_tbl WHERE pos_client_sale_id = ${clientSaleId} LIMIT 1`

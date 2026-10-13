@@ -43,8 +43,17 @@ export function transactionFamilyForVoucherType(vchType: number): TransactionFam
   return VOUCHER_FAMILIES[Number(vchType)] || null
 }
 
+// معرّف صلاحية الحركة لكل قاعدة — authorizeTransaction يستدعي هذه الدالة مع كل طلب سند (عرض/حفظ/حذف)، وكانت
+// تُعيد ~8 استعلامات في كل مرة (منها setval ومسح كامل لجدول المستخدمين). يُخزَّن فقط حين كان الصف موجوداً
+// مسبقاً (لا حين أُنشئ للتو داخل معاملة قد تُلغى)؛ منح المستخدمين الجدد تتولاه مزامنة الصلاحيات.
+const transactionAccessIds = new Map<string, number>()
+
 export async function ensureTransactionPermission(family: TransactionFamily, action: TransactionAction): Promise<number> {
-  await ensurePermissionTables(await resolveCurrentDbName())
+  const dbName = await resolveCurrentDbName()
+  const cacheKey = `${dbName}\u0000${family}\u0000${action}`
+  const cached = transactionAccessIds.get(cacheKey)
+  if (cached) return cached
+  await ensurePermissionTables(dbName)
   await sql`
     SELECT setval(
       pg_get_serial_sequence('access_category', 'id'),
@@ -91,6 +100,7 @@ export async function ensureTransactionPermission(family: TransactionFamily, act
     WHERE permissions::text LIKE '%جميع الصلاحيات%'
     ON CONFLICT (user_id, access_id) DO NOTHING
   `
+  if (!inserted[0]) transactionAccessIds.set(cacheKey, Number(access.id))
   return Number(access.id)
 }
 

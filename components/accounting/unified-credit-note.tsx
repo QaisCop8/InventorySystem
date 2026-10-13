@@ -520,8 +520,6 @@ export default function UnifiedCreditNote({
             </DialogHeader>
             {isCreditNote && <BillsPaymentDialog open={billsPaymentOpen} onOpenChange={setBillsPaymentOpen} voucherId={form.id > 0 ? form.id : null} />}
 
-            <TransactionBranchField voucherType={form.vch_type} action={form.id ? "update" : "create"} value={form.branch_id} onChange={(id) => onFormChange("branch_id", id)} disabled={isLocked} />
-
             <Messages innerRef={messagesRef} />
 
             <fieldset disabled={isLocked} className="contents">
@@ -535,7 +533,8 @@ export default function UnifiedCreditNote({
                     تفاصيل السند
                   </div>
                   <div className="grid gap-3">
-                    <div className="grid grid-cols-3 gap-3">
+                    {/* دفتر/رقم/تاريخ/فرع السند بشبكة 2×2 داخل "تفاصيل السند" — نفس ترتيب سند القبض. */}
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                       <div className="grid gap-1.5 invoice-currency-dropdown-wrap">
                         <Label>دفتر السندات *</Label>
                         <PrimeDropdown
@@ -589,6 +588,7 @@ export default function UnifiedCreditNote({
                           }}
                         />
                       </div>
+                      <TransactionBranchField voucherType={form.vch_type} action={form.id ? "update" : "create"} value={form.branch_id} onChange={(id) => onFormChange("branch_id", id)} disabled={isLocked} />
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div className="grid gap-1.5 invoice-currency-dropdown-wrap">

@@ -216,7 +216,12 @@ export function ensureManagementTables(): Promise<void> {
  * initializer, this runs on every permission-definition sync, so a long-lived
  * server process also receives newly deployed access definitions immediately.
  */
+// بعد نجاح التهيئة مرة في هذه النسخة من الخادم تُتخطّى (قيمة منطقية لا Promise مشترك بين الطلبات)
+let salesDraftDefinitionsSeeded = false
+let transactionDefinitionsSeeded = false
+
 export async function ensureSalesDraftPermissionDefinitions(): Promise<void> {
+  if (salesDraftDefinitionsSeeded) return
   await ensureManagementTables()
 
   await sql`
@@ -240,21 +245,19 @@ export async function ensureSalesDraftPermissionDefinitions(): Promise<void> {
   `)[0]
 
   if (!category?.id) return
-  for (const permissionName of [
-    "إضافة مسودة طلبية مبيعات",
-    "تعديل مسودة طلبية مبيعات",
-    "استعلام مسودة طلبية مبيعات",
-  ]) {
-    await sql`
-      INSERT INTO access_list (name, category_id)
-      SELECT ${permissionName}, ${category.id}
-      WHERE NOT EXISTS (SELECT 1 FROM access_list WHERE name = ${permissionName})
-    `
-  }
+  await sql`
+    INSERT INTO access_list (name, category_id)
+    SELECT u.name, ${category.id}
+    FROM unnest(${["إضافة مسودة طلبية مبيعات", "تعديل مسودة طلبية مبيعات", "استعلام مسودة طلبية مبيعات"]}::text[]) WITH ORDINALITY AS u(name, ord)
+    WHERE NOT EXISTS (SELECT 1 FROM access_list existing WHERE existing.name = u.name)
+    ORDER BY u.ord
+  `
+  salesDraftDefinitionsSeeded = true
 }
 
 /** Seeds the canonical transaction/action permission matrix in management DB. */
 export async function ensureTransactionPermissionDefinitions(): Promise<void> {
+  if (transactionDefinitionsSeeded) return
   await ensureManagementTables()
   const {
     TRANSACTION_ACTION_LABELS,
@@ -290,25 +293,38 @@ export async function ensureTransactionPermissionDefinitions(): Promise<void> {
   `)[0]
   if (!category?.id) return
 
+  // كل مصفوفة الحركات × الإجراءات (~500 صلاحية) بثلاثة أوامر بدل 2-3 أوامر لكل صلاحية: على Cloudflare كل استعلام
+  // لقاعدة الإدارة (عميل neon عبر HTTP) طلب فرعي، والحد 50 لكل طلب ← "Too many subrequests" في شاشة الصلاحيات.
+  const names: string[] = []
+  const legacyFrom: string[] = []
+  const legacyTo: string[] = []
   for (const family of Object.keys(TRANSACTION_FAMILIES) as Array<keyof typeof TRANSACTION_FAMILIES>) {
     for (const action of Object.keys(TRANSACTION_ACTION_LABELS) as Array<keyof typeof TRANSACTION_ACTION_LABELS>) {
       const name = transactionPermissionName(family, action)
       const legacyName = legacyTransactionPermissionName(family, action)
+      names.push(name)
       if (legacyName) {
-        await sql`
-          UPDATE access_list SET name = ${name}, category_id = ${category.id}, updated_at = CURRENT_TIMESTAMP
-          WHERE name = ${legacyName}
-            AND NOT EXISTS (SELECT 1 FROM access_list WHERE name = ${name})
-        `
+        legacyFrom.push(legacyName)
+        legacyTo.push(name)
       }
-      await sql`
-        INSERT INTO access_list (name, category_id)
-        SELECT ${name}, ${category.id}
-        WHERE NOT EXISTS (SELECT 1 FROM access_list WHERE name = ${name})
-      `
-      await sql`UPDATE access_list SET category_id = ${category.id} WHERE name = ${name}`
     }
   }
+  if (legacyFrom.length) {
+    await sql`
+      UPDATE access_list al SET name = m.name, category_id = ${category.id}, updated_at = CURRENT_TIMESTAMP
+      FROM unnest(${legacyFrom}::text[], ${legacyTo}::text[]) AS m(legacy_name, name)
+      WHERE al.name = m.legacy_name
+        AND NOT EXISTS (SELECT 1 FROM access_list existing WHERE existing.name = m.name)
+    `
+  }
+  await sql`
+    INSERT INTO access_list (name, category_id)
+    SELECT u.name, ${category.id}
+    FROM unnest(${names}::text[]) WITH ORDINALITY AS u(name, ord)
+    WHERE NOT EXISTS (SELECT 1 FROM access_list existing WHERE existing.name = u.name)
+    ORDER BY u.ord
+  `
+  await sql`UPDATE access_list SET category_id = ${category.id} WHERE name = ANY(${names}::text[]) AND category_id IS DISTINCT FROM ${category.id}`
 
   await sql`
     DELETE FROM access_list duplicate
@@ -320,6 +336,7 @@ export async function ensureTransactionPermissionDefinitions(): Promise<void> {
     CREATE UNIQUE INDEX IF NOT EXISTS idx_access_list_normalized_name
     ON access_list (LOWER(BTRIM(name)))
   `
+  transactionDefinitionsSeeded = true
 }
 
 
