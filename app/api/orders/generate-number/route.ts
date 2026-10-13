@@ -9,9 +9,10 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const vchBook = searchParams.get("vch_book") ?? ""
     const vchType = Number(searchParams.get("vch_type") ?? 1)
+    const branchId = Number(searchParams.get("branch_id")) || null
 
     const orderNumber =
-      vchType === 2 ? await generatePurchaseOrderNumber(vchBook) : await generateSalesOrderNumber(vchBook)
+      vchType === 2 ? await generatePurchaseOrderNumber(vchBook, branchId) : await generateSalesOrderNumber(vchBook, branchId)
 
     return NextResponse.json({ orderNumber, autoNumbering: true })
   } catch (error) {

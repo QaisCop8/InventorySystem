@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
+import { ensureBranchSymbolColumn } from "@/lib/branch-symbol"
 import { authorizeFile } from "@/lib/file-permissions"
 export async function GET(request: NextRequest, { params }: { params: { navigationType: string } }) {
   try {
@@ -9,6 +10,7 @@ export async function GET(request: NextRequest, { params }: { params: { navigati
       return NextResponse.json({ error: "Database not configured" }, { status: 500 })
     }
 
+    await ensureBranchSymbolColumn()
     const { navigationType } = params
     const currentId = Number(request.nextUrl.searchParams.get("currentId") || 0)
     const bankId = request.nextUrl.searchParams.get("bankId")
@@ -19,14 +21,14 @@ export async function GET(request: NextRequest, { params }: { params: { navigati
       case "first":
         rows = bankId
           ? await sql`
-              SELECT id, branch_code, branch_name, bank_id, status
+              SELECT id, branch_code, branch_name, branch_symbol, bank_id, status
               FROM branches
               WHERE status != 3 AND bank_id = ${Number(bankId)}
               ORDER BY id ASC
               LIMIT 1
             `
           : await sql`
-              SELECT id, branch_code, branch_name, bank_id, status
+              SELECT id, branch_code, branch_name, branch_symbol, bank_id, status
               FROM branches
               WHERE status != 3
               ORDER BY id ASC
@@ -36,14 +38,14 @@ export async function GET(request: NextRequest, { params }: { params: { navigati
       case "last":
         rows = bankId
           ? await sql`
-              SELECT id, branch_code, branch_name, bank_id, status
+              SELECT id, branch_code, branch_name, branch_symbol, bank_id, status
               FROM branches
               WHERE status != 3 AND bank_id = ${Number(bankId)}
               ORDER BY id DESC
               LIMIT 1
             `
           : await sql`
-              SELECT id, branch_code, branch_name, bank_id, status
+              SELECT id, branch_code, branch_name, branch_symbol, bank_id, status
               FROM branches
               WHERE status != 3
               ORDER BY id DESC
@@ -53,14 +55,14 @@ export async function GET(request: NextRequest, { params }: { params: { navigati
       case "previous":
         rows = bankId
           ? await sql`
-              SELECT id, branch_code, branch_name, bank_id, status
+              SELECT id, branch_code, branch_name, branch_symbol, bank_id, status
               FROM branches
               WHERE id < ${currentId || 0} AND status != 3 AND bank_id = ${Number(bankId)}
               ORDER BY id DESC
               LIMIT 1
             `
           : await sql`
-              SELECT id, branch_code, branch_name, bank_id, status
+              SELECT id, branch_code, branch_name, branch_symbol, bank_id, status
               FROM branches
               WHERE id < ${currentId || 0} AND status != 3
               ORDER BY id DESC
@@ -70,14 +72,14 @@ export async function GET(request: NextRequest, { params }: { params: { navigati
       case "next":
         rows = bankId
           ? await sql`
-              SELECT id, branch_code, branch_name, bank_id, status
+              SELECT id, branch_code, branch_name, branch_symbol, bank_id, status
               FROM branches
               WHERE id > ${currentId || 0} AND status != 3 AND bank_id = ${Number(bankId)}
               ORDER BY id ASC
               LIMIT 1
             `
           : await sql`
-              SELECT id, branch_code, branch_name, bank_id, status
+              SELECT id, branch_code, branch_name, branch_symbol, bank_id, status
               FROM branches
               WHERE id > ${currentId || 0} AND status != 3
               ORDER BY id ASC

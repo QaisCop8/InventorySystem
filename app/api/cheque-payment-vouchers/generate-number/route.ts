@@ -8,7 +8,8 @@ export async function GET(request: NextRequest) {
     await ensureTables()
     await ensureChequePaymentTables()
     const bookId = Number(request.nextUrl.searchParams.get("vch_book_id")) || null
-    const bookName = await resolveVoucherBookName(bookId)
+    const branchId = Number(request.nextUrl.searchParams.get("branch_id")) || null
+    const bookName = await resolveVoucherBookName(bookId, branchId)
     if (!bookName) return NextResponse.json({ error: "دفتر السندات غير موجود" }, { status: 400 })
     const { startNumber } = await getVoucherNumberSettings(request.url, CHEQUE_PAYMENT_VCH_TYPE)
     const prefix = CHEQUE_PAYMENT_CODE_PREFIX

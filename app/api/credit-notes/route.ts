@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
 
     const status = Number(data.status || 1)
     const settings = await getCreditNoteNumberSettings(request.url, vchType)
-    const bookName = await resolveVoucherBookName(Number(data.vch_book_id) || null)
+    const bookName = await resolveVoucherBookName(Number(data.vch_book_id) || null, authorization.branchId)
     const generateNextCode = async () => buildVoucherCode(settings.prefix, bookName, await nextVoucherSequence(vchType, `${settings.prefix}${bookName}`, settings.startNumber))
     let voucherCode = String(data.vch_code).trim()
     let result: any[] = []

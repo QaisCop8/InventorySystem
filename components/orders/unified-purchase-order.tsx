@@ -468,9 +468,19 @@ function UnifiedPurchaseOrder({
     }
   }
 
+  // تغيير الفرع لطلب شراء جديد يعيد توليد رقمه (بادئة + رمز الفرع + التسلسل)
+  const lastBranchRef = useRef(state.formData.branch_id)
+  useEffect(() => {
+    const { id: formId, branch_id: branchId } = state.formData
+    if (lastBranchRef.current === branchId) return
+    lastBranchRef.current = branchId
+    if (!formId && branchId) void generateOrderNumber()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.formData.branch_id])
+
   const generateOrderNumber = async () => {
     try {
-      const response = await fetch("/api/purchase-orders/generate-number")
+      const response = await fetch(`/api/purchase-orders/generate-number${state.formData.branch_id ? `?branch_id=${state.formData.branch_id}` : ""}`)
       if (!response.ok) {
         throw new Error("Failed to generate order number")
       }

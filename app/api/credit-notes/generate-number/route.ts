@@ -8,7 +8,9 @@ export async function GET(request: NextRequest) {
     const vchType = Number(searchParams.get("vch_type") || 10)
     const vchBookId = searchParams.get("vch_book_id") ? Number(searchParams.get("vch_book_id")) : null
 
-    const bookName = await resolveVoucherBookName(vchBookId)
+    const branchId = Number(searchParams.get("branch_id")) || null
+
+    const bookName = await resolveVoucherBookName(vchBookId, branchId)
     if (!bookName) {
       return NextResponse.json({ code: "" })
     }

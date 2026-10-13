@@ -1,4 +1,5 @@
 import sql from "@/lib/database"
+import { withBranchSymbol } from "@/lib/branch-symbol"
 import { validateNegativeStock } from "@/lib/negative-stock-guard"
 import { buildVoucherCode, normalizeVoucherPrefix } from "@/lib/voucher-code"
 import { validateSerialsRemoval } from "@/lib/item-serials"
@@ -178,10 +179,11 @@ export const nextVoucherSequence = async (vchType: number, codePrefix: string, s
   return maxNumber >= startNumber ? maxNumber + 1 : startNumber
 }
 
-export const resolveVoucherBookName = async (bookId: number | null): Promise<string> => {
+// جزء الكود الذي يلي بادئة السند: رمز الفرع (إن مُرّر branchId) + رمز دفتر السندات، مثل "AD".
+export const resolveVoucherBookName = async (bookId: number | null, branchId?: number | null): Promise<string> => {
   if (bookId == null) return ""
   const rows = await sql`SELECT name FROM voucher_books_tbl WHERE id = ${bookId}`
-  return rows[0]?.name || ""
+  return withBranchSymbol(String(rows[0]?.name || ""), branchId)
 }
 
 // يتحقق عند الحفظ من أن رقم السند يبدأ ببادئة إعدادات النظام لهذا النوع وبطول لا يقل عن
@@ -192,10 +194,11 @@ export const validateVoucherCodeFormat = async (
   vchType: number,
   vchBookId: number | null,
   vchCode: string,
+  branchId?: number | null,
 ): Promise<string | null> => {
   const code = String(vchCode || "").trim().toUpperCase()
   if (!code) return "رقم السند مطلوب"
-  const bookName = await resolveVoucherBookName(vchBookId)
+  const bookName = await resolveVoucherBookName(vchBookId, branchId)
   if (!bookName) return null // لا يمكن التحقق من البادئة دون دفتر سندات صالح — validateVoucher الأساسي يرفض غياب الدفتر أصلاً
   const { prefix } = await getStockVoucherNumberSettings(requestUrl, vchType)
   const basePrefix = `${prefix}${bookName}`
@@ -213,8 +216,9 @@ export const regenerateVoucherCode = async (
   requestUrl: string,
   vchType: number,
   vchBookId: number | null,
+  branchId?: number | null,
 ): Promise<string | null> => {
-  const bookName = await resolveVoucherBookName(vchBookId)
+  const bookName = await resolveVoucherBookName(vchBookId, branchId)
   if (!bookName) return null
   const { prefix, startNumber } = await getStockVoucherNumberSettings(requestUrl, vchType)
   const codePrefix = `${prefix}${bookName}`

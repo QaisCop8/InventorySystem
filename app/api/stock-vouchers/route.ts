@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "سعر الصرف يجب أن يكون أكبر من صفر" }, { status: 400 })
     }
 
-    const codeFormatError = await validateVoucherCodeFormat(request.url, vchType, data.vch_book_id ?? null, data.vch_code)
+    const codeFormatError = await validateVoucherCodeFormat(request.url, vchType, data.vch_book_id ?? null, data.vch_code, authorization.branchId)
     if (codeFormatError) {
       return NextResponse.json({ error: codeFormatError }, { status: 400 })
     }
@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
     `
     let regenerateAttempts = 0
     while (existing.length > 0 && regenerateAttempts < MAX_CODE_RETRY_ATTEMPTS) {
-      const regenerated = await regenerateVoucherCode(request.url, vchType, data.vch_book_id ?? null)
+      const regenerated = await regenerateVoucherCode(request.url, vchType, data.vch_book_id ?? null, authorization.branchId)
       if (!regenerated || regenerated === vchCode) break
       vchCode = regenerated
       existing = await sql`SELECT id FROM voucher_header_tbl WHERE vch_type = ${vchType} AND vch_code = ${vchCode}`
@@ -183,7 +183,7 @@ export async function POST(request: NextRequest) {
         break
       } catch (error: any) {
         if (String(error?.code || "") !== "23505") throw error
-        const regenerated = await regenerateVoucherCode(request.url, vchType, data.vch_book_id ?? null)
+        const regenerated = await regenerateVoucherCode(request.url, vchType, data.vch_book_id ?? null, authorization.branchId)
         if (!regenerated || regenerated === vchCode) break
         vchCode = regenerated
       }
@@ -234,7 +234,7 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "سعر الصرف يجب أن يكون أكبر من صفر" }, { status: 400 })
     }
 
-    const codeFormatError = await validateVoucherCodeFormat(request.url, vchType, data.vch_book_id ?? null, data.vch_code)
+    const codeFormatError = await validateVoucherCodeFormat(request.url, vchType, data.vch_book_id ?? null, data.vch_code, authorization.branchId)
     if (codeFormatError) {
       return NextResponse.json({ error: codeFormatError }, { status: 400 })
     }

@@ -293,10 +293,10 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
     }
   }
 
-  const generateCode = async (bookId: number | null, fallbackCode = "") => {
+  const generateCode = async (bookId: number | null, fallbackCode = "", branchId: number | null = null) => {
     if (!bookId) return fallbackCode
     try {
-      const response = await fetch(`/api/stock-vouchers/generate-number?vch_type=${voucherType}&vch_book_id=${bookId}`, { cache: "no-store" })
+      const response = await fetch(`/api/stock-vouchers/generate-number?vch_type=${voucherType}&vch_book_id=${bookId}${branchId ? `&branch_id=${branchId}` : ""}`, { cache: "no-store" })
       if (!response.ok) return fallbackCode
       const data = await response.json()
       return data.code || fallbackCode
@@ -310,9 +310,10 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
     if (!dialogOpen || form.id > 0 || !form.vch_book_id) return
     let cancelled = false
     const bookId = form.vch_book_id
+    const branchId = form.branch_id
     const previousCode = form.vch_code
     const refreshNumber = async () => {
-      const code = await generateCode(bookId, previousCode)
+      const code = await generateCode(bookId, previousCode, branchId)
       if (cancelled || code === previousCode) return
       setForm(current => current.id === 0 && current.vch_book_id === bookId && current.vch_code === previousCode
         ? { ...current, vch_code: code }
@@ -323,7 +324,7 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
       cancelled = true
       window.removeEventListener("system-settings-updated", refreshNumber)
     }
-  }, [dialogOpen, form.id, form.vch_book_id, form.vch_code, voucherType])
+  }, [dialogOpen, form.id, form.vch_book_id, form.branch_id, form.vch_code, voucherType])
 
   // تغيير دفتر السندات (لسند جديد لم يُحفَظ بعد فقط) يعيد توليد رقم السند وفق الدفتر الجديد —
   // بنفس نمط handleBookChange في credit-note.tsx/journal.tsx/receipts.tsx (لم تكن هذه الشاشة
@@ -332,8 +333,19 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
     const previousCode = form.vch_code || ""
     setForm((f) => ({ ...f, vch_book_id: bookId }))
     if (form.id > 0 || !bookId) return
-    const generated = await generateCode(bookId, previousCode)
+    const generated = await generateCode(bookId, previousCode, form.branch_id)
     setForm((f) => ({ ...f, vch_code: generated || previousCode }))
+  }
+
+  // تغيير الفرع لسند جديد لم يُحفظ بعد يعيد توليد رقم السند (رمز الفرع جزء من الرقم: بادئة السند + رمز الفرع
+  // + رمز الدفتر + التسلسل) — لا يُغيَّر رقم سند محفوظ مسبقاً.
+  const handleBranchChange = async (branchId: number | null) => {
+    const previousCode = form.vch_code || ""
+    const bookId = form.vch_book_id
+    setForm((f) => ({ ...f, branch_id: branchId }))
+    if (!(form.id <= 0) || !bookId || !branchId) return
+    const generated = await generateCode(bookId, previousCode, branchId)
+    setForm((f) => (f.branch_id === branchId && f.vch_book_id === bookId ? { ...f, vch_code: generated || previousCode } : f))
   }
 
   const fetchVoucherDetails = async (id: number): Promise<VoucherRecord | null> => {
@@ -412,7 +424,7 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
   // جديد بدل مسحها، ليحفظها المستخدم كسند مستقل دون إعادة إدخالها — مطابق لِـ cloneVoucher في receipts.tsx.
   const cloneVoucher = async () => {
     if (!form.id) return
-    const code = await generateCode(form.vch_book_id)
+    const code = await generateCode(form.vch_book_id, "", form.branch_id)
     const today = new Date().toISOString().slice(0, 10)
     setForm((f) => ({
       ...f,
@@ -700,6 +712,7 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
   }
 
   const onFormChange = <K extends keyof VoucherRecord>(field: K, value: VoucherRecord[K]) => {
+    if (field === "branch_id") { void handleBranchChange(value as number | null); return }
     setForm((f) => ({ ...f, [field]: value }))
   }
 

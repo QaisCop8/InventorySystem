@@ -105,7 +105,7 @@ export async function POST(request: NextRequest) {
     const status = Number(data.status || 1)
     const numberSettings = await getVoucherNumberSettings(request.url, vchType)
     const bookId = data.vch_book_id ? Number(data.vch_book_id) : null
-    const bookName = await resolveVoucherBookName(bookId)
+    const bookName = await resolveVoucherBookName(bookId, authorization.branchId)
     const generateNextCode = async () => {
       const codePrefix = `${numberSettings.prefix}${bookName}`
       const sequence = await nextVoucherSequence(vchType, codePrefix, numberSettings.startNumber)

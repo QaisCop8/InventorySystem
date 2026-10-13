@@ -279,8 +279,8 @@ export const getSalesVoucherNumberSettings = async (
   }
 }
 
-export const generateSalesVoucherCode = async (requestUrl: string, vchType: number, vchBookId: number | null): Promise<string> => {
-  const bookName = await resolveVoucherBookName(vchBookId)
+export const generateSalesVoucherCode = async (requestUrl: string, vchType: number, vchBookId: number | null, branchId?: number | null): Promise<string> => {
+  const bookName = await resolveVoucherBookName(vchBookId, branchId)
   const { prefix, startNumber } = await getSalesVoucherNumberSettings(requestUrl, vchType)
   const codePrefix = `${prefix}${bookName}`
   const sequence = await nextVoucherSequence(vchType, codePrefix, startNumber)

@@ -60,6 +60,7 @@ import {
   LucideIcon,
 } from "lucide-react"
 import { useMenuTheme } from "@/contexts/menu-theme-context"
+import { useSavingLock } from "@/lib/saving-lock"
 
 interface SidebarProps {
   isOpen: boolean
@@ -557,6 +558,8 @@ export function Sidebar({
   const [companyLogo, setCompanyLogo] = useState("")
   const [companyName, setCompanyName] = useState("ARAAK ERP System")
   const { menuDarkMode } = useMenuTheme()
+  // أثناء حفظ أي سند لا يُسمح بفتح صفحة أخرى
+  const savingLocked = useSavingLock()
   const searchInputRef = useRef<HTMLInputElement>(null)
 
   const searchTerms = useMemo(() => normalizeMenuText(query).split(" ").filter(Boolean), [query])
@@ -622,9 +625,10 @@ export function Sidebar({
       } else {
         toggleMenu(itemKey(item))
       }
-      if (item.section === "internal-manufacturing-request") onSectionChange(item.section)
+      if (item.section === "internal-manufacturing-request" && !savingLocked) onSectionChange(item.section)
       return
     }
+    if (savingLocked) return
     if (item.section) onSectionChange(item.section)
   }
 
@@ -632,6 +636,10 @@ export function Sidebar({
   // الزر الأوسط (فتح بتبويب جديد) وقائمة سياق المتصفح اليمنى تعملان بشكل طبيعي. الكليك العادي
   // فقط يُمنع ليُستبدل بالانتقال داخل الصفحة (SPA)، أما Ctrl/Cmd/Shift+كليك فتُترك للمتصفح.
   const handleItemLinkClick = (e: React.MouseEvent<HTMLAnchorElement>, item: MenuItem) => {
+    if (savingLocked) {
+      e.preventDefault()
+      return
+    }
     if (e.ctrlKey || e.metaKey || e.shiftKey) return
     e.preventDefault()
     handleItemClick(item)
@@ -785,7 +793,7 @@ export function Sidebar({
         )}
 
         {/* القائمة */}
-        <nav className={cn("min-h-0 flex-1 overflow-y-auto overflow-x-hidden pb-4 scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-transparent dark:scrollbar-thumb-white/10", isOpen ? "px-3 pt-1" : "px-2 pt-3")}>
+        <nav aria-busy={savingLocked} title={savingLocked ? "جارٍ حفظ السند، يرجى الانتظار" : undefined} className={cn(savingLocked && "pointer-events-none opacity-50", "min-h-0 flex-1 overflow-y-auto overflow-x-hidden pb-4 scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-transparent dark:scrollbar-thumb-white/10", isOpen ? "px-3 pt-1" : "px-2 pt-3")}>
           {isOpen && (
             <p className="px-2 pb-1.5 pt-1 text-[10.5px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
               {isSearching ? `نتائج البحث (${countLeaves(filteredItems)})` : "القائمة"}

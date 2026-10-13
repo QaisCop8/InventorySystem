@@ -72,7 +72,7 @@ export async function saveAIReceiptDraft(
       if (!rate) return fail("لا يوجد سعر صرف معرف لعملة السند بتاريخه")
     }
 
-    const codeData = await getJson(`/api/receipts/generate-number?vch_type=${voucherType}&vch_book_id=${bookId}`)
+    const codeData = await getJson(`/api/receipts/generate-number?vch_type=${voucherType}&vch_book_id=${bookId}&branch_id=${branchId}`)
     const code = String(codeData?.code || "")
     if (!code) return fail("تعذر توليد رقم السند")
 

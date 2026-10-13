@@ -4,6 +4,7 @@ import type React from "react"
 import { LicenseUsageStrip, useCompanyLicense, useLicenseRequestDialog } from "@/components/settings/license-limit"
 
 import { useState, useEffect } from "react"
+import { BRANCH_SYMBOLS } from "@/lib/voucher-code"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -39,6 +40,8 @@ interface Branch {
   id: number
   branch_code: string
   branch_name: string
+  branch_symbol?: string
+  bank_id?: number | null
   address?: string
   manager?: string
   phone?: string
@@ -288,10 +291,13 @@ function Definitions() {
   const [licenseTypeForm, setLicenseTypeForm] = useState({
     name: "",
   })
+  const [branchBanks, setBranchBanks] = useState<Array<{ id: number; bank_name: string }>>([])
   const [branchForm, setBranchForm] = useState({
     id: 0,
     branch_code: "",
     branch_name: "",
+    bank_id: "" as string | number,
+    branch_symbol: "",
     address: "",
     manager: "",
     phone: "",
@@ -401,6 +407,11 @@ function Definitions() {
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    // البنوك لقائمة اختيار بنك الفرع (إلزامي)
+    fetch("/api/banks").then((r) => (r.ok ? r.json() : [])).then((data) => setBranchBanks(Array.isArray(data) ? data : [])).catch(() => setBranchBanks([]))
+  }, [])
 
   useEffect(() => {
     fetchAllData()
@@ -1217,6 +1228,8 @@ function Definitions() {
       id: branch.id,
       branch_code: branch.branch_code || "",
       branch_name: branch.branch_name || "",
+      bank_id: branch.bank_id || "",
+      branch_symbol: branch.branch_symbol || "",
       phone: branch.phone || "",
       address: branch.address || "",
       manager: branch.manager || "",
@@ -2304,6 +2317,19 @@ function Definitions() {
       });
       return;
     }
+    if (!(Number(branchForm.bank_id) > 0)) {
+      toast({ title: "خطأ", description: "يجب اختيار البنك", variant: "destructive" });
+      return;
+    }
+    const symbol = String(branchForm.branch_symbol || "").trim().toUpperCase();
+    if (!symbol) {
+      toast({ title: "خطأ", description: "رمز الفرع مطلوب", variant: "destructive" });
+      return;
+    }
+    if (branches.some((b: any) => String(b.branch_symbol || "").toUpperCase() === symbol && Number(b.id) !== Number(editingBranchId || 0))) {
+      toast({ title: "خطأ", description: "رمز الفرع مستخدم في فرع آخر", variant: "destructive" });
+      return;
+    }
 
     try {
       const method = editingBranchId ? "PUT" : "POST";
@@ -2314,7 +2340,7 @@ function Definitions() {
       const response = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(branchForm),
+        body: JSON.stringify({ ...branchForm, bank_id: Number(branchForm.bank_id), branch_symbol: symbol, ...(editingBranchId ? {} : { quick: true }) }),
       });
 
       if (response.ok) {
@@ -2333,6 +2359,8 @@ function Definitions() {
           id: 0,
           branch_code: "",
           branch_name: "",
+          bank_id: "",
+          branch_symbol: "",
           address: "",
           manager: "",
           phone: "",
@@ -2510,6 +2538,39 @@ function Definitions() {
                             value={branchForm.branch_name}
                             onChange={(e) => setBranchForm({ ...branchForm, branch_name: e.target.value })}
                           />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="text-right">
+                          <Label className="erp-label text-right block">البنك *</Label>
+                          <select
+                            required
+                            className="erp-input w-full rounded-md border bg-background px-3 py-2 text-right text-sm"
+                            dir="rtl"
+                            value={branchForm.bank_id === "" ? "" : String(branchForm.bank_id)}
+                            onChange={(e) => setBranchForm({ ...branchForm, bank_id: e.target.value })}
+                          >
+                            <option value="" disabled>اختر البنك</option>
+                            {branchBanks.map((bank) => (
+                              <option key={bank.id} value={bank.id}>{bank.bank_name}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="text-right">
+                          <Label className="erp-label text-right block">رمز الفرع *</Label>
+                          <select
+                            required
+                            className="erp-input w-full rounded-md border bg-background px-3 py-2 text-right text-sm"
+                            dir="rtl"
+                            value={branchForm.branch_symbol}
+                            onChange={(e) => setBranchForm({ ...branchForm, branch_symbol: e.target.value })}
+                          >
+                            <option value="" disabled>اختر رمز الفرع</option>
+                            {BRANCH_SYMBOLS.map((symbol) => {
+                              const used = branches.some((b: any) => String(b.branch_symbol || "").toUpperCase() === symbol && Number(b.id) !== Number(editingBranchId || 0))
+                              return <option key={symbol} value={symbol} disabled={used}>{symbol}{used ? " (مستخدم)" : ""}</option>
+                            })}
+                          </select>
                         </div>
                       </div>
                       <div className="text-right">

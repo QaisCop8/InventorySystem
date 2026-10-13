@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
       try {
         // Generate a new order number if not provided or if this is a retry
         if (!orderNumber || attempts > 0) {
-          orderNumber = await generatePurchaseOrderNumber()
+          orderNumber = await generatePurchaseOrderNumber("", Number(data.branch_id) || null)
           console.log(`[v0] Generated order number (attempt ${attempts + 1}): ${orderNumber}`)
         }
 

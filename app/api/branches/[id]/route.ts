@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
+import { ensureBranchSymbolColumn, validateBranchSymbol } from "@/lib/branch-symbol"
 import { authorizeFile } from "@/lib/file-permissions"
 
 type RouteContext = { params: Promise<{ id: string }> }
@@ -16,8 +17,9 @@ export async function GET(request: NextRequest, context: RouteContext) {
     if (!authorization.ok) return authorization.response
     const branchId = await resolveBranchId(context)
     if (!branchId) return NextResponse.json({ error: "معرف الفرع غير صالح" }, { status: 400 })
+    await ensureBranchSymbolColumn()
     const rows = await sql`
-      SELECT id, branch_code, branch_name, bank_id, address, manager, phone, status
+      SELECT id, branch_code, branch_name, branch_symbol, bank_id, address, manager, phone, status
       FROM branches WHERE id = ${branchId} AND status != 3 LIMIT 1
     `
     if (rows.length === 0) return NextResponse.json({ error: "الفرع غير موجود" }, { status: 404 })
@@ -45,10 +47,13 @@ export async function PUT(request: NextRequest, context: RouteContext) {
     if (!Number.isInteger(Number(data.bank_id)) || Number(data.bank_id) <= 0) {
       return NextResponse.json({ error: "يجب اختيار البنك" }, { status: 400 })
     }
+    const symbolCheck = await validateBranchSymbol(data.branch_symbol, branchId)
+    if (symbolCheck.error) return NextResponse.json({ error: symbolCheck.error }, { status: 400 })
     const rows = await sql`
       UPDATE branches SET
         branch_code = ${branchCode},
         branch_name = ${String(data.branch_name).trim()},
+        branch_symbol = ${symbolCheck.symbol},
         bank_id = ${Number(data.bank_id)},
         address = ${data.address || ""},
         manager = ${data.manager || ""},
@@ -56,7 +61,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
         status = ${Number(data.status ?? 1)},
         updated_at = CURRENT_TIMESTAMP
       WHERE id = ${branchId}
-      RETURNING id, branch_code, branch_name, bank_id, address, manager, phone, status
+      RETURNING id, branch_code, branch_name, branch_symbol, bank_id, address, manager, phone, status
     `
     if (rows.length === 0) return NextResponse.json({ error: "الفرع غير موجود" }, { status: 404 })
     return NextResponse.json(rows[0])

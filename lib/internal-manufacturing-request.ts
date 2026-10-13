@@ -464,14 +464,20 @@ export async function processInternalManufacturingAction(id: number, action: Exc
       if (voucherBookId) {
         // نفس صيغة ترقيم سندات المخزون: بادئة الإعدادات + رمز الدفتر + تسلسل.
         const { prefix, startNumber } = await getStockVoucherNumberSettings("", INTERNAL_DELIVERY_VCH_TYPE)
-        const codePrefix = `${prefix}${String(defaultBook?.name || "").trim().toUpperCase()}`
+        // الكود = بادئة + رمز الفرع + رمز الدفتر + التسلسل
+        const hasSymbolColumn = (await client.query("SELECT 1 FROM information_schema.columns WHERE table_name = 'branches' AND column_name = 'branch_symbol' LIMIT 1")).rowCount
+        const branchSymbol = hasSymbolColumn && Number(request.branch_id) > 0
+          ? String((await client.query("SELECT branch_symbol FROM branches WHERE id = $1", [Number(request.branch_id)])).rows[0]?.branch_symbol || "").trim().toUpperCase()
+          : ""
+        const bookSegment = `${branchSymbol}${String(defaultBook?.name || "").trim().toUpperCase()}`
+        const codePrefix = `${prefix}${bookSegment}`
         await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [`stock-voucher:${INTERNAL_DELIVERY_VCH_TYPE}:${codePrefix}`])
         const codeResult = await client.query("SELECT vch_code FROM voucher_header_tbl WHERE vch_type = $1 AND vch_code LIKE $2", [INTERNAL_DELIVERY_VCH_TYPE, `${codePrefix}%`])
         const lastSerial = codeResult.rows.reduce((highest: number, row: any) => {
           const match = String(row.vch_code || "").slice(codePrefix.length).match(/^[A-Za-z]?([0-9]+)$/)
           return match ? Math.max(highest, Number(match[1])) : highest
         }, 0)
-        transferCode = buildVoucherCode(prefix, String(defaultBook?.name || ""), lastSerial >= startNumber ? lastSerial + 1 : startNumber)
+        transferCode = buildVoucherCode(prefix, bookSegment, lastSerial >= startNumber ? lastSerial + 1 : startNumber)
       } else {
         const codePrefix = "T0"
         await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [codePrefix])

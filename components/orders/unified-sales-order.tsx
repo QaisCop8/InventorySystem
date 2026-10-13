@@ -612,6 +612,16 @@ function UnifiedSalesOrder({
     
     fromSearch = false
   }, [state.formData.vch_book, state.formData.id]);
+  // تغيير الفرع لطلبية جديدة يعيد توليد رقمها (بادئة الطلبية + رمز الفرع + رمز الدفتر + التسلسل)
+  const lastBranchRef = useRef(state.formData.branch_id)
+  useEffect(() => {
+    const { id: formId, branch_id: branchId, vch_book } = state.formData
+    if (lastBranchRef.current === branchId) return
+    lastBranchRef.current = branchId
+    if (formId !== 0 || !branchId || vch_book == null) return
+    void generateOrderNumber(vch_book)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.formData.branch_id])
   const currencies = [
     { code: "SAR", name: "ريال سعودي" },
     { code: "USD", name: "دولار أمريكي" },
@@ -825,7 +835,7 @@ function UnifiedSalesOrder({
     try {
       const vchBook = vchBookOverride ?? state.formData.vch_book ?? "0";
       const response = await fetch(
-        `/api/orders/generate-number?vch_book=${encodeURIComponent(vchBook)}&vch_type=${encodeURIComponent(vch_type ?? 1)}`
+        `/api/orders/generate-number?vch_book=${encodeURIComponent(vchBook)}&vch_type=${encodeURIComponent(vch_type ?? 1)}${state.formData.branch_id ? `&branch_id=${state.formData.branch_id}` : ""}`
       );
 
       if (!response.ok) {

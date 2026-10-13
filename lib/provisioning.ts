@@ -204,10 +204,16 @@ async function ensureBasicProductsTable(tenantClient: ReturnType<typeof getPoolF
       id SERIAL PRIMARY KEY,
       branch_code VARCHAR(50) NOT NULL,
       branch_name VARCHAR(255) NOT NULL,
+      branch_symbol VARCHAR(1),
       is_active BOOLEAN DEFAULT true,
       status INTEGER DEFAULT 1,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )`,
+    [],
+  )
+  await tenantClient.query(`ALTER TABLE branches ADD COLUMN IF NOT EXISTS branch_symbol VARCHAR(1)`, [])
+  await tenantClient.query(
+    `CREATE UNIQUE INDEX IF NOT EXISTS branches_branch_symbol_key ON branches (branch_symbol) WHERE branch_symbol IS NOT NULL`,
     [],
   )
 
@@ -473,14 +479,15 @@ async function ensureDefaultVoucherBooks(tenantClient: ReturnType<typeof getPool
 // user_settings.branch_id، شاشات المخزون والسندات) تفترض وجود فرع واحد على الأقل.
 async function seedDefaultBranchAndSection(tenantClient: ReturnType<typeof getPoolForDb>) {
   const branchResult = await tenantClient.query(
-    `INSERT INTO branches (branch_code, branch_name, is_active, status)
-     VALUES ($1, $2, true, 1)
+    `INSERT INTO branches (branch_code, branch_name, branch_symbol, is_active, status)
+     VALUES ($1, $2, $3, true, 1)
      ON CONFLICT (branch_code) DO UPDATE SET
        branch_name = EXCLUDED.branch_name,
+       branch_symbol = COALESCE(branches.branch_symbol, EXCLUDED.branch_symbol),
        is_active = true,
        status = 1
      RETURNING id`,
-    ["0001", "الرئيسي"],
+    ["0001", "الرئيسي", "0"],
   )
   const branchId = branchResult[0].id
 

@@ -1,5 +1,6 @@
 import sql from "@/lib/database"
 import { buildVoucherCode } from "@/lib/voucher-code"
+import { resolveBranchSymbol } from "@/lib/branch-symbol"
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 // الافتراضات المشتركة لكل القيود الآلية (عمليات الشيكات، الأصول الثابتة، قيود عمولة الفيزا، تحويل
@@ -37,14 +38,16 @@ export async function resolveUserDefaultJournalBook(userId: string | number): Pr
 }
 
 /** الرقم التالي لسند قيد بدفتر معيّن — يجب استدعاؤها داخل معاملة (القفل مرتبط بها). */
-export async function nextJournalVoucherCode(book: JournalBookContext): Promise<string> {
+export async function nextJournalVoucherCode(book: JournalBookContext, branchId?: number | null): Promise<string> {
   await sql`SELECT pg_advisory_xact_lock(hashtext(${`journal-number:${book.bookId}`}))`
   const settings = await sql`SELECT id, value FROM system_settings WHERE id IN ('journal_prefix', 'journal_start')`
   const values = Object.fromEntries((settings as any[]).map((row) => [row.id, row.value]))
   const prefixValue = String(values.journal_prefix || "J").trim().toUpperCase()
   const prefix = /^[A-Z]{1,3}$/.test(prefixValue) ? prefixValue : "J"
   const startNumber = Math.max(1, Number(values.journal_start) || 1)
-  const codePrefix = `${prefix}${book.bookName.trim().toUpperCase()}`
+  // الكود = بادئة السند + رمز الفرع + رمز الدفتر + التسلسل
+  const bookSegment = `${await resolveBranchSymbol(branchId)}${book.bookName.trim().toUpperCase()}`
+  const codePrefix = `${prefix}${bookSegment}`
   const existing = await sql`
     SELECT vch_code FROM voucher_header_tbl WHERE vch_type = ${JOURNAL_VOUCHER_TYPE} AND vch_code LIKE ${codePrefix + "%"}
   `
@@ -52,7 +55,7 @@ export async function nextJournalVoucherCode(book: JournalBookContext): Promise<
     const suffix = String(row.vch_code || "").slice(codePrefix.length)
     return Math.max(max, Number(suffix.match(/(\d+)$/)?.[1] || 0))
   }, 0)
-  return buildVoucherCode(prefix, book.bookName, Math.max(startNumber, maximum + 1))
+  return buildVoucherCode(prefix, bookSegment, Math.max(startNumber, maximum + 1))
 }
 
 export type JournalCostCenter = { cost_center_type_id: number | null; cost_center_id: number }

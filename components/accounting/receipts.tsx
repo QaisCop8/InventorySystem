@@ -349,10 +349,10 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
   }, [dialogOpen, fetchLookups, workspaceTabActive])
 
   // الرقم يتضمّن رمز دفتر السندات (مثال REF00001) فلا بد من تمريره دائماً.
-  const generateCode = async (bookId: number | null, fallbackCode = "") => {
+  const generateCode = async (bookId: number | null, fallbackCode = "", branchId: number | null = null) => {
     if (!bookId) return fallbackCode
     try {
-      const response = await fetch(`/api/receipts/generate-number?vch_type=${voucherType}&vch_book_id=${bookId}`)
+      const response = await fetch(`/api/receipts/generate-number?vch_type=${voucherType}&vch_book_id=${bookId}${branchId ? `&branch_id=${branchId}` : ""}`)
       if (!response.ok) return fallbackCode
       const data = await response.json()
       return data.code || fallbackCode
@@ -534,7 +534,7 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
   // برقم ودفتر وتاريخ جديد بدل مسحها، ليحفظها المستخدم كسند مستقل دون إعادة إدخالها.
   const cloneVoucher = async () => {
     if (!form.id) return
-    const code = await generateCode(form.vch_book_id)
+    const code = await generateCode(form.vch_book_id, "", form.branch_id)
     const today = new Date().toISOString().slice(0, 10)
     setForm((f) => ({
       ...f,
@@ -555,8 +555,19 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
     const previousCode = form.vch_code || ""
     setForm((f) => ({ ...f, vch_book_id: bookId }))
     if (!isNewMode || !bookId) return
-    const generated = await generateCode(bookId, previousCode)
+    const generated = await generateCode(bookId, previousCode, form.branch_id)
     setForm((f) => ({ ...f, vch_code: generated || previousCode }))
+  }
+
+  // تغيير الفرع لسند جديد لم يُحفظ بعد يعيد توليد رقم السند (رمز الفرع جزء من الرقم: بادئة السند + رمز الفرع
+  // + رمز الدفتر + التسلسل) — لا يُغيَّر رقم سند محفوظ مسبقاً.
+  const handleBranchChange = async (branchId: number | null) => {
+    const previousCode = form.vch_code || ""
+    const bookId = form.vch_book_id
+    setForm((f) => ({ ...f, branch_id: branchId }))
+    if (!(isNewMode) || !bookId || !branchId) return
+    const generated = await generateCode(bookId, previousCode, branchId)
+    setForm((f) => (f.branch_id === branchId && f.vch_book_id === bookId ? { ...f, vch_code: generated || previousCode } : f))
   }
 
   const openEditDialog = async (record: VoucherRecord, index: number) => {
@@ -1142,7 +1153,7 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
         onClone={cloneVoucher}
         onPrint={handlePrint}
         onNavigateRecord={handleNavigateRecord}
-        onFormChange={(field, value) => setForm((f) => ({ ...f, [field]: value }))}
+        onFormChange={(field, value) => (field === "branch_id" ? void handleBranchChange(value as number | null) : setForm((f) => ({ ...f, [field]: value })))}
         onFormPatch={(patch) => setForm((f) => ({ ...f, ...patch }))}
         onBookChange={handleBookChange}
         onCodeResolved={handleCodeResolved}

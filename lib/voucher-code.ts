@@ -8,7 +8,10 @@
 // على 8 خانات ثابتة للتسلسل (التي كانت تجعل الطول الكلي يتجاوز 10 عند أي بادئة/دفتر بحرف واحد).
 export const VOUCHER_CODE_TOTAL_LENGTH = 10
 
-export const normalizeVoucherPrefix = (value: string): string =>
+// رموز الفرع المتاحة (حرف واحد) بترتيب العرض: 0 ثم A..Z
+export const BRANCH_SYMBOLS = "0ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("")
+
+export const normalizeVoucherPrefix =(value: string): string =>
   String(value || "").trim().toUpperCase().replace(/[^A-Z]/g, "").slice(0, 1)
 
 // كود السند = بادئة السند (حسب نوعه، من إعدادات النظام) + رمز دفتر السندات + بادئة مستخدم
@@ -25,6 +28,32 @@ export const buildVoucherCode = (prefix: string, bookName: string, sequence: num
 
   const code = `${basePrefix}${normalizedBookName}${normalizedUserPrefix}${sequencePart}`
   return code.length > VOUCHER_CODE_TOTAL_LENGTH ? code.slice(0, VOUCHER_CODE_TOTAL_LENGTH) : code
+}
+
+// يفكّك ما يكتبه المستخدم في خانة رقم السند عند الخروج منها (blur) إلى (بادئة مستخدم اختيارية + رقم تسلسلي)
+// بعد نزع الجزء الرئيسي إن كان مكتوباً: بادئة السند + (رمز الفرع + رمز الدفتر). يُعاد null إن لم يكن النص
+// بصيغة صالحة. الجزء الرئيسي يُعاد بناؤه دوماً من الإعدادات والفرع والدفتر الحاليين لا مما كُتب، فتغيّر الفرع
+// يغيّر الكود حتى لو كان المكتوب كوداً كاملاً لفرع سابق.
+export const parseTypedVoucherCode = (
+  raw: string,
+  configuredPrefix: string,
+  codeSegment: string,
+  branchSymbol = "",
+): { userPrefix: string; sequence: number } | null => {
+  let text = String(raw || "").trim().toUpperCase()
+  const prefix = String(configuredPrefix || "").trim().toUpperCase()
+  const segment = String(codeSegment || "").trim().toUpperCase()
+  const symbol = String(branchSymbol || "").trim().toUpperCase()
+  if (prefix && text.startsWith(prefix)) text = text.slice(prefix.length)
+  // كود كامل لفرع آخر (نفس الدفتر برمز فرع مختلف): يُنزع رمز الفرع القديم مع الدفتر ليُستبدل برمز الفرع الحالي
+  const bareBook = symbol ? segment.slice(symbol.length) : ""
+  if (symbol && bareBook && !text.startsWith(segment) && BRANCH_SYMBOLS.includes(text.charAt(0)) && text.slice(1).startsWith(bareBook)) {
+    text = text.slice(1 + bareBook.length)
+  }
+  while (segment && text.startsWith(segment)) text = text.slice(segment.length)
+  const match = text.match(/^([A-Z]*)(\d+)$/)
+  if (!match) return null
+  return { userPrefix: match[1].slice(0, 1), sequence: Number(match[2]) }
 }
 
 // يفكّك ما يكتبه المستخدم يدوياً في خانة رقم السند إلى (بادئة مستخدم اختيارية بحرف واحد + رقم

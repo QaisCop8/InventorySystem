@@ -1,4 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { parseTypedVoucherCode } from "@/lib/voucher-code"
+import { resolveBranchSymbol } from "@/lib/branch-symbol"
 import sql from "@/lib/database"
 import { ensureTables, JOURNAL_VCH_TYPE, getVoucherNumberSettings, buildVoucherCode, resolveVoucherBookName } from "../_lib"
 
@@ -10,38 +12,24 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const vchBookId = searchParams.get("vch_book_id") ? Number(searchParams.get("vch_book_id")) : null
     const raw = (searchParams.get("raw") || "").trim()
+    const branchId = Number(searchParams.get("branch_id")) || null
 
     if (!raw) return NextResponse.json({ code: "", exists: false })
 
-    const bookName = await resolveVoucherBookName(vchBookId)
+    const bookName = await resolveVoucherBookName(vchBookId, branchId)
     if (!bookName) {
       return NextResponse.json({ error: "يجب اختيار دفتر السندات أولاً" }, { status: 400 })
     }
 
-    const match = raw.match(/^([A-Za-z]*)(\d+)$/)
-    if (!match) {
+    const settings = await getVoucherNumberSettings(request.url)
+    const configuredPrefix = settings.prefix.toUpperCase()
+    // الجزء الرئيسي (بادئة السند + رمز الفرع + رمز الدفتر) يُعاد بناؤه دوماً من الإعدادات والفرع والدفتر الحاليين
+    const parsed = parseTypedVoucherCode(raw, configuredPrefix, bookName, await resolveBranchSymbol(branchId))
+    if (!parsed) {
       return NextResponse.json({ error: "رقم السند غير صحيح" }, { status: 400 })
     }
 
-    const [, typedPrefix, typedNumber] = match
-    const settings = await getVoucherNumberSettings(request.url)
-    let prefix = typedPrefix.toUpperCase()
-    const configuredPrefix = settings.prefix.toUpperCase()
-
-    // "raw" قد يكون كوداً مكتملاً مسبقاً وليس اختصاراً مكتوباً يدوياً — يجب نزع رمز الدفتر
-    // المتكرر من نهاية البادئة الملتقطة، وإلا يتضاعف رمز الدفتر بكل خروج من الحقل.
-    const upperBookName = bookName.toUpperCase()
-    if (prefix.startsWith(configuredPrefix)) {
-      prefix = prefix.slice(configuredPrefix.length)
-    }
-    if (prefix.startsWith(upperBookName)) {
-      prefix = prefix.slice(upperBookName.length)
-    }
-    while (upperBookName && prefix.length > upperBookName.length && prefix.endsWith(upperBookName)) {
-      prefix = prefix.slice(0, prefix.length - upperBookName.length)
-    }
-
-    const code = buildVoucherCode(configuredPrefix, bookName, Number(typedNumber), prefix)
+    const code = buildVoucherCode(configuredPrefix, bookName, parsed.sequence, parsed.userPrefix)
 
     const rows = await sql`SELECT id FROM voucher_header_tbl WHERE vch_type = ${JOURNAL_VCH_TYPE} AND vch_code = ${code}`
     const existingId = rows[0]?.id ?? null

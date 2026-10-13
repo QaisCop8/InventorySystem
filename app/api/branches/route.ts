@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
 import { authorizeFile, authorizeFileRead, projectFileLookup } from "@/lib/file-permissions"
+import { ensureBranchSymbolColumn, validateBranchSymbol } from "@/lib/branch-symbol"
 import { assertLicenseAllows, licenseErrorResponseBody } from "@/lib/company-license"
 
 export async function GET(request: NextRequest) {
@@ -25,6 +26,7 @@ export async function GET(request: NextRequest) {
 
     await sql`ALTER TABLE branches ADD COLUMN IF NOT EXISTS bank_id INTEGER`
     await sql`ALTER TABLE branches ADD COLUMN IF NOT EXISTS status INTEGER DEFAULT 1`
+    await ensureBranchSymbolColumn()
 
     const { searchParams } = new URL(request.url)
     const bankIdParam = searchParams.get("bank_id")
@@ -32,13 +34,13 @@ export async function GET(request: NextRequest) {
 
     const branches = bankId !== undefined && !Number.isNaN(bankId)
       ? await sql`
-          SELECT id, branch_code, branch_name, bank_id, address, manager, phone, status
+          SELECT id, branch_code, branch_name, branch_symbol, bank_id, address, manager, phone, status
           FROM branches
           WHERE status != 3 AND bank_id = ${bankId}
           ORDER BY id ASC
         `
       : await sql`
-          SELECT id, branch_code, branch_name, bank_id, address, manager, phone, status
+          SELECT id, branch_code, branch_name, branch_symbol, bank_id, address, manager, phone, status
           FROM branches
           WHERE status != 3
           ORDER BY id ASC
@@ -81,6 +83,8 @@ export async function POST(request: NextRequest) {
     if (!String(data.branch_name || "").trim()) {
       return NextResponse.json({ error: "اسم الفرع مطلوب" }, { status: 400 })
     }
+    const symbolCheck = await validateBranchSymbol(data.branch_symbol)
+    if (symbolCheck.error) return NextResponse.json({ error: symbolCheck.error }, { status: 400 })
     try {
       await assertLicenseAllows("branches")
     } catch (error) {
@@ -89,17 +93,18 @@ export async function POST(request: NextRequest) {
       throw error
     }
     const result = await sql`
-      INSERT INTO branches (branch_code, branch_name, bank_id, address, manager, phone, status)
+      INSERT INTO branches (branch_code, branch_name, branch_symbol, bank_id, address, manager, phone, status)
       VALUES (
         ${branchCode},
         ${String(data.branch_name).trim()},
+        ${symbolCheck.symbol},
         ${bankId},
         ${data.address || ""},
         ${data.manager || ""},
         ${data.phone || ""},
         ${Number(data.status || 1)}
       )
-      RETURNING id, branch_code, branch_name, bank_id, address, manager, phone, status
+      RETURNING id, branch_code, branch_name, branch_symbol, bank_id, address, manager, phone, status
     `
 
     return NextResponse.json(result[0], { status: 201 })
@@ -131,12 +136,15 @@ export async function PUT(request: NextRequest) {
     if (!Number.isInteger(Number(data.bank_id)) || Number(data.bank_id) <= 0) {
       return NextResponse.json({ error: "يجب اختيار البنك" }, { status: 400 })
     }
+    const symbolCheck = await validateBranchSymbol(data.branch_symbol, Number(data.id))
+    if (symbolCheck.error) return NextResponse.json({ error: symbolCheck.error }, { status: 400 })
 
     const result = await sql`
       UPDATE branches
       SET
         branch_code = ${branchCode},
         branch_name = ${String(data.branch_name).trim()},
+        branch_symbol = ${symbolCheck.symbol},
         bank_id = ${Number(data.bank_id)},
         address = ${data.address || ""},
         manager = ${data.manager || ""},
@@ -144,7 +152,7 @@ export async function PUT(request: NextRequest) {
         status = ${Number(data.status || 1)},
         updated_at = CURRENT_TIMESTAMP
       WHERE id = ${data.id}
-      RETURNING id, branch_code, branch_name, bank_id, address, manager, phone, status
+      RETURNING id, branch_code, branch_name, branch_symbol, bank_id, address, manager, phone, status
     `
 
     if (result.length === 0) {

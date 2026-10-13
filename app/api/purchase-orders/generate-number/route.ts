@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
+import { resolveBranchSymbol } from "@/lib/branch-symbol"
 export async function GET(request: NextRequest) {
   try {
     console.log("[v0] API: Starting purchase order number generation")
@@ -36,7 +37,9 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    const prefix = normalizedSettings.purchase_prefix || "P"
+    // بادئة السند + رمز الفرع (لا دفتر سندات لأوامر الشراء) + التسلسل
+    const branchSymbol = await resolveBranchSymbol(Number(new URL(request.url).searchParams.get("branch_id")) || null)
+    const prefix = `${normalizedSettings.purchase_prefix || "P"}${branchSymbol}`
 
     // Get the latest order number with this prefix
     const result = await sql`

@@ -6,11 +6,13 @@ import { Label } from "@/components/ui/label"
 import { UniversalToolbar } from "@/components/ui/universal-toolbar"
 import ConfirmDialogYesNo from "@/components/ui/ConfirmDialogYesNo"
 import { useEffect, useRef } from "react"
+import { BRANCH_SYMBOLS } from "@/lib/voucher-code"
 
 interface Branch {
   id: number
   branch_code: string
   branch_name: string
+  branch_symbol?: string
   bank_id: number | null
   bank_name?: string
   status: number
@@ -30,9 +32,13 @@ interface UnifiedBranchesProps {
     id: number
     branch_code: string
     branch_name: string
+    branch_symbol: string
     bank_id: number | null
     status: number
   }
+  usedSymbols?: string[]
+  showSymbolValidationError?: boolean
+  saveError?: string
   isSaving: boolean
   loading?: boolean
   showDeleteConfirm?: boolean
@@ -78,6 +84,9 @@ export default function UnifiedBranches({
   showBranchCodeValidationError = false,
   hasDuplicateCode,
   hasDuplicateName,
+  usedSymbols = [],
+  showSymbolValidationError = false,
+  saveError = "",
   isFirstRecord,
   isLastRecord,
   isNewMode,
@@ -109,6 +118,7 @@ export default function UnifiedBranches({
           id: record.id,
           branch_code: record.branch_code,
           branch_name: record.branch_name,
+          branch_symbol: record.branch_symbol,
           bank_id: record.bank_id ?? null,
           status: record.status,
         })
@@ -190,6 +200,31 @@ export default function UnifiedBranches({
               </div>
 
               <div className="grid gap-2">
+                <Label htmlFor="branch-symbol">رمز الفرع *</Label>
+                <select
+                  id="branch-symbol"
+                  value={form.branch_symbol || ""}
+                  onChange={(e) => onFormChange("branch_symbol", e.target.value)}
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                >
+                  <option value="" disabled>
+                    اختر رمز الفرع
+                  </option>
+                  {BRANCH_SYMBOLS.map((symbol) => (
+                    <option key={symbol} value={symbol} disabled={usedSymbols.includes(symbol)}>
+                      {symbol}{usedSymbols.includes(symbol) ? " (مستخدم)" : ""}
+                    </option>
+                  ))}
+                </select>
+                {showSymbolValidationError && (
+                  <p className="text-sm text-destructive">
+                    {form.branch_symbol ? "رمز الفرع مستخدم في فرع آخر." : "رمز الفرع مطلوب."}
+                  </p>
+                )}
+                <p className="text-xs text-muted-foreground">يدخل في ترقيم السندات: بادئة السند + رمز الفرع + رمز الدفتر + التسلسل.</p>
+              </div>
+
+              <div className="grid gap-2">
                 <Label htmlFor="branch-bank">البنك</Label>
                 <select
                   id="branch-bank"
@@ -216,6 +251,7 @@ export default function UnifiedBranches({
                   <p className="text-sm text-destructive">يجب ادخال رقم البنك</p>
                 )}
               </div>
+              {saveError && <p className="text-sm text-destructive">{saveError}</p>}
             </div>
           </div>
         </DialogContent>

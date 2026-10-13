@@ -510,7 +510,7 @@ async function postCount(request: NextRequest, countId: number, header: any, dat
 
   const note = `تسوية جرد المخازن رقم ${header.count_no} — ${header.branch_name || ""} / ${header.warehouse_name || ""} بتاريخ ${scope.countDate}`
   const buildPayload = async (vchType: number, bookId: number, rows: AdjustmentRow[]) => {
-    const bookName = await resolveVoucherBookName(bookId)
+    const bookName = await resolveVoucherBookName(bookId, scope.branchId)
     if (!bookName) throw new Error("دفتر السندات المختار غير صالح")
     const { prefix, startNumber } = await getStockVoucherNumberSettings(request.url, vchType)
     const sequence = await nextVoucherSequence(vchType, `${prefix}${bookName}`, startNumber)

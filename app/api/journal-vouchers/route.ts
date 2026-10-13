@@ -97,8 +97,8 @@ export async function POST(request: NextRequest) {
 
     const insertStatus = Number(data.status || 1)
     const settings = await getVoucherNumberSettings(request.url)
-    const bookName = await resolveVoucherBookName(Number(data.vch_book_id) || null)
-    const generateNextCode = async () => buildVoucherCode(settings.prefix, bookName, await nextVoucherSequence(JOURNAL_VCH_TYPE, `${settings.prefix}${bookName}`, settings.startNumber))
+    const bookName = await resolveVoucherBookName(Number(data.vch_book_id) || null, authorization.branchId)
+    const generateNextCode = async () => buildVoucherCode(settings.prefix, bookName, await nextVoucherSequence(`${settings.prefix}${bookName}`, settings.startNumber))
     let voucherCode = String(data.vch_code).trim()
     let result: any[] = []
     for (let attempt = 0; attempt < 10; attempt += 1) {

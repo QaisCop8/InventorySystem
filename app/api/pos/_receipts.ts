@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server"
 import sql from "@/lib/database"
+import { withBranchSymbol } from "@/lib/branch-symbol"
 import { POST as createReceipt, PUT as updateReceipt } from "@/app/api/receipts/route"
 import { PAYMENT_VCH_TYPE, RECEIPT_VCH_TYPE, buildVoucherCode, getVoucherNumberSettings, nextVoucherSequence } from "@/app/api/receipts/_lib"
 import { groupPosReceiptPayments, isPosReceiptPayment, posReceiptAmounts, type PosReceiptPayment } from "@/lib/pos-receipt"
@@ -72,13 +73,14 @@ export async function createPosReturnPayment(request: NextRequest, invoice: any,
 
   await sql`SELECT pg_advisory_xact_lock(hashtext(${`pos-payment-number:${book.id}`}))`
   const { prefix, startNumber } = await getVoucherNumberSettings(request.url, PAYMENT_VCH_TYPE)
+  const bookSegment = await withBranchSymbol(String(book.name || ""), Number(point.branch_id))
   const created: any[] = []
   for (const [currencyId, group] of groups) {
-    const sequence = await nextVoucherSequence(PAYMENT_VCH_TYPE, `${prefix}${book.name}`, startNumber)
+    const sequence = await nextVoucherSequence(PAYMENT_VCH_TYPE, `${prefix}${bookSegment}`, startNumber)
     const payment = await receiptResult(await createReceipt(new NextRequest(new URL("/api/receipts", request.url), {
       method: "POST", headers: request.headers, body: JSON.stringify({
         vch_type: PAYMENT_VCH_TYPE,
-        vch_code: buildVoucherCode(prefix, book.name, sequence),
+        vch_code: buildVoucherCode(prefix, bookSegment, sequence),
         vch_book_id: Number(book.id),
         vch_date: invoice.vch_date,
         branch_id: Number(point.branch_id),
@@ -114,14 +116,15 @@ async function createPosReceiptGroup(request: NextRequest, invoice: any, point: 
   if (!book) throw Object.assign(new Error("يجب تعيين دفتر سند قبض للمستخدم لحفظ الدفع النقدي مع الذمم أو الشيك أو البطاقة"), { status: 400 })
   await sql`SELECT pg_advisory_xact_lock(hashtext(${`pos-receipt-number:${book.id}`}))`
   const { prefix, startNumber } = await getVoucherNumberSettings(request.url, RECEIPT_VCH_TYPE)
-  const sequence = await nextVoucherSequence(RECEIPT_VCH_TYPE, `${prefix}${book.name}`, startNumber)
+  const bookSegment = await withBranchSymbol(String(book.name || ""), Number(point.branch_id))
+  const sequence = await nextVoucherSequence(RECEIPT_VCH_TYPE, `${prefix}${bookSegment}`, startNumber)
   const totals = posReceiptAmounts(payments)
   const customerAccountId = Number(invoice.account_id) || null
   const settlementAccountId = customerAccountId || Number(point.cash_account_id)
   if (!settlementAccountId) throw Object.assign(new Error("يجب تعريف حساب الصندوق في نقطة البيع أو في حسابات المستخدم لعملة نقطة البيع"), { status: 400 })
   const receipt = await receiptResult(await createReceipt(new NextRequest(new URL("/api/receipts", request.url), {
     method: "POST", headers: request.headers, body: JSON.stringify({
-      vch_type: RECEIPT_VCH_TYPE, vch_code: buildVoucherCode(prefix, book.name, sequence), vch_book_id: Number(book.id),
+      vch_type: RECEIPT_VCH_TYPE, vch_code: buildVoucherCode(prefix, bookSegment, sequence), vch_book_id: Number(book.id),
       vch_date: invoice.vch_date, branch_id: Number(point.branch_id), currency_id: Number(invoice.currency_id), rate: Number(invoice.rate),
       account_id: customerAccountId, to_account_id: settlementAccountId, customer_name: invoice.customer_name,
       ...totals, cash_account_id: Number(point.cash_account_id), check_account_id: Number(point.cheque_account_id), credit_card_account_id: Number(point.card_account_id),

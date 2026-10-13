@@ -464,7 +464,7 @@ export async function POST(request: NextRequest, { params }: { params: { resourc
           if (error instanceof JournalDefaultsError) return NextResponse.json({ error: error.message }, { status: 400 })
           throw error
         }
-        const code = await nextJournalVoucherCode(book)
+        const code = await nextJournalVoucherCode(book, authorization.branchId)
         const currencyId = Number(unposted[0].currency_id) || null
         const date = `${unposted[0].year}-${String(unposted[0].month).padStart(2,"0")}-${String(new Date(Number(unposted[0].year),Number(unposted[0].month),0).getDate()).padStart(2,"0")}`
         const vouchers = await sql`INSERT INTO voucher_header_tbl(vch_type,vch_code,vch_date,vch_book_id,branch_id,currency_id,rate,amount,note,status,vch_status,is_printed,insert_user) VALUES(3,${code},${date},${book.bookId},${authorization.branchId},${currencyId},1,${debit},${`قيد رواتب ${unposted[0].month}/${unposted[0].year}`},2,2,0,${book.userSettingId}) RETURNING id,vch_code,vch_book_id,insert_user`

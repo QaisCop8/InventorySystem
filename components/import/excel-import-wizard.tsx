@@ -397,11 +397,18 @@ export function ExcelImportWizard<Ctx>({ open, onOpenChange, config, onImported 
     setProgress({ done: 0, total: toImport.length })
     let done = 0
     const collected = new Map(results)
+    // تحديث الواجهة على دفعات (كل 200ms) بدل كل سطر: نسخ خريطة النتائج وإعادة العرض لكل سطر كان يبطئ الاستيراد
+    // بشكل ملحوظ عند آلاف الأسطر.
+    let flushTimer: ReturnType<typeof setTimeout> | null = null
+    const flush = () => {
+      flushTimer = null
+      setProgress({ done, total: toImport.length })
+      setResults(new Map(collected))
+    }
     const report = (id: number, result: RowResult) => {
       collected.set(id, result)
       done += 1
-      setProgress({ done, total: toImport.length })
-      setResults(new Map(collected))
+      if (!flushTimer) flushTimer = setTimeout(flush, 200)
     }
     try {
       const ctx = await ensureCtx()
@@ -409,6 +416,8 @@ export function ExcelImportWizard<Ctx>({ open, onOpenChange, config, onImported 
     } catch (cause: any) {
       if (!controller.signal.aborted) setError(cause?.message || "توقف الاستيراد بسبب خطأ")
     } finally {
+      if (flushTimer) clearTimeout(flushTimer)
+      flush()
       setImporting(false)
       abortRef.current = null
       const success = toImport.filter((row) => collected.get(row.id)?.ok).length

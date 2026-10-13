@@ -23,5 +23,5 @@ export default function ManagementLoginPage() {
     router.push(data.user?.is_platform_admin ? "/management/admin" : "/management/companies")
   }
 
-  return <ManagementLogin onLogin={handleLogin} footer={<Link href="/management/signup" className="font-semibold text-emerald-700 transition-colors hover:text-emerald-800">إنشاء مستخدم جديد</Link>} />
+  return <ManagementLogin onLogin={handleLogin} footer={<Link href="/management/signup" className="font-semibold text-emerald-300 transition-colors hover:text-emerald-200">إنشاء مستخدم جديد</Link>} />
 }

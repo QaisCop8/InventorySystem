@@ -523,8 +523,8 @@ export async function createOrder(
       if (!orderData.order_number || orderData.order_number.length < 2 || exists) {
         const vchBook =
           (await resolveDefaultVoucherBookName(String(orderData.user_id || ""), orderData.order_type === 2 ? 2 : 1)) || "0";
-        if (orderData.order_type === 1) orderData.order_number = await generateSalesOrderNumber(vchBook);
-        else orderData.order_number = await generatePurchaseOrderNumber(vchBook);
+        if (orderData.order_type === 1) orderData.order_number = await generateSalesOrderNumber(vchBook, Number((orderData as any).branch_id) || null);
+        else orderData.order_number = await generatePurchaseOrderNumber(vchBook, Number((orderData as any).branch_id) || null);
       }
       const orderInsertQuery = `
         INSERT INTO orders (

@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useState, useEffect, type ReactNode } from "react"
 import { ThemeLoader } from "@/components/theme-loader"
+import { beginSaving, isVoucherSaveRequest } from "@/lib/saving-lock"
 interface ModulePermissions {
   add?: boolean
   edit?: boolean
@@ -104,6 +105,11 @@ function installTenantFetchPatch() {
         if (branchId != null) headers.set("x-branch-id", String(branchId))
         if (userId) headers.set("x-user-id", userId)
         init = { ...init, headers }
+      }
+      // حفظ/تعديل/حذف سند: يُقفل المنيو الجانبي حتى انتهاء الطلب (lib/saving-lock.ts)
+      if (isVoucherSaveRequest(input, init)) {
+        const endSaving = beginSaving()
+        return originalFetch(input, init).finally(endSaving)
       }
       return originalFetch(input, init)
     }) as typeof window.fetch

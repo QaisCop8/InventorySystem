@@ -623,6 +623,7 @@ export default function UnifiedReceiptVoucher({
     try {
       const query = new URLSearchParams({ vch_type: String(form.vch_type), raw })
       if (form.vch_book_id) query.set("vch_book_id", String(form.vch_book_id))
+      if ((form as any).branch_id) query.set("branch_id", String((form as any).branch_id))
       const response = await fetch(`/api/receipts/resolve-code?${query.toString()}`)
       const data = await response.json()
       if (requestId !== codeRequestRef.current) return

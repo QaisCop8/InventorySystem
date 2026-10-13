@@ -1,4 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { parseTypedVoucherCode } from "@/lib/voucher-code"
+import { resolveBranchSymbol } from "@/lib/branch-symbol"
 import sql from "@/lib/database"
 import { getStockVoucherNumberSettings, buildVoucherCode, resolveVoucherBookName, ensureTables } from "../_lib"
 
@@ -13,38 +15,24 @@ export async function GET(request: NextRequest) {
     const vchType = Number(searchParams.get("vch_type") || 12)
     const vchBookId = searchParams.get("vch_book_id") ? Number(searchParams.get("vch_book_id")) : null
     const raw = (searchParams.get("raw") || "").trim()
+    const branchId = Number(searchParams.get("branch_id")) || null
 
     if (!raw) return NextResponse.json({ code: "", exists: false })
 
-    const bookName = await resolveVoucherBookName(vchBookId)
+    const bookName = await resolveVoucherBookName(vchBookId, branchId)
     if (!bookName) {
       return NextResponse.json({ error: "يجب اختيار دفتر السندات أولاً" }, { status: 400 })
     }
 
-    const match = raw.match(/^([A-Za-z]*)(\d+)$/)
-    if (!match) {
+    const settings = await getStockVoucherNumberSettings(request.url, vchType)
+    const configuredPrefix = settings.prefix.toUpperCase()
+    // الجزء الرئيسي (بادئة السند + رمز الفرع + رمز الدفتر) يُعاد بناؤه دوماً من الإعدادات والفرع والدفتر الحاليين
+    const parsed = parseTypedVoucherCode(raw, configuredPrefix, bookName, await resolveBranchSymbol(branchId))
+    if (!parsed) {
       return NextResponse.json({ error: "رقم السند غير صحيح" }, { status: 400 })
     }
 
-    const [, typedPrefix, typedNumber] = match
-    const settings = await getStockVoucherNumberSettings(request.url, vchType)
-    let prefix = typedPrefix.toUpperCase()
-    const configuredPrefix = settings.prefix.toUpperCase()
-    const upperBookName = bookName.toUpperCase()
-
-    if (prefix.startsWith(configuredPrefix)) {
-      prefix = prefix.slice(configuredPrefix.length)
-    }
-
-    if (prefix.startsWith(upperBookName)) {
-      prefix = prefix.slice(upperBookName.length)
-    }
-
-    while (upperBookName && prefix.length > upperBookName.length && prefix.endsWith(upperBookName)) {
-      prefix = prefix.slice(0, prefix.length - upperBookName.length)
-    }
-
-    const code = buildVoucherCode(configuredPrefix, bookName, Number(typedNumber), prefix)
+    const code = buildVoucherCode(configuredPrefix, bookName, parsed.sequence, parsed.userPrefix)
 
     const rows = await sql`SELECT id FROM voucher_header_tbl WHERE vch_type = ${vchType} AND vch_code = ${code}`
     const existingId = rows[0]?.id ?? null

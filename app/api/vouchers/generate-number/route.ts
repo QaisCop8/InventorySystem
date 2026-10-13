@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getTenantPool } from "@/lib/database"
+import { resolveBranchSymbol } from "@/lib/branch-symbol"
 
 export const dynamic = "force-dynamic"
 export const revalidate = 0
@@ -59,7 +60,9 @@ export async function GET(request: NextRequest) {
     )
 
     const basePrefix = String(configuredPrefix || getPrefix(vchType, ""))
-    const prefix = `${basePrefix}${vchBook}`
+    // بادئة السند + رمز الفرع (إن مُرّر branch_id) + رمز الدفتر + التسلسل
+    const branchSymbol = await resolveBranchSymbol(Number(searchParams.get("branch_id")) || null)
+    const prefix = `${basePrefix}${branchSymbol}${vchBook}`
 
     const result = await pool.query(
       `

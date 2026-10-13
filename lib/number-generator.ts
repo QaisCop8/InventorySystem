@@ -5,6 +5,7 @@
 
 import sql from "./database"
 import { buildVoucherCode } from "./voucher-code"
+import { withBranchSymbol, resolveBranchSymbol } from "./branch-symbol"
 
 export default sql
 
@@ -145,16 +146,16 @@ export async function generateSupplierNumber(): Promise<string> {
 // بمجموع 10 خانات كحد أقصى (lib/voucher-code.ts buildVoucherCode) — نفس منطق ترقيم السندات
 // الموحَّد (سند قبض/صرف/قيد، سندات المخزون...) بدل الصيغة القديمة "O"/"T" + دفتر + 8 أرقام ثابتة
 // التي لم تكن لها أي علاقة ببادئة الطلبية الفعلية بإعدادات النظام.
-export async function generateSalesOrderNumber(vchBook: string): Promise<string> {
-  const bookName = String(vchBook || "").trim().toUpperCase()
+export async function generateSalesOrderNumber(vchBook: string, branchId?: number | null): Promise<string> {
+  const bookName = (await withBranchSymbol(String(vchBook || "").trim().toUpperCase(), branchId)) || ""
   const { prefix, startNumber } = await getOrderNumberSettings(1)
   const codePrefix = `${prefix}${bookName}`
   const sequence = await nextOrderSequence(codePrefix, startNumber)
   return buildVoucherCode(prefix, bookName, sequence)
 }
 
-export async function generatePurchaseOrderNumber(vchBook: string): Promise<string> {
-  const bookName = String(vchBook || "").trim().toUpperCase()
+export async function generatePurchaseOrderNumber(vchBook?: string, branchId?: number | null): Promise<string> {
+  const bookName = (await withBranchSymbol(String(vchBook || "").trim().toUpperCase(), branchId)) || (await resolveBranchSymbol(branchId))
   const { prefix, startNumber } = await getOrderNumberSettings(2)
   const codePrefix = `${prefix}${bookName}`
   const sequence = await nextOrderSequence(codePrefix, startNumber)

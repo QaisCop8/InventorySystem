@@ -20,7 +20,15 @@
   height: var(--datagrid-header-height, 40px) !important;
   min-height: var(--datagrid-header-height, 40px) !important;
   background: var(--datagrid-header-color, #2c3e50) !important;
+  /* الخلفية !important فيجب أن يكون لون الخط كذلك، وإلا يغلبه لون wijmo الافتراضي (أسود) حسب ترتيب تحميل
+     ملفات CSS — كما يحدث عند فتح سند من تقرير/أداة بتبويب جديد. */
+  color: #ffffff !important;
   font-family: var(--datagrid-header-font-family, "Cairo"), sans-serif !important;
+}
+
+.wj-flexgrid .wj-header *,
+.wj-flexgrid .wj-header .wj-elem-filter {
+  color: inherit;
 }
 
 .wj-flexgrid .wj-cell:not(.wj-header) {
@@ -375,7 +383,9 @@ html[dir="rtl"] .wj-flexgrid .wj-header {
 /* Grid actions are compact icon buttons. Their action name remains available
    through title/aria-label; a scheme can still request a text button explicitly
    with buttonLabel. */
-.wj-flexgrid .wj-cell:has(> .wj-cell-maker-btn) {
+.wj-flexgrid .wj-cell:has(> .wj-cell-maker-btn),
+.wj-flexgrid .wj-cell:has(> button) {
+  text-align: center !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;

@@ -454,10 +454,10 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
     }
   }
 
-  const generateCode = async (bookId: number | null, fallbackCode = "") => {
+  const generateCode = async (bookId: number | null, fallbackCode = "", branchId: number | null = null) => {
     if (bookId == null) return fallbackCode
     try {
-      const response = await fetch(`/api/sales-vouchers/generate-number?vch_type=${voucherType}&vch_book_id=${bookId}`)
+      const response = await fetch(`/api/sales-vouchers/generate-number?vch_type=${voucherType}&vch_book_id=${bookId}${branchId ? `&branch_id=${branchId}` : ""}`)
       if (!response.ok) return fallbackCode
       const data = await response.json()
       return data.code || fallbackCode
@@ -477,11 +477,29 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
     editForm(current)
     if (current.id > 0 || bookId == null) return
     const pending = (async () => {
-      const generated = await generateCode(bookId, current.vch_code || "")
+      const generated = await generateCode(bookId, current.vch_code || "", current.branch_id)
       if (requestId !== bookChangeRequestRef.current) return
       const next = { ...formRef.current, vch_book_id: bookId, vch_code: generated || current.vch_code }
       formRef.current = next
       editForm(next)
+    })()
+    pendingBookChangeRef.current = pending
+    await pending
+    if (requestId === bookChangeRequestRef.current) pendingBookChangeRef.current = null
+  }
+
+  // تغيير الفرع لسند جديد لم يُحفظ بعد يعيد توليد الرقم (بادئة السند + رمز الفرع + رمز الدفتر + التسلسل).
+  const regenerateCodeForBranch = async (branchId: number | null, initialSelection: boolean) => {
+    const current = formRef.current
+    if (current.id > 0 || current.vch_book_id == null || !branchId) return
+    const requestId = ++bookChangeRequestRef.current
+    const pending = (async () => {
+      const generated = await generateCode(current.vch_book_id, current.vch_code || "", branchId)
+      if (requestId !== bookChangeRequestRef.current || formRef.current.branch_id !== branchId) return
+      const next = { ...formRef.current, vch_code: generated || formRef.current.vch_code }
+      formRef.current = next
+      editForm(next)
+      if (initialSelection) cleanFormRef.current = { ...cleanFormRef.current, vch_code: next.vch_code }
     })()
     pendingBookChangeRef.current = pending
     await pending
@@ -518,7 +536,7 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
     setIsLoading(true)
     try {
       const defaults = await fetchDefaults()
-      const code = await generateCode(defaults.bookId)
+      const code = await generateCode(defaults.bookId, "", buildInitialForm().branch_id)
       const cashAccount = resolveCashAccountForCurrency(defaults.currencyId)
       setForm({
         ...buildInitialForm(),
@@ -581,7 +599,7 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
     if (!form.id) return
     setIsLoading(true)
     try {
-      const code = await generateCode(form.vch_book_id)
+      const code = await generateCode(form.vch_book_id, "", form.branch_id)
     const today = new Date().toISOString().slice(0, 10)
     copiedVoucherRef.current = true
     editForm((f) => ({
@@ -733,7 +751,7 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
         if (keepSavedVoucher) { setForm(savedVoucher); return true }
         const defaults = await fetchDefaults()
         const bookId = currentForm.vch_book_id ?? defaults.bookId
-        const code = await generateCode(bookId)
+        const code = await generateCode(bookId, "", buildInitialForm().branch_id)
         const nextForm = { ...buildInitialForm(), vch_code: code, vch_book_id: bookId, currency_id: defaults.currencyId }
         formRef.current = nextForm
         setForm(nextForm)
@@ -779,7 +797,7 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
         }
       }
       const defaults = await fetchDefaults()
-      const code = await generateCode(defaults.bookId)
+      const code = await generateCode(defaults.bookId, "", buildInitialForm().branch_id)
       setForm({ ...buildInitialForm(), vch_code: code, vch_book_id: defaults.bookId, currency_id: defaults.currencyId })
       setCurrentIndex(0)
       setDialogOpen(true)
@@ -873,6 +891,9 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
   }
 
   const onFormChange = <K extends keyof SalesDeliveryRecord>(field: K, value: SalesDeliveryRecord[K]) => {
+    const branchChanged = field === "branch_id" && formRef.current.branch_id !== value
+    const initialSelection = branchChanged && formRef.current.branch_id == null && cleanFormRef.current.branch_id == null
+    if (branchChanged) queueMicrotask(() => void regenerateCodeForBranch(Number(value) || null, initialSelection))
     editForm((f) => ({ ...f, [field]: value, ...((field === "branch_id" || field === "currency_id") && f[field] !== value ? { cash_account_id: null, cash_account_code: "", cash_account_name: "" } : {}) }))
   }
 

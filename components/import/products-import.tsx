@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
+import { useAuth } from "@/components/auth/auth-context"
 import { ExcelImportWizard, type ImportConfig, type ImportField, type ImportIssue } from "@/components/import/excel-import-wizard"
 
 const UNIT_COUNT = 6
@@ -27,7 +28,8 @@ const lookupKey = (value: unknown) => String(value ?? "").trim().toLowerCase()
 
 function createLookupResolver<T extends { id: number }>(records: T[], url: string, names: (record: T) => unknown[], payload: (name: string) => Record<string, unknown>, label: string, signal: AbortSignal) {
   const resolved = new Map<string, number>()
-  return async (text: string): Promise<number> => {
+  const inFlight = new Map<string, Promise<number>>()
+  const resolve = async (text: string): Promise<number> => {
     const value = text.trim()
     const key = lookupKey(value)
     const cached = resolved.get(key)
@@ -59,6 +61,16 @@ function createLookupResolver<T extends { id: number }>(records: T[], url: strin
     resolved.set(key, id)
     return id
   }
+  // الصفوف تُحفظ بالتوازي: طلب إنشاء واحد فقط لكل اسم جديد مهما تكرر بالصفوف
+  return (text: string): Promise<number> => {
+    const key = lookupKey(text.trim())
+    let pending = inFlight.get(key)
+    if (!pending) {
+      pending = resolve(text).finally(() => inFlight.delete(key))
+      inFlight.set(key, pending)
+    }
+    return pending
+  }
 }
 
 function buildFields(lookups: Lookups): ImportField[] {
@@ -70,7 +82,9 @@ function buildFields(lookups: Lookups): ImportField[] {
     { key: "category_id", label: "التصنيف", aliases: ["category_id", "category", "التصنيف (رقم)"], options: lookups.productCategories.map((item) => ({ value: item.id, label: item.name, aliases: [String(item.id)] })) },
     { key: "main_stock_group", label: "مجموعة الصنف", aliases: ["main_stock_group", "main_stock_id", "item_group", "item_group_id", "group_name", "group_code", "group_id", "رقم المجموعة", "المجموعة", "group"], description: "الاسم أو الرمز أو الرقم؛ تُنشأ تلقائياً إن لم تكن موجودة" },
     { key: "default_store", label: "المستودع الافتراضي", aliases: ["default_store", "warehouse", "المستودع"], options: lookups.warehouses.map((item) => ({ value: item.id, label: item.name, aliases: [String(item.id)] })) },
-    { key: "last_purchase_price", label: "آخر سعر شراء", type: "number", min: 0, aliases: ["last_purchase_price", "سعر الشراء", "التكلفة"] },
+    { key: "last_purchase_price", label: "سعر الشراء", type: "number", min: 0, aliases: ["last_purchase_price", "آخر سعر شراء", "سعر الشراء", "التكلفة", "purchase_price"], description: "يُستخدم أيضاً كسعر الوحدة في سند إدخال الكمية الابتدائية" },
+    { key: "initial_quantity", label: "الكمية الابتدائية", type: "number", min: 0, aliases: ["initial_quantity", "opening_quantity", "الكمية الابتدائية", "الكمية الافتتاحية", "رصيد افتتاحي"], description: "إن وُجدت تُحفظ بسند إدخال بضاعة بالوحدة الرئيسية وسعر الشراء" },
+    { key: "initial_warehouse", label: "مستودع الكمية الابتدائية", aliases: ["initial_warehouse", "opening_warehouse", "مستودع الكمية الابتدائية", "مستودع الكمية"], options: lookups.warehouses.map((item) => ({ value: item.id, label: item.name, aliases: [String(item.id)] })), description: "مطلوب عند وجود كمية ابتدائية" },
     { key: "price_category", label: "فئة السعر", aliases: ["price_category", "price_category_id", "pricecategory", "priceCategoryId", "priceClass", "price category", "فئة البيع", "فئة الأسعار"], description: "الاسم أو الرقم؛ تُنشأ إن لم تكن موجودة. عند تركها فارغة تُستخدم فئة السعر الافتراضية" },
   ]
   for (let unit = 1; unit <= UNIT_COUNT; unit++) {
@@ -131,6 +145,7 @@ async function loadDefaultItemAccounts() {
 /** استيراد الأصناف بالمحرك الموحّد — نفس قواعد وحفظ نافذة استيراد الأصناف السابقة. */
 export function ProductsImportDialog({ open, onOpenChange, onImported }: { open: boolean; onOpenChange: (open: boolean) => void; onImported?: () => void }) {
   const [lookups, setLookups] = useState<Lookups | null>(null)
+  const { user, activeBranchId } = useAuth()
 
   useEffect(() => {
     if (!open) return
@@ -165,6 +180,11 @@ export function ProductsImportDialog({ open, onOpenChange, onImported }: { open:
             const previous = barcodeRows.get(key)
             if (previous !== undefined && previous !== row.rowNumber) add(row.id, { field, message: `الباركود ${value} مكرر مع السطر ${previous}` })
             else barcodeRows.set(key, row.rowNumber)
+          }
+          const initialQuantity = Number(row.data.initial_quantity) || 0
+          if (initialQuantity > 0) {
+            if (!Number(row.data.initial_warehouse)) add(row.id, { field: "initial_warehouse", message: "مستودع الكمية الابتدائية مطلوب عند وجود كمية ابتدائية" })
+            if (row.data.expiry_tracking || row.data.batch_tracking || row.data.serial_tracking) add(row.id, { field: "initial_quantity", message: "الأصناف ذات تاريخ الصلاحية أو الرقم التشغيلي أو المتسلسل لا تقبل كمية ابتدائية بالاستيراد؛ أدخلها بسند إدخال" })
           }
           for (let unit = 2; unit <= UNIT_COUNT; unit++) {
             if (String(row.data[`unit_${unit}`] || "").trim() && !(Number(row.data[`unit_${unit}_to_main_qnty`]) > 0)) {
@@ -203,7 +223,9 @@ export function ProductsImportDialog({ open, onOpenChange, onImported }: { open:
           return existingDefault ? existingDefault.id : resolvePriceCategory("سعر البيع")
         }
         const defaultAccounts = await loadDefaultItemAccounts()
-        for (const row of rows) {
+        // أصناف لها كمية ابتدائية: يُؤجَّل إبلاغ نجاحها حتى يُحفظ سند إدخال البضاعة
+        const pendingStock: Array<{ rowId: number; productId: number; name: string; unitId: number; unitName: string; quantity: number; price: number; warehouseId: number }> = []
+        const processRow = async (row: (typeof rows)[number]) => {
           if (signal.aborted) return
           const data = row.data
           try {
@@ -242,18 +264,75 @@ export function ProductsImportDialog({ open, onOpenChange, onImported }: { open:
               ...defaultAccounts,
             }
             const response = await fetch("/api/inventory/products", { method: "POST", headers: { "Content-Type": "application/json" }, signal, body: JSON.stringify(body) })
+            const saved = await response.json().catch(() => ({}))
             if (!response.ok) {
-              const error = await response.json().catch(() => ({}))
-              report(row.id, { ok: false, message: error.message || error.error || "خطأ في حفظ الصنف" })
+              report(row.id, { ok: false, message: saved.message || saved.error || "خطأ في حفظ الصنف" })
+              return
+            }
+            const productId = Number(saved.id || saved.productId || saved.product?.id)
+            const quantity = Number(data.initial_quantity) || 0
+            const mainUnitId = unitIds.get(1)
+            if (quantity > 0 && productId > 0 && mainUnitId) {
+              pendingStock.push({ rowId: row.id, productId, name: String(data.product_name), unitId: mainUnitId, unitName: String(data.unit_1 || ""), quantity, price: Number(data.last_purchase_price) || 0, warehouseId: Number(data.initial_warehouse) })
             } else report(row.id, { ok: true })
           } catch (error: any) {
             if (signal.aborted) return
             report(row.id, { ok: false, message: error?.message || "خطأ غير متوقع" })
           }
         }
+
+        // حفظ الأصناف بالتوازي (6 طلبات معاً) بدل صنف بعد صنف — أسرع بكثير عند آلاف الأصناف
+        const queue = [...rows]
+        await Promise.all(Array.from({ length: Math.min(6, queue.length) }, async () => {
+          while (queue.length && !signal.aborted) await processRow(queue.shift()!)
+        }))
+        if (signal.aborted || !pendingStock.length) return
+
+        // سند إدخال بضاعة (نوع 8) لكل مستودع: بالوحدة الرئيسية وسعر الشراء، على دفعات حتى 500 سطر للسند
+        const failStock = (lines: typeof pendingStock, reason: string) =>
+          lines.forEach((line) => report(line.rowId, { ok: false, message: `تم حفظ الصنف لكن تعذر حفظ سند إدخال الكمية الابتدائية: ${reason}` }))
+        let bookId = 0
+        try {
+          const booksResponse = await fetch(`/api/receipts/voucher-books?vch_type=8${user?.id ? `&user_id=${encodeURIComponent(user.id)}` : ""}`, { signal })
+          const booksData = booksResponse.ok ? await booksResponse.json() : null
+          bookId = Number(booksData?.default_book_id) || (Array.isArray(booksData?.books) && booksData.books.length === 1 ? Number(booksData.books[0].id) : 0)
+        } catch { /* يُعالَج أدناه */ }
+        if (!bookId) return failStock(pendingStock, "لا يوجد دفتر سندات افتراضي لسند إدخال البضاعة للمستخدم")
+        const byWarehouse = new Map<number, typeof pendingStock>()
+        for (const line of pendingStock) byWarehouse.set(line.warehouseId, [...(byWarehouse.get(line.warehouseId) || []), line])
+        const today = new Date().toISOString().slice(0, 10)
+        for (const [warehouseId, lines] of byWarehouse) {
+          for (let start = 0; start < lines.length; start += 500) {
+            if (signal.aborted) return
+            const chunk = lines.slice(start, start + 500)
+            try {
+              const codeResponse = await fetch(`/api/stock-vouchers/generate-number?vch_type=8&vch_book_id=${bookId}${activeBranchId ? `&branch_id=${activeBranchId}` : ""}`, { cache: "no-store", signal })
+              const code = String((await codeResponse.json().catch(() => ({})))?.code || "")
+              if (!code) throw new Error("تعذر توليد رقم سند الإدخال")
+              const voucherResponse = await fetch("/api/stock-vouchers", {
+                method: "POST", headers: { "Content-Type": "application/json" }, signal,
+                body: JSON.stringify({
+                  vch_type: 8, vch_code: code, vch_date: today, vch_book_id: bookId, branch_id: activeBranchId || undefined,
+                  currency_id: null, rate: 1, to_store_id: warehouseId, status: 2, insert_user: Number(user?.id) || null,
+                  note: "كمية ابتدائية - استيراد الأصناف من Excel",
+                  items: chunk.map((line) => ({
+                    product_id: line.productId, product_name: line.name, unit_id: line.unitId, unit: line.unitName,
+                    quantity: line.quantity, unit_price: line.price, total_price: Math.round(line.quantity * line.price * 1000) / 1000, store_id: warehouseId,
+                  })),
+                }),
+              })
+              const voucher = await voucherResponse.json().catch(() => ({}))
+              if (!voucherResponse.ok) throw new Error(voucher?.error || "خطأ غير معروف")
+              chunk.forEach((line) => report(line.rowId, { ok: true }))
+            } catch (error: any) {
+              if (signal.aborted) return
+              failStock(chunk, error?.message || "خطأ غير متوقع")
+            }
+          }
+        }
       },
     }
-  }, [lookups])
+  }, [lookups, user?.id, activeBranchId])
 
   if (!config) return null
   return <ExcelImportWizard open={open} onOpenChange={onOpenChange} config={config} onImported={({ success }) => { if (success) onImported?.() }} />

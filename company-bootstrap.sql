@@ -623,7 +623,8 @@ CREATE TABLE public.branches (
     created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
     updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
     bank_id integer,
-    status integer DEFAULT 1
+    status integer DEFAULT 1,
+    branch_symbol character varying(1)
 );
 
 
@@ -5158,9 +5159,9 @@ COPY public.banks (id, bank_code, bank_name, bank_name_en, status, created_at, u
 -- Data for Name: branches; Type: TABLE DATA; Schema: public; Owner: -
 --
 
-COPY public.branches (id, branch_code, branch_name, address, manager, phone, is_active, created_at, updated_at, bank_id, status) FROM stdin;
-4	0001	طولكرم				t	2026-07-17 18:42:25.223089	2026-07-17 18:42:25.223089	3	1
-5	0002	رام الله				t	2026-07-17 18:45:08.915346	2026-07-17 18:45:08.915346	1	1
+COPY public.branches (id, branch_code, branch_name, address, manager, phone, is_active, created_at, updated_at, bank_id, status, branch_symbol) FROM stdin;
+4	0001	طولكرم				t	2026-07-17 18:42:25.223089	2026-07-17 18:42:25.223089	3	1	0
+5	0002	رام الله				t	2026-07-17 18:45:08.915346	2026-07-17 18:45:08.915346	1	1	A
 \.
 
 
@@ -21359,6 +21360,13 @@ ALTER TABLE ONLY public.branches
 
 ALTER TABLE ONLY public.branches
     ADD CONSTRAINT branches_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: branches_branch_symbol_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX branches_branch_symbol_key ON public.branches USING btree (branch_symbol) WHERE (branch_symbol IS NOT NULL);
 
 
 --

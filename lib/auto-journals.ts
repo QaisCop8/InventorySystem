@@ -133,7 +133,7 @@ export async function createAutoJournal(input: AutoJournalInput, context?: Journ
   }
 
   const ctx = context ?? (await resolveJournalContext(input.userId))
-  const code = await nextJournalVoucherCode(ctx)
+  const code = await nextJournalVoucherCode(ctx, input.branchId)
   const amount = round2(lines.filter((l) => l.creditDebit === 1).reduce((s, l) => s + (l.currencyId === input.currencyId ? l.amount : baseOf(l) / (input.rate || 1)), 0))
   const voucher = (await sql`
     INSERT INTO voucher_header_tbl (

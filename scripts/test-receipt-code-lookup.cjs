@@ -24,6 +24,8 @@ function setup({ status = 3, denied = false, found = true } = {}) {
       throw Error(query)
     },
     '../_lib': { ensureTables: async () => {}, getVoucherNumberSettings: async () => ({ prefix: 'R' }), buildVoucherCode: (_prefix,book,number) => `R${book}${String(number).padStart(8,'0')}`, resolveVoucherBookName: async id => { bookLookups++;return id ? 'A' : '' }, fetchDetails: async () => details },
+    '@/lib/voucher-code': load('lib/voucher-code.ts', {}),
+    '@/lib/branch-symbol': { resolveBranchSymbol: async () => '' },
     '@/lib/transaction-permissions': { authorizeStoredVoucher: async () => denied ? { ok: false, response: Response.json({ error: 'Forbidden' }, { status: 403 }) } : { ok: true } },
   }
   return { resolver: load('app/api/receipts/resolve-code/route.ts',mocks), detail: load('app/api/receipts/[id]/route.ts',mocks), bookLookups: () => bookLookups }

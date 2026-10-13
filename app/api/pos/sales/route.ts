@@ -215,7 +215,7 @@ export async function POST(request: NextRequest) {
       const vchBookId = Number(isReturn?(point.return_book_id||point.sales_book_id):point.sales_book_id) || null
       if (!vchBookId) return NextResponse.json({ error: "يجب تعيين دفتر افتراضي لفاتورة المبيعات" }, { status: 400 })
       const defaultSellingAccountId=Number(systemSettings.default_selling_account_id)||null
-      const vchCode = await generateSalesVoucherCode(request.url, vchType, vchBookId)
+      const vchCode = await generateSalesVoucherCode(request.url, vchType, vchBookId, Number(point.branch_id) || null)
       if (!vchCode) return NextResponse.json({ error: "تعذر توليد رقم فاتورة المبيعات" }, { status: 400 })
 
       const forwarded = new NextRequest(new URL("/api/sales-vouchers", request.url), {

@@ -778,8 +778,11 @@ export function CompactProductForm({
         life: 3000
       });
       onSuccess?.()
-      if (canCreate) await reset_fields()
-      else onHideDialog(true)
+      // يبقى الصنف المحفوظ معروضاً (برقم سجله وأزرار التنقل فعّالة) بدل تفريغ النموذج
+      if (canCreate) {
+        if (savedProductId > 0 && canView) await loadData("Byid", savedProductId, false)
+        else await reset_fields()
+      } else onHideDialog(true)
       return true
 
     } catch (err) {
@@ -906,6 +909,9 @@ export function CompactProductForm({
     }
   };
   const [currentProductId, setCurrentProductId] = useState<number>(0);
+  // موقع الصنف الحالي وعدد الأصناف الكلي لعرض "رقم السجل" وتفعيل أزرار التنقل بشكل صحيح
+  const [recordPosition, setRecordPosition] = useState(0);
+  const [recordTotal, setRecordTotal] = useState(0);
   // true إن كان للصنف الحالي (بمعرّفه) سطر واحد على الأقل بـvoucher_items_tbl ضمن سند لم يُلغَ
   // منطقياً (status != 3) — يُعطِّل خانات "له تاريخ صلاحية"/"له رقم متسلسل"/"له رقم تشغيلي" أدناه
   // إذ تغييرها بأثر رجعي على صنف استُخدِم فعلياً يُناقض بيانات تلك السطور القائمة. يُعاد ضبطه false
@@ -986,6 +992,8 @@ export function CompactProductForm({
     if (Number(product.id) > 0) fetch(`/api/inventory/products/${product.id}/manufacturing-components`).then((r) => r.ok ? r.json() : []).then((rows) => setManufacturingComponents(Array.isArray(rows) ? rows.map((row: ManufacturingComponentItem, index: number) => ({ ...row, product_id: Number(product.id), ser: index + 1 })) : [])).catch(() => setManufacturingComponents([]))
     initialHash.current = getFormDataHash(newFormData);
     setCurrentProductId(product.id);
+    setRecordPosition(Number(product.record_position) || 0);
+    setRecordTotal(Number(product.record_total) || 0);
     setIsUsedInVouchers(false);
     fetch(`/api/inventory/products/${product.id}/voucher-usage`)
       .then((r) => (r.ok ? r.json() : { used: false }))
@@ -1332,6 +1340,11 @@ export function CompactProductForm({
     setManufacturingComponents([])
     initialHash.current = getFormDataHash(newFormData);
     setCurrentProductId(0);
+    setRecordPosition(0);
+    fetch(`/api/inventory/ProductsNavigations/count?type=${isService ? "services" : "products"}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => { if (data) setRecordTotal(Number(data.total) || 0) })
+      .catch(() => undefined);
     setIsUsedInVouchers(false);
     setActiveTab("units");
 
@@ -2521,11 +2534,11 @@ export function CompactProductForm({
         </button>
         <UniversalToolbar
           fileFamily={isService ? "services" : "items"}
-          currentRecord={currentProductId > 0 ? currentProductId : 0}
-          totalRecords={currentProductId > 0 ? currentProductId : 0}
+          currentRecord={currentProductId > 0 ? recordPosition : recordTotal + 1}
+          totalRecords={currentProductId > 0 ? recordTotal : recordTotal + 1}
           onFirst={async () => { await loadData('first') }}
-          onPrevious={async () => { await loadData('previous') }}
-          onNext={async () => { await loadData('next') }}
+          onPrevious={async () => { await loadData(currentProductId > 0 ? 'previous' : 'last') }}
+          onNext={async () => { await loadData(currentProductId > 0 ? 'next' : 'first') }}
           onLast={async () => { await loadData('last') }}
           onNew={() => onNew(true)}
           onSave={() => { handleSaveProduct(); }}
@@ -2534,8 +2547,8 @@ export function CompactProductForm({
           isSaving={isSubmitting}
           canSave={currentProductId > 0 ? canUpdate : canCreate}
           canDelete={currentProductId > 0 && canDelete}
-          isFirstRecord={currentProductId <= 1}
-          isLastRecord={false}
+          isFirstRecord={currentProductId > 0 ? recordPosition <= 1 : recordTotal === 0}
+          isLastRecord={currentProductId > 0 ? recordPosition >= recordTotal : recordTotal === 0}
           isNewRecord={currentProductId === 0}
         />
       </div>

@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import sql, { getTenantPool } from "@/lib/database"
+import sql, { getTenantPool, resolveCurrentDbName } from "@/lib/database"
 import { isScaleProduct, validateScaleProductBarcodes } from "@/lib/scale-barcode"
 import { validateProductPriceCurrencies } from "@/lib/product-price-currencies"
 import { getGrantedBranchIds } from "@/lib/permissions"
@@ -768,6 +768,8 @@ async function getLastProductCode() {
   }
 }
 
+const productSchemaReady = new Map<string, Promise<void>>()
+
 export async function POST(request: NextRequest) {
   const client = await (await getTenantPool()).connect();
 
@@ -777,22 +779,35 @@ export async function POST(request: NextRequest) {
       ? await authorizeStoredProduct(request, productData.id, "update", productData.type)
       : await authorizeProductType(request, productData.type, "create")
     if (!permission.ok) return permission.response
-    await ensureProductSchemaColumns(client)
-    await ensureProductCostCentersTable(client)
-    await ensureProductBrandsTable(client)
-    await ensureProductNumbersTable(client)
-    await ensureProductUnitLinkTables(client)
-    await ensureProductAttributeTables(client)
-    // تقييد ظهور الصنف بفروع معيّنة (اختياري) — بلا أي صف هنا لهذا الصنف يبقى ظاهراً لكل الفروع
-    // (السلوك الحالي دون تغيير)؛ بصف واحد أو أكثر يظهر فقط لمستخدم فرعه أحد هذه الصفوف (انظر تصفية
-    // GET أدناه عبر هيدر x-branch-id). نفس نمط product_warehouses تماماً (جدول علاقة بسيط).
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS product_branches (
-        product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
-        branch_id INTEGER NOT NULL REFERENCES branches(id) ON DELETE CASCADE,
-        PRIMARY KEY (product_id, branch_id)
-      )
-    `)
+    // فحوصات المخطط (DDL) تُنفَّذ مرة واحدة لكل قاعدة شركة ولكل عملية خادم بدل كل حفظ — كانت تُبطئ استيراد
+    // آلاف الأصناف إذ يُكرَّر عشرات أوامر ALTER/CREATE IF NOT EXISTS لكل صنف.
+    const schemaDb = await resolveCurrentDbName()
+    let schemaReady = productSchemaReady.get(schemaDb)
+    if (!schemaReady) {
+      schemaReady = (async () => {
+        await ensureProductSchemaColumns(client)
+        await ensureProductCostCentersTable(client)
+        await ensureProductBrandsTable(client)
+        await ensureProductNumbersTable(client)
+        await ensureProductUnitLinkTables(client)
+        await ensureProductAttributeTables(client)
+        // تقييد ظهور الصنف بفروع معيّنة (اختياري) — بلا أي صف هنا لهذا الصنف يبقى ظاهراً لكل الفروع
+        // (السلوك الحالي دون تغيير)؛ بصف واحد أو أكثر يظهر فقط لمستخدم فرعه أحد هذه الصفوف (انظر تصفية
+        // GET أدناه عبر هيدر x-branch-id). نفس نمط product_warehouses تماماً (جدول علاقة بسيط).
+        await client.query(`
+          CREATE TABLE IF NOT EXISTS product_branches (
+            product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+            branch_id INTEGER NOT NULL REFERENCES branches(id) ON DELETE CASCADE,
+            PRIMARY KEY (product_id, branch_id)
+          )
+        `)
+      })().catch((error) => {
+        productSchemaReady.delete(schemaDb)
+        throw error
+      })
+      productSchemaReady.set(schemaDb, schemaReady)
+    }
+    await schemaReady
 
     const organizationId = 1; // replace with auth context
     const hasDefaultStore = await client.query(

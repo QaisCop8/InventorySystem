@@ -20,7 +20,25 @@ export async function GET(
   let productQuery = "";
   let values: any[] = [];
 
+  // عدد السجلات (غير المحذوفة) من نفس النوع، أو موقع سجل معيّن ضمنها (id <= upToId) — لعرض "رقم السجل / الإجمالي"
+  const countRecords = async (upToId?: number): Promise<number> => {
+    const countParams: any[] = [typeParam]
+    let extra = ""
+    if (upToId) {
+      countParams.push(upToId)
+      extra = " AND id <= $2"
+    }
+    const counted = await pool.query(
+      `SELECT COUNT(*)::int AS n FROM products WHERE (deleted IS NULL OR deleted = false) AND ($1::int IS NULL OR type = $1::int)${extra}`,
+      countParams
+    )
+    return Number(counted.rows[0]?.n || 0)
+  }
+
   try {
+    if (navigationType === "count") {
+      return NextResponse.json({ total: await countRecords() })
+    }
     switch (navigationType) {
       case "first":
         productQuery = `
@@ -111,6 +129,8 @@ export async function GET(
     }
 
     const product = result.rows[0];
+    product.record_total = await countRecords();
+    product.record_position = await countRecords(Number(product.id));
 
     // fetch units
     const unitsResult = await pool.query(

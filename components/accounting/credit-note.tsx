@@ -229,10 +229,10 @@ export default function CreditNote({ voucherType }: CreditNoteProps) {
     }
   }
 
-  const generateCode = async (bookId: number | null, fallbackCode = "") => {
+  const generateCode = async (bookId: number | null, fallbackCode = "", branchId: number | null = null) => {
     if (!bookId) return fallbackCode
     try {
-      const response = await fetch(`/api/credit-notes/generate-number?vch_type=${voucherType}&vch_book_id=${bookId}`)
+      const response = await fetch(`/api/credit-notes/generate-number?vch_type=${voucherType}&vch_book_id=${bookId}${branchId ? `&branch_id=${branchId}` : ""}`)
       if (!response.ok) return fallbackCode
       const data = await response.json()
       return data.code || fallbackCode
@@ -335,7 +335,7 @@ export default function CreditNote({ voucherType }: CreditNoteProps) {
     const source = formRef.current
     if (!source.id) return
     const requestId = ++bookChangeRequestRef.current
-    const code = await generateCode(source.vch_book_id)
+    const code = await generateCode(source.vch_book_id, "", source.branch_id)
     if (requestId !== bookChangeRequestRef.current || formRef.current.id !== source.id) return
     const today = new Date().toISOString().slice(0, 10)
     editForm((f) => ({
@@ -352,6 +352,26 @@ export default function CreditNote({ voucherType }: CreditNoteProps) {
     setErrorMessages([])
   }
 
+  // تغيير الفرع لسند جديد لم يُحفظ بعد يعيد توليد الرقم (بادئة السند + رمز الفرع + رمز الدفتر + التسلسل).
+  // initialSelection: اختيار الفرع الافتراضي تلقائياً عند فتح سند جديد — لا يُعدّ تعديلاً من المستخدم.
+  const regenerateCodeForBranch = async (branchId: number, initialSelection: boolean) => {
+    const current = formRef.current
+    if (current.id > 0 || !current.vch_book_id || !(branchId > 0)) return
+    const requestId = ++bookChangeRequestRef.current
+    const pending = (async () => {
+      const generated = await generateCode(current.vch_book_id, current.vch_code || "", branchId)
+      if (requestId !== bookChangeRequestRef.current || formRef.current.branch_id !== branchId) return
+      editForm((f) => ({ ...f, vch_code: generated || f.vch_code }))
+      if (initialSelection) {
+        cleanFormRef.current = { ...cleanFormRef.current, vch_code: generated || cleanFormRef.current.vch_code }
+        cleanSnapshotRef.current = creditNoteSnapshot(cleanFormRef.current)
+      }
+    })()
+    pendingBookChangeRef.current = pending
+    await pending
+    if (requestId === bookChangeRequestRef.current) pendingBookChangeRef.current = null
+  }
+
   const handleBookChange = async (bookId: number | null) => {
     const requestId = ++bookChangeRequestRef.current
     pendingBookChangeRef.current = null
@@ -359,7 +379,7 @@ export default function CreditNote({ voucherType }: CreditNoteProps) {
     editForm(current)
     if (current.id > 0 || !bookId) return
     const pending = (async () => {
-      const generated = await generateCode(bookId, current.vch_code || "")
+      const generated = await generateCode(bookId, current.vch_code || "", current.branch_id)
       if (requestId !== bookChangeRequestRef.current) return
       editForm((f) => ({ ...f, vch_code: generated || current.vch_code }))
     })()
@@ -874,7 +894,11 @@ export default function CreditNote({ voucherType }: CreditNoteProps) {
         onClone={cloneVoucher}
         onPrint={handlePrint}
         onNavigateRecord={handleNavigateRecord}
-        onFormChange={handleFormChange}
+        onFormChange={(field, value) => {
+          const initialSelection = field === "branch_id" && formRef.current.branch_id == null && cleanFormRef.current.branch_id == null
+          handleFormChange(field, value)
+          if (field === "branch_id") void regenerateCodeForBranch(Number(value), initialSelection)
+        }}
         onBookChange={handleBookChange}
         onCodeResolved={handleCodeResolved}
         onCodeNotFound={handleCodeNotFound}

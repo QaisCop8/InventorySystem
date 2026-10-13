@@ -15,6 +15,7 @@ interface Branch {
   id: number
   branch_code: string
   branch_name: string
+  branch_symbol?: string
   bank_id: number | null
   bank_name?: string
   status: number
@@ -24,6 +25,7 @@ interface BranchForm {
   id: number
   branch_code: string
   branch_name: string
+  branch_symbol: string
   bank_id: number | null
   status: number
 }
@@ -32,6 +34,7 @@ const initialForm: BranchForm = {
   id: 0,
   branch_code: "",
   branch_name: "",
+  branch_symbol: "",
   bank_id: null,
   status: 1,
 }
@@ -48,6 +51,8 @@ export default function Branches() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [showBankValidationError, setShowBankValidationError] = useState(false)
   const [showBranchCodeValidationError, setShowBranchCodeValidationError] = useState(false)
+  const [showSymbolValidationError, setShowSymbolValidationError] = useState(false)
+  const [saveError, setSaveError] = useState("")
   const [hasBankSelectionBeenTouched, setHasBankSelectionBeenTouched] = useState(false)
   const [selectedBankId, setSelectedBankId] = useState<number | "all">("all")
 
@@ -119,6 +124,8 @@ export default function Branches() {
     setShowBankValidationError(false)
     setShowBranchCodeValidationError(false)
     setHasBankSelectionBeenTouched(false)
+    setShowSymbolValidationError(false)
+    setSaveError("")
     setDialogOpen(true)
   }
 
@@ -127,6 +134,7 @@ export default function Branches() {
       id: branch.id,
       branch_code: branch.branch_code,
       branch_name: branch.branch_name,
+      branch_symbol: branch.branch_symbol || "",
       bank_id: normalizeBankId(branch.bank_id),
       status: branch.status,
     })
@@ -147,10 +155,17 @@ export default function Branches() {
     }
 
     const hasValidBranchCode = /^\d{1,4}$/.test(branchCode)
+    const symbol = String(form.branch_symbol || "").trim().toUpperCase()
+    const symbolTaken = branches.some((b) => (b.branch_symbol || "").toUpperCase() === symbol && b.id !== form.id)
     const hasValidBank = normalizedForm.bank_id !== null
 
     if (!hasValidBranchCode) {
       setShowBranchCodeValidationError(true)
+      return
+    }
+
+    if (!symbol || symbolTaken) {
+      setShowSymbolValidationError(true)
       return
     }
 
@@ -164,6 +179,8 @@ export default function Branches() {
 
     setShowBranchCodeValidationError(false)
     setShowBankValidationError(false)
+    setShowSymbolValidationError(false)
+    setSaveError("")
 
     setIsSaving(true)
     try {
@@ -172,7 +189,7 @@ export default function Branches() {
       const response = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(normalizedForm),
+        body: JSON.stringify({ ...normalizedForm, branch_symbol: symbol }),
       })
       if (!response.ok) {
         const error = await response.json()
@@ -185,6 +202,7 @@ export default function Branches() {
       setDialogOpen(true)
     } catch (error) {
       console.error(error)
+      setSaveError(error instanceof Error ? error.message : "فشل في حفظ الفرع")
     } finally {
       setIsSaving(false)
     }
@@ -220,6 +238,7 @@ export default function Branches() {
             id: next.id,
             branch_code: next.branch_code,
             branch_name: next.branch_name,
+            branch_symbol: next.branch_symbol || "",
             bank_id: next.bank_id,
             status: next.status,
           })
@@ -258,6 +277,7 @@ export default function Branches() {
       id: record.id,
       branch_code: record.branch_code,
       branch_name: record.branch_name,
+      branch_symbol: record.branch_symbol || "",
       bank_id: normalizeBankId(record.bank_id),
       status: record.status,
     })
@@ -273,7 +293,7 @@ export default function Branches() {
     if (!filteredBranches[index]) return
     const b = filteredBranches[index]
     setCurrentIndex(index)
-    setForm({ id: b.id, branch_code: b.branch_code, branch_name: b.branch_name, bank_id: b.bank_id, status: b.status })
+    setForm({ id: b.id, branch_code: b.branch_code, branch_name: b.branch_name, branch_symbol: b.branch_symbol || "", bank_id: b.bank_id, status: b.status })
     setIsNewMode(false)
     setDialogOpen(true)
   }
@@ -290,7 +310,7 @@ export default function Branches() {
     const foundIndex = branches.findIndex((b) => b.branch_code === padded)
     if (foundIndex !== -1) {
       const b = branches[foundIndex]
-      setForm({ id: b.id, branch_code: b.branch_code, branch_name: b.branch_name, bank_id: b.bank_id, status: b.status })
+      setForm({ id: b.id, branch_code: b.branch_code, branch_name: b.branch_name, branch_symbol: b.branch_symbol || "", bank_id: b.bank_id, status: b.status })
       setCurrentIndex(foundIndex)
       setIsNewMode(false)
       setDialogOpen(true)
@@ -376,6 +396,7 @@ export default function Branches() {
                   <TableRow>
                     <TableHead className="text-right">رقم الفرع</TableHead>
                     <TableHead className="text-right">اسم الفرع</TableHead>
+                    <TableHead className="text-right">رمز الفرع</TableHead>
                     <TableHead className="text-right">البنك</TableHead>
                     <TableHead className="text-right">الحالة</TableHead>
                   <TableHead className="text-right">إجراءات</TableHead>
@@ -390,6 +411,7 @@ export default function Branches() {
                     >
                       <TableCell className="text-right">{branch.branch_code}</TableCell>
                       <TableCell className="text-right">{branch.branch_name}</TableCell>
+                      <TableCell className="text-right">{branch.branch_symbol || "-"}</TableCell>
                       <TableCell className="text-right">{banks.find((bank) => bank.id === branch.bank_id)?.bank_name || "-"}</TableCell>
                       <TableCell className="text-right">{branch.status === 1 ? "نشط" : "متوقف"}</TableCell>
                       <TableCell className="text-right">
@@ -434,6 +456,12 @@ export default function Branches() {
             return
           }
 
+          if (field === "branch_symbol") {
+            setForm((f) => ({ ...f, branch_symbol: String(value ?? "").toUpperCase().slice(0, 1) }))
+            setShowSymbolValidationError(false)
+            return
+          }
+
           const normalizedValue = field === "bank_id" ? normalizeBankId(value) : value
           setForm((f) => ({ ...f, [field]: normalizedValue }))
           if (field === "bank_id") {
@@ -452,6 +480,8 @@ export default function Branches() {
         canSave={
           /^\d{1,4}$/.test(form.branch_code) &&
           !!form.branch_name.trim() &&
+          !!form.branch_symbol &&
+          !branches.some((b) => (b.branch_symbol || "").toUpperCase() === form.branch_symbol.toUpperCase() && b.id !== form.id) &&
           !!form.bank_id &&
           Number(form.bank_id) > 0 &&
           !branches.some((b) => b.branch_code === form.branch_code && b.id !== form.id) &&
@@ -459,6 +489,9 @@ export default function Branches() {
         }
         hasDuplicateCode={branches.some((b) => b.branch_code === form.branch_code && b.id !== form.id)}
         hasDuplicateName={hasDuplicateName(form.branch_name, form.id)}
+        usedSymbols={branches.filter((b) => b.id !== form.id && b.branch_symbol).map((b) => String(b.branch_symbol).toUpperCase())}
+        showSymbolValidationError={showSymbolValidationError}
+        saveError={saveError}
         isFirstRecord={currentIndex <= 0}
         isLastRecord={filteredBranches.length === 0 ? true : currentIndex >= filteredBranches.length - 1}
         isNewMode={isNewMode}

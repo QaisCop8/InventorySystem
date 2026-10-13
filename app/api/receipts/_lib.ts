@@ -1,4 +1,5 @@
 import sql from "@/lib/database"
+import { withBranchSymbol } from "@/lib/branch-symbol"
 import { ensureTables as ensureCreditCardTables } from "../credit-cards/_lib"
 import { getSystemSettingValue } from "@/lib/system-settings"
 import { buildVoucherCode, normalizeVoucherPrefix } from "@/lib/voucher-code"
@@ -666,10 +667,11 @@ export const nextVoucherSequence = async (vchType: number, codePrefix: string, s
   return maxNumber >= startNumber ? maxNumber + 1 : startNumber
 }
 
-export const resolveVoucherBookName = async (bookId: number | null): Promise<string> => {
+// جزء الكود الذي يلي بادئة السند: رمز الفرع (إن مُرّر branchId) + رمز دفتر السندات، مثل "AD".
+export const resolveVoucherBookName = async (bookId: number | null, branchId?: number | null): Promise<string> => {
   if (!bookId) return ""
   const rows = await sql`SELECT name FROM voucher_books_tbl WHERE id = ${bookId}`
-  return rows[0]?.name || ""
+  return withBranchSymbol(String(rows[0]?.name || ""), branchId)
 }
 
 // Debit (credit_debit=1) / Credit (credit_debit=2) — matches the reference C# system
