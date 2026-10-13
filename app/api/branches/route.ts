@@ -62,8 +62,11 @@ export async function POST(request: NextRequest) {
     const authorization = await authorizeFile(request, "branches", "create")
     if (!authorization.ok) return authorization.response
     const data = await request.json()
-    // إضافة سريعة (البداية السريعة): الاسم فقط — رقم الفرع يُولَّد تلقائياً (التالي بعد أكبر رقم رقمي
-    // حالي، 1-4 أرقام) ولا يُشترط البنك. شاشة التعريفات تبقى بقواعدها الكاملة.
+    const bankId = Number(data.bank_id)
+    if (!Number.isInteger(bankId) || bankId <= 0) {
+      return NextResponse.json({ error: "يجب اختيار البنك" }, { status: 400 })
+    }
+    // Quick setup generates the branch code automatically and still requires a bank.
     const quick = data.quick === true
     let branchCode = String(data.branch_code || "").trim()
     if (quick && !branchCode) {
@@ -78,9 +81,6 @@ export async function POST(request: NextRequest) {
     if (!String(data.branch_name || "").trim()) {
       return NextResponse.json({ error: "اسم الفرع مطلوب" }, { status: 400 })
     }
-    if (!quick && (!Number.isInteger(Number(data.bank_id)) || Number(data.bank_id) <= 0)) {
-      return NextResponse.json({ error: "يجب اختيار البنك" }, { status: 400 })
-    }
     try {
       await assertLicenseAllows("branches")
     } catch (error) {
@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
       VALUES (
         ${branchCode},
         ${String(data.branch_name).trim()},
-        ${Number(data.bank_id) || null},
+        ${bankId},
         ${data.address || ""},
         ${data.manager || ""},
         ${data.phone || ""},

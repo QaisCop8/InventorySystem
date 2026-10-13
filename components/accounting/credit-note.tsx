@@ -1,8 +1,9 @@
 "use client"
 
 import { useVoucherDeepLink } from "@/hooks/use-voucher-deep-link"
+import { creditNoteSnapshot } from "@/lib/credit-note-changes"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -85,7 +86,39 @@ export default function CreditNote({ voucherType }: CreditNoteProps) {
 
   const [dialogOpen, setDialogOpen] = useState(false)
   const [isNewMode, setIsNewMode] = useState(false)
-  const [form, setForm] = useState<VoucherRecord>(buildInitialForm(voucherType))
+  const [form, setFormState] = useState<VoucherRecord>(buildInitialForm(voucherType))
+  const formRef = useRef(form)
+  const cleanFormRef = useRef(form)
+  const cleanSnapshotRef = useRef(creditNoteSnapshot(form))
+  const copiedVoucherRef = useRef(false)
+  const bookChangeRequestRef = useRef(0)
+  const pendingBookChangeRef = useRef<Promise<void> | null>(null)
+  const saveInFlightRef = useRef(false)
+  const editForm = (update: VoucherRecord | ((current: VoucherRecord) => VoucherRecord)) => {
+    const next = typeof update === "function" ? update(formRef.current) : update
+    formRef.current = next
+    setFormState(next)
+  }
+  // Only opening, loading, and successfully saving a voucher establish a clean baseline.
+  const setForm = (update: VoucherRecord | ((current: VoucherRecord) => VoucherRecord)) => {
+    bookChangeRequestRef.current++
+    pendingBookChangeRef.current = null
+    editForm(update)
+    cleanFormRef.current = structuredClone(formRef.current)
+    cleanSnapshotRef.current = creditNoteSnapshot(formRef.current)
+    copiedVoucherRef.current = false
+  }
+  const hasUnsavedChanges = () => copiedVoucherRef.current ||
+    creditNoteSnapshot(formRef.current) !== cleanSnapshotRef.current
+  const handleFormChange = (field: string, value: any) => {
+    const isInitialBranch = field === "branch_id" && formRef.current.branch_id == null &&
+      cleanFormRef.current.branch_id == null && Number(value) > 0
+    editForm((current) => ({ ...current, [field]: value }))
+    if (isInitialBranch) {
+      cleanFormRef.current = { ...cleanFormRef.current, branch_id: Number(value) }
+      cleanSnapshotRef.current = creditNoteSnapshot(cleanFormRef.current)
+    }
+  }
   const [isSaving, setIsSaving] = useState(false)
   const [currentIndex, setCurrentIndex] = useState(0)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
@@ -278,9 +311,12 @@ export default function CreditNote({ voucherType }: CreditNoteProps) {
   }
 
   const openNewDialog = async () => {
+    const requestId = ++bookChangeRequestRef.current
+    pendingBookChangeRef.current = null
     const defaults = await fetchDefaults()
     const accountDefaults = await fetchAccountDefaults()
     const code = await generateCode(defaults.bookId)
+    if (requestId !== bookChangeRequestRef.current) return
     setForm({
       ...buildInitialForm(voucherType),
       vch_code: code,
@@ -295,10 +331,14 @@ export default function CreditNote({ voucherType }: CreditNoteProps) {
   }
 
   const cloneVoucher = async () => {
-    if (!form.id) return
-    const code = await generateCode(form.vch_book_id)
+    await pendingBookChangeRef.current
+    const source = formRef.current
+    if (!source.id) return
+    const requestId = ++bookChangeRequestRef.current
+    const code = await generateCode(source.vch_book_id)
+    if (requestId !== bookChangeRequestRef.current || formRef.current.id !== source.id) return
     const today = new Date().toISOString().slice(0, 10)
-    setForm((f) => ({
+    editForm((f) => ({
       ...f,
       id: 0,
       vch_code: code,
@@ -307,20 +347,32 @@ export default function CreditNote({ voucherType }: CreditNoteProps) {
       status: 1,
       is_printed: 0,
     }))
+    copiedVoucherRef.current = true
     setIsNewMode(true)
     setErrorMessages([])
   }
 
   const handleBookChange = async (bookId: number | null) => {
-    const previousCode = form.vch_code || ""
-    setForm((f) => ({ ...f, vch_book_id: bookId }))
-    if (!isNewMode || !bookId) return
-    const generated = await generateCode(bookId, previousCode)
-    setForm((f) => ({ ...f, vch_code: generated || previousCode }))
+    const requestId = ++bookChangeRequestRef.current
+    pendingBookChangeRef.current = null
+    const current = { ...formRef.current, vch_book_id: bookId }
+    editForm(current)
+    if (current.id > 0 || !bookId) return
+    const pending = (async () => {
+      const generated = await generateCode(bookId, current.vch_code || "")
+      if (requestId !== bookChangeRequestRef.current) return
+      editForm((f) => ({ ...f, vch_code: generated || current.vch_code }))
+    })()
+    pendingBookChangeRef.current = pending
+    await pending
+    if (requestId === bookChangeRequestRef.current) pendingBookChangeRef.current = null
   }
 
   const openEditDialog = async (record: VoucherRecord, index: number) => {
+    const requestId = ++bookChangeRequestRef.current
+    pendingBookChangeRef.current = null
     const details = await fetchVoucherDetails(record.id)
+    if (requestId !== bookChangeRequestRef.current) return
     setForm(normalizeVoucher(details || record, voucherType))
     setCurrentIndex(index)
     setIsNewMode(false)
@@ -329,7 +381,10 @@ export default function CreditNote({ voucherType }: CreditNoteProps) {
   }
 
   const handleCodeResolved = async (id: number) => {
+    const requestId = ++bookChangeRequestRef.current
+    pendingBookChangeRef.current = null
     const details = await fetchVoucherDetails(id)
+    if (requestId !== bookChangeRequestRef.current) return
     if (!details) return
     const index = vouchers.findIndex((v) => v.id === id)
     setForm(normalizeVoucher(details, voucherType))
@@ -368,7 +423,10 @@ export default function CreditNote({ voucherType }: CreditNoteProps) {
 
     if (!data.account_id) return "يجب اختيار العميل"
     if (!data.debit_account_id) return `يجب اختيار ${voucherType === 6 ? "الحساب المدين" : "الحساب الدائن"}`
-    if (!data.vat_account_id) return "يجب اختيار حساب الضريبة"
+    if (
+      (Number(data.vat_percent) > 0 || Number(data.vat) > 0) &&
+      (!Number.isSafeInteger(Number(data.vat_account_id)) || Number(data.vat_account_id) <= 0)
+    ) return "يجب اختيار حساب الضريبة"
 
     if (!data.amount_journal_type_8 || Number(data.amount_journal_type_8) <= 0) return "يجب إدخال المبلغ"
     if (!data.amount || Number(data.amount) <= 0) return "يجب إدخال المجموع"
@@ -378,20 +436,23 @@ export default function CreditNote({ voucherType }: CreditNoteProps) {
     return null
   }
 
-  const saveVoucher = async (action: PostVoucherAction = "save") => {
-    const error = validateVoucher(form)
-    if (error) {
-      setErrorMessages([error])
-      return
-    }
-    setErrorMessages([])
-
+  const saveVoucher = async (action: PostVoucherAction = "save", keepSavedVoucher = false): Promise<boolean> => {
+    if (saveInFlightRef.current) return false
+    saveInFlightRef.current = true
     setIsSaving(true)
     try {
-      const method = form.id > 0 ? "PUT" : "POST"
-      const status = action === "save" || action === "save_print" ? form.status : 2
-      const isPrinted = action === "post_print" ? 1 : form.is_printed || 0
-      const dataToSave: VoucherRecord = { ...form, status, is_printed: isPrinted }
+      await pendingBookChangeRef.current
+      const currentForm = formRef.current
+      const error = validateVoucher(currentForm)
+      if (error) {
+        setErrorMessages([error])
+        return false
+      }
+      setErrorMessages([])
+      const method = currentForm.id > 0 ? "PUT" : "POST"
+      const status = action === "save" || action === "save_print" ? currentForm.status : 2
+      const isPrinted = action === "post_print" ? 1 : currentForm.is_printed || 0
+      const dataToSave: VoucherRecord = { ...currentForm, status, is_printed: isPrinted }
       const response = await fetch("/api/credit-notes", {
         method,
         headers: { "Content-Type": "application/json" },
@@ -400,9 +461,11 @@ export default function CreditNote({ voucherType }: CreditNoteProps) {
       if (!response.ok) {
         const responseError = await response.json()
         setErrorMessages([responseError.error || "فشل في حفظ السند"])
-        return
+        return false
       }
       const saved = await response.json()
+      setForm(normalizeVoucher(saved, voucherType))
+      setIsNewMode(false)
 
       if (action === "post_print" || action === "save_print") {
         setPrintData({
@@ -429,9 +492,10 @@ export default function CreditNote({ voucherType }: CreditNoteProps) {
       }
 
       await fetchVouchers()
+      if (keepSavedVoucher) return true
       const defaults = await fetchDefaults()
       const accountDefaults = await fetchAccountDefaults()
-      const bookId = form.vch_book_id ?? defaults.bookId
+      const bookId = currentForm.vch_book_id ?? defaults.bookId
       const code = await generateCode(bookId)
       setForm({
         ...buildInitialForm(voucherType),
@@ -443,10 +507,13 @@ export default function CreditNote({ voucherType }: CreditNoteProps) {
       })
       setIsNewMode(true)
       setDialogOpen(true)
+      return true
     } catch (error) {
       console.error(error)
       setErrorMessages(["فشل في حفظ السند"])
+      return false
     } finally {
+      saveInFlightRef.current = false
       setIsSaving(false)
     }
   }
@@ -462,7 +529,7 @@ export default function CreditNote({ voucherType }: CreditNoteProps) {
         const response = await fetch(`/api/credit-notes/${form.id}`, { method: "PATCH" })
         if (response.ok) {
           isPrinted = 1
-          setForm((f) => ({ ...f, is_printed: 1 }))
+          editForm((f) => ({ ...f, is_printed: 1 }))
         }
       } catch (error) {
         console.error("Failed to mark voucher as printed", error)
@@ -573,6 +640,10 @@ export default function CreditNote({ voucherType }: CreditNoteProps) {
 
   const handleDialogOpenChange = (open: boolean) => {
     if (!open && showDeleteConfirm) return
+    if (!open) {
+      bookChangeRequestRef.current++
+      pendingBookChangeRef.current = null
+    }
     setDialogOpen(open)
   }
 
@@ -789,17 +860,21 @@ export default function CreditNote({ voucherType }: CreditNoteProps) {
         salesmen={salesmen}
         paymentClassifications={paymentClassifications}
         form={form}
+        hasUnsavedChanges={hasUnsavedChanges}
         isSaving={isSaving}
         showDeleteConfirm={showDeleteConfirm}
         onOpenChange={handleDialogOpenChange}
         onNew={openNewDialog}
         onSave={saveVoucher}
-        onValidateSave={() => validateVoucher(form)}
+        onValidateSave={async () => {
+          await pendingBookChangeRef.current
+          return validateVoucher(formRef.current)
+        }}
         onDelete={() => form.id && setShowDeleteConfirm(true)}
         onClone={cloneVoucher}
         onPrint={handlePrint}
         onNavigateRecord={handleNavigateRecord}
-        onFormChange={(field, value) => setForm((f) => ({ ...f, [field]: value }))}
+        onFormChange={handleFormChange}
         onBookChange={handleBookChange}
         onCodeResolved={handleCodeResolved}
         onCodeNotFound={handleCodeNotFound}

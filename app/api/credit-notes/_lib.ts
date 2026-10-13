@@ -25,6 +25,24 @@ export const DEBIT_NOTE_VCH_TYPE = 7
 const VAT_JOURNAL_TYPE = { credit: 7, debit: 10 } as const
 const CONTRA_JOURNAL_TYPE = { credit: 8, debit: 11 } as const
 
+export const validateCreditNoteVatAccount = async (data: {
+  vat_percent?: unknown
+  vat?: unknown
+  vat_account_id?: unknown
+  currency_id?: unknown
+}): Promise<string | null> => {
+  if (!(Number(data.vat_percent) > 0 || Number(data.vat) > 0)) return null
+
+  const accountId = Number(data.vat_account_id)
+  if (!Number.isSafeInteger(accountId) || accountId <= 0) return "يجب اختيار حساب الضريبة"
+
+  const accounts = await sql`SELECT id FROM account_tbl WHERE id = ${accountId}`
+  if (accounts.length === 0) return "حساب الضريبة غير صالح"
+
+  // A positive percentage still requires a compatible account when the VAT amount rounds to zero.
+  return validateJournalAccountCurrencies([{ account_id: accountId }], data.currency_id ? Number(data.currency_id) : null)
+}
+
 export const ensureTables = async () => {
   await ensureReceiptsTables()
   // يضمن وجود سجلي voucher_types_tbl (10/11) حتى عند استدعاء هذا الملف مباشرة قبل أي طلب لدفاتر

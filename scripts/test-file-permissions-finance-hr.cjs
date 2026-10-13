@@ -13,6 +13,7 @@ const granted = { ok: true, userId: "test-user", branchId: 1, lookupOnly: false,
 function harness(options = {}) {
   const effects = []
   const checks = []
+  const licenseChecks = []
   const cache = new Map()
   const sql = async (parts, ...values) => {
     const query = typeof parts === "string" ? parts : parts.join("?")
@@ -37,7 +38,7 @@ function harness(options = {}) {
     "@/lib/tenant-auth": { getSessionUser: async () => options.session === false ? null : { user_id: "test-user" } },
     "@/lib/hr-schema": { ensureHrSchema: async () => effects.push({ query: "ensureHrSchema" }) },
     "@/lib/permissions": { ensureFilePermissions: async () => {}, LEGACY_FULL_ACCESS_SQL: "FALSE" },
-    "@/lib/company-license": { assertLicenseAllows: async () => {}, licenseErrorResponseBody: () => null },
+    "@/lib/company-license": { assertLicenseAllows: async resource => { licenseChecks.push(resource) }, licenseErrorResponseBody: () => null },
   }
   function load(relative, realPermissions = false) {
     const filename = path.resolve(root, relative)
@@ -59,7 +60,7 @@ function harness(options = {}) {
     cache.set(filename, module.exports)
     return module.exports
   }
-  return { effects, checks, load }
+  return { effects, checks, licenseChecks, load }
 }
 
 function request(body = {}, suffix = "") {
@@ -165,6 +166,50 @@ test("branch bootstrap lookup filters branch memberships and private details", a
   assert.equal(result.body[0].id, 2)
   assert.equal(result.body[0].phone, undefined)
   assert.equal(result.body[0].manager, undefined)
+})
+
+const invalidBranchBanks = [
+  ["missing", {}], ["null", { bank_id: null }], ["empty", { bank_id: "" }],
+  ["whitespace", { bank_id: " " }], ["zero", { bank_id: 0 }],
+  ["negative", { bank_id: -1 }], ["non-numeric", { bank_id: "invalid" }],
+  ["non-integer", { bank_id: 1.5 }],
+]
+
+for (const [name, filename, method, extra] of [
+  ["regular creation", "app/api/branches/route.ts", "POST", {}],
+  ["quick creation", "app/api/branches/route.ts", "POST", { quick: true }],
+  ["quick creation with automatic code", "app/api/branches/route.ts", "POST", { quick: true, branch_code: undefined }],
+  ["collection update", "app/api/branches/route.ts", "PUT", {}],
+  ["individual update", "app/api/branches/[id]/route.ts", "PUT", {}],
+]) test(`branch ${name} requires a bank before any database or license work`, async t => {
+  for (const [label, bank] of invalidBranchBanks) await t.test(label, async () => {
+    const state = harness({ authorization: () => granted })
+    const body = { id: 1, branch_code: "0001", branch_name: "Branch", ...extra, ...bank }
+    const result = await state.load(filename)[method](request(body), { params: Promise.resolve({ id: "1" }) })
+    assert.equal(result.status, 400)
+    assert.equal(result.body.error, "يجب اختيار البنك")
+    assert.deepEqual(state.effects, [])
+    assert.deepEqual(state.licenseChecks, [])
+  })
+})
+
+for (const quick of [false, true]) test(`branch ${quick ? "quick" : "regular"} creation saves the selected bank`, async () => {
+  const state = harness({
+    authorization: () => granted,
+    rows: (query, values) => query.includes("MAX(branch_code::int)") ? [{ next: 12, width: 4 }]
+      : query.includes("INSERT INTO branches") ? [{ id: 1, branch_code: values[0], branch_name: values[1], bank_id: values[2] }] : [],
+  })
+  const result = await state.load("app/api/branches/route.ts").POST(request({
+    branch_name: "Branch", bank_id: "7", ...(quick ? { quick: true } : { branch_code: "0005" }),
+  }))
+  assert.equal(result.status, 201)
+  assert.equal(result.body.bank_id, 7)
+  assert.equal(result.body.branch_code, quick ? "0012" : "0005")
+  const insert = state.effects.find(effect => effect.query.includes("INSERT INTO branches"))
+  assert.equal(insert.values[0], result.body.branch_code)
+  assert.equal(insert.values[2], 7)
+  assert.equal(state.effects.filter(effect => effect.query.includes("MAX(branch_code::int)")).length, quick ? 1 : 0)
+  assert.deepEqual(state.licenseChecks, ["branches"])
 })
 
 test("employee picker omits personal, salary, and card details", async () => {

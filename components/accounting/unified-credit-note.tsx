@@ -85,8 +85,9 @@ interface UnifiedCreditNoteProps {
   showDeleteConfirm?: boolean
   onOpenChange: (open: boolean) => void
   onNew?: () => void
-  onSave: (action?: PostVoucherAction) => void
-  onValidateSave?: () => string | null
+  onSave: (action?: PostVoucherAction, keepSavedVoucher?: boolean) => Promise<boolean>
+  onValidateSave?: () => string | null | Promise<string | null>
+  hasUnsavedChanges: () => boolean
   onDelete?: () => void
   onClone?: () => void
   onPrint?: () => void
@@ -106,6 +107,7 @@ interface UnifiedCreditNoteProps {
 
 const normalizeVoucherCode = (value: string) => value.toUpperCase().replace(/[^A-Z0-9-]/g, "").slice(0, 10)
 const numberValue = (value: number | null | undefined) => (value === null || value === undefined ? "" : String(value))
+type AmountField = "amount" | "amount_journal_type_8" | "vat"
 
 const blockNonNumericKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
   const controlKeys = ["Backspace", "Delete", "Tab", "Enter", "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End"]
@@ -131,6 +133,7 @@ export default function UnifiedCreditNote({
   onNew,
   onSave,
   onValidateSave,
+  hasUnsavedChanges,
   onDelete,
   onClone,
   onPrint,
@@ -172,22 +175,29 @@ export default function UnifiedCreditNote({
     }
   }, [errorMessages])
 
-  const initialSnapshotRef = useRef<string>(JSON.stringify(form))
+  const latestFormRef = useRef(form)
+  latestFormRef.current = form
   const [showUnsavedConfirm, setShowUnsavedConfirm] = useState(false)
   const pendingActionRef = useRef<(() => void) | null>(null)
+  const saveInFlightRef = useRef(false)
+  const codeEditedRef = useRef(false)
+  const codeRequestRef = useRef(0)
+  const calculationValuesRef = useRef<Partial<Record<AmountField | "vat_percent", number>>>({})
 
   useEffect(() => {
-    const snapshotTimer = window.setTimeout(() => {
-      initialSnapshotRef.current = JSON.stringify(form)
-    }, 0)
-    return () => window.clearTimeout(snapshotTimer)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dialogOpen, form.id, form.vch_code, isNewMode])
+    codeRequestRef.current += 1
+    codeEditedRef.current = false
+    calculationValuesRef.current = {}
+    pendingActionRef.current = null
+    setShowUnsavedConfirm(false)
+  }, [dialogOpen, form.id])
 
   const guardedAction = (action: () => void) => {
+    if (isSaving || saveInFlightRef.current || navLoading) return
+    codeRequestRef.current += 1
     if ([2, 3].includes(Number(form.status))) { action(); return }
     if (showUnsavedConfirm) return
-    if (JSON.stringify(form) !== initialSnapshotRef.current) {
+    if (hasUnsavedChanges()) {
       pendingActionRef.current = action
       setShowUnsavedConfirm(true)
     } else {
@@ -197,15 +207,17 @@ export default function UnifiedCreditNote({
   // تبديل الشاشة من القائمة/إغلاق التبويب/رجوع المتصفح/تحديث الصفحة مع تغييرات غير محفوظة ⇐ نفس نافذة
   // التحقق من التغييرات (حفظ/عدم حفظ/إلغاء) — كما في كاشير نقطة البيع (lib/navigation-guard.ts)
   useNavigationGuard(
-    () => dialogOpen && ![2, 3].includes(Number(form.status)) && JSON.stringify(form) !== initialSnapshotRef.current,
+    () => dialogOpen && ![2, 3].includes(Number(form.status)) && hasUnsavedChanges(),
     (continueNavigation) => guardedAction(continueNavigation),
   )
 
   // بحث السندات (زر بجانب رقم السند): اختيار سند يمرّ بنافذة التحقق من التغييرات ثم يعرضه
   const [voucherSearchOpen, setVoucherSearchOpen] = useState(false)
   const openSearchedVoucher = (voucherId: number) => guardedAction(async () => {
+    const requestId = codeRequestRef.current
     const response = await fetch(`/api/credit-notes/${voucherId}`, { cache: "no-store" })
     const record = await response.json().catch(() => null)
+    if (requestId !== codeRequestRef.current) return
     if (!response.ok || !record?.id) {
       messagesRef.current?.show?.([{ severity: "error", summary: "", detail: record?.error || "تعذر عرض السند", life: 3000 }])
       return
@@ -215,13 +227,18 @@ export default function UnifiedCreditNote({
 
 
   const handleCodeBlur = async () => {
+    if (!codeEditedRef.current) return
     const raw = form.vch_code.trim()
     if (!raw) return
+    codeEditedRef.current = false
+    const requestId = ++codeRequestRef.current
+    const recordId = form.id
     try {
       const query = new URLSearchParams({ vch_type: String(form.vch_type), raw })
       if (form.vch_book_id) query.set("vch_book_id", String(form.vch_book_id))
       const response = await fetch(`/api/credit-notes/resolve-code?${query.toString()}`)
       const data = await response.json()
+      if (requestId !== codeRequestRef.current || latestFormRef.current.id !== recordId || latestFormRef.current.vch_code.trim() !== raw) return
       if (!response.ok) {
         messagesRef.current?.show?.([{ severity: "error", summary: "", detail: data.error || "تعذر تحديد رقم السند", life: 3000 }])
         return
@@ -240,15 +257,44 @@ export default function UnifiedCreditNote({
     }
   }
 
-  const handleRequestSave = () => {
-    if (isLocked) return
-    const error = onValidateSave?.()
+  const handleRequestSave = async () => {
+    if (isLocked || isSaving || saveInFlightRef.current || showUnsavedConfirm) return
+    const requestId = codeRequestRef.current
+    const error = await onValidateSave?.()
+    if (requestId !== codeRequestRef.current) return
     if (error) {
       messagesRef.current?.clear?.()
       messagesRef.current?.show?.([{ severity: "error", summary: "", detail: error, sticky: false, life: 4000 }])
       return
     }
     setPostDialogOpen(true)
+  }
+
+  const cancelPendingAction = () => {
+    if (isSaving || saveInFlightRef.current) return
+    pendingActionRef.current = null
+    setShowUnsavedConfirm(false)
+  }
+
+  const discardAndContinue = () => {
+    if (isSaving || saveInFlightRef.current) return
+    const action = pendingActionRef.current
+    pendingActionRef.current = null
+    setShowUnsavedConfirm(false)
+    action?.()
+  }
+
+  const saveAndContinue = async () => {
+    if (isSaving || saveInFlightRef.current) return
+    saveInFlightRef.current = true
+    setShowUnsavedConfirm(false)
+    const action = pendingActionRef.current
+    pendingActionRef.current = null
+    try {
+      if (await onSave("save", true)) action?.()
+    } finally {
+      saveInFlightRef.current = false
+    }
   }
 
   // F3 حفظ / F9 حذف / F4 نسخ / F5 جديد / Ctrl+P طباعة: يتولاها UniversalToolbar (lib/hotkeys.ts)
@@ -330,7 +376,10 @@ export default function UnifiedCreditNote({
 
   // مطابق لـ doCalclation في CreditNote.js: المجموع = المبلغ / (1 + نسبة الضريبة%)، والضريبة =
   // المجموع - المبلغ. تُعاد الحسابات الثلاثة تبادلياً حسب الحقل الذي غادره المستخدم (blur).
-  const doCalculation = (type: "amount" | "amount_journal_type_8" | "vat") => {
+  const doCalculation = (type: AmountField, source: AmountField | "vat_percent" = type) => {
+    const originalValue = calculationValuesRef.current[source]
+    delete calculationValuesRef.current[source]
+    if (originalValue === undefined || Number(form[source] || 0) === originalValue) return
     const amount = Number(form.amount || 0)
     const amountNet = Number(form.amount_journal_type_8 || 0)
     const vat = Number(form.vat || 0)
@@ -397,7 +446,7 @@ export default function UnifiedCreditNote({
   return (
     <>
       {/* الإغلاق (ESC أو زر X) يمر بالتحقق من التغييرات */}
-      <Dialog open={dialogOpen} onOpenChange={(open) => (open ? onOpenChange(true) : guardedAction(() => onOpenChange(false)))}>
+      <Dialog open={dialogOpen} modal={showUnsavedConfirm || showDeleteConfirm || postDialogOpen ? false : undefined} onOpenChange={(open) => (open ? onOpenChange(true) : guardedAction(() => onOpenChange(false)))}>
         <DialogContent
           inline={fullscreenEnabled && dialogOpen}
           className="voucher-form w-[97vw] max-w-[1400px] p-0 overflow-hidden max-h-[92vh] overflow-y-auto"
@@ -406,7 +455,7 @@ export default function UnifiedCreditNote({
           onPointerDownOutside={(event) => event.preventDefault()}
           onInteractOutside={(event) => event.preventDefault()}
           onEscapeKeyDown={(event) => {
-            keepDialogOpenOnEscape(event, [showUnsavedConfirm, showDeleteConfirm, postDialogOpen])
+            keepDialogOpenOnEscape(event, [showUnsavedConfirm, showDeleteConfirm, postDialogOpen, voucherSearchOpen, billsPaymentOpen])
           }}
         >
           <button
@@ -500,7 +549,12 @@ export default function UnifiedCreditNote({
                           panelClassName="invoice-currency-dropdown-panel"
                           appendTo="self"
                           panelStyle={{ zIndex: 10000 }}
-                          onChange={(e: any) => (onBookChange ? onBookChange(e.value ?? null) : onFormChange("vch_book_id", e.value ?? null))}
+                          onChange={(e: any) => {
+                            codeRequestRef.current += 1
+                            codeEditedRef.current = false
+                            if (onBookChange) onBookChange(e.value ?? null)
+                            else onFormChange("vch_book_id", e.value ?? null)
+                          }}
                         />
                       </div>
                       <div className="grid gap-1.5">
@@ -509,7 +563,11 @@ export default function UnifiedCreditNote({
                           <Input
                             id="vch-code"
                             value={form.vch_code}
-                            onChange={(e) => onFormChange("vch_code", normalizeVoucherCode(e.target.value))}
+                            onChange={(e) => {
+                              codeEditedRef.current = true
+                              codeRequestRef.current += 1
+                              onFormChange("vch_code", normalizeVoucherCode(e.target.value))
+                            }}
                             onBlur={handleCodeBlur}
                             maxLength={10}
                             className="focus-visible:border-emerald-400 focus-visible:ring-emerald-100"
@@ -632,8 +690,11 @@ export default function UnifiedCreditNote({
                           value={numberValue(form.vat_percent)}
                           onKeyDown={blockNonNumericKey}
                           onChange={(e) => onFormChange("vat_percent", e.target.value ? Number(e.target.value) : 0)}
-                          onFocus={(e) => e.target.select()}
-                          onBlur={() => doCalculation("amount")}
+                          onFocus={(e) => {
+                            calculationValuesRef.current.vat_percent = Number(form.vat_percent || 0)
+                            e.target.select()
+                          }}
+                          onBlur={() => doCalculation("amount", "vat_percent")}
                           className="focus-visible:border-blue-400 focus-visible:ring-blue-100"
                         />
                       </div>
@@ -660,7 +721,10 @@ export default function UnifiedCreditNote({
                         value={numberValue(form.amount_journal_type_8)}
                         onKeyDown={blockNonNumericKey}
                         onChange={(e) => onFormChange("amount_journal_type_8", e.target.value ? Number(e.target.value) : 0)}
-                        onFocus={(e) => e.target.select()}
+                        onFocus={(e) => {
+                          calculationValuesRef.current.amount_journal_type_8 = Number(form.amount_journal_type_8 || 0)
+                          e.target.select()
+                        }}
                         onBlur={() => doCalculation("amount_journal_type_8")}
                         className="focus-visible:border-amber-400 focus-visible:ring-amber-100"
                       />
@@ -673,7 +737,10 @@ export default function UnifiedCreditNote({
                         value={numberValue(form.vat)}
                         onKeyDown={blockNonNumericKey}
                         onChange={(e) => onFormChange("vat", e.target.value ? Number(e.target.value) : 0)}
-                        onFocus={(e) => e.target.select()}
+                        onFocus={(e) => {
+                          calculationValuesRef.current.vat = Number(form.vat || 0)
+                          e.target.select()
+                        }}
                         onBlur={() => doCalculation("vat")}
                         disabled={!form.vat_percent}
                         className="focus-visible:border-amber-400 focus-visible:ring-amber-100"
@@ -689,7 +756,10 @@ export default function UnifiedCreditNote({
                         value={numberValue(form.amount)}
                         onKeyDown={blockNonNumericKey}
                         onChange={(e) => onFormChange("amount", e.target.value ? Number(e.target.value) : 0)}
-                        onFocus={(e) => e.target.select()}
+                        onFocus={(e) => {
+                          calculationValuesRef.current.amount = Number(form.amount || 0)
+                          e.target.select()
+                        }}
                         onBlur={() => doCalculation("amount")}
                         className="border-emerald-200 bg-emerald-50/60 font-bold text-emerald-800 focus-visible:border-emerald-400 focus-visible:ring-emerald-100"
                       />
@@ -705,7 +775,7 @@ export default function UnifiedCreditNote({
                     حساب الضريبة
                   </div>
                   <AutoCompleteAccount
-                    label="حساب الضريبة *"
+                    label={Number(form.vat_percent) > 0 || Number(form.vat) > 0 ? "حساب الضريبة *" : "حساب الضريبة"}
                     valueMode="id"
                     value={numberValue(form.vat_account_id)}
                     onValueChange={(v) => onFormChange("vat_account_id", v ? Number(v) : null)}
@@ -789,7 +859,10 @@ export default function UnifiedCreditNote({
       </Dialog>
 
       <ConfirmDialogYesNo
+        useAppDialog
         visible={showDeleteConfirm}
+        busy={isSaving}
+        title="تأكيد حذف السند"
         message={form.status === 2 ? "السند مرحل هل تريد الغاؤه منطقياً؟" : `هل تريد حذف هذا ${title}؟`}
         onConfirm={onConfirmDelete}
         onCancel={onCancelDelete}
@@ -804,21 +877,19 @@ export default function UnifiedCreditNote({
         onSelect={(voucherId) => void openSearchedVoucher(voucherId)}
       />
       <ConfirmDialogYesNo
+        useAppDialog
         visible={showUnsavedConfirm}
+        busy={isSaving}
+        title="التحقق من التغييرات"
         message="تم تعديل البيانات، هل تريد الحفظ؟"
         showBack
-        onConfirm={() => {
-          setShowUnsavedConfirm(false)
-          pendingActionRef.current = null
-          onSave("save")
-        }}
-        onCancel={() => {
-          setShowUnsavedConfirm(false)
-          const action = pendingActionRef.current
-          pendingActionRef.current = null
-          action?.()
-        }}
-        onBack={() => setShowUnsavedConfirm(false)}
+        confirmLabel="حفظ"
+        cancelLabel="عدم الحفظ"
+        backLabel="رجوع"
+        onConfirm={() => void saveAndContinue()}
+        onCancel={discardAndContinue}
+        onBack={cancelPendingAction}
+        onDismiss={cancelPendingAction}
       />
 
       <PostVoucherDialog

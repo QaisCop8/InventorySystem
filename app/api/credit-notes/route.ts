@@ -6,6 +6,7 @@ import {
   saveJournalRows,
   fetchCreditNoteDetails,
   validateJournalAccountCurrencies,
+  validateCreditNoteVatAccount,
   CREDIT_NOTE_VCH_TYPE,
   getCreditNoteNumberSettings,
   buildVoucherCode,
@@ -63,7 +64,8 @@ export async function POST(request: NextRequest) {
     if (!data.account_id) return NextResponse.json({ error: "يجب اختيار العميل" }, { status: 400 })
     if (!data.debit_account_id)
       return NextResponse.json({ error: `يجب اختيار ${vchType === CREDIT_NOTE_VCH_TYPE ? "الحساب المدين" : "الحساب الدائن"}` }, { status: 400 })
-    if (!data.vat_account_id) return NextResponse.json({ error: "يجب اختيار حساب الضريبة" }, { status: 400 })
+    const vatAccountError = await validateCreditNoteVatAccount(data)
+    if (vatAccountError) return NextResponse.json({ error: vatAccountError }, { status: 400 })
 
     const amount = Number(data.amount || 0)
     if (amount <= 0) return NextResponse.json({ error: "يجب إدخال المبلغ" }, { status: 400 })
@@ -96,7 +98,7 @@ export async function POST(request: NextRequest) {
         insert_user
       ) VALUES (
         ${vchType}, ${voucherCode}, ${data.vch_date}, ${data.vch_book_id || null}, ${authorization.branchId}, ${data.currency_id || null}, ${Number(data.rate || 1)},
-        ${data.account_id}, ${data.customer_name || ""}, ${data.debit_account_id}, ${data.vat_account_id},
+        ${data.account_id}, ${data.customer_name || ""}, ${data.debit_account_id}, ${data.vat_account_id || null},
         ${amount}, ${Number(data.amount_journal_type_8 || 0)}, ${Number(data.vat || 0)}, ${Number(data.vat_percent || 0)},
         ${data.payment_classification_id || null}, ${data.salesman_id || null}, ${data.manual_voucher || ""}, ${data.manual_date || null}, ${data.note || ""}, ${status}, ${status === 2 ? 2 : 1}, ${Number(data.is_printed || 0)},
         ${data.insert_user || null}
@@ -170,7 +172,8 @@ export async function PUT(request: NextRequest) {
       if (!data.account_id) return NextResponse.json({ error: "يجب اختيار العميل" }, { status: 400 })
       if (!data.debit_account_id)
         return NextResponse.json({ error: `يجب اختيار ${vchType === CREDIT_NOTE_VCH_TYPE ? "الحساب المدين" : "الحساب الدائن"}` }, { status: 400 })
-      if (!data.vat_account_id) return NextResponse.json({ error: "يجب اختيار حساب الضريبة" }, { status: 400 })
+      const vatAccountError = await validateCreditNoteVatAccount(data)
+      if (vatAccountError) return NextResponse.json({ error: vatAccountError }, { status: 400 })
       if (amount <= 0) return NextResponse.json({ error: "يجب إدخال المبلغ" }, { status: 400 })
 
       journalRows = buildCreditNoteJournalRows(data, vchType)
