@@ -931,6 +931,10 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
     setDialogOpen(true)
   }
 
+  // موقع السند بترتيب التنقل (id تصاعدياً) — القائمة مرتبة تنازلياً، فكان "الأخير" يُحسب كأول سجل ويُعطّل الأول/السابق
+  const listIndex = form.id > 0 ? vouchers.findIndex((v) => v.id === form.id) : -1
+  const navigationIndex = listIndex >= 0 ? vouchers.length - 1 - listIndex : vouchers.length
+
   const openRow = (voucher: VoucherRecord) => {
     const index = vouchers.findIndex((v) => v.id === voucher.id)
     openEditDialog(voucher, index >= 0 ? index : 0)
@@ -1131,7 +1135,7 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
       <UnifiedReceiptVoucher
         title={labels.title}
         dialogOpen={dialogOpen}
-        currentIndex={currentIndex}
+        currentIndex={navigationIndex}
         totalRecords={vouchers.length}
         currencies={currencies}
         voucherBooks={voucherBooks}
@@ -1170,8 +1174,8 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
           !!form.currency_id &&
           currencies.some((c) => Number(c.currency_id ?? c.id) === form.currency_id)
         }
-        isFirstRecord={currentIndex <= 0}
-        isLastRecord={vouchers.length === 0 ? true : currentIndex >= vouchers.length - 1}
+        isFirstRecord={navigationIndex <= 0}
+        isLastRecord={vouchers.length === 0 ? true : navigationIndex >= vouchers.length - 1}
         isNewMode={isNewMode}
         errorMessages={errorMessages}
       />

@@ -713,7 +713,7 @@ export async function provisionCompanyDatabase(
   const migrationClient = new Client({ connectionString: migrationUrl.toString() })
   try {
     await migrationClient.connect()
-    const { migrate } = require("../scripts/migrate-integer-user-ids.cjs")
+    const { migrate } = require("./integer-user-ids-migration.cjs")
     await migrate(migrationClient, true)
   } finally {
     await migrationClient.end()
