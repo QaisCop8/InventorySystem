@@ -17,6 +17,7 @@ import {
 } from "@/lib/transaction-permission-definitions"
 import { REPORT_DEFINITIONS, REPORT_PERMISSION_CATEGORY, reportPermissionName } from "@/lib/report-permission-definitions"
 import { seedFilePermissionDefinitions } from "@/lib/file-permission-seed"
+import { FILE_ACTIONS, FILE_FAMILY_KEYS } from "@/lib/file-permission-definitions"
 
 // نظام الأدوار الوظيفية (job_roles/role_permissions) + الصلاحية الفعّالة للمستخدم = مركز صريح
 // (user_access) إن وُجد → وإلا صلاحية دوره الوظيفي (role_permissions) → وإلا رفض. انظر خطة
@@ -342,9 +343,81 @@ export async function ensureFilePermissions(dbName: string): Promise<void> {
   await pending
 }
 
+// المزامنة الكاملة أدناه مئات الاستعلامات المتتالية — سريعة محلياً لكنها ثوانٍ طويلة مع قاعدة بعيدة
+// (Neon من Cloudflare) وكانت تُنفَّذ مع كل تحميل صفحة. البصمة = تعريفات الكود + صلاحيات قاعدة الإدارة +
+// أعداد صفوف الشركة (صلاحيات/فئات/أدوار/مستخدمين)؛ إن طابقت آخر مزامنة ناجحة (permission_sync_state)
+// تُتخطّى المزامنة. ارفع PERMISSION_SYNC_VERSION عند تغيير منطق المزامنة نفسه لإجبار إعادة تشغيلها.
+const PERMISSION_SYNC_VERSION = 1
+const PERMISSION_SYNC_MEMO_MS = 5 * 60_000
+const permissionSyncMemo = new Map<string, { fingerprint: string; at: number }>()
+
+async function sha256Hex(text: string): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text))
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("")
+}
+
+async function permissionSyncFingerprint(client: ReturnType<typeof getPoolForDb>): Promise<string | null> {
+  try {
+    const [management] = await managementSql`
+      SELECT
+        (SELECT COALESCE(json_agg(json_build_array(id, name) ORDER BY id), '[]'::json) FROM access_category) AS categories,
+        (SELECT COALESCE(json_agg(json_build_array(id, name, category_id) ORDER BY id), '[]'::json) FROM access_list) AS items`
+    const [tenant] = await client.query(
+      `SELECT
+         (SELECT COUNT(*) || ':' || COALESCE(MAX(id), 0) FROM access_list) AS access_list,
+         (SELECT COUNT(*) || ':' || COALESCE(MAX(id), 0) FROM access_category) AS access_category,
+         (SELECT COUNT(*) || ':' || COALESCE(MAX(id), 0) FROM job_roles) AS job_roles,
+         (SELECT COUNT(*)::text FROM user_settings) AS users`,
+      [],
+    )
+    return sha256Hex(JSON.stringify({
+      version: PERMISSION_SYNC_VERSION,
+      code: [TRANSACTION_FAMILIES, TRANSACTION_ACTION_LABELS, POS_CASHIER_PERMISSIONS, REPORT_DEFINITIONS.map((definition) => definition.title), FILE_FAMILY_KEYS, FILE_ACTIONS],
+      management,
+      tenant,
+    }))
+  } catch (error) {
+    console.error("[permissions] sync fingerprint failed; running full sync", error)
+    return null
+  }
+}
+
 // تُطبَّق عند تحميل الصفحة الرئيسية (انظر نقطة الاستدعاء بـauth-context.tsx) — بلا حاجة لتشغيل أي
 // سكربت يدوي لكل شركة: أي تعريف صلاحية/دور جديد يُضاف هنا هنا تلقائياً بأول تحميل صفحة لاحق.
 export async function syncPermissionDefinitions(dbName: string): Promise<void> {
+  const memo = permissionSyncMemo.get(dbName)
+  if (memo && Date.now() - memo.at < PERMISSION_SYNC_MEMO_MS) return
+  await ensurePermissionTables(dbName)
+  const client = getPoolForDb(dbName)
+  const fingerprint = await permissionSyncFingerprint(client)
+  if (fingerprint) {
+    const stored = await client
+      .query(`SELECT fingerprint FROM permission_sync_state WHERE id = 1`, [])
+      .catch(() => [] as any[])
+    if (stored[0]?.fingerprint === fingerprint) {
+      permissionSyncMemo.set(dbName, { fingerprint, at: Date.now() })
+      return
+    }
+  }
+
+  await runPermissionDefinitionSync(dbName)
+
+  // البصمة بعد المزامنة (الصفوف المُضافة للتو تغيّر أعداد الشركة)
+  const synced = await permissionSyncFingerprint(client)
+  if (!synced) return
+  await client.query(
+    `CREATE TABLE IF NOT EXISTS permission_sync_state (id INTEGER PRIMARY KEY, fingerprint TEXT NOT NULL, synced_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`,
+    [],
+  )
+  await client.query(
+    `INSERT INTO permission_sync_state (id, fingerprint, synced_at) VALUES (1, $1, NOW())
+     ON CONFLICT (id) DO UPDATE SET fingerprint = EXCLUDED.fingerprint, synced_at = NOW()`,
+    [synced],
+  )
+  permissionSyncMemo.set(dbName, { fingerprint: synced, at: Date.now() })
+}
+
+async function runPermissionDefinitionSync(dbName: string): Promise<void> {
   await ensurePermissionTables(dbName)
   try {
     await ensureSalesDraftPermissionDefinitions()

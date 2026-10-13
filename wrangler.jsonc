@@ -16,6 +16,8 @@
       "service": "inventorysystem"
     }
   ],
+  // يُشغِّل الـ Worker قرب قاعدة البيانات (Neon) بدل قرب المستخدم — كل صفحة تنفّذ عشرات الاستعلامات المتتالية
+  "placement": { "mode": "smart" },
   "observability": {
     "enabled": true
   }

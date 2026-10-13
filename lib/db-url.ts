@@ -29,16 +29,6 @@ export function getDatabaseNameFromUrl(baseUrl: string): string {
   return url.pathname.replace(/^\//, "")
 }
 
-// Cloudflare Workers لا يسمح باستخدام اتصال TCP فُتح أثناء طلب HTTP في طلب آخر ("Cannot perform I/O on
-// behalf of a different request")، وكل Pool هنا مُخزَّن على مستوى العملية ويُعيد استخدام اتصالاته بين
-// الطلبات. على Workers يُغلق كل اتصال بعد استخدام واحد (maxUses: 1) فلا ينتقل لطلب آخر؛ على Node لا تغيير.
-const isWorkersRuntime =
-  typeof navigator !== "undefined" && (navigator as { userAgent?: string }).userAgent === "Cloudflare-Workers"
-
-export function poolConfig(connectionString: string) {
-  return isWorkersRuntime ? { connectionString, maxUses: 1, max: 20 } : { connectionString }
-}
-
 export function isNeonDatabaseUrl(connectionUrl: string): boolean {
   const url = parseDatabaseUrl(connectionUrl)
   if (!url) return false

@@ -2,7 +2,8 @@ import { neon, types as neonTypes } from "@neondatabase/serverless"
 import { Pool, types } from "pg"
 import { cookies, headers } from "next/headers"
 import { AsyncLocalStorage } from "node:async_hooks"
-import { withDatabaseName, getDatabaseNameFromUrl, isNeonDatabaseUrl, poolConfig } from "./db-url"
+import { withDatabaseName, getDatabaseNameFromUrl, isNeonDatabaseUrl } from "./db-url"
+import { getPool } from "./db-pool"
 
 // node-postgres يحوّل أعمدة DATE افتراضياً إلى كائن JS Date مربوط بمنتصف الليل بالتوقيت المحلي
 // لخادم Node (لا UTC ولا أي علاقة بالقيمة المخزَّنة فعلياً) — فتاريخ مثل "1990-01-01" على خادم
@@ -38,8 +39,8 @@ function buildClientForUrl(url: string): TenantClient {
   if (!url) return buildNoopClient()
 
   if (!isNeonDatabaseUrl(url)) {
-    const pool = new Pool(poolConfig(url))
-    return { query: async (text, params) => (await pool.query(text, params)).rows }
+    // Pool لكل طلب على Workers / لكل عملية على Node (lib/db-pool.ts)
+    return { query: async (text, params) => (await getPool(url).query(text, params)).rows }
   }
   const neonClient = neon(url) as any
   return { query: (text, params) => neonClient.query(text, params) }
@@ -70,18 +71,11 @@ export function getPoolForDb(dbName: string): TenantClient {
 // عدة استعلامات على نفس الاتصال — مثل lib/orders.ts's createOrder. يعمل مع Neon أيضاً (بروتوكول
 // Postgres السلكي القياسي مدعوم من Neon، لا يقتصر الاتصال به على عميل neon() المبني على HTTP فقط).
 // مُخصَّص لقاعدة الشركة الحالية (نفس كوكي tenant_db)، ومُخزَّن مؤقتاً بالذاكرة لكل قاعدة كذلك.
-const rawPoolCache = new Map<string, Pool>()
 const transactionClientStorage = new AsyncLocalStorage<TenantClient>()
 
 export async function getTenantPool(): Promise<Pool> {
   const dbName = await resolveCurrentDbName()
-  let pool = rawPoolCache.get(dbName)
-  if (!pool) {
-    const url = dbName === defaultDbName ? baseUrl : withDatabaseName(baseUrl, dbName)
-    pool = new Pool(poolConfig(url))
-    rawPoolCache.set(dbName, pool)
-  }
-  return pool
+  return getPool(dbName === defaultDbName ? baseUrl : withDatabaseName(baseUrl, dbName))
 }
 
 /** Run all sql tagged-template calls in fn on one PostgreSQL connection. */

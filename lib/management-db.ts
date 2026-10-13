@@ -1,12 +1,14 @@
 import { neon } from "@neondatabase/serverless"
 import { Pool } from "pg"
-import { isNeonDatabaseUrl, poolConfig, withDatabaseName } from "./db-url"
+import { isNeonDatabaseUrl, withDatabaseName } from "./db-url"
+import { getPool } from "./db-pool"
 
 const MANAGEMENT_DB_NAME = "management"
 
 function buildSqlClient(connectionUrl: string) {
   if (!isNeonDatabaseUrl(connectionUrl)) {
-    const pool = new Pool(poolConfig(connectionUrl))
+    // Pool لكل طلب على Workers / لكل عملية على Node (lib/db-pool.ts)
+    const pool = { connect: () => getPool(connectionUrl).connect() }
     const client: any = async (strings: TemplateStringsArray, ...values: any[]) => {
       const conn = await pool.connect()
       try {
@@ -318,7 +320,6 @@ export async function ensureTransactionPermissionDefinitions(): Promise<void> {
   `
 }
 
-let managementPool: Pool | null = null
 
 // pg.Pool حقيقي لقاعدة الإدارة — يحتاجه أي كود يريد معاملة (BEGIN/COMMIT/ROLLBACK) عبر عدة استعلامات
 // على نفس الاتصال (sql الافتراضي أعلاه يفتح ويُغلق اتصالاً منفصلاً بكل استدعاء، انظر buildSqlClient،
@@ -327,8 +328,5 @@ export function getManagementPool(): Pool {
   if (!managementUrl) {
     throw new Error("DATABASE_URL is not configured for management database access")
   }
-  if (!managementPool) {
-    managementPool = new Pool(poolConfig(managementUrl))
-  }
-  return managementPool
+  return getPool(managementUrl)
 }
