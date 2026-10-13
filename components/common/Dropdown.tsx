@@ -273,7 +273,10 @@ export default class Dropdown extends React.Component<DropdownProps, DropdownSta
         ref={this.setDropdownRef}
         id={id || "float-input"}
         title={tooltip}
-        style={{ width: "100%", overflow: "hidden", ...(withgroup ? { flex: "1" } : {}) }}
+        // overflow: hidden فقط حين تُعرض القائمة خارج العنصر: مع appendTo="self" تُدرَج قائمة الخيارات داخل هذا
+        // العنصر نفسه فكان overflow: hidden يقصّها فلا تظهر الخيارات (كل القوائم في طلبية المبيعات). النص الطويل
+        // للقيمة المختارة مقصوص أصلاً بعلامة "…" عبر .p-dropdown-label في Dropdown.module.scss.
+        style={{ width: "100%", ...(restProps.appendTo === "self" ? {} : { overflow: "hidden" }), ...(withgroup ? { flex: "1" } : {}) }}
         className={`${styles.dropDown} ${innerClass || ""}`}
         onChange={this.handleChange}
         tooltipOptions={{ position: "top", style: { direction: "rtl" } }}

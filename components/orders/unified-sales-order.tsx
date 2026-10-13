@@ -3623,6 +3623,7 @@ function UnifiedSalesOrder({
                         className="invoice-currency-dropdown w-full"
                         panelClassName="invoice-currency-dropdown-panel"
                         appendTo="self"
+                        panelStyle={{ zIndex: 10000 }}
                         onChange={(e: any) =>
                           setState(prev => ({
                             ...prev,
@@ -3638,10 +3639,7 @@ function UnifiedSalesOrder({
                         {"رقم الطلبية"} <span className="text-red-500 mr-1">*</span>
                       </Label>
 
-                      <div className="flex min-w-0 gap-2 items-center">
-                        <Button type="button" className="shrink-0" aria-label="بحث عن طلبية" onClick={() => { popupHasCalled(); setShowOrderSearch(true) }}>
-                          🔍
-                        </Button>
+                      <div className="flex min-w-0 gap-1.5 items-center">
                         <Input
                           ref={orderNumberRef}
                           value={state.formData.order_number ?? ""}
@@ -3666,6 +3664,16 @@ function UnifiedSalesOrder({
                           onBlur={handleOrderCodeBlur}
                           maxLength={10}
                         />
+                        {/* بعد رقم الطلبية وبنفس شكل زر بحث السندات في بقية السندات (VoucherSearchButton) */}
+                        <button
+                          type="button"
+                          title="بحث عن طلبية"
+                          aria-label="بحث عن طلبية"
+                          onClick={() => { popupHasCalled(); setShowOrderSearch(true) }}
+                          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md border border-emerald-200 bg-emerald-50 text-emerald-700 transition hover:bg-emerald-100 disabled:opacity-50"
+                        >
+                          <Search className="h-4 w-4" />
+                        </button>
                       </div>
                     </div>
 
@@ -3938,9 +3946,15 @@ function UnifiedSalesOrder({
                           placeholder={'رقم العميل '}
 
                         />
-                        <Button type="button" className="shrink-0" aria-label="بحث عن عميل" onClick={() => setShowCustomerSearch(true)}>
-                          🔍
-                        </Button>
+                        <button
+                          type="button"
+                          title="بحث عن عميل"
+                          aria-label="بحث عن عميل"
+                          onClick={() => setShowCustomerSearch(true)}
+                          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md border border-emerald-200 bg-emerald-50 text-emerald-700 transition hover:bg-emerald-100 disabled:opacity-50"
+                        >
+                          <Search className="h-4 w-4" />
+                        </button>
                       </div>
                     </div>
 
