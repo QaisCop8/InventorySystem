@@ -1485,14 +1485,15 @@ export function CompactProductForm({
 
   const copySelectedAccountToAllItems = async () => {
     if (!copyAccountField) return
-    const accountId = Number(formData[copyAccountField])
-    if (!Number.isInteger(accountId) || accountId <= 0) return
+    // حساب فارغ يُنسخ كـ null (يُفرَّغ الحساب في الأصناف التالية)
+    const accountId = Number(formData[copyAccountField]) > 0 ? Number(formData[copyAccountField]) : null
+    if (!(Number(formData.id) > 0)) return
     setCopyAccountBusy(true)
     try {
       const response = await fetch("/api/inventory/products/copy-account", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ field: copyAccountField, account_id: accountId }),
+        body: JSON.stringify({ field: copyAccountField, account_id: accountId, after_product_id: Number(formData.id) }),
       })
       const data = await response.json()
       if (!response.ok) throw new Error(data?.error || "تعذر نسخ الحساب إلى الأصناف")
@@ -2562,7 +2563,9 @@ export function CompactProductForm({
       <ConfirmDialogYesNo
         visible={copyAccountField !== null}
         title="تأكيد نسخ الحساب"
-        message={`سيتم نسخ ${PRODUCT_ACCOUNT_FIELDS.find(({ field }) => field === copyAccountField)?.label || "الحساب"} المحدد إلى جميع الأصناف غير المحذوفة. هل تريد المتابعة؟`}
+        message={copyAccountField && Number(formData[copyAccountField]) > 0
+          ? `سيتم نسخ ${PRODUCT_ACCOUNT_FIELDS.find(({ field }) => field === copyAccountField)?.label || "الحساب"} المحدد إلى جميع الأصناف التالية لهذا الصنف (غير المحذوفة). هل تريد المتابعة؟`
+          : `${PRODUCT_ACCOUNT_FIELDS.find(({ field }) => field === copyAccountField)?.label || "الحساب"} فارغ: سيتم تفريغه في جميع الأصناف التالية لهذا الصنف (غير المحذوفة). هل تريد المتابعة؟`}
         confirmLabel="نسخ إلى جميع الأصناف"
         busy={copyAccountBusy}
         onConfirm={() => void copySelectedAccountToAllItems()}
@@ -2978,9 +2981,9 @@ export function CompactProductForm({
                               size="icon"
                               variant="outline"
                               className="mb-0.5 h-10 w-10 shrink-0"
-                              title="نسخ هذا الحساب إلى جميع الأصناف"
-                              aria-label={`نسخ ${label} إلى جميع الأصناف`}
-                              disabled={!canUpdate || !Number(formData[field]) || copyAccountBusy}
+                              title="نسخ هذا الحساب إلى جميع الأصناف التالية"
+                              aria-label={`نسخ ${label} إلى جميع الأصناف التالية`}
+                              disabled={!canUpdate || !(Number(formData.id) > 0) || copyAccountBusy}
                               onClick={() => setCopyAccountField(field)}
                             >
                               <Copy className="h-4 w-4" />

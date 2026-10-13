@@ -27,15 +27,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "حقل الحساب غير صالح" }, { status: 400 })
     }
     const column = accountColumns[requestedField as keyof typeof accountColumns]
-    const accountId = Number(body?.account_id)
-    if (!Number.isInteger(accountId) || accountId <= 0) {
+    // حساب فارغ (null/0) مسموح: يُفرَّغ الحساب في الأصناف التالية
+    const rawAccount = body?.account_id
+    const accountId = rawAccount === null || rawAccount === undefined || rawAccount === "" || Number(rawAccount) === 0 ? null : Number(rawAccount)
+    if (accountId !== null && (!Number.isInteger(accountId) || accountId <= 0)) {
       return NextResponse.json({ error: "يجب اختيار حساب صالح قبل النسخ" }, { status: 400 })
+    }
+    // النسخ إلى الأصناف التالية فقط (ترتيب التنقل حسب id)
+    const afterProductId = Number(body?.after_product_id)
+    if (!Number.isInteger(afterProductId) || afterProductId <= 0) {
+      return NextResponse.json({ error: "يجب حفظ الصنف أولاً قبل النسخ إلى الأصناف التالية" }, { status: 400 })
     }
 
     const pool = await getTenantPool()
     client = await pool.connect()
-    const account = await client.query("SELECT id FROM account_tbl WHERE id = $1::int LIMIT 1", [accountId])
-    if (!account.rows.length) return NextResponse.json({ error: "الحساب المحدد غير موجود" }, { status: 404 })
+    if (accountId !== null) {
+      const account = await client.query("SELECT id FROM account_tbl WHERE id = $1::int LIMIT 1", [accountId])
+      if (!account.rows.length) return NextResponse.json({ error: "الحساب المحدد غير موجود" }, { status: 404 })
+    }
 
     await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS ${column} INTEGER`)
     await client.query("ALTER TABLE products ADD COLUMN IF NOT EXISTS type INTEGER DEFAULT 1")
@@ -45,8 +54,8 @@ export async function POST(request: NextRequest) {
     const updated = await client.query(
       `UPDATE products
        SET ${column} = $1::int, updated_at = CURRENT_TIMESTAMP
-       WHERE COALESCE(type, 1) = 1 AND COALESCE(deleted, false) = false`,
-      [accountId],
+       WHERE id > $2::int AND COALESCE(type, 1) = 1 AND COALESCE(deleted, false) = false`,
+      [accountId, afterProductId],
     )
     return NextResponse.json({ success: true, updated_count: updated.rowCount ?? 0 })
   } catch (error) {
