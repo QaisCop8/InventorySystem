@@ -2194,7 +2194,7 @@ export function CompactProductForm({
     try {
       const definitionsObj: any = {}
       let failedRequests = 0
-      const fetchDefinition = async (url: string): Promise<Response> => {
+      const startFetch = async (url: string): Promise<Response> => {
         try {
           return await fetch(url)
         } catch (error) {
@@ -2203,6 +2203,15 @@ export function CompactProductForm({
           return new Response(null, { status: 503, statusText: "Network request failed" })
         }
       }
+      // كل التعريفات تُطلب معاً من البداية (كانت تُطلب واحداً تلو الآخر: 14 رحلة متتالية للخادم — بطيء جداً
+      // مع خادم بعيد). المعالجة أدناه تبقى بنفس الترتيب تماماً؛ كل خطوة تنتظر طلبها الذي بدأ مسبقاً.
+      const definitionUrls = [
+        "/api/item-groups", "/api/suppliers", "/api/warehouses", "/api/units", "/api/exchange-rates",
+        "/api/pricecategory", "/api/measurment-types", "/api/branches", "/api/tax-classifications",
+        "/api/product-categories", "/api/cost-center-types", "/api/cost-centers", "/api/brand-types", "/api/brands",
+      ]
+      const startedFetches = new Map(definitionUrls.map((url) => [url, startFetch(url)] as const))
+      const fetchDefinition = (url: string): Promise<Response> => startedFetches.get(url) ?? startFetch(url)
 
       // Categories
       const categoriesResponse = await fetchDefinition("/api/item-groups")

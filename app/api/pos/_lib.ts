@@ -157,6 +157,17 @@ export async function ensurePosTables() { return runSchemaOnce("app/api/pos/_lib
     )
   `
   await sql`CREATE INDEX IF NOT EXISTS idx_pos_cashier_log_filters ON pos_cashier_log_tbl(occurred_at,pos_point_id,user_id,movement_type)`
+  // فهارس استعلام أصناف الكاشير (/api/pos/catalog): رصيد كل صنف بمستودع النقطة، تقييد الصنف بمستودعات، وفئة
+  // سعر العميل — بدونها يمسح الاستعلام الجداول كاملة لكل صنف (آلاف الأصناف).
+  await sql`CREATE INDEX IF NOT EXISTS idx_inventory_transactions_product_warehouse ON inventory_transactions(product_id,warehouse_id)`
+  await sql`CREATE INDEX IF NOT EXISTS idx_product_warehouses_product_warehouse ON product_warehouses(product_id,warehouse_id)`
+  await sql`CREATE INDEX IF NOT EXISTS idx_customers_account_id ON customers(account_id)`
+  // إحصاءات حديثة بعد استيراد آلاف الأصناف (كان المُخطِّط يقدّر 31 صنفاً بدل 16,603 فيختار خطة سيئة)
+  await sql`ANALYZE products`
+  await sql`ANALYZE product_units`
+  await sql`ANALYZE product_prices`
+  await sql`ANALYZE product_unit_barcodes`
+  await sql`ANALYZE inventory_transactions`
 }) }
 
 export function requestUserId(request: Request) {

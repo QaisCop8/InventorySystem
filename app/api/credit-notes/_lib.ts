@@ -146,10 +146,11 @@ export const getCreditNoteNumberSettings = async (
   const isCredit = vchType === CREDIT_NOTE_VCH_TYPE
   const defaultPrefix = isCredit ? "C" : "D"
   try {
-    const settingsUrl = String(requestUrl || "").trim()
-    const response = await fetch(settingsUrl ? new URL("/api/settings/system", settingsUrl) : "/api/settings/system")
-    if (!response.ok) return { prefix: defaultPrefix, startNumber: 1 }
-    const settings = await response.json()
+    // مباشرة من القاعدة بدل طلب HTTP داخلي لـ/api/settings/system: ذلك الطلب لا يحمل كوكي الشركة (فيقرأ
+    // الإعدادات الافتراضية لا إعدادات الشركة)، وعلى Cloudflare هو طلب Worker إضافي كامل مع كل توليد رقم.
+    void requestUrl
+    const { loadStoredSettings } = await import("@/app/api/settings/system/route")
+    const settings = await loadStoredSettings()
     const prefixRaw = String(settings?.[isCredit ? "credit_note_prefix" : "debit_note_prefix"] || defaultPrefix)
       .trim()
       .toUpperCase()

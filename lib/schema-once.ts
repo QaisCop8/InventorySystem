@@ -28,13 +28,14 @@ function loadApplied(dbName: string): Promise<Map<string, string>> {
   let pending = appliedByDb.get(dbName)
   if (!pending) {
     pending = (async () => {
-      try {
-        const rows = await sql`SELECT key, version FROM app_schema_state`
-        return new Map<string, string>(rows.map((row: { key: string; version: string }) => [row.key, row.version]))
-      } catch {
-        return new Map<string, string>() // الجدول غير موجود بعد ← لم يُطبَّق شيء
-      }
+      // to_regclass لا يفشل إن لم يوجد الجدول — قراءة جدول غير موجود داخل معاملة (حفظ فاتورة الكاشير مثلاً)
+      // كانت ستُفسد المعاملة كلها ("current transaction is aborted").
+      const [exists] = await sql`SELECT to_regclass('public.app_schema_state') IS NOT NULL AS ok`
+      if (!exists?.ok) return new Map<string, string>()
+      const rows = await sql`SELECT key, version FROM app_schema_state`
+      return new Map<string, string>(rows.map((row: { key: string; version: string }) => [row.key, row.version]))
     })()
+    pending.catch(() => appliedByDb.delete(dbName))
     appliedByDb.set(dbName, pending)
   }
   return pending
