@@ -1,3 +1,6 @@
+// Set by open-next.config.ts (buildCommand) for the Cloudflare Workers build only.
+const cloudflareBuild = process.env.CLOUDFLARE_BUILD === 'true';
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // Standalone output is needed by the Docker image. On Windows it performs
@@ -13,11 +16,24 @@ const nextConfig = {
   // Keep native/server-only packages out of both Webpack and Turbopack's
   // module graph. This avoids traversing node-pre-gyp and its optional tools.
   serverExternalPackages: [
-    'odbc',
-    '@mapbox/node-pre-gyp',
+    // On Workers odbc is aliased to a stub below, so it must not be external (that would copy the
+    // native driver and node-pre-gyp into the Worker bundle, which cannot be bundled).
+    ...(cloudflareBuild ? [] : ['odbc', '@mapbox/node-pre-gyp']),
     'encoding',
     'iconv-lite',
   ],
+
+  ...(cloudflareBuild
+    ? {
+        turbopack: {
+          resolveAlias: {
+            odbc: './lib/stubs/odbc.cjs',
+            // Server (node) only — the browser keeps the real react-dom/client.
+            'react-dom/client': { node: './lib/stubs/react-dom-client.cjs' },
+          },
+        },
+      }
+    : {}),
 
   experimental: {
     // These libraries expose large barrel files. Rewriting named imports to
