@@ -33,4 +33,18 @@ if (!fs.existsSync(serverDir)) {
   process.exit(1)
 }
 walk(serverDir)
+
+// OpenNext bundles from the standalone output (.next/standalone/<app path>/.next/server), which Next
+// copies during `next build` — patch every copy there too (skipping node_modules).
+const findStandaloneServerDirs = (dir, found = []) => {
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    if (!entry.isDirectory() || entry.name === "node_modules") continue
+    const full = path.join(dir, entry.name)
+    if (entry.name === ".next" && fs.existsSync(path.join(full, "server"))) found.push(path.join(full, "server"))
+    else findStandaloneServerDirs(full, found)
+  }
+  return found
+}
+const standaloneDir = path.join(process.cwd(), ".next", "standalone")
+if (fs.existsSync(standaloneDir)) findStandaloneServerDirs(standaloneDir).forEach(walk)
 console.log(`[cloudflare-postbuild] replaced server-side import("react-dom/client") in ${patchedFiles} file(s)`)
