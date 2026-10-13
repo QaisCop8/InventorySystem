@@ -2,7 +2,8 @@ import { type NextRequest } from "next/server"
 import { NextResponse } from "next/server"
 import sql from "@/lib/database"
 import { saveWarehouseCostCenters } from "@/lib/cost-center-defaults"
-async function ensureWarehousesTable() {
+import { runSchemaOnce } from "@/lib/schema-once"
+async function ensureWarehousesTable() { return runSchemaOnce("app/api/warehouses/[id]/route.ts#ensureWarehousesTable", async () => {
   await sql`
     CREATE TABLE IF NOT EXISTS warehouses (
       id SERIAL PRIMARY KEY,
@@ -19,7 +20,7 @@ async function ensureWarehousesTable() {
   `
   await sql`ALTER TABLE warehouses ADD COLUMN IF NOT EXISTS status INTEGER DEFAULT 1`
   await sql`ALTER TABLE warehouses ADD COLUMN IF NOT EXISTS default_printer VARCHAR(150)`
-}
+}) }
 
 export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
   try {

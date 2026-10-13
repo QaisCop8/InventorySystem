@@ -3,8 +3,9 @@ import sql from "@/lib/database"
 import { getSystemSettings } from "@/lib/system-settings"
 import { normalizePrintSettings, voucherFamily } from "@/lib/voucher-print/settings"
 import { normalizeReportSettings, REPORT_SETTINGS_ID } from "@/lib/voucher-print/report-settings"
+import { runSchemaOnce } from "@/lib/schema-once"
 
-async function ensureTable() {
+async function ensureTable() { return runSchemaOnce("app/api/settings/voucher-print/route.ts#ensureTable", async () => {
   await sql`
     CREATE TABLE IF NOT EXISTS voucher_print_settings_tbl (
       voucher_type_id INTEGER PRIMARY KEY,
@@ -12,7 +13,7 @@ async function ensureTable() {
       updated_at TIMESTAMP NOT NULL DEFAULT NOW()
     )
   `
-}
+}) }
 
 async function companyInfo() {
   const settings = await getSystemSettings()

@@ -1,11 +1,12 @@
 // app/api/customer-categories/route.ts
 import { type NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
+import { runSchemaOnce } from "@/lib/schema-once"
 
-async function ensureCustomerCategoryStatus() {
+async function ensureCustomerCategoryStatus() { return runSchemaOnce("app/api/customer-categories/route.ts#ensureCustomerCategoryStatus", async () => {
   await sql`ALTER TABLE customer_categories ADD COLUMN IF NOT EXISTS status INTEGER NOT NULL DEFAULT 1`
   await sql`ALTER TABLE customer_categories ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`
-}
+}) }
 
 // GET all customer categories
 export async function GET() {

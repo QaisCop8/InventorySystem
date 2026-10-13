@@ -1,9 +1,10 @@
 import { type NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
+import { runSchemaOnce } from "@/lib/schema-once"
 
-async function ensureFavoritesTable() {
+async function ensureFavoritesTable() { return runSchemaOnce("app/api/user-favorites/route.ts#ensureFavoritesTable", async () => {
   await sql`CREATE TABLE IF NOT EXISTS user_favorites (id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES user_settings(user_id) NOT NULL, favorite_type VARCHAR(50) NOT NULL, favorite_name VARCHAR(255) NOT NULL, favorite_title VARCHAR(255) NOT NULL, favorite_icon VARCHAR(50), favorite_component VARCHAR(100) NOT NULL, favorite_color VARCHAR(50), display_order INTEGER DEFAULT 0, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, UNIQUE(user_id, favorite_component))`
-}
+}) }
 
 // دالة مساعدة للحصول على معرف المستخدم من الطلب
 function getUserIdFromRequest(request: NextRequest): string | null {

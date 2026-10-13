@@ -1,8 +1,9 @@
 import { type NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
 import { authorizeFile, authorizeFileRead, projectFileLookup } from "@/lib/file-permissions"
+import { runSchemaOnce } from "@/lib/schema-once"
 
-const ensureTable = async () => {
+const ensureTable = async () => { return runSchemaOnce("app/api/bank-accounts/route.ts#ensureTable", async () => {
   await sql`
     CREATE TABLE IF NOT EXISTS bank_accounts (
       id SERIAL PRIMARY KEY,
@@ -31,7 +32,7 @@ const ensureTable = async () => {
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `
-}
+}) }
 
 export async function GET(request: NextRequest) {
   try {

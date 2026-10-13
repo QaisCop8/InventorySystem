@@ -3,10 +3,11 @@ import sql from "@/lib/database"
 import { generatePurchaseOrderNumber } from "@/lib/number-generator"
 import { createPurchaseOrder } from "@/lib/orders"
 import { authorizeTransaction } from "@/lib/transaction-permissions"
+import { runSchemaOnce } from "@/lib/schema-once"
 
-async function ensureBranchColumn() {
+async function ensureBranchColumn() { return runSchemaOnce("app/api/purchase-orders/route.ts#ensureBranchColumn", async () => {
   await sql`ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS branch_id INTEGER`
-}
+}) }
 
 export async function GET(request: NextRequest) {
   try {

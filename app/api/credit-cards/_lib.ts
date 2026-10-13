@@ -1,11 +1,12 @@
 import sql from "@/lib/database"
+import { runSchemaOnce } from "@/lib/schema-once"
 
 // Shared schema + persistence helpers for بطاقات الائتمان (credit_cards_types_tbl).
 // credit_cards_types_tbl already existed as a minimal stub (id, name, status) created by the
 // سند قبض/سند صرف card tab (see app/api/credit-card-types/route.ts, app/api/receipts/_lib.ts) —
 // this module is now the single authoritative owner of its schema; those two call
 // ensureTables() from here instead of creating their own copy, so the table can't drift again.
-export const ensureTables = async () => {
+export const ensureTables = async () => { return runSchemaOnce("app/api/credit-cards/_lib.ts#ensureTables", async () => {
   await sql`
     CREATE TABLE IF NOT EXISTS credit_card_main_types_tbl (
       id INTEGER PRIMARY KEY,
@@ -66,7 +67,7 @@ export const ensureTables = async () => {
     )
   `
   await sql`CREATE INDEX IF NOT EXISTS idx_credit_card_type_holidays_tbl_type_id ON credit_card_type_holidays_tbl(credit_card_type_id)`
-}
+}) }
 
 export const fetchHolidays = async (creditCardTypeId: number) => {
   const rows = await sql`

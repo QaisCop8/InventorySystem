@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
+import { runSchemaOnce } from "@/lib/schema-once"
 
-const ensureState = async () => {
+const ensureState = async () => { return runSchemaOnce("app/api/onboarding-assistant/route.ts#ensureState", async () => {
   await sql`
     CREATE TABLE IF NOT EXISTS onboarding_assistant_state (
       id INTEGER PRIMARY KEY DEFAULT 1 CHECK (id = 1),
@@ -11,7 +12,7 @@ const ensureState = async () => {
       updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
     )
   `
-}
+}) }
 
 // شركة "جديدة": لا أصناف ولا سندات بعد — تُوجَّه للبداية السريعة مباشرة عند الدخول (انظر app/page.tsx).
 const isNewCompany = async () => {

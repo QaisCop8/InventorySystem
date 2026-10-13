@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import sql, { getTenantPool } from "@/lib/database"
+import { runSchemaOnce } from "@/lib/schema-once"
 
-const ensureTables = async () => {
+const ensureTables = async () => { return runSchemaOnce("app/api/settings/users-currencies-default/route.ts#ensureTables", async () => {
   await sql`
     CREATE TABLE IF NOT EXISTS users_currencies_default_account_tbl (
       id SERIAL PRIMARY KEY,
@@ -20,7 +21,7 @@ const ensureTables = async () => {
   await sql`ALTER TABLE users_currencies_default_account_tbl ADD COLUMN IF NOT EXISTS returned_cheqs_account_id INTEGER`
   await sql`ALTER TABLE users_currencies_default_account_tbl ADD COLUMN IF NOT EXISTS cards_account_id INTEGER`
   await sql`ALTER TABLE users_currencies_default_account_tbl ADD COLUMN IF NOT EXISTS branch_id INTEGER`
-}
+}) }
 
 const resolveUserKeys = async (rawUserId: unknown) => {
   const requested = String(rawUserId || "").trim()

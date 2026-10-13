@@ -3,6 +3,7 @@ import { withBranchSymbol } from "@/lib/branch-symbol"
 import { ensureTables as ensureCreditCardTables } from "../credit-cards/_lib"
 import { getSystemSettingValue } from "@/lib/system-settings"
 import { buildVoucherCode, normalizeVoucherPrefix } from "@/lib/voucher-code"
+import { runSchemaOnce } from "@/lib/schema-once"
 
 export { buildVoucherCode, normalizeVoucherPrefix }
 
@@ -18,7 +19,7 @@ export const JOURNAL_TYPE_CHEQUE = 3
 export const JOURNAL_TYPE_CARD = 4
 export const JOURNAL_TYPE_COUNTER_ACCOUNT = 5
 
-export const ensureTables = async () => {
+export const ensureTables = async () => { return runSchemaOnce("app/api/receipts/_lib.ts#ensureTables", async () => {
   await sql`
     CREATE TABLE IF NOT EXISTS voucher_header_tbl (
       id SERIAL PRIMARY KEY,
@@ -621,7 +622,7 @@ export const ensureTables = async () => {
     )
   `
   await sql`CREATE INDEX IF NOT EXISTS idx_voucher_cards_detail_tbl_voucher_id ON voucher_cards_detail_tbl(voucher_id)`
-}
+}) }
 
 // vch_type values on voucher_header_tbl, per voucher_types_tbl.
 export const RECEIPT_VCH_TYPE = 4

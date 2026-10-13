@@ -1,8 +1,9 @@
 import { type NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
+import { runSchemaOnce } from "@/lib/schema-once"
 // --- Database setup ---
 
-async function ensureSalesmenSchema() {
+async function ensureSalesmenSchema() { return runSchemaOnce("app/api/salesmen/route.ts#ensureSalesmenSchema", async () => {
   await sql`CREATE TABLE IF NOT EXISTS salesmen (id SERIAL PRIMARY KEY, code VARCHAR(50) UNIQUE NOT NULL, name VARCHAR(200) NOT NULL, is_active BOOLEAN DEFAULT true, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`
   await sql`ALTER TABLE salesmen ALTER COLUMN code TYPE VARCHAR(10)`
   await sql`ALTER TABLE salesmen ADD COLUMN IF NOT EXISTS other_name VARCHAR(200)`
@@ -21,7 +22,7 @@ async function ensureSalesmenSchema() {
   await sql`ALTER TABLE salesmen ADD COLUMN IF NOT EXISTS login_code VARCHAR(100)`
   await sql`ALTER TABLE salesmen ADD COLUMN IF NOT EXISTS portal_password VARCHAR(255)`
   await sql`ALTER TABLE salesmen ADD COLUMN IF NOT EXISTS notes TEXT`
-}
+}) }
 
 
 // =========================

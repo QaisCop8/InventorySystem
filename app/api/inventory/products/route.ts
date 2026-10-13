@@ -5,6 +5,7 @@ import { validateProductPriceCurrencies } from "@/lib/product-price-currencies"
 import { getGrantedBranchIds } from "@/lib/permissions"
 import { projectFileLookup } from "@/lib/file-permissions"
 import { authorizeProductType, authorizeStoredProduct, authorizeProductLookupScope } from "./_permissions"
+import { runSchemaOnce } from "@/lib/schema-once"
 
 
 
@@ -28,7 +29,7 @@ async function hasDefaultStoreColumn() {
   }
 }
 
-async function ensureProductTypeColumns() {
+async function ensureProductTypeColumns() { return runSchemaOnce("app/api/inventory/products/route.ts#ensureProductTypeColumns", async () => {
   if (!sql) return
 
   try {
@@ -51,7 +52,7 @@ async function ensureProductTypeColumns() {
   } catch (error) {
     console.error("[v0] Failed to ensure product type columns:", error)
   }
-}
+}) }
 
 async function ensureProductSchemaColumns(client: any) {
   const columns: Array<[string, string]> = [

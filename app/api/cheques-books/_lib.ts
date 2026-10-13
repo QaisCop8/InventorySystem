@@ -1,4 +1,5 @@
 import sql from "@/lib/database"
+import { runSchemaOnce } from "@/lib/schema-once"
 
 // دفاتر الشيكات.
 // حالة الشيك هنا مفهوم مختلف تماماً عن cheque_status_tbl (المُستخدم في app/api/receipts/_lib.ts
@@ -6,7 +7,7 @@ import sql from "@/lib/database"
 // نفسها داخل الدفتر: 1 متوفر (الافتراضي عند الإصدار الآلي)، 2 تالف، 3 غير متوفر (مستخدمة).
 // company_id: لا يوجد مفهوم شركات متعددة حقيقي في هذا التطبيق (لا يوجد companies_tbl) —
 // يبقى عمود بسيط بقيمة 1 ثابتة كما في بقية الجداول التي تحمل هذا العمود.
-export const ensureTables = async () => {
+export const ensureTables = async () => { return runSchemaOnce("app/api/cheques-books/_lib.ts#ensureTables", async () => {
   await sql`
     CREATE TABLE IF NOT EXISTS cheque_book_status_tbl (
       id INTEGER PRIMARY KEY,
@@ -53,7 +54,7 @@ export const ensureTables = async () => {
     ADD CONSTRAINT cheque_book_cheque_tbl_status_fkey FOREIGN KEY (status) REFERENCES cheque_book_status_tbl(id)
   `
   await sql`CREATE INDEX IF NOT EXISTS idx_cheque_book_cheque_tbl_book_id ON cheque_book_cheque_tbl(cheque_books_id)`
-}
+}) }
 
 // user.id من useAuth() في الواجهة هو user_settings.user_id النصي وليس المفتاح الرقمي —
 // نفس نمط الحل المستخدم في app/api/receipts/voucher-books/route.ts.

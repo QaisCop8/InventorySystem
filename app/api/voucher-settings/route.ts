@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 
 import sql, { getTenantPool } from "@/lib/database"
+import { runSchemaOnce } from "@/lib/schema-once"
 
 
 
@@ -8,7 +9,7 @@ import sql, { getTenantPool } from "@/lib/database"
 // لا يوجد تعريف CREATE TABLE لهذا الجدول في أي مكان بالمستودع (كان يُفترَض موجوداً مسبقاً بقاعدة
 // البيانات الحية فقط) — يُنشَأ دفاعياً هنا لضمان عمله على أي شركة/قاعدة بيانات جديدة (لم يكن ضمن
 // LOOKUP_TABLES في lib/provisioning.ts فتبقى شركات جديدة بلا هذا الجدول دون هذا).
-const ensureVoucherColumnSettingsTable = async () => {
+const ensureVoucherColumnSettingsTable = async () => { return runSchemaOnce("app/api/voucher-settings/route.ts#ensureVoucherColumnSettingsTable", async () => {
     const pool = await getTenantPool()
     await pool.query(`
         CREATE TABLE IF NOT EXISTS voucher_column_settings (
@@ -21,7 +22,7 @@ const ensureVoucherColumnSettingsTable = async () => {
             UNIQUE (voucher_type, target, column_key)
         )
     `)
-}
+}) }
 
 /* =========================
    GET: Load settings

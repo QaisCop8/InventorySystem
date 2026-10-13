@@ -13,11 +13,12 @@ import {
   resolveRequiredParentAccount,
   MissingParentAccountError,
 } from "./_lib"
+import { runSchemaOnce } from "@/lib/schema-once"
 
 // تقييد ظهور العميل بفروع معيّنة (اختياري) — بلا أي صف هنا لهذا العميل يبقى ظاهراً لكل الفروع.
 // نفس نمط product_branches بـapp/api/inventory/products/route.ts، تُستدعى من GET/POST/PUT الثلاثة
 // إذ لا وسيلة migration منفصلة بهذا المشروع (كل مسار API يضمن جداوله بنفسه عند أول استدعاء).
-const ensureCustomerBranchesTable = async () => {
+const ensureCustomerBranchesTable = async () => { return runSchemaOnce("app/api/customers/route.ts#ensureCustomerBranchesTable", async () => {
   await sql`
     CREATE TABLE IF NOT EXISTS customer_branches (
       customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
@@ -25,7 +26,7 @@ const ensureCustomerBranchesTable = async () => {
       PRIMARY KEY (customer_id, branch_id)
     )
   `
-}
+}) }
 
 const persistCustomerClassifications = async (accountId: number, classifications: any[] | undefined) => {
   if (!Array.isArray(classifications)) return

@@ -11,6 +11,7 @@ import {
   resolveVoucherBookName,
 } from "../receipts/_lib"
 import { ensureTables as ensureVoucherTypesTable } from "../voucher-book-permissions/_lib"
+import { runSchemaOnce } from "@/lib/schema-once"
 
 // اشعار دائن (Credit Note) / اشعار مدين (Debit Note) — سند بثلاثة أسطر قيد ثابتة (ضريبة +
 // حساب مدين/مقابل + حساب العميل)، وليس شبكة حسابات متعددة الأسطر كسند القيد، ولا نقدي/شيكات/
@@ -43,7 +44,7 @@ export const validateCreditNoteVatAccount = async (data: {
   return validateJournalAccountCurrencies([{ account_id: accountId }], data.currency_id ? Number(data.currency_id) : null)
 }
 
-export const ensureTables = async () => {
+export const ensureTables = async () => { return runSchemaOnce("app/api/credit-notes/_lib.ts#ensureTables", async () => {
   await ensureReceiptsTables()
   // يضمن وجود سجلي voucher_types_tbl (10/11) حتى عند استدعاء هذا الملف مباشرة قبل أي طلب لدفاتر
   // السندات (/api/receipts/voucher-books هو المسار الآخر الذي يستدعي هذا أيضاً).
@@ -54,7 +55,7 @@ export const ensureTables = async () => {
   await sql`ALTER TABLE voucher_header_log_tbl ADD COLUMN IF NOT EXISTS debit_account_id INTEGER`
   await sql`ALTER TABLE voucher_header_log_tbl ADD COLUMN IF NOT EXISTS vat_account_id INTEGER`
   await sql`ALTER TABLE voucher_header_log_tbl ADD COLUMN IF NOT EXISTS amount_journal_type_8 DOUBLE PRECISION`
-}
+}) }
 
 // مطابق لـ fillJournalsList في CreditNote.js: 3 أسطر ثابتة بالترتيب (ضريبة، حساب مدين/مقابل،
 // حساب العميل) — سطر الضريبة يُحذف إن كانت الضريبة صفراً، والباقي يُضاف دائماً.

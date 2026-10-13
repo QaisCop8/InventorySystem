@@ -1,8 +1,9 @@
 import { type NextRequest } from "next/server"
 import { NextResponse } from "next/server"
 import sql, { withTenantTransaction } from "@/lib/database"
+import { runSchemaOnce } from "@/lib/schema-once"
 
-async function ensureUnitsTable() {
+async function ensureUnitsTable() { return runSchemaOnce("app/api/units/route.ts#ensureUnitsTable", async () => {
   await sql`
     CREATE TABLE IF NOT EXISTS units (
       id SERIAL PRIMARY KEY,
@@ -31,7 +32,7 @@ async function ensureUnitsTable() {
     SET unit_code = 'U' || LPAD(id::text, 9, '0')
     WHERE unit_code IS NULL OR TRIM(unit_code) = ''
   `
-}
+}) }
 
 async function lockUnitCreation() {
   // Old company tables do not have a unique constraint on unit names. Serialize

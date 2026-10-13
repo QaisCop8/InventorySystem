@@ -1,8 +1,9 @@
 // app/api/customer-categories/route.ts
 import { type NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
+import { runSchemaOnce } from "@/lib/schema-once"
 
-async function ensureSupplierCategoriesTable() {
+async function ensureSupplierCategoriesTable() { return runSchemaOnce("app/api/supplier-categories/route.ts#ensureSupplierCategoriesTable", async () => {
   await sql`
     CREATE TABLE IF NOT EXISTS supplier_categories (
       id SERIAL PRIMARY KEY,
@@ -20,7 +21,7 @@ async function ensureSupplierCategoriesTable() {
   await sql`ALTER SEQUENCE supplier_categories_id_seq OWNED BY supplier_categories.id`
   await sql`ALTER TABLE supplier_categories ALTER COLUMN id SET DEFAULT nextval('supplier_categories_id_seq')`
   await sql`SELECT setval('supplier_categories_id_seq', COALESCE((SELECT MAX(id) FROM supplier_categories), 1), COALESCE((SELECT MAX(id) FROM supplier_categories), 0) > 0)`
-}
+}) }
 
 // GET all customer categories
 export async function GET() {

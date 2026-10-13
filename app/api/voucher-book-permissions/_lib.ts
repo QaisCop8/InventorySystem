@@ -1,4 +1,5 @@
 import sql from "@/lib/database"
+import { runSchemaOnce } from "@/lib/schema-once"
 
 // صلاحيات المستخدمين على دفاتر السندات.
 //
@@ -10,7 +11,7 @@ import sql from "@/lib/database"
 // gone. voucher_books_tbl is a single global list of codes (not per voucher type) — which type
 // a book applies to is decided per-user by voucher_book_user_permissions_tbl, not by the book
 // row itself.
-export const ensureTables = async () => {
+export const ensureTables = async () => { return runSchemaOnce("app/api/voucher-book-permissions/_lib.ts#ensureTables", async () => {
   // --- voucher_types_tbl (migrated from legacy voucher_types) ---
   await sql`
     CREATE TABLE IF NOT EXISTS voucher_types_tbl (
@@ -126,7 +127,7 @@ export const ensureTables = async () => {
 
   // Superseded by voucher_books_tbl above.
   await sql`DROP TABLE IF EXISTS receipt_voucher_books_tbl`
-}
+}) }
 
 export const fetchPermissionsForUser = async (userId: number) => {
   // Every voucher type gets a row now — book permissions aren't only for سند قبض/سند صرف.

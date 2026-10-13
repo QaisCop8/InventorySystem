@@ -7,6 +7,7 @@ import {
   resolveUserDefaultJournalBook,
   type JournalBookContext,
 } from "@/lib/journal-defaults"
+import { runSchemaOnce } from "@/lib/schema-once"
 
 // قيود آلية (قيود عمولة الفيزا، تحويل عملة، تحويل عملة حساب، فرق عملة) — منقولة من ShamelAPI
 // (Features/Vouchers/*Journals). كل قيد يُحفَظ كسند قيد عادي (vch_type=3) مُرحَّل، مُعلَّم بـ
@@ -193,7 +194,7 @@ export async function linkRelatedVouchers(firstId: number, secondId: number) {
   `
 }
 
-export async function ensureAutoJournalTables() {
+export async function ensureAutoJournalTables() { return runSchemaOnce("lib/auto-journals.ts#ensureAutoJournalTables", async () => {
   await sql`
     CREATE TABLE IF NOT EXISTS voucher_related_vch_tbl (
       id SERIAL PRIMARY KEY,
@@ -211,7 +212,7 @@ export async function ensureAutoJournalTables() {
       AND h.internal_voucher_id = ANY(${AUTO_INTERNAL_VOUCHERS}::int[])
       AND d.journal_type_id = ANY(${LEGACY_AUTO_LINE_TYPES}::int[])
   `
-}
+}) }
 
 // عند إلغاء سند قيد آلي (status=3) من شاشة سند القيد: يُحرَّر ما ربطه، ويُلغى قيده المقترن في
 // تحويل العملة (القيدان معاً يمثلان عملية واحدة؛ إلغاء أحدهما فقط يترك حساب التحويل غير مُصفّر).

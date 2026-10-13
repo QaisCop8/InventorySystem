@@ -16,6 +16,7 @@ import {
   saveJournalRows,
   validateJournalAccountCurrencies,
 } from "@/app/api/receipts/_lib"
+import { runSchemaOnce } from "@/lib/schema-once"
 
 // يُعاد تصديرها هنا لأن route.ts/generate-number/resolve-code في هذا المجلد تستوردها من "./_lib"
 // (نفس نمط ملفات stock-vouchers) بدل الاستيراد المباشر من وحدة سندات المخزون.
@@ -145,7 +146,7 @@ const VOUCHER_TYPE_NAMES: Record<number, string> = {
   [RETURN_PURCHASE_VCH_TYPE]: "مرتجع مشتريات",
 }
 
-export const ensureTables = async () => {
+export const ensureTables = async () => { return runSchemaOnce("app/api/sales-vouchers/_lib.ts#ensureTables", async () => {
   // voucher_journal_detail_tbl/voucher_journal_type_tbl (تفاصيل حسابات الاصناف لفاتورة مبيعات/
   // مشتريات ومردود مبيعات/مشتريات، انظر buildSalesVoucherJournalRows أدناه) مملوكان أصلاً بواسطة
   // receipts/_lib.ts — نفس نمط credit-notes/_lib.ts (تستدعيها أولاً قبل أي شيء آخر).
@@ -238,7 +239,7 @@ export const ensureTables = async () => {
   // voucher_header_tbl من receipts/_lib.ts — بلا ADD COLUMN هنا. حساب الضريبة تحديداً لا يُخزَّن
   // كعمود بالرأس إطلاقاً؛ بل كسطر قيد في voucher_journal_detail_tbl (انظر buildSalesVoucherJournalRows
   // وfetchSalesVoucherJournalAccounts أدناه) مطابقاً لنمط المرجع (SaveVoucher.cs/VoucherJournalDetail.cs).
-}
+}) }
 
 const SALES_VOUCHER_SETTINGS_KEY: Record<number, { prefix: string; start: string; defaultPrefix: string }> = {
   [SALES_INVOICE_VCH_TYPE]: { prefix: "sales_invoice_prefix", start: "sales_invoice_start", defaultPrefix: "INV" },

@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
+import { runSchemaOnce } from "@/lib/schema-once"
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value)
 }
@@ -110,7 +111,7 @@ function normalizePayload(data: unknown): Record<string, unknown> {
   return normalized
 }
 
-async function ensureSettingsTable(): Promise<void> {
+async function ensureSettingsTable(): Promise<void> { return runSchemaOnce("app/api/system-settings/route.ts#ensureSettingsTable", async () => {
   await sql`
     CREATE TABLE IF NOT EXISTS system_settings (
       id VARCHAR(100) PRIMARY KEY,
@@ -184,7 +185,7 @@ async function ensureSettingsTable(): Promise<void> {
   await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS account_start`
   await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS created_at`
   await sql`ALTER TABLE system_settings DROP COLUMN IF EXISTS updated_at`
-}
+}) }
 
 async function loadStoredSettings(): Promise<Record<string, unknown>> {
   await ensureSettingsTable()

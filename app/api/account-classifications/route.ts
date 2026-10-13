@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
+import { runSchemaOnce } from "@/lib/schema-once"
 
-const ensureAccountClassificationsTable = async () => {
+const ensureAccountClassificationsTable = async () => { return runSchemaOnce("app/api/account-classifications/route.ts#ensureAccountClassificationsTable", async () => {
   await sql`
     CREATE TABLE IF NOT EXISTS account_classifications (
       id SERIAL PRIMARY KEY,
@@ -27,7 +28,7 @@ const ensureAccountClassificationsTable = async () => {
   await sql`ALTER TABLE account_classifications ADD COLUMN IF NOT EXISTS description TEXT`
   await sql`ALTER TABLE account_classifications ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`
   await sql`CREATE UNIQUE INDEX IF NOT EXISTS account_classifications_code_unique ON account_classifications (account_code)`
-}
+}) }
 
 export async function GET() {
   try {

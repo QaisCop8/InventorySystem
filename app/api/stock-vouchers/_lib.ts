@@ -4,6 +4,7 @@ import { validateNegativeStock } from "@/lib/negative-stock-guard"
 import { buildVoucherCode, normalizeVoucherPrefix } from "@/lib/voucher-code"
 import { validateSerialsRemoval } from "@/lib/item-serials"
 import { lotAvailable, normalizeExpiry } from "@/lib/stock-lots"
+import { runSchemaOnce } from "@/lib/schema-once"
 
 export { buildVoucherCode, normalizeVoucherPrefix }
 
@@ -25,7 +26,7 @@ export const STOCK_VOUCHER_TYPES = [
   USE_VOUCHER_VCH_TYPE,
 ] as const
 
-export const ensureTables = async () => {
+export const ensureTables = async () => { return runSchemaOnce("app/api/stock-vouchers/_lib.ts#ensureTables", async () => {
   // voucher_header_tbl/voucher_types_tbl (the real one, migrated from legacy voucher_types)
   // are owned by receipts/_lib.ts and voucher-book-permissions/_lib.ts respectively — only the
   // 4 new type rows are inserted here, matching how credit-notes/_lib.ts adds 10/11.
@@ -131,7 +132,7 @@ export const ensureTables = async () => {
     )
   `
   await sql`CREATE INDEX IF NOT EXISTS idx_inventory_transactions_reference ON inventory_transactions(reference_type, reference_id)`
-}
+}) }
 
 // بادئة حرف واحد لكل نوع — لتطابق طول كود السند (بادئة + رمز الدفتر + رقم تسلسلي = 10 خانات
 // كحد أقصى دوماً؛ انظر lib/voucher-code.ts) المستخدم في باقي أنواع السندات هنا (R/P/C/D/J

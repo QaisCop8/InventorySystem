@@ -1,10 +1,11 @@
 import { type NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
+import { runSchemaOnce } from "@/lib/schema-once"
 
-async function ensureProductCategoryStatus() {
+async function ensureProductCategoryStatus() { return runSchemaOnce("app/api/product-categories/route.ts#ensureProductCategoryStatus", async () => {
   await sql`ALTER TABLE product_categories ADD COLUMN IF NOT EXISTS status INTEGER NOT NULL DEFAULT 1`
   await sql`ALTER TABLE product_categories ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`
-}
+}) }
 // --- Database setup ---
 
 

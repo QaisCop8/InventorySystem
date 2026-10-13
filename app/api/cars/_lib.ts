@@ -1,4 +1,5 @@
 import sql from "@/lib/database"
+import { runSchemaOnce } from "@/lib/schema-once"
 
 // Shared schema + persistence helpers for السيارات (cars). Mirrors the lazy
 // CREATE TABLE IF NOT EXISTS convention used across this codebase's simpler
@@ -28,7 +29,7 @@ export interface Car {
   updated_at: string
 }
 
-export const ensureCarsTable = async () => {
+export const ensureCarsTable = async () => { return runSchemaOnce("app/api/cars/_lib.ts#ensureCarsTable", async () => {
   await sql`
     CREATE TABLE IF NOT EXISTS cars (
       id SERIAL PRIMARY KEY,
@@ -46,7 +47,7 @@ export const ensureCarsTable = async () => {
   await sql`ALTER TABLE cars ADD COLUMN IF NOT EXISTS model VARCHAR(50)`
   await sql`ALTER TABLE cars ADD COLUMN IF NOT EXISTS licence_expiry DATE`
   await sql`ALTER TABLE cars ADD COLUMN IF NOT EXISTS status INTEGER DEFAULT 1`
-}
+}) }
 
 export function toDisplayStatus(status: number | null | undefined): "نشط" | "غير نشط" {
   return status === 2 ? "غير نشط" : "نشط"

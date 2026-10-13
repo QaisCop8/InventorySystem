@@ -1,12 +1,14 @@
 import { neon } from "@neondatabase/serverless"
 import { Pool } from "pg"
 import { isNeonDatabaseUrl, withDatabaseName } from "./db-url"
-import { getPool, isWorkersRuntime } from "./db-pool"
+import { getPool } from "./db-pool"
 
 const MANAGEMENT_DB_NAME = "management"
 
 function buildSqlClient(connectionUrl: string) {
-  if (!isNeonDatabaseUrl(connectionUrl) || isWorkersRuntime) {
+  // قاعدة الإدارة تبقى على عميل neon() (HTTP) لقواعد Neon حتى على Workers — استعلاماتها قليلة لكل طلب
+  // (تسجيل الدخول/الجلسة/أسماء الشركات) فلا تقترب من حد الطلبات الفرعية، وهو المسار المُجرَّب لتسجيل الدخول.
+  if (!isNeonDatabaseUrl(connectionUrl)) {
     // Pool لكل طلب على Workers / لكل عملية على Node (lib/db-pool.ts)
     const pool = { connect: () => getPool(connectionUrl).connect() }
     const client: any = async (strings: TemplateStringsArray, ...values: any[]) => {

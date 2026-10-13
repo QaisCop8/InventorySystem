@@ -1,5 +1,6 @@
 import sql from "@/lib/database"
 import { loadStoredSettings } from "@/app/api/settings/system/route"
+import { runSchemaOnce } from "@/lib/schema-once"
 
 export const toNullableInt = (value: unknown): number | null => {
   if (value === null || value === undefined || value === "") return null
@@ -22,7 +23,7 @@ export const toBool = (value: unknown, fallback = false): boolean => {
   return fallback
 }
 
-export const ensureCustomerCompatibilityColumns = async () => {
+export const ensureCustomerCompatibilityColumns = async () => { return runSchemaOnce("app/api/customers/_lib.ts#ensureCustomerCompatibilityColumns", async () => {
   await sql`
     ALTER TABLE customers
       ADD COLUMN IF NOT EXISTS type INTEGER DEFAULT 1,
@@ -34,7 +35,7 @@ export const ensureCustomerCompatibilityColumns = async () => {
       ADD COLUMN IF NOT EXISTS sales_commission NUMERIC(12, 3) DEFAULT 0,
       ADD COLUMN IF NOT EXISTS collection_commission NUMERIC(12, 3) DEFAULT 0
   `
-}
+}) }
 
 export const resolveAccountHierarchy = async (fatherIdInput: unknown, levelNoInput: unknown) => {
   const fatherId = toNullableInt(fatherIdInput)

@@ -1,6 +1,7 @@
 import sql from "@/lib/database"
+import { runSchemaOnce } from "@/lib/schema-once"
 
-export async function ensurePosCampaignTables() {
+export async function ensurePosCampaignTables() { return runSchemaOnce("lib/pos-campaign-storage.ts#ensurePosCampaignTables", async () => {
   await sql`CREATE TABLE IF NOT EXISTS pos_campaign_header_tbl (
     id SERIAL PRIMARY KEY, code VARCHAR(40) NOT NULL UNIQUE, name VARCHAR(160) NOT NULL,
     start_date DATE, end_date DATE, time_type INTEGER DEFAULT 1, from_time TIME, to_time TIME,
@@ -26,7 +27,7 @@ export async function ensurePosCampaignTables() {
     campaign_id INTEGER NOT NULL REFERENCES pos_campaign_header_tbl(id) ON DELETE CASCADE,
     branch_id INTEGER NOT NULL, PRIMARY KEY(campaign_id,branch_id)
   )`
-}
+}) }
 
 export async function getPosCampaigns() {
   await ensurePosCampaignTables()

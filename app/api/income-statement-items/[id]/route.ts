@@ -1,7 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
+import { runSchemaOnce } from "@/lib/schema-once"
 
-const ensureIncomeStatementItemsTable = async () => {
+const ensureIncomeStatementItemsTable = async () => { return runSchemaOnce("app/api/income-statement-items/[id]/route.ts#ensureIncomeStatementItemsTable", async () => {
   await sql`
     CREATE TABLE IF NOT EXISTS income_statement_items (
       id SERIAL PRIMARY KEY,
@@ -11,7 +12,7 @@ const ensureIncomeStatementItemsTable = async () => {
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `
-}
+}) }
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {

@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server"
 import sql from "@/lib/database"
+import { runSchemaOnce } from "@/lib/schema-once"
 
 // جدول "أنواع القياس" (نوع القياس بتبويب القياسات في نموذج الصنف) — عشرة أنواع ثابتة (عادي، مساحة،
 // حجم، وزن، بروفايل، محيط...) تُنشَأ وتُملأ هنا تلقائياً عند أول استدعاء إن لم يكن الجدول موجوداً/
 // فارغاً بعد، بنفس نمط إنشاء/تعبئة units في app/api/units/route.ts.
-async function ensureMeasurmentTypesTable() {
+async function ensureMeasurmentTypesTable() { return runSchemaOnce("app/api/measurment-types/route.ts#ensureMeasurmentTypesTable", async () => {
   await sql`
     CREATE TABLE IF NOT EXISTS measurment_types_tbl (
       id INTEGER PRIMARY KEY,
@@ -31,7 +32,7 @@ async function ensureMeasurmentTypesTable() {
       ON CONFLICT (id) DO NOTHING
     `
   }
-}
+}) }
 
 export async function GET() {
   try {

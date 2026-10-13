@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
+import { runSchemaOnce } from "@/lib/schema-once"
 
-const ensureCostCenterTypesTable = async () => {
+const ensureCostCenterTypesTable = async () => { return runSchemaOnce("app/api/cost-centers/[id]/route.ts#ensureCostCenterTypesTable", async () => {
   await sql`
     CREATE TABLE IF NOT EXISTS cost_center_types (
       id SERIAL PRIMARY KEY,
@@ -11,7 +12,7 @@ const ensureCostCenterTypesTable = async () => {
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `
-}
+}) }
 
 export async function GET() {
   try {

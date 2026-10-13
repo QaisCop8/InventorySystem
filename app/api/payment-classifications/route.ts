@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server"
 import sql from "@/lib/database"
+import { runSchemaOnce } from "@/lib/schema-once"
 
-const ensureTable = async () => {
+const ensureTable = async () => { return runSchemaOnce("app/api/payment-classifications/route.ts#ensureTable", async () => {
   await sql`
     CREATE TABLE IF NOT EXISTS payment_classifications_tbl (
       id SERIAL PRIMARY KEY,
@@ -14,7 +15,7 @@ const ensureTable = async () => {
     VALUES ('نقدي'), ('آجل'), ('تحويل بنكي')
     ON CONFLICT (name) DO NOTHING
   `
-}
+}) }
 
 export async function GET() {
   try {

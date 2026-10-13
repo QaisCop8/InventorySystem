@@ -1,7 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
+import { runSchemaOnce } from "@/lib/schema-once"
 
-const ensureLicenseTypesTable = async () => {
+const ensureLicenseTypesTable = async () => { return runSchemaOnce("app/api/license-types/[id]/route.ts#ensureLicenseTypesTable", async () => {
   await sql`
     CREATE TABLE IF NOT EXISTS license_types (
       id SERIAL PRIMARY KEY,
@@ -12,7 +13,7 @@ const ensureLicenseTypesTable = async () => {
     )
   `
   await sql`ALTER TABLE license_types ADD COLUMN IF NOT EXISTS status INTEGER DEFAULT 1`
-}
+}) }
 
 export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
   if (!sql) return NextResponse.json({ error: "Database not initialized" }, { status: 500 })

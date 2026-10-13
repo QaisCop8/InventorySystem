@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
+import { runSchemaOnce } from "@/lib/schema-once"
 
-const ensureBrandTypesTable = async () => {
+const ensureBrandTypesTable = async () => { return runSchemaOnce("app/api/brand-types/route.ts#ensureBrandTypesTable", async () => {
   await sql`
     CREATE TABLE IF NOT EXISTS brand_types (
       id SERIAL PRIMARY KEY,
@@ -11,7 +12,7 @@ const ensureBrandTypesTable = async () => {
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `
-}
+}) }
 
 export async function GET() {
   try {

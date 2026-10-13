@@ -1,5 +1,6 @@
 import sql from "@/lib/database"
 import type { FileFamily } from "@/lib/file-permissions"
+import { runSchemaOnce } from "@/lib/schema-once"
 
 export const accountFileFamilyForType = (type: unknown): FileFamily => {
   if (Number(type) === 2) return "customers"
@@ -42,7 +43,7 @@ export const toNullableFloat = (value: unknown): number | null => {
   return Number.isFinite(parsed) ? parsed : null
 }
 
-export const ensureAccountsTable = async () => {
+export const ensureAccountsTable = async () => { return runSchemaOnce("app/api/accounts/_lib.ts#ensureAccountsTable", async () => {
   await sql`
     CREATE TABLE IF NOT EXISTS account_tbl (
       id SERIAL PRIMARY KEY,
@@ -99,9 +100,9 @@ export const ensureAccountsTable = async () => {
       END IF;
     END$$;
   `
-}
+}) }
 
-export const ensureAccountRelatedTables = async () => {
+export const ensureAccountRelatedTables = async () => { return runSchemaOnce("app/api/accounts/_lib.ts#ensureAccountRelatedTables", async () => {
   await sql`
     CREATE TABLE IF NOT EXISTS account_stop_transactions_tbl (
       id SERIAL PRIMARY KEY,
@@ -132,7 +133,7 @@ export const ensureAccountRelatedTables = async () => {
   await sql`CREATE INDEX IF NOT EXISTS idx_acc_stop_account_id ON account_stop_transactions_tbl(account_id)`
   await sql`CREATE INDEX IF NOT EXISTS idx_acc_cost_account_id ON account_costcenters_tbl(account_id)`
   await sql`CREATE INDEX IF NOT EXISTS idx_acc_class_account_id ON account_classifications_tbl(account_id)`
-}
+}) }
 
 export const mapAccountRow = (row: any) => ({
   ...row,

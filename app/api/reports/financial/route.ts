@@ -8,6 +8,7 @@ import { ensureTables as ensureVoucherTables } from "@/app/api/receipts/_lib"
 import { getProductBalances } from "@/lib/item-inventory-reports"
 import { ensureTables as ensureSalesTables } from "@/app/api/sales-vouchers/_lib"
 import { ensurePosTables } from "@/app/api/pos/_lib"
+import { runSchemaOnce } from "@/lib/schema-once"
 
 const TYPES = ["vouchers", "transactions", "trial-balance", "balance-sheet", "income-statement"] as const
 type ReportType = (typeof TYPES)[number]
@@ -16,11 +17,11 @@ const date = (value: string | null, fallback: string) => value && /^\d{4}-\d{2}-
 const voucherNames: Record<number, string> = { 4:"سند قبض",5:"سند صرف",6:"إشعار دائن",7:"إشعار مدين",8:"سند إدخال",9:"سند إخراج",10:"إرسالية داخلية",11:"سند استعمال",12:"فاتورة مبيعات",13:"إرسالية مبيعات",14:"إرسالية برسم البيع",15:"مرتجع إرسالية برسم البيع",16:"مرتجع مبيعات",17:"فاتورة مشتريات",18:"إرسالية مشتريات",19:"مرتجع مشتريات",20:"طلب صناعة داخلي",21:"سند صرف شيكات" }
 const voucherCase = `CASE vh.vch_type ${Object.entries(voucherNames).map(([id,name]) => `WHEN ${id} THEN '${name}'`).join(" ")} ELSE 'سند قيد' END`
 
-async function ensureFinancialDefinitions() {
+async function ensureFinancialDefinitions() { return runSchemaOnce("app/api/reports/financial/route.ts#ensureFinancialDefinitions", async () => {
   await sql`CREATE TABLE IF NOT EXISTS balance_sheet_assets_items (id SERIAL PRIMARY KEY,name VARCHAR(100) NOT NULL,status INTEGER NOT NULL DEFAULT 1,created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`
   await sql`CREATE TABLE IF NOT EXISTS balance_sheet_liabilities_items (id SERIAL PRIMARY KEY,name VARCHAR(100) NOT NULL,status INTEGER NOT NULL DEFAULT 1,created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`
   await sql`CREATE TABLE IF NOT EXISTS income_statement_items (id SERIAL PRIMARY KEY,name VARCHAR(100) NOT NULL,status INTEGER NOT NULL DEFAULT 1,created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`
-}
+}) }
 
 export async function GET(request: NextRequest) {
   try {

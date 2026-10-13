@@ -1,11 +1,12 @@
 import { type NextRequest, NextResponse } from "next/server"
 import sql, { withTenantTransaction } from "../../../lib/database"
+import { runSchemaOnce } from "@/lib/schema-once"
 
 function getDatabaseErrorResponse() {
   return NextResponse.json({ error: "قاعدة البيانات غير متاحة" }, { status: 500 })
 }
 
-async function ensurePriceCategorySchema() {
+async function ensurePriceCategorySchema() { return runSchemaOnce("app/api/pricecategory/route.ts#ensurePriceCategorySchema", async () => {
   await sql`
     CREATE TABLE IF NOT EXISTS pricecategory (
       id SERIAL PRIMARY KEY,
@@ -35,7 +36,7 @@ async function ensurePriceCategorySchema() {
   `
 
   await sql`UPDATE pricecategory SET status = 1 WHERE status IS NULL`
-}
+}) }
 
 // ✅ Named export for GET
 export async function GET() {

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
+import { runSchemaOnce } from "@/lib/schema-once"
 
-const ensureAccountClassificationTypesTable = async () => {
+const ensureAccountClassificationTypesTable = async () => { return runSchemaOnce("app/api/account-classifications/[id]/route.ts#ensureAccountClassificationTypesTable", async () => {
   await sql`
     CREATE TABLE IF NOT EXISTS account_classification_types (
       id SERIAL PRIMARY KEY,
@@ -12,7 +13,7 @@ const ensureAccountClassificationTypesTable = async () => {
       CONSTRAINT account_classification_types_name_unique UNIQUE (name)
     )
   `
-}
+}) }
 
 export async function GET() {
   try {

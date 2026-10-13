@@ -2,10 +2,11 @@ import { resolvePosAccounts } from "@/lib/pos-accounts"
 import sql from "@/lib/database"
 import { hasPosCashierPermission } from "@/lib/permissions"
 import type { PosCashierPermission } from "@/lib/transaction-permission-definitions"
+import { runSchemaOnce } from "@/lib/schema-once"
 
 export const POS_PAYMENT_METHODS = ["cash", "card", "cheque", "account", "gift_card"] as const
 
-export async function ensurePosTables() {
+export async function ensurePosTables() { return runSchemaOnce("app/api/pos/_lib.ts#ensurePosTables", async () => {
   await sql`CREATE TABLE IF NOT EXISTS users_currencies_default_account_tbl (
     id SERIAL PRIMARY KEY, user_id INTEGER, currency_id INTEGER, account_id INTEGER,
     received_cheqs_account_id INTEGER, returned_cheqs_account_id INTEGER, cards_account_id INTEGER
@@ -156,7 +157,7 @@ export async function ensurePosTables() {
     )
   `
   await sql`CREATE INDEX IF NOT EXISTS idx_pos_cashier_log_filters ON pos_cashier_log_tbl(occurred_at,pos_point_id,user_id,movement_type)`
-}
+}) }
 
 export function requestUserId(request: Request) {
   return String(request.headers.get("x-user-id") || "").trim()

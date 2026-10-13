@@ -1,4 +1,5 @@
 import sql, { resolveCurrentDbName } from "@/lib/database"
+import { runSchemaOnce } from "@/lib/schema-once"
 
 /**
  * الأرقام التسلسلية للأصناف (serial_tracking) في السندات — نفس منطق شامل (ShamelAPI):
@@ -22,7 +23,7 @@ const DIRECTIONS: Record<number, SerialDirection> = {
 export const serialDirection = (vchType: number): SerialDirection | null => DIRECTIONS[Number(vchType)] ?? null
 
 const ensured = new Set<string>()
-export async function ensureItemSerialTables() {
+export async function ensureItemSerialTables() { return runSchemaOnce("lib/item-serials.ts#ensureItemSerialTables", async () => {
   const db = await resolveCurrentDbName().catch(() => "default")
   if (ensured.has(db)) return
   await sql`CREATE TABLE IF NOT EXISTS items_serials_tbl (
@@ -47,7 +48,7 @@ export async function ensureItemSerialTables() {
   await sql`CREATE INDEX IF NOT EXISTS vouchers_items_serials_serial_idx ON vouchers_items_serials_tbl (item_serial_id, id DESC)`
   await sql`CREATE INDEX IF NOT EXISTS vouchers_items_serials_voucher_idx ON vouchers_items_serials_tbl (voucher_id)`
   ensured.add(db)
-}
+}) }
 
 /** الأرقام كما أرسلتها الواجهة (نصوص أو كائنات {serial}) — بلا فراغات وبلا تكرار. */
 export function serialsOf(row: any): string[] {

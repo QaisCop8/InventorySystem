@@ -1,10 +1,11 @@
 import { type NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
+import { runSchemaOnce } from "@/lib/schema-once"
 
 // المستودعات الافتراضية للمستخدم (تُحفَظ في user_settings) — تُستعمَل عند اختيار صنف في
 // سندات الحركات: إن لم يكن للصنف نفسه مستودع افتراضي (products.default_store)، يُرجَع لهذه
 // الإعدادات، ثم لأول مستودع في النظام إن لم تكن معرَّفة أيضاً.
-async function ensureColumns() {
+async function ensureColumns() { return runSchemaOnce("app/api/settings/user-warehouse-defaults/route.ts#ensureColumns", async () => {
   await sql`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS default_item_warehouse_id INTEGER`
   await sql`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS finished_goods_warehouse_id INTEGER`
   await sql`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS raw_materials_warehouse_id INTEGER`
@@ -13,7 +14,7 @@ async function ensureColumns() {
   // (1+نسبة الضريبة/100)) قبل تخزينه في unit_price — انظر handleCellEditEnded في
   // components/sales/unified-sales-delivery.tsx.
   await sql`ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS price_entry_includes_tax BOOLEAN DEFAULT false`
-}
+}) }
 
 export async function GET(request: NextRequest) {
   try {

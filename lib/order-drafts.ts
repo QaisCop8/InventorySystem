@@ -1,7 +1,8 @@
 import sql, { resolveCurrentDbName } from "@/lib/database"
+import { runSchemaOnce } from "@/lib/schema-once"
 
 const readyDatabases = new Set<string>()
-export async function ensureOrderDraftTables() {
+export async function ensureOrderDraftTables() { return runSchemaOnce("lib/order-drafts.ts#ensureOrderDraftTables", async () => {
   const databaseName = await resolveCurrentDbName()
   if (readyDatabases.has(databaseName)) return
   await sql`ALTER TABLE products ADD COLUMN IF NOT EXISTS minimum_order_quantity NUMERIC(15,4) NOT NULL DEFAULT 0`
@@ -35,4 +36,4 @@ export async function ensureOrderDraftTables() {
   await sql`ALTER TABLE product_manufacturing_components ADD COLUMN IF NOT EXISTS height NUMERIC(18,6)`
   await sql`ALTER TABLE product_manufacturing_components ADD COLUMN IF NOT EXISTS count NUMERIC(18,6)`
   readyDatabases.add(databaseName)
-}
+}) }

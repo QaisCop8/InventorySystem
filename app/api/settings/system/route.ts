@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
 import { ensureWorkingPeriodGuard } from "@/lib/working-period"
+import { runSchemaOnce } from "@/lib/schema-once"
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value)
 }
@@ -142,7 +143,7 @@ function normalizePayload(data: unknown): Record<string, unknown> {
   return normalized
 }
 
-async function ensureSettingsTable(): Promise<void> {
+async function ensureSettingsTable(): Promise<void> { return runSchemaOnce("app/api/settings/system/route.ts#ensureSettingsTable", async () => {
   if (!sql) return
 
   // Create a minimal key/value table if it doesn't exist. Many installations
@@ -245,7 +246,7 @@ async function ensureSettingsTable(): Promise<void> {
     // eslint-disable-next-line no-await-in-loop
     await execSafe(sql([`ALTER TABLE system_settings DROP COLUMN IF EXISTS "${col}"`] as any))
   }
-}
+}) }
 
 export async function loadStoredSettings(): Promise<Record<string, unknown>> {
   if (!sql) return {}

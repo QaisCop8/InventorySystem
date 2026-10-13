@@ -1,9 +1,10 @@
 import sql, { resolveCurrentDbName } from "./database"
+import { runSchemaOnce } from "@/lib/schema-once"
 
 const orderColumnsReady = new Map<string, Promise<void>>()
 
 /** Prepare columns used by order lists and navigation in older tenant databases. */
-export async function ensureOrderReadColumns(): Promise<void> {
+export async function ensureOrderReadColumns(): Promise<void> { return runSchemaOnce("lib/order-schema.ts#ensureOrderReadColumns", async () => {
   const databaseName = await resolveCurrentDbName()
   let ready = orderColumnsReady.get(databaseName)
   if (!ready) {
@@ -17,4 +18,4 @@ export async function ensureOrderReadColumns(): Promise<void> {
     orderColumnsReady.set(databaseName, ready)
   }
   await ready
-}
+}) }

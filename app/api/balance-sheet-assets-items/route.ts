@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
+import { runSchemaOnce } from "@/lib/schema-once"
 
-const ensureBalanceSheetAssetsItemsTable = async () => {
+const ensureBalanceSheetAssetsItemsTable = async () => { return runSchemaOnce("app/api/balance-sheet-assets-items/route.ts#ensureBalanceSheetAssetsItemsTable", async () => {
   await sql`
     CREATE TABLE IF NOT EXISTS balance_sheet_assets_items (
       id SERIAL PRIMARY KEY,
@@ -11,7 +12,7 @@ const ensureBalanceSheetAssetsItemsTable = async () => {
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `
-}
+}) }
 
 export async function GET() {
   try {

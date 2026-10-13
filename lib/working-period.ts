@@ -1,4 +1,5 @@
 import sql, { resolveCurrentDbName } from "@/lib/database"
+import { runSchemaOnce } from "@/lib/schema-once"
 
 // فترة العمل (سنة العمل + أشهر العمل من "إعدادات النظام ← اعدادات عامة") تُفرَض على كل الحركات عبر
 // Trigger على voucher_header_tbl — نقطة واحدة تغطي كل مسارات إنشاء/تعديل/حذف السندات (مخزون، مبيعات،
@@ -10,7 +11,7 @@ import sql, { resolveCurrentDbName } from "@/lib/database"
 
 const preparedDatabases = new Set<string>()
 
-export async function ensureWorkingPeriodGuard() {
+export async function ensureWorkingPeriodGuard() { return runSchemaOnce("lib/working-period.ts#ensureWorkingPeriodGuard", async () => {
   const databaseName = await resolveCurrentDbName()
   if (preparedDatabases.has(databaseName)) return
   const tables = await sql`SELECT to_regclass('voucher_header_tbl') IS NOT NULL AS vouchers`
@@ -84,7 +85,7 @@ export async function ensureWorkingPeriodGuard() {
     FOR EACH ROW EXECUTE FUNCTION check_voucher_working_period()
   `)
   preparedDatabases.add(databaseName)
-}
+}) }
 
 /** نص الخطأ إن كانت الرسالة صادرة عن فحص فترة العمل (لعرضها كما هي بدل رسالة عامة). */
 export const workingPeriodErrorMessage = (error: unknown): string | null => {

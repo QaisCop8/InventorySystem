@@ -4,13 +4,14 @@ import { ensureTables as ensureVoucherTables } from "@/app/api/receipts/_lib"
 import { ensureTables as ensureVoucherBookTables } from "@/app/api/voucher-book-permissions/_lib"
 import { ensureTables as ensureCreditCardTables } from "@/app/api/credit-cards/_lib"
 import { AutoJournalError, ensureAutoJournalTables } from "@/lib/auto-journals"
+import { runSchemaOnce } from "@/lib/schema-once"
 
-export async function ensureAutoJournalSchema() {
+export async function ensureAutoJournalSchema() { return runSchemaOnce("app/api/auto-journals/_lib.ts#ensureAutoJournalSchema", async () => {
   await ensureVoucherTables()
   await ensureVoucherBookTables()
   await ensureCreditCardTables()
   await ensureAutoJournalTables()
-}
+}) }
 
 // القيود الآلية تُنشأ مُرحَّلة مباشرة — تتطلب صلاحيتي إدخال وترحيل سند القيد (كما في Shamel:
 // EnterJournalVoucher) على الفرع المحدد.

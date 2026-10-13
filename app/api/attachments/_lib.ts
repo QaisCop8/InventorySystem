@@ -2,11 +2,12 @@ import { promises as fs } from "fs"
 import path from "path"
 import crypto from "crypto"
 import sql, { resolveCurrentDbName } from "@/lib/database"
+import { runSchemaOnce } from "@/lib/schema-once"
 
 // نظام مرفقات عام (على نمط Odoo ir.attachment): جدول واحد مُعرَّف بـ(model_name, record_id) بدل
 // جدول مرفقات مخصَّص لكل شاشة (سندات/عملاء/أصناف) — أي شاشة جديدة تحصل على مرفقات فوراً بمجرد
 // تمرير model_name/record_id مناسبَين، دون أي تعديل على هذا الملف أو الجدول.
-export const ensureTables = async () => {
+export const ensureTables = async () => { return runSchemaOnce("app/api/attachments/_lib.ts#ensureTables", async () => {
   await sql`
     CREATE TABLE IF NOT EXISTS attachment_tbl (
       id SERIAL PRIMARY KEY,
@@ -22,7 +23,7 @@ export const ensureTables = async () => {
     )
   `
   await sql`CREATE INDEX IF NOT EXISTS idx_attachment_tbl_model_record ON attachment_tbl(model_name, record_id)`
-}
+}) }
 
 // أسماء نماذج مسموحة فقط — يمنع أي model_name عشوائي من الوصول لبناء مسارات ملفات غير متوقَّعة.
 // "voucher" يخدم كل أنواع السندات معاً (فاتورة/إرسالية مبيعات، مشتريات، قبض/صرف، مخزون...) لأنها

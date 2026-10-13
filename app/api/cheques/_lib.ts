@@ -1,4 +1,5 @@
 import sql from "@/lib/database"
+import { runSchemaOnce } from "@/lib/schema-once"
 
 export type ChequeOperation = {
   code: string
@@ -65,7 +66,7 @@ export const withAllowedChequeOperations = (row: any,asOfDate = new Date().toISO
   }
 }
 
-export async function ensureChequeOperationsTable() {
+export async function ensureChequeOperationsTable() { return runSchemaOnce("app/api/cheques/_lib.ts#ensureChequeOperationsTable", async () => {
   await sql`
     CREATE TABLE IF NOT EXISTS cheque_operations_log_tbl (
       id SERIAL PRIMARY KEY,
@@ -91,7 +92,7 @@ export async function ensureChequeOperationsTable() {
   await sql`ALTER TABLE cheque_operations_log_tbl ADD COLUMN IF NOT EXISTS previous_voucher_id INTEGER`
   await sql`CREATE INDEX IF NOT EXISTS idx_cheque_operations_log_cheque ON cheque_operations_log_tbl(cheque_id, operation_date DESC)`
   await sql`CREATE INDEX IF NOT EXISTS idx_cheque_operations_log_voucher ON cheque_operations_log_tbl(voucher_id) WHERE status<>9`
-}
+}) }
 
 export async function rollbackChequeOperationsForVoucher(voucherId: number): Promise<{ error?: string; restored: number }> {
   await ensureChequeOperationsTable()

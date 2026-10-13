@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import sql, { withTenantTransaction } from "@/lib/database"
+import { runSchemaOnce } from "@/lib/schema-once"
 
-async function ensureTables() {
+async function ensureTables() { return runSchemaOnce("app/api/campaigns/route.ts#ensureTables", async () => {
   await sql`
     CREATE TABLE IF NOT EXISTS pos_campaign_header_tbl (
       id SERIAL PRIMARY KEY,
@@ -57,7 +58,7 @@ async function ensureTables() {
       PRIMARY KEY (campaign_id, branch_id)
     )
   `
-}
+}) }
 
 const number = (value: unknown, fallback = 0) => Number.isFinite(Number(value)) ? Number(value) : fallback
 const date = (value: unknown) => value ? String(value) : null

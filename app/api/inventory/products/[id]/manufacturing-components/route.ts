@@ -1,8 +1,9 @@
 import { authorizeStoredProduct } from "@/app/api/inventory/products/_permissions"
 import { type NextRequest, NextResponse } from "next/server"
 import sql from "@/lib/database"
+import { runSchemaOnce } from "@/lib/schema-once"
 
-async function ensureTable() {
+async function ensureTable() { return runSchemaOnce("app/api/inventory/products/[id]/manufacturing-components/route.ts#ensureTable", async () => {
   await sql`CREATE TABLE IF NOT EXISTS product_manufacturing_components (
     id SERIAL PRIMARY KEY,
     product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
@@ -16,7 +17,7 @@ async function ensureTable() {
   await sql`ALTER TABLE product_manufacturing_components ADD COLUMN IF NOT EXISTS width NUMERIC(18,6)`
   await sql`ALTER TABLE product_manufacturing_components ADD COLUMN IF NOT EXISTS height NUMERIC(18,6)`
   await sql`ALTER TABLE product_manufacturing_components ADD COLUMN IF NOT EXISTS count NUMERIC(18,6)`
-}
+}) }
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {

@@ -6,6 +6,7 @@ import { getProductBalances } from "@/lib/item-inventory-reports"
 import { ensureItemSerialTables } from "@/lib/item-serials"
 import { lotBalances, lotKey, normalizeExpiry } from "@/lib/stock-lots"
 import { dimensionsLabel, isMeasuredProduct, quantityFromMeasurement } from "@/lib/measurement-formula"
+import { runSchemaOnce } from "@/lib/schema-once"
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────
 // جرد المخازن (Physical inventory count) — على نمط أنظمة ERP العالمية (SAP Physical Inventory،
@@ -42,7 +43,7 @@ const PERMISSION_CATEGORY = "جرد المخازن"
 
 const preparedDatabases = new Set<string>()
 
-export async function ensureStockCountTables() {
+export async function ensureStockCountTables() { return runSchemaOnce("lib/stock-counts.ts#ensureStockCountTables", async () => {
   const databaseName = await resolveCurrentDbName()
   if (preparedDatabases.has(databaseName)) return
   await sql`
@@ -118,7 +119,7 @@ export async function ensureStockCountTables() {
   `
   await sql`CREATE INDEX IF NOT EXISTS idx_stock_count_serials_count ON stock_count_serials(count_id)`
   preparedDatabases.add(databaseName)
-}
+}) }
 
 // صلاحيات الجرد تُعرَّف ذاتياً (نفس أسلوب ensurePosCashierPermission) — ممنوحة لدور "مدير" ولمن له
 // "جميع الصلاحيات"، وتظهر في شاشة الصلاحيات ضمن تصنيف "جرد المخازن".

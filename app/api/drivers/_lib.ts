@@ -1,4 +1,5 @@
 import sql from "@/lib/database"
+import { runSchemaOnce } from "@/lib/schema-once"
 
 // Shared schema + persistence helpers for السائقين (drivers). Mirrors the lazy
 // CREATE TABLE IF NOT EXISTS convention used across this codebase's simpler
@@ -30,7 +31,7 @@ export interface Driver {
   updated_at: string
 }
 
-export const ensureDriversTable = async () => {
+export const ensureDriversTable = async () => { return runSchemaOnce("app/api/drivers/_lib.ts#ensureDriversTable", async () => {
   await sql`
     CREATE TABLE IF NOT EXISTS license_types (
       id SERIAL PRIMARY KEY,
@@ -58,7 +59,7 @@ export const ensureDriversTable = async () => {
   await sql`ALTER TABLE drivers ADD COLUMN IF NOT EXISTS licence_expiry DATE`
   await sql`ALTER TABLE drivers ADD COLUMN IF NOT EXISTS license_type_id INTEGER REFERENCES license_types(id)`
   await sql`ALTER TABLE drivers ADD COLUMN IF NOT EXISTS status INTEGER DEFAULT 1`
-}
+}) }
 
 export function toDisplayStatus(status: number | null | undefined): "نشط" | "غير نشط" {
   return status === 2 ? "غير نشط" : "نشط"

@@ -4,8 +4,9 @@ import sql, { withTenantTransaction } from "@/lib/database"
 import { authorizeTransaction } from "@/lib/transaction-permissions"
 import { calculateCommission, reverseCommission, selectCommissionRule, type CommissionRule } from "@/lib/salesman-commission"
 import { ensureTables as ensureSalesVoucherTables } from "@/app/api/sales-vouchers/_lib"
+import { runSchemaOnce } from "@/lib/schema-once"
 
-async function ensureTables() {
+async function ensureTables() { return runSchemaOnce("app/api/salesman-commissions/route.ts#ensureTables", async () => {
   await sql`CREATE TABLE IF NOT EXISTS salesman_commission_rules (
     id BIGSERIAL PRIMARY KEY, salesman_id INTEGER REFERENCES salesmen(id), name VARCHAR(160) NOT NULL,
     basis VARCHAR(24) NOT NULL DEFAULT 'sales', commission_percent NUMERIC(9,4) NOT NULL DEFAULT 0,
@@ -60,7 +61,7 @@ async function ensureTables() {
     payment_voucher_id INTEGER NOT NULL, amount NUMERIC(18,4) NOT NULL CHECK(amount > 0), payment_date DATE NOT NULL DEFAULT CURRENT_DATE,
     created_by INTEGER, created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`
-}
+}) }
 
 const num = (value: unknown, fallback = 0) => Number.isFinite(Number(value)) ? Number(value) : fallback
 const validDate = (value: unknown) => /^\d{4}-\d{2}-\d{2}$/.test(String(value || "")) && Number.isFinite(Date.parse(String(value))) && new Date(String(value)).toISOString().slice(0,10) === value

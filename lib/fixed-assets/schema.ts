@@ -1,4 +1,5 @@
 import sql, { resolveCurrentDbName } from "@/lib/database"
+import { runSchemaOnce } from "@/lib/schema-once"
 
 export * from "./constants"
 
@@ -8,7 +9,7 @@ export const FIXED_ASSET_INTERNAL_VOUCHER = 30
 
 const ready = new Set<string>()
 
-export async function ensureFixedAssetSchema() {
+export async function ensureFixedAssetSchema() { return runSchemaOnce("lib/fixed-assets/schema.ts#ensureFixedAssetSchema", async () => {
   const dbName = await resolveCurrentDbName()
   if (ready.has(dbName)) return
 
@@ -268,4 +269,4 @@ export async function ensureFixedAssetSchema() {
   await sql`CREATE INDEX IF NOT EXISTS ix_fa_assets_parent ON fa_assets_tbl(parent_asset_id)`
   await sql`ALTER TABLE voucher_header_tbl ADD COLUMN IF NOT EXISTS internal_voucher_id INTEGER`
   ready.add(dbName)
-}
+}) }

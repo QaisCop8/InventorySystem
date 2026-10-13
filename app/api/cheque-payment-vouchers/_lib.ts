@@ -2,12 +2,13 @@ import sql from "@/lib/database"
 import { ensureTables as ensureReceiptTables } from "@/app/api/receipts/_lib"
 import { ensureTables as ensureVoucherTypeTables } from "@/app/api/voucher-book-permissions/_lib"
 import { CHEQUE_OPERATIONS, ensureChequeOperationsTable } from "@/app/api/cheques/_lib"
+import { runSchemaOnce } from "@/lib/schema-once"
 
 export const CHEQUE_PAYMENT_VCH_TYPE = 21
 export const CHEQUE_PAYMENT_CODE_PREFIX = "Q"
 export const ENDORSEMENT_STATUS_IDS = CHEQUE_OPERATIONS.find(operation => operation.code === "endorse")?.allowed ?? [1,3,5]
 
-export async function ensureChequePaymentTables() {
+export async function ensureChequePaymentTables() { return runSchemaOnce("app/api/cheque-payment-vouchers/_lib.ts#ensureChequePaymentTables", async () => {
   await ensureReceiptTables()
   await ensureVoucherTypeTables()
   await ensureChequeOperationsTable()
@@ -23,7 +24,7 @@ export async function ensureChequePaymentTables() {
     )
   `
   await sql`CREATE INDEX IF NOT EXISTS idx_cheque_payment_items_cheque ON cheque_payment_voucher_items(cheque_id)`
-}
+}) }
 
 export async function nextChequePaymentCode() {
   const rows=await sql`SELECT vch_code FROM voucher_header_tbl WHERE vch_type=${CHEQUE_PAYMENT_VCH_TYPE} AND vch_code LIKE 'CQ%'`
