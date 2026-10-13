@@ -42,10 +42,9 @@ export async function GET(request: NextRequest) {
       ORDER BY id DESC
     `
 
-    const vouchers = await Promise.all(
-      rows.map(async (voucher: any) => ({ ...voucher, ...(await fetchDetails(Number(voucher.id))) })),
-    )
-    return NextResponse.json(vouchers)
+    // القائمة تعرض حقول رأس السند فقط؛ التفاصيل (حسابات/شيكات/بطاقات/ملاحظات) تُجلب عند فتح السند
+    // (/api/receipts/[id]). جلبها هنا لكل سند كان 6 استعلامات × عدد السندات — دقيقة كاملة مع قاعدة بعيدة.
+    return NextResponse.json(rows)
   } catch (error) {
     console.error("Error fetching vouchers:", error)
     return NextResponse.json({ error: "Failed to fetch vouchers" }, { status: 500 })

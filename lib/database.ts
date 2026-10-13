@@ -50,11 +50,58 @@ function buildClientForUrl(url: string): TenantClient {
 // بكل طلب HTTP، بل مرة واحدة لكل db_name طيلة عمر العملية (Node process).
 const clientCache = new Map<string, TenantClient>()
 
+// دوال ensure* في المسارات تُنفّذ عشرات/مئات أوامر DDL "IF NOT EXISTS" مع كل طلب (ensureTables في سندات
+// القبض وحدها ~150 أمراً متتالياً). محلياً لا تُلاحَظ، لكن مع قاعدة بعيدة (Neon) كل أمر رحلة شبكة كاملة ←
+// ثوانٍ لكل طلب. الأمر الذي لا يُغيّر شيئاً عند تكراره يُنفَّذ مرة واحدة لكل قاعدة طيلة عمر العملية/الـ
+// isolate ثم يُتخطّى. لا يُخزَّن ما قد يكون لتكراره أثر (DROP/RENAME/ADD CONSTRAINT/عدة أوامر/معاملات).
+const completedDdl = new Set<string>()
+const inFlightDdl = new Map<string, Promise<any[]>>()
+
+function isRepeatSafeDdl(text: string, params: any[]): boolean {
+  if (params.length) return false
+  const statement = text.trim().replace(/;\s*$/, "").replace(/\s+/g, " ")
+  if (statement.includes(";")) return false
+  if (/^CREATE (UNIQUE )?INDEX (CONCURRENTLY )?IF NOT EXISTS /i.test(statement)) return true
+  if (/^CREATE (TABLE|SEQUENCE|SCHEMA|EXTENSION) IF NOT EXISTS /i.test(statement)) return true
+  if (/^ALTER TABLE /i.test(statement)) {
+    const adds = statement.match(/\bADD\b/gi)?.length ?? 0
+    const safeAdds = statement.match(/\bADD COLUMN IF NOT EXISTS\b/gi)?.length ?? 0
+    return adds > 0 && adds === safeAdds && !/\b(DROP|RENAME|ALTER COLUMN|OWNER|ENABLE|DISABLE)\b/i.test(statement)
+  }
+  return false
+}
+
+function withDdlMemo(dbName: string, client: TenantClient): TenantClient {
+  return {
+    query: (text, params) => {
+      if (!isRepeatSafeDdl(text, params)) return client.query(text, params)
+      const key = `${dbName}\u0000${text}`
+      if (completedDdl.has(key)) return Promise.resolve([])
+      let pending = inFlightDdl.get(key)
+      if (!pending) {
+        pending = client.query(text, params).then(
+          (rows) => {
+            completedDdl.add(key)
+            inFlightDdl.delete(key)
+            return rows
+          },
+          (error) => {
+            inFlightDdl.delete(key)
+            throw error
+          },
+        )
+        inFlightDdl.set(key, pending)
+      }
+      return pending
+    },
+  }
+}
+
 function getClientForDbName(dbName: string): TenantClient {
   let client = clientCache.get(dbName)
   if (!client) {
     const url = dbName === defaultDbName ? baseUrl : withDatabaseName(baseUrl, dbName)
-    client = buildClientForUrl(url)
+    client = withDdlMemo(dbName, buildClientForUrl(url))
     clientCache.set(dbName, client)
   }
   return client

@@ -582,6 +582,22 @@ export default function UnifiedReceiptVoucher({
     return () => window.clearTimeout(snapshotTimer)
   }, [isSaving])
 
+  // مهلة 350ms أعلاه لا تكفي دائماً: الفرع الافتراضي ثم الحسابات الافتراضية ورقم السند المُعاد توليده تصل من
+  // الخادم بعدها أحياناً (خاصة مع قاعدة بعيدة) فتُعدّ "تعديلاً" بمجرد فتح السند وإغلاقه. لذلك: قبل أول تفاعل
+  // فعلي من المستخدم داخل السند (نقرة/مفتاح) يُعدّ كل تغيير تلقائياً ويُضمّ للّقطة.
+  const userTouchedRef = useRef(false)
+  useEffect(() => {
+    userTouchedRef.current = false
+  }, [dialogOpen, form.id, isNewMode, isSaving])
+  useEffect(() => {
+    if (!dialogOpen || userTouchedRef.current) return
+    initialFormHashRef.current = hashForm(form)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form, dialogOpen])
+  const markUserTouched = () => {
+    userTouchedRef.current = true
+  }
+
   const guardedAction = (action: () => void) => {
     if ([2, 3].includes(Number(form.status))) { action(); return }
     codeRequestRef.current += 1
@@ -1918,6 +1934,8 @@ export default function UnifiedReceiptVoucher({
           onEscapeKeyDown={(event) => {
             keepDialogOpenOnEscape(event, [showUnsavedConfirm, showDeleteConfirm, journalSearchOpen, costCenterOpen, postDialogOpen])
           }}
+          onPointerDownCapture={markUserTouched}
+          onKeyDownCapture={markUserTouched}
         >
           <button
             type="button"
