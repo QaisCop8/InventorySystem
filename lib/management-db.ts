@@ -1,12 +1,12 @@
 import { neon } from "@neondatabase/serverless"
 import { Pool } from "pg"
 import { isNeonDatabaseUrl, withDatabaseName } from "./db-url"
-import { getPool } from "./db-pool"
+import { getPool, isWorkersRuntime } from "./db-pool"
 
 const MANAGEMENT_DB_NAME = "management"
 
 function buildSqlClient(connectionUrl: string) {
-  if (!isNeonDatabaseUrl(connectionUrl)) {
+  if (!isNeonDatabaseUrl(connectionUrl) || isWorkersRuntime) {
     // Pool لكل طلب على Workers / لكل عملية على Node (lib/db-pool.ts)
     const pool = { connect: () => getPool(connectionUrl).connect() }
     const client: any = async (strings: TemplateStringsArray, ...values: any[]) => {

@@ -5,6 +5,12 @@ import { Pool } from "pg"
 // في AsyncLocalStorage — كائن جديد لكل طلب)، فتُعاد الاتصالات داخل الطلب الواحد ولا تنتقل لطلب آخر،
 // ويغلقها Workers عند انتهاء الطلب. على Node (محلياً/Docker) Pool واحد لكل رابط طيلة عمر العملية كما كان.
 const cloudflareContextSymbol = Symbol.for("__cloudflare-context__")
+
+// على Workers يُستخدم pg عبر TCP حتى لقواعد Neon بدل عميل neon() المبني على HTTP: كل استعلام HTTP طلب
+// فرعي (subrequest) مستقل، وWorkers يحدّ عددها لكل طلب (50 بالخطة المجانية) ← "Too many subrequests" في
+// الشاشات كثيرة الاستعلامات. فتح اتصال TCP يُحسب طلباً فرعياً واحداً مهما نُفِّذ عليه من استعلامات.
+export const isWorkersRuntime =
+  typeof navigator !== "undefined" && (navigator as { userAgent?: string }).userAgent === "Cloudflare-Workers"
 const processPools = new Map<string, Pool>()
 const requestPools = new WeakMap<object, Map<string, Pool>>()
 

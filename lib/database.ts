@@ -3,7 +3,7 @@ import { Pool, types } from "pg"
 import { cookies, headers } from "next/headers"
 import { AsyncLocalStorage } from "node:async_hooks"
 import { withDatabaseName, getDatabaseNameFromUrl, isNeonDatabaseUrl } from "./db-url"
-import { getPool } from "./db-pool"
+import { getPool, isWorkersRuntime } from "./db-pool"
 
 // node-postgres يحوّل أعمدة DATE افتراضياً إلى كائن JS Date مربوط بمنتصف الليل بالتوقيت المحلي
 // لخادم Node (لا UTC ولا أي علاقة بالقيمة المخزَّنة فعلياً) — فتاريخ مثل "1990-01-01" على خادم
@@ -38,7 +38,7 @@ function buildNoopClient(): TenantClient {
 function buildClientForUrl(url: string): TenantClient {
   if (!url) return buildNoopClient()
 
-  if (!isNeonDatabaseUrl(url)) {
+  if (!isNeonDatabaseUrl(url) || isWorkersRuntime) {
     // Pool لكل طلب على Workers / لكل عملية على Node (lib/db-pool.ts)
     return { query: async (text, params) => (await getPool(url).query(text, params)).rows }
   }
