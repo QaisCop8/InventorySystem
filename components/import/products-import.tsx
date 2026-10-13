@@ -263,8 +263,16 @@ export function ProductsImportDialog({ open, onOpenChange, onImported }: { open:
               prices,
               ...defaultAccounts,
             }
-            const response = await fetch("/api/inventory/products", { method: "POST", headers: { "Content-Type": "application/json" }, signal, body: JSON.stringify(body) })
-            const saved = await response.json().catch(() => ({}))
+            // الحفظ بالتوازي: إعادة المحاولة (حتى 3 مرات) عند تعارض أقفال قاعدة البيانات (deadlock/serialization)
+            let response: Response
+            let saved: any
+            for (let attempt = 1; ; attempt++) {
+              response = await fetch("/api/inventory/products", { method: "POST", headers: { "Content-Type": "application/json" }, signal, body: JSON.stringify(body) })
+              saved = await response.json().catch(() => ({}))
+              const lockConflict = !response.ok && /deadlock|could not serialize/i.test(String(saved?.error || saved?.message || ""))
+              if (!lockConflict || attempt >= 3 || signal.aborted) break
+              await new Promise((resolve) => setTimeout(resolve, 150 * attempt + Math.random() * 200))
+            }
             if (!response.ok) {
               report(row.id, { ok: false, message: saved.message || saved.error || "خطأ في حفظ الصنف" })
               return

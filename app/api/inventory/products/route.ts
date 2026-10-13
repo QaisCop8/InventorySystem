@@ -791,6 +791,11 @@ export async function POST(request: NextRequest) {
         await ensureProductNumbersTable(client)
         await ensureProductUnitLinkTables(client)
         await ensureProductAttributeTables(client)
+        // أعمدة كانت تُضاف داخل معاملة الحفظ: ALTER TABLE يطلب قفلاً حصرياً على جدول products حتى لو كان العمود
+        // موجوداً، فعند حفظ عدة أصناف بالتوازي (استيراد Excel) تنتظر كل معاملة الأخرى → deadlock detected.
+        await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS pos_sold_using_scale BOOLEAN NOT NULL DEFAULT FALSE`)
+        await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS minimum_order_quantity NUMERIC(15,4) NOT NULL DEFAULT 0`)
+        await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS attributes JSONB NOT NULL DEFAULT '[]'::jsonb`)
         // تقييد ظهور الصنف بفروع معيّنة (اختياري) — بلا أي صف هنا لهذا الصنف يبقى ظاهراً لكل الفروع
         // (السلوك الحالي دون تغيير)؛ بصف واحد أو أكثر يظهر فقط لمستخدم فرعه أحد هذه الصفوف (انظر تصفية
         // GET أدناه عبر هيدر x-branch-id). نفس نمط product_warehouses تماماً (جدول علاقة بسيط).
@@ -1417,19 +1422,16 @@ export async function POST(request: NextRequest) {
     }
 
     await persistProductCostCenters(client, productId, productData.cost_centers)
-    await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS pos_sold_using_scale BOOLEAN NOT NULL DEFAULT FALSE`)
     await client.query(`UPDATE products SET pos_sold_using_scale=$1 WHERE id=$2`, [isScaleProduct(productData.pos_sold_using_scale), productId])
     await persistProductBrands(client, productId, productData.product_brands)
     await persistProductNumbers(client, productId, productData.original_numbers, productData.factory_numbers)
 
     // Kept outside the legacy positional INSERT/UPDATE lists so older databases can
     // adopt the decimal minimum-order rule without destabilising those contracts.
-    await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS minimum_order_quantity NUMERIC(15,4) NOT NULL DEFAULT 0`)
     await client.query(`UPDATE products SET minimum_order_quantity=$1::numeric WHERE id=$2::int`, [
       Math.max(0, Number(productData.minimum_order_quantity || 0)),
       productId,
     ])
-    await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS attributes JSONB NOT NULL DEFAULT '[]'::jsonb`)
     await client.query(`UPDATE products SET attributes=$1::jsonb WHERE id=$2::int`, [
       JSON.stringify(productData.attributes || []),
       productId,
