@@ -1,12 +1,12 @@
 import { neon } from "@neondatabase/serverless"
 import { Pool } from "pg"
-import { isNeonDatabaseUrl, withDatabaseName } from "./db-url"
+import { isNeonDatabaseUrl, poolConfig, withDatabaseName } from "./db-url"
 
 const MANAGEMENT_DB_NAME = "management"
 
 function buildSqlClient(connectionUrl: string) {
   if (!isNeonDatabaseUrl(connectionUrl)) {
-    const pool = new Pool({ connectionString: connectionUrl })
+    const pool = new Pool(poolConfig(connectionUrl))
     const client: any = async (strings: TemplateStringsArray, ...values: any[]) => {
       const conn = await pool.connect()
       try {
@@ -328,7 +328,7 @@ export function getManagementPool(): Pool {
     throw new Error("DATABASE_URL is not configured for management database access")
   }
   if (!managementPool) {
-    managementPool = new Pool({ connectionString: managementUrl })
+    managementPool = new Pool(poolConfig(managementUrl))
   }
   return managementPool
 }
