@@ -7,13 +7,19 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
   CheckCircle2,
+  ClipboardList,
+  ListChecks,
   Loader2,
+  Package,
   Paperclip,
   Plus,
   Save,
   Search,
   Settings2,
+  StickyNote,
   Trash2,
+  UserRound,
+  Wallet,
 } from "lucide-react";
 import {
   Dialog,
@@ -255,128 +261,6 @@ export function DraftOrderForm({
     if (!root) return;
     return attachEnterAsTab(root, enterAsTabEnabledRef);
   }, []);
-  useEffect(() => {
-    const rows = Array.from(
-      document.querySelectorAll("[role=dialog] div.grid"),
-    ).filter((row: any) =>
-      row.querySelector('input[type="number"]'),
-    ) as HTMLDivElement[];
-    rows.slice(-items.length).forEach((row, index) => {
-      row
-        .querySelectorAll(
-          ".draft-warehouse-editor,.draft-specifications-button",
-        )
-        .forEach((editor) => editor.remove());
-      const item = items[index];
-      if (!item) return;
-      const wrapper = document.createElement("div");
-      wrapper.className = "draft-warehouse-editor min-w-0";
-      const label = document.createElement("label");
-      label.className = "mb-1 block text-sm font-medium";
-      label.textContent = "المستودع";
-      const select = document.createElement("select");
-      select.className =
-        "h-10 w-full rounded-md border bg-background px-2 text-sm";
-      select.setAttribute("aria-label", `مستودع ${item.product_name}`);
-      const empty = document.createElement("option");
-      empty.value = "";
-      empty.textContent = "اختر المستودع";
-      select.appendChild(empty);
-      warehouses.forEach((warehouse) => {
-        const option = document.createElement("option");
-        option.value = String(warehouse.id);
-        option.textContent = warehouse.warehouse_name || warehouse.name;
-        option.selected = Number(item.store_id) === Number(warehouse.id);
-        select.appendChild(option);
-      });
-      select.addEventListener("change", (event) => {
-        const value = Number((event.target as HTMLSelectElement).value) || null;
-        setItems((current) =>
-          current.map((currentItem, currentIndex) =>
-            currentIndex === index
-              ? {
-                  ...currentItem,
-                  store_id: value,
-                  store_name:
-                    warehouses.find(
-                      (warehouse) => Number(warehouse.id) === value,
-                    )?.warehouse_name || "",
-                }
-              : currentItem,
-          ),
-        );
-      });
-      wrapper.append(label, select);
-      row.appendChild(wrapper);
-      const specificationsButton = document.createElement("button");
-      specificationsButton.type = "button";
-      specificationsButton.className = `draft-specifications-button h-10 rounded-md border px-3 text-sm font-medium ${item.specifications?.reviewed ? "border-emerald-300 bg-emerald-50 text-emerald-700" : "bg-background hover:bg-muted"}`;
-      specificationsButton.textContent = item.specifications?.reviewed
-        ? "✓ المواصفات"
-        : "المواصفات";
-      specificationsButton.onclick = () => void openSpecifications(index);
-      row.appendChild(specificationsButton);
-    });
-    return () =>
-      document
-        .querySelectorAll(
-          ".draft-warehouse-editor,.draft-specifications-button",
-        )
-        .forEach((editor) => editor.remove());
-  }, [items, warehouses]);
-  useEffect(() => {
-    const frame = requestAnimationFrame(() => {
-      const rows = Array.from(
-        document.querySelectorAll("[role=dialog] div.grid"),
-      ).filter((row: any) =>
-        row.querySelector('input[type="number"]'),
-      ) as HTMLDivElement[];
-      rows.slice(-items.length).forEach((row, index) => {
-        const item = items[index];
-        if (!item) return;
-        const warehouse = row.querySelector<HTMLElement>(
-          ".draft-warehouse-editor",
-        );
-        const quantity = row.querySelector(
-          'input[type="number"]',
-        )?.parentElement;
-        if (warehouse && quantity) row.insertBefore(warehouse, quantity);
-        const specifications = row.querySelector<HTMLElement>(
-          ".draft-specifications-button",
-        );
-        if (specifications)
-          specifications.className =
-            "draft-specifications-button h-10 rounded-md border border-emerald-600 bg-emerald-600 px-3 text-sm font-medium text-white hover:bg-emerald-700";
-        const itemCell = row.firstElementChild as HTMLElement | null;
-        if (!itemCell || itemCell.querySelector("[data-draft-item-visual]"))
-          return;
-        const visual = document.createElement("div");
-        visual.dataset.draftItemVisual = "true";
-        visual.className = "mt-2 flex items-center gap-3";
-        const image = document.createElement(
-          item.product_image ? "img" : "div",
-        );
-        image.className =
-          "flex h-14 w-14 shrink-0 items-center justify-center rounded-lg border bg-muted/30 object-cover text-[10px] text-muted-foreground";
-        if (image instanceof HTMLImageElement) {
-          image.src = item.product_image || "";
-          image.alt = item.product_name;
-        } else image.textContent = "لا صورة";
-        const text = document.createElement("div");
-        text.className = "min-w-0";
-        const name = document.createElement("div");
-        name.className = "font-bold text-blue-600";
-        name.textContent = item.product_name;
-        const unit = document.createElement("div");
-        unit.className = "text-sm text-red-600";
-        unit.textContent = item.unit_name || "بدون وحدة";
-        text.append(name, unit);
-        visual.append(image, text);
-        itemCell.appendChild(visual);
-      });
-    });
-    return () => cancelAnimationFrame(frame);
-  }, [items, warehouses]);
   const total = useMemo(
     () => items.reduce((s, i) => s + i.quantity * i.price - i.discount, 0),
     [items],
@@ -937,48 +821,71 @@ export function DraftOrderForm({
     document.addEventListener("keydown", handleKeyDown, true);
     return () => document.removeEventListener("keydown", handleKeyDown, true);
   }, []);
+  const lineTotal = (item: Item) => item.quantity * item.price - item.discount;
+  const remaining = Math.max(0, total - Number(form.deposit_amount || 0));
+  const title = readOnly ? "مشاهدة مسودة طلبية" : initialDraft?.id ? "تعديل مسودة طلبية" : "إنشاء مسودة طلبية";
+  const selectClass = "mt-0.5 h-8 w-full rounded-md border bg-background px-2 text-sm";
+  const sectionClass = "rounded-xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900";
+  const SectionTitle = ({ icon: Icon, children, action }: { icon: any; children: any; action?: any }) => (
+    <div className="mb-2 flex items-center justify-between gap-2">
+      <h2 className="flex items-center gap-2 text-sm font-bold text-slate-800 dark:text-slate-100">
+        <span className="flex h-6 w-6 items-center justify-center rounded-md bg-emerald-50 text-emerald-600 ring-1 ring-emerald-100 dark:bg-emerald-400/10 dark:text-emerald-300 dark:ring-emerald-400/20">
+          <Icon className="h-3.5 w-3.5" />
+        </span>
+        {children}
+      </h2>
+      {action}
+    </div>
+  );
   return (
     <fieldset
       disabled={readOnly}
       dir="rtl"
-      className="draft-order-form min-w-0 w-full max-w-none space-y-2 overflow-x-hidden p-2 sm:p-3 [&_input:not([type=checkbox]):not([type=file])]:h-8 [&_input:not([type=checkbox]):not([type=file])]:text-sm [&_label]:text-xs"
+      className="draft-order-form min-w-0 w-full max-w-none overflow-x-hidden [&_input:not([type=checkbox]):not([type=file])]:h-8 [&_input:not([type=checkbox]):not([type=file])]:text-sm [&_label]:text-xs"
     >
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="min-w-0">
-          <h1 className="text-lg font-bold">
-            {readOnly ? "مشاهدة مسودة طلبية" : "إنشاء مسودة طلبية"}
-          </h1>
+      {/* شريط علوي ثابت: العنوان والإجمالي والحفظ */}
+      <div className="sticky top-0 z-20 flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 bg-white/95 px-3 py-2 backdrop-blur dark:border-slate-800 dark:bg-slate-900/95">
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-600 text-white shadow-sm">
+            <ClipboardList className="h-4 w-4" />
+          </span>
+          <div className="min-w-0">
+            <h1 className="truncate text-base font-bold leading-tight">{title}</h1>
+            {initialDraft?.draft_number && (
+              <p className="text-[11px] text-muted-foreground">رقم المسودة {initialDraft.draft_number}</p>
+            )}
+          </div>
         </div>
         <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <div className="rounded-lg bg-slate-100 px-3 py-1 text-xs dark:bg-slate-800">
+            الإجمالي <b className="text-sm tabular-nums">{total.toFixed(2)}</b>
+          </div>
           {!readOnly && (
             <>
-              <span className="rounded-md border bg-muted px-3 py-1 text-xs">
-                F3: حفظ المسودة
-              </span>
+              <span className="hidden rounded-md border bg-muted px-2 py-0.5 text-[11px] sm:inline">F3: حفظ</span>
               <Button
                 size="sm"
+                className="bg-emerald-600 hover:bg-emerald-700"
                 onClick={save}
-                disabled={
-                  isSaving ||
-                  !form.account_id ||
-                  !form.requested_delivery_date ||
-                  !items.length
-                }
+                disabled={isSaving || !form.account_id || !form.requested_delivery_date || !items.length}
               >
-                <Save className="ml-2 h-4 w-4" />
+                {isSaving ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Save className="ml-2 h-4 w-4" />}
                 {isSaving ? "جاري الحفظ..." : "حفظ المسودة"}
               </Button>
             </>
           )}
         </div>
       </div>
-      <Messages innerRef={messagesRef} />
-      <Card className="min-w-0">
-        <CardHeader className="px-3 py-2">
-          <CardTitle className="text-base">بيانات العميل والتسليم</CardTitle>
-        </CardHeader>
-        <CardContent className="grid min-w-0 grid-cols-1 gap-x-3 gap-y-2 px-3 pb-3 pt-0 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="relative">
+
+      <div className="space-y-2 p-2 sm:p-3">
+        <Messages innerRef={messagesRef} />
+        <div className="grid min-w-0 gap-2 xl:grid-cols-[minmax(0,1fr)_300px]">
+          {/* العمود الرئيسي */}
+          <div className="min-w-0 space-y-2">
+            <section className={sectionClass}>
+              <SectionTitle icon={UserRound}>بيانات العميل والتسليم</SectionTitle>
+              <div className="grid min-w-0 grid-cols-1 gap-x-3 gap-y-2 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="relative sm:col-span-2">
             <Label htmlFor="draft-customer">العميل *</Label>
             <Input
               id="draft-customer"
@@ -1102,280 +1009,266 @@ export function DraftOrderForm({
               </DialogContent>
             </Dialog>
           </div>
-          <div>
-            <Label>الفرع *</Label>
-            <select
-              className="mt-0.5 h-8 w-full rounded-md border bg-background px-2 text-sm"
-              value={form.branch_id}
-              onChange={(e) => setForm({ ...form, branch_id: e.target.value })}
-            >
-              <option value="">اختر الفرع</option>
-              {branches.map((branch) => (
-                <option key={branch.id} value={branch.id}>
-                  {branch.branch_name || branch.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <Label>تاريخ الطلب</Label>
-            <Input
-              type="date"
-              value={form.order_date}
-              onChange={(e) => setForm({ ...form, order_date: e.target.value })}
-            />
-          </div>
-          <div>
-            <Label>التاريخ المطلوب للتسليم *</Label>
-            <Input
-              type="date"
-              min={form.order_date}
-              value={form.requested_delivery_date}
-              onChange={(e) =>
-                setForm({ ...form, requested_delivery_date: e.target.value })
-              }
-            />
-          </div>
-          <div>
-            <Label>مبلغ العربون</Label>
-            <Input
-              type="number"
-              min="0"
-              step="0.01"
-              value={form.deposit_amount}
-              onFocus={(e) => e.currentTarget.select()}
-              onChange={(e) =>
-                setForm({ ...form, deposit_amount: Number(e.target.value) })
-              }
-            />
-          </div>
-          <div>
-            <Label>هاتف التواصل</Label>
-            <Input
-              value={form.contact_phone}
-              onChange={(e) =>
-                setForm({ ...form, contact_phone: e.target.value })
-              }
-            />
-          </div>
-          <div>
-            <Label>الأولوية</Label>
-            <select
-              className="mt-0.5 h-8 w-full rounded-md border bg-background px-2 text-sm"
-              value={form.priority}
-              onChange={(e) => setForm({ ...form, priority: e.target.value })}
-            >
-              <option value="normal">عادية</option>
-              <option value="high">عالية</option>
-              <option value="urgent">عاجلة</option>
-            </select>
-          </div>
-          <div className="sm:col-span-2 lg:col-span-2">
-            <Label>عنوان التسليم</Label>
-            <Input
-              value={form.delivery_address}
-              onChange={(e) =>
-                setForm({ ...form, delivery_address: e.target.value })
-              }
-            />
-          </div>
-          <div>
-            <Label>قائمة التحقق</Label>
-            <select
-              className="mt-0.5 h-8 w-full rounded-md border bg-background px-2 text-sm"
-              value={form.checklist_template_id}
-              onChange={(e) =>
-                setForm({ ...form, checklist_template_id: e.target.value })
-              }
-            >
-              <option value="">بدون قائمة</option>
-              {templates
-                .filter((t) => t.is_active)
-                .map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name}
-                  </option>
-                ))}
-            </select>
-          </div>
-          <div className="sm:col-span-2 lg:col-span-4">
-            <Label>ملاحظات</Label>
-            <Textarea
-              rows={2}
-              className="min-h-[52px]"
-              value={form.notes}
-              onChange={(e) => setForm({ ...form, notes: e.target.value })}
-            />
-          </div>
-        </CardContent>
-      </Card>
-      <Card className="min-w-0">
-        <CardHeader className="px-3 py-2">
-          <CardTitle className="flex flex-col gap-2 text-base sm:flex-row sm:items-center sm:justify-between">
-            الأصناف{" "}
-            <Button type="button" size="sm" onClick={() => setShowProductSearch(true)}>
-              <Plus className="ml-2 h-4 w-4" />
-              إضافة صنف
-            </Button>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="min-w-0 space-y-2 px-3 pb-3 pt-0">
-          <div className="flex flex-col gap-2 rounded-lg border bg-muted/20 p-2 sm:flex-row sm:items-end">
-            <div className="flex-1">
-              <Label htmlFor="draft-barcode">الباركود</Label>
-              <Input
-                ref={barcodeInputRef}
-                id="draft-barcode"
-                data-enter-action="barcode-search"
-                className="mt-0.5"
-                value={barcodeInput}
-                onChange={(event) => setBarcodeInput(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    event.preventDefault()
-                    event.stopPropagation()
-                    void addByBarcode()
-                  }
-                }}
-                placeholder="امسح أو اكتب الباركود"
-                autoComplete="off"
-              />
-            </div>
-            <Button
-              type="button"
-              disabled={barcodeSearching || !barcodeInput.trim()}
-              onClick={() => void addByBarcode()}
-            >
-              {barcodeSearching ? (
-                <Loader2 className="ml-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Search className="ml-2 h-4 w-4" />
-              )}
-              بحث وإضافة
-            </Button>
-          </div>
-          {items.map((i, n) => (
-            <div
-              key={i.product_id}
-              className="grid min-w-0 grid-cols-1 items-end gap-2 rounded-lg border p-2 sm:grid-cols-2 lg:grid-cols-6"
-            >
-              <div className="min-w-0 sm:col-span-2 lg:col-span-2">
-                <Label>الصنف</Label>
-                <div className="break-words">{i.product_name}</div>
-                {i.minimum_order_quantity > 0 && (
-                  <small>الحد الأدنى: {i.minimum_order_quantity}</small>
-                )}
+                <div>
+                  <Label>الفرع *</Label>
+                  <select className={selectClass} value={form.branch_id} onChange={(e) => setForm({ ...form, branch_id: e.target.value })}>
+                    <option value="">اختر الفرع</option>
+                    {branches.map((branch) => (
+                      <option key={branch.id} value={branch.id}>{branch.branch_name || branch.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <Label>هاتف التواصل</Label>
+                  <Input className="mt-0.5" value={form.contact_phone} onChange={(e) => setForm({ ...form, contact_phone: e.target.value })} />
+                </div>
+                <div>
+                  <Label>تاريخ الطلب</Label>
+                  <Input className="mt-0.5" type="date" value={form.order_date} onChange={(e) => setForm({ ...form, order_date: e.target.value })} />
+                </div>
+                <div>
+                  <Label>التاريخ المطلوب للتسليم *</Label>
+                  <Input className="mt-0.5" type="date" min={form.order_date} value={form.requested_delivery_date} onChange={(e) => setForm({ ...form, requested_delivery_date: e.target.value })} />
+                </div>
+                <div className="sm:col-span-2">
+                  <Label>عنوان التسليم</Label>
+                  <Input className="mt-0.5" value={form.delivery_address} onChange={(e) => setForm({ ...form, delivery_address: e.target.value })} />
+                </div>
               </div>
-              <div>
-                <Label>الكمية</Label>
-                <Input
-                  type="number"
-                  step="0.0001"
-                  min={i.minimum_order_quantity || 0.0001}
-                  value={i.quantity}
-                  onFocus={(e) => e.currentTarget.select()}
-                  onChange={(e) =>
-                    setItems(
-                      items.map((x, k) =>
-                        k === n
-                          ? { ...x, quantity: Number(e.target.value) }
-                          : x,
-                      ),
-                    )
-                  }
-                />
-              </div>
-              <div>
-                <Label>السعر</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={i.price}
-                  onFocus={(e) => e.currentTarget.select()}
-                  onChange={(e) =>
-                    setItems(
-                      items.map((x, k) =>
-                        k === n ? { ...x, price: Number(e.target.value) } : x,
-                      ),
-                    )
-                  }
-                />
-              </div>
-              <div>
-                <Label>الخصم</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={i.discount}
-                  onFocus={(e) => e.currentTarget.select()}
-                  onChange={(e) =>
-                    setItems(
-                      items.map((x, k) =>
-                        k === n
-                          ? { ...x, discount: Number(e.target.value) }
-                          : x,
-                      ),
-                    )
-                  }
-                />
-              </div>
-              <Button
-                variant="destructive"
-                onClick={() => setItems(items.filter((_, k) => k !== n))}
+            </section>
+
+            <section className={sectionClass}>
+              <SectionTitle
+                icon={Package}
+                action={
+                  <Button type="button" size="sm" className="h-8 bg-emerald-600 hover:bg-emerald-700" onClick={() => setShowProductSearch(true)}>
+                    <Plus className="ml-1 h-4 w-4" />
+                    إضافة صنف
+                  </Button>
+                }
               >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </div>
-          ))}
-          <div className="text-left text-base font-bold">
-            الإجمالي: {total.toFixed(2)}
-          </div>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardContent className="flex flex-wrap items-center gap-2 p-3">
-          {!readOnly && (
-            <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border px-3 py-1.5 text-sm">
-              <Paperclip className="h-4 w-4" />
-              إرفاق صور أو PDF
-              <input
-                hidden
-                type="file"
-                multiple
-                accept="image/jpeg,image/png,image/webp,application/pdf"
-                onChange={attach}
-              />
-            </label>
-          )}
-          {files.map((f, n) => (
-            <span
-              key={n}
-              className="inline-flex items-center gap-2 rounded bg-muted px-2 py-1 text-sm"
-            >
-              <span>{f.name}</span>
-              {readOnly && f.data && (
-                <>
-                  <a
-                    className="text-blue-600 underline"
-                    href={f.data}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    مشاهدة
-                  </a>
-                  <a
-                    className="text-emerald-600 underline"
-                    href={f.data}
-                    download={f.name}
-                  >
-                    تنزيل
-                  </a>
-                </>
+                الأصناف
+                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300">{items.length}</span>
+              </SectionTitle>
+
+              <div className="mb-2 flex items-center gap-2 rounded-lg border border-dashed border-slate-300 bg-slate-50/70 p-1.5 dark:border-slate-700 dark:bg-slate-800/40">
+                <Search className="mr-1 h-4 w-4 shrink-0 text-slate-400" />
+                <Input
+                  ref={barcodeInputRef}
+                  id="draft-barcode"
+                  data-enter-action="barcode-search"
+                  className="border-0 bg-transparent shadow-none focus-visible:ring-0"
+                  value={barcodeInput}
+                  onChange={(event) => setBarcodeInput(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault()
+                      event.stopPropagation()
+                      void addByBarcode()
+                    }
+                  }}
+                  placeholder="امسح أو اكتب الباركود ثم Enter"
+                  autoComplete="off"
+                />
+                <Button type="button" size="sm" variant="outline" className="h-7 shrink-0" disabled={barcodeSearching || !barcodeInput.trim()} onClick={() => void addByBarcode()}>
+                  {barcodeSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : "إضافة"}
+                </Button>
+              </div>
+
+              {items.length === 0 ? (
+                <div className="flex flex-col items-center gap-1 rounded-lg border border-dashed py-6 text-sm text-muted-foreground">
+                  <Package className="h-6 w-6 text-slate-300" />
+                  لا توجد أصناف بعد — أضف صنفاً بالبحث أو بالباركود
+                </div>
+              ) : (
+                <div className="min-w-0 overflow-hidden rounded-lg border border-slate-200 dark:border-slate-800">
+                  <div className="hidden grid-cols-[minmax(0,2.2fr)_minmax(0,1.2fr)_88px_96px_88px_96px_auto] items-center gap-2 bg-slate-50 px-2 py-1.5 text-[11px] font-bold text-slate-500 lg:grid dark:bg-slate-800/60">
+                    <span>الصنف</span><span>المستودع</span><span>الكمية</span><span>السعر</span><span>الخصم</span><span>الإجمالي</span><span />
+                  </div>
+                  {items.map((i, n) => (
+                    <div
+                      key={i.product_id}
+                      className="grid min-w-0 grid-cols-2 items-center gap-2 border-t border-slate-100 px-2 py-1.5 first:border-t-0 lg:grid-cols-[minmax(0,2.2fr)_minmax(0,1.2fr)_88px_96px_88px_96px_auto] dark:border-slate-800"
+                    >
+                      <div className="col-span-2 flex min-w-0 items-center gap-2 lg:col-span-1">
+                        {i.product_image ? (
+                          <img src={i.product_image} alt={i.product_name} className="h-9 w-9 shrink-0 rounded-md border object-cover" />
+                        ) : (
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border bg-slate-50 dark:bg-slate-800">
+                            <Package className="h-4 w-4 text-slate-300" />
+                          </div>
+                        )}
+                        <div className="min-w-0">
+                          <div className="truncate text-sm font-semibold text-slate-800 dark:text-slate-100" title={i.product_name}>{i.product_name}</div>
+                          <div className="flex flex-wrap gap-x-2 text-[11px] text-muted-foreground">
+                            <span className={i.unit_name ? "" : "text-rose-600"}>{i.unit_name || "بدون وحدة"}</span>
+                            {i.minimum_order_quantity > 0 && <span>الحد الأدنى: {i.minimum_order_quantity}</span>}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="col-span-2 lg:col-span-1">
+                        <Label className="lg:hidden">المستودع</Label>
+                        <select
+                          className={`h-8 w-full rounded-md border bg-background px-2 text-sm ${i.store_id ? "" : "border-amber-400"}`}
+                          aria-label={`مستودع ${i.product_name}`}
+                          value={i.store_id ?? ""}
+                          onChange={(e) => {
+                            const value = Number(e.target.value) || null;
+                            setItems(items.map((x, k) => (k === n ? { ...x, store_id: value, store_name: warehouses.find((w) => Number(w.id) === value)?.warehouse_name || "" } : x)));
+                          }}
+                        >
+                          <option value="">اختر المستودع</option>
+                          {warehouses.map((warehouse) => (
+                            <option key={warehouse.id} value={warehouse.id}>{warehouse.warehouse_name || warehouse.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <Label className="lg:hidden">الكمية</Label>
+                        <Input
+                          type="number"
+                          step="0.0001"
+                          min={i.minimum_order_quantity || 0.0001}
+                          value={i.quantity}
+                          onFocus={(e) => e.currentTarget.select()}
+                          onChange={(e) => setItems(items.map((x, k) => (k === n ? { ...x, quantity: Number(e.target.value) } : x)))}
+                        />
+                      </div>
+                      <div>
+                        <Label className="lg:hidden">السعر</Label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          value={i.price}
+                          onFocus={(e) => e.currentTarget.select()}
+                          onChange={(e) => setItems(items.map((x, k) => (k === n ? { ...x, price: Number(e.target.value) } : x)))}
+                        />
+                      </div>
+                      <div>
+                        <Label className="lg:hidden">الخصم</Label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          value={i.discount}
+                          onFocus={(e) => e.currentTarget.select()}
+                          onChange={(e) => setItems(items.map((x, k) => (k === n ? { ...x, discount: Number(e.target.value) } : x)))}
+                        />
+                      </div>
+                      <div className="text-sm font-bold tabular-nums text-slate-800 dark:text-slate-100">
+                        <span className="text-[11px] font-normal text-muted-foreground lg:hidden">الإجمالي: </span>
+                        {lineTotal(i).toFixed(2)}
+                      </div>
+                      <div className="col-span-2 flex items-center justify-end gap-1 lg:col-span-1">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className={`h-8 px-2 text-xs ${i.specifications?.reviewed ? "border-emerald-300 bg-emerald-50 text-emerald-700" : ""}`}
+                          onClick={() => void openSpecifications(n)}
+                        >
+                          {i.specifications?.reviewed ? <CheckCircle2 className="ml-1 h-3.5 w-3.5" /> : <Settings2 className="ml-1 h-3.5 w-3.5" />}
+                          المواصفات
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          className="h-8 w-8 p-0 text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+                          aria-label={`حذف ${i.product_name}`}
+                          onClick={() => setItems(items.filter((_, k) => k !== n))}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               )}
-            </span>
-          ))}
-        </CardContent>
-      </Card>
+            </section>
+          </div>
+
+          {/* العمود الجانبي: الملخص والعربون والملاحظات والمرفقات */}
+          <aside className="min-w-0 space-y-2">
+            <section className={sectionClass}>
+              <SectionTitle icon={Wallet}>الملخص والعربون</SectionTitle>
+              <dl className="space-y-1 text-sm">
+                <div className="flex justify-between"><dt className="text-muted-foreground">عدد الأصناف</dt><dd className="tabular-nums">{items.length}</dd></div>
+                <div className="flex justify-between"><dt className="text-muted-foreground">إجمالي الطلبية</dt><dd className="font-bold tabular-nums">{total.toFixed(2)}</dd></div>
+              </dl>
+              <div className="mt-2">
+                <Label>مبلغ العربون</Label>
+                <Input
+                  className="mt-0.5"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={form.deposit_amount}
+                  onFocus={(e) => e.currentTarget.select()}
+                  onChange={(e) => setForm({ ...form, deposit_amount: Number(e.target.value) })}
+                />
+                <p className="mt-1 text-[11px] leading-4 text-muted-foreground">يُحفظ العربون بسند قبض تلقائياً عند حفظ المسودة، ويُلغى السند عند حذفها.</p>
+              </div>
+              <div className="mt-2 flex justify-between rounded-lg bg-emerald-50 px-2 py-1.5 text-sm text-emerald-800 dark:bg-emerald-400/10 dark:text-emerald-200">
+                <span>المتبقي بعد العربون</span>
+                <b className="tabular-nums">{remaining.toFixed(2)}</b>
+              </div>
+            </section>
+
+            <section className={sectionClass}>
+              <SectionTitle icon={ListChecks}>المتابعة</SectionTitle>
+              <div className="grid grid-cols-2 gap-2 xl:grid-cols-1">
+                <div>
+                  <Label>الأولوية</Label>
+                  <select className={selectClass} value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })}>
+                    <option value="normal">عادية</option>
+                    <option value="high">عالية</option>
+                    <option value="urgent">عاجلة</option>
+                  </select>
+                </div>
+                <div>
+                  <Label>قائمة التحقق</Label>
+                  <select className={selectClass} value={form.checklist_template_id} onChange={(e) => setForm({ ...form, checklist_template_id: e.target.value })}>
+                    <option value="">بدون قائمة</option>
+                    {templates.filter((t) => t.is_active).map((t) => (
+                      <option key={t.id} value={t.id}>{t.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </section>
+
+            <section className={sectionClass}>
+              <SectionTitle icon={StickyNote}>ملاحظات</SectionTitle>
+              <Textarea rows={3} className="min-h-[64px] text-sm" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
+            </section>
+
+            <section className={sectionClass}>
+              <SectionTitle icon={Paperclip}>المرفقات</SectionTitle>
+              <div className="flex flex-wrap items-center gap-1.5">
+                {!readOnly && (
+                  <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-dashed px-2.5 py-1 text-xs hover:bg-muted">
+                    <Paperclip className="h-3.5 w-3.5" />
+                    إرفاق صور أو PDF
+                    <input hidden type="file" multiple accept="image/jpeg,image/png,image/webp,application/pdf" onChange={attach} />
+                  </label>
+                )}
+                {files.map((f, n) => (
+                  <span key={n} className="inline-flex max-w-full items-center gap-1.5 rounded bg-muted px-2 py-0.5 text-xs">
+                    <span className="truncate">{f.name}</span>
+                    {readOnly && f.data && (
+                      <>
+                        <a className="text-blue-600 underline" href={f.data} target="_blank" rel="noreferrer">مشاهدة</a>
+                        <a className="text-emerald-600 underline" href={f.data} download={f.name}>تنزيل</a>
+                      </>
+                    )}
+                  </span>
+                ))}
+                {!files.length && readOnly && <span className="text-xs text-muted-foreground">لا توجد مرفقات</span>}
+              </div>
+            </section>
+          </aside>
+        </div>
+      </div>
       <SpecificationsDialog
         state={specification}
         setState={setSpecification}

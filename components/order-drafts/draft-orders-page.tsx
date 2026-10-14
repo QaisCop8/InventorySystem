@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import MultiSelect from "@/components/common/MultiSelect"
+import { ReportMultiChoice } from "@/components/reports/account-statement-report"
 import { CalendarDays, Edit, FileText, Paperclip, Plus, RefreshCw, Search, Trash2, WalletCards } from "lucide-react"
 
 export function DraftOrdersPage() {
@@ -58,7 +59,7 @@ export function DraftOrdersPage() {
     const term = search.trim().toLowerCase()
     return drafts.filter((draft) => {
       const filterStatus = draft.status === "confirmed" && draft.confirmed_order_id ? "ready" : "draft"
-      return selectedStatuses.includes(filterStatus) && (!term || String(draft.draft_number || "").toLowerCase().includes(term) || String(draft.customer_name || "").toLowerCase().includes(term))
+      return (!selectedStatuses.length || selectedStatuses.includes(filterStatus)) && (!term || String(draft.draft_number || "").toLowerCase().includes(term) || String(draft.customer_name || "").toLowerCase().includes(term))
     })
   }, [drafts, search, selectedStatuses])
 
@@ -79,7 +80,7 @@ export function DraftOrdersPage() {
 
     <Card><CardContent className="grid gap-3 pt-6 md:grid-cols-[minmax(0,1fr)_minmax(240px,360px)_auto] md:items-end">
       <div className="relative flex-1"><Search className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input className="pr-10" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="بحث برقم المسودة أو اسم العميل..." /></div>
-      <div className="min-w-0"><label className="mb-2 block text-sm font-medium">حالة المسودة</label><MultiSelect value={selectedStatuses} options={statusOptions} optionLabel="label" optionValue="value" showCheck showMultiSelect placeholder="اختر حالة المسودة" selectedItemsLabel="تم تحديد {0} حالات" selectAllLabel="تحديد الكل" onChange={(event: any) => setSelectedStatuses(Array.isArray(event.value) ? event.value.map(String) : [])} onSelectAll={(event: any) => setSelectedStatuses(Array.isArray(event?.value) ? event.value.map((value: any) => String(value?.value ?? value)) : event?.checked ? statusOptions.map((option) => option.value) : [])} /></div>
+      <div className="min-w-0"><ReportMultiChoice label="حالة المسودة" options={statusOptions.map((option, index) => ({ id: index + 1, name: option.label }))} selected={statusOptions.flatMap((option, index) => (selectedStatuses.includes(option.value) ? [index + 1] : []))} onChange={(ids) => setSelectedStatuses(statusOptions.filter((_, index) => ids.includes(index + 1)).map((option) => option.value))} placeholder="كل الحالات" /></div>
       <Button variant="outline" onClick={() => void load()} disabled={loading}><RefreshCw className={`ml-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />تحديث</Button>
     </CardContent></Card>
 

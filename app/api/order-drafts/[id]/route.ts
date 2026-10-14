@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import sql, { getTenantPool } from "@/lib/database"
 import { ensureOrderDraftTables } from "@/lib/order-drafts"
 import { ensureTables as ensureReceiptTables } from "@/app/api/receipts/_lib"
-import { DraftValidationError, syncDepositReceipt, validateDraftPayload, validateDraftReferences } from "@/lib/order-draft-transaction"
+import { cancelDepositReceipt, DraftValidationError, syncDepositReceipt, validateDraftPayload, validateDraftReferences } from "@/lib/order-draft-transaction"
 import { requirePermissionByName } from "@/lib/tenant-auth"
 
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -56,14 +56,23 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 }
 
 export async function DELETE(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  let client: any
   try {
     const permission = await requirePermissionByName(_request, "تعديل مسودة طلبية مبيعات")
     if (!permission.ok) return permission.response
-    await ensureOrderDraftTables()
+    await ensureOrderDraftTables(); await ensureReceiptTables()
     const id = Number((await params).id)
-    const deleted = await sql`UPDATE sales_order_drafts SET status='cancelled', updated_at=NOW() WHERE id=${id} AND status='draft' RETURNING id`
-    if (!deleted.length) return NextResponse.json({ error: "لا يمكن حذف مسودة مؤكدة أو غير موجودة" }, { status: 409 })
-    await sql`INSERT INTO sales_order_draft_events (draft_id,event_type,user_id,details) VALUES (${id}, 'cancelled', ${permission.user.user_id}, '{}'::jsonb)`
+    // حذف المسودة وإلغاء سند قبض عربونها معاً في معاملة واحدة — إما الاثنان أو لا شيء
+    client = await (await getTenantPool()).connect(); await client.query("BEGIN")
+    const current = await client.query("SELECT id, receipt_voucher_id FROM sales_order_drafts WHERE id=$1 AND status='draft' FOR UPDATE", [id])
+    if (!current.rowCount) { await client.query("ROLLBACK"); return NextResponse.json({ error: "لا يمكن حذف مسودة مؤكدة أو غير موجودة" }, { status: 409 }) }
+    await cancelDepositReceipt(client, current.rows[0].receipt_voucher_id, "حذف المسودة")
+    await client.query("UPDATE sales_order_drafts SET status='cancelled', updated_at=NOW() WHERE id=$1", [id])
+    await client.query(`INSERT INTO sales_order_draft_events (draft_id,event_type,user_id,details) VALUES ($1,'cancelled',$2,$3::jsonb)`, [id, permission.user.user_id, JSON.stringify({ receipt_voucher_id: current.rows[0].receipt_voucher_id || null })])
+    await client.query("COMMIT")
     return NextResponse.json({ success: true })
-  } catch (error: any) { return NextResponse.json({ error: error.message }, { status: 500 }) }
+  } catch (error: any) {
+    if (client) await client.query("ROLLBACK").catch(() => {})
+    return NextResponse.json({ error: error.message }, { status: error instanceof DraftValidationError ? 409 : 500 })
+  } finally { client?.release() }
 }

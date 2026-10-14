@@ -1,4 +1,6 @@
 import type { PoolClient } from "pg"
+import { getVoucherNumberSettings, nextVoucherSequence, resolveVoucherBookName, RECEIPT_VCH_TYPE } from "@/app/api/receipts/_lib"
+import { buildVoucherCode } from "@/lib/voucher-code"
 
 export class DraftValidationError extends Error {}
 
@@ -63,26 +65,62 @@ export async function validateDraftReferences(client: PoolClient, data: any) {
   return accountResult.rows[0]
 }
 
+// إلغاء سند قبض العربون (حذف منطقي status=3 وحذف قيده) — عند تصفير العربون أو حذف المسودة. السند المُرحَّل لا يُلغى
+// تلقائياً: يُرفض الإجراء برسالة واضحة بدل ترك قيد مرحّل لمسودة محذوفة.
+export async function cancelDepositReceipt(client: PoolClient, receiptVoucherId: number | null | undefined, action: "حذف المسودة" | "تصفير العربون") {
+  const receiptId = Number(receiptVoucherId || 0)
+  if (!receiptId) return
+  const current = await client.query("SELECT status, vch_code FROM voucher_header_tbl WHERE id=$1 FOR UPDATE", [receiptId])
+  if (!current.rowCount || Number(current.rows[0].status) === 3) return
+  if (Number(current.rows[0].status) === 2) throw new DraftValidationError(`سند قبض العربون ${current.rows[0].vch_code} مُرحّل — ألغِه من شاشة سند القبض أولاً ثم أعد ${action}`)
+  await client.query("UPDATE voucher_header_tbl SET status=3, vch_status=1, amount=0, last_update_date=CURRENT_TIMESTAMP WHERE id=$1", [receiptId])
+  await client.query("DELETE FROM voucher_journal_detail_tbl WHERE voucher_id=$1", [receiptId])
+}
+
+// دفتر سندات القبض الافتراضي للمستخدم (أو أول دفتر مسموح له) — نفس مصدر /api/receipts/voucher-books
+async function defaultReceiptBookId(client: PoolClient, userId: number): Promise<number | null> {
+  const rows = await client.query(
+    `SELECT p.vch_book_id FROM voucher_book_user_permissions_tbl p JOIN user_settings u ON u.id = p.user_id
+     WHERE u.user_id = $1 AND p.voucher_type_id = $2 ORDER BY CASE WHEN p.is_default = 1 THEN 0 ELSE 1 END, p.vch_book_id LIMIT 1`,
+    [userId, RECEIPT_VCH_TYPE],
+  ).catch(() => ({ rows: [] as any[] }))
+  return Number(rows.rows[0]?.vch_book_id) || null
+}
+
+// رقم سند قبض بنفس ترقيم النظام: بادئة السند + رمز الفرع + رمز الدفتر + تسلسل (لا DEP-...)
+async function nextReceiptCode(client: PoolClient, bookId: number | null, branchId: number | null): Promise<string> {
+  const settings = await getVoucherNumberSettings("", RECEIPT_VCH_TYPE)
+  const bookName = await resolveVoucherBookName(bookId, branchId)
+  let sequence = await nextVoucherSequence(RECEIPT_VCH_TYPE, `${settings.prefix}${bookName}`, settings.startNumber)
+  for (let attempt = 0; attempt < 20; attempt += 1, sequence += 1) {
+    const code = buildVoucherCode(settings.prefix, bookName, sequence)
+    const taken = await client.query("SELECT 1 FROM voucher_header_tbl WHERE vch_type=$1 AND vch_code=$2 LIMIT 1", [RECEIPT_VCH_TYPE, code])
+    if (!taken.rowCount) return code
+  }
+  throw new DraftValidationError("تعذر توليد رقم سند قبض العربون")
+}
+
 export async function syncDepositReceipt(client: PoolClient, args: { draftId: number; draftNumber: string; receiptVoucherId?: number | null; accountId: number; customerName: string; orderDate: string; deposit: number; userId: number }) {
   const { draftId, draftNumber, accountId, customerName, orderDate, deposit, userId } = args
   let receiptId = Number(args.receiptVoucherId || 0) || null
   if (deposit <= 0) {
-    if (receiptId) {
-      await client.query("UPDATE voucher_header_tbl SET status=3, vch_status=1, amount=0, last_update_date=CURRENT_TIMESTAMP WHERE id=$1 AND status<>2", [receiptId])
-      await client.query("DELETE FROM voucher_journal_detail_tbl WHERE voucher_id=$1", [receiptId])
-    }
+    await cancelDepositReceipt(client, receiptId, "تصفير العربون")
     return receiptId
   }
   const defaults = await client.query(`SELECT u.currency_id,u.account_id AS cash_account_id FROM users_currencies_default_account_tbl u JOIN account_tbl a ON a.id=u.account_id WHERE u.user_id=$1 AND (to_jsonb(u)->>'branch_id' IS NULL OR to_jsonb(u)->>'branch_id'=(SELECT branch_id::text FROM sales_order_drafts WHERE id=$2)) AND u.currency_id IS NOT NULL AND COALESCE(a.status::text,'1') IN ('1','2','active','ACTIVE','نشط') ORDER BY CASE WHEN to_jsonb(u)->>'branch_id' IS NOT NULL THEN 0 ELSE 1 END, u.currency_id LIMIT 1`, [userId, draftId])
   if (!defaults.rowCount) throw new DraftValidationError("يجب تعريف حساب النقدية والعملة الافتراضية للمستخدم قبل حفظ عربون")
   const { currency_id: currencyId, cash_account_id: cashAccountId } = defaults.rows[0]
-  const note = `عربون مسودة طلبية ${draftNumber}`
+  const note = `مبلغ عربون من مسودة طلبية رقم ${draftNumber}`
+  // فرع المسودة ودفتر سندات القبض الافتراضي للمستخدم: بدونهما لا يظهر السند في قائمة سندات القبض (مُقيّدة بفروع
+  // المستخدم) ولا يتبع ترقيم النظام
+  const branchId = Number((await client.query("SELECT branch_id FROM sales_order_drafts WHERE id=$1", [draftId])).rows[0]?.branch_id) || null
+  const bookId = await defaultReceiptBookId(client, userId)
   if (receiptId) {
-    const updated = await client.query(`UPDATE voucher_header_tbl SET vch_date=$2,currency_id=$3,rate=1,account_id=$4,customer_name=$5,to_account_id=$4,amount=$6,note=$7,status=1,vch_status=1,draft_code=$8,last_update_date=CURRENT_TIMESTAMP WHERE id=$1 AND status<>2 RETURNING id`, [receiptId, orderDate, currencyId, accountId, customerName, deposit, note, draftNumber])
+    const updated = await client.query(`UPDATE voucher_header_tbl SET vch_date=$2,currency_id=$3,rate=1,account_id=$4,customer_name=$5,to_account_id=$4,amount=$6,note=$7,status=1,vch_status=1,draft_code=$8,branch_id=COALESCE(branch_id,$9),vch_book_id=COALESCE(vch_book_id,$10),last_update_date=CURRENT_TIMESTAMP WHERE id=$1 AND status<>2 RETURNING id`, [receiptId, orderDate, currencyId, accountId, customerName, deposit, note, draftNumber, branchId, bookId])
     if (!updated.rowCount) throw new DraftValidationError("سند العربون مُرحّل ولا يمكن تعديل المسودة")
   } else {
-    const code = `DEP-${draftNumber}`.slice(0, 30)
-    const inserted = await client.query(`INSERT INTO voucher_header_tbl (vch_type,vch_code,vch_date,currency_id,rate,account_id,customer_name,to_account_id,amount,note,status,vch_status,is_printed,insert_user,draft_code) VALUES (4,$1,$2,$3,1,$4,$5,$4,$6,$7,1,1,0,$8,$9) RETURNING id`, [code, orderDate, currencyId, accountId, customerName, deposit, note, userId, draftNumber])
+    const code = await nextReceiptCode(client, bookId, branchId)
+    const inserted = await client.query(`INSERT INTO voucher_header_tbl (vch_type,vch_code,vch_date,vch_book_id,branch_id,currency_id,rate,account_id,customer_name,to_account_id,amount,note,status,vch_status,is_printed,insert_user,draft_code) VALUES ($1,$2,$3,$4,$5,$6,1,$7,$8,$7,$9,$10,1,1,0,$11,$12) RETURNING id`, [RECEIPT_VCH_TYPE, code, orderDate, bookId, branchId, currencyId, accountId, customerName, deposit, note, userId, draftNumber])
     receiptId = inserted.rows[0].id
     await client.query("UPDATE sales_order_drafts SET receipt_voucher_id=$1 WHERE id=$2", [receiptId, draftId])
   }
