@@ -103,24 +103,35 @@ export async function POST(request: Request) {
     const today = new Date().toISOString().slice(0, 10)
 
     let parsed: z.infer<typeof schema>
-    try {
-      const { output } = await generateText({
-        model: google("gemini-2.5-flash"),
-        output: Output.object({ schema }),
-        instructions: `حلل طلب المستخدم كاملاً واستخرج الحقول المطلوبة.
+    const instructions = `حلل طلب المستخدم كاملاً واستخرج الحقول المطلوبة.
 intent=create_sales_draft لطلب إنشاء مسودة طلبية مبيعات (مثل: "طلبية للزبون فلان 10 صنف كذا")، intent=create_internal_request لطلب بضاعة داخلي بين الفروع، وإلا other. لا تعتبر السؤال أو المثال أو النفي أمراً بالإنشاء.
 customer: اسم العميل أو رمزه فقط، بدون كلمات مثل "للزبون" أو "للعميل" أو "لـ". order_date وdelivery_date بصيغة YYYY-MM-DD؛ اليوم ${today}. deposit_amount العربون وإلا 0. notes وpriority.
 للطلب الداخلي: source_warehouse مستودع مقدم الطلب، destination_branch الفرع المطلوب منه البضاعة، destination_warehouse مستودعه.
-items: لكل صنف product وquantity (رقم موجب) وprice وdiscount إن ذُكرا. product هو اسم أو رمز الصنف كما قاله المستخدم بدون الكمية أو الوحدة. حوّل الأرقام العربية (٠-٩) والمكتوبة بالحروف إلى أرقام. لا تخترع صنفاً أو كمية أو فرعاً أو مستودعاً.`,
-        prompt: text,
-      })
-      const result = schema.safeParse(output)
+items: لكل صنف product وquantity (رقم موجب) وprice وdiscount إن ذُكرا. product هو اسم أو رمز الصنف كما قاله المستخدم بدون الكمية أو الوحدة. حوّل الأرقام العربية (٠-٩) والمكتوبة بالحروف إلى أرقام. لا تخترع صنفاً أو كمية أو فرعاً أو مستودعاً.`
+    try {
+      let raw: unknown
+      try {
+        // إخراج منظَّم وفق المخطط (أدق) …
+        const { output } = await generateText({ model: google("gemini-2.5-flash"), output: Output.object({ schema }), instructions, prompt: text })
+        raw = output
+      } catch (structuredError) {
+        // … وإن رُفض المخطط أو فشل التوليد المنظَّم: نص JSON عادي كالسابق
+        console.error("AI order draft: structured output failed, retrying as text", structuredError)
+        const generated = await generateText({ model: google("gemini-2.5-flash"), instructions: `${instructions}\nأعد JSON فقط بالحقول: intent, customer, order_date, delivery_date, deposit_amount, notes, priority, source_warehouse, destination_branch, destination_warehouse, items.`, prompt: text })
+        const clean = generated.text.trim().replace(/^```(?:json)?/i, "").replace(/```$/, "").trim()
+        raw = JSON.parse(clean.slice(clean.indexOf("{"), clean.lastIndexOf("}") + 1))
+      }
+      const result = schema.safeParse(raw)
       if (!result.success) return Response.json({ type: "other" })
       parsed = result.data
     } catch (aiError) {
-      // خطأ خدمة الذكاء الاصطناعي نفسها (اتصال/حصة/مفتاح) — رسالة واضحة بدل "تعذر تحليل الطلب"
+      // خطأ خدمة الذكاء الاصطناعي نفسها — تُعرض رسالتها الفعلية (مفتاح غير صالح، تجاوز الحصة، الموقع غير مدعوم…)
       console.error("AI order draft: model call failed", aiError)
-      return Response.json({ error: "تعذر الاتصال بخدمة الذكاء الاصطناعي حالياً. حاول مرة أخرى بعد قليل" }, { status: 502 })
+      const detail = aiError instanceof Error ? aiError.message.replace(/\s+/g, " ").slice(0, 220) : ""
+      const status = Number((aiError as { statusCode?: number })?.statusCode) || 0
+      return Response.json({
+        error: `تعذر الاتصال بخدمة الذكاء الاصطناعي${status ? ` (HTTP ${status})` : ""}${detail ? `: ${detail}` : ""}`,
+      }, { status: 502 })
     }
 
     if (parsed.intent === "other") return Response.json({ type: "other" })
