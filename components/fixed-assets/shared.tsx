@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, type ReactNode } from "react"
+import { useMemo, type KeyboardEvent, type ReactNode } from "react"
 import PrimeDropdown from "@/components/common/FocusDropdown"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
@@ -69,6 +69,33 @@ export function Select({ id, value, options, onChange, placeholder = "—", clea
     appendTo="self"
     onChange={(event: any) => onChange(event.value ?? null)}
   />
+}
+
+// Enter يعمل كـTab في كل صفحات ونوافذ الأصول الثابتة (يُركَّب مرة على جذر الوحدة في fixed-assets-module.tsx —
+// أحداث React تصعد من نوافذ الحوار أيضاً). القوائم المنسدلة (FocusDropdown) تعالج Enter بنفسها (اختيار ثم
+// الانتقال)، لذا يُتجاهل Enter داخلها وداخل الشبكات/الأزرار/المفاتيح/النصوص متعددة الأسطر. حقل يستخدم Enter
+// كإجراء (بحث مثلاً) يُعلَّم بـdata-enter-action. ترتيب الحقول نفس ترتيب FocusDropdown حتى يتطابق التنقّل.
+const ENTER_TAB_FOCUSABLE = 'input:not([disabled]):not([type="hidden"]):not([type="checkbox"]):not([type="radio"]), select:not([disabled]), textarea:not([disabled]), button:not([disabled])[data-enter-tab-stop], [tabindex]:not([tabindex="-1"])'
+const ENTER_TAB_SKIP = ".p-dropdown, .p-dropdown-panel, .p-multiselect, .p-autocomplete, .p-calendar, .wj-flexgrid, [role='listbox']"
+
+export function enterAsTabKeyDown(event: KeyboardEvent<HTMLElement>) {
+  if (event.key !== "Enter" || event.shiftKey || event.ctrlKey || event.altKey || event.metaKey || event.defaultPrevented) return
+  const target = event.target as HTMLElement
+  if (!(target instanceof HTMLElement) || target.isContentEditable) return
+  if (target.tagName === "TEXTAREA" || target.tagName === "BUTTON" || target.getAttribute("role") === "switch") return
+  if (target.hasAttribute("data-enter-action") || target.closest(ENTER_TAB_SKIP)) return
+  if (target instanceof HTMLInputElement && ["checkbox", "radio", "submit", "button"].includes(target.type)) return
+  const root = target.closest<HTMLElement>('[data-enter-tab-root="true"]') ?? target.closest<HTMLElement>('[role="dialog"]') ?? event.currentTarget
+  const focusable = Array.from(root.querySelectorAll<HTMLElement>(ENTER_TAB_FOCUSABLE)).filter((el) =>
+    (el === target || el.offsetParent !== null) && el.tabIndex !== -1 && !el.closest(".wj-flexgrid") && !el.closest(".p-dropdown-panel"),
+  )
+  const index = focusable.indexOf(target)
+  if (index === -1) return
+  event.preventDefault()
+  const next = focusable[index + 1]
+  if (!next) return
+  next.focus()
+  if (next instanceof HTMLInputElement && next.type !== "date" && next.type !== "number" && typeof next.select === "function") next.select()
 }
 
 export function Field({ label, htmlFor, children, hint, className, required }: { label: string; htmlFor?: string; children: ReactNode; hint?: string; className?: string; required?: boolean }) {

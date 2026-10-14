@@ -16,7 +16,7 @@ import { InvoiceCapitalizeDialog } from "./invoice-capitalize"
 import { FixedAssetReports } from "./reports"
 import { CategoriesSetup, LocationsSetup } from "./setup"
 import {
-  api, CsvButton, DataTable, day, emptyLookups, exportCsv, Field, money, n, recordOptions, SectionCard, Select, Stat, StatusBadge, thisPeriod, today,
+  api, CsvButton, DataTable, day, emptyLookups, enterAsTabKeyDown, exportCsv, Field, money, n, recordOptions, SectionCard, Select, Stat, StatusBadge, thisPeriod, today,
   toOptions, transactionLabel, type Column, type Lookups, type Row,
 } from "./shared"
 
@@ -65,7 +65,7 @@ export default function FixedAssetsModule() {
   const openAsset = (id: number | null) => setDialog({ open: true, id })
   const setupMissing = !loading && lookups.categories.length === 0
 
-  return <div dir="rtl" className="flex min-h-full flex-col gap-4 bg-slate-50 p-3 sm:p-5 dark:bg-slate-950">
+  return <div dir="rtl" className="flex min-h-full flex-col gap-4 bg-slate-50 p-3 sm:p-5 dark:bg-slate-950" onKeyDown={enterAsTabKeyDown}>
     <header className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-gradient-to-l from-slate-900 via-slate-800 to-teal-900 px-5 py-4 text-white shadow-sm">
       <div className="flex items-center gap-3">
         <span className="grid h-11 w-11 place-items-center rounded-xl bg-white/10"><Landmark className="h-6 w-6" /></span>
