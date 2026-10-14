@@ -192,20 +192,6 @@ interface CustomerFormData {
   branch_ids?: number[],
 }
 
-interface CustomerUser {
-  id: number
-  username: string
-  email: string | null
-  is_active: boolean
-  last_login: string | null
-  can_view_orders: boolean
-  can_create_orders: boolean
-  can_view_balance: boolean
-  can_view_products: boolean
-  can_view_prices: boolean
-  can_view_stock: boolean
-}
-
 interface NotificationSettings {
   id?: number
   customer_id: number
@@ -249,11 +235,9 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
   const [showImportDialog, setShowImportDialog] = useState(false) // Added import dialog state
   const [showPortalDialog, setShowPortalDialog] = useState(false)
   const [selectedCustomerForPortal, setSelectedCustomerForPortal] = useState<Customer | null>(null)
-  const [portalUsers, setPortalUsers] = useState<CustomerUser[]>([])
-  const [loadingPortalUsers, setLoadingPortalUsers] = useState(false)
-  const [showAddUserDialog, setShowAddUserDialog] = useState(false)
-  const [showEditPermissionsDialog, setShowEditPermissionsDialog] = useState(false)
-  const [selectedUser, setSelectedUser] = useState<CustomerUser | null>(null)
+  // رابط بوابة العملاء الجديدة (كشف حساب + إشعار تحويل) — يُعرض مرة واحدة بعد إنشائه
+  const [portalLink, setPortalLink] = useState<string | null>(null)
+  const [creatingPortalLink, setCreatingPortalLink] = useState(false)
   const customer_name = useRef<HTMLInputElement>(null);
   const [showCustomerSearch, setShowCustomerSearch] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -262,19 +246,6 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
   const pendingActionRef = useRef<(() => void | Promise<void>) | null>(null);
   const [deleting, setDeleting] = useState(false);
   const bookGridRef = useRef<wjGrid.FlexGrid>(null);
-  const [newUserData, setNewUserData] = useState({
-    username: "",
-    password: "",
-    email: "",
-  })
-  const [userPermissions, setUserPermissions] = useState({
-    can_view_orders: true,
-    can_create_orders: true,
-    can_view_balance: true,
-    can_view_products: true,
-    can_view_prices: true,
-    can_view_stock: true,
-  })
 
   const [notificationSettings, setNotificationSettings] = useState<NotificationSettings | null>(null)
   const [loadingNotificationSettings, setLoadingNotificationSettings] = useState(false)
@@ -538,35 +509,6 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
     return scheme;
   }
 
-  const fetchPortalUsers = useCallback(async (customerId: number) => {
-    if (!canView) return
-    try {
-      console.log("[v0] ========== START fetchPortalUsers ==========")
-      console.log("[v0] fetchPortalUsers called with customerId:", customerId)
-      setLoadingPortalUsers(true)
-      setError(null) // إضافة reset للخطأ
-
-      const url = `/api/admin/customer-users?customerId=${customerId}`
-
-      const response = await fetch(url)
-
-      if (response.ok) {
-        const data = await response.json()
-
-        setPortalUsers(data.users || [])
-      } else {
-        const errorData = await response.json()
-        console.error("[v0] Error response:", errorData)
-        setError(errorData.error || "فشل في تحميل المستخدمين")
-      }
-    } catch (error) {
-
-      setError("حدث خطأ في تحميل المستخدمين")
-    } finally {
-      setLoadingPortalUsers(false)
-      console.log("[v0] Loading state set to false")
-    }
-  }, [canView])
   const doHotKeys = useRef(true)
   const popupHasCalled = () => {
     doHotKeys.current = false
@@ -614,131 +556,26 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
     }
   }, [canView])
 
-  const handleAddPortalUser = useCallback(async () => {
-    if (!canUpdate) return
-    if (!selectedCustomerForPortal || !newUserData.username || !newUserData.password) {
-      setError("اسم المستخدم وكلمة المرور مطلوبان")
+  const createPortalLink = useCallback(async () => {
+    const accountId = Number(selectedCustomerForPortal?.account_id)
+    if (!accountId) {
+      setError("لا يوجد حساب محاسبي مرتبط بهذا العميل")
       return
     }
-
+    setCreatingPortalLink(true)
     try {
-      console.log("[v0] ========== START handleAddPortalUser ==========")
-      console.log("[v0] Adding portal user:", {
-        customerId: selectedCustomerForPortal.id,
-        username: newUserData.username,
-        email: newUserData.email,
-        permissions: userPermissions,
-      })
-
-      const response = await fetch("/api/admin/customer-users", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          customerId: selectedCustomerForPortal.id,
-          username: newUserData.username,
-          password: newUserData.password,
-          email: newUserData.email || null,
-          permissions: userPermissions,
-        }),
-      })
-
-      console.log("[v0] Add user response status:", response.status)
-
-      if (response.ok) {
-        const data = await response.json()
-        console.log("[v0] User added successfully:", data)
-        setShowAddUserDialog(false)
-        setNewUserData({ username: "", password: "", email: "" })
-        setUserPermissions({
-          can_view_orders: true,
-          can_create_orders: true,
-          can_view_balance: true,
-          can_view_products: true,
-          can_view_prices: true,
-          can_view_stock: true,
-        })
-        setError(null) // إضافة reset للخطأ
-        await fetchPortalUsers(selectedCustomerForPortal.id)
-        console.log("[v0] ========== END handleAddPortalUser (SUCCESS) ==========")
-      } else {
-        const data = await response.json()
-        console.error("[v0] Error adding user:", data)
-        setError(data.error || "فشل في إضافة المستخدم")
-      }
+      const response = await fetch("/api/customer-portal/links", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ account_id: accountId }) })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data?.error || "تعذر إنشاء رابط البوابة")
+      const url = `${window.location.origin}${data.path}`
+      setPortalLink(url)
+      try { await navigator.clipboard.writeText(url) } catch { /* clipboard blocked */ }
     } catch (error) {
-      console.error("[v0] ========== ERROR in handleAddPortalUser ==========")
-      console.error("[v0] Error adding portal user:", error)
-      setError("حدث خطأ في إضافة المستخدم")
+      setError(error instanceof Error ? error.message : "تعذر إنشاء رابط البوابة")
+    } finally {
+      setCreatingPortalLink(false)
     }
-  }, [canUpdate, selectedCustomerForPortal, newUserData, userPermissions, fetchPortalUsers])
-
-  const handleUpdatePermissions = useCallback(async () => {
-    if (!canUpdate) return
-    if (!selectedUser) return
-
-    try {
-      const response = await fetch(`/api/admin/customer-users/${selectedUser.id}/permissions`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(userPermissions),
-      })
-
-      if (response.ok) {
-        setShowEditPermissionsDialog(false)
-        if (selectedCustomerForPortal) {
-          fetchPortalUsers(selectedCustomerForPortal.id)
-        }
-      } else {
-        const data = await response.json()
-        setError(data.error || "فشل في تحديث الصلاحيات")
-      }
-    } catch (error) {
-      console.error("Error updating permissions:", error)
-      setError("حدث خطأ في تحديث الصلاحيات")
-    }
-  }, [canUpdate, selectedUser, userPermissions, selectedCustomerForPortal, fetchPortalUsers])
-
-  const handleToggleUserStatus = useCallback(
-    async (userId: number) => {
-      if (!canUpdate) return
-      try {
-        const response = await fetch(`/api/admin/customer-users/${userId}/toggle`, {
-          method: "PUT",
-        })
-
-        if (response.ok && selectedCustomerForPortal) {
-          fetchPortalUsers(selectedCustomerForPortal.id)
-        }
-      } catch (error) {
-        console.error("Error toggling user status:", error)
-      }
-    },
-    [canUpdate, selectedCustomerForPortal, fetchPortalUsers],
-  )
-
-  const handleResetPassword = useCallback(async (userId: number) => {
-    if (!canUpdate) return
-    const newPassword = prompt("أدخل كلمة المرور الجديدة:")
-    if (!newPassword) return
-
-    try {
-      const response = await fetch(`/api/admin/customer-users/${userId}/password`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password: newPassword }),
-      })
-
-      if (response.ok) {
-        alert("تم تغيير كلمة المرور بنجاح")
-      } else {
-        const data = await response.json()
-        setError(data.error || "فشل في تغيير كلمة المرور")
-      }
-    } catch (error) {
-      console.error("Error resetting password:", error)
-      setError("حدث خطأ في تغيير كلمة المرور")
-    }
-  }, [canUpdate])
+  }, [selectedCustomerForPortal])
 
   const handleSaveNotificationSettings = useCallback(async () => {
     if (!canUpdate) return
@@ -1729,29 +1566,15 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
         code: customer.customer_code,
       })
       setSelectedCustomerForPortal(customer)
-      setPortalUsers([]) // إضافة reset للمستخدمين السابقين
       setError(null) // إضافة reset للخطأ
       setNotificationSettings(null)
       setShowPortalDialog(true)
       console.log("[v0] Dialog opened, fetching users and notification settings...")
-      fetchPortalUsers(customer.id)
+      setPortalLink(null)
       fetchNotificationSettings(customer.id)
     },
-    [fetchPortalUsers, fetchNotificationSettings],
+    [fetchNotificationSettings],
   )
-
-  const openEditPermissionsDialog = useCallback((user: CustomerUser) => {
-    setSelectedUser(user)
-    setUserPermissions({
-      can_view_orders: user.can_view_orders,
-      can_create_orders: user.can_create_orders,
-      can_view_balance: user.can_view_balance,
-      can_view_products: user.can_view_products,
-      can_view_prices: user.can_view_prices,
-      can_view_stock: user.can_view_stock,
-    })
-    setShowEditPermissionsDialog(true)
-  }, [])
 
   const statistics = useMemo(() => {
     const totalCustomers = customers.length
@@ -2416,342 +2239,43 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
               </CardContent>
             </Card>
 
-            {/* Header with Add User Button */}
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-semibold">حسابات الدخول</h3>
-                <p className="text-sm text-muted-foreground">إدارة المستخدمين والصلاحيات</p>
-              </div>
-              <Button onClick={() => setShowAddUserDialog(true)} className="gap-2">
-                <UserPlus className="h-4 w-4" />
-                إضافة مستخدم
-              </Button>
-            </div>
-
-            {/* Users Table */}
-            {loadingPortalUsers ? (
-              <div className="text-center py-8 text-muted-foreground">جاري التحميل...</div>
-            ) : portalUsers.length === 0 ? (
-              <Card className="bg-blue-50 border-blue-200">
-                <CardContent className="p-6 text-center">
-                  <Globe className="h-12 w-12 text-blue-400 mx-auto mb-3" />
-                  <h3 className="font-semibold text-blue-900 mb-2">لا يوجد مستخدمون</h3>
-                  <p className="text-blue-700 text-sm mb-4">قم بإضافة أول مستخدم للعميل للوصول إلى البوابة</p>
-                  <Button onClick={() => setShowAddUserDialog(true)} className="gap-2">
-                    <UserPlus className="h-4 w-4" />
-                    إضافة أول مستخدم
-                  </Button>
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="text-right">اسم المستخدم</TableHead>
-                      <TableHead className="text-right">البريد الإلكتروني</TableHead>
-                      <TableHead className="text-right">آخر تسجيل دخول</TableHead>
-                      <TableHead className="text-right">الحالة</TableHead>
-                      <TableHead className="text-right">الصلاحيات</TableHead>
-                      <TableHead className="text-right">الإجراءات</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {portalUsers.map((user) => (
-                      <TableRow key={user.id}>
-                        <TableCell className="font-medium">{user.username}</TableCell>
-                        <TableCell className="text-sm">{user.email || "-"}</TableCell>
-                        <TableCell className="text-xs text-muted-foreground">{formatDate(user.last_login)}</TableCell>
-                        <TableCell>
-                          <Badge variant={user.is_active ? "default" : "secondary"}>
-                            {user.is_active ? "مفعل" : "معطل"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex flex-wrap gap-1">
-                            {user.can_view_orders && (
-                              <Badge variant="outline" className="text-xs">
-                                طلبيات
-                              </Badge>
-                            )}
-                            {user.can_create_orders && (
-                              <Badge variant="outline" className="text-xs">
-                                إنشاء
-                              </Badge>
-                            )}
-                            {user.can_view_balance && (
-                              <Badge variant="outline" className="text-xs">
-                                رصيد
-                              </Badge>
-                            )}
-                            {user.can_view_products && (
-                              <Badge variant="outline" className="text-xs">
-                                أصناف
-                              </Badge>
-                            )}
-                            {user.can_view_prices && (
-                              <Badge variant="outline" className="text-xs">
-                                أسعار
-                              </Badge>
-                            )}
-                            {user.can_view_stock && (
-                              <Badge variant="outline" className="text-xs">
-                                مخزون
-                              </Badge>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex gap-1">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => openEditPermissionsDialog(user)}
-                              title="تعديل الصلاحيات"
-                            >
-                              <Shield className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleResetPassword(user.id)}
-                              title="تغيير كلمة المرور"
-                            >
-                              <Key className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleToggleUserStatus(user.id)}
-                              title={user.is_active ? "تعطيل" : "تفعيل"}
-                            >
-                              {user.is_active ? (
-                                <X className="h-4 w-4 text-red-600" />
-                              ) : (
-                                <CheckCircle className="h-4 w-4 text-green-600" />
-                              )}
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-
-            {/* Info Card */}
-            <Card className="bg-blue-50 border-blue-200">
-              <CardContent className="p-4">
-                <h4 className="font-semibold text-blue-900 mb-2">معلومات مهمة</h4>
-                <ul className="text-blue-800 text-sm space-y-1">
-                  <li>• يمكن للعميل تسجيل الدخول من خلال صفحة بوابة العملاء</li>
-                  <li>• كل مستخدم له صلاحيات مستقلة يمكن تخصيصها</li>
-                  <li>• يتم تسجيل جميع عمليات الدخول لأغراض الأمان</li>
-                  <li>• يمكن تعطيل المستخدم مؤقتاً دون حذف حسابه</li>
-                </ul>
+            <Card className="border-2 border-emerald-200">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Globe className="h-5 w-5 text-emerald-600" />
+                  رابط بوابة العميل
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  رابط خاص يفتح فيه العميل كشف حسابه ويرسل إشعار التحويل عند السداد — بدون اسم مستخدم أو كلمة مرور.
+                  إنشاء رابط جديد يُلغي الرابط السابق. الدفعات تُراجع من شاشة "بوابة العملاء".
+                </p>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <Button onClick={() => void createPortalLink()} disabled={creatingPortalLink || !canUpdate} className="gap-2">
+                  <Globe className="h-4 w-4" />
+                  {creatingPortalLink ? "جاري الإنشاء..." : "إنشاء رابط جديد"}
+                </Button>
+                {portalLink && (
+                  <div className="space-y-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm">
+                    <p className="font-semibold text-emerald-800">تم إنشاء الرابط ونسخه:</p>
+                    <Input readOnly dir="ltr" value={portalLink} onFocus={(event) => event.currentTarget.select()} className="font-mono text-xs" />
+                    <div className="flex flex-wrap gap-2">
+                      <Button size="sm" variant="outline" onClick={() => void navigator.clipboard.writeText(portalLink)}>نسخ</Button>
+                      <Button size="sm" variant="outline" asChild>
+                        <a href={`https://wa.me/${String(selectedCustomerForPortal?.whatsapp1 || selectedCustomerForPortal?.mobile1 || "").replace(/\D/g, "")}?text=${encodeURIComponent(`مرحباً ${selectedCustomerForPortal?.name || ""}،\nهذا رابط كشف حسابك لدينا، ويمكنك من خلاله إرسال إشعار التحويل عند السداد:\n${portalLink}`)}`} target="_blank" rel="noreferrer">واتساب</a>
+                      </Button>
+                      <Button size="sm" variant="outline" asChild>
+                        <a href={portalLink} target="_blank" rel="noreferrer">فتح</a>
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
         </DialogContent>
       </Dialog>
 
-      <Dialog open={showAddUserDialog} onOpenChange={setShowAddUserDialog}>
-        <DialogContent className="max-w-2xl" dir="rtl">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <UserPlus className="h-5 w-5" />
-              إضافة مستخدم جديد
-            </DialogTitle>
-          </DialogHeader>
-
-          <div className="space-y-6 p-4">
-            {/* User Info */}
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="new_username">اسم المستخدم *</Label>
-                <Input
-                  id="new_username"
-                  value={newUserData.username}
-                  onChange={(e) => setNewUserData({ ...newUserData, username: e.target.value })}
-                  placeholder="أدخل اسم المستخدم"
-                  className="text-right"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="new_password">كلمة المرور *</Label>
-                <Input
-                  id="new_password"
-                  type="password"
-                  value={newUserData.password}
-                  onChange={(e) => setNewUserData({ ...newUserData, password: e.target.value })}
-                  placeholder="أدخل كلمة المرور"
-                  className="text-right"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="new_email">البريد الإلكتروني</Label>
-                <Input
-                  id="new_email"
-                  type="email"
-                  value={newUserData.email}
-                  onChange={(e) => setNewUserData({ ...newUserData, email: e.target.value })}
-                  placeholder="أدخل البريد الإلكتروني (اختياري)"
-                  className="text-right"
-                />
-              </div>
-            </div>
-
-            {/* Permissions */}
-            <div className="space-y-4">
-              <h3 className="font-semibold">الصلاحيات</h3>
-
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="perm_view_orders">عرض الطلبيات</Label>
-                  <Switch
-                    id="perm_view_orders"
-                    checked={userPermissions.can_view_orders}
-                    onCheckedChange={(checked) => setUserPermissions({ ...userPermissions, can_view_orders: checked })}
-                  />
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="perm_create_orders">إنشاء طلبيات</Label>
-                  <Switch
-                    id="perm_create_orders"
-                    checked={userPermissions.can_create_orders}
-                    onCheckedChange={(checked) =>
-                      setUserPermissions({ ...userPermissions, can_create_orders: checked })
-                    }
-                  />
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="perm_view_balance">عرض الرصيد</Label>
-                  <Switch
-                    id="perm_view_balance"
-                    checked={userPermissions.can_view_balance}
-                    onCheckedChange={(checked) => setUserPermissions({ ...userPermissions, can_view_balance: checked })}
-                  />
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="perm_view_products">عرض الأصناف</Label>
-                  <Switch
-                    id="perm_view_products"
-                    checked={userPermissions.can_view_products}
-                    onCheckedChange={(checked) =>
-                      setUserPermissions({ ...userPermissions, can_view_products: checked })
-                    }
-                  />
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="perm_view_prices">عرض الأسعار</Label>
-                  <Switch
-                    id="perm_view_prices"
-                    checked={userPermissions.can_view_prices}
-                    onCheckedChange={(checked) => setUserPermissions({ ...userPermissions, can_view_prices: checked })}
-                  />
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="perm_view_stock">عرض المخزون</Label>
-                  <Switch
-                    id="perm_view_stock"
-                    checked={userPermissions.can_view_stock}
-                    onCheckedChange={(checked) => setUserPermissions({ ...userPermissions, can_view_stock: checked })}
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="flex gap-3 justify-end pt-4 border-t">
-              <Button variant="outline" onClick={() => setShowAddUserDialog(false)}>
-                إلغاء
-              </Button>
-              <Button onClick={handleAddPortalUser}>إضافة المستخدم</Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={showEditPermissionsDialog} onOpenChange={setShowEditPermissionsDialog}>
-        <DialogContent className="max-w-md" dir="rtl">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Shield className="h-5 w-5" />
-              تعديل الصلاحيات - {selectedUser?.username}
-            </DialogTitle>
-          </DialogHeader>
-
-          <div className="space-y-4 p-4">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="edit_view_orders">عرض الطلبيات</Label>
-              <Switch
-                id="edit_view_orders"
-                checked={userPermissions.can_view_orders}
-                onCheckedChange={(checked) => setUserPermissions({ ...userPermissions, can_view_orders: checked })}
-              />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <Label htmlFor="edit_create_orders">إنشاء طلبيات</Label>
-              <Switch
-                id="edit_create_orders"
-                checked={userPermissions.can_create_orders}
-                onCheckedChange={(checked) => setUserPermissions({ ...userPermissions, can_create_orders: checked })}
-              />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <Label htmlFor="edit_view_balance">عرض الرصيد</Label>
-              <Switch
-                id="edit_view_balance"
-                checked={userPermissions.can_view_balance}
-                onCheckedChange={(checked) => setUserPermissions({ ...userPermissions, can_view_balance: checked })}
-              />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <Label htmlFor="edit_view_products">عرض الأصناف</Label>
-              <Switch
-                id="edit_view_products"
-                checked={userPermissions.can_view_products}
-                onCheckedChange={(checked) => setUserPermissions({ ...userPermissions, can_view_products: checked })}
-              />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <Label htmlFor="edit_view_prices">عرض الأسعار</Label>
-              <Switch
-                id="edit_view_prices"
-                checked={userPermissions.can_view_prices}
-                onCheckedChange={(checked) => setUserPermissions({ ...userPermissions, can_view_prices: checked })}
-              />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <Label htmlFor="edit_view_stock">عرض المخزون</Label>
-              <Switch
-                id="edit_view_stock"
-                checked={userPermissions.can_view_stock}
-                onCheckedChange={(checked) => setUserPermissions({ ...userPermissions, can_view_stock: checked })}
-              />
-            </div>
-
-            <div className="flex gap-3 justify-end pt-4 border-t">
-              <Button variant="outline" onClick={() => setShowEditPermissionsDialog(false)}>
-                إلغاء
-              </Button>
-              <Button onClick={handleUpdatePermissions}>حفظ التغييرات</Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       <ExcelImport
         entityType={isSupplier ? "suppliers" : isSubscriber ? "subscribers" : "customers"}
