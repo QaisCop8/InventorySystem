@@ -179,6 +179,26 @@ export async function POST(request: NextRequest) {
         payment.currency_id=currencyId;payment.currency_amount=original;payment.exchange_rate=currency.rate_to_point
         payment.amount=Math.round(original*currency.rate_to_point*100)/100
       }
+      // الباقي للعميل يُرَدّ دائماً بعملة نقطة البيع: العميل قد يدفع بعملة أخرى (مثلاً 100 USD = 310 لفاتورة 100) فيُرَدّ 210 بعملة النقطة.
+      // الفاتورة وقيدها تُسجَّل بصافي النقد بعملة النقطة، أما الصندوق (عهدة العملات) فيسجل المستلم بعملته ويخصم الباقي من عملة النقطة.
+      const cashChange=Math.round(Number(data.cash_change_amount||0)*100)/100
+      let drawerCash:any[]|null=null
+      if(cashChange!==0){
+        if(!Number.isFinite(cashChange)||cashChange<0||isReturn||isGift)return NextResponse.json({error:"مبلغ الباقي للعميل غير صالح"},{status:400})
+        const tendered=payments.filter((payment:any)=>payment.payment_method==="cash"&&Number(payment.amount)>0)
+        const tenderedTotal=Math.round(tendered.reduce((sum:number,payment:any)=>sum+Number(payment.amount),0)*100)/100
+        if(cashChange>tenderedTotal+0.009)return NextResponse.json({error:"الباقي للعميل أكبر من المبلغ النقدي المستلم"},{status:400})
+        const pointCurrencyId=Number(point.currency_id),cashAccountId=Number(point.cash_account_id)
+        const drawerRows=tendered.map((payment:any)=>({...payment}))
+        let own=drawerRows.find((payment:any)=>Number(payment.currency_id)===pointCurrencyId)
+        if(!own){own={payment_method:"cash",account_id:cashAccountId,amount:0,currency_id:pointCurrencyId,currency_amount:0,exchange_rate:1,reference:""};drawerRows.push(own)}
+        drawerCash=drawerRows
+        own.amount=Math.round((Number(own.amount)-cashChange)*100)/100
+        own.currency_amount=Math.round((Number(own.currency_amount)-cashChange)*100)/100
+        const netCash=Math.round((tenderedTotal-cashChange)*100)/100
+        payments=[...payments.filter((payment:any)=>payment.payment_method!=="cash"),
+          ...(netCash>0?[{payment_method:"cash",account_id:cashAccountId,amount:netCash,currency_id:pointCurrencyId,currency_amount:netCash,exchange_rate:1,reference:""}]:[])]
+      }
       if(isReturn){
         for(const payment of payments.filter((row:any)=>row.payment_method==="cash")){
           payment.account_id=await resolvePosCashAccount(point,userId,Number(payment.currency_id||point.currency_id))
@@ -261,6 +281,13 @@ export async function POST(request: NextRequest) {
       const saved=await response.clone().json()
       const receipt=!isReturn&&needsPosReceipt(payments)?await createPosReceipt(request,saved,point,userId,payments):null
       const returnPayment=isReturn?await createPosReturnPayment(request,saved,point,userId,payments):null
+      // دفعات النقد في سجل الكاشير بعملاتها الفعلية: المستلم بكل عملة + الباقي المُرجَع بعملة النقطة (قد يكون سالباً)،
+      // ومجموعها المقيّم = صافي النقد في الفاتورة؛ عكس الإلغاء (_session-payments) يعكسها كما هي
+      if(drawerCash){
+        await sql`DELETE FROM pos_sale_payments_tbl WHERE voucher_id=${Number(saved.id)} AND payment_method='cash'`
+        for(const row of drawerCash.filter((row:any)=>Math.abs(Number(row.amount))>0.0001||Math.abs(Number(row.currency_amount))>0.0001))
+          await sql`INSERT INTO pos_sale_payments_tbl (voucher_id,payment_method,amount,account_id,reference,currency_id,currency_amount,exchange_rate) VALUES (${Number(saved.id)},'cash',${Number(row.amount)},${Number(row.account_id||point.cash_account_id)},${String(row.reference||"")||null},${Number(row.currency_id)},${Number(row.currency_amount)},${Number(row.exchange_rate||1)})`
+      }
       await sql`UPDATE pos_sale_payments_tbl SET pos_point_id=${pointId},session_id=${Number(session.id)} WHERE voucher_id=${Number(saved.id)}`
       if(discountCardId)await sql`UPDATE voucher_header_tbl SET discount_card_id=${discountCardId},discount_card_amount=${discountCardGross} WHERE id=${Number(saved.id)}`
       await sql`UPDATE voucher_header_tbl SET pos_session_id=${Number(session.id)},shift_guid=${String(session.shift_guid)}::uuid,campaign_discount_amount=${Math.round(campaignResult.invoiceDiscount/campaignTaxFactor*100)/100},campaign_discount_id=${campaignResult.campaignId||null} WHERE id=${Number(saved.id)}`
@@ -283,7 +310,7 @@ export async function POST(request: NextRequest) {
       }
       const cashAmount=payments.filter((p:any)=>p.payment_method==="cash").reduce((sum:number,p:any)=>sum+Number(p.amount||0),0)
       if(cashAmount>0){const delta=isReturn?-cashAmount:cashAmount;await sql`UPDATE pos_sessions_tbl SET expected_cash=expected_cash+${delta},updated_at=NOW() WHERE id=${Number(session.id)}`;await sql`INSERT INTO pos_cash_movements_tbl(session_id,movement_type,amount,reference,note,user_id) VALUES(${Number(session.id)},${isReturn?"refund":"sale"},${cashAmount},${String(saved.vch_code||"")},${isReturn?"مردود نقدي":"بيع نقدي"},${userId})`}
-      for(const payment of payments.filter((p:any)=>p.payment_method==="cash"&&Number(p.amount)>0)){
+      for(const payment of (drawerCash??payments.filter((p:any)=>p.payment_method==="cash"&&Number(p.amount)>0)).filter((p:any)=>Number(p.currency_amount??p.amount)!==0)){
         const currencyId=Number(payment.currency_id||point.currency_id),original=Number(payment.currency_amount??payment.amount),rate=Number(payment.exchange_rate||1),delta=isReturn?-original:original
         await sql`INSERT INTO pos_session_currencies_tbl(session_id,currency_id,opening_amount,expected_amount,rate_to_point)
           VALUES(${Number(session.id)},${currencyId},0,${delta},${rate})
