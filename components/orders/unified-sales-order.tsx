@@ -3430,6 +3430,9 @@ function UnifiedSalesOrder({
             />
             <ConfirmDialogYesNo
               visible={showUnsaved}
+              useAppDialog
+              title="حفظ تعديلات الطلبية"
+              onDismiss={() => { setShowUnsaved(false); popupHasClosed(); setLoading(false) }}
               onConfirm={async () => {
                 setShowUnsaved(false)
                 popupHasClosed()
@@ -3454,12 +3457,16 @@ function UnifiedSalesOrder({
             />
             <ConfirmDialogYesNo
               visible={showConfirm}
+              useAppDialog
+              title="تأكيد حذف الطلبية"
               onConfirm={confirmDelete}
               onCancel={() => { setShowConfirm(false); popupHasClosed() }}
               message="هل أنت متأكد من حذف السجل؟"
             />
             <ConfirmDialogYesNo
               visible={showAlert}
+              useAppDialog
+              title="تأكيد الطباعة"
               onConfirm={async () => {
                 await printOrder(state.FormDataBackup, CollectionViewBackupRef.current, {}, true); setShowAlert(false); popupHasClosed();
                 setTimeout(() => referenceNumberRef.current?.focus(), 50)
@@ -3479,12 +3486,16 @@ function UnifiedSalesOrder({
             />
             <ConfirmDialogYesNo
               visible={showPrintRefConfirm}
+              useAppDialog
+              title="إعادة الطباعة"
               onConfirm={() => { setShowPrintRefConfirm(false); popupHasClosed(); handlePrint(false); setTimeout(() => referenceNumberRef.current?.focus(), 50) }}
               onCancel={() => { setShowPrintRefConfirm(false); popupHasClosed(); setTimeout(() => referenceNumberRef.current?.focus(), 50) }}
               message="تمت طباعة السند مسبقا هل تريد الطباعة مرة أخرى؟"
             />
             <ConfirmDialogYesNo
               visible={showDuplicateRefConfirm}
+              useAppDialog
+              title="رقم سند يدوي مكرر"
               onConfirm={() => {
                 setIsDuplicateRefConfirmed(true)
                 duplicateRefDismissedValueRef.current = ""
