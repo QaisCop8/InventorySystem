@@ -10,7 +10,7 @@ import ConfirmDialogYesNo from "@/components/ui/ConfirmDialogYesNo"
 import { FolderTree, Loader2, MapPin, Pencil, Plus, Trash2 } from "lucide-react"
 import { LOCATION_TYPES } from "@/lib/fixed-assets/constants"
 import { DEPRECIATION_METHODS } from "@/lib/fixed-assets/depreciation"
-import { api, DataTable, Field, n, NumberField, recordOptions, SectionCard, Select, toOptions, type Lookups, type Row } from "./shared"
+import { AccountField, api, DataTable, Field, n, NumberField, recordOptions, SectionCard, Select, toOptions, type Lookups, type Row } from "./shared"
 
 const ACCOUNT_FIELDS: [string, string, boolean][] = [
   ["asset_account_id", "حساب الأصل", true],
@@ -44,7 +44,6 @@ export function CategoriesSetup({ lookups, onChanged }: { lookups: Lookups; onCh
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
   const [remove, setRemove] = useState<Row | null>(null)
-  const accounts = useMemo(() => toOptions(lookups.accounts), [lookups.accounts])
   const accountName = (id: unknown) => lookups.accounts.find(row => Number(row.id) === Number(id))
   const set = (patch: Row) => setForm(current => ({ ...current, ...patch }))
 
@@ -99,7 +98,7 @@ export function CategoriesSetup({ lookups, onChanged }: { lookups: Lookups; onCh
           <p className="mb-3 text-xs font-black text-slate-600">الربط المحاسبي</p>
           <div className="grid gap-3 sm:grid-cols-2">
             {ACCOUNT_FIELDS.map(([key, label, required]) => <Field key={key} label={label} htmlFor={`fa-cat-${key}`} required={required && (key === "asset_account_id" || form.is_depreciable !== false)}>
-              <Select id={`fa-cat-${key}`} value={form[key]} options={accounts} clearable onChange={value => set({ [key]: value })} />
+              <AccountField value={form[key]} onChange={value => set({ [key]: value })} />
             </Field>)}
           </div>
         </div>

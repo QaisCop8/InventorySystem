@@ -19,8 +19,7 @@ import { useNavigationGuard } from "@/lib/navigation-guard"
 import { ACQUISITION_SOURCES, DOCUMENT_TYPES, MAX_DOCUMENT_BYTES } from "@/lib/fixed-assets/constants"
 import { DEPRECIATION_METHODS } from "@/lib/fixed-assets/depreciation"
 import { ACTION_LABELS, AssetActionDialog, type AssetAction } from "./asset-actions"
-import {
-  api, DataTable, day, Field, money, n, NumberField, recordOptions, Select, StatusBadge, today, toOptions, transactionLabel,
+import { AccountField, api, DataTable, day, Field, money, n, NumberField, recordOptions, Select, StatusBadge, today, toOptions, transactionLabel,
   type Lookups, type Row,
 } from "./shared"
 
@@ -151,7 +150,6 @@ export function AssetDialog({ open, assetId, assets, lookups, onClose, onChanged
 
   const index = assets.findIndex(row => Number(row.id) === Number(card?.id))
   const go = (target: number) => { const row = assets[target]; if (row) guard(() => onNavigate(Number(row.id))) }
-  const accounts = useMemo(() => toOptions(lookups.accounts), [lookups.accounts])
   const parentOptions = useMemo(() => assets.filter(row => !row.parent_asset_id && Number(row.id) !== Number(card?.id) && row.status !== "DISPOSED").map(row => ({ label: `${row.asset_no} — ${row.name}`, value: Number(row.id) })), [assets, card?.id])
   const opening = form.acquisition_source === "OPENING_BALANCE"
   const life = n(form.useful_life_months)
@@ -242,9 +240,9 @@ export function AssetDialog({ open, assetId, assets, lookups, onClose, onChanged
                 <Field label="العملة الأصلية" htmlFor="fa-currency"><Select id="fa-currency" value={form.currency_id} disabled={!editable} options={toOptions(lookups.currencies)} clearable onChange={value => set({ currency_id: value })} /></Field>
                 <Field label="المبلغ بالعملة الأصلية" htmlFor="fa-foreign"><NumberField id="fa-foreign" value={form.foreign_cost} disabled={!editable} onChange={value => set({ foreign_cost: value, original_cost: n(value) && n(form.exchange_rate) ? (n(value) * n(form.exchange_rate)).toFixed(2) : form.original_cost })} /></Field>
                 <Field label="سعر الصرف" htmlFor="fa-rate"><NumberField id="fa-rate" value={form.exchange_rate} disabled={!editable} onChange={value => set({ exchange_rate: value, original_cost: n(form.foreign_cost) && n(value) ? (n(form.foreign_cost) * n(value)).toFixed(2) : form.original_cost })} /></Field>
-                <Field label="المورد" htmlFor="fa-supplier"><Select id="fa-supplier" value={form.supplier_account_id} disabled={!editable} options={accounts} clearable onChange={value => set({ supplier_account_id: value, credit_account_id: form.credit_account_id ?? value })} /></Field>
+                <Field label="المورد" htmlFor="fa-supplier"><AccountField value={form.supplier_account_id} disabled={!editable} onChange={value => set({ supplier_account_id: value, credit_account_id: form.credit_account_id ?? value })} /></Field>
                 <Field label={opening ? "حساب الأرصدة الافتتاحية" : "الحساب الدائن لقيد الاقتناء"} htmlFor="fa-credit" required={form.post_acquisition_journal} hint={opening ? "رأس المال / أرصدة افتتاحية" : "المورد أو الصندوق أو حساب فاتورة المشتريات"} className="lg:col-span-2">
-                  <Select id="fa-credit" value={form.credit_account_id} disabled={!editable} options={accounts} clearable onChange={value => set({ credit_account_id: value })} />
+                  <AccountField value={form.credit_account_id} disabled={!editable} onChange={value => set({ credit_account_id: value })} />
                 </Field>
                 <label className="flex items-center justify-between gap-3 rounded-xl border px-3 py-2 text-sm lg:col-span-2">
                   <span><b className="block">ترحيل قيد الاقتناء عند التفعيل</b><small className="text-slate-500">أوقفه إذا كانت التكلفة مسجلة مسبقاً على حساب الأصل</small></span>

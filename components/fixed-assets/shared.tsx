@@ -2,6 +2,7 @@
 
 import { useMemo, type KeyboardEvent, type ReactNode } from "react"
 import PrimeDropdown from "@/components/common/FocusDropdown"
+import AutoCompleteAccount from "@/components/customer/auto-complete-account"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
@@ -96,6 +97,21 @@ export function enterAsTabKeyDown(event: KeyboardEvent<HTMLElement>) {
   if (!next) return
   next.focus()
   if (next instanceof HTMLInputElement && next.type !== "date" && next.type !== "number" && typeof next.select === "function") next.select()
+}
+
+// حقول الحسابات في الأصول الثابتة: نفس AutoCompleteAccount المستخدم في بقية الشاشات (كتابة رمز الحساب، بحث F10،
+// مسح) بدل قائمة منسدلة بكل الحسابات. حسابات فرعية فقط — الخادم يرفض حساباً له حسابات أبناء (لا يُرحَّل عليه).
+export function AccountField({ value, onChange, disabled, clearable = true }: { value: any; onChange: (value: number | null) => void; disabled?: boolean; clearable?: boolean }) {
+  const id = Number(value)
+  return <AutoCompleteAccount
+    valueMode="id"
+    value={Number.isInteger(id) && id > 0 ? String(id) : ""}
+    onValueChange={(next) => onChange(Number(next) > 0 ? Number(next) : null)}
+    leafOnly
+    showCostCenterButton={false}
+    showClearButton={clearable}
+    disabled={disabled}
+  />
 }
 
 export function Field({ label, htmlFor, children, hint, className, required }: { label: string; htmlFor?: string; children: ReactNode; hint?: string; className?: string; required?: boolean }) {

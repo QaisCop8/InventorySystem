@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Loader2, Search } from "lucide-react"
-import { api, DataTable, day, Field, money, n, NumberField, Select, toOptions, type Lookups, type Row } from "./shared"
+import { AccountField, api, DataTable, day, Field, money, n, NumberField, Select, toOptions, type Lookups, type Row } from "./shared"
 
 export function InvoiceCapitalizeDialog({ open, lookups, onClose, onDone }: { open: boolean; lookups: Lookups; onClose: () => void; onDone: (message: string) => void }) {
   const [search, setSearch] = useState("")
@@ -19,7 +19,6 @@ export function InvoiceCapitalizeDialog({ open, lookups, onClose, onDone }: { op
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
   const set = (patch: Row) => setForm(current => ({ ...current, ...patch }))
-  const accounts = useMemo(() => toOptions(lookups.accounts), [lookups.accounts])
 
   const load = async (term = search) => {
     setLoading(true)
@@ -108,7 +107,7 @@ export function InvoiceCapitalizeDialog({ open, lookups, onClose, onDone }: { op
             <Field label="الموقع" htmlFor="fa-inv-loc"><Select id="fa-inv-loc" value={form.location_id} options={toOptions(lookups.locations)} clearable onChange={value => set({ location_id: value })} /></Field>
             <Field label="مركز التكلفة" htmlFor="fa-inv-cc"><Select id="fa-inv-cc" value={form.cost_center_id} options={toOptions(lookups.costCenters)} clearable onChange={value => set({ cost_center_id: value })} /></Field>
             <Field label="الحساب الدائن (إعادة التصنيف)" htmlFor="fa-inv-credit" className="lg:col-span-2" hint={sameAccount ? "السطر مسجّل مسبقاً على حساب الأصل — لن يُنشأ قيد" : "يُنقل المبلغ من حساب سطر الفاتورة إلى حساب الأصل"}>
-              <Select id="fa-inv-credit" value={form.credit_account_id} options={accounts} disabled={sameAccount} onChange={value => set({ credit_account_id: value })} />
+              <AccountField value={form.credit_account_id} disabled={sameAccount} clearable={false} onChange={value => set({ credit_account_id: value })} />
             </Field>
             <label className="flex items-center justify-between gap-3 rounded-xl border px-3 py-2 text-sm"><span>تفعيل الأصول مباشرة</span><Switch checked={form.activate !== false} onCheckedChange={value => set({ activate: value })} /></label>
           </div>

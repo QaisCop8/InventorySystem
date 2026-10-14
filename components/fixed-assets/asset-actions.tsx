@@ -10,7 +10,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Loader2 } from "lucide-react"
 import { DISPOSAL_TYPES } from "@/lib/fixed-assets/constants"
 import { DEPRECIATION_METHODS } from "@/lib/fixed-assets/depreciation"
-import { api, Field, money, n, NumberField, recordOptions, Select, today, toOptions, type Lookups, type Row } from "./shared"
+import { AccountField, api, Field, money, n, NumberField, recordOptions, Select, today, toOptions, type Lookups, type Row } from "./shared"
 
 export type AssetAction = "addition" | "revaluation" | "impairment" | "adjust" | "transfer" | "suspend" | "resume" | "dispose"
 
@@ -44,7 +44,6 @@ export function AssetActionDialog({ action, asset, lookups, onClose, onDone }: {
   const [error, setError] = useState("")
   const open = Boolean(action && asset)
   const set = (patch: Row) => setForm(current => ({ ...current, ...patch }))
-  const accounts = useMemo(() => toOptions(lookups.accounts), [lookups.accounts])
   const nbv = n(asset?.net_book_value)
 
   const resetFor = (next: AssetAction) => ({
@@ -102,19 +101,19 @@ export function AssetActionDialog({ action, asset, lookups, onClose, onDone }: {
         {action === "addition" && <>
           <Field label="المبلغ" htmlFor="fa-action-amount" required><NumberField id="fa-action-amount" value={form.amount} min={0} onChange={value => set({ amount: value })} /></Field>
           <Field label="تمديد العمر (أشهر)" htmlFor="fa-action-extend"><NumberField id="fa-action-extend" value={form.extend_life_months} min={0} step="1" onChange={value => set({ extend_life_months: value })} /></Field>
-          <Field label="الحساب الدائن" htmlFor="fa-action-credit" required={form.post_journal} hint="المورد أو الصندوق أو حساب وسيط"><Select id="fa-action-credit" value={form.credit_account_id} options={accounts} onChange={value => set({ credit_account_id: value })} /></Field>
+          <Field label="الحساب الدائن" htmlFor="fa-action-credit" required={form.post_journal} hint="المورد أو الصندوق أو حساب وسيط"><AccountField value={form.credit_account_id} clearable={false} onChange={value => set({ credit_account_id: value })} /></Field>
           <Field label="البيان" htmlFor="fa-action-desc" className="sm:col-span-2"><Input id="fa-action-desc" value={form.description ?? ""} onChange={event => set({ description: event.target.value })} /></Field>
           <label className="flex items-center justify-between rounded-xl border px-3 py-2 text-sm sm:col-span-2"><span>إنشاء قيد محاسبي</span><Switch checked={form.post_journal !== false} onCheckedChange={value => set({ post_journal: value })} /></label>
         </>}
 
         {action === "revaluation" && <>
           <Field label="القيمة العادلة الجديدة" htmlFor="fa-action-new" required hint={`الفرق: ${money(n(form.new_value) - nbv)}`}><NumberField id="fa-action-new" value={form.new_value} min={0} onChange={value => set({ new_value: value })} /></Field>
-          <Field label="حساب بديل (اختياري)" htmlFor="fa-action-account" hint="افتراضياً: فائض إعادة التقييم أو خسارة الانخفاض من التصنيف"><Select id="fa-action-account" value={form.account_id} options={accounts} clearable onChange={value => set({ account_id: value })} /></Field>
+          <Field label="حساب بديل (اختياري)" htmlFor="fa-action-account" hint="افتراضياً: فائض إعادة التقييم أو خسارة الانخفاض من التصنيف"><AccountField value={form.account_id} onChange={value => set({ account_id: value })} /></Field>
         </>}
 
         {action === "impairment" && <>
           <Field label="مبلغ الانخفاض" htmlFor="fa-action-imp" required><NumberField id="fa-action-imp" value={form.amount} min={0} onChange={value => set({ amount: value })} /></Field>
-          <Field label="حساب الخسارة (اختياري)" htmlFor="fa-action-imp-account" className="sm:col-span-2"><Select id="fa-action-imp-account" value={form.account_id} options={accounts} clearable onChange={value => set({ account_id: value })} /></Field>
+          <Field label="حساب الخسارة (اختياري)" htmlFor="fa-action-imp-account" className="sm:col-span-2"><AccountField value={form.account_id} onChange={value => set({ account_id: value })} /></Field>
         </>}
 
         {action === "adjust" && <>
@@ -136,7 +135,7 @@ export function AssetActionDialog({ action, asset, lookups, onClose, onDone }: {
           <Field label="نوع الاستبعاد" htmlFor="fa-action-dtype"><Select id="fa-action-dtype" value={form.disposal_type} options={recordOptions(DISPOSAL_TYPES)} onChange={value => set({ disposal_type: value })} /></Field>
           {form.disposal_type === "SALE" && <>
             <Field label="قيمة البيع" htmlFor="fa-action-sale" required><NumberField id="fa-action-sale" value={form.sale_amount} min={0} onChange={value => set({ sale_amount: value })} /></Field>
-            <Field label="حساب المتحصلات" htmlFor="fa-action-proceeds" required hint="الصندوق أو البنك أو حساب العميل"><Select id="fa-action-proceeds" value={form.proceeds_account_id} options={accounts} onChange={value => set({ proceeds_account_id: value })} /></Field>
+            <Field label="حساب المتحصلات" htmlFor="fa-action-proceeds" required hint="الصندوق أو البنك أو حساب العميل"><AccountField value={form.proceeds_account_id} clearable={false} onChange={value => set({ proceeds_account_id: value })} /></Field>
           </>}
           <div className={`rounded-xl p-3 text-sm font-bold sm:col-span-2 ${gainLoss >= 0 ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"}`}>
             {gainLoss >= 0 ? "ربح" : "خسارة"} الاستبعاد المتوقع: <span dir="ltr">{money(Math.abs(gainLoss))}</span>
