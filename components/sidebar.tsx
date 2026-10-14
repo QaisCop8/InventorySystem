@@ -57,8 +57,7 @@ import {
   X,
   PanelRightClose,
   PanelRightOpen,
-  LucideIcon,
-} from "lucide-react"
+  LucideIcon, BadgePercent } from "lucide-react"
 import { useMenuTheme } from "@/contexts/menu-theme-context"
 import { useSavingLock } from "@/lib/saving-lock"
 
@@ -313,6 +312,7 @@ export const menuItems: MenuItem[] = [
     submenu: [
       { title: "إعداد نقاط البيع", section: "pos-points-settings", icon: Settings },
       { title: "الحملات", section: "campaigns", icon: Megaphone },
+      { title: "بطاقات الخصم", section: "pos-discount-cards", icon: BadgePercent },
       { title: "كاشير نقطة البيع", section: "pos-cashier", icon: ShoppingCart },
       {
         title: "التقارير",

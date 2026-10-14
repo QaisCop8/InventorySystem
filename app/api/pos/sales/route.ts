@@ -14,6 +14,7 @@ import { createPosReceipt, createPosReturnPayment } from "../_receipts"
 import { loadStoredSettings } from "@/app/api/settings/system/route"
 import { applyPosCampaigns, combinedDiscountPercent, type PosCampaignLine } from "@/lib/pos-campaigns"
 import { getPosCampaigns, getPosCampaignUsage } from "@/lib/pos-campaign-storage"
+import { discountCardAmount, discountCardProblem, ensureDiscountCardTables, findDiscountCard, localDate as discountCardDate } from "@/lib/pos-discount-cards"
 
 const localDate = () => {
   const date = new Date()
@@ -33,7 +34,7 @@ export async function POST(request: NextRequest) {
     // تهيئة الجداول قبل فتح المعاملة لا داخلها: أوامر ALTER/CREATE داخل المعاملة تحجز أقفالاً حصرية على الجداول
     // (system_settings، voucher_header_tbl...) حتى نهاية الحفظ فتنتظرها كل الصفحات الأخرى، وقد تنتظر المعاملةُ
     // نفسَها إن صدر أمر مماثل من اتصال آخر أثناء الحفظ. بعد أول تطبيق تُتخطّى كلها (runSchemaOnce) فالكلفة ضئيلة.
-    await ensureTables(); await ensurePosTables(); await ensureVoucherTables(); await ensureStockVoucherTables()
+    await ensureTables(); await ensurePosTables(); await ensureVoucherTables(); await ensureStockVoucherTables(); await ensureDiscountCardTables()
     await loadStoredSettings()
     return await withTenantTransaction(async () => {
       await sql`SELECT pg_advisory_xact_lock(hashtext(${`pos-sale:${clientSaleId}`}))`
@@ -117,7 +118,13 @@ export async function POST(request: NextRequest) {
       const campaignTaxFactor=1+taxRate/100
       const itemNetSubtotal=invoiceItems.reduce((sum:number,item:any)=>sum+Number(item.unit_price)*Number(item.quantity)*(1-Number(item.discount_percent??item.discount??0)/100)-Number(item.campaign_discount||0),0)
       const manualInvoiceDiscount=itemNetSubtotal*Math.max(0,Number(data.discount_value||0))/100
-      const totalInvoiceDiscount=manualInvoiceDiscount+campaignResult.invoiceDiscount/campaignTaxFactor
+      // أعلى نسبة خصم في إعدادات نقطة البيع تشمل مجموع الخصم اليدوي: خصومات الأصناف + خصم الفاتورة كنسبة من قيمة
+      // الفاتورة قبل أي خصم (خصم الحملات وبطاقة الخصم آليان فلا يدخلان) — كان يُفحص خصم كل صنف وحده فقط.
+      const grossBeforeDiscounts=invoiceItems.reduce((sum:number,item:any)=>sum+Number(item.unit_price)*Number(item.quantity),0)
+      const itemDiscountAmount=invoiceItems.reduce((sum:number,item:any)=>sum+Number(item.unit_price)*Number(item.quantity)*Number(item.discount_percent??0)/100,0)
+      const manualDiscountPercent=grossBeforeDiscounts>0?(itemDiscountAmount+manualInvoiceDiscount)/grossBeforeDiscounts*100:0
+      if(manualDiscountPercent>discountLimit+0.01)return NextResponse.json({error:`مجموع خصم الفاتورة وخصم الأصناف (${manualDiscountPercent.toFixed(2)}%) يتجاوز أعلى نسبة خصم مسموحة في نقطة البيع (${discountLimit}%)`},{status:400})
+      let totalInvoiceDiscount=manualInvoiceDiscount+campaignResult.invoiceDiscount/campaignTaxFactor
       let payments=(Array.isArray(data.pos_payments)?data.pos_payments:[]).map((payment:any)=>{
         const method=String(payment.payment_method||payment.method||"cash")
         const configured:Record<string,number|null>={cash:Number(point.cash_account_id)||null,card:Number(point.card_account_id)||null,cheque:Number(point.cheque_account_id)||null,account:null,gift_card:Number(point.gift_account_id)||null}
@@ -216,6 +223,22 @@ export async function POST(request: NextRequest) {
       for(const payment of payments){if(!payment.account_id)return NextResponse.json({error:`لم يتم تعيين حساب لطريقة الدفع ${payment.payment_method}`},{status:400});if(payment.payment_method==="gift_card"){
         const gift=(await sql`SELECT * FROM pos_gift_cards_tbl WHERE code=${String(payment.reference||"").trim()} AND status=1 FOR UPDATE`)[0];if(!gift||Number(gift.currency_id)!==Number(point.currency_id)||Number(gift.balance)+.009<Number(payment.amount))return NextResponse.json({error:"بطاقة الهدية غير صالحة أو رصيدها غير كافٍ"},{status:400})
       }}
+      // بطاقة الخصم: يُعاد فحص شروطها هنا (الكاشير يعرضها فقط) ويُحسب خصمها على مبلغ الفاتورة بعد الخصومات الأخرى شاملاً
+      // الضريبة كما يراه الكاشير. يُقبل مبلغ الكاشير إن طابق الحساب (فرق تقريب ≤ 0.02) حتى يطابق الإجمالي دفعاته تماماً.
+      let discountCardId:number|null=null,discountCardGross=0
+      if(Number(data.discount_card_id)>0){
+        if(isReturn||isGift)return NextResponse.json({error:"بطاقة الخصم متاحة لفواتير البيع فقط"},{status:400})
+        await sql`SELECT id FROM pos_discount_cards_tbl WHERE id=${Number(data.discount_card_id)} FOR UPDATE`
+        const [card]=await findDiscountCard({id:Number(data.discount_card_id)})
+        if(!card)return NextResponse.json({error:"بطاقة الخصم غير موجودة"},{status:400})
+        const invoiceGross=(itemNetSubtotal-totalInvoiceDiscount)*campaignTaxFactor
+        const problem=discountCardProblem(card,{accountId:Number(data.pos_customer_id)||null,branchId:Number(point.branch_id),date:String(data.vch_date||discountCardDate()).slice(0,10),invoiceAmount:invoiceGross})
+        if(problem)return NextResponse.json({error:problem},{status:400})
+        const expected=discountCardAmount(card,invoiceGross),sent=Number(data.discount_card_amount)
+        if(!Number.isFinite(sent)||Math.abs(sent-expected)>0.02)return NextResponse.json({error:"تغيّر مبلغ خصم البطاقة؛ أعد تطبيق البطاقة وحاول مرة أخرى"},{status:409})
+        discountCardId=Number(card.id);discountCardGross=sent
+        totalInvoiceDiscount+=discountCardGross/campaignTaxFactor
+      }
       const vchType=isReturn?RETURN_SELL_VCH_TYPE:SALES_INVOICE_VCH_TYPE
       const vchBookId = Number(isReturn?(point.return_book_id||point.sales_book_id):point.sales_book_id) || null
       if (!vchBookId) return NextResponse.json({ error: "يجب تعيين دفتر افتراضي لفاتورة المبيعات" }, { status: 400 })
@@ -239,6 +262,7 @@ export async function POST(request: NextRequest) {
       const receipt=!isReturn&&needsPosReceipt(payments)?await createPosReceipt(request,saved,point,userId,payments):null
       const returnPayment=isReturn?await createPosReturnPayment(request,saved,point,userId,payments):null
       await sql`UPDATE pos_sale_payments_tbl SET pos_point_id=${pointId},session_id=${Number(session.id)} WHERE voucher_id=${Number(saved.id)}`
+      if(discountCardId)await sql`UPDATE voucher_header_tbl SET discount_card_id=${discountCardId},discount_card_amount=${discountCardGross} WHERE id=${Number(saved.id)}`
       await sql`UPDATE voucher_header_tbl SET pos_session_id=${Number(session.id)},shift_guid=${String(session.shift_guid)}::uuid,campaign_discount_amount=${Math.round(campaignResult.invoiceDiscount/campaignTaxFactor*100)/100},campaign_discount_id=${campaignResult.campaignId||null} WHERE id=${Number(saved.id)}`
       await sql`INSERT INTO pos_cashier_log_tbl(pos_point_id,session_id,user_id,movement_type,transaction_no,notes) VALUES(${pointId},${Number(session.id)},${Number(userId)},${String(data.cashier_action || (data.pos_mode === "return" ? "حفظ فاتورة" : "حفظ فاتورة"))},${String(saved.vch_code || "")},${String(data.note || "")})`
       for(const payment of payments.filter((p:any)=>p.payment_method==="cheque")){
