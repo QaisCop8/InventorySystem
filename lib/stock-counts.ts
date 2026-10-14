@@ -133,7 +133,7 @@ async function ensureStockCountPermission(name: string) {
   const category = categoryRows[0] || (await sql`SELECT id FROM access_category WHERE name = ${PERMISSION_CATEGORY} ORDER BY id LIMIT 1`)[0]
   const inserted = await sql`
     INSERT INTO access_list (name, category_id) SELECT ${name}, ${Number(category.id)}
-    WHERE NOT EXISTS (SELECT 1 FROM access_list WHERE name = ${name})
+    WHERE NOT EXISTS (SELECT 1 FROM access_list WHERE LOWER(BTRIM(name)) = LOWER(BTRIM(${name}))) ON CONFLICT DO NOTHING
     RETURNING id
   `
   if (!inserted[0]) return

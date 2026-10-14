@@ -76,16 +76,16 @@ export async function ensureTransactionPermission(family: TransactionFamily, act
       UPDATE access_list
       SET name = ${permissionName}, category_id = ${category.id}, updated_at = CURRENT_TIMESTAMP
       WHERE name = ${legacyName}
-        AND NOT EXISTS (SELECT 1 FROM access_list WHERE name = ${permissionName})
+        AND NOT EXISTS (SELECT 1 FROM access_list WHERE LOWER(BTRIM(name)) = LOWER(BTRIM(${permissionName})))
     `
   }
   const inserted = await sql`
     INSERT INTO access_list (name, category_id)
     SELECT ${permissionName}, ${category.id}
-    WHERE NOT EXISTS (SELECT 1 FROM access_list WHERE name = ${permissionName})
+    WHERE NOT EXISTS (SELECT 1 FROM access_list WHERE LOWER(BTRIM(name)) = LOWER(BTRIM(${permissionName}))) ON CONFLICT DO NOTHING
     RETURNING id
   `
-  const access = inserted[0] || (await sql`SELECT id FROM access_list WHERE name = ${permissionName} ORDER BY id LIMIT 1`)[0]
+  const access = inserted[0] || (await sql`SELECT id FROM access_list WHERE LOWER(BTRIM(name)) = LOWER(BTRIM(${permissionName})) ORDER BY id LIMIT 1`)[0]
 
   // Preserve access for legacy full-access users and the built-in manager role.
   await sql`

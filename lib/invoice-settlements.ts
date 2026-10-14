@@ -36,8 +36,8 @@ export async function ensureSettlementTables() {
       await ensurePermissionTables(dbName)
       const category = (await sql`INSERT INTO access_category (name) SELECT 'الحركات' WHERE NOT EXISTS (SELECT 1 FROM access_category WHERE name = 'الحركات') RETURNING id`)[0]
         || (await sql`SELECT id FROM access_category WHERE name = 'الحركات' ORDER BY id LIMIT 1`)[0]
-      const access = (await sql`INSERT INTO access_list (name, category_id) SELECT ${SETTLEMENT_PERMISSION}, ${category.id} WHERE NOT EXISTS (SELECT 1 FROM access_list WHERE name = ${SETTLEMENT_PERMISSION}) RETURNING id`)[0]
-        || (await sql`SELECT id FROM access_list WHERE name = ${SETTLEMENT_PERMISSION} LIMIT 1`)[0]
+      const access = (await sql`INSERT INTO access_list (name, category_id) SELECT ${SETTLEMENT_PERMISSION}, ${category.id} WHERE NOT EXISTS (SELECT 1 FROM access_list WHERE LOWER(BTRIM(name)) = LOWER(BTRIM(${SETTLEMENT_PERMISSION}))) ON CONFLICT DO NOTHING RETURNING id`)[0]
+        || (await sql`SELECT id FROM access_list WHERE LOWER(BTRIM(name)) = LOWER(BTRIM(${SETTLEMENT_PERMISSION})) LIMIT 1`)[0]
       if (access?.id) await sql`INSERT INTO role_permissions (role_id, access_id, is_granted) SELECT id, ${access.id}, TRUE FROM job_roles WHERE LOWER(name) = LOWER('مدير') ON CONFLICT (role_id, access_id) DO NOTHING`
     })().catch((error) => { ensured = null; throw error })
   }
@@ -45,7 +45,7 @@ export async function ensureSettlementTables() {
 }
 
 export async function canSettle(userId: string, branchId: number | null) {
-  const access = (await sql`SELECT id FROM access_list WHERE name = ${SETTLEMENT_PERMISSION} LIMIT 1`)[0]
+  const access = (await sql`SELECT id FROM access_list WHERE LOWER(BTRIM(name)) = LOWER(BTRIM(${SETTLEMENT_PERMISSION})) LIMIT 1`)[0]
   return access ? hasEffectivePermission(userId, Number(access.id), branchId) : false
 }
 

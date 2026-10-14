@@ -261,10 +261,10 @@ export async function ensurePosCashierPermission(permission: PosCashierPermissio
   const inserted = await sql`
     INSERT INTO access_list (name, category_id)
     SELECT ${name}, ${Number(category.id)}
-    WHERE NOT EXISTS (SELECT 1 FROM access_list WHERE name=${name})
+    WHERE NOT EXISTS (SELECT 1 FROM access_list WHERE LOWER(BTRIM(name)) = LOWER(BTRIM(${name}))) ON CONFLICT DO NOTHING
     RETURNING id
   `
-  const access = inserted[0] || (await sql`SELECT id FROM access_list WHERE name=${name} ORDER BY id LIMIT 1`)[0]
+  const access = inserted[0] || (await sql`SELECT id FROM access_list WHERE LOWER(BTRIM(name)) = LOWER(BTRIM(${name})) ORDER BY id LIMIT 1`)[0]
   await sql`UPDATE access_list SET category_id=${Number(category.id)} WHERE id=${Number(access.id)}`
   await sql`
     INSERT INTO role_permissions (role_id, access_id, is_granted)
@@ -448,7 +448,7 @@ async function runPermissionDefinitionSync(dbName: string): Promise<void> {
       await client.query(
         `UPDATE access_list SET name = $1::varchar, updated_at = CURRENT_TIMESTAMP
          WHERE name = $2::varchar
-           AND NOT EXISTS (SELECT 1 FROM access_list WHERE name = $1::varchar)`,
+           AND NOT EXISTS (SELECT 1 FROM access_list WHERE LOWER(BTRIM(name)) = LOWER(BTRIM($1::varchar)))`,
         [transactionPermissionName(family, action), legacyName],
       )
     }
@@ -460,7 +460,7 @@ async function runPermissionDefinitionSync(dbName: string): Promise<void> {
     `UPDATE access_list
      SET name = $1::varchar, updated_at = CURRENT_TIMESTAMP
      WHERE name = $2::varchar
-       AND NOT EXISTS (SELECT 1 FROM access_list existing WHERE existing.name = $1::varchar)`,
+       AND NOT EXISTS (SELECT 1 FROM access_list existing WHERE LOWER(BTRIM(existing.name)) = LOWER(BTRIM($1::varchar)))`,
     ["إضافة مسودة طلبية مبيعات", "ادخال مسودة طلبية مبيعات"],
   )
 
@@ -478,7 +478,7 @@ async function runPermissionDefinitionSync(dbName: string): Promise<void> {
   for (const [legacyName, currentName] of cashierPermissionRenames) {
     await client.query(
       `UPDATE access_list SET name=$1::varchar,updated_at=CURRENT_TIMESTAMP
-       WHERE name=$2::varchar AND NOT EXISTS (SELECT 1 FROM access_list WHERE name=$1::varchar)`,
+       WHERE name=$2::varchar AND NOT EXISTS (SELECT 1 FROM access_list WHERE LOWER(BTRIM(name)) = LOWER(BTRIM($1::varchar)))`,
       [currentName, legacyName],
     )
   }
@@ -502,7 +502,7 @@ async function runPermissionDefinitionSync(dbName: string): Promise<void> {
   }
   for (const item of accessItems) {
     await client.query(
-      `INSERT INTO access_list (id, name, category_id) VALUES ($1, $2, $3) ON CONFLICT (id) DO NOTHING`,
+      `INSERT INTO access_list (id, name, category_id) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`,
       [item.id, item.name, item.category_id],
     )
   }
@@ -550,7 +550,7 @@ async function runPermissionDefinitionSync(dbName: string): Promise<void> {
         await client.query(
           `INSERT INTO access_list (name, category_id)
            SELECT $1::varchar, $2::integer
-           WHERE NOT EXISTS (SELECT 1 FROM access_list WHERE name = $1::varchar)`,
+           WHERE NOT EXISTS (SELECT 1 FROM access_list WHERE LOWER(BTRIM(name)) = LOWER(BTRIM($1::varchar))) ON CONFLICT DO NOTHING`,
           [name, transactionCategory.id],
         )
         await client.query(`UPDATE access_list SET category_id = $2::integer WHERE name = $1::varchar`, [name, transactionCategory.id])
@@ -577,7 +577,7 @@ async function runPermissionDefinitionSync(dbName: string): Promise<void> {
       const inserted = await client.query(
         `INSERT INTO access_list (name, category_id)
          SELECT $1::varchar, $2::integer
-         WHERE NOT EXISTS (SELECT 1 FROM access_list WHERE name = $1::varchar)
+         WHERE NOT EXISTS (SELECT 1 FROM access_list WHERE LOWER(BTRIM(name)) = LOWER(BTRIM($1::varchar))) ON CONFLICT DO NOTHING
          RETURNING id`,
         [name, reportCategory.id],
       )
@@ -609,11 +609,11 @@ async function runPermissionDefinitionSync(dbName: string): Promise<void> {
       const inserted = await client.query(
         `INSERT INTO access_list (name, category_id)
          SELECT $1::varchar, $2::integer
-         WHERE NOT EXISTS (SELECT 1 FROM access_list WHERE name = $1::varchar)
+         WHERE NOT EXISTS (SELECT 1 FROM access_list WHERE LOWER(BTRIM(name)) = LOWER(BTRIM($1::varchar))) ON CONFLICT DO NOTHING
          RETURNING id`,
         [name, cashierCategory.id],
       )
-      const access = inserted[0] || (await client.query(`SELECT id FROM access_list WHERE name = $1::varchar ORDER BY id LIMIT 1`, [name]))[0]
+      const access = inserted[0] || (await client.query(`SELECT id FROM access_list WHERE LOWER(BTRIM(name)) = LOWER(BTRIM($1::varchar)) ORDER BY id LIMIT 1`, [name]))[0]
       await client.query(`UPDATE access_list SET category_id = $2::integer WHERE id = $1::integer`, [access.id, cashierCategory.id])
       await client.query(
         `INSERT INTO role_permissions (role_id, access_id, is_granted)
@@ -652,7 +652,7 @@ async function runPermissionDefinitionSync(dbName: string): Promise<void> {
       await client.query(
         `INSERT INTO access_list (name, category_id)
          SELECT $1::varchar, $2::integer
-         WHERE NOT EXISTS (SELECT 1 FROM access_list WHERE name = $1::varchar)`,
+         WHERE NOT EXISTS (SELECT 1 FROM access_list WHERE LOWER(BTRIM(name)) = LOWER(BTRIM($1::varchar))) ON CONFLICT DO NOTHING`,
         [permissionName, draftCategory.id],
       )
     }

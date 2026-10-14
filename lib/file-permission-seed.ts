@@ -14,14 +14,17 @@ export async function seedFilePermissionDefinitions(client: PermissionClient) {
   )
   const category = categoryRows[0] || (await client.query(`SELECT id FROM access_category WHERE name=$1::varchar ORDER BY id LIMIT 1`, [FILE_PERMISSION_CATEGORY]))[0]
   const existing = await client.query(`SELECT id,name FROM access_list ORDER BY id`, [])
-  const names = new Map<string, number>(existing.map(row => [row.name, Number(row.id)]))
+  // مفاتيح موحّدة (حروف صغيرة بلا فراغات طرفية) — نفس مقارنة الفهرس الفريد idx_access_list_normalized_name، وإلا قد
+  // تُعاد تسمية صف إلى اسم موجود بفرق حالة/فراغ فقط فيفشل بـ"duplicate key value violates unique constraint".
+  const key = (name: unknown) => String(name ?? "").trim().toLowerCase()
+  const names = new Map<string, number>(existing.map(row => [key(row.name), Number(row.id)]))
   for (const row of existing) {
     const parsed = parseFilePermission(row.name)
     if (!parsed) continue
     const canonical = filePermissionName(parsed.family, parsed.action)
-    if (!names.has(canonical)) {
+    if (!names.has(key(canonical))) {
       await client.query(`UPDATE access_list SET name=$1::varchar,category_id=$2::integer,updated_at=CURRENT_TIMESTAMP WHERE id=$3::integer`, [canonical, category.id, row.id])
-      names.set(canonical, Number(row.id))
+      names.set(key(canonical), Number(row.id))
     }
   }
   const permissionNames = FILE_FAMILY_KEYS.flatMap(family => FILE_ACTIONS.map(action => filePermissionName(family, action)))

@@ -425,7 +425,7 @@ async function seedManagementAccessDefinitions(tenantClient: ReturnType<typeof g
     await managementSql`
       INSERT INTO access_list (id, name, category_id)
       VALUES (${item.id}, ${item.name}, ${item.category_id})
-      ON CONFLICT (id) DO NOTHING
+      ON CONFLICT DO NOTHING
     `
   }
 

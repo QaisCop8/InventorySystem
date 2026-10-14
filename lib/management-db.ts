@@ -184,8 +184,8 @@ export function ensureManagementTables(): Promise<void> {
           await sql`
             INSERT INTO access_list (name, category_id)
             SELECT ${permissionName}, ${draftCategory.id}
-            WHERE NOT EXISTS (SELECT 1 FROM access_list WHERE name = ${permissionName})
-          `
+            WHERE NOT EXISTS (SELECT 1 FROM access_list WHERE LOWER(BTRIM(name)) = LOWER(BTRIM(${permissionName})))
+           ON CONFLICT DO NOTHING`
         }
       }
       await sql`DELETE FROM access_list WHERE name IN ('استلام طلب الصناعة', 'تدقيق الصناعة', 'استلام الصناعة من الفرع')`
@@ -249,8 +249,9 @@ export async function ensureSalesDraftPermissionDefinitions(): Promise<void> {
     INSERT INTO access_list (name, category_id)
     SELECT u.name, ${category.id}
     FROM unnest(${["إضافة مسودة طلبية مبيعات", "تعديل مسودة طلبية مبيعات", "استعلام مسودة طلبية مبيعات"]}::text[]) WITH ORDINALITY AS u(name, ord)
-    WHERE NOT EXISTS (SELECT 1 FROM access_list existing WHERE existing.name = u.name)
+    WHERE NOT EXISTS (SELECT 1 FROM access_list existing WHERE LOWER(BTRIM(existing.name)) = LOWER(BTRIM(u.name)))
     ORDER BY u.ord
+    ON CONFLICT DO NOTHING
   `
   salesDraftDefinitionsSeeded = true
 }
@@ -310,19 +311,27 @@ export async function ensureTransactionPermissionDefinitions(): Promise<void> {
     }
   }
   if (legacyFrom.length) {
+    // صف واحد فقط لكل اسم جديد (أقدم صف بالاسم القديم) — وإلا قد يُعاد تسمية صفّين لنفس الاسم بأمر واحد فيتعارضان
+    // مع الفهرس الفريد idx_access_list_normalized_name ("duplicate key value violates unique constraint").
     await sql`
       UPDATE access_list al SET name = m.name, category_id = ${category.id}, updated_at = CURRENT_TIMESTAMP
-      FROM unnest(${legacyFrom}::text[], ${legacyTo}::text[]) AS m(legacy_name, name)
-      WHERE al.name = m.legacy_name
-        AND NOT EXISTS (SELECT 1 FROM access_list existing WHERE existing.name = m.name)
+      FROM (
+        SELECT DISTINCT ON (LOWER(BTRIM(u.name))) u.name,
+               (SELECT MIN(x.id) FROM access_list x WHERE LOWER(BTRIM(x.name)) = LOWER(BTRIM(u.legacy_name))) AS target_id
+        FROM unnest(${legacyFrom}::text[], ${legacyTo}::text[]) AS u(legacy_name, name)
+        ORDER BY LOWER(BTRIM(u.name)), u.legacy_name
+      ) m
+      WHERE al.id = m.target_id
+        AND NOT EXISTS (SELECT 1 FROM access_list existing WHERE LOWER(BTRIM(existing.name)) = LOWER(BTRIM(m.name)))
     `
   }
   await sql`
     INSERT INTO access_list (name, category_id)
     SELECT u.name, ${category.id}
     FROM unnest(${names}::text[]) WITH ORDINALITY AS u(name, ord)
-    WHERE NOT EXISTS (SELECT 1 FROM access_list existing WHERE existing.name = u.name)
+    WHERE NOT EXISTS (SELECT 1 FROM access_list existing WHERE LOWER(BTRIM(existing.name)) = LOWER(BTRIM(u.name)))
     ORDER BY u.ord
+    ON CONFLICT DO NOTHING
   `
   await sql`UPDATE access_list SET category_id = ${category.id} WHERE name = ANY(${names}::text[]) AND category_id IS DISTINCT FROM ${category.id}`
 

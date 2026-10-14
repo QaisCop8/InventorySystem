@@ -106,9 +106,9 @@ async function ensureInternalManufacturingPermissions() {
   const createdKeys: InternalManufacturingPermission[] = []
   for (const key of INTERNAL_MANUFACTURING_PERMISSION_KEYS) {
     const name = ACTION_PERMISSIONS[key]
-    const rows = await sql`INSERT INTO access_list (name, category_id) SELECT ${name}, ${category.id} WHERE NOT EXISTS (SELECT 1 FROM access_list WHERE name = ${name}) RETURNING id`
+    const rows = await sql`INSERT INTO access_list (name, category_id) SELECT ${name}, ${category.id} WHERE NOT EXISTS (SELECT 1 FROM access_list WHERE LOWER(BTRIM(name)) = LOWER(BTRIM(${name}))) ON CONFLICT DO NOTHING RETURNING id`
     if (rows[0]?.id) createdKeys.push(key)
-    const accessId = rows[0]?.id || (await sql`SELECT id FROM access_list WHERE name = ${name} LIMIT 1`)[0]?.id
+    const accessId = rows[0]?.id || (await sql`SELECT id FROM access_list WHERE LOWER(BTRIM(name)) = LOWER(BTRIM(${name})) LIMIT 1`)[0]?.id
     if (accessId) await sql`INSERT INTO role_permissions (role_id, access_id, is_granted) SELECT id, ${accessId}, TRUE FROM job_roles WHERE LOWER(name) = LOWER('مدير') ON CONFLICT (role_id, access_id) DO NOTHING`
   }
   for (const key of createdKeys.filter((candidate) => INHERIT_FROM_CREATE.includes(candidate))) {
@@ -128,8 +128,8 @@ async function ensureInternalManufacturingPermissions() {
 }
 
 async function copyPermissionGrants(sourceName: string, targetName: string) {
-  const source = (await sql`SELECT id FROM access_list WHERE name = ${sourceName} LIMIT 1`)[0]
-  const target = (await sql`SELECT id FROM access_list WHERE name = ${targetName} LIMIT 1`)[0]
+  const source = (await sql`SELECT id FROM access_list WHERE LOWER(BTRIM(name)) = LOWER(BTRIM(${sourceName})) LIMIT 1`)[0]
+  const target = (await sql`SELECT id FROM access_list WHERE LOWER(BTRIM(name)) = LOWER(BTRIM(${targetName})) LIMIT 1`)[0]
   if (!source || !target || Number(source.id) === Number(target.id)) return
   await sql`INSERT INTO role_permissions (role_id, access_id, is_granted) SELECT role_id, ${target.id}, is_granted FROM role_permissions WHERE access_id = ${source.id} ON CONFLICT (role_id, access_id) DO NOTHING`
   await sql`INSERT INTO role_branch_permissions (role_id, branch_id, access_id, is_granted) SELECT role_id, branch_id, ${target.id}, is_granted FROM role_branch_permissions WHERE access_id = ${source.id} ON CONFLICT (role_id, branch_id, access_id) DO NOTHING`
@@ -138,8 +138,8 @@ async function copyPermissionGrants(sourceName: string, targetName: string) {
 }
 
 async function migrateLegacyPermission(legacyName: string, currentName: string) {
-  const legacy = (await sql`SELECT id FROM access_list WHERE name = ${legacyName} LIMIT 1`)[0]
-  const current = (await sql`SELECT id FROM access_list WHERE name = ${currentName} LIMIT 1`)[0]
+  const legacy = (await sql`SELECT id FROM access_list WHERE LOWER(BTRIM(name)) = LOWER(BTRIM(${legacyName})) LIMIT 1`)[0]
+  const current = (await sql`SELECT id FROM access_list WHERE LOWER(BTRIM(name)) = LOWER(BTRIM(${currentName})) LIMIT 1`)[0]
   if (!legacy || !current || Number(legacy.id) === Number(current.id)) return
   await sql`INSERT INTO role_permissions (role_id, access_id, is_granted) SELECT role_id, ${current.id}, is_granted FROM role_permissions WHERE access_id = ${legacy.id} ON CONFLICT (role_id, access_id) DO UPDATE SET is_granted = role_permissions.is_granted OR EXCLUDED.is_granted`
   await sql`INSERT INTO role_branch_permissions (role_id, branch_id, access_id, is_granted) SELECT role_id, branch_id, ${current.id}, is_granted FROM role_branch_permissions WHERE access_id = ${legacy.id} ON CONFLICT (role_id, branch_id, access_id) DO UPDATE SET is_granted = role_branch_permissions.is_granted OR EXCLUDED.is_granted`
@@ -158,7 +158,7 @@ const LEGACY_PERMISSION_NAMES: Partial<Record<InternalManufacturingPermission, s
 export async function hasInternalManufacturingPermission(userId: string, branchId: number, permission: InternalManufacturingPermission) {
   if (!Number(branchId)) return false
   const names = [ACTION_PERMISSIONS[permission], LEGACY_PERMISSION_NAMES[permission]].filter(Boolean) as string[]
-  const accessRows = (await Promise.all(names.map((name) => sql`SELECT id FROM access_list WHERE name = ${name} LIMIT 1`))).flat()
+  const accessRows = (await Promise.all(names.map((name) => sql`SELECT id FROM access_list WHERE LOWER(BTRIM(name)) = LOWER(BTRIM(${name})) LIMIT 1`))).flat()
   const granted = await Promise.all(accessRows.map((access) => hasEffectivePermission(userId, Number(access.id), branchId)))
   return granted.some(Boolean)
 }
