@@ -162,7 +162,7 @@ export function PosItemSearchDialog<T extends SearchableProduct>({
             {unitProduct ? `اختر وحدة: ${unitProduct.name}` : "بحث الأصناف"}
           </DialogTitle>
           <DialogDescription className="text-xs text-emerald-50/90">
-            {unitProduct ? "↑↓ للتنقل · Enter لإضافة الصنف بهذه الوحدة · Esc للرجوع" : "اكتب الاسم أو الرقم أو الباركود · ↑↓ للتنقل · Enter للاختيار"}
+            {unitProduct ? "↑↓ للتنقل · Enter أو نقر مزدوج لإضافة الصنف بهذه الوحدة · Esc للرجوع" : "اكتب الاسم أو الرقم أو الباركود · ↑↓ للتنقل · Enter أو نقر مزدوج للاختيار"}
           </DialogDescription>
         </DialogHeader>
 
@@ -193,7 +193,8 @@ export function PosItemSearchDialog<T extends SearchableProduct>({
                   type="button"
                   data-index={index}
                   onMouseEnter={() => setActiveUnit(index)}
-                  onClick={() => onSelect(unitProduct, unit)}
+                  onClick={() => setActiveUnit(index)}
+                  onDoubleClick={() => onSelect(unitProduct, unit)}
                   className={cn(
                     "flex w-full items-center justify-between gap-3 rounded-xl border px-4 py-3 text-right transition-colors",
                     index === activeUnit ? "border-emerald-300 bg-emerald-50" : "border-transparent hover:bg-slate-50",
@@ -218,7 +219,9 @@ export function PosItemSearchDialog<T extends SearchableProduct>({
                   type="button"
                   data-index={index}
                   onMouseEnter={() => setActive(index)}
-                  onClick={() => chooseProduct(product)}
+                  // نقرة واحدة تحدد الصنف فقط؛ الإضافة بالنقر المزدوج (أو Enter) حتى لا يُضاف مرتين
+                  onClick={() => setActive(index)}
+                  onDoubleClick={() => chooseProduct(product)}
                   className={cn(
                     "grid w-full grid-cols-[1fr_auto] items-center gap-3 rounded-xl border px-3 py-2.5 text-right transition-colors",
                     index === active ? "border-emerald-300 bg-emerald-50" : "border-transparent hover:bg-slate-50",
