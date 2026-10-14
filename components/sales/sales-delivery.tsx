@@ -922,9 +922,9 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
       {!(useFullPageMode && dialogOpen) && <>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-3xl font-bold">{LIST_TITLE}</h1>
-        <Button onClick={openNewDialog} className="flex items-center gap-2">
+        <Button data-hotkey-new onClick={openNewDialog} className="flex items-center gap-2">
           <Plus className="h-4 w-4" />
-          {`إضافة ${TITLE}`}
+          {`إضافة ${TITLE}`} <span className="text-[11px] font-semibold opacity-75" dir="ltr">F5</span>
         </Button>
       </div>
 

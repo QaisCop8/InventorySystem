@@ -584,9 +584,9 @@ export default function Journal() {
     <div className="w-full max-w-full space-y-6" dir="rtl">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-3xl font-bold">سندات القيد</h1>
-        <Button onClick={openNewDialog} className="flex items-center gap-2">
+        <Button data-hotkey-new onClick={openNewDialog} className="flex items-center gap-2">
           <Plus className="h-4 w-4" />
-          إضافة سند قيد
+          إضافة سند قيد <span className="text-[11px] font-semibold opacity-75" dir="ltr">F5</span>
         </Button>
       </div>
 

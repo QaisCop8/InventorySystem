@@ -945,9 +945,9 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-3xl font-bold">{labels.listTitle}</h1>
-        <Button onClick={() => void openNewDialog()} className="flex items-center gap-2">
+        <Button data-hotkey-new onClick={() => void openNewDialog()} className="flex items-center gap-2">
           <Plus className="h-4 w-4" />
-          {labels.addLabel}
+          {labels.addLabel} <span className="text-[11px] font-semibold opacity-75" dir="ltr">F5</span>
         </Button>
       </div>
 

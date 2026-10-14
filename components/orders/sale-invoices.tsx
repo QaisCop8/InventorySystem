@@ -499,12 +499,12 @@ export function SaleInvoices({ isPurchase }: OrdersProps) {
         </div>
         <div className="flex gap-3">
 
-          <Button
+          <Button data-hotkey-new
             className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg"
             onClick={() => setState((prev) => ({ ...prev, showNewOrderDialog: true, selectedOrder: null, fromSearch: false }))}
           >
             <Plus className="ml-2 h-4 w-4" />
-            فاتورة جديدة
+            فاتورة جديدة <span className="text-[11px] font-semibold opacity-75" dir="ltr">F5</span>
           </Button>
         </div>
       </div>

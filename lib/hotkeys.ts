@@ -117,6 +117,12 @@ function commitPendingEdits(container: HTMLElement) {
   if (active && container.contains(active) && typeof active.blur === "function") active.blur()
 }
 
+/** زر الإضافة في صفحة القائمة الظاهرة (التبويب النشط)، ما لم تعلُه نافذة منبثقة. */
+function listAddButton() {
+  const buttons = Array.from(document.querySelectorAll<HTMLElement>("[data-hotkey-new]"))
+  return buttons.find((button) => isVisible(button) && !(button as HTMLButtonElement).disabled && !isPopupOpenOver(button)) ?? null
+}
+
 function onKeyDown(event: KeyboardEvent) {
   if (event.isComposing) return
   const action = actionFor(event)
@@ -127,6 +133,14 @@ function onKeyDown(event: KeyboardEvent) {
   if (!target) {
     // نافذة منبثقة مفتوحة: لا اختصارات للشاشة، لكن يُمنع سلوك المتصفح (طباعة/تحديث الصفحة)
     if (action === "print" || action === "new") event.preventDefault()
+    // صفحة قائمة الحركات (لا شاشة حركة مفتوحة): F5 = زر "إضافة ..." المعلَّم data-hotkey-new في الصفحة الظاهرة
+    if (action === "new" && !event.repeat) {
+      const button = listAddButton()
+      if (button) {
+        event.stopImmediatePropagation()
+        window.setTimeout(() => button.click(), 0)
+      }
+    }
     return
   }
   const run = target.entry.handler(action)

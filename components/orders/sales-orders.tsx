@@ -548,12 +548,12 @@ export function SalesOrders({ isPurchase }: OrdersProps) {
         </div>
         <div className="flex gap-3">
 
-          <Button
+          <Button data-hotkey-new
             className="flex items-center gap-2"
             onClick={() => setState((prev) => ({ ...prev, showNewOrderDialog: true, selectedOrder: null, fromSearch: false }))}
           >
             <Plus className="ml-2 h-4 w-4" />
-            طلبية جديدة
+            طلبية جديدة <span className="text-[11px] font-semibold opacity-75" dir="ltr">F5</span>
           </Button>
         </div>
       </div>

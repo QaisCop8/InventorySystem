@@ -118,8 +118,8 @@ function StockCountList({ onOpen }: { onOpen: (id: number) => void }) {
             <Button variant="outline" onClick={() => void load()} disabled={loading} className="h-10 rounded-xl border-white/30 bg-white/10 text-white hover:bg-white/20 hover:text-white">
               <RefreshCw className={`ml-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />تحديث
             </Button>
-            <Button onClick={() => setCreating(true)} className="h-10 rounded-xl bg-white font-bold text-emerald-700 hover:bg-emerald-50">
-              <Plus className="ml-2 h-4 w-4" />جرد جديد
+            <Button data-hotkey-new onClick={() => setCreating(true)} className="h-10 rounded-xl bg-white font-bold text-emerald-700 hover:bg-emerald-50">
+              <Plus className="ml-2 h-4 w-4" />جرد جديد <span className="text-[11px] font-semibold opacity-75" dir="ltr">F5</span>
             </Button>
           </div>
         </div>
