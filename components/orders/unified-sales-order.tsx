@@ -2783,6 +2783,32 @@ function UnifiedSalesOrder({
     store_id: Number(item.store_id || 0),
     item_status: Number(item.item_status || 1),
   }));
+
+  // لقطة "بلا تعديلات" كانت تُؤخذ فور فتح الطلبية، قبل أن يصل رقم الطلبية المُولَّد (طلب للخادم) والفرع الافتراضي
+  // والعملة وسعر الصرف — فتظهر نافذة "تم تعديل السجل" بمجرد فتح الطلبية وإغلاقها. قبل أول تفاعل فعلي من
+  // المستخدم (نقرة/مفتاح داخل الطلبية) يُعدّ كل تغيير تلقائياً وتُحدَّث اللقطتان (نفس صيغتي المقارنة أدناه).
+  const userTouchedRef = useRef(false)
+  const rebaselineChangeHashes = (formData: typeof state.formData) => {
+    const form = getFormChangeSnapshot(formData)
+    const items = getItemsChangeSnapshot(CollectionView.items)
+    initialHash.current = getFormDataHash({
+      form,
+      order_date: formData.order_date,
+      customer_id: formData.customer_id,
+      customer_name: formData.customer_name,
+      delivery_date: formData.delivery_date,
+      currency_id: formData.currency_id,
+      exchange_rate: formData.exchange_rate,
+      items,
+    })
+    initialFullHash.current = getFormDataHash({ form, items })
+  }
+  useEffect(() => {
+    if (!open || userTouchedRef.current || initialFullHash.current === 0) return
+    rebaselineChangeHashes(state.formData)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.formData, open])
+
   const [currentOrderId, setCurrentOrderId] = useState<number>(0);
   const loadOrderData = async (
     navigationType: "first" | "previous" | "next" | "last" | "Byid" | "ByCode",
@@ -2963,6 +2989,7 @@ function UnifiedSalesOrder({
       };
       const newHash = getFormDataHash(newFormData);
       console.log("newFormData ", newFormData)
+      userTouchedRef.current = false
       initialHash.current = newHash;
       initialFullHash.current = getFormDataHash({
         form: newFormData.form,
@@ -3057,6 +3084,7 @@ function UnifiedSalesOrder({
       //total: 0
     };
     const currentHash = getFormDataHash(newFormData);
+    userTouchedRef.current = false
     initialHash.current = currentHash;
     initialFullHash.current = getFormDataHash({
       form: newFormData.form,
@@ -3298,6 +3326,8 @@ function UnifiedSalesOrder({
         dir="rtl"
         onPointerDownOutside={(event) => event.preventDefault()}
         onEscapeKeyDown={(event) => { if (!doHotKeys.current || showUnsaved) event.preventDefault(); else keepDialogOpenOnEscape(event) }}
+        onPointerDownCapture={() => { userTouchedRef.current = true }}
+        onKeyDownCapture={() => { userTouchedRef.current = true }}
 
       >
 
