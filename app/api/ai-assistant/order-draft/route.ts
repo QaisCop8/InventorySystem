@@ -212,18 +212,30 @@ items: لكل صنف product وquantity (رقم موجب) وprice وdiscount إ�
         price, discount: Math.max(0, Number(requested.discount || 0)) })
     }
     const orderDate = /^\d{4}-\d{2}-\d{2}$/.test(parsed.order_date || "") ? parsed.order_date! : today
-    const warehouses = await sql`SELECT id,warehouse_name,branch_id,status,is_active FROM warehouses WHERE COALESCE(status,1) != 3 ORDER BY id` as any[]
-    const branchWarehouse = (name: unknown) => {
-      const local = warehouses.filter((row: any) => Number(row.branch_id) === branchId)
-      const term = normalize(name)
-      const picked = term ? pickBest(local, term, (row: any) => row.warehouse_name) : null
-      return (picked && "match" in picked ? picked.match : null)
-        || local.find((row: any) => Number(row.status) === 1 && row.is_active !== false)
+    // المستودعات غير مرتبطة بالفروع في هذا المخطط (لا عمود branch_id في warehouses) — كان الاستعلام يفشل بـ
+    // 'column "branch_id" does not exist'. الترتيب: المستودع المذكور بالطلب ← مستودع المستخدم الافتراضي ← أول مستودع نشط.
+    const warehouses = await sql`SELECT id, warehouse_code, warehouse_name, status, is_active FROM warehouses WHERE COALESCE(status,1) != 3 ORDER BY id` as any[]
+    const activeWarehouses = warehouses.filter((row: any) => Number(row.status ?? 1) === 1 && row.is_active !== false)
+    let userDefaultWarehouseId = 0
+    try {
+      const hasColumn = (await sql`SELECT 1 FROM information_schema.columns WHERE table_name = 'user_settings' AND column_name = 'default_item_warehouse_id' LIMIT 1` as any[]).length > 0
+      if (hasColumn && Number(user_id) > 0) {
+        userDefaultWarehouseId = Number((await sql`SELECT default_item_warehouse_id FROM user_settings WHERE user_id = ${Number(user_id)} LIMIT 1` as any[])[0]?.default_item_warehouse_id) || 0
+      }
+    } catch (error) {
+      console.warn("AI order draft: user default warehouse lookup failed", error)
     }
+    const findWarehouse = (name: unknown) => {
+      const term = normalize(name)
+      if (!term) return null
+      const picked = pickBest(warehouses, term, (row: any) => row.warehouse_name, (row: any) => row.warehouse_code)
+      return "match" in picked ? picked.match : null
+    }
+    const defaultWarehouse = () => activeWarehouses.find((row: any) => Number(row.id) === userDefaultWarehouseId) || activeWarehouses[0] || null
 
     if (parsed.intent === "create_sales_draft") {
-      const store = branchWarehouse(parsed.source_warehouse)
-      if (!store) return Response.json({ error: "لا يوجد مستودع نشط للفرع الحالي" }, { status: 422 })
+      const store = findWarehouse(parsed.source_warehouse) || defaultWarehouse()
+      if (!store) return Response.json({ error: "لا يوجد مستودع نشط معرّف في النظام" }, { status: 422 })
       const deliveryDate = /^\d{4}-\d{2}-\d{2}$/.test(parsed.delivery_date || "") ? parsed.delivery_date! : orderDate
       return Response.json({ type: "sales-draft", payload: { account_id: Number(account.id), customer_name: account.name,
         order_date: orderDate, requested_delivery_date: deliveryDate, deposit_amount: Math.max(0, Number(parsed.deposit_amount || 0)),
@@ -231,15 +243,13 @@ items: لكل صنف product وquantity (رقم موجب) وprice وdiscount إ�
         branch_id: branchId, items: items.map(item => ({ ...item, store_id: Number(store.id), specifications: {} })) } })
     }
 
-    const source = branchWarehouse(parsed.source_warehouse)
+    const source = findWarehouse(parsed.source_warehouse) || defaultWarehouse()
     const branches = await sql`SELECT id,branch_code,branch_name,status FROM branches WHERE COALESCE(status,1) != 3 ORDER BY id` as any[]
     const branchTerm = normalize(parsed.destination_branch)
     const branchPick = branchTerm ? pickBest(branches, branchTerm, (row: any) => row.branch_name, (row: any) => row.branch_code) : null
     const destinationBranch = branchPick && "match" in branchPick ? branchPick.match : null
     if (!destinationBranch) return Response.json({ error: "اذكر اسم أو رمز الفرع المطلوب منه البضاعة بشكل محدد" }, { status: 422 })
-    const destinationTerm = normalize(parsed.destination_warehouse)
-    const destinationPick = destinationTerm ? pickBest(warehouses.filter((row: any) => Number(row.branch_id) === Number(destinationBranch.id)), destinationTerm, (row: any) => row.warehouse_name) : null
-    const destination = destinationPick && "match" in destinationPick ? destinationPick.match : null
+    const destination = findWarehouse(parsed.destination_warehouse)
     if (!source || !destination) return Response.json({ error: "اذكر مستودع المصدر ومستودع الوجهة بشكل صحيح" }, { status: 422 })
     if (Number(source.id) === Number(destination.id)) return Response.json({ error: "لا يمكن أن يكون مستودع المصدر والوجهة متطابقين" }, { status: 422 })
     return Response.json({ type: "internal-request", payload: { vch_date: orderDate, branch_id: branchId,
