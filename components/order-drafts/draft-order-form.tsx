@@ -941,11 +941,11 @@ export function DraftOrderForm({
     <fieldset
       disabled={readOnly}
       dir="rtl"
-      className="draft-order-form min-w-0 w-full max-w-none space-y-4 overflow-x-hidden p-3 sm:p-5"
+      className="draft-order-form min-w-0 w-full max-w-none space-y-2 overflow-x-hidden p-2 sm:p-3 [&_input:not([type=checkbox]):not([type=file])]:h-8 [&_input:not([type=checkbox]):not([type=file])]:text-sm [&_label]:text-xs"
     >
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="min-w-0">
-          <h1 className="text-2xl font-bold">
+          <h1 className="text-lg font-bold">
             {readOnly ? "مشاهدة مسودة طلبية" : "إنشاء مسودة طلبية"}
           </h1>
         </div>
@@ -956,7 +956,7 @@ export function DraftOrderForm({
                 F3: حفظ المسودة
               </span>
               <Button
-                size="lg"
+                size="sm"
                 onClick={save}
                 disabled={
                   isSaving ||
@@ -974,15 +974,15 @@ export function DraftOrderForm({
       </div>
       <Messages innerRef={messagesRef} />
       <Card className="min-w-0">
-        <CardHeader>
-          <CardTitle>بيانات العميل والتسليم</CardTitle>
+        <CardHeader className="px-3 py-2">
+          <CardTitle className="text-base">بيانات العميل والتسليم</CardTitle>
         </CardHeader>
-        <CardContent className="grid min-w-0 gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+        <CardContent className="grid min-w-0 grid-cols-1 gap-x-3 gap-y-2 px-3 pb-3 pt-0 sm:grid-cols-2 lg:grid-cols-4">
           <div className="relative">
             <Label htmlFor="draft-customer">العميل *</Label>
             <Input
               id="draft-customer"
-              className="mt-1"
+              className="mt-0.5"
               value={customerSearch}
               onFocus={() => {
                 setCustomerMenuOpen(true);
@@ -1105,7 +1105,7 @@ export function DraftOrderForm({
           <div>
             <Label>الفرع *</Label>
             <select
-              className="mt-1 h-10 w-full rounded-md border bg-background px-3"
+              className="mt-0.5 h-8 w-full rounded-md border bg-background px-2 text-sm"
               value={form.branch_id}
               onChange={(e) => setForm({ ...form, branch_id: e.target.value })}
             >
@@ -1161,7 +1161,7 @@ export function DraftOrderForm({
           <div>
             <Label>الأولوية</Label>
             <select
-              className="mt-1 h-10 w-full rounded-md border bg-background px-3"
+              className="mt-0.5 h-8 w-full rounded-md border bg-background px-2 text-sm"
               value={form.priority}
               onChange={(e) => setForm({ ...form, priority: e.target.value })}
             >
@@ -1182,7 +1182,7 @@ export function DraftOrderForm({
           <div>
             <Label>قائمة التحقق</Label>
             <select
-              className="mt-1 h-10 w-full rounded-md border bg-background px-3"
+              className="mt-0.5 h-8 w-full rounded-md border bg-background px-2 text-sm"
               value={form.checklist_template_id}
               onChange={(e) =>
                 setForm({ ...form, checklist_template_id: e.target.value })
@@ -1198,10 +1198,11 @@ export function DraftOrderForm({
                 ))}
             </select>
           </div>
-          <div className="sm:col-span-2 lg:col-span-3">
+          <div className="sm:col-span-2 lg:col-span-4">
             <Label>ملاحظات</Label>
             <Textarea
-              rows={4}
+              rows={2}
+              className="min-h-[52px]"
               value={form.notes}
               onChange={(e) => setForm({ ...form, notes: e.target.value })}
             />
@@ -1209,24 +1210,24 @@ export function DraftOrderForm({
         </CardContent>
       </Card>
       <Card className="min-w-0">
-        <CardHeader>
-          <CardTitle className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <CardHeader className="px-3 py-2">
+          <CardTitle className="flex flex-col gap-2 text-base sm:flex-row sm:items-center sm:justify-between">
             الأصناف{" "}
-            <Button type="button" onClick={() => setShowProductSearch(true)}>
+            <Button type="button" size="sm" onClick={() => setShowProductSearch(true)}>
               <Plus className="ml-2 h-4 w-4" />
               إضافة صنف
             </Button>
           </CardTitle>
         </CardHeader>
-        <CardContent className="min-w-0 space-y-3">
-          <div className="flex flex-col gap-2 rounded-lg border bg-muted/20 p-3 sm:flex-row sm:items-end">
+        <CardContent className="min-w-0 space-y-2 px-3 pb-3 pt-0">
+          <div className="flex flex-col gap-2 rounded-lg border bg-muted/20 p-2 sm:flex-row sm:items-end">
             <div className="flex-1">
               <Label htmlFor="draft-barcode">الباركود</Label>
               <Input
                 ref={barcodeInputRef}
                 id="draft-barcode"
                 data-enter-action="barcode-search"
-                className="mt-1"
+                className="mt-0.5"
                 value={barcodeInput}
                 onChange={(event) => setBarcodeInput(event.target.value)}
                 onKeyDown={(event) => {
@@ -1256,7 +1257,7 @@ export function DraftOrderForm({
           {items.map((i, n) => (
             <div
               key={i.product_id}
-              className="grid min-w-0 grid-cols-1 items-end gap-3 rounded-lg border p-3 sm:grid-cols-2 lg:grid-cols-6"
+              className="grid min-w-0 grid-cols-1 items-end gap-2 rounded-lg border p-2 sm:grid-cols-2 lg:grid-cols-6"
             >
               <div className="min-w-0 sm:col-span-2 lg:col-span-2">
                 <Label>الصنف</Label>
@@ -1326,15 +1327,15 @@ export function DraftOrderForm({
               </Button>
             </div>
           ))}
-          <div className="text-left text-xl font-bold">
+          <div className="text-left text-base font-bold">
             الإجمالي: {total.toFixed(2)}
           </div>
         </CardContent>
       </Card>
       <Card>
-        <CardContent className="flex flex-wrap items-center gap-3 pt-6">
+        <CardContent className="flex flex-wrap items-center gap-2 p-3">
           {!readOnly && (
-            <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border px-4 py-2">
+            <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border px-3 py-1.5 text-sm">
               <Paperclip className="h-4 w-4" />
               إرفاق صور أو PDF
               <input
