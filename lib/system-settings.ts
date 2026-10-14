@@ -1,4 +1,4 @@
-import sql from "./database"
+import sql, { memoInTransaction } from "./database"
 
 function deserializeSettingValue(value: unknown): unknown {
   if (value === null || value === undefined) return null
@@ -24,11 +24,12 @@ export async function getSystemSettings(): Promise<Record<string, unknown>> {
   if (!sql) return {}
 
   try {
-    const rows = await sql`
+    // داخل معاملة (حفظ فاتورة الكاشير) تُقرأ مرة واحدة (memoInTransaction في lib/database.ts)
+    const rows = await memoInTransaction("system-settings-rows", () => sql`
       SELECT id, description, value
       FROM system_settings
       ORDER BY id ASC
-    `
+    ` as Promise<any[]>)
 
     const settings: Record<string, unknown> = {}
     for (const row of rows) {

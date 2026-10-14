@@ -1,4 +1,4 @@
-import sql, { resolveCurrentDbName } from "@/lib/database"
+import sql, { inTenantTransaction, resolveCurrentDbName } from "@/lib/database"
 
 // دوال ensure* (إنشاء/ترقية الجداول) كانت تُنفَّذ كاملة مع كل طلب — ensureTables لسندات القبض وحدها ~150
 // أمراً متتالياً، منها تحديثات تمسح جداول كاملة. محلياً لا يُلاحَظ ذلك، أما مع قاعدة بعيدة (Neon من
@@ -48,6 +48,14 @@ export async function runSchemaOnce(key: string, body: () => Promise<unknown>): 
     versionByFn.set(body, version)
   }
   const dbName = await resolveCurrentDbName()
+  // داخل معاملة (قد تُلغى بعد ذلك): يُنفَّذ الجسم كالسابق دون تسجيله كمُطبَّق ودون تحميل/تخزين حالة التطبيق — لو
+  // سُجِّل ثم أُلغيت المعاملة لبقيت الذاكرة تقول "طُبِّق" والجداول غير موجودة. يُسجَّل عند أول تشغيل خارج معاملة.
+  if (inTenantTransaction()) {
+    const loaded = appliedByDb.get(dbName)
+    if (loaded && (await loaded).get(key) === version) return
+    await body()
+    return
+  }
   const applied = await loadApplied(dbName)
   if (applied.get(key) === version) return
 

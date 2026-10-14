@@ -1,4 +1,4 @@
-import sql from "@/lib/database"
+import sql, { memoInTransaction } from "@/lib/database"
 import { withBranchSymbol } from "@/lib/branch-symbol"
 import { validateNegativeStock } from "@/lib/negative-stock-guard"
 import { buildVoucherCode, normalizeVoucherPrefix } from "@/lib/voucher-code"
@@ -183,7 +183,8 @@ export const nextVoucherSequence = async (vchType: number, codePrefix: string, s
 // جزء الكود الذي يلي بادئة السند: رمز الفرع (إن مُرّر branchId) + رمز دفتر السندات، مثل "AD".
 export const resolveVoucherBookName = async (bookId: number | null, branchId?: number | null): Promise<string> => {
   if (bookId == null) return ""
-  const rows = await sql`SELECT name FROM voucher_books_tbl WHERE id = ${bookId}`
+  // داخل معاملة (حفظ فاتورة الكاشير مثلاً) تُقرأ مرة واحدة (memoInTransaction في lib/database.ts)
+  const rows = await memoInTransaction(`voucher-book-name:${bookId}`, () => sql`SELECT name FROM voucher_books_tbl WHERE id = ${bookId}` as Promise<any[]>)
   return withBranchSymbol(String(rows[0]?.name || ""), branchId)
 }
 

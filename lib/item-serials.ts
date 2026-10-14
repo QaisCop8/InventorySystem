@@ -1,4 +1,4 @@
-import sql, { resolveCurrentDbName } from "@/lib/database"
+import sql, { memoInTransaction, resolveCurrentDbName } from "@/lib/database"
 import { runSchemaOnce } from "@/lib/schema-once"
 
 /**
@@ -64,7 +64,8 @@ export const requiredSerialCount = (row: any) => Math.round(Number(row?.quantity
 export async function serialTrackedIds(productIds: number[]) {
   const ids = [...new Set(productIds.map(Number).filter((id) => id > 0))]
   if (!ids.length) return new Set<number>()
-  const rows = await sql`SELECT id FROM products WHERE id = ANY(${ids}::int[]) AND COALESCE(serial_tracking, false) = true`
+  // داخل معاملة (حفظ فاتورة: تحقق ثم حفظ ثم قراءة الأرقام التسلسلية) تُقرأ مرة واحدة لنفس الأصناف
+  const rows = await memoInTransaction(`serial-tracked:${[...ids].sort((x, y) => x - y).join(",")}`, () => sql`SELECT id FROM products WHERE id = ANY(${ids}::int[]) AND COALESCE(serial_tracking, false) = true` as Promise<any[]>)
   return new Set<number>((rows as any[]).map((row) => Number(row.id)))
 }
 

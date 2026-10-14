@@ -624,6 +624,10 @@ export async function POST(request: NextRequest) {
       if (linkedOrderIds.length > 0) await refreshSalesOrderFulfillment(linkedOrderIds)
     }
 
+    // نقطة البيع تستخدم حقول رأس السند فقط (رقم السند، والعملة/السعر/العميل لسند القبض) — لا داعي لإعادة قراءة
+    // الأصناف والأرقام التسلسلية وحسابات القيد (4 استعلامات) لبناء ردّ لا يُستخدم.
+    if (posClientSaleId) return NextResponse.json({ ...voucher, city_id: voucher.location_id, items: [] }, { status: 201 })
+
     const savedItemsWithNames = await attachItemSerials(await fetchSalesVoucherItems(voucher.id, journalTypes?.itemJournalType))
     const journalAccounts = (ITEM_ACCOUNT_VCH_TYPES as readonly number[]).includes(vchType)
       ? await fetchSalesVoucherJournalAccounts(voucher.id, vchType, Boolean(voucher.account_id))

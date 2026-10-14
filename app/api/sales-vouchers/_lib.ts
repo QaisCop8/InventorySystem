@@ -1,4 +1,4 @@
-import sql from "@/lib/database"
+import sql, { memoInTransaction } from "@/lib/database"
 import { validateSerialsRemoval } from "@/lib/item-serials"
 import { consignmentReturnBlocksDeletion } from "@/lib/consignment"
 import { validateNegativeStock } from "@/lib/negative-stock-guard"
@@ -105,13 +105,14 @@ export const resolveSalesVoucherJournalTypes = async (vchType: number): Promise<
   if (!names) return null
 
   const requestedNames = [names.item, names.tax, "حساب الزبون/المورد"]
-  const rows = await sql`
+  // داخل معاملة (حفظ فاتورة الكاشير مثلاً) تُقرأ مرة واحدة (memoInTransaction في lib/database.ts)
+  const rows = await memoInTransaction(`sales-journal-types:${vchType}`, () => sql`
     SELECT vjt.id, TRIM(vjtc.name) AS name
     FROM voucher_journal_type_tbl vjt
     JOIN voucher_journal_type_caption_tbl vjtc ON vjtc.journal_type_id = vjt.id
     WHERE vjtc.name = ANY(${requestedNames}::text[])
     ORDER BY CASE WHEN vjtc.language_id = 1 THEN 0 ELSE 1 END, vjtc.id
-  `
+  ` as Promise<any[]>)
   const idsByName = new Map<string, number>()
   for (const row of rows) {
     const name = String(row.name || "").trim()
@@ -263,11 +264,11 @@ export const getSalesVoucherNumberSettings = async (
   try {
     const settingKeys = [key?.prefix, key?.start].filter((value): value is string => Boolean(value))
     const rows = settingKeys.length
-      ? await sql`
+      ? await memoInTransaction(`sales-number-settings:${settingKeys.join(",")}`, () => sql`
           SELECT COALESCE(description, id::text) AS setting_key, value
           FROM system_settings
           WHERE description = ANY(${settingKeys}::text[]) OR id::text = ANY(${settingKeys}::text[])
-        `
+        ` as Promise<any[]>)
       : []
     const settings = Object.fromEntries(rows.map((row: any) => [String(row.setting_key), row.value]))
     const prefixRaw = String(settings[key?.prefix || ""] || defaultPrefix).trim().toUpperCase()

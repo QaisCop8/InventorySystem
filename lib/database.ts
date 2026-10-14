@@ -159,25 +159,65 @@ export async function getTenantPool(): Promise<Pool> {
   return getPool(dbName === defaultDbName ? baseUrl : withDatabaseName(baseUrl, dbName))
 }
 
+// ذاكرة قراءات لمدة معاملة واحدة: حفظ فاتورة الكاشير (معاملة واحدة) يمرّ بمسار الكاشير ثم مسار فاتورة المبيعات ثم
+// سند القبض، وكل منها يقرأ نفس الإعدادات والجلسة وفرع المستخدم واسم دفتر السندات... بشكل مستقل. داخل المعاملة
+// تُقرأ مرة واحدة؛ خارجها تُنفَّذ كالمعتاد دون أي ذاكرة.
+const transactionMemos = new WeakMap<TenantClient, Map<string, Promise<unknown>>>()
+
+export function memoInTransaction<T>(key: string, load: () => Promise<T>): Promise<T> {
+  const store = transactionClientStorage.getStore()
+  if (!store) return load()
+  let memo = transactionMemos.get(store)
+  if (!memo) {
+    memo = new Map()
+    transactionMemos.set(store, memo)
+  }
+  let pending = memo.get(key) as Promise<T> | undefined
+  if (!pending) {
+    // Promise حقيقي يُنفَّذ مرة واحدة: sql`...` يُعيد كائناً يُعيد تنفيذ الاستعلام مع كل await (then مخصص)،
+    // فتخزينه مباشرة كان يُعيد الاستعلام عند كل استخدام بدل قراءته مرة واحدة.
+    pending = Promise.resolve().then(load)
+    pending.catch(() => memo!.delete(key))
+    memo.set(key, pending)
+  }
+  return pending
+}
+
+/** True while inside withTenantTransaction (its work may still be rolled back). */
+export function inTenantTransaction(): boolean {
+  return Boolean(transactionClientStorage.getStore())
+}
+
 /** Run all sql tagged-template calls in fn on one PostgreSQL connection. */
 export async function withTenantTransaction<T>(fn: () => Promise<T>): Promise<T> {
   if (transactionClientStorage.getStore()) return fn()
 
+  const dbName = await resolveCurrentDbName()
   const pool = await getTenantPool()
   const client = await pool.connect()
   const rawTransactionClient: TenantClient = {
     query: async (text, params) => (await client.query(text, params)).rows,
   }
-  // نفس الفحص داخل المعاملة: أمر DDL لا يُغيّر شيئاً لا يُنفَّذ فلا يحجز قفلاً حصرياً حتى نهاية المعاملة
+  // نفس الفحص داخل المعاملة: أمر DDL لا يُغيّر شيئاً لا يُنفَّذ فلا يحجز قفلاً حصرياً حتى نهاية المعاملة.
+  // يُعلَّم الأمر "مكتملاً" (فلا يُعاد فحصه بالكتالوج مع كل حفظ لاحق) فقط بعد نجاح COMMIT — لو عُلِّم فوراً
+  // ثم أُلغيت المعاملة لبقي مُعلَّماً والجدول/العمود غير موجود فعلاً.
+  const ddlDoneOnCommit = new Set<string>()
   const transactionClient: TenantClient = {
-    query: (text, params) =>
-      isRepeatSafeDdl(text, params) ? runRepeatSafeDdl(rawTransactionClient, text, params) : rawTransactionClient.query(text, params),
+    query: async (text, params) => {
+      if (!isRepeatSafeDdl(text, params)) return rawTransactionClient.query(text, params)
+      const key = `${dbName}\u0000${text}`
+      if (completedDdl.has(key)) return []
+      ddlDoneOnCommit.add(key)
+      if (await ddlAlreadySatisfied(rawTransactionClient, text)) return []
+      return rawTransactionClient.query(text, params)
+    },
   }
 
   try {
     await client.query("BEGIN")
     const result = await transactionClientStorage.run(transactionClient, fn)
     await client.query("COMMIT")
+    for (const key of ddlDoneOnCommit) completedDdl.add(key)
     return result
   } catch (error) {
     try {

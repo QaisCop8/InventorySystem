@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import sql from "@/lib/database"
+import sql, { memoInTransaction } from "@/lib/database"
 import { ensureWorkingPeriodGuard } from "@/lib/working-period"
 import { runSchemaOnce } from "@/lib/schema-once"
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -248,7 +248,13 @@ async function ensureSettingsTable(): Promise<void> { return runSchemaOnce("app/
   }
 }) }
 
+// داخل معاملة (حفظ فاتورة الكاشير مثلاً) تُقرأ الإعدادات مرة واحدة (memoInTransaction في lib/database.ts)؛
+// نسخة منفصلة لكل مستدعٍ حتى لا يؤثر تعديل أحدهم على الآخر.
 export async function loadStoredSettings(): Promise<Record<string, unknown>> {
+  return { ...(await memoInTransaction("system-settings", loadStoredSettingsFromDb)) }
+}
+
+async function loadStoredSettingsFromDb(): Promise<Record<string, unknown>> {
   if (!sql) return {}
 
   await ensureSettingsTable()

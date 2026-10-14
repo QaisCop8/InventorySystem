@@ -2,7 +2,7 @@ import { cookies } from "next/headers"
 import type { NextRequest } from "next/server"
 import { NextResponse } from "next/server"
 import crypto from "crypto"
-import sql, { resolveCurrentDbName } from "./database"
+import sql, { memoInTransaction, resolveCurrentDbName } from "./database"
 import { ensurePermissionTables, hasEffectivePermission, syncPermissionDefinitions } from "./permissions"
 import { shouldUseSecureCookies } from "./cookie-security"
 
@@ -58,7 +58,12 @@ export interface TenantSessionUser {
   full_name: string
 }
 
-export async function getSessionUser(request: NextRequest): Promise<TenantSessionUser | null> {
+// داخل معاملة (حفظ فاتورة الكاشير يتحقق من الصلاحية عدة مرات) تُقرأ الجلسة مرة واحدة لنفس الكوكي
+export function getSessionUser(request: NextRequest): Promise<TenantSessionUser | null> {
+  return memoInTransaction(`session-user:${request.headers.get("cookie") || ""}`, () => loadSessionUser(request))
+}
+
+async function loadSessionUser(request: NextRequest): Promise<TenantSessionUser | null> {
   try {
     const dbName = await resolveCurrentDbName()
     await ensurePermissionTables(dbName)

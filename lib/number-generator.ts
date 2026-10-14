@@ -3,7 +3,7 @@
  * All numbers are 8 characters: PREFIX + 7 digits (padded with zeros)
  */
 
-import sql from "./database"
+import sql, { memoInTransaction } from "./database"
 import { buildVoucherCode } from "./voucher-code"
 import { withBranchSymbol, resolveBranchSymbol } from "./branch-symbol"
 
@@ -55,7 +55,7 @@ export async function resolveDefaultVoucherBookName(userId: string, voucherTypeI
     const bookId = permissionRows[0]?.vch_book_id ?? null
     if (!bookId) return null
 
-    const bookRows = await sql`SELECT name FROM voucher_books_tbl WHERE id = ${bookId}`
+    const bookRows = await memoInTransaction(`voucher-book-name:${bookId}`, () => sql`SELECT name FROM voucher_books_tbl WHERE id = ${bookId}` as Promise<any[]>)
     return bookRows[0]?.name ?? null
   } catch (error) {
     console.error("[v0] Error resolving default voucher book:", error)

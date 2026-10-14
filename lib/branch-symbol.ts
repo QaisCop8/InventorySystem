@@ -1,4 +1,4 @@
-import sql, { resolveCurrentDbName } from "@/lib/database"
+import sql, { resolveCurrentDbName, memoInTransaction } from "@/lib/database"
 import { getSessionUser } from "@/lib/tenant-auth"
 import { BRANCH_SYMBOLS } from "@/lib/voucher-code"
 
@@ -34,9 +34,12 @@ export const ensureBranchSymbolColumn = async (): Promise<void> => {
 export const resolveBranchSymbol = async (branchId: number | string | null | undefined): Promise<string> => {
   const id = Number(branchId)
   if (!Number.isInteger(id) || id <= 0) return ""
-  await ensureBranchSymbolColumn()
-  const rows = await sql`SELECT branch_symbol FROM branches WHERE id = ${id}`
-  return String(rows[0]?.branch_symbol || "").trim().toUpperCase()
+  // داخل معاملة (حفظ فاتورة الكاشير مثلاً) تُقرأ مرة واحدة (memoInTransaction في lib/database.ts)
+  return memoInTransaction(`branch-symbol:${id}`, async () => {
+    await ensureBranchSymbolColumn()
+    const rows = await sql`SELECT branch_symbol FROM branches WHERE id = ${id}`
+    return String(rows[0]?.branch_symbol || "").trim().toUpperCase()
+  })
 }
 
 // جزء الكود بعد بادئة السند: رمز الفرع + رمز الدفتر. يُعاد "" إن لم يوجد دفتر (كما قبل).
@@ -69,7 +72,7 @@ export const requestBranchId = async (request: Request, explicit?: string | numb
   try {
     const user = await getSessionUser(request as any)
     if (!user) return null
-    const row = (await sql`SELECT branch_id FROM user_settings WHERE user_id = ${user.user_id} LIMIT 1`)[0]
+    const row = (await memoInTransaction(`user-branch:${user.user_id}`, () => sql`SELECT branch_id FROM user_settings WHERE user_id = ${user.user_id} LIMIT 1` as Promise<any[]>))[0]
     const fromUser = Number(row?.branch_id)
     return Number.isInteger(fromUser) && fromUser > 0 ? fromUser : null
   } catch {
