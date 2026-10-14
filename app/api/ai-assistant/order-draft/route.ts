@@ -2,7 +2,7 @@ import { generateText, Output } from "ai"
 import { google } from "@ai-sdk/google"
 import { z } from "zod"
 import sql from "@/lib/database"
-import { geminiModel } from "@/lib/ai-model"
+import { geminiModels, isTemporaryAiError } from "@/lib/ai-model"
 
 const schema = z.object({
   intent: z.enum(["create_sales_draft", "create_internal_request", "other"]),
@@ -93,9 +93,34 @@ const productPrice = async (productId: number, unitId: number, priceCategoryId: 
 
 const listChoices = (rows: any[], label: (row: any) => string) => rows.map((row) => `• ${label(row)}`).join("\n")
 
+// تحليل محلي (بلا ذكاء اصطناعي) لأمر مسودة طلبية مبيعات واضح، يُستخدم حين تكون خدمة الذكاء الاصطناعي غير متاحة:
+//   "طلبية للزبون هداي 10 محارم مناديل ريما"، "مسودة طلبية للعميل C000000300: 5 لفاف تواليت و 2 محارم ريما"
+// العميل = ما بعد "للزبون/للعميل/لـ" حتى أول كمية؛ الأصناف = "<كمية> <صنف>" مفصولة بـ"و" أو فاصلة أو سطر جديد
+// (أو "<صنف> <كمية>"). الطلب الداخلي بين الفروع يحتاج الذكاء الاصطناعي (فروع ومستودعات) فلا يُحلَّل هنا.
+const ARABIC_DIGITS = "٠١٢٣٤٥٦٧٨٩"
+const UNIT_WORDS = /^(?:حبه|حبة|حبات|قطعه|قطعة|قطع|كرتونه|كرتونة|كراتين|علبه|علبة|علب|كيس|اكياس|ربطه|ربطة|x|×)\s+/i
+function parseSalesOrderCommand(command: string): z.infer<typeof schema> | null {
+  const text = command.replace(/[٠-٩]/g, (digit) => String(ARABIC_DIGITS.indexOf(digit))).replace(/[،؛]/g, ",").replace(/\s+/g, " ").trim()
+  if (/داخلي|بين الفروع|من فرع/.test(text)) return null
+  if (!/(?:طلبي|طلب|مسود|مسوّد|اوردر|order)/i.test(text)) return null
+  // العميل ينتهي عند أول كمية مستقلة (رقم يليه فراغ) — لا عند أول رقم، فرمز العميل مثل C000000300 يبقى كاملاً
+  const customerMatch = text.match(/(?:للزبون|للعميل|لزبون|لعميل|الزبون|العميل|زبون|عميل)\s*:?\s*(.+?)\s*:?\s+(?=\d+(?:\.\d+)?\s)/)
+    ?? text.match(/(?:طلبي[ةه]|طلب|مسود[ةه](?:\s+طلبي[ةه])?)\s+(?:مبيعات\s+)?لـ?\s*(.+?)\s*:?\s+(?=\d+(?:\.\d+)?\s)/)
+  const customer = customerMatch?.[1]?.replace(/^(?:مبيعات|بيع)\s+/, "").trim()
+  if (!customer) return null
+  const rest = text.slice((customerMatch!.index ?? 0) + customerMatch![0].length)
+  const items = rest.split(/\s*,\s*|\s+و\s*(?=\d)|\s+و(?=\s*\S+\s+\d+(?:\.\d+)?\s*$)/).map((segment) => segment.trim()).filter(Boolean).map((segment) => {
+    const leading = segment.match(/^(\d+(?:\.\d+)?)\s+(.+)$/)
+    const trailing = segment.match(/^(.+?)\s+(\d+(?:\.\d+)?)$/)
+    const [quantity, product] = leading ? [Number(leading[1]), leading[2]] : trailing ? [Number(trailing[2]), trailing[1]] : [0, ""]
+    return { product: product.replace(UNIT_WORDS, "").trim(), quantity }
+  }).filter((item) => item.product && item.quantity > 0)
+  if (!items.length) return null
+  return { intent: "create_sales_draft", customer, items }
+}
+
 export async function POST(request: Request) {
   try {
-    if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) return Response.json({ error: "لم يتم إعداد مفتاح المساعد الذكي" }, { status: 503 })
     const { command, active_branch_id, user_id } = await request.json()
     const text = String(command || "").trim()
     if (!text) return Response.json({ error: "الأمر مطلوب" }, { status: 400 })
@@ -109,30 +134,49 @@ intent=create_sales_draft لطلب إنشاء مسودة طلبية مبيعات
 customer: اسم العميل أو رمزه فقط، بدون كلمات مثل "للزبون" أو "للعميل" أو "لـ". order_date وdelivery_date بصيغة YYYY-MM-DD؛ اليوم ${today}. deposit_amount العربون وإلا 0. notes وpriority.
 للطلب الداخلي: source_warehouse مستودع مقدم الطلب، destination_branch الفرع المطلوب منه البضاعة، destination_warehouse مستودعه.
 items: لكل صنف product وquantity (رقم موجب) وprice وdiscount إن ذُكرا. product هو اسم أو رمز الصنف كما قاله المستخدم بدون الكمية أو الوحدة. حوّل الأرقام العربية (٠-٩) والمكتوبة بالحروف إلى أرقام. لا تخترع صنفاً أو كمية أو فرعاً أو مستودعاً.`
-    try {
-      let raw: unknown
+    let aiError: unknown = process.env.GOOGLE_GENERATIVE_AI_API_KEY ? null : new Error("لم يتم إعداد مفتاح المساعد الذكي")
+    let aiParsed: z.infer<typeof schema> | null = null
+    // النموذج الأساسي ثم الاحتياطية (GEMINI_FALLBACK_MODELS) — يُنتقل للتالي عند الانشغال/عدم التوفر فقط
+    for (const modelName of process.env.GOOGLE_GENERATIVE_AI_API_KEY ? geminiModels() : []) {
       try {
-        // إخراج منظَّم وفق المخطط (أدق) …
-        const { output } = await generateText({ model: google(geminiModel()), output: Output.object({ schema }), instructions, prompt: text })
-        raw = output
-      } catch (structuredError) {
-        // … وإن رُفض المخطط أو فشل التوليد المنظَّم: نص JSON عادي كالسابق
-        console.error("AI order draft: structured output failed, retrying as text", structuredError)
-        const generated = await generateText({ model: google(geminiModel()), instructions: `${instructions}\nأعد JSON فقط بالحقول: intent, customer, order_date, delivery_date, deposit_amount, notes, priority, source_warehouse, destination_branch, destination_warehouse, items.`, prompt: text })
-        const clean = generated.text.trim().replace(/^```(?:json)?/i, "").replace(/```$/, "").trim()
-        raw = JSON.parse(clean.slice(clean.indexOf("{"), clean.lastIndexOf("}") + 1))
+        let raw: unknown
+        try {
+          // إخراج منظَّم وفق المخطط (أدق) …
+          const { output } = await generateText({ model: google(modelName), output: Output.object({ schema }), instructions, prompt: text })
+          raw = output
+        } catch (structuredError) {
+          if (isTemporaryAiError(structuredError)) throw structuredError
+          // … وإن رُفض المخطط أو فشل التوليد المنظَّم: نص JSON عادي كالسابق
+          console.error("AI order draft: structured output failed, retrying as text", structuredError)
+          const generated = await generateText({ model: google(modelName), instructions: `${instructions}\nأعد JSON فقط بالحقول: intent, customer, order_date, delivery_date, deposit_amount, notes, priority, source_warehouse, destination_branch, destination_warehouse, items.`, prompt: text })
+          const clean = generated.text.trim().replace(/^```(?:json)?/i, "").replace(/```$/, "").trim()
+          raw = JSON.parse(clean.slice(clean.indexOf("{"), clean.lastIndexOf("}") + 1))
+        }
+        const result = schema.safeParse(raw)
+        if (!result.success) return Response.json({ type: "other" })
+        aiParsed = result.data
+        aiError = null
+        break
+      } catch (error) {
+        console.error(`AI order draft: model ${modelName} failed`, error)
+        aiError = error
+        if (!isTemporaryAiError(error)) break
       }
-      const result = schema.safeParse(raw)
-      if (!result.success) return Response.json({ type: "other" })
-      parsed = result.data
-    } catch (aiError) {
-      // خطأ خدمة الذكاء الاصطناعي نفسها — تُعرض رسالتها الفعلية (مفتاح غير صالح، تجاوز الحصة، الموقع غير مدعوم…)
-      console.error("AI order draft: model call failed", aiError)
-      const detail = aiError instanceof Error ? aiError.message.replace(/\s+/g, " ").slice(0, 220) : ""
-      const status = Number((aiError as { statusCode?: number })?.statusCode) || 0
-      return Response.json({
-        error: `تعذر الاتصال بخدمة الذكاء الاصطناعي${status ? ` (HTTP ${status})` : ""}${detail ? `: ${detail}` : ""}`,
-      }, { status: 502 })
+    }
+
+    if (aiParsed) {
+      parsed = aiParsed
+    } else {
+      // خدمة الذكاء الاصطناعي غير متاحة (انشغال/حصة/مفتاح) ⇐ تحليل محلي للأوامر الواضحة مثل
+      // "طلبية للزبون هداي 10 محارم مناديل ريما" — نفس فكرة extractClearCommand في سندات القبض والصرف.
+      const local = parseSalesOrderCommand(text)
+      if (!local) {
+        const detail = aiError instanceof Error ? aiError.message.replace(/\s+/g, " ").slice(0, 180) : ""
+        return Response.json({
+          error: `خدمة الذكاء الاصطناعي غير متاحة حالياً${detail ? ` (${detail})` : ""}. اكتب الطلب بالصيغة: طلبية للعميل <اسم العميل> <الكمية> <الصنف>، مثل: طلبية للعميل هدايا 10 محارم مناديل ريما 250 غم`,
+        }, { status: 503 })
+      }
+      parsed = local
     }
 
     if (parsed.intent === "other") return Response.json({ type: "other" })
