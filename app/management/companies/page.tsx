@@ -2,10 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog"
 import {
   Building2,
   Plus,
@@ -15,11 +12,13 @@ import {
   Clock,
   XCircle,
   Calendar,
-  ChevronLeft,
+  ArrowLeft,
   Sparkles,
-  LayoutGrid,
   Ban,
   Gift,
+  LayoutDashboard,
+  CheckCircle2,
+  Hourglass,
 } from "lucide-react"
 import { activateCompany } from "@/lib/tenant-client"
 import { useToast } from "@/hooks/use-toast"
@@ -35,15 +34,14 @@ interface Company {
   requested_by_email?: string | null
 }
 
-// نفس تدرّجات ألوان النظام (indigo/violet/fuchsia بشاشات الدخول) موزَّعة على الشركات بالتناوب —
-// "شعار" بصري مميَّز لكل شركة (أول حرف من اسمها) بلا حاجة لرفع شعارات فعلية.
+// "شعار" بصري مميَّز لكل شركة (أول حرف من اسمها) بتدرّجات هوية شاشة الدخول (زمردي/سماوي/بنفسجي).
 const AVATAR_PALETTES = [
-  "from-indigo-500 to-violet-500",
-  "from-blue-500 to-cyan-500",
-  "from-emerald-500 to-teal-500",
-  "from-fuchsia-500 to-pink-500",
-  "from-amber-500 to-orange-500",
-  "from-rose-500 to-red-500",
+  "from-emerald-400 to-cyan-500",
+  "from-sky-400 to-indigo-500",
+  "from-violet-400 to-fuchsia-500",
+  "from-teal-400 to-emerald-600",
+  "from-amber-400 to-orange-500",
+  "from-rose-400 to-pink-500",
 ]
 function paletteFor(id: number) {
   return AVATAR_PALETTES[id % AVATAR_PALETTES.length]
@@ -56,10 +54,66 @@ const TRIAL_EXPIRY_DAYS = 10
 const formatArabicDate = (date: Date) => date.toLocaleDateString("ar-EG", { year: "numeric", month: "long", day: "numeric" })
 
 const STATUS_CONFIG: Record<Company["status"], { label: string; icon: typeof ShieldCheck; classes: string }> = {
-  approved: { label: "جاهزة", icon: ShieldCheck, classes: "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200" },
-  pending: { label: "في انتظار الموافقة", icon: Clock, classes: "bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-200" },
-  rejected: { label: "مرفوضة", icon: XCircle, classes: "bg-rose-50 text-rose-700 ring-1 ring-inset ring-rose-200" },
-  stopped: { label: "موقوفة", icon: Ban, classes: "bg-slate-100 text-slate-700 ring-1 ring-inset ring-slate-200" },
+  approved: { label: "جاهزة", icon: ShieldCheck, classes: "bg-emerald-400/10 text-emerald-300 ring-1 ring-inset ring-emerald-300/25" },
+  pending: { label: "في انتظار الموافقة", icon: Clock, classes: "bg-amber-400/10 text-amber-200 ring-1 ring-inset ring-amber-300/25" },
+  rejected: { label: "مرفوضة", icon: XCircle, classes: "bg-rose-500/10 text-rose-200 ring-1 ring-inset ring-rose-300/25" },
+  stopped: { label: "موقوفة", icon: Ban, classes: "bg-white/5 text-slate-300 ring-1 ring-inset ring-white/15" },
+}
+
+// نفس هوية شاشة الدخول (components/auth/management-login.tsx): شفق متحرك، نقاط، زجاج، حدّ متدرّج متحرك.
+const css = `
+@property --cp-angle{syntax:"<angle>";inherits:false;initial-value:0deg}
+.cp-root{position:relative;isolation:isolate;overflow-x:hidden;background:#050b14;color:#fff}
+.cp-aurora{position:fixed;inset:0;z-index:-2;background:
+  radial-gradient(60% 50% at 15% 10%,rgba(16,185,129,.30),transparent 70%),
+  radial-gradient(50% 45% at 90% 20%,rgba(56,189,248,.20),transparent 70%),
+  radial-gradient(55% 55% at 80% 95%,rgba(139,92,246,.20),transparent 70%),
+  radial-gradient(45% 45% at 10% 90%,rgba(20,184,166,.22),transparent 70%),#050b14}
+.cp-blob{position:fixed;border-radius:9999px;filter:blur(70px);z-index:-1;opacity:.5;animation:cp-drift 16s ease-in-out infinite}
+@keyframes cp-drift{0%,100%{transform:translate3d(0,0,0) scale(1)}50%{transform:translate3d(40px,-50px,0) scale(1.12)}}
+.cp-dots{position:fixed;inset:0;z-index:-1;opacity:.45;background-image:radial-gradient(rgba(255,255,255,.14) 1px,transparent 1.2px);background-size:26px 26px;
+  mask-image:radial-gradient(75% 75% at 50% 40%,#000,transparent);-webkit-mask-image:radial-gradient(75% 75% at 50% 40%,#000,transparent)}
+.cp-glass{border:1px solid rgba(255,255,255,.12);background:linear-gradient(150deg,rgba(255,255,255,.10),rgba(255,255,255,.03));
+  backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);box-shadow:0 1px 0 rgba(255,255,255,.12) inset,0 30px 60px -32px rgba(0,0,0,.85)}
+.cp-card{position:relative;border-radius:26px;padding:1.5px;background:rgba(255,255,255,.10);transition:transform .25s ease,box-shadow .25s ease}
+.cp-card.is-open:hover{transform:translateY(-6px);background:conic-gradient(from var(--cp-angle),rgba(16,185,129,0),#10b981,#38bdf8,#a78bfa,rgba(16,185,129,0) 60%);
+  animation:cp-spin 5s linear infinite;box-shadow:0 40px 70px -35px rgba(0,0,0,.9),0 0 60px -25px rgba(16,185,129,.6)}
+@keyframes cp-spin{to{--cp-angle:360deg}}
+.cp-card-in{height:100%;border-radius:25px;background:linear-gradient(160deg,rgba(15,25,40,.94),rgba(8,15,26,.96));box-shadow:0 1px 0 rgba(255,255,255,.08) inset}
+.cp-action{border-radius:26px;border:1.5px dashed rgba(255,255,255,.18);background:rgba(255,255,255,.03);transition:all .25s ease}
+.cp-action:hover{border-color:rgba(52,211,153,.6);background:rgba(16,185,129,.07);transform:translateY(-4px)}
+.cp-action.is-trial:hover{border-color:rgba(167,139,250,.65);background:rgba(139,92,246,.08)}
+.cp-field{height:3rem;width:100%;border-radius:14px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.05);padding:0 1rem;font-size:15px;color:#fff;outline:none;
+  box-shadow:inset 0 2px 6px rgba(0,0,0,.35);transition:border-color .2s,background .2s,box-shadow .2s}
+.cp-field:focus{border-color:#34d399;background:rgba(16,185,129,.08);box-shadow:inset 0 2px 6px rgba(0,0,0,.35),0 0 0 4px rgba(16,185,129,.18)}
+.cp-btn{position:relative;overflow:hidden;border-radius:14px;background:linear-gradient(100deg,#10b981,#06b6d4);border-bottom:4px solid #0a6a63;
+  box-shadow:0 18px 30px -14px rgba(16,185,129,.8);transition:transform .12s,border-bottom-width .12s,filter .2s}
+.cp-btn:hover:not(:disabled){filter:brightness(1.08);transform:translateY(-2px)}
+.cp-btn:active:not(:disabled){transform:translateY(3px);border-bottom-width:1px}
+.cp-btn:disabled{opacity:.55;cursor:not-allowed}
+.cp-btn.is-trial{background:linear-gradient(100deg,#8b5cf6,#6366f1);border-bottom-color:#4c1d95;box-shadow:0 18px 30px -14px rgba(139,92,246,.8)}
+@keyframes cp-rise{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+.cp-rise{animation:cp-rise .65s cubic-bezier(.2,.8,.2,1) both}
+.cp-dialog{border:1px solid rgba(255,255,255,.12)!important;background:linear-gradient(160deg,rgba(13,22,36,.97),rgba(8,15,26,.98))!important;color:#fff!important;border-radius:24px!important;
+  box-shadow:0 50px 90px -35px rgba(0,0,0,.9),0 0 80px -30px rgba(16,185,129,.45)!important}
+.cp-dialog [data-slot="dialog-close"],.cp-dialog button[aria-label="Close"],.cp-dialog>button:last-child{color:#94a3b8}
+@media (prefers-reduced-motion:reduce){.cp-root *{animation:none!important;transition:none!important}}
+`
+
+function Wordmark() {
+  return (
+    <div className="flex items-center gap-3" dir="ltr">
+      <span className="relative grid h-10 w-10 place-items-center rounded-2xl bg-gradient-to-br from-emerald-400 to-cyan-500 shadow-[0_10px_30px_-8px_rgba(16,185,129,.8)] ring-1 ring-white/30">
+        <svg viewBox="0 0 32 32" className="h-6 w-6" aria-hidden="true">
+          <path d="M16 4 4 28h5.2l2.4-5.2h8.8l2.4 5.2H28L16 4Zm-2.6 14.6L16 12.8l2.6 5.8h-5.2Z" fill="currentColor" className="text-white" />
+        </svg>
+      </span>
+      <span className="leading-none">
+        <span className="block text-xl font-black tracking-[0.18em] text-white">ARAAK</span>
+        <span className="mt-1 block text-[10px] font-bold tracking-[0.42em] text-emerald-300">ERP SYSTEM</span>
+      </span>
+    </div>
+  )
 }
 
 export default function ManagementCompaniesPage() {
@@ -113,9 +167,8 @@ export default function ManagementCompaniesPage() {
   }, [])
 
   const handleAddCompany = async () => {
-    // الخطأ يظهر توستاً فقط هنا (لا شارة الصفحة الحمراء أدناه) — الحوار يبقى مفتوحاً عند الفشل
-    // (لا setShowAddDialog(false) إلا بالنجاح)، وتلك الشارة تُرسَم بمحتوى الصفحة الذي يُظلّله الحوار
-    // المفتوح فوقه، فتبقى غير مرئية عملياً خلفه بدل توست يظهر فوق كل شيء.
+    // الخطأ يظهر توستاً فقط هنا — الحوار يبقى مفتوحاً عند الفشل (لا setShowAddDialog(false) إلا بالنجاح)،
+    // وشارة الصفحة تُرسَم خلف الحوار المفتوح فتبقى غير مرئية عملياً بدل توست يظهر فوق كل شيء.
     if (!newCompanyName.trim()) return
     setSaving(true)
     try {
@@ -153,9 +206,8 @@ export default function ManagementCompaniesPage() {
       })
       const data = await res.json()
       if (!res.ok) {
-        // detail (انظر catch بـapp/api/management/companies/trial/route.ts) يحمل رسالة الخطأ
-        // الفعلية من provisionCompanyDatabase (إنشاء قاعدة كاملة — عدة نقاط فشل محتملة)، تُرفَق هنا
-        // بالتوست عند توفّرها بدل رسالة "حدث خطأ" العامة وحدها.
+        // detail يحمل رسالة الخطأ الفعلية من provisionCompanyDatabase (إنشاء قاعدة كاملة — عدة نقاط فشل
+        // محتملة)، تُرفَق بالتوست عند توفّرها بدل رسالة "حدث خطأ" العامة وحدها.
         const message = data.detail ? `${data.error || "حدث خطأ أثناء إنشاء الشركة التجريبية"} (${data.detail})` : data.error || "حدث خطأ أثناء إنشاء الشركة التجريبية"
         toast({ title: "خطأ", description: message, variant: "destructive" })
         return
@@ -198,89 +250,82 @@ export default function ManagementCompaniesPage() {
 
   const isCompanyExpired = (company: Company) => !!company.expiry_date && new Date(company.expiry_date).getTime() < Date.now()
 
+  const readyCount = companies.filter((company) => company.status === "approved" && !isCompanyExpired(company)).length
+  const pendingCount = companies.filter((company) => company.status === "pending").length
+
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50">
-        <Loader2 className="h-8 w-8 animate-spin text-violet-500" />
+      <div className="cp-root flex min-h-screen items-center justify-center">
+        <style dangerouslySetInnerHTML={{ __html: css }} />
+        <div className="cp-aurora" aria-hidden="true" />
+        <Loader2 className="h-9 w-9 animate-spin text-emerald-300" />
       </div>
     )
   }
 
   return (
-    <div dir="rtl" className="relative min-h-screen overflow-x-hidden bg-slate-50">
-      {/* لمسات لونية خفيفة بنفس هوية شاشات الدخول (indigo/violet/fuchsia) — تمنح الصفحة طابعاً
-          أكثر حيوية بدل الخلفية الرمادية المسطّحة السابقة، بلا تأثير على قابلية القراءة. */}
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_10%_0%,rgba(99,102,241,0.06),transparent_40%),radial-gradient(circle_at_90%_10%,rgba(217,70,239,0.05),transparent_35%)]" />
+    <div dir="rtl" className="cp-root min-h-screen">
+      <style dangerouslySetInnerHTML={{ __html: css }} />
+      <div className="cp-aurora" aria-hidden="true" />
+      <div className="cp-dots" aria-hidden="true" />
+      <div className="cp-blob -right-24 top-0 h-80 w-80 bg-emerald-500/40" aria-hidden="true" />
+      <div className="cp-blob -left-24 bottom-0 h-96 w-96 bg-violet-500/30 [animation-delay:-6s]" aria-hidden="true" />
 
-      <header className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 bg-white/80 px-4 py-3 backdrop-blur-md sm:px-6">
-        <div className="flex items-center gap-2.5">
-          <div className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 via-violet-500 to-fuchsia-500 shadow-[0_6px_18px_-6px_rgba(139,92,246,0.5)]">
-            <svg viewBox="0 0 24 24" className="h-5 w-5 text-white" aria-hidden="true">
-              <path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3zm0 2.3L6 8.2v7.6l6 2.9 6-2.9V8.2l-6-2.9z" fill="currentColor" />
-              <path d="M12 8.8l3.4 1.9v3.8L12 16.4l-3.4-1.9v-3.8L12 8.8z" fill="currentColor" opacity="0.65" />
-            </svg>
+      <header className="sticky top-0 z-20 border-b border-white/10 bg-[#050b14]/60 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
+          <Wordmark />
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            {isPlatformAdmin && (
+              <a href="/management/admin" className="inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-semibold text-slate-300 transition hover:bg-white/10 hover:text-white">
+                <LayoutDashboard className="h-4 w-4" /> لوحة الإدارة
+              </a>
+            )}
+            <button type="button" onClick={handleLogout} className="inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-semibold text-slate-300 transition hover:bg-rose-500/15 hover:text-rose-200">
+              <LogOut className="h-4 w-4" /> تسجيل الخروج
+            </button>
           </div>
-          <span className="hidden text-sm font-semibold text-slate-700 sm:inline">ARAAK ERP System</span>
-        </div>
-        <div className="flex items-center gap-1 sm:gap-2">
-          {isPlatformAdmin && (
-            <a
-              href="/management/admin"
-              className="rounded-md px-3 py-2 text-sm text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700"
-            >
-              لوحة الإدارة
-            </a>
-          )}
-          <Button variant="ghost" size="sm" onClick={handleLogout} className="gap-1.5 text-slate-500 hover:bg-rose-50 hover:text-rose-600">
-            <LogOut className="h-4 w-4" /> تسجيل الخروج
-          </Button>
         </div>
       </header>
 
       <main className="relative mx-auto max-w-6xl px-4 py-10 sm:px-6">
-        <div className="mb-8 flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-violet-100 text-violet-600">
-            <LayoutGrid className="h-5 w-5" />
-          </div>
+        <section className="cp-rise mb-10 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <h1 className="text-xl font-bold text-slate-900">شركاتي</h1>
-            <p className="text-sm text-slate-500">اختر شركة للمتابعة إلى نظامها، أو أضف شركة جديدة</p>
+            <p className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.06] px-3.5 py-1.5 text-xs font-semibold text-emerald-200 backdrop-blur">
+              <Sparkles className="h-3.5 w-3.5" />بوابة الشركات
+            </p>
+            <h1 className="text-4xl font-black leading-tight sm:text-5xl">
+              شركاتي <span className="bg-gradient-to-l from-emerald-300 via-cyan-300 to-violet-300 bg-clip-text text-transparent">بضغطة واحدة</span>
+            </h1>
+            <p className="mt-3 max-w-xl text-[15px] leading-7 text-slate-300">اختر شركة للمتابعة إلى نظامها، أو أضف شركة جديدة أو تجريبية.</p>
           </div>
-        </div>
+          <div className="grid grid-cols-3 gap-3 sm:min-w-[420px]">
+            {[
+              { icon: Building2, label: "كل الشركات", value: companies.length, tone: "text-cyan-300" },
+              { icon: CheckCircle2, label: "جاهزة للدخول", value: readyCount, tone: "text-emerald-300" },
+              { icon: Hourglass, label: "بانتظار الموافقة", value: pendingCount, tone: "text-amber-200" },
+            ].map((stat) => (
+              <div key={stat.label} className="cp-glass rounded-2xl p-3.5">
+                <stat.icon className={`h-[18px] w-[18px] ${stat.tone}`} />
+                <div className="mt-2 text-2xl font-black tabular-nums">{stat.value}</div>
+                <div className="text-xs text-slate-400">{stat.label}</div>
+              </div>
+            ))}
+          </div>
+        </section>
 
         {error && (
-          <div className="mb-6 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div>
+          <div role="alert" className="mb-6 flex items-start gap-2 rounded-xl border border-rose-400/30 bg-rose-500/10 px-4 py-3 text-sm font-medium text-rose-200">
+            <XCircle className="mt-0.5 h-4 w-4 shrink-0" />{error}
+          </div>
         )}
         {notice && (
-          <div className="mb-6 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{notice}</div>
+          <div className="mb-6 flex items-start gap-2 rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-sm font-medium text-emerald-200">
+            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />{notice}
+          </div>
         )}
 
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          <button
-            onClick={() => setShowAddDialog(true)}
-            className="group flex min-h-[190px] flex-col items-center justify-center gap-3 rounded-3xl border-2 border-dashed border-slate-300 bg-white/60 p-8 text-slate-400 transition-all hover:border-violet-400 hover:bg-violet-50/50 hover:text-violet-600"
-          >
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 transition-colors group-hover:bg-violet-100">
-              <Plus className="h-7 w-7" />
-            </div>
-            <span className="font-semibold">اضافة شركة جديدة</span>
-          </button>
-
-          <button
-            onClick={() => setShowTrialDialog(true)}
-            className="group flex min-h-[190px] flex-col items-center justify-center gap-3 rounded-3xl border-2 border-dashed border-violet-200 bg-violet-50/40 p-8 text-violet-400 transition-all hover:border-violet-400 hover:bg-violet-50 hover:text-violet-600"
-          >
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-violet-100 transition-colors group-hover:bg-violet-200">
-              <Gift className="h-7 w-7" />
-            </div>
-            <span className="font-semibold">شركة تجريبية</span>
-            {/* معلومة الانتهاء على الزر نفسه — مطابقة لطلب المستخدم صراحةً بإظهارها هنا بلا حاجة لفتح
-                الحوار أصلاً؛ التاريخ الفعلي (اليوم + المدة) يُحسَب ويُعرَض داخل الحوار عند الإنشاء
-                إذ يعتمد على لحظة الضغط على "إنشاء" تحديداً، لا يمكن تثبيته على الزر مسبقاً. */}
-            <span className="text-xs font-normal text-violet-400">مجانية لمدة {TRIAL_EXPIRY_DAYS} أيام — اعتماد فوري بلا انتظار</span>
-          </button>
-
-          {companies.map((company) => {
+          {companies.map((company, index) => {
             const status = STATUS_CONFIG[company.status]
             const StatusIcon = status.icon
             const isApproved = company.status === "approved"
@@ -290,144 +335,162 @@ export default function ManagementCompaniesPage() {
             const canOpenCompany = isApproved && !isExpired && selecting === null
 
             return (
-              <div
-                key={company.id}
-                role="button"
-                tabIndex={0}
-                onClick={() => {
-                  if (!canOpenCompany) return
-                  handleSelectCompany(company)
-                }}
-                onKeyDown={(event) => {
-                  if ((event.key === "Enter" || event.key === " ") && canOpenCompany) {
-                    event.preventDefault()
+              <div key={company.id} className={`cp-card cp-rise ${canOpenCompany ? "is-open" : ""}`} style={{ animationDelay: `${Math.min(index, 8) * 60}ms` }}>
+                <div
+                  role="button"
+                  tabIndex={0}
+                  aria-disabled={!canOpenCompany}
+                  onClick={() => {
+                    if (!canOpenCompany) return
                     handleSelectCompany(company)
-                  }
-                }}
-                className={
-                  "group relative flex min-h-[220px] flex-col items-start gap-4 overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 text-right shadow-sm transition-all " +
-                  (canOpenCompany
-                    ? "cursor-pointer hover:-translate-y-0.5 hover:border-violet-200 hover:shadow-lg"
-                    : "cursor-not-allowed opacity-70")
-                }
-              >
-                <div className="flex w-full items-start justify-between">
-                  <div
-                    className={
-                      "flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br text-lg font-bold text-white shadow-md " +
-                      paletteFor(company.id)
+                  }}
+                  onKeyDown={(event) => {
+                    if ((event.key === "Enter" || event.key === " ") && canOpenCompany) {
+                      event.preventDefault()
+                      handleSelectCompany(company)
                     }
-                  >
-                    {isSelecting ? (
-                      <Loader2 className="h-6 w-6 animate-spin" />
-                    ) : (
-                      company.name.trim().charAt(0).toUpperCase() || <Building2 className="h-6 w-6" />
+                  }}
+                  className={
+                    "cp-card-in group flex min-h-[230px] flex-col gap-4 p-6 text-right outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60 " +
+                    (canOpenCompany ? "cursor-pointer" : "cursor-not-allowed opacity-60")
+                  }
+                >
+                  <div className="flex w-full items-start justify-between">
+                    <div className={"grid h-14 w-14 place-items-center rounded-2xl bg-gradient-to-br text-xl font-black text-white shadow-[0_12px_30px_-10px_rgba(16,185,129,.7)] ring-1 ring-white/25 " + paletteFor(company.id)}>
+                      {isSelecting ? <Loader2 className="h-6 w-6 animate-spin" /> : company.name.trim().charAt(0).toUpperCase() || <Building2 className="h-6 w-6" />}
+                    </div>
+                    <span className={"inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold " + status.classes}>
+                      <StatusIcon className="h-3 w-3" />
+                      {status.label}
+                    </span>
+                  </div>
+
+                  <div className="flex flex-1 flex-col gap-2">
+                    <h3 className="line-clamp-2 text-lg font-black text-white">{company.name}</h3>
+                    {isExpired && (
+                      <span className="inline-flex w-fit items-center gap-1 rounded-full bg-rose-500/15 px-2.5 py-1 text-[11px] font-bold text-rose-200 ring-1 ring-rose-300/25">
+                        <Clock className="h-3 w-3" />
+                        الاشتراك منتهي
+                      </span>
                     )}
                   </div>
 
-                  {isApproved && !isExpired && (
-                    <ChevronLeft className="mt-2 h-5 w-5 text-slate-300 transition-all group-hover:-translate-x-1 group-hover:text-violet-500" />
-                  )}
-                </div>
+                  <div className="space-y-1.5 border-t border-white/10 pt-3 text-xs">
+                    <div className="flex items-center gap-1.5 text-slate-400">
+                      <Calendar className="h-3.5 w-3.5" />
+                      أُنشئت {createdDate.toLocaleDateString("ar-EG", { year: "numeric", month: "long", day: "numeric" })}
+                    </div>
+                    {company.expiry_date && (
+                      <div className={"flex items-center gap-1.5 " + (isExpired ? "font-bold text-rose-300" : "text-slate-400")}>
+                        <Clock className="h-3.5 w-3.5" />
+                        ينتهي الاشتراك {new Date(company.expiry_date).toLocaleDateString("ar-EG", { year: "numeric", month: "long", day: "numeric" })}
+                      </div>
+                    )}
+                  </div>
 
-                <div className="flex w-full flex-1 flex-col gap-2">
-                  <h3 className="line-clamp-2 text-base font-bold text-slate-900">{company.name}</h3>
-
-                  <span className={"inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium " + status.classes}>
-                    <StatusIcon className="h-3 w-3" />
-                    {status.label}
-                  </span>
-
-                  {isExpired && (
-                    <span className="inline-flex w-fit items-center gap-1 rounded-full bg-rose-50 px-2.5 py-1 text-[11px] font-medium text-rose-700">
-                      <Clock className="h-3 w-3" />
-                      الاشتراك منتهي
+                  {canOpenCompany && (
+                    <span className="inline-flex items-center gap-1.5 self-start text-sm font-black text-emerald-300 transition group-hover:text-emerald-200">
+                      دخول الشركة <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
                     </span>
                   )}
                 </div>
-
-                <div className="flex w-full items-center gap-1.5 text-xs text-slate-400">
-                  <Calendar className="h-3.5 w-3.5" />
-                  {createdDate.toLocaleDateString("ar-EG", { year: "numeric", month: "long", day: "numeric" })}
-                </div>
-
-                {company.expiry_date && (
-                  <div className={"flex w-full items-center gap-1.5 text-xs " + (isExpired ? "font-medium text-rose-600" : "text-slate-400")}>
-                    <Clock className="h-3.5 w-3.5" />
-                    تاريخ انتهاء الاشتراك: {new Date(company.expiry_date).toLocaleDateString("ar-EG", { year: "numeric", month: "long", day: "numeric" })}
-                  </div>
-                )}
               </div>
             )
           })}
+
+          <button type="button" onClick={() => setShowAddDialog(true)} className="cp-action cp-rise group flex min-h-[230px] flex-col items-center justify-center gap-3 p-8 text-slate-300 hover:text-emerald-200">
+            <span className="grid h-14 w-14 place-items-center rounded-2xl bg-white/[0.06] ring-1 ring-white/10 transition group-hover:bg-emerald-400/15 group-hover:ring-emerald-300/30">
+              <Plus className="h-7 w-7" />
+            </span>
+            <span className="text-base font-black">اضافة شركة جديدة</span>
+            <span className="text-xs text-slate-400">تُفعَّل بعد موافقة إدارة النظام</span>
+          </button>
+
+          <button type="button" onClick={() => setShowTrialDialog(true)} className="cp-action is-trial cp-rise group flex min-h-[230px] flex-col items-center justify-center gap-3 p-8 text-violet-200">
+            <span className="grid h-14 w-14 place-items-center rounded-2xl bg-violet-500/15 ring-1 ring-violet-300/25 transition group-hover:bg-violet-500/25">
+              <Gift className="h-7 w-7" />
+            </span>
+            <span className="text-base font-black">شركة تجريبية</span>
+            {/* معلومة الانتهاء على الزر نفسه بلا حاجة لفتح الحوار؛ التاريخ الفعلي (اليوم + المدة) يُحسب داخل الحوار. */}
+            <span className="text-xs text-violet-300/80">مجانية لمدة {TRIAL_EXPIRY_DAYS} أيام — اعتماد فوري بلا انتظار</span>
+          </button>
         </div>
 
         {companies.length === 0 && (
-          <p className="mt-8 text-center text-sm text-slate-400">
-            <Sparkles className="mx-auto mb-2 h-5 w-5 text-violet-300" />
+          <p className="mt-10 text-center text-sm text-slate-400">
+            <Sparkles className="mx-auto mb-2 h-5 w-5 text-emerald-300" />
             لا توجد شركات بعد — أضف أول شركة لك للبدء باستخدام النظام
           </p>
         )}
+
+        <p className="mt-12 flex items-center justify-center gap-1.5 text-xs text-slate-500"><ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />اتصال مشفّر · <span dir="ltr">ARAAK ERP</span></p>
       </main>
 
       <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-        <DialogContent dir="rtl" className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>اضافة شركة جديدة</DialogTitle>
+        <DialogContent dir="rtl" className="cp-dialog max-w-md">
+          <style dangerouslySetInnerHTML={{ __html: css }} />
+          <DialogHeader className="text-right">
+            <DialogTitle className="flex items-center gap-2 text-xl font-black text-white"><Building2 className="h-5 w-5 text-emerald-300" />اضافة شركة جديدة</DialogTitle>
+            <DialogDescription className="text-slate-400">تُرسل للموافقة من إدارة النظام قبل تفعيلها.</DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
-            <Label>اسم الشركة</Label>
-            <Input value={newCompanyName} onChange={(e) => setNewCompanyName(e.target.value)} className="text-right" autoFocus />
+            <label htmlFor="new-company-name" className="text-sm font-bold text-slate-200">اسم الشركة</label>
+            <input id="new-company-name" value={newCompanyName} onChange={(e) => setNewCompanyName(e.target.value)} className="cp-field text-right" autoFocus />
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <div className="space-y-2">
-              <Label>عدد المستخدمين</Label>
-              <Input type="number" min={1} value={newCompanyUsers} onChange={(e) => setNewCompanyUsers(e.target.value)} className="text-right" />
-            </div>
-            <div className="space-y-2">
-              <Label>عدد الفروع</Label>
-              <Input type="number" min={1} value={newCompanyBranches} onChange={(e) => setNewCompanyBranches(e.target.value)} className="text-right" />
-            </div>
-            <div className="space-y-2">
-              <Label>عدد نقاط البيع</Label>
-              <Input type="number" min={0} value={newCompanyPosPoints} onChange={(e) => setNewCompanyPosPoints(e.target.value)} className="text-right" />
-            </div>
+            {[
+              { label: "عدد المستخدمين", value: newCompanyUsers, set: setNewCompanyUsers, min: 1 },
+              { label: "عدد الفروع", value: newCompanyBranches, set: setNewCompanyBranches, min: 1 },
+              { label: "عدد نقاط البيع", value: newCompanyPosPoints, set: setNewCompanyPosPoints, min: 0 },
+            ].map((field) => (
+              <div key={field.label} className="space-y-2">
+                <label className="text-xs font-bold text-slate-300">{field.label}</label>
+                <input type="number" min={field.min} value={field.value} onChange={(e) => field.set(e.target.value)} className="cp-field text-right tabular-nums" />
+              </div>
+            ))}
           </div>
-          <p className="text-xs text-muted-foreground">العدد المطلوب للترخيص — يُعتمد مع طلب الشركة من إدارة النظام ويمكن زيادته لاحقاً.</p>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAddDialog(false)}>
+          <p className="text-xs leading-6 text-slate-400">العدد المطلوب للترخيص — يُعتمد مع طلب الشركة من إدارة النظام ويمكن زيادته لاحقاً.</p>
+          <DialogFooter className="gap-2 sm:gap-2">
+            <button type="button" onClick={() => setShowAddDialog(false)} className="h-11 rounded-xl border border-white/15 px-5 text-sm font-bold text-slate-200 transition hover:bg-white/10">
               إلغاء
-            </Button>
-            <Button onClick={handleAddCompany} disabled={saving || !newCompanyName.trim() || !(Number(newCompanyUsers) >= 1) || !(Number(newCompanyBranches) >= 1) || !(Number(newCompanyPosPoints || 0) >= 0)}>
-              {saving ? "جاري الإنشاء..." : "إنشاء"}
-            </Button>
+            </button>
+            <button
+              type="button"
+              onClick={handleAddCompany}
+              disabled={saving || !newCompanyName.trim() || !(Number(newCompanyUsers) >= 1) || !(Number(newCompanyBranches) >= 1) || !(Number(newCompanyPosPoints || 0) >= 0)}
+              className="cp-btn inline-flex h-11 items-center justify-center gap-2 px-6 text-sm font-black text-white"
+            >
+              {saving ? <><Loader2 className="h-4 w-4 animate-spin" />جاري الإنشاء...</> : "إنشاء"}
+            </button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       <Dialog open={showTrialDialog} onOpenChange={setShowTrialDialog}>
-        <DialogContent dir="rtl" className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>شركة تجريبية</DialogTitle>
+        <DialogContent dir="rtl" className="cp-dialog max-w-md">
+          <style dangerouslySetInnerHTML={{ __html: css }} />
+          <DialogHeader className="text-right">
+            <DialogTitle className="flex items-center gap-2 text-xl font-black text-white"><Gift className="h-5 w-5 text-violet-300" />شركة تجريبية</DialogTitle>
+            <DialogDescription className="text-slate-400">تجربة كاملة للنظام بلا انتظار موافقة.</DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
-            <Label>اسم الشركة</Label>
-            <Input value={trialCompanyName} onChange={(e) => setTrialCompanyName(e.target.value)} className="text-right" autoFocus />
+            <label htmlFor="trial-company-name" className="text-sm font-bold text-slate-200">اسم الشركة</label>
+            <input id="trial-company-name" value={trialCompanyName} onChange={(e) => setTrialCompanyName(e.target.value)} className="cp-field text-right" autoFocus />
           </div>
-          <div className="flex items-start gap-2 rounded-xl border border-violet-200 bg-violet-50 px-3 py-2.5 text-sm text-violet-700">
-            <Clock className="mt-0.5 h-4 w-4 shrink-0" />
+          <div className="flex items-start gap-2 rounded-xl border border-violet-300/25 bg-violet-500/10 px-3 py-2.5 text-sm leading-6 text-violet-100">
+            <Clock className="mt-1 h-4 w-4 shrink-0 text-violet-300" />
             <span>
               ستُعتمَد الشركة فوراً بلا انتظار موافقة، وتنتهي صلاحيتها تلقائياً بعد {TRIAL_EXPIRY_DAYS} أيام من الآن — بتاريخ{" "}
               <strong>{formatArabicDate(new Date(Date.now() + TRIAL_EXPIRY_DAYS * 24 * 60 * 60 * 1000))}</strong>.
             </span>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowTrialDialog(false)}>
+          <DialogFooter className="gap-2 sm:gap-2">
+            <button type="button" onClick={() => setShowTrialDialog(false)} className="h-11 rounded-xl border border-white/15 px-5 text-sm font-bold text-slate-200 transition hover:bg-white/10">
               إلغاء
-            </Button>
-            <Button onClick={handleAddTrialCompany} disabled={trialSaving || !trialCompanyName.trim()}>
-              {trialSaving ? "جاري الإنشاء..." : "إنشاء"}
-            </Button>
+            </button>
+            <button type="button" onClick={handleAddTrialCompany} disabled={trialSaving || !trialCompanyName.trim()} className="cp-btn is-trial inline-flex h-11 items-center justify-center gap-2 px-6 text-sm font-black text-white">
+              {trialSaving ? <><Loader2 className="h-4 w-4 animate-spin" />جاري الإنشاء...</> : "إنشاء"}
+            </button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

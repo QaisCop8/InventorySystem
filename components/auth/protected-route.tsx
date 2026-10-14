@@ -20,7 +20,10 @@ export function ProtectedRoute({ children, requiredPermission }: ProtectedRouteP
   // المتصفح) — كزيارة مباشرة لـ"/" بلا مرور بشركاتي على متصفح جديد كلياً — الوجهة الوحيدة هي تسجيل
   // دخول الإدارة. الاعتماد على sessionStorage فقط هنا كان يُحوِّل أي تبويب جديد (رابط فُتح بتبويب
   // جديد مثلاً) لتسجيل الدخول خطأً رغم وجود جلسة صالحة فعلياً في تبويب آخر من نفس المتصفح.
-  const [hasSelectedCompany, setHasSelectedCompany] = useState(false)
+  // null = لم يُفحص التخزين بعد. كانت القيمة الابتدائية false، فيرى مؤثر التحويل أدناه false القديمة في نفس الدورة
+  // التي يضبطها فيها المؤثر الأول true: يبدأ التحويل لدخول الإدارة بينما يُعرض نموذج دخول الشركة للحظة (وميض "الدخول
+  // القديم" ثم دخول الإدارة). لا قرار قبل معرفة القيمة الفعلية.
+  const [hasSelectedCompany, setHasSelectedCompany] = useState<boolean | null>(null)
 
   // يُعاد فحصها أيضاً عند تبدّل isAuthenticated (لا مرة واحدة فقط عند التركيب) — logout() يمسح
   // active_tenant_db من كلا التخزينين، فبلا إعادة الفحص هنا تبقى هذه القيمة "true" من آخر تحميل
@@ -31,12 +34,12 @@ export function ProtectedRoute({ children, requiredPermission }: ProtectedRouteP
   }, [isAuthenticated])
 
   useEffect(() => {
-    if (!isLoading && !isAuthenticated && !hasSelectedCompany) {
+    if (!isLoading && !isAuthenticated && hasSelectedCompany === false) {
       window.location.href = "/management/login"
     }
   }, [isLoading, isAuthenticated, hasSelectedCompany])
 
-  if (isLoading) {
+  if (isLoading || (!isAuthenticated && hasSelectedCompany === null)) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-blue-50 to-emerald-100 flex items-center justify-center">
         <div className="text-center space-y-4">
