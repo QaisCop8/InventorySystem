@@ -4,6 +4,7 @@ import { z } from "zod"
 import sql from "@/lib/database"
 import { paymentSchema, paymentPrompt, resolveReceiptPayments } from "@/lib/ai-receipt-payments"
 import { getSystemSettingValue } from "@/lib/system-settings"
+import { geminiModel } from "@/lib/ai-model"
 
 const draftSchema = z.object({
   intent: z.enum(["create_receipt", "create_payment", "other"]),
@@ -145,7 +146,7 @@ export async function POST(request: Request) {
     let ai: z.infer<typeof draftSchema> | null = null
     try {
       const result = await generateText({
-        model: google("gemini-2.5-flash"),
+        model: google(geminiModel()),
         system: `حلل رسالة المستخدم كاملة بالعربية أو الإنجليزية، بما فيها العامية وترتيب الكلمات المختلف. أعد JSON فقط بلا markdown.
 intent: "create_receipt" عندما يطلب إنشاء سند قبض أو تسجيل مبلغ مستلم، وكلمة "قبض" وحدها تعامل مثل "سند قبض". intent: "create_payment" عندما يطلب إنشاء سند صرف أو تسجيل مبلغ مدفوع. الأسئلة والبحث والأمثلة والنفي أعد لها "other".
 account: اسم الحساب أو العميل أو رمزه كما ذكره المستخدم، دون كلمات الطلب أو المبلغ أو العملة أو الملاحظات. حافظ على كلمات الاسم نفسه، مثلاً "للزبون زبون للفحص" يصبح "زبون للفحص".

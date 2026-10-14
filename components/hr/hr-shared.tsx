@@ -29,7 +29,7 @@ export const selectClass = "h-10 w-full rounded-xl border border-slate-200 bg-wh
 export const money = (v: any) => Number(v || 0).toLocaleString("ar-EG", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 export const englishMoney = (v: any) => Number(v || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
-export function HrPage({ title, subtitle = "الموظفين والرواتب", children, report = false }: { title: string; subtitle?: string; children: React.ReactNode; report?: boolean }) {
+export function HrPage({ title, subtitle = "نظام ادارة الموظفين", children, report = false }: { title: string; subtitle?: string; children: React.ReactNode; report?: boolean }) {
   if (report) return <PreventDialogOutsideClose><ReportPage><ReportHeader title={title} description={subtitle} category="تقارير الموظفين والرواتب" />{children}</ReportPage></PreventDialogOutsideClose>
   return <PreventDialogOutsideClose><div className="min-h-full space-y-4 bg-slate-50/60 p-3 sm:p-5" dir="rtl"><header className="border-b border-slate-200 bg-white px-1 pb-4"><h1 className="text-xl font-extrabold text-slate-900 sm:text-2xl">{title}</h1><p className="mt-1 text-sm text-slate-500">{subtitle}</p></header>{children}</div></PreventDialogOutsideClose>
 }

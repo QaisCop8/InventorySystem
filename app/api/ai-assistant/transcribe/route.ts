@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { geminiModel } from "@/lib/ai-model"
 
 export async function POST(request: Request) {
   try {
@@ -11,7 +12,7 @@ export async function POST(request: Request) {
     if (audio.size > 10 * 1024 * 1024) return NextResponse.json({ error: "التسجيل الصوتي طويل جداً" }, { status: 413 })
 
     const bytes = Buffer.from(await audio.arrayBuffer()).toString("base64")
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(geminiModel())}:generateContent?key=${encodeURIComponent(apiKey)}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

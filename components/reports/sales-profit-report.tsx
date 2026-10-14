@@ -183,7 +183,7 @@ export function SalesProfitReport({ mode = "items" }: { mode?: Mode }) {
   const showDetails = groupBy === "line"
 
   return <ReportPage loading={loading || loadingMeta}>
-    <ReportHeader icon={mode === "pricing" ? Calculator : TrendingUp} category="تقارير كلفة وأرباح المخزون" title={config.title} description={config.description}
+    <ReportHeader icon={mode === "pricing" ? Calculator : TrendingUp} category="تقارير ارباح الاصناف" title={config.title} description={config.description}
       actions={<>
         {mode !== "pricing" && <Button variant="secondary" onClick={() => void savePricing()} disabled={pricing || loading} title="حفظ الكلفة المحسوبة على أسطر السندات (تستخدمها عمولات المندوبين)">{pricing ? <Loader2 className="ml-2 h-4 w-4 animate-spin" /> : <Calculator className="ml-2 h-4 w-4" />}تنفيذ تسعير الإخراجات</Button>}
         <Button variant="secondary" onClick={exportCsv} disabled={!rows.length}><Download className="ml-2 h-4 w-4" />تصدير</Button>

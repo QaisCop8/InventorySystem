@@ -2,6 +2,7 @@ import { generateText, Output } from "ai"
 import { google } from "@ai-sdk/google"
 import { z } from "zod"
 import sql from "@/lib/database"
+import { geminiModel } from "@/lib/ai-model"
 
 const schema = z.object({
   intent: z.enum(["create_sales_draft", "create_internal_request", "other"]),
@@ -112,12 +113,12 @@ items: لكل صنف product وquantity (رقم موجب) وprice وdiscount إ�
       let raw: unknown
       try {
         // إخراج منظَّم وفق المخطط (أدق) …
-        const { output } = await generateText({ model: google("gemini-2.5-flash"), output: Output.object({ schema }), instructions, prompt: text })
+        const { output } = await generateText({ model: google(geminiModel()), output: Output.object({ schema }), instructions, prompt: text })
         raw = output
       } catch (structuredError) {
         // … وإن رُفض المخطط أو فشل التوليد المنظَّم: نص JSON عادي كالسابق
         console.error("AI order draft: structured output failed, retrying as text", structuredError)
-        const generated = await generateText({ model: google("gemini-2.5-flash"), instructions: `${instructions}\nأعد JSON فقط بالحقول: intent, customer, order_date, delivery_date, deposit_amount, notes, priority, source_warehouse, destination_branch, destination_warehouse, items.`, prompt: text })
+        const generated = await generateText({ model: google(geminiModel()), instructions: `${instructions}\nأعد JSON فقط بالحقول: intent, customer, order_date, delivery_date, deposit_amount, notes, priority, source_warehouse, destination_branch, destination_warehouse, items.`, prompt: text })
         const clean = generated.text.trim().replace(/^```(?:json)?/i, "").replace(/```$/, "").trim()
         raw = JSON.parse(clean.slice(clean.indexOf("{"), clean.lastIndexOf("}") + 1))
       }

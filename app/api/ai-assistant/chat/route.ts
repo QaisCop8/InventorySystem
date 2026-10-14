@@ -2,6 +2,7 @@ import { stepCountIs, streamText, tool } from "ai"
 import { google } from "@ai-sdk/google"
 import { z } from "zod"
 import sql from "@/lib/database"
+import { geminiModel } from "@/lib/ai-model"
 export async function POST(request: Request) {
   try {
     if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
@@ -10,7 +11,7 @@ export async function POST(request: Request) {
     const { messages } = await request.json()
 
     const result = streamText({
-      model: google("gemini-2.5-flash"),
+      model: google(geminiModel()),
       messages,
       system: `أنت مساعد ذكي لنظام ERP عربي متقدم. اسمك "مساعد النظام الذكي".
 
