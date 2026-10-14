@@ -9,6 +9,7 @@ interface ItemGroupDB {
   group_name: string
   description: string | null
   parent_id: number | null
+  default_printer?: string | null
   status: number | null
   product_count: number | null
   created_at: string
@@ -36,6 +37,7 @@ export async function GET(request: NextRequest) {
 
   try {
     await sql`ALTER TABLE item_groups ADD COLUMN IF NOT EXISTS parent_id INTEGER`
+    await sql`ALTER TABLE item_groups ADD COLUMN IF NOT EXISTS default_printer VARCHAR(150)`
     const code = request.nextUrl.searchParams.get("code")?.trim().toUpperCase()
     const query = sql as any
 
@@ -48,6 +50,7 @@ export async function GET(request: NextRequest) {
           group_name,
           description,
           parent_id,
+          default_printer,
           status,
           created_at,
           updated_at
@@ -75,6 +78,7 @@ export async function GET(request: NextRequest) {
         group_name,
         description,
         parent_id,
+        default_printer,
         status,
         created_at,
         updated_at
@@ -184,7 +188,7 @@ async function findReusableGroup(name: string, code: string): Promise<ItemGroupD
   const normalizedName = name.toLowerCase()
   const normalizedCode = normalizeGroupCode(code)
   const rows: ItemGroupDB[] = await sql`
-    SELECT id, group_code, group_name, description, parent_id, status, created_at, updated_at
+    SELECT id, group_code, group_name, description, parent_id, default_printer, status, created_at, updated_at
     FROM item_groups
     WHERE COALESCE(status, 1) <> 3
       AND (
@@ -213,6 +217,7 @@ export async function POST(request: NextRequest) {
 
   try {
     await sql`ALTER TABLE item_groups ADD COLUMN IF NOT EXISTS parent_id INTEGER`
+    await sql`ALTER TABLE item_groups ADD COLUMN IF NOT EXISTS default_printer VARCHAR(150)`
     const data = await request.json()
     const reuseExisting = data.reuse_existing === true
     const groupName = String(data.group_name ?? "").trim()
@@ -242,10 +247,10 @@ export async function POST(request: NextRequest) {
       const groupCode = await ensureUniqueGroupCode(requestedCode)
       const result: ItemGroupDB[] = await query`
         INSERT INTO item_groups (
-          group_code, group_name, description, parent_id, status
+          group_code, group_name, description, parent_id, default_printer, status
         ) VALUES (
-          ${groupCode}, ${groupName}, ${data.description || ""}, ${parentId}, ${statusValue}
-        ) RETURNING id, group_code, group_name, description, parent_id, status, created_at, updated_at
+          ${groupCode}, ${groupName}, ${data.description || ""}, ${parentId}, ${String(data.default_printer || "").trim() || null}, ${statusValue}
+        ) RETURNING id, group_code, group_name, description, parent_id, default_printer, status, created_at, updated_at
       `
       return NextResponse.json(formatGroup(result[0]), { status: 201 })
     }

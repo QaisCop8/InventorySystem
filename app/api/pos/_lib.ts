@@ -142,6 +142,8 @@ export async function ensurePosTables() { return runSchemaOnce("app/api/pos/_lib
   await sql`ALTER TABLE pos_points_tbl ADD COLUMN IF NOT EXISTS return_account_id INTEGER`
   await sql`ALTER TABLE pos_points_tbl ADD COLUMN IF NOT EXISTS item_grouping_mode VARCHAR(16) NOT NULL DEFAULT 'on_entry' CHECK (item_grouping_mode IN ('none', 'on_entry', 'on_print'))`
   await sql`ALTER TABLE pos_points_tbl ADD COLUMN IF NOT EXISTS print_by_item_group BOOLEAN NOT NULL DEFAULT FALSE`
+  // طابعة مجموعة الأصناف: تُطبع عليها أصناف المجموعة (الاسم والكمية) عند حفظ فاتورة الكاشير مع print_by_item_group
+  await sql`ALTER TABLE item_groups ADD COLUMN IF NOT EXISTS default_printer VARCHAR(150)`
   await sql`ALTER TABLE pos_points_tbl ADD COLUMN IF NOT EXISTS print_invoices BOOLEAN NOT NULL DEFAULT FALSE`
   await sql`CREATE INDEX IF NOT EXISTS idx_pos_sale_drafts_owner ON pos_sale_drafts_tbl(pos_point_id,user_id,status,updated_at DESC)`
   await sql`

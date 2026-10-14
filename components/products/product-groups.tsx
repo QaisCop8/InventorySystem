@@ -15,6 +15,7 @@ interface ItemGroup {
   group_code: string
   group_name: string
   description?: string | null
+  default_printer?: string | null
   product_count?: number | null
   parent_id?: number | null
   parent_name?: string | null
@@ -26,6 +27,7 @@ interface FormData {
   group_code: string
   group_name: string
   description: string
+  default_printer: string
   parent_id: number | null
   status: "نشط" | "غير نشط"
 }
@@ -35,6 +37,7 @@ const buildEmptyForm = (): FormData => ({
   group_code: "",
   group_name: "",
   description: "",
+  default_printer: "",
   parent_id: null,
   status: "نشط",
 })
@@ -82,6 +85,7 @@ export default function ProductGroups() {
     group_code: value.group_code,
     group_name: value.group_name,
     description: value.description,
+    default_printer: value.default_printer,
     parent_id: value.parent_id,
     status: value.status,
   }), [])
@@ -172,6 +176,7 @@ export default function ProductGroups() {
       group_code: group.group_code,
       group_name: group.group_name,
       description: group.description || "",
+      default_printer: group.default_printer || "",
       parent_id: group.parent_id ?? null,
       status: normalizeGroupStatus(group.status === "متوقف" ? "نشط" : group.status || "نشط"),
     }
@@ -201,6 +206,7 @@ export default function ProductGroups() {
         group_code: existingGroup.group_code,
         group_name: existingGroup.group_name,
         description: existingGroup.description || "",
+        default_printer: existingGroup.default_printer || "",
         parent_id: existingGroup.parent_id ?? null,
         status: existingGroup.status === "غير نشط" ? "غير نشط" : "نشط",
       })
@@ -250,6 +256,7 @@ export default function ProductGroups() {
         group_code: normalizedGroupCode,
         group_name: form.group_name.trim(),
         description: form.description || "",
+        default_printer: form.default_printer || "",
         status: form.status === "غير نشط" ? "غير نشط" : "نشط",
       }
       const method = form.id > 0 ? "PUT" : "POST"
@@ -307,6 +314,7 @@ export default function ProductGroups() {
           group_code: nextGroup.group_code,
           group_name: nextGroup.group_name,
           description: nextGroup.description || "",
+          default_printer: nextGroup.default_printer || "",
           parent_id: nextGroup.parent_id ?? null,
           status: normalizeGroupStatus(nextGroup.status === "متوقف" ? "نشط" : nextGroup.status || "نشط"),
         }
@@ -338,6 +346,7 @@ export default function ProductGroups() {
       group_code: record.group_code,
       group_name: record.group_name,
       description: record.description || "",
+      default_printer: record.default_printer || "",
       parent_id: record.parent_id ?? null,
       status: normalizeGroupStatus(record.status === "متوقف" ? "نشط" : record.status || "نشط"),
     }
@@ -435,6 +444,7 @@ export default function ProductGroups() {
       group_code: group.group_code,
       group_name: group.group_name,
       description: group.description || "",
+      default_printer: group.default_printer || "",
       parent_id: group.parent_id ?? null,
       status: isFrozen ? "غير نشط" : "نشط",
     })
@@ -458,6 +468,7 @@ export default function ProductGroups() {
           group_code: normalizedGroupCode,
           group_name: form.group_name.trim(),
           description: form.description || "",
+          default_printer: form.default_printer || "",
         }
         const res = await fetch(`/api/item-groups/${form.id}`, {
           method: "PUT",
@@ -483,6 +494,7 @@ export default function ProductGroups() {
             group_code: updated.group_code,
             group_name: updated.group_name,
             description: updated.description || "",
+            default_printer: updated.default_printer || "",
             parent_id: updated.parent_id ?? null,
             status: updated.status === "غير نشط" ? "غير نشط" : "نشط",
           }

@@ -8,6 +8,7 @@ interface ItemGroupDB {
   group_name: string
   description: string | null
   parent_id: number | null
+  default_printer?: string | null
   status: number | null
   product_count: number | null
   created_at: string
@@ -98,13 +99,14 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 
   try {
     await sql`ALTER TABLE item_groups ADD COLUMN IF NOT EXISTS parent_id INTEGER`
+    await sql`ALTER TABLE item_groups ADD COLUMN IF NOT EXISTS default_printer VARCHAR(150)`
     const id = Number(params.id)
     if (!Number.isFinite(id)) {
       return NextResponse.json({ error: "معرف المجموعة غير صالح" }, { status: 400 })
     }
 
     const rows: ItemGroupDB[] = await sql`
-      SELECT id, group_code, group_name, description, parent_id, status, created_at, updated_at
+      SELECT id, group_code, group_name, description, parent_id, default_printer, status, created_at, updated_at
       FROM item_groups
       WHERE id = ${id}
         AND status <> 3
@@ -128,6 +130,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
 
   try {
     await sql`ALTER TABLE item_groups ADD COLUMN IF NOT EXISTS parent_id INTEGER`
+    await sql`ALTER TABLE item_groups ADD COLUMN IF NOT EXISTS default_printer VARCHAR(150)`
     const id = Number(params.id)
     const data = await request.json()
 
@@ -158,9 +161,9 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
 
     const rows: ItemGroupDB[] = await sql`
       UPDATE item_groups
-      SET group_code = ${groupCode}, group_name = ${data.group_name}, description = ${data.description || ""}, parent_id = ${parentId}, status = ${statusValue}
+      SET group_code = ${groupCode}, group_name = ${data.group_name}, description = ${data.description || ""}, parent_id = ${parentId}, default_printer = ${String(data.default_printer || "").trim() || null}, status = ${statusValue}
       WHERE id = ${id}
-      RETURNING id, group_code, group_name, description, parent_id, status, created_at, updated_at
+      RETURNING id, group_code, group_name, description, parent_id, default_printer, status, created_at, updated_at
     `
 
     if (rows.length === 0) {
@@ -180,6 +183,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
 
   try {
     await sql`ALTER TABLE item_groups ADD COLUMN IF NOT EXISTS parent_id INTEGER`
+    await sql`ALTER TABLE item_groups ADD COLUMN IF NOT EXISTS default_printer VARCHAR(150)`
     const id = Number(params.id)
     if (!Number.isFinite(id)) {
       return NextResponse.json({ error: "معرف المجموعة غير صالح" }, { status: 400 })

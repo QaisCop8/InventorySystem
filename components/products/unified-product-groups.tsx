@@ -16,6 +16,7 @@ interface ItemGroup {
   group_code: string
   group_name: string
   description?: string | null
+  default_printer?: string | null
   product_count?: number | null
   parent_id?: number | null
   parent_name?: string | null
@@ -31,6 +32,7 @@ interface UnifiedProductGroupsProps {
     group_code: string
     group_name: string
     description: string
+    default_printer?: string
     parent_id: number | null
     status: "نشط" | "غير نشط"
   }
@@ -122,6 +124,7 @@ export default function UnifiedProductGroups({
           group_code: record.group_code,
           group_name: record.group_name,
           description: record.description || "",
+          default_printer: record.default_printer || "",
           parent_id: record.parent_id ?? null,
           product_count: record.product_count || 0,
           status: record.status || "نشط",
@@ -252,6 +255,17 @@ export default function UnifiedProductGroups({
                   id="group-description"
                   value={form.description}
                   onChange={(e) => onFormChange("description", e.target.value)}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="group-printer">الطابعة</Label>
+                <Input
+                  id="group-printer"
+                  dir="ltr"
+                  value={form.default_printer || ""}
+                  onChange={(e) => onFormChange("default_printer", e.target.value)}
+                  placeholder="اسم الطابعة في Windows — تُطبع عليها أصناف المجموعة في نقطة البيع"
+                  maxLength={150}
                 />
               </div>
               <div className="grid gap-2">

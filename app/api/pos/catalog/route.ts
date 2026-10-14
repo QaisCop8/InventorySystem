@@ -24,6 +24,8 @@ export async function GET(request:NextRequest) {
       sql`
         SELECT p.id,p.product_code,p.product_name,p.barcode,p.product_image,p.selling_account_id,p.selling_returns_account_id,p.pos_sold_using_scale,
                COALESCE(NULLIF(ig.group_name,''),NULLIF(main_group.group_name,''),'غير مصنف') category_name,
+               COALESCE(ig.id,main_group.id) group_id,
+               CASE WHEN ig.id IS NOT NULL THEN NULLIF(TRIM(ig.default_printer),'') ELSE NULLIF(TRIM(main_group.default_printer),'') END group_printer,
                u.id unit_id,u.unit_name,COALESCE(pu.first_barcode,p.barcode,'') first_barcode,
                COALESCE(pr.price,0) source_price,pr.currency_id price_currency_id,
                COALESCE((SELECT jsonb_agg(jsonb_build_object('unit_id',units_price.unit_id,'unit_name',(SELECT unit_name FROM units WHERE units.id=units_price.unit_id),'source_price',COALESCE(selected_price.price,0),'price_currency_id',selected_price.currency_id))

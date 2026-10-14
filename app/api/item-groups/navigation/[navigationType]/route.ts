@@ -6,6 +6,7 @@ export async function GET(request: NextRequest, { params }: { params: { navigati
       return NextResponse.json({ error: "Database not configured" }, { status: 500 })
     }
     await sql`ALTER TABLE item_groups ADD COLUMN IF NOT EXISTS parent_id INTEGER`
+    await sql`ALTER TABLE item_groups ADD COLUMN IF NOT EXISTS default_printer VARCHAR(150)`
 
     const { navigationType } = params
     const currentId = Number(request.nextUrl.searchParams.get("currentId") || 0)
@@ -14,7 +15,7 @@ export async function GET(request: NextRequest, { params }: { params: { navigati
     switch (navigationType) {
       case "first":
         rows = await sql`
-          SELECT id, group_code, group_name, description, parent_id, status
+          SELECT id, group_code, group_name, description, parent_id, default_printer, status
           FROM item_groups
           WHERE status <> 3
           ORDER BY id ASC
@@ -23,7 +24,7 @@ export async function GET(request: NextRequest, { params }: { params: { navigati
         break
       case "last":
         rows = await sql`
-          SELECT id, group_code, group_name, description, parent_id, status
+          SELECT id, group_code, group_name, description, parent_id, default_printer, status
           FROM item_groups
           WHERE status <> 3
           ORDER BY id DESC
@@ -32,7 +33,7 @@ export async function GET(request: NextRequest, { params }: { params: { navigati
         break
       case "previous":
         rows = await sql`
-          SELECT id, group_code, group_name, description, parent_id, status
+          SELECT id, group_code, group_name, description, parent_id, default_printer, status
           FROM item_groups
           WHERE id < ${currentId || 0} AND status <> 3
           ORDER BY id DESC
@@ -41,7 +42,7 @@ export async function GET(request: NextRequest, { params }: { params: { navigati
         break
       case "next":
         rows = await sql`
-          SELECT id, group_code, group_name, description, parent_id, status
+          SELECT id, group_code, group_name, description, parent_id, default_printer, status
           FROM item_groups
           WHERE id > ${currentId || 0} AND status <> 3
           ORDER BY id ASC
