@@ -283,6 +283,12 @@ async function isApprovedTenantDb(dbName: string): Promise<boolean> {
   return false
 }
 
+// بوابة العملاء العامة (بلا جلسة مستخدم): الرابط يحمل اسم قاعدة الشركة — تُقبل فقط القاعدة الافتراضية أو شركة معتمدة
+export async function isPortalTenantDb(dbName: string): Promise<boolean> {
+  if (!/^[a-zA-Z0-9_]+$/.test(dbName)) return false
+  return dbName === defaultDbName || isApprovedTenantDb(dbName)
+}
+
 export class TenantUnavailableError extends Error {
   constructor() {
     super("الشركة المفتوحة في هذا التبويب غير متاحة حالياً (منتهية الاشتراك أو غير معتمدة) — أعد اختيار الشركة")

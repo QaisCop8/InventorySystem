@@ -57,7 +57,7 @@ import {
   X,
   PanelRightClose,
   PanelRightOpen,
-  LucideIcon, BadgePercent } from "lucide-react"
+  LucideIcon, BadgePercent, Sunrise, Globe } from "lucide-react"
 import { useMenuTheme } from "@/contexts/menu-theme-context"
 import { useSavingLock } from "@/lib/saving-lock"
 
@@ -89,6 +89,7 @@ interface Accent {
 // لون هادئ مميز لكل قسم رئيسي — يُسهّل تمييز الأقسام دون ازدحام بصري.
 const ACCENTS: Record<string, Accent> = {
   "home-dashboard": { tile: "bg-sky-50 text-sky-600 ring-sky-100 dark:bg-sky-400/10 dark:text-sky-300 dark:ring-sky-400/20", bar: "bg-sky-500", soft: "bg-sky-50 text-sky-900 dark:bg-sky-400/10 dark:text-sky-50" },
+  "morning-briefing": { tile: "bg-orange-50 text-orange-600 ring-orange-100 dark:bg-orange-400/10 dark:text-orange-300 dark:ring-orange-400/20", bar: "bg-orange-500", soft: "bg-orange-50 text-orange-900 dark:bg-orange-400/10 dark:text-orange-50" },
   "ai-assistant": { tile: "bg-violet-50 text-violet-600 ring-violet-100 dark:bg-violet-400/10 dark:text-violet-300 dark:ring-violet-400/20", bar: "bg-violet-500", soft: "bg-violet-50 text-violet-900 dark:bg-violet-400/10 dark:text-violet-50" },
   "smart-analytics": { tile: "bg-violet-50 text-violet-600 ring-violet-100 dark:bg-violet-400/10 dark:text-violet-300 dark:ring-violet-400/20", bar: "bg-violet-500", soft: "bg-violet-50 text-violet-900 dark:bg-violet-400/10 dark:text-violet-50" },
   "task-orders": { tile: "bg-fuchsia-50 text-fuchsia-600 ring-fuchsia-100 dark:bg-fuchsia-400/10 dark:text-fuchsia-300 dark:ring-fuchsia-400/20", bar: "bg-fuchsia-500", soft: "bg-fuchsia-50 text-fuchsia-900 dark:bg-fuchsia-400/10 dark:text-fuchsia-50" },
@@ -119,6 +120,7 @@ export const SIDEBAR_COLLAPSED_WIDTH = 76
 // مساحة العمل) دون تكرار نفس القائمة الضخمة — البيانات ثابتة أصلاً، لا تعتمد على أي prop/hook.
 export const menuItems: MenuItem[] = [
   { id: "home-dashboard", title: "الرئيسية", icon: LayoutDashboard, section: "home-dashboard" },
+  { id: "morning-briefing", title: "الملخص الصباحي", icon: Sunrise, section: "morning-briefing" },
   { id: "ai-assistant", title: "المساعد الذكي", icon: Sparkles, section: "ai-assistant" },
   {
     id: "definitions",
@@ -126,6 +128,7 @@ export const menuItems: MenuItem[] = [
     icon: Users,
     submenu: [
       { title: "العملاء", section: "customers", icon: Users },
+      { title: "بوابة العملاء", section: "customer-portal", icon: Globe },
       { title: "الموردين", section: "suppliers", icon: Truck },
       { title: "المشتركين", section: "subscribers", icon: UserCheck },
       { title: "السيارات", section: "cars", icon: Car },

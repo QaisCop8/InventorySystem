@@ -120,6 +120,7 @@ const PosCashier = dynamic(() => import("@/components/pos/pos-cashier"), { ssr: 
 const PosPointsSettings = dynamic(() => import("@/components/pos/pos-points-settings"), { ssr: false })
 const Campaigns = dynamic(() => import("@/components/pos/campaigns"), { ssr: false })
 const DiscountCards = dynamic(() => import("@/components/pos/discount-cards"), { ssr: false })
+const MorningBriefing = dynamic(() => import("@/components/briefing/morning-briefing"), { ssr: false })
 const UnifiedCampaigns = dynamic(() => import("@/components/pos/unified-campaigns"), { ssr: false })
 
 const AIChat = lazyNamed(() => import("@/components/ai-assistant/ai-chat"), "AIChat")
@@ -294,6 +295,8 @@ const componentMap: Record<string, React.ComponentType<any>> = {
   "pos-points-settings": PosPointsSettings,
   campaigns: Campaigns,
   "pos-discount-cards": DiscountCards,
+  "morning-briefing": MorningBriefing,
+  "customer-portal": CustomerPortalAdmin,
   "unified-campaigns": UnifiedCampaigns,
   "sales-delivery": (props: any) => <SalesDelivery {...props} voucherType={13} />,
   "delivery-consignment-sale": (props: any) => <SalesDelivery {...props} voucherType={14} />,
