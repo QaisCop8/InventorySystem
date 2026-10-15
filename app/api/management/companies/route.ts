@@ -75,7 +75,8 @@ export async function POST(request: NextRequest) {
     `
     if (payNow) return NextResponse.json({ success: true, company, payment_required: true })
 
-    await sendMail({
+    // إشعار مسؤول المنصة لا يؤخّر الاستجابة (فشل/بطء البريد لا يعلّق إنشاء الشركة)
+    void sendMail({
       to: PLATFORM_ADMIN_EMAIL,
       subject: "طلب إنشاء شركة جديدة بانتظار الموافقة",
       html: `<div dir="rtl"><p>طلب المستخدم ${session.full_name} (${session.email}) إنشاء شركة جديدة باسم "${name}".</p><p>الترخيص المطلوب: ${numberOfUsers} مستخدم، ${numberOfBranches} فرع، ${numberOfPosPoints} نقطة بيع.</p><p>يرجى مراجعة الطلب من لوحة الإدارة.</p></div>`,

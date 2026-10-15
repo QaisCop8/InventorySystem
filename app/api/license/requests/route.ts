@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
       resource, quantity: Number(data.quantity), reason: data.reason,
       tenantUserId: Number(user.user_id), requestedByName: profile?.full_name || user.full_name, requestedByEmail: profile?.email || null,
     })
-    await sendMail({
+    void sendMail({
       to: PLATFORM_ADMIN_EMAIL,
       subject: `طلب زيادة ${LICENSE_RESOURCE_LABELS[resource].plural} — ${created.companyName}`,
       html: `<div dir="rtl"><p>طلبت شركة "${created.companyName}" زيادة عدد ${LICENSE_RESOURCE_LABELS[resource].plural} المرخّص بمقدار ${created.quantity}.</p><p>مقدم الطلب: ${profile?.full_name || user.full_name}</p>${data.reason ? `<p>السبب: ${String(data.reason)}</p>` : ""}<p>يرجى مراجعة الطلب من لوحة الإدارة.</p></div>`,

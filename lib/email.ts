@@ -40,6 +40,10 @@ async function sendSmtp(to: string, subject: string, html: string) {
       secure: port === 465,
       requireTLS: port === 587,
       auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+      // مهلات قصيرة: منفذ SMTP محجوب (مثل Render المجاني) كان يُعلّق الطلب دقيقتين بالمهلات الافتراضية
+      connectionTimeout: 8_000,
+      greetingTimeout: 8_000,
+      socketTimeout: 15_000,
     })
   }
   await smtpTransport.sendMail({ from: { name: senderName(), address: senderEmail() }, to, subject, html })
