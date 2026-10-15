@@ -250,6 +250,67 @@ export async function sendTemplateMessage(
 }
 
 // إرسال رسالة مع ملف مرفق
+/** هل ربط WhatsApp Business (Cloud API) مفعّل لهذه الشركة؟ */
+export async function isWhatsAppConfigured(): Promise<boolean> {
+  const config = await getWhatsAppConfig()
+  return Boolean(config?.apiToken && config.phoneNumberId)
+}
+
+/**
+ * إرسال ملف (PDF تقرير/سند) مباشرة: يُرفع الملف أولاً لوسائط واتساب ثم يُرسل كمستند — لا يحتاج رابطاً عاماً للملف.
+ */
+export async function sendDocumentFile(
+  phone: string,
+  file: Blob,
+  filename: string,
+  caption: string,
+  recipientName?: string,
+): Promise<WhatsAppMessage> {
+  const config = await getWhatsAppConfig()
+  if (!config || !config.apiToken || !config.phoneNumberId) throw new Error("ربط واتساب للأعمال غير مفعّل في الإعدادات")
+  const formattedPhone = formatPhoneNumber(phone)
+  if (!validatePhoneNumber(formattedPhone)) throw new Error(`رقم الهاتف غير صالح: ${phone}`)
+
+  const messageRecord = await saveMessage({
+    recipient_phone: formattedPhone,
+    recipient_name: recipientName,
+    message_type: "document",
+    message_content: caption || filename,
+    status: "pending",
+  })
+
+  try {
+    const upload = new FormData()
+    upload.append("messaging_product", "whatsapp")
+    upload.append("type", file.type || "application/pdf")
+    upload.append("file", file, filename)
+    const uploadResponse = await fetch(`${config.apiUrl}/${config.phoneNumberId}/media`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${config.apiToken}` },
+      body: upload,
+    })
+    const uploaded = await uploadResponse.json()
+    if (!uploadResponse.ok || !uploaded.id) throw new Error(uploaded.error?.message || "تعذر رفع الملف إلى واتساب")
+
+    const response = await fetch(`${config.apiUrl}/${config.phoneNumberId}/messages`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${config.apiToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        messaging_product: "whatsapp",
+        to: formattedPhone.replace(/^\+/, ""),
+        type: "document",
+        document: { id: uploaded.id, filename, caption },
+      }),
+    })
+    const result = await response.json()
+    if (!response.ok) throw new Error(result.error?.message || "تعذر إرسال المستند")
+    return await updateMessageStatus(messageRecord.id!, "sent", result.messages?.[0]?.id)
+  } catch (error) {
+    await updateMessageStatus(messageRecord.id!, "failed", undefined, error instanceof Error ? error.message : String(error)).catch(() => undefined)
+    throw error
+  }
+}
+
 export async function sendMediaMessage(
   phone: string,
   message: string,

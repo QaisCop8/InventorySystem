@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { withVoucherAudit } from "@/lib/voucher-audit"
 import sql, { withTenantTransaction } from "@/lib/database"
 import { fetchDetails, unlinkPayrollJournal, archiveAndDeleteVoucher, markVoucherPrinted } from "../_lib"
 import { authorizeStoredVoucher } from "@/lib/transaction-permissions"
@@ -28,7 +29,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
 // حذف فعلي (مع أرشفة إلى جداول log) — متاح فقط لسند بحالة "فعال" (status=1). سند مُرحَّل
 // يُلغى منطقياً عبر PUT بـ status=3 بدل هذا المسار (انظر archiveAndDeleteVoucher في receipts/_lib.ts).
-export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+async function deleteHandler(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const id = Number((await params).id)
     if (!id) {
@@ -83,3 +84,6 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     return NextResponse.json({ error: "Failed to mark journal voucher as printed" }, { status: 500 })
   }
 }
+
+// أرشفة السندات (تقرير ارشفة السندات): نسخة قبل/بعد + نوع العملية والمستخدم
+export const DELETE = withVoucherAudit(deleteHandler, { source: "voucher", kind: "delete" })

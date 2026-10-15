@@ -33,6 +33,7 @@ import type { PostVoucherAction } from "@/components/common/post-voucher-dialog"
 import { useWorkspace } from "@/contexts/workspace-context"
 import { serialsSummary } from "@/components/inventory/item-serials-dialog"
 import { VoucherListTable } from "@/components/common/voucher-list-table"
+import { logVoucherAudit } from "@/lib/audit-client"
 
 interface LookupOption {
   id: number
@@ -597,6 +598,7 @@ export default function SalesDelivery({ voucherType }: SalesDeliveryProps) {
   const cloneVoucher = async () => {
     const form = formRef.current
     if (!form.id) return
+    logVoucherAudit({ action: "clone", voucher_id: Number(form.id) })
     setIsLoading(true)
     try {
       const code = await generateCode(form.vch_book_id, "", form.branch_id)

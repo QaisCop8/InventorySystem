@@ -3,6 +3,8 @@
 import type { CompanyInfo } from "./document"
 import { logoSource } from "./html"
 import { normalizeReportSettings, reportPaper, type ReportPrintSettings } from "./report-settings"
+import { logReportAudit } from "@/lib/audit-client"
+import { collectReportFilters, reportContextOf } from "@/lib/report-filters-capture"
 
 export type ReportPrintInput = {
   title: string
@@ -165,26 +167,52 @@ export function printReportSample(settings: ReportPrintSettings, company: Compan
   printInFrame(renderReportHtml(sampleReportInput(), settings, company, { landscape: settings.orientation === "landscape", printedBy: currentUserName() }))
 }
 
-/** Prints the report that contains `from` (usually the clicked print button) using report print settings. */
-export async function printReportFrom(from: HTMLElement | null) {
+export type BuiltReport = {
+  html: string
+  title: string
+  landscape: boolean
+  paper: { widthMm: number; heightMm: number }
+  margins: { top: number; right: number; bottom: number; left: number }
+}
+
+/** يبني HTML التقرير الظاهر الذي يحتوي `from` بإعدادات طباعة التقارير — للطباعة أو لتحويله PDF. null = لا جداول. */
+export async function buildReportFrom(from: HTMLElement | null, options: { forPdf?: boolean } = {}): Promise<BuiltReport | null> {
   const root = findReportRoot(from)
   const { html: tablesHtml, widest } = captureTables(root)
-  if (!tablesHtml.length) { window.print(); return }
-  const title = root.querySelector(".report-header h1, h1")?.textContent?.trim() || document.title
+  if (!tablesHtml.length) return null
+  const title = root.querySelector(".report-header h1, h1")?.textContent?.trim() || reportContextOf(from).title || document.title
   const subtitle = root.querySelector(".report-header p")?.textContent?.trim() || ""
   const summary = Array.from(root.querySelectorAll<HTMLElement>(".report-summary-card"))
     .filter(card => card.offsetParent !== null)
     .map(card => ({ label: card.querySelector(".report-summary-label")?.textContent?.trim() || "", value: card.querySelector(".report-summary-value")?.textContent?.trim() || "" }))
-  let bundle: Bundle
+  const { settings, company } = await loadReportPrintSettings()
+  const portrait = reportPaper(settings, false)
+  const printableWidthPx = (portrait.widthMm - settings.margin_left_mm - settings.margin_right_mm) * MM_TO_PX
+  const landscape = settings.orientation === "landscape" || (settings.auto_landscape && widest > printableWidthPx)
+  const paper = reportPaper(settings, landscape)
+  // في PDF لا تُطبَّق هوامش @page ولا ترقيم الصفحات (يُضافان عند بناء الـPDF)
+  const effective = options.forPdf ? { ...settings, show_footer: false } : settings
+  return {
+    html: renderReportHtml({ title, subtitle, summary, tablesHtml }, effective, company, { landscape, printedBy: currentUserName() }),
+    title,
+    landscape,
+    paper: { widthMm: paper.widthMm, heightMm: paper.heightMm },
+    margins: { top: settings.margin_top_mm, right: settings.margin_right_mm, bottom: settings.margin_bottom_mm, left: settings.margin_left_mm },
+  }
+}
+
+/** Prints the report that contains `from` (usually the clicked print button) using report print settings. */
+export async function printReportFrom(from: HTMLElement | null) {
+  // تقرير ارشفة التقارير: من طبع التقرير ومتى وبأي فلاتر
+  const context = reportContextOf(from)
+  logReportAudit({ action: "print", report_key: context.key, report_title: context.title, filters: collectReportFilters(context.root) })
+  let built: BuiltReport | null
   try {
-    bundle = await loadReportPrintSettings()
+    built = await buildReportFrom(from)
   } catch {
     window.print()
     return
   }
-  const { settings, company } = bundle
-  const portrait = reportPaper(settings, false)
-  const printableWidthPx = (portrait.widthMm - settings.margin_left_mm - settings.margin_right_mm) * MM_TO_PX
-  const landscape = settings.orientation === "landscape" || (settings.auto_landscape && widest > printableWidthPx)
-  printInFrame(renderReportHtml({ title, subtitle, summary, tablesHtml }, settings, company, { landscape, printedBy: currentUserName() }))
+  if (!built) { window.print(); return }
+  printInFrame(built.html)
 }

@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { withVoucherAudit } from "@/lib/voucher-audit"
 import { getSalesOrders, getPurchaseOrders, createOrder, createPurchaseOrder } from "@/lib/orders"
 import { createOrderWorkflowStatus } from "@/lib/workflow"
 import { authorizeTransaction } from "@/lib/transaction-permissions"
@@ -87,7 +88,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-export async function POST(request: NextRequest) {
+async function postHandler(request: NextRequest) {
   try {
     const requestData = await request.json(); // read once
 
@@ -135,3 +136,6 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+// أرشفة السندات (تقرير ارشفة السندات): نسخة قبل/بعد + نوع العملية والمستخدم
+export const POST = withVoucherAudit(postHandler, { source: "order", kind: "save" })

@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { withVoucherAudit } from "@/lib/voucher-audit"
 import { getTenantPool } from "@/lib/database"
 import { deleteSalesOrder, updatePrintSalesOrder } from "@/lib/orders"
 import { authorizeTransaction } from "@/lib/transaction-permissions"
@@ -18,7 +19,7 @@ async function getOrderStatus(id: number): Promise<number | null> {
   return result.rows[0]?.order_status == null ? null : Number(result.rows[0].order_status)
 }
 
-export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+async function putHandler(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const id = Number(params.id)
     const userId = request.headers.get("x-user-id")
@@ -42,7 +43,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
   }
 }
 
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+async function deleteHandler(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const id = Number(params.id)
     const userId = request.headers.get("x-user-id")
@@ -73,3 +74,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
     return NextResponse.json({ error: error?.message || "حدث خطأ أثناء حذف الطلبية" }, { status: 400 })
   }
 }
+
+// أرشفة السندات (تقرير ارشفة السندات): نسخة قبل/بعد + نوع العملية والمستخدم
+export const PUT = withVoucherAudit(putHandler, { source: "order", kind: "save" })
+export const DELETE = withVoucherAudit(deleteHandler, { source: "order", kind: "delete" })

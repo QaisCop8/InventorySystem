@@ -205,7 +205,7 @@ export default function PrintSettings() {
   const testPrint = async () => {
     setTesting(true)
     try {
-      const result = await printVoucherWithSettings(sample, normalizePrintSettings(form), company)
+      const result = await printVoucherWithSettings({ ...sample, noAudit: true }, normalizePrintSettings(form), company)
       toast({
         title: result.method === "service" ? "أُرسلت إلى الطابعة الافتراضية" : "فُتحت نافذة طباعة المتصفح",
         description: result.warning ? `تعذرت خدمة الطباعة: ${result.warning}` : undefined,

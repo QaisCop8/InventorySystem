@@ -22,6 +22,7 @@ import type { PostVoucherAction } from "@/components/common/post-voucher-dialog"
 import VoucherPrintLayout, { type VoucherPrintData } from "@/components/common/voucher-print-layout"
 import type { BankAccountRecord } from "@/components/admin/unified-bank-accounts"
 import { useWorkspaceTabActive } from "@/contexts/workspace-tab-context"
+import { logVoucherAudit } from "@/lib/audit-client"
 
 interface CurrencyOption {
   currency_id?: number
@@ -534,6 +535,7 @@ export default function Receipts({ voucherType }: ReceiptsProps) {
   // برقم ودفتر وتاريخ جديد بدل مسحها، ليحفظها المستخدم كسند مستقل دون إعادة إدخالها.
   const cloneVoucher = async () => {
     if (!form.id) return
+    logVoucherAudit({ action: "clone", voucher_id: Number(form.id) })
     const code = await generateCode(form.vch_book_id, "", form.branch_id)
     const today = new Date().toISOString().slice(0, 10)
     setForm((f) => ({

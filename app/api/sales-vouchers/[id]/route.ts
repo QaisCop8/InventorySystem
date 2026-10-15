@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { withVoucherAudit } from "@/lib/voucher-audit"
 import sql from "@/lib/database"
 import {
   ensureTables,
@@ -101,7 +102,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 }
 
 // حذف فعلي — متاح فقط لسند بحالة "فعال" (status=1). سند مُرحَّل يُلغى منطقياً عبر PUT بـstatus=3.
-export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+async function deleteHandler(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const id = Number((await params).id)
     if (!id) {
@@ -122,3 +123,6 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     return NextResponse.json({ error: workingPeriodErrorMessage(error) || "Failed to delete sales voucher" }, { status: workingPeriodErrorMessage(error) ? 400 : 500 })
   }
 }
+
+// أرشفة السندات (تقرير ارشفة السندات): نسخة قبل/بعد + نوع العملية والمستخدم
+export const DELETE = withVoucherAudit(deleteHandler, { source: "voucher", kind: "delete" })

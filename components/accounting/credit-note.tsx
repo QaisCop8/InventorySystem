@@ -15,6 +15,7 @@ import { Edit, Plus, Search } from "lucide-react"
 import { VoucherListTable } from "@/components/common/voucher-list-table"
 import type { PostVoucherAction } from "@/components/common/post-voucher-dialog"
 import VoucherPrintLayout, { type VoucherPrintData } from "@/components/common/voucher-print-layout"
+import { logVoucherAudit } from "@/lib/audit-client"
 
 interface CurrencyOption {
   currency_id?: number
@@ -334,6 +335,7 @@ export default function CreditNote({ voucherType }: CreditNoteProps) {
     await pendingBookChangeRef.current
     const source = formRef.current
     if (!source.id) return
+    logVoucherAudit({ action: "clone", voucher_id: Number(source.id) })
     const requestId = ++bookChangeRequestRef.current
     const code = await generateCode(source.vch_book_id, "", source.branch_id)
     if (requestId !== bookChangeRequestRef.current || formRef.current.id !== source.id) return

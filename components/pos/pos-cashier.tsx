@@ -33,6 +33,7 @@ import {cn} from "@/lib/utils"
 import {useToast} from "@/hooks/use-toast"
 import {currentPosTenantKey,listPosSales,loadPosCatalog,markPosSaleFailed,queuePosSale,removePosSale,savePosCatalog,type PosQueuedSale} from "@/lib/pos-offline"
 import { useWorkspaceTabActive } from "@/contexts/workspace-tab-context"
+import { logVoucherAudit } from "@/lib/audit-client"
 
 type BarcodeOption={barcode:string;price:number;unitId:number|null;unitName:string}
 type Product={unitPrices?:{unitId:number|null;price:number;unitName?:string}[];soldUsingScale:boolean;id:number;code:string;name:string;barcode:string;price:number;unitId:number|null;unitName:string;accountId:number|null;returnAccountId:number|null;category:string;groupId?:number|null;groupPrinter?:string;image?:string;available:number;barcodeOptions:BarcodeOption[]}
@@ -355,7 +356,7 @@ export default function PosCashier(){
     const merged=new Map<string,{name:string;unit:string;quantity:number}>()
     for(const line of group.lines){const key=`${line.id}|${line.unitId??""}`,row=merged.get(key)||{name:line.name,unit:line.unitName||"",quantity:0};row.quantity+=line.quantity;merged.set(key,row)}
     const printedAt=localDateTime()
-    const document:PrintDocument={voucherTypeId:12,title:group.name||"مجموعة أصناف",code,date:printedAt,
+    const document:PrintDocument={noAudit:true,voucherTypeId:12,title:group.name||"مجموعة أصناف",code,date:printedAt,
      fields:[{label:"نقطة البيع",value:point?.name||""},{label:"الوقت",value:printedAt.slice(11,16)}],
      columns:[{key:"name",label:"الصنف",weight:3.2},{key:"quantity",label:"الكمية",align:"center",weight:1}],
      rows:[...merged.values()].map(row=>({name:row.unit?`${row.name} (${row.unit})`:row.name,quantity:quantityText(row.quantity)})),
@@ -395,6 +396,7 @@ export default function PosCashier(){
  const makeReceiptSnapshot=(code:string,pending:boolean,lines:CartLine[]):NonNullable<Receipt>=>{const customer=catalog.customers.find(row=>row.id===customerId);return {code,total,pending,lines,mode,date:localDateTime(),customerName:customer?.name||"عميل نقدي",customerPhone:customer?.mobile1,customerAddress:customer?.address,note,subtotal:lines.reduce((sum,line)=>sum+line.price*line.quantity,0),itemDiscount:lines.reduce((sum,line)=>sum+line.price*line.quantity*line.discount/100,0),invoiceDiscount:invoiceDiscount+campaignResult.invoiceDiscount+cardDiscount,tax,payments:payments.filter(payment=>payment.amount>0),refundAmount:change,currencyCode:point?.currency_code||"",pointName:point?.name||"نقطة البيع"}}
  const printReceiptDirect=async(receiptData:NonNullable<Receipt>,browserPrintWindow:Window|null=null)=>{
   if(!point?.print_invoices)return
+  if(!receiptData.pending)logVoucherAudit({action:"print_original",vch_type:receiptData.mode==="return"?16:receiptData.mode==="gift"?9:12,vch_code:receiptData.code,channel:"pos"})
   if(isMobilePrintDevice()){
    if(!browserPrintWindow){setMessage({type:"error",text:"تعذر فتح صفحة الطباعة. اسمح بالنوافذ المنبثقة لهذا الموقع ثم أعد المحاولة."});return}
    const printDocument=browserPrintWindow.document

@@ -5,6 +5,7 @@ import type { CompanyInfo, PrintDocument } from "./document"
 import { renderPrintHtml, type PrintContext } from "./html"
 import { normalizePrintSettings, paperDimensions, type VoucherPrintSettings } from "./settings"
 import { printWithCashierService } from "./win-service"
+import { logVoucherAudit, printActionForCopyLabel } from "@/lib/audit-client"
 
 type SettingsBundle = { settings: VoucherPrintSettings; company: CompanyInfo }
 const cache = new Map<number, { at: number; promise: Promise<SettingsBundle> }>()
@@ -110,6 +111,8 @@ async function printVoucherWith(document: PrintDocument, resolve: () => Promise<
   const mobileWindow = mobile ? window.open("", "_blank") : null
   try {
     const { settings, company } = await resolve()
+    // تقرير ارشفة السندات: كل طباعة (نسخة أصلية/نسخة/للتدقيق) تُسجَّل باسم المستخدم ووقتها
+    if (!document.noAudit) logVoucherAudit({ action: printActionForCopyLabel(document.copyLabel), voucher_id: document.auditVoucherId ?? null, vch_type: document.voucherTypeId, vch_code: document.code, copy_label: document.copyLabel ?? null })
     const context = buildPrintContext(document, company, settings)
     const html = () => renderPrintHtml(document, settings, context)
 

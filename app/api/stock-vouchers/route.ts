@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { withVoucherAudit } from "@/lib/voucher-audit"
 import { validateNegativeStock } from "@/lib/negative-stock-guard"
 import sql from "@/lib/database"
 import {
@@ -54,7 +55,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-export async function POST(request: NextRequest) {
+async function postHandler(request: NextRequest) {
   try {
     await ensureTables()
     const data = await request.json()
@@ -208,7 +209,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function PUT(request: NextRequest) {
+async function putHandler(request: NextRequest) {
   try {
     await ensureTables()
     const data = await request.json()
@@ -403,3 +404,7 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ error: workingPeriodErrorMessage(error) || "Failed to update stock voucher" }, { status: workingPeriodErrorMessage(error) ? 400 : 500 })
   }
 }
+
+// أرشفة السندات (تقرير ارشفة السندات): نسخة قبل/بعد + نوع العملية والمستخدم
+export const POST = withVoucherAudit(postHandler, { source: "voucher", kind: "save" })
+export const PUT = withVoucherAudit(putHandler, { source: "voucher", kind: "save" })

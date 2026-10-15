@@ -369,6 +369,8 @@ export const menuItems: MenuItem[] = [
       { title: "تقرير تعمير الذمم", section: "receivables-aging-report", icon: Clock3 },
       { title: "تقرير السندات", section: "vouchers-report", icon: FileText },
       { title: "تقرير الحركات", section: "transactions-report", icon: TrendingUp },
+      { title: "تقرير ارشفة السندات", section: "voucher-audit-report", icon: Archive },
+      { title: "تقرير ارشفة التقارير", section: "report-audit-report", icon: Archive },
       { title: "ميزان المراجعة", section: "trial-balance-report", icon: BarChart3 },
       { title: "ميزانية عمومية", section: "balance-sheet-report", icon: Landmark },
       { title: "قائمة الدخل", section: "income-statement-report", icon: DollarSign },

@@ -21,6 +21,9 @@ export type PrintDocument = {
   amount?: number
   currencyName?: string
   notes?: string
+  // أرشفة السندات: معرّف السند (اختياري — وإلا يُحدَّد بنوعه ورقمه)، وnoAudit لطباعات ليست سنداً (عيّنة/قسائم مطبخ)
+  auditVoucherId?: number | null
+  noAudit?: boolean
 }
 
 export type CompanyInfo = {

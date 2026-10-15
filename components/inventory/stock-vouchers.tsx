@@ -24,6 +24,7 @@ import type { PostVoucherAction } from "@/components/common/post-voucher-dialog"
 import StockVoucherPrintLayout, { type StockVoucherPrintData } from "@/components/common/stock-voucher-print-layout"
 import { serialsSummary } from "@/components/inventory/item-serials-dialog"
 import { VoucherListTable } from "@/components/common/voucher-list-table"
+import { logVoucherAudit } from "@/lib/audit-client"
 
 interface StockVouchersProps {
   voucherType: StockVoucherType
@@ -424,6 +425,7 @@ export default function StockVouchers({ voucherType }: StockVouchersProps) {
   // جديد بدل مسحها، ليحفظها المستخدم كسند مستقل دون إعادة إدخالها — مطابق لِـ cloneVoucher في receipts.tsx.
   const cloneVoucher = async () => {
     if (!form.id) return
+    logVoucherAudit({ action: "clone", voucher_id: Number(form.id) })
     const code = await generateCode(form.vch_book_id, "", form.branch_id)
     const today = new Date().toISOString().slice(0, 10)
     setForm((f) => ({

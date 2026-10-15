@@ -18,6 +18,7 @@ import { Edit, Plus, Search } from "lucide-react"
 import { VoucherListTable } from "@/components/common/voucher-list-table"
 import type { PostVoucherAction } from "@/components/common/post-voucher-dialog"
 import VoucherPrintLayout, { type VoucherPrintData } from "@/components/common/voucher-print-layout"
+import { logVoucherAudit } from "@/lib/audit-client"
 
 interface CurrencyOption {
   currency_id?: number
@@ -275,6 +276,7 @@ export default function Journal() {
 
   const cloneVoucher = async () => {
     if (!form.id) return
+    logVoucherAudit({ action: "clone", voucher_id: Number(form.id) })
     const code = await generateCode(form.vch_book_id, "", form.branch_id)
     const today = new Date().toISOString().slice(0, 10)
     setForm((f) => ({ ...f, id: 0, vch_code: code, vch_date: today, manual_date: today, status: 1, is_printed: 0 }))

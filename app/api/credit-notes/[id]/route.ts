@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { withVoucherAudit } from "@/lib/voucher-audit"
 import sql from "@/lib/database"
 import { fetchCreditNoteDetails, archiveAndDeleteVoucher, markVoucherPrinted } from "../_lib"
 import { authorizeStoredVoucher } from "@/lib/transaction-permissions"
@@ -27,7 +28,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 
 // حذف فعلي (مع أرشفة إلى جداول log) — متاح فقط لسند بحالة "فعال" (status=1). سند مُرحَّل
 // يُلغى منطقياً عبر PUT بـ status=3 بدل هذا المسار.
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+async function deleteHandler(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const id = Number(params.id)
     if (!id) {
@@ -69,3 +70,6 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     return NextResponse.json({ error: "Failed to mark credit/debit note as printed" }, { status: 500 })
   }
 }
+
+// أرشفة السندات (تقرير ارشفة السندات): نسخة قبل/بعد + نوع العملية والمستخدم
+export const DELETE = withVoucherAudit(deleteHandler, { source: "voucher", kind: "delete" })

@@ -172,6 +172,8 @@ const InternalManufacturingDraftPage = lazyNamed(() => import("@/components/manu
 const InternalManufacturingConfirmationPage = lazyNamed(() => import("@/components/manufacturing/internal-manufacturing-pages"), "InternalManufacturingConfirmationPage")
 const InternalRequestsArchiveReport = lazyDefault(() => import("@/components/manufacturing/internal-requests-archive-report"))
 const SalesDraftsArchiveReport = lazyDefault(() => import("@/components/order-drafts/sales-drafts-archive-report"))
+const VoucherAuditReport = lazyDefault(() => import("@/components/reports/voucher-audit-report"))
+const ReportAuditReport = lazyDefault(() => import("@/components/reports/report-audit-report"))
 const EmployeeJobsPage = lazyNamed(() => import("@/components/hr/employee-jobs-page"), "EmployeeJobsPage")
 const DepartmentsPage = lazyNamed(() => import("@/components/hr/departments-page"), "DepartmentsPage")
 const SalaryItemsPage = lazyNamed(() => import("@/components/hr/salary-items-page"), "SalaryItemsPage")
@@ -362,6 +364,8 @@ const componentMap: Record<string, React.ComponentType<any>> = {
   "internal-manufacturing-confirmation": InternalManufacturingConfirmationPage,
   "internal-manufacturing-archive-report": InternalRequestsArchiveReport,
   "sales-drafts-archive-report": SalesDraftsArchiveReport,
+  "voucher-audit-report": VoucherAuditReport,
+  "report-audit-report": ReportAuditReport,
   "employee-jobs": EmployeeJobsPage,
   "hr-departments": DepartmentsPage,
   "salary-items": SalaryItemsPage,

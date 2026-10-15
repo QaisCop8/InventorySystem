@@ -1,4 +1,5 @@
 import { NextResponse,type NextRequest } from "next/server"
+import { withVoucherAudit } from "@/lib/voucher-audit"
 import sql,{withTenantTransaction} from "@/lib/database"
 import { authorizeTransaction } from "@/lib/transaction-permissions"
 import { CHEQUE_PAYMENT_VCH_TYPE,ENDORSEMENT_STATUS_IDS,ensureChequePaymentTables,fetchChequePaymentVoucher,nextChequePaymentCode } from "./_lib"
@@ -48,7 +49,7 @@ export async function GET(request:NextRequest){
   }catch(error){console.error("Cheque payment voucher GET error:",error);return NextResponse.json({error:"تعذر تحميل سندات صرف الشيكات"},{status:500})}
 }
 
-export async function POST(request:NextRequest){
+async function postHandler(request:NextRequest){
   try{
     await ensureChequePaymentTables()
     const data=await request.json(),chequeIds=ids(data.cheque_ids)
@@ -108,3 +109,6 @@ export async function POST(request:NextRequest){
     return NextResponse.json({error:error instanceof Error ? error.message : "تعذر حفظ سند صرف الشيكات"},{status:500})
   }
 }
+
+// أرشفة السندات (تقرير ارشفة السندات): نسخة قبل/بعد + نوع العملية والمستخدم
+export const POST = withVoucherAudit(postHandler, { source: "voucher", kind: "save" })

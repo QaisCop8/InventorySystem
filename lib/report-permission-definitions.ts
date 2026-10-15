@@ -51,6 +51,8 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
   { section: "cashier-log-total-report", title: "تقرير حركات الكاشير إجمالي" },
   { section: "cashier-log-detailed-report", title: "تقرير حركات الكاشير تفصيلي" },
   { section: "task-orders-report", title: "تقارير أوامر العمل" },
+  { section: "voucher-audit-report", title: "تقرير ارشفة السندات" },
+  { section: "report-audit-report", title: "تقرير ارشفة التقارير" },
   { section: "sales-drafts-archive-report", title: "تقرير ارشفة مسودات طلبيات المبيعات" },
   { section: "salary-items-report", title: "تقرير بنود الرواتب" },
   { section: "income-tax-report", title: "ضريبة دخل الموظفين" },

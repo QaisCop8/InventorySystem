@@ -65,6 +65,7 @@ import { useWorkspaceTabActive } from "@/contexts/workspace-tab-context"
 import { screenHotkeysAllowed } from "@/lib/hotkeys"
 import { useNavigationGuard } from "@/lib/navigation-guard"
 import { keepDialogOpenOnEscape } from "@/lib/dialog-escape"
+import { logVoucherAudit } from "@/lib/audit-client"
 
 const ORDER_ITEM_STATUS_OPTIONS = [
   { value: 1, label: "غير جاهز" },
@@ -2210,6 +2211,7 @@ function UnifiedSalesOrder({
     doc.close();
     iframe.contentWindow?.focus();
     iframe.contentWindow?.print();
+    if (Number(order?.id) > 0) logVoucherAudit({ action: "print", source: "order", voucher_id: Number(order.id) })
     document.body.removeChild(iframe);
     setState((prev) => ({
       ...prev,
@@ -2578,6 +2580,7 @@ function UnifiedSalesOrder({
 
   const handleClone = async () => {
     if (!state.formData) return;
+    if (Number(state.formData.id) > 0) logVoucherAudit({ action: "clone", source: "order", voucher_id: Number(state.formData.id) })
 
     setLoading(true);
     const order_num = await generateOrderNumber()

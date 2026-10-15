@@ -3,12 +3,14 @@
 import type { ReactNode } from "react"
 import { Lock } from "lucide-react"
 import { useReportAccess } from "./use-report-access"
-import { reportPermissionNameFor } from "@/lib/report-permission-definitions"
+import { reportDefinitionFor, reportPermissionNameFor } from "@/lib/report-permission-definitions"
+import { ReportArchiveTracker } from "@/components/reports/report-archive-tracker"
 
 /** يمنع فتح تقرير لا يملك المستخدم صلاحية استعلامه في الفرع النشط (حتى لو فُتح برابط أو تبويب محفوظ). */
 export function ReportAccessGate({ section, children }: { section: string; children: ReactNode }) {
   const canOpenReport = useReportAccess()
-  if (canOpenReport(section)) return <>{children}</>
+  // تقرير ارشفة التقارير: كل تقرير مفتوح يُتتبَّع (فتح/عرض بالفلاتر/طباعة/PDF/واتساب)
+  if (canOpenReport(section)) return <ReportArchiveTracker section={section} title={reportDefinitionFor(section)?.title || section}>{children}</ReportArchiveTracker>
   return (
     <div dir="rtl" className="flex h-full min-h-[320px] items-center justify-center p-6">
       <div className="max-w-md rounded-2xl border-2 border-dashed border-amber-300 bg-amber-50/70 px-8 py-10 text-center">

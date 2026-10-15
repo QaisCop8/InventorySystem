@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server"
+import { withVoucherAudit } from "@/lib/voucher-audit"
 import sql, { withTenantTransaction } from "@/lib/database"
 import { authorizeStoredVoucher } from "@/lib/transaction-permissions"
 import { rollbackChequeOperationsForVoucher } from "@/app/api/cheques/_lib"
@@ -16,7 +17,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     : NextResponse.json({ error: "السند غير موجود" }, { status: 404 })
 }
 
-export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+async function deleteHandler(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     await ensureChequePaymentTables()
     const id = Number((await params).id)
@@ -63,7 +64,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
   }
 }
 
-export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+async function patchHandler(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     await ensureChequePaymentTables()
     const id = Number((await params).id)
@@ -89,3 +90,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     return NextResponse.json({ error: workingPeriodErrorMessage(error) || "تعذر حفظ سند صرف الشيكات" }, { status: workingPeriodErrorMessage(error) ? 400 : 500 })
   }
 }
+
+// أرشفة السندات (تقرير ارشفة السندات): نسخة قبل/بعد + نوع العملية والمستخدم
+export const PATCH = withVoucherAudit(patchHandler, { source: "voucher", kind: "save" })
+export const DELETE = withVoucherAudit(deleteHandler, { source: "voucher", kind: "delete" })

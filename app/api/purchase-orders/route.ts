@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { withVoucherAudit } from "@/lib/voucher-audit"
 import sql from "@/lib/database"
 import { generatePurchaseOrderNumber } from "@/lib/number-generator"
 import { createPurchaseOrder } from "@/lib/orders"
@@ -33,7 +34,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-export async function POST(request: NextRequest) {
+async function postHandler(request: NextRequest) {
   try {
     await ensureBranchColumn()
     const payload = await request.json()
@@ -100,7 +101,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function PUT(request: NextRequest) {
+async function putHandler(request: NextRequest) {
   try {
     await ensureBranchColumn()
     const payload = await request.json()
@@ -138,7 +139,7 @@ export async function PUT(request: NextRequest) {
   }
 }
 
-export async function DELETE(request: NextRequest) {
+async function deleteHandler(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const id = searchParams.get("id")
@@ -161,3 +162,8 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: "Failed to delete purchase order" }, { status: 500 })
   }
 }
+
+// أرشفة السندات (تقرير ارشفة السندات): نسخة قبل/بعد + نوع العملية والمستخدم
+export const POST = withVoucherAudit(postHandler, { source: "purchase_order", kind: "save" })
+export const PUT = withVoucherAudit(putHandler, { source: "purchase_order", kind: "save" })
+export const DELETE = withVoucherAudit(deleteHandler, { source: "purchase_order", kind: "delete" })

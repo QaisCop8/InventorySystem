@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { withVoucherAudit } from "@/lib/voucher-audit"
 import sql from "@/lib/database"
 import { fetchVoucherItems, archiveAndDeleteStockVoucher } from "../_lib"
 import { authorizeStoredVoucher } from "@/lib/transaction-permissions"
@@ -55,7 +56,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 
 // حذف فعلي — متاح فقط لسند بحالة "فعال" (status=1، لم يُرحَّل بعد). سند مُرحَّل يُلغى منطقياً
 // عبر PUT بـ status=3 بدل هذا المسار (انظر archiveAndDeleteStockVoucher في _lib.ts).
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+async function deleteHandler(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const id = Number(params.id)
     if (!id) {
@@ -75,3 +76,6 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
     return NextResponse.json({ error: workingPeriodErrorMessage(error) || "Failed to delete stock voucher" }, { status: workingPeriodErrorMessage(error) ? 400 : 500 })
   }
 }
+
+// أرشفة السندات (تقرير ارشفة السندات): نسخة قبل/بعد + نوع العملية والمستخدم
+export const DELETE = withVoucherAudit(deleteHandler, { source: "voucher", kind: "delete" })
