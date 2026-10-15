@@ -116,6 +116,7 @@ export const ensureCustomerAccount = async ({
   fatherId = null,
   levelNo = 1,
   accountType = 2,
+  creditLimit = null,
 }: {
   accountId?: number | null
   code: string
@@ -126,6 +127,8 @@ export const ensureCustomerAccount = async ({
   fatherId?: number | null
   levelNo?: number
   accountType?: number
+  // حد الائتمان (حد الدين) — null = إبقاء القيمة الحالية بالحساب كما هي
+  creditLimit?: number | null
 }) => {
   const normalizedCode = String(code || "").trim()
   const normalizedName = String(name || "").trim()
@@ -139,6 +142,7 @@ export const ensureCustomerAccount = async ({
   const finalIsCalcCurrDiffRates = toBool(isCalcCurrDiffRates, false)
   const finalFatherId = fatherId ? Number(fatherId) : null
   const finalLevelNo = Number(levelNo || 1) || 1
+  const finalCreditLimit = creditLimit == null || !Number.isFinite(Number(creditLimit)) ? null : Math.max(0, Number(creditLimit))
 
   if (accountId) {
     await sql`
@@ -160,8 +164,7 @@ export const ensureCustomerAccount = async ({
         transaction_type_action = 0,
         max_transaction_amount = 0,
         max_transaction_amount_action = 0,
-        max_balance_amount = 0,
-        max_balance_action = NULL,
+        max_balance_amount = COALESCE(${finalCreditLimit}::double precision, max_balance_amount, 0),
         budget_exceeding_perc = NULL,
         budget_exceeding_action = NULL,
         unified_report_account_no = NULL,
@@ -199,6 +202,7 @@ export const ensureCustomerAccount = async ({
         currency_id = ${finalCurrencyId},
         allow_trans_with_diff_curr = ${finalAllowTransWithDiffCurr},
         iscalc_curr_diff_rates = ${finalIsCalcCurrDiffRates},
+        max_balance_amount = COALESCE(${finalCreditLimit}::double precision, max_balance_amount, 0),
         status = 1,
         last_update_date = CURRENT_TIMESTAMP
       WHERE id = ${existingId}

@@ -112,7 +112,7 @@ export async function GET(request: NextRequest) {
     const accountIdFilter = accountIdParam && Number.isFinite(Number(accountIdParam)) ? Number(accountIdParam) : null;
     if (accountIdFilter) {
       const rows = await sql`
-        SELECT c.*, acc.currency_id AS currency_id
+        SELECT c.*, acc.currency_id AS currency_id, COALESCE(acc.max_balance_amount, 0) AS credit_limit
         FROM customers c
         LEFT JOIN account_tbl acc ON acc.id = c.account_id
         WHERE c.isDeleted = false AND c.account_id = ${accountIdFilter} AND c.type = ${typeFilter}
@@ -134,6 +134,7 @@ export async function GET(request: NextRequest) {
             acc.allow_trans_with_diff_curr AS allow_trans_with_diff_curr,
             acc.iscalc_curr_diff_rates AS iscalc_curr_diff_rates,
             acc.level_no AS level_no,
+            COALESCE(acc.max_balance_amount, 0) AS credit_limit,
             COUNT(cu.id) as user_count,
             CASE WHEN COUNT(cu.id) > 0 THEN true ELSE false END as portal_enabled
           FROM customers c
@@ -151,6 +152,7 @@ export async function GET(request: NextRequest) {
                    , acc.allow_trans_with_diff_curr
                    , acc.iscalc_curr_diff_rates
                    , acc.level_no
+                   , acc.max_balance_amount
           ORDER BY c.created_at DESC
         `
       : await sql`
@@ -165,6 +167,7 @@ export async function GET(request: NextRequest) {
             acc.allow_trans_with_diff_curr AS allow_trans_with_diff_curr,
             acc.iscalc_curr_diff_rates AS iscalc_curr_diff_rates,
             acc.level_no AS level_no,
+            COALESCE(acc.max_balance_amount, 0) AS credit_limit,
             COUNT(cu.id) as user_count,
             CASE WHEN COUNT(cu.id) > 0 THEN true ELSE false END as portal_enabled
           FROM customers c
@@ -182,6 +185,7 @@ export async function GET(request: NextRequest) {
                    , acc.allow_trans_with_diff_curr
                    , acc.iscalc_curr_diff_rates
                    , acc.level_no
+                   , acc.max_balance_amount
           ORDER BY c.created_at DESC
         `
 
@@ -362,6 +366,7 @@ export async function POST(request: NextRequest) {
       }
 
       const accountId = await ensureCustomerAccount({
+        creditLimit: data.credit_limit === undefined ? null : Number(data.credit_limit) || 0,
         code: data.customer_code,
         name: data.customer_name || data.name,
         currencyId: accountCurrencyId,
@@ -507,6 +512,7 @@ export async function PUT(request: NextRequest) {
     `
 
     const accountId = await ensureCustomerAccount({
+      creditLimit: updateData.credit_limit === undefined ? null : Number(updateData.credit_limit) || 0,
       accountId: existingCustomer[0]?.account_id ? Number(existingCustomer[0].account_id) : null,
       code: updateData.customer_code || updateData.code || "",
       name: updateData.customer_name || updateData.name || "",

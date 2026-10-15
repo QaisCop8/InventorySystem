@@ -322,6 +322,7 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
   const editingCustomerRef = useRef(false)
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({})
   const [popupMessage, setPopupMessage] = useState<{ severity: "success" | "info" | "warn" | "error"; detail: string } | null>(null)
+  const [requestedTab, setRequestedTab] = useState<{ tab: string; nonce: number } | null>(null)
 
   const filteredCustomers = useMemo(() => {
     if (!canView) return []
@@ -935,6 +936,9 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
     });
 
     setValidationErrors(errors)
+    // الحفظ متاح من أي تبويب: عند الخطأ يُعرض التبويب الذي فيه الحقل المطلوب
+    const errorTab = errors.currency_id || errors.father_id ? "financial-tax" : errors.vocherType ? "default-voucher-books" : null
+    if (errorTab) setRequestedTab({ tab: errorTab, nonce: Date.now() })
     return Object.keys(errors).length === 0
   }, [formData])
 
@@ -1314,6 +1318,16 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
       setSaving(false);
     }
   };
+
+  // الحفظ من أي تبويب: يُنهى التحرير الجاري أولاً (حقل نشط/خلية شبكة تُطبَّق قيمتها عند فقد التركيز)،
+  // ثم يُحفظ بأحدث نسخة من الدالة والبيانات — لا بالنسخة الملتقطة لحظة النقر قبل تطبيق التعديل الأخير.
+  const handleSaveCustomerRef = useRef(handleSaveCustomer)
+  handleSaveCustomerRef.current = handleSaveCustomer
+  const saveFromAnyTab = useCallback(() => {
+    const active = document.activeElement as HTMLElement | null
+    if (active && typeof active.blur === "function") active.blur()
+    window.setTimeout(() => { void handleSaveCustomerRef.current(formDataRef.current) }, 60)
+  }, [])
 
   const handleDeleteClick = (checkPermission = true) => {
     if (currentCustomerId <= 0) return;
@@ -1991,7 +2005,8 @@ export default function Customers({ isSupplier, isSubscriber, isSalesman }: Cust
               onLast={() => navigateToCustomerIndex(Math.max(0, customers.length - 1))}
               isNewRecord={currentCustomerId <= 0}
               onNew={() => handleNewCustomer(true)}
-              onSave={() => { void handleSaveCustomer(formDataRef.current) }}
+              onSave={saveFromAnyTab}
+              requestedTab={requestedTab}
               onDelete={() => handleDeleteClick(true)}
               onClone={handleCloneCustomer}
               applyFormDefaults={applyFormDefaults as any}

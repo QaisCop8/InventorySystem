@@ -10,6 +10,8 @@ import {
   TRANSACTION_PERMISSION_CATEGORY,
   POS_CASHIER_PERMISSION_CATEGORY,
   POS_CASHIER_PERMISSIONS,
+  CREDIT_LIMIT_PERMISSION_CATEGORY,
+  CREDIT_LIMIT_OVERRIDE_PERMISSION,
   transactionPermissionName,
   type PosCashierPermission,
   type TransactionAction,
@@ -301,6 +303,53 @@ export async function hasPosCashierPermission(userId: string, permission: PosCas
   return Boolean(rows[0]?.is_granted)
 }
 
+// صلاحية مسمّاة عامة (خارج مصفوفة الحركات) — تُنشأ عند أول استخدام وتُمنح لدور "مدير" ولمن له
+// "جميع الصلاحيات"، والفحص بنفس منطق hasEffectivePermission (فرعي → مستخدم → دور).
+const namedAccessIds = new Map<string, number>()
+
+export async function ensureNamedPermission(name: string, categoryName: string): Promise<number> {
+  const dbName = await resolveCurrentDbName()
+  const cacheKey = `${dbName}\u0000${name}`
+  const cached = namedAccessIds.get(cacheKey)
+  if (cached) return cached
+  await ensurePermissionTables(dbName)
+  const categoryRows = await sql`
+    INSERT INTO access_category (name)
+    SELECT ${categoryName}
+    WHERE NOT EXISTS (SELECT 1 FROM access_category WHERE name=${categoryName})
+    RETURNING id
+  `
+  const category = categoryRows[0] || (await sql`SELECT id FROM access_category WHERE name=${categoryName} ORDER BY id LIMIT 1`)[0]
+  const inserted = await sql`
+    INSERT INTO access_list (name, category_id)
+    SELECT ${name}, ${Number(category.id)}
+    WHERE NOT EXISTS (SELECT 1 FROM access_list WHERE LOWER(BTRIM(name)) = LOWER(BTRIM(${name}))) ON CONFLICT DO NOTHING
+    RETURNING id
+  `
+  const access = inserted[0] || (await sql`SELECT id FROM access_list WHERE LOWER(BTRIM(name)) = LOWER(BTRIM(${name})) ORDER BY id LIMIT 1`)[0]
+  if (inserted[0]) {
+    await sql`
+      INSERT INTO role_permissions (role_id, access_id, is_granted)
+      SELECT id, ${Number(access.id)}, TRUE FROM job_roles WHERE LOWER(name)=LOWER('مدير')
+      ON CONFLICT (role_id, access_id) DO NOTHING
+    `
+    await sql`
+      INSERT INTO user_access (user_id, access_id, is_granted)
+      SELECT user_id, ${Number(access.id)}, TRUE FROM user_settings
+      WHERE permissions::text LIKE '%جميع الصلاحيات%'
+      ON CONFLICT (user_id, access_id) DO NOTHING
+    `
+  } else {
+    namedAccessIds.set(cacheKey, Number(access.id))
+  }
+  return Number(access.id)
+}
+
+export async function hasNamedPermission(userId: string, name: string, categoryName: string, branchId?: number | null): Promise<boolean> {
+  const accessId = await ensureNamedPermission(name, categoryName)
+  return hasEffectivePermission(userId, accessId, branchId)
+}
+
 // يُرمى عند رفض صلاحية — رسالته جاهزة للعرض مباشرة للمستخدم (تحمل اسم الصلاحية الفعلي من
 // access_list، لا معرِّفها الرقمي فقط).
 export class PermissionDeniedError extends Error {}
@@ -381,7 +430,7 @@ async function permissionSyncFingerprint(client: ReturnType<typeof getPoolForDb>
     )
     return sha256Hex(JSON.stringify({
       version: PERMISSION_SYNC_VERSION,
-      code: [TRANSACTION_FAMILIES, TRANSACTION_ACTION_LABELS, POS_CASHIER_PERMISSIONS, REPORT_DEFINITIONS.map((definition) => definition.title), FILE_FAMILY_KEYS, FILE_ACTIONS],
+      code: [TRANSACTION_FAMILIES, TRANSACTION_ACTION_LABELS, POS_CASHIER_PERMISSIONS, CREDIT_LIMIT_OVERRIDE_PERMISSION, REPORT_DEFINITIONS.map((definition) => definition.title), FILE_FAMILY_KEYS, FILE_ACTIONS],
       management,
       tenant,
     }))
@@ -661,6 +710,42 @@ async function runPermissionDefinitionSync(dbName: string): Promise<void> {
          WHERE permissions::text LIKE '%جميع الصلاحيات%'
          ON CONFLICT (user_id, access_id) DO NOTHING`,
         [access.id],
+      )
+    }
+  }
+
+  // "السماح بتجاوز حد الدين" — تظهر بشاشة الصلاحيات مباشرة (لا فقط بعد أول فحص لحد الائتمان)
+  const creditCategoryRows = await client.query(
+    `INSERT INTO access_category (name)
+     SELECT $1::varchar WHERE NOT EXISTS (SELECT 1 FROM access_category WHERE name = $1::varchar)
+     RETURNING id`,
+    [CREDIT_LIMIT_PERMISSION_CATEGORY],
+  )
+  const creditCategory = creditCategoryRows[0] || (await client.query(
+    `SELECT id FROM access_category WHERE name = $1::varchar ORDER BY id LIMIT 1`,
+    [CREDIT_LIMIT_PERMISSION_CATEGORY],
+  ))[0]
+  if (creditCategory?.id) {
+    const inserted = await client.query(
+      `INSERT INTO access_list (name, category_id)
+       SELECT $1::varchar, $2::integer
+       WHERE NOT EXISTS (SELECT 1 FROM access_list WHERE LOWER(BTRIM(name)) = LOWER(BTRIM($1::varchar))) ON CONFLICT DO NOTHING
+       RETURNING id`,
+      [CREDIT_LIMIT_OVERRIDE_PERMISSION, creditCategory.id],
+    )
+    if (inserted[0]?.id) {
+      await client.query(
+        `INSERT INTO role_permissions (role_id, access_id, is_granted)
+         SELECT id, $1::integer, TRUE FROM job_roles WHERE LOWER(name)=LOWER('مدير')
+         ON CONFLICT (role_id, access_id) DO NOTHING`,
+        [inserted[0].id],
+      )
+      await client.query(
+        `INSERT INTO user_access (user_id, access_id, is_granted)
+         SELECT user_id, $1::integer, TRUE FROM user_settings
+         WHERE permissions::text LIKE '%جميع الصلاحيات%'
+         ON CONFLICT (user_id, access_id) DO NOTHING`,
+        [inserted[0].id],
       )
     }
   }

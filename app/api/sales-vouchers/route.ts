@@ -36,6 +36,7 @@ import { consignmentReturnBlocksDeletion, consignmentUsage, INVOICE_SOURCE_CONSI
 import { validateNegativeStock } from "@/lib/negative-stock-guard"
 import { computeVoucherTax } from "@/lib/item-vat"
 import { itemLevelVatEnabled, itemVatRates } from "@/lib/item-vat-server"
+import { creditIncreasesFromJournal, validateCustomerCreditLimit } from "@/lib/credit-limit"
 
 const MAX_CODE_RETRY_ATTEMPTS = 5
 
@@ -540,6 +541,19 @@ export async function POST(request: NextRequest) {
       }
       const currencyError = await validateJournalAccountCurrencies(journalRows, data.currency_id ? Number(data.currency_id) : null)
       if (currencyError) return NextResponse.json({ error: currencyError }, { status: 400 })
+      if (vchType === SALES_INVOICE_VCH_TYPE) {
+        // حد الائتمان: بالكاشير فقط الجزء "على الحساب" يبقى ذمة (النقد/البطاقة/الشيك يُسدَّد بسند قبض فوراً)
+        const creditError = await validateCustomerCreditLimit({
+          increases: posPayments.length
+            ? posPayments
+                .filter((payment: any) => payment.payment_method === "account")
+                .map((payment: any) => ({ accountId: payment.account_id, amount: payment.amount * (Number(data.rate) || 1) }))
+            : creditIncreasesFromJournal(journalRows),
+          userId: authorization.userId,
+          branchId: authorization.branchId,
+        })
+        if (creditError) return NextResponse.json({ error: creditError }, { status: 400 })
+      }
     }
 
     const amount = Math.round(breakdown.total * 100) / 100
@@ -744,6 +758,16 @@ export async function PUT(request: NextRequest) {
         )
         const currencyError = await validateJournalAccountCurrencies(journalRows, data.currency_id ? Number(data.currency_id) : null)
         if (currencyError) return NextResponse.json({ error: currencyError }, { status: 400 })
+        if (vchType === SALES_INVOICE_VCH_TYPE) {
+          // الرصيد يُحسب بلا قيد هذه الفاتورة القديم (يُستبدل بالجديد)
+          const creditError = await validateCustomerCreditLimit({
+            increases: creditIncreasesFromJournal(journalRows),
+            excludeVoucherId: Number(data.id),
+            userId: authorization.userId,
+            branchId: authorization.branchId,
+          })
+          if (creditError) return NextResponse.json({ error: creditError }, { status: 400 })
+        }
       }
     }
 

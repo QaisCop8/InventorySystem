@@ -60,6 +60,10 @@ export const POS_CASHIER_PERMISSIONS = {
 
 export type PosCashierPermission = keyof typeof POS_CASHIER_PERMISSIONS
 
+// تجاوز حد الائتمان (حد الدين) المعرّف على العميل عند حفظ فاتورة مبيعات آجلة
+export const CREDIT_LIMIT_PERMISSION_CATEGORY = "العملاء والذمم"
+export const CREDIT_LIMIT_OVERRIDE_PERMISSION = "السماح بتجاوز حد الدين"
+
 export function transactionPermissionName(family: TransactionFamily, action: TransactionAction) {
   return `${TRANSACTION_ACTION_LABELS[action]} ${TRANSACTION_FAMILIES[family]}`
 }

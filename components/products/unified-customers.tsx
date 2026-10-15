@@ -147,6 +147,8 @@ interface UnifiedCustomersProps {
   onCostCenterRowsChange?: (rows: Array<{ id: number; name: string; state_status: string; required_in_transactions: number; cost_center_name?: string; default_cost_center_id?: number | null }>) => void
   onStopTransactionRowsChange?: (rows: Array<{ voucher_types_id: number; voucher_type_name: string; is_stopped: boolean; stop_date: string }>) => void
   customerNameRef?: RefObject<HTMLInputElement>
+  // طلب الانتقال لتبويب (مثلاً تبويب الحقل الذي فشل التحقق منه عند الحفظ) — nonce لتكرار نفس الطلب
+  requestedTab?: { tab: string; nonce: number } | null
 }
 
 const defaultFormData: UnifiedCustomerFormData = {
@@ -238,6 +240,7 @@ export default function UnifiedCustomers({
   hotkeysDisabled = false,
   applyFormDefaults,
   popupMessage,
+  requestedTab,
   onCustomerSelect,
   onCustomerCodeBlur,
   onClassificationRowsChange,
@@ -305,7 +308,13 @@ export default function UnifiedCustomers({
     if (!popupMessage) return
     messagesRef.current?.clear?.()
     messagesRef.current?.show?.([{ severity: popupMessage.severity, summary: "", detail: popupMessage.detail, life: 4000 }])
+    // الرسالة أعلى منطقة التمرير — كانت تبقى خارج النظر عند الحفظ من أسفل تبويب آخر فيبدو الحفظ "لا يعمل"
+    if (popupMessage.severity === "error" || popupMessage.severity === "warn") formRootRef.current?.scrollTo?.({ top: 0, behavior: "smooth" })
   }, [popupMessage])
+
+  useEffect(() => {
+    if (requestedTab?.tab) setActiveTab(requestedTab.tab)
+  }, [requestedTab])
 
   const focusCustomerName = useCallback(() => {
     globalThis.setTimeout(() => {
