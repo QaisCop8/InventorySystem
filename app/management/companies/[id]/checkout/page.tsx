@@ -2,6 +2,7 @@
 
 import { use, useCallback, useEffect, useRef, useState, type FormEvent } from "react"
 import { ArrowRight, CheckCircle2, Loader2, Phone, ShieldCheck, XCircle } from "lucide-react"
+import { openLahzaPopup } from "@/lib/lahza-popup"
 
 // صفحة "خيارات الدفع" لشركة بانتظار الدفع: الدفع عبر الانترنت (نافذة لحظة المنبثقة، أو صفحة لحظة إن لم يُضبط المفتاح العام)
 // أو التواصل مع المبيعات / إرسال بطاقة للمبيعات.
@@ -15,23 +16,6 @@ type Checkout = {
   online: boolean
   popup: boolean
   testMode: boolean
-}
-
-declare global {
-  interface Window { LahzaPopup?: new () => { newTransaction: (options: Record<string, unknown>) => void } }
-}
-
-const LAHZA_SCRIPT = "https://js.lahza.io/inline.min.js"
-function loadLahzaScript(): Promise<void> {
-  if (typeof window === "undefined") return Promise.reject(new Error("no window"))
-  if (window.LahzaPopup) return Promise.resolve()
-  return new Promise((resolve, reject) => {
-    const existing = document.querySelector<HTMLScriptElement>(`script[src="${LAHZA_SCRIPT}"]`)
-    const script = existing || Object.assign(document.createElement("script"), { src: LAHZA_SCRIPT, async: true })
-    script.addEventListener("load", () => resolve(), { once: true })
-    script.addEventListener("error", () => reject(new Error("تعذّر تحميل نافذة الدفع")), { once: true })
-    if (!existing) document.body.appendChild(script)
-  })
 }
 
 const money = (value: number) => Number(value || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -85,16 +69,13 @@ export default function CompanyCheckoutPage({ params }: { params: Promise<{ id: 
       if (!res.ok) throw new Error(body.error || "تعذّر بدء عملية الدفع")
       if (body.provisioned) { window.location.href = "/management/companies"; return }
       if (body.authorizationUrl) { window.location.href = body.authorizationUrl; return }
-      await loadLahzaScript()
-      if (!window.LahzaPopup) throw new Error("تعذّر فتح نافذة الدفع")
-      const popup = new window.LahzaPopup()
-      popup.newTransaction({
-        key: body.publicKey,
+      await openLahzaPopup({
+        publicKey: body.publicKey,
         email: body.email,
         firstName: body.fullName,
-        amount: body.amountMinor,
+        amountMinor: body.amountMinor,
         currency: body.currency,
-        ref: body.reference,
+        reference: body.reference,
         metadata: { company_id: Number(id) },
         onSuccess: () => { pollCount.current = 0; void verify(body.reference) },
         onCancel: () => setPayState({ kind: "error", text: "تم إغلاق نافذة الدفع قبل إتمام العملية" }),

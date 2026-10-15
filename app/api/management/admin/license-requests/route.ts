@@ -16,7 +16,8 @@ export async function GET(request: NextRequest) {
       FROM company_license_requests r
       JOIN companies c ON c.id = r.company_id
       LEFT JOIN users d ON d.id = r.decided_by
-      WHERE (${status}::text IS NULL OR r.status = ${status})
+      -- طلبات الدفع الإلكتروني غير المكتمل (awaiting_payment) لا تحتاج قرار المسؤول؛ المدفوعة تظهر "approved"
+      WHERE ((${status}::text IS NULL AND r.status <> 'awaiting_payment') OR r.status = ${status})
       ORDER BY CASE WHEN r.status = 'pending' THEN 0 ELSE 1 END, r.created_at DESC
       LIMIT 300`
     return NextResponse.json(rows)

@@ -1,7 +1,8 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import { AlertTriangle, Building2, Clock, Loader2, Monitor, Send, Users } from "lucide-react"
+import { AlertTriangle, Building2, CheckCircle2, Clock, CreditCard, Loader2, Monitor, Send, Users } from "lucide-react"
+import { openLahzaPopup } from "@/lib/lahza-popup"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog"
 import { WorkspaceDialogProvider } from "@/contexts/workspace-dialog-context"
@@ -56,8 +57,53 @@ export function useLicenseRequestDialog(onSent?: () => void) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState("")
   const [sent, setSent] = useState(false)
+  // الدفع الإلكتروني (لحظة): السعر = العدد × سعر الوحدة السنوي؛ النجاح يرفع الحد فوراً بلا انتظار الاعتماد
+  const [payInfo, setPayInfo] = useState<{ enabled: boolean; testMode?: boolean; currency?: string; prices?: Record<LicenseResource, number> } | null>(null)
+  const [popupOpen, setPopupOpen] = useState(false)
+  const [paid, setPaid] = useState(false)
 
-  const open = (resource: LicenseResource, message?: string, pending = false) => { setState({ resource, message, pending }); setQuantity("1"); setReason(""); setError(""); setSent(false) }
+  const open = (resource: LicenseResource, message?: string, pending = false) => {
+    setState({ resource, message, pending }); setQuantity("1"); setReason(""); setError(""); setSent(false); setPaid(false)
+    fetch("/api/license/payment", { cache: "no-store" }).then((response) => response.ok ? response.json() : null).then((data) => setPayInfo(data)).catch(() => setPayInfo(null))
+  }
+  const unitPrice = state && payInfo?.enabled ? Number(payInfo.prices?.[state.resource] || 0) : 0
+  const total = Math.round(unitPrice * (Number(quantity) || 0) * 100) / 100
+  const canPay = Boolean(payInfo?.enabled && unitPrice > 0)
+
+  const payOnline = async () => {
+    if (!state) return
+    setBusy(true); setError("")
+    try {
+      const response = await fetch("/api/license/payment", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ resource: state.resource, quantity: Number(quantity), reason }) })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(data.error || "تعذّر بدء عملية الدفع")
+      // نافذة الحوار تُخفى أثناء نافذة الدفع (الحوار المشروط يمنع النقر خارجه) ثم تعود بالنتيجة
+      setPopupOpen(true)
+      await openLahzaPopup({
+        publicKey: data.publicKey, email: data.email, firstName: data.fullName, amountMinor: data.amountMinor, currency: data.currency, reference: data.reference,
+        metadata: { license_resource: state.resource, quantity: Number(quantity) },
+        onSuccess: () => { setPopupOpen(false); void verifyPayment(data.reference) },
+        onCancel: () => { setPopupOpen(false); setBusy(false); setError("تم إغلاق نافذة الدفع قبل إتمام العملية") },
+      })
+    } catch (e) {
+      setPopupOpen(false); setBusy(false)
+      setError(e instanceof Error ? e.message : "تعذّر بدء عملية الدفع")
+    }
+  }
+  const verifyPayment = async (reference: string) => {
+    setBusy(true)
+    try {
+      const response = await fetch("/api/license/payment/verify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ reference }) })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(data.error || "تعذّر التحقق من الدفع")
+      if (data.status === "approved") { setPaid(true); onSent?.() }
+      else setError(data.message || "لم تكتمل عملية الدفع")
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "تعذّر التحقق من الدفع")
+    } finally {
+      setBusy(false)
+    }
+  }
   /** يعيد true إن كانت الاستجابة رفضاً بسبب الترخيص (وفُتحت النافذة)، ليتوقف المستدعي عن عرض خطأ عام. */
   const handleLimit = (payload: LicenseLimitPayload | null | undefined) => {
     if (payload?.code !== "LICENSE_LIMIT" || !payload.resource) return false
@@ -78,20 +124,22 @@ export function useLicenseRequestDialog(onSent?: () => void) {
   const label = state ? LABELS[state.resource] : LABELS.users
   const element = (
     <WorkspaceDialogProvider container={null} confined={false}>
-      <Dialog open={!!state} onOpenChange={(value) => { if (!value && !busy) setState(null) }}>
+      <Dialog open={!!state && !popupOpen} onOpenChange={(value) => { if (!value && !busy) setState(null) }}>
         <DialogContent className="z-[3001] w-[min(460px,calc(100vw-2rem))] max-w-none gap-0 overflow-hidden rounded-2xl p-0" dir="rtl">
           <div className="flex items-center gap-3 bg-gradient-to-l from-amber-500 to-orange-500 px-5 py-4 text-white">
             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/20"><AlertTriangle className="h-5 w-5" /></span>
             <div className="text-right">
               <DialogTitle className="text-base font-bold">زيادة عدد {label.plural} المرخّص</DialogTitle>
-              <DialogDescription className="text-xs text-amber-50">يُرسل الطلب لإدارة النظام للاعتماد أو الرفض</DialogDescription>
+              <DialogDescription className="text-xs text-amber-50">{canPay ? "ادفع إلكترونياً لتُضاف فوراً، أو أرسل طلباً لإدارة النظام" : "يُرسل الطلب لإدارة النظام للاعتماد أو الرفض"}</DialogDescription>
             </div>
           </div>
           <div className="space-y-3 p-5 text-sm">
             {state?.message && <p className="rounded-lg bg-amber-50 p-3 text-amber-800">{state.message}</p>}
-            {sent ? (
+            {paid ? (
+              <p className="flex items-center gap-2 rounded-lg bg-emerald-50 p-3 font-semibold text-emerald-700"><CheckCircle2 className="h-5 w-5 shrink-0" />تم الدفع وزيادة عدد {label.plural} المرخّص بمقدار {quantity}. يمكنك الإضافة الآن.</p>
+            ) : sent ? (
               <p className="rounded-lg bg-emerald-50 p-3 font-semibold text-emerald-700">تم إرسال الطلب. ستتمكن من الإضافة فور اعتماده من إدارة النظام.</p>
-            ) : state?.pending ? (
+            ) : state?.pending && !canPay ? (
               <p className="rounded-lg bg-sky-50 p-3 text-sky-800">يوجد طلب زيادة {label.plural} بانتظار الاعتماد بالفعل.</p>
             ) : (
               <>
@@ -101,13 +149,22 @@ export function useLicenseRequestDialog(onSent?: () => void) {
                 <label className="block text-slate-600">سبب الطلب (اختياري)
                   <textarea value={reason} onChange={(event) => setReason(event.target.value)} rows={3} className="mt-1 block w-full rounded-lg border border-slate-200 px-3 py-2" placeholder={`مثال: افتتاح ${label.single} جديد`} />
                 </label>
+                {canPay && (
+                  <div className="space-y-1 rounded-xl border border-emerald-200 bg-emerald-50/60 p-3">
+                    <div className="flex items-center justify-between text-xs text-slate-600"><span>سعر {label.single} (سنوياً)</span><span className="tabular-nums" dir="ltr">{unitPrice.toFixed(2)} {payInfo?.currency}</span></div>
+                    <div className="flex items-center justify-between font-bold text-emerald-800"><span>الإجمالي</span><span className="tabular-nums" dir="ltr">{total.toFixed(2)} {payInfo?.currency}</span></div>
+                    {payInfo?.testMode && <p className="pt-1 text-[11px] text-amber-700">وضع تجريبي: البطاقة <span dir="ltr" className="font-mono">4111 1111 1111 1111</span> — <span dir="ltr" className="font-mono">03/30</span> — CVV <span dir="ltr" className="font-mono">004</span></p>}
+                    {state?.pending && <p className="pt-1 text-[11px] text-sky-700">يوجد طلب بانتظار الاعتماد — الدفع الإلكتروني يضيف العدد فوراً دون انتظاره.</p>}
+                  </div>
+                )}
                 {error && <p className="text-red-600">{error}</p>}
               </>
             )}
           </div>
           <div className="flex justify-end gap-2 border-t bg-slate-50 px-5 py-3">
             <Button variant="outline" disabled={busy} onClick={() => setState(null)}>إغلاق</Button>
-            {!sent && !state?.pending && <Button disabled={busy || !(Number(quantity) >= 1)} onClick={() => void submit()} className="gap-1 bg-amber-600 hover:bg-amber-700">{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}إرسال الطلب</Button>}
+            {!sent && !paid && !state?.pending && <Button variant={canPay ? "outline" : "default"} disabled={busy || !(Number(quantity) >= 1)} onClick={() => void submit()} className={canPay ? "gap-1" : "gap-1 bg-amber-600 hover:bg-amber-700"}>{busy && !canPay ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}{canPay ? "إرسال طلب للاعتماد" : "إرسال الطلب"}</Button>}
+            {!sent && !paid && canPay && <Button disabled={busy || !(Number(quantity) >= 1)} onClick={() => void payOnline()} className="gap-1 bg-emerald-600 hover:bg-emerald-700">{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}الدفع عبر الانترنت ({total.toFixed(2)} {payInfo?.currency})</Button>}
           </div>
         </DialogContent>
       </Dialog>

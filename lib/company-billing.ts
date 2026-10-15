@@ -1,5 +1,6 @@
-import managementSql, { ensureManagementTables } from "@/lib/management-db"
-import { initializeLahzaTransaction, isLahzaConfigured, LAHZA_CURRENCIES, lahzaPublicKey, toMinorUnits, verifyLahzaTransaction, type LahzaCurrency } from "@/lib/lahza"
+import managementSql, { ensureManagementTables, getManagementPool } from "@/lib/management-db"
+import { ensureLicenseTables, LICENSE_RESOURCE_LABELS, type LicenseResource } from "@/lib/company-license"
+import { initializeLahzaTransaction, isLahzaConfigured, isLahzaTestMode, LAHZA_CURRENCIES, lahzaPublicKey, toMinorUnits, verifyLahzaTransaction, type LahzaCurrency } from "@/lib/lahza"
 import { provisionCompanyDatabase } from "@/lib/provisioning"
 import { sendMail } from "@/lib/email"
 import { priceFor, type LicenseCounts, type Pricing } from "@/lib/company-pricing"
@@ -49,6 +50,11 @@ export function ensureBillingTables() {
           paid_at TIMESTAMP
         )`
       await managementSql`CREATE INDEX IF NOT EXISTS idx_company_payments_company ON company_payments(company_id, created_at DESC)`
+      // دفعات زيادة الترخيص (مستخدم/فرع/نقطة بيع) من داخل الشركة تُسجَّل بنفس الجدول
+      await managementSql`ALTER TABLE company_payments ADD COLUMN IF NOT EXISTS purpose VARCHAR(20) NOT NULL DEFAULT 'company'`
+      await managementSql`ALTER TABLE company_payments ADD COLUMN IF NOT EXISTS license_request_id INTEGER`
+      await managementSql`ALTER TABLE company_payments ADD COLUMN IF NOT EXISTS tenant_user_id VARCHAR(50)`
+      await managementSql`ALTER TABLE company_payments ALTER COLUMN user_id DROP NOT NULL`
       await managementSql`ALTER TABLE companies ADD COLUMN IF NOT EXISTS provisioning_started_at TIMESTAMP`
       await managementSql`ALTER TABLE companies ADD COLUMN IF NOT EXISTS provisioning_error TEXT`
       // أرقام التواصل مع المبيعات (صفحة خيارات الدفع) — يعدّلها مسؤول المنصة مع الأسعار
@@ -198,26 +204,123 @@ export async function confirmCompanyPayment(reference: string, session: Session)
   if (!payment) throw Object.assign(new Error("عملية الدفع غير موجودة"), { status: 404 })
   if (payment.company_status === "approved") return { status: "approved" as const, companyId: Number(payment.company_id), companyName: String(payment.company_name) }
 
-  if (payment.status !== "success") {
-    const result = await verifyLahzaTransaction(reference)
-    const expectedMinor = toMinorUnits(Number(payment.amount))
-    if (result.status !== "success") {
-      if (["failed", "abandoned", "reversed"].includes(result.status)) {
-        await managementSql`UPDATE company_payments SET status = 'failed', gateway_response = ${result.gatewayResponse || result.status} WHERE reference = ${reference} AND status = 'initialized'`
-      }
-      return { status: "unpaid" as const, gatewayStatus: result.status, message: result.gatewayResponse || "لم تكتمل عملية الدفع" }
-    }
-    if (result.amountMinor !== expectedMinor || result.currency !== String(payment.currency).toUpperCase()) {
-      await managementSql`UPDATE company_payments SET status = 'mismatch', gateway_response = ${`amount ${result.amountMinor} ${result.currency}`} WHERE reference = ${reference}`
-      throw Object.assign(new Error("مبلغ الدفع لا يطابق قيمة الاشتراك — تواصل مع إدارة النظام"), { status: 409 })
-    }
-    await managementSql`
-      UPDATE company_payments SET status = 'success', paid_at = COALESCE(${result.paidAt}::timestamptz, CURRENT_TIMESTAMP), gateway_response = ${result.gatewayResponse}
-      WHERE reference = ${reference} AND status <> 'success'`
-  }
+  const settled = await settlePayment(payment)
+  if (!settled.ok) return { status: "unpaid" as const, gatewayStatus: settled.gatewayStatus, message: settled.message }
 
   // الدفع مؤكَّد ⇒ اعتماد الشركة تلقائياً بالخلفية؛ الطلب يعود فوراً و"شركاتي" تعرض "جاري اعتماد الشركة"
   return claimAndProvision(Number(payment.company_id), String(payment.company_name))
+}
+
+/**
+ * يتحقق من دفعة مسجّلة لدى لحظة (لا يُعتمد على المتصفح): الحالة success والمبلغ والعملة مطابقان لما سجّله الخادم.
+ * يعلّم الدفعة ناجحة/فاشلة. يرمي عند عدم تطابق المبلغ. آمن للتكرار (الدفعة الناجحة لا يُعاد فحصها).
+ */
+async function settlePayment(payment: any): Promise<{ ok: true } | { ok: false; gatewayStatus: string; message: string }> {
+  if (payment.status === "success") return { ok: true }
+  const reference = String(payment.reference)
+  const result = await verifyLahzaTransaction(reference)
+  if (result.status !== "success") {
+    if (["failed", "abandoned", "reversed"].includes(result.status)) {
+      await managementSql`UPDATE company_payments SET status = 'failed', gateway_response = ${result.gatewayResponse || result.status} WHERE reference = ${reference} AND status = 'initialized'`
+    }
+    return { ok: false, gatewayStatus: result.status, message: result.gatewayResponse || "لم تكتمل عملية الدفع" }
+  }
+  if (result.amountMinor !== toMinorUnits(Number(payment.amount)) || result.currency !== String(payment.currency).toUpperCase()) {
+    await managementSql`UPDATE company_payments SET status = 'mismatch', gateway_response = ${`amount ${result.amountMinor} ${result.currency}`} WHERE reference = ${reference}`
+    throw Object.assign(new Error("مبلغ الدفع لا يطابق المبلغ المطلوب — تواصل مع إدارة النظام"), { status: 409 })
+  }
+  await managementSql`
+    UPDATE company_payments SET status = 'success', paid_at = COALESCE(${result.paidAt}::timestamptz, CURRENT_TIMESTAMP), gateway_response = ${result.gatewayResponse}
+    WHERE reference = ${reference} AND status <> 'success'`
+  return { ok: true }
+}
+
+// ───────────── زيادة الترخيص (مستخدم/فرع/نقطة بيع) بالدفع الإلكتروني ─────────────
+// السعر = العدد × سعر الوحدة السنوي من "الأسعار". الدفع عبر نافذة لحظة المنبثقة (يتطلب LAHZA_PUBLIC_KEY)، والتحقق
+// بالخادم؛ عند النجاح يُعتمد الطلب ويُرفع الحد فوراً في معاملة واحدة (بلا انتظار مسؤول المنصة).
+
+const LICENSE_COLUMNS: Record<LicenseResource, { column: string; initialized: string; base: number }> = {
+  users: { column: "number_of_users", initialized: "license_initialized", base: 1 },
+  branches: { column: "number_of_branches", initialized: "license_initialized", base: 1 },
+  pos_points: { column: "number_of_pos_points", initialized: "pos_license_initialized", base: 0 },
+}
+
+export function licenseUnitPrice(pricing: Pricing, resource: LicenseResource) {
+  return resource === "users" ? pricing.per_user : resource === "branches" ? pricing.per_branch : pricing.per_pos_point
+}
+
+export async function licensePaymentInfo() {
+  const pricing = await getPricing()
+  const prices = { users: pricing.per_user, branches: pricing.per_branch, pos_points: pricing.per_pos_point }
+  return { enabled: isLahzaConfigured() && Boolean(lahzaPublicKey()), testMode: isLahzaTestMode(), currency: pricing.currency, prices }
+}
+
+export async function startLicensePayment(input: {
+  companyId: number; resource: LicenseResource; quantity: number; limitBefore: number; used: number; reason?: string
+  tenantUserId: string; requestedByName?: string; email: string
+}) {
+  await ensureBillingTables()
+  await ensureLicenseTables()
+  if (!isLahzaConfigured() || !lahzaPublicKey()) throw Object.assign(new Error("الدفع الإلكتروني غير مفعّل"), { status: 400 })
+  const quantity = Math.floor(Number(input.quantity))
+  if (!Number.isFinite(quantity) || quantity < 1 || quantity > 1000) throw Object.assign(new Error("العدد المطلوب يجب أن يكون بين 1 و1000"), { status: 400 })
+  const pricing = await getPricing()
+  const amount = Math.round(licenseUnitPrice(pricing, input.resource) * quantity * 100) / 100
+  if (!(amount > 0)) throw Object.assign(new Error("لم يُحدَّد سعر هذا البند بعد — أرسل طلباً للاعتماد"), { status: 400 })
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.email)) throw Object.assign(new Error("لا يوجد بريد إلكتروني صالح لحسابك — أضفه من بيانات المستخدم أولاً"), { status: 400 })
+  const [request] = await managementSql`
+    INSERT INTO company_license_requests (company_id, resource, quantity, limit_before, used_at_request, reason, requested_by_name, requested_by_email, tenant_user_id, status)
+    VALUES (${input.companyId}, ${input.resource}, ${quantity}, ${input.limitBefore}, ${input.used}, ${String(input.reason || "").trim() || null},
+            ${input.requestedByName || null}, ${input.email}, ${Number(input.tenantUserId) || null}, 'awaiting_payment')
+    RETURNING id`
+  const reference = `ARK-L${input.companyId}-${request.id}-${Date.now()}`
+  await managementSql`
+    INSERT INTO company_payments (company_id, user_id, tenant_user_id, purpose, license_request_id, reference, amount, currency)
+    VALUES (${input.companyId}, NULL, ${String(input.tenantUserId)}, 'license', ${Number(request.id)}, ${reference}, ${amount}, ${pricing.currency})`
+  return { reference, amount, amountMinor: toMinorUnits(amount), currency: pricing.currency, email: input.email, fullName: input.requestedByName || "", publicKey: lahzaPublicKey() }
+}
+
+/** يتحقق من دفعة زيادة ترخيص ويعتمدها (يرفع الحد) — مرة واحدة فقط حتى مع التكرار. */
+export async function confirmLicensePayment(reference: string, companyId: number) {
+  await ensureBillingTables()
+  const [payment] = await managementSql`SELECT * FROM company_payments WHERE reference = ${reference} AND company_id = ${companyId} AND purpose = 'license'`
+  if (!payment) throw Object.assign(new Error("عملية الدفع غير موجودة"), { status: 404 })
+  const settled = await settlePayment(payment)
+  if (!settled.ok) return { status: "unpaid" as const, message: settled.message }
+
+  const client = await getManagementPool().connect()
+  let applied: any = null
+  try {
+    await client.query("BEGIN")
+    const claimed = await client.query(
+      `UPDATE company_license_requests SET status = 'approved', approved_quantity = quantity, decided_at = CURRENT_TIMESTAMP, decision_note = $2
+       WHERE id = $1 AND status = 'awaiting_payment' RETURNING resource, quantity, company_id`,
+      [payment.license_request_id, `دفع إلكتروني — ${reference}`],
+    )
+    applied = claimed.rows[0] || null
+    if (applied) {
+      const target = LICENSE_COLUMNS[applied.resource as LicenseResource] || LICENSE_COLUMNS.users
+      await client.query(
+        `UPDATE companies SET ${target.column} = COALESCE(${target.column}, ${target.base}) + $2, ${target.initialized} = true WHERE id = $1`,
+        [applied.company_id, Number(applied.quantity)],
+      )
+    }
+    await client.query("COMMIT")
+  } catch (error) {
+    await client.query("ROLLBACK").catch(() => undefined)
+    throw error
+  } finally {
+    client.release()
+  }
+  if (applied) {
+    const label = LICENSE_RESOURCE_LABELS[applied.resource as LicenseResource]?.plural || applied.resource
+    void sendMail({
+      to: PLATFORM_ADMIN_EMAIL,
+      subject: `زيادة ترخيص مدفوعة — ${label}`,
+      html: `<div dir="rtl"><p>تم دفع زيادة ${label} بمقدار ${applied.quantity} للشركة رقم ${applied.company_id} بمبلغ ${Number(payment.amount).toFixed(2)} ${payment.currency} (مرجع ${reference}). تم رفع الحد تلقائياً.</p></div>`,
+    }).catch(() => undefined)
+  }
+  return { status: "approved" as const }
 }
 
 const STALE_PROVISIONING_MINUTES = 10
