@@ -11,7 +11,7 @@ const PRODUCT_TYPE_OPTIONS: ReportOption[] = [
   { id: 2, name: "الخدمات" },
 ];
 import { useTranslation } from 'react-i18next';
-import { Boxes, Package, Plus, RotateCcw } from "lucide-react";
+import { Boxes, Package, Plus, RotateCcw, ListFilter } from "lucide-react";
 import {
   SearchDialogHeader,
   SearchFilterField,
@@ -64,6 +64,9 @@ interface ProductSearchPopupProps {
   productTypes?: number[];
   title?: string;
   selectBaseProduct?: boolean;
+  // من حركة: حساب العميل المختار وتاريخ الحركة — يُفعّل زر "من نموذج" (أصناف نماذج العملاء والأصناف)
+  customerAccountId?: number | null;
+  transactionDate?: string | null;
 }
 
 const productThumb = (image?: string | null, alt = "") =>
@@ -71,7 +74,7 @@ const productThumb = (image?: string | null, alt = "") =>
     ? <img src={image} alt={alt} className="mx-auto h-7 w-7 rounded-md border object-cover" />
     : <div className="mx-auto flex h-7 w-7 items-center justify-center rounded-md bg-slate-100 text-slate-300"><Package className="h-3.5 w-3.5" /></div>
 
-const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibleProp, open, onClose, onSelect, priceCategoryId = 0, ShowSelect = true, searchText = "", productTypes, title, selectBaseProduct = false }) => {
+const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibleProp, open, onClose, onSelect, priceCategoryId = 0, ShowSelect = true, searchText = "", productTypes, title, selectBaseProduct = false, customerAccountId = null, transactionDate = null }) => {
   const visible = visibleProp ?? open ?? false;
   const [products, setProducts] = useState<Product[]>([]);
   const [searchCode, setSearchCode] = useState("");
@@ -104,6 +107,32 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [selectedAttributeKeysByProduct, setSelectedAttributeKeysByProduct] = useState<Record<string, Set<string>>>({});
   const [refreshVersion, setRefreshVersion] = useState(0);
+  // "من نموذج": قصر النتائج على أصناف نماذج العميل الفعّالة بتاريخ الحركة
+  const [templateFilter, setTemplateFilter] = useState<{ ids: Set<number>; label: string } | null>(null);
+  const [templateLoading, setTemplateLoading] = useState(false);
+  const [templateMessage, setTemplateMessage] = useState("");
+  const customerId = Number(customerAccountId) > 0 ? Number(customerAccountId) : null;
+  useEffect(() => { setTemplateFilter(null); setTemplateMessage(""); }, [visible, customerId]);
+  const toggleTemplateFilter = useCallback(async () => {
+    if (templateFilter) { setTemplateFilter(null); setTemplateMessage(""); return; }
+    if (!customerId) return;
+    setTemplateLoading(true);
+    setTemplateMessage("");
+    try {
+      const query = new URLSearchParams({ account_id: String(customerId), ...(transactionDate ? { date: String(transactionDate).slice(0, 10) } : {}) });
+      const response = await fetch(`/api/customer-product-templates/customer-products?${query}`, { cache: "no-store" });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "تعذر تحميل أصناف النموذج");
+      const ids: number[] = Array.isArray(data.product_ids) ? data.product_ids.map(Number) : [];
+      if (!ids.length) { setTemplateMessage("لا توجد نماذج فعّالة لهذا العميل بتاريخ الحركة"); return; }
+      const names = (Array.isArray(data.templates) ? data.templates : []).map((row: any) => row.name || row.code).filter(Boolean);
+      setTemplateFilter({ ids: new Set(ids), label: names.join("، ") });
+    } catch (error) {
+      setTemplateMessage(error instanceof Error ? error.message : "تعذر تحميل أصناف النموذج");
+    } finally {
+      setTemplateLoading(false);
+    }
+  }, [templateFilter, customerId, transactionDate]);
   const searchTextRef = useRef<HTMLInputElement>(null);
   const ws = useRef<WebSocket | null>(null);
   const { t, i18n } = useTranslation();
@@ -248,6 +277,7 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
 
   const filteredProducts = useMemo(() => {
     return products.filter(p => {
+      if (templateFilter && !templateFilter.ids.has(Number(p.id))) return false;
 
       const matchCode =
         !searchCode ||
@@ -268,7 +298,7 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
       return matchCode && matchName && matchPrice && matchBarcode;
 
     });
-  }, [products, searchCode, searchName, searchPrice, searchBarcode]);
+  }, [products, searchCode, searchName, searchPrice, searchBarcode, templateFilter]);
   const visibleProducts = useMemo(() => filteredProducts.slice(0, 200), [filteredProducts]);
 
   const clearFilters = useCallback(() => {
@@ -618,6 +648,18 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
           count={filteredProducts.length}
           onClose={onClose}
           actions={
+            <>
+            <Button
+              type="button"
+              tabIndex={-1}
+              disabled={!customerId || templateLoading}
+              onClick={() => void toggleTemplateFilter()}
+              title={customerId ? "عرض أصناف نماذج هذا العميل فقط" : "متاح من الحركة بعد اختيار العميل"}
+              className={`h-8 gap-1.5 rounded-lg px-2.5 text-xs font-bold ${templateFilter ? "bg-amber-400 text-amber-950 hover:bg-amber-300" : "bg-white text-indigo-700 hover:bg-indigo-50"}`}
+            >
+              <ListFilter className="h-3.5 w-3.5" />
+              <span>{templateLoading ? "جاري التحميل..." : templateFilter ? "كل الأصناف" : "من نموذج"}</span>
+            </Button>
             <Button
               type="button"
               tabIndex={-1}
@@ -627,6 +669,7 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
               <Plus className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">إضافة صنف</span>
             </Button>
+            </>
           }
         />
 
@@ -677,6 +720,12 @@ const ProductSearchPopup: React.FC<ProductSearchPopupProps> = ({ visible: visibl
             </Button>
           </div>
         </div>
+
+        {(templateFilter || templateMessage) && (
+          <div className={`shrink-0 border-b px-4 py-2 text-xs font-semibold ${templateFilter ? "border-amber-200 bg-amber-50 text-amber-900" : "border-rose-200 bg-rose-50 text-rose-700"}`}>
+            {templateFilter ? `أصناف من نموذج: ${templateFilter.label || "نماذج العميل"} (${templateFilter.ids.size} صنف)` : templateMessage}
+          </div>
+        )}
 
         {/* النتائج + لوحة الوحدات/المتغيرات */}
         <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden p-3 lg:flex-row">

@@ -3395,6 +3395,8 @@ function UnifiedSalesOrder({
               priceCategoryId={priceCategoryIdRef.current}
               ShowSelect={true}
               searchText={searchTextRef.current}
+              customerAccountId={Number(state.formData?.customer_id) || null}
+              transactionDate={state.formData?.order_date || null}
             />
             <UnitsSearchPopup
               visible={showUnitsSearch}

@@ -3508,6 +3508,8 @@ export default function UnifiedSalesDelivery({
           priceCategoryId={1}
           ShowSelect={true}
           searchText=""
+          customerAccountId={Number(form.account_id) || null}
+          transactionDate={form.vch_date || null}
         />
         {showAccountsTab && (
           <AccountSearchDialog
