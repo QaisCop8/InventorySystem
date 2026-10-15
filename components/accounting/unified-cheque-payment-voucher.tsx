@@ -212,7 +212,7 @@ export default function UnifiedChequePaymentVoucher() {
                                 <div className="min-w-0 space-y-2"><Label htmlFor="cheque-payment-branch">الفرع</Label><Select value={form.branch_id ? String(form.branch_id) : "none"} disabled={!!form.id || saving} onValueChange={value => { const branchId = Number(value); setForm({ ...form, branch_id: branchId }); if (!form.id && form.vch_book_id) void generateCode(form.vch_book_id, branchId) }}><SelectTrigger id="cheque-payment-branch" className="h-11 rounded-xl"><SelectValue placeholder="اختر الفرع" /></SelectTrigger><SelectContent>{meta.branches.map(branch => <SelectItem key={branch.id} value={String(branch.id)}>{branch.branch_code} - {branch.branch_name}</SelectItem>)}</SelectContent></Select></div>
                             </div>
                             <div className="mt-5 grid grid-cols-1 gap-4 border-t border-slate-100 pt-5 lg:grid-cols-2">
-                                <AutoCompleteAccount
+                                <AutoCompleteAccount voucherCurrencyId={Number(form.currency_id) || null}
                                     label="حساب المستفيد *"
                                     value={form.account_code || ""}
                                     onValueChange={value => setForm(current => current.account_code === value ? current : ({ ...current, account_code: value, account_id: null, account_name: "" }))}

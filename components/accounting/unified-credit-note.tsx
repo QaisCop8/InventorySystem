@@ -674,7 +674,7 @@ export default function UnifiedCreditNote({
                   </div>
                   <div className="grid gap-3">
                     <div className="grid grid-cols-2 gap-3">
-                      <AutoCompleteAccount
+                      <AutoCompleteAccount voucherCurrencyId={Number(form.currency_id) || null}
                         label="العميل *"
                         valueMode="id"
                         value={numberValue(form.account_id)}
@@ -692,7 +692,7 @@ export default function UnifiedCreditNote({
                       </div>
                     </div>
                     <div className="grid gap-3">
-                      <AutoCompleteAccount
+                      <AutoCompleteAccount voucherCurrencyId={Number(form.currency_id) || null}
                         label={isCreditNote ? "الحساب المدين *" : "الحساب الدائن *"}
                         valueMode="id"
                         value={numberValue(form.debit_account_id)}
@@ -795,7 +795,7 @@ export default function UnifiedCreditNote({
                     </span>
                     حساب الضريبة
                   </div>
-                  <AutoCompleteAccount
+                  <AutoCompleteAccount voucherCurrencyId={Number(form.currency_id) || null}
                     label={Number(form.vat_percent) > 0 || Number(form.vat) > 0 ? "حساب الضريبة *" : "حساب الضريبة"}
                     valueMode="id"
                     value={numberValue(form.vat_account_id)}

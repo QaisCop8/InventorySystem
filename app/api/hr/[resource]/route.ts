@@ -6,7 +6,7 @@ import {
   registerAttendanceDevice,
   unregisterAttendanceDevice,
 } from "@/lib/attendance-device-registry"
-import { ensureTables as ensureVoucherTables, saveJournalRows, JOURNAL_TYPE_COUNTER_ACCOUNT } from "@/app/api/receipts/_lib"
+import { ensureTables as ensureVoucherTables, saveJournalRows, JOURNAL_TYPE_COUNTER_ACCOUNT, validateJournalAccountCurrencies } from "@/app/api/receipts/_lib"
 import { JournalDefaultsError, nextJournalVoucherCode, resolveUserDefaultJournalBook, type JournalBookContext } from "@/lib/journal-defaults"
 import { authorizeTransaction } from "@/lib/transaction-permissions"
 import { getSessionUser } from "@/lib/tenant-auth"
@@ -451,6 +451,9 @@ export async function POST(request: NextRequest, { params }: { params: { resourc
         const debit = journalRows.filter(row => row.credit_debit === 1).reduce((sum, row) => sum + row.amount, 0)
         const credit = journalRows.filter(row => row.credit_debit === 2).reduce((sum, row) => sum + row.amount, 0)
         if (Math.abs(debit-credit) > 0.01) return NextResponse.json({ error: `قيد الراتب غير متوازن: المدين ${debit.toFixed(3)} والدائن ${credit.toFixed(3)}` }, { status: 400 })
+        // إعداد الحساب "السماح بعمل حركة على الحساب بغير عملته" = ممنوع ⇒ يُرفض القيد (مثل بقية السندات)
+        const currencyError = await validateJournalAccountCurrencies(journalRows, Number(journalRows[0]?.currency_id) || null)
+        if (currencyError) return NextResponse.json({ error: currencyError }, { status: 400 })
         await ensureVoucherTables()
         const authorization = await authorizeTransaction(request, "journal", "create", selectedBranchId)
         if (!authorization.ok) return authorization.response

@@ -110,6 +110,12 @@ export async function syncDepositReceipt(client: PoolClient, args: { draftId: nu
   const defaults = await client.query(`SELECT u.currency_id,u.account_id AS cash_account_id FROM users_currencies_default_account_tbl u JOIN account_tbl a ON a.id=u.account_id WHERE u.user_id=$1 AND (to_jsonb(u)->>'branch_id' IS NULL OR to_jsonb(u)->>'branch_id'=(SELECT branch_id::text FROM sales_order_drafts WHERE id=$2)) AND u.currency_id IS NOT NULL AND COALESCE(a.status::text,'1') IN ('1','2','active','ACTIVE','نشط') ORDER BY CASE WHEN to_jsonb(u)->>'branch_id' IS NOT NULL THEN 0 ELSE 1 END, u.currency_id LIMIT 1`, [userId, draftId])
   if (!defaults.rowCount) throw new DraftValidationError("يجب تعريف حساب النقدية والعملة الافتراضية للمستخدم قبل حفظ عربون")
   const { currency_id: currencyId, cash_account_id: cashAccountId } = defaults.rows[0]
+  // سند العربون: إعداد الحساب "السماح بعمل حركة على الحساب بغير عملته" = ممنوع (2) ⇒ يُرفض (مثل سند القبض العادي)
+  const blocked = await client.query(
+    `SELECT code, name FROM account_tbl WHERE id = ANY($1::int[]) AND currency_id IS NOT NULL AND currency_id <> $2 AND COALESCE(allow_trans_with_diff_curr, 0) = 2 LIMIT 1`,
+    [[Number(accountId), Number(cashAccountId)], Number(currencyId)],
+  )
+  if (blocked.rowCount) throw new DraftValidationError(`عملة سند العربون تختلف عن عملة الحساب لا يمكن اختياره: ${blocked.rows[0].code} - ${blocked.rows[0].name}`)
   const note = `مبلغ عربون من مسودة طلبية رقم ${draftNumber}`
   // فرع المسودة ودفتر سندات القبض الافتراضي للمستخدم: بدونهما لا يظهر السند في قائمة سندات القبض (مُقيّدة بفروع
   // المستخدم) ولا يتبع ترقيم النظام

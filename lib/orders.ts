@@ -364,6 +364,15 @@ export async function createOrder(
   items: Partial<OrderItem>[]
 ) {
   await ensureOrderWorkflowColumns();
+  // إعداد حساب العميل/المورد "السماح بعمل حركة على الحساب بغير عملته" = ممنوع (2) ⇒ تُرفض الطلبية بعملة أخرى
+  const orderAccountId = Number(orderData.customer_id) || 0
+  const orderCurrencyId = Number(orderData.currency_id) || 0
+  if (orderAccountId && orderCurrencyId) {
+    const [account] = await sql`SELECT code, name, currency_id, allow_trans_with_diff_curr FROM account_tbl WHERE id = ${orderAccountId}`
+    if (account && account.currency_id != null && Number(account.currency_id) !== orderCurrencyId && Number(account.allow_trans_with_diff_curr) === 2) {
+      throw new Error(`عملة الطلبية تختلف عن عملة الحساب لا يمكن اختياره: ${account.code} - ${account.name}`)
+    }
+  }
   const client = await (await getTenantPool()).connect();
   try {
     await client.query("BEGIN");

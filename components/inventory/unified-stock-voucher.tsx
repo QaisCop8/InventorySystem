@@ -2494,7 +2494,7 @@ export default function UnifiedStockVoucher({
                     دوماً (validateVoucher لا يفرضه)، بينما من/الى مستودع تبقى خاصة بالإرسالية
                     الداخلية والمستودع خاص بسند الاستعمال، تُعرَض إضافةً للعميل لا بدلاً عنه. */}
                 <div className="grid gap-3 md:grid-cols-2">
-                  <AutoCompleteAccount
+                  <AutoCompleteAccount voucherCurrencyId={Number(form.currency_id) || null}
                     label="العميل"
                     value={form.account_id != null ? String(form.account_id) : ""}
                     valueMode="id"

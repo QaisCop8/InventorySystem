@@ -3025,7 +3025,7 @@ export default function UnifiedSalesDelivery({
               )}
               {!isSalesmanVoucher && <div className="grid gap-2 grid-cols-1 sm:grid-cols-2">
                 <div className="col-span-1">
-                  <AutoCompleteAccount
+                  <AutoCompleteAccount voucherCurrencyId={Number(form.currency_id) || null}
                     label={isPurchaseDeliveryVoucher ? "المورد *" : "العميل *"}
                     value={form.account_id != null ? String(form.account_id) : ""}
                     valueMode="id"
@@ -3257,7 +3257,7 @@ export default function UnifiedSalesDelivery({
                   <div className="space-y-3 rounded-xl border border-slate-200 p-3">
                     <div className="text-sm font-bold text-slate-600">الحسابات</div>
                     <div className="grid gap-3 md:grid-cols-2">
-                      <AutoCompleteAccount
+                      <AutoCompleteAccount voucherCurrencyId={Number(form.currency_id) || null}
                         label="حساب الصندوق *"
                         value={form.cash_account_id != null ? String(form.cash_account_id) : ""}
                         valueMode="id"
@@ -3269,7 +3269,7 @@ export default function UnifiedSalesDelivery({
                         }}
                         disabled={isLocked}
                       />
-                      <AutoCompleteAccount
+                      <AutoCompleteAccount voucherCurrencyId={Number(form.currency_id) || null}
                         label="حساب الضريبة *"
                         value={form.tax_account_id != null ? String(form.tax_account_id) : ""}
                         valueMode="id"

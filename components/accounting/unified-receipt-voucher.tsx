@@ -2146,7 +2146,7 @@ export default function UnifiedReceiptVoucher({
                 </div>
                 <div className="grid gap-3">
                   <div className="grid gap-3 sm:grid-cols-2">
-                    <AutoCompleteAccount
+                    <AutoCompleteAccount voucherCurrencyId={Number(form.currency_id) || null}
                       label={`${customerLabel} *`}
                       valueMode="id"
                       value={numberValue(form.account_id)}
@@ -2173,7 +2173,7 @@ export default function UnifiedReceiptVoucher({
                     </div>
                   </div>
                   <div className="grid gap-3 sm:grid-cols-2">
-                    <AutoCompleteAccount
+                    <AutoCompleteAccount voucherCurrencyId={Number(form.currency_id) || null}
                       label="على حساب"
                       valueMode="id"
                       value={numberValue(form.to_account_id)}
@@ -2303,7 +2303,7 @@ export default function UnifiedReceiptVoucher({
                     الحسابات الافتراضية
                   </div>
                 <div className={isPayment ? "grid gap-4 md:grid-cols-2" : "grid gap-4 md:grid-cols-3"}>
-                  <AutoCompleteAccount
+                  <AutoCompleteAccount voucherCurrencyId={Number(form.currency_id) || null}
                     label="حساب الصندوق"
                     valueMode="id"
                     value={numberValue(form.cash_account_id)}
@@ -2313,7 +2313,7 @@ export default function UnifiedReceiptVoucher({
                     disabled={isLocked}
                     searchAllowedTypeValues={[1]}
                   />
-                  <AutoCompleteAccount
+                  <AutoCompleteAccount voucherCurrencyId={Number(form.currency_id) || null}
                     label="حساب صندوق الشيكات"
                     valueMode="id"
                     // سند الصرف: يُعطَّل أمام الإدخال اليدوي لكن يبقى معروضاً — قيمته تُعبَّأ آلياً
@@ -2326,7 +2326,7 @@ export default function UnifiedReceiptVoucher({
                     searchAllowedTypeValues={[1]}
                   />
                   {!isPayment && (
-                    <AutoCompleteAccount
+                    <AutoCompleteAccount voucherCurrencyId={Number(form.currency_id) || null}
                       label="حساب البطاقات"
                       valueMode="id"
                       value={numberValue(form.credit_card_account_id)}

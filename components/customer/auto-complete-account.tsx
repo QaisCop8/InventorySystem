@@ -47,6 +47,11 @@ interface AutoCompleteAccountProps {
   // الحساب أصلاً أو كان موجوداً لكن نوعه خارج requiredTypeValues، تُمسح القيمة المدخلة وتُعرض
   // هذه الرسالة بدل قبول حساب لا يطابق النوع المطلوب بصمت.
   notFoundMessage?: string
+  /**
+   * عملة الحركة: عند تمريرها يُطبَّق إعداد الحساب "السماح بعمل حركة على الحساب بغير عملته" (allow_trans_with_diff_curr)
+   * عند اختيار حساب عملته مختلفة: 0 = بلا تنبيه، 1 = يُقبل مع تنبيه، 2 = يُرفض الاختيار. (الخادم يرفض 2 عند الحفظ أيضاً)
+   */
+  voucherCurrencyId?: number | null
 }
 
 const normalizeAccountCode = (value: string) => value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 50)
@@ -144,6 +149,7 @@ export default function AutoCompleteAccount({
   branchId = null,
   displayIdOnly = false,
   notFoundMessage,
+  voucherCurrencyId = null,
 }: AutoCompleteAccountProps) {
   const { toast } = useToast()
   const inputRef = useRef<HTMLInputElement | null>(null)
@@ -164,6 +170,19 @@ export default function AutoCompleteAccount({
     if (valueMode === "id") return ""
     return value
   }, [displayIdOnly, displayNameFirst, isFocused, selectedAccount, value])
+
+  // يُطبَّق عند اختيار المستخدم حساباً (لا عند تحميل حساب محفوظ مسبقاً)
+  const currencyAllows = (account: AccountItem) => {
+    const voucherCurrency = Number(voucherCurrencyId)
+    if (!voucherCurrency || account.currency_id == null || Number(account.currency_id) === voucherCurrency) return true
+    const mode = Number(account.allow_trans_with_diff_curr || 0)
+    if (mode === 2) {
+      toast({ title: "تعذر اختيار الحساب", description: `عملة الحركة تختلف عن عملة الحساب لا يمكن اختياره: ${account.code} - ${account.name}`, variant: "destructive" })
+      return false
+    }
+    if (mode === 1) toast({ title: "تنبيه", description: `عملة الحركة تختلف عن عملة الحساب: ${account.code} - ${account.name}` })
+    return true
+  }
 
   const notifySelection = useCallback(
     (account: AccountItem | null) => {
@@ -329,6 +348,13 @@ export default function AutoCompleteAccount({
     const typeOk =
       !requiredTypeValues || requiredTypeValues.length === 0 || (account != null && requiredTypeValues.includes(Number(account.type ?? 0)))
 
+    if (account && typeOk && !currencyAllows(account)) {
+      typedTextRef.current = null
+      onValueChange("")
+      setDisplayValue("")
+      notifySelection(null)
+      return
+    }
     if (account && typeOk) {
       typedTextRef.current = null
       notifySelection(account)
@@ -363,6 +389,11 @@ export default function AutoCompleteAccount({
   const handleSelectFromSearch = (account: AccountItem) => {
     typedTextRef.current = null
     searchOpeningRef.current = false
+    if (!currencyAllows(account)) {
+      setSearchDialogOpen(false)
+      setTimeout(() => inputRef.current?.focus(), 50)
+      return
+    }
     onValueChange(valueMode === "id" ? String(account.id) : normalizeAccountCode(account.code))
     notifySelection(account)
     setDisplayValue(formatAccountLabel(account, displayNameFirst, displayIdOnly))

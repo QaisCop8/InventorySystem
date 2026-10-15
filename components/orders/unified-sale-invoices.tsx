@@ -3543,7 +3543,7 @@ function UnifiedSaleInvoices({
 
                     <TabsContent value="customer" className="space-y-4 mt-0">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
-                        <AutoCompleteAccount
+                        <AutoCompleteAccount voucherCurrencyId={Number(state.formData.currency_id) || null}
                           label="العميل"
                           value={state.formData.customer_code ?? ""}
                           placeholder="اختر العميل"

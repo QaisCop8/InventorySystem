@@ -73,7 +73,8 @@ export async function POST(request:NextRequest){
     const currencies=new Set(chosen.map((c:any)=>Number(c.currency_id)))
     if(currencies.size!==1)return NextResponse.json({error:"يجب أن تكون جميع الشيكات المختارة من نفس العملة"},{status:400})
     const currencyId=Number(chosen[0].currency_id),rate=Number(chosen[0].rate||1)
-    if(Number(account.currency_id)!==currencyId&&!Number(account.allow_trans_with_diff_curr))return NextResponse.json({error:"عملة الحساب تختلف عن عملة الشيكات ولا يسمح الحساب بالحركة بعملة مختلفة"},{status:400})
+    // allow_trans_with_diff_curr: 0 = مسموح بلا تنبيه، 1 = مسموح مع تنبيه، 2 = ممنوع (كان الفحص معكوساً: يمنع 0 ويسمح 2)
+    if(account.currency_id!=null&&Number(account.currency_id)!==currencyId&&Number(account.allow_trans_with_diff_curr)===2)return NextResponse.json({error:"عملة الحساب تختلف عن عملة الشيكات ولا يسمح الحساب بالحركة بعملة مختلفة"},{status:400})
     const bookId=Number(data.vch_book_id)||0
     if(!await resolveVoucherBookName(bookId))return NextResponse.json({error:"يجب اختيار دفتر السندات"},{status:400})
     const code=String(data.vch_code||"").trim().toUpperCase()
