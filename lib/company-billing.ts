@@ -1,5 +1,5 @@
 import managementSql, { ensureManagementTables } from "@/lib/management-db"
-import { initializeLahzaTransaction, isLahzaConfigured, LAHZA_CURRENCIES, toMinorUnits, verifyLahzaTransaction, type LahzaCurrency } from "@/lib/lahza"
+import { initializeLahzaTransaction, isLahzaConfigured, LAHZA_CURRENCIES, lahzaPublicKey, toMinorUnits, verifyLahzaTransaction, type LahzaCurrency } from "@/lib/lahza"
 import { provisionCompanyDatabase } from "@/lib/provisioning"
 import { sendMail } from "@/lib/email"
 import { priceFor, type LicenseCounts, type Pricing } from "@/lib/company-pricing"
@@ -49,6 +49,25 @@ export function ensureBillingTables() {
           paid_at TIMESTAMP
         )`
       await managementSql`CREATE INDEX IF NOT EXISTS idx_company_payments_company ON company_payments(company_id, created_at DESC)`
+      await managementSql`ALTER TABLE companies ADD COLUMN IF NOT EXISTS provisioning_started_at TIMESTAMP`
+      await managementSql`ALTER TABLE companies ADD COLUMN IF NOT EXISTS provisioning_error TEXT`
+      // أرقام التواصل مع المبيعات (صفحة خيارات الدفع) — يعدّلها مسؤول المنصة مع الأسعار
+      await managementSql`ALTER TABLE platform_pricing ADD COLUMN IF NOT EXISTS sales_phone VARCHAR(40) NOT NULL DEFAULT '+970 92 373 001'`
+      await managementSql`ALTER TABLE platform_pricing ADD COLUMN IF NOT EXISTS sales_whatsapp VARCHAR(40) NOT NULL DEFAULT '+970 569 555 576'`
+      // "ارسال بطاقة للمبيعات": طلب تواصل بدل الدفع الإلكتروني
+      await managementSql`
+        CREATE TABLE IF NOT EXISTS sales_leads (
+          id SERIAL PRIMARY KEY,
+          company_id INTEGER,
+          user_id INTEGER,
+          name VARCHAR(150) NOT NULL,
+          email VARCHAR(150) NOT NULL,
+          phone VARCHAR(40) NOT NULL,
+          whatsapp VARCHAR(40),
+          notes TEXT,
+          status VARCHAR(20) NOT NULL DEFAULT 'new',
+          created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )`
     })().catch((error) => { ensured = null; throw error })
   }
   return ensured
@@ -61,6 +80,38 @@ export async function getPricing(): Promise<Pricing> {
   const [row] = await managementSql`SELECT currency, base_price, per_user, per_branch, per_pos_point FROM platform_pricing WHERE id = 1`
   const currency = (LAHZA_CURRENCIES as readonly string[]).includes(String(row?.currency)) ? (row.currency as LahzaCurrency) : "USD"
   return { currency, base_price: Number(row?.base_price || 0), per_user: Number(row?.per_user || 0), per_branch: Number(row?.per_branch || 0), per_pos_point: Number(row?.per_pos_point || 0) }
+}
+
+export async function getSalesContacts(): Promise<{ phone: string; whatsapp: string }> {
+  await ensureBillingTables()
+  const [row] = await managementSql`SELECT sales_phone, sales_whatsapp FROM platform_pricing WHERE id = 1`
+  return { phone: String(row?.sales_phone || ""), whatsapp: String(row?.sales_whatsapp || "") }
+}
+
+export async function saveSalesContacts(input: { phone?: unknown; whatsapp?: unknown }) {
+  await ensureBillingTables()
+  const clean = (value: unknown) => String(value ?? "").trim().slice(0, 40)
+  if (input.phone !== undefined || input.whatsapp !== undefined) {
+    const current = await getSalesContacts()
+    await managementSql`UPDATE platform_pricing SET sales_phone = ${input.phone !== undefined ? clean(input.phone) : current.phone}, sales_whatsapp = ${input.whatsapp !== undefined ? clean(input.whatsapp) : current.whatsapp} WHERE id = 1`
+  }
+  return getSalesContacts()
+}
+
+/** طلب "ارسال بطاقة للمبيعات" — يُحفظ ويُبلَّغ مسؤول المنصة بالبريد (بلا انتظار). */
+export async function createSalesLead(input: { companyId?: number | null; userId?: number | null; name: string; email: string; phone: string; whatsapp?: string; notes?: string; companyName?: string }) {
+  await ensureBillingTables()
+  const [row] = await managementSql`
+    INSERT INTO sales_leads (company_id, user_id, name, email, phone, whatsapp, notes)
+    VALUES (${input.companyId || null}, ${input.userId || null}, ${input.name}, ${input.email}, ${input.phone}, ${input.whatsapp || null}, ${input.notes || null})
+    RETURNING id`
+  const escape = (value: string) => value.replace(/[<>&"]/g, (ch) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;" })[ch] as string)
+  void sendMail({
+    to: PLATFORM_ADMIN_EMAIL,
+    subject: `طلب تواصل مع المبيعات${input.companyName ? ` — ${input.companyName}` : ""}`,
+    html: `<div dir="rtl"><p>طلب جديد للتواصل مع المبيعات${input.companyName ? ` بخصوص شركة "${escape(input.companyName)}"` : ""}:</p><ul><li>الاسم: ${escape(input.name)}</li><li>البريد: ${escape(input.email)}</li><li>الهاتف: ${escape(input.phone)}</li>${input.whatsapp ? `<li>واتساب: ${escape(input.whatsapp)}</li>` : ""}</ul>${input.notes ? `<p>ملاحظات: ${escape(input.notes)}</p>` : ""}</div>`,
+  }).catch(() => undefined)
+  return { id: Number(row.id) }
 }
 
 export async function savePricing(input: Partial<Pricing>) {
@@ -94,18 +145,19 @@ async function ownedCompany(companyId: number, userId: number) {
 }
 
 /** يبدأ دفع شركة بانتظار الدفع (أو يكمل محاولة سابقة دُفعت فعلاً ولم تُؤكَّد) ويعيد رابط صفحة الدفع. */
-export async function startCompanyPayment(companyId: number, session: Session, origin: string) {
+export async function startCompanyPayment(companyId: number, session: Session, origin: string, mode: "redirect" | "popup" = "redirect") {
   await ensureBillingTables()
   const company = await ownedCompany(companyId, session.id)
   if (!company) throw Object.assign(new Error("الشركة غير موجودة"), { status: 404 })
-  if (company.status === "approved") return { provisioned: true as const }
+  // مدفوعة فعلاً (معتمدة/قيد الاعتماد/فشل اعتمادها ⇒ "اعادة المحاولة" من شركاتي) — لا دفع جديد
+  if (["approved", "provisioning", "provisioning_failed"].includes(String(company.status))) return { provisioned: true as const }
   if (company.status !== "awaiting_payment") throw Object.assign(new Error("هذه الشركة ليست بانتظار الدفع"), { status: 400 })
 
   // محاولة سابقة ربما دُفعت ثم أُغلق المتصفح قبل العودة: تُتحقق أولاً بدل الدفع مرتين
   const previous = await managementSql`SELECT reference FROM company_payments WHERE company_id = ${companyId} AND status IN ('initialized', 'success') ORDER BY id DESC LIMIT 3`
   for (const row of previous) {
     const confirmed = await confirmCompanyPayment(String(row.reference), session).catch(() => null)
-    if (confirmed?.status === "approved") return { provisioned: true as const }
+    if (confirmed && ["approved", "provisioning", "failed"].includes(confirmed.status)) return { provisioned: true as const }
   }
 
   const pricing = await getPricing()
@@ -113,6 +165,14 @@ export async function startCompanyPayment(companyId: number, session: Session, o
   const quote = priceFor(pricing, counts)
   if (!(quote.total > 0)) throw Object.assign(new Error("لم يُحدَّد سعر الاشتراك بعد — تواصل مع إدارة النظام"), { status: 400 })
   const reference = `ARK-C${companyId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+  if (mode === "popup") {
+    // نافذة لحظة المنبثقة (LahzaPopup) تُفتح من المتصفح بالمفتاح العام وبنفس المرجع والمبلغ المسجّلين هنا؛
+    // التحقق النهائي بالخادم بالمفتاح السري (confirmCompanyPayment يطابق المبلغ والعملة).
+    await managementSql`
+      INSERT INTO company_payments (company_id, user_id, reference, amount, currency, number_of_users, number_of_branches, number_of_pos_points)
+      VALUES (${companyId}, ${session.id}, ${reference}, ${quote.total}, ${quote.currency}, ${counts.users}, ${counts.branches}, ${counts.posPoints})`
+    return { provisioned: false as const, reference, amount: quote.total, amountMinor: toMinorUnits(quote.total), currency: quote.currency, email: session.email, fullName: session.full_name, publicKey: lahzaPublicKey() }
+  }
   const callbackUrl = `${origin}/management/companies/payment-callback`
   const { authorizationUrl } = await initializeLahzaTransaction({
     email: session.email, firstName: session.full_name, amount: quote.total, currency: quote.currency, reference, callbackUrl,
@@ -156,37 +216,74 @@ export async function confirmCompanyPayment(reference: string, session: Session)
       WHERE reference = ${reference} AND status <> 'success'`
   }
 
-  // طلب واحد فقط يزوّد الشركة؛ أي طلب متزامن آخر يرى "جاري الإنشاء"
-  const [claimed] = await managementSql`UPDATE companies SET status = 'provisioning' WHERE id = ${payment.company_id} AND status = 'awaiting_payment' RETURNING id`
+  // الدفع مؤكَّد ⇒ اعتماد الشركة تلقائياً بالخلفية؛ الطلب يعود فوراً و"شركاتي" تعرض "جاري اعتماد الشركة"
+  return claimAndProvision(Number(payment.company_id), String(payment.company_name))
+}
+
+const STALE_PROVISIONING_MINUTES = 10
+
+function runInBackground(task: Promise<unknown>) {
+  // Cloudflare Workers يحتاج waitUntil ليكمل بعد إرسال الاستجابة؛ خادم Node (Render) يكمل تلقائياً
+  const context = (globalThis as any)[Symbol.for("__cloudflare-context__")]
+  context?.ctx?.waitUntil?.(task)
+}
+
+/** ينقل الشركة إلى provisioning (طلب واحد فقط يفوز) ويبدأ إنشاء قاعدتها بالخلفية. */
+async function claimAndProvision(companyId: number, companyName: string) {
+  const [claimed] = await managementSql`
+    UPDATE companies SET status = 'provisioning', provisioning_started_at = CURRENT_TIMESTAMP, provisioning_error = NULL
+    WHERE id = ${companyId}
+      AND (status IN ('awaiting_payment', 'provisioning_failed')
+           OR (status = 'provisioning' AND provisioning_started_at < CURRENT_TIMESTAMP - (${STALE_PROVISIONING_MINUTES} * INTERVAL '1 minute')))
+    RETURNING id`
   if (!claimed) {
-    const [current] = await managementSql`SELECT status FROM companies WHERE id = ${payment.company_id}`
-    return current?.status === "approved"
-      ? { status: "approved" as const, companyId: Number(payment.company_id), companyName: String(payment.company_name) }
-      : { status: "provisioning" as const, companyId: Number(payment.company_id), companyName: String(payment.company_name) }
+    const [current] = await managementSql`SELECT status FROM companies WHERE id = ${companyId}`
+    const status = current?.status === "approved" ? "approved" as const : current?.status === "provisioning_failed" ? "failed" as const : "provisioning" as const
+    return { status, companyId, companyName }
   }
+  const task = provisionPaidCompany(companyId).catch((error) => console.error("[company-billing] provisioning failed", companyId, error))
+  runInBackground(task)
+  return { status: "provisioning" as const, companyId, companyName }
+}
+
+async function provisionPaidCompany(companyId: number) {
   try {
+    const [payment] = await managementSql`
+      SELECT * FROM company_payments WHERE company_id = ${companyId} AND status = 'success' ORDER BY paid_at DESC NULLS LAST, id DESC LIMIT 1`
+    if (!payment) throw new Error("لا توجد دفعة ناجحة لهذه الشركة")
     const [owner] = await managementSql`
-      SELECT u.email, u.full_name, u.password_hash FROM companies c JOIN users u ON u.id = c.created_by WHERE c.id = ${payment.company_id}`
+      SELECT c.name, u.email, u.full_name, u.password_hash FROM companies c JOIN users u ON u.id = c.created_by WHERE c.id = ${companyId}`
     if (!owner) throw new Error("تعذّر العثور على مالك الشركة")
     await provisionCompanyDatabase(
-      { id: Number(payment.company_id), name: String(payment.company_name), requestedByEmail: owner.email, requestedByFullName: owner.full_name, requestedByPasswordHash: owner.password_hash },
+      { id: companyId, name: String(owner.name), requestedByEmail: owner.email, requestedByFullName: owner.full_name, requestedByPasswordHash: owner.password_hash },
       Number(payment.user_id),
     )
     // التزويد يضبط ترخيصاً افتراضياً — يُثبَّت هنا الترخيص المدفوع فعلاً
     await managementSql`
-      UPDATE companies SET number_of_users = ${Number(payment.number_of_users) || 1}, number_of_branches = ${Number(payment.number_of_branches) || 1}, number_of_pos_points = ${Number(payment.number_of_pos_points) || 0}
-      WHERE id = ${payment.company_id}`
+      UPDATE companies SET number_of_users = ${Number(payment.number_of_users) || 1}, number_of_branches = ${Number(payment.number_of_branches) || 1},
+        number_of_pos_points = ${Number(payment.number_of_pos_points) || 0}, provisioning_error = NULL
+      WHERE id = ${companyId}`
+    void sendMail({
+      to: PLATFORM_ADMIN_EMAIL,
+      subject: "شركة جديدة مدفوعة تم اعتمادها",
+      html: `<div dir="rtl"><p>تم دفع اشتراك شركة "${owner.name}" بمبلغ ${Number(payment.amount).toFixed(2)} ${payment.currency} (مرجع ${payment.reference}) من ${owner.full_name} (${owner.email}).</p><p>الترخيص: ${payment.number_of_users} مستخدم، ${payment.number_of_branches} فرع، ${payment.number_of_pos_points} نقطة بيع. تم اعتماد الشركة وإنشاء قاعدتها تلقائياً لمدة سنة.</p></div>`,
+    }).catch(() => undefined)
   } catch (error) {
-    // الدفع محفوظ كناجح: إعادة المحاولة (إكمال الدفع/فتح رابط العودة) تزوّد الشركة بلا دفع جديد
-    await managementSql`UPDATE companies SET status = 'awaiting_payment' WHERE id = ${payment.company_id} AND status = 'provisioning'`
+    // الدفع يبقى ناجحاً: "اعادة المحاولة" تعيد الإنشاء فقط بلا دفع جديد
+    const message = (error instanceof Error ? error.message : String(error)).slice(0, 500)
+    await managementSql`UPDATE companies SET status = 'provisioning_failed', provisioning_error = ${message} WHERE id = ${companyId} AND status = 'provisioning'`
     throw error
   }
-  void sendMail({
-    to: PLATFORM_ADMIN_EMAIL,
-    subject: "شركة جديدة مدفوعة تم إنشاؤها",
-    html: `<div dir="rtl"><p>دفع المستخدم ${session.full_name} (${session.email}) اشتراك شركة "${payment.company_name}" بمبلغ ${Number(payment.amount).toFixed(2)} ${payment.currency} (مرجع ${reference}).</p><p>الترخيص: ${payment.number_of_users} مستخدم، ${payment.number_of_branches} فرع، ${payment.number_of_pos_points} نقطة بيع. تم إنشاء قاعدة الشركة تلقائياً لمدة سنة.</p></div>`,
-  }).catch(() => undefined)
-  return { status: "approved" as const, companyId: Number(payment.company_id), companyName: String(payment.company_name) }
+}
+
+/** "اعادة المحاولة" لشركة مدفوعة فشل اعتمادها (أو علق إنشاؤها) — لا دفع جديد. */
+export async function retryCompanyProvisioning(companyId: number, session: Session) {
+  await ensureBillingTables()
+  const company = await ownedCompany(companyId, session.id)
+  if (!company) throw Object.assign(new Error("الشركة غير موجودة"), { status: 404 })
+  const [paid] = await managementSql`SELECT 1 FROM company_payments WHERE company_id = ${companyId} AND status = 'success' LIMIT 1`
+  if (!paid) throw Object.assign(new Error("لا توجد دفعة ناجحة لهذه الشركة — أكمل الدفع أولاً"), { status: 400 })
+  return claimAndProvision(companyId, String(company.name))
 }
 
 /** أصل الموقع لرابط العودة من صفحة الدفع (NEXT_PUBLIC_APP_URL أولاً، ثم رؤوس الوكيل مثل Render). */

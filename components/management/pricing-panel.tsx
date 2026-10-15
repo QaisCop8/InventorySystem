@@ -7,6 +7,7 @@ import { priceFor, type Pricing } from "@/lib/company-pricing"
 // تبويب "الأسعار" بلوحة إدارة المنصة: سعر اشتراك الشركة السنوي الذي يُدفع عبر لحظة عند إنشاء شركة جديدة.
 export function PricingPanel() {
   const [pricing, setPricing] = useState<Pricing | null>(null)
+  const [contacts, setContacts] = useState({ phone: "", whatsapp: "" })
   const [enabled, setEnabled] = useState(false)
   const [testMode, setTestMode] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -15,7 +16,7 @@ export function PricingPanel() {
   useEffect(() => {
     fetch("/api/management/pricing", { cache: "no-store" })
       .then((res) => res.json())
-      .then((data) => { setPricing(data.pricing); setEnabled(Boolean(data.enabled)); setTestMode(Boolean(data.testMode)) })
+      .then((data) => { setPricing(data.pricing); setContacts(data.contacts || { phone: "", whatsapp: "" }); setEnabled(Boolean(data.enabled)); setTestMode(Boolean(data.testMode)) })
       .catch(() => setMessage({ type: "error", text: "تعذّر تحميل الأسعار" }))
   }, [])
 
@@ -24,10 +25,11 @@ export function PricingPanel() {
     setSaving(true)
     setMessage(null)
     try {
-      const res = await fetch("/api/management/pricing", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(pricing) })
+      const res = await fetch("/api/management/pricing", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...pricing, contacts }) })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || "تعذّر حفظ الأسعار")
       setPricing(data.pricing)
+      if (data.contacts) setContacts(data.contacts)
       setMessage({ type: "success", text: "تم حفظ الأسعار" })
     } catch (e) {
       setMessage({ type: "error", text: e instanceof Error ? e.message : "تعذّر حفظ الأسعار" })
@@ -72,6 +74,19 @@ export function PricingPanel() {
         {field("per_user", "لكل مستخدم إضافي", "سنوياً")}
         {field("per_branch", "لكل فرع إضافي", "سنوياً")}
         {field("per_pos_point", "لكل نقطة بيع", "سنوياً")}
+      </div>
+      <div className="grid gap-4 rounded-xl border border-slate-200 bg-white p-5 sm:grid-cols-2">
+        <p className="text-sm font-bold text-slate-700 sm:col-span-2">التواصل مع المبيعات (يظهر في صفحة خيارات الدفع)</p>
+        <label className="block text-sm">
+          <span className="font-semibold text-slate-700">رقم الهاتف</span>
+          <input dir="ltr" value={contacts.phone} onChange={(event) => setContacts({ ...contacts, phone: event.target.value })} maxLength={40}
+            className="mt-1 block h-10 w-full rounded-lg border border-slate-300 px-3 text-left focus:border-violet-500 focus:outline-none" placeholder="+970 ..." />
+        </label>
+        <label className="block text-sm">
+          <span className="font-semibold text-slate-700">رقم الواتساب</span>
+          <input dir="ltr" value={contacts.whatsapp} onChange={(event) => setContacts({ ...contacts, whatsapp: event.target.value })} maxLength={40}
+            className="mt-1 block h-10 w-full rounded-lg border border-slate-300 px-3 text-left focus:border-violet-500 focus:outline-none" placeholder="+970 ..." />
+        </label>
       </div>
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm">
         <span className="text-slate-600">مثال: 5 مستخدمين، فرعان، نقطة بيع = <b className="tabular-nums text-slate-900" dir="ltr">{example.total.toFixed(2)} {example.currency}</b> سنوياً</span>

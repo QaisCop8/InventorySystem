@@ -4,7 +4,7 @@ import { ensureManagementTables } from "@/lib/management-db"
 import managementSql from "@/lib/management-db"
 import { sendMail } from "@/lib/email"
 import { ensureLicenseTables } from "@/lib/company-license"
-import { paymentsEnabled } from "@/lib/company-billing"
+import { ensureBillingTables, paymentsEnabled } from "@/lib/company-billing"
 
 const PLATFORM_ADMIN_EMAIL = "qais.sabbah@iscosoft.com"
 
@@ -16,8 +16,11 @@ export async function GET() {
 
     // Shared by the company page and header dropdown: show only explicit memberships.
     // Platform-wide listing stays isolated in /api/management/admin/companies.
+    await ensureBillingTables()
+    // provisioning_stale: إنشاء علق أكثر من 10 دقائق (إعادة تشغيل الخادم أثناءه) ⇒ يظهر "اعادة المحاولة"
     const rows = await managementSql`
-      SELECT c.id, c.name, c.status, c.created_at, c.expiry_date, c.db_name,
+      SELECT c.id, c.name, c.status, c.created_at, c.expiry_date, c.db_name, c.provisioning_error,
+             (c.status = 'provisioning' AND c.provisioning_started_at < CURRENT_TIMESTAMP - INTERVAL '10 minutes') AS provisioning_stale,
              u.full_name AS requested_by_name, u.email AS requested_by_email
       FROM companies c
       JOIN user_company uc ON uc.company_id = c.id

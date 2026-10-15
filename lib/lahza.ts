@@ -2,7 +2,8 @@
 //   initialize: POST /transaction/initialize ⇒ authorization_url (صفحة الدفع) + reference
 //   verify:     GET  /transaction/verify/:reference ⇒ data.status = "success" عند نجاح الدفع
 // المبلغ بأصغر وحدة للعملة (×100). وضع الاختبار = مفتاح sk_test_... (بطاقة الاختبار: 4111 1111 1111 1111، 03/30، CVV 004).
-// متغيرات البيئة: LAHZA_SECRET_KEY (إلزامي)، LAHZA_API_URL (اختياري، افتراضياً https://api.lahza.io).
+// متغيرات البيئة: LAHZA_SECRET_KEY (إلزامي، للتحقق بالخادم)، LAHZA_PUBLIC_KEY (لنافذة الدفع المنبثقة؛ بدونه يُحوَّل
+// المستخدم لصفحة الدفع)، LAHZA_API_URL (اختياري، افتراضياً https://api.lahza.io).
 
 export const LAHZA_CURRENCIES = ["ILS", "USD", "JOD"] as const
 export type LahzaCurrency = (typeof LAHZA_CURRENCIES)[number]
@@ -11,6 +12,8 @@ const apiUrl = () => String(process.env.LAHZA_API_URL || "https://api.lahza.io")
 const secretKey = () => String(process.env.LAHZA_SECRET_KEY || "").trim()
 
 export const isLahzaConfigured = () => Boolean(secretKey())
+/** المفتاح العام (pk_test_/pk_live_) لنافذة الدفع المنبثقة في المتصفح — LAHZA_PUBLIC_KEY */
+export const lahzaPublicKey = () => String(process.env.LAHZA_PUBLIC_KEY || "").trim()
 export const isLahzaTestMode = () => secretKey().startsWith("sk_test")
 export const toMinorUnits = (amount: number) => Math.round(Number(amount) * 100)
 

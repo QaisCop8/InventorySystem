@@ -20,6 +20,7 @@ import {
   CheckCircle2,
   Hourglass,
   CreditCard,
+  RefreshCw,
 } from "lucide-react"
 import { priceFor, type Pricing } from "@/lib/company-pricing"
 import { activateCompany } from "@/lib/tenant-client"
@@ -28,8 +29,10 @@ import { useToast } from "@/hooks/use-toast"
 interface Company {
   id: number
   name: string
-  status: "pending" | "approved" | "rejected" | "stopped" | "awaiting_payment" | "provisioning"
+  status: "pending" | "approved" | "rejected" | "stopped" | "awaiting_payment" | "provisioning" | "provisioning_failed"
   created_at: string
+  provisioning_error?: string | null
+  provisioning_stale?: boolean | null
   expiry_date?: string | null
   db_name?: string | null
   requested_by_name?: string | null
@@ -61,7 +64,8 @@ const STATUS_CONFIG: Record<Company["status"], { label: string; icon: typeof Shi
   rejected: { label: "مرفوضة", icon: XCircle, classes: "bg-rose-500/10 text-rose-200 ring-1 ring-inset ring-rose-300/25" },
   stopped: { label: "موقوفة", icon: Ban, classes: "bg-white/5 text-slate-300 ring-1 ring-inset ring-white/15" },
   awaiting_payment: { label: "بانتظار الدفع", icon: CreditCard, classes: "bg-sky-400/10 text-sky-200 ring-1 ring-inset ring-sky-300/25" },
-  provisioning: { label: "جاري الإنشاء", icon: Loader2, classes: "bg-emerald-400/10 text-emerald-200 ring-1 ring-inset ring-emerald-300/25" },
+  provisioning: { label: "جاري اعتماد الشركة", icon: Loader2, classes: "bg-emerald-400/10 text-emerald-200 ring-1 ring-inset ring-emerald-300/25" },
+  provisioning_failed: { label: "فشل اعتماد الشركة", icon: XCircle, classes: "bg-rose-500/10 text-rose-200 ring-1 ring-inset ring-rose-300/25" },
 }
 
 // نفس هوية شاشة الدخول (components/auth/management-login.tsx): شفق متحرك، نقاط، زجاج، حدّ متدرّج متحرك.
@@ -96,6 +100,9 @@ const css = `
 .cp-btn:active:not(:disabled){transform:translateY(3px);border-bottom-width:1px}
 .cp-btn:disabled{opacity:.55;cursor:not-allowed}
 .cp-btn.is-trial{background:linear-gradient(100deg,#8b5cf6,#6366f1);border-bottom-color:#4c1d95;box-shadow:0 18px 30px -14px rgba(139,92,246,.8)}
+.cp-progress{position:relative;height:6px;overflow:hidden;border-radius:9999px;background:rgba(255,255,255,.08)}
+.cp-progress::after{content:"";position:absolute;inset:0;width:40%;border-radius:9999px;background:linear-gradient(90deg,#10b981,#38bdf8);animation:cp-indeterminate 1.4s ease-in-out infinite}
+@keyframes cp-indeterminate{0%{transform:translateX(260%)}100%{transform:translateX(-120%)}}
 @keyframes cp-rise{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
 .cp-rise{animation:cp-rise .65s cubic-bezier(.2,.8,.2,1) both}
 .cp-dialog{border:1px solid rgba(255,255,255,.12)!important;background:linear-gradient(160deg,rgba(13,22,36,.97),rgba(8,15,26,.98))!important;color:#fff!important;border-radius:24px!important;
@@ -177,21 +184,35 @@ export default function ManagementCompaniesPage() {
       .catch(() => undefined)
   }, [])
 
-  // يبدأ (أو يكمل) الدفع ويحوّل لصفحة لحظة؛ إن كانت دفعة سابقة قد اكتملت تُنشأ الشركة مباشرة
+  // صفحة "خيارات الدفع" للشركة: الدفع عبر الانترنت (لحظة) أو التواصل مع المبيعات
   const startPayment = async (companyId: number) => {
     setPayingId(companyId)
+    window.location.href = `/management/companies/${companyId}/checkout`
+  }
+
+  const [retryingId, setRetryingId] = useState<number | null>(null)
+  const retryProvisioning = async (companyId: number) => {
+    setRetryingId(companyId)
     try {
-      const res = await fetch(`/api/management/companies/${companyId}/payment`, { method: "POST" })
+      const res = await fetch(`/api/management/companies/${companyId}/retry-provisioning`, { method: "POST" })
       const data = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(data.error || "تعذّر بدء عملية الدفع")
-      if (data.authorizationUrl) { window.location.href = data.authorizationUrl; return }
-      if (data.provisioned) { toast({ title: "تم", description: "تم تأكيد الدفع وإنشاء الشركة" }); await loadCompanies() }
+      if (!res.ok) throw new Error(data.error || "تعذّرت إعادة المحاولة")
+      await loadCompanies()
     } catch (e) {
-      toast({ title: "خطأ", description: e instanceof Error ? e.message : "تعذّر بدء عملية الدفع", variant: "destructive" })
+      toast({ title: "خطأ", description: e instanceof Error ? e.message : "تعذّرت إعادة المحاولة", variant: "destructive" })
     } finally {
-      setPayingId(null)
+      setRetryingId(null)
     }
   }
+
+  // تحديث تلقائي كل 4 ثوانٍ ما دامت شركة "جاري اعتماد الشركة" — تظهر جاهزة (أو فشل مع "اعادة المحاولة") بلا تحديث يدوي
+  const provisioningActive = companies.some((company) => company.status === "provisioning" && !company.provisioning_stale)
+  useEffect(() => {
+    if (!provisioningActive) return
+    const timer = window.setInterval(() => void loadCompanies(), 4000)
+    return () => window.clearInterval(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [provisioningActive])
 
   useEffect(() => {
     loadCompanies()
@@ -385,7 +406,7 @@ export default function ManagementCompaniesPage() {
                   }}
                   className={
                     "cp-card-in group flex min-h-[230px] flex-col gap-4 p-6 text-right outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60 " +
-                    (canOpenCompany ? "cursor-pointer" : company.status === "awaiting_payment" ? "cursor-default" : "cursor-not-allowed opacity-60")
+                    (canOpenCompany ? "cursor-pointer" : ["awaiting_payment", "provisioning", "provisioning_failed"].includes(company.status) ? "cursor-default" : "cursor-not-allowed opacity-60")
                   }
                 >
                   <div className="flex w-full items-start justify-between">
@@ -393,7 +414,7 @@ export default function ManagementCompaniesPage() {
                       {isSelecting ? <Loader2 className="h-6 w-6 animate-spin" /> : company.name.trim().charAt(0).toUpperCase() || <Building2 className="h-6 w-6" />}
                     </div>
                     <span className={"inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold " + status.classes}>
-                      <StatusIcon className="h-3 w-3" />
+                      <StatusIcon className={"h-3 w-3" + (company.status === "provisioning" && !company.provisioning_stale ? " animate-spin" : "")} />
                       {status.label}
                     </span>
                   </div>
@@ -421,6 +442,28 @@ export default function ManagementCompaniesPage() {
                     )}
                   </div>
 
+                  {company.status === "provisioning" && !company.provisioning_stale && (
+                    <div className="space-y-2 rounded-2xl border border-emerald-300/20 bg-emerald-400/5 p-3">
+                      <div className="cp-progress" />
+                      <p className="text-xs leading-5 text-emerald-100">تم استلام الدفع — يتم الآن تجهيز قاعدة بيانات الشركة واعتمادها تلقائياً، لحظات وتصبح جاهزة.</p>
+                    </div>
+                  )}
+                  {(company.status === "provisioning_failed" || (company.status === "provisioning" && company.provisioning_stale)) && (
+                    <div className="space-y-2">
+                      <p className="rounded-xl border border-rose-400/25 bg-rose-500/10 px-3 py-2 text-xs leading-5 text-rose-100">
+                        {company.status === "provisioning_failed" ? "تعذّر اعتماد الشركة" : "تأخر اعتماد الشركة"} — الدفع محفوظ ولن يُطلب منك الدفع مرة أخرى.
+                        {company.provisioning_error ? <span className="mt-1 block text-rose-200/80" dir="auto">{company.provisioning_error}</span> : null}
+                      </p>
+                      <button
+                        type="button"
+                        disabled={retryingId !== null}
+                        onClick={(event) => { event.stopPropagation(); void retryProvisioning(company.id) }}
+                        className="cp-btn inline-flex h-10 w-full items-center justify-center gap-2 text-sm font-black text-white"
+                      >
+                        {retryingId === company.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}اعادة المحاولة
+                      </button>
+                    </div>
+                  )}
                   {company.status === "awaiting_payment" && (
                     <button
                       type="button"

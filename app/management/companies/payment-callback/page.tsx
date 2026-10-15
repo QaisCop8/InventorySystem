@@ -34,10 +34,10 @@ function PaymentCallback() {
       if (response.status === 401) { window.location.href = "/management/login"; return }
       if (!response.ok) { setResult({ kind: "error", message: data.error || "تعذّر التحقق من الدفع" }); return }
       if (data.status === "approved") setResult({ kind: "approved", companyName: data.companyName || "" })
-      else if (data.status === "provisioning") {
+      else if (data.status === "provisioning" || data.status === "failed") {
+        // الدفع مؤكَّد والاعتماد يجري بالخلفية ⇒ "شركاتي" تعرض "جاري اعتماد الشركة" (أو "اعادة المحاولة" عند الفشل)
         setResult({ kind: "provisioning" })
-        // طلب آخر يُنشئ القاعدة الآن — إعادة فحص تلقائية لبضع مرات
-        if (attempts.current++ < 10) window.setTimeout(() => void verify(), 4000)
+        window.setTimeout(() => { window.location.href = "/management/companies" }, 1200)
       } else setResult({ kind: "unpaid", message: data.message || "لم تكتمل عملية الدفع" })
     } catch {
       setResult({ kind: "error", message: "تعذّر الاتصال بالخادم" })
