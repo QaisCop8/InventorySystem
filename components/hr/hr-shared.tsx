@@ -20,6 +20,7 @@ import Messages from "@/components/common/Messages"
 import ConfirmDialogYesNo from "@/components/ui/ConfirmDialogYesNo"
 import { Calculator, ImageIcon, Lock, Pencil, Plus, Printer, RefreshCw, Search, Trash2, Unlock, Upload } from "lucide-react"
 import { useWorkspaceTabActive } from "@/contexts/workspace-tab-context"
+import { useNavigationGuard } from "@/lib/navigation-guard"
 
 export type Option = { value: string | number; label: string }
 export type Field = { key: string; label: string; type?: "text" | "number" | "checkbox" | "select" | "date" | "textarea" | "account"; options?: Option[]; required?: boolean; span?: string }
@@ -250,10 +251,33 @@ export function EmployeesPage() {
   })
   const [rows, setRows] = useState<any[]>([]), [lookups, setLookups] = useState<any>({ jobs: [], departments: [], branches: [], exemptions: [] }), [form, setForm] = useState<any>(blank()), [selected, setSelected] = useState<any>(null), [open, setOpen] = useState(false), [saving, setSaving] = useState(false), [search, setSearch] = useState(""), [status, setStatus] = useState("active")
   const messagesRef = useRef<any>(null)
-  const load = useCallback(async () => { const [employeesResponse, lookupsResponse, departmentsResponse, settingsResponse] = await Promise.all([fetch("/api/hr/employees"), fetch("/api/hr/lookups"), fetch("/api/departments"), fetch("/api/settings/system")]); if (employeesResponse.ok) setRows(await employeesResponse.json()); const lookupData = lookupsResponse.ok ? await lookupsResponse.json() : {}; const definitionDepartments = departmentsResponse.ok ? await departmentsResponse.json() : []; const settingsData = settingsResponse.ok ? await settingsResponse.json() : {}; const defaultAccountId = Number(settingsData.default_new_employee_account) || 0; let defaultEmployeeAccountCode = ""; if (defaultAccountId) { const accountResponse = await fetch(`/api/accounts/${defaultAccountId}`); if (accountResponse.ok) { const account = await accountResponse.json(); defaultEmployeeAccountCode = String(account.code || account.account_code || "") } } setLookups({ ...lookupData, departments: definitionDepartments.filter((department: any) => department.is_active !== false), defaultEmployeeAccountCode }) }, []); useEffect(() => { void load() }, [load])
-  const allDefaultExemptions = () => (lookups.exemptions || []).map((item: any) => ({ tax_exemption_id: item.id, exemption_type: "annual", amount: Number(item.annual_amount) || 0 }))
-  const mergeExemptions = (saved: any[] = []) => (lookups.exemptions || []).map((item: any) => { const existing = saved.find(row => Number(row.tax_exemption_id) === Number(item.id)); return existing || { tax_exemption_id: item.id, exemption_type: "annual", amount: Number(item.annual_amount) || 0 } })
-  const normalizeEmployee = (r: any) => ({
+  // القوائم (الإعفاءات، البنود، العملات، قوانين الضريبة...) تُحمَّل من جديد عند كل فتح لنموذج الموظف ويُبنى النموذج منها
+  // مباشرة: سابقاً كانت تُحمَّل مرة واحدة مع الصفحة، فالفتح قبل اكتمال التحميل (أو بعد تعريف إعفاء جديد بشاشة أخرى)
+  // كان يبني النموذج من قوائم فارغة/قديمة — شبكات وقيم افتراضية فارغة حتى الإغلاق وإعادة الفتح.
+  const lookupsRef = useRef<any>(lookups)
+  const lookupsLoadRef = useRef<Promise<any> | null>(null)
+  const loadLookups = useCallback(() => {
+    if (lookupsLoadRef.current) return lookupsLoadRef.current
+    const pending = (async () => {
+      const [lookupsResponse, departmentsResponse, settingsResponse] = await Promise.all([fetch("/api/hr/lookups", { cache: "no-store" }), fetch("/api/departments", { cache: "no-store" }), fetch("/api/settings/system", { cache: "no-store" })])
+      const lookupData = lookupsResponse.ok ? await lookupsResponse.json() : {}
+      const definitionDepartments = departmentsResponse.ok ? await departmentsResponse.json() : []
+      const settingsData = settingsResponse.ok ? await settingsResponse.json() : {}
+      const defaultAccountId = Number(settingsData.default_new_employee_account) || 0
+      let defaultEmployeeAccountCode = ""
+      if (defaultAccountId) { const accountResponse = await fetch(`/api/accounts/${defaultAccountId}`); if (accountResponse.ok) { const account = await accountResponse.json(); defaultEmployeeAccountCode = String(account.code || account.account_code || "") } }
+      const next = { ...lookupData, departments: (Array.isArray(definitionDepartments) ? definitionDepartments : []).filter((department: any) => department.is_active !== false), defaultEmployeeAccountCode }
+      lookupsRef.current = next
+      setLookups(next)
+      return next
+    })().finally(() => { lookupsLoadRef.current = null })
+    lookupsLoadRef.current = pending
+    return pending
+  }, [])
+  const load = useCallback(async () => { const [employeesResponse] = await Promise.all([fetch("/api/hr/employees", { cache: "no-store" }), loadLookups()]); if (employeesResponse.ok) setRows(await employeesResponse.json()) }, [loadLookups]); useEffect(() => { void load() }, [load])
+  const allDefaultExemptions = (source: any = lookupsRef.current) => (source.exemptions || []).map((item: any) => ({ tax_exemption_id: item.id, exemption_type: "annual", amount: Number(item.annual_amount) || 0 }))
+  const mergeExemptions = (saved: any[] = [], source: any = lookupsRef.current) => (source.exemptions || []).map((item: any) => { const existing = saved.find(row => Number(row.tax_exemption_id) === Number(item.id)); return existing || { tax_exemption_id: item.id, exemption_type: "annual", amount: Number(item.annual_amount) || 0 } })
+  const normalizeEmployee = (r: any, lookups: any = lookupsRef.current) => ({
     ...r,
     father_account: r.father_account || "",
     allow_different_currency: r.allow_different_currency ? "1" : "0",
@@ -261,23 +285,90 @@ export function EmployeesPage() {
       const item = (lookups.items || []).find((lookup: any) => Number(lookup.id) === Number(row.salary_item_id))
       return { ...row, salary_item_name: item ? `${item.code} - ${item.name}` : "", amount_edit: String(row.amount ?? 0) }
     }),
-    tax_exemptions: mergeExemptions(r.tax_exemptions || []).map((row: any) => {
+    tax_exemptions: mergeExemptions(r.tax_exemptions || [], lookups).map((row: any) => {
       const exemption = (lookups.exemptions || []).find((lookup: any) => Number(lookup.id) === Number(row.tax_exemption_id))
       return { ...row, tax_exemption_name: exemption?.name || "" }
     }),
     stop_transactions: r.stop_transactions || [],
   })
   const generateEmployeeNumber = async () => { const response = await fetch("/api/hr/employee-number"); if (!response.ok) return ""; return String((await response.json()).employeeNumber || "") }
-  const show = async (r?: any) => { messagesRef.current?.clear?.(); if (r) setForm(normalizeEmployee(r)); else { const employeeCode = await generateEmployeeNumber(); const firstCurrency = lookups.currencies?.[0]?.id || ""; setForm({ ...blank(), employee_code: employeeCode, department_id: lookups.departments?.[0]?.id || "", job_id: lookups.jobs?.[0]?.id || "", salary_currency: firstCurrency, account_currency: firstCurrency, tax_law_id: lookups.taxLaws?.[0]?.id || "", father_account: lookups.defaultEmployeeAccountCode || "", contract_type: "permanent", tax_exemptions: allDefaultExemptions(), stop_transactions: (lookups.voucherTypes || []).map((type: any) => ({ voucher_type_id: type.id, voucher_type_name: type.name, is_stopped: false, stop_date: "" })) }) } setOpen(true) }
+  // ── التحقق من التغييرات غير المحفوظة ──
+  // التغيير يُحسب فقط بعد تفاعل المستخدم داخل النموذج (كتابة/نقر): تبويبات النموذج تعدّل بعض القيم تلقائياً عند الفتح
+  // (أول بند راتب، الإعفاءات الافتراضية...) فتُمتص تلك التعديلات في نقطة المقارنة بدل إظهار "تم تعديل السجل" بلا تعديل.
+  const formHash = (value: any) => JSON.stringify(value ?? null)
+  const baselineRef = useRef("")
+  const userTouchedRef = useRef(false)
+  const formRef = useRef<any>(form)
+  formRef.current = form
+  const [opening, setOpening] = useState(false)
+  const [unsavedOpen, setUnsavedOpen] = useState(false)
+  const pendingActionRef = useRef<(() => void | Promise<void>) | null>(null)
+  const resetBaseline = (value: any) => { baselineRef.current = formHash(value); userTouchedRef.current = false }
+  const applyForm = (value: any) => { setForm(value); resetBaseline(value) }
+  useEffect(() => { if (open && !userTouchedRef.current) baselineRef.current = formHash(form) }, [form, open])
+  useEffect(() => {
+    if (!open) return
+    // تفاعل داخل نافذة النموذج فقط (لا نافذة التأكيد نفسها)
+    // التنقل بين التبويبات ليس تعديلاً (تبويب الراتب يختار أول بند تلقائياً عند فتحه)
+    const markTouched = (event: Event) => { const target = event.target as HTMLElement | null; if (target?.closest?.('[role="dialog"]') && !target.closest('[role="tab"]')) userTouchedRef.current = true }
+    window.addEventListener("keydown", markTouched, true)
+    window.addEventListener("pointerdown", markTouched, true)
+    return () => { window.removeEventListener("keydown", markTouched, true); window.removeEventListener("pointerdown", markTouched, true) }
+  }, [open])
+  const isDirty = () => open && userTouchedRef.current && formHash(formRef.current) !== baselineRef.current
+  const guarded = (action: () => void | Promise<void>) => { if (!isDirty()) { void action(); return } pendingActionRef.current = action; setUnsavedOpen(true) }
+  useNavigationGuard(isDirty, (continueNavigation) => guarded(continueNavigation))
+
+  const show = async (r?: any) => {
+    messagesRef.current?.clear?.()
+    setOpening(true)
+    try {
+      const current = await loadLookups().catch(() => lookupsRef.current)
+      if (r) applyForm(normalizeEmployee(r, current))
+      else {
+        const employeeCode = await generateEmployeeNumber()
+        const firstCurrency = current.currencies?.[0]?.id || ""
+        applyForm({ ...blank(), employee_code: employeeCode, department_id: current.departments?.[0]?.id || "", job_id: current.jobs?.[0]?.id || "", salary_currency: firstCurrency, account_currency: firstCurrency, tax_law_id: current.taxLaws?.[0]?.id || "", father_account: current.defaultEmployeeAccountCode || "", contract_type: "permanent", tax_exemptions: allDefaultExemptions(current), stop_transactions: (current.voucherTypes || []).map((type: any) => ({ voucher_type_id: type.id, voucher_type_name: type.name, is_stopped: false, stop_date: "" })) })
+      }
+      setOpen(true)
+    } finally {
+      setOpening(false)
+    }
+  }
   const adjustEmployeeCode = (value: string) => { const code = value.trim().toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 10); const match = code.match(/^([A-Z]*)(\d+)$/); if (!match) return code; return `${match[1]}${match[2].padStart(Math.max(1, 10 - match[1].length), "0")}`.slice(0, 10) }
-  const handleCodeBlur = async () => { const enteredCode = String(form.employee_code || "").trim().toUpperCase(); if (!enteredCode) { const employeeCode = await generateEmployeeNumber(); setForm((current: any) => ({ ...current, employee_code: employeeCode })); return } const exactEmployee = rows.find(row => String(row.employee_code || "").trim().toUpperCase() === enteredCode); if (exactEmployee) { setForm(normalizeEmployee(exactEmployee)); return } const code = adjustEmployeeCode(enteredCode); const adjustedEmployee = rows.find(row => String(row.employee_code || "").trim().toUpperCase() === code); if (adjustedEmployee) setForm(normalizeEmployee(adjustedEmployee)); else setForm((current: any) => ({ ...current, employee_code: code })) }
+  const handleCodeBlur = async () => { const enteredCode = String(form.employee_code || "").trim().toUpperCase(); if (!enteredCode) { const employeeCode = await generateEmployeeNumber(); setForm((current: any) => ({ ...current, employee_code: employeeCode })); return } const exactEmployee = rows.find(row => String(row.employee_code || "").trim().toUpperCase() === enteredCode); if (exactEmployee) { applyForm(normalizeEmployee(exactEmployee)); return } const code = adjustEmployeeCode(enteredCode); const adjustedEmployee = rows.find(row => String(row.employee_code || "").trim().toUpperCase() === code); if (adjustedEmployee) applyForm(normalizeEmployee(adjustedEmployee)); else setForm((current: any) => ({ ...current, employee_code: code })) }
   const showError = (detail: string) => { messagesRef.current?.clear?.(); messagesRef.current?.show?.([{ severity: "error", summary: "", detail, life: 5000 }]) }
   const validateEmployeeAssignment = () => {
     if (!form.department_id) return "القسم مطلوب"
     if (!form.job_id) return "الوظيفة مطلوبة"
     return ""
   }
-  const save = async () => { if (!form.employee_code || !form.full_name || !form.hire_date || !form.department_id) return showError("رقم الموظف والاسم وتاريخ التعيين والقسم مطلوبة"); if (!form.salary_currency) return showError("عملة الراتب مطلوبة"); const salaryItems = (form.salary_items || []).filter((item: any) => item.salary_item_id); if (!salaryItems.length) return showError("يجب إضافة بند راتب واحد على الأقل"); const seenSalaryItems = new Set<string>(); const duplicateSalaryItemId = salaryItems.map((item: any) => String(item.salary_item_id)).find((id: string) => seenSalaryItems.has(id) || !seenSalaryItems.add(id)); if (duplicateSalaryItemId) { const duplicateItem = (lookups.items || []).find((item: any) => String(item.id) === duplicateSalaryItemId); return showError(`البند - ${duplicateItem?.name || duplicateSalaryItemId} مكرر`) } if (!form.tax_law_id) return showError("قانون الضريبة مطلوب"); if (!form.father_account_code) return showError("حساب الأب مطلوب"); if (!form.account_currency) return showError("عملة الحساب مطلوبة"); setSaving(true); const r = await fetch("/api/hr/employees", { method: form.id ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) }); if (r.ok) { await load(); setOpen(false) } else showError((await r.json()).error || "تعذر الحفظ"); setSaving(false) }
+  // close=false: الحفظ من نافذة "تم تعديل السجل" قبل جديد/تنقّل — يبقى النموذج مفتوحاً ويُكمل الإجراء المؤجَّل. يُرجع نجاح الحفظ.
+  const save = async ({ close = true }: { close?: boolean } = {}): Promise<boolean> => {
+    const form = formRef.current
+    const fail = (message: string) => { showError(message); return false }
+    if (!form.employee_code || !form.full_name || !form.hire_date || !form.department_id) return fail("رقم الموظف والاسم وتاريخ التعيين والقسم مطلوبة")
+    if (!form.salary_currency) return fail("عملة الراتب مطلوبة")
+    const salaryItems = (form.salary_items || []).filter((item: any) => item.salary_item_id)
+    if (!salaryItems.length) return fail("يجب إضافة بند راتب واحد على الأقل")
+    const seenSalaryItems = new Set<string>()
+    const duplicateSalaryItemId = salaryItems.map((item: any) => String(item.salary_item_id)).find((id: string) => seenSalaryItems.has(id) || !seenSalaryItems.add(id))
+    if (duplicateSalaryItemId) { const duplicateItem = (lookups.items || []).find((item: any) => String(item.id) === duplicateSalaryItemId); return fail(`البند - ${duplicateItem?.name || duplicateSalaryItemId} مكرر`) }
+    if (!form.tax_law_id) return fail("قانون الضريبة مطلوب")
+    if (!form.father_account_code) return fail("حساب الأب مطلوب")
+    if (!form.account_currency) return fail("عملة الحساب مطلوبة")
+    setSaving(true)
+    try {
+      const r = await fetch("/api/hr/employees", { method: form.id ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) })
+      if (!r.ok) return fail((await r.json().catch(() => ({}))).error || "تعذر الحفظ")
+      resetBaseline(form)
+      await load()
+      if (close) setOpen(false)
+      return true
+    } finally {
+      setSaving(false)
+    }
+  }
   const remove = async () => { if (!(Number(form.id) > 0)) return; setSaving(true); const response = await fetch(`/api/hr/employees?id=${form.id}`, { method: "DELETE" }); if (response.ok) { await load(); setOpen(false); setSelected(null) } else showError((await response.json()).error || "تعذر حذف الموظف"); setSaving(false) }
   const opts = (items: any[], name: string): Option[] => items.map(x => ({ value: x.id, label: x[name] }))
   const fields: Field[] = [{ key: "employee_code", label: "رقم الموظف", required: true }, { key: "full_name", label: "اسم الموظف", required: true, span: "sm:col-span-2" }, { key: "device_user_id", label: "رقم الكرت عند الجهاز", span: "sm:col-span-2" }, { key: "national_id", label: "رقم الهوية" }, { key: "department_id", label: "القسم", type: "select", required: true, options: opts(lookups.departments, "department_name") }, { key: "job_id", label: "الوظيفة", type: "select", options: opts(lookups.jobs, "name") }, { key: "branch_id", label: "الفرع", type: "select", options: opts(lookups.branches, "branch_name") }, { key: "tax_exemption_id", label: "الإعفاء الضريبي", type: "select", options: opts(lookups.exemptions, "name") }, { key: "hire_date", label: "تاريخ التعيين", type: "date", required: true }, { key: "birth_date", label: "تاريخ الميلاد", type: "date" }, { key: "end_date", label: "انتهاء الخدمة", type: "date" }, { key: "status", label: "الحالة", type: "select", options: [{ value: 1, label: "على رأس العمل" }, { value: 2, label: "منتهي الخدمة" }] }, { key: "salary_type", label: "نوع الراتب", type: "select", options: [{ value: "monthly", label: "شهري" }, { value: "daily", label: "يومي" }, { value: "hourly", label: "بالساعة" }] }, { key: "basic_salary", label: "الراتب الأساسي", type: "number" }, { key: "bank_account", label: "الحساب البنكي" }, { key: "gender", label: "الجنس", type: "select", options: [{ value: "male", label: "ذكر" }, { value: "female", label: "أنثى" }] }, { key: "phone", label: "الهاتف" }, { key: "email", label: "البريد الإلكتروني" }, { key: "address", label: "العنوان", span: "sm:col-span-2" }, { key: "notes", label: "ملاحظات", type: "textarea", span: "sm:col-span-2 lg:col-span-4" }]
@@ -294,7 +385,36 @@ export function EmployeesPage() {
   ]
   const filtered = rows.filter(r => (status === "all" || (status === "active" ? r.status === 1 : r.status !== 1)) && `${r.employee_code} ${r.full_name} ${r.department_name || ""} ${r.job_name || ""}`.toLowerCase().includes(search.toLowerCase()))
   const columns: Column[] = [{ key: "employee_code", label: "الرقم", width: 110 }, { key: "full_name", label: "اسم الموظف" }, { key: "device_user_id", label: "رقم الكرت", width: 140 }, { key: "department_name", label: "القسم" }, { key: "job_name", label: "الوظيفة" }, { key: "basic_salary", label: "الراتب الأساسي", format: money }, { key: "phone", label: "الهاتف" }, { key: "status", label: "الحالة", format: v => v === 1 ? "على رأس العمل" : "منتهي الخدمة" }]
-  return <HrPage title="الموظفين" subtitle="ملفات الموظفين والبيانات الوظيفية والمالية"><ListActions onNew={() => void show()} onEdit={() => selected && void show(selected)} onRefresh={load} onPrint={() => void printReportFrom(document.activeElement as HTMLElement | null)} /><FilterBar search={search} onSearch={setSearch} status={status} onStatus={setStatus} count={filtered.length} /><Grid rows={filtered} columns={columns} onSelect={setSelected} onDoubleClick={row => void show(row)} /><RecordDialog open={open} title="تعريف الموظف" rows={rows} form={form} fields={fields} tabs={tabs} lookups={lookups} saving={saving} onOpenChange={setOpen} onChange={setForm} onNavigate={row => setForm(normalizeEmployee(row))} onCodeBlur={() => void handleCodeBlur()} onSalaryItemCreated={item => setLookups((current: any) => ({ ...current, items: [...(current.items || []), item] }))} onTaxExemptionCreated={item => setLookups((current: any) => ({ ...current, exemptions: [...(current.exemptions || []), item] }))} messagesRef={messagesRef} onNew={() => void show()} onSave={save} onDelete={() => void remove()} /></HrPage>
+  return <HrPage title="الموظفين" subtitle="ملفات الموظفين والبيانات الوظيفية والمالية"><ListActions onNew={() => void show()} onEdit={() => selected && void show(selected)} onRefresh={load} onPrint={() => void printReportFrom(document.activeElement as HTMLElement | null)} /><FilterBar search={search} onSearch={setSearch} status={status} onStatus={setStatus} count={filtered.length} /><Grid rows={filtered} columns={columns} onSelect={setSelected} onDoubleClick={row => void show(row)} /><RecordDialog open={open} title="تعريف الموظف" rows={rows} form={form} fields={fields} tabs={tabs} lookups={lookups} saving={saving || opening}
+      onOpenChange={value => { if (value) setOpen(true); else guarded(() => setOpen(false)) }}
+      onChange={setForm}
+      onNavigate={row => guarded(() => applyForm(normalizeEmployee(row)))}
+      onCodeBlur={() => void handleCodeBlur()}
+      onSalaryItemCreated={item => setLookups((current: any) => { const next = { ...current, items: [...(current.items || []), item] }; lookupsRef.current = next; return next })}
+      onTaxExemptionCreated={item => setLookups((current: any) => { const next = { ...current, exemptions: [...(current.exemptions || []), item] }; lookupsRef.current = next; return next })}
+      messagesRef={messagesRef} onNew={() => guarded(() => show())} onSave={() => void save()} onDelete={() => void remove()} />
+    <ConfirmDialogYesNo
+      useAppDialog
+      visible={unsavedOpen}
+      title="حفظ التعديلات"
+      message="تم تعديل السجل هل تريد الحفظ؟"
+      onConfirm={async () => {
+        // نعم: حفظ ثم متابعة الإجراء المؤجَّل — فقط إن نجح الحفظ (وإلا يبقى المستخدم على سجله مع رسالة الخطأ)
+        const action = pendingActionRef.current
+        pendingActionRef.current = null
+        setUnsavedOpen(false)
+        if (await save({ close: false }) && action) await action()
+      }}
+      onCancel={async () => {
+        // لا: متابعة الإجراء دون حفظ
+        const action = pendingActionRef.current
+        pendingActionRef.current = null
+        setUnsavedOpen(false)
+        resetBaseline(formRef.current)
+        if (action) await action()
+      }}
+      onBack={() => { pendingActionRef.current = null; setUnsavedOpen(false) }}
+    /></HrPage>
 }
 
 export function EmployeeSalaryItemsPage() {

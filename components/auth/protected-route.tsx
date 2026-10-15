@@ -2,44 +2,28 @@
 
 import type React from "react"
 
-import { useEffect, useState } from "react"
+import { useEffect } from "react"
 import { useAuth } from "./auth-context"
-import { LoginPage } from "./login-page"
 
 interface ProtectedRouteProps {
   children: React.ReactNode
   requiredPermission?: string
 }
 
+// بلا جلسة ERP يُحوَّل المستخدم دائماً إلى مسار الإدارة: "شركاتي" (إن كانت جلسة الإدارة سارية يختار الشركة مباشرة، وإلا
+// تحوّله تلك الصفحة لتسجيل دخول الإدارة). كان يُعرض سابقاً نموذج دخول الشركة القديم (LoginPage) لمتصفح يتذكر شركة
+// اختيرت سابقاً — لكنه يطلب اسم مستخدم/كلمة مرور داخل قاعدة الشركة، ومستخدمو المنصة يدخلون بالبريد عبر الإدارة ثم
+// يفتحون الشركة، فكان الدخول منه يفشل (خاصة على الجوال الذي فُتح عليه النظام سابقاً) ويظهر بتصميم قديم.
 export function ProtectedRoute({ children, requiredPermission }: ProtectedRouteProps) {
-  const { isAuthenticated, hasPermission, login, isLoading } = useAuth()
-  // شركة سبق اختيارها لهذا التبويب تحديداً (sessionStorage) أو لتبويب آخر بنفس المتصفح
-  // (localStorage، تُقرأ هنا كاحتياط فقط) — إن وُجدت بلا جلسة ERP مطابقة (فشل تسجيل الدخول
-  // التلقائي بالبريد)، نعرض نموذج دخول هذه الشركة بعينها بدل تحويل المستخدم بلا داعٍ لتسجيل دخول
-  // الإدارة الذي أتى منه أصلاً. بلا أي شركة مُختارة إطلاقاً (لا لهذا التبويب ولا لأي تبويب آخر بنفس
-  // المتصفح) — كزيارة مباشرة لـ"/" بلا مرور بشركاتي على متصفح جديد كلياً — الوجهة الوحيدة هي تسجيل
-  // دخول الإدارة. الاعتماد على sessionStorage فقط هنا كان يُحوِّل أي تبويب جديد (رابط فُتح بتبويب
-  // جديد مثلاً) لتسجيل الدخول خطأً رغم وجود جلسة صالحة فعلياً في تبويب آخر من نفس المتصفح.
-  // null = لم يُفحص التخزين بعد. كانت القيمة الابتدائية false، فيرى مؤثر التحويل أدناه false القديمة في نفس الدورة
-  // التي يضبطها فيها المؤثر الأول true: يبدأ التحويل لدخول الإدارة بينما يُعرض نموذج دخول الشركة للحظة (وميض "الدخول
-  // القديم" ثم دخول الإدارة). لا قرار قبل معرفة القيمة الفعلية.
-  const [hasSelectedCompany, setHasSelectedCompany] = useState<boolean | null>(null)
-
-  // يُعاد فحصها أيضاً عند تبدّل isAuthenticated (لا مرة واحدة فقط عند التركيب) — logout() يمسح
-  // active_tenant_db من كلا التخزينين، فبلا إعادة الفحص هنا تبقى هذه القيمة "true" من آخر تحميل
-  // للصفحة فيومض نموذج الدخول المحلي (LoginPage بالأسفل) للحظة قبل أن يكتمل التحويل الفعلي لتسجيل
-  // دخول الإدارة.
-  useEffect(() => {
-    setHasSelectedCompany(!!sessionStorage.getItem("active_tenant_db") || !!localStorage.getItem("active_tenant_db"))
-  }, [isAuthenticated])
+  const { isAuthenticated, hasPermission, isLoading } = useAuth()
 
   useEffect(() => {
-    if (!isLoading && !isAuthenticated && hasSelectedCompany === false) {
-      window.location.href = "/management/login"
+    if (!isLoading && !isAuthenticated) {
+      window.location.replace("/management/companies")
     }
-  }, [isLoading, isAuthenticated, hasSelectedCompany])
+  }, [isLoading, isAuthenticated])
 
-  if (isLoading || (!isAuthenticated && hasSelectedCompany === null)) {
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-blue-50 to-emerald-100 flex items-center justify-center">
         <div className="text-center space-y-4">
@@ -51,19 +35,11 @@ export function ProtectedRoute({ children, requiredPermission }: ProtectedRouteP
     )
   }
 
-  if (!isAuthenticated && hasSelectedCompany) {
-    return (
-      <div className="min-h-screen">
-        <LoginPage onLogin={login} />
-      </div>
-    )
-  }
-
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 flex items-center justify-center">
+      <div className="min-h-screen bg-[#050b14] flex items-center justify-center">
         <div className="text-center space-y-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-violet-400 mx-auto"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-400 mx-auto"></div>
           <p className="text-slate-300 text-lg">جاري التحويل إلى تسجيل الدخول...</p>
         </div>
       </div>
