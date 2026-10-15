@@ -4,7 +4,7 @@ import { z } from "zod"
 import sql from "@/lib/database"
 import { paymentSchema, paymentPrompt, resolveReceiptPayments } from "@/lib/ai-receipt-payments"
 import { getSystemSettingValue } from "@/lib/system-settings"
-import { geminiModel } from "@/lib/ai-model"
+import { aiCallOptions, geminiModel } from "@/lib/ai-model"
 
 const draftSchema = z.object({
   intent: z.enum(["create_receipt", "create_payment", "other"]),
@@ -145,8 +145,15 @@ export async function POST(request: Request) {
     const voucherWords = /(?:سند|قبض|قبص|اقبض|استلم|صرف|اصرف|ادفع|دفع|دفعنا|receipt|payment)/i
     if (!local.intent && !voucherWords.test(normalizeArabicText(commandText))) return Response.json({ type: "other" })
     let ai: z.infer<typeof draftSchema> | null = null
-    try {
+    // أمر واضح فهمه المحلّل المحلي كاملاً (نوع السند + الحساب + المبلغ، نقدي، بلا تاريخ/ملاحظة) ⇐ لا حاجة لـGemini:
+    // يُوفّر استدعاء النموذج بالكامل (عدة ثوانٍ) لأكثر الأوامر شيوعاً مثل "قبض من الزبون هدايا 250 شيكل".
+    const normalizedForFastPath = normalizeArabicText(toEnglishDigits(commandText))
+    const needsAi = !local.intent || !local.account || !local.amount
+      || mentionsChequePayment(normalizedForFastPath) || mentionsCardPayment(normalizedForFastPath)
+      || /(?:تاريخ|بتاريخ|امس|اليوم|غدا|ملاحظه|ملاحظة|مقابل|بدل|عن\s|سبب|دفعه|قسط)/i.test(normalizedForFastPath)
+    if (needsAi) try {
       const result = await generateText({
+        ...aiCallOptions(geminiModel()),
         model: google(geminiModel()),
         system: `حلل رسالة المستخدم كاملة بالعربية أو الإنجليزية، بما فيها العامية وترتيب الكلمات المختلف. أعد JSON فقط بلا markdown.
 intent: "create_receipt" عندما يطلب إنشاء سند قبض أو تسجيل مبلغ مستلم، وكلمة "قبض" وحدها تعامل مثل "سند قبض". intent: "create_payment" عندما يطلب إنشاء سند صرف أو تسجيل مبلغ مدفوع. الأسئلة والبحث والأمثلة والنفي أعد لها "other".

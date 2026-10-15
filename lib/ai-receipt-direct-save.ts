@@ -36,6 +36,22 @@ const getJson = async (url: string) => {
   return response.ok ? response.json() : null
 }
 
+// دفاتر المستخدم/العملات/الحسابات الافتراضية لا تتغير بين سند وآخر — تُحفظ دقيقة واحدة بدل 3 طلبات مع كل سند
+const lookupCache = new Map<string, { at: number; value: Promise<any> }>()
+const cachedJson = (url: string) => {
+  const hit = lookupCache.get(url)
+  if (hit && Date.now() - hit.at < 60_000) return hit.value
+  const value = getJson(url).then((data) => {
+    if (data == null) lookupCache.delete(url)
+    return data
+  }, (error) => {
+    lookupCache.delete(url)
+    throw error
+  })
+  lookupCache.set(url, { at: Date.now(), value })
+  return value
+}
+
 export async function saveAIReceiptDraft(
   draft: AIReceiptDraftPayload,
   context: { userId?: string | number | null; branchId?: number | string | null },
@@ -50,9 +66,9 @@ export async function saveAIReceiptDraft(
 
   try {
     const [books, currencies, accountDefaults] = await Promise.all([
-      getJson(`/api/receipts/voucher-books?vch_type=${voucherType}&user_id=${encodeURIComponent(userId)}`),
-      getJson("/api/exchange-rates"),
-      getJson(`/api/settings/users-currencies-default?user_id=${encodeURIComponent(userId)}&branch_id=${branchId}`),
+      cachedJson(`/api/receipts/voucher-books?vch_type=${voucherType}&user_id=${encodeURIComponent(userId)}`),
+      cachedJson("/api/exchange-rates"),
+      cachedJson(`/api/settings/users-currencies-default?user_id=${encodeURIComponent(userId)}&branch_id=${branchId}`),
     ])
 
     const bookList: any[] = Array.isArray(books?.books) ? books.books : []
@@ -65,14 +81,19 @@ export async function saveAIReceiptDraft(
     const currencyId = positiveId(draft.currency_id) ?? baseCurrencyId
     if (!currencyId) return fail("لا توجد عملة معرفة في النظام")
 
+    // سعر الصرف ورقم السند مستقلان ⇐ يُطلبان معاً
+    const [lookup, codeData] = await Promise.all([
+      currencyId !== baseCurrencyId
+        ? getJson(`/api/exchange-rates/lookup?${new URLSearchParams({ currency_id: String(currencyId), date: draft.vch_date || "" })}`)
+        : Promise.resolve(null),
+      getJson(`/api/receipts/generate-number?vch_type=${voucherType}&vch_book_id=${bookId}&branch_id=${branchId}`),
+    ])
     let rate = 1
     if (currencyId !== baseCurrencyId) {
-      const lookup = await getJson(`/api/exchange-rates/lookup?${new URLSearchParams({ currency_id: String(currencyId), date: draft.vch_date || "" })}`)
       rate = Number(lookup?.rate) > 0 ? Number(lookup.rate) : 0
       if (!rate) return fail("لا يوجد سعر صرف معرف لعملة السند بتاريخه")
     }
 
-    const codeData = await getJson(`/api/receipts/generate-number?vch_type=${voucherType}&vch_book_id=${bookId}&branch_id=${branchId}`)
     const code = String(codeData?.code || "")
     if (!code) return fail("تعذر توليد رقم السند")
 

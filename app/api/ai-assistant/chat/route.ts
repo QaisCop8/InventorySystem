@@ -2,7 +2,7 @@ import { stepCountIs, streamText, tool } from "ai"
 import { google } from "@ai-sdk/google"
 import { z } from "zod"
 import sql from "@/lib/database"
-import { geminiModel } from "@/lib/ai-model"
+import { aiCallOptions, geminiModel } from "@/lib/ai-model"
 export async function POST(request: Request) {
   try {
     if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
@@ -11,6 +11,8 @@ export async function POST(request: Request) {
     const { messages } = await request.json()
 
     const result = streamText({
+      // تفكير منخفض + مهلة 45 ثانية: الرد يبدأ أسرع ولا يبقى المستخدم معلّقاً عند انشغال الخدمة
+      ...aiCallOptions(geminiModel(), { thinking: "low", timeoutMs: 45_000 }),
       model: google(geminiModel()),
       messages,
       system: `أنت مساعد ذكي لنظام ERP عربي متقدم. اسمك "مساعد النظام الذكي".

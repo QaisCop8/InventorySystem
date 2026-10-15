@@ -244,12 +244,14 @@ export function AIChat() {
     const commandText = options?.command || suggested || messageText
 
     try {
-      const draftResponse = await fetch("/api/ai-assistant/receipt-draft", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ command: commandText }),
-        })
-      const draftData = await draftResponse.json()
+      // تحليل السند وتحليل الطلبية يعملان بالتوازي (كانا متتاليين: انتظار الأول كاملاً ثم بدء الثاني)، مع مهلة
+      // قصوى لكل منهما حتى لا يبقى "جاري معالجة طلبك" معلّقاً عند انشغال خدمة الذكاء الاصطناعي.
+      const postJson = (url: string, body: unknown, timeoutMs: number) =>
+        fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal: AbortSignal.timeout(timeoutMs) })
+          .then(async (response) => ({ response, data: await response.json().catch(() => ({})) }))
+      const orderDraftPromise = postJson("/api/ai-assistant/order-draft", { command: commandText, active_branch_id: activeBranchId, user_id: user?.id }, 30_000)
+      orderDraftPromise.catch(() => undefined)
+      const { response: draftResponse, data: draftData } = await postJson("/api/ai-assistant/receipt-draft", { command: commandText }, 30_000)
       if (!draftResponse.ok && draftData.code === "CUSTOMER_NOT_FOUND") {
         setPendingCustomer({ command: commandText, customer_name: draftData.customer_name, voucher_type: draftData.voucher_type, document_kind: "voucher" })
         pushAssistant({ content: `العميل "${draftData.customer_name}" غير موجود في النظام. هل تريد تعريف العميل ثم إدخال ${draftData.voucher_type === 5 ? "سند الصرف" : "سند القبض"}؟` })
@@ -284,12 +286,7 @@ export function AIChat() {
         }
         return
       }
-      const orderDraftResponse = await fetch("/api/ai-assistant/order-draft", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ command: commandText, active_branch_id: activeBranchId, user_id: user?.id }),
-      })
-      const orderDraftData = await orderDraftResponse.json()
+      const { response: orderDraftResponse, data: orderDraftData } = await orderDraftPromise
       if (!orderDraftResponse.ok && orderDraftData.code === "CUSTOMER_NOT_FOUND") {
         setPendingCustomer({ command: commandText, customer_name: orderDraftData.customer_name, voucher_type: 4,
           document_kind: "sales_draft", active_branch_id: Number(activeBranchId), user_id: Number(user?.id) })
@@ -310,6 +307,7 @@ export function AIChat() {
       }
       const response = await fetch("/api/ai-assistant/chat", {
         method: "POST",
+        signal: AbortSignal.timeout(60_000),
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           messages: [...messages, userMessage].map((m) => ({
@@ -350,7 +348,9 @@ export function AIChat() {
       console.error("[v0] AI Chat error:", error)
       pushAssistant({
         kind: "error",
-        content: error instanceof Error && error.message.includes("GOOGLE_GENERATIVE_AI_API_KEY")
+        content: error instanceof DOMException && (error.name === "TimeoutError" || error.name === "AbortError")
+          ? "تأخرت خدمة الذكاء الاصطناعي في الرد (قد تكون مشغولة الآن). أعد إرسال الطلب بعد لحظات."
+          : error instanceof Error && error.message.includes("GOOGLE_GENERATIVE_AI_API_KEY")
           ? "لم يتم إعداد مفتاح Gemini. أضف GOOGLE_GENERATIVE_AI_API_KEY إلى ملف .env.local ثم أعد تشغيل الخادم."
           : error instanceof Error ? error.message : "عذراً، حدث خطأ في الاتصال. الرجاء المحاولة مرة أخرى.",
       })

@@ -1,4 +1,5 @@
 import { generateText, Output } from "ai"
+import { aiCallOptions } from "@/lib/ai-model"
 import { google } from "@ai-sdk/google"
 import { z } from "zod"
 import sql from "@/lib/database"
@@ -142,13 +143,13 @@ items: لكل صنف product وquantity (رقم موجب) وprice وdiscount إ�
         let raw: unknown
         try {
           // إخراج منظَّم وفق المخطط (أدق) …
-          const { output } = await generateText({ model: google(modelName), output: Output.object({ schema }), instructions, prompt: text })
+          const { output } = await generateText({ ...aiCallOptions(modelName), model: google(modelName), output: Output.object({ schema }), instructions, prompt: text })
           raw = output
         } catch (structuredError) {
           if (isTemporaryAiError(structuredError)) throw structuredError
           // … وإن رُفض المخطط أو فشل التوليد المنظَّم: نص JSON عادي كالسابق
           console.error("AI order draft: structured output failed, retrying as text", structuredError)
-          const generated = await generateText({ model: google(modelName), instructions: `${instructions}\nأعد JSON فقط بالحقول: intent, customer, order_date, delivery_date, deposit_amount, notes, priority, source_warehouse, destination_branch, destination_warehouse, items.`, prompt: text })
+          const generated = await generateText({ ...aiCallOptions(modelName), model: google(modelName), instructions: `${instructions}\nأعد JSON فقط بالحقول: intent, customer, order_date, delivery_date, deposit_amount, notes, priority, source_warehouse, destination_branch, destination_warehouse, items.`, prompt: text })
           const clean = generated.text.trim().replace(/^```(?:json)?/i, "").replace(/```$/, "").trim()
           raw = JSON.parse(clean.slice(clean.indexOf("{"), clean.lastIndexOf("}") + 1))
         }

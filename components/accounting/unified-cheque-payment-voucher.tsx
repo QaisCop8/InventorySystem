@@ -120,7 +120,17 @@ export default function UnifiedChequePaymentVoucher() {
     const openRecord = async (id: number) => { setLoading(true); try { const response = await fetch(`/api/cheque-payment-vouchers/${id}`); const data = await response.json(); if (!response.ok) throw new Error(data.error); setForm({ ...data, cheques: data.cheques || [] }); setCurrentIndex(Math.max(0, rows.findIndex(row => Number(row.id) === id))); setDialogOpen(true) } catch (reason) { setError(reason instanceof Error ? reason.message : "تعذر عرض السند") } finally { setLoading(false) } }
     const generateCode = async (bookId: number, branchId: number | null = null) => { try { const response = await fetch(`/api/cheque-payment-vouchers/generate-number?vch_book_id=${bookId}${branchId ? `&branch_id=${branchId}` : ""}`); const data = await response.json(); if (!response.ok || !data.code) { setError(data.error || "تعذر توليد رقم السند"); return } setForm(current => ({ ...current, vch_book_id: bookId, vch_code: data.code })) } catch { setError("تعذر توليد رقم السند") } }
     const handleBookChange = (value: number | null) => { setForm(current => ({ ...current, vch_book_id: value, vch_code: "" })); if (value && !form.id) void generateCode(value, form.branch_id) }
-    const newRecord = async () => { setError(""); const bookId = defaultBookId || voucherBooks[0]?.id || null; setForm({ ...emptyForm, vch_date: today(), vch_book_id: bookId, branch_id: meta.branches[0]?.id || null }); setCurrentIndex(rows.length); setDialogOpen(true); if (!bookId) { setError("لا يوجد دفتر سندات مصرح به لسند صرف الشيكات"); return } await generateCode(bookId, meta.branches[0]?.id || null) }
+    // التركيز على تاريخ السند عند فتح الشاشة وعند "جديد" — يُعاد المحاولة لحظياً حتى يُرسم الحقل مفعّلاً (سجل جديد)
+    const focusDate = () => {
+        let attempts = 0
+        const tryFocus = () => {
+            const input = document.getElementById("cheque-payment-date") as HTMLInputElement | null
+            if (input && !input.disabled) { input.focus(); return }
+            if (++attempts < 10) window.setTimeout(tryFocus, 50)
+        }
+        window.setTimeout(tryFocus, 0)
+    }
+    const newRecord = async () => { setError(""); focusDate(); const bookId = defaultBookId || voucherBooks[0]?.id || null; setForm({ ...emptyForm, vch_date: today(), vch_book_id: bookId, branch_id: meta.branches[0]?.id || null }); setCurrentIndex(rows.length); setDialogOpen(true); if (!bookId) { setError("لا يوجد دفتر سندات مصرح به لسند صرف الشيكات"); return } await generateCode(bookId, meta.branches[0]?.id || null) }
     useVoucherDeepLink(openRecord, true, 21)
     const navigationPending = useRef(false)
     const navigate = async (direction: "first" | "previous" | "next" | "last") => {
@@ -188,18 +198,20 @@ export default function UnifiedChequePaymentVoucher() {
             <Dialog open={dialogOpen} onOpenChange={open => { if (open) { if (!saving) setDialogOpen(true) } else requestClose() }}>
                 <DialogContent
                     hideCloseButton
+                    onOpenAutoFocus={event => { event.preventDefault(); focusDate() }}
                     onPointerDownOutside={event => event.preventDefault()}
                     onInteractOutside={event => event.preventDefault()}
                     onEscapeKeyDown={event => { keepDialogOpenOnEscape(event, [closeConfirm, deleteConfirm, postDialogOpen, searchOpen, voucherSearchOpen, saving]) }}
                     dir="rtl"
                     className={`cheque-payment-editor flex h-[94dvh] max-h-[calc(100%-1rem)] w-[calc(100%-1rem)] max-w-[1360px] flex-col gap-0 overflow-hidden rounded-2xl border-slate-200 bg-slate-50 p-0 ${fullscreenEnabled ? "cheque-payment-fullscreen" : ""}`}
                 >
-                    <div className="flex shrink-0 items-center justify-between gap-4 border-b border-emerald-100 bg-white px-4 py-4 sm:px-6">
-                        <DialogHeader className="min-w-0 text-right"><DialogTitle className="flex flex-wrap items-center gap-2 text-lg font-black text-slate-900"><FileCheck2 className="h-5 w-5 text-emerald-700" />سند صرف شيكات<span className={Number(form.status) === 3 ? "rounded-full bg-red-600 px-4 py-1 text-base font-extrabold text-white shadow-lg ring-2 ring-red-200" : "rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700"}>{Number(form.status) === 3 ? "ملغي منطقياً" : statusLabel}</span></DialogTitle></DialogHeader>
-                        <Button type="button" size="icon" variant="ghost" disabled={saving} onClick={requestClose} aria-label="إغلاق سند صرف الشيكات" className="shrink-0 rounded-full text-slate-500"><X className="h-5 w-5" /></Button>
-                    </div>
-                    <div className="shrink-0 border-b bg-white px-2">
+                    {/* شريط الأدوات أعلى النافذة كبقية شاشات الحركات، وزر الإغلاق عائم أعلى اليسار */}
+                    <Button type="button" size="icon" variant="ghost" disabled={saving} onClick={requestClose} aria-label="إغلاق سند صرف الشيكات" className="universal-dialog-close absolute left-[14px] top-[10px] z-[100] h-10 w-10 rounded-full bg-white/95 text-slate-900 shadow-lg ring-1 ring-slate-200 hover:opacity-80"><X className="h-5 w-5" /></Button>
+                    <div className="shrink-0 border-b bg-white px-2 pl-16">
                         <UniversalToolbar currentRecord={currentIndex + 1} totalRecords={rows.length} onNew={newRecord} onSave={() => setPostDialogOpen(true)} onDelete={form.id ? remove : undefined} onFirst={() => navigate("first")} onPrevious={() => navigate("previous")} onNext={() => navigate("next")} onLast={() => navigate("last")} isLoading={loading} isSaving={saving} canSave={form.status === 1} canDelete={!!form.id} isNewRecord={!form.id} hotkeys={{ new: !form.id && !saving && !loading ? () => setSearchOpen(true) : null }} labels={{ new: "جديد", save: "حفظ", previous: "السابق", next: "التالي", first: "الأول", last: "الأخير", delete: "حذف", report: "استعلام", exportExcel: "تصدير إكسل", print: "طباعة", clone: "نسخ" }} />
+                    </div>
+                    <div className="flex shrink-0 items-center gap-4 border-b border-emerald-100 bg-white px-4 py-3 sm:px-6">
+                        <DialogHeader className="min-w-0 text-right"><DialogTitle className="flex flex-wrap items-center gap-2 text-lg font-black text-slate-900"><FileCheck2 className="h-5 w-5 text-emerald-700" />سند صرف شيكات<span className={Number(form.status) === 3 ? "rounded-full bg-red-600 px-4 py-1 text-base font-extrabold text-white shadow-lg ring-2 ring-red-200" : "rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700"}>{Number(form.status) === 3 ? "ملغي منطقياً" : statusLabel}</span></DialogTitle></DialogHeader>
                     </div>
                     <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-3 sm:p-5">
                         {error && <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
